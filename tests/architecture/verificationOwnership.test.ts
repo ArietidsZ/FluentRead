@@ -170,12 +170,12 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/app/background/badgeRuntime.ts',
     // 共享真值查询绑定 browser.tabs.sendMessage 回源，是从 contextMenuRuntime 下沉的浏览器消息封装；由右键菜单与角标功能测试及双浏览器构建验证。
     'src/app/background/tabTranslationQuery.ts',
-    // 右键菜单标题只做纯资源适配；由 i18n 单测与双浏览器构建验证。
-    'src/app/background/contextMenuUi.ts',
     // 视频字幕菜单文案只绑定已拥有的播放器 DOM；由视频单测与双浏览器构建验证。
     'src/features/video-subtitle/content/ui.ts',
     // 后台消息 composition 只把 provider、feature handler 与 browser API 静态注入；各 handler/路由均已严格覆盖。
     'src/app/background/messageRuntime.ts',
+    // 圈选 composition 仅从消息总入口拆出截图、裁剪和翻译依赖接线；纯路由/事务严格覆盖，并有真实浏览器专项。
+    'src/app/background/areaRuntime.ts',
     // 配置存储 runtime 只把真实 browser/configStorage API 注入严格覆盖的广播策略和 OCR 仓库。
     'src/app/background/configStorageRuntime.ts',
     // 配置消息 composition 只将保存、计数、历史和备份 handler 接入同一 mutation 队列；各 handler 与队列均有功能测试。

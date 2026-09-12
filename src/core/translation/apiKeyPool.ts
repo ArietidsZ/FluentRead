@@ -109,7 +109,7 @@ export function classifyApiKeyFailure(input: ApiKeyFailureInput): ApiKeyFailureC
     || /\b(?:api[ _-]?key|access token|auth token)\b.*\b(?:invalid|not valid|expired)\b|\b(?:invalid|expired)\b.*\b(?:api[ _-]?key|access token|auth token)\b|\btoken (?:is )?(?:invalid|not valid|expired)\b|\b(?:invalid|expired) token(?:[.!,:;]|$)/.test(message)) return 'cooldown';
   if (kind === 'config') return 'none';
   if (kind === 'auth' || kind === 'quota' || kind === 'rate-limit') return 'cooldown';
-  if (code.includes('auth') || code.includes('quota') || code.includes('rate')) return 'cooldown';
+  if (/(^|[_-])(auth(?:entication|orization)?|quota|rate(?:[_-]?limit)?)([_-]|$)/.test(code)) return 'cooldown';
   if (input.statusCode === 401 || input.statusCode === 403 || input.statusCode === 429) return 'cooldown';
   if (kind === 'transient' || kind === 'network' || kind === 'server') return 'penalty';
   if (input.statusCode === 408 || input.statusCode === 425 || (input.statusCode !== undefined && input.statusCode >= 500)) return 'penalty';

@@ -76,7 +76,7 @@ const githubComposer = `<div data-testid="comment-composer">
 </div>`;
 
 describe('Writing editor native action ownership', () => {
-    it('recognizes the nameless React issue composer and anchors before its disabled Comment button', () => {
+    it('recognizes the nameless React issue composer and locates its disabled Comment button', () => {
         const doc = page(`<main>${githubComposer}</main><nav><textarea></textarea></nav>
           <div data-fluent-read-ui="writing"><textarea name="comment[body]"></textarea></div>`);
         const editors = findReplyEditors(doc, 'github');
@@ -85,10 +85,6 @@ describe('Writing editor native action ownership', () => {
         const anchor = findReplyActionAnchor(editors[0], 'github')!;
         expect(anchor.textContent).toBe('Comment');
         expect(anchor.getAttribute('aria-disabled')).toBe('true');
-        const host = doc.createElement('span');
-        anchor.before(host);
-        expect(host.nextElementSibling).toBe(anchor);
-        expect(host.parentElement?.parentElement?.getAttribute('data-testid')).toBe('markdown-editor-footer');
         expect(doc.querySelector('template button')).not.toBe(anchor);
         editors[0].closest('fieldset')!.setAttribute('aria-disabled', 'true');
         expect(findReplyEditors(doc, 'github')).toEqual([]);
@@ -108,6 +104,52 @@ describe('Writing editor native action ownership', () => {
         expect(editors).toHaveLength(4);
         expect(editors.map(editor => findReplyActionAnchor(editor, 'github')?.textContent)).toEqual(['Comment', 'Reply', 'Comment', '']);
         expect(findReplyActionAnchor(editors[3], 'github')?.getAttribute('value')).toBe('Reply');
+    });
+
+    it('keeps the actual React Comment button as the geometry anchor when wrapped', () => {
+        const doc = page(`<div data-testid="comment-composer"><textarea name="comment[body]"></textarea>
+          <div data-testid="markdown-editor-footer"><div class="actions"><div class="primary-wrapper"><button data-variant="primary" aria-disabled="true">Comment</button></div></div></div>
+        </div>`);
+        const editor = findReplyEditors(doc, 'github')[0];
+        const anchor = findReplyActionAnchor(editor, 'github')!;
+        expect(anchor.tagName).toBe('BUTTON');
+        expect(anchor.textContent).toBe('Comment');
+    });
+
+    it('keeps nested composer actions owned by the editor nearest form', () => {
+        const doc = page(`<form><textarea name="comment[body]"></textarea>
+            <div data-testid="comment-composer"><div data-testid="markdown-editor-footer"><button data-variant="primary">Nested comment</button></div></div>
+            <div data-testid="markdown-editor-footer"><button data-variant="primary">Form comment</button></div>
+        </form>`);
+        const editor = findReplyEditors(doc, 'github')[0];
+        expect(findReplyActionAnchor(editor, 'github')?.textContent).toBe('Form comment');
+    });
+
+    it('ignores hidden preview actions while retaining a visible disabled submit action', () => {
+        const doc = page(`<div data-testid="comment-composer"><textarea name="comment[body]"></textarea>
+          <div data-testid="markdown-editor-footer"><div hidden><button data-variant="primary">Preview</button></div>
+            <div class="primary-wrapper"><button data-variant="primary" aria-disabled="true">Comment</button></div>
+          </div>
+        </div>`);
+        const editor = findReplyEditors(doc, 'github')[0];
+        const anchor = findReplyActionAnchor(editor, 'github')!;
+        expect(anchor.tagName).toBe('BUTTON');
+        expect(anchor.textContent).toBe('Comment');
+    });
+
+    it.each(['none', 'hidden', 'collapse'] as const)('ignores a preview hidden by computed %s style', hiddenValue => {
+        const doc = page(`<div data-testid="comment-composer"><textarea name="comment[body]"></textarea>
+          <div data-testid="markdown-editor-footer"><div class="preview"><button data-variant="primary">Preview</button></div>
+            <button data-variant="primary" aria-disabled="true">Comment</button>
+          </div>
+        </div>`);
+        doc.defaultView!.getComputedStyle = ((element: Element) => ({
+            display: element.classList.contains('preview') || element.classList.contains('preview-button') ? (hiddenValue === 'none' ? 'none' : 'block') : 'block',
+            visibility: element.classList.contains('preview') || element.classList.contains('preview-button') ? (hiddenValue === 'none' ? 'visible' : hiddenValue) : 'visible',
+        })) as never;
+        const preview = doc.querySelector('.preview button')!;
+        preview.classList.add('preview-button');
+        expect(findReplyActionAnchor(findReplyEditors(doc, 'github')[0], 'github')?.textContent).toBe('Comment');
     });
 
     it('ignores hidden and injected action candidates without borrowing another composer button', () => {
@@ -132,6 +174,13 @@ describe('Writing editor native action ownership', () => {
           <div contenteditable="true" role="textbox"></div>`);
         const editors = findReplyEditors(doc, 'gmail');
         expect(editors.map(editor => findReplyActionAnchor(editor, 'gmail')?.textContent)).toEqual(['发送', 'Send', 'Send form', undefined]);
+    });
+
+    it('keeps Gmail actions owned by the nearest nested compose form', () => {
+        const doc = page(`<div role="dialog"><form><div contenteditable="true" role="textbox"></div><button type="submit">Inner send</button></form>
+          <form><div contenteditable="true" role="textbox"></div><button type="submit">Outer send</button></form></div>`);
+        const editors = findReplyEditors(doc, 'gmail');
+        expect(editors.map(editor => findReplyActionAnchor(editor, 'gmail')?.textContent)).toEqual(['Inner send', 'Outer send']);
     });
 
     it('excludes inactive and injected editors and bounds automatic entries', () => {

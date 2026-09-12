@@ -4,7 +4,7 @@
  * 主要内容：创建图片 OCR 语言仓库和能力门控传输，绑定图片与圈选事务的真实页面及术语版本；注入配置、翻译、模型用量和词典依赖，注册类型化 router 并管理响应与错误。
  * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期，不实现各 feature 的业务算法、provider 协议或存储事务；具体实现均来自 features、services、providers 与 platform。
  */
-import {formatConnectionTestError, runTranslationServiceConnectionTestWithUsage, translateMicrosoftTexts} from './providerRuntime';
+import {formatConnectionTestError, runTranslationServiceConnectionTestWithUsage, translateInputBoxWithLimits} from './providerRuntime';
 import {config, configReady} from '@/src/services/config/store';
 import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/edgeTts';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
@@ -12,7 +12,8 @@ import {vocabularyBook} from '@/src/features/vocabulary/repository';
 import {clearTranslationCache, getTranslationCacheStats, translateWithCache} from '@/src/app/translation/runtime';
 import {serializeTranslationError} from '@/src/services/translation/errors';
 import {createBackgroundMessageRouter, type BackgroundMessageHandler} from './messageRouter';
-import {createAreaTranslationBackgroundHandlers, createAreaCaptureOwnershipVerifier, type AreaTranslationBackgroundContext} from './handlers/areaTranslation';
+import {type AreaTranslationBackgroundContext} from './handlers/areaTranslation';
+import {createAreaTranslationRuntime} from './areaRuntime';
 import {createTranslationCacheHandlers, createTranslationCacheInvalidationBroadcaster} from './handlers/translationCache';
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {createConnectionTestHandler} from './handlers/connectionTest';
@@ -31,8 +32,6 @@ import {isBrowserTabId, type TabTranslationStateStore} from './tabTranslationSta
 import {createBrowserVocabularyBookChangedBroadcaster, createVocabularyBackgroundHandlers, type VocabularyBackgroundContext} from './handlers/vocabulary';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {supportsTranslationBatch} from '@/src/services/translation/capabilities';
-import {prepareAreaTextTranslation} from '@/src/features/area-translation/services/textTranslation';
-import {areaTranslationOffscreenAdapter} from '@/src/features/area-translation/background/offscreenAdapter';
 import {imageTranslationOffscreenAdapter, imageTranslationProgressTransport} from '@/src/features/image-translation/background/offscreenAdapter';
 import {selectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
 import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionTtsTransport} from './capabilityRegistry';
@@ -82,10 +81,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             formatError: formatConnectionTestError,
         }),
         createInputBoxTranslationHandler({
-            translateText: async (text, targetLanguage) => {
-                const translations = await translateMicrosoftTexts([text], '', targetLanguage);
-                return translations[0] || '';
-            },
+            translateText: translateInputBoxWithLimits,
         }),
         createOpenOptionsPageHandler({
             openDefaultPage: () => browser.runtime.openOptionsPage(),
@@ -105,16 +101,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             warn: (message, error) => console.warn(message, error),
         }),
         ...imageGlossaryContext.wrap(createCapabilityGatedBackgroundHandlers<BackgroundRuntimeContext>(capabilities, {
-            areaTranslation: () => createAreaTranslationBackgroundHandlers({
-                captureVisibleTab: (windowId) => browser.tabs.captureVisibleTab(windowId, {format: 'png'}),
-                assertCaptureOwner: createAreaCaptureOwnershipVerifier(tabId => browser.tabs.get(tabId)),
-                getDefaultSourceLanguage: () => config.from,
-                assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded,
-                translateArea: areaTranslationOffscreenAdapter.translateArea,
-                prepareTextTranslation: (language, title, context) => prepareAreaTextTranslation(config, language, title,
-                    {pageUrl: context.sender?.url, context: 'page'}, translateWithCache),
-                sendProgress: imageTranslationProgressTransport.sendProgress,
-            }),
+            areaTranslation: () => createAreaTranslationRuntime(imageOcrLanguageRepository.assertDownloaded),
             imageTranslation: () => createImageTranslationBackgroundHandlers({
                 assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded,
                 ...imageTranslationOffscreenAdapter,

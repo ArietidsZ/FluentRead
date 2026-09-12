@@ -8,7 +8,7 @@
   <section ref="root" class="api-key-list" data-api-key-list>
     <div class="api-key-heading">
       <div class="api-key-heading-title">
-        <strong>API Key</strong>
+        <strong>{{ props.label || 'API Key' }}</strong>
         <span v-if="eligible.length > 1" class="api-key-mode">{{ t('settings.services.keys.rotation') }}</span>
       </div>
       <slot name="policy" />
@@ -77,7 +77,7 @@
 import {computed, nextTick, ref} from 'vue'
 import {useUiI18n} from '@/src/ui/i18n'
 import {duplicateApiKeyIndex, eligibleApiKeyIndexes, type ApiKeyCheckState, type ApiKeySummary} from './apiKeyTypes'
-const props = defineProps<{keys: string[]; states: Record<number, ApiKeyCheckState>; summary: ApiKeySummary | null; busy: boolean}>()
+const props = defineProps<{keys: string[]; states: Record<number, ApiKeyCheckState>; summary: ApiKeySummary | null; busy: boolean; label?: string}>()
 const emit = defineEmits<{add: []; update: [index: number, value: string]; remove: [index: number]; test: [index: number]; stop: []}>()
 const {t} = useUiI18n()
 const root = ref<HTMLElement>()

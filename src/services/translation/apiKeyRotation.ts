@@ -37,7 +37,7 @@ export function withServiceApiKey<T extends KeyConfig>(source: T, service: strin
 function scopeFor(source: KeyConfig, service: string, model?: string): string {
     const fields = source as Record<string, unknown>;
     const selected: Record<string, unknown> = {service, requestedModel: model};
-    for (const name of ['proxy', 'customBody', 'customHeaders', 'model', 'customModel']) {
+    for (const name of ['proxy', 'customBody', 'customHeaders', 'model', 'customModel', 'serviceRegion']) {
         selected[name] = (fields[name] as Record<string, unknown> | undefined)?.[service];
     }
     const routeFields: Record<string, readonly string[]> = {

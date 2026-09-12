@@ -1,0 +1,136 @@
+import {describe, expect, it} from 'vitest';
+
+import {
+    DEFAULT_TRANSLATION_REQUEST_LIMITS,
+    getModelRequestLimitPreference,
+    getServiceRequestLimitPreference,
+    normalizeConfig,
+    normalizeModelRequestLimits,
+    normalizeRequestLimitPreference,
+    normalizeServiceRequestLimits,
+    normalizeTranslationRequestLimits,
+    resolveRequestLimits,
+    services,
+    withoutModelRequestLimit,
+    withoutServiceRequestLimit,
+    withModelRequestLimit,
+    withServiceRequestLimit,
+} from '@/src/core/config';
+
+describe('请求限流配置领域模型', () => {
+    it('保留合法已有值，并将 0 作为不限速', () => {
+        expect(normalizeTranslationRequestLimits({
+            maxConcurrentTranslations: 8,
+            translationRequestsPerSecond: 0,
+            translationRequestsPerMinute: 0,
+        })).toEqual({
+            maxConcurrentTranslations: 8,
+            translationRequestsPerSecond: 0,
+            translationRequestsPerMinute: 0,
+        });
+        expect(normalizeConfig({
+            serviceRequestLimits: {
+                [services.openai]: {enabled: true, limits: {maxConcurrentTranslations: 3, translationRequestsPerSecond: 0, translationRequestsPerMinute: 20}},
+            },
+            modelRequestLimits: {
+                [services.openai]: {
+                    'user-model': {enabled: false, limits: {maxConcurrentTranslations: 2, translationRequestsPerSecond: 1, translationRequestsPerMinute: 0}},
+                },
+            },
+        })).toMatchObject({
+            serviceRequestLimits: {
+                [services.openai]: {enabled: true, limits: {maxConcurrentTranslations: 3, translationRequestsPerSecond: 0, translationRequestsPerMinute: 20}},
+            },
+            modelRequestLimits: {
+                [services.openai]: {
+                    'user-model': {enabled: false, limits: {maxConcurrentTranslations: 2, translationRequestsPerSecond: 1, translationRequestsPerMinute: 0}},
+                },
+            },
+        });
+    });
+
+    it('非法输入回退默认值，且不接受原型污染键', () => {
+        expect(normalizeServiceRequestLimits(null)).toEqual({});
+        expect(normalizeModelRequestLimits(null)).toEqual({});
+        expect(normalizeRequestLimitPreference(null)).toEqual({enabled: false, limits: DEFAULT_TRANSLATION_REQUEST_LIMITS});
+        expect(normalizeTranslationRequestLimits({maxConcurrentTranslations: 0, translationRequestsPerSecond: '10', translationRequestsPerMinute: -1}))
+            .toEqual({...DEFAULT_TRANSLATION_REQUEST_LIMITS, translationRequestsPerSecond: 10, translationRequestsPerMinute: 0});
+        const servicesInput = JSON.parse('{"__proto__":{"enabled":true},"constructor":{"enabled":true},"openai":{"enabled":true,"limits":{"maxConcurrentTranslations":4}}}');
+        const modelsInput = JSON.parse('{"__proto__":[],"openai":[],"constructor":{"custom-model":{}},"prototype":{"__proto__":{}},"valid":{"__proto__":{"enabled":true},"custom-model":{"enabled":true,"limits":{"translationRequestsPerMinute":0}}}}');
+        const serviceLimits = normalizeServiceRequestLimits(servicesInput);
+        const modelLimits = normalizeModelRequestLimits(modelsInput);
+        expect(serviceLimits).toHaveProperty('openai');
+        expect(serviceLimits).not.toHaveProperty('__proto__');
+        expect(modelLimits).not.toHaveProperty('openai');
+        expect(modelLimits.valid).toHaveProperty('custom-model');
+        expect(modelLimits.valid).not.toHaveProperty('__proto__');
+        expect(Object.getPrototypeOf(serviceLimits)).toBeNull();
+    });
+
+    it('继承开关保留草稿，解析时按模型、服务、全局顺序选择', () => {
+        const globalLimits = {maxConcurrentTranslations: 6, translationRequestsPerSecond: 10, translationRequestsPerMinute: 250};
+        const serviceRequestLimits = withServiceRequestLimit({}, services.openai, {
+            enabled: true,
+            limits: {maxConcurrentTranslations: 4, translationRequestsPerSecond: 4, translationRequestsPerMinute: 40},
+        });
+        const modelRequestLimits = withModelRequestLimit({}, services.openai, 'model-a', {
+            enabled: false,
+            limits: {maxConcurrentTranslations: 2, translationRequestsPerSecond: 1, translationRequestsPerMinute: 2},
+        });
+        expect(resolveRequestLimits({globalLimits, serviceId: services.openai, modelId: 'model-a', serviceRequestLimits, modelRequestLimits}))
+            .toEqual(serviceRequestLimits[services.openai].limits);
+        expect(resolveRequestLimits(globalLimits, services.openai, 'model-a', serviceRequestLimits, withModelRequestLimit(modelRequestLimits, services.openai, 'model-a', {enabled: true, limits: {maxConcurrentTranslations: 2, translationRequestsPerSecond: 1, translationRequestsPerMinute: 2}})))
+            .toEqual({maxConcurrentTranslations: 2, translationRequestsPerSecond: 1, translationRequestsPerMinute: 2});
+        expect(resolveRequestLimits({globalLimits, serviceId: services.microsoft, serviceRequestLimits, modelRequestLimits})).toEqual(globalLimits);
+        expect(resolveRequestLimits({
+            ...globalLimits,
+            serviceRequestLimits,
+            modelRequestLimits,
+        }, services.openai, 'model-a')).toEqual(serviceRequestLimits[services.openai].limits);
+        expect(resolveRequestLimits('invalid-global', undefined, undefined, undefined, undefined)).toEqual(DEFAULT_TRANSLATION_REQUEST_LIMITS);
+        expect(resolveRequestLimits({globalLimits}, undefined, 'model-a', serviceRequestLimits, modelRequestLimits)).toEqual(globalLimits);
+        expect(getServiceRequestLimitPreference(serviceRequestLimits, services.openai)).toEqual({enabled: true, limits: serviceRequestLimits[services.openai].limits});
+        expect(getServiceRequestLimitPreference(serviceRequestLimits, '')).toBeUndefined();
+        expect(getServiceRequestLimitPreference(serviceRequestLimits, 'missing-service')).toBeUndefined();
+        expect(getModelRequestLimitPreference(modelRequestLimits, services.openai, 'model-a')).toEqual(modelRequestLimits[services.openai]['model-a']);
+        expect(getModelRequestLimitPreference(modelRequestLimits, '', 'model-a')).toBeUndefined();
+        expect(getModelRequestLimitPreference(modelRequestLimits, services.openai, 'missing-model')).toBeUndefined();
+    });
+
+    it('with/without helper 不修改输入，并支持删除模型或服务草稿', () => {
+        const source = {openai: {enabled: true, limits: {maxConcurrentTranslations: 4, translationRequestsPerSecond: 0, translationRequestsPerMinute: 0}}};
+        const withService = withServiceRequestLimit(source, 'custom:service', {enabled: false, limits: {maxConcurrentTranslations: 7}});
+        expect(source).not.toHaveProperty('custom:service');
+        expect(withService['custom:service'].limits.maxConcurrentTranslations).toBe(7);
+        expect(withoutServiceRequestLimit(withService, 'custom:service')).not.toHaveProperty('custom:service');
+        expect(withServiceRequestLimit({}, '__proto__', {enabled: true})).toEqual({});
+
+        const withModel = withModelRequestLimit({}, 'custom:service', 'any-valid-model', {enabled: true, limits: {maxConcurrentTranslations: 5}});
+        const withSecondModel = withModelRequestLimit(withModel, 'custom:service', 'second-model', {enabled: true, limits: {maxConcurrentTranslations: 6}});
+        const withoutModel = withoutModelRequestLimit(withSecondModel, 'custom:service', 'any-valid-model');
+        expect(withModel['custom:service']?.['any-valid-model']).toBeDefined();
+        expect(withoutModel['custom:service']?.['second-model']).toBeDefined();
+        expect(withoutModelRequestLimit(withoutModel, 'custom:service')).toEqual({});
+        expect(withoutModelRequestLimit(withModel, 'missing-service')).toEqual(withModel);
+        expect(withoutModelRequestLimit(withModel, 'custom:service', 'any-valid-model')).toEqual({});
+        expect(withModelRequestLimit({}, 'custom:service', '__proto__', {enabled: true})).toEqual({});
+    });
+
+    it('删除自定义服务时清理其限流字段但保留其他服务和任意合法模型名', () => {
+        const config = normalizeConfig({
+            customOpenAIProviders: [{id: 'custom:keep', name: 'Keep', endpoint: 'https://keep.test', models: ['keep-model']}],
+            serviceRequestLimits: {
+                'custom:removed': {enabled: true, limits: {maxConcurrentTranslations: 2}},
+                'custom:keep': {enabled: true, limits: {maxConcurrentTranslations: 3}},
+            },
+            modelRequestLimits: {
+                'custom:removed': {'user-authored-model': {enabled: true, limits: {maxConcurrentTranslations: 2}}},
+                'custom:keep': {'another-user-model': {enabled: true, limits: {maxConcurrentTranslations: 3}}},
+            },
+        });
+        expect(config.serviceRequestLimits).not.toHaveProperty('custom:removed');
+        expect(config.modelRequestLimits).not.toHaveProperty('custom:removed');
+        expect(config.serviceRequestLimits).toHaveProperty('custom:keep');
+        expect(config.modelRequestLimits['custom:keep']).toHaveProperty('another-user-model');
+    });
+});

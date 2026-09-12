@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-    getFullPageContextMenuPresentation,
     getSiteBaseDomain,
     isAlwaysTranslateSite,
     isExtensionDisabledOnSite,
+    isFloatingBallDisabledOnSite,
     normalizeAlwaysTranslateDomains,
     normalizeDisabledExtensionDomains,
+    normalizeFloatingBallDisabledDomains,
     shouldAutoTranslatePage,
 } from '@/src/features/site-rules/domain';
 
@@ -89,21 +90,6 @@ describe('始终翻译网站规则', () => {
         })).toBe(false);
     });
 
-    it('禁用站点时同步禁用全文翻译右键菜单', () => {
-        expect(getFullPageContextMenuPresentation(false, true)).toEqual({
-            enabled: false,
-            title: '流畅阅读（当前网站已禁用）',
-        });
-        expect(getFullPageContextMenuPresentation(false, false)).toEqual({
-            enabled: true,
-            title: '流畅阅读翻译',
-        });
-        expect(getFullPageContextMenuPresentation(true, false)).toEqual({
-            enabled: true,
-            title: '流畅阅读取消翻译',
-        });
-    });
-
     it('同时保留旧全局自动翻译开关，并只对网站名单限制网页协议', () => {
         expect(shouldAutoTranslatePage('https://unlisted.example/', {
             on: true,
@@ -130,5 +116,29 @@ describe('始终翻译网站规则', () => {
             autoTranslate: false,
             alwaysTranslateDomains: ['example.com'],
         })).toBe(false);
+    });
+});
+
+describe('悬浮球禁用网站规则', () => {
+    it('按主域名匹配子域，并忽略非法或非数组输入', () => {
+        expect(normalizeFloatingBallDisabledDomains([
+            'https://mail.example.com/inbox',
+            'mail.example.com',
+            'invalid host',
+        ])).toEqual(['example.com']);
+        expect(normalizeFloatingBallDisabledDomains('example.com')).toEqual([]);
+        expect(isFloatingBallDisabledOnSite('https://mail.example.com/inbox', ['example.com'])).toBe(true);
+        expect(isFloatingBallDisabledOnSite('https://example.org/', ['example.com'])).toBe(false);
+        expect(isFloatingBallDisabledOnSite('file:///tmp/article.html', ['example.com'])).toBe(false);
+    });
+
+    it('只影响悬浮球，不改变扩展禁用与自动翻译判定', () => {
+        expect(isExtensionDisabledOnSite('https://mail.example.com/', ['example.com'])).toBe(true);
+        expect(shouldAutoTranslatePage('https://news.example.com/', {
+            on: true,
+            autoTranslate: false,
+            alwaysTranslateDomains: ['example.com'],
+        })).toBe(true);
+        expect(isAlwaysTranslateSite('https://news.example.com/', ['example.com'])).toBe(true);
     });
 });

@@ -2,13 +2,23 @@ import { describe, expect, it } from 'vitest';
 
 import {
     Config,
+    DEFAULT_FLOATING_BALL_COLLAPSED_OPACITY,
+    DEFAULT_FLOATING_BALL_HOVER_DELAY,
     DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY,
     DEFAULT_SELECTION_TRANSLATOR_DELAY,
+    FLOATING_BALL_COLLAPSED_OPACITY_MAX,
+    FLOATING_BALL_COLLAPSED_OPACITY_MIN,
+    FLOATING_BALL_HOVER_DELAY_MAX,
+    FLOATING_BALL_HOVER_DELAY_MIN,
     MOUSE_HOVER_TRANSLATION_DELAY_MAX,
     MOUSE_HOVER_TRANSLATION_DELAY_MIN,
     SELECTION_TRANSLATOR_DELAY_MAX,
     SELECTION_TRANSLATOR_DELAY_MIN,
     normalizeConfig,
+    normalizeFloatingBallClickAction,
+    normalizeFloatingBallCollapsedOpacity,
+    normalizeFloatingBallHoverDelay,
+    normalizeFloatingBallToolsDisplay,
 } from '@/src/core/config/model';
 import { getMimoEndpoint, MIMO_ENDPOINTS, MINIMAX_ENDPOINTS, tongyiTokenPlanUrl, urls } from '@/src/core/config/constants';
 import { currentModelIds, customModelString, defaultModelIds, defaultModels, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
@@ -142,6 +152,14 @@ describe('AI 模型编号列表', () => {
             services.openrouter,
             services.groq,
             services.azureOpenai,
+            services.mistral,
+            services.cohere,
+            services.cerebras,
+            services.togetherai,
+            services.fireworks,
+            services.deepinfra,
+            services.perplexity,
+            services.ollama,
             services.custom,
         ]);
         expect(aiServices.filter(option => option.catalogKind === 'platform').map(option => option.value)).toEqual([
@@ -151,6 +169,14 @@ describe('AI 模型编号列表', () => {
             services.openrouter,
             services.groq,
             services.azureOpenai,
+            services.mistral,
+            services.cohere,
+            services.cerebras,
+            services.togetherai,
+            services.fireworks,
+            services.deepinfra,
+            services.perplexity,
+            services.ollama,
             services.custom,
         ]);
         expect(aiServices.filter(option => option.catalogKind === 'provider')).toHaveLength(15);
@@ -784,7 +810,35 @@ describe('快捷翻译方案配置', () => {
         expect(normalized).toMatchObject({hotkey, enabled: false});
     });
 
-    it('划词快捷键与快捷翻译可共存，圈选的固定快捷键仍保留既有所有权', () => {
+    it('圈选改用自定义快捷键后，快捷翻译方案按新的圈选快捷键避让', () => {
+        const config = normalizeConfig({
+            selectionAreaEnabled: true,
+            selectionAreaHotkey: 'custom',
+            customSelectionAreaHotkey: 'alt+k',
+            quickTranslationProfiles: [
+                {id: 'old-area', enabled: true, action: 'hover', hotkey: 'Shift+Z'},
+                {id: 'new-area', enabled: true, action: 'full-page', hotkey: 'Alt+K'},
+            ],
+        });
+
+        expect(config).toMatchObject({selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'Alt+K'});
+        expect(config.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Shift+Z', enabled: true});
+        expect(config.quickTranslationProfiles[1]).toMatchObject({hotkey: 'Alt+K', enabled: false});
+    });
+
+    it('圈选快捷键只接受预设与可用的自定义值，其余配置回到默认 Shift+Z', () => {
+        expect(new Config()).toMatchObject({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''});
+        expect(normalizeConfig({})).toMatchObject({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''});
+        expect(normalizeConfig({selectionAreaHotkey: 'alt+x'})).toMatchObject({selectionAreaHotkey: 'Alt+X'});
+        // 选择自定义却没有可用组合键时不能让圈选失去唯一入口。
+        expect(normalizeConfig({selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'cmd+k'}))
+            .toMatchObject({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''});
+        for (const invalid of [undefined, 'none', 'Ctrl+C', 42]) {
+            expect(normalizeConfig({selectionAreaHotkey: invalid}).selectionAreaHotkey).toBe('Shift+Z');
+        }
+    });
+
+    it('划词快捷键与快捷翻译可共存，圈选的默认快捷键仍保留既有所有权', () => {
         const normalized = normalizeConfig({
             selectionTranslatorMode: 'bilingual',
             selectionTranslatorTrigger: 'custom',
@@ -853,6 +907,16 @@ describe('右键全文翻译配置', () => {
         expect(normalizeConfig({}).contextMenuEnabled).toBe(true);
         expect(normalizeConfig({contextMenuEnabled: false}).contextMenuEnabled).toBe(false);
         expect(normalizeConfig({contextMenuEnabled: 'false'}).contextMenuEnabled).toBe(true);
+    });
+});
+
+describe('页面标题翻译配置', () => {
+    it('默认开启，并保留用户主动关闭的状态', () => {
+        expect(new Config().pageTitleTranslationEnabled).toBe(true);
+        expect(normalizeConfig({}).pageTitleTranslationEnabled).toBe(true);
+        expect(normalizeConfig({pageTitleTranslationEnabled: false}).pageTitleTranslationEnabled).toBe(false);
+        // 非布尔值（旧配置或被改坏的导入）回到默认开启，而不是被当成关闭。
+        expect(normalizeConfig({pageTitleTranslationEnabled: 'false'}).pageTitleTranslationEnabled).toBe(true);
     });
 });
 
@@ -926,6 +990,80 @@ describe('鼠标悬浮翻译延迟配置', () => {
             .toBe(MOUSE_HOVER_TRANSLATION_DELAY_MAX);
         expect(normalizeConfig({mouseHoverTranslationDelay: 'invalid'}).mouseHoverTranslationDelay)
             .toBe(DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY);
+    });
+});
+
+describe('悬浮球进阶外观配置', () => {
+    it('默认保持既有观感：悬停展开、立即响应、点击翻译、标准尺寸并显示设置入口', () => {
+        const defaults = new Config();
+        expect(defaults.floatingBallToolsDisplay).toBe('hover');
+        expect(defaults.floatingBallHoverDelay).toBe(DEFAULT_FLOATING_BALL_HOVER_DELAY);
+        expect(defaults.floatingBallClickAction).toBe('translate');
+        expect(defaults.floatingBallCompact).toBe(false);
+        expect(defaults.floatingBallSettingsEntryVisible).toBe(true);
+        expect(defaults.floatingBallCollapsedOpacity).toBe(DEFAULT_FLOATING_BALL_COLLAPSED_OPACITY);
+        expect(defaults.floatingBallDisabledDomains).toEqual([]);
+
+        const normalized = normalizeConfig({});
+        expect(normalized.floatingBallToolsDisplay).toBe('hover');
+        expect(normalized.floatingBallHoverDelay).toBe(DEFAULT_FLOATING_BALL_HOVER_DELAY);
+        expect(normalized.floatingBallClickAction).toBe('translate');
+        expect(normalized.floatingBallCompact).toBe(false);
+        expect(normalized.floatingBallSettingsEntryVisible).toBe(true);
+        expect(normalized.floatingBallCollapsedOpacity).toBe(DEFAULT_FLOATING_BALL_COLLAPSED_OPACITY);
+        expect(normalized.floatingBallDisabledDomains).toEqual([]);
+    });
+
+    it('接受合法的显示方式与点击行为，并把其他值收敛为默认值', () => {
+        expect(normalizeFloatingBallToolsDisplay('always')).toBe('always');
+        expect(normalizeFloatingBallToolsDisplay('hidden')).toBe('hidden');
+        expect(normalizeFloatingBallToolsDisplay('sidebar')).toBe('hover');
+        expect(normalizeFloatingBallToolsDisplay(undefined)).toBe('hover');
+        expect(normalizeFloatingBallClickAction('settings')).toBe('settings');
+        expect(normalizeFloatingBallClickAction('none')).toBe('none');
+        expect(normalizeFloatingBallClickAction(12)).toBe('translate');
+        expect(normalizeConfig({floatingBallToolsDisplay: 'always', floatingBallClickAction: 'none'}))
+            .toMatchObject({floatingBallToolsDisplay: 'always', floatingBallClickAction: 'none'});
+        expect(normalizeConfig({floatingBallToolsDisplay: 'panel', floatingBallClickAction: 'panel'}))
+            .toMatchObject({floatingBallToolsDisplay: 'hover', floatingBallClickAction: 'translate'});
+    });
+
+    it('按步长归一化展开延迟与收起不透明度，并限制越界值', () => {
+        expect(normalizeFloatingBallHoverDelay(480)).toBe(500);
+        expect(normalizeFloatingBallHoverDelay('250')).toBe(250);
+        expect(normalizeFloatingBallHoverDelay(-100)).toBe(FLOATING_BALL_HOVER_DELAY_MIN);
+        expect(normalizeFloatingBallHoverDelay(99999)).toBe(FLOATING_BALL_HOVER_DELAY_MAX);
+        for (const value of [null, false, '', '   ', 'invalid', Number.NaN]) {
+            expect(normalizeFloatingBallHoverDelay(value)).toBe(DEFAULT_FLOATING_BALL_HOVER_DELAY);
+        }
+
+        expect(normalizeFloatingBallCollapsedOpacity(50)).toBe(52);
+        expect(normalizeFloatingBallCollapsedOpacity('100')).toBe(FLOATING_BALL_COLLAPSED_OPACITY_MAX);
+        expect(normalizeFloatingBallCollapsedOpacity(0)).toBe(FLOATING_BALL_COLLAPSED_OPACITY_MIN);
+        expect(normalizeFloatingBallCollapsedOpacity(400)).toBe(FLOATING_BALL_COLLAPSED_OPACITY_MAX);
+        expect(normalizeFloatingBallCollapsedOpacity('very light')).toBe(DEFAULT_FLOATING_BALL_COLLAPSED_OPACITY);
+        expect(normalizeConfig({floatingBallHoverDelay: 510, floatingBallCollapsedOpacity: 31}))
+            .toMatchObject({floatingBallHoverDelay: 500, floatingBallCollapsedOpacity: 32});
+    });
+
+    it('布尔开关只接受真实布尔值，设置入口默认保持开启', () => {
+        expect(normalizeConfig({floatingBallCompact: true}).floatingBallCompact).toBe(true);
+        expect(normalizeConfig({floatingBallCompact: 'true'}).floatingBallCompact).toBe(false);
+        expect(normalizeConfig({floatingBallSettingsEntryVisible: false}).floatingBallSettingsEntryVisible).toBe(false);
+        expect(normalizeConfig({floatingBallSettingsEntryVisible: 'no'}).floatingBallSettingsEntryVisible).toBe(true);
+    });
+
+    it('禁用悬浮球网站统一归并为可注册域名并去重', () => {
+        expect(normalizeConfig({
+            floatingBallDisabledDomains: [
+                'https://mail.example.com/inbox',
+                'MAIL.EXAMPLE.COM',
+                'not a domain',
+                42,
+                'news.bbc.co.uk',
+            ],
+        }).floatingBallDisabledDomains).toEqual(['example.com', 'bbc.co.uk']);
+        expect(normalizeConfig({floatingBallDisabledDomains: 'example.com'}).floatingBallDisabledDomains).toEqual([]);
     });
 });
 

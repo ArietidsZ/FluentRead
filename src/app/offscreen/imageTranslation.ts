@@ -13,6 +13,7 @@ export {
     recognizeImage,
 } from '@/src/features/image-translation/services/ocrRuntime';
 export {
+    cropAreaInOffscreen,
     translateAreaInOffscreen,
     translateImageInOffscreen,
     type OffscreenImageTranslationLine,

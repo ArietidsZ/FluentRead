@@ -32,6 +32,8 @@ export interface SiteRule extends SiteRecipe {
     match: {hosts: string[]; paths?: string[]; excludePaths?: string[]};
     profile?: string;
     priority?: number;
+    /** 显式让名称等站点保护也适用于用户选择的全部节点范围。默认仅正文范围。 */
+    allScopes?: boolean;
 }
 
 export interface SiteRulePack {

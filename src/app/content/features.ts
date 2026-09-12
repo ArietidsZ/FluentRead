@@ -19,6 +19,7 @@ export {
     unmountTranslationProgressPanel,
 } from '@/src/features/full-page-translation/public';
 export {
+    isFloatingBallAllowedOnPage,
     mountFloatingBall,
     toggleFloatingBallTranslation,
     unmountFloatingBall,
@@ -35,11 +36,13 @@ export { mountHoverTranslationContentFeature } from '@/src/features/hover-transl
 export { mountQuickTranslationContentFeature } from '@/src/features/quick-translation/public';
 export {
     mountSelectionTranslator,
+    translateSelectionFromContextMenu,
     unmountSelectionTranslator,
 } from '@/src/features/selection-translation/public';
 export {
     isAreaTranslatorMounted,
     mountAreaTranslator,
+    startAreaTranslationFromContextMenu,
     unmountAreaTranslator,
 } from '@/src/features/area-translation/public';
 export {

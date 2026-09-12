@@ -180,6 +180,17 @@ async function cropImage(dataUrl: string, selection: AreaTranslationSelection, s
     }
 }
 
+/** 仅裁剪选区供视觉模型使用；此路径不加载 OCR 语言包，也不执行本地识别。 */
+export async function cropAreaInOffscreen(
+    image: string,
+    selection: AreaTranslationSelection,
+    signal?: AbortSignal,
+): Promise<{image: string; lines: OcrLine[]}> {
+    const croppedImage = await cropImage(image, selection, signal);
+    throwIfImageOperationAborted(signal);
+    return {image: croppedImage, lines: []};
+}
+
 async function prepareTranslatedImage(
     source: HTMLImageElement,
     lines: OcrLine[],

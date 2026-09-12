@@ -14,6 +14,7 @@ export interface ApiKeyCheckIdentitySource extends ApiKeyConfigSource {
     customHeaders?: unknown;
     model?: unknown;
     customModel?: unknown;
+    serviceRegion?: unknown;
     custom?: unknown;
     deeplx?: unknown;
     deeplApiPlan?: unknown;
@@ -66,6 +67,7 @@ export function createApiKeyCheckRevision(source: ApiKeyCheckIdentitySource, ser
         customHeaders: serviceMapValue(source, 'customHeaders', service),
         model: serviceMapValue(source, 'model', service),
         customModel: serviceMapValue(source, 'customModel', service),
+        serviceRegion: serviceMapValue(source, 'serviceRegion', service),
         route,
         customProvider,
     };

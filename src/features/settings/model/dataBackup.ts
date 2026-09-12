@@ -67,6 +67,7 @@ const exactCredentialFieldValidators: Record<ConfigCredentialField, (value: unkn
     token: isStringMapping,
     apiKeys: value => isPlainRecord(value)
         && Object.values(value).every(item => Array.isArray(item) && item.every(key => typeof key === 'string')),
+    secret: isStringMapping,
     customHeaders: isStringMapping,
     ak: value => typeof value === 'string',
     sk: value => typeof value === 'string',

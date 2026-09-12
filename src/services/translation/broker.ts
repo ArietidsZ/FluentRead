@@ -21,12 +21,15 @@ import type {
 import {
     attachTranslationModelUsageObserver,
     attachTranslationProviderConfig,
+    attachTranslationRequestScheduler,
     createTranslationProviderConfigSnapshot,
     getTranslationGlossaryContext,
     getTranslationProviderConfig,
     getTranslationGlossarySourceText,
     getTranslationGlossaryTerms,
     getTranslationRequestControl,
+    getTranslationImageInput,
+    attachTranslationImageInput,
     TRANSLATION_REMAINING_BUDGET,
     type TranslationRemainingBudgetContext,
 } from './requestSnapshot';
@@ -38,7 +41,10 @@ import {
     isLikelyPageContextLeak,
 } from '@/src/core/translation/prompts';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
+import {customModelString, services} from '@/src/core/config/catalog';
+import {currentConfiguredModel, getCurrentModel} from './templates';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
+import {supportsVisionTransport} from '@/src/core/config/vision';
 import {
     normalizeFreeTranslationOrder,
     normalizeFreeTranslationTimeoutMs,
@@ -129,6 +135,31 @@ class GlossaryRevisionChangedError extends Error {
     }
 }
 
+/** 返回 provider 最终 payload 使用的模型身份，供 outer bucket 与实际 transport 共用。 */
+export function resolveTranslationRequestModel(
+    current: TranslationProviderConfigSnapshot,
+    service: string,
+    modelOverride: string | undefined,
+    isAiSdk: (service: string) => boolean,
+    isAI: (service: string) => boolean,
+): string {
+    const selected = service === services.gemini
+        ? modelOverride || (current.model[service] === customModelString ? current.customModel[service] : current.model[service]) || ''
+        : service === services.deepseek
+        ? getCurrentModel(service, modelOverride, current)
+        : isAiSdk(service)
+            ? currentConfiguredModel(current, service, modelOverride).replace(/（.*）/g, '')
+            : currentConfiguredModel(current, service, modelOverride);
+    const body = current.customBody?.[service];
+    if (!(isAI(service) && service !== services.gemini) || typeof body !== 'string' || !body.trim()) return selected;
+    try {
+        const parsed = JSON.parse(body) as {model?: unknown};
+        return typeof parsed?.model === 'string' && parsed.model.trim() ? parsed.model.trim() : selected;
+    } catch {
+        return selected;
+    }
+}
+
 export function createTranslationBroker(deps: TranslationBrokerDependencies): TranslationBroker {
     const pendingTranslations = new Map<string, Promise<string>>();
     const pendingBatches = new Map<string, Promise<string[]>>();
@@ -140,7 +171,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     let cacheClearBarrier: Promise<void> | null = null;
     const now = deps.now ?? (() => Date.now());
     const logger = deps.logger ?? console;
-    const requestScheduler = createTranslationRequestScheduler(
+    const requestScheduler = deps.requestScheduler ?? createTranslationRequestScheduler(
         () => deps.getConfig() as unknown as {
             maxConcurrentTranslations?: unknown;
             translationRequestsPerSecond?: unknown;
@@ -169,6 +200,21 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         return deps.resolveConfiguredModel(
             modelOverride || current.model[service],
             modelOverride || current.customModel[service],
+        );
+    }
+
+    /** 自定义请求体可以改写最终发送模型；调度身份必须与 provider payload 一致。 */
+    function getEffectiveRequestModel(
+        current: TranslationProviderConfigSnapshot,
+        service: string,
+        modelOverride?: string,
+    ): string {
+        return resolveTranslationRequestModel(
+            current,
+            service,
+            modelOverride,
+            deps.serviceTypes.isAiSdk,
+            deps.serviceTypes.isAI,
         );
     }
 
@@ -557,10 +603,14 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     const startedAt = now();
                     const usageGeneration = deps.captureModelUsageGeneration?.() ?? 0;
                     const observations: TranslationModelUsageObservation[] = [];
-                    const providerMessage = attachTranslationModelUsageObserver({
+                    const selectedModel = getEffectiveRequestModel(execution.config, execution.service, message.modelOverride);
+                    const providerMessage = attachTranslationRequestScheduler(attachTranslationModelUsageObserver({
                         ...message,
                         abortSignal: controller.signal,
-                    }, (observation) => observations.push({...observation}));
+                    }, (observation) => observations.push({...observation})), requestScheduler, {
+                        service: execution.service,
+                        model: selectedModel,
+                    });
 
                     let timer: ReturnType<typeof setTimeout>;
                     const timeout = new Promise<never>((_resolve, reject) => {
@@ -607,6 +657,11 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             }, {
                 signal: execution.abortSignal,
                 deadlineAt: providerDeadline,
+                identity: {
+                    service: execution.service,
+                    model: getEffectiveRequestModel(execution.config, execution.service, message.modelOverride),
+                },
+                countRate: !deps.serviceTypes.isAiSdk(execution.service),
             });
         } catch (error) {
             if (error instanceof TranslationRequestSchedulerDeadlineError) {
@@ -1046,7 +1101,9 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             message.modelOverride,
             message.sourceLanguageDetectionText,
         );
-        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}`;
+        const imageInput = getTranslationImageInput(message);
+        const imageSuffix = imageInput ? `:image:${sha256(imageInput).toString()}` : '';
+        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${imageSuffix}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}`;
         const existing = pendingTranslations.get(pendingKey);
         // 共享的是 provider 工作；每个等待者仍需保留自己的取消和截止边界。
         if (existing) return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
@@ -1332,6 +1389,15 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         let current = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(config()));
         const serviceOverride = message.serviceOverride;
         const selectedService = serviceOverride || current.service;
+        const imageInput = getTranslationImageInput(message);
+        if (imageInput && Array.isArray(message.origin) && message.origin.length > 0) {
+            throw new Error('图片识别请求必须使用单条原文');
+        }
+        const selectedModel = getSelectedModel(current, selectedService, message.modelOverride);
+        if (imageInput && (!deps.serviceTypes.isAI(selectedService)
+            || !supportsVisionTransport(selectedService, selectedModel))) {
+            throw new Error('图片识别需要支持视觉输入的 AI 翻译服务');
+        }
         const {sourceLanguage, targetLanguage} = deps.getTranslationLanguages({
             sourceLanguage: message.sourceLanguage?.trim() || current.from,
             targetLanguage: message.targetLanguage?.trim() || current.to,
@@ -1391,7 +1457,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
 
         const context = typeof message.context === 'string' ? message.context : '';
         const rawPageContext = typeof message.pageContext === 'string' ? message.pageContext : '';
-        const useCache = isCacheEnabled(current, message);
+        const useCache = !imageInput && isCacheEnabled(current, message);
         // clear 是缓存代次的线性化边界。清理期间进入的缓存请求必须等到所有
         // 已串联 clear 完成后再取得新代次，等待时间仍计入原始 deadline 且可取消。
         if (useCache) {
@@ -1400,7 +1466,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         const requestGeneration = cacheGeneration;
         // 步骤 2：摘要是 AI 上下文增强，只拿 provider deadline 的一小段预算。
         const summaryBudget = Math.min(10_000, Math.max(1_000, Math.floor(providerBudget / 4)));
-        const pageContext = await addPageSummary(
+        const pageContext = imageInput ? '' : await addPageSummary(
             execution,
             rawPageContext,
             useCache,
@@ -1435,6 +1501,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             } as TranslationRequestMessage,
             current,
         );
+        if (imageInput) attachTranslationImageInput(requestMessage, imageInput);
         // 步骤 5：根据 origin 类型进入单条或批量管线，两者共享缓存身份与 pending 去重。
         if (Array.isArray(requestMessage.origin)) {
             return translateBatchWithCache(

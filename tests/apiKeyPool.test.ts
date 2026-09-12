@@ -119,6 +119,7 @@ describe('createApiKeyPool', () => {
     expect(classifyApiKeyFailure({kind: 'config', message: 'invalid max_tokens', statusCode: 400})).toBe('none');
     expect(classifyApiKeyFailure({kind: 'config', message: 'invalid token count', statusCode: 400})).toBe('none');
     expect(classifyApiKeyFailure({code: 'quota_exceeded'})).toBe('cooldown');
+    expect(classifyApiKeyFailure({code: 'generate_error', statusCode: 500})).toBe('penalty');
     expect(classifyApiKeyFailure({kind: 'network', retryable: true})).toBe('penalty');
     expect(classifyApiKeyFailure({statusCode: 500})).toBe('penalty');
     expect(classifyApiKeyFailure({statusCode: 400})).toBe('none');

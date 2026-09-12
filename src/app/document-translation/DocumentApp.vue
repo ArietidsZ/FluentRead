@@ -101,27 +101,27 @@
         <div class="control-panel">
           <label class="language-control">
             <span>源语言</span>
-            <ElSelect class="document-select"  append-to=".document-app" v-model="config.from" :disabled="queueBusy" aria-label="文档源语言">
+            <ElSelect class="document-select"  append-to=".document-app" v-model="config.from" :disabled="queueBusy" aria-label="文档源语言" filterable>
               <ElOption v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore :label="item.value === 'auto' ? translateLegacy(item.label) : getMultilingualTargetLanguageLabel(item.value, item.label, language)" />
             </ElSelect>
           </label>
           <span class="language-arrow" aria-hidden="true">→</span>
           <label class="language-control">
             <span>目标语言</span>
-            <ElSelect class="document-select"  append-to=".document-app" v-model="config.to" :disabled="queueBusy" aria-label="文档目标语言">
+            <ElSelect class="document-select"  append-to=".document-app" v-model="config.to" :disabled="queueBusy" aria-label="文档目标语言" filterable>
               <ElOption v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" />
             </ElSelect>
           </label>
           <label class="service-control">
             <span>翻译服务</span>
-            <ElSelect class="document-select"  append-to=".document-app" v-model="config.documentService" :disabled="queueBusy" aria-label="文档翻译服务">
+            <ElSelect class="document-select"  append-to=".document-app" v-model="config.documentService" :disabled="queueBusy" aria-label="文档翻译服务" filterable>
               <ElOption v-if="documentServiceUnavailableMessage" :value="config.documentService" disabled :label="translateLegacy('Chrome内置AI翻译（当前浏览器不可用）')" />
               <ElOption v-for="item in serviceOptions" :key="item.value" :value="item.value" :label="translateLegacy(item.label)" />
             </ElSelect>
           </label>
           <label v-if="documentUsesModel" class="model-control">
             <span class="model-control-heading">模型<button v-if="!documentIsCustomOpenAIProvider" type="button" @click.prevent="openSettings">管理模型 ↗</button></span>
-            <ElSelect class="document-select"  append-to=".document-app" v-model="selectedDocumentModel" :disabled="queueBusy" aria-label="文档翻译模型">
+            <ElSelect class="document-select"  append-to=".document-app" v-model="selectedDocumentModel" :disabled="queueBusy" aria-label="文档翻译模型" filterable>
               <ElOption v-for="model in documentModelOptions" :key="model" :value="model" data-i18n-ignore :label="model" />
             </ElSelect>
           </label>

@@ -8,13 +8,26 @@ const recognized = {image: 'data:image/png,cropped', lines: [
     {text: 'He11o world.', bbox: {x0: 0, y0: 0, x1: 100, y1: 15}},
     {text: 'A second line.', bbox: {x0: 0, y0: 16, x1: 100, y1: 31}},
 ]};
-const options = () => ({requestId: 'area-text-1', timeoutMs: 10_000, signal: new AbortController().signal});
+const options = (signal = new AbortController().signal, timeoutMs = 10_000) => ({requestId: 'area-text-1', timeoutMs, signal});
 const config = (mode: 'standard' | 'ai' = 'standard') => normalizeConfig({
     service: 'microsoft', areaTranslationMode: mode, areaTranslationService: mode === 'ai' ? 'openai' : '',
     model: {openai: 'gpt-4o'}, from: 'auto', to: 'zh-Hans', token: {openai: 'private-old-key'},
 });
 
 describe('圈选整块文字翻译事务', () => {
+    it('视觉识别在未指定服务和提示词时使用主服务与默认提示', async () => {
+        const source = config();
+        source.areaTranslationService = '';
+        Reflect.deleteProperty(source, 'areaVisionPrompt');
+        const crop = vi.fn(async () => ({image: 'data:image/png;base64,AA==', lines: []}));
+        const translate = vi.fn(async (_request: TranslationRequestMessage) => 'Detected text');
+        const result = await (await import('@/src/features/area-translation/services/textTranslation')).prepareAreaVisionRecognition(
+            source, 'en', 'Page', crop, translate,
+        )('data:image/png;base64,AA==', {left: 0, top: 0, width: 10, height: 10, viewportWidth: 20, viewportHeight: 20}, options());
+        expect(result).toMatchObject({sourceText: 'Detected text', recognitionMethod: 'vision'});
+        expect(translate.mock.calls[0][0].targetLanguage).toBe('zh-Hans');
+    });
+
     it('标准模式以一个完整文本调用免费服务，冻结服务语言凭据术语来源并不发送截图', async () => {
         const source = config();
         source.areaTranslationService = 'freeTranslation';
@@ -114,6 +127,27 @@ describe('圈选整块文字翻译事务', () => {
         now = 10_000;
         await expect(run(recognized, options())).rejects.toThrow('总时间已耗尽');
         expect(translate).not.toHaveBeenCalled();
+    });
+
+    it('视觉识别在裁剪后预算耗尽时不发送模型请求', async () => {
+        const source = config();
+        const crop = vi.fn(async () => { now = 2; return {image: 'data:image/png;base64,AA==', lines: []}; });
+        const translate = vi.fn(async (_request: TranslationRequestMessage) => 'Detected text');
+        let now = 0;
+        const run = (await import('@/src/features/area-translation/services/textTranslation')).prepareAreaVisionRecognition(
+            source, 'en', '', crop, translate, () => now,
+        );
+        const pending = run('data:image/png;base64,AA==', {left: 0, top: 0, width: 10, height: 10, viewportWidth: 20, viewportHeight: 20}, options(undefined, 1));
+        await expect(pending).rejects.toThrow('总时间已耗尽');
+        expect(crop).toHaveBeenCalledOnce();
+        expect(translate).not.toHaveBeenCalled();
+    });
+
+    it('整块翻译保留视觉与回退识别元数据', async () => {
+        const source = config();
+        const recognizedWithMetadata = {...recognized, recognitionMethod: 'ocr' as const, recognitionFallback: 'unknown' as const};
+        const result = await prepareAreaTextTranslation(source, 'en', '', {}, async () => '你好')(recognizedWithMetadata, options());
+        expect(result).toMatchObject({recognitionMethod: 'ocr', recognitionFallback: 'unknown'});
     });
 
     it('取消覆盖OCR完成前与provider迟到响应，不返回成功结果', async () => {

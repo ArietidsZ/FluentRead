@@ -192,17 +192,24 @@ describe('popup feature visibility', () => {
         expect(popup).not.toContain(':disabled="!browserCapabilities.areaTranslation"');
     });
 
-    it('groups X local AI controls away from general video subtitle settings', () => {
+    it('keeps video and reading preferences available in full settings after simplifying quick menus', () => {
         const popup = source('src/app/popup/PopupApp.vue');
-        const styles = source('src/app/popup/popup.css');
+        const settings = source('src/features/settings/ui/SettingsSections.vue');
+        const modelSettings = source('src/features/settings/ui/VideoLocalModelSettings.vue');
+        const appearance = source('src/features/settings/ui/VideoSubtitleAppearanceSettings.vue');
 
-        expect(popup).toContain('class="x-video-ai-group"');
-        expect(popup).toContain('X 视频 · 本地 AI');
-        expect(popup).toContain('class="video-model-settings-link"');
-        expect(styles).toContain('.x-video-ai-group {');
-        expect(styles).toContain('padding: 16px 0;');
-        expect(styles).toContain('border-top: 1px solid var(--line);');
-        expect(styles).toContain('.x-video-ai-group + .select-row { margin-top: 16px; }');
+        expect(popup).toContain("video: 'settings-video'");
+        expect(popup).toContain('config.videoSubtitleDisplayMode');
+        expect(popup).not.toContain('v-model="config.videoService"');
+        expect(popup).not.toContain('v-model="config.videoLocalModel"');
+        expect(popup).not.toContain('v-model="config.selectionTtsVoices"');
+        expect(settings).toContain('v-model="config.videoService"');
+        expect(settings).toContain('v-model="config.videoSourceLanguage"');
+        expect(settings).toContain('v-model="config.selectionTtsVoices"');
+        expect(settings).toContain('v-model="config.style"');
+        expect(settings).toContain('v-model="config.theme"');
+        expect(modelSettings).toContain('v-model="config.videoLocalModel"');
+        expect(appearance).toContain('v-model.number="config.videoSubtitleAppearance.fontScale"');
     });
 
     it('separates area translation from text selection and image translation', () => {
@@ -244,8 +251,9 @@ describe('popup feature visibility', () => {
         expect(popup).toContain('{{ quickProfileSummary(profile) }}');
         expect(popup).toContain("t('popup.quickTranslation.defaultHoverShortcut')");
         expect(popup).toContain("t('popup.quickTranslation.defaultOnly', {count: quickHoverProfiles.length})");
-        expect(popup).toContain(":aria-label=\"t('popup.quickTranslation.toggleDefaultHover')\"");
-        expect(popup).toContain(':aria-checked="defaultHoverEnabled"');
+        expect(popup).toContain("t('popup.quickSettings.disableHoverShortcut')");
+        expect(popup).toContain("t('popup.quickSettings.chooseHoverShortcut')");
+        expect(popup).not.toContain("setHoverHotkey('Control')");
         expect(popup).toContain("resolveConfiguredHotkey(config.value.hotkey, config.value.customHotkey)");
         expect(popup).not.toContain('aria-label="启用或关闭鼠标悬停翻译"');
         expect(popup).toContain("t('popup.quickTranslation.extraProfiles')");
@@ -255,7 +263,7 @@ describe('popup feature visibility', () => {
         expect(popup).toContain("t('popup.quickTranslation.fullPageHint', {count: quickFullPageProfiles.value.length})");
         expect(popup).toContain(':title="fullPageHotkeyTitle"');
         expect(popup).toContain('findEnabledQuickTranslationHotkeyConflict');
-        expect(popup).toContain(':validate="validateCustomMouseHotkey"');
+        expect(popup).not.toContain('CustomHotkeyInput');
         expect(styles).toContain('.quick-profile-preview-row');
         expect(styles).toContain('.setting-row small.independent-profile-note');
         expect(styles).toContain('flex: 0 1 84px');
@@ -274,7 +282,7 @@ describe('popup feature visibility', () => {
         expect(popup).toContain('filterAvailableTranslationServices(allServiceOptions.value)');
         expect(popup).toContain('selectedServiceUnavailableMessage');
         expect(popup).toContain('selectedVideoServiceUnavailableMessage');
-        expect(popup).toContain('Chrome内置AI翻译（当前浏览器不可用）');
+        expect(source('src/features/settings/ui/SettingsSections.vue')).toContain('Chrome内置AI翻译（当前浏览器不可用）');
         expect(popup).toContain('原有开关偏好已保留');
     });
 
@@ -295,6 +303,6 @@ describe('popup feature visibility', () => {
         expect(popup).toContain('inputs[0]?.focus()');
         expect(popup).toContain('const moreServicesOpen = ref(true)');
         expect(popup).toContain('moreServicesOpen.value = true');
-        expect(styles).toContain('.service-picker-results { min-height: 0; overflow-y: auto; scrollbar-width: thin; }');
+        expect(styles).toContain('.service-picker-results { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }');
     });
 });

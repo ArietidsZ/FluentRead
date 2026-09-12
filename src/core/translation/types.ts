@@ -33,6 +33,8 @@ export interface AdapterContext {
 export interface TranslationSiteAdapter {
     id: string;
     priority?: number;
+    /** 仅显式声明的规则在全部节点范围继续生效。 */
+    allScopes?: boolean;
     /** `targets-only` 仍允许 force-target，但禁止通用块和内联 run 回退。 */
     genericCandidatePolicy?: TranslationGenericCandidatePolicy;
     /** 规则依赖的属性名；null 表示不能安全穷举，必须观察全部属性。 */
@@ -61,6 +63,8 @@ export interface TranslationCandidate {
 
 export interface TranslationCoreOptions {
     scope?: TranslationScope;
+    /** 正文范围下把侧边栏与导航一并纳入候选发现。 */
+    includeSidebarRegions?: boolean;
     url?: URL;
     adapters?: readonly TranslationSiteAdapter[];
 }

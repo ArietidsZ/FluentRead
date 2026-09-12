@@ -28,7 +28,13 @@ export function findReplyEditors(doc: Document, site: WritingSite): HTMLElement[
         : site === 'github' ? 'textarea[name="comment[body]"], textarea#new_comment_field, textarea[name="discussion[body]"], textarea[name="discussion_comment[body]"], [data-testid="comment-composer"] textarea, [data-testid="comment-box"] textarea' : '';
     return selector ? Array.from(doc.querySelectorAll<HTMLElement>(selector)).filter(element => isWritingEditor(element, site)).slice(0, 12) : [];
 }
-/** 返回当前编辑框的原生发送/评论按钮；空稿禁用状态仍可定位，调用方只在按钮前插入自有入口。 */
+function actionIsVisible(element: HTMLElement): boolean {
+    if (element.closest(`${excludedUi}, ${hiddenContent}`)) return false;
+    const style = element.ownerDocument.defaultView?.getComputedStyle?.(element);
+    if (style && (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse')) return false;
+    return typeof element.getClientRects !== 'function' || element.getClientRects().length > 0;
+}
+/** 返回当前编辑框所属操作区的原生发送/评论按钮；空稿禁用状态仍可定位。 */
 export function findReplyActionAnchor(editor: HTMLElement, site: WritingSite): HTMLElement | null {
     if (!isWritingEditor(editor, site)) return null;
     const scope = site === 'github' ? editor.closest(githubComposer)
@@ -37,7 +43,13 @@ export function findReplyActionAnchor(editor: HTMLElement, site: WritingSite): H
     const selector = site === 'github'
         ? '[data-testid="markdown-editor-footer"] button[data-variant="primary"], [data-testid="comment-button"], .js-comment-button, button[type="submit"]:not([name="comment_and_close"]), input[type="submit"]:not([name="comment_and_close"])'
         : '[role="button"][data-tooltip*="Enter"], [role="button"][aria-label*="Enter"], button[type="submit"]';
-    return Array.from(scope.querySelectorAll<HTMLElement>(selector)).find(button => !button.closest(`${excludedUi}, ${hiddenContent}`)) ?? null;
+    const ownerSelector = site === 'github' ? githubComposer : 'form, [role="dialog"], .M9';
+    const candidates = Array.from(scope.querySelectorAll<HTMLElement>(selector)).filter(candidate => {
+        if (!actionIsVisible(candidate)) return false;
+        if (candidate.closest(ownerSelector) !== scope) return false;
+        return true;
+    });
+    return candidates[0] ?? null;
 }
 export function editorText(element: HTMLElement): string {
     return element.matches('input, textarea') ? (element as HTMLInputElement).value : element.innerText ?? element.textContent ?? '';

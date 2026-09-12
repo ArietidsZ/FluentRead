@@ -22,10 +22,14 @@
           data-testid="default-translation-service-card"
           :data-default-service="config.service"
         >
-          <ServiceIcon :service="config.service" :label="defaultTextServiceLabel" size="medium" />
-          <el-select v-model="config.service" aria-label="默认网页翻译服务" placeholder="请选择翻译服务">
+          <el-select v-model="config.service" aria-label="默认网页翻译服务" placeholder="请选择翻译服务" :search-placeholder="t('select.searchService')" filterable>
+            <template #prefix><ServiceIcon :service="config.service" :label="defaultTextServiceLabel" size="small" /></template>
             <el-option v-if="selectedTextServiceUnavailableMessage" label="Chrome内置AI翻译（当前浏览器不可用）" :value="config.service" disabled />
-            <el-option v-for="item in availableServiceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" :disabled="item.disabled" />
+            <el-option-group v-for="group in textServiceGroups" :key="group.value" :label="group.label">
+              <el-option v-for="item in group.options" :key="item.value" :label="item.label" :value="item.value" :disabled="item.disabled">
+                <span class="fluentread-service-option"><ServiceIcon :service="item.value" :label="item.label" size="small" /><span>{{ item.label }}</span></span>
+              </el-option>
+            </el-option-group>
           </el-select>
         </div>
       </SettingsItem>
@@ -64,6 +68,7 @@
         :service="selectedConfigurationService"
         :default-service="config.service"
         :website="selectedConfigurationWebsite"
+        :credential-guide="selectedConfigurationCredentialGuide"
         :selected-model="selectedConfigurationModel"
         :services="configurationCompute.filteredServices"
         :model-options="configurationModelOptions"
@@ -125,7 +130,7 @@
       <SettingsGroup>
         <FeatureEnableCard v-model="config.videoTranslationEnabled" title="视频字幕翻译" description="翻译 YouTube 或 X 播放器中的字幕，不上传音频或视频内容。"  />
         <SettingsItem label="视频翻译服务" description="与网页翻译服务相互独立；AI 服务会提前预取字幕。" :disabled="!config.videoTranslationEnabled">
-          <el-select v-model="config.videoService" aria-label="视频字幕翻译服务" :disabled="!config.videoTranslationEnabled" placeholder="请选择服务">
+          <el-select v-model="config.videoService" aria-label="视频字幕翻译服务" :disabled="!config.videoTranslationEnabled" placeholder="请选择服务" filterable>
             <el-option v-if="selectedVideoServiceUnavailableMessage" label="Chrome内置AI翻译（当前浏览器不可用）" :value="config.videoService" disabled />
             <el-option v-for="item in videoServiceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" />
           </el-select>
@@ -170,10 +175,15 @@
           />
         </SettingsItem>
       </SettingsGroup>
+      <VideoSubtitleAppearanceSettings :config="config" />
       <SettingsGroup title="X 本地 AI 字幕" description="仅 X 无原生字幕时使用；模型和音频留在当前浏览器，下载后可离线识别。">
+        <SettingsItem label="视频原语言" description="仅用于 X 没有原生字幕时的本地识别；自动检测适合大多数视频。" :disabled="!config.videoTranslationEnabled || !browserCapabilities.extensionDom">
+          <el-select v-model="config.videoSourceLanguage" aria-label="视频原语言" :disabled="!config.videoTranslationEnabled || !browserCapabilities.extensionDom" placeholder="请选择视频原语言">
+            <el-option v-for="item in VIDEO_SOURCE_LANGUAGE_OPTIONS" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </SettingsItem>
         <VideoLocalModelSettings :config="config" />
       </SettingsGroup>
-      <VideoSubtitleAppearanceSettings :config="config" />
       <details class="feature-help">
         <summary>使用说明</summary>
         <p>打开 YouTube 原生字幕后，FluentRead 会在播放器中显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；播放器菜单可分别下载原文或译文 SRT。</p>
@@ -331,6 +341,33 @@
         <span class="input-suffix">ms</span>
       </el-col>
     </el-row>
+    <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
+      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
+        <el-tooltip class="box-item" effect="dark" content="朗读失败时按这里的顺序依次尝试；留空则根据当前语言自动选择。" placement="top-start" :show-after="500">
+          <span class="popup-text popup-vertical-left">
+            语音回退顺序
+            <el-icon class="icon-margin"><InfoFilled /></el-icon>
+          </span>
+        </el-tooltip>
+      </el-col>
+      <el-col :span="10" class="settings-control-field flex-end">
+        <div class="selection-tts-voice-control">
+          <el-select
+            v-model="config.selectionTtsVoices"
+            multiple
+            filterable
+            collapse-tags
+            collapse-tags-tooltip
+            aria-label="划词翻译语音回退顺序"
+            placeholder="自动按语言选择"
+            no-data-text="没有可用音色"
+          >
+            <el-option v-for="item in selectionTtsVoiceOptions" :key="item.value" :label="`${item.label} · ${item.locale}`" :value="item.value" />
+          </el-select>
+          <small>留空时按当前语言自动尝试多个免费 Edge 音色；选中多个后按此顺序回退，不需要 API Key。</small>
+        </div>
+      </el-col>
+    </el-row>
     </SettingsGroup>
     </section>
 
@@ -340,14 +377,21 @@
         <SettingsItem :label="t('settings.pageRecognition.allNodes')" :description="t('settings.pageRecognition.description')">
           <el-switch v-model="config.translationScope" active-value="all" inactive-value="content" class="settings-toggle" :aria-label="t('settings.pageRecognition.allNodes')" />
         </SettingsItem>
+        <SettingsItem :label="t('settings.pageRecognition.pageTitle')" :description="t('settings.pageRecognition.pageTitleDescription')">
+          <el-switch v-model="config.pageTitleTranslationEnabled" class="settings-toggle" :aria-label="t('settings.pageRecognition.pageTitle')" />
+        </SettingsItem>
+        <SettingsItem :label="t('settings.pageRecognition.sidebar')" :description="t('settings.pageRecognition.sidebarDescription')">
+          <el-switch v-model="config.sidebarTranslationEnabled" class="settings-toggle" :aria-label="t('settings.pageRecognition.sidebar')" />
+        </SettingsItem>
       </SettingsGroup>
+      <ParagraphHandlingSettings v-if="props.activeSection === 'settings-advanced'" :config="config" />
       <TranslationCacheSettings v-if="props.activeSection === 'settings-advanced'" :config="config" />
     </section>
 
     <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
       <SettingsGroup title="译文显示" description="设置网页翻译后的内容形式和双语译文样式。">
         <SettingsItem :label="t('settings.general.defaultTargetLanguage')" :description="t('settings.general.defaultTargetLanguageDescription')">
-          <el-select v-model="config.to" data-config-field="to" :aria-label="t('settings.general.defaultTargetLanguage')" :placeholder="t('settings.general.targetLanguagePlaceholder')">
+          <el-select v-model="config.to" data-config-field="to" :aria-label="t('settings.general.defaultTargetLanguage')" :placeholder="t('settings.general.targetLanguagePlaceholder')" filterable>
             <el-option v-for="item in options.to" :key="item.value" data-i18n-ignore class="select-left" :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
           </el-select>
         </SettingsItem>
@@ -355,7 +399,7 @@
           <SegmentedControl v-model="config.display" :options="options.display" label="翻译模式" />
         </SettingsItem>
         <SettingsItem v-show="config.display === 1" label="译文样式" description="选择后可在下方立即查看效果。">
-          <el-select v-model="config.style" aria-label="译文样式" placeholder="请选择译文显示样式">
+          <el-select v-model="config.style" aria-label="译文样式" placeholder="请选择译文显示样式" filterable>
             <el-option-group v-for="group in styleGroups" :key="group.value" :label="group.label">
               <el-option v-for="item in group.options" :key="item.value" :label="item.label" :value="item.value" :class="item.class" />
             </el-option-group>
@@ -447,6 +491,10 @@
       </SettingsGroup>
     </section>
 
+    <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
+      <FloatingBallSettings :config="config" />
+    </section>
+
     <section v-show="props.activeSection === 'settings-interface'" id="settings-interface" class="settings-section">
       <InterfaceSettings :config="config" />
     </section>
@@ -478,7 +526,7 @@
             <span class="popup-text popup-vertical-left">翻译目标语言</span>
           </el-col>
           <el-col :span="12" class="settings-control-field">
-            <el-select v-model="config.inputBoxTranslationTarget" aria-label="输入框翻译目标语言" placeholder="请选择目标语言">
+            <el-select v-model="config.inputBoxTranslationTarget" aria-label="输入框翻译目标语言" placeholder="请选择目标语言" filterable>
               <el-option class="select-left" data-i18n-ignore v-for="item in options.inputBoxTranslationTarget" :key="item.value"
                          :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
             </el-select>
@@ -533,148 +581,28 @@
           </el-col>
         </el-row>
 
-        <el-row class="settings-control-row">
-          <el-col :span="20" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark" content="在网页右键菜单中显示“流畅阅读翻译”或“流畅阅读取消翻译”入口；关闭后不会影响全文翻译快捷键和悬浮球" placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">右键全文翻译<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-            </el-tooltip>
-          </el-col>
-          <el-col :span="4" class="settings-control-field flex-end">
-            <el-switch v-model="config.contextMenuEnabled" class="settings-toggle" aria-label="右键全文翻译" />
-          </el-col>
-        </el-row>
         <QuickTranslationProfiles :config="config" action="full-page" :profiles="config.quickTranslationProfiles"
           @update:profiles="config.quickTranslationProfiles = $event" />
       </SettingsGroup>
+      <ContextMenuSettings />
     </section>
 
     <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
-      <SettingsGroup title="任务调度" description="控制并发数量、请求速率和失败重试的退避范围。" class="task-scheduler-group">
-        <div class="task-scheduler-grid" data-testid="translation-scheduler-settings">
-          <div class="scheduler-setting-row">
-            <div class="settings-control-label">
-              <el-tooltip class="box-item" effect="dark" content="控制同时进行的最大翻译任务数，数值越高翻译速度越快，但可能占用更多系统资源" placement="top-start" :show-after="500">
-                <span class="popup-text popup-vertical-left">翻译并发数<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-              </el-tooltip>
-            </div>
-            <div class="settings-control-field">
-              <div class="scheduler-number-field">
-                <el-input-number
-                  v-model="config.maxConcurrentTranslations"
-                  aria-label="翻译并发数"
-                  :min="1"
-                  :max="100"
-                  :step="1"
-                  :controls="false"
-                  @change="handleConcurrentChange"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="scheduler-setting-row">
-            <div class="settings-control-label">
-              <el-tooltip class="box-item" effect="dark" content="限制所有翻译服务每秒启动的真实请求数；设为 0 表示不限速。设置会在下一次请求调度时生效。" placement="top-start" :show-after="500">
-                <span class="popup-text popup-vertical-left">每秒最多请求数<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-              </el-tooltip>
-            </div>
-            <div class="settings-control-field">
-              <div class="scheduler-number-field">
-                <el-input-number
-                  v-model="config.translationRequestsPerSecond"
-                  aria-label="每秒最多请求数"
-                  :min="MIN_TRANSLATION_REQUESTS_PER_SECOND"
-                  :max="MAX_TRANSLATION_REQUESTS_PER_SECOND"
-                  :step="1"
-                  :controls="false"
-                  @change="handleTranslationRequestsPerSecondChange"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="scheduler-setting-row">
-            <div class="settings-control-label">
-              <el-tooltip class="box-item" effect="dark" content="限制所有翻译服务每分钟启动的真实请求数；设为 0 表示不限速。与每秒限制同时满足。" placement="top-start" :show-after="500">
-                <span class="popup-text popup-vertical-left">每分钟最多请求数<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-              </el-tooltip>
-            </div>
-            <div class="settings-control-field">
-              <div class="scheduler-number-field">
-                <el-input-number
-                  v-model="config.translationRequestsPerMinute"
-                  aria-label="每分钟最多请求数"
-                  :min="MIN_TRANSLATION_REQUESTS_PER_MINUTE"
-                  :max="MAX_TRANSLATION_REQUESTS_PER_MINUTE"
-                  :step="1"
-                  :controls="false"
-                  @change="handleTranslationRequestsPerMinuteChange"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="scheduler-setting-row">
-            <div class="settings-control-label">
-              <el-tooltip class="box-item" effect="dark" content="请求失败且错误可重试时，最多额外发送多少次；设为 0 表示不自动重试。" placement="top-start" :show-after="500">
-                <span class="popup-text popup-vertical-left">失败后最多重试<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-              </el-tooltip>
-            </div>
-            <div class="settings-control-field">
-              <div class="scheduler-number-field">
-                <el-input-number
-                  v-model="config.translationMaxRetries"
-                  aria-label="失败后最多重试"
-                  :min="MIN_TRANSLATION_MAX_RETRIES"
-                  :max="MAX_TRANSLATION_MAX_RETRIES"
-                  :step="1"
-                  :controls="false"
-                  @change="handleTranslationMaxRetriesChange"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="scheduler-setting-row">
-            <div class="settings-control-label">
-              <el-tooltip class="box-item" effect="dark" content="第一次自动重试前等待的时间；之后按指数退避逐步增加，受最大退避间隔限制。" placement="top-start" :show-after="500">
-                <span class="popup-text popup-vertical-left">退避初始间隔<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-              </el-tooltip>
-            </div>
-            <div class="settings-control-field">
-              <div class="scheduler-number-field" data-unit="ms">
-                <el-input-number
-                  v-model="config.translationBackoffBaseMs"
-                  aria-label="退避初始间隔"
-                  :min="MIN_TRANSLATION_BACKOFF_BASE_MS"
-                  :max="MAX_TRANSLATION_BACKOFF_BASE_MS"
-                  :step="100"
-                  :controls="false"
-                  @change="handleTranslationBackoffBaseChange"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="scheduler-setting-row">
-            <div class="settings-control-label">
-              <el-tooltip class="box-item" effect="dark" content="指数退避的本地最大等待时间；服务端返回 Retry-After 时会优先遵守服务端要求。" placement="top-start" :show-after="500">
-                <span class="popup-text popup-vertical-left">退避最大间隔<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-              </el-tooltip>
-            </div>
-            <div class="settings-control-field">
-              <div class="scheduler-number-field" data-unit="ms">
-                <el-input-number
-                  v-model="config.translationBackoffMaxMs"
-                  aria-label="退避最大间隔"
-                  :min="Math.max(MIN_TRANSLATION_BACKOFF_MAX_MS, config.translationBackoffBaseMs)"
-                  :max="MAX_TRANSLATION_BACKOFF_MAX_MS"
-                  :step="1000"
-                  :controls="false"
-                  @change="handleTranslationBackoffMaxChange"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="scheduler-effect-row" role="status" aria-live="polite">
-            <span class="scheduler-effect-label">当前效果</span>
-            <p>{{ translationSchedulerEffect }}</p>
-          </div>
+      <SettingsGroup :title="t('settings.requestLimits.globalTitle')" :description="t('settings.requestLimits.globalHelp')">
+        <div data-testid="translation-scheduler-settings">
+          <RequestLimitFields :model-value="config" @update:model-value="Object.assign(config, $event)" />
+          <SettingsItem label="失败后最多重试">
+            <div class="request-default-number"><el-input-number :model-value="config.translationMaxRetries" aria-label="失败后最多重试" :min="0" :max="10" :controls="false" @change="handleTranslationMaxRetriesChange" /></div>
+          </SettingsItem>
+          <details class="request-retry-settings" data-testid="translation-retry-settings">
+            <summary>{{ t('settings.requestLimits.retryIntervals') }}</summary>
+            <SettingsItem label="退避初始间隔">
+              <div class="request-default-number"><el-input-number :model-value="config.translationBackoffBaseMs" aria-label="退避初始间隔" :min="MIN_TRANSLATION_BACKOFF_BASE_MS" :max="MAX_TRANSLATION_BACKOFF_BASE_MS" :step="100" :controls="false" @change="handleTranslationBackoffBaseChange" /><span>ms</span></div>
+            </SettingsItem>
+            <SettingsItem label="退避最大间隔">
+              <div class="request-default-number"><el-input-number :model-value="config.translationBackoffMaxMs" aria-label="退避最大间隔" :min="Math.max(MIN_TRANSLATION_BACKOFF_MAX_MS, config.translationBackoffBaseMs)" :max="MAX_TRANSLATION_BACKOFF_MAX_MS" :step="1000" :controls="false" @change="handleTranslationBackoffMaxChange" /><span>ms</span></div>
+            </SettingsItem>
+          </details>
         </div>
       </SettingsGroup>
     </section>
@@ -717,7 +645,7 @@ import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 // Main 处理配置信息
 import { computed, ref, watch, onUnmounted } from 'vue'
 import {isValidAzureEndpoint} from '@/src/core/config/azure';
-import { customModelString, defaultOption, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
+import { cloudRegionOptions, customModelString, defaultOption, getCloudCredentialLabels, getDefaultCloudRegion, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 import GlossaryLibrarySelect from '@/src/ui/components/GlossaryLibrarySelect.vue';
 import {
   createNextCustomOpenAIProviderId,
@@ -737,35 +665,29 @@ import {
   withModelThinkingPreference,
   withoutModelThinkingPreference,
 } from '@/src/core/config/modelThinking';
+import {withoutModelRequestLimit} from '@/src/core/config/requestLimits';
+import {resolveAreaTranslationHotkey} from '@/src/core/config/areaTranslation';
 import {useServiceModelOptions} from './services/modelOptions';
 import {
   Config,
-  DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
   MOUSE_HOVER_TRANSLATION_DELAY_MAX,
   MOUSE_HOVER_TRANSLATION_DELAY_MIN,
   MOUSE_HOVER_TRANSLATION_DELAY_STEP,
   MAX_TRANSLATION_BACKOFF_BASE_MS,
   MAX_TRANSLATION_BACKOFF_MAX_MS,
-  MAX_TRANSLATION_MAX_RETRIES,
-  MAX_TRANSLATION_REQUESTS_PER_MINUTE,
-  MAX_TRANSLATION_REQUESTS_PER_SECOND,
   MIN_TRANSLATION_BACKOFF_BASE_MS,
   MIN_TRANSLATION_BACKOFF_MAX_MS,
-  MIN_TRANSLATION_MAX_RETRIES,
-  MIN_TRANSLATION_REQUESTS_PER_MINUTE,
-  MIN_TRANSLATION_REQUESTS_PER_SECOND,
   SELECTION_TRANSLATOR_DELAY_MAX,
   SELECTION_TRANSLATOR_DELAY_MIN,
   SELECTION_TRANSLATOR_DELAY_STEP,
+  VIDEO_SOURCE_LANGUAGE_OPTIONS,
   normalizeConfig,
   normalizeMouseHoverTranslationDelay,
   normalizeSelectionTranslatorDelay,
   normalizeTranslationBackoffBaseMs,
   normalizeTranslationBackoffMaxMs,
-  normalizeTranslationMaxRetries,
-  normalizeTranslationRequestsPerMinute,
-  normalizeTranslationRequestsPerSecond,
 } from '@/src/core/config/model';
+import {SELECTION_TTS_VOICE_OPTIONS} from '@/src/core/config/selectionTts';
 import { InfoFilled, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import browser from 'webextension-polyfill';
@@ -775,7 +697,7 @@ const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
 import ServiceCatalog from './services/ServiceCatalog.vue';
-import {getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';
+import {getServiceCredentialGuide, getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
@@ -784,6 +706,7 @@ import WritingSettings from './WritingSettings.vue';
 import HarnessSettings from './HarnessSettings.vue';
 import {GlossarySettings} from '@/src/features/glossary/public';
 import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
+import FloatingBallSettings from './FloatingBallSettings.vue';
 import SiteAdaptationSettings from './SiteAdaptationSettings.vue';
 import type {SiteAdaptationSettings as SiteAdaptationConfig} from '@/src/core/site-adaptation/types';
 import {
@@ -800,13 +723,16 @@ import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
 import AreaTranslationSettings from './AreaTranslationSettings.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
+import ParagraphHandlingSettings from './ParagraphHandlingSettings.vue';
 import TranslationCacheSettings from './TranslationCacheSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
+import RequestLimitFields from './services/RequestLimitFields.vue';
 import SegmentedControl from './components/SegmentedControl.vue';
 import {localizeServiceOptions, useUiI18n} from '@/src/ui/i18n';
 import ConfigManagement from './ConfigManagement.vue';
 import QuickTranslationProfiles from './QuickTranslationProfiles.vue';
+import ContextMenuSettings from './ContextMenuSettings.vue';
 import {useTranslationShortcutSettings} from './useTranslationShortcutSettings';
 import {
   config as runtimeConfig,
@@ -866,13 +792,6 @@ const {
   validateCustomFullPageHotkey,
   validateCustomMouseHotkey,
 } = useTranslationShortcutSettings(config);
-const translationLimit = (value: number) => value === 0 ? '∞' : value;
-const translationDuration = (value: number) => value >= 1000 && value % 1000 === 0 ? `${value / 1000} s` : `${value} ms`;
-const translationSchedulerEffect = computed(() => t('settings.advanced.schedulerSummary', {
-  concurrency: config.value.maxConcurrentTranslations, perSecond: translationLimit(config.value.translationRequestsPerSecond),
-  perMinute: translationLimit(config.value.translationRequestsPerMinute), retries: config.value.translationMaxRetries,
-  baseDelay: translationDuration(config.value.translationBackoffBaseMs), maxDelay: translationDuration(config.value.translationBackoffMaxMs), }));
-
 const customProviderDialogOpen = ref(false);
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
@@ -954,6 +873,9 @@ const selectedConfigurationWebsite = computed(() => {
     : service === services.newapi ? config.value.newApiUrl : config.value.custom;
   return getServiceWebsite(service, {endpoint, minimaxRegion: config.value.minimaxRegion});
 });
+const selectedConfigurationCredentialGuide = computed(
+  () => getServiceCredentialGuide(selectedConfigurationService.value),
+);
 
 // 导入、撤销或恢复可能在当前页面仍打开时删除正在编辑的 profile。
 // 失效的 custom:* 选择应立即回退到新的默认服务，避免渲染孤儿配置字段。
@@ -980,6 +902,18 @@ const serviceOptionsWithCustomProviders = computed(() => localizeServiceOptions(
   translateLegacy,
 ));
 const availableServiceOptions = computed(() => filterAvailableTranslationServices(serviceOptionsWithCustomProviders.value));
+// 目录中的机器 / AI 标记只用于分组，不再作为不可选择的菜单选项。
+const textServiceGroups = computed(() => {
+  const groups: {value: string; label: string; options: typeof availableServiceOptions.value}[] = [];
+  for (const item of availableServiceOptions.value) {
+    if (item.value === 'machine' || item.value === 'ai') {
+      groups.push({value: item.value, label: item.label, options: []});
+    } else {
+      groups.at(-1)?.options.push(item);
+    }
+  }
+  return groups.filter(group => group.options.length > 0);
+});
 const defaultTextServiceLabel = computed(() => (
   serviceOptionsWithCustomProviders.value.find((item: any) => item.value === config.value.service)?.label || config.value.service
 ));
@@ -1001,6 +935,7 @@ const selectionTranslatorModeOptions = [
   {value: 'bilingual', label: '双语'},
   {value: 'translation-only', label: '仅译文'},
 ];
+const selectionTtsVoiceOptions = SELECTION_TTS_VOICE_OPTIONS;
 const videoSubtitleDisplayModeOptions = [
   {value: 'bilingual', label: '双语'},
   {value: 'translation-only', label: '仅译文'},
@@ -1186,6 +1121,7 @@ function removeConfigurationModel(model: string): void {
         else delete next.documentModel[service];
       }
       next.modelThinking = withoutModelThinkingPreference(next.modelThinking, service, model);
+      next.modelRequestLimits = withoutModelRequestLimit(next.modelRequestLimits, service, model);
     });
     return;
   }
@@ -1224,6 +1160,7 @@ function removeConfigurationModel(model: string): void {
     delete next.requireApiKey[createApiKeyRequirementKey(service, model)];
     delete next.requireApiKey[getLegacyApiKeyRequirementKey(service, model)];
     next.modelThinking = withoutModelThinkingPreference(next.modelThinking, service, model);
+    next.modelRequestLimits = withoutModelRequestLimit(next.modelRequestLimits, service, model);
   });
 }
 
@@ -1246,6 +1183,14 @@ const createServiceCompute = (serviceSource: ServiceSource) => ({
   showAkSk: computed(() => servicesType.isUseAkSk(serviceSource.value)),
   showYoudao: computed(() => servicesType.isYoudao(serviceSource.value)),
   showTencent: computed(() => servicesType.isTencent(serviceSource.value)),
+  // 云服务厂商：主密钥沿用 token[service]，第二段密钥与地域分别来自 secret/serviceRegion。
+  showCloudVendor: computed(() => servicesType.isCloudVendor(serviceSource.value)),
+  showServiceSecret: computed(() => servicesType.isUseSecret(serviceSource.value)),
+  showServiceRegion: computed(() => servicesType.isUseRegion(serviceSource.value)),
+  cloudCredentialLabels: computed(() => getCloudCredentialLabels(serviceSource.value)),
+  cloudRegionOptions: computed(() => cloudRegionOptions[serviceSource.value] || []),
+  defaultCloudRegion: computed(() => getDefaultCloudRegion(serviceSource.value)),
+  showOllamaEndpoint: computed(() => serviceSource.value === services.ollama),
   model: computed(() => models.get(serviceSource.value) || []),
   showCustom: computed(() => isCustomOpenAIProviderId(serviceSource.value)),
   showCustomOpenAI: computed(() => Boolean(getCustomOpenAIProvider(config.value.customOpenAIProviders, serviceSource.value))),
@@ -1337,7 +1282,9 @@ const imageTranslationEnabled = computed({
 const selectionAreaTranslationEnabled = computed({
   get: () => config.value.selectionAreaEnabled,
   set: (value) => {
-    const conflictMessage = value ? quickTranslationConflictMessage('Shift+Z') : '';
+    const conflictMessage = value
+      ? quickTranslationConflictMessage(resolveAreaTranslationHotkey(config.value.selectionAreaHotkey, config.value.customSelectionAreaHotkey))
+      : '';
     if (conflictMessage) {
       ElMessage.warning(conflictMessage);
       return;
@@ -1425,40 +1372,13 @@ const handleSelectionTranslatorDelayChange = (value: number | undefined) => {
   config.value.selectionTranslatorDelay = normalizeSelectionTranslatorDelay(value);
 };
 
-// 处理并发数量变化
-const handleConcurrentChange = (currentValue: number | undefined) => {
-  // 验证并发数量的有效性
-  if (currentValue === undefined || currentValue < 1 || currentValue > 100) {
-    ElMessage({
-      message: '并发数量必须在 1-100 之间',
-      type: 'warning',
-      duration: 2000
-    });
-    // 恢复默认值
-    config.value.maxConcurrentTranslations = DEFAULT_MAX_CONCURRENT_TRANSLATIONS;
-    return;
-  }
-  
-  ElMessage({
-    message: `并发数量已更新为 ${currentValue}`,
-    type: 'success',
-    duration: 2000
-  });
-};
-
-const handleTranslationRequestsPerSecondChange = (currentValue: number | undefined) => {
-  config.value.translationRequestsPerSecond = normalizeTranslationRequestsPerSecond(currentValue);
-};
-
-const handleTranslationRequestsPerMinuteChange = (currentValue: number | undefined) => {
-  config.value.translationRequestsPerMinute = normalizeTranslationRequestsPerMinute(currentValue);
-};
-
 const handleTranslationMaxRetriesChange = (currentValue: number | undefined) => {
-  config.value.translationMaxRetries = normalizeTranslationMaxRetries(currentValue);
+  if (currentValue === undefined || !Number.isSafeInteger(currentValue) || currentValue < 0 || currentValue > 10) return;
+  config.value.translationMaxRetries = currentValue;
 };
 
 const handleTranslationBackoffBaseChange = (currentValue: number | undefined) => {
+  if (currentValue === undefined || !Number.isSafeInteger(currentValue)) return;
   const nextBase = normalizeTranslationBackoffBaseMs(currentValue);
   config.value.translationBackoffBaseMs = nextBase;
   if (config.value.translationBackoffMaxMs < nextBase) {
@@ -1467,6 +1387,7 @@ const handleTranslationBackoffBaseChange = (currentValue: number | undefined) =>
 };
 
 const handleTranslationBackoffMaxChange = (currentValue: number | undefined) => {
+  if (currentValue === undefined || !Number.isSafeInteger(currentValue)) return;
   const normalized = normalizeTranslationBackoffMaxMs(currentValue);
   config.value.translationBackoffMaxMs = Math.max(
     config.value.translationBackoffBaseMs,

@@ -6,15 +6,16 @@
  */
 import {createApp} from 'vue';
 import './popup.css';
-import '@/src/ui/styles/interface-skins.css';
 import App from './PopupApp.vue';
 import 'element-plus/dist/index.css'
+import '@/src/ui/styles/interface-skins.css';
 import {Coffee} from '@element-plus/icons-vue'
-import {ElSelect, ElOption, ElInputNumber, ElDrawer} from 'element-plus'
+import {ElOption, ElInputNumber, ElDrawer} from 'element-plus'
+import UiSelect from '@/src/ui/components/UiSelect.vue'
 import {createUiI18nPlugin} from '@/src/ui/i18n'
 import {configReady} from '@/src/services/config/store'
 
-const ELEMENT_COMPONENTS = [ElSelect, ElOption, ElInputNumber, ElDrawer] as const
+const ELEMENT_COMPONENTS = [ElOption, ElInputNumber, ElDrawer] as const
 const ELEMENT_ICONS = {Coffee} as const
 
 /** Popup 的唯一组装入口：配置就绪后才创建界面，避免默认布局先绘制。 */
@@ -22,6 +23,7 @@ export async function mountPopupApp(selector: string): Promise<void> {
   await configReady
   const app = createApp(App)
   app.use(createUiI18nPlugin({documentRoot: document.body, documentTitleKey: 'metadata.popupTitle'}))
+  app.component('ElSelect', UiSelect)
 
   // 步骤 1：只注册 Popup 模板真正使用的 Element Plus 组件和图标。
   for (const component of ELEMENT_COMPONENTS) {

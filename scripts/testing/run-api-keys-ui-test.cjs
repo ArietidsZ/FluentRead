@@ -193,7 +193,7 @@ async function main() {
   await firstKeyRow.scrollIntoViewIfNeeded();
   const firstKeyBox = await firstKeyRow.boundingBox();
   assert(firstKeyBox && firstKeyBox.y >= 0 && firstKeyBox.y + firstKeyBox.height <= 900, 'first key row must be fully visible on narrow viewport');
-  const firstKeyInputBox = await page.locator('[data-api-key-list] .api-key-row input').first().boundingBox();
+  const firstKeyInputBox = await page.locator('[data-api-key-list] .api-key-row .el-input__wrapper').first().boundingBox();
   assert(firstKeyInputBox && firstKeyInputBox.width >= 200, 'narrow API Key input must remain usable');
   await page.locator('[data-api-key-list] .api-key-row input').nth(9).evaluate(element => element.scrollIntoView({block: 'center', inline: 'nearest'}));
   await page.waitForTimeout(250);

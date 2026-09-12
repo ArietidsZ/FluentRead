@@ -19,9 +19,10 @@ import {
 } from '@/src/providers/translation/connectionTest';
 import {formatServiceError, getServiceErrorMessage} from '@/src/services/translation/serviceErrors';
 import {services} from '@/src/core/config/catalog';
-import {reportTranslationModelUsage} from '@/src/services/translation/requestSnapshot';
+import {getTranslationRequestScheduler, reportTranslationModelUsage, TRANSLATION_PROVIDER_CONFIG} from '@/src/services/translation/requestSnapshot';
+import {createTranslationRequestScheduler} from '@/src/services/translation/requestScheduler';
 import {createTranslationProviderConfigSnapshot, getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
-import {Config} from '@/src/core/config/model';
+import {Config, normalizeConfig} from '@/src/core/config/model';
 import {createApiKeyCheckRevision} from '@/src/core/config/apiKeyCheckIdentity';
 
 function deferred<T>() {
@@ -35,6 +36,29 @@ function deferred<T>() {
 }
 
 describe('翻译服务连接测试', () => {
+    it('指定 Key 的逐项检查仍共享请求调度，不会绕过频率限制', async () => {
+        vi.useFakeTimers();
+        const scheduler = createTranslationRequestScheduler(() => ({
+            maxConcurrentTranslations: 6, translationRequestsPerSecond: 1, translationRequestsPerMinute: 0,
+        }));
+        const source = new Config();
+        source.apiKeys.demo = ['scheduled-first', 'scheduled-second'];
+        source.token.demo = 'scheduled-first';
+        const snapshot = createTranslationProviderConfigSnapshot(source);
+        const used: string[] = [];
+        adapter.mockImplementation(async message => {
+            used.push(getTranslationProviderConfig(message, snapshot).token.demo);
+            expect(getTranslationRequestScheduler(message)?.identity?.service).toBe('demo');
+            return '你好';
+        });
+        await runTranslationServiceConnectionTest('demo', {config: snapshot, keyIndex: 0, requestScheduler: scheduler});
+        const second = runTranslationServiceConnectionTest('demo', {config: snapshot, keyIndex: 1, requestScheduler: scheduler});
+        await vi.advanceTimersByTimeAsync(999);
+        expect(used).toEqual(['scheduled-first']);
+        await vi.advanceTimersByTimeAsync(1);
+        await second;
+        expect(used).toEqual(['scheduled-first', 'scheduled-second']);
+    });
     it('逐项检查使用冻结凭据、不用其他 Key 掩盖失败，支持空行后的原始索引', async () => {
         const source = new Config();
         source.apiKeys.demo = ['fixture-connection-bad', '', 'fixture-connection-good'];
@@ -83,6 +107,7 @@ describe('翻译服务连接测试', () => {
         await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: snapshot})).resolves.toBeTruthy();
         adapter.mockImplementation(async message => {
             expect(Object.isFrozen(getTranslationProviderConfig(message, source))).toBe(true);
+            expect(getTranslationProviderConfig(message, source).token.demo).toBe('');
             return '你好';
         });
         await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: createTranslationProviderConfigSnapshot(new Config())})).resolves.toBeTruthy();
@@ -104,6 +129,63 @@ describe('翻译服务连接测试', () => {
             useCache: false,
             abortSignal: expect.any(AbortSignal),
         }));
+    });
+
+    it('无 config 时不注入不完整的 provider snapshot，保持 adapter 原有 fallback', async () => {
+        adapter.mockImplementation(async (message: object) => {
+            expect(Object.prototype.hasOwnProperty.call(message, TRANSLATION_PROVIDER_CONFIG)).toBe(false);
+            return '测试译文';
+        });
+
+        await expect(runTranslationServiceConnectionTest('demo')).resolves.toEqual(expect.objectContaining({
+            durationMs: expect.any(Number),
+        }));
+    });
+
+    it('提供 config 时绑定调用方 snapshot，供 adapter 读取真实配置', async () => {
+        const config = createTranslationProviderConfigSnapshot(normalizeConfig({
+            service: 'demo',
+            model: {demo: 'configured-demo-model'},
+        }));
+        adapter.mockImplementation(async (message: object) => {
+            expect(Object.prototype.hasOwnProperty.call(message, TRANSLATION_PROVIDER_CONFIG)).toBe(true);
+            return '测试译文';
+        });
+
+        await expect(runTranslationServiceConnectionTest('demo', {config})).resolves.toEqual(expect.objectContaining({
+            durationMs: expect.any(Number),
+        }));
+    });
+
+    it('排队期间不调用 adapter，超时取消后也不会迟到发出真实请求', async () => {
+        vi.useFakeTimers();
+        const scheduler = createTranslationRequestScheduler(() => ({
+            maxConcurrentTranslations: 1,
+            translationRequestsPerSecond: 0,
+            translationRequestsPerMinute: 0,
+        }));
+        const blocker = deferred<string>();
+        adapter.mockImplementationOnce((message: object) => {
+            expect(getTranslationRequestScheduler(message)?.identity?.model).toBe('effective-demo');
+            return blocker.promise;
+        }).mockResolvedValueOnce('不应发出的译文');
+
+        const first = runTranslationServiceConnectionTest('demo', {requestScheduler: scheduler, effectiveModel: ' effective-demo '});
+        const firstOutcome = first.catch(error => error);
+        await Promise.resolve();
+        expect(adapter).toHaveBeenCalledOnce();
+
+        const second = runTranslationServiceConnectionTest('demo', {requestScheduler: scheduler});
+        const secondOutcome = second.catch(error => error);
+        await Promise.resolve();
+        expect(adapter).toHaveBeenCalledOnce();
+
+        await vi.advanceTimersByTimeAsync(CONNECTION_TEST_TIMEOUT_MS);
+        await expect(secondOutcome).resolves.toMatchObject({message: '翻译请求超时'});
+        await expect(firstOutcome).resolves.toMatchObject({message: '翻译请求超时'});
+        blocker.resolve('第一个译文');
+        await Promise.resolve();
+        expect(adapter).toHaveBeenCalledOnce();
     });
 
     it('动态 custom:* 服务回退到共享 custom adapter，同时保留动态 serviceOverride', async () => {

@@ -12,15 +12,17 @@ import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/
 import {
     attachTranslationModelUsageObserver,
     attachTranslationProviderConfig,
+    attachTranslationRequestScheduler,
 } from '@/src/services/translation/requestSnapshot';
+import type {TranslationRequestScheduler} from '@/src/services/translation/requestScheduler';
 import type {
+    TranslationProviderConfigSnapshot,
     TranslationModelUsageObservation,
     TranslationModelUsageOutcome,
     TranslationModelUsageRecord,
-    TranslationProviderConfigSnapshot,
 } from '@/src/services/translation/types';
 import {waitForBoundedPersistence} from '@/src/services/translation/persistenceBarrier';
-import {runWithApiKeyRotation} from '@/src/services/translation/apiKeyRotation';
+import {runWithApiKeyRotation, withServiceApiKey} from '@/src/services/translation/apiKeyRotation';
 import {getServiceApiKeyRows} from '@/src/core/config/apiKeys';
 import {matchesApiKeyCheckRevision} from '@/src/core/config/apiKeyCheckIdentity';
 
@@ -36,6 +38,10 @@ export interface ConnectionTestUsageOptions {
     now?: () => number;
     warn?: (message: string, error: unknown) => void;
     persistenceGraceMs?: number;
+    requestScheduler?: TranslationRequestScheduler;
+    config?: TranslationProviderConfigSnapshot;
+    effectiveModel?: string;
+    countRate?: boolean;
 }
 
 function isNonEmptyText(value: unknown): value is string {
@@ -60,6 +66,7 @@ export async function runTranslationServiceConnectionTest(
     let finishedAt = startedAt;
     const observations: TranslationModelUsageObservation[] = [];
     const configuredModel = usageOptions.configuredModel?.trim() || 'unknown';
+    const effectiveModel = usageOptions.effectiveModel?.trim() || configuredModel;
     const controller = new AbortController();
     let timedOut = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -72,21 +79,18 @@ export async function runTranslationServiceConnectionTest(
     });
 
     try {
-        const request = attachTranslationModelUsageObserver({
+        const observedRequest = attachTranslationModelUsageObserver({
             origin: CONNECTION_TEST_ORIGIN,
-            context: '', pageContext: '', summaryPrompt: '', summarySystemPrompt: '',
-            serviceOverride: service, useCache: false,
-            requestTimeoutMs: CONNECTION_TEST_TIMEOUT_MS, abortSignal: controller.signal,
+            context: '',
+            pageContext: '',
+            summaryPrompt: '',
+            summarySystemPrompt: '',
+            serviceOverride: service,
+            useCache: false,
+            requestTimeoutMs: CONNECTION_TEST_TIMEOUT_MS,
+            abortSignal: controller.signal,
         }, (observation) => observations.push({...observation}));
-        const runAdapter = async (snapshot?: TranslationProviderConfigSnapshot) => {
-            const response = await Promise.race([
-                adapter(snapshot ? attachTranslationProviderConfig({...request}, snapshot) : request),
-                timeout,
-            ]);
-            if (!isNonEmptyText(response)) throw new Error('服务已响应，但没有返回有效译文');
-            return response;
-        };
-        const snapshot = usageOptions.configSnapshot;
+        const snapshot = usageOptions.config ?? usageOptions.configSnapshot;
         if (usageOptions.keyIndex !== undefined && (!Number.isSafeInteger(usageOptions.keyIndex) || usageOptions.keyIndex < 0)) {
             throw new Error('连接测试 Key 序号无效');
         }
@@ -95,12 +99,46 @@ export async function runTranslationServiceConnectionTest(
             && !matchesApiKeyCheckRevision(snapshot!, service, usageOptions.keyRevision)) {
             throw new Error('服务配置已更改，请重新检查');
         }
+        const runAdapter = async (selectedSnapshot?: TranslationProviderConfigSnapshot) => {
+            const requestWithConfig = selectedSnapshot
+                ? attachTranslationProviderConfig(observedRequest, selectedSnapshot)
+                : observedRequest;
+            const scheduledRequest = usageOptions.requestScheduler
+                ? attachTranslationRequestScheduler(requestWithConfig, usageOptions.requestScheduler, {
+                    service,
+                    model: effectiveModel,
+                })
+                : requestWithConfig;
+            const transport = usageOptions.requestScheduler
+                ? usageOptions.requestScheduler.schedule(async (lease) => {
+                    const operation = Promise.resolve().then(() => adapter(scheduledRequest));
+                    lease.holdUntil(operation);
+                    return operation;
+                }, {
+                    signal: controller.signal,
+                    deadlineAt: startedAt + CONNECTION_TEST_TIMEOUT_MS,
+                    identity: {service, model: effectiveModel},
+                    countRate: usageOptions.countRate !== false,
+                })
+                : Promise.resolve().then(() => adapter(scheduledRequest));
+            const response = await Promise.race([transport, timeout]);
+            if (!isNonEmptyText(response)) throw new Error('服务已响应，但没有返回有效译文');
+            return response;
+        };
         const keyIndex = usageOptions.keyIndex ?? (snapshot
             ? getServiceApiKeyRows(snapshot, service).findIndex(key => Boolean(key.trim())) : -1);
+        const selectedKeyIndex = keyIndex >= 0 ? keyIndex : undefined;
+        const selectedKeyRequest = selectedKeyIndex !== undefined && snapshot
+            ? runWithApiKeyRotation(snapshot, service, runAdapter, {
+                keyIndex: selectedKeyIndex,
+                signal: controller.signal,
+                deadlineAt: startedAt + CONNECTION_TEST_TIMEOUT_MS,
+                now,
+                model: usageOptions.configuredModel,
+            })
+            : runAdapter(snapshot ? withServiceApiKey(snapshot, service, '') : undefined);
         await Promise.race([
-            Promise.resolve().then(() => snapshot && keyIndex >= 0
-                ? runWithApiKeyRotation(snapshot, service, runAdapter, {keyIndex, now, model: usageOptions.configuredModel})
-                : runAdapter(snapshot)),
+            selectedKeyRequest,
             timeout,
         ]);
         clearTimeout(timer!);

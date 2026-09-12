@@ -41,6 +41,9 @@ describe('API key check identity', () => {
             .toBe(createApiKeyCheckRevision(source, 'openai'));
         expect(createApiKeyCheckRevision({...source, newApiUrl: 'https://other.example'}, 'newapi'))
             .not.toBe(createApiKeyCheckRevision(source, 'newapi'));
+        expect(createApiKeyCheckRevision({...source, serviceRegion: {azureTranslator: 'eastus'}}, 'azureTranslator'))
+            .not.toBe(createApiKeyCheckRevision({...source, serviceRegion: {azureTranslator: 'global'}}, 'azureTranslator'));
+        expect(createApiKeyCheckRevision({...source, serviceRegion: {azureTranslator: 'eastus'}}, 'openai')).toBe(revision);
     });
 
     it('rejects malformed or stale revisions without throwing', () => {

@@ -39,10 +39,10 @@
         <fieldset :disabled="!ready">
           <div class="glossary-metadata">
             <label class="glossary-wide">{{ t('glossary.name') }}<input :value="metadataValue('name')" :maxlength="GLOSSARY_LIMITS.nameLength" @input="editMetadata('name', $event)" @change="updateName" /></label>
-            <label>{{ t('glossary.sourceLanguage') }}<ElSelect class="glossary-select"  :model-value="selected.sourceLanguage" :aria-label="t('glossary.sourceLanguage')" @change="updateLanguage('sourceLanguage', $event)">
+            <label>{{ t('glossary.sourceLanguage') }}<ElSelect class="glossary-select"  :model-value="selected.sourceLanguage" :aria-label="t('glossary.sourceLanguage')" @change="updateLanguage('sourceLanguage', $event)" filterable>
               <ElOption value="" :label="t('glossary.anyLanguage')" /><ElOption v-for="item in languageOptions(selected.sourceLanguage)" :key="item.value" :value="item.value" :label="item.label" />
             </ElSelect></label>
-            <label>{{ t('glossary.targetLanguage') }}<ElSelect class="glossary-select"  :model-value="selected.targetLanguage" :aria-label="t('glossary.targetLanguage')" @change="updateLanguage('targetLanguage', $event)">
+            <label>{{ t('glossary.targetLanguage') }}<ElSelect class="glossary-select"  :model-value="selected.targetLanguage" :aria-label="t('glossary.targetLanguage')" @change="updateLanguage('targetLanguage', $event)" filterable>
               <ElOption value="" :label="t('glossary.anyLanguage')" /><ElOption v-for="item in languageOptions(selected.targetLanguage)" :key="item.value" :value="item.value" :label="item.label" />
             </ElSelect></label>
             <label class="glossary-wide">{{ t('glossary.domains') }}<textarea rows="2" :value="metadataValue('domains')" :aria-label="t('glossary.domains')" :placeholder="t('glossary.domainsPlaceholder')" @input="editMetadata('domains', $event)" @change="updateDomains" /><small>{{ t('glossary.domainsHelp') }}</small></label>
@@ -79,8 +79,8 @@
       <h3>{{ t('glossary.preview') }}</h3><p class="glossary-help">{{ t('glossary.previewHelp') }}</p>
       <label>{{ t('glossary.previewText') }}<textarea v-model="previewText" rows="3" placeholder="FluentRead uses a large language model." /></label>
       <div class="glossary-preview-context">
-        <label>{{ t('glossary.sourceLanguage') }}<ElSelect class="glossary-select"  v-model="previewSource" :aria-label="t('glossary.sourceLanguage')"><ElOption value="" :label="t('glossary.autoLanguage')" /><ElOption v-for="item in languageOptions(previewSource)" :key="item.value" :value="item.value" :label="item.label" /></ElSelect></label>
-        <label>{{ t('glossary.targetLanguage') }}<ElSelect class="glossary-select"  v-model="previewTarget" :aria-label="t('glossary.targetLanguage')"><ElOption v-for="item in languageOptions(previewTarget)" :key="item.value" :value="item.value" :label="item.label" /></ElSelect></label>
+        <label>{{ t('glossary.sourceLanguage') }}<ElSelect class="glossary-select"  v-model="previewSource" :aria-label="t('glossary.sourceLanguage')" filterable><ElOption value="" :label="t('glossary.autoLanguage')" /><ElOption v-for="item in languageOptions(previewSource)" :key="item.value" :value="item.value" :label="item.label" /></ElSelect></label>
+        <label>{{ t('glossary.targetLanguage') }}<ElSelect class="glossary-select"  v-model="previewTarget" :aria-label="t('glossary.targetLanguage')" filterable><ElOption v-for="item in languageOptions(previewTarget)" :key="item.value" :value="item.value" :label="item.label" /></ElSelect></label>
         <label>{{ t('glossary.previewUrl') }}<input v-model="previewUrl" type="url" placeholder="https://example.com/article" /></label>
       </div>
       <p v-if="!enabled" class="glossary-warning">{{ t('glossary.previewDisabled') }}</p>
