@@ -8,8 +8,10 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTtsRussianMessages} from './localTts';
 
 export const ruRUMessages = {
+    ...localTtsRussianMessages,
     "settings.requestLimits.modelTitle": "Ограничения модели",
     "settings.requestLimits.globalTitle": "Ограничения запросов",
     "settings.requestLimits.globalHelp": "Сервисы и модели без отдельных настроек используют эти общие ограничения.",

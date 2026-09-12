@@ -13,6 +13,7 @@ export * from './customBody';
 export * from './customOpenAI';
 export * from './deeplx';
 export * from './interfaceAppearance';
+export * from './localTts';
 export * from './model';
 export * from './quickTranslation';
 export * from './requestLimits';

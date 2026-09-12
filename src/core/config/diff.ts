@@ -14,6 +14,7 @@ import {
     popupQuickFeatureOptions,
 } from './interfaceAppearance';
 import {translationLoadingStyleOptions} from './translationLoadingStyle';
+import {LOCAL_TTS_MODE_OPTIONS} from './localTts';
 import {parseApiKeyRequirementKey} from './validation';
 
 export const CONFIG_DIFF_GROUPS = [
@@ -212,6 +213,7 @@ const SELECTION_MODE_LABELS = new Map<unknown, string>([
     ['bilingual', '双语显示'],
     ['translation-only', '只显示译文'],
 ]);
+const LOCAL_TTS_MODE_LABELS = labelsFor(LOCAL_TTS_MODE_OPTIONS);
 const VIDEO_DISPLAY_MODE_LABELS = new Map<unknown, string>([
     ['bilingual', '双语显示'],
     ['translation-only', '只显示译文'],
@@ -480,6 +482,8 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     customSelectionTranslatorHotkey: {group: 'translation', label: '自定义划词快捷键'},
     selectionTranslatorDelay: {group: 'translation', label: '划词显示延迟', format: (value) => formatNumber(value, ' ms')},
     selectionTtsVoices: {group: 'translation', label: '划词朗读音色'},
+    selectionTtsMode: {group: 'translation', label: '朗读合成策略', format: (value) => formatEnum(value, LOCAL_TTS_MODE_LABELS)},
+    selectionTtsLocalVoice: {group: 'translation', label: '本地朗读音色'},
     inputBoxTranslationTrigger: {group: 'translation', label: '输入框翻译触发方式', format: (value) => formatEnum(value, INPUT_TRIGGER_LABELS)},
     inputBoxTranslationTarget: {group: 'translation', label: '输入框翻译目标语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
     contextMenuEnabled: {group: 'translation', label: '右键全文翻译', format: formatBoolean},

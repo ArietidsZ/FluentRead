@@ -62,6 +62,14 @@ import {
     resolveAreaTranslationHotkey,
 } from '@/src/core/config/areaTranslation';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
+import {
+    DEFAULT_LOCAL_TTS_MODE,
+    DEFAULT_LOCAL_TTS_VOICE,
+    normalizeLocalTtsMode,
+    normalizeLocalTtsVoice,
+    type LocalTtsMode,
+    type LocalTtsVoiceId,
+} from './localTts';
 import { normalizeUiLanguage, type UiLanguage } from '@/src/core/i18n/language';
 import {normalizeGlossaryIds, normalizeGlossaryLibraries, type GlossaryLibrary} from '@/src/core/glossary';
 import {
@@ -388,6 +396,8 @@ export class Config {
     selectionTranslatorTrigger: string; // 划词翻译互斥触发方式: 'direct' | 'icon' | 'dot' | 'Control' | 'Alt' | 'Shift' | 'custom'
     selectionTranslatorHotkey: string; // 旧版快捷键字段；与 selectionTranslatorTrigger 中的快捷键选项保持镜像
     customSelectionTranslatorHotkey: string; // 自定义划词翻译快捷键
+    selectionTtsMode: LocalTtsMode; // 朗读在线/本地合成策略
+    selectionTtsLocalVoice: LocalTtsVoiceId; // 本地 Kokoro 音色，auto 表示按语言选择
     selectionTranslatorDelay: number; // 选区稳定后显示划词翻译入口的延迟（毫秒）
     selectionTtsVoices: string[]; // 划词朗读的 Edge TTS 音色回退顺序
     vocabularyBookEnabled: boolean; // 是否启用本地单词本 Beta
@@ -538,6 +548,8 @@ export class Config {
         this.selectionTranslatorTrigger = 'icon'; // 默认显示可发现的操作图标
         this.selectionTranslatorHotkey = 'none'; // 默认不增加额外快捷键，保持原有划词行为
         this.customSelectionTranslatorHotkey = ''; // 自定义划词翻译快捷键为空
+        this.selectionTtsMode = DEFAULT_LOCAL_TTS_MODE;
+        this.selectionTtsLocalVoice = DEFAULT_LOCAL_TTS_VOICE;
         this.selectionTranslatorDelay = DEFAULT_SELECTION_TRANSLATOR_DELAY;
         this.selectionTtsVoices = []; // 默认按当前语言使用内置音色回退顺序
         this.vocabularyBookEnabled = false; // Beta 默认关闭，由用户在单词本页面主动开启
@@ -1113,6 +1125,8 @@ export function normalizeConfig(value: unknown): Config {
         }
     } else {
         normalized.selectionTranslatorHotkey = 'none';
+    normalized.selectionTtsMode = normalizeLocalTtsMode(source.selectionTtsMode);
+    normalized.selectionTtsLocalVoice = normalizeLocalTtsVoice(source.selectionTtsLocalVoice);
     }
     normalized.selectionTtsVoices = normalizeSelectionTtsVoiceOrder(normalized.selectionTtsVoices);
     normalized.disableSelectionTranslator = normalized.selectionTranslatorMode === 'disabled';

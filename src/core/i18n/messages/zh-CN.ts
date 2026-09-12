@@ -8,8 +8,10 @@
  */
 import type {
 MessageCatalog} from '../types';
+import {localTtsChineseMessages} from './localTts';
 
 export const zhCNMessages = {
+    ...localTtsChineseMessages,
     "settings.requestLimits.modelTitle": "模型请求限制",
     "settings.requestLimits.globalTitle": "请求限制",
     "settings.requestLimits.globalHelp": "未单独设置的服务和模型共用这些限制。",

@@ -370,6 +370,7 @@
     </el-row>
     </SettingsGroup>
     </section>
+    <LocalTtsSettings :config="config" />
 
     <!-- 高级选项 -->
     <section v-show="props.activeSection === 'settings-advanced'" id="settings-advanced" class="settings-section">
@@ -719,6 +720,7 @@ import {
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import VideoLocalModelSettings from './VideoLocalModelSettings.vue';
 import VideoSubtitleAppearanceSettings from './VideoSubtitleAppearanceSettings.vue';
+import LocalTtsSettings from './LocalTtsSettings.vue';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
 import AreaTranslationSettings from './AreaTranslationSettings.vue';

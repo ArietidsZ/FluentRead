@@ -10,6 +10,13 @@ const firefoxRunnerBinary = process.env.FLUENTREAD_FIREFOX_RUNNER_BINARY;
 const firefoxRunnerProfile = process.env.FLUENTREAD_FIREFOX_RUNNER_PROFILE;
 const firefoxRunnerStartUrl = process.env.FLUENTREAD_FIREFOX_RUNNER_START_URL;
 
+function resolvePnpmPackageDist(packagePrefix: string): string {
+    const pnpmRoot = resolve(__dirname, 'node_modules/.pnpm');
+    const packageDirectory = fs.readdirSync(pnpmRoot).find((name) => name.startsWith(packagePrefix));
+    if (!packageDirectory) throw new Error(`无法定位 ${packagePrefix} 的本地依赖产物`);
+    return resolve(pnpmRoot, packageDirectory, 'node_modules', packagePrefix.split('@')[0], 'dist');
+}
+
 /**
  * Edge 的扩展内容脚本加载器会拒绝产物中的 Unicode 非字符 U+FFFE/U+FFFF，
  * 并把它们误报成“不是 UTF-8 编码”。部分第三方解析器会把源码中的转义
@@ -66,6 +73,8 @@ export function createExtensionManifest(
             ...(capabilities.offscreenDocument ? ['offscreen'] : []),
         ],
         content_security_policy: {
+            // 扩展页面只执行自身静态脚本和 WASM；本地 TTS Worker 通过打包的
+            // JSEP glue/WASM 文件配置运行时，不放宽到 blob 脚本。
             extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
         },
         host_permissions: [
@@ -147,6 +156,10 @@ export default defineConfig({
         'build:publicAssets': (_wxt, files) => {
             for (const name of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {
                 files.push({absoluteSrc: resolve(__dirname, `node_modules/@huggingface/transformers/dist/${name}`), relativeDest: `fluent-read-ai/${name}`});
+            }
+            const ttsOrtDist = resolvePnpmPackageDist('onnxruntime-web@1.26.0-dev');
+            for (const name of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {
+                files.push({absoluteSrc: resolve(ttsOrtDist, name), relativeDest: `fluent-read-ai/tts-${name}`});
             }
         },
     },

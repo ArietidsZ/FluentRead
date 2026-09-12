@@ -8,8 +8,10 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTtsKoreanMessages} from './localTts';
 
 export const koKRMessages = {
+    ...localTtsKoreanMessages,
     "settings.requestLimits.modelTitle": "모델 요청 제한",
     "settings.requestLimits.globalTitle": "요청 제한",
     "settings.requestLimits.globalHelp": "개별 설정이 없는 서비스와 모델은 이 제한을 공유합니다.",

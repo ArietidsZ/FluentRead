@@ -17,6 +17,7 @@ import {
     OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
     OFFSCREEN_READY_MESSAGE_TYPE,
 } from '@/src/platform/offscreen/client';
+    OFFSCREEN_CANCEL_LOCAL_TTS_MESSAGE_TYPE,
 
 export type OffscreenSendResponse = (response: unknown) => void;
 
@@ -63,6 +64,13 @@ type OffscreenMessageListener = (
 ) => boolean;
 
 const SUPPORTED_OCR_LANGUAGES = new Set(IMAGE_OCR_LANGUAGE_PACKS.map((pack) => pack.code));
+    readonly localTts?: {
+        synthesize(request: Record<string, unknown>, signal: AbortSignal): Promise<unknown>;
+        prepare(request: Record<string, unknown>): Promise<unknown>;
+        status(): Promise<unknown>;
+        removeModel(request: Record<string, unknown>): Promise<void>;
+        dispose?(): void;
+    };
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/u;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -146,6 +154,27 @@ function chromeTranslationErrorResponse(error: unknown): Record<string, unknown>
         response.errorCode = 'model-unavailable';
         response.errorName = error.name;
     }
+function binaryToBase64(value: unknown, operation: string): string {
+    const bytes = value instanceof ArrayBuffer
+        ? new Uint8Array(value)
+        : ArrayBuffer.isView(value)
+            ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+            : null;
+    if (!bytes) throw new Error(`${operation}音频结果无效`);
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary);
+}
+
+function serializeLocalTtsAudio(value: unknown): Record<string, unknown> {
+    const record = resultRecord(value, '本地 TTS 合成');
+    const {audio, ...metadata} = record;
+    return {
+        ...metadata,
+        audioBase64: binaryToBase64(audio, '本地 TTS 合成'),
+    };
+}
+
     return response;
 }
 
@@ -179,6 +208,7 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
 
     const startImageOperation = (
         message: Record<string, unknown>,
+    const activeLocalTts = new Map<string, AbortController>();
         sendResponse: OffscreenSendResponse,
         operation: (signal: AbortSignal, requestId: string) => Promise<unknown>,
         shape: (result: unknown) => unknown,
@@ -407,6 +437,86 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                     () => dependencies.downloadOcrLanguages(parseOcrLanguages(message.languages)),
                     sendResponse,
                     () => ({success: true}),
+                    controller?.abort();
+                    sendResponse({success: true, cancelled: Boolean(controller), requestId});
+                } catch (error) {
+                    sendResponse({success: false, error: errorMessage(error)});
+                }
+                return true;
+            }
+            case 'LOCAL_TTS_PREPARE':
+                if (!dependencies.localTts) { sendResponse({success: false, error: '本地 TTS 未启用'}); return true; }
+                respondWith(
+                    () => dependencies.localTts!.prepare(message),
+                    sendResponse,
+                    (result) => ({success: true, ...resultRecord(result, '本地 TTS 模型')}),
+                );
+                return true;
+            case 'LOCAL_TTS_STATUS':
+                if (!dependencies.localTts) { sendResponse({success: false, error: '本地 TTS 未启用'}); return true; }
+                respondWith(
+                    () => dependencies.localTts!.status(),
+                    sendResponse,
+                    (result) => ({success: true, ...resultRecord(result, '本地 TTS 模型状态')}),
+                );
+                return true;
+            case 'LOCAL_TTS_REMOVE_MODEL':
+                if (!dependencies.localTts) { sendResponse({success: false, error: '本地 TTS 未启用'}); return true; }
+                respondWith(
+                    () => dependencies.localTts!.removeModel(message),
+                    sendResponse,
+                    () => ({success: true}),
+                );
+                return true;
+            case 'LOCAL_TTS_SYNTHESIZE': {
+                if (!dependencies.localTts) { sendResponse({success: false, error: '本地 TTS 未启用'}); return true; }
+                let requestId: string;
+                try {
+                    requestId = requiredRequestId(message.requestId);
+                    if (activeLocalTts.has(requestId)) throw new Error('Offscreen 本地 TTS requestId 正在执行');
+                    requiredString(message.text, 'text');
+                    requiredString(message.language, 'language');
+                    requiredString(message.voice, 'voice');
+                } catch (error) {
+                    sendResponse({success: false, error: errorMessage(error)});
+                    return true;
+                }
+
+                const controller = new AbortController();
+                activeLocalTts.set(requestId, controller);
+                let settled = false;
+                const finish = (response: unknown) => {
+                    if (settled) return;
+                    settled = true;
+                    controller.signal.removeEventListener('abort', handleAbort);
+                    if (activeLocalTts.get(requestId) === controller) activeLocalTts.delete(requestId);
+                    sendResponse(response);
+                };
+                const handleAbort = () => finish({
+                    success: false,
+                    cancelled: true,
+                    requestId,
+                    error: '本地 TTS 请求已取消',
+                });
+                controller.signal.addEventListener('abort', handleAbort, {once: true});
+                void Promise.resolve()
+                    .then(() => dependencies.localTts!.synthesize(message, controller.signal))
+                    .then(
+                        (result) => finish({success: true, ...serializeLocalTtsAudio(result), requestId}),
+                        (error) => finish({
+                            success: false,
+                            error: errorMessage(error),
+                            errorCode: typeof (error as {code?: unknown})?.code === 'string' ? (error as {code: string}).code : undefined,
+                            requestId,
+                        }),
+                    )
+                    .catch((error) => finish({success: false, error: errorMessage(error), requestId}));
+                return true;
+            }
+            case OFFSCREEN_CANCEL_LOCAL_TTS_MESSAGE_TYPE: {
+                try {
+                    const requestId = requiredRequestId(message.requestId);
+                    const controller = activeLocalTts.get(requestId);
                 );
                 return true;
             default:

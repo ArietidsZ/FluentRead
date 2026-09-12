@@ -111,6 +111,7 @@
       "tests/offscreenAdapters.test.ts",
       "tests/offscreenClient.test.ts",
       "tests/firefoxDocumentRuntime.test.ts",
+      "tests/localTts.test.ts",
       "tests/offscreenTtsPlayback.test.ts",
       "tests/pageContext.test.ts",
       "tests/pageContextPolicy.test.ts",

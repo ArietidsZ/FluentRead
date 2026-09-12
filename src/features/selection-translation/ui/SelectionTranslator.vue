@@ -157,7 +157,7 @@
       </template>
     </section>
 
-    <div v-if="noticeMessage" class="fr-action-toast" :class="{ 'fr-dark-theme': isDarkTheme }" role="status"><span>{{ noticeMessage }}</span><button v-if="noticeAction === 'open-vocabulary'" type="button" @click="openVocabularyBook">查看</button></div>
+    <div v-if="noticeMessage" class="fr-action-toast" :class="{ 'fr-dark-theme': isDarkTheme }" role="status"><span>{{ noticeMessage }}</span><button v-if="noticeAction === 'open-vocabulary'" type="button" @click="openVocabularyBook">查看</button><button v-else-if="noticeAction === 'open-local-tts'" type="button" @click="openLocalTtsSettings">设置</button></div>
     <div v-else-if="copySuccess" class="fr-copy-success-toast" :class="{ 'fr-dark-theme': isDarkTheme }" role="status">{{ copySuccessMessage }}</div>
   </div>
 </template>
@@ -179,10 +179,12 @@ import { setSelectionContextMenuHandler } from '@/src/features/selection-transla
 import { VOCABULARY_BOOK_CHANGED_MESSAGE, VOCABULARY_BOOK_MESSAGE, type VocabularyBookResponse } from '@/src/features/vocabulary/protocol';
 import {ReadingPanel, captureReadingSelection, type ReadingSelection} from '@/src/features/reading-assistant/public';
 import {HARNESS_ACTIONS, getHarnessModelCacheKey, normalizeHarnessPreferences, type HarnessActionId} from '@/src/core/config/harness';
+import {useUiI18n} from '@/src/ui/i18n';
 
 const props = defineProps<{
   onSelectionRangeChange?: (range: Range | null) => void;
 }>();
+const {t} = useUiI18n();
 
 type SelectionTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
 type AudioKind = 'source' | 'translation' | 'word';
@@ -222,7 +224,7 @@ const isWordCardLoading = ref(false);
 const wordCardError = ref('');
 const showChineseSupport = ref(true);
 const noticeMessage = ref('');
-const noticeAction = ref<'open-vocabulary' | null>(null);
+const noticeAction = ref<'open-vocabulary' | 'open-local-tts' | null>(null);
 const isVocabularySaved = ref(false);
 const vocabularyBusy = ref(false);
 
@@ -852,7 +854,7 @@ async function saveVocabularyEntry(event: MouseEvent): Promise<void> {
   }
 }
 
-function showNotice(message: string, action: 'open-vocabulary' | null = null): void {
+function showNotice(message: string, action: 'open-vocabulary' | 'open-local-tts' | null = null): void {
   noticeMessage.value = message;
   noticeAction.value = action;
   if (noticeTimer !== null) window.clearTimeout(noticeTimer);
@@ -861,6 +863,12 @@ function showNotice(message: string, action: 'open-vocabulary' | null = null): v
 
 function openVocabularyBook(): void {
   void browser.runtime.sendMessage({type: 'openOptionsPage', section: 'settings-vocabulary'});
+  noticeMessage.value = '';
+  noticeAction.value = null;
+}
+
+function openLocalTtsSettings(): void {
+  void browser.runtime.sendMessage({type: 'openOptionsPage', section: 'settings-translation'});
   noticeMessage.value = '';
   noticeAction.value = null;
 }
@@ -1016,7 +1024,12 @@ function base64ToBlobUrl(audioBase64: string, contentType: string): string {
   return URL.createObjectURL(new Blob([bytes], { type: contentType }));
 }
 
-async function playEdgeSpeech(text: string, language: string, kind: AudioKind, requestId: number): Promise<boolean> {
+interface EdgeSpeechResult {
+  handled: boolean;
+  errorCode?: string;
+}
+
+async function playEdgeSpeech(text: string, language: string, kind: AudioKind, requestId: number): Promise<EdgeSpeechResult> {
   // 后台可能把播放权交给 Offscreen，也可能返回音频字节供当前页面播放；每一步都用代次校验
   // 丢弃旧请求，仅由当前代次在远端播放失败后继续降级到浏览器语音。
   const remoteRequest = ttsContentController.beginRemoteRequest();
@@ -1031,17 +1044,24 @@ async function playEdgeSpeech(text: string, language: string, kind: AudioKind, r
       audioBase64?: string;
       contentType?: string;
       transport?: 'offscreen' | 'page';
+      errorCode?: unknown;
     };
     const remoteResult = ttsContentController.completeRemoteRequest(remoteRequest, response);
-    if (remoteResult === 'stale') return true;
-    if (remoteResult === 'failed') return false;
+    if (remoteResult === 'stale') return {handled: true};
+    if (remoteResult === 'failed') return {
+      handled: false,
+      errorCode: typeof response.errorCode === 'string' ? response.errorCode : undefined,
+    };
     if (remoteResult === 'offscreen') {
       currentAudioKind.value = kind;
       currentAudioText.value = text;
       isPlaying.value = true;
-      return true;
+      return {handled: true};
     }
-    if (!response.audioBase64) return false;
+    if (!response.audioBase64) return {
+      handled: false,
+      errorCode: typeof response.errorCode === 'string' ? response.errorCode : undefined,
+    };
     const nextAudioUrl = base64ToBlobUrl(response.audioBase64, response.contentType || 'audio/mpeg');
     const nextAudio = new Audio(nextAudioUrl);
     nextAudio.preload = 'auto';
@@ -1061,7 +1081,7 @@ async function playEdgeSpeech(text: string, language: string, kind: AudioKind, r
     isPlaying.value = true;
     try {
       await nextAudio.play();
-      return true;
+      return {handled: true};
     } catch (cause) {
       if (audio === nextAudio) releasePageAudio();
       if (ttsContentController.isCurrentGeneration(requestId)) {
@@ -1070,12 +1090,12 @@ async function playEdgeSpeech(text: string, language: string, kind: AudioKind, r
         currentAudioText.value = '';
       }
       if (ttsContentController.isCurrentGeneration(requestId)) console.warn('Page audio unavailable, trying browser speech:', cause);
-      return false;
+      return {handled: false};
     }
   } catch (cause) {
     const isCurrent = ttsContentController.rejectRemoteRequest(remoteRequest);
     if (isCurrent) console.warn('Edge TTS unavailable, trying browser speech:', cause);
-    return !isCurrent;
+    return {handled: !isCurrent};
   }
 }
 
@@ -1190,8 +1210,14 @@ async function toggleAudio(text: string, kind: AudioKind): Promise<void> {
   currentAudioKind.value = kind;
   currentAudioText.value = cleanText;
   currentAudioKey.value = cleanText;
-  const edgeStarted = await playEdgeSpeech(cleanText, language, kind, requestId);
-  if (edgeStarted || !ttsContentController.isCurrentGeneration(requestId)) return;
+  const edgeResult = await playEdgeSpeech(cleanText, language, kind, requestId);
+  if (edgeResult.handled || !ttsContentController.isCurrentGeneration(requestId)) return;
+  if (edgeResult.errorCode === 'local-tts-model-not-downloaded') {
+    showNotice(t('selectionTts.localModelNotDownloaded'), 'open-local-tts');
+  } else if (edgeResult.errorCode === 'local-tts-language-unsupported') {
+    showNotice(t('selectionTts.languageUnsupported'));
+  }
+  if (config.selectionTtsMode === 'local-only') return;
   if (!playBrowserSpeech(cleanText, language, kind)) await playGoogleFallback(cleanText, language, kind);
 }
 

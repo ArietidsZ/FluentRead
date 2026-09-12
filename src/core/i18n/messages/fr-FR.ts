@@ -8,8 +8,10 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTtsFrenchMessages} from './localTts';
 
 export const frFRMessages = {
+    ...localTtsFrenchMessages,
     "settings.requestLimits.modelTitle": "Limites du modèle",
     "settings.requestLimits.globalTitle": "Limites de requêtes",
     "settings.requestLimits.globalHelp": "Les services et modèles sans réglages spécifiques partagent ces limites.",

@@ -14,6 +14,7 @@ export interface OffscreenMessage {
 export const OFFSCREEN_READY_MESSAGE_TYPE = 'FLUENT_READ_OFFSCREEN_READY' as const;
 export const OFFSCREEN_CANCEL_CHROME_TRANSLATION_MESSAGE_TYPE = 'CANCEL_CHROME_TRANSLATE_OFFSCREEN' as const;
 export const OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE = 'CANCEL_IMAGE_OPERATION_OFFSCREEN' as const;
+export const OFFSCREEN_CANCEL_LOCAL_TTS_MESSAGE_TYPE = 'CANCEL_LOCAL_TTS_OFFSCREEN' as const;
 
 export type OffscreenMessageEnvelope<TMessage extends OffscreenMessage> = TMessage & {
     readonly target: 'offscreen';

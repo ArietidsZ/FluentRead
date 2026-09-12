@@ -9,8 +9,10 @@
 import type {
 MessageCatalog} from '../types';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTtsEnglishMessages} from './localTts';
 
 export const enUSMessages = {
+    ...localTtsEnglishMessages,
     "settings.requestLimits.modelTitle": "Model request limits",
     "settings.requestLimits.globalTitle": "Request limits",
     "settings.requestLimits.globalHelp": "Services and models without custom settings share these limits.",

@@ -1,9 +1,11 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {createAreaTranslationOffscreenAdapter} from '@/src/features/area-translation/background/offscreenAdapter';
 import {createImageTranslationOffscreenAdapter} from '@/src/features/image-translation/background/offscreenAdapter';
+import {createLocalTtsOffscreenAdapter} from '@/src/features/local-tts/background/offscreenAdapter';
 import {createSelectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
 import {
     OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+    OFFSCREEN_CANCEL_LOCAL_TTS_MESSAGE_TYPE,
     type OffscreenClient,
 } from '@/src/platform/offscreen/client';
 
@@ -257,6 +259,50 @@ describe('selection TTS Offscreen adapter', () => {
         await expect(adapter.stop(route)).rejects.toThrow('stop custom');
         sendIfPresent.mockResolvedValueOnce({success: false});
         await expect(adapter.stop(route)).rejects.toThrow('Offscreen TTS 停止失败');
+    });
+});
+
+describe('local TTS Offscreen adapter', () => {
+    const adapter = createLocalTtsOffscreenAdapter(client);
+
+    it('decodes Base64 audio returned across the runtime message boundary', async () => {
+        const controller = new AbortController();
+        send.mockResolvedValueOnce({
+            success: true,
+            audioBase64: 'UklG',
+            contentType: 'audio/wav',
+            voice: 'zf_001',
+            backend: 'wasm',
+        });
+
+        await expect(adapter.synthesize('你好', 'zh-CN', 'zf_001', controller.signal)).resolves.toEqual({
+            audio: new Uint8Array([82, 73, 70, 70]).buffer,
+            contentType: 'audio/wav',
+            voice: 'zf_001',
+            backend: 'wasm',
+        });
+        expect(send).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'LOCAL_TTS_SYNTHESIZE',
+            text: '你好',
+            language: 'zh-CN',
+            voice: 'zf_001',
+            requestId: expect.any(String),
+        }), expect.objectContaining({
+            signal: controller.signal,
+            timeoutMs: 120_000,
+            cancelMessage: {
+                type: OFFSCREEN_CANCEL_LOCAL_TTS_MESSAGE_TYPE,
+                requestId: expect.any(String),
+            },
+        }));
+    });
+
+    it('rejects missing or unsuccessful local audio responses', async () => {
+        send.mockResolvedValueOnce({success: false, error: 'local custom'});
+        await expect(adapter.synthesize('hello', 'en-US', 'af_maple')).rejects.toThrow('local custom');
+
+        send.mockResolvedValueOnce({success: true, audioBase64: ''});
+        await expect(adapter.synthesize('hello', 'en-US', 'af_maple')).rejects.toThrow('本地 TTS 合成失败');
     });
 });
 
