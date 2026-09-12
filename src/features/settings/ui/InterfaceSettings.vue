@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/InterfaceSettings.vue
- * 文件职责：在独立的“界面风格”页面组织 FluentRead 的界面风格、动画加载效果和菜单栏布局三个偏好分组。
- * 主要内容：提供皮肤与动画预览，在菜单栏布局中选择字体，并通过预览和显隐列表编排区域与快捷入口；所有偏好共享持久化配置。
+ * 文件职责：组织界面风格、动画加载效果、菜单栏布局与界面字体四个偏好分组。
+ * 主要内容：提供皮肤、动画及字体预览，通过预览和显隐列表编排区域与快捷入口；所有偏好共享持久化配置。
  * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用。
 -->
 <template>
@@ -78,38 +78,6 @@
     :title="t('settings.interface.popupLayout.label')"
     :description="t('settings.interface.popupLayout.description')"
   >
-    <SettingsItem
-      class="interface-font-settings"
-      :label="t('settings.interface.font.label')"
-      :description="t('settings.interface.font.description')"
-      :stacked="true"
-    >
-      <div class="interface-font-picker" role="radiogroup" :aria-label="t('settings.interface.font.label')">
-        <label
-          v-for="font in interfaceFontOptions"
-          :key="font.value"
-          class="interface-font-option"
-          :class="{ selected: props.config.interfaceFont === font.value }"
-          :data-font="font.value"
-        >
-          <input
-            v-model="props.config.interfaceFont"
-            type="radio"
-            name="interface-font"
-            :value="font.value"
-            :aria-label="t(font.labelKey)"
-          />
-          <span class="interface-font-copy">
-            <strong :style="{ fontFamily: font.fontFamily }">{{ t(font.labelKey) }}</strong>
-            <small>{{ t(font.descriptionKey) }}</small>
-          </span>
-        </label>
-        <div class="interface-font-preview" :style="{ fontFamily: selectedFontOption.fontFamily }">
-          <span>{{ t('settings.interface.font.preview') }}</span>
-          <small aria-hidden="true">Aa Bb Cc · 0123456789</small>
-        </div>
-      </div>
-    </SettingsItem>
     <div class="interface-layout-settings">
       <div class="popup-layout-workbench" data-popup-layout-workbench>
         <div class="popup-layout-tabs" role="tablist" :aria-label="t('settings.interface.popupLayout.label')" @keydown="handleLayoutTabKeydown">
@@ -204,6 +172,79 @@
       </div>
     </div>
   </SettingsGroup>
+
+  <SettingsGroup
+    class="interface-font-group"
+    :title="t('settings.interface.font.label')"
+    :description="t('settings.interface.font.description')"
+  >
+    <div class="interface-font-settings">
+      <div class="interface-font-picker" role="radiogroup" :aria-label="t('settings.interface.font.label')">
+        <label
+          v-for="font in interfaceFontOptions"
+          :key="font.value"
+          class="interface-font-option"
+          :class="{ selected: props.config.interfaceFont === font.value }"
+          :data-font="font.value"
+        >
+          <input
+            v-model="props.config.interfaceFont"
+            type="radio"
+            name="interface-font"
+            :value="font.value"
+            :aria-label="t(font.labelKey)"
+          />
+          <span class="interface-font-copy">
+            <strong>{{ t(font.labelKey) }}</strong>
+            <small>{{ t(font.descriptionKey) }}</small>
+          </span>
+        </label>
+        <div class="interface-font-preview" :style="{ fontFamily: selectedFontOption.fontFamily }">
+          <span>{{ t('settings.interface.font.preview') }}</span>
+          <small aria-hidden="true">Aa Bb Cc · 0123456789</small>
+        </div>
+        <p class="interface-font-note">{{ t('settings.interface.font.note') }}</p>
+      </div>
+      <div class="interface-font-download">
+        <div class="interface-font-status" role="status" aria-live="polite" :data-status="interfaceFontLoadState.status">
+          <span>{{ fontStatusText }}</span>
+          <span v-if="fontAssets.length" class="interface-font-size">{{ fontSize }}</span>
+          <button v-if="interfaceFontLoadState.status === 'error'" type="button" @click="retryInterfaceFont()">
+            {{ t('settings.interface.font.retry') }}
+          </button>
+        </div>
+        <progress
+          v-if="interfaceFontLoadState.status === 'loading'"
+          :value="interfaceFontLoadState.loaded"
+          :max="interfaceFontLoadState.total"
+          :aria-label="t('settings.interface.font.downloading')"
+        />
+        <details v-if="fontAssets.length" class="interface-font-sources">
+          <summary>{{ t('settings.interface.font.sources') }}</summary>
+          <p>{{ t('settings.interface.font.sourceNote') }}</p>
+          <div class="interface-font-source-grid">
+            <section v-for="region in fontSourceRegions" :key="region.id">
+              <h4>{{ t(region.labelKey) }}</h4>
+              <div v-for="source in region.sources" :key="source.id" class="interface-font-source">
+                <div class="interface-font-source-heading">
+                  <strong>{{ source.label }}</strong>
+                  <button v-if="interfaceFontLoadState.status !== 'ready'" type="button" @click="retryInterfaceFont(source.id)">
+                    {{ t('settings.interface.font.useSource') }}
+                  </button>
+                </div>
+                <div class="interface-font-links">
+                  <a v-for="asset in fontAssets" :key="asset.file" :href="getInterfaceFontUrl(source.id, asset.file)"
+                    target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">{{ asset.file }}</a>
+                  <a href="/interface-font-licenses.txt"
+                    target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">{{ t('settings.interface.font.license') }}</a>
+                </div>
+              </div>
+            </section>
+          </div>
+        </details>
+      </div>
+    </div>
+  </SettingsGroup>
 </template>
 
 <script lang="ts" setup>
@@ -226,6 +267,8 @@ import {
   withPopupQuickFeatureVisibility,
 } from '@/src/core/config/interfaceAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
+import {getInterfaceFontAssets, getInterfaceFontUrl, interfaceFontSources} from '@/src/core/config/interfaceFontAssets'
+import {interfaceFontLoadState, retryInterfaceFont} from '@/src/ui/interfaceAppearance'
 import InterfaceSkinPreview from './components/InterfaceSkinPreview.vue'
 import PopupLayoutPreview from './components/PopupLayoutPreview.vue'
 import PopupLayoutEditor from './PopupLayoutEditor.vue'
@@ -249,6 +292,20 @@ function handleLayoutTabKeydown(event: KeyboardEvent) {
 }
 const selectedSkinOption = computed(() => getInterfaceSkinOption(props.config.interfaceSkin))
 const selectedFontOption = computed(() => getInterfaceFontOption(props.config.interfaceFont))
+const fontAssets = computed(() => getInterfaceFontAssets(selectedFontOption.value.value))
+const fontSize = computed(() => `${(fontAssets.value.reduce((sum, asset) => sum + asset.bytes, 0) / 1024 / 1024).toFixed(1)} MB`)
+const fontSourceRegions = [
+  {id: 'china', labelKey: 'settings.interface.font.china', sources: interfaceFontSources.filter(source => source.region === 'china')},
+  {id: 'global', labelKey: 'settings.interface.font.global', sources: interfaceFontSources.filter(source => source.region === 'global')},
+]
+const fontStatusText = computed(() => {
+  const state = interfaceFontLoadState.value
+  if (state.status === 'system') return t('settings.interface.font.noDownload')
+  if (state.status === 'error') return t('settings.interface.font.failed')
+  if (state.status === 'ready') return t(state.persistent ? 'settings.interface.font.saved' : 'settings.interface.font.sessionOnly')
+  const source = interfaceFontSources.find(item => item.id === state.source)
+  return `${t('settings.interface.font.downloading')} ${Math.floor(state.loaded / Math.max(1, state.total) * 100)}%${source ? ` · ${source.label}` : ''}`
+})
 
 const groupedSkinOptions = interfaceSkinGroups.map((group) => ({
   ...group,
@@ -313,13 +370,26 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 .interface-appearance-settings:hover { background: transparent; }
 .interface-appearance-settings :deep(.settings-item-copy) { position: sticky; top: 0; }
 
-.interface-font-settings { border-bottom: 1px solid var(--line); }
-.interface-font-settings:hover { background: transparent; }
-.interface-font-settings :deep(.settings-item-control) { align-items: stretch; }
+.interface-font-settings { padding: 16px; }
+.interface-font-download { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; font-size: 12px; line-height: 1.6; }
+.interface-font-status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.interface-font-size { color: var(--muted); margin-left: auto; }
+.interface-font-download progress { width: 100%; height: 6px; accent-color: var(--brand); margin-top: 10px; }
+.interface-font-download button { border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; background: var(--surface); color: var(--brand); cursor: pointer; font-size: 12px; }
+.interface-font-download button:hover { border-color: var(--brand); }
+.interface-font-sources { margin-top: 12px; }
+.interface-font-sources summary { width: fit-content; cursor: pointer; color: var(--brand); }
+.interface-font-sources p { margin: 10px 0; color: var(--muted); }
+.interface-font-source-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 12px; }
+.interface-font-source-grid h4 { margin: 0 0 8px; font-size: 12px; }
+.interface-font-source { border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-top: 8px; }
+.interface-font-source-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.interface-font-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+.interface-font-links a { color: var(--brand); overflow-wrap: anywhere; text-underline-offset: 3px; }
 
 .interface-font-picker {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   width: 100%;
 }
@@ -366,6 +436,7 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 }
 
 .interface-font-preview small { color: var(--muted); font-size: 16px; }
+.interface-font-note { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 
 .interface-skin-picker {
   display: grid;
@@ -447,7 +518,16 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
   background: var(--surface-soft);
 }
 
+@media (max-width: 1050px) {
+  .interface-font-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 @media (max-width: 700px) {
+  .interface-font-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .interface-font-settings { padding: 12px; }
+}
+
+@media (max-width: 460px) {
   .interface-font-picker { grid-template-columns: minmax(0, 1fr); }
 }
 

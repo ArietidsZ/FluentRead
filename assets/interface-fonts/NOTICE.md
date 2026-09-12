@@ -1,10 +1,13 @@
-# Bundled interface fonts
+# On-demand interface fonts
 
-Used only by FluentRead's Options and Popup pages. No font CDN, remote font
-request, or installation on the user's device is required. Other scripts fall
-back to system fonts. The original weights and glyph sets are retained; only
+Used only by FluentRead's Options and Popup pages. These resources are NOT
+included in the extension package. System fonts require no download; selecting
+another font downloads the required files and caches them for offline use.
+Downloads use versioned GitHub URLs and alternative CDNs, with expected size
+and SHA-256 verification. Other scripts fall back to system fonts.
+The original weights and glyph sets are retained; only
 the container is converted from TTF to WOFF2. LXGW WenKai TC includes regular
-and bold faces; the other eight bundled families use variable fonts.
+and bold faces; the other eight downloadable families use variable fonts.
 
 All fonts are distributed under SIL Open Font License 1.1. The full copyright
 and license notices are included alongside the assets:
@@ -49,7 +52,7 @@ WOFF conversion requirements in [OFL FAQ 2.2](https://openfontlicense.org/ofl-fa
 SHA-256:
 
 `manifest.json` records the size, supported weights, character count and source /
-compressed SHA-256 for every bundled face. Font name metadata, character mapping
+compressed SHA-256 for every available face. Font name metadata, character mapping
 and glyph order were verified unchanged after compression. License files retain
 the complete text with whitespace and line endings normalized.
 

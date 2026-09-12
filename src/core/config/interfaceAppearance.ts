@@ -176,8 +176,8 @@ export const interfaceSkinOptions = [
 ] as const
 
 /**
- * 扩展自身页面的字体方案。Inter 与 Noto Sans SC 随扩展离线打包；
- * 未覆盖的字符交给系统字体。字体文件只由 Popup / Options 的 CSS 加载。
+ * 扩展自身页面的字体方案。默认系统字体不下载；其他方案首次使用时下载并缓存。
+ * 未覆盖的字符交给系统字体。字体文件只由 Popup / Options 按需加载。
  */
 export const interfaceFontOptions = [
   {
@@ -198,12 +198,54 @@ export const interfaceFontOptions = [
     descriptionKey: 'settings.interface.font.options.system.description',
     fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
   },
+  {
+    value: 'roboto',
+    labelKey: 'settings.interface.font.options.roboto.label',
+    descriptionKey: 'settings.interface.font.options.roboto.description',
+    fontFamily: '"FluentRead Roboto", "FluentRead Noto Sans SC", system-ui, sans-serif',
+  },
+  {
+    value: 'source-sans-3',
+    labelKey: 'settings.interface.font.options.sourceSans3.label',
+    descriptionKey: 'settings.interface.font.options.sourceSans3.description',
+    fontFamily: '"FluentRead Source Sans 3", "FluentRead Noto Sans SC", system-ui, sans-serif',
+  },
+  {
+    value: 'ibm-plex-sans',
+    labelKey: 'settings.interface.font.options.ibmPlexSans.label',
+    descriptionKey: 'settings.interface.font.options.ibmPlexSans.description',
+    fontFamily: '"FluentRead IBM Plex Sans", "FluentRead Noto Sans SC", system-ui, sans-serif',
+  },
+  {
+    value: 'manrope',
+    labelKey: 'settings.interface.font.options.manrope.label',
+    descriptionKey: 'settings.interface.font.options.manrope.description',
+    fontFamily: '"FluentRead Manrope", "FluentRead Noto Sans SC", system-ui, sans-serif',
+  },
+  {
+    value: 'nunito-sans',
+    labelKey: 'settings.interface.font.options.nunitoSans.label',
+    descriptionKey: 'settings.interface.font.options.nunitoSans.description',
+    fontFamily: '"FluentRead Nunito Sans", "FluentRead Noto Sans SC", system-ui, sans-serif',
+  },
+  {
+    value: 'lxgw-wenkai',
+    labelKey: 'settings.interface.font.options.lxgwWenkai.label',
+    descriptionKey: 'settings.interface.font.options.lxgwWenkai.description',
+    fontFamily: '"FluentRead LXGW WenKai", "FluentRead Noto Sans SC", system-ui, sans-serif',
+  },
+  {
+    value: 'noto-serif-sc',
+    labelKey: 'settings.interface.font.options.notoSerifSc.label',
+    descriptionKey: 'settings.interface.font.options.notoSerifSc.description',
+    fontFamily: '"FluentRead Noto Serif SC", "FluentRead Noto Sans SC", system-ui, sans-serif',
+  },
 ] as const
 
 export type InterfaceFont = typeof interfaceFontOptions[number]['value']
 export type InterfaceFontOption = typeof interfaceFontOptions[number]
 
-export const DEFAULT_INTERFACE_FONT: InterfaceFont = 'inter'
+export const DEFAULT_INTERFACE_FONT: InterfaceFont = 'system'
 
 const interfaceFontByValue = new Map<string, InterfaceFontOption>(
   interfaceFontOptions.map((item) => [item.value, item]),

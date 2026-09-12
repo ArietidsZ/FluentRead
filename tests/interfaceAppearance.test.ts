@@ -79,6 +79,13 @@ describe('界面皮肤与栏目配置', () => {
       'inter',
       'noto-sans-sc',
       'system',
+      'roboto',
+      'source-sans-3',
+      'ibm-plex-sans',
+      'manrope',
+      'nunito-sans',
+      'lxgw-wenkai',
+      'noto-serif-sc',
     ])
     expect(interfaceFontOptions.every((item) => item.fontFamily.includes('sans-serif'))).toBe(true)
     expect(interfaceFontOptions.every((item) => item.labelKey.startsWith('settings.interface.font.'))).toBe(true)

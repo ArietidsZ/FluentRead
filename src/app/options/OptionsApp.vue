@@ -142,7 +142,9 @@ const localizedNavigationGroups = computed(() => navigationGroups.map((group) =>
     kicker: translateLegacy(item.kicker),
     title: translateLegacy(item.title),
     detail: translateLegacy(item.detail),
-    searchDescription: translateLegacy(item.searchDescription),
+    searchDescription: item.id === 'settings-interface'
+      ? `${translateLegacy(item.searchDescription)} ${t('settings.interface.font.label')} Inter Noto Sans SC Roboto Source Sans 3 IBM Plex Sans Manrope Nunito Sans LXGW WenKai Noto Serif SC`
+      : translateLegacy(item.searchDescription),
   })),
 })))
 const localizedNavigationItems = computed(() => localizedNavigationGroups.value.flatMap((group) => group.items))
@@ -162,7 +164,7 @@ void configReady
   })
   .catch(() => {
     applyInterfaceSkin('default')
-    applyInterfaceFont('inter')
+    applyInterfaceFont('system')
   })
 
 const filteredResults = computed(() => filterNavigationItems(query.value, localizedNavigationItems.value).map(item =>

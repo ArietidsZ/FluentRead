@@ -173,6 +173,13 @@ const INTERFACE_FONT_LABELS = new Map<unknown, string>([
     ['inter', 'Inter · 推荐'],
     ['system', '系统字体'],
     ['noto-sans-sc', 'Noto Sans SC · 中文'],
+    ['roboto', 'Roboto · 简洁'],
+    ['source-sans-3', 'Source Sans 3 · 易读'],
+    ['ibm-plex-sans', 'IBM Plex Sans · 理性'],
+    ['manrope', 'Manrope · 几何'],
+    ['nunito-sans', 'Nunito Sans · 柔和'],
+    ['lxgw-wenkai', '霞鹜文楷 · 手写'],
+    ['noto-serif-sc', 'Noto Serif SC · 书卷'],
 ]);
 const TRANSLATION_LOADING_STYLE_LABELS = labelsFor(translationLoadingStyleOptions);
 const TRANSLATION_SCOPE_LABELS = new Map<unknown, string>([['content', '关闭'], ['all', '开启']]);

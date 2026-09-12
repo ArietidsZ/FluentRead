@@ -1,7 +1,7 @@
 /**
  * @file src/ui/interfaceAppearance.ts
  * 文件职责：把已经归一化的界面皮肤和字体配置应用到扩展页面根节点，为 Popup 和 Options 共享同一套界面切换入口。
- * 主要内容：从注册表解析皮肤和字体栈，设置 document.documentElement 的皮肤 ID、布局类型、字体变量与 Popup 宽度变量，并在配置异常时安全回退。
+ * 主要内容：应用皮肤与字体变量，按当前选择启动字体下载服务并公开下载状态；配置异常时安全回退。
  * 模块边界：本文件只负责扩展自身页面的 DOM 属性，不读取或保存配置，不影响网页内容脚本和宿主页面样式。
  */
 
@@ -11,6 +11,27 @@ import {
   type InterfaceFont,
   type InterfaceSkin,
 } from '@/src/core/config/interfaceAppearance'
+import {readonly, shallowRef} from 'vue'
+import {createInterfaceFontLoader, type InterfaceFontLoadState} from '@/src/services/interfaceFonts'
+import type {InterfaceFontSourceId} from '@/src/core/config/interfaceFontAssets'
+
+const fontLoadState = shallowRef<InterfaceFontLoadState>({font: 'system', status: 'system', loaded: 0, total: 0, persistent: true})
+export const interfaceFontLoadState = readonly(fontLoadState)
+const fontLoader = createInterfaceFontLoader({
+  fetch: (...args) => fetch(...args),
+  openCache: async () => caches.open('fluentread-interface-fonts-v1'),
+  digest: data => crypto.subtle.digest('SHA-256', data),
+  install: async (asset, data) => {
+    const face = new FontFace(asset.family, data, {weight: asset.weight, style: 'normal', display: 'swap'})
+    await face.load()
+    document.fonts.add(face)
+  },
+  onState: state => { fontLoadState.value = state },
+})
+
+export function retryInterfaceFont(source?: InterfaceFontSourceId): void {
+  void fontLoader.load(fontLoadState.value.font, source, true)
+}
 
 export function applyInterfaceSkin(value: unknown): InterfaceSkin {
   const skin = getInterfaceSkinOption(value)
@@ -28,6 +49,7 @@ export function applyInterfaceFont(value: unknown): InterfaceFont {
     document.documentElement.dataset.interfaceFont = font.value
     document.documentElement.style.setProperty('--interface-font-family', font.fontFamily)
     document.documentElement.style.setProperty('--el-font-family', font.fontFamily)
+    void fontLoader.load(font.value)
   }
   return font.value
 }
