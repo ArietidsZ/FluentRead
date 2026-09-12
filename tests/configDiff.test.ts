@@ -501,6 +501,15 @@ describe('配置差异预览', () => {
             {key: 'translationBackoffMaxMs', label: '退避最大间隔', before: '30000 ms', after: '60000 ms'},
             {key: 'apiKeyRecoveryMs', label: '失败 Key 冷却时间', before: '1 分钟', after: '5 分钟'},
         ]));
+
+        // 历史配置可能把冷却时间存成字符串；格式化不能把非数值当毫秒换算。
+        const legacy = buildConfigDiff(
+            {apiKeyRecoveryMs: '60000' as unknown as number},
+            {apiKeyRecoveryMs: '300000' as unknown as number},
+        );
+        expect(group(legacy, 'advanced')?.changes).toEqual(expect.arrayContaining([
+            {key: 'apiKeyRecoveryMs', label: '失败 Key 冷却时间', before: '60000', after: '300000'},
+        ]));
     });
 
     it('展开服务对象映射，只报告真正变化的服务项且忽略对象键顺序', () => {

@@ -656,7 +656,11 @@ export class TranslationCandidateCore {
             let exhausted = false;
             for (const step of this.discoverSteps(child)) {
                 remainingSteps -= 1;
-                if (step.candidate) {
+                // discoverSteps 会把脏子树提升到所属控件边界重扫，因此步骤里也会出现兄弟节点
+                // 甚至父级自身的候选。只有落在该子节点内部的候选才代表它自己拥有翻译目标；
+                // 否则父级内联 run 会被自己的成员当成屏障切掉，导致发现与悬浮解析结果不一致。
+                if (step.candidate && (step.candidate.element === child ||
+                    child.contains(step.candidate.element))) {
                     ownsCandidate = true;
                     break;
                 }

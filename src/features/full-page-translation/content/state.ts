@@ -1,10 +1,11 @@
 /**
  * @file src/features/full-page-translation/content/state.ts
  * 文件职责：维护每个被翻译 DOM 节点的可恢复状态、请求代次、译文工件和共享布局覆盖所有权，确保重复翻译、宿主变更和移除节点都能安全收敛。
- * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、可信译文复验与有界重挂、截断及高度约束的共享样式租约、祖先观察器引用计数、文本槽回写以及全量恢复。
+ * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、可信译文复验与有界重挂、截断及高度约束的共享样式租约、祖先观察器引用计数、文本槽回写、按钮型 input 标签属性的原值记录与回滚，以及全量恢复。
  * 模块边界：该模块不发现候选、不请求翻译也不生成译文 HTML；runtime 负责会话编排，renderer 负责内容创建，本文件仅拥有 DOM 状态与可逆样式资源，避免跨 session 误删新结果。
  */
-import {isTranslationTooltip} from "@/src/core/translation/dom";
+import {getTranslatableControlValueAttribute, isTranslationTooltip} from "@/src/core/translation/dom";
+import {clearTranslationFailedHost} from "@/src/features/full-page-translation/core/hostMarkers";
 import {
     hasTranslationHeightOverflow,
     isTranslationHeightBoundary,
@@ -115,6 +116,12 @@ export interface TranslationState {
     textSlotsApplied?: boolean;
     /** 控件翻译直接修改原 Text 节点；恢复时需要把节点内容写回原值。 */
     originalTextValues: Array<{node: Text; value: string}>;
+    /**
+     * 按钮型 input 的标签存放在 value 属性而非 Text 节点里，译文只能整体改写属性。
+     * 记录属性名、原值和插件写入的译文，使恢复原文只回滚插件自己的写入，
+     * 宿主页在此期间改写过同一属性时保持宿主权威。
+     */
+    controlValue?: {attribute: string; original: string; translated?: string};
     /** 实时文本槽渲染器写入的精确值。 */
     translatedTextValues?: WeakMap<Text, string>;
     /** 单译文或控件渲染执行时可见且可翻译的 Text 节点。 */
@@ -440,6 +447,7 @@ export function beginTranslation(
         }
     }
 
+    const controlValueAttribute = getTranslatableControlValueAttribute(node);
     const sourceHTML = node.innerHTML;
     const sourceStructureSignature = getTranslationSourceStructureSignature(
         node,
@@ -467,6 +475,9 @@ export function beginTranslation(
         originalStyleAttribute: node.getAttribute("style"),
         originalClassAttribute: node.getAttribute("class"),
         originalTextValues,
+        controlValue: controlValueAttribute
+            ? {attribute: controlValueAttribute, original: node.getAttribute(controlValueAttribute) ?? ""}
+            : undefined,
         controller: new AbortController(),
     };
 
@@ -642,8 +653,7 @@ export function restoreClonedTranslationOwnerPresentation(
     layoutElementPairs: readonly (readonly [HTMLElement, HTMLElement])[] = [[previousOwner, replacementOwner]],
 ): void {
     if (states.get(previousOwner) !== state) return;
-    replacementOwner.classList.remove('fluent-read-bilingual', 'fluent-read-failure');
-    if (replacementOwner.getAttribute('class') === '') replacementOwner.removeAttribute('class');
+    clearTranslationFailedHost(replacementOwner);
     layoutElementPairs.forEach(([previousElement, replacementElement]) => {
         if (state.layoutOverrideElements?.has(previousElement)) {
             const override = sharedLayoutOverrides.get(previousElement);
@@ -1549,8 +1559,7 @@ function restoreOriginalStyle(node: HTMLElement, state: TranslationState): void 
 
 function restoreOriginalClass(node: HTMLElement, state: TranslationState): void {
     if (state.renderedClassAttribute === undefined) return;
-    node.classList.remove("fluent-read-bilingual", "fluent-read-failure");
-    if (node.getAttribute("class") === "") node.removeAttribute("class");
+    clearTranslationFailedHost(node);
 }
 
 /**
@@ -1638,6 +1647,11 @@ function teardownAttempt(
                 textNode.nodeValue = value;
             }
         });
+        const controlValue = state.controlValue;
+        if (controlValue?.translated !== undefined &&
+            node.getAttribute(controlValue.attribute) === controlValue.translated) {
+            node.setAttribute(controlValue.attribute, controlValue.original);
+        }
     }
 
     if (state.originalTooltipTranslationAttribute !== undefined &&
@@ -1676,6 +1690,14 @@ export function setTextSlotsApplied(
             state.originalTextValues.map(({node: textNode}) => [textNode, textNode.nodeValue ?? ""]),
         );
     }
+}
+
+/** 按钮型 input 的译文写入属性后没有 Text 槽；用空文本槽集合复用同一套已渲染判定。 */
+export function setControlValueApplied(node: HTMLElement, text: string): void {
+    const state = states.get(node);
+    if (!state?.controlValue) return;
+    state.controlValue = {...state.controlValue, translated: text};
+    setTextSlotsApplied(node, []);
 }
 
 export function setSingleTextSlotHosts(

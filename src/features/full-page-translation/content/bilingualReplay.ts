@@ -52,6 +52,7 @@ export function refreshBilingualTranslationSkeleton(
         sourceSkeleton: snapshot.clone,
         targetLanguage: replay.targetLanguage,
         style: replay.style,
+        sourceText: replay.sources.join('\n'),
     });
     state.sourceTextNodes = collectLiveTranslationTextSlots(
         node,

@@ -2,13 +2,14 @@
  * @file src/core/translation/layout.ts
  *
  * 文件职责：判定页面元素的语义块、内联关系和可重组边界，为候选引擎选择合理翻译粒度并保护页面布局。
- * 主要内容：按正文/全部节点范围区分正文与控件；识别 heading、block、inline、纯文本正文 pre、结构标签、嵌入式 aside、可选放开的侧边栏区域和 reparent 边界，保持交互控件对内部标签的翻译所有权，并在 tooltip 边界停止向外归属，限制直接子节点探测数量，并提供候选目标及内联 run 相关的布局函数。 可核对的公开符号包括 isSemanticHeadingElement、getElementDisplay、isBlockBoundary、isStructuralContainer、hasStructuralAncestor、isTranslationControlElement、findTranslationControlOwner、hasDirectReadableText、hasReadableBlockChild。
+ * 主要内容：按统一的按钮语义（原生 button、按钮型 input、ARIA 控件角色、按钮类名）与呈标签形态的交互外壳区分正文与控件；识别 heading、block、inline、纯文本正文 pre、结构标签、嵌入式 aside、可选放开的侧边栏区域和 reparent 边界，保持交互控件对内部标签的翻译所有权，并在 tooltip 边界停止向外归属，限制直接子节点探测数量，并提供候选目标及内联 run 相关的布局函数。 可核对的公开符号包括 isSemanticHeadingElement、getElementDisplay、isBlockBoundary、isStructuralContainer、hasStructuralAncestor、isTranslationControlElement、findTranslationControlOwner、hasDirectReadableText、hasReadableBlockChild。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
 import {
     getComposedParent,
     getElementTagName,
+    getTranslatableControlValueAttribute,
     isTranslationTooltip,
     isDocumentSurface,
     isPlainTextDocumentPre,
@@ -178,11 +179,38 @@ export function hasStructuralAncestor(
     return false;
 }
 
+/**
+ * 明确的按钮语义：原生 button、按钮型 input，以及 ARIA 明确声明为操作控件的角色。
+ * 这些元素的文字是操作名而不是正文，宿主样式通常把它们钉在固定高度的一行里，
+ * 因此无论识别范围是正文还是全部节点，都必须整体归属为控件并采用替换式译文。
+ */
+const nativeControlTags = new Set(['button']);
+
+const nativeControlRoles = new Set([
+    'button', 'menuitem', 'menuitemcheckbox', 'menuitemradio',
+    'tab', 'switch', 'option', 'treeitem', 'radio', 'checkbox',
+]);
+
+/**
+ * Bootstrap、Primer、Tailwind 生态统一用 `btn`/`button` 这两个精确 class token 标记
+ * 按钮化的链接与容器（如 GitHub 的 `a.btn.btn-primary`）。token 是全等匹配，
+ * 因此 `btn-group`、`button-label` 等包装类不会被误判；这类元素也从不出现在正文行内，
+ * 可以安全地充当控件所有权边界。
+ */
+const buttonClassTokens = new Set(['btn', 'button']);
+
+function hasButtonClassToken(element: Element): boolean {
+    return Array.from(element.classList)
+        .some((token) => buttonClassTokens.has(token.toLowerCase()));
+}
+
 export function isTranslationControlElement(element: Element): boolean {
     const tag = getElementTagName(element);
-    if (tag === 'button') return true;
+    if (nativeControlTags.has(tag)) return true;
+    if (getTranslatableControlValueAttribute(element)) return true;
     const role = element.getAttribute('role')?.trim().toLowerCase();
-    return role === 'button' || role === 'menuitem';
+    if (role) return nativeControlRoles.has(role);
+    return hasButtonClassToken(element);
 }
 
 const allScopeControlRoles = new Set([
@@ -200,6 +228,43 @@ const allScopeUIRoles = new Set([
 function isAllScopeControl(element: Element): boolean {
     return allScopeControlTags.has(getElementTagName(element)) ||
         allScopeControlRoles.has(element.getAttribute('role')?.trim().toLowerCase() ?? '');
+}
+
+/**
+ * 交互外壳：链接、表单标签、折叠摘要以及被作者手动设为可 Tab 聚焦的容器。
+ * 它们既可能是工具栏里的操作标签，也可能是 FAQ 问句这类正文，因此不能像原生按钮那样
+ * 无条件替换，必须再通过"标签形态"判定。`tabindex="-1"` 只用于程序化聚焦（模态、跳转锚点），
+ * 不代表可操作，排除后可避免把整段内容区当成控件。
+ */
+function hasFocusableTabIndex(element: Element): boolean {
+    const value = element.getAttribute('tabindex');
+    if (value === null) return false;
+    const index = Number.parseInt(value.trim(), 10);
+    return Number.isFinite(index) && index >= 0;
+}
+
+function isInteractiveSurface(element: Element): boolean {
+    return isAllScopeControl(element) || hasFocusableTabIndex(element);
+}
+
+// 控件标签是操作名，不是句子。超出该长度或带句末标点的文本按正文处理，保留双语对照。
+const maxControlLabelLength = 64;
+const sentenceEndingPattern = /[.!?。！？；;]$/u;
+
+/**
+ * 正文里的链接、FAQ 折叠标题等交互外壳仍然是要读的内容，双语对照有价值；
+ * 工具栏里的短标签则和按钮一样受固定尺寸约束，插入第二行会撑破宿主布局。
+ * 以"无可读块级子节点 + 标签形态文本"区分两者，避免把整段正文误判成控件。
+ */
+function isControlLabelSurface(
+    element: Element,
+    shouldStayOriginal?: (element: Element) => boolean,
+    protectionCache?: TranslationTextProtectionCache,
+    protectionOptions?: TranslationTextProtectionOptions,
+): boolean {
+    if (hasReadableBlockChild(element, shouldStayOriginal, protectionCache, protectionOptions)) return false;
+    const text = (element.textContent ?? '').replace(/[\s\u3000]+/gu, ' ').trim();
+    return text.length > 0 && text.length <= maxControlLabelLength && !sentenceEndingPattern.test(text);
 }
 
 /** 全部节点仍把完整段落/标题交给正文渲染；导航列表和应用标签使用原位文本槽。 */
@@ -380,10 +445,22 @@ export function classifyGenericCandidate(
         (!skipStructuralAncestorCheck && hasStructuralAncestor(element, regionOptions) && !semanticHeading)))) {
         return null;
     }
-    if (shouldStayOriginal?.(element) || isProtectedTextElement(element)) return null;
+    if (shouldStayOriginal?.(element)) return null;
 
+    // 按钮型 input 的标签写在 value 属性里，元素内部没有任何 Text 节点，因此必须先于
+    // 表单文本保护判定，交由控件属性渲染路径处理。
+    if (getTranslatableControlValueAttribute(element)) {
+        return {kind: 'control', reason: 'generic-control-value'};
+    }
+    if (isProtectedTextElement(element)) return null;
+
+    // 全部节点范围保持既有的"整页即界面"判定；正文范围只放开呈标签形态的交互外壳，
+    // 让同一排工具栏里的按钮、链接和表单标签得到一致的替换式译文。
+    const interactiveControl = (scope === 'all' && isAllScopeControl(element)) ||
+        (isInteractiveSurface(element) &&
+            isControlLabelSurface(element, shouldStayOriginal, protectionCache, protectionOptions));
     if (isTranslationControlElement(element) ||
-        (scope === 'all' && isAllScopeControl(element) && !hasAllScopeSemanticOwner(element))) {
+        (interactiveControl && !hasAllScopeSemanticOwner(element))) {
         // 内层按钮保留独立候选，避免外层控件吞并独立操作。
         if (hasNestedTranslationControl(element)) return null;
         if (!hasMeaningfulTranslationTextInNodes(

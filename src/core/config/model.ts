@@ -2,7 +2,7 @@
  * @file src/core/config/model.ts
  *
  * 文件职责：定义 FluentRead 完整配置模型、默认值及各项设置的合法范围，是配置读取、保存、迁移和 UI 绑定共同依赖的领域契约。
- * 主要内容：包含正文/全部节点识别范围；统一中文简繁标识及历史配置别名，并保存常用服务顺序，包含 Config 接口、defaultConfig、字幕和翻译模式类型、延迟与字号范围、默认 API 地址及多项功能开关，使新增配置项在一个位置获得类型和初始语义。 可核对的公开符号包括 DeepSeekApiType、DeepSeekThinkingMode、VideoSubtitleDisplayMode、FullPageTranslationMode、DEFAULT_VIDEO_SUBTITLE_FONT_SIZE、DEFAULT_NEW_API_URL、VIDEO_SUBTITLE_FONT_SIZE_OPTIONS、DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY。
+ * 主要内容：包含正文/全部节点识别范围；统一中文简繁标识及历史配置别名，并保存常用服务顺序，包含 Config 接口、defaultConfig、字幕和翻译模式类型、延迟与字号范围、默认 API 地址及多项功能开关，使新增配置项在一个位置获得类型和初始语义；归一化时把仍停留在历史默认值的翻译提示词升级为当前默认提示词。 可核对的公开符号包括 DeepSeekApiType、DeepSeekThinkingMode、VideoSubtitleDisplayMode、FullPageTranslationMode、DEFAULT_VIDEO_SUBTITLE_FONT_SIZE、DEFAULT_NEW_API_URL、VIDEO_SUBTITLE_FONT_SIZE_OPTIONS、DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
@@ -11,6 +11,7 @@ import {
     currentModelIds,
     defaultModels,
     defaultOption,
+    LEGACY_DEFAULT_USER_ROLES,
     models,
     resolveCloudRegion,
     resolveConfiguredModel,
@@ -718,8 +719,11 @@ function hasSubstantialLegacyCustomConfiguration(source: Partial<Config>): boole
         || configuredString(source.customHeaders, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)) return true;
     const systemRole = configuredString(source.system_role, LEGACY_CUSTOM_OPENAI_PROVIDER_ID);
     const userRole = configuredString(source.user_role, LEGACY_CUSTOM_OPENAI_PROVIDER_ID);
+    // 仍停留在历史默认提示词的旧配置不算用户改写；否则升级默认提示词会凭空
+    // 判定旧自定义 OpenAI 档案存在真实配置。
     if ((systemRole && systemRole !== defaultOption.system_role)
-        || (userRole && userRole !== defaultOption.user_role)) return true;
+        || (userRole && userRole !== defaultOption.user_role
+            && !LEGACY_DEFAULT_USER_ROLES.includes(userRole))) return true;
 
     const requirementModel = legacyCustomModel(source.model, source.customModel);
     const requirementKey = createApiKeyRequirementKey(LEGACY_CUSTOM_OPENAI_PROVIDER_ID, requirementModel);
@@ -1001,10 +1005,10 @@ export function normalizeConfig(value: unknown): Config {
         ...systemRoleFactory(),
         ...withoutRetiredServiceEntries(normalizeStringMapping(source.system_role)),
     };
-    normalized.user_role = {
+    normalized.user_role = upgradeLegacyDefaultUserRoles({
         ...userRoleFactory(),
         ...withoutRetiredServiceEntries(normalizeStringMapping(source.user_role)),
-    };
+    });
     normalized.customBody = withoutRetiredServiceEntries(normalizeCustomBodyMapping(source.customBody));
     normalized.customHeaders = normalizeStringMapping(source.customHeaders);
 
@@ -1334,6 +1338,21 @@ export function migrateModelIdentifier(service: string, selectedModel: string): 
 
 function isRecord(value: unknown): value is Record<string, string> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * 旧默认提示词允许模型“在不必要时返回原文”，较弱的模型据此整句保留源语言，
+ * 造成译文中夹杂明显应当翻译的英文（Issue #54）。仅把仍停留在历史默认值的条目
+ * 升级为当前默认提示词，用户自定义的提示词按原样保留。
+ */
+function upgradeLegacyDefaultUserRoles(mapping: IMapping): IMapping {
+    const upgraded: IMapping = {};
+    for (const [service, prompt] of Object.entries(mapping)) {
+        upgraded[service] = LEGACY_DEFAULT_USER_ROLES.includes(prompt)
+            ? defaultOption.user_role
+            : prompt;
+    }
+    return upgraded;
 }
 
 function normalizeStringMapping(value: unknown): IMapping {

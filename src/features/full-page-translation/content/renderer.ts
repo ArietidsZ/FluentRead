@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/renderer.ts
  * 文件职责：把翻译返回的受限 HTML 或纯文本安全插入原页面，构造 FluentRead 双语与仅译文节点，同时保护链接属性并触发布局截断修复。
- * 主要内容：包含安全候选物化与显式原文行容器、URL 协议白名单、可复制属性集合、递归节点净化、本地公式可视骨架的受限克隆与辅助副本排除、DocumentFragment 创建、不改写宿主 class 的双语 wrapper、可选的译文前置与长段落按句换行，以及通过 Shadow DOM 保留宿主原文的仅译文文本槽。
+ * 主要内容：包含安全候选物化与显式原文行容器、URL 协议白名单、可复制属性集合、递归节点净化、本地公式可视骨架的受限克隆与辅助副本排除、DocumentFragment 创建、不改写宿主 class 的双语 wrapper、跨 CJK 书写体系时前置目标字体族、可选的译文前置与长段落按句换行，以及通过 Shadow DOM 保留宿主原文的仅译文文本槽。
  * 模块边界：本文件只负责安全渲染，不发起翻译或管理请求状态；服务调用归 runtime，节点所有权归 state，配置仅用于展示选项，任意脚本、事件属性和危险链接都不得穿过净化边界。
  */
 import type {TranslationCandidate} from "@/src/core/translation/types";
@@ -9,6 +9,7 @@ import { options } from "@/src/core/config/catalog";
 import { config } from "@/src/services/config/store";
 import {ensureTranslationTruncationLayout} from "@/src/features/full-page-translation/content/layout";
 import {applyLongParagraphLineBreaks} from "@/src/core/translation/lineBreak";
+import {resolveTranslationFontFamily} from "@/src/core/translation/font";
 
 /**
  * 译文允许保留的内联元素。
@@ -168,6 +169,33 @@ export interface BilingualTranslationRenderOptions {
     sourceSkeleton?: HTMLElement;
     /** 全文会话启动时冻结的译文样式。 */
     style?: number;
+    /** 本次请求的原文，仅用于判断译文是否需要改用目标书写体系的字体。 */
+    sourceText?: string;
+}
+
+/**
+ * 原文与译文分属不同 CJK 书写体系时，宿主字体只覆盖部分目标字形，浏览器逐字
+ * 回退会让同一段译文出现不同字重和字形（Issue #47）。此时把目标书写体系的字体
+ * 前置到宿主字体栈；其余情况不写样式，网页原有排版保持不变。
+ */
+function hostFontFamily(host: Element): string {
+    // 分离文档、已卸载节点或受限视图都可能拿不到计算样式；拿不到就只用目标字体族。
+    try {
+        const view = host.ownerDocument.defaultView;
+        return view ? view.getComputedStyle(host).fontFamily : "";
+    } catch {
+        return "";
+    }
+}
+
+function applyTranslationFontFamily(
+    translated: HTMLElement,
+    host: Element,
+    sourceText: string | undefined,
+): void {
+    if (!sourceText) return;
+    const fontFamily = resolveTranslationFontFamily(sourceText, translated.lang, hostFontFamily(host));
+    if (fontFamily) translated.style.fontFamily = fontFamily;
 }
 
 export interface SingleTranslationSlot {
@@ -207,6 +235,8 @@ export function appendSingleTranslationSlots(
         translated.lang = host.lang;
         translated.dir = "auto";
         translated.textContent = slot.text;
+        // 原文文本节点随后被移入 host 的 light DOM，字体判定仍以宿主段落为准。
+        applyTranslationFontFamily(translated, owner, slot.node.nodeValue || undefined);
         shadow.appendChild(translated);
 
         parent.insertBefore(host, slot.node);
@@ -227,6 +257,8 @@ function createBilingualTranslationContent(
     content.setAttribute("translate", "no");
     content.lang = (renderOptions.targetLanguage ?? config.to) || "";
     content.dir = "auto";
+
+    applyTranslationFontFamily(content, node, renderOptions.sourceText);
 
     const styleValue = renderOptions.style ?? config.style;
     const style = options.styles.find((item) => item.value === styleValue && !item.disabled);

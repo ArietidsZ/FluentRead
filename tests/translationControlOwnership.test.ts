@@ -4,12 +4,14 @@ import {describe, expect, it, vi} from 'vitest';
 import {
     collectLiveTranslationTextSlots,
     createTranslationCore,
+    extractTranslationText,
     TranslationCandidateCore,
 } from '@/src/core/translation/public';
 import {
     classifyGenericCandidate,
     findTranslationControlOwner,
     getDirectInlineRuns,
+    isTranslationControlElement,
 } from '@/src/core/translation/layout';
 import {maxComposedAncestorDepth} from '@/src/core/translation/dom';
 import {
@@ -94,6 +96,95 @@ describe('交互控件翻译所有权回归', () => {
         expect(collectLiveTranslationTextSlots(split, core.shouldStayOriginal).map((part) => part.source))
             .toEqual(['Review', 'changes']);
         expect(split.querySelector('.badge')?.textContent).toBe('23');
+    });
+
+    it.each(['content', 'all'] as const)(
+        '%s 范围下同一排工具栏里的按钮、按钮化链接、表单标签和自定义控件都是替换式控件候选',
+        (scope) => {
+            const {document, core} = fixture('https://example.test/controls', scope);
+            const candidates = core.discover(document);
+            const kindOf = (id: string) => candidates.find((candidate) =>
+                candidate.element === document.getElementById(id))?.kind;
+            for (const id of ['button-link', 'hint-link', 'upload-label', 'custom-action', 'preview-tab']) {
+                expect(kindOf(id), id).toBe('control');
+                expect(core.resolve(document.getElementById(id)!.firstChild), id)
+                    .toMatchObject({element: document.getElementById(id), kind: 'control'});
+            }
+            // 正文仍然是内容，保留上下双语对照。
+            expect(kindOf('shell-prose')).toBe('content');
+            expect(kindOf('prose')).toBe('content');
+            // 句子形态的折叠问句在正文范围仍是要读的内容；全部节点范围本就把整页视为
+            // 应用界面，这里保持既有语义不变。
+            expect(kindOf('faq-question')).toBe(scope === 'all' ? 'control' : 'content');
+        },
+    );
+
+    it('按钮型 input 的标签进入控件候选，具名 submit 与输入框内容保持不动', () => {
+        const {document, core} = fixture();
+        const candidates = core.discover(document);
+        const byId = (id: string) => candidates.find((candidate) =>
+            candidate.element === document.getElementById(id));
+
+        for (const id of ['submit-anonymous', 'button-input', 'reset-input']) {
+            expect(byId(id), id).toMatchObject({kind: 'control', reason: 'generic-control-value'});
+        }
+        expect(extractTranslationText(document.getElementById('button-input')!)).toBe('Preview changes');
+
+        // 具名 submit 的 value 会随表单提交，改写会破坏站点动作；其余输入框是用户数据。
+        expect(byId('submit-named')).toBeUndefined();
+        expect(byId('text-input')).toBeUndefined();
+        expect(byId('empty-submit')).toBeUndefined();
+        expect(extractTranslationText(document.getElementById('text-input')!)).toBe('');
+    });
+
+    it('按钮语义判定覆盖原生标签、按钮型 input、ARIA 角色和按钮类名', () => {
+        const {document} = fixture();
+        for (const id of ['submit-anonymous', 'button-input', 'reset-input', 'merge-button',
+            'button-link', 'preview-tab', 'menu-action']) {
+            expect(isTranslationControlElement(document.getElementById(id)!), id).toBe(true);
+        }
+        // 具名 submit 的标签要随表单提交，不能按按钮改写。
+        expect(isTranslationControlElement(document.getElementById('submit-named')!)).toBe(false);
+        expect(isTranslationControlElement(document.getElementById('text-input')!)).toBe(false);
+    });
+
+    it('空标签和整句文案都不按控件替换，避免把正文压缩成单行译文', () => {
+        const {document, core} = fixture();
+        const toolbar = document.getElementById('toolbar')!;
+        const empty = document.createElement('a');
+        empty.setAttribute('href', '#empty');
+        empty.setAttribute('data-display', 'inline-block');
+        const sentence = document.createElement('a');
+        sentence.setAttribute('href', '#sentence');
+        sentence.setAttribute('data-display', 'inline-block');
+        sentence.textContent = 'This release note explains every behaviour change that shipped this week';
+        toolbar.append(empty, sentence);
+
+        expect(classifyGenericCandidate(empty, core.shouldStayOriginal)).toBeNull();
+        expect(classifyGenericCandidate(sentence, core.shouldStayOriginal)?.kind).not.toBe('control');
+    });
+
+    it('图标按钮旁的文字只解析到自己的内联段，不把无文字按钮并入其中', () => {
+        const {document, core} = fixture();
+        document.body.innerHTML = '<main><div id="row" data-display="block">Loose label' +
+            '<button id="icon"><span aria-hidden="true">★</span></button></div></main>';
+        const icon = document.getElementById('icon')!;
+        // 只有图标的按钮没有可译文字，既不自成候选，也不会被旁边文字的内联段收编；
+        // 指针命中它时回退到外层可读块，图标本身保持原样。
+        expect(core.inspect(icon).candidate).toBeNull();
+        expect(core.resolve(icon)).toMatchObject({element: document.getElementById('row'), kind: 'content'});
+        expect(core.discover(document).some((candidate) =>
+            candidate.nodes?.includes(icon as unknown as ChildNode))).toBe(false);
+    });
+
+    it('显式非控件角色、不可聚焦容器和非法 tabindex 不会被当成按钮', () => {
+        const {document, core} = fixture();
+        for (const id of ['decorative', 'broken-focus', 'focus-shell']) {
+            const element = document.getElementById(id)!;
+            expect(isTranslationControlElement(element), id).toBe(false);
+            expect(core.discover(document).some((candidate) =>
+                candidate.element === element && candidate.kind === 'control'), id).toBe(false);
+        }
     });
 
     it('宿主动态添加或移除按钮角色时重新计算标签的所有权', () => {

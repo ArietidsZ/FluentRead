@@ -8,6 +8,7 @@
 
 import {
     composedAncestors,
+    getTranslatableControlValueAttribute,
     isTextInNestedTranslationTooltip,
     getComposedParent,
     isProtectedDescendantElement,
@@ -107,6 +108,15 @@ function collectReadableText(
         }
         if (root.nodeType !== 1) continue;
         const element = root as Element;
+        // 按钮型 input 的可见标签只存在于 value 属性里。仅当它本身就是候选根时才读取：
+        // 外层容器的译文经由文本槽或双语骨架渲染，无法写回子元素属性，把属性文本混进去
+        // 只会让服务端翻译一段永远显示不出来的内容。
+        const controlValueAttribute = getTranslatableControlValueAttribute(element);
+        if (controlValueAttribute) {
+            // 属性判定已确认该标签存在且非空白，这里只做与文本节点一致的空白归一。
+            parts.push(normalizeTranslationText(element.getAttribute(controlValueAttribute)!));
+            continue;
+        }
         const document = element.ownerDocument;
         if (!document?.createTreeWalker) continue;
         const walker = document.createTreeWalker(element, 4);
