@@ -554,8 +554,9 @@ describe('界面 i18n 契约', () => {
     for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
       for (const key of areaKeys) expect(translate(key, language)).not.toBe(key);
     }
-    expect(translate('area.settings.standardDescription', 'en-US')).toContain('OCR text only');
-    expect(translate('area.settings.aiDescription', 'en-US')).toContain('does not see the screenshot');
+    expect(translate('area.settings.standardDescription', 'en-US')).toContain('recognized text');
+    expect(translate('area.settings.aiDescription', 'en-US')).toContain('translation');
+    expect(translate('area.settings.visionPrivacy', 'en-US')).toContain('uploads the selected image');
     expect(translate('area.settings.privacy', 'en-US')).toContain('screenshots are not uploaded');
     for (const copy of [
       'AI 仅处理识别文字，无法找回图片中的漏字；请核对名称和数字。',

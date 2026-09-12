@@ -56,5 +56,7 @@ export async function translateCapturedAreaInExtension(
 
     return {service: response.service, serviceName: response.serviceName, model: response.model, image: response.image, lines: response.lines, sourceText: response.sourceText,
         translatedText: response.translatedText, mode: response.mode, warnings: response.warnings,
+        ...(response.recognitionMethod === 'vision' || response.recognitionMethod === 'ocr' ? {recognitionMethod: response.recognitionMethod} : {}),
+        ...(response.recognitionFallback === 'unsupported' || response.recognitionFallback === 'unknown' ? {recognitionFallback: response.recognitionFallback} : {}),
         ...(response.correctedText !== undefined ? {correctedText: response.correctedText} : {})};
 }

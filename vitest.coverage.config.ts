@@ -17,6 +17,10 @@ export default defineConfig({
     test: {
         environment: 'node',
         include: [
+            'tests/visionConfig.test.ts',
+            'tests/translationVisionPayload.test.ts',
+            'tests/translationVisionProviders.test.ts',
+            'tests/translationVisionBroker.test.ts',
             'tests/writingIntegration.test.ts',
             'tests/writingCore.test.ts',
             'tests/writingReference.test.ts',
@@ -28,6 +32,7 @@ export default defineConfig({
             'tests/chineseLanguage.test.ts',
             'tests/chineseTranslationProviders.test.ts',
             'tests/areaTextTranslation.test.ts',
+            'tests/areaVisionRecognition.test.ts',
             'tests/aiContextPresentation.test.ts',
             'tests/siteAdaptationCore.test.ts',
             'tests/siteAdaptationRuntime.test.ts',
@@ -509,6 +514,7 @@ export default defineConfig({
                 'src/services/translation/cache.ts',
                 'src/services/translation/cachePolicyBinding.ts',
                 'src/services/translation/cacheManagement.ts',
+                'src/core/config/vision.ts',
                 'src/core/config/translationCache.ts',
                 'src/services/translation/errors.ts',
                 'src/services/translation/languages.ts',

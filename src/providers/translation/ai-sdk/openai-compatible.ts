@@ -23,6 +23,7 @@ import {runtimeFetch} from '@/src/platform/http/runtime';
 import {
   getTranslationProviderConfig,
   reportTranslationModelUsage,
+  getTranslationImageInput,
   type TranslationProviderRequestContext,
 } from '@/src/services/translation/requestSnapshot';
 import type {TranslationProviderConfigSnapshot} from '@/src/services/translation/types';
@@ -276,6 +277,7 @@ async function translateSingle(
     request.modelOverride,
     current,
     request.thinkingOverride,
+    getTranslationImageInput(request),
   ));
 
   // 协议的 stream 标记由 SDK 管理。自定义请求体仍可替换 model/messages，并添加任意

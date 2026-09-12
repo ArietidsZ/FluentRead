@@ -472,6 +472,9 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     selectionAreaEnabled: {group: 'areaTranslation', label: '圈选翻译', format: formatBoolean},
     areaTranslationMode: {group: 'areaTranslation', label: '圈选翻译方式', format: value => value === 'ai' ? 'AI 上下文增强' : '标准翻译'},
     areaTranslationService: {group: 'areaTranslation', label: '圈选翻译服务', format: value => value ? formatService(value) : '跟随当前服务'},
+    areaRecognitionMode: {group: 'areaTranslation', label: '圈选识别方式', format: value => value === 'prefer-vision' ? '优先模型识图' : '本地 OCR'},
+    areaVisionPrompt: {group: 'areaTranslation', label: '模型识图提示词', format: formatPrompt},
+    modelVision: {group: 'translationServices', label: '模型识图能力覆盖', format: value => formatRecord(configRecord(value))},
 
     videoTranslationEnabled: {group: 'videoSubtitles', label: '视频字幕翻译', format: formatBoolean},
     videoService: {group: 'videoSubtitles', label: '视频翻译服务', format: formatService},

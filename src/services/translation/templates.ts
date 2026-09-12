@@ -20,6 +20,33 @@ import {
 import {applyModelThinkingPreference, type ModelThinkingProtocol} from './modelThinking';
 import {getTranslationGlossaryTerms} from './requestSnapshot';
 
+function imageParts(imageInput: string | undefined, text: string, protocol: 'openai' | 'gemini' | 'claude') {
+    if (!imageInput) return protocol === 'gemini' ? [{text}] : text;
+    const match = imageInput.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/u);
+    if (!match) throw new TypeError('图片输入格式无效');
+    if (protocol === 'gemini') return [{text}, {inline_data: {mime_type: match[1], data: match[2]}}];
+    if (protocol === 'claude') return [
+        {type: 'text', text},
+        {type: 'image', source: {type: 'base64', media_type: match[1], data: match[2]}},
+    ];
+    return [
+        {type: 'text', text},
+        {type: 'image_url', image_url: {url: imageInput}},
+    ];
+}
+
+function finalizeVisionPayload(
+    payload: Record<string, unknown>,
+    current: TranslationProviderConfigSnapshot,
+    service: string,
+    model: string,
+    protocol: ModelThinkingProtocol,
+    thinkingOverride?: boolean,
+): Record<string, unknown> {
+    // 自定义 body 不能替换图片、冻结模型或识别提示词；vision 请求只保留模板允许的协议字段。
+    return withThinkingPreference(payload, current, service, model, protocol, thinkingOverride);
+}
+
 export {mergeCustomBody};
 export {buildPageSummaryPrompt, buildPageSummarySystemPrompt} from '@/src/core/translation/prompts';
 
@@ -167,6 +194,7 @@ export function commonMsgTemplate(
     modelOverride?: string,
     current: TranslationProviderConfigSnapshot = config,
     thinkingOverride?: boolean,
+    imageInput?: string,
 ) {
     const service = serviceOverride || current.service;
     const preferenceModel = currentConfiguredModel(current, service, modelOverride);
@@ -182,9 +210,11 @@ export function commonMsgTemplate(
         'model': model,
         'messages': [
             {'role': 'system', 'content': system},
-            {'role': 'user', 'content': user},
+            {'role': 'user', 'content': imageParts(imageInput, user, 'openai')},
         ]
     };
+
+    if (imageInput) return JSON.stringify(finalizeVisionPayload(payload, current, service, model, 'openai-chat', thinkingOverride));
 
     return JSON.stringify(finalizeThinkingPayload(
         payload, current, service, model, 'openai-chat', thinkingOverride, preferenceModel,
@@ -304,6 +334,7 @@ export function geminiMsgTemplate(
     current: TranslationProviderConfigSnapshot = config,
     modelOverride?: string,
     thinkingOverride?: boolean,
+    imageInput?: string,
 ) {
     const service = serviceOverride || current.service;
     const model = currentConfiguredModel(current, service, modelOverride);
@@ -312,9 +343,11 @@ export function geminiMsgTemplate(
 
     const payload: Record<string, unknown> = {
         "contents": [
-            {"role": "user", "parts": [{"text": user}]},
+            {"role": "user", "parts": imageParts(imageInput, user, 'gemini')},
         ]
     };
+
+    if (imageInput) return JSON.stringify(finalizeVisionPayload(payload, current, service, model, 'gemini-generate-content', thinkingOverride));
 
     return JSON.stringify(finalizeThinkingPayload(
         payload, current, service, model, 'gemini-generate-content', thinkingOverride,
@@ -332,6 +365,7 @@ export function claudeMsgTemplate(
     modelOverride?: string,
     current: TranslationProviderConfigSnapshot = config,
     thinkingOverride?: boolean,
+    imageInput?: string,
 ) {
     const service = serviceOverride || services.claude;
     const model = currentConfiguredModel(current, service, modelOverride);
@@ -345,9 +379,11 @@ export function claudeMsgTemplate(
         stream: false,
         system: system,
         messages: [
-            {role: "user", content: user},
+            {role: "user", content: imageParts(imageInput, user, 'claude')},
         ]
     };
+
+    if (imageInput) return JSON.stringify(finalizeVisionPayload(payload, current, service, model, 'claude-messages', thinkingOverride));
 
     return JSON.stringify(finalizeThinkingPayload(
         payload, current, service, model, 'claude-messages', thinkingOverride,
@@ -366,6 +402,7 @@ export function tongyiMsgTemplate(
     current: TranslationProviderConfigSnapshot = config,
     thinkingOverride?: boolean,
     sourceLanguage = current.from || 'auto',
+    imageInput?: string,
 ) {
     const service = serviceOverride || current.service;
     const model = currentConfiguredModel(current, service, modelOverride);
@@ -377,15 +414,17 @@ export function tongyiMsgTemplate(
             "model": model,
             "messages": [
                 {"role": "system", "content": system},
-                {"role": "user", "content": user},
+                {"role": "user", "content": imageParts(imageInput, user, 'openai')},
             ]
         };
+        if (imageInput) return JSON.stringify(finalizeVisionPayload(payload, current, service, model, 'tongyi-chat', thinkingOverride));
         return JSON.stringify(finalizeThinkingPayload(
             payload, current, service, model, 'tongyi-chat', thinkingOverride,
         ))
     }
     // 翻译模型qwen-mt-plus和qwen-mt-turbo的格式和通用的不同
     const mtModelTemplate = () => {
+        if (imageInput) throw new Error('当前通义翻译模型不支持图片输入，请选择视觉模型');
         const terms = getTranslationGlossaryTerms(current, origin);
         // Qwen-MT 使用 zh / zh_tw 区分简繁体；未知语言交由服务明确拒绝，不能悄悄译成中文。
         const normalizedTarget = normalizeChineseLanguageCode(targetLanguage);

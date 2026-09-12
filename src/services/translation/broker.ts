@@ -27,6 +27,8 @@ import {
     getTranslationGlossarySourceText,
     getTranslationGlossaryTerms,
     getTranslationRequestControl,
+    getTranslationImageInput,
+    attachTranslationImageInput,
     TRANSLATION_REMAINING_BUDGET,
     type TranslationRemainingBudgetContext,
 } from './requestSnapshot';
@@ -39,6 +41,7 @@ import {
 } from '@/src/core/translation/prompts';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
+import {supportsVisionTransport} from '@/src/core/config/vision';
 import {
     normalizeFreeTranslationOrder,
     normalizeFreeTranslationTimeoutMs,
@@ -1031,7 +1034,9 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             message.modelOverride,
             message.sourceLanguageDetectionText,
         );
-        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}`;
+        const imageInput = getTranslationImageInput(message);
+        const imageSuffix = imageInput ? `:image:${sha256(imageInput).toString()}` : '';
+        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${imageSuffix}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}`;
         const existing = pendingTranslations.get(pendingKey);
         // 共享的是 provider 工作；每个等待者仍需保留自己的取消和截止边界。
         if (existing) return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
@@ -1317,6 +1322,15 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         let current = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(config()));
         const serviceOverride = message.serviceOverride;
         const selectedService = serviceOverride || current.service;
+        const imageInput = getTranslationImageInput(message);
+        if (imageInput && Array.isArray(message.origin) && message.origin.length > 0) {
+            throw new Error('图片识别请求必须使用单条原文');
+        }
+        const selectedModel = getSelectedModel(current, selectedService, message.modelOverride);
+        if (imageInput && (!deps.serviceTypes.isAI(selectedService)
+            || !supportsVisionTransport(selectedService, selectedModel))) {
+            throw new Error('图片识别需要支持视觉输入的 AI 翻译服务');
+        }
         const {sourceLanguage, targetLanguage} = deps.getTranslationLanguages({
             sourceLanguage: message.sourceLanguage?.trim() || current.from,
             targetLanguage: message.targetLanguage?.trim() || current.to,
@@ -1376,7 +1390,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
 
         const context = typeof message.context === 'string' ? message.context : '';
         const rawPageContext = typeof message.pageContext === 'string' ? message.pageContext : '';
-        const useCache = isCacheEnabled(current, message);
+        const useCache = !imageInput && isCacheEnabled(current, message);
         // clear 是缓存代次的线性化边界。清理期间进入的缓存请求必须等到所有
         // 已串联 clear 完成后再取得新代次，等待时间仍计入原始 deadline 且可取消。
         if (useCache) {
@@ -1385,7 +1399,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         const requestGeneration = cacheGeneration;
         // 步骤 2：摘要是 AI 上下文增强，只拿 provider deadline 的一小段预算。
         const summaryBudget = Math.min(10_000, Math.max(1_000, Math.floor(providerBudget / 4)));
-        const pageContext = await addPageSummary(
+        const pageContext = imageInput ? '' : await addPageSummary(
             execution,
             rawPageContext,
             useCache,
@@ -1420,6 +1434,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             } as TranslationRequestMessage,
             current,
         );
+        if (imageInput) attachTranslationImageInput(requestMessage, imageInput);
         // 步骤 5：根据 origin 类型进入单条或批量管线，两者共享缓存身份与 pending 去重。
         if (Array.isArray(requestMessage.origin)) {
             return translateBatchWithCache(

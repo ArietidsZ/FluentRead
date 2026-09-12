@@ -841,3 +841,17 @@ describe('配置差异预览', () => {
         ]));
     });
 });
+
+
+it('previews area recognition choices, user prompt edits, and per-model capability overrides', () => {
+    const result = buildConfigDiff(
+        {areaRecognitionMode:'ocr',areaVisionPrompt:'original',modelVision:{}},
+        {areaRecognitionMode:'prefer-vision',areaVisionPrompt:'keep line breaks',modelVision:{openai:{'private-model':true}}},
+    );
+    expect(group(result,'areaTranslation')?.changes).toEqual(expect.arrayContaining([
+        expect.objectContaining({key:'areaRecognitionMode',before:'本地 OCR',after:'优先模型识图'}),
+        expect.objectContaining({key:'areaVisionPrompt',before:'已配置（8 字符）',after:'已配置（16 字符）'}),
+    ]));
+    expect(group(result,'translationServices')?.changes[0]).toMatchObject({key:'modelVision',after:expect.stringContaining('private-model')});
+    expect(group(buildConfigDiff({areaRecognitionMode:'prefer-vision'}, {areaRecognitionMode:'ocr'}),'areaTranslation')?.changes[0].after).toBe('本地 OCR');
+});

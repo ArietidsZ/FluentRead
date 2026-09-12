@@ -25,6 +25,41 @@ export const TRANSLATION_REMAINING_BUDGET = Symbol('fluentread.translation-remai
 export const TRANSLATION_MODEL_USAGE_OBSERVER = Symbol('fluentread.translation-model-usage-observer');
 export const TRANSLATION_REQUEST_CONTROL = Symbol('fluentread.translation-request-control');
 export const TRANSLATION_GLOSSARY_CONTEXT = Symbol('fluentread.translation-glossary-context');
+export const TRANSLATION_IMAGE_INPUT = Symbol('fluentread.translation-image-input');
+
+const MAX_TRANSLATION_IMAGE_INPUT_LENGTH = 20 * 1024 * 1024;
+const IMAGE_DATA_URL_RE = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/u;
+
+export function validateTranslationImageInput(image: string): string {
+    if (typeof image !== 'string' || image.length > MAX_TRANSLATION_IMAGE_INPUT_LENGTH) {
+        throw new TypeError('图片输入必须是不超过 20 MiB 的 PNG、JPEG 或 WebP data image');
+    }
+    const match = image.match(IMAGE_DATA_URL_RE);
+    if (!match || match[2].length % 4 === 1) {
+        throw new TypeError('图片输入必须是 PNG、JPEG 或 WebP 的有效 base64 data image');
+    }
+    return image;
+}
+
+export function attachTranslationImageInput<T extends object>(message: T, image: string): T {
+    Object.defineProperty(message, TRANSLATION_IMAGE_INPUT, {
+        value: validateTranslationImageInput(image),
+        // Symbol 属性不会进入 JSON/runtime 字段；保持可枚举只为后台对象展开时继续携带。
+        enumerable: true,
+        configurable: false,
+        writable: false,
+    });
+    return message;
+}
+
+export function getTranslationImageInput(message: unknown): string | undefined {
+    if (!message || typeof message !== 'object') return undefined;
+    const image = (message as {[TRANSLATION_IMAGE_INPUT]?: unknown})[TRANSLATION_IMAGE_INPUT];
+    const match = typeof image === 'string' ? image.match(IMAGE_DATA_URL_RE) : null;
+    return typeof image === 'string' && match !== null && match[2].length % 4 !== 1 && image.length <= MAX_TRANSLATION_IMAGE_INPUT_LENGTH
+        ? image
+        : undefined;
+}
 
 export interface TrustedTranslationGlossaryContext {
     readonly pageUrl?: string;

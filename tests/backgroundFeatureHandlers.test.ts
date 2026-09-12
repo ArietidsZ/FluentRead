@@ -1154,3 +1154,77 @@ describe('繁体词典辅助内容只采用本次成功翻译', () => {
         assertOriginalPreserved(card);
     });
 });
+
+describe('圈选视觉识别路由', () => {
+    const selection = {left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100};
+    it.each([
+        [{mode: 'ocr', fallback: 'unsupported'}, 'unsupported'],
+        [{mode: 'ocr', fallback: 'unknown'}, 'unknown'],
+    ] as const)('prefer-vision capability=%s 保留回退元数据并走 OCR', async (route, fallback) => {
+        const ocr = vi.fn(async () => ({image: 'crop', lines: []}));
+        const languages = vi.fn(async () => undefined);
+        const [, handler] = createAreaTranslationBackgroundHandlers({
+            captureVisibleTab: vi.fn(), getDefaultSourceLanguage: () => 'en', assertLanguagesDownloaded: languages,
+            translateArea: ocr, getVisionRoute: () => route,
+        });
+        await expect(handler.handle({type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, image: 'data:image/png,x', selection}, {}))
+            .resolves.toMatchObject({recognitionFallback: fallback, recognitionMethod: 'ocr'});
+        expect(languages).toHaveBeenCalledOnce(); expect(ocr).toHaveBeenCalledOnce();
+    });
+
+    it('vision 分支只调用 prepareVision，vision 失败不触发 OCR', async () => {
+        const ocr = vi.fn(async () => ({image: 'ocr', lines: []}));
+        const vision = vi.fn(() => { throw new Error('vision auth'); });
+        const languages = vi.fn(async () => undefined);
+        const [, handler] = createAreaTranslationBackgroundHandlers({
+            captureVisibleTab: vi.fn(), getDefaultSourceLanguage: () => 'en', assertLanguagesDownloaded: languages,
+            translateArea: ocr, getVisionRoute: () => ({mode: 'vision' as const}),
+            prepareVisionTranslation: () => vision,
+        });
+        await expect(handler.handle({type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, image: 'data:image/png,x', selection}, {})).rejects.toThrow('vision auth');
+        expect(languages).not.toHaveBeenCalled(); expect(ocr).not.toHaveBeenCalled(); expect(vision).toHaveBeenCalledOnce();
+    });
+
+    it('vision prepareVision 成功时返回视觉结果', async () => {
+        const vision = vi.fn(async (_image: string, _selection: typeof selection, _options: unknown) => ({image: 'vision', lines: [], recognitionMethod: 'vision'}));
+        const [, handler] = createAreaTranslationBackgroundHandlers({
+            captureVisibleTab: vi.fn(), getDefaultSourceLanguage: () => 'en', assertLanguagesDownloaded: vi.fn(async () => undefined),
+            translateArea: vi.fn(), getVisionRoute: () => ({mode: 'vision' as const}), prepareVisionTranslation: () => vision,
+        });
+        await expect(handler.handle({type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, image: 'data:image/png,x', selection}, {}))
+            .resolves.toMatchObject({recognitionMethod: 'vision'});
+        expect(vision).toHaveBeenCalledOnce();
+    });
+
+    it('OCR 路由没有 fallback 时不附加回退字段', async () => {
+        const ocr = vi.fn(async () => ({image: 'ocr', lines: []}));
+        const [, handler] = createAreaTranslationBackgroundHandlers({
+            captureVisibleTab: vi.fn(), getDefaultSourceLanguage: () => 'en', assertLanguagesDownloaded: vi.fn(async () => undefined),
+            translateArea: ocr, getVisionRoute: () => ({mode: 'ocr' as const}),
+        });
+        await expect(handler.handle({type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, image: 'data:image/png,x', selection}, {}))
+            .resolves.toEqual({success: true, image: 'ocr', lines: [], recognitionMethod: 'ocr'});
+    });
+
+    it('vision 路由在没有任何视觉实现时明确失败', async () => {
+        const ocr = vi.fn(async () => ({image: 'ocr', lines: []}));
+        const [, handler] = createAreaTranslationBackgroundHandlers({
+            captureVisibleTab: vi.fn(), getDefaultSourceLanguage: () => 'en', assertLanguagesDownloaded: vi.fn(async () => undefined),
+            translateArea: ocr, getVisionRoute: () => ({mode: 'vision' as const}),
+        });
+        await expect(handler.handle({type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, image: 'data:image/png,x', selection}, {}))
+            .rejects.toThrow('视觉圈选翻译不可用');
+        expect(ocr).not.toHaveBeenCalled();
+    });
+
+    it('vision 路由可直接调用 translateAreaVision，并保留无回退元数据分支', async () => {
+        const vision = vi.fn(async () => ({image: 'vision', lines: [], recognitionMethod: 'vision'}));
+        const [, handler] = createAreaTranslationBackgroundHandlers({
+            captureVisibleTab: vi.fn(), getDefaultSourceLanguage: () => 'en', assertLanguagesDownloaded: vi.fn(async () => undefined),
+            translateArea: vi.fn(), getVisionRoute: () => ({mode: 'vision' as const}), translateAreaVision: vision,
+        });
+        await expect(handler.handle({type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, image: 'data:image/png,x', selection}, {}))
+            .resolves.toMatchObject({recognitionMethod: 'vision'});
+        expect(vision).toHaveBeenCalledOnce();
+    });
+});

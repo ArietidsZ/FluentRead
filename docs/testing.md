@@ -1,5 +1,11 @@
 # 测试与回归
 
+## 圈选模型识图
+
+`node scripts/testing/run-area-vision-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-area-vision` 使用生产扩展与临时 Edge profile，在后台可见窗口中验证识别方式及提示词保存、选区裁剪、无需 OCR 语言包的视觉路径、不支持或未知模型的 OCR 路径、模型能力覆盖、失败重试与取消清理。
+
+该脚本的模型端点是本机 HTTP 夹具。它检查真实发出的图片尺寸、摘要及提示词，报告不保存图片请求体或凭据；截图展示真实扩展 UI。通过意味着请求和交互链路符合约定，不代表真实视觉模型对手写、模糊文字或复杂版面的识别准确率。
+
 ## 工具栏翻译状态
 
 `node scripts/testing/run-toolbar-status-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-toolbar-status` 使用生产扩展、临时 Edge profile 和第二屏后台窗口，检查原文、等待、完成、恢复、服务失败、原地重试、标签页切换和刷新。页面与供应商响应均为本地夹具，不代表外部服务质量。

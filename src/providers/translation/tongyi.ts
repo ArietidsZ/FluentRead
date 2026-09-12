@@ -17,6 +17,7 @@ import {
     getTranslationProviderConfig,
     reportTranslationModelUsage,
     reportTranslationModelUsageFailure,
+    getTranslationImageInput,
     type TranslationProviderRequest,
 } from '@/src/services/translation/requestSnapshot';
 import {normalizeOpenAICompatibleUsage} from './usage';
@@ -38,7 +39,7 @@ async function tongyi(message: TranslationProviderRequest<string>) {
         : urls[services.tongyi];
     const url: string = current.proxy[service] || officialUrl;
 
-    const body = tongyiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride, message.sourceLanguage);
+    const body = tongyiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride, message.sourceLanguage, getTranslationImageInput(message));
     const startedAt = Date.now();
     let attemptReported = false;
     try {
