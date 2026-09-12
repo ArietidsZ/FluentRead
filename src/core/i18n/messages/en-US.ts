@@ -318,6 +318,8 @@ export const enUSMessages = {
     "settings.pageRecognition.title": "Page recognition",
     "settings.pageRecognition.allNodes": "Detect all nodes",
     "settings.pageRecognition.description": "Translate menus, buttons, and node labels. Takes effect with the next translation.",
+    "settings.pageRecognition.pageTitle": "Translate page title",
+    "settings.pageRecognition.pageTitleDescription": "Translate the tab title along with the page, and restore it when the translation is undone.",
     'image.entries': "Entry points",
     'image.hover': "Image hover button",
     'image.hoverDescription': "Show a translate button in the lower-left corner when hovering over an image.",

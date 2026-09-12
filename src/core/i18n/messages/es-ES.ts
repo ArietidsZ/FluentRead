@@ -202,6 +202,8 @@ export const esESMessages = {
     "settings.pageRecognition.title": "Reconocimiento de la página",
     "settings.pageRecognition.allNodes": "Detectar todos los nodos",
     "settings.pageRecognition.description": "Traducir menús, botones y etiquetas de nodos. Se aplica a partir de la próxima traducción.",
+    "settings.pageRecognition.pageTitle": "Traducir el título de la página",
+    "settings.pageRecognition.pageTitleDescription": "Traducir el título de la pestaña junto con la página y restaurarlo al deshacer la traducción.",
     'image.entries': "Formas de acceso",
     'image.hover': "Botón al pasar el cursor",
     'image.hoverDescription': "Mostrar un botón de traducción abajo a la izquierda al pasar el cursor sobre una imagen.",

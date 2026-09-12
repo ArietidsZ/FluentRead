@@ -202,6 +202,8 @@ export const ruRUMessages = {
     "settings.pageRecognition.title": "Распознавание страницы",
     "settings.pageRecognition.allNodes": "Найти все узлы",
     "settings.pageRecognition.description": "Переводить меню, кнопки и подписи узлов. Применяется со следующего перевода.",
+    "settings.pageRecognition.pageTitle": "Переводить заголовок страницы",
+    "settings.pageRecognition.pageTitleDescription": "Переводить заголовок вкладки вместе со страницей и восстанавливать его при отмене перевода.",
     'image.entries': "Способы запуска",
     'image.hover': "Кнопка при наведении",
     'image.hoverDescription': "Показывать кнопку перевода слева внизу при наведении на изображение.",

@@ -340,6 +340,9 @@
         <SettingsItem :label="t('settings.pageRecognition.allNodes')" :description="t('settings.pageRecognition.description')">
           <el-switch v-model="config.translationScope" active-value="all" inactive-value="content" class="settings-toggle" :aria-label="t('settings.pageRecognition.allNodes')" />
         </SettingsItem>
+        <SettingsItem :label="t('settings.pageRecognition.pageTitle')" :description="t('settings.pageRecognition.pageTitleDescription')">
+          <el-switch v-model="config.pageTitleTranslationEnabled" class="settings-toggle" :aria-label="t('settings.pageRecognition.pageTitle')" />
+        </SettingsItem>
       </SettingsGroup>
       <TranslationCacheSettings v-if="props.activeSection === 'settings-advanced'" :config="config" />
     </section>
