@@ -149,7 +149,7 @@ export function captureFullPageTranslationConfig(
     };
 }
 
-function createSnapshotTranslateOptions(
+export function createSnapshotTranslateOptions(
     snapshot: FullPageTranslationConfigSnapshot,
     options: SnapshotTranslateExecutionOptions = {},
 ): TranslateOptions {
