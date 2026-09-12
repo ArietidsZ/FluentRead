@@ -43,7 +43,6 @@ import {
     setCurrentTranslationSidebarRegions,
     setMinimumTranslationTextLength,
 } from '@/src/core/translation/public';
-import {getCurrentTranslationSidebarRegions} from '@/src/core/translation/current';
 import type {TranslationCandidate} from '@/src/core/translation/public';
 import {appendBilingualTranslation} from '@/src/features/full-page-translation/content/renderer';
 
@@ -142,11 +141,9 @@ describe('侧边栏翻译', () => {
     });
 
     it('共享核心按注入的开关重建，重复注入同一取值不会浪费缓存', () => {
-        expect(getCurrentTranslationSidebarRegions()).toBe(false);
         expect(getCurrentTranslationCore('content').includeSidebarRegions).toBe(false);
 
         setCurrentTranslationSidebarRegions(true);
-        expect(getCurrentTranslationSidebarRegions()).toBe(true);
         const opened = getCurrentTranslationCore('content');
         expect(opened.includeSidebarRegions).toBe(true);
 

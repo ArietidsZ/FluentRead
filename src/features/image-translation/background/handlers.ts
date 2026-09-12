@@ -1,6 +1,6 @@
 /**
  * @file src/features/image-translation/background/handlers.ts
- * 文件职责：定义跨域图片读取、图片 OCR、整图翻译、文本批译、阶段进度、取消和语言包下载后台消息，并对来自页面或扩展 UI 的未知输入执行严格校验。
+ * 文件职责：定义跨域图片读取、整图翻译、文本批译、阶段进度、取消和语言包下载后台消息，并对来自页面或扩展 UI 的未知输入执行严格校验。
  * 主要内容：包含消息解析、OCR 语言白名单、阶段与百分比通知和取消预算；图片文本去重批量和有界并发翻译同时保留后台恢复的可信页面范围、源语言与术语版本。
  * 模块边界：本文件只负责协议入口与用例编排，不直接运行 Tesseract、Canvas、网络 fetch 或 Offscreen；图像读取和运算能力均由 Offscreen adapter 与 services 实现并由 app 注入。
  */
@@ -17,21 +17,12 @@ import {
     markTranslationRemainingBudget,
 } from '@/src/services/translation/requestSnapshot';
 
-export const IMAGE_OCR_MESSAGE_TYPE = 'fluentReadImageOcr' as const;
 export const IMAGE_TRANSLATE_MESSAGE_TYPE = 'fluentReadImageTranslate' as const;
 export const IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE = 'fluentReadImageTranslateTexts' as const;
 export const IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE = 'fluentReadImageOcrDownload' as const;
 export const IMAGE_CANCEL_MESSAGE_TYPE = 'fluentReadImageCancel' as const;
 export const IMAGE_FETCH_MESSAGE_TYPE = 'fluentReadImageFetch' as const;
 export const IMAGE_OPERATION_TIMEOUT_MS = 180_000;
-
-export interface ImageOcrMessage {
-    type: typeof IMAGE_OCR_MESSAGE_TYPE;
-    image?: unknown;
-    sourceLanguage?: unknown;
-    requestId?: unknown;
-    timeoutMs?: unknown;
-}
 
 export interface ImageTranslateMessage {
     type: typeof IMAGE_TRANSLATE_MESSAGE_TYPE;
@@ -75,7 +66,6 @@ export interface ImageProgressMessage {type: typeof IMAGE_PROGRESS_MESSAGE_TYPE;
 
 export type ImageTranslationBackgroundMessage =
     | ImageProgressMessage
-    | ImageOcrMessage
     | ImageTranslateMessage
     | ImageTranslateTextsMessage
     | ImageOcrDownloadMessage
@@ -99,11 +89,6 @@ type ImageTextTranslationRequest = ImageTextTranslationRequestBase & (
 
 export interface ImageTranslationBackgroundDependencies {
     readonly assertLanguagesDownloaded: (sourceLanguage: string) => Promise<void>;
-    readonly recognizeImage: (
-        image: string,
-        sourceLanguage: string,
-        options: ImageOperationOptions,
-    ) => Promise<unknown>;
     readonly translateImage: (
         image: string,
         sourceLanguage: string,
@@ -396,20 +381,6 @@ export function createImageTranslationBackgroundHandlers(
                 const owner = progressOwners.get(requestId);
                 if (owner) await dependencies.sendProgress?.(owner.context, {type: IMAGE_PROGRESS_MESSAGE_TYPE, requestId, stage: message.stage, progress: normalizeImageProgress(message.progress)});
                 return {success: true};
-            },
-        },
-        {
-            type: IMAGE_OCR_MESSAGE_TYPE,
-            async handle(message: ImageOcrMessage) {
-                const image = parseDataImage(message.image);
-                const sourceLanguage = parseRequiredString(message.sourceLanguage, 'sourceLanguage');
-                const lines = await operationRegistry.run(message, async (options) => {
-                    await dependencies.assertLanguagesDownloaded(sourceLanguage);
-                    if (options.signal.aborted) throw imageAbortError(false);
-                    return dependencies.recognizeImage(image, sourceLanguage, options);
-                });
-                if (!Array.isArray(lines)) throw new Error('图片 OCR 结果无效');
-                return {success: true, lines};
             },
         },
         {

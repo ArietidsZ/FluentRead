@@ -11,7 +11,6 @@ import {
     queueFullPageCandidate,
     createFullPageDispatchPlan,
     removeFullPagePending,
-    selectNextFullPageCandidate,
     type FullPageQueueState,
 } from '@/src/features/full-page-translation/content/fullPageQueue';
 import type {TranslationCandidate} from '@/src/core/translation/public';
@@ -218,23 +217,23 @@ describe('全文翻译候选队列', () => {
         queue.pending.set(throwing, throwingCandidate);
         queue.inFlightCandidates.set(valid, validCandidate);
 
-        expect(selectNextFullPageCandidate(queue, {
+        expect(createFullPageDispatchPlan(queue, {
             now: 1_000,
             viewportHeight: 600,
             isEligible: () => true,
             resolveSource: () => 'resolved-source',
-        })).toMatchObject({candidate: brokenCandidate});
+        }).next()).toMatchObject({candidate: brokenCandidate});
 
         const disconnected = document.createElement('p');
         const disconnectedCandidate = candidate(disconnected);
         queue.pending.clear();
         queue.pending.set(disconnected, disconnectedCandidate);
-        expect(selectNextFullPageCandidate(queue, {
+        expect(createFullPageDispatchPlan(queue, {
             now: 1_000,
             viewportHeight: 600,
             isEligible: () => true,
             resolveSource: () => 'disconnected-source',
-        })).toMatchObject({candidate: disconnectedCandidate});
+        }).next()).toMatchObject({candidate: disconnectedCandidate});
     });
 
     it('缺失元数据时补建序号，并在后台任务达到等待阈值后执行公平配额', () => {
@@ -247,12 +246,12 @@ describe('全文翻译候选队列', () => {
         const backgroundCandidate = candidate(background);
         const queue = state();
         queue.pending.set(visible, visibleCandidate);
-        expect(selectNextFullPageCandidate(queue, {
+        expect(createFullPageDispatchPlan(queue, {
             now: 1_000,
             viewportHeight: 600,
             isEligible: () => true,
             resolveSource: () => 'visible-source',
-        })).toMatchObject({candidate: visibleCandidate});
+        }).next()).toMatchObject({candidate: visibleCandidate});
 
         queue.pending.clear();
         queue.pendingMetadata.clear();
@@ -261,20 +260,20 @@ describe('全文翻译候选队列', () => {
         queue.pendingMetadata.set(background, {source: 'background-source', queuedAt: 0, sequence: 1});
         queue.pendingMetadata.set(visible, {source: 'visible-source', queuedAt: 900, sequence: 2});
         queue.foregroundDispatchesSinceBackground = 8;
-        expect(selectNextFullPageCandidate(queue, {
+        expect(createFullPageDispatchPlan(queue, {
             now: 9_000,
             viewportHeight: 600,
             isEligible: () => true,
             resolveSource: () => 'fallback-source',
-        })).toMatchObject({candidate: backgroundCandidate});
+        }).next()).toMatchObject({candidate: backgroundCandidate});
 
         queue.pending.clear();
-        expect(selectNextFullPageCandidate(queue, {
+        expect(createFullPageDispatchPlan(queue, {
             now: 9_000,
             viewportHeight: 600,
             isEligible: () => true,
             resolveSource: () => 'empty-source',
-        })).toBeUndefined();
+        }).next()).toBeUndefined();
     });
     it('派发计划只测量一次布局，按序取出候选并跳过已离队的条目', () => {
         const {document} = parseHTML('<html><body><p id="a"></p><p id="b"></p><p id="c"></p></body></html>');

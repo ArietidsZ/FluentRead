@@ -69,10 +69,8 @@ import {validateYoutubeTimedTextMessage} from './youtubeTimedTextMessage';
 import {YOUTUBE_BRIDGE_REPLAY_EVENT} from './youtubeTimedTextBridgeCore';
 import {getVideoPretranslationWindowMs, getVideoServiceLabel} from './serviceProfile';
 export {
-  getVideoPretranslationWindowMs,
-  getVideoServiceLabel,
-  VIDEO_PRETRANSLATION_AI_WINDOW_MS,
-  VIDEO_PRETRANSLATION_MACHINE_WINDOW_MS,
+    getVideoPretranslationWindowMs,
+    getVideoServiceLabel,
 } from './serviceProfile';
 import {
   isXSubtitleResourceUrl,
@@ -106,11 +104,9 @@ import {buildVideoAiSubtitleVideoKey, type VideoAiSubtitleCacheRequest} from '..
 
 // 兼容既有测试与外部调用方；AI 时间轴的实现位于 video-ai 目录。
 export {
-  getVisibleVideoAiCue,
-  mergeVideoAiSubtitleCues,
-  upsertVideoAiSubtitleCue,
-  VIDEO_AI_CUE_EARLY_TOLERANCE_MS,
-  VIDEO_AI_CUE_LATE_GRACE_MS,
+    getVisibleVideoAiCue,
+    mergeVideoAiSubtitleCues,
+    upsertVideoAiSubtitleCue,
 } from './video-ai/cueTimeline';
 
 type VideoConfigPatch = Partial<Pick<Config, 'videoTranslationEnabled' | 'videoSubtitleVisible' | 'videoSubtitleDisplayMode' | 'videoSubtitleFontSize' | 'videoLocalModel'>>;

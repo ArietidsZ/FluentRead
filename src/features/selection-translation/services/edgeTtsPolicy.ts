@@ -7,7 +7,7 @@
 import {
     normalizeSelectionTtsVoiceOrder,
     selectionTtsVoiceLocale,
-} from '@/src/features/selection-translation/ttsConfig';
+} from '@/src/core/config/selectionTts';
 import {getChineseScript} from '@/src/core/language/chinese';
 
 export const edgeTtsLimits = Object.freeze({

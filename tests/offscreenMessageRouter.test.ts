@@ -1,5 +1,7 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {createOffscreenMessageListener} from '@/src/app/offscreen/messageRouter';
+import {LOCAL_TRANSLATION_MODEL_IDS} from '@/src/core/config/localTranslation';
+import {OFFSCREEN_CANCEL_LOCAL_TTS_MESSAGE_TYPE} from '@/src/platform/offscreen/client';
 import {createChromePreparationRequiredError} from '@/src/app/offscreen/translation';
 import {
     OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
@@ -10,7 +12,6 @@ import {translateImageTextsInExtension} from '@/src/features/image-translation/s
 const mocks = {
     downloadOcrLanguages: vi.fn(async () => undefined),
     play: vi.fn(async () => undefined),
-    recognizeImage: vi.fn(async () => [{text: 'hello'}]),
     fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
     stop: vi.fn(() => true),
     translate: vi.fn(async () => '译文'),
@@ -22,7 +23,6 @@ const mocks = {
 const listener = createOffscreenMessageListener({
     translate: mocks.translate,
     ttsPlayer: {play: mocks.play, stop: mocks.stop},
-    recognizeImage: mocks.recognizeImage,
     fetchImage: mocks.fetchImage,
     translateImage: mocks.translateImage,
     translateArea: mocks.translateArea,
@@ -47,7 +47,6 @@ describe('Offscreen 消息静态路由', () => {
         mocks.play.mockResolvedValue(undefined);
         mocks.stop.mockReturnValue(true);
         mocks.translate.mockResolvedValue('译文');
-        mocks.recognizeImage.mockResolvedValue([{text: 'hello'}]);
         mocks.fetchImage.mockResolvedValue('data:image/png;base64,remote');
         mocks.translateImage.mockResolvedValue({image: 'translated', lines: []});
         mocks.translateArea.mockResolvedValue({image: 'area', lines: []});
@@ -268,25 +267,17 @@ describe('Offscreen 消息静态路由', () => {
         });
     });
 
-    it('OCR 校验图片与语言并拒绝非数组结果', async () => {
-        await expect(dispatch({
-            type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN', image: 'data:image/png,x', sourceLanguage: 'en',
-        })).resolves.toEqual({handled: true, response: {success: true, lines: [{text: 'hello'}]}});
-        expect(mocks.recognizeImage).toHaveBeenCalledWith('data:image/png,x', 'en', expect.any(AbortSignal));
-
+    it('图片操作校验 data:image 与源语言后才进入 Offscreen 服务', async () => {
         for (const message of [
-            {type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN', image: null, sourceLanguage: 'en'},
-            {type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN', image: ' ', sourceLanguage: 'en'},
-            {type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN', image: 'data:image/png,x', sourceLanguage: ' '},
-            {type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN', image: 'data:image/png,x', sourceLanguage: 'bad!'},
-            {type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN', image: 'https://host/image.png', sourceLanguage: 'en'},
+            {type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', image: null, sourceLanguage: 'en'},
+            {type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', image: ' ', sourceLanguage: 'en'},
+            {type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', image: 'data:image/png,x', sourceLanguage: ' '},
+            {type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', image: 'data:image/png,x', sourceLanguage: 'bad!'},
+            {type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', image: 'https://host/image.png', sourceLanguage: 'en'},
         ]) {
             expect((await dispatch(message)).response).toMatchObject({success: false});
         }
-        mocks.recognizeImage.mockResolvedValueOnce({bad: true} as never);
-        await expect(dispatch({
-            type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN', image: 'data:image/png,x', sourceLanguage: 'en',
-        })).resolves.toEqual({handled: true, response: {success: false, error: '图片 OCR 结果无效'}});
+        expect(mocks.translateImage).not.toHaveBeenCalled();
     });
 
     it('图片翻译规范化缺省 title 并校验结果对象', async () => {
@@ -409,24 +400,24 @@ describe('Offscreen 消息静态路由', () => {
             .toEqual({success: false, error: 'Offscreen OCR languages 包含不支持的语言'});
     });
 
-    it('取消 active 图片 OCR 会中止 Worker signal，迟到结果不会再次响应', async () => {
-        let resolveRecognition!: (value: Array<{text: string}>) => void;
-        mocks.recognizeImage.mockImplementationOnce(() => new Promise(resolve => {
+    it('取消 active 图片操作会中止 Worker signal，迟到结果不会再次响应', async () => {
+        let resolveRecognition!: (value: {image: string; lines: []}) => void;
+        mocks.translateImage.mockImplementationOnce(() => new Promise(resolve => {
             resolveRecognition = resolve;
         }));
         const originalResponses = vi.fn();
         expect(listener({
-            type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN',
+            type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN',
             target: 'offscreen',
             requestId: 'image-pending',
             image: 'data:image/png,x',
             sourceLanguage: 'en',
         }, {}, originalResponses)).toBe(true);
-        await vi.waitFor(() => expect(mocks.recognizeImage).toHaveBeenCalledOnce());
-        const signal = (mocks.recognizeImage.mock.calls as unknown[][])[0]?.[2] as AbortSignal;
+        await vi.waitFor(() => expect(mocks.translateImage).toHaveBeenCalledOnce());
+        const signal = (mocks.translateImage.mock.calls as unknown[][])[0]?.[3] as AbortSignal;
 
         await expect(dispatch({
-            type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN',
+            type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN',
             requestId: 'image-pending',
             image: 'data:image/png,x',
             sourceLanguage: 'en',
@@ -450,7 +441,7 @@ describe('Offscreen 消息静态路由', () => {
             requestId: 'image-pending',
         }));
 
-        resolveRecognition([{text: 'late'}]);
+        resolveRecognition({image: 'late', lines: []});
         await Promise.resolve();
         expect(originalResponses).toHaveBeenCalledOnce();
     });
@@ -485,7 +476,7 @@ describe('Offscreen 消息静态路由', () => {
         await Promise.resolve();
     });
 
-    it('Offscreen cancel 先到时拒绝后到的同 requestId OCR，不启动 Worker', async () => {
+    it('Offscreen cancel 先到时拒绝后到的同 requestId 图片操作，不启动 Worker', async () => {
         await expect(dispatch({
             type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
             requestId: 'offscreen-cancelled-before-start',
@@ -495,7 +486,7 @@ describe('Offscreen 消息静态路由', () => {
         });
 
         await expect(dispatch({
-            type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN',
+            type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN',
             requestId: 'offscreen-cancelled-before-start',
             image: 'data:image/png,x',
             sourceLanguage: 'en',
@@ -508,7 +499,7 @@ describe('Offscreen 消息静态路由', () => {
                 error: '图片 OCR 请求已取消',
             },
         });
-        expect(mocks.recognizeImage).not.toHaveBeenCalled();
+        expect(mocks.translateImage).not.toHaveBeenCalled();
     });
 
     it('Offscreen 图片取消严格校验 ID，并有界保存重复的 cancel-before-start', async () => {
@@ -523,7 +514,6 @@ describe('Offscreen 消息静态路由', () => {
         const localListener = createOffscreenMessageListener({
             translate: mocks.translate,
             ttsPlayer: {play: mocks.play, stop: mocks.stop},
-            recognizeImage: mocks.recognizeImage,
             fetchImage: mocks.fetchImage,
             translateImage: mocks.translateImage,
             translateArea: mocks.translateArea,
@@ -556,6 +546,125 @@ it('模型清除路由等待删除并阻止同时识别或重复清除', async (
  const pending=dispatch({type:'FLUENT_READ_IMAGE_OCR_REMOVE_OFFSCREEN',languages:['eng']},handler);
  await vi.waitFor(()=>expect(removeOcrLanguages).toHaveBeenCalled());
  expect((await dispatch({type:'FLUENT_READ_IMAGE_OCR_REMOVE_OFFSCREEN',languages:['eng']},handler)).response).toMatchObject({success:false});
- expect((await dispatch({type:'FLUENT_READ_IMAGE_OCR_OFFSCREEN',image:'data:image/png;base64,AA==',sourceLanguage:'en'},handler)).response).toMatchObject({success:false,error:expect.stringContaining('清除')});
+ expect((await dispatch({type:'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN',image:'data:image/png;base64,AA==',sourceLanguage:'en'},handler)).response).toMatchObject({success:false,error:expect.stringContaining('清除')});
  release();expect((await pending).response).toEqual({success:true});
+});
+
+describe('Offscreen 本地模型可取消请求', () => {
+    function deferred<T>() {
+        let resolve!: (value: T) => void;
+        let reject!: (reason?: unknown) => void;
+        const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
+        return {promise, resolve, reject};
+    }
+    const base = {...mocks, ttsPlayer: {play: mocks.play, stop: mocks.stop}};
+    const ttsRequest = {type: 'LOCAL_TTS_SYNTHESIZE', requestId: 'tts-1', text: '你好', language: 'zh-CN', voice: 'zf_001'};
+    const model = LOCAL_TRANSLATION_MODEL_IDS.m2m100;
+
+    it('本地 TTS 未启用时所有入口返回明确不可用', async () => {
+        for (const type of ['LOCAL_TTS_PREPARE', 'LOCAL_TTS_STATUS', 'LOCAL_TTS_REMOVE_MODEL', 'LOCAL_TTS_SYNTHESIZE']) {
+            await expect(dispatch({type, requestId: 'x'}, createOffscreenMessageListener(base)))
+                .resolves.toEqual({handled: true, response: {success: false, error: '本地 TTS 未启用'}});
+        }
+    });
+
+    it('本地 TTS 模型管理透传结果并校验结果形状', async () => {
+        const localTts = {
+            synthesize: vi.fn(), prepare: vi.fn(async () => ({warm: true})),
+            status: vi.fn(async () => ({models: []})), removeModel: vi.fn(async () => undefined),
+        };
+        const handler = createOffscreenMessageListener({...base, localTts});
+        await expect(dispatch({type: 'LOCAL_TTS_PREPARE'}, handler)).resolves.toEqual({handled: true, response: {success: true, warm: true}});
+        await expect(dispatch({type: 'LOCAL_TTS_STATUS'}, handler)).resolves.toEqual({handled: true, response: {success: true, models: []}});
+        await expect(dispatch({type: 'LOCAL_TTS_REMOVE_MODEL'}, handler)).resolves.toEqual({handled: true, response: {success: true}});
+        localTts.status.mockResolvedValueOnce('bad' as never);
+        await expect(dispatch({type: 'LOCAL_TTS_STATUS'}, handler)).resolves.toEqual({handled: true, response: {success: false, error: '本地 TTS 模型状态结果无效'}});
+        localTts.prepare.mockResolvedValueOnce(null as never);
+        await expect(dispatch({type: 'LOCAL_TTS_PREPARE'}, handler)).resolves.toEqual({handled: true, response: {success: false, error: '本地 TTS 模型结果无效'}});
+    });
+
+    it('本地 TTS 合成校验参数、拒绝重复 requestId、保留错误码并支持取消', async () => {
+        const pending = deferred<unknown>();
+        const synthesize = vi.fn((_request: Record<string, unknown>, signal: AbortSignal) => {
+            void signal;
+            return pending.promise;
+        });
+        const handler = createOffscreenMessageListener({...base, localTts: {
+            synthesize, prepare: vi.fn(), status: vi.fn(), removeModel: vi.fn(),
+        }});
+
+        for (const invalid of [{requestId: 'bad id'}, {text: ' '}, {language: ''}, {voice: 3}]) {
+            const response = (await dispatch({...ttsRequest, ...invalid}, handler)).response;
+            expect(response).toMatchObject({success: false, error: expect.any(String)});
+        }
+        const first = dispatch(ttsRequest, handler);
+        await expect(dispatch(ttsRequest, handler)).resolves.toEqual({handled: true, response: {success: false, error: 'Offscreen 本地 TTS requestId 正在执行'}});
+        const cancelType = OFFSCREEN_CANCEL_LOCAL_TTS_MESSAGE_TYPE;
+        await expect(dispatch({type: cancelType, requestId: 'tts-1'}, handler))
+            .resolves.toEqual({handled: true, response: {success: true, cancelled: true, requestId: 'tts-1'}});
+        await expect(first).resolves.toEqual({handled: true, response: {success: false, cancelled: true, requestId: 'tts-1', error: '本地 TTS 请求已取消'}});
+        // 取消后迟到的结果不能再次回复。
+        pending.resolve({audio: new Uint8Array([1]).buffer});
+        await expect(dispatch({type: cancelType, requestId: 'tts-1'}, handler))
+            .resolves.toEqual({handled: true, response: {success: true, cancelled: false, requestId: 'tts-1'}});
+        await expect(dispatch({type: cancelType, requestId: '??'}, handler))
+            .resolves.toMatchObject({handled: true, response: {success: false}});
+
+        synthesize.mockRejectedValueOnce(Object.assign(new Error('model missing'), {code: 'local-tts-model-not-downloaded'}));
+        await expect(dispatch({...ttsRequest, requestId: 'tts-2'}, handler)).resolves.toEqual({handled: true, response: {
+            success: false, error: 'model missing', errorCode: 'local-tts-model-not-downloaded', requestId: 'tts-2',
+        }});
+        synthesize.mockResolvedValueOnce({audio: 'not-binary'});
+        await expect(dispatch({...ttsRequest, requestId: 'tts-3'}, handler)).resolves.toEqual({handled: true, response: {
+            success: false, error: '本地 TTS 合成音频结果无效', errorCode: undefined, requestId: 'tts-3',
+        }});
+        const large = new Uint8Array(0x8000 * 2 + 3).map((_, index) => index % 251);
+        synthesize.mockResolvedValueOnce({audio: new DataView(large.buffer, 1, large.length - 1), voice: 'zm_009'});
+        const encoded = (await dispatch({...ttsRequest, requestId: 'tts-4'}, handler)).response as {audioBase64: string; voice: string};
+        expect(encoded.voice).toBe('zm_009');
+        expect(Buffer.from(encoded.audioBase64, 'base64')).toEqual(Buffer.from(large.subarray(1)));
+    });
+
+    it('本地翻译未启用、模型管理与可取消翻译共用同一回复纪律', async () => {
+        await expect(dispatch({type: 'LOCAL_TRANSLATION_STATUS'}, createOffscreenMessageListener(base)))
+            .resolves.toEqual({handled: true, response: {success: false, error: '本地翻译未启用'}});
+        await expect(dispatch({type: 'LOCAL_TRANSLATION_PAUSE', model}, createOffscreenMessageListener(base)))
+            .resolves.toEqual({handled: true, response: {success: false, error: 'LOCAL_TRANSLATION_UNAVAILABLE'}});
+        for (const type of ['LOCAL_TRANSLATION_PREPARE', 'LOCAL_TRANSLATION_REMOVE_MODEL', 'LOCAL_TRANSLATION_TRANSLATE']) {
+            await expect(dispatch({type, model}, createOffscreenMessageListener(base)))
+                .resolves.toEqual({handled: true, response: {success: false, error: '本地翻译未启用'}});
+        }
+
+        const pending = deferred<unknown>();
+        const localTranslation = {
+            translate: vi.fn((_request: Record<string, unknown>, _signal: AbortSignal) => pending.promise),
+            prepare: vi.fn(async () => ({downloaded: true})),
+            status: vi.fn(async () => ({models: []})),
+            pause: vi.fn(async () => ({paused: true})),
+            removeModel: vi.fn(async () => undefined),
+        };
+        const handler = createOffscreenMessageListener({...base, localTranslation});
+        await expect(dispatch({type: 'LOCAL_TRANSLATION_PREPARE', model}, handler)).resolves.toEqual({handled: true, response: {success: true, downloaded: true}});
+        await expect(dispatch({type: 'LOCAL_TRANSLATION_PREPARE', model: 'unknown-model'}, handler)).resolves.toEqual({handled: true, response: {success: false, error: '本地翻译模型标识无效'}});
+        await expect(dispatch({type: 'LOCAL_TRANSLATION_PAUSE', model}, handler)).resolves.toEqual({handled: true, response: {success: true, paused: true}});
+        await expect(dispatch({type: 'LOCAL_TRANSLATION_STATUS'}, handler)).resolves.toEqual({handled: true, response: {success: true, models: []}});
+        await expect(dispatch({type: 'LOCAL_TRANSLATION_REMOVE_MODEL', model}, handler)).resolves.toEqual({handled: true, response: {success: true}});
+        expect(localTranslation.pause).toHaveBeenCalledWith({model});
+
+        const request = {type: 'LOCAL_TRANSLATION_TRANSLATE', requestId: 'lt-1', model, text: 'hello', sourceLanguage: 'en', targetLanguage: 'zh-Hans'};
+        for (const invalid of [{text: ''}, {sourceLanguage: 1}, {targetLanguage: ''}, {model: 'x'}, {sourceLanguageDetectionText: 5}]) {
+            expect((await dispatch({...request, ...invalid}, handler)).response).toMatchObject({success: false});
+        }
+        const first = dispatch(request, handler);
+        await expect(dispatch(request, handler)).resolves.toEqual({handled: true, response: {success: false, error: 'Offscreen 本地翻译 requestId 正在执行'}});
+        pending.resolve('你好');
+        await expect(first).resolves.toEqual({handled: true, response: {success: true, result: '你好', requestId: 'lt-1'}});
+
+        localTranslation.translate.mockResolvedValueOnce(42 as never);
+        await expect(dispatch({...request, requestId: 'lt-2', sourceLanguageDetectionText: 'hello'}, handler))
+            .resolves.toEqual({handled: true, response: {success: false, error: '本地翻译结果无效', requestId: 'lt-2'}});
+        localTranslation.translate.mockRejectedValueOnce('worker gone');
+        await expect(dispatch({...request, requestId: 'lt-3'}, handler))
+            .resolves.toEqual({handled: true, response: {success: false, error: 'worker gone', requestId: 'lt-3'}});
+    });
 });

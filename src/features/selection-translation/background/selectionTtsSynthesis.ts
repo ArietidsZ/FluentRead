@@ -51,10 +51,8 @@ function localAudio(audio: LocalTtsAudio): SelectionTtsAudio {
     };
 }
 
-function localUnavailableMessage(error: unknown): string {
-    if (localTtsErrorCode(error) === LOCAL_TTS_MODEL_NOT_DOWNLOADED_CODE) {
-        return '本地 TTS 模型尚未下载，请先在设置中的朗读与语音里下载模型';
-    }
+/** 模型未下载与语言不支持在各分支中已先行处理，这里只需给出真实失败原因。 */
+function errorText(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
@@ -89,7 +87,7 @@ export function createSelectionTtsSynthesizer(
                 try {
                     return await online();
                 } catch (onlineError) {
-                    throw new Error(`本地 TTS 和在线 TTS 均失败：${localUnavailableMessage(localError)}；${onlineError instanceof Error ? onlineError.message : String(onlineError)}`);
+                    throw new Error(`本地 TTS 和在线 TTS 均失败：${errorText(localError)}；${errorText(onlineError)}`);
                 }
             }
         }
@@ -107,7 +105,7 @@ export function createSelectionTtsSynthesizer(
                     throw error;
                 }
                 if (localTtsErrorCode(localError) === LOCAL_TTS_LANGUAGE_UNSUPPORTED_CODE) throw onlineError;
-                throw new Error(`在线 TTS 和本地 TTS 均失败：${onlineError instanceof Error ? onlineError.message : String(onlineError)}；${localUnavailableMessage(localError)}`);
+                throw new Error(`在线 TTS 和本地 TTS 均失败：${errorText(onlineError)}；${errorText(localError)}`);
             }
         }
     };

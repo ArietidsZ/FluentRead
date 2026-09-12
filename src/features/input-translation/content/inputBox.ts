@@ -7,11 +7,6 @@
 const TEXT_INPUT_TYPES = new Set(['text', 'search', 'url', 'email', 'tel']);
 
 export {
-    DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL,
-    INPUT_BOX_TRANSLATION_INTERVAL_DEFAULT,
-    INPUT_BOX_TRANSLATION_INTERVAL_MAX,
-    INPUT_BOX_TRANSLATION_INTERVAL_MIN,
-    INPUT_BOX_TRANSLATION_INTERVAL_STEP,
     normalizeInputBoxTranslationInterval,
 } from '@/src/core/config/inputTranslation';
 

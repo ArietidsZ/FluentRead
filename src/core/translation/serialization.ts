@@ -2,7 +2,7 @@
  * @file src/core/translation/serialization.ts
  *
  * 文件职责：把候选 DOM 安全序列化为可翻译文本槽，并在异步请求后依据源快照恢复到仍然匹配的真实节点。
- * 主要内容：定义 TranslationTextSlot、TranslationSourceSnapshot 与样式覆盖规则，负责槽位编码解析、活节点收集（排除候选内的独立 tooltip）、译文写入克隆、宿主 metadata 省略、译文产物过滤，以及查找 line-clamp 祖先并应用临时解除截断的样式。 可核对的公开符号包括 TranslationTextSlot、TranslationSourceSnapshot、SerializedTranslationSlots、TranslationStyleOverride、translationTruncationStyleOverrides、serializeTranslationSlots、parseTranslationSlots、createTranslationSourceSnapshot。
+ * 主要内容：定义 TranslationTextSlot、TranslationSourceSnapshot 与样式覆盖规则，负责槽位编码解析、活节点收集（排除候选内的独立 tooltip）、译文写入克隆、宿主 metadata 省略、译文产物过滤，以及识别 line-clamp 与溢出截断并提供临时解除截断的样式覆盖规则。 可核对的公开符号包括 TranslationTextSlot、TranslationSourceSnapshot、SerializedTranslationSlots、TranslationStyleOverride、translationTruncationStyleOverrides、serializeTranslationSlots、parseTranslationSlots、createTranslationSourceSnapshot。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -52,7 +52,6 @@ export const translationHeightStyleOverrides: readonly TranslationStyleOverride[
     {property: 'height', value: 'auto', priority: 'important'},
 ];
 
-const maxTranslationTruncationAncestorDepth = 16;
 
 const naturalFlowDisplays = new Set([
     'block', 'flow-root', 'flex', 'grid', 'inline-block', 'inline-flex', 'inline-grid',
@@ -369,30 +368,4 @@ export function hasActiveTranslationTruncation(element: HTMLElement): boolean {
     } catch {
         return false;
     }
-}
-
-/**
- * 译文段落可能位于独立的 line-clamp wrapper 内。沿短且有界的祖先链查找，使渲染
- * 能临时租用每个生效的裁剪容器，同时不让候选发现产生样式写入。首个译文解除裁剪后，
- * 共享同一容器的兄弟候选仍需识别并复用已有租约。
- */
-export function findTranslationTruncationAncestors(
-    node: HTMLElement,
-    hasExistingOverride: (element: HTMLElement) => boolean = () => false,
-): HTMLElement[] {
-    const result: HTMLElement[] = [];
-    let current = node.parentElement;
-    let depth = 0;
-    while (current && current !== node.ownerDocument?.body && depth < maxTranslationTruncationAncestorDepth) {
-        depth += 1;
-        if (hasExistingOverride(current) || hasActiveTranslationTruncation(current)) result.push(current);
-        current = current.parentElement;
-    }
-    return result;
-}
-
-export function removeTranslationTruncation(node: HTMLElement): void {
-    translationTruncationStyleOverrides.forEach(({property, value, priority}) => {
-        node.style.setProperty(property, value, priority);
-    });
 }

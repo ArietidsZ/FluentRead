@@ -10,4 +10,3 @@ export {
   toggleFloatingBallTranslation,
   unmountFloatingBall,
 } from './content/runtime';
-export type {FloatingBallPresentation} from './types';

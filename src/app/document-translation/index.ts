@@ -27,7 +27,7 @@ export {
     subscribeConfig,
 } from '@/src/services/config/store';
 export {createDocumentDownload, translateDocumentSegments} from './runtime';
-export {createUiI18nPlugin, useUiI18n} from '@/src/ui/i18n';
+export {useUiI18n} from '@/src/ui/i18n';
 export {default as GlossaryLibrarySelect} from '@/src/ui/components/GlossaryLibrarySelect.vue';
 export {
     filterAvailableTranslationServices,

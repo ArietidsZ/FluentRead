@@ -64,6 +64,22 @@ describe('动态翻译稳定性判定', () => {
         expect(isTranslationCandidateCurrent(candidate)).toBe(false);
     });
 
+    it('视觉手动分块只要仍是已标记的合成段且挂在文档中就保持有效', () => {
+        const {document} = parseHTML('<html><body><div id="host"><span data-fr-translation-manual="true">Chunk text.</span></div></body></html>');
+        const chunk = document.querySelector<HTMLElement>('span')!;
+        const candidate = {element: chunk, kind: 'content' as const, reason: 'visual-text-chunk', manualChunk: true};
+        // 物化后尚未标记为合成段时不能被当作当前手动块。
+        expect(isTranslationCandidateCurrent(candidate)).toBe(false);
+        chunk.setAttribute('data-fr-translation-segment', 'true');
+        expect(isTranslationCandidateCurrent(candidate)).toBe(true);
+        const detachedHost = document.createElement('div');
+        const detachedChunk = chunk.cloneNode(true) as HTMLElement;
+        detachedHost.append(detachedChunk);
+        expect(isTranslationCandidateCurrent({...candidate, element: detachedChunk})).toBe(false);
+        chunk.remove();
+        expect(isTranslationCandidateCurrent(candidate)).toBe(false);
+    });
+
     it('只在连接、内容候选且原文仍匹配时认为来源稳定', () => {
         const {document} = parseHTML('<html><body><p>source</p></body></html>');
         const node = document.querySelector('p') as HTMLElement;

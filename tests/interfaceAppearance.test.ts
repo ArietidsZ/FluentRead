@@ -10,7 +10,6 @@ import {
   interfaceFontOptions,
   interfaceSkinGroups,
   interfaceSkinOptions,
-  interfaceSkinPopupWidth,
   interfaceSkinUsesContentHeight,
   interfaceVisibilityOptions,
   normalizeInterfaceFont,
@@ -209,10 +208,10 @@ describe('界面皮肤与栏目配置', () => {
     expect(interfaceSkinUsesContentHeight('minimal')).toBe(true)
     expect(interfaceSkinUsesContentHeight('paper')).toBe(true)
     expect(interfaceSkinUsesContentHeight('unknown')).toBe(true)
-    expect(interfaceSkinPopupWidth('default')).toBe(360)
-    expect(interfaceSkinPopupWidth('minimal')).toBe(350)
-    expect(interfaceSkinPopupWidth('compact')).toBe(340)
-    expect(interfaceSkinPopupWidth('unknown')).toBe(360)
+    expect(getInterfaceSkinOption('default').popupWidth).toBe(360)
+    expect(getInterfaceSkinOption('minimal').popupWidth).toBe(350)
+    expect(getInterfaceSkinOption('compact').popupWidth).toBe(340)
+    expect(getInterfaceSkinOption('unknown').popupWidth).toBe(360)
 
     expect(normalizeInterfaceVisibility({popupQuickFeatures: false})).toEqual({
       popupQuickFeatures: false,

@@ -919,6 +919,7 @@ describe('配置差异预览', () => {
             customSelectionTranslatorHotkey: 'Meta+S',
             selectionTranslatorDelay: 450,
             selectionTtsVoices: ['a', 'b', 'c', 'd', 'e'],
+            selectionTtsMode: 'local-first',
             inputBoxTranslationTrigger: 'triple_space',
             inputBoxTranslationTarget: 'de',
             autoTranslate: true,
@@ -963,6 +964,7 @@ describe('配置差异预览', () => {
         expect(group(result, 'translation')?.changes).toEqual(expect.arrayContaining([
             expect.objectContaining({key: 'mouseHoverTranslationDelay', after: 'fast'}),
             expect.objectContaining({key: 'selectionTtsVoices', after: '5 项：a、b、c、d 等'}),
+            expect.objectContaining({key: 'selectionTtsMode', after: '本地优先'}),
         ]));
         expect(group(result, 'other')?.changes).toEqual(expect.arrayContaining([
             expect.objectContaining({key: 'manyValues', after: expect.stringContaining('5 项：')}),

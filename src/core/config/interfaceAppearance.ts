@@ -446,11 +446,6 @@ export function interfaceSkinUsesContentHeight(value: unknown): boolean {
   return getInterfaceSkinOption(value).popupHeight === 'content'
 }
 
-/** Popup 宽度由皮肤元数据声明，紧凑或未来的窄版皮肤无需在组件中追加 ID 分支。 */
-export function interfaceSkinPopupWidth(value: unknown): number {
-  return getInterfaceSkinOption(value).popupWidth
-}
-
 /** 只保留已注册的栏目开关；旧配置缺少新栏目时默认显示，保证升级不改变现有界面。 */
 export function normalizeInterfaceVisibility(value: unknown): InterfaceVisibility {
   const source = isRecord(value) ? value : {}

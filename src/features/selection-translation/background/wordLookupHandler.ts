@@ -9,10 +9,6 @@ import type {WordCardData} from '../services/wordDictionary';
 
 export type {
     WordCardData,
-    WordDefinition,
-    WordDictionarySource,
-    WordMeaning,
-    WordPronunciation,
 } from '../services/wordDictionary';
 
 export const SELECTION_WORD_LOOKUP_MESSAGE_TYPE = 'selectionWordLookup' as const;

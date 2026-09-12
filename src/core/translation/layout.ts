@@ -263,7 +263,8 @@ function isControlLabelSurface(
     protectionOptions?: TranslationTextProtectionOptions,
 ): boolean {
     if (hasReadableBlockChild(element, shouldStayOriginal, protectionCache, protectionOptions)) return false;
-    const text = (element.textContent ?? '').replace(/[\s\u3000]+/gu, ' ').trim();
+    // Element 的 textContent 恒为字符串（仅 Document/Doctype 为 null）。
+    const text = element.textContent!.replace(/[\s\u3000]+/gu, ' ').trim();
     return text.length > 0 && text.length <= maxControlLabelLength && !sentenceEndingPattern.test(text);
 }
 

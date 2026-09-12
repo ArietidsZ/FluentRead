@@ -13,9 +13,6 @@ export const INPUT_BOX_TRANSLATION_INTERVAL_MIN = 200;
 export const INPUT_BOX_TRANSLATION_INTERVAL_MAX = 2000;
 export const INPUT_BOX_TRANSLATION_INTERVAL_STEP = 1;
 
-/** 与 content 侧已有命名保持兼容，避免设置和输入 feature 各自维护默认值。 */
-export const INPUT_BOX_TRANSLATION_INTERVAL_DEFAULT = DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL;
-
 export const DEFAULT_INPUT_BOX_TRANSLATION_SYSTEM_PROMPT =
     'You are a professional translation assistant. Translate only the user text. Return only the translation, with no explanation, notes, or quotation marks.';
 export const DEFAULT_INPUT_BOX_TRANSLATION_PROMPT =

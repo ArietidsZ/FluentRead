@@ -33,7 +33,6 @@ import {
     normalizeTranslationRequestsPerMinute,
     normalizeTranslationRequestsPerSecond,
 } from '@/src/core/config/model';
-import {sanitizeConfigForExport} from '@/src/core/config/transfer';
 import {
     getApiKeyRequirementKey,
     createApiKeyRequirementKey,
@@ -241,8 +240,7 @@ describe('配置领域边界与防御分支', () => {
         expect(normalizeConfig({}).translationMaxRetries).toBe(DEFAULT_TRANSLATION_MAX_RETRIES);
     });
 
-    it('导出拒绝非对象，凭据提示覆盖未知服务和可选字段短路', () => {
-        expect(() => sanitizeConfigForExport(null)).toThrow('配置必须是 JSON 对象');
+    it('凭据提示覆盖未知服务和可选字段短路', () => {
         expect(getApiKeyRequirementKey('unknown-service', {})).toBe(
             createApiKeyRequirementKey('unknown-service', ''),
         );

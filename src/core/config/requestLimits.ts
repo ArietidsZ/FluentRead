@@ -7,9 +7,6 @@
  */
 
 import {
-    DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
-    DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE,
-    DEFAULT_TRANSLATION_REQUESTS_PER_SECOND,
     normalizeMaxConcurrentTranslations,
     normalizeTranslationRequestsPerMinute,
     normalizeTranslationRequestsPerSecond,
@@ -28,12 +25,6 @@ export interface RequestLimitPreference {
 
 export type ServiceRequestLimits = Record<string, RequestLimitPreference>;
 export type ModelRequestLimits = Record<string, Record<string, RequestLimitPreference>>;
-
-export const DEFAULT_TRANSLATION_REQUEST_LIMITS: Readonly<TranslationRequestLimits> = Object.freeze({
-    maxConcurrentTranslations: DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
-    translationRequestsPerSecond: DEFAULT_TRANSLATION_REQUESTS_PER_SECOND,
-    translationRequestsPerMinute: DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE,
-});
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -174,12 +165,6 @@ export function withServiceRequestLimit(
     if (isSafeMappingKey(serviceId)) {
         result[serviceId] = normalizeRequestLimitPreference(preference);
     }
-    return result;
-}
-
-export function withoutServiceRequestLimit(mapping: unknown, serviceId: string): ServiceRequestLimits {
-    const result = normalizeServiceRequestLimits(mapping);
-    if (own(result, serviceId)) delete result[serviceId];
     return result;
 }
 

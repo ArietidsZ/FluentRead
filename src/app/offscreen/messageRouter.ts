@@ -1,7 +1,7 @@
 /**
  * @file src/app/offscreen/messageRouter.ts
- * 文件职责：解析并分派发送到扩展自有 DOM 页面的可信运行时消息，为 Chrome 翻译、TTS、远程图片读取、OCR、整图和区域翻译提供统一响应纪律。
- * 主要内容：提供 ready 握手，校验文本、语言码、图片与 OCR 请求并分派依赖；验证响应形状，保留 Chrome 待准备语言对和模型不可用错误码，并保持取消及异步 listener 语义。
+ * 文件职责：解析并分派发送到扩展自有 DOM 页面的可信运行时消息，为 Chrome 翻译、本地模型、TTS、远程图片读取、OCR 语言包、整图和区域翻译提供统一响应纪律。
+ * 主要内容：提供 ready 握手，校验文本、语言码、图片与 OCR 语言包请求并分派依赖；以共用的可取消请求表管理取消与单次回复，保留 Chrome 待准备语言对、模型不可用和本地 TTS 错误码。
  * 模块边界：路由器不创建 Audio/Worker、不调用 browser.offscreen，也不实现翻译算法；资源实例由 offscreen runtime 构造，具体能力来自 translation、ttsPlayback 和 feature services。
  */
 import type {AreaTranslationSelection} from '@/src/features/area-translation/protocol';
@@ -11,6 +11,7 @@ import {
     normalizeImageOcrLanguageCodes,
     type ImageOcrLanguageCode,
 } from '@/src/features/image-translation/ocrLanguages';
+import {localTtsErrorCode} from '@/src/features/local-tts/protocol';
 import type {SelectionTtsPlayer} from './ttsPlayback';
 import {isChromePreparationRequiredError, parseLanguageCode} from './translation';
 import {
@@ -26,7 +27,6 @@ export type OffscreenSendResponse = (response: unknown) => void;
 export interface OffscreenMessageDependencies {
     readonly translate: (data: unknown, signal: AbortSignal) => Promise<string>;
     readonly ttsPlayer: Pick<SelectionTtsPlayer, 'play' | 'stop'>;
-    readonly recognizeImage: (image: string, sourceLanguage: string, signal: AbortSignal) => Promise<unknown>;
     readonly fetchImage: (url: string, signal: AbortSignal) => Promise<unknown>;
     readonly translateImage: (
         image: string,
@@ -162,8 +162,11 @@ function binaryToBase64(value: unknown, operation: string): string {
             ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
             : null;
     if (!bytes) throw new Error(`${operation}音频结果无效`);
+    // 数秒 WAV 即达数十万字节；按块转换避免逐字节拼接字符串，同时不超过函数参数上限。
     let binary = '';
-    for (const byte of bytes) binary += String.fromCharCode(byte);
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    }
     return btoa(binary);
 }
 
@@ -203,6 +206,55 @@ function respondWith(
         .then(operation)
         .then((result) => sendResponse(shape(result)))
         .catch((error) => sendResponse({success: false, error: errorMessage(error)}));
+}
+
+/**
+ * 在请求表中登记可取消操作：取消、成功与失败只回复一次，结束时只释放自己持有的槽位。
+ * shape 抛出的结果校验错误与操作失败使用同一 failure 序列化。
+ */
+function runCancellableRequest(
+    active: Map<string, AbortController>,
+    requestId: string,
+    sendResponse: OffscreenSendResponse,
+    cancelledError: string,
+    operation: (signal: AbortSignal) => Promise<unknown>,
+    shape: (result: unknown) => unknown,
+    failure: (error: unknown) => unknown,
+): void {
+    const controller = new AbortController();
+    active.set(requestId, controller);
+    let settled = false;
+    const finish = (response: unknown) => {
+        if (settled) return;
+        settled = true;
+        controller.signal.removeEventListener('abort', handleAbort);
+        if (active.get(requestId) === controller) active.delete(requestId);
+        sendResponse(response);
+    };
+    const handleAbort = () => finish({success: false, cancelled: true, requestId, error: cancelledError});
+    controller.signal.addEventListener('abort', handleAbort, {once: true});
+    void Promise.resolve()
+        .then(() => operation(controller.signal))
+        .then((result) => finish(shape(result)), (error) => finish(failure(error)))
+        .catch((error) => finish(failure(error)));
+}
+
+/** 校验 requestId 后中止在途请求；未登记时由 onMissing 决定是否记住“先取消后启动”。 */
+function cancelRequest(
+    active: Map<string, AbortController>,
+    message: Record<string, unknown>,
+    sendResponse: OffscreenSendResponse,
+    onMissing?: (requestId: string) => void,
+): void {
+    try {
+        const requestId = requiredRequestId(message.requestId);
+        const controller = active.get(requestId);
+        if (controller) controller.abort();
+        else onMissing?.(requestId);
+        sendResponse({success: true, cancelled: Boolean(controller), requestId});
+    } catch (error) {
+        sendResponse({success: false, error: errorMessage(error)});
+    }
 }
 
 /** 静态路由 Offscreen 消息；未知或非对象消息不会占用其他 runtime listener。 */
@@ -248,30 +300,8 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
             return;
         }
 
-        const controller = new AbortController();
-        activeImageOperations.set(requestId, controller);
-        let settled = false;
-        const finish = (response: unknown) => {
-            if (settled) return;
-            settled = true;
-            controller.signal.removeEventListener('abort', handleAbort);
-            if (activeImageOperations.get(requestId) === controller) activeImageOperations.delete(requestId);
-            sendResponse(response);
-        };
-        const handleAbort = () => finish({
-            success: false,
-            cancelled: true,
-            requestId,
-            error: '图片 OCR 请求已取消',
-        });
-        controller.signal.addEventListener('abort', handleAbort, {once: true});
-        void Promise.resolve()
-            .then(() => operation(controller.signal, requestId))
-            .then(
-                result => finish(shape(result)),
-                error => finish({success: false, error: errorMessage(error)}),
-            )
-            .catch(error => finish({success: false, error: errorMessage(error)}));
+        runCancellableRequest(activeImageOperations, requestId, sendResponse, '图片 OCR 请求已取消',
+            (signal) => operation(signal, requestId), shape, (error) => ({success: false, error: errorMessage(error)}));
     };
 
     return (message, _sender, sendResponse) => {
@@ -318,48 +348,18 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                     return true;
                 }
 
-                const controller = new AbortController();
-                activeChromeTranslations.set(requestId, controller);
-                let settled = false;
-                const finish = (response: unknown) => {
-                    if (settled) return;
-                    settled = true;
-                    controller.signal.removeEventListener('abort', handleAbort);
-                    if (activeChromeTranslations.get(requestId) === controller) {
-                        activeChromeTranslations.delete(requestId);
-                    }
-                    sendResponse(response);
-                };
-                const handleAbort = () => finish({
-                    success: false,
-                    cancelled: true,
-                    requestId,
-                    error: 'Chrome 翻译请求已取消',
-                });
-                controller.signal.addEventListener('abort', handleAbort, {once: true});
-                void Promise.resolve()
-                    .then(() => dependencies.translate(message.data, controller.signal))
-                    .then(
-                        (result) => {
-                            if (typeof result !== 'string') throw new Error('Chrome 翻译结果无效');
-                            finish({success: true, result, requestId});
-                        },
-                        (error) => finish({...chromeTranslationErrorResponse(error), requestId}),
-                    )
-                    .catch((error) => finish({...chromeTranslationErrorResponse(error), requestId}));
+                runCancellableRequest(activeChromeTranslations, requestId, sendResponse, 'Chrome 翻译请求已取消',
+                    (signal) => dependencies.translate(message.data, signal),
+                    (result) => {
+                        if (typeof result !== 'string') throw new Error('Chrome 翻译结果无效');
+                        return {success: true, result, requestId};
+                    },
+                    (error) => ({...chromeTranslationErrorResponse(error), requestId}));
                 return true;
             }
-            case OFFSCREEN_CANCEL_CHROME_TRANSLATION_MESSAGE_TYPE: {
-                try {
-                    const requestId = requiredRequestId(message.requestId);
-                    const controller = activeChromeTranslations.get(requestId);
-                    controller?.abort();
-                    sendResponse({success: true, cancelled: Boolean(controller), requestId});
-                } catch (error) {
-                    sendResponse({success: false, error: errorMessage(error)});
-                }
+            case OFFSCREEN_CANCEL_CHROME_TRANSLATION_MESSAGE_TYPE:
+                cancelRequest(activeChromeTranslations, message, sendResponse);
                 return true;
-            }
             case 'LOCAL_TRANSLATION_PREPARE':
                 if (!dependencies.localTranslation) { sendResponse({success: false, error: '本地翻译未启用'}); return true; }
                 respondWith(
@@ -417,46 +417,18 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                     return true;
                 }
 
-                const controller = new AbortController();
-                activeLocalTranslations.set(requestId, controller);
-                let settled = false;
-                const finish = (response: unknown) => {
-                    if (settled) return;
-                    settled = true;
-                    controller.signal.removeEventListener('abort', handleAbort);
-                    if (activeLocalTranslations.get(requestId) === controller) activeLocalTranslations.delete(requestId);
-                    sendResponse(response);
-                };
-                const handleAbort = () => finish({
-                    success: false,
-                    cancelled: true,
-                    requestId,
-                    error: '本地翻译请求已取消',
-                });
-                controller.signal.addEventListener('abort', handleAbort, {once: true});
-                void Promise.resolve()
-                    .then(() => dependencies.localTranslation!.translate(message, controller.signal))
-                    .then(
-                        (result) => {
-                            if (typeof result !== 'string') throw new Error('本地翻译结果无效');
-                            finish({success: true, result, requestId});
-                        },
-                        (error) => finish({success: false, error: errorMessage(error), requestId}),
-                    )
-                    .catch((error) => finish({success: false, error: errorMessage(error), requestId}));
+                runCancellableRequest(activeLocalTranslations, requestId, sendResponse, '本地翻译请求已取消',
+                    (signal) => dependencies.localTranslation!.translate(message, signal),
+                    (result) => {
+                        if (typeof result !== 'string') throw new Error('本地翻译结果无效');
+                        return {success: true, result, requestId};
+                    },
+                    (error) => ({success: false, error: errorMessage(error), requestId}));
                 return true;
             }
-            case OFFSCREEN_CANCEL_LOCAL_TRANSLATION_MESSAGE_TYPE: {
-                try {
-                    const requestId = requiredRequestId(message.requestId);
-                    const controller = activeLocalTranslations.get(requestId);
-                    controller?.abort();
-                    sendResponse({success: true, cancelled: Boolean(controller), requestId});
-                } catch (error) {
-                    sendResponse({success: false, error: errorMessage(error)});
-                }
+            case OFFSCREEN_CANCEL_LOCAL_TRANSLATION_MESSAGE_TYPE:
+                cancelRequest(activeLocalTranslations, message, sendResponse);
                 return true;
-            }
             case 'LOCAL_TTS_PREPARE':
                 if (!dependencies.localTts) { sendResponse({success: false, error: '本地 TTS 未启用'}); return true; }
                 respondWith(
@@ -495,48 +467,16 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                     return true;
                 }
 
-                const controller = new AbortController();
-                activeLocalTts.set(requestId, controller);
-                let settled = false;
-                const finish = (response: unknown) => {
-                    if (settled) return;
-                    settled = true;
-                    controller.signal.removeEventListener('abort', handleAbort);
-                    if (activeLocalTts.get(requestId) === controller) activeLocalTts.delete(requestId);
-                    sendResponse(response);
-                };
-                const handleAbort = () => finish({
-                    success: false,
-                    cancelled: true,
-                    requestId,
-                    error: '本地 TTS 请求已取消',
-                });
-                controller.signal.addEventListener('abort', handleAbort, {once: true});
-                void Promise.resolve()
-                    .then(() => dependencies.localTts!.synthesize(message, controller.signal))
-                    .then(
-                        (result) => finish({success: true, ...serializeLocalTtsAudio(result), requestId}),
-                        (error) => finish({
-                            success: false,
-                            error: errorMessage(error),
-                            errorCode: typeof (error as {code?: unknown})?.code === 'string' ? (error as {code: string}).code : undefined,
-                            requestId,
-                        }),
-                    )
-                    .catch((error) => finish({success: false, error: errorMessage(error), requestId}));
+                runCancellableRequest(activeLocalTts, requestId, sendResponse, '本地 TTS 请求已取消',
+                    (signal) => dependencies.localTts!.synthesize(message, signal),
+                    (result) => ({success: true, ...serializeLocalTtsAudio(result), requestId}),
+                    // 错误码是本地模型不可用的跨消息契约；后台策略据此回退在线朗读。
+                    (error) => ({success: false, error: errorMessage(error), errorCode: localTtsErrorCode(error), requestId}));
                 return true;
             }
-            case OFFSCREEN_CANCEL_LOCAL_TTS_MESSAGE_TYPE: {
-                try {
-                    const requestId = requiredRequestId(message.requestId);
-                    const controller = activeLocalTts.get(requestId);
-                    controller?.abort();
-                    sendResponse({success: true, cancelled: Boolean(controller), requestId});
-                } catch (error) {
-                    sendResponse({success: false, error: errorMessage(error)});
-                }
+            case OFFSCREEN_CANCEL_LOCAL_TTS_MESSAGE_TYPE:
+                cancelRequest(activeLocalTts, message, sendResponse);
                 return true;
-            }
             case 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN':
                 startImageOperation(
                     message,
@@ -547,21 +487,6 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                             throw new Error('远程图片结果无效');
                         }
                         return {success: true, image};
-                    },
-                );
-                return true;
-            case 'FLUENT_READ_IMAGE_OCR_OFFSCREEN':
-                startImageOperation(
-                    message,
-                    sendResponse,
-                    signal => dependencies.recognizeImage(
-                        requiredImage(message.image),
-                        requiredSourceLanguage(message.sourceLanguage),
-                        signal,
-                    ),
-                    (lines) => {
-                        if (!Array.isArray(lines)) throw new Error('图片 OCR 结果无效');
-                        return {success: true, lines};
                     },
                 );
                 return true;
@@ -605,18 +530,9 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                     (result) => ({...resultRecord(result, '区域裁剪'), success: true}),
                 );
                 return true;
-            case OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE: {
-                try {
-                    const requestId = requiredRequestId(message.requestId);
-                    const controller = activeImageOperations.get(requestId);
-                    if (controller) controller.abort();
-                    else rememberImageCancellation(requestId);
-                    sendResponse({success: true, cancelled: Boolean(controller), requestId});
-                } catch (error) {
-                    sendResponse({success: false, error: errorMessage(error)});
-                }
+            case OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE:
+                cancelRequest(activeImageOperations, message, sendResponse, rememberImageCancellation);
                 return true;
-            }
             case 'FLUENT_READ_IMAGE_OCR_REMOVE_OFFSCREEN':
                 respondWith(async () => {
                     if (!dependencies.removeOcrLanguages) throw new Error('语言包清除不可用');

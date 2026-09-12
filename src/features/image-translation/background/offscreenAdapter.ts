@@ -7,7 +7,6 @@
 import {extensionDomClient} from '@/src/platform/offscreen/extensionClient';
 import type {ImageProgressContext} from './handlers';
 import {IMAGE_PROGRESS_MESSAGE_TYPE, type ImageTranslationStage} from '../progress';
-import type {OcrLine} from '@/src/features/image-translation/core';
 import type {ImageOcrLanguageCode} from '@/src/features/image-translation/ocrLanguages';
 import type {OffscreenImageTranslationResult} from '@/src/features/image-translation/services/offscreenRuntime';
 import {
@@ -63,26 +62,6 @@ function parseImageDataResult(response: OffscreenResponse | undefined, fallback:
 /** 图片 feature 对平台 Offscreen client 的唯一适配器。 */
 export function createImageTranslationOffscreenAdapter(client: OffscreenClient = extensionDomClient) {
     return {
-        async recognizeImage(
-            image: string,
-            sourceLanguage: string,
-            options?: ImageOffscreenOperationOptions,
-        ): Promise<OcrLine[]> {
-            const message = {
-                type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN',
-                image,
-                sourceLanguage,
-                ...(options ? {requestId: options.requestId} : {}),
-            } as const;
-            const response = options
-                ? await client.send<OffscreenResponse>(message, sendOptions(options))
-                : await client.send<OffscreenResponse>(message);
-            if (!response?.success || !Array.isArray(response.lines)) {
-                throw new Error(errorMessage(response, '图片 OCR 失败'));
-            }
-            return response.lines as OcrLine[];
-        },
-
         async translateImage(
             image: string,
             sourceLanguage: string,

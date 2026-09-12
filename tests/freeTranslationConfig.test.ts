@@ -5,7 +5,8 @@ import {
     normalizeFreeTranslationOrder, normalizeFreeTranslationTimeoutMs, normalizeFreeTranslationCooldownMs,
     normalizeMyMemoryEmail, normalizeFreeTranslationMode,
 } from '@/src/core/config/freeTranslation';
-import {sanitizeConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
+import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
+import {sanitizeConfigCredentials} from '@/src/core/config/credentials';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {buildConfigDiff} from '@/src/core/config/diff';
 
@@ -45,7 +46,8 @@ describe('keyless free translation configuration', () => {
             freeTranslationOrder: ['myMemory', 'google'], freeTranslationTimeoutMs: 3000,
             freeTranslationCooldownMs: 120000, myMemoryEmail: 'contact@example.test',
             token: {deepL: 'private-test-key'}});
-        const exported = sanitizeConfigForExport(config);
+        // 不含凭据的配置文件仍需完整保留匿名额度策略与可选邮箱。
+        const exported = sanitizeConfigCredentials(JSON.parse(JSON.stringify(config)));
         expect(JSON.stringify(exported)).not.toContain('private-test-key');
         expect(prepareConfigForImport(exported, new Config())).toMatchObject({
             service: 'freeTranslation', freeTranslationOrder: ['myMemory', 'google'],
@@ -80,7 +82,7 @@ describe('keyless free translation configuration', () => {
     const normalized = normalizeConfig(supplied);
     expect(normalized.freeTranslationMode).toBe('sequential');
     expect(normalized).not.toHaveProperty('freeTranslationWeights');
-    expect(sanitizeConfigForExport(normalized)).not.toHaveProperty('freeTranslationWeights');
+    expect(prepareConfigForExport(normalized)).not.toHaveProperty('freeTranslationWeights');
     const changes = buildConfigDiff({freeTranslationMode: 'balanced'}, {freeTranslationMode: 'sequential'});
     expect(changes.changeCount).toBe(1);
 });

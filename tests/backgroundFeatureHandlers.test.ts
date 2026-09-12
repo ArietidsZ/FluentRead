@@ -20,7 +20,6 @@ import {
     IMAGE_FETCH_MESSAGE_TYPE,
     IMAGE_TEXT_TRANSLATION_TIMEOUT_MS,
     IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE,
-    IMAGE_OCR_MESSAGE_TYPE,
     IMAGE_TRANSLATE_MESSAGE_TYPE,
     IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
 } from '@/src/features/image-translation/background/handlers';
@@ -611,10 +610,9 @@ describe('后台 feature handlers', () => {
         });
     });
 
-    it('图片 handlers 完成 OCR、图片翻译、文字翻译和语言包下载', async () => {
+    it('图片 handlers 完成图片翻译、文字翻译和语言包下载', async () => {
         const dependencies = {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
-            recognizeImage: vi.fn(async () => [{text: 'hello'}]),
             translateImage: vi.fn(async () => ({image: 'data:image/png;base64,BB==', lines: []})),
             fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts: vi.fn(async () => ['你好', '世界']),
@@ -633,11 +631,6 @@ describe('后台 feature handlers', () => {
         const handlers = createImageTranslationBackgroundHandlers(dependencies);
         const find = (type: string) => handlers.find((handler) => handler.type === type)!;
 
-        await expect(find(IMAGE_OCR_MESSAGE_TYPE).handle({
-            type: IMAGE_OCR_MESSAGE_TYPE,
-            image: 'data:image/png;base64,AA==',
-            sourceLanguage: 'en',
-        })).resolves.toEqual({success: true, lines: [{text: 'hello'}]});
         await expect(find(IMAGE_TRANSLATE_MESSAGE_TYPE).handle({
             type: IMAGE_TRANSLATE_MESSAGE_TYPE,
             image: 'data:image/png;base64,AA==',
@@ -700,7 +693,6 @@ describe('后台 feature handlers', () => {
         let resolveImage!: (value: {image: string; lines: never[]}) => void;
         const dependencies = {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
-            recognizeImage: vi.fn(async () => []),
             translateImage: vi.fn(() => new Promise<{image: string; lines: never[]}>((resolve) => {
                 resolveImage = resolve;
             })),
@@ -769,11 +761,10 @@ describe('后台 feature handlers', () => {
 
     });
 
-    it('图片 OCR 与整图翻译在语言包等待期间取消后不进入 Offscreen', async () => {
+    it('整图翻译在语言包等待期间取消后不进入 Offscreen', async () => {
         const languageWaits: Array<() => void> = [];
         const dependencies = {
             assertLanguagesDownloaded: vi.fn(() => new Promise<void>(resolve => languageWaits.push(resolve))),
-            recognizeImage: vi.fn(async () => []),
             translateImage: vi.fn(async () => ({image: 'translated', lines: []})),
             fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts: vi.fn(async () => []),
@@ -784,24 +775,6 @@ describe('后台 feature handlers', () => {
         };
         const handlers = createImageTranslationBackgroundHandlers(dependencies);
         const find = (type: string) => handlers.find(handler => handler.type === type)!;
-        const ocr = find(IMAGE_OCR_MESSAGE_TYPE).handle({
-            type: IMAGE_OCR_MESSAGE_TYPE,
-            image: 'data:image/png,x',
-            sourceLanguage: 'en',
-            requestId: 'ocr-language-wait',
-            timeoutMs: 5_000,
-        });
-        await vi.waitFor(() => expect(languageWaits).toHaveLength(1));
-        await find(IMAGE_CANCEL_MESSAGE_TYPE).handle({
-            type: IMAGE_CANCEL_MESSAGE_TYPE,
-            requestId: 'ocr-language-wait',
-        });
-        await expect(ocr).rejects.toMatchObject({name: 'AbortError'});
-        languageWaits.shift()?.();
-        await Promise.resolve();
-        await Promise.resolve();
-        expect(dependencies.recognizeImage).not.toHaveBeenCalled();
-
         const translated = find(IMAGE_TRANSLATE_MESSAGE_TYPE).handle({
             type: IMAGE_TRANSLATE_MESSAGE_TYPE,
             image: 'data:image/png,x',
@@ -825,7 +798,6 @@ describe('后台 feature handlers', () => {
         let resolveTexts!: (value: string[]) => void;
         const dependencies = {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
-            recognizeImage: vi.fn(async () => []),
             translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
             fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts: vi.fn(() => new Promise<string[]>((resolve) => { resolveTexts = resolve; })),
@@ -862,7 +834,6 @@ describe('后台 feature handlers', () => {
     it('取消先于 Offscreen 文字消息到达时，后到请求 fail closed 且不启动 broker', async () => {
         const dependencies = {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
-            recognizeImage: vi.fn(async () => []),
             translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
             fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts: vi.fn(async () => ['不应调用']),
@@ -894,7 +865,6 @@ describe('后台 feature handlers', () => {
     it('图片 handlers 严格拒绝非法页面 payload 和 provider 结果', async () => {
         const dependencies = {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
-            recognizeImage: vi.fn(async () => [] as unknown),
             translateImage: vi.fn(async () => ({} as unknown)),
             fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts: vi.fn(async () => [] as string[] | string),
@@ -906,22 +876,18 @@ describe('后台 feature handlers', () => {
         };
         const handlers = createImageTranslationBackgroundHandlers(dependencies);
         const find = (type: string) => handlers.find((handler) => handler.type === type)!;
-        const ocr = find(IMAGE_OCR_MESSAGE_TYPE);
         const imageTranslate = find(IMAGE_TRANSLATE_MESSAGE_TYPE);
         const texts = find(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE);
         const download = find(IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE);
 
-        await expect(ocr.handle({type: IMAGE_OCR_MESSAGE_TYPE, image: 1, sourceLanguage: 'en'}))
+        await expect(imageTranslate.handle({type: IMAGE_TRANSLATE_MESSAGE_TYPE, image: 1, sourceLanguage: 'en'}))
             .rejects.toThrow('图片数据无效');
-        await expect(ocr.handle({type: IMAGE_OCR_MESSAGE_TYPE, image: 'https://x', sourceLanguage: 'en'}))
+        await expect(imageTranslate.handle({type: IMAGE_TRANSLATE_MESSAGE_TYPE, image: 'https://x', sourceLanguage: 'en'}))
             .rejects.toThrow('图片数据无效');
-        await expect(ocr.handle({type: IMAGE_OCR_MESSAGE_TYPE, image: 'data:image/png,x', sourceLanguage: 1}))
+        await expect(imageTranslate.handle({type: IMAGE_TRANSLATE_MESSAGE_TYPE, image: 'data:image/png,x', sourceLanguage: 1}))
             .rejects.toThrow('sourceLanguage 必须是非空字符串');
-        await expect(ocr.handle({type: IMAGE_OCR_MESSAGE_TYPE, image: 'data:image/png,x', sourceLanguage: ' '}))
+        await expect(imageTranslate.handle({type: IMAGE_TRANSLATE_MESSAGE_TYPE, image: 'data:image/png,x', sourceLanguage: ' '}))
             .rejects.toThrow('sourceLanguage 必须是非空字符串');
-        dependencies.recognizeImage.mockResolvedValueOnce('bad');
-        await expect(ocr.handle({type: IMAGE_OCR_MESSAGE_TYPE, image: 'data:image/png,x', sourceLanguage: 'en'}))
-            .rejects.toThrow('图片 OCR 结果无效');
 
         await expect(imageTranslate.handle({
             type: IMAGE_TRANSLATE_MESSAGE_TYPE,
@@ -979,7 +945,6 @@ describe('后台 feature handlers', () => {
         });
         const dependencies = {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
-            recognizeImage: vi.fn(async () => []),
             translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
             fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts,
@@ -1049,7 +1014,6 @@ describe('后台 feature handlers', () => {
             ));
             const dependencies = {
                 assertLanguagesDownloaded: vi.fn(async () => undefined),
-                recognizeImage: vi.fn(async () => []),
                 translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
                 fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
                 translateTexts,
@@ -1084,7 +1048,6 @@ describe('后台 feature handlers', () => {
         let nowCalls = 0;
         const dependencies = {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
-            recognizeImage: vi.fn(async () => []),
             translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
             fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts,

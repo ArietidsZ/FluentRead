@@ -11,7 +11,6 @@ vi.mock('@/src/core/config/catalog', () => ({
 import {
     applyTranslationsToSnapshot,
     createTranslationSourceSnapshot,
-    findTranslationTruncationAncestors,
     hasActiveTranslationLineClamp,
     hasActiveTranslationTruncation,
     translationTruncationStyleOverrides,
@@ -37,6 +36,7 @@ import {ensureTranslationTruncationLayout} from '@/src/features/full-page-transl
 import {
     appendBilingualTranslation,
     materializeCandidate,
+    materializeVisualTranslationCandidate,
     appendSingleTranslationSlots,
 } from '@/src/features/full-page-translation/content/renderer';
 import {
@@ -430,12 +430,11 @@ describe('translation truncation layout', () => {
         expect(isTextEquivalentHostReplacement(record('attributes', [source], [source]))).toBe(false);
     });
 
-    it('finds the active OpenRouter-style ancestor but ignores ordinary overflow clipping', () => {
-        const {clamp, ordinary, first} = openRouterFixture();
+    it('detects the active OpenRouter-style clamp but ignores ordinary overflow clipping', () => {
+        const {clamp, ordinary} = openRouterFixture();
 
         expect(hasActiveTranslationLineClamp(clamp)).toBe(true);
         expect(hasActiveTranslationLineClamp(ordinary)).toBe(false);
-        expect(findTranslationTruncationAncestors(first)).toEqual([clamp]);
     });
 
     it('只把真实溢出的 max-height 容器识别为截断，不改写未溢出的普通 owner', () => {
@@ -474,19 +473,6 @@ describe('translation truncation layout', () => {
             value: () => undefined,
         });
         expect(hasActiveTranslationTruncation(owner)).toBe(false);
-    });
-
-    it('includes a shared ancestor whose first lease has already removed its computed clamp', () => {
-        const {clamp, first} = openRouterFixture();
-        Object.defineProperty(first.ownerDocument.defaultView, 'getComputedStyle', {
-            configurable: true,
-            value: () => ({
-                webkitLineClamp: 'none',
-                getPropertyValue: () => '',
-            } as unknown as CSSStyleDeclaration),
-        });
-
-        expect(findTranslationTruncationAncestors(first, (element) => element === clamp)).toEqual([clamp]);
     });
 
     it('wires OpenRouter ancestor unclamping through the real bilingual renderer', async () => {
@@ -1586,5 +1572,75 @@ describe('source line materialization', () => {
         expect(materializeCandidate({...candidate, nodes: [stale], sourceLine: true})).toBeNull();
         expect(materializeCandidate({...candidate, nodes: new Array<ChildNode>(1)})).toBeNull();
         expect(paragraph.innerHTML).toBe('Replacement line.');
+    });
+});
+
+describe('visual hover chunk materialization', () => {
+    function stubRange(document: Document, text: Text, options: {throwOnInsert?: boolean} = {}) {
+        Object.defineProperty(document, 'createRange', {
+            configurable: true,
+            value: () => {
+                let start = 0;
+                let end = 0;
+                return {
+                    setStart: (_node: Node, offset: number) => { start = offset; },
+                    setEnd: (_node: Node, offset: number) => { end = offset; },
+                    toString: () => text.data.slice(start, end),
+                    extractContents: () => {
+                        // linkedom 没有 Text.splitText；按浏览器语义手动拆成前、中、后三个文本节点。
+                        const fragment = document.createDocumentFragment();
+                        const source = text.data;
+                        text.data = source.slice(0, start);
+                        text.after(document.createTextNode(source.slice(end)));
+                        fragment.appendChild(document.createTextNode(source.slice(start, end)));
+                        return fragment;
+                    },
+                    insertNode: (node: Node) => {
+                        if (options.throwOnInsert) throw new Error('host rejected range');
+                        text.after(node);
+                    },
+                } as unknown as Range;
+            },
+        });
+    }
+
+    it('wraps only the visual range as a manual chunk and keeps non-visual candidates unchanged', () => {
+        const {document} = parseHTML('<html><body><div id="owner">Lead text. Chosen sentence here. Tail text.</div></body></html>');
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const text = owner.firstChild as Text;
+        const plain = {element: owner, kind: 'content' as const, reason: 'generic-readable-block'};
+        expect(materializeVisualTranslationCandidate(plain)).toBe(plain);
+
+        stubRange(document, text);
+        const start = text.data.indexOf('Chosen');
+        const end = text.data.indexOf(' Tail');
+        const visual = {...plain, visualRange: {startContainer: text, startOffset: start, endContainer: text, endOffset: end}, visualSourceText: 'Chosen sentence here.'};
+        const materialized = materializeVisualTranslationCandidate(visual)!;
+        expect(materialized).toMatchObject({manualChunk: true, visualRange: undefined, visualSourceText: undefined});
+        expect(materialized.element.getAttribute('data-fr-translation-manual')).toBe('true');
+        expect(materialized.element.textContent).toBe('Chosen sentence here.');
+        expect(owner.textContent).toBe('Lead text. Chosen sentence here. Tail text.');
+        expect(materializeCandidate(materialized)).toEqual({node: materialized.element, synthetic: true});
+    });
+
+    it('rejects disconnected owners, foreign boundaries, blank ranges and host range failures', () => {
+        const {document} = parseHTML('<html><body><div id="owner">Lead text.   Tail text.</div><p id="other">Other</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const text = owner.firstChild as Text;
+        const foreign = document.querySelector('#other')!.firstChild as Text;
+        const base = {element: owner, kind: 'content' as const, reason: 'generic-readable-block'};
+        const range = (startOffset: number, endOffset: number, endContainer: Text = text) => ({startContainer: text, startOffset, endContainer, endOffset});
+
+        stubRange(document, text);
+        expect(materializeVisualTranslationCandidate({...base, visualRange: range(0, 4, foreign)})).toBeNull();
+        expect(materializeVisualTranslationCandidate({...base, visualRange: range(10, 13)})).toBeNull();
+        stubRange(document, text, {throwOnInsert: true});
+        expect(materializeVisualTranslationCandidate({...base, visualRange: range(0, 4)})).toBeNull();
+
+        const detached = document.createElement('div');
+        detached.textContent = 'Detached';
+        expect(materializeVisualTranslationCandidate({...base, element: detached, visualRange: {
+            startContainer: detached.firstChild as Text, startOffset: 0, endContainer: detached.firstChild as Text, endOffset: 3,
+        }})).toBeNull();
     });
 });

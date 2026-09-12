@@ -14,7 +14,7 @@ registerAllUiLanguageBundles();
 
 const deferred = <T>() => {let resolve!: (value: T) => void; let reject!: (error: unknown) => void; const promise = new Promise<T>((r,j) => {resolve=r;reject=j;}); return {promise,resolve,reject};};
 function setup(extra = {}) {
-    const dependencies = {assertLanguagesDownloaded: vi.fn(async()=>{}), recognizeImage:vi.fn(async()=>[]), translateImage:vi.fn(async()=>({image:'data:image/png,x',lines:[]})),fetchImage:vi.fn(async()=>''),getTranslationService:()=> 'google',supportsBatchTranslation:()=>false,translateTexts:vi.fn(async(request:{origin:string|string[]})=>`译:${request.origin}`),downloadLanguages:vi.fn(async()=>{}),markLanguagesDownloaded:vi.fn(async()=>[]), ...extra};
+    const dependencies = {assertLanguagesDownloaded: vi.fn(async()=>{}), translateImage:vi.fn(async()=>({image:'data:image/png,x',lines:[]})),fetchImage:vi.fn(async()=>''),getTranslationService:()=> 'google',supportsBatchTranslation:()=>false,translateTexts:vi.fn(async(request:{origin:string|string[]})=>`译:${request.origin}`),downloadLanguages:vi.fn(async()=>{}),markLanguagesDownloaded:vi.fn(async()=>[]), ...extra};
     const handlers=createImageTranslationBackgroundHandlers(dependencies);
     return {dependencies, handler:(type:string)=>handlers.find(h=>h.type===type)!};
 }

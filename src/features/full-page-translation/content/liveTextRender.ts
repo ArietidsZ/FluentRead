@@ -89,11 +89,10 @@ function renderLiveText(
         setSingleTextSlotHosts(node, hosts);
         return 'committed';
     }
+    // rebound 已按当前前后缀逐槽生成展示值；直接复用，避免两处拼接规则漂移。
     withFullPageViewportAnchor(() => {
-        currentParts.forEach((part, index) => {
-            if (part.node.isConnected) {
-                part.node.nodeValue = `${part.prefix}${result.translations[index] ?? part.source}${part.suffix}`;
-            }
+        rebound.slots.forEach(({node: slotNode, text}) => {
+            if (slotNode.isConnected) slotNode.nodeValue = text;
         });
     }, [node]);
     setTextSlotsApplied(node, rebound.nodes);

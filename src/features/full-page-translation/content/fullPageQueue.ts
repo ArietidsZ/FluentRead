@@ -218,10 +218,3 @@ export function createFullPageDispatchPlan(
         },
     };
 }
-
-export function selectNextFullPageCandidate(
-    state: FullPageQueueState,
-    options: FullPageQueueSelectionOptions,
-): FullPagePendingSelection | undefined {
-    return createFullPageDispatchPlan(state, options).next();
-}

@@ -25,7 +25,7 @@ import {
     synthesizeEdgeTts,
 } from '@/src/features/selection-translation/services/edgeTts';
 import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/src/core/hotkey';
-import { normalizeSelectionTtsVoiceOrder, selectionTtsVoiceLocale, selectionTtsVoiceOption } from '@/src/features/selection-translation/ttsConfig';
+import { normalizeSelectionTtsVoiceOrder, selectionTtsVoiceLocale } from '@/src/core/config/selectionTts';
 import {detectlang} from '@/src/core/language/detect';
 
 interface MockElementOptions {
@@ -675,8 +675,6 @@ describe('selection translator text and speech language normalization', () => {
         ]);
         expect(normalizeSelectionTtsVoiceOrder('en-US-JennyNeural')).toEqual([]);
         expect(selectionTtsVoiceLocale('zh-CN-XiaoxiaoMultilingualNeural')).toBe('zh-CN');
-        expect(selectionTtsVoiceOption('zh-CN-XiaoyiNeural')?.label).toBe('晓伊');
-        expect(selectionTtsVoiceOption('unknown')).toBeUndefined();
     });
 
     it('does not expose malformed Edge TTS endpoint JSON in errors', async () => {
