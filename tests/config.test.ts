@@ -1048,6 +1048,73 @@ describe('统一配置存储', () => {
         expect(exported).toMatchObject({token: importedToken, theme: 'auto', to: 'ja'});
     });
 
+    it('旧凭据广播保留在途 ID 和 Secret 编辑，同时接收未编辑服务的新 Key', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const credentials = {
+            token: {aliyunTranslation: 'old-id', deepseek: 'other-old'},
+            apiKeys: {aliyunTranslation: ['old-id'], deepseek: ['other-old']},
+            secret: {aliyunTranslation: 'old-secret'},
+        };
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false, localCredentials: credentials,
+        });
+        await configStore.configReady;
+        const credentialWatch = storageWatchers.get('local:credentials')!;
+        let release!: () => void;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        let revision = 4;
+        const sendMessage = vi.fn(async () => {
+            await gate;
+            revision += 1;
+            storageState.set('local:config', {...canonical, __fluentConfigRevision: revision});
+            return {success: true, revision};
+        });
+        const idEdit = configStore.requestConfigPatch({token: {aliyunTranslation: 'new-id', deepseek: 'other-old'}}, sendMessage);
+        const secretEdit = configStore.requestConfigPatch({secret: {aliyunTranslation: 'new-secret'}}, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const broadcast = {...credentials, token: {...credentials.token, deepseek: 'other-new'}, apiKeys: {...credentials.apiKeys, deepseek: ['other-new']}};
+        credentialWatch(broadcast);
+        expect(configStore.config).toMatchObject({
+            token: {aliyunTranslation: 'new-id', deepseek: 'other-new'},
+            apiKeys: {aliyunTranslation: ['new-id'], deepseek: ['other-new']},
+            secret: {aliyunTranslation: 'new-secret'},
+        });
+        // 前驱 ID 写入的回声也不能让尚未确认的 Secret 恢复旧值。
+        credentialWatch({...broadcast, token: {...broadcast.token, aliyunTranslation: 'new-id'}, apiKeys: {...broadcast.apiKeys, aliyunTranslation: ['new-id']}});
+        expect(configStore.config.secret.aliyunTranslation).toBe('new-secret');
+        release();
+        await Promise.all([idEdit, secretEdit]);
+        expect(configStore.config.token.aliyunTranslation).toBe('new-id');
+        expect(configStore.config.secret.aliyunTranslation).toBe('new-secret');
+        // 队列结束后不再占有字段，其他页面的有效更新仍能同步。
+        credentialWatch(credentials);
+        expect(configStore.config.token.aliyunTranslation).toBe('old-id');
+        expect(configStore.config.secret.aliyunTranslation).toBe('old-secret');
+    });
+
+    it('凭据保存失败后释放编辑所有权并允许后续广播更新', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const credentials = {token: {aliyunTranslation: 'old-id'}, apiKeys: {aliyunTranslation: ['old-id']}};
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false, localCredentials: credentials,
+        });
+        await configStore.configReady;
+        const credentialWatch = storageWatchers.get('local:credentials')!;
+        let release!: () => void;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        const sendMessage = vi.fn(async () => { await gate; return {success: false, error: 'fixture failure'}; });
+        const edit = configStore.requestConfigPatch({token: {aliyunTranslation: 'new-id'}}, sendMessage);
+        const rejected = expect(edit).rejects.toThrow('fixture failure');
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        credentialWatch(credentials);
+        expect(configStore.config.token.aliyunTranslation).toBe('new-id');
+        release();
+        await rejected;
+        expect(configStore.config.token.aliyunTranslation).toBe('old-id');
+        credentialWatch({token: {aliyunTranslation: 'external-id'}, apiKeys: {aliyunTranslation: ['external-id']}});
+        expect(configStore.config.token.aliyunTranslation).toBe('external-id');
+    });
+
     it('请求途中到达的更新凭据通知会刷新后续队列基线', async () => {
         const oldToken = {openai: 'watch-shadow-old-secret'};
         const watchedToken = {openai: 'watch-shadow-latest-secret'};

@@ -92,7 +92,7 @@ const serviceCredentialGuides: Record<string, ServiceCredentialGuide> = {
     consoleUrl: 'https://console.cloud.tencent.com/tmt',
     consoleLabel: '前往腾讯云控制台',
     docsUrl: 'https://cloud.tencent.com/document/product/551/35017',
-    docsLabel: '接口文档',
+    docsLabel: '额度与计费',
     steps: [
       '在腾讯云控制台开通「机器翻译 TMT」',
       '在访问管理中新建 API 密钥，复制 SecretId 与 SecretKey',
@@ -103,7 +103,7 @@ const serviceCredentialGuides: Record<string, ServiceCredentialGuide> = {
     freeQuota: '每月 50 万字符免费额度（结算账号内）',
     consoleUrl: 'https://console.cloud.google.com/apis/library/translate.googleapis.com',
     consoleLabel: '前往 Google Cloud 控制台',
-    docsUrl: 'https://cloud.google.com/translate/pricing',
+    docsUrl: 'https://cloud.google.com/products/translate/pricing',
     docsLabel: '额度与计费',
     steps: [
       '在 Google Cloud 项目中启用 Cloud Translation API',
@@ -115,7 +115,7 @@ const serviceCredentialGuides: Record<string, ServiceCredentialGuide> = {
     freeQuota: 'F0 免费层每月 200 万字符',
     consoleUrl: 'https://portal.azure.com/#create/Microsoft.CognitiveServicesTextTranslation',
     consoleLabel: '创建 Translator 资源',
-    docsUrl: 'https://learn.microsoft.com/azure/ai-services/translator/reference/v3-0-translate',
+    docsUrl: 'https://learn.microsoft.com/en-us/azure/ai-services/translator/text-translation/reference/v3/translate',
     docsLabel: '接口文档',
     steps: [
       '在 Azure 门户创建「Translator」资源并选择 Free F0 定价层',
@@ -127,7 +127,7 @@ const serviceCredentialGuides: Record<string, ServiceCredentialGuide> = {
     freeQuota: '通用版每月 100 万字符免费额度',
     consoleUrl: 'https://mt.console.aliyun.com/',
     consoleLabel: '前往阿里云控制台',
-    docsUrl: 'https://help.aliyun.com/zh/machine-translation/developer-reference/api-doc-alimt-2018-10-12-api-doc-translategeneral',
+    docsUrl: 'https://help.aliyun.com/zh/machine-translation/developer-reference/api-alimt-2018-10-12-translategeneral',
     docsLabel: '接口文档',
     steps: [
       '在阿里云控制台开通「机器翻译」并领取免费额度',
@@ -139,7 +139,7 @@ const serviceCredentialGuides: Record<string, ServiceCredentialGuide> = {
     freeQuota: '标准版每月 5 万字符免费额度',
     consoleUrl: 'https://fanyi-api.baidu.com/manage/developer',
     consoleLabel: '前往百度翻译开放平台',
-    docsUrl: 'https://fanyi-api.baidu.com/doc/21',
+    docsUrl: 'https://fanyi-api.baidu.com/doc/23',
     docsLabel: '接口文档',
     steps: [
       '在百度翻译开放平台注册开发者并开通「通用文本翻译」',
@@ -151,7 +151,7 @@ const serviceCredentialGuides: Record<string, ServiceCredentialGuide> = {
     freeQuota: '每月 200 万字符免费额度',
     consoleUrl: 'https://console.volcengine.com/translate',
     consoleLabel: '前往火山引擎控制台',
-    docsUrl: 'https://www.volcengine.com/docs/4640/65067',
+    docsUrl: 'https://docs.volcengine.com/docs/4640/65067?lang=zh',
     docsLabel: '接口文档',
     steps: [
       '在火山引擎控制台开通「机器翻译」',

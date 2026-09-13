@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
  * 文件职责：渲染当前翻译服务的详细连接配置，按连接配置、翻译偏好、请求设置和自定义请求分组显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体和请求头等字段，以及服务和模型的独立请求限制。
- * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，展示 DeepLX 完整地址与 Token 示例，管理所有服务可空 Key 发起的连接检查、配置与消息等待超时、Chrome 当前语言对的点击准备及进度，并通过配置 store 提交修改。
+ * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，展示 DeepLX 完整地址与 Token 示例，将成对密钥的 ID 编辑同步到 apiKeys 和兼容 token，管理所有服务可空 Key 发起的连接检查、配置与消息等待超时、Chrome 当前语言对的点击准备及进度，并通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
@@ -151,7 +151,8 @@
       </div>
       <div class="connection-field-control credential-control">
         <el-input
-          v-model="config.token[service]"
+          :model-value="apiKeys[0] || ''"
+          @update:model-value="updateApiKey(0, String($event))"
           type="password"
           show-password
           :aria-label="compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
