@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/HarnessSettings.vue
  * 文件职责：让用户通过翻译卡片示例理解功能，并配置网页动作、模型和阅读偏好。
- * 主要内容：提供无需联网的交互示例、开关下方并排强调的服务与模型选择，以及独立的点击/悬停/快捷键触发、学习记忆、网页动作、回答和原文范围设置，开头注明内核来源和开源链接。
+ * 主要内容：按启用与服务、打开方式与动作、回答偏好、原文范围组织配置，随后提供可展开的交互示例、学习记忆和提示词，保留内核来源说明。
  * 模块边界：只编辑传入 Config 的 harness 字段；阅读记录由学习中心统一呈现，不发起模型请求，不拥有网页选区或提示词。
  -->
 <template>
@@ -9,7 +9,7 @@
     <span>翻译卡片基于 DeepSeek Harness 内核开发。</span>
     <a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank" rel="noopener noreferrer">DeepSeek Harness 开源项目 ↗</a>
   </div>
-  <SettingsGroup description="选中网页文字，直接点“读懂”或“拆句”。回答留在原文旁边，读完就继续浏览。">
+  <SettingsGroup title="启用与服务" description="选中网页文字，直接点“读懂”或“拆句”。回答留在原文旁边，读完就继续浏览。">
     <FeatureEnableCard v-model="config.harness.enabled" title="启用翻译卡片" :description="t('reading.enableHelp')" />
     <div class="harness-provider-panel">
       <div class="harness-provider-row">
@@ -30,31 +30,10 @@
       </div>
       <small v-if="!effectiveServiceSupportsHarness" class="service-hint" role="status">当前默认服务不能回答学习问题，请在这里选择一个 AI 服务。</small>
     </div>
-    <SettingsItem label="试试翻译卡片" description="选中文字 → 点一个动作 → 读懂后继续浏览。" stacked>
-      <div class="harness-preview-wrap"><div class="harness-preview">
-        <div class="harness-preview-caption"><span>网页中的效果</span><small>演示内容，不调用模型</small></div>
-        <p class="harness-sentence"><mark>Although the task was difficult, she finished it on time.</mark></p>
-        <div class="harness-preview-actions" aria-label="示例学习动作">
-          <button v-for="action in visibleActions" :key="action.id" type="button"
-            :class="{active: previewAction === action.id, 'is-default': config.harness.defaultAction === action.id}"
-            :aria-pressed="previewAction === action.id" :title="action.description" @click="previewAction = action.id">
-            {{ action.label }}
-          </button>
-        </div>
-        <div class="harness-preview-answer" aria-live="polite"><ReadingAnswer :text="previewResults[previewAction]" /></div>
-        <p class="harness-preview-footer">还想问一句？在翻译卡片下方输入问题，继续围绕这段原文学习。</p>
-      </div></div>
-    </SettingsItem>
   </SettingsGroup>
 
-  <SettingsGroup class="harness-memory-settings" :title="t('learning.memory')" :description="t('settings.memoryHelp')">
-    <SettingsItem :label="t('settings.memoryEnabled')" :description="t('settings.memoryDescription')">
-      <el-switch v-model="config.harness.memoryEnabled" :aria-label="t('settings.memoryEnabled')" />
-    </SettingsItem>
-  </SettingsGroup>
-
-  <SettingsGroup :title="t('reading.triggerTitle')" :description="t('reading.triggerHelp')">
-    <SettingsItem :label="t('reading.triggerTitle')">
+  <SettingsGroup title="打开方式与动作" :description="t('reading.triggerHelp')">
+    <SettingsItem label="打开方式">
       <SegmentedControl v-model="config.harness.trigger" :options="triggerOptions" :label="t('reading.triggerTitle')" />
     </SettingsItem>
     <SettingsItem v-if="config.harness.trigger === 'hover'" :label="t('reading.hoverDelay')" :description="t('reading.hoverHelp')">
@@ -64,10 +43,8 @@
       <button type="button" class="harness-hotkey-button" @click="showHotkeyDialog = true">{{ config.harness.customHotkey }}</button>
     </SettingsItem>
     <CustomHotkeyInput v-model="showHotkeyDialog" :current-value="config.harness.customHotkey" @confirm="config.harness.customHotkey = $event" />
-  </SettingsGroup>
 
-  <section class="harness-more"><SettingsGroup title="更多设置" description="网页动作、回答方式与原文范围。">
-    <SettingsItem label="选中后显示的动作" description="保留“读懂”，其他动作可按需隐藏；网页浮条和上方示例同步变化。" stacked>
+    <SettingsItem label="选中后显示的动作" description="保留“读懂”，其他动作可按需隐藏；网页浮条和下方示例同步变化。" stacked>
       <div class="harness-actions">
         <label v-for="action in HARNESS_ACTIONS" :key="action.id" class="harness-action">
           <input type="checkbox" :checked="config.harness.actions.includes(action.id)" :disabled="action.id === 'meaning'" @change="toggleAction(action.id)" />
@@ -80,6 +57,9 @@
         <el-option v-for="action in visibleActions" :key="action.id" :label="action.label" :value="action.id" />
       </el-select>
     </SettingsItem>
+  </SettingsGroup>
+
+  <SettingsGroup title="回答偏好">
     <SettingsItem label="回答长度" description="先给出重点，需要更多解释时可以继续追问。">
       <SegmentedControl v-model="config.harness.explanationDepth" :options="explanationDepthOptions" label="解释深度" />
     </SettingsItem>
@@ -88,13 +68,44 @@
         <el-option label="初级" value="beginner" /><el-option label="中级" value="intermediate" /><el-option label="高级" value="advanced" />
       </el-select>
     </SettingsItem>
+  </SettingsGroup>
+
+  <SettingsGroup title="原文范围">
     <SettingsItem label="结合哪些原文" :description="config.harness.contextMode === 'paragraph' ? '需要理解代词或言外之意时，允许参考所选文字所在的段落；不会读取整页。' : '只发送你选中的文字，适合单句学习；不会补读周围段落。'">
       <SegmentedControl v-model="config.harness.contextMode" :options="contextModeOptions" label="上下文范围" />
     </SettingsItem>
     <SettingsItem v-if="config.harness.contextMode === 'paragraph'" label="段落最多发送" description="控制可参考的原文长度，通常保留默认值即可。">
       <div class="harness-context-limit"><el-input-number v-model="config.harness.maxContextChars" :min="500" :max="4000" :step="100" controls-position="right" aria-label="上下文上限" /><span>字符</span></div>
     </SettingsItem>
-  </SettingsGroup></section>
+  </SettingsGroup>
+
+  <SettingsGroup>
+    <details class="harness-demo">
+      <summary>试试翻译卡片</summary>
+      <div class="harness-demo-body">
+        <p class="harness-demo-help">选中文字 → 点一个动作 → 读懂后继续浏览。</p>
+        <div class="harness-preview-wrap"><div class="harness-preview">
+          <div class="harness-preview-caption"><span>网页中的效果</span><small>演示内容，不调用模型</small></div>
+          <p class="harness-sentence"><mark>Although the task was difficult, she finished it on time.</mark></p>
+          <div class="harness-preview-actions" aria-label="示例学习动作">
+            <button v-for="action in visibleActions" :key="action.id" type="button"
+              :class="{active: previewAction === action.id, 'is-default': config.harness.defaultAction === action.id}"
+              :aria-pressed="previewAction === action.id" :title="action.description" @click="previewAction = action.id">
+              {{ action.label }}
+            </button>
+          </div>
+          <div class="harness-preview-answer" aria-live="polite"><ReadingAnswer :text="previewResults[previewAction]" /></div>
+          <p class="harness-preview-footer">还想问一句？在翻译卡片下方输入问题，继续围绕这段原文学习。</p>
+        </div></div>
+      </div>
+    </details>
+  </SettingsGroup>
+
+  <SettingsGroup class="harness-memory-settings" :title="t('learning.memory')" :description="t('settings.memoryHelp')">
+    <SettingsItem :label="t('settings.memoryEnabled')" :description="t('settings.memoryDescription')">
+      <el-switch v-model="config.harness.memoryEnabled" :aria-label="t('settings.memoryEnabled')" />
+    </SettingsItem>
+  </SettingsGroup>
 
   <HarnessPromptSettings :preferences="config.harness" />
 </template>
@@ -172,7 +183,10 @@ function toggleAction(id: HarnessActionId) {
 .harness-preview-actions button.active { border-color:var(--brand); background:color-mix(in srgb, var(--brand) 9%, var(--surface)); color:var(--brand); }
 .harness-preview-answer { min-height:150px; padding:14px 0; border-top:1px solid var(--line); background:transparent; }
 .harness-preview-footer { margin:12px 0 0; color:var(--muted); font-size:10.5px; line-height:1.6; }
-.harness-more { width:min(100%,1080px); margin:0 auto 22px; }
+.harness-demo-body { padding:0 16px 16px; }
+.harness-demo-help { margin:0 0 12px; color:var(--muted); font-size:11px; }
+.harness-demo > summary { padding:16px 18px; color:var(--ink); font-size:14px; font-weight:700; cursor:pointer; }
+.harness-demo > summary:focus-visible { outline:2px solid var(--brand); outline-offset:-4px; }
 .harness-provider-panel { margin:0 12px 12px; padding:16px; border:1px solid color-mix(in srgb,var(--brand) 24%,var(--line)); border-radius:12px; background:linear-gradient(120deg,color-mix(in srgb,var(--brand) 5%,var(--surface)),var(--surface-soft)); }
 .harness-provider-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
 .harness-provider-field { display:flex; flex-direction:column; gap:8px; min-width:0; }
@@ -203,7 +217,7 @@ function toggleAction(id: HarnessActionId) {
 @media (max-width:700px) { .harness-actions { grid-template-columns:1fr; } }
 @media (max-width:480px) {
   .harness-provider-panel { margin-inline:8px; padding:12px; }
-  .harness-provider-row { gap:10px; }
+  .harness-provider-row { grid-template-columns:1fr; gap:16px; }
   .harness-provider-field small { font-size:10px; }
   .harness-preview { padding:12px; }
   .harness-preview-answer { padding:12px; }
