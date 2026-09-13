@@ -170,6 +170,37 @@ function fixture(site, variant = '') {
       const icon = p.locator('button[data-section="settings-writing"] .nav-icon'); assert.equal(await icon.locator('svg').count(), 1); assert.equal(await icon.locator('svg path').count(), 1); assert.equal(await icon.locator('svg').getAttribute('aria-hidden'), 'true'); assert.equal(await icon.locator('svg').getAttribute('stroke'), 'currentColor'); assert.equal(await icon.locator('img').count(), 0);
     };
     await assertSettings(settings, true); await shot(settings, 'writing-settings-light');
+    if (runs('settings')) {
+      const group = name => settings.getByRole('radiogroup', {name, exact: true});
+      for (const length of ['简短', '标准', '详细']) {
+        await group('长度').getByRole('radio', {name: length, exact: true}).click();
+        for (const name of ['风格', '语气', '您的角色']) {
+          const texts = [];
+          for (const button of await group(name).getByRole('radio').all()) {
+            if ((await button.innerText()) === '自定义') continue;
+            await button.click();
+            await settings.waitForTimeout(350);
+            texts.push(await settings.locator('.style-preview .preview-body').innerText());
+          }
+          assert.equal(new Set(texts).size, texts.length, `${length}/${name}: every preset changes the sample body`);
+          report.cases.push(`preview ${length}/${name}: ${texts.length} distinct sample bodies`);
+        }
+      }
+      await group('长度').getByRole('radio', {name: '简短', exact: true}).click();
+      await group('语气').getByRole('radio', {name: '真诚', exact: true}).click();
+      await group('风格').getByRole('radio', {name: '自动', exact: true}).click();
+      await settings.waitForTimeout(350);
+      const previewScreenshot = path.join(artifactsDir, 'writing-preview-short-subordinate.png');
+      await settings.locator('.writing-default-style').screenshot({path: previewScreenshot});
+      report.screenshots.push(previewScreenshot);
+      for (const name of ['语气', '您的角色']) {
+        await group(name).getByRole('radio', {name: '自定义', exact: true}).click();
+      }
+      await settings.getByText('自定义语气和角色会在真实生成时生效，示例先用默认表达。', {exact: true}).waitFor();
+      await shot(settings, 'writing-preview-custom-fallback');
+      for (const [name, value] of [['语气', '自然'], ['您的角色', '自动']]) await group(name).getByRole('radio', {name: value, exact: true}).click();
+    }
+
     // 写作连接跳转只改变服务页正在编辑的服务，不能改变网页翻译默认值。
     const unconfiguredWriting = (await read()).writing;
     await patch({writing: {...unconfiguredWriting, service: 'openai'}});
