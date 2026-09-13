@@ -1,15 +1,11 @@
 /**
  * @file src/features/document-translation/services/binary.ts
  * 文件职责：处理 PDF、EPUB 与 DOCX 二进制文档的受限解析和导出，把压缩包或页面文本转换为统一 ParsedDocument，并生成可下载的双语产物。
- * 主要内容：包含归档条目/字节安全上限、XML 与 ZIP 路径工具、PDF 文本原子到行块的重建、EPUB 章节和 DOCX 段落提取、译文回填，以及 PDF rasterizer 注入式导出。
+ * 主要内容：按格式使用时加载 PDF.js、pdf-lib 与 JSZip，包含归档条目/字节安全上限、XML 与 ZIP 路径工具、PDF 文本原子到行块的重建、EPUB 章节和 DOCX 段落提取、译文回填，以及 PDF rasterizer 注入式导出。
  * 模块边界：此服务可以依赖 JSZip、pdf-lib 和二进制 I/O，但不负责调用翻译服务或渲染设置页；文本格式规则归 core/document，浏览器 Canvas 光栅实现由 ui/pdfPreview 通过接口注入。
  */
-import JSZip from 'jszip';
-import {PDFDocument} from 'pdf-lib';
-import {
-    Util,
-    getDocument as getPdfDocument,
-} from 'pdfjs-dist/legacy/build/pdf.mjs';
+import type JSZip from 'jszip';
+import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 
 import {
     createDocumentDownloadName,
@@ -191,7 +187,14 @@ export function pdfTextAtoms(
     return items.flatMap((item) => {
         const text = item.str.replace(/\u0000/gu, '').replace(/[\t\u00a0 ]+/gu, ' ').trim();
         if (!text) return [];
-        const transform = Util.transform(viewport.transform, item.transform as number[]);
+        // 六元仿射矩阵相乘；坐标处理保持同步，无需为这一纯运算加载整个 PDF.js。
+        const a = viewport.transform;
+        const b = item.transform as number[];
+        const transform = [
+            a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1],
+            a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3],
+            a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5],
+        ];
         const angle = Math.atan2(transform[1], transform[0]);
         if (Math.abs(angle) > 0.12) return [];
         const style = styles[item.fontName] || {};
@@ -354,6 +357,8 @@ async function parsePdf(fileName: string, bytes: Uint8Array): Promise<ParsedDocu
     const segments: DocumentSegment[] = [];
     const pages: PdfDocumentPage[] = [];
     const pdfAssetRoot = typeof window !== 'undefined' ? `${window.location.origin}/pdfjs` : '';
+    const {getDocument: getPdfDocument, GlobalWorkerOptions} = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    if (typeof window !== 'undefined') GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
     const loadingTask = getPdfDocument({
         data: new Uint8Array(bytes),
         disableFontFace: true,
@@ -430,6 +435,7 @@ export function chapterTitle(source: string, fallback: string): string {
 async function parseEpub(fileName: string, bytes: Uint8Array): Promise<ParsedDocument> {
     let zip: JSZip;
     try {
+        const {default: JSZip} = await import('jszip');
         zip = await JSZip.loadAsync(bytes);
     } catch (error) {
         throw new Error(`ePub 解析失败：${String(error)}`);
@@ -550,6 +556,7 @@ export function docxParagraphRole(paragraph: string, path: string): NonNullable<
 async function parseDocx(fileName: string, bytes: Uint8Array): Promise<ParsedDocument> {
     let zip: JSZip;
     try {
+        const {default: JSZip} = await import('jszip');
         zip = await JSZip.loadAsync(bytes);
     } catch (error) {
         throw new Error(`DOCX 解析失败：${String(error)}`);
@@ -643,6 +650,7 @@ async function renderPdf(
     rasterizer: PdfPageRasterizer,
 ): Promise<Uint8Array> {
     const binary = document.binary as Extract<NonNullable<ParsedDocument['binary']>, {kind: 'pdf'}>;
+    const {PDFDocument} = await import('pdf-lib');
     const sourcePdf = await PDFDocument.load(binary.bytes);
     const outputPdf = await PDFDocument.create();
     outputPdf.setTitle(`${document.fileName} - FluentRead`);
@@ -678,6 +686,7 @@ async function renderPdf(
 
 async function renderEpub(document: ParsedDocument, translations: readonly string[], mode: DocumentRenderMode): Promise<Uint8Array> {
     if (document.binary?.kind !== 'epub') throw new Error('ePub 文档状态无效，请重新打开文件');
+    const {default: JSZip} = await import('jszip');
     const zip = await JSZip.loadAsync(document.binary.bytes);
     assertArchiveSafety(zip, 'ePub');
     for (const chapter of document.binary.chapters) {
@@ -739,6 +748,7 @@ export function renderDocxPart(
 
 async function renderDocx(document: ParsedDocument, translations: readonly string[], mode: DocumentRenderMode): Promise<Uint8Array> {
     if (document.binary?.kind !== 'docx') throw new Error('DOCX 文档状态无效，请重新打开文件');
+    const {default: JSZip} = await import('jszip');
     const zip = await JSZip.loadAsync(document.binary.bytes);
     assertArchiveSafety(zip, 'DOCX');
     document.binary.parts.forEach((part) => {

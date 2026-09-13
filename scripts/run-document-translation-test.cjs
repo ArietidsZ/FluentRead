@@ -39,6 +39,9 @@ async function fixtureServer() {
 async function main() {
   const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
   const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-document-experience'));
+  const suite = arg('suite', 'full');
+  assert(['full', 'formats'].includes(suite), 'suite 仅支持 full 或 formats');
+  const formats = arg('formats', 'sample.pdf,sample.epub,sample.docx,sample.html,sample.txt,sample.md,sample.srt,sample.vtt,sample.ass,sample.ssa,sample.lrc,sample.json').split(',');
   const exampleDir = path.resolve(arg('example-dir', 'examples/document-translation'));
   const packages = arg('playwright-root');
   const helperPath = arg('focus-safe-helper');
@@ -48,7 +51,7 @@ async function main() {
   const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(helperPath);
   fs.mkdirSync(artifactsDir, {recursive: true});
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-document-flow-'));
-  const report = {ok: false, extensionDir, artifactsDir, service: 'loopback deterministic fixture', cases: [], screenshots: [], downloads: [], consoleErrors: [], exampleLoads: {}};
+  const report = {ok: false, extensionDir, artifactsDir, service: 'loopback deterministic fixture', suite, scriptsByStage: {}, cases: [], screenshots: [], downloads: [], consoleErrors: [], exampleLoads: {}};
   const fixture = await fixtureServer();
   let launched, page;
   try {
@@ -64,8 +67,18 @@ async function main() {
     page.setDefaultTimeout(30000);
     page.on('pageerror', error => report.consoleErrors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') report.consoleErrors.push(message.text()); });
+    const scriptPaths = new Set();
+    page.on('response', response => {
+      if (response.request().resourceType() !== 'script' || !response.url().startsWith(origin + '/')) return;
+      scriptPaths.add(new URL(response.url()).pathname.slice(1));
+    });
+    const recordScripts = label => {
+      const files = [...scriptPaths].sort().map(file => ({file, bytes: fs.statSync(path.join(extensionDir, file)).size}));
+      report.scriptsByStage[label] = {bytes: files.reduce((sum, file) => sum + file.bytes, 0), files};
+    };
     await page.goto(`${origin}/document.html`, {waitUntil: 'domcontentloaded'});
     await page.locator('.file-drop-zone').waitFor();
+    recordScripts('initial');
     const service = 'custom:document-fixture';
     const seeded = await page.evaluate(async ({service, endpoint}) => {
       const stored = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
@@ -123,8 +136,9 @@ async function main() {
     assert.match(await page.locator('.notice.error').innerText(), /不支持/);
     report.cases.push('unsupported import has persistent actionable error');
 
-    for (const name of ['sample.pdf', 'sample.epub', 'sample.docx', 'sample.html', 'sample.txt', 'sample.md', 'sample.srt', 'sample.vtt', 'sample.ass', 'sample.ssa', 'sample.lrc', 'sample.json']) {
+    for (const name of formats) {
       await load(name, fs.readFileSync(path.join(exampleDir, name)));
+      recordScripts(`import:${name}`);
       await page.getByRole('button', {name: '开始翻译', exact: true}).click();
       await status('翻译完成');
       assert.equal(await page.getByRole('progressbar').getAttribute('aria-valuenow'), '100');
@@ -143,6 +157,7 @@ async function main() {
         await select('PDF 预览缩放', '适合宽度');
       }
       const dest = await download();
+      recordScripts(`export:${name}`);
       const bytes = fs.readFileSync(dest);
       assert(bytes.length > 0);
       if (name === 'sample.pdf') {
@@ -154,9 +169,24 @@ async function main() {
       } else assert(bytes.toString().includes('人工校订'));
       report.exampleLoads[name] = {translated: true, edited: true, exported: true, bytes: bytes.length};
       if (['sample.pdf', 'sample.epub', 'sample.docx', 'sample.md', 'sample.srt', 'sample.json'].includes(name)) await shot(`reader-${name.replace('.', '-')}`);
+      if (suite === 'formats' && name === formats.at(-1)) {
+        const [archive] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', {name: '下载已完成文件（ZIP）', exact: true}).click()]);
+        const archivePath = path.join(artifactsDir, archive.suggestedFilename());
+        await archive.saveAs(archivePath);
+        const zip = await require('jszip').loadAsync(fs.readFileSync(archivePath));
+        assert(Object.keys(zip.files).some(file => file.endsWith(path.basename(dest))), '批量 ZIP 应包含已导出的文件');
+        report.downloads.push(archivePath);
+        recordScripts('batch-export');
+        report.cases.push('lazy batch ZIP download contains completed document');
+      }
       await newFile();
     }
-    report.cases.push('12 formats parse, translate through provider, edit via UI and export original format');
+    report.cases.push(`${formats.length} formats parse, translate through provider, edit via UI and export original format`);
+    if (suite === 'formats') {
+      assert.equal(report.consoleErrors.length, 0, '文档导入导出不得产生控制台错误');
+      report.ok = true;
+      return;
+    }
 
     fixture.state.delay = 650;
     const longText = Array.from({length: 95}, (_, i) => `Long document paragraph ${i + 1}. This is a complete sentence for testing translation and proofreading.`).join('\n\n');

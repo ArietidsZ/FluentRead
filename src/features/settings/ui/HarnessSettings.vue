@@ -42,7 +42,7 @@
     <SettingsItem v-if="config.harness.trigger === 'shortcut'" :label="t('reading.shortcut')" :description="t('reading.shortcutHelp')">
       <button type="button" class="harness-hotkey-button" @click="showHotkeyDialog = true">{{ config.harness.customHotkey }}</button>
     </SettingsItem>
-    <CustomHotkeyInput v-model="showHotkeyDialog" :current-value="config.harness.customHotkey" @confirm="config.harness.customHotkey = $event" />
+    <CustomHotkeyInput v-model="showHotkeyDialog" :current-value="config.harness.customHotkey" @confirm="config.harness.customHotkey = $event; showHotkeyDialog = false" />
 
     <SettingsItem label="选中后显示的动作" description="保留“读懂”，其他动作可按需隐藏；网页浮条和下方示例同步变化。" stacked>
       <div class="harness-actions">
@@ -111,10 +111,9 @@
 </template>
 
 <script setup lang="ts">
-import CustomHotkeyInput from '@/src/ui/components/CustomHotkeyInput.vue';
 import HarnessPromptSettings from './HarnessPromptSettings.vue';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
-import {computed, ref, toRef, watch} from 'vue'
+import {computed, defineAsyncComponent, ref, toRef, watch} from 'vue'
 import {models, options} from '@/src/core/config/catalog'
 import {getCustomOpenAIProviderLabel, getCustomOpenAIProviderModels, isCustomOpenAIProviderId} from '@/src/core/config/customOpenAI'
 import {HARNESS_ACTIONS, isHarnessService, type HarnessActionId} from '@/src/core/config/harness'
@@ -124,6 +123,8 @@ import SettingsItem from './components/SettingsItem.vue'
 import SegmentedControl from './components/SegmentedControl.vue'
 import {ReadingAnswer} from '@/src/features/reading-assistant/public'
 import {useUiI18n} from '@/src/ui/i18n'
+
+const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 
 const props = defineProps<{config: Config}>()
 const config = toRef(props, 'config')

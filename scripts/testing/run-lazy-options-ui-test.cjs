@@ -23,6 +23,8 @@ const focusHelper = path.resolve(argument('focus-safe-helper', ''));
 const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-lazy-options-ui'));
 const browserPath = argument('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
 const timeout = Number(argument('timeout', '30000'));
+const suite = argument('suite', 'lazy-sections');
+assert.ok(['lazy-sections', 'hotkeys'].includes(suite), 'suite 仅支持 lazy-sections 或 hotkeys');
 
 assert.ok(fs.existsSync(path.join(extensionDir, 'manifest.json')), `扩展产物不存在：${extensionDir}`);
 assert.ok(fs.existsSync(focusHelper), `防抢焦点 helper 不存在：${focusHelper}`);
@@ -42,6 +44,7 @@ const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-lazy-option
 const report = {
   ok: false,
   extensionDir,
+  suite,
   manifest: {options: optionsPath, popup: popupPath, version: manifest.version},
   cases: [],
   screenshots: [],
@@ -166,6 +169,32 @@ async function visible(locator) {
     }, `lazy-options-seed-${process.pid}`);
     await page.reload({waitUntil: 'domcontentloaded'});
     await waitForOptionsReady(page);
+
+    if (suite === 'hotkeys') {
+      await navigateOptions(page, 'settings-harness');
+      await page.locator('#settings-harness').getByRole('radio', {name: '快捷键', exact: true}).click();
+      await page.locator('.harness-hotkey-button').click();
+      const dialog = page.getByRole('dialog', {name: '自定义快捷键', exact: true});
+      await dialog.waitFor({state: 'visible', timeout});
+      await dialog.getByRole('button', {name: 'F9', exact: true}).click();
+      await dialog.getByRole('button', {name: '确认', exact: true}).click();
+      await dialog.waitFor({state: 'hidden', timeout});
+      await page.waitForFunction(() => document.querySelector('.harness-hotkey-button')?.textContent?.trim() === 'F9');
+      assert.equal((await readConfig(page)).harness.customHotkey, 'F9');
+      report.cases.push('lazy-harness-hotkey-dialog-confirms-and-persists');
+      await navigateOptions(page, 'settings-translation');
+      await page.getByTestId('quick-profile-add-hover').click();
+      await dialog.waitFor({state: 'visible', timeout});
+      await dialog.getByRole('button', {name: 'F10', exact: true}).click();
+      await dialog.getByRole('button', {name: '确认', exact: true}).click();
+      await dialog.waitFor({state: 'hidden', timeout});
+      assert.equal((await readConfig(page)).quickTranslationProfiles.some(profile => profile.hotkey === 'F10'), true);
+      report.cases.push('lazy-quick-profile-hotkey-dialog-confirms-and-persists');
+      await screenshot(page, 'lazy-hotkeys');
+      assert.deepEqual(report.consoleErrors, []);
+      report.ok = true;
+      return;
+    }
 
     const initialState = await page.evaluate(() => ({
       hiddenSelectors: {
