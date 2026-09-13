@@ -1,9 +1,43 @@
 import {describe, expect, it} from 'vitest';
 import {Config} from '@/src/core/config/model';
 import {createGlossaryLibrary} from '@/src/core/glossary';
-import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset} from '@/src/features/video-subtitle/content/subtitleLogic';
+import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, findProgressiveVideoCaptionCue} from '@/src/features/video-subtitle/content/subtitleLogic';
 
 describe('video subtitle logic', () => {
+  it('渐进字幕优先匹配当前时段，再按完整匹配、长度和开始时间消除歧义', () => {
+    const previous = {startMs: 0, durationMs: 1000, text: 'Hello world'};
+    const current = {startMs: 3000, durationMs: 1000, text: 'Hello world'};
+    const future = {startMs: 6000, durationMs: 1000, text: 'Hello world'};
+    expect(findProgressiveVideoCaptionCue([future, previous, current], ' HELLO ', 3200)).toBe(current);
+    expect(findProgressiveVideoCaptionCue([future, previous], 'Hello', 4000)).toBe(future);
+    const exact = {...current, text: 'Hello'};
+    expect(findProgressiveVideoCaptionCue([current, exact], 'hello', 3200)).toBe(exact);
+    expect(findProgressiveVideoCaptionCue([exact, current], 'hello', 3200)).toBe(exact);
+    const shorter = {...current, text: 'Hello all'};
+    expect(findProgressiveVideoCaptionCue([current, shorter], 'hello', 3200)).toBe(shorter);
+    const earlier = {...current, startMs: 2900};
+    expect(findProgressiveVideoCaptionCue([current, earlier], 'hello', 3200)).toBe(earlier);
+    expect(findProgressiveVideoCaptionCue([current, {...current}], 'hello', 3200)).toBe(current);
+    expect(findProgressiveVideoCaptionCue([current, exact], 'hello', NaN)).toBe(exact);
+    expect(findProgressiveVideoCaptionCue([current], 'hello', 5000)).toBe(current);
+  });
+
+  it('渐进字幕单词反查受时间距离与最少字符约束，保留原始 cue', () => {
+    const cue = {startMs: 3000, durationMs: 0, text: 'The moon rises'};
+    const distant = {...cue, startMs: 9000};
+    const unrelated = {...cue, text: 'The sun sets'};
+    expect(findProgressiveVideoCaptionCue([distant, unrelated, cue], 'moon', 3200)).toBe(cue);
+    expect(findProgressiveVideoCaptionCue([cue], 'Watching the moon rises now', 3200)).toBe(cue);
+    expect(findProgressiveVideoCaptionCue([cue], 'moon', 4700)).toBe(cue);
+    expect(findProgressiveVideoCaptionCue([cue], 'moon', 4701)).toBeNull();
+    expect(findProgressiveVideoCaptionCue([cue], 'mo', 3200)).toBeNull();
+    expect(findProgressiveVideoCaptionCue([cue], 'moon', NaN)).toBeNull();
+    expect(findProgressiveVideoCaptionCue([cue], 'unrelated', 3200)).toBeNull();
+    expect(findProgressiveVideoCaptionCue([cue], '  ', 3200)).toBeNull();
+    expect(findProgressiveVideoCaptionCue([], 'moon', 3200)).toBeNull();
+    expect(cue).toEqual({startMs: 3000, durationMs: 0, text: 'The moon rises'});
+  });
+
   it('字幕手动提前和延后按半秒移动显示时间，保留短句、重叠、空档和原始数据', () => {
     const first = {startMs: 1000, durationMs: 100, text: 'First.'};
     const second = {startMs: 2000, durationMs: 1000, text: 'Second.'};

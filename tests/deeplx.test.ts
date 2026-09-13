@@ -51,6 +51,8 @@ afterEach(() => {
 describe("DeepLX endpoint configuration", () => {
     it("uses the verified public endpoint when no URL is configured", () => {
         expect(getDeepLXEndpoints("", "")).toEqual([DEFAULT_DEEPLX_ENDPOINT]);
+        expect(requiresDeepLXToken('', '')).toBe(false);
+        expect(requiresDeepLXToken('https://self-hosted.example/translate', '')).toBe(false);
     });
 
     it("parses comma- and newline-separated URLs and gives proxy URLs priority", () => {

@@ -538,7 +538,7 @@ describe('options UI composition architecture', () => {
     expect(localDataManagement).not.toContain('dataset-row')
     expect(localDataManagement).not.toContain('按事件 ID')
     expect(localDataManagement).not.toContain('三个独立数据库')
-    expect(serviceConfiguration).toContain('修改会自动保存；凭据只保存在当前设备')
+    expect(serviceConfiguration).toContain(':data-service-configuration-service="service"')
     expect(serviceConfiguration).toContain('<ApiKeyList')
     expect(serviceConfiguration).not.toContain('class="credential-warning"')
     expect(serviceConfiguration).not.toContain('默认仅保留在当前浏览器会话')
@@ -808,8 +808,8 @@ describe('options UI composition architecture', () => {
     const testConnectionEnd = serviceConfiguration.indexOf('function resetCustomTemplate(): void', testConnectionStart)
     const testConnection = serviceConfiguration.slice(testConnectionStart, testConnectionEnd)
     const chromePreparationIndex = testConnection.indexOf('prepareChromeTranslationInPage({')
-    const waitIndex = testConnection.indexOf('await waitForConfigPersistenceQueue()')
-    const saveIndex = testConnection.indexOf('await requestConfigSave(config.value')
+    const waitIndex = testConnection.indexOf('await waitForConnectionStep(waitForConfigPersistenceQueue(), CONNECTION_CONFIG_WAIT_TIMEOUT_MS')
+    const saveIndex = testConnection.indexOf('await waitForConnectionStep(requestConfigSave(config.value')
     const connectionTestIndex = testConnection.indexOf('type: CONNECTION_TEST_MESSAGE')
 
     expect(testConnectionStart).toBeGreaterThanOrEqual(0)
@@ -828,7 +828,7 @@ describe('options UI composition architecture', () => {
     const serviceConfiguration = source('src/features/settings/ui/services/ServiceConfiguration.vue')
     const chromePreparation = source('src/features/settings/model/chromeTranslationPreparation.ts')
 
-    expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.action')")
+    expect(serviceConfiguration).toContain("t('settings.services.keys.checkConnection')")
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.titleReady')")
     expect(serviceConfiguration).not.toContain('class="setup-status"')
     expect(serviceConfiguration).toContain("const { language, t, translateLegacy } = useUiI18n()")

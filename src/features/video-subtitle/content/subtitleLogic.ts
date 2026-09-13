@@ -1,13 +1,77 @@
 /**
  * @file src/features/video-subtitle/content/subtitleLogic.ts
  * 文件职责：提供字幕批量翻译、配置指纹和渐进文本展示的纯逻辑。
- * 主要内容：去重并限制批译并发，生成服务配置键，按原文进度截取译文，按滚动字幕末尾匹配当前句，并以手动偏移计算有效字幕区间。
+ * 主要内容：去重并限制批译并发，生成服务配置键，按原文进度截取译文与按时间选择渐进字幕，按滚动字幕末尾匹配当前句，并以手动偏移计算有效字幕区间。
  * 模块边界：只处理输入数据和注入翻译函数，不读取 DOM、全局配置或浏览器接口。
  */
 import {buildGlossaryRevision} from '@/src/core/glossary';
 import type {Config} from '@/src/core/config/model';
 import {resolveConfiguredModel} from '@/src/core/config/catalog';
 import type {VideoSubtitleCue} from './youtubeSubtitleData';
+
+/** 根据原文前缀和播放时间选择渐进字幕，支持重复句与短时单词片段。 */
+export function findProgressiveVideoCaptionCue(cues: readonly VideoSubtitleCue[], source: string, currentMs: number): VideoSubtitleCue | null {
+  const normalizedSource = normalizeVideoCaptionText(source);
+  if (!normalizedSource || cues.length === 0) return null;
+
+  const foldedSource = normalizedSource.toLocaleLowerCase();
+  const sourceLength = Array.from(normalizedSource).length;
+  const getTimeDistance = (cue: VideoSubtitleCue): number => {
+    const endMs = cue.startMs + Math.max(cue.durationMs, 500);
+    return Number.isFinite(currentMs)
+      ? currentMs < cue.startMs
+        ? cue.startMs - currentMs
+        : currentMs > endMs
+          ? currentMs - endMs
+          : 0
+      : 0;
+  };
+  const score = (cue: VideoSubtitleCue): number[] => {
+    const fullSource = normalizeVideoCaptionText(cue.text);
+    const exact = fullSource.toLocaleLowerCase() === foldedSource ? 0 : 1;
+    return [
+      getTimeDistance(cue),
+      exact,
+      Math.abs(Array.from(fullSource).length - sourceLength),
+      cue.startMs,
+    ];
+  };
+
+  const pickBest = (predicate: (cue: VideoSubtitleCue, foldedText: string) => boolean): VideoSubtitleCue | null => {
+    let best: VideoSubtitleCue | null = null;
+    let bestScore: number[] | null = null;
+    for (const cue of cues) {
+      const foldedText = normalizeVideoCaptionText(cue.text).toLocaleLowerCase();
+      if (!predicate(cue, foldedText)) continue;
+      const nextScore = score(cue);
+      let isBetter = bestScore === null;
+      if (bestScore) {
+        for (let index = 0; index < nextScore.length; index += 1) {
+          if (nextScore[index] === bestScore[index]) continue;
+          isBetter = nextScore[index] < bestScore[index];
+          break;
+        }
+      }
+      if (isBetter) {
+        best = cue;
+        bestScore = nextScore;
+      }
+    }
+    return best;
+  };
+
+  const matched = pickBest((_cue, fullSource) =>
+    fullSource === foldedSource || fullSource.startsWith(foldedSource));
+  if (matched) return matched;
+
+  // 部分 YouTube 版本只把“当前词”写入 DOM，而不是写入完整前缀。
+  // 此时用播放器时间轴和当前词反查完整 cue，避免一直等不到稳定句子。
+  if (!Number.isFinite(currentMs) || normalizedSource.length < 3) return null;
+  return pickBest((cue, fullSource) => {
+    if (getTimeDistance(cue) > 1200) return false;
+    return fullSource.includes(foldedSource) || foldedSource.includes(fullSource);
+  });
+}
 
 /** 手动校时只改变显示时钟；区间严格使用原始时间戳，不填补空档或修改下载数据。 */
 export function selectVideoSubtitleCueAtOffset(cues: readonly VideoSubtitleCue[], playbackMs: number, offsetMs: number): VideoSubtitleCue | null {

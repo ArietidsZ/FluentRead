@@ -14,7 +14,7 @@ import {
 } from '@/src/features/video-subtitle/offscreen/transcription';
 import {createVideoSubtitleBackgroundHandlers, releaseVideoSubtitleOwnerForTab} from '@/src/features/video-subtitle/background/handlers';
 
-type WorkerMessage = {requestId: number; type: string; model?: string; audio?: Float32Array};
+type WorkerMessage = {requestId: number; type: string; device?: 'wasm'; model?: string; audio?: Float32Array};
 
 class CoverageWorker {
   static instances: CoverageWorker[] = [];
@@ -153,7 +153,15 @@ describe('video transcription offscreen transport branches', () => {
     await tick();
     const second = CoverageWorker.instances.at(-1)!;
     second.onerror?.({message: ''} as ErrorEvent);
+    await tick();
+    const fallback = CoverageWorker.instances.at(-1)!;
+    expect(second.terminated).toBe(true);
+    expect(fallback).not.toBe(second);
+    expect(fallback.lastMessage?.device).toBe('wasm');
+    fallback.onerror?.({message: ''} as ErrorEvent);
     await expect(warm).rejects.toThrow('Worker 已停止');
+    expect(fallback.terminated).toBe(true);
+    expect(CoverageWorker.instances.at(-1)).toBe(fallback);
     await cancelLocalVideoTranscription('warm-stream');
 
     CoverageWorker.postError = 'wire failure';
@@ -229,9 +237,20 @@ describe('video transcription offscreen transport branches', () => {
     vi.useFakeTimers();
     installWorker({audio: CoverageAudioContext});
     const pending = transcribeLocalVideoAudio({streamId: 'coverage-stream', audioPcm16Base64: 'AAAAAA=='});
-    const pendingResult = expect(pending).rejects.toThrow('超过 32 秒');
-    await vi.advanceTimersByTimeAsync(32_000);
+    const pendingResult = expect(pending).rejects.toThrow('超过 16 秒');
+    await tick();
+    const firstWorker = CoverageWorker.instances.at(-1)!;
+    await vi.advanceTimersByTimeAsync(16_000);
+    const fallback = CoverageWorker.instances.at(-1)!;
+    expect(firstWorker.terminated).toBe(true);
+    expect(fallback).not.toBe(firstWorker);
+    expect(fallback.lastMessage?.device).toBe('wasm');
+    await vi.advanceTimersByTimeAsync(15_999);
+    expect(fallback.terminated).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
     await pendingResult;
+    expect(fallback.terminated).toBe(true);
+    expect(CoverageWorker.instances.at(-1)).toBe(fallback);
     await cancelLocalVideoTranscription('coverage-stream');
 
     CoverageAudioContext.nextDecodeResult = new Promise(() => undefined);
