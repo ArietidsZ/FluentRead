@@ -14,7 +14,7 @@ import {
     sanitizeConfigHistoryCredentials,
 } from '@/src/core/config/credentials';
 import {parseCustomBody} from '@/src/core/config/customBody';
-import {DEFAULT_DEEPLX_ENDPOINT, getDeepLXEndpoints} from '@/src/core/config/deeplx';
+import {getDeepLXEndpoints} from '@/src/core/config/deeplx';
 import {
     DEFAULT_TRANSLATION_BACKOFF_BASE_MS,
     DEFAULT_TRANSLATION_BACKOFF_MAX_MS,
@@ -139,9 +139,8 @@ describe('配置领域边界与防御分支', () => {
 
     it('自定义请求体和 DeepLX 代理对不支持输入安全回退', () => {
         expect(parseCustomBody(123)).toBeUndefined();
-        expect(getDeepLXEndpoints('', 'https://proxy.test/{{apiKey}}/translate')).toEqual([
-            DEFAULT_DEEPLX_ENDPOINT,
-        ]);
+        expect(() => getDeepLXEndpoints('', 'https://proxy.test/{{apiKey}}/translate'))
+            .toThrow('DeepLX 地址包含 {{apiKey}} 或 {{token}} 占位符');
     });
 
     it('配置规范化修复非对象、错误类型和不可用自定义快捷键', () => {

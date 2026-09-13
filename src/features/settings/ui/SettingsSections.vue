@@ -120,14 +120,14 @@
         :allow-custom-models="configurationCompute.allowCustomModels"
         @update:service="setConfigurationService"
         @update:favorites="config.favoriteServices = $event"
-        @set:default="config.service = $event"
         @update:model="selectConfigurationModel"
         @add:service="openCustomProviderDialog"
         @add:model="addConfigurationModel"
         @remove:model="removeConfigurationModel"
       >
-        <template #configuration>
+        <template #configuration="{ connectionActionTarget }">
           <ServiceConfiguration
+            :connection-action-target="connectionActionTarget"
             :config="config"
             :service="selectedConfigurationService"
             :selected-model-thinking="selectedConfigurationModelThinking"

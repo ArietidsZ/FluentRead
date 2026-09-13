@@ -13,6 +13,7 @@
 export const DEFAULT_DEEPLX_ENDPOINT = "https://deeplx.1stg.me/translate"
 
 const DEEPLX_TOKEN_PLACEHOLDER = /\{\{(?:apiKey|token)\}\}/g
+const DEEPLX_TOKEN_PLACEHOLDER_CHECK = /\{\{(?:apiKey|token)\}\}/
 
 const DEEPLX_ENDPOINT_SEPARATOR = /[\n,]+/
 
@@ -34,15 +35,33 @@ function resolveDeepLXEndpoint(endpoint: string, token: string): string | null {
   return endpoint.replace(DEEPLX_TOKEN_PLACEHOLDER, encodeURIComponent(token))
 }
 
+/** 当前生效地址是否要求把 API Key 注入 URL；供设置页判断空 Key 是否可匿名运行。 */
+export function hasDeepLXTokenPlaceholder(value: unknown): boolean {
+  return parseDeepLXEndpoints(value).some((endpoint) => DEEPLX_TOKEN_PLACEHOLDER_CHECK.test(endpoint))
+}
+
+/** 判断当前生效的 DeepLX 地址是否全部要求 API Key；proxy 地址优先。 */
+export function requiresDeepLXToken(configuredURL: unknown, proxyURL: unknown): boolean {
+  const proxyEndpoints = parseDeepLXEndpoints(proxyURL)
+  const endpoints = proxyEndpoints.length > 0
+    ? proxyEndpoints
+    : (() => {
+      const configuredEndpoints = parseDeepLXEndpoints(configuredURL)
+      return configuredEndpoints.length > 0 ? configuredEndpoints : [DEFAULT_DEEPLX_ENDPOINT]
+    })()
+  return endpoints.length > 0 && endpoints.every((endpoint) => DEEPLX_TOKEN_PLACEHOLDER_CHECK.test(endpoint))
+}
+
 export function getDeepLXEndpoints(configuredURL: unknown, proxyURL: unknown, token = ""): string[] {
   const proxyEndpoints = parseDeepLXEndpoints(proxyURL)
-  if (proxyEndpoints.length > 0) {
-    const resolvedProxyEndpoints = proxyEndpoints.map((endpoint) => resolveDeepLXEndpoint(endpoint, token)).filter((endpoint): endpoint is string => endpoint !== null)
-    return resolvedProxyEndpoints.length > 0 ? resolvedProxyEndpoints : [DEFAULT_DEEPLX_ENDPOINT]
-  }
-
   const configuredEndpoints = parseDeepLXEndpoints(configuredURL)
-  const endpoints = configuredEndpoints.length > 0 ? configuredEndpoints : [DEFAULT_DEEPLX_ENDPOINT]
+  const endpoints = proxyEndpoints.length > 0
+    ? proxyEndpoints
+    : configuredEndpoints.length > 0 ? configuredEndpoints : [DEFAULT_DEEPLX_ENDPOINT]
   const resolvedEndpoints = endpoints.map((endpoint) => resolveDeepLXEndpoint(endpoint, token)).filter((endpoint): endpoint is string => endpoint !== null)
-  return resolvedEndpoints.length > 0 ? resolvedEndpoints : [DEFAULT_DEEPLX_ENDPOINT]
+  if (resolvedEndpoints.length > 0) return resolvedEndpoints
+  if (!token.trim() && requiresDeepLXToken(configuredURL, proxyURL)) {
+    throw new Error('DeepLX 地址包含 {{apiKey}} 或 {{token}} 占位符，请填写 API Key；无 Key 地址请移除占位符。')
+  }
+  return [DEFAULT_DEEPLX_ENDPOINT]
 }

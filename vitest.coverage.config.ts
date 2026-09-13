@@ -186,6 +186,7 @@ export default defineConfig({
             'tests/imageOcrRuntime.test.ts',
             'tests/imageTranslationPresentation.test.ts',
             'tests/imageTranslationFlow.test.ts',
+            'tests/imageTranslationClientRecovery.test.ts',
             'tests/imageContextMenu.test.ts',
             'tests/imageTranslationRuntime.test.ts',
             'tests/imageTranslationPageRead.test.ts',

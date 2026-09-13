@@ -8,9 +8,13 @@
   <div class="library-item" :class="{ active: selected, compact }">
     <button type="button" class="library-select" :data-service-value="item.value"
       :aria-pressed="selected" :title="item.label" @click="$emit('select', item.value)">
-      <ServiceIcon :service="item.value" :label="item.label" size="small" />
+      <ServiceIcon :service="item.value" :label="item.label" size="medium" />
       <span class="library-copy"><strong>{{ item.label }}</strong><small v-if="!compact && status">{{ status }}</small></span>
-      <span v-if="isDefault" class="library-default">{{ t('settings.services.library.defaultBadge') }}</span>
+      <span class="library-statuses">
+        <span v-if="isDefault" class="library-default">{{ t('settings.services.library.defaultBadge') }}</span>
+        <span v-else-if="isConfigured" class="library-configured">{{ t('settings.services.library.saved') }}</span>
+        <span v-else-if="isFavorite" class="library-common">{{ t('settings.services.library.favorites') }}</span>
+      </span>
     </button>
 
   </div>
@@ -19,21 +23,26 @@
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import { useUiI18n } from '@/src/ui/i18n'
 import type { ServiceOption } from '@/src/ui/view-model/serviceCatalog'
-defineProps<{ item: ServiceOption; selected: boolean; isDefault: boolean; compact?: boolean; status?: string }>()
+defineProps<{ item: ServiceOption; selected: boolean; isDefault: boolean; isConfigured?: boolean; isFavorite?: boolean; compact?: boolean; status?: string }>()
 defineEmits<{ select: [service: string] }>()
 const { t } = useUiI18n()
 </script>
 <style scoped>
-.library-item { display: flex; align-items: center; min-width: 0; border: 1px solid var(--line, #e4e7ef); border-radius: 10px; background: var(--surface, #fff); }
-.library-item:hover { border-color: var(--brand-strong, #bd2853); }
-.library-item.active { border-color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); }
+.library-item { display: flex; align-items: center; min-width: 0; border: 1px solid transparent; border-radius: 12px; background: transparent; }
+.library-item:hover { border-color: var(--line, #e4e7ef); background: var(--surface-soft, #f7f8fb); }
+.library-item.active { border-color: var(--brand-border, #f3c4d1); background: var(--brand-soft); box-shadow: 0 4px 12px color-mix(in srgb, var(--brand) 5%, transparent); }
 .library-select { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; min-height: 64px; padding: 10px 8px 10px 12px; border: 0; background: transparent; color: var(--ink, #172033); text-align: left; cursor: pointer; border-radius: 8px; }
 .library-copy { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .library-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
 .library-copy small { margin-top: 3px; color: var(--muted, #737c8f); font-size: 11px; }
-.library-default { color: var(--brand-strong, #bd2853); font-size: 11px; flex-shrink: 0; }
+.library-statuses { display: inline-flex; align-items: center; gap: 4px; max-width: 34%; overflow: hidden; flex-shrink: 0; }
+.library-default, .library-configured, .library-common { font-size: 10px; white-space: nowrap; }
+.library-default { color: var(--brand-strong, #bd2853); }
+.library-configured { color: var(--muted, #737c8f); }
+.library-common { color: #a76b1b; }
 .compact { border-color: transparent; background: transparent; }
-.compact .library-select { min-height: 38px; padding: 3px 4px 3px 8px; gap: 8px; }
+.compact .library-select { min-height: 60px; padding: 9px 8px; gap: 10px; }
 button:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
 
+@media (max-width: 700px) { .compact .library-select { min-height: 52px; padding: 7px 6px; gap: 7px; } .library-statuses { display: none; } }
 </style>

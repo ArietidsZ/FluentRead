@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
- * 文件职责：渲染当前翻译服务的详细连接配置，按服务能力显示模型、端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体和请求头等字段，以及服务和模型的独立请求限制。
- * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，选择 DeepL API 套餐，展示 DeepLX 完整地址与 Token 配置示例，共用 Azure 地址校验，校验 custom body，管理连接测试状态、Chrome 当前语言对的点击准备/进度/超时、官方帮助、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
+ * 文件职责：渲染当前翻译服务的详细连接配置，按连接配置、翻译偏好、请求设置和自定义请求分组显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体和请求头等字段，以及服务和模型的独立请求限制。
+ * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，展示 DeepLX 完整地址与 Token 示例，管理所有服务可空 Key 发起的连接检查、配置与消息等待超时、Chrome 当前语言对的点击准备及进度，并通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
@@ -11,42 +11,43 @@
     :data-custom-service-configuration="compute.showCustomOpenAI ? 'true' : 'false'"
     :data-ai-advanced-settings="compute.showAI ? 'true' : 'false'"
   >
-    <div v-if="service !== services.localTranslation && (!compute.showToken || compute.showServiceSecret)" class="connection-test-inline">
-      <p v-if="service === services.freeTranslation" class="free-ready-description">{{ t('settings.services.library.freeReady') }}</p>
+    <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="false" />
+
+    <LocalTranslationModelSettings v-if="service === services.localTranslation" :config="config" :service="service" />
+
+    <Teleport v-if="connectionActionTarget" :to="connectionActionTarget">
+    <section class="service-connection-action">
+    <div class="connection-test-inline">
 
         <button
           type="button"
           class="connection-test-button"
           data-connection-test-button
-          :disabled="connectionTestBusy"
-          @click="testConnection"
+          :disabled="connectionTestBusy && !usesApiKeyList"
+          @click="connectionTestBusy ? stopApiKeyChecks() : testConnection()"
         >
-          {{ isChromeConnectionTest
-            ? (connectionTestBusy ? t('settings.services.chromePreparation.actionBusy') : t('settings.services.chromePreparation.action'))
-            : (connectionTestBusy ? t('settings.services.keys.checking') : compute.showToken && !compute.showServiceSecret && apiKeyIndexes.length > 1 ? t('settings.services.keys.checkAll') : '检查连接') }}
+          <svg v-if="connectionTestBusy && usesApiKeyList" class="connection-action-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1" /></svg>
+          <svg v-else class="connection-action-icon" :class="{ 'is-spinning': connectionTestBusy }" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>
+          {{ connectionTestBusy ? (usesApiKeyList ? translateLegacy('停止检查') : t('settings.services.keys.checking')) : t('settings.services.keys.checkConnection') }}
         </button>
     </div>
 
-    <div
-      v-if="connectionTestMessage && (!compute.showToken || compute.showServiceSecret || Object.keys(apiKeyChecks).length === 0)"
-      class="connection-test-result"
+    <span
+      v-if="service === services.freeTranslation || service === services.localTranslation"
+      class="header-connection-status"
       :class="`is-${connectionTestState}`"
+      :title="connectionTestMessage"
       data-connection-test-status
       role="status"
       aria-live="polite"
     >
-      <strong>{{ connectionTestTitle }}</strong>
-      <span>{{ connectionTestMessage }}</span>
-      <details v-if="connectionTestDetails" class="connection-test-details">
-        <summary>{{ t('settings.services.chromePreparation.errorDetailsSummary') }}</summary>
-        <code>{{ connectionTestDetails }}</code>
-      </details>
-    </div>
+      {{ connectionTestMessage ? connectionTestTitle : '' }}
+    </span>
 
-    <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="false" />
-
-    <LocalTranslationModelSettings v-if="service === services.localTranslation" :config="config" :service="service" />
-
+    </section>
+    </Teleport>
+    <section v-if="service !== services.freeTranslation && service !== services.localTranslation" class="connection-card" data-configuration-group="connection">
+      <header class="configuration-group-heading"><h5>连接配置</h5></header>
     <template v-if="service === services.myMemory">
       <div class="connection-field" data-mymemory-email>
         <div class="connection-field-label"><strong>联系邮箱（可选）</strong><small>不填写也可以使用</small></div>
@@ -130,15 +131,6 @@
       </div>
     </div>
 
-    <ApiKeyList
-      v-if="compute.showToken && !compute.showServiceSecret"
-      :label="compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
-      :data-cloud-credential="compute.showCloudVendor ? 'token' : undefined"
-      :keys="displayedApiKeys" :states="apiKeyChecks" :summary="apiKeySummary" :busy="connectionTestBusy"
-      :allow-multiple="apiKeyRotationEnabled"
-      :allow-anonymous="compute.showAI && !compute.requireApiKey" :check-mode="apiKeyCheckMode"
-      @add="addApiKey" @update="updateApiKey" @remove="removeApiKey" @test="testSingleApiKey" @test-all="testConnection" @stop="stopApiKeyChecks"
-    />
     <div v-if="compute.showOllamaEndpoint" class="connection-field" data-ollama-endpoint>
       <div class="connection-field-label">
         <strong>服务地址</strong>
@@ -219,71 +211,33 @@
       {{ minimaxKeyMismatch }}
     </p>
 
-    <el-row v-if="compute.showMiniMaxRegion" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="按量付费和 Token Plan 使用不同的账户权益；请按控制台中 Key 的来源选择。" placement="top-start" :show-after="500">
-          <span class="popup-text popup-vertical-left">MiniMax 计费方式<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="12">
-        <el-select v-model="config.minimaxBillingPlan" aria-label="MiniMax 计费方式" placeholder="请选择 MiniMax 计费方式">
+    <div v-if="compute.showMiniMaxRegion" class="provider-account-fields">
+    <div v-if="compute.showMiniMaxRegion" class="connection-field"><div class="connection-field-label"><strong>MiniMax 计费方式</strong><el-tooltip content="按量付费和 Token Plan 使用不同的账户权益；请按控制台中 Key 的来源选择。" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="按量付费和 Token Plan 使用不同的账户权益；请按控制台中 Key 的来源选择。"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.minimaxBillingPlan" aria-label="MiniMax 计费方式" placeholder="请选择 MiniMax 计费方式">
           <el-option class="select-left" v-for="item in options.minimaxBillingPlan" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-      </el-col>
-    </el-row>
+        </el-select></div></div>
 
-    <el-row v-if="compute.showMiniMaxRegion" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="选择与 MiniMax Key 来源一致的 API 区域。Token Plan Key（sk-cp-）和按量付费 Key 不能互换。" placement="top-start" :show-after="500">
-          <span class="popup-text popup-vertical-left">MiniMax 区域<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="12">
-        <el-select v-model="config.minimaxRegion" aria-label="MiniMax API 区域" placeholder="请选择 MiniMax API 区域">
+    <div v-if="compute.showMiniMaxRegion" class="connection-field"><div class="connection-field-label"><strong>MiniMax 区域</strong><el-tooltip content="选择与 MiniMax Key 来源一致的 API 区域。Token Plan Key（sk-cp-）和按量付费 Key 不能互换。" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="选择与 MiniMax Key 来源一致的 API 区域。Token Plan Key（sk-cp-）和按量付费 Key 不能互换。"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.minimaxRegion" aria-label="MiniMax API 区域" placeholder="请选择 MiniMax API 区域">
           <el-option class="select-left" v-for="item in options.minimaxRegion" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-      </el-col>
-    </el-row>
-
-    <div v-if="compute.showMiniMaxRegion" class="connection-field minimax-endpoint" data-minimax-endpoint>
-      <div class="connection-field-label"><strong>当前 API 地址</strong></div>
-      <div class="connection-field-control"><code>{{ minimaxEndpoint }}</code></div>
+        </el-select></div></div>
     </div>
+    <p v-if="compute.showMiniMaxRegion" class="provider-field-help minimax-endpoint" data-minimax-endpoint><code>{{ minimaxEndpoint }}</code></p>
+
 
     <p v-if="compute.showMiMoRegion && mimoKeyMismatch" class="mimo-key-note is-warning">
       {{ mimoKeyMismatch }}
     </p>
 
-    <el-row v-if="compute.showMiMoRegion" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="按量付费和 Token Plan 使用不同的账户权益；请按小米 MiMo 控制台中 Key 的来源选择。" placement="top-start" :show-after="500">
-          <span class="popup-text popup-vertical-left">小米 MiMo 计费方式<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="12">
-        <el-select v-model="config.mimoBillingPlan" aria-label="小米 MiMo 计费方式" placeholder="请选择小米 MiMo 计费方式">
+    <div v-if="compute.showMiMoRegion" class="provider-account-fields">
+    <div v-if="compute.showMiMoRegion" class="connection-field"><div class="connection-field-label"><strong>小米 MiMo 计费方式</strong><el-tooltip content="按量付费和 Token Plan 使用不同的账户权益；请按小米 MiMo 控制台中 Key 的来源选择。" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="按量付费和 Token Plan 使用不同的账户权益；请按小米 MiMo 控制台中 Key 的来源选择。"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.mimoBillingPlan" aria-label="小米 MiMo 计费方式" placeholder="请选择小米 MiMo 计费方式">
           <el-option class="select-left" v-for="item in options.mimoBillingPlan" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-      </el-col>
-    </el-row>
+        </el-select></div></div>
 
-    <el-row v-if="compute.showMiMoRegion" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="Token Plan 必须使用购买页面提供的集群地址；中国、新加坡和欧洲集群的 tp- Key 不能混用。按量付费统一使用 api.xiaomimimo.com。" placement="top-start" :show-after="500">
-          <span class="popup-text popup-vertical-left">MiMo API 集群<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="12">
-        <el-select v-model="config.mimoRegion" aria-label="小米 MiMo API 集群" placeholder="请选择小米 MiMo API 集群">
+    <div v-if="compute.showMiMoRegion" class="connection-field"><div class="connection-field-label"><strong>MiMo API 集群</strong><el-tooltip content="Token Plan 必须使用购买页面提供的集群地址；中国、新加坡和欧洲集群的 tp- Key 不能混用。按量付费统一使用 api.xiaomimimo.com。" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="Token Plan 必须使用购买页面提供的集群地址；中国、新加坡和欧洲集群的 tp- Key 不能混用。按量付费统一使用 api.xiaomimimo.com。"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.mimoRegion" aria-label="小米 MiMo API 集群" placeholder="请选择小米 MiMo API 集群">
           <el-option class="select-left" v-for="item in options.mimoRegion" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-      </el-col>
-    </el-row>
-
-    <div v-if="compute.showMiMoRegion" class="connection-field mimo-endpoint" data-mimo-endpoint>
-      <div class="connection-field-label"><strong>当前 API 地址</strong></div>
-      <div class="connection-field-control"><code>{{ mimoEndpoint }}</code></div>
+        </el-select></div></div>
     </div>
+    <p v-if="compute.showMiMoRegion" class="provider-field-help mimo-endpoint" data-mimo-endpoint><code>{{ mimoEndpoint }}</code></p>
+
 
     <div v-if="compute.showAzureOpenaiEndpoint" class="connection-field" data-azure-endpoint>
       <div class="connection-field-label">
@@ -303,57 +257,63 @@
         <el-input v-model="config.deeplx" :aria-label="t('settings.services.deeplx.endpoint')" :placeholder="DEFAULT_DEEPLX_ENDPOINT" aria-describedby="deeplx-endpoint-help" />
         <div id="deeplx-endpoint-help">
           <p class="provider-field-help">{{ t('settings.services.deeplx.endpointHelp') }}</p>
+          <p class="provider-field-help">无需密钥的接口可留空；需要验证时填写 Token。</p>
+          <details class="endpoint-token-help"><summary>Token 使用方式</summary>
           <p class="provider-field-help">{{ t('settings.services.deeplx.tokenHelp') }}</p>
           <p class="provider-field-help">{{ t('settings.services.deeplx.queryToken') }} <code v-pre>https://deeplx.example.com/translate?token={{apiKey}}</code></p>
           <p class="provider-field-help">{{ t('settings.services.deeplx.pathToken') }} <code v-pre>https://deeplx.example.com/{{apiKey}}/translate</code></p>
           <p class="provider-field-help">{{ t('settings.services.deeplx.placeholderHelp') }}</p>
+          </details>
           <p v-if="config.proxy[service]?.trim()" class="provider-field-help">{{ t('settings.services.deeplx.proxyHelp') }}</p>
         </div>
       </div>
     </div>
 
-    <el-row v-if="compute.showAkSk" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="服务商提供的访问密钥。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">API Key<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12"><el-input v-model="config.ak" placeholder="请输入Access Key" /></el-col>
-    </el-row>
-    <el-row v-if="compute.showAkSk" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="服务商提供的私密密钥，请妥善保管。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">Secret Key<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12"><el-input v-model="config.sk" type="password" placeholder="请输入Secret Key" /></el-col>
-    </el-row>
+    <div v-if="compute.showAkSk" class="connection-field"><div class="connection-field-label"><strong>API Key</strong></div><div class="connection-field-control"><el-input v-model="config.ak" aria-label="API Key" placeholder="请输入Access Key" /><p class="provider-field-help">服务商提供的访问密钥。</p></div></div>
+    <div v-if="compute.showAkSk" class="connection-field"><div class="connection-field-label"><strong>Secret Key</strong></div><div class="connection-field-control"><el-input v-model="config.sk" aria-label="Secret Key" type="password" placeholder="请输入Secret Key" /><p class="provider-field-help">服务商提供的私密密钥，请妥善保管。</p></div></div>
 
-    <el-row v-if="compute.showYoudao" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="有道翻译服务提供的 App Key。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">App Key<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12"><el-input v-model="config.youdaoAppKey" placeholder="有道 AppKey" /></el-col>
-    </el-row>
-    <el-row v-if="compute.showYoudao" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="有道翻译服务提供的 App Secret。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">App Secret<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12"><el-input v-model="config.youdaoAppSecret" type="password" show-password placeholder="有道 AppSecret" /></el-col>
-    </el-row>
+    <div v-if="compute.showYoudao" class="connection-field"><div class="connection-field-label"><strong>App Key</strong></div><div class="connection-field-control"><el-input v-model="config.youdaoAppKey" aria-label="App Key" placeholder="有道 AppKey" /><p class="provider-field-help">有道翻译服务提供的 App Key。</p></div></div>
+    <div v-if="compute.showYoudao" class="connection-field"><div class="connection-field-label"><strong>App Secret</strong></div><div class="connection-field-control"><el-input v-model="config.youdaoAppSecret" aria-label="App Secret" type="password" show-password placeholder="有道 AppSecret" /><p class="provider-field-help">有道翻译服务提供的 App Secret。</p></div></div>
 
-    <el-row v-if="compute.showTencent" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="腾讯云翻译服务提供的 SecretId。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">Secret ID<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12"><el-input v-model="config.tencentSecretId" placeholder="腾讯云 SecretId" /></el-col>
-    </el-row>
-    <el-row v-if="compute.showTencent" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="腾讯云翻译服务提供的 SecretKey。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">Secret Key<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12"><el-input v-model="config.tencentSecretKey" type="password" show-password placeholder="腾讯云 SecretKey" /></el-col>
-    </el-row>
+    <div v-if="compute.showTencent" class="connection-field"><div class="connection-field-label"><strong>Secret ID</strong></div><div class="connection-field-control"><el-input v-model="config.tencentSecretId" aria-label="Secret ID" placeholder="腾讯云 SecretId" /><p class="provider-field-help">腾讯云翻译服务提供的 SecretId。</p></div></div>
+    <div v-if="compute.showTencent" class="connection-field"><div class="connection-field-label"><strong>Secret Key</strong></div><div class="connection-field-control"><el-input v-model="config.tencentSecretKey" aria-label="Secret Key" type="password" show-password placeholder="腾讯云 SecretKey" /><p class="provider-field-help">腾讯云翻译服务提供的 SecretKey。</p></div></div>
 
-    <el-row v-if="compute.showNewAPI" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写 New API 服务的接口地址。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">NewAPI接口<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12"><el-input v-model="config.newApiUrl" placeholder="请输入您的New API接口地址" /></el-col>
-    </el-row>
+    <div v-if="compute.showNewAPI" class="connection-field"><div class="connection-field-label"><strong>NewAPI接口</strong></div><div class="connection-field-control"><el-input v-model="config.newApiUrl" aria-label="接口地址" placeholder="请输入您的New API接口地址" /><p class="provider-field-help">填写 New API 服务的接口地址。</p></div></div>
 
-    <p v-if="service !== services.freeTranslation && service !== services.localTranslation" class="connection-save-note">修改会自动保存；凭据只保存在当前设备。</p>
+    <ApiKeyList
+      v-if="compute.showToken && !compute.showServiceSecret"
+      :label="service === services.deeplx && !deepLXRequiresToken ? translateLegacy('API Key（可选）') : compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
+      :data-cloud-credential="compute.showCloudVendor ? 'token' : undefined"
+      :keys="displayedApiKeys" :states="apiKeyChecks" :summary="apiKeySummary" :busy="connectionTestBusy"
+      :allow-multiple="apiKeyRotationEnabled"
+      :connection-state="standaloneApiKeyCheck" :check-mode="apiKeyCheckMode"
+      @add="addApiKey" @update="updateApiKey" @remove="removeApiKey" @test="testSingleApiKey"
+    />
+    <p v-if="service === services.deeplx && deepLXRequiresToken && !apiKeyIndexes.length" class="field-warning" data-deeplx-key-required role="status">{{ deepLXTokenHelp }}</p>
 
-    <details :key="service" class="custom-advanced-settings" v-if="service !== services.localTranslation" data-testid="custom-service-advanced">
-      <summary>
-        <span class="advanced-summary-copy"><strong>高级设置</strong><small>{{ advancedSummary }}</small></span>
-        <svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
-      </summary>
+    <div
+      v-if="connectionTestMessage && (!compute.showToken || compute.showServiceSecret)"
+      class="connection-test-result"
+      :class="`is-${connectionTestState}`"
+      data-connection-test-status
+      role="status"
+      aria-live="polite"
+    >
+      <strong>{{ connectionTestTitle }}</strong>
+      <span>{{ connectionTestMessage }}</span>
+      <details v-if="connectionTestDetails" class="connection-test-details">
+        <summary>{{ t('settings.services.chromePreparation.errorDetailsSummary') }}</summary>
+        <code>{{ connectionTestDetails }}</code>
+      </details>
+    </div>
+    </section>
 
+    <details v-if="service !== services.localTranslation" :key="service + '-advanced-settings'" class="custom-advanced-settings" data-configuration-group="advanced" data-testid="custom-service-advanced">
+      <summary><strong>高级设置</strong><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
+      <div class="advanced-groups">
+    <section :key="service + '-keys'" v-if="compute.showToken && !compute.showServiceSecret" class="advanced-group" data-configuration-group="keys" >
+      <header class="advanced-group-heading"><span class="advanced-summary-copy"><strong>密钥与认证</strong><small>管理多 Key 轮换与验证方式</small></span></header>
       <div class="custom-advanced-content">
-        <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="true" />
         <div v-if="compute.showToken && !compute.showServiceSecret" class="connection-field api-key-rotation-setting" data-api-key-rotation-setting>
           <div class="connection-field-label">
             <strong>{{ t('settings.services.keys.multiKeyTitle') }}</strong>
@@ -376,13 +336,11 @@
             <el-switch v-model="compute.requireApiKey" :aria-label="t('settings.services.keys.authRequired')" />
           </div>
         </div>
-        <RequestLimitSettings :config="config" :service="service" :model="compute.showModel ? effectiveModelLabel : undefined" />
-        <el-row v-if="compute.showDeepseekApiType" class="margin-bottom margin-left-2em">
-          <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="选择 DeepSeek 接口使用的 API 格式。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">API 格式<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-          <el-col :span="12"><el-select v-model="config.deepseekApiType" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-col>
-        </el-row>
-
-        <template v-if="compute.showAI">
+      </div>
+    </section>
+    <section :key="service + '-translation'" v-if="compute.showAI" class="advanced-group" data-configuration-group="translation" >
+      <header class="advanced-group-heading"><span class="advanced-summary-copy"><strong>翻译偏好</strong><small>调整当前模型的思考、识图与提示词</small></span></header>
+      <div class="custom-advanced-content">
           <div v-if="compute.showModel" class="connection-field" data-testid="model-thinking-control">
             <div class="connection-field-label">
               <strong>Thinking</strong>
@@ -414,11 +372,6 @@
             </div>
           </div>
 
-          <el-row v-if="compute.showProxy" class="margin-bottom margin-left-2em">
-            <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">代理地址<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-            <el-col :span="12"><el-input v-model="config.proxy[service]" placeholder="默认直连自定义接口" /></el-col>
-          </el-row>
-
           <div class="custom-template-heading">
             <div>
               <strong>请求模板</strong>
@@ -432,6 +385,22 @@
             <PromptTemplateEditor v-model="config.user_role[service]" role="user" />
           </div>
 
+      </div>
+    </section>
+    <section :key="service + '-requests'" v-if="service !== services.localTranslation" class="advanced-group" data-configuration-group="requests" >
+      <header class="advanced-group-heading"><span class="advanced-summary-copy"><strong>请求设置</strong><small>调整请求频率、等待时间与连接方式</small></span></header>
+      <div class="custom-advanced-content">
+        <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="true" />
+        <RequestLimitSettings :config="config" :service="service" :model="compute.showModel ? effectiveModelLabel : undefined" />
+        <div v-if="compute.showDeepseekApiType" class="connection-field"><div class="connection-field-label"><strong>API 格式</strong></div><div class="connection-field-control"><el-select v-model="config.deepseekApiType" aria-label="API 格式" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select><p class="provider-field-help">选择 DeepSeek 接口使用的 API 格式。</p></div></div>
+
+          <div v-if="compute.showAI && compute.showProxy" class="connection-field"><div class="connection-field-label"><strong>代理地址</strong></div><div class="connection-field-control"><el-input v-model="config.proxy[service]" aria-label="代理地址" placeholder="默认直连自定义接口" /><p class="provider-field-help">可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里。</p></div></div>
+
+      </div>
+    </section>
+    <section :key="service + '-advanced'" v-if="compute.showCustomBody || Boolean(customProvider)" class="advanced-group" data-configuration-group="custom-request">
+      <header class="advanced-group-heading"><span class="advanced-summary-copy"><strong>自定义请求</strong><small>为兼容接口补充请求头或 JSON 参数</small></span></header>
+      <div class="custom-advanced-content">
           <div v-if="customProvider" class="connection-field custom-headers-field" data-testid="custom-service-headers">
             <div class="connection-field-label"><strong>自定义请求头</strong></div>
             <div class="connection-field-control">
@@ -443,22 +412,12 @@
             </div>
           </div>
 
-          <el-row v-if="compute.showCustomBody" class="margin-bottom margin-left-2em">
-            <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写要合并到翻译请求中的 JSON 参数对象。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">自定义请求体<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-            <el-col :span="12">
-              <el-input v-model="config.customBody[service]" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
-              <div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div>
-            </el-col>
-          </el-row>
-        </template>
+          <div v-if="compute.showCustomBody" class="connection-field"><div class="connection-field-label"><strong>自定义请求体</strong></div><div class="connection-field-control"><el-input v-model="config.customBody[service]" type="textarea" :rows="3" aria-label="自定义请求体" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
+              <p class="provider-field-help">填写要合并到翻译请求中的 JSON 参数对象。</p><div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div></div></div>
 
-        <el-row v-if="compute.showCustomBody && !compute.showAI" class="margin-bottom margin-left-2em">
-          <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写要合并到翻译请求中的 JSON 参数对象。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">自定义请求体<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-          <el-col :span="12">
-            <el-input v-model="config.customBody[service]" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
-            <div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div>
-          </el-col>
-        </el-row>
+
+      </div>
+    </section>
         <div v-if="compute.showCustomOpenAI" class="service-maintenance-actions">
           <button type="button" class="delete-service-button" data-testid="custom-service-delete" @click="confirmDeleteProvider">删除服务</button>
         </div>
@@ -469,7 +428,6 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
-import { InfoFilled } from '@element-plus/icons-vue'
 import type { Config } from '@/src/core/config/model'
 import type { TranslationParams } from '@/src/core/i18n'
 import { defaultOption, options as optionConfig, resolveConfiguredModel, services } from '@/src/core/config/catalog'
@@ -482,7 +440,7 @@ import { isValidCustomBody } from '@/src/core/config/customBody'
 import { isValidCustomHeaders } from '@/src/core/config/customHeaders'
 import { createApiKeyCheckRevision } from '@/src/core/config/apiKeyCheckIdentity'
 import { normalizeMyMemoryEmail } from '@/src/core/config/freeTranslation'
-import { DEFAULT_DEEPLX_ENDPOINT } from '@/src/core/config/deeplx'
+import { DEFAULT_DEEPLX_ENDPOINT, requiresDeepLXToken } from '@/src/core/config/deeplx'
 import { getDeepLEndpoint } from '@/src/core/config/deepl'
 import browser from 'webextension-polyfill'
 import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
@@ -515,6 +473,7 @@ const props = defineProps<{
   options: typeof optionConfig
   isValidAzureEndpoint: (endpoint: string) => boolean
   customProvider?: CustomOpenAIProvider
+  connectionActionTarget?: HTMLElement | null
 }>()
 
 const emit = defineEmits<{
@@ -530,20 +489,6 @@ const options = toRef(props, 'options')
 const isValidAzureEndpoint = toRef(props, 'isValidAzureEndpoint')
 const customProvider = toRef(props, 'customProvider')
 const { language, t, translateLegacy } = useUiI18n()
-// 只预告当前服务确实具备的配置，不把凭据或配置值暴露在摘要中。
-const advancedSummary = computed(() => {
-  const labels: string[] = []
-  if (service.value === services.freeTranslation) labels.push('每个服务最多等待（秒）')
-  if (compute.value.showToken && !compute.value.showServiceSecret) labels.push(t('settings.services.keys.multiKeyTitle'))
-  labels.push('请求限制')
-  if (compute.value.showDeepseekApiType) labels.push('API 格式')
-  if (compute.value.showAI && compute.value.showModel) labels.push('Thinking', t('settings.services.visionCapability'))
-  if (compute.value.showAI && compute.value.showProxy) labels.push('代理地址')
-  if (compute.value.showAI) labels.push('请求模板')
-  if (compute.value.showCustomOpenAI) labels.push('自定义请求头')
-  if (compute.value.showCustomBody) labels.push('自定义请求体')
-  return labels.map(label => translateLegacy(label)).join(' · ')
-})
 const myMemoryEmailDraft = ref(config.value.myMemoryEmail)
 const myMemoryEmailInvalid = computed(() => Boolean(myMemoryEmailDraft.value.trim() && !normalizeMyMemoryEmail(myMemoryEmailDraft.value)))
 watch(() => config.value.myMemoryEmail, value => { myMemoryEmailDraft.value = value })
@@ -553,6 +498,8 @@ function commitMyMemoryEmail(): void {
   config.value.myMemoryEmail = normalizeMyMemoryEmail(myMemoryEmailDraft.value)
 }
 
+const deepLXTokenHelp = computed(() => translateLegacy('DeepLX 地址包含 {{apiKey}} 或 {{token}} 占位符，请填写 API Key；无 Key 地址请移除占位符。'))
+const deepLXRequiresToken = computed(() => requiresDeepLXToken(config.value.deeplx, config.value.proxy[services.deeplx]))
 const deeplEndpoint = computed(() => config.value.proxy[service.value]?.trim() || getDeepLEndpoint(config.value.deeplApiPlan))
 const pendingChromePreparation = ref<Awaited<ReturnType<typeof chromeTranslationPreparationStore.get>>>(null)
 let pendingChromePreparationRevision = 0
@@ -609,6 +556,7 @@ function setApiKeyRotationEnabled(value: boolean): void {
 }
 const displayedApiKeys = computed(() => apiKeyRotationEnabled.value ? apiKeys.value : apiKeys.value.slice(0, 1))
 const apiKeyIndexes = computed(() => eligibleApiKeyIndexes(displayedApiKeys.value))
+const usesApiKeyList = computed(() => compute.value.showToken && !compute.value.showServiceSecret)
 const apiKeyChecks = ref<Record<number, ApiKeyCheckState>>({})
 const apiKeySummary = ref<ApiKeySummary | null>(null)
 const apiKeyCheckMode = ref<'single' | 'all'>('all')
@@ -711,6 +659,9 @@ type LocalizedConnectionTestMessage = {
 }
 
 const CHROME_PREPARATION_TIMEOUT_MS = 300_000
+const CONNECTION_CONFIG_WAIT_TIMEOUT_MS = 10_000
+// 后台翻译检查有 30 秒预算；页面多留出消息传递和结果保存时间。
+const CONNECTION_RESPONSE_WAIT_TIMEOUT_MS = 45_000
 const CHROME_PREPARATION_ERROR_KEYS: Readonly<Record<ChromeTranslationPreparationErrorCode, string>> = {
   'invalid-language-code': 'settings.services.chromePreparation.error.invalidLanguageCode',
   'sample-unavailable': 'settings.services.chromePreparation.error.sampleUnavailable',
@@ -731,6 +682,13 @@ const connectionTestMessage = computed(() => {
   const message = connectionTestMessageState.value
   if (!message) return ''
   return typeof message === 'string' ? message : t(message.key, message.params)
+})
+// 没有逐 Key 结果时，保存失败或免 Key 检查仍复用固定的行内状态区。
+const standaloneApiKeyCheck = computed<ApiKeyCheckState | undefined>(() => {
+  if (connectionTestState.value === 'idle') return undefined
+  if (connectionTestState.value === 'testing') return {status: 'checking'}
+  if (connectionTestState.value === 'success') return {status: 'success'}
+  return {status: 'error', error: connectionTestMessage.value}
 })
 const connectionTestDetails = computed(() => {
   const message = connectionTestMessageState.value
@@ -759,6 +717,28 @@ const currentChromePreparationPairLabel = computed(() => {
 })
 let connectionTestGeneration = 0
 let activeChromePreparation: AbortController | undefined
+const activeConnectionWaits = new Set<() => void>()
+
+async function waitForConnectionStep<T>(operation: Promise<T>, timeoutMs: number, timeoutKey: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let cancel: () => void = () => undefined
+  const interruption = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(t(timeoutKey))), timeoutMs)
+    cancel = () => reject(new Error('Connection check cancelled'))
+    activeConnectionWaits.add(cancel)
+  })
+  try {
+    return await Promise.race([operation, interruption])
+  } finally {
+    clearTimeout(timer)
+    activeConnectionWaits.delete(cancel)
+  }
+}
+
+function cancelConnectionWaits(): void {
+  for (const cancel of activeConnectionWaits) cancel()
+  activeConnectionWaits.clear()
+}
 const connectionTestTitle = computed(() => {
   if (isChromeConnectionTest.value) {
     return connectionTestState.value === 'testing'
@@ -781,6 +761,7 @@ function resetConnectionTest(): void {
 
 function invalidateConnectionTest(): void {
   connectionTestGeneration += 1
+  cancelConnectionWaits()
   activeChromePreparation?.abort()
   activeChromePreparation = undefined
   connectionTestBusy.value = false
@@ -834,12 +815,12 @@ async function runApiKeyCheck(index: number, generation: number): Promise<boolea
   }
   setApiKeyState(index, {status: 'checking'})
   try {
-    const response = await browser.runtime.sendMessage({
+    const response = await waitForConnectionStep(browser.runtime.sendMessage({
       type: CONNECTION_TEST_MESSAGE,
       service: service.value,
       keyIndex: index,
       keyRevision: createApiKeyCheckRevision(config.value, service.value),
-    }) as {success?: boolean; durationMs?: number; error?: string} | undefined
+    }), CONNECTION_RESPONSE_WAIT_TIMEOUT_MS, 'settings.services.keys.responseTimeout') as {success?: boolean; durationMs?: number; error?: string} | undefined
     if (generation !== connectionTestGeneration) return false
     if (!response?.success) throw new Error(response?.error || '连接测试失败')
     setApiKeyState(index, {status: 'success', durationMs: response.durationMs})
@@ -855,6 +836,7 @@ async function runApiKeyCheck(index: number, generation: number): Promise<boolea
 
 function stopApiKeyChecks(): void {
   connectionTestGeneration += 1
+  cancelConnectionWaits()
   connectionTestBusy.value = false
   connectionTestState.value = 'idle'
   connectionTestMessageState.value = null
@@ -873,8 +855,9 @@ async function testSingleApiKey(index: number): Promise<void> {
   setApiKeyState(index, {status: 'checking'})
   updateApiKeySummary()
   try {
-    await waitForConfigPersistenceQueue()
-    await requestConfigSave(config.value, browser.runtime.sendMessage.bind(browser.runtime))
+    await waitForConnectionStep(waitForConfigPersistenceQueue(), CONNECTION_CONFIG_WAIT_TIMEOUT_MS, 'settings.services.keys.configTimeout')
+    if (generation !== connectionTestGeneration) return
+    await waitForConnectionStep(requestConfigSave(config.value, browser.runtime.sendMessage.bind(browser.runtime)), CONNECTION_CONFIG_WAIT_TIMEOUT_MS, 'settings.services.keys.configTimeout')
     if (generation !== connectionTestGeneration) return
     const success = await runApiKeyCheck(index, generation)
     if (generation !== connectionTestGeneration) return
@@ -935,8 +918,9 @@ async function testConnection(): Promise<void> {
         (error) => ({ok: false as const, error}),
       )
     }
-    await waitForConfigPersistenceQueue()
-    await requestConfigSave(config.value, browser.runtime.sendMessage.bind(browser.runtime))
+    await waitForConnectionStep(waitForConfigPersistenceQueue(), CONNECTION_CONFIG_WAIT_TIMEOUT_MS, 'settings.services.keys.configTimeout')
+    if (!isCurrent()) return
+    await waitForConnectionStep(requestConfigSave(config.value, browser.runtime.sendMessage.bind(browser.runtime)), CONNECTION_CONFIG_WAIT_TIMEOUT_MS, 'settings.services.keys.configTimeout')
     if (!isCurrent()) return
     if (chromePreparation) {
       const outcome = await chromePreparation
@@ -968,10 +952,10 @@ async function testConnection(): Promise<void> {
       connectionTestState.value = failures === 0 ? 'success' : 'error'
       connectionTestMessageState.value = null
     } else {
-      const response = await browser.runtime.sendMessage({
+      const response = await waitForConnectionStep(browser.runtime.sendMessage({
         type: CONNECTION_TEST_MESSAGE,
         service: testedService,
-      }) as {success?: boolean; durationMs?: number; error?: string} | undefined
+      }), CONNECTION_RESPONSE_WAIT_TIMEOUT_MS, 'settings.services.keys.responseTimeout') as {success?: boolean; durationMs?: number; error?: string} | undefined
       if (!isCurrent()) return
       if (!response?.success) throw new Error(response?.error || '连接测试失败')
       connectionTestState.value = 'success'
@@ -1041,6 +1025,7 @@ watch(() => JSON.stringify({
 onBeforeUnmount(() => {
   chromePreparationMounted = false
   connectionTestGeneration += 1
+  cancelConnectionWaits()
   activeChromePreparation?.abort()
   activeChromePreparation = undefined
   stopChromePreparationPendingWatch()
@@ -1048,505 +1033,110 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.official-translation-help { margin: 12px 0 16px; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6; }
-.official-translation-help p { margin: 0 0 8px; }
-.official-translation-help a { color: var(--el-color-primary); }
-
-.chrome-preparation-help {
-  margin: 8px 0 16px;
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
-  line-height: 1.55;
-}
-
-.chrome-preparation-help p {
-  margin: 0 0 8px;
-}
-
-.chrome-preparation-help summary {
-  cursor: pointer;
-  color: var(--el-text-color-primary);
-}
-
-.chrome-preparation-help-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-}
-
-.chrome-preparation-help-links a {
-  color: var(--el-color-primary);
-}
-
-.chrome-preparation-pair {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  color: var(--el-text-color-primary);
-}
-
-.connection-test-details {
-  grid-column: 1 / -1;
-  min-width: 0;
-  margin-top: 6px;
-}
-
-.connection-test-details code {
-  display: block;
-  margin-top: 4px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.credential-warning {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 0 0 16px;
-  padding: 11px 13px;
-  border: 1px solid #f3d19e;
-  border-radius: 10px;
-  color: #8a5a00;
-  background: #fdf6ec;
-  font-size: 12px;
-  line-height: 1.5;
-  animation: credential-warning-breathe 2.8s ease-in-out infinite;
-}
-
-.subsection-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 4px;
-}
-
-.subsection-heading > div:first-child {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  gap: 9px;
-}
-
-.connection-test-hint {
-  color: #9098a8;
-  font-size: 11px;
-  font-weight: 400;
-}
-
-.setup-status {
-  flex: 0 0 auto;
-  padding: 3px 8px;
-  border-radius: 999px;
-  color: #287447;
-  background: #edf8f1;
-  font-size: 10px;
-  font-weight: 750;
-}
-
-.setup-status.is-warning { color: #98600a; background: #fff5df; }
-
-.connection-field {
-  display: grid;
-  grid-template-columns: minmax(150px, 190px) minmax(240px, 1fr);
-  align-items: center;
-  gap: 20px;
-  min-height: 54px;
-  padding: 10px 0;
-  border-bottom: 1px solid #edf0f5;
-}
-
-.custom-headers-field { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-.custom-headers-help { display: block; margin-top: 6px; color: var(--muted, #6d7890); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
-
-.connection-field-label { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-.connection-field-label strong { color: #263044; font-size: 12px; font-weight: 700; }
-.connection-field-label small { overflow: hidden; color: #9299a8; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.connection-field-control { min-width: 0; }
-.provider-field-help {
-  margin: 6px 0 0;
-  color: var(--muted, #6d7890);
-  font-size: 11px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-.provider-field-help code { font-size: inherit; }
-.model-vision-setting { display: grid; gap: 6px; }
-.model-vision-setting > small { color: var(--muted); font-size: 10px; line-height: 1.5; }
-.model-thinking-setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.model-thinking-setting > small { color: #9098a8; font-size: 10px; line-height: 1.5; }
-.model-thinking-setting :deep(.el-switch) { flex: 0 0 auto; --el-switch-on-color: #ef4776; --el-switch-off-color: #cfd5df; }
-.connection-field-control :deep(.el-input),
-.connection-field-control :deep(.el-select) { width: 100% !important; max-width: none !important; }
-.credential-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; }
-.api-key-requirement { display: flex; align-items: center; gap: 8px; color: #747d8e; font-size: 10px; white-space: nowrap; }
-.api-key-requirement :deep(.el-switch) { --el-switch-on-color: #ef4776; --el-switch-off-color: #cfd5df; }
-.field-warning { grid-column: 1 / -1; color: #9a6208; font-size: 10px; text-align: right; }
-
-.service-connection-section :deep(.el-row) {
-  display: flex !important;
-  gap: 20px;
-  min-height: 50px !important;
-  margin: 0 !important;
-  padding: 9px 0 !important;
-  border: 0 !important;
-  border-bottom: 1px solid #edf0f5 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-.service-connection-section :deep(.el-row > .el-col:first-child) { max-width: 190px; flex: 0 0 190px; }
-.service-connection-section :deep(.el-row > .el-col:last-child) { width: auto; max-width: none; flex: 1 1 auto; }
-.service-connection-section :deep(.el-row > .el-col:last-child > .el-input),
-.service-connection-section :deep(.el-row > .el-col:last-child > .el-select),
-.service-connection-section :deep(.settings-control-field > .el-input),
-.service-connection-section :deep(.settings-control-field > .el-select) { width: 100% !important; max-width: none !important; }
-
-.custom-template-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 6px 0 10px;
-  padding-top: 14px;
-  border-top: 1px solid #eceef3;
-}
-
-.custom-template-heading > div {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.custom-template-heading strong {
-  color: #46526a;
-  font-size: 12px;
-}
-
-.custom-template-heading small {
-  color: #9098a8;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.prompt-template-list {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.connection-test-button {
-  flex: 0 0 auto;
-  align-self: flex-start;
-  margin-left: auto;
-  padding: 8px 14px;
-  border: 1px solid #ef4776;
-  border-radius: 9px;
-  color: #c52f58;
-  background: #fff4f7;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: 160ms ease;
-}
-
-.detail-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-
-.service-maintenance-actions { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--line, #e3e7ee); }
-.delete-service-button {
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 7px;
-  color: var(--muted, #737d90);
-  background: transparent;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.delete-service-button:hover { color: var(--brand-strong, #ad3657); background: var(--brand-soft, #fff1f4); }
-
-.connection-test-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-
-.free-ready-description { margin: 8px 0; color: var(--muted, #737d90); font-size: 12px; line-height: 1.55; }
+.service-connection-section { container-type: inline-size; display: grid; gap: 16px; color: var(--ink, #172033); }
+.connection-card, .custom-advanced-settings { min-width: 0; border: 1px solid var(--line, #e4e7ef); border-radius: 14px; background: var(--surface, #fff); }
+.connection-card { padding: 20px; }
+.configuration-group-heading { margin-bottom: 8px; }
+.configuration-group-heading h5 { margin: 0; color: var(--ink); font-size: 14px; font-weight: 650; line-height: 1.5; }
+.configuration-group-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.connection-field { display: grid; grid-template-columns: 160px minmax(0, 1fr); align-items: start; gap: 16px; padding: 14px 0; }
+.connection-field + .connection-field { border-top: 1px solid var(--line, #e4e7ef); }
+.connection-field-label { display: grid; gap: 5px; min-width: 0; padding-top: 8px; }
+.connection-field-label strong { color: var(--ink); font-size: 13px; font-weight: 550; line-height: 1.5; }
+.connection-field-label small, .provider-field-help, .custom-headers-help, .model-thinking-setting > small, .model-vision-setting > small { color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.connection-field-control { display: flex; flex-direction: column; align-items: flex-end; justify-self: end; width: 100%; max-width: 640px; min-width: 0; }
+.connection-field-control :deep(.el-input), .connection-field-control :deep(.el-select), .connection-field-control :deep(.el-textarea) { width: 100% !important; max-width: 640px !important; }
+.connection-field-control :deep(.el-select) { max-width: 360px !important; }
+.service-connection-section :deep(.el-input__wrapper), .service-connection-section :deep(.el-select:not(.fluentread-select) .el-select__wrapper) { min-height: 38px; padding: 0 11px; border-radius: 10px; background: var(--surface, #fff); border-color: var(--line); }
+.service-connection-section :deep(.el-input__inner), .service-connection-section :deep(.el-select__selected-item) { font-size: 13px; }
+.service-connection-section :deep(.el-textarea__inner) { border-radius: 10px; background: var(--surface); font-size: 13px; padding: 10px 12px; }
+.service-connection-section :deep(.el-switch) { --el-switch-on-color: var(--brand, #ef4776); }
+.provider-field-help, .custom-headers-help { display: block; align-self: stretch; margin: 7px 0 0; }
+.provider-field-help code { font-size: 11px; }
+.credential-control { display: grid; justify-items: end; gap: 8px; }
+.api-key-requirement { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.model-vision-setting { display: grid; justify-items: end; gap: 7px; }
+.model-thinking-setting { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; }
+.model-thinking-setting :deep(.el-switch) { flex: none; }
+.custom-advanced-settings > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; min-height: 68px; color: var(--ink); cursor: pointer; list-style: none; border-radius: 14px; }
+.custom-advanced-settings > summary::-webkit-details-marker { display: none; }
+.custom-advanced-settings > summary:hover { background: var(--surface-soft, #f7f8fb); }
 .advanced-summary-copy { display: grid; gap: 5px; min-width: 0; }
-.advanced-summary-copy small { color: var(--muted, #737d90); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
-
-.connection-save-note { margin: 8px 0; color: var(--muted, #737d90); font-size: 11px; line-height: 1.5; }
-
-.custom-advanced-settings {
-  margin-top: 12px;
-  border: 0;
-  background: transparent;
+.advanced-summary-copy strong { font-size: 13px; font-weight: 600; line-height: 1.5; }
+.advanced-summary-copy small { color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.advanced-chevron { width: 16px; height: 16px; flex: none; color: var(--muted); transition: transform 150ms ease; }
+.custom-advanced-settings[open] > summary .advanced-chevron { transform: rotate(180deg); }
+.custom-advanced-content { margin: 0 20px; padding: 4px 0 16px; border-top: 1px solid var(--line); }
+.custom-template-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 8px 0 14px; padding-top: 18px; border-top: 1px solid var(--line); }
+.custom-template-heading > div { display: grid; gap: 6px; }
+.custom-template-heading strong { color: var(--ink); font-size: 13px; font-weight: 600; }
+.custom-template-heading small { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.custom-template-heading :deep(.el-button) { margin-top: 2px; flex: none; }
+.prompt-template-list { display: grid; gap: 14px; }
+.service-connection-section :deep(.request-limit-settings) { border-bottom: 0; width: 100%; }
+.connection-test-inline { display: flex; align-items: center; justify-content: flex-start; gap: 12px; flex-wrap: wrap; margin: 14px 0; }
+.connection-test-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 7px 12px; border: 1px solid var(--brand-border, #f3c0ce); border-radius: 9px; color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); font-size: 12px; font-weight: 600; cursor: pointer; }
+.connection-test-button:hover:not(:disabled) { border-color: var(--brand); }
+.connection-test-button:disabled { cursor: wait; opacity: .65; }
+.connection-action-icon { flex: none; }
+.is-spinning { animation: connection-spin 1s linear infinite; }
+@keyframes connection-spin { to { transform: rotate(360deg); } }
+.service-connection-action { position: relative; }
+.service-connection-action .connection-test-button { width: 116px; white-space: nowrap; }
+.header-connection-status { position: absolute; top: calc(100% + 3px); right: 0; color: var(--muted); font-size: 11px; line-height: 17px; white-space: nowrap; }
+.header-connection-status.is-success { color: var(--el-color-success); }
+.header-connection-status.is-error { color: var(--el-color-danger); }
+.service-connection-action .connection-test-inline { margin: 0; justify-content: space-between; }
+.connection-test-result { display: grid; gap: 4px; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-soft); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.connection-test-result.is-success { border-color: var(--el-color-success-light-5); color: var(--el-color-success); background: var(--el-color-success-light-9); }
+.connection-test-result.is-error { border-color: var(--el-color-danger-light-5); color: var(--el-color-danger); background: var(--el-color-danger-light-9); }
+.connection-test-details { margin-top: 5px; }
+.connection-test-details code { display: block; margin-top: 7px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.connection-test-details summary { cursor: pointer; }
+.field-warning, .error-text, .minimax-key-note.is-warning, .mimo-key-note.is-warning { color: var(--el-color-danger); font-size: 12px; line-height: 1.6; margin-top: 7px; }
+.minimax-key-note, .mimo-key-note { margin: 8px 0; }
+.minimax-endpoint code, .mimo-endpoint code { display: block; color: var(--muted); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.official-translation-help, .chrome-preparation-help { margin: 12px 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.official-translation-help p, .chrome-preparation-help p { margin: 0 0 8px; }
+.official-translation-help a, .chrome-preparation-help a { color: var(--brand-strong); }
+.chrome-preparation-help summary { cursor: pointer; color: var(--ink); }
+.chrome-preparation-help-links, .chrome-preparation-pair { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.service-maintenance-actions { display: flex; justify-content: flex-start; padding: 0 2px; }
+.delete-service-button { padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); background: var(--surface); font-size: 12px; cursor: pointer; }
+.delete-service-button:hover { color: var(--el-color-danger); border-color: var(--el-color-danger); }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+@container (max-width: 600px) {
+  .connection-card { padding: 16px; }
+  .connection-field { grid-template-columns: 1fr; gap: 8px; }
+  .connection-field-label { padding-top: 0; }
+  .connection-field-control { max-width: none; }
+  .custom-advanced-settings > summary { padding: 14px 16px; }
+  .custom-advanced-content { margin: 0 16px; }
+  .custom-template-heading { flex-wrap: wrap; }
 }
+@media (prefers-reduced-motion: reduce) { .advanced-chevron { transition: none; } .is-spinning { animation: none; } }
+.endpoint-token-help { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.endpoint-token-help summary { cursor: pointer; color: var(--brand-strong); }
+/* 详情本身就是主卡片，内部按用途分组，不再嵌套大容器。 */
+.connection-card { padding: 0; border: 0; border-radius: 0; }
+.configuration-group-heading { margin: 0 0 10px; }
+.configuration-group-heading h5 { font-size: 13px; font-weight: 650; }
+.provider-account-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 780px; margin-left: auto; gap: 16px; }
+.provider-account-fields .connection-field { display: flex; flex-direction: column; align-items: stretch; gap: 8px; border: 0; padding: 8px 0 4px; }
+.provider-account-fields .connection-field-label { display: flex; align-items: center; gap: 6px; padding: 0; }
+.provider-account-fields .connection-field-control :deep(.el-select) { max-width: none !important; }
+.field-help-button { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 7px; color: var(--muted); background: transparent; cursor: help; }
+.field-help-button:hover { color: var(--brand-strong); background: var(--brand-soft); }
+.minimax-endpoint, .mimo-endpoint { margin: 5px 0 14px; }
+.service-connection-section > .custom-advanced-settings > summary { min-height: 54px; padding: 12px 14px; }
+.service-connection-section > .custom-advanced-settings .advanced-summary-copy { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+@container (max-width: 520px) { .provider-account-fields { grid-template-columns: 1fr; gap: 8px; } .service-connection-section > .custom-advanced-settings .advanced-summary-copy { display: grid; gap: 5px; } }
 
-.custom-advanced-settings summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 44px;
-  padding: 8px 0;
-  color: var(--ink, #263044);
-  cursor: pointer;
-  list-style: none;
-}
-
-.custom-advanced-settings summary::-webkit-details-marker { display: none; }
-.custom-advanced-settings summary strong { font-size: 12px; font-weight: 600; }
-.custom-advanced-settings summary:hover { color: var(--brand, #ef4776); }
-.custom-advanced-settings summary:focus-visible { outline: 2px solid var(--brand, #ef4776); outline-offset: 3px; border-radius: 4px; }
-.advanced-chevron { width: 16px; height: 16px; flex: none; color: var(--muted, #8993a5); transition: transform 150ms ease; }
-.custom-advanced-settings[open] .advanced-chevron { transform: rotate(180deg); }
-.custom-advanced-content { padding: 0 0 12px; border-top: 1px solid var(--line, #eceef3); }
-
-.connection-test-button:hover:not(:disabled) {
-  color: #fff;
-  background: #ef4776;
-  box-shadow: 0 6px 14px rgba(214, 50, 96, .18);
-}
-
-.connection-test-button:disabled {
-  cursor: wait;
-  opacity: .65;
-}
-
-.connection-test-result {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: flex-start;
-  gap: 8px;
-  margin: 0 0 14px;
-  padding: 10px 12px;
-  border: 1px solid #dfe3eb;
-  border-radius: 10px;
-  color: #667187;
-  background: #f7f8fa;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.connection-test-result > strong {
-  white-space: nowrap;
-}
-
-.connection-test-result > span {
-  overflow-wrap: anywhere;
-}
-
-.connection-test-result.is-testing {
-  border-color: #c9d9f3;
-  color: #45628c;
-  background: #f2f7ff;
-}
-
-.connection-test-result.is-success {
-  border-color: #b8e0cb;
-  color: #287447;
-  background: #effaf3;
-}
-
-.connection-test-result.is-error {
-  border-color: #f2c0ca;
-  color: #a52c48;
-  background: #fff1f4;
-}
-
-.minimax-key-note {
-  margin: -8px 0 14px 2em;
-  color: #6d7890;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.mimo-key-note {
-  margin: -8px 0 14px 2em;
-  color: #6d7890;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.minimax-key-note.is-warning {
-  color: #a52c48;
-}
-
-.mimo-key-note.is-warning {
-  color: #a52c48;
-}
-
-.minimax-endpoint code,
-.mimo-endpoint code {
-  display: block;
-  padding: 9px 12px;
-  border-radius: 8px;
-  background: var(--surface-soft, #f7f8fb);
-  overflow-wrap: anywhere;
-  color: var(--muted, #59657b);
-  font-size: 11px;
-  line-height: 1.6;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-
-@media (max-width: 700px) {
-  .subsection-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .subsection-heading > div:first-child {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 3px;
-  }
-
-  .connection-test-button {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .detail-actions { width: 100%; margin-left: 0; }
-  .detail-actions > button { flex: 1; }
-
-  .custom-template-heading {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .connection-field { grid-template-columns: 1fr; gap: 7px; }
-  .credential-control { grid-template-columns: 1fr; }
-  .api-key-requirement { justify-content: flex-start; }
-  .field-warning { grid-column: auto; text-align: left; }
-  .connection-field-label small { white-space: normal; }
-  .service-connection-section :deep(.el-row) { gap: 7px; flex-direction: column; }
-  .service-connection-section :deep(.el-row > .el-col:first-child),
-  .service-connection-section :deep(.el-row > .el-col:last-child) { width: 100%; max-width: none; flex: 0 0 auto; }
-}
-
-.credential-warning strong {
-  flex: 0 0 auto;
-  font-weight: 750;
-}
-
-@keyframes credential-warning-breathe {
-  0%, 100% { border-color: #f3d19e; box-shadow: 0 0 0 0 rgba(243, 209, 158, 0); }
-  50% { border-color: #e8b468; box-shadow: 0 0 0 4px rgba(243, 209, 158, .2); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .credential-warning { animation: none; }
-  .advanced-chevron { transition: none; }
-}
-
-.api-key-policy {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 0 0 10px;
-  padding: 12px 16px;
-  border: 1px solid #edf0f5;
-  border-radius: 16px;
-  background: #fbfcfe;
-  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
-}
-
-.api-key-policy:hover {
-  border-color: #e5b4c2;
-  background: #fff;
-  box-shadow: 0 8px 22px rgba(31, 40, 61, .04);
-}
-
-.api-key-policy-copy {
-  min-width: 0;
-}
-
-.api-key-policy-title {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  color: #172033;
-  font-size: 13px;
-}
-
-.api-key-policy-title strong {
-  font-weight: 650;
-}
-
-.api-key-policy-title .el-icon {
-  color: #8b93a4;
-  font-size: 13px;
-}
-
-.api-key-policy-status {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 3px;
-  padding: 2px 7px;
-  border: 1px solid #f4c5d2;
-  border-radius: 999px;
-  color: #c52f58;
-  background: #fff2f5;
-  font-size: 10px;
-  font-weight: 750;
-  line-height: 1.3;
-}
-
-.api-key-policy-status.is-off {
-  border-color: #dfe3eb;
-  color: #687286;
-  background: #f5f6f8;
-}
-
-.api-key-policy-model {
-  display: block;
-  max-width: 100%;
-  margin-top: 4px;
-  overflow: hidden;
-  color: #909399;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.api-key-policy :deep(.el-switch) {
-  flex: 0 0 auto;
-  --el-switch-on-color: #ef4776;
-  --el-switch-off-color: #cfd5df;
-}
-
-:global(:root.dark .credential-warning) { border-color: #735c31; color: #f2d28f; background: #392f1f; }
-:global(:root.dark .custom-advanced-settings) { background: transparent; }
-:global(:root.dark .custom-advanced-settings summary) { color: var(--ink); }
-:global(:root.dark .custom-advanced-content),
-:global(:root.dark .custom-template-heading) { border-color: var(--line); }
-:global(:root.dark .custom-template-heading strong),
-:global(:root.dark .api-key-policy-title),
-:global(:root.dark .connection-field-label strong) { color: var(--ink); }
-:global(:root.dark .custom-template-heading small),
-:global(:root.dark .custom-advanced-settings summary small),
-:global(:root.dark .connection-test-hint),
-:global(:root.dark .model-thinking-setting > small),
-:global(:root.dark .api-key-policy-model),
-:global(:root.dark .minimax-key-note),
-:global(:root.dark .mimo-key-note),
-:global(:root.dark .minimax-endpoint),
-:global(:root.dark .mimo-endpoint) { color: var(--muted); }
-:global(:root.dark .connection-field),
-:global(:root.dark .service-connection-section .el-row) { border-color: var(--line) !important; }
-:global(:root.dark .connection-test-button) { border-color: rgba(255, 138, 171, .52); color: var(--brand-strong); background: var(--brand-soft); }
-:global(:root.dark .connection-test-result),
-:global(:root.dark .api-key-policy) { border-color: var(--line); color: var(--muted); background: var(--surface-soft); }
-:global(:root.dark .api-key-policy:hover) { border-color: rgba(255, 138, 171, .42); background: var(--surface); }
-:global(:root.dark .connection-test-result.is-testing) { border-color: #405477; color: #b9cff2; background: #202c40; }
-:global(:root.dark .connection-test-result.is-success) { border-color: #31594d; color: #9edcc8; background: #1c342d; }
-:global(:root.dark .connection-test-result.is-error) { border-color: #6f3949; color: #f1a7bc; background: #3c222b; }
+.advanced-groups { display: grid; gap: 14px; padding: 0 16px 16px; }
+.advanced-group { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.advanced-group-heading { padding: 14px 16px; background: var(--surface-soft); border-bottom: 1px solid var(--line); }
+.advanced-group .custom-advanced-content { margin: 0 16px; border-top: 0; }
+.advanced-group[data-configuration-group="keys"] .connection-field { grid-template-columns: minmax(0, 1fr) auto; }
+.advanced-group .advanced-summary-copy { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; }
+.custom-advanced-settings > summary > strong { font-size: 13px; font-weight: 600; }
 </style>

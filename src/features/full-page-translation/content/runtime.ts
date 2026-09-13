@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/runtime.ts
  * 文件职责：实现全文翻译的页面级会话引擎，负责候选发现、可见性调度、批量请求、动态 DOM 重扫、失败重试、缓存复用和恢复原文。
- * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、弹窗优先调度、精确属性写入过滤、候选所有权和生命周期重试；冻结配置与识别范围，在弹窗关闭后继续正文，按实际节点阶段发布进度及工具栏结果。
+ * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、弹窗优先调度、精确属性写入过滤、候选所有权和生命周期重试；按阅读进度撤回离开预取区的待派发候选，冻结配置与识别范围，在弹窗关闭后继续正文，按实际节点阶段发布进度及工具栏结果。
  * 模块边界：这是 content 侧编排层，不实现 provider 协议、纯候选算法或底层状态存储；翻译调用经 app client，发现规则来自 core/translation，渲染与状态分别交给 renderer、liveTextRender 和 state。
  */
 import {resolveTranslationToolbarStatus, countFullPageTranslationWork} from '../toolbarStatus';
@@ -1905,9 +1905,16 @@ function createFullPageSession(
         if (!session.active || fullPageSession !== session) return;
         for (const entry of entries) {
             const node = entry.target as HTMLElement;
-            if (!entry.isIntersecting) continue;
             const candidates = session.observedCandidates.get(node);
-            candidates?.forEach((candidate, key) => queueFullPageCandidate(session, key, candidate, candidateLifecycleSource(candidate)));
+            candidates?.forEach((candidate, key) => {
+                if (entry.isIntersecting) {
+                    queueFullPageCandidate(session, key, candidate, candidateLifecycleSource(candidate));
+                } else {
+                    // 快速划过的内容退出预取区后继续观察，等再次进入时才派发。
+                    // 只撤回 pending，不取消在途请求，也不遗忘 scheduled 的候选所有权。
+                    removeFullPagePending(session, key, candidate);
+                }
+            });
         }
         scheduleFullPageProgressPublish(session);
         scheduleFullPageDrain(session);

@@ -284,6 +284,22 @@ describe('免滚动预翻译字符预算', () => {
             kind: 'content',
             reason: 'test',
         })).toBe(0);
+
+        configMock.eagerTranslationCharacters = 1;
+        const nullTextCandidate = {
+            element: empty,
+            nodes: [{textContent: null} as unknown as ChildNode],
+            kind: 'content' as const,
+            reason: 'test',
+        };
+        expect(consumeEagerTranslationBudget(session(), empty, nullTextCandidate)).toBe(true);
+
+        const nullElementCandidate = {
+            element: {textContent: null} as unknown as HTMLElement,
+            kind: 'content' as const,
+            reason: 'test',
+        };
+        expect(consumeEagerTranslationBudget(session(), empty, nullElementCandidate)).toBe(true);
     });
 
     it('按发现顺序扣减预算，用尽后交还视口门禁', () => {
@@ -303,19 +319,36 @@ describe('免滚动预翻译字符预算', () => {
         expect(consumeEagerTranslationBudget(active, third.element, third)).toBe(false);
     });
 
-    it('重新绑定同一候选不会二次扣减，预算为零时直接放行给视口调度', () => {
+    it('scheduled/pending 不会冒充预算账本，同一原文重绑定不二次扣减，换代会重新扣减', () => {
         const {document} = page('');
         configMock.eagerTranslationCharacters = 50;
         const active = session();
-        const pending = candidate(document, '0123456789');
+        const pending = candidate(document, '0123456789', true);
         active.pending.set(pending.element, pending);
         expect(consumeEagerTranslationBudget(active, pending.element, pending)).toBe(true);
-        expect(getEagerTranslationBudget(active)).toBe(50);
+        expect(getEagerTranslationBudget(active)).toBe(40);
 
-        const scheduled = candidate(document, '0123456789');
-        active.scheduled.set(scheduled.element, scheduled);
+        expect(consumeEagerTranslationBudget(active, pending.element, pending)).toBe(true);
+        expect(getEagerTranslationBudget(active)).toBe(40);
+
+        pending.element.textContent = 'changed source';
+        const scheduled = {...pending, nodes: Array.from(pending.element.childNodes)};
+        active.scheduled.set(pending.element, scheduled);
         expect(consumeEagerTranslationBudget(active, scheduled.element, scheduled)).toBe(true);
-        expect(getEagerTranslationBudget(active)).toBe(50);
+        expect(getEagerTranslationBudget(active)).toBe(26);
+
+        pending.element.textContent = '01234567890123456789012345';
+        const exhausted = {...scheduled, nodes: Array.from(pending.element.childNodes)};
+        expect(consumeEagerTranslationBudget(active, exhausted.element, exhausted)).toBe(true);
+        expect(getEagerTranslationBudget(active)).toBe(0);
+
+        pending.element.textContent = '01234567890123456789012345';
+        expect(consumeEagerTranslationBudget(active, pending.element, exhausted)).toBe(true);
+        expect(getEagerTranslationBudget(active)).toBe(0);
+
+        pending.element.textContent = 'new source after exhaustion';
+        const changedAfterExhaustion = {...exhausted, nodes: Array.from(pending.element.childNodes)};
+        expect(consumeEagerTranslationBudget(active, pending.element, changedAfterExhaustion)).toBe(false);
 
         configMock.eagerTranslationCharacters = 0;
         const disabled = session();

@@ -172,10 +172,11 @@ async function sourceText() {return ui("return this.querySelector('.fr-area-sour
   currentCase='model capability control saves per model';
   async function openModelSettings() {
     await settings.goto(`${origin}/options.html#settings-services`);
-    await settings.locator('.service-item[data-service-value="openai"]').click();
-    const advanced=settings.getByTestId('custom-service-advanced');
+    await settings.locator('[data-service-value="openai"]').click();
+    const advanced=settings.locator('[data-configuration-group="advanced"]');
+    const translationGroup=advanced.locator('[data-configuration-group="translation"]');
     if(await advanced.getAttribute('open')===null) await advanced.locator('summary').click();
-    await settings.getByTestId('model-vision-capability').waitFor();
+    await translationGroup.getByTestId('model-vision-capability').waitFor();
   }
   await openModelSettings();
   await settings.getByTestId('model-vision-capability').click();await settings.getByRole('option').filter({hasText:'支持识图'}).click();
