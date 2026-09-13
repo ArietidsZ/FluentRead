@@ -6,7 +6,7 @@
 
 An open-source browser extension for bilingual translation.
 
-[Install](#installation) · [Website](https://fluent.thinkstu.com/en/) · [User guide](https://fluent.thinkstu.com/en/guide/) · [简体中文](./misc/README_ZH.md) · [GPL-3.0](./LICENSE)
+[Install](#installation) · [Website](https://fluent.thinkstu.com/en/) · [User guide](https://fluent.thinkstu.com/en/guide/) · [简体中文](./misc/README_ZH.md) · [LINUX DO Community](https://linux.do) · [GPL-3.0](./LICENSE)
 
 </div>
 
