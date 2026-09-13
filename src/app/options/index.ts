@@ -40,10 +40,33 @@ import {
 } from '@element-plus/icons-vue'
 import OptionsApp from './OptionsApp.vue'
 import UiSelect from '@/src/ui/components/UiSelect.vue'
-import 'element-plus/dist/index.css'
+import 'element-plus/es/components/base/style/css'
+import 'element-plus/es/components/button/style/css'
+import 'element-plus/es/components/collapse/style/css'
+import 'element-plus/es/components/col/style/css'
+import 'element-plus/es/components/dialog/style/css'
+import 'element-plus/es/components/divider/style/css'
+import 'element-plus/es/components/empty/style/css'
+import 'element-plus/es/components/icon/style/css'
+import 'element-plus/es/components/input/style/css'
+import 'element-plus/es/components/input-number/style/css'
+import 'element-plus/es/components/link/style/css'
+import 'element-plus/es/components/option/style/css'
+import 'element-plus/es/components/option-group/style/css'
+import 'element-plus/es/components/popover/style/css'
+import 'element-plus/es/components/row/style/css'
+import 'element-plus/es/components/select/style/css'
+import 'element-plus/es/components/switch/style/css'
+import 'element-plus/es/components/text/style/css'
+import 'element-plus/es/components/tooltip/style/css'
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/message-box/style/css'
+import 'element-plus/es/components/color-picker/style/css'
 import '@/src/features/settings/ui/settings-page.css'
 import {createUiI18nPlugin} from '@/src/ui/i18n'
 import '@/src/ui/styles/interface-skins.css'
+import {config, configReady} from '@/src/services/config/store'
+import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles'
 
 const ELEMENT_COMPONENTS: Component[] = [
   ElButton,
@@ -81,7 +104,9 @@ const ELEMENT_ICONS: Record<string, Component> = {
 }
 
 /** options 的唯一组装入口：注册页面依赖后挂载 Vue 根组件。 */
-export function mountOptionsApp(selector: string): void {
+export async function mountOptionsApp(selector: string): Promise<void> {
+  await configReady
+  await ensureUiLanguageBundle(config.uiLanguage)
   const app = createApp(OptionsApp)
   app.use(createUiI18nPlugin({documentRoot: document.body, documentTitleKey: 'metadata.optionsTitle'}))
   app.component('ElSelect', UiSelect)

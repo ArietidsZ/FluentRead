@@ -16,6 +16,7 @@ import {
 } from './modelCache';
 import {parseWhisperChunkTimestamps} from './timestampParser';
 import {buildWhisperTranscriptionGenerationOptions, chooseWhisperSourceLanguage, normalizeWhisperSourceLanguage} from './transcriptionOptions';
+import {configureOnnxWasmBackend, withCompressedWasmBinary} from '@/src/shared/onnx/wasmBinary';
 
 type LocalTranscriber = ((
   audio: Float32Array,
@@ -90,18 +91,19 @@ if (env.backends.onnx.wasm) {
   env.backends.onnx.wasm.numThreads = 1;
   // Dedicated worker 已经是隔离执行上下文；proxy worker 在扩展页面中
   // 反而会触发 extension:// WASM 加载失败，因此保持关闭。
-  env.backends.onnx.wasm.proxy = false;
-  const extensionUrl = (globalThis as typeof globalThis & {
-    chrome?: { runtime?: { getURL?: (path: string) => string } };
-  }).chrome?.runtime?.getURL;
-  env.backends.onnx.wasm.wasmPaths = {
-    mjs: extensionUrl?.('fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs')
-      || new URL('fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs', self.location.href).toString(),
-    wasm: extensionUrl?.('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm')
-      || new URL('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm', self.location.href).toString(),
-  };
+  configureOnnxWasmBackend(env.backends.onnx.wasm, {
+    mjs: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs'),
+    wasm: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm.gz'),
+  });
 }
 
+}
+
+function extensionUrl(path: string): string {
+  const getUrl = (globalThis as typeof globalThis & {
+    chrome?: {runtime?: {getURL?: (value: string) => string}};
+  }).chrome?.runtime?.getURL;
+  return getUrl?.(path) || new URL(path, self.location.href).toString();
 }
 
 function configureWasmThreads(_model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>): number {
@@ -163,7 +165,7 @@ async function canUseWebGpu(): Promise<boolean> {
 
 async function createWasmTranscriber(modelId: string, model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>): Promise<LocalTranscriber> {
   const create = async (dtype: 'q4' | 'q8') => {
-    const transcriber = await pipeline('automatic-speech-recognition', modelId, {
+    const createPipeline = () => pipeline('automatic-speech-recognition', modelId, {
       // ORT 的 CPU arena / memory pattern 会为动态 Whisper 窗口保留大块
       // 中间张量。浏览器实时字幕更看重可回收峰值，关闭后由有界窗口和暖
       // session 复用承担性能，避免 renderer 长时间停留在 GB 级 RSS。
@@ -175,9 +177,13 @@ async function createWasmTranscriber(modelId: string, model: ReturnType<typeof n
       device: 'wasm',
       dtype,
       revision: 'master',
-    });
+    }) as unknown as Promise<LocalTranscriber>;
+    const wasm = env.backends.onnx.wasm;
+    const transcriber = await (wasm
+      ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm.gz'), createPipeline)
+      : createPipeline());
     transcriberDtype = dtype;
-    return transcriber as unknown as LocalTranscriber;
+    return transcriber;
   };
 
   try {
@@ -196,17 +202,21 @@ async function createLocalTranscriber(
 ): Promise<LocalTranscriber> {
   if (await canUseWebGpu()) {
     try {
-      const transcriber = await pipeline('automatic-speech-recognition', modelId, {
+      const createPipeline = () => pipeline('automatic-speech-recognition', modelId, {
         device: 'webgpu',
         dtype: 'q4',
         revision: 'master',
-      });
+      }) as unknown as Promise<LocalTranscriber>;
+      const wasm = env.backends.onnx.wasm;
+      const transcriber = await (wasm
+        ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm.gz'), createPipeline)
+        : createPipeline());
       transcriberBackend = 'webgpu';
       transcriberDtype = 'q4';
       transcriberGpuInfo = webGpuProbeInfo;
       transcriberThreads = 0;
       console.info('[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理', transcriberGpuInfo);
-      return transcriber as unknown as LocalTranscriber;
+      return transcriber;
     } catch (error) {
       console.warn('[FluentRead] Worker WebGPU Whisper 初始化失败，退回 WASM/q4', error);
     }

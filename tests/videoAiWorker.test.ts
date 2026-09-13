@@ -26,6 +26,12 @@ const workerMocks = vi.hoisted(() => {
 });
 
 vi.mock('@huggingface/transformers', () => workerMocks);
+const wasmMocks = vi.hoisted(() => ({
+    configureOnnxWasmBackend: vi.fn(),
+    withCompressedWasmBinary: (_backend: unknown, _url: string, initialize: () => Promise<unknown>) => initialize(),
+}));
+
+vi.mock('@/src/shared/onnx/wasmBinary', () => wasmMocks);
 
 describe('视频 AI Worker timestamp parser', () => {
     it('调用 Whisper 首步模型 logits 检测 auto 语言，并按 stream session 缓存后切换', async () => {
@@ -69,6 +75,13 @@ describe('视频 AI Worker timestamp parser', () => {
         workerMocks.pipeline.mockResolvedValue(transcriber);
         const workerModule = await import('@/src/features/video-subtitle/offscreen/transcription.worker');
         workerModule.startVideoTranscriptionWorker();
+        expect(wasmMocks.configureOnnxWasmBackend).toHaveBeenCalledWith(
+            workerMocks.env.backends.onnx.wasm,
+            expect.objectContaining({
+                mjs: expect.stringContaining('ort-wasm-simd-threaded.jsep.mjs'),
+                wasm: expect.stringContaining('ort-wasm-simd-threaded.jsep.wasm.gz'),
+            }),
+        );
         const send = (requestId: number, languageSessionKey: string) => scope.onmessage?.({data: {
             requestId, type: 'transcribe', model: 'tiny', sourceLanguage: 'auto', languageSessionKey,
             audio: new Float32Array([0, 0, 0, 0]),

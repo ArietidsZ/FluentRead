@@ -617,7 +617,7 @@ export const koKRMessages = {
     'popup.documentFormats': 'HTML / TXT / Markdown / 자막 / JSON',
     'settings.general.pluginState': '확장 프로그램 상태',
     'settings.general.language': '앱 언어',
-    'settings.general.defaultTargetLanguage': '언어',
+    'settings.general.defaultTargetLanguage': '번역 언어',
     'settings.general.defaultTargetLanguageDescription': '웹, 선택, 마우스 오버 번역에 사용할 기본 언어입니다.',
     'settings.general.targetLanguagePlaceholder': '언어 선택',
     'settings.general.theme': '인터페이스 테마',
