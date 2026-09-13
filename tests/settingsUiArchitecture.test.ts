@@ -135,7 +135,8 @@ describe('options UI composition architecture', () => {
     const popup = source('src/app/popup/PopupApp.vue')
 
     expect(activeSectionSource(sections, 'settings-advanced')).toContain('<TranslationCacheSettings')
-    expect(sections).toContain('<TranslationCacheSettings v-if="props.activeSection === \'settings-advanced\'" :config="config" />')
+    expect(sections).toContain('<TranslationCacheSettings :config="config" />')
+    expect(sections).toContain("v-if=\"hasVisitedSection('settings-advanced')\"")
     expect(navigation).toContain('缓存容量、存储大小、缓存条数、缓存上限、缓存阈值、清空缓存、清除缓存、LRU')
     expect(navigation).not.toContain("id: 'settings-cache'")
     expect(popup).not.toContain('TranslationCacheSettings')
@@ -162,6 +163,52 @@ describe('options UI composition architecture', () => {
   it('keeps the WXT options entrypoint as a thin app composition shell', () => {
     const entrypoint = sourceBody('entrypoints/options/main.ts')
     expect(entrypoint).toBe("import { mountOptionsApp } from '@/src/app/options'\n\nmountOptionsApp('#app')\n")
+  })
+
+  it('defers options sections without dropping visited editing state and waits for hydrated UI resources', () => {
+    const optionsApp = source('src/app/options/OptionsApp.vue')
+    const optionsEntry = source('src/app/options/index.ts')
+    const sections = source('src/features/settings/ui/SettingsSections.vue')
+
+    expect(optionsApp).toContain('<KeepAlive>')
+    expect(optionsApp).toContain('v-if="activeSection === \'settings-about\'"')
+    expect(optionsApp).toContain('v-else\n            :is="activeSection === \'settings-vocabulary\' ? LearningCenter : SettingsSections"')
+    expect(optionsApp).toContain(':key="activeSection === \'settings-vocabulary\' ? \'learning\' : \'settings\'"')
+    expect(optionsApp).toContain('defineAsyncComponent(() => import(\'@/src/features/settings/ui/SettingsSections.vue\'))')
+    expect(optionsApp).toContain('defineAsyncComponent(() => import(\'@/src/features/settings/ui/LearningCenter.vue\'))')
+    expect(optionsEntry).toContain('await configReady')
+    expect(optionsEntry).toContain('await ensureUiLanguageBundle(config.uiLanguage)')
+    expect(optionsEntry).not.toContain('element-plus/dist/index.css')
+    expect(sections).toContain('const visitedSections = ref(new Set<string>())')
+    expect(sections).toContain('const hasVisitedSection = (section: string): boolean => visitedSections.value.has(section)')
+    expect(sections).toContain("watch(() => props.activeSection, (section) => {")
+    expect(sections).toContain('const scrollWhenMounted = () => {')
+    expect(sections).toContain('if (attempts < 20) window.requestAnimationFrame(scrollWhenMounted)')
+    for (const component of [
+      'ServiceCatalog', 'ServiceConfiguration', 'InterfaceSettings', 'VideoLocalModelSettings',
+      'LocalTtsSettings', 'ModelUsageDashboard', 'ConfigManagement', 'TranslationCenter',
+    ]) {
+      expect(sections).toContain(`const ${component} = defineAsyncComponent(`)
+    }
+  })
+
+  it('keeps popup and options Element Plus styles component-scoped at the entrypoint boundary', () => {
+    const popupEntry = source('src/app/popup/index.ts')
+    const optionsEntry = source('src/app/options/index.ts')
+    const requiredOptionsStyles = [
+      'base', 'button', 'collapse', 'col', 'dialog', 'divider', 'empty', 'icon', 'input',
+      'input-number', 'link', 'option', 'option-group', 'popover', 'row', 'select', 'switch',
+      'text', 'tooltip', 'message', 'message-box', 'color-picker',
+    ]
+
+    expect(popupEntry).not.toContain('element-plus/dist/index.css')
+    expect(optionsEntry).not.toContain('element-plus/dist/index.css')
+    for (const component of requiredOptionsStyles) {
+      expect(optionsEntry).toContain(`element-plus/es/components/${component}/style/css`)
+    }
+    for (const component of ['base', 'drawer', 'input-number', 'select']) {
+      expect(popupEntry).toContain(`element-plus/es/components/${component}/style/css`)
+    }
   })
 
   it('keeps the WXT popup entrypoint as a thin app composition shell', () => {
@@ -321,8 +368,10 @@ describe('options UI composition architecture', () => {
     expect(paletteSkinStyles).toContain('--el-bg-color: var(--surface)')
     expect(interfaceAppearance).toContain('dataset.interfaceSkinKind = skin.kind')
     expect(interfaceAppearance).toContain("style.setProperty('--interface-popup-width'")
-    expect(settingsSections).toContain("<ImageOcrSettings v-if=\"props.activeSection === 'settings-image-translation'\" />")
-    expect(settingsSections).toContain("v-if=\"props.activeSection === 'settings-area-translation'\"")
+    expect(settingsSections).toContain('<ImageOcrSettings />')
+    expect(settingsSections).toContain("v-if=\"hasVisitedSection('settings-image-translation')\"")
+    expect(settingsSections).toContain('<AreaTranslationSettings')
+    expect(settingsSections).toContain("v-if=\"hasVisitedSection('settings-area-translation')\"")
     const areaSettings = source('src/features/settings/ui/AreaTranslationSettings.vue')
     const sharedOcrSettings = source('src/features/image-translation/ui/ImageOcrSettings.vue')
     expect(areaSettings).toContain('<ImageOcrSettings id-prefix="area" />')
@@ -335,7 +384,7 @@ describe('options UI composition architecture', () => {
     expect(sharedOcrSettings).toContain(':id="`${props.idPrefix}-ocr-pack-title`"')
     expect(sharedOcrSettings).toContain(':aria-labelledby="`${props.idPrefix}-ocr-pack-title`"')
     expect(sharedOcrSettings).not.toContain('id="image-ocr-pack-title"')
-    expect(settingsSections).toContain("import {ModelUsageDashboard} from '@/src/features/model-usage/public'")
+    expect(settingsSections).toContain("const ModelUsageDashboard = defineAsyncComponent(() => import('@/src/features/model-usage/public').then(module => module.ModelUsageDashboard))")
     expect(settingsSections).toContain("v-show=\"props.activeSection === 'settings-model-usage'\"")
     expect(settingsSections).toContain(":active=\"props.activeSection === 'settings-model-usage'\"")
     expect(modelUsagePublic).toContain("from './ui/ModelUsageDashboard.vue'")
@@ -406,7 +455,7 @@ describe('options UI composition architecture', () => {
     expect(settingsSections).not.toContain('id="settings-shortcuts"')
     expect(settingsSections).toContain('<ConfigManagement')
     expect(settingsSections).toContain('<SettingsGroup')
-    expect(settingsSections).toContain("import QuickTranslationProfiles from './QuickTranslationProfiles.vue'")
+    expect(settingsSections).toContain("const QuickTranslationProfiles = defineAsyncComponent(() => import('./QuickTranslationProfiles.vue'))")
     expect(quickTranslationProfiles).toContain("type QuickTranslationProfile")
     expect(quickTranslationProfiles).toContain('MAX_QUICK_TRANSLATION_PROFILES')
     expect(quickTranslationProfiles).toContain('CustomHotkeyInput')
@@ -894,13 +943,17 @@ describe('options UI composition architecture', () => {
     const styles = sourceBody('src/features/settings/ui/settings-sections.css')
 
     expect(settingsGroupTitles(general)).toEqual(['选择翻译服务', '网页辅助'])
-    expect(general).toContain('class="settings-subgroup-heading"')
-    expect(general).toContain('id="translated-display-heading"')
+    expect(general).not.toContain('class="settings-subgroup-heading"')
+    expect(general).not.toContain('id="translated-display-heading"')
     expect(general).toContain('data-testid="open-translation-settings"')
     expect(general).toContain('data-testid="open-floating-ball-settings"')
     expect(general).toContain("openSettingsSection('settings-translation', 'floating-ball-settings')")
     expect(general).toContain('data-testid="default-translation-service-card"')
     expect(general).toContain(':data-default-service="config.service"')
+    expect(general).toContain('data-testid="translation-language-setting"')
+    expect(general).toContain(':label="t(\'settings.general.defaultTargetLanguage\')"')
+    expect(general).toContain(':description="t(\'settings.general.defaultTargetLanguageDescription\')"')
+    expect(general).toContain('data-testid="translation-display-settings"')
     expect(general).toContain('<SettingsItem label="默认网页翻译服务"')
     expect(general).toContain(":description=\"t('quickTranslation.defaultServiceDescription')\"")
     expect(general).not.toContain('description="全文、悬浮和划词翻译默认使用此服务。"')

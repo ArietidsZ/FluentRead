@@ -60,7 +60,8 @@ describe('popup feature visibility', () => {
 
         expect(settings.indexOf('label="插件状态"')).toBeLessThan(settings.indexOf("t('settings.general.language')"));
         expect(settings.indexOf("t('settings.general.language')")).toBeLessThan(settings.indexOf('label="界面主题"'));
-        expect(settings.indexOf("t('settings.general.defaultTargetLanguage')")).toBeGreaterThan(settings.indexOf('title="译文显示"'));
+        expect(settings.indexOf("t('settings.general.defaultTargetLanguage')")).toBeGreaterThan(settings.indexOf('data-testid="default-translation-service-card"'));
+        expect(settings.indexOf("t('settings.general.defaultTargetLanguage')")).toBeLessThan(settings.indexOf('label="翻译模式"'));
         expect(options).not.toContain('<UiLanguageSelector />');
         expect(options).not.toContain('<p>{{ activeItem.detail }}</p>');
     });

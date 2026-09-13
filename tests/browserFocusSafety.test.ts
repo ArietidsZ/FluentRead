@@ -12,7 +12,10 @@ const FOCUS_SAFE_SCRIPTS = [
     'scripts/run-video-subtitle-fixture-test.cjs',
     'scripts/run-document-translation-test.cjs',
     'scripts/testing/run-settings-center-ui-test.cjs',
+    'scripts/testing/run-lazy-options-ui-test.cjs',
     'scripts/testing/run-popup-startup-ui-test.cjs',
+    'scripts/testing/run-startup-performance.cjs',
+    'scripts/testing/run-ort-runtime-smoke.cjs',
     'scripts/testing/run-loading-motion-ui-test.cjs',
     'scripts/run-privacy-boundary-test.cjs',
     'scripts/run-site-translation-test.cjs',
@@ -26,7 +29,10 @@ const ACTIVATED_EXTENSION_TAB_SCRIPTS = FOCUS_SAFE_SCRIPTS.filter(
     (path) => ![
         'scripts/run-document-translation-test.cjs',
         'scripts/testing/run-settings-center-ui-test.cjs',
+        'scripts/testing/run-lazy-options-ui-test.cjs',
         'scripts/testing/run-popup-startup-ui-test.cjs',
+        'scripts/testing/run-startup-performance.cjs',
+        'scripts/testing/run-ort-runtime-smoke.cjs',
         'scripts/testing/run-loading-motion-ui-test.cjs',
         'scripts/run-userscript-smoke-test.cjs',
     ].includes(path),
@@ -307,6 +313,21 @@ describe('browser regression focus safety', () => {
         expect(source).not.toContain("getByRole('button', {name: '导出配置'");
         expect(source).not.toContain("getByRole('button', {name: '导入配置'");
         expect(source).not.toContain("getByTestId('config-transfer-dialog')");
+    });
+
+    it('按需设置页专项覆盖未访问分区、缓存返回、深链接与 Popup 基本交互', () => {
+        const source = readScript('scripts/testing/run-lazy-options-ui-test.cjs');
+
+        expect(source).toContain('first-general-mount-excludes-unvisited-sections');
+        expect(source).toContain('interface-deep-link-mounts-target-section-first');
+        expect(source).toContain('visited-sections-remain-mounted-after-return');
+        expect(source).toContain('about-is-the-only-visible-content-branch');
+        expect(source).toContain('boolean-setting-survives-immediate-options-close-and-reopen');
+        expect(source).toContain('rapid-consecutive-setting-writes-retain-final-value');
+        expect(source).toContain('options-setting-is-visible-in-reopened-popup');
+        expect(source).toContain('popup-service-picker-opens-and-closes-with-escape');
+        expect(source).toContain('popup-selection-drawer-opens-and-closes');
+        expect(source).toContain('report.consoleErrors');
     });
 
     it.each(FOCUS_SAFE_SCRIPTS)('%s 的后台路径强制使用焦点安全 helper', (path) => {

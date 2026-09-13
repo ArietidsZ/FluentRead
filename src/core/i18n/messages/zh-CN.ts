@@ -785,7 +785,7 @@ export const zhCNMessages = {
     'popup.documentFormats': 'HTML / TXT / Markdown / 字幕 / JSON',
     'settings.general.pluginState': '插件状态',
     'settings.general.language': '软件语言',
-    'settings.general.defaultTargetLanguage': '语言',
+    'settings.general.defaultTargetLanguage': '翻译语言',
     'settings.general.defaultTargetLanguageDescription': '网页、划词和悬停翻译默认翻译成的语言。',
     'settings.general.targetLanguagePlaceholder': '请选择语言',
     'settings.general.theme': '界面主题',

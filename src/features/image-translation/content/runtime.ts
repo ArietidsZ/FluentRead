@@ -759,6 +759,14 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
 // 仅保存可信右键产生的 DOM 身份；不按 URL 扫描全页，避免同源多图和菜单打开后换图误命中。
 let contextImage: {image: HTMLImageElement; source: string} | null = null;
 let pointerImage: HTMLImageElement | null = null;
+let pointerMoveFrame: number | null = null;
+let pendingPointerMove: {
+    target: EventTarget | null;
+    clientX: number;
+    clientY: number;
+    isTrusted: boolean;
+    pointerType: string;
+} | null = null;
 let pointerRevealTimer: number | null = null;
 
 function clearPointerRevealTimer(): void {
@@ -766,7 +774,9 @@ function clearPointerRevealTimer(): void {
     pointerRevealTimer = null;
 }
 
-function imageAtPointer(event: MouseEvent): HTMLImageElement | null {
+type PointerHitEvent = Pick<PointerEvent, 'target' | 'clientX' | 'clientY' | 'isTrusted' | 'pointerType'>;
+
+function imageAtPointer(event: Pick<MouseEvent, 'target' | 'clientX' | 'clientY'>): HTMLImageElement | null {
     const target = event.target as Element | null;
     if (!target || typeof target.closest !== 'function' || target.closest('[data-fluent-read-ui]')) return null;
     if (target instanceof HTMLImageElement) return target;
@@ -788,7 +798,7 @@ function imageAtPointer(event: MouseEvent): HTMLImageElement | null {
     return null;
 }
 
-function handlePointerOver(event: PointerEvent): void {
+function handlePointerOver(event: PointerHitEvent): void {
     if (!event.isTrusted || event.pointerType === 'touch' || config.imageTranslationHoverEnabled === false) return;
     const image = imageAtPointer(event);
     // 在安排计时器之前过滤；明确发起的翻译仍保留进度、取消和恢复入口。
@@ -821,9 +831,38 @@ function handlePointerOver(event: PointerEvent): void {
 
 function handlePointerOut(event: PointerEvent): void {
     if (!event.isTrusted) return;
+    cancelPointerMoveFrame();
     clearPointerRevealTimer();
     if (pointerImage) hideImageButton(pointerImage);
     pointerImage = null;
+}
+
+function cancelPointerMoveFrame(): void {
+    if (pointerMoveFrame !== null) window.cancelAnimationFrame(pointerMoveFrame);
+    pointerMoveFrame = null;
+    pendingPointerMove = null;
+}
+
+function handlePointerMove(event: PointerEvent): void {
+    if (!event.isTrusted || event.pointerType === 'touch') return;
+    if (config.imageTranslationHoverEnabled === false) {
+        cancelPointerMoveFrame();
+        return;
+    }
+    pendingPointerMove = {
+        target: event.target,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        isTrusted: event.isTrusted,
+        pointerType: event.pointerType,
+    };
+    if (pointerMoveFrame !== null) return;
+    pointerMoveFrame = window.requestAnimationFrame(() => {
+        pointerMoveFrame = null;
+        const pending = pendingPointerMove;
+        pendingPointerMove = null;
+        if (pending) handlePointerOver(pending);
+    });
 }
 
 function handleImageContextMenu(event: MouseEvent): void {
@@ -898,6 +937,7 @@ export function mountImageTranslator(): void {
     stopConfigurationWatch = watchTranslationConfiguration();
     const stopHoverWatch = subscribeConfig(next => {
         if (next.imageTranslationHoverEnabled !== false && !next.disableImageTranslator && next.on) return;
+        cancelPointerMoveFrame();
         clearPointerRevealTimer();
         pointerImage = null;
         activeStates.forEach(state => { if (state.phase === 'idle') removeState(state); });
@@ -911,7 +951,7 @@ export function mountImageTranslator(): void {
         });
     });
     document.addEventListener('contextmenu', handleImageContextMenu, true);
-    document.addEventListener('pointermove', handlePointerOver, true);
+    document.addEventListener('pointermove', handlePointerMove, true);
     document.addEventListener('pointerover', handlePointerOver, true);
     document.addEventListener('pointerout', handlePointerOut, true);
     window.addEventListener('scroll', scheduleViewportChange, true);
@@ -921,8 +961,9 @@ export function mountImageTranslator(): void {
         stopLanguageWatch();
         stopConfigurationWatch?.();
         stopConfigurationWatch = null;
+        cancelPointerMoveFrame();
         document.removeEventListener('contextmenu', handleImageContextMenu, true);
-        document.removeEventListener('pointermove', handlePointerOver, true);
+        document.removeEventListener('pointermove', handlePointerMove, true);
         document.removeEventListener('pointerover', handlePointerOver, true);
         document.removeEventListener('pointerout', handlePointerOut, true);
         window.removeEventListener('scroll', scheduleViewportChange, true);

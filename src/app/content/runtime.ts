@@ -50,7 +50,7 @@ import {
 import {installContentPageLifecycle, waitForContentDocument} from './pageLifecycle';
 import {syncBilingualSentenceHighlight} from './bilingualSentenceHighlight';
 import {applyCoreTranslationPreferences, createContentSiteAdaptationRuntime} from './siteAdaptationRuntime';
-
+import {createOptionalContentFeatureRuntime, type OptionalContentFeatureRuntime} from './optionalFeatures';
 export async function startContentApp(ctx: ContentScriptContext,
     capabilities: BrowserCapabilities = browserCapabilities): Promise<void> {
     const pageEventController = new AbortController();
@@ -73,6 +73,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     let unsubscribeContentConfig: (() => void) | null = null;
     let runtimeMessageListener: ContentRuntimeMessageHandler | null = null;
     let featureController: AbortController | null = null;
+    let optionalContentFeatures: OptionalContentFeatureRuntime | null = null;
     let activePageFeatureRegistry: ContentFeatureRegistry | null = null;
     let removePageStyles: (() => void) | null = null;
     let inputBoxConfigGeneration = 0;
@@ -98,17 +99,14 @@ export async function startContentApp(ctx: ContentScriptContext,
     const qqMailFullPageToggle = capabilities.browser !== 'userscript'
         ? installQqMailTopFrameBridge(isPageRuntimeEnabled, pageEventController.signal) : undefined;
     const disposePageFeatures = (): void => {
-        featureController?.abort();
-        featureController = null;
+        featureController?.abort(); featureController = null;
+        optionalContentFeatures?.dispose(); optionalContentFeatures = null;
         restoreOriginalContent(); cancelAllTranslations();
-        activePageFeatureRegistry?.unmountAll();
-        activePageFeatureRegistry = null;
-        pageAvailability?.disposeVideoSubtitlePage();
-        inputTranslationFeature.invalidate(); removePageStyles?.();
+        activePageFeatureRegistry?.unmountAll(); activePageFeatureRegistry = null;
+        pageAvailability?.disposeVideoSubtitlePage(); removePageStyles?.();
         removePageStyles = null;
         syncBilingualSentenceHighlight(document, false);
     };
-
     const activatePageFeatures = async (): Promise<void> => {
         if (!isPageRuntimeEnabled() || featureController) return;
         removePageStyles = installPageStyles(ctx);
@@ -118,8 +116,14 @@ export async function startContentApp(ctx: ContentScriptContext,
         const isActivationCurrent = () => isPageRuntimeEnabled() && featureController === activationController
             && !activationController.signal.aborted;
 
-        inputTranslationFeature.mount(activationController.signal);
-        mountParagraphCopyContentFeature({isSiteDisabled: () => currentPageSiteDisabled}, activationController.signal);
+        optionalContentFeatures = createOptionalContentFeatureRuntime({
+            activationSignal: activationController.signal,
+            config,
+            isSiteDisabled: () => currentPageSiteDisabled,
+            inputTranslationFeature,
+            mountParagraphCopyContentFeature,
+        });
+        optionalContentFeatures.sync();
         const resetHoverKeyboardGesture = mountHoverTranslationContentFeature({
             config,
             constants,
@@ -191,7 +195,6 @@ export async function startContentApp(ctx: ContentScriptContext,
             isCurrent: isActivationCurrent,
         });
     };
-
     pageAvailability = createContentPageAvailabilityRuntime({
         isEnabled: isPageRuntimeEnabled,
         isPageFeaturesActive: () => featureController !== null,
@@ -204,14 +207,12 @@ export async function startContentApp(ctx: ContentScriptContext,
         mountVideoSubtitle: mountVideoSubtitleTranslation,
         autoTranslate: autoTranslateEnglishPage,
     });
-
     const applySiteDisabledState = async (disabled: boolean): Promise<void> => {
         if (cleanedUp) return;
         currentPageSiteDisabled = disabled;
         reportSiteDisabledState();
         await pageAvailability!.reconcile();
     };
-
     document.addEventListener('fluentread-route-change', () => {
         if (currentRouteHref === window.location.href) return;
         currentRouteHref = window.location.href;
@@ -246,6 +247,7 @@ export async function startContentApp(ctx: ContentScriptContext,
             inputBoxConfigGeneration += 1;
             inputTranslationFeature.invalidate();
         }
+        optionalContentFeatures?.sync();
         const nextSiteDisabled = isExtensionDisabledOnSite(
             window.location.href,
             nextConfig.disabledExtensionDomains,

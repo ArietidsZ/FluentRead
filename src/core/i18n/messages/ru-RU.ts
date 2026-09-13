@@ -608,7 +608,7 @@ export const ruRUMessages = {
     'popup.documentFormats': 'HTML / TXT / Markdown / субтитры / JSON',
     'settings.general.pluginState': 'Состояние расширения',
     'settings.general.language': 'Язык приложения',
-    'settings.general.defaultTargetLanguage': 'Язык',
+    'settings.general.defaultTargetLanguage': 'Язык перевода',
     'settings.general.defaultTargetLanguageDescription': 'Язык по умолчанию для перевода веб-страниц, выделений и наведений.',
     'settings.general.targetLanguagePlaceholder': 'Выберите язык',
     'settings.general.theme': 'Тема интерфейса',

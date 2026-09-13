@@ -7,7 +7,10 @@
 import {createApp} from 'vue';
 import './popup.css';
 import App from './PopupApp.vue';
-import 'element-plus/dist/index.css'
+import 'element-plus/es/components/base/style/css';
+import 'element-plus/es/components/drawer/style/css';
+import 'element-plus/es/components/input-number/style/css';
+import 'element-plus/es/components/select/style/css';
 import '@/src/ui/styles/interface-skins.css';
 import {Coffee} from '@element-plus/icons-vue'
 import {ElOption, ElInputNumber, ElDrawer} from 'element-plus'

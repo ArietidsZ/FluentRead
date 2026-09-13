@@ -5,7 +5,7 @@
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
-  <section v-show="props.activeSection === 'settings-general'" id="settings-general" class="settings-section">
+  <section v-if="hasVisitedSection('settings-general')" v-show="props.activeSection === 'settings-general'" id="settings-general" class="settings-section">
     <SettingsGroup>
       <SettingsItem label="插件状态" :description="config.on ? '网页翻译和快捷功能正在运行。' : '当前已暂停，其他偏好仍可继续调整。'">
         <el-switch v-model="config.on" class="settings-switch" aria-label="插件状态" @change="handlePluginStateChange" />
@@ -15,7 +15,11 @@
         <SegmentedControl v-model="config.theme" :options="options.theme" label="界面主题" />
       </SettingsItem>
     </SettingsGroup>
-    <SettingsGroup title="选择翻译服务" description="设置网页翻译默认使用的服务；模型和凭据仍在“翻译服务”页配置。">
+    <SettingsGroup
+      title="选择翻译服务"
+      description="设置网页翻译默认使用的服务；模型和凭据仍在“翻译服务”页配置。"
+      data-testid="translation-display-settings"
+    >
       <SettingsItem label="默认网页翻译服务" :description="t('quickTranslation.defaultServiceDescription')">
         <div
           class="service-default-control"
@@ -33,11 +37,11 @@
           </el-select>
         </div>
       </SettingsItem>
-      <div class="settings-subgroup-heading" aria-labelledby="translated-display-heading">
-        <h3 id="translated-display-heading">译文显示</h3>
-        <p>设置网页翻译后的内容形式和双语译文样式。</p>
-      </div>
-      <SettingsItem :label="t('settings.general.defaultTargetLanguage')" :description="t('settings.general.defaultTargetLanguageDescription')">
+      <SettingsItem
+        data-testid="translation-language-setting"
+        :label="t('settings.general.defaultTargetLanguage')"
+        :description="t('settings.general.defaultTargetLanguageDescription')"
+      >
         <el-select v-model="config.to" data-config-field="to" :aria-label="t('settings.general.defaultTargetLanguage')" :placeholder="t('settings.general.targetLanguagePlaceholder')" filterable>
           <el-option v-for="item in options.to" :key="item.value" data-i18n-ignore class="select-left" :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
         </el-select>
@@ -74,7 +78,7 @@
       <p>{{ selectedTextServiceUnavailableMessage }}请在上方选择可用服务。</p>
     </div>
   </section>
-  <section v-show="props.activeSection === 'settings-sites'" id="settings-sites" class="settings-section site-settings-section">
+  <section v-if="hasVisitedSection('settings-sites')" v-show="props.activeSection === 'settings-sites'" id="settings-sites" class="settings-section site-settings-section">
     <SettingsGroup>
       <SettingsItem label="所有网站自动翻译" description="页面基本结构可用后自动开始翻译；关闭后仍保留下面的名单。">
         <el-switch v-model="config.autoTranslate" class="settings-toggle" aria-label="所有网站自动翻译" />
@@ -84,21 +88,21 @@
     <AlwaysTranslateSites v-model="config.disabledExtensionDomains" variant="disable-extension" />
     <SiteAdaptationSettings :model-value="config.siteAdaptation" :save-settings="saveSiteAdaptationSettings" />
   </section>
-  <section v-show="props.activeSection === 'settings-translation-center'" id="settings-translation-center" class="settings-section translation-center-section">
+  <section v-if="hasVisitedSection('settings-translation-center')" v-show="props.activeSection === 'settings-translation-center'" id="settings-translation-center" class="settings-section translation-center-section">
     <TranslationCenter />
   </section>
-  <section v-if="props.activeSection === 'settings-writing'" id="settings-writing" class="settings-section">
+  <section v-if="hasVisitedSection('settings-writing')" v-show="props.activeSection === 'settings-writing'" id="settings-writing" class="settings-section">
     <WritingSettings :config="config" @configure-service="openWritingServiceSettings()" />
   </section>
-  <section v-show="props.activeSection === 'settings-harness'" id="settings-harness" class="settings-section">
+  <section v-if="hasVisitedSection('settings-harness')" v-show="props.activeSection === 'settings-harness'" id="settings-harness" class="settings-section">
     <HarnessSettings :config="config" />
   </section>
-  <section v-if="props.activeSection === 'settings-glossary'" id="settings-glossary" class="settings-section">
+  <section v-if="hasVisitedSection('settings-glossary')" v-show="props.activeSection === 'settings-glossary'" id="settings-glossary" class="settings-section">
     <GlossarySettings />
   </section>
   <div class="settings-main-sections">
     <!-- 翻译服务 -->
-    <section v-show="props.activeSection === 'settings-services'" id="settings-services" class="settings-section">
+    <section v-if="hasVisitedSection('settings-services')" v-show="props.activeSection === 'settings-services'" id="settings-services" class="settings-section">
       <ServiceCatalog
         :service="selectedConfigurationService"
         :default-service="config.service"
@@ -142,7 +146,7 @@
         @submit="createCustomProvider"
       />
     </section>
-    <section v-show="props.activeSection === 'settings-image-translation'" id="settings-image-translation" class="settings-section image-translation-settings">
+    <section v-if="hasVisitedSection('settings-image-translation')" v-show="props.activeSection === 'settings-image-translation'" id="settings-image-translation" class="settings-section image-translation-settings">
       <SettingsGroup title="功能状态">
         <FeatureEnableCard v-model="imageTranslationEnabled" title="网页图片翻译" :description="t('featureEnable.imageDescription')" :disabled="!browserCapabilities.imageTranslation" />
       </SettingsGroup>
@@ -154,18 +158,17 @@
           <el-switch v-model="config.imageTranslationContextMenuEnabled" class="settings-toggle" :aria-label="t('image.context')" :disabled="!imageTranslationEnabled || !browserCapabilities.imageTranslation" />
         </SettingsItem>
       </SettingsGroup>
-      <ImageOcrSettings v-if="props.activeSection === 'settings-image-translation'" />
+      <ImageOcrSettings />
     </section>
-    <section v-show="props.activeSection === 'settings-area-translation'" id="settings-area-translation" class="settings-section">
+    <section v-if="hasVisitedSection('settings-area-translation')" v-show="props.activeSection === 'settings-area-translation'" id="settings-area-translation" class="settings-section">
       <AreaTranslationSettings
-        v-if="props.activeSection === 'settings-area-translation'"
         :config="config"
         :service-options="availableServiceOptions"
         :enabled="selectionAreaTranslationEnabled"
         @update:enabled="selectionAreaTranslationEnabled = $event"
       />
     </section>
-    <section v-show="props.activeSection === 'settings-video'" id="settings-video" class="settings-section">
+    <section v-if="hasVisitedSection('settings-video')" v-show="props.activeSection === 'settings-video'" id="settings-video" class="settings-section">
       <SettingsGroup>
         <FeatureEnableCard v-model="config.videoTranslationEnabled" title="视频字幕翻译" description="翻译 YouTube 或 X 播放器中的字幕，不上传音频或视频内容。"  />
         <SettingsItem label="视频翻译服务" description="与网页翻译服务相互独立；AI 服务会提前预取字幕。" :disabled="!config.videoTranslationEnabled">
@@ -229,7 +232,7 @@
       </details>
     </section>
     <!-- 鼠标悬浮快捷键 -->
-    <section v-show="props.activeSection === 'settings-translation'" id="settings-translation" class="settings-section">
+    <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" id="settings-translation" class="settings-section">
     <SettingsGroup title="鼠标悬浮翻译" description="按住快捷键并把鼠标移到文本上，等待设定时间后开始翻译。">
     <el-row class="settings-control-row" :class="{ 'custom-hotkey-row': config.hotkey === 'custom' }">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
@@ -305,7 +308,7 @@
     </SettingsGroup>
     </section>
 
-    <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
+    <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
     <SettingsGroup title="划词翻译" description="选中文字后的展示内容、触发方式和等待时间。">
     <!-- 划词翻译模式选择 -->
     <el-row class="settings-control-row">
@@ -412,7 +415,7 @@
     </section>
 
     <!-- 高级选项 -->
-    <section v-show="props.activeSection === 'settings-advanced'" id="settings-advanced" class="settings-section">
+    <section v-if="hasVisitedSection('settings-advanced')" v-show="props.activeSection === 'settings-advanced'" id="settings-advanced" class="settings-section">
       <SettingsGroup :title="t('settings.pageRecognition.title')">
         <SettingsItem :label="t('settings.pageRecognition.allNodes')" :description="t('settings.pageRecognition.description')">
           <el-switch v-model="config.translationScope" active-value="all" inactive-value="content" class="settings-toggle" :aria-label="t('settings.pageRecognition.allNodes')" />
@@ -424,11 +427,11 @@
           <el-switch v-model="config.sidebarTranslationEnabled" class="settings-toggle" :aria-label="t('settings.pageRecognition.sidebar')" />
         </SettingsItem>
       </SettingsGroup>
-      <ParagraphHandlingSettings v-if="props.activeSection === 'settings-advanced'" :config="config" />
-      <TranslationCacheSettings v-if="props.activeSection === 'settings-advanced'" :config="config" />
+      <ParagraphHandlingSettings :config="config" />
+      <TranslationCacheSettings :config="config" />
     </section>
 
-    <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
+    <section v-if="hasVisitedSection('settings-general')" v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
       <SettingsGroup title="网页辅助" description="控制全文翻译时显示的工具和 AI 语境增强。">
         <SettingsItem
           :label="t('settings.general.translationSettingsShortcut')"
@@ -515,11 +518,11 @@
       </SettingsGroup>
     </section>
 
-    <section v-show="props.activeSection === 'settings-interface'" id="settings-interface" class="settings-section">
+    <section v-if="hasVisitedSection('settings-interface')" v-show="props.activeSection === 'settings-interface'" id="settings-interface" class="settings-section">
       <InterfaceSettings :config="config" />
     </section>
 
-    <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
+    <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
       <InputTranslationSettings
         :config="config"
         :service-options="availableServiceOptions"
@@ -528,7 +531,7 @@
       />
     </section>
 
-    <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
+    <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
       <SettingsGroup title="全文翻译" description="设置启动全文翻译的方式、处理范围和网页内入口。">
         <el-row class="settings-control-row" :class="{ 'custom-hotkey-row': config.floatingBallHotkey === 'custom' }">
           <el-col :span="14" class="settings-control-label lightblue rounded-corner">
@@ -579,15 +582,15 @@
       <ContextMenuSettings />
     </section>
 
-    <section v-show="props.activeSection === 'settings-translation'" id="floating-ball-settings" class="settings-section settings-section-continuation">
+    <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" id="floating-ball-settings" class="settings-section settings-section-continuation">
       <FloatingBallSettings :config="config" />
     </section>
 
-    <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
+    <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
       <ParagraphCopySettings :config="config" />
     </section>
 
-    <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
+    <section v-if="hasVisitedSection('settings-advanced')" v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
       <SettingsGroup :title="t('settings.requestLimits.globalTitle')" :description="t('settings.requestLimits.globalHelp')">
         <div data-testid="translation-scheduler-settings">
           <RequestLimitFields :model-value="config" @update:model-value="Object.assign(config, $event)" />
@@ -625,42 +628,45 @@
     </section>
 
     <ModelUsageDashboard
+      v-if="hasVisitedSection('settings-model-usage')"
       v-show="props.activeSection === 'settings-model-usage'"
       :active="props.activeSection === 'settings-model-usage'"
     />
-    <ConfigManagement v-show="props.activeSection === 'settings-data'" id="settings-data" :config="config" />
+    <ConfigManagement v-if="hasVisitedSection('settings-data')" v-show="props.activeSection === 'settings-data'" id="settings-data" :config="config" />
   </div>
 
   <!-- 自定义快捷键对话框 -->
-  <CustomHotkeyInput
-    v-model="showCustomHotkeyDialog"
-    :current-value="config.customFloatingBallHotkey"
-    :validate="validateCustomFullPageHotkey"
-    @confirm="handleCustomHotkeyConfirm"
-    @cancel="handleCustomHotkeyCancel"
-  />
+  <template v-if="hasVisitedSection('settings-translation')">
+    <CustomHotkeyInput
+      v-model="showCustomHotkeyDialog"
+      :current-value="config.customFloatingBallHotkey"
+      :validate="validateCustomFullPageHotkey"
+      @confirm="handleCustomHotkeyConfirm"
+      @cancel="handleCustomHotkeyCancel"
+    />
 
-  <!-- 自定义鼠标悬浮快捷键对话框 -->
-  <CustomHotkeyInput
-    v-model="showCustomMouseHotkeyDialog"
-    :current-value="config.customHotkey"
-    :validate="validateCustomMouseHotkey"
-    @confirm="handleCustomMouseHotkeyConfirm"
-    @cancel="handleCustomMouseHotkeyCancel"
-  />
-  <CustomHotkeyInput
-    v-model="showCustomSelectionHotkeyDialog"
-    :current-value="config.customSelectionTranslatorHotkey"
-    @confirm="handleCustomSelectionHotkeyConfirm"
-    @cancel="handleCustomSelectionHotkeyCancel"
-  />
+    <!-- 自定义鼠标悬浮快捷键对话框 -->
+    <CustomHotkeyInput
+      v-model="showCustomMouseHotkeyDialog"
+      :current-value="config.customHotkey"
+      :validate="validateCustomMouseHotkey"
+      @confirm="handleCustomMouseHotkeyConfirm"
+      @cancel="handleCustomMouseHotkeyCancel"
+    />
+    <CustomHotkeyInput
+      v-model="showCustomSelectionHotkeyDialog"
+      :current-value="config.customSelectionTranslatorHotkey"
+      @confirm="handleCustomSelectionHotkeyConfirm"
+      @cancel="handleCustomSelectionHotkeyCancel"
+    />
+  </template>
 </template>
 
 <script lang="ts" setup>
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 
 // Main 处理配置信息
-import { computed, ref, watch, onUnmounted } from 'vue'
+import { computed, defineAsyncComponent, ref, watch, onUnmounted } from 'vue'
 import {isValidAzureEndpoint} from '@/src/core/config/azure';
 import { cloudRegionOptions, customModelString, defaultOption, getCloudCredentialLabels, getDefaultCloudRegion, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 import GlossaryLibrarySelect from '@/src/ui/components/GlossaryLibrarySelect.vue';
@@ -712,24 +718,23 @@ import { ArrowRight, InfoFilled, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import browser from 'webextension-polyfill';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
-import { defineAsyncComponent } from 'vue';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
-import ServiceCatalog from './services/ServiceCatalog.vue';
 import { hasSavedServiceConfiguration } from '@/src/ui/view-model/serviceLibrary';
 import {getServiceCredentialGuide, getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';
-import ServiceConfiguration from './services/ServiceConfiguration.vue';
-import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
-import {TranslationCenter} from '@/src/features/translation-center/public';
+const ServiceCatalog = defineAsyncComponent(() => import('./services/ServiceCatalog.vue'));
+const ServiceConfiguration = defineAsyncComponent(() => import('./services/ServiceConfiguration.vue'));
+const CustomOpenAIProviderDialog = defineAsyncComponent(() => import('./services/CustomOpenAIProviderDialog.vue'));
+const TranslationCenter = defineAsyncComponent(() => import('@/src/features/translation-center/public').then(module => module.TranslationCenter));
 const openInputServiceSettings = (service: string) => { setConfigurationService(service); window.location.hash = 'settings-services'; };
 const openWritingServiceSettings = () => { setConfigurationService(config.value.writing.service || config.value.service); window.location.hash = 'settings-services'; };
-import WritingSettings from './WritingSettings.vue';
-import HarnessSettings from './HarnessSettings.vue';
-import {GlossarySettings} from '@/src/features/glossary/public';
-import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
-import FloatingBallSettings from './FloatingBallSettings.vue';
-import SiteAdaptationSettings from './SiteAdaptationSettings.vue';
+const WritingSettings = defineAsyncComponent(() => import('./WritingSettings.vue'));
+const HarnessSettings = defineAsyncComponent(() => import('./HarnessSettings.vue'));
+const GlossarySettings = defineAsyncComponent(() => import('@/src/features/glossary/public').then(module => module.GlossarySettings));
+const AlwaysTranslateSites = defineAsyncComponent(() => import('./AlwaysTranslateSites.vue'));
+const FloatingBallSettings = defineAsyncComponent(() => import('./FloatingBallSettings.vue'));
+const SiteAdaptationSettings = defineAsyncComponent(() => import('./SiteAdaptationSettings.vue'));
 import type {SiteAdaptationSettings as SiteAdaptationConfig} from '@/src/core/site-adaptation/types';
 import {
   createApiKeyRequirementKey,
@@ -738,26 +743,26 @@ import {
   getMissingCredentialMessage,
   isApiKeyRequired,
 } from '@/src/core/config/validation';
-import {ImageOcrSettings} from '@/src/features/image-translation/public';
-import VideoLocalModelSettings from './VideoLocalModelSettings.vue';
-import LocalTtsSettings from './LocalTtsSettings.vue';
-import VideoSubtitleAppearanceSettings from './VideoSubtitleAppearanceSettings.vue';
-import {ModelUsageDashboard} from '@/src/features/model-usage/public';
-import InterfaceSettings from './InterfaceSettings.vue';
-import AreaTranslationSettings from './AreaTranslationSettings.vue';
-import InputTranslationSettings from './InputTranslationSettings.vue';
+const ImageOcrSettings = defineAsyncComponent(() => import('@/src/features/image-translation/public').then(module => module.ImageOcrSettings));
+const VideoLocalModelSettings = defineAsyncComponent(() => import('./VideoLocalModelSettings.vue'));
+const LocalTtsSettings = defineAsyncComponent(() => import('./LocalTtsSettings.vue'));
+const VideoSubtitleAppearanceSettings = defineAsyncComponent(() => import('./VideoSubtitleAppearanceSettings.vue'));
+const ModelUsageDashboard = defineAsyncComponent(() => import('@/src/features/model-usage/public').then(module => module.ModelUsageDashboard));
+const InterfaceSettings = defineAsyncComponent(() => import('./InterfaceSettings.vue'));
+const AreaTranslationSettings = defineAsyncComponent(() => import('./AreaTranslationSettings.vue'));
+const InputTranslationSettings = defineAsyncComponent(() => import('./InputTranslationSettings.vue'));
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
-import ParagraphCopySettings from './ParagraphCopySettings.vue';
-import ParagraphHandlingSettings from './ParagraphHandlingSettings.vue';
-import TranslationCacheSettings from './TranslationCacheSettings.vue';
+const ParagraphCopySettings = defineAsyncComponent(() => import('./ParagraphCopySettings.vue'));
+const ParagraphHandlingSettings = defineAsyncComponent(() => import('./ParagraphHandlingSettings.vue'));
+const TranslationCacheSettings = defineAsyncComponent(() => import('./TranslationCacheSettings.vue'));
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import RequestLimitFields from './services/RequestLimitFields.vue';
 import SegmentedControl from './components/SegmentedControl.vue';
 import {localizeServiceOptions, useUiI18n} from '@/src/ui/i18n';
-import ConfigManagement from './ConfigManagement.vue';
-import QuickTranslationProfiles from './QuickTranslationProfiles.vue';
-import ContextMenuSettings from './ContextMenuSettings.vue';
+const ConfigManagement = defineAsyncComponent(() => import('./ConfigManagement.vue'));
+const QuickTranslationProfiles = defineAsyncComponent(() => import('./QuickTranslationProfiles.vue'));
+const ContextMenuSettings = defineAsyncComponent(() => import('./ContextMenuSettings.vue'));
 import {useTranslationShortcutSettings} from './useTranslationShortcutSettings';
 import {
   config as runtimeConfig,
@@ -777,14 +782,29 @@ const props = withDefaults(defineProps<{
 }>(), {
   activeSection: 'settings-general',
 })
+// 分区首次访问后继续保留实例，避免切换菜单时销毁未保存的编辑副本或异步组件状态。
+const visitedSections = ref(new Set<string>())
+const hasVisitedSection = (section: string): boolean => visitedSections.value.has(section)
+watch(() => props.activeSection, (section) => {
+  if (!section || visitedSections.value.has(section)) return
+  visitedSections.value = new Set([...visitedSections.value, section])
+}, {immediate: true})
 const {language, t, translateLegacy} = useUiI18n();
 
 function openSettingsSection(section: string, targetId?: string): void {
   if (window.location.hash !== `#${section}`) window.location.hash = section;
   if (!targetId) return;
-  window.setTimeout(() => {
-    window.requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView({block: 'start'}));
-  }, 0);
+  let attempts = 0;
+  const scrollWhenMounted = () => {
+    const target = document.getElementById(targetId);
+    if (target) {
+      target.scrollIntoView({block: 'start'});
+      return;
+    }
+    attempts += 1;
+    if (attempts < 20) window.requestAnimationFrame(scrollWhenMounted);
+  };
+  window.requestAnimationFrame(scrollWhenMounted);
 }
 
 // 初始化深色模式媒体查询

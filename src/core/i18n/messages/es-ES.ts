@@ -608,7 +608,7 @@ export const esESMessages = {
     'popup.documentFormats': 'HTML / TXT / Markdown / subtítulos / JSON',
     'settings.general.pluginState': 'Estado de la extensión',
     'settings.general.language': 'Idioma de la aplicación',
-    'settings.general.defaultTargetLanguage': 'Idioma',
+    'settings.general.defaultTargetLanguage': 'Idioma de traducción',
     'settings.general.defaultTargetLanguageDescription': 'Idioma predeterminado para la traducción web, de selección y al pasar el ratón.',
     'settings.general.targetLanguagePlaceholder': 'Elige un idioma',
     'settings.general.theme': 'Tema de la interfaz',

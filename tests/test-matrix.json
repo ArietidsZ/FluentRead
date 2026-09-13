@@ -74,6 +74,7 @@
       "tests/contentFeatureMounting.test.ts",
       "tests/contentFeatureLifecycle.test.ts",
       "tests/contentRuntimeLifecycle.test.ts",
+      "tests/optionalContentFeatures.test.ts",
       "tests/contentFeatureRegistry.test.ts",
       "tests/credentialStorageContext.test.ts",
       "tests/fullPageHostMarkers.test.ts",
@@ -249,7 +250,8 @@
       "tests/fullPagePriority.test.ts",
       "tests/modalProgressHint.test.ts",
       "tests/uiLanguageBundles.test.ts",
-      "tests/localTtsBackground.test.ts"
+      "tests/localTtsBackground.test.ts",
+      "tests/onnxWasmBinary.test.ts"
     ],
     "functional": [
       "tests/resourceSafeRunner.test.ts",

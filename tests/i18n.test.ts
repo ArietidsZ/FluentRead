@@ -130,8 +130,8 @@ describe('界面 i18n 契约', () => {
     expect(options.to.slice(0, 8).map(item => item.label)).toEqual([
       '简体中文', '繁體中文', 'English', '日本語', '한국어', 'Français', 'Русский', 'Español',
     ]);
-    expect(translate('settings.general.defaultTargetLanguage', 'zh-CN')).toBe('语言');
-    expect(translate('settings.general.defaultTargetLanguage', 'en-US')).toBe('language');
+    expect(translate('settings.general.defaultTargetLanguage', 'zh-CN')).toBe('翻译语言');
+    expect(translate('settings.general.defaultTargetLanguage', 'en-US')).toBe('Translation language');
   });
 
   it('为目标语言选择器提供中文、英文和原生名称的组合标签', () => {
