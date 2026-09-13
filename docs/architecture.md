@@ -164,7 +164,7 @@ WXT 会把 `entrypoints/` 下零层或一层的入口作为构建输入，并在
 - background/content 的浏览器运行时代码必须放在 `main()` 内，或放在被 `main()` 调用、且模块顶层无浏览器副作用的模块中。
 - 不使用运行时扫描目录或未知动态 import 自动发现 feature。
 - background、content、popup/options、offscreen 分别拥有静态注册表；不能创建一个会把所有上下文代码打进同一 bundle 的万能 barrel。
-- 体积较大且只在少数路径使用的依赖按需加载：Defuddle 构建为独立的 `pageContextExtractor` 脚本，仅在需要 AI 页面上下文时动态导入；content 构建组的配置存储解析为只读远端运行时，Dexie、加密仓库和旧配置迁移留在 background 与扩展页面。非中文界面语言包（含 legacy 精确文案与动态模板）作为 `i18n/<lang>.json` 按需读取，不进入 content 主包。
+- content 构建组的配置存储解析为只读远端运行时，Dexie、加密仓库和旧配置迁移留在 background 与扩展页面。非中文界面语言包（含 legacy 精确文案与动态模板）作为 `i18n/<lang>.json` 按需 fetch，不进入 content 主包。内容脚本不能 `import()` 以 `use_dynamic_url` 暴露的扩展脚本：动态 ID 地址不满足隔离环境的 `script-src 'self'`，而固定地址会让网页探测扩展，因此 Defuddle 仍随内容脚本打包。
 - MV3 background 是 service worker，内存状态必须允许重启；需要持久化的数据进入 storage/IndexedDB。
 - 扩展自有 DOM 运行时由 background 管理，content 和 UI 只通过类型化消息协议请求能力。Chrome/Edge MV3 使用原生 Offscreen，Firefox MV2 使用后台页面中的隐藏扩展 iframe；两者加载同一个 `offscreen.html`，复用同一份消息路由、OCR、图片/区域绘制、字幕推理和 TTS 播放逻辑。
 - `extensionDomClient` 只选择文档容器，并共用 `createOffscreenClient` 的准备、握手、截止时间、取消和重建。Firefox 特有代码仅负责 iframe 创建、查询和移除，不另写 feature handler、算法或配置。

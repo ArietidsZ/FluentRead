@@ -263,7 +263,6 @@ export const userscriptAliases = [
     {find: '@/src/platform/storage/configStorageRuntime', replacement: resolve(root, 'userscript/storage.ts')},
     // 扩展按界面语言读取构建产物中的资源包；单文件 userscript 没有资源目录，改为静态注册全部语言。
     {find: '@/src/platform/i18n/uiLanguageBundles', replacement: resolve(root, 'userscript/uiLanguageBundles.ts')},
-    {find: '@/src/platform/page-context/readableExtractor', replacement: resolve(root, 'userscript/readableExtractor.ts')},
     // app/content 只依赖 feature 公开契约；在此边界替换，才能保证扩展专属 runtime 不进入产物。
     {find: '@/src/features/area-translation/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
     {find: '@/src/features/image-translation/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},

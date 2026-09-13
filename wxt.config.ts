@@ -6,7 +6,6 @@ import {resolveBrowserCapabilities} from './src/platform/browser/capabilities';
 import {wllamaExtensionWorker} from './scripts/testing/wllama-extension-build';
 import {createUiLanguageBundleFiles} from './src/core/i18n/bundles';
 import {UI_LANGUAGE_BUNDLE_DIRECTORY} from './src/core/i18n/language';
-import {READABLE_PAGE_EXTRACTOR_SCRIPT} from './src/platform/page-context/readableExtractor';
 
 
 const packageJson = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
@@ -123,8 +122,9 @@ export function createExtensionManifest(
         ],
         web_accessible_resources: [
             {
-                // 界面语言资源包与网页正文提取器由内容脚本按需读取；use_dynamic_url 避免网页用固定地址探测扩展。
-                resources: ['icon/32.png', 'icon/48.png', 'icon/128.png', `${UI_LANGUAGE_BUNDLE_DIRECTORY}/*.json`, READABLE_PAGE_EXTRACTOR_SCRIPT],
+                // 界面语言资源包由内容脚本按需 fetch；use_dynamic_url 避免网页用固定地址探测扩展。
+                // 不要把需要 import() 执行的脚本放进这里：动态 ID 地址不满足内容脚本隔离环境的 script-src 'self'。
+                resources: ['icon/32.png', 'icon/48.png', 'icon/128.png', `${UI_LANGUAGE_BUNDLE_DIRECTORY}/*.json`],
                 matches: ['<all_urls>'],
                 use_dynamic_url: true,
             },

@@ -249,8 +249,7 @@
       "tests/fullPagePriority.test.ts",
       "tests/modalProgressHint.test.ts",
       "tests/uiLanguageBundles.test.ts",
-      "tests/localTtsBackground.test.ts",
-      "tests/readablePageExtractor.test.ts"
+      "tests/localTtsBackground.test.ts"
     ],
     "functional": [
       "tests/resourceSafeRunner.test.ts",

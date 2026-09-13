@@ -6,23 +6,20 @@ const { parse, constructor } = vi.hoisted(() => ({
     constructor: vi.fn(),
 }));
 
-// 提取器以独立脚本按需加载；这里替换平台加载器，直接提供受控的 Defuddle 替身。
-vi.mock('@/src/platform/page-context/readableExtractor', () => ({
-    loadReadablePageExtractor: async () => ({
-        Defuddle: class MockDefuddle {
-            private readonly snapshot: unknown;
+vi.mock('defuddle/full', () => ({
+    default: class MockDefuddle {
+        private readonly snapshot: unknown;
 
-            constructor(...args: unknown[]) {
-                this.snapshot = args[0];
-                constructor(...args);
-            }
+        constructor(...args: unknown[]) {
+            this.snapshot = args[0];
+            constructor(...args);
+        }
 
-            parse() {
-                return parse(this.snapshot);
-            }
-        },
-        createMarkdownContent: vi.fn(),
-    }),
+        parse() {
+            return parse(this.snapshot);
+        }
+    },
+    createMarkdownContent: vi.fn(),
 }));
 
 import {getPageTranslationContext, resetPageTranslationContextCache} from '@/src/services/translation/context';
