@@ -131,9 +131,9 @@ describe('右键菜单入口偏好', () => {
 describe('右键菜单结构', () => {
     it('默认三个场景各有一个不带品牌前缀的直达入口', () => {
         expect(titlesFor({})).toEqual([
-            {id: contextMenuItemId('selection', 'translateSelection'), bucket: 'selection', role: 'standalone', visible: true, action: 'translateSelection', title: '翻译选中文本（简体中文）'},
-            {id: contextMenuItemId('page', 'translatePage'), bucket: 'page', role: 'standalone', visible: true, action: 'translatePage', title: '翻译全文（简体中文） · Option+T'},
-            {id: contextMenuItemId('image', 'translateImage'), bucket: 'image', role: 'standalone', visible: true, action: 'translateImage', title: '翻译这张图片（简体中文）'},
+            {id: contextMenuItemId('selection', 'translateSelection'), bucket: 'selection', role: 'standalone', visible: true, action: 'translateSelection', title: '翻译选中文本'},
+            {id: contextMenuItemId('page', 'translatePage'), bucket: 'page', role: 'standalone', visible: true, action: 'translatePage', title: '翻译全文'},
+            {id: contextMenuItemId('image', 'translateImage'), bucket: 'image', role: 'standalone', visible: true, action: 'translateImage', title: '翻译这张图片'},
         ]);
     });
 
@@ -157,7 +157,7 @@ describe('右键菜单结构', () => {
     it('页面已翻译时整页入口改为显示原文', () => {
         const items = titlesFor({}, {isTranslated: true, isSiteDisabled: false});
         expect(items.find((item) => item.id === contextMenuItemId('page', 'translatePage'))!.title)
-            .toBe('显示页面原文 · Option+T');
+            .toBe('显示页面原文');
         expect(items.some((item) => item.id === contextMenuItemId('selection', 'translatePage'))).toBe(false);
     });
 
@@ -218,8 +218,8 @@ describe('右键菜单标题渲染', () => {
         } as ContextMenuItemPresentation;
     }
 
-    it('按显示偏好追加语言与快捷键，不添加品牌前缀', () => {
-        expect(renderContextMenuTitle(presentation(), ZH_CONTEXT)).toBe('翻译全文（简体中文） · Option+T');
+    it('旧配置启用语言和快捷键时仍然只显示动作名称', () => {
+        expect(renderContextMenuTitle(presentation(), ZH_CONTEXT)).toBe('翻译全文');
         expect(renderContextMenuTitle(presentation(), {...ZH_CONTEXT, targetLanguage: '', shortcut: ''}))
             .toBe('翻译全文');
         expect(renderContextMenuTitle(presentation({
@@ -373,7 +373,7 @@ describe('后台右键菜单生命周期', () => {
             contextMenuItemId('page', 'translatePage'),
             contextMenuItemId('image', 'translateImage'),
         ]);
-        expect(created[0]).toMatchObject({contexts: ['selection'], title: '翻译选中文本（简体中文）'});
+        expect(created[0]).toMatchObject({contexts: ['selection'], title: '翻译选中文本'});
         expect(created.every((menu) => !menu.parentId)).toBe(true);
         expect(created[1].contexts).toEqual(['page']);
     });
@@ -425,7 +425,7 @@ describe('后台右键菜单生命周期', () => {
         expect(api.tabs.sendMessage).toHaveBeenCalledWith(9, {type: 'contextMenuTranslate', action: 'fullPage'});
         expect(api.contextMenus.update).toHaveBeenCalledWith(
             contextMenuItemId('page', 'translatePage'),
-            {title: expect.stringMatching(/^显示页面原文 · (?:Alt|Option)\+T$/u), visible: true},
+            {title: expect.stringMatching(/^显示页面原文$/u), visible: true},
         );
     });
 

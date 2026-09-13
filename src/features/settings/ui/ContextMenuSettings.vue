@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/ContextMenuSettings.vue
-文件职责：提供右键菜单的设置界面，让用户按使用习惯增删菜单入口、控制标题里出现的信息，并在同一屏看到改动后的真实菜单形态。
-主要内容：渲染总开关、按右键场景分组的入口开关、目标语言与快捷键显示选项，并用与后台相同的结构推导和文案渲染生成三种右键场景的实时预览。
+文件职责：提供右键菜单的设置界面，让用户按使用习惯增删菜单入口，并在同一屏看到改动后的真实菜单形态。
+主要内容：渲染总开关、按右键场景分组的入口开关，并用与后台相同的结构推导和文案渲染生成三种右键场景的实时预览。
 模块边界：本组件只编辑父级响应式配置并展示预览，保存与跨页面同步复用父级设置流程，不创建原生菜单、不发送运行时消息；菜单结构与标题来自 core/context-menu，真正的创建与点击路由由 app/background 负责。
 -->
 <template>
@@ -24,13 +24,6 @@
         :disabled="!config.contextMenuEnabled || !entry.available"
         @update:model-value="entry.update"
       />
-    </SettingsItem>
-
-    <SettingsItem :label="t('contextMenuSettings.showLanguage')" :description="t('contextMenuSettings.showLanguageDescription')">
-      <el-switch v-model="config.contextMenuShowTargetLanguage" class="settings-toggle" :aria-label="t('contextMenuSettings.showLanguage')" :disabled="!config.contextMenuEnabled" />
-    </SettingsItem>
-    <SettingsItem :label="t('contextMenuSettings.showShortcut')" :description="t('contextMenuSettings.showShortcutDescription')">
-      <el-switch v-model="config.contextMenuShowShortcut" class="settings-toggle" :aria-label="t('contextMenuSettings.showShortcut')" :disabled="!config.contextMenuEnabled" />
     </SettingsItem>
 
     <SettingsItem :label="t('contextMenuSettings.preview')" :description="t('contextMenuSettings.previewDescription')" stacked>

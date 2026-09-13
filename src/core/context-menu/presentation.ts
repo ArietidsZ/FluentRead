@@ -1,7 +1,7 @@
 /**
  * @file src/core/context-menu/presentation.ts
- * 文件职责：把右键菜单的状态描述渲染成用户读得懂的本地化标题，让每一项都说清“对什么做什么、译成哪种语言”。
- * 主要内容：按动作与状态挑选文案，截取目标语言的主名称，并按显示偏好依次追加目标语言、快捷键，不添加品牌前缀。 可核对的公开符号包括 ContextMenuTitleContext、getContextMenuTargetLanguage、renderContextMenuTitle。
+ * 文件职责：把右键菜单的状态描述渲染成用户读得懂的本地化标题，只展示操作名称。
+ * 主要内容：按动作与状态挑选文案，不追加品牌、目标语言或快捷键；保留旧调用参数兼容已有配置。 可核对的公开符号包括 ContextMenuTitleContext、getContextMenuTargetLanguage、renderContextMenuTitle。
  * 模块边界：本文件只做纯文案拼装，不读取存储、不操作标签页，也不决定菜单是否创建；结构与可见性由 domain.ts 推导，菜单生命周期由 app/background 负责。
  */
 
@@ -50,20 +50,12 @@ function baseTitle(presentation: ContextMenuItemPresentation, language: UiLangua
 /**
  * 渲染单个菜单项标题。
  *
- * 直达项只展示动作、目标语言和快捷键，扩展身份由浏览器显示的图标表达。
+ * 直达项只展示动作名称，扩展身份由浏览器显示的图标表达。
  */
 export function renderContextMenuTitle(
     presentation: ContextMenuItemPresentation,
     context: ContextMenuTitleContext,
 ): string {
-    const {language, targetLanguage, shortcut} = context;
-    const {withTargetLanguage, withShortcut} = presentation.title;
-    let title = baseTitle(presentation, language);
-    if (withTargetLanguage && targetLanguage) {
-        title = translate('contextMenu.withLanguage', language, {title, language: targetLanguage});
-    }
-    if (withShortcut && shortcut) {
-        title = translate('contextMenu.withShortcut', language, {title, shortcut});
-    }
-    return title;
+    // 即使旧配置仍启用了附加信息，也只显示动作名称。
+    return baseTitle(presentation, context.language);
 }

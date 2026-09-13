@@ -306,7 +306,7 @@ describe('界面 i18n 契约', () => {
         {menuItemId: 'preview', visible: true, action: 'translatePage',
             title: {role: 'standalone', state: 'translate', withTargetLanguage: true, withShortcut: true}},
         {language: 'en-US', targetLanguage: 'Simplified Chinese', shortcut: 'Alt+T'},
-    )).toBe('Translate the whole page (Simplified Chinese) · Alt+T');
+    )).toBe('Translate the whole page');
     expect(renderContextMenuTitle(
         {menuItemId: 'preview', visible: true, action: null,
             title: {role: 'standalone', state: 'enableSite', withTargetLanguage: false, withShortcut: false}},
