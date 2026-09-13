@@ -1,31 +1,41 @@
 /**
  * @file src/features/writing-assistant/entryPlacement.ts
- * 文件职责：计算写作入口在原生发送按钮两侧的有序候选位置。
- * 主要内容：优先完整文字入口，空间不足时提供紧凑图标候选；所有候选与原生按钮留有间隔并完整位于可见视口内。
- * 模块边界：只计算几何位置，不访问网页、不移动原生按钮；实际控件碰撞与遮挡由写作界面检查。
+ * 文件职责：把写作入口放入 Gmail 与 GitHub 的原生操作行。
+ * 主要内容：锁定入口宿主的布局身份，并按网站约定把宿主放到原生操作按钮的前后；按钮内部仍由调用方放入 Shadow DOM。
+ * 模块边界：只处理入口宿主的 DOM 布局，不读取网页内容、不定位模型面板。
  */
-interface Bounds {left: number; top: number; right: number; bottom: number}
-interface ActionBounds extends Bounds {width: number; height: number}
-export interface WritingEntryPlacement {left: number; top: number; width: number; height: number; compact: boolean}
+export type WritingEntrySite = 'github' | 'gmail';
 
-export function writingEntryCandidates(action: ActionBounds, viewport: Bounds, fullWidth: number, site: 'github' | 'gmail'): WritingEntryPlacement[] {
-    if (![action.left, action.top, action.right, action.bottom, action.width, action.height, viewport.left, viewport.top, viewport.right, viewport.bottom, fullWidth].every(Number.isFinite)
-        || action.width <= 0 || action.height <= 0 || fullWidth < 32
-        || action.right <= action.left || action.bottom <= action.top
-        || viewport.right <= viewport.left || viewport.bottom <= viewport.top
-        || action.left < viewport.left || action.right > viewport.right
-        || action.top < viewport.top || action.bottom > viewport.bottom) return [];
-    const top = action.top + (action.height - 32) / 2;
-    const result: WritingEntryPlacement[] = [];
-    for (const width of fullWidth === 32 ? [32] : [fullWidth, 32]) {
-        const sides = site === 'github' ? ['left', 'right'] : ['right', 'left'];
-        for (const side of sides) {
-            const left = side === 'left' ? action.left - 8 - width : action.right + 8;
-            if (left >= viewport.left + 8 && left + width <= viewport.right - 8
-                && top >= viewport.top + 8 && top + 32 <= viewport.bottom - 8) {
-                result.push({left, top, width, height: 32, compact: width === 32});
-            }
-        }
+const WRITING_ENTRY_HOST_STYLE = [
+    'all:initial !important',
+    'display:inline-flex !important',
+    'align-items:center !important',
+    'justify-content:center !important',
+    'position:static !important',
+    'vertical-align:middle !important',
+    'flex:0 0 auto !important',
+    'width:auto !important',
+    'height:32px !important',
+    'margin-inline:4px !important',
+    'padding:0 !important',
+    'border:0 !important',
+    'line-height:0 !important',
+    'white-space:nowrap !important',
+    'z-index:auto !important',
+].join(';');
+
+export function prepareWritingEntryHost(host: HTMLElement): void {
+    host.style.cssText = WRITING_ENTRY_HOST_STYLE;
+}
+
+/** 将入口作为原生操作行的真实子节点插入，而不是放在页面上方的 fixed 浮层。 */
+export function placeWritingEntry(action: HTMLElement, host: HTMLElement, site: WritingEntrySite): boolean {
+    const parent = action.parentElement;
+    if (!action.isConnected || !parent) return false;
+    if (site === 'github') {
+        if (action.previousElementSibling !== host) parent.insertBefore(host, action);
+    } else if (action.nextElementSibling !== host) {
+        parent.insertBefore(host, action.nextSibling);
     }
-    return result;
+    return host.parentElement === parent;
 }

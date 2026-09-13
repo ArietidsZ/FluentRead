@@ -1,89 +1,64 @@
 import {describe, expect, it} from 'vitest';
-import {writingEntryCandidates, type WritingEntryPlacement} from '@/src/features/writing-assistant/entryPlacement';
+import {parseHTML} from 'linkedom';
+import {placeWritingEntry, prepareWritingEntryHost} from '@/src/features/writing-assistant/entryPlacement';
 
-const viewport = {left: 0, top: 0, right: 600, bottom: 400};
-const action = {left: 250, top: 100, right: 350, bottom: 132, width: 100, height: 32};
-
-function expectCandidateWithinFreeBounds(candidate: WritingEntryPlacement): void {
-    expect(candidate.left).toBeGreaterThanOrEqual(viewport.left + 8);
-    expect(candidate.top).toBeGreaterThanOrEqual(viewport.top + 8);
-    expect(candidate.left + candidate.width).toBeLessThanOrEqual(viewport.right - 8);
-    expect(candidate.top + candidate.height).toBeLessThanOrEqual(viewport.bottom - 8);
-    expect(candidate.left + candidate.width <= action.left || candidate.left >= action.right).toBe(true);
+function page(html: string) {
+    return parseHTML(`<html><body>${html}</body></html>`).document;
 }
 
-describe('writing entry placement geometry', () => {
-    it('prioritizes complete and compact candidates on the preferred GitHub side', () => {
-        const candidates = writingEntryCandidates(action, viewport, 100, 'github');
+describe('writing entry placement', () => {
+    it('makes the host participate in normal inline/flex flow instead of becoming a fixed overlay', () => {
+        const doc = page('<div class="actions"><button>Comment</button></div>');
+        const host = doc.createElement('span');
 
-        expect(candidates).toEqual([
-            {left: 142, top: 100, width: 100, height: 32, compact: false},
-            {left: 358, top: 100, width: 100, height: 32, compact: false},
-            {left: 210, top: 100, width: 32, height: 32, compact: true},
-            {left: 358, top: 100, width: 32, height: 32, compact: true},
-        ]);
-        candidates.forEach(expectCandidateWithinFreeBounds);
+        prepareWritingEntryHost(host);
+
+        expect(host.style.position).toContain('static');
+        expect(host.style.display).toContain('inline-flex');
+        expect(host.style.flex).toContain('0 0 auto');
+        expect(host.style.cssText).not.toContain('position: fixed');
     });
 
-    it('reverses side priority for Gmail while preserving width priority', () => {
-        expect(writingEntryCandidates(action, viewport, 100, 'gmail')).toEqual([
-            {left: 358, top: 100, width: 100, height: 32, compact: false},
-            {left: 142, top: 100, width: 100, height: 32, compact: false},
-            {left: 358, top: 100, width: 32, height: 32, compact: true},
-            {left: 210, top: 100, width: 32, height: 32, compact: true},
-        ]);
+    it('places GitHub writing before the native Comment action', () => {
+        const doc = page('<div class="actions"><button>Close issue</button><button id="comment">Comment</button></div>');
+        const action = doc.querySelector<HTMLButtonElement>('#comment')!;
+        const host = doc.createElement('span');
+
+        expect(placeWritingEntry(action, host, 'github')).toBe(true);
+        expect([...action.parentElement!.children].map(node => node.textContent)).toEqual(['Close issue', '', 'Comment']);
+        expect(host.parentElement).toBe(action.parentElement);
     });
 
-    it('centers the fixed-height entry beside a taller action', () => {
-        const candidates = writingEntryCandidates(
-            {...action, top: 80, bottom: 144, height: 64},
-            viewport,
-            96,
-            'github',
-        );
+    it('places Gmail writing after the native send action', () => {
+        const doc = page('<div class="actions"><button id="send">Send</button><button>Discard</button></div>');
+        const action = doc.querySelector<HTMLButtonElement>('#send')!;
+        const host = doc.createElement('span');
 
-        expect(candidates[0]).toEqual({left: 146, top: 96, width: 96, height: 32, compact: false});
+        expect(placeWritingEntry(action, host, 'gmail')).toBe(true);
+        expect([...action.parentElement!.children].map(node => node.textContent)).toEqual(['Send', '', 'Discard']);
     });
 
-    it('keeps only the side and mode that fit the viewport inset', () => {
-        const candidates = writingEntryCandidates(
-            {...action, left: 60, right: 160},
-            {...viewport, right: 190},
-            100,
-            'github',
-        );
+    it('moves an existing host with a rerendered action row without duplicating it', () => {
+        const doc = page('<div id="old"><button id="old-action">Comment</button></div><div id="new"><button id="new-action">Comment</button></div>');
+        const oldAction = doc.querySelector<HTMLButtonElement>('#old-action')!;
+        const newAction = doc.querySelector<HTMLButtonElement>('#new-action')!;
+        const host = doc.createElement('span');
 
-        expect(candidates).toEqual([
-            {left: 20, top: 100, width: 32, height: 32, compact: true},
-        ]);
+        expect(placeWritingEntry(oldAction, host, 'github')).toBe(true);
+        expect(placeWritingEntry(newAction, host, 'github')).toBe(true);
+        expect(doc.querySelectorAll('span')).toHaveLength(1);
+        expect(host.parentElement?.id).toBe('new');
+        expect(placeWritingEntry(newAction, host, 'github')).toBe(true);
+        expect(doc.querySelectorAll('span')).toHaveLength(1);
     });
 
-    it('returns no complete-width candidate when neither side can fit the full button', () => {
-        const candidates = writingEntryCandidates(
-            {...action, left: 80, right: 180},
-            {...viewport, right: 220},
-            120,
-            'gmail',
-        );
+    it('does not touch a detached action', () => {
+        const doc = page('<button id="comment">Comment</button>');
+        const action = doc.querySelector<HTMLButtonElement>('#comment')!;
+        const host = doc.createElement('span');
+        action.remove();
 
-        expect(candidates).toEqual([
-            {left: 40, top: 100, width: 32, height: 32, compact: true},
-        ]);
-    });
-
-    it('returns no candidates for offscreen or invalid dimensions', () => {
-        expect(writingEntryCandidates({...action, left: -1, right: 99}, viewport, 100, 'github')).toEqual([]);
-        expect(writingEntryCandidates({...action, top: 380, bottom: 412}, viewport, 100, 'github')).toEqual([]);
-        expect(writingEntryCandidates(action, viewport, 31, 'github')).toEqual([]);
-        expect(writingEntryCandidates({...action, width: 0}, viewport, 100, 'github')).toEqual([]);
-        expect(writingEntryCandidates(action, {...viewport, right: Number.NaN}, 100, 'github')).toEqual([]);
-        expect(writingEntryCandidates({...action, right: 200}, viewport, 100, 'github')).toEqual([]);
-    });
-
-    it('does not duplicate compact candidates when complete width is exactly 32', () => {
-        expect(writingEntryCandidates(action, viewport, 32, 'github')).toEqual([
-            {left: 210, top: 100, width: 32, height: 32, compact: true},
-            {left: 358, top: 100, width: 32, height: 32, compact: true},
-        ]);
+        expect(placeWritingEntry(action, host, 'github')).toBe(false);
+        expect(host.parentElement).toBeNull();
     });
 });
