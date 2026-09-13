@@ -1,20 +1,19 @@
 <!--
  * @file src/features/settings/ui/services/FreeTranslationSettings.vue
- * 文件职责：编辑免费翻译服务的启停，以及低频的选择策略、邮箱与等待时间。
- * 主要内容：普通态仅说明无需配置即可使用；高级态集中服务启停、模式、顺序、邮箱和等待时间。
+ * 文件职责：编辑免费翻译服务的启停、选择策略、邮箱与等待时间。
+ * 主要内容：普通态展示服务启停、选择模式、顺序和邮箱；高级态仅显示等待时间与恢复说明。
  * 模块边界：只修改传入的配置，由设置页统一持久化；不请求翻译、不读取服务密钥或运行时健康状态。
  -->
 <template>
   <div class="free-translation-settings" :class="{'is-advanced': advanced}" data-free-translation-settings>
-    <p v-if="!advanced" class="fallback-intro">{{ t('settings.services.library.freeReady') }}</p>
-    <template v-if="advanced">
+    <template v-if="!advanced">
       <div class="mode-picker" role="radiogroup" :aria-label="translateLegacy('免费翻译选择模式')">
       <label class="mode-option" :class="{ 'is-selected': mode === 'balanced' }"><input type="radio" name="free-translation-mode" value="balanced" :checked="mode === 'balanced'" :aria-label="translateLegacy('自动均衡')" @change="setMode('balanced')" /><span>{{ translateLegacy('自动均衡') }}</span></label>
       <label class="mode-option" :class="{ 'is-selected': mode === 'sequential' }"><input type="radio" name="free-translation-mode" value="sequential" :checked="mode === 'sequential'" :aria-label="translateLegacy('优先顺序')" @change="setMode('sequential')" /><span>{{ translateLegacy('优先顺序') }}</span></label>
       </div>
       <p class="mode-help">{{ mode === 'balanced' ? translateLegacy('后台会根据响应速度、成功表现和近期错误自动分配服务机会。') : translateLegacy('列表越靠前越先尝试；可使用上下按钮调整顺序。') }}</p>
     </template>
-    <ol v-if="advanced" class="fallback-list" :aria-label="translateLegacy(mode === 'balanced' ? '免费翻译服务' : '免费翻译优先顺序')">
+    <ol v-if="!advanced" class="fallback-list" :aria-label="translateLegacy(mode === 'balanced' ? '免费翻译服务' : '免费翻译优先顺序')">
       <li v-for="provider in providers" :key="provider.id" :data-fallback-provider="provider.id" :class="{'is-disabled': !isEnabled(provider.id)}">
         <div class="provider-row">
           <span v-if="mode === 'sequential'" class="provider-position" aria-hidden="true">{{ isEnabled(provider.id) ? order.indexOf(provider.id) + 1 : '—' }}</span>
@@ -26,15 +25,18 @@
             <el-switch :model-value="isEnabled(provider.id)" :disabled="toggleDisabled(provider.id)" :aria-label="`${translateLegacy('启用')} ${translateLegacy(provider.label)}`" @update:model-value="toggle(provider.id, Boolean($event))" />
           </div>
         </div>
+        <p class="provider-description">{{ translateLegacy(provider.description) }}</p>
       </li>
     </ol>
-    <p v-if="advanced" class="fallback-footnote">{{ t('settings.services.library.keepOne') }}</p>
-    <template v-if="advanced">
+    <p v-if="!advanced" class="fallback-footnote">{{ t('settings.services.library.keepOne') }}</p>
+    <template v-if="!advanced">
       <div class="my-memory-advanced">
         <label class="compact-field"><span>{{ t('settings.services.library.memoryEmail') }}</span><el-input v-model="myMemoryEmailDraft" type="email" :placeholder="translateLegacy('不填写也可以使用')" aria-label="MyMemory 联系邮箱" :aria-invalid="myMemoryEmailInvalid" @change="commitMyMemoryEmail" /></label>
         <p v-if="myMemoryEmailInvalid" class="provider-note" role="status">{{ translateLegacy('请输入有效邮箱，或留空。') }}</p>
         <p>{{ translateLegacy('匿名每天 5,000 字符；提供有效邮箱后每天 50,000 字符。邮箱会随请求发送给 MyMemory。') }} <a href="https://mymemory.translated.net/doc/usagelimits.php" target="_blank" rel="noreferrer">{{ translateLegacy('官方额度说明') }}</a></p>
       </div>
+    </template>
+    <template v-if="advanced">
       <label class="compact-field"><span>{{ translateLegacy('每个服务最多等待（秒）') }}</span><el-input-number :model-value="config.freeTranslationTimeoutMs / 1000" :min="1" :max="15" :step="1" :aria-label="translateLegacy('每个服务最多等待（秒）')" @update:model-value="setDuration($event)" /></label>
       <p class="recovery-copy">{{ translateLegacy('网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复。') }}</p>
     </template>
@@ -84,8 +86,8 @@ function setDuration(seconds: number | undefined): void { if (typeof seconds ===
 .mode-option { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 11px; border: 1px solid var(--el-border-color); border-radius: 7px; cursor: pointer; }
 .mode-option.is-selected { border-color: var(--el-color-primary); color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
 .mode-option input { margin: 0; accent-color: var(--el-color-primary); }
-.fallback-list { display: grid; gap: 6px; margin: 10px 0; padding: 0; list-style: none; }
-.fallback-list > li { padding: 9px 10px; border: 1px solid var(--el-border-color-lighter); border-radius: 7px; background: var(--el-fill-color-blank); }
+.fallback-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 18px; margin: 10px 0; padding: 0; list-style: none; }
+.fallback-list > li { min-width: 0; padding: 8px 0; border-bottom: 1px solid var(--el-border-color-lighter); background: var(--el-fill-color-blank); }
 .fallback-list > li.is-disabled { background: var(--surface-soft, var(--el-fill-color-extra-light)); }
 .provider-row { display: flex; align-items: center; gap: 10px; }
 .provider-position { width: 14px; flex: 0 0 auto; color: var(--el-text-color-secondary); font-variant-numeric: tabular-nums; }
@@ -105,6 +107,9 @@ function setDuration(seconds: number | undefined): void { if (typeof seconds ===
 .compact-field { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 12px; }
 .compact-field :deep(.el-input) { max-width: 360px; }
 .recovery-copy { margin: 8px 0 0; color: var(--el-text-color-secondary); line-height: 1.5; }
+@media (max-width: 1200px) {
+  .fallback-list { grid-template-columns: 1fr; }
+}
 @media (max-width: 700px) {
   .provider-row { gap: 6px; align-items: flex-start; }
   .provider-copy { flex-direction: column; gap: 2px; }

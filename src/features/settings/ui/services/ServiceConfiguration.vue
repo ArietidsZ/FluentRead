@@ -12,7 +12,7 @@
     :data-ai-advanced-settings="compute.showAI ? 'true' : 'false'"
   >
     <div v-if="service !== services.localTranslation && (!compute.showToken || compute.showServiceSecret)" class="connection-test-inline">
-      <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="false" />
+      <p v-if="service === services.freeTranslation" class="free-ready-description">{{ t('settings.services.library.freeReady') }}</p>
 
         <button
           type="button"
@@ -42,6 +42,8 @@
         <code>{{ connectionTestDetails }}</code>
       </details>
     </div>
+
+    <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="false" />
 
     <LocalTranslationModelSettings v-if="service === services.localTranslation" :config="config" :service="service" />
 
@@ -346,7 +348,7 @@
 
     <details :key="service" class="custom-advanced-settings" v-if="service !== services.localTranslation" data-testid="custom-service-advanced">
       <summary>
-        <strong>高级设置</strong>
+        <span class="advanced-summary-copy"><strong>高级设置</strong><small>{{ advancedSummary }}</small></span>
         <svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
       </summary>
 
@@ -527,7 +529,21 @@ const compute = toRef(props, 'compute')
 const options = toRef(props, 'options')
 const isValidAzureEndpoint = toRef(props, 'isValidAzureEndpoint')
 const customProvider = toRef(props, 'customProvider')
-const { language, t } = useUiI18n()
+const { language, t, translateLegacy } = useUiI18n()
+// 只预告当前服务确实具备的配置，不把凭据或配置值暴露在摘要中。
+const advancedSummary = computed(() => {
+  const labels: string[] = []
+  if (service.value === services.freeTranslation) labels.push('每个服务最多等待（秒）')
+  if (compute.value.showToken && !compute.value.showServiceSecret) labels.push(t('settings.services.keys.multiKeyTitle'))
+  labels.push('请求限制')
+  if (compute.value.showDeepseekApiType) labels.push('API 格式')
+  if (compute.value.showAI && compute.value.showModel) labels.push('Thinking', t('settings.services.visionCapability'))
+  if (compute.value.showAI && compute.value.showProxy) labels.push('代理地址')
+  if (compute.value.showAI) labels.push('请求模板')
+  if (compute.value.showCustomOpenAI) labels.push('自定义请求头')
+  if (compute.value.showCustomBody) labels.push('自定义请求体')
+  return labels.map(label => translateLegacy(label)).join(' · ')
+})
 const myMemoryEmailDraft = ref(config.value.myMemoryEmail)
 const myMemoryEmailInvalid = computed(() => Boolean(myMemoryEmailDraft.value.trim() && !normalizeMyMemoryEmail(myMemoryEmailDraft.value)))
 watch(() => config.value.myMemoryEmail, value => { myMemoryEmailDraft.value = value })
@@ -1258,6 +1274,10 @@ onBeforeUnmount(() => {
 .delete-service-button:hover { color: var(--brand-strong, #ad3657); background: var(--brand-soft, #fff1f4); }
 
 .connection-test-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+.free-ready-description { margin: 8px 0; color: var(--muted, #737d90); font-size: 12px; line-height: 1.55; }
+.advanced-summary-copy { display: grid; gap: 5px; min-width: 0; }
+.advanced-summary-copy small { color: var(--muted, #737d90); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
 
 .connection-save-note { margin: 8px 0; color: var(--muted, #737d90); font-size: 11px; line-height: 1.5; }
 

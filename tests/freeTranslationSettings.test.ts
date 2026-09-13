@@ -61,14 +61,14 @@ describe('free translation settings compiled component', () => {
     await mountComponent(true);
   }
 
-  it('keeps basic mode to a short ready-to-use explanation', () => {
-    expect(elements.some(element => element.props['aria-label'] === '自动均衡')).toBe(false);
-    expect(elements.some(element => element.props['data-fallback-provider'])).toBe(false);
-    expect(elements.some(element => element.text === 'settings.services.library.freeReady')).toBe(true);
+  it('shows free service controls immediately while leaving timeout in advanced mode', () => {
+    expect(elements.some(element => element.props['aria-label'] === '自动均衡')).toBe(true);
+    expect(elements.filter(element => element.props['data-fallback-provider'])).toHaveLength(FREE_TRANSLATION_PROVIDERS.length);
+    expect(elements.some(element => element.props['aria-label'] === '每个服务最多等待（秒）')).toBe(false);
+    expect(control('MyMemory 联系邮箱')).toBeDefined();
   });
 
-  it('renders the provider directory and mode controls in advanced mode', async () => {
-    await mountAdvanced();
+  it('renders every provider and mode control in basic mode', async () => {
     expect(state.mode).toBe('balanced');
     expect(state.providers.map((provider: {id: string}) => provider.id)).toEqual(FREE_TRANSLATION_PROVIDERS.map(provider => provider.id));
     expect(control('启用 微软翻译')).toBeDefined();
@@ -78,7 +78,6 @@ describe('free translation settings compiled component', () => {
   });
 
   it('switches mode and exposes order controls in priority mode', async () => {
-    await mountAdvanced();
     control('优先顺序').props.onChange();
     await runtime.nextTick();
     expect(config.freeTranslationMode).toBe('sequential');
@@ -89,7 +88,6 @@ describe('free translation settings compiled component', () => {
   });
 
   it('keeps at least one service enabled', async () => {
-    await mountAdvanced();
     for (const provider of FREE_TRANSLATION_PROVIDERS.slice(1)) state.toggle(provider.id, false);
     await runtime.nextTick();
     expect(config.freeTranslationOrder).toHaveLength(1);
@@ -99,7 +97,6 @@ describe('free translation settings compiled component', () => {
   });
 
   it('keeps partial email local and commits only valid email', async () => {
-    await mountAdvanced();
     const email = control('MyMemory 联系邮箱');
     email.props['onUpdate:modelValue']('contact@'); email.props.onChange();
     expect(config.myMemoryEmail).toBe('');
@@ -109,6 +106,7 @@ describe('free translation settings compiled component', () => {
 
   it('updates the timeout through the advanced control', async () => {
     await mountAdvanced();
+    expect(elements.some(element => element.props['data-fallback-provider'])).toBe(false);
     const timeout = control('每个服务最多等待（秒）');
     timeout.props['onUpdate:modelValue'](9);
     expect(config.freeTranslationTimeoutMs).toBe(9000);

@@ -780,7 +780,7 @@ describe('options UI composition architecture', () => {
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.action')")
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.titleReady')")
     expect(serviceConfiguration).not.toContain('class="setup-status"')
-    expect(serviceConfiguration).toContain("const { language, t } = useUiI18n()")
+    expect(serviceConfiguration).toContain("const { language, t, translateLegacy } = useUiI18n()")
     expect(serviceConfiguration).not.toContain('data-chrome-preparation-source')
     expect(serviceConfiguration).not.toContain('chromePreparationSourceLanguage')
     expect(serviceConfiguration).toContain('from: pair.sourceLanguage')

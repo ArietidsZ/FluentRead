@@ -35,7 +35,7 @@ FluentRead 免费开源，第三方服务可能单独收费。服务商的订阅
 
 内置服务无需添加即可配置，已有配置和自定义接口会保留。选择列表中的服务只打开配置，不会更换默认服务；需要接入其他接口时，点击列表顶部的 **自定义服务**。
 
-普通配置只展示所需字段。多 Key 轮换、请求限制和请求模板等低频选项统一收在 **高级设置**。免费翻译可直接使用；如需调整分配方式或等待时间，再展开高级设置。修改会自动保存；填写过密钥不代表连接检查成功。
+普通配置只展示所需字段。多 Key 轮换、请求限制和请求模板等低频选项统一收在 **高级设置**。免费翻译直接展示选择模式、服务开关、优先顺序和 MyMemory 邮箱；等待时间与请求限制放在高级设置中。各服务的高级入口会列出包含的配置，便于查找。修改会自动保存；填写过密钥不代表连接检查成功。
 
 <figure class="doc-figure"><a href="/screenshots/settings-services.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/settings-services.webp" width="2560" height="1600" alt="翻译服务目录，可选择服务并查看所需的连接设置" loading="lazy" /></a><figcaption>先配置连接，再选择要用的服务。</figcaption></figure>
 
@@ -133,7 +133,7 @@ DeepSeek 的新编号见[官方更新记录](https://api-docs.deepseek.com/updat
 
 ### 自定义请求头
 
-在 **我的服务** 中选择自定义 OpenAI 兼容服务，展开 **高级设置 → 自定义请求头**，按服务商要求填写 JSON，例如：
+在服务列表中选择自定义 OpenAI 兼容服务，展开 **高级设置 → 自定义请求头**，按服务商要求填写 JSON，例如：
 
 ```json
 {"x-opencode-session": "a71a2ad6-1d1f-4e92-a30e-e35c8fd623ab"}
