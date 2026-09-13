@@ -1,8 +1,8 @@
 <!--
  * @file src/features/settings/ui/services/ServiceCatalog.vue
- * 文件职责：呈现个人翻译服务与完整目录，按默认、常用和已保存配置组织紧凑列表，并保留独立的服务配置工作区。
- * 主要内容：组件接收当前服务、网站入口、云服务厂商开通指引和配置，支持个人服务去重、持久化常用标记、我的服务/全部服务两级入口、全目录分类筛选与关键词搜索、动态 OpenAI 兼容服务、分组计数、官网新标签页跳转、免费额度与控制台链接展示和紧凑模型选择；自定义服务作为全部服务中的一个目录分组。
- * 模块边界：目录区分“查看服务”“标记常用”和显式“设为默认”，不编辑凭据、不测试连接也不保存配置；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
+ * 文件职责：呈现少量常用及已配置服务，通过按需添加入口扩充列表，保持配置与默认使用分离。
+ * 主要内容：侧栏合并预置常用、持久化添加项和已有配置；添加弹层支持分类搜索与自定义接口；右侧集中展示服务、模型、官网帮助和连接配置。
+ * 模块边界：目录区分“配置服务”“添加服务”和显式“设为默认”，不编辑凭据、不测试连接也不保存配置；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
  -->
 <template>
   <section
@@ -11,48 +11,28 @@
     :data-default-service="defaultService"
     :data-editing-service="service"
   >
-    <header class="catalog-toolbar">
-      <div class="catalog-toolbar-inner">
-        <div role="group" class="catalog-views" :aria-label="t('settings.services.library.views')">
-          <button type="button" :aria-pressed="catalogView === 'mine'" data-service-view="mine" @click="switchView('mine')">
-            <span>{{ t('settings.services.library.mine') }}</span>
-          </button>
-          <button type="button" :aria-pressed="catalogView === 'all'" data-service-view="all" @click="switchView('all')">
-            <span>{{ t('settings.services.library.all') }}</span>
-            <small>{{ allServices.length }}</small>
+    <div class="catalog-layout">
+      <aside class="service-rail" :aria-label="t('settings.services.library.shortlist')">
+        <div class="rail-heading">
+          <strong>{{ t('settings.services.library.shortlist') }}</strong>
+          <button ref="addButton" type="button" class="service-add-button" data-testid="service-add" @click="openServicePicker">
+            <span aria-hidden="true">＋</span>{{ t('settings.services.library.addService') }}
           </button>
         </div>
-        <div class="catalog-actions">
-          <label class="catalog-search">
-            <span aria-hidden="true">⌕</span>
-            <input v-model="serviceQuery" type="search" :aria-label="t('settings.services.library.search')" :placeholder="t('settings.services.library.search')" @input="catalogView = 'all'; category = 'all'" />
-          </label>
-          <button type="button" class="custom-service-add" data-testid="custom-service-add" @click="$emit('add:service')">
-            {{ t('settings.services.library.add') }}
-          </button>
-        </div>
-      </div>
-    </header>
-    <div v-show="catalogView === 'mine'" class="catalog-layout">
-      <aside class="service-rail" :aria-label="t('settings.services.library.mine')">
         <div class="service-groups">
-          <section v-for="group in personalGroups" :key="group.id" class="service-group" :data-personal-group="group.id">
-            <div class="group-heading"><strong>{{ t(`settings.services.library.${group.id}`) }}</strong><small>{{ group.items.length }}</small></div>
-            <ServiceCatalogItem v-for="item in group.items" :key="item.value" :item="item" compact
-              :selected="service === item.value" :is-default="defaultService === item.value" :favorite="favoriteServices.includes(item.value)"
-              @select="selectService" @favorite="toggleFavorite" />
-          </section>
+          <ServiceCatalogItem v-for="item in shortlist" :key="item.value" :item="item" compact
+            :selected="service === item.value" :is-default="defaultService === item.value"
+            @select="selectService" />
         </div>
-        <button type="button" class="catalog-browse" @click="switchView('all')">{{ t('settings.services.library.browse') }} →</button>
       </aside>
 
       <section class="service-detail" aria-label="当前翻译服务详情">
         <div class="detail-hero">
-          <ServiceIcon :service="isCustomOpenAIProviderId(service) ? 'custom' : service" :label="selectedService?.label" size="large" />
+          <ServiceIcon :service="isCustomOpenAIProviderId(service) ? 'custom' : service" :label="selectedService?.label" size="small" />
           <div class="detail-heading">
             <div class="detail-title-row">
               <h4>{{ selectedService?.label || '尚未配置服务' }}</h4>
-              <span class="active-badge">{{ service === defaultService ? '当前默认' : '正在配置' }}</span>
+              <span v-if="service === defaultService" class="active-badge">{{ t('settings.services.library.default') }}</span>
               <a
                 v-if="website"
                 class="service-website-link"
@@ -69,9 +49,8 @@
                 </svg>
               </a>
             </div>
-            <button v-if="service !== defaultService && selectedService" type="button" class="catalog-set-default" @click="$emit('set:default', service)">{{ t('settings.services.library.setDefault') }}</button>
-            <p v-if="selectedService?.description">{{ selectedService.description }}</p>
           </div>
+          <button v-if="service !== defaultService && selectedService" type="button" class="catalog-set-default" @click="$emit('set:default', service)">{{ t('settings.services.library.setDefault') }}</button>
         </div>
 
         <details
@@ -122,7 +101,6 @@
         <div v-if="showModel && service !== 'localTranslation'" class="model-section">
           <div class="model-heading">
             <strong>模型</strong>
-            <small>选择已保存模型，或添加新的模型标识</small>
           </div>
           <ModelPicker
             :options="modelOptions"
@@ -137,38 +115,55 @@
           />
         </div>
 
-        <div v-else-if="service !== 'localTranslation'" class="no-model-panel">
-          <span aria-hidden="true">✓</span>
-          <div><strong>此服务无需模型配置</strong><p>机器翻译直接使用自身引擎。</p></div>
-        </div>
-
         <div class="service-configuration-slot" :class="{'local-model-configuration': service === 'localTranslation'}" aria-label="当前服务配置">
           <slot name="configuration" />
         </div>
 
       </section>
     </div>
-    <section v-show="catalogView === 'all'" class="service-directory" :aria-label="t('settings.services.library.all')" :data-directory-view="catalogView">
-      <div role="group" class="directory-filters" :aria-label="t('settings.services.library.categories')">
-        <button type="button" :aria-pressed="category === 'all'" @click="category = 'all'">{{ t('settings.services.library.allCategories') }}</button>
-        <button v-for="group in directoryGroups" :key="group.id" type="button" :aria-pressed="category === group.id" @click="category = group.id">{{ group.label }}</button>
-      </div>
-      <section v-for="group in visibleDirectoryGroups" :key="group.id" :data-service-section="group.id" class="directory-section">
-        <h4>{{ group.label }} <small>{{ group.items.length }}</small></h4>
-        <div class="directory-grid">
-          <ServiceCatalogItem v-for="item in group.items" :key="item.value" :item="item"
-            :selected="service === item.value" :is-default="defaultService === item.value" :favorite="favoriteServices.includes(item.value)"
-            :status="configuredServices.includes(item.value) ? t('settings.services.library.saved') : ''"
-            @select="selectService" @favorite="toggleFavorite" />
+    <el-dialog v-model="pickerOpen" :title="t('settings.services.library.addService')"
+      width="min(720px, calc(100vw - 28px))" class="service-add-dialog" data-testid="service-add-dialog"
+      destroy-on-close @opened="searchInput?.focus()" @closed="restoreAddFocus">
+      <div class="service-picker-body">
+        <label class="catalog-search">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" /></svg>
+          <input ref="searchInput" v-model="serviceQuery" type="search" :aria-label="t('settings.services.library.search')" :placeholder="t('settings.services.library.search')" @input="category = 'all'" />
+        </label>
+        <div role="group" class="directory-filters" :aria-label="t('settings.services.library.categories')">
+          <button type="button" :aria-pressed="category === 'all'" @click="category = 'all'">{{ t('settings.services.library.allCategories') }}</button>
+          <button v-for="group in directoryGroups" :key="group.id" type="button" :aria-pressed="category === group.id" @click="category = group.id">{{ group.label }}</button>
         </div>
-      </section>
-      <p v-if="!visibleDirectoryGroups.length" class="catalog-empty" role="status">{{ t('settings.services.library.empty') }}</p>
-    </section>
+        <div class="service-directory">
+          <section v-for="group in visibleDirectoryGroups" :key="group.id" :data-service-section="group.id" class="directory-section">
+            <h4>{{ group.label }}</h4>
+            <div class="directory-grid">
+              <div v-for="item in group.items" :key="item.value" class="directory-entry">
+              <button type="button" class="directory-service"
+                :data-service-add-value="item.value" :data-service-added="shortlistIds.has(item.value)"
+                :aria-label="t(shortlistIds.has(item.value) ? 'settings.services.library.configureService' : 'settings.services.library.addNamedService', { service: item.label })"
+                @click="addService(item.value)">
+                <ServiceIcon :service="item.value" :label="item.label" size="small" />
+                <span class="directory-service-copy"><strong>{{ item.label }}</strong><small v-if="shortlistIds.has(item.value)">{{ t('settings.services.library.added') }}</small></span>
+                <span class="directory-service-action" aria-hidden="true">{{ shortlistIds.has(item.value) ? '✓' : '+' }}</span>
+              </button>
+              <button v-if="canRemoveService(item.value)" type="button" class="directory-remove" :data-service-remove-value="item.value"
+                :aria-label="t('settings.services.library.removeNamedService', { service: item.label })"
+                :title="t('settings.services.library.removeNamedService', { service: item.label })" @click="removeService(item.value)">−</button>
+              </div>
+            </div>
+          </section>
+          <p v-if="!visibleDirectoryGroups.length" class="catalog-empty" role="status">{{ t('settings.services.library.empty') }}</p>
+        </div>
+      </div>
+      <template #footer>
+        <button type="button" class="custom-service-add" data-testid="custom-service-add" @click="openCustomService">{{ t('settings.services.library.add') }}</button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import { useUiI18n } from '@/src/ui/i18n'
 import { isCustomOpenAIProviderId } from '@/src/core/config/customOpenAI'
@@ -180,7 +175,7 @@ import {
 } from '@/src/ui/view-model/serviceCatalog'
 import ModelPicker from './ModelPicker.vue'
 import ServiceCatalogItem from './ServiceCatalogItem.vue'
-import { buildPersonalServiceGroups } from '@/src/ui/view-model/serviceLibrary'
+import { buildServiceShortlist, COMMON_SERVICE_IDS } from '@/src/ui/view-model/serviceLibrary'
 
 interface ModelPickerOption {
   value: string
@@ -217,7 +212,10 @@ const emit = defineEmits<{
 
 const { t } = useUiI18n()
 const serviceQuery = ref('')
-const catalogView = ref<'mine' | 'all'>('mine')
+const pickerOpen = ref(false)
+const searchInput = ref<HTMLInputElement | null>(null)
+const addButton = ref<HTMLButtonElement | null>(null)
+let openingCustomService = false
 const category = ref('all')
 const customServices = computed(() => props.services.filter((item) => isCustomOpenAIProviderId(item.value)))
 const builtInServices = computed(() => props.services.filter((item) => !isCustomOpenAIProviderId(item.value)))
@@ -227,7 +225,8 @@ const directoryGroups = computed(() => [
   ...(customServices.value.length ? [{ id: 'custom', label: t('settings.services.library.custom'), items: customServices.value }] : []),
 ])
 const allServices = computed(() => directoryGroups.value.flatMap(group => group.items))
-const personalGroups = computed(() => buildPersonalServiceGroups(allServices.value, props.defaultService, props.service, props.favoriteServices, props.configuredServices))
+const shortlist = computed(() => buildServiceShortlist(allServices.value, props.defaultService, props.service, props.favoriteServices, props.configuredServices))
+const shortlistIds = computed(() => new Set(shortlist.value.map(item => item.value)))
 const visibleDirectoryGroups = computed(() => {
   const keyword = serviceQuery.value.trim().normalize('NFKC').toLocaleLowerCase()
   return directoryGroups.value.filter(group => category.value === 'all' || category.value === group.id)
@@ -237,74 +236,94 @@ const visibleDirectoryGroups = computed(() => {
 })
 const selectedService = computed(() => allServices.value.find(item => item.value === props.service))
 
-function switchView(view: 'mine' | 'all') {
-  catalogView.value = view
+function openServicePicker() {
   serviceQuery.value = ''
   category.value = 'all'
+  openingCustomService = false
+  pickerOpen.value = true
 }
 function selectService(service: string) {
   emit('update:service', service)
-  switchView('mine')
 }
-function toggleFavorite(service: string) {
-  emit('update:favorites', props.favoriteServices.includes(service)
-    ? props.favoriteServices.filter(value => value !== service)
-    : [...props.favoriteServices, service])
+function addService(service: string) {
+  if (!shortlistIds.value.has(service)) emit('update:favorites', [...props.favoriteServices, service])
+  selectService(service)
+  pickerOpen.value = false
 }
-// 新建服务、跨页跳转和配置恢复都应直接呈现当前编辑目标。
-watch(() => props.service, () => switchView('mine'))
+function canRemoveService(service: string) {
+  return props.favoriteServices.includes(service) && service !== props.defaultService
+    && !props.configuredServices.includes(service) && !(COMMON_SERVICE_IDS as readonly string[]).includes(service)
+}
+function removeService(service: string) {
+  emit('update:favorites', props.favoriteServices.filter(value => value !== service))
+  if (props.service === service) selectService(props.defaultService)
+}
+function openCustomService() {
+  openingCustomService = true
+  pickerOpen.value = false
+}
+function restoreAddFocus() {
+  addButton.value?.focus({ preventScroll: true })
+  if (openingCustomService) {
+    openingCustomService = false
+    emit('add:service')
+  }
+}
+// 外部跳转和新建服务沿用同一编辑工作区，并从表单顶部开始。
+watch(() => props.service, async () => {
+  await nextTick()
+  addButton.value?.closest('.catalog-layout')?.querySelector('.service-detail')?.scrollTo({ top: 0 })
+})
 
 </script>
 
 <style scoped>
-.service-catalog { display: flex; height: clamp(560px, calc(100vh - 200px), 820px); min-height: 560px; margin: 2px 0 20px; border: 1px solid var(--line, #e4e7ef); border-radius: 16px; overflow: hidden; background: var(--surface, #fff); flex-direction: column; }
-.catalog-toolbar { padding: 12px 16px; border-bottom: 1px solid var(--line, #e4e7ef); flex-shrink: 0; }
-.catalog-toolbar-inner { display: flex; align-items: center; gap: 16px; width: 100%; flex-wrap: wrap; }
-.catalog-views { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; width: min(100%, 420px); min-width: min(100%, 280px); padding: 4px; border: 1px solid var(--line, #dfe3eb); border-radius: 13px; background: var(--surface-soft, #f7f8fb); }
-.catalog-views button, .directory-filters button { border: 1px solid transparent; border-radius: 9px; padding: 9px 14px; background: transparent; color: var(--muted, #737c8f); cursor: pointer; font: inherit; font-size: 14px; font-weight: 650; }
-.catalog-views button { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 0; min-height: 44px; white-space: nowrap; }
-.catalog-views button[aria-pressed="true"] { border-color: color-mix(in srgb, var(--brand-strong, #bd2853) 48%, transparent); color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); box-shadow: 0 3px 10px color-mix(in srgb, var(--brand, #ef4776) 15%, transparent); }
-.catalog-views button:not([aria-pressed="true"]):hover { color: var(--ink, #172033); background: var(--surface, #fff); }
-.catalog-views small { display: inline-grid; place-items: center; min-width: 22px; height: 20px; padding: 0 5px; border-radius: 999px; color: currentColor; background: color-mix(in srgb, currentColor 10%, transparent); font-size: 11px; font-weight: 750; }
-.catalog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; margin-left: auto; flex: 1 1 350px; }
-.catalog-search { display: flex; align-items: center; gap: 8px; width: 240px; max-width: 100%; min-height: 38px; padding: 0 10px; border: 1px solid var(--line, #dfe3eb); border-radius: 9px; background: var(--surface, #fff); }
-.catalog-search span { color: var(--muted, #8991a2); }
-.catalog-search input { width: 100%; min-width: 0; border: 0; color: var(--ink, #172033); background: transparent; font-size: 13px; padding: 8px 0; }
-.custom-service-add, .catalog-set-default { padding: 7px 10px; border: 1px solid var(--brand-strong, #bd2853); border-radius: 8px; color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); font-size: 12px; cursor: pointer; }
-.custom-service-add:disabled { opacity: .5; cursor: not-allowed; }
-.catalog-set-default { margin: 8px 0; }
+.service-catalog { display: flex; height: max(420px, calc(100dvh - 92px)); min-height: 0; color: var(--ink, #172033); background: var(--surface, #fff); }
 .catalog-layout { display: grid; grid-template-columns: 224px minmax(0, 1fr); min-height: 0; flex: 1; overflow: hidden; }
-.service-rail { display: flex; flex-direction: column; min-height: 0; padding: 12px 8px; border-right: 1px solid var(--line, #eceef3); background: var(--surface-soft, #fafbfc); }
-.service-groups { overflow-y: auto; min-height: 0; flex: 1; }
-.service-group + .service-group { margin-top: 16px; }
-.group-heading { display: flex; justify-content: space-between; align-items: center; margin: 4px 8px 6px; color: var(--muted, #737c8f); }
-.group-heading strong, .group-heading small { font-size: 12px; font-weight: 500; }
-.catalog-browse { flex-shrink: 0; text-align: left; margin: 12px 6px 0; padding: 12px 4px 0; border: 0; border-top: 1px solid var(--line, #e4e7ef); color: var(--brand-strong, #bd2853); background: transparent; font-size: 13px; cursor: pointer; }
-.service-directory { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 22px 24px; }
-.directory-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
-.directory-filters button { border-color: var(--line, #e4e7ef); padding: 6px 10px; }
-.directory-section + .directory-section { margin-top: 22px; }
-.directory-section h4 { margin: 0 0 10px; color: var(--ink, #172033); font-size: 13px; font-weight: 600; }
-.directory-section h4 small { color: var(--muted, #737c8f); margin-left: 6px; font-size: 11px; font-weight: 400; }
-.directory-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.catalog-empty { text-align: center; color: var(--muted, #737c8f); padding: 24px; }
-.catalog-toolbar button:focus-visible, .directory-filters button:focus-visible, .catalog-browse:focus-visible, .catalog-set-default:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
-.service-detail { display: flex; min-width: 0; min-height: 0; margin: 10px; padding: 18px; border: 1px solid #e4e7ef; border-radius: 14px; background: #fff; flex-direction: column; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
-.service-detail > .detail-hero,
-.service-detail > .credential-guide,
-.service-detail > .model-section,
-.service-detail > .no-model-panel,
-.service-detail > .service-configuration-slot { width: 100%; }
-.detail-hero { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #eceef3; }
-.detail-heading { flex: 1 1 180px; min-width: 0; }
-.detail-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
-.detail-title-row h4 { min-width: 0; margin: 1px 0 5px; color: #172033; font-size: 20px; overflow-wrap: anywhere; }
-.service-website-link { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 2px 4px; border-radius: 5px; color: var(--brand-strong, #bd2853); font-size: 12px; font-weight: 600; line-height: 1.5; text-decoration: none; }
-.service-website-link svg { flex-shrink: 0; }
-.service-website-link:hover { background: var(--brand-soft, #fff0f4); text-decoration: underline; text-underline-offset: 3px; }
-.service-website-link:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
-.active-badge { flex-shrink: 0; white-space: nowrap; padding: 4px 8px; border-radius: 999px; color: #bd2853; background: #ffe9ef; font-size: 10px; font-weight: 800; }
-.detail-hero p { margin: 0; color: #737c8f; font-size: 13px; line-height: 1.6; }
+.service-rail { display: flex; flex-direction: column; min-height: 0; padding: 14px 10px; border-right: 1px solid var(--line, #e4e7ef); }
+.rail-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 6px 10px; }
+.rail-heading strong { color: var(--muted, #737c8f); font-size: 12px; font-weight: 500; }
+.service-add-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 34px; padding: 7px 11px; border: 1px solid transparent; border-radius: 8px; color: #fff; background: var(--brand, #ef4776); font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.service-add-button:hover { filter: brightness(.94); }
+:global(:root.dark .service-add-button) { color: #21131a; background: var(--brand-strong); }
+.service-groups { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; min-height: 0; }
+.service-detail { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 20px 24px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
+.detail-hero { display: flex; align-items: flex-start; gap: 10px; padding-bottom: 18px; flex-shrink: 0; }
+.detail-hero > :deep(.service-icon) { margin-top: 2px; }
+.detail-heading { flex: 1; min-width: 0; }
+.detail-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.detail-title-row h4 { margin: 0; font-size: 18px; line-height: 1.5; overflow-wrap: anywhere; }
+.detail-hero p { margin: 5px 0 0; color: var(--muted, #737c8f); font-size: 12px; line-height: 1.6; }
+.active-badge { color: var(--brand-strong, #bd2853); font-size: 11px; white-space: nowrap; }
+.service-website-link { display: inline-flex; align-items: center; gap: 4px; color: var(--muted, #737c8f); font-size: 11px; text-decoration: none; }
+.service-website-link:hover { color: var(--brand-strong, #bd2853); text-decoration: underline; }
+.catalog-set-default, .custom-service-add { flex-shrink: 0; padding: 7px 11px; border: 1px solid var(--line, #e4e7ef); border-radius: 7px; color: var(--brand-strong, #bd2853); background: var(--surface, #fff); font-size: 12px; cursor: pointer; }
+.catalog-set-default:hover, .custom-service-add:hover { border-color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); }
+.model-section { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: center; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line, #e4e7ef); flex-shrink: 0; }
+.model-heading strong { font-size: 12px; font-weight: 600; }
+.service-configuration-slot { flex-shrink: 0; padding-bottom: 12px; }
+.catalog-search { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 10px; border: 1px solid var(--line, #dfe3eb); border-radius: 8px; color: var(--muted, #737c8f); background: var(--surface, #fff); }
+.catalog-search:focus-within { border-color: var(--brand-strong, #bd2853); }
+.catalog-search input { width: 100%; min-width: 0; padding: 9px 0; border: 0; outline: none; color: var(--ink, #172033); background: transparent; font-size: 13px; }
+.service-picker-body { display: flex; flex-direction: column; min-height: 0; gap: 14px; }
+.directory-filters { display: flex; flex-wrap: wrap; gap: 5px; }
+.directory-filters button { border: 0; border-radius: 6px; padding: 5px 8px; color: var(--muted, #737c8f); background: transparent; font-size: 12px; cursor: pointer; }
+.directory-filters button[aria-pressed="true"] { color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); }
+.service-directory { height: min(400px, 48dvh); overflow-y: auto; overscroll-behavior: contain; }
+.directory-section + .directory-section { margin-top: 18px; }
+.directory-section h4 { margin: 0 0 8px; color: var(--muted, #737c8f); font-size: 12px; font-weight: 500; }
+.directory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.directory-entry { display: flex; min-width: 0; gap: 3px; }
+.directory-remove { flex-shrink: 0; width: 30px; padding: 0; border: 0; border-radius: 6px; color: var(--muted, #737c8f); background: transparent; font-size: 18px; cursor: pointer; }
+.directory-remove:hover { color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); }
+.directory-service { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 52px; padding: 8px 10px; border: 1px solid var(--line, #e4e7ef); border-radius: 8px; color: var(--ink, #172033); background: var(--surface, #fff); text-align: left; cursor: pointer; }
+.directory-service:hover { border-color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); }
+.directory-service-copy { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 2px; }
+.directory-service-copy strong { font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.directory-service-copy small, .directory-service-action { color: var(--muted, #737c8f); font-size: 11px; }
+.directory-service-action { flex-shrink: 0; font-size: 16px; }
+.catalog-empty { padding: 32px 0; color: var(--muted, #737c8f); text-align: center; font-size: 13px; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
 .credential-guide { margin-top: 12px; border: 1px solid #f3d4de; border-radius: 12px; background: linear-gradient(180deg, #fff6f9 0%, #fff 100%); }
 .credential-guide-summary { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 8px 12px; cursor: pointer; list-style: none; }
 .credential-guide-summary::-webkit-details-marker { display: none; }
@@ -324,86 +343,26 @@ watch(() => props.service, () => switchView('mine'))
 .credential-guide-link.is-primary { border-color: transparent; color: #fff; background: var(--brand-strong, #d63260); }
 .credential-guide-link.is-primary:hover { color: #fff; background: var(--brand-strong, #bd2853); filter: brightness(.92); box-shadow: 0 6px 16px rgba(214, 50, 96, .18); }
 .credential-guide-link:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
-.model-section {
-  display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  align-items: center;
-  gap: 20px;
-  min-height: 54px;
-  margin-top: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid #edf0f5;
-  flex: 0 0 auto;
-}
-.model-heading { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-.model-heading strong { color: #46526a; font-size: 12px; }
-.model-heading small { color: #8b93a4; font-size: 10px; line-height: 1.4; }
-.no-model-panel { display: flex; align-items: center; gap: 12px; margin-top: 20px; padding: 18px; border: 1px solid #d9eee5; border-radius: 14px; background: #f2faf6; }
-.no-model-panel > span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: #fff; background: #28aa79; font-size: 14px; }
-.no-model-panel strong { color: #185d46; font-size: 15px; }
-.no-model-panel p { margin: 4px 0 0; color: #628074; font-size: 12px; }
-.service-configuration-slot { min-height: 0; margin-top: 12px; padding-top: 12px; padding-bottom: 8px; border-top: 1px solid #eceef3; }
-.service-configuration-slot.local-model-configuration { margin-top: 10px; padding-top: 0; border-top: 0; }
-:global(:root.dark .service-catalog),
-:global(:root.dark .catalog-views),
-:global(:root.dark .catalog-search),
-:global(:root.dark .service-detail) { border-color: var(--line); background: var(--surface); }
-:global(:root.dark .catalog-views) { background: var(--surface-soft); }
-:global(:root.dark .service-rail),
-:global(:root.dark .group-heading),
-:global(:root.dark .custom-service-add) { border-color: var(--line); background: var(--surface-soft); }
-:global(:root.dark .service-item),
-:global(:root.dark .catalog-search input),
-:global(:root.dark .group-heading strong),
-:global(:root.dark .subgroup-heading strong),
-:global(:root.dark .detail-title-row h4),
-:global(:root.dark .model-heading strong),
-:global(:root.dark .custom-service-add) { color: var(--ink); }
-:global(:root.dark .service-copy small),
-:global(:root.dark .detail-hero p),
-:global(:root.dark .model-heading small),
-:global(:root.dark .custom-service-empty) { color: var(--muted); }
-:global(:root.dark .subgroup-heading) { color: var(--muted); }
-:global(:root.dark .group-toggle-copy) { color: var(--brand-strong); }
-:global(:root.dark .detail-hero),
-:global(:root.dark .model-section),
-:global(:root.dark .service-configuration-slot) { border-color: var(--line); }
-:global(:root.dark .service-item:hover) { border-color: var(--line); background: var(--surface); }
-:global(:root.dark .group-heading-toggle:not(:disabled):hover) { background: var(--brand-soft); }
-:global(:root.dark .service-item.active) { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
-:global(:root.dark .credential-guide) { border-color: rgba(255, 138, 171, .3); background: var(--surface-soft); }
-:global(:root.dark .credential-guide-summary-copy strong),
-:global(:root.dark .credential-guide-steps) { color: var(--ink); }
-:global(:root.dark .credential-guide-body),
-:global(:root.dark .credential-guide-body > small) { color: var(--muted); border-color: var(--line); }
+
+:global(:root.dark .credential-guide) { border-color: var(--line); background: var(--surface-soft); }
+:global(:root.dark .credential-guide-summary-copy strong), :global(:root.dark .credential-guide-steps) { color: var(--ink); }
+:global(:root.dark .credential-guide-body) { border-color: var(--line); }
 :global(:root.dark .credential-guide-link) { border-color: var(--line); color: var(--ink); background: var(--surface); }
-:global(:root.dark .credential-guide-link:hover) { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
-/* 暗色下品牌色是浅粉，实心按钮会失去对比；改用与“检查连接”一致的描边强调样式。 */
-:global(:root.dark .credential-guide-link.is-primary) { border-color: rgba(255, 138, 171, .48); color: var(--brand-strong); background: var(--brand-soft); }
-:global(:root.dark .credential-guide-link.is-primary:hover) { border-color: var(--brand-strong); color: var(--brand-strong); background: var(--brand-soft); box-shadow: none; }
-:global(:root.dark .no-model-panel) { border-color: #31594d; background: #1c342d; }
-:global(:root.dark .no-model-panel strong) { color: #a8e8d5; }
-:global(:root.dark .no-model-panel p) { color: #8fc5b5; }
-@media (max-width: 900px) {
-  .catalog-layout { grid-template-columns: 210px minmax(0, 1fr); }
-  .directory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+:global(:root.dark .credential-guide-link.is-primary) { color: var(--brand-strong); background: var(--brand-soft); }
+@media (max-width: 1100px) {
+  .catalog-layout { grid-template-columns: 190px minmax(0, 1fr); }
+  .service-detail { padding: 18px; }
 }
 @media (max-width: 700px) {
   .service-catalog { height: auto; min-height: 0; }
-  .catalog-toolbar-inner { align-items: stretch; }
-  .catalog-views { width: 100%; min-width: 0; }
-  .catalog-actions { width: 100%; flex-basis: 100%; margin-left: 0; }
-  .catalog-search { width: auto; flex: 1 1 auto; }
-  .catalog-layout { display: block; flex: 0 0 auto; }
-  .directory-grid { grid-template-columns: 1fr; }
-  .service-groups { max-height: 220px; }
-
-  .service-rail { border-right: 0; border-bottom: 1px solid #eceef3; }
-  .service-groups { grid-template-columns: 1fr; }
-  .service-detail { padding: 18px; }
+  .catalog-layout { display: block; }
+  .service-rail { border-right: 0; border-bottom: 1px solid var(--line, #e4e7ef); padding: 10px 12px; }
+  .rail-heading { margin-bottom: 6px; }
+  .service-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 144px; }
+  .service-detail { padding: 16px 12px; overflow: visible; }
+  .detail-hero { flex-wrap: wrap; gap: 8px; }
+  .detail-title-row h4 { font-size: 16px; }
   .model-section { grid-template-columns: 1fr; gap: 7px; }
-  .service-detail { min-height: 520px; margin: 0; padding: 18px; border: 0; border-radius: 0; overflow: visible; }
-  .detail-hero { flex-wrap: wrap; }
-  .service-configuration-slot { max-height: none; overflow: visible; }
+  .directory-grid { grid-template-columns: 1fr; }
 }
 </style>

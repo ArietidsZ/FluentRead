@@ -1,8 +1,8 @@
 /**
  * @file src/ui/view-model/serviceLibrary.ts
  * 文件职责：从已有配置派生个人翻译服务列表，避免把预置模型误认为用户已配置。
- * 主要内容：识别用户保存的凭据、端点、模型及自定义服务；按默认、常用、已保存和正在查看去重分组。
- * 模块边界：只返回服务 ID 和分组，不输出凭据、不检测连接、不写入配置或调整默认服务。
+ * 主要内容：识别用户保存的凭据、端点、模型及自定义服务；合并默认、用户添加、已保存和少量预置常用项，保持列表稳定且去重。
+ * 模块边界：只返回服务 ID 和列表，不输出凭据、不检测连接、不写入配置或调整默认服务。
  */
 import { Config } from '@/src/core/config/model'
 import { defaultModels, services, servicesType } from '@/src/core/config/catalog'
@@ -27,32 +27,18 @@ export function hasSavedServiceConfiguration(service: string, config: Config): b
   return false
 }
 
-export interface PersonalServiceGroup {
-  id: 'default' | 'favorites' | 'configured' | 'viewing'
-  items: ServiceOption[]
-}
+/** 预置只影响初次展示；不会覆盖用户收藏或为服务写入配置。 */
+export const COMMON_SERVICE_IDS = [services.freeTranslation, services.deepseek, services.openai, services.gemini, services.localTranslation] as const
 
-/** 使用持久化收藏顺序，其他项沿用目录顺序；正在查看的陌生服务只临时出现。 */
-export function buildPersonalServiceGroups(
+/** 默认服务优先，保留用户添加顺序和已有配置，再补充少量常用服务；同一项只展示一次。 */
+export function buildServiceShortlist(
   options: ServiceOption[], defaultService: string, editingService: string,
   favorites: readonly string[], configured: readonly string[],
-): PersonalServiceGroup[] {
+): ServiceOption[] {
   const byId = new Map(options.map(item => [item.value, item]))
-  const seen = new Set<string>()
-  const groups: PersonalServiceGroup[] = []
-  const append = (id: PersonalServiceGroup['id'], ids: readonly string[]) => {
-    const items: ServiceOption[] = []
-    for (const value of ids) {
-      const item = byId.get(value)
-      if (!item || seen.has(value)) continue
-      seen.add(value)
-      items.push(item)
-    }
-    if (items.length) groups.push({ id, items })
-  }
-  append('default', [defaultService])
-  append('favorites', favorites)
-  append('configured', configured)
-  append('viewing', [editingService])
-  return groups
+  const ids = new Set([defaultService, ...favorites, ...configured, ...COMMON_SERVICE_IDS, editingService])
+  return [...ids].flatMap(id => {
+    const item = byId.get(id)
+    return item ? [item] : []
+  })
 }

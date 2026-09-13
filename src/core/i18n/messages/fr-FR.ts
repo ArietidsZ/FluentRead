@@ -15,6 +15,15 @@ import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
     ...localTtsFrenchMessages,
+    "settings.services.library.freeReady": "Aucune clé API requise. Les services gratuits disponibles sont sélectionnés automatiquement.",
+    "settings.services.library.keepOne": "Gardez au moins un service activé.",
+    "settings.services.library.memoryEmail": "Adresse e-mail MyMemory (facultatif)",
+    "settings.services.library.removeNamedService": "Retirer {service} de la liste",
+    "settings.services.library.shortlist": "Services de traduction",
+    "settings.services.library.addService": "Ajouter un service",
+    "settings.services.library.added": "Ajouté",
+    "settings.services.library.configureService": "Configurer {service}",
+    "settings.services.library.addNamedService": "Ajouter {service}",
     "settings.services.library.views": "Vues des services",
     "settings.services.library.mine": "Mes services",
     "settings.services.library.all": "Tous les services",

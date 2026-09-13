@@ -13,6 +13,15 @@ import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
     ...localTtsChineseMessages,
+    "settings.services.library.freeReady": "无需 API Key，自动选择可用的免费服务。",
+    "settings.services.library.keepOne": "至少保留一个服务。",
+    "settings.services.library.memoryEmail": "MyMemory 联系邮箱（可选）",
+    "settings.services.library.removeNamedService": "从列表移除 {service}",
+    "settings.services.library.shortlist": "服务",
+    "settings.services.library.addService": "添加服务",
+    "settings.services.library.added": "已添加",
+    "settings.services.library.configureService": "配置 {service}",
+    "settings.services.library.addNamedService": "添加 {service}",
     "settings.services.library.views": "服务视图",
     "settings.services.library.mine": "我的服务",
     "settings.services.library.all": "全部服务",

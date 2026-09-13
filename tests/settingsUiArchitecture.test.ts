@@ -779,7 +779,7 @@ describe('options UI composition architecture', () => {
 
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.action')")
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.titleReady')")
-    expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.noKey')")
+    expect(serviceConfiguration).not.toContain('class="setup-status"')
     expect(serviceConfiguration).toContain("const { language, t } = useUiI18n()")
     expect(serviceConfiguration).not.toContain('data-chrome-preparation-source')
     expect(serviceConfiguration).not.toContain('chromePreparationSourceLanguage')
@@ -808,7 +808,7 @@ describe('options UI composition architecture', () => {
     const promptEditor = source('src/features/settings/ui/services/PromptTemplateEditor.vue')
 
     expect(catalog).toContain('data-testid="custom-service-add"')
-    expect(catalog).toContain("t('settings.services.library.mine')")
+    expect(catalog).toContain("t('settings.services.library.addService')")
     expect(catalog).toContain('<ModelPicker')
     expect(catalog).not.toContain('model-grid expanded')
     expect(catalog).not.toContain('.model-grid.expanded')
@@ -837,7 +837,7 @@ describe('options UI composition architecture', () => {
     expect(catalog).not.toContain('data-testid="model-thinking-control"')
     expect(catalog).not.toContain('Thinking')
     const advancedSettingsStart = serviceConfiguration.indexOf(
-      '<details class="custom-advanced-settings"',
+      '<details :key="service" class="custom-advanced-settings"',
     )
     const advancedSettingsEnd = serviceConfiguration.indexOf('</details>', advancedSettingsStart)
     const advancedSettingsSource = serviceConfiguration.slice(advancedSettingsStart, advancedSettingsEnd)
@@ -850,7 +850,7 @@ describe('options UI composition architecture', () => {
     expect(serviceConfiguration).toContain('data-api-key-rotation-setting')
     expect(serviceConfiguration).toContain('displayedApiKeys')
     expect(serviceConfiguration).toContain(':allow-multiple="apiKeyRotationEnabled"')
-    expect(apiKeyList).toContain("settings.services.keys.singleHelp")
+    expect(apiKeyList).not.toContain("settings.services.keys.singleHelp")
     expect(apiKeyList).toContain('props.allowMultiple')
     expect(serviceConfiguration.slice(advancedSettingsEnd + '</details>'.length).trimStart()).toMatch(/^<\/section>/u)
     expect(advancedSettingsSource).toContain(':model-value="selectedModelThinking"')
@@ -937,24 +937,22 @@ describe('options UI composition architecture', () => {
     expect(styles).not.toContain('box-shadow: inset 4px 0 0 var(--brand);')
   })
 
-  it('keeps personal services and the full catalog as the only top-level views', () => {
+  it('keeps a small service shortlist and opens the full catalog only when adding a service', () => {
     const catalog = source('src/features/settings/ui/services/ServiceCatalog.vue')
     const item = source('src/features/settings/ui/services/ServiceCatalogItem.vue')
-    expect(catalog).toContain('data-service-view="mine"')
-    expect(catalog).not.toContain('data-service-view="custom"')
-    expect(catalog).toContain('data-service-view="all"')
-    expect(catalog).not.toContain("catalogView === 'custom'")
-    expect(catalog).toContain('customServices.value.length')
+    expect(catalog).not.toContain('data-service-view=')
+    expect(catalog).not.toContain('catalog-browse')
+    expect(catalog).not.toContain('no-model-panel')
+    expect(catalog).toContain('data-testid="service-add"')
+    expect(catalog).toContain('data-testid="service-add-dialog"')
+    expect(catalog).toContain('v-for="item in shortlist"')
+    expect(catalog).toContain(':data-service-add-value="item.value"')
+    expect(catalog).toContain(':data-service-added="shortlistIds.has(item.value)"')
+    expect(catalog).toContain(':aria-pressed="category === group.id"')
     expect(catalog).toContain("id: 'custom'")
     expect(catalog).not.toContain('maximumCustomServices')
-    expect(catalog).not.toContain('customServiceLimitReached')
-    expect(catalog).toContain('class="catalog-toolbar-inner"')
-    expect(catalog).toContain(':data-personal-group="group.id"')
-    expect(catalog).toContain(':aria-pressed="category === group.id"')
-    expect(catalog).toContain(':data-directory-view="catalogView"')
     expect(item).toContain(':data-service-value="item.value"')
-    expect(item).toContain(':data-service-favorite="item.value"')
-    expect(item).toContain(':aria-pressed="favorite"')
+    expect(item).not.toContain('library-favorite')
     expect(item).toContain('<ServiceIcon')
   })
 

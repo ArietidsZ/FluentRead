@@ -15,6 +15,15 @@ import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
     ...localTtsKoreanMessages,
+    "settings.services.library.freeReady": "API 키 없이 사용 가능한 무료 서비스를 자동으로 선택합니다.",
+    "settings.services.library.keepOne": "서비스를 하나 이상 활성화해 두세요.",
+    "settings.services.library.memoryEmail": "MyMemory 연락처 이메일(선택 사항)",
+    "settings.services.library.removeNamedService": "목록에서 {service} 제거",
+    "settings.services.library.shortlist": "서비스",
+    "settings.services.library.addService": "서비스 추가",
+    "settings.services.library.added": "추가됨",
+    "settings.services.library.configureService": "{service} 설정",
+    "settings.services.library.addNamedService": "{service} 추가",
     "settings.services.library.views": "서비스 보기",
     "settings.services.library.mine": "내 서비스",
     "settings.services.library.all": "모든 서비스",

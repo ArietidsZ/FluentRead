@@ -15,6 +15,15 @@ import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
     ...localTtsSpanishMessages,
+    "settings.services.library.freeReady": "No se necesita una clave API. Los servicios gratuitos disponibles se seleccionan automáticamente.",
+    "settings.services.library.keepOne": "Mantén al menos un servicio activado.",
+    "settings.services.library.memoryEmail": "Correo de contacto de MyMemory (opcional)",
+    "settings.services.library.removeNamedService": "Quitar {service} de la lista",
+    "settings.services.library.shortlist": "Servicios",
+    "settings.services.library.addService": "Añadir servicio",
+    "settings.services.library.added": "Añadido",
+    "settings.services.library.configureService": "Configurar {service}",
+    "settings.services.library.addNamedService": "Añadir {service}",
     "settings.services.library.views": "Vistas de servicios",
     "settings.services.library.mine": "Mis servicios",
     "settings.services.library.all": "Todos los servicios",

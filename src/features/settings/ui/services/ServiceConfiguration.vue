@@ -11,24 +11,10 @@
     :data-custom-service-configuration="compute.showCustomOpenAI ? 'true' : 'false'"
     :data-ai-advanced-settings="compute.showAI ? 'true' : 'false'"
   >
-    <div v-if="service !== services.localTranslation" class="subsection-heading">
-      <div>
-        <strong>连接配置</strong>
-        <small class="connection-test-hint">修改会自动保存；凭据只保存在当前设备。</small>
-      </div>
-      <span
-        v-if="compute.credentialWarning"
-        class="setup-status is-warning"
-        role="status"
-        :aria-label="compute.credentialWarning"
-      >待完成</span>
-      <span v-else class="setup-status">{{ isChromeConnectionTest ? t('settings.services.chromePreparation.noKey') : t('settings.services.keys.configured') }}</span>
-    </div>
+    <div v-if="service !== services.localTranslation && (!compute.showToken || compute.showServiceSecret)" class="connection-test-inline">
+      <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="false" />
 
-    <Teleport v-if="service !== services.localTranslation" defer to=".detail-hero">
-      <div class="detail-actions">
         <button
-          v-if="!compute.showToken || compute.showServiceSecret"
           type="button"
           class="connection-test-button"
           data-connection-test-button
@@ -39,8 +25,7 @@
             ? (connectionTestBusy ? t('settings.services.chromePreparation.actionBusy') : t('settings.services.chromePreparation.action'))
             : (connectionTestBusy ? t('settings.services.keys.checking') : compute.showToken && !compute.showServiceSecret && apiKeyIndexes.length > 1 ? t('settings.services.keys.checkAll') : '检查连接') }}
         </button>
-      </div>
-    </Teleport>
+    </div>
 
     <div
       v-if="connectionTestMessage && (!compute.showToken || compute.showServiceSecret || Object.keys(apiKeyChecks).length === 0)"
@@ -58,7 +43,6 @@
       </details>
     </div>
 
-    <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" />
     <LocalTranslationModelSettings v-if="service === services.localTranslation" :config="config" :service="service" />
 
     <template v-if="service === services.myMemory">
@@ -358,13 +342,16 @@
       <el-col :span="12"><el-input v-model="config.newApiUrl" placeholder="请输入您的New API接口地址" /></el-col>
     </el-row>
 
-    <details class="custom-advanced-settings" v-if="service !== services.localTranslation" data-testid="custom-service-advanced">
+    <p v-if="service !== services.freeTranslation && service !== services.localTranslation" class="connection-save-note">修改会自动保存；凭据只保存在当前设备。</p>
+
+    <details :key="service" class="custom-advanced-settings" v-if="service !== services.localTranslation" data-testid="custom-service-advanced">
       <summary>
         <strong>高级设置</strong>
         <svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
       </summary>
 
       <div class="custom-advanced-content">
+        <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="true" />
         <div v-if="compute.showToken && !compute.showServiceSecret" class="connection-field api-key-rotation-setting" data-api-key-rotation-setting>
           <div class="connection-field-label">
             <strong>{{ t('settings.services.keys.multiKeyTitle') }}</strong>
@@ -612,7 +599,8 @@ const apiKeyCheckMode = ref<'single' | 'all'>('all')
 
 function syncApiKeys(next: string[]): void {
   const value = next.length > 0 ? next : ['']
-  const storedValue = apiKeyRotationEnabled.value ? value : [value[0] || '']
+  // 单 Key 模式只改变当前使用范围，编辑首个 Key 时保留高级配置里已有的其他 Key。
+  const storedValue = value
   if (!config.value.apiKeys) config.value.apiKeys = {}
   config.value.apiKeys[service.value] = storedValue
   config.value.token[service.value] = storedValue.find(key => key.trim()) || ''
@@ -1269,8 +1257,12 @@ onBeforeUnmount(() => {
 
 .delete-service-button:hover { color: var(--brand-strong, #ad3657); background: var(--brand-soft, #fff1f4); }
 
+.connection-test-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+.connection-save-note { margin: 8px 0; color: var(--muted, #737d90); font-size: 11px; line-height: 1.5; }
+
 .custom-advanced-settings {
-  margin-top: 14px;
+  margin-top: 12px;
   border: 0;
   background: transparent;
 }
