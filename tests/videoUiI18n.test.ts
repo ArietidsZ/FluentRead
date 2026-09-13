@@ -7,6 +7,7 @@ import {
   type VideoAiMenuState,
 } from '@/src/features/video-subtitle/content/playerMenu';
 import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+import {refreshVideoUiAccessibility} from '@/src/features/video-subtitle/content/ui';
 
 // 扩展运行时按需加载界面语言；本文件验证全部语言的文案契约，因此一次注册全部资源包。
 registerAllUiLanguageBundles();
@@ -41,6 +42,24 @@ afterEach(() => {
 });
 
 describe('video player menu composition', () => {
+  it('updates menu and subtitle accessibility while the player entry button is unmounted', () => {
+    const {document} = parseHTML('<!doctype html><body><div id="fluent-read-video-subtitle-panel"></div><div id="fluent-read-video-subtitle"></div><div id="fluent-read-video-subtitle-original"></div></body>');
+    vi.stubGlobal('document', document);
+    const menu = createVideoPlayerMenu('zh-CN', true);
+    const button = document.createElement('button');
+    refreshVideoUiAccessibility(menu, button, document, 'zh-CN', '已开启');
+    const chineseLabel = menu.getAttribute('aria-label');
+    refreshVideoUiAccessibility(menu, null, document, 'en-US', 'Enabled');
+    expect(menu.getAttribute('aria-label')).not.toBe(chineseLabel);
+    expect(menu.querySelector('[role="radiogroup"]')?.getAttribute('aria-label')).toBeTruthy();
+    for (const element of document.querySelectorAll('[id]')) {
+      expect(element.getAttribute('aria-label')).toBeTruthy();
+    }
+    refreshVideoUiAccessibility(menu, button, document, 'en-US', 'Enabled');
+    expect(button.getAttribute('aria-label')).toContain('Enabled');
+    expect(button.title).toBe(button.getAttribute('aria-label'));
+  });
+
   it('creates an accessible stable menu with optional local generation and display modes', () => {
     const {document} = parseHTML('<!doctype html><body></body>');
     vi.stubGlobal('document', document);

@@ -59,7 +59,7 @@ export function refreshVideoUiText(root: HTMLElement, language: UiLanguage): voi
 
 export function refreshVideoUiAccessibility(
     menu: HTMLElement,
-    button: HTMLElement,
+    button: HTMLElement | null,
     document: Document,
     language: UiLanguage,
     status: string,
@@ -67,8 +67,8 @@ export function refreshVideoUiAccessibility(
     menu.setAttribute('aria-label', translateVideoUi('video.menuAriaLabel', language));
     menu.querySelector<HTMLElement>('[role="radiogroup"]')?.setAttribute('aria-label', translateVideoUi('video.displayMode', language));
     const buttonLabel = translateVideoUi('video.buttonAriaLabel', language, {status});
-    button.setAttribute('aria-label', buttonLabel);
-    button.title = buttonLabel;
+    button?.setAttribute('aria-label', buttonLabel);
+    if (button) button.title = buttonLabel;
     document.getElementById('fluent-read-video-subtitle-panel')?.setAttribute('aria-label', translateVideoUi('video.panelAriaLabel', language));
     document.getElementById('fluent-read-video-subtitle')?.setAttribute('aria-label', translateVideoUi('video.translationOverlayAriaLabel', language));
     document.getElementById('fluent-read-video-subtitle-original')?.setAttribute('aria-label', translateVideoUi('video.originalOverlayAriaLabel', language));
