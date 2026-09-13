@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/runtime.ts
  * 文件职责：实现 YouTube 与 X 页面视频字幕翻译运行时，协调原生字幕读取、timedtext 预取、逐条翻译、字幕时间对齐、显示模式、设置菜单和字幕下载。
- * 主要内容：协调当前视频与全屏宿主、原生轨道、手动字幕校时、流式字幕有界等待、独立识别语言、完整字幕持久缓存恢复、预翻译、菜单进度和取消生命周期，并在切换视频或禁用后清理旧状态。
+ * 主要内容：协调当前视频与全屏宿主、原生轨道、手动字幕校时、委托纯函数选择渐进字幕、流式字幕有界等待、独立识别语言、完整字幕持久缓存恢复、预翻译、菜单进度和取消生命周期，并在切换视频或禁用后清理旧状态。
  * 模块边界：本文件只在 content 页面编排，不拦截 fetch/XHR 也不实现翻译 provider；MAIN-world bridge 在独立模块捕获 timedtext，解析算法在 youtubeSubtitleData，翻译经 app client。
  */
 import browser from 'webextension-polyfill';
@@ -51,7 +51,7 @@ import {XCaptionSource} from './xCaptionSource';
 import {XHlsAudioReader} from './hlsAudioRuntime';
 import {XSubtitleLoader} from './xSubtitleLoader';
 import {VideoTranslationCache} from './translationCache';
-import {createVideoSubtitleAbortError, translateVideoSubtitleCues, getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset} from './subtitleLogic';
+import {createVideoSubtitleAbortError, translateVideoSubtitleCues, getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, findProgressiveVideoCaptionCue} from './subtitleLogic';
 export {translateVideoSubtitleCues, getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation} from './subtitleLogic';
 export {getVideoSubtitleDownloadErrorMessage} from './ui';
 import { config, requestConfigPatch, subscribeConfig } from '@/src/services/config/store';
@@ -335,69 +335,8 @@ export function mountVideoSubtitleTranslation(): () => void {
     return getAdjustedCaptionCue()?.text || '';
   };
 
-  const findProgressiveCue = (source: string): VideoSubtitleCue | null => {
-    const normalizedSource = normalizeVideoCaptionText(source);
-    if (!normalizedSource || pretranslationCues.length === 0) return null;
-
-    const foldedSource = normalizedSource.toLocaleLowerCase();
-    const currentMs = getCurrentVideoTimeMs();
-    const sourceLength = Array.from(normalizedSource).length;
-    const getTimeDistance = (cue: VideoSubtitleCue): number => {
-      const endMs = cue.startMs + Math.max(cue.durationMs, 500);
-      return Number.isFinite(currentMs)
-        ? currentMs < cue.startMs
-          ? cue.startMs - currentMs
-          : currentMs > endMs
-            ? currentMs - endMs
-            : 0
-        : 0;
-    };
-    const score = (cue: VideoSubtitleCue): number[] => {
-      const fullSource = normalizeVideoCaptionText(cue.text);
-      const exact = fullSource.toLocaleLowerCase() === foldedSource ? 0 : 1;
-      return [
-        getTimeDistance(cue),
-        exact,
-        Math.abs(Array.from(fullSource).length - sourceLength),
-        cue.startMs,
-      ];
-    };
-
-    const pickBest = (predicate: (cue: VideoSubtitleCue, foldedText: string) => boolean): VideoSubtitleCue | null => {
-      let best: VideoSubtitleCue | null = null;
-      let bestScore: number[] | null = null;
-      for (const cue of pretranslationCues) {
-        const foldedText = normalizeVideoCaptionText(cue.text).toLocaleLowerCase();
-        if (!predicate(cue, foldedText)) continue;
-        const nextScore = score(cue);
-        let isBetter = bestScore === null;
-        if (bestScore) {
-          for (let index = 0; index < nextScore.length; index += 1) {
-            if (nextScore[index] === bestScore[index]) continue;
-            isBetter = nextScore[index] < bestScore[index];
-            break;
-          }
-        }
-        if (isBetter) {
-          best = cue;
-          bestScore = nextScore;
-        }
-      }
-      return best;
-    };
-
-    const matched = pickBest((_cue, fullSource) =>
-      fullSource === foldedSource || fullSource.startsWith(foldedSource));
-    if (matched) return matched;
-
-    // 部分 YouTube 版本只把“当前词”写入 DOM，而不是写入完整前缀。
-    // 此时用播放器时间轴和当前词反查完整 cue，避免一直等不到稳定句子。
-    if (!Number.isFinite(currentMs) || normalizedSource.length < 3) return null;
-    return pickBest((cue, fullSource) => {
-      if (getTimeDistance(cue) > 1200) return false;
-      return fullSource.includes(foldedSource) || foldedSource.includes(fullSource);
-    });
-  };
+  const findProgressiveCue = (source: string): VideoSubtitleCue | null =>
+    findProgressiveVideoCaptionCue(pretranslationCues, source, getCurrentVideoTimeMs());
 
   const getProgressiveCueKey = (cue: VideoSubtitleCue): string =>
     `${(cue as VideoSubtitleCue & { cueId?: string }).cueId || cue.startMs}:${normalizeVideoCaptionText(cue.text)}`;
