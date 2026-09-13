@@ -117,6 +117,7 @@ export default defineConfig({
             'tests/freeChineseWebProviders.test.ts',
             'tests/freeExtraWebProviders.test.ts',
             'tests/myMemoryProvider.test.ts',
+            'tests/myMemoryConnectionTest.test.ts',
             'tests/freeWebProviders.test.ts',
             'tests/areaTranslationCore.test.ts',
             'tests/contentFeatureLifecycle.test.ts',
