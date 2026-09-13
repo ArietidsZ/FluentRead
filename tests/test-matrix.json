@@ -253,6 +253,7 @@
       "tests/localTtsBackground.test.ts",
       "tests/localTtsModelCache.test.ts",
       "tests/onnxWasmBinary.test.ts",
+      "tests/wasmDiagnostics.test.ts",
       "tests/onnxWebGpu.test.ts",
       "tests/localTtsWorker.test.ts"
     ],
