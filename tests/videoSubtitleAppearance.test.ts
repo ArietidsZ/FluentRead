@@ -10,9 +10,25 @@ import {
   Config,
   VIDEO_SOURCE_LANGUAGE_OPTIONS,
   normalizeConfig,
+  normalizeVideoSubtitleOffsetMs,
 } from '@/src/core/config/model';
 
 describe('video subtitle appearance contract', () => {
+  it('字幕时间偏移保存为半秒步进，迁移旧配置时默认同步且不改已有字幕外观', () => {
+    expect(new Config().videoSubtitleOffsetMs).toBe(0);
+    expect(normalizeConfig({}).videoSubtitleOffsetMs).toBe(0);
+    for (const value of [undefined, 'invalid', Infinity, NaN]) expect(normalizeVideoSubtitleOffsetMs(value)).toBe(0);
+    expect(normalizeVideoSubtitleOffsetMs(99999)).toBe(10000);
+    expect(normalizeVideoSubtitleOffsetMs(-99999)).toBe(-10000);
+    expect(normalizeVideoSubtitleOffsetMs('500')).toBe(500);
+    expect(normalizeVideoSubtitleOffsetMs(-1100)).toBe(-1000);
+    expect(Object.is(normalizeVideoSubtitleOffsetMs(-1), -0)).toBe(false);
+    const saved = normalizeConfig({videoSubtitleOffsetMs: -1500, videoSubtitleAppearance: {fontScale: 140}});
+    expect(saved.videoSubtitleOffsetMs).toBe(-1500);
+    expect(saved.videoSubtitleAppearance.fontScale).toBe(140);
+    expect(normalizeConfig(JSON.parse(JSON.stringify(saved))).videoSubtitleOffsetMs).toBe(-1500);
+  });
+
   it('exposes an extensible skin registry while preserving the current default', () => {
     expect(VIDEO_SUBTITLE_SKINS.length).toBeGreaterThanOrEqual(8);
     expect(VIDEO_SUBTITLE_SKINS.map((skin) => skin.id)).toContain('classic');

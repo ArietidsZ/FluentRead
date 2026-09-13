@@ -2,7 +2,7 @@
  * @file src/features/video-subtitle/content/ui.ts
  *
  * 文件职责：封装视频字幕 content UI 的界面语言转换与可访问名称刷新，避免 YouTube 播放器运行时承载重复的文案拼装。
- * 主要内容：提供视频菜单本地化、节点创建、播放器定位，按 X 实际画面约束字幕几何与换行，并封装样式及字幕下载。
+ * 主要内容：提供视频菜单本地化、校时控件样式、节点创建、播放器定位，过滤 YouTube 滚动窗口裁掉的旧行，按 X 实际画面约束字幕几何与换行，并封装样式及字幕下载。
  * 模块边界：只读取界面配置并操作视频 feature 拥有的节点、样式和下载链接，不发起翻译或识别请求；任务生命周期由 runtime 管理。
  */
 
@@ -120,7 +120,8 @@ export const VIDEO_DISPLAY_MODE_LABELS: Record<VideoSubtitleDisplayMode, string>
 };
 
 export const VIDEO_CAPTION_EMPTY_GRACE_MS = 420;
-export const VIDEO_CAPTION_STABILITY_MS = 360;
+export const VIDEO_CAPTION_STABILITY_MS = 80;
+export const VIDEO_CAPTION_MAX_WAIT_MS = 240;
 export const VIDEO_CAPTION_FALLBACK_SEGMENT_SELECTOR = '.captions-text';
 export const VIDEO_SUBTITLE_DOWNLOAD_CONCURRENCY = 3;
 
@@ -194,7 +195,17 @@ export function getVisibleCaptionSegments(container: Element): HTMLElement[] {
     ? nativeSegments
     : Array.from(container.querySelectorAll<HTMLElement>(VIDEO_CAPTION_FALLBACK_SEGMENT_SELECTOR));
 
-  return candidates.filter((segment) => !candidates.some((candidate) => candidate !== segment && candidate.contains(segment)));
+  return candidates.filter((segment) => {
+    if (candidates.some((candidate) => candidate !== segment && candidate.contains(segment))) return false;
+    const rollup = segment.closest?.('.ytp-caption-window-rollup');
+    if (!rollup) return true;
+    const windowRect = rollup.getBoundingClientRect();
+    const segmentRect = segment.getBoundingClientRect();
+    // visibility:hidden 是插件隐藏原生行的方式，不能据此过滤；只排除
+    // YouTube 滚动窗口实际裁掉的旧行。未布局时保留原文，避免误判为空。
+    return !windowRect.height || !segmentRect.height
+      || (segmentRect.bottom > windowRect.top && segmentRect.top < windowRect.bottom);
+  });
 }
 
 export function readVisibleCaptionText(container: Element | null): string {
@@ -834,7 +845,8 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       outline: 2px solid #ff8fbd !important;
       outline-offset: -2px !important;
     }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item:disabled {
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item:disabled,
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode:disabled {
       cursor: default !important;
       opacity: .55 !important;
     }
@@ -927,6 +939,31 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode[aria-checked="true"] {
       background: rgba(236, 72, 153, .18) !important;
       color: #ffacd0 !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing {
+      margin-top: 10px !important;
+      padding: 8px 2px 0 !important;
+      border-top: 1px solid rgba(255, 255, 255, .09) !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-heading,
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-controls {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 6px !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-heading { font-size: 11px !important; }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-heading button { flex: 0 0 auto !important; }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-value {
+      flex: 0 0 auto !important;
+      font-size: 12px !important;
+      font-variant-numeric: tabular-nums !important;
+      color: #ffacd0 !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-unavailable {
+      margin: 4px 0 0 !important;
+      font-size: 11px !important;
+      color: rgba(255, 255, 255, .55) !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-ai-group,
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-downloads {

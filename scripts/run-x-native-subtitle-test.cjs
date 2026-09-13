@@ -165,7 +165,7 @@ async function main() {
   await context.route(fixtureUrl, route => route.fulfill({
     status: 200,
     contentType: 'text/html',
-    body: `<!doctype html><html><body style="margin:24px;background:#f3f5f9"><h1>X native subtitle fixture</h1><article><a href="/cerebras/status/2089870131291943228/video/1">View media</a><div data-testid="videoPlayer" style="position:relative;width:960px;height:540px;background:#10283f"><video controls style="width:100%;height:100%"></video></div></article></body></html>`,
+    body: `<!doctype html><html><body style="margin:24px;background:#f3f5f9"><h1>X native subtitle fixture</h1><article><a href="/cerebras/status/2089870131291943228/video/1">View media</a><div data-testid="videoPlayer" style="position:relative;width:960px;height:540px;background:#10283f"><video controls style="width:100%;height:100%"></video><div id="fixture-x-initial-controls" style="position:absolute;right:12px;bottom:40px;display:flex;gap:8px"><button aria-label="Volume">Volume</button><button aria-label="Settings">Settings</button></div></div></article></body></html>`,
   }));
   page = await helper.newPageWithoutForeground(context);
   await page.goto(fixtureUrl);
@@ -207,6 +207,24 @@ async function main() {
   assert.equal(await page.evaluate(() => document.querySelector('video').textTracks[1].mode), 'hidden');
   await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle')?.textContent?.includes('译文：'));
   assert.match(await page.locator('#fluent-read-video-subtitle-original').textContent(), /[가-힣]/u);
+
+  // The shared playback menu must also shift X's complete native TextTrack.
+  await seek(2.4);
+  await page.locator('[data-action="subtitle-earlier"]').click();
+  await waitForNativeText(page, '커피를 마시고 친구를 만났습니다.');
+  assert.equal(await page.evaluate(() => document.querySelector('video').currentTime), 2.4);
+  assert.equal(await page.locator('[data-subtitle-offset]').textContent(), '-0.5 s');
+  await page.locator('[data-action="reset-subtitle-timing"]').click();
+  await page.waitForFunction(() => !document.querySelector('#fluent-read-video-subtitle-original')?.textContent);
+  await page.locator('[data-action="subtitle-later"]').click();
+  await seek(3.1);
+  await page.waitForFunction(() => !document.querySelector('#fluent-read-video-subtitle-original')?.textContent);
+  await seek(3.3);
+  await waitForNativeText(page, '커피를 마시고 친구를 만났습니다.');
+  await page.locator('[data-action="reset-subtitle-timing"]').click();
+  await seek(0.5);
+  await waitForNativeText(page, '오늘은 좋은 날입니다.');
+  report.timingControls = {earlierMs: -500, laterMs: 500, reset: true, playbackPositionPreserved: true};
   report.baseFontSize = await page.locator('#fluent-read-video-subtitle').evaluate(node => parseFloat(getComputedStyle(node).fontSize));
   assert.equal((await persistConfig(control, 130)).success, true);
   await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-panel')?.style.getPropertyValue('--fluent-read-video-subtitle-font-scale') === '130%');
@@ -291,6 +309,7 @@ async function main() {
   await page.evaluate(() => {
     const video = document.querySelector('video');
     video.controls = false;
+    document.querySelector('#fixture-x-initial-controls').remove();
     const bar = document.createElement('div');
     bar.id = 'fixture-x-controls';
     bar.style.cssText = 'position:absolute;bottom:0;left:0;width:100%;height:48px;opacity:0;pointer-events:none;background:#202020';

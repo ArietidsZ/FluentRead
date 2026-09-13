@@ -4,6 +4,7 @@ import {parseHTML} from 'linkedom';
 import {
   createVideoPlayerMenu,
   renderVideoAiMenu,
+  renderVideoSubtitleTiming,
   type VideoAiMenuState,
 } from '@/src/features/video-subtitle/content/playerMenu';
 import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
@@ -11,6 +12,34 @@ import {refreshVideoUiAccessibility} from '@/src/features/video-subtitle/content
 
 // 扩展运行时按需加载界面语言；本文件验证全部语言的文案契约，因此一次注册全部资源包。
 registerAllUiLanguageBundles();
+
+describe('player subtitle timing', () => {
+  it('renders signed saved offset, bounded controls and unavailable captions without replacing buttons', () => {
+    const {document} = parseHTML('<!doctype html><body></body>');
+    vi.stubGlobal('document', document);
+    const menu = createVideoPlayerMenu('en-US', false);
+    const earlier = menu.querySelector<HTMLButtonElement>('[data-action="subtitle-earlier"]')!;
+    const later = menu.querySelector<HTMLButtonElement>('[data-action="subtitle-later"]')!;
+    const reset = menu.querySelector<HTMLButtonElement>('[data-action="reset-subtitle-timing"]')!;
+    expect(earlier.textContent).toBe('0.5 s earlier');
+    renderVideoSubtitleTiming(menu, -500, true, 'en-US');
+    expect(menu.querySelector('[data-subtitle-offset]')?.textContent).toBe('-0.5 s');
+    expect(earlier.disabled).toBe(false);
+    expect(reset.disabled).toBe(false);
+    renderVideoSubtitleTiming(menu, -10000, true, 'en-US');
+    expect(earlier.disabled).toBe(true);
+    renderVideoSubtitleTiming(menu, 10000, true, 'en-US');
+    expect(later.disabled).toBe(true);
+    expect(menu.querySelector('[data-subtitle-offset]')?.textContent).toBe('+10.0 s');
+    renderVideoSubtitleTiming(menu, 500, false, 'en-US');
+    expect(earlier.disabled && later.disabled).toBe(true);
+    expect(reset.disabled).toBe(false);
+    expect(menu.querySelector<HTMLElement>('[data-timing-unavailable]')?.hidden).toBe(false);
+    renderVideoSubtitleTiming(menu, 0, true, 'en-US');
+    expect(reset.disabled).toBe(true);
+    expect(menu.querySelector('[data-action="subtitle-earlier"]')).toBe(earlier);
+  });
+});
 
 const progress = (value: number): VideoAiMenuState['progress'] => ({
   phase: 'transcribing',

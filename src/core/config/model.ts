@@ -208,6 +208,12 @@ export function normalizeVideoSubtitleFontSize(value: unknown): number {
     return Math.min(160, Math.max(80, Math.round(number / 10) * 10));
 }
 
+/** 字幕延后为正、提前为负，按半秒调整，最多正负十秒。 */
+export function normalizeVideoSubtitleOffsetMs(value: unknown): number {
+    const number = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(number) ? Math.min(10_000, Math.max(-10_000, Math.round(number / 500) * 500)) || 0 : 0;
+}
+
 export function normalizeMouseHoverTranslationDelay(value: unknown): number {
     const number = typeof value === 'number' ? value : Number(value);
     if (!Number.isFinite(number)) return DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY;
@@ -324,6 +330,7 @@ export class Config {
     videoSubtitleVisible: boolean; // 是否显示 FluentRead 视频字幕
     videoSubtitleDisplayMode: VideoSubtitleDisplayMode; // 视频字幕显示模式
     videoSubtitleFontSize: number; // 视频字幕字号百分比
+    videoSubtitleOffsetMs: number; // 字幕时间偏移，正数延后、负数提前
     videoSubtitleAppearance: VideoSubtitleAppearance; // 视频字幕皮肤与布局参数
     token: IMapping;
     apiKeys: Record<string, string[]>; // 按服务保存完整有序 API Key 列表；token 镜像首个 key
@@ -488,6 +495,7 @@ export class Config {
         this.videoSubtitleVisible = true; // 默认显示视频译文
         this.videoSubtitleDisplayMode = 'bilingual'; // 默认双语显示
         this.videoSubtitleFontSize = DEFAULT_VIDEO_SUBTITLE_FONT_SIZE; // 默认字幕字号
+        this.videoSubtitleOffsetMs = 0;
         this.videoSubtitleAppearance = normalizeVideoSubtitleAppearance(DEFAULT_VIDEO_SUBTITLE_APPEARANCE);
         this.token = {};
         this.apiKeys = {};
@@ -1110,6 +1118,7 @@ export function normalizeConfig(value: unknown): Config {
         normalized.videoSubtitleDisplayMode = 'bilingual';
     }
     normalized.videoSubtitleFontSize = normalizeVideoSubtitleFontSize(normalized.videoSubtitleFontSize);
+    normalized.videoSubtitleOffsetMs = normalizeVideoSubtitleOffsetMs(normalized.videoSubtitleOffsetMs);
     const hasVideoSubtitleAppearance = hasOwn(source as object, 'videoSubtitleAppearance');
     normalized.videoSubtitleAppearance = normalizeVideoSubtitleAppearance(
         hasVideoSubtitleAppearance

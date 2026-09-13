@@ -46,6 +46,25 @@ afterEach(() => {
 });
 
 describe('YouTube 视频字幕识别', () => {
+    it('滚动窗口中只读取未被裁掉的字幕行，隐藏原生字形时仍能读取当前行', () => {
+        const {document} = parseHTML('<div id="captions"><div class="ytp-caption-window-rollup"><span class="ytp-caption-segment">Old clipped line.</span><span class="ytp-caption-segment" style="visibility:hidden">Current line.</span><span class="ytp-caption-segment">New words.</span><span class="ytp-caption-segment">Outside below.</span></div></div>');
+        const rollup = document.querySelector('.ytp-caption-window-rollup')!;
+        rollup.getBoundingClientRect = () => ({top: 100, bottom: 160, height: 60} as DOMRect);
+        const segments = Array.from(document.querySelectorAll('.ytp-caption-segment'));
+        segments.forEach((segment, index) => {
+            const top = 70 + index * 30;
+            segment.getBoundingClientRect = () => ({top, bottom: top + 30, height: 30} as DOMRect);
+        });
+        expect(readVisibleCaptionText(document.getElementById('captions'))).toBe('Current line. New words.');
+        segments[0].getBoundingClientRect = () => ({top: 90, bottom: 120, height: 30} as DOMRect);
+        expect(readVisibleCaptionText(rollup)).toBe('Old clipped line. Current line. New words.');
+        rollup.getBoundingClientRect = () => ({height: 0} as DOMRect);
+        expect(readVisibleCaptionText(rollup)).toContain('Outside below.');
+        rollup.getBoundingClientRect = () => ({top: 100, bottom: 160, height: 60} as DOMRect);
+        segments[3].getBoundingClientRect = () => ({height: 0} as DOMRect);
+        expect(readVisibleCaptionText(rollup)).toContain('Outside below.');
+    });
+
     it('只读取当前播放器内的字幕，忽略页面上残留的其他字幕容器', () => {
         const {document} = parseHTML('<html><body><div class="ytp-caption-window-container"><span class="ytp-caption-segment">Old player</span></div><div id="movie_player"><div id="ytp-caption-window-container"></div></div></body></html>');
         vi.stubGlobal('document', document);

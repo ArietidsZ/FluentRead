@@ -1,12 +1,12 @@
 /**
  * @file src/features/video-subtitle/content/playerMenu.ts
  * 文件职责：组装播放器字幕菜单，将常用显示控制、本地生成和下载操作分组呈现。
- * 主要内容：创建带可访问名称的按钮、开关和分段选择器；渲染 AI 生成的空闲、处理中、完成及错误状态。
+ * 主要内容：创建带可访问名称的按钮、开关、时间微调和分段选择器；渲染字幕偏移及 AI 生成的空闲、处理中、完成及错误状态。
  * 模块边界：只操作 FluentRead 自己的菜单节点，不读取存储、不发起识别或绑定全局事件；运行时负责配置、请求与清理。
  */
 import type {VideoSubtitleDisplayMode} from '@/src/core/config/model';
 import {
-    createTextElement, createVideoUiTextElement, markVideoUi, translateVideoUi,
+    createTextElement, createVideoUiTextElement, markVideoUi, translateVideoUi, localizeVideoUiText,
     VIDEO_DISPLAY_MODE_LABELS, VIDEO_TRANSLATION_MENU_ID, type UiLanguage,
 } from './ui';
 import type {VideoAiFullCapturePhase, VideoAiFullCaptureProgress} from './video-ai/fullCapture';
@@ -65,6 +65,30 @@ export function createVideoPlayerMenu(language: UiLanguage, withLocalGeneration:
     });
     menu.appendChild(modeGroup);
 
+    const timing = createTextElement('div', 'fluent-read-video-menu-timing', '');
+    const heading = createTextElement('div', 'fluent-read-video-menu-timing-heading', '');
+    const reset = createVideoUiTextElement('button', 'fluent-read-video-menu-mode', '重置字幕时间', language);
+    reset.type = 'button';
+    reset.dataset.action = 'reset-subtitle-timing';
+    reset.setAttribute('role', 'menuitem');
+    heading.append(createVideoUiTextElement('span', '', '字幕时间', language), reset);
+    const controls = createTextElement('div', 'fluent-read-video-menu-timing-controls', '');
+    const value = createTextElement('output', 'fluent-read-video-menu-timing-value', '0.0 s');
+    value.dataset.subtitleOffset = 'true';
+    value.setAttribute('aria-live', 'polite');
+    const buttons = [['subtitle-earlier', '提前 0.5 秒'], ['subtitle-later', '延后 0.5 秒']].map(([action, label]) => {
+        const button = createVideoUiTextElement('button', 'fluent-read-video-menu-mode', label, language);
+        button.type = 'button';
+        button.dataset.action = action;
+        button.setAttribute('role', 'menuitem');
+        return button;
+    });
+    controls.append(buttons[0], value, buttons[1]);
+    const unavailable = createVideoUiTextElement('p', 'fluent-read-video-menu-timing-unavailable', '当前字幕暂不支持时间调整', language);
+    unavailable.dataset.timingUnavailable = 'true';
+    timing.append(heading, controls, unavailable);
+    menu.appendChild(timing);
+
     if (withLocalGeneration) {
         const group = createTextElement('div', 'fluent-read-video-menu-ai-group', '');
         const guide = document.createElement('details');
@@ -92,6 +116,16 @@ export function createVideoPlayerMenu(language: UiLanguage, withLocalGeneration:
     }
     menu.appendChild(downloads);
     return menu;
+}
+
+/** 持久配置更新时复用按钮；无时间轴不提供无效的提前操作，仍允许清除已有偏移。 */
+export function renderVideoSubtitleTiming(menu: HTMLElement, offsetMs: number, available: boolean, language: UiLanguage): void {
+    menu.querySelector<HTMLOutputElement>('[data-subtitle-offset]')!.textContent = `${offsetMs > 0 ? '+' : ''}${(offsetMs / 1000).toFixed(1)} s`;
+    menu.querySelector('[data-subtitle-offset]')!.setAttribute('aria-label', localizeVideoUiText('字幕时间偏移', language));
+    menu.querySelector<HTMLButtonElement>('[data-action="subtitle-earlier"]')!.disabled = !available || offsetMs <= -10_000;
+    menu.querySelector<HTMLButtonElement>('[data-action="subtitle-later"]')!.disabled = !available || offsetMs >= 10_000;
+    menu.querySelector<HTMLButtonElement>('[data-action="reset-subtitle-timing"]')!.disabled = offsetMs === 0;
+    menu.querySelector<HTMLElement>('[data-timing-unavailable]')!.hidden = available;
 }
 
 export interface VideoAiMenuState {

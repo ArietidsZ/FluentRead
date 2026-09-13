@@ -42,6 +42,8 @@ const cues = [
   {tStartMs: 8000, dDurationMs: 1000, segs: [{utf8: 'The same beginning belongs to a future sentence.'}]},
   {tStartMs: 10000, dDurationMs: 1000, segs: [{utf8: 'Slow translation belongs here.'}]},
   {tStartMs: 11000, dDurationMs: 1000, segs: [{utf8: 'The next caption is ready.'}]},
+  {tStartMs: 14000, dDurationMs: 4000, segs: [{utf8: 'They serve drinks.'}]},
+  {tStartMs: 16000, dDurationMs: 3000, segs: [{utf8: "I thought I'd try out this beer."}]},
 ];
 const check = (name, pass, details) => report.checks.push({name, pass: Boolean(pass), details});
 (async () => {
@@ -63,6 +65,8 @@ const check = (name, pass, details) => report.checks.push({name, pass: Boolean(p
       const body = JSON.parse(init?.body || '[]');
       const source = String(body[0]?.Text ?? body[0] ?? '');
       globalThis.fixtureRequests.push(source);
+      globalThis.fixtureRequestTimes ??= [];
+      globalThis.fixtureRequestTimes.push({source, at: Date.now()});
       if (source === 'Slow translation belongs here.') await new Promise(resolve => globalThis.fixturePending.push(resolve));
       return new Response(JSON.stringify([{translations: [{text: mapping[source] || `译文：${source}`}]}]), {status: 200, headers: {'content-type': 'application/json'}});
     };
@@ -188,11 +192,108 @@ const check = (name, pass, details) => report.checks.push({name, pass: Boolean(p
   check('Empty native captions clear the translation without a grace-period tail', !(await sample()).original && !(await sample()).translation, await sample());
   await setCaption(20, 'A native sentence without a timed track.');
   await waitTranslation(translations['A native sentence without a timed track.']);
+  // Measure mutation -> outgoing request so provider/network time is excluded.
+  const requestStarted = Date.now();
   await setCaption(21, 'Another native sentence.');
-  await page.waitForTimeout(80);
   const replacing = await sample();
   check('Untracked native changes invalidate the previous translation before waiting for stability', replacing.original === replacing.native && replacing.translation === '', replacing);
   await waitTranslation(translations['Another native sentence.']);
+  const nativeRequest = await worker.evaluate(() => globalThis.fixtureRequestTimes.find(r => r.source === 'Another native sentence.'));
+  check('Untracked captions dispatch within 220 ms instead of the former 360 ms stability wait', nativeRequest.at - requestStarted < 220,
+    {dispatchMs: nativeRequest.at - requestStarted});
+  await setCaption(16.2, "They serve drinks. I thought");
+  await waitTranslation("译文：I thought I'd try out this beer.");
+  check('Rolling captions select the current prefix while the previous full cue still overlaps', (await sample()).original === "I thought I'd try out this beer.", await sample());
+  // Replay the clipped rolling DOM structure from the supplied page snapshot.
+  await page.evaluate(() => {
+    document.querySelector('#ytp-caption-window-container').innerHTML = `<div class="ytp-caption-window-rollup" style="height:60px;overflow:hidden"><div style="transform:translateY(-60px)">
+      <div style="height:30px"><span class="ytp-caption-segment">Old clipped words.</span></div>
+      <div style="height:30px"><span class="ytp-caption-segment">More clipped words.</span></div>
+      <div style="height:30px"><span class="ytp-caption-segment">They serve drinks.</span></div>
+      <div style="height:30px"><span class="ytp-caption-segment">I thought I'd try</span></div></div></div>`;
+  });
+  await page.waitForTimeout(80);
+  check('Clipped rolling history does not enter the displayed sentence or cause a fallback translation', (await sample()).original === "I thought I'd try out this beer.", await sample());
+  await page.screenshot({path: path.join(artifacts, 'rolling.png')});
+  await page.evaluate(() => {document.querySelector('#ytp-caption-window-container').innerHTML = '<span class="ytp-caption-segment"></span>';});
+  await setCaption(23, '');
+  const streamStarted = Date.now();
+  await page.evaluate(async () => {
+    const segment = document.querySelector('.ytp-caption-segment');
+    const words = ['Streaming', 'captions', 'keep', 'adding', 'new', 'words', 'without', 'waiting', 'for', 'a', 'quiet', 'gap.'];
+    for (let i = 1; i <= words.length; i++) {
+      segment.textContent = words.slice(0, i).join(' ');
+      await new Promise(resolve => setTimeout(resolve, 40));
+    }
+  });
+  await waitTranslation('译文：Streaming captions keep adding new words without waiting for a quiet gap.');
+  const streamRequests = await worker.evaluate(() => globalThis.fixtureRequestTimes.filter(r => r.source.startsWith('Streaming')));
+  check('Continuous 40 ms word updates cannot keep postponing the first request', streamRequests[0]?.at - streamStarted < 350,
+    {requests: streamRequests.map(r => ({source: r.source, afterMs: r.at - streamStarted}))});
+  await setCaption(24, 'Cached native replay.');
+  await waitTranslation('译文：Cached native replay.');
+  await setCaption(24.2, '');
+  const replayStarted = Date.now();
+  await setCaption(24.4, 'Cached native replay.');
+  await waitTranslation('译文：Cached native replay.');
+  check('Cached untracked replay does not repeat a provider request', (await worker.evaluate(() => globalThis.fixtureRequests.filter(s => s === 'Cached native replay.').length)) === 1,
+    {renderMs: Date.now() - replayStarted});
+  await setCaption(.8, 'Sea otters have strong teeth.');
+  await waitTranslation(translations['Sea otters have strong teeth.']);
+  await page.locator('#fluent-read-video-subtitle-button').click();
+  await page.locator('[data-action="subtitle-earlier"]').click();
+  await waitTranslation(translations['They open the shell.']);
+  check('Player menu advances subtitles by 0.5 s without seeking or altering native text', (await sample()).time === .8
+    && (await sample()).native === 'Sea otters have strong teeth.' && await page.locator('[data-subtitle-offset]').textContent() === '-0.5 s', await sample());
+  await page.locator('[data-action="subtitle-later"]').click();
+  await waitTranslation(translations['Sea otters have strong teeth.']);
+  await page.locator('[data-action="subtitle-later"]').click();
+  await setCaption(1.2, 'They open the shell.');
+  await waitTranslation(translations['Sea otters have strong teeth.']);
+  check('Positive 0.5 s offset delays the whole bilingual cue', (await sample()).original === 'Sea otters have strong teeth.'
+    && await page.locator('[data-subtitle-offset]').textContent() === '+0.5 s', await sample());
+  await page.screenshot({path: path.join(artifacts, 'timing-menu.png')});
+  await page.locator('[data-mode="original-only"]').click();
+  await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-original')?.textContent === 'Sea otters have strong teeth.');
+  check('Manual timing also applies in original-only mode', (await sample()).translation === '', await sample());
+  await page.locator('[data-mode="bilingual"]').click();
+  await waitTranslation(translations['Sea otters have strong teeth.']);
+  await setCaption(3.6, 'A native gap.');
+  await page.waitForTimeout(80);
+  check('Adjusted subtitle clock respects gaps without leaking unadjusted native captions', !(await sample()).original && !(await sample()).translation
+    && (await sample()).nativeVisibility === 'hidden', await sample());
+  await setCaption(1.2, 'They open the shell.');
+  await waitTranslation(translations['Sea otters have strong teeth.']);
+  const reopened = await helper.newPageWithoutForeground(context);
+  await reopened.goto(url);
+  await reopened.locator('#fluent-read-video-subtitle-button').waitFor();
+  await reopened.waitForFunction(() => document.querySelector('video').readyState >= 2);
+  await reopened.locator('#fluent-read-video-subtitle-button').click();
+  await reopened.waitForFunction(() => document.querySelector('[data-subtitle-offset]')?.textContent === '+0.5 s');
+  check('A newly opened playback page restores the saved offset', await reopened.locator('[data-subtitle-offset]').textContent() === '+0.5 s');
+  check('Unavailable caption timing disables adjustment while leaving reset usable', await reopened.locator('[data-action="subtitle-earlier"]').isDisabled()
+    && await reopened.locator('[data-action="subtitle-later"]').isDisabled() && !await reopened.locator('[data-action="reset-subtitle-timing"]').isDisabled());
+  await page.locator('[data-action="subtitle-later"]').click();
+  await page.locator('[data-action="subtitle-later"]').click();
+  await reopened.waitForFunction(() => document.querySelector('[data-subtitle-offset]')?.textContent === '+1.5 s');
+  check('Repeated half-second clicks accumulate and synchronize to another playback page', await page.locator('[data-subtitle-offset]').textContent() === '+1.5 s');
+  await page.locator('[data-action="reset-subtitle-timing"]').click();
+  await waitTranslation(translations['They open the shell.']);
+  await reopened.waitForFunction(() => document.querySelector('[data-subtitle-offset]')?.textContent === '0.0 s');
+  check('Reset restores native timing and synchronizes the saved zero offset', await page.locator('[data-subtitle-offset]').textContent() === '0.0 s');
+  await reopened.close();
+  await setCaption(.3, 'Sea otters have strong teeth.');
+  await page.locator('[data-action="subtitle-earlier"]').click();
+  await waitTranslation(translations['Sea otters have strong teeth.']);
+  await page.evaluate(() => document.querySelector('video').play());
+  await waitTranslation(translations['They open the shell.']);
+  await page.evaluate(() => document.querySelector('video').pause());
+  check('Advancing subtitles follows the playing video clock before the native DOM changes', (await sample()).time >= .5 && (await sample()).time < 1.5
+    && (await sample()).native === 'Sea otters have strong teeth.', await sample());
+  await page.locator('[data-action="reset-subtitle-timing"]').click();
+  await setCaption(24.4, 'Cached native replay.');
+  await waitTranslation('译文：Cached native replay.');
+  await page.locator('#movie_player').click({position: {x: 20, y: 20}});
   await page.screenshot({path: path.join(artifacts, 'bilingual.png')});
   await patchConfig({videoSubtitleDisplayMode: 'original-only'});
   await page.waitForTimeout(150);

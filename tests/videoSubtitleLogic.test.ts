@@ -1,9 +1,49 @@
 import {describe, expect, it} from 'vitest';
 import {Config} from '@/src/core/config/model';
 import {createGlossaryLibrary} from '@/src/core/glossary';
-import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues, selectYoutubeCaptionCue} from '@/src/features/video-subtitle/content/subtitleLogic';
+import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset} from '@/src/features/video-subtitle/content/subtitleLogic';
 
 describe('video subtitle logic', () => {
+  it('字幕手动提前和延后按半秒移动显示时间，保留短句、重叠、空档和原始数据', () => {
+    const first = {startMs: 1000, durationMs: 100, text: 'First.'};
+    const second = {startMs: 2000, durationMs: 1000, text: 'Second.'};
+    const overlapping = {startMs: 2500, durationMs: 500, text: 'Latest.'};
+    const cues = [first, overlapping, second, {startMs: 2500, durationMs: 0, text: 'Empty.'}];
+    const before = JSON.stringify(cues);
+    expect(selectVideoSubtitleCueAtOffset(cues, 500, -500)).toBe(first);
+    expect(selectVideoSubtitleCueAtOffset(cues, 1500, 500)).toBe(first);
+    expect(selectVideoSubtitleCueAtOffset(cues, 1600, 500)).toBeNull();
+    expect(selectVideoSubtitleCueAtOffset(cues, 1500, -500)).toBe(second);
+    expect(selectVideoSubtitleCueAtOffset(cues, 2500, 0)).toBe(overlapping);
+    expect(selectVideoSubtitleCueAtOffset(cues, 0, 500)).toBeNull();
+    expect(selectVideoSubtitleCueAtOffset(cues, 3500, 500)).toBeNull();
+    expect(selectVideoSubtitleCueAtOffset(cues, NaN, 0)).toBeNull();
+    expect(selectVideoSubtitleCueAtOffset([], 500, 0)).toBeNull();
+    expect(JSON.stringify(cues)).toBe(before);
+  });
+
+  it('YouTube 滚动字幕末尾出现新句时立即匹配当前 cue，不等待上一行滚出', () => {
+    const previous = {startMs: 1000, durationMs: 4000, text: 'They serve drinks.'};
+    const current = {startMs: 3000, durationMs: 2000, text: "I thought I'd try out this beer."};
+    const cues = [previous, current];
+    expect(selectYoutubeCaptionCue(cues, "They serve drinks. I thought", 3000)).toEqual({cue: current, stale: false});
+    expect(selectYoutubeCaptionCue(cues, "drinks. I thought I'd try", 3200).cue).toBe(current);
+    expect(selectYoutubeCaptionCue(cues, "Old clipped line. They serve drinks. I thought", 3400).cue).toBe(current);
+    expect(selectYoutubeCaptionCue(cues, "drinks. I thought", 2999).cue).toBeNull();
+    expect(selectYoutubeCaptionCue(cues, "drinks. I thought", 5000).cue).toBeNull();
+  });
+
+  it('YouTube 滚动前缀不使用词中间、极短词或无关轨道猜测新句', () => {
+    const current = {startMs: 3000, durationMs: 2000, text: 'Inside the lounge.'};
+    const cues = [current];
+    expect(selectYoutubeCaptionCue(cues, 'A native sentence. In', 3200)).toEqual({cue: null, stale: false});
+    expect(selectYoutubeCaptionCue(cues, 'A native sentence. Ins', 3200).cue).toBeNull();
+    expect(selectYoutubeCaptionCue(cues, 'A native sentence. Inside', 3200).cue).toBe(current);
+    expect(selectYoutubeCaptionCue(cues, 'The building is outside', 3200).cue).toBeNull();
+    expect(selectYoutubeCaptionCue(cues, '另一条字幕轨道。', 3200).cue).toBeNull();
+    expect(selectYoutubeCaptionCue(cues, 'Old line. Inside the lounge.', 3200).cue).toBe(current);
+  });
+
   it('YouTube 只匹配当前时间内的原文，不借用前后句或其他时段的同文字幕', () => {
     const first = {startMs: 1000, durationMs: 1000, text: 'Sea otters have strong teeth.'};
     const next = {startMs: 2000, durationMs: 1000, text: 'They open the shell.'};
