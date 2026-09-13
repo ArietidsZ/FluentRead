@@ -2773,8 +2773,7 @@ async function main() {
     report.screenshots.push(await screenshot(page, 'settings-dark-general.png'));
     await page.locator('button[data-section="settings-services"]').click();
     if (await page.getByTestId('model-thinking-control').count() === 0) {
-      // 服务目录分为“我的服务 / 全部服务”；未收藏的 OpenAI 需要从全部服务中打开。
-      await page.locator('[data-service-view="all"]').click();
+      // 直接从完整服务列表打开 OpenAI。
       await page.locator('[data-service-value="openai"]:visible').first().click();
     }
     const darkAdvancedSettings = page.getByTestId('custom-service-advanced');
@@ -2937,11 +2936,10 @@ async function main() {
     ];
     const serviceViews = await serviceCatalog.locator('[data-service-view]')
       .evaluateAll(buttons => buttons.map(button => button.dataset.serviceView));
-    if (JSON.stringify(serviceViews) !== JSON.stringify(['mine', 'all'])) {
+    if (serviceViews.length !== 0) {
       throw new Error(`服务目录视图入口异常：${JSON.stringify(serviceViews)}`);
     }
-    const serviceDirectory = serviceCatalog.locator('.service-directory');
-    await serviceCatalog.locator('[data-service-view="all"]').click();
+    const serviceDirectory = serviceCatalog.locator('.service-rail');
     await serviceDirectory.waitFor({state: 'visible', timeout});
     const serviceSections = await serviceDirectory.locator('[data-service-section]').evaluateAll(sections => sections.map(section => ({
       id: section.dataset.serviceSection,
@@ -2998,9 +2996,8 @@ async function main() {
     if (defaultServiceSection !== 'machine-services') {
       throw new Error(`AI 上下文开关用例没有运行在机器默认服务下：${defaultServiceSection}`);
     }
-    await serviceCatalog.locator('[data-service-view="mine"]').click();
     const defaultServiceItem = serviceCatalog.locator(
-      `[data-personal-group="default"] [data-service-value="${defaultServiceMetrics.defaultService}"]`,
+      `[data-service-value="${defaultServiceMetrics.defaultService}"]`,
     );
     if (await defaultServiceItem.count() !== 1 || !await defaultServiceItem.isVisible()) {
       throw new Error('“我的服务”没有显示当前默认服务');
@@ -3096,7 +3093,7 @@ async function main() {
     await customServiceDialog.getByTestId('custom-service-save').click();
     await customServiceDialog.waitFor({state: 'hidden', timeout});
     // 新建后直接成为“我的服务”中已保存的编辑目标，同时出现在全部服务的自定义分类里。
-    const customServiceItem = serviceCatalog.locator('[data-personal-group="configured"] [data-service-value^="custom:"]');
+    const customServiceItem = serviceCatalog.locator('[data-service-value^="custom:"]');
     await customServiceItem.waitFor({state: 'visible', timeout});
     customServiceId = await customServiceItem.getAttribute('data-service-value');
     if (!customServiceId?.startsWith('custom:')) throw new Error(`自定义服务没有稳定动态 ID：${customServiceId}`);
@@ -3104,7 +3101,6 @@ async function main() {
       || !(await customServiceItem.textContent())?.includes(customServiceFixture.name)) {
       throw new Error('新建自定义服务没有以名称出现在“我的服务”已保存配置中');
     }
-    await serviceCatalog.locator('[data-service-view="all"]').click();
     const customDirectoryItems = await customServiceSection.locator('[data-service-value]')
       .evaluateAll(items => items.map(item => item.dataset.serviceValue));
     if (JSON.stringify(customDirectoryItems) !== JSON.stringify([customServiceId])) {
@@ -3128,13 +3124,11 @@ async function main() {
       || customServiceLabelLayout.labelRight > customServiceLabelLayout.cardRight + 1
       || customServiceLabelLayout.overflow !== 'hidden'
       || customServiceLabelLayout.textOverflow !== 'ellipsis'
-      || customServiceLabelLayout.whiteSpace !== 'nowrap'
-      || customServiceLabelLayout.status !== '已保存配置') {
+      || customServiceLabelLayout.whiteSpace !== 'nowrap') {
       throw new Error(`自定义服务目录卡片名称超出边界或缺少已保存状态：${JSON.stringify(customServiceLabelLayout)}`);
     }
     report.informationArchitecture.serviceCatalogHierarchy.customServiceLabel = customServiceLabelLayout;
     report.assertions.customServiceDescriptionBounded = true;
-    await serviceCatalog.locator('[data-service-view="mine"]').click();
     if (await customServiceItem.getAttribute('aria-pressed') !== 'true'
       || await serviceCatalog.getAttribute('data-editing-service') !== customServiceId
       || await serviceCatalog.getAttribute('data-default-service') !== defaultServiceMetrics.defaultService) {

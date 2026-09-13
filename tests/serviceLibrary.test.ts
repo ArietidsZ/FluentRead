@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { Config, normalizeConfig } from '@/src/core/config/model'
-import { options, services } from '@/src/core/config/catalog'
+import { services } from '@/src/core/config/catalog'
 import { createApiKeyRequirementKey } from '@/src/core/config/validation'
-import { buildPersonalServiceGroups, hasSavedServiceConfiguration } from '@/src/ui/view-model/serviceLibrary'
+import { hasSavedServiceConfiguration } from '@/src/ui/view-model/serviceLibrary'
 
 const provider = { id: 'custom:work', name: '工作接口', endpoint: 'http://localhost:11434/v1', models: ['local-model'] }
 
@@ -52,25 +52,10 @@ describe('personal translation service library', () => {
     expect(normalizeConfig({}).favoriteServices).toEqual([])
   })
 
-  it('prioritizes default and stable favorites, deduplicates and retains an unconfigured viewing target', () => {
-    const entries = ['freeTranslation', 'openai', 'deepseek', 'gemini'].map(value => ({value, label: value}))
-    expect(buildPersonalServiceGroups(entries, 'freeTranslation', 'gemini', ['deepseek', 'missing', 'freeTranslation', 'deepseek'], ['deepseek', 'openai']))
-      .toEqual([
-        {id: 'default', items: [entries[0]]},
-        {id: 'favorites', items: [entries[2]]},
-        {id: 'configured', items: [entries[1]]},
-        {id: 'viewing', items: [entries[3]]},
-      ])
-    expect(buildPersonalServiceGroups(entries, 'freeTranslation', 'freeTranslation', [], [])).toEqual([{id: 'default', items: [entries[0]]}])
-    expect(buildPersonalServiceGroups([], 'unavailable', 'deleted', [], [])).toEqual([])
-  })
-
   it('removing a favorite does not remove its saved configuration', () => {
     const config = normalizeConfig({favoriteServices: ['openai'], token: {openai: 'fixture-key'}})
     const next = normalizeConfig({...config, favoriteServices: []})
-    const entries = options.services.filter(item => item.value === 'openai')
     expect(hasSavedServiceConfiguration('openai', next)).toBe(true)
-    expect(buildPersonalServiceGroups(entries, 'freeTranslation', 'openai', next.favoriteServices, ['openai'])[0].id).toBe('configured')
     expect(next.token).toEqual(config.token)
   })
 })

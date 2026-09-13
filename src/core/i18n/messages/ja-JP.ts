@@ -15,6 +15,15 @@ import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
     ...localTtsJapaneseMessages,
+    "settings.services.library.freeReady": "API キーは不要です。利用可能な無料サービスを自動で選択します。",
+    "settings.services.library.keepOne": "少なくとも1つのサービスを有効にしてください。",
+    "settings.services.library.memoryEmail": "MyMemory 連絡先メール（任意）",
+    "settings.services.library.removeNamedService": "{service} を一覧から削除",
+    "settings.services.library.shortlist": "サービス",
+    "settings.services.library.addService": "サービスを追加",
+    "settings.services.library.added": "追加済み",
+    "settings.services.library.configureService": "{service} を設定",
+    "settings.services.library.addNamedService": "{service} を追加",
     "settings.services.library.views": "サービス表示",
     "settings.services.library.mine": "マイサービス",
     "settings.services.library.all": "すべてのサービス",

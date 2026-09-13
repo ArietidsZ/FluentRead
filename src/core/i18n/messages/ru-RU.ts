@@ -15,6 +15,15 @@ import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
     ...localTtsRussianMessages,
+    "settings.services.library.freeReady": "Ключ API не нужен. Доступные бесплатные сервисы выбираются автоматически.",
+    "settings.services.library.keepOne": "Оставьте хотя бы один сервис включённым.",
+    "settings.services.library.memoryEmail": "Контактный адрес MyMemory (необязательно)",
+    "settings.services.library.removeNamedService": "Убрать {service} из списка",
+    "settings.services.library.shortlist": "Сервисы",
+    "settings.services.library.addService": "Добавить сервис",
+    "settings.services.library.added": "Добавлен",
+    "settings.services.library.configureService": "Настроить {service}",
+    "settings.services.library.addNamedService": "Добавить {service}",
     "settings.services.library.views": "Виды сервисов",
     "settings.services.library.mine": "Мои сервисы",
     "settings.services.library.all": "Все сервисы",

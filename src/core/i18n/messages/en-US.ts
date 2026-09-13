@@ -16,6 +16,15 @@ import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
     ...localTtsEnglishMessages,
+    "settings.services.library.freeReady": "No API key needed. Available free services are selected automatically.",
+    "settings.services.library.keepOne": "Keep at least one service enabled.",
+    "settings.services.library.memoryEmail": "MyMemory contact email (optional)",
+    "settings.services.library.removeNamedService": "Remove {service} from the list",
+    "settings.services.library.shortlist": "Services",
+    "settings.services.library.addService": "Add service",
+    "settings.services.library.added": "Added",
+    "settings.services.library.configureService": "Configure {service}",
+    "settings.services.library.addNamedService": "Add {service}",
     "settings.services.library.views": "Service views",
     "settings.services.library.mine": "My services",
     "settings.services.library.all": "All services",

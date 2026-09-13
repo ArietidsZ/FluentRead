@@ -330,13 +330,13 @@ describe('browser regression focus safety', () => {
         expect(settingsSource).toContain(
             "['基础配置', ['settings-general', 'settings-services', 'settings-translation', 'settings-interface']]",
         );
-        expect(settingsSource).toContain("[data-personal-group=\"configured\"] [data-service-value^=\"custom:\"]");
+        expect(settingsSource).toContain("[data-service-value^=\"custom:\"]");
         for (const staleSelector of ['data-service-subgroup', '.custom-service-group', 'data-service-section-toggle', '.service-item']) {
             expect(settingsSource).not.toContain(staleSelector);
         }
 
         const librarySource = readScript('scripts/testing/run-service-library-ui-test.cjs');
-        expect(librarySource).toContain("['mine','all']");
+        expect(librarySource).toContain("first-use-complete-directory");
         expect(librarySource).not.toContain("viewButton('custom')");
 
         const catalogSource = readScript('scripts/testing/run-service-catalog-ui-test.cjs');

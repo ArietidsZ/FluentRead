@@ -2,9 +2,9 @@
 
 /**
  * @file scripts/testing/run-service-catalog-ui-test.cjs
- * 文件职责：在第二屏后台隔离 Edge 中验证翻译服务“全部服务”目录的分类层级、服务顺序与免费翻译候选配置。
- * 主要内容：加载生产扩展，检查“我的服务 / 全部服务”两级入口、机器翻译、云服务厂商、模型服务商和聚合平台的目录顺序与计数，
- * 覆盖分类筛选、跨分类搜索、查看服务不改默认服务、窄屏无横向溢出，以及免费翻译的自动均衡/优先顺序、实验候选默认停用、启停、排序和重载持久化。
+ * 文件职责：在第二屏后台隔离 Edge 中验证翻译服务完整目录的分类层级、服务顺序与免费翻译候选配置。
+ * 主要内容：加载生产扩展，检查直接展示的完整目录、机器翻译、云服务厂商、模型服务商和聚合平台的目录顺序与计数，
+ * 覆盖跨分类搜索、查看服务不改默认服务、窄屏无横向溢出，以及免费翻译的自动均衡/优先顺序、实验候选默认停用、启停、排序和重载持久化。
  * 模块边界：星标、自定义服务分类、主题与多语言归 run-service-library-ui-test.cjs；本脚本只操作本次创建的临时 profile，
  * 仅修改其中的免费候选配置，默认不请求任何翻译服务，只有显式 --live true 时才调用匿名测试翻译。
  */
@@ -161,36 +161,15 @@ async function main() {
     await page.setViewportSize({width: 1440, height: 1000});
     const catalog = page.locator('.service-catalog');
     await catalog.waitFor({state: 'visible', timeout});
-    const directory = catalog.locator('.service-directory');
-    const rail = catalog.locator('.service-rail');
-    const viewButton = view => catalog.locator(`[data-service-view="${view}"]`);
-    const filterButton = label => directory.locator('.directory-filters').getByRole('button', {name: label, exact: true});
-
-    // 两级入口：新用户默认停在“我的服务”，个人列表只有当前默认服务。
-    const views = await catalog.locator('[data-service-view]').evaluateAll(nodes => nodes.map(node => node.dataset.serviceView));
-    assertSameOrder(views, ['mine', 'all'], '服务视图');
-    if (await viewButton('mine').getAttribute('aria-pressed') !== 'true' || await directory.isVisible()) {
-      throw new Error('服务目录没有默认停在“我的服务”');
-    }
+    const directory = catalog.locator('.service-rail');
+    const rail = directory;
+    const views = await catalog.locator('[data-service-view]').count();
+    if (views !== 0) throw new Error('完整目录不应包含视图切换入口');
     const defaultService = await catalog.getAttribute('data-default-service');
-    const personalGroups = await rail.locator('[data-personal-group]').evaluateAll(groups => groups.map(group => ({
-      id: group.dataset.personalGroup,
-      services: [...group.querySelectorAll('[data-service-value]')].map(item => item.dataset.serviceValue),
-    })));
-    if (defaultService !== 'freeTranslation'
-      || JSON.stringify(personalGroups) !== JSON.stringify([{id: 'default', services: ['freeTranslation']}])) {
-      throw new Error(`新 profile 的个人服务列表异常：${JSON.stringify({defaultService, personalGroups})}`);
-    }
-
-    await viewButton('all').click();
-    await directory.waitFor({state: 'visible', timeout});
-    if (await directory.getAttribute('data-directory-view') !== 'all') throw new Error('全部服务目录没有进入 all 视图');
-    const filters = (await directory.locator('.directory-filters button').allTextContents()).map(value => value.trim());
-    assertSameOrder(filters, expectedFilters, '目录筛选');
+    if (defaultService !== 'freeTranslation') throw new Error('初始默认服务异常');
     const sections = await directory.locator('[data-service-section]').evaluateAll(nodes => nodes.map(node => ({
       id: node.dataset.serviceSection,
       heading: node.querySelector('h4')?.childNodes[0]?.textContent?.trim() || '',
-      count: Number(node.querySelector('h4 small')?.textContent?.trim() || -1),
       services: [...node.querySelectorAll('[data-service-value]')].map(item => item.dataset.serviceValue),
     })));
     assertSameOrder(sections.map(section => section.id), expectedSections, '顶层目录');
@@ -204,17 +183,15 @@ async function main() {
     assertSameOrder(byId['cloud-services'].services, expectedCloudServices, '云服务厂商');
     assertSameOrder(byId['ai-providers'].services, expectedProviderServices, '模型服务商');
     assertSameOrder(byId['ai-platforms'].services, expectedPlatformServices, '聚合平台');
-    const miscounted = sections.filter(section => section.count !== section.services.length);
-    if (miscounted.length) throw new Error(`目录分组计数与服务数量不一致：${JSON.stringify(miscounted)}`);
     const allServiceCount = sections.reduce((sum, section) => sum + section.services.length, 0);
-    const allViewCount = Number((await viewButton('all').locator('small').textContent())?.trim());
-    if (allViewCount !== allServiceCount) throw new Error(`全部服务计数异常：${allViewCount} / ${allServiceCount}`);
+    const allViewCount = Number(await catalog.locator('.service-count').textContent());
+    if (allViewCount !== allServiceCount) throw new Error('完整服务计数不一致');
     const leakedServices = await directory.locator('[data-service-value]').evaluateAll(
       (items, forbidden) => items.map(item => item.dataset.serviceValue).filter(value => forbidden.includes(value)),
       [...candidateOnlyServices, 'custom'],
     );
     if (leakedServices.length) throw new Error(`免费候选或旧自定义入口泄漏到独立目录：${JSON.stringify(leakedServices)}`);
-    if (await directory.locator('[data-service-section="custom"]').count() || await filterButton('自定义服务').count()) {
+    if (await directory.locator('[data-service-section="custom"]').count()) {
       throw new Error('没有自定义服务时目录仍显示自定义分类');
     }
     const iconFailures = await directory.locator('[data-service-value]').evaluateAll(items => items
@@ -223,23 +200,16 @@ async function main() {
     if (iconFailures.length) throw new Error(`服务目录存在未渲染的本地内联图标：${JSON.stringify(iconFailures)}`);
     report.directory = {
       views,
-      filters,
-      sections: sections.map(({id, count, services}) => ({id, count, services})),
+      sections: sections.map(({id, services}) => ({id, services})),
       allServiceCount,
       chromeTranslatorListed: machineServices.includes('chromeTranslator'),
       candidateOnlyServicesHidden: candidateOnlyServices,
     };
     await screenshot(page, 'service-catalog-all.png', report);
 
-    // 分类筛选只保留一个分组；在筛选状态下搜索会回到全部分类，跨组查找服务。
-    await filterButton('聚合平台与接口').click();
-    const platformOnly = await directory.locator('[data-service-section]').evaluateAll(nodes => nodes.map(node => node.dataset.serviceSection));
-    assertSameOrder(platformOnly, ['ai-platforms'], '聚合平台筛选');
-    if (await filterButton('聚合平台与接口').getAttribute('aria-pressed') !== 'true') throw new Error('分类筛选按钮没有进入选中状态');
-    await screenshot(page, 'service-catalog-platforms.png', report);
+    // 搜索直接过滤完整目录，清空后恢复所有分类。
     const serviceSearch = catalog.getByRole('searchbox', {name: '搜索所有翻译服务'});
     await serviceSearch.fill('微软翻译');
-    if (await filterButton('全部分类').getAttribute('aria-pressed') !== 'true') throw new Error('搜索没有回到全部分类');
     const microsoftResult = await directory.locator('[data-service-value]').evaluateAll(items => items.map(item => item.dataset.serviceValue));
     assertSameOrder(microsoftResult, ['microsoft'], '机器翻译搜索');
     await serviceSearch.fill('New API');
@@ -248,30 +218,23 @@ async function main() {
     await serviceSearch.fill('nonexistent-service-97531');
     await directory.getByRole('status').waitFor({state: 'visible', timeout});
     await serviceSearch.fill('');
-    report.directory.filterAndSearch = {platformOnly, microsoftResult, newApiResult, emptyState: true};
+    report.directory.filterAndSearch = { microsoftResult, newApiResult, emptyState: true};
 
     // 从目录查看服务只切换编辑目标，默认服务、默认标记和个人列表中的默认分组保持不变。
     await directory.locator('[data-service-value="deepseek"]').click();
     await page.waitForFunction(() => document.querySelector('.service-catalog')?.getAttribute('data-editing-service') === 'deepseek', null, {timeout});
-    if (await viewButton('mine').getAttribute('aria-pressed') !== 'true') throw new Error('查看服务后没有回到“我的服务”工作区');
-    if (await catalog.getAttribute('data-default-service') !== defaultService) throw new Error('切换编辑服务时误改默认服务');
-    if ((await catalog.locator('.active-badge').textContent())?.trim() !== '正在配置') throw new Error('非默认服务没有显示正在配置状态');
-    if (await rail.locator('[data-personal-group="viewing"] [data-service-value="deepseek"]').count() !== 1
-      || await rail.locator('[data-personal-group="default"] [data-service-value="freeTranslation"]').count() !== 1) {
-      throw new Error('个人列表没有同时保留默认服务与正在查看的服务');
-    }
+    if (await catalog.getAttribute('data-default-service') !== defaultService) throw new Error('查看服务误改默认服务');
     if (!await catalog.getByRole('button', {name: '设为默认', exact: true}).isVisible()) throw new Error('非默认服务缺少显式“设为默认”操作');
     if ((await readStoredConfig(page)).service !== defaultService) throw new Error('查看服务写入了 config.service');
     await screenshot(page, 'service-catalog-editing-deepseek.png', report);
-    report.editing = {defaultService, editingService: 'deepseek', badge: '正在配置', storedServiceUnchanged: true};
+    report.editing = {defaultService, editingService: 'deepseek', storedServiceUnchanged: true};
 
     for (const viewport of [
       {width: 820, height: 900},
       {width: 390, height: 844},
     ]) {
       await page.setViewportSize(viewport);
-      for (const view of ['all', 'mine']) {
-        await viewButton(view).click();
+      for (const view of ['directory']) {
         await page.waitForTimeout(150);
         const metrics = await page.evaluate(() => ({
           horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
@@ -291,9 +254,8 @@ async function main() {
 
     // 免费翻译：候选按注册表展示，实验候选默认停用；改为优先顺序后可启停、排序并在重载后保持。
     await page.setViewportSize({width: 1440, height: 1000});
-    await viewButton('mine').click();
     const openFreeTranslation = async () => {
-      await rail.locator('[data-personal-group="default"] [data-service-value="freeTranslation"]').click();
+      await rail.locator('[data-service-value="freeTranslation"]').click();
       await page.locator('[data-free-translation-settings] [data-fallback-provider]').first().waitFor({state: 'visible', timeout});
     };
     await openFreeTranslation();

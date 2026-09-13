@@ -1,8 +1,8 @@
 <!--
  * @file src/features/settings/ui/services/ServiceCatalogItem.vue
- * 文件职责：为个人列表与完整目录渲染统一的服务选择行及独立常用按钮。
- * 主要内容：本地图标、完整名称提示、默认标记、配置状态和可访问的常用切换。
- * 模块边界：只发出选择与常用事件，不修改配置、不测试连接、不发起翻译。
+ * 文件职责：为完整服务目录渲染紧凑的服务选择行。
+ * 主要内容：本地图标、完整名称提示、默认标记、可访问的选中状态。
+ * 模块边界：只发出选择事件，不修改配置、不测试连接、不发起翻译。
  -->
 <template>
   <div class="library-item" :class="{ active: selected, compact }">
@@ -12,21 +12,15 @@
       <span class="library-copy"><strong>{{ item.label }}</strong><small v-if="!compact && status">{{ status }}</small></span>
       <span v-if="isDefault" class="library-default">{{ t('settings.services.library.defaultBadge') }}</span>
     </button>
-    <button type="button" class="library-favorite" :class="{ starred: favorite }" :aria-pressed="favorite"
-      :data-service-favorite="item.value"
-      :aria-label="t(favorite ? 'settings.services.library.unfavorite' : 'settings.services.library.favorite', { service: item.label })"
-      :title="t(favorite ? 'settings.services.library.unfavorite' : 'settings.services.library.favorite', { service: item.label })"
-      @click="$emit('favorite', item.value)">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z" /></svg>
-    </button>
+
   </div>
 </template>
 <script setup lang="ts">
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import { useUiI18n } from '@/src/ui/i18n'
 import type { ServiceOption } from '@/src/ui/view-model/serviceCatalog'
-defineProps<{ item: ServiceOption; selected: boolean; favorite: boolean; isDefault: boolean; compact?: boolean; status?: string }>()
-defineEmits<{ select: [service: string]; favorite: [service: string] }>()
+defineProps<{ item: ServiceOption; selected: boolean; isDefault: boolean; compact?: boolean; status?: string }>()
+defineEmits<{ select: [service: string] }>()
 const { t } = useUiI18n()
 </script>
 <style scoped>
@@ -38,13 +32,8 @@ const { t } = useUiI18n()
 .library-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
 .library-copy small { margin-top: 3px; color: var(--muted, #737c8f); font-size: 11px; }
 .library-default { color: var(--brand-strong, #bd2853); font-size: 11px; flex-shrink: 0; }
-.library-favorite { display: grid; place-items: center; width: 32px; height: 36px; flex-shrink: 0; margin-right: 4px; padding: 7px; border: 0; border-radius: 7px; background: transparent; color: var(--muted, #737c8f); cursor: pointer; }
-.library-favorite:hover { background: var(--brand-soft, #fff0f4); color: var(--brand-strong, #bd2853); }
-.library-favorite svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; }
-.library-favorite.starred { color: var(--brand-strong, #bd2853); }
-.library-favorite.starred svg { fill: currentColor; }
 .compact { border-color: transparent; background: transparent; }
-.compact .library-select { min-height: 44px; padding: 6px 4px 6px 8px; gap: 8px; }
+.compact .library-select { min-height: 38px; padding: 3px 4px 3px 8px; gap: 8px; }
 button:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
-@media (pointer: coarse) { .library-favorite { width: 44px; height: 44px; } }
+
 </style>
