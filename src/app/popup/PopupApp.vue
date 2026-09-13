@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，让现场开关与显示操作保持简短，将长期偏好引导到对应设置页。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及两列快捷功能，图片、圈选和划词拥有独立状态、抽屉与设置入口；提供 AI 精翻说明抽屉与只保留高频控制的快捷抽屉，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及两列快捷功能，语言选项与快捷抽屉按需挂载；图片、圈选和划词拥有独立状态、抽屉与设置入口，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -91,16 +91,12 @@
       <div class="language-pair">
         <label>
           <span>源语言</span>
-          <UiSelect aria-label="源语言" filterable v-model="config.from" :disabled="!config.on">
-            <ElOption v-for="item in options.from" :key="item.value" :value="item.value" data-i18n-ignore :label="item.value === 'auto' ? translateLegacy(item.label) : getMultilingualTargetLanguageLabel(item.value, item.label, language)" />
-          </UiSelect>
+          <PopupLanguageSelect aria-label="源语言" source v-model="config.from" :disabled="!config.on" />
         </label>
         <span class="arrow">→</span>
         <label>
           <span>目标语言</span>
-          <UiSelect aria-label="目标语言" filterable v-model="config.to" :disabled="!config.on">
-            <ElOption v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" />
-          </UiSelect>
+          <PopupLanguageSelect aria-label="目标语言" v-model="config.to" :disabled="!config.on" />
         </label>
       </div>
 
@@ -331,6 +327,7 @@
     </template>
 
     <el-drawer
+      v-if="drawerMounted"
       v-model="drawerVisible"
       :title="drawerTitle"
       direction="btt"
@@ -340,7 +337,7 @@
       modal-class="popup-drawer-modal"
       class="popup-drawer"
     >
-      <div v-ui-i18n class="drawer-surface">
+      <div class="drawer-surface">
         <div class="drawer-handle" />
         <header class="drawer-header">
         <div><span class="eyebrow">快捷设置</span><h2>{{ drawerTitle }}</h2><p>{{ drawerDescription }}</p></div>
@@ -499,10 +496,9 @@
 
 <script lang="ts" setup>
 import UiIcon from '@/src/ui/components/UiIcon.vue'
-import UiSelect from '@/src/ui/components/UiSelect.vue';
-import {ElOption} from 'element-plus';
+import PopupLanguageSelect from './PopupLanguageSelect.vue';
 
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import browser from 'webextension-polyfill';
 import {
   config as runtimeConfig,
@@ -515,7 +511,6 @@ import {normalizeConfig} from '@/src/core/config/model';
 import {resolveUiLanguageFromLocale, type UiLanguage} from '@/src/core/i18n';
 import {
   customModelString,
-  getMultilingualTargetLanguageLabel,
   models,
   options,
   resolveConfiguredModel,
@@ -571,12 +566,14 @@ interface PopupQuickFeatureViewModel {
   ariaLabel?: string;
   open: () => void | Promise<void>;
 }
-const {language, t, translateLegacy} = useUiI18n();
+const ElDrawer = defineAsyncComponent(() => import('./PopupDrawer'));
+const {t, translateLegacy} = useUiI18n();
 const version = process.env.VUE_APP_VERSION;
 // composition root 已等待配置服务；首次渲染直接使用完整快照，不能先暴露默认布局。
 const config = ref(normalizeConfig(runtimeConfig));
 const onboardingLanguage = ref<UiLanguage>('zh-CN');
 const drawerVisible = ref(false);
+const drawerMounted = ref(false);
 const activeDrawer = ref<DrawerName>('hover');
 const translating = ref(false);
 const pageTranslated = ref(false);
@@ -1193,7 +1190,7 @@ function setPluginEnabled(enabled: boolean) {
   config.value.on = enabled;
 }
 
-function openDrawer(name: DrawerName) { activeDrawer.value = name; drawerVisible.value = true; }
+function openDrawer(name: DrawerName) { activeDrawer.value = name; drawerMounted.value = true; drawerVisible.value = true; }
 async function openOptions(section?: SettingsSection) {
   if (section) {
     await browser.tabs.create({ url: `${browser.runtime.getURL('options.html')}#${section}` });

@@ -67,19 +67,19 @@ describe('popup feature visibility', () => {
     });
 
     it('uses multilingual labels in every target-language control', () => {
-        const popup = source('src/app/popup/PopupApp.vue');
+        const popup = source('src/app/popup/PopupLanguageSelect.vue');
         const settings = source('src/features/settings/ui/SettingsSections.vue');
         const center = source('src/features/translation-center/ui/TranslationCenter.vue');
         const documentApp = source('src/app/document-translation/DocumentApp.vue');
 
-        expect(popup).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language)');
+        expect(popup).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language.value)');
         expect(settings).toContain(':label="getMultilingualTargetLanguageLabel(item.value, item.label, language)"');
         expect(center).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language)');
         expect(documentApp).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language)');
     });
 
     it('shares source-language choices across Popup, document, translation center and userscript', () => {
-        const popup = source('src/app/popup/PopupApp.vue');
+        const popup = source('src/app/popup/PopupLanguageSelect.vue');
         const center = source('src/features/translation-center/ui/TranslationCenter.vue');
         const documentApp = source('src/app/document-translation/DocumentApp.vue');
         const userscript = source('userscript/SettingsPanel.vue');
@@ -87,7 +87,8 @@ describe('popup feature visibility', () => {
             expect(entry).toContain('options.from');
             expect(entry).not.toContain('options.form');
         }
-        expect(popup).toContain("item.value === 'auto' ? translateLegacy(item.label) : getMultilingualTargetLanguageLabel");
+        expect(popup).toContain("item.value === 'auto'");
+        expect(popup).toContain('translateLegacy(item.label)');
     });
 
     it('uses the same multilingual display policy for interface-language selectors', () => {

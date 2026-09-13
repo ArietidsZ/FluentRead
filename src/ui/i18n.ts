@@ -4,7 +4,7 @@
  * 文件职责：把 core i18n 的纯翻译能力接入 Vue，并在每个扩展 UI runtime 中
  * 订阅共享配置、即时切换语言和安全迁移尚未 key 化的旧文案。
  * 主要内容：提供 createUiI18nPlugin、useUiI18n 和 v-ui-i18n 指令；语言切换时按需加载资源包，
- * 资源到达后通过 bundleRevision 刷新渲染与旧文案扫描。指令只扫描
+ * 资源到达后通过 bundleRevision 刷新渲染与旧文案扫描；源语言界面跳过无效全树扫描，切回源语言时仍恢复旧文案。指令只扫描
  * 显式标记的扩展 UI 根节点，跳过代码、文本编辑器和用户内容，避免把网页正文
  * 或翻译结果误当成扩展文案。
  * 模块边界：这里负责 Vue 响应式和配置 patch，不定义语言文案；文案资源与纯
@@ -159,6 +159,7 @@ interface TrackedAttribute {
 }
 
 interface UiI18nDirectiveState {
+    lastScanLanguage?: UiLanguage;
     observer: MutationObserver;
     context: UiI18nContext;
     refreshQueued: boolean;
@@ -240,6 +241,11 @@ function scheduleUiRefresh(root: HTMLElement, state: UiI18nDirectiveState): void
 
 function scanUiRoot(root: HTMLElement, context: UiI18nContext, state: UiI18nDirectiveState): void {
     if (isIgnoredElement(root)) return;
+    // 模板的旧文案本身就是简体中文；冷启动与普通中文交互无需遍历整个 DOM。
+    // 非中文切回中文必须扫描一次，恢复之前由此 observer 翻译的文本和属性。
+    if (context.language.value === DEFAULT_UI_LANGUAGE
+        && (!state.lastScanLanguage || state.lastScanLanguage === DEFAULT_UI_LANGUAGE)) return;
+    state.lastScanLanguage = context.language.value;
 
     const document = root.ownerDocument;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);

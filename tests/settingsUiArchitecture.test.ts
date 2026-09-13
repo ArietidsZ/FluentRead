@@ -206,9 +206,11 @@ describe('options UI composition architecture', () => {
     for (const component of requiredOptionsStyles) {
       expect(optionsEntry).toContain(`element-plus/es/components/${component}/style/css`)
     }
-    for (const component of ['base', 'drawer', 'input-number', 'select']) {
+    for (const component of ['base']) {
       expect(popupEntry).toContain(`element-plus/es/components/${component}/style/css`)
     }
+    expect(source('src/app/popup/PopupDrawer.ts')).toContain('element-plus/es/components/drawer/style/css')
+    expect(popupEntry).not.toContain('ElInputNumber')
   })
 
   it('keeps the WXT popup entrypoint as a thin app composition shell', () => {
