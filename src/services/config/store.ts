@@ -2,7 +2,7 @@
  * @file src/services/config/store.ts
  *
  * 文件职责：协调 FluentRead 配置、凭据与历史记录在后台加密配置仓库中的读取、订阅、保存和并发持久化。
- * 主要内容：维护 config 响应式状态和监听器，区分公开配置与加密持久凭据，串行发送整份替换或字段级 patch，在页面关闭前把尚未确认的补丁链交给后台，并处理乐观更新回滚、revision 冲突、旧会话凭据迁移、历史按需初始化、debounce 及 undo/redo 请求。
+ * 主要内容：维护 config 响应式状态和监听器，区分公开配置与加密持久凭据，串行发送整份替换或字段级 patch，在页面关闭前把尚未确认的补丁链交给后台，并保护在途凭据编辑免受旧广播覆盖，处理乐观更新回滚、revision 冲突、旧会话凭据迁移、历史按需初始化、debounce 及 undo/redo 请求。
  * 模块边界：本文件位于配置 application service 层，可协调 core 规则与浏览器存储端口；不包含设置页面组件，也不实现具体翻译供应商协议，调用方应通过公开服务 API 订阅或提交配置。
  */
 
@@ -78,6 +78,13 @@ let writeQueue: Promise<void> = Promise.resolve();
 let latestRequestedSerialized = '';
 let latestRequestedMode: ConfigPersistenceMode | null = null;
 let latestRequestedSequence = 0;
+// 保存未确认的字段所有权，凭据广播可以刷新基线，但不能覆盖仍在编辑的字段。
+const pendingCredentialEdits = new Map<number, {
+    credentials: ConfigCredentials;
+    fields: ReadonlySet<ConfigCredentialField>;
+    tokenServices: ReadonlySet<string>;
+    apiKeyServices: ReadonlySet<string>;
+}>();
 let persistedConfigRevision = 0;
 let requestSequence = 0;
 let requestGeneration = 0;
@@ -560,7 +567,7 @@ function registerCredentialWatch(): void {
             // popup 初次回读期间也必须接收变更，但未完成公开配置水合时不能
             // 发布只含新凭据与默认公开字段的半套状态；初始化会按序号重读。
             if (!initialized) return;
-            const normalized = normalizeConfig(mergeConfigCredentials(config, nextCredentials));
+            const normalized = normalizeConfig(mergeConfigCredentials(config, overlayPendingCredentialEdits(nextCredentials)));
             const serialized = serializeConfig(normalized);
             if (serialized === serializeConfig(config)) return;
             lastPersistedSerialized = serialized;
@@ -1048,6 +1055,17 @@ function mergeCredentialFields(
     return extractConfigCredentials(candidate);
 }
 
+/** 只覆盖在途 patch 显式修改的凭据；未编辑服务继续接收外部更新。 */
+function overlayPendingCredentialEdits(credentials: ConfigCredentials): ConfigCredentials {
+    let result = credentials;
+    if (!latestRequestedSequence) return result;
+    for (const [sequence, edit] of pendingCredentialEdits) {
+        if (sequence > latestRequestedSequence) continue;
+        result = mergeCredentialFields(result, edit.credentials, edit.fields, edit.tokenServices, edit.apiKeyServices);
+    }
+    return result;
+}
+
 /**
  * 网页/content 发来的保存请求只能修改公开配置；凭据必须由 popup/options
  * 等扩展 origin 明确更新，避免无凭据的 content 快照清空后台持久记录。
@@ -1384,6 +1402,14 @@ async function requestConfigMutation(
     latestRequestedMode = mode;
     latestRequestedSequence = sequence;
     if (sendMessage) lastEnqueuedRemoteRequestSequence = sequence;
+    if (sendMessage && mode === 'patch' && trustedCredentialStorageContext) {
+        pendingCredentialEdits.set(sequence, {
+            credentials: requestedCredentials,
+            fields: patchCredentialFields,
+            tokenServices: ownedCredentialTokenServices,
+            apiKeyServices: ownedCredentialApiKeyServices,
+        });
+    }
     if (mode === 'patch' && serializeConfig(config) !== serialized) applyConfig(normalized);
 
     if (!sendMessage) {
@@ -1475,6 +1501,7 @@ async function requestConfigMutation(
                 ? Math.max(enqueuedBaseRevision, lastCommittedRemoteRequestRevision)
                 : enqueuedBaseRevision;
             const restoreCommittedPredecessorCredentials = (): void => {
+                pendingCredentialEdits.delete(sequence);
                 if (!trustedCredentialStorageContext
                     || latestRequestedSequence !== sequence
                     || !lastKnownCommittedCredentials) return;
@@ -1697,6 +1724,7 @@ async function requestConfigMutation(
     try {
         await request;
     } catch (error) {
+        pendingCredentialEdits.delete(sequence);
         if (mode === 'patch'
             && latestRequestedSequence === sequence
             && serializeConfig(config) === serialized) {
@@ -1708,6 +1736,7 @@ async function requestConfigMutation(
         }
         throw error;
     } finally {
+        pendingCredentialEdits.delete(sequence);
         pendingRemoteConfigMutations.delete(sequence);
         if (latestRequestedSequence === sequence) {
             latestRequestedSerialized = '';

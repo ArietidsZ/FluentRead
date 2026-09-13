@@ -222,6 +222,52 @@ describe('阿里云机器翻译', () => {
         expect(params.get('SourceLanguage')).toBe('zh-tw');
     });
 
+    it.each([
+        ['SignatureDoesNotMatch', 400, '来自同一组密钥'],
+        ['SignatureNonceUsed', 400, '请求标识已被使用'],
+        ['InvalidTimeStamp.Expired', 400, '校准设备日期与时间'],
+        ['InvalidAccessKeyId.NotFound', 404, '未找到 AccessKey ID'],
+        ['InvalidAccessKeyId.Inactive', 400, 'AccessKey 已停用'],
+        ['Forbidden.RAM', 403, 'alimt:TranslateGeneral'],
+        [10010, 400, '尚未开通机器翻译服务'],
+        ['10013', 403, '未开通或账号欠费'],
+    ])('HTTP 失败保留 %s 错误码并提供可操作提示', async (Code, status, hint) => {
+        respond({Code, Message: 'ali-ak ali-sk private source', Recommend: 'https://example.com/?key=ali-sk'}, {status});
+        const error = await aliyunTranslation({origin: 'private source'}).catch((error: Error) => error);
+        expect(error).toMatchObject({statusCode: status});
+        expect((error as Error).message).toContain(String(Code));
+        expect((error as Error).message).toContain(hint);
+        expect((error as Error).message).not.toMatch(/ali-ak|ali-sk|private source|example\.com/u);
+    });
+
+    it('HTTP 限流保留 Retry-After，业务错误同样提供提示', async () => {
+        respond({Code: 'Throttling'}, {status: 429, headers: {'Retry-After': '3'}});
+        await expect(aliyunTranslation({origin: 'x'})).rejects.toMatchObject({
+            statusCode: 429, retryAfterMs: 3000,
+            message: '阿里云机器翻译请求失败: 429（错误码 Throttling）：请求过于频繁，请稍后重试',
+        });
+        respond({Code: 10005, Message: 'private source'});
+        await expect(aliyunTranslation({origin: 'x'})).rejects.toThrow('暂不支持所选语言组合');
+    });
+
+    it.each([null, [], {}, {Code: 'ali-sk'}, {Code: 'SignatureDoesNotMatch ali-sk'}, {Code: 'constructor'}, {Code: '__proto__'}, {Code: {secret: 'ali-sk'}}, {Code: 200, Data: {Translated: 'should not succeed'}}])(
+        '未知或畸形 HTTP 错误体不泄漏内容且不覆盖状态', async (body) => {
+            respond(body, {status: 400});
+            await expect(aliyunTranslation({origin: 'x'})).rejects.toMatchObject({
+                statusCode: 400, message: '阿里云机器翻译请求失败: 400',
+            });
+        },
+    );
+
+    it('非 JSON HTTP 错误保留状态，成功 HTTP 响应仍校验 JSON 和结构', async () => {
+        fetchMock.mockResolvedValueOnce(new Response('<html>ali-sk private source</html>', {status: 502}));
+        await expect(aliyunTranslation({origin: 'x'})).rejects.toMatchObject({statusCode: 502, message: '阿里云机器翻译请求失败: 502'});
+        fetchMock.mockResolvedValueOnce(new Response('ali-sk private source'));
+        await expect(aliyunTranslation({origin: 'x'})).rejects.toThrow('阿里云机器翻译返回的不是有效 JSON');
+        respond(null);
+        await expect(aliyunTranslation({origin: 'x'})).rejects.toThrow('阿里云机器翻译错误');
+    });
+
     it('错误路径', async () => {
         config.secret[services.aliyunTranslation] = '';
         await expect(aliyunTranslation({origin: 'x'})).rejects.toThrow(/AccessKey ID 与 AccessKey Secret/u);
