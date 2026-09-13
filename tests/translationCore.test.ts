@@ -2553,6 +2553,43 @@ describe('translation candidate core', () => {
         expect(core.resolveAtPoint(document, 10, 20)?.element).toBe(point);
     });
 
+    it.each(['<textarea id="editor"></textarea>', '<input id="editor">',
+        '<div contenteditable="true"><span id="editor">Draft comment</span></div>',
+        '<select id="editor"><option>Draft option</option></select>', '<select><option id="editor">Draft option</option></select>'])
+    ('does not fall through an editor hit to its surrounding comment form: %s', markup => {
+        const {document} = parseHTML(`<html><body><div id="form">New comment Markdown input: edit mode selected. ${markup}</div><p id="article">Readable article text.</p></body></html>`);
+        const core = createTranslationCore({url: new URL('https://github.com/FluentRead/FluentRead/issues/162'), scope: 'all'});
+        const editor = document.querySelector('#editor')!;
+        const form = document.querySelector('#form')!;
+        const article = document.querySelector('#article')!;
+        Object.defineProperty(document, 'elementsFromPoint', {configurable: true, value: () => [editor, form, document.body]});
+        // 浏览器的 caret API 可能把表单空白处映射到旁边的辅助文本。
+        Object.defineProperty(document, 'caretPositionFromPoint', {configurable: true, value: () => ({offsetNode: form.firstChild})});
+        const before = document.body.innerHTML;
+        expect(core.resolveAtPoint(document, 10, 20)).toBeNull();
+        Object.defineProperty(document, 'caretPositionFromPoint', {configurable: true, value: () => null});
+        expect(core.resolveAtPoint(document, 10, 20)).toBeNull();
+        expect(document.body.innerHTML).toBe(before);
+        Object.defineProperty(document, 'elementsFromPoint', {configurable: true, value: () => [article, document.body]});
+        Object.defineProperty(document, 'caretPositionFromPoint', {configurable: true, value: () => ({offsetNode: article.firstChild})});
+        expect(core.resolveAtPoint(document, 10, 20)?.element).toBe(article);
+        expect(core.discover(document.body).some(candidate => candidate.element === editor)).toBe(false);
+    });
+
+    it('keeps shadow editors opaque while preserving visible button input labels', () => {
+        const {document} = parseHTML('<html><body><div id="host"></div><input id="button" type="submit" value="Save comment"></body></html>');
+        const core = createTranslationCore({url: new URL('https://example.test'), scope: 'all'});
+        const host = document.querySelector('#host')!;
+        const shadow = host.attachShadow({mode: 'open'});
+        shadow.innerHTML = '<div>Markdown editor instructions <textarea></textarea></div>';
+        Object.defineProperty(document, 'elementsFromPoint', {configurable: true, value: () => [host, document.body]});
+        Object.defineProperty(shadow, 'elementsFromPoint', {configurable: true, value: () => [shadow.querySelector('textarea'), shadow.querySelector('div')]});
+        expect(core.resolveAtPoint(document, 1, 1)).toBeNull();
+        const button = document.querySelector('#button')!;
+        Object.defineProperty(document, 'elementsFromPoint', {configurable: true, value: () => [button, document.body]});
+        expect(core.resolveAtPoint(document, 1, 1)?.element).toBe(button);
+    });
+
     it('rejects malformed slot packets and applies truncation style overrides directly', () => {
         const packet = serializeTranslationSlots([' Alpha ', 'Beta']);
         const translated = `${packet.starts[0]}一${packet.ends[0]}\n${packet.starts[1]}二${packet.ends[1]}`;
