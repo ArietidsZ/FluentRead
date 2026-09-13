@@ -1,5 +1,11 @@
 # 测试与回归
 
+## 中文格式清单与重复请求
+
+`tests/chineseLanguage.test.ts` 覆盖中文文档格式清单、简繁字形相同的“新增功能”标题、格式名大小写、真正外语正文与简繁转换边界。
+
+生产扩展构建后运行 `node scripts/testing/run-chinese-translation-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-chinese-browser`。专项在临时 Edge profile 的后台可见窗口中，检查悬浮零请求、全文跳过中文且继续翻译相邻英文/繁体内容、恢复再翻译，以及动态中文改为英文后的重新识别。端点在校验原文前记录请求，夹具拒绝的无效请求也会计数。页面和供应商响应为本地夹具，不代表真实翻译质量。
+
 ## 阅读卡深色主题（issue #574）
 
 生产扩展构建后运行 `node scripts/run-harness-reading-test.cjs --theme-only --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-reading-theme`。

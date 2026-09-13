@@ -15,7 +15,7 @@ import {
     maxComposedAncestorDepth,
 } from './dom';
 import type {TranslationTextProtectionOptions} from './dom';
-import {detectChineseScript, getChineseScript} from '@/src/core/language/chinese';
+import {isChineseTextForTarget} from '@/src/core/language/chinese';
 import {
     DEFAULT_MIN_TRANSLATION_TEXT_LENGTH,
     normalizeMinTranslationTextLength,
@@ -324,7 +324,7 @@ function hasForeignLanguageProse(value: string): boolean {
 }
 
 /**
- * 统计式语言检测对短 UI 文本最不可靠。只接受假名、谚文或中文特有字形作为明确证据；
+ * 统计式语言检测对短 UI 文本最不可靠。接受假名、谚文、中文特有字形或明确中文词语作为证据；
  * 普通共享 Han 无法可靠区分中日文，夹带的外语正文也不能被目标脚本或品牌名掩盖，均交给后续检测或翻译服务。
  */
 export function isClearlyTargetLanguage(value: string, targetLanguage: string): boolean {
@@ -340,8 +340,7 @@ export function isClearlyTargetLanguage(value: string, targetLanguage: string): 
     if (hasKana) return target.startsWith('ja') && !hasForeignLanguageProse(text);
     if (hasHangul) return target.startsWith('ko') && !hasForeignLanguageProse(text);
     if (hanPattern.test(text)) {
-        const script = detectChineseScript(text);
-        return script !== undefined && script === getChineseScript(targetLanguage);
+        return isChineseTextForTarget(text, targetLanguage);
     }
     return false;
 }

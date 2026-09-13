@@ -8,6 +8,34 @@ import {
 } from '@/src/core/language/chinese';
 
 describe('中文书写体系与语言代码', () => {
+    const formatAnnouncement = '新增文档翻译工作台，支持 PDF、ePub、DOCX，以及 HTML、TXT、Markdown、SRT、VTT、ASS/SSA、LRC、JSON 等格式。';
+    it('中文格式清单不因保留的格式名称较多而重复请求翻译', () => {
+        for (const text of [formatAnnouncement, `✨ 新增功能\n${formatAnnouncement}`, formatAnnouncement.toLowerCase()]) {
+            expect(detectChineseScript(text)).toBe('Hans');
+            expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(true);
+            expect(shouldSkipTranslationForTarget(text, 'zh-Hant')).toBe(false);
+            expect(shouldSkipTranslationForTarget(text, 'en')).toBe(false);
+        }
+    });
+    it('中性字形的中文新增标题无需在简繁目标间重复翻译', () => {
+        expect(detectChineseScript('✨ 新增功能')).toBeUndefined();
+        for (const target of ['zh-Hans', 'zh-Hant']) {
+            expect(shouldSkipTranslationForTarget('✨ 新增功能', target)).toBe(true);
+            expect(shouldSkipTranslationForTarget('新增 PDF、ePub 功能', target)).toBe(false);
+        }
+        expect(shouldSkipTranslationForTarget('✨ 新增功能', 'en')).toBe(false);
+    });
+    it('格式名称不掩盖外语正文、简繁冲突或未知字形', () => {
+        for (const suffix of [' Please translate this sentence.', ' ERROR PLEASE RETRY', ' 日本語です。', ' 한국어', ' café', ' русский', ' 與', ' 𱀀']) {
+            expect(shouldSkipTranslationForTarget(formatAnnouncement + suffix, 'zh-Hans')).toBe(false);
+        }
+        for (const text of ['新增機能', '新增功能 English', '新增功能あ', '新增功能嘅', '新增功能𱀀', '新增文档 PDF', 'PDF、ePub、DOCX、Markdown']) {
+            expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(false);
+        }
+        const traditional = '新增文件翻譯工作台，支援 PDF、ePub、DOCX，以及 HTML、TXT、Markdown、SRT、VTT、ASS/SSA、LRC、JSON 等格式。';
+        expect(shouldSkipTranslationForTarget(traditional, 'zh-Hant')).toBe(true);
+        expect(shouldSkipTranslationForTarget(traditional, 'zh-Hans')).toBe(false);
+    });
     it.each(posts)('截图中的中文评论应跳过简体目标且保留跨语言翻译 %#', (text) => {
         expect(detectChineseScript(text)).toBe('Hans');
         expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(true);
