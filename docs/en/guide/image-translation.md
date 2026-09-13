@@ -13,6 +13,8 @@ The hover entry skips common avatars, icons, logos, emoji, video previews, and s
 
 Canceling a translation does not remove downloaded language packs. Later images can reuse them.
 
+If the translation connection is interrupted, it retries once automatically and remains cancelable. If it still fails, choose **Retry**. After an extension update or reload, refresh the webpage before trying again.
+
 ## Choose the source language
 
 The recognition pack must match the image’s language. Automatic detection prepares Simplified Chinese, Traditional Chinese, English, and Japanese by default. Other supported languages require selecting the source language and downloading its pack.

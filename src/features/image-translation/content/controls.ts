@@ -154,8 +154,9 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
         prepare.hidden = next !== 'error' || !options.prepare;
         dismiss.hidden = next !== 'error' || options.prepare === true;
         const feedbackOwnsActions = next === 'error';
-        if (feedbackOwnsActions) feedback.append(row);
-        else element.append(row);
+        const actionsOwner = feedbackOwnsActions ? feedback : element;
+        // 进度更新会频繁刷新状态；仅在状态容器变化时移动操作条，避免重挂载打断悬停与焦点。
+        if (row.parentElement !== actionsOwner) actionsOwner.append(row);
         inspect.hidden = next !== 'translated' || !details.textContent;
         if (next !== 'translated') {
             details.hidden = true;
