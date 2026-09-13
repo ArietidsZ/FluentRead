@@ -44,7 +44,9 @@ The card’s history and the learning center’s reading history show the same c
 
 ## Adjust the explanation
 
-Choose your learning level, explanation length, and preferred actions. Hide actions you do not use.
+After the enable section, expand **Try the translation card** to explore example answers without calling a model.
+
+**Translation settings** groups the service and model, opening method and actions, answer preferences, and source scope in one card. Choose your learning level and explanation length, and hide actions you do not use.
 
 The source scope controls what the model can reference. The default permits the current paragraph; choose selection-only to send just the selected text. More context can help with references, but sends more text.
 
