@@ -2776,9 +2776,10 @@ async function main() {
       // 直接从完整服务列表打开 OpenAI。
       await page.locator('[data-service-value="openai"]:visible').first().click();
     }
-    const darkAdvancedSettings = page.getByTestId('custom-service-advanced');
+    const darkAdvancedSettings = page.locator('[data-configuration-group="advanced"]');
+    const darkTranslationSettings = darkAdvancedSettings.locator('[data-configuration-group="translation"]');
     await darkAdvancedSettings.waitFor({state: 'visible', timeout});
-    const darkThinkingSwitch = darkAdvancedSettings.getByRole('switch', {
+    const darkThinkingSwitch = darkTranslationSettings.getByRole('switch', {
       name: '当前模型是否启用 Thinking',
       includeHidden: true,
     });
@@ -2922,7 +2923,7 @@ async function main() {
       || serviceOnlyMetrics.defaultService !== defaultServiceMetrics.defaultService) {
       throw new Error(`翻译服务页不是纯服务目录：${JSON.stringify(serviceOnlyMetrics)}`);
     }
-    // 服务目录只有“我的服务 / 全部服务”两级入口；分类、顺序与免费候选的完整矩阵归
+    // 服务目录按分类展示；分类、顺序与免费候选的完整矩阵归
     // run-service-catalog-ui-test.cjs，这里只锁定设置中心依赖的目录契约。
     const expectedServiceSections = ['machine-services', 'cloud-services', 'ai-providers', 'ai-platforms'];
     const expectedProviderServices = [
@@ -3000,7 +3001,7 @@ async function main() {
       `[data-service-value="${defaultServiceMetrics.defaultService}"]`,
     );
     if (await defaultServiceItem.count() !== 1 || !await defaultServiceItem.isVisible()) {
-      throw new Error('“我的服务”没有显示当前默认服务');
+      throw new Error('服务目录没有显示当前默认服务');
     }
     report.informationArchitecture.services = serviceOnlyMetrics;
     report.informationArchitecture.serviceCatalogHierarchy = {
@@ -3092,14 +3093,14 @@ async function main() {
     await customServiceDialog.getByTestId('custom-service-model').fill(customServiceFixture.model);
     await customServiceDialog.getByTestId('custom-service-save').click();
     await customServiceDialog.waitFor({state: 'hidden', timeout});
-    // 新建后直接成为“我的服务”中已保存的编辑目标，同时出现在全部服务的自定义分类里。
+    // 新建后直接成为已保存的编辑目标，并出现在自定义分类里。
     const customServiceItem = serviceCatalog.locator('[data-service-value^="custom:"]');
     await customServiceItem.waitFor({state: 'visible', timeout});
     customServiceId = await customServiceItem.getAttribute('data-service-value');
     if (!customServiceId?.startsWith('custom:')) throw new Error(`自定义服务没有稳定动态 ID：${customServiceId}`);
     if (await customServiceItem.count() !== 1
       || !(await customServiceItem.textContent())?.includes(customServiceFixture.name)) {
-      throw new Error('新建自定义服务没有以名称出现在“我的服务”已保存配置中');
+      throw new Error('新建自定义服务没有以名称出现在已保存配置中');
     }
     const customDirectoryItems = await customServiceSection.locator('[data-service-value]')
       .evaluateAll(items => items.map(item => item.dataset.serviceValue));
@@ -3143,8 +3144,9 @@ async function main() {
         !== customServiceFixture.apiKey) {
       throw new Error('新建自定义服务的名称、接口、模型或 API Key 没有进入详情配置');
     }
-    const advancedSettings = serviceCatalog.getByTestId('custom-service-advanced');
-    const currentThinkingSwitch = advancedSettings.getByRole('switch', {
+    const advancedSettings = serviceCatalog.locator('[data-configuration-group="advanced"]');
+    const translationSettings = advancedSettings.locator('[data-configuration-group="translation"]');
+    const currentThinkingSwitch = translationSettings.getByRole('switch', {
       name: '当前模型是否启用 Thinking',
       includeHidden: true,
     });

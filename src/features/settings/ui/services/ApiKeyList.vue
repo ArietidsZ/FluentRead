@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ApiKeyList.vue
  * 文件职责：集中管理同一服务的 API Key 输入、逐项连接结果及检查操作。
- * 主要内容：使用对齐列表展示密钥和检查状态，提供就近的批量检查/停止、单项重测、可展开失败原因及连续添加；支持窄屏和键盘操作。
+ * 主要内容：使用对齐列表展示密钥和检查状态，由服务标题栏发起批量检查/停止，本列表提供单项重测、可展开失败原因及连续添加；支持窄屏和键盘操作。
  * 模块边界：仅管理局部展示状态，通过事件交给父组件保存配置和执行检查；不发起网络请求，不把一次检查结果解释为实时健康权重。
  -->
 <template>
@@ -11,21 +11,12 @@
         <div class="api-key-heading-title"><strong>{{ props.label || 'API Key' }}</strong></div>
         <p v-if="props.allowMultiple" class="api-key-help">{{ t('settings.services.keys.help') }}</p>
       </div>
-      <button
-        type="button" class="api-key-check-all" :class="{'api-key-stop': busy}" data-connection-test-button
-        :disabled="!busy && !eligible.length && !allowAnonymous"
-        @click="busy ? emit('stop') : emit('testAll')"
-      >
-        <svg v-if="busy" viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="1" /></svg>
-        <svg v-else viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-8" /></svg>
-        {{ t(busy ? 'settings.services.keys.stop' : eligible.length > 1 ? 'settings.services.keys.checkAll' : 'settings.services.keys.checkConnection') }}
-      </button>
     </header>
     <div v-if="props.allowMultiple" class="api-key-overview" aria-live="polite">
       <span v-if="busy" class="api-key-progress" role="status">
         <span class="api-key-spinner" />
         {{ checkingIndex >= 0 ? t('settings.services.keys.checkingRow', {number: checkingIndex + 1}) : t('settings.services.keys.checking') }}
-        <span v-if="checkMode === 'all'" class="api-key-progress-count">{{ checked }} / {{ eligible.length }}</span>
+        <span v-if="checkMode === 'all' && eligible.length" class="api-key-progress-count">{{ checked }} / {{ eligible.length }}</span>
       </span>
       <span v-else-if="summary" class="api-key-summary" :class="`is-${summary.kind}`" role="status" data-api-key-summary>
         <svg viewBox="0 0 20 20" aria-hidden="true"><path v-if="summary.failed === 0" d="m4 10 4 4 8-8" /><template v-else><circle cx="10" cy="10" r="7" /><path d="M10 6v5m0 3h.01" /></template></svg>
@@ -37,7 +28,7 @@
       <span>{{ t('settings.services.keys.statusColumn') }}</span>
     </div>
     <div class="api-key-rows">
-      <div v-for="(key, index) in keys" :key="index" class="api-key-row" :data-api-key-index="index" :class="{'is-checking-row': states[index]?.status === 'checking', 'is-single-row': !props.allowMultiple}">
+      <div v-for="(key, index) in keys" :key="index" class="api-key-row" :data-api-key-index="index" :class="{'is-checking-row': rowStates[index]?.status === 'checking', 'is-single-row': !props.allowMultiple}">
         <label class="api-key-number" :for="`${id}-input-${index}`">Key {{ index + 1 }}</label>
         <div class="api-key-entry">
           <el-input
@@ -52,15 +43,15 @@
           <span v-if="duplicateApiKeyIndex(keys, index) !== null" class="api-key-state is-duplicate" role="status">
             {{ t('settings.services.keys.duplicate', {number: duplicateApiKeyIndex(keys, index)! + 1}) }}
           </span>
-          <span v-else-if="states[index]?.status === 'checking'" class="api-key-state is-checking" role="status">
+          <span v-else-if="rowStates[index]?.status === 'checking'" class="api-key-state is-checking" role="status">
             <span class="api-key-spinner" />{{ t('settings.services.keys.checking') }}
           </span>
-          <span v-else-if="states[index]?.status === 'success'" class="api-key-state is-success" role="status">
+          <span v-else-if="rowStates[index]?.status === 'success'" class="api-key-state is-success" role="status">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-8" /></svg>
             {{ t('settings.services.keys.passed') }}
-            <span v-if="states[index].durationMs !== undefined" class="api-key-duration">{{ states[index].durationMs }} ms</span>
+            <span v-if="rowStates[index].durationMs !== undefined" class="api-key-duration">{{ rowStates[index].durationMs }} ms</span>
           </span>
-          <button v-else-if="states[index]?.status === 'error'" type="button" class="api-key-state is-error api-key-error-toggle"
+          <button v-else-if="rowStates[index]?.status === 'error'" type="button" class="api-key-state is-error api-key-error-toggle"
             :aria-expanded="expandedErrors.has(index)" :aria-controls="`${id}-error-${index}`"
             :title="t('settings.services.keys.failureDetails')" @click="toggleError(index)">
             <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="M10 6v5m0 3h.01" /></svg>
@@ -68,11 +59,12 @@
             <svg class="api-key-chevron" :class="{'is-expanded': expandedErrors.has(index)}" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
           </button>
           <span v-else-if="key.trim()" class="api-key-state is-idle">
-            <span class="api-key-idle-dot" />{{ t(states[index]?.status === 'queued' ? 'settings.services.keys.queued' : 'settings.services.keys.unchecked') }}
+            <span class="api-key-idle-dot" />{{ t(rowStates[index]?.status === 'queued' ? 'settings.services.keys.queued' : 'settings.services.keys.unchecked') }}
           </span>
         </div>
         <div v-if="props.allowMultiple" class="api-key-row-actions">
-          <button v-if="key.trim() && duplicateApiKeyIndex(keys, index) === null" type="button" class="api-key-icon-button api-key-retest" :disabled="busy"
+          <button v-if="key.trim() && duplicateApiKeyIndex(keys, index) === null" type="button" class="api-key-icon-button api-key-retest" :class="{'is-retry': rowStates[index]?.status === 'error'}" :disabled="busy"
+            data-api-key-retry
             :aria-label="t('settings.services.keys.checkRow', {number: index + 1})"
             :title="t('settings.services.keys.checkRow', {number: index + 1})" @click="emit('test', index)">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 7a6.5 6.5 0 1 0 .2 5M16 3v4h-4" /></svg>
@@ -83,7 +75,7 @@
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5h12M8 5V3h4v2M6 5l.7 12h6.6L14 5M8.5 8v6m3-6v6" /></svg>
           </button>
         </div>
-        <p v-if="states[index]?.status === 'error' && expandedErrors.has(index)" :id="`${id}-error-${index}`" class="api-key-error" role="status">{{ states[index].error || t('settings.services.keys.failed') }}</p>
+        <p v-if="rowStates[index]?.status === 'error' && expandedErrors.has(index)" :id="`${id}-error-${index}`" class="api-key-error" role="status">{{ rowStates[index].error || t('settings.services.keys.failed') }}</p>
       </div>
     </div>
     <footer v-if="props.allowMultiple" class="api-key-list-footer">
@@ -98,9 +90,10 @@
 import {computed, nextTick, ref, useId, watch} from 'vue'
 import {useUiI18n} from '@/src/ui/i18n'
 import {duplicateApiKeyIndex, eligibleApiKeyIndexes, type ApiKeyCheckState, type ApiKeySummary} from './apiKeyTypes'
-const props = defineProps<{keys: string[]; states: Record<number, ApiKeyCheckState>; summary: ApiKeySummary | null; busy: boolean; label?: string; allowAnonymous?: boolean; allowMultiple?: boolean; checkMode?: 'single' | 'all'}>()
-const emit = defineEmits<{add: []; update: [index: number, value: string]; remove: [index: number]; test: [index: number]; testAll: []; stop: []}>()
+const props = defineProps<{keys: string[]; states: Record<number, ApiKeyCheckState>; summary: ApiKeySummary | null; busy: boolean; label?: string; connectionState?: ApiKeyCheckState; allowMultiple?: boolean; checkMode?: 'single' | 'all'}>()
+const emit = defineEmits<{add: []; update: [index: number, value: string]; remove: [index: number]; test: [index: number]; }>()
 const {t} = useUiI18n()
+const rowStates = computed(() => Object.keys(props.states).length ? props.states : props.connectionState ? {0: props.connectionState} : {})
 const id = useId()
 const root = ref<HTMLElement>()
 const expandedErrors = ref(new Set<number>())
@@ -130,13 +123,8 @@ async function addKey(): Promise<void> {
 .api-key-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px 20px 12px; }
 .api-key-heading-copy { min-width: 0; }
 .api-key-heading-title { display: flex; align-items: center; gap: 10px; }
-.api-key-heading-title strong { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+.api-key-heading-title strong { font-size: 15px; font-weight: 650; }
 .api-key-help { margin: 7px 0 0; color: var(--muted, #737d90); font-size: 12px; line-height: 1.6; }
-.api-key-check-all { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 7px 12px; border: 1px solid transparent; border-radius: 7px; background: var(--brand, #ef4776); color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s; }
-.api-key-check-all:hover:not(:disabled) { background: #cf315e; }
-.api-key-check-all:disabled { background: var(--surface-soft, #f5f6fa); color: var(--muted, #737d90); border-color: var(--line, #e3e7ee); cursor: default; opacity: .7; }
-.api-key-check-all.api-key-stop { border-color: var(--line, #e3e7ee); background: var(--surface, #fff); color: var(--ink, #263044); }
-.api-key-check-all.api-key-stop:hover { background: var(--surface-soft, #f5f6fa); }
 .api-key-overview { display: flex; align-items: center; min-height: 28px; padding: 0 20px 12px; font-size: 11px; color: var(--muted, #737d90); line-height: 1.6; }
 .api-key-summary, .api-key-progress { display: inline-flex; align-items: center; gap: 7px; }
 .api-key-summary.is-success { color: var(--key-success); }
@@ -148,14 +136,14 @@ async function addKey(): Promise<void> {
 .api-key-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) 126px 68px; align-items: center; gap: 10px 12px; min-width: 0; padding: 12px 20px; transition: background .15s; }
 .api-key-row.is-single-row { grid-template-columns: 44px minmax(0, 1fr) 126px; padding: 10px 16px 14px; border-top: 0; }
 .api-key-row + .api-key-row { border-top: 1px solid var(--line, #e3e7ee); }
-.api-key-row.is-checking-row { background: var(--brand-soft, #fff1f5); }
+.api-key-row.is-checking-row { background: transparent; }
 .api-key-number { color: var(--muted, #737d90); font-size: 11px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.api-key-entry { min-width: 0; }
+.api-key-entry { width: 100%; max-width: 640px; min-width: 0; }
 .api-key-entry :deep(.el-input) { width: 100% !important; max-width: none !important; min-width: 0; }
-.api-key-entry :deep(.el-input__wrapper) { min-height: 34px; padding-inline: 10px; border-radius: 6px; background: var(--surface-soft, #f7f8fb); box-shadow: inset 0 0 0 1px transparent; }
+.api-key-entry :deep(.el-input__wrapper) { min-height: 38px; padding-inline: 11px; border-radius: 10px; background: var(--surface, #fff); box-shadow: inset 0 0 0 1px transparent; }
 .api-key-entry :deep(.el-input__wrapper:hover) { box-shadow: inset 0 0 0 1px var(--line, #e3e7ee); }
 .api-key-entry :deep(.el-input__wrapper.is-focus) { background: var(--surface, #fff); box-shadow: inset 0 0 0 1px var(--brand, #ef4776); }
-.api-key-entry :deep(.el-input__inner) { font-size: 12px; letter-spacing: .05em; }
+.api-key-entry :deep(.el-input__inner) { font-size: 13px; letter-spacing: .05em; }
 .api-key-entry :deep(.el-input__inner::placeholder) { letter-spacing: 0; }
 .api-key-row-status { min-width: 0; }
 .api-key-state { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 5px; font-size: 11px; line-height: 1.6; color: var(--muted, #737d90); }
@@ -169,13 +157,15 @@ async function addKey(): Promise<void> {
 .api-key-list .api-key-chevron { width: 12px; height: 12px; transition: transform .15s; }
 .api-key-chevron.is-expanded { transform: rotate(180deg); }
 .api-key-row-actions { display: flex; justify-content: flex-end; gap: 4px; }
-.api-key-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: 0 0 30px; border: 0; border-radius: 6px; padding: 6px; background: transparent; color: var(--muted, #737d90); cursor: pointer; }
+.api-key-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: 0 0 32px; border: 1px solid transparent; border-radius: 8px; padding: 7px; background: transparent; color: var(--muted, #737d90); cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
 .api-key-icon-button:hover:not(:disabled) { background: var(--surface-soft, #f7f8fb); color: var(--ink, #263044); }
+.api-key-icon-button:focus-visible, .api-key-add:focus-visible, .api-key-error-toggle:focus-visible { outline: 2px solid var(--brand, #ef4776); outline-offset: 2px; }
+.api-key-icon-button.is-retry { color: var(--key-error); }
 .api-key-remove:hover:not(:disabled) { color: var(--key-error); }
 .api-key-icon-button:disabled { opacity: .3; cursor: default; }
 .api-key-error { grid-column: 2 / -1; margin: -2px 0 0; padding: 9px 12px; border-radius: 6px; color: var(--key-error); background: color-mix(in srgb, var(--key-error) 6%, transparent); font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; }
 .api-key-list-footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--line, #e3e7ee); border-radius: 0 0 12px 12px; background: var(--surface, #fff); }
-.api-key-add { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 6px; min-height: 32px; border: 0; border-radius: 6px; padding: 6px 8px; background: transparent; color: var(--brand-strong, #bd3159); font-size: 12px; font-weight: 550; cursor: pointer; }
+.api-key-add { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 7px; min-height: 34px; border: 1px solid color-mix(in srgb, var(--brand, #ef4776) 30%, var(--line, #e3e7ee)); border-radius: 8px; padding: 6px 10px; background: var(--brand-soft, #fff1f5); color: var(--brand-strong, #bd3159); font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s; }
 .api-key-add:hover { background: var(--brand-soft, #fff1f5); }
 .api-key-explanation { min-width: 0; max-width: 68%; color: var(--muted, #737d90); font-size: 11px; line-height: 1.7; }
 .api-key-explanation summary { display: flex; align-items: center; justify-content: flex-end; gap: 5px; min-height: 32px; cursor: pointer; list-style: none; }
@@ -205,21 +195,30 @@ async function addKey(): Promise<void> {
   .api-key-error { grid-column: 1 / -1; margin-top: 2px; }
   .api-key-list-footer { padding-inline: 8px; }
 }
-.api-key-list.is-single { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; align-items: start; gap: 10px 16px; margin: 0; padding: 12px 0; border: 0; border-top: 1px solid var(--line, #e3e7ee); border-radius: 0; container-type: normal; }
+.api-key-list.is-single { display: grid; grid-template-columns: minmax(0, 160px) minmax(0, 640px); justify-content: space-between; align-items: start; gap: 10px 16px; margin: 0; padding: 12px 0; border: 0; border-top: 1px solid var(--line, #e3e7ee); border-radius: 0; container-type: normal; }
 .is-single .api-key-heading { display: contents; }
 .is-single .api-key-heading-copy { grid-column: 1; grid-row: 1; padding-top: 9px; }
-.is-single .api-key-heading-title strong { font-size: 12px; font-weight: 600; }
-.is-single .api-key-check-all { grid-column: 3; grid-row: 1; margin-top: 1px; }
+.is-single .api-key-heading-title strong { font-size: 13px; font-weight: 550; }
 .is-single .api-key-rows { grid-column: 2; grid-row: 1; }
 .is-single .api-key-row.is-single-row { display: flex; flex-direction: column; align-items: stretch; padding: 0; gap: 4px; }
 .is-single .api-key-number { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.is-single .api-key-entry { width: 100%; }
-.is-single .api-key-row-status:has(.api-key-state.is-idle) { display: none; }
+.is-single .api-key-entry { width: 100%; justify-self: end; }
+.is-single .api-key-row-status:has(.api-key-state.is-idle) { visibility: hidden; }
 .is-single .api-key-error { margin: 0; }
 @media (max-width: 900px) {
-  .api-key-list.is-single { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .api-key-list.is-single { grid-template-columns: minmax(0, 160px) minmax(0, 1fr); justify-content: normal; gap: 8px 12px; }
   .is-single .api-key-heading-copy { grid-column: 1; grid-row: 1; }
-  .is-single .api-key-check-all { grid-column: 2; grid-row: 1; }
+  .is-single .api-key-rows { grid-column: 1 / -1; grid-row: 2; }
+}
+.api-key-row-status { min-height: 24px; }
+.is-single .api-key-row-status { height: 24px; overflow: hidden; }
+.is-single .api-key-row-status .api-key-state { flex-wrap: nowrap; white-space: nowrap; }
+.is-single .api-key-row-status .is-duplicate { white-space: normal; }
+.is-single .api-key-row-status:has(.is-duplicate) { height: auto; min-height: 24px; }
+.api-key-duration { font-variant-numeric: tabular-nums; }
+@container (max-width: 600px) {
+  .api-key-list.is-single { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .is-single .api-key-heading-copy { grid-column: 1; grid-row: 1; }
   .is-single .api-key-rows { grid-column: 1 / -1; grid-row: 2; }
 }
 </style>
