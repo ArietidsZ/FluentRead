@@ -9,8 +9,8 @@
 export const LOCAL_TTS_MODEL_ID = 'kokoro-v1.1-zh' as const;
 export const LOCAL_TTS_MODEL_REPOSITORY = 'onnx-community/Kokoro-82M-v1.1-zh-ONNX' as const;
 export const LOCAL_TTS_MODEL_REVISION = '6cc0f0d2ebe369a68b0df87c2b65c1af8c0ac3e3' as const;
-export const LOCAL_TTS_MODEL_DTYPE = 'q4f16' as const;
-// kokoro-js 会根据 dtype 自动追加 _q4f16；这里必须传基础文件名 model。
+export const LOCAL_TTS_MODEL_DTYPE = 'fp32' as const;
+// 全精度模型避免半精度在部分中英文输入上生成 NaN；GPU 与 CPU 共用同一文件。
 export const LOCAL_TTS_MODEL_FILE_NAME = 'model' as const;
 export const LOCAL_TTS_MODEL_STATE_KEY = 'fluentReadLocalTtsModels' as const;
 export const LOCAL_TTS_MODEL_CACHE_NAME = 'transformers-cache' as const;
@@ -69,7 +69,7 @@ export const LOCAL_TTS_MODEL = {
     modelFileName: LOCAL_TTS_MODEL_FILE_NAME,
     label: 'Kokoro 中文与英语',
     description: '浏览器本地合成中文、英语和中英混排文本；首次使用前需要主动下载模型。',
-    downloadSizeMb: 170,
+    downloadSizeMb: 343,
     voices: ['zf_001', 'zm_009', 'af_maple', 'bf_vale'],
 } as const;
 

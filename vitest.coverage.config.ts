@@ -25,6 +25,7 @@ export default defineConfig({
         fileParallelism: false,
         include: [
             'tests/onnxWasmBinary.test.ts',
+            'tests/onnxWebGpu.test.ts',
             'tests/apiKeyCheckIdentity.test.ts',
             'tests/apiKeyRotation.test.ts',
             'tests/apiKeyPool.test.ts',
@@ -646,6 +647,7 @@ export default defineConfig({
                 'src/services/config/count.ts',
                 'src/services/config/schema.ts',
                 'src/shared/onnx/wasmBinary.ts',
+                'src/shared/onnx/webgpu.ts',
                 'src/shared/function/throttle.ts',
                 'src/shared/geometry/touch.ts',
                 'src/ui/view-model/serviceCatalog.ts',

@@ -1,4 +1,4 @@
-import {describe, expect, it, vi} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {
     LOCAL_TTS_MODE_OPTIONS,
@@ -75,8 +75,8 @@ describe('local TTS configuration', () => {
     });
 
     it('keeps the pinned download URL and the Transformers.js main cache alias distinct', () => {
-        const pinned = getLocalTtsModelFileUrl('onnx/model_q4f16.onnx');
-        const loader = getLocalTtsModelLoaderUrl('onnx/model_q4f16.onnx');
+        const pinned = getLocalTtsModelFileUrl('onnx/model.onnx');
+        const loader = getLocalTtsModelLoaderUrl('onnx/model.onnx');
         expect(pinned).toContain('/resolve/6cc0f0d2ebe369a68b0df87c2b65c1af8c0ac3e3/');
         expect(loader).toContain('/resolve/main/');
         expect(loader).not.toBe(pinned);
@@ -217,5 +217,120 @@ describe('selection TTS source policy', () => {
         expect(localTtsErrorCode(Object.assign(new Error('x'), {code: 7}))).toBeUndefined();
         expect(localTtsErrorCode(null)).toBeUndefined();
         expect(localTtsErrorCode('local-tts-model-not-downloaded')).toBeUndefined();
+    });
+});
+
+class LocalTtsOwnerFakeWorker {
+    static instances: LocalTtsOwnerFakeWorker[] = [];
+    onmessage: ((event: MessageEvent) => void) | null = null;
+    onerror: ((event: ErrorEvent) => void) | null = null;
+    terminated = false;
+    lastMessage: any;
+
+    constructor() { LocalTtsOwnerFakeWorker.instances.push(this); }
+    postMessage(message: any): void { this.lastMessage = message; }
+    terminate(): void { this.terminated = true; }
+    reply(response: Record<string, unknown>): void { this.onmessage?.({data: response} as MessageEvent); }
+    fail(message = 'worker failed'): void { this.onerror?.({message} as ErrorEvent); }
+}
+
+async function loadLocalTtsOwner(): Promise<typeof import('@/src/features/local-tts/offscreen/tts')> {
+    vi.resetModules();
+    vi.doMock('@/src/features/local-tts/offscreen/modelCache', () => ({
+        cacheLocalTtsModelFiles: vi.fn(async () => undefined),
+        isLocalTtsModelCached: vi.fn(async () => true),
+        removeLocalTtsModelFiles: vi.fn(async () => undefined),
+    }));
+    vi.stubGlobal('Worker', LocalTtsOwnerFakeWorker);
+    vi.stubGlobal('window', {location: {href: 'chrome-extension://test/offscreen.html'}, setTimeout, clearTimeout});
+    return import('@/src/features/local-tts/offscreen/tts');
+}
+
+describe('local TTS offscreen worker owner', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllTimers();
+        vi.useRealTimers();
+        vi.doUnmock('@/src/features/local-tts/offscreen/modelCache');
+        LocalTtsOwnerFakeWorker.instances = [];
+    });
+
+    it('rebuilds one fresh WASM worker after GPU failure and ignores an old worker error', async () => {
+        const owner = await loadLocalTtsOwner();
+        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto');
+        await Promise.resolve();
+        await Promise.resolve();
+        const first = LocalTtsOwnerFakeWorker.instances[0];
+        expect(first.lastMessage.device).toBeUndefined();
+        first.fail('GPU worker failed');
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(LocalTtsOwnerFakeWorker.instances).toHaveLength(2);
+        const replacement = LocalTtsOwnerFakeWorker.instances[1];
+        expect(replacement.lastMessage.device).toBe('wasm');
+        first.fail('late stale error');
+        replacement.reply({requestId: replacement.lastMessage.requestId, success: true, audio: new ArrayBuffer(4), backend: 'wasm'});
+        await expect(pending).resolves.toMatchObject({contentType: 'audio/wav', backend: 'wasm'});
+        expect(replacement.terminated).toBe(false);
+        owner.disposeLocalTtsWorker();
+    });
+
+    it('does not retry after AbortSignal cancellation', async () => {
+        const owner = await loadLocalTtsOwner();
+        const controller = new AbortController();
+        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto', controller.signal);
+        await Promise.resolve();
+        await Promise.resolve();
+        controller.abort();
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        expect(LocalTtsOwnerFakeWorker.instances).toHaveLength(1);
+        owner.disposeLocalTtsWorker();
+    });
+
+    it('retries once on a structured GPU failure hint and sends the retry to a fresh CPU worker', async () => {
+        const owner = await loadLocalTtsOwner();
+        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto');
+        await Promise.resolve();
+        await Promise.resolve();
+        const first = LocalTtsOwnerFakeWorker.instances[0];
+        first.reply({requestId: first.lastMessage.requestId, success: false, retryWithCpu: true, error: 'GPU init failed'});
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(LocalTtsOwnerFakeWorker.instances).toHaveLength(2);
+        const replacement = LocalTtsOwnerFakeWorker.instances[1];
+        expect(replacement.lastMessage.device).toBe('wasm');
+        replacement.reply({requestId: replacement.lastMessage.requestId, success: true, audio: new ArrayBuffer(4), backend: 'wasm'});
+        await expect(pending).resolves.toMatchObject({backend: 'wasm'});
+        expect(LocalTtsOwnerFakeWorker.instances).toHaveLength(2);
+        owner.disposeLocalTtsWorker();
+    });
+
+    it('does not rebuild a worker for an unhinted business failure', async () => {
+        const owner = await loadLocalTtsOwner();
+        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto');
+        await Promise.resolve();
+        await Promise.resolve();
+        const worker = LocalTtsOwnerFakeWorker.instances[0];
+        worker.reply({requestId: worker.lastMessage.requestId, success: false, error: 'invalid voice'});
+        await expect(pending).rejects.toThrow('invalid voice');
+        expect(LocalTtsOwnerFakeWorker.instances).toHaveLength(1);
+        owner.disposeLocalTtsWorker();
+    });
+
+    it('uses separate 60 second phases for the first attempt and the single CPU retry', async () => {
+        vi.useFakeTimers();
+        const owner = await loadLocalTtsOwner();
+        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto');
+        await Promise.resolve();
+        await Promise.resolve();
+        vi.advanceTimersByTime(60_001);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(LocalTtsOwnerFakeWorker.instances).toHaveLength(2);
+        const replacement = LocalTtsOwnerFakeWorker.instances[1];
+        expect(replacement.lastMessage.device).toBe('wasm');
+        vi.advanceTimersByTime(60_000);
+        await expect(pending).rejects.toBeInstanceOf(Error);
+        expect(LocalTtsOwnerFakeWorker.instances).toHaveLength(2);
     });
 });

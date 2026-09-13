@@ -1,7 +1,7 @@
 /**
  * @file src/features/local-tts/offscreen/tts.ts
  * 文件职责：编排本地 Kokoro TTS 模型缓存、Worker 生命周期、下载状态和合成请求。
- * 主要内容：保证本地 TTS 不会因一次朗读自动下载，串行复用一个模型 Worker，并在取消、超时或空闲时释放资源。
+ * 主要内容：保证本地 TTS 不会因一次朗读自动下载，串行复用一个模型 Worker；GPU 生命周期失败按总预算重建一次 CPU Worker，并在取消或空闲时释放资源。
  * 模块边界：只负责扩展自有 Offscreen 运行时，不决定在线/本地策略，也不直接操作网页 UI。
  */
 
@@ -30,6 +30,7 @@ type LocalTtsWorkerBackend = 'webgpu' | 'wasm';
 interface WorkerRequest {
     requestId: number;
     type: 'prepare' | 'synthesize' | 'dispose';
+    device?: 'wasm';
     text?: string;
     voice?: string;
     speed?: number;
@@ -41,6 +42,7 @@ interface WorkerResponse {
     audio?: ArrayBuffer;
     samplingRate?: number;
     backend?: LocalTtsWorkerBackend;
+    retryWithCpu?: boolean;
     error?: string;
 }
 
@@ -52,6 +54,8 @@ interface PendingWorkerRequest {
     onAbort?: () => void;
 }
 
+type WorkerLifecycleError = Error & {retryableWorkerFailure?: true};
+
 const SYNTHESIS_TIMEOUT_MS = 120_000;
 const MODEL_IDLE_DISPOSE_MS = 30_000;
 
@@ -60,6 +64,16 @@ let workerRequestId = 0;
 let pendingRequests = new Map<number, PendingWorkerRequest>();
 let idleDisposeTimer: number | undefined;
 let workerQueue: Promise<void> = Promise.resolve();
+
+function createWorkerLifecycleError(message: string): WorkerLifecycleError {
+    const error = new Error(message) as WorkerLifecycleError;
+    error.retryableWorkerFailure = true;
+    return error;
+}
+
+function isWorkerLifecycleError(error: unknown): error is WorkerLifecycleError {
+    return error instanceof Error && (error as WorkerLifecycleError).retryableWorkerFailure === true;
+}
 
 function toError(value: unknown, fallback: string): Error {
     return value instanceof Error ? value : new Error(typeof value === 'string' ? value : fallback);
@@ -119,10 +133,18 @@ function getWorker(): Worker {
         window.clearTimeout(pending.timeout);
         if (pending.signal && pending.onAbort) pending.signal.removeEventListener('abort', pending.onAbort);
         if (response.success) pending.resolve(response);
+        else if (response.retryWithCpu === true) {
+            const error = createWorkerLifecycleError(response.error || '本地 TTS GPU Worker 失败，准备使用 CPU 重试');
+            // The current request was removed above, so terminateWorker cannot
+            // lose its reject path; reject it explicitly after tearing down.
+            terminateWorker(error);
+            pending.reject(error);
+        }
         else pending.reject(new Error(response.error || '本地 TTS Worker 失败'));
     };
     next.onerror = (event) => {
-        terminateWorker(new Error(event.message || '本地 TTS Worker 已停止'));
+        if (worker !== next) return;
+        terminateWorker(createWorkerLifecycleError(event.message || '本地 TTS Worker 已停止'));
     };
     worker = next;
     return next;
@@ -138,7 +160,7 @@ function requestWorker(
     const requestId = ++workerRequestId;
     return new Promise((resolve, reject) => {
         const timeout = window.setTimeout(() => {
-            terminateWorker(new Error(`本地 TTS Worker 超过 ${timeoutMs / 1000} 秒，已终止以保护浏览器性能`));
+            terminateWorker(createWorkerLifecycleError(`本地 TTS Worker 超过 ${timeoutMs / 1000} 秒，已终止以保护浏览器性能`));
         }, timeoutMs);
         const onAbort = () => terminateWorker(createAbortError());
         pendingRequests.set(requestId, {resolve, reject, timeout, signal, onAbort});
@@ -158,6 +180,22 @@ function requestWorker(
             reject(workerError);
         }
     });
+}
+
+async function requestWorkerWithCpuFallback(
+    message: Omit<WorkerRequest, 'requestId'>,
+    timeoutMs: number,
+    signal?: AbortSignal,
+): Promise<WorkerResponse> {
+    const deadlineAt = Date.now() + timeoutMs;
+    const firstAttemptTimeout = Math.max(1, Math.floor(timeoutMs / 2));
+    try {
+        return await requestWorker(message, firstAttemptTimeout, signal);
+    } catch (error) {
+        const remainingMs = deadlineAt - Date.now();
+        if (!isWorkerLifecycleError(error) || message.device === 'wasm' || remainingMs <= 0) throw error;
+        return requestWorker({...message, device: 'wasm'}, remainingMs, signal);
+    }
 }
 
 function runSerial<T>(operation: () => Promise<T>): Promise<T> {
@@ -215,7 +253,7 @@ export async function synthesizeLocalTts(
     if (signal?.aborted) throw createAbortError();
 
     const voice = localTtsVoiceForLanguage(language, preferredVoice);
-    const response = await runSerial(() => requestWorker({
+    const response = await runSerial(() => requestWorkerWithCpuFallback({
         type: 'synthesize',
         text,
         voice,

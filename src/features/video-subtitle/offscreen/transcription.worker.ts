@@ -17,6 +17,7 @@ import {
 import {parseWhisperChunkTimestamps} from './timestampParser';
 import {buildWhisperTranscriptionGenerationOptions, chooseWhisperSourceLanguage, normalizeWhisperSourceLanguage} from './transcriptionOptions';
 import {configureOnnxWasmBackend, withCompressedWasmBinary} from '@/src/shared/onnx/wasmBinary';
+import {probeWebGpu} from '@/src/shared/onnx/webgpu';
 
 type LocalTranscriber = ((
   audio: Float32Array,
@@ -57,6 +58,17 @@ interface WorkerRequest {
   sourceLanguage?: string;
   languageSessionKey?: string;
   audio?: Float32Array;
+  /** 主线程 Worker 重建后的 CPU 锁定请求，避免再次探测或创建 GPU session。 */
+  device?: 'wasm';
+}
+
+class WebGpuFallbackError extends Error {
+  readonly retryWithCpu = true;
+
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = 'WebGpuFallbackError';
+  }
 }
 
 let transcriberPromise: Promise<LocalTranscriber> | null = null;
@@ -66,19 +78,16 @@ let transcriberGpuInfo = '';
 let transcriberThreads = 1;
 let transcriberDtype: 'q4' | 'q8' | '' = '';
 let wasmRuntimeThreads: number | null = null;
-let webGpuProbePromise: Promise<boolean> | null = null;
+let webGpuProbePromise: Promise<{available: boolean; info: string}> | null = null;
 let webGpuProbeInfo = '';
+let webGpuDisabled = false;
 let workerTaskQueue: Promise<void> = Promise.resolve();
 const detectedLanguages = new Map<string, string>();
 const MAX_DETECTED_LANGUAGE_SESSIONS = 16;
 
 const MAX_WHISPER_AUDIO_SECONDS = 30;
 const MAX_REALTIME_INFERENCE_MS = 15_000;
-// 当前 Edge/Apple WebGPU 的 Whisper q4 session 实测会把扩展 renderer
-// 推到约 1.4 GB RSS；WASM/q4 约 630 MB，且更容易被 Worker 超时终止。
-// 先固定安全后端，保留下面的探测和降级代码，后续有可靠的显存预算后
-// 再通过显式实验开关恢复 WebGPU，避免硬件差异直接拖垮浏览器。
-const ENABLE_VIDEO_WHISPER_WEBGPU = false;
+const ENABLE_VIDEO_WHISPER_WEBGPU = true;
 
 function configureEnvironment(): void {
 env.allowLocalModels = false;
@@ -130,37 +139,16 @@ function configureWasmThreads(_model: ReturnType<typeof normalizeVideoLocalTrans
 }
 
 async function canUseWebGpu(): Promise<boolean> {
-  if (!ENABLE_VIDEO_WHISPER_WEBGPU) return false;
-  if (webGpuProbePromise) return webGpuProbePromise;
-  webGpuProbePromise = (async () => {
-    // 无头 Edge 通常通过 SwiftShader 暴露一个“可用”的 WebGPU adapter，
-    // 但 Whisper q4 会把大量中间张量留在扩展 renderer，资源远差于 WASM
-    // Worker。测试/自动化和无头运行直接走可终止的 WASM 路径。
-    if (/Headless(?:Chrome|Edge)/i.test(self.navigator.userAgent || '')) return false;
-    const gpu = (self.navigator as Navigator & {
-      gpu?: { requestAdapter?: (options?: unknown) => Promise<unknown> };
-    }).gpu;
-    if (!gpu || typeof gpu.requestAdapter !== 'function') return false;
-    try {
-      const adapter = await gpu.requestAdapter({ powerPreference: 'high-performance' });
-      if (!adapter) return false;
-      const typedAdapter = adapter as {
-        isFallbackAdapter?: boolean;
-        info?: { vendor?: string; architecture?: string; device?: string; description?: string };
-      };
-      const info = typedAdapter.info;
-      webGpuProbeInfo = [info?.vendor, info?.architecture, info?.device, info?.description]
-        .filter((item): item is string => Boolean(item))
-        .join(' / ');
-      const isSoftwareAdapter = typedAdapter.isFallbackAdapter === true
-        || /swiftshader|software|llvmpipe|fallback/i.test(webGpuProbeInfo);
-      return !isSoftwareAdapter;
-    } catch (error) {
-      console.debug('[FluentRead] 本地视频 Worker 不可用 WebGPU，退回 WASM', error);
-      return false;
-    }
-  })();
-  return webGpuProbePromise;
+  if (!ENABLE_VIDEO_WHISPER_WEBGPU || webGpuDisabled) return false;
+  const result = await (webGpuProbePromise ||= probeWebGpu());
+  webGpuProbeInfo = result.info;
+  return result.available && !webGpuDisabled;
+}
+
+function disableWebGpu(reason: unknown): void {
+  if (webGpuDisabled) return;
+  webGpuDisabled = true;
+  console.warn('[FluentRead] 本地视频 Worker 已禁用 WebGPU，当前生命周期改用 WASM', reason);
 }
 
 async function createWasmTranscriber(modelId: string, model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>): Promise<LocalTranscriber> {
@@ -201,14 +189,20 @@ async function createLocalTranscriber(
   model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>,
 ): Promise<LocalTranscriber> {
   if (await canUseWebGpu()) {
+    let gpuTranscriber: LocalTranscriber | null = null;
     try {
       const createPipeline = () => pipeline('automatic-speech-recognition', modelId, {
+        session_options: {
+          enableCpuMemArena: false,
+          enableMemPattern: false,
+          executionMode: 'sequential',
+        },
         device: 'webgpu',
         dtype: 'q4',
         revision: 'master',
       }) as unknown as Promise<LocalTranscriber>;
       const wasm = env.backends.onnx.wasm;
-      const transcriber = await (wasm
+      gpuTranscriber = await (wasm
         ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm.gz'), createPipeline)
         : createPipeline());
       transcriberBackend = 'webgpu';
@@ -216,9 +210,19 @@ async function createLocalTranscriber(
       transcriberGpuInfo = webGpuProbeInfo;
       transcriberThreads = 0;
       console.info('[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理', transcriberGpuInfo);
-      return transcriber;
+      return gpuTranscriber;
     } catch (error) {
-      console.warn('[FluentRead] Worker WebGPU Whisper 初始化失败，退回 WASM/q4', error);
+      disableWebGpu(error);
+      try {
+        await gpuTranscriber?.dispose?.();
+      } catch {
+        // GPU session 清理失败时仍交给 owner 终止当前 Worker。
+      }
+      transcriberBackend = '';
+      transcriberGpuInfo = '';
+      transcriberDtype = '';
+      console.warn('[FluentRead] Worker WebGPU Whisper 初始化失败，请求 fresh WASM Worker', error);
+      throw new WebGpuFallbackError(error);
     }
   }
 
@@ -261,6 +265,15 @@ async function getLocalTranscriber(model: unknown): Promise<LocalTranscriber> {
   return transcriberPromise;
 }
 
+async function runModelInference<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (transcriberBackend === 'webgpu') throw new WebGpuFallbackError(error);
+    throw error;
+  }
+}
+
 async function detectWhisperSourceLanguage(
   transcriber: LocalTranscriber,
   audio: Float32Array,
@@ -292,7 +305,7 @@ async function detectWhisperSourceLanguage(
   };
   let output: {logits?: {data: ArrayLike<number>; dims?: readonly number[]}} | undefined;
   try {
-    output = await model({...processed, decoder_input_ids: decoderInputIds});
+    output = await runModelInference(() => model({...processed, decoder_input_ids: decoderInputIds}));
     const detected = chooseWhisperSourceLanguage(output.logits, {isMultilingual, langToId});
     if (!detected) throw new Error('Whisper 首步没有可用的语言 token logits');
     return detected.language;
@@ -331,22 +344,11 @@ function cleanTranscriptText(value: unknown): string {
   return /^\[(?:blank_audio|silence)\]$/i.test(text) ? '' : text;
 }
 
-async function transcribeAudio(request: WorkerRequest): Promise<WorkerTranscriptionResult> {
-  const model = normalizeVideoLocalTranscriptionModel(request.model);
-  const audio = request.audio || new Float32Array();
-  if (audio.length === 0) {
-    return {
-      text: '',
-      segments: [],
-      model,
-      backend: transcriberBackend || undefined,
-      threads: transcriberBackend === 'wasm' ? transcriberThreads : undefined,
-      dtype: transcriberDtype || undefined,
-    };
-  }
-
-  const maxSamples = MAX_WHISPER_AUDIO_SECONDS * 16_000;
-  const boundedAudio = audio.length > maxSamples ? audio.subarray(0, maxSamples) : audio;
+async function transcribeAudioOnce(
+  request: WorkerRequest,
+  model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>,
+  boundedAudio: Float32Array,
+): Promise<WorkerTranscriptionResult> {
   const transcriber = await getLocalTranscriber(model);
   const explicitSourceLanguage = normalizeWhisperSourceLanguage(request.sourceLanguage);
   const effectiveSourceLanguage = explicitSourceLanguage
@@ -360,15 +362,16 @@ async function transcribeAudio(request: WorkerRequest): Promise<WorkerTranscript
   const timeout = self.setTimeout(() => stoppingCriteria.interrupt(), MAX_REALTIME_INFERENCE_MS);
   let output: { text?: unknown; chunks?: unknown };
   try {
-    output = await transcriber(
+    output = await runModelInference(() => transcriber(
       boundedAudio,
       buildWhisperTranscriptionGenerationOptions(model, effectiveSourceLanguage, boundedAudio.length / 16_000, stoppingCriteria),
-    ) as { text?: unknown; chunks?: unknown };
+    )) as { text?: unknown; chunks?: unknown };
   } finally {
     self.clearTimeout(timeout);
   }
   if (stoppingCriteria.interrupted) {
-    throw new Error(`本地视频 AI 推理超过 ${MAX_REALTIME_INFERENCE_MS / 1000} 秒`);
+    const error = new Error(`本地视频 AI 推理超过 ${MAX_REALTIME_INFERENCE_MS / 1000} 秒`);
+    throw transcriberBackend === 'webgpu' ? new WebGpuFallbackError(error) : error;
   }
 
   const audioDurationMs = boundedAudio.length / 16;
@@ -390,6 +393,33 @@ async function transcribeAudio(request: WorkerRequest): Promise<WorkerTranscript
     dtype: transcriberDtype || undefined,
   };
   return result;
+}
+
+async function transcribeAudio(request: WorkerRequest): Promise<WorkerTranscriptionResult> {
+  const model = normalizeVideoLocalTranscriptionModel(request.model);
+  const audio = request.audio || new Float32Array();
+  if (audio.length === 0) {
+    return {
+      text: '',
+      segments: [],
+      model,
+      backend: transcriberBackend || undefined,
+      threads: transcriberBackend === 'wasm' ? transcriberThreads : undefined,
+      dtype: transcriberDtype || undefined,
+    };
+  }
+
+  const maxSamples = MAX_WHISPER_AUDIO_SECONDS * 16_000;
+  const boundedAudio = audio.length > maxSamples ? audio.subarray(0, maxSamples) : audio;
+  try {
+    return await transcribeAudioOnce(request, model, boundedAudio);
+  } catch (error) {
+    if (!(error instanceof WebGpuFallbackError)) throw error;
+    disableWebGpu(error);
+    await disposeTranscriber();
+    console.warn('[FluentRead] Worker GPU Whisper 请求失败，请求 fresh WASM Worker', error);
+    throw error;
+  }
 }
 
 async function disposeTranscriber(): Promise<void> {
@@ -428,6 +458,11 @@ workerScope.onmessage = (event) => {
   if (!request || typeof request.requestId !== 'number') return;
   enqueueWorkerTask(async () => {
     try {
+      if (request.device === 'wasm') {
+        const hadGpuSession = transcriberBackend === 'webgpu';
+        disableWebGpu('调用方锁定本 Worker 使用 WASM');
+        if (hadGpuSession) await disposeTranscriber();
+      }
       if (request.type === 'prepare') {
         await getLocalTranscriber(request.model);
         workerScope.postMessage({
@@ -444,11 +479,18 @@ workerScope.onmessage = (event) => {
       const result = await transcribeAudio(request);
       workerScope.postMessage({ requestId: request.requestId, success: true, ...result });
     } catch (error) {
-      workerScope.postMessage({
+      const response: {
+        requestId: number;
+        success: false;
+        error: string;
+        retryWithCpu?: true;
+      } = {
         requestId: request.requestId,
         success: false,
         error: error instanceof Error ? error.message : String(error),
-      });
+      };
+      if (error instanceof WebGpuFallbackError) response.retryWithCpu = true;
+      workerScope.postMessage(response);
     }
   });
 };

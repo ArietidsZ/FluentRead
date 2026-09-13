@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/offscreen/transcription.ts
  * 文件职责：在 Offscreen Document 中串行调度视频 Whisper Worker、PCM 解码和模型预热。
- * 主要内容：管理单待处理转写、prepare 去重、模型切换、超时终止、取消清理与空闲释放。
+ * 主要内容：管理单待处理转写、prepare 去重、模型切换、GPU 生命周期失败后的单次 CPU 重建、超时终止、取消清理与空闲释放。
  * 模块边界：只编排 Offscreen/Worker 资源，不解析字幕时间轴，也不管理后台 tab owner。
  */
 import {
@@ -45,6 +45,7 @@ interface LocalVideoTranscriptionRequest {
 interface WorkerRequest {
   requestId: number;
   type: 'prepare' | 'transcribe';
+  device?: 'wasm';
   model?: unknown;
   sourceLanguage?: string;
   languageSessionKey?: string;
@@ -54,6 +55,7 @@ interface WorkerRequest {
 interface WorkerResponse extends Partial<LocalVideoTranscriptionResult> {
   requestId: number;
   success: boolean;
+  retryWithCpu?: boolean;
   error?: string;
 }
 
@@ -83,6 +85,8 @@ interface PendingPrepareJob {
   reject: (error: unknown) => void;
 }
 
+type WorkerLifecycleError = Error & {retryableWorkerFailure?: true};
+
 const MODEL_IDLE_DISPOSE_MS = 30_000;
 const MAX_WHISPER_AUDIO_SECONDS = 30;
 const MODEL_PREPARE_TIMEOUT_MS = 120_000;
@@ -111,6 +115,16 @@ const pendingPreparePromises = new Map<string, Promise<{
 let idleDisposeTimer: number | undefined;
 let activeStreamId = '';
 let currentTranscriptionStreamId = '';
+
+function createWorkerLifecycleError(message: string): WorkerLifecycleError {
+  const error = new Error(message) as WorkerLifecycleError;
+  error.retryableWorkerFailure = true;
+  return error;
+}
+
+function isWorkerLifecycleError(error: unknown): error is WorkerLifecycleError {
+  return error instanceof Error && (error as WorkerLifecycleError).retryableWorkerFailure === true;
+}
 
 function toError(value: unknown, fallback: string): Error {
   return value instanceof Error ? value : new Error(typeof value === 'string' ? value : fallback);
@@ -145,10 +159,18 @@ function getWorker(): Worker {
     pendingWorkerRequests.delete(response.requestId);
     window.clearTimeout(pending.timeout);
     if (response.success) pending.resolve(response);
+    else if (response.retryWithCpu === true) {
+      const error = createWorkerLifecycleError(response.error || '本地视频 AI GPU Worker 失败，准备使用 CPU 重试');
+      // The current request was removed above; explicitly reject it after the
+      // worker teardown so the fallback helper can create a fresh CPU Worker.
+      terminateWorker(error);
+      pending.reject(error);
+    }
     else pending.reject(new Error(response.error || '本地视频 AI Worker 失败'));
   };
   worker.onerror = (event) => {
-    terminateWorker(new Error(event.message || '本地视频 AI Worker 已停止'), true);
+    if (transcriptionWorker !== worker) return;
+    terminateWorker(createWorkerLifecycleError(event.message || '本地视频 AI Worker 已停止'));
   };
   transcriptionWorker = worker;
   return worker;
@@ -171,8 +193,8 @@ function requestWorker(
   transcriptionWorkerModel = requestedModel;
   return new Promise((resolve, reject) => {
     const timeout = window.setTimeout(() => {
-      const error = new Error(`本地视频 AI Worker 超过 ${timeoutMs / 1000} 秒，已终止以保护浏览器性能`);
-      terminateWorker(error, true);
+      const error = createWorkerLifecycleError(`本地视频 AI Worker 超过 ${timeoutMs / 1000} 秒，已终止以保护浏览器性能`);
+      terminateWorker(error);
     }, timeoutMs);
     pendingWorkerRequests.set(requestId, { resolve, reject, timeout });
     try {
@@ -184,6 +206,35 @@ function requestWorker(
       reject(workerError);
     }
   });
+}
+
+async function requestWorkerWithCpuFallback(
+  message: Omit<WorkerRequest, 'requestId'>,
+  retryMessage: Omit<WorkerRequest, 'requestId'>,
+  transfer: Transferable[],
+  retryTransfer: Transferable[],
+  timeoutMs: number,
+  streamId = '',
+): Promise<WorkerResponse> {
+  const deadlineAt = Date.now() + timeoutMs;
+  const firstAttemptTimeout = Math.max(1, Math.floor(timeoutMs / 2));
+  try {
+    return await requestWorker(message, transfer, firstAttemptTimeout);
+  } catch (error) {
+    const remainingMs = deadlineAt - Date.now();
+    if (!isWorkerLifecycleError(error)) throw error;
+    if (message.device === 'wasm' || remainingMs <= 0) {
+      activeStreamId = '';
+      throw error;
+    }
+    if (streamId && activeStreamId !== streamId) throw new Error('本地视频 AI 字幕已取消');
+    try {
+      return await requestWorker({...retryMessage, device: 'wasm'}, retryTransfer, remainingMs);
+    } catch (retryError) {
+      if (isWorkerLifecycleError(retryError)) activeStreamId = '';
+      throw retryError;
+    }
+  }
 }
 
 function decodeBase64(value: string): ArrayBuffer {
@@ -296,13 +347,22 @@ async function transcribeLocalVideoAudioNow(request: LocalVideoTranscriptionRequ
   const workerAudio = boundedAudio.byteOffset === 0 && boundedAudio.byteLength === boundedAudio.buffer.byteLength
     ? boundedAudio
     : boundedAudio.slice();
-  const response = await requestWorker({
+  // The first request transfers its buffer. Keep an independent copy for the
+  // one allowed retry on a fresh WASM worker.
+  const retryAudio = boundedAudio.slice();
+  const response = await requestWorkerWithCpuFallback({
     type: 'transcribe',
     model: normalizeVideoLocalTranscriptionModel(request.model),
     sourceLanguage: request.sourceLanguage,
     languageSessionKey: request.streamId,
     audio: workerAudio,
-  }, [workerAudio.buffer], TRANSCRIPTION_TIMEOUT_MS);
+  }, {
+    type: 'transcribe',
+    model: normalizeVideoLocalTranscriptionModel(request.model),
+    sourceLanguage: request.sourceLanguage,
+    languageSessionKey: request.streamId,
+    audio: retryAudio,
+  }, [workerAudio.buffer], [retryAudio.buffer], TRANSCRIPTION_TIMEOUT_MS, request.streamId);
   return {
     text: typeof response.text === 'string' ? response.text : '',
     segments: Array.isArray(response.segments) ? response.segments : [],
@@ -322,6 +382,7 @@ async function transcribeLocalVideoAudioNow(request: LocalVideoTranscriptionRequ
 async function prepareLocalVideoTranscriptionModelNow(
   model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>,
   keepWarm: boolean,
+  streamId = '',
 ): Promise<{
   model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>;
   backend?: LocalTranscriptionBackend;
@@ -333,7 +394,7 @@ async function prepareLocalVideoTranscriptionModelNow(
     await cacheVideoAiQ4ModelFiles(model);
     return { model, dtype: 'q4' };
   }
-  const response = await requestWorker({ type: 'prepare', model }, [], MODEL_PREPARE_TIMEOUT_MS);
+  const response = await requestWorkerWithCpuFallback({ type: 'prepare', model }, { type: 'prepare', model }, [], [], MODEL_PREPARE_TIMEOUT_MS, streamId);
   const result = {
     model,
     backend: response.backend === 'webgpu' || response.backend === 'wasm' ? response.backend : undefined,
@@ -372,7 +433,7 @@ function drainQueue(): void {
           activeStreamId = prepareJob.streamId;
           currentTranscriptionStreamId = prepareJob.streamId;
         }
-        prepareJob.resolve(await prepareLocalVideoTranscriptionModelNow(prepareJob.model, prepareJob.keepWarm));
+        prepareJob.resolve(await prepareLocalVideoTranscriptionModelNow(prepareJob.model, prepareJob.keepWarm, prepareJob.streamId));
       } else if (transcriptionJob) {
         transcriptionJob.resolve(await transcribeLocalVideoAudioNow(transcriptionJob.request));
       }

@@ -15,6 +15,7 @@ import {
     LOCAL_TTS_VOICE_PATH,
 } from '@/src/core/config/localTts';
 import {configureOnnxWasmBackend, withCompressedWasmBinary} from '@/src/shared/onnx/wasmBinary';
+import {probeWebGpu} from '@/src/shared/onnx/webgpu';
 
 type LocalTtsDevice = 'webgpu' | 'wasm';
 
@@ -24,6 +25,8 @@ interface WorkerRequest {
     text?: string;
     voice?: string;
     speed?: number;
+    /** 仅供外层 worker 重建流程强制本生命周期使用 WASM。 */
+    device?: 'wasm';
 }
 
 interface WorkerResponse {
@@ -33,15 +36,28 @@ interface WorkerResponse {
     samplingRate?: number;
     backend?: LocalTtsDevice;
     error?: string;
+    retryWithCpu?: true;
 }
 
 let modelPromise: Promise<KokoroTTS> | null = null;
 let modelBackend: LocalTtsDevice | undefined;
 let taskQueue: Promise<void> = Promise.resolve();
 let fetchPatched = false;
+let gpuUnavailable = false;
+let cpuLocked = false;
+let gpuProbePromise: Promise<boolean> | null = null;
 
 function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+function retryWithCpuError(error: unknown): Error & {retryWithCpu: true} {
+    const wrapped = error instanceof Error ? error : new Error(errorMessage(error));
+    return Object.assign(wrapped, {retryWithCpu: true as const});
+}
+
+function shouldRetryWithCpu(error: unknown): error is {retryWithCpu: true} {
+    return typeof error === 'object' && error !== null && (error as {retryWithCpu?: unknown}).retryWithCpu === true;
 }
 
 function extensionUrl(path: string): string {
@@ -134,22 +150,44 @@ async function createModel(device: LocalTtsDevice): Promise<KokoroTTS> {
         : create();
 }
 
-async function getModel(): Promise<KokoroTTS> {
-    if (modelPromise) return modelPromise;
-    // 扩展 CSP 下 WebGPU 的动态模块加载在部分 Edge 版本会失败；WASM 是
-    // 首版的稳定路径，保留 device 类型以便后续经过真实扩展验证后切换。
-    const preferred: LocalTtsDevice = 'wasm';
-    modelPromise = createModel(preferred)
+async function hasUsableWebGpu(): Promise<boolean> {
+    if (cpuLocked || gpuUnavailable) return false;
+    if (!gpuProbePromise) {
+        gpuProbePromise = probeWebGpu()
+            .then((result) => result.available)
+            .catch(() => false);
+    }
+    return gpuProbePromise;
+}
+
+function loadModel(device: LocalTtsDevice): Promise<KokoroTTS> {
+    const loading = createModel(device)
         .then((model) => {
-            modelBackend = preferred;
+            modelBackend = device;
             return model;
-        })
+        });
+    let settled!: Promise<KokoroTTS>;
+    settled = loading
         .catch((error) => {
-            modelPromise = null;
+            if (modelPromise === settled) modelPromise = null;
             modelBackend = undefined;
             throw error;
         });
-    return modelPromise;
+    modelPromise = settled;
+    return settled;
+}
+
+async function getModel(): Promise<KokoroTTS> {
+    if (modelPromise) return modelPromise;
+    const preferred: LocalTtsDevice = (await hasUsableWebGpu()) ? 'webgpu' : 'wasm';
+    try {
+        return await loadModel(preferred);
+    } catch (error) {
+        if (preferred !== 'webgpu') throw error;
+        // GPU 初始化可能已污染当前 ORT runtime；外层必须重建 Worker 后再尝试 CPU。
+        gpuUnavailable = true;
+        throw retryWithCpuError(error);
+    }
 }
 
 function concatAudio(chunks: readonly Float32Array[]): Float32Array {
@@ -192,6 +230,35 @@ function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
     return buffer;
 }
 
+function validateAudio(samples: Float32Array): void {
+    let hasSignal = false;
+    let invalidSamples = 0;
+    for (const sample of samples) {
+        if (!Number.isFinite(sample)) invalidSamples += 1;
+        if (sample !== 0) hasSignal = true;
+    }
+    if (invalidSamples) throw new Error(`本地 TTS 生成了无效音频（${invalidSamples}/${samples.length} 个采样）`);
+    if (!hasSignal) throw new Error('本地 TTS 生成了静音音频');
+}
+
+async function synthesizeWithModel(
+    model: KokoroTTS,
+    text: string,
+    voice: string,
+    speed: number,
+): Promise<{audio: ArrayBuffer; samplingRate: number}> {
+    const chunks: Float32Array[] = [];
+    let samplingRate = 24_000;
+    for await (const item of model.stream(text, {voice: voice as never, speed, maxChunkLength: 180})) {
+        const samples = item.audio.audio;
+        chunks.push(samples instanceof Float32Array ? samples.slice() : concatAudio(samples));
+        samplingRate = item.audio.sampling_rate;
+    }
+    const samples = concatAudio(chunks);
+    validateAudio(samples);
+    return {audio: encodeWav(samples, samplingRate), samplingRate};
+}
+
 async function synthesize(request: WorkerRequest): Promise<{audio: ArrayBuffer; samplingRate: number}> {
     const text = request.text?.trim() || '';
     if (!text) throw new Error('本地 TTS 文本为空');
@@ -200,14 +267,22 @@ async function synthesize(request: WorkerRequest): Promise<{audio: ArrayBuffer; 
         ? Math.min(2, Math.max(0.5, request.speed))
         : 1;
     const model = await getModel();
-    const chunks: Float32Array[] = [];
-    let samplingRate = 24_000;
-    for await (const item of model.stream(text, {voice: voice as never, speed, maxChunkLength: 180})) {
-        const samples = item.audio.audio;
-        chunks.push(samples instanceof Float32Array ? samples.slice() : concatAudio(samples));
-        samplingRate = item.audio.sampling_rate;
+    const backend = modelBackend;
+    try {
+        return await synthesizeWithModel(model, text, voice, speed);
+    } catch (error) {
+        if (backend !== 'webgpu') throw error;
+        // 局部 chunks 只存在于上一次调用的栈中；释放 GPU session 后从整段文本重试一次。
+        gpuUnavailable = true;
+        await disposeModel();
+        throw retryWithCpuError(error);
     }
-    return {audio: encodeWav(concatAudio(chunks), samplingRate), samplingRate};
+}
+
+async function lockCpuForWorker(): Promise<void> {
+    cpuLocked = true;
+    gpuUnavailable = true;
+    if (modelBackend === 'webgpu') await disposeModel();
 }
 
 async function disposeModel(): Promise<void> {
@@ -237,6 +312,7 @@ function post(response: WorkerResponse): void {
 
 async function handle(request: WorkerRequest): Promise<void> {
     try {
+        if (request.device === 'wasm') await lockCpuForWorker();
         if (request.type === 'dispose') {
             await disposeModel();
             post({requestId: request.requestId, success: true});
@@ -256,7 +332,12 @@ async function handle(request: WorkerRequest): Promise<void> {
             backend: modelBackend,
         });
     } catch (error) {
-        post({requestId: request.requestId, success: false, error: errorMessage(error)});
+        post({
+            requestId: request.requestId,
+            success: false,
+            error: errorMessage(error),
+            ...(shouldRetryWithCpu(error) ? {retryWithCpu: true as const} : {}),
+        });
     }
 }
 
