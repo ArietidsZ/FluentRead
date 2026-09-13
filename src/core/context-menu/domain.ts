@@ -1,11 +1,11 @@
 /**
  * @file src/core/context-menu/domain.ts
  * 文件职责：定义右键菜单的产品模型，把“用户右键了什么”映射为可创建的菜单结构，并按页面状态解析每一项的显示文案与点击动作。
- * 主要内容：声明选区、页面和图片三类右键场景的入口目录与出现条件，依据启用项决定单项直达还是分组子菜单，并在网站被关闭时改写入口，让菜单始终留有一个可执行的出口。 可核对的公开符号包括 ContextMenuBucket、ContextMenuActionId、CONTEXT_MENU_ENTRIES、CONTEXT_MENU_BUCKET_CONTEXTS、resolveContextMenuEntryToggles、buildContextMenuPlan、resolveContextMenuPresentation。
+ * 主要内容：声明选区、页面和图片三类右键场景的入口目录与出现条件，每个场景只选择一个启用的直达操作，并在网站被关闭时改写入口，让菜单始终留有一个可执行的出口。 可核对的公开符号包括 ContextMenuBucket、ContextMenuActionId、CONTEXT_MENU_ENTRIES、CONTEXT_MENU_BUCKET_CONTEXTS、resolveContextMenuEntryToggles、buildContextMenuPlan、resolveContextMenuPresentation。
  * 模块边界：本文件是纯数据推导，不调用 browser.contextMenus、不读取配置存储、不生成本地化文案；菜单生命周期由 app/background 编排，标题渲染由 presentation.ts 完成。
  */
 
-/** 右键场景：Chrome 的 selection/page/image 上下文互斥，因此每个场景各自拥有一棵独立菜单树。 */
+/** 右键场景：每个场景只提供一个直达操作，避免浏览器自动创建品牌子菜单。 */
 export type ContextMenuBucket = 'selection' | 'page' | 'image';
 
 export type ContextMenuActionId =
@@ -15,12 +15,10 @@ export type ContextMenuActionId =
     | 'translateImage'
     | 'toggleSite';
 
-export type ContextMenuItemRole = 'parent' | 'child' | 'standalone';
+export type ContextMenuItemRole = 'standalone';
 
-/** 文案状态：group 为分组标题，siteDisabled 表示当前网站已关闭扩展。 */
+/** 直达操作的文案状态：翻译、恢复原文或切换当前网站。 */
 export type ContextMenuTitleState =
-    | 'group'
-    | 'siteDisabled'
     | 'translate'
     | 'restore'
     | 'disableSite'
@@ -43,15 +41,15 @@ export interface ContextMenuEntryDefinition {
 export const CONTEXT_MENU_ENTRIES: readonly ContextMenuEntryDefinition[] = Object.freeze([
     Object.freeze({id: 'translateSelection', buckets: Object.freeze(['selection'] as const), defaultEnabled: true, translatesIntoTarget: true, hasShortcut: false, preferenceOwned: true}),
     Object.freeze({id: 'translateImage', buckets: Object.freeze(['image'] as const), defaultEnabled: true, translatesIntoTarget: true, hasShortcut: false, preferenceOwned: false}),
-    Object.freeze({id: 'translatePage', buckets: Object.freeze(['selection', 'page'] as const), defaultEnabled: true, translatesIntoTarget: true, hasShortcut: true, preferenceOwned: true}),
+    Object.freeze({id: 'translatePage', buckets: Object.freeze(['page'] as const), defaultEnabled: true, translatesIntoTarget: true, hasShortcut: true, preferenceOwned: true}),
     Object.freeze({id: 'translateArea', buckets: Object.freeze(['page'] as const), defaultEnabled: false, translatesIntoTarget: true, hasShortcut: false, preferenceOwned: true}),
     Object.freeze({id: 'toggleSite', buckets: Object.freeze(['selection', 'page'] as const), defaultEnabled: false, translatesIntoTarget: false, hasShortcut: false, preferenceOwned: true}),
 ]) as readonly ContextMenuEntryDefinition[];
 
-/** 三个场景的原生 contexts；link 归入页面场景，让右键链接时仍能翻译整页。 */
+/** 三个场景的原生 contexts；不注册 link，避免链接图片同时命中全文和图片操作。 */
 export const CONTEXT_MENU_BUCKET_CONTEXTS: Readonly<Record<ContextMenuBucket, readonly string[]>> = Object.freeze({
     selection: Object.freeze(['selection'] as const),
-    page: Object.freeze(['page', 'link'] as const),
+    page: Object.freeze(['page'] as const),
     image: Object.freeze(['image'] as const),
 }) as Readonly<Record<ContextMenuBucket, readonly string[]>>;
 
@@ -159,31 +157,15 @@ function planItem(item: ContextMenuPlanItem): ContextMenuPlanItem {
 }
 
 function buildBucketPlan(bucket: ContextMenuBucket, toggles: ContextMenuEntryToggles): ContextMenuPlanItem[] {
-    const definitions = entriesInBucket(bucket);
-    const enabled = definitions.filter((entry) => toggles[entry.id]);
-    if (enabled.length === 0) return [];
-
-    const contexts = CONTEXT_MENU_BUCKET_CONTEXTS[bucket];
-    // 只有一个入口时直接放在一级菜单，让最常用的动作保持“右键即点”。
-    if (enabled.length === 1) {
-        return [planItem({
-            menuItemId: contextMenuItemId(bucket, enabled[0].id),
-            bucket, role: 'standalone', action: enabled[0].id, parentId: null, contexts, fallbackOnly: false,
-        })];
-    }
-
-    const parentId = contextMenuItemId(bucket, 'group');
-    const children = definitions
-        // 网站开关即使被关闭也要建好：网站被禁用时它是菜单里唯一还能点的出口。
-        .filter((entry) => toggles[entry.id] || entry.id === 'toggleSite')
-        .map((entry) => planItem({
-            menuItemId: contextMenuItemId(bucket, entry.id),
-            bucket, role: 'child', action: entry.id, parentId, contexts: null, fallbackOnly: !toggles[entry.id],
-        }));
-    return [
-        planItem({menuItemId: parentId, bucket, role: 'parent', action: null, parentId: null, contexts, fallbackOnly: false}),
-        ...children,
-    ];
+    // 原生菜单同时命中多个条目时，Chrome 会自动折叠为带扩展名的子菜单。
+    // 按目录优先选择与当前对象最相关的操作；保留已保存的其他偏好作为后备。
+    const entry = entriesInBucket(bucket).find((entry) => toggles[entry.id]);
+    if (!entry) return [];
+    return [planItem({
+        menuItemId: contextMenuItemId(bucket, entry.id),
+        bucket, role: 'standalone', action: entry.id, parentId: null,
+        contexts: CONTEXT_MENU_BUCKET_CONTEXTS[bucket], fallbackOnly: false,
+    })];
 }
 
 /** 依据启用项生成菜单结构；结构在设置变化时重建，页面状态变化只更新标题与可见性。 */
@@ -206,30 +188,6 @@ function presentation(item: ContextMenuItemPresentation): ContextMenuItemPresent
 function resolveTranslateState(action: ContextMenuActionId, state: ContextMenuPageState): ContextMenuTitleState {
     if (action === 'toggleSite') return 'disableSite';
     return action === 'translatePage' && state.isTranslated ? 'restore' : 'translate';
-}
-
-function resolveChild(
-    item: ContextMenuPlanItem,
-    state: ContextMenuPageState,
-    options: ContextMenuDisplayOptions,
-): ContextMenuItemPresentation {
-    const action = item.action!;
-    if (action === 'toggleSite') {
-        return presentation({
-            menuItemId: item.menuItemId,
-            visible: state.isSiteDisabled || !item.fallbackOnly,
-            title: {role: 'child', state: state.isSiteDisabled ? 'enableSite' : 'disableSite', withTargetLanguage: false, withShortcut: false},
-            action,
-        });
-    }
-    const definition = definitionOf(action);
-    return presentation({
-        menuItemId: item.menuItemId,
-        visible: !state.isSiteDisabled,
-        // 分组标题已经写明译入语言，子项不再重复，只保留动作本身和快捷键。
-        title: {role: 'child', state: resolveTranslateState(action, state), withTargetLanguage: false, withShortcut: options.showShortcut && definition.hasShortcut},
-        action,
-    });
 }
 
 function resolveStandalone(
@@ -270,20 +228,5 @@ export function resolveContextMenuPresentation(
     state: ContextMenuPageState,
     options: ContextMenuDisplayOptions,
 ): readonly ContextMenuItemPresentation[] {
-    return plan.map((item) => {
-        if (item.role === 'parent') {
-            return presentation({
-                menuItemId: item.menuItemId,
-                visible: true,
-                title: {
-                    role: 'parent',
-                    state: state.isSiteDisabled ? 'siteDisabled' : 'group',
-                    withTargetLanguage: options.showTargetLanguage && !state.isSiteDisabled,
-                    withShortcut: false,
-                },
-                action: null,
-            });
-        }
-        return item.role === 'child' ? resolveChild(item, state, options) : resolveStandalone(item, state, options);
-    });
+    return plan.map((item) => resolveStandalone(item, state, options));
 }
