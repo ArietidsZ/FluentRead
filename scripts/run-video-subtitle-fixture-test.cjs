@@ -128,6 +128,12 @@ function comparableConfigWithoutVideoToggle(value) {
 }
 
 async function sampleStableVideoToggleState(page, control, expected, durationMs = 6000) {
+  // 界面先乐观更新，后台持久化随后完成；稳定窗口从存储值落定后开始计时。
+  const persistDeadline = Date.now() + 5000;
+  while ((await readExtensionConfig(control)).videoTranslationEnabled !== expected) {
+    if (Date.now() > persistDeadline) throw new Error(`字幕翻译开关没有在 5 秒内持久化为 ${expected}`);
+    await page.waitForTimeout(100);
+  }
   const samples = [];
   const startedAt = Date.now();
   while (Date.now() - startedAt < durationMs) {
@@ -384,10 +390,11 @@ async function main() {
         summary: card?.querySelector('small')?.textContent?.trim() || '',
       };
     });
-    if (initialPopupVideoState.enabled) {
-      throw new Error(`新配置的视频字幕翻译应默认关闭：${JSON.stringify(initialPopupVideoState)}`);
+    // 新配置默认开启视频字幕翻译（媒体翻译默认值调整后）。
+    if (!initialPopupVideoState.enabled) {
+      throw new Error(`新配置的视频字幕翻译应默认开启：${JSON.stringify(initialPopupVideoState)}`);
     }
-    await persistExtensionConfig(control, {uiLanguageSetupCompleted: true});
+    await persistExtensionConfig(control, {uiLanguageSetupCompleted: true, videoTranslationEnabled: false});
     await control.reload({waitUntil: 'domcontentloaded'});
     await control.locator('.popup-shell').waitFor({state: 'visible', timeout: 10000});
     await control.waitForFunction(
@@ -407,7 +414,8 @@ async function main() {
       mimeType: 'text/plain',
       buffer: Buffer.from('FluentRead cross-context configuration probe.', 'utf8'),
     });
-    await documentConfigPage.locator('select[aria-label="文档源语言"]').waitFor({state: 'visible', timeout: 15000});
+    const documentSourceLanguage = documentConfigPage.getByRole('combobox', { name: '文档源语言' });
+    await documentSourceLanguage.waitFor({state: 'visible', timeout: 15000});
     await persistExtensionConfig(control, {
       on: true,
       from: 'auto',
@@ -419,7 +427,10 @@ async function main() {
       videoSubtitleDisplayMode: 'bilingual',
       useCache: false,
     });
-    await documentConfigPage.locator('select[aria-label="文档源语言"]').selectOption('en');
+    await documentSourceLanguage.click({ force: true });
+    const englishOption = documentConfigPage.locator('[role="option"]:visible').filter({ hasText: 'English' }).first();
+    await englishOption.waitFor({ state: 'visible', timeout: 10000 });
+    await englishOption.evaluate((element) => element.click());
     await documentConfigPage.waitForFunction(async () => {
       const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
       return response?.success === true
@@ -439,26 +450,35 @@ async function main() {
     if (!popupFeature.cardPresent || popupFeature.betaMarkers !== 0) {
       throw new Error(`Popup 视频字幕去 Beta 标识校验失败：${JSON.stringify(popupFeature)}`);
     }
+    // Popup 抽屉只保留高频控制：启用开关、显示方式与播放器入口提示；服务和字号在设置页配置。
     await control.locator('[data-feature="video-subtitle"]').click();
-    await control.waitForFunction(() => Boolean([...document.querySelectorAll('.drawer-content')].find((node) => node.textContent?.includes('视频翻译服务'))), null, { timeout: 10000 });
-    const popupDrawerDescription = await control.locator('.video-info-banner small').textContent();
-    if (popupDrawerDescription?.trim() !== '支持 YouTube/X 原生字幕；X 无字幕时可用本地 AI 生成' || /beta|测试版/iu.test(popupDrawerDescription)) {
-      throw new Error(`Popup 视频字幕抽屉去 Beta 标识校验失败：${popupDrawerDescription}`);
+    const videoDrawer = control.locator('.drawer-content.video-quick-settings');
+    await videoDrawer.waitFor({ state: 'visible', timeout: 10000 });
+    const popupDrawerDescription = (await videoDrawer.locator('.video-player-hint').textContent())?.trim() || '';
+    if (!popupDrawerDescription || /beta|测试版/iu.test(popupDrawerDescription)) {
+      throw new Error(`Popup 视频字幕抽屉提示异常：${popupDrawerDescription}`);
     }
-    const popupVideoServiceOptions = await control.locator('.drawer-content .select-row select option').allTextContents();
-    if (!popupVideoServiceOptions.includes('OpenAI') || !popupVideoServiceOptions.includes('微软翻译')) {
-      throw new Error(`Popup 视频翻译服务没有同时提供机器翻译和 AI 服务：${JSON.stringify(popupVideoServiceOptions)}`);
+    if (await videoDrawer.getByRole('switch', { name: '启用或关闭视频字幕翻译' }).getAttribute('aria-checked') !== 'true') {
+      throw new Error('Popup 视频字幕抽屉没有同步开启状态');
     }
-    const popupVideoFontSizeOptions = await control.locator('.drawer-content select[aria-label="视频字幕字号"] option').allTextContents();
-    if (!popupVideoFontSizeOptions.includes('默认') || !popupVideoFontSizeOptions.includes('80%') || !popupVideoFontSizeOptions.includes('160%')) {
-      throw new Error(`Popup 视频字幕字号选项不完整：${JSON.stringify(popupVideoFontSizeOptions)}`);
+    const popupVideoDisplayModes = await videoDrawer.locator('.chips.three button').allTextContents();
+    if (popupVideoDisplayModes.length !== 3) {
+      throw new Error(`Popup 视频字幕显示方式不完整：${JSON.stringify(popupVideoDisplayModes)}`);
     }
-    await control.locator('.drawer-content select[aria-label="视频字幕字号"]').selectOption('140');
+    await videoDrawer.locator('.chips.three button').nth(1).click();
     await control.waitForTimeout(350);
-    const popupVideoFontSizePersisted = (await readExtensionConfig(control)).videoSubtitleAppearance?.fontScale;
-    if (popupVideoFontSizePersisted !== 140) {
-      throw new Error(`Popup 视频字幕字号没有持久化：${JSON.stringify({ popupVideoFontSizePersisted })}`);
+    const popupVideoDisplayModePersisted = (await readExtensionConfig(control)).videoSubtitleDisplayMode;
+    if (popupVideoDisplayModePersisted === 'bilingual') {
+      throw new Error(`Popup 视频字幕显示方式没有持久化：${JSON.stringify({ popupVideoDisplayModePersisted })}`);
     }
+    await videoDrawer.locator('.chips.three button').nth(0).click();
+    await control.waitForTimeout(350);
+    if ((await readExtensionConfig(control)).videoSubtitleDisplayMode !== 'bilingual') {
+      throw new Error('Popup 视频字幕显示方式没有恢复为双语');
+    }
+    // 字号已移到设置页；后续清晰度断言依赖 140% 字号，这里通过同一持久化接口写入。
+    const videoAppearance = (await readExtensionConfig(control)).videoSubtitleAppearance || {};
+    await persistExtensionConfig(control, {videoSubtitleAppearance: {...videoAppearance, fontScale: 140}});
     await control.screenshot({ path: path.join(artifactsDir, 'popup-video-beta-test.png'), fullPage: true });
 
     const page = await createPage();
@@ -566,13 +586,14 @@ async function main() {
         iconRect: iconRect?.toJSON() || null,
         iconTag: icon?.tagName || '',
         iconSrc: icon instanceof HTMLImageElement ? icon.src : '',
-        buttonIsLeftmost: button?.parentElement?.firstElementChild === button,
+        // 入口追加在原生右侧控制栏末尾，与 X 播放器保持同一位置语义。
+        buttonIsLastControl: button?.parentElement?.lastElementChild === button,
         iconCenterDelta: buttonRect && iconRect
           ? Math.abs((buttonRect.top + buttonRect.height / 2) - (iconRect.top + iconRect.height / 2))
           : null,
       };
     });
-    if (!playerUi.buttonPresent || !playerUi.buttonInControls || !playerUi.buttonIsLeftmost || playerUi.iconTag !== 'IMG' || !playerUi.iconSrc.includes('/icon/128.png') || playerUi.iconCenterDelta === null || playerUi.iconCenterDelta > 2) {
+    if (!playerUi.buttonPresent || !playerUi.buttonInControls || !playerUi.buttonIsLastControl || playerUi.iconTag !== 'IMG' || !playerUi.iconSrc.includes('/icon/128.png') || playerUi.iconCenterDelta === null || playerUi.iconCenterDelta > 2) {
       throw new Error(`播放器入口布局校验失败：${JSON.stringify(playerUi)}`);
     }
 
@@ -1287,9 +1308,8 @@ async function main() {
       popupFeature,
       initialPopupVideoState,
       popupDrawerDescription,
-      popupVideoServiceOptions,
-      popupVideoFontSizeOptions,
-      popupVideoFontSizePersisted,
+      popupVideoDisplayModes,
+      popupVideoDisplayModePersisted,
       crossContextDocumentConfig: {
         from: crossContextDocumentConfig.from,
         videoTranslationEnabled: crossContextDocumentConfig.videoTranslationEnabled,

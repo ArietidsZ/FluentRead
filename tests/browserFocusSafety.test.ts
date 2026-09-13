@@ -247,7 +247,7 @@ describe('browser regression focus safety', () => {
         expect(privacySource).toContain("waitForEvent('download'");
         expect(privacySource).toContain('includesPrivateVocabularyContext');
         expect(privacySource).toContain(
-            "document.querySelector('[data-service-configuration-service=\"openai\"] .credential-field input[type=\"password\"]')",
+            "document.querySelectorAll('[data-service-configuration-service=\"openai\"] input[type=\"password\"]')",
         );
         expect(privacySource).not.toContain('input[placeholder="\u8bf7\u8f93\u5165API\u8bbf\u95ee\u4ee4\u724c"]');
         expect(privacySource).not.toContain("name: '导出配置'");
