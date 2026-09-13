@@ -129,25 +129,22 @@ describe('右键菜单入口偏好', () => {
 });
 
 describe('右键菜单结构', () => {
-    it('默认设置下页面与图片各只有一个一级入口，选中文字才收进分组', () => {
-        const items = titlesFor({});
-        expect(items).toEqual([
-            {id: contextMenuItemId('selection', 'group'), bucket: 'selection', role: 'parent', visible: true, action: null, title: '流畅阅读 · 译为简体中文'},
-            {id: contextMenuItemId('selection', 'translateSelection'), bucket: 'selection', role: 'child', visible: true, action: 'translateSelection', title: '翻译选中文本'},
-            {id: contextMenuItemId('selection', 'translatePage'), bucket: 'selection', role: 'child', visible: true, action: 'translatePage', title: '翻译整个页面 · Option+T'},
-            {id: contextMenuItemId('selection', 'toggleSite'), bucket: 'selection', role: 'child', visible: false, action: 'toggleSite', title: '不再翻译此网站'},
-            {id: contextMenuItemId('page', 'translatePage'), bucket: 'page', role: 'standalone', visible: true, action: 'translatePage', title: '流畅阅读：翻译整个页面（简体中文） · Option+T'},
-            {id: contextMenuItemId('image', 'translateImage'), bucket: 'image', role: 'standalone', visible: true, action: 'translateImage', title: '流畅阅读：翻译这张图片（简体中文）'},
+    it('默认三个场景各有一个不带品牌前缀的直达入口', () => {
+        expect(titlesFor({})).toEqual([
+            {id: contextMenuItemId('selection', 'translateSelection'), bucket: 'selection', role: 'standalone', visible: true, action: 'translateSelection', title: '翻译选中文本（简体中文）'},
+            {id: contextMenuItemId('page', 'translatePage'), bucket: 'page', role: 'standalone', visible: true, action: 'translatePage', title: '翻译全文（简体中文） · Option+T'},
+            {id: contextMenuItemId('image', 'translateImage'), bucket: 'image', role: 'standalone', visible: true, action: 'translateImage', title: '翻译这张图片（简体中文）'},
         ]);
     });
 
-    it('顶层项声明所在场景的 contexts，子项挂在同场景的分组下', () => {
-        const plan = buildContextMenuPlan(toggles({}));
-        const selectionGroup = plan.find((item) => item.role === 'parent')!;
-        expect(selectionGroup.contexts).toEqual(CONTEXT_MENU_BUCKET_CONTEXTS.selection);
-        expect(plan.filter((item) => item.parentId === selectionGroup.menuItemId)).toHaveLength(3);
-        expect(plan.find((item) => item.bucket === 'page')!.contexts).toEqual(['page', 'link']);
+    it('所有旧入口都启用时仍然不生成子菜单，链接图片不会命中全文入口', () => {
+        const plan = buildContextMenuPlan(toggles({translateArea: true, toggleSite: true}));
+        expect(plan).toHaveLength(3);
+        expect(plan.every((item) => item.parentId === null && item.role === 'standalone')).toBe(true);
+        expect(plan.find((item) => item.bucket === 'selection')!.contexts).toEqual(['selection']);
+        expect(plan.find((item) => item.bucket === 'page')!.contexts).toEqual(['page']);
         expect(plan.find((item) => item.bucket === 'image')!.contexts).toEqual(['image']);
+        expect(CONTEXT_MENU_BUCKET_CONTEXTS.page).not.toContain('link');
     });
 
     it('关掉某个场景的全部入口后该场景不再创建菜单', () => {
@@ -160,9 +157,8 @@ describe('右键菜单结构', () => {
     it('页面已翻译时整页入口改为显示原文', () => {
         const items = titlesFor({}, {isTranslated: true, isSiteDisabled: false});
         expect(items.find((item) => item.id === contextMenuItemId('page', 'translatePage'))!.title)
-            .toBe('流畅阅读：显示页面原文 · Option+T');
-        expect(items.find((item) => item.id === contextMenuItemId('selection', 'translatePage'))!.title)
             .toBe('显示页面原文 · Option+T');
+        expect(items.some((item) => item.id === contextMenuItemId('selection', 'translatePage'))).toBe(false);
     });
 
     it('只启用网站开关时它作为一级入口，文案说明会停用当前网站', () => {
@@ -173,7 +169,7 @@ describe('右键菜单结构', () => {
             role: 'standalone',
             visible: true,
             action: 'toggleSite',
-            title: '流畅阅读：不再翻译此网站',
+            title: '不再翻译此网站',
         });
     });
 });
@@ -181,12 +177,11 @@ describe('右键菜单结构', () => {
 describe('网站被关闭时的菜单出口', () => {
     const disabled = {isTranslated: false, isSiteDisabled: true};
 
-    it('分组内隐藏全部翻译入口，只留下恢复网站的出口', () => {
+    it('选区直达项改为恢复网站的出口', () => {
         const items = titlesFor({}, disabled);
         const selection = items.filter((item) => item.bucket === 'selection');
-        expect(selection[0].title).toBe('流畅阅读（此网站已关闭）');
         expect(selection.filter((item) => item.visible).map((item) => item.title))
-            .toEqual(['流畅阅读（此网站已关闭）', '恢复在此网站使用']);
+            .toEqual(['恢复在此网站使用']);
     });
 
     it('一级直达项改写为恢复网站，图片场景无处可恢复则直接隐藏', () => {
@@ -197,7 +192,7 @@ describe('网站被关闭时的菜单出口', () => {
             role: 'standalone',
             visible: true,
             action: 'toggleSite',
-            title: '流畅阅读：恢复在此网站使用',
+            title: '恢复在此网站使用',
         });
         const image = items.find((item) => item.bucket === 'image')!;
         expect(image.visible).toBe(false);
@@ -205,7 +200,7 @@ describe('网站被关闭时的菜单出口', () => {
     });
 
     it('用户已启用网站开关时它保持可见，不因兜底而重复出现', () => {
-        const items = titlesFor({toggleSite: true}, NEUTRAL);
+        const items = titlesFor({translatePage: false, toggleSite: true}, NEUTRAL);
         const pageToggle = items.filter((item) => item.bucket === 'page' && item.action === 'toggleSite');
         expect(pageToggle).toHaveLength(1);
         expect(pageToggle[0].visible).toBe(true);
@@ -223,28 +218,21 @@ describe('右键菜单标题渲染', () => {
         } as ContextMenuItemPresentation;
     }
 
-    it('按显示偏好逐层追加语言、快捷键与品牌前缀', () => {
-        expect(renderContextMenuTitle(presentation(), ZH_CONTEXT)).toBe('流畅阅读：翻译整个页面（简体中文） · Option+T');
+    it('按显示偏好追加语言与快捷键，不添加品牌前缀', () => {
+        expect(renderContextMenuTitle(presentation(), ZH_CONTEXT)).toBe('翻译全文（简体中文） · Option+T');
         expect(renderContextMenuTitle(presentation(), {...ZH_CONTEXT, targetLanguage: '', shortcut: ''}))
-            .toBe('流畅阅读：翻译整个页面');
+            .toBe('翻译全文');
         expect(renderContextMenuTitle(presentation({
-            title: {role: 'child', state: 'translate', withTargetLanguage: false, withShortcut: false},
+            title: {role: 'standalone', state: 'translate', withTargetLanguage: false, withShortcut: false},
             action: 'translateArea',
         }), ZH_CONTEXT)).toBe('截图翻译屏幕区域');
     });
 
-    it('分组标题只在带语言时写出译入语言，缺少动作时按整页兜底', () => {
-        const group = {role: 'parent', state: 'group', withShortcut: false} as const;
-        expect(renderContextMenuTitle(presentation({action: null, title: {...group, withTargetLanguage: true}}), ZH_CONTEXT))
-            .toBe('流畅阅读 · 译为简体中文');
-        expect(renderContextMenuTitle(presentation({action: null, title: {...group, withTargetLanguage: false}}), ZH_CONTEXT))
-            .toBe('流畅阅读');
-        expect(renderContextMenuTitle(presentation({action: null, title: {...group, withTargetLanguage: true}}), {...ZH_CONTEXT, targetLanguage: ''}))
-            .toBe('流畅阅读');
+    it('缺少动作时按整页翻译兜底', () => {
         expect(renderContextMenuTitle(presentation({
             action: null,
-            title: {role: 'child', state: 'translate', withTargetLanguage: false, withShortcut: false},
-        }), ZH_CONTEXT)).toBe('翻译整个页面');
+            title: {role: 'standalone', state: 'translate', withTargetLanguage: false, withShortcut: false},
+        }), ZH_CONTEXT)).toBe('翻译全文');
     });
 
     it('目标语言只保留主名称，未知或非法取值不渲染语言', () => {
@@ -375,23 +363,19 @@ describe('后台右键菜单生命周期', () => {
         return installBackgroundContextMenus(new TabTranslationStateStore());
     }
 
-    it('按结构创建菜单，父项声明场景，子项声明 parentId', async () => {
+    it('只创建一级条目，页面上下文不包含链接', async () => {
         const api = stubBrowser();
         await install();
         await settle();
         const created = api.contextMenus.create.mock.calls.map((call: unknown[]) => call[0] as Record<string, unknown>);
         expect(created.map((menu) => menu.id)).toEqual([
-            contextMenuItemId('selection', 'group'),
             contextMenuItemId('selection', 'translateSelection'),
-            contextMenuItemId('selection', 'translatePage'),
-            contextMenuItemId('selection', 'toggleSite'),
             contextMenuItemId('page', 'translatePage'),
             contextMenuItemId('image', 'translateImage'),
         ]);
-        expect(created[0]).toMatchObject({contexts: ['selection'], title: '流畅阅读 · 译为简体中文'});
-        expect(created[1]).toMatchObject({parentId: contextMenuItemId('selection', 'group')});
-        expect(created[3]).toMatchObject({visible: false});
-        expect(created[4].contexts).toEqual(['page', 'link']);
+        expect(created[0]).toMatchObject({contexts: ['selection'], title: '翻译选中文本（简体中文）'});
+        expect(created.every((menu) => !menu.parentId)).toBe(true);
+        expect(created[1].contexts).toEqual(['page']);
     });
 
     it('设置变化才重建菜单，无关配置变化不重复创建', async () => {
@@ -402,7 +386,7 @@ describe('后台右键菜单生命周期', () => {
         subscriptions.at(-1)!(state.config);
         await settle();
         expect(api.contextMenus.create).not.toHaveBeenCalled();
-        state.config.contextMenuEntries = {translateArea: true, toggleSite: true};
+        state.config.contextMenuEntries = {translatePage: false, translateArea: true, toggleSite: true};
         subscriptions.at(-1)!(state.config);
         await settle();
         expect(api.contextMenus.create.mock.calls.map((call: unknown[]) => (call[0] as Record<string, unknown>).id)).toContain(
@@ -441,7 +425,7 @@ describe('后台右键菜单生命周期', () => {
         expect(api.tabs.sendMessage).toHaveBeenCalledWith(9, {type: 'contextMenuTranslate', action: 'fullPage'});
         expect(api.contextMenus.update).toHaveBeenCalledWith(
             contextMenuItemId('page', 'translatePage'),
-            {title: expect.stringMatching(/^流畅阅读：显示页面原文 · (?:Alt|Option)\+T$/u), visible: true},
+            {title: expect.stringMatching(/^显示页面原文 · (?:Alt|Option)\+T$/u), visible: true},
         );
     });
 

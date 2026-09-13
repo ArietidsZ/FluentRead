@@ -38,9 +38,8 @@
         <div v-for="scene in previewScenes" :key="scene.bucket" class="context-menu-preview-scene">
           <span class="context-menu-preview-scene-title">{{ scene.title }}</span>
           <ul v-if="scene.items.length > 0" class="context-menu-preview-list">
-            <li v-for="item in scene.items" :key="item.id" :class="{ 'is-child': item.child }">
+            <li v-for="item in scene.items" :key="item.id">
               <span>{{ item.title }}</span>
-              <span v-if="item.child === false && item.hasChildren" class="context-menu-preview-arrow" aria-hidden="true">›</span>
             </li>
           </ul>
           <p v-else class="context-menu-preview-empty">{{ t('contextMenuSettings.sceneEmpty') }}</p>
@@ -159,8 +158,6 @@ const previewScenes = computed(() => {
       if (item.bucket !== bucket || !presentation.visible) return [];
       return [{
         id: item.menuItemId,
-        child: item.role === 'child',
-        hasChildren: item.role === 'parent',
         title: renderContextMenuTitle(presentation, titleContext.value),
       }];
     }),
@@ -214,8 +211,6 @@ const previewScenes = computed(() => {
   line-height: 1.4;
 }
 
-.context-menu-preview-list li.is-child { padding-left: 22px; }
-.context-menu-preview-arrow { color: var(--muted); }
 
 .context-menu-preview-empty {
   margin: 0;
