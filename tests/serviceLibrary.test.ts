@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { Config, normalizeConfig } from '@/src/core/config/model'
-import { options, services } from '@/src/core/config/catalog'
+import { services } from '@/src/core/config/catalog'
 import { createApiKeyRequirementKey } from '@/src/core/config/validation'
-import { buildServiceShortlist, hasSavedServiceConfiguration } from '@/src/ui/view-model/serviceLibrary'
+import { hasSavedServiceConfiguration } from '@/src/ui/view-model/serviceLibrary'
 
 const provider = { id: 'custom:work', name: '工作接口', endpoint: 'http://localhost:11434/v1', models: ['local-model'] }
 
@@ -52,22 +52,10 @@ describe('personal translation service library', () => {
     expect(normalizeConfig({}).favoriteServices).toEqual([])
   })
 
-  it('starts with a small common list and retains saved, added and externally opened services without duplicates', () => {
-    const entries = ['freeTranslation', 'openai', 'deepseek', 'gemini', 'localTranslation', 'ollama', 'custom:work'].map(value => ({value, label: value}))
-    expect(buildServiceShortlist(entries, 'freeTranslation', 'freeTranslation', [], []).map(item => item.value))
-      .toEqual(['freeTranslation', 'deepseek', 'openai', 'gemini', 'localTranslation'])
-    expect(buildServiceShortlist(entries, 'openai', 'ollama', ['custom:work', 'missing', 'openai', 'custom:work'], ['custom:work', 'gemini']).map(item => item.value))
-      .toEqual(['openai', 'custom:work', 'gemini', 'freeTranslation', 'deepseek', 'localTranslation', 'ollama'])
-    expect(buildServiceShortlist([], 'unavailable', 'deleted', [], [])).toEqual([])
-    expect(buildServiceShortlist([entries[5]], 'unavailable', 'ollama', [], [])).toEqual([entries[5]])
-  })
-
   it('removing a favorite does not remove its saved configuration', () => {
     const config = normalizeConfig({favoriteServices: ['openai'], token: {openai: 'fixture-key'}})
     const next = normalizeConfig({...config, favoriteServices: []})
-    const entries = options.services.filter(item => item.value === 'openai')
     expect(hasSavedServiceConfiguration('openai', next)).toBe(true)
-    expect(buildServiceShortlist(entries, 'freeTranslation', 'openai', next.favoriteServices, ['openai'])).toEqual(entries)
     expect(next.token).toEqual(config.token)
   })
 })

@@ -1,6 +1,6 @@
 <!--
  * @file src/features/settings/ui/services/ServiceCatalogItem.vue
- * 文件职责：为常用服务列表渲染紧凑的服务选择行。
+ * 文件职责：为完整服务目录渲染紧凑的服务选择行。
  * 主要内容：本地图标、完整名称提示、默认标记、可访问的选中状态。
  * 模块边界：只发出选择事件，不修改配置、不测试连接、不发起翻译。
  -->
@@ -33,7 +33,7 @@ const { t } = useUiI18n()
 .library-copy small { margin-top: 3px; color: var(--muted, #737c8f); font-size: 11px; }
 .library-default { color: var(--brand-strong, #bd2853); font-size: 11px; flex-shrink: 0; }
 .compact { border-color: transparent; background: transparent; }
-.compact .library-select { min-height: 44px; padding: 6px 4px 6px 8px; gap: 8px; }
+.compact .library-select { min-height: 38px; padding: 3px 4px 3px 8px; gap: 8px; }
 button:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
 
 </style>

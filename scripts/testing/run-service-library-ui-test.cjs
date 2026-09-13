@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * @file scripts/testing/run-service-library-ui-test.cjs
- * 在隔离后台 Edge 中验证新版翻译服务设置页的服务 rail、添加 picker、配置持久化和响应式边界。
+ * 在隔离后台 Edge 中验证新版翻译服务设置页的完整服务目录、搜索、配置持久化和响应式边界。
  * 仅在本次临时 profile 写入 fixture 配置，不请求真实翻译服务，不接触用户浏览器或凭据。
  */
 const fs = require('node:fs');
@@ -32,7 +32,7 @@ const report = {
   quickClose: false,
   latestWriteWins: false,
   crossPageSync: false,
-  hooks: {serviceRail: false, serviceAddPicker: false, customServiceDialog: false, apiKeySelectors: false, responsive: false},
+  hooks: {serviceRail: false, serviceSearch: false, customServiceDialog: false, apiKeySelectors: false, responsive: false},
 };
 const save = () => fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));
 
@@ -70,58 +70,31 @@ const save = () => fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.st
     const visible = selector => page.locator(`${selector}:visible`);
     const rail = () => visible('.service-rail');
     const selected = service => visible(`[data-service-value="${service}"]`);
-    const picker = () => page.getByTestId('service-add-dialog');
-    const addItem = service => picker().locator(`[data-service-add-value="${service}"]`);
-    const searchReady = () => page.waitForFunction(() => document.activeElement === document.querySelector('[data-testid="service-add-dialog"] input[type="search"]'));
-
     await seed({uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true, service: 'freeTranslation', favoriteServices: [], theme: 'light', customOpenAIProviders: []});
     await page.reload(); await rail().waitFor({state: 'visible'});
     assert.equal(await page.locator('[data-service-view], .catalog-toolbar, .catalog-browse').count(), 0);
     assert.equal(await page.locator('.no-model-panel').count(), 0);
     const railValues = await rail().locator('[data-service-value]').evaluateAll(nodes => nodes.map(node => node.dataset.serviceValue));
     assert.equal(new Set(railValues).size, railValues.length, `rail 重复服务：${railValues}`);
-    const expectedShortlist = ['freeTranslation', 'deepseek', 'openai', 'gemini', 'localTranslation'];
-    assert.deepEqual(railValues, expectedShortlist.filter(value => railValues.includes(value)), `首用 rail 必须按可用项保留五个常用服务：${railValues}`);
-    assert.equal(railValues.length, 5, `首用 rail 应显示准确 5 项：${railValues}`);
-    report.hooks.serviceRail = true; report.cases.push({id: 'first-use-short-rail', values: railValues});
+    assert(railValues.length >= 40, `首用目录必须展示全部内置服务：${railValues}`);
+    for (const service of ['freeTranslation', 'deepseek', 'openai', 'gemini', 'localTranslation', 'claude', 'ollama']) assert(railValues.includes(service));
+    report.hooks.serviceRail = true; report.cases.push({id: 'first-use-complete-directory', values: railValues});
     const initialDefault = await page.locator('.service-catalog').getAttribute('data-default-service');
-    await shot('service-library-first-use-five');
-    await page.getByTestId('service-add').click(); await picker().waitFor({state: 'visible'});
-    assert.equal(await page.getByRole('dialog', {name: '添加服务', exact: true}).count(), 1);
-    await searchReady();
-    assert.equal(await picker().locator('input[aria-label="搜索所有翻译服务"]').count(), 1);
-    assert.equal(await picker().locator('.directory-filters').count(), 1);
-    await shot('service-library-add-picker');
-    const allCandidates = ['claude', 'ollama', 'cohere', 'qwen', 'mistral'];
-    const available = [];
-    for (const candidate of allCandidates) if (await addItem(candidate).count()) available.push(candidate);
-    assert(available.length >= 2, `弹层缺少可用于添加的目录服务：${available}`);
-    const firstAdd = available[0];
-    await addItem(firstAdd).click(); await picker().waitFor({state: 'hidden'});
-    assert.equal(await page.locator('.service-catalog').getAttribute('data-editing-service'), firstAdd);
+    await shot('service-library-all-services');
+    const search = rail().locator('input[type="search"]');
+    await search.fill('ＯｐｅｎＡＩ');
+    assert(await selected('openai').count());
+    assert(await rail().locator('[data-service-value]').count() < railValues.length);
+    await selected('openai').click();
     assert.equal(await page.locator('.service-catalog').getAttribute('data-default-service'), initialDefault);
-    report.hooks.serviceAddPicker = true; report.cases.push('add-picker-persists-favorite-and-opens-editing');
-    await page.getByTestId('service-add').click(); await picker().waitFor({state: 'visible'});
-    assert.equal(await addItem(firstAdd).getAttribute('data-service-added'), 'true');
-    const secondAdd = available[1];
-    await addItem(secondAdd).click(); await picker().waitFor({state: 'hidden'});
-    assert.equal(await page.locator('.service-catalog').getAttribute('data-editing-service'), secondAdd);
-    await page.close();
-    page = await newOptions(); await rail().waitFor({state: 'visible'});
-    const reopenedConfig = await readConfig();
-    assert(reopenedConfig.favoriteServices.includes(firstAdd) && reopenedConfig.favoriteServices.includes(secondAdd));
-    assert.equal(reopenedConfig.service, initialDefault);
-    assert.equal(await rail().locator(`[data-service-value="${firstAdd}"]`).count(), 1);
-    assert.equal(await rail().locator(`[data-service-value="${secondAdd}"]`).count(), 1);
-    await page.getByTestId('service-add').click(); await picker().waitFor({state: 'visible'});
-    const search = picker().locator('input[aria-label="搜索所有翻译服务"]');
-    await search.fill('service-does-not-exist-97531'); await picker().getByRole('status').waitFor({state: 'visible'}); await search.press('Escape'); await picker().waitFor({state: 'hidden'});
-    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-testid')), 'service-add');
-    const afterAdds = await readConfig(); assert(afterAdds.favoriteServices.includes(firstAdd)); if (secondAdd) assert(afterAdds.favoriteServices.includes(secondAdd));
-    report.quickClose = true; report.latestWriteWins = true; report.persistenceCases.push('rapid-two-adds-close-reopen-latest-value-wins', 'picker-search-empty-and-escape');
-
-    await seed({token: {openai: 'fixture-not-a-live-key'}, favoriteServices: [...new Set([...(afterAdds.favoriteServices || []), 'openai'])]}); await page.reload(); await rail().waitFor({state: 'visible'});
-    assert.equal(await rail().locator('[data-service-value="openai"]').count(), 1); report.cases.push('configured-user-item-retained');
+    await search.fill('service-does-not-exist-97531'); await rail().getByRole('status').waitFor({state: 'visible'});
+    assert.equal(await page.locator('.service-catalog').getAttribute('data-editing-service'), 'openai');
+    await search.fill('');
+    assert.equal(await rail().locator('[data-service-value]').count(), railValues.length);
+    report.hooks.serviceSearch = true; report.cases.push('search-normalization-empty-clear-preserves-editing-and-default');
+    await seed({token: {openai: 'fixture-not-a-live-key'}, favoriteServices: ['openai']}); await page.reload(); await rail().waitFor({state: 'visible'});
+    assert.deepEqual((await readConfig()).favoriteServices, ['openai']);
+    assert.equal(await rail().locator('[data-service-value="openai"]').count(), 1); report.cases.push('existing-configuration-and-favorites-preserved');
     await selected('claude').click();
     assert.equal(await page.locator('.service-catalog').getAttribute('data-default-service'), initialDefault);
     await selected('deepseek').click(); await shot('service-library-deepseek');
@@ -144,7 +117,7 @@ const save = () => fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.st
     assert.equal(await page.locator('[data-api-key-index="1"] input').inputValue(), 'fixture-second-key');
     await page.locator('[data-api-key-rotation-setting] .el-switch').click();
     await page.getByTestId('custom-service-advanced').locator('summary').click();
-    report.persistenceCases.push('single-key-multi-key-mode-and-hidden-key-values-preserved');
+    report.quickClose = true; report.latestWriteWins = true; report.persistenceCases.push('single-key-multi-key-mode-and-hidden-key-values-preserved');
     await selected('claude').click();
     const setDefault = visible('.catalog-set-default').first();
     await setDefault.click();
@@ -160,8 +133,7 @@ const save = () => fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.st
     await popup.close();
     report.crossPageSync = true; report.cases.push('explicit-set-default-popup-storage-and-ui');
 
-    await page.getByTestId('service-add').click(); await picker().waitFor({state: 'visible'});
-    await picker().getByTestId('custom-service-add').click();
+    await page.getByTestId('custom-service-add').click();
     const customDialog = page.getByTestId('custom-service-dialog'); await customDialog.waitFor({state: 'visible'}); report.hooks.customServiceDialog = true;
     await customDialog.getByTestId('custom-service-save').click(); assert.equal(await customDialog.getByRole('alert').count(), 3);
     await customDialog.getByTestId('custom-service-name').fill('工作翻译接口'); await customDialog.getByTestId('custom-service-endpoint').fill('http://localhost:11434/v1'); await customDialog.getByTestId('custom-service-api-key').fill('fixture-key'); await customDialog.getByTestId('custom-service-model').fill('local-model'); await customDialog.getByTestId('custom-service-save').click(); await customDialog.waitFor({state: 'hidden'});
@@ -199,12 +171,8 @@ const save = () => fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.st
       const metrics = await page.evaluate(() => ({width: innerWidth, scrollWidth: document.documentElement.scrollWidth, scrollHeight: document.documentElement.scrollHeight, height: innerHeight, overflow: [...document.querySelectorAll('.service-catalog button, .service-catalog input, .service-rail, .service-detail')].filter(node => { if (getComputedStyle(node).display === 'none' || getComputedStyle(node).visibility === 'hidden') return false; const box = node.getBoundingClientRect(); return box.width > 0 && box.height > 0 && (box.left < -1 || box.right > innerWidth + 1); }).length}));
       assert(metrics.scrollWidth <= width + 1, JSON.stringify(metrics)); assert(metrics.scrollHeight <= metrics.height + 1, JSON.stringify(metrics)); assert.equal(metrics.overflow, 0, JSON.stringify(metrics)); report.cases.push({id: `layout-${width}`, metrics}); if (width === 390 || width === 1440) await shot(`service-library-${width}`);
     }
-    await page.getByTestId('service-add').click(); await picker().waitFor({state: 'visible'}); await searchReady();
-    await shot('service-library-add-picker-narrow');
-    assert((await picker().boundingBox()).width <= 390);
-    await picker().locator('input[type="search"]').press('Escape'); await picker().waitFor({state: 'hidden'});
     report.hooks.responsive = true; await page.setViewportSize({width: 1440, height: 1000}); await seed({theme: 'dark'}); await page.reload(); await rail().waitFor({state: 'visible'}); await shot('service-library-dark');
-    await seed({uiLanguage: 'en-US'}); await page.reload(); await rail().waitFor({state: 'visible'}); assert(await page.getByRole('button', {name: /Add service|Add custom service/i}).count() >= 1); await shot('service-library-english');
+    await seed({uiLanguage: 'en-US'}); await page.reload(); await rail().waitFor({state: 'visible'}); assert.match(await page.getByTestId('custom-service-add').innerText(), /custom/i); await shot('service-library-english');
     assert.deepEqual(report.consoleErrors, []); report.ok = true; save();
   } catch (error) { report.error = error.stack; if (page) await page.screenshot({path: path.join(artifacts, 'failure.png'), fullPage: true}).catch(() => {}); save(); process.exitCode = 1; }
   finally { if (session) await session.close(); fs.rmSync(profileDir, {recursive: true, force: true}); save(); console.log(JSON.stringify(report, null, 2)); }

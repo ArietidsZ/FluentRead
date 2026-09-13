@@ -808,7 +808,7 @@ describe('options UI composition architecture', () => {
     const promptEditor = source('src/features/settings/ui/services/PromptTemplateEditor.vue')
 
     expect(catalog).toContain('data-testid="custom-service-add"')
-    expect(catalog).toContain("t('settings.services.library.addService')")
+    expect(catalog).toContain("t('settings.services.library.add')")
     expect(catalog).toContain('<ModelPicker')
     expect(catalog).not.toContain('model-grid expanded')
     expect(catalog).not.toContain('.model-grid.expanded')
@@ -937,18 +937,17 @@ describe('options UI composition architecture', () => {
     expect(styles).not.toContain('box-shadow: inset 4px 0 0 var(--brand);')
   })
 
-  it('keeps a small service shortlist and opens the full catalog only when adding a service', () => {
+  it('shows the complete grouped directory with direct search and custom service creation', () => {
     const catalog = source('src/features/settings/ui/services/ServiceCatalog.vue')
     const item = source('src/features/settings/ui/services/ServiceCatalogItem.vue')
     expect(catalog).not.toContain('data-service-view=')
     expect(catalog).not.toContain('catalog-browse')
     expect(catalog).not.toContain('no-model-panel')
-    expect(catalog).toContain('data-testid="service-add"')
-    expect(catalog).toContain('data-testid="service-add-dialog"')
-    expect(catalog).toContain('v-for="item in shortlist"')
-    expect(catalog).toContain(':data-service-add-value="item.value"')
-    expect(catalog).toContain(':data-service-added="shortlistIds.has(item.value)"')
-    expect(catalog).toContain(':aria-pressed="category === group.id"')
+    expect(catalog).toContain('data-testid="custom-service-add"')
+    expect(catalog).not.toContain('service-add-dialog')
+    expect(catalog).toContain('v-for="group in visibleDirectoryGroups"')
+    expect(catalog).toContain('v-for="item in group.items"')
+    expect(catalog).toContain('v-model="serviceQuery"')
     expect(catalog).toContain("id: 'custom'")
     expect(catalog).not.toContain('maximumCustomServices')
     expect(item).toContain(':data-service-value="item.value"')
