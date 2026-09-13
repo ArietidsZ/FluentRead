@@ -536,6 +536,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     videoSubtitleVisible: {group: 'videoSubtitles', label: '显示视频字幕', format: formatBoolean},
     videoSubtitleDisplayMode: {group: 'videoSubtitles', label: '视频字幕显示模式', format: (value) => formatEnum(value, VIDEO_DISPLAY_MODE_LABELS)},
     videoSubtitleFontSize: {group: 'videoSubtitles', label: '视频字幕字号', format: (value) => formatNumber(value, '%')},
+    videoSubtitleOffsetMs: {group: 'videoSubtitles', label: '字幕时间偏移', format: (value) => formatNumber(value, 'ms')},
     videoSubtitleAppearance: {group: 'videoSubtitles', label: '视频字幕外观'},
 
     useCache: {group: 'advanced', label: '缓存翻译结果', format: formatBoolean},

@@ -1,13 +1,35 @@
 /**
  * @file src/features/video-subtitle/content/subtitleLogic.ts
  * 文件职责：提供字幕批量翻译、配置指纹和渐进文本展示的纯逻辑。
- * 主要内容：去重并限制批译并发，生成服务配置键，按原文进度截取译文，并限定 YouTube 字幕匹配的有效时间。
+ * 主要内容：去重并限制批译并发，生成服务配置键，按原文进度截取译文，按滚动字幕末尾匹配当前句，并以手动偏移计算有效字幕区间。
  * 模块边界：只处理输入数据和注入翻译函数，不读取 DOM、全局配置或浏览器接口。
  */
 import {buildGlossaryRevision} from '@/src/core/glossary';
 import type {Config} from '@/src/core/config/model';
 import {resolveConfiguredModel} from '@/src/core/config/catalog';
 import type {VideoSubtitleCue} from './youtubeSubtitleData';
+
+/** 手动校时只改变显示时钟；区间严格使用原始时间戳，不填补空档或修改下载数据。 */
+export function selectVideoSubtitleCueAtOffset(cues: readonly VideoSubtitleCue[], playbackMs: number, offsetMs: number): VideoSubtitleCue | null {
+  const currentMs = playbackMs - offsetMs;
+  if (!Number.isFinite(currentMs)) return null;
+  let active: VideoSubtitleCue | null = null;
+  for (const cue of cues) {
+    if (cue.durationMs <= 0 || currentMs < cue.startMs || currentMs >= cue.startMs + cue.durationMs) continue;
+    if (!active || cue.startMs > active.startMs) active = cue;
+  }
+  return active;
+}
+
+/** 滚动字幕会保留上一句；仅把末尾完整词组成的前缀用于匹配正在出现的新句。 */
+function hasRollingCaptionPrefix(visible: string, full: string): boolean {
+  for (let offset = visible.indexOf(' ') + 1; offset > 0; offset = visible.indexOf(' ', offset) + 1) {
+    const suffix = visible.slice(offset);
+    if (suffix.length < 3) break;
+    if (full.startsWith(suffix) && (full.length === suffix.length || /[\s.,!?;:。！？，；：]/.test(full[suffix.length]))) return true;
+  }
+  return false;
+}
 
 /** 原生文本与播放时间必须同时匹配；不得用邻句或其他时段的同文 cue 替换当前原文。 */
 export function selectYoutubeCaptionCue(
@@ -21,11 +43,12 @@ export function selectYoutubeCaptionCue(
   for (const cue of cues) {
     const text = normalizeVideoCaptionText(cue.text).toLocaleLowerCase();
     if (!text) continue;
-    const rank = text === visible ? 0 : text.startsWith(visible) ? 1
+    const directRank = text === visible ? 0 : text.startsWith(visible) ? 1 : 3;
+    if (directRank < 2) timedTextMatch = true;
+    if (currentMs < cue.startMs || currentMs >= cue.startMs + cue.durationMs || cue.durationMs <= 0) continue;
+    const rank = directRank < 3 ? directRank : hasRollingCaptionPrefix(visible, text) ? 1
       : visible.length >= 3 && (text.includes(visible) || visible.includes(text)) ? 2 : 3;
     if (rank === 3) continue;
-    if (rank < 2) timedTextMatch = true;
-    if (currentMs < cue.startMs || currentMs >= cue.startMs + cue.durationMs || cue.durationMs <= 0) continue;
     if (rank < selectedRank || (rank === selectedRank && (!selected || cue.startMs > selected.startMs))) {
       selected = cue;
       selectedRank = rank;

@@ -14,6 +14,10 @@ FluentRead uses subtitle tracks or subtitle text provided by the page. It cannot
 
 The subtitle menu also works in YouTube fullscreen. Bilingual subtitles share one panel. Previous translations clear when captions change, disappear, or you seek. If a translation is still loading, the original appears first; the translation is added only while its caption is still current.
 
+For YouTube rolling captions, FluentRead matches the newly appearing sentence and playback time to prefetched translations without waiting for the previous line to scroll away. When no subtitle timeline is available, it also submits text during continuous updates. Translation speed still depends on the selected service.
+
+To correct captions that are late or early, open **Subtitle timing** in the FluentRead menu on the playback page and click **0.5 s earlier / 0.5 s later**. Negative values advance subtitles; positive values delay them, up to ±10 seconds. **Reset timing** returns to zero. The setting is saved for subsequent videos and moves both subtitle lines together. Playback position and downloaded subtitle timestamps stay unchanged. The menu indicates when timing adjustment is unavailable.
+
 ## An X video without subtitles
 
 The desktop Chrome / Edge extension can try local AI transcription:
