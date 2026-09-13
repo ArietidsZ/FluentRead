@@ -6,7 +6,7 @@
 
 一款开源的浏览器双语翻译插件。
 
-[安装](#安装) · [官网](https://fluent.thinkstu.com/) · [使用指南](https://fluent.thinkstu.com/guide/) · [English](../README.md) · [GPL-3.0](../LICENSE)
+[安装](#安装) · [官网](https://fluent.thinkstu.com/) · [使用指南](https://fluent.thinkstu.com/guide/) · [English](../README.md) · [LINUX DO 社区](https://linux.do) · [GPL-3.0](../LICENSE)
 
 </div>
 
