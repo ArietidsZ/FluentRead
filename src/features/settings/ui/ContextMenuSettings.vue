@@ -2,7 +2,7 @@
 @file src/features/settings/ui/ContextMenuSettings.vue
 文件职责：提供右键菜单的设置界面，让用户按使用习惯增删菜单入口、控制标题里出现的信息，并在同一屏看到改动后的真实菜单形态。
 主要内容：渲染总开关、按右键场景分组的入口开关、目标语言与快捷键显示选项，并用与后台相同的结构推导和文案渲染生成三种右键场景的实时预览。
-模块边界：本组件只读写共享配置并展示预览，不创建原生菜单、不发送运行时消息；菜单结构与标题来自 core/context-menu，真正的创建与点击路由由 app/background 负责。
+模块边界：本组件只编辑父级响应式配置并展示预览，保存与跨页面同步复用父级设置流程，不创建原生菜单、不发送运行时消息；菜单结构与标题来自 core/context-menu，真正的创建与点击路由由 app/background 负责。
 -->
 <template>
   <SettingsGroup :title="t('contextMenuSettings.title')" :description="t('contextMenuSettings.description')">
@@ -39,6 +39,7 @@
           <span class="context-menu-preview-scene-title">{{ scene.title }}</span>
           <ul v-if="scene.items.length > 0" class="context-menu-preview-list">
             <li v-for="item in scene.items" :key="item.id">
+              <img src="/icon/16.png" width="16" height="16" alt="" aria-hidden="true" />
               <span>{{ item.title }}</span>
             </li>
           </ul>
@@ -68,9 +69,11 @@ import {
 import { normalizeUiLanguage } from '@/src/core/i18n';
 import { parseHotkey, resolveConfiguredHotkey } from '@/src/core/hotkey';
 import { browserCapabilities } from '@/src/platform/browser/capabilities';
-import { config } from '@/src/services/config/store';
+import type { Config } from '@/src/core/config/model';
 import { useUiI18n } from '@/src/ui/i18n';
 
+const props = defineProps<{config: Config}>();
+const config = computed(() => props.config);
 const { language, t } = useUiI18n();
 
 // 每个入口先说明“什么时候会看到它”，再说明它做什么；不可用时补上前置条件，避免只能靠猜。
@@ -89,31 +92,31 @@ const SCENE_TITLE_KEYS: Readonly<Record<ContextMenuBucket, string>> = {
 };
 
 const availability = computed(() => ({
-  selectionTranslation: config.selectionTranslatorMode !== 'disabled' && config.disableSelectionTranslator !== true,
-  imageTranslation: browserCapabilities.imageTranslation && config.disableImageTranslator !== true
-    && config.imageTranslationContextMenuEnabled !== false,
-  areaTranslation: browserCapabilities.areaTranslation && config.selectionAreaEnabled === true,
+  selectionTranslation: config.value.selectionTranslatorMode !== 'disabled' && config.value.disableSelectionTranslator !== true,
+  imageTranslation: browserCapabilities.imageTranslation && config.value.disableImageTranslator !== true
+    && config.value.imageTranslationContextMenuEnabled !== false,
+  areaTranslation: browserCapabilities.areaTranslation && config.value.selectionAreaEnabled === true,
 }));
 
 function isAvailable(id: ContextMenuActionId): boolean {
   if (id === 'translateSelection') return availability.value.selectionTranslation;
-  if (id === 'translateArea') return browserCapabilities.areaTranslation && config.selectionAreaEnabled === true;
-  if (id === 'translateImage') return browserCapabilities.imageTranslation && config.disableImageTranslator !== true;
+  if (id === 'translateArea') return browserCapabilities.areaTranslation && config.value.selectionAreaEnabled === true;
+  if (id === 'translateImage') return browserCapabilities.imageTranslation && config.value.disableImageTranslator !== true;
   return true;
 }
 
 function readEntryPreference(id: ContextMenuActionId, defaultEnabled: boolean): boolean {
   // 图片入口与图片翻译设置共用同一个开关，避免同一件事出现两个互相矛盾的选项。
-  if (id === 'translateImage') return config.imageTranslationContextMenuEnabled !== false;
-  return config.contextMenuEntries?.[id] ?? defaultEnabled;
+  if (id === 'translateImage') return config.value.imageTranslationContextMenuEnabled !== false;
+  return config.value.contextMenuEntries?.[id] ?? defaultEnabled;
 }
 
 function writeEntryPreference(id: ContextMenuActionId, value: boolean): void {
   if (id === 'translateImage') {
-    config.imageTranslationContextMenuEnabled = value;
+    config.value.imageTranslationContextMenuEnabled = value;
     return;
   }
-  config.contextMenuEntries = {...config.contextMenuEntries, [id]: value};
+  config.value.contextMenuEntries = {...config.value.contextMenuEntries, [id]: value};
 }
 
 const entryRows = computed(() => CONTEXT_MENU_ENTRIES.map((entry) => {
@@ -132,23 +135,23 @@ const entryRows = computed(() => CONTEXT_MENU_ENTRIES.map((entry) => {
 
 const titleContext = computed(() => {
   const uiLanguage = normalizeUiLanguage(language.value);
-  const hotkey = resolveConfiguredHotkey(config.floatingBallHotkey, config.customFloatingBallHotkey);
+  const hotkey = resolveConfiguredHotkey(config.value.floatingBallHotkey, config.value.customFloatingBallHotkey);
   const parsed = hotkey && hotkey !== 'none' ? parseHotkey(hotkey) : null;
   return {
     language: uiLanguage,
-    targetLanguage: config.contextMenuShowTargetLanguage !== false ? getContextMenuTargetLanguage(config.to, uiLanguage) : '',
-    shortcut: config.contextMenuShowShortcut !== false && parsed?.isValid ? parsed.displayName : '',
+    targetLanguage: config.value.contextMenuShowTargetLanguage !== false ? getContextMenuTargetLanguage(config.value.to, uiLanguage) : '',
+    shortcut: config.value.contextMenuShowShortcut !== false && parsed?.isValid ? parsed.displayName : '',
   };
 });
 
 const previewScenes = computed(() => {
   const display = {
-    showTargetLanguage: config.contextMenuShowTargetLanguage !== false,
-    showShortcut: config.contextMenuShowShortcut !== false,
+    showTargetLanguage: config.value.contextMenuShowTargetLanguage !== false,
+    showShortcut: config.value.contextMenuShowShortcut !== false,
   };
-  const plan = config.contextMenuEnabled === false
+  const plan = config.value.contextMenuEnabled === false
     ? []
-    : buildContextMenuPlan(resolveContextMenuEntryToggles(config.contextMenuEntries, availability.value));
+    : buildContextMenuPlan(resolveContextMenuEntryToggles(config.value.contextMenuEntries, availability.value));
   const presentations = resolveContextMenuPresentation(plan, {isTranslated: false, isSiteDisabled: false}, display);
   return (Object.keys(SCENE_TITLE_KEYS) as ContextMenuBucket[]).map((bucket) => ({
     bucket,
@@ -203,14 +206,13 @@ const previewScenes = computed(() => {
 .context-menu-preview-list li {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   padding: 5px 10px;
   color: var(--ink);
   font-size: 11.5px;
   line-height: 1.4;
 }
-
 
 .context-menu-preview-empty {
   margin: 0;
