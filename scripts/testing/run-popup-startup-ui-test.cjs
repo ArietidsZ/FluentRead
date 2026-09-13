@@ -599,34 +599,61 @@ async function runPersistenceRegression({context, extensionOrigin, popupPath, pa
   report.persistence.quickClose = persistence;
 }
 
-/** 首屏不加载快捷键编辑器，首次懒挂载仍能管理焦点并正确关闭。 */
+/**
+ * 快捷抽屉只保留高频控制，快捷键编辑器归完整设置页：Popup 首屏和打开抽屉后都不能解析含编辑器的脚本；
+ * 抽屉打开时焦点进入抽屉，关闭后回到对应快捷功能卡片，并保留进入完整设置的入口。
+ */
 async function runPopupDeferredUiRegression(context, extensionOrigin, popupPath) {
   const page = await newPageWithoutForeground(context, timeout);
-  const requestedScripts = new Set();
-  const parsedScripts = new Set();
-  const isEditor = url => /CustomHotkeyInput[^/]*\.js$/u.test(url);
-  page.on('request', request => { if (isEditor(request.url())) requestedScripts.add(request.url()); });
+  const parsedScripts = new Map();
+  const editorMarker = 'custom-hotkey-dialog';
   const debuggerSession = await context.newCDPSession(page);
-  debuggerSession.on('Debugger.scriptParsed', event => { if (isEditor(event.url)) parsedScripts.add(event.url); });
+  debuggerSession.on('Debugger.scriptParsed', event => {
+    if (event.url.startsWith(`${extensionOrigin}/`)) parsedScripts.set(event.scriptId, event.url);
+  });
   await debuggerSession.send('Debugger.enable');
+  // chrome-extension 协议不保证写入 Resource Timing；直接检查 V8 实际解析的脚本源码是否带入编辑器。
+  const findEditorScripts = async () => {
+    const matches = [];
+    for (const [scriptId, url] of parsedScripts) {
+      const {scriptSource} = await debuggerSession.send('Debugger.getScriptSource', {scriptId});
+      if (scriptSource.includes(editorMarker)) matches.push(url);
+    }
+    return matches;
+  };
   try {
     await page.setViewportSize({width: 400, height: 600});
     await page.goto(new URL(popupPath, `${extensionOrigin}/`).href, {waitUntil: 'domcontentloaded'});
     await page.locator('.popup-shell[data-config-ready="true"]').waitFor({state: 'visible', timeout});
-    // chrome-extension 协议不保证写入 Resource Timing；用网络事件与 V8 实际模块解析共同验证。
-    if (requestedScripts.size || parsedScripts.size) throw new Error('首屏提前加载了快捷键编辑器');
-    await page.locator('[data-popup-quick-feature="hover"]').click();
-    await page.locator('.popup-drawer').getByRole('button', {name: '自定义', exact: true}).click();
-    const dialog = page.locator('.custom-hotkey-dialog');
-    await dialog.waitFor({state: 'visible', timeout});
-    await page.waitForFunction(() => document.activeElement?.closest('.custom-hotkey-dialog'));
-    if (parsedScripts.size !== 1) throw new Error(`快捷键编辑器未按需解析：${JSON.stringify([...parsedScripts])}`);
-    const dialogScreenshot = await screenshot(page, 'popup-deferred-hotkey-dialog.png');
-    await dialog.getByRole('button', {name: '取消', exact: true}).click();
-    await dialog.waitFor({state: 'detached', timeout});
-    await page.waitForFunction(() => document.activeElement?.closest('.popup-drawer'));
-    return {initialEditorResources: 0, editorLoadedOnDemand: true, requestedScripts: [...requestedScripts],
-      parsedScripts: [...parsedScripts], initialFocus: true, restoredFocus: true, dialogScreenshot};
+    if (!parsedScripts.size) throw new Error('没有捕获到 Popup 解析的扩展脚本，无法证明编辑器未加载');
+    const initialEditorScripts = await findEditorScripts();
+    if (initialEditorScripts.length) throw new Error(`首屏加载了快捷键编辑器：${JSON.stringify(initialEditorScripts)}`);
+    const drawer = page.locator('.popup-drawer');
+    const drawers = [];
+    let drawerScreenshot = '';
+    for (const feature of ['hover', 'selection', 'area']) {
+      const card = page.locator(`[data-popup-quick-feature="${feature}"]`);
+      await card.click();
+      await drawer.locator('.drawer-surface').waitFor({state: 'visible', timeout});
+      await page.waitForFunction(() => document.activeElement?.closest('.popup-drawer'), undefined, {timeout});
+      const settingsLink = drawer.locator('.drawer-settings-link');
+      if (!await settingsLink.isVisible()) throw new Error(`${feature} 抽屉缺少完整设置入口`);
+      if (await page.locator(`.${editorMarker}`).count()) throw new Error(`${feature} 抽屉仍内嵌快捷键编辑器`);
+      if (feature === 'hover') drawerScreenshot = await screenshot(page, 'popup-hover-drawer-no-editor.png');
+      // 划词抽屉有同名的“关闭”模式按钮；只点击抽屉头部的关闭控件。
+      await drawer.locator('.drawer-header').getByRole('button', {name: '关闭', exact: true}).click();
+      await drawer.waitFor({state: 'hidden', timeout});
+      await page.waitForFunction(
+        expected => document.activeElement?.getAttribute('data-popup-quick-feature') === expected,
+        feature,
+        {timeout},
+      );
+      drawers.push({feature, initialFocus: true, restoredFocus: true, settingsLink: (await settingsLink.locator('strong').innerText()).trim()});
+    }
+    const drawerEditorScripts = await findEditorScripts();
+    if (drawerEditorScripts.length) throw new Error(`快捷抽屉加载了快捷键编辑器：${JSON.stringify(drawerEditorScripts)}`);
+    return {initialEditorResources: 0, drawerEditorResources: 0, editorMarker,
+      parsedScripts: [...parsedScripts.values()], drawers, drawerScreenshot};
   } finally { await debuggerSession.detach().catch(() => undefined); await page.close(); }
 }
 
