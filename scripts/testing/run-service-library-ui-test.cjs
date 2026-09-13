@@ -50,20 +50,22 @@ const save=()=>fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringif
   const shot=async name=>{const file=path.join(artifacts,`${name}.png`);await page.screenshot({path:file,fullPage:true});report.screenshots.push(file);};
   const invariant=async expected=>assert.equal(await page.locator('.service-catalog').getAttribute('data-default-service'),expected);
   const viewButton=view=>page.locator(`[data-service-view="${view}"]:visible`);
-  assert.equal(await page.locator('[data-service-view]').count(),3);
-  for(const view of ['mine','custom','all']) {
+  // 自定义服务不再占用独立视图，只作为“全部服务”中的目录分类出现。
+  const customCategory=()=>all().getByRole('button',{name:'自定义服务',exact:true});
+  assert.deepEqual(await page.locator('[data-service-view]').evaluateAll(nodes=>nodes.map(n=>n.dataset.serviceView)),['mine','all']);
+  for(const view of ['mine','all']) {
    const box=await viewButton(view).boundingBox();
    assert(box&&box.width>0&&box.height>=40,`服务视图入口不可见：${view}`);
   }
   assert.equal(await mine().locator('[data-service-value]').count(),1);
   await shot('01-first-use');report.cases.push('new-user-default-only');
-  await viewButton('custom').click();
-  assert.equal(await all().getAttribute('data-directory-view'),'custom');
+  await browse();
+  assert.equal(await all().getAttribute('data-directory-view'),'all');
+  assert.equal(await viewButton('all').getAttribute('aria-pressed'),'true');
+  assert((await all().locator('[data-service-value]').count())>40);
   assert.equal(await all().locator('[data-service-section="custom"]').count(),0);
-  assert.equal(await page.locator('[data-service-view="custom"]').getAttribute('aria-pressed'),'true');
-  report.cases.push('custom-view-visible-before-first-custom-service');
-  await browse();assert((await all().locator('[data-service-value]').count())>40);
-  assert.equal(await all().locator('[data-service-section="custom"]').count(),0);
+  assert.equal(await customCategory().count(),0);
+  report.cases.push('no-custom-category-before-first-custom-service');
   await select('openai').click();await invariant('freeTranslation');
   assert.equal(await page.locator('.service-catalog').getAttribute('data-editing-service'),'openai');
   assert.equal(await mine().locator('[data-personal-group="viewing"] [data-service-value="openai"]').count(),1);
@@ -81,13 +83,15 @@ const save=()=>fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringif
   await page.close();page=await newOptions();await page.locator('[data-personal-group="configured"] [data-service-value="openai"]').waitFor();
   assert.equal(await star('openai').getAttribute('aria-pressed'),'false');
   report.persistenceCases.push('unfavorite-retains-saved-service-after-reopen');
-  await viewButton('custom').click();
-  assert.equal(await all().getAttribute('data-directory-view'),'custom');
-  assert.equal(await all().locator('[data-service-section="custom"] [data-service-value]').count(),1);
-  assert.equal(await all().locator('[data-service-section="custom"] [data-service-value]').getAttribute('data-service-value'),'custom:work');
   await browse();
   assert.equal(await all().locator('[data-service-section="custom"] [data-service-value]').count(),1);
-  report.cases.push('custom-service-is-in-full-catalog');
+  assert.equal(await all().locator('[data-service-section="custom"] [data-service-value]').getAttribute('data-service-value'),'custom:work');
+  await customCategory().click();
+  assert.equal(await customCategory().getAttribute('aria-pressed'),'true');
+  assert.deepEqual(await all().locator('[data-service-section]').evaluateAll(nodes=>nodes.map(n=>n.dataset.serviceSection)),['custom']);
+  assert.equal(await all().locator('[data-service-value]').count(),1);
+  await browse();assert.equal(await customCategory().getAttribute('aria-pressed'),'false');
+  report.cases.push('custom-service-is-a-full-catalog-category');
   await select('deepseek').click();await shot('02-my-services');
   await browse();await shot('03-all-services');
   const icons=await all().locator('[data-service-value]').evaluateAll(nodes=>nodes.map(n=>({service:n.dataset.serviceValue,svg:!!n.querySelector('svg'),text:!!n.querySelector('svg text'),image:!!n.querySelector('img, image'),fallback:!!n.querySelector('[data-service-icon-fallback]')})));
@@ -108,17 +112,19 @@ const save=()=>fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringif
   await all().getByRole('status').waitFor();report.cases.push('global-search-and-empty-state');
   await seed({service:'freeTranslation',favoriteServices:['deepseek','custom:work','openai'],customOpenAIProviders:Array.from({length:20},(_,i)=>({id:i===0?'custom:work':`custom:test${i}`,name:i===0?'工作翻译接口':`长名称自定义翻译服务 ${i} · 内部模型接口`,endpoint:'http://localhost:11434/v1',models:['local-model']}))});
   await page.reload();await page.locator('[data-service-view="mine"]').waitFor();
-  await viewButton('custom').click();
+  await browse();
+  assert.equal(await all().locator('[data-service-section="custom"] [data-service-value]').count(),20);
+  await customCategory().click();
   assert.equal(await all().locator('[data-service-section="custom"] [data-service-value]').count(),20);
   assert((await all().locator('[data-service-section="custom"] h4').textContent()).includes('自定义服务'));
   assert((await all().locator('[data-service-section="custom"] [data-service-value]').first().textContent()).includes('工作翻译接口'));
-  await browse();
-  assert.equal(await all().locator('[data-service-section="custom"] [data-service-value]').count(),20);
-  report.cases.push('custom-view-and-full-catalog-include-all-custom-services');
+  report.cases.push('full-catalog-and-custom-category-include-all-custom-services');
   for(const width of [1440,1024,820,390]){
    await page.setViewportSize({width,height:1000});
    for(const view of ['all','custom','mine']){
-    await page.locator(`[data-service-view="${view}"]`).click();
+    // “custom”是全部服务中的自定义分类，用于压测 20 个长名称服务的窄屏布局。
+    await page.locator(`[data-service-view="${view==='custom'?'all':view}"]`).click();
+    if(view==='custom')await customCategory().click();
     const metrics=await page.evaluate(()=>({filtersHeight:document.querySelector('.directory-filters').getBoundingClientRect().height,toolbarHeight:document.querySelector('.catalog-toolbar').getBoundingClientRect().height,width:innerWidth,scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight,height:innerHeight,overflow:[...document.querySelectorAll('.catalog-toolbar button,.library-favorite,.catalog-search,.directory-grid')].filter(n=>n.getClientRects().length).filter(n=>n.getBoundingClientRect().right>innerWidth+1||n.getBoundingClientRect().left<0).length}));
     if(width===1440){assert(metrics.toolbarHeight<90,JSON.stringify(metrics));if(view==='all')assert(metrics.filtersHeight<100,JSON.stringify(metrics));}
     assert(metrics.scrollWidth<=width+1,JSON.stringify(metrics));assert(metrics.scrollHeight<=metrics.height+1,JSON.stringify(metrics));assert.equal(metrics.overflow,0,JSON.stringify(metrics));

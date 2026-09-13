@@ -14,6 +14,8 @@ const FOCUS_SAFE_SCRIPTS = [
     'scripts/testing/run-settings-center-ui-test.cjs',
     'scripts/testing/run-popup-startup-ui-test.cjs',
     'scripts/testing/run-loading-motion-ui-test.cjs',
+    'scripts/testing/run-service-catalog-ui-test.cjs',
+    'scripts/testing/run-service-library-ui-test.cjs',
     'scripts/run-privacy-boundary-test.cjs',
     'scripts/run-site-translation-test.cjs',
     'scripts/run-userscript-smoke-test.cjs',
@@ -28,6 +30,8 @@ const ACTIVATED_EXTENSION_TAB_SCRIPTS = FOCUS_SAFE_SCRIPTS.filter(
         'scripts/testing/run-settings-center-ui-test.cjs',
         'scripts/testing/run-popup-startup-ui-test.cjs',
         'scripts/testing/run-loading-motion-ui-test.cjs',
+        'scripts/testing/run-service-catalog-ui-test.cjs',
+        'scripts/testing/run-service-library-ui-test.cjs',
         'scripts/run-userscript-smoke-test.cjs',
     ].includes(path),
 );
@@ -307,6 +311,38 @@ describe('browser regression focus safety', () => {
         expect(source).not.toContain("getByRole('button', {name: '导出配置'");
         expect(source).not.toContain("getByRole('button', {name: '导入配置'");
         expect(source).not.toContain("getByTestId('config-transfer-dialog')");
+    });
+
+    it('界面回归夹具跟随当前 Popup 快捷抽屉与服务目录结构', () => {
+        const selectionSource = readScript('scripts/run-selection-trigger-test.cjs');
+        expect(selectionSource).toContain('input[aria-label="划词翻译触发方式"]');
+        expect(selectionSource).toContain("getByRole('group', { name: '划词翻译模式' })");
+        expect(selectionSource).toContain("service: 'microsoft'");
+        expect(selectionSource).not.toContain("getByText('触发方式'");
+        expect(selectionSource).not.toContain('.chips.two button');
+
+        const popupStartupSource = readScript('scripts/testing/run-popup-startup-ui-test.cjs');
+        expect(popupStartupSource).toContain('Debugger.getScriptSource');
+        expect(popupStartupSource).toContain("const editorMarker = 'custom-hotkey-dialog'");
+        expect(popupStartupSource).not.toContain("getByRole('button', {name: '自定义', exact: true})");
+
+        const settingsSource = readScript('scripts/testing/run-settings-center-ui-test.cjs');
+        expect(settingsSource).toContain(
+            "['基础配置', ['settings-general', 'settings-services', 'settings-translation', 'settings-interface']]",
+        );
+        expect(settingsSource).toContain("[data-personal-group=\"configured\"] [data-service-value^=\"custom:\"]");
+        for (const staleSelector of ['data-service-subgroup', '.custom-service-group', 'data-service-section-toggle', '.service-item']) {
+            expect(settingsSource).not.toContain(staleSelector);
+        }
+
+        const librarySource = readScript('scripts/testing/run-service-library-ui-test.cjs');
+        expect(librarySource).toContain("['mine','all']");
+        expect(librarySource).not.toContain("viewButton('custom')");
+
+        const catalogSource = readScript('scripts/testing/run-service-catalog-ui-test.cjs');
+        expect(catalogSource).toContain("'machine-services', 'cloud-services', 'ai-providers', 'ai-platforms'");
+        expect(catalogSource).toContain('[data-free-translation-settings]');
+        expect(catalogSource).not.toContain('[data-service-section="machine"]');
     });
 
     it.each(FOCUS_SAFE_SCRIPTS)('%s 的后台路径强制使用焦点安全 helper', (path) => {
