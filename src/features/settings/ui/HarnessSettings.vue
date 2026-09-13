@@ -11,25 +11,19 @@
   </div>
   <SettingsGroup title="启用与服务" description="选中网页文字，直接点“读懂”或“拆句”。回答留在原文旁边，读完就继续浏览。">
     <FeatureEnableCard v-model="config.harness.enabled" title="启用翻译卡片" :description="t('reading.enableHelp')" />
-    <div class="harness-provider-panel">
-      <div class="harness-provider-row">
-        <div class="harness-provider-field">
-          <label id="harness-service-label">翻译服务</label>
-          <el-select v-model="config.harness.service" class="harness-select" @change="config.harness.model = ''" clearable aria-labelledby="harness-service-label" aria-label="翻译卡片服务" placeholder="跟随当前默认服务" filterable>
-            <el-option v-for="item in serviceOptions" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-          <small>仅支持大模型，使用已配置的服务和密钥。</small>
-        </div>
-        <div class="harness-provider-field">
-          <label id="harness-model-label">模型</label>
-          <el-select v-model="config.harness.model" class="harness-select" clearable filterable allow-create default-first-option aria-labelledby="harness-model-label" aria-label="翻译卡片模型" placeholder="跟随服务模型">
-            <el-option v-for="model in modelOptions" :key="model" :label="model" :value="model" />
-          </el-select>
-          <small>默认沿用服务的模型，也可以选择或输入模型名称。</small>
-        </div>
+    <SettingsItem label="翻译服务" description="仅支持大模型，使用已配置的服务和密钥。">
+      <div class="harness-service-control">
+        <el-select v-model="config.harness.service" class="harness-select" @change="config.harness.model = ''" clearable aria-label="翻译卡片服务" :aria-describedby="!effectiveServiceSupportsHarness ? 'harness-service-hint' : undefined" placeholder="跟随当前默认服务" filterable>
+          <el-option v-for="item in serviceOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+        <small v-if="!effectiveServiceSupportsHarness" id="harness-service-hint" class="service-hint" role="status">当前默认服务不能回答学习问题，请在这里选择一个 AI 服务。</small>
       </div>
-      <small v-if="!effectiveServiceSupportsHarness" class="service-hint" role="status">当前默认服务不能回答学习问题，请在这里选择一个 AI 服务。</small>
-    </div>
+    </SettingsItem>
+    <SettingsItem label="模型" description="默认沿用服务的模型，也可以选择或输入模型名称。">
+      <el-select v-model="config.harness.model" class="harness-select" clearable filterable allow-create default-first-option aria-label="翻译卡片模型" placeholder="跟随服务模型">
+        <el-option v-for="model in modelOptions" :key="model" :label="model" :value="model" />
+      </el-select>
+    </SettingsItem>
   </SettingsGroup>
 
   <SettingsGroup title="打开方式与动作" :description="t('reading.triggerHelp')">
@@ -187,17 +181,8 @@ function toggleAction(id: HarnessActionId) {
 .harness-demo-help { margin:0 0 12px; color:var(--muted); font-size:11px; }
 .harness-demo > summary { padding:16px 18px; color:var(--ink); font-size:14px; font-weight:700; cursor:pointer; }
 .harness-demo > summary:focus-visible { outline:2px solid var(--brand); outline-offset:-4px; }
-.harness-provider-panel { margin:0 12px 12px; padding:16px; border:1px solid color-mix(in srgb,var(--brand) 24%,var(--line)); border-radius:12px; background:linear-gradient(120deg,color-mix(in srgb,var(--brand) 5%,var(--surface)),var(--surface-soft)); }
-.harness-provider-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
-.harness-provider-field { display:flex; flex-direction:column; gap:8px; min-width:0; }
-.harness-provider-field label { color:var(--ink); font-size:14px; font-weight:750; }
-.harness-provider-field small { color:var(--muted); font-size:10.5px; line-height:1.6; }
-.harness-provider-field .harness-select { width:100%; min-width:0; max-width:none; }
-.harness-provider-field :deep(.el-select__wrapper) { min-height:44px; background:var(--surface); border-radius:10px; box-shadow:0 0 0 1px var(--line) inset; }
-.harness-provider-field :deep(.el-select__wrapper:hover) { box-shadow:0 0 0 1px color-mix(in srgb,var(--brand) 55%,var(--line)) inset; }
-.harness-provider-field :deep(.el-select__wrapper.is-focused) { box-shadow:0 0 0 1px var(--brand) inset,0 0 0 3px color-mix(in srgb,var(--brand) 12%,transparent); }
-.harness-provider-field :deep(.el-select__placeholder) { color:var(--ink); font-weight:550; }
-.harness-provider-panel > .service-hint { display:block; margin-top:12px; }
+.harness-service-control { display:flex; flex-direction:column; gap:8px; width:100%; min-width:0; }
+.service-hint { display:block; margin-top:12px; }
 .service-hint { color:var(--warning, #b26a00); font-size:10.5px; line-height:1.5; }
 :global(:root.dark .harness-select .el-select__wrapper) { border-color:var(--line); background:var(--surface-soft); transition-property:border-color,box-shadow; }
 :global(:root.dark .harness-select .el-select__wrapper:hover),
@@ -216,9 +201,6 @@ function toggleAction(id: HarnessActionId) {
 .harness-action small { color:var(--muted); font-size:10.5px; line-height:1.5; }
 @media (max-width:700px) { .harness-actions { grid-template-columns:1fr; } }
 @media (max-width:480px) {
-  .harness-provider-panel { margin-inline:8px; padding:12px; }
-  .harness-provider-row { grid-template-columns:1fr; gap:16px; }
-  .harness-provider-field small { font-size:10px; }
   .harness-preview { padding:12px; }
   .harness-preview-answer { padding:12px; }
   .harness-preview-caption { gap:4px; }
