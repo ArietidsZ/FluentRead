@@ -26,6 +26,18 @@ const cacheSize = shallowRef<number | null>(null)
 export const interfaceFontCacheSize = readonly(cacheSize)
 let availabilityVersion = 0
 
+function removeInstalledFontFiles(font: InterfaceFont): void {
+  const protectedFiles = new Set(
+    interfaceFontOptions
+      .filter(option => option.value !== 'system' && option.value !== font)
+      .filter(option => getInterfaceFontAssets(option.value).every(asset => installedFiles.has(asset.file)))
+      .flatMap(option => getInterfaceFontAssets(option.value).map(asset => asset.file)),
+  )
+  for (const asset of getInterfaceFontAssets(font)) {
+    if (!protectedFiles.has(asset.file)) installedFiles.delete(asset.file)
+  }
+}
+
 export async function refreshInterfaceFontAvailability(): Promise<void> {
   const version = ++availabilityVersion
   const [cached, size] = await Promise.all([getCachedInterfaceFonts(openFontCache), getInterfaceFontCacheSize(openFontCache)])
@@ -59,6 +71,17 @@ export async function clearInterfaceFontCache(): Promise<void> {
   try {
     await fontLoader.clearCache()
   } finally {
+    await refreshInterfaceFontAvailability()
+  }
+}
+
+export async function clearInterfaceFont(font: InterfaceFont): Promise<void> {
+  let cleared = false
+  try {
+    await fontLoader.clearFont(font)
+    cleared = true
+  } finally {
+    if (cleared) removeInstalledFontFiles(font)
     await refreshInterfaceFontAvailability()
   }
 }

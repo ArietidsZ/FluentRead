@@ -1,12 +1,11 @@
 /**
  * @file src/core/config/customOpenAI.ts
  *
- * 文件职责：定义用户自建 OpenAI-compatible 翻译服务的轻量配置契约、容量边界和纯转换函数，供配置迁移、动态服务目录与设置界面共同复用。
- * 主要内容：限制最多二十个服务及每服务五十个模型，规范化稳定 ID、名称、端点和模型列表，提供动态服务选项、标签、模型查询、高熵 ID 生成及不可变删除 helpers。
+ * 文件职责：定义用户自建 OpenAI-compatible 翻译服务的轻量配置契约和纯转换函数，供配置迁移、动态服务目录与设置界面共同复用。
+ * 主要内容：规范化任意数量的稳定 ID、名称、端点和模型列表，提供动态服务选项、标签、模型查询、高熵 ID 生成及不可变删除 helpers。
  * 模块边界：本文件属于 core 领域层，只处理不含凭据的公开 profile 数据；API Key 继续由 Config.token[serviceId] 和专用凭据存储持有，本文件只使用运行时随机源生成身份，不读写存储、不访问扩展 API，也不发起网络请求。
  */
 
-export const MAX_CUSTOM_OPENAI_PROVIDERS = 20 as const;
 export const MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER = 50 as const;
 export const MAX_CUSTOM_OPENAI_PROVIDER_NAME_LENGTH = 80 as const;
 export const MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH = 2_048 as const;
@@ -90,7 +89,6 @@ export function normalizeCustomOpenAIProviders(value: unknown): CustomOpenAIProv
             endpoint: boundedString(item.endpoint, MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH),
             models: normalizeCustomOpenAIModels(item.models),
         });
-        if (providers.length >= MAX_CUSTOM_OPENAI_PROVIDERS) break;
     }
     return providers;
 }

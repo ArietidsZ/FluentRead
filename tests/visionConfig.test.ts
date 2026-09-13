@@ -16,12 +16,12 @@ import {
 } from '@/src/core/config/vision';
 
 describe('vision configuration', () => {
-  it('preserves OCR as the default and supplies a prompt', () => {
+  it('prefers model vision by default and supplies a prompt', () => {
     const config = normalizeConfig({});
-    expect(config.areaRecognitionMode).toBe('ocr');
+    expect(config.areaRecognitionMode).toBe('prefer-vision');
     expect(config.areaVisionPrompt).toBe(DEFAULT_AREA_VISION_PROMPT);
     expect(config.modelVision).toEqual({});
-    expect(new Config().areaRecognitionMode).toBe('ocr');
+    expect(new Config().areaRecognitionMode).toBe('prefer-vision');
     expect(DEFAULT_AREA_VISION_PROMPT).toContain('表格按行输出');
     expect(DEFAULT_AREA_VISION_PROMPT).toContain('[无法辨认]');
     expect(DEFAULT_AREA_VISION_PROMPT).toContain('不翻译');
@@ -30,7 +30,7 @@ describe('vision configuration', () => {
   it('keeps a user prompt unchanged and normalizes invalid values', () => {
     const prompt = '  保留换行\n不要猜测  ';
     expect(normalizeConfig({areaRecognitionMode: 'prefer-vision', areaVisionPrompt: prompt}).areaVisionPrompt).toBe(prompt);
-    expect(normalizeConfig({areaRecognitionMode: 'bad', areaVisionPrompt: '   '}).areaRecognitionMode).toBe('ocr');
+    expect(normalizeConfig({areaRecognitionMode: 'bad', areaVisionPrompt: '   '}).areaRecognitionMode).toBe('prefer-vision');
     expect(normalizeConfig({areaVisionPrompt: null}).areaVisionPrompt).toBe(DEFAULT_AREA_VISION_PROMPT);
     expect(normalizeAreaVisionPrompt('请读取选区图片中的文字，按原有阅读顺序输出。保留名称、数字、标点和换行，不要解释图片内容，不要补写看不清的文字。')).toBe(DEFAULT_AREA_VISION_PROMPT);
     expect(normalizeConfig({areaVisionPrompt: '请读取选区图片中的文字，按原有阅读顺序输出。保留名称、数字、标点和换行，不要解释图片内容，不要补写看不清的文字。'}).areaVisionPrompt).toBe(DEFAULT_AREA_VISION_PROMPT);

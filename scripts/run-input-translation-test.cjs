@@ -104,7 +104,6 @@ async function main() {
     const profileEditor = options.getByTestId('input-translation-profile-editor');
     const promptEditor = options.getByTestId('input-translation-prompts');
     async function openProfile() {
-      if (!await profileEditor.isVisible()) await options.getByTestId('input-translation-profile').click();
       await profileEditor.waitFor({state: 'visible'});
     }
     async function openPrompts() {
@@ -153,12 +152,8 @@ async function main() {
     assert.ok((await group.textContent()).includes('选择一个快捷键'));
     await openProfile();
     await selectTestId('input-translation-service', 'OpenAI');
-    const modelInput = options.locator('input[data-testid="input-translation-model"], [data-testid="input-translation-model"] input');
-    await modelInput.fill('input-test-model');
-    await options.getByTestId('input-translation-profile-done').click();
-    await profileEditor.waitFor({state: 'hidden'});
-    await openProfile();
-    assert.equal(await modelInput.inputValue(), 'input-test-model', 'typing a custom model then Done preserves it without Enter');
+    await selectTestId('input-translation-model', 'global-model');
+    assert.equal((await readConfig()).inputBoxTranslationModel, 'global-model', 'selecting a model updates the independent input translation profile');
     await openPrompts();
     await options.getByTestId('input-translation-system-default').click();
     await options.getByTestId('input-translation-user-default').click();
@@ -182,7 +177,7 @@ async function main() {
     await pause(500);
     await options.reload();
     assert.equal((await readConfig()).inputBoxTranslationService, 'openai');
-    assert.equal((await readConfig()).inputBoxTranslationModel, 'input-test-model');
+    assert.equal((await readConfig()).inputBoxTranslationModel, 'global-model');
     assert.equal((await readConfig()).inputBoxTranslationSystemPrompt, 'Keep the message polite. Return only translated text.');
     await group.scrollIntoViewIfNeeded();
     assert.equal((await readConfig()).inputBoxTranslationTrigger, 'disabled', 'editing a profile must not enable translation');
@@ -202,8 +197,6 @@ async function main() {
     await promptEditor.waitFor({state: 'visible'});
     await promptEditor.locator('[data-prompt-role="user"]').scrollIntoViewIfNeeded();
     await snap('02b-prompts');
-    await options.getByTestId('input-translation-profile-done').click();
-    await profileEditor.waitFor({state: 'hidden'});
     for (const width of [820, 390]) {
       await options.setViewportSize({width, height: 900});
       await group.scrollIntoViewIfNeeded();
@@ -215,21 +208,17 @@ async function main() {
         await snap('03-profile-390');
         await openPrompts();
         await promptEditor.waitFor({state: 'visible'});
-        const dialog = options.locator('.input-translation-dialog.el-dialog');
-        const bounds = await dialog.boundingBox();
-        assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width, 'prompt dialog fits narrow viewport');
+        const bounds = await profileEditor.boundingBox();
+        assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width, 'inline input translation settings fit narrow viewport');
         await promptEditor.locator('[data-prompt-role="user"]').scrollIntoViewIfNeeded();
         await snap('03-prompts-390');
         await options.keyboard.press('Escape');
-        await profileEditor.waitFor({state: 'hidden'});
       }
     }
     await options.setViewportSize({width: 1280, height: 600});
     await openPrompts();
     await promptEditor.locator('[data-prompt-role="user"]').scrollIntoViewIfNeeded();
     await snap('03-prompts-short');
-    await options.getByTestId('input-translation-profile-done').click();
-    await profileEditor.waitFor({state: 'hidden'});
     await options.setViewportSize({width: 1280, height: 900});
     await patch({theme: 'dark'});
     await group.scrollIntoViewIfNeeded();
@@ -239,8 +228,6 @@ async function main() {
     await snap('04-profile-dark');
     await openPrompts();
     await snap('04-prompts-dark');
-    await options.getByTestId('input-translation-profile-done').click();
-    await profileEditor.waitFor({state: 'hidden'});
     await patch({theme: 'light', inputBoxTranslationInterval: 400});
     assert.equal((await readConfig()).service, 'microsoft');
     assert.deepEqual((await readConfig()).model, globalBefore.model);

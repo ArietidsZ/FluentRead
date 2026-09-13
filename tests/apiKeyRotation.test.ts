@@ -6,7 +6,7 @@ let redact: typeof Rotation.redactApiKeyError;
 const first = 'fixture-first-secret';
 const second = 'fixture-second-secret';
 const third = 'fixture-third-secret';
-const config = () => ({token: {demo: first}, apiKeys: {demo: [first, second, third]}, translationMaxRetries: 3});
+const config = () => ({token: {demo: first}, apiKeys: {demo: [first, second, third]}, apiKeyRotationEnabled: {demo: true}, translationMaxRetries: 3});
 const failure = (statusCode: number) => Object.assign(new Error(`HTTP ${statusCode}`), {statusCode});
 
 describe('multi-key request orchestration', () => {
@@ -22,6 +22,15 @@ describe('multi-key request orchestration', () => {
         expect(await run({token: {demo: first}}, 'demo', operation)).toMatchObject({token: {demo: first}});
         expect(await run({...config(), apiKeys: {demo: [second]}}, 'demo', operation)).toMatchObject({token: {demo: second}, translationMaxRetries: 3});
         await expect(run({token: {}}, 'demo', async () => { throw failure(401); })).rejects.toMatchObject({statusCode: 401});
+    });
+
+    it('keeps multiple saved keys but uses only the first until rotation is enabled', async () => {
+        const used: string[] = [];
+        await run({...config(), apiKeyRotationEnabled: {demo: false}}, 'demo', async selected => {
+            used.push(selected.token.demo);
+            return 'ok';
+        });
+        expect(used).toEqual([first]);
     });
 
     it('clears stale tokens when an explicit service key list is empty or blank', async () => {

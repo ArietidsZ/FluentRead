@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceCatalog.vue
  * 文件职责：呈现个人翻译服务与完整目录，按默认、常用和已保存配置组织紧凑列表，并保留独立的服务配置工作区。
- * 主要内容：组件接收当前服务、网站入口、云服务厂商开通指引和配置，支持个人服务去重、持久化常用标记、我的服务/自定义服务/全部服务三级入口、全目录分类筛选与关键词搜索、动态 OpenAI 兼容服务、分组计数、官网新标签页跳转、免费额度与控制台链接展示和紧凑模型选择。
+ * 主要内容：组件接收当前服务、网站入口、云服务厂商开通指引和配置，支持个人服务去重、持久化常用标记、我的服务/全部服务两级入口、全目录分类筛选与关键词搜索、动态 OpenAI 兼容服务、分组计数、官网新标签页跳转、免费额度与控制台链接展示和紧凑模型选择；自定义服务作为全部服务中的一个目录分组。
  * 模块边界：目录区分“查看服务”“标记常用”和显式“设为默认”，不编辑凭据、不测试连接也不保存配置；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
  -->
 <template>
@@ -17,10 +17,6 @@
           <button type="button" :aria-pressed="catalogView === 'mine'" data-service-view="mine" @click="switchView('mine')">
             <span>{{ t('settings.services.library.mine') }}</span>
           </button>
-          <button type="button" :aria-pressed="catalogView === 'custom'" data-service-view="custom" @click="switchView('custom')">
-            <span>{{ t('settings.services.library.custom') }}</span>
-            <small>{{ customServices.length }}</small>
-          </button>
           <button type="button" :aria-pressed="catalogView === 'all'" data-service-view="all" @click="switchView('all')">
             <span>{{ t('settings.services.library.all') }}</span>
             <small>{{ allServices.length }}</small>
@@ -31,8 +27,7 @@
             <span aria-hidden="true">⌕</span>
             <input v-model="serviceQuery" type="search" :aria-label="t('settings.services.library.search')" :placeholder="t('settings.services.library.search')" @input="catalogView = 'all'; category = 'all'" />
           </label>
-          <button type="button" class="custom-service-add" data-testid="custom-service-add"
-            :disabled="customServiceLimitReached" :title="`${customServices.length} / ${maximumCustomServices}`" @click="$emit('add:service')">
+          <button type="button" class="custom-service-add" data-testid="custom-service-add" @click="$emit('add:service')">
             {{ t('settings.services.library.add') }}
           </button>
         </div>
@@ -79,44 +74,50 @@
           </div>
         </div>
 
-        <aside
+        <details
           v-if="credentialGuide"
           class="credential-guide"
           data-testid="service-credential-guide"
           aria-label="免费额度与开通步骤"
         >
-          <div class="credential-guide-head">
-            <span class="credential-guide-badge">免费额度</span>
-            <strong>{{ credentialGuide.freeQuota }}</strong>
+          <summary class="credential-guide-summary">
+            <span class="credential-guide-summary-copy">
+              <span class="credential-guide-badge">免费额度</span>
+              <strong>{{ credentialGuide.freeQuota }}</strong>
+            </span>
+            <span class="credential-guide-summary-action">{{ t('settings.services.library.guideToggle') }}</span>
+            <svg class="credential-guide-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </summary>
+          <div class="credential-guide-body">
             <small>额度用尽后由厂商按量计费，请在控制台设置用量告警。</small>
+            <ol class="credential-guide-steps">
+              <li v-for="(step, index) in credentialGuide.steps" :key="index">{{ step }}</li>
+            </ol>
+            <div class="credential-guide-links">
+              <a
+                class="credential-guide-link is-primary"
+                data-testid="service-credential-console"
+                :href="credentialGuide.consoleUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                :title="credentialGuide.consoleUrl"
+              >
+                {{ credentialGuide.consoleLabel }}
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14 3h7v7M21 3 10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
+                </svg>
+              </a>
+              <a
+                class="credential-guide-link"
+                data-testid="service-credential-docs"
+                :href="credentialGuide.docsUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                :title="credentialGuide.docsUrl"
+              >{{ credentialGuide.docsLabel }}</a>
+            </div>
           </div>
-          <ol class="credential-guide-steps">
-            <li v-for="(step, index) in credentialGuide.steps" :key="index">{{ step }}</li>
-          </ol>
-          <div class="credential-guide-links">
-            <a
-              class="credential-guide-link is-primary"
-              data-testid="service-credential-console"
-              :href="credentialGuide.consoleUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              :title="credentialGuide.consoleUrl"
-            >
-              {{ credentialGuide.consoleLabel }}
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M14 3h7v7M21 3 10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
-              </svg>
-            </a>
-            <a
-              class="credential-guide-link"
-              data-testid="service-credential-docs"
-              :href="credentialGuide.docsUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              :title="credentialGuide.docsUrl"
-            >{{ credentialGuide.docsLabel }}</a>
-          </div>
-        </aside>
+        </details>
 
         <div v-if="showModel && service !== 'localTranslation'" class="model-section">
           <div class="model-heading">
@@ -147,7 +148,7 @@
 
       </section>
     </div>
-    <section v-show="catalogView !== 'mine'" class="service-directory" :aria-label="t(`settings.services.library.${catalogView === 'custom' ? 'custom' : 'all'}`)" :data-directory-view="catalogView">
+    <section v-show="catalogView === 'all'" class="service-directory" :aria-label="t('settings.services.library.all')" :data-directory-view="catalogView">
       <div role="group" class="directory-filters" :aria-label="t('settings.services.library.categories')">
         <button type="button" :aria-pressed="category === 'all'" @click="category = 'all'">{{ t('settings.services.library.allCategories') }}</button>
         <button v-for="group in directoryGroups" :key="group.id" type="button" :aria-pressed="category === group.id" @click="category = group.id">{{ group.label }}</button>
@@ -198,7 +199,6 @@ const props = defineProps<{
   configuredServices: string[]
   modelOptions: ModelPickerOption[]
   showModel: boolean
-  maximumCustomServices: number
   maximumModels: number
   maximumModelLength: number
   customModelCount: number
@@ -217,7 +217,7 @@ const emit = defineEmits<{
 
 const { t } = useUiI18n()
 const serviceQuery = ref('')
-const catalogView = ref<'mine' | 'custom' | 'all'>('mine')
+const catalogView = ref<'mine' | 'all'>('mine')
 const category = ref('all')
 const customServices = computed(() => props.services.filter((item) => isCustomOpenAIProviderId(item.value)))
 const builtInServices = computed(() => props.services.filter((item) => !isCustomOpenAIProviderId(item.value)))
@@ -235,13 +235,12 @@ const visibleDirectoryGroups = computed(() => {
       [item.label, item.value, item.description, ...(item.searchTerms || [])].join(' ').normalize('NFKC').toLocaleLowerCase().includes(keyword),
     ) })).filter(group => group.items.length)
 })
-const customServiceLimitReached = computed(() => customServices.value.length >= props.maximumCustomServices)
 const selectedService = computed(() => allServices.value.find(item => item.value === props.service))
 
-function switchView(view: 'mine' | 'custom' | 'all') {
+function switchView(view: 'mine' | 'all') {
   catalogView.value = view
   serviceQuery.value = ''
-  category.value = view === 'custom' ? 'custom' : 'all'
+  category.value = 'all'
 }
 function selectService(service: string) {
   emit('update:service', service)
@@ -258,10 +257,10 @@ watch(() => props.service, () => switchView('mine'))
 </script>
 
 <style scoped>
-.service-catalog { display: flex; height: clamp(520px, calc(100vh - 270px), 760px); min-height: 520px; margin: 2px 0 20px; border: 1px solid var(--line, #e4e7ef); border-radius: 16px; overflow: hidden; background: var(--surface, #fff); flex-direction: column; }
+.service-catalog { display: flex; height: clamp(560px, calc(100vh - 200px), 820px); min-height: 560px; margin: 2px 0 20px; border: 1px solid var(--line, #e4e7ef); border-radius: 16px; overflow: hidden; background: var(--surface, #fff); flex-direction: column; }
 .catalog-toolbar { padding: 12px 16px; border-bottom: 1px solid var(--line, #e4e7ef); flex-shrink: 0; }
 .catalog-toolbar-inner { display: flex; align-items: center; gap: 16px; width: 100%; flex-wrap: wrap; }
-.catalog-views { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; width: min(100%, 540px); min-width: min(100%, 420px); padding: 4px; border: 1px solid var(--line, #dfe3eb); border-radius: 13px; background: var(--surface-soft, #f7f8fb); }
+.catalog-views { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; width: min(100%, 420px); min-width: min(100%, 280px); padding: 4px; border: 1px solid var(--line, #dfe3eb); border-radius: 13px; background: var(--surface-soft, #f7f8fb); }
 .catalog-views button, .directory-filters button { border: 1px solid transparent; border-radius: 9px; padding: 9px 14px; background: transparent; color: var(--muted, #737c8f); cursor: pointer; font: inherit; font-size: 14px; font-weight: 650; }
 .catalog-views button { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 0; min-height: 44px; white-space: nowrap; }
 .catalog-views button[aria-pressed="true"] { border-color: color-mix(in srgb, var(--brand-strong, #bd2853) 48%, transparent); color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); box-shadow: 0 3px 10px color-mix(in srgb, var(--brand, #ef4776) 15%, transparent); }
@@ -274,7 +273,7 @@ watch(() => props.service, () => switchView('mine'))
 .custom-service-add, .catalog-set-default { padding: 7px 10px; border: 1px solid var(--brand-strong, #bd2853); border-radius: 8px; color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); font-size: 12px; cursor: pointer; }
 .custom-service-add:disabled { opacity: .5; cursor: not-allowed; }
 .catalog-set-default { margin: 8px 0; }
-.catalog-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 0; flex: 1; overflow: hidden; }
+.catalog-layout { display: grid; grid-template-columns: 224px minmax(0, 1fr); min-height: 0; flex: 1; overflow: hidden; }
 .service-rail { display: flex; flex-direction: column; min-height: 0; padding: 12px 8px; border-right: 1px solid var(--line, #eceef3); background: var(--surface-soft, #fafbfc); }
 .service-groups { overflow-y: auto; min-height: 0; flex: 1; }
 .service-group + .service-group { margin-top: 16px; }
@@ -290,27 +289,33 @@ watch(() => props.service, () => switchView('mine'))
 .directory-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .catalog-empty { text-align: center; color: var(--muted, #737c8f); padding: 24px; }
 .catalog-toolbar button:focus-visible, .directory-filters button:focus-visible, .catalog-browse:focus-visible, .catalog-set-default:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
-.service-detail { display: flex; min-width: 0; min-height: 0; margin: 14px; padding: 22px; border: 1px solid #e4e7ef; border-radius: 16px; background: #fff; flex-direction: column; overflow: hidden; }
+.service-detail { display: flex; min-width: 0; min-height: 0; margin: 10px; padding: 18px; border: 1px solid #e4e7ef; border-radius: 14px; background: #fff; flex-direction: column; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
 .service-detail > .detail-hero,
 .service-detail > .credential-guide,
 .service-detail > .model-section,
 .service-detail > .no-model-panel,
-.service-detail > .service-configuration-slot { width: min(100%, 1080px); }
-.detail-hero { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 13px; padding-bottom: 20px; border-bottom: 1px solid #eceef3; }
+.service-detail > .service-configuration-slot { width: 100%; }
+.detail-hero { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #eceef3; }
 .detail-heading { flex: 1 1 180px; min-width: 0; }
 .detail-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
-.detail-title-row h4 { min-width: 0; margin: 1px 0 5px; color: #172033; font-size: 22px; overflow-wrap: anywhere; }
+.detail-title-row h4 { min-width: 0; margin: 1px 0 5px; color: #172033; font-size: 20px; overflow-wrap: anywhere; }
 .service-website-link { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 2px 4px; border-radius: 5px; color: var(--brand-strong, #bd2853); font-size: 12px; font-weight: 600; line-height: 1.5; text-decoration: none; }
 .service-website-link svg { flex-shrink: 0; }
 .service-website-link:hover { background: var(--brand-soft, #fff0f4); text-decoration: underline; text-underline-offset: 3px; }
 .service-website-link:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
 .active-badge { flex-shrink: 0; white-space: nowrap; padding: 4px 8px; border-radius: 999px; color: #bd2853; background: #ffe9ef; font-size: 10px; font-weight: 800; }
 .detail-hero p { margin: 0; color: #737c8f; font-size: 13px; line-height: 1.6; }
-.credential-guide { display: grid; gap: 12px; margin-top: 16px; padding: 16px 18px; border: 1px solid #f3d4de; border-radius: 14px; background: linear-gradient(180deg, #fff6f9 0%, #fff 100%); }
-.credential-guide-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.credential-guide { margin-top: 12px; border: 1px solid #f3d4de; border-radius: 12px; background: linear-gradient(180deg, #fff6f9 0%, #fff 100%); }
+.credential-guide-summary { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 8px 12px; cursor: pointer; list-style: none; }
+.credential-guide-summary::-webkit-details-marker { display: none; }
+.credential-guide-summary-copy { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.credential-guide-summary-copy strong { min-width: 0; overflow-wrap: anywhere; color: #172033; font-size: 13px; }
+.credential-guide-summary-action { margin-left: auto; color: var(--brand-strong, #bd2853); font-size: 11px; white-space: nowrap; }
+.credential-guide-chevron { width: 16px; height: 16px; flex: none; color: var(--muted, #8991a2); transition: transform 150ms ease; }
+.credential-guide[open] .credential-guide-chevron { transform: rotate(180deg); }
+.credential-guide-body { display: grid; gap: 10px; padding: 0 12px 12px; border-top: 1px solid #f3d4de; }
+.credential-guide-body > small { color: #8a93a5; font-size: 10px; line-height: 1.5; }
 .credential-guide-badge { flex-shrink: 0; padding: 3px 8px; border-radius: 999px; color: #fff; background: var(--brand-strong, #ef4776); font-size: 10px; font-weight: 800; letter-spacing: .04em; }
-.credential-guide-head strong { color: #172033; font-size: 14px; }
-.credential-guide-head small { flex-basis: 100%; color: #8a93a5; font-size: 11px; }
 .credential-guide-steps { display: grid; gap: 6px; margin: 0; padding-left: 20px; color: #46526a; font-size: 12px; line-height: 1.6; }
 .credential-guide-steps li::marker { color: #c72a56; font-weight: 800; }
 .credential-guide-links { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -337,7 +342,7 @@ watch(() => props.service, () => switchView('mine'))
 .no-model-panel > span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: #fff; background: #28aa79; font-size: 14px; }
 .no-model-panel strong { color: #185d46; font-size: 15px; }
 .no-model-panel p { margin: 4px 0 0; color: #628074; font-size: 12px; }
-.service-configuration-slot { min-height: 0; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eceef3; overflow-y: auto; flex: 1; }
+.service-configuration-slot { min-height: 0; margin-top: 12px; padding-top: 12px; padding-bottom: 8px; border-top: 1px solid #eceef3; }
 .service-configuration-slot.local-model-configuration { margin-top: 10px; padding-top: 0; border-top: 0; }
 :global(:root.dark .service-catalog),
 :global(:root.dark .catalog-views),
@@ -367,9 +372,10 @@ watch(() => props.service, () => switchView('mine'))
 :global(:root.dark .group-heading-toggle:not(:disabled):hover) { background: var(--brand-soft); }
 :global(:root.dark .service-item.active) { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
 :global(:root.dark .credential-guide) { border-color: rgba(255, 138, 171, .3); background: var(--surface-soft); }
-:global(:root.dark .credential-guide-head strong),
+:global(:root.dark .credential-guide-summary-copy strong),
 :global(:root.dark .credential-guide-steps) { color: var(--ink); }
-:global(:root.dark .credential-guide-head small) { color: var(--muted); }
+:global(:root.dark .credential-guide-body),
+:global(:root.dark .credential-guide-body > small) { color: var(--muted); border-color: var(--line); }
 :global(:root.dark .credential-guide-link) { border-color: var(--line); color: var(--ink); background: var(--surface); }
 :global(:root.dark .credential-guide-link:hover) { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
 /* 暗色下品牌色是浅粉，实心按钮会失去对比；改用与“检查连接”一致的描边强调样式。 */
@@ -379,7 +385,7 @@ watch(() => props.service, () => switchView('mine'))
 :global(:root.dark .no-model-panel strong) { color: #a8e8d5; }
 :global(:root.dark .no-model-panel p) { color: #8fc5b5; }
 @media (max-width: 900px) {
-  .catalog-layout { grid-template-columns: 220px minmax(0, 1fr); }
+  .catalog-layout { grid-template-columns: 210px minmax(0, 1fr); }
   .directory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {

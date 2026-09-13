@@ -17,6 +17,7 @@ export function isSensitiveConfigKey(key: string): boolean {
     const normalized = toSnakeCase(key);
     if (normalized.startsWith('require_')) return false;
     if (normalized === 'api_key_recovery_ms') return false;
+    if (normalized === 'api_key_rotation_enabled') return false;
     if (normalized === 'key' || normalized === 'token' || normalized === 'authorization') return true;
     return /(?:^|_)(?:password|passwd|credential|authorization|secret|api_key|access_key|private_key|secret_key|api_token|access_token|refresh_token|auth_token|id_token)(?:_|$)/u.test(normalized);
 }
