@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/WritingSettings.vue
  * 文件职责：提供写作助手总开关、默认回复偏好和 AI 服务连接设置。
- * 主要内容：用就绪清单说明当前配置状态；独立选择回复与阅读对照语言，点选长度风格语气角色，并配置写作服务连接。
+ * 主要内容：按启用、写作服务、回答风格组织设置；写作服务集中配置 AI 服务、模型、输出与对照语言。
  * 模块边界：只编辑设置中心持久化的同一份写作配置；不提供快捷键、重复入口开关或网站列表，不请求模型也不生成真实正文。
  -->
 <template>
@@ -9,16 +9,21 @@
     <p class="writing-description">在 GitHub 和 Gmail 的回复框旁点「写作助手」，起草回复或完善已有草稿。</p>
     <SettingsGroup>
       <FeatureEnableCard v-model="config.writing.enabled" title="启用写作助手" description="自动出现在 GitHub 和 Gmail 的回复区。点击入口开始写作，发送前由你确认。" />
-      <ol class="writing-readiness">
-        <li v-for="item in readiness" :key="item.label" :class="{done: item.done}">
-          <b aria-hidden="true">{{ item.done ? '✓' : '·' }}</b>
-          <span>{{ item.label }}</span>
-          <small>{{ item.value }}</small>
-        </li>
-      </ol>
-      <div class="writing-sites"><span>GitHub · Issue / Pull Request</span><span>Gmail · 邮件</span></div>
     </SettingsGroup>
-    <SettingsGroup>
+    <SettingsGroup title="写作服务">
+      <div class="writing-service-grid">
+        <SettingsItem label="AI 服务" stacked>
+          <el-select v-model="config.writing.service" aria-label="写作服务" placeholder="选择 AI 服务" @change="config.writing.model = ''" filterable>
+            <el-option v-if="defaultSupported" value="" :label="`跟随默认服务 · ${defaultServiceLabel}`" />
+            <el-option v-for="item in serviceOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </SettingsItem>
+        <SettingsItem label="模型" stacked>
+          <el-select v-model="config.writing.model" clearable filterable allow-create default-first-option aria-label="写作模型" :placeholder="resolvedModel || '选择或输入模型'" :disabled="!supported">
+            <el-option v-for="item in modelOptions" :key="item" :label="item" :value="item" />
+          </el-select>
+        </SettingsItem>
+      </div>
       <SettingsItem label="输出语言" description="默认跟随网页翻译的目标语言。">
         <el-select v-model="config.writing.language" class="writing-default-language" aria-label="输出语言" filterable>
           <el-option v-for="item in WRITING_LANGUAGES" :key="item.value" :value="item.value" :label="item.value === 'target' ? `跟随目标语言 · ${targetLanguageLabel}` : item.label" />
@@ -31,6 +36,7 @@
           <el-option v-for="item in WRITING_LANGUAGES.filter(item => item.value !== 'target')" :key="item.value" :value="item.value" :label="item.label" />
         </el-select>
       </SettingsItem>
+      <div class="writing-connection"><button type="button" @click="emit('configure-service')">配置服务连接 →</button></div>
     </SettingsGroup>
     <SettingsGroup title="回答风格" description="设置会自动保存，并与写作卡片中的偏好同步。调整这里不会生成正文。">
       <div class="writing-default-style">
@@ -44,24 +50,10 @@
         </section>
         <WritingStylePreview
           :length="config.writing.length" :style="config.writing.style"
-          :tone="config.writing.tone" :role="config.writing.role"
+          :tone="toneChoice === 'custom' ? customTone || 'custom' : config.writing.tone" :role="roleChoice === 'custom' ? customRole || 'custom' : config.writing.role"
           :reference-label="referencePreviewLabel" :animated="config.animations"
         />
       </div>
-    </SettingsGroup>
-    <SettingsGroup title="写作服务">
-      <SettingsItem label="AI 服务">
-        <el-select v-model="config.writing.service" aria-label="写作服务" placeholder="选择 AI 服务" @change="config.writing.model = ''" filterable>
-          <el-option v-if="defaultSupported" value="" :label="`跟随默认服务 · ${defaultServiceLabel}`" />
-          <el-option v-for="item in serviceOptions" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-      </SettingsItem>
-      <SettingsItem label="模型">
-        <el-select v-model="config.writing.model" clearable filterable allow-create default-first-option aria-label="写作模型" :placeholder="resolvedModel || '选择或输入模型'" :disabled="!supported">
-          <el-option v-for="item in modelOptions" :key="item" :label="item" :value="item" />
-        </el-select>
-      </SettingsItem>
-      <div class="writing-connection"><p>{{ supported ? '使用已保存的服务连接。写作服务可与网页翻译分别选择。' : '写作需要 AI 服务。选择服务并配置连接后，即可从网页开始。' }}</p><button type="button" @click="emit('configure-service')">配置服务连接 →</button></div>
     </SettingsGroup>
   </div>
 </template>
@@ -120,18 +112,10 @@ const referencePreviewLabel = computed(() => {
   if (!language) return '';
   return (WRITING_LANGUAGES.find(item => item.value === language)?.label || language).split(' / ')[0];
 });
-const serviceLabel = computed(() => serviceOptions.value.find(item => item.value === service.value)?.label || service.value);
-const writingModel = computed(() => config.value.writing.model || resolvedModel.value);
-// 就绪清单把“还差什么”摆到开关下面，而不是让用户读到最后一组才发现没有配置服务。
-const readiness = computed(() => {
-  const enabled = config.value.on && config.value.writing.enabled;
-  return [
-    {label: '开启写作助手', value: enabled ? '已开启' : '未开启', done: enabled},
-    {label: '选好写作服务', value: supported.value ? [serviceLabel.value, writingModel.value].filter(Boolean).join(' · ') : '未选择', done: supported.value},
-    {label: '在回复框旁打开入口', value: '无需额外设置', done: true},
-  ];
-});
 </script>
 <style scoped>
-.writing-settings{max-width:880px;margin:0 auto}.writing-description{margin:0 0 22px;color:var(--muted);font-size:13px;line-height:1.8}.writing-readiness{display:flex;flex-direction:column;gap:7px;margin:0;padding:2px 18px 12px;list-style:none}.writing-readiness li{display:flex;align-items:center;gap:9px;min-width:0;font-size:11.5px;line-height:1.5;color:var(--muted)}.writing-readiness b{display:flex;flex:none;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;color:var(--muted);background:var(--surface-soft);font-size:9px}.writing-readiness li.done b{color:#fff;background:#2c974b}.writing-readiness li.done span{color:var(--ink)}.writing-readiness small{overflow:hidden;margin-left:auto;padding-left:12px;color:var(--muted);font-size:10.5px;text-overflow:ellipsis;white-space:nowrap}.writing-sites{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 16px}.writing-sites span{padding:4px 9px;border:1px solid var(--line);border-radius:6px;font-size:11px;color:var(--muted);background:var(--surface)}.writing-default-language{max-width:280px!important}.writing-default-style{--w-brand:var(--brand);--w-brand-soft:var(--brand-soft);--w-ink:var(--ink);--w-soft:var(--surface-soft);--w-line:var(--line);display:flex;flex-direction:column;gap:16px;padding:16px 18px}.writing-default-style h3{margin:0 0 8px;font-size:12px;line-height:1.5;font-weight:600;color:var(--ink)}.writing-default-style :deep(.writing-choices){gap:7px}.writing-default-style :deep(.writing-choices button){box-sizing:border-box;min-height:32px;height:32px;padding:6px 12px;font-size:12px;line-height:18px;border-radius:8px}.writing-custom-preference{display:flex;flex-direction:column;gap:6px;width:100%;max-width:420px;min-width:0;margin-top:9px}.writing-custom-preference small{font-size:10.5px;line-height:1.55;color:var(--muted)}.writing-connection{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 18px 16px}.writing-connection p{margin:0;font-size:12px;line-height:1.8;color:var(--muted)}.writing-connection button{flex-shrink:0;border:0;padding:0;background:none;color:var(--brand);font:inherit;font-size:12px;cursor:pointer}.writing-connection button:focus-visible{outline:2px solid var(--brand);outline-offset:4px}@media(max-width:600px){.writing-connection{align-items:flex-start;flex-direction:column;gap:10px}.writing-default-style{padding:14px 12px;gap:15px}}@media(max-width:480px){.writing-default-language{max-width:none!important}.writing-custom-preference{max-width:none}}
+.writing-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:16px;border-bottom:1px solid var(--line)}
+.writing-service-grid :deep(.settings-item){min-width:0;min-height:0;padding:0;border:0!important;background:transparent}
+
+.writing-settings{max-width:880px;margin:0 auto}.writing-description{margin:0 0 22px;color:var(--muted);font-size:13px;line-height:1.8}.writing-default-language{max-width:280px!important}.writing-default-style{--w-brand:var(--brand);--w-brand-soft:var(--brand-soft);--w-ink:var(--ink);--w-soft:var(--surface-soft);--w-line:var(--line);display:flex;flex-direction:column;gap:16px;padding:16px 18px}.writing-default-style h3{margin:0 0 8px;font-size:12px;line-height:1.5;font-weight:600;color:var(--ink)}.writing-default-style :deep(.writing-choices){gap:7px}.writing-default-style :deep(.writing-choices button){box-sizing:border-box;min-height:32px;height:32px;padding:6px 12px;font-size:12px;line-height:18px;border-radius:8px}.writing-custom-preference{display:flex;flex-direction:column;gap:6px;width:100%;max-width:420px;min-width:0;margin-top:9px}.writing-custom-preference small{font-size:10.5px;line-height:1.55;color:var(--muted)}.writing-connection{display:flex;justify-content:flex-end;align-items:center;padding:0 18px 16px}.writing-connection button{flex-shrink:0;border:0;padding:0;background:none;color:var(--brand);font:inherit;font-size:12px;cursor:pointer}.writing-connection button:focus-visible{outline:2px solid var(--brand);outline-offset:4px}@media(max-width:600px){.writing-service-grid{grid-template-columns:minmax(0,1fr)}.writing-default-style{padding:14px 12px;gap:15px}}@media(max-width:480px){.writing-default-language{max-width:none!important}.writing-custom-preference{max-width:none}}
 </style>
