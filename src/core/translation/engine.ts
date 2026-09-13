@@ -2,7 +2,7 @@
  * @file src/core/translation/engine.ts
  *
  * 文件职责：实现 DOM 节点到 TranslationCandidate 的核心解析引擎，协调安全守卫、站点适配器、布局边界和文本有效性。
- * 主要内容：按正文/全部节点范围协调候选；定义 TranslationCandidateCore、候选优选与键值函数，记录发现步骤和原因，按站点规则把显式换行拆为两种入口一致的内联候选，处理 hover 屏障、适配优先级、快照省略、缓存及坐标命中，让独立 tooltip 不抢占外层控件候选，保证全文与悬浮共享决策。 可核对的公开符号包括 TranslationCoreInspection、TranslationDiscoveryStep、getTranslationCandidateKey、selectPreferredTranslationCandidate、TranslationCandidateCore。
+ * 主要内容：按正文/全部节点范围协调候选；定义 TranslationCandidateCore、候选优选与键值函数，记录发现步骤和原因，按站点规则把显式换行拆为两种入口一致的内联候选，处理编辑器坐标命中屏障、hover 屏障、适配优先级、快照省略、缓存及坐标命中，让独立 tooltip 不抢占外层控件候选，保证全文与悬浮共享决策。 可核对的公开符号包括 TranslationCoreInspection、TranslationDiscoveryStep、getTranslationCandidateKey、selectPreferredTranslationCandidate、TranslationCandidateCore。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -14,6 +14,7 @@ import {
     findElementsAtPoint,
     findNodeAtPoint,
     getComposedParent,
+    getTranslatableControlValueAttribute,
     isDocumentSurface,
     isExtensionElementSelf,
     isTopLevelApplicationShell,
@@ -951,6 +952,24 @@ export class TranslationCandidateCore {
     }
 
     resolveAtPoint(root: Document | ShadowRoot, x: number, y: number): TranslationCandidate | null {
+        // 编辑器是真实命中屏障：caret API 可能返回相邻辅助文本，命中栈也包含
+        // 整个表单。必须先检查最上层元素，避免跳过输入框后翻译其父容器。
+        const hitRoots = new Set<Document | ShadowRoot>();
+        let hitRoot: Document | ShadowRoot | null = root;
+        while (hitRoot && !hitRoots.has(hitRoot) && hitRoots.size <= maxPointResolutionDepth) {
+            hitRoots.add(hitRoot);
+            const hit: Element | undefined = findElementsAtPoint(hitRoot, x, y)[0];
+            if (!hit) break;
+            const guard = evaluateHardGuard(hit);
+            if (guard.reason === 'contenteditable' ||
+                guard.reason === 'protected-tag:textarea' ||
+                guard.reason === 'protected-tag:select' ||
+                guard.reason === 'protected-tag:option' ||
+                (guard.reason === 'protected-tag:input' && !getTranslatableControlValueAttribute(hit))) {
+                return null;
+            }
+            hitRoot = hit.shadowRoot;
+        }
         const visitedRoots = new Set<Document | ShadowRoot>();
         const resolveInRoot = (currentRoot: Document | ShadowRoot, depth: number): TranslationCandidate | null => {
             if (depth > maxPointResolutionDepth || visitedRoots.has(currentRoot)) return null;
