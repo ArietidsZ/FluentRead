@@ -44,7 +44,7 @@
         </section>
         <WritingStylePreview
           :length="config.writing.length" :style="config.writing.style"
-          :tone="config.writing.tone" :role="config.writing.role"
+          :tone="toneChoice === 'custom' ? customTone || 'custom' : config.writing.tone" :role="roleChoice === 'custom' ? customRole || 'custom' : config.writing.role"
           :reference-label="referencePreviewLabel" :animated="config.animations"
         />
       </div>

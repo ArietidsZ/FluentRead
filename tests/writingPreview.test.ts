@@ -5,14 +5,15 @@ import {WRITING_PREVIEW_SCENARIO, isWritingPreviewPreset, writingPreviewFallback
 const base = {length: 'standard', style: 'auto', tone: 'natural', role: 'auto'} as const;
 
 describe('写作助手设置页示例草稿', () => {
-  it('长度决定展开到第几段，且前面的段落保持不变', () => {
+  it('简短压缩正文但保留角色，详细增加说明', () => {
     const short = writingPreviewParagraphs({...base, length: 'short'});
     const standard = writingPreviewParagraphs({...base, length: 'standard'});
     const detailed = writingPreviewParagraphs({...base, length: 'detailed'});
-    expect(short.map(item => item.slot)).toEqual(['opening', 'body']);
+    expect(short.map(item => item.slot)).toEqual(['opening', 'body', 'focus']);
     expect(standard.map(item => item.slot)).toEqual(['opening', 'body', 'focus']);
     expect(detailed.map(item => item.slot)).toEqual(['opening', 'body', 'focus', 'detail']);
-    expect(standard.slice(0, 2)).toEqual(short);
+    expect(short[1].text.length).toBeLessThan(standard[1].text.length);
+    expect(short[2]).toEqual(standard[2]);
     expect(detailed.slice(0, 3)).toEqual(standard);
     for (const paragraph of detailed) expect(paragraph.text.trim()).not.toBe('');
     expect(WRITING_PREVIEW_SCENARIO).toMatch(/[㐀-鿿]/u);
@@ -29,6 +30,13 @@ describe('写作助手设置页示例草稿', () => {
     for (const {value} of WRITING_ROLES) expect(isWritingPreviewPreset(value, 'role')).toBe(true);
   });
 
+  it.each(WRITING_LENGTHS)('$label下每个按钮都改变范例正文', ({value: length}) => {
+    for (const [field, options] of [['style', WRITING_STYLES], ['tone', WRITING_TONES], ['role', WRITING_ROLES]] as const) {
+      const texts = options.map(({value}) => writingPreviewParagraphs({...base, length, [field]: value}).map(p => p.text).join('\n'));
+      expect(new Set(texts).size).toBe(options.length);
+    }
+  });
+
   it('自定义语气或角色回落到默认表达，并说明回落了哪一项', () => {
     const custom = {...base, length: 'detailed', tone: '耐心、鼓励', role: '正在排查问题的维护者'} as const;
     expect(writingPreviewFallbacks(custom)).toEqual(['tone', 'role']);
@@ -41,8 +49,8 @@ describe('写作助手设置页示例草稿', () => {
 
   it('未知长度和风格回落到最短示例，不抛出异常', () => {
     const unknown = writingPreviewParagraphs({length: 'huge' as never, style: 'fancy' as never, tone: 'natural', role: 'auto'});
-    expect(unknown.map(item => item.slot)).toEqual(['opening', 'body']);
-    expect(unknown[1].text).toBe(writingPreviewParagraphs({...base, style: 'auto'})[1].text);
+    expect(unknown.map(item => item.slot)).toEqual(['opening', 'body', 'focus']);
+    expect(unknown[1].text).toBe(writingPreviewParagraphs({...base, length: 'short', style: 'auto'})[1].text);
     for (const {value} of WRITING_LENGTHS) expect(writingPreviewParagraphs({...base, length: value}).length).toBeGreaterThan(1);
   });
 });
