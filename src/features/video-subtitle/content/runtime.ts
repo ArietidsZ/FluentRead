@@ -1057,7 +1057,9 @@ export function mountVideoSubtitleTranslation(): () => void {
     playerBinding?.sync();
     const button = buttonElement?.isConnected ? buttonElement : document.getElementById(VIDEO_TRANSLATION_BUTTON_ID);
     const menu = menuElement?.isConnected ? menuElement : document.getElementById(VIDEO_TRANSLATION_MENU_ID);
-    if (!button || !menu) return;
+    // X 控制栏收起后入口按钮会卸载，但已打开的菜单仍可操作；
+    // 菜单状态不能依赖入口按钮在场，否则功能已生效却仍显示旧状态。
+    if (!menu) return;
     if (button instanceof HTMLButtonElement) buttonElement = button;
     if (menu instanceof HTMLElement) menuElement = menu;
 
@@ -1067,9 +1069,9 @@ export function mountVideoSubtitleTranslation(): () => void {
     const status = config.on
       ? (config.videoTranslationEnabled ? videoUi('video.enabled') : videoUi('video.disabled'))
       : videoUi('video.globalDisabled');
-    button.classList.toggle(VIDEO_TRANSLATION_ACTIVE_CLASS, enabled);
-    button.setAttribute('aria-pressed', String(enabled));
-    button.setAttribute('aria-expanded', String(!menu.hidden));
+    button?.classList.toggle(VIDEO_TRANSLATION_ACTIVE_CLASS, enabled);
+    button?.setAttribute('aria-pressed', String(enabled));
+    button?.setAttribute('aria-expanded', String(!menu.hidden));
 
     const toggle = menu.querySelector<HTMLButtonElement>('[data-action="toggle-translation"]');
     if (toggle) {
