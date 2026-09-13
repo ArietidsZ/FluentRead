@@ -86,7 +86,7 @@
 
         <label class="model-picker-search">
           <span class="sr-only">搜索模型</span>
-          <span aria-hidden="true">⌕</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>
           <input v-model.trim="query" type="search" aria-label="搜索模型" placeholder="搜索模型" />
         </label>
 
@@ -248,9 +248,9 @@ watch(pickerOpen, (open) => {
 </script>
 
 <style scoped>
-.model-picker { width: 100%; min-width: 0; }
+.model-picker { width: min(100%, 560px); min-width: 0; }
 .model-picker-trigger {
-  display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; min-height: 48px; padding: 8px 13px;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; min-height: 44px; padding: 8px 12px;
   border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: var(--surface); text-align: left; cursor: pointer;
 }
 .model-picker-trigger:hover { border-color: #ef9ab1; background: #fff8fa; }
@@ -294,18 +294,18 @@ watch(pickerOpen, (open) => {
 .model-error { margin: 7px 0 0; color: #c52f58; font-size: 10px; }
 .model-picker-search { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 5px; margin-bottom: 9px; color: var(--muted); }
 .model-picker-search input { width: 100%; }
-.model-picker-list { display: grid; max-height: min(300px, 45vh); overflow-y: auto; overscroll-behavior: contain; padding: 1px; gap: 3px; align-content: start; scrollbar-width: thin; }
+.model-picker-list { display: flex; flex-wrap: wrap; max-height: min(300px, 45vh); overflow-y: auto; overscroll-behavior: contain; padding: 1px; gap: 8px; align-content: flex-start; scrollbar-width: thin; }
 .model-picker-chip {
-  display: flex; width: 100%; max-width: 100%; min-height: 38px; box-sizing: border-box; border: 1px solid transparent; border-radius: 9px; overflow: hidden; background: transparent;
+  display: flex; flex: 0 1 auto; width: auto; max-width: 100%; min-width: 0; min-height: 38px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface-soft);
 }
 .model-picker-chip:hover { background: var(--surface-soft); }
-.model-picker-chip.active { color: var(--brand-strong); background: var(--brand-soft); }
+.model-picker-chip.active { border-color: var(--brand); color: var(--ink); background: var(--brand-soft); }
 .model-picker-option {
   display: flex; flex: 1; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; min-height: 38px; padding: 8px 12px;
   border: 0; color: var(--ink); background: transparent; text-align: left; cursor: pointer;
 }
-.model-picker-option strong { min-width: 0; font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
-.model-picker-chip.active .model-picker-option { color: var(--brand-strong); }
+.model-picker-option strong { min-width: 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.model-picker-chip.active .model-picker-option { color: var(--ink); }
 .model-check { color: var(--brand-strong); font-size: 11px; }
 .model-remove-button { width: 28px; padding: 0; border: 0; border-left: 1px solid #efd6dd; color: #a84a62; background: transparent; font-size: 15px; cursor: pointer; }
 .model-remove-button:hover { background: #fff0f4; }
@@ -320,8 +320,8 @@ watch(pickerOpen, (open) => {
 :global(:root.dark .model-add-form input),
 :global(:root.dark .model-picker-search input) { border-color: var(--line); color: var(--ink); background: var(--surface-soft); }
 :global(:root.dark .model-picker-option) { color: var(--ink); }
-:global(:root.dark .model-picker-chip) { border-color: transparent; }
-:global(:root.dark .model-picker-chip.active) { border-color: transparent; background: var(--brand-soft); }
+:global(:root.dark .model-picker-chip) { border-color: var(--line); }
+:global(:root.dark .model-picker-chip.active) { border-color: var(--brand); background: var(--brand-soft); }
 @media (max-width: 480px) {
   :global(.model-picker-popper.el-popper) { width: calc(100vw - 24px) !important; }
   .model-add-form > div { grid-template-columns: minmax(0, 1fr) auto; }

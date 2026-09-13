@@ -66,6 +66,8 @@ describe('free translation settings compiled component', () => {
     expect(elements.filter(element => element.props['data-fallback-provider'])).toHaveLength(FREE_TRANSLATION_PROVIDERS.length);
     expect(elements.some(element => element.props['aria-label'] === '每个服务最多等待（秒）')).toBe(false);
     expect(control('MyMemory 联系邮箱')).toBeDefined();
+    expect(elements.some(element => element.tag === 'details' && element.props.class === 'provider-settings')).toBe(true);
+    expect(readFileSync(resolve(process.cwd(), componentPath), 'utf8')).not.toContain('my-memory-advanced');
   });
 
   it('renders every provider and mode control in basic mode', async () => {

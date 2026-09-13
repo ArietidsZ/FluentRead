@@ -270,9 +270,10 @@ async function main() {
   await optionsPage.locator('[data-section="settings-services"]').click();
   const minimax=optionsPage.locator('[data-service-value="minimax"]');
   // 服务目录中的 AI 分组可能默认折叠。
-  if (!(await minimax.isVisible())) await optionsPage.locator('[data-service-section-toggle="ai"]').click();
+  await minimax.waitFor({state: 'visible'});
   await minimax.click();
-  const advanced=optionsPage.locator('[data-testid="custom-service-advanced"]');
+  const advanced=optionsPage.locator('[data-configuration-group="advanced"]');
+  const translationGroup=advanced.locator('[data-configuration-group="translation"]');
   const endpoint=optionsPage.locator('[data-minimax-endpoint]');
   await endpoint.waitFor();
   assert.equal(await advanced.getAttribute('open'),null);

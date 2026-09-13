@@ -2,6 +2,12 @@
 
 FluentRead displays translations produced by your selected service. Use the default service or configure another machine translation provider, AI service, or local model.
 
+## Configure a service
+
+The service directory is organized by category and can be searched. Selecting an entry opens its settings; choose the default service later from General settings or the extension menu.
+
+The **Advanced settings** section is collapsed by default. Inside it, **Keys and authentication**, **Translation preferences**, **Request settings**, and **Custom requests** separate key management, model preferences, request limits, and custom request parameters. Cloud services show their free quota and setup steps by default; eligibility and overage behavior depend on the provider and plan.
+
 ## Which one fits?
 
 | What you want | A starting point |
@@ -17,25 +23,27 @@ FluentRead is free and open source. Third-party services may charge separately. 
 ## Connect and use it
 
 1. Open translation services in settings and select the service to configure.
-2. Enter its required key and address; select a model for AI services. Use details supplied by the provider.
-3. Check the connection. This sends a short request and may use a small amount of your allowance.
-4. Return to the extension menu, select the service, and try a sentence.
+2. Enter its key and address when available; select a model for AI services. Use details supplied by the provider. **Check connection** remains available with an empty API Key; services that require credentials report missing credentials or authentication failure in the result.
+3. Check the connection from the right side of the service details title bar. This sends a short request and may use a small amount of your allowance.
+4. Return to General settings or the extension menu, select the service as the default, and try a sentence.
 
 ::: tip Configuring is not selecting the default
-Clicking a service in the directory opens its configuration. It does not change the webpage default. Choose it from the extension menu after setup. Documents, subtitles, and the reading card have their own selections.
+Clicking a service in the directory only opens its configuration. The **Check connection** action is on the right side of the service details title bar. It does not change the webpage default; choose the default service from General settings or the extension menu. Documents, subtitles, and the reading card have their own selections.
 :::
 
 <figure class="doc-figure"><a href="/screenshots/en/settings-services.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/en/settings-services.webp" width="2560" height="1600" alt="Translation service directory and connection settings" loading="lazy" /></a><figcaption>Configure a connection, then select the service you want to use.</figcaption></figure>
 
 ## Use several API keys
 
-For a service with an API Key field, add one key per row using **Add key** below the list. Existing single keys are kept. All rows use the same service address, model, region, and custom headers; use a separate custom service when those settings differ.
+For a service with an API Key field, open **Advanced settings → Keys and authentication**, enable key rotation, and add one key per row using **Add key** below the list. Existing single keys are kept. All rows use the same service address, model, region, and custom headers; use a separate custom service when those settings differ.
 
 Requests are shared evenly at first. If a key fails, FluentRead tries another and temporarily reduces how often the failing key is used. Invalid keys and exhausted quotas can be paused. The default recovery wait is 1 minute; adjust it from **Settings → Advanced → Request limits** between 1 and 60 minutes. A rate limit with a server-provided waiting period follows that period instead. Changing keys does not bypass your configured request rate or total timeout. Health is temporary and resets when the extension's background process restarts.
 
 **Check all** above the list tests each distinct, filled row in order, with the summary and individual results shown together. Select a failed status to see its reason, or use the row's check button to test it again. You can stop the remaining checks. A failed row does not stop the rest. Empty rows and duplicates do not make extra requests. Checks send a short translation and may use a small amount of your provider allowance. Results describe that check, rather than guaranteeing future availability.
 
 ## The free service
+
+Free translation calls the enabled free endpoints. Compact cards let you choose which endpoints participate. Experimental endpoints are separate, with enabled choices listed in the summary.
 
 The default **Automatic balance** mode places Microsoft first and prefers it for the initial request. The background scheduler dynamically adapts distribution using success rate, response time, and recent errors. A failed request switches to another service. Disable entries or choose **Priority order** to try them in list order. Keep at least one enabled.
 
@@ -55,13 +63,15 @@ Choose API Free or API Pro and enter the matching key. A DeepL website subscript
 
 Enter the full translation endpoint, such as `https://deeplx.example.com/translate`. Entering only a domain does not automatically add `/translate`. Leave it blank to use the default public endpoint.
 
-In API Key, enter only the site's Token value, without a `Bearer` prefix. The Token is sent in the request header by default. If the site requires it in the URL, follow the site's instructions:
+Endpoints that do not require authentication can be used and checked with an empty API Key. If the site requires authentication, enter only its Token value, without a `Bearer` prefix. The Token is sent in the request header by default. If the site requires it in the URL, follow the site's instructions:
 
 
 - Query parameter: `https://deeplx.example.com/translate?token={{apiKey}}`
 - URL path: `https://deeplx.example.com/{{apiKey}}/translate`
 
 Keep `{{apiKey}}` exactly as written. It is replaced with your saved API Key when sending, so you do not need to put the actual Token in the URL. A configured proxy URL takes priority; use the full path and the site's required Token format there too. Then click **Check connection**.
+
+If several endpoints are configured, an empty Key skips addresses containing `{{apiKey}}` or `{{token}}` and uses any valid anonymous addresses in the effective list. If all effective addresses require a token, enter a Key first. An unresolved token address does not silently switch to the default public endpoint.
 
 These settings apply only to the standalone DeepLX service. DeepLX in the free fallback service uses the default public anonymous endpoint.
 
@@ -78,7 +88,7 @@ The **Cloud vendors** group lists the official machine translation APIs of the m
 | Baidu Translate | Standard tier: 50,000 characters per month | APP ID + secret key |
 | Volcengine Translation | 2 million characters per month | Access Key ID + Secret Access Key + region |
 
-Select any cloud vendor in settings and the service details show its **free quota**, a three-step setup guide, and links to the **console** and **API docs**. Follow the guide to obtain the key, enter it in the form below, and click **Check connection**. Quotas are as published by each vendor; once used up the vendor bills by usage, so set a usage alert in the console.
+Select any cloud vendor in settings and the service details show its **free quota**, a three-step setup guide, and links to the **console** and **API docs** by default. Follow the guide to obtain the key, enter it in the form below, and click **Check connection**. Free allowances, eligibility and overage behavior depend on the provider console and your current plan.
 
 ::: tip Match the region to your resource
 For Azure, Alibaba Cloud, and Volcengine the region is part of the request signature or decides the request host. A wrong region usually shows up as 401/403 or a signature mismatch; keep it identical to the region of the resource in the console.
@@ -134,7 +144,7 @@ Restore existing translations before translating with changed settings. Use [glo
 
 Select **Tencent Hunyuan** and enter an API key created in the Hunyuan console. The default uses the official Hunyuan endpoint. **Tencent Hunyuan Translate** is a separate service that requires a SecretId and SecretKey.
 
-If an older version reports `Failed to fetch`, enter `https://api.hunyuan.cloud.tencent.com/v1/chat/completions` under **Advanced settings → Proxy URL**, then check the connection again. For a custom proxy or TokenHub, use the full endpoint and matching key provided by that platform.
+If an older version reports `Failed to fetch`, enter `https://api.hunyuan.cloud.tencent.com/v1/chat/completions` under **Request settings → Proxy URL**, then check the connection again. For a custom proxy or TokenHub, use the full endpoint and matching key provided by that platform.
 
 See Tencent's [official integration guide](https://cloud.tencent.com/document/product/1729/116755) for endpoint and API key instructions.
 
@@ -156,7 +166,7 @@ Youdao Web and ICIBA currently support English and Simplified Chinese directions
 
 ## Custom request headers
 
-Select a custom OpenAI-compatible service under **My services**, then open **Advanced settings → Custom request headers**. Enter a JSON object with string values, for example:
+Select a custom OpenAI-compatible service in the categorized directory, then open **Advanced settings → Custom requests → Custom request headers**. Enter a JSON object with string values, for example:
 
 ```json
 {"x-opencode-session": "a71a2ad6-1d1f-4e92-a30e-e35c8fd623ab"}

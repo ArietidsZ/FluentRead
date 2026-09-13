@@ -58,15 +58,16 @@ async function main() {
     await page.getByTestId('custom-service-dialog').waitFor({state: 'hidden'});
   }
   async function select(name) {
-    await page.locator('.custom-service-group .service-item').filter({hasText: name}).click();
-    const advanced = page.getByTestId('custom-service-advanced');
+    await page.locator('[data-service-section="custom"] [data-service-value]').filter({hasText: name}).click();
+    const advanced = page.locator('[data-configuration-group="advanced"]');
+    const customRequest = advanced.locator('[data-configuration-group="custom-request"]');
     if (!await advanced.getAttribute('open').then(x => x !== null)) await advanced.locator('summary').click();
-    return page.getByTestId('custom-service-headers').locator('textarea');
+    return customRequest.getByTestId('custom-service-headers').locator('textarea');
   }
   async function check() {
     const before = report.requests.length;
-    await page.locator('[data-connection-test-button]').click();
-    await page.locator('[data-connection-test-status].is-success').waitFor({timeout: 30000});
+    await page.locator('.detail-hero [data-connection-test-button]').last().click();
+    await page.locator('[data-api-key-list] .api-key-state.is-success').waitFor({timeout: 30000});
     assert.equal(report.requests.length, before + 1);
     return report.requests.at(-1);
   }
@@ -97,8 +98,8 @@ async function main() {
   await headers.fill('{"x-invalid": 42}');
   await page.getByTestId('custom-service-headers').locator('.error-text').waitFor();
   const count = report.requests.length;
-  await page.locator('[data-connection-test-button]').click();
-  await page.locator('[data-connection-test-status].is-error').waitFor();
+  await page.locator('.detail-hero [data-connection-test-button]').last().click();
+  await page.locator('[data-api-key-list] .api-key-state.is-error').waitFor();
   assert.equal(report.requests.length, count);
   report.cases.push('invalid-header-blocks-network');
   await headers.fill('');

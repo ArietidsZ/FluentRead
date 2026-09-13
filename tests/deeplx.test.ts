@@ -16,7 +16,7 @@ vi.mock("@/src/services/config/store", () => ({config: mockConfig}));
 import deeplx, {
     getDeepLXRequestLanguages,
 } from "@/src/providers/translation/deeplx";
-import {DEFAULT_DEEPLX_ENDPOINT, getDeepLXEndpoints} from '@/src/core/config/deeplx';
+import {DEFAULT_DEEPLX_ENDPOINT, getDeepLXEndpoints, hasDeepLXTokenPlaceholder, requiresDeepLXToken} from '@/src/core/config/deeplx';
 
 const FANYIMAO_ENDPOINT = 'https://freeapi.fanyimao.cn/translate?token={{apiKey}}';
 const DEEPLX_COMMUNITY_ENDPOINT = 'https://api.deeplx.org/{{apiKey}}/translate';
@@ -63,8 +63,22 @@ describe("DeepLX endpoint configuration", () => {
     it("resolves token placeholders without returning a secret in the configured URL", () => {
         expect(getDeepLXEndpoints(FANYIMAO_ENDPOINT, "", "site-token"))
             .toEqual(["https://freeapi.fanyimao.cn/translate?token=site-token"]);
-        expect(getDeepLXEndpoints(DEEPLX_COMMUNITY_ENDPOINT, "", ""))
-            .toEqual([DEFAULT_DEEPLX_ENDPOINT]);
+        expect(() => getDeepLXEndpoints(DEEPLX_COMMUNITY_ENDPOINT, "", ""))
+            .toThrow('DeepLX 地址包含 {{apiKey}} 或 {{token}} 占位符');
+        expect(hasDeepLXTokenPlaceholder(DEEPLX_COMMUNITY_ENDPOINT)).toBe(true);
+        expect(hasDeepLXTokenPlaceholder('https://self-hosted.example/translate')).toBe(false);
+        expect(requiresDeepLXToken(DEEPLX_COMMUNITY_ENDPOINT, '')).toBe(true);
+        expect(requiresDeepLXToken('https://self-hosted.example/translate', DEEPLX_COMMUNITY_ENDPOINT)).toBe(true);
+    });
+
+    it('空 Key 跳过混合列表中的占位符地址，但不绕过 proxy 或回落默认公共地址', () => {
+        expect(getDeepLXEndpoints(`${DEEPLX_COMMUNITY_ENDPOINT},https://public.example/translate`, '', ''))
+            .toEqual(['https://public.example/translate']);
+        expect(getDeepLXEndpoints('https://configured.example/translate', `${DEEPLX_COMMUNITY_ENDPOINT},https://proxy.example/translate`, ''))
+            .toEqual(['https://proxy.example/translate']);
+        expect(requiresDeepLXToken('https://configured.example/translate', `${DEEPLX_COMMUNITY_ENDPOINT},https://proxy.example/translate`)).toBe(false);
+        expect(() => getDeepLXEndpoints('https://configured.example/translate', DEEPLX_COMMUNITY_ENDPOINT, ''))
+            .toThrow('DeepLX 地址包含 {{apiKey}} 或 {{token}} 占位符');
     });
 });
 
