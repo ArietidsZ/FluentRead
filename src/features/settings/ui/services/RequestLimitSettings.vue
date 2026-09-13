@@ -72,12 +72,13 @@ function setLimits(limits: TranslationRequestLimits): void {
 .request-limit-settings :deep(.request-limit-fields) { padding-right: 0; padding-left: 0; }
 .request-limit-settings { padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .request-limit-settings > :deep(.settings-item) { grid-template-columns: minmax(0, 1fr) auto; min-height: 44px; padding: 8px 0; }
+.request-limit-settings :deep(.settings-item-control) { justify-content: flex-end; }
 .request-limit-inheritance { display: flex; align-items: center; gap: 10px; }
 .request-limit-inheritance > span, .request-limit-scope > span { color: var(--muted); font-size: 11px; }
 .request-limit-summary { margin: 0 0 8px; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .request-limit-scope { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 520px) {
   .request-limit-settings > :deep(.settings-item) { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-  .request-limit-settings :deep(.settings-item-control) { justify-content: flex-start; }
+  .request-limit-settings :deep(.settings-item-control) { justify-content: flex-end; }
 }
 </style>

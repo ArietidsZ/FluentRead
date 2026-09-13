@@ -73,20 +73,27 @@ async function main() {
     await page.getByTestId('custom-service-dialog').waitFor({state: 'hidden'});
   }
   async function keys() { return page.locator('[data-api-key-list] [data-api-key-index]'); }
+  async function enableKeyRotation() {
+    const settings = page.locator('[data-configuration-group="advanced"]');
+    if (!(await settings.evaluate(node => node.hasAttribute('open')))) await settings.locator('summary').click();
+    const control = page.locator('[data-api-key-rotation-setting] .el-switch');
+    if (await control.getAttribute('aria-checked') !== 'true') await control.click();
+  }
   async function checkAll() {
     const before = report.requests.length;
-    const button = page.locator('[data-api-key-list] [data-connection-test-button]');
+    const button = page.locator('.detail-hero [data-connection-test-button]');
     await button.click();
     await page.locator('[data-api-key-list][data-api-key-busy="false"]').waitFor();
     await page.locator('[data-api-key-summary]').waitFor();
     return report.requests.slice(before);
   }
   await open(); await addService();
-  assert.equal(await page.locator('[data-api-key-list] [data-connection-test-button]').count(), 1);
-  assert.equal(await page.locator('.detail-hero [data-connection-test-button]').count(), 0);
-  report.cases.push('check-all-lives-inside-key-panel-no-hero-duplicate');
+  assert.equal(await page.locator('.detail-hero [data-connection-test-button]').count(), 1);
+  assert.equal(await page.locator('[data-api-key-list] [data-connection-test-button]').count(), 0);
+  report.cases.push('check-all-lives-inside-service-header');
   const list = await keys();
   assert.equal(await list.count(), 1);
+  await enableKeyRotation();
   await page.locator('[data-api-key-list] .api-key-row input').first().fill('');
   await page.locator('[data-api-key-add]').click();
   assert.equal(await (await keys()).count(), 1);
@@ -96,11 +103,14 @@ async function main() {
   await page.locator('[data-api-key-list] .api-key-row input').first().fill('  fixture-A  ');
   await page.locator('[data-api-key-add]').click();
   const rows = await keys();
+  await rows.nth(1).waitFor({state: 'visible'});
   await rows.nth(1).locator('input').fill('fixture-B');
   await page.locator('[data-api-key-add]').click();
+  await rows.nth(2).waitFor({state: 'visible'});
   assert.equal(await rows.count(), 3);
   await rows.nth(2).locator('input').fill('fixture-C');
   await page.locator('[data-api-key-add]').click();
+  await rows.nth(3).waitFor({state: 'visible'});
   const duplicateRow = (await keys()).nth(3);
   await duplicateRow.locator('input').fill('fixture-B');
   await duplicateRow.locator('.api-key-state.is-duplicate').waitFor();
@@ -162,21 +172,22 @@ async function main() {
   fixtureDelayMs = 0;
   report.cases.push('independent-single-key-retest');
   await rows.nth(0).locator('.api-key-remove').click();
+  await page.locator('[data-api-key-index="3"]').waitFor({state: 'detached'});
   assert.equal(await (await keys()).count(), 3);
   const afterRemoval = await keys();
   assert.equal(await afterRemoval.nth(0).locator('input').inputValue(), 'fixture-B');
   report.cases.push('remove-first-key-keeps-other-keys');
   fixtureDelayMs = 350;
-  await page.locator('[data-api-key-list] [data-connection-test-button]').click();
+  await page.locator('.detail-hero [data-connection-test-button]').click();
   await page.locator('.api-key-progress').waitFor();
-  await page.locator('.api-key-stop').click();
+  await page.locator('.detail-hero [data-connection-test-button]').click();
   await page.locator('[data-api-key-list][data-api-key-busy="false"]').waitFor();
   assert.equal(await page.locator('.api-key-progress').count(), 0);
   report.cases.push('stop-prevents-later-key-checks');
   await page.locator('[data-api-key-list] .api-key-row input').nth(0).fill('fixture-B-edited');
   await page.locator('[data-api-key-list] .api-key-row input').nth(0).fill('fixture-B');
   fixtureDelayMs = 350;
-  await page.locator('[data-api-key-list] [data-connection-test-button]').click();
+  await page.locator('.detail-hero [data-connection-test-button]').click();
   await page.locator('.api-key-progress').waitFor();
   await page.locator('[data-api-key-list] .api-key-row input').nth(1).fill('fixture-C-edited');
   await page.locator('[data-api-key-list][data-api-key-busy="false"]').waitFor();
@@ -184,20 +195,26 @@ async function main() {
   report.cases.push('edit-during-check-clears-stale-row-results');
   fixtureDelayMs = 0;
   const hasEmptyRow = await page.locator('[data-api-key-list] .api-key-row input').evaluateAll(inputs => inputs.some(input => !input.value.trim()));
-  if (!hasEmptyRow) await page.locator('[data-api-key-add]').click();
+  if (!hasEmptyRow) {
+    const beforeAdd = await (await keys()).count();
+    await page.locator('[data-api-key-add]').click();
+    await (await keys()).nth(beforeAdd).waitFor({state: 'visible'});
+  }
   const currentRows = await keys();
   const emptyIndex = await currentRows.count() - 1;
   await currentRows.nth(emptyIndex).locator('input').fill('fixture-K3');
   for (let index = 0; index < 6; index++) {
+    const beforeAdd = await (await keys()).count();
     await page.locator('[data-api-key-add]').click();
     const addedRows = await keys();
-    const addedIndex = await addedRows.count() - 1;
-    await addedRows.nth(addedIndex).locator('input').fill(`fixture-K${addedIndex}`);
+    await addedRows.nth(beforeAdd).waitFor({state: 'visible'});
+    await addedRows.nth(beforeAdd).locator('input').fill(`fixture-K${beforeAdd}`);
   }
   const tenRows = await keys();
   for (let index = 0; index < await tenRows.count(); index++) await tenRows.nth(index).locator('input').fill(index === 0 ? 'fixture-B' : `fixture-K${index}`);
   assert.equal(await (await keys()).count(), 10);
   await page.locator('[data-api-key-add]').click();
+  await (await keys()).nth(10).waitFor({state: 'visible'});
   assert.equal(await (await keys()).count(), 11);
   report.cases.push('ten-filled-key-list-plus-empty-row');
   await page.screenshot({path: path.join(artifactsDir, 'api-keys-ten.png')}); report.screenshots.push('api-keys-ten.png');
@@ -233,20 +250,28 @@ async function main() {
   await page.screenshot({path: path.join(artifactsDir, 'api-keys-narrow.png')}); report.screenshots.push('api-keys-narrow.png');
   report.cases.push('dark-narrow-no-horizontal-overflow');
   await page.close(); await open();
-  await page.locator('.service-group[data-personal-group="configured"] .library-select').filter({hasText: 'API Key Fixture'}).click();
+  await page.locator('[data-service-value]').filter({hasText: 'API Key Fixture'}).click();
   assert.equal(await (await keys()).count(), 11);
   report.cases.push('reopen-persistence');
-  const advanced = page.getByTestId('custom-service-advanced');
-  if (!await advanced.getAttribute('open')) await advanced.locator('summary').click();
+  const advanced = page.locator('[data-configuration-group="advanced"]');
+  if (!(await advanced.evaluate(node => node.hasAttribute('open')))) await advanced.locator('summary').click();
   assert.equal(await page.locator('[data-api-key-auth-policy]').count(), 1);
-  assert.equal(await advanced.getByTestId('custom-service-delete').count(), 1);
+  assert.equal(await page.getByTestId('custom-service-delete').count(), 1);
   assert.equal(await page.locator('.detail-hero [data-testid="custom-service-delete"]').count(), 0);
   const allKeyInputs = page.locator('[data-api-key-list] .api-key-row input');
-  for (let index = 0; index < await allKeyInputs.count(); index++) await allKeyInputs.nth(index).fill('');
+  for (let index = 0; index < await allKeyInputs.count(); index++) {
+    await allKeyInputs.nth(index).fill('');
+    await page.waitForFunction(row => {
+      const inputs = [...document.querySelectorAll('[data-api-key-list] .api-key-row input')];
+      return inputs[row]?.value === '' || (!inputs[row] && inputs.every(input => input.value === ''));
+    }, index);
+  }
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-api-key-list] .api-key-row input')].every(input => input.value === ''));
   const authSwitch = page.locator('[data-api-key-auth-policy] input[type="checkbox"]');
   const authControl = page.locator('[data-api-key-auth-policy] .el-switch');
   if (await authSwitch.isChecked()) await authControl.click();
-  const anonymousButton = page.locator('[data-api-key-list] [data-connection-test-button]');
+  assert(await allKeyInputs.evaluateAll(inputs => inputs.every(input => input.value === '')), 'cleared keys must stay empty after changing authentication policy');
+  const anonymousButton = page.locator('.detail-hero [data-connection-test-button]');
   assert.equal(await anonymousButton.isDisabled(), false);
   const anonymousBefore = report.requests.length;
   await anonymousButton.click();
@@ -280,20 +305,20 @@ async function main() {
   await page.goto(url);
   await page.locator('.service-catalog').waitFor();
   await page.setViewportSize({width: 1440, height: 1000});
-  await page.locator('[data-service-view="all"]').click();
   await page.locator('[data-service-value="aliyunTranslation"]').click();
   assert.equal(await page.locator('[data-cloud-credential="token"] input').count(), 1);
   assert.equal(await page.locator('[data-cloud-credential="secret"] input').count(), 1);
   assert.equal(await page.locator('[data-api-key-list]').count(), 0);
   assert.match(await page.locator('[data-connection-test-button]').innerText(), /检查连接/u);
   report.cases.push('paired-cloud-credentials-remain-a-single-pair');
-  await page.locator('[data-service-view="all"]').click();
   await page.locator('[data-service-value="azureTranslator"]').click();
   assert.equal(await page.locator('[data-cloud-credential="token"][data-api-key-list]').count(), 1);
   assert.equal(await page.locator('[data-cloud-credential="secret"]').count(), 0);
   assert.match(await page.locator('.api-key-heading-title strong').innerText(), /密钥/u);
   await page.locator('[data-api-key-list] input').first().fill('fixture-azure-first');
+  await enableKeyRotation();
   await page.locator('[data-api-key-add]').click();
+  await (await keys()).nth(1).waitFor({state: 'visible'});
   assert.equal(await (await keys()).count(), 2);
   report.cases.push('single-key-cloud-services-support-key-lists');
   assert.equal(report.consoleErrors.length, 0, JSON.stringify(report.consoleErrors));
