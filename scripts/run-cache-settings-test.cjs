@@ -25,7 +25,7 @@ const timeout = Number(argument('timeout', '30000'));
 const MIB = 1024 * 1024;
 const cardSelector = '[data-translation-cache-settings]';
 const expectedNavigationIds = [
-  'settings-general', 'settings-interface', 'settings-services', 'settings-translation',
+  'settings-general', 'settings-services', 'settings-translation', 'settings-interface',
   'settings-harness', 'settings-image-translation', 'settings-area-translation', 'settings-video',
   'settings-sites', 'settings-writing', 'settings-translation-center', 'settings-vocabulary',
   'settings-glossary', 'settings-model-usage', 'settings-advanced', 'settings-data', 'settings-about',
