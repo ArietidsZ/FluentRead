@@ -209,7 +209,7 @@ export function readVisibleCaptionText(container: Element | null): string {
 
 export function findCaptionContainer(): HTMLElement | null {
   if (isXVideoPage()) return document.getElementById(VIDEO_AI_CAPTION_CONTAINER_ID);
-  const candidates = Array.from(document.querySelectorAll<HTMLElement>(VIDEO_CAPTION_CONTAINER_SELECTOR));
+  const candidates = Array.from((findVideoPlayer() || document).querySelectorAll<HTMLElement>(VIDEO_CAPTION_CONTAINER_SELECTOR));
   return candidates.find((candidate) => readVisibleCaptionText(candidate))
     || candidates[0]
     || null;

@@ -1,9 +1,40 @@
 import {describe, expect, it} from 'vitest';
 import {Config} from '@/src/core/config/model';
 import {createGlossaryLibrary} from '@/src/core/glossary';
-import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues} from '@/src/features/video-subtitle/content/subtitleLogic';
+import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues, selectYoutubeCaptionCue} from '@/src/features/video-subtitle/content/subtitleLogic';
 
 describe('video subtitle logic', () => {
+  it('YouTube 只匹配当前时间内的原文，不借用前后句或其他时段的同文字幕', () => {
+    const first = {startMs: 1000, durationMs: 1000, text: 'Sea otters have strong teeth.'};
+    const next = {startMs: 2000, durationMs: 1000, text: 'They open the shell.'};
+    const repeated = {...first, startMs: 9000};
+    const cues = [first, next, repeated];
+    expect(selectYoutubeCaptionCue(cues, 'Sea otters', 1500)).toEqual({cue: first, stale: false});
+    expect(selectYoutubeCaptionCue(cues, first.text, 2000)).toEqual({cue: null, stale: true});
+    expect(selectYoutubeCaptionCue(cues, next.text, 1999)).toEqual({cue: null, stale: true});
+    expect(selectYoutubeCaptionCue(cues, first.text, 9500)).toEqual({cue: repeated, stale: false});
+    expect(selectYoutubeCaptionCue(cues, first.text, 8500)).toEqual({cue: null, stale: true});
+    expect(selectYoutubeCaptionCue(cues, 'A different language track.', 2500)).toEqual({cue: null, stale: false});
+    expect(selectYoutubeCaptionCue(cues, 'shell.', 2500)).toEqual({cue: next, stale: false});
+    expect(selectYoutubeCaptionCue(cues, 'shell.', 3500)).toEqual({cue: null, stale: false});
+  });
+
+  it('YouTube 匹配处理空值、无时间轴、短 cue 和重叠 cue，严格遵守结束时间', () => {
+    const cue = {startMs: 1000, durationMs: 100, text: 'Hello'};
+    expect(selectYoutubeCaptionCue([cue], '', 1000)).toEqual({cue: null, stale: false});
+    expect(selectYoutubeCaptionCue([cue], 'Hello', NaN)).toEqual({cue: null, stale: false});
+    expect(selectYoutubeCaptionCue([cue], 'hello', 1099).cue).toBe(cue);
+    expect(selectYoutubeCaptionCue([cue], 'hello', 1100)).toEqual({cue: null, stale: true});
+    expect(selectYoutubeCaptionCue([{...cue, durationMs: 0}], 'hello', 1000).cue).toBeNull();
+    const early = {...cue, durationMs: 1000};
+    const late = {...early, startMs: 1100};
+    const prefix = {...late, text: 'Hello there'};
+    expect(selectYoutubeCaptionCue([{...early, text: ''}, late, early, prefix], '  HELLO  ', 1200).cue).toBe(late);
+    expect(selectYoutubeCaptionCue([early, late], 'hello', 1200).cue).toBe(late);
+    expect(selectYoutubeCaptionCue([{...early, text: 'say hello'}], 'he', 1200).cue).toBeNull();
+    expect(selectYoutubeCaptionCue([cue], 'well hello', 1000).cue).toBe(cue);
+  });
+
   it('原语言、字幕词库选择与术语修改均使旧字幕翻译失效', () => {
     const config = new Config();
     config.glossaryEnabled = true;

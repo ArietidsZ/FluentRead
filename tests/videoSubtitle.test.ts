@@ -32,7 +32,7 @@ import {
     translateVideoSubtitleCues,
     VIDEO_CAPTION_SEGMENT_SELECTOR,
 } from '@/src/features/video-subtitle/content/runtime';
-import {applyVideoDisplayState, findVideoPlayer} from '@/src/features/video-subtitle/content/ui';
+import {applyVideoDisplayState, findVideoPlayer, findCaptionContainer} from '@/src/features/video-subtitle/content/ui';
 import {validateYoutubeTimedTextMessage} from '@/src/features/video-subtitle/content/youtubeTimedTextMessage';
 import {config} from '@/src/services/config/store';
 import { normalizeVideoSubtitleFontSize } from '@/src/core/config/model';
@@ -46,6 +46,14 @@ afterEach(() => {
 });
 
 describe('YouTube 视频字幕识别', () => {
+    it('只读取当前播放器内的字幕，忽略页面上残留的其他字幕容器', () => {
+        const {document} = parseHTML('<html><body><div class="ytp-caption-window-container"><span class="ytp-caption-segment">Old player</span></div><div id="movie_player"><div id="ytp-caption-window-container"></div></div></body></html>');
+        vi.stubGlobal('document', document);
+        vi.stubGlobal('window', {location: new URL('https://www.youtube.com/watch?v=current')});
+        expect(findCaptionContainer()).toBe(document.getElementById('ytp-caption-window-container'));
+        expect(readVisibleCaptionText(findCaptionContainer())).toBe('');
+    });
+
     it('只把 YouTube 视频页识别为视频字幕目标', () => {
         expect(isYouTubeVideoPage({ hostname: 'www.youtube.com', pathname: '/watch' })).toBe(true);
         expect(isYouTubeVideoPage({ hostname: 'youtube-nocookie.com', pathname: '/embed/abc123' })).toBe(false);

@@ -119,6 +119,10 @@ function hasCurrentXVideoLink(video: HTMLVideoElement, view: Window): boolean {
 
 function playerForVideo(video: HTMLVideoElement, view: Window): HTMLElement {
   const fullscreen = view.document.fullscreenElement;
+  const youtubePlayer = video.closest<HTMLElement>('#movie_player, .html5-video-player');
+  // YouTube 可以将 html 设为全屏，再用 fixed 撑满实际播放器；html 此时可能
+  // 高度为 0。只有播放器在全屏子树之外时才需要改用更内层的全屏容器。
+  if (youtubePlayer && (!fullscreen || fullscreen.contains(youtubePlayer))) return youtubePlayer;
   if (fullscreen && fullscreen !== video && fullscreen.contains(video)
     && fullscreen.querySelectorAll('video').length === 1) {
     return fullscreen as HTMLElement;
