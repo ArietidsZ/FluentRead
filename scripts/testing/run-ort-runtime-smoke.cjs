@@ -1,12 +1,11 @@
 'use strict';
 
-// 在独立产物副本中用真实 ORT 执行微型 ONNX 图，验证压缩 WASM 的 CPU/GPU 加载与算子。
+// 在独立产物副本中用真实 ORT 执行微型 ONNX 图，验证原始 WASM 的 CPU/GPU 加载与算子。
 // 只附加测试页/Worker，保留被测扩展的 CSP；不下载模型、不修改生产产物。
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const {createRequire} = require('node:module');
-const {gzipSync} = require('node:zlib');
 const {createHash} = require('node:crypto');
 const assert = require('node:assert/strict');
 function arg(name, fallback) { const i = process.argv.indexOf(`--${name}`); return i < 0 ? fallback : process.argv[i + 1]; }
@@ -46,17 +45,17 @@ for (const [name, label, prefix] of [['@huggingface/transformers', 'opus-whisper
   fs.copyFileSync(path.join(dist, 'ort.webgpu.bundle.min.mjs'), path.join(fixture, `probe-${label}-ort.mjs`));
   if (prototype) {
     fs.copyFileSync(path.join(dist, `${runtimeName}.mjs`), path.join(fixture, `fluent-read-ai/${prefix}${runtimeName}.mjs`));
-    fs.writeFileSync(path.join(fixture, `fluent-read-ai/${prefix}${runtimeName}.wasm.gz`), gzipSync(fs.readFileSync(path.join(dist, `${runtimeName}.wasm`)), {level: 9}));
+    fs.writeFileSync(path.join(fixture, `fluent-read-ai/${prefix}${runtimeName}.wasm`), fs.readFileSync(path.join(dist, `${runtimeName}.wasm`)));
   }
   fs.writeFileSync(path.join(fixture, `probe-${label}.mjs`), `
 import {env, InferenceSession, Tensor} from './probe-${label}-ort.mjs';
 self.onmessage = async ({data: {backend}}) => {
   try {
     const started = performance.now();
-    const response = await fetch(new URL('./fluent-read-ai/${prefix}${runtimeName}.wasm.gz', self.location.href));
-    if (!response.ok || !response.body) throw new Error('Packaged gzip missing');
-    const binary = new Uint8Array(await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
-    const decompressedMs = performance.now() - started;
+    const response = await fetch(new URL('./fluent-read-ai/${prefix}${runtimeName}.wasm', self.location.href));
+    if (!response.ok || !response.body) throw new Error('Packaged WASM missing');
+    const binary = new Uint8Array(await response.arrayBuffer());
+    const loadedMs = performance.now() - started;
     const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', binary))].map(x => x.toString(16).padStart(2, '0')).join('');
     env.wasm.numThreads = 1;
     env.wasm.proxy = false;
@@ -71,7 +70,7 @@ self.onmessage = async ({data: {backend}}) => {
     const nextResult = await nextSession.run({input: new Tensor('float32', new Float32Array([-7]), [1])});
     const reusedOutput = [...nextResult.output.data];
     await nextSession.release();
-    self.postMessage({ok: true, output, reusedOutput, binaryBytes: binary.byteLength, digest, decompressedMs, totalMs: performance.now() - started});
+    self.postMessage({ok: true, output, reusedOutput, binaryBytes: binary.byteLength, digest, loadedMs, totalMs: performance.now() - started});
   } catch (error) { self.postMessage({ok: false, error: String(error), stack: error.stack}); }
 };`);
 }

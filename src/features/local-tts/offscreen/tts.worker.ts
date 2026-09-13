@@ -127,12 +127,12 @@ function configureRuntime(): void {
         kokoroTransformersEnv.backends.onnx.wasm.numThreads = 1;
         configureOnnxWasmBackend(kokoroTransformersEnv.backends.onnx.wasm, {
             mjs: extensionUrl('fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.mjs'),
-            wasm: extensionUrl('fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm.gz'),
+            wasm: extensionUrl('fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm'),
         });
     }
     kokoroEnv.wasmPaths = {
         mjs: extensionUrl('fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.mjs'),
-        wasm: extensionUrl('fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm.gz'),
+        wasm: extensionUrl('fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm'),
     };
 }
 
@@ -146,7 +146,7 @@ async function createModel(device: LocalTtsDevice): Promise<KokoroTTS> {
     });
     const wasm = kokoroTransformersEnv.backends.onnx.wasm;
     return wasm
-        ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm.gz'), create)
+        ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm'), create)
         : create();
 }
 

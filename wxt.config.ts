@@ -2,7 +2,6 @@ import {defineConfig, type ConfigEnv, type UserManifest} from 'wxt';
 import vue from '@vitejs/plugin-vue';
 import {resolve} from 'path';
 import fs from 'fs';
-import {gzipSync} from 'zlib';
 import {resolveBrowserCapabilities} from './src/platform/browser/capabilities';
 import {wllamaExtensionWorker} from './scripts/testing/wllama-extension-build';
 import {createUiLanguageBundleFiles} from './src/core/i18n/bundles';
@@ -26,14 +25,6 @@ function resolvePnpmDependencyDist(ownerPackagePath: string, dependencyName: str
     const packageDirectory = fs.readdirSync(pnpmRoot).find((name) => name === packagePrefix || name.startsWith(`${packagePrefix}-`));
     if (!packageDirectory) throw new Error(`无法定位 ${packagePrefix} 的本地依赖产物`);
     return resolve(pnpmRoot, packageDirectory, 'node_modules', dependencyName, 'dist');
-}
-
-function createCompressedWasmAsset(sourcePath: string, fileName: string): string {
-    const outputDirectory = resolve(__dirname, '.wxt/packaged-wasm');
-    fs.mkdirSync(outputDirectory, {recursive: true});
-    const outputPath = resolve(outputDirectory, fileName);
-    fs.writeFileSync(outputPath, gzipSync(fs.readFileSync(sourcePath), {level: 9}));
-    return outputPath;
 }
 
 /**
@@ -119,7 +110,7 @@ export function createExtensionManifest(
         ],
         content_security_policy: {
             // 扩展页面只执行自身静态脚本和 WASM；本地 TTS Worker 通过打包的
-            // 静态 MJS 与随包压缩的 CPU/WebGPU WASM，不放宽到 blob 脚本。
+            // 静态 MJS 与随包原始 CPU/WebGPU WASM（Edge 商店拒绝嵌套压缩文件），不放宽到 blob 脚本。
             extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
         },
         host_permissions: [
@@ -209,10 +200,10 @@ export default defineConfig({
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@wllama/wllama/esm/wasm/wllama.wasm'), relativeDest: 'fluent-read-ai/wllama.wasm'});
             const opusOrtDist = resolvePnpmDependencyDist('node_modules/@huggingface/transformers', 'onnxruntime-web');
             files.push({absoluteSrc: packageWasmDiagnostics(__dirname, resolve(opusOrtDist, 'ort-wasm-simd-threaded.jsep.mjs'), 'ort-wasm-simd-threaded.jsep.mjs', 'onnx'), relativeDest: 'fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs'});
-            files.push({absoluteSrc: createCompressedWasmAsset(resolve(opusOrtDist, 'ort-wasm-simd-threaded.jsep.wasm'), 'ort-wasm-simd-threaded.jsep.wasm.gz'), relativeDest: 'fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm.gz'});
+            files.push({absoluteSrc: resolve(opusOrtDist, 'ort-wasm-simd-threaded.jsep.wasm'), relativeDest: 'fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm'});
             const ttsOrtDist = resolvePnpmDependencyDist('node_modules/@huggingface/transformers-kokoro', 'onnxruntime-web');
             files.push({absoluteSrc: packageWasmDiagnostics(__dirname, resolve(ttsOrtDist, 'ort-wasm-simd-threaded.asyncify.mjs'), 'tts-ort-wasm-simd-threaded.asyncify.mjs', 'onnx'), relativeDest: 'fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.mjs'});
-            files.push({absoluteSrc: createCompressedWasmAsset(resolve(ttsOrtDist, 'ort-wasm-simd-threaded.asyncify.wasm'), 'tts-ort-wasm-simd-threaded.asyncify.wasm.gz'), relativeDest: 'fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm.gz'});
+            files.push({absoluteSrc: resolve(ttsOrtDist, 'ort-wasm-simd-threaded.asyncify.wasm'), relativeDest: 'fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm'});
             const ocrCore = files.find(file => file.relativeDest === 'fluent-read-ocr/core/tesseract-core-simd-lstm.wasm.js');
             if (!ocrCore || !('absoluteSrc' in ocrCore)) throw new Error('Missing packaged OCR core');
             ocrCore.absoluteSrc = packageWasmDiagnostics(__dirname, ocrCore.absoluteSrc, 'tesseract-core-simd-lstm.wasm.js', 'tesseract');
