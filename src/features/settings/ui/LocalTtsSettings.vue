@@ -14,7 +14,7 @@
       />
     </SettingsItem>
 
-    <SettingsItem :label="t('settings.localTts.voice')" :description="t('settings.localTts.modelDescription')">
+    <SettingsItem :label="t('settings.localTts.voice')" :description="t('settings.localTts.modelDescription', {size: LOCAL_TTS_MODEL.downloadSizeMb})">
       <el-select v-model="localVoice" aria-label="本地音色" filterable>
         <el-option
           v-for="option in voiceOptions"
@@ -31,7 +31,7 @@
           <span class="local-tts-model-icon" aria-hidden="true"><Cpu /></span>
           <div>
             <strong>{{ t('settings.localTts.model') }}</strong>
-            <small>{{ t('settings.localTts.modelDescription') }}</small>
+            <small>{{ t('settings.localTts.modelDescription', {size: LOCAL_TTS_MODEL.downloadSizeMb}) }}</small>
           </div>
           <span class="local-tts-badge"><Cpu aria-hidden="true" />{{ t('settings.localTts.localBadge') }}</span>
         </div>

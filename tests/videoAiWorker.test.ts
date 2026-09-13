@@ -32,6 +32,27 @@ const wasmMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/src/shared/onnx/wasmBinary', () => wasmMocks);
+const webGpuMocks = vi.hoisted(() => ({
+    probeWebGpu: vi.fn(async () => ({available: false, info: ''})),
+}));
+
+vi.mock('@/src/shared/onnx/webgpu', () => webGpuMocks);
+
+function createWorkerScope(): Record<string, any> {
+    return {
+        setTimeout,
+        clearTimeout,
+        addEventListener: vi.fn(),
+        postMessage: vi.fn(),
+        location: {href: 'chrome-extension://test/worker.js'},
+    };
+}
+
+async function waitForWorkerMessages(scope: Record<string, any>, count: number): Promise<void> {
+    for (let index = 0; index < 30 && scope.postMessage.mock.calls.length < count; index += 1) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+    }
+}
 
 describe('视频 AI Worker timestamp parser', () => {
     it('调用 Whisper 首步模型 logits 检测 auto 语言，并按 stream session 缓存后切换', async () => {
@@ -105,6 +126,228 @@ describe('视频 AI Worker timestamp parser', () => {
         expect(transcribeCalls.slice(0, 3).map((call) => call.language)).toEqual(['ko', 'ko', 'en']);
         expect(transcribeCalls.at(-1)?.language).toBe('en');
         expect(detectionTensors.every((tensor) => tensor.disposed)).toBe(true);
+        vi.unstubAllGlobals();
+    });
+
+    it('硬件 WebGPU 可用时优先创建 q4 session，并回传 GPU 诊断', async () => {
+        vi.resetModules();
+        const scope: Record<string, any> = {
+            setTimeout,
+            clearTimeout,
+            addEventListener: vi.fn(),
+            postMessage: vi.fn(),
+            location: {href: 'chrome-extension://test/worker.js'},
+        };
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 8});
+        workerMocks.pipeline.mockReset();
+        webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: true, info: 'Apple / MTL / GPU'});
+        const gpuTranscriber: any = vi.fn(async () => ({text: 'GPU result', chunks: []}));
+        gpuTranscriber.dispose = vi.fn(async () => undefined);
+        workerMocks.pipeline.mockResolvedValue(gpuTranscriber);
+
+        const workerModule = await import('@/src/features/video-subtitle/offscreen/transcription.worker');
+        workerModule.startVideoTranscriptionWorker();
+        scope.onmessage?.({data: {requestId: 1, type: 'prepare', model: 'tiny'}});
+        for (let index = 0; index < 10 && scope.postMessage.mock.calls.length < 1; index += 1) await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(webGpuMocks.probeWebGpu).toHaveBeenCalledTimes(1);
+        expect(workerMocks.pipeline).toHaveBeenCalledWith('automatic-speech-recognition', expect.any(String), expect.objectContaining({
+            device: 'webgpu',
+            dtype: 'q4',
+            session_options: expect.objectContaining({enableCpuMemArena: false, enableMemPattern: false, executionMode: 'sequential'}),
+        }));
+        expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+            success: true,
+            backend: 'webgpu',
+            gpuInfo: 'Apple / MTL / GPU',
+            dtype: 'q4',
+        }));
+        vi.unstubAllGlobals();
+    });
+
+    it('GPU 语言检测失败时释放旧 session 并回传 fresh CPU 重试提示', async () => {
+        vi.resetModules();
+        const scope: Record<string, any> = {
+            setTimeout,
+            clearTimeout,
+            addEventListener: vi.fn(),
+            postMessage: vi.fn(),
+            location: {href: 'chrome-extension://test/worker.js'},
+        };
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 4});
+        workerMocks.pipeline.mockReset();
+        webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: true, info: 'Discrete GPU'});
+
+        const gpuTranscriber: any = vi.fn(async () => ({text: 'should not run', chunks: []}));
+        gpuTranscriber.processor = vi.fn(async () => ({input_features: new workerMocks.Tensor('float32', new Float32Array([0]), [1])}));
+        gpuTranscriber.model = vi.fn(async () => { throw new Error('GPU language detection failed'); });
+        gpuTranscriber.model.config = {is_multilingual: true, decoder_start_token_id: 0};
+        gpuTranscriber.model.generation_config = {
+            is_multilingual: true,
+            decoder_start_token_id: 0,
+            lang_to_id: {'<|en|>': 1},
+        };
+        gpuTranscriber.dispose = vi.fn(async () => undefined);
+
+        workerMocks.pipeline.mockResolvedValue(gpuTranscriber);
+
+        const workerModule = await import('@/src/features/video-subtitle/offscreen/transcription.worker');
+        workerModule.startVideoTranscriptionWorker();
+        const send = (requestId: number, device?: 'wasm') => scope.onmessage?.({data: {
+            requestId,
+            type: 'transcribe',
+            model: 'tiny',
+            sourceLanguage: 'auto',
+            languageSessionKey: `stream-${requestId}`,
+            audio: new Float32Array([0, 0, 0, 0]),
+            device,
+        }});
+        send(1);
+        for (let index = 0; index < 20 && scope.postMessage.mock.calls.length < 1; index += 1) await new Promise(resolve => setTimeout(resolve, 0));
+        expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: false, error: 'GPU language detection failed', retryWithCpu: true}));
+        expect(gpuTranscriber.dispose).toHaveBeenCalledTimes(1);
+        expect(workerMocks.pipeline.mock.calls.map(([, , options]) => options.device)).toEqual(['webgpu']);
+        expect(workerMocks.pipeline).toHaveBeenCalledTimes(1);
+        expect(webGpuMocks.probeWebGpu).toHaveBeenCalledTimes(1);
+        vi.unstubAllGlobals();
+    });
+
+    it('GPU 上的语言配置错误直接返回，不误判为 GPU 故障或重建 session', async () => {
+        vi.resetModules();
+        const scope = createWorkerScope();
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 4});
+        workerMocks.pipeline.mockReset();
+        webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: true, info: 'Discrete GPU'});
+        const gpuTranscriber: any = vi.fn();
+        gpuTranscriber.processor = vi.fn();
+        gpuTranscriber.model = vi.fn();
+        gpuTranscriber.model.config = {is_multilingual: true, decoder_start_token_id: 0};
+        gpuTranscriber.dispose = vi.fn(async () => undefined);
+        workerMocks.pipeline.mockResolvedValue(gpuTranscriber);
+
+        const workerModule = await import('@/src/features/video-subtitle/offscreen/transcription.worker');
+        workerModule.startVideoTranscriptionWorker();
+        scope.onmessage?.({data: {
+            requestId: 1,
+            type: 'transcribe',
+            model: 'tiny',
+            sourceLanguage: 'auto',
+            audio: new Float32Array([0, 0, 0, 0]),
+        }});
+        await waitForWorkerMessages(scope, 1);
+
+        expect(scope.postMessage).toHaveBeenLastCalledWith({requestId: 1, success: false, error: 'Whisper 模型缺少语言 token 配置'});
+        expect(gpuTranscriber.dispose).not.toHaveBeenCalled();
+        expect(gpuTranscriber.model).not.toHaveBeenCalled();
+        expect(workerMocks.pipeline).toHaveBeenCalledTimes(1);
+        vi.unstubAllGlobals();
+    });
+
+    it('GPU 初始化失败后释放状态并回传 fresh CPU 重试提示', async () => {
+        vi.resetModules();
+        const scope = createWorkerScope();
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 4});
+        workerMocks.pipeline.mockReset();
+        webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: true, info: 'Discrete GPU'});
+        workerMocks.pipeline.mockRejectedValue(new Error('GPU init failed'));
+
+        const workerModule = await import('@/src/features/video-subtitle/offscreen/transcription.worker');
+        workerModule.startVideoTranscriptionWorker();
+        scope.onmessage?.({data: {requestId: 1, type: 'prepare', model: 'tiny'}});
+        await waitForWorkerMessages(scope, 1);
+
+        expect(workerMocks.pipeline.mock.calls.map(([, , options]) => options.device)).toEqual(['webgpu']);
+        expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: false, error: 'GPU init failed', retryWithCpu: true}));
+        expect(workerMocks.pipeline).toHaveBeenCalledTimes(1);
+        expect(webGpuMocks.probeWebGpu).toHaveBeenCalledTimes(1);
+        vi.unstubAllGlobals();
+    });
+
+    it('显式源语言的 GPU 推理失败后释放 session 并回传 fresh CPU 重试提示', async () => {
+        vi.resetModules();
+        const scope = createWorkerScope();
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 4});
+        workerMocks.pipeline.mockReset();
+        webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: true, info: 'Discrete GPU'});
+        const gpuTranscriber: any = vi.fn(async () => { throw new Error('GPU inference failed'); });
+        gpuTranscriber.dispose = vi.fn(async () => undefined);
+        workerMocks.pipeline.mockResolvedValue(gpuTranscriber);
+
+        const workerModule = await import('@/src/features/video-subtitle/offscreen/transcription.worker');
+        workerModule.startVideoTranscriptionWorker();
+        scope.onmessage?.({data: {
+            requestId: 1,
+            type: 'transcribe',
+            model: 'tiny',
+            sourceLanguage: 'en-US',
+            audio: new Float32Array([0, 0, 0, 0]),
+        }});
+        await waitForWorkerMessages(scope, 1);
+
+        expect(gpuTranscriber.dispose).toHaveBeenCalledTimes(1);
+        expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: false, error: 'GPU inference failed', retryWithCpu: true}));
+        expect(workerMocks.pipeline).toHaveBeenCalledTimes(1);
+        vi.unstubAllGlobals();
+    });
+
+    it('WASM 推理失败时直接返回错误，不再次创建或重试 session', async () => {
+        vi.resetModules();
+        const scope = createWorkerScope();
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 1});
+        workerMocks.pipeline.mockReset();
+        webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: false, info: ''});
+        const cpuTranscriber: any = vi.fn(async () => { throw new Error('CPU inference failed'); });
+        workerMocks.pipeline.mockResolvedValue(cpuTranscriber);
+
+        const workerModule = await import('@/src/features/video-subtitle/offscreen/transcription.worker');
+        workerModule.startVideoTranscriptionWorker();
+        scope.onmessage?.({data: {
+            requestId: 1,
+            type: 'transcribe',
+            model: 'tiny',
+            sourceLanguage: 'en',
+            audio: new Float32Array([0, 0, 0, 0]),
+        }});
+        await waitForWorkerMessages(scope, 1);
+
+        expect(cpuTranscriber).toHaveBeenCalledTimes(1);
+        expect(workerMocks.pipeline).toHaveBeenCalledTimes(1);
+        expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: false, error: 'CPU inference failed'}));
+        expect(scope.postMessage.mock.calls.at(-1)?.[0]).not.toHaveProperty('retryWithCpu');
+        vi.unstubAllGlobals();
+    });
+
+    it('收到 device wasm 时释放 GPU session 并锁定本 Worker 使用 WASM', async () => {
+        vi.resetModules();
+        const scope = createWorkerScope();
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 4});
+        workerMocks.pipeline.mockReset();
+        webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: true, info: 'Discrete GPU'});
+        const gpuTranscriber: any = vi.fn(async () => ({text: 'GPU result', chunks: []}));
+        gpuTranscriber.dispose = vi.fn(async () => undefined);
+        const cpuTranscriber: any = vi.fn(async () => ({text: 'CPU result', chunks: []}));
+        workerMocks.pipeline
+            .mockResolvedValueOnce(gpuTranscriber)
+            .mockResolvedValueOnce(cpuTranscriber);
+
+        const workerModule = await import('@/src/features/video-subtitle/offscreen/transcription.worker');
+        workerModule.startVideoTranscriptionWorker();
+        scope.onmessage?.({data: {requestId: 1, type: 'prepare', model: 'tiny'}});
+        await waitForWorkerMessages(scope, 1);
+        scope.onmessage?.({data: {requestId: 2, type: 'prepare', model: 'tiny', device: 'wasm'}});
+        await waitForWorkerMessages(scope, 2);
+
+        expect(gpuTranscriber.dispose).toHaveBeenCalledTimes(1);
+        expect(workerMocks.pipeline.mock.calls.map(([, , options]) => options.device)).toEqual(['webgpu', 'wasm']);
+        expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: true, backend: 'wasm', dtype: 'q4'}));
+        expect(webGpuMocks.probeWebGpu).toHaveBeenCalledTimes(1);
         vi.unstubAllGlobals();
     });
 

@@ -18,11 +18,16 @@ import {
 
 export const LOCAL_TTS_MODEL_REMOTE_HOST = 'https://huggingface.co/' as const;
 
-/** @remarks q4f16 模型的实际推理只需要这组文件；README 和其他量化版本不进入缓存。 */
+/** @remarks fp32 模型的实际推理只需要这组文件；README 和其他量化版本不进入缓存。 */
 export const LOCAL_TTS_MODEL_FILES = [
     'config.json',
     'tokenizer.json',
     'tokenizer_config.json',
+    'onnx/model.onnx',
+] as const;
+
+/** 早期版本的缓存文件只在显式清除时处理，避免升级检查误删用户资源。 */
+export const LOCAL_TTS_LEGACY_MODEL_FILES = [
     'onnx/model_q4f16.onnx',
 ] as const;
 
@@ -143,8 +148,9 @@ export async function removeLocalTtsModelFiles(): Promise<void> {
     if (typeof caches === 'undefined') throw new Error('当前浏览器不支持本地 TTS 模型缓存');
     const modelCache = await caches.open(LOCAL_TTS_MODEL_CACHE_NAME);
     const voiceCache = await caches.open(LOCAL_TTS_VOICE_CACHE_NAME);
+    const removableModelFiles = [...LOCAL_TTS_MODEL_FILES, ...LOCAL_TTS_LEGACY_MODEL_FILES];
     await Promise.all([
-        ...LOCAL_TTS_MODEL_FILES.flatMap((file) => [
+        ...removableModelFiles.flatMap((file) => [
             modelCache.delete(getLocalTtsModelFileUrl(file)),
             modelCache.delete(getLocalTtsModelLoaderUrl(file)),
         ]),

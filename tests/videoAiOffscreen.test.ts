@@ -7,14 +7,20 @@ class FakeWorker {
     onerror: ((event: ErrorEvent) => void) | null = null;
     terminated = false;
     constructor() { FakeWorker.instances.push(this); }
-    postMessage(message: any): void { (this as any).lastMessage = message; }
+    postMessage(message: any, transfer: Transferable[] = []): void {
+        (this as any).lastMessage = transfer.length
+            ? structuredClone(message, {transfer})
+            : structuredClone(message);
+    }
     terminate(): void { this.terminated = true; }
     reply(response: Record<string, unknown>): void { this.onmessage?.({data: response} as MessageEvent); }
+    fail(message = 'worker failed'): void { this.onerror?.({message} as ErrorEvent); }
 }
 
 afterEach(() => {
     vi.unstubAllGlobals();
     vi.clearAllTimers();
+    vi.useRealTimers();
     FakeWorker.instances = [];
 });
 
@@ -80,6 +86,50 @@ describe('video AI offscreen queue', () => {
         worker.reply({requestId: (worker as any).lastMessage.requestId, success: true, model: 'tiny', backend: 'wasm', dtype: 'q4'});
         await expect(first).resolves.toMatchObject({model: 'tiny', backend: 'wasm'});
         await cancelLocalVideoTranscription('warm');
+    });
+
+    it('rebuilds a WASM worker once after a worker failure and ignores the stale worker error', async () => {
+        installWorker();
+        const pending = transcribeLocalVideoAudio({streamId: 'fallback', audioPcm16Base64: audio, model: 'tiny'});
+        await tick();
+        const first = FakeWorker.instances[0];
+        first.fail('GPU worker failed');
+        await tick();
+        expect(FakeWorker.instances).toHaveLength(2);
+        const replacement = FakeWorker.instances[1];
+        expect((replacement as any).lastMessage.device).toBe('wasm');
+        expect((replacement as any).lastMessage.audio.byteLength).toBeGreaterThan(0);
+        first.fail('late stale error');
+        replacement.reply({requestId: (replacement as any).lastMessage.requestId, success: true, text: 'cpu', segments: [], model: 'tiny', backend: 'wasm'});
+        await expect(pending).resolves.toMatchObject({text: 'cpu', backend: 'wasm'});
+        expect(replacement.terminated).toBe(false);
+        await cancelLocalVideoTranscription('fallback');
+    });
+
+    it('reserves the remaining request budget for one WASM retry after timeout', async () => {
+        vi.useFakeTimers();
+        installWorker();
+        const pending = transcribeLocalVideoAudio({streamId: 'timeout-fallback', audioPcm16Base64: audio, model: 'tiny'});
+        await tick();
+        vi.advanceTimersByTime(16_001);
+        await tick();
+        expect(FakeWorker.instances).toHaveLength(2);
+        const replacement = FakeWorker.instances[1];
+        expect((replacement as any).lastMessage.device).toBe('wasm');
+        replacement.reply({requestId: (replacement as any).lastMessage.requestId, success: true, text: 'cpu-timeout', segments: [], model: 'tiny'});
+        await expect(pending).resolves.toMatchObject({text: 'cpu-timeout'});
+        await cancelLocalVideoTranscription('timeout-fallback');
+    });
+
+    it('does not restart a cancelled stream between worker error and the fallback microtask', async () => {
+        installWorker();
+        const pending = transcribeLocalVideoAudio({streamId: 'cancel-between', audioPcm16Base64: audio, model: 'tiny'});
+        await tick();
+        const first = FakeWorker.instances[0];
+        first.fail('GPU worker failed');
+        await cancelLocalVideoTranscription('cancel-between');
+        await expect(pending).rejects.toThrow('取消');
+        expect(FakeWorker.instances).toHaveLength(1);
     });
 });
 

@@ -57,7 +57,7 @@ export async function cacheVideoAiModelFiles(model: unknown, dtype: 'q4' | 'q8' 
     if (await cache.match(url)) continue;
 
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), MODEL_FILE_DOWNLOAD_TIMEOUT_MS);
+    const timeout = globalThis.setTimeout(() => controller.abort(), MODEL_FILE_DOWNLOAD_TIMEOUT_MS);
     try {
       const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) throw new Error(`模型文件下载失败（${response.status}）：${file}`);
@@ -68,7 +68,7 @@ export async function cacheVideoAiModelFiles(model: unknown, dtype: 'q4' | 'q8' 
       }
       throw error;
     } finally {
-      window.clearTimeout(timeout);
+      globalThis.clearTimeout(timeout);
     }
   }
 }
