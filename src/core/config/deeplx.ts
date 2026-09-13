@@ -60,8 +60,6 @@ export function getDeepLXEndpoints(configuredURL: unknown, proxyURL: unknown, to
     : configuredEndpoints.length > 0 ? configuredEndpoints : [DEFAULT_DEEPLX_ENDPOINT]
   const resolvedEndpoints = endpoints.map((endpoint) => resolveDeepLXEndpoint(endpoint, token)).filter((endpoint): endpoint is string => endpoint !== null)
   if (resolvedEndpoints.length > 0) return resolvedEndpoints
-  if (!token.trim() && requiresDeepLXToken(configuredURL, proxyURL)) {
-    throw new Error('DeepLX 地址包含 {{apiKey}} 或 {{token}} 占位符，请填写 API Key；无 Key 地址请移除占位符。')
-  }
-  return [DEFAULT_DEEPLX_ENDPOINT]
+  // 候选为空只可能是所有地址均含占位符且未提供令牌；保留用户指定的地址边界。
+  throw new Error('DeepLX 地址包含 {{apiKey}} 或 {{token}} 占位符，请填写 API Key；无 Key 地址请移除占位符。')
 }

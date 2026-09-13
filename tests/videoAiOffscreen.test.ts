@@ -121,6 +121,46 @@ describe('video AI offscreen queue', () => {
         await cancelLocalVideoTranscription('timeout-fallback');
     });
 
+    it.each([undefined, 'GPU inference failed'])('retries explicit GPU fallback messages on a fresh worker (%s)', async (error) => {
+        installWorker();
+        const pending = transcribeLocalVideoAudio({streamId: 'gpu-message', audioPcm16Base64: audio, model: 'tiny'});
+        await tick();
+        const first = FakeWorker.instances[0];
+        const firstMessage = (first as any).lastMessage;
+        const originalAudio = Array.from(firstMessage.audio);
+        first.reply({requestId: firstMessage.requestId, success: false, retryWithCpu: true, error});
+        await tick();
+        expect(first.terminated).toBe(true);
+        expect(FakeWorker.instances).toHaveLength(2);
+        const replacement = FakeWorker.instances[1];
+        const retry = (replacement as any).lastMessage;
+        expect(retry.device).toBe('wasm');
+        expect(Array.from(retry.audio)).toEqual(originalAudio);
+        first.reply({requestId: firstMessage.requestId, success: true, text: 'stale'});
+        replacement.reply({requestId: retry.requestId, success: true, text: 'cpu', segments: [], model: 'tiny', backend: 'wasm'});
+        await expect(pending).resolves.toMatchObject({text: 'cpu', backend: 'wasm'});
+        await cancelLocalVideoTranscription('gpu-message');
+    });
+
+    it('does not retry after the total deadline and releases stream ownership', async () => {
+        vi.useFakeTimers();
+        installWorker();
+        const startedAt = Date.now();
+        const pending = transcribeLocalVideoAudio({streamId: 'expired', audioPcm16Base64: audio, model: 'tiny'});
+        await tick();
+        vi.setSystemTime(startedAt + 32_000);
+        FakeWorker.instances[0].fail('late GPU failure');
+        await expect(pending).rejects.toThrow('late GPU failure');
+        expect(FakeWorker.instances).toHaveLength(1);
+        expect(FakeWorker.instances[0].terminated).toBe(true);
+        const recovered = transcribeLocalVideoAudio({streamId: 'next-owner', audioPcm16Base64: audio, model: 'tiny'});
+        await tick();
+        const replacement = FakeWorker.instances[1];
+        replacement.reply({requestId: (replacement as any).lastMessage.requestId, success: true, text: 'recovered', segments: []});
+        await expect(recovered).resolves.toMatchObject({text: 'recovered'});
+        await cancelLocalVideoTranscription('next-owner');
+    });
+
     it('does not restart a cancelled stream between worker error and the fallback microtask', async () => {
         installWorker();
         const pending = transcribeLocalVideoAudio({streamId: 'cancel-between', audioPcm16Base64: audio, model: 'tiny'});

@@ -9,6 +9,11 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('字幕校时记录保留正负偏移和毫秒单位', () => {
+        const changes = group(buildConfigDiff({videoSubtitleOffsetMs: -500}, {videoSubtitleOffsetMs: 1000}), 'videoSubtitles')?.changes;
+        expect(changes).toEqual([{key: 'videoSubtitleOffsetMs', label: '字幕时间偏移', before: '-500ms', after: '1000ms'}]);
+    });
+
     it('常用服务的添加与删除记录为独立偏好，缺失旧值也能预览', () => {
         const changes = group(buildConfigDiff({favoriteServices: []}, {favoriteServices: ['openai']}), 'translationServices')?.changes;
         expect(changes).toEqual([{key: 'favoriteServices', label: '常用翻译服务', before: '无', after: 'OpenAI'}]);
