@@ -64,11 +64,12 @@ function contrastRatio(foreground, background) {
   const [first, second] = colors.map(luminance).sort((left, right) => right - left);
   return (first + .05) / (second + .05);
 }
+// 基础配置按使用顺序排列：先选服务，再设置翻译触发，最后调整界面风格。
 const expectedNavigation = [
   ['settings-general', '通用设置'],
-  ['settings-interface', '界面风格'],
   ['settings-services', '翻译服务'],
   ['settings-translation', '翻译设置'],
+  ['settings-interface', '界面风格'],
   ['settings-harness', '翻译卡片'],
   ['settings-image-translation', '图片翻译'],
   ['settings-area-translation', '圈选翻译'],
@@ -84,14 +85,16 @@ const expectedNavigation = [
   ['settings-about', '关于流畅阅读'],
 ];
 const expectedNavigationGroups = [
-  ['基础配置', ['settings-general', 'settings-interface', 'settings-services', 'settings-translation']],
+  ['基础配置', ['settings-general', 'settings-services', 'settings-translation', 'settings-interface']],
   ['专项翻译', ['settings-harness', 'settings-image-translation', 'settings-area-translation', 'settings-video', 'settings-sites']],
   ['工具与学习', ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-model-usage']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
-const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助', '悬浮球进阶设置'];
+// 译文显示是“选择翻译服务”内的子分组；悬浮球进阶设置已并入翻译设置。
+const expectedGeneralGroups = ['选择翻译服务', '网页辅助'];
+const expectedGeneralSubgroups = ['译文显示'];
 const expectedInterfaceGroups = ['界面与弹窗', '动画与加载效果', '菜单栏布局', '界面字体'];
-const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '输入框翻译', '全文翻译'];
+const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '本地朗读', '输入框翻译', '全文翻译', '右键菜单', '悬浮球进阶设置', '段落复制'];
 const expectedLoadingStyles = [
   ['ring', '柔和圆环'],
   ['minimal', '简洁'],
@@ -1148,6 +1151,7 @@ async function verifyIndependentAreaSettings(page, context, extensionOrigin, rep
     enabled: await page.getByRole('switch', {name: '启用圈选翻译', exact: true}).getAttribute('aria-checked'),
     service: (await readChoice('圈选翻译服务'))?.trim(),
     mode: (await readChoice('翻译方式'))?.trim(),
+    recognitionMode: (await readChoice('文字识别'))?.trim(),
     sourceLanguage: (await readChoice('识别语言'))?.trim(),
   };
   if (before.enabled !== 'true') await page.getByRole('switch', {name: '启用圈选翻译', exact: true}).locator('..').click();
@@ -1161,6 +1165,9 @@ async function verifyIndependentAreaSettings(page, context, extensionOrigin, rep
   await page.keyboard.press('Escape');
   await selectElementPlusOption(page, '圈选翻译服务', 'OpenAI');
   await selectElementPlusOption(page, '翻译方式', 'AI 上下文增强');
+  // 识别语言只对本地 OCR 生效；切到本地 OCR 后折叠区自动展开，再修改语言并立即关闭设置页。
+  await selectElementPlusOption(page, '文字识别', '本地 OCR');
+  await page.locator('#settings-area-translation .area-ocr-details[open]').waitFor({state: 'visible', timeout});
   await selectElementPlusOption(page, '识别语言', '繁體中文');
   const reopenedUrl = page.url();
   await page.close();
@@ -1173,9 +1180,10 @@ async function verifyIndependentAreaSettings(page, context, extensionOrigin, rep
     enabled: await page.getByRole('switch', {name: '启用圈选翻译', exact: true}).getAttribute('aria-checked'),
     service: (await readChoice('圈选翻译服务'))?.trim(),
     mode: (await readChoice('翻译方式'))?.trim(),
+    recognitionMode: (await readChoice('文字识别'))?.trim(),
     sourceLanguage: (await readChoice('识别语言'))?.trim(),
   };
-  if (JSON.stringify(after) !== JSON.stringify({enabled: 'true', service: 'OpenAI', mode: 'AI 上下文增强', sourceLanguage: '繁體中文'})) {
+  if (JSON.stringify(after) !== JSON.stringify({enabled: 'true', service: 'OpenAI', mode: 'AI 上下文增强', recognitionMode: '本地 OCR', sourceLanguage: '繁體中文'})) {
     throw new Error(`圈选设置快速关闭后丢失：${JSON.stringify({before, after})}`);
   }
   report.persistenceCases.push({case: 'independent-area-options-quick-close', before, after, closedImmediatelyAfterChange: true});
@@ -1254,6 +1262,7 @@ async function verifyIndependentAreaSettings(page, context, extensionOrigin, rep
   await selectElementPlusOption(page, '圈选翻译服务', before.service);
   await selectElementPlusOption(page, '翻译方式', before.mode);
   await selectElementPlusOption(page, '识别语言', before.sourceLanguage);
+  await selectElementPlusOption(page, '文字识别', before.recognitionMode);
   if (before.enabled !== 'true') await page.getByRole('switch', {name: '启用圈选翻译', exact: true}).locator('..').click();
   await assertTestBrowserRemainsBackground(context, '独立圈选设置验证完成');
   return page;
@@ -1398,7 +1407,8 @@ async function main() {
         }
         if (id === 'settings-area-translation') {
           const areaCopy = await anchor.innerText();
-          for (const expected of ['圈选翻译服务', '翻译方式', '识别语言', '圈选快捷键', 'Shift+Z', '不上传截图']) {
+          // 默认优先模型识图：识别语言收在 OCR 语言包折叠区，隐私说明提示识图会上传选区图片。
+          for (const expected of ['圈选翻译服务', '文字识别', '优先使用模型识图', '翻译方式', '圈选快捷键', 'Shift+Z', '模型识图会上传选区图片', 'OCR 语言包']) {
             if (!areaCopy.includes(expected)) throw new Error(`圈选独立设置缺少产品信息：${expected}`);
           }
           report.assertions.independentAreaSettings = true;
@@ -2763,8 +2773,7 @@ async function main() {
     report.screenshots.push(await screenshot(page, 'settings-dark-general.png'));
     await page.locator('button[data-section="settings-services"]').click();
     if (await page.getByTestId('model-thinking-control').count() === 0) {
-      // 服务目录分为“我的服务 / 自定义 / 全部服务”；未收藏的 OpenAI 需要从全部服务中打开。
-      await page.locator('[data-service-view="all"]').click();
+      // 直接从完整服务列表打开 OpenAI。
       await page.locator('[data-service-value="openai"]:visible').first().click();
     }
     const darkAdvancedSettings = page.getByTestId('custom-service-advanced');
@@ -2820,10 +2829,14 @@ async function main() {
     const generalSection = page.locator('#settings-general');
     const generalGroups = (await page.locator('.settings-section:visible .settings-group-heading h2').allTextContents())
       .map(title => title.trim());
-    if (JSON.stringify(generalGroups) !== JSON.stringify(expectedGeneralGroups)) {
-      throw new Error(`通用设置分组异常：${JSON.stringify(generalGroups)}`);
+    const generalSubgroups = (await page.locator('.settings-section:visible .settings-subgroup-heading h3').allTextContents())
+      .map(title => title.trim());
+    if (JSON.stringify(generalGroups) !== JSON.stringify(expectedGeneralGroups)
+      || JSON.stringify(generalSubgroups) !== JSON.stringify(expectedGeneralSubgroups)) {
+      throw new Error(`通用设置分组异常：${JSON.stringify({generalGroups, generalSubgroups})}`);
     }
     report.informationArchitecture.generalGroups = generalGroups;
+    report.informationArchitecture.generalSubgroups = generalSubgroups;
     report.bilingualHighlightPreview = await verifyBilingualHighlightPreview(page);
     report.screenshots.push(report.bilingualHighlightPreview.screenshot);
     report.assertions.bilingualHighlightPreview = true;
@@ -2834,7 +2847,8 @@ async function main() {
       const item = card.closest('.settings-item');
       const label = item?.querySelector('.settings-item-copy strong');
       const description = item?.querySelector('.settings-item-copy small');
-      const icon = card.querySelector('.service-brand-icon');
+      // 统一下拉框后，服务图标位于 el-select 的前缀槽内，与选中文字同处一个控件。
+      const icon = card.querySelector('.el-select__prefix .service-brand-icon');
       const selected = card.querySelector('.el-select__placeholder');
       const cardStyle = getComputedStyle(card);
       const iconRect = icon?.getBoundingClientRect();
@@ -2857,8 +2871,8 @@ async function main() {
       || !defaultServiceMetrics.selectedService
       || defaultServiceMetrics.backgroundImage !== 'none'
       || defaultServiceMetrics.controlShadow !== 'none'
-      || defaultServiceMetrics.controlDisplay !== 'grid'
-      || defaultServiceMetrics.iconWidth < 39
+      || defaultServiceMetrics.controlDisplay !== 'flex'
+      || defaultServiceMetrics.iconWidth < 20
       || defaultServiceMetrics.selectWidth < 180) {
       throw new Error(`默认翻译服务没有融入标准设置行：${JSON.stringify(defaultServiceMetrics)}`);
     }
@@ -2908,6 +2922,9 @@ async function main() {
       || serviceOnlyMetrics.defaultService !== defaultServiceMetrics.defaultService) {
       throw new Error(`翻译服务页不是纯服务目录：${JSON.stringify(serviceOnlyMetrics)}`);
     }
+    // 服务目录只有“我的服务 / 全部服务”两级入口；分类、顺序与免费候选的完整矩阵归
+    // run-service-catalog-ui-test.cjs，这里只锁定设置中心依赖的目录契约。
+    const expectedServiceSections = ['machine-services', 'cloud-services', 'ai-providers', 'ai-platforms'];
     const expectedProviderServices = [
       'deepseek', 'tongyi', 'doubao', 'moonshot', 'zhipu', 'huanYuan',
       'huanYuanTranslation', 'yiyan', 'minimax', 'mimo', 'jieyue', 'openai',
@@ -2915,16 +2932,26 @@ async function main() {
     ];
     const expectedPlatformServices = [
       'siliconCloud', 'newapi', 'infini', 'openrouter', 'groq', 'azureOpenai',
+      'mistral', 'cohere', 'cerebras', 'togetherai', 'fireworks', 'deepinfra', 'perplexity', 'ollama',
     ];
-    const expectedMachineServices = [
-      'freeTranslation', 'myMemory', 'microsoft', 'google', 'deepL', 'deeplx', 'xiaoniu', 'youdao', 'tencent',
-    ];
-    const providerServices = await serviceCatalog
-      .locator('[data-service-subgroup="ai-providers"] .service-item')
-      .evaluateAll(items => items.map(item => item.getAttribute('data-service-value')));
-    const platformServices = await serviceCatalog
-      .locator('[data-service-subgroup="ai-platforms"] .service-item')
-      .evaluateAll(items => items.map(item => item.getAttribute('data-service-value')));
+    const serviceViews = await serviceCatalog.locator('[data-service-view]')
+      .evaluateAll(buttons => buttons.map(button => button.dataset.serviceView));
+    if (serviceViews.length !== 0) {
+      throw new Error(`服务目录视图入口异常：${JSON.stringify(serviceViews)}`);
+    }
+    const serviceDirectory = serviceCatalog.locator('.service-rail');
+    await serviceDirectory.waitFor({state: 'visible', timeout});
+    const serviceSections = await serviceDirectory.locator('[data-service-section]').evaluateAll(sections => sections.map(section => ({
+      id: section.dataset.serviceSection,
+      services: [...section.querySelectorAll('[data-service-value]')].map(item => item.dataset.serviceValue),
+    })));
+    const sectionServices = id => serviceSections.find(section => section.id === id)?.services || [];
+    if (JSON.stringify(serviceSections.map(section => section.id)) !== JSON.stringify(expectedServiceSections)) {
+      throw new Error(`服务目录分类异常：${JSON.stringify(serviceSections.map(section => section.id))}`);
+    }
+    const providerServices = sectionServices('ai-providers');
+    const platformServices = sectionServices('ai-platforms');
+    const machineServices = sectionServices('machine-services');
     if (JSON.stringify(providerServices) !== JSON.stringify(expectedProviderServices)) {
       throw new Error(`模型服务商分类或顺序异常：${JSON.stringify(providerServices)}`);
     }
@@ -2933,7 +2960,7 @@ async function main() {
     }
 
     // 新版自定义 OpenAI 服务使用持久化的 custom:* profile，不再把不可用的旧
-    // static `custom` 入口混入聚合平台。
+    // static `custom` 入口混入聚合平台；首个自定义服务出现前也不显示空的自定义分类。
     const customServiceFixture = {
       name: '浏览器自定义服务',
       endpoint: 'https://custom-browser-fixture.invalid/v1/chat/completions',
@@ -2941,77 +2968,63 @@ async function main() {
       model: 'fixture-model-v1',
       secondModel: 'fixture-model-v2',
     };
-    const customServiceGroup = serviceCatalog.locator('.custom-service-group');
-    const customServiceCount = customServiceGroup.getByTestId('custom-service-count');
-    const customServiceAdd = customServiceGroup.getByTestId('custom-service-add');
-    if ((await customServiceCount.textContent())?.trim() !== '0 / 20') {
-      throw new Error(`自定义服务初始计数异常：${await customServiceCount.textContent()}`);
+    const customServiceSection = serviceDirectory.locator('[data-service-section="custom"]');
+    const customServiceAdd = serviceCatalog.getByTestId('custom-service-add');
+    if (serviceSections.some(section => section.services.includes('custom'))
+      || await customServiceSection.count() !== 0) {
+      throw new Error('没有自定义服务时目录仍显示自定义分类或旧 custom 入口');
     }
-    if (await customServiceAdd.isDisabled()) throw new Error('空自定义服务列表无法添加首个服务');
+    if (!await customServiceAdd.isVisible() || await customServiceAdd.isDisabled()) {
+      throw new Error('服务目录工具栏没有可用的自定义服务入口');
+    }
     let customServiceId;
 
-    const machineGroup = serviceCatalog.locator('[data-service-section="machine"]');
-    const machineServices = await machineGroup.locator('.service-item')
-      .evaluateAll(items => items.map(item => item.getAttribute('data-service-value')));
-    const chromeMachineServices = [...expectedMachineServices, 'chromeTranslator'];
-    if (JSON.stringify(machineServices) !== JSON.stringify(expectedMachineServices)
-      && JSON.stringify(machineServices) !== JSON.stringify(chromeMachineServices)) {
-      throw new Error(`机器翻译分类或顺序异常：${JSON.stringify(machineServices)}`);
-    }
-    const machineToggle = machineGroup.locator('[data-service-section-toggle="machine"]');
-    if (await machineToggle.count() !== 1) throw new Error('机器翻译分组缺少唯一折叠按钮');
-    if (await machineToggle.getAttribute('aria-expanded') === 'true') await machineToggle.click();
-    if (await machineToggle.getAttribute('aria-expanded') !== 'false'
-      || await machineGroup.locator('.service-item').first().isVisible()) {
-      throw new Error('机器翻译分组无法收起');
-    }
-    const serviceSearch = serviceCatalog.getByPlaceholder('搜索翻译服务');
+    const serviceSearch = serviceCatalog.getByRole('searchbox', {name: '搜索所有翻译服务'});
     await serviceSearch.fill('微软翻译');
-    await machineGroup.locator('.service-item[data-service-value="microsoft"]').waitFor({state: 'visible', timeout});
-    if (await machineToggle.getAttribute('aria-expanded') !== 'true') {
-      throw new Error('搜索机器翻译时没有自动展开命中分组');
+    const microsoftSearch = await serviceDirectory.locator('[data-service-section]').evaluateAll(sections => sections.map(section => ({
+      id: section.dataset.serviceSection,
+      services: [...section.querySelectorAll('[data-service-value]')].map(item => item.dataset.serviceValue),
+    })));
+    if (JSON.stringify(microsoftSearch) !== JSON.stringify([{id: 'machine-services', services: ['microsoft']}])) {
+      throw new Error(`服务搜索没有唯一命中机器翻译中的微软翻译：${JSON.stringify(microsoftSearch)}`);
     }
-    if (!await machineToggle.isDisabled()) throw new Error('搜索期间机器翻译折叠按钮仍可操作');
     await serviceSearch.fill('');
-    if (await machineToggle.getAttribute('aria-expanded') !== 'false') {
-      throw new Error('清空搜索后没有恢复机器翻译折叠状态');
-    }
-    if (await machineToggle.isDisabled()) throw new Error('清空搜索后机器翻译折叠按钮没有恢复可用');
-    report.screenshots.push(await screenshot(page, 'settings-service-catalog-collapsed.png'));
-    await machineToggle.click();
-    if (await machineToggle.getAttribute('aria-expanded') !== 'true') throw new Error('机器翻译分组无法重新展开');
+    report.screenshots.push(await screenshot(page, 'settings-service-catalog-all.png'));
 
+    const defaultServiceSection = serviceSections
+      .find(section => section.services.includes(defaultServiceMetrics.defaultService))?.id;
+    if (defaultServiceSection !== 'machine-services') {
+      throw new Error(`AI 上下文开关用例没有运行在机器默认服务下：${defaultServiceSection}`);
+    }
     const defaultServiceItem = serviceCatalog.locator(
-      `.service-item[data-service-value="${defaultServiceMetrics.defaultService}"]`,
+      `[data-service-value="${defaultServiceMetrics.defaultService}"]`,
     );
-    if (await defaultServiceItem.count() !== 1) throw new Error('服务目录没有显示当前默认服务');
-    const defaultServiceKind = (await defaultServiceItem.locator('.service-copy small').textContent())?.trim();
-    if (defaultServiceKind !== '机器翻译') {
-      throw new Error(`AI 上下文开关用例没有运行在机器默认服务下：${defaultServiceKind}`);
+    if (await defaultServiceItem.count() !== 1 || !await defaultServiceItem.isVisible()) {
+      throw new Error('“我的服务”没有显示当前默认服务');
     }
     report.informationArchitecture.services = serviceOnlyMetrics;
     report.informationArchitecture.serviceCatalogHierarchy = {
+      views: serviceViews,
+      sections: serviceSections.map(section => section.id),
       providerServices,
       platformServices,
       machineServices,
       customService: {
-        initialCount: 0,
-        limit: 20,
+        initialSectionVisible: false,
         addEnabled: true,
       },
-      machineSearchAutoExpanded: true,
-      machineCollapsedStateRestored: true,
+      searchCrossesCategories: true,
     };
     report.informationArchitecture.machineDefaultAiContext = {
       defaultService: defaultServiceMetrics.defaultService,
-      serviceKind: defaultServiceKind,
+      serviceSection: defaultServiceSection,
       before: aiContextBefore,
       after: aiContextAfter,
       restored: aiContextRestored,
     };
     report.assertions.servicesCatalogOnly = true;
     report.assertions.serviceCatalogHierarchy = true;
-    report.assertions.machineServiceGroupCollapsible = true;
+    report.assertions.serviceCatalogSearch = true;
     report.assertions.machineDefaultAiContextOperable = true;
 
     await page.locator('button[data-section="settings-translation"]').click();
@@ -3079,39 +3092,42 @@ async function main() {
     await customServiceDialog.getByTestId('custom-service-model').fill(customServiceFixture.model);
     await customServiceDialog.getByTestId('custom-service-save').click();
     await customServiceDialog.waitFor({state: 'hidden', timeout});
-    const customServiceItem = customServiceGroup.locator('.service-item[data-custom-service-id^="custom:"]');
+    // 新建后直接成为“我的服务”中已保存的编辑目标，同时出现在全部服务的自定义分类里。
+    const customServiceItem = serviceCatalog.locator('[data-service-value^="custom:"]');
     await customServiceItem.waitFor({state: 'visible', timeout});
-    customServiceId = await customServiceItem.getAttribute('data-custom-service-id');
+    customServiceId = await customServiceItem.getAttribute('data-service-value');
     if (!customServiceId?.startsWith('custom:')) throw new Error(`自定义服务没有稳定动态 ID：${customServiceId}`);
-    if ((await customServiceCount.textContent())?.trim() !== '1 / 20') {
-      throw new Error(`创建后的自定义服务计数异常：${await customServiceCount.textContent()}`);
+    if (await customServiceItem.count() !== 1
+      || !(await customServiceItem.textContent())?.includes(customServiceFixture.name)) {
+      throw new Error('新建自定义服务没有以名称出现在“我的服务”已保存配置中');
     }
-    const customServiceDescriptionLayout = await customServiceItem.evaluate(item => {
-      const card = item.getBoundingClientRect();
-      const copy = item.querySelector('.service-copy')?.getBoundingClientRect();
-      const description = item.querySelector('.service-copy small');
-      const descriptionRect = description?.getBoundingClientRect();
-      const descriptionStyle = description ? getComputedStyle(description) : null;
+    const customDirectoryItems = await customServiceSection.locator('[data-service-value]')
+      .evaluateAll(items => items.map(item => item.dataset.serviceValue));
+    if (JSON.stringify(customDirectoryItems) !== JSON.stringify([customServiceId])) {
+      throw new Error(`全部服务的自定义分类异常：${JSON.stringify(customDirectoryItems)}`);
+    }
+    const customServiceLabelLayout = await customServiceSection.locator(`[data-service-value="${customServiceId}"]`).evaluate(button => {
+      const card = button.closest('.library-item')?.getBoundingClientRect();
+      const label = button.querySelector('.library-copy strong');
+      const labelRect = label?.getBoundingClientRect();
+      const labelStyle = label ? getComputedStyle(label) : null;
       return {
-        cardRight: card.right,
-        copyRight: copy?.right ?? null,
-        descriptionRight: descriptionRect?.right ?? null,
-        descriptionWidth: descriptionRect?.width ?? null,
-        descriptionScrollWidth: description?.scrollWidth ?? null,
-        overflow: descriptionStyle?.overflow ?? '',
-        textOverflow: descriptionStyle?.textOverflow ?? '',
-        whiteSpace: descriptionStyle?.whiteSpace ?? '',
+        cardRight: card?.right ?? null,
+        labelRight: labelRect?.right ?? null,
+        overflow: labelStyle?.overflow ?? '',
+        textOverflow: labelStyle?.textOverflow ?? '',
+        whiteSpace: labelStyle?.whiteSpace ?? '',
+        status: button.querySelector('.library-copy small')?.textContent?.trim() || '',
       };
     });
-    if (customServiceDescriptionLayout.descriptionRight === null
-      || customServiceDescriptionLayout.descriptionRight > customServiceDescriptionLayout.cardRight + 1
-      || customServiceDescriptionLayout.descriptionRight > (customServiceDescriptionLayout.copyRight ?? Infinity) + 1
-      || customServiceDescriptionLayout.overflow !== 'hidden'
-      || customServiceDescriptionLayout.textOverflow !== 'ellipsis'
-      || customServiceDescriptionLayout.whiteSpace !== 'nowrap') {
-      throw new Error(`自定义服务接口地址超出卡片边界：${JSON.stringify(customServiceDescriptionLayout)}`);
+    if (customServiceLabelLayout.labelRight === null || customServiceLabelLayout.cardRight === null
+      || customServiceLabelLayout.labelRight > customServiceLabelLayout.cardRight + 1
+      || customServiceLabelLayout.overflow !== 'hidden'
+      || customServiceLabelLayout.textOverflow !== 'ellipsis'
+      || customServiceLabelLayout.whiteSpace !== 'nowrap') {
+      throw new Error(`自定义服务目录卡片名称超出边界或缺少已保存状态：${JSON.stringify(customServiceLabelLayout)}`);
     }
-    report.informationArchitecture.serviceCatalogHierarchy.customServiceDescription = customServiceDescriptionLayout;
+    report.informationArchitecture.serviceCatalogHierarchy.customServiceLabel = customServiceLabelLayout;
     report.assertions.customServiceDescriptionBounded = true;
     if (await customServiceItem.getAttribute('aria-pressed') !== 'true'
       || await serviceCatalog.getAttribute('data-editing-service') !== customServiceId
@@ -3122,7 +3138,8 @@ async function main() {
       || await serviceCatalog.getByLabel('自定义服务接口地址').inputValue() !== customServiceFixture.endpoint
       || !(await serviceCatalog.getByTestId('model-picker-trigger').getAttribute('aria-label'))
         ?.includes(customServiceFixture.model)
-      || await serviceCatalog.locator('.credential-field input[type="password"]').inputValue()
+      // API Key 由多密钥列表逐行编辑；新建服务只写入第一行。
+      || await serviceCatalog.locator('[data-api-key-list] input[type="password"]').first().inputValue()
         !== customServiceFixture.apiKey) {
       throw new Error('新建自定义服务的名称、接口、模型或 API Key 没有进入详情配置');
     }
@@ -3259,6 +3276,8 @@ async function main() {
     const importedConfig = {
       ...exportedConfig,
       to: exportedConfig.to === 'en' ? 'ja' : 'en',
+      // 当前备份以有序 apiKeys 为准，token 只镜像首个 Key；两者需同时替换才代表真实的新备份。
+      apiKeys: {...exportedConfig.apiKeys, openai: [sentinels.token]},
       token: {...exportedConfig.token, openai: sentinels.token},
       ak: sentinels.ak,
       sk: sentinels.sk,

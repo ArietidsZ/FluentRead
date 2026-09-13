@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 // 使用临时 Edge profile 验证划词翻译的完整触发矩阵。
+// Popup 快捷抽屉只负责关闭/双语/仅译文三选一；触发方式、显示延迟和自定义快捷键在完整设置页修改，
+// 两个真实扩展页面同时打开，断言设置页写入、Popup 预览同步与网页中的真实划词手势结果一致。
 // 该脚本只操作本次创建的隔离 profile，不连接用户正在使用的浏览器。
 
 const fs = require('node:fs');
@@ -196,102 +198,161 @@ async function waitForContentScript(page) {
   await page.waitForTimeout(700);
 }
 
+const SELECTION_MODE_VALUES = { 关闭: 'disabled', 双语显示: 'bilingual', 仅译文: 'translation-only' };
+
 async function openSelectionDrawer(popup) {
-  await popup.locator('.feature-card').filter({ hasText: '划词翻译' }).first().click();
+  await activateInputPage(popup);
+  await popup.locator('[data-popup-quick-feature="selection"]').click();
   const drawer = popup.locator('.popup-drawer:visible').last();
-  await drawer.getByText('触发方式', { exact: true }).waitFor({ state: 'visible', timeout: 60000 });
+  await drawer.getByRole('group', { name: '划词翻译模式' }).waitFor({ state: 'visible', timeout: 60000 });
   return drawer;
 }
 
-async function setSelectionEnabled(popup, drawer, enabled) {
-  await activateInputPage(popup);
-  const toggle = drawer.getByRole('switch', { name: '启用或关闭划词翻译' });
-  const current = (await toggle.getAttribute('aria-checked')) === 'true';
-  if (current !== enabled) {
-    await toggle.click();
-    await popup.waitForTimeout(500);
-  }
-  assert((await toggle.getAttribute('aria-checked')) === String(enabled), `划词翻译启用状态错误：${enabled}`);
+async function openSelectionOptions(context, extensionId, result) {
+  const options = await createIsolatedPage(context);
+  options.on('pageerror', (error) => result.consoleErrors.push(`options pageerror: ${error.message}`));
+  options.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`options console: ${message.text()}`); });
+  await options.goto(`chrome-extension://${extensionId}/options.html#settings-translation`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await options.getByRole('radiogroup', { name: '划词翻译模式' }).waitFor({ state: 'visible', timeout: 60000 });
+  return options;
 }
 
-async function setSelectionMode(popup, drawer, label) {
-  await activateInputPage(popup);
-  await drawer.locator('.chips.two button').filter({ hasText: label }).click();
-  await popup.waitForTimeout(450);
-  const selected = await drawer.locator('.chips.two button.selected').textContent();
-  assert(selected?.includes(label), `显示方式没有选中 ${label}：${selected}`);
+async function setSelectionMode(ui, label) {
+  const expected = SELECTION_MODE_VALUES[label];
+  assert(expected, `未知划词模式：${label}`);
+  const button = ui.drawer.getByRole('group', { name: '划词翻译模式' }).getByRole('button', { name: label, exact: true });
+  await activateInputPage(ui.popup);
+  await button.click();
+  const deadline = Date.now() + 10000;
+  let state = null;
+  while (Date.now() < deadline) {
+    const config = await readStoredConfig(ui.storagePage);
+    state = {
+      pressed: await button.getAttribute('aria-pressed'),
+      mode: config.selectionTranslatorMode,
+      disabled: config.disableSelectionTranslator,
+    };
+    if (state.pressed === 'true' && state.mode === expected && state.disabled === (expected === 'disabled')) return state;
+    await ui.popup.waitForTimeout(100);
+  }
+  throw new Error(`划词模式没有保存为 ${label}：${JSON.stringify(state)}`);
+}
+
+async function setSelectionEnabled(ui, enabled) {
+  // 旧启用开关已并入 Popup 三选一模式：关闭即停用，重新启用时明确选择双语显示。
+  const config = await readStoredConfig(ui.storagePage);
+  const currentlyEnabled = config.selectionTranslatorMode !== 'disabled' && config.disableSelectionTranslator !== true;
+  if (currentlyEnabled !== enabled) await setSelectionMode(ui, enabled ? '双语显示' : '关闭');
+  const saved = await readStoredConfig(ui.storagePage);
+  assert((saved.selectionTranslatorMode !== 'disabled') === enabled && saved.disableSelectionTranslator === !enabled,
+    `划词翻译启用状态错误：${JSON.stringify({ enabled, mode: saved.selectionTranslatorMode, disabled: saved.disableSelectionTranslator })}`);
 }
 
 function expectedSelectionTrigger(label) {
   return label === '直接弹出'
-    ? { trigger: 'direct', hotkey: 'none' }
+    ? { trigger: 'direct', hotkey: 'none', preview: '直接弹出' }
     : label === '显示图标'
-      ? { trigger: 'icon', hotkey: 'none' }
+      ? { trigger: 'icon', hotkey: 'none', preview: 'icon' }
       : label === '显示小点'
-        ? { trigger: 'dot', hotkey: 'none' }
+        ? { trigger: 'dot', hotkey: 'none', preview: 'dot' }
         : label === 'Ctrl'
-          ? { trigger: 'Control', hotkey: 'Control' }
+          ? { trigger: 'Control', hotkey: 'Control', preview: 'Ctrl' }
           : label === 'Alt / Option'
-            ? { trigger: 'Alt', hotkey: 'Alt' }
+            ? { trigger: 'Alt', hotkey: 'Alt', preview: 'Alt / Option' }
             : label === 'Shift'
-              ? { trigger: 'Shift', hotkey: 'Shift' }
-              : { trigger: 'custom', hotkey: 'custom' };
+              ? { trigger: 'Shift', hotkey: 'Shift', preview: 'Shift' }
+              : { trigger: 'custom', hotkey: 'custom', preview: 'F9' };
 }
 
-async function waitForSelectionTriggerState(popup, drawer, storagePage, label, timeout = 10000) {
+function selectionTriggerSelect(options) {
+  const input = options.locator('input[aria-label="划词翻译触发方式"]');
+  const wrapper = input.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " el-select__wrapper ")][1]');
+  return { input, wrapper };
+}
+
+async function readPopupTriggerPreview(drawer) {
+  const preview = drawer.locator('.interaction-preview');
+  if (await preview.count() === 0) return '';
+  return preview.first().evaluate((element) => {
+    if (element.querySelector('.pink-dot')) return 'dot';
+    if (element.querySelector('.selection-preview-icon')) return 'icon';
+    return element.querySelector('kbd, strong')?.textContent?.trim() || '';
+  });
+}
+
+async function waitForSelectionTriggerState(ui, label, timeout = 10000) {
   const expected = expectedSelectionTrigger(label);
+  const { wrapper } = selectionTriggerSelect(ui.options);
   const deadline = Date.now() + timeout;
   let lastState = null;
   while (Date.now() < deadline) {
-    const selected = await drawer.locator('.selection-trigger-chips button.selected').textContent();
-    const config = await readStoredConfig(storagePage);
+    const config = await readStoredConfig(ui.storagePage);
     lastState = {
-      selected,
+      options: (await wrapper.locator('.el-select__placeholder').first().textContent())?.trim() || '',
+      popupPreview: await readPopupTriggerPreview(ui.drawer),
       trigger: config.selectionTranslatorTrigger,
       hotkey: config.selectionTranslatorHotkey,
       customHotkey: config.customSelectionTranslatorHotkey || '',
     };
-    if (selected?.includes(label)
+    if (lastState.options === label
+      && lastState.popupPreview === expected.preview
       && config.selectionTranslatorTrigger === expected.trigger
       && config.selectionTranslatorHotkey === expected.hotkey
       && (label !== '自定义' || config.customSelectionTranslatorHotkey === 'F9')) {
       return { label, ...lastState };
     }
-    await popup.waitForTimeout(100);
+    await ui.options.waitForTimeout(100);
   }
-  throw new Error(`选择 ${label} 后 UI/配置未稳定：${JSON.stringify(lastState)}`);
+  throw new Error(`选择 ${label} 后设置页、Popup 预览或配置未稳定：${JSON.stringify(lastState)}`);
 }
 
-async function setSelectionTrigger(popup, drawer, storagePage, label) {
-  await activateInputPage(popup);
-  await drawer.locator('.selection-trigger-chips button').filter({ hasText: label }).click();
-  await popup.waitForTimeout(500);
+async function setSelectionTrigger(ui, label) {
+  await activateInputPage(ui.options);
+  const { input, wrapper } = selectionTriggerSelect(ui.options);
+  await input.waitFor({ state: 'visible', timeout: 15000 });
+  const current = (await wrapper.locator('.el-select__placeholder').first().textContent())?.trim();
+  if (current !== label) {
+    await wrapper.click();
+    const dropdown = ui.options.locator('.el-select-dropdown:visible').last();
+    await dropdown.waitFor({ state: 'visible', timeout: 10000 });
+    await dropdown.getByRole('option', { name: label, exact: true }).click();
+    await dropdown.waitFor({ state: 'hidden', timeout: 10000 });
+  }
 
   if (label === '自定义') {
-    let dialog = popup.locator('.custom-hotkey-dialog:visible').last();
+    // 首次选择会自动打开录制框；已有 F9 时保持原组合，其他组合通过编辑按钮改回 F9。
+    let dialog = ui.options.locator('.custom-hotkey-dialog:visible').last();
     try {
       await dialog.waitFor({ state: 'visible', timeout: 3000 });
     } catch {
-      const recordButton = drawer.getByRole('button', { name: /录制自定义快捷键|当前：/ });
-      await recordButton.click();
-      dialog = popup.locator('.custom-hotkey-dialog:visible').last();
+      if ((await readStoredConfig(ui.storagePage)).customSelectionTranslatorHotkey !== 'F9') {
+        await ui.options.getByRole('button', { name: '编辑划词翻译快捷键', exact: true }).click();
+        dialog = ui.options.locator('.custom-hotkey-dialog:visible').last();
+        await dialog.waitFor({ state: 'visible', timeout: 10000 });
+      }
     }
-    await dialog.waitFor({ state: 'visible', timeout: 10000 });
-    await dialog.locator('.preset-button').filter({ hasText: 'F9' }).click();
-    await dialog.getByRole('button', { name: '确认', exact: true }).click();
-    await popup.waitForTimeout(600);
+    if (await dialog.isVisible()) {
+      await dialog.getByRole('button', { name: 'F9', exact: true }).click();
+      await dialog.getByRole('button', { name: '确认', exact: true }).click();
+      await dialog.waitFor({ state: 'hidden', timeout: 10000 });
+    }
   }
 
-  return waitForSelectionTriggerState(popup, drawer, storagePage, label);
+  return waitForSelectionTriggerState(ui, label);
 }
 
-async function setSelectionDelay(popup, drawer, storagePage, delay, settleMs = 500) {
-  await activateInputPage(popup);
-  const input = drawer.locator('input[aria-label="划词翻译显示延迟"]');
+async function setSelectionDelay(ui, delay, settleMs = 500) {
+  await activateInputPage(ui.options);
+  const input = ui.options.locator('input[aria-label="划词翻译显示延迟"]');
   await input.fill(String(delay));
   await input.press('Tab');
-  await popup.waitForTimeout(settleMs);
-  const config = await readStoredConfig(storagePage);
+  await ui.options.waitForTimeout(settleMs);
+  const deadline = Date.now() + 5000;
+  let config = await readStoredConfig(ui.storagePage);
+  while (config.selectionTranslatorDelay !== delay && Date.now() < deadline) {
+    await ui.options.waitForTimeout(50);
+    config = await readStoredConfig(ui.storagePage);
+  }
   assert(config.selectionTranslatorDelay === delay,
     `划词显示延迟没有保存：期望 ${delay}，实际 ${config.selectionTranslatorDelay}`);
   return config.selectionTranslatorDelay;
@@ -899,7 +960,8 @@ async function main() {
     await popup.locator('.popup-shell').waitFor({ state: 'visible', timeout: 60000 });
     await popup.locator('.popup-shell[data-config-ready="true"]').waitFor({ state: 'visible', timeout: 60000 });
     await assertBackgroundRoundTrip(popup);
-    await patchStoredConfig(popup, {uiLanguageSetupCompleted: true});
+    // 默认免费翻译会在多个公开接口间均衡分配；固定为本地夹具拦截的微软接口，避免真实网络译文进入断言。
+    await patchStoredConfig(popup, {uiLanguageSetupCompleted: true, service: 'microsoft'});
     await popup.reload({waitUntil: 'domcontentloaded'});
     await popup.locator('.popup-shell[data-config-ready="true"]').waitFor({state: 'visible'});
 
@@ -1156,32 +1218,32 @@ async function main() {
     }
 
     const drawer = await openSelectionDrawer(popup);
-    await setSelectionEnabled(popup, drawer, true);
+    const optionsPage = await openSelectionOptions(context, extensionId, result);
+    const selectionUi = { popup, drawer, options: optionsPage, storagePage: popup };
+    await setSelectionEnabled(selectionUi, true);
     await page.locator('#fluent-read-selection-translator-container').waitFor({ state: 'attached', timeout: 10000 });
-    await setSelectionMode(popup, drawer, '双语显示');
+    await setSelectionMode(selectionUi, '双语显示');
 
-    const initialDelayConfig = await readStoredConfig(popup);
-    const initialDelayInput = await drawer.locator('input[aria-label="划词翻译显示延迟"]').inputValue();
-    assert(initialDelayConfig.selectionTranslatorDelay === 300 && initialDelayInput === '300',
-      `Popup 没有显示默认 300ms 延迟：${JSON.stringify({ stored: initialDelayConfig.selectionTranslatorDelay, input: initialDelayInput })}`);
+    // Popup 抽屉只保留高频模式选择；触发方式、延迟与朗读声音通过底部入口进入完整设置。
+    await activateInputPage(popup);
+    const popupModes = (await drawer.getByRole('group', { name: '划词翻译模式' }).getByRole('button').allTextContents()).map(label => label.trim());
+    assert(JSON.stringify(popupModes) === JSON.stringify(['关闭', '双语显示', '仅译文']), `Popup 划词模式选项异常：${JSON.stringify(popupModes)}`);
+    const popupDetailedControls = {
+      delayInputs: await drawer.locator('input[aria-label="划词翻译显示延迟"]').count(),
+      triggerChips: await drawer.locator('.selection-trigger-chips').count(),
+      hotkeyEditors: await popup.locator('.custom-hotkey-dialog').count(),
+    };
+    assert(Object.values(popupDetailedControls).every(count => count === 0), `Popup 抽屉仍包含完整设置控件：${JSON.stringify(popupDetailedControls)}`);
+    const popupSettingsLink = (await drawer.locator('.drawer-settings-link strong').textContent())?.trim();
+    assert(popupSettingsLink === '划词翻译设置', `Popup 划词抽屉缺少完整设置入口：${popupSettingsLink}`);
+    const initialPopupPreview = await readPopupTriggerPreview(drawer);
+    assert(initialPopupPreview === 'icon', `Popup 没有预览默认的显示图标触发方式：${initialPopupPreview}`);
+    const popupDrawerScreenshot = path.join(args.artifactsDir, 'popup-selection-drawer.png');
+    await popup.screenshot({ path: popupDrawerScreenshot });
+    result.screenshots.push(popupDrawerScreenshot);
+    result.cases.push({ id: 'ui.popup-selection-drawer-quick-controls', status: 'passed', popupModes, popupDetailedControls, popupSettingsLink, initialPopupPreview });
 
-    const drawerBody = popup.locator('.popup-drawer:visible .el-drawer__body');
-    const drawerScroll = await drawerBody.evaluate((element) => {
-      const before = { clientHeight: element.clientHeight, scrollHeight: element.scrollHeight };
-      element.scrollTop = element.scrollHeight;
-      return { ...before, scrollTop: element.scrollTop };
-    });
-    await drawer.getByText('语音回退顺序', { exact: true }).scrollIntoViewIfNeeded();
-    assert(await drawer.getByText('语音回退顺序', { exact: true }).isVisible(), 'Popup 抽屉滚动后仍看不到底部设置');
-    const popupDelayScreenshot = path.join(args.artifactsDir, 'popup-selection-delay.png');
-    await popup.screenshot({ path: popupDelayScreenshot });
-    result.screenshots.push(popupDelayScreenshot);
-    result.cases.push({ id: 'ui.popup-scrolls-to-bottom', status: 'passed', drawerScroll });
-
-    const optionsPage = await createIsolatedPage(context);
-    optionsPage.on('pageerror', (error) => result.consoleErrors.push(`options pageerror: ${error.message}`));
-    optionsPage.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`options console: ${message.text()}`); });
-    await optionsPage.goto(`chrome-extension://${extensionId}/options.html#settings-translation`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await activateInputPage(optionsPage);
     const optionsDelayInput = optionsPage.locator('input[aria-label="划词翻译显示延迟"]');
     try {
       await optionsDelayInput.waitFor({ state: 'visible', timeout: 15000 });
@@ -1202,22 +1264,24 @@ async function main() {
       const diagnostic = { ...pageDiagnostic, storedConfig };
       throw new Error(`完整配置页未显示划词翻译延迟控件：${JSON.stringify(diagnostic)}`, { cause: error });
     }
-    assert(await optionsDelayInput.inputValue() === '300', `完整配置页延迟值错误：${await optionsDelayInput.inputValue()}`);
-    await optionsDelayInput.fill('450');
-    await optionsDelayInput.press('Tab');
-    await optionsPage.waitForTimeout(700);
-    assert((await readStoredConfig(popup)).selectionTranslatorDelay === 450, '完整配置页没有保存 450ms 延迟');
-    await popup.waitForFunction(() => document.querySelector('input[aria-label="划词翻译显示延迟"]')?.value === '450');
+    const initialDelayConfig = await readStoredConfig(popup);
+    const initialDelayInput = await optionsDelayInput.inputValue();
+    assert(initialDelayConfig.selectionTranslatorDelay === 300 && initialDelayInput === '300',
+      `完整配置页没有显示默认 300ms 延迟：${JSON.stringify({ stored: initialDelayConfig.selectionTranslatorDelay, input: initialDelayInput })}`);
+    const initialTriggerState = await waitForSelectionTriggerState(selectionUi, '显示图标');
+    await setSelectionDelay(selectionUi, 450, 700);
+    await optionsPage.reload({ waitUntil: 'domcontentloaded' });
+    await optionsDelayInput.waitFor({ state: 'visible', timeout: 15000 });
+    assert(await optionsDelayInput.inputValue() === '450', `完整配置页重新打开后延迟值错误：${await optionsDelayInput.inputValue()}`);
     const optionsDelayScreenshot = path.join(args.artifactsDir, 'options-selection-delay.png');
     await optionsPage.screenshot({ path: optionsDelayScreenshot });
     result.screenshots.push(optionsDelayScreenshot);
-    result.cases.push({ id: 'ui.options-popup-delay-persistence', status: 'passed', configuredDelay: 450 });
-    await optionsPage.close();
-    await setSelectionDelay(popup, drawer, popup, 300);
+    result.cases.push({ id: 'ui.options-delay-persistence-and-popup-preview', status: 'passed', configuredDelay: 450, initialTriggerState });
+    await setSelectionDelay(selectionUi, 300);
 
     // 显示延迟：计时期间不显示 UI、不发翻译请求；改选后旧计时器必须失效。
-    await setSelectionDelay(popup, drawer, popup, 800);
-    await setSelectionTrigger(popup, drawer, popup, '直接弹出');
+    await setSelectionDelay(selectionUi, 800);
+    await setSelectionTrigger(selectionUi, '直接弹出');
     await resetFixture(page);
     await startSelectionUiTracking(page);
     const delayedRequestsBefore = translationRequestCount;
@@ -1278,8 +1342,8 @@ async function main() {
     result.cases.push({ id: 'delay.changed-selection-invalidates-old-timer', status: 'passed', ui: replacementUi });
 
     await closeSelectionUi(page);
-    await setSelectionDelay(popup, drawer, popup, 1000);
-    await setSelectionTrigger(popup, drawer, popup, 'Ctrl');
+    await setSelectionDelay(selectionUi, 1000);
+    await setSelectionTrigger(selectionUi, 'Ctrl');
     await resetFixture(page);
     const shortcutDelayRequestsBefore = translationRequestCount;
     await selectTextWithDomRange(page, '#target');
@@ -1290,22 +1354,22 @@ async function main() {
     await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true }, '快捷键等待剩余延迟后显示翻译框');
     result.cases.push({ id: 'delay.shortcut-waits-remaining-time', status: 'passed', duringDelay: duringShortcutDelay });
 
-    // Popup 在线修改延迟后，当前页面按原选区时间重算剩余时长，无需刷新。
+    // 设置页在线修改延迟后，当前页面按原选区时间重算剩余时长，无需刷新。
     await closeSelectionUi(page);
-    await setSelectionTrigger(popup, drawer, popup, '直接弹出');
+    await setSelectionTrigger(selectionUi, '直接弹出');
     await resetFixture(page);
     await selectTextWithDomRange(page, '#target');
     await page.waitForTimeout(150);
     assert(!(await readSelectionUi(page)).tooltip, '在线修改延迟前翻译框已提前显示');
-    await setSelectionDelay(popup, drawer, popup, 200, 100);
+    await setSelectionDelay(selectionUi, 200, 100);
     await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true }, '在线缩短延迟后显示当前选区');
-    result.cases.push({ id: 'delay.live-popup-reschedule', status: 'passed', configuredDelay: 200 });
+    result.cases.push({ id: 'delay.live-settings-reschedule', status: 'passed', configuredDelay: 200 });
 
     await closeSelectionUi(page);
-    await setSelectionDelay(popup, drawer, popup, 0);
+    await setSelectionDelay(selectionUi, 0);
     await patchStoredConfig(popup, { to: 'fr' });
     await page.waitForTimeout(700);
-    await setSelectionTrigger(popup, drawer, popup, '直接弹出');
+    await setSelectionTrigger(selectionUi, '直接弹出');
     await resetFixture(page);
     translationResponseDelayMs = 500;
     const sameTextRequestsBefore = translationRequestCount;
@@ -1323,13 +1387,13 @@ async function main() {
     await closeSelectionUi(page);
     await patchStoredConfig(popup, { to: 'zh-Hans' });
     await page.waitForTimeout(700);
-    await setSelectionDelay(popup, drawer, popup, 300);
+    await setSelectionDelay(selectionUi, 300);
 
     // 原生三击：普通段落和 JetBrains 评论形状都应显示入口。
     // JetBrains 形状的 Range 会夹带一个 display:none 的 button，但可见选区只有正文。
     await closeSelectionUi(page);
-    await setSelectionDelay(popup, drawer, popup, 0);
-    const tripleClickPopupState = await setSelectionTrigger(popup, drawer, popup, '显示图标');
+    await setSelectionDelay(selectionUi, 0);
+    const tripleClickPopupState = await setSelectionTrigger(selectionUi, '显示图标');
 
     await resetFixture(page);
     const standardTripleClick = await tripleClickTarget(page);
@@ -1417,15 +1481,15 @@ async function main() {
     });
 
     await closeSelectionUi(page);
-    await setSelectionDelay(popup, drawer, popup, 300);
+    await setSelectionDelay(selectionUi, 300);
 
-    // 视觉触发方式：Popup 改设置后不刷新页面，真实鼠标划词仍应反映新模式。
+    // 视觉触发方式：设置页修改后不刷新网页，真实鼠标划词仍应反映新模式。
     for (const mode of [
       { label: '显示图标', className: 'fr-selection-indicator fr-selection-indicator--icon' },
       { label: '显示小点', className: 'fr-selection-indicator fr-selection-indicator--dot' },
     ]) {
       await closeSelectionUi(page);
-      const popupState = await setSelectionTrigger(popup, drawer, popup, mode.label);
+      const popupState = await setSelectionTrigger(selectionUi, mode.label);
       await resetFixture(page);
       const selection = await selectTarget(page);
       await waitForSelectionUi(page, { indicator: true, tooltip: false, indicatorClass: mode.className }, `${mode.label} 显示入口`);
@@ -1442,7 +1506,7 @@ async function main() {
     }
 
     await closeSelectionUi(page);
-    const directPopupState = await setSelectionTrigger(popup, drawer, popup, '直接弹出');
+    const directPopupState = await setSelectionTrigger(selectionUi, '直接弹出');
     await resetFixture(page);
     const directSelection = await selectTarget(page);
     await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true, resultPrefix: '测试译文：' }, '直接弹出翻译框');
@@ -1478,8 +1542,8 @@ async function main() {
 
     // 显示方式：双语和仅译文应分别渲染对应内容。
     await closeSelectionUi(page);
-    await setSelectionMode(popup, drawer, '仅译文');
-    await setSelectionTrigger(popup, drawer, popup, '直接弹出');
+    await setSelectionMode(selectionUi, '仅译文');
+    await setSelectionTrigger(selectionUi, '直接弹出');
     await resetFixture(page);
     await selectTarget(page);
     await waitForSelectionUi(page, { tooltip: true, original: false, translation: true, resultPrefix: '测试译文：' }, '仅译文模式');
@@ -1488,7 +1552,7 @@ async function main() {
     result.cases.push({ id: 'display.translation-only', status: 'passed', ui: translationOnlyUi });
 
     await closeSelectionUi(page);
-    await setSelectionMode(popup, drawer, '双语显示');
+    await setSelectionMode(selectionUi, '双语显示');
     await resetFixture(page);
     await selectTarget(page);
     await waitForSelectionUi(page, { tooltip: true, original: true, translation: true, resultPrefix: '测试译文：' }, '双语显示模式');
@@ -1498,17 +1562,17 @@ async function main() {
 
     // 关闭/重新启用：关闭后不再挂载划词 UI，重新启用后恢复。
     await closeSelectionUi(page);
-    await setSelectionEnabled(popup, drawer, false);
+    await setSelectionEnabled(selectionUi, false);
     await page.locator('#fluent-read-selection-translator-container').waitFor({ state: 'detached', timeout: 10000 });
     result.cases.push({ id: 'selection.disabled', status: 'passed' });
-    await setSelectionEnabled(popup, drawer, true);
+    await setSelectionEnabled(selectionUi, true);
     await page.locator('#fluent-read-selection-translator-container').waitFor({ state: 'attached', timeout: 10000 });
     result.cases.push({ id: 'selection.re-enabled', status: 'passed' });
 
     // 预设快捷键：选区旁不显示图标/小点，按对应键后直接打开翻译框。
     for (const label of ['Ctrl', 'Alt / Option', 'Shift']) {
       await closeSelectionUi(page);
-      const popupState = await setSelectionTrigger(popup, drawer, popup, label);
+      const popupState = await setSelectionTrigger(selectionUi, label);
       await resetFixture(page);
       await selectTarget(page);
       await page.waitForTimeout(350);
@@ -1527,7 +1591,7 @@ async function main() {
     // 冲突优先级与稳定性：Ctrl 同时配置为划词和鼠标悬浮快捷键时，
     // 有有效选区必须只打开划词框；没有选区时仍回退到悬浮翻译。
     await closeSelectionUi(page);
-    const conflictPopupState = await setSelectionTrigger(popup, drawer, popup, 'Ctrl');
+    const conflictPopupState = await setSelectionTrigger(selectionUi, 'Ctrl');
     await patchStoredConfig(popup, { hotkey: 'Control', customHotkey: '', floatingBallHotkey: 'Control' });
     await page.waitForTimeout(700);
     await resetFixture(page);
@@ -1603,7 +1667,7 @@ async function main() {
     await page.waitForFunction(() => document.querySelectorAll('.fluent-read-bilingual-content').length === 0, undefined, { timeout: 10000 });
 
     await closeSelectionUi(page);
-    const customPopupState = await setSelectionTrigger(popup, drawer, popup, '自定义');
+    const customPopupState = await setSelectionTrigger(selectionUi, '自定义');
     await resetFixture(page);
     await selectTarget(page);
     await page.waitForTimeout(350);
@@ -1649,7 +1713,7 @@ async function main() {
       { label: '自定义', hoverHotkey: 'custom', customHotkey: 'F9' },
     ]) {
       await closeSelectionUi(page);
-      const popupState = await setSelectionTrigger(popup, drawer, popup, conflictCase.label);
+      const popupState = await setSelectionTrigger(selectionUi, conflictCase.label);
       await patchStoredConfig(popup, { hotkey: conflictCase.hoverHotkey, customHotkey: conflictCase.customHotkey });
       await page.waitForTimeout(700);
       await resetFixture(page);

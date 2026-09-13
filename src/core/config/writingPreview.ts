@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/writingPreview.ts
  * 文件职责：为写作助手设置页提供“当前偏好会写出什么”的示例草稿数据，让抽象的长度、风格、语气和角色有可见结果。
- * 主要内容：固定一个可复现的反馈场景，按语气选择开场、按风格选择正文、按角色选择关注点，并用长度决定展开到第几段；自定义描述回落到默认表达并显式标记。
+ * 主要内容：固定一个可复现的反馈场景，按语气选择开场、按风格选择正文、按角色选择关注点，所有长度保留三项偏好，简短压缩正文、详细增加说明；自定义描述回落到默认表达并显式标记。
  * 模块边界：只返回纯文本片段，不请求模型、不读取配置存储、不渲染界面；真实草稿仍由后台写作运行时生成。
  */
 import {WRITING_ROLES, WRITING_TONES, type WritingLength, type WritingStyle} from './writing';
@@ -30,6 +30,12 @@ const bodies: Record<WritingStyle, string> = {
     neutral: '按你给的步骤复现后，确认长段落在滚动时会被跳过。',
     casual: '照你说的试了一下，确实是长段落一滚就漏。',
 };
+const shortBodies: Record<WritingStyle, string> = {
+    auto: '已复现滚动时长段落漏译。',
+    formal: '已确认滚动过程中存在长段落漏译。',
+    neutral: '滚动时长段落会漏译。',
+    casual: '试过了，一滚就漏。',
+};
 const focuses: Record<typeof WRITING_ROLES[number]['value'], string> = {
     auto: '我把复现步骤补在下面，方便其他人一起看。',
     maintainer: '我先把它归到渲染队列的问题里，排进这轮的修复清单。',
@@ -42,14 +48,14 @@ const focuses: Record<typeof WRITING_ROLES[number]['value'], string> = {
 };
 const detail = '另外纯译文模式下同样会出现，关闭其他扩展后问题依旧，应该和页面自身的懒加载有关。';
 const slotsByLength: Record<WritingLength, readonly WritingPreviewSlot[]> = {
-    short: ['opening', 'body'],
+    short: ['opening', 'body', 'focus'],
     standard: ['opening', 'body', 'focus'],
     detailed: ['opening', 'body', 'focus', 'detail'],
 };
 
 /** 自定义语气或角色只在真实生成时生效，示例回落到默认表达而不是留空。 */
 export function isWritingPreviewPreset(value: string, kind: 'tone' | 'role'): boolean {
-    return kind === 'tone' ? value in openings : value in focuses;
+    return kind === 'tone' ? Object.hasOwn(openings, value) : Object.hasOwn(focuses, value);
 }
 export function writingPreviewFallbacks(input: Pick<WritingPreviewInput, 'tone' | 'role'>): Array<'tone' | 'role'> {
     const result: Array<'tone' | 'role'> = [];
@@ -60,7 +66,8 @@ export function writingPreviewFallbacks(input: Pick<WritingPreviewInput, 'tone' 
 export function writingPreviewParagraphs(input: WritingPreviewInput): WritingPreviewParagraph[] {
     const tone = isWritingPreviewPreset(input.tone, 'tone') ? input.tone as keyof typeof openings : 'natural';
     const role = isWritingPreviewPreset(input.role, 'role') ? input.role as keyof typeof focuses : 'auto';
-    const style = input.style in bodies ? input.style : 'auto';
-    const text: Record<WritingPreviewSlot, string> = {opening: openings[tone], body: bodies[style], focus: focuses[role], detail};
-    return (slotsByLength[input.length] ?? slotsByLength.short).map(slot => ({slot, text: text[slot]}));
+    const style = Object.hasOwn(bodies, input.style) ? input.style : 'auto';
+    const length = Object.hasOwn(slotsByLength, input.length) ? input.length : 'short';
+    const text: Record<WritingPreviewSlot, string> = {opening: openings[tone], body: length === 'short' ? shortBodies[style] : bodies[style], focus: focuses[role], detail};
+    return slotsByLength[length].map(slot => ({slot, text: text[slot]}));
 }
