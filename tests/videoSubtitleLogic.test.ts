@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {Config} from '@/src/core/config/model';
 import {createGlossaryLibrary} from '@/src/core/glossary';
-import {getVideoTranslationConfigFingerprint, isIncrementalVideoCaption, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues} from '@/src/features/video-subtitle/content/subtitleLogic';
+import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues} from '@/src/features/video-subtitle/content/subtitleLogic';
 
 describe('video subtitle logic', () => {
   it('原语言、字幕词库选择与术语修改均使旧字幕翻译失效', () => {
@@ -42,8 +42,6 @@ describe('video subtitle logic', () => {
     const controller = new AbortController(); controller.abort();
     await expect(translateVideoSubtitleCues([], async x => x, {signal: controller.signal})).rejects.toMatchObject({name: 'AbortError'});
     expect(normalizeVideoCaptionText('  a\n b ')).toBe('a b');
-    expect(isIncrementalVideoCaption('hello', 'hello world')).toBe(true);
-    expect(isIncrementalVideoCaption('world', 'hello world')).toBe(false);
     expect(revealVideoSubtitleTranslation('你好世界', '你', '你好世界')).toBe('你');
     const one = new Config(); const two = new Config(); two.customOpenAIProviders = [{id: 'custom:x', name: 'x', endpoint: 'https://x', models: ['m']}];
     expect(getVideoTranslationConfigFingerprint(one)).not.toBe(getVideoTranslationConfigFingerprint(two));
@@ -66,9 +64,6 @@ describe('video subtitle logic', () => {
     await expect(translateVideoSubtitleCues([{startMs: 0, durationMs: 1, text: 'x'}, {startMs: 1, durationMs: 1, text: 'y'}, {startMs: 2, durationMs: 1, text: 'z'}], async () => { controller.abort(); return 'ok'; }, {concurrency: 2, signal: controller.signal})).rejects.toMatchObject({name: 'AbortError'});
   });
   it('覆盖渐进显示的空值、相等、非前缀和 Unicode 边界', () => {
-    expect(isIncrementalVideoCaption('', 'hello')).toBe(false);
-    expect(isIncrementalVideoCaption('hello', 'hello')).toBe(false);
-    expect(isIncrementalVideoCaption('HEL', 'hello')).toBe(true);
     expect(revealVideoSubtitleTranslation('', 'a', 'abc')).toBe('');
     expect(revealVideoSubtitleTranslation('译文', '', 'abc')).toBe('译文');
     expect(revealVideoSubtitleTranslation('译文', 'abc', 'abc')).toBe('译文');

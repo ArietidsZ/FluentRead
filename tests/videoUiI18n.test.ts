@@ -6,6 +6,10 @@ import {
   renderVideoAiMenu,
   type VideoAiMenuState,
 } from '@/src/features/video-subtitle/content/playerMenu';
+import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+
+// 扩展运行时按需加载界面语言；本文件验证全部语言的文案契约，因此一次注册全部资源包。
+registerAllUiLanguageBundles();
 
 const progress = (value: number): VideoAiMenuState['progress'] => ({
   phase: 'transcribing',

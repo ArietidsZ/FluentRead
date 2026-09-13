@@ -25,9 +25,10 @@ const timeout = Number(argument('timeout', '30000'));
 const MIB = 1024 * 1024;
 const cardSelector = '[data-translation-cache-settings]';
 const expectedNavigationIds = [
-  'settings-general', 'settings-interface', 'settings-services', 'settings-translation',
-  'settings-image-translation', 'settings-video', 'settings-sites', 'settings-translation-center',
-  'settings-model-usage', 'settings-vocabulary', 'settings-advanced', 'settings-data', 'settings-about',
+  'settings-general', 'settings-services', 'settings-translation', 'settings-interface',
+  'settings-harness', 'settings-image-translation', 'settings-area-translation', 'settings-video',
+  'settings-sites', 'settings-writing', 'settings-translation-center', 'settings-vocabulary',
+  'settings-glossary', 'settings-model-usage', 'settings-advanced', 'settings-data', 'settings-about',
 ];
 assert.ok(playwrightRoot, 'Supply --playwright-root');
 assert.ok(helperPath && fs.existsSync(helperPath), 'Supply the skill --focus-safe-helper');
@@ -255,7 +256,8 @@ const translationRequest = {
     report.optionsUrl = `chrome-extension://${extensionId}/${manifest.options_page || manifest.options_ui.page}#settings-advanced`;
     page = await openOptions();
     const initial = await stats();
-    assert.deepEqual(initial, {bytes: 0, entries: 0, maxBytes: 5 * MIB, maxEntries: 2000});
+    // 默认上限为 10 MiB / 10,000 条；无用量时按每条 1 KiB 估算，约 200 页。
+    assert.deepEqual(initial, {bytes: 0, entries: 0, maxBytes: 10 * MIB, maxEntries: 10_000});
     assert.equal(await page.locator('[data-cache-limits]').evaluate(element => element.open), false);
     const navigationIds = await page.locator('nav[aria-label="设置分类"] button').evaluateAll(elements => elements.map(element => element.dataset.section));
     assert.deepEqual(navigationIds, expectedNavigationIds);
@@ -263,8 +265,8 @@ const translationRequest = {
     const navigation = await page.locator('nav[aria-label="设置分类"] button').evaluateAll(elements => elements.map(element => ({text: element.textContent.trim(), attributes: Object.fromEntries([...element.attributes].map(a => [a.name, a.value]))})));
     assert.equal(navigation.length, expectedNavigationIds.length);
     assert.equal(navigation.some(item => item.text.includes('缓存')), false);
-    assert.match(await page.locator('[data-cache-estimate]').innerText(), /2,000/u);
-    assert.match(await page.locator('[data-cache-estimate]').innerText(), /40/u);
+    assert.match(await page.locator('[data-cache-estimate]').innerText(), /10,000/u);
+    assert.match(await page.locator('[data-cache-estimate]').innerText(), /200/u);
     record('default-limits-and-compact-existing-card', {stats: initial, navigationCount: navigation.length});
     await screenshot('cache-default-collapsed');
 

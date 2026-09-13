@@ -4,7 +4,7 @@ import {setRuntimeFetch} from '@/src/platform/http/runtime';
 import {serializeTranslationSlots, parseTranslationSlots} from '@/src/core/translation/serialization';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {options, services} from '@/src/core/config/catalog';
-import {prepareConfigForImport, sanitizeConfigForExport} from '@/src/core/config/transfer';
+import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 
 const providers: FreeWebProvider[] = ['transmart', 'yandexFree', 'volcengineFree'];
 const fetchMock = vi.fn<typeof fetch>();
@@ -22,7 +22,7 @@ describe('free-only web providers', () => {
         }
         expect(normalizeConfig({freeTranslationOrder: ['google']}).freeTranslationOrder).toEqual(['google']);
         const current = normalizeConfig({...new Config(), freeTranslationOrder: providers});
-        expect(prepareConfigForImport(sanitizeConfigForExport(current), new Config()).freeTranslationOrder).toEqual(providers);
+        expect(prepareConfigForImport(prepareConfigForExport(current), new Config()).freeTranslationOrder).toEqual(providers);
     });
     it('uses a generated anonymous Tencent client marker and preserves a single text without credentials', async () => {
         await expect(translate('transmart')).resolves.toBe('译文');

@@ -45,7 +45,6 @@ export {
     extractTranslationText,
     extractTranslationTextFromNodes,
     isClearlyTargetLanguage,
-    getMinimumTranslationTextLength,
     isMeaningfulTranslationText,
     isTranslationTextElementProtected,
     normalizeTranslationText,
@@ -56,11 +55,9 @@ export {
     applyTranslationsToSnapshot,
     collectLiveTranslationTextSlots,
     createTranslationSourceSnapshot,
-    findTranslationTruncationAncestors,
     hasActiveTranslationLineClamp,
     hasActiveTranslationTruncation,
     parseTranslationSlots,
-    removeTranslationTruncation,
     serializeTranslationSlots,
     translationTruncationStyleOverrides,
 } from './serialization';
@@ -75,7 +72,6 @@ export {
     getCurrentTranslationCore,
     setCurrentTranslationAdapters,
     setCurrentTranslationSidebarRegions,
-    resolveTranslationCandidate,
     resolveTranslationCandidateAtPoint,
 } from './current';
 export type * from './types';

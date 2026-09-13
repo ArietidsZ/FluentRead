@@ -144,7 +144,7 @@ function prefixed(messages: Record<LocalKeys, string>): Record<keyof typeof loca
     return Object.fromEntries(Object.entries(messages).map(([key, value]) => [`settings.localTranslation.${key}`, value])) as Record<keyof typeof localTranslationEnglishMessages, string>;
 }
 
-export const localTranslationJapaneseMessages = prefixed({
+export const localTranslationJapaneseMessages = /* @__PURE__ */ prefixed({
     title: 'ローカル翻訳モデル',
     introduction: '一度ダウンロードすればオフラインで翻訳できます。テキストはこの端末に残ります。日常の読書には軽量パック、専門的な文章には混元を選べます。',
     localBadge: '端末内で実行', recommended: '軽量優先', quality: '品質優先', selected: '選択中', choose: 'このモデルを使う', chooseNamed: '{name} を使う',
@@ -179,7 +179,7 @@ export const localTranslationJapaneseMessages = prefixed({
     'error.browser': 'このブラウザーでは混元を実行できません。更新するか軽量言語パックを選んでください。',
 });
 
-export const localTranslationKoreanMessages = prefixed({
+export const localTranslationKoreanMessages = /* @__PURE__ */ prefixed({
     title: '로컬 번역 모델',
     introduction: '한 번 다운로드하면 오프라인으로 번역할 수 있습니다. 텍스트는 이 기기에만 남습니다. 일상적인 글에는 경량 팩을, 전문적인 내용에는 혼위안을 선택하세요.',
     localBadge: '기기에서 실행', recommended: '경량 우선', quality: '품질 우선', selected: '선택됨', choose: '이 모델 사용', chooseNamed: '{name} 사용',
@@ -213,7 +213,7 @@ export const localTranslationKoreanMessages = prefixed({
     'error.browser': '이 브라우저에서는 혼위안을 실행할 수 없습니다. 업데이트하거나 경량 언어 팩을 선택하세요.',
 });
 
-export const localTranslationFrenchMessages = prefixed({
+export const localTranslationFrenchMessages = /* @__PURE__ */ prefixed({
     title: 'Modèles de traduction locaux',
     introduction: 'Téléchargez une fois pour traduire hors ligne. Le texte reste sur cet appareil. Choisissez un pack léger au quotidien ou Hunyuan pour les textes exigeants.',
     localBadge: 'Sur cet appareil', recommended: 'Priorité à la légèreté', quality: 'Priorité à la qualité', selected: 'Sélectionné', choose: 'Utiliser ce modèle', chooseNamed: 'Utiliser {name}',
@@ -247,7 +247,7 @@ export const localTranslationFrenchMessages = prefixed({
     'error.browser': 'Ce navigateur ne peut pas exécuter Hunyuan. Mettez-le à jour ou choisissez un pack léger.',
 });
 
-export const localTranslationRussianMessages = prefixed({
+export const localTranslationRussianMessages = /* @__PURE__ */ prefixed({
     title: 'Локальные модели перевода',
     introduction: 'Скачайте модель один раз и переводите без интернета. Текст остаётся на устройстве. Для повседневного чтения подойдёт лёгкий пакет, для сложных текстов — Хуньюань.',
     localBadge: 'На устройстве', recommended: 'Лёгкая модель', quality: 'Приоритет качества', selected: 'Выбрано', choose: 'Использовать модель', chooseNamed: 'Использовать {name}',
@@ -281,7 +281,7 @@ export const localTranslationRussianMessages = prefixed({
     'error.browser': 'Этот браузер не поддерживает Hunyuan. Обновите его или выберите лёгкий языковой пакет.',
 });
 
-export const localTranslationSpanishMessages = prefixed({
+export const localTranslationSpanishMessages = /* @__PURE__ */ prefixed({
     title: 'Modelos de traducción local',
     introduction: 'Descarga una vez y traduce sin conexión. El texto permanece en este dispositivo. Elige un paquete ligero para la lectura diaria o Hunyuan para textos exigentes.',
     localBadge: 'En este dispositivo', recommended: 'Prioridad al tamaño', quality: 'Prioridad a la calidad', selected: 'Seleccionado', choose: 'Usar este modelo', chooseNamed: 'Usar {name}',

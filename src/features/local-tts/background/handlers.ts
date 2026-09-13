@@ -1,11 +1,12 @@
 /**
  * @file src/features/local-tts/background/handlers.ts
- * 文件职责：为设置页提供本地 TTS 模型的状态、下载和清除消息。
- * 模块边界：不执行语音合成；实际模型缓存和 Worker 初始化由 Offscreen 适配器完成。
+ * 文件职责：为设置页提供本地 TTS 模型的状态、下载和清除后台消息 handler。
+ * 主要内容：解析状态查询、预下载与移除请求，调用注入的 Offscreen 适配器并把下载状态写入扩展本地存储，统一返回成功或错误结构。
+ * 模块边界：不执行语音合成；实际模型缓存和 Worker 初始化由 Offscreen 适配器完成，存储与适配器均由 runtime 注入。
  */
 
 import type {BackgroundMessageHandler} from '@/src/app/background/messageRouter';
-import {LOCAL_TTS_MODEL_ID, LOCAL_TTS_MODEL_STATE_KEY} from '@/src/core/config/localTts';
+import {LOCAL_TTS_MODEL, LOCAL_TTS_MODEL_ID, LOCAL_TTS_MODEL_STATE_KEY} from '@/src/core/config/localTts';
 
 type Context = unknown;
 type Store = {
@@ -65,7 +66,7 @@ export function createLocalTtsBackgroundHandlers(
             const current = reported || saved || {
                 model: LOCAL_TTS_MODEL_ID,
                 downloaded: false,
-                downloadSizeMb: 170,
+                downloadSizeMb: LOCAL_TTS_MODEL.downloadSizeMb,
             };
             await writeState(current);
             return {success: true, model: current.model, downloaded: current.downloaded, models: [current]};
@@ -81,7 +82,7 @@ export function createLocalTtsBackgroundHandlers(
             const current = modelState(reported) || {
                 model: LOCAL_TTS_MODEL_ID,
                 downloaded: true,
-                downloadSizeMb: 170,
+                downloadSizeMb: LOCAL_TTS_MODEL.downloadSizeMb,
                 dtype: typeof response.dtype === 'string' ? response.dtype : undefined,
                 revision: typeof response.revision === 'string' ? response.revision : undefined,
             };
@@ -100,7 +101,7 @@ export function createLocalTtsBackgroundHandlers(
                 const current: LocalTtsModelState = {
                     model: LOCAL_TTS_MODEL_ID,
                     downloaded: false,
-                    downloadSizeMb: 170,
+                    downloadSizeMb: LOCAL_TTS_MODEL.downloadSizeMb,
                 };
                 await writeState(current);
                 return {success: true, model: LOCAL_TTS_MODEL_ID, downloaded: false, models: [current]};

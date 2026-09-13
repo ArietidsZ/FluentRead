@@ -2,15 +2,13 @@
  * @file src/services/translation/cache.ts
  *
  * 文件职责：实现扩展自有的翻译结果缓存，统一键规范化、TTL、可配置双容量限制、内存热层和 Dexie 持久层。
- * 主要内容：定义缓存 identity/record、canonicalize 与 buildTranslationCacheKey，维护 FluentReadCacheDatabase 与事务内增量用量汇总，并通过 translationCache 提供读取、写入、持久化 LRU、过期清理、阈值设置和用量统计；缓存读写故障降级，管理故障向 UI 如实报告。 可核对的公开符号包括 TRANSLATION_CACHE_VERSION、TRANSLATION_CACHE_TTL_MS、TRANSLATION_CACHE_MAX_ENTRIES、TRANSLATION_CACHE_MAX_BYTES、TRANSLATION_CACHE_MAX_ENTRY_BYTES、TRANSLATION_CACHE_MEMORY_ENTRIES、TranslationCacheIdentity、TranslationCacheRecord。
+ * 主要内容：定义缓存 identity/record、canonicalize 与 buildTranslationCacheKey，维护 FluentReadCacheDatabase 与事务内增量用量汇总，并通过 translationCache 提供读取、写入、按短窗口合批写回的持久化 LRU、过期清理、阈值设置和用量统计；缓存读写故障降级，管理故障向 UI 如实报告。 可核对的公开符号包括 TRANSLATION_CACHE_VERSION、TRANSLATION_CACHE_TTL_MS、TRANSLATION_CACHE_MAX_ENTRY_BYTES、TRANSLATION_CACHE_MEMORY_ENTRIES、TranslationCacheIdentity、TranslationCacheRecord。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
 import sha256 from 'crypto-js/sha256';
 import Dexie, { type Table } from 'dexie';
 import {
-  DEFAULT_TRANSLATION_CACHE_MAX_BYTES,
-  DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES,
   normalizeTranslationCacheLimits,
   type TranslationCacheLimits,
 } from '@/src/core/config/translationCache';
@@ -18,10 +16,10 @@ import {
 // v3 放弃旧语言映射可能以繁体身份存入的简体或粤语译文；继续保留 v2 的上下文回显门禁。
 export const TRANSLATION_CACHE_VERSION = 3;
 export const TRANSLATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-export const TRANSLATION_CACHE_MAX_ENTRIES = DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES;
-export const TRANSLATION_CACHE_MAX_BYTES = DEFAULT_TRANSLATION_CACHE_MAX_BYTES;
 export const TRANSLATION_CACHE_MAX_ENTRY_BYTES = 256 * 1024;
 export const TRANSLATION_CACHE_MEMORY_ENTRIES = 128;
+/** 命中后访问时间只是 LRU 排序提示；短窗口内合并为一次读写事务，避免整页命中逐条排队写库。 */
+export const TRANSLATION_CACHE_TOUCH_FLUSH_MS = 32;
 
 export interface TranslationCacheIdentity {
   [key: string]: unknown;
@@ -129,6 +127,9 @@ function isExpired(record: TranslationCacheRecord, now: number): boolean {
  */
 class TranslationCache {
   private readonly memory = new Map<string, TranslationCacheRecord>();
+  /** 待写回的访问时间：按 key 保留最新时间与记录创建时间，写回时拒绝被替换的新记录。 */
+  private readonly pendingTouches = new Map<string, {createdAt: number; lastAccessedAt: number}>();
+  private touchFlushTimer: ReturnType<typeof setTimeout> | undefined;
   private limits = normalizeTranslationCacheLimits(undefined);
   private clearEpoch = 0;
   private contentRevision = 0;
@@ -189,6 +190,7 @@ class TranslationCache {
   }
 
   private async maintain(now: number): Promise<TranslationCacheStats> {
+    await this.flushPendingTouches();
     return translationCacheDb.transaction('rw', translationCacheDb.entries, translationCacheDb.totals, async () => {
       const totals = await this.readTotals();
       await this.prune(totals, now);
@@ -198,16 +200,40 @@ class TranslationCache {
   }
 
   private touch(record: TranslationCacheRecord, now: number): void {
-    const epoch = this.clearEpoch;
     record.lastAccessedAt = Math.max(record.lastAccessedAt, now);
     this.remember(record);
-    // 原子更新避免乱序 touch 回拨访问时间；旧代际或被替换的记录不能污染新值。
-    void translationCacheDb.entries.update(record.key, (current) => {
-      if (epoch !== this.clearEpoch || current.createdAt !== record.createdAt) return;
-      current.lastAccessedAt = Math.max(current.lastAccessedAt, now);
-    }).catch((error) => {
+    // 同一记录对象的访问时间单调递增，直接覆盖即可；写回时再与库内时间取最大值。
+    this.pendingTouches.set(record.key, {createdAt: record.createdAt, lastAccessedAt: record.lastAccessedAt});
+    this.touchFlushTimer ??= setTimeout(() => { void this.flushTouches(); }, TRANSLATION_CACHE_TOUCH_FLUSH_MS);
+  }
+
+  /** 写入、淘汰和统计都依赖库内 LRU 顺序；进入这些事务前先落盘尚未写回的访问时间。 */
+  private async flushPendingTouches(): Promise<void> {
+    if (this.touchFlushTimer === undefined) return;
+    clearTimeout(this.touchFlushTimer);
+    await this.flushTouches();
+  }
+
+  /** 一次事务批量写回访问时间；只推进同一条记录的时间，旧代际或被替换的记录不能被覆盖。 */
+  private async flushTouches(): Promise<void> {
+    this.touchFlushTimer = undefined;
+    const epoch = this.clearEpoch;
+    const touches = [...this.pendingTouches];
+    this.pendingTouches.clear();
+    try {
+      await translationCacheDb.transaction('rw', translationCacheDb.entries, async () => {
+        const records = await translationCacheDb.entries.bulkGet(touches.map(([key]) => key));
+        const updated = records.flatMap((current, index) => {
+          const touch = touches[index]![1];
+          if (!current || epoch !== this.clearEpoch || current.createdAt !== touch.createdAt
+            || current.lastAccessedAt >= touch.lastAccessedAt) return [];
+          return [{...current, lastAccessedAt: touch.lastAccessedAt}];
+        });
+        if (updated.length > 0) await translationCacheDb.entries.bulkPut(updated);
+      });
+    } catch (error) {
       console.warn('[FluentRead] translation cache read failed:', error);
-    });
+    }
   }
 
   private async removeExpired(key: string, now: number, epoch: number): Promise<void> {
@@ -264,6 +290,7 @@ class TranslationCache {
     const epoch = this.clearEpoch;
     let persisted = false;
     let writeRevision = this.contentRevision;
+    await this.flushPendingTouches();
     try {
       await translationCacheDb.transaction('rw', translationCacheDb.entries, translationCacheDb.totals, async () => {
         if (epoch !== this.clearEpoch) return;
@@ -312,6 +339,9 @@ class TranslationCache {
     this.clearEpoch += 1;
     this.contentRevision += 1;
     this.memory.clear();
+    this.pendingTouches.clear();
+    clearTimeout(this.touchFlushTimer);
+    this.touchFlushTimer = undefined;
     try {
       await translationCacheDb.transaction('rw', translationCacheDb.entries, translationCacheDb.totals, async () => {
         await translationCacheDb.entries.clear();

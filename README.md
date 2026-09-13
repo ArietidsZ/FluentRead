@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./public/icon/512.png" alt="FluentRead" width="96" />
+<img src="./assets/brand/icon-512.png" alt="FluentRead" width="96" />
 
 # FluentRead
 

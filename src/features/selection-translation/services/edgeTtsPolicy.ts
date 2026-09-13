@@ -7,7 +7,7 @@
 import {
     normalizeSelectionTtsVoiceOrder,
     selectionTtsVoiceLocale,
-} from '@/src/features/selection-translation/ttsConfig';
+} from '@/src/core/config/selectionTts';
 import {getChineseScript} from '@/src/core/language/chinese';
 
 export const edgeTtsLimits = Object.freeze({
@@ -55,10 +55,6 @@ export function edgeTtsVoiceCandidatesForLanguage(
     const preferred = normalizeSelectionTtsVoiceOrder(preferredVoices)
         .filter((voice) => selectionTtsVoiceLocale(voice) === normalized);
     return [...new Set([...preferred, ...automatic])];
-}
-
-export function edgeTtsVoiceForLanguage(language: string): string | null {
-    return edgeTtsVoiceCandidatesForLanguage(language)[0] ?? null;
 }
 
 function escapeXml(text: string): string {

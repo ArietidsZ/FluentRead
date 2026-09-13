@@ -25,17 +25,6 @@ function isExtensionModelUsageRuntime(): boolean {
         || protocol === 'safari-web-extension:';
 }
 
-export type {
-    TranslationBatchRequestMessage,
-    TranslationBroker,
-    TranslationBrokerDependencies,
-    TranslationProvider,
-    TranslationProviderRegistry,
-    TranslationRequestMessage,
-    TranslationRequestMessageBase,
-    TranslationSingleRequestMessage,
-} from '@/src/services/translation/broker';
-
 const cachePolicy = createTranslationCachePolicyBinding({
     ready: configReady,
     getConfig: () => config,

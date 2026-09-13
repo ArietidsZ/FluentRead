@@ -6,20 +6,22 @@ import {
     localTtsVoiceForLanguage,
     normalizeLocalTtsMode,
     normalizeLocalTtsVoice,
+    supportsLocalTtsLanguage,
 } from '@/src/core/config/localTts';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 import {
     LocalTtsLanguageUnsupportedError,
     LocalTtsModelNotDownloadedError,
-} from '@/src/features/local-tts/offscreen/tts';
+    localTtsErrorCode,
+} from '@/src/features/local-tts/protocol';
 import {
     getLocalTtsModelFileUrl,
     getLocalTtsModelLoaderUrl,
 } from '@/src/features/local-tts/offscreen/modelCache';
 import {createSelectionTtsSynthesizer} from '@/src/features/selection-translation/background/selectionTtsSynthesis';
 import type {SelectionTtsAudio} from '@/src/features/selection-translation/background/ttsHandler';
-import type {LocalTtsAudio} from '@/src/features/local-tts/offscreen/tts';
+import type {LocalTtsAudio} from '@/src/features/local-tts/protocol';
 
 function onlineAudio(): SelectionTtsAudio {
     return {audio: new Uint8Array([1]).buffer, contentType: 'audio/mpeg', voice: 'edge-voice'};
@@ -57,6 +59,13 @@ describe('local TTS configuration', () => {
         expect(localTtsLanguageFamily('fr-FR')).toBeNull();
         expect(localTtsVoiceForLanguage('zh-CN', 'af_maple')).toBe('zf_001');
         expect(localTtsVoiceForLanguage('en-US', 'bf_vale')).toBe('bf_vale');
+        expect(localTtsVoiceForLanguage('zh_TW', 'zm_010')).toBe('zm_010');
+        expect(localTtsVoiceForLanguage('en', 'unknown-voice')).toBe('af_maple');
+        expect(localTtsVoiceForLanguage('fr-FR', 'zf_002')).toBe('af_maple');
+        for (const [language, family] of [['cmn', 'zh'], ['zho', 'zh'], ['ZH', 'zh'], ['eng', 'en'], ['en-GB', 'en'], ['fr', null], [42, null]] as const) {
+            expect(localTtsLanguageFamily(language), String(language)).toBe(family);
+            expect(supportsLocalTtsLanguage(language)).toBe(family !== null);
+        }
         expect(new Config().selectionTtsMode).toBe('online-first');
         expect(new Config().selectionTtsLocalVoice).toBe('auto');
         expect(normalizeConfig({selectionTtsMode: 'local-only', selectionTtsLocalVoice: 'zf_001'})).toMatchObject({
@@ -133,6 +142,12 @@ describe('selection TTS source policy', () => {
         expect(fallback.synthesizeOnline).toHaveBeenCalledOnce();
     });
 
+    it('本地音色为空时按自动音色交给本地合成', async () => {
+        const state = subject('local-only', {getLocalVoice: () => ''});
+        await state.synthesize('你好', 'zh-CN', [], undefined);
+        expect(state.synthesizeLocal).toHaveBeenCalledWith('你好', 'zh-CN', 'auto', undefined);
+    });
+
     it('only-online and only-local modes remain strict', async () => {
         const online = subject('online-only');
         await expect(online.synthesize('hello', 'en-US', [], undefined)).resolves.toEqual(onlineAudio());
@@ -149,5 +164,58 @@ describe('selection TTS source policy', () => {
         });
         await expect(state.synthesize('bonjour', 'fr-FR', [], undefined)).resolves.toEqual(onlineAudio());
         expect(state.synthesizeOnline).toHaveBeenCalledOnce();
+    });
+
+    // 回归：本地错误经 Offscreen 消息返回后只剩普通 Error + code，instanceof 判断会失效。
+    it.each([
+        ['local-tts-model-not-downloaded'],
+        ['local-tts-language-unsupported'],
+    ])('local-first 把跨消息边界的 %s 视为本地不可用，直接交给在线结果或在线错误', async (code) => {
+        const remoteError = () => Object.assign(new Error('offscreen said no'), {code});
+        const fallback = subject('local-first', {synthesizeLocal: vi.fn(async () => { throw remoteError(); })});
+        await expect(fallback.synthesize('hello', 'en-US', [], undefined)).resolves.toEqual(onlineAudio());
+
+        const onlineFailure = new Error('network down');
+        const bothUnavailable = subject('local-first', {
+            synthesizeLocal: vi.fn(async () => { throw remoteError(); }),
+            synthesizeOnline: vi.fn(async () => { throw onlineFailure; }),
+        });
+        await expect(bothUnavailable.synthesize('hello', 'en-US', [], undefined)).rejects.toBe(onlineFailure);
+    });
+
+    it('local-first 在真实本地合成失败后尝试在线，并在两者都失败时同时给出原因', async () => {
+        const state = subject('local-first', {
+            synthesizeLocal: vi.fn(async () => { throw new Error('worker crashed'); }),
+            synthesizeOnline: vi.fn(async () => { throw 'offline'; }),
+        });
+        await expect(state.synthesize('你好', 'zh-CN', [], undefined)).rejects.toThrow('本地 TTS 和在线 TTS 均失败：worker crashed；offline');
+    });
+
+    it('online-first 在线失败时，本地不支持该语言则保留在线错误，本地真实失败则同时给出两侧原因', async () => {
+        const onlineFailure = new Error('network down');
+        const unsupported = subject('online-first', {
+            synthesizeOnline: vi.fn(async () => { throw onlineFailure; }),
+            synthesizeLocal: vi.fn(async () => { throw Object.assign(new Error('remote'), {code: 'local-tts-language-unsupported'}); }),
+        });
+        await expect(unsupported.synthesize('bonjour', 'fr-FR', [], undefined)).rejects.toBe(onlineFailure);
+
+        const bothFailed = subject('online-first', {
+            synthesizeOnline: vi.fn(async () => { throw 'edge offline'; }),
+            synthesizeLocal: vi.fn(async () => { throw new Error('worker crashed'); }),
+        });
+        await expect(bothFailed.synthesize('你好', 'zh-CN', [], undefined)).rejects.toThrow('在线 TTS 和本地 TTS 均失败：edge offline；worker crashed');
+
+        const missingModel = subject('online-first', {
+            synthesizeOnline: vi.fn(async () => { throw onlineFailure; }),
+            synthesizeLocal: vi.fn(async () => { throw Object.assign(new Error('remote'), {code: 'local-tts-model-not-downloaded'}); }),
+        });
+        await expect(missingModel.synthesize('你好', 'zh-CN', [], undefined)).rejects.toThrow('在线 TTS 失败；本地 TTS 模型尚未下载');
+    });
+
+    it('错误码读取只接受字符串 code', () => {
+        expect(localTtsErrorCode(new LocalTtsModelNotDownloadedError())).toBe('local-tts-model-not-downloaded');
+        expect(localTtsErrorCode(Object.assign(new Error('x'), {code: 7}))).toBeUndefined();
+        expect(localTtsErrorCode(null)).toBeUndefined();
+        expect(localTtsErrorCode('local-tts-model-not-downloaded')).toBeUndefined();
     });
 });

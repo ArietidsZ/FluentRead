@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getOcrLanguages, normalizeOcrLines, scaleOcrBox, selectChangedTranslations } from '@/src/features/image-translation/core';
+import { getOcrLanguages, normalizeOcrLines, selectChangedTranslations } from '@/src/features/image-translation/core';
 import { inpaintTextRegions } from '@/src/features/image-translation/services/inpainting';
 import { IMAGE_OCR_LANGUAGE_PACKS, IMAGE_OCR_RECOMMENDED_LANGUAGES, normalizeImageOcrLanguageCodes } from '@/src/features/image-translation/ocrLanguages';
 import { getImageTextBackgroundColor, getImageTextColor } from '@/src/features/image-translation/services/rendering';
@@ -29,23 +29,6 @@ describe('图片翻译 OCR 工具', () => {
         expect(normalizeImageOcrLanguageCodes(['chi_tra', 'eng', 'chi_tra'])).toEqual(['chi_tra', 'eng']);
         expect(normalizeImageOcrLanguageCodes(['spa', 'eng', 'spa'])).toEqual(['spa', 'eng']);
         expect(normalizeImageOcrLanguageCodes('eng')).toEqual([]);
-    });
-
-    it('把 OCR 坐标按图片显示尺寸缩放', () => {
-        expect(scaleOcrBox(
-            { x0: 100, y0: 50, x1: 500, y1: 150 },
-            1000,
-            500,
-            500,
-            250,
-        )).toEqual({ left: 50, top: 25, width: 200, height: 50 });
-        expect(scaleOcrBox(
-            { x0: -10, y0: -10, x1: -9, y1: -9 },
-            100,
-            100,
-            50,
-            50,
-        )).toEqual({ left: 0, top: 0, width: 1, height: 1 });
     });
 
     it('过滤空 OCR 行并保留文本框', () => {

@@ -1,21 +1,30 @@
 import {describe, expect, it} from 'vitest';
 
 import {
-    DEFAULT_TRANSLATION_REQUEST_LIMITS,
     getModelRequestLimitPreference,
     getServiceRequestLimitPreference,
-    normalizeConfig,
     normalizeModelRequestLimits,
     normalizeRequestLimitPreference,
     normalizeServiceRequestLimits,
     normalizeTranslationRequestLimits,
     resolveRequestLimits,
-    services,
     withoutModelRequestLimit,
-    withoutServiceRequestLimit,
     withModelRequestLimit,
     withServiceRequestLimit,
-} from '@/src/core/config';
+} from '@/src/core/config/requestLimits';
+import {normalizeConfig} from '@/src/core/config/model';
+import {services} from '@/src/core/config/catalog';
+import {
+    DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
+    DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE,
+    DEFAULT_TRANSLATION_REQUESTS_PER_SECOND,
+} from '@/src/core/config/scheduling';
+
+const DEFAULT_TRANSLATION_REQUEST_LIMITS = {
+    maxConcurrentTranslations: DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
+    translationRequestsPerSecond: DEFAULT_TRANSLATION_REQUESTS_PER_SECOND,
+    translationRequestsPerMinute: DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE,
+};
 
 describe('请求限流配置领域模型', () => {
     it('保留合法已有值，并将 0 作为不限速', () => {
@@ -97,12 +106,11 @@ describe('请求限流配置领域模型', () => {
         expect(getModelRequestLimitPreference(modelRequestLimits, services.openai, 'missing-model')).toBeUndefined();
     });
 
-    it('with/without helper 不修改输入，并支持删除模型或服务草稿', () => {
+    it('with/without helper 不修改输入，并支持删除模型草稿', () => {
         const source = {openai: {enabled: true, limits: {maxConcurrentTranslations: 4, translationRequestsPerSecond: 0, translationRequestsPerMinute: 0}}};
         const withService = withServiceRequestLimit(source, 'custom:service', {enabled: false, limits: {maxConcurrentTranslations: 7}});
         expect(source).not.toHaveProperty('custom:service');
         expect(withService['custom:service'].limits.maxConcurrentTranslations).toBe(7);
-        expect(withoutServiceRequestLimit(withService, 'custom:service')).not.toHaveProperty('custom:service');
         expect(withServiceRequestLimit({}, '__proto__', {enabled: true})).toEqual({});
 
         const withModel = withModelRequestLimit({}, 'custom:service', 'any-valid-model', {enabled: true, limits: {maxConcurrentTranslations: 5}});

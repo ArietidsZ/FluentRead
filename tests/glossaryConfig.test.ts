@@ -2,7 +2,8 @@ import {describe, expect, it} from 'vitest';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {buildConfigDiff} from '@/src/core/config/diff';
 import {createQuickTranslationProfile, normalizeQuickTranslationProfiles} from '@/src/core/config/quickTranslation';
-import {prepareConfigForExport, prepareConfigForImport, sanitizeConfigForExport} from '@/src/core/config/transfer';
+import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
+import {sanitizeConfigCredentials} from '@/src/core/config/credentials';
 import {createGlossaryLibrary} from '@/src/core/glossary';
 
 function library() {
@@ -53,7 +54,8 @@ describe('术语库配置与迁移', () => {
             documentGlossaryIds: ['technical'], videoGlossaryIds: [],
             quickTranslationProfiles: [{...createQuickTranslationProfile('hover'), glossaryIds: ['technical']}],
         });
-        for (const exported of [prepareConfigForExport(source), sanitizeConfigForExport(source)]) {
+        // 完整备份与不含凭据的旧公开配置文件都必须保留术语库选择。
+        for (const exported of [prepareConfigForExport(source), sanitizeConfigCredentials(JSON.parse(JSON.stringify(source)))]) {
             const restored = prepareConfigForImport(JSON.parse(JSON.stringify(exported)), new Config());
             expect(restored.glossaryEnabled).toBe(true);
             expect(restored.glossaryLibraries).toEqual(source.glossaryLibraries);

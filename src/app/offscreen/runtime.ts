@@ -8,7 +8,6 @@ import {
     downloadImageOcrLanguages,
     removeImageOcrLanguages,
     fetchImageInOffscreen,
-    recognizeImage,
     translateAreaInOffscreen,
     cropAreaInOffscreen,
     translateImageInOffscreen,
@@ -70,7 +69,6 @@ export function startOffscreenApp(): void {
     const listener = createOffscreenMessageListener({
         translate: (data, signal) => translateWithChromeApi(data, self as ChromeTranslationEnvironment, signal),
         ttsPlayer,
-        recognizeImage,
         translateImage: translateImageInOffscreen,
         translateArea: translateAreaInOffscreen,
         cropArea: cropAreaInOffscreen,

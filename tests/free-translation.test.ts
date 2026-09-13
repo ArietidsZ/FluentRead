@@ -24,12 +24,13 @@ import type {TranslationConfigSource} from '@/src/services/translation/types';
 import {DEFAULT_DEEPLX_ENDPOINT} from '@/src/core/config/deeplx';
 
 let freeTranslation: typeof import('@/src/providers/translation/free-translation').default;
-let translateFreeText: typeof import('@/src/providers/translation/free-translation').translateFreeText;
 let FREE_TRANSLATION_BATCH_CONCURRENCY: number;
-let FREE_TRANSLATION_ORDER: string[];
 let attachTranslationProviderConfig: typeof import('@/src/services/translation/requestSnapshot').attachTranslationProviderConfig;
 let createTranslationProviderConfigSnapshot: typeof import('@/src/services/translation/requestSnapshot').createTranslationProviderConfigSnapshot;
 let getTranslationProviderConfig: typeof import('@/src/services/translation/requestSnapshot').getTranslationProviderConfig;
+const translateFreeText = (text: string, message: Record<string, unknown> = {}) => (
+    freeTranslation({...message, origin: text}) as Promise<string>
+);
 const flush = async () => { await vi.advanceTimersByTimeAsync(0); };
 async function settle<T>(request: Promise<T>): Promise<T> {
     let done = false;
@@ -57,7 +58,7 @@ beforeEach(async () => {
     for (const mock of [microsoftMock, deeplxMock, googleMock, myMemoryMock, chineseMock, extraMock]) {
         mock.mockRejectedValue(httpFailure());
     }
-    ({default: freeTranslation, translateFreeText, FREE_TRANSLATION_BATCH_CONCURRENCY, FREE_TRANSLATION_ORDER}
+    ({default: freeTranslation, FREE_TRANSLATION_BATCH_CONCURRENCY}
         = await import('@/src/providers/translation/free-translation'));
     ({attachTranslationProviderConfig, createTranslationProviderConfigSnapshot, getTranslationProviderConfig}
         = await import('@/src/services/translation/requestSnapshot'));
@@ -74,7 +75,6 @@ describe('免费翻译服务', () => {
         myMemoryMock.mockImplementation(async () => { calls.push('myMemory'); return '官方译文'; });
         await expect(settle(translateFreeText('Hello'))).resolves.toBe('官方译文');
         expect(calls).toEqual(['microsoft', 'deeplx', 'google', 'myMemory']);
-        expect(FREE_TRANSLATION_ORDER).toEqual(['微软翻译', '腾讯交互翻译', '火山翻译', '谷歌翻译', '有道网页翻译', '金山词霸', 'Yandex', 'DeepLX', 'MyMemory']);
         expect(microsoftMock).toHaveBeenCalledWith(['Hello'], 'auto', 'zh-Hans', expect.any(AbortSignal));
         expect(deeplxMock).toHaveBeenCalledWith('Hello', 'deeplx', expect.objectContaining({sourceLanguage: 'auto', targetLanguage: 'zh-Hans'}));
         expect(myMemoryMock).toHaveBeenCalledWith(expect.objectContaining({origin: 'Hello', serviceOverride: 'myMemory', abortSignal: expect.any(AbortSignal)}));
@@ -363,7 +363,7 @@ describe('免费翻译服务', () => {
 
     it('空批量直接返回并拒绝非文本输入', async () => {
         await expect(settle(freeTranslation({origin: []}))).resolves.toEqual([]);
-        await expect(settle(translateFreeText(42 as unknown as string))).rejects.toThrow('仅支持文本输入');
+        await expect(settle(freeTranslation({origin: [42 as unknown as string]}))).rejects.toThrow('仅支持文本输入');
         await expect(settle(freeTranslation({origin: 42 as unknown as string}))).rejects.toThrow('仅支持文本输入');
         expect(microsoftMock).not.toHaveBeenCalled();
     });

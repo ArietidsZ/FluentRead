@@ -3,6 +3,8 @@ import {readFileSync} from 'node:fs';
 import {parseHTML} from 'linkedom';
 
 import {showPageNotice} from '@/src/features/page-notice/public';
+import {config} from '@/src/services/config/store';
+import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
 
 const originalDocument = globalThis.document;
 const originalWindow = globalThis.window;
@@ -126,6 +128,30 @@ describe('page error notice', () => {
         const action = shadow.querySelector<HTMLButtonElement>('.notice-action')!;
         action.click();
         expect(sendMessage).toHaveBeenCalledWith({type: 'openOptionsPage'});
+    });
+
+    it.each([
+        ['ja-JP' as const, 'あと一歩です：DeepSeek の API キー（アクセストークン） を入力すると翻訳を始められます。', '画像翻訳に失敗しました：オフスクリーンドキュメントの準備がタイムアウトしました'],
+        ['fr-FR' as const, 'Plus qu’une étape : ajoutez App Key et App Secret pour le service de traduction actuel afin de commencer à traduire.', 'Échec de la traduction de l’image : La préparation du document hors écran a expiré'],
+    ])('localizes missing credential guidance and runtime feedback in %s', async (language, detail, imageFailure) => {
+        registerAllUiLanguageBundles();
+        const previousLanguage = config.uiLanguage;
+        config.uiLanguage = language;
+        try {
+            showPageNotice(language === 'ja-JP'
+                ? 'DeepSeek 需要 API Key（访问令牌），当前尚未配置；请先在设置中填写，再开始翻译。'
+                : '当前翻译服务还没有配置 App Key 和 App Secret', 'error');
+            showPageNotice('图片翻译失败：Offscreen 文档准备超时', 'error');
+            await Promise.resolve();
+
+            const shadow = document.getElementById('fluent-read-page-notice-host')!.shadowRoot!;
+            const details = [...shadow.querySelectorAll('.notice-detail')].map((node) => node.textContent);
+            expect(details[0]).toBe(detail);
+            expect(details[1]).toBe(imageFailure);
+            expect(shadow.querySelector<HTMLImageElement>('img.notice-mark')?.alt).toBe('FluentRead');
+        } finally {
+            config.uiLanguage = previousLanguage;
+        }
     });
 
     it('keeps invalid credential diagnostics instead of treating them as missing setup', async () => {

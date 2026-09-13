@@ -37,10 +37,7 @@ export function mountConfiguredQuickTranslation(
         window,
         isSiteDisabled,
         isProfileAvailable: (profile) => isTranslationServiceAvailable(profile.service || config.service),
-        shouldReserveSelectionShortcut: hotkeys.shouldReserveSelectionShortcut,
-        getConfiguredSelectionHotkey: hotkeys.getConfiguredSelectionHotkey,
-        getCustomSelectionHotkey: () => config.customSelectionTranslatorHotkey,
-        hasActiveSelectionTranslationCandidate: hotkeys.hasActiveSelectionTranslationCandidate,
+        ...hotkeys.selectionShortcutPorts,
         resetLegacyKeyboardGestures,
         cancelPendingHoverTranslation,
         runHover: (profile, mouseX, mouseY, invocation = {}) => handleTranslation(mouseX, mouseY, {

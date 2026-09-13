@@ -1,7 +1,7 @@
 /**
  * @file src/ui/view-model/serviceCatalog.ts
  * 文件职责：为服务与模型选择界面提供无框架的视图模型转换，把扁平配置选项整理成可搜索、可分层和可稳定展示的数据。
- * 主要内容：定义服务目录分组与官方网站入口，提供云服务厂商的免费额度与开通指引，安全派生自定义服务站点，按服务与模型关键词搜索、筛选分层目录，并解析当前模型标签。
+ * 主要内容：定义服务目录分组与官方网站入口，提供云服务厂商的免费额度与开通指引，安全派生自定义服务站点，按服务与模型关键词搜索，并解析当前模型标签。
  * 模块边界：这些函数不读取 Vue 状态、不修改 Config，也不判断平台能力或发起连接测试；原始目录由 core/config 提供，Popup/Options 等调用方负责交互与渲染。
  */
 import { customModelString, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog'
@@ -281,25 +281,6 @@ export function buildServiceSections(options: ServiceOption[]): ServiceSection[]
       }],
     }
   })
-}
-
-export function filterServiceSections(sections: ServiceSection[], query: string) {
-  const keyword = query.trim().toLocaleLowerCase()
-  if (!keyword) return sections
-
-  return sections
-    .map((section) => ({
-      ...section,
-      groups: section.groups
-        .map((group) => ({
-          ...group,
-          items: group.items.filter((item) =>
-            `${item.label}${item.value}${item.description || ''}`.toLocaleLowerCase().includes(keyword),
-          ),
-        }))
-        .filter((group) => group.items.length > 0),
-    }))
-    .filter((section) => section.groups.length > 0)
 }
 
 function searchTextMatches(value: string, rawKeyword: string, compactKeyword: string) {

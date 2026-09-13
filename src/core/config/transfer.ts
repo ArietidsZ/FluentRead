@@ -1,8 +1,8 @@
 /**
  * @file src/core/config/transfer.ts
  *
- * 文件职责：负责配置导入与导出的纯数据转换，区分可公开配置与用户主动复制的完整可迁移配置。
- * 主要内容：验证导入对象所需字段，使用 sanitizeConfigForExport 生成脱敏公开配置，使用 prepareConfigForExport 保留完整用户设置与专用凭据，并通过 prepareConfigForImport 将合法值合并到当前 Config。 可核对的公开符号包括 isConfigImportValid、sanitizeConfigForExport、prepareConfigForExport、prepareConfigForImport。
+ * 文件职责：负责配置导入与导出的纯数据转换，生成用户主动复制的完整可迁移配置，并兼容导入不含凭据的旧公开配置文件。
+ * 主要内容：验证导入对象所需字段，使用 prepareConfigForExport 保留完整用户设置与专用凭据，并通过 prepareConfigForImport 将合法值合并到当前 Config、按目标地址解绑未显式导入的凭据。 可核对的公开符号包括 isConfigImportValid、prepareConfigForExport、prepareConfigForImport。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
@@ -16,7 +16,7 @@ import {
   type ConfigCredentials,
 } from './credentials'
 import { normalizeConfig, type Config } from './model'
-import { defaultOption, servicesType } from './catalog'
+import { servicesType } from './catalog'
 import {
   isConfiguredCustomOpenAIProvider,
   isCustomOpenAIProviderId,
@@ -54,28 +54,6 @@ export function isConfigImportValid(value: unknown): value is ConfigRecord {
   } else if (!servicesType.machine.has(value.service) && !servicesType.AI.has(value.service)) return false
   return (!('customBody' in value) || isCustomBodyMapping(value.customBody))
     && (!('customHeaders' in value) || isCustomBodyMapping(value.customHeaders))
-}
-
-function removeDefaultEntries(target: ConfigRecord, key: 'system_role' | 'user_role', defaultValue: string) {
-  const entries = target[key]
-  if (!isRecord(entries)) return
-
-  for (const [service, value] of Object.entries(entries)) {
-    if (value === defaultValue) delete entries[service]
-  }
-
-  if (Object.keys(entries).length === 0) delete target[key]
-}
-
-function removeEmptyCustomBodies(target: ConfigRecord) {
-  const entries = target.customBody
-  if (!isRecord(entries)) return
-
-  for (const [service, value] of Object.entries(entries)) {
-    if (typeof value !== 'string' || !value.trim()) delete entries[service]
-  }
-
-  if (Object.keys(entries).length === 0) delete target.customBody
 }
 
 const scalarCredentialFields = [
@@ -168,23 +146,6 @@ function prepareImportedCredentials(
     merged,
     explicitlyBoundCredentialFields,
   )
-}
-
-export function sanitizeConfigForExport(value: unknown): ConfigRecord {
-  if (!isRecord(value)) throw new Error('配置必须是 JSON 对象')
-
-  const sanitized = sanitizeConfigCredentials(
-    JSON.parse(JSON.stringify(value)),
-  ) as ConfigRecord
-  delete sanitized.__fluentConfigRevision
-  delete sanitized.count
-  delete sanitized.persistCredentials
-  // videoServiceDefaultMigrated 暂时保留，旧版 raw JSON 没有独立 schema；
-  // 删除它会让用户主动选择的 DeepLX 在重新导入时被误判为旧默认值。
-  removeDefaultEntries(sanitized, 'system_role', defaultOption.system_role)
-  removeDefaultEntries(sanitized, 'user_role', defaultOption.user_role)
-  removeEmptyCustomBodies(sanitized)
-  return sanitized
 }
 
 /**

@@ -25,7 +25,6 @@ import {
     isXHostPage,
     isXVideoPage,
     isSupportedVideoPage,
-    isIncrementalVideoCaption,
     normalizeVideoSubtitleDisplayMode,
     normalizeVideoCaptionText,
     readVisibleCaptionText,
@@ -33,10 +32,14 @@ import {
     translateVideoSubtitleCues,
     VIDEO_CAPTION_SEGMENT_SELECTOR,
 } from '@/src/features/video-subtitle/content/runtime';
-import {applyVideoDisplayState, findVideoPlayer, findXSettingsControl} from '@/src/features/video-subtitle/content/ui';
+import {applyVideoDisplayState, findVideoPlayer} from '@/src/features/video-subtitle/content/ui';
 import {validateYoutubeTimedTextMessage} from '@/src/features/video-subtitle/content/youtubeTimedTextMessage';
 import {config} from '@/src/services/config/store';
 import { normalizeVideoSubtitleFontSize } from '@/src/core/config/model';
+import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+
+// 本文件断言非中文界面文案；扩展运行时按需加载，测试中一次注册全部语言资源包。
+registerAllUiLanguageBundles();
 
 afterEach(() => {
     vi.unstubAllGlobals();
@@ -88,7 +91,6 @@ describe('YouTube 视频字幕识别', () => {
 
         const player = findVideoPlayer();
         expect(player?.className).toBe('relative h-full w-full');
-        expect(findXSettingsControl(player!)).toBeNull();
     });
 
     it('X 只提升当前 post，忽略更早视频、错误 status、外部链接和无 article 页面', () => {
@@ -177,12 +179,6 @@ describe('YouTube 视频字幕识别', () => {
         expect(revealVideoSubtitleTranslation(fullTranslation, 'understand from [music] the axioms and', fullSource)).toBe('从音乐中理解公理和基');
         expect(revealVideoSubtitleTranslation(fullTranslation, fullSource, fullSource)).toBe(fullTranslation);
         expect(revealVideoSubtitleTranslation(fullTranslation, 'unrelated subtitle', fullSource)).toBe(fullTranslation);
-    });
-
-    it('识别逐词前缀并允许播放器改用完整原文 cue', () => {
-        expect(isIncrementalVideoCaption('understand from', 'understand from [music] the axioms and the basics.')).toBe(true);
-        expect(isIncrementalVideoCaption('understand from [music] the axioms and the basics.', 'understand from [music] the axioms and the basics.')).toBe(false);
-        expect(isIncrementalVideoCaption('unrelated subtitle', 'understand from [music] the axioms and the basics.')).toBe(false);
     });
 
     it('把原文字幕下载失败转换为用户可操作的提示', () => {

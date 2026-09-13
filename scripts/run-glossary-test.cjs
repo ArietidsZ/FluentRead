@@ -14,6 +14,16 @@ function argument(name, fallback) {
   return index < 0 ? fallback : process.argv[index + 1];
 }
 
+
+// 设置页和文档页的下拉框是 Element Plus 组合框：点击后按可见选项文字选择。
+async function chooseComboboxOption(page, combobox, optionText) {
+  await combobox.click({force: true});
+  // 只在该组合框控制的列表里找选项，避免上一个下拉框的离场动画残留被误点。
+  const listbox = page.locator(`[id="${await combobox.getAttribute('aria-controls')}"]`);
+  const option = listbox.locator('[role="option"]').filter({hasText: optionText}).first();
+  await option.waitFor({state: 'visible'});
+  await option.evaluate((element) => element.click());
+}
 async function startFixture() {
   const requests = [];
   const server = http.createServer(async (request, response) => {
@@ -195,9 +205,9 @@ async function main() {
     };
     await addTerm('agent', '智能体');
     await addTerm('FluentRead', '', true);
-    await editor.getByLabel('源语言', {exact: true}).selectOption('en');
+    await chooseComboboxOption(options, editor.getByRole('combobox', {name: '源语言', exact: true}), 'English');
     await waitConfig(config => config.glossaryLibraries[0].sourceLanguage === 'en');
-    await editor.getByLabel('目标语言', {exact: true}).selectOption('zh-hans');
+    await chooseComboboxOption(options, editor.getByRole('combobox', {name: '目标语言', exact: true}), 'Simplified Chinese');
     await waitConfig(config => config.glossaryLibraries[0].targetLanguage === 'zh-hans');
     await editor.getByLabel('适用网站', {exact: true}).fill('127.0.0.1');
     await editor.getByLabel('适用网站', {exact: true}).press('Tab');
@@ -305,25 +315,25 @@ async function main() {
     await patchConfig({documentService: service, documentModel: {[service]: 'glossary-fixture'}});
     const documentPage = await createPage(`${extensionOrigin}/document.html`, 'document');
     await documentPage.locator('input[type="file"]').setInputFiles({name: 'glossary.txt', mimeType: 'text/plain', buffer: Buffer.from('The agent uses FluentRead to understand this document.')});
-    await documentPage.getByLabel('术语库使用方式').selectOption('none');
+    await chooseComboboxOption(documentPage, documentPage.getByRole('combobox', {name: '术语库使用方式'}), '不使用术语库');
     await waitConfig(config => Array.isArray(config.documentGlossaryIds) && config.documentGlossaryIds.length === 0);
     await documentPage.getByRole('button', {name: '开始翻译', exact: true}).click();
-    await documentPage.getByText('翻译完成，可以编辑译文后下载', {exact: true}).waitFor();
+    await documentPage.locator('.document-status').filter({hasText: /^翻译完成$/}).waitFor();
     assert.deepEqual(fixture.requests.at(-1).terms, []);
     report.crossPageSync = 'document selection persisted through shared background store';
     await documentPage.reload({waitUntil: 'domcontentloaded'});
     await documentPage.locator('input[type="file"]').setInputFiles({name: 'glossary.txt', mimeType: 'text/plain', buffer: Buffer.from('The agent uses FluentRead.')});
-    assert.equal(await documentPage.getByLabel('术语库使用方式').inputValue(), 'none');
+    await documentPage.waitForFunction(() => document.querySelector('[aria-label="术语库使用方式"]')?.closest('.el-select')?.querySelector('.el-select__selected-item:not(.el-select__input-wrapper)')?.textContent?.trim() === '不使用术语库');
     await shot(documentPage, 'glossary-document-persisted');
     report.cases.push('document native glossary selector, explicit disable, actual provider request and reload persistence');
 
-    await documentPage.getByLabel('术语库使用方式').selectOption('selected');
+    await chooseComboboxOption(documentPage, documentPage.getByRole('combobox', {name: '术语库使用方式'}), '指定词库');
     const documentPicker = documentPage.getByTestId('glossary-library-select');
     await documentPicker.locator('input[type="checkbox"]').nth(1).check();
     await documentPicker.locator('input[type="checkbox"]').nth(0).uncheck();
     await waitConfig(config => config.documentGlossaryIds?.length === 1 && config.documentGlossaryIds[0] === persisted.glossaryLibraries[1].id);
     await documentPage.getByRole('button', {name: '开始翻译', exact: true}).click();
-    await documentPage.getByText('翻译完成，可以编辑译文后下载', {exact: true}).waitFor();
+    await documentPage.locator('.document-status').filter({hasText: /^翻译完成$/}).waitFor();
     assert.deepEqual(fixture.requests.at(-1).terms, [{source: 'agent', target: '通用智能体'}]);
     await shot(documentPage, 'glossary-document-selected');
     report.cases.push('document selected global library uses imported zh-CN terms instead of website-scoped library');

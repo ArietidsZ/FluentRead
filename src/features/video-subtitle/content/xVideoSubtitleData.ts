@@ -250,5 +250,3 @@ export function selectXSubtitleLanguageResources<T extends {languageCode?: strin
   const selectedCode = (exact || base || resources[0]).languageCode;
   return resources.filter((resource) => resource.languageCode === selectedCode);
 }
-
-export const chooseXSubtitleLanguageResources = selectXSubtitleLanguageResources;

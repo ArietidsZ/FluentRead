@@ -441,6 +441,24 @@ async function waitFor(page, predicate, timeout, description) {
   if (description) return description;
 }
 
+// 视口模式会在首屏译完后继续预取附近的离屏段落；测量交互是否发请求前先等请求静默。
+async function waitForTranslationRequestsIdle(page, translationFixtureServer, timeout, quietMs = 1200) {
+  const deadline = Date.now() + timeout;
+  let count = translationFixtureServer.requestCount();
+  let stableSince = Date.now();
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(150);
+    const next = translationFixtureServer.requestCount();
+    if (next !== count) {
+      count = next;
+      stableSince = Date.now();
+    } else if (Date.now() - stableSince >= quietMs) {
+      return count;
+    }
+  }
+  throw new Error(`等待翻译请求静默超时：${count}`);
+}
+
 async function getConfigurationPage(context, createPage) {
   const existing = configurationPages.get(context);
   if (existing && !existing.isClosed()) return existing;
@@ -2069,6 +2087,8 @@ async function main() {
     const configUpdates = {
       mouseHoverTranslationDelay: 0,
       bilingualSentenceHighlightEnabled: true,
+      // 免费翻译会在微软繁忙或冷却时分流到其他免密钥服务；确定性 fixture 只保留由本地 loopback 应答的微软。
+      freeTranslationOrder: ['microsoft'],
     };
     if (args.configureService) configUpdates.service = args.configureService;
     if (args.verifyFloatingUi) {
@@ -2076,6 +2096,10 @@ async function main() {
         disableFloatingBall: false,
         translationProgressPanelEnabled: true,
         fullPageTranslationMode: 'viewport',
+        // 点击本体默认切换全文翻译；这里验证“仅拖动”模式下点击 Logo 的几何与页面稳定性。
+        floatingBallClickAction: 'none',
+        // 关闭免滚动预翻译，离屏 fixture 才能保留待滚动候选。
+        eagerTranslationCharacters: 0,
       });
     }
     if (args.verifyLoadingStyleIsolation) {
@@ -2380,6 +2404,7 @@ async function main() {
     assertTranslated(translated, '第一次全文翻译');
     if (JSON.stringify(translated.iconLigatures) !== JSON.stringify(['account_circle']) ||
         translated.standaloneIcon !== 'keyboard_return' || translated.translationContainsIconLigature) throw new Error(`图标字体结构被翻译：${JSON.stringify(translated)}`);
+    await waitForTranslationRequestsIdle(page, translationFixtureServer, args.timeout);
     const zeroDelayHoverRequestCountBefore = translationFixtureServer.requestCount();
     const zeroDelayHover = await verifyZeroDelayHoverStability(
       page,
@@ -2393,8 +2418,12 @@ async function main() {
       after: zeroDelayHoverRequestCountAfter,
     };
     if (zeroDelayHoverRequestCountAfter !== zeroDelayHoverRequestCountBefore) {
-      throw new Error(`0ms 连续悬浮不应新增翻译请求：${JSON.stringify(zeroDelayHover.translationRequests)}`);
+      throw new Error(`0ms 连续悬浮不应新增翻译请求：${JSON.stringify({
+        ...zeroDelayHover.translationRequests,
+        payloads: translationFixtureServer.requestPayloads().slice(zeroDelayHoverRequestCountBefore),
+      })}`);
     }
+    await waitForTranslationRequestsIdle(page, translationFixtureServer, args.timeout);
     const passiveHoverRemountRequestCountBefore = translationFixtureServer.requestCount();
     const passiveHoverRemount = await verifyPassiveHoverRemountStability(
       page,

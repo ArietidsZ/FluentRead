@@ -5,14 +5,12 @@ const mocks = vi.hoisted(() => ({
     recordMany: vi.fn(async (_events: unknown, _generation: number) => 1),
     resolveConfiguredModel: vi.fn((_selected?: string, _custom?: string) => 'resolved-model'),
     runConnectionTest: vi.fn(async (_service: string, _options: any) => ({durationMs: 25})),
-    translateMicrosoftTexts: vi.fn(async () => ['input translation']),
 }));
 
 vi.mock('@/src/providers/translation/connectionTest', () => ({
     formatConnectionTestError: vi.fn(),
     runTranslationServiceConnectionTest: mocks.runConnectionTest,
 }));
-vi.mock('@/src/providers/translation/microsoft', () => ({translateMicrosoftTexts: mocks.translateMicrosoftTexts}));
 vi.mock('@/src/app/translation/runtime', () => ({
     translationRequestScheduler: {
         schedule: vi.fn(async (task: (lease: any) => Promise<unknown>) => task({holdUntil: vi.fn()})),
@@ -38,7 +36,7 @@ vi.mock('@/src/platform/storage/modelUsageRepository', () => ({
     },
 }));
 
-import {runTranslationServiceConnectionTestWithUsage, translateInputBoxWithLimits} from '@/src/app/background/providerRuntime';
+import {runTranslationServiceConnectionTestWithUsage} from '@/src/app/background/providerRuntime';
 
 describe('background provider runtime', () => {
     beforeEach(() => {
@@ -62,15 +60,5 @@ describe('background provider runtime', () => {
         options.warn('usage warning', failure);
         expect(warn).toHaveBeenCalledWith('usage warning', failure);
         warn.mockRestore();
-    });
-
-    it('输入框 Microsoft 翻译通过共享 scheduler 并保持译文结果', async () => {
-        await expect(translateInputBoxWithLimits('hello', 'zh-Hans')).resolves.toBe('input translation');
-        expect(mocks.translateMicrosoftTexts).toHaveBeenCalledWith(['hello'], '', 'zh-Hans');
-    });
-
-    it('输入框 Microsoft 空结果保持旧空字符串回退', async () => {
-        mocks.translateMicrosoftTexts.mockResolvedValueOnce([]);
-        await expect(translateInputBoxWithLimits('hello', 'zh-Hans')).resolves.toBe('');
     });
 });

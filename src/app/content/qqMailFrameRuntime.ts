@@ -7,6 +7,7 @@
 import {installContentPageLifecycle} from './pageLifecycle';
 import type {ContentScriptContext} from 'wxt/utils/content-script-context';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
+import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
 import {constants} from '@/src/core/config/constants';
 import {isExtensionDisabledOnSite} from '@/src/features/site-rules/domain';
 import {createFrameSessionController} from '@/src/features/full-page-translation/content/frameSession';
@@ -71,6 +72,7 @@ export async function startQqMailFrameApp(ctx: ContentScriptContext): Promise<vo
         dispose: () => cleanup(),
     });
     await configReady;
+    await ensureUiLanguageBundle(config.uiLanguage);
     if (ctx.isInvalid || disposed) { cleanup(); return; }
     let activation: AbortController | null = null;
     let removeStyles: (() => void) | null = null;
@@ -103,11 +105,7 @@ export async function startQqMailFrameApp(ctx: ContentScriptContext): Promise<vo
             config, constants, document, window, navigator, getCenterPoint,
             isSiteDisabled: () => !enabled() || !authorized,
             handleTranslation, noteBilingualHostGesture, cancelPendingHoverTranslation,
-            hasActiveSelectionTranslationCandidate: hotkeys.hasActiveSelectionTranslationCandidate,
-            getConfiguredSelectionHotkey: hotkeys.getConfiguredSelectionHotkey,
-            getCustomSelectionHotkey: () => config.customSelectionTranslatorHotkey,
-            matchesSelectionTranslatorShortcut: hotkeys.matchesSelectionTranslatorShortcut,
-            shouldReserveSelectionShortcut: hotkeys.shouldReserveSelectionShortcut,
+            ...hotkeys.selectionShortcutPorts,
         }, activation.signal);
         const resetFull = hotkeys.installFloatingBallHotkey(activation.signal);
         mountConfiguredQuickTranslation(config, hotkeys, () => !enabled() || !authorized, activation.signal,

@@ -9,18 +9,15 @@ import {
     createTranslationSourceSnapshot,
     extractTranslationText,
     extractTranslationTextFromNodes,
-    findTranslationTruncationAncestors,
     getCurrentTranslationCore,
     getOpenShadowRoots,
     hasActiveTranslationLineClamp,
     isClearlyTargetLanguage,
     isMeaningfulTranslationText,
     parseTranslationSlots,
-    removeTranslationTruncation,
     selectPreferredTranslationCandidate,
     serializeTranslationSlots,
     TranslationCandidateCore,
-    resolveTranslationCandidate,
     resolveTranslationCandidateAtPoint,
 } from '@/src/core/translation/public';
 import {
@@ -31,8 +28,6 @@ import {
     findElementsAtPoint,
     findTextPointAtPoint,
     findNodeAtPoint,
-    hasHiddenMarker,
-    isExtensionElement,
     maxComposedAncestorDepth,
     safeClosest,
     safeMatches,
@@ -217,7 +212,6 @@ describe('translation candidate core', () => {
                 expect(core.discover(document).map((candidate) => candidate.element.id)).toEqual(['prose']);
                 expect(core.resolve(icon)?.element).toBe(prose);
                 expect(core.resolve(document.querySelector('#standalone'))).toBeNull();
-                expect(hasHiddenMarker(icon)).toBe(false);
                 expect(extractTranslationText(prose)).toBe('Open to continue.');
                 const snapshot = createTranslationSourceSnapshot(prose);
                 expect(snapshot.slots.map((slot) => slot.source)).toEqual(['Open', 'to continue.']);
@@ -233,8 +227,6 @@ describe('translation candidate core', () => {
             }
             iconFamily = 'Material IconsCustom';
             expect(extractTranslationText(prose)).toBe('Open settings to continue.');
-            icon.hidden = true;
-            expect(hasHiddenMarker(icon)).toBe(true);
         } finally {
             if (descriptor) Object.defineProperty(view, 'getComputedStyle', descriptor);
             else Reflect.deleteProperty(view, 'getComputedStyle');
@@ -1486,7 +1478,6 @@ describe('translation candidate core', () => {
         const truncationHost = document.createElement('section');
         const clamped = document.createElement('div');
         const leaf = document.createElement('p');
-        const styleCalls: string[] = [];
         const getComputedStyle = vi.spyOn(document.defaultView!, 'getComputedStyle').mockImplementation(
             (element: Element) => ({
                 webkitLineClamp: element === clamped ? '2' : '',
@@ -1521,20 +1512,6 @@ describe('translation candidate core', () => {
         document.body.append(truncationHost);
         clamped.style.setProperty('-webkit-line-clamp', '2');
         expect(hasActiveTranslationLineClamp(clamped)).toBe(true);
-        expect(findTranslationTruncationAncestors(
-            leaf,
-            (element) => element === truncationHost,
-        )).toEqual([clamped, truncationHost]);
-
-        removeTranslationTruncation(clamped);
-        for (const property of ['-webkit-line-clamp', 'line-clamp', 'max-height']) {
-            styleCalls.push(`${property}:${clamped.style.getPropertyValue(property)}`);
-        }
-        expect(styleCalls).toEqual([
-            '-webkit-line-clamp:unset',
-            'line-clamp:unset',
-            'max-height:unset',
-        ]);
         getComputedStyle.mockRestore();
     });
 
@@ -2398,7 +2375,7 @@ describe('translation candidate core', () => {
             });
             const firstCore = getCurrentTranslationCore();
             expect(getCurrentTranslationCore()).toBe(firstCore);
-            expect(resolveTranslationCandidate(target.firstChild)?.element).toBe(target);
+            expect(getCurrentTranslationCore().resolve(target.firstChild)?.element).toBe(target);
 
             Object.defineProperty(globalThis, 'location', {
                 configurable: true,
@@ -2444,7 +2421,6 @@ describe('translation candidate core', () => {
                 <p id="point">Point target text.</p>
             </main></body></html>
         `);
-        const owned = document.querySelector('#owned')!;
         const host = document.querySelector('#host')!;
         const point = document.querySelector('#point')!;
         const firstShadow = host.attachShadow({mode: 'open'});
@@ -2459,7 +2435,6 @@ describe('translation candidate core', () => {
         });
         document.body.append(duplicateHost);
 
-        expect(isExtensionElement(owned)).toBe(true);
         expect(safeMatches(point, ':not(')).toBe(false);
         expect(safeClosest(point, ':not(')).toBeNull();
         expect(getOpenShadowRoots(document)).toEqual([firstShadow, secondShadow]);
@@ -2590,7 +2565,7 @@ describe('translation candidate core', () => {
         expect(core.resolveAtPoint(document, 1, 1)?.element).toBe(button);
     });
 
-    it('rejects malformed slot packets and applies truncation style overrides directly', () => {
+    it('rejects malformed slot packets and detects computed line clamps defensively', () => {
         const packet = serializeTranslationSlots([' Alpha ', 'Beta']);
         const translated = `${packet.starts[0]}一${packet.ends[0]}\n${packet.starts[1]}二${packet.ends[1]}`;
 
@@ -2609,10 +2584,6 @@ describe('translation candidate core', () => {
 
         const {document} = parseHTML('<html><body><p id="target">Clamped text.</p></body></html>');
         const target = document.querySelector('#target') as HTMLElement;
-        removeTranslationTruncation(target);
-        expect(target.style.getPropertyValue('-webkit-line-clamp')).toBe('unset');
-        expect(target.style.getPropertyValue('line-clamp')).toBe('unset');
-        expect(target.style.getPropertyValue('max-height')).toBe('unset');
 
         Object.defineProperty(document.defaultView, 'getComputedStyle', {
             configurable: true,
@@ -2642,10 +2613,6 @@ describe('translation candidate core', () => {
             }),
         });
         expect(hasActiveTranslationLineClamp(target)).toBe(true);
-        const clampedWrapper = document.createElement('section');
-        clampedWrapper.append(target);
-        document.body.append(clampedWrapper);
-        expect(findTranslationTruncationAncestors(target)).toEqual([clampedWrapper]);
 
         const originalCreateTreeWalker = document.createTreeWalker;
         Object.defineProperty(document, 'createTreeWalker', {
@@ -2985,6 +2952,18 @@ describe('translation candidate core', () => {
         expect(hasStructuralAncestor(structuralParent)).toBe(true);
         expect(core.resolve(structuralParent.firstChild)).toBeNull();
 
+        // 显式翻译侧边栏时，自身或最近的 aside/nav 边界直接放行，不再继续向外套用 header 框架。
+        const header = document.createElement('header');
+        const sidebarNav = document.createElement('nav');
+        const sidebarLink = document.createElement('a');
+        sidebarNav.append(sidebarLink);
+        header.append(sidebarNav);
+        document.body.append(header);
+        expect(hasStructuralAncestor(sidebarLink)).toBe(true);
+        expect(hasStructuralAncestor(sidebarLink, {includeSidebarRegions: true})).toBe(false);
+        expect(hasStructuralAncestor(sidebarNav, {includeSidebarRegions: true})).toBe(false);
+        expect(hasStructuralAncestor(sidebarNav)).toBe(true);
+
         const deepMain = document.createElement('main');
         let asideParent = deepMain;
         for (let index = 0; index < maxComposedAncestorDepth + 2; index += 1) {
@@ -3230,5 +3209,105 @@ describe('explicit source line breaks', () => {
         const {core, document, paragraph} = lines('<p>' + 'Readable sentence.<br>'.repeat(1030) + '</p>');
         expect(core.discover(document)).toEqual([]);
         expect(core.resolve(paragraph)).toBeNull();
+    });
+});
+
+describe('悬浮视觉文本块的边界条件', () => {
+    const longSource = (label: string, count = 120) => Array.from({length: count}, (_, index) =>
+        `${label} ${index} explains how the document keeps its readable context intact.`).join(' ');
+
+    function withCaret<T>(document: Document, caret: unknown, run: () => T): T {
+        const previous = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+        Object.defineProperty(document, 'caretPositionFromPoint', {configurable: true, value: () => caret});
+        try {
+            return run();
+        } finally {
+            if (previous) Object.defineProperty(document, 'caretPositionFromPoint', previous);
+            else Reflect.deleteProperty(document, 'caretPositionFromPoint');
+        }
+    }
+
+    function withSegmenter<T>(segmenter: unknown, run: () => T): T {
+        const previous = Object.getOwnPropertyDescriptor(Intl, 'Segmenter');
+        Object.defineProperty(Intl, 'Segmenter', {configurable: true, value: segmenter});
+        try {
+            return run();
+        } finally {
+            if (previous) Object.defineProperty(Intl, 'Segmenter', previous);
+            else Reflect.deleteProperty(Intl, 'Segmenter');
+        }
+    }
+
+    it('只细分通用可读块，语义段落、分段候选和非正文候选保持原样', () => {
+        const {document, core} = page(`<main><div id="generic">${longSource('Generic')}</div><p id="semantic">${longSource('Semantic')}</p></main>`);
+        const generic = core.inspect(document.querySelector('#generic')!).candidate!;
+        const semantic = document.querySelector<HTMLElement>('#semantic')!;
+        const text = generic.element.firstChild as Text;
+        withCaret(document, {offsetNode: text, offset: 10}, () => {
+            const restore = installRangeStub(document, text);
+            try {
+                expect(generic.reason).toBe('generic-readable-block');
+                expect(resolveVisualTranslationRange(generic, document, 1, 1)).not.toBeNull();
+                expect(resolveVisualTranslationRange({...generic, kind: 'control'}, document, 1, 1)).toBeNull();
+                expect(resolveVisualTranslationRange({...generic, nodes: [text]}, document, 1, 1)).toBeNull();
+                expect(resolveVisualTranslationRange({...generic, reason: 'paragraph'}, document, 1, 1)).toBeNull();
+                expect(resolveVisualTranslationRange({...generic, element: semantic}, document, 1, 1)).toBeNull();
+            } finally {
+                restore();
+            }
+        });
+    });
+
+    it('光标 API 不可用或命中非可译文本时不细分', () => {
+        const {document, core} = page(`<main><div id="generic">${longSource('Pointer')}<code id="code">const protectedValue = 1;</code></div></main>`);
+        const candidate = core.inspect(document.querySelector('#generic')!).candidate!;
+        const code = document.querySelector('#code')!;
+        expect(withCaret(document, null, () => resolveVisualTranslationRange(candidate, document, 1, 1, core.shouldStayOriginal))).toBeNull();
+        expect(withCaret(document, {offsetNode: code, offset: 0}, () =>
+            resolveVisualTranslationRange(candidate, document, 1, 1, core.shouldStayOriginal))).toBeNull();
+        expect(withCaret(document, {offsetNode: code.firstChild, offset: 0}, () =>
+            resolveVisualTranslationRange(candidate, document, 1, 1, core.shouldStayOriginal))).toBeNull();
+    });
+
+    it('光标落在最后一个分段之后时选择末句，并在视觉间距处停止向前扩展', () => {
+        const source = longSource('Backward', 90);
+        const {document, core} = page(`<main><div id="generic">${source}</div></main>`);
+        const candidate = core.inspect(document.querySelector('#generic')!).candidate!;
+        const text = candidate.element.firstChild as Text;
+        const splitAt = source.lastIndexOf('Backward 88');
+        // 末句之前的所有句子位于上一视觉段落，末句单独成段。
+        const restore = installRangeStub(document, text, (startOffset) =>
+            startOffset >= splitAt ? [{top: 400, bottom: 410, height: 10}] : [{top: 0, bottom: 10, height: 10}]);
+        try {
+            const result = withSegmenter(class {
+                segment(value: string) {
+                    const cut = value.lastIndexOf('Backward 89');
+                    return [
+                        {index: 0, segment: value.slice(0, splitAt)},
+                        {index: splitAt, segment: value.slice(splitAt, cut)},
+                        {index: cut, segment: value.slice(cut, value.length - 5)},
+                    ];
+                }
+            }, () => withCaret(document, {offsetNode: text, offset: text.length}, () =>
+                resolveVisualTranslationRange(candidate, document, 1, 1, core.shouldStayOriginal)));
+            expect(result?.sourceText).toContain('Backward 88');
+            expect(result?.sourceText).not.toContain('Backward 87');
+        } finally {
+            restore();
+        }
+    });
+
+    it('没有分段能力且全文只有空白时安全退出', () => {
+        const {document} = parseHTML(`<html><body><main><div id="blank">${' '.repeat(5000)}</div></main></body></html>`);
+        const owner = document.querySelector<HTMLElement>('#blank')!;
+        const text = owner.firstChild as Text;
+        const candidate = {element: owner, kind: 'content' as const, reason: 'generic-readable-block'};
+        const restore = installRangeStub(document, text);
+        try {
+            expect(withSegmenter(undefined, () => withCaret(document, {offsetNode: text, offset: 12}, () =>
+                resolveVisualTranslationRange(candidate, document, 1, 1)))).toBeNull();
+        } finally {
+            restore();
+        }
     });
 });

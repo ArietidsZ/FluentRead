@@ -9,6 +9,10 @@ import {
     formatSiteRulePack, parseSiteAdaptationDraft, previewSiteRules,
     reconcileSiteRuleDraft, searchSiteRules, setSiteRuleEnabled, SITE_ADAPTATION_EXAMPLE,
 } from '@/src/features/settings/model/siteAdaptationEditor';
+import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+
+// 扩展运行时按需加载界面语言；本文件验证全部语言的文案契约，因此一次注册全部资源包。
+registerAllUiLanguageBundles();
 
 const document = parseHTML('<html><body></body></html>').document as unknown as Document;
 const rule = (id: string, patch: Partial<SiteRule> = {}): SiteRule => ({

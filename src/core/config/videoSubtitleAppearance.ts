@@ -18,7 +18,6 @@ export const VIDEO_SUBTITLE_SKINS = [
 
 export type VideoSubtitleSkinId = typeof VIDEO_SUBTITLE_SKINS[number]['id'];
 export type VideoSubtitlePosition = 'bottom' | 'center' | 'top';
-export const VIDEO_SUBTITLE_FONT_SCALE_OPTIONS = [80, 90, 100, 110, 120, 130, 140, 150, 160] as const;
 
 export interface VideoSubtitleAppearance {
     skin: VideoSubtitleSkinId;

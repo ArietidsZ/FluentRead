@@ -187,7 +187,7 @@ function integration(batch: boolean, texts = ['API', 'other']) {
         return {image: 'data:image/png;base64,translated', lines: result.translations};
     };
     const dependencies: ImageTranslationBackgroundDependencies = {
-        assertLanguagesDownloaded: async () => {}, recognizeImage: async () => [], fetchImage: async () => '',
+        assertLanguagesDownloaded: async () => {}, fetchImage: async () => '',
         translateImage: async (_image, _language, _title, options) => translatedImage(options),
         getTranslationService: () => 'openai', supportsBatchTranslation: () => batch,
         translateTexts: async (request) => {requests.push(request); return broker.translateWithCache(request);},
@@ -339,7 +339,7 @@ describe('图片、圈选OCR到真实术语broker的完整请求边界', () => {
     it('feature不接受孤立payload中的版本与来源，仅内部symbol可以开启受信传递', async () => {
         const requests: object[] = [];
         const handler = createImageTranslationBackgroundHandlers({
-            assertLanguagesDownloaded: async () => {}, recognizeImage: async () => [], translateImage: async () => ({}), fetchImage: async () => '',
+            assertLanguagesDownloaded: async () => {}, translateImage: async () => ({}), fetchImage: async () => '',
             getTranslationService: () => 'openai', supportsBatchTranslation: () => true,
             translateTexts: async request => {requests.push(request); return ['译文'];},
             downloadLanguages: async () => {}, markLanguagesDownloaded: async () => [],

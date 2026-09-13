@@ -115,7 +115,7 @@ const mkdir = (p) => fs.mkdirSync(p, { recursive: true })
       path.join(root, 'docs/public/screenshots', name + '.webp'),
       path.join(root, 'misc/screenshots', name + '.webp')
     )
-  const logo = path.join(root, 'public/icon/512.png')
+  const logo = path.join(root, 'assets/brand/icon-512.png')
   const icon = path.join(root, 'marketing/chrome-web-store/icon-128.png')
   // The current icon already includes its own transparent surround. Preserve its approved artwork.
   await sharp(path.join(root, 'public/icon/128.png'))

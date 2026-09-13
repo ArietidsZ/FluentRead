@@ -2,7 +2,7 @@
  * @file src/core/translation/dom.ts
  *
  * 文件职责：封装翻译候选发现使用的 composed tree 遍历与不可覆盖安全守卫，识别扩展 DOM、其他翻译器已接管的段落、脚本、表单、图标字体、代码及禁止翻译区域。
- * 主要内容：提供抗表单命名属性遮蔽的标签读取、Shadow DOM 父级与祖先遍历、硬裁剪标签、按钮型 input 的可译标签属性判定、受保护文本元素、text/plain 顶层 pre、独立 tooltip 边界、隐藏/可编辑/no-translate 判断，并限制祖先深度以避免异常页面结构拖垮扫描。 可核对的公开符号包括 maxComposedAncestorDepth、getComposedParent、isDocumentSurface、isExtensionElement、isExtensionElementSelf、getTranslatableControlValueAttribute、isHardPruneTag、isProtectedTextElement、isPlainTextDocumentPre、hasNoTranslateMarker、isDocumentSurfaceNoTranslateShell、isTopLevelApplicationShell。
+ * 主要内容：提供抗表单命名属性遮蔽的标签读取、Shadow DOM 父级与祖先遍历、硬裁剪标签、按钮型 input 的可译标签属性判定、受保护文本元素、text/plain 顶层 pre、独立 tooltip 边界、隐藏/可编辑/no-translate 判断，并限制祖先深度以避免异常页面结构拖垮扫描。 可核对的公开符号包括 maxComposedAncestorDepth、getComposedParent、isDocumentSurface、isExtensionElementSelf、getTranslatableControlValueAttribute、isHardPruneTag、isProtectedTextElement、isPlainTextDocumentPre、hasNoTranslateMarker、isDocumentSurfaceNoTranslateShell、isTopLevelApplicationShell。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -66,10 +66,6 @@ export function* composedAncestors(element: Element): Generator<Element> {
 export function isDocumentSurface(element: Element): boolean {
     const owner = element.ownerDocument;
     return element === owner?.documentElement || element === owner?.body;
-}
-
-export function isExtensionElement(element: Element): boolean {
-    return Boolean(element.matches(extensionSelector) || element.closest(extensionSelector));
 }
 
 export function isExtensionElementSelf(element: Element): boolean {
@@ -189,10 +185,6 @@ function getPresentationProtection(element: Element): 'hidden' | 'icon-font' | u
     } catch {
         return undefined;
     }
-}
-
-export function hasHiddenMarker(element: Element): boolean {
-    return getPresentationProtection(element) === 'hidden';
 }
 
 /** 图标连字属于宿主展示结构；译文骨架不能在丢失字体样式后将其当作普通文字显示。 */

@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import {defaultOption, services} from '@/src/core/config/catalog'
+import {services} from '@/src/core/config/catalog'
 import {
   isConfigImportValid,
   prepareConfigForExport,
   prepareConfigForImport,
-  sanitizeConfigForExport,
 } from '@/src/core/config/transfer'
+import { sanitizeConfigCredentials } from '@/src/core/config/credentials'
 import { Config, normalizeConfig } from '@/src/core/config/model'
+
+/** 旧版“公开配置”文件：不含任何凭据，导入时必须按目标地址保留或解绑本机凭据。 */
+function publicConfigFile(value: unknown): Record<string, any> {
+  return sanitizeConfigCredentials(JSON.parse(JSON.stringify(value)))
+}
 
 const validConfig = {
   on: true,
@@ -94,51 +99,12 @@ describe('configuration transfer helpers', () => {
       .toThrow('缺少有效的基础字段')
   })
 
-  it('removes default-only fields without mutating the source', () => {
-    const source = {
-      ...validConfig,
-      system_role: {
-        openai: defaultOption.system_role,
-        deepseek: 'Translate with a concise tone.',
-      },
-      user_role: {
-        openai: defaultOption.user_role,
-      },
-      customBody: {
-        openai: '   ',
-        deepseek: '{"thinking":{"type":"disabled"}}',
-      },
-    }
-
-    const sanitized = sanitizeConfigForExport(source)
-
-    expect(sanitized).toEqual({
-      ...validConfig,
-      system_role: { deepseek: 'Translate with a concise tone.' },
-      customBody: { deepseek: '{"thinking":{"type":"disabled"}}' },
-    })
-    expect(source.system_role).toHaveProperty('openai')
-    expect(source.user_role).toHaveProperty('openai')
-    expect(source.customBody).toHaveProperty('openai')
-  })
-
-  it('removes empty maps after cleaning their entries', () => {
-    const sanitized = sanitizeConfigForExport({
-      ...validConfig,
-      system_role: { openai: defaultOption.system_role },
-      user_role: { openai: defaultOption.user_role },
-      customBody: { openai: '' },
-    })
-
-    expect(sanitized).toEqual(validConfig)
-  })
-
-  it('导出时移除所有凭据字段和内部 revision', () => {
+  it('公开配置文件递归移除所有凭据字段，保留普通前向兼容设置', () => {
     const secret = 'export-secret-sentinel'
     const structuredSecret = 'nested-export-secret-sentinel'
     const customBody = `{"apiToken":"${secret}"}`
     const proxy = `https://user:${secret}@proxy.example`
-    const sanitized = sanitizeConfigForExport({
+    const sanitized = publicConfigFile({
       ...validConfig,
       token: {openai: secret},
       ak: secret,
@@ -165,17 +131,13 @@ describe('configuration transfer helpers', () => {
       },
       customBody: {openai: customBody},
       proxy: {openai: proxy},
-      count: 99,
-      persistCredentials: true,
-      __fluentConfigRevision: 42,
     })
 
     expect(JSON.stringify(sanitized)).not.toContain(structuredSecret)
     for (const field of [
       'token', 'ak', 'sk', 'appid', 'key', 'youdaoAppKey', 'youdaoAppSecret',
-      'tencentSecretId', 'tencentSecretKey', 'extra', '__fluentConfigRevision',
+      'tencentSecretId', 'tencentSecretKey', 'extra',
       'apiToken', 'accountPassword', 'authorizationHeader',
-      'count', 'persistCredentials',
     ]) {
       expect(sanitized).not.toHaveProperty(field)
     }
@@ -290,7 +252,7 @@ describe('configuration transfer helpers', () => {
     expect(imported.videoServiceDefaultMigrated).toBe(target.videoServiceDefaultMigrated)
   })
 
-  it('完整与公开导出都保留快捷翻译方案，并在导入时精确替换目标端方案', () => {
+  it('完整导出与旧公开配置文件都保留快捷翻译方案，并在导入时精确替换目标端方案', () => {
     const source = normalizeConfig({
       ...new Config(),
       quickTranslationProfiles: [
@@ -308,7 +270,7 @@ describe('configuration transfer helpers', () => {
     })
     const expected = source.quickTranslationProfiles
     const fullExport = prepareConfigForExport(source)
-    const publicExport = sanitizeConfigForExport(source)
+    const publicExport = publicConfigFile(source)
     const current = normalizeConfig({
       ...new Config(),
       quickTranslationProfiles: [{
@@ -677,36 +639,22 @@ describe('configuration transfer helpers', () => {
   })
 
   it('preserves always-translate site rules through export and normalized import', () => {
-    const exported = sanitizeConfigForExport({
+    const exported = prepareConfigForExport({
       ...validConfig,
       alwaysTranslateDomains: ['https://docs.example.com/guide', 'EXAMPLE.COM', 'news.bbc.co.uk'],
       disabledExtensionDomains: ['https://app.example.net/settings', 'EXAMPLE.NET'],
     })
 
-    expect(exported.alwaysTranslateDomains).toEqual([
-      'https://docs.example.com/guide',
-      'EXAMPLE.COM',
-      'news.bbc.co.uk',
-    ])
+    // 完整导出在写出前已归一化为可注册主域名，重新导入保持同一结果。
+    expect(exported.alwaysTranslateDomains).toEqual(['example.com', 'bbc.co.uk'])
     expect(isConfigImportValid(exported)).toBe(true)
     expect(normalizeConfig(exported).alwaysTranslateDomains).toEqual(['example.com', 'bbc.co.uk'])
     expect(normalizeConfig(exported).disabledExtensionDomains).toEqual(['example.net'])
   })
 
-  it('公开脱敏导出保留非敏感的自定义模型列表', () => {
-    const exported = sanitizeConfigForExport(normalizeConfig({
-      ...validConfig,
-      customModels: {grok: ['private-a', 'private-b']},
-      token: {grok: 'must-not-export'},
-    }))
-
-    expect(exported.customModels).toEqual({grok: ['private-a', 'private-b']})
-    expect(exported).not.toHaveProperty('token')
-  })
-
   it('导出和导入保留 API Key 恢复策略，但不把它当作凭据', () => {
     const source = normalizeConfig({...validConfig, apiKeyRecoveryMs: 5 * 60_000})
-    const publicExport = sanitizeConfigForExport(source)
+    const publicExport = publicConfigFile(source)
     const fullExport = prepareConfigForExport(source)
 
     expect(publicExport.apiKeyRecoveryMs).toBe(5 * 60_000)
@@ -715,7 +663,7 @@ describe('configuration transfer helpers', () => {
   })
 
   it('DeepLX 视频服务可以经过新版导出与导入往返而不触发旧默认迁移', () => {
-    const exported = sanitizeConfigForExport(normalizeConfig({
+    const exported = prepareConfigForExport(normalizeConfig({
       ...validConfig,
       videoService: 'deeplx',
       videoServiceDefaultMigrated: true,
@@ -736,10 +684,10 @@ it('自定义头仅在完整导出中保留，导入绑定新地址并兼容旧�
         customHeaders: {'custom:headers': '{"x-auth":"private-header"}'},
     });
     expect(hasCredentialData(extractConfigCredentials({customHeaders: source.customHeaders}))).toBe(true);
-    expect(sanitizeConfigForExport(source)).not.toHaveProperty('customHeaders');
+    expect(publicConfigFile(source)).not.toHaveProperty('customHeaders');
     expect(prepareConfigForExport(source).customHeaders).toEqual(source.customHeaders);
     expect(prepareConfigForImport(prepareConfigForExport(source), new Config()).customHeaders).toEqual(source.customHeaders);
-    const publicConfig = sanitizeConfigForExport(source);
+    const publicConfig = publicConfigFile(source);
     expect(prepareConfigForImport(publicConfig, source).customHeaders).toEqual(source.customHeaders);
     publicConfig.customOpenAIProviders[0].endpoint = 'https://two.example/chat/completions';
     expect(prepareConfigForImport(publicConfig, source).customHeaders).toEqual({});

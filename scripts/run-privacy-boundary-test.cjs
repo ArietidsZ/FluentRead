@@ -552,6 +552,10 @@ async function waitForExtensionWorker(context, timeout) {
 }
 
 async function waitForOptionsUi(page, timeout) {
+  // 重载会保留上次打开的分类；备份与恢复断言需要回到数据分类。
+  const dataNavigation = page.locator('button[data-section="settings-data"]');
+  await dataNavigation.waitFor({ state: 'visible', timeout });
+  if (!await page.locator('#settings-data').isVisible()) await dataNavigation.click();
   await page.waitForSelector('#settings-data', { state: 'visible', timeout });
   if (await page.locator('[data-testid="persist-credentials-switch"]').count()) {
     throw new Error('设置页仍显示已废弃的凭据持久化开关');
@@ -609,15 +613,19 @@ async function persistCredentialViaExtensionMessage(optionsPage, marker, clientI
 }
 
 async function waitForOptionsRuntimeCredential(optionsPage, marker, timeout) {
+  // 设置页只渲染当前分类；凭据输入框位于翻译服务分类的默认服务配置中。
+  await optionsPage.locator('button[data-section="settings-services"]').click();
   await optionsPage.waitForFunction((credentialMarker) => {
-    const tokenInput = document.querySelector('[data-service-configuration-service="openai"] .credential-field input[type="password"]');
-    return tokenInput instanceof HTMLInputElement && tokenInput.value === credentialMarker;
+    // API Key 以多 Key 列表呈现；任一密码输入框回显该凭据即表示运行时已水合。
+    return [...document.querySelectorAll('[data-service-configuration-service="openai"] input[type="password"]')]
+      .some(input => input instanceof HTMLInputElement && input.value === credentialMarker);
   }, marker, { timeout });
   return true;
 }
 
 async function exportCompleteBackupViaOptionsUi(optionsPage, marker, timeout, artifactsDir) {
   // 真实设置页仅在用户明确点击后下载明文完整备份；默认选择不包含可能暴露浏览隐私的单词上下文。
+  await optionsPage.locator('button[data-section="settings-data"]').click();
   await optionsPage.getByRole('button', { name: '导出备份', exact: true }).click();
   const contextDialog = optionsPage.locator('.el-message-box');
   await contextDialog.getByText('是否包含单词上下文？', { exact: true }).waitFor({ state: 'visible', timeout });

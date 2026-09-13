@@ -7,11 +7,6 @@
 const TEXT_INPUT_TYPES = new Set(['text', 'search', 'url', 'email', 'tel']);
 
 export {
-    DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL,
-    INPUT_BOX_TRANSLATION_INTERVAL_DEFAULT,
-    INPUT_BOX_TRANSLATION_INTERVAL_MAX,
-    INPUT_BOX_TRANSLATION_INTERVAL_MIN,
-    INPUT_BOX_TRANSLATION_INTERVAL_STEP,
     normalizeInputBoxTranslationInterval,
 } from '@/src/core/config/inputTranslation';
 
@@ -176,24 +171,4 @@ export function matchesInputBoxTrigger(event: KeyboardEvent, trigger: InputBoxTr
         default:
             return false;
     }
-}
-
-/** 根据触发方式去除末尾的触发符号。 */
-export function removeTriggerSymbols(text: string, trigger: string): string {
-    const triggerSymbol = trigger === 'triple_space'
-        ? ' '
-        : trigger === 'triple_equal'
-            ? '='
-            : trigger === 'triple_dash'
-                ? '-'
-                : '';
-
-    if (!triggerSymbol) return text;
-
-    let cleanedText = text;
-    while (cleanedText.endsWith(triggerSymbol)) {
-        cleanedText = cleanedText.slice(0, -1);
-    }
-
-    return cleanedText.trim();
 }

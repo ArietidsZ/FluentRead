@@ -420,7 +420,7 @@ export async function translateTextBatch(
   const selectedThinking = options.thinkingOverride
     ?? isModelThinkingEnabled(config.modelThinking, selectedService, selectedModel);
   const {
-    timeout = 45000,
+    timeout = DEFAULT_TRANSLATION_TIMEOUT_MS,
     useCache = config.useCache,
     signal,
     queueSession,

@@ -16,7 +16,6 @@ import {services} from '@/src/core/config/catalog';
 import {urls} from '@/src/core/config/constants';
 import {DEFAULT_DEEPLX_ENDPOINT} from '@/src/core/config/deeplx';
 import {
-    DEFAULT_FREE_TRANSLATION_ORDER,
     FREE_TRANSLATION_PROVIDERS,
     normalizeFreeTranslationOrder,
     normalizeFreeTranslationTimeoutMs,
@@ -40,9 +39,6 @@ const FREE_TRANSLATION_DEADLINE = Symbol('free-translation-deadline');
 type PreparedRequest = FreeTranslationRequest & {readonly [FREE_TRANSLATION_DEADLINE]?: number};
 type FreeProviderId = typeof FREE_TRANSLATION_PROVIDERS[number]['id'];
 
-export const FREE_TRANSLATION_ORDER = DEFAULT_FREE_TRANSLATION_ORDER.map(id => (
-    FREE_TRANSLATION_PROVIDERS.find(provider => provider.id === id)!.label
-));
 export const FREE_TRANSLATION_BATCH_CONCURRENCY = 3;
 const runFallback = createFreeFallbackRunner(FREE_TRANSLATION_BATCH_CONCURRENCY, {persistence: freeTranslationHealthStorage});
 const providerTranslators: Record<FreeProviderId, (request: TranslationProviderRequest<string>) => Promise<unknown>> = {
@@ -127,10 +123,6 @@ async function translatePreparedText(text: string, message: PreparedRequest): Pr
         mode: normalizeFreeTranslationMode(current.freeTranslationMode),
         deadline: message[FREE_TRANSLATION_DEADLINE],
     });
-}
-
-export async function translateFreeText(text: string, message: FreeTranslationRequest = {}): Promise<string> {
-    return translatePreparedText(text, prepareRequest(message));
 }
 
 async function translateFreeBatch(texts: string[], message: PreparedRequest): Promise<string[]> {

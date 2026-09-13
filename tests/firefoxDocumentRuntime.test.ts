@@ -21,7 +21,6 @@ function createSubject(overrides: Partial<OffscreenMessageDependencies> = {}) {
     const dependencies: OffscreenMessageDependencies = {
         translate: vi.fn(async () => 'translated'),
         ttsPlayer: {play: vi.fn(async () => undefined), stop: vi.fn()},
-        recognizeImage: vi.fn(async () => [{text: 'hello'}]),
         fetchImage: vi.fn(async () => 'data:image/png;base64,AA=='),
         translateImage: vi.fn(async () => ({image: 'data:image/png;base64,AA==', lines: []})),
         translateArea: vi.fn(async () => ({image: 'data:image/png;base64,AA==', lines: []})),
@@ -112,7 +111,7 @@ describe('Firefox shared DOM runtime', () => {
         await expect(client.sendIfPresent({type: 'STOP_SELECTION_TTS'})).resolves.toBeUndefined();
         expect(document.querySelector('iframe')).toBeNull();
         await Promise.all([client.ensureDocument(), client.ensureDocument()]);
-        await expect(image.recognizeImage('data:image/png;base64,AA==', 'en')).resolves.toEqual([{text: 'hello'}]);
+        await expect(image.fetchImage('https://example.test/a.png')).resolves.toBe('data:image/png;base64,AA==');
         await expect(image.translateImage('data:image/png;base64,AA==', 'en', 'image')).resolves.toMatchObject({lines: []});
         const selection = {left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100};
         await expect(area.translateArea('data:image/png;base64,AA==', 'en', 'area', selection)).resolves.toMatchObject({lines: []});
@@ -121,7 +120,7 @@ describe('Firefox shared DOM runtime', () => {
         await expect(client.send({type: 'VIDEO_AI_PREPARE', model: 'whisper-tiny'})).resolves.toMatchObject({ready: true});
         await expect(client.send({type: 'VIDEO_AI_TRANSCRIBE', streamId: 'stream-a'})).resolves.toMatchObject({text: 'hello'});
         await client.sendIfPresent({type: 'VIDEO_AI_CANCEL', streamId: 'stream-a'});
-        expect(dependencies.recognizeImage).toHaveBeenCalledOnce();
+        expect(dependencies.fetchImage).toHaveBeenCalledOnce();
         expect(dependencies.translateArea).toHaveBeenCalledWith('data:image/png;base64,AA==', 'en', 'area', selection, expect.any(AbortSignal), expect.any(String));
         expect(dependencies.ttsPlayer.play).toHaveBeenCalledOnce();
         expect(dependencies.ttsPlayer.stop).toHaveBeenCalledOnce();

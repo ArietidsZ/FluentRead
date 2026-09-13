@@ -32,7 +32,9 @@ const ocrWorkerRuntime = createOcrWorkerRuntime<TesseractRecognitionResult>({
     sparseTextMode: PSM.SPARSE_TEXT,
     createWorker: async (languages, onProgress) => createWorker(languages.split('+'), 1, {
         workerPath: extensionAsset('worker/worker.min.js'),
-        corePath: extensionAsset('core'),
+        // 直接指向 SIMD + LSTM 内核：扩展支持的 Chrome/Edge（Offscreen 需 109+）与 Firefox 140+
+        // 均支持 WASM SIMD，且只使用 LSTM 引擎；不再打包永远不会被选中的非 SIMD 变体。
+        corePath: extensionAsset('core/tesseract-core-simd-lstm.wasm.js'),
         cachePath: 'fluent-read-image-ocr',
         // 不再把 traineddata 打进扩展；Tesseract.js 会从 jsDelivr 按需下载，
         // 并将解压后的语言包缓存到 Offscreen Document 的 IndexedDB。

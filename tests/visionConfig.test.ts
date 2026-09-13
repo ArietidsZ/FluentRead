@@ -31,6 +31,7 @@ describe('vision configuration', () => {
     const prompt = '  保留换行\n不要猜测  ';
     expect(normalizeConfig({areaRecognitionMode: 'prefer-vision', areaVisionPrompt: prompt}).areaVisionPrompt).toBe(prompt);
     expect(normalizeConfig({areaRecognitionMode: 'bad', areaVisionPrompt: '   '}).areaRecognitionMode).toBe('prefer-vision');
+    expect(normalizeConfig({areaRecognitionMode: 'ocr'}).areaRecognitionMode).toBe('ocr');
     expect(normalizeConfig({areaVisionPrompt: null}).areaVisionPrompt).toBe(DEFAULT_AREA_VISION_PROMPT);
     expect(normalizeAreaVisionPrompt('请读取选区图片中的文字，按原有阅读顺序输出。保留名称、数字、标点和换行，不要解释图片内容，不要补写看不清的文字。')).toBe(DEFAULT_AREA_VISION_PROMPT);
     expect(normalizeConfig({areaVisionPrompt: '请读取选区图片中的文字，按原有阅读顺序输出。保留名称、数字、标点和换行，不要解释图片内容，不要补写看不清的文字。'}).areaVisionPrompt).toBe(DEFAULT_AREA_VISION_PROMPT);

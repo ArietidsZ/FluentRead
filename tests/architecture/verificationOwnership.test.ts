@@ -146,6 +146,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/platform/shadow-ui/vue.ts',
     // 配置存储运行时只识别 MV3/MV2 背景身份并装配 WXT、IndexedDB 或 runtime 端口；行为由纯端口测试和双浏览器构建验证。
     'src/platform/storage/configStorageRuntime.ts',
+    // 内容脚本构建专用的纯远程配置端口，只调用严格覆盖的 createRemoteConfigStorage；替换规则由 manifest/构建契约测试验证。
+    'src/platform/storage/remoteConfigStorageRuntime.ts',
     // 页内通知绑定 Shadow DOM、定时器和 runtime 消息；由 pageNotice 功能测试和双浏览器构建验证。
     'src/features/page-notice/content/notice.ts',
     // 悬浮球组装 Vue、WXT、配置持久化与全文翻译；生命周期由 contentUiRuntime 测试覆盖。
@@ -265,8 +267,12 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/features/local-translation/offscreen/modelCache.ts',
     'src/features/local-translation/offscreen/translation.ts',
     'src/features/local-translation/offscreen/translation.worker.ts',
-    'src/features/local-translation/offscreen/workerConfig.ts',
     'src/features/settings/ui/LocalTranslationModelSettings.vue',
+    // 本地 TTS 绑定 Offscreen Worker、Cache Storage 与 Kokoro/ONNX 运行时；策略、协议、后台消息与适配器已严格覆盖。
+    'src/features/local-tts/background/runtime.ts',
+    'src/features/local-tts/offscreen/modelCache.ts',
+    'src/features/local-tts/offscreen/tts.ts',
+    'src/features/local-tts/offscreen/tts.worker.ts',
 ]);
 
 describe('repository verification ownership', () => {

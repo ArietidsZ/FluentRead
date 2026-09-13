@@ -89,8 +89,8 @@ const expectedNavigationGroups = [
   ['工具与学习', ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-model-usage']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
-const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助'];
-const expectedInterfaceGroups = ['界面与弹窗', '动画与加载效果', '菜单栏布局'];
+const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助', '悬浮球进阶设置'];
+const expectedInterfaceGroups = ['界面与弹窗', '动画与加载效果', '菜单栏布局', '界面字体'];
 const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '输入框翻译', '全文翻译'];
 const expectedLoadingStyles = [
   ['ring', '柔和圆环'],
@@ -1191,7 +1191,7 @@ async function verifyIndependentAreaSettings(page, context, extensionOrigin, rep
   const areaDrawer = popup.locator('.drawer-surface');
   await areaDrawer.getByRole('heading', {name: '圈选翻译设置', exact: true}).waitFor({state: 'visible', timeout});
   if (await areaDrawer.getByRole('switch', {name: '启用或关闭圈选翻译'}).getAttribute('aria-checked') !== 'true') throw new Error('Popup 没有同步圈选开关');
-  if (!(await areaDrawer.innerText()).includes('AI 不查看截图')) throw new Error('Popup 缺少 AI 圈选能力边界说明');
+  if (!(await areaDrawer.innerText()).includes('修正明显的识别错误。请对照原文核对。')) throw new Error('Popup 缺少 AI 圈选能力边界说明');
   report.screenshots.push(await screenshot(popup, 'popup-area-independent-drawer.png'));
   await areaDrawer.getByRole('button', {name: '关闭', exact: true}).click();
   await popup.locator('[data-popup-quick-feature="image"]').click();
@@ -2230,7 +2230,8 @@ async function main() {
       const surface = getComputedStyle(document.documentElement).getPropertyValue('--surface').trim().toLowerCase();
       // 明亮皮肤可以有意使用纯白内容卡；只拦截与当前皮肤语义底色不一致的硬编码白块。
       if (surface === '#fff' || surface === '#ffffff') return [];
-      const excluded = '.style-preview-example, .interface-skin-live-preview, .popup-layout-live-preview';
+      // 收款二维码需要白底保证扫码对比度，不属于皮肤表面。
+      const excluded = '.style-preview-example, .interface-skin-live-preview, .popup-layout-live-preview, .about-support-wechat';
       return [...document.querySelectorAll('.settings-card *')]
         .filter(element => {
           if (!(element instanceof HTMLElement) || element.closest(excluded)) return false;
@@ -2538,9 +2539,13 @@ async function main() {
       throw new Error('模型用量平均构成没有默认收起');
     }
     const requestDisclosure = page.locator('#settings-model-usage details.usage-request-log-card');
-    if (await requestDisclosure.getAttribute('open') !== null
-      || !(await requestDisclosure.locator('summary').textContent())?.includes('请求记录')) {
-      throw new Error('模型用量请求记录没有显示默认收起的明确入口');
+    const requestDisclosureState = {
+      open: await requestDisclosure.getAttribute('open'),
+      summary: (await requestDisclosure.locator('summary').textContent())?.trim(),
+    };
+    // 请求记录默认展开（逐条用量与速度优先可见），摘要仍保留可收起的明确入口。
+    if (requestDisclosureState.open === null || !requestDisclosureState.summary?.includes('请求记录')) {
+      throw new Error(`模型用量请求记录没有默认展开或缺少明确入口：${JSON.stringify(requestDisclosureState)}`);
     }
     const allCoverageNotice = await page.locator('#settings-model-usage .usage-coverage-note').textContent();
     if (!allCoverageNotice?.includes('66.7%')) {
@@ -2758,7 +2763,9 @@ async function main() {
     report.screenshots.push(await screenshot(page, 'settings-dark-general.png'));
     await page.locator('button[data-section="settings-services"]').click();
     if (await page.getByTestId('model-thinking-control').count() === 0) {
-      await page.locator('.service-item[data-service-value="openai"]').click();
+      // 服务目录分为“我的服务 / 自定义 / 全部服务”；未收藏的 OpenAI 需要从全部服务中打开。
+      await page.locator('[data-service-view="all"]').click();
+      await page.locator('[data-service-value="openai"]:visible').first().click();
     }
     const darkAdvancedSettings = page.getByTestId('custom-service-advanced');
     await darkAdvancedSettings.waitFor({state: 'visible', timeout});

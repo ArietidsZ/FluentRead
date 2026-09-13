@@ -4,6 +4,8 @@ import {resolve} from 'path';
 import fs from 'fs';
 import {resolveBrowserCapabilities} from './src/platform/browser/capabilities';
 import {wllamaExtensionWorker} from './scripts/testing/wllama-extension-build';
+import {createUiLanguageBundleFiles} from './src/core/i18n/bundles';
+import {UI_LANGUAGE_BUNDLE_DIRECTORY} from './src/core/i18n/language';
 
 
 const packageJson = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
@@ -43,6 +45,31 @@ function escapeExtensionNoncharacters() {
             }
         },
     };
+}
+
+/**
+ * 内容脚本永远通过 runtime 代理读取后台权威配置。通用配置存储运行时同时装配后台加密
+ * IndexedDB（Dexie、加密与旧存储迁移），在每个网页启动时解析这些代码没有意义；
+ * 只在 content-script 构建组内把该模块解析为纯远程实现。
+ */
+export function contentScriptConfigStorageRuntime() {
+    const runtimeModule = /\/src\/platform\/storage\/configStorageRuntime(?:\.ts)?$/u;
+    const remoteRuntime = resolve(__dirname, 'src/platform/storage/remoteConfigStorageRuntime.ts');
+    return {
+        name: 'fluentread-content-script-config-storage',
+        enforce: 'pre' as const,
+        resolveId(source: string) {
+            return runtimeModule.test(source) ? remoteRuntime : null;
+        },
+    };
+}
+
+export function extendContentScriptBuildConfig(
+    entrypoints: readonly {type: string}[],
+    viteConfig: {plugins?: unknown[]},
+): void {
+    if (entrypoints.length === 0 || !entrypoints.every((entrypoint) => entrypoint.type === 'content-script')) return;
+    viteConfig.plugins = [...(viteConfig.plugins ?? []), contentScriptConfigStorageRuntime()];
 }
 
 /** 根据编译目标能力生成权限，避免 Firefox/MV2 产物声明不可用的 Offscreen API。 */
@@ -95,7 +122,9 @@ export function createExtensionManifest(
         ],
         web_accessible_resources: [
             {
-                resources: ['icon/32.png', 'icon/48.png', 'icon/128.png'],
+                // 界面语言资源包由内容脚本按需 fetch；use_dynamic_url 避免网页用固定地址探测扩展。
+                // 不要把需要 import() 执行的脚本放进这里：动态 ID 地址不满足内容脚本隔离环境的 script-src 'self'。
+                resources: ['icon/32.png', 'icon/48.png', 'icon/128.png', `${UI_LANGUAGE_BUNDLE_DIRECTORY}/*.json`],
                 matches: ['<all_urls>'],
                 use_dynamic_url: true,
             },
@@ -154,7 +183,10 @@ export default defineConfig({
         excludeSources: ['coverage/**'],
     },
     hooks: {
+        'vite:build:extendConfig': (entrypoints, viteConfig) => extendContentScriptBuildConfig(entrypoints, viteConfig as {plugins?: unknown[]}),
         'build:publicAssets': (_wxt, files) => {
+            // 非中文界面文案只生成一份 JSON，由各运行上下文按当前语言加载，不再内联进每个 bundle。
+            files.push(...createUiLanguageBundleFiles());
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@wllama/wllama/LICENCE'), relativeDest: 'third-party-notices/wllama-MIT.txt'});
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@noble/hashes/LICENSE'), relativeDest: 'third-party-notices/noble-hashes-MIT.txt'});
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@wllama/wllama/esm/wasm/wllama.wasm'), relativeDest: 'fluent-read-ai/wllama.wasm'});

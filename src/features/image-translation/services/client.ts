@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/client.ts
- * 文件职责：封装网页与扩展页面调用图片翻译后台的 runtime 消息，统一支持跨域图片读取、OCR 识别与整图翻译三种可取消客户端操作。
- * 主要内容：提供 fetchImageInExtension、recognizeImageInExtension 与 translateImageInExtension，生成跨页面安全请求标识，传播取消和超时信号，订阅当前任务的真实阶段和识别百分比、清理监听，并校验后台响应。
+ * 文件职责：封装网页与扩展页面调用图片翻译后台的 runtime 消息，统一支持跨域图片读取与整图翻译两种可取消客户端操作。
+ * 主要内容：提供 fetchImageInExtension 与 translateImageInExtension，生成跨页面安全请求标识，传播取消和超时信号，订阅当前任务的真实阶段和识别百分比、清理监听，并校验后台响应。
  * 模块边界：客户端不读取图片像素、不直接访问网络或 Offscreen；跨域 URL 只作为受控消息交给 background，再由 Offscreen 校验和读取，页面 UI 由 content/runtime 决定。
  */
 import {getRequiredImageOcrLanguages} from '../ocrLanguages';
@@ -16,12 +16,6 @@ interface ImageTranslationResponse {
     success: boolean;
     image?: string;
     lines?: ImageTranslationLine[];
-    error?: string;
-}
-
-interface ImageOcrResponse {
-    success: boolean;
-    lines?: OcrLine[];
     error?: string;
 }
 
@@ -125,24 +119,6 @@ export async function sendCancellableImageOperation<TResponse>(
             finish(() => reject(error));
         }
     });
-}
-
-export async function recognizeImageInExtension(
-    image: string,
-    sourceLanguage: string,
-    options: ImageExtensionOperationOptions = {},
-): Promise<OcrLine[]> {
-    const response = await sendCancellableImageOperation<ImageOcrResponse>({
-        type: 'fluentReadImageOcr',
-        image,
-        sourceLanguage,
-    }, options, '图片 OCR 超时');
-
-    if (!response?.success) {
-        throw new Error(response?.error || '图片 OCR 服务不可用');
-    }
-
-    return response.lines || [];
 }
 
 export async function fetchImageInExtension(

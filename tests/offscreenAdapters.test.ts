@@ -92,23 +92,6 @@ describe('area translation Offscreen adapter', () => {
 describe('image translation Offscreen adapter', () => {
     const adapter = createImageTranslationOffscreenAdapter(client);
 
-    it('recognizes image lines and rejects failed or invalid OCR responses', async () => {
-        send.mockResolvedValueOnce({success: true, lines: [{text: 'hello'}]});
-        await expect(adapter.recognizeImage('data:image/png,image', 'eng')).resolves.toEqual([{text: 'hello'}]);
-        expect(send).toHaveBeenCalledWith({
-            type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN',
-            image: 'data:image/png,image',
-            sourceLanguage: 'eng',
-        });
-
-        send.mockResolvedValueOnce({success: false, error: 'ocr custom'});
-        await expect(adapter.recognizeImage('image', 'eng')).rejects.toThrow('ocr custom');
-        send.mockResolvedValueOnce({success: true, lines: 'bad'});
-        await expect(adapter.recognizeImage('image', 'eng')).rejects.toThrow('图片 OCR 失败');
-        send.mockResolvedValueOnce(undefined);
-        await expect(adapter.recognizeImage('image', 'eng')).rejects.toThrow('图片 OCR 失败');
-    });
-
     it('translates images and validates success, image and line fields independently', async () => {
         send.mockResolvedValueOnce({success: true, image: 'translated', lines: []});
         await expect(adapter.translateImage('data:image/png,image', 'en', 'Page')).resolves.toEqual({
@@ -147,35 +130,15 @@ describe('image translation Offscreen adapter', () => {
     it('把图片 requestId、取消信号与超时预算传给 Offscreen client', async () => {
         const controller = new AbortController();
         send
-            .mockResolvedValueOnce({success: true, lines: [{text: 'hello'}]})
             .mockResolvedValueOnce({success: true, image: 'translated', lines: []})
             .mockResolvedValueOnce({success: true, image: 'data:image/png;base64,remote'});
-
-        await expect(adapter.recognizeImage('data:image/png,image', 'en', {
-            requestId: 'ocr-1',
-            signal: controller.signal,
-            timeoutMs: 4_000,
-        })).resolves.toEqual([{text: 'hello'}]);
-        expect(send).toHaveBeenNthCalledWith(1, {
-            type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN',
-            image: 'data:image/png,image',
-            sourceLanguage: 'en',
-            requestId: 'ocr-1',
-        }, {
-            signal: controller.signal,
-            timeoutMs: 4_000,
-            cancelMessage: {
-                type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
-                requestId: 'ocr-1',
-            },
-        });
 
         await expect(adapter.translateImage('data:image/png,image', 'en', 'Page', {
             requestId: 'image-1',
             signal: controller.signal,
             timeoutMs: 5_000,
         })).resolves.toEqual({image: 'translated', lines: []});
-        expect(send).toHaveBeenNthCalledWith(2, {
+        expect(send).toHaveBeenNthCalledWith(1, {
             type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN',
             image: 'data:image/png,image',
             sourceLanguage: 'en',
@@ -195,7 +158,7 @@ describe('image translation Offscreen adapter', () => {
             signal: controller.signal,
             timeoutMs: 3_000,
         })).resolves.toBe('data:image/png;base64,remote');
-        expect(send).toHaveBeenNthCalledWith(3, {
+        expect(send).toHaveBeenNthCalledWith(2, {
             type: 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN',
             url: 'https://pbs.twimg.com/media/demo.png',
             requestId: 'fetch-1',

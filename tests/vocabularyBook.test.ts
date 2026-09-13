@@ -16,7 +16,6 @@ import {
   buildVocabularyIdentityKey,
   createVocabularyLifecycleGuard,
   createVocabularyReviewSession,
-  normalizeEnglishWord,
   normalizeVocabularyTerm,
   reconcileVocabularyReviewQueue,
   reconcileVocabularyReviewSession,
@@ -170,7 +169,7 @@ describe('review and import presentation helpers', () => {
 
 describe('vocabulary identity and upsert', () => {
   it('normalizes English presentation and keeps target languages on one entry', async () => {
-    expect(normalizeEnglishWord('  Don’t—Panic  ')).toBe("don't-panic");
+    expect(normalizeVocabularyTerm('  Don’t—Panic  ')).toBe("don't-panic");
     expect(buildVocabularyIdentityKey('EN_us', ' COMMON ')).toBe(
       buildVocabularyIdentityKey('en-US', 'common'),
     );
@@ -229,9 +228,7 @@ describe('vocabulary identity and upsert', () => {
   });
 
   it('retains the old English word identity and accepts bounded source texts without a schema migration', async () => {
-    expect(normalizeVocabularyTerm('  Don’t—Panic  ')).toBe(normalizeEnglishWord('  Don’t—Panic  '));
-    expect(normalizeEnglishWord('two words')).toBe('');
-    expect(normalizeEnglishWord('a'.repeat(65))).toBe('');
+    expect(normalizeVocabularyTerm('  Two   Words  ')).toBe('two words');
     expect(normalizeVocabularyTerm('ﬀ'.repeat(4096))).toBe('');
     const full = await repository.upsert(baseInput({term: '句'.repeat(4096)}), NOW);
     expect(full.term).toHaveLength(4096);

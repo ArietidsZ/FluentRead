@@ -146,11 +146,11 @@ function splitLongSentence(text: string, sentence: SentenceRange, caret: number)
     return {start: sentence.start + selectedStart, end: sentence.start + selectedEnd};
 }
 
+/** 调用方只在命中文本条目后使用，因此条目表必然非空。 */
 function offsetToBoundary(
     entries: readonly TextEntry[],
     offset: number,
-): {node: Text; offset: number} | null {
-    if (entries.length === 0) return null;
+): {node: Text; offset: number} {
     const clamped = Math.max(0, Math.min(offset, entries.at(-1)!.end));
     let selected = entries.at(-1)!;
     for (const entry of entries) {
@@ -161,6 +161,7 @@ function offsetToBoundary(
     return {node: selected.node, offset: Math.max(0, Math.min(clamped - selected.start, selected.node.data.length))};
 }
 
+/** 句子与选区都是非空区间；这里只处理 Range 能力缺失或边界被宿主拒绝的情况。 */
 function createRange(
     owner: HTMLElement,
     entries: readonly TextEntry[],
@@ -169,7 +170,6 @@ function createRange(
 ): Range | null {
     const startBoundary = offsetToBoundary(entries, start);
     const endBoundary = offsetToBoundary(entries, end);
-    if (!startBoundary || !endBoundary || start >= end) return null;
     try {
         const range = owner.ownerDocument.createRange();
         if (typeof range.setStart !== 'function' || typeof range.setEnd !== 'function') return null;
@@ -202,15 +202,14 @@ function rangeMetrics(range: Range): RectMetrics[] {
     }
 }
 
+/**
+ * 句子分段连续覆盖全文（Intl.Segmenter 与标点回退都会把尾随空白并入前一句），
+ * 相邻句之间没有可供判断的空行文本，只能依据实际行盒间距识别视觉段落。
+ */
 function hasVisualBreak(
-    text: string,
-    previous: SentenceRange,
-    next: SentenceRange,
     previousMetrics: readonly RectMetrics[],
     nextMetrics: readonly RectMetrics[],
 ): boolean {
-    const between = text.slice(previous.end, next.start);
-    if (/\n\s*\n/u.test(between)) return true;
     const previousRect = previousMetrics.at(-1);
     const nextRect = nextMetrics[0];
     if (!previousRect || !nextRect) return false;
@@ -244,10 +243,10 @@ export function resolveVisualTranslationRange(
     if (text.length <= HOVER_REFINEMENT_THRESHOLD || text.length > HOVER_DISCOVERY_CHARACTER_LIMIT) return null;
 
     const point = findTextPointAtPoint(root, x, y);
-    const pointedNode = point?.node?.nodeType === 3 ? point.node as Text : null;
-    const pointedEntry = pointedNode ? entries.find((entry) => entry.node === pointedNode) : undefined;
-    if (!pointedEntry) return null;
-    const caret = pointedEntry.start + Math.max(0, Math.min(point?.offset ?? 0, pointedNode?.length ?? 0));
+    // 条目只包含可译 Text；命中元素或受保护文本时自然找不到对应条目。
+    const pointedEntry = point ? entries.find((entry) => entry.node === point.node) : undefined;
+    if (!point || !pointedEntry) return null;
+    const caret = pointedEntry.start + Math.max(0, Math.min(point.offset, pointedEntry.node.length));
     const allSentences = segmentSentences(text);
     const allSelectedIndex = sentenceIndexAt(allSentences, caret);
     const windowStart = Math.max(0, Math.min(
@@ -274,17 +273,15 @@ export function resolveVisualTranslationRange(
     let totalLength = selected.end - selected.start;
     while (startIndex > 0 && totalLength < HOVER_CHUNK_LIMIT) {
         const previous = sentences[startIndex - 1]!;
-        const current = sentences[startIndex]!;
-        if (hasVisualBreak(text, previous, current, getMetrics(startIndex - 1), getMetrics(startIndex))) break;
+        if (hasVisualBreak(getMetrics(startIndex - 1), getMetrics(startIndex))) break;
         if (selected.end - previous.start > HOVER_CHUNK_LIMIT) break;
         startIndex -= 1;
         selected = {start: sentences[startIndex]!.start, end: selected.end};
         totalLength = selected.end - selected.start;
     }
     while (endIndex + 1 < sentences.length && totalLength < HOVER_CHUNK_LIMIT) {
-        const current = sentences[endIndex]!;
         const next = sentences[endIndex + 1]!;
-        if (hasVisualBreak(text, current, next, getMetrics(endIndex), getMetrics(endIndex + 1))) break;
+        if (hasVisualBreak(getMetrics(endIndex), getMetrics(endIndex + 1))) break;
         if (next.end - selected.start > HOVER_CHUNK_LIMIT) break;
         endIndex += 1;
         selected = {start: selected.start, end: sentences[endIndex]!.end};

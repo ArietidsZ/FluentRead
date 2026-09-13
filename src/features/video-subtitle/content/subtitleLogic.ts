@@ -128,12 +128,6 @@ export function normalizeVideoCaptionText(value: string): string {
 }
 
 
-export function isIncrementalVideoCaption(visibleSource: string, fullSource: string): boolean {
-  const visible = normalizeVideoCaptionText(visibleSource).toLocaleLowerCase();
-  const full = normalizeVideoCaptionText(fullSource).toLocaleLowerCase();
-  return Boolean(visible && full && visible !== full && full.startsWith(visible));
-}
-
 function getVideoCaptionPrefixProgress(visibleSource: string, fullSource: string): number | null {
   const visible = normalizeVideoCaptionText(visibleSource);
   const full = normalizeVideoCaptionText(fullSource);

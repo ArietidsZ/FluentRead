@@ -1,5 +1,10 @@
+import {readdirSync, readFileSync} from 'node:fs';
+import {join} from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {localizedLegacyPatterns, translateLegacyPattern} from '@/src/core/i18n/messages/legacy-patterns';
+import {createLegacyPatternSet, localizedLegacyPatterns} from '@/src/core/i18n/messages/legacy-patterns';
+import {createRuntimeFeedbackLegacyText, getRuntimeFeedbackSources} from '@/src/core/i18n/messages/runtime-feedback';
+import {createLegacyCorrectionText, getLegacyCorrectionSources} from '@/src/core/i18n/messages/legacy-corrections';
+import {runtimeFeedbackPatterns} from '@/src/core/i18n/messages/runtime-feedback-patterns';
 
 import {
   DEFAULT_UI_LANGUAGE,
@@ -10,6 +15,7 @@ import {
   resolveUiLanguageFromLocale,
   translate,
   translateLegacyText,
+  registerUiLanguageBundle,
 } from '@/src/core/i18n';
 import {enUSLegacyText, enUSMessages} from '@/src/core/i18n/messages/en-US';
 import {esESLegacyText, esESMessages} from '@/src/core/i18n/messages/es-ES';
@@ -30,6 +36,10 @@ import {renderContextMenuTitle} from '@/src/core/context-menu/presentation';
 import {navigationItems} from '@/src/features/settings/model/navigation';
 import {parseHotkey} from '@/src/core/hotkey';
 import {IMAGE_OCR_LANGUAGE_PACKS} from '@/src/features/image-translation/ocrLanguages';
+import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+
+// 扩展运行时按需加载界面语言；本文件验证全部语言的文案契约，因此一次注册全部资源包。
+registerAllUiLanguageBundles();
 
 describe('界面 i18n 契约', () => {
   const translatedCatalogs: ReadonlyArray<Readonly<Record<string, string>>> = [
@@ -737,12 +747,6 @@ describe('界面 i18n 契约', () => {
     expect(translateLegacyText('禁用扩展网站', 'fr-FR')).toBe('Sites où désactiver l’extension');
     expect(translateLegacyText('禁用扩展网站', 'ru-RU')).toBe('Сайты с отключённым расширением');
     expect(translateLegacyText('禁用扩展网站', 'es-ES')).toBe('Sitios con la extensión desactivada');
-    expect(translateLegacyText('控制并发数量、请求速率和失败重试的退避范围。', 'ko-KR'))
-      .toBe('동시 실행 수, 요청 속도, 실패 시 재시도 간격을 설정합니다.');
-    expect(translateLegacyText('控制并发数量、请求速率和失败重试的退避范围。', 'fr-FR'))
-      .toBe('Réglez le nombre de tâches simultanées, la fréquence des requêtes et les délais entre les tentatives.');
-    expect(translateLegacyText('Thinking、代理、提示词和自定义请求体', 'en-US'))
-      .toBe('Thinking, proxy, prompts, and custom request body');
     expect(translateLegacyText('默认关闭；仅在已适配接口生效，无法关闭时使用最低档', 'ja-JP'))
       .toBe('デフォルトではオフです。対応済みの API でのみ有効になり、無効化できない場合は最小レベルを使用します。');
     expect(translateLegacyText('当前模型是否启用 Thinking', 'es-ES'))
@@ -784,17 +788,7 @@ describe('界面 i18n 契约', () => {
     expect(translateLegacyText('双语逐句高亮', 'es-ES')).toBe('Resaltado bilingüe por oración');
     expect(translateLegacyText('软件语言', 'fr-FR')).toBe('Langue de l’application');
     expect(translateLegacyText('软件语言', 'ru-RU')).toBe('Язык приложения');
-    expect(translateLegacyText('My services', 'ja-JP')).toBe('マイサービス');
-    expect(translateLegacyText('Complete backup', 'ko-KR')).toBe('전체 백업');
-    expect(translateLegacyText('Current default', 'fr-FR')).toBe('Valeur actuelle par défaut');
-    expect(translateLegacyText('Valid configuration changes are recorded automatically; up to 10 are kept.', 'ru-RU'))
-      .toBe('Допустимые изменения настроек записываются автоматически; сохраняется до 10 записей.');
     expect(translateLegacyText('中文', 'es-ES')).toBe('中文');
-    expect(translateLegacyText('My services', 'es-ES')).toBe('Mis servicios');
-    expect(translateLegacyText('Model providers', 'es-ES')).toBe('Proveedores de modelos');
-    expect(translateLegacyText('Test connection', 'es-ES')).toBe('Probar conexión');
-    expect(translateLegacyText('Complete backup', 'es-ES')).toBe('Copia de seguridad completa');
-    expect(translateLegacyText('Settings and local records', 'es-ES')).toBe('Ajustes y registros locales');
     expect(translateLegacyText('已就绪', 'es-ES')).toBe('Listo');
 
     const interfaceAppearanceCopy = [
@@ -805,7 +799,7 @@ describe('界面 i18n 契约', () => {
       '快捷功能栏',
       '显示悬停、划词、图片、视频和文档等快捷入口。',
       '当前网站栏目',
-      '显示当前网站的始终翻译和禁用扩展开关。',
+      '当前网站的始终翻译和禁用扩展开关。',
       '底部信息栏',
       '显示翻译统计、开源项目入口和清除缓存操作。',
     ];
@@ -887,23 +881,41 @@ describe('i18n 全量界面扫描', () => {
 
 describe('动态旧文案资源契约', () => {
   it('每个模板的全部语言都保留捕获参数，未登记正文不被改写', () => {
-    for (const {pattern, messages} of localizedLegacyPatterns) {
-      const source = pattern.source.slice(1, -1).replaceAll('(\\d+)', '12').replaceAll('(.+)', '原文').replaceAll('(.*)', '原文').replaceAll('(.*)', '原文').replaceAll('\\/', '/');
-      const captures = pattern.exec(source);
+    for (const {pattern, localizedCaptures, messages} of localizedLegacyPatterns) {
+      const source = pattern.slice(1, -1).replaceAll('([\\d,.]+\\s?[A-Za-z]*)', '12').replaceAll('([\\d,.]+)', '12').replaceAll('(\\d+)', '12').replaceAll('(.+)', '「占位」').replaceAll('(.*)', '「占位」').replaceAll('\\/', '/');
+      const captures = new RegExp(pattern, 'u').exec(source);
       expect(captures, source).not.toBeNull();
       for (const locale of ['ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
-        const result = translateLegacyPattern(source, locale, (value) => value);
-        expect(result, source).not.toBeUndefined();
-        expect(result).not.toMatch(/\{\d+\}/u);
-        for (const placeholder of messages[locale].matchAll(/\{(\d+)\}/gu)) {
-          expect(captures![Number(placeholder[1])]).toBeDefined();
-          expect(result).toContain(captures![Number(placeholder[1])]);
-        }
+        const expected = messages[locale].replace(/\{(\d+)\}/gu, (_, index: string) => {
+          expect(captures![Number(index)], `${locale} ${source}`).toBeDefined();
+          return localizedCaptures.includes(Number(index)) ? translateLegacyText(captures![Number(index)], locale) : captures![Number(index)];
+        });
+        expect(translateLegacyText(source, locale), `${locale} ${source}`).toBe(expected);
       }
     }
-    expect(translateLegacyPattern('已删除 原文', 'en-US', (value) => value)).toBeUndefined();
-    expect(translateLegacyPattern('已删除 原文', 'zh-CN', (value) => value)).toBeUndefined();
-    expect(translateLegacyPattern('不属于界面文案的原文', 'ja-JP', (value) => value)).toBeUndefined();
+    expect(translateLegacyText('不属于界面文案的原文', 'ja-JP')).toBe('不属于界面文案的原文');
+  });
+
+  it('按语言展开模板：早期模板只收录该语言译文，非 English 的兜底模板追加 English', () => {
+    const english = createLegacyPatternSet('en-US');
+    const japanese = createLegacyPatternSet('ja-JP');
+    expect(english.early.every(([, template]) => !/[\u3040-\u30ff]/u.test(template))).toBe(true);
+    expect(english.late.length).toBeLessThan(japanese.late.length);
+    expect(japanese.late.slice(-english.late.length)).toEqual(english.late);
+    for (const [pattern] of [...japanese.early, ...japanese.late]) expect(() => new RegExp(pattern, 'u')).not.toThrow();
+  });
+
+  it('资源包中的损坏模板被跳过，重新注册资源包后重新编译', () => {
+    registerUiLanguageBundle('ko-KR', {
+      messages: {},
+      legacyText: {},
+      legacyPatterns: {early: [['^(坏', '损坏'], ['^第 (\\d+) 行$', '행 {1} {2}', [1]]], late: [['^尾(.+)$', 'tail {1}']]},
+    });
+    expect(translateLegacyText('第 3 行', 'ko-KR')).toBe('행 3 ');
+    expect(translateLegacyText('尾巴', 'ko-KR')).toBe('tail 巴');
+    expect(translateLegacyText('(坏', 'ko-KR')).toBe('(坏');
+    registerAllUiLanguageBundles();
+    expect(translateLegacyText('尾巴', 'ko-KR')).toBe('尾巴');
   });
 });
 
@@ -917,5 +929,85 @@ describe('动态界面片段', () => {
       expect(translateLegacyText('删除模型 保存', locale)).toContain('保存');
     }
     expect(translateLegacyText('1 分 2 秒', 'en-US')).toBe('1 min 2 sec');
+  });
+});
+
+function collectSourceText(directory: string, include: (path: string) => boolean): string {
+  return readdirSync(directory, {withFileTypes: true}).map((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return collectSourceText(path, include);
+    return /\.(?:ts|vue)$/u.test(entry.name) && include(path) ? readFileSync(path, 'utf8') : '';
+  }).join('\n');
+}
+
+// 后台和各功能抛出的中文反馈会原样到达页内通知与设置页，登记的原文必须仍存在于源码中且六种语言都有译文。
+describe('运行期反馈文案资源', () => {
+  const locales = ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const;
+  const han = /[㐀-鿿]/u;
+
+  it('每条精确反馈都来自真实源码，不重复，并在每种界面语言中完整本地化', () => {
+    const sourceText = collectSourceText('src', (path) => !path.includes('/i18n/messages/'));
+    const sources = getRuntimeFeedbackSources();
+    expect(new Set(sources).size).toBe(sources.length);
+    expect(sources.filter((source) => !sourceText.includes(source))).toEqual([]);
+    for (const locale of locales) {
+      const catalog = createRuntimeFeedbackLegacyText(locale);
+      for (const source of sources) {
+        const translated = translateLegacyText(source, locale);
+        expect(translated, `${locale} ${source}`).toBe(catalog[source]);
+        expect(translated.trim(), `${locale} ${source}`).not.toBe('');
+        if (locale !== 'ja-JP') expect(translated, `${locale} ${source}`).not.toMatch(han);
+      }
+    }
+  });
+
+  it('参数化反馈模板保留捕获参数、优先于宽泛模板命中，并继续翻译嵌套原因', () => {
+    const sampleOf = (pattern: string) => pattern.slice(1, -1)
+      .replaceAll('(\\d+(?:\\.\\d+)?)', '12')
+      .replaceAll('(\\d+)', '12')
+      .replaceAll('(PDF|ePub|DOCX)', 'PDF')
+      .replaceAll('(主网页 RPC|备用网页 RPC|旧版 gtx 接口)', '主网页 RPC')
+      .replaceAll('[：:]\\s*', '：')
+      .replaceAll('([^：]+)', 'https://example.test/model.onnx')
+      .replaceAll('([A-Za-z]{2,3}-[A-Za-z]{2,4}-[A-Za-z]+Neural)', 'en-US-AvaNeural')
+      .replaceAll('(.+)', 'Zeta')
+      .replaceAll('(.*)', 'Zeta')
+      .replace(/\\([().*])/gu, '$1');
+    for (const locale of locales) {
+      const early = createLegacyPatternSet(locale).early.map(([pattern]) => new RegExp(pattern, 'u'));
+      for (const {pattern, localizedCaptures, messages} of runtimeFeedbackPatterns) {
+        const sample = sampleOf(pattern);
+        expect(early.findIndex((candidate) => candidate.test(sample)), `${locale} ${sample}`).toBe(early.findIndex((candidate) => candidate.source === new RegExp(pattern, 'u').source));
+        const captures = new RegExp(pattern, 'u').exec(sample)!;
+        const translated = translateLegacyText(sample, locale);
+        expect(translated, `${locale} ${sample}`).toBe(messages[locale]!.replace(/\{(\d+)\}/gu, (_, index: string) => (
+          localizedCaptures.includes(Number(index)) ? translateLegacyText(captures[Number(index)], locale) : captures[Number(index)]
+        )));
+        expect(translated).not.toMatch(/\{\d+\}/u);
+        if (locale !== 'ja-JP') expect(translated, `${locale} ${sample}`).not.toMatch(han);
+      }
+    }
+    expect(translateLegacyText('在线 TTS 和本地 TTS 均失败：网络请求失败；本地 TTS 模型缓存不完整', 'fr-FR'))
+      .toBe('Les voix en ligne et locale ont toutes deux échoué : La requête réseau a échoué ; Le cache du modèle vocal local est incomplet');
+    expect(translateLegacyText('图片翻译失败：Offscreen 文档准备超时', 'en-US')).toBe('Image translation failed: Preparing the offscreen document timed out');
+    expect(translateLegacyText('谷歌翻译所有匿名接口均失败：主网页 RPC: 请求超时（10 秒）；旧版 gtx 接口: 返回格式异常', 'es-ES'))
+      .toBe('Fallaron todos los endpoints anónimos de Google Translate: RPC web principal: La solicitud agotó el tiempo de espera (10 s); Endpoint gtx antiguo: Formato de respuesta inesperado');
+  });
+});
+
+// 机器补齐的旧译文会人工校正；校正层必须对应仍在使用的界面原文，并在最终资源包中生效。
+describe('旧界面译文人工校正', () => {
+  it('校正原文仍在界面源码中使用，不重复，并覆盖此前的译文', () => {
+    const sourceText = collectSourceText('src', (path) => !path.includes('/i18n/messages/'));
+    const sources = getLegacyCorrectionSources();
+    expect(new Set(sources).size).toBe(sources.length);
+    expect(sources.filter((source) => !sourceText.includes(source))).toEqual([]);
+    for (const locale of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      const catalog = createLegacyCorrectionText(locale);
+      for (const source of sources) {
+        expect(translateLegacyText(source, locale), `${locale} ${source}`).toBe(catalog[source]);
+        if (locale !== 'ja-JP') expect(catalog[source], `${locale} ${source}`).not.toMatch(/[\u3400-\u9fff]/u);
+      }
+    }
   });
 });

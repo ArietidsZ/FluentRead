@@ -5,4 +5,4 @@
  * 模块边界：协议不挂载 UI、不读取配置、不执行网络或识别；保留原始截图和 OCR 行，使任何纠错始终可核对。
  */
 export {areaRectToImageCrop, type AreaTranslationSelection} from './core';
-export type {AreaRecognitionResult, AreaTranslationMode, AreaTranslationResult, AreaTranslationWarning} from './types';
+export type {AreaRecognitionResult, AreaTranslationMode, AreaTranslationResult} from './types';

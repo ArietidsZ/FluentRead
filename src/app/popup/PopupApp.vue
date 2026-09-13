@@ -64,7 +64,8 @@
           <section class="donation-method donation-wechat">
             <div class="donation-method-heading"><h3>{{ t('popup.donationWechat') }}</h3><span>WeChat Support</span></div>
             <a class="donation-qr-frame" href="/misc/approve.jpg" target="_blank" rel="noopener noreferrer" :aria-label="t('popup.donationOpenCode')">
-              <img src="/misc/approve.jpg" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
+              <!-- 绑定表达式让模板编译器保留 public 路径，避免再打包一份带 hash 的同图。 -->
+              <img :src="'/misc/approve.jpg'" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
             </a>
             <p class="donation-method-note">{{ t('popup.donationScan') }}</p>
           </section>

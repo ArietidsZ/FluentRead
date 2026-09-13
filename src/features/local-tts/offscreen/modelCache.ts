@@ -13,7 +13,6 @@ import {
     LOCAL_TTS_MODEL_STATE_KEY,
     LOCAL_TTS_VOICE_CACHE_NAME,
     LOCAL_TTS_VOICE_PATH,
-    LOCAL_TTS_MODEL,
     type LocalTtsVoiceId,
 } from '@/src/core/config/localTts';
 
@@ -151,22 +150,6 @@ export async function removeLocalTtsModelFiles(): Promise<void> {
         ]),
         ...LOCAL_TTS_VOICES.map((voice) => voiceCache.delete(getLocalTtsVoiceCacheUrl(voice))),
     ]);
-}
-
-export function localTtsModelStatus(): {
-    model: typeof LOCAL_TTS_MODEL_ID;
-    downloaded: boolean;
-    downloadSizeMb: number;
-    revision: string;
-    dtype: typeof LOCAL_TTS_MODEL['dtype'];
-} {
-    return {
-        model: LOCAL_TTS_MODEL_ID,
-        downloaded: false,
-        downloadSizeMb: LOCAL_TTS_MODEL.downloadSizeMb,
-        revision: LOCAL_TTS_MODEL_REVISION,
-        dtype: LOCAL_TTS_MODEL.dtype,
-    };
 }
 
 export {LOCAL_TTS_MODEL_STATE_KEY};

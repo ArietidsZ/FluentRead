@@ -19,7 +19,7 @@ vi.mock('@/src/core/config/catalog', () => ({
 vi.mock('@/src/services/config/store', () => ({config: mocks.config}));
 vi.mock('@/src/features/page-notice/public', () => ({sendErrorMessage: mocks.sendErrorMessage}));
 
-import {checkConfig, contentPostHandler} from '@/src/app/translation/check';
+import {checkConfig} from '@/src/app/translation/check';
 
 describe('translation configuration guard', () => {
     beforeEach(() => {
@@ -78,11 +78,10 @@ describe('translation configuration guard', () => {
         expect(checkConfig({service: 'google', displayMode: 'bilingual'})).toBe(true);
     });
 
-    it('有效配置通过，并复用纯思考标签清理器', () => {
+    it('有效配置通过', () => {
         mocks.config.service = 'ai-demo';
         mocks.config.model['ai-demo'] = 'model-1';
 
         expect(checkConfig()).toBe(true);
-        expect(contentPostHandler('<think>secret</think> translated')).toBe('translated');
     });
 });

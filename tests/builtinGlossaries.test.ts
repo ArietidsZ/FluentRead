@@ -3,7 +3,8 @@ import {addBuiltinGlossary, BUILTIN_GLOSSARIES} from '@/src/core/glossary/builti
 import {buildGlossaryRevision, createGlossaryLibrary, exportGlossary, GLOSSARY_LIMITS,
     normalizeGlossaryLibraries, parseGlossaryImport, resolveGlossary, type GlossaryLibrary} from '@/src/core/glossary';
 import {normalizeConfig} from '@/src/core/config/model';
-import {prepareConfigForExport, prepareConfigForImport, sanitizeConfigForExport} from '@/src/core/config/transfer';
+import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
+import {sanitizeConfigCredentials} from '@/src/core/config/credentials';
 import {translate} from '@/src/core/i18n';
 
 function add(id = 'ai-en-zh-hans', libraries: GlossaryLibrary[] = []): GlossaryLibrary {
@@ -98,7 +99,8 @@ describe('离线内置术语词库', () => {
         library.entries[0].target = '自定义人工智能';
         const config = normalizeConfig({glossaryLibraries: [library], documentGlossaryIds: [library.id]});
         expect(config.glossaryEnabled).toBe(false);
-        for (const exported of [prepareConfigForExport(config), sanitizeConfigForExport(config)]) {
+        // 完整备份与不含凭据的旧公开配置文件都必须保留术语库。
+        for (const exported of [prepareConfigForExport(config), sanitizeConfigCredentials(JSON.parse(JSON.stringify(config)))]) {
             const restored = prepareConfigForImport(JSON.parse(JSON.stringify(exported)), normalizeConfig({}));
             expect(restored.glossaryLibraries).toEqual([library]);
             expect(restored.documentGlossaryIds).toEqual([library.id]);

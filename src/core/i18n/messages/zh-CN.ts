@@ -563,6 +563,7 @@ export const zhCNMessages = {
     'notice.translationNotice': '翻译提醒',
     'notice.openSettings': '去设置',
     'notice.close': '关闭通知',
+    'notice.missingCredential': '还差一步：为 {service} 填写 {credential}，就可以开始翻译了。',
     "settings.pageRecognition.title": "页面识别",
     "settings.pageRecognition.allNodes": "识别全部节点",
     "settings.pageRecognition.description": "翻译菜单、按钮和节点标签，下次翻译生效。",

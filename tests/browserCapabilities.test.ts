@@ -2,7 +2,6 @@ import {describe, expect, it} from 'vitest';
 import {
     applyRuntimeBrowserConstraints,
     browserBuildTargetFromEnv,
-    browserBuildTargetFromImportMeta,
     browserCapabilityBuildMarker,
     browserCapabilities,
     readRuntimeUserAgent,
@@ -116,10 +115,7 @@ describe('browser capability contract', () => {
             BROWSER: 1,
             MANIFEST_VERSION: 4,
         } as unknown as Partial<ImportMetaEnv>)).toEqual({browser: 'unknown', manifestVersion: 2});
-        expect(browserBuildTargetFromImportMeta()).toEqual({browser: 'unknown', manifestVersion: 2});
-        expect(browserBuildTargetFromImportMeta({})).toEqual({browser: 'unknown', manifestVersion: 2});
-        expect(browserBuildTargetFromImportMeta({env: {BROWSER: 'chrome', MANIFEST_VERSION: 3}}))
-            .toEqual({browser: 'chrome', manifestVersion: 3});
+        expect(browserBuildTargetFromEnv()).toEqual({browser: 'unknown', manifestVersion: 2});
         expect(browserCapabilities).toMatchObject({
             browser: 'unknown',
             manifestVersion: 2,

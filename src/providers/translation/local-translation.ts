@@ -11,7 +11,8 @@ import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {getTranslationProviderConfig, type TranslationProviderRequest} from '@/src/services/translation/requestSnapshot';
 import {resolveConfiguredModel, services} from '@/src/core/config/catalog';
 import {normalizeLocalTranslationModel, localTranslationErrorKey} from '@/src/core/config/localTranslation';
-import {translate} from '@/src/core/i18n';
+import {normalizeUiLanguage, translate} from '@/src/core/i18n';
+import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
 import {localTranslationOffscreenAdapter} from '@/src/platform/offscreen/localTranslation';
 
 async function localTranslation(message: TranslationProviderRequest<string>): Promise<string> {
@@ -40,9 +41,11 @@ async function localTranslation(message: TranslationProviderRequest<string>): Pr
     }, {
         signal: message.abortSignal,
         timeoutMs,
-    }).catch((error) => {
+    }).catch(async (error) => {
         if (error instanceof Error && error.name === 'AbortError') throw error;
-        throw new Error(translate(localTranslationErrorKey(error), config.uiLanguage));
+        const language = normalizeUiLanguage(config.uiLanguage);
+        await ensureUiLanguageBundle(language);
+        throw new Error(translate(localTranslationErrorKey(error), language));
     });
 }
 

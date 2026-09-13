@@ -14,7 +14,6 @@ import {
 export type {
     SelectionTtsPlaybackRequest,
     SelectionTtsPlaybackState,
-    SelectionTtsRoute,
 } from '@/src/features/selection-translation/protocol';
 
 export interface SelectionAudioPort {

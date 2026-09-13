@@ -21,11 +21,10 @@ import {
 import {
     buildEdgeTtsSsml,
     edgeTtsVoiceCandidatesForLanguage,
-    edgeTtsVoiceForLanguage,
     synthesizeEdgeTts,
 } from '@/src/features/selection-translation/services/edgeTts';
 import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/src/core/hotkey';
-import { normalizeSelectionTtsVoiceOrder, selectionTtsVoiceLocale, selectionTtsVoiceOption } from '@/src/features/selection-translation/ttsConfig';
+import { normalizeSelectionTtsVoiceOrder, selectionTtsVoiceLocale } from '@/src/core/config/selectionTts';
 import {detectlang} from '@/src/core/language/detect';
 
 interface MockElementOptions {
@@ -647,13 +646,13 @@ describe('selection translator text and speech language normalization', () => {
             expect(speechLanguage).toBe('zh-CN');
             expect(edgeTtsVoiceCandidatesForLanguage(speechLanguage)).toContain('zh-CN-XiaoxiaoMultilingualNeural');
         }
-        expect(edgeTtsVoiceForLanguage(normalizeSpeechLanguage('zh-Hant'))).toBe('zh-TW-YunJheMultilingualNeural');
+        expect(edgeTtsVoiceCandidatesForLanguage(normalizeSpeechLanguage('zh-Hant'))[0]).toBe('zh-TW-YunJheMultilingualNeural');
     });
 
     it('uses stable Edge TTS voices instead of the first system voice', () => {
-        expect(edgeTtsVoiceForLanguage('en-US')).toBe('en-US-AvaMultilingualNeural');
-        expect(edgeTtsVoiceForLanguage('en')).toBe('en-US-AvaMultilingualNeural');
-        expect(edgeTtsVoiceForLanguage('zh-Hans')).toBe('zh-CN-XiaoxiaoMultilingualNeural');
+        expect(edgeTtsVoiceCandidatesForLanguage('en-US')[0]).toBe('en-US-AvaMultilingualNeural');
+        expect(edgeTtsVoiceCandidatesForLanguage('en')[0]).toBe('en-US-AvaMultilingualNeural');
+        expect(edgeTtsVoiceCandidatesForLanguage('zh-Hans')[0]).toBe('zh-CN-XiaoxiaoMultilingualNeural');
     });
 
     it('keeps valid configured voices first and falls back through the same language', () => {
@@ -675,8 +674,6 @@ describe('selection translator text and speech language normalization', () => {
         ]);
         expect(normalizeSelectionTtsVoiceOrder('en-US-JennyNeural')).toEqual([]);
         expect(selectionTtsVoiceLocale('zh-CN-XiaoxiaoMultilingualNeural')).toBe('zh-CN');
-        expect(selectionTtsVoiceOption('zh-CN-XiaoyiNeural')?.label).toBe('晓伊');
-        expect(selectionTtsVoiceOption('unknown')).toBeUndefined();
     });
 
     it('does not expose malformed Edge TTS endpoint JSON in errors', async () => {

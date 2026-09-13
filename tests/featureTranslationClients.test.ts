@@ -5,7 +5,6 @@ import {
 } from '@/src/features/area-translation/services/client';
 import {
     fetchImageInExtension,
-    recognizeImageInExtension,
     translateImageInExtension,
 } from '@/src/features/image-translation/services/client';
 
@@ -116,10 +115,10 @@ describe('圈选翻译内容脚本客户端', () => {
 
 describe('图片翻译内容脚本客户端', () => {
     it('未指定 requestId 时使用跨页面安全随机 UUID', async () => {
-        sendMessage.mockResolvedValue({success: true, lines: []});
+        sendMessage.mockResolvedValue({success: true, image: 'data:image/png;base64,AA=='});
 
-        await recognizeImageInExtension('image-a', 'en');
-        await recognizeImageInExtension('image-b', 'en');
+        await fetchImageInExtension('https://example.test/a.png');
+        await fetchImageInExtension('https://example.test/b.png');
         const requestIds = sendMessage.mock.calls.map(([message]) => message.requestId as string);
 
         expect(requestIds).toHaveLength(2);
@@ -138,9 +137,9 @@ describe('图片翻译内容脚本客户端', () => {
             });
             vi.resetModules();
             const fallbackClient = await import('@/src/features/image-translation/services/client');
-            sendMessage.mockResolvedValue({success: true, lines: []});
+            sendMessage.mockResolvedValue({success: true, image: 'data:image/png;base64,AA=='});
 
-            await fallbackClient.recognizeImageInExtension('image', 'en');
+            await fallbackClient.fetchImageInExtension('https://example.test/a.png');
 
             expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
                 requestId: expect.stringMatching(/^image-[a-z0-9-]+-1$/u),
@@ -154,7 +153,7 @@ describe('图片翻译内容脚本客户端', () => {
     it('预取消信号不会发送业务请求，超时会发送同 requestId 的取消消息', async () => {
         const preCancelled = new AbortController();
         preCancelled.abort();
-        await expect(recognizeImageInExtension('image', 'en', {
+        await expect(fetchImageInExtension('https://example.test/a.png', {
             requestId: 'pre-cancelled',
             signal: preCancelled.signal,
         })).rejects.toMatchObject({name: 'AbortError'});
@@ -175,25 +174,6 @@ describe('图片翻译内容脚本客户端', () => {
         });
     });
 
-    it('识别图片并在后台省略行数组时返回空结果', async () => {
-        const lines = [{text: 'Hello', bbox: {x0: 1, y0: 2, x1: 3, y1: 4}}];
-        sendMessage.mockResolvedValueOnce({success: true, lines}).mockResolvedValueOnce({success: true});
-
-        await expect(recognizeImageInExtension('image', 'en', {
-            requestId: 'ocr-1', timeoutMs: 5_000,
-        })).resolves.toEqual(lines);
-        await expect(recognizeImageInExtension('image', 'auto', {
-            requestId: 'ocr-2', timeoutMs: 5_000,
-        })).resolves.toEqual([]);
-        expect(sendMessage).toHaveBeenNthCalledWith(1, {
-            type: 'fluentReadImageOcr',
-            image: 'image',
-            sourceLanguage: 'en',
-            requestId: 'ocr-1',
-            timeoutMs: 5_000,
-        });
-    });
-
     it('跨域图片读取通过后台消息转发到 Offscreen，并校验 data URL', async () => {
         sendMessage.mockResolvedValueOnce({success: true, image: 'data:image/png;base64,remote'});
 
@@ -211,13 +191,6 @@ describe('图片翻译内容脚本客户端', () => {
         await expect(fetchImageInExtension('https://pbs.twimg.com/media/demo.png')).rejects.toThrow('远程图片读取失败');
     });
 
-    it.each([
-        [{success: false, error: '识别失败'}, '识别失败'],
-        [undefined, '图片 OCR 服务不可用'],
-    ])('拒绝失败的 OCR 响应 %#', async (response, message) => {
-        sendMessage.mockResolvedValue(response);
-        await expect(recognizeImageInExtension('image', 'auto')).rejects.toThrow(message);
-    });
 
     it('返回完整图片翻译结果并保留页面上下文', async () => {
         const lines = [{text: '你好', bbox: {x0: 1, y0: 2, x1: 3, y1: 4}, backgroundColor: '#fff'}];

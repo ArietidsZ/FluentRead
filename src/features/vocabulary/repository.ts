@@ -54,7 +54,6 @@ export const VOCABULARY_REVIEW_GOOD_INTERVALS_MS = [
   30 * 24 * 60 * 60 * 1000,
 ] as const;
 
-const MAX_TERM_LENGTH = 64;
 const MAX_TRANSLATION_LENGTH = 8_000;
 const MAX_CONTEXT_LENGTH = 500;
 const MAX_PAGE_TITLE_LENGTH = 200;
@@ -169,17 +168,6 @@ function normalizeComparableText(value: unknown, maxLength: number): string {
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[\u2010-\u2015]/g, '-')
     .toLocaleLowerCase('en-US');
-}
-
-/**
- * 规范化身份但不做词形还原。表面词形仍保存在 `term`；身份只折叠 Unicode 表现形式、
- * 英文引号或连接线、空白与大小写差异。
- */
-export function normalizeEnglishWord(value: unknown): string {
-  const normalized = normalizeComparableText(value, MAX_TERM_LENGTH + 1);
-  return normalized.length <= MAX_TERM_LENGTH && /^[a-z]+(?:[-'][a-z]+)*$/.test(normalized)
-    ? normalized
-    : '';
 }
 
 export function buildVocabularyIdentityKey(sourceLanguage: unknown, term: unknown): string {

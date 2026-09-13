@@ -329,6 +329,31 @@ describe('translation request scheduler', () => {
         await expect(Promise.all([active, waiting])).resolves.toEqual([undefined, 'waiting']);
     });
 
+    it('等待速率许可的 attempt 按 FIFO 挡住同 bucket 的更晚 attempt，同轮扫描复用 bucket key', async () => {
+        const limits = {maxConcurrentTranslations: 4, translationRequestsPerSecond: 1, translationRequestsPerMinute: 0};
+        const scheduler = createTranslationRequestScheduler(() => ({
+            ...limits,
+            serviceRequestLimits: {svc: {enabled: true, limits}},
+            modelRequestLimits: {svc: {m: {enabled: true, limits}}},
+        }));
+        const identity = {service: 'svc', model: 'm'};
+        const order: string[] = [];
+        const attempts: Promise<string>[] = [];
+        const outer = scheduler.schedule(async () => {
+            for (const name of ['first', 'second', 'third']) {
+                attempts.push(scheduler.scheduleAttempt(async () => { order.push(name); return name; }, {identity}));
+            }
+            return 'outer';
+        }, {identity, countRate: false});
+        await expect(outer).resolves.toBe('outer');
+        await flushMicrotasks();
+        expect(order).toEqual(['first']);
+        await vi.advanceTimersByTimeAsync(1_000);
+        expect(order).toEqual(['first', 'second']);
+        await vi.advanceTimersByTimeAsync(1_000);
+        await expect(Promise.all(attempts)).resolves.toEqual(['first', 'second', 'third']);
+    });
+
     it('大量等待请求经过内部压缩后仍保持结果顺序', async () => {
         const scheduler = createTranslationRequestScheduler(() => ({
             maxConcurrentTranslations: 1,
