@@ -43,7 +43,7 @@ export function detectlang(origin: string): string {
 }
 
 /**
- * 同语言预检只能省请求，绝不能让不确定文本静默漏译。短 Latin、纯 Han 与任何
+ * 同语言预检只能省请求，绝不能让不确定文本静默漏译。短 Latin、无中文证据的 Han 与任何
  * 未知统计结果都返回 false；调用方继续交给实际 provider 处理。
  */
 export function shouldSkipTranslationForTarget(origin: string, targetLanguage: string): boolean {

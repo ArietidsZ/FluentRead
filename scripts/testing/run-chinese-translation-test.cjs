@@ -10,6 +10,11 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const chinesePosts = require('../../tests/fixtures/chinese-language-posts.json');
+const sameLanguageTexts = [
+  ...chinesePosts,
+  '✨ 新增功能',
+  '新增文档翻译工作台，支持 PDF、ePub、DOCX，以及 HTML、TXT、Markdown、SRT、VTT、ASS/SSA、LRC、JSON 等格式。',
+];
 
 const paragraphs = {
   en: [
@@ -29,6 +34,12 @@ paragraphs.es = [
   'Este programa lee el documento y traduce el idioma de esta página.',
   'El segundo párrafo explica la configuración de la red informática.',
 ];
+const fixtureTitles = {
+  en: 'Chinese script translation fixture',
+  'zh-Hans': '中文书写体系测试页面',
+  'zh-Hant': '中文書寫體系測試頁面',
+  es: 'Prueba de escritura china',
+};
 const spanishMode = process.argv.includes('--spanish');
 const pairs = spanishMode ? [
   {from: 'es', to: 'zh-Hans'},
@@ -54,6 +65,7 @@ function matchesSubset(actual, expected) {
   return JSON.stringify(actual) === JSON.stringify(expected);
 }
 function fixtureTranslation(source, target) {
+  if (source === fixtureTitles.en || source === 'Same-language comments') return fixtureTitles[target];
   let matched = false;
   let result = source;
   for (const sentences of Object.values(paragraphs)) {
@@ -100,8 +112,11 @@ async function startFixture() {
         assert(target, `{{to}} 未传入受测目标语言：${targetName}`);
         assert(target === 'es' || targetName.includes(target === 'zh-Hans' ? 'Simplified Chinese' : 'Traditional Chinese'),
           '{{to}} 必须包含模型可理解的中文书写体系名称');
+        // 先记录到达端点的请求，未知原文被夹具拒绝也必须计数，避免漏检无效请求。
+        const entry = {source, target, targetName, prompt};
+        requests.push(entry);
         const translated = fixtureTranslation(source, target);
-        requests.push({source, target, targetName, prompt, translated});
+        entry.translated = translated;
         response.setHeader('Content-Type', 'application/json');
         response.end(JSON.stringify({id: 'chinese-script-fixture', object: 'chat.completion', created: 1,
           model: 'chinese-script-fixture', choices: [{index: 0, message: {role: 'assistant', content: translated}, finish_reason: 'stop'}],
@@ -116,7 +131,7 @@ async function startFixture() {
     if (source === 'same-language') {
       response.setHeader('Content-Type', 'text/html; charset=utf-8');
       // 故意沿用英文页面语言，证明每条评论按原文判断，而非信任宿主整页语言。
-      response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Same-language comments</title></head><body style="padding:24px;font:18px/1.6 sans-serif"><main>${chinesePosts.map((text, index) => `<article><p data-same-language="${index}">${text}</p></article>`).join('')}<p id="english-control">${paragraphs.en[0]}</p><p id="traditional-control">${paragraphs['zh-Hant'][0]}</p></main></body></html>`);
+      response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Same-language comments</title></head><body style="padding:24px;font:18px/1.6 sans-serif"><main>${sameLanguageTexts.map((text, index) => `<article><p data-same-language="${index}">${text}</p></article>`).join('')}<p id="english-control">${paragraphs.en[0]}</p><p id="traditional-control">${paragraphs['zh-Hant'][0]}</p></main></body></html>`);
       return;
     }
     const texts = paragraphs[source];
@@ -269,6 +284,7 @@ async function main() {
         const primary = article.locator('#chinese-primary');
         const neighbor = article.locator('#chinese-neighbor');
         const beforeText = await primary.innerText();
+        const beforeTitle = await article.title();
         assert.equal(beforeText, paragraphs[pair.from][0]);
         const requestStart = fixture.requests.length;
         const counts = [];
@@ -288,6 +304,12 @@ async function main() {
             const neighborCount = document.querySelectorAll('#chinese-neighbor .fluent-read-bilingual-content').length;
             return count === expected && neighborCount === (mode === 'full' ? expected : 0);
           }, {expected, mode}, {timeout: live ? 45000 : 20000});
+          if (!live && mode === 'full') {
+            // 全文也翻译标签页标题；等待标题完成后再检查缓存请求数，不能漏记或
+            // 中止一个尚未写入缓存的合法标题请求。
+            await article.waitForFunction(title => document.title === title,
+              expected ? fixtureTitles[pair.to] : beforeTitle);
+          }
           counts.push(await primary.locator('.fluent-read-bilingual-content').count());
           if (expected) {
             const textNodes = primary.locator('.fluent-read-bilingual-content');
@@ -345,10 +367,10 @@ async function main() {
           assert.equal(article.url(), originalUrl);
           assert.equal(await article.locator('.fluent-read-bilingual-content .fluent-read-bilingual-content').count(), 0);
           assert.equal(await article.locator('[data-same-language] .fluent-read-bilingual-content').count(), 0);
-          assert.deepEqual(await article.locator('[data-same-language]').allTextContents(), chinesePosts);
-          assert(!fixture.requests.slice(requestStart).some(request => chinesePosts.some(text => request.source.includes(text))), '同语言评论不得进入翻译请求');
+          assert.deepEqual(await article.locator('[data-same-language]').allTextContents(), sameLanguageTexts);
+          assert(!fixture.requests.slice(requestStart).some(request => sameLanguageTexts.some(text => request.source.includes(text))), '同语言评论不得进入翻译请求');
         };
-        for (let index = 0; index < chinesePosts.length; index++) {
+        for (let index = 0; index < sameLanguageTexts.length; index++) {
           await article.locator(`[data-same-language="${index}"]`).click();
           await article.keyboard.press('Control');
           await wait(150);
@@ -367,7 +389,7 @@ async function main() {
         await article.evaluate(text => {
           const node = document.createElement('p'); node.id = 'dynamic-comment'; node.textContent = text;
           document.querySelector('main').append(node);
-        }, chinesePosts[2]);
+        }, sameLanguageTexts.at(-1));
         await wait(500);
         assert.equal(await article.locator('#dynamic-comment .fluent-read-bilingual-content').count(), 0);
         await checkOriginals();
@@ -379,7 +401,7 @@ async function main() {
         await article.waitForFunction(() => document.querySelectorAll('.fluent-read-bilingual-content').length === 0);
         assert.equal(await article.locator('#dynamic-comment').innerText(), paragraphs.en[0]);
         await checkOriginals();
-        report.fixture.sameLanguage = {comments: chinesePosts.length, hoverRequests: 0, sameLanguageWrappers: 0,
+        report.fixture.sameLanguage = {comments: sameLanguageTexts.length, hoverRequests: 0, sameLanguageWrappers: 0,
           foreignControlCounts: controlCounts, dynamicRedetection: true, restored: true};
       } finally {await article.close(); currentPage = popup;}
     }
