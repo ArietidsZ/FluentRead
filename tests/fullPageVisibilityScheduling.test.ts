@@ -6,6 +6,7 @@ import type {TranslationSiteAdapter} from '@/src/core/translation/types';
 import {TranslationCandidateCore} from '@/src/core/translation/engine';
 import {compileSiteRulePack} from '@/src/core/site-adaptation/compiler';
 import {collapseMutationRescanRoot, isOwnSyntheticSegmentMarkerMutation, mutationRootContains} from '@/src/features/full-page-translation/content/mutationObservation';
+import {DEFAULT_EAGER_TRANSLATION_CHARACTERS} from '@/src/core/config/pageTranslation';
 
 const runtime = vi.hoisted(() => ({
     realCore: null as TranslationCandidateCore | null,
@@ -464,6 +465,7 @@ describe("全文翻译可见性锚点", () => {
         runtime.config.display = 0;
         runtime.config.style = 0;
         runtime.config.fullPageTranslationMode = "viewport";
+        runtime.config.eagerTranslationCharacters = 0;
         runtime.config.translationScope = "content";
         runtime.config.maxConcurrentTranslations = 3;
         runtime.ensureTranslationTruncationLayout.mockClear();
@@ -3235,7 +3237,64 @@ describe("全文翻译可见性锚点", () => {
         expect(singleTranslationText(belowFold)).toBe("译:Paragraph near the page bottom");
     });
 
-    it('滚动停止后优先翻译新可见候选，而不是先前已排队的离屏候选', async () => {
+    it('默认关闭免滚动预翻译，离屏候选等待进入视口附近', async () => {
+        runtime.config.eagerTranslationCharacters = DEFAULT_EAGER_TRANSLATION_CHARACTERS;
+        expect(runtime.config.eagerTranslationCharacters).toBe(0);
+        document.body.innerHTML = '<p id="offscreen">An offscreen paragraph must wait for reading progress.</p>';
+        const element = document.querySelector<HTMLElement>('#offscreen')!;
+        setLayoutBox(element, 600, 80);
+        setViewportRect(element, 8000);
+        runtime.candidates = [{element, kind: 'content', reason: 'paragraph'}];
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(runtime.requests).not.toHaveBeenCalled();
+        const observer = TestIntersectionObserver.instances[0]!;
+        expect(observer.observed.has(element)).toBe(true);
+        observer.emit(element, true);
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it('自定义预翻译预算耗尽后，剩余候选和动态新增内容等待进入视口附近', async () => {
+        runtime.config.eagerTranslationCharacters = 4999;
+        document.body.innerHTML = Array.from({length: 10}, (_, index) =>
+            `<p id="budget-${index}">${`${index}: ${'Readable English paragraph. '.repeat(40)}`.slice(0, 1000)}</p>`,
+        ).join('');
+        const candidates = Array.from(document.querySelectorAll<HTMLElement>('p'));
+        candidates.forEach((element, index) => {
+            setLayoutBox(element, 600, 80);
+            setViewportRect(element, index * 1000);
+        });
+        runtime.candidates = candidates.map((element) => ({element, kind: 'content', reason: 'paragraph'}));
+
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const observer = TestIntersectionObserver.instances[0]!;
+        // 每个完整段落 1000 字符，最后一段可用完剩余额度，之后必须等待 IO。
+        expect(runtime.requests).toHaveBeenCalledTimes(5);
+        expect(observer.observed).toEqual(new Set(candidates.slice(5)));
+        expect(singleTranslationText(candidates[9]!)).toBe('');
+
+        const added = document.createElement('p');
+        added.textContent = 'Newly loaded content must not reopen the exhausted eager budget.';
+        setLayoutBox(added, 600, 80);
+        setViewportRect(added, 11000);
+        document.body.appendChild(added);
+        runtime.candidates.push({element: added, kind: 'content', reason: 'paragraph'});
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: 'childList', target: document.body, addedNodes: [added], removedNodes: [],
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(observer.observed.has(added)).toBe(true);
+        expect(runtime.requests).toHaveBeenCalledTimes(5);
+
+        observer.emit(candidates[9]!, true);
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(6);
+        expect(singleTranslationText(candidates[9]!)).toContain('译:9:');
+    });
+
+    it('滚动停止后优先翻译新可见候选，离开预取区的旧候选等待再次进入', async () => {
         runtime.config.maxConcurrentTranslations = 1;
         document.body.innerHTML = [
             '<p id="first">The first paragraph is already being translated.</p>',
@@ -3246,7 +3305,7 @@ describe("全文翻译可见性锚点", () => {
         const old = document.querySelector<HTMLElement>('#old')!;
         const jumped = document.querySelector<HTMLElement>('#jumped')!;
         const moveFirst = setViewportRect(first, 100);
-        setViewportRect(old, 1_400);
+        const moveOld = setViewportRect(old, 900);
         const moveJumped = setViewportRect(jumped, 1_600);
         [first, old, jumped].forEach((candidate) => setLayoutBox(candidate, 600, 80));
         runtime.candidates = [first, old, jumped].map((element) => ({
@@ -3276,9 +3335,12 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledTimes(1);
 
         moveFirst(-700);
+        moveOld(-1_400);
         moveJumped(100);
         window.scrollY = 1_000;
         document.dispatchEvent(new window.Event('scroll'));
+        observer.emit(first, false);
+        observer.emit(old, false);
         observer.emit(jumped, true);
         firstRequest.resolve(['译:The first paragraph is already being translated.']);
         await vi.advanceTimersByTimeAsync(1);
@@ -3295,7 +3357,21 @@ describe("全文翻译可见性锚点", () => {
         ]);
 
         jumpedRequest.resolve(['译:The paragraph revealed by the user scroll should go next.']);
-        await vi.advanceTimersByTimeAsync(1);
+        await finishScheduledWork();
+        await vi.advanceTimersByTimeAsync(10_000);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(singleTranslationText(old)).toBe('');
+        expect(observer.observed.has(old)).toBe(true);
+        expect(runtime.cancelQueue).not.toHaveBeenCalled();
+
+        // 上滑重新读到旧段落时仍可唤醒，不丢失候选，也不会重复请求已完成的段落。
+        moveOld(100);
+        window.scrollY = 0;
+        document.dispatchEvent(new window.Event('scroll'));
+        observer.emit(old, true);
+        await vi.advanceTimersByTimeAsync(219);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        await vi.advanceTimersByTimeAsync(2);
         await Promise.resolve();
         expect(runtime.requests).toHaveBeenCalledTimes(3);
         expect(runtime.requests).toHaveBeenNthCalledWith(3, [

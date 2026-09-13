@@ -544,7 +544,7 @@ export class Config {
         this.translationScope = 'content'; // 默认只识别正文，全部节点由高级设置显式开启
         this.sidebarTranslationEnabled = false; // 默认跳过侧边栏和导航，保持正文阅读边界
         this.minTranslationTextLength = DEFAULT_MIN_TRANSLATION_TEXT_LENGTH; // 默认过滤单字符碎片
-        this.eagerTranslationCharacters = DEFAULT_EAGER_TRANSLATION_CHARACTERS; // 默认先翻译页面开头的一段内容
+        this.eagerTranslationCharacters = DEFAULT_EAGER_TRANSLATION_CHARACTERS; // 默认完全按视口触发，免滚动预翻译由用户主动开启
         this.longParagraphLineBreakEnabled = false; // 默认保持原段落排版
         this.translationBeforeOriginal = false; // 默认译文排在每段原文之后
         this.fullPageTranslationMode = 'viewport'; // 默认按阅读进度翻译，避免一次发出过多请求
