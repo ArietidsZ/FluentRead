@@ -1,7 +1,7 @@
 /**
  * @file src/shared/onnx/wasmBinary.ts
- * 文件职责：为 ONNX Runtime 提供扩展内置 gzip WASM 的受控解压和短生命周期注入。
- * 主要内容：绑定静态 GPU/CPU runtime MJS/WASM.gz 路径、限制加载重试，并在模型初始化结束后清空二进制引用。
+ * 文件职责：为 ONNX Runtime 提供扩展内置原始 WASM 的加载及旧 gzip 资源的受控解压和短生命周期注入。
+ * 主要内容：绑定静态 GPU/CPU runtime MJS/WASM 路径、限制加载重试，并在模型初始化结束后清空二进制引用。
  * 模块边界：只处理 ONNX WASM 资源，不决定模型、设备、缓存或 Worker 生命周期。
  */
 
@@ -51,6 +51,11 @@ async function decompressResponse(response: Response, url: string): Promise<Uint
         const error = new Error(`HTTP_${response.status}`) as Error & {retryable?: boolean};
         error.retryable = response.status >= 500;
         throw error;
+    }
+    if (url.endsWith('.wasm')) {
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (!isWasmBinary(bytes)) throw nonRetryableError(`ONNX_WASM_BINARY_INVALID:${url}`);
+        return bytes;
     }
     if (typeof DecompressionStream === 'undefined') throw nonRetryableError('ONNX_WASM_DECOMPRESSION_UNSUPPORTED');
     if (!response.body) throw nonRetryableError('ONNX_WASM_BINARY_BODY_MISSING');

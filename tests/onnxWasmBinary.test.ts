@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe('compressed ONNX WASM loader', () => {
-    it('三个 ONNX Worker 和公共资源 hook 使用各自匹配的 runtime MJS 与 gzip WASM', () => {
+    it('三个 ONNX Worker 和公共资源 hook 使用各自匹配的 runtime MJS 与 原始 WASM', () => {
         const sources = [
             source('src/features/local-translation/offscreen/translation.worker.ts'),
             source('src/features/video-subtitle/offscreen/transcription.worker.ts'),
@@ -32,9 +32,9 @@ describe('compressed ONNX WASM loader', () => {
         ];
         for (const content of sources) {
             expect(content).toContain('ort-wasm-simd-threaded.jsep.mjs');
-            expect(content).toContain('ort-wasm-simd-threaded.jsep.wasm.gz');
+            expect(content).toContain('ort-wasm-simd-threaded.jsep.wasm');
             expect(content).not.toContain("ort-wasm-simd-threaded.mjs'");
-            expect(content).not.toContain("ort-wasm-simd-threaded.wasm.gz'");
+            expect(content).not.toContain("ort-wasm-simd-threaded.wasm'");
         }
         const whisper = sources[1]!;
         expect(whisper).toContain("device: 'webgpu'");
@@ -42,11 +42,25 @@ describe('compressed ONNX WASM loader', () => {
         const tts = source('src/features/local-tts/offscreen/tts.worker.ts');
         const wxt = sources[2]!;
         expect(wxt).toContain('tts-ort-wasm-simd-threaded.asyncify.mjs');
-        expect(wxt).toContain('tts-ort-wasm-simd-threaded.asyncify.wasm.gz');
+        expect(wxt).toContain('tts-ort-wasm-simd-threaded.asyncify.wasm');
         expect(tts).toContain('tts-ort-wasm-simd-threaded.asyncify.mjs');
-        expect(tts).toContain('tts-ort-wasm-simd-threaded.asyncify.wasm.gz');
+        expect(tts).toContain('tts-ort-wasm-simd-threaded.asyncify.wasm');
         expect(tts).toContain('return wasm');
         expect(tts).not.toContain("device === 'wasm' && wasm");
+    });
+
+    it('无解压能力时加载原始 WASM，拒绝损坏资源且初始化后释放引用', async () => {
+        vi.stubGlobal('DecompressionStream', undefined);
+        const fetchImpl = vi.fn(async () => new Response(wasmBytes));
+        const backend: {wasmBinary?: ArrayBufferLike | Uint8Array} = {};
+        await withCompressedWasmBinary(backend, 'runtime.wasm', async () => {
+            expect(backend.wasmBinary).toEqual(wasmBytes);
+        }, {fetchImpl});
+        expect(backend.wasmBinary).toBeUndefined();
+        const invalidFetch = vi.fn(async () => new Response('invalid'));
+        await expect(loadCompressedWasmBinary('runtime.wasm', {fetchImpl: invalidFetch}))
+            .rejects.toMatchObject({cause: {message: 'ONNX_WASM_BINARY_INVALID:runtime.wasm'}});
+        expect(invalidFetch).toHaveBeenCalledTimes(1);
     });
 
     it('解压 gzip WASM，并在瞬时读取失败后只重试一次', async () => {

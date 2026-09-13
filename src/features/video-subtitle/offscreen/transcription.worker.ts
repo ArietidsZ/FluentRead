@@ -102,7 +102,7 @@ if (env.backends.onnx.wasm) {
   // 反而会触发 extension:// WASM 加载失败，因此保持关闭。
   configureOnnxWasmBackend(env.backends.onnx.wasm, {
     mjs: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs'),
-    wasm: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm.gz'),
+    wasm: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm'),
   });
 }
 
@@ -168,7 +168,7 @@ async function createWasmTranscriber(modelId: string, model: ReturnType<typeof n
     }) as unknown as Promise<LocalTranscriber>;
     const wasm = env.backends.onnx.wasm;
     const transcriber = await (wasm
-      ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm.gz'), createPipeline)
+      ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm'), createPipeline)
       : createPipeline());
     transcriberDtype = dtype;
     return transcriber;
@@ -203,7 +203,7 @@ async function createLocalTranscriber(
       }) as unknown as Promise<LocalTranscriber>;
       const wasm = env.backends.onnx.wasm;
       gpuTranscriber = await (wasm
-        ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm.gz'), createPipeline)
+        ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm'), createPipeline)
         : createPipeline());
       transcriberBackend = 'webgpu';
       transcriberDtype = 'q4';
