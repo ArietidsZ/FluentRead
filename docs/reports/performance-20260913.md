@@ -80,4 +80,15 @@ node scripts/testing/run-resource-safe.mjs -- node scripts/testing/run-lazy-opti
 node scripts/testing/run-resource-safe.mjs -- node scripts/testing/run-ort-runtime-smoke.cjs --extension-dir .output/chrome-mv3 --playwright-root /path/to/node_modules --focus-safe-helper /path/to/focus-safe-browser.cjs
 ```
 
-ZIP 使用 JSZip DEFLATE level 9，前后参数一致；最终校验值为 `a5e298ec00c5a74b1ea1dd9c7d1b1097c21e3611e2710d16370796d45d6dd868`。完整原始日志和覆盖率报告位于本次本地证据目录 `/private/tmp/fluentread-perf-20260913`。未发布、未上传 PR。
+ZIP 使用 JSZip DEFLATE level 9，前后参数一致；最终校验值为 `a5e298ec00c5a74b1ea1dd9c7d1b1097c21e3611e2710d16370796d45d6dd868`。完整原始日志和覆盖率报告位于本次本地证据目录 `/private/tmp/fluentread-perf-20260913`。该安装包未进行商店发布。
+
+
+## 最新主线集成验收
+
+用户授权合并后，先整合 `origin/main` 的 `07d253b47b65315c9efd6e37a4cd43fcbc69d394`；验证代码提交为 `658cb469dc656557c9c9794ca9d4eff8fc721130`。保留主线新合入的服务目录、写作设置、翻译卡片和右键菜单改动。唯一文本冲突位于 `browserFocusSafety.test.ts`，合并时保留双方检查。
+
+整合后重新执行 12 个定向测试文件，**970 项全部通过**；TypeScript/Vue compile、Chrome/Firefox/userscript 构建和测试审计的工具退出码均为 0。另通过扩展 manifest、userscript verifier，真实隔离 Edge 的 17 项设置 UI 与 4 项 ONNX CPU/WebGPU 检查。新模块源码未在此次主线整合中改变，前述 100% 专项覆盖率仍针对同一实现。早先定位过程中出现的失败已修复，这轮聚合检查为最终全绿记录，未运行全量回归。
+
+合并版本安装目录为 **47,955,344 B（45.73 MiB）**。前文五轮性能与 ZIP 对比保留原始 `d4fcddd7 -> 543dce6d` 的测量口径；本节整合了之后的主线功能，不将两组提交视为同一份产物。
+
+证据：[退出码与范围](./performance-20260913/integration-validation.json)、[最新目录字节](./performance-20260913/integration-bundle.json)、[设置 UI](./performance-20260913/integration-settings-ui.json)、[ONNX 运行时](./performance-20260913/integration-onnx-runtime.json)。日志保存在 `/private/tmp/fluentread-perf-merge-20260913`。
