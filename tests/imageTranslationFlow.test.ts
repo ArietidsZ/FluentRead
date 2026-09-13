@@ -137,6 +137,34 @@ describe('图片翻译流程优化',()=>{
         noDismiss.dispose();
     });
 
+    it('连续识别进度只更新状态文字，保留取消按钮节点、父级和焦点', () => {
+        const {document, window} = parseHTML('<html><body></body></html>');
+        vi.stubGlobal('document', document);
+        const ui = createImageControls({onAction() {}, onPrepare() {}});
+        document.body.append(ui.feedback, ui.element);
+        ui.update('loading', '正在识别图片文字…', {progress: 10});
+        const row = ui.button.parentElement!;
+        const append = vi.spyOn(ui.element, 'append');
+        let focusEvents = 0;
+        let blurEvents = 0;
+        ui.button.addEventListener('focus', () => { focusEvents += 1; });
+        ui.button.addEventListener('blur', () => { blurEvents += 1; });
+        ui.button.dispatchEvent(new window.Event('focus'));
+        const focusEventsBeforeProgress = focusEvents;
+        const blurEventsBeforeProgress = blurEvents;
+
+        ui.update('loading', '正在识别图片文字…', {progress: 40});
+        ui.update('loading', '正在识别图片文字…', {progress: 70});
+
+        expect(row.parentElement).toBe(ui.element);
+        expect(ui.button.parentElement).toBe(row);
+        expect(ui.element.contains(ui.button)).toBe(true);
+        expect(focusEvents).toBe(focusEventsBeforeProgress);
+        expect(blurEvents).toBe(blurEventsBeforeProgress);
+        expect(append).not.toHaveBeenCalled();
+        ui.dispose();
+    });
+
     it('进度回调异常不影响后续进度或业务成功', async () => {
         const result = deferred<unknown>();
         const {listeners} = mockProgressClient(vi.fn(() => result.promise));

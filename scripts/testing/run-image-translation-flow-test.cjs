@@ -87,6 +87,7 @@ let launchAttempted = false;
 let page;
 let cdp;
 let diagnosticCdp;
+let worker;
 let readUi;
 let currentCase = 'launch';
 
@@ -385,7 +386,7 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
         const {targetInfos}=await diagnosticCdp.send('Target.getTargets');
         await Promise.all(targetInfos.map(targetInfo=>attachTarget(targetInfo)));
     }
-    const worker = context.serviceWorkers().find(w => w.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker', { timeout: 30000 });
+    worker = context.serviceWorkers().find(w => w.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker', { timeout: 30000 });
     const popup = await newPageWithoutForeground(context, 30000);
     await popup.goto(`chrome-extension://${new URL(worker.url()).host}/popup.html`);
     await popup.evaluate(async xSurface => {
@@ -401,7 +402,45 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
     }, xSurface);
     await worker.evaluate(liveTranslation => {
         const originalFetch = globalThis.fetch.bind(globalThis);
-        globalThis.__imageFixture = {requests: [], delay: 250};
+        // Keep the real OCR path intact while giving the loading controls enough time to sample.
+        const fixture = globalThis.__imageFixture = {requests: [], operationIds: [], delay: 1800, replayProgress: false, progressTimer: null, progressRequestId: null};
+        const clearProgress = () => {
+            if (fixture.progressTimer !== null) clearInterval(fixture.progressTimer);
+            fixture.progressTimer = null;
+            fixture.progressRequestId = null;
+        };
+        const progressSteps = [
+            ['recognizing', 10], ['recognizing', 25], ['recognizing', 40], ['recognizing', 55],
+            ['recognizing', 70], ['recognizing', 85], ['translating', undefined], ['rendering', undefined],
+        ];
+        const fixtureListener = (message, sender) => {
+            if (!message || typeof message !== 'object') return;
+            if (message.type === 'fluentReadImageTranslate' && typeof message.requestId === 'string'
+                && sender.tab?.id !== undefined) {
+                clearProgress();
+                fixture.progressRequestId = message.requestId;
+                fixture.operationIds.push(message.requestId);
+                if (!fixture.replayProgress) return false;
+                let index = 0;
+                const sendProgress = () => {
+                    const step = progressSteps[Math.min(index++, progressSteps.length - 1)];
+                    void chrome.tabs.sendMessage(sender.tab.id, {
+                        type: 'fluentReadImageProgress', requestId: message.requestId,
+                        stage: step[0], ...(step[1] === undefined ? {} : {progress: step[1]}),
+                    }, {frameId: sender.frameId ?? 0}).catch(() => undefined);
+                };
+                sendProgress();
+                fixture.progressTimer = setInterval(sendProgress, 120);
+                return false;
+            }
+            if (message.type === 'fluentReadImageCancel' && message.requestId === fixture.progressRequestId) clearProgress();
+            return false;
+        };
+        chrome.runtime.onMessage.addListener(fixtureListener);
+        globalThis.__stopImageFixtureProgress = () => {
+            clearProgress();
+            chrome.runtime.onMessage.removeListener(fixtureListener);
+        };
         globalThis.fetch = async (input, options) => {
             const url = String(typeof input === 'string' ? input : input.url || input);
             if (url.includes('/_/TranslateWebserverUi/data/batchexecute')) {
@@ -494,6 +533,17 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
         // 只发送 DevTools 可信输入，不操作系统鼠标或激活 macOS 应用。
         await page.mouse.click(point.x, point.y);
     }
+    async function moveToButton(text) {
+        const point = await ui(`
+            const button = [...this.querySelectorAll('button')].find(item => item.textContent === ${JSON.stringify(text)} && !item.hidden);
+            if (!button) return null;
+            const rect = button.getBoundingClientRect();
+            return {x: rect.x + rect.width / 2, y: rect.y + rect.height / 2};
+        `);
+        assert.ok(point, `未找到按钮 ${text}`);
+        await page.mouse.move(point.x, point.y, {steps: 2});
+        return point;
+    }
     async function shot(name) {
         const file = path.join(artifacts, `${name}.png`);
         await page.screenshot({path: file, timeout: 10_000});
@@ -574,13 +624,113 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
     report.cases.push('scroll retains same decoded bitmap');
     await verifyGeometryCases({worker, ui, wait, shot});
     currentCase = 'dynamic source, cancellation and retry';
+    await popup.evaluate(async () => {
+        const read = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
+        const config = read.value;
+        const patch = {useCache: false};
+        const response = await chrome.runtime.sendMessage({
+            type: 'persistConfig', mode: 'patch', config: patch,
+            expected: {useCache: config.useCache},
+            clientId: 'image-flow-fixture', sequence: 2, baseRevision: config.__fluentConfigRevision || 0,
+        });
+        if (!response.success) throw new Error(response.error);
+    });
     await page.evaluate(() => { const i = document.querySelector('#sample'); i.src = i.src + '#changed'; });
     await wait(() => ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='idle'"));
     assert.equal(await ui("return !!this.querySelector('.fluent-read-image-translation-overlay img')"), false);
     report.cases.push('dynamic source change removes old translation');
     await image.hover();
+    await worker.evaluate(() => { globalThis.__imageFixture.replayProgress = true; });
     await click('翻译');
+    await wait(() => ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='loading'"));
+    await ui(`
+        const row = this.querySelector('.fr-image-actions');
+        const button = [...this.querySelectorAll('button')].find(item => item.textContent === '取消' && !item.hidden);
+        if (!row || !button) throw new Error('loading controls are missing Cancel');
+        row.dataset.testIdentity = 'cancel-hover-row';
+        button.dataset.testIdentity = 'cancel-hover-button';
+        this.__cancelHoverRowNode = row;
+        this.__cancelHoverButtonNode = button;
+        this.__cancelHoverRowRemovalCount = 0;
+        this.__cancelHoverObserver = new MutationObserver(records => {
+            for (const record of records) {
+                if ([...record.removedNodes].includes(row)) this.__cancelHoverRowRemovalCount++;
+            }
+        });
+        this.__cancelHoverObserver.observe(this, {subtree: true, childList: true});
+        this.__cancelHoverSamples = [];
+        return true;
+    `);
+    await moveToButton('取消');
+    await page.waitForTimeout(140); // Let the 120ms opacity transition settle before taking the baseline.
+    const hoverStarted = Date.now();
+    while (Date.now() - hoverStarted < 1_200) {
+        const sample = await ui(`
+            const row = this.querySelector('.fr-image-actions');
+            const button = [...this.querySelectorAll('button')].find(item => item.dataset.testIdentity === 'cancel-hover-button');
+            if (!row || !button) return null;
+            const rectOf = node => { const rect = node.getBoundingClientRect(); return {left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height}; };
+            const rowStyle = getComputedStyle(row);
+            const buttonStyle = getComputedStyle(button);
+            return {
+                phase: this.querySelector('.fr-image-controls')?.dataset.phase,
+                rowConnected: row.isConnected,
+                buttonConnected: button.isConnected,
+                sameRowNode: row === this.__cancelHoverRowNode,
+                sameButtonNode: button === this.__cancelHoverButtonNode,
+                rowRemovalCount: this.__cancelHoverRowRemovalCount || 0,
+                rowIdentity: row.dataset.testIdentity,
+                buttonIdentity: button.dataset.testIdentity,
+                activeIdentity: this.activeElement === button ? button.dataset.testIdentity : this.activeElement?.dataset?.testIdentity || null,
+                statusText: this.querySelector('.fr-image-status')?.textContent || '',
+                rowHover: row.matches(':hover'),
+                buttonHover: button.matches(':hover'),
+                rowRect: rectOf(row),
+                buttonRect: rectOf(button),
+                rowOpacity: Number(rowStyle.opacity),
+                buttonOpacity: Number(buttonStyle.opacity),
+            };
+        `);
+        if (sample) {
+            await ui(`this.__cancelHoverSamples.push(${JSON.stringify(sample)}); return true;`);
+        }
+        await page.waitForTimeout(80);
+    }
+    report.cancelHoverStability = await ui('return this.__cancelHoverSamples');
+    report.cancelHoverProgress = {source: 'fixture-replayed-runtime-messages'};
+    assert.ok(report.cancelHoverStability.length >= 8, `Cancel 悬停采样不足: ${report.cancelHoverStability.length}`);
+    const firstHoverSample = report.cancelHoverStability[0];
+    for (const sample of report.cancelHoverStability) {
+        assert.equal(sample.rowConnected, true, 'Cancel 所在操作条节点必须持续挂载');
+        assert.equal(sample.buttonConnected, true, 'Cancel 按钮节点必须持续挂载');
+        assert.equal(sample.sameRowNode, true, 'Cancel 操作条节点身份发生变化');
+        assert.equal(sample.sameButtonNode, true, 'Cancel 按钮节点身份发生变化');
+        assert.equal(sample.rowRemovalCount, 0, 'Cancel 操作条不能发生移除');
+        assert.equal(sample.rowIdentity, firstHoverSample.rowIdentity, 'Cancel 操作条节点身份发生变化');
+        assert.equal(sample.buttonIdentity, firstHoverSample.buttonIdentity, 'Cancel 按钮节点身份发生变化');
+        assert.equal(sample.activeIdentity, 'cancel-hover-button', 'Cancel 按钮焦点发生丢失');
+        assert.equal(sample.rowHover, true, 'Cancel 操作条必须保持 :hover');
+        assert.equal(sample.buttonHover, true, 'Cancel 按钮必须保持 :hover');
+        for (const key of ['left', 'top', 'right', 'bottom', 'width', 'height']) {
+            assert.ok(Math.abs(sample.rowRect[key] - firstHoverSample.rowRect[key]) <= 1, `Cancel 操作条几何发生变化: ${key}`);
+            assert.ok(Math.abs(sample.buttonRect[key] - firstHoverSample.buttonRect[key]) <= 1, `Cancel 按钮几何发生变化: ${key}`);
+        }
+        assert.ok(Math.abs(sample.rowOpacity - firstHoverSample.rowOpacity) <= 0.01, 'Cancel 操作条透明度发生变化');
+        assert.ok(Math.abs(sample.buttonOpacity - firstHoverSample.buttonOpacity) <= 0.01, 'Cancel 按钮透明度发生变化');
+        assert.equal(sample.phase, 'loading', 'Cancel 悬停采样必须发生在加载阶段');
+    }
+    report.cases.push('loading Cancel retains the same attached hovered focused row and button during progress');
+    assert.ok(new Set(report.cancelHoverStability.map(sample => sample.statusText)).size >= 5,
+        'Cancel 悬停期间必须观察到至少五次夹具进度更新');
+    await shot('08-cancel-hover-stability');
     await click('取消');
+    await worker.evaluate(() => {
+        const fixture = globalThis.__imageFixture;
+        fixture.replayProgress = false;
+        if (fixture.progressTimer !== null) clearInterval(fixture.progressTimer);
+        fixture.progressTimer = null;
+        fixture.progressRequestId = null;
+    });
     await page.waitForTimeout(1200);
     assert.equal(await ui("return this.querySelector('.fr-image-controls')?.dataset.phase"), 'idle');
     report.cases.push('cancel never installs a late result');
@@ -589,6 +739,40 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
     await wait(() => ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='translated'"));
     report.cases.push('retry works after cancellation');
     await shot('04-retry');
+
+    currentCase = 'offscreen channel closure recovery';
+    const recoverySource = await page.evaluate(() => {
+        const image = document.querySelector('#sample');
+        image.src = image.src + '#channel-recovery';
+        return image.src;
+    });
+    await wait(() => ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='idle'"));
+    const recoveryOperationStart = await worker.evaluate(() => globalThis.__imageFixture.operationIds.length);
+    await image.hover();
+    await click('翻译');
+    await wait(() => ui("return this.querySelector('.fr-image-status')?.textContent.includes('正在翻译文字')"));
+    await worker.evaluate(async () => {
+        await chrome.offscreen.closeDocument();
+    });
+    await wait(() => ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='translated'"), 30_000);
+    const recoveryOperationIds = await worker.evaluate(start => globalThis.__imageFixture.operationIds.slice(start), recoveryOperationStart);
+    assert.equal(new Set(recoveryOperationIds).size, 2, `通道关闭后必须使用两个不同 requestId 重试: ${JSON.stringify(recoveryOperationIds)}`);
+    assert.equal(recoveryOperationIds.length, 2, `通道关闭后必须恰好发起一次恢复请求: ${JSON.stringify(recoveryOperationIds)}`);
+    const recoveryBitmap = await ui(`
+        const source = document.querySelector('#sample');
+        const bitmap = this.querySelector('.fluent-read-image-translation-overlay img');
+        return {sourceSrc: source?.src, bitmapCount: bitmap ? 1 : 0, complete: Boolean(bitmap?.complete), naturalWidth: bitmap?.naturalWidth || 0};
+    `);
+    assert.equal(recoveryBitmap.sourceSrc, recoverySource, '通道恢复不能改写原图 src');
+    assert.deepEqual(recoveryBitmap, {sourceSrc: recoverySource, bitmapCount: 1, complete: true, naturalWidth: 1400});
+    report.channelRecovery = {
+        operationIds: recoveryOperationIds,
+        bitmap: {sourcePreserved: recoveryBitmap.sourceSrc === recoverySource,
+            bitmapCount: recoveryBitmap.bitmapCount, complete: recoveryBitmap.complete, naturalWidth: recoveryBitmap.naturalWidth},
+        injectedClosure: true, progressSource: 'real-runtime-operation',
+    };
+    report.cases.push('injected offscreen channel closure retries once with a fresh request and installs a valid bitmap');
+    await shot('09-channel-recovery');
 
     currentCase = 'transparent PNG replacement and opacity ownership';
     const transparentFixture = await page.evaluate(() => {
@@ -674,6 +858,9 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
     }
 }).finally(async () => {
     if (diagnosticCdp) await diagnosticCdp.detach().catch(error=>report.cleanupErrors.push(`OCR console detach: ${error.message}`));
+    if (worker) await worker.evaluate(() => globalThis.__stopImageFixtureProgress?.()).catch(error => {
+        report.cleanupErrors.push(`image fixture progress stop: ${error.message}`);
+    });
     if (cdp) {
         if (readUi) await readUi('this.__progressObserver?.disconnect(); return true;').catch(() => undefined);
         await cdp.detach().catch(error => report.cleanupErrors.push(`CDP session detach: ${error.message}`));
