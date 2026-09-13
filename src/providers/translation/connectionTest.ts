@@ -2,11 +2,12 @@
  * @file src/providers/translation/connectionTest.ts
  *
  * 文件职责：通过真实 provider registry 执行最小翻译连接测试，覆盖服务鉴权、端点、模型配置和响应解析。
- * 主要内容：使用固定英文测试文本调用指定适配器，验证非空结果并返回耗时；formatConnectionTestError 将失败转换为带服务名的可读消息。 可核对的公开符号包括 CONNECTION_TEST_ORIGIN、runTranslationServiceConnectionTest、formatConnectionTestError。
+ * 主要内容：使用固定英文测试文本调用指定适配器，为 MyMemory 显式指定测试语言对，验证非空结果并返回耗时；formatConnectionTestError 将失败转换为带服务名的可读消息。 可核对的公开符号包括 CONNECTION_TEST_ORIGIN、runTranslationServiceConnectionTest、formatConnectionTestError。
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
 import {translationProviderRegistry} from './registry';
+import {services} from '@/src/core/config/catalog';
 import {formatServiceError} from '@/src/services/translation/serviceErrors';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {
@@ -81,6 +82,8 @@ export async function runTranslationServiceConnectionTest(
     try {
         const observedRequest = attachTranslationModelUsageObserver({
             origin: CONNECTION_TEST_ORIGIN,
+            // 短英文不足以可靠检测语言；固定测试语言对也避免用户选择英文目标时变成同语种请求。
+            ...(service === services.myMemory ? {sourceLanguage: 'en', targetLanguage: 'zh-Hans'} : {}),
             context: '',
             pageContext: '',
             summaryPrompt: '',

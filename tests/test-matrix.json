@@ -328,6 +328,7 @@
       "tests/uiI18nBundleLoading.test.ts"
     ],
     "regression": [
+      "tests/myMemoryConnectionTest.test.ts",
       "tests/readingThemeStyles.test.ts",
       "tests/translationControlOwnership.test.ts",
       "tests/upstreamTranslationBoundaries.test.ts",

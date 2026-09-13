@@ -55,6 +55,12 @@ Rate limits normally pause a provider for minutes, blocked access for hours, and
 
 Free services have changing availability and allowances. Public interfaces and intermediaries have their own data policies. Keep only one entry, or select a standalone service, if you want requests to go to only that provider.
 
+## MyMemory
+
+Select **MyMemory** and click **Check connection**. The contact email is optional. The check translates a fixed short sentence from English to Chinese, so you do not need to change your source or target language first. Your saved language and email settings are preserved.
+
+Regular translation still uses your selected languages. If automatic detection cannot identify the source language of a short text, select it manually and retry.
+
 ## DeepL
 
 Choose API Free or API Pro and enter the matching key. A DeepL website subscription and a DeepL API plan are different products.

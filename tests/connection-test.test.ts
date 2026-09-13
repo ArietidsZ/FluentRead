@@ -129,6 +129,8 @@ describe('翻译服务连接测试', () => {
             useCache: false,
             abortSignal: expect.any(AbortSignal),
         }));
+        expect(adapter.mock.calls[0][0]).not.toHaveProperty('sourceLanguage');
+        expect(adapter.mock.calls[0][0]).not.toHaveProperty('targetLanguage');
     });
 
     it('无 config 时不注入不完整的 provider snapshot，保持 adapter 原有 fallback', async () => {
