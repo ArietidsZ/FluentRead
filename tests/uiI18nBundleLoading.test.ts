@@ -1,5 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {nextTick} from 'vue';
+import {parseHTML} from 'linkedom';
 
 const store = vi.hoisted(() => {
     const listeners = new Set<(config: {uiLanguage?: string}) => void>();
@@ -28,7 +29,7 @@ vi.mock('@/src/services/config/store', () => ({
 vi.mock('@/src/platform/i18n/uiLanguageBundles', () => ({ensureUiLanguageBundle: loader.ensure}));
 
 import {registerUiLanguageBundle} from '@/src/core/i18n';
-import {createUiI18nContext} from '@/src/ui/i18n';
+import {createUiI18nContext, createUiI18nPlugin} from '@/src/ui/i18n';
 
 function deferred() {
     let resolve!: (value: boolean) => void;
@@ -45,6 +46,47 @@ beforeEach(() => {
 
 afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+});
+
+describe('源语言界面的 DOM 扫描成本', () => {
+    it('中文冷启动和动态更新不扫描，外语切回中文恢复一次后停止重复扫描', async () => {
+        const {window} = parseHTML('<html><body><button title="设置">设置</button></body></html>');
+        for (const key of ['document', 'Node', 'MutationObserver']) vi.stubGlobal(key, window[key as keyof typeof window]);
+        vi.stubGlobal('NodeFilter', {SHOW_TEXT: 4});
+        const walker = vi.spyOn(window.document, 'createTreeWalker');
+        registerUiLanguageBundle('fr-FR', {messages: {}, legacyText: {'设置': 'Réglages'}, legacyPatterns: {early: [], late: []}});
+        let unmount!: () => void;
+        const app = {config: {globalProperties: {}}, provide: vi.fn(), directive: vi.fn(), mixin(hooks: {beforeUnmount: () => void}) { unmount = hooks.beforeUnmount; }};
+        const plugin = createUiI18nPlugin({documentRoot: window.document.body});
+        (plugin as {install: (value: unknown) => void}).install(app);
+        const flush = async () => { await nextTick(); await new Promise(resolve => setTimeout(resolve, 15)); };
+        try {
+            await flush();
+            window.document.body.appendChild(window.document.createElement('span')).textContent = '设置';
+            await flush();
+            expect(walker).not.toHaveBeenCalled();
+
+            store.emit({uiLanguage: 'fr-FR'});
+            await flush();
+            expect(window.document.querySelector('button')?.textContent).toBe('Réglages');
+            expect(window.document.querySelector('button')?.getAttribute('title')).toBe('Réglages');
+
+            store.emit({uiLanguage: 'zh-CN'});
+            await flush();
+            expect(window.document.querySelector('button')?.textContent).toBe('设置');
+            expect(window.document.querySelector('button')?.getAttribute('title')).toBe('设置');
+            const scansAfterRestore = walker.mock.calls.length;
+            window.document.querySelector('span')!.textContent = '新内容';
+            await flush();
+            expect(walker).toHaveBeenCalledTimes(scansAfterRestore);
+        } finally {
+            const root: {$root?: unknown} = {};
+            root.$root = root;
+            // 插件在根组件卸载时释放 document observer 和语言订阅。
+            unmount.call(root);
+        }
+    });
 });
 
 describe('Vue 界面语言资源按需刷新', () => {
