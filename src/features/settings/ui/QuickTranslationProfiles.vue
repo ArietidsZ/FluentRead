@@ -226,7 +226,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, nextTick, ref, watch} from 'vue'
+import {computed, defineAsyncComponent, nextTick, ref, watch} from 'vue'
 import {ElMessage} from 'element-plus'
 import {
   customModelString,
@@ -253,10 +253,11 @@ import {
 } from '@/src/core/config/quickTranslation'
 import {canonicalizeHotkey, parseHotkey, resolveConfiguredHotkey, validateHotkeyConflicts} from '@/src/core/hotkey'
 import {filterAvailableTranslationServices, isTranslationServiceAvailable, supportsTranslationGlossary} from '@/src/services/translation/capabilities'
-import CustomHotkeyInput from '@/src/ui/components/CustomHotkeyInput.vue'
 import GlossaryLibrarySelect from '@/src/ui/components/GlossaryLibrarySelect.vue'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import {useUiI18n} from '@/src/ui/i18n'
+
+const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'))
 
 type SelectValue = string | number | boolean | undefined
 

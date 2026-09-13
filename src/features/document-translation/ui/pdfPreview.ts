@@ -1,13 +1,9 @@
 /**
  * @file src/features/document-translation/ui/pdfPreview.ts
  * 文件职责：在浏览器 Canvas 环境中为 PDF 文档生成页面预览，并把译文按原页面文本块位置绘制成可嵌入导出 PDF 的 PNG 光栅页。
- * 主要内容：文件配置 pdfjs worker，加载页面与 viewport，采样背景和前景颜色、换行与缩放译文、生成 PdfPagePreview，并实现 rasterizePdfTranslationPage 适配 services/binary 所需接口。
+ * 主要内容：首次渲染时加载 PDF.js 并配置随包 worker，加载页面与 viewport，采样背景和前景颜色、换行与缩放译文、生成 PdfPagePreview，并实现 rasterizePdfTranslationPage 适配 services/binary 所需接口。
  * 模块边界：这里负责视觉光栅化而不决定片段翻译或文件结构；PDF 文本块来自 binary 服务，领域类型来自 core，Canvas/PDF.js 仅应在文档 UI 环境调用，不能进入通用纯算法层。
  */
-import {
-    GlobalWorkerOptions,
-    getDocument as getPdfDocument,
-} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 
 import type {
@@ -18,10 +14,6 @@ import type {
     PdfPageRasterizer,
     PdfRasterPageInput,
 } from '@/src/features/document-translation/services/binary';
-
-if (typeof window !== 'undefined') {
-    GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-}
 
 export type {PdfPageRasterizer, PdfRasterPageInput};
 
@@ -90,15 +82,22 @@ function browserPdfDocument(bytes: Uint8Array): Promise<any> {
     const cached = browserPdfCache.get(bytes);
     if (cached) return cached;
     const pdfAssetRoot = `${window.location.origin}/pdfjs`;
-    const promise = getPdfDocument({
-        data: new Uint8Array(bytes),
-        disableFontFace: false,
-        isEvalSupported: false,
-        useWorkerFetch: false,
-        cMapPacked: true,
-        cMapUrl: `${pdfAssetRoot}/cmaps/`,
-        standardFontDataUrl: `${pdfAssetRoot}/standard_fonts/`,
-    }).promise;
+    const promise = import('pdfjs-dist/legacy/build/pdf.mjs').then(({getDocument, GlobalWorkerOptions}) => {
+        GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        return getDocument({
+            data: new Uint8Array(bytes),
+            disableFontFace: false,
+            isEvalSupported: false,
+            useWorkerFetch: false,
+            cMapPacked: true,
+            cMapUrl: `${pdfAssetRoot}/cmaps/`,
+            standardFontDataUrl: `${pdfAssetRoot}/standard_fonts/`,
+        }).promise;
+    }).catch((error) => {
+        // 加载失败不能固化为永久失败，下次预览允许重试。
+        if (browserPdfCache.get(bytes) === promise) browserPdfCache.delete(bytes);
+        throw error;
+    });
     browserPdfCache.set(bytes, promise);
     return promise;
 }

@@ -391,7 +391,6 @@
 
 import {ElOption} from 'element-plus';
 import 'element-plus/es/components/select/style/css';
-import JSZip from 'jszip';
 import {markRaw, computed, onMounted, onUnmounted, reactive, ref, watch} from 'vue';
 import DocumentSegmentEditor from './DocumentSegmentEditor.vue';
 import browser from 'webextension-polyfill';
@@ -648,6 +647,7 @@ async function downloadBatch(): Promise<void> {
   batchNotice.value = '';
   const generation = batchGeneration;
   try {
+    const {default: JSZip} = await import('jszip');
     const zip = new JSZip();
     for (const [index, item] of items.entries()) {
       const download = await createDocumentDownload(item.document!, item.translations, outputMode.value);
