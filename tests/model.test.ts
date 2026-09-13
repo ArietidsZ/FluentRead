@@ -984,6 +984,14 @@ describe('页面标题翻译配置', () => {
 });
 
 describe('全文翻译范围配置', () => {
+    it('默认关闭免滚动预翻译，并保留用户已保存的字符预算', () => {
+        expect(new Config().eagerTranslationCharacters).toBe(0);
+        expect(normalizeConfig({}).eagerTranslationCharacters).toBe(0);
+        expect(normalizeConfig({eagerTranslationCharacters: 'invalid'}).eagerTranslationCharacters).toBe(0);
+        expect(normalizeConfig({eagerTranslationCharacters: 4999}).eagerTranslationCharacters).toBe(4999);
+        expect(normalizeConfig({eagerTranslationCharacters: 1200}).eagerTranslationCharacters).toBe(1200);
+    });
+
     it('默认按阅读进度翻译，并保留立即翻译整页的选择', () => {
         expect(new Config().fullPageTranslationMode).toBe('viewport');
         expect(normalizeConfig({}).fullPageTranslationMode).toBe('viewport');
