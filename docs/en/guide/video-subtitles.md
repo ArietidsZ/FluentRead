@@ -12,6 +12,8 @@ The open subtitle menu stays available when X hides its playback controls. Switc
 
 FluentRead uses subtitle tracks or subtitle text provided by the page. It cannot guarantee translations where no subtitles are available. The subtitle translation service is independent of the webpage service.
 
+The subtitle menu also works in YouTube fullscreen. Bilingual subtitles share one panel. Previous translations clear when captions change, disappear, or you seek. If a translation is still loading, the original appears first; the translation is added only while its caption is still current.
+
 ## An X video without subtitles
 
 The desktop Chrome / Edge extension can try local AI transcription:

@@ -1,13 +1,38 @@
 /**
  * @file src/features/video-subtitle/content/subtitleLogic.ts
  * 文件职责：提供字幕批量翻译、配置指纹和渐进文本展示的纯逻辑。
- * 主要内容：去重并限制批译并发，生成服务配置键，按原文进度截取译文。
+ * 主要内容：去重并限制批译并发，生成服务配置键，按原文进度截取译文，并限定 YouTube 字幕匹配的有效时间。
  * 模块边界：只处理输入数据和注入翻译函数，不读取 DOM、全局配置或浏览器接口。
  */
 import {buildGlossaryRevision} from '@/src/core/glossary';
 import type {Config} from '@/src/core/config/model';
 import {resolveConfiguredModel} from '@/src/core/config/catalog';
 import type {VideoSubtitleCue} from './youtubeSubtitleData';
+
+/** 原生文本与播放时间必须同时匹配；不得用邻句或其他时段的同文 cue 替换当前原文。 */
+export function selectYoutubeCaptionCue(
+  cues: readonly VideoSubtitleCue[], source: string, currentMs: number,
+): {cue: VideoSubtitleCue | null; stale: boolean} {
+  const visible = normalizeVideoCaptionText(source).toLocaleLowerCase();
+  if (!visible || !Number.isFinite(currentMs)) return {cue: null, stale: false};
+  let selected: VideoSubtitleCue | null = null;
+  let selectedRank = Infinity;
+  let timedTextMatch = false;
+  for (const cue of cues) {
+    const text = normalizeVideoCaptionText(cue.text).toLocaleLowerCase();
+    if (!text) continue;
+    const rank = text === visible ? 0 : text.startsWith(visible) ? 1
+      : visible.length >= 3 && (text.includes(visible) || visible.includes(text)) ? 2 : 3;
+    if (rank === 3) continue;
+    if (rank < 2) timedTextMatch = true;
+    if (currentMs < cue.startMs || currentMs >= cue.startMs + cue.durationMs || cue.durationMs <= 0) continue;
+    if (rank < selectedRank || (rank === selectedRank && (!selected || cue.startMs > selected.startMs))) {
+      selected = cue;
+      selectedRank = rank;
+    }
+  }
+  return {cue: selected, stale: !selected && timedTextMatch};
+}
 
 interface TranslateVideoSubtitleCuesOptions {
   concurrency?: number;

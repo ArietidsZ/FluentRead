@@ -43,6 +43,28 @@ afterEach(() => {
 });
 
 describe('video player locator', () => {
+  it('keeps the actual YouTube player when the document or an outer wrapper enters fullscreen', () => {
+    const {document, window, videos} = setup('<main><div id="movie_player"><video></video><div class="ytp-right-controls"></div></div></main>', 'https://www.youtube.com/watch?v=fixture');
+    const locator = createVideoPlayerLocator({document, window});
+    const initial = locator.sync()!;
+    for (const fullscreen of [document.documentElement, document.querySelector('main'), initial.player, null]) {
+      Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: fullscreen});
+      document.dispatchEvent(new (window as unknown as {Event: typeof Event}).Event('fullscreenchange'));
+      expect(locator.getTarget()?.player).toBe(document.getElementById('movie_player'));
+      expect(locator.getTarget()?.key).toBe(initial.key);
+      expect(locator.getTarget()?.fullscreen).toBe(Boolean(fullscreen));
+      expect(getVideoPlayerForVideo(videos[0], window)).toBe(initial.player);
+    }
+    locator.destroy();
+  });
+
+  it('uses an inner fullscreen container when it excludes the outer YouTube player', () => {
+    const {document, window, videos} = setup('<div id="movie_player"><div id="inner"><video></video></div></div>', 'https://www.youtube.com/watch?v=fixture');
+    const inner = document.getElementById('inner');
+    Object.defineProperty(document, 'fullscreenElement', {value: inner});
+    expect(getVideoPlayerForVideo(videos[0], window)).toBe(inner);
+  });
+
   it('does not rescan the document for duplicate pointer, mouse and focus events in the same video', () => {
     const {document, window, videos} = setup('<article><div><video></video></div></article><article><div><video></video></div></article>');
     const locator = createVideoPlayerLocator({document, window, isXPage: () => true});
