@@ -80,13 +80,15 @@ const exactCredentialFieldValidators: Record<ConfigCredentialField, (value: unkn
     extra: isPlainRecord,
 };
 
-/** v2 会覆盖整份凭据，因此所有凭据字段必须显式存在且类型完整。 */
+/** v2 会覆盖整份凭据；早期格式已有的字段必须完整，后来新增的映射允许缺省。 */
 function hasExactCredentialSnapshot(value: unknown): boolean {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
     const record = value as Record<string, unknown>;
     return CONFIG_CREDENTIAL_FIELDS.every(field => (
-        // 旧版 v2 备份尚无此字段，缺省恢复为空；显式提供时仍须严格校验。
-        ((field === 'customHeaders' || field === 'apiKeys') && !Object.prototype.hasOwnProperty.call(record, field))
+        // 早期 v2 尚无这三个字段；secret/请求头缺省为空，apiKeys 从旧 token 迁移。
+        // 只兼容缺失，显式提供的畸形值仍须拒绝，不能在校验前用默认值掩盖。
+        ((field === 'secret' || field === 'customHeaders' || field === 'apiKeys')
+            && !Object.prototype.hasOwnProperty.call(record, field))
         || (Object.prototype.hasOwnProperty.call(record, field)
         && exactCredentialFieldValidators[field](record[field]))
     ));

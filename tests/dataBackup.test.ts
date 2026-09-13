@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {Config} from '@/src/core/config/model';
-import {prepareConfigForExport} from '@/src/core/config/transfer';
+import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 import {
     FLUENTREAD_DATA_BACKUP_EXACT_CREDENTIAL_MODE,
     FLUENTREAD_DATA_BACKUP_FORMAT,
@@ -91,6 +91,71 @@ describe('统一本机数据备份信封', () => {
             expect(resolveBackupConfigCredentialMode(parsed.backup)).toBe('merge-hydration-safe');
         }
     });
+
+    it('恢复早期 v2 备份时补齐后来新增的凭据字段，并保留原密钥与用户设置', () => {
+        // 早期 v2 导出时尚未引入 secret、customHeaders 和 apiKeys。
+        // 独立构造历史格式，避免跟随当前 Config 默认值掩盖兼容回归。
+        const legacyConfig = {
+            on: true, service: 'openai', display: 1, from: 'en', to: 'zh-CN',
+            token: {openai: 'legacy-test-key'},
+            ak: 'legacy-test-ak', sk: '', appid: '', key: '',
+            youdaoAppKey: '', youdaoAppSecret: '', tencentSecretId: '', tencentSecretKey: '',
+            extra: {},
+            system_role: {openai: 'Keep this user-authored prompt.'},
+        };
+        const backup = {
+            format: FLUENTREAD_DATA_BACKUP_FORMAT,
+            version: 2,
+            configCredentialMode: FLUENTREAD_DATA_BACKUP_EXACT_CREDENTIAL_MODE,
+            exportedAt: 100,
+            config: legacyConfig,
+            vocabulary: vocabulary(),
+            modelUsage: modelUsage(),
+        };
+        const serialized = JSON.stringify(backup);
+        const parsed = parseLocalDataImport(JSON.parse(serialized));
+        expect(parsed.kind).toBe('complete');
+        if (parsed.kind !== 'complete') throw new Error('未识别旧版完整备份');
+
+        const current = new Config();
+        current.apiKeys = {openai: ['current-test-key'], deepseek: ['current-other-test-key']};
+        current.secret = {aliyunTranslation: 'current-test-secret'};
+        current.customHeaders = {openai: '{"x-test-key":"current-test-header"}'};
+        current.sk = 'current-test-sk';
+        const credentialMode = resolveBackupConfigCredentialMode(parsed.backup);
+        expect(credentialMode).toBe('replace');
+        const restored = prepareConfigForImport(parsed.backup.config, current, {credentialMode});
+        expect(restored.token).toEqual(legacyConfig.token);
+        expect(restored.apiKeys).toEqual({openai: ['legacy-test-key']});
+        expect(restored.secret).toEqual({});
+        expect(restored.customHeaders).toEqual({});
+        expect(restored.ak).toBe(legacyConfig.ak);
+        expect(restored.sk).toBe('');
+        expect(restored.system_role.openai).toBe(legacyConfig.system_role.openai);
+        expect(JSON.stringify(parsed.backup)).toBe(serialized);
+
+        const reexported = createFluentReadDataBackup({
+            config: prepareConfigForExport(restored),
+            vocabulary: parsed.backup.vocabulary,
+            modelUsage: parsed.backup.modelUsage,
+            exportedAt: 200,
+        });
+        expect(reexported.config).toMatchObject({secret: {}, customHeaders: {}, apiKeys: restored.apiKeys});
+        expect(parseLocalDataImport(JSON.parse(JSON.stringify(reexported))).kind).toBe('complete');
+    });
+
+    it.each([undefined, null, [], 'invalid', {aliyunTranslation: 123}])(
+        'v2 中显式提供的畸形 secret 不能当作旧版缺省值：%j', (secret) => {
+            const backup = createFluentReadDataBackup({
+                config: prepareConfigForExport(new Config()),
+                vocabulary: vocabulary(),
+                modelUsage: modelUsage(),
+            });
+            backup.config.secret = secret;
+            expect(() => parseLocalDataImport(backup)).toThrow('精确凭据快照');
+            expect(usesExactCredentialReplacement(backup)).toBe(false);
+        },
+    );
 
     it('v2 精确替换拒绝缺失或畸形凭据快照，v1 仍按旧协议兼容', () => {
         const complete = createFluentReadDataBackup({
