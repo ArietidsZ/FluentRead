@@ -617,7 +617,7 @@ export const frFRMessages = {
     'popup.documentFormats': 'HTML / TXT / Markdown / sous-titres / JSON',
     'settings.general.pluginState': 'État de l’extension',
     'settings.general.language': 'Langue de l’application',
-    'settings.general.defaultTargetLanguage': 'Langue',
+    'settings.general.defaultTargetLanguage': 'Langue de traduction',
     'settings.general.defaultTargetLanguageDescription': 'Langue par défaut pour les traductions web, de sélection et au survol.',
     'settings.general.targetLanguagePlaceholder': 'Choisir une langue',
     'settings.general.theme': 'Thème de l’interface',

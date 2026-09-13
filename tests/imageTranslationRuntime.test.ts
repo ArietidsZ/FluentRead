@@ -58,6 +58,7 @@ function setup() {
     };
     decorateStyle(image);
     const parent = document.querySelector('#clip') as HTMLDivElement;
+    const imageQuery = vi.spyOn(parent, 'querySelectorAll');
     let rect = {left: 20, top: 40, width: 400, height: 200, right: 420, bottom: 240};
     Object.defineProperties(image, {
         naturalWidth: {configurable: true, value: 400, writable: true},
@@ -146,7 +147,7 @@ function setup() {
     const runFrames = () => { const callbacks = Array.from(frames.values()); frames.clear(); callbacks.forEach(callback => callback(0)); };
     mountImageTranslator();
     return {image, parent, roots, decoded, canvases, draw, imageStyle, parentStyle, observers, resizeObservers, windowObject,
-        hover, button, click, bitmap, dispatch, notify, runFrames, extraStyles,
+        hover, button, click, bitmap, dispatch, notify, runFrames, extraStyles, imageQuery,
         addBackground: () => {
             const background = document.createElement('div'); decorateStyle(background);
             background.getBoundingClientRect = () => rect as DOMRect;
@@ -557,10 +558,68 @@ describe('图片翻译前台交互与生命周期', () => {
 });
 
 describe('图片入口独立开关与右键身份', () => {
+    it('同一目标且仍在当前图片内时不重复扫描，跨相邻图片、pointerout 和卸载后仍重新定位', () => {
+        const env = setup();
+        env.dispatch(env.parent, 'pointermove', true, {clientX: 100, clientY: 100});
+        env.dispatch(env.parent, 'pointermove', true, {clientX: 110, clientY: 110});
+        expect(env.windowObject.requestAnimationFrame).toHaveBeenCalledOnce();
+        expect(env.imageQuery).not.toHaveBeenCalled();
+        env.runFrames();
+        const firstScanCount = env.imageQuery.mock.calls.length;
+        expect(firstScanCount).toBe(1);
+
+        const adjacent = env.image.ownerDocument.createElement('img') as HTMLImageElement;
+        adjacent.src = 'https://example.test/adjacent.png';
+        Object.defineProperties(adjacent, {
+            naturalWidth: {value: 400}, naturalHeight: {value: 200}, complete: {value: true},
+            currentSrc: {get: () => adjacent.src}, offsetWidth: {value: 400}, offsetHeight: {value: 200},
+        });
+        adjacent.getBoundingClientRect = () => ({left: 500, top: 40, width: 400, height: 200, right: 900, bottom: 240}) as DOMRect;
+        env.parent.append(adjacent);
+        env.dispatch(env.parent, 'pointermove', true, {clientX: 600, clientY: 100});
+        env.runFrames();
+        expect(env.imageQuery).toHaveBeenCalledTimes(firstScanCount + 1);
+        vi.advanceTimersByTime(600);
+        expect(env.roots.at(-1)?.querySelector('.fluent-read-image-translation-button')).toBeTruthy();
+
+        env.dispatch(env.parent, 'pointerout');
+        env.dispatch(env.parent, 'pointermove', true, {clientX: 100, clientY: 100});
+        env.runFrames();
+        expect(env.imageQuery).toHaveBeenCalledTimes(firstScanCount + 2);
+
+        const newTarget = env.image.ownerDocument.createElement('div');
+        env.parent.append(newTarget);
+        env.dispatch(newTarget, 'pointermove', true, {clientX: 100, clientY: 100});
+        env.runFrames();
+        expect(env.imageQuery).toHaveBeenCalledTimes(firstScanCount + 3);
+
+        unmountImageTranslator();
+        mountImageTranslator();
+        env.dispatch(env.parent, 'pointermove', true, {clientX: 100, clientY: 100});
+        env.runFrames();
+        expect(env.imageQuery).toHaveBeenCalledTimes(firstScanCount + 4);
+    });
+
+    it('卸载或关闭悬浮入口会取消待处理的 pointermove 帧', () => {
+        const env = setup();
+        env.dispatch(env.parent, 'pointermove', true, {clientX: 100, clientY: 100});
+        unmountImageTranslator();
+        env.runFrames();
+        expect(env.imageQuery).not.toHaveBeenCalled();
+
+        mountImageTranslator();
+        env.dispatch(env.parent, 'pointermove', true, {clientX: 100, clientY: 100});
+        settings.imageTranslationHoverEnabled = false;
+        configNotifications.forEach(notify => notify());
+        env.runFrames();
+        expect(env.imageQuery).not.toHaveBeenCalled();
+    });
+
     it('覆盖层上的可信指针命中局部图片，移出后收起', () => {
         const env = setup();
         const cover = document.createElement('div'); env.parent.append(cover);
         env.dispatch(cover, 'pointermove', true, {clientX: 100, clientY: 100});
+        env.runFrames();
         vi.advanceTimersByTime(600);
         expect(env.button()).toBeTruthy();
         env.dispatch(cover, 'pointerout'); vi.advanceTimersByTime(500);
@@ -598,7 +657,7 @@ it('悬浮不穿透按钮或弹窗，不在同一区域多图时猜测目标；�
     const button = document.createElement('button'); env.parent.append(button);
     env.dispatch(button, 'pointerover', true, {clientX: 100, clientY: 100}); expect(env.roots).toHaveLength(0);
     const dialog = document.createElement('div'); dialog.setAttribute('role', 'dialog'); env.parent.append(dialog);
-    env.dispatch(dialog, 'pointermove', true, {clientX: 100, clientY: 100}); expect(env.roots).toHaveLength(0);
+    env.dispatch(dialog, 'pointermove', true, {clientX: 100, clientY: 100}); env.runFrames(); expect(env.roots).toHaveLength(0);
     const duplicate = document.createElement('img'); duplicate.getBoundingClientRect = env.image.getBoundingClientRect; env.parent.append(duplicate);
     const cover = document.createElement('div'); env.parent.append(cover);
     env.dispatch(cover, 'pointerover', true, {clientX: 100, clientY: 100}); expect(env.roots).toHaveLength(0);
@@ -660,7 +719,7 @@ it('同图停留 600ms 才出现入口，移动不重置等待，离开和卸载
     const env = setup();
     env.dispatch(env.image, 'pointerover');
     vi.advanceTimersByTime(300);
-    env.dispatch(env.image, 'pointermove');
+    env.dispatch(env.image, 'pointermove'); env.runFrames();
     vi.advanceTimersByTime(299);
     expect(env.roots).toHaveLength(0);
     vi.advanceTimersByTime(1);
@@ -740,7 +799,7 @@ describe('图片悬浮入口过滤', () => {
     it.each(['avatar', 'UserAvatar', 'profile-photo'])('近邻 %s 容器内的覆盖层不能绕过过滤', className => {
         const env = setup(); env.parent.className = className;
         const cover = document.createElement('span'); env.parent.append(cover);
-        env.dispatch(cover, 'pointermove', true, {clientX: 100, clientY: 100});
+        env.dispatch(cover, 'pointermove', true, {clientX: 100, clientY: 100}); env.runFrames();
         vi.advanceTimersByTime(600); expect(env.roots).toHaveLength(0);
     });
     it('不使用 body 的宽泛标记过滤正文；按钮内图片不自动提示', () => {
@@ -785,7 +844,7 @@ describe('图片悬浮入口过滤', () => {
         env.hover(); env.click(); await flush();
         env.image.className = 'avatar'; env.notify('class'); env.runFrames();
         expect(env.button().dataset.phase).toBe('loading');
-        env.dispatch(env.image, 'pointermove');
+        env.dispatch(env.image, 'pointermove'); env.runFrames();
         pending.resolve(result); await flush(); expect(env.bitmap()).toBeTruthy();
         env.click(); expect(env.bitmap()).toBeNull(); expect(env.button()).toBeTruthy();
     });
@@ -865,7 +924,7 @@ describe('视频预览不自动显示图片翻译', () => {
     it('视频预览覆盖层不能借局部图片发现重新显示入口', () => {
         const env = setup(); env.parent.setAttribute('data-testid', 'videoPlayer');
         const cover = document.createElement('span'); env.parent.append(cover);
-        env.dispatch(cover, 'pointermove', true, {clientX: 100, clientY: 100}); vi.advanceTimersByTime(600);
+        env.dispatch(cover, 'pointermove', true, {clientX: 100, clientY: 100}); env.runFrames(); vi.advanceTimersByTime(600);
         expect(env.roots).toHaveLength(0);
     });
 });

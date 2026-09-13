@@ -14,6 +14,7 @@ import {
 import {assertLocalTranslationOutput, hunyuanTranslationPrompt, splitLocalTranslationText} from '@/src/core/translation/localInference';
 import {getTranslationArtifacts, matchTranslationArtifact, translationArtifactBlob} from './artifactStore';
 import {supportsHunyuanTranslation} from '@/src/platform/browser/localTranslationSupport';
+import {configureOnnxWasmBackend, withCompressedWasmBinary} from '@/src/shared/onnx/wasmBinary';
 
 type Translator = ((text: string, options?: Record<string, unknown>) => Promise<unknown>) & {dispose?: () => Promise<void>};
 interface WorkerRequest {
@@ -54,11 +55,10 @@ function configureEnvironment(): void {
     env.remotePathTemplate = '{model}/resolve/{revision}/';
     if (env.backends.onnx.wasm) {
         env.backends.onnx.wasm.numThreads = 1;
-        env.backends.onnx.wasm.proxy = false;
-        env.backends.onnx.wasm.wasmPaths = {
+        configureOnnxWasmBackend(env.backends.onnx.wasm, {
             mjs: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs'),
-            wasm: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm'),
-        };
+            wasm: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm.gz'),
+        });
     }
 }
 
@@ -77,10 +77,14 @@ async function getTranslator(request: WorkerRequest): Promise<Translator> {
     if (translator && translatorRepository === repository) return translator;
     await dispose();
     const revision = getTranslationArtifacts(request.model).find((file) => file.repo === repository)?.revision || 'main';
-    translator = await pipeline('translation', repository, {
+    const create = () => pipeline('translation', repository, {
         device: 'wasm', dtype: LOCAL_TRANSLATION_DTYPE, revision, local_files_only: true,
         session_options: {enableCpuMemArena: false, enableMemPattern: false, executionMode: 'sequential'},
-    }) as unknown as Translator;
+    }) as unknown as Promise<Translator>;
+    const wasm = env.backends.onnx.wasm;
+    translator = await (wasm
+        ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm.gz'), create)
+        : create());
     translatorRepository = repository;
     backend = 'wasm';
     return translator;

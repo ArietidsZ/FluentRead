@@ -53,6 +53,7 @@
       <div v-else-if="query" class="search-empty">{{ t('options.searchEmpty', {query}) }}</div>
 
       <section ref="settingsContentElement" class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
+        <KeepAlive>
         <section v-if="activeSection === 'settings-about'" id="settings-about" class="about-page" aria-labelledby="about-title">
           <div class="about-hero">
             <img class="about-logo" src="/icon/128.png" alt="流畅阅读图标" />
@@ -113,8 +114,13 @@
           </div>
 
         </section>
-        <LearningCenter v-else-if="activeSection === 'settings-vocabulary'" @navigate="selectSection" />
-        <SettingsSections v-else :active-section="activeSection" />
+          <component
+            v-else
+            :is="activeSection === 'settings-vocabulary' ? LearningCenter : SettingsSections"
+            :key="activeSection === 'settings-vocabulary' ? 'learning' : 'settings'"
+            v-bind="contentComponentProps"
+          />
+        </KeepAlive>
       </section>
 
     </main>
@@ -124,12 +130,12 @@
 <script setup lang="ts">
 import UiIcon from '@/src/ui/components/UiIcon.vue'
 import {filterNavigationItems, isUiLanguageSearch} from '@/src/features/settings/model/navigation';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
 import {getInterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
 import SettingsNavigationIcon from '@/src/features/settings/ui/SettingsNavigationIcon.vue'
-import SettingsSections from '@/src/features/settings/ui/SettingsSections.vue'
-import LearningCenter from '@/src/features/settings/ui/LearningCenter.vue'
+const SettingsSections = defineAsyncComponent(() => import('@/src/features/settings/ui/SettingsSections.vue'))
+const LearningCenter = defineAsyncComponent(() => import('@/src/features/settings/ui/LearningCenter.vue'))
 import {useUiI18n} from '@/src/ui/i18n'
 import {
   navigationGroups,
@@ -148,12 +154,15 @@ const version = process.env.VUE_APP_VERSION
 const {t, translateLegacy} = useUiI18n()
 const query = ref('')
 const interfaceSkin = ref(getInterfaceSkinOption(runtimeConfig.interfaceSkin))
-const activeSection = ref('settings-general')
+const activeSection = ref(resolveRequestedSection(window.location.hash))
 const navigationElement = ref<HTMLElement | null>(null)
 const settingsContentElement = ref<HTMLElement | null>(null)
 const mobileNavigationMedia = window.matchMedia('(max-width: 700px)')
 
 const navigation = navigationItems
+const contentComponentProps = computed(() => activeSection.value === 'settings-vocabulary'
+  ? {onNavigate: selectSection}
+  : {activeSection: activeSection.value})
 const localizedNavigationGroups = computed(() => navigationGroups.map((group) => ({
   ...group,
   label: translateLegacy(group.label),

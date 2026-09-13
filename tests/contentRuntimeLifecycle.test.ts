@@ -6,10 +6,10 @@ const mocks = vi.hoisted(() => ({
         on: true, disabledExtensionDomains: [] as string[], bilingualSentenceHighlightEnabled: true,
         disableFloatingBall: true, disableSelectionTranslator: true, disableImageTranslator: true,
         selectionAreaEnabled: false, translationProgressPanelEnabled: false,
-        writing: {enabled: false},
+        writing: {enabled: false}, inputBoxTranslationTrigger: 'disabled', paragraphCopyEnabled: false,
     },
     configReady: Promise.resolve(), subscribeConfig: vi.fn(),
-    installPageStyles: vi.fn(), removeStyles: vi.fn(), syncHighlight: vi.fn(),
+    installPageStyles: vi.fn(), removeStyles: vi.fn(), syncHighlight: vi.fn(), mountParagraphCopyContentFeature: vi.fn(),
     mountInput: vi.fn(), invalidateInput: vi.fn(), restoreOriginal: vi.fn(),
     resetRouteState: vi.fn(),
     addRuntimeListener: vi.fn(), removeRuntimeListener: vi.fn(), createMessageHandler: vi.fn(),
@@ -37,6 +37,7 @@ vi.mock('@/src/app/content/features', () => ({
         'unmountAreaTranslator', 'unmountFloatingBall',
         'unmountImageTranslator', 'unmountSelectionTranslator', 'unmountTranslationProgressPanel',
     ].map(name => [name, vi.fn()])),
+    mountParagraphCopyContentFeature: mocks.mountParagraphCopyContentFeature,
     isFloatingBallAllowedOnPage: () => mocks.floatingBallAllowed,
     restoreOriginalContent: mocks.restoreOriginal,
     resetFullPageTranslationRouteState: mocks.resetRouteState,
@@ -276,7 +277,7 @@ describe('content composition root 冷启动与暂停恢复', () => {
         transition(page, 'pageshow', true);
         await vi.waitFor(() => expect(mocks.installPageStyles).toHaveBeenCalledOnce());
         expect(state.isPageSuspended()).toBe(false);
-        expect(mocks.mountInput).toHaveBeenCalledOnce();
+        expect(mocks.mountInput).not.toHaveBeenCalled();
         invalidated();
         transition(page, 'pageshow', true);
         expect(mocks.removeStyles).toHaveBeenCalledOnce();
@@ -308,6 +309,30 @@ describe('content composition root 冷启动与暂停恢复', () => {
         mocks.subscribeConfig.mock.calls[0][0](mocks.config);
         expect(mocks.syncHighlight).toHaveBeenLastCalledWith(document, false);
         expect(mocks.installPageStyles).not.toHaveBeenCalled();
+    });
+
+    it('默认关闭的输入框和段落复制功能按配置变化增删监听器', async () => {
+        const {startContentApp} = await import('@/src/app/content/runtime');
+        const starting = startContentApp(context as never);
+        ready();
+        await starting;
+
+        expect(mocks.mountInput).not.toHaveBeenCalled();
+        expect(mocks.mountParagraphCopyContentFeature).not.toHaveBeenCalled();
+
+        const onConfig = mocks.subscribeConfig.mock.calls[0][0];
+        mocks.config.inputBoxTranslationTrigger = 'ctrl_enter';
+        mocks.config.paragraphCopyEnabled = true;
+        onConfig(mocks.config);
+        expect(mocks.mountInput).toHaveBeenCalledOnce();
+        expect(mocks.mountParagraphCopyContentFeature).toHaveBeenCalledOnce();
+
+        mocks.config.inputBoxTranslationTrigger = 'disabled';
+        mocks.config.paragraphCopyEnabled = false;
+        onConfig(mocks.config);
+        expect(mocks.invalidateInput).toHaveBeenCalled();
+
+        invalidated();
     });
 
     it('宿主伪造相同 URL 的路由通知不能反复失效正在执行的翻译', async () => {

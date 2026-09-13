@@ -2,6 +2,7 @@ import {defineConfig, type ConfigEnv, type UserManifest} from 'wxt';
 import vue from '@vitejs/plugin-vue';
 import {resolve} from 'path';
 import fs from 'fs';
+import {gzipSync} from 'zlib';
 import {resolveBrowserCapabilities} from './src/platform/browser/capabilities';
 import {wllamaExtensionWorker} from './scripts/testing/wllama-extension-build';
 import {createUiLanguageBundleFiles} from './src/core/i18n/bundles';
@@ -13,11 +14,25 @@ const firefoxRunnerBinary = process.env.FLUENTREAD_FIREFOX_RUNNER_BINARY;
 const firefoxRunnerProfile = process.env.FLUENTREAD_FIREFOX_RUNNER_PROFILE;
 const firefoxRunnerStartUrl = process.env.FLUENTREAD_FIREFOX_RUNNER_START_URL;
 
-function resolvePnpmPackageDist(packagePrefix: string): string {
+function resolvePnpmDependencyDist(ownerPackagePath: string, dependencyName: string): string {
+    const ownerPackage = JSON.parse(fs.readFileSync(resolve(__dirname, ownerPackagePath, 'package.json'), 'utf8')) as {
+        dependencies?: Record<string, string>;
+    };
+    const dependencyVersion = ownerPackage.dependencies?.[dependencyName];
+    if (!dependencyVersion) throw new Error(`无法从 ${ownerPackagePath} 定位 ${dependencyName} 版本`);
     const pnpmRoot = resolve(__dirname, 'node_modules/.pnpm');
-    const packageDirectory = fs.readdirSync(pnpmRoot).find((name) => name.startsWith(packagePrefix));
+    const packagePrefix = `${dependencyName}@${dependencyVersion}`;
+    const packageDirectory = fs.readdirSync(pnpmRoot).find((name) => name === packagePrefix || name.startsWith(`${packagePrefix}-`));
     if (!packageDirectory) throw new Error(`无法定位 ${packagePrefix} 的本地依赖产物`);
-    return resolve(pnpmRoot, packageDirectory, 'node_modules', packagePrefix.split('@')[0], 'dist');
+    return resolve(pnpmRoot, packageDirectory, 'node_modules', dependencyName, 'dist');
+}
+
+function createCompressedWasmAsset(sourcePath: string, fileName: string): string {
+    const outputDirectory = resolve(__dirname, '.wxt/packaged-wasm');
+    fs.mkdirSync(outputDirectory, {recursive: true});
+    const outputPath = resolve(outputDirectory, fileName);
+    fs.writeFileSync(outputPath, gzipSync(fs.readFileSync(sourcePath), {level: 9}));
+    return outputPath;
 }
 
 /**
@@ -48,15 +63,15 @@ function escapeExtensionNoncharacters() {
 }
 
 /**
- * 内容脚本永远通过 runtime 代理读取后台权威配置。通用配置存储运行时同时装配后台加密
- * IndexedDB（Dexie、加密与旧存储迁移），在每个网页启动时解析这些代码没有意义；
- * 只在 content-script 构建组内把该模块解析为纯远程实现。
+ * 内容脚本和扩展 UI 永远通过 runtime 代理读取后台权威配置。通用配置存储运行时同时
+ * 装配后台加密 IndexedDB（Dexie、加密与旧存储迁移），这些非后台入口无需解析它们；
+ * 只对明确不包含后台的构建组使用纯远程实现，MV2 background page 仍保留数据库端口。
  */
-export function contentScriptConfigStorageRuntime() {
+export function remoteConfigStorageBuildPlugin() {
     const runtimeModule = /\/src\/platform\/storage\/configStorageRuntime(?:\.ts)?$/u;
     const remoteRuntime = resolve(__dirname, 'src/platform/storage/remoteConfigStorageRuntime.ts');
     return {
-        name: 'fluentread-content-script-config-storage',
+        name: 'fluentread-remote-config-storage',
         enforce: 'pre' as const,
         resolveId(source: string) {
             return runtimeModule.test(source) ? remoteRuntime : null;
@@ -64,12 +79,13 @@ export function contentScriptConfigStorageRuntime() {
     };
 }
 
-export function extendContentScriptBuildConfig(
+export function extendRemoteConfigBuildConfig(
     entrypoints: readonly {type: string}[],
     viteConfig: {plugins?: unknown[]},
 ): void {
-    if (entrypoints.length === 0 || !entrypoints.every((entrypoint) => entrypoint.type === 'content-script')) return;
-    viteConfig.plugins = [...(viteConfig.plugins ?? []), contentScriptConfigStorageRuntime()];
+    const remoteOnlyTypes = new Set(['content-script', 'popup', 'options', 'unlisted-page']);
+    if (entrypoints.length === 0 || !entrypoints.every((entrypoint) => remoteOnlyTypes.has(entrypoint.type))) return;
+    viteConfig.plugins = [...(viteConfig.plugins ?? []), remoteConfigStorageBuildPlugin()];
 }
 
 /** 根据编译目标能力生成权限，避免 Firefox/MV2 产物声明不可用的 Offscreen API。 */
@@ -102,7 +118,7 @@ export function createExtensionManifest(
         ],
         content_security_policy: {
             // 扩展页面只执行自身静态脚本和 WASM；本地 TTS Worker 通过打包的
-            // JSEP glue/WASM 文件配置运行时，不放宽到 blob 脚本。
+            // 静态 MJS 与随包压缩的 CPU/WebGPU WASM，不放宽到 blob 脚本。
             extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
         },
         host_permissions: [
@@ -183,20 +199,19 @@ export default defineConfig({
         excludeSources: ['coverage/**'],
     },
     hooks: {
-        'vite:build:extendConfig': (entrypoints, viteConfig) => extendContentScriptBuildConfig(entrypoints, viteConfig as {plugins?: unknown[]}),
+        'vite:build:extendConfig': (entrypoints, viteConfig) => extendRemoteConfigBuildConfig(entrypoints, viteConfig as {plugins?: unknown[]}),
         'build:publicAssets': (_wxt, files) => {
             // 非中文界面文案只生成一份 JSON，由各运行上下文按当前语言加载，不再内联进每个 bundle。
             files.push(...createUiLanguageBundleFiles());
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@wllama/wllama/LICENCE'), relativeDest: 'third-party-notices/wllama-MIT.txt'});
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@noble/hashes/LICENSE'), relativeDest: 'third-party-notices/noble-hashes-MIT.txt'});
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@wllama/wllama/esm/wasm/wllama.wasm'), relativeDest: 'fluent-read-ai/wllama.wasm'});
-            for (const name of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {
-                files.push({absoluteSrc: resolve(__dirname, `node_modules/@huggingface/transformers/dist/${name}`), relativeDest: `fluent-read-ai/${name}`});
-            }
-            const ttsOrtDist = resolvePnpmPackageDist('onnxruntime-web@1.26.0-dev');
-            for (const name of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {
-                files.push({absoluteSrc: resolve(ttsOrtDist, name), relativeDest: `fluent-read-ai/tts-${name}`});
-            }
+            const opusOrtDist = resolvePnpmDependencyDist('node_modules/@huggingface/transformers', 'onnxruntime-web');
+            files.push({absoluteSrc: resolve(opusOrtDist, 'ort-wasm-simd-threaded.jsep.mjs'), relativeDest: 'fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs'});
+            files.push({absoluteSrc: createCompressedWasmAsset(resolve(opusOrtDist, 'ort-wasm-simd-threaded.jsep.wasm'), 'ort-wasm-simd-threaded.jsep.wasm.gz'), relativeDest: 'fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm.gz'});
+            const ttsOrtDist = resolvePnpmDependencyDist('node_modules/@huggingface/transformers-kokoro', 'onnxruntime-web');
+            files.push({absoluteSrc: resolve(ttsOrtDist, 'ort-wasm-simd-threaded.asyncify.mjs'), relativeDest: 'fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.mjs'});
+            files.push({absoluteSrc: createCompressedWasmAsset(resolve(ttsOrtDist, 'ort-wasm-simd-threaded.asyncify.wasm'), 'tts-ort-wasm-simd-threaded.asyncify.wasm.gz'), relativeDest: 'fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm.gz'});
         },
     },
 

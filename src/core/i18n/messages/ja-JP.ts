@@ -617,7 +617,7 @@ export const jaJPMessages = {
     'popup.documentFormats': 'HTML / TXT / Markdown / 字幕 / JSON',
     'settings.general.pluginState': '拡張機能の状態',
     'settings.general.language': 'アプリの言語',
-    'settings.general.defaultTargetLanguage': '言語',
+    'settings.general.defaultTargetLanguage': '翻訳言語',
     'settings.general.defaultTargetLanguageDescription': 'ウェブ、選択、ホバー翻訳で使うデフォルトの言語。',
     'settings.general.targetLanguagePlaceholder': '言語を選択',
     'settings.general.theme': 'インターフェーステーマ',

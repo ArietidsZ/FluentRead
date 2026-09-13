@@ -2,7 +2,7 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {describe, expect, it} from 'vitest';
-import {contentScriptConfigStorageRuntime, createExtensionManifest, extendContentScriptBuildConfig} from '@/wxt.config';
+import {remoteConfigStorageBuildPlugin, createExtensionManifest, extendRemoteConfigBuildConfig} from '@/wxt.config';
 
 const PROJECT_ROOT = resolve(__dirname, '..');
 
@@ -151,8 +151,8 @@ describe('extension manifest capability contract', () => {
         expect(matches.every((match) => match.includes('youtube'))).toBe(true);
     });
 
-    it('内容脚本构建组只解析纯远程配置存储，后台与扩展页面保留完整运行时', () => {
-        const plugin = contentScriptConfigStorageRuntime();
+    it('网页及扩展 UI 构建组使用远程配置存储，后台和未知入口保留完整运行时', () => {
+        const plugin = remoteConfigStorageBuildPlugin();
         expect(plugin.enforce).toBe('pre');
         expect(plugin.resolveId(resolve(PROJECT_ROOT, 'src/platform/storage/configStorageRuntime')))
             .toBe(resolve(PROJECT_ROOT, 'src/platform/storage/remoteConfigStorageRuntime.ts'));
@@ -161,15 +161,20 @@ describe('extension manifest capability contract', () => {
         expect(plugin.resolveId(resolve(PROJECT_ROOT, 'src/platform/storage/configStorage.ts'))).toBeNull();
 
         const contentGroup: {plugins?: unknown[]} = {plugins: ['existing']};
-        extendContentScriptBuildConfig([{type: 'content-script'}, {type: 'content-script'}], contentGroup);
-        expect(contentGroup.plugins).toEqual(['existing', expect.objectContaining({name: 'fluentread-content-script-config-storage'})]);
+        extendRemoteConfigBuildConfig([{type: 'content-script'}, {type: 'content-script'}], contentGroup);
+        expect(contentGroup.plugins).toEqual(['existing', expect.objectContaining({name: 'fluentread-remote-config-storage'})]);
         const emptyPlugins: {plugins?: unknown[]} = {};
-        extendContentScriptBuildConfig([{type: 'content-script'}], emptyPlugins);
+        extendRemoteConfigBuildConfig([{type: 'content-script'}], emptyPlugins);
         expect(emptyPlugins.plugins).toHaveLength(1);
 
-        for (const group of [[], [{type: 'background'}], [{type: 'content-script'}, {type: 'unlisted-script'}], [{type: 'popup'}]]) {
+        for (const group of [[{type: 'popup'}], [{type: 'options'}], [{type: 'popup'}, {type: 'options'}, {type: 'unlisted-page'}]]) {
             const config: {plugins?: unknown[]} = {plugins: []};
-            extendContentScriptBuildConfig(group, config);
+            extendRemoteConfigBuildConfig(group, config);
+            expect(config.plugins).toHaveLength(1);
+        }
+        for (const group of [[], [{type: 'background'}], [{type: 'options'}, {type: 'background'}], [{type: 'content-script'}, {type: 'unlisted-script'}], [{type: 'unknown'}]]) {
+            const config: {plugins?: unknown[]} = {plugins: []};
+            extendRemoteConfigBuildConfig(group, config);
             expect(config.plugins).toEqual([]);
         }
     });

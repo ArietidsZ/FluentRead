@@ -797,7 +797,7 @@ export const enUSMessages = {
     'popup.documentFormats': 'HTML / TXT / Markdown / subtitles / JSON',
     'settings.general.pluginState': 'Extension status',
     'settings.general.language': 'App language',
-    'settings.general.defaultTargetLanguage': 'language',
+    'settings.general.defaultTargetLanguage': 'Translation language',
     'settings.general.defaultTargetLanguageDescription': 'The default language for web, selection, and hover translation.',
     'settings.general.targetLanguagePlaceholder': 'Choose a language',
     'settings.general.theme': 'Interface theme',
