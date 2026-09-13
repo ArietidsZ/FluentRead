@@ -1016,3 +1016,8 @@ it('previews area recognition choices, user prompt edits, and per-model capabili
     expect(group(result,'translationServices')?.changes[0]).toMatchObject({key:'modelVision',after:expect.stringContaining('private-model')});
     expect(group(buildConfigDiff({areaRecognitionMode:'prefer-vision'}, {areaRecognitionMode:'ocr'}),'areaTranslation')?.changes[0].after).toBe('本地 OCR');
 });
+
+it('previews per-service API key rotation switches', () => {
+    expect(group(buildConfigDiff({apiKeyRotationEnabled: {}}, {apiKeyRotationEnabled: {openai: true}}), 'translationServices')?.changes)
+        .toEqual([{key: 'apiKeyRotationEnabled', label: '自动轮换', before: '无', after: 'OpenAI：开启'}]);
+});

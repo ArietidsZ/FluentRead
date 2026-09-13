@@ -300,4 +300,16 @@ describe('字体缓存维护', () => {
     expect(h.deps.fetch).toHaveBeenCalledTimes(3)
     expect(h.states.at(-1)).toMatchObject({font: 'inter', status: 'ready', persistent: true})
   })
+
+  it('清除系统字体不访问缓存，并发清除复用同一个清理任务', async () => {
+    const h = harness()
+    await h.loader.clearFont('system')
+    expect(h.deps.openCache).not.toHaveBeenCalled()
+    await h.loader.load('inter')
+    const clear = h.loader.clearFont('inter')
+    expect(h.loader.clearFont('noto-sans-sc')).toBe(clear)
+    expect(h.loader.clearCache()).toBe(clear)
+    await clear
+    expect(h.states.at(-1)).toMatchObject({font: 'inter', status: 'ready', persistent: false})
+  })
 })
