@@ -42,6 +42,12 @@ Enter it in the corresponding service’s connection settings. Check address, ke
 
 Restore the original. Check whether another extension or the browser’s own translation is active, then try with one translator. If the issue remains, record the URL and steps.
 
+## Can I import an older backup?
+
+Older configuration JSON files and full backups are supported through backup and restore in settings. Fields introduced after a backup was created receive compatible defaults, and existing API keys are migrated.
+
+If you see an invalid exact credential snapshot error, keep the original file. Some versions incorrectly required a newly introduced credential field in older backups; this compatibility issue has been fixed. If it persists after updating, report your extension version and the error message without sharing the full backup.
+
 ## Still need help?
 
 Open a [GitHub issue](https://github.com/FluentRead/FluentRead/issues) with browser and extension versions, a public URL, reproduction steps, and a redacted screenshot. Do not include keys, cookies, account details, or private text.
