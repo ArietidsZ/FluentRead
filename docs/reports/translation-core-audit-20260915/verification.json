@@ -1,8 +1,8 @@
 {
   "sourceBaseline": "af88e8d710423ef4ad4bf33bc87b03586f170514",
   "tests": {
-    "files": 33,
-    "passed": 1149,
+    "files": 35,
+    "passed": 1218,
     "newTests": 73
   },
   "coverage": {
@@ -26,8 +26,8 @@
         "pct": 100
       },
       "branches": {
-        "total": 1172,
-        "covered": 1172,
+        "total": 1175,
+        "covered": 1175,
         "skipped": 0,
         "pct": 100
       },
@@ -38,7 +38,7 @@
         "pct": 100
       }
     },
-    "/Users/thinkstu/Desktop/copy/FluentRead-translation-core-task-lists-20260914/src/core/translation/dom.ts": {
+    "src/core/translation/dom.ts": {
       "lines": {
         "total": 276,
         "covered": 276,
@@ -64,7 +64,7 @@
         "pct": 100
       }
     },
-    "/Users/thinkstu/Desktop/copy/FluentRead-translation-core-task-lists-20260914/src/core/translation/engine.ts": {
+    "src/core/translation/engine.ts": {
       "lines": {
         "total": 802,
         "covered": 802,
@@ -84,13 +84,13 @@
         "pct": 100
       },
       "branches": {
-        "total": 428,
-        "covered": 428,
+        "total": 431,
+        "covered": 431,
         "skipped": 0,
         "pct": 100
       }
     },
-    "/Users/thinkstu/Desktop/copy/FluentRead-translation-core-task-lists-20260914/src/core/translation/serialization.ts": {
+    "src/core/translation/serialization.ts": {
       "lines": {
         "total": 302,
         "covered": 302,
@@ -116,7 +116,7 @@
         "pct": 100
       }
     },
-    "/Users/thinkstu/Desktop/copy/FluentRead-translation-core-task-lists-20260914/src/features/full-page-translation/content/renderer.ts": {
+    "src/features/full-page-translation/content/renderer.ts": {
       "lines": {
         "total": 263,
         "covered": 263,
@@ -142,7 +142,7 @@
         "pct": 100
       }
     },
-    "/Users/thinkstu/Desktop/copy/FluentRead-translation-core-task-lists-20260914/src/features/full-page-translation/content/translationStability.ts": {
+    "src/features/full-page-translation/content/translationStability.ts": {
       "lines": {
         "total": 310,
         "covered": 310,
@@ -220,7 +220,8 @@
         "displayTarget": "secondary",
         "browserFrontmost": false
       },
-      "requestCount": 8
+      "requestCount": 8,
+      "artifactProvenance": "Previously built older local artifact; not an af88e8d7 rebuild. Exact af88e8d7 site rules were also compared separately against the captured hydrated DOM."
     },
     "fixture": {
       "scope": "local-GitHub-hydrated-task-list-fixture",
@@ -476,17 +477,36 @@
         }
       ],
       "errors": [],
-      "contentSha256": "fa2fe180d07a3bb7a1d89a0fa4955e6988fe4e384694c9325b53288138a5d492",
+      "contentSha256": "2de8e060d235b2a86ca7c6964c4962cdb5260ac3899c1ab630fed634cd664f6e",
       "launchMode": "macos-background-cdp",
       "focusPolicy": "launchservices-no-foreground",
-      "hostNodeCount": 10,
-      "passed": true,
       "windowPlacement": {
         "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
         "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
         "displayTarget": "secondary",
-        "browserFrontmost": false
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 40843,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 40843,
+          "name": "ChatGPT"
+        }
       },
+      "hostNodeCount": 10,
+      "passed": true,
       "requestCount": 28
     },
     "live": {
@@ -831,17 +851,36 @@
         }
       ],
       "errors": [],
-      "contentSha256": "fa2fe180d07a3bb7a1d89a0fa4955e6988fe4e384694c9325b53288138a5d492",
+      "contentSha256": "2de8e060d235b2a86ca7c6964c4962cdb5260ac3899c1ab630fed634cd664f6e",
       "launchMode": "macos-background-cdp",
       "focusPolicy": "launchservices-no-foreground",
-      "hostNodeCount": 188,
-      "passed": true,
       "windowPlacement": {
         "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
         "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
         "displayTarget": "secondary",
-        "browserFrontmost": false
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 40843,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 40843,
+          "name": "ChatGPT"
+        }
       },
+      "hostNodeCount": 188,
+      "passed": true,
       "requestCount": 152
     },
     "nested": {
@@ -940,16 +979,289 @@
         }
       ],
       "errors": [],
-      "contentSha256": "fa2fe180d07a3bb7a1d89a0fa4955e6988fe4e384694c9325b53288138a5d492",
+      "contentSha256": "2de8e060d235b2a86ca7c6964c4962cdb5260ac3899c1ab630fed634cd664f6e",
       "launchMode": "macos-background-cdp",
       "focusPolicy": "launchservices-no-foreground",
-      "passed": true,
       "windowPlacement": {
         "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
         "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
         "displayTarget": "secondary",
-        "browserFrontmost": false
-      }
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 40843,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 40843,
+          "name": "ChatGPT"
+        }
+      },
+      "passed": true
+    },
+    "single-slots": {
+      "scope": "production-extension-domain-fixtures",
+      "provider": "microsoft-local-deterministic-response",
+      "profileMode": "new-temporary-profile",
+      "errors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 40843,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 40843,
+          "name": "ChatGPT"
+        }
+      },
+      "passed": true,
+      "contentSha256": "2de8e060d235b2a86ca7c6964c4962cdb5260ac3899c1ab630fed634cd664f6e",
+      "cases": [
+        {
+          "id": "single-slots",
+          "display": 0,
+          "passed": true,
+          "events": [
+            {
+              "kind": "add",
+              "at": 1789403621057,
+              "id": 1,
+              "html": "<span class=\"fluent-read-single-slot\" data-fr-translation-owned=\"true\" translate=\"no\" aria-label=\"测试译文：Translation should stay visible\" lang=\"zh-Hans\" dir=\"auto\">Translation should stay visible</span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403621063,
+              "id": 2,
+              "html": "<span class=\"fluent-read-single-slot\" data-fr-translation-owned=\"true\" translate=\"no\" aria-label=\"测试译文：Fix shared translation lifecycle\" lang=\"zh-Hans\" dir=\"auto\">Fix shared translation lifecycle</span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403621064,
+              "id": 3,
+              "html": "<span class=\"fluent-read-single-slot\" data-fr-translation-owned=\"true\" translate=\"no\" aria-label=\"测试译文：Readable content should keep one translation when host scripts decorate interactive links.\" lang=\"zh-Hans\" dir=\"auto\">Readable content should keep one translation when host scripts decorate interactive links.</span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403621065,
+              "id": 4,
+              "html": "<span class=\"fluent-read-single-slot\" data-fr-translation-owned=\"true\" translate=\"no\" aria-label=\"测试译文：A stable source \" lang=\"zh-Hans\" dir=\"auto\">A stable source </span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403621065,
+              "id": 5,
+              "html": "<span class=\"fluent-read-single-slot\" data-fr-translation-owned=\"true\" translate=\"no\" aria-label=\"测试译文：keeps its original nodes\" lang=\"zh-Hans\" dir=\"auto\">keeps its original nodes</span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403621065,
+              "id": 6,
+              "html": "<span class=\"fluent-read-single-slot\" data-fr-translation-owned=\"true\" translate=\"no\" aria-label=\" 测试译文：during harmless host updates.\" lang=\"zh-Hans\" dir=\"auto\"> during harmless host updates.</span>"
+            }
+          ],
+          "states": {
+            "before": {
+              "owned": 0,
+              "nested": 0,
+              "requests": 0
+            },
+            "first": {
+              "owned": 6,
+              "nested": 0,
+              "requests": 5
+            },
+            "stable": {
+              "owned": 6,
+              "nested": 0,
+              "requests": 5
+            },
+            "restored": {
+              "owned": 0,
+              "nested": 0,
+              "requests": 5
+            },
+            "retranslated": {
+              "owned": 6,
+              "nested": 0,
+              "requests": 10
+            }
+          }
+        }
+      ]
+    },
+    "button-controls": {
+      "scope": "production-extension-domain-fixtures",
+      "provider": "microsoft-local-deterministic-response",
+      "profileMode": "new-temporary-profile",
+      "errors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 40843,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 40843,
+          "name": "ChatGPT"
+        }
+      },
+      "passed": true,
+      "contentSha256": "2de8e060d235b2a86ca7c6964c4962cdb5260ac3899c1ab630fed634cd664f6e",
+      "cases": [
+        {
+          "id": "button-controls",
+          "display": 1,
+          "passed": true,
+          "events": [
+            {
+              "kind": "add",
+              "at": 1789403685158,
+              "id": 6,
+              "html": "<span class=\"fluent-read-bilingual-content fluent-display-bold\" data-fr-translation-owned=\"true\" translate=\"no\" lang=\"zh-Hans\" dir=\"auto\">测试译文：No conflicts with base branch</span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403685161,
+              "id": 7,
+              "html": "<span class=\"fluent-read-bilingual-content fluent-display-bold\" data-fr-translation-owned=\"true\" translate=\"no\" lang=\"zh-Hans\" dir=\"auto\">测试译文：Merging can be performed automatically.</span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403685164,
+              "id": 8,
+              "html": "<span class=\"fluent-read-bilingual-content fluent-display-bold\" data-fr-translation-owned=\"true\" translate=\"no\" lang=\"zh-Hans\" dir=\"auto\">测试译文：You can also merge this with the command line.</span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403685177,
+              "id": 9,
+              "html": "<span class=\"fluent-read-bilingual-content fluent-display-bold\" data-fr-translation-owned=\"true\" translate=\"no\" lang=\"zh-Hans\" dir=\"auto\">测试译文：Read the <a href=\"#guide\">测试译文：merge guide</a> 测试译文：before continuing.</span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403686174,
+              "id": 10,
+              "html": "<span class=\"fluent-read-bilingual-content fluent-display-bold\" data-fr-translation-owned=\"true\" translate=\"no\" lang=\"zh-Hans\" dir=\"auto\">测试译文：Decorative badge</span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403686175,
+              "id": 11,
+              "html": "<span class=\"fluent-read-bilingual-content fluent-display-bold\" data-fr-translation-owned=\"true\" translate=\"no\" lang=\"zh-Hans\" dir=\"auto\">测试译文：Broken focus target</span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403686176,
+              "id": 12,
+              "html": "<span class=\"fluent-read-bilingual-content fluent-display-bold\" data-fr-translation-owned=\"true\" translate=\"no\" lang=\"zh-Hans\" dir=\"auto\">测试译文：The workflow editor keeps its application controls separate from documentation.</span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403687117,
+              "id": 13,
+              "html": "<span class=\"fluent-read-bilingual-content fluent-display-bold\" data-fr-translation-owned=\"true\" translate=\"no\" lang=\"zh-Hans\" dir=\"auto\">测试译文：How do I cancel my subscription?</span>"
+            },
+            {
+              "kind": "add",
+              "at": 1789403687170,
+              "id": 14,
+              "html": "<span class=\"fluent-read-bilingual-content fluent-display-bold\" data-fr-translation-owned=\"true\" translate=\"no\" lang=\"zh-Hans\" dir=\"auto\">测试译文：Contact support from the billing page.</span>"
+            }
+          ],
+          "states": {
+            "before": {
+              "owned": 0,
+              "nested": 0,
+              "requests": 0
+            },
+            "first": {
+              "owned": 9,
+              "nested": 0,
+              "requests": 22
+            },
+            "stable": {
+              "owned": 9,
+              "nested": 0,
+              "requests": 22
+            },
+            "restored": {
+              "owned": 0,
+              "nested": 0,
+              "requests": 22
+            },
+            "retranslated": {
+              "owned": 9,
+              "nested": 0,
+              "requests": 44
+            }
+          }
+        }
+      ]
+    }
+  },
+  "integratedBase": "3c410d5c",
+  "validatedSourceCommit": "7e4c7a6dd15882c44327f50e16218def722a8e8b",
+  "checks": {
+    "compile": "passed",
+    "chromeProductionBuild": "passed",
+    "firefoxProductionBuild": "passed",
+    "userscriptProductionBuild": "passed",
+    "userscriptVerifier": {
+      "passed": true,
+      "bytes": 4805645
+    },
+    "extensionManifestVerifier": "passed",
+    "architectureAndRegressionRunner": {
+      "files": 5,
+      "passed": 642
+    },
+    "testAudit": {
+      "status": "ok",
+      "files": 350,
+      "cases": 4541
     }
   }
 }

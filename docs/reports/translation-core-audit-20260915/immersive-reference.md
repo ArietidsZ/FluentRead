@@ -67,7 +67,7 @@ FluentRead 已经有对应的后序发现、内联 run、所有权屏障、分�
 | 逐行换行、字体与译文位置 | `pageTranslationAdvanced.test.ts`、`translationFont.test.ts`、`translationTruncation.test.ts` |
 | 供应商槽边界与非法/重复标记 | `translationPrompts.test.ts`、`translationCore.test.ts` |
 
-本轮所选 33 个测试文件、1,149 个用例全部通过，修改的 5 个核心模块四维覆盖率均为 100%。浏览器另验证真实 GitHub hydration、恢复后 DOM 相等、原生节点身份和失败重试。核心行为契约具备明确测试依据；仍没有双产品同时运行的 CPU/帧耗时或全站漏译率排名，不以预算常数或测试数量宣称全面优于竞品。
+本轮最终所选 35 个测试文件、1,218 个用例全部通过，包含整合主分支视口修复后的验证，修改的 5 个核心模块四维覆盖率均为 100%。浏览器另验证真实 GitHub hydration、恢复后 DOM 相等、原生节点身份和失败重试。核心行为契约具备明确测试依据；仍没有双产品同时运行的 CPU/帧耗时或全站漏译率排名，不以预算常数或测试数量宣称全面优于竞品。
 
 ## 原始源码索引
 
