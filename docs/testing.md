@@ -162,6 +162,37 @@ node scripts/testing/run-fixed-height-translation-test.cjs \
 
 它检查卡片实际内容边界而非仅检查卡片壳，覆盖翻译、恢复、再次翻译、共用卡片、宿主高度改写及独立滚动区域。页面和翻译响应均为本地夹具，不能代替真实网站或翻译服务的验证。高度覆盖在仍有译文时共享保留，避免在“解除高度后无溢出”与“恢复高度后再次溢出”之间反复切换；最后一个译文移除时恢复宿主样式。
 
+### Hacker News 与 Product Hunt 翻译滚动
+
+`tests/browser-translation-cases.json` 的 `hacker-news-home` 与
+`producthunt-posting-access` 分别覆盖实时首页标题列表和用户指定的帮助文章，均支持
+悬浮、全文模式。Hacker News 原有的讨论页用例继续保留。
+
+可见段落插入译文时，下方内容正常展开，不应主动滚动页面来抵消展开高度。只有变化
+完全发生在同一滚动容器的视口上方时才做阅读位置补偿；页首保持页首，整页恢复优先
+保护视口上沿。`viewportStability.test.ts` 和 `fullPageVisibilityScheduling.test.ts`
+覆盖页首、可见/部分可见/屏外段落、嵌套容器、文本节点及整页恢复。
+
+```bash
+node scripts/testing/run-translation-viewport-test.cjs --allow-network \
+  --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> \
+  --focus-safe-helper <focus-safe-browser.cjs路径> \
+  --artifacts-dir /private/tmp/fluentread-translation-viewport
+```
+
+脚本使用真实网站 HTML/CSS、生产扩展和固定延迟的本地微软响应，在第二屏临时后台
+Edge 中执行两站点 × 两入口 × 页首/中部 × 翻译/恢复/再次翻译。它记录逐帧滚动值、
+原文位置、各脚本执行上下文的 `scrollBy` 调用栈与截图；检查译文唯一性、搜索/反馈
+控件及原文链接。追加 `--case hacker-news-home` 或 `--case producthunt-posting-access`
+可缩小范围；`--expect-regression` 用于旧生产包，只执行首次翻译并要求实际复现位移。
+
+页首与悬浮翻译要求滚动值变化不超过 1px，原文阅读锚点允许 2px 的排版误差。
+中部全文翻译允许屏幕上方新增内容触发浏览器原生滚动锚定，但阅读锚点也必须保持在
+2px 内，不能只用最终 `scrollY` 判断抖动。实时页面加载期间的错误单独保留在报告中；
+翻译开始后的页面错误仍令测试失败。焦点保护中止的运行不计为通过。
+本专项不代表 Turbo、Firefox 实机、商店安装包或在线翻译供应商的验证，也不运行
+字体渲染脚本；字体冲突属于另一个独立的 DOM 生命周期问题。
+
 ### GitHub 列表译文间距
 
 新版 PR 列表的标题旁保留带 padding 的空徽标占位符。行内标题插入块级译文后，

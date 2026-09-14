@@ -749,5 +749,81 @@
     "hoverHotkey": "Control",
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation"
+  },
+  "hacker-news-home": {
+    "url": "https://news.ycombinator.com/",
+    "hoverSelector": ".titleline > a",
+    "requiredSelectors": [
+      ".titleline > a"
+    ],
+    "coverageRules": [
+      {
+        "name": "front-page-story-titles",
+        "selector": ".titleline > a",
+        "kind": "content",
+        "minInitial": 20
+      }
+    ],
+    "forbiddenSelectors": [
+      "input[name=\"q\"]",
+      ".votelinks"
+    ],
+    "interactionSelectors": [
+      ".titleline > a",
+      ".morelink"
+    ],
+    "modes": [
+      "hover",
+      "full"
+    ],
+    "tier": "required",
+    "hoverHotkey": "Control",
+    "fullPageHotkey": "Alt+T",
+    "service": "freeTranslation",
+    "notes": "实时首页标题列表；另由 run-translation-viewport-test.cjs 检查逐帧滚动稳定性。"
+  },
+  "producthunt-posting-access": {
+    "url": "https://help.producthunt.com/en/articles/481909-how-can-i-get-access-to-post",
+    "hoverSelector": "article p",
+    "requiredSelectors": [
+      "h1",
+      "article p"
+    ],
+    "coverageRules": [
+      {
+        "name": "article-title",
+        "selector": "h1",
+        "kind": "heading",
+        "minInitial": 1,
+        "sourceIncludes": [
+          "How can I get access to post?"
+        ]
+      },
+      {
+        "name": "article-paragraphs",
+        "selector": "article p",
+        "kind": "content",
+        "minInitial": 5,
+        "sourceIncludes": [
+          "Please continue reading to learn how you can gain access to post."
+        ]
+      }
+    ],
+    "forbiddenSelectors": [
+      "input[type=\"text\"]",
+      ".intercom-reaction"
+    ],
+    "interactionSelectors": [
+      "article a[href]"
+    ],
+    "modes": [
+      "hover",
+      "full"
+    ],
+    "tier": "required",
+    "hoverHotkey": "Control",
+    "fullPageHotkey": "Alt+T",
+    "service": "freeTranslation",
+    "notes": "真实帮助文章，保留搜索和反馈控件；另由 run-translation-viewport-test.cjs 验证页面不发生错误滚动补偿。"
   }
 }

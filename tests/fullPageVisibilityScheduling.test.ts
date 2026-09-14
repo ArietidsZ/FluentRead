@@ -5427,13 +5427,21 @@ describe("全文翻译可见性锚点", () => {
             .toEqual([1, 1]);
     });
 
-    it("插入全文译文时补偿视口锚点位移，避免页面跳动", async () => {
+    it.each([
+        {location: '可见正文', top: 0, compensate: false},
+        {location: '视口上方', top: -120, compensate: true},
+    ])("插入 $location 的全文译文只补偿屏外变化", async ({top, compensate}) => {
         runtime.config.display = 1;
         runtime.config.fullPageTranslationMode = "all";
         document.body.innerHTML = '<p id="target">A translated post changes layout.</p><p id="anchor">The reader anchor must stay still.</p>';
         const target = document.querySelector<HTMLElement>("#target")!;
         const anchor = document.querySelector<HTMLElement>("#anchor")!;
         setLayoutBox(target, 620, 96);
+        Object.defineProperty(window, 'scrollY', {configurable: true, value: 250});
+        Object.defineProperty(target, 'getBoundingClientRect', {
+            configurable: true,
+            value: () => ({width: 620, height: 96, top, bottom: top + 96, left: 0, right: 620, x: 0, y: top}),
+        });
         let anchorRectReads = 0;
         Object.defineProperty(anchor, "getBoundingClientRect", {
             configurable: true,
@@ -5455,7 +5463,8 @@ describe("全文翻译可见性锚点", () => {
         await finishScheduledWork();
 
         expect(target.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
-        expect(scrollBy).toHaveBeenCalledWith(0, 32);
+        if (compensate) expect(scrollBy).toHaveBeenCalledWith(0, 32);
+        else expect(scrollBy).not.toHaveBeenCalled();
     });
 
     it("已译 prose 原子重放 MathJax/code 等输出骨架，外层 source 变化才重新请求", async () => {
