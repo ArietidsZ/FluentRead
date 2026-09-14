@@ -140,6 +140,40 @@ describe('offline whole-document translation corpus', () => {
         ).toBe(false);
     });
 
+    it('keeps nested GitHub README list items as separate translation owners', () => {
+        const {document, core} = loadFixture(
+            'github-nested-list.html',
+            'https://github.com/linuxscreen/duo-translator',
+        );
+        const candidates = core.discover(document);
+        const expected = [
+            'features-heading',
+            'customization-label',
+            'shortcut-item',
+            'selection-popup-item',
+            'extension-popup-item',
+        ];
+
+        expectExactCandidateOwners(candidates, expected, 'GitHub nested README list');
+        expect(candidates.some((candidate) =>
+            fixtureId(candidate.element) === 'customization-item'))
+            .toBe(false);
+
+        for (const id of expected) {
+            const candidate = candidates.find((item) => fixtureId(item.element) === id);
+            expect(candidate, `GitHub nested README region ${id} must be translated`).toBeDefined();
+            expect(candidate).toMatchObject({adapterId: 'github', reason: 'github-markdown-prose'});
+            expect(candidateSource(candidate!, core)).toBe(
+                document.querySelector(`[data-testid="${id}"]`)?.textContent,
+            );
+        }
+
+        for (const id of ['shortcut-item', 'selection-popup-item', 'extension-popup-item']) {
+            const element = document.querySelector(`[data-testid="${id}"]`)!;
+            expect(core.resolve(element.firstChild)?.element, `${id} hover ownership`).toBe(element);
+        }
+    });
+
     it('walks an MDN-like display:contents document incrementally without swallowing semantic regions', () => {
         const {document, core} = loadFixture(
             'mdn-display-contents.html',

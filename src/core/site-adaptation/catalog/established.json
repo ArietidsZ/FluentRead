@@ -83,6 +83,13 @@
       },
       {
         "css": [
+          ".markdown-body li"
+        ],
+        "key": "github-markdown-prose",
+        "resolve": "self"
+      },
+      {
+        "css": [
           ".markdown-body p",
           ".markdown-body h1",
           ".markdown-body h2",
@@ -90,7 +97,6 @@
           ".markdown-body h4",
           ".markdown-body h5",
           ".markdown-body h6",
-          ".markdown-body li",
           ".markdown-body blockquote",
           ".markdown-body figcaption",
           ".markdown-body summary",
