@@ -1711,6 +1711,19 @@ describe('real-site translation matrix gates', () => {
     }
   });
 
+  it('keeps the live front page and help article in both translation modes', () => {
+    expect(cases['hacker-news-home'].url).toBe('https://news.ycombinator.com/');
+    expect(cases['hacker-news-home'].hoverSelector).toBe('.titleline > a');
+    expect(cases['producthunt-posting-access'].url).toBe(
+      'https://help.producthunt.com/en/articles/481909-how-can-i-get-access-to-post',
+    );
+    for (const name of ['hacker-news-home', 'producthunt-posting-access'] as const) {
+      expect(cases[name].tier).toBe('required');
+      expect(cases[name].modes).toEqual(['hover', 'full']);
+    }
+    expect(cases['producthunt-posting-access'].forbiddenSelectors).toContain('.intercom-reaction');
+  });
+
   it('restores recovered pages to required while keeping challenged pages quarantined', () => {
     expect(cases['hacker-news-8863'].tier).toBe('required');
     expect(cases['ubuntu-apt-manpage'].tier).toBe('required');

@@ -165,13 +165,16 @@ describe('全文翻译视口稳定性', () => {
         const anchor = document.createElement('p');
         document.body.appendChild(anchor);
         Object.defineProperty(window, 'innerHeight', {configurable: true, value: 0});
-        Object.defineProperty(document, 'elementFromPoint', {configurable: true, value: () => anchor});
+        Object.defineProperty(window, 'innerWidth', {configurable: true, value: 0});
+        const hitTest = vi.fn(() => anchor);
+        Object.defineProperty(document, 'elementFromPoint', {configurable: true, value: hitTest});
         Object.defineProperty(anchor, 'getBoundingClientRect', {
             configurable: true,
             value: () => ({width: 300, height: 30, top: 90, right: 300, bottom: 120, left: 0, x: 0, y: 90}),
         });
 
         expect(withFullPageViewportAnchor(() => 'safe')).toBe('safe');
+        expect(hitTest).toHaveBeenCalledWith(0, 0);
     });
 
     it('异常/无位移/无 scrollBy 时不阻断翻译 callback', () => {
@@ -237,6 +240,88 @@ describe('全文翻译视口稳定性', () => {
         // 嵌套结束后深度归零，后续顶层调用仍正常捕获。
         withFullPageViewportAnchor(() => undefined);
         expect(hits).toBe(2);
+    });
+
+    it.each([
+        {name: '页首', scrollY: 0, top: 50, bottom: 90, expected: 0},
+        {name: '可见正文', scrollY: 250, top: 50, bottom: 90, expected: 0},
+        {name: '跨过视口上沿的正文', scrollY: 250, top: -20, bottom: 90, expected: 0},
+        {name: '视口下方', scrollY: 250, top: 1000, bottom: 1040, expected: 0},
+        {name: '完全位于视口上方', scrollY: 250, top: -100, bottom: -60, expected: 1},
+    ])('$name 的译文插入只在影响屏外上方内容时补偿', ({scrollY, top, bottom, expected}) => {
+        const changed = document.createElement('p');
+        const anchor = document.createElement('p');
+        document.body.append(changed, anchor);
+        Object.defineProperty(window, 'scrollY', {configurable: true, value: scrollY});
+        Object.defineProperty(document, 'elementFromPoint', {configurable: true, value: () => anchor});
+        Object.defineProperty(changed, 'getBoundingClientRect', {value: () => ({width: 200, height: 40, top, bottom})});
+        let after = false;
+        Object.defineProperty(anchor, 'getBoundingClientRect', {value: () => ({width: 200, height: 40, top: after ? 445 : 400})});
+        const scrollBy = vi.fn();
+        Object.defineProperty(window, 'scrollBy', {configurable: true, value: scrollBy});
+        withFullPageViewportAnchor(() => { after = true; }, [changed]);
+        expect(scrollBy).toHaveBeenCalledTimes(expected);
+        if (expected) expect(scrollBy).toHaveBeenCalledWith(0, 45);
+    });
+
+    it('整页恢复保住上沿原文，不抵消屏幕下半部译文的收缩', () => {
+        const topAnchor = document.createElement('p');
+        const middleAnchor = document.createElement('p');
+        document.body.append(topAnchor, middleAnchor);
+        Object.defineProperty(window, 'scrollY', {configurable: true, value: 250});
+        Object.defineProperty(document, 'elementFromPoint', {
+            configurable: true, value: (_x: number, y: number) => y < 40 ? topAnchor : middleAnchor,
+        });
+        let restored = false;
+        Object.defineProperty(topAnchor, 'getBoundingClientRect', {value: () => ({width: 200, height: 40, top: 5})});
+        Object.defineProperty(middleAnchor, 'getBoundingClientRect', {
+            value: () => ({width: 200, height: 40, top: restored ? 250 : 400}),
+        });
+        const scrollBy = vi.fn();
+        Object.defineProperty(window, 'scrollBy', {configurable: true, value: scrollBy});
+        withFullPageViewportAnchor(() => { restored = true; });
+        expect(scrollBy).not.toHaveBeenCalled();
+    });
+
+    it('内层滚动面只补偿同一容器上方的变化，并按边框内沿判断可见性', () => {
+        const scroller = document.createElement('div');
+        const changed = document.createElement('p');
+        const anchor = document.createElement('p');
+        const outside = document.createElement('p');
+        scroller.append(changed, anchor);
+        document.body.append(scroller, outside);
+        Object.defineProperties(scroller, {
+            scrollHeight: {value: 1000}, clientHeight: {value: 200}, clientTop: {value: 2},
+            getBoundingClientRect: {value: () => ({top: 100})},
+        });
+        Object.defineProperty(window, 'getComputedStyle', {configurable: true, value: () => ({overflowY: 'auto'})});
+        Object.defineProperty(window, 'scrollY', {configurable: true, value: 0});
+        Object.defineProperty(document, 'elementFromPoint', {configurable: true, value: () => anchor});
+        let after = false;
+        let bottom = 102;
+        Object.defineProperty(changed, 'getBoundingClientRect', {value: () => ({width: 200, height: 40, bottom})});
+        Object.defineProperty(outside, 'getBoundingClientRect', {configurable: true, value: () => ({width: 200, height: 40, bottom: -10})});
+        Object.defineProperty(anchor, 'getBoundingClientRect', {value: () => ({width: 200, height: 40, top: after ? 195 : 150})});
+        const mutate = (nodes: Node[], initial = 100) => {
+            after = false;
+            scroller.scrollTop = initial;
+            withFullPageViewportAnchor(() => { after = true; }, nodes);
+            return scroller.scrollTop;
+        };
+        expect(mutate([changed])).toBe(145);
+        expect(mutate([changed], 0)).toBe(0);
+        bottom = 103;
+        expect(mutate([changed])).toBe(100);
+        expect(mutate([outside])).toBe(100);
+        // 文本节点按所在段落判断；脱离页面和无尺寸内容不能触发补偿。
+        changed.textContent = 'A paragraph above the viewport';
+        bottom = 102;
+        expect(mutate([changed.firstChild!])).toBe(145);
+        expect(mutate([document.createTextNode('detached')])).toBe(100);
+        expect(mutate([document.createElement('p')])).toBe(100);
+        Object.defineProperty(outside, 'getBoundingClientRect', {value: () => ({width: 0, height: 0, bottom: -10})});
+        scroller.append(outside);
+        expect(mutate([outside])).toBe(100);
     });
 
     it('滚动控制器只在活动会话中延迟目标，并在空闲时释放', async () => {
