@@ -2,7 +2,7 @@
  * @file src/core/translation/engine.ts
  *
  * 文件职责：实现 DOM 节点到 TranslationCandidate 的核心解析引擎，协调安全守卫、站点适配器、布局边界和文本有效性。
- * 主要内容：按正文/全部节点范围协调候选；定义 TranslationCandidateCore、候选优选与键值函数，记录发现步骤和原因，按站点规则把显式换行拆为两种入口一致的内联候选，处理编辑器坐标命中屏障、hover 屏障、适配优先级、快照省略、缓存及坐标命中，让独立 tooltip 不抢占外层控件候选，保证全文与悬浮共享决策。 可核对的公开符号包括 TranslationCoreInspection、TranslationDiscoveryStep、getTranslationCandidateKey、selectPreferredTranslationCandidate、TranslationCandidateCore。
+ * 主要内容：按正文/全部节点范围协调候选；定义 TranslationCandidateCore、候选优选与键值函数，记录发现步骤和原因，按站点规则把显式换行拆为两种入口一致的内联候选，处理编辑器坐标命中屏障、hover 屏障、适配优先级、快照省略、缓存及坐标命中；悬浮命中独立后代的包裹层时禁止回退吞并整个容器，让独立 tooltip 不抢占外层控件候选，保证全文与悬浮共享决策。 可核对的公开符号包括 TranslationCoreInspection、TranslationDiscoveryStep、getTranslationCandidateKey、selectPreferredTranslationCandidate、TranslationCandidateCore。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -68,6 +68,12 @@ const maxPointResolutionDepth = 64;
 interface AdapterDecisionResult {
     decision: AdapterDecision;
     adapterId?: string;
+}
+
+interface InlineRunResolution {
+    candidate: TranslationCandidate | null;
+    /** 已有独立后代或探测预算耗尽时，不能再把当前容器整体当作回退候选。 */
+    blocksWholeCandidate: boolean;
 }
 
 interface AdapterPrunedAncestor {
@@ -597,7 +603,7 @@ export class TranslationCandidateCore {
         element: Element,
         start: Node,
         evaluationContext: ResolutionEvaluationContext,
-    ): TranslationCandidate | null {
+    ): InlineRunResolution | null {
         const decision = this.adapterDecision(element, evaluationContext).decision;
         const explicitContainer = decision.kind === 'force-target' && decision.atomic === false &&
             (decision.target ?? element) === element;
@@ -610,26 +616,32 @@ export class TranslationCandidateCore {
         }
         // 优先探测全文后序发现记录的所有权屏障，再在统一严格预算内复核每个内联子节点；
         // 即使页面实时变更，也能保持两种发现结果一致，而不会在指针处理中无限遍历子树。
+        const childBarriers = this.probeHoverCandidateChildBarriers(
+            element,
+            this.discoveredCandidateChildBarriers.get(element),
+            explicitContainer,
+        );
         const candidates = this.inlineRunCandidates(
             element,
             true,
             evaluationContext.textProtectionCache,
-            this.probeHoverCandidateChildBarriers(
-                element,
-                this.discoveredCandidateChildBarriers.get(element),
-            ),
+            childBarriers,
             evaluationContext,
         );
-        if (candidates.length === 0) return null;
+        const blocksWholeCandidate = childBarriers.size > 0;
+        if (candidates.length === 0) return {candidate: null, blocksWholeCandidate};
         let direct: Node | null = start;
         while (direct && direct !== element && direct.parentNode !== element) direct = direct.parentNode;
-        if (!direct || direct === element) return candidates[0]!;
-        return candidates.find((candidate) => candidate.nodes?.includes(direct as ChildNode)) ?? null;
+        const candidate = !direct || direct === element
+            ? candidates[0]!
+            : candidates.find((candidate) => candidate.nodes?.includes(direct as ChildNode)) ?? null;
+        return {candidate, blocksWholeCandidate};
     }
 
     private probeHoverCandidateChildBarriers(
         element: Element,
         discoveredBarriers?: ReadonlySet<Element>,
+        includeBlockChildren = false,
     ): ReadonlySet<Element> {
         const barriers = new Set<Element>();
         let remainingSteps = maxHoverBarrierDiscoverySteps;
@@ -644,8 +656,9 @@ export class TranslationCandidateCore {
             : children;
 
         for (const child of orderedChildren) {
-            // 原生块边界已由 layout.ts 切分直接内联 run。
-            if (isBlockBoundary(child)) continue;
+            // 通用候选已由 layout.ts 拒绝可读块子节点；显式非原子容器还需复核这些
+            // 子树是否拥有候选，否则 force-target 的回退路径仍可能吞掉整组段落。
+            if (!includeBlockChildren && isBlockBoundary(child)) continue;
             if (remainingSteps <= 0) {
                 // 有界悬浮探测耗尽预算时，绝不能仅因此移动尚未检查的子树。既有屏障也要
                 // 保守保留；只有后续能重新验证实时子树时，才不再盲目信任旧结果。
@@ -740,7 +753,10 @@ export class TranslationCandidateCore {
             // 混合直接内容必须解析为全文遍历产出的同一个 run；这样原子适配目标旁的普通文本
             // 也不会回退成整个父容器。
             const inlineRun = this.resolveInlineRun(current, hit, evaluationContext);
-            if (inlineRun) return inlineRun;
+            if (inlineRun?.candidate) return inlineRun.candidate;
+            // “命中独立后代的包裹层”不同于“没有内联段落”。后者可以尝试普通块，
+            // 前者若继续 inspect，会绕过已有屏障，把间接包裹的列表再次合成整段。
+            if (inlineRun?.blocksWholeCandidate) return null;
             const inspection = this.inspectWithTextProtectionCache(
                 current,
                 textProtectionCache,

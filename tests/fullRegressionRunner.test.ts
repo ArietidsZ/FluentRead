@@ -94,7 +94,7 @@ describe('full regression runner', () => {
         const plan = dryRun(['--browser', ...BROWSER_ARGS]);
         const browserSteps = plan.steps.filter((step: {phase: string}) => step.phase === 'browser');
 
-        expect(browserSteps).toHaveLength(12);
+        expect(browserSteps).toHaveLength(13);
         expect(browserSteps.map((step: {id: string}) => step.id)).toEqual([
             'selection-trigger',
             'full-page-translation',
@@ -102,6 +102,7 @@ describe('full regression runner', () => {
             'fixed-height-translation',
             'github-spacing',
             'github-nested-list',
+            'github-task-list',
             'video-subtitle-fixture',
             'document-translation',
             'settings-center-ui',
@@ -201,6 +202,7 @@ describe('full regression runner', () => {
             'fixed-height-translation',
             'github-spacing',
             'github-nested-list',
+            'github-task-list',
             'video-subtitle-fixture',
             'document-translation',
             'settings-center-ui',

@@ -1340,7 +1340,9 @@ describe('translation candidate core', () => {
         );
         const {document: renderedDocument} = parseHTML(`<html><body><p>${rendered}</p></body></html>`);
         expect(renderedDocument.querySelector('#display')?.textContent).toContain('out=(x/w,y/w,z/w)');
-        expect(renderedDocument.querySelector('#tex-source')?.textContent).toContain('begin{pmatrix}');
+        // 非展示 TeX 脚本只由宿主公式 renderer 持有，不进入双语克隆；可见公式仍在上方骨架中。
+        expect(renderedDocument.querySelector('#tex-source')).toBeNull();
+        expect(document.querySelector('#tex-source')?.textContent).toContain('begin{pmatrix}');
         expect(renderedDocument.querySelector('#mathjax-v3')?.textContent).toBe('V_clip=M_projection V_local');
         expect(renderedDocument.querySelector('#katex')?.textContent).toBe('KATEX_RENDERED_FORMULA');
 

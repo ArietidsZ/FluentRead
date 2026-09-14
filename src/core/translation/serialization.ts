@@ -2,12 +2,20 @@
  * @file src/core/translation/serialization.ts
  *
  * 文件职责：把候选 DOM 安全序列化为可翻译文本槽，并在异步请求后依据源快照恢复到仍然匹配的真实节点。
- * 主要内容：定义 TranslationTextSlot、TranslationSourceSnapshot 与样式覆盖规则，负责槽位编码解析、活节点收集（排除候选内的独立 tooltip）、译文写入克隆、宿主 metadata 省略、译文产物过滤，以及识别 line-clamp 与溢出截断并提供临时解除截断的样式覆盖规则。 可核对的公开符号包括 TranslationTextSlot、TranslationSourceSnapshot、SerializedTranslationSlots、TranslationStyleOverride、translationTruncationStyleOverrides、serializeTranslationSlots、parseTranslationSlots、createTranslationSourceSnapshot。
+ * 主要内容：定义 TranslationTextSlot、TranslationSourceSnapshot 与样式覆盖规则，负责槽位编码解析、活节点收集（排除候选内的独立 tooltip）、译文写入克隆、隐藏/编辑/宿主 metadata 省略、可见公式骨架保全、译文产物过滤，以及识别 line-clamp 与溢出截断并提供临时解除截断的样式覆盖规则。 可核对的公开符号包括 TranslationTextSlot、TranslationSourceSnapshot、SerializedTranslationSlots、TranslationStyleOverride、translationTruncationStyleOverrides、serializeTranslationSlots、parseTranslationSlots、createTranslationSourceSnapshot。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
 import {isTranslationTextNodeProtected} from './text';
-import {isForeignTranslationBoundary, isIconFontElement, isTextInNestedTranslationTooltip, isTranslationTooltip} from './dom';
+import {
+    hasContentEditableMarker,
+    isForeignTranslationBoundary,
+    isHardPruneTag,
+    isHiddenTranslationElement,
+    isIconFontElement,
+    isTextInNestedTranslationTooltip,
+    isTranslationTooltip,
+} from './dom';
 import type {TranslationTextProtectionOptions} from './dom';
 
 const translationArtifactSelector = [
@@ -16,6 +24,10 @@ const translationArtifactSelector = [
     '.fluent-read-retry-wrapper',
     '[data-fr-translation-owned="true"]',
 ].join(',');
+
+// 与 renderer 的本地公式白名单保持一致；内部 aria-hidden 常指可视排版副本，
+// 交给公式净化器去掉辅助 MathML/TeX，不能按普通隐藏正文逐节点丢弃。
+const sourceFormulaSelector = 'math, mjx-container, .MathJax, .MathJax_Display, .MathJax_SVG, .MathJax_CHTML, .katex, .mwe-math-element, .ltx_Math';
 
 export interface TranslationTextSlot {
     node: Text;
@@ -295,13 +307,32 @@ export function createTranslationSourceSnapshot(
         ignoredExtensionElement,
         protectionOptions,
     );
-    // 先完成文本槽映射，再依据实时状态移除图标和显式 metadata。译文 sanitizer 不继承
-    // 宿主 CSS，保留图标连字会显示 account_circle 等实现文本；原 DOM 和事件完全不动。
+    // 先完成文本槽映射，再依据实时状态裁剪展示副本。仅从 provider 槽排除还不够：
+    // sanitizer 会去掉宿主 class/hidden/style，并展开 textarea 等非内联标签，
+    // 原本隐藏的辅助文字和编辑内容因此会意外出现在双语译文中。
     const liveElements = node.querySelectorAll('*');
     const clonedElements = clone.querySelectorAll('*');
+    const omittedElements = new WeakSet<Element>();
+    const formulaElements = new WeakSet<Element>();
     liveElements.forEach((element, index) => {
-        if (isTranslationTooltip(element) || isForeignTranslationBoundary(element) || isIconFontElement(element) || shouldOmitFromTranslation?.(element)) {
+        const parent = element.parentElement;
+        if (parent && omittedElements.has(parent)) {
+            omittedElements.add(element);
+            return;
+        }
+        if (parent && formulaElements.has(parent)) {
+            formulaElements.add(element);
+            return;
+        }
+        const formula = element.matches(sourceFormulaSelector);
+        if (isTranslationTooltip(element) || isForeignTranslationBoundary(element) ||
+            isHiddenTranslationElement(element) || hasContentEditableMarker(element) ||
+            isIconFontElement(element) || shouldOmitFromTranslation?.(element) ||
+            (!formula && isHardPruneTag(element))) {
             clonedElements[index]!.remove();
+            omittedElements.add(element);
+        } else if (formula) {
+            formulaElements.add(element);
         }
     });
     clone.querySelectorAll(translationArtifactSelector).forEach((child) => child.remove());

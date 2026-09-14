@@ -132,6 +132,18 @@ node scripts/verify-userscript-build.mjs  # userscript 元数据与产物边界
 配置计数测试需要同时覆盖：扩展后台 mutation 串行化、operationId 在提交后重启时去重、失败批次
 复用同一标识、普通配置保存不能回滚 count，以及 userscript 多副本并发、提交后响应丢失和新页面聚合恢复。
 
+## 动态任务清单与核心行为对照
+
+GitHub Issue #1029 的任务列表在 React 加载后会变成一个外层 LI 内的多个 DIV 正文。
+`tests/translationGitHubTaskList.test.ts` 检查真实结构对应的独立所有权，
+`translationOwnershipBoundaries`、`translationVisualProtection`、`translationSnapshotProtection`
+和 `syntheticCandidateFreshness` 分别覆盖悬浮边界、隐藏内容、最终副本及排队节点时效。
+
+生产扩展专项 `scripts/testing/run-github-task-list-test.cjs` 使用临时后台 Edge，默认运行
+确定性夹具，追加 `--live` 验证用户报告的实时 GitHub Issue。包括每项译文、隐藏说明、
+原生节点身份、390px 布局、动态增改、恢复重译、重挂和失败重试；供应商响应是本地夹具。
+[源码对照、测试结果与复现命令](./reports/translation-core-audit-20260915/README.md)。
+
 ## 翻译核心稳定性回归
 
 OpenRouter 模型卡片曾在解除内部两行截断后仍保持外层 `height:176px`，使居中的双语内容覆盖相邻卡片。`translationHeightLayout.test.ts` 检查插入后由内向外测量、共享高度租约、宿主样式更新、窗口 resize、滚动/定位边界和移除清理；`translationTruncation.test.ts` 检查几何判断与安全边界。

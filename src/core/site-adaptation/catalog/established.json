@@ -67,11 +67,16 @@
       },
       {
         "css": [
-          ".markdown-body li:has(> p)",
-          ".markdown-body li:has(> ul)",
-          ".markdown-body li:has(> ol)"
+          ".markdown-body li",
+          ".markdown-body blockquote",
+          ".markdown-body figcaption",
+          ".markdown-body dt",
+          ".markdown-body dd",
+          ".markdown-body th",
+          ".markdown-body td",
+          ".markdown-body [data-testid^=\"tasklist-item-\"] [class*=\"TaskListItem-module__task-list-html__\"]"
         ],
-        "key": "github-markdown-list-container",
+        "key": "github-markdown-prose",
         "resolve": "self",
         "atomic": false
       },
@@ -83,13 +88,6 @@
       },
       {
         "css": [
-          ".markdown-body li"
-        ],
-        "key": "github-markdown-prose",
-        "resolve": "self"
-      },
-      {
-        "css": [
           ".markdown-body p",
           ".markdown-body h1",
           ".markdown-body h2",
@@ -97,13 +95,7 @@
           ".markdown-body h4",
           ".markdown-body h5",
           ".markdown-body h6",
-          ".markdown-body blockquote",
-          ".markdown-body figcaption",
-          ".markdown-body summary",
-          ".markdown-body dt",
-          ".markdown-body dd",
-          ".markdown-body th",
-          ".markdown-body td"
+          ".markdown-body summary"
         ],
         "key": "github-markdown-prose",
         "resolve": "closest"
