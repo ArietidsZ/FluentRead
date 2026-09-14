@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * @file scripts/testing/run-reddit-translation-test.cjs
- * 在全新临时 Edge 中重现用户 HTML 中的沉浸式翻译 font 结构，检查 FluentRead 的
+ * 在全新临时 Edge 中重现页面已有译文的 font 结构，检查 FluentRead 的
  * 正文/全部节点范围、悬浮切换、全文翻译、迟到响应及外部译文增删。只提供本地夹具
  * 和确定性微软响应，不执行用户粘贴的脚本，不访问外部网络，不激活 macOS 前台。
  */

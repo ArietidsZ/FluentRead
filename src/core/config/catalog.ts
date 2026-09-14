@@ -102,7 +102,7 @@ export const cloudVendorServices = Object.freeze([
     services.volcTranslation,
 ]);
 
-/** 借鉴陪读蛙目录补齐的 OpenAI 兼容平台；除本地 Ollama 外都需要平台密钥。 */
+/** 支持的 OpenAI 兼容平台；除本地 Ollama 外都需要平台密钥。 */
 export const referenceAiPlatformServices = Object.freeze([
     services.ollama,
     services.mistral,
@@ -440,7 +440,7 @@ export const defaultModelIds = {
     [services.siliconCloud]: "deepseek-ai/DeepSeek-V4-Flash",
     [services.groq]: currentModelIds.groqSmall,
     [services.openrouter]: "google/gemini-3.5-flash-lite",
-    // 陪读蛙目录借鉴的平台：默认选择各家的低延迟档，翻译场景优先响应速度。
+    // 兼容平台默认选择各家的低延迟档，翻译场景优先响应速度。
     [services.mistral]: "mistral-small-latest",
     [services.cohere]: "command-a-translate-08-2025",
     [services.cerebras]: currentModelIds.groqSmall,
@@ -482,7 +482,7 @@ export const models = new Map<string, Array<string>>([
     [services.groq, [defaultModelIds[services.groq], currentModelIds.groqLarge, "qwen/qwen3.6-27b", customModelString]],
     [services.openrouter, [defaultModelIds[services.openrouter], "google/gemini-3.6-flash", "deepseek/deepseek-v4.1-flash", "openai/gpt-5.4-mini", "openai/gpt-6-astra", "x-ai/grok-4.6", "openrouter/auto", "openai/gpt-5.6-luna", "openai/gpt-5.6-sol", "anthropic/claude-fable-5", "anthropic/claude-opus-5", "x-ai/grok-4.5", "deepseek/deepseek-v4-pro", "moonshotai/kimi-k3", "z-ai/glm-5.2", customModelString]],
 
-    // 借鉴陪读蛙目录补齐的 OpenAI 兼容平台。列表只放各家稳定的公开编号，
+    // 支持的 OpenAI 兼容平台。列表只放各家稳定的公开编号，
     // 平台上新更快，用户可以随时用“自定义模型”补充。
     [services.mistral, [defaultModelIds[services.mistral], "mistral-medium-latest", "mistral-large-latest", "magistral-small-latest", "open-mistral-nemo", customModelString]],
     [services.cohere, [defaultModelIds[services.cohere], "command-a-03-2025", "command-r7b-12-2024", "command-r-plus", customModelString]],

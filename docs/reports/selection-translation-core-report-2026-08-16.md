@@ -121,7 +121,7 @@ flowchart LR
 - 最后才回退到 Google `translate_tts`，并显式携带规范化语言参数。
 - 原文和译文各有一个常驻播放按钮，按钮具有 `aria-label` 和 `title`，不需要悬浮才能发现。
 
-FluentRead 本次独立实现了 Edge TTS 的最小稳定链路，保留浏览器语音作为免费回退；后续再增加完整 voice 目录和 offscreen 播放即可，不直接复制参考项目代码。
+FluentRead 本次独立实现了 Edge TTS 的最小稳定链路，保留浏览器语音作为免费回退；后续再增加完整 voice 目录和 offscreen 播放即可。
 
 ### 2.4 设置与 UI 修改
 

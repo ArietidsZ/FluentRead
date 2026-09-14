@@ -14,5 +14,5 @@
 - 页面错误和控制台错误均为 0。临时浏览器与 profile 已清理。
 - `launchMode=macos-background-cdp`、`focusPolicy=launchservices-no-foreground`、`windowPlacement.mode=background-visible-no-focus`、`browserFrontmost=false`；窗口完整位于第二块显示器。
 - 完整 `--suite full` 已尝试，但技能脚本在 popup 启动断言等待旧标题“让阅读自然地流动”超时；当前源码使用“网页翻译”，尚未进入侧栏测试。不能据此宣称完整 UI 回归通过。
-- 本轮没有运行 Firefox 实机验证、翻译供应商调用或多语言布局矩阵；改动仅限设置页 CSS，没有借鉴参考项目。
+- 本轮没有运行 Firefox 实机验证、翻译供应商调用或多语言布局矩阵；改动仅限设置页 CSS。
 

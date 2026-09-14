@@ -133,7 +133,7 @@ Azure、阿里云与火山引擎的区域会参与请求签名或决定请求域
 | 阶跃星辰 | `step-2-mini` |
 | OpenRouter | `google/gemini-3.5-flash-lite` |
 
-除上表外，**聚合平台与接口**分组还收录了 Mistral AI、Cohere、Cerebras、Together AI、Fireworks AI、DeepInfra 与 Perplexity 等 OpenAI 兼容平台（参考陪读蛙的服务目录补齐），配置方式与其他 AI 服务相同：填写平台密钥并选择模型。
+除上表外，**聚合平台与接口**分组还收录了 Mistral AI、Cohere、Cerebras、Together AI、Fireworks AI、DeepInfra 与 Perplexity 等 OpenAI 兼容平台，配置方式与其他 AI 服务相同：填写平台密钥并选择模型。
 
 更新模型列表不会覆盖你已保存的有效模型或自定义模型。DeepSeek 默认关闭思考；部分模型无法完全关闭思考时，使用其支持的最低档。更大的模型仍可手动选择，实际费用以服务商为准。
 

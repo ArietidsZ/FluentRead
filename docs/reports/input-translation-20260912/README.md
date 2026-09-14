@@ -65,4 +65,4 @@
 
 ## 来源与交付范围
 
-实现基于 FluentRead 自身配置、翻译服务和 Shadow UI 架构，未复制或修改参考项目。工作位于独立 worktree `FluentRead-input-translation-profile-20260912`、分支 `codex/input-translation-profile-20260912`，主检出目录的已有工作不属于本次改动。最终验证已整合主分支 `64cc5e1c`，保留新加入的段落翻译、字体与设置页视口改动，并补齐新增段落测试的归类。
+实现基于 FluentRead 自身配置、翻译服务和 Shadow UI 架构。工作位于独立 worktree `FluentRead-input-translation-profile-20260912`、分支 `codex/input-translation-profile-20260912`，主检出目录的已有工作不属于本次改动。最终验证已整合主分支 `64cc5e1c`，保留新加入的段落翻译、字体与设置页视口改动，并补齐新增段落测试的归类。

@@ -26,7 +26,7 @@ const providerNames = {
     '硅基流动': 'SiliconFlow',
     '无问芯穹': 'Infini',
     '千问/Qwen': 'Qwen',
-    // 云服务厂商与陪读蛙目录借鉴的平台。
+    // 云服务厂商与兼容平台名称。
     '谷歌云翻译': 'Google Cloud Translation',
     'Azure 翻译': 'Azure Translator',
     '阿里云机器翻译': 'Alibaba Cloud Machine Translation',

@@ -89,7 +89,7 @@ export const urls: any = {
     [services.siliconCloud]: "https://api.siliconflow.cn/v1/chat/completions",
     [services.openrouter]: "https://openrouter.ai/api/v1/chat/completions",
     [services.grok]: "https://api.x.ai/v1/chat/completions",
-    // 借鉴陪读蛙目录补齐的 OpenAI 兼容平台。
+    // 使用标准接口的 OpenAI 兼容平台。
     [services.mistral]: "https://api.mistral.ai/v1/chat/completions",
     [services.cohere]: "https://api.cohere.ai/compatibility/v1/chat/completions",
     [services.cerebras]: "https://api.cerebras.ai/v1/chat/completions",

@@ -46,7 +46,7 @@ type WebResponse = {
     base_resp?: {status_code?: unknown}; translation?: unknown;
 };
 
-/** 每次尝试只使用临时随机请求标识；不复用参考项目的固定客户端值或任何账号 Token。 */
+/** 每次尝试只使用临时随机请求标识；不复用固定客户端值或任何账号 Token。 */
 async function translateChunk(provider: FreeWebProvider, text: string, from: string, to: string, signal?: AbortSignal): Promise<string> {
     const init: RequestInit = {method: 'POST', credentials: 'omit', signal, headers: {'Content-Type': 'application/json'}};
     let url = endpoints[provider];
