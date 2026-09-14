@@ -174,6 +174,17 @@ function getPresentationProtection(element: Element): 'hidden' | 'icon-font' | u
         const style = element.ownerDocument?.defaultView?.getComputedStyle(element);
         if (!style) return undefined;
         if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return 'hidden';
+        // 无障碍辅助文本常没有固定类名，而是绝对定位到 1px 裁剪盒。单独的 overflow
+        // 或 clip 不能代表隐藏（正文卡片也会截断）；只识别同时满足全部条件的辅助盒。
+        if ((style.position === 'absolute' || style.position === 'fixed') &&
+            /^(?:0(?:\.\d+)?|1(?:\.0+)?)px$/u.test(style.width) &&
+            /^(?:0(?:\.\d+)?|1(?:\.0+)?)px$/u.test(style.height) &&
+            (style.overflow === 'hidden' || style.overflow === 'clip' ||
+                (style.overflowX === 'hidden' && style.overflowY === 'hidden'))) {
+            const clip = style.clip?.replace(/[\s,]+/gu, ' ').trim();
+            const collapsedRect = /^rect\((0(?:px)?|1px) \1 \1 \1\)$/u.test(clip ?? '');
+            if (collapsedRect || style.clipPath?.replace(/\s+/gu, '') === 'inset(50%)') return 'hidden';
+        }
         // 只检查首选字体；正文把图标字体列为 fallback 时仍需翻译。字体家族而非文本内容
         // 决定 settings 等词是字形索引，不能按单词或宽泛的 class 名裁剪正文。
         const primaryFamily = (style.fontFamily || '').split(',')[0]!.trim()
@@ -192,7 +203,12 @@ export function isIconFontElement(element: Element): boolean {
     return getPresentationProtection(element) === 'icon-font';
 }
 
-function hasContentEditableMarker(element: Element): boolean {
+/** 输出快照也必须依据实时可见性省略节点，不能依赖克隆后已经丢失的宿主样式。 */
+export function isHiddenTranslationElement(element: Element): boolean {
+    return getPresentationProtection(element) === 'hidden';
+}
+
+export function hasContentEditableMarker(element: Element): boolean {
     const attribute = element.getAttribute('contenteditable');
     return (attribute !== null && attribute.toLowerCase() !== 'false') ||
         (element as HTMLElement).isContentEditable;

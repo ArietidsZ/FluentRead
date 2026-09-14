@@ -63,6 +63,13 @@ const LOCAL_BROWSER_FIXTURES = [
         supportsHeaded: false,
     },
     {
+        id: 'github-task-list',
+        label: 'GitHub hydrated task list and source preservation browser regression',
+        script: 'scripts/testing/run-github-task-list-test.cjs',
+        backgroundArgs: ['--background'],
+        supportsHeaded: false,
+    },
+    {
         id: 'video-subtitle-fixture',
         label: 'video subtitle fixture browser regression',
         script: 'scripts/run-video-subtitle-fixture-test.cjs',
