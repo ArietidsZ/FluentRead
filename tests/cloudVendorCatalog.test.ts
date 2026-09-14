@@ -148,7 +148,7 @@ describe('云服务厂商目录', () => {
     });
 });
 
-describe('陪读蛙目录借鉴的 OpenAI 兼容平台', () => {
+describe('OpenAI 兼容平台目录', () => {
     it('全部走 AI SDK 通用路由，Ollama 免密钥且默认指向本机', () => {
         for (const service of referenceAiPlatformServices) {
             expect(servicesType.isAI(service), service).toBe(true);

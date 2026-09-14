@@ -160,7 +160,7 @@ Install and run Ollama and download a model before connecting it. Performance de
 
 Pick **Ollama (local)** under aggregation platforms: it connects to `http://127.0.0.1:11434` by default and needs no API key; enter the name of a model you have pulled (for example `qwen3:8b`). If Ollama runs on another machine or port, enter the full `/v1/chat/completions` URL in **Server URL**. Browser extensions must be allowed as an origin: start Ollama with `OLLAMA_ORIGINS=*`, otherwise requests are rejected by CORS.
 
-The aggregation platforms group also includes Mistral AI, Cohere, Cerebras, Together AI, Fireworks AI, DeepInfra, and Perplexity (OpenAI-compatible platforms added with reference to the Read Frog catalog). Configure them like any other AI service: enter the platform key and choose a model.
+The aggregation platforms group also includes Mistral AI, Cohere, Cerebras, Together AI, Fireworks AI, DeepInfra, and Perplexity (OpenAI-compatible platforms). Configure them like any other AI service: enter the platform key and choose a model.
 
 Choosing a local model determines where that translation goes. Dictionary, read-aloud, downloads, and other independent tools can still use network services. See [Data & privacy](/en/guide/privacy).
 

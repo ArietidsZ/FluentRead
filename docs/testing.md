@@ -132,7 +132,7 @@ node scripts/verify-userscript-build.mjs  # userscript 元数据与产物边界
 配置计数测试需要同时覆盖：扩展后台 mutation 串行化、operationId 在提交后重启时去重、失败批次
 复用同一标识、普通配置保存不能回滚 count，以及 userscript 多副本并发、提交后响应丢失和新页面聚合恢复。
 
-## 动态任务清单与核心行为对照
+## 动态任务清单与核心行为验证
 
 GitHub Issue #1029 的任务列表在 React 加载后会变成一个外层 LI 内的多个 DIV 正文。
 `tests/translationGitHubTaskList.test.ts` 检查真实结构对应的独立所有权，
@@ -142,7 +142,7 @@ GitHub Issue #1029 的任务列表在 React 加载后会变成一个外层 LI �
 生产扩展专项 `scripts/testing/run-github-task-list-test.cjs` 使用临时后台 Edge，默认运行
 确定性夹具，追加 `--live` 验证用户报告的实时 GitHub Issue。包括每项译文、隐藏说明、
 原生节点身份、390px 布局、动态增改、恢复重译、重挂和失败重试；供应商响应是本地夹具。
-[源码对照、测试结果与复现命令](./reports/translation-core-audit-20260915/README.md)。
+[行为说明、测试结果与复现命令](./reports/translation-core-audit-20260915/README.md)。
 
 ## 翻译核心稳定性回归
 
@@ -253,7 +253,7 @@ node scripts/testing/run-translation-mutation-test.cjs \
 
 ### Reddit 多翻译器共存
 
-用户页面 HTML 曾同时包含沉浸式翻译的 `font.immersive-translate-target-wrapper` 与 FluentRead 双语 wrapper。旧快照把前者作为受保护原文复制，净化后丢失其标记，形成第三份译文。`translationCore.test.ts` 覆盖该结构的候选边界、快照省略与普通术语/代码保留。
+页面 HTML 曾同时包含外部译文的 font 容器与 FluentRead 双语 wrapper。旧快照把前者作为受保护原文复制，净化后丢失其标记，形成第三份译文。`translationCore.test.ts` 覆盖该结构的候选边界、快照省略与普通术语/代码保留。
 
 生产扩展回归使用本地最小结构夹具，不执行用户粘贴的脚本，也不访问外部翻译服务：
 

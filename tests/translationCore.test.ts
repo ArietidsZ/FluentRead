@@ -1641,7 +1641,7 @@ describe('translation candidate core', () => {
         expect(core.resolve(document.querySelector('#unscoped-copy')?.firstChild)).toBeNull();
     });
 
-    it.each(['content', 'all'] as const)('Reddit %s 范围不叠加沉浸式译文，也不吞掉未翻译的相邻正文', (scope) => {
+    it.each(['content', 'all'] as const)('Reddit %s 范围不叠加外部译文，也不吞掉未翻译的相邻正文', (scope) => {
         const {document} = page(`<main><shreddit-post>
             <h1 slot="title" id="translated-title">A model with strong potential
                 <font class="notranslate immersive-translate-target-wrapper"><br><font>已有标题译文</font></font>

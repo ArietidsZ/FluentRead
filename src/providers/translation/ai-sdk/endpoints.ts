@@ -65,7 +65,7 @@ export const AI_SDK_COMMON_SERVICE_IDS = Object.freeze([
     services.siliconCloud,
     services.openrouter,
     services.grok,
-    // 借鉴陪读蛙目录补齐的平台都走标准 chat/completions，直接复用通用路由。
+    // OpenAI 兼容平台使用标准 chat/completions，直接复用通用路由。
     ...referenceAiPlatformServices,
 ]);
 

@@ -43,7 +43,7 @@ FluentRead 保留换行和分段边缘空白，优先在空白或标点处分割
 
 2026-09-08 使用通用测试句真实匿名请求，三家均返回有效中文译文；腾讯和火山的繁体目标也返回繁体文本。这仅证明当次端点可用，不代表无限额度、官方 API 授权或持续可用性。调用不发送 Cookie、用户 Token 或代理配置；腾讯使用每次随机生成的匿名客户端标识，Yandex 自动检测时省略源语言参数。
 
-按 Unicode 码点分块并保留换行、边缘空白和全文文本槽。HTTP、业务错误、无效 JSON 和空译文都进入既有失败处理。参考 [简约翻译的接口设计](https://github.com/fishjar/kiss-translator/blob/dev/src/apis/trans.js) 与 [Pot 的适配结构](https://github.com/pot-app/pot-desktop/tree/master/src/services/translate)，按 FluentRead 架构独立实现，未复制非零碎代码或修改参考仓库。
+按 Unicode 码点分块并保留换行、边缘空白和全文文本槽。HTTP、业务错误、无效 JSON 和空译文都进入既有失败处理。
 
 ## 其他免密钥候选
 

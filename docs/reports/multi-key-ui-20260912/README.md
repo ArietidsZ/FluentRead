@@ -34,4 +34,4 @@
 
 原始轮换实现的完整回归记录见 [多 Key 机制报告](../multi-key-rotation-20260912/README.md)。本次没有重新执行真实供应商调用或 Firefox UI 验证。已再次尝试 full UI 技能脚本，其仍在旧 popup 标题选择器处超时，日志保存在 [full-ui-baseline.txt](./full-ui-baseline.txt)，不计入通过结果。
 
-附加截图：[首次填写](./api-keys-empty-initial.png)、[十个 Key](./api-keys-ten.png)、[820px 窗口](./api-keys-820.png)。本次未复制或修改参考项目。
+附加截图：[首次填写](./api-keys-empty-initial.png)、[十个 Key](./api-keys-ten.png)、[820px 窗口](./api-keys-820.png)。

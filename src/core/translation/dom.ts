@@ -73,7 +73,7 @@ export function isExtensionElementSelf(element: Element): boolean {
 }
 
 /**
- * 沉浸式翻译把目标译文插在原文的直属 font wrapper 中。该父节点才是它接管的
+ * 外部译文可能插在原文的直属 font wrapper 中。该父节点才是已被接管的
  * 最小原文单元，不能沿 querySelector 把整篇文章或整个页面都视为已翻译。
  * 不把它标为 FluentRead owned：只停止本插件在这里写入，清理时绝不删除对方 DOM。
  */
