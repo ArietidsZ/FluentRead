@@ -56,6 +56,13 @@ const LOCAL_BROWSER_FIXTURES = [
         supportsHeaded: false,
     },
     {
+        id: 'github-nested-list',
+        label: 'GitHub nested Markdown list ownership browser regression',
+        script: 'scripts/testing/run-github-nested-list-test.cjs',
+        backgroundArgs: ['--background'],
+        supportsHeaded: false,
+    },
+    {
         id: 'video-subtitle-fixture',
         label: 'video subtitle fixture browser regression',
         script: 'scripts/run-video-subtitle-fixture-test.cjs',
