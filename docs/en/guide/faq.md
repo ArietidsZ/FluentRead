@@ -42,6 +42,10 @@ Enter it in the corresponding service’s connection settings. Check address, ke
 
 Restore the original. Check whether another extension or the browser’s own translation is active, then try with one translator. If the issue remains, record the URL and steps.
 
+## Why do translations disappear when Font Rendering is enabled?
+
+Some older FluentRead versions mistake Font Rendering's bold-correction markers for rewritten translations and remove the translation after repeated repair attempts. The compatibility fix preserves these font markers while still checking actual content and structure changes. Update to a version containing the fix and reload the page. Until your store version includes it, temporarily disable bold correction in the font script.
+
 ## Can I import an older backup?
 
 Older configuration JSON files and full backups are supported through backup and restore in settings. Fields introduced after a backup was created receive compatible defaults, and existing API keys are migrated.

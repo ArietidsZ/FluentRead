@@ -202,6 +202,34 @@ describe('动态翻译稳定性判定', () => {
         });
     });
 
+    it.each(['attribute', 'class', 'both'])('允许字体脚本在 wrapper 和行内后代添加或移除 %s 标记', (mode) => {
+        const {document} = parseHTML('<html><body><p>source</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const wrapper = document.createElement('span');
+        wrapper.className = 'fluent-read-bilingual-content';
+        wrapper.setAttribute('data-fr-translation-owned', 'true');
+        wrapper.innerHTML = '<strong>粗体译文</strong><a href="/original" class="host-link">链接</a>';
+        owner.appendChild(wrapper);
+        const snapshot = state({phase: 'translated', bilingualContent: wrapper,
+            bilingualHTML: wrapper.innerHTML, bilingualOuterHTML: wrapper.outerHTML,
+            bilingualContentTemplate: wrapper.cloneNode(true) as HTMLElement});
+        for (const element of [wrapper, ...Array.from(wrapper.querySelectorAll('*'))]) {
+            if (mode !== 'class') element.setAttribute('ultimate-bold-correct', '');
+            if (mode !== 'attribute') element.classList.add('ultimate-bold-correct');
+        }
+        wrapper.querySelector('a')!.setAttribute('tabindex', '-1');
+        expect(isTranslationArtifactCurrent(owner, snapshot)).toBe(true);
+        // 初次渲染快照也可能从原文继承字体标记，脚本移除标记同样不应使译文失效。
+        const marked = state({...snapshot, bilingualHTML: wrapper.innerHTML,
+            bilingualOuterHTML: wrapper.outerHTML, bilingualContentTemplate: wrapper.cloneNode(true) as HTMLElement});
+        for (const element of [wrapper, ...Array.from(wrapper.querySelectorAll('*'))]) {
+            element.removeAttribute('ultimate-bold-correct');
+            element.classList.remove('ultimate-bold-correct');
+            if (!element.getAttribute('class')) element.removeAttribute('class');
+        }
+        expect(isTranslationArtifactCurrent(owner, marked)).toBe(true);
+    });
+
     it.each([
         ['href', '/other'], ['title', 'Changed meaning'], ['role', 'button'],
         ['aria-hidden', 'true'], ['style', 'display:none'], ['class', 'hidden'],
@@ -219,6 +247,9 @@ describe('动态翻译稳定性判定', () => {
             bilingualContentTemplate: wrapper.cloneNode(true) as HTMLElement});
         const link = wrapper.querySelector('a')!;
         link.setAttribute('tabindex', '-1');
+        link.setAttribute('ultimate-bold-correct', '');
+        link.classList.add('ultimate-bold-correct');
+        wrapper.setAttribute('ultimate-bold-correct', '');
         expect(isTranslationArtifactCurrent(owner, snapshot)).toBe(true);
         link.setAttribute(attribute, value);
         expect(isTranslationArtifactCurrent(owner, snapshot)).toBe(false);
@@ -237,6 +268,7 @@ describe('动态翻译稳定性判定', () => {
                 bilingualHTML: wrapper.innerHTML, bilingualOuterHTML: wrapper.outerHTML,
                 bilingualContentTemplate: wrapper.cloneNode(true) as HTMLElement});
             wrapper.querySelector('a')!.setAttribute('tabindex', '-1');
+            wrapper.querySelector('span')!.setAttribute('ultimate-bold-correct', '');
             if (mutation === 'text') wrapper.querySelector('a')!.textContent = 'Changed';
             if (mutation === 'extra-node') wrapper.appendChild(document.createElement('span'));
             if (mutation === 'missing-node') wrapper.querySelector('span')!.remove();
