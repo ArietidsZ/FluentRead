@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/viewportStability.ts
  * 文件职责：隔离全文翻译对页面滚动稳定性的辅助逻辑，避免动态页面在插入译文时发生视觉跳动或重复重排。
- * 主要内容：提供可嵌套的视口锚点补偿和滚动空闲门控；不参与候选发现、翻译请求或节点状态机。
+ * 主要内容：仅为视口上方的已知 DOM 变化提供可嵌套锚点补偿，并提供滚动空闲门控；不参与候选发现、翻译请求或节点状态机。
  * 模块边界：本文件只管理可逆的浏览器视口状态与延迟回调，具体重启目标仍由全文 runtime 决定。
  */
 
@@ -52,11 +52,35 @@ function findScrollableAncestor(element: HTMLElement): HTMLElement | null {
     return null;
 }
 
+/**
+ * 译文在可见段落后展开时，下面的内容自然下移；这不是需要滚动抵消的偏移。
+ * 只有变化完全发生在当前滚动面的视口上方时，才主动维持阅读位置。
+ * 页首必须保持在页首；整页恢复则用视口上沿的内容锚点保护阅读位置。
+ */
+function shouldCompensateViewportChange(
+    scrollContainer: HTMLElement | null,
+    changedNodes: readonly Node[],
+): boolean {
+    if ((scrollContainer?.scrollTop ?? window.scrollY) === 0) return false;
+    if (changedNodes.length === 0) return true;
+    const viewportTop = scrollContainer
+        ? scrollContainer.getBoundingClientRect().top + scrollContainer.clientTop
+        : 0;
+    return changedNodes.some((node) => {
+        const element = asHTMLElement(node) ?? asHTMLElement(node.parentElement);
+        if (!element?.isConnected || findScrollableAncestor(element) !== scrollContainer) return false;
+        const rect = element.getBoundingClientRect();
+        return (rect.width > 0 || rect.height > 0) && rect.bottom <= viewportTop;
+    });
+}
+
 function captureViewportAnchor(excludedNodes: readonly Node[] = []): FullPageViewportAnchor | null {
     if (typeof document === 'undefined' || typeof window === 'undefined' ||
         typeof document.elementFromPoint !== 'function') return null;
 
-    for (const ratio of [0.5, 0.33, 0.66]) {
+    // 整页恢复同时移除屏幕上下方的译文，保住中部会把下方收缩也算作滚动量。
+    const anchorRatios = excludedNodes.length === 0 ? [0.01, 0.02, 0.04] : [0.5, 0.33, 0.66];
+    for (const ratio of anchorRatios) {
         const x = Math.max(0, Math.floor((window.innerWidth || 0) / 2));
         const y = Math.max(0, Math.min((window.innerHeight || 1) - 1,
             Math.floor((window.innerHeight || 1) * ratio)));
@@ -66,7 +90,9 @@ function captureViewportAnchor(excludedNodes: readonly Node[] = []): FullPageVie
         try {
             const rect = element.getBoundingClientRect();
             if (!(rect.width || rect.height)) continue;
-            return {element, top: rect.top, scrollContainer: findScrollableAncestor(element)};
+            const scrollContainer = findScrollableAncestor(element);
+            if (!shouldCompensateViewportChange(scrollContainer, excludedNodes)) continue;
+            return {element, top: rect.top, scrollContainer};
         } catch {
             // The page may detach the candidate between hit testing and layout.
         }
