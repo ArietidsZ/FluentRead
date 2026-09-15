@@ -42,6 +42,18 @@ import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
 registerAllUiLanguageBundles();
 
 describe('界面 i18n 契约', () => {
+  it('issue #626：自定义地址提示与嵌套 HTML 错误覆盖全部界面语言', () => {
+    const hint = '支持完整 Chat Completions 地址或以 /v1 结尾的 Base URL；模型须支持 Chat Completions。';
+    const detail = '服务返回了 HTML 网页。请检查 Base URL、接口路径，以及所选模型是否支持 Chat Completions。';
+    for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      expect(translateLegacyText(hint, language)).not.toBe(hint);
+      const message = translateLegacyText(`当前翻译服务拒绝了请求（HTTP 404）：${detail}`, language);
+      expect(message).toContain('HTTP 404');
+      expect(message).toContain(translateLegacyText(detail, language));
+      expect(message).not.toContain('服务返回了');
+    }
+  });
+
   const translatedCatalogs: ReadonlyArray<Readonly<Record<string, string>>> = [
     enUSMessages,
     jaJPMessages,

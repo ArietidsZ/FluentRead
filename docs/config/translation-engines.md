@@ -143,6 +143,14 @@ DeepSeek 的新编号见[官方更新记录](https://api-docs.deepseek.com/updat
 
 使用 Azure 时，模型一栏填写实际的 **部署名称**；地址填写自己的资源地址或服务商给出的完整接口地址。
 
+### 自定义服务的 Base URL
+
+自定义服务使用 **OpenAI Chat Completions** 协议。可以填写完整接口地址，也可以填写以 `/v1` 等版本路径结尾的 Base URL；例如 `https://opencode.ai/zen/v1` 会请求 `https://opencode.ai/zen/v1/chat/completions`。仅填写域名和端口时会补上 `/v1/chat/completions`；其他非标准路径按完整接口使用。高级设置中的代理地址仍优先于服务地址，并按填写的完整接口请求，不自动补全；查询参数会保留。
+
+使用 [OpenCode Zen](https://opencode.ai/docs/zen/) 或 [OpenCode Go](https://opencode.ai/docs/go/) 时，需同时核对所选模型支持的协议和对应地址。Zen 与 Go 的 Base URL 分别为 `https://opencode.ai/zen/v1` 和 `https://opencode.ai/zen/go/v1`；请从官方模型表中选择支持 `/chat/completions` 的模型，并填写 API 的模型 ID，而非 OpenCode 配置中的 `opencode/` 或 `opencode-go/` 前缀。仅提供 `/responses`、`/messages` 或 Gemini 原生接口的模型不能直接用于此自定义服务。
+
+如果检查连接提示 HTTP 404 并返回 HTML 网页，请核对接口地址和模型协议；这类返回不能证明 API Key 无效。JSON 格式的模型错误会继续显示服务商的具体说明。请勿在反馈中公开 API Key。
+
 ### 自定义请求头
 
 在服务列表中选择自定义 OpenAI 兼容服务，展开 **高级设置 → 自定义请求 → 自定义请求头**，按服务商要求填写 JSON，例如：

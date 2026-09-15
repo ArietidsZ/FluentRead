@@ -100,6 +100,44 @@ describe('AI SDK 首批服务路由', () => {
 });
 
 describe('AI SDK endpoint 选择规则', () => {
+    it.each([
+        ['https://opencode.ai/zen/v1', 'https://opencode.ai/zen/v1/chat/completions'],
+        [' https://opencode.ai/zen/go/v1/// ', 'https://opencode.ai/zen/go/v1/chat/completions'],
+        ['http://localhost:11434/', 'http://localhost:11434/v1/chat/completions'],
+        ['https://gateway.example/api/v2?region=cn#ignored', 'https://gateway.example/api/v2/chat/completions?region=cn'],
+    ])('issue #626：自定义 Base URL %s 补全 Chat Completions', (input, endpoint) => {
+        const config = endpointConfig({custom: input});
+        expect(resolveOpenAICompatibleEndpoint(services.custom, config).endpoint).toBe(endpoint);
+        expect(config.custom).toBe(input);
+        expect(resolveOpenAICompatibleEndpoint('custom:zen', {
+            customOpenAIProviders: [{id: 'custom:zen', name: 'Zen', endpoint: input, models: ['big-pickle']}],
+        }).endpoint).toBe(endpoint);
+    });
+
+    it('issue #626：Base URL 补全后保留重复查询键与编码', () => {
+        const endpoint = 'https://opencode.ai/zen/v1/chat/completions?tenant=a&tenant=b&sig=a%2Fb';
+        const resolved = resolveOpenAICompatibleEndpoint('custom:zen', {
+            customOpenAIProviders: [{id: 'custom:zen', name: 'Zen', endpoint: 'https://opencode.ai/zen/v1?tenant=a&tenant=b&sig=a%2Fb#ignored', models: ['big-pickle']}],
+            proxy: {'custom:zen': '  '},
+        });
+        expect(resolved).toEqual({endpoint, baseURL: 'https://opencode.ai/zen/v1', exactEndpoint: endpoint});
+    });
+
+    it.each(['https://relay.example/', 'https://relay.example/v1?tenant=a&tenant=b'])('issue #626：显式代理 %s 保留完整请求目标', proxy => {
+        expect(resolveOpenAICompatibleEndpoint('custom:zen', {
+            customOpenAIProviders: [{id: 'custom:zen', name: 'Zen', endpoint: 'https://opencode.ai/zen/v1', models: ['big-pickle']}],
+            proxy: {'custom:zen': proxy},
+        }).exactEndpoint).toBe(proxy);
+    });
+
+    it('issue #626：不改写内置服务的显式代理或自定义非标准接口', () => {
+        expect(resolveOpenAICompatibleEndpoint(services.openai, {proxy: {openai: 'https://gateway.example/v1'}}).exactEndpoint)
+            .toBe('https://gateway.example/v1');
+        for (const custom of ['https://gateway.example/translate/', 'https://gateway.example/v1/responses', 'https://gateway.example/v1/messages']) {
+            expect(resolveOpenAICompatibleEndpoint(services.custom, {custom}).exactEndpoint).toBe(custom);
+        }
+    });
+
     it('未显式注入配置时使用运行时配置默认值', () => {
         expect(resolveOpenAICompatibleEndpoint(services.openai).endpoint).toBe(urls[services.openai]);
     });

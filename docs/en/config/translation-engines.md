@@ -142,6 +142,14 @@ Select a configured service and model. Use the custom-model option if yours is n
 
 For Azure, enter the actual deployment name as the model and your resource or complete API address as the endpoint.
 
+### Custom-service Base URLs
+
+Custom services use **OpenAI Chat Completions**. Enter a complete endpoint or a Base URL ending in a version path such as `/v1`. For example, `https://opencode.ai/zen/v1` sends requests to `https://opencode.ai/zen/v1/chat/completions`. A bare host and port gets `/v1/chat/completions`; other nonstandard paths are treated as complete endpoints. A proxy configured in advanced settings still takes priority and is used as a complete endpoint without automatic path completion. Query parameters are preserved.
+
+For [OpenCode Zen](https://opencode.ai/docs/zen/) or [OpenCode Go](https://opencode.ai/docs/go/), check both the model protocol and its endpoint. Their Base URLs are `https://opencode.ai/zen/v1` and `https://opencode.ai/zen/go/v1`, respectively. Choose a model supporting `/chat/completions` in the official model table, and enter its API model ID without the `opencode/` or `opencode-go/` configuration prefix. Models requiring `/responses`, `/messages`, or the native Gemini API cannot be used directly with this custom service.
+
+If the connection check returns HTTP 404 with an HTML page, check the endpoint and model protocol; that response does not establish that the API key is invalid. JSON model errors retain the provider's specific explanation. Never include API keys in public issue reports.
+
 Extra AI context can reference the page title and parts of the article to help with meaning. It sends more text and can increase usage and waiting time. Multi-paragraph translation groups nearby passages and may reduce request counts, but failures can still require retries. Both options are off by default and can be enabled independently.
 
 Restore existing translations before translating with changed settings. Use [glossaries](/en/guide/glossary) for consistent terminology.
