@@ -30,6 +30,10 @@ Issue 中用户希望阅读繁体中文时不再自动转换成简体。此前�
 
 浏览器摘要见 [browser-results.json](./issue-627/browser-results.json)。专项命令与边界见 [测试文档](../testing.md)。
 
+## 最新主分支集成
+
+PR 创建后主分支合入 #628（`895c60b6`）。本分支以本地 merge commit `0f412a81` 集成，唯一冲突是两项测试说明同时插入文档开头，已保留双方内容。集成后补跑 7 个文件、560 项相关测试、类型检查、Chrome / Firefox / userscript 构建及 verifier、manifest 和文档构建，全部通过；生产扩展的七语言、布局、保存和五个翻译场景也再次通过，控制台错误仍为零。
+
 ## 实际截图
 
 中文界面：
