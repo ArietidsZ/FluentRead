@@ -648,7 +648,7 @@ export const jaJPMessages = {
     'settings.general.floatingBallSettingsAction': 'フローティングボール設定を開く',
     'settings.general.translationMode': '翻訳モード',
     'settings.general.bilingualSentenceHighlight': '二言語の文をハイライト',
-    'settings.general.bilingualSentenceHighlightDescription': '原文または訳文にカーソルを合わせると、対応する二言語の段落を同時にハイライトします。二言語モードでのみ有効です。',
+    'settings.general.bilingualSentenceHighlightDescription': '原文または訳文の文にカーソルを合わせると、対応する文をハイライトし、長文や難しい表現、誤訳を確認できます。分割・結合された文は隣接する文のグループで対応します。二言語モードでのみ有効です。',
     'settings.interface.font.label': 'インターフェースのフォント',
     'settings.interface.font.description': '設定画面とポップアップに適用し、自動保存します。ウェブページのフォントは変わりません。',
     'settings.interface.font.preview': '快適に読んで、理解を深める。',

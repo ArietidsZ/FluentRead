@@ -326,7 +326,8 @@
       "tests/translationVisionProviders.test.ts",
       "tests/translationVisionBroker.test.ts",
       "tests/areaVisionRecognition.test.ts",
-      "tests/uiI18nBundleLoading.test.ts"
+      "tests/uiI18nBundleLoading.test.ts",
+      "tests/bilingualSentenceHighlight.test.ts"
     ],
     "regression": [
       "tests/myMemoryConnectionTest.test.ts",
