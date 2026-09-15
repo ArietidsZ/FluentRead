@@ -15,6 +15,12 @@ import {localTtsEnglishMessages} from './localTts';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
+    "settings.excludedLanguages.title": "Languages to skip",
+    "settings.excludedLanguages.description": "Select the languages you can read. Full-page, hover and page-title translation will keep their original text.",
+    "settings.excludedLanguages.more": "More languages",
+    "settings.excludedLanguages.less": "Show fewer languages",
+    "settings.excludedLanguages.clear": "Clear selection",
+    "settings.excludedLanguages.hint": "Saved automatically for the next translation session. Short text or text with an uncertain language may still be translated.",
     ...localTtsEnglishMessages,
     "settings.services.library.freeReady": "No API key needed. Available free services are selected automatically.",
     "settings.services.library.keepOne": "Keep at least one service enabled.",
@@ -2248,7 +2254,7 @@ export const enUSLegacyText: Readonly<Record<string, string>> = {
     "排版文档双语阅读预览": "Typeset bilingual document preview",
     "ePub 电子书": "ePub ebook",
     "第": "No",
-    "鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度": "Hover, selection, input and full-page translation, quick profiles, separate models, AI batch translation, shortcuts, context menu, floating button, progress",
+    "不翻译的语言、跳过语言、排除语言、简体中文、繁体中文、鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度": "Languages to skip, excluded languages, Simplified Chinese, Traditional Chinese, Hover, selection, input and full-page translation, quick profiles, separate models, AI batch translation, shortcuts, context menu, floating button, progress",
     "翻译卡片、阅读卡、Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关": "Translation card, reading card, Harness, DeepSeek, understanding, grammar, usage, practice, selection, paragraph, study, explanation depth, learning level, memory",
     "图片翻译、OCR、语言包、中文、英文、日文、下载": "Image translation, OCR, language packs, Chinese, English, Japanese, downloads",
     "圈选翻译、区域翻译、截图、图片输入、识图、视觉、提示词、Shift+Z、OCR、微软、免费翻译、AI、纠错、语言包": "Area translation, region, image input, vision, prompts, Shift+Z, OCR, Microsoft, free translation, AI, correction, language packs",

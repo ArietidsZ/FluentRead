@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/translationRequest.ts
  * 文件职责：为单次全文翻译会话冻结请求配置，并执行文本槽的批量、AI 跨候选合并、分包、回退与会话级结果复用。
- * 主要内容：捕获服务/模型/语言/缓存/展示快照，在本地保留尚未排版的三美元公式源码，构造显式 client 参数，按服务选择批译策略，为 Chrome auto 富文本包保留无哨兵检测样本，并严格隔离 AI 批次快照与维护有界的会话槽缓存。
+ * 主要内容：捕获服务/模型/语言/排除列表/缓存/展示快照，先过滤排除语言的文本槽再合批，在本地保留尚未排版的三美元公式源码，构造显式 client 参数，按服务选择批译策略，为 Chrome auto 富文本包保留无哨兵检测样本，并严格隔离 AI 批次快照与维护有界的会话槽缓存。
  * 模块边界：本文件不发现候选、不持有 DOM 翻译状态也不渲染译文；runtime 提供会话缓存和取消作用域，client 负责后台协议与队列执行。
  */
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
@@ -13,6 +13,8 @@ import {
 } from '@/src/core/translation/public';
 import {config} from '@/src/services/config/store';
 import {normalizeMaxConcurrentTranslations} from '@/src/core/config/scheduling';
+import {normalizeExcludedLanguages} from '@/src/core/config/pageTranslation';
+import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
 import {buildGlossaryRevision} from '@/src/core/glossary';
 import {translateText, translateTextBatch, type TranslateOptions} from '@/src/app/translation/client';
@@ -36,6 +38,7 @@ export interface FullPageTranslationConfigSnapshot {
     thinking: boolean;
     sourceLanguage: string;
     targetLanguage: string;
+    excludedLanguages?: readonly string[];
     useCache: boolean;
     enableAIContext: boolean;
     enableAIMultiSegment: boolean;
@@ -61,6 +64,7 @@ export function getTranslationInvocationIdentity(snapshot: FullPageTranslationCo
         snapshot.sourceLanguage, snapshot.targetLanguage, snapshot.displayMode, snapshot.style,
         snapshot.enableAIContext, snapshot.enableAIMultiSegment,
         snapshot.glossaryRevision, snapshot.glossaryIds,
+        snapshot.excludedLanguages,
     ]);
 }
 
@@ -138,6 +142,7 @@ export function captureFullPageTranslationConfig(
         thinking: isModelThinkingEnabled(config.modelThinking, service, model),
         sourceLanguage: config.from,
         targetLanguage: overrides.targetLanguage?.trim() || config.to,
+        excludedLanguages: Object.freeze(normalizeExcludedLanguages(config.excludedLanguages)),
         useCache: config.useCache,
         enableAIContext: config.enableAIContext,
         enableAIMultiSegment: config.enableAIMultiSegment,
@@ -182,8 +187,10 @@ function throwIfAborted(signal?: AbortSignal): void {
     if (signal?.aborted) throw createAbortError();
 }
 
-function shouldKeepOriginalSlot(origin: string, targetLanguage: string): boolean {
-    return Boolean(origin.trim()) && isClearlyTargetLanguage(origin, targetLanguage);
+function shouldKeepOriginalSlot(origin: string, snapshot: FullPageTranslationConfigSnapshot): boolean {
+    return Boolean(origin.trim()) && (isClearlyTargetLanguage(origin, snapshot.targetLanguage)
+        || Boolean(snapshot.excludedLanguages?.length)
+            && shouldSkipTranslationForTarget(origin, snapshot.targetLanguage, snapshot.excludedLanguages));
 }
 
 function restoreSkippedSlots(
@@ -270,6 +277,7 @@ function createCacheKey(origin: string, snapshot: FullPageTranslationConfigSnaps
         thinking: snapshot.thinking,
         from: snapshot.sourceLanguage,
         to: snapshot.targetLanguage,
+        excludedLanguages: snapshot.excludedLanguages,
         enableAIContext: snapshot.enableAIContext,
         origin,
     });
@@ -288,6 +296,7 @@ function createRequestCacheKey(
         thinking: snapshot.thinking,
         from: snapshot.sourceLanguage,
         to: snapshot.targetLanguage,
+        excludedLanguages: snapshot.excludedLanguages,
         useCache: snapshot.useCache,
         enableAIContext: snapshot.enableAIContext,
         enableAIMultiSegment: snapshot.enableAIMultiSegment,
@@ -494,6 +503,7 @@ function createAIMultiSegmentSnapshotKey(snapshot: FullPageTranslationConfigSnap
         thinking: snapshot.thinking,
         from: snapshot.sourceLanguage,
         to: snapshot.targetLanguage,
+        excludedLanguages: snapshot.excludedLanguages,
         useCache: snapshot.useCache,
         enableAIContext: snapshot.enableAIContext,
     });
@@ -782,7 +792,7 @@ export async function translateTextSlots(
         return parts.map(pieces => pieces.map(piece => typeof piece === 'number' ? translations[piece] : piece).join(''));
     }
     const translatedIndexes = origins
-        .map((origin, index) => shouldKeepOriginalSlot(origin ?? '', snapshot.targetLanguage) ? -1 : index)
+        .map((origin, index) => shouldKeepOriginalSlot(origin ?? '', snapshot) ? -1 : index)
         .filter((index) => index >= 0);
     if (translatedIndexes.length === 0) return [...origins];
     // 保留全量数组的原引用，使 AI 微任务合批仍读取调用方提交时的槽列表；

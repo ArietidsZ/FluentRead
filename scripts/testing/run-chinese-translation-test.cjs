@@ -134,6 +134,11 @@ async function startFixture() {
       response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Same-language comments</title></head><body style="padding:24px;font:18px/1.6 sans-serif"><main>${sameLanguageTexts.map((text, index) => `<article><p data-same-language="${index}">${text}</p></article>`).join('')}<p id="english-control">${paragraphs.en[0]}</p><p id="traditional-control">${paragraphs['zh-Hant'][0]}</p></main></body></html>`);
       return;
     }
+    if (source === 'excluded-languages') {
+      response.setHeader('Content-Type', 'text/html; charset=utf-8');
+      response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${paragraphs['zh-Hant'][0]}</title></head><body style="padding:32px;font:20px/1.8 sans-serif"><main><p id="traditional-control">${paragraphs['zh-Hant'][0]}</p><p id="english-control">${paragraphs.en[0]}</p><p id="japanese-control">これは日本語の説明です。</p></main></body></html>`);
+      return;
+    }
     const texts = paragraphs[source];
     if (!texts) {response.writeHead(404); response.end(); return;}
     response.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -233,6 +238,15 @@ async function main() {
       hotkey: 'Control', floatingBallHotkey: 'Alt+T', fullPageTranslationMode: 'all',
       mouseHoverTranslationDelay: 0, selectionTranslatorMode: 'disabled', disableSelectionTranslator: true,
       animations: false});
+    if (process.argv.includes('--excluded-languages')) {
+      report.scope = 'Issue #627: language multiselect, quick close, cross-page persistence, responsive themes, hover/full/automatic skipping, title and dynamic redetection';
+      await require('./excluded-languages-browser.cjs')({context, popup, createPage, patchConfig, waitConfig,
+        activateExtensionTabWithoutForeground, shot, report, fixture, extensionOrigin, paragraphs});
+      report.fixture.ok = true;
+      assert.equal(report.consoleErrors.length, 0, JSON.stringify(report.consoleErrors));
+      report.ok = true;
+      return;
+    }
     await popup.reload({waitUntil: 'domcontentloaded'});
     const sourceSelect = popup.locator('.language-pair .el-select').nth(0);
     const targetSelect = popup.locator('.language-pair .el-select').nth(1);

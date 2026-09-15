@@ -115,6 +115,15 @@ describe('全文翻译的页面标题', () => {
         expect(currentTitle).toBe('今日要闻');
     });
 
+    it('标题判断读取同一会话的排除语言，命中后保留原标题', async () => {
+        hooks.shouldSkip.mockReturnValue(true);
+        startFullPageTitleTranslation({...snapshot as object, excludedLanguages: ['zh-Hant']} as never);
+        await vi.advanceTimersByTimeAsync(500);
+        expect(hooks.shouldSkip).toHaveBeenCalledWith(ORIGINAL, 'zh-Hans', ['zh-Hant']);
+        expect(hooks.translateText).not.toHaveBeenCalled();
+        expect(currentTitle).toBe(ORIGINAL);
+    });
+
     it('标题已是目标语言时不发请求', async () => {
         hooks.shouldSkip.mockReturnValue(true);
 

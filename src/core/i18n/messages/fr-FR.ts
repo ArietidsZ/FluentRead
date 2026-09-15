@@ -14,6 +14,12 @@ import {localTtsFrenchMessages} from './localTts';
 import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
+    "settings.excludedLanguages.title": "Langues à ne pas traduire",
+    "settings.excludedLanguages.description": "Sélectionnez les langues que vous lisez. La traduction de page, au survol et du titre conserve leur texte original.",
+    "settings.excludedLanguages.more": "Plus de langues",
+    "settings.excludedLanguages.less": "Moins de langues",
+    "settings.excludedLanguages.clear": "Effacer la sélection",
+    "settings.excludedLanguages.hint": "Enregistré automatiquement pour la prochaine traduction. Les textes courts ou dont la langue est incertaine peuvent être traduits.",
     ...localTtsFrenchMessages,
     "settings.services.library.freeReady": "Aucune clé API requise. Les services gratuits disponibles sont sélectionnés automatiquement.",
     "settings.services.library.keepOne": "Gardez au moins un service activé.",
@@ -2235,7 +2241,7 @@ export const frFRLegacyText: Readonly<Record<string, string>> = {
     "排版文档双语阅读预览": "Aperçu bilingue du document mis en page",
     "ePub 电子书": "Livre numérique ePub",
     "第": "n°",
-    "鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度": "Survol, sélection, saisie, page entière, profils, modèles séparés, traduction IA groupée, raccourcis, menu contextuel, bouton flottant, progression",
+    "不翻译的语言、跳过语言、排除语言、简体中文、繁体中文、鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度": "Langues à ne pas traduire, chinois simplifié, chinois traditionnel, Survol, sélection, saisie, page entière, profils, modèles séparés, traduction IA groupée, raccourcis, menu contextuel, bouton flottant, progression",
     "翻译卡片、阅读卡、Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关": "Carte de traduction, lecture, Harness, DeepSeek, compréhension, grammaire, usage, exercice, sélection, paragraphe, étude, profondeur, niveau, mémoire",
     "图片翻译、OCR、语言包、中文、英文、日文、下载": "Traduction d’image, OCR, packs de langue, chinois, anglais, japonais, téléchargement",
     "圈选翻译、区域翻译、截图、图片输入、识图、视觉、提示词、Shift+Z、OCR、微软、免费翻译、AI、纠错、语言包": "Traduction de zone, capture, entrée d’image, vision, instructions, Shift+Z, OCR, Microsoft, traduction gratuite, IA, correction et packs de langue",

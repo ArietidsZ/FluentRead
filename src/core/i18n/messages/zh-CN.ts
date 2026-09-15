@@ -12,6 +12,12 @@ import {localTtsChineseMessages} from './localTts';
 import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
+    "settings.excludedLanguages.title": "不翻译的语言",
+    "settings.excludedLanguages.description": "选择你无需翻译的语言，可多选。网页全文、悬浮翻译和页面标题会保留这些语言的原文。",
+    "settings.excludedLanguages.more": "更多语言",
+    "settings.excludedLanguages.less": "收起语言",
+    "settings.excludedLanguages.clear": "清空选择",
+    "settings.excludedLanguages.hint": "自动保存，下次开始翻译时生效。短文本或无法确定语言的内容仍会翻译。",
     ...localTtsChineseMessages,
     "settings.services.library.freeReady": "无需 API Key，自动选择可用的免费服务。",
     "settings.services.library.keepOne": "至少保留一个服务。",

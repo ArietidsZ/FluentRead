@@ -14,6 +14,12 @@ import {localTtsJapaneseMessages} from './localTts';
 import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
+    "settings.excludedLanguages.title": "翻訳しない言語",
+    "settings.excludedLanguages.description": "翻訳が不要な言語を複数選択できます。ページ全体、マウスオーバー、ページタイトルの翻訳で原文を保持します。",
+    "settings.excludedLanguages.more": "その他の言語",
+    "settings.excludedLanguages.less": "言語を折りたたむ",
+    "settings.excludedLanguages.clear": "選択を解除",
+    "settings.excludedLanguages.hint": "自動保存され、次回の翻訳から適用されます。短い文章や言語を判別できない内容は翻訳される場合があります。",
     ...localTtsJapaneseMessages,
     "settings.services.library.freeReady": "API キーは不要です。利用可能な無料サービスを自動で選択します。",
     "settings.services.library.keepOne": "少なくとも1つのサービスを有効にしてください。",
@@ -2235,7 +2241,7 @@ export const jaJPLegacyText: Readonly<Record<string, string>> = {
     "排版文档双语阅读预览": "書式付き文書の二言語プレビュー",
     "ePub 电子书": "ePub 電子書籍",
     "第": "第",
-    "鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度": "ホバー・選択・入力・全文翻訳、クイック設定、個別モデル、AI 一括翻訳、キー、右クリック、フローティングボタン、進捗",
+    "不翻译的语言、跳过语言、排除语言、简体中文、繁体中文、鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度": "翻訳しない言語、簡体字中国語、繁体字中国語、ホバー・選択・入力・全文翻訳、クイック設定、個別モデル、AI 一括翻訳、キー、右クリック、フローティングボタン、進捗",
     "翻译卡片、阅读卡、Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关": "翻訳カード、読書カード、Harness、DeepSeek、理解、文法、用法、練習、選択、段落、学習支援、説明、学習レベル、メモリー",
     "图片翻译、OCR、语言包、中文、英文、日文、下载": "画像翻訳、OCR、言語パック、中国語、英語、日本語、ダウンロード",
     "圈选翻译、区域翻译、截图、图片输入、识图、视觉、提示词、Shift+Z、OCR、微软、免费翻译、AI、纠错、语言包": "範囲翻訳、画像入力、画像認識、プロンプト、Shift+Z、OCR、Microsoft、無料翻訳、AI、補正、言語パック",

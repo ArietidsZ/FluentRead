@@ -4,6 +4,7 @@
  * 主要内容：定义不含凭据的会话快照，校验响应，按会话标识与恢复版本决定启动、保留或清理子页面翻译。
  * 模块边界：不访问 browser、DOM 或配置存储；可信消息传输和功能挂载由 content composition root 注入。
  */
+import {translationLanguageOptions} from '@/src/core/language/catalog';
 import type {TranslationScope} from '@/src/core/translation/public';
 import type {FullPageTranslationMode} from '@/src/core/config/model';
 import type {FullPageTranslationConfigSnapshot} from './translationRequest';
@@ -30,6 +31,9 @@ export function isFrameTranslationState(value: unknown): value is FrameTranslati
     return ['service', 'model', 'sourceLanguage', 'targetLanguage'].every(key => typeof config[key as keyof typeof config] === 'string')
         && ['thinking', 'useCache', 'enableAIContext', 'enableAIMultiSegment'].every(key => typeof config[key as keyof typeof config] === 'boolean')
         && (config.displayMode === 'bilingual' || config.displayMode === 'single') && Number.isFinite(config.style)
+        && (config.excludedLanguages === undefined || (Array.isArray(config.excludedLanguages)
+            && config.excludedLanguages.length <= translationLanguageOptions.length
+            && Array.from(config.excludedLanguages).every(language => typeof language === 'string' && language.length <= 32)))
         && (config.profileId === undefined || typeof config.profileId === 'string')
         && (config.glossaryRevision === undefined || (typeof config.glossaryRevision === 'string'
             && /^glossary-v1:(?:disabled|[a-f0-9]{64})$/u.test(config.glossaryRevision)))
