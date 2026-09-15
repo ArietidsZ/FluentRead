@@ -294,8 +294,6 @@ const correctionRows: readonly LegacyCorrectionRow[] = [
     ['延后 0.5 秒', '0.5 s later', '0.5 秒遅らせる', '0.5초 늦게', 'Retarder de 0,5 s', 'Позже на 0,5 с', 'Retrasar 0,5 s'],
     ['重置字幕时间', 'Reset timing', '字幕の時間をリセット', '자막 시간 초기화', 'Réinitialiser', 'Сбросить время', 'Restablecer'],
     ['当前字幕暂不支持时间调整', 'Timing adjustment is unavailable for these captions', 'この字幕は時間調整に対応していません', '현재 자막은 시간 조정을 지원하지 않습니다', 'Le réglage du temps est indisponible pour ces sous-titres', 'Для этих субтитров сдвиг времени недоступен', 'Estos subtítulos no permiten ajustar el tiempo'],
-    ['下载原文字幕', 'Download original subtitles', '原文の字幕をダウンロード', '원문 자막 다운로드', 'Télécharger les sous-titres originaux', 'Скачать исходные субтитры', 'Descargar los subtítulos originales'],
-    ['打开视频翻译设置', 'Open video translation settings', '動画翻訳の設定を開く', '동영상 번역 설정 열기', 'Ouvrir les réglages de traduction vidéo', 'Открыть настройки перевода видео', 'Abrir los ajustes de traducción de vídeo'],
     ['始终翻译网站名单', 'Always-translate websites', '常に翻訳するサイトの一覧', '항상 번역할 웹사이트 목록', 'Liste des sites toujours traduits', 'Список сайтов с постоянным переводом', 'Lista de sitios que se traducen siempre'],
     ['始终翻译网站数量', 'Number of always-translate websites', '常に翻訳するサイトの件数', '항상 번역할 웹사이트 수', 'Nombre de sites toujours traduits', 'Число сайтов с постоянным переводом', 'Número de sitios que se traducen siempre'],
     ['禁用扩展网站名单', 'Websites where the extension is disabled', '拡張機能を無効にしたサイトの一覧', '확장 프로그램을 끈 웹사이트 목록', 'Liste des sites où l’extension est désactivée', 'Список сайтов с отключённым расширением', 'Lista de sitios con la extensión desactivada'],

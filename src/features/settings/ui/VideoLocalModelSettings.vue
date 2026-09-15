@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/VideoLocalModelSettings.vue
  * 文件职责：提供 X 本地视频字幕模型选择与下载管理，向用户呈现模型推荐、可用状态和缓存操作。
- * 主要内容：使用模型卡片作为唯一选择入口，展示 Tiny/Base 下载状态与视频缓存操作栏，呈现缓存读取、下载状态与错误反馈，并在组件卸载时移除存储监听。
+ * 主要内容：使用模型卡片作为唯一选择入口，按设备标注推荐模型，展示 Tiny/Base 下载状态与视频缓存操作栏，呈现缓存读取、下载状态与错误反馈，并在组件卸载时移除存储监听。
  * 模块边界：通过视频 feature 公共配置和后台消息获取模型，不直接执行识别、下载模型权重或操作网页播放器。
  -->
 <template>
@@ -9,7 +9,7 @@
     <div class="video-model-download-heading">
       <div>
         <h3 id="video-model-management-title">本地 AI 字幕模型</h3>
-        <p class="video-model-status" role="status">{{ !modelStateLoaded ? '正在读取模型状态…' : downloaded.includes(config.videoLocalModel) ? '当前模型已下载，可直接生成。' : '一般选择 Tiny；语音不清楚时可换 Base。' }}</p>
+        <p class="video-model-status" role="status">{{ !modelStateLoaded ? '正在读取模型状态…' : downloaded.includes(config.videoLocalModel) ? '当前模型已下载，可直接生成。' : 'Tiny 更快，Base 更准确；已按本机性能标出推荐。' }}</p>
       </div>
       <span class="video-model-local-badge"><Cpu aria-hidden="true" />本地运行</span>
     </div>
@@ -21,7 +21,7 @@
           <span class="video-model-card-heading">
             <span class="video-model-icon" aria-hidden="true"><Cpu /></span>
             <strong>{{ item.label }}</strong>
-            <span v-if="item.value === 'tiny'" class="video-model-recommended">推荐</span>
+            <span v-if="item.value === recommendedModel" class="video-model-recommended">推荐</span>
             <span v-if="item.value === config.videoLocalModel" class="video-model-selected">当前选择</span>
           </span>
         </label>
@@ -70,6 +70,8 @@ import {
   VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE,
   VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE,
   normalizeVideoLocalTranscriptionModels,
+  readVideoLocalModelDeviceProfile,
+  recommendVideoLocalTranscriptionModel,
   type VideoLocalTranscriptionModel,
 } from '@/src/features/video-subtitle/public';
 import type {Config} from '@/src/core/config/model';
@@ -80,6 +82,8 @@ const props = defineProps<{config: Config}>();
 // 设置页会整体替换草稿；始终读取最新 prop，避免卡片继续编辑旧配置。
 const config = computed(() => props.config);
 const modelOptions = VIDEO_LOCAL_TRANSCRIPTION_MODELS;
+// 与播放器内的首次下载确认使用同一推荐，避免两处给出不同建议。
+const recommendedModel = recommendVideoLocalTranscriptionModel(readVideoLocalModelDeviceProfile(navigator));
 const downloaded = ref<VideoLocalTranscriptionModel[]>([]);
 const modelStateLoaded = ref(false);
 const downloading = ref<VideoLocalTranscriptionModel[]>([]);

@@ -363,7 +363,7 @@ async function main() {
   await page.locator('video').hover();
   await page.evaluate(() => { const bar = document.querySelector('#fixture-x-controls'); bar.style.opacity = '1'; bar.style.pointerEvents = 'auto'; });
   await page.locator('#fluent-read-video-subtitle-button').click();
-  await page.locator('[data-action="toggle-translation"]').click();
+  await page.locator('#fluent-read-video-subtitle-menu [data-mode="off"]').click();
   await page.waitForFunction(() => document.querySelector('video').textTracks[0].mode === 'showing');
   assert.equal(await page.evaluate(() => document.querySelector('video').textTracks[1].mode), 'disabled');
   report.nativeRestored = await page.evaluate(() => document.querySelector('video').textTracks[0].mode);

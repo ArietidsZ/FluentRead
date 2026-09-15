@@ -327,7 +327,7 @@ async function main() {
    assert.equal(injection.result?.value, true, 'single model-state fault injected; ASR is unchanged');
    const optionsBeforeFailure = context.pages().filter(candidate => candidate.url().includes('/options.html')).length;
    await page.locator('[data-action="toggle-ai-subtitle"]').click();
-   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent === '无法读取模型状态，请重试', null, {timeout:10000});
+   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"]')?.title === '无法读取模型状态，请重试', null, {timeout:10000});
    assert.equal(await page.locator('[data-action="toggle-ai-subtitle"]').isEnabled(), true, 'query failure leaves a retryable button');
    const optionsAfterFailure = context.pages().filter(candidate => candidate.url().includes('/options.html')).length;
    assert.equal(optionsAfterFailure, optionsBeforeFailure, 'query failure must never redirect to model download settings');
@@ -457,7 +457,7 @@ async function main() {
  report.afterStop=await page.evaluate(()=>({text:document.getElementById('fluent-read-video-subtitle-original')?.textContent||'',videos:document.querySelectorAll('video').length}));
  if(nativeTrack){
    assert.equal(report.afterStop.text,'Native source fixture');
-   await page.locator('[data-action="toggle-translation"]').click();
+   await page.locator('#fluent-read-video-subtitle-menu [data-mode="off"]').click();
    await page.waitForFunction(()=>window.proofTrack.mode==='showing');
    report.nativeTrackRestored=await page.evaluate(()=>window.proofTrack.mode);
    assert.equal(await page.evaluate(()=>window.proofAlternativeTrack.mode),'disabled','the unselected language remains disabled after restoration');
@@ -502,13 +502,17 @@ async function main() {
    await page.locator('video').hover();
    await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent.includes('已就绪'), null, {timeout:30000});
    assert.equal(await worker.evaluate(() => globalThis.videoProofAsrCalls), asrBefore, 'refresh restores same media despite a new blob URL');
+   // 菜单不再提供“重新识别”；清除已识别缓存后再次生成必须重新运行 Whisper。
+   const clearedCache = await control.evaluate(() => chrome.runtime.sendMessage({type: 'fluentReadClearVideoAiSubtitleCache'}));
+   assert.equal(clearedCache.success, true);
    await page.locator('#fluent-read-video-subtitle-button').click();
-   await page.locator('.fluent-read-video-local-guide summary').click();
-   await page.locator('[data-action="regenerate-ai-subtitle"]').click();
+   await page.locator('[data-action="toggle-ai-subtitle"]').click();
+   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"]')?.getAttribute('aria-checked') === 'false');
+   await page.locator('[data-action="toggle-ai-subtitle"]').click();
    await page.waitForFunction(() => /%/.test(document.querySelector('#fluent-read-video-subtitle-button')?.getAttribute('data-fluent-read-video-progress') || ''));
    await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent.includes('已就绪'), null, {timeout:120000});
    const asrAfterRegeneration = await worker.evaluate(() => globalThis.videoProofAsrCalls);
-   assert.ok(asrAfterRegeneration > asrBefore, 'explicit regeneration bypasses the cached transcript');
+   assert.ok(asrAfterRegeneration > asrBefore, 'clearing the transcript cache makes the next request run Whisper again');
    report.regeneration = {cacheAsrCalls:asrBefore,asrAfterRegeneration};
    await page.locator('#fluent-read-video-subtitle-button').click();
    await page.locator('h1').click();
