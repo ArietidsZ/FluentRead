@@ -648,7 +648,7 @@ export const esESMessages = {
     'settings.general.floatingBallSettingsAction': 'Abrir ajustes de la burbuja',
     'settings.general.translationMode': 'Modo de traducción',
     'settings.general.bilingualSentenceHighlight': 'Resaltado bilingüe por oración',
-    'settings.general.bilingualSentenceHighlightDescription': 'Pasa el ratón por el original o la traducción para resaltar el fragmento bilingüe correspondiente. Solo funciona en modo bilingüe.',
+    'settings.general.bilingualSentenceHighlightDescription': 'Pasa el cursor por una oración del original o la traducción para resaltar su equivalente y comparar pasajes difíciles o mal traducidos. Las oraciones divididas o fusionadas se agrupan. Solo en modo bilingüe.',
     'settings.interface.font.label': 'Fuente de la interfaz',
     'settings.interface.font.description': 'Para ajustes y la ventana de la extensión. Se guarda automáticamente, sin cambiar las fuentes de las webs.',
     'settings.interface.font.preview': 'Lee con comodidad. Comprende más.',

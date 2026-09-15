@@ -192,8 +192,6 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/app/content/pageStyles.ts',
     // 快捷翻译 composition 只把实时配置、旧手势仲裁与两类页面执行器接线；行为由 feature/runtime 单测和隔离浏览器回归验证。
     'src/app/content/quickTranslationRuntime.ts',
-    // 双语高亮只同步 page.css 使用的 Document 根属性；由设置契约、构建和隔离浏览器回归验证。
-    'src/app/content/bilingualSentenceHighlight.ts',
     // 页面快捷键 runtime 绑定真实可信 KeyboardEvent、Selection/Range 与 AbortSignal；纯匹配策略已严格覆盖，信任边界由回归测试验证。
     'src/app/content/hotkeyRuntime.ts',
     // 内容消息 runtime 绑定 browser.runtime 与动态 UI 挂载；payload 守卫和行为由内容消息功能测试、双浏览器构建验证。
