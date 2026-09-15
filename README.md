@@ -75,6 +75,16 @@ FluentRead is an open-source project whose continued development is made possibl
 </tr>
 </table>
 
+## Acknowledgments
+
+FluentRead grows alongside a vibrant open-source translation community. We are grateful to the following projects and their contributors for their openness and generosity:
+
+- [Read Frog](https://github.com/mengxi-ream/read-frog)
+- [KISS Translator](https://github.com/fishjar/kiss-translator)
+- [Duo Translator](https://github.com/linuxscreen/duo-translator)
+
+We hope to keep building together with them, and to bring a little more good into the world.
+
 ## License and privacy
 
 FluentRead is released under [GPL-3.0](./LICENSE). See [third-party notices](./public/third-party-notices/) for component attribution and licenses.

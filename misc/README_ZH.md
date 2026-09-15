@@ -75,6 +75,16 @@ FluentRead 是一个开源项目，其持续开发离不开社区的慷慨支持
 </tr>
 </table>
 
+## 致谢
+
+FluentRead 的成长离不开开源翻译社区。感谢以下项目及其贡献者的开放与分享：
+
+- [陪读蛙](https://github.com/mengxi-ream/read-frog)
+- [简约翻译](https://github.com/fishjar/kiss-translator)
+- [Duo Translator](https://github.com/linuxscreen/duo-translator)
+
+希望与他们一起，为这个世界带来更多美好。
+
 ## 许可证与隐私
 
 FluentRead 按 [GPL-3.0](../LICENSE) 开源发布，第三方组件的来源与许可见[第三方声明](../public/third-party-notices/)。
