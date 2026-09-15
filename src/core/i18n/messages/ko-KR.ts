@@ -45,6 +45,13 @@ export const koKRMessages = {
     "settings.services.library.defaultBadge": "기본값",
     "settings.services.library.favorite": "{service} 즐겨찾기 추가",
     "settings.services.library.unfavorite": "{service} 즐겨찾기 해제",
+    "settings.services.freeWeights.title": "현재 가중치",
+    "settings.services.freeWeights.total": "현재 배분 합계: {total}",
+    "settings.services.freeWeights.description": "현재 사용 가능한 서비스를 100%로 정규화합니다. 한 번 실패한 서비스는 잠시 0이 되고 점진적으로 회복됩니다.",
+    "settings.services.freeWeights.refresh": "가중치는 {minutes}분마다 자동으로 새로 고쳐집니다",
+    "settings.services.freeWeights.aria": "{service} 현재 가중치 {weight}",
+    "settings.services.freeWeights.unavailable": "현재 배분할 수 있는 서비스가 없습니다",
+    "settings.services.freeWeights.sequential": "우선순위 모드는 목록 순서대로 시도하며 가중치를 사용하지 않습니다.",
 
     "inputTranslation.systemRoleLabel": "역할",
     "inputTranslation.userRoleLabel": "작업",

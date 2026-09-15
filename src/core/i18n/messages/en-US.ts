@@ -46,6 +46,13 @@ export const enUSMessages = {
     "settings.services.library.defaultBadge": "Default",
     "settings.services.library.favorite": "Favorite {service}",
     "settings.services.library.unfavorite": "Unfavorite {service}",
+    "settings.services.freeWeights.title": "Current weights",
+    "settings.services.freeWeights.total": "Current allocation: {total}",
+    "settings.services.freeWeights.description": "Normalized across currently available services. A single failure temporarily drops a service to 0; it recovers gradually.",
+    "settings.services.freeWeights.refresh": "Weights refresh automatically every {minutes} minutes",
+    "settings.services.freeWeights.aria": "{service} current weight {weight}",
+    "settings.services.freeWeights.unavailable": "No service is currently available for allocation",
+    "settings.services.freeWeights.sequential": "Priority order mode tries services in list order and does not use weights.",
 
     "inputTranslation.systemRoleLabel": "Role",
     "inputTranslation.userRoleLabel": "Task",

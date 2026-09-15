@@ -26,6 +26,7 @@ import {config} from '@/src/services/config/store';
 import {abortErrorFromSignal} from '@/src/platform/http/runtime';
 import {freeTranslationHealthStorage} from '@/src/platform/storage/freeTranslationHealthStorage';
 import {createFreeFallbackRunner, type FreeFallbackCandidate} from '@/src/services/translation/freeFallback';
+import {calculateFreeTranslationWeightSnapshot, type FreeTranslationWeightSnapshot} from '@/src/services/translation/freeWeights';
 import {
     attachTranslationProviderConfig,
     createTranslationProviderConfigSnapshot,
@@ -94,6 +95,24 @@ function providerIdentity(id: string, current: TranslationProviderConfigSnapshot
         ? [DEFAULT_DEEPLX_ENDPOINT]
         : id === services.myMemory ? [urls[id], current.myMemoryEmail] : [id];
     return `${id}:${sha256(JSON.stringify(connection)).toString()}`;
+}
+
+/** 为设置页提供当前免费服务权重；只暴露服务 ID 与健康状态，不暴露连接身份哈希。 */
+export async function getFreeTranslationWeightSnapshot(now = Date.now()): Promise<FreeTranslationWeightSnapshot> {
+    const current = getTranslationProviderConfig(undefined, config);
+    const enabledProviderIds = normalizeFreeTranslationOrder(current.freeTranslationOrder);
+    const healthByIdentity = new Map((await runFallback.getHealthSnapshot()).map(entry => [entry.identity, entry]));
+    const health = enabledProviderIds.flatMap(providerId => {
+        const entry = healthByIdentity.get(providerIdentity(providerId, current));
+        return entry ? [{
+            providerId,
+            retryAt: entry.retryAt,
+            failures: entry.failures,
+            category: entry.category,
+            ...(entry.performance ? {performance: {...entry.performance}} : {}),
+        }] : [];
+    });
+    return calculateFreeTranslationWeightSnapshot(enabledProviderIds, health, now);
 }
 
 function candidatesFor(text: string, message: PreparedRequest): FreeFallbackCandidate[] {

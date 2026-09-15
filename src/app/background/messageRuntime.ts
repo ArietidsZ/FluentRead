@@ -24,6 +24,7 @@ import {
 import {createImageOcrLanguageRepository, createImageTranslationBackgroundHandlers} from './handlers/imageTranslation';
 import {createInputBoxTranslationHandler} from './handlers/inputTranslation';
 import {createModelUsageHandler} from './handlers/modelUsage';
+import {createFreeTranslationWeightsHandler} from './handlers/freeTranslationWeights';
 import {createOpenOptionsPageHandler} from './handlers/openOptions';
 import {createTranslationCancelHandler, createTranslationRequestFallback, createTranslationRequestRegistry} from './handlers/translation';
 import {createSelectionTtsBackgroundHandlers, type SelectionTtsContext} from './handlers/selectionTts';
@@ -48,6 +49,7 @@ import {installWritingBackgroundRuntime} from './writingRuntime';
 import {installHarnessBackgroundRuntime} from './harnessRuntime';
 import {createImageGlossaryContext} from './imageGlossaryContext';
 import {buildGlossaryRevision} from '@/src/core/glossary';
+import {getFreeTranslationWeightSnapshot} from '@/src/providers/translation/free-translation';
 type BackgroundRuntimeContext = QQMailFrameBackgroundContext & ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
     & FullPageBackgroundContext & AreaTranslationBackgroundContext;
 export interface BackgroundMessageRuntimeOptions {
@@ -85,6 +87,11 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             warn: (message, error) => console.warn(message, error),
         })),
         createModelUsageHandler(modelUsageRepository, (url) => url.startsWith(browser.runtime.getURL('/options.html'))),
+        createFreeTranslationWeightsHandler({
+            ready: configReady,
+            getSnapshot: getFreeTranslationWeightSnapshot,
+            isOptionsUrl: (url) => url.startsWith(browser.runtime.getURL('/options.html')),
+        }),
         ...createConfigBackgroundHandlers<BackgroundRuntimeContext>(),
         createConnectionTestHandler({
             ready: configReady,

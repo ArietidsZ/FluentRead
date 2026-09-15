@@ -45,6 +45,13 @@ export const ruRUMessages = {
     "settings.services.library.defaultBadge": "По умолчанию",
     "settings.services.library.favorite": "Добавить {service} в избранное",
     "settings.services.library.unfavorite": "Убрать {service} из избранного",
+    "settings.services.freeWeights.title": "Текущие веса",
+    "settings.services.freeWeights.total": "Текущее распределение: {total}",
+    "settings.services.freeWeights.description": "Нормализовано среди доступных сейчас сервисов. После одной ошибки сервис временно получает 0 и постепенно восстанавливается.",
+    "settings.services.freeWeights.refresh": "Веса автоматически обновляются каждые {minutes} мин.",
+    "settings.services.freeWeights.aria": "Текущий вес {service}: {weight}",
+    "settings.services.freeWeights.unavailable": "Сейчас нет сервиса, которому можно распределить запрос",
+    "settings.services.freeWeights.sequential": "Режим приоритета проверяет сервисы по списку и не использует веса.",
 
     "inputTranslation.systemRoleLabel": "Роль",
     "inputTranslation.userRoleLabel": "Задача",

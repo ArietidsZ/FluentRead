@@ -45,6 +45,13 @@ export const jaJPMessages = {
     "settings.services.library.defaultBadge": "既定",
     "settings.services.library.favorite": "{service} をお気に入りに追加",
     "settings.services.library.unfavorite": "{service} をお気に入りから削除",
+    "settings.services.freeWeights.title": "現在の重み",
+    "settings.services.freeWeights.total": "現在の配分合計：{total}",
+    "settings.services.freeWeights.description": "現在利用できるサービスを 100% として正規化します。1 回失敗したサービスは一時的に 0 になり、徐々に回復します。",
+    "settings.services.freeWeights.refresh": "重みは {minutes} 分ごとに自動更新されます",
+    "settings.services.freeWeights.aria": "{service} の現在の重み {weight}",
+    "settings.services.freeWeights.unavailable": "現在、配分できるサービスがありません",
+    "settings.services.freeWeights.sequential": "優先順モードではリスト順に試行し、重みは使用しません。",
 
     "inputTranslation.systemRoleLabel": "役割",
     "inputTranslation.userRoleLabel": "タスク",
