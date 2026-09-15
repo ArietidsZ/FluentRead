@@ -103,7 +103,18 @@ describe('video player menu composition', () => {
     expect(menu.querySelector('[data-action="toggle-ai-subtitle"]')).toBeTruthy();
     expect(menu.querySelectorAll('[role="menuitemcheckbox"]')).toHaveLength(3);
     expect(menu.querySelectorAll('[role="menuitemradio"]')).toHaveLength(3);
+    const switches = menu.querySelector('.fluent-read-video-menu-switches');
+    expect(switches?.children).toHaveLength(2);
+    expect(switches?.querySelector('[data-action="toggle-translation"]')).toBeTruthy();
+    expect(switches?.querySelector('[data-action="toggle-visible"]')).toBeTruthy();
+    const timingControls = menu.querySelector('.fluent-read-video-menu-timing-controls');
+    expect([...timingControls!.children].map(element => element.getAttribute('data-action') || element.getAttribute('data-subtitle-offset')))
+      .toEqual(['subtitle-earlier', 'true', 'subtitle-later']);
     expect(menu.querySelector('[role="radiogroup"]')?.getAttribute('aria-label')).toBeTruthy();
+    const aiGroup = menu.querySelector('.fluent-read-video-menu-ai-group');
+    expect(aiGroup?.children).toHaveLength(2);
+    expect(aiGroup?.querySelector('.fluent-read-video-local-guide')).toBeNull();
+    expect(aiGroup?.querySelector<HTMLButtonElement>('[data-action="regenerate-ai-subtitle"]')?.hidden).toBe(true);
     expect(menu.querySelectorAll('[data-action="download-subtitles"], [data-action="download-translated-subtitles"]'))
       .toHaveLength(2);
 
@@ -169,9 +180,11 @@ describe('video player menu composition', () => {
     expect(button.textContent).toContain('关闭 AI 字幕');
     expect(button.querySelector('[data-state]')?.textContent).toBe('已就绪');
     expect(button.dataset.processing).toBe('false');
+    expect(menu.querySelector('.fluent-read-video-menu-ai-group')?.classList.contains('fluent-read-video-menu-ai-ready')).toBe(true);
 
     renderVideoAiMenu(menu, state({fullActive: true, phase: 'idle'}), 'zh-CN');
     expect(button.querySelector('[data-state]')?.textContent).toBe('准备中…');
+    expect(menu.querySelector('.fluent-read-video-menu-ai-group')?.classList.contains('fluent-read-video-menu-ai-ready')).toBe(false);
     expect(button.parentElement?.parentElement).toBe(menu);
   });
 

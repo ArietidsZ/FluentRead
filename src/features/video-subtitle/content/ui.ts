@@ -568,9 +568,6 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
   style.id = 'fluent-read-video-subtitle-style';
   style.textContent = `
     .fluent-read-video-menu-item[hidden] { display: none !important; }
-    .fluent-read-video-local-guide { margin: 0 0 4px !important; font-size: 11px !important; color: #bbb !important; }
-    .fluent-read-video-local-guide summary { cursor: pointer !important; padding: 2px 4px !important; }
-    .fluent-read-video-local-guide p { margin: 6px 4px !important; line-height: 1.45 !important; font-size: 11px !important; color: #bbb !important; }
 
     #${VIDEO_AI_CAPTION_CONTAINER_ID} {
       position: absolute !important;
@@ -774,18 +771,19 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       right: 8px !important;
       bottom: 40px !important;
       z-index: 2147483646 !important;
-      width: min(248px, calc(100vw - 24px)) !important;
+      width: min(236px, calc(100vw - 24px)) !important;
       min-width: 0 !important;
       max-width: calc(100% - 16px) !important;
-      max-height: calc(100% - 48px) !important;
+      max-height: calc(100% - 40px) !important;
       box-sizing: border-box !important;
-      padding: 10px !important;
+      container: fluent-read-video-menu / inline-size !important;
+      padding: 8px !important;
       border: 1px solid rgba(255, 255, 255, .12) !important;
-      border-radius: 14px !important;
+      border-radius: 12px !important;
       background: rgba(28, 28, 32, .97) !important;
       box-shadow: 0 8px 28px rgba(0, 0, 0, .32) !important;
       color: #f7f7f8 !important;
-      font: 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif !important;
+      font: 11px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif !important;
       writing-mode: horizontal-tb !important;
       text-orientation: mixed !important;
       word-break: normal !important;
@@ -806,14 +804,14 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       display: flex !important;
       align-items: center !important;
       justify-content: space-between !important;
-      gap: 8px !important;
-      min-height: 24px !important;
-      padding: 0 4px 6px !important;
+      gap: 6px !important;
+      min-height: 20px !important;
+      padding: 0 2px 4px !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-brand {
       flex: 0 0 auto !important;
       color: #ff8fbd !important;
-      font-size: 12px !important;
+      font-size: 11px !important;
       font-weight: 600 !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item,
@@ -822,17 +820,17 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       display: flex !important;
       align-items: center !important;
       width: 100% !important;
-      min-height: 32px !important;
+      min-height: 28px !important;
       box-sizing: border-box !important;
-      padding: 6px !important;
-      border-radius: 8px !important;
+      padding: 4px !important;
+      border-radius: 7px !important;
       background: transparent !important;
       color: #f7f7f8 !important;
       cursor: pointer !important;
       font: inherit !important;
       text-align: left !important;
       min-width: 0 !important;
-      gap: 6px !important;
+      gap: 4px !important;
       writing-mode: horizontal-tb !important;
       word-break: normal !important;
     }
@@ -885,9 +883,9 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switch .fluent-read-video-menu-check {
       display: block !important;
       position: relative !important;
-      width: 28px !important;
-      height: 16px !important;
-      flex: 0 0 28px !important;
+      width: 26px !important;
+      height: 15px !important;
+      flex: 0 0 26px !important;
       border-radius: 10px !important;
       background: rgba(255, 255, 255, .23) !important;
       color: transparent !important;
@@ -898,19 +896,19 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       position: absolute !important;
       left: 2px !important;
       top: 2px !important;
-      width: 12px !important;
-      height: 12px !important;
+      width: 11px !important;
+      height: 11px !important;
       border-radius: 50% !important;
       background: #fff !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switch[aria-checked="true"] .fluent-read-video-menu-check { background: #ec4899 !important; }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switch[aria-checked="true"] .fluent-read-video-menu-check::after { left: 14px !important; }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switch[aria-checked="true"] .fluent-read-video-menu-check::after { left: 13px !important; }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-settings {
       width: auto !important;
-      min-height: 24px !important;
-      padding: 3px 0 3px 6px !important;
+      min-height: 20px !important;
+      padding: 2px 0 2px 4px !important;
       color: rgba(255, 255, 255, .52) !important;
-      font-size: 10px !important;
+      font-size: 9px !important;
       justify-content: flex-end !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-service {
@@ -918,74 +916,167 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       text-overflow: ellipsis !important;
       white-space: nowrap !important;
     }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-gear { font-size: 15px !important; }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-gear { font-size: 14px !important; }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switches {
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 8px !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switch {
+      min-height: 26px !important;
+      padding: 3px 4px !important;
+      border-radius: 6px !important;
+      justify-content: space-between !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switch:hover { background: rgba(236, 72, 153, .08) !important; }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode-group {
       display: flex !important;
-      gap: 2px !important;
-      padding: 3px !important;
-      border-radius: 9px !important;
+      gap: 1px !important;
+      padding: 2px !important;
+      border-radius: 8px !important;
       background: rgba(255, 255, 255, .05) !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode {
       width: auto !important;
       flex: 1 !important;
-      min-height: 28px !important;
+      min-height: 25px !important;
       justify-content: center !important;
       text-align: center !important;
-      padding: 4px 2px !important;
+      padding: 3px 1px !important;
       color: rgba(255, 255, 255, .62) !important;
-      font-size: 11px !important;
+      font-size: 10px !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode[aria-checked="true"] {
       background: rgba(236, 72, 153, .18) !important;
       color: #ffacd0 !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing {
-      margin-top: 10px !important;
-      padding: 8px 2px 0 !important;
+      margin-top: 8px !important;
+      padding: 6px 2px 0 !important;
       border-top: 1px solid rgba(255, 255, 255, .09) !important;
     }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-heading,
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-controls {
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-heading {
       display: flex !important;
       align-items: center !important;
       justify-content: space-between !important;
-      gap: 6px !important;
+      gap: 4px !important;
     }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-heading { font-size: 11px !important; }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-controls {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+      align-items: center !important;
+      gap: 4px !important;
+      direction: ltr !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-controls [data-action="subtitle-earlier"] {
+      justify-content: flex-start !important;
+      text-align: left !important;
+      white-space: nowrap !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-controls [data-action="subtitle-later"] {
+      justify-content: flex-end !important;
+      text-align: right !important;
+      white-space: nowrap !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-heading { font-size: 10px !important; }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-heading button { flex: 0 0 auto !important; }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-value {
       flex: 0 0 auto !important;
-      font-size: 12px !important;
+      font-size: 11px !important;
       font-variant-numeric: tabular-nums !important;
       color: #ffacd0 !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-timing-unavailable {
-      margin: 4px 0 0 !important;
-      font-size: 11px !important;
+      margin: 3px 0 0 !important;
+      font-size: 10px !important;
       color: rgba(255, 255, 255, .55) !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-ai-group,
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-downloads {
-      margin-top: 10px !important;
-      padding-top: 10px !important;
+      margin-top: 8px !important;
+      padding-top: 8px !important;
       border-top: 1px solid rgba(255, 255, 255, .09) !important;
     }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-ai-group {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) !important;
+      gap: 3px !important;
+      align-items: stretch !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-ai-group.fluent-read-video-menu-ai-ready {
+      grid-template-columns: minmax(0, 1fr) auto !important;
+    }
     #${VIDEO_TRANSLATION_MENU_ID} [data-action="toggle-ai-subtitle"] {
-      padding: 8px 10px !important;
+      min-height: 28px !important;
+      padding: 6px 7px !important;
       border: 1px solid rgba(236, 72, 153, .2) !important;
       background: rgba(236, 72, 153, .12) !important;
       color: #ffacd0 !important;
+      justify-content: center !important;
+      text-align: center !important;
+      line-height: 1.2 !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-ai-group [data-action="toggle-ai-subtitle"] {
+      flex-direction: column !important;
+      align-items: center !important;
+      gap: 1px !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-ai-group [data-action="toggle-ai-subtitle"] .fluent-read-video-menu-label {
+      flex: 0 0 auto !important;
+      white-space: nowrap !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-ai-group [data-action="toggle-ai-subtitle"] .fluent-read-video-menu-value {
+      max-width: 100% !important;
+      overflow: hidden !important;
+      font-size: 9px !important;
+      line-height: 1.1 !important;
+      white-space: nowrap !important;
+      text-overflow: ellipsis !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-ai-group [data-action="regenerate-ai-subtitle"] {
+      width: auto !important;
+      min-width: 0 !important;
+      min-height: 28px !important;
+      padding: 4px 2px !important;
+      border: 0 !important;
+      border-radius: 5px !important;
+      background: transparent !important;
+      color: rgba(255, 255, 255, .68) !important;
+      justify-content: center !important;
+      text-align: center !important;
+      font-size: 9px !important;
+      white-space: nowrap !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-ai-group [data-action="regenerate-ai-subtitle"]:hover {
+      background: rgba(236, 72, 153, .08) !important;
+      color: #ffacd0 !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-ai-group [data-action="regenerate-ai-subtitle"] .fluent-read-video-menu-label {
+      flex: 0 0 auto !important;
+      white-space: nowrap !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} [data-action="toggle-ai-subtitle"]:hover { background: rgba(236, 72, 153, .2) !important; }
     #${VIDEO_TRANSLATION_MENU_ID} [data-action="toggle-ai-subtitle"][data-error="true"] {
       flex-direction: column !important;
       align-items: flex-start !important;
     }
+    #${VIDEO_TRANSLATION_MENU_ID} [data-action="toggle-ai-subtitle"][data-error="true"] .fluent-read-video-menu-value {
+      max-width: 100% !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      white-space: normal !important;
+      overflow-wrap: anywhere !important;
+    }
+    @container fluent-read-video-menu (max-width: 204px) {
+      #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switches,
+      #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-ai-group {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+    }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-downloads {
       display: grid !important;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-      gap: 4px !important;
+      gap: 3px !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-downloads .fluent-read-video-menu-item {
       flex-direction: column !important;
