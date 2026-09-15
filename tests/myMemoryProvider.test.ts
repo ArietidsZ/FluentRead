@@ -73,6 +73,14 @@ describe('MyMemory 官方免费翻译适配器', () => {
         expect(requestUrl().searchParams.get('langpair')).toBe(`${source}|de`);
     });
 
+    it('语言代码经统一规范化：地区与三字母代码折算，无法规范化的取值原样交给服务报错', async () => {
+        fetchMock.mockImplementation(async () => reply());
+        await translateMyMemoryText('hello', {sourceLanguage: 'eng', targetLanguage: 'pt-BR'});
+        expect(requestUrl().searchParams.get('langpair')).toBe('en|pt');
+        await translateMyMemoryText('hello', {sourceLanguage: 'en', targetLanguage: '123'});
+        expect(requestUrl(1).searchParams.get('langpair')).toBe('en|123');
+    });
+
     it.each(['hello', 'Bonjour le monde.', '12345', '日本語文章'])('不确定文本不猜测源语言，也不外发 auto %#', async text => {
         await expect(translateMyMemoryText(text)).rejects.toMatchObject({statusCode: 400});
         expect(fetchMock).not.toHaveBeenCalled();

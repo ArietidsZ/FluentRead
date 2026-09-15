@@ -1,12 +1,8 @@
 import {describe, expect, it} from 'vitest';
 import posts from './fixtures/chinese-language-posts.json';
 import modelPost from './fixtures/chinese-language-model-post.json';
-import {shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
-import {
-    detectChineseScript,
-    getChineseScript,
-    normalizeChineseLanguageCode,
-} from '@/src/core/language/chinese';
+import {detectChineseScript, shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+import {getChineseScript, normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 
 describe('中文书写体系与语言代码', () => {
     const releaseNote = '云端模型清单允许清空，且不再连带拒掉无关偏好的保存';
@@ -55,12 +51,18 @@ describe('中文书写体系与语言代码', () => {
         '预计将推出 GPT-6 Sol あ', '预计将推出 GPT-6 Sol 한국어',
         '预计将推出 GPT-6 Sol 模型與配置', '预计将推出 GPT-6 Sol 模型嘅',
         '清单允许清空 (84522b3) Please translate this sentence.',
-        '清单允许清空 (84522b3g)', '清单允许清空 (abcdefa)',
-        '清单允许清空 (84522b3ff33401f87da8d5d7c4510ea5453e40ef0)',
+        '清单允许清空 (abcdefa)',
         `预计将推出 ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ-6 Sol 模型`,
     ])('技术名称和哈希不掩盖外语、冲突和不确定文本 %#', text => {
         expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(false);
     });
+    // 统一标识符规则：同时含字母和数字的编号（84522b3g、H100）及更长的十六进制摘要都不是任何语言的正文，
+    // 不能因为不是严格的 7–40 位提交哈希就让整段中文重新翻译；纯字母伪哈希 abcdefa 仍按外语词处理。
+    it.each(['清单允许清空 (84522b3g)', '清单允许清空 (84522b3ff33401f87da8d5d7c4510ea5453e40ef0)', '清单允许清空，适配 H100 显卡'])(
+        '字母数字混合编号和长摘要按标识符处理 %#', text => {
+            expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(true);
+            expect(shouldSkipTranslationForTarget(text, 'en')).toBe(false);
+        });
     const formatAnnouncement = '新增文档翻译工作台，支持 PDF、ePub、DOCX，以及 HTML、TXT、Markdown、SRT、VTT、ASS/SSA、LRC、JSON 等格式。';
     it('中文格式清单不因保留的格式名称较多而重复请求翻译', () => {
         for (const text of [formatAnnouncement, `✨ 新增功能\n${formatAnnouncement}`, formatAnnouncement.toLowerCase()]) {

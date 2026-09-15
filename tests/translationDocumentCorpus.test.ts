@@ -7,8 +7,8 @@ import {
     createTranslationCore,
     extractTranslationText,
     extractTranslationTextFromNodes,
-    isClearlyTargetLanguage,
 } from '@/src/core/translation/public';
+import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import type {TranslationCandidate, TranslationCandidateCore} from '@/src/core/translation/public';
 
 const fixtureRoot = new URL('./fixtures/translation-pages/', import.meta.url);
@@ -69,7 +69,7 @@ function providerReadyIds(
     targetLanguage: string,
 ): string[] {
     return candidates
-        .filter((candidate) => !isClearlyTargetLanguage(candidateSource(candidate, core), targetLanguage))
+        .filter((candidate) => !shouldSkipTranslationForTarget(candidateSource(candidate, core), targetLanguage))
         .map((candidate) => fixtureId(candidate.element))
         .filter((value): value is string => Boolean(value));
 }

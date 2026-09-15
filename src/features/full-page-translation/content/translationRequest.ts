@@ -7,7 +7,6 @@
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
 import {styles} from '@/src/core/config/constants';
 import {
-    isClearlyTargetLanguage,
     parseTranslationSlots,
     serializeTranslationSlots,
 } from '@/src/core/translation/public';
@@ -187,10 +186,10 @@ function throwIfAborted(signal?: AbortSignal): void {
     if (signal?.aborted) throw createAbortError();
 }
 
+/** 文本槽与整段候选、标题使用同一目标/排除语言判断；是否配置排除语言不改变识别深度。 */
 function shouldKeepOriginalSlot(origin: string, snapshot: FullPageTranslationConfigSnapshot): boolean {
-    return Boolean(origin.trim()) && (isClearlyTargetLanguage(origin, snapshot.targetLanguage)
-        || Boolean(snapshot.excludedLanguages?.length)
-            && shouldSkipTranslationForTarget(origin, snapshot.targetLanguage, snapshot.excludedLanguages));
+    return Boolean(origin.trim())
+        && shouldSkipTranslationForTarget(origin, snapshot.targetLanguage, snapshot.excludedLanguages);
 }
 
 function restoreSkippedSlots(

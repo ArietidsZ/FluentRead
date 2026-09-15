@@ -44,7 +44,6 @@ export {
     createTranslationTextProtectionCache,
     extractTranslationText,
     extractTranslationTextFromNodes,
-    isClearlyTargetLanguage,
     isMeaningfulTranslationText,
     isTranslationTextElementProtected,
     normalizeTranslationText,

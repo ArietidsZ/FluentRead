@@ -12,7 +12,7 @@ import padPkcs7 from 'crypto-js/pad-pkcs7';
 import {translateFreeChineseWebText} from '@/src/providers/translation/free-chinese-web';
 import {setRuntimeFetch} from '@/src/platform/http/runtime';
 import {serializeTranslationSlots, parseTranslationSlots} from '@/src/core/translation/serialization';
-import {detectChineseScript} from '@/src/core/language/chinese';
+import {detectChineseScript} from '@/src/core/language/detect';
 
 const fetchMock = vi.fn<typeof fetch>();
 const responseKey = 'aahc3TfyfCEmER33';

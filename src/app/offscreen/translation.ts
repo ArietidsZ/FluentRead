@@ -4,8 +4,8 @@
  * 主要内容：定义最小环境与请求契约，验证 from/to 语言码并映射 Chrome 151 中文别名，优先使用不含结构哨兵的检测样本和现代 API；处理 availability、下载进度、低置信度、取消、资源清理及友好错误，仅在脚本明确时执行保守兜底。
  * 模块边界：这里不读取扩展配置、不选择第三方 provider，也不监听 runtime 消息；调用协议由 offscreen/messageRouter 管理，宿主能力是否开放由 browser capability 层决定。
  */
-import {detectChineseScript, normalizeChineseLanguageCode} from '@/src/core/language/chinese';
-import {MIN_CHROME_LANGUAGE_CONFIDENCE} from '@/src/core/language/detect';
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
+import {detectChineseScript, MIN_CHROME_LANGUAGE_CONFIDENCE} from '@/src/core/language/detect';
 
 // 保留既有导出，同时让设置页与 offscreen 共用单一阈值。
 export {MIN_CHROME_LANGUAGE_CONFIDENCE} from '@/src/core/language/detect';

@@ -64,6 +64,22 @@ describe('中文书写系统到实际供应商协议的端到端映射', () => {
         expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).Target).toBe('zh');
     });
 
+    it.each([
+        ['Dieser deutsche Absatz beschreibt die verschiedenen Einstellungen der Anwendung und die automatische Übersetzung.', 'de'],
+        ['GPT-6 Sol の新しいモデルを発表しました。', 'ja'],
+    ])('混元自动识别只在统一判断可信确认同目标时保持原文 %#', async (origin, targetLanguage) => {
+        config.service = services.huanYuanTranslation;
+        await expect(hunyuan({origin, sourceLanguage: 'auto', targetLanguage})).resolves.toBe(origin);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('混元自动识别不以统计猜测短路：被 franc 排为葡萄牙语的西班牙语短句仍请求翻译', async () => {
+        config.service = services.huanYuanTranslation;
+        fetchMock.mockResolvedValue(new Response(JSON.stringify(providers[2]!.response)));
+        await expect(hunyuan({origin: 'Bienvenido a nuestro sitio web.', sourceLanguage: 'auto', targetLanguage: 'pt'})).resolves.toBe('result');
+        expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
     it('混元明确同一繁体书写系统保持原文', async () => {
         config.service = services.huanYuanTranslation;
         await expect(hunyuan({origin: '繁體中文', sourceLanguage: 'zh-Hant', targetLanguage: 'zh-TW'})).resolves.toBe('繁體中文');

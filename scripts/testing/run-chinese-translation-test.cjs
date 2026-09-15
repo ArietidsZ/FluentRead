@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// 中文简繁及 --spanish 西班牙语生产浏览器回归：临时 Edge、无前台焦点启动、真实配置选择和真实快捷键。
+// 中文简繁、--spanish 西班牙语及 --multilingual-same-target 多语言同目标生产浏览器回归：临时 Edge、无前台焦点启动、真实配置选择和真实快捷键。
 // 默认同时验证截图中文零请求、相邻外语正常翻译和动态评论换语言后的重新识别。
 // loopback AI fixture 只验证请求与 UI 链路；--live-google 独立报告无需凭据的外部服务实译。
 const assert = require('node:assert/strict');
@@ -11,6 +11,8 @@ const os = require('node:os');
 const path = require('node:path');
 const chinesePosts = require('../../tests/fixtures/chinese-language-posts.json');
 const modelPost = require('../../tests/fixtures/chinese-language-model-post.json');
+const {multilingualFixtureTranslation, renderMultilingualPage, runMultilingualSameTargetCases} = require('./multilingual-same-target-browser.cjs');
+const multilingualMode = process.argv.includes('--multilingual-same-target');
 const releaseNote = '云端模型清单允许清空，且不再连带拒掉无关偏好的保存';
 const sameLanguageTexts = [
   ...chinesePosts,
@@ -114,6 +116,17 @@ async function startFixture() {
         const targetName = /TARGET_BEGIN([\s\S]*?)TARGET_END/u.exec(prompt)?.[1];
         const source = /SOURCE_BEGIN([\s\S]*?)SOURCE_END/u.exec(prompt)?.[1];
         assert.equal(typeof source, 'string', '实际模板必须包含原文');
+        if (multilingualMode) {
+          // 多语言专项接受任意目录目标，按确定性标记回填；先记录请求再响应，任何同目标泄漏都会被计数。
+          const entry = {source, targetName, prompt};
+          requests.push(entry);
+          entry.translated = multilingualFixtureTranslation(source, targetName);
+          response.setHeader('Content-Type', 'application/json');
+          response.end(JSON.stringify({id: 'multilingual-fixture', object: 'chat.completion', created: 1,
+            model: 'chinese-script-fixture', choices: [{index: 0, message: {role: 'assistant', content: entry.translated}, finish_reason: 'stop'}],
+            usage: {prompt_tokens: 20, completion_tokens: 20, total_tokens: 40}}));
+          return;
+        }
         const target = targetName === 'es' ? 'es' : /\bzh-(Hans|Hant)\b/u.exec(targetName || '')?.[0];
         assert(target, `{{to}} 未传入受测目标语言：${targetName}`);
         assert(target === 'es' || targetName.includes(target === 'zh-Hans' ? 'Simplified Chinese' : 'Traditional Chinese'),
@@ -141,6 +154,13 @@ async function startFixture() {
         ? `<ul><li data-same-language="${index}">${releaseNote} (<a href="https://github.com/solidSpoon/DashPlayer/commit/84522b3ff33401f87da8d5d7c4510ea5453e40ef">84522b3</a>)</li></ul>`
         : `<article><p data-same-language="${index}">${text}</p></article>`).join('');
       response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Same-language comments</title></head><body style="padding:24px;font:18px/1.6 sans-serif"><main>${comments}<p id="english-control">${paragraphs.en[0]}</p><p id="traditional-control">${paragraphs['zh-Hant'][0]}</p></main></body></html>`);
+      return;
+    }
+    if (source === 'multilingual') {
+      const html = renderMultilingualPage(url.searchParams.get('target'));
+      if (!html) {response.writeHead(404); response.end(); return;}
+      response.setHeader('Content-Type', 'text/html; charset=utf-8');
+      response.end(html);
       return;
     }
     if (source === 'excluded-languages') {
@@ -247,6 +267,16 @@ async function main() {
       hotkey: 'Control', floatingBallHotkey: 'Alt+T', fullPageTranslationMode: 'all',
       mouseHoverTranslationDelay: 0, selectionTranslatorMode: 'disabled', disableSelectionTranslator: true,
       animations: false});
+    if (multilingualMode) {
+      report.scope = 'Multilingual same-target skipping: de/pt/it/fr/en/ru/ja/ko/zh-Hans hover and full-page zero requests, neighbor [1,0,1], titles, GitHub commit links, dynamic redetection, target switch and excluded-language parity';
+      await runMultilingualSameTargetCases({context, createPage, patchConfig, activateExtensionTabWithoutForeground, shot, report, fixture, artifactsDir});
+      report.fixture.ok = report.multilingual.cases.every(item => item.status === 'passed');
+      assert.equal(report.consoleErrors.length, 0, JSON.stringify(report.consoleErrors));
+      assert.equal(report.windowPlacement.mode, 'background-visible-no-focus');
+      assert.equal(report.windowPlacement.browserFrontmost, false);
+      report.ok = report.fixture.ok;
+      return;
+    }
     if (process.argv.includes('--excluded-languages')) {
       report.scope = 'Issue #627: language multiselect, quick close, cross-page persistence, responsive themes, hover/full/automatic skipping, title and dynamic redetection';
       await require('./excluded-languages-browser.cjs')({context, popup, createPage, patchConfig, waitConfig,

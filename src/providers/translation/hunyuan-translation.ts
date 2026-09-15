@@ -1,7 +1,7 @@
 /**
  * @file src/providers/translation/hunyuan-translation.ts
  *
- * 文件职责：适配腾讯混元翻译大模型的专用协议，处理支持语言映射、源语言检测和自定义请求体。
+ * 文件职责：适配腾讯混元翻译大模型的专用协议，处理支持语言映射、同目标语言短路和自定义请求体。
  * 主要内容：buildHunyuanTranslationRequestBody 生成模型 payload，provider 从快照读取 token/model，调用 endpoint、归一 Response.Usage 并校验 provider 错误码与翻译输出。 可核对的公开符号包括 buildHunyuanTranslationRequestBody、default:hunyuanTranslation。
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
@@ -9,7 +9,7 @@
 import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import { method } from "@/src/core/config/constants";
 import { config } from "@/src/services/config/store";
-import { detectlang } from "@/src/core/language/detect";
+import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import { mergeCustomBody } from "@/src/core/config/customBody";
 import {resolveConfiguredModel, services} from "@/src/core/config/catalog";
 import {getTranslationLanguages} from '@/src/services/translation/languages';
@@ -137,18 +137,14 @@ async function hunyuanTranslation(message: TranslationProviderRequest<string>) {
         throw new Error('SecretId或SecretKey格式不正确，请检查是否完整复制了密钥信息');
     }
 
-    // 自动检测使用 FluentRead 的本地语言识别，其余语言直接映射为混元协议代码。
+    // 显式源语言与目标相同时尊重用户设定；自动识别只在统一语言判断可信确认目标语言时短路，
+    // 不能用统计最佳猜测（或去掉空白后的文本）决定跳过，否则短句误判会静默漏译。
     const {sourceLanguage, targetLanguage} = getTranslationLanguages(message);
-    let sourceLang: string;
-    if (sourceLanguage === 'auto') {
-        const detectedLang = normalizeChineseLanguageCode(detectlang(message.origin.replace(/[\s\u3000]/g, '')));
-        sourceLang = languageMap[detectedLang] || detectedLang;
-    } else {
-        sourceLang = languageMap[normalizeChineseLanguageCode(sourceLanguage)] || sourceLanguage;
-    }
-
     const mappedTargetLang = languageMap[normalizeChineseLanguageCode(targetLanguage)] || targetLanguage;
-    if (sourceLang === mappedTargetLang) return message.origin;
+    const sameLanguage = sourceLanguage === 'auto'
+        ? shouldSkipTranslationForTarget(message.origin, targetLanguage)
+        : (languageMap[normalizeChineseLanguageCode(sourceLanguage)] || sourceLanguage) === mappedTargetLang;
+    if (sameLanguage) return message.origin;
     if (!mappedTargetLang) throw new Error('混元翻译不支持该目标语言');
 
     const model = message.modelOverride || current.model[service] || 'hunyuan-translation';

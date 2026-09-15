@@ -6,8 +6,8 @@
  * 模块边界：本文件属于供应商协议适配层，只调用公开 get 端点，不上传贡献语料、不管理页面 DOM，也不决定跨服务回退顺序和总超时预算。
  */
 
-import {detectlang, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
-import {isClearlyTargetLanguage} from '@/src/core/translation/text';
+import {normalizeLanguageCode} from '@/src/core/language/codes';
+import {identifyTextLanguage} from '@/src/core/language/identify';
 import {resolveTranslationLanguages, type TranslationLanguageOverride} from '@/src/core/translation/languages';
 import {serializeTranslationSlots} from '@/src/core/translation/serialization';
 import {config} from '@/src/services/config/store';
@@ -24,23 +24,18 @@ const MY_MEMORY_URL = 'https://api.mymemory.translated.net/get';
 export const MY_MEMORY_MAX_BYTES = 500;
 type MyMemoryRequest = TranslationLanguageOverride & TranslationProviderRequestContext;
 const encoder = new TextEncoder();
-const languageAliases: Readonly<Record<string, string>> = {
-    'zh-Hans': 'zh-CN', 'zh-Hant': 'zh-TW',
-    deu: 'de', spa: 'es', ita: 'it', por: 'pt', nld: 'nl', pol: 'pl',
-    tur: 'tr', ukr: 'uk', ara: 'ar', hin: 'hi', vie: 'vi', tha: 'th',
-    ind: 'id', swe: 'sv', dan: 'da', fin: 'fi', ces: 'cs', ell: 'el',
-    ron: 'ro', hun: 'hu', heb: 'he', bul: 'bg',
-};
+/** MyMemory 以地区区分简繁中文；其他语言使用统一规范代码，无法规范化的取值原样交给服务报错。 */
+function toMyMemoryLanguage(language: string): string {
+    const normalized = normalizeLanguageCode(language);
+    if (normalized === 'zh-Hans') return 'zh-CN';
+    if (normalized === 'zh-Hant') return 'zh-TW';
+    return normalized || language;
+}
 
-/** 统计短 Latin 文本和共享 Han 无法可靠选源语言，交由回退链尝试其他服务。 */
+/** 只使用与同目标跳过相同的可信识别结论；短歧义文本、共享 Han 和混合文本交由回退链尝试其他服务。 */
 function inferSourceLanguage(text: string): string {
-    if (/\p{L}/u.test(text)) {
-        for (const candidate of ['ja', 'ko', 'zh-Hans', 'zh-Hant']) {
-            if (isClearlyTargetLanguage(text, candidate)) return candidate;
-        }
-        const detected = detectlang(text);
-        if (shouldSkipTranslationForTarget(text, detected)) return detected;
-    }
+    const identification = identifyTextLanguage(text);
+    if (identification.status === 'identified') return identification.languages[0]!;
     throw Object.assign(new Error('MyMemory 无法可靠识别源语言，请指定源语言或使用其他翻译服务'), {statusCode: 400});
 }
 
@@ -82,8 +77,8 @@ export async function translateMyMemoryText(text: string, request: MyMemoryReque
     const sourceText = Array.isArray(pureSource) ? pureSource.join('\n') : pureSource;
     const sourceLanguage = languages.sourceLanguage === 'auto'
         ? inferSourceLanguage(sourceText) : languages.sourceLanguage;
-    const from = languageAliases[sourceLanguage] ?? sourceLanguage;
-    const to = languageAliases[languages.targetLanguage] ?? languages.targetLanguage;
+    const from = toMyMemoryLanguage(sourceLanguage);
+    const to = toMyMemoryLanguage(languages.targetLanguage);
     const email = current.myMemoryEmail?.trim();
 
     const translatePlainText = async (source: string): Promise<string> => {

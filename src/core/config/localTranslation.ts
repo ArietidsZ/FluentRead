@@ -7,6 +7,7 @@
  */
 import {detectlang} from '@/src/core/language/detect';
 import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
+import {normalizeDetectedLanguageCode} from '@/src/core/language/codes';
 
 export const LOCAL_TRANSLATION_SERVICE_ID = 'localTranslation' as const;
 export const LOCAL_TRANSLATION_MODEL_STATE_KEY = 'fluentReadLocalTranslationModels' as const;
@@ -142,16 +143,8 @@ export function normalizeLocalTranslationDownloadSnapshot(value: unknown): Local
     return {version: 2, tasks};
 }
 
-const ISO6393_TO_BASE: Readonly<Record<string, string>> = {
-    afr: 'af', ara: 'ar', ben: 'bn', bul: 'bg', ces: 'cs', cmn: 'zh', dan: 'da',
-    deu: 'de', ell: 'el', eng: 'en', est: 'et', fas: 'fa', fin: 'fi', fra: 'fr',
-    heb: 'he', hin: 'hi', hrv: 'hr', hun: 'hu', ind: 'id', ita: 'it', jpn: 'ja',
-    kan: 'kn', kor: 'ko', lav: 'lv', lit: 'lt', mal: 'ml', mar: 'mr', msa: 'ms',
-    nld: 'nl', nor: 'no', pan: 'pa', pol: 'pl', por: 'pt', ron: 'ro', rus: 'ru',
-    sin: 'si', slk: 'sk', slv: 'sl', spa: 'es', srp: 'sr', swa: 'sw', swe: 'sv',
-    tam: 'ta', tel: 'te', tha: 'th', tur: 'tr', ukr: 'uk', urd: 'ur', vie: 'vi',
-    zho: 'zh',
-};
+// 本地模型词表沿用 ISO 639-1 旧写法：挪威语为 no，他加禄语/菲律宾语为 tl。
+const LOCAL_MODEL_BASE_ALIASES: Readonly<Record<string, string>> = {nb: 'no', fil: 'tl'};
 
 const M2M100_LANGUAGE_CODES: Readonly<Record<string, string>> = {
     af: 'af', ar: 'ar', bg: 'bg', bn: 'bn', cs: 'cs', da: 'da', de: 'de', el: 'el',
@@ -178,9 +171,9 @@ const NLLB_LANGUAGE_CODES: Readonly<Record<string, string>> = {
 };
 
 function languageBase(value: string): string {
-    const normalized = value.trim().replace(/_/gu, '-').toLowerCase();
-    if (normalized === 'cmn' || normalized === 'zho') return 'zh';
-    return ISO6393_TO_BASE[normalized] || normalized.split('-')[0] || '';
+    const canonical = normalizeDetectedLanguageCode(value) || value.trim().toLowerCase();
+    const base = canonical.split('-')[0]!;
+    return LOCAL_MODEL_BASE_ALIASES[base] ?? base;
 }
 
 function modelFamily(model: LocalTranslationModelId): 'm2m100' | 'nllb' {
