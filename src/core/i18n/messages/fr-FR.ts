@@ -45,6 +45,13 @@ export const frFRMessages = {
     "settings.services.library.defaultBadge": "Par défaut",
     "settings.services.library.favorite": "Ajouter {service} aux favoris",
     "settings.services.library.unfavorite": "Retirer {service} des favoris",
+    "settings.services.freeWeights.title": "Poids actuels",
+    "settings.services.freeWeights.total": "Répartition actuelle : {total}",
+    "settings.services.freeWeights.description": "Normalisés entre les services actuellement disponibles. Après un échec, un service passe temporairement à 0 et remonte progressivement.",
+    "settings.services.freeWeights.refresh": "Les poids sont actualisés automatiquement toutes les {minutes} minutes",
+    "settings.services.freeWeights.aria": "Poids actuel de {service} : {weight}",
+    "settings.services.freeWeights.unavailable": "Aucun service n’est actuellement disponible pour la répartition",
+    "settings.services.freeWeights.sequential": "Le mode de priorité essaie les services dans l’ordre et n’utilise pas de poids.",
 
     "inputTranslation.systemRoleLabel": "Rôle",
     "inputTranslation.userRoleLabel": "Tâche",

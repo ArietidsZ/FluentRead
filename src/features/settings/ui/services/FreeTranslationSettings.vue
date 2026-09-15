@@ -1,8 +1,8 @@
 <!--
  * @file src/features/settings/ui/services/FreeTranslationSettings.vue
  * 文件职责：编辑免费翻译服务的启停、选择策略、邮箱与等待时间。
- * 主要内容：普通态展示服务启停、选择模式、顺序和邮箱；高级态仅显示等待时间与恢复说明。
- * 模块边界：只修改传入的配置，由设置页统一持久化；不请求翻译、不读取服务密钥或运行时健康状态。
+ * 主要内容：普通态展示服务启停、选择模式、当前百分比权重和邮箱；高级态仅显示等待时间与恢复说明。
+ * 模块边界：只修改传入的配置，由设置页统一持久化；只读取不含凭据的后台权重快照，不请求翻译。
  -->
 <template>
   <div class="free-translation-settings" :class="{'is-advanced': advanced}" data-free-translation-settings>
@@ -12,6 +12,22 @@
         <label class="mode-option" :class="{ 'is-selected': mode === 'sequential' }"><input type="radio" name="free-translation-mode" value="sequential" :checked="mode === 'sequential'" :aria-label="translateLegacy('优先顺序')" @change="setMode('sequential')" /><span>{{ translateLegacy('优先顺序') }}</span></label>
       </div>
       <p class="mode-help">{{ mode === 'balanced' ? translateLegacy('从下方启用的免费接口中自动分配请求，失败时切换。') : translateLegacy('依次调用启用的免费接口；可使用上下按钮调整顺序。') }}</p>
+      <section
+        v-if="!isSequential"
+        class="weight-summary"
+        data-testid="free-translation-weight-summary"
+        :data-weight-total="displayedWeightSnapshot.total"
+        :data-weight-observed-at="displayedWeightSnapshot.observedAt"
+      >
+        <div class="weight-summary-heading">
+          <strong>{{ t('settings.services.freeWeights.title') }}</strong>
+          <b>{{ t('settings.services.freeWeights.total', { total: formatPercentage(displayedWeightSnapshot.total) }) }}</b>
+        </div>
+        <p>{{ t('settings.services.freeWeights.description') }}</p>
+        <small>{{ t('settings.services.freeWeights.refresh', { minutes: refreshMinutes }) }}</small>
+        <p v-if="displayedWeightSnapshot.total === 0" class="weight-unavailable" role="status">{{ t('settings.services.freeWeights.unavailable') }}</p>
+      </section>
+      <p v-else class="mode-note">{{ t('settings.services.freeWeights.sequential') }}</p>
       <section class="provider-section" :aria-label="translateLegacy(mode === 'sequential' ? '免费翻译优先顺序' : '常用候选')">
         <div v-if="isSequential" class="section-heading"><h3>{{ translateLegacy('服务优先顺序') }}</h3></div>
         <ol class="fallback-list" :class="{ 'is-sequential': isSequential }" :aria-label="translateLegacy(mode === 'balanced' ? '免费翻译服务' : '免费翻译优先顺序')">
@@ -20,6 +36,15 @@
               <span v-if="isSequential" class="provider-position" aria-hidden="true">{{ isEnabled(provider.id) ? order.indexOf(provider.id) + 1 : '—' }}</span>
               <ServiceIcon :service="provider.id" :label="translateLegacy(provider.label)" size="small" />
               <div class="provider-copy"><strong>{{ translateLegacy(provider.label) }}</strong></div>
+              <output
+                v-if="!isSequential"
+                class="provider-weight"
+                :class="`is-${weightStatus(provider.id)}`"
+                :data-provider-weight="provider.id"
+                :data-weight-status="weightStatus(provider.id)"
+                :aria-label="weightAriaLabel(provider.id)"
+                :title="weightAriaLabel(provider.id)"
+              >{{ formatProviderWeight(provider.id) }}</output>
               <div class="provider-actions">
                 <button v-if="isSequential" type="button" :disabled="!isEnabled(provider.id) || order.indexOf(provider.id) === 0" :aria-label="`${translateLegacy('上移')} ${translateLegacy(provider.label)}`" :title="translateLegacy('上移')" @click="move(provider.id, -1)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 9 4-4 4 4" /></svg></button>
                 <button v-if="isSequential" type="button" :disabled="!isEnabled(provider.id) || order.indexOf(provider.id) === order.length - 1" :aria-label="`${translateLegacy('下移')} ${translateLegacy(provider.label)}`" :title="translateLegacy('下移')" @click="move(provider.id, 1)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 7 4 4 4-4" /></svg></button>
@@ -45,6 +70,15 @@
               <span v-if="isSequential" class="provider-position" aria-hidden="true">{{ isEnabled(provider.id) ? order.indexOf(provider.id) + 1 : '—' }}</span>
               <ServiceIcon :service="provider.id" :label="translateLegacy(provider.label)" size="small" />
               <div class="provider-copy"><strong>{{ translateLegacy(provider.label) }}</strong></div>
+              <output
+                v-if="!isSequential"
+                class="provider-weight"
+                :class="`is-${weightStatus(provider.id)}`"
+                :data-provider-weight="provider.id"
+                :data-weight-status="weightStatus(provider.id)"
+                :aria-label="weightAriaLabel(provider.id)"
+                :title="weightAriaLabel(provider.id)"
+              >{{ formatProviderWeight(provider.id) }}</output>
               <div class="provider-actions">
                 <button v-if="isSequential" type="button" :disabled="!isEnabled(provider.id) || order.indexOf(provider.id) === 0" :aria-label="`${translateLegacy('上移')} ${translateLegacy(provider.label)}`" :title="translateLegacy('上移')" @click="move(provider.id, -1)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 9 4-4 4 4" /></svg></button>
                 <button v-if="isSequential" type="button" :disabled="!isEnabled(provider.id) || order.indexOf(provider.id) === order.length - 1" :aria-label="`${translateLegacy('下移')} ${translateLegacy(provider.label)}`" :title="translateLegacy('下移')" @click="move(provider.id, 1)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 7 4 4 4-4" /></svg></button>
@@ -64,9 +98,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
+import browser from 'webextension-polyfill'
 import type { Config } from '@/src/core/config/model'
 import { FREE_TRANSLATION_PROVIDERS, normalizeFreeTranslationMode, normalizeFreeTranslationOrder, normalizeMyMemoryEmail } from '@/src/core/config/freeTranslation'
+import {
+  calculateFreeTranslationWeightSnapshot,
+  FREE_TRANSLATION_WEIGHT_REFRESH_INTERVAL_MS,
+  FREE_TRANSLATION_WEIGHTS_MESSAGE_TYPE,
+  type FreeTranslationWeightSnapshot,
+  type FreeTranslationWeightsResponse,
+} from '@/src/services/translation/freeWeights'
 import { useUiI18n } from '@/src/ui/i18n'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 
@@ -91,6 +133,45 @@ const experimentalSummary = computed(() => {
   const enabled = experimentalProviders.value.filter(provider => isEnabled(provider.id)).map(provider => translateLegacy(provider.label))
   return enabled.length ? `${enabled.length} ${translateLegacy('项已启用')}：${enabled.join('、')}` : translateLegacy('默认关闭')
 })
+const weightSnapshot = ref<FreeTranslationWeightSnapshot | null>(null)
+const localWeightSnapshot = computed(() => calculateFreeTranslationWeightSnapshot(order.value))
+const displayedWeightSnapshot = computed(() => weightSnapshot.value || localWeightSnapshot.value)
+const weightByProvider = computed(() => new Map(displayedWeightSnapshot.value.entries.map(entry => [entry.providerId, entry])))
+const refreshMinutes = Math.round(FREE_TRANSLATION_WEIGHT_REFRESH_INTERVAL_MS / 60_000)
+let weightRefreshTimer: ReturnType<typeof setInterval> | undefined
+let weightRequestGeneration = 0
+
+function providerWeight(providerId: string): number {
+  if (!isEnabled(providerId)) return 0
+  return weightByProvider.value.get(providerId)?.weight ?? 0
+}
+function formatPercentage(value: number): string { return `${Number.isFinite(value) ? value.toFixed(1) : '0.0'}%` }
+function formatProviderWeight(providerId: string): string { return formatPercentage(providerWeight(providerId)) }
+function weightStatus(providerId: string): string {
+  return weightByProvider.value.get(providerId)?.status || (isEnabled(providerId) ? 'ready' : 'disabled')
+}
+function weightAriaLabel(providerId: string): string {
+  return t('settings.services.freeWeights.aria', {
+    service: translateLegacy(FREE_TRANSLATION_PROVIDERS.find(provider => provider.id === providerId)?.label || providerId),
+    weight: formatPercentage(providerWeight(providerId)),
+  })
+}
+async function refreshWeights(): Promise<void> {
+  if (advanced.value || mode.value !== 'balanced') return
+  const generation = ++weightRequestGeneration
+  try {
+    const response = await browser.runtime.sendMessage({type: FREE_TRANSLATION_WEIGHTS_MESSAGE_TYPE}) as FreeTranslationWeightsResponse | undefined
+    if (generation !== weightRequestGeneration) return
+    weightSnapshot.value = response?.success === true && response.snapshot ? response.snapshot : null
+  } catch {
+    if (generation === weightRequestGeneration) weightSnapshot.value = null
+  }
+}
+function startWeightRefresh(): void {
+  if (advanced.value) return
+  void refreshWeights()
+  weightRefreshTimer = setInterval(() => { void refreshWeights() }, FREE_TRANSLATION_WEIGHT_REFRESH_INTERVAL_MS)
+}
 function setMode(value: FreeTranslationMode): void { freeConfig.value.freeTranslationMode = normalizeFreeTranslationMode(value) as FreeTranslationMode }
 function isEnabled(id: string): boolean { return order.value.includes(id) }
 function toggleDisabled(id: string): boolean { return isEnabled(id) && order.value.length === 1 }
@@ -104,6 +185,13 @@ function move(id: string, direction: -1 | 1): void {
   const reordered = [...order.value]; [reordered[current], reordered[next]] = [reordered[next], reordered[current]]; config.value.freeTranslationOrder = reordered
 }
 function setDuration(seconds: number | undefined): void { if (typeof seconds === 'number' && Number.isFinite(seconds)) config.value.freeTranslationTimeoutMs = Math.round(Math.min(15, Math.max(1, seconds)) * 1000) }
+watch(mode, value => { if (value === 'balanced') void refreshWeights() })
+watch(order, () => { if (mode.value === 'balanced') void refreshWeights() })
+onMounted(startWeightRefresh)
+onBeforeUnmount(() => {
+  weightRequestGeneration += 1
+  if (weightRefreshTimer) clearInterval(weightRefreshTimer)
+})
 </script>
 
 <style scoped>
@@ -114,6 +202,14 @@ function setDuration(seconds: number | undefined): void { if (typeof seconds ===
 .mode-option.is-selected { border-color: var(--el-color-primary); color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
 .mode-option input { margin: 0; accent-color: var(--el-color-primary); }
 .mode-help { margin-top: 7px; }
+.weight-summary { display: grid; gap: 5px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 10px; background: var(--el-fill-color-extra-light); }
+.weight-summary-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.weight-summary-heading strong { font-size: 12px; font-weight: 650; }
+.weight-summary-heading b { color: var(--el-color-primary); font-size: 12px; font-variant-numeric: tabular-nums; }
+.weight-summary p, .weight-summary small, .mode-note { margin: 0; color: var(--el-text-color-secondary); font-size: 11px; line-height: 1.5; }
+.weight-summary small { color: var(--el-color-primary); }
+.weight-summary .weight-unavailable { color: var(--el-color-warning-dark-2); }
+.mode-note { margin: 9px 0 0; }
 .provider-section { margin-top: 14px; }
 .section-heading { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
 .section-heading h3 { margin: 0; font-size: 13px; font-weight: 600; }
@@ -134,6 +230,10 @@ function setDuration(seconds: number | undefined): void { if (typeof seconds ===
 .provider-copy { display: flex; min-width: 0; flex: 1; flex-wrap: wrap; align-items: baseline; gap: 4px 9px; }
 .provider-copy strong { font-size: 12px; overflow-wrap: anywhere; }
 .provider-copy > span { color: var(--el-text-color-secondary); font-size: 10px; }
+.provider-weight { display: inline-flex; min-width: 48px; justify-content: flex-end; color: var(--el-color-primary); font-size: 11px; font-variant-numeric: tabular-nums; font-weight: 650; white-space: nowrap; }
+.provider-weight.is-cooling { color: var(--el-text-color-secondary); }
+.provider-weight.is-recovering { color: var(--el-color-warning-dark-2); }
+.provider-weight.is-disabled { color: var(--el-text-color-secondary); font-weight: 500; }
 .provider-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; }
 .provider-actions button { width: 26px; height: 26px; padding: 0; border: 1px solid var(--el-border-color); border-radius: 7px; color: var(--el-text-color-regular); background: var(--el-fill-color-blank); cursor: pointer; }
 .provider-actions button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
@@ -162,6 +262,7 @@ details[open] > summary > .details-chevron { transform: rotate(180deg); }
   .mode-picker { grid-template-columns: 1fr; }
   .provider-row { gap: 6px; align-items: flex-start; }
   .provider-copy { flex-direction: column; gap: 2px; }
+  .provider-weight { min-width: 42px; }
   .provider-actions { gap: 3px; flex-wrap: wrap; justify-content: flex-end; }
   .provider-actions button { width: 24px; }
   .provider-description, .provider-note, .provider-settings { margin-left: 0; }

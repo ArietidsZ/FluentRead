@@ -43,6 +43,13 @@ export const zhCNMessages = {
     "settings.services.library.defaultBadge": "默认",
     "settings.services.library.favorite": "将 {service} 设为常用",
     "settings.services.library.unfavorite": "取消常用：{service}",
+    "settings.services.freeWeights.title": "当前权重",
+    "settings.services.freeWeights.total": "当前权重合计 {total}",
+    "settings.services.freeWeights.description": "按当前可用服务归一化为 100%；服务失败一次会暂时降为 0，恢复后逐步回升。",
+    "settings.services.freeWeights.refresh": "每 {minutes} 分钟自动刷新一次权重",
+    "settings.services.freeWeights.aria": "{service} 当前权重 {weight}",
+    "settings.services.freeWeights.unavailable": "当前没有可分配的服务",
+    "settings.services.freeWeights.sequential": "优先顺序模式按列表依次尝试，不使用权重。",
 
     "inputTranslation.systemRoleLabel": "角色",
     "inputTranslation.userRoleLabel": "任务",

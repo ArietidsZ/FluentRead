@@ -43,6 +43,11 @@ export interface FreeFallbackDependencies {
     readonly random?: () => number;
     readonly persistence?: FreeHealthPersistence;
 }
+export interface FreeFallbackRunner {
+    (candidates: readonly FreeFallbackCandidate[], options: FreeFallbackOptions): Promise<string>;
+    /** 读取当前后台 worker 的健康快照；快照只包含服务身份摘要和时间/性能数据。 */
+    getHealthSnapshot(): Promise<readonly PersistedFreeHealth[]>;
+}
 interface Health {
     retryAt: number;
     generation: number;
@@ -100,7 +105,7 @@ async function boundedStorage<T>(request: Promise<T>, limitMs = 1000, signal?: A
     } finally { clearTimeout(timer!); if (onAbort) signal?.removeEventListener('abort', onAbort); }
 }
 
-export function createFreeFallbackRunner(maxConcurrency = 3, dependencies: FreeFallbackDependencies = {}) {
+export function createFreeFallbackRunner(maxConcurrency = 3, dependencies: FreeFallbackDependencies = {}): FreeFallbackRunner {
     const health = new Map<string, Health>();
     const queue: Array<() => void> = [];
     const availabilityWaiters = new Set<() => void>();
@@ -143,7 +148,7 @@ export function createFreeFallbackRunner(maxConcurrency = 3, dependencies: FreeF
                     || typeof retryAt !== 'number' || !Number.isFinite(retryAt) || retryAt < 0
                     || typeof failures !== 'number' || !Number.isInteger(failures) || failures < 0 || failures > 100
                     || (failures === 0 && !validPerformance)
-                    || !['rate-limit', 'quota', 'blocked', 'unavailable'].includes(category as string)) continue;
+                    || !['rate-limit', 'quota', 'blocked', 'unavailable', 'request'].includes(category as string)) continue;
                 const state = getHealth(identity);
                 state.retryAt = Math.min(retryAt, Date.now() + MAX_FREE_COOLDOWN_MS);
                 state.failures = failures;
@@ -208,7 +213,7 @@ export function createFreeFallbackRunner(maxConcurrency = 3, dependencies: FreeF
         });
     }
 
-    return async (candidates: readonly FreeFallbackCandidate[], options: FreeFallbackOptions): Promise<string> => {
+    const execute = async (candidates: readonly FreeFallbackCandidate[], options: FreeFallbackOptions): Promise<string> => {
         if (options.signal?.aborted) throw abortErrorFromSignal(options.signal);
         if (!candidates.length) throw new Error('免费翻译服务均不可用：未选择可用的免密钥服务');
         const deadline = options.deadline ?? Date.now() + FREE_TRANSLATION_TOTAL_TIMEOUT_MS;
@@ -267,14 +272,17 @@ export function createFreeFallbackRunner(maxConcurrency = 3, dependencies: FreeF
                     if (error instanceof AttemptTimeoutError && remaining < options.timeoutMs && Date.now() >= deadline) throw error;
                     if (state.generation === generation) {
                         const cooldown = getFreeFailureCooldown(error, state.failures + 1, options.cooldownMs, random());
-                        if (cooldown.durationMs) {
-                            state.performance = observeFreeProviderPerformance(state.performance, false, Date.now() - startedAt, Date.now());
-                            state.generation += 1;
-                            state.retryAt = Date.now() + cooldown.durationMs;
-                            state.failures = Math.min(100, state.failures + 1);
-                            state.category = cooldown.category;
-                            await persistHealth(deadline, options.signal);
-                        }
+                        // 任意一次真实 provider 失败都先快速摘除；request 类错误也需要短暂冷却，
+                        // 避免同一服务在下一段文本中持续消耗尝试机会。取消不经过这里。
+                        const durationMs = cooldown.durationMs > 0
+                            ? cooldown.durationMs
+                            : Math.max(1_000, Number.isFinite(options.cooldownMs) ? options.cooldownMs : 1_000);
+                        state.performance = observeFreeProviderPerformance(state.performance, false, Date.now() - startedAt, Date.now());
+                        state.generation += 1;
+                        state.retryAt = Date.now() + durationMs;
+                        state.failures = Math.min(100, state.failures + 1);
+                        state.category = cooldown.category;
+                        await persistHealth(deadline, options.signal);
                     }
                     failures.push(`${candidate.label}: ${safeFailure(error)}`);
                 } finally {
@@ -287,4 +295,18 @@ export function createFreeFallbackRunner(maxConcurrency = 3, dependencies: FreeF
             throw new Error(`免费翻译服务均不可用：${reason}`);
         } finally { release(); }
     };
+
+    const getHealthSnapshot = async (): Promise<readonly PersistedFreeHealth[]> => {
+        if (dependencies.persistence) await boundedStorage(loadHealth(), 1_000);
+        return [...health]
+            .filter(([, item]) => item.failures > 0 || item.performance)
+            .map(([identity, item]) => ({
+                identity,
+                retryAt: item.retryAt,
+                failures: item.failures,
+                category: item.category,
+                ...(item.performance ? {performance: {...item.performance}} : {}),
+            }));
+    };
+    return Object.assign(execute, {getHealthSnapshot});
 }

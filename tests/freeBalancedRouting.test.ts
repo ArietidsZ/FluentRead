@@ -53,6 +53,27 @@ describe('balanced free fallback routing', () => {
     expect(times).toHaveLength(2);
   });
 
+  it('temporarily removes a provider after one request failure and persists its recovery state', async () => {
+    const saved: PersistedFreeHealth[][] = [];
+    const runner = createFreeFallbackRunner(1, {
+      random: () => 0,
+      persistence: {
+        load: vi.fn(async () => []),
+        save: vi.fn(async (entries: readonly PersistedFreeHealth[]) => { saved.push([...entries]); }),
+      },
+    });
+    const bad = candidate('bad-request', async () => { throw Object.assign(new Error('bad request'), {status: 400}); });
+    const good = candidate('good-request', async () => 'ok');
+
+    await expect(runner([bad, good], {mode: 'sequential', timeoutMs: 100, cooldownMs: 1})).resolves.toBe('ok');
+    const health = await runner.getHealthSnapshot();
+    const failed = health.find(item => item.identity === 'bad-request');
+
+    expect(failed).toMatchObject({identity: 'bad-request', failures: 1, category: 'request', performance: {reliability: 0.75}});
+    expect(failed?.retryAt).toBeGreaterThan(Date.now());
+    expect(saved.at(-1)).toEqual(expect.arrayContaining([expect.objectContaining({identity: 'bad-request', category: 'request'})]));
+  });
+
   it('waits for the same candidate interval between sequential requests', async () => {
     const starts: number[] = [];
     const runner = createFreeFallbackRunner(1);

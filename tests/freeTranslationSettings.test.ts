@@ -23,9 +23,14 @@ let component: any;
 beforeAll(async () => {
   server = await createServer({appType: 'custom', configFile: false, logLevel: 'silent', root: process.cwd(),
     resolve: {alias: {'@': resolve(process.cwd(), '.')}}, server: {hmr: false, middlewareMode: true},
-    plugins: [{name: 'fallback-ui-i18n', enforce: 'pre', resolveId(id) {
+    ssr: {noExternal: ['webextension-polyfill']},
+    plugins: [{name: 'fallback-ui-runtime', enforce: 'pre', resolveId(id) {
+      if (id === 'webextension-polyfill') return '\0fallback-webextension-polyfill';
       return /\/src\/ui\/i18n(?:\.ts)?$/u.test(id) ? '\0fallback-i18n' : null;
-    }, load(id) {return id === '\0fallback-i18n' ? 'export const useUiI18n = () => ({t: key => key, translateLegacy: text => text});' : null;}}, vue()],
+    }, load(id) {
+      if (id === '\0fallback-webextension-polyfill') return 'export default {runtime: {sendMessage: async () => ({success: false})}};';
+      return id === '\0fallback-i18n' ? 'export const useUiI18n = () => ({t: key => key, translateLegacy: text => text});' : null;
+    }}, vue()],
   });
 });
 
@@ -75,7 +80,9 @@ describe('free translation settings compiled component', () => {
     expect(state.providers.map((provider: {id: string}) => provider.id)).toEqual(FREE_TRANSLATION_PROVIDERS.map(provider => provider.id));
     expect(control('启用 微软翻译')).toBeDefined();
     expect(elements.some(element => element.props['aria-label'] === '启用 微软翻译')).toBe(true);
-    expect(readFileSync(resolve(process.cwd(), componentPath), 'utf8')).not.toContain('freeTranslationWeights');
+    expect(elements.some(element => element.props['data-testid'] === 'free-translation-weight-summary')).toBe(true);
+    expect(elements.filter(element => element.props['data-provider-weight'])).toHaveLength(FREE_TRANSLATION_PROVIDERS.length);
+    expect(elements.find(element => element.props['data-provider-weight'] === 'microsoft')?.text).toBe('20.8%');
     expect(readFileSync(resolve(process.cwd(), componentPath), 'utf8')).not.toContain('setWeight');
   });
 

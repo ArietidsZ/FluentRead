@@ -45,6 +45,13 @@ export const esESMessages = {
     "settings.services.library.defaultBadge": "Predeterminado",
     "settings.services.library.favorite": "Añadir {service} a favoritos",
     "settings.services.library.unfavorite": "Quitar {service} de favoritos",
+    "settings.services.freeWeights.title": "Pesos actuales",
+    "settings.services.freeWeights.total": "Asignación actual: {total}",
+    "settings.services.freeWeights.description": "Normalizados entre los servicios disponibles ahora. Tras un fallo, un servicio pasa temporalmente a 0 y se recupera gradualmente.",
+    "settings.services.freeWeights.refresh": "Los pesos se actualizan automáticamente cada {minutes} minutos",
+    "settings.services.freeWeights.aria": "Peso actual de {service}: {weight}",
+    "settings.services.freeWeights.unavailable": "No hay ningún servicio disponible para la asignación",
+    "settings.services.freeWeights.sequential": "El modo de prioridad prueba los servicios en el orden de la lista y no usa pesos.",
 
     "inputTranslation.systemRoleLabel": "Rol",
     "inputTranslation.userRoleLabel": "Tarea",
