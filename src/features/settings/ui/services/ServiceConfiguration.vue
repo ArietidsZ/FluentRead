@@ -108,6 +108,7 @@
             :maxlength="MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH"
             @update:model-value="updateCustomProvider('endpoint', String($event))"
           />
+          <p class="provider-field-help">支持完整 Chat Completions 地址或以 /v1 结尾的 Base URL；模型须支持 Chat Completions。</p>
         </div>
       </div>
     </template>

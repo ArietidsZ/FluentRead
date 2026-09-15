@@ -1,5 +1,11 @@
 # 测试与回归
 
+## 自定义服务 Base URL（issue #626）
+
+`tests/aiSdkEndpoints.test.ts`、`tests/aiSdkErrors.test.ts` 和 `tests/aiSdkOpenAICompatible.test.ts` 覆盖标准 Base URL 补全、完整及非标准路径、代理优先级、查询参数、HTML 错误提示，以及真实 SDK 的请求体和鉴权传递。
+
+生产扩展构建后运行 `node scripts/testing/run-custom-base-url-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-issue626-ui`。专项使用临时 Edge profile、第二屏后台窗口和本地 HTTP 夹具，检查 Zen/Go 形状的 Base URL、根地址、完整和非标准接口、关闭重开后的配置、HTML 404 与手动重试，以及 390px 对话框。报告记录实际路径、模型和鉴权断言，不记录密钥。它证明扩展请求链路，不代表真实 OpenCode 账号、模型可用性或 Firefox 运行时验证。
+
 ## YouTube 全屏与字幕同步
 
 同一专项还覆盖滚动字幕的上一句残留、窗口裁切的旧行、连续每 40ms 增词、无时间轴的请求启动延迟与缓存重播。报告中的 `dispatchMs` 只度量原文变化到请求发出的等待，不包含真实供应商耗时；译文仍使用确定性响应，不能据此声称真实视频端到端零延迟。

@@ -97,6 +97,23 @@ describe('Vercel AI SDK OpenAI-compatible transport', () => {
     vi.unstubAllGlobals();
   });
 
+  it('issue #626：Base URL 经真实 SDK 发往完整接口并保留模型和鉴权', async () => {
+    mockConfig.custom = 'https://opencode.ai/zen/v1';
+    mockConfig.model[services.custom] = 'big-pickle';
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => String(input) === 'https://opencode.ai/zen/v1/chat/completions'
+      ? successResponse('你好')
+      : new Response('<!DOCTYPE html><html><body>Not Found</body></html>', {status: 404, headers: {'content-type': 'text/html'}}));
+    setRuntimeFetch(fetchMock);
+    await expect(translateWithOpenAICompatibleAiSdk({origin: 'hello'})).resolves.toBe('你好');
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://opencode.ai/zen/v1/chat/completions');
+    expect(new Headers(init.headers).get('authorization')).toBe('Bearer sk-local-secret-value');
+    expect(JSON.parse(String(init.body))).toMatchObject({model: 'big-pickle', stream: false});
+    expect(mockConfig.custom).toBe('https://opencode.ai/zen/v1');
+  });
+
+
   it('preserves custom top-level fields while keeping the SDK-owned stream mode', async () => {
     mockConfig.custom = 'http://127.0.0.1:11434/non-standard-generate';
     mockConfig.customBody[services.custom] = JSON.stringify({
