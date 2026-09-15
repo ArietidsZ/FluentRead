@@ -171,7 +171,6 @@ async function main() {
       return Promise.resolve(response);
     };
   })()`});
-  await menu.locator('summary').click();
   await action('regenerate-ai-subtitle').click();
   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"]')?.title === '无法读取模型状态，请重试');
   assert.equal(await action('regenerate-ai-subtitle').isEnabled(), true);
@@ -181,8 +180,7 @@ async function main() {
   await checked(action('toggle-ai-subtitle'), false);
   await action('toggle-ai-subtitle').click();
   await checked(action('toggle-ai-subtitle'), true);
-  await menu.locator('summary').click();
-  report.checks.push('AI 说明可展开，重新识别遇到模型查询失败会更新反馈并允许重试');
+  report.checks.push('AI 说明项移除，重新识别遇到模型查询失败会更新反馈并允许重试');
   for (const name of ['download-subtitles', 'download-translated-subtitles']) {
     const downloaded = page.waitForEvent('download');
     await action(name).click();
