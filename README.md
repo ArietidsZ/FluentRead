@@ -63,6 +63,10 @@ Report bugs and propose changes through [Issues](https://github.com/FluentRead/F
 
 Product descriptions and Chinese and English store images are maintained in the separate [press and store kit](./marketing/README.md).
 
+Thanks to everyone who has contributed to FluentRead:
+
+<a href="https://github.com/FluentRead/FluentRead/graphs/contributors"><img src="https://contrib.rocks/image?repo=FluentRead/FluentRead" alt="FluentRead contributors" /></a>
+
 ## Support
 
 FluentRead is an open-source project whose continued development is made possible by the generous support of its community. Voluntary contributions are welcome through either service.
