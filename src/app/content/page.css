@@ -340,35 +340,11 @@
     pointer-events: none !important;
 }
 
-/* 双语逐句高亮：只绘制不会改变几何尺寸的单层强调，避免动态页面在 hover 时发生布局抖动。 */
-html[data-fr-bilingual-sentence-highlight="true"] :has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):hover,
-html[data-fr-bilingual-sentence-highlight="true"] :has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):focus-within {
-    background-color: rgba(239, 71, 118, 0.065) !important;
-    border-radius: 0.45em;
-    box-shadow: inset 0 0 0 1px rgba(239, 71, 118, 0.18) !important;
-}
-
-/* containing block 常态固定；hover 只绘制，不切换定位语义，避免绝对定位后代跳动。 */
-html[data-fr-bilingual-sentence-highlight="true"] .fluent-read-bilingual-content[data-fr-translation-owned="true"] {
-    position: relative;
-}
-
-/* 译文常态保留很淡的细色标，与原文形成层级；hover/focus 只增强纯绘制颜色。 */
-html[data-fr-bilingual-sentence-highlight="true"] .fluent-read-bilingual-content[data-fr-translation-owned="true"]::before {
-    position: absolute;
-    top: 0.2em;
-    bottom: 0.2em;
-    inset-inline-start: -0.32em;
-    width: 2px;
-    border-radius: 999px;
-    background-color: rgba(239, 71, 118, 0.24);
-    content: "";
-    pointer-events: none;
-}
-
-html[data-fr-bilingual-sentence-highlight="true"] :has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):hover > .fluent-read-bilingual-content::before,
-html[data-fr-bilingual-sentence-highlight="true"] :has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):focus-within > .fluent-read-bilingual-content::before {
-    background-color: rgba(239, 71, 118, 0.58);
+/* 原生文字范围只参与绘制；不创建盒子、不修改宿主 class、定位或文字节点。 */
+::highlight(fluentread-bilingual-sentence) {
+    background-color: rgba(239, 71, 118, 0.22);
+    text-decoration: underline rgba(239, 71, 118, 0.65);
+    text-decoration-thickness: 1px;
 }
 
 /* 马克笔 */

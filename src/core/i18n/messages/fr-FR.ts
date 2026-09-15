@@ -648,7 +648,7 @@ export const frFRMessages = {
     'settings.general.floatingBallSettingsAction': 'Ouvrir les réglages de la bulle',
     'settings.general.translationMode': 'Mode de traduction',
     'settings.general.bilingualSentenceHighlight': 'Surlignage bilingue par phrase',
-    'settings.general.bilingualSentenceHighlightDescription': 'Survolez le texte source ou traduit pour surligner le passage bilingue correspondant. Disponible uniquement en mode bilingue.',
+    'settings.general.bilingualSentenceHighlightDescription': 'Survolez une phrase du texte source ou traduit pour mettre en évidence la phrase correspondante et comparer les passages difficiles ou mal traduits. Les phrases divisées ou fusionnées sont regroupées. Disponible uniquement en mode bilingue.',
     'settings.interface.font.label': 'Police de l’interface',
     'settings.interface.font.description': 'Pour les réglages et la fenêtre de l’extension. Enregistrement automatique, sans modifier les sites.',
     'settings.interface.font.preview': 'Lisez confortablement. Comprenez mieux.',

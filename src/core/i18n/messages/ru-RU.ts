@@ -648,7 +648,7 @@ export const ruRUMessages = {
     'settings.general.floatingBallSettingsAction': 'Открыть настройки плавающей кнопки',
     'settings.general.translationMode': 'Режим перевода',
     'settings.general.bilingualSentenceHighlight': 'Подсветка двуязычных предложений',
-    'settings.general.bilingualSentenceHighlightDescription': 'Наведите указатель на оригинал или перевод, чтобы выделить соответствующий двуязычный фрагмент. Работает только в двуязычном режиме.',
+    'settings.general.bilingualSentenceHighlightDescription': 'Наведите указатель на предложение оригинала или перевода, чтобы выделить соответствующее предложение и сравнить сложные или неточно переведённые места. Разделённые или объединённые предложения выделяются группами. Только в двуязычном режиме.',
     'settings.interface.font.label': 'Шрифт интерфейса',
     'settings.interface.font.description': 'Для настроек и окна расширения. Сохраняется автоматически, не меняет шрифты сайтов.',
     'settings.interface.font.preview': 'Читайте с комфортом. Понимайте больше.',

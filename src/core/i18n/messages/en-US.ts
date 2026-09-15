@@ -828,7 +828,7 @@ export const enUSMessages = {
     'settings.general.floatingBallSettingsAction': 'Open floating-ball settings',
     'settings.general.translationMode': 'Translation mode',
     'settings.general.bilingualSentenceHighlight': 'Bilingual sentence highlighting',
-    'settings.general.bilingualSentenceHighlightDescription': 'Hover over the source or translation to highlight the matching bilingual passage. Available in bilingual mode only.',
+    'settings.general.bilingualSentenceHighlightDescription': 'Hover over a sentence in the source or translation to highlight its counterpart and compare difficult or mistranslated passages. Split or merged sentences are grouped together. Available in bilingual mode only.',
     'settings.interface.font.label': 'Interface font',
     'settings.interface.font.description': 'Used in settings and the popup. Saves automatically; website fonts stay unchanged.',
     'settings.interface.font.preview': 'Read comfortably. Understand more.',

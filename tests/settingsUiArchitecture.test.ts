@@ -1005,9 +1005,9 @@ describe('options UI composition architecture', () => {
     expect(general).toContain('data-testid="bilingual-highlight-preview-translation"')
     expect(general).toContain(':data-bilingual-highlight-enabled="String(config.bilingualSentenceHighlightEnabled)"')
     expect(general).toContain("'is-bilingual-highlight-enabled': config.bilingualSentenceHighlightEnabled")
-    expect(styles).toContain('.bilingual-highlight-preview.is-bilingual-highlight-enabled:hover')
-    expect(styles).toContain('.bilingual-highlight-preview.is-bilingual-highlight-enabled:focus-visible')
-    expect(styles).toContain('.style-preview-text::before')
+    expect(styles).toContain('.bilingual-highlight-preview .is-sentence-highlighted')
+    expect(styles).toContain('.bilingual-highlight-preview span:focus-visible')
+    expect(general).toContain('@pointerenter="highlightPreviewSentence = index"')
 
     expect(services).toContain('<ServiceCatalog')
     expect(services).not.toContain('data-testid="default-translation-service-card"')
@@ -1111,10 +1111,8 @@ describe('options UI composition architecture', () => {
   it('keeps bilingual sentence highlighting opt-in and scoped to bilingual wrappers', () => {
     const page = source('src/app/content/page.css')
 
-    expect(page).toContain('html[data-fr-bilingual-sentence-highlight="true"] :has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):hover')
-    expect(page).toContain('box-shadow: inset 0 0 0 1px rgba(239, 71, 118, 0.18) !important;')
-    expect(page).toContain(':hover > .fluent-read-bilingual-content::before')
-    expect(page).toContain('background-color: rgba(239, 71, 118, 0.58);')
-    expect(page).not.toContain('.fluent-read-bilingual-content {\n    background-color: rgba(239, 71, 118')
+    expect(page).toContain('::highlight(fluentread-bilingual-sentence)')
+    expect(page).not.toContain(':hover > .fluent-read-bilingual-content::before')
+    expect(page).not.toContain(':has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):hover')
   })
 })

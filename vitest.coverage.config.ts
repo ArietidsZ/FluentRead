@@ -24,6 +24,7 @@ export default defineConfig({
         minWorkers: 1,
         fileParallelism: false,
         include: [
+            'tests/bilingualSentenceHighlight.test.ts',
             'tests/onnxWasmBinary.test.ts',
             'tests/onnxWebGpu.test.ts',
             'tests/apiKeyCheckIdentity.test.ts',
@@ -318,6 +319,9 @@ export default defineConfig({
             reportsDirectory: 'coverage/core',
             reporter: ['text', 'json-summary', 'html'],
             include: [
+                'src/core/translation/sentenceAlignment.ts',
+                'src/features/full-page-translation/content/sentenceHighlight.ts',
+                'src/app/content/bilingualSentenceHighlight.ts',
                 'src/core/config/apiKeyCheckIdentity.ts',
                 'src/services/translation/apiKeyRotation.ts',
                 'src/core/translation/apiKeyPool.ts',
