@@ -61,8 +61,6 @@ pnpm dev
 
 欢迎通过 [Issue](https://github.com/FluentRead/FluentRead/issues) 报告问题或提出建议，并通过 Pull Request 改进代码、文档、界面翻译及[网站适配](../docs/contributing/site-adaptation.md)。
 
-产品介绍与中英文商店图片存放于独立的[宣传与商店素材目录](../marketing/README.md)。
-
 ## 支持项目
 
 FluentRead 是一个开源项目，其持续开发离不开社区的慷慨支持。可以通过微信赞赏或 Ko-fi 自愿赞赏。
@@ -77,7 +75,7 @@ FluentRead 是一个开源项目，其持续开发离不开社区的慷慨支持
 
 ## 致谢
 
-FluentRead 的成长离不开开源翻译社区。感谢以下项目及其贡献者的开放与分享：
+FluentRead 的成长离不开开源社区。感谢以下项目及其贡献者的开放与分享：
 
 - [陪读蛙](https://github.com/mengxi-ream/read-frog)
 - [简约翻译](https://github.com/fishjar/kiss-translator)
@@ -97,7 +95,7 @@ FluentRead 的成长离不开开源翻译社区。感谢以下项目及其贡献
 </a>
 <!-- contributors:end -->
 
-感谢每一位为 FluentRead 做出贡献的朋友，也感谢每一位用户包容这个仍不完美的产品。希望与你们一起，为这个世界带来更多美好。
+感谢每一位为 FluentRead 做出贡献的朋友，包括许多未能在此一一列出的人；也感谢每一位用户包容这个仍不完美的产品。希望与你们一起，为这个世界带来更多美好。
 
 ## 许可证与隐私
 

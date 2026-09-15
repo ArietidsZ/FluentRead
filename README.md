@@ -61,8 +61,6 @@ Use `pnpm build` to build the Chrome extension, `pnpm compile` for type checking
 
 Report bugs and propose changes through [Issues](https://github.com/FluentRead/FluentRead/issues). Pull requests for code, documentation, interface translations, and [website adaptation](./docs/contributing/site-adaptation.md) are welcome.
 
-Product descriptions and Chinese and English store images are maintained in the separate [press and store kit](./marketing/README.md).
-
 ## Support
 
 FluentRead is an open-source project whose continued development is made possible by the generous support of its community. Voluntary contributions are welcome through either service.
@@ -77,7 +75,7 @@ FluentRead is an open-source project whose continued development is made possibl
 
 ## Acknowledgments
 
-FluentRead grows alongside a vibrant open-source translation community. We are grateful to the following projects and their contributors for their openness and generosity:
+FluentRead grows alongside a vibrant open-source community. We are grateful to the following projects and their contributors for their openness and generosity:
 
 - [Read Frog](https://github.com/mengxi-ream/read-frog)
 - [KISS Translator](https://github.com/fishjar/kiss-translator)
@@ -97,7 +95,7 @@ FluentRead grows alongside a vibrant open-source translation community. We are g
 </a>
 <!-- contributors:end -->
 
-Thank you to everyone who has contributed to FluentRead, and to every user for embracing a product that is still far from perfect. We hope to keep building together with you, and to bring a little more good into the world.
+Thank you to everyone who has contributed to FluentRead, including the many we couldn't name here, and to every user for embracing a product that is still far from perfect. We hope to keep building together with you, and to bring a little more good into the world.
 
 ## License and privacy
 
