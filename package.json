@@ -38,6 +38,7 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "node scripts/testing/run-resource-safe.mjs -- vitepress build docs",
     "docs:preview": "vitepress preview docs",
+    "docs:contributors": "node scripts/update-readme-contributors.mjs",
     "analyze:bundle": "node scripts/testing/run-resource-safe.mjs -- node scripts/testing/analyze-bundle-size.mjs"
   },
   "dependencies": {
