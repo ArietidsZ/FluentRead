@@ -10,10 +10,16 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const chinesePosts = require('../../tests/fixtures/chinese-language-posts.json');
+const modelPost = require('../../tests/fixtures/chinese-language-model-post.json');
+const releaseNote = '云端模型清单允许清空，且不再连带拒掉无关偏好的保存';
 const sameLanguageTexts = [
   ...chinesePosts,
   '✨ 新增功能',
   '新增文档翻译工作台，支持 PDF、ePub、DOCX，以及 HTML、TXT、Markdown、SRT、VTT、ASS/SSA、LRC、JSON 等格式。',
+  ...modelPost,
+  modelPost.join('\n'),
+  releaseNote,
+  `${releaseNote} (84522b3)`,
 ];
 
 const paragraphs = {
@@ -131,7 +137,10 @@ async function startFixture() {
     if (source === 'same-language') {
       response.setHeader('Content-Type', 'text/html; charset=utf-8');
       // 故意沿用英文页面语言，证明每条评论按原文判断，而非信任宿主整页语言。
-      response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Same-language comments</title></head><body style="padding:24px;font:18px/1.6 sans-serif"><main>${sameLanguageTexts.map((text, index) => `<article><p data-same-language="${index}">${text}</p></article>`).join('')}<p id="english-control">${paragraphs.en[0]}</p><p id="traditional-control">${paragraphs['zh-Hant'][0]}</p></main></body></html>`);
+      const comments = sameLanguageTexts.map((text, index) => text.endsWith('(84522b3)')
+        ? `<ul><li data-same-language="${index}">${releaseNote} (<a href="https://github.com/solidSpoon/DashPlayer/commit/84522b3ff33401f87da8d5d7c4510ea5453e40ef">84522b3</a>)</li></ul>`
+        : `<article><p data-same-language="${index}">${text}</p></article>`).join('');
+      response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Same-language comments</title></head><body style="padding:24px;font:18px/1.6 sans-serif"><main>${comments}<p id="english-control">${paragraphs.en[0]}</p><p id="traditional-control">${paragraphs['zh-Hant'][0]}</p></main></body></html>`);
       return;
     }
     if (source === 'excluded-languages') {
@@ -382,6 +391,8 @@ async function main() {
           assert.equal(await article.locator('.fluent-read-bilingual-content .fluent-read-bilingual-content').count(), 0);
           assert.equal(await article.locator('[data-same-language] .fluent-read-bilingual-content').count(), 0);
           assert.deepEqual(await article.locator('[data-same-language]').allTextContents(), sameLanguageTexts);
+          assert.equal(await article.locator('[data-same-language] a').getAttribute('href'),
+            'https://github.com/solidSpoon/DashPlayer/commit/84522b3ff33401f87da8d5d7c4510ea5453e40ef');
           assert(!fixture.requests.slice(requestStart).some(request => sameLanguageTexts.some(text => request.source.includes(text))), '同语言评论不得进入翻译请求');
         };
         for (let index = 0; index < sameLanguageTexts.length; index++) {

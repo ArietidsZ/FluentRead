@@ -22,9 +22,11 @@
 
 ## 中文格式清单与重复请求
 
-`tests/chineseLanguage.test.ts` 覆盖中文文档格式清单、简繁字形相同的“新增功能”标题、格式名大小写、真正外语正文与简繁转换边界。
+`tests/chineseLanguage.test.ts` 覆盖中文文档格式清单、简繁字形相同的“新增功能”标题、短中文中的 AI/PDF、带版本与后缀的技术名称（例如 GPT-6 Sol）、发布说明中的提交哈希、真正外语正文与简繁转换边界。`tests/fixtures/chinese-language-model-post.json` 保留用户反馈原文，分别验证四行和整段；这份测试语料不代表对其中新闻内容的事实确认。
 
-生产扩展构建后运行 `node scripts/testing/run-chinese-translation-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-chinese-browser`。专项在临时 Edge profile 的后台可见窗口中，检查悬浮零请求、全文跳过中文且继续翻译相邻英文/繁体内容、恢复再翻译，以及动态中文改为英文后的重新识别。端点在校验原文前记录请求，夹具拒绝的无效请求也会计数。页面和供应商响应为本地夹具，不代表真实翻译质量。
+语言检测仅在用于判定的副本中识别标识符，原文保持不变。中文正文仍须有字形或词语证据：文件格式不占外语预算，带版本的技术名称按缩写计权，含数字的完整 7–40 位十六进制哈希不算外语；普通外语词、完整外语句子、简繁混排和不确定汉字继续翻译。中文词语证据同时用于中性字形和简繁字形，避免“允许清空”“不再保存”因未命中单字短表而重复翻译。简体证据另由 Unicode 17.0.0 补充中国来源且无日本来源的常用单向简体字；来源属性只作为辅助证据，不能直接等同语言。生成命令为 `node scripts/testing/generate-chinese-variants.mjs <Unihan_Variants.txt> <Unihan_IRGSources.txt>`，两份输入均来自固定版本的官方 Unihan 压缩包，生成文件保留各自 SHA-256。
+
+生产扩展构建后运行 `node scripts/testing/run-chinese-translation-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-chinese-browser`。专项在临时 Edge profile 的后台可见窗口中，检查悬浮零请求、全文跳过中文且继续翻译相邻英文/繁体内容、恢复再翻译，以及动态中文改为英文后的重新识别；同时复现 GitHub 发布说明的 `li > a` 提交链接结构和宿主 `lang="en"`。端点在校验原文前记录请求，夹具拒绝的无效请求也会计数。页面和供应商响应为本地夹具，不代表真实翻译质量。
 
 ## 阅读卡深色主题（issue #574）
 

@@ -2,11 +2,11 @@
  * @file src/core/language/chinese.ts
  *
  * 文件职责：统一中文语言别名与书写体系，并以保守字形证据区分简体、繁体和未知文本。
- * 主要内容：规范化中文语言码并结合 Unicode 简繁冲突表判断书写体系；中文说明中的已知文件格式名不计入外语占比，其他缩写仍受比例限制；目标语言预检可跳过有明确中文词语证据的中性字形标题，排除混排、完整外语及粤语口语。
+ * 主要内容：规范化中文语言码并结合 Unicode 简繁冲突表判断书写体系；识别正文中的文件格式、提交哈希和带版本的技术名称，避免按零散字母误判外语；中文词语证据适用于中性和简繁字形，仍排除完整外语、简繁混排及粤语口语。
  * 模块边界：本文件属于 core 纯算法，不转换原文、不猜测地区或方言，不访问配置、浏览器、网络或翻译服务；未知结果由调用方继续检测或翻译。
  */
 
-import {simplifiedOnlyCharacters, traditionalOnlyCharacters} from './chineseVariants';
+import {simplifiedOnlyCharacters, traditionalOnlyCharacters, simplifiedChineseEvidenceCharacters} from './chineseVariants';
 
 export type ChineseScript = 'Hans' | 'Hant';
 
@@ -85,26 +85,45 @@ const technicalTokenPattern = /^(?:[A-Z][a-z]*[A-Z][A-Za-z]*|[a-z]+[A-Z][A-Za-z]
 // 任意大写英文句子；Markdown 等常规大小写单词也必须来自这份有限清单。
 const fileFormatTokenPattern = /^(?:pdf|epub|docx?|xlsx?|pptx?|html?|txt|markdown|md|srt|vtt|ass|ssa|lrc|json|csv|tsv|xml|yaml|yml)$/iu;
 
+// 哈希是标识符而非外语。要求完整的 7–40 位十六进制 token 且包含数字，
+// 避免把普通英文词（如 decaffeinated）或更长 token 的片段当成哈希删除。
+const commitHashPattern = /(?<![\p{L}\p{N}_])[a-f\d]{7,40}(?![\p{L}\p{N}_])/giu;
+// 保留技术名称的边界：GPT-6 Sol 是一个名称，不能拆成 GPT 和孤立的 Sol；
+// 仅接受缩写/内部大写名称、数字版本和最多一个首字母大写后缀，不跨汉字或标点拼接。
+const versionedTechnicalNamePattern = /(?<![\p{L}\p{N}_])(?:[A-Z][a-z]*[A-Z][A-Za-z]*|[a-z]+[A-Z][A-Za-z]*)-\d+(?:\.\d+)*(?:[ \t]+[A-Z][a-z]{1,15})?(?![\p{L}\p{N}_])/gu;
+
 function hasForeignLanguageContent(value: string): boolean {
-    const nonHan = value.replace(/\p{Script=Han}/gu, ' ');
+    let technicalNameCount = 0;
+    const prose = value.replace(commitHashPattern, token => /\d/u.test(token) ? ' ' : token)
+        .replace(versionedTechnicalNamePattern, token => {
+            if (token.length > 48) return token;
+            technicalNameCount += 1;
+            return ' ';
+        });
+    const nonHan = prose.replace(/\p{Script=Han}/gu, ' ');
     const foreignLetters = nonHan.match(/\p{L}/gu);
-    if (!foreignLetters) return false;
+    if (!foreignLetters && technicalNameCount === 0) return false;
     const hanCount = [...value].filter(character => hanPattern.test(character)).length;
-    if (hanCount < 10) return true;
-    const tokens = nonHan.match(/\p{L}+/gu)!;
+    // 短中文也可以明确包含 AI、PDF；最终仍须通过中文语境和简繁冲突检查。
+    if (hanCount < 4) return true;
+    const tokens = nonHan.match(/\p{L}+/gu) ?? [];
     const nonFormatTokens = tokens.filter(token => !fileFormatTokenPattern.test(token));
-    if (nonFormatTokens.reduce((total, token) => total + token.length, 0) * 2 > hanCount) return true;
+    // 带版本的名称按一个双字缩写计权，防止名称拼写长度压倒中文正文；
+    // 大量名称而缺少中文说明时仍不跳过。普通外语词必须独立通过后续检查。
+    if ((nonFormatTokens.reduce((total, token) => total + token.length, 0) + technicalNameCount * 2) * 2 > hanCount) return true;
     return nonFormatTokens.some(token => token.length > 24 || !technicalTokenPattern.test(token));
 }
 
-// 明确中文证据另用短表审核，避免把只有日文共享汉字的「日本語」「時間」误作中文。
-const simplifiedChineseEvidencePattern = /[这们语译设为说从对还样书门车东发见长电现间题让气实图网边变进选级应标经简汉龙刘吴赵陈张听读广欢专严丽举买亲众伤伦]|[起出下]来/u;
+// 保留已审核语境，并用 Unihan 来源差集补充「预、计、许」等漏掉的简体字；
+// 不把共享日文新字体「国、学、体」自动作为中文证据。
+const simplifiedChineseEvidencePattern = new RegExp(`[这们语译设为说从对还样书门车东发见长电现间题让气实图网边变进选级应标经简汉龙刘吴赵陈张听读广欢专严丽举买亲众伤伦${simplifiedChineseEvidenceCharacters}]|[起出下]来`, 'u');
 const traditionalChineseEvidencePattern = /[這們譯與說從對樣發氣點實圖邊變條應經體廣歡專嚴舉眾寫續]/u;
 // 方言不是书写体系。含常见粤语口语标记时不能据繁体字形推断普通话。
 const cantoneseMarkerPattern = /[嘅咗哋佢冇嚟喺啲嘢唔咁乜嗰咩噉]/u;
-// 「新增」是可审核的中文词语证据，能覆盖简繁字形相同的更新标题；
+// 中文词语同样能确认语境，不能只在所有汉字均为中性字形时才使用：
+// 如「清单允许清空，且不再连带拒掉无关偏好的保存」没有命中上方单字短表。
 // 不能把「時間」「日本語」或任何纯 Han 都视为中文，也不靠宿主页 lang 猜测。
-const sharedChineseEvidencePattern = /新增/u;
+const sharedChineseEvidencePattern = /新增|不再|允[许許]|[你您]好|[谢謝]{2}/u;
 
 function classifyChineseText(value: string): ChineseScript | 'shared' | undefined {
     if (cantoneseMarkerPattern.test(value) || hasForeignLanguageContent(value)) {
@@ -118,7 +137,8 @@ function classifyChineseText(value: string): ChineseScript | 'shared' | undefine
     const hasHant = traditionalScriptPattern.test(value);
     if (!hasHans && !hasHant) return sharedChineseEvidencePattern.test(value) ? 'shared' : undefined;
     if (hasHans && hasHant) return undefined;
-    const hasChineseEvidence = (hasHans ? simplifiedChineseEvidencePattern : traditionalChineseEvidencePattern).test(value);
+    const hasChineseEvidence = sharedChineseEvidencePattern.test(value)
+        || (hasHans ? simplifiedChineseEvidencePattern : traditionalChineseEvidencePattern).test(value);
     if (!hasChineseEvidence) return undefined;
     return hasHans ? 'Hans' : 'Hant';
 }
