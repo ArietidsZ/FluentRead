@@ -21,9 +21,23 @@ for (let page = 1; ; page++) {
     if (batch.length < 100) break;
 }
 
-const avatars = contributors.map(({login, id}) =>
-    `<a href="https://github.com/${login}"><img src="https://avatars.githubusercontent.com/u/${id}?s=96&v=4" width="48" height="48" alt="${login}" /></a>`,
+// 与陪读蛙相同：整块链接到贡献者页面，头像放在单格表格中。
+const images = contributors.map(({login, id}) =>
+    `<img src="https://avatars.githubusercontent.com/u/${id}?s=96&v=4" width="48" height="48" alt="${login}">`,
 ).join('');
+const avatars = [
+    `<a href="https://github.com/${repo}/graphs/contributors">`,
+    '  <table>',
+    '    <tr>',
+    '      <th>',
+    '        <br>',
+    `        ${images}<br>`,
+    '        <br>',
+    '      </th>',
+    '    </tr>',
+    '  </table>',
+    '</a>',
+].join('\n');
 
 for (const name of readmes) {
     const file = resolve(root, name);
