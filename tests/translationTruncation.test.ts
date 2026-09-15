@@ -22,6 +22,7 @@ import {
     beginTranslation,
     getTranslationState,
     hasTranslationLayoutOverride,
+    hasBilingualArtifactHostWriteBudget,
     isTranslationLayoutOverrideMutation,
     markTranslationComplete,
     reconcileTranslationLayoutOverrides,
@@ -484,6 +485,7 @@ describe('translation truncation layout', () => {
         await withDocumentRealm(document, async () => {
             const attempt = beginTranslation(first, 'bilingual')!;
             attempt.state.phase = 'translated';
+            expect(ensureTranslationTruncationLayout(first)).toBe(true);
             const wrapper = appendBilingualTranslation(first, '模型介绍已翻译。');
             setBilingualContent(first, wrapper);
 
@@ -958,6 +960,44 @@ describe('translation truncation layout', () => {
             } finally {
                 if (getTranslationState(first)) restoreTranslation(first);
             }
+        });
+    });
+
+    it.each(['attribute', 'class'])('字体脚本反复补写 %s 标记时保留同一译文节点和 generation', async (mode) => {
+        const {document, first} = openRouterFixture();
+        await withDocumentRealm(document, async () => {
+            // 字体脚本先监听新增内容，再在 FluentRead 保存快照后补写粗体标记。
+            let fontPasses = 0;
+            const fontObserver = new MutationObserver(() => {
+                if (++fontPasses > 12) { fontObserver.disconnect(); return; }
+                first.querySelectorAll('.fluent-read-bilingual-content, .fluent-read-bilingual-content strong').forEach((el) => {
+                    if (mode === 'attribute') el.setAttribute('ultimate-bold-correct', '');
+                    else el.classList.add('ultimate-bold-correct');
+                });
+            });
+            fontObserver.observe(first, {childList: true, subtree: true});
+            const attempt = beginTranslation(first, 'bilingual')!;
+            attempt.state.phase = 'translated';
+            expect(ensureTranslationTruncationLayout(first)).toBe(true);
+            const wrapper = document.createElement('span');
+            wrapper.className = 'fluent-read-bilingual-content';
+            wrapper.setAttribute('data-fr-translation-owned', 'true');
+            wrapper.innerHTML = '<strong>译文粗体</strong>和普通译文';
+            first.appendChild(wrapper);
+            setBilingualContent(first, wrapper);
+            try {
+                for (let round = 0; round < 8; round += 1) {
+                    await flushMutationObservers();
+                    expect(getTranslationState(first)).toBe(attempt.state);
+                    expect(first.querySelector('.fluent-read-bilingual-content')).toBe(wrapper);
+                    expect(attempt.state.phase).toBe('translated');
+                    expect(hasBilingualArtifactHostWriteBudget(first)).toBe(false);
+                }
+            } finally {
+                fontObserver.disconnect();
+                if (getTranslationState(first)) restoreTranslation(first);
+            }
+            expect(first.querySelector('.fluent-read-bilingual-content')).toBeNull();
         });
     });
 
