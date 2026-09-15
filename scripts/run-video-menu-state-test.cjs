@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Production-extension regression for an open X menu whose native controls unmount.
+// Production-extension regression for X control placement and menu state across remounts.
 // Uses seeded transcript cues and a deterministic translation response, not live ASR.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -70,15 +70,80 @@ async function main() {
   assert.equal(cached.cached, true);
   const url = 'https://x.com/fluentread/status/424242';
   await context.route('https://video.twimg.com/**', route => route.fulfill({contentType: 'video/mp4', body: fs.readFileSync(mediaFile)}));
-  await context.route(url, route => route.fulfill({contentType: 'text/html', body: `<!doctype html><html><body style="margin:24px;background:#f3f5f9">
-    <h1>字幕菜单状态同步</h1><article><div data-testid="videoPlayer" style="position:relative;width:960px;height:540px">
+  await context.route(url, route => route.fulfill({contentType: 'text/html', body: `<!doctype html><html><head><meta charset="utf-8"><style>
+    .fixture-controls{position:absolute;bottom:0;left:12px;right:12px;display:flex;align-items:center;height:44px;background:#222;color:#fff}
+    .fixture-controls button{display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex:none;padding:0;border:0;background:transparent;color:#fff;font-size:20px}
+    .fixture-time{flex:1;min-width:0;font:12px Arial;white-space:nowrap;overflow:hidden}
+    .fixture-actions{display:flex;align-items:center;flex:none}
+    [data-testid="videoPlayer"]:fullscreen{width:100vw!important;height:100vh!important}
+    </style></head><body style="margin:24px;background:#f3f5f9">
+    <h1>字幕菜单状态同步</h1><article><div data-testid="videoPlayer" style="position:relative;width:960px;height:540px;overflow:hidden">
     <video src="https://video.twimg.com/ext_tw_video/424242/pu/fixture.mp4" style="width:100%;height:100%" muted></video>
-    <div class="fixture-controls" style="position:absolute;bottom:0;display:flex;width:100%;height:44px;background:#222">
-    <button aria-label="Play">Play</button><button aria-label="Settings">Settings</button></div></div></article></body></html>`}));
+    <div class="fixture-controls"><button aria-label="Play" onclick="this.dataset.clicked='true'">▶</button><span class="fixture-time">0:02 / 0:13</span>
+    <div class="fixture-actions"><button aria-label="Captions">▣</button><button aria-label="Volume">◖</button><button aria-label="Settings">⚙</button>
+    <div id="fixture-pip"><button aria-label="Picture in picture" onclick="this.dataset.clicked='true'">▣</button></div>
+    <div id="fixture-fullscreen"><button aria-label="Full screen" onclick="this.closest('[data-testid=videoPlayer]').requestFullscreen()">⛶</button></div>
+    </div></div></div></article></body></html>`}));
   page = await helper.newPageWithoutForeground(context);
   await page.goto(url);
   await helper.activateExtensionTabWithoutForeground({serviceWorkers: () => [worker]}, page);
   await page.locator('video').hover();
+  const checkPlacement = async name => {
+    await page.waitForFunction(() => {
+      const button = document.querySelector('#fluent-read-video-subtitle-button');
+      return button?.previousElementSibling?.id === 'fixture-pip' && button?.nextElementSibling?.id === 'fixture-fullscreen';
+    });
+    const geometry = await page.evaluate(() => {
+      const rect = element => {
+        const {left, right, top, bottom, width, height} = element.getBoundingClientRect();
+        return {left, right, top, bottom, width, height};
+      };
+      return {
+        player: rect(document.querySelector('[data-testid="videoPlayer"]')),
+        video: rect(document.querySelector('video')),
+        button: rect(document.querySelector('#fluent-read-video-subtitle-button')),
+        pip: rect(document.querySelector('#fixture-pip')),
+        fullscreen: rect(document.querySelector('#fixture-fullscreen')),
+        count: document.querySelectorAll('#fluent-read-video-subtitle-button').length,
+      };
+    });
+    assert.equal(geometry.count, 1);
+    assert.ok(geometry.button.width > 0 && geometry.button.height > 0);
+    assert.ok(geometry.button.left >= geometry.pip.right - 1 && geometry.button.right <= geometry.fullscreen.left + 1, JSON.stringify(geometry));
+    for (const control of [geometry.pip, geometry.button, geometry.fullscreen]) {
+      assert.ok(control.left >= geometry.video.left && control.right <= geometry.video.right && control.bottom <= geometry.video.bottom, JSON.stringify(geometry));
+    }
+    (report.placement ||= []).push({name, ...geometry});
+  };
+  for (const width of [960, 572, 360, 320]) {
+    await page.locator('[data-testid="videoPlayer"]').evaluate((player, width) => player.style.width = width + 'px', width);
+    await checkPlacement(`width-${width}`);
+  }
+  await page.locator('[data-testid="videoPlayer"]').screenshot({path: path.join(artifacts, 'portrait-controls.png')});
+  await page.locator('[aria-label="Play"]').click();
+  await page.locator('#fixture-pip button').click();
+  assert.equal(await page.locator('[aria-label="Play"]').getAttribute('data-clicked'), 'true');
+  assert.equal(await page.locator('#fixture-pip button').getAttribute('data-clicked'), 'true');
+  await page.evaluate(() => document.querySelector('.fixture-actions').append(document.querySelector('#fluent-read-video-subtitle-button')));
+  await checkPlacement('host-moved-icon');
+  await page.evaluate(() => document.querySelector('#fluent-read-video-subtitle-button').remove());
+  await checkPlacement('host-removed-icon');
+  await page.locator('#fixture-fullscreen button').click();
+  await page.waitForFunction(() => Boolean(document.fullscreenElement));
+  await page.locator('#fixture-fullscreen button').evaluate(button => button.setAttribute('aria-label', 'Exit full screen'));
+  await checkPlacement('fullscreen');
+  await page.evaluate(() => document.exitFullscreen());
+  await page.waitForFunction(() => !document.fullscreenElement);
+  await checkPlacement('exit-fullscreen');
+  await page.evaluate(() => {
+    const actions = document.querySelector('.fixture-actions');
+    const replacement = actions.cloneNode(true);
+    replacement.querySelector('#fluent-read-video-subtitle-button')?.remove();
+    actions.replaceWith(replacement);
+  });
+  await checkPlacement('controls-replaced');
+  await page.locator('[data-testid="videoPlayer"]').evaluate(player => player.style.width = '960px');
+  report.checks.push('320–960px 视频内图标固定在画中画和全屏之间；宿主移位/删除、控件重建、全屏进出后恢复，原生按钮仍可点击');
   const menu = page.locator('#fluent-read-video-subtitle-menu');
   const action = name => menu.locator(`[data-action="${name}"]`);
   const checked = async (locator, expected) => {
@@ -194,6 +259,7 @@ async function main() {
   await screenshot('controls-absent');
   await page.evaluate(() => document.querySelector('[data-testid="videoPlayer"]').append(window.fixtureControls));
   await page.locator('#fluent-read-video-subtitle-button').waitFor({state: 'attached'});
+  await checkPlacement('controls-restored');
   assert.equal(await page.evaluate(() => window.fixtureMenu === document.querySelector('#fluent-read-video-subtitle-menu')), true);
   await page.locator('#fluent-read-video-subtitle-button').click();
   if (!(await menu.isVisible())) await page.locator('#fluent-read-video-subtitle-button').click();

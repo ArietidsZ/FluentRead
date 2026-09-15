@@ -55,6 +55,90 @@ function createFixture(markup = '<div class="player"><video></video><div class="
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe('native picture-in-picture and fullscreen anchors', () => {
+  it.each([
+    ['aria-label="Full screen"', 'aria-label="Picture in picture"'],
+    ['aria-label="Exit fullscreen"', 'aria-label="Picture-in-picture"'],
+    ['aria-label="退出全屏"', 'aria-label="画中画"'],
+    ['title="全螢幕"', 'aria-label="子母畫面"'],
+    ['data-testid="videoFullscreenButton"', 'data-testid="videoPictureInPictureButton"'],
+  ])('keeps the icon between wrapped controls using %s', (fullscreen, pip) => {
+    const fixture = createFixture(`<div class="player" data-testid="videoPlayer"><video></video>
+      <div class="bar"><button aria-label="Settings"></button><div class="actions">
+        <div id="pip"><button ${pip}></button></div><div id="fullscreen"><button ${fullscreen}></button></div>
+      </div></div></div>`);
+    const button = fixture.document.createElement('button');
+    const binding = createVideoPlayerBinding({document: fixture.document, locator: fixture.locator, getState: () => ({enabled: true}), createButton: () => button});
+    expect(button.parentElement?.className).toBe('actions');
+    expect(button.previousElementSibling?.id).toBe('pip');
+    expect(button.nextElementSibling?.id).toBe('fullscreen');
+    const insert = vi.spyOn(button.parentElement!, 'insertBefore');
+    binding.sync();
+    fixture.setTarget({...fixture.target, fullscreen: true});
+    fixture.setTarget({...fixture.target, fullscreen: false});
+    expect(insert).not.toHaveBeenCalled();
+    binding.destroy();
+    expect(fixture.player.querySelector('.actions')?.children).toHaveLength(2);
+  });
+
+  it('anchors YouTube before its fullscreen button', () => {
+    const fixture = createFixture('<div class="player"><video></video><div class="ytp-right-controls"><button class="ytp-size-button"></button><button class="ytp-fullscreen-button"></button></div></div>');
+    const button = fixture.document.createElement('button');
+    const binding = createVideoPlayerBinding({document: fixture.document, locator: fixture.locator, getState: () => ({enabled: true}), createButton: () => button});
+    expect(button.nextElementSibling?.className).toBe('ytp-fullscreen-button');
+    binding.destroy();
+  });
+
+  it.each([false, true])('stays after picture-in-picture while fullscreen is absent (trailing control: %s)', trailing => {
+    const fixture = createFixture(`<div class="player"><video></video><div class="bar"><button aria-label="Settings"></button><button id="pip" aria-label="画中画"></button>${trailing ? '<button id="other"></button>' : ''}</div></div>`);
+    const button = fixture.document.createElement('button');
+    const binding = createVideoPlayerBinding({document: fixture.document, locator: fixture.locator, getState: () => ({enabled: true}), createButton: () => button});
+    binding.sync();
+    expect(button.previousElementSibling?.id).toBe('pip');
+    expect(button.nextElementSibling?.id || null).toBe(trailing ? 'other' : null);
+    binding.destroy();
+  });
+
+  it('repairs host moves, late labels, and replacement controls through the observer without looping', () => {
+    const fixture = createFixture('<div class="player" data-testid="videoPlayer"><video></video><div class="bar"><button aria-label="Settings"></button><button id="pip"></button><button id="fullscreen"></button></div></div>');
+    let notify!: MutationCallback;
+    const disconnect = vi.fn();
+    vi.stubGlobal('MutationObserver', class {constructor(callback: MutationCallback) {notify = callback;} observe() {} disconnect = disconnect;});
+    const button = fixture.document.createElement('button');
+    const createMenu = vi.fn(() => fixture.document.createElement('div'));
+    const binding = createVideoPlayerBinding({document: fixture.document, locator: fixture.locator, getState: () => ({enabled: true}), createButton: () => button, createMenu});
+    const bar = fixture.player.querySelector('.bar')!;
+    const fullscreen = fixture.player.querySelector('#fullscreen')!;
+    const changed = (target: Node, addedNodes: Node[] = [], removedNodes: Node[] = [], type = 'childList') =>
+      notify([{target, addedNodes, removedNodes, type} as unknown as MutationRecord], {} as MutationObserver);
+    fullscreen.setAttribute('aria-label', 'Full screen');
+    changed(fullscreen, [], [], 'attributes');
+    expect(button.nextElementSibling).toBe(fullscreen);
+    for (const move of [() => bar.appendChild(button), () => button.remove(), () => bar.appendChild(fullscreen)]) {
+      move();
+      changed(bar, [button], [button]);
+      expect(button.nextElementSibling).toBe(fullscreen);
+      expect(button.parentElement).toBe(bar);
+    }
+    const insert = vi.spyOn(bar, 'insertBefore');
+    changed(bar, [button], [button]);
+    button.title = 'progress';
+    changed(button, [], [], 'attributes');
+    expect(insert).not.toHaveBeenCalled();
+    const replacement = fixture.document.createElement('div');
+    replacement.innerHTML = '<button aria-label="Settings"></button><button id="new-pip" aria-label="Picture in picture"></button><button id="new-fullscreen" aria-label="Full screen"></button>';
+    bar.replaceWith(replacement);
+    changed(fixture.player, [replacement], [bar]);
+    expect(button.previousElementSibling?.id).toBe('new-pip');
+    expect(button.nextElementSibling?.id).toBe('new-fullscreen');
+    expect(createMenu).toHaveBeenCalledTimes(1);
+    binding.destroy();
+    expect(disconnect).toHaveBeenCalledOnce();
+    changed(replacement, [button]);
+    expect(button.isConnected).toBe(false);
+  });
+});
+
 describe('video player binding', () => {
   it('uses native controls and exposes generation progress beside the icon', () => {
     const {document, locator, target, player} = createFixture();
