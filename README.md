@@ -63,10 +63,6 @@ Report bugs and propose changes through [Issues](https://github.com/FluentRead/F
 
 Product descriptions and Chinese and English store images are maintained in the separate [press and store kit](./marketing/README.md).
 
-Thanks to everyone who has contributed to FluentRead:
-
-<a href="https://github.com/FluentRead/FluentRead/graphs/contributors"><img src="https://contrib.rocks/image?repo=FluentRead/FluentRead" alt="FluentRead contributors" /></a>
-
 ## Support
 
 FluentRead is an open-source project whose continued development is made possible by the generous support of its community. Voluntary contributions are welcome through either service.
@@ -88,6 +84,10 @@ FluentRead grows alongside a vibrant open-source translation community. We are g
 - [Duo Translator](https://github.com/linuxscreen/duo-translator)
 
 We hope to keep building together with them, and to bring a little more good into the world.
+
+<a href="https://github.com/FluentRead/FluentRead/graphs/contributors"><img src="https://contrib.rocks/image?repo=FluentRead/FluentRead" alt="FluentRead contributors" /></a>
+
+Thank you to everyone who has contributed to FluentRead, and to every user for embracing a product that is still far from perfect. We’ll give it everything we have to bring the best of FluentRead to you, and to the world!
 
 ## License and privacy
 

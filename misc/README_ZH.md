@@ -63,10 +63,6 @@ pnpm dev
 
 产品介绍与中英文商店图片存放于独立的[宣传与商店素材目录](../marketing/README.md)。
 
-感谢每一位为 FluentRead 做出贡献的朋友：
-
-<a href="https://github.com/FluentRead/FluentRead/graphs/contributors"><img src="https://contrib.rocks/image?repo=FluentRead/FluentRead" alt="FluentRead 贡献者" /></a>
-
 ## 支持项目
 
 FluentRead 是一个开源项目，其持续开发离不开社区的慷慨支持。可以通过微信赞赏或 Ko-fi 自愿赞赏。
@@ -88,6 +84,10 @@ FluentRead 的成长离不开开源翻译社区。感谢以下项目及其贡献
 - [Duo Translator](https://github.com/linuxscreen/duo-translator)
 
 希望与他们一起，为这个世界带来更多美好。
+
+<a href="https://github.com/FluentRead/FluentRead/graphs/contributors"><img src="https://contrib.rocks/image?repo=FluentRead/FluentRead" alt="FluentRead 贡献者" /></a>
+
+感谢每一位为 FluentRead 做出贡献的朋友，也感谢每一位用户包容这个仍不完美的产品。我们会竭尽所能，把最好的 FluentRead 带给你，也带给全世界！
 
 ## 许可证与隐私
 
