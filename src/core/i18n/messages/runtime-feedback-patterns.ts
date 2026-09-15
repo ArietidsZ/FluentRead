@@ -60,7 +60,7 @@ export const runtimeFeedbackPatterns: readonly LocalizedLegacyPattern[] = [
         'La clave API del servicio de traducción actual no es válida, caducó o no tiene acceso al modelo (HTTP {1}). Revisa la configuración del servicio.'),
     pattern("^当前翻译服务暂时不可用（HTTP (\\d+)），请稍后重试。$", [],
         'The current translation service is temporarily unavailable (HTTP {1}). Try again later.', '現在の翻訳サービスは一時的に利用できません（HTTP {1}）。しばらくしてから再試行してください。', '현재 번역 서비스를 일시적으로 사용할 수 없습니다(HTTP {1}). 잠시 후 다시 시도하세요.', 'Le service de traduction actuel est temporairement indisponible (HTTP {1}). Réessayez plus tard.', 'Текущий сервис перевода временно недоступен (HTTP {1}). Повторите попытку позже.', 'El servicio de traducción actual no está disponible temporalmente (HTTP {1}). Vuelve a intentarlo más tarde.'),
-    pattern("^当前翻译服务拒绝了请求（HTTP (\\d+)）：(.+)$", [],
+    pattern("^当前翻译服务拒绝了请求（HTTP (\\d+)）：(.+)$", [2],
         'The current translation service rejected the request (HTTP {1}): {2}', '現在の翻訳サービスがリクエストを拒否しました（HTTP {1}）：{2}', '현재 번역 서비스가 요청을 거부했습니다(HTTP {1}): {2}', 'Le service de traduction actuel a refusé la requête (HTTP {1}) : {2}', 'Текущий сервис перевода отклонил запрос (HTTP {1}): {2}', 'El servicio de traducción actual rechazó la solicitud (HTTP {1}): {2}'),
     pattern("^当前翻译服务拒绝了请求（HTTP (\\d+)）$", [],
         'The current translation service rejected the request (HTTP {1})', '現在の翻訳サービスがリクエストを拒否しました（HTTP {1}）', '현재 번역 서비스가 요청을 거부했습니다(HTTP {1})', 'Le service de traduction actuel a refusé la requête (HTTP {1})', 'Текущий сервис перевода отклонил запрос (HTTP {1})', 'El servicio de traducción actual rechazó la solicitud (HTTP {1})'),

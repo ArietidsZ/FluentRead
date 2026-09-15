@@ -2,7 +2,7 @@
  * @file src/providers/translation/ai-sdk/errors.ts
  *
  * 文件职责：将 AI SDK 的 APICallError、RetryError 和未知异常归一为 FluentRead 可序列化的 LLM transport 错误。
- * 主要内容：定义 LlmTransportError 及状态码、错误码、retry-after、request-id 字段，限制 provider detail 长度，并由 normalizeAiSdkError 校准 kind 与 retryable。 可核对的公开符号包括 LlmTransportErrorOptions、LlmTransportError、normalizeAiSdkError。
+ * 主要内容：定义 LlmTransportError 及诊断字段，隐藏 HTML 错误页并提示检查模型接口，限制和脱敏 provider detail，并由 normalizeAiSdkError 校准 kind 与 retryable。
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
@@ -68,6 +68,13 @@ function parseResponseBody(body?: string): {message?: string; code?: string} {
   } catch {
     return {message: body};
   }
+}
+
+function isHtmlResponse(error: APICallError): boolean {
+  const body = error.responseBody?.trimStart() ?? '';
+  return Object.entries(error.responseHeaders ?? {}).some(([name, value]) =>
+    name.toLowerCase() === 'content-type' && /\b(?:text\/html|application\/xhtml\+xml)\b/iu.test(value))
+    || (body.startsWith('<') && /<(?:!doctype\s+html|html|head|body)(?:\s|>)/iu.test(body.slice(0, 1024)));
 }
 
 function sanitizeProviderDetail(value: string, apiKey?: string | readonly string[]): string {
@@ -164,7 +171,9 @@ export function normalizeAiSdkError(
     const fromData = extractProviderError(candidate.data);
     const fromBody = parseResponseBody(candidate.responseBody);
     const detail = sanitizeProviderDetail(
-      fromData.message || fromBody.message || candidate.message || '上游请求失败',
+      isHtmlResponse(candidate)
+        ? '服务返回了 HTML 网页。请检查 Base URL、接口路径，以及所选模型是否支持 Chat Completions。'
+        : fromData.message || fromBody.message || candidate.message || '上游请求失败',
       apiKey,
     );
     const requestId = sanitizeMetadata(requestIdFrom(candidate.responseHeaders), apiKey);

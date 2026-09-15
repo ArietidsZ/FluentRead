@@ -45,7 +45,7 @@
           :aria-invalid="Boolean(errors.endpoint)"
           @input="errors.endpoint = ''"
         />
-        <small>填写 OpenAI Chat Completions 兼容接口地址。</small>
+        <small>支持完整 Chat Completions 地址或以 /v1 结尾的 Base URL；模型须支持 Chat Completions。</small>
         <small v-if="errors.endpoint" class="field-error" role="alert">{{ errors.endpoint }}</small>
       </label>
 
