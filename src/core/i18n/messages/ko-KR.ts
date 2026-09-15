@@ -14,6 +14,12 @@ import {localTtsKoreanMessages} from './localTts';
 import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
+    "settings.excludedLanguages.title": "번역하지 않을 언어",
+    "settings.excludedLanguages.description": "번역이 필요 없는 언어를 여러 개 선택하세요. 전체 페이지, 마우스 오버 및 페이지 제목 번역에서 원문을 유지합니다.",
+    "settings.excludedLanguages.more": "더 많은 언어",
+    "settings.excludedLanguages.less": "언어 접기",
+    "settings.excludedLanguages.clear": "선택 지우기",
+    "settings.excludedLanguages.hint": "자동 저장되며 다음 번역부터 적용됩니다. 짧거나 언어를 판별할 수 없는 텍스트는 번역될 수 있습니다.",
     ...localTtsKoreanMessages,
     "settings.services.library.freeReady": "API 키 없이 사용 가능한 무료 서비스를 자동으로 선택합니다.",
     "settings.services.library.keepOne": "서비스를 하나 이상 활성화해 두세요.",
@@ -2235,7 +2241,7 @@ export const koKRLegacyText: Readonly<Record<string, string>> = {
     "排版文档双语阅读预览": "서식 문서 이중 언어 미리보기",
     "ePub 电子书": "ePub 전자책",
     "第": "번호",
-    "鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度": "마우스 오버, 선택, 입력, 전체 번역, 빠른 프로필, 개별 모델, AI 일괄 번역, 단축키, 우클릭, 플로팅 버튼, 진행률",
+    "不翻译的语言、跳过语言、排除语言、简体中文、繁体中文、鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度": "번역하지 않을 언어, 간체 중국어, 번체 중국어, 마우스 오버, 선택, 입력, 전체 번역, 빠른 프로필, 개별 모델, AI 일괄 번역, 단축키, 우클릭, 플로팅 버튼, 진행률",
     "翻译卡片、阅读卡、Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关": "번역 카드, 읽기 카드, Harness, DeepSeek, 이해, 문법, 용법, 연습, 선택, 문단, 학습 지원, 설명 깊이, 수준, 기억",
     "图片翻译、OCR、语言包、中文、英文、日文、下载": "이미지 번역, OCR, 언어 팩, 중국어, 영어, 일본어, 다운로드",
     "圈选翻译、区域翻译、截图、图片输入、识图、视觉、提示词、Shift+Z、OCR、微软、免费翻译、AI、纠错、语言包": "영역 번역, 이미지 입력, 비전, 프롬프트, Shift+Z, OCR, Microsoft, 무료 번역, AI, 교정, 언어 팩",

@@ -152,6 +152,7 @@ import {
     DEFAULT_EAGER_TRANSLATION_CHARACTERS,
     DEFAULT_MIN_TRANSLATION_TEXT_LENGTH,
     normalizeEagerTranslationCharacters,
+    normalizeExcludedLanguages,
     normalizeMinTranslationTextLength,
 } from './pageTranslation';
 import {normalizeWritingPreferences, type WritingPreferences} from './writing';
@@ -315,6 +316,7 @@ export class Config {
     siteAdaptation: SiteAdaptationSettings; // 网站内容范围、保护区域及本地 JSON 适配规则
     from: string;
     to: string;
+    excludedLanguages: string[]; // 网页全文、悬浮及标题翻译跳过的语言
     hotkey: string;
     style: number;
     display: number = 1;
@@ -478,6 +480,7 @@ export class Config {
         this.siteAdaptation = normalizeSiteAdaptationSettings(undefined);
         this.from = defaultOption.from;
         this.to = defaultOption.to;
+        this.excludedLanguages = [];
         this.style = defaultOption.style;
         this.display = defaultOption.display;
         this.hotkey = defaultOption.hotkey;
@@ -969,6 +972,7 @@ export function normalizeConfig(value: unknown): Config {
         : 0;
     normalized.from = normalizeConfigLanguage(source.from) || defaultOption.from;
     normalized.to = normalizeConfigLanguage(source.to) || defaultOption.to;
+    normalized.excludedLanguages = normalizeExcludedLanguages(source.excludedLanguages);
     normalized.inputBoxTranslationTarget = normalizeConfigLanguage(source.inputBoxTranslationTarget)
         || defaultOption.inputBoxTranslationTarget;
     normalized.inputBoxTranslationInterval = normalizeInputBoxTranslationInterval(

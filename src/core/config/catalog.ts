@@ -6,6 +6,7 @@
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
+import {translationLanguageOptions} from '@/src/core/language/catalog';
 import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {DEFAULT_DEEPLX_ENDPOINT} from "./deeplx";
 import {CUSTOM_OPENAI_RESERVED_MODEL_ID, isCustomOpenAIProviderId} from './customOpenAI';
@@ -507,61 +508,6 @@ export const defaultModels = new Map<string, string>(
 );
 
 // 各翻译入口共用语言目录；具体语言对由所选翻译服务决定是否可用。
-const translationLanguageOptions = [
-    {value: "zh-Hans", label: "简体中文"},
-    {value: "zh-Hant", label: "繁體中文"},
-    {value: "en", label: "English"},
-    {value: "ja", label: "日本語"},
-    {value: "ko", label: "한국어"},
-    {value: "fr", label: "Français"},
-    {value: "ru", label: "Русский"},
-    {value: "es", label: "Español"},
-    {value: "de", label: "Deutsch / German / 德语"},
-    {value: "pt", label: "português / Portuguese / 葡萄牙语"},
-    {value: "it", label: "italiano / Italian / 意大利语"},
-    {value: "ar", label: "العربية / Arabic / 阿拉伯语"},
-    {value: "hi", label: "हिन्दी / Hindi / 印地语"},
-    {value: "bn", label: "বাংলা / Bangla / 孟加拉语"},
-    {value: "ur", label: "اردو / Urdu / 乌尔都语"},
-    {value: "fa", label: "فارسی / Persian / 波斯语"},
-    {value: "he", label: "עברית / Hebrew / 希伯来语"},
-    {value: "tr", label: "Türkçe / Turkish / 土耳其语"},
-    {value: "vi", label: "Tiếng Việt / Vietnamese / 越南语"},
-    {value: "th", label: "ไทย / Thai / 泰语"},
-    {value: "id", label: "Indonesia / Indonesian / 印度尼西亚语"},
-    {value: "ms", label: "Melayu / Malay / 马来语"},
-    {value: "nl", label: "Nederlands / Dutch / 荷兰语"},
-    {value: "pl", label: "polski / Polish / 波兰语"},
-    {value: "uk", label: "українська / Ukrainian / 乌克兰语"},
-    {value: "cs", label: "čeština / Czech / 捷克语"},
-    {value: "sk", label: "slovenčina / Slovak / 斯洛伐克语"},
-    {value: "da", label: "dansk / Danish / 丹麦语"},
-    {value: "sv", label: "svenska / Swedish / 瑞典语"},
-    {value: "nb", label: "norsk bokmål / Norwegian Bokmål / 书面挪威语"},
-    {value: "fi", label: "suomi / Finnish / 芬兰语"},
-    {value: "el", label: "Ελληνικά / Greek / 希腊语"},
-    {value: "ro", label: "română / Romanian / 罗马尼亚语"},
-    {value: "hu", label: "magyar / Hungarian / 匈牙利语"},
-    {value: "bg", label: "български / Bulgarian / 保加利亚语"},
-    {value: "hr", label: "hrvatski / Croatian / 克罗地亚语"},
-    {value: "sr", label: "српски / Serbian / 塞尔维亚语"},
-    {value: "sl", label: "slovenščina / Slovenian / 斯洛文尼亚语"},
-    {value: "et", label: "eesti / Estonian / 爱沙尼亚语"},
-    {value: "lv", label: "latviešu / Latvian / 拉脱维亚语"},
-    {value: "lt", label: "lietuvių / Lithuanian / 立陶宛语"},
-    {value: "ta", label: "தமிழ் / Tamil / 泰米尔语"},
-    {value: "te", label: "తెలుగు / Telugu / 泰卢固语"},
-    {value: "mr", label: "मराठी / Marathi / 马拉地语"},
-    {value: "gu", label: "ગુજરાતી / Gujarati / 古吉拉特语"},
-    {value: "kn", label: "ಕನ್ನಡ / Kannada / 卡纳达语"},
-    {value: "ml", label: "മലയാളം / Malayalam / 马拉雅拉姆语"},
-    {value: "pa", label: "ਪੰਜਾਬੀ / Punjabi / 旁遮普语"},
-    {value: "ne", label: "नेपाली / Nepali / 尼泊尔语"},
-    {value: "si", label: "සිංහල / Sinhala / 僧伽罗语"},
-    {value: "sw", label: "Kiswahili / Swahili / 斯瓦希里语"},
-    {value: "fil", label: "Filipino / Filipino / 菲律宾语"},
-];
-
 export const options = {
     minimaxBillingPlan: minimaxBillingPlans,
     minimaxRegion: minimaxRegions,

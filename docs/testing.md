@@ -1,5 +1,11 @@
 # 测试与回归
 
+## 不翻译的语言（issue #627）
+
+使用 `scripts/testing/run-chinese-translation-test.cjs --excluded-languages`，并传入原有的 `--extension-dir`、`--playwright-root`、`--focus-safe-helper` 和独立 `--artifacts-dir`。该专项复用临时 Edge、后台可见且不抢焦点的窗口与本地确定性响应，验证翻译设置末尾的语言多选、立即关闭后持久化、跨页同步、键盘操作、展开后选择与清空、七种界面语言，以及浅色 1440/1024/820/390 和深色 1440/390 布局。
+
+翻译链路检查繁体与日语零请求、相邻英文的翻译—恢复—再翻译、标题保留、动态内容改成英文后重识别、自动全文与清空后恢复简繁转换。此证据不代表真实供应商译文质量，也不替代 Firefox 实机验证。语言与配置单测覆盖中文别名、非法输入、旧配置迁移、会话冻结、富文本槽过滤及子页面快照校验。
+
 ## 自定义服务 Base URL（issue #626）
 
 `tests/aiSdkEndpoints.test.ts`、`tests/aiSdkErrors.test.ts` 和 `tests/aiSdkOpenAICompatible.test.ts` 覆盖标准 Base URL 补全、完整及非标准路径、代理优先级、查询参数、HTML 错误提示，以及真实 SDK 的请求体和鉴权传递。

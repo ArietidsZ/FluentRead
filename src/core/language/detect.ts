@@ -1,7 +1,7 @@
 /**
  * @file src/core/language/detect.ts
  *
- * 文件职责：对待翻译文本执行轻量语言识别，并提供只在高置信度时跳过同语言翻译的保守判定。
+ * 文件职责：对待翻译文本执行轻量语言识别，并提供只在高置信度时跳过目标语言或用户排除语言的保守判定。
  * 主要内容：detectlang 调用 franc-min 得到 ISO 639-3 识别结果，普通话仅凭明确字形映射简体或繁体，不明确时保留 cmn；shouldSkipTranslationForTarget 对短文本、共享 Han、简繁混排和未知结果 fail-open，仅接受明确书写体系或足够长的统计结果；划词与翻译卡片额外按纯 Han 选区跳过中文目标，不将该交互规则用于全文检测；共享 Chrome 现代语言检测的最低置信度边界。 可核对的公开符号包括 detectlang、shouldSkipTranslationForTarget、MIN_CHROME_LANGUAGE_CONFIDENCE。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
@@ -17,6 +17,18 @@ const FLUENTREAD_LANGUAGE_CODES: Readonly<Record<string, string>> = {
     kor: 'ko',
     rus: 'ru',
     spa: 'es',
+};
+
+// 排除列表补齐目录中的统计语言码；保持 detectlang 既有返回契约。
+const EXCLUDED_LANGUAGE_CODES: Readonly<Record<string, string>> = {
+    deu: 'de', por: 'pt', ita: 'it', arb: 'ar', hin: 'hi', ben: 'bn',
+    urd: 'ur', pes: 'fa', heb: 'he', tur: 'tr', vie: 'vi', tha: 'th',
+    ind: 'id', zlm: 'ms', nld: 'nl', pol: 'pl', ukr: 'uk', ces: 'cs',
+    slk: 'sk', dan: 'da', swe: 'sv', nob: 'nb', fin: 'fi', ell: 'el',
+    ron: 'ro', hun: 'hu', bul: 'bg', hrv: 'hr', srp: 'sr', slv: 'sl',
+    est: 'et', lav: 'lv', lit: 'lt', tam: 'ta', tel: 'te', mar: 'mr',
+    guj: 'gu', kan: 'kn', mal: 'ml', pan: 'pa', npi: 'ne', sin: 'si',
+    swh: 'sw', tgl: 'fil',
 };
 
 const MIN_RELIABLE_STATISTICAL_LETTERS = 50;
@@ -46,16 +58,23 @@ export function detectlang(origin: string): string {
  * 同语言预检只能省请求，绝不能让不确定文本静默漏译。短 Latin、无中文证据的 Han 与任何
  * 未知统计结果都返回 false；调用方继续交给实际 provider 处理。
  */
-export function shouldSkipTranslationForTarget(origin: string, targetLanguage: string): boolean {
+export function shouldSkipTranslationForTarget(
+    origin: string,
+    targetLanguage: string,
+    excludedLanguages: readonly string[] = [],
+): boolean {
     const text = normalizeTranslationText(origin);
     if (isClearlyTargetLanguage(text, targetLanguage)) return true;
+    if (excludedLanguages.some(language => isClearlyTargetLanguage(text, language))) return true;
     if (!text || CJK_SCRIPT_PATTERN.test(text)) return false;
 
     const letters = text.match(/\p{L}/gu)!.length;
     if (letters < MIN_RELIABLE_STATISTICAL_LETTERS) return false;
     const detected = languageBase(detectlang(text));
     const target = languageBase(targetLanguage);
-    return Boolean(detected && target && detected === target);
+    const excludedDetected = EXCLUDED_LANGUAGE_CODES[detected] ?? detected;
+    return Boolean(detected && ((target && detected === target)
+        || excludedLanguages.some(language => languageBase(language) === excludedDetected)));
 }
 
 /**

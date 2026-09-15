@@ -588,6 +588,7 @@
 
     <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
       <ParagraphCopySettings :config="config" />
+      <ExcludedLanguageSettings v-model="config.excludedLanguages" />
     </section>
 
     <section v-if="hasVisitedSection('settings-advanced')" v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
@@ -756,6 +757,7 @@ const ParagraphCopySettings = defineAsyncComponent(() => import('./ParagraphCopy
 const ParagraphHandlingSettings = defineAsyncComponent(() => import('./ParagraphHandlingSettings.vue'));
 const TranslationCacheSettings = defineAsyncComponent(() => import('./TranslationCacheSettings.vue'));
 import SettingsGroup from './components/SettingsGroup.vue';
+import ExcludedLanguageSettings from './ExcludedLanguageSettings.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import RequestLimitFields from './services/RequestLimitFields.vue';
 import SegmentedControl from './components/SegmentedControl.vue';

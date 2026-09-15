@@ -178,3 +178,32 @@ describe('划词和翻译卡片的纯中文选区', () => {
         expect(shouldSkipChineseSelection(text, 'zh-CN')).toBe(false);
     });
 });
+
+
+describe('网页翻译排除语言', () => {
+    it('简繁分别选择，清空列表后仍允许简繁转换', () => {
+        const traditional = '這個軟體讀取文件並翻譯這個頁面上的語言。';
+        const simplified = '这个软件读取文档并翻译这个页面上的语言。';
+        expect(shouldSkipTranslationForTarget(traditional, 'zh-Hans', ['zh-Hant'])).toBe(true);
+        expect(shouldSkipTranslationForTarget(traditional, 'zh-Hans', [])).toBe(false);
+        expect(shouldSkipTranslationForTarget(traditional, 'en', ['zh-Hans'])).toBe(false);
+        expect(shouldSkipTranslationForTarget(simplified, 'en', ['zh-Hant'])).toBe(false);
+        for (const text of [traditional, simplified]) {
+            expect(shouldSkipTranslationForTarget(text, 'en', ['zh-Hans', 'zh-Hant'])).toBe(true);
+        }
+    });
+    it('多选只跳过已识别的语言，未知短句和外语混排继续翻译', () => {
+        const selected = ['zh-Hant', 'ja', 'fr', 'de'];
+        for (const text of ['これは日本語の説明です。',
+            'Cette phrase française est suffisamment longue pour identifier la langue avec une confiance raisonnable.',
+            'Dieser deutsche Absatz beschreibt die verschiedenen Einstellungen der Anwendung und die automatische Übersetzung.']) {
+            expect(shouldSkipTranslationForTarget(text, 'zh-Hans', selected)).toBe(true);
+        }
+        for (const text of ['This is a deliberately long English paragraph with enough alphabetic characters for reliable language detection.',
+            'Bonjour', '日本語', '這個頁面 Please translate this sentence.', '这是繁體中文測試。']) {
+            expect(shouldSkipTranslationForTarget(text, 'zh-Hans', selected)).toBe(false);
+        }
+        expect(shouldSkipTranslationForTarget('한국어 설명입니다.', 'zh-Hans', ['ko'])).toBe(true);
+        expect(shouldSkipTranslationForTarget('This is a deliberately long English paragraph with enough alphabetic characters for reliable language detection.', 'und', ['en'])).toBe(true);
+    });
+});

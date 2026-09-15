@@ -44,6 +44,7 @@ const runtime = vi.hoisted(() => ({
         modelThinking: {} as Record<string, Record<string, boolean>>,
         from: "en",
         to: "zh",
+        excludedLanguages: [] as string[],
         useCache: true,
         enableAIContext: false,
         enableAIMultiSegment: false,
@@ -83,7 +84,8 @@ vi.mock("@/src/services/config/store", () => ({
 }));
 vi.mock("@/src/core/language/detect", () => ({
     detectlang: () => "",
-    shouldSkipTranslationForTarget: () => false,
+    shouldSkipTranslationForTarget: (origin: string, _target: string, excluded: readonly string[] = []) =>
+        (excluded.includes('zh-Hant') && origin.includes('這個')) || (excluded.includes('ja') && origin.includes('これは')),
 }));
 vi.mock("@/src/app/translation/client", () => ({
     translateText: async (origin: string, _context: string, options: Record<string, unknown>) => {
@@ -459,6 +461,7 @@ describe("全文翻译可见性锚点", () => {
         runtime.config.modelThinking = {};
         runtime.config.from = "en";
         runtime.config.to = "zh";
+        runtime.config.excludedLanguages = [];
         runtime.config.useCache = true;
         runtime.config.enableAIContext = false;
         runtime.config.enableAIMultiSegment = false;
@@ -1607,6 +1610,32 @@ describe("全文翻译可见性锚点", () => {
             targetLanguage: 'ja',
             displayMode: 'bilingual',
         });
+    });
+
+    it('排除语言冻结到会话，富文本槽保留原文且只请求相邻外语', async () => {
+        runtime.config.excludedLanguages = ['zh-Hant', 'ja'];
+        const first = captureFullPageTranslationConfig();
+        runtime.config.excludedLanguages.push('fr');
+        expect(first.excludedLanguages).toEqual(['zh-Hant', 'ja']);
+        expect(Object.isFrozen(first.excludedLanguages)).toBe(true);
+        expect(getTranslationInvocationIdentity(first)).not.toBe(getTranslationInvocationIdentity(captureFullPageTranslationConfig()));
+        const traditional = '這個軟體讀取文件並翻譯這個頁面上的語言。';
+        const english = 'This paragraph needs translation.';
+        const result = await translateTextSlots([traditional, english, 'これは日本語です。'], first);
+        expect(result).toEqual([traditional, `译:${english}`, 'これは日本語です。']);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(runtime.requests).toHaveBeenCalledWith([english]);
+        runtime.requests.mockClear();
+        expect(await translateTextSlots([traditional], first)).toEqual([traditional]);
+        expect(runtime.requests).not.toHaveBeenCalled();
+        const session = {active: true, translationSlotCache: new Map(), translationRequestCache: new Map(),
+            requestSignal: new AbortController().signal};
+        await translateTextSlots([traditional, english], first, undefined, undefined, session);
+        const cleared = {...first, excludedLanguages: []};
+        expect(await translateTextSlots([traditional, english], cleared, undefined, undefined, session))
+            .toEqual([`译:${traditional}`, `译:${english}`]);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        clearFullPageTranslationRequestCache(session);
     });
 
     it('全文术语快照复制选库数组，版本或选择不同不能复用会话结果', async () => {
@@ -5951,6 +5980,7 @@ describe("悬停重挂请求与 synthetic 提交回归", () => {
         runtime.config.modelThinking = {};
         runtime.config.from = "en";
         runtime.config.to = "zh";
+        runtime.config.excludedLanguages = [];
         runtime.config.useCache = true;
         runtime.config.enableAIContext = false;
         runtime.config.enableAIMultiSegment = false;

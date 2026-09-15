@@ -34,8 +34,8 @@ async function translateCurrentTitle(active: TitleTranslationState): Promise<voi
     const source = active.originalTitle;
     const generation = active.generation;
     if (!source.trim()) return;
-    // 与正文一致：已经是目标语言的标题不再发请求。
-    if (shouldSkipTranslationForTarget(source, active.snapshot.targetLanguage)) return;
+    // 与正文一致：已是目标语言或命中会话排除列表的标题不再发请求。
+    if (shouldSkipTranslationForTarget(source, active.snapshot.targetLanguage, active.snapshot.excludedLanguages)) return;
 
     let translated: string;
     try {

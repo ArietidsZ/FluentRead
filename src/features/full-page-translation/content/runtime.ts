@@ -822,7 +822,7 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
 
     // 同语言检测只是节流优化；不确定、短 Latin 与纯 Han 必须 fail-open，
     // 否则日中混合标题或法德短文会在 provider 之前静默漏译。
-    if (shouldSkipTranslationForTarget(sourceText, translationConfig.targetLanguage)) {
+    if (shouldSkipTranslationForTarget(sourceText, translationConfig.targetLanguage, translationConfig.excludedLanguages)) {
         return {status: "unchanged", source: sourceText};
     }
 

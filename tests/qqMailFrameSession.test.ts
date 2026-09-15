@@ -14,6 +14,15 @@ describe('QQ mail frame session snapshots', () => {
         expect(isFrameTranslationState(state({translationConfig: {...config, displayMode: 'single', profileId: undefined, requestOverridesApplied: undefined}, fullPageMode: 'viewport'}))).toBe(true);
     });
 
+    it('validates bounded excluded languages in shared snapshots', () => {
+        for (const excludedLanguages of [undefined, [], ['zh-Hant', 'en']]) {
+            expect(isFrameTranslationState(state({translationConfig: {...config, excludedLanguages}}))).toBe(true);
+        }
+        for (const excludedLanguages of ['en', null, [null], ['a'.repeat(33)], Array(53).fill('en'), new Array(1)]) {
+            expect(isFrameTranslationState(state({translationConfig: {...config, excludedLanguages} as never}))).toBe(false);
+        }
+    });
+
     it('validates glossary versions and bounded selections before sharing a full-page session', () => {
         for (const glossaryIds of [null, [], ['technical']]) {
             expect(isFrameTranslationState(state({translationConfig: {...config, glossaryIds, glossaryRevision: 'glossary-v1:disabled'}}))).toBe(true);

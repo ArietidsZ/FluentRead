@@ -22,6 +22,7 @@ import {
     EAGER_TRANSLATION_CHARACTERS_MAX,
     MIN_TRANSLATION_TEXT_LENGTH_MAX,
     normalizeEagerTranslationCharacters,
+    normalizeExcludedLanguages,
     normalizeMinTranslationTextLength,
 } from '@/src/core/config/pageTranslation';
 import {
@@ -354,5 +355,19 @@ describe('免滚动预翻译字符预算', () => {
         const disabled = session();
         const only = candidate(document, 'text');
         expect(consumeEagerTranslationBudget(disabled, only.element, only)).toBe(false);
+    });
+});
+
+
+describe('排除语言配置归一化', () => {
+    it('缺省、非法值与空列表保留不额外排除的默认行为', () => {
+        for (const value of [undefined, null, 'en', 1, {}, []]) expect(normalizeExcludedLanguages(value)).toEqual([]);
+    });
+    it('归一别名、去重、拒绝目录外语言并隔离传入数组', () => {
+        const input = ['zh_TW', ' EN ', 'zh-Hant', 'auto', 'unknown', 'yue', 'de', false, null, 'zh-CN'];
+        const result = normalizeExcludedLanguages(input);
+        expect(result).toEqual(['zh-Hans', 'zh-Hant', 'en', 'de']);
+        result.push('fr');
+        expect(input).not.toContain('fr');
     });
 });

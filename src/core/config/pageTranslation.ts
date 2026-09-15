@@ -1,10 +1,21 @@
 /**
  * @file src/core/config/pageTranslation.ts
  *
- * 文件职责：定义网页翻译进阶设置的取值范围与归一化规则，让最少字符数、预翻译字符预算等数值配置在读取、导入和界面绑定时得到一致约束。
- * 主要内容：给出翻译段落最少字符数与免滚动预翻译字符数的默认值、上下限和步进，并提供把任意存储值收敛回合法范围的纯函数，供配置模型、设置界面和内容脚本共享同一份阈值语义。 可核对的公开符号包括 DEFAULT_MIN_TRANSLATION_TEXT_LENGTH、MIN_TRANSLATION_TEXT_LENGTH_MIN、MIN_TRANSLATION_TEXT_LENGTH_MAX、DEFAULT_EAGER_TRANSLATION_CHARACTERS、EAGER_TRANSLATION_CHARACTERS_MIN、EAGER_TRANSLATION_CHARACTERS_MAX、normalizeMinTranslationTextLength、normalizeEagerTranslationCharacters。
+ * 文件职责：定义网页翻译排除语言和进阶设置的归一化规则，让语言多选、最少字符数和预翻译预算在读取、导入和界面绑定时得到一致约束。
+ * 主要内容：清洗排除语言列表，兼容中文别名、去重并按目录排序；给出翻译段落最少字符数与免滚动预翻译字符数的默认值、上下限和步进，并提供把任意存储值收敛回合法范围的纯函数，供配置模型、设置界面和内容脚本共享同一份阈值语义。 可核对的公开符号包括 DEFAULT_MIN_TRANSLATION_TEXT_LENGTH、MIN_TRANSLATION_TEXT_LENGTH_MIN、MIN_TRANSLATION_TEXT_LENGTH_MAX、DEFAULT_EAGER_TRANSLATION_CHARACTERS、EAGER_TRANSLATION_CHARACTERS_MIN、EAGER_TRANSLATION_CHARACTERS_MAX、normalizeMinTranslationTextLength、normalizeEagerTranslationCharacters。
  * 模块边界：本文件属于 core 配置领域层，只做取值约束的纯计算；不读写浏览器存储、不访问 DOM、不调用翻译服务，持久化与界面呈现分别由 services 与 features 负责。
  */
+
+import {translationLanguageOptions} from '@/src/core/language/catalog';
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
+
+/** 排除列表只接受已有语言目录，兼容中文地区别名，去重并按目录排序。 */
+export function normalizeExcludedLanguages(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    const selected = new Set(value.filter((item): item is string => typeof item === 'string')
+        .map(item => normalizeChineseLanguageCode(item.trim().replace(/_/gu, '-').toLowerCase())));
+    return translationLanguageOptions.filter(item => selected.has(item.value)).map(item => item.value);
+}
 
 /** 段落需要达到的最少字符数；1 表示不过滤，默认过滤掉单字符碎片。 */
 export const DEFAULT_MIN_TRANSLATION_TEXT_LENGTH = 2;

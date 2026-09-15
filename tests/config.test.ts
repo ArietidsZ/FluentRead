@@ -3511,3 +3511,15 @@ it('历史尚未打开时首次保存仍保留可撤销的原配置基线', asyn
     await store.applyConfigHistoryAction('undo');
     expect(store.config.to).toBe('zh-Hans');
 });
+
+
+describe('排除语言持久化配置', () => {
+    it('旧配置默认不排除，配置往返保留语言选择且不污染输入', () => {
+        expect(normalizeConfig({}).excludedLanguages).toEqual([]);
+        const input = {...storedConfig, excludedLanguages: ['zh_TW', 'en', 'en', 'auto']};
+        const normalized = normalizeConfig(input);
+        expect(normalized.excludedLanguages).toEqual(['zh-Hant', 'en']);
+        expect(normalizeConfig(JSON.parse(JSON.stringify(normalized))).excludedLanguages).toEqual(['zh-Hant', 'en']);
+        expect(input.excludedLanguages).toEqual(['zh_TW', 'en', 'en', 'auto']);
+    });
+});
