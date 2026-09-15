@@ -191,10 +191,11 @@ describe('配置领域边界与防御分支', () => {
     });
 
     it('任务调度配置保留 0 不限速语义，并限制重试与退避范围', () => {
-        expect(DEFAULT_MAX_CONCURRENT_TRANSLATIONS).toBe(6);
+        expect(DEFAULT_MAX_CONCURRENT_TRANSLATIONS).toBe(10);
         expect(DEFAULT_TRANSLATION_REQUESTS_PER_SECOND).toBe(10);
         expect(DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE).toBe(250);
-        expect(normalizeConfig({})).toMatchObject({maxConcurrentTranslations: 6, translationRequestsPerSecond: 10});
+        expect(normalizeConfig({})).toMatchObject({maxConcurrentTranslations: 10, translationRequestsPerSecond: 10});
+        expect(normalizeConfig({maxConcurrentTranslations: 6}).maxConcurrentTranslations).toBe(6);
         expect(normalizeConfig({maxConcurrentTranslations: 3, translationRequestsPerSecond: 6}))
             .toMatchObject({maxConcurrentTranslations: 3, translationRequestsPerSecond: 6});
         expect(DEFAULT_TRANSLATION_BACKOFF_BASE_MS).toBe(500);

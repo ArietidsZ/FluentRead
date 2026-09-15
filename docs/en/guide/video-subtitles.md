@@ -7,7 +7,7 @@ The open subtitle menu stays available when X hides its playback controls. Switc
 ## A video with subtitles
 
 1. Make sure video subtitle translation is enabled.
-2. Open a YouTube or X video and find the FluentRead icon at the right end of the player controls.
+2. Open a YouTube or X video and find the FluentRead icon just before the fullscreen button. On X, it stays between picture-in-picture and fullscreen when controls reappear or fullscreen changes.
 3. Choose bilingual, translation-only, or original-only display.
 
 FluentRead uses subtitle tracks or subtitle text provided by the page. It cannot guarantee translations where no subtitles are available. The subtitle translation service is independent of the webpage service.

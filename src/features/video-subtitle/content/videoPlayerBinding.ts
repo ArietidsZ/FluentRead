@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/videoPlayerBinding.ts
  * 文件职责：把字幕入口和菜单绑定到定位器选中的视频播放器，并在信息流、全屏及原生控件重挂载时保持稳定。
- * 主要内容：管理原生控制栏优先、悬浮/聚焦时的 fallback 控件、进度徽标和禁用状态下的节点清理。
+ * 主要内容：以画中画和全屏控件为锚点维护入口顺序，管理 fallback 控件、进度徽标和禁用状态下的节点清理。
  * 模块边界：只管理 FluentRead 播放器节点的挂载位置与事件；按钮行为、菜单内容和字幕业务由调用方注入。
  */
 
@@ -38,6 +38,18 @@ export interface VideoPlayerBinding {
 }
 
 const VIDEO_PLAYER_FULLSCREEN_ATTRIBUTE = 'data-fluent-read-video-fullscreen';
+const FULLSCREEN_CONTROL_SELECTOR = [
+  '.ytp-fullscreen-button', '[data-testid*="fullscreen" i]',
+  '[aria-label*="Full screen" i]', '[aria-label*="Fullscreen" i]',
+  '[aria-label*="全屏"]', '[aria-label*="全螢幕"]',
+  '[title*="Full screen" i]', '[title*="Fullscreen" i]', '[title*="全屏"]', '[title*="全螢幕"]',
+].join(', ');
+const PICTURE_IN_PICTURE_CONTROL_SELECTOR = [
+  '[data-testid*="pictureInPicture" i]', '[data-testid*="pipButton" i]',
+  '[aria-label*="Picture in picture" i]', '[aria-label*="Picture-in-picture" i]',
+  '[aria-label*="画中画"]', '[aria-label*="子母畫面"]',
+  '[title*="Picture in picture" i]', '[title*="Picture-in-picture" i]', '[title*="画中画"]',
+].join(', ');
 
 function isConnected(element: Element | null): element is Element {
   return Boolean(element && element.isConnected !== false);
@@ -50,14 +62,28 @@ function settingsControl(player: HTMLElement): HTMLElement | null {
 function nativeControls(player: HTMLElement): HTMLElement | null {
   const youtube = player.querySelector<HTMLElement>(VIDEO_RIGHT_CONTROLS_SELECTOR);
   if (youtube) return youtube;
-  const settings = settingsControl(player);
-  if (!settings) return null;
-  let current = settings.parentElement;
+  const anchor = player.querySelector<HTMLElement>(FULLSCREEN_CONTROL_SELECTOR)
+    || player.querySelector<HTMLElement>(PICTURE_IN_PICTURE_CONTROL_SELECTOR) || settingsControl(player);
+  if (!anchor) return null;
+  let current = anchor.parentElement;
   while (current && current !== player) {
-    if (current.querySelectorAll('button, [role="button"]').length >= 2) return current;
+    // 自己的入口不能让单按钮 tooltip 包装层被误识别为完整控制栏。
+    if (Array.from(current.querySelectorAll('button, [role="button"]'))
+      .filter(control => !control.closest('.fluent-read-video-ui')).length >= 2) return current;
     current = current.parentElement;
   }
-  return settings.parentElement;
+  return anchor.parentElement;
+}
+
+/** 插在原生按钮所属的直接子节点旁，保留站点的 tooltip 包装和点击事件。 */
+function insertionAnchor(host: HTMLElement, button: HTMLButtonElement): Element | null {
+  const fullscreen = host.querySelector<HTMLElement>(FULLSCREEN_CONTROL_SELECTOR);
+  let control: Element | null = fullscreen || host.querySelector<HTMLElement>(PICTURE_IN_PICTURE_CONTROL_SELECTOR);
+  if (!control) return null;
+  while (control.parentElement !== host) control = control.parentElement!;
+  if (fullscreen) return control;
+  const next = control.nextElementSibling;
+  return next === button ? button.nextElementSibling : next;
 }
 
 function playerIsFocused(player: HTMLElement, document: Document): boolean {
@@ -92,6 +118,7 @@ export function createVideoPlayerBinding(options: VideoPlayerBindingOptions): Vi
   let button: HTMLButtonElement | null = null;
   let menu: HTMLElement | null = null;
   let host: HTMLElement | null = null;
+  let before: Element | null = null;
   let fallback: HTMLElement | null = null;
   let destroyed = false;
   let cleaningNodes = false;
@@ -108,6 +135,7 @@ export function createVideoPlayerBinding(options: VideoPlayerBindingOptions): Vi
     menu = null;
     fallback = null;
     host = null;
+    before = null;
     try {
       buttonToRemove?.remove();
       menuToRemove?.remove();
@@ -181,7 +209,7 @@ export function createVideoPlayerBinding(options: VideoPlayerBindingOptions): Vi
         cleanNodes();
         return;
       }
-    } else if (host.classList.contains(VIDEO_FALLBACK_CONTROLS_CLASS) && preferred && preferred !== host) {
+    } else if (preferred && preferred !== host) {
       // 原生控件真正重挂载后才换宿主；仅 display/opacity 变化不会触发此分支。
       host = preferred;
     }
@@ -195,7 +223,8 @@ export function createVideoPlayerBinding(options: VideoPlayerBindingOptions): Vi
       });
     }
     setProgress(button, options.getState());
-    if (button.parentElement !== host || host.lastElementChild !== button) host.appendChild(button);
+    before = insertionAnchor(host, button);
+    if (button.parentElement !== host || button.nextElementSibling !== before) host.insertBefore(button, before);
 
     if (options.createMenu) {
       if (!menu || menu.parentElement !== next.player) {
@@ -261,11 +290,14 @@ export function createVideoPlayerBinding(options: VideoPlayerBindingOptions): Vi
     sync();
   });
   const controlsObserver = typeof MutationObserver !== 'undefined' ? new MutationObserver(records => {
-    if (!target || !records.some(record => target!.player.contains(record.target)) || records.every(record => [...record.addedNodes, ...record.removedNodes].every(node =>
-      node instanceof Element && (node.classList.contains('fluent-read-video-ui') || node.closest('.fluent-read-video-ui'))))) return;
+    if (!target || !records.some(record => target!.player.contains(record.target))) return;
+    const isOwned = (node: Node) => node instanceof Element && Boolean(node.closest('.fluent-read-video-ui'));
+    const correctlyPlaced = button?.parentElement === host && button?.nextElementSibling === before;
+    if (records.every(record => isOwned(record.target) || (record.type !== 'attributes' && correctlyPlaced
+      && [...record.addedNodes, ...record.removedNodes].every(isOwned)))) return;
     sync();
   }) : null;
-  controlsObserver?.observe(document, {childList: true, subtree: true});
+  controlsObserver?.observe(document, {childList: true, subtree: true, attributes: true, attributeFilter: ['aria-label', 'title', 'data-testid']});
   sync();
 
   return {
