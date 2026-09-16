@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/state.ts
  * 文件职责：维护每个被翻译 DOM 节点的可恢复状态、请求代次、译文工件和共享布局覆盖所有权，确保重复翻译、宿主变更和移除节点都能安全收敛。
- * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、兼容字体标记的可信译文复验与有界重挂、截断及高度约束的共享样式租约、祖先观察器引用计数、文本槽回写、按钮型 input 标签属性的原值记录与回滚，以及全量恢复。
+ * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、兼容字体标记与链接提示的译文复验及有界重挂、截断及高度约束的共享样式租约、祖先观察器引用计数、文本槽回写、按钮型 input 标签属性的原值记录与回滚，以及全量恢复。
  * 模块边界：该模块不发现候选、不请求翻译也不生成译文 HTML；runtime 负责会话编排，renderer 负责内容创建，本文件仅拥有 DOM 状态与可逆样式资源，避免跨 session 误删新结果。
  */
 import {getTranslatableControlValueAttribute, isTranslationTooltip} from "@/src/core/translation/dom";
@@ -139,12 +139,6 @@ export interface TranslationState {
     retryWrapper?: HTMLElement;
     /** 双语 wrapper 最后一次由插件写入的 HTML，用于区分宿主重绘和插件自身 mutation。 */
     bilingualHTML?: string;
-    /**
-     * 去掉全部属性后的工件结构与文本标记，用于识别只被宿主改写属性的工件：
-     * 悬停预览增删复制链接的 title、roving tabindex 补 -1/0、a11y 脚本补 aria 属性
-     * 都不改变译文，不能按篡改撤下译文并耗尽持久预算。
-     */
-    bilingualContentTextMarkup?: string;
     /** 包含 class/lang/dir/translate 等外层属性的完整 wrapper 快照。 */
     bilingualOuterHTML?: string;
     /** 可在不再次访问 provider 的情况下，按当前安全 DOM 骨架重放的译文槽。 */
@@ -593,7 +587,6 @@ export function setBilingualContent(
     if (state) {
         state.bilingualHTML = content.innerHTML;
         state.bilingualOuterHTML = content.outerHTML;
-        state.bilingualContentTextMarkup = artifactTextAndStructureMarkup(content);
         state.bilingualContentTemplate = (trustedTemplate ?? content).cloneNode(true) as HTMLElement;
         if (state.syntheticSegment) {
             state.syntheticHost = node.parentElement ?? state.syntheticHost;
@@ -850,9 +843,14 @@ function currentBilingualSourceStructureMatches(
  * roving tabindex 组件会为新出现的链接补写 -1/0。它不改变译文、链接目的地
  * 或可见性，不能被当成宿主删除译文。Font Rendering 的粗体修正会在
  * wrapper 及行内后代添加 ultimate-bold-correct 属性或 class；这同样只是字体标记。
- * 只在精确 HTML 不同时克隆比较，忽略这两个明确例外，其余属性、文本和结构仍须相同。
+ * 只在精确 HTML 不同时克隆比较。漂移判定可额外忽略链接 title 的增删改，
+ * 但 href、事件、可见性与其他属性仍须保持，不能把所有属性变化都当作页面装饰。
  */
-function bilingualContentMatchesWithHostTabOrder(artifact: HTMLElement, state: TranslationState): boolean {
+function bilingualContentMatchesWithHostTabOrder(
+    artifact: HTMLElement,
+    state: TranslationState,
+    allowLinkTitleDrift = false,
+): boolean {
     if (state.bilingualHTML === undefined) return false;
     if (artifact.innerHTML === state.bilingualHTML) return true;
     const template = state.bilingualContentTemplate;
@@ -860,6 +858,11 @@ function bilingualContentMatchesWithHostTabOrder(artifact: HTMLElement, state: T
     const current = artifact.cloneNode(true) as HTMLElement;
     const expected = template.cloneNode(true) as HTMLElement;
     for (const clone of [current, expected]) {
+        if (allowLinkTitleDrift) {
+            for (const link of Array.from(clone.querySelectorAll('a[href][title]'))) {
+                link.removeAttribute('title');
+            }
+        }
         for (const element of Array.from(clone.querySelectorAll('[ultimate-bold-correct], .ultimate-bold-correct'))) {
             if (element.getAttribute('ultimate-bold-correct') === '') element.removeAttribute('ultimate-bold-correct');
             if (element.classList.contains('ultimate-bold-correct')) {
@@ -885,33 +888,17 @@ export function isTrustedBilingualArtifactWithHostClass(
 }
 
 /**
- * 去掉全部属性的结构与文本标记。用于区分两种宿主写入：只改写复制进骨架的
- * 装饰性属性，与改写译文的元素层级或文本。
- */
-function artifactTextAndStructureMarkup(artifact: HTMLElement): string {
-    const clone = artifact.cloneNode(true) as HTMLElement;
-    for (const element of [clone, ...Array.from(clone.querySelectorAll('*'))]) {
-        for (const {name} of Array.from(element.attributes)) element.removeAttribute(name);
-    }
-    return clone.innerHTML;
-}
-
-/**
- * 译文内容（结构 + 文本，忽略属性）是否仍是本代提交的那一份。
- * 工件属性是宿主页面在副本上的装饰：源节点真被改写时会改变来源结构签名，
- * 由骨架重建跟随新源文；这里只覆盖站点脚本单独改写复制节点属性的情形。
+ * 仅链接提示和已有焦点/字体兼容标记可以漂移。宿主可能只改译文副本的 href
+ * 或隐藏属性而不改原文，此时来源签名不会变化，必须继续修复，不能等待源文重放。
  */
 function bilingualContentMatchesSnapshot(artifact: HTMLElement, state: TranslationState): boolean {
-    if (state.bilingualHTML === undefined) return false;
-    if (artifact.innerHTML === state.bilingualHTML) return true;
-    return state.bilingualContentTextMarkup !== undefined &&
-        artifactTextAndStructureMarkup(artifact) === state.bilingualContentTextMarkup;
+    return bilingualContentMatchesWithHostTabOrder(artifact, state, true);
 }
 
 /**
  * wrapper 自身的标记与 lang/dir/translate/style 等外层属性仍与可信快照一致。
  * 外层属性决定译文语义与所有权，被改写仍按篡改处理；容忍只覆盖 wrapper
- * **内部**复制节点的属性漂移。
+ * **内部**复制链接的提示属性漂移。
  */
 function bilingualWrapperAttributesMatch(artifact: HTMLElement, state: TranslationState): boolean {
     const template = state.bilingualContentTemplate;
@@ -933,8 +920,8 @@ function bilingualWrapperAttributesMatch(artifact: HTMLElement, state: Translati
 }
 
 /**
- * 工件信任等级：'trusted' 与提交快照一致；'drift' 只有属性被宿主改写，
- * 译文的结构与文本未变；其余按篡改处理。
+ * 工件信任等级：'trusted' 与提交快照及已有兼容例外一致；'drift' 仅多出链接
+ * title 漂移，其他属性、结构和文本仍与可信模板一致；其余按篡改处理。
  */
 function bilingualArtifactTrust(
     artifact: HTMLElement,
@@ -959,7 +946,7 @@ export function isOwnedBilingualArtifactAttached(node: HTMLElement, state: Trans
 }
 
 /**
- * 宿主把工件改写成了“属性漂移”形态：外层属性完好，只有内部复制节点的属性变化。
+ * 宿主把工件改写成了“属性漂移”形态：外层属性完好，内部只发生链接提示属性变化。
  * 站点脚本会在指针划过译文里的链接时反复增删 title，按篡改处理就会与站点互相
  * 覆盖，最终耗尽持久预算并撤下译文；这类写入必须按当前工件保留。
  */
@@ -1004,7 +991,7 @@ export function tryRepairBilingualTranslationArtifact(
             refreshOwnershipIndex(node, state);
             return 'repaired';
         }
-        // 属性漂移（结构与文本仍是本代译文，只有复制节点的属性被宿主改写）不是篡改：
+        // 链接提示属性漂移不影响目的地、可见性、结构和文本，不需要重建：
         // 站点脚本会在指针划过译文里的链接时反复增删 title，若每次都重写宿主 DOM，
         // 就会与站点互相覆盖并最终耗尽预算、撤下译文。这里既不重写也不计费，
         // 需要与新 DOM 同步时由 refreshBilingualTranslationSkeleton 按需重建。

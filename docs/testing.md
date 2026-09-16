@@ -1,5 +1,11 @@
 # 测试与回归
 
+## 双语链接悬停提示与属性边界
+
+`tests/bilingualReplay.test.ts` 和 `tests/translationStability.test.ts` 覆盖链接 `title` 的增删改与焦点/字体标记组合、跨手势零修复预算，以及译文副本单独改写 `href`、事件、隐藏样式、ARIA、class 或无效 tabindex 时恢复可信属性。源文属性变化继续复用已提交译文；原文链接保持不变。
+
+生产扩展构建后运行 `node scripts/testing/run-bilingual-attribute-drift-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <浏览器翻译技能>/scripts/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用临时 Edge profile、第二屏后台正常窗口和固定翻译响应，检查悬浮与全文模式的六轮链接悬停、逐帧工件在位、源链接骨架同步、语义属性恢复、零额外请求及翻译—恢复—再次翻译。追加 `--live-wikipedia` 检查真实 Menches 页面；固定响应不代表真实供应商质量，Edge 结果也不代表 Firefox 实机验证。
+
 ## 双语逐句高亮
 
 `tests/bilingualSentenceHighlight.test.ts` 覆盖字符坐标、缩写、小数、中英文标点、无原生分句能力的回退、拆句与合句分组，以及双向悬停、内联结构、动态变化和关闭清理。定向覆盖率命令仅包含 `sentenceAlignment.ts`、`sentenceHighlight.ts` 和 `bilingualSentenceHighlight.ts` 三个模块。
