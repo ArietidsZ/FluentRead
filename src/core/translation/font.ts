@@ -6,7 +6,8 @@
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不读取计算样式、不访问配置存储、不发起网络请求、不触碰 DOM，宿主字体栈由渲染层读取后作为参数传入。
  */
 
-import {detectChineseScript, getChineseScript} from '@/src/core/language/chinese';
+import {getChineseScript} from '@/src/core/language/chinese';
+import {detectChineseScript} from '@/src/core/language/detect';
 
 /** 需要区分字体的 CJK 书写体系；拉丁等共享字形的书写体系不参与判断。 */
 export type TranslationScript = 'Hans' | 'Hant' | 'Jpan' | 'Kore';

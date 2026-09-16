@@ -5,8 +5,8 @@
  * 模块边界：本模块只服务设置页的主动连接检查，不读写配置、不发送 runtime 消息、不兼容 legacy translation API，也不参与网页正文的正式翻译链路。
  */
 
-import {detectChineseScript, normalizeChineseLanguageCode} from '@/src/core/language/chinese';
-import {MIN_CHROME_LANGUAGE_CONFIDENCE} from '@/src/core/language/detect';
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
+import {detectChineseScript, MIN_CHROME_LANGUAGE_CONFIDENCE} from '@/src/core/language/detect';
 
 export type ChromePreparationModel = 'language-detector' | 'translator';
 export type ChromePreparationPhase = 'initializing' | 'downloading' | 'verifying';

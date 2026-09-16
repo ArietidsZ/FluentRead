@@ -247,6 +247,38 @@ describe('划词翻译快捷键语言预检', () => {
         expect(runtime.selectionShortcutPorts.shouldReserveSelectionShortcut(event as unknown as KeyboardEvent)).toBe(true);
     });
 
+    it.each([
+        ['Добро пожаловать на наш сайт.', 'ru', 'en'],
+        ['Bonjour et bienvenue sur notre site.', 'fr', 'en'],
+        ['Dieser deutsche Absatz beschreibt die verschiedenen Einstellungen der Anwendung und die automatische Übersetzung.', 'de', 'en'],
+        ['GPT-6 Sol 모델의 새로운 기능을 소개합니다.', 'ko', 'ja'],
+        ['云端模型清单允许清空，且不再连带拒掉无关偏好的保存 (84522b3)', 'zh-Hans', 'zh-Hant'],
+    ])('多语言同目标选区 %s 不占用快捷键，切换到 %s 以外的目标后立即恢复', async (text, target, other) => {
+        mocks.config.selectionTranslatorTrigger = 'Control';
+        mocks.config.to = target;
+        mocks.getSelection.mockReturnValue(visibleSelection(text));
+        const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
+        const runtime = createContentHotkeyRuntime(() => false);
+        expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(false);
+        mocks.config.to = other;
+        expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(true);
+    });
+
+    it('夹带外语句子、歧义短词和纯共享汉字的选区保留划词快捷键', async () => {
+        mocks.config.selectionTranslatorTrigger = 'Control';
+        const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
+        const runtime = createContentHotkeyRuntime(() => false);
+        for (const [text, target] of [
+            ['GPT-6 Sol の新しいモデルを発表しました。This English sentence needs translation.', 'ja'],
+            ['Settings', 'en'],
+            ['日本国立大学', 'ja'],
+        ] as const) {
+            mocks.config.to = target;
+            mocks.getSelection.mockReturnValue(visibleSelection(text));
+            expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate(), text).toBe(true);
+        }
+    });
+
     it('明确日文与日语目标相同时不占用划词快捷键', async () => {
         mocks.config.selectionTranslatorTrigger = 'Control';
         mocks.config.to = 'ja';

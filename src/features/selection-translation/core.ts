@@ -6,6 +6,7 @@
  */
 import {getElementTagName, isTopLevelApplicationShell} from '@/src/core/translation/public';
 import {getChineseScript, normalizeChineseLanguageCode} from '@/src/core/language/chinese';
+import {isLanguageCodeMatch} from '@/src/core/language/codes';
 
 export interface SelectionRect {
     top: number;
@@ -124,46 +125,9 @@ export function reconcileSelectionPresentation(
     return { showIndicator: true, showTooltip: false };
 }
 
-const languageAliases: Record<string, string> = {
-    cmn: 'zh',
-    zho: 'zh',
-    chi: 'zh',
-    eng: 'en',
-    jpn: 'ja',
-    kor: 'ko',
-    fra: 'fr',
-    fre: 'fr',
-    deu: 'de',
-    ger: 'de',
-    spa: 'es',
-    rus: 'ru',
-    ita: 'it',
-    por: 'pt',
-    ara: 'ar',
-    hin: 'hi',
-    tha: 'th',
-    vie: 'vi',
-    nld: 'nl',
-    dut: 'nl',
-    pol: 'pl',
-    tur: 'tr',
-};
-
-/** 中文必须具有一致的明确书写系统，其他语言继续按基础语言比较。 */
+/** 选区检测结果与目标语言使用统一标签规则比较；中文必须具有一致的明确书写体系。 */
 export function isSameLanguage(detectedLanguage: string | undefined, targetLanguage: string | undefined): boolean {
-    const detected = String(detectedLanguage ?? '').trim().replace(/_/g, '-').toLowerCase();
-    const target = String(targetLanguage ?? '').trim().replace(/_/g, '-').toLowerCase();
-    if (!detected || !target || ['auto', 'detect', 'unknown', 'und'].includes(detected) || ['auto', 'detect', 'unknown', 'und'].includes(target)) return false;
-
-    // 统计检测的裸 zh/cmn 不能证明简繁；目标配置的裸 zh 则沿用历史简体默认值。
-    if (/^(zh|cmn|zho|chi)$/u.test(detected)) return false;
-    const detectedScript = getChineseScript(detected);
-    const targetScript = getChineseScript(target);
-    if (detectedScript || targetScript) return Boolean(detectedScript && detectedScript === targetScript);
-
-    const detectedBase = languageAliases[detected] || detected.split('-')[0];
-    const targetBase = languageAliases[target] || target.split('-')[0];
-    return Boolean(detectedBase && targetBase && detectedBase === targetBase);
+    return isLanguageCodeMatch(detectedLanguage, targetLanguage);
 }
 
 const DEFAULT_PADDING = 12;

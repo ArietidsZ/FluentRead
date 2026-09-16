@@ -2,8 +2,8 @@
  * @file src/core/translation/text.ts
  *
  * 文件职责：提取和校验候选中的可读文本，拒绝标识符、空白、扩展译文及脚本、表单或敏感区域的节点。
- * 主要内容：提供文本规范化、meaningful/identifier 判定、元素与文本节点保护检查、嵌套 tooltip 来源隔离、保守的目标语言字符集快判、WeakMap 状态缓存和受预算约束的深度扫描，避免在大型 DOM 上无限遍历。 可核对的公开符号包括 normalizeTranslationText、isIdentifierLikeText、isMeaningfulTranslationText、setMinimumTranslationTextLength、isClearlyTargetLanguage、isTranslationTextNodeProtected、TranslationTextProtectionCache、createTranslationTextProtectionCache、isTranslationTextElementProtected、hasMeaningfulTranslationTextInNodes。
- * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
+ * 主要内容：提供文本规范化、meaningful/identifier 判定、元素与文本节点保护检查、嵌套 tooltip 来源隔离、WeakMap 状态缓存和受预算约束的深度扫描，避免在大型 DOM 上无限遍历。 可核对的公开符号包括 normalizeTranslationText、isIdentifierLikeText、isMeaningfulTranslationText、setMinimumTranslationTextLength、isTranslationTextNodeProtected、TranslationTextProtectionCache、createTranslationTextProtectionCache、isTranslationTextElementProtected、hasMeaningfulTranslationTextInNodes。
+ * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期；文本语言与同目标跳过统一由 src/core/language 判断。
  */
 
 import {
@@ -14,7 +14,6 @@ import {
     maxComposedAncestorDepth,
 } from './dom';
 import type {TranslationTextProtectionOptions} from './dom';
-import {isChineseTextForTarget} from '@/src/core/language/chinese';
 import {
     DEFAULT_MIN_TRANSLATION_TEXT_LENGTH,
     normalizeMinTranslationTextLength,
@@ -299,45 +298,4 @@ export function extractTranslationText(
         ignoredExtensionElement,
         protectionOptions,
     );
-}
-
-const hanPattern = /\p{Script=Han}/u;
-const kanaPattern = /[\p{Script=Hiragana}\p{Script=Katakana}]/u;
-const hangulPattern = /\p{Script=Hangul}/u;
-const cjkLetterPattern = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
-const latinTokenPattern = /[A-Za-z]+(?:[._/+:#@-][A-Za-z0-9]+)*/gu;
-const preservedLatinTokenPattern = /^(?:[A-Z]{2,}|(?:[A-Z][a-z]*[A-Z][A-Za-z]*|[a-z]+[A-Z][A-Za-z]*)|(?:api|cpu|css|dom|gpu|git|html|http|https|json|js|npm|pdf|pnpm|sql|ssh|svg|ts|url|xml|yaml|yarn))$/u;
-
-/** 目标语种中的假名/谚文不能掩盖真正的外语正文；短品牌名、代码和 URL 仍视为可保留内容。 */
-function hasForeignLanguageProse(value: string): boolean {
-    for (const match of value.matchAll(/\p{L}+/gu)) {
-        if ([...match[0]].some((character) => (
-            !cjkLetterPattern.test(character) && !/^[A-Za-z]$/u.test(character)
-        ))) return true;
-    }
-    const proseTokens = (value.match(latinTokenPattern) ?? [])
-        .filter((token) => !/[._/+:#@\-0-9]/u.test(token) && !preservedLatinTokenPattern.test(token));
-    return proseTokens.some((token) => token.length >= 3) || proseTokens.length >= 2;
-}
-
-/**
- * 统计式语言检测对短 UI 文本最不可靠。接受假名、谚文、中文特有字形或明确中文词语作为证据；
- * 普通共享 Han 无法可靠区分中日文，夹带的外语正文也不能被目标脚本或品牌名掩盖，均交给后续检测或翻译服务。
- */
-export function isClearlyTargetLanguage(value: string, targetLanguage: string): boolean {
-    const text = normalizeTranslationText(value);
-    if (!text) return true;
-    const target = targetLanguage.toLowerCase();
-    const letters = text.match(/\p{L}/gu)?.length ?? 0;
-    if (letters === 0) return true;
-
-    const hasKana = kanaPattern.test(text);
-    const hasHangul = hangulPattern.test(text);
-    if (hasKana && hasHangul) return false;
-    if (hasKana) return target.startsWith('ja') && !hasForeignLanguageProse(text);
-    if (hasHangul) return target.startsWith('ko') && !hasForeignLanguageProse(text);
-    if (hanPattern.test(text)) {
-        return isChineseTextForTarget(text, targetLanguage);
-    }
-    return false;
 }

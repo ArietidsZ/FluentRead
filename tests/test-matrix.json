@@ -267,7 +267,12 @@
       "tests/onnxWasmBinary.test.ts",
       "tests/wasmDiagnostics.test.ts",
       "tests/onnxWebGpu.test.ts",
-      "tests/localTtsWorker.test.ts"
+      "tests/localTtsWorker.test.ts",
+      "tests/languageCodes.test.ts",
+      "tests/languageTechnicalTokens.test.ts",
+      "tests/languageScripts.test.ts",
+      "tests/languageStatistical.test.ts",
+      "tests/languageIdentification.test.ts"
     ],
     "functional": [
       "tests/resourceSafeRunner.test.ts",
@@ -340,7 +345,10 @@
       "tests/translationVisionBroker.test.ts",
       "tests/areaVisionRecognition.test.ts",
       "tests/uiI18nBundleLoading.test.ts",
-      "tests/bilingualSentenceHighlight.test.ts"
+      "tests/bilingualSentenceHighlight.test.ts",
+      "tests/languageIdentificationCorpus.test.ts",
+      "tests/sameTargetLanguageClient.test.ts",
+      "tests/sameTargetLanguageSlots.test.ts"
     ],
     "regression": [
       "tests/myMemoryConnectionTest.test.ts",
@@ -371,7 +379,8 @@
       "tests/userscriptCredentialPersistence.test.ts",
       "tests/userscriptDexieIsolation.test.ts",
       "tests/vocabularyBookComponentLifecycle.test.ts",
-      "tests/allNodesTranslationCore.test.ts"
+      "tests/allNodesTranslationCore.test.ts",
+      "tests/sameTargetLanguageRegression.test.ts"
     ]
   }
 }

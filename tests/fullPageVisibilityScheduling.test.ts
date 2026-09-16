@@ -1,7 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 import {parseHTML} from "linkedom";
 import chinesePosts from './fixtures/chinese-language-posts.json';
-import {isClearlyTargetLanguage} from '@/src/core/translation/text';
 import type {TranslationSiteAdapter} from '@/src/core/translation/types';
 import {TranslationCandidateCore} from '@/src/core/translation/engine';
 import {compileSiteRulePack} from '@/src/core/site-adaptation/compiler';
@@ -57,7 +56,8 @@ const runtime = vi.hoisted(() => ({
         maxConcurrentTranslations: 3,
     },
     ensureTranslationTruncationLayout: vi.fn(() => true),
-    clearlyTargetLanguage: vi.fn<(value: string, targetLanguage: string) => boolean>(() => false),
+    // 同目标语言判断的替身：整段候选、文本槽和标题共用同一个 detect 入口。
+    clearlyTargetLanguage: vi.fn<(value: string, targetLanguage: string, excluded?: readonly string[]) => boolean>(() => false),
 }));
 
 vi.mock("@/src/app/translation/check", () => ({checkConfig: () => true}));
@@ -84,8 +84,9 @@ vi.mock("@/src/services/config/store", () => ({
 }));
 vi.mock("@/src/core/language/detect", () => ({
     detectlang: () => "",
-    shouldSkipTranslationForTarget: (origin: string, _target: string, excluded: readonly string[] = []) =>
-        (excluded.includes('zh-Hant') && origin.includes('這個')) || (excluded.includes('ja') && origin.includes('これは')),
+    shouldSkipTranslationForTarget: (origin: string, target: string, excluded: readonly string[] = []) =>
+        runtime.clearlyTargetLanguage(origin, target, excluded)
+        || (excluded.includes('zh-Hant') && origin.includes('這個')) || (excluded.includes('ja') && origin.includes('これは')),
 }));
 vi.mock("@/src/app/translation/client", () => ({
     translateText: async (origin: string, _context: string, options: Record<string, unknown>) => {
@@ -260,8 +261,6 @@ vi.mock("@/src/core/translation/public", async (importOriginal) => {
         getOpenShadowRoots: () => [],
         getTranslationCandidateKey: (candidate: {element: HTMLElement; nodes?: readonly Node[]}) =>
             candidate.nodes?.[0] ?? candidate.element,
-        isClearlyTargetLanguage: (value: string, targetLanguage: string) =>
-            runtime.clearlyTargetLanguage(value, targetLanguage),
         parseTranslationSlots: () => runtime.parsedSlots,
         resolveTranslationCandidate: (start: Node | null | undefined) =>
             [...runtime.candidates].reverse().find((candidate) => candidate.element === start),
@@ -1638,6 +1637,100 @@ describe("全文翻译可见性锚点", () => {
         clearFullPageTranslationRequestCache(session);
     });
 
+    it('真实语言识别：同目标段落零请求，外语段落翻译—恢复—再翻译，动态改写、目标与排除语言变化后重新识别', async () => {
+        const actualDetect = await vi.importActual<typeof import('@/src/core/language/detect')>('@/src/core/language/detect');
+        runtime.clearlyTargetLanguage.mockImplementation(actualDetect.shouldSkipTranslationForTarget);
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        runtime.config.to = 'de';
+        const german = 'Dieser deutsche Absatz beschreibt die verschiedenen Einstellungen der Anwendung und die automatische Übersetzung.';
+        const english = 'This English paragraph still needs a German translation for the reader.';
+        const russian = 'Добро пожаловать на наш сайт.';
+        document.body.innerHTML = `<main><p id="de">${german}</p><p id="en">${english}</p><p id="ru">${russian}</p></main>`;
+        const [de, en, ru] = ['#de', '#en', '#ru'].map(selector => document.querySelector<HTMLElement>(selector)!);
+        for (const element of [de, en, ru]) setLayoutBox(element!, 600, 60);
+        runtime.candidates = [de!, en!, ru!].map(element => ({element, kind: 'content', reason: 'paragraph'}));
+        const translations = (element: HTMLElement) => element.querySelectorAll('.fluent-read-bilingual-content').length;
+
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(runtime.requests.mock.calls.flat(2).sort()).toEqual([english, russian].sort());
+        expect([translations(de!), translations(en!), translations(ru!)]).toEqual([0, 1, 1]);
+
+        restoreOriginalContent();
+        expect(document.querySelector('[data-fr-translation-owned]')).toBeNull();
+        expect(de!.textContent).toBe(german);
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(runtime.requests.mock.calls.flat(2)).not.toContain(german);
+        expect([translations(de!), translations(en!), translations(ru!)]).toEqual([0, 1, 1]);
+
+        // 页面把同目标段落改写为外语：必须以新文本重新识别，不能沿用旧的“无需翻译”结论。
+        const rewritten = 'The German paragraph was replaced by English text that must now be translated.';
+        de!.firstChild!.nodeValue = rewritten;
+        TestMutationObserver.instances.at(-1)!.emit([{type: 'characterData', target: de!.firstChild,
+            addedNodes: [] as unknown as NodeList, removedNodes: [] as unknown as NodeList} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(runtime.requests.mock.calls.flat(2)).toContain(rewritten);
+        expect(translations(de!)).toBe(1);
+
+        restoreOriginalContent();
+        runtime.requests.mockClear();
+        runtime.config.to = 'en';
+        runtime.config.excludedLanguages = ['ru'];
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(runtime.requests).not.toHaveBeenCalled();
+        expect(document.querySelector('[data-fr-translation-owned]')).toBeNull();
+
+        restoreOriginalContent();
+        runtime.config.excludedLanguages = [];
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(runtime.requests.mock.calls.flat(2)).toEqual([russian]);
+        expect([translations(de!), translations(en!), translations(ru!)]).toEqual([0, 0, 1]);
+    });
+
+    it('真实语言识别：外语请求在途时恢复原文会取消，失败后重试只请求外语段落', async () => {
+        const actualDetect = await vi.importActual<typeof import('@/src/core/language/detect')>('@/src/core/language/detect');
+        runtime.clearlyTargetLanguage.mockImplementation(actualDetect.shouldSkipTranslationForTarget);
+        runtime.config.display = 1;
+        runtime.config.to = 'ja';
+        const japanese = 'GPT-6 Sol の新しいモデルを発表しました。';
+        const english = 'This English paragraph needs a Japanese translation.';
+        document.body.innerHTML = `<main><p id="ja">${japanese}</p><p id="en">${english}</p></main>`;
+        const ja = document.querySelector<HTMLElement>('#ja')!;
+        const en = document.querySelector<HTMLElement>('#en')!;
+        runtime.candidates = [ja, en].map(element => ({element, kind: 'content', reason: 'paragraph'}));
+
+        handleBilingualTranslation(ja, false);
+        await finishScheduledWork();
+        expect(runtime.requests).not.toHaveBeenCalled();
+        expect(getTranslationState(ja)).toBeUndefined();
+
+        const inFlight = deferred<string[]>();
+        runtime.requests.mockReturnValueOnce(inFlight.promise);
+        handleBilingualTranslation(en, false);
+        await vi.advanceTimersByTimeAsync(1);
+        await waitForRequestCount(1);
+        const pending = getTranslationState(en)!;
+        restoreOriginalContent();
+        expect(pending.controller.signal.aborted).toBe(true);
+        inFlight.resolve(['迟到的译文']);
+        await finishScheduledWork();
+        expect(en.textContent).toBe(english);
+
+        runtime.requests.mockRejectedValueOnce(new Error('provider unavailable'));
+        handleBilingualTranslation(en, false);
+        await finishScheduledWork();
+        expect(getTranslationState(en)?.phase).toBe('error');
+        runtime.retryCallbacks.at(-1)!();
+        await finishScheduledWork();
+        expect(runtime.requests.mock.calls.flat(2)).toEqual([english, english, english]);
+        expect(getTranslationState(en)?.phase).toBe('translated');
+        expect(ja.querySelector('[data-fr-translation-owned]')).toBeNull();
+    });
+
     it('全文术语快照复制选库数组，版本或选择不同不能复用会话结果', async () => {
         const ids = ['technical'];
         const first = captureFullPageTranslationConfig({glossaryIds: ids});
@@ -1929,7 +2022,8 @@ describe("全文翻译可见性锚点", () => {
     });
 
     it('截图中文评论在真实语言判定下不进入批次，外语槽仍翻译且按原索引回填', async () => {
-        runtime.clearlyTargetLanguage.mockImplementation(isClearlyTargetLanguage);
+        const actualDetect = await vi.importActual<typeof import('@/src/core/language/detect')>('@/src/core/language/detect');
+        runtime.clearlyTargetLanguage.mockImplementation(actualDetect.shouldSkipTranslationForTarget);
         const origins = [chinesePosts[0]!, 'English source', ...chinesePosts.slice(1), '這個軟體可以翻譯網頁。'];
         const snapshot = translationSnapshot({service: 'freeTranslation', targetLanguage: 'zh-Hans'});
         await expect(translateTextSlots(origins, snapshot)).resolves.toEqual(origins.map((text) =>

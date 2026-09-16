@@ -1,13 +1,68 @@
 import {describe, expect, it} from 'vitest';
 import posts from './fixtures/chinese-language-posts.json';
-import {shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
-import {
-    detectChineseScript,
-    getChineseScript,
-    normalizeChineseLanguageCode,
-} from '@/src/core/language/chinese';
+import modelPost from './fixtures/chinese-language-model-post.json';
+import {detectChineseScript, shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+import {getChineseScript, normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 
 describe('中文书写体系与语言代码', () => {
+    const releaseNote = '云端模型清单允许清空，且不再连带拒掉无关偏好的保存';
+    it.each([releaseNote, `${releaseNote} (84522b3)`])('用户反馈的发布说明有无提交哈希均识别为简体 %#', text => {
+        expect(detectChineseScript(text)).toBe('Hans');
+        expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(true);
+        expect(shouldSkipTranslationForTarget(text, 'zh-Hant')).toBe(false);
+        expect(shouldSkipTranslationForTarget(text, 'en')).toBe(false);
+    });
+    it.each([...modelPost, modelPost.join('\n')])('用户反馈的模型公告按段落和整篇跳过简体目标 %#', text => {
+        expect(detectChineseScript(text)).toBe('Hans');
+        for (const target of ['zh', 'zh-CN', 'zh-Hans']) {
+            expect(shouldSkipTranslationForTarget(text, target)).toBe(true);
+        }
+        expect(shouldSkipTranslationForTarget(text, 'zh-Hant')).toBe(false);
+        expect(shouldSkipTranslationForTarget(text, 'en')).toBe(false);
+    });
+    it.each([
+        '请使用 AI 翻译', '新增文档 PDF', '新增 PDF、ePub 功能', '预计推出 GPT-7.1 Nova 模型',
+        '清单允许清空 (84522B3)', '清单允许清空 (84522b3ff33401f87da8d5d7c4510ea5453e40ef)',
+    ])('短中文语境和结构化技术标识符仍可跳过 %s', text => {
+        expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(true);
+        expect(shouldSkipTranslationForTarget(text, 'en')).toBe(false);
+    });
+    it.each(['日本国立大学', '学校教育', '株式会社', '体'])('补充简体字数据不将日文共享字 %s 当成中文', text => {
+        expect(detectChineseScript(text)).toBeUndefined();
+        expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(false);
+        expect(shouldSkipTranslationForTarget(text, 'zh-Hant')).toBe(false);
+    });
+    it('中文词语证据保留简繁区别和中性字形', () => {
+        const traditional = '雲端模型清單允許清空，且不再連帶拒掉無關偏好的保存 (84522b3)';
+        expect(detectChineseScript(traditional)).toBe('Hant');
+        expect(shouldSkipTranslationForTarget(traditional, 'zh-Hant')).toBe(true);
+        expect(shouldSkipTranslationForTarget(traditional, 'zh-Hans')).toBe(false);
+        for (const text of ['你好，世界！', '新增功能', '不再保存']) {
+            expect(detectChineseScript(text)).toBeUndefined();
+            expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(true);
+            expect(shouldSkipTranslationForTarget(text, 'zh-Hant')).toBe(true);
+        }
+    });
+    it.each([
+        'GPT-6 Sol', '中文 GPT-6 Sol', '预计推出 GPT-6 GPT-7 GPT-8 GPT-9 模型',
+        '预计将推出 GPT-6 Sol Please translate this sentence.',
+        '预计将推出 GPT-6 Sol ERROR PLEASE RETRY', '预计将推出 GPT-6，Sol 仍需要翻译',
+        '预计将推出 GPT-6 模型，Sol 这个词需要翻译',
+        '预计将推出 GPT-6 Sol あ', '预计将推出 GPT-6 Sol 한국어',
+        '预计将推出 GPT-6 Sol 模型與配置', '预计将推出 GPT-6 Sol 模型嘅',
+        '清单允许清空 (84522b3) Please translate this sentence.',
+        '清单允许清空 (abcdefa)',
+        `预计将推出 ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ-6 Sol 模型`,
+    ])('技术名称和哈希不掩盖外语、冲突和不确定文本 %#', text => {
+        expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(false);
+    });
+    // 统一标识符规则：同时含字母和数字的编号（84522b3g、H100）及更长的十六进制摘要都不是任何语言的正文，
+    // 不能因为不是严格的 7–40 位提交哈希就让整段中文重新翻译；纯字母伪哈希 abcdefa 仍按外语词处理。
+    it.each(['清单允许清空 (84522b3g)', '清单允许清空 (84522b3ff33401f87da8d5d7c4510ea5453e40ef0)', '清单允许清空，适配 H100 显卡'])(
+        '字母数字混合编号和长摘要按标识符处理 %#', text => {
+            expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(true);
+            expect(shouldSkipTranslationForTarget(text, 'en')).toBe(false);
+        });
     const formatAnnouncement = '新增文档翻译工作台，支持 PDF、ePub、DOCX，以及 HTML、TXT、Markdown、SRT、VTT、ASS/SSA、LRC、JSON 等格式。';
     it('中文格式清单不因保留的格式名称较多而重复请求翻译', () => {
         for (const text of [formatAnnouncement, `✨ 新增功能\n${formatAnnouncement}`, formatAnnouncement.toLowerCase()]) {
@@ -21,7 +76,7 @@ describe('中文书写体系与语言代码', () => {
         expect(detectChineseScript('✨ 新增功能')).toBeUndefined();
         for (const target of ['zh-Hans', 'zh-Hant']) {
             expect(shouldSkipTranslationForTarget('✨ 新增功能', target)).toBe(true);
-            expect(shouldSkipTranslationForTarget('新增 PDF、ePub 功能', target)).toBe(false);
+            expect(shouldSkipTranslationForTarget('新增 PDF、ePub 功能', target)).toBe(true);
         }
         expect(shouldSkipTranslationForTarget('✨ 新增功能', 'en')).toBe(false);
     });
@@ -29,7 +84,7 @@ describe('中文书写体系与语言代码', () => {
         for (const suffix of [' Please translate this sentence.', ' ERROR PLEASE RETRY', ' 日本語です。', ' 한국어', ' café', ' русский', ' 與', ' 𱀀']) {
             expect(shouldSkipTranslationForTarget(formatAnnouncement + suffix, 'zh-Hans')).toBe(false);
         }
-        for (const text of ['新增機能', '新增功能 English', '新增功能あ', '新增功能嘅', '新增功能𱀀', '新增文档 PDF', 'PDF、ePub、DOCX、Markdown']) {
+        for (const text of ['新增機能', '新增功能 English', '新增功能あ', '新增功能嘅', '新增功能𱀀', 'PDF、ePub、DOCX、Markdown']) {
             expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(false);
         }
         const traditional = '新增文件翻譯工作台，支援 PDF、ePub、DOCX，以及 HTML、TXT、Markdown、SRT、VTT、ASS/SSA、LRC、JSON 等格式。';

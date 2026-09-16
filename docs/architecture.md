@@ -75,7 +75,7 @@ src/
 
   core/
     translation/                     # 纯翻译/候选/序列化算法
-    language/
+    language/                        # 统一语言判断：标签规范、标识符遮蔽、文字/统计/中日韩识别与同目标跳过
     hotkey/
     site-rules/
 

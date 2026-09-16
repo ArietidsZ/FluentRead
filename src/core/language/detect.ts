@@ -1,80 +1,65 @@
 /**
  * @file src/core/language/detect.ts
  *
- * 文件职责：对待翻译文本执行轻量语言识别，并提供只在高置信度时跳过目标语言或用户排除语言的保守判定。
- * 主要内容：detectlang 调用 franc-min 得到 ISO 639-3 识别结果，普通话仅凭明确字形映射简体或繁体，不明确时保留 cmn；shouldSkipTranslationForTarget 对短文本、共享 Han、简繁混排和未知结果 fail-open，仅接受明确书写体系或足够长的统计结果；划词与翻译卡片额外按纯 Han 选区跳过中文目标，不将该交互规则用于全文检测；共享 Chrome 现代语言检测的最低置信度边界。 可核对的公开符号包括 detectlang、shouldSkipTranslationForTarget、MIN_CHROME_LANGUAGE_CONFIDENCE。
- * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
+ * 文件职责：提供各翻译入口共用的语言判断公开 API，把与目标无关的文本识别结论和配置中的目标语言、排除语言按同一规则比较。
+ * 主要内容：detectlang 返回规范语言代码，可信识别优先、否则给出统计最佳猜测或混合正文的 franc-min 整体排序，普通话无法确定简繁时返回 cmn、没有正文证据时返回 und；shouldSkipTranslationForTarget 只在文本无字母或整段被可信识别为目标语言/任一排除语言时跳过，未知、混合与夹带外语句子一律保留翻译；detectChineseScript 报告可信的单一中文书写体系；划词与翻译卡片额外按纯 Han 选区跳过中文目标；共享 Chrome 现代语言检测的最低置信度边界。可核对的公开符号包括 detectlang、shouldSkipTranslationForTarget、isTextInLanguage、detectChineseScript、shouldSkipChineseSelection、MIN_CHROME_LANGUAGE_CONFIDENCE。
+ * 模块边界：本文件属于 core 领域层，只组合 identify.ts 与 codes.ts 的纯规则；不读取浏览器存储、页面 lang 或配置，不发起网络请求，也不挂载 Vue/WXT 入口，是否强制翻译等交互语义由调用方决定。
  */
 
 import {franc} from 'franc-min';
-import {isClearlyTargetLanguage, normalizeTranslationText} from '@/src/core/translation/text';
-import {detectChineseScript, getChineseScript} from './chinese';
-
-const FLUENTREAD_LANGUAGE_CODES: Readonly<Record<string, string>> = {
-    eng: 'en',
-    fra: 'fr',
-    jpn: 'ja',
-    kor: 'ko',
-    rus: 'ru',
-    spa: 'es',
-};
-
-// 排除列表补齐目录中的统计语言码；保持 detectlang 既有返回契约。
-const EXCLUDED_LANGUAGE_CODES: Readonly<Record<string, string>> = {
-    deu: 'de', por: 'pt', ita: 'it', arb: 'ar', hin: 'hi', ben: 'bn',
-    urd: 'ur', pes: 'fa', heb: 'he', tur: 'tr', vie: 'vi', tha: 'th',
-    ind: 'id', zlm: 'ms', nld: 'nl', pol: 'pl', ukr: 'uk', ces: 'cs',
-    slk: 'sk', dan: 'da', swe: 'sv', nob: 'nb', fin: 'fi', ell: 'el',
-    ron: 'ro', hun: 'hu', bul: 'bg', hrv: 'hr', srp: 'sr', slv: 'sl',
-    est: 'et', lav: 'lv', lit: 'lt', tam: 'ta', tel: 'te', mar: 'mr',
-    guj: 'gu', kan: 'kn', mal: 'ml', pan: 'pa', npi: 'ne', sin: 'si',
-    swh: 'sw', tgl: 'fil',
-};
-
-const MIN_RELIABLE_STATISTICAL_LETTERS = 50;
-const CJK_SCRIPT_PATTERN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
-const UNKNOWN_LANGUAGE_CODES = new Set(['', 'auto', 'detect', 'unknown', 'und']);
+import {getChineseScript, type ChineseScript} from './chinese';
+import {isLanguageCodeMatch, normalizeDetectedLanguageCode} from './codes';
+import {identifyTextLanguage} from './identify';
 
 /** Chrome LanguageDetector 结果低于此边界时按未知语言处理。 */
 export const MIN_CHROME_LANGUAGE_CONFIDENCE = 0.4;
 
-function languageBase(value: string): string {
-    const normalized = value.trim().replace(/_/gu, '-').toLowerCase();
-    if (UNKNOWN_LANGUAGE_CODES.has(normalized)) return '';
-    return normalized.split('-')[0]!;
+/**
+ * 返回文本的规范语言代码。可信识别结果优先；否则使用统计最佳猜测，供朗读音色、本地模型源语言等
+ * 需要猜测的场景使用。普通话书写体系不明确时返回 cmn，无法识别返回 und。该结果不能单独作为跳过依据。
+ */
+export function detectlang(origin: string): string {
+    const identification = identifyTextLanguage(origin);
+    if (identification.status === 'identified') {
+        return identification.languages.length === 1 ? identification.languages[0]! : 'cmn';
+    }
+    if (identification.bestGuess && identification.bestGuess !== 'zh') return identification.bestGuess;
+    // 只有标识符、名称或无法统计的文字时没有可用猜测；混合正文才退回 franc 的整体排序。
+    if (identification.status === 'unknown' && identification.bestGuess === undefined) return 'und';
+    const detected = franc(origin, {minLength: 0});
+    const normalized = normalizeDetectedLanguageCode(detected);
+    if (normalized === 'zh') return 'cmn';
+    return normalized || 'und';
 }
 
-/** 将 franc 的 ISO 639-3 结果映射为 FluentRead 配置使用的语言代码。 */
-export function detectlang(origin: string): string {
-    const detected = franc(origin, {minLength: 0});
-    if (detected === 'cmn') {
-        const script = detectChineseScript(origin);
-        return script ? `zh-${script}` : 'cmn';
-    }
-    return FLUENTREAD_LANGUAGE_CODES[detected] ?? detected;
+/** 文本是否被可信识别为指定配置语言；简繁同形的中文同时属于简体与繁体目标。 */
+export function isTextInLanguage(origin: string, language: string): boolean {
+    const identification = identifyTextLanguage(origin);
+    return identification.status === 'identified'
+        && identification.languages.some(detected => isLanguageCodeMatch(detected, language));
 }
 
 /**
- * 同语言预检只能省请求，绝不能让不确定文本静默漏译。短 Latin、无中文证据的 Han 与任何
- * 未知统计结果都返回 false；调用方继续交给实际 provider 处理。
+ * 同语言预检只能省请求，绝不能让不确定文本静默漏译。目标语言和排除语言共用同一识别结论与代码比较；
+ * 没有字母的文本无需翻译；短歧义词、专有名词、纯共享汉字、混合文字和夹带外语句子都返回 false。
  */
 export function shouldSkipTranslationForTarget(
     origin: string,
     targetLanguage: string,
     excludedLanguages: readonly string[] = [],
 ): boolean {
-    const text = normalizeTranslationText(origin);
-    if (isClearlyTargetLanguage(text, targetLanguage)) return true;
-    if (excludedLanguages.some(language => isClearlyTargetLanguage(text, language))) return true;
-    if (!text || CJK_SCRIPT_PATTERN.test(text)) return false;
+    const identification = identifyTextLanguage(origin);
+    if (identification.status === 'empty') return true;
+    if (identification.status !== 'identified') return false;
+    return [targetLanguage, ...excludedLanguages].some(language =>
+        identification.languages.some(detected => isLanguageCodeMatch(detected, language)));
+}
 
-    const letters = text.match(/\p{L}/gu)!.length;
-    if (letters < MIN_RELIABLE_STATISTICAL_LETTERS) return false;
-    const detected = languageBase(detectlang(text));
-    const target = languageBase(targetLanguage);
-    const excludedDetected = EXCLUDED_LANGUAGE_CODES[detected] ?? detected;
-    return Boolean(detected && ((target && detected === target)
-        || excludedLanguages.some(language => languageBase(language) === excludedDetected)));
+/** 只报告有明确中文证据且字形一致的文本，不为简繁同形中文猜测简体或繁体。 */
+export function detectChineseScript(value: string): ChineseScript | undefined {
+    const identification = identifyTextLanguage(value);
+    if (identification.status !== 'identified' || identification.languages.length !== 1) return undefined;
+    return getChineseScript(identification.languages[0]!);
 }
 
 /**

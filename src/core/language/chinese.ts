@@ -1,35 +1,28 @@
 /**
  * @file src/core/language/chinese.ts
  *
- * 文件职责：统一中文语言别名与书写体系，并以保守字形证据区分简体、繁体和未知文本。
- * 主要内容：规范化中文语言码并结合 Unicode 简繁冲突表判断书写体系；中文说明中的已知文件格式名不计入外语占比，其他缩写仍受比例限制；目标语言预检可跳过有明确中文词语证据的中性字形标题，排除混排、完整外语及粤语口语。
- * 模块边界：本文件属于 core 纯算法，不转换原文、不猜测地区或方言，不访问配置、浏览器、网络或翻译服务；未知结果由调用方继续检测或翻译。
+ * 文件职责：统一中文语言别名与书写体系，并以保守字形证据区分简体、繁体、简繁同形和未知的纯汉字文本。
+ * 主要内容：中文语言码经 codes.ts 的通用标签解析确定简繁；用可审核的简繁冲突对与 Unicode 简繁专属字数据判断字形，要求中文词语或专用字证据，排除简繁混排、罕见扩展字和粤语口语；导出中文专用字形证据，供日文、韩文判断排除中文文本。可核对的公开符号包括 normalizeChineseLanguageCode、getChineseScript、classifyChineseHan、hasSimplifiedChineseEvidence、hasTraditionalChineseEvidence。
+ * 模块边界：本文件属于 core 纯算法，只分析汉字字形，不处理 Latin 标识符、外语正文或其他文字（由 identify.ts 统一完成），不转换原文、不猜测地区或方言，不访问配置、浏览器、网络或翻译服务。
  */
 
-import {simplifiedOnlyCharacters, traditionalOnlyCharacters} from './chineseVariants';
+import {normalizeLanguageCode} from './codes';
+import {simplifiedOnlyCharacters, traditionalOnlyCharacters, simplifiedChineseEvidenceCharacters} from './chineseVariants';
 
 export type ChineseScript = 'Hans' | 'Hant';
 
-/** 中文脚本子标签比地区优先，旧版未细分的 zh 沿用简体默认值。 */
+/**
+ * 把能确定书写体系的中文标签改写为 zh-Hans/zh-Hant，脚本子标签优先于地区，旧版裸 zh 沿用简体默认值；
+ * 其他语言、冲突脚本或无法确定简繁的中文标签原样保留（仅去除首尾空白），供供应商映射表继续使用。
+ */
 export function normalizeChineseLanguageCode(value: string): string {
     const trimmed = value.trim();
-    const parts = trimmed.replace(/_/gu, '-').toLowerCase().split('-');
-    if (parts[0] !== 'zh') return trimmed;
-
-    // 同时出现两个脚本的非法标签不能静默选择其中之一。
-    const hasHans = parts.includes('hans');
-    const hasHant = parts.includes('hant');
-    if (hasHans && hasHant) return trimmed;
-    if (hasHans) return 'zh-Hans';
-    if (hasHant) return 'zh-Hant';
-    if (parts.length === 1) return 'zh-Hans';
-    if (['cn', 'sg', 'chs'].includes(parts[1]!)) return 'zh-Hans';
-    if (['tw', 'hk', 'mo', 'cht'].includes(parts[1]!)) return 'zh-Hant';
-    return trimmed;
+    const normalized = normalizeLanguageCode(trimmed);
+    return normalized === 'zh-Hans' || normalized === 'zh-Hant' ? normalized : trimmed;
 }
 
 export function getChineseScript(value: string): ChineseScript | undefined {
-    const normalized = normalizeChineseLanguageCode(value);
+    const normalized = normalizeLanguageCode(value);
     if (normalized === 'zh-Hans') return 'Hans';
     if (normalized === 'zh-Hant') return 'Hant';
     return undefined;
@@ -78,38 +71,35 @@ const traditionalScriptPattern = new RegExp(`[${scriptPairs.map((pair) => pair[1
 const commonHanPattern = /[\u3400-\u4DBF\u4E00-\u9FFF]/u;
 const variantCharacters = new Set(`${simplifiedOnlyCharacters}${traditionalOnlyCharacters}`);
 const hanPattern = /\p{Script=Han}/u;
-// 首字母缩写和内部大写产品名（AI、CoT、OpenAI、iPhone）可嵌在长中文句中。
-// 普通英文单词、句子和其他书写体系不能仅凭中文占比被丢弃。
-const technicalTokenPattern = /^(?:[A-Z][a-z]*[A-Z][A-Za-z]*|[a-z]+[A-Z][A-Za-z]*)$/u;
-// 格式名通常原样保留，清单可能比中文说明更长。仅豁免完整格式词，不能放宽
-// 任意大写英文句子；Markdown 等常规大小写单词也必须来自这份有限清单。
-const fileFormatTokenPattern = /^(?:pdf|epub|docx?|xlsx?|pptx?|html?|txt|markdown|md|srt|vtt|ass|ssa|lrc|json|csv|tsv|xml|yaml|yml)$/iu;
 
-function hasForeignLanguageContent(value: string): boolean {
-    const nonHan = value.replace(/\p{Script=Han}/gu, ' ');
-    const foreignLetters = nonHan.match(/\p{L}/gu);
-    if (!foreignLetters) return false;
-    const hanCount = [...value].filter(character => hanPattern.test(character)).length;
-    if (hanCount < 10) return true;
-    const tokens = nonHan.match(/\p{L}+/gu)!;
-    const nonFormatTokens = tokens.filter(token => !fileFormatTokenPattern.test(token));
-    if (nonFormatTokens.reduce((total, token) => total + token.length, 0) * 2 > hanCount) return true;
-    return nonFormatTokens.some(token => token.length > 24 || !technicalTokenPattern.test(token));
-}
-
-// 明确中文证据另用短表审核，避免把只有日文共享汉字的「日本語」「時間」误作中文。
-const simplifiedChineseEvidencePattern = /[这们语译设为说从对还样书门车东发见长电现间题让气实图网边变进选级应标经简汉龙刘吴赵陈张听读广欢专严丽举买亲众伤伦]|[起出下]来/u;
+// 中文专用简体字：人工短表与 Unicode 数据中“有中国来源、无日本来源”的简体字，日文和韩文正文不会使用。
+const simplifiedChineseOnlyCharacters = `这们语译设为说从对还样书门车东发见长电现间题让气实图网边变进选级应标经简汉龙刘吴赵陈张听读广欢专严丽举买亲众伤伦${simplifiedChineseEvidenceCharacters}`;
+const simplifiedChineseOnlyPattern = new RegExp(`[${simplifiedChineseOnlyCharacters}]`, 'u');
+// 「起来」等词语只作为中文语境证据；「出来る」是常见日文，不能用于排除日文。
+const simplifiedChineseEvidencePattern = new RegExp(`[${simplifiedChineseOnlyCharacters}]|[起出下]来`, 'u');
+// 繁体中文常用字形，现代日文使用新字体（説、実、図、体），因此可排除日文；韩文汉字仍可能使用这些字形。
 const traditionalChineseEvidencePattern = /[這們譯與說從對樣發氣點實圖邊變條應經體廣歡專嚴舉眾寫續]/u;
 // 方言不是书写体系。含常见粤语口语标记时不能据繁体字形推断普通话。
 const cantoneseMarkerPattern = /[嘅咗哋佢冇嚟喺啲嘢唔咁乜嗰咩噉]/u;
-// 「新增」是可审核的中文词语证据，能覆盖简繁字形相同的更新标题；
+// 中文词语同样能确认语境，不能只在所有汉字均为中性字形时才使用：
+// 如「清单允许清空，且不再连带拒掉无关偏好的保存」没有命中上方单字短表。
 // 不能把「時間」「日本語」或任何纯 Han 都视为中文，也不靠宿主页 lang 猜测。
-const sharedChineseEvidencePattern = /新增/u;
+const sharedChineseEvidencePattern = /新增|不再|允[许許]|[你您]好|[谢謝]{2}/u;
 
-function classifyChineseText(value: string): ChineseScript | 'shared' | undefined {
-    if (cantoneseMarkerPattern.test(value) || hasForeignLanguageContent(value)) {
-        return undefined;
-    }
+export function hasSimplifiedChineseEvidence(value: string): boolean {
+    return simplifiedChineseOnlyPattern.test(value);
+}
+
+export function hasTraditionalChineseEvidence(value: string): boolean {
+    return traditionalChineseEvidencePattern.test(value);
+}
+
+/**
+ * 只分析汉字：返回明确的简体/繁体、简繁同形中文（shared）或未知。调用方必须事先排除外语正文、
+ * 假名、谚文及其他文字；这里不会把「日本国立大学」这类只含共享汉字的文本当成中文。
+ */
+export function classifyChineseHan(value: string): ChineseScript | 'shared' | undefined {
+    if (cantoneseMarkerPattern.test(value)) return undefined;
     if ([...value].some((character) => hanPattern.test(character)
         && !commonHanPattern.test(character) && !variantCharacters.has(character))) {
         return undefined;
@@ -118,21 +108,8 @@ function classifyChineseText(value: string): ChineseScript | 'shared' | undefine
     const hasHant = traditionalScriptPattern.test(value);
     if (!hasHans && !hasHant) return sharedChineseEvidencePattern.test(value) ? 'shared' : undefined;
     if (hasHans && hasHant) return undefined;
-    const hasChineseEvidence = (hasHans ? simplifiedChineseEvidencePattern : traditionalChineseEvidencePattern).test(value);
+    const hasChineseEvidence = sharedChineseEvidencePattern.test(value)
+        || (hasHans ? simplifiedChineseEvidencePattern : traditionalChineseEvidencePattern).test(value);
     if (!hasChineseEvidence) return undefined;
     return hasHans ? 'Hans' : 'Hant';
-}
-
-/** 只报告有明确中文证据且字形一致的文本，不为中性中文猜测简体或繁体。 */
-export function detectChineseScript(value: string): ChineseScript | undefined {
-    const script = classifyChineseText(value);
-    return script === 'shared' ? undefined : script;
-}
-
-/** 中性中文无需简繁转换；有不同字形、外语正文或识别不确定时继续翻译。 */
-export function isChineseTextForTarget(value: string, targetLanguage: string): boolean {
-    const target = getChineseScript(targetLanguage);
-    if (!target) return false;
-    const script = classifyChineseText(value);
-    return script === 'shared' || script === target;
 }

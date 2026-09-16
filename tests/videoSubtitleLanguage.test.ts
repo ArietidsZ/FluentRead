@@ -25,7 +25,9 @@ describe('video subtitles already in the target language', () => {
   it('uses the conservative global check for other targets', () => {
     expect(isVideoSubtitleInTargetLanguage('このカメラは本当にいいですね', 'ja')).toBe(true);
     expect(isVideoSubtitleInTargetLanguage('이 카메라 정말 좋네요', 'ko')).toBe(true);
-    expect(isVideoSubtitleInTargetLanguage('This camera is great', 'en')).toBe(false);
+    // 明确的短句与长句一样跳过；单个词无法区分语言，继续翻译。
+    expect(isVideoSubtitleInTargetLanguage('This camera is great', 'en')).toBe(true);
+    expect(isVideoSubtitleInTargetLanguage('Camera', 'en')).toBe(false);
     expect(isVideoSubtitleInTargetLanguage('So this is the camera we put inside, and basically if you want to feel it you need to hold it', 'en')).toBe(true);
     expect(isVideoSubtitleInTargetLanguage('这个东西如果你要感受到', 'en')).toBe(false);
   });
