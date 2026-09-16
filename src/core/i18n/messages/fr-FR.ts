@@ -2213,7 +2213,7 @@ export const frFRLegacyText: Readonly<Record<string, string>> = {
     "正在保存…": "Enregistrement…",
     "正在读取模型状态…": "Vérification du modèle…",
     "当前模型已下载，可直接生成。": "Modèle téléchargé, prêt à générer.",
-    "Tiny 更快，Base 更准确；已按本机性能标出推荐。": "Tiny est plus rapide, Base plus précis. La recommandation dépend de cet appareil.",
+    "一般选择 Tiny；语音不清楚时可换 Base。": "Tiny suffit généralement ; passez à Base si la voix est difficile à reconnaître.",
     "可离线使用": "Disponible hors ligne",
     "正在下载模型": "Téléchargement du modèle",
     "尚未下载": "Non téléchargé",

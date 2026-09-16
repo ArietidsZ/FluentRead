@@ -1175,7 +1175,7 @@ const jaJPLegacyTextBase: Readonly<Record<string, string>> = {
     "大多数视频使用默认值即可；只有位置或可读性不合适时再调整。": "通常は初期設定のまま使えます。位置や読みやすさが合わない場合に調整してください。",
     "字号与位置": "文字サイズと位置",
     "颜色与布局": "色とレイアウト",
-    "Tiny 更快，Base 更准确；已按本机性能标出推荐。": "Tiny は高速、Base は高精度です。おすすめはこの端末の性能に基づきます。",
+    "一般选择 Tiny；语音不清楚时可换 Base。": "通常は Tiny を選び、音声をうまく認識できない場合は Base を試してください。",
     "AI 圈选翻译未返回有效 JSON，请重试或使用标准翻译": "AI did not return a valid result. Retry or use standard translation.",
     "AI 圈选翻译结果结构无效": "The AI area translation result has an invalid structure.",
     "AI 圈选翻译结果字段无效，请重试或使用标准翻译": "The AI result contains invalid fields. Retry or use standard translation.",

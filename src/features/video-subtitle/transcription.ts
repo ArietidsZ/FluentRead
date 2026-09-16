@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/transcription.ts
  * 文件职责：定义本地 Whisper 模型选项与音频转换的公共契约，统一界面和识别端使用的默认值。
- * 主要内容：规范化模型配置与下载状态列表，按设备能力推荐首次下载的模型，并把多声道 PCM 按目标采样率混音和重采样。
+ * 主要内容：规范化模型配置与下载状态列表，声明默认推荐模型，并把多声道 PCM 按目标采样率混音和重采样。
  * 模块边界：只处理传入数据，不读取配置仓库、不调用浏览器音频设备，也不下载或初始化模型。
  */
 
@@ -47,35 +47,11 @@ export function normalizeVideoLocalTranscriptionModel(value: unknown): VideoLoca
     : 'tiny';
 }
 
-export interface VideoLocalModelDeviceProfile {
-  readonly deviceMemoryGb?: number;
-  readonly hardwareConcurrency?: number;
-  readonly mobile?: boolean;
-}
-
 /**
- * 按设备推荐首次下载的模型：桌面端内存与核心数都充足时 Base 的准确度收益值得额外耗时；
- * 手机、未知设备（Firefox 不提供 deviceMemory）或资源一般的电脑推荐 Tiny，保证能跑完整段识别。
+ * 首次生成 AI 字幕时默认推荐 Tiny：下载最小、识别最快，能在普通电脑上跑完整段视频。
+ * 语音不清楚时用户可在确认框或设置中改用 Base。
  */
-export function recommendVideoLocalTranscriptionModel(device: VideoLocalModelDeviceProfile): VideoLocalTranscriptionModel {
-  const capable = !device.mobile
-    && (device.deviceMemoryGb ?? 0) >= 8
-    && (device.hardwareConcurrency ?? 0) >= 8;
-  return capable ? 'base' : 'tiny';
-}
-
-/** 读取当前浏览器可见的设备能力；缺失字段按资源不足处理。 */
-export function readVideoLocalModelDeviceProfile(navigatorLike: Partial<Navigator> & {
-  deviceMemory?: number;
-  userAgentData?: {mobile?: boolean};
-}): VideoLocalModelDeviceProfile {
-  const userAgent = typeof navigatorLike.userAgent === 'string' ? navigatorLike.userAgent : '';
-  return {
-    deviceMemoryGb: typeof navigatorLike.deviceMemory === 'number' ? navigatorLike.deviceMemory : undefined,
-    hardwareConcurrency: typeof navigatorLike.hardwareConcurrency === 'number' ? navigatorLike.hardwareConcurrency : undefined,
-    mobile: navigatorLike.userAgentData?.mobile === true || /Android|iPhone|iPad|Mobile/iu.test(userAgent),
-  };
-}
+export const VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL: VideoLocalTranscriptionModel = 'tiny';
 
 export function getVideoLocalTranscriptionModelId(value: unknown): string {
   const model = normalizeVideoLocalTranscriptionModel(value);

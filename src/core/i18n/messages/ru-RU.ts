@@ -1175,7 +1175,7 @@ const ruRULegacyTextBase: Readonly<Record<string, string>> = {
     "大多数视频使用默认值即可；只有位置或可读性不合适时再调整。": "Для большинства видео подходят настройки по умолчанию. Меняйте их, если положение или читаемость субтитров вам не подходят.",
     "字号与位置": "Размер шрифта и положение",
     "颜色与布局": "Цвета и расположение",
-    "Tiny 更快，Base 更准确；已按本机性能标出推荐。": "Tiny быстрее, Base точнее. Рекомендация учитывает возможности этого устройства.",
+    "一般选择 Tiny；语音不清楚时可换 Base。": "Обычно достаточно Tiny. Если речь распознаётся плохо, попробуйте Base.",
     "AI 圈选翻译未返回有效 JSON，请重试或使用标准翻译": "AI did not return a valid result. Retry or use standard translation.",
     "AI 圈选翻译结果结构无效": "The AI area translation result has an invalid structure.",
     "AI 圈选翻译结果字段无效，请重试或使用标准翻译": "The AI result contains invalid fields. Retry or use standard translation.",

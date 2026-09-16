@@ -22,7 +22,6 @@ function setup(overrides: Partial<VideoAiModelSetupDependencies> & {responses?: 
   const dependencies: VideoAiModelSetupDependencies = {
     sendMessage,
     getConfiguredModel: () => configured,
-    getDeviceProfile: () => ({deviceMemoryGb: 8, hardwareConcurrency: 12, mobile: false}),
     captureRequest: () => () => current,
     persistModel: vi.fn((model) => { configured = model; }),
     startGeneration: vi.fn(() => events.push('start')),
@@ -51,23 +50,23 @@ describe('video AI model setup', () => {
     expect(dependencies.onChange).toHaveBeenCalledTimes(2);
   });
 
-  it('offers a device recommendation, lets the user switch, and downloads before starting', async () => {
+  it('recommends Tiny, lets the user switch, and downloads before starting', async () => {
     const {controller, events, dependencies, sendMessage} = setup({responses: {
       fluentReadGetLocalVideoModelState: [{success: true, models: []}],
       fluentReadPrepareLocalVideoModel: [{success: true, models: ['tiny']}],
     }});
     await controller.request(() => true);
-    expect(controller.choice).toEqual({downloaded: [], recommended: 'base', selected: 'base'});
-    controller.select('tiny');
-    expect(controller.choice?.selected).toBe('tiny');
+    expect(controller.choice).toEqual({downloaded: [], recommended: 'tiny', selected: 'tiny'});
+    controller.select('base');
+    expect(controller.choice?.selected).toBe('base');
 
     const confirmed = controller.confirm();
     expect(controller.choice).toBeNull();
     expect(controller.downloading).toBe(true);
     await confirmed;
     expect(controller.downloading).toBe(false);
-    expect(sendMessage).toHaveBeenLastCalledWith({type: 'fluentReadPrepareLocalVideoModel', model: 'tiny'});
-    expect(dependencies.persistModel).not.toHaveBeenCalled();
+    expect(sendMessage).toHaveBeenLastCalledWith({type: 'fluentReadPrepareLocalVideoModel', model: 'base'});
+    expect(dependencies.persistModel).toHaveBeenCalledWith('base');
     expect(events).toEqual(['error:', 'error:', 'start']);
   });
 
@@ -81,11 +80,8 @@ describe('video AI model setup', () => {
     expect(events.at(-1)).toBe('start');
   });
 
-  it('keeps a non-default configured model selected when nothing is downloaded', async () => {
-    const {controller, configure} = setup({
-      responses: {fluentReadGetLocalVideoModelState: [{success: true, models: []}]},
-      getDeviceProfile: () => ({mobile: true}),
-    });
+  it('keeps the model chosen in settings selected while still marking Tiny as recommended', async () => {
+    const {controller, configure} = setup({responses: {fluentReadGetLocalVideoModelState: [{success: true, models: []}]}});
     configure('base');
     await controller.request(() => true);
     expect(controller.choice).toEqual({downloaded: [], recommended: 'tiny', selected: 'base'});

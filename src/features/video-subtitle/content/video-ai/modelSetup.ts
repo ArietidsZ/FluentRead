@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/video-ai/modelSetup.ts
- * 文件职责：编排首次请求 X 本地 AI 字幕时的模型确认：读取已下载模型，缺失时提供按设备推荐的选择，确认后下载并启动识别。
- * 主要内容：维护检查中、下载中与待确认选择三种状态；读取与下载期间的视频、源语言或模型变化会作废旧结果，失败时交给运行时展示错误。
+ * 文件职责：编排首次请求 X 本地 AI 字幕时的模型确认：读取已下载模型，缺失时提供带推荐的模型选择，确认后下载并启动识别。
+ * 主要内容：维护检查中、下载中与待确认选择三种状态；默认推荐 Tiny，读取与下载期间的视频、源语言或模型变化会作废旧结果，失败时交给运行时展示错误。
  * 模块边界：只通过注入的消息端口与回调工作，不读写 DOM、配置存储或播放器；菜单渲染、焦点和识别会话由 runtime 与 playerMenu 负责。
  */
 import {
@@ -11,8 +11,7 @@ import {
     type LocalVideoModelStatusSender,
 } from '../localModelReadiness';
 import {
-    recommendVideoLocalTranscriptionModel,
-    type VideoLocalModelDeviceProfile,
+    VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL,
     type VideoLocalTranscriptionModel,
 } from '@/src/features/video-subtitle/transcription';
 
@@ -25,7 +24,6 @@ export interface VideoAiModelChoice {
 export interface VideoAiModelSetupDependencies {
     readonly sendMessage: LocalVideoModelStatusSender & LocalVideoModelDownloadSender;
     readonly getConfiguredModel: () => VideoLocalTranscriptionModel;
-    readonly getDeviceProfile: () => VideoLocalModelDeviceProfile;
     /** 记录发起请求时的视频与语言，返回的函数在异步结果到达时判断请求是否仍然有效。 */
     readonly captureRequest: () => () => boolean;
     readonly persistModel: (model: VideoLocalTranscriptionModel) => void;
@@ -80,9 +78,8 @@ export function createVideoAiModelSetup(dependencies: VideoAiModelSetupDependenc
                 return;
             }
             if (!canShowChoice()) return;
-            const recommended = recommendVideoLocalTranscriptionModel(dependencies.getDeviceProfile());
-            // 已下载的其他模型无需等待下载；其次尊重设置里改过的非默认模型，最后按设备推荐。
-            choice = {downloaded, recommended, selected: downloaded[0] ?? (model !== 'tiny' ? model : recommended)};
+            // 已下载的其他模型无需等待下载；否则沿用设置中的模型，默认即推荐的 Tiny。
+            choice = {downloaded, recommended: VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL, selected: downloaded[0] ?? model};
             dependencies.onChange();
         },
 

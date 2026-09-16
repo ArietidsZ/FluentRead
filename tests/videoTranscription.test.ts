@@ -3,8 +3,7 @@ import {
   getVideoLocalTranscriptionModelId,
   normalizeVideoLocalTranscriptionModel,
   normalizeVideoLocalTranscriptionModels,
-  readVideoLocalModelDeviceProfile,
-  recommendVideoLocalTranscriptionModel,
+  VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL,
   resampleToWhisperAudio,
 } from '@/src/features/video-subtitle/transcription';
 import {
@@ -20,18 +19,9 @@ describe('视频 AI 字幕转写配置', () => {
     expect(normalizeVideoLocalTranscriptionModels(['tiny', 'base', 'unknown', 'tiny'])).toEqual(['tiny', 'base']);
   });
 
-  it('只在桌面端内存和核心数都充足时推荐 Base，未知或移动设备推荐 Tiny', () => {
-    expect(recommendVideoLocalTranscriptionModel({deviceMemoryGb: 8, hardwareConcurrency: 10, mobile: false})).toBe('base');
-    expect(recommendVideoLocalTranscriptionModel({deviceMemoryGb: 8, hardwareConcurrency: 4, mobile: false})).toBe('tiny');
-    expect(recommendVideoLocalTranscriptionModel({deviceMemoryGb: 4, hardwareConcurrency: 12, mobile: false})).toBe('tiny');
-    expect(recommendVideoLocalTranscriptionModel({deviceMemoryGb: 8, hardwareConcurrency: 8, mobile: true})).toBe('tiny');
-    expect(recommendVideoLocalTranscriptionModel({})).toBe('tiny');
-    expect(recommendVideoLocalTranscriptionModel({deviceMemoryGb: 8, mobile: false})).toBe('tiny');
-    expect(readVideoLocalModelDeviceProfile({deviceMemory: 8, hardwareConcurrency: 8, userAgent: 'Mozilla/5.0 (Macintosh)'} as never))
-      .toEqual({deviceMemoryGb: 8, hardwareConcurrency: 8, mobile: false});
-    expect(readVideoLocalModelDeviceProfile({hardwareConcurrency: 8, userAgent: 'Mozilla/5.0 (Linux; Android 14) Mobile'} as never))
-      .toEqual({deviceMemoryGb: undefined, hardwareConcurrency: 8, mobile: true});
-    expect(readVideoLocalModelDeviceProfile({userAgentData: {mobile: true}} as never).mobile).toBe(true);
+  it('默认推荐下载最小、识别最快的 Tiny', () => {
+    expect(VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL).toBe('tiny');
+    expect(normalizeVideoLocalTranscriptionModel(undefined)).toBe(VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL);
   });
 
   it('预下载只缓存 Whisper q4 运行所需文件，并使用与 Transformers.js 相同的 URL', () => {

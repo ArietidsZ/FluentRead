@@ -80,7 +80,6 @@ import {
 } from './xVideoSubtitleData';
 import {
   normalizeVideoLocalTranscriptionModel,
-  readVideoLocalModelDeviceProfile,
   VIDEO_LOCAL_TRANSCRIPTION_MODELS,
 } from '@/src/features/video-subtitle/transcription';
 import {
@@ -1136,7 +1135,6 @@ export function mountVideoSubtitleTranslation(): () => void {
   const aiModelSetup = createVideoAiModelSetup({
     sendMessage: browser.runtime.sendMessage.bind(browser.runtime),
     getConfiguredModel: () => normalizeVideoLocalTranscriptionModel(config.videoLocalModel),
-    getDeviceProfile: () => readVideoLocalModelDeviceProfile(navigator),
     captureRequest: () => {
       // 读取或下载期间换视频、改源语言或关闭翻译时，旧结果不能启动新一轮识别。
       const pageKey = getVideoPageKey();

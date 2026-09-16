@@ -2215,7 +2215,7 @@ export const esESLegacyText: Readonly<Record<string, string>> = {
     "正在保存…": "Guardando…",
     "正在读取模型状态…": "Comprobando estado del modelo…",
     "当前模型已下载，可直接生成。": "Modelo descargado. Listo para generar.",
-    "Tiny 更快，Base 更准确；已按本机性能标出推荐。": "Tiny es más rápido y Base más preciso. La recomendación se basa en este dispositivo.",
+    "一般选择 Tiny；语音不清楚时可换 Base。": "Tiny suele ser suficiente; cambia a Base si el audio no se reconoce con claridad.",
     "可离线使用": "Disponible sin conexión",
     "正在下载模型": "Descargando modelo",
     "尚未下载": "Sin descargar",

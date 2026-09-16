@@ -1175,7 +1175,7 @@ const koKRLegacyTextBase: Readonly<Record<string, string>> = {
     "大多数视频使用默认值即可；只有位置或可读性不合适时再调整。": "대부분의 동영상은 기본값으로 충분합니다. 위치나 가독성이 맞지 않을 때만 조정하세요.",
     "字号与位置": "글자 크기 및 위치",
     "颜色与布局": "색상 및 배치",
-    "Tiny 更快，Base 更准确；已按本机性能标出推荐。": "Tiny는 더 빠르고 Base는 더 정확합니다. 추천은 이 기기의 성능을 기준으로 합니다.",
+    "一般选择 Tiny；语音不清楚时可换 Base。": "보통 Tiny를 선택하고, 음성을 잘 인식하지 못하면 Base를 시도하세요.",
     "AI 圈选翻译未返回有效 JSON，请重试或使用标准翻译": "AI did not return a valid result. Retry or use standard translation.",
     "AI 圈选翻译结果结构无效": "The AI area translation result has an invalid structure.",
     "AI 圈选翻译结果字段无效，请重试或使用标准翻译": "The AI result contains invalid fields. Retry or use standard translation.",
