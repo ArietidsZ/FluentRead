@@ -295,16 +295,21 @@ describe('双语译文骨架重放', () => {
         });
     });
 
-    it('工件内部属性漂移被视为容忍形态：不重写、不计预算、不撤下译文', () => {
+    it('链接提示可与焦点和字体标记共同漂移：不重写、不计预算、不撤下译文', async () => {
         const {document} = parseHTML('<html><body></body></html>');
-        withDocumentRealm(document, () => {
+        await withDocumentRealm(document, () => {
             const fixture = createCommittedSingleSlotFixture(document);
             const link = fixture.owner.querySelector(
                 ':scope > .fluent-read-bilingual-content a')!;
 
             for (let round = 0; round < 6; round += 1) {
                 // 悬停预览会在指针进入/离开时反复改写我们复制进骨架的链接属性。
-                link.setAttribute('title', `host-tooltip-${round}`);
+                if (round % 3 === 0) link.setAttribute('title', `host-tooltip-${round}`);
+                else if (round % 3 === 1) link.setAttribute('title', '');
+                else link.removeAttribute('title');
+                link.setAttribute('tabindex', round % 2 ? '-1' : '0');
+                link.setAttribute('ultimate-bold-correct', '');
+                link.classList.add('ultimate-bold-correct');
                 beginBilingualArtifactHostWriteGesture();
                 expect(isBilingualArtifactDriftOnly(fixture.owner, fixture.state)).toBe(true);
                 expect(tryRepairBilingualTranslationArtifact(fixture.owner, fixture.state)).toBe('tolerated');
@@ -326,9 +331,35 @@ describe('双语译文骨架重放', () => {
         });
     });
 
-    it('wrapper 外层属性被改写时仍按篡改重建，而不是保留注入属性', () => {
+    it.each([
+        ['href', 'https://example.com/unrelated'],
+        ['onclick', 'window.__unexpectedClick = true'],
+        ['style', 'display:none'],
+        ['aria-hidden', 'true'],
+        ['class', 'hidden'],
+        ['tabindex', '2'],
+    ])('译文链接单独改变 %s 时恢复可信属性，保留原文链接', async (attribute, value) => {
         const {document} = parseHTML('<html><body></body></html>');
-        withDocumentRealm(document, () => {
+        await withDocumentRealm(document, () => {
+            const fixture = createCommittedSingleSlotFixture(document);
+            const original = fixture.owner.querySelector('#source-link')!;
+            const originalHTML = original.outerHTML;
+            fixture.wrapper.querySelector('a')!.setAttribute(attribute, value);
+
+            expect(isBilingualArtifactDriftOnly(fixture.owner, fixture.state)).toBe(false);
+            expect(tryRepairBilingualTranslationArtifact(fixture.owner, fixture.state)).toBe('repaired');
+            const repairedLink = fixture.state.bilingualContent!.querySelector('a')!;
+            expect(repairedLink.getAttribute(attribute)).toBe(
+                fixture.state.bilingualContentTemplate!.querySelector('a')!.getAttribute(attribute));
+            expect(repairedLink.textContent).toBe('阅读最新详情。');
+            expect(original.outerHTML).toBe(originalHTML);
+            expect(isTranslationArtifactCurrent(fixture.owner, fixture.state)).toBe(true);
+        });
+    });
+
+    it('wrapper 外层属性被改写时仍按篡改重建，而不是保留注入属性', async () => {
+        const {document} = parseHTML('<html><body></body></html>');
+        await withDocumentRealm(document, () => {
             const fixture = createCommittedSingleSlotFixture(document);
             fixture.wrapper.setAttribute('style', 'display:none');
 
@@ -345,9 +376,9 @@ describe('双语译文骨架重放', () => {
         });
     });
 
-    it('工件译文内容被改写时本地重建并清掉注入属性', () => {
+    it('工件译文内容被改写时本地重建并清掉注入属性', async () => {
         const {document} = parseHTML('<html><body></body></html>');
-        withDocumentRealm(document, () => {
+        await withDocumentRealm(document, () => {
             const fixture = createCommittedSingleSlotFixture(document);
             const link = fixture.wrapper.querySelector('a')!;
             link.setAttribute('onclick', 'window.__pwned = true');
@@ -364,9 +395,9 @@ describe('双语译文骨架重放', () => {
         });
     });
 
-    it('工件内部属性漂移时可用已提交译文重建骨架', () => {
+    it('工件内部属性漂移时可用已提交译文重建骨架', async () => {
         const {document} = parseHTML('<html><body></body></html>');
-        withDocumentRealm(document, () => {
+        await withDocumentRealm(document, () => {
             const fixture = createCommittedSingleSlotFixture(document);
             fixture.owner.querySelector(':scope > .fluent-read-bilingual-content a')!
                 .setAttribute('title', 'host-tooltip');
