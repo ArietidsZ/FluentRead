@@ -75,6 +75,7 @@ import {
     setBilingualArtifactCapitulationHandler,
     setBilingualLifecycleExternalManager,
     setBilingualOwnerRemountHandler,
+    setBilingualSkeletonRefreshHandler,
     setRenderedStyleAttribute,
     setRetryWrapper,
     setSpinner,
@@ -206,6 +207,8 @@ let fullPageSession: FullPageSession | null = null;
 let hoverBilingualRemountCapitulations = createBilingualRemountCapitulationRegistry();
 setBilingualLifecycleExternalManager(() => fullPageSession?.active === true);
 setBilingualOwnerRemountHandler((mutations) => transferEquivalentBilingualOwners(undefined, mutations));
+// 宿主改写 title/href 等骨架属性时优先重建骨架复用已提交译文，而不是撕下译文重译。
+setBilingualSkeletonRefreshHandler((owner, state) => refreshBilingualTranslationSkeleton(owner, state));
 setBilingualArtifactCapitulationHandler((owner, state) => {
     const session = fullPageSession?.active ? fullPageSession : undefined;
     const sessionIdentity = session ? getTranslationInvocationIdentity(session.translationConfig) : undefined;
@@ -740,6 +743,9 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
             const disposition = stabilizeBilingualArtifact(
                 existingNode, current, remountCapitulations, ensureTranslationTruncationLayout);
             if (disposition === 'current') return {status: "committed"};
+            // 结构签名或工件属性被宿主改写、但可译文本未变时，按当前 DOM 重建骨架
+            // 并复用已提交译文；不能因此撤下译文重新请求。
+            if (refreshBilingualTranslationSkeleton(existingNode, current)) return {status: 'committed'};
 
             unregisterSessionStatefulTarget(statefulSession, existingNode);
             withFullPageViewportAnchor(() => restoreTranslation(existingNode), [existingNode]);

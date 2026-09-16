@@ -16,14 +16,23 @@ import {
 } from '@/src/core/translation/public';
 import {refreshBilingualTranslationSkeleton} from
     '@/src/features/full-page-translation/content/bilingualReplay';
+import {stabilizeBilingualArtifact, createBilingualRemountCapitulationRegistry} from
+    '@/src/features/full-page-translation/content/bilingualRemount';
 import {appendBilingualTranslation} from
     '@/src/features/full-page-translation/content/renderer';
 import {
+    beginBilingualArtifactHostWriteGesture,
     beginTranslation,
+    ensureTranslationTruncationLayout,
+    hasBilingualArtifactHostWriteBudget,
+    isBilingualArtifactDriftOnly,
+    isBilingualArtifactHostWriteBudgetCapitulated,
     markTranslationComplete,
     restoreAllTranslations,
     setBilingualContent,
+    setBilingualSkeletonRefreshHandler,
     setRenderedStyleAttribute,
+    tryRepairBilingualTranslationArtifact,
     type TranslationState,
 } from '@/src/features/full-page-translation/content/state';
 import {isTranslationArtifactCurrent} from
@@ -146,6 +155,49 @@ function createCommittedReplayFixture(
     return {owner, state: attempt.state, wrapper, sources, translations};
 }
 
+/**
+ * 单槽候选：整段可见文本就是一个链接。多槽候选会把整段译文降级成纯文本，
+ * 这里的骨架仍然携带复制来的内联节点，用于验证宿主改写这些节点属性时的行为。
+ */
+function createCommittedSingleSlotFixture(document: Document): CommittedReplayFixture {
+    const base = document.createElement('base');
+    base.setAttribute('href', 'https://example.com/');
+    document.head.appendChild(base);
+    document.body.innerHTML =
+        '<p id="owner"><a id="source-link" href="https://example.com/before" ' +
+        'title="Before">Read the details.</a></p>';
+    const owner = document.querySelector<HTMLElement>('#owner')!;
+    const core = getCurrentTranslationCore();
+    const options = {protectedElement: owner};
+    const snapshot = createTranslationSourceSnapshot(
+        owner, core.shouldStayOriginal, undefined, options);
+    const liveSlots = collectLiveTranslationTextSlots(owner, core.shouldStayOriginal, undefined, options);
+    const sources = snapshot.slots.map((slot) => slot.source);
+    const translations = Object.freeze(['阅读最新详情。']);
+    expect(sources).toEqual(['Read the details.']);
+    const attempt = beginTranslation(
+        owner, 'bilingual', 'content', false, sources.join(' '),
+        liveSlots.map((slot) => slot.node), false,
+    )!;
+    expect(markTranslationComplete(owner, attempt.state, attempt.generation)).toBe(true);
+    const wrapper = appendBilingualTranslation(
+        owner, applyTranslationsToSnapshot(snapshot, translations), {targetLanguage: 'zh-Hans', style: 1});
+    setBilingualContent(owner, wrapper, {sources, translations, targetLanguage: 'zh-Hans', style: 1});
+    setRenderedStyleAttribute(owner);
+
+    return {owner, state: attempt.state, wrapper, sources, translations};
+}
+
+/**
+ * 布局观察器使用 realm 自身的 MutationObserver，linkedom 会异步投递记录，
+ * 因此宿主 mutation 之后需要让出几个宏任务，等观察器与状态机的微任务都执行完。
+ */
+async function flushLayoutRefresh(): Promise<void> {
+    for (let turn = 0; turn < 4; turn += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+}
+
 describe('双语译文骨架重放', () => {
     it('保持同一 wrapper 并用最新安全骨架就地重放原 provider 译文', async () => {
         const {document} = parseHTML('<html><body></body></html>');
@@ -240,6 +292,126 @@ describe('双语译文骨架重放', () => {
             expect(fixture.wrapper.outerHTML).toBe(previousOuterHTML);
             expect(fixture.state.sourceTextNodes).toBe(previousSourceNodes);
             expect(fixture.state.bilingualReplay?.translations).toEqual(fixture.translations);
+        });
+    });
+
+    it('工件内部属性漂移被视为容忍形态：不重写、不计预算、不撤下译文', () => {
+        const {document} = parseHTML('<html><body></body></html>');
+        withDocumentRealm(document, () => {
+            const fixture = createCommittedSingleSlotFixture(document);
+            const link = fixture.owner.querySelector(
+                ':scope > .fluent-read-bilingual-content a')!;
+
+            for (let round = 0; round < 6; round += 1) {
+                // 悬停预览会在指针进入/离开时反复改写我们复制进骨架的链接属性。
+                link.setAttribute('title', `host-tooltip-${round}`);
+                beginBilingualArtifactHostWriteGesture();
+                expect(isBilingualArtifactDriftOnly(fixture.owner, fixture.state)).toBe(true);
+                expect(tryRepairBilingualTranslationArtifact(fixture.owner, fixture.state)).toBe('tolerated');
+            }
+
+            expect(link.isConnected).toBe(true);
+            expect(fixture.owner.querySelector(
+                ':scope > .fluent-read-bilingual-content[data-fr-translation-owned="true"]',
+            )).toBe(fixture.wrapper);
+            expect(fixture.wrapper.textContent).toContain('阅读最新详情。');
+            expect(hasBilingualArtifactHostWriteBudget(fixture.owner)).toBe(false);
+            expect(isBilingualArtifactHostWriteBudgetCapitulated(fixture.owner, fixture.state.sourceText,
+                fixture.state.sourceStructureSignature ?? '',
+                fixture.state.translationInvocationIdentity, fixture.state.scope)).toBe(false);
+            // 严格信任仍把它看作被改写的工件，显示与安全边界没有放松。
+            expect(isTranslationArtifactCurrent(fixture.owner, fixture.state)).toBe(false);
+            expect(stabilizeBilingualArtifact(fixture.owner, fixture.state,
+                createBilingualRemountCapitulationRegistry())).toBe('current');
+        });
+    });
+
+    it('wrapper 外层属性被改写时仍按篡改重建，而不是保留注入属性', () => {
+        const {document} = parseHTML('<html><body></body></html>');
+        withDocumentRealm(document, () => {
+            const fixture = createCommittedSingleSlotFixture(document);
+            fixture.wrapper.setAttribute('style', 'display:none');
+
+            expect(isBilingualArtifactDriftOnly(fixture.owner, fixture.state)).toBe(false);
+            expect(tryRepairBilingualTranslationArtifact(fixture.owner, fixture.state)).toBe('repaired');
+
+            const rebuilt = fixture.owner.querySelector<HTMLElement>(
+                ':scope > .fluent-read-bilingual-content[data-fr-translation-owned="true"]')!;
+            expect(rebuilt).not.toBe(fixture.wrapper);
+            expect(rebuilt.hasAttribute('style')).toBe(false);
+            expect(rebuilt.textContent).toContain('阅读最新详情。');
+            expect(stabilizeBilingualArtifact(fixture.owner, fixture.state,
+                createBilingualRemountCapitulationRegistry())).toBe('current');
+        });
+    });
+
+    it('工件译文内容被改写时本地重建并清掉注入属性', () => {
+        const {document} = parseHTML('<html><body></body></html>');
+        withDocumentRealm(document, () => {
+            const fixture = createCommittedSingleSlotFixture(document);
+            const link = fixture.wrapper.querySelector('a')!;
+            link.setAttribute('onclick', 'window.__pwned = true');
+            link.textContent = 'HOST INJECTED';
+            expect(isTranslationArtifactCurrent(fixture.owner, fixture.state)).toBe(false);
+
+            expect(tryRepairBilingualTranslationArtifact(fixture.owner, fixture.state)).toBe('repaired');
+
+            const rebuilt = fixture.owner.querySelector<HTMLElement>(
+                ':scope > .fluent-read-bilingual-content[data-fr-translation-owned="true"]')!;
+            expect(rebuilt.querySelector('a')?.getAttribute('onclick')).toBeNull();
+            expect(rebuilt.querySelector('a')?.textContent).toBe('阅读最新详情。');
+            expect(isTranslationArtifactCurrent(fixture.owner, fixture.state)).toBe(true);
+        });
+    });
+
+    it('工件内部属性漂移时可用已提交译文重建骨架', () => {
+        const {document} = parseHTML('<html><body></body></html>');
+        withDocumentRealm(document, () => {
+            const fixture = createCommittedSingleSlotFixture(document);
+            fixture.owner.querySelector(':scope > .fluent-read-bilingual-content a')!
+                .setAttribute('title', 'host-tooltip');
+            expect(isTranslationArtifactCurrent(fixture.owner, fixture.state)).toBe(false);
+
+            expect(refreshBilingualTranslationSkeleton(fixture.owner, fixture.state)).toBe(true);
+
+            // 骨架与当前 DOM 同步（清掉宿主注入的属性），并复用同一份已提交译文。
+            expect(fixture.owner.querySelector(
+                ':scope > .fluent-read-bilingual-content[data-fr-translation-owned="true"]',
+            )).toBe(fixture.wrapper);
+            expect(fixture.wrapper.querySelector('a')?.getAttribute('title')).toBe('Before');
+            expect(fixture.wrapper.textContent).toContain('阅读最新详情。');
+            expect(fixture.state.bilingualReplay?.translations).toEqual(fixture.translations);
+            expect(isTranslationArtifactCurrent(fixture.owner, fixture.state)).toBe(true);
+        });
+    });
+
+    it('宿主只改写骨架属性时重建骨架而不是撤下译文', async () => {
+        const {document} = parseHTML('<html><body></body></html>');
+        await withDocumentRealm(document, async () => {
+            // 与 content 组合根一致：state 只暴露钩子，实现留在 bilingualReplay。
+            setBilingualSkeletonRefreshHandler((owner, state) => refreshBilingualTranslationSkeleton(owner, state));
+            try {
+                const fixture = createCommittedSingleSlotFixture(document);
+                const previousSources = [...(fixture.state.bilingualReplay?.sources ?? [])];
+                expect(ensureTranslationTruncationLayout(fixture.owner)).toBe(true);
+
+                // 悬停预览会改写源链接的 title：结构签名漂移，但可译文本没变，
+                // 因此只能刷新骨架复用已提交译文。
+                fixture.owner.querySelector<HTMLAnchorElement>('#source-link')!
+                    .setAttribute('title', 'Host tooltip');
+                await flushLayoutRefresh();
+
+                expect(fixture.owner.querySelector(
+                    ':scope > .fluent-read-bilingual-content[data-fr-translation-owned="true"]',
+                )).toBe(fixture.wrapper);
+                expect(isTranslationArtifactCurrent(fixture.owner, fixture.state)).toBe(true);
+                expect(fixture.state.bilingualReplay?.sources).toEqual(previousSources);
+                expect(fixture.state.bilingualReplay?.translations).toEqual(fixture.translations);
+                // 骨架跟着最新 DOM 更新，不再保留旧 title。
+                expect(fixture.wrapper.querySelector('a')?.getAttribute('title')).toBe('Host tooltip');
+            } finally {
+                setBilingualSkeletonRefreshHandler(undefined);
+            }
         });
     });
 });

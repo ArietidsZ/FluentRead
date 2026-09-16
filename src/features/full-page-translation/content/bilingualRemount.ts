@@ -25,7 +25,7 @@ import {
     type TranslationState,
 } from '@/src/features/full-page-translation/content/state';
 import {
-    isTranslationArtifactCurrent,
+    isBilingualArtifactKept,
     statefulSourceAndTextSlotsAreCurrent,
 } from '@/src/features/full-page-translation/content/translationStability';
 import {
@@ -322,7 +322,9 @@ export function stabilizeBilingualArtifact(
 ): BilingualArtifactDisposition {
     const repair = tryRepairBilingualTranslationArtifact(owner, state, reconcileLayout);
     const sourceCurrent = statefulSourceAndTextSlotsAreCurrent(owner, state);
-    const artifactCurrent = isTranslationArtifactCurrent(owner, state);
+    // 属性漂移（宿主改写复制链接的 title 等）不改变译文，仍算当前工件：
+    // 继续走恢复流程会撤下译文并重新请求，正是“划过译文里的链接就丢译文”的来源。
+    const artifactCurrent = isBilingualArtifactKept(owner, state);
     if (sourceCurrent && artifactCurrent) return 'current';
 
     let capitulated = repair === 'capitulated';
