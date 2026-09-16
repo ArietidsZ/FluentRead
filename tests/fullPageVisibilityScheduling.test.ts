@@ -6007,6 +6007,32 @@ describe("全文翻译可见性锚点", () => {
         expect(refreshedWrapper.textContent).not.toContain("译:This text becomes protected.");
     });
 
+    it("滑动到已译段落时，骨架属性漂移只重建骨架而不撕下译文", async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<p id="prose">Read <a href="/guide" title="the guide">the guide</a> now.</p>';
+        const paragraph = document.querySelector<HTMLElement>("#prose")!;
+        const link = paragraph.querySelector<HTMLElement>("a")!;
+        setLayoutBox(paragraph, 600, 90);
+        runtime.pointCandidate = {element: paragraph, kind: "content", reason: "paragraph"};
+        runtime.candidates = [runtime.pointCandidate];
+
+        handleTranslation(40, 40);
+        await finishScheduledWork();
+        const wrapper = paragraph.querySelector<HTMLElement>(".fluent-read-bilingual-content")!;
+        expect(wrapper).toBeTruthy();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        // 站点悬停预览会增删源链接的 title：结构签名漂移，但可译文本未变。
+        link.removeAttribute("title");
+
+        handleTranslation(42, 42, {continuous: true});
+        await finishScheduledWork();
+
+        expect(paragraph.querySelector(".fluent-read-bilingual-content")).toBe(wrapper);
+        expect(wrapper.isConnected).toBe(true);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
     it("provider 空结果的立即重排有上限，source 变化后才开启新 generation", async () => {
         document.body.innerHTML = '<p id="late">Initial prose before hydration.</p>';
         const paragraph = document.querySelector<HTMLElement>("#late")!;

@@ -139,6 +139,12 @@ export interface TranslationState {
     retryWrapper?: HTMLElement;
     /** 双语 wrapper 最后一次由插件写入的 HTML，用于区分宿主重绘和插件自身 mutation。 */
     bilingualHTML?: string;
+    /**
+     * 去掉全部属性后的工件结构与文本标记，用于识别只被宿主改写属性的工件：
+     * 悬停预览增删复制链接的 title、roving tabindex 补 -1/0、a11y 脚本补 aria 属性
+     * 都不改变译文，不能按篡改撤下译文并耗尽持久预算。
+     */
+    bilingualContentTextMarkup?: string;
     /** 包含 class/lang/dir/translate 等外层属性的完整 wrapper 快照。 */
     bilingualOuterHTML?: string;
     /** 可在不再次访问 provider 的情况下，按当前安全 DOM 骨架重放的译文槽。 */
@@ -169,6 +175,11 @@ let bilingualOwnerRemountHandler: ((mutations: readonly MutationRecord[]) => voi
 let bilingualArtifactCapitulationHandler:
     ((owner: HTMLElement, state: TranslationState) => void) | undefined;
 let bilingualLifecycleExternallyManaged: (() => boolean) | undefined;
+/**
+ * 用已提交的原文/译文重建译文骨架。宿主只改写了会复制进骨架的装饰性属性时，
+ * 可译文本未变，应刷新骨架而不是撤下译文。实现留在 bilingualReplay，避免 state 反向依赖。
+ */
+let bilingualSkeletonRefreshHandler: ((owner: HTMLElement, state: TranslationState) => boolean) | undefined;
 const maxTranslationLayoutAncestorDepth = 16;
 const BILINGUAL_ARTIFACT_SELECTOR =
     '.fluent-read-bilingual-content[data-fr-translation-owned="true"]';
@@ -210,6 +221,12 @@ export function setBilingualArtifactCapitulationHandler(
 
 export function setBilingualLifecycleExternalManager(handler: (() => boolean) | undefined): void {
     bilingualLifecycleExternallyManaged = handler;
+}
+
+export function setBilingualSkeletonRefreshHandler(
+    handler: ((owner: HTMLElement, state: TranslationState) => boolean) | undefined,
+): void {
+    bilingualSkeletonRefreshHandler = handler;
 }
 
 /**
@@ -576,6 +593,7 @@ export function setBilingualContent(
     if (state) {
         state.bilingualHTML = content.innerHTML;
         state.bilingualOuterHTML = content.outerHTML;
+        state.bilingualContentTextMarkup = artifactTextAndStructureMarkup(content);
         state.bilingualContentTemplate = (trustedTemplate ?? content).cloneNode(true) as HTMLElement;
         if (state.syntheticSegment) {
             state.syntheticHost = node.parentElement ?? state.syntheticHost;
@@ -790,6 +808,8 @@ export function inheritBilingualArtifactRepairBudget(
 
 export type BilingualArtifactRepairResult =
     | 'repaired'
+    /** 属性漂移：工件仍是本代译文，保留原样且不重写宿主 DOM。 */
+    | 'tolerated'
     | 'rejected-after-write'
     | 'not-repairable'
     | 'capitulated';
@@ -860,9 +880,42 @@ export function isTrustedBilingualArtifactWithHostClass(
     artifact: HTMLElement,
     state: TranslationState,
 ): boolean {
+    return bilingualContentMatchesWithHostTabOrder(artifact, state) &&
+        bilingualWrapperAttributesMatch(artifact, state);
+}
+
+/**
+ * 去掉全部属性的结构与文本标记。用于区分两种宿主写入：只改写复制进骨架的
+ * 装饰性属性，与改写译文的元素层级或文本。
+ */
+function artifactTextAndStructureMarkup(artifact: HTMLElement): string {
+    const clone = artifact.cloneNode(true) as HTMLElement;
+    for (const element of [clone, ...Array.from(clone.querySelectorAll('*'))]) {
+        for (const {name} of Array.from(element.attributes)) element.removeAttribute(name);
+    }
+    return clone.innerHTML;
+}
+
+/**
+ * 译文内容（结构 + 文本，忽略属性）是否仍是本代提交的那一份。
+ * 工件属性是宿主页面在副本上的装饰：源节点真被改写时会改变来源结构签名，
+ * 由骨架重建跟随新源文；这里只覆盖站点脚本单独改写复制节点属性的情形。
+ */
+function bilingualContentMatchesSnapshot(artifact: HTMLElement, state: TranslationState): boolean {
+    if (state.bilingualHTML === undefined) return false;
+    if (artifact.innerHTML === state.bilingualHTML) return true;
+    return state.bilingualContentTextMarkup !== undefined &&
+        artifactTextAndStructureMarkup(artifact) === state.bilingualContentTextMarkup;
+}
+
+/**
+ * wrapper 自身的标记与 lang/dir/translate/style 等外层属性仍与可信快照一致。
+ * 外层属性决定译文语义与所有权，被改写仍按篡改处理；容忍只覆盖 wrapper
+ * **内部**复制节点的属性漂移。
+ */
+function bilingualWrapperAttributesMatch(artifact: HTMLElement, state: TranslationState): boolean {
     const template = state.bilingualContentTemplate;
-    if (!template || !bilingualContentMatchesWithHostTabOrder(artifact, state) ||
-        !artifact.matches(BILINGUAL_ARTIFACT_SELECTOR)) return false;
+    if (!template || !artifact.matches(BILINGUAL_ARTIFACT_SELECTOR)) return false;
     const templateAttributes = new Map(Array.from(template.attributes, ({name, value}) => [name, value]));
     for (const {name, value} of Array.from(artifact.attributes)) {
         if (name === 'ultimate-bold-correct' && value === '') continue;
@@ -877,6 +930,44 @@ export function isTrustedBilingualArtifactWithHostClass(
     const addedClasses = Array.from(artifact.classList).filter((name) => !trustedClasses.has(name));
     return !addedClasses.some((name) => name.startsWith('fluent-read-') ||
         semanticStructureClasses(name).length > 0);
+}
+
+/**
+ * 工件信任等级：'trusted' 与提交快照一致；'drift' 只有属性被宿主改写，
+ * 译文的结构与文本未变；其余按篡改处理。
+ */
+function bilingualArtifactTrust(
+    artifact: HTMLElement,
+    state: TranslationState,
+): 'trusted' | 'drift' | 'tampered' {
+    if (isTrustedBilingualArtifactWithHostClass(artifact, state)) return 'trusted';
+    return bilingualWrapperAttributesMatch(artifact, state) &&
+        bilingualContentMatchesSnapshot(artifact, state) ? 'drift' : 'tampered';
+}
+
+/**
+ * 工件归属与在位：wrapper 仍是本代的直属工件且仍然挂载。用于区分两种情形——
+ * “工件漂移但仍是我们的”（可本地重建）与“工件被移除或替换”。
+ */
+export function isOwnedBilingualArtifactAttached(node: HTMLElement, state: TranslationState): boolean {
+    const wrapper = state.bilingualContent;
+    if (!wrapper || wrapper.parentNode !== node || !wrapper.isConnected) return false;
+    if (!wrapper.matches(BILINGUAL_ARTIFACT_SELECTOR)) return false;
+    const directWrappers = Array.from(node.children).filter((child) =>
+        child.matches(BILINGUAL_ARTIFACT_SELECTOR));
+    return directWrappers.length === 1 && directWrappers[0] === wrapper;
+}
+
+/**
+ * 宿主把工件改写成了“属性漂移”形态：外层属性完好，只有内部复制节点的属性变化。
+ * 站点脚本会在指针划过译文里的链接时反复增删 title，按篡改处理就会与站点互相
+ * 覆盖，最终耗尽持久预算并撤下译文；这类写入必须按当前工件保留。
+ */
+export function isBilingualArtifactDriftOnly(node: HTMLElement, state: TranslationState): boolean {
+    if (state.phase !== 'translated' || state.mode !== 'bilingual' || state.kind !== 'content') return false;
+    const wrapper = state.bilingualContent;
+    return Boolean(wrapper && isOwnedBilingualArtifactAttached(node, state) &&
+        bilingualArtifactTrust(wrapper, state) === 'drift');
 }
 
 /**
@@ -905,11 +996,23 @@ export function tryRepairBilingualTranslationArtifact(
     const directWrappers = directOwnedArtifacts.filter((child) => child.matches(BILINGUAL_ARTIFACT_SELECTOR));
     const currentArtifact = directOwnedArtifacts.length === 1 && directWrappers.length === 1
         ? directWrappers[0] : undefined;
-    if (currentArtifact && isTrustedBilingualArtifactWithHostClass(currentArtifact, state)) {
-        state.bilingualContent = currentArtifact;
-        state.bilingualOuterHTML = currentArtifact.outerHTML;
-        refreshOwnershipIndex(node, state);
-        return 'repaired';
+    if (currentArtifact) {
+        const trust = bilingualArtifactTrust(currentArtifact, state);
+        if (trust === 'trusted') {
+            state.bilingualContent = currentArtifact;
+            state.bilingualOuterHTML = currentArtifact.outerHTML;
+            refreshOwnershipIndex(node, state);
+            return 'repaired';
+        }
+        // 属性漂移（结构与文本仍是本代译文，只有复制节点的属性被宿主改写）不是篡改：
+        // 站点脚本会在指针划过译文里的链接时反复增删 title，若每次都重写宿主 DOM，
+        // 就会与站点互相覆盖并最终耗尽预算、撤下译文。这里既不重写也不计费，
+        // 需要与新 DOM 同步时由 refreshBilingualTranslationSkeleton 按需重建。
+        if (trust === 'drift') {
+            state.bilingualContent = currentArtifact;
+            refreshOwnershipIndex(node, state);
+            return 'tolerated';
+        }
     }
     const detachedTrustedWrapper = wrapper?.parentNode === null &&
         isTrustedBilingualArtifactWithHostClass(wrapper, state) ? wrapper : undefined;
@@ -1109,11 +1212,15 @@ function scheduleTranslationLayoutRefresh(owner: HTMLElement, removedNodes: read
         }
         if (state.phase === 'translated' && state.mode === 'bilingual' && state.kind === 'content') {
             if (!currentBilingualSourceStructureMatches(owner, state)) {
+                // 结构签名包含 title/href 等会写入骨架的属性。宿主只改写这些属性时
+                // 可译文本未变，重建骨架并复用已提交译文，不能直接把译文撕下来：
+                // 悬停预览会反复增删链接 title，否则每次划过都会丢译文并重新请求。
+                if (bilingualSkeletonRefreshHandler?.(owner, state)) return;
                 restoreTranslation(owner);
                 return;
             }
             const repair = tryRepairBilingualTranslationArtifact(owner, state);
-            if (repair !== 'repaired') {
+            if (repair !== 'repaired' && repair !== 'tolerated') {
                 if (repair === 'capitulated') bilingualArtifactCapitulationHandler?.(owner, state);
                 restoreTranslation(owner);
                 return;

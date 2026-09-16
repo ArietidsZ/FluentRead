@@ -21,6 +21,7 @@ import {
     getTranslationOverflowGenerationIdentity,
     getTranslationState,
     getTranslationSourceStructureSignature,
+    isBilingualArtifactDriftOnly,
     isTranslationSourceStructureOverflow,
     isTrustedBilingualArtifactWithHostClass,
     type TranslationState,
@@ -364,6 +365,15 @@ export function isTranslationArtifactCurrent(
     );
 }
 
+/**
+ * 工件的译文内容仍是本代结果。比 isTranslationArtifactCurrent 宽一点：宿主只
+ * 改写了复制进骨架的装饰性属性时仍算有效，避免站点悬停脚本反复写 title 就被
+ * 当成篡改撤下译文。是否重建骨架由调用方另行决定。
+ */
+export function isBilingualArtifactKept(node: HTMLElement, state: TranslationState): boolean {
+    return isTranslationArtifactCurrent(node, state) || isBilingualArtifactDriftOnly(node, state);
+}
+
 export function canKeepTranslationAttempt(
     node: HTMLElement,
     state: TranslationState,
@@ -374,7 +384,7 @@ export function canKeepTranslationAttempt(
     if (!hasCurrentTranslationSource(node, state, readSource)) return false;
     if (state.phase === 'loading') return true;
     return state.phase === 'translated' && artifactIntact &&
-        isTranslationArtifactCurrent(node, state) &&
+        isBilingualArtifactKept(node, state) &&
         readSlots(node, state);
 }
 

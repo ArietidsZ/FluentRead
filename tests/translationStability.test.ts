@@ -3,6 +3,7 @@ import {parseHTML} from 'linkedom';
 import {
     canKeepTranslationAttempt,
     hasCurrentTranslationSource,
+    isBilingualArtifactKept,
     isOwnCurrentArtifactAddition,
     isOwnStateArtifactMutation,
     isOwnSingleTextSlotMove,
@@ -253,6 +254,36 @@ describe('动态翻译稳定性判定', () => {
         expect(isTranslationArtifactCurrent(owner, snapshot)).toBe(true);
         link.setAttribute(attribute, value);
         expect(isTranslationArtifactCurrent(owner, snapshot)).toBe(false);
+    });
+
+    it('复制节点的属性漂移仍算当前工件尝试，译文内容或外层属性被改写才失效', () => {
+        const {document} = parseHTML('<html><body><p>source</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const wrapper = document.createElement('span');
+        wrapper.className = 'fluent-read-bilingual-content';
+        wrapper.setAttribute('data-fr-translation-owned', 'true');
+        wrapper.innerHTML = '<a href="/original">译文链接</a>';
+        owner.appendChild(wrapper);
+        // bilingualContentTextMarkup 由 setBilingualContent 记录，是去掉全部属性后的标记。
+        const snapshot = state({phase: 'translated', bilingualContent: wrapper,
+            bilingualHTML: wrapper.innerHTML, bilingualOuterHTML: wrapper.outerHTML,
+            bilingualContentTextMarkup: '<a>译文链接</a>',
+            bilingualContentTemplate: wrapper.cloneNode(true) as HTMLElement});
+        const readSource = () => true;
+        const readSlots = () => true;
+
+        // 悬停预览改写的 title 只改变复制节点的属性，译文与来源都没有变化。
+        wrapper.querySelector('a')!.setAttribute('title', 'Host tooltip');
+        expect(isTranslationArtifactCurrent(owner, snapshot)).toBe(false);
+        expect(isBilingualArtifactKept(owner, snapshot)).toBe(true);
+        expect(canKeepTranslationAttempt(owner, snapshot, readSource, readSlots)).toBe(true);
+
+        // wrapper 外层属性仍按篡改处理，不能被容忍分支保留。
+        wrapper.setAttribute('style', 'display:none');
+        expect(isBilingualArtifactKept(owner, snapshot)).toBe(false);
+        wrapper.removeAttribute('style');
+        wrapper.querySelector('a')!.textContent = 'HOST INJECTED';
+        expect(isBilingualArtifactKept(owner, snapshot)).toBe(false);
     });
 
     it.each(['text', 'extra-node', 'missing-node', 'non-link-tabindex', 'root-tabindex', 'missing-template', 'stale-template']) (

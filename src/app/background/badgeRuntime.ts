@@ -1,8 +1,8 @@
 /**
  * @file src/app/background/badgeRuntime.ts
- * 文件职责：按标签页显示尺寸可控、半透明的工具栏翻译状态叠层。
- * 主要内容：根据内容脚本提供的真实结果状态选择静态图标，序列化同一标签页的写入，并在导航和关闭时清理；MV3 与 MV2 共用静态 PNG。
- * 模块边界：只读取状态并调用 action/browserAction，不改页面 DOM、用户配置或翻译任务；静态资源不需要额外权限或后台 Canvas。
+ * 文件职责：按标签页显示浏览器原生的三态翻译状态角标。
+ * 主要内容：根据内容脚本真实结果显示蓝色省略号、绿色对勾或橙色感叹号，序列化写入并在导航和关闭时清理。
+ * 模块边界：只读取状态并调用 action/browserAction，不改页面 DOM、用户配置或翻译任务；角标尺寸由浏览器管理，不需要额外权限或后台 Canvas。
  */
 import {TabTranslationStateStore} from './tabTranslationState';
 import {createTabTranslationStateReader} from './tabTranslationQuery';
@@ -10,6 +10,8 @@ import {normalizeTranslationToolbarStatus, type TranslationToolbarStatus} from '
 
 interface BadgeActionApi {
     setBadgeText(details: {tabId: number; text: string}): Promise<void> | void;
+    setBadgeBackgroundColor(details: {tabId: number; color: string}): Promise<void> | void;
+    setBadgeTextColor?(details: {tabId: number; color: string}): Promise<void> | void;
     setIcon(details: {tabId: number; path: Record<number, string>}): Promise<void> | void;
 }
 export interface BackgroundBadgeRuntime {
@@ -17,9 +19,12 @@ export interface BackgroundBadgeRuntime {
     update(tabId: number): Promise<void>;
 }
 
-const iconPaths = (status: TranslationToolbarStatus): Record<number, string> => Object.fromEntries(
-    [16, 32, 48, 64, 128].map(size => [size, status === 'idle' ? `icon/${size}.png` : `icon/toolbar/${status}-${size}.png`]),
-);
+const iconPaths = Object.fromEntries([16, 32, 48, 64, 128].map(size => [size, `icon/${size}.png`]));
+const badges = {
+    translating: {text: '…', color: '#2563eb'},
+    translated: {text: '✓', color: '#15803d'},
+    error: {text: '!', color: '#b45309'},
+};
 
 export function installBackgroundBadge(tabTranslationStates: TabTranslationStateStore): BackgroundBadgeRuntime {
     const action = (browser.action ?? browser.browserAction) as BadgeActionApi | undefined;
@@ -35,10 +40,21 @@ export function installBackgroundBadge(tabTranslationStates: TabTranslationState
         const job = (queues.get(tabId) ?? Promise.resolve()).then(async () => {
             if (versions.get(tabId) !== version || rendered.get(tabId) === status) return;
             try {
-                // 清理升级前的原生大角标；新叠层已经包含在静态图标中。
+                // 恢复品牌原图，避免静态叠层与原生角标同时显示。
                 await action.setBadgeText({tabId, text: ''});
                 if (versions.get(tabId) !== version) return;
-                await action.setIcon({tabId, path: iconPaths(status)});
+                await action.setIcon({tabId, path: iconPaths});
+                if (versions.get(tabId) !== version) return;
+                if (status !== 'idle') {
+                    const badge = badges[status];
+                    await action.setBadgeBackgroundColor({tabId, color: badge.color});
+                    if (versions.get(tabId) !== version) return;
+                    if (action.setBadgeTextColor) {
+                        await action.setBadgeTextColor({tabId, color: '#ffffff'});
+                        if (versions.get(tabId) !== version) return;
+                    }
+                    await action.setBadgeText({tabId, text: badge.text});
+                }
                 if (versions.get(tabId) === version) rendered.set(tabId, status);
             } catch (error) { console.error('Failed to update toolbar translation status:', error); }
         }).finally(() => { if (queues.get(tabId) === job) queues.delete(tabId); });
