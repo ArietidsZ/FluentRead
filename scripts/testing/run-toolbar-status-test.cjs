@@ -11,6 +11,7 @@ const id=crypto.createHash('sha256').update(ext).digest('hex').slice(0,32).repla
 fs.mkdirSync(path.join(profile,'Default'));
 fs.writeFileSync(path.join(profile,'Default','Preferences'),JSON.stringify({translate:{enabled:false},extensions:{toolbar:[id],pinned_extensions:[id]},browser:{has_seen_welcome_page:true}}));
 const report={profile,expectedId:id,scope:'Production extension; local page fixture and deterministic provider responses',cases:[],errors:[]};
+const nativeBadges={idle:{text:''},translating:{text:'…',background:[37,99,235,255]},translated:{text:'✓',background:[21,128,61,255]},error:{text:'!',background:[180,83,9,255]}};
 let session;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function main(){
@@ -31,7 +32,11 @@ async function main(){
  const tabId=await worker.evaluate(async()=>{const ts=await chrome.tabs.query({});return ts.find(t=>t.url==='https://badge-review.example/article').id});
  async function snap(name){await sleep(700);const badge=await worker.evaluate(async(tabId)=>({text:await chrome.action.getBadgeText({tabId}),background:await chrome.action.getBadgeBackgroundColor({tabId}),foreground:typeof chrome.action.getBadgeTextColor==='function'?await chrome.action.getBadgeTextColor({tabId}):null,state:await chrome.tabs.sendMessage(tabId,{type:'getFullPageTranslationState'}),requests:globalThis.reviewRequests}),tabId);const dom=await page.evaluate(()=>({translated:document.querySelectorAll('.fluent-read-bilingual-content').length,loading:document.querySelectorAll('.fluent-read-loading').length,failures:document.querySelectorAll('[data-fr-translation-failed="true"]').length}));report.cases.push({name,...badge,...dom});await page.screenshot({path:path.join(out,name+'-page.png')});
  if(windowQuery)try{const windows=JSON.parse(execFileSync(windowQuery,[],{encoding:'utf8'}));if(windows.length!==1)throw Error('Expected one matching isolated window, found '+windows.length);execFileSync('/usr/sbin/screencapture',['-x','-o','-l',String(windows[0].kCGWindowNumber),path.join(out,name+'-window.png')]);}catch(e){report.errors.push('native screenshot: '+e.message)}
- fs.writeFileSync(path.join(out,'browser-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report.cases.at(-1)));return report.cases.at(-1);}
+ fs.writeFileSync(path.join(out,'browser-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report.cases.at(-1)));
+ const expected=nativeBadges[badge.state.isTranslated&&!badge.state.isSiteDisabled?badge.state.toolbarStatus:'idle'];
+ assert.ok(expected,name+': known toolbar status');assert.equal(badge.text,expected.text,name+': native badge text');
+ if(expected.background){assert.deepEqual(badge.background,expected.background,name+': native badge background');if(badge.foreground)assert.deepEqual(badge.foreground,[255,255,255,255],name+': native badge foreground');}
+ return report.cases.at(-1);}
  report.messageTypes='contextMenuTranslate fullPage/restore';
  async function action(action){await helper.activateExtensionTabWithoutForeground(context,page);return worker.evaluate(({tabId,action})=>chrome.tabs.sendMessage(tabId,{type:'contextMenuTranslate',action}),{tabId,action})}
  assert.equal((await snap('01-original')).text,'');

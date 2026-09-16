@@ -109,6 +109,8 @@ node scripts/testing/run-modal-first-translation-test.cjs \
 
 原生角标尺寸、内边距及字形由浏览器管理；使用蓝色、深绿色和橙色实心底色，并在 API 可用时指定白色文字。静态状态 PNG 不再用于运行时展示。`tests/translationToolbarStatus.test.ts` 验证真实状态判定，`tests/backgroundBadgeRuntime.test.ts` 验证角标映射、导航清理、异步顺序及 MV2 回退。
 
+角标回归还覆盖每个异步写入步骤中“完成 → 翻译中 → 完成”、迟到的完成文字与恢复原文、部分写入失败后重画原状态，防止缓存去重跳过被中断后必需的更新。浏览器专项逐状态断言原生文字、背景色与可用时的文字颜色，不只检查内容脚本的状态字段。
+
 FluentRead 把测试按意图分组，而不是把所有文件塞进一个难以诊断的命令。每个 `tests/**/*.test.ts` 必须且只能出现在 `tests/test-matrix.json` 的一个分组中；测试审计会拒绝漏归类、重复归类、重复用例名、`.only`、无原因 `.skip` 和覆盖率忽略指令。
 
 ## 按需运行
@@ -127,7 +129,8 @@ FluentRead 把测试按意图分组，而不是把所有文件塞进一个难以
 `FLUENTREAD_RESOURCE_LOCK_DIR` 仅用于专项锁隔离验证；日常任务不要改写它，否则
 不同目录的任务无法互相协调。
 
-`tests/resourceSafeRunner.test.ts` 使用真实 Node 子进程验证并发互斥、死进程锁竞争回收、
+`tests/resourceSafeRunner.test.ts` 使用真实 Node 子进程验证并发互斥、死进程锁竞争回收
+（取得清理权后整代锁目录原子改名再删除，避免递归删除中途被其他等待者重建清理标记而崩溃）、
 父子锁复用、worker 参数、Vitest setup、等待超时、退出码和 SIGTERM 释放。
 `pnpm test -- <文件>` 和 coverage 命令的首个 Vitest 转发分隔符会被兼容处理；
 其他命令中的 `--` 原样保留。

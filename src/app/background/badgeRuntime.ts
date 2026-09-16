@@ -40,6 +40,8 @@ export function installBackgroundBadge(tabTranslationStates: TabTranslationState
         const job = (queues.get(tabId) ?? Promise.resolve()).then(async () => {
             if (versions.get(tabId) !== version || rendered.get(tabId) === status) return;
             try {
+                // 首次写入后旧缓存便不能代表实际角标；中断或失败后回到原状态也必须重画。
+                rendered.delete(tabId);
                 // 恢复品牌原图，避免静态叠层与原生角标同时显示。
                 await action.setBadgeText({tabId, text: ''});
                 if (versions.get(tabId) !== version) return;

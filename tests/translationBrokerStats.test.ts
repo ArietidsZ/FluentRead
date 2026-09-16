@@ -74,7 +74,6 @@ function createHarness(overrides: Partial<TranslationBrokerDependencies> = {}): 
             clear: async () => cache.clear(),
             cleanup: async () => undefined,
         },
-        serviceIds: {minimax: 'minimax', mimo: 'mimo'},
         serviceTypes: {
             machine: new Set(['machine', 'other']),
             isAI: (service) => service === 'ai',
@@ -83,8 +82,6 @@ function createHarness(overrides: Partial<TranslationBrokerDependencies> = {}): 
         },
         endpointResolver: {
             resolveOpenAICompatibleEndpoint: () => ({endpoint: ''}),
-            getMimoEndpoint: () => '',
-            minimaxEndpoints: {},
             aiSdkTransportProfile: 'test',
         },
         promptBuilder: {buildPageSummaryPrompt: (value) => value, buildPageSummarySystemPrompt: () => ''},
