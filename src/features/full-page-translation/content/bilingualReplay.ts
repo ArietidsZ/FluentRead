@@ -12,8 +12,12 @@ import {
     type TranslationTextProtectionOptions,
 } from '@/src/core/translation/public';
 import {refreshBilingualTranslation} from './renderer';
-import {setBilingualContent, setRenderedStyleAttribute, type TranslationState} from './state';
-import {isTranslationArtifactCurrent} from './translationStability';
+import {
+    isOwnedBilingualArtifactAttached,
+    setBilingualContent,
+    setRenderedStyleAttribute,
+    type TranslationState,
+} from './state';
 
 function protectionOptions(
     node: HTMLElement,
@@ -30,8 +34,11 @@ export function refreshBilingualTranslationSkeleton(
 ): boolean {
     const replay = state.bilingualReplay;
     const content = state.bilingualContent;
+    // 只要求“工件仍是我们的且仍在位”。宿主改写工件内部属性会让严格工件校验失败，
+    // 但可译文本未变，按当前 DOM 重建骨架并复用已提交译文才是正确的恢复路径；
+    // 要求精确工件相等会把它误判成“需要重新请求”。
     if (state.phase !== 'translated' || state.mode !== 'bilingual' || state.kind !== 'content' ||
-        !replay || !content || !isTranslationArtifactCurrent(node, state)) return false;
+        !replay || !content || !isOwnedBilingualArtifactAttached(node, state)) return false;
 
     const core = getCurrentTranslationCore(state.scope);
     const boundary = state.syntheticSegment ? node : undefined;
