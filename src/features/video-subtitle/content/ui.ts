@@ -863,6 +863,13 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
     #${VIDEO_TRANSLATION_MENU_ID}[data-layout="wide"] .fluent-read-video-menu-ai-group { flex: 1 1 0 !important; min-width: 128px !important; }
     #${VIDEO_TRANSLATION_MENU_ID}[data-layout="wide"] .fluent-read-video-menu-downloads { flex: 1 0 auto !important; }
     #${VIDEO_TRANSLATION_MENU_ID}[data-layout="wide"] .fluent-read-video-menu-ai-group + .fluent-read-video-menu-downloads { flex-grow: 0 !important; }
+    #${VIDEO_TRANSLATION_MENU_ID}[data-layout="wide"] .fluent-read-video-menu-download {
+      flex-direction: row !important;
+      gap: 4px !important;
+      min-height: 26px !important;
+      padding: 0 8px !important;
+      font-size: 11px !important;
+    }
     #${VIDEO_TRANSLATION_MENU_ID}[data-layout="wide"] .fluent-read-video-menu-download .fluent-read-video-menu-label { min-width: auto !important; }
     #${VIDEO_TRANSLATION_MENU_ID}[data-layout="wide"] .fluent-read-video-menu-download-status { flex: 1 0 100% !important; }
 
@@ -1048,12 +1055,16 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
 
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-downloads {
       display: grid !important;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
       gap: 4px !important;
     }
+    /* 单列菜单只有约 72px 一格，图标改放在文字上方，长语言也不会被截断。 */
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-download {
-      min-height: 26px !important;
-      padding: 0 6px !important;
+      flex-direction: column !important;
+      gap: 1px !important;
+      min-height: 38px !important;
+      padding: 4px 4px !important;
+      font-size: 10.5px !important;
       background: var(--fr-video-menu-control) !important;
       color: rgba(255, 255, 255, .82) !important;
     }

@@ -1,9 +1,29 @@
 import {describe, expect, it} from 'vitest';
 import {Config} from '@/src/core/config/model';
 import {createGlossaryLibrary} from '@/src/core/glossary';
-import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, findProgressiveVideoCaptionCue} from '@/src/features/video-subtitle/content/subtitleLogic';
+import {getVideoTranslationConfigFingerprint, mergeBilingualVideoSubtitleCues, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, findProgressiveVideoCaptionCue} from '@/src/features/video-subtitle/content/subtitleLogic';
 
 describe('video subtitle logic', () => {
+  it('双语导出保留时间轴，把原文和译文分成两行，相同内容只保留一行', () => {
+    const cues = [
+      {startMs: 0, durationMs: 1000, text: ' Hello world '},
+      {startMs: 1200, durationMs: 900, text: '這個東西'},
+      {startMs: 2400, durationMs: 900, text: 'Missing translation'},
+    ];
+    const translated = [
+      {...cues[0], text: '你好，世界'},
+      {...cues[1], text: ' 這個東西 '},
+      {...cues[2], text: '  '},
+    ];
+
+    expect(mergeBilingualVideoSubtitleCues(cues, translated)).toEqual([
+      {startMs: 0, durationMs: 1000, text: 'Hello world\n你好，世界'},
+      {startMs: 1200, durationMs: 900, text: '這個東西'},
+      {startMs: 2400, durationMs: 900, text: 'Missing translation'},
+    ]);
+    expect(mergeBilingualVideoSubtitleCues(cues, [])).toEqual(cues.map(cue => ({...cue, text: cue.text.trim()})));
+  });
+
   it('渐进字幕优先匹配当前时段，再按完整匹配、长度和开始时间消除歧义', () => {
     const previous = {startMs: 0, durationMs: 1000, text: 'Hello world'};
     const current = {startMs: 3000, durationMs: 1000, text: 'Hello world'};

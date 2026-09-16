@@ -128,8 +128,12 @@ describe('video player menu composition', () => {
       .toEqual(['reset-subtitle-timing', 'subtitle-earlier', 'true', 'subtitle-later']);
     const actions = menu.querySelector('.fluent-read-video-menu-actions')!;
     expect(actions.querySelector('.fluent-read-video-menu-ai-group [data-action="toggle-ai-subtitle"]')).toBeTruthy();
-    expect([...actions.querySelectorAll<HTMLButtonElement>('.fluent-read-video-menu-download')].map(button => [button.textContent, button.getAttribute('aria-label')]))
-      .toEqual([['原文字幕', '下载原文字幕'], ['译文字幕', '下载译文字幕']]);
+    expect([...actions.querySelectorAll<HTMLButtonElement>('.fluent-read-video-menu-download')].map(button => [button.dataset.action, button.textContent, button.getAttribute('aria-label')]))
+      .toEqual([
+        ['download-subtitles', '原文字幕', '下载原文字幕'],
+        ['download-translated-subtitles', '译文字幕', '下载译文字幕'],
+        ['download-bilingual-subtitles', '双语字幕', '下载双语字幕'],
+      ]);
     expect(actions.querySelector('[data-download-status]')?.getAttribute('aria-live')).toBe('polite');
     expect(menu.querySelector<HTMLElement>('[data-model-prompt]')?.hidden).toBe(true);
 

@@ -51,7 +51,7 @@ import {XCaptionSource} from './xCaptionSource';
 import {XHlsAudioReader} from './hlsAudioRuntime';
 import {XSubtitleLoader} from './xSubtitleLoader';
 import {VideoTranslationCache} from './translationCache';
-import {createVideoSubtitleAbortError, translateVideoSubtitleCues, getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, findProgressiveVideoCaptionCue} from './subtitleLogic';
+import {createVideoSubtitleAbortError, translateVideoSubtitleCues, mergeBilingualVideoSubtitleCues, getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, findProgressiveVideoCaptionCue} from './subtitleLogic';
 export {translateVideoSubtitleCues, getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation} from './subtitleLogic';
 export {getVideoSubtitleDownloadErrorMessage} from './ui';
 import { config, requestConfigPatch, subscribeConfig } from '@/src/services/config/store';
@@ -1158,6 +1158,45 @@ export function mountVideoSubtitleTranslation(): () => void {
     if (aiModelSetup.choice) menu.querySelector<HTMLButtonElement>('[data-action="model-prompt-confirm"]')?.focus();
   };
 
+  /** 译文与双语导出共用同一条翻译流程；双语只是在导出前把原文与译文合成两行。 */
+  const downloadTranslatedSubtitles = async (menu: HTMLElement, downloadButton: HTMLButtonElement, bilingual: boolean) => {
+    downloadButton.disabled = true;
+    if (!config.on || !config.videoTranslationEnabled) {
+      setVideoMenuDownloadStatus(menu, videoUi('video.enableFirst'), 2200);
+      window.setTimeout(() => { downloadButton.disabled = false; }, 2200);
+      return;
+    }
+
+    const controller = new AbortController();
+    subtitleDownloadAbortController?.abort();
+    subtitleDownloadAbortController = controller;
+    const targetLanguage = config.to || 'translated';
+    downloadButton.setAttribute('aria-busy', 'true');
+    setVideoMenuDownloadStatus(menu, videoUi('video.fetching'));
+    let feedback = '';
+    try {
+      const result = await resolveDownloadTrack();
+      const translatedCues = await translateVideoSubtitleCues(result.cues, getCachedVideoTranslation, {
+        concurrency: VIDEO_SUBTITLE_DOWNLOAD_CONCURRENCY,
+        signal: controller.signal,
+        onProgress: (completed, total) => setVideoMenuDownloadStatus(menu, videoUi('video.translating', {completed, total})),
+      });
+      if (destroyed || controller.signal.aborted) throw createVideoSubtitleAbortError();
+      const cues = bilingual ? mergeBilingualVideoSubtitleCues(result.cues, translatedCues) : translatedCues;
+      downloadSubtitleSrt(cues, `${targetLanguage}-${bilingual ? 'bilingual' : 'translated'}`);
+      feedback = videoUi('video.downloaded', {count: cues.length});
+    } catch (error) {
+      const aborted = error instanceof Error && error.name === 'AbortError';
+      feedback = aborted ? videoUi('video.cancelled') : videoUi('video.downloadFailed');
+      if (!aborted) console.warn('[FluentRead] 译文字幕下载失败', error);
+    } finally {
+      if (subtitleDownloadAbortController === controller) subtitleDownloadAbortController = undefined;
+      downloadButton.removeAttribute('aria-busy');
+      setVideoMenuDownloadStatus(menu, feedback, 2200);
+      window.setTimeout(() => { downloadButton.disabled = false; }, 2200);
+    }
+  };
+
   const selectMenuMode = (mode: VideoMenuMode) => {
     if (mode === 'off') {
       if (!config.videoTranslationEnabled) return;
@@ -1247,42 +1286,8 @@ export function mountVideoSubtitleTranslation(): () => void {
       }
       return;
     }
-    if (target.dataset.action === 'download-translated-subtitles') {
-      const downloadButton = target as HTMLButtonElement;
-      downloadButton.disabled = true;
-      if (!config.on || !config.videoTranslationEnabled) {
-        setVideoMenuDownloadStatus(menu, videoUi('video.enableFirst'), 2200);
-        window.setTimeout(() => { downloadButton.disabled = false; }, 2200);
-        return;
-      }
-
-      const controller = new AbortController();
-      subtitleDownloadAbortController?.abort();
-      subtitleDownloadAbortController = controller;
-      const targetLanguage = config.to || 'translated';
-      downloadButton.setAttribute('aria-busy', 'true');
-      setVideoMenuDownloadStatus(menu, videoUi('video.fetching'));
-      let feedback = '';
-      try {
-        const result = await resolveDownloadTrack();
-        const translatedCues = await translateVideoSubtitleCues(result.cues, getCachedVideoTranslation, {
-          concurrency: VIDEO_SUBTITLE_DOWNLOAD_CONCURRENCY,
-          signal: controller.signal,
-          onProgress: (completed, total) => setVideoMenuDownloadStatus(menu, videoUi('video.translating', {completed, total})),
-        });
-        if (destroyed || controller.signal.aborted) throw createVideoSubtitleAbortError();
-        downloadSubtitleSrt(translatedCues, `${targetLanguage}-translated`);
-        feedback = videoUi('video.downloaded', {count: translatedCues.length});
-      } catch (error) {
-        const aborted = error instanceof Error && error.name === 'AbortError';
-        feedback = aborted ? videoUi('video.cancelled') : videoUi('video.downloadFailed');
-        if (!aborted) console.warn('[FluentRead] 译文字幕下载失败', error);
-      } finally {
-        if (subtitleDownloadAbortController === controller) subtitleDownloadAbortController = undefined;
-        downloadButton.removeAttribute('aria-busy');
-        setVideoMenuDownloadStatus(menu, feedback, 2200);
-        window.setTimeout(() => { downloadButton.disabled = false; }, 2200);
-      }
+    if (target.dataset.action === 'download-translated-subtitles' || target.dataset.action === 'download-bilingual-subtitles') {
+      await downloadTranslatedSubtitles(menu, target as HTMLButtonElement, target.dataset.action === 'download-bilingual-subtitles');
       return;
     }
     if (target.dataset.action === 'open-settings') {

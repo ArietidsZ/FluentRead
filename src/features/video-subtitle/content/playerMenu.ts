@@ -157,6 +157,7 @@ function createDownloadActions(language: UiLanguage): HTMLElement {
     for (const [action, key, ariaKey] of [
         ['download-subtitles', 'video.downloadOriginalShort', 'video.downloadOriginal'],
         ['download-translated-subtitles', 'video.downloadTranslatedShort', 'video.downloadTranslated'],
+        ['download-bilingual-subtitles', 'video.downloadBilingualShort', 'video.downloadBilingual'],
     ]) {
         const button = createButton('fluent-read-video-menu-item fluent-read-video-menu-download', {'data-action': action, role: 'menuitem'});
         button.dataset.i18nAriaKey = ariaKey;
