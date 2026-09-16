@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/transcription.ts
  * 文件职责：定义本地 Whisper 模型选项与音频转换的公共契约，统一界面和识别端使用的默认值。
- * 主要内容：规范化模型配置与下载状态列表，并把多声道 PCM 按目标采样率混音和重采样。
+ * 主要内容：规范化模型配置与下载状态列表，声明默认推荐模型，并把多声道 PCM 按目标采样率混音和重采样。
  * 模块边界：只处理传入数据，不读取配置仓库、不调用浏览器音频设备，也不下载或初始化模型。
  */
 
@@ -46,6 +46,12 @@ export function normalizeVideoLocalTranscriptionModel(value: unknown): VideoLoca
     ? value as VideoLocalTranscriptionModel
     : 'tiny';
 }
+
+/**
+ * 首次生成 AI 字幕时默认推荐 Tiny：下载最小、识别最快，能在普通电脑上跑完整段视频。
+ * 语音不清楚时用户可在确认框或设置中改用 Base。
+ */
+export const VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL: VideoLocalTranscriptionModel = 'tiny';
 
 export function getVideoLocalTranscriptionModelId(value: unknown): string {
   const model = normalizeVideoLocalTranscriptionModel(value);

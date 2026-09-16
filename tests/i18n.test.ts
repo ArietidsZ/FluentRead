@@ -865,10 +865,14 @@ describe('i18n 全量界面扫描', () => {
       // 品牌名与纯排版模板在多数语言下与英文一致，强行改写反而破坏菜单文案。
       'settings.interface.font.options.inter.label',
       'contextMenu.groupPlain', 'contextMenu.standalone', 'contextMenu.withShortcut', 'contextMenu.withLanguage', 'contextMenuSettings.withReason']);
-    const frenchCognates = new Set(['learning.memoryNote', 'document.progressSegments', 'document.pageCount', 'document.pageNumber', 'options.aboutDocs', 'settings.advanced.animations', 'settings.advanced.translationLoadingStyle.minimal.label']);
+    // “Original” 在法语与西班牙语中拼写与英文相同，视频字幕菜单的短标签沿用该词。
+    const videoOriginalLabels = ['video.modeOriginal', 'video.downloadOriginalShort'];
+    const frenchCognates = new Set(['learning.memoryNote', 'document.progressSegments', 'document.pageCount', 'document.pageNumber', 'options.aboutDocs', 'settings.advanced.animations', 'settings.advanced.translationLoadingStyle.minimal.label', ...videoOriginalLabels]);
+    const spanishCognates = new Set(videoOriginalLabels);
     for (const [locale, catalog] of Object.entries({'ja-JP': jaJPMessages, 'ko-KR': koKRMessages, 'fr-FR': frFRMessages, 'ru-RU': ruRUMessages, 'es-ES': esESMessages})) {
       const untranslated = Object.entries(enUSMessages).filter(([key, source]) => (
         !key.startsWith('language.') && !common.has(key) && !(locale === 'fr-FR' && frenchCognates.has(key))
+        && !(locale === 'es-ES' && spanishCognates.has(key))
         && catalog[key as keyof typeof catalog] === source
       )).map(([key]) => key);
       expect(untranslated, locale).toEqual([]);

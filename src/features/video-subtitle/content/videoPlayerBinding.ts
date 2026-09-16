@@ -55,15 +55,16 @@ function isConnected(element: Element | null): element is Element {
   return Boolean(element && element.isConnected !== false);
 }
 
-function settingsControl(player: HTMLElement): HTMLElement | null {
-  return player.querySelector<HTMLElement>(VIDEO_X_SETTINGS_CONTROL_SELECTOR);
+/** 只匹配站点自己的控件；FluentRead 菜单里的“设置”等按钮不能被当作原生控制栏。 */
+function nativeControl(root: HTMLElement, selector: string): HTMLElement | null {
+  return Array.from(root.querySelectorAll<HTMLElement>(selector)).find(control => !control.closest('.fluent-read-video-ui')) || null;
 }
 
 function nativeControls(player: HTMLElement): HTMLElement | null {
   const youtube = player.querySelector<HTMLElement>(VIDEO_RIGHT_CONTROLS_SELECTOR);
   if (youtube) return youtube;
-  const anchor = player.querySelector<HTMLElement>(FULLSCREEN_CONTROL_SELECTOR)
-    || player.querySelector<HTMLElement>(PICTURE_IN_PICTURE_CONTROL_SELECTOR) || settingsControl(player);
+  const anchor = nativeControl(player, FULLSCREEN_CONTROL_SELECTOR)
+    || nativeControl(player, PICTURE_IN_PICTURE_CONTROL_SELECTOR) || nativeControl(player, VIDEO_X_SETTINGS_CONTROL_SELECTOR);
   if (!anchor) return null;
   let current = anchor.parentElement;
   while (current && current !== player) {
