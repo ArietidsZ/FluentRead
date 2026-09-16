@@ -88,6 +88,7 @@ describe('翻译统计事件白名单', () => {
             upstreamCalls: 1,
             upstreamMs: 700,
             outcome: 'success',
+            routes: [],
         });
     });
 
@@ -195,6 +196,67 @@ describe('翻译统计 IndexedDB 仓库', () => {
         expect((await database.requests.toArray()).map((event) => event.id).sort()).toEqual(['mid', 'new']);
         expect((await database.rollups.toArray()).map((rollup) => rollup.bucketStart).sort())
             .toEqual([localHourBucketStart(NOW - 2 * DAY), localHourBucketStart(NOW - DAY)].sort());
+    });
+
+    it('线路尝试折叠进线路汇总，请求记录只保留去重后的线路标识', async () => {
+        const {repository, database} = createRepository();
+        repository.record(requestEvent({
+            id: 'free-1',
+            serviceId: 'freeTranslation',
+            routes: ['google', 'microsoft', 'google'],
+            routeAttempts: [
+                {route: 'microsoft', outcome: 'error', durationMs: 900, chars: 12},
+                {route: 'google', outcome: 'success', durationMs: 300, chars: 12},
+            ],
+        }));
+        repository.record(requestEvent({
+            id: 'free-2',
+            serviceId: 'freeTranslation',
+            routes: ['google'],
+            routeAttempts: [{route: 'google', outcome: 'success', durationMs: 500, chars: 20}],
+        }));
+        await repository.flush();
+
+        expect((await database.requests.get('free-1'))?.routes).toEqual(['google', 'microsoft']);
+        const rollups = await database.routes.toArray();
+        expect(rollups.map((rollup) => [rollup.route, rollup.attemptCount, rollup.latencyCount, rollup.latencyDurationMs]).sort())
+            .toEqual([['google', 2, 2, 800], ['microsoft', 1, 0, 0]]);
+
+        const snapshot = await repository.getDashboard({range: 'today'});
+        expect(snapshot.routes.map((item) => [item.route, item.totals.attemptCount, item.totals.successRate]))
+            .toEqual([['google', 2, 1], ['microsoft', 1, 0]]);
+        await repository.clear();
+        expect(await database.routes.count()).toBe(0);
+    });
+
+    it('线路标识与尝试按白名单过滤，超出上限的尝试被丢弃', async () => {
+        const {repository, database} = createRepository();
+        repository.record(requestEvent({
+            id: 'free-invalid',
+            serviceId: 'freeTranslation',
+            routes: ['google', '', 7 as never, 'x'.repeat(260), ...Array.from({length: 20}, (_, index) => `route-${index}`)],
+            routeAttempts: [
+                {route: 'google', outcome: 'success', durationMs: 100, chars: 5},
+                {route: '', outcome: 'success', durationMs: 100, chars: 5},
+                {route: 42 as never, outcome: 'success', durationMs: 100, chars: 5},
+                {route: 'google', outcome: 'unknown' as never, durationMs: 100, chars: 5},
+                {route: 'google', outcome: 'success', durationMs: -1, chars: 5},
+                {route: 'google', outcome: 'success', durationMs: 100, chars: 1.5},
+                'not-an-attempt' as never,
+                null as never,
+                ...Array.from({length: 300}, () => ({route: 'microsoft', outcome: 'success' as const, durationMs: 10, chars: 1})),
+            ],
+        }));
+        await repository.flush();
+
+        const stored = await database.requests.get('free-invalid');
+        expect(stored?.routes).toHaveLength(12);
+        expect(stored?.routes).toContain('google');
+        const rollups = await database.routes.toArray();
+        expect(rollups.find((rollup) => rollup.route === 'google')?.attemptCount).toBe(1);
+        // 上限之前的 8 条里只有 1 条合法，其余 192 条 microsoft 尝试来自截断后的队列。
+        expect(rollups.find((rollup) => rollup.route === 'microsoft')?.attemptCount).toBe(192);
+        expect(await database.requests.count()).toBe(1);
     });
 
     it('快照先刷新队列，返回全部维度、最早记录与当前范围聚合', async () => {

@@ -1,12 +1,14 @@
 /**
  * @file src/features/translation-stats/model/presentation.ts
  * 文件职责：把翻译统计快照转换为设置页可直接渲染的展示模型，并按界面语言格式化耗时、数量、字节与比例。
- * 主要内容：提供趋势柱高度与结果分段、分桶分布行与尾部空桶裁剪、失败原因排行、服务表现排序、分页区间，以及本地化的耗时、紧凑数字、字节和百分比文本。
+ * 主要内容：提供趋势柱高度与结果分段、分桶分布行与尾部空桶裁剪、失败原因排行、服务与免费线路表现排序、分页区间，以及本地化的耗时、紧凑数字、字节和百分比文本。
  * 模块边界：本文件只做纯计算与格式化，不发送后台消息、不读取配置，也不包含 Vue 响应式或界面文案 key。
  */
 
 import {
     TRANSLATION_STATS_ERROR_KINDS,
+    type TranslationRouteBreakdownItem,
+    type TranslationRouteTotals,
     type TranslationStatsBreakdownItem,
     type TranslationStatsErrorKind,
     type TranslationStatsTimelinePoint,
@@ -16,6 +18,7 @@ import {
 export type TranslationStatsTrendMetric = 'requests' | 'latency' | 'chars';
 export type TranslationStatsTrendSegmentKey = 'success' | 'failed' | 'cancelled';
 export type TranslationStatsBreakdownSortKey = 'requests' | 'successRate' | 'average' | 'p95' | 'max' | 'size';
+export type TranslationRouteSortKey = 'attempts' | 'successRate' | 'average' | 'p95' | 'max' | 'size';
 export type TranslationStatsSortDirection = 'asc' | 'desc';
 
 export interface TranslationStatsTrendBar {
@@ -143,6 +146,37 @@ export function sortBreakdown(
             || right.totals.requestCount - left.totals.requestCount
             || left.serviceId.localeCompare(right.serviceId)
             || left.model.localeCompare(right.model);
+    });
+}
+
+export function routeMetric(totals: TranslationRouteTotals, key: TranslationRouteSortKey): number | null {
+    switch (key) {
+    case 'successRate': return totals.successRate;
+    case 'average': return totals.averageDurationMs;
+    case 'p95': return totals.p95DurationMs;
+    case 'max': return totals.maxDurationMs;
+    case 'size': return totals.averageChars;
+    default: return totals.attemptCount;
+    }
+}
+
+/** 与服务表现同样的排序规则：缺失值排在最后，同值按尝试次数和线路标识稳定排序。 */
+export function sortRoutes(
+    items: readonly TranslationRouteBreakdownItem[],
+    key: TranslationRouteSortKey,
+    direction: TranslationStatsSortDirection,
+): TranslationRouteBreakdownItem[] {
+    const factor = direction === 'asc' ? 1 : -1;
+    return [...items].sort((left, right) => {
+        const leftValue = routeMetric(left.totals, key);
+        const rightValue = routeMetric(right.totals, key);
+        if (leftValue === null || rightValue === null) {
+            return Number(leftValue === null) - Number(rightValue === null)
+                || right.totals.attemptCount - left.totals.attemptCount;
+        }
+        return (leftValue - rightValue) * factor
+            || right.totals.attemptCount - left.totals.attemptCount
+            || left.route.localeCompare(right.route);
     });
 }
 

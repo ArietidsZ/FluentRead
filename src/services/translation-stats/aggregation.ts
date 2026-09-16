@@ -1,7 +1,7 @@
 /**
  * @file src/services/translation-stats/aggregation.ts
  * 文件职责：把翻译请求事件折叠为本地小时汇总，并把汇总行计算成设置页可直接展示的统计快照。
- * 主要内容：提供本地日界线与小时桶、筛选归一化、分桶定位与分位数估算、事件折叠、总量与成功率/复用率/耗时指标计算、逐小时或逐日趋势，以及按服务与模型分组的表现排行。
+ * 主要内容：提供本地日界线与小时桶、筛选归一化、分桶定位与分位数估算、请求事件与线路尝试折叠、总量与成功率/复用率/耗时指标计算、逐小时或逐日趋势，以及按服务模型和内部线路分组的表现排行。
  * 模块边界：本文件只执行确定性的内存计算，不访问 IndexedDB、浏览器 runtime、翻译 provider 或 Vue 组件。
  */
 
@@ -18,6 +18,10 @@ import {
     type TranslationStatsDimension,
     type TranslationStatsFilter,
     type TranslationStatsRange,
+    type TranslationRouteAttempt,
+    type TranslationRouteBreakdownItem,
+    type TranslationRouteRollup,
+    type TranslationRouteTotals,
     type TranslationStatsRollup,
     type TranslationStatsSnapshot,
     type TranslationStatsTimelinePoint,
@@ -30,6 +34,8 @@ export interface TranslationStatsSnapshotOptions {
     now?: number;
     recordingStartedAt?: number | null;
     dimensions?: readonly TranslationStatsDimension[];
+    /** 免费翻译链等内部线路的小时汇总；缺省表示本次范围没有线路数据。 */
+    routeRollups?: readonly TranslationRouteRollup[];
 }
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -188,6 +194,109 @@ export function foldTranslationRequestEvent(rollup: TranslationStatsRollup, even
         next.durationHistogram[histogramIndex(event.durationMs, TRANSLATION_STATS_DURATION_BOUNDS_MS)] += 1;
     }
     return next;
+}
+
+export function createTranslationRouteRollup(bucketStart: number, serviceId: string, route: string): TranslationRouteRollup {
+    return {
+        bucketStart,
+        serviceId,
+        route,
+        schemaVersion: TRANSLATION_STATS_SCHEMA_VERSION,
+        attemptCount: 0,
+        outcomes: zeroRecord(TRANSLATION_REQUEST_OUTCOMES),
+        chars: 0,
+        maxChars: 0,
+        latencyCount: 0,
+        latencyDurationMs: 0,
+        latencyMaxDurationMs: 0,
+        durationHistogram: zeroHistogram(TRANSLATION_STATS_DURATION_BOUNDS_MS),
+    };
+}
+
+/** 线路尝试只有成功时才计入耗时；失败与超时仍计入尝试次数和成功率分母。 */
+export function foldTranslationRouteAttempt(rollup: TranslationRouteRollup, attempt: TranslationRouteAttempt): TranslationRouteRollup {
+    const next: TranslationRouteRollup = {
+        ...rollup,
+        outcomes: {...rollup.outcomes},
+        durationHistogram: [...rollup.durationHistogram],
+    };
+    next.attemptCount += 1;
+    next.outcomes[attempt.outcome] += 1;
+    next.chars += attempt.chars;
+    next.maxChars = Math.max(next.maxChars, attempt.chars);
+    if (attempt.outcome === 'success') {
+        next.latencyCount += 1;
+        next.latencyDurationMs += attempt.durationMs;
+        next.latencyMaxDurationMs = Math.max(next.latencyMaxDurationMs, attempt.durationMs);
+        next.durationHistogram[histogramIndex(attempt.durationMs, TRANSLATION_STATS_DURATION_BOUNDS_MS)] += 1;
+    }
+    return next;
+}
+
+export function emptyTranslationRouteTotals(): TranslationRouteTotals {
+    return {
+        attemptCount: 0,
+        outcomes: zeroRecord(TRANSLATION_REQUEST_OUTCOMES),
+        successRate: null,
+        chars: 0,
+        maxChars: 0,
+        averageChars: null,
+        latencyCount: 0,
+        averageDurationMs: null,
+        medianDurationMs: null,
+        p95DurationMs: null,
+        maxDurationMs: null,
+        durationHistogram: zeroHistogram(TRANSLATION_STATS_DURATION_BOUNDS_MS),
+    };
+}
+
+export function aggregateTranslationRouteTotals(rollups: readonly TranslationRouteRollup[]): TranslationRouteTotals {
+    const totals = emptyTranslationRouteTotals();
+    let latencyDurationMs = 0;
+    let maxDurationMs = 0;
+    for (const rollup of rollups) {
+        totals.attemptCount += rollup.attemptCount;
+        addRecord(totals.outcomes, rollup.outcomes);
+        totals.chars += rollup.chars;
+        totals.maxChars = Math.max(totals.maxChars, rollup.maxChars);
+        totals.latencyCount += rollup.latencyCount;
+        latencyDurationMs += rollup.latencyDurationMs;
+        maxDurationMs = Math.max(maxDurationMs, rollup.latencyMaxDurationMs);
+        addHistogram(totals.durationHistogram, rollup.durationHistogram);
+    }
+    const {success, error, timeout} = totals.outcomes;
+    const settled = success + error + timeout;
+    totals.successRate = settled > 0 ? success / settled : null;
+    if (totals.attemptCount > 0) totals.averageChars = totals.chars / totals.attemptCount;
+    if (totals.latencyCount > 0) {
+        totals.averageDurationMs = latencyDurationMs / totals.latencyCount;
+        totals.maxDurationMs = maxDurationMs;
+        totals.medianDurationMs = estimateHistogramPercentile(
+            totals.durationHistogram, TRANSLATION_STATS_DURATION_BOUNDS_MS, 0.5, maxDurationMs,
+        );
+        totals.p95DurationMs = estimateHistogramPercentile(
+            totals.durationHistogram, TRANSLATION_STATS_DURATION_BOUNDS_MS, 0.95, maxDurationMs,
+        );
+    }
+    return totals;
+}
+
+/** 按尝试次数降序排列线路，次数相同时保持服务与线路标识的稳定顺序。 */
+export function buildTranslationRouteBreakdown(rollups: readonly TranslationRouteRollup[]): TranslationRouteBreakdownItem[] {
+    const groups = new Map<string, {serviceId: string; route: string; rollups: TranslationRouteRollup[]}>();
+    for (const rollup of rollups) {
+        const key = `${rollup.serviceId}\u0000${rollup.route}`;
+        const group = groups.get(key) ?? {serviceId: rollup.serviceId, route: rollup.route, rollups: []};
+        group.rollups.push(rollup);
+        groups.set(key, group);
+    }
+    return [...groups.values()]
+        .map((group) => ({serviceId: group.serviceId, route: group.route, totals: aggregateTranslationRouteTotals(group.rollups)}))
+        .sort((left, right) => (
+            right.totals.attemptCount - left.totals.attemptCount
+            || left.serviceId.localeCompare(right.serviceId)
+            || left.route.localeCompare(right.route)
+        ));
 }
 
 function addHistogram(target: number[], source: readonly number[]): void {
@@ -403,5 +512,10 @@ export function buildTranslationStatsSnapshot(
         },
         timeline: buildTimeline(selected, filter.range, generatedAt),
         breakdown: buildBreakdown(selected),
+        routes: buildTranslationRouteBreakdown((options.routeRollups ?? []).filter((rollup) => (
+            (!filter.serviceId || rollup.serviceId === filter.serviceId)
+            && rollup.bucketStart >= rangeStart
+            && rollup.bucketStart <= generatedAt
+        ))),
     };
 }

@@ -1,7 +1,7 @@
 /**
  * @file src/services/translation-stats/types.ts
  * 文件职责：定义翻译请求统计的事件、小时汇总、筛选条件、设置页快照与请求记录分页的共享数据合同。
- * 主要内容：声明时间范围、请求来源与结果、耗时和文本规模分桶边界、保留上限、逐请求事件、按小时与服务模型聚合的汇总行、服务表现、趋势点和记录查询类型。
+ * 主要内容：声明时间范围、请求来源与结果、耗时和文本规模分桶边界、保留上限、逐请求事件与线路尝试、按小时聚合的服务模型与线路汇总行、服务与线路表现、趋势点和记录查询类型。
  * 模块边界：本文件只描述统计数据形状与常量，不读取浏览器存储、不计算聚合、不接触翻译 broker 或设置页组件。
  */
 
@@ -10,6 +10,9 @@ export const TRANSLATION_STATS_SCHEMA_VERSION = 1 as const;
 export const TRANSLATION_STATS_MAX_STORED_REQUESTS = 5_000 as const;
 export const TRANSLATION_STATS_ROLLUP_RETENTION_DAYS = 90 as const;
 export const TRANSLATION_STATS_REQUEST_PAGE_SIZE = 20 as const;
+/** 单次请求最多保留的线路尝试与线路标识数量，避免超大批量把统计事件撑大。 */
+export const TRANSLATION_STATS_MAX_ROUTE_ATTEMPTS = 200 as const;
+export const TRANSLATION_STATS_MAX_REQUEST_ROUTES = 12 as const;
 export const TRANSLATION_STATS_REQUEST_MAX_PAGE_SIZE = 100 as const;
 
 /** 耗时分桶上界（毫秒）；最后一个桶收纳超过最大上界的请求。 */
@@ -42,6 +45,14 @@ export const TRANSLATION_STATS_ERROR_KINDS: readonly TranslationStatsErrorKind[]
     'authentication', 'rate-limit', 'timeout', 'network', 'bad-request', 'provider', 'response', 'unknown',
 ];
 
+/** 免费翻译等内部多线路服务的一次线路尝试；一次请求可能包含多次尝试。 */
+export interface TranslationRouteAttempt {
+    route: string;
+    outcome: TranslationRequestOutcome;
+    durationMs: number;
+    chars: number;
+}
+
 /** Broker 在一次翻译请求结束后产生的事件，只包含时间、标识和数值。 */
 export interface TranslationRequestStatsEvent {
     id?: string;
@@ -64,12 +75,54 @@ export interface TranslationRequestStatsEvent {
     outcome: TranslationRequestOutcome;
     errorKind?: TranslationStatsErrorKind;
     statusCode?: number;
+    /** 本次请求实际用到的内部线路标识（免费翻译链）。 */
+    routes?: readonly string[];
+    /** 逐次线路尝试；只折叠进线路汇总，不随请求记录保存。 */
+    routeAttempts?: readonly TranslationRouteAttempt[];
 }
 
-export interface StoredTranslationRequestEvent extends Omit<TranslationRequestStatsEvent, 'id' | 'schemaVersion' | 'model'> {
+export interface StoredTranslationRequestEvent extends Omit<TranslationRequestStatsEvent, 'id' | 'schemaVersion' | 'model' | 'routes' | 'routeAttempts'> {
     id: string;
     schemaVersion: typeof TRANSLATION_STATS_SCHEMA_VERSION;
     model: string;
+    routes: string[];
+}
+
+/** 以本地小时、服务和线路为主键的尝试累计；耗时只统计成功的尝试。 */
+export interface TranslationRouteRollup {
+    bucketStart: number;
+    serviceId: string;
+    route: string;
+    schemaVersion: typeof TRANSLATION_STATS_SCHEMA_VERSION;
+    attemptCount: number;
+    outcomes: Record<TranslationRequestOutcome, number>;
+    chars: number;
+    maxChars: number;
+    latencyCount: number;
+    latencyDurationMs: number;
+    latencyMaxDurationMs: number;
+    durationHistogram: number[];
+}
+
+export interface TranslationRouteTotals {
+    attemptCount: number;
+    outcomes: Record<TranslationRequestOutcome, number>;
+    successRate: number | null;
+    chars: number;
+    maxChars: number;
+    averageChars: number | null;
+    latencyCount: number;
+    averageDurationMs: number | null;
+    medianDurationMs: number | null;
+    p95DurationMs: number | null;
+    maxDurationMs: number | null;
+    durationHistogram: number[];
+}
+
+export interface TranslationRouteBreakdownItem {
+    serviceId: string;
+    route: string;
+    totals: TranslationRouteTotals;
 }
 
 /** 以本地小时、服务和模型为主键的累计值；耗时字段只统计成功且实际请求服务的翻译。 */
@@ -163,6 +216,8 @@ export interface TranslationStatsSnapshot {
     };
     timeline: TranslationStatsTimelinePoint[];
     breakdown: TranslationStatsBreakdownItem[];
+    /** 免费翻译链等内部线路的尝试表现；没有线路数据时为空数组。 */
+    routes: TranslationRouteBreakdownItem[];
 }
 
 export type TranslationStatsRequestSort = 'recent' | 'slowest';

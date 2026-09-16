@@ -2,7 +2,7 @@
  * @file src/services/translation/broker.ts
  *
  * 文件职责：编排翻译请求的配置快照、语言解析、缓存、请求去重、超时与 provider 调用，是后台翻译用例的中心服务。
- * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量和类型，对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并按匿名额度身份、等待策略、清理代次与剩余 deadline 隔离 pending 请求；每次公开请求累计缓存复用、上游调用次数与耗时，结束后向注入的统计端口交付只含规模数值和服务标识的事件。 可核对的公开符号包括 createTranslationBroker、聚合导出。
+ * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量和类型，对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并按匿名额度身份、等待策略、清理代次与剩余 deadline 隔离 pending 请求；每次公开请求累计缓存复用、上游调用次数、耗时与免费链线路尝试，结束后向注入的统计端口交付只含规模数值、服务与线路标识的事件。 可核对的公开符号包括 createTranslationBroker、聚合导出。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -21,6 +21,7 @@ import type {
 import {
     attachTranslationModelUsageObserver,
     attachTranslationProviderConfig,
+    attachTranslationRouteObserver,
     attachTranslationRequestScheduler,
     createTranslationProviderConfigSnapshot,
     getTranslationGlossaryContext,
@@ -32,6 +33,7 @@ import {
     attachTranslationImageInput,
     TRANSLATION_REMAINING_BUDGET,
     type TranslationRemainingBudgetContext,
+    type TranslationRouteObservation,
 } from './requestSnapshot';
 import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
 import {buildGlossaryRevision, resolveGlossary} from '@/src/core/glossary';
@@ -60,7 +62,12 @@ import {
 } from './requestScheduler';
 import {serializeTranslationError} from './errors';
 import {measureImageDataUrlBytes, measureTranslationText} from '@/src/services/translation-stats/measure';
-import type {TranslationRequestOutcome, TranslationRequestSource} from '@/src/services/translation-stats/types';
+import {
+    TRANSLATION_STATS_MAX_ROUTE_ATTEMPTS,
+    type TranslationRequestOutcome,
+    type TranslationRequestSource,
+    type TranslationRouteAttempt,
+} from '@/src/services/translation-stats/types';
 
 export type {
     TranslationBatchRequestMessage,
@@ -82,6 +89,7 @@ interface TranslationRequestTrace {
     shared: boolean;
     upstreamCalls: number;
     upstreamMs: number;
+    routeAttempts: TranslationRouteAttempt[];
 }
 
 interface TranslationRequestExecution {
@@ -616,10 +624,13 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     const usageGeneration = deps.captureModelUsageGeneration?.() ?? 0;
                     const observations: TranslationModelUsageObservation[] = [];
                     const selectedModel = getEffectiveRequestModel(execution.config, execution.service, message.modelOverride);
-                    const providerMessage = attachTranslationRequestScheduler(attachTranslationModelUsageObserver({
-                        ...message,
-                        abortSignal: controller.signal,
-                    }, (observation) => observations.push({...observation})), requestScheduler, {
+                    const providerMessage = attachTranslationRequestScheduler(attachTranslationRouteObserver(
+                        attachTranslationModelUsageObserver({
+                            ...message,
+                            abortSignal: controller.signal,
+                        }, (observation) => observations.push({...observation})),
+                        (observation) => collectRouteAttempt(execution.trace, observation),
+                    ), requestScheduler, {
                         service: execution.service,
                         model: selectedModel,
                     });
@@ -1390,6 +1401,17 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         return request;
     }
 
+    /** 免费翻译链等内部线路的尝试按上限收集；未注入统计端口时不保留任何观察。 */
+    function collectRouteAttempt(trace: TranslationRequestTrace, observation: TranslationRouteObservation): void {
+        if (!deps.recordTranslationRequest || trace.routeAttempts.length >= TRANSLATION_STATS_MAX_ROUTE_ATTEMPTS) return;
+        trace.routeAttempts.push({
+            route: observation.route,
+            outcome: observation.outcome,
+            durationMs: Math.max(0, observation.durationMs),
+            chars: Math.max(0, observation.chars),
+        });
+    }
+
     /** 未注入统计端口时不额外读取时钟，保持既有调用路径与注入时钟的读取顺序。 */
     function addUpstreamElapsed(trace: TranslationRequestTrace, startedAt: number): void {
         if (deps.recordTranslationRequest) trace.upstreamMs += Math.max(0, now() - startedAt);
@@ -1431,6 +1453,10 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 upstreamCalls: trace.upstreamCalls,
                 upstreamMs: trace.upstreamMs,
                 outcome,
+                ...(trace.routeAttempts.length > 0 ? {
+                    routes: [...new Set(trace.routeAttempts.map((attempt) => attempt.route))],
+                    routeAttempts: trace.routeAttempts,
+                } : {}),
                 ...(failure ? {
                     errorKind: failure.kind,
                     ...(failure.statusCode !== undefined ? {statusCode: failure.statusCode} : {}),
@@ -1446,7 +1472,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         if (Array.isArray(message.origin) && message.origin.length === 0) return [];
         if (typeof message.origin === 'string' && !message.origin.trim()) return message.origin;
 
-        const trace: TranslationRequestTrace = {cachedSegments: 0, shared: false, upstreamCalls: 0, upstreamMs: 0};
+        const trace: TranslationRequestTrace = {cachedSegments: 0, shared: false, upstreamCalls: 0, upstreamMs: 0, routeAttempts: []};
         const startedAt = now();
         const statsGeneration = deps.captureTranslationStatsGeneration?.() ?? 0;
         try {

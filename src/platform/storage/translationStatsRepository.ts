@@ -1,7 +1,7 @@
 /**
  * @file src/platform/storage/translationStatsRepository.ts
  * 文件职责：在扩展后台专属 IndexedDB 中保存翻译请求统计，提供低开销的缓冲写入、设置页快照、请求记录分页与独立清除能力。
- * 主要内容：定义 FluentReadTranslationStats Dexie 数据库、事件白名单归一化、按代次失效的内存队列、事务内追加最近请求并折叠小时汇总、超额记录与过期汇总清理，以及串行化的读写与清除操作。
+ * 主要内容：定义 FluentReadTranslationStats Dexie 数据库、事件与线路尝试白名单归一化、按代次失效的内存队列、事务内追加最近请求并折叠服务与线路小时汇总、超额记录与过期汇总清理，以及串行化的读写与清除操作。
  * 模块边界：本文件只拥有翻译统计的本地持久化适配，只接受数值与标识字段；不注册 runtime 消息、不计算界面格式，也不参与翻译结果或缓存。
  */
 
@@ -9,9 +9,12 @@ import Dexie, {type Table} from 'dexie';
 import {
     buildTranslationStatsSnapshot,
     collectTranslationStatsDimensions,
+    createTranslationRouteRollup,
     createTranslationStatsRollup,
     foldTranslationRequestEvent,
+    foldTranslationRouteAttempt,
     getTranslationStatsRangeStart,
+    localHourBucketStart,
     normalizeTranslationStatsFilter,
     translationStatsRollupKey,
 } from '@/src/services/translation-stats/aggregation';
@@ -23,9 +26,13 @@ import {
     TRANSLATION_STATS_MAX_STORED_REQUESTS,
     TRANSLATION_STATS_REQUEST_MAX_PAGE_SIZE,
     TRANSLATION_STATS_REQUEST_PAGE_SIZE,
+    TRANSLATION_STATS_MAX_REQUEST_ROUTES,
+    TRANSLATION_STATS_MAX_ROUTE_ATTEMPTS,
     TRANSLATION_STATS_ROLLUP_RETENTION_DAYS,
     TRANSLATION_STATS_SCHEMA_VERSION,
     type StoredTranslationRequestEvent,
+    type TranslationRouteAttempt,
+    type TranslationRouteRollup,
     type TranslationRequestStatsEvent,
     type TranslationStatsFilter,
     type TranslationStatsRequestFilter,
@@ -36,7 +43,7 @@ import {
 } from '@/src/services/translation-stats/types';
 
 export const TRANSLATION_STATS_DATABASE_NAME = 'FluentReadTranslationStats' as const;
-export const TRANSLATION_STATS_DATABASE_VERSION = 1 as const;
+export const TRANSLATION_STATS_DATABASE_VERSION = 2 as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_IDENTIFIER_LENGTH = 200;
@@ -46,16 +53,23 @@ const DEFAULT_MAX_BUFFERED_EVENTS = 100;
 let generatedEventSequence = 0;
 
 type RollupKey = [number, string, string];
+type RouteRollupKey = [number, string, string];
 
 export class FluentReadTranslationStatsDatabase extends Dexie {
     requests!: Table<StoredTranslationRequestEvent, string>;
     rollups!: Table<TranslationStatsRollup, RollupKey>;
+    routes!: Table<TranslationRouteRollup, RouteRollupKey>;
 
     constructor(name: string = TRANSLATION_STATS_DATABASE_NAME) {
         super(name);
+        this.version(1).stores({
+            requests: '&id, startedAt, [startedAt+id]',
+            rollups: '[bucketStart+serviceId+model], bucketStart, [serviceId+model]',
+        });
         this.version(TRANSLATION_STATS_DATABASE_VERSION).stores({
             requests: '&id, startedAt, [startedAt+id]',
             rollups: '[bucketStart+serviceId+model], bucketStart, [serviceId+model]',
+            routes: '[bucketStart+serviceId+route], bucketStart',
         });
     }
 }
@@ -152,7 +166,37 @@ export function normalizeTranslationRequestEvent(event: TranslationRequestStatsE
         outcome,
         ...(errorKind ? {errorKind} : {}),
         ...(statusCode !== undefined ? {statusCode} : {}),
+        routes: normalizeRoutes(event.routes),
     };
+}
+
+/** 线路标识与尝试同样只保留白名单数值；非法项被丢弃而不是让整条统计失败。 */
+export function normalizeTranslationRouteAttempts(value: unknown): TranslationRouteAttempt[] {
+    if (!Array.isArray(value)) return [];
+    const attempts: TranslationRouteAttempt[] = [];
+    for (const candidate of value.slice(0, TRANSLATION_STATS_MAX_ROUTE_ATTEMPTS)) {
+        if (!candidate || typeof candidate !== 'object') continue;
+        const attempt = candidate as Partial<TranslationRouteAttempt>;
+        const route = typeof attempt.route === 'string' ? identifier(attempt.route, 'route', true) : '';
+        const outcome = TRANSLATION_REQUEST_OUTCOMES.find((value) => value === attempt.outcome);
+        const durationMs = typeof attempt.durationMs === 'number' && Number.isFinite(attempt.durationMs) && attempt.durationMs >= 0
+            ? attempt.durationMs
+            : -1;
+        const chars = typeof attempt.chars === 'number' && Number.isSafeInteger(attempt.chars) && attempt.chars >= 0
+            ? attempt.chars
+            : -1;
+        if (route && outcome && durationMs >= 0 && chars >= 0) attempts.push({route, outcome, durationMs, chars});
+    }
+    return attempts;
+}
+
+function normalizeRoutes(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    const routes = value
+        .filter((route): route is string => typeof route === 'string')
+        .map((route) => identifier(route, 'route', true))
+        .filter(Boolean);
+    return [...new Set(routes)].sort().slice(0, TRANSLATION_STATS_MAX_REQUEST_ROUTES);
 }
 
 function boundedInteger(value: number | undefined, fallback: number, minimum: number, maximum: number, field: string): number {
@@ -172,7 +216,7 @@ function matchesRequestFilter(event: StoredTranslationRequestEvent, filter: Tran
 
 export class TranslationStatsRepository {
     private generation = 0;
-    private queue: StoredTranslationRequestEvent[] = [];
+    private queue: Array<{event: StoredTranslationRequestEvent; attempts: TranslationRouteAttempt[]}> = [];
     private timer: unknown = null;
     private operations: Promise<void> = Promise.resolve();
     private readonly flushDelayMs: number;
@@ -213,7 +257,7 @@ export class TranslationStatsRepository {
             this.warn('[FluentRead] translation stats event rejected:', error);
             return;
         }
-        this.queue.push(normalized);
+        this.queue.push({event: normalized, attempts: normalizeTranslationRouteAttempts(event.routeAttempts)});
         if (this.queue.length >= this.maxBufferedEvents) {
             void this.flush();
             return;
@@ -242,10 +286,12 @@ export class TranslationStatsRepository {
     }
 
     private async writeQueued(): Promise<void> {
-        const batch = this.queue.splice(0);
-        if (batch.length === 0) return;
-        const {requests, rollups} = this.database;
-        await this.database.transaction('rw', requests, rollups, async () => {
+        const queued = this.queue.splice(0);
+        if (queued.length === 0) return;
+        const batch = queued.map((item) => item.event);
+        const attempts = queued.flatMap((item) => item.attempts.map((attempt) => ({serviceId: item.event.serviceId, startedAt: item.event.startedAt, attempt})));
+        const {requests, rollups, routes} = this.database;
+        await this.database.transaction('rw', requests, rollups, routes, async () => {
             await requests.bulkPut(batch);
 
             const grouped = new Map<string, {key: RollupKey; events: StoredTranslationRequestEvent[]}>();
@@ -263,12 +309,31 @@ export class TranslationStatsRepository {
                 existing[index] ?? createTranslationStatsRollup(...group.key),
             )));
 
+            const routeGroups = new Map<string, {key: RouteRollupKey; attempts: TranslationRouteAttempt[]}>();
+            for (const {serviceId, startedAt, attempt} of attempts) {
+                const key: RouteRollupKey = [localHourBucketStart(startedAt), serviceId, attempt.route];
+                const id = JSON.stringify(key);
+                const group = routeGroups.get(id) ?? {key, attempts: []};
+                group.attempts.push(attempt);
+                routeGroups.set(id, group);
+            }
+            if (routeGroups.size > 0) {
+                const groups = [...routeGroups.values()];
+                const existing = await routes.bulkGet(groups.map((group) => group.key));
+                await routes.bulkPut(groups.map((group, index) => group.attempts.reduce(
+                    foldTranslationRouteAttempt,
+                    existing[index] ?? createTranslationRouteRollup(...group.key),
+                )));
+            }
+
             const overflow = await requests.count() - this.maxStoredRequests;
             if (overflow > 0) {
                 const expired = await requests.orderBy('[startedAt+id]').limit(overflow).primaryKeys();
                 await requests.bulkDelete(expired);
             }
-            await rollups.where('bucketStart').below(this.now() - this.rollupRetentionMs).delete();
+            const retentionCutoff = this.now() - this.rollupRetentionMs;
+            await rollups.where('bucketStart').below(retentionCutoff).delete();
+            await routes.where('bucketStart').below(retentionCutoff).delete();
         });
     }
 
@@ -276,11 +341,12 @@ export class TranslationStatsRepository {
         await this.flush();
         const normalized = normalizeTranslationStatsFilter(filter);
         const rangeStart = getTranslationStatsRangeStart(normalized.range, now);
-        const {rollups} = this.database;
-        const [selected, first, dimensionKeys] = await this.database.transaction('r', rollups, () => Promise.all([
+        const {rollups, routes} = this.database;
+        const [selected, first, dimensionKeys, routeRollups] = await this.database.transaction('r', rollups, routes, () => Promise.all([
             rollups.where('bucketStart').between(rangeStart, now, true, true).toArray(),
             rollups.orderBy('bucketStart').first(),
             rollups.orderBy('[serviceId+model]').uniqueKeys(),
+            routes.where('bucketStart').between(rangeStart, now, true, true).toArray(),
         ]));
         const dimensions = collectTranslationStatsDimensions((dimensionKeys as unknown as Array<[string, string]>)
             .map(([serviceId, model]) => ({serviceId, model})));
@@ -288,6 +354,7 @@ export class TranslationStatsRepository {
             now,
             recordingStartedAt: first?.bucketStart ?? null,
             dimensions,
+            routeRollups,
         });
     }
 
@@ -333,9 +400,10 @@ export class TranslationStatsRepository {
             this.timer = null;
         }
         return this.enqueue(async () => {
-            await this.database.transaction('rw', this.database.requests, this.database.rollups, async () => {
+            await this.database.transaction('rw', this.database.requests, this.database.rollups, this.database.routes, async () => {
                 await this.database.requests.clear();
                 await this.database.rollups.clear();
+                await this.database.routes.clear();
             });
         });
     }

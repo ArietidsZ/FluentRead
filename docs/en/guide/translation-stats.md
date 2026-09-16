@@ -19,6 +19,12 @@ Durations include only successful requests that reached a service. Results retur
 
 Batch requests contain several segments and naturally take longer. The “≈ X characters/s” figure on each row helps compare services fairly.
 
+## Free translation routes
+
+With free translation, one request may try several routes in turn (Microsoft, Google, Youdao, and so on), switching automatically after a failure. The **Free translation routes** table lists attempts, success rate, average duration, P95, longest duration, and average size per route, so you can tell which routes are fast and which fail often, then adjust the enabled routes or their order under **Translation services → Free translation**.
+
+Because failures are retried on other routes, route attempts usually outnumber requests, and route durations count successful attempts only. The request history also shows which routes served each request.
+
 ## Distributions and failures
 
 The duration and request size distributions show whether slow requests are rare or common. Failures are grouped into invalid key or permission, rate or quota limit, timeout, network issue, and more. If rate limits are frequent, lower concurrency or requests per second in **Advanced**.

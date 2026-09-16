@@ -6,6 +6,7 @@ import {
     attachTranslationImageInput,
     attachTranslationRequestControl,
     markTranslationRemainingBudget,
+    reportTranslationRoute,
 } from '@/src/services/translation/requestSnapshot';
 import type {TranslationRequestStatsEvent} from '@/src/services/translation-stats/types';
 
@@ -243,8 +244,42 @@ describe('翻译 broker 请求统计', () => {
         expect(harness.warn).toHaveBeenCalledWith('[FluentRead] translation stats record failed:', expect.any(Error));
     });
 
+    it('免费链的线路尝试按上限随请求事件上报，并保留去重后的线路标识', async () => {
+        const attempts = [
+            {route: 'microsoft', outcome: 'error' as const, durationMs: 900, chars: 5},
+            {route: 'google', outcome: 'success' as const, durationMs: 250, chars: 5},
+            {route: 'google', outcome: 'success' as const, durationMs: 150, chars: 4},
+        ];
+        harness.provider.mockImplementationOnce(async (message: Record<string, unknown>) => {
+            for (const attempt of attempts) reportTranslationRoute(message, attempt);
+            return '译:free';
+        });
+
+        await expect(harness.translate({origin: 'free chain', serviceOverride: 'other'})).resolves.toBe('译:free');
+
+        const [event] = harness.events();
+        expect(event.routes).toEqual(['microsoft', 'google']);
+        expect(event.routeAttempts).toEqual(attempts);
+
+        harness.provider.mockImplementationOnce(async (message: Record<string, unknown>) => {
+            for (let index = 0; index < 250; index += 1) {
+                reportTranslationRoute(message, {route: `route-${index}`, outcome: 'success', durationMs: -5, chars: 1});
+            }
+            return '译:capped';
+        });
+        await harness.translate({origin: 'capped chain', serviceOverride: 'other'});
+        const capped = harness.events()[1];
+        expect(capped.routeAttempts).toHaveLength(200);
+        expect(capped.routes).toHaveLength(200);
+        expect(capped.routeAttempts?.[0]).toEqual({route: 'route-0', outcome: 'success', durationMs: 0, chars: 1});
+    });
+
     it('未注入统计端口时不采集，未注入代次捕获时使用 0', async () => {
         const silent = createHarness({recordTranslationRequest: undefined});
+        silent.provider.mockImplementationOnce(async (message: Record<string, unknown>) => {
+            reportTranslationRoute(message, {route: 'google', outcome: 'success', durationMs: 10, chars: 2});
+            return '译:quiet';
+        });
         await expect(silent.translate({origin: 'quiet'})).resolves.toBe('译:quiet');
         expect(silent.record).not.toHaveBeenCalled();
 

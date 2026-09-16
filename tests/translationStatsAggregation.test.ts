@@ -1,6 +1,11 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {
+    aggregateTranslationRouteTotals,
     aggregateTranslationStatsTotals,
+    buildTranslationRouteBreakdown,
+    createTranslationRouteRollup,
+    emptyTranslationRouteTotals,
+    foldTranslationRouteAttempt,
     buildTranslationStatsSnapshot,
     collectTranslationStatsDimensions,
     createTranslationStatsRollup,
@@ -20,6 +25,8 @@ import {
     TRANSLATION_STATS_DURATION_BOUNDS_MS,
     TRANSLATION_STATS_SIZE_BOUNDS_CHARS,
     type TranslationRequestStatsEvent,
+    type TranslationRouteAttempt,
+    type TranslationRouteRollup,
     type TranslationStatsRollup,
 } from '@/src/services/translation-stats/types';
 
@@ -202,6 +209,68 @@ describe('翻译统计事件折叠与汇总', () => {
     });
 });
 
+describe('免费线路尝试聚合', () => {
+    const attempt = (overrides: Partial<TranslationRouteAttempt> = {}): TranslationRouteAttempt => ({
+        route: 'microsoft', outcome: 'success', durationMs: 400, chars: 30, ...overrides,
+    });
+    const routeRollup = (route: string, attempts: TranslationRouteAttempt[], bucketStart = new Date(2026, 8, 16, 10).getTime()): TranslationRouteRollup => (
+        attempts.reduce(foldTranslationRouteAttempt, createTranslationRouteRollup(bucketStart, 'freeTranslation', route))
+    );
+
+    it('折叠尝试时只有成功计入耗时，失败与取消仍计入尝试和成功率分母', () => {
+        const base = createTranslationRouteRollup(1, 'freeTranslation', 'microsoft');
+        const folded = [
+            attempt({durationMs: 200, chars: 10}),
+            attempt({outcome: 'error', durationMs: 900, chars: 40}),
+            attempt({outcome: 'timeout', durationMs: 5_000, chars: 40}),
+            attempt({outcome: 'cancelled', durationMs: 50, chars: 40}),
+        ].reduce(foldTranslationRouteAttempt, base);
+
+        expect(base.attemptCount).toBe(0);
+        expect(folded).toMatchObject({
+            attemptCount: 4,
+            outcomes: {success: 1, error: 1, timeout: 1, cancelled: 1},
+            chars: 130,
+            maxChars: 40,
+            latencyCount: 1,
+            latencyDurationMs: 200,
+            latencyMaxDurationMs: 200,
+        });
+        expect(folded.durationHistogram.reduce((sum, count) => sum + count, 0)).toBe(1);
+    });
+
+    it('线路汇总计算成功率、平均文本量与耗时分位，空输入返回缺失指标', () => {
+        expect(aggregateTranslationRouteTotals([])).toEqual(emptyTranslationRouteTotals());
+
+        const totals = aggregateTranslationRouteTotals([
+            routeRollup('microsoft', [attempt({durationMs: 200}), attempt({durationMs: 600})]),
+            routeRollup('microsoft', [attempt({outcome: 'error', durationMs: 1_000, chars: 60})], new Date(2026, 8, 16, 11).getTime()),
+        ]);
+
+        expect(totals.attemptCount).toBe(3);
+        expect(totals.successRate).toBeCloseTo(2 / 3);
+        expect(totals.averageChars).toBe(40);
+        expect(totals.maxChars).toBe(60);
+        expect(totals.latencyCount).toBe(2);
+        expect(totals.averageDurationMs).toBe(400);
+        expect(totals.maxDurationMs).toBe(600);
+        expect(totals.medianDurationMs).toBeGreaterThan(0);
+        expect(totals.p95DurationMs).toBeLessThanOrEqual(600);
+    });
+
+    it('线路排行按尝试次数降序，并在次数相同时按服务与线路标识稳定排序', () => {
+        expect(buildTranslationRouteBreakdown([
+            routeRollup('google', [attempt({route: 'google'})]),
+            routeRollup('microsoft', [attempt(), attempt()]),
+            routeRollup('deeplx', [attempt({route: 'deeplx'})]),
+        ]).map((item) => [item.route, item.totals.attemptCount])).toEqual([
+            ['microsoft', 2],
+            ['deeplx', 1],
+            ['google', 1],
+        ]);
+    });
+});
+
 describe('翻译统计快照', () => {
     const rollups = [
         rollupOf([requestEvent({startedAt: new Date(2026, 8, 16, 9, 5).getTime(), serviceId: 'google'})]),
@@ -242,6 +311,30 @@ describe('翻译统计快照', () => {
         expect(month.selected.filter).toEqual({range: '30d', serviceId: 'openai', model: 'gpt-b'});
         expect(month.breakdown).toHaveLength(1);
         expect(buildTranslationStatsSnapshot(rollups, {range: '30d'}, {now: NOW}).selected.totals.requestCount).toBe(6);
+    });
+
+    it('线路表现随范围与服务筛选，未提供线路汇总时为空数组', () => {
+        const routeRollups = [
+            foldTranslationRouteAttempt(
+                createTranslationRouteRollup(new Date(2026, 8, 16, 10).getTime(), 'freeTranslation', 'microsoft'),
+                {route: 'microsoft', outcome: 'success', durationMs: 300, chars: 20},
+            ),
+            foldTranslationRouteAttempt(
+                createTranslationRouteRollup(new Date(2026, 8, 12, 10).getTime(), 'freeTranslation', 'google'),
+                {route: 'google', outcome: 'error', durationMs: 900, chars: 20},
+            ),
+            foldTranslationRouteAttempt(
+                createTranslationRouteRollup(new Date(2026, 8, 16, 16).getTime(), 'freeTranslation', 'deeplx'),
+                {route: 'deeplx', outcome: 'success', durationMs: 100, chars: 20},
+            ),
+        ];
+
+        expect(buildTranslationStatsSnapshot(rollups, {range: '30d'}, {now: NOW}).routes).toEqual([]);
+        const today = buildTranslationStatsSnapshot(rollups, {range: 'today'}, {now: NOW, routeRollups});
+        expect(today.routes.map((item) => item.route)).toEqual(['microsoft']);
+        const week = buildTranslationStatsSnapshot(rollups, {range: '7d'}, {now: NOW, routeRollups});
+        expect(week.routes.map((item) => item.route)).toEqual(['google', 'microsoft']);
+        expect(buildTranslationStatsSnapshot(rollups, {range: '7d', serviceId: 'google'}, {now: NOW, routeRollups}).routes).toEqual([]);
     });
 
     it('未传入当前时间时使用系统时间，空数据没有最早记录', () => {

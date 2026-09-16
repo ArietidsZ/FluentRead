@@ -1,7 +1,7 @@
 <!--
  @file src/features/translation-stats/ui/TranslationStatsDashboard.vue
  文件职责：在 Options 设置页展示翻译请求统计，帮助用户了解请求规模、耗时分布和各翻译服务的表现。
- 主要内容：提供服务、模型与时间范围筛选，呈现请求量、文本量、耗时和缓存复用概览，可切换指标的趋势柱图，可排序的服务表现表，耗时与规模分布、失败原因，以及可按来源、状态与耗时排序的请求记录和清除统计确认。
+ 主要内容：提供服务、模型与时间范围筛选，呈现请求量、文本量、耗时和缓存复用概览，可切换指标的趋势柱图，可排序的服务表现与免费线路表，耗时与规模分布、失败原因，以及可按来源、状态与耗时排序的请求记录和清除统计确认。
  模块边界：组件只通过后台 translationStats 消息读取数值快照与记录，不直接访问 IndexedDB、不发起翻译，也不修改翻译设置；聚合、持久化与采集分别由 services、platform/storage 和翻译 broker 负责。
 -->
 <template>
@@ -237,6 +237,46 @@
           <p class="stats-footnote">{{ t('translationStats.services.latencyNote') }}</p>
         </section>
 
+        <section v-if="snapshot.routes.length" class="stats-card stats-services stats-routes" aria-labelledby="stats-routes-title">
+          <header class="stats-card-header">
+            <div>
+              <span class="stats-card-label">{{ t('translationStats.routes.subtitle') }}</span>
+              <strong id="stats-routes-title">{{ t('translationStats.routes.title') }}</strong>
+            </div>
+          </header>
+          <div class="stats-table-wrap">
+            <table class="stats-table stats-route-table">
+              <thead>
+                <tr>
+                  <th scope="col">{{ t('translationStats.routes.column.route') }}</th>
+                  <th v-for="column in routeColumns" :key="column" scope="col" :aria-sort="routeAriaSort(column)">
+                    <button type="button" class="stats-sort" :class="{active: routeSort === column}" @click="toggleRouteSort(column)">
+                      {{ column === 'p95' ? 'P95' : t(`translationStats.routes.column.${column}`) }}<i aria-hidden="true">{{ routeSort === column ? (routeDirection === 'asc' ? '↑' : '↓') : '' }}</i>
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in visibleRoutes" :key="`${row.serviceId}:${row.route}`">
+                  <th scope="row">
+                    <span class="stats-service">
+                      <ServiceIcon :service="row.route" :label="routeLabel(row.route)" size="small" />
+                      <span><strong>{{ routeLabel(row.route) }}</strong></span>
+                    </span>
+                  </th>
+                  <td :data-label="t('translationStats.routes.column.attempts')">{{ formatNumber(row.totals.attemptCount) }}</td>
+                  <td :data-label="t('translationStats.routes.column.successRate')" :class="{warning: (row.totals.successRate ?? 1) < 0.95}">{{ formatPercent(row.totals.successRate) }}</td>
+                  <td :data-label="t('translationStats.routes.column.average')">{{ formatDuration(row.totals.averageDurationMs) }}</td>
+                  <td data-label="P95">{{ formatDuration(row.totals.p95DurationMs) }}</td>
+                  <td :data-label="t('translationStats.routes.column.max')">{{ formatDuration(row.totals.maxDurationMs) }}</td>
+                  <td :data-label="t('translationStats.routes.column.size')">{{ formatAverage(row.totals.averageChars) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="stats-footnote">{{ t('translationStats.routes.note') }}</p>
+        </section>
+
         <div class="stats-distribution-grid">
           <section class="stats-card" aria-labelledby="stats-duration-title">
             <header class="stats-card-header">
@@ -351,6 +391,7 @@
                       <span>
                         <strong>{{ serviceLabel(item.serviceId) }}</strong>
                         <small v-if="item.model">{{ item.model }}</small>
+                        <small v-else-if="item.routes.length">{{ routeSummary(item.routes) }}</small>
                       </span>
                     </span>
                   </td>
@@ -433,6 +474,7 @@ import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import {useUiI18n} from '@/src/ui/i18n'
 import {options} from '@/src/core/config/catalog'
 import {getCustomOpenAIProviderLabel, type CustomOpenAIProvider} from '@/src/core/config/customOpenAI'
+import {FREE_TRANSLATION_PROVIDERS} from '@/src/core/config/freeTranslation'
 import {config, subscribeConfig} from '@/src/services/config/store'
 import {
   TRANSLATION_REQUEST_OUTCOMES,
@@ -463,10 +505,12 @@ import {
   formatStatsPercent,
   requestPageRange,
   sortBreakdown,
+  sortRoutes,
   trimHistogramRows,
   type TranslationStatsBreakdownSortKey,
   type TranslationStatsHistogramRow,
   type TranslationStatsSortDirection,
+  type TranslationRouteSortKey,
   type TranslationStatsTrendBar,
   type TranslationStatsTrendMetric,
 } from '../model/presentation'
@@ -479,6 +523,7 @@ const rangeOptions: readonly TranslationStatsRange[] = ['today', '7d', '30d']
 const trendMetrics: readonly TranslationStatsTrendMetric[] = ['requests', 'latency', 'chars']
 const trendSegmentKeys = ['success', 'failed', 'cancelled'] as const
 const breakdownColumns: readonly TranslationStatsBreakdownSortKey[] = ['requests', 'successRate', 'average', 'p95', 'max', 'size']
+const routeColumns: readonly TranslationRouteSortKey[] = ['attempts', 'successRate', 'average', 'p95', 'max', 'size']
 const pageSizeOptions = [TRANSLATION_STATS_REQUEST_PAGE_SIZE, 50, 100] as const
 
 const props = withDefaults(defineProps<{active?: boolean}>(), {active: true})
@@ -495,6 +540,8 @@ const trendMetric = ref<TranslationStatsTrendMetric>('requests')
 const selectedBarKey = ref('')
 const breakdownSort = ref<TranslationStatsBreakdownSortKey>('requests')
 const breakdownDirection = ref<TranslationStatsSortDirection>('desc')
+const routeSort = ref<TranslationRouteSortKey>('attempts')
+const routeDirection = ref<TranslationStatsSortDirection>('desc')
 const showAllBreakdown = ref(false)
 const logItems = ref<StoredTranslationRequestEvent[]>([])
 const logTotal = ref(0)
@@ -544,6 +591,7 @@ const visibleBreakdown = computed(() => {
   const rows = sortBreakdown(snapshot.value?.breakdown ?? [], breakdownSort.value, breakdownDirection.value)
   return showAllBreakdown.value ? rows : rows.slice(0, BREAKDOWN_PREVIEW_COUNT)
 })
+const visibleRoutes = computed(() => sortRoutes(snapshot.value?.routes ?? [], routeSort.value, routeDirection.value))
 const durationRows = computed(() => buildHistogramRows(totals.value.durationHistogram, TRANSLATION_STATS_DURATION_BOUNDS_MS))
 const sizeRows = computed(() => buildHistogramRows(totals.value.sizeHistogram, TRANSLATION_STATS_SIZE_BOUNDS_CHARS))
 const errorRows = computed(() => buildErrorKindRows(totals.value.errorKinds))
@@ -652,6 +700,31 @@ function toggleBreakdownSort(column: TranslationStatsBreakdownSortKey): void {
 function breakdownAriaSort(column: TranslationStatsBreakdownSortKey): 'ascending' | 'descending' | 'none' {
   if (breakdownSort.value !== column) return 'none'
   return breakdownDirection.value === 'asc' ? 'ascending' : 'descending'
+}
+
+function routeLabel(route: string): string {
+  const provider = FREE_TRANSLATION_PROVIDERS.find((item) => item.id === route)
+  return provider ? translateLegacy(provider.label) : route
+}
+
+function routeSummary(routes: readonly string[]): string {
+  const [first, ...rest] = routes
+  // “+N”是各界面语言通用的计数写法，直接拼出，不占用 message key。
+  return rest.length ? `${routeLabel(first)} +${formatNumber(rest.length)}` : routeLabel(first)
+}
+
+function toggleRouteSort(column: TranslationRouteSortKey): void {
+  if (routeSort.value === column) {
+    routeDirection.value = routeDirection.value === 'desc' ? 'asc' : 'desc'
+    return
+  }
+  routeSort.value = column
+  routeDirection.value = ['average', 'p95', 'max'].includes(column) ? 'asc' : 'desc'
+}
+
+function routeAriaSort(column: TranslationRouteSortKey): 'ascending' | 'descending' | 'none' {
+  if (routeSort.value !== column) return 'none'
+  return routeDirection.value === 'asc' ? 'ascending' : 'descending'
 }
 
 function isBreakdownActive(row: TranslationStatsBreakdownItem): boolean {

@@ -11,10 +11,19 @@ import {
     formatStatsNumber,
     formatStatsPercent,
     requestPageRange,
+    routeMetric,
     sortBreakdown,
+    sortRoutes,
     trimHistogramRows,
 } from '@/src/features/translation-stats/model/presentation';
-import type {TranslationStatsBreakdownItem, TranslationStatsTimelinePoint, TranslationStatsTotals} from '@/src/services/translation-stats/types';
+import {emptyTranslationRouteTotals} from '@/src/services/translation-stats/aggregation';
+import type {
+    TranslationRouteBreakdownItem,
+    TranslationRouteTotals,
+    TranslationStatsBreakdownItem,
+    TranslationStatsTimelinePoint,
+    TranslationStatsTotals,
+} from '@/src/services/translation-stats/types';
 
 function totals(overrides: Partial<TranslationStatsTotals> = {}): TranslationStatsTotals {
     return {...emptyTranslationStatsTotals(), ...overrides};
@@ -99,6 +108,37 @@ describe('翻译统计展示模型', () => {
         expect(ids('max', 'asc').slice(-2)).toEqual(['bing:', 'deepL:']);
         expect(breakdownMetric(rows[0].totals, 'max')).toBe(1_500);
         expect(rows.map((row) => row.serviceId)).toEqual(['google', 'openai', 'openai', 'deepL', 'bing']);
+    });
+
+    it('免费线路按尝试次数、成功率和耗时排序，缺失耗时的线路排在最后', () => {
+        const route = (id: string, overrides: Partial<TranslationRouteTotals>): TranslationRouteBreakdownItem => ({
+            serviceId: 'freeTranslation', route: id, totals: {...emptyTranslationRouteTotals(), ...overrides},
+        });
+        const rows = [
+            route('microsoft', {attemptCount: 12, successRate: 0.9, averageDurationMs: 300, p95DurationMs: 700, maxDurationMs: 900, averageChars: 40}),
+            route('google', {attemptCount: 5, successRate: 1, averageDurationMs: 700, p95DurationMs: 1_200, maxDurationMs: 1_500, averageChars: 60}),
+            route('deeplx', {attemptCount: 9, successRate: 0, averageDurationMs: null, p95DurationMs: null, maxDurationMs: null, averageChars: 20}),
+        ];
+        const ids = (key: Parameters<typeof sortRoutes>[1], direction: Parameters<typeof sortRoutes>[2]) => sortRoutes(rows, key, direction).map((row) => row.route);
+
+        expect(ids('attempts', 'desc')).toEqual(['microsoft', 'deeplx', 'google']);
+        expect(ids('average', 'asc')).toEqual(['microsoft', 'google', 'deeplx']);
+        expect(ids('successRate', 'desc')).toEqual(['google', 'microsoft', 'deeplx']);
+        expect(ids('p95', 'desc')[0]).toBe('google');
+        expect(ids('max', 'asc').at(-1)).toBe('deeplx');
+        expect(ids('size', 'desc')[0]).toBe('google');
+        expect(routeMetric(rows[0].totals, 'attempts')).toBe(12);
+        expect(rows.map((row) => row.route)).toEqual(['microsoft', 'google', 'deeplx']);
+
+        const tied = [
+            route('bing', {attemptCount: 4, averageDurationMs: 500}),
+            route('azure', {attemptCount: 4, averageDurationMs: 500}),
+            route('yandex', {attemptCount: 7, averageDurationMs: 500}),
+            route('lingva', {attemptCount: 2, averageDurationMs: null}),
+            route('apertium', {attemptCount: 9, averageDurationMs: null}),
+        ];
+        expect(sortRoutes(tied, 'average', 'desc').map((row) => row.route))
+            .toEqual(['yandex', 'azure', 'bing', 'apertium', 'lingva']);
     });
 
     it('分页区间在空列表、中间页与末页保持一致', () => {

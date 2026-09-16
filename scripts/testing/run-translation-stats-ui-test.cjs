@@ -232,6 +232,47 @@ async function measureLayout(page, width, height) {
   return {width, height, cards: metrics.cards.length};
 }
 
+// 免费链会请求公共接口，浏览器专项不联网；线路汇总按仓库结构直接写入本次临时 profile。
+async function seedRouteRollups(page, routes) {
+    await page.evaluate(async items => {
+        const database = await new Promise((resolve, reject) => {
+          const request = indexedDB.open('FluentReadTranslationStats');
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        try {
+          await new Promise((resolve, reject) => {
+            const transaction = database.transaction('routes', 'readwrite');
+            const store = transaction.objectStore('routes');
+            for (const item of items) store.put(item);
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error);
+            transaction.onabort = () => reject(transaction.error);
+          });
+        } finally {
+          database.close();
+        }
+    }, routes);
+}
+
+function routeRollupFixtures() {
+    const bucketStart = new Date();
+    bucketStart.setMinutes(0, 0, 0);
+    const outcomes = (success, error) => ({success, error, timeout: 0, cancelled: 0});
+    const histogram = index => Array.from({length: 12}, (_, position) => (position === index ? 1 : 0));
+    return [
+      {bucketStart: bucketStart.getTime(), serviceId: 'freeTranslation', route: 'microsoft', schemaVersion: 1,
+        attemptCount: 6, outcomes: outcomes(5, 1), chars: 300, maxChars: 80,
+        latencyCount: 5, latencyDurationMs: 1_500, latencyMaxDurationMs: 600, durationHistogram: histogram(2)},
+      {bucketStart: bucketStart.getTime(), serviceId: 'freeTranslation', route: 'google', schemaVersion: 1,
+        attemptCount: 3, outcomes: outcomes(3, 0), chars: 90, maxChars: 40,
+        latencyCount: 3, latencyDurationMs: 2_400, latencyMaxDurationMs: 1_100, durationHistogram: histogram(4)},
+      {bucketStart: bucketStart.getTime(), serviceId: 'freeTranslation', route: 'deeplx', schemaVersion: 1,
+        attemptCount: 2, outcomes: outcomes(0, 2), chars: 40, maxChars: 20,
+        latencyCount: 0, latencyDurationMs: 0, latencyMaxDurationMs: 0, durationHistogram: histogram(-1)},
+    ];
+}
+
 async function readStoredStats(page) {
   return page.evaluate(async () => {
     const database = await new Promise((resolve, reject) => {
@@ -245,7 +286,7 @@ async function readStoredStats(page) {
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
-      return {requests: await readAll('requests'), rollups: await readAll('rollups')};
+      return {requests: await readAll('requests'), rollups: await readAll('rollups'), routes: await readAll('routes')};
     } finally {
       database.close();
     }
@@ -378,6 +419,22 @@ async function main() {
     await refreshPanel(page, 10);
     report.assertions.serviceFilterRangeAndTrendMetrics = true;
 
+    await seedRouteRollups(page, routeRollupFixtures());
+    await refreshPanel(page, 10);
+    const routeRows = page.locator(`${panel} .stats-route-table tbody tr`);
+    await routeRows.first().waitFor({state: 'visible', timeout});
+    assert.equal(await routeRows.count(), 3, '免费线路表按线路列出尝试');
+    assert.match(await routeRows.nth(0).textContent(), /微软翻译/u, '默认按尝试次数降序');
+    assert.match(await routeRows.nth(0).textContent(), /83\.3%/u, '成功率按尝试计算');
+    assert.match(await routeRows.nth(2).textContent(), /DeepLX/u);
+    await page.locator(`${panel} .stats-route-table thead .stats-sort`).nth(2).click();
+    assert.match(await routeRows.nth(0).textContent(), /微软翻译/u, '平均耗时升序时微软最快');
+    assert.match(await routeRows.nth(2).textContent(), /DeepLX/u, '没有成功尝试的线路排在最后');
+    assert.equal(await page.locator(`${panel} .stats-route-table thead th`).nth(3).getAttribute('aria-sort'), 'ascending');
+    await page.locator(`${panel} .stats-routes`).scrollIntoViewIfNeeded();
+    await capture(page, report, 'translation-stats-free-routes');
+    report.assertions.freeRoutePerformance = true;
+
     const stored = await readStoredStats(page);
     assert.equal(stored.requests.length, 10);
     const serialized = JSON.stringify(stored);
@@ -417,7 +474,7 @@ async function main() {
     await page.locator(`${panel} .stats-state-empty`).waitFor({state: 'visible', timeout});
     assert.match(await page.locator(`${panel} .stats-notice`).textContent(), /翻译统计已清除/u);
     const cleared = await readStoredStats(page);
-    assert.deepEqual([cleared.requests.length, cleared.rollups.length], [0, 0]);
+    assert.deepEqual([cleared.requests.length, cleared.rollups.length, cleared.routes.length], [0, 0, 0]);
     report.assertions.resetClearsBothStores = true;
 
     report.focusChecks.push(await assertBackground(context, 'after reset'));
