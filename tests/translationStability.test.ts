@@ -264,10 +264,8 @@ describe('动态翻译稳定性判定', () => {
         wrapper.setAttribute('data-fr-translation-owned', 'true');
         wrapper.innerHTML = '<a href="/original">译文链接</a>';
         owner.appendChild(wrapper);
-        // bilingualContentTextMarkup 由 setBilingualContent 记录，是去掉全部属性后的标记。
         const snapshot = state({phase: 'translated', bilingualContent: wrapper,
             bilingualHTML: wrapper.innerHTML, bilingualOuterHTML: wrapper.outerHTML,
-            bilingualContentTextMarkup: '<a>译文链接</a>',
             bilingualContentTemplate: wrapper.cloneNode(true) as HTMLElement});
         const readSource = () => true;
         const readSlots = () => true;
@@ -277,6 +275,12 @@ describe('动态翻译稳定性判定', () => {
         expect(isTranslationArtifactCurrent(owner, snapshot)).toBe(false);
         expect(isBilingualArtifactKept(owner, snapshot)).toBe(true);
         expect(canKeepTranslationAttempt(owner, snapshot, readSource, readSlots)).toBe(true);
+
+        // 即使 title 同时漂移，也不能掩盖只落在译文上的链接目的地变化。
+        wrapper.querySelector('a')!.setAttribute('href', '/unrelated');
+        expect(isBilingualArtifactKept(owner, snapshot)).toBe(false);
+        expect(canKeepTranslationAttempt(owner, snapshot, readSource, readSlots)).toBe(false);
+        wrapper.querySelector('a')!.setAttribute('href', '/original');
 
         // wrapper 外层属性仍按篡改处理，不能被容忍分支保留。
         wrapper.setAttribute('style', 'display:none');
