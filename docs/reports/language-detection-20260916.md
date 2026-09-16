@@ -67,18 +67,18 @@
 
 ### 合并 main 之后的复跑
 
-本分支合入当时的 `main`（`a10d791f`，基线之后新增 13 个提交）。冲突只出现在两侧各自追加内容的 `docs/testing.md` 与 `tests/test-matrix.json`，按并集解决；`vitest.coverage.config.ts` 自动合并后双语逐句高亮与语言核心条目共存。合并后复跑：
+本分支先后合入 `main`（`a10d791f`）与最新 `origin/main`（`110a2cd0`，含视频字幕菜单、双语字幕下载与翻译统计面板）。文本冲突只出现在两侧各自追加内容的 `docs/testing.md` 与 `tests/test-matrix.json`，按并集解决。语义冲突一处：`main` 新增的 `src/features/video-subtitle/content/subtitleLanguage.ts` 引用了已删除的 `isClearlyTargetLanguage`，改为统一入口 `shouldSkipTranslationForTarget(text, 'zh-Hans', ['zh-Hant'])`；其测试把明确的英文短句 `This camera is great` 期望为继续翻译，正是本分支修复的短句重译缺陷，改为跳过，并补充单个词仍翻译的用例。合并后复跑：
 
 | 项目 | 结果 |
 | --- | --- |
-| `pnpm test:unit` | 4,508 个用例，4 个失败 |
-| `pnpm test:functional` | 1,868 个用例，4 个失败 |
+| `pnpm test:unit` | 4,570 个用例，4 个失败 |
+| `pnpm test:functional` | 1,883 个用例，4 个失败 |
 | `pnpm test:regression` | 601 个用例全部通过 |
-| `pnpm test:architecture` | 1,039 个用例，3 个失败 |
-| `pnpm test:coverage` | 6,698 个用例，5 个失败；`src/core/language` 四维仍为 100% |
+| `pnpm test:architecture` | 1,053 个用例，3 个失败 |
+| `pnpm test:coverage` | 6,775 个用例，5 个失败；`src/core/language` 与字幕语言模块四维 100% |
 | `pnpm compile`、`pnpm build`、`pnpm build:firefox`、`pnpm test:userscript`、`pnpm verify:extension-manifests`、`pnpm docs:build` | 通过 |
 
-上述失败全部在导出的纯净 `main` 上逐项复现，均为基线问题：unit 与 functional 的失败即 `freeFallback` / `free-translation` / `google` 免费链路用例；3 个架构失败同上一节，其中 `freeTranslationWeights.ts`、`freeWeights.ts` 由 `main` 的 `20c47a17` 引入且从未登记；`pnpm test:audit` 仍只报这两个文件未归类。合并后的覆盖率缺口仅落在 `src/providers/translation/free-translation.ts`（失败用例所在模块）和一个纯类型文件，本次改动文件没有新增缺口。
+上述失败全部在导出的纯净 `origin/main` 上逐项复现，均为基线问题：`freeFallback` 4 例、`free-translation` 1 例、`google` 3 例免费链路用例；架构失败为 `providerBoundaries`（`messageRuntime.ts`）与 `verificationOwnership`（`freeTranslationWeights.ts`、`freeWeights.ts` 未进入覆盖率边界，`scripts/update-readme-contributors.mjs` 无验证归属）；`pnpm test:audit` 仍只报两个免费权重测试未归类。覆盖率缺口仅为 `diff.ts`、`free-translation.ts`、`freeFallback.ts` 与一个纯类型文件，与基线相同。
 
 一次 `tests/featureTranslationClients.test.ts` 的取消超时用例在并行满载下偶发失败，单独运行与再次整组运行均通过，记为负载相关抖动，未据此改动产品代码。
 
