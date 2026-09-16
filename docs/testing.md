@@ -13,6 +13,13 @@
 识别器对比可复现运行 `node scripts/testing/evaluate-language-detectors.mjs --out <report.json>`；追加 `--franc-full <本地 franc 包目录>` 在同一判断链中替换统计库，`--old-root <旧源码目录>` 对比旧实现，`--browser --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径>` 在临时 profile 的后台 Edge 中测量 `chrome.i18n.detectLanguage`。结果只代表这些由项目编写的语料，不作为通用准确率。最近一次结论见 [语言识别报告](./reports/language-detection-20260916.md)。
 
 生产扩展构建后运行 `node scripts/testing/run-chinese-translation-test.cjs --multilingual-same-target --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir <证据目录>`。专项复用临时 Edge、后台可见且不抢焦点的窗口，对 de/pt/it/fr/en/ru/ja/ko/zh-Hans 分别验证同目标段落和标题在悬浮与全文中零请求、相邻外语悬浮 `[1,0,1,0]` 与全文 `[1,0,1]`、GitHub `li > a` 提交链接保持、宿主 `lang="en"` 不影响判断、全文会话中动态改写为外语后重新请求、恢复原文，以及同一页面从德文目标切到英文目标、以简体为目标并排除德文时的结论。页面与译文来自本地回环夹具，只证明扩展判断链与请求计数，不代表真实供应商质量，也不替代 Firefox 实机验证。
+## 双语逐句高亮
+
+`tests/bilingualSentenceHighlight.test.ts` 覆盖字符坐标、缩写、小数、中英文标点、无原生分句能力的回退、拆句与合句分组，以及双向悬停、内联结构、动态变化和关闭清理。定向覆盖率命令仅包含 `sentenceAlignment.ts`、`sentenceHighlight.ts` 和 `bilingualSentenceHighlight.ts` 三个模块。
+
+生产扩展构建后执行 `node scripts/testing/run-bilingual-sentence-highlight-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-bilingual-highlight`。专项使用临时 Edge、第二屏正常尺寸后台窗口，验证真实 Control 翻译—恢复—再翻译、双向逐句定位、富文本、动态 DOM、关闭和配置持久化、多句设置预览、窄屏与深色。报告记录悬停期间的 DOM 变化、几何偏移和请求计数。
+
+页面与翻译响应为本地确定性夹具，不能代表真实服务的语义对齐质量或 Firefox 实机行为。参考 [duo-translator](https://github.com/linuxscreen/duo-translator/tree/f3abdd18a0e20687222ab338b367edf5476cf746/main/dom) 的文字范围绘制与相邻句分组设计；FluentRead 独立实现，未复制其 GPL-3.0 源码。
 
 ## 不翻译的语言（issue #627）
 

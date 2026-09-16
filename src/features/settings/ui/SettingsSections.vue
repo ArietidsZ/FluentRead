@@ -65,11 +65,18 @@
           :class="{ 'is-bilingual-highlight-enabled': config.bilingualSentenceHighlightEnabled }"
           :data-bilingual-highlight-enabled="String(config.bilingualSentenceHighlightEnabled)"
           data-testid="bilingual-highlight-preview"
-          :tabindex="config.bilingualSentenceHighlightEnabled ? 0 : -1"
+          data-i18n-ignore
+          @pointerleave="highlightPreviewSentence = null"
           :aria-label="t('settings.general.bilingualSentenceHighlightDescription')"
         >
-          <p class="style-preview-source" data-testid="bilingual-highlight-preview-source">Reading should feel calm and effortless.</p>
-          <p :key="config.style" class="style-preview-text" :class="currentStyleClass" data-testid="bilingual-highlight-preview-translation">阅读应该轻松、自然，不打断你的节奏。</p>
+          <p class="style-preview-source" data-testid="bilingual-highlight-preview-source"><span v-for="(sentence, index) in ['Reading should feel calm and effortless. ', 'Move over a sentence to find its translation. ', 'Compare difficult passages at your own pace.']" :key="index"
+            :class="{ 'is-sentence-highlighted': config.bilingualSentenceHighlightEnabled && highlightPreviewSentence === index }"
+            :tabindex="config.bilingualSentenceHighlightEnabled ? 0 : -1"
+            @pointerenter="highlightPreviewSentence = index" @focus="highlightPreviewSentence = index" @blur="highlightPreviewSentence = null">{{ sentence }}</span></p>
+          <p :key="config.style" class="style-preview-text" :class="currentStyleClass" data-testid="bilingual-highlight-preview-translation"><span v-for="(sentence, index) in ['阅读应该轻松、自然。', '将光标移到某个句子上，即可找到对应译文。', '按照自己的节奏对照理解难懂的内容。']" :key="index"
+            :class="{ 'is-sentence-highlighted': config.bilingualSentenceHighlightEnabled && highlightPreviewSentence === index }"
+            :tabindex="config.bilingualSentenceHighlightEnabled ? 0 : -1"
+            @pointerenter="highlightPreviewSentence = index" @focus="highlightPreviewSentence = index" @blur="highlightPreviewSentence = null">{{ sentence }}</span></p>
         </div>
       </div>
     </SettingsGroup>
@@ -668,6 +675,7 @@ import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 
 // Main 处理配置信息
 import { computed, defineAsyncComponent, ref, watch, onUnmounted } from 'vue'
+
 import {isValidAzureEndpoint} from '@/src/core/config/azure';
 import { cloudRegionOptions, customModelString, defaultOption, getCloudCredentialLabels, getDefaultCloudRegion, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 import GlossaryLibrarySelect from '@/src/ui/components/GlossaryLibrarySelect.vue';
@@ -719,6 +727,8 @@ import { ArrowRight, InfoFilled, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import browser from 'webextension-polyfill';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
+const highlightPreviewSentence = ref<number | null>(null)
+
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';

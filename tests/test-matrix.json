@@ -332,6 +332,7 @@
       "tests/translationVisionBroker.test.ts",
       "tests/areaVisionRecognition.test.ts",
       "tests/uiI18nBundleLoading.test.ts",
+      "tests/bilingualSentenceHighlight.test.ts",
       "tests/languageIdentificationCorpus.test.ts",
       "tests/sameTargetLanguageClient.test.ts",
       "tests/sameTargetLanguageSlots.test.ts"

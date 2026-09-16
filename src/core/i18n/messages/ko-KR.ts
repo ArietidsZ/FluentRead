@@ -648,7 +648,7 @@ export const koKRMessages = {
     'settings.general.floatingBallSettingsAction': '플로팅 볼 설정 열기',
     'settings.general.translationMode': '번역 모드',
     'settings.general.bilingualSentenceHighlight': '이중 언어 문장 강조',
-    'settings.general.bilingualSentenceHighlightDescription': '원문이나 번역문에 마우스를 올리면 해당 이중 언어 문단을 함께 강조합니다. 이중 언어 모드에서만 작동합니다.',
+    'settings.general.bilingualSentenceHighlightDescription': '원문이나 번역문의 문장에 마우스를 올리면 대응하는 문장을 강조하여 긴 글과 어려운 표현, 오역을 비교할 수 있습니다. 나뉘거나 합쳐진 문장은 인접 문장 그룹으로 표시합니다. 이중 언어 모드에서만 작동합니다.',
     'settings.interface.font.label': '인터페이스 글꼴',
     'settings.interface.font.description': '설정과 팝업에 적용되며 자동 저장됩니다. 웹페이지 글꼴은 바뀌지 않습니다.',
     'settings.interface.font.preview': '편안하게 읽고 더 깊이 이해하세요.',

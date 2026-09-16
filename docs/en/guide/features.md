@@ -52,6 +52,14 @@ A wider scope also changes more interface text. Turn it off to return to the usu
 - **Line breaks in long paragraphs**: insert a line break at the end of each sentence in long translated paragraphs.
 - **Translation before original**: in bilingual mode, place the translation above each original paragraph instead of below it.
 
+## Bilingual sentence highlighting
+
+Enable **Settings → General → Bilingual sentence highlighting**, then hover over a sentence on either side to highlight its counterpart. No click or shortcut is needed. The settings preview contains several sentence pairs to try.
+
+Equal sentence counts are paired in order. Split or merged sentences are grouped using order and relative length. This local approximation cannot verify translation accuracy and may not match heavily rewritten or reordered text. Hovering sends no translation requests and changes neither page text nor layout.
+
+This works in bilingual mode. Restoring the original, disabling the option, leaving the text or selecting text clears the highlight. Browsers without the CSS Custom Highlight API keep normal translation without the highlight.
+
 ## Selection translation
 
 Enable bilingual selection translation in the extension menu, select a word or passage, and click the nearby icon. Copy the result or read the original aloud. Drag the header or the blank space around the content to move the window, or drag any edge or corner to resize it. Text wraps to fit the width, and long content scrolls inside the card. Your adjustments last until the card closes; a new selection opens at the default size near the selected text.
@@ -82,6 +90,8 @@ Save words, phrases, and sentences to the [learning center](/en/guide/vocabulary
 Use the ready-to-use free service or [connect a provider](/en/config/translation-engines) such as DeepL, an AI service, or a local Ollama model. Supported AI services can also use [glossaries](/en/guide/glossary).
 
 Set regular sites to translate automatically, exclude others, and adjust the [website reading area](/en/config/site-adaptation) when content is missed. Change translation styles, themes, and menu layout in [Settings](/en/config/).
+
+Under **Advanced options → Request limits**, translation concurrency defaults to **10**, with **10 requests per second** and **250 per minute**. Existing saved settings are preserved. Set either rate limit to **0** to disable that limit.
 
 ## More translation languages
 
