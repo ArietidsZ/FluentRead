@@ -11,6 +11,7 @@ import {legacyTextOverrides} from './legacy-overrides';
 import {createLegacyCorrectionText} from './legacy-corrections';
 import {createRuntimeFeedbackLegacyText} from './runtime-feedback';
 import {localTtsJapaneseMessages} from './localTts';
+import {translationStatsJapaneseMessages} from './translationStats';
 import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
@@ -21,6 +22,7 @@ export const jaJPMessages = {
     "settings.excludedLanguages.clear": "選択を解除",
     "settings.excludedLanguages.hint": "自動保存され、次回の翻訳から適用されます。短い文章や言語を判別できない内容は翻訳される場合があります。",
     ...localTtsJapaneseMessages,
+    ...translationStatsJapaneseMessages,
     "settings.services.library.freeReady": "API キーは不要です。利用可能な無料サービスを自動で選択します。",
     "settings.services.library.keepOne": "少なくとも1つのサービスを有効にしてください。",
     "settings.services.library.memoryEmail": "MyMemory 連絡先メール（任意）",
@@ -498,6 +500,7 @@ export const jaJPMessages = {
     'video.showSubtitles': '字幕を表示',
     'video.downloadOriginal': '元字幕をダウンロード',
     'video.downloadTranslated': '翻訳字幕をダウンロード',
+    'video.downloadBilingual': '二言語字幕をダウンロード',
     'video.openSettings': '動画翻訳設定を開く',
     'video.aiGenerate': 'AI 字幕を生成',
     'video.aiStop': '生成を停止',
@@ -514,7 +517,29 @@ export const jaJPMessages = {
     'video.aiGenerating': '生成中…',
     'video.aiLocalTitle': 'X ローカル AI 字幕',
     'video.aiLocalHint': '字幕がない場合は端末内で認識します。速度は CPU とメモリに依存します。',
-    'video.aiRegenerate': '字幕を再認識',
+    'video.modeBilingual': '両方',
+    'video.modeTranslation': '訳文',
+    'video.modeOriginal': '原文',
+    'video.modeOff': 'オフ',
+    'video.modeOffHint': 'FluentRead の字幕をオフにし、サイトの字幕を使います',
+    'video.timingShort': 'タイミング',
+    'video.downloadOriginalShort': '原文字幕',
+    'video.downloadTranslatedShort': '訳文字幕',
+    'video.downloadBilingualShort': '二言語字幕',
+    'video.aiDownloadingModel': 'モデルをダウンロード中…',
+    'video.aiModelDownloadFailed': 'モデルのダウンロードに失敗しました：{error}',
+    'video.modelPromptTitle': 'AI 字幕モデルをダウンロード',
+    'video.modelPromptDescription': '音声認識はこの端末で行います。モデルは初回のみダウンロードし、音声はアップロードされません。',
+    'video.modelTinyName': 'Tiny · 軽量',
+    'video.modelTinyHint': '高速でメモリ使用量が少ない',
+    'video.modelBaseName': 'Base · 標準',
+    'video.modelBaseHint': '精度が高く、時間がかかる',
+    'video.modelSize': '約 {size} MB',
+    'video.modelRecommended': 'おすすめ',
+    'video.modelDownloaded': 'ダウンロード済み',
+    'video.modelPromptCancel': 'キャンセル',
+    'video.modelPromptDownload': 'ダウンロードして生成',
+    'video.modelPromptStart': '生成を開始',
     'options.searchPlaceholder': '設定を検索（例：ショートカット、キャッシュ、OpenAI）',
     'metadata.optionsTitle': 'FluentRead 設定',
     'metadata.popupTitle': 'FluentRead',

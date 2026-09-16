@@ -3,6 +3,7 @@ import {
   getVideoLocalTranscriptionModelId,
   normalizeVideoLocalTranscriptionModel,
   normalizeVideoLocalTranscriptionModels,
+  VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL,
   resampleToWhisperAudio,
 } from '@/src/features/video-subtitle/transcription';
 import {
@@ -16,6 +17,11 @@ describe('视频 AI 字幕转写配置', () => {
     expect(normalizeVideoLocalTranscriptionModel('unknown')).toBe('tiny');
     expect(getVideoLocalTranscriptionModelId('base')).toBe('onnx-community/whisper-base');
     expect(normalizeVideoLocalTranscriptionModels(['tiny', 'base', 'unknown', 'tiny'])).toEqual(['tiny', 'base']);
+  });
+
+  it('默认推荐下载最小、识别最快的 Tiny', () => {
+    expect(VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL).toBe('tiny');
+    expect(normalizeVideoLocalTranscriptionModel(undefined)).toBe(VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL);
   });
 
   it('预下载只缓存 Whisper q4 运行所需文件，并使用与 Transformers.js 相同的 URL', () => {

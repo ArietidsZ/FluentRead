@@ -12,6 +12,7 @@ import {legacyTextOverrides} from './legacy-overrides';
 import {createLegacyCorrectionText} from './legacy-corrections';
 import {createRuntimeFeedbackLegacyText} from './runtime-feedback';
 import {localTtsEnglishMessages} from './localTts';
+import {translationStatsEnglishMessages} from './translationStats';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
@@ -22,6 +23,7 @@ export const enUSMessages = {
     "settings.excludedLanguages.clear": "Clear selection",
     "settings.excludedLanguages.hint": "Saved automatically for the next translation session. Short text or text with an uncertain language may still be translated.",
     ...localTtsEnglishMessages,
+    ...translationStatsEnglishMessages,
     "settings.services.library.freeReady": "No API key needed. Available free services are selected automatically.",
     "settings.services.library.keepOne": "Keep at least one service enabled.",
     "settings.services.library.memoryEmail": "MyMemory contact email (optional)",
@@ -678,6 +680,7 @@ export const enUSMessages = {
     'video.showSubtitles': 'Show subtitles',
     'video.downloadOriginal': 'Download original subtitles',
     'video.downloadTranslated': 'Download translated subtitles',
+    'video.downloadBilingual': 'Download bilingual subtitles',
     'video.openSettings': 'Open video translation settings',
     'video.aiGenerate': 'Generate AI subtitles',
     'video.aiStop': 'Stop generation',
@@ -694,7 +697,29 @@ export const enUSMessages = {
     'video.aiGenerating': 'Generating…',
     'video.aiLocalTitle': 'X local AI subtitles',
     'video.aiLocalHint': 'When native subtitles are unavailable, recognition runs locally; speed depends on CPU and memory.',
-    'video.aiRegenerate': 'Recognize subtitles again',
+    'video.modeBilingual': 'Both',
+    'video.modeTranslation': 'Translated',
+    'video.modeOriginal': 'Original',
+    'video.modeOff': 'Off',
+    'video.modeOffHint': 'Turn off FluentRead subtitles and keep the site\'s captions',
+    'video.timingShort': 'Timing',
+    'video.downloadOriginalShort': 'Original',
+    'video.downloadTranslatedShort': 'Translated',
+    'video.downloadBilingualShort': 'Bilingual',
+    'video.aiDownloadingModel': 'Downloading model…',
+    'video.aiModelDownloadFailed': 'Model download failed: {error}',
+    'video.modelPromptTitle': 'Download AI subtitle model',
+    'video.modelPromptDescription': 'Speech recognition runs on this device. The model is downloaded once, and audio is never uploaded.',
+    'video.modelTinyName': 'Tiny · Fast',
+    'video.modelTinyHint': 'Quicker, uses less memory',
+    'video.modelBaseName': 'Base · Accurate',
+    'video.modelBaseHint': 'More accurate, takes longer',
+    'video.modelSize': '~{size} MB',
+    'video.modelRecommended': 'Recommended',
+    'video.modelDownloaded': 'Downloaded',
+    'video.modelPromptCancel': 'Cancel',
+    'video.modelPromptDownload': 'Download and generate',
+    'video.modelPromptStart': 'Generate',
     'options.searchPlaceholder': 'Search settings, for example: shortcut, cache, OpenAI',
     'metadata.optionsTitle': 'FluentRead settings',
     'metadata.popupTitle': 'FluentRead',

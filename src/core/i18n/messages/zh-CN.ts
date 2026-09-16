@@ -9,6 +9,7 @@
 import type {
 MessageCatalog} from '../types';
 import {localTtsChineseMessages} from './localTts';
+import {translationStatsChineseMessages} from './translationStats';
 import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
@@ -19,6 +20,7 @@ export const zhCNMessages = {
     "settings.excludedLanguages.clear": "清空选择",
     "settings.excludedLanguages.hint": "自动保存，下次开始翻译时生效。短文本或无法确定语言的内容仍会翻译。",
     ...localTtsChineseMessages,
+    ...translationStatsChineseMessages,
     "settings.services.library.freeReady": "无需 API Key，自动选择可用的免费服务。",
     "settings.services.library.keepOne": "至少保留一个服务。",
     "settings.services.library.memoryEmail": "MyMemory 联系邮箱（可选）",
@@ -675,6 +677,7 @@ export const zhCNMessages = {
     'video.showSubtitles': '显示字幕',
     'video.downloadOriginal': '下载原文字幕',
     'video.downloadTranslated': '下载译文字幕',
+    'video.downloadBilingual': '下载双语字幕',
     'video.openSettings': '打开视频翻译设置',
     'video.aiGenerate': '生成 AI 字幕',
     'video.aiStop': '停止生成',
@@ -691,7 +694,29 @@ export const zhCNMessages = {
     'video.aiGenerating': '生成中…',
     'video.aiLocalTitle': 'X 本地 AI 字幕',
     'video.aiLocalHint': '无原生字幕时，在本机识别；速度取决于 CPU 和内存。',
-    'video.aiRegenerate': '重新识别字幕',
+    'video.modeBilingual': '双语',
+    'video.modeTranslation': '译文',
+    'video.modeOriginal': '原文',
+    'video.modeOff': '关闭',
+    'video.modeOffHint': '关闭流畅阅读字幕，保留网站原有字幕',
+    'video.timingShort': '字幕时间',
+    'video.downloadOriginalShort': '原文字幕',
+    'video.downloadTranslatedShort': '译文字幕',
+    'video.downloadBilingualShort': '双语字幕',
+    'video.aiDownloadingModel': '正在下载模型…',
+    'video.aiModelDownloadFailed': '模型下载失败：{error}',
+    'video.modelPromptTitle': '下载 AI 字幕模型',
+    'video.modelPromptDescription': '首次使用需下载识别模型，识别在本机完成，音频不会上传。',
+    'video.modelTinyName': 'Tiny · 轻量',
+    'video.modelTinyHint': '速度快，占用内存少',
+    'video.modelBaseName': 'Base · 标准',
+    'video.modelBaseHint': '识别更准确，耗时更长',
+    'video.modelSize': '约 {size} MB',
+    'video.modelRecommended': '推荐',
+    'video.modelDownloaded': '已下载',
+    'video.modelPromptCancel': '取消',
+    'video.modelPromptDownload': '下载并生成',
+    'video.modelPromptStart': '开始生成',
     'options.searchPlaceholder': '搜索设置，例如：快捷键、缓存、OpenAI',
     'metadata.optionsTitle': 'FluentRead-流畅阅读 · 设置',
     'metadata.popupTitle': 'FluentRead-流畅阅读',

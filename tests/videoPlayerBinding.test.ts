@@ -99,6 +99,25 @@ describe('native picture-in-picture and fullscreen anchors', () => {
     binding.destroy();
   });
 
+  it('never treats buttons inside the FluentRead menu as the X control bar', () => {
+    const fixture = createFixture('<div class="player" data-testid="videoPlayer"><video></video></div>');
+    const button = fixture.document.createElement('button');
+    const menu = fixture.document.createElement('div');
+    menu.className = 'fluent-read-video-ui';
+    menu.innerHTML = '<div class="title"><button aria-label="打开视频翻译设置"></button></div><button></button><button aria-label="Settings"></button>';
+    const binding = createVideoPlayerBinding({document: fixture.document, locator: fixture.locator, getState: () => ({enabled: true}), createButton: () => button, createMenu: () => menu});
+    fixture.player.insertAdjacentHTML('beforeend', '<div class="bar"><button aria-label="Settings"></button><button id="pip" aria-label="Picture in picture"></button><button id="fullscreen" aria-label="Full screen"></button></div>');
+    binding.sync();
+    expect(menu.parentElement).toBe(fixture.player);
+    expect(button.parentElement).toBe(fixture.player.querySelector('.bar'));
+    fixture.player.querySelector('.bar')!.remove();
+    menu.hidden = false;
+    binding.sync();
+    expect(button.isConnected).toBe(false);
+    expect(menu.contains(button)).toBe(false);
+    binding.destroy();
+  });
+
   it('repairs host moves, late labels, and replacement controls through the observer without looping', () => {
     const fixture = createFixture('<div class="player" data-testid="videoPlayer"><video></video><div class="bar"><button aria-label="Settings"></button><button id="pip"></button><button id="fullscreen"></button></div></div>');
     let notify!: MutationCallback;

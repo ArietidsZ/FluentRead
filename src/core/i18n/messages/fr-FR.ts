@@ -11,6 +11,7 @@ import {legacyTextOverrides} from './legacy-overrides';
 import {createLegacyCorrectionText} from './legacy-corrections';
 import {createRuntimeFeedbackLegacyText} from './runtime-feedback';
 import {localTtsFrenchMessages} from './localTts';
+import {translationStatsFrenchMessages} from './translationStats';
 import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
@@ -21,6 +22,7 @@ export const frFRMessages = {
     "settings.excludedLanguages.clear": "Effacer la sélection",
     "settings.excludedLanguages.hint": "Enregistré automatiquement pour la prochaine traduction. Les textes courts ou dont la langue est incertaine peuvent être traduits.",
     ...localTtsFrenchMessages,
+    ...translationStatsFrenchMessages,
     "settings.services.library.freeReady": "Aucune clé API requise. Les services gratuits disponibles sont sélectionnés automatiquement.",
     "settings.services.library.keepOne": "Gardez au moins un service activé.",
     "settings.services.library.memoryEmail": "Adresse e-mail MyMemory (facultatif)",
@@ -498,6 +500,7 @@ export const frFRMessages = {
     'video.showSubtitles': 'Afficher les sous-titres',
     'video.downloadOriginal': 'Télécharger les sous-titres originaux',
     'video.downloadTranslated': 'Télécharger les sous-titres traduits',
+    'video.downloadBilingual': 'Télécharger les sous-titres bilingues',
     'video.openSettings': 'Ouvrir les réglages de traduction vidéo',
     'video.aiGenerate': 'Générer des sous-titres avec l’IA',
     'video.aiStop': 'Arrêter la génération',
@@ -514,7 +517,29 @@ export const frFRMessages = {
     'video.aiGenerating': 'Génération…',
     'video.aiLocalTitle': 'Sous-titres IA locaux X',
     'video.aiLocalHint': 'Sans sous-titres natifs, la reconnaissance se fait localement ; la vitesse dépend du CPU et de la mémoire.',
-    'video.aiRegenerate': 'Reconnaître à nouveau les sous-titres',
+    'video.modeBilingual': 'Les deux',
+    'video.modeTranslation': 'Traduction',
+    'video.modeOriginal': 'Original',
+    'video.modeOff': 'Arrêt',
+    'video.modeOffHint': 'Désactiver les sous-titres FluentRead et garder ceux du site',
+    'video.timingShort': 'Synchro',
+    'video.downloadOriginalShort': 'Original',
+    'video.downloadTranslatedShort': 'Traduction',
+    'video.downloadBilingualShort': 'Bilingue',
+    'video.aiDownloadingModel': 'Téléchargement du modèle…',
+    'video.aiModelDownloadFailed': 'Échec du téléchargement du modèle : {error}',
+    'video.modelPromptTitle': 'Télécharger le modèle de sous-titres IA',
+    'video.modelPromptDescription': 'La reconnaissance vocale s\'exécute sur cet appareil. Le modèle est téléchargé une seule fois et l\'audio n\'est jamais envoyé.',
+    'video.modelTinyName': 'Tiny · Rapide',
+    'video.modelTinyHint': 'Plus rapide, moins de mémoire',
+    'video.modelBaseName': 'Base · Précis',
+    'video.modelBaseHint': 'Plus précis, plus lent',
+    'video.modelSize': '~{size} Mo',
+    'video.modelRecommended': 'Recommandé',
+    'video.modelDownloaded': 'Téléchargé',
+    'video.modelPromptCancel': 'Annuler',
+    'video.modelPromptDownload': 'Télécharger et générer',
+    'video.modelPromptStart': 'Générer',
     'options.searchPlaceholder': 'Rechercher dans les réglages (ex. raccourci, cache, OpenAI)',
     'metadata.optionsTitle': 'Réglages de FluentRead',
     'metadata.popupTitle': 'FluentRead',

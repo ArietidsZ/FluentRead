@@ -11,6 +11,7 @@ import {legacyTextOverrides} from './legacy-overrides';
 import {createLegacyCorrectionText} from './legacy-corrections';
 import {createRuntimeFeedbackLegacyText} from './runtime-feedback';
 import {localTtsKoreanMessages} from './localTts';
+import {translationStatsKoreanMessages} from './translationStats';
 import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
@@ -21,6 +22,7 @@ export const koKRMessages = {
     "settings.excludedLanguages.clear": "선택 지우기",
     "settings.excludedLanguages.hint": "자동 저장되며 다음 번역부터 적용됩니다. 짧거나 언어를 판별할 수 없는 텍스트는 번역될 수 있습니다.",
     ...localTtsKoreanMessages,
+    ...translationStatsKoreanMessages,
     "settings.services.library.freeReady": "API 키 없이 사용 가능한 무료 서비스를 자동으로 선택합니다.",
     "settings.services.library.keepOne": "서비스를 하나 이상 활성화해 두세요.",
     "settings.services.library.memoryEmail": "MyMemory 연락처 이메일(선택 사항)",
@@ -498,6 +500,7 @@ export const koKRMessages = {
     'video.showSubtitles': '자막 표시',
     'video.downloadOriginal': '원본 자막 다운로드',
     'video.downloadTranslated': '번역 자막 다운로드',
+    'video.downloadBilingual': '이중 자막 다운로드',
     'video.openSettings': '동영상 번역 설정 열기',
     'video.aiGenerate': 'AI 자막 생성',
     'video.aiStop': '생성 중지',
@@ -514,7 +517,29 @@ export const koKRMessages = {
     'video.aiGenerating': '생성 중…',
     'video.aiLocalTitle': 'X 로컬 AI 자막',
     'video.aiLocalHint': '기본 자막이 없으면 기기에서 인식하며, 속도는 CPU와 메모리에 따라 달라집니다.',
-    'video.aiRegenerate': '자막 다시 인식',
+    'video.modeBilingual': '둘 다',
+    'video.modeTranslation': '번역',
+    'video.modeOriginal': '원문',
+    'video.modeOff': '끄기',
+    'video.modeOffHint': 'FluentRead 자막을 끄고 사이트 자막을 사용합니다',
+    'video.timingShort': '싱크',
+    'video.downloadOriginalShort': '원문 자막',
+    'video.downloadTranslatedShort': '번역 자막',
+    'video.downloadBilingualShort': '이중 자막',
+    'video.aiDownloadingModel': '모델 다운로드 중…',
+    'video.aiModelDownloadFailed': '모델 다운로드 실패: {error}',
+    'video.modelPromptTitle': 'AI 자막 모델 다운로드',
+    'video.modelPromptDescription': '음성 인식은 이 기기에서 실행됩니다. 모델은 처음 한 번만 다운로드하며 오디오는 업로드되지 않습니다.',
+    'video.modelTinyName': 'Tiny · 경량',
+    'video.modelTinyHint': '빠르고 메모리를 적게 사용',
+    'video.modelBaseName': 'Base · 표준',
+    'video.modelBaseHint': '더 정확하지만 시간이 더 걸림',
+    'video.modelSize': '약 {size}MB',
+    'video.modelRecommended': '추천',
+    'video.modelDownloaded': '다운로드됨',
+    'video.modelPromptCancel': '취소',
+    'video.modelPromptDownload': '다운로드 후 생성',
+    'video.modelPromptStart': '생성 시작',
     'options.searchPlaceholder': '설정 검색 (예: 단축키, 캐시, OpenAI)',
     'metadata.optionsTitle': 'FluentRead 설정',
     'metadata.popupTitle': 'FluentRead',

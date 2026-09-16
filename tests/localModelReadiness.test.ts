@@ -1,26 +1,24 @@
 import {describe, expect, it, vi} from 'vitest';
 
 import {
+  LOCAL_VIDEO_MODEL_DOWNLOAD_ERROR,
   LOCAL_VIDEO_MODEL_STATUS_ERROR,
-  requestLocalVideoModelReadiness,
+  requestDownloadedLocalVideoModels,
+  requestLocalVideoModelDownload,
 } from '@/src/features/video-subtitle/content/localModelReadiness';
 
 describe('local video model readiness port', () => {
-  it('returns ready only when the normalized requested model is cached', async () => {
+  it('returns the normalized, de-duplicated list of cached models', async () => {
     const sendMessage = vi.fn(async (message: {type: string}) => {
       expect(message).toEqual({type: 'fluentReadGetLocalVideoModelState'});
       return {success: true, models: ['base', 'tiny', 'tiny']};
     });
 
-    await expect(requestLocalVideoModelReadiness('base', sendMessage)).resolves.toBe('ready');
-    await expect(requestLocalVideoModelReadiness('unknown-model', sendMessage)).resolves.toBe('ready');
-    await expect(requestLocalVideoModelReadiness('base', vi.fn(async () => ({success: true, models: ['tiny']}))))
-      .resolves.toBe('missing');
+    await expect(requestDownloadedLocalVideoModels(sendMessage)).resolves.toEqual(['base', 'tiny']);
   });
 
-  it('treats a valid empty list as missing without confusing it with a failed read', async () => {
-    const sendMessage = vi.fn(async () => ({success: true, models: []}));
-    await expect(requestLocalVideoModelReadiness('tiny', sendMessage)).resolves.toBe('missing');
+  it('treats a valid empty list as nothing downloaded without confusing it with a failed read', async () => {
+    await expect(requestDownloadedLocalVideoModels(vi.fn(async () => ({success: true, models: []})))).resolves.toEqual([]);
   });
 
   it.each([
@@ -34,16 +32,35 @@ describe('local video model readiness port', () => {
     {success: true, models: ['']},
     {success: true, models: [42]},
   ])('rejects malformed or unsuccessful response %#', async (response) => {
-    await expect(requestLocalVideoModelReadiness(
-      'tiny',
-      vi.fn(async () => response),
-    )).rejects.toThrow(LOCAL_VIDEO_MODEL_STATUS_ERROR);
+    await expect(requestDownloadedLocalVideoModels(vi.fn(async () => response))).rejects.toThrow(LOCAL_VIDEO_MODEL_STATUS_ERROR);
   });
 
   it('maps a rejected message port to the actionable status error', async () => {
-    await expect(requestLocalVideoModelReadiness(
-      'tiny',
+    await expect(requestDownloadedLocalVideoModels(
       vi.fn(async () => { throw new Error('background unavailable'); }),
     )).rejects.toThrow(LOCAL_VIDEO_MODEL_STATUS_ERROR);
+  });
+});
+
+describe('local video model download port', () => {
+  it('requests only the confirmed normalized model and returns the recorded list', async () => {
+    const sendMessage = vi.fn(async (message: {type: string; model: string}) => {
+      expect(message).toEqual({type: 'fluentReadPrepareLocalVideoModel', model: 'tiny'});
+      return {success: true, model: 'tiny', models: ['base', 'tiny']};
+    });
+    await expect(requestLocalVideoModelDownload('unknown', sendMessage)).resolves.toEqual(['base', 'tiny']);
+    await expect(requestLocalVideoModelDownload('base', vi.fn(async () => ({success: true}))))
+      .resolves.toEqual(['base']);
+  });
+
+  it('surfaces background errors and falls back to an actionable download error', async () => {
+    await expect(requestLocalVideoModelDownload('tiny', vi.fn(async () => ({success: false, error: '模型文件下载失败（404）'}))))
+      .rejects.toThrow('模型文件下载失败（404）');
+    await expect(requestLocalVideoModelDownload('tiny', vi.fn(async () => undefined)))
+      .rejects.toThrow(LOCAL_VIDEO_MODEL_DOWNLOAD_ERROR);
+    await expect(requestLocalVideoModelDownload('tiny', vi.fn(async () => { throw new Error('Extension context invalidated'); })))
+      .rejects.toThrow('Extension context invalidated');
+    await expect(requestLocalVideoModelDownload('tiny', vi.fn(async () => { throw 'port closed'; })))
+      .rejects.toThrow(LOCAL_VIDEO_MODEL_DOWNLOAD_ERROR);
   });
 });

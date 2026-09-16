@@ -407,22 +407,7 @@ async function main() {
     await page.locator('#fluent-read-video-subtitle-menu [data-mode="bilingual"]').click({ force: true });
     await page.waitForFunction(() => document.querySelector('#ytp-caption-window-container')?.getAttribute('data-fluent-read-video-display-mode') === 'bilingual', null, { timeout: 10000 });
 
-    await page.locator('#fluent-read-video-subtitle-menu [data-action="toggle-visible"]').click({ force: true });
-    await page.waitForFunction(() => document.querySelector('#ytp-caption-window-container')?.classList.contains('fluent-read-video-display-hidden')
-      && !document.querySelector('#fluent-read-video-subtitle')?.textContent?.trim(), null, { timeout: 10000 });
-    const subtitlesHiddenFromPlayer = await page.evaluate(() => ({
-      menuState: document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-visible"]')?.getAttribute('aria-checked'),
-      hiddenClass: document.querySelector('#ytp-caption-window-container')?.classList.contains('fluent-read-video-display-hidden'),
-    }));
-    await page.locator('#fluent-read-video-subtitle-menu [data-action="toggle-visible"]').click({ force: true });
-    await page.waitForFunction(() => !document.querySelector('#ytp-caption-window-container')?.classList.contains('fluent-read-video-display-hidden')
-      && Boolean(document.querySelector('#fluent-read-video-subtitle')?.textContent?.match(/[\u3400-\u9fff]/)), null, { timeout: 45000 });
-    const subtitlesShownFromPlayer = await page.evaluate(() => ({
-      menuState: document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-visible"]')?.getAttribute('aria-checked'),
-      hiddenClass: document.querySelector('#ytp-caption-window-container')?.classList.contains('fluent-read-video-display-hidden'),
-    }));
-
-    await page.locator('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]').click({ force: true });
+    await page.locator('#fluent-read-video-subtitle-menu [data-mode="off"]').click({ force: true });
     await page.waitForFunction(() => {
       const button = document.querySelector('#fluent-read-video-subtitle-button');
       return button?.getAttribute('aria-pressed') === 'false'
@@ -430,11 +415,11 @@ async function main() {
     }, null, { timeout: 10000 });
     const disabledFromPlayer = await page.evaluate(() => ({
       buttonPressed: document.querySelector('#fluent-read-video-subtitle-button')?.getAttribute('aria-pressed'),
-      menuState: document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]')?.getAttribute('aria-checked'),
+      menuState: document.querySelector('#fluent-read-video-subtitle-menu [data-mode="off"]')?.getAttribute('aria-checked') === 'true' ? 'off' : 'on',
       overlayText: document.querySelector('#fluent-read-video-subtitle')?.textContent || '',
     }));
 
-    await page.locator('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]').click({ force: true });
+    await page.locator('#fluent-read-video-subtitle-menu [data-mode="bilingual"]').click({ force: true });
     await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-button')?.getAttribute('aria-pressed') === 'true', null, { timeout: 10000 });
     await page.evaluate(() => {
       let container = document.querySelector('#ytp-caption-window-container');
@@ -491,8 +476,6 @@ async function main() {
       secondTranslation: second,
       overlayCount,
       translationOnly,
-      subtitlesHiddenFromPlayer,
-      subtitlesShownFromPlayer,
       disabledFromPlayer,
       reenabledFromPlayer,
       extensionPageErrors,

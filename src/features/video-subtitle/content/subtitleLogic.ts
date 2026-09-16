@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/subtitleLogic.ts
  * 文件职责：提供字幕批量翻译、配置指纹和渐进文本展示的纯逻辑。
- * 主要内容：去重并限制批译并发，生成服务配置键，按原文进度截取译文与按时间选择渐进字幕，按滚动字幕末尾匹配当前句，并以手动偏移计算有效字幕区间。
+ * 主要内容：合成双语导出文本、去重并限制批译并发，生成服务配置键，按原文进度截取译文与按时间选择渐进字幕，按滚动字幕末尾匹配当前句，并以手动偏移计算有效字幕区间。
  * 模块边界：只处理输入数据和注入翻译函数，不读取 DOM、全局配置或浏览器接口。
  */
 import {buildGlossaryRevision} from '@/src/core/glossary';
@@ -202,6 +202,22 @@ export async function translateVideoSubtitleCues(
     ...cue,
     text: translatedByKey.get(normalizeVideoCaptionText(cue.text)) || cue.text,
   }));
+}
+
+/**
+ * 双语字幕把原文放在上一行、译文放在下一行。译文与原文相同（包括已是目标语言而跳过翻译）
+ * 时只保留一行，避免导出的文件里出现两行一样的字幕。
+ */
+export function mergeBilingualVideoSubtitleCues(
+  cues: readonly VideoSubtitleCue[],
+  translated: readonly VideoSubtitleCue[],
+): VideoSubtitleCue[] {
+  return cues.map((cue, index) => {
+    const original = cue.text.trim();
+    const translation = (translated[index]?.text || '').trim();
+    const unchanged = !translation || normalizeVideoCaptionText(translation) === normalizeVideoCaptionText(original);
+    return {...cue, text: unchanged ? original : `${original}\n${translation}`};
+  });
 }
 
 /** 与后台翻译 cache key 对齐的配置指纹；配置变化时旧译文不能写回视频。 */

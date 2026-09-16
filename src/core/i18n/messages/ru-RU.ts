@@ -11,6 +11,7 @@ import {legacyTextOverrides} from './legacy-overrides';
 import {createLegacyCorrectionText} from './legacy-corrections';
 import {createRuntimeFeedbackLegacyText} from './runtime-feedback';
 import {localTtsRussianMessages} from './localTts';
+import {translationStatsRussianMessages} from './translationStats';
 import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
@@ -21,6 +22,7 @@ export const ruRUMessages = {
     "settings.excludedLanguages.clear": "Очистить выбор",
     "settings.excludedLanguages.hint": "Сохраняется автоматически и применяется при следующем запуске перевода. Короткий текст или текст с неопределённым языком может переводиться.",
     ...localTtsRussianMessages,
+    ...translationStatsRussianMessages,
     "settings.services.library.freeReady": "Ключ API не нужен. Доступные бесплатные сервисы выбираются автоматически.",
     "settings.services.library.keepOne": "Оставьте хотя бы один сервис включённым.",
     "settings.services.library.memoryEmail": "Контактный адрес MyMemory (необязательно)",
@@ -498,6 +500,7 @@ export const ruRUMessages = {
     'video.showSubtitles': 'Показывать субтитры',
     'video.downloadOriginal': 'Скачать оригинальные субтитры',
     'video.downloadTranslated': 'Скачать переведённые субтитры',
+    'video.downloadBilingual': 'Скачать двуязычные субтитры',
     'video.openSettings': 'Открыть настройки перевода видео',
     'video.aiGenerate': 'Создать субтитры с ИИ',
     'video.aiStop': 'Остановить создание',
@@ -514,7 +517,29 @@ export const ruRUMessages = {
     'video.aiGenerating': 'Создание…',
     'video.aiLocalTitle': 'Локальные субтитры ИИ X',
     'video.aiLocalHint': 'Если встроенных субтитров нет, распознавание выполняется локально; скорость зависит от CPU и памяти.',
-    'video.aiRegenerate': 'Распознать субтитры снова',
+    'video.modeBilingual': 'Оба',
+    'video.modeTranslation': 'Перевод',
+    'video.modeOriginal': 'Оригинал',
+    'video.modeOff': 'Выкл.',
+    'video.modeOffHint': 'Отключить субтитры FluentRead и оставить субтитры сайта',
+    'video.timingShort': 'Сдвиг',
+    'video.downloadOriginalShort': 'Оригинал',
+    'video.downloadTranslatedShort': 'Перевод',
+    'video.downloadBilingualShort': 'Два языка',
+    'video.aiDownloadingModel': 'Загрузка модели…',
+    'video.aiModelDownloadFailed': 'Не удалось загрузить модель: {error}',
+    'video.modelPromptTitle': 'Загрузить модель ИИ-субтитров',
+    'video.modelPromptDescription': 'Распознавание речи выполняется на этом устройстве. Модель загружается один раз, аудио никуда не отправляется.',
+    'video.modelTinyName': 'Tiny · Быстрая',
+    'video.modelTinyHint': 'Быстрее, меньше памяти',
+    'video.modelBaseName': 'Base · Точная',
+    'video.modelBaseHint': 'Точнее, но медленнее',
+    'video.modelSize': '~{size} МБ',
+    'video.modelRecommended': 'Рекомендуется',
+    'video.modelDownloaded': 'Загружена',
+    'video.modelPromptCancel': 'Отмена',
+    'video.modelPromptDownload': 'Загрузить и создать',
+    'video.modelPromptStart': 'Создать',
     'options.searchPlaceholder': 'Поиск настроек (например: сочетание, кэш, OpenAI)',
     'metadata.optionsTitle': 'Настройки FluentRead',
     'metadata.popupTitle': 'FluentRead',
