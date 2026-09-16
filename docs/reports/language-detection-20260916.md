@@ -65,6 +65,23 @@
 - `tests/freeFallback.test.ts` 4 个 HTTP 400/413/415/422 用例，`tests/free-translation.test.ts` 1 个冷却用例；由此导致 `free-translation.ts`、`freeFallback.ts` 覆盖缺口；`src/core/config/diff.ts` 函数覆盖 99.03%。
 - 架构测试：`providerBoundaries`（后台 composition root 直接引用 provider）与 `verificationOwnership`（`freeTranslationWeights.ts`、`freeWeights.ts` 未进入覆盖率边界）。
 
+### 合并 main 之后的复跑
+
+本分支合入当时的 `main`（`a10d791f`，基线之后新增 13 个提交）。冲突只出现在两侧各自追加内容的 `docs/testing.md` 与 `tests/test-matrix.json`，按并集解决；`vitest.coverage.config.ts` 自动合并后双语逐句高亮与语言核心条目共存。合并后复跑：
+
+| 项目 | 结果 |
+| --- | --- |
+| `pnpm test:unit` | 4,508 个用例，4 个失败 |
+| `pnpm test:functional` | 1,868 个用例，4 个失败 |
+| `pnpm test:regression` | 601 个用例全部通过 |
+| `pnpm test:architecture` | 1,039 个用例，3 个失败 |
+| `pnpm test:coverage` | 6,698 个用例，5 个失败；`src/core/language` 四维仍为 100% |
+| `pnpm compile`、`pnpm build`、`pnpm build:firefox`、`pnpm test:userscript`、`pnpm verify:extension-manifests`、`pnpm docs:build` | 通过 |
+
+上述失败全部在导出的纯净 `main` 上逐项复现，均为基线问题：unit 与 functional 的失败即 `freeFallback` / `free-translation` / `google` 免费链路用例；3 个架构失败同上一节，其中 `freeTranslationWeights.ts`、`freeWeights.ts` 由 `main` 的 `20c47a17` 引入且从未登记；`pnpm test:audit` 仍只报这两个文件未归类。合并后的覆盖率缺口仅落在 `src/providers/translation/free-translation.ts`（失败用例所在模块）和一个纯类型文件，本次改动文件没有新增缺口。
+
+一次 `tests/featureTranslationClients.test.ts` 的取消超时用例在并行满载下偶发失败，单独运行与再次整组运行均通过，记为负载相关抖动，未据此改动产品代码。
+
 ### 隔离真实浏览器
 
 生产 Chrome MV3 产物，临时 Edge profile，`launchMode=macos-background-cdp`，`focusPolicy=launchservices-no-foreground`，`windowPlacement.mode=background-visible-no-focus`，`browserFrontmost=false`，控制台错误 0。页面与译文来自本地回环夹具，只证明扩展判断链、DOM 状态和请求计数，**不代表真实翻译服务质量**；未进行 Firefox 实机和真实供应商验证。
