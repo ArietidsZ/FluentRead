@@ -70,5 +70,41 @@ describe('工具栏原生三态角标', () => {
         expect(action.setBadgeText).not.toHaveBeenCalledWith({tabId:1,text:'✓'});
         expect(action.setBadgeText).toHaveBeenLastCalledWith({tabId:1,text:''});
     });
-
+    it.each(['setBadgeText','setIcon','setBadgeBackgroundColor','setBadgeTextColor'] as const)(
+        '%s 写入中回到已显示过的完成状态，仍会重画完成角标', async method => {
+            const {store,badge,action}=setup();
+            store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});
+            await badge.update(1);
+            let release!:()=>void;
+            action[method].mockImplementationOnce(()=>new Promise<void>(resolve=>{release=resolve}));
+            store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translating'});
+            const pending=badge.update(1);await settle();
+            expect(release).toBeTypeOf('function');
+            store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});
+            const completed=badge.update(1);release();await Promise.all([pending,completed]);
+            expect(action.setBadgeText).toHaveBeenLastCalledWith({tabId:1,text:'✓'});
+            expect(action.setBadgeBackgroundColor).toHaveBeenLastCalledWith({tabId:1,color:'#15803d'});
+        },
+    );
+    it('已显示原文时，迟到的完成文字写入不能覆盖再次恢复原文', async () => {
+        const {store,badge,action}=setup();await badge.update(1);
+        let release!:()=>void;
+        action.setBadgeText.mockResolvedValueOnce(undefined)
+            .mockImplementationOnce(()=>new Promise<void>(resolve=>{release=resolve}));
+        store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});
+        const completed=badge.update(1);await settle();
+        expect(release).toBeTypeOf('function');
+        store.reset(1);const restored=badge.update(1);release();await Promise.all([completed,restored]);
+        expect(action.setBadgeText).toHaveBeenLastCalledWith({tabId:1,text:''});
+    });
+    it('部分写入失败后回到上次完成状态，也能重新显示对勾', async () => {
+        const {store,badge,action}=setup();
+        store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});await badge.update(1);
+        const error=vi.spyOn(console,'error').mockImplementation(()=>{});
+        action.setBadgeBackgroundColor.mockRejectedValueOnce(new Error('temporary API failure'));
+        store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translating'});await badge.update(1);
+        store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});await badge.update(1);
+        expect(error).toHaveBeenCalled();
+        expect(action.setBadgeText).toHaveBeenLastCalledWith({tabId:1,text:'✓'});
+    });
 });
