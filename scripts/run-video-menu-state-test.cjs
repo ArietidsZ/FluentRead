@@ -284,16 +284,23 @@ async function main() {
   await action('toggle-ai-subtitle').click();
   await checked(action('toggle-ai-subtitle'), true);
   report.checks.push('缓存命中时直接恢复 AI 字幕，不弹出模型确认');
-  for (const name of ['download-subtitles', 'download-translated-subtitles']) {
+  for (const name of ['download-subtitles', 'download-translated-subtitles', 'download-bilingual-subtitles']) {
     const downloaded = page.waitForEvent('download');
     await action(name).click();
     const download = await downloaded;
     const destination = path.join(artifacts, `${name}.srt`);
     await download.saveAs(destination);
-    assert.match(fs.readFileSync(destination, 'utf8'), /00:00:00,000 --> 00:00:10,000/);
+    const srt = fs.readFileSync(destination, 'utf8');
+    assert.match(srt, /00:00:00,000 --> 00:00:10,000/);
     assert.match(await menu.locator('[data-download-status]').innerText(), /1/);
+    (report.downloads ||= {})[name] = {filename: download.suggestedFilename(), body: srt.trim()};
   }
-  report.checks.push('原文和译文下载及结果反馈正常');
+  assert.match(report.downloads['download-subtitles'].body, /Subtitle menu state fixture\.$/u);
+  assert.match(report.downloads['download-translated-subtitles'].body, /字幕菜单同步测试$/u);
+  // 双语文件把原文与译文放在同一条 cue 的两行里。
+  assert.match(report.downloads['download-bilingual-subtitles'].body, /Subtitle menu state fixture\.\n字幕菜单同步测试$/u);
+  assert.ok(report.downloads['download-bilingual-subtitles'].filename.endsWith('-bilingual.srt'), report.downloads['download-bilingual-subtitles'].filename);
+  report.checks.push('原文、译文和双语下载及结果反馈正常，双语文件保留两行');
   await screenshot('controls-absent');
   await page.evaluate(() => document.querySelector('[data-testid="videoPlayer"]').append(window.fixtureControls));
   await page.locator('#fluent-read-video-subtitle-button').waitFor({state: 'attached'});
