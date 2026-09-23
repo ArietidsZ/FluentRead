@@ -236,13 +236,19 @@ describe('悬浮球 content runtime', () => {
     document.dispatchEvent(new Event('fullscreenchange'));
     expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBeFalsy();
 
+    // 图片/文档等普通内容全屏时，即使页面其他位置存在视频，也不能误判为视频全屏。
     const nonVideoFullscreenElement = document.createElement('div');
+    nonVideoFullscreenElement.append(document.createElement('img'));
+    document.body.append(document.createElement('video'));
     Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: nonVideoFullscreenElement});
     document.dispatchEvent(new Event('fullscreenchange'));
     expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBeFalsy();
 
+    // YouTube 等站点通常让播放器容器进入全屏，而不是让 video 元素本身进入全屏。
     const videoPlayer = document.createElement('div');
-    videoPlayer.append(document.createElement('video'));
+    const nestedPlayer = document.createElement('div');
+    nestedPlayer.append(document.createElement('video'));
+    videoPlayer.append(nestedPlayer);
     Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: videoPlayer});
     document.dispatchEvent(new Event('fullscreenchange'));
     expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBe('none');
