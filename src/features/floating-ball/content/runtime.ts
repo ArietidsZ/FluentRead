@@ -64,12 +64,15 @@ function openOptionsPage(): void {
     });
 }
 
-/** 视频等页面元素进入全屏时隐藏扩展浮层，退出后恢复原有展示。 */
+/** 仅视频自身或承载视频的播放器容器进入全屏时隐藏扩展浮层。 */
 function subscribeFullscreenVisibility(ui: ShadowRootContentScriptUi<VueShadowMount>): () => void {
     if (typeof document === 'undefined') return () => {};
 
     const syncVisibility = () => {
-        if (document.fullscreenElement) {
+        const fullscreenElement = document.fullscreenElement;
+        const isVideoFullscreen = fullscreenElement != null
+            && (fullscreenElement.matches('video') || fullscreenElement.querySelector('video') !== null);
+        if (isVideoFullscreen) {
             ui.shadowHost.style.setProperty('display', 'none', 'important');
         } else {
             ui.shadowHost.style.removeProperty('display');

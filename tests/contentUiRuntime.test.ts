@@ -222,7 +222,7 @@ describe('悬浮球 content runtime', () => {
     expect(presentation.toolsDisplay).toBe('always');
   });
 
-  it('页面元素进入全屏时隐藏悬浮球，退出全屏后恢复并在卸载时清理监听', async () => {
+  it('仅视频全屏时隐藏悬浮球，普通元素全屏不隐藏，退出后恢复并在卸载时清理监听', async () => {
     const mountedUi = ui({toggleTranslation: vi.fn(), setTranslationState: vi.fn()});
     mocks.createVueShadowUi.mockResolvedValue(mountedUi);
     const runtime = await import('@/src/features/floating-ball/content/runtime');
@@ -235,6 +235,17 @@ describe('悬浮球 content runtime', () => {
     Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: null});
     document.dispatchEvent(new Event('fullscreenchange'));
     expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBeFalsy();
+
+    const nonVideoFullscreenElement = document.createElement('div');
+    Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: nonVideoFullscreenElement});
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBeFalsy();
+
+    const videoPlayer = document.createElement('div');
+    videoPlayer.append(document.createElement('video'));
+    Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: videoPlayer});
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBe('none');
 
     Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: fullscreenElement});
     runtime.unmountFloatingBall();
