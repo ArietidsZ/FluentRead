@@ -2376,8 +2376,6 @@ export const esESLegacyText: Readonly<Record<string, string>> = {
 
     // 悬浮球进阶设置与禁用网站名单的界面文案。
     '悬浮球进阶设置': 'Ajustes avanzados de la burbuja flotante',
-    '悬浮球、显示悬浮球、开启悬浮球': 'Burbuja flotante, mostrar la burbuja flotante, activar la burbuja flotante',
-    '悬浮球配置、悬浮球设置、悬浮球位置': 'Configuración de la burbuja flotante, ajustes de la burbuja flotante, posición de la burbuja flotante',
     '控制悬浮球的按钮显示方式、点击行为、尺寸与生效网站。关闭悬浮球后这些设置保留但不生效。': 'Controla cómo se muestran los botones, qué hace un clic, el tamaño y los sitios donde aparece. Los ajustes se conservan pero no se aplican mientras la burbuja está desactivada.',
     '按钮显示方式': 'Visualización de botones',
     '悬浮球上的翻译与设置按钮可以悬停时展开、始终显示，或完全隐藏只保留悬浮球本体。': 'Los botones de traducción y ajustes pueden desplegarse al pasar el cursor, permanecer visibles u ocultarse para dejar solo la burbuja.',

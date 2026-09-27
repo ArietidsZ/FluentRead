@@ -2386,8 +2386,6 @@ export const enUSLegacyText: Readonly<Record<string, string>> = {
     "正在播放译文": "Playing translation",
     // 悬浮球进阶设置与禁用网站名单的界面文案。
     '悬浮球进阶设置': 'Floating ball advanced settings',
-    '悬浮球、显示悬浮球、开启悬浮球': 'Floating ball, show floating ball, turn on floating ball',
-    '悬浮球配置、悬浮球设置、悬浮球位置': 'Floating ball configuration, floating ball settings, floating ball position',
     '控制悬浮球的按钮显示方式、点击行为、尺寸与生效网站。关闭悬浮球后这些设置保留但不生效。': 'Controls how the ball shows its buttons, what a click does, its size, and where it appears. These settings are kept but inactive while the ball is off.',
     '按钮显示方式': 'Button display',
     '悬浮球上的翻译与设置按钮可以悬停时展开、始终显示，或完全隐藏只保留悬浮球本体。': 'The translate and settings buttons can expand on hover, stay visible, or be hidden so that only the ball remains.',
