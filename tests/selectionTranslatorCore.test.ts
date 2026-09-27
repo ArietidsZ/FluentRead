@@ -7,12 +7,14 @@ import {
     chooseSelectionRect,
     getSelectionPresentationDelayRemaining,
     isSameLanguage,
+    isChineseEnglishTarget,
     isSelectionExcludedTagName,
     normalizeSelectionText,
     readSelectionText,
     normalizeSpeechLanguage,
     reconcileSelectionPresentation,
     resolveSelectionDictionaryFallback,
+    selectionReverseTarget,
     resolveSelectionVocabularyAnswer,
     SelectionRequestTokenGate,
     shouldIgnoreSelection,
@@ -26,6 +28,21 @@ import {
 import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/src/core/hotkey';
 import { normalizeSelectionTtsVoiceOrder, selectionTtsVoiceLocale } from '@/src/core/config/selectionTts';
 import {detectlang} from '@/src/core/language/detect';
+
+describe('中英划词方向', () => {
+    it('只为当前目标语言的可信中英选区选择反向目标', () => {
+        expect(isChineseEnglishTarget('zh-Hant')).toBe(true);
+        expect(isChineseEnglishTarget('en')).toBe(true);
+        expect(isChineseEnglishTarget('ja')).toBe(false);
+        expect(selectionReverseTarget('你好，世界！', 'zh-Hans', 'auto')).toBe('en');
+        expect(selectionReverseTarget('這是一段繁體中文。', 'zh-Hant', 'auto')).toBe('en');
+        expect(selectionReverseTarget('This is an English sentence.', 'en', 'zh-Hant')).toBe('zh-Hant');
+        expect(selectionReverseTarget('This is an English sentence.', 'en', 'auto')).toBe('zh-Hans');
+        expect(selectionReverseTarget('This is an English sentence.', 'zh-Hans', 'auto')).toBeNull();
+        expect(selectionReverseTarget('你好，世界！', 'ja', 'auto')).toBeNull();
+        expect(selectionReverseTarget('API', 'en', 'auto')).toBeNull();
+    });
+});
 
 interface MockElementOptions {
     nodeType?: number;

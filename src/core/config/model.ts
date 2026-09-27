@@ -451,6 +451,7 @@ export class Config {
     selectionTranslatorHotkey: string; // 旧版快捷键字段；与 selectionTranslatorTrigger 中的快捷键选项保持镜像
     customSelectionTranslatorHotkey: string; // 自定义划词翻译快捷键
     selectionTranslatorDelay: number; // 选区稳定后显示划词翻译入口的延迟（毫秒）
+    selectionTranslatorBidirectional: boolean; // 中英目标下为同语言选区提供反向划词入口
     selectionTtsVoices: string[]; // 划词朗读的 Edge TTS 音色回退顺序
     selectionTtsMode: LocalTtsMode; // 朗读在线/本地合成策略
     selectionTtsLocalVoice: LocalTtsVoiceId; // 本地 Kokoro 音色，auto 表示按语言选择
@@ -623,6 +624,7 @@ export class Config {
         this.selectionTranslatorHotkey = 'none'; // 默认不增加额外快捷键，保持原有划词行为
         this.customSelectionTranslatorHotkey = ''; // 自定义划词翻译快捷键为空
         this.selectionTranslatorDelay = DEFAULT_SELECTION_TRANSLATOR_DELAY;
+        this.selectionTranslatorBidirectional = false; // 保留默认的同语言跳过，用户可按需开启双向入口
         this.selectionTtsVoices = []; // 默认按当前语言使用内置音色回退顺序
         this.selectionTtsMode = DEFAULT_LOCAL_TTS_MODE;
         this.selectionTtsLocalVoice = DEFAULT_LOCAL_TTS_VOICE;
@@ -1256,6 +1258,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.selectionTranslatorDelay = normalizeSelectionTranslatorDelay(
         source.selectionTranslatorDelay,
     );
+    normalized.selectionTranslatorBidirectional = source.selectionTranslatorBidirectional === true;
     // 兼容上一版“触发方式 + 可选快捷键”配置，并将最终状态收敛为单一触发方式。
     if (!hasExplicitSelectionTrigger
         && ['direct', 'icon', 'dot'].includes(normalized.selectionTranslatorTrigger)
