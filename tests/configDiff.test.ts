@@ -224,6 +224,18 @@ describe('配置差异预览', () => {
         ]));
     });
 
+    it('显示局部翻译快捷键的开关与组合', () => {
+        const changed = buildConfigDiff(
+            {sectionTranslationHotkeyEnabled: false, sectionTranslationHotkey: 'Alt+R', customSectionTranslationHotkey: ''},
+            {sectionTranslationHotkeyEnabled: true, sectionTranslationHotkey: 'custom', customSectionTranslationHotkey: 'Alt+J'},
+        );
+        expect(group(changed, 'translation')?.changes).toEqual(expect.arrayContaining([
+            {key: 'sectionTranslationHotkeyEnabled', label: '局部翻译快捷键', before: '关闭', after: '开启'},
+            {key: 'sectionTranslationHotkey', label: '局部翻译快捷键组合', before: 'Alt+R', after: '自定义快捷键'},
+            {key: 'customSectionTranslationHotkey', label: '自定义局部翻译快捷键', before: '未设置', after: 'Alt+J'},
+        ]));
+    });
+
     it('显示界面皮肤和 Popup 栏目可见性，并安全处理异常栏目值', () => {
         const result = buildConfigDiff({
             interfaceSkin: 'default',

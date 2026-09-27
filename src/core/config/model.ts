@@ -73,6 +73,12 @@ import {
     resolveParagraphCopyHotkey,
     type ParagraphCopyContentMode,
 } from '@/src/core/config/paragraphCopy';
+import {
+    DEFAULT_SECTION_TRANSLATION_HOTKEY,
+    normalizeCustomSectionTranslationHotkey,
+    normalizeSectionTranslationHotkey,
+    resolveSectionTranslationHotkey,
+} from '@/src/core/config/sectionTranslation';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import {
     DEFAULT_LOCAL_TTS_MODE,
@@ -418,6 +424,9 @@ export class Config {
     paragraphCopyHotkey: string; // 段落复制触发快捷键；'custom' 表示使用自定义组合键
     customParagraphCopyHotkey: string; // 自定义段落复制快捷键
     paragraphCopyContent: ParagraphCopyContentMode; // 段落复制写入剪贴板的内容口径
+    sectionTranslationHotkeyEnabled: boolean; // 是否用快捷键进入局部翻译的区域选择模式
+    sectionTranslationHotkey: string; // 局部翻译快捷键；'custom' 表示使用自定义组合键
+    customSectionTranslationHotkey: string; // 自定义局部翻译快捷键
     disableSelectionTranslator: boolean; // 是否禁用划词翻译
     selectionAreaEnabled: boolean; // 是否启用圈选翻译
     selectionAreaHotkey: string; // 圈选翻译触发快捷键；'custom' 表示使用自定义组合键
@@ -587,6 +596,9 @@ export class Config {
         this.paragraphCopyHotkey = DEFAULT_PARAGRAPH_COPY_HOTKEY; // 默认 Alt+C，避开浏览器的 Ctrl+C
         this.customParagraphCopyHotkey = ''; // 自定义段落复制快捷键为空
         this.paragraphCopyContent = DEFAULT_PARAGRAPH_COPY_CONTENT_MODE; // 默认跟随段落当前显示形态
+        this.sectionTranslationHotkeyEnabled = false; // 默认关闭，局部翻译先从 Popup 进入，避免未主动选择时接管快捷键
+        this.sectionTranslationHotkey = DEFAULT_SECTION_TRANSLATION_HOTKEY; // 默认 Alt+R，开启后才监听
+        this.customSectionTranslationHotkey = ''; // 自定义局部翻译快捷键为空
         this.disableSelectionTranslator = true; // 默认关闭划词翻译
         this.selectionAreaEnabled = true; // 默认开启，按快捷键圈选后才截图翻译
         this.selectionAreaHotkey = DEFAULT_AREA_TRANSLATION_HOTKEY; // 默认 Shift+Z，可改为其他预设或自定义组合键
@@ -1287,6 +1299,15 @@ export function normalizeConfig(value: unknown): Config {
         normalized.paragraphCopyHotkey = DEFAULT_PARAGRAPH_COPY_HOTKEY;
     }
     normalized.paragraphCopyContent = normalizeParagraphCopyContentMode(source.paragraphCopyContent);
+    if (typeof normalized.sectionTranslationHotkeyEnabled !== 'boolean') {
+        normalized.sectionTranslationHotkeyEnabled = false;
+    }
+    normalized.customSectionTranslationHotkey = normalizeCustomSectionTranslationHotkey(source.customSectionTranslationHotkey);
+    normalized.sectionTranslationHotkey = normalizeSectionTranslationHotkey(source.sectionTranslationHotkey);
+    // 选择自定义却没有可用组合键时回到预设默认值，开启的快捷键不会失去可用组合。
+    if (normalized.sectionTranslationHotkey === 'custom' && !normalized.customSectionTranslationHotkey) {
+        normalized.sectionTranslationHotkey = DEFAULT_SECTION_TRANSLATION_HOTKEY;
+    }
     if (typeof normalized.disableImageTranslator !== 'boolean') {
         normalized.disableImageTranslator = true;
     }
@@ -1330,6 +1351,9 @@ export function normalizeConfig(value: unknown): Config {
                     : []),
                 ...(normalized.paragraphCopyEnabled
                     ? [resolveParagraphCopyHotkey(normalized.paragraphCopyHotkey, normalized.customParagraphCopyHotkey)]
+                    : []),
+                ...(normalized.sectionTranslationHotkeyEnabled
+                    ? [resolveSectionTranslationHotkey(normalized.sectionTranslationHotkey, normalized.customSectionTranslationHotkey)]
                     : []),
                 inputBoxTranslationTriggerHotkey(normalized.inputBoxTranslationTrigger),
             ],

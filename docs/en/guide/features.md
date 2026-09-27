@@ -54,6 +54,18 @@ A wider scope also changes more interface text. Turn it off to return to the usu
 - **Line breaks in long paragraphs**: insert a line break at the end of each sentence in long translated paragraphs.
 - **Translation before original**: in bilingual mode, place the translation above each original paragraph instead of below it.
 
+## Section translation
+
+When you only want to read part of a page, such as a GitHub README, an article body or one comment thread, you don’t have to translate the whole page. Click the **Section** button next to **Translate this page** in the extension menu to start picking:
+
+- The part of the page under the mouse is outlined, and a label tells you what a click will do: how many paragraphs it will translate, that it will show the original again, or that there is nothing to translate.
+- Click to translate just that section. Paragraphs on screen are translated first and the rest follow. Display mode, service and target language are the same as for page translation.
+- Press **↑** to widen the section to its outer container and **↓** to narrow it again. After widening, the selection stays put while the mouse is inside the outline.
+- Pick a translated section again to show its original text. If some paragraphs failed, picking the section again retries them.
+- Press **Esc**, right-click, or click **×** on the hint bar at the bottom to exit. While picking, clicks on the page don’t open links or press buttons.
+
+If you use it often, turn on its shortcut in **Settings → Translation → Section translation** (default **Alt+R**, Option+R on a Mac); press it again while picking to exit. Headers, navigation and sidebars usually stay in the original language during page translation, but if you pick one of them yourself, its text is translated too and, like other interface text, replaces the original in place so the layout stays intact. Restoring page translation also restores any translated sections.
+
 ## Bilingual sentence highlighting
 
 Enable **Settings → General → Bilingual sentence highlighting**, then hover over a sentence on either side to highlight its counterpart. No click or shortcut is needed. The settings preview contains several sentence pairs to try.

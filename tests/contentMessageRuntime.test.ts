@@ -32,6 +32,8 @@ const mocks = vi.hoisted(() => ({
     unmountImageTranslator: vi.fn(),
     unmountSelectionTranslator: vi.fn(),
     unmountTranslationProgressPanel: vi.fn(),
+    translateSelectionFromContextMenu: vi.fn(),
+    startSectionTranslationPicker: vi.fn(),
     sendMessage: vi.fn(),
 }));
 
@@ -56,6 +58,8 @@ vi.mock('@/src/app/content/features', () => ({
     unmountImageTranslator: mocks.unmountImageTranslator,
     unmountSelectionTranslator: mocks.unmountSelectionTranslator,
     unmountTranslationProgressPanel: mocks.unmountTranslationProgressPanel,
+    translateSelectionFromContextMenu: mocks.translateSelectionFromContextMenu,
+    startSectionTranslationPicker: mocks.startSectionTranslationPicker,
 }));
 
 beforeEach(() => {
@@ -262,6 +266,48 @@ describe('内容脚本 runtime 消息协议', () => {
             isTranslated: false,
         });
         expect(handler({type: 'contextMenuTranslate', action: 'unknown'}, {}, respond)).toBe(false);
+    });
+
+    it('Popup 的局部翻译请求进入区域选择模式，未挂载时如实返回失败', async () => {
+        const {createContentRuntimeMessageHandler} = await import('@/src/app/content/messageRuntime');
+        const respond = vi.fn();
+        const handler = createContentRuntimeMessageHandler({} as never, {
+            isSiteDisabled: () => false,
+            updateSiteDisabled: vi.fn(async () => undefined),
+        });
+
+        mocks.startSectionTranslationPicker.mockReturnValueOnce(true);
+        expect(handler({type: 'contextMenuTranslate', action: 'section'}, {}, respond)).toBe(true);
+        expect(respond).toHaveBeenLastCalledWith({status: 'success'});
+        mocks.startSectionTranslationPicker.mockReturnValueOnce(false);
+        handler({type: 'contextMenuTranslate', action: 'section'}, {}, respond);
+        expect(respond).toHaveBeenLastCalledWith({status: 'failed'});
+        expect(mocks.startSectionTranslationPicker).toHaveBeenCalledTimes(2);
+        // 划词与局部翻译共用同一分支，互不串用对方的入口。
+        expect(mocks.translateSelectionFromContextMenu).not.toHaveBeenCalled();
+        mocks.translateSelectionFromContextMenu.mockReturnValueOnce(true);
+        handler({type: 'contextMenuTranslate', action: 'selection'}, {}, respond);
+        expect(respond).toHaveBeenLastCalledWith({status: 'success'});
+        expect(mocks.startSectionTranslationPicker).toHaveBeenCalledTimes(2);
+    });
+
+    it('站点停用或总开关关闭时局部翻译请求被拒绝，不进入选择模式', async () => {
+        const {createContentRuntimeMessageHandler} = await import('@/src/app/content/messageRuntime');
+        const respond = vi.fn();
+        const siteDisabled = createContentRuntimeMessageHandler({} as never, {
+            isSiteDisabled: () => true,
+            updateSiteDisabled: vi.fn(async () => undefined),
+        });
+        siteDisabled({type: 'contextMenuTranslate', action: 'section'}, {}, respond);
+        expect(respond).toHaveBeenLastCalledWith({status: 'disabled'});
+        mocks.config.on = false;
+        const pluginOff = createContentRuntimeMessageHandler({} as never, {
+            isSiteDisabled: () => false,
+            updateSiteDisabled: vi.fn(async () => undefined),
+        });
+        pluginOff({type: 'contextMenuTranslate', action: 'section'}, {}, respond);
+        expect(respond).toHaveBeenLastCalledWith({status: 'disabled'});
+        expect(mocks.startSectionTranslationPicker).not.toHaveBeenCalled();
     });
 
     it('总开关关闭时只保存子功能偏好，不允许消息把页面功能重新挂载', async () => {

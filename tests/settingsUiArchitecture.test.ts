@@ -1102,6 +1102,14 @@ describe('options UI composition architecture', () => {
       .toBeGreaterThan(translation.indexOf('title="全文翻译"'))
     expect(translation.indexOf('<ParagraphCopySettings'))
       .toBeGreaterThan(translation.indexOf('<FloatingBallSettings'))
+    // 局部翻译紧跟段落复制：两者都是“对网页某一块内容”的操作，快捷键冲突提示也相互覆盖。
+    const sectionTranslationSettings = source('src/features/settings/ui/SectionTranslationSettings.vue')
+    expect(translation.indexOf('<SectionTranslationSettings :config="config" />'))
+      .toBeGreaterThan(translation.indexOf('<ParagraphCopySettings'))
+    expect(settingsGroupTitles(sectionTranslationSettings)).toEqual(["t('sectionTranslation.settings.title')"])
+    expect(sectionTranslationSettings).toContain('data-testid="section-translation-hotkey"')
+    expect(sectionTranslationSettings).toContain('v-model="props.config.sectionTranslationHotkeyEnabled"')
+    expect(paragraphCopySettings).toContain("feature: t('sectionTranslation.settings.title')")
 
     const hoverProfiles = translation.indexOf('action="hover"')
     const fullPageProfiles = translation.indexOf('action="full-page"')

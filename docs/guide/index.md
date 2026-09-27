@@ -9,6 +9,7 @@ FluentRead 流畅阅读是一款开源的浏览器双语翻译插件，支持网
 | 你正在读的内容 | 从这里开始 |
 | --- | --- |
 | 一篇外语文章 | [网页与划词翻译](/guide/features) |
+| 页面中的一块内容，如 README 或评论区 | [局部翻译](/guide/features#局部翻译) |
 | 一句复杂的表达 | [翻译卡片：读懂、拆句、用法与练习](/guide/deepseek-harness) |
 | 图片里选不中的文字 | [图片翻译](/guide/image-translation) · [圈选翻译](/guide/area-translation) |
 | PDF、电子书或 Word 文件 | [文档翻译](/guide/document-translation) |

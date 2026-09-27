@@ -207,6 +207,16 @@ export class TranslationCandidateCore {
         return this.includeSidebarRegions ? {includeSidebarRegions: true} : undefined;
     }
 
+    /**
+     * 判断元素本身或其祖先是否属于正文范围下保持原文的页面框架（header/footer/nav/aside）。
+     * 全文翻译据此跳过框架；用户显式点选框架区域时，调用方可据此改用全部节点范围。
+     */
+    isWithinStructuralRegion(element: Element): boolean {
+        if (this.scope !== 'content') return false;
+        const options = this.structuralRegionOptions();
+        return isStructuralContainer(element, options) || hasStructuralAncestor(element, options);
+    }
+
     private candidateResolutionMetadata(
         evaluationContext?: ResolutionEvaluationContext,
     ): Pick<TranslationCandidate, 'allowTopLevelApplicationShell' | 'scope'> {
