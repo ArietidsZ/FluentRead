@@ -4,6 +4,45 @@ import {userscriptFetch} from '@/userscript/http';
 describe('userscript HTTP transport', () => {
     afterEach(() => {
         globalThis.GM_xmlhttpRequest = undefined;
+        globalThis.GM = undefined;
+    });
+
+    it('uses Safari Userscripts promise-only GM.xmlHttpRequest without falling back to page fetch', async () => {
+        let calls = 0;
+        globalThis.GM = {
+            xmlHttpRequest(details) {
+                calls += 1;
+                expect(details.url).toBe('https://api.example.test/safari');
+                return Promise.resolve({
+                    status: 200,
+                    statusText: 'OK',
+                    responseText: '{"translation":"你好"}',
+                    responseHeaders: 'content-type: application/json',
+                });
+            },
+        };
+
+        const response = await userscriptFetch('https://api.example.test/safari');
+        expect(calls).toBe(1);
+        expect(await response.json()).toEqual({translation: '你好'});
+    });
+
+    it('propagates cancellation to a modern GM promise handle', async () => {
+        let aborted = false;
+        globalThis.GM = {
+            xmlHttpRequest() {
+                const pending = new Promise<UserscriptXmlHttpResponse>(() => undefined) as
+                    Promise<UserscriptXmlHttpResponse> & {abort?: () => void};
+                pending.abort = () => { aborted = true; };
+                return pending;
+            },
+        };
+        const controller = new AbortController();
+        const request = userscriptFetch('https://api.example.test/slow', {signal: controller.signal});
+        await new Promise<void>((resolve) => queueMicrotask(resolve));
+        controller.abort();
+        await expect(request).rejects.toMatchObject({name: 'AbortError'});
+        expect(aborted).toBe(true);
     });
 
     it('wraps Via-compatible responseText as a fetch Response', async () => {

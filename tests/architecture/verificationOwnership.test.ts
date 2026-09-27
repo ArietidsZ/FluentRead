@@ -105,7 +105,10 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
         || path.startsWith('scripts/agent-bridge/')
         || path.startsWith('scripts/wasm/')
         || PRODUCT_TOOL_SCRIPTS.includes(path)
+        || path === 'scripts/generate-userscript-language-data.mjs'
+        || path === 'scripts/build-userscript-standalone.mjs'
         || path === 'scripts/verify-userscript-build.mjs'
+        || path === 'scripts/verify-userscript-standalone-build.mjs'
         || path === 'scripts/export-site-rule-pack.mjs'
         || path === 'scripts/update-readme-contributors.mjs'
         || path.startsWith('vitest.')) {

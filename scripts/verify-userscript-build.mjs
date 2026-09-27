@@ -7,6 +7,8 @@ const root = process.cwd();
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const artifactPath = path.join(root, '.output/userscript/fluent-read.user.js');
 const source = fs.readFileSync(artifactPath, 'utf8');
+const artifactBytes = Buffer.byteLength(source);
+const MAX_USERSCRIPT_BYTES = 1_950_000;
 const preludeStartMarker = '/* FluentRead userscript compatibility prelude:start */';
 const preludeEndMarker = '/* FluentRead userscript compatibility prelude:end */';
 const preludeStart = source.indexOf(preludeStartMarker);
@@ -23,8 +25,19 @@ const assertions = [
   [source.includes(`// @version      ${packageJson.userscriptVersion}`), 'metadata must use userscriptVersion'],
   [source.includes(`FluentRead V${packageJson.version} · Userscript V${packageJson.userscriptVersion}`), 'settings must distinguish the FluentRead and userscript versions'],
   [source.includes('// @grant        GM_xmlhttpRequest'), 'GM_xmlhttpRequest grant is required'],
+  [source.includes('// @grant        GM.getValue') && source.includes('// @grant        GM.setValue'), 'Safari GM storage grants are required'],
+  [source.includes('// @grant        GM.xmlHttpRequest'), 'Safari GM request grant is required'],
+  [source.includes('// @inject-into  content'), 'Safari GM APIs require content-world injection'],
   [source.includes('// @connect      *'), 'provider requests require @connect'],
-  [!source.includes('// @require'), 'the artifact must be self-contained'],
+  [source.includes('// @require      https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js'), 'pinned Vue @require is missing'],
+  [source.includes('// @require      https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@c8f9d958b12bcaef61b9a83ac832e62084a805b3/userscript/vueElementPlusBridge.v1.js'), 'pinned Vue / Element Plus UMD bridge @require is missing'],
+  [!source.includes('FluentRead/FluentRead@main/userscript/'), 'userscript resources must use an immutable commit'],
+  [source.indexOf('vue.global.prod.js') < source.indexOf('vueElementPlusBridge.v1.js')
+    && source.indexOf('vueElementPlusBridge.v1.js') < source.indexOf('element-plus@2.9.3/dist/index.full.min.js'), 'Vue bridge must load between Vue and Element Plus'],
+  [source.includes('// @require      https://cdn.jsdelivr.net/npm/element-plus@2.9.3/dist/index.full.min.js'), 'pinned Element Plus @require is missing'],
+  [source.includes('// @require      https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako_inflate.min.js'), 'pako fallback @require is missing'],
+  [source.includes('globalThis.__fluentReadUserscriptCssCompressed='), 'userscript CSS must be compressed'],
+  [artifactBytes <= MAX_USERSCRIPT_BYTES, `artifact exceeds the ${MAX_USERSCRIPT_BYTES.toLocaleString()}-byte size budget`],
   [!/(^|[^\w])import\s*\(/u.test(source), 'the artifact must not contain runtime dynamic imports'],
   [!/\bglobalThis\s*(?:\.\s*(?:browser|chrome)\b|\[\s*['"](?:browser|chrome)['"]\s*\])/u.test(source), 'privileged browser shims must stay lexical'],
   [source.split('// ==UserScript==').length === 2, 'metadata header must occur exactly once'],
@@ -74,4 +87,4 @@ runtimeAssertions.push([
 const runtimeFailure = runtimeAssertions.find(([passed]) => !passed);
 if (runtimeFailure) throw new Error(`Userscript compatibility verification failed: ${runtimeFailure[1]}`);
 
-console.log(`Verified ${path.relative(root, artifactPath)} (${Buffer.byteLength(source).toLocaleString()} bytes)`);
+console.log(`Verified ${path.relative(root, artifactPath)} (${artifactBytes.toLocaleString()} bytes)`);

@@ -1,6 +1,7 @@
 export interface UserscriptMetadataOptions {
     version: string;
     iconDataUrl?: string;
+    requires?: readonly string[];
 }
 const grants = [
     'GM_getValue',
@@ -10,9 +11,14 @@ const grants = [
     'GM_xmlhttpRequest',
     'GM_registerMenuCommand',
     'GM_addStyle',
+    'GM.getValue',
+    'GM.setValue',
+    'GM.deleteValue',
+    'GM.listValues',
+    'GM.xmlHttpRequest',
 ];
 
-export function createUserscriptMetadata({version, iconDataUrl}: UserscriptMetadataOptions): string {
+export function createUserscriptMetadata({version, iconDataUrl, requires = []}: UserscriptMetadataOptions): string {
     const lines = [
         '// ==UserScript==',
         '// @name         FluentRead-流畅阅读',
@@ -31,6 +37,7 @@ export function createUserscriptMetadata({version, iconDataUrl}: UserscriptMetad
         '// @inject-into  content',
         '// @noframes',
         '// @connect      *',
+        ...requires.map((url) => `// @require      ${url}`),
         ...grants.map((grant) => `// @grant        ${grant}`),
         ...(iconDataUrl ? [`// @icon         ${iconDataUrl}`] : []),
         '// ==/UserScript==',

@@ -363,6 +363,24 @@ describe('ShadowRoot 与路由 MAIN world bridge core', () => {
         expect(fixture.attach.value).toBe(fixture.originalAttach);
     });
 
+    it('脚本管理器代理拒绝删除桥状态时仍能停用和重新启用', () => {
+        const fixture = shadowFixture();
+        const host = new Proxy(fixture.stateHost, {
+            deleteProperty: () => false,
+        });
+        fixture.environment.stateHost = host;
+        const dispose = installShadowRouteBridgeLifecycleCore(fixture.environment);
+        expect(host[SHADOW_BRIDGE_STATE_KEY]).toBeTruthy();
+        fixture.documentEvents.emit(SHADOW_BRIDGE_DISPOSE_EVENT);
+        expect(host[SHADOW_BRIDGE_STATE_KEY]).toBeUndefined();
+        fixture.documentEvents.emit(SHADOW_BRIDGE_ENABLE_EVENT);
+        expect(host[SHADOW_BRIDGE_STATE_KEY]).toBeTruthy();
+        expect(() => dispose()).not.toThrow();
+        expect(host[SHADOW_BRIDGE_STATE_KEY]).toBeUndefined();
+        expect(host[SHADOW_BRIDGE_LIFECYCLE_STATE_KEY]).toBeUndefined();
+        expect(fixture.attach.value).toBe(fixture.originalAttach);
+    });
+
     it('宿主后来包装我们的 API 时保留宿主包装，但禁用旧桥通知且恢复后只通知一次', () => {
         const fixture = shadowFixture(false);
         const dispose = installShadowRouteBridgeLifecycleCore(fixture.environment);
