@@ -1,7 +1,7 @@
 <!--
  * @file src/features/floating-ball/ui/FloatingBall.vue
  * 文件职责：呈现低干扰、可拖拽和按需展开的页面悬浮球，并把全文翻译状态、拖动停靠、打开设置、高级外观参数和键盘关闭整合为可复用 Vue 组件。
- * 主要内容：组件按展示契约控制按钮显示方式、展开延迟、点击行为、紧凑尺寸与收起不透明度，使用指针位移阈值区分点击与拖拽，按视口比例恢复纵向位置并限制球体在视口内，发出位置变更与动作事件，并通过受控状态同步图标和文案。
+ * 主要内容：组件按展示契约控制按钮显示方式、展开延迟、点击行为、紧凑尺寸与收起不透明度；停靠时为滚动条留出间距，收起时移除工具按钮的指针命中区；使用位移阈值区分点击与拖拽，按视口比例恢复纵向位置并限制球体在视口内，通过受控状态同步图标和文案。
  * 模块边界：它只负责视觉与局部交互，不直接调用浏览器消息、保存配置或执行全文翻译；这些副作用由 content/runtime 通过 props、事件和 defineExpose 桥接，外观配置的归一化留在 core/config。
  -->
 <template>
@@ -447,9 +447,10 @@ watch(() => presentation.value.settingsEntryVisible, () => {
 <style scoped>
 .fr-floating-ball {
   --fr-ball-size: 48px;
-  --fr-ball-tool-size: 32px;
+  --fr-ball-tool-size: 40px;
   --fr-ball-icon-size: 18px;
   --fr-ball-mascot-size: 24px;
+  --fr-ball-edge-gap: 20px;
   position: fixed;
   z-index: 2147483647;
   display: flex;
@@ -467,33 +468,33 @@ watch(() => presentation.value.settingsEntryVisible, () => {
 
 .fr-floating-ball.is-compact {
   --fr-ball-size: 36px;
-  --fr-ball-tool-size: 26px;
+  --fr-ball-tool-size: 32px;
   --fr-ball-icon-size: 15px;
   --fr-ball-mascot-size: 19px;
   gap: 6px;
 }
 
 .fr-floating-ball[data-position="left"] {
-  left: 0;
+  left: var(--fr-ball-edge-gap);
   align-items: flex-start;
   transform: translateY(-50%);
 }
 
 .fr-floating-ball[data-position="right"] {
-  right: 0;
+  right: var(--fr-ball-edge-gap);
   transform: translateY(-50%);
 }
 
 .floating-ball-item {
   position: relative;
   flex: 0 0 auto;
-  transform: translateX(var(--fr-ball-size));
+  transform: translateX(4px);
   transition: transform 0.46s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease, background 0.24s ease;
   will-change: transform;
 }
 
 .fr-floating-ball[data-position="left"] .floating-ball-item {
-  transform: translateX(calc(var(--fr-ball-size) * -1));
+  transform: translateX(-4px);
 }
 
 .fr-floating-ball.floating-ball-expanded .floating-ball-item {
@@ -524,12 +525,12 @@ watch(() => presentation.value.settingsEntryVisible, () => {
 
 .fr-floating-ball:not(.floating-ball-expanded):not(.dragging)[data-position="right"] .floating-ball-main {
   opacity: var(--fr-ball-collapsed-opacity, 0.52);
-  transform: translateX(50%);
+  transform: translateX(0);
 }
 
 .fr-floating-ball:not(.floating-ball-expanded):not(.dragging)[data-position="left"] .floating-ball-main {
   opacity: var(--fr-ball-collapsed-opacity, 0.52);
-  transform: translateX(-50%);
+  transform: translateX(0);
 }
 
 .fr-floating-ball.floating-ball-expanded .floating-ball-main {
@@ -571,10 +572,12 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   color: #626b79;
   cursor: pointer;
   opacity: 0;
+  pointer-events: none;
 }
 
 .fr-floating-ball.floating-ball-expanded .floating-ball-tool {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .floating-ball-settings {
