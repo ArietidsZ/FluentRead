@@ -28,7 +28,7 @@ A notice tells you what was copied and how many characters. The shortcut stays i
 
 The section translation shortcut is off by default. Turn it on in **Settings → Translation → Section translation**, where you can pick a preset or record your own combination. While picking, press **↑/↓** to change the section and **Esc** or the shortcut again to exit. See [section translation](/en/guide/features#section-translation).
 
-Selection can show an icon, a small dot, open directly, or wait for a key. Keep an icon or add a delay if it appears too often.
+Selection translation can show an icon or a small dot, open directly, wait for a key, or use **Context menu only**. The context-menu-only mode shows no selection icon or dot and claims no selection shortcut. Select text, then choose **Translate selected text** in the context menu. Keep both the context menu and its selection entry enabled in **Settings → Context menu**. The reading card controls its own selection hint.
 
 The browser’s extension shortcut page controls the extension commands listed by the browser. Paragraph and selection triggers are configured inside FluentRead.
 

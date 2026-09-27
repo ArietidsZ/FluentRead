@@ -414,6 +414,7 @@
             <i v-if="config.selectionTranslatorTrigger === 'dot'" class="pink-dot" />
             <span v-else-if="config.selectionTranslatorTrigger === 'icon'" class="selection-preview-icon">↗</span>
             <strong v-else-if="config.selectionTranslatorTrigger === 'direct'">直接弹出</strong>
+            <strong v-else-if="config.selectionTranslatorTrigger === 'contextMenu'">{{ t('selectionTrigger.contextMenu') }}</strong>
             <kbd v-else>{{ selectionTriggerPreview }}</kbd>
             <span>＝</span><strong>翻译所选内容</strong>
           </div>
@@ -830,7 +831,9 @@ function quickProfileSummary(profile: QuickTranslationProfile): string {
   return model ? `${serviceName} · ${model}` : serviceName;
 }
 const selectionSummary = computed(() => config.value.selectionTranslatorMode === 'disabled'
-  ? '已关闭' : selectionTriggers.find(item => item.value === config.value.selectionTranslatorTrigger)?.label || '显示图标');
+  ? '已关闭' : config.value.selectionTranslatorTrigger === 'contextMenu'
+    ? t('selectionTrigger.contextMenu')
+    : selectionTriggers.find(item => item.value === config.value.selectionTranslatorTrigger)?.label || '显示图标');
 const displaySummary = computed(() => config.value.display === 1 ? `双语 · ${styleLabel.value}` : '仅显示译文');
 const imageTranslationSummary = computed(() => !browserCapabilities.imageTranslation
   ? '当前浏览器不可用'
@@ -939,7 +942,9 @@ const selectionModes = [
 const selectionTriggers = options.selectionTranslatorTriggers;
 const selectionTriggerPreview = computed(() => config.value.selectionTranslatorTrigger === 'custom'
   ? config.value.customSelectionTranslatorHotkey || t('common.notSet')
-  : selectionTriggers.find(item => item.value === config.value.selectionTranslatorTrigger)?.label || '快捷键');
+  : config.value.selectionTranslatorTrigger === 'contextMenu'
+    ? t('selectionTrigger.contextMenu')
+    : selectionTriggers.find(item => item.value === config.value.selectionTranslatorTrigger)?.label || '快捷键');
 
 function applyTheme(theme: string) {
   document.documentElement.classList.toggle('dark', theme === 'dark' || (theme === 'auto' && darkMode.matches));

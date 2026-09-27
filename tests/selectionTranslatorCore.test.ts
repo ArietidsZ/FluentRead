@@ -221,6 +221,7 @@ describe('selection translator presentation stability', () => {
     it('preserves an explicitly opened tooltip across unrelated config refreshes', () => {
         const openTooltip = {showIndicator: false, showTooltip: true};
         expect(reconcileSelectionPresentation(openTooltip, 'shortcut', false)).toBe(openTooltip);
+        expect(reconcileSelectionPresentation(openTooltip, 'contextMenu', false)).toBe(openTooltip);
         expect(reconcileSelectionPresentation(openTooltip, 'icon', false)).toBe(openTooltip);
         expect(reconcileSelectionPresentation(openTooltip, 'dot', false)).toBe(openTooltip);
     });
@@ -231,6 +232,7 @@ describe('selection translator presentation stability', () => {
         expect(reconcileSelectionPresentation(openTooltip, 'icon', true)).toEqual({showIndicator: true, showTooltip: false});
         expect(reconcileSelectionPresentation(openTooltip, 'dot', true)).toEqual({showIndicator: true, showTooltip: false});
         expect(reconcileSelectionPresentation(openTooltip, 'shortcut', true)).toEqual({showIndicator: false, showTooltip: false});
+        expect(reconcileSelectionPresentation(openTooltip, 'contextMenu', true)).toEqual({showIndicator: false, showTooltip: false});
     });
 });
 

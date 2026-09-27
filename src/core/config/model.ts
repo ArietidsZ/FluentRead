@@ -453,7 +453,7 @@ export class Config {
     deeplApiPlan: DeepLApiPlan; // DeepL API Free / Pro 套餐
     deeplx: string; // DeepLX 服务地址
     selectionTranslatorMode: string; // 划词翻译显示模式: 'disabled' | 'bilingual' | 'translation-only'
-    selectionTranslatorTrigger: string; // 划词翻译互斥触发方式: 'direct' | 'icon' | 'dot' | 'Control' | 'Alt' | 'Shift' | 'custom'
+    selectionTranslatorTrigger: string; // 划词翻译互斥触发方式: 'direct' | 'icon' | 'dot' | 'contextMenu' | 'Control' | 'Alt' | 'Shift' | 'custom'
     selectionTranslatorHotkey: string; // 旧版快捷键字段；与 selectionTranslatorTrigger 中的快捷键选项保持镜像
     customSelectionTranslatorHotkey: string; // 自定义划词翻译快捷键
     selectionTranslatorDelay: number; // 选区稳定后显示划词翻译入口的延迟（毫秒）
@@ -1250,7 +1250,7 @@ export function normalizeConfig(value: unknown): Config {
     if (!['disabled', 'bilingual', 'translation-only'].includes(normalized.selectionTranslatorMode)) {
         normalized.selectionTranslatorMode = 'disabled';
     }
-    const selectionTriggerValues = ['direct', 'icon', 'dot', 'Control', 'Alt', 'Shift', 'custom'];
+    const selectionTriggerValues = ['direct', 'icon', 'dot', 'contextMenu', 'Control', 'Alt', 'Shift', 'custom'];
     const selectionShortcutValues = ['Control', 'Alt', 'Shift', 'custom'];
     const hasExplicitSelectionTrigger = typeof source.selectionTranslatorTrigger === 'string'
         && selectionTriggerValues.includes(source.selectionTranslatorTrigger);

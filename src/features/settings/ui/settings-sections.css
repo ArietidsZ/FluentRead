@@ -433,6 +433,16 @@
   width: 100%;
 }
 
+.selection-context-menu-hint {
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.selection-context-menu-hint.is-unavailable {
+  color: var(--el-color-warning-dark-2);
+}
+
 .custom-hotkey-display {
   display: flex;
   align-items: center;

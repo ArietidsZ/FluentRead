@@ -1,17 +1,17 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
- * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
+ * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
  * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、请求 token、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放和主题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换目标语言；复用选区入口打开 Harness 阅读卡，协调翻译、词典、词书与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
   <div v-ui-i18n v-show="showIndicator || showTooltip || noticeMessage || copySuccess" class="fr-selection-translator-root" :data-display-delay="selectionSettings.delay" @pointerdown.stop @wheel.stop.passive="handleUiWheel">
     <div v-if="showIndicator && !showTooltip && readingIndicatorEnabled" ref="reading-indicator-ref" class="fr-reading-indicator" :class="{'fr-dark-theme': isDarkTheme}" :style="[readingIndicatorStyle, readingIndicatorScaleStyle]" role="group" aria-label="选区操作" @pointerdown.prevent.stop>
-      <button v-if="selectionSettings.mode !== 'disabled'" type="button" aria-label="打开划词翻译" @click="openTooltip()">翻译</button>
+      <button v-if="selectionSettings.mode !== 'disabled' && triggerMode !== 'contextMenu'" type="button" aria-label="打开划词翻译" @click="openTooltip()">翻译</button>
       <button v-for="action in readingActions" :key="action.id" type="button" :class="{'is-default': action.id === readingPreferences.defaultAction}" :data-default-action="action.id === readingPreferences.defaultAction ? 'true' : undefined" :aria-label="`${action.label}选中文本`" @pointerenter="scheduleReadingHover($event, action.id)" @pointerleave="cancelReadingHover" @click="openReading(action.id)">{{ action.label }}</button>
       <button v-if="!isPrivateContext" class="fr-reading-history-entry" type="button" aria-label="阅读记录" title="阅读记录" @click="openReadingHistory"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="M10 5.8V10l2.7 1.8" /></svg><span>记录</span></button>
     </div>
-    <button v-else-if="showIndicator && !showTooltip" class="fr-selection-indicator" :class="`fr-selection-indicator--${triggerMode}`" :style="indicatorStyle" type="button" aria-label="打开划词翻译" title="打开划词翻译" @pointerdown.prevent.stop @click="openTooltip()">
+    <button v-else-if="showIndicator && !showTooltip && triggerMode !== 'contextMenu'" class="fr-selection-indicator" :class="`fr-selection-indicator--${triggerMode}`" :style="indicatorStyle" type="button" aria-label="打开划词翻译" title="打开划词翻译" @pointerdown.prevent.stop @click="openTooltip()">
       <span class="fr-selection-indicator-glyph" aria-hidden="true">↗</span>
     </button>
 
@@ -192,7 +192,7 @@ const props = defineProps<{
 }>();
 const {t} = useUiI18n();
 
-type SelectionTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
+type SelectionTrigger = 'direct' | 'icon' | 'dot' | 'shortcut' | 'contextMenu';
 type AudioKind = 'source' | 'translation' | 'word';
 type CopyKind = 'source' | 'translation';
 interface SelectionSnapshot { text: string; range: Range; anchor: SelectionRect; isForward: boolean; }
@@ -338,6 +338,7 @@ const selectionShortcut = computed(() => {
 });
 const triggerMode = computed<SelectionTrigger>(() => {
   if (selectionSettings.value.mode === 'disabled' && readingEnabled.value) return 'icon';
+  if (selectionSettings.value.trigger === 'contextMenu') return 'contextMenu';
   if (selectionShortcut.value) return 'shortcut';
   if (selectionSettings.value.trigger === 'direct' || selectionSettings.value.trigger === 'dot') return selectionSettings.value.trigger;
   return 'icon';
@@ -590,14 +591,14 @@ function applySelection(next: SelectionSnapshot | null, shortcutTriggered = fals
   resetPopupGeometry();
   snapshot.value = next;
   selectedText.value = next.text;
-  const waitingForShortcut = !shortcutTriggered && !readingIndicatorEnabled.value
-    && (triggerMode.value === 'shortcut' || selectionSettings.value.mode === 'disabled');
+  const waitingForManualTrigger = !shortcutTriggered && !readingIndicatorEnabled.value
+    && (triggerMode.value === 'shortcut' || triggerMode.value === 'contextMenu' || selectionSettings.value.mode === 'disabled');
   showIndicator.value = false;
   showTooltip.value = false;
   updatePosition(false);
   if (readingTriggered) { openReading(); return; }
   if (forced) { openTooltip(true); return; }
-  if (waitingForShortcut) return;
+  if (waitingForManualTrigger) return;
   scheduleSelectionPresentation(shortcutTriggered || triggerMode.value === 'direct' ? 'tooltip' : 'indicator');
 }
 

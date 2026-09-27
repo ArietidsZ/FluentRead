@@ -33,6 +33,7 @@ function parseArgs(argv) {
     focusSafeHelper: readArg(argv, 'focus-safe-helper', ''),
     headed: argv.includes('--headed'),
     chineseOnly: argv.includes('--chinese-only'),
+    contextMenuOnly: argv.includes('--context-menu-only'),
     directionOnly: argv.includes('--direction-only'),
     geometryOnly: argv.includes('--geometry-only'),
     zoomOnly: argv.includes('--zoom-only'),
@@ -253,6 +254,8 @@ async function setSelectionEnabled(ui, enabled) {
 function expectedSelectionTrigger(label) {
   return label === '直接弹出'
     ? { trigger: 'direct', hotkey: 'none', preview: '直接弹出' }
+    : label === '仅右键菜单'
+      ? { trigger: 'contextMenu', hotkey: 'none', preview: '仅右键菜单' }
     : label === '显示图标'
       ? { trigger: 'icon', hotkey: 'none', preview: 'icon' }
       : label === '显示小点'
@@ -1006,6 +1009,100 @@ async function main() {
     page.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`console: ${message.text()}`); });
     await page.goto('https://example.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await waitForContentScript(page);
+
+    if (args.contextMenuOnly) {
+      const saved = await readStoredConfig(popup);
+      await patchStoredConfig(popup, {
+        on: true,
+        disableSelectionTranslator: false,
+        selectionTranslatorMode: 'bilingual',
+        selectionTranslatorTrigger: 'icon',
+        selectionTranslatorDelay: 0,
+        contextMenuEnabled: true,
+        contextMenuEntries: {...saved.contextMenuEntries, translateSelection: true},
+        service: 'microsoft',
+        from: 'auto',
+        to: 'zh-Hans',
+        hotkey: 'none',
+        floatingBallHotkey: 'none',
+        harness: {...saved.harness, enabled: false},
+      });
+      const drawer = await openSelectionDrawer(popup);
+      const options = await openSelectionOptions(context, extensionId, result);
+      const selectionUi = {popup, drawer, options, storagePage: popup};
+      const triggerState = await setSelectionTrigger(selectionUi, '仅右键菜单');
+      result.cases.push({id: 'context-menu.setting-and-popup-preview', status: 'passed', triggerState});
+      const settingsScreenshot = path.join(args.artifactsDir, 'context-menu-setting.png');
+      await options.screenshot({path: settingsScreenshot});
+      result.screenshots.push(settingsScreenshot);
+
+      // Chromium 没有 contextMenus.getAll；以 update 的回调确认 ID 是否由浏览器注册。
+      const menuRegistration = await popup.evaluate(async () => {
+        const probe = id => new Promise(resolve => {
+          chrome.contextMenus.update(id, {}, () => resolve(!chrome.runtime.lastError));
+        });
+        const deadline = Date.now() + 5000;
+        let registered = false;
+        while (Date.now() < deadline) {
+          registered = await probe('fluent-read:selection:translateSelection');
+          if (registered) break;
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        return {
+          registered,
+          oldGroupRegistered: await probe('fluent-read:selection:group'),
+        };
+      });
+      assert(menuRegistration.registered && !menuRegistration.oldGroupRegistered,
+        `浏览器原生选区菜单注册异常：${JSON.stringify(menuRegistration)}`);
+      result.cases.push({id: 'context-menu.native-selection-entry', status: 'passed', menuRegistration});
+
+      await activateInputPage(page);
+      await resetFixture(page);
+      const selected = await selectTextWithDomRange(page, '#target', 4096);
+      await page.waitForTimeout(500);
+      const quietUi = await readSelectionUi(page);
+      assert(quietUi.selectionText === TARGET_TEXT && !quietUi.indicator && !quietUi.readingIndicator && !quietUi.tooltip,
+        `仅右键菜单模式仍自动弹出划词入口：${JSON.stringify(quietUi)}`);
+      const requestsBeforeShortcut = translationRequestCount;
+      await page.keyboard.press('Control');
+      await page.waitForTimeout(350);
+      const afterShortcut = await readSelectionUi(page);
+      assert(!afterShortcut.indicator && !afterShortcut.tooltip && translationRequestCount === requestsBeforeShortcut,
+        `仅右键菜单模式占用了 Ctrl 或发起了翻译：${JSON.stringify({afterShortcut, translationRequestCount, requestsBeforeShortcut})}`);
+      result.cases.push({id: 'context-menu.selection-stays-quiet', status: 'passed', selected, requestsBeforeShortcut, ui: afterShortcut});
+
+      const actionResponse = await popup.evaluate(() => new Promise((resolve, reject) => {
+        chrome.tabs.query({url: 'https://example.com/*'}, (tabs) => {
+          const queryError = chrome.runtime.lastError?.message;
+          if (queryError) { reject(new Error(queryError)); return; }
+          if (tabs.length !== 1 || !Number.isInteger(tabs[0].id)) {
+            reject(new Error(`找不到唯一的测试页面：${JSON.stringify(tabs)}`));
+            return;
+          }
+          chrome.tabs.sendMessage(tabs[0].id, {type: 'contextMenuTranslate', action: 'selection'}, {frameId: 0}, (response) => {
+            const messageError = chrome.runtime.lastError?.message;
+            if (messageError) reject(new Error(messageError));
+            else resolve(response);
+          });
+        });
+      }));
+      assert(actionResponse?.status === 'success', `右键选区翻译消息未被内容脚本接收：${JSON.stringify(actionResponse)}`);
+      await waitForSelectionUi(page, {tooltip: true, translation: true, resultPrefix: '测试译文：'}, '右键翻译卡片');
+      const translatedUi = await readSelectionUi(page);
+      assert(translatedUi.resultText.includes(TARGET_TEXT), `右键翻译卡片内容错误：${translatedUi.resultText}`);
+      result.cases.push({id: 'context-menu.selection-action', status: 'passed', actionResponse, requests: translationRequestCount, ui: translatedUi});
+      const cardScreenshot = path.join(args.artifactsDir, 'context-menu-selection-card.png');
+      await page.screenshot({path: cardScreenshot});
+      result.screenshots.push(cardScreenshot);
+
+      result.ok = result.cases.every(item => item.status === 'passed') && result.consoleErrors.length === 0;
+      if (!result.ok) throw new Error(`右键菜单浏览器用例出现控制台错误：${JSON.stringify(result.consoleErrors)}`);
+      result.providerEvidence = 'Local Microsoft response fixture; native menu ID registration and content message route verified without clicking the OS menu.';
+      fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(result, null, 2)}\n`);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      return;
+    }
 
     if (args.directionOnly) {
       const saved = await readStoredConfig(popup);
