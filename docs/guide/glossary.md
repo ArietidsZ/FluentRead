@@ -15,6 +15,8 @@
 
 术语库适用于支持它的 AI 翻译服务。Microsoft、Google、DeepL、DeepLX、Chrome 内置翻译等机器翻译暂不应用词库。AI 也可能没有完全遵循指定译法，重要术语仍要核对。
 
+通义 Qwen-MT 会把本次命中的词条发送为原生 `translation_options.terms`。也可以在通义服务的自定义请求体中填写 `translation_options.terms`；它会与自动生成的 `source_lang`、`target_lang` 合并。自定义请求体里显式填写的同名字段优先，其中 `terms` 列表会整体替换本次词库匹配结果。
+
 ## 只在合适的地方用
 
 按需设置源语言、目标语言与网站范围。网站范围留空表示全局；限定网站的词库不会用于没有网址的本地文档。
