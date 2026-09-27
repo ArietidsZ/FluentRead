@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   config: {
     disableFloatingBall: false,
     floatingBallPosition: '' as '' | 'left' | 'right',
+    floatingBallVerticalPosition: null as number | null,
     floatingBallToolsDisplay: 'hover',
     floatingBallHoverDelay: 0,
     floatingBallClickAction: 'translate',
@@ -86,6 +87,7 @@ beforeEach(() => {
   Object.assign(mocks.config, {
     disableFloatingBall: false,
     floatingBallPosition: '',
+    floatingBallVerticalPosition: null,
     floatingBallToolsDisplay: 'hover',
     floatingBallHoverDelay: 0,
     floatingBallClickAction: 'translate',
@@ -132,12 +134,13 @@ describe('悬浮球 content runtime', () => {
   it('通过关闭 Shadow DOM 组装交互，并在卸载时清理翻译状态', async () => {
     const toggleTranslation = vi.fn();
     const setTranslationState = vi.fn();
-    const mountedUi = ui({toggleTranslation, setTranslationState});
+    const setPosition = vi.fn();
+    const mountedUi = ui({toggleTranslation, setTranslationState, setPosition});
     mocks.createVueShadowUi.mockResolvedValue(mountedUi);
     const runtime = await import('@/src/features/floating-ball/content/runtime');
     const context = {name: 'content'} as never;
 
-    await expect(runtime.mountFloatingBall(context)).resolves.toEqual({toggleTranslation, setTranslationState});
+    await expect(runtime.mountFloatingBall(context)).resolves.toEqual({toggleTranslation, setTranslationState, setPosition});
     const [, options] = mocks.createVueShadowUi.mock.calls[0];
     expect(options).toEqual(expect.objectContaining({
       name: 'fluent-read-floating-ball-ui',
@@ -146,6 +149,7 @@ describe('悬浮球 content runtime', () => {
     }));
     expect(options.props).toEqual(expect.objectContaining({
       position: 'right',
+      verticalPosition: null,
       logoUrl: 'chrome-extension://fixture/icon/128.png',
       initialTranslating: false,
     }));
@@ -168,11 +172,17 @@ describe('悬浮球 content runtime', () => {
     expect(toggleTranslation).toHaveBeenCalledOnce();
 
     options.props.onSettingsClick();
-    options.props.onPositionChanged('left');
+    options.props.onPositionChanged('left', 0.25);
     await Promise.resolve();
     expect(mocks.sendMessage).toHaveBeenCalledWith({type: 'openOptionsPage'});
     expect(mocks.config.floatingBallPosition).toBe('left');
-    expect(mocks.requestConfigPatch).toHaveBeenCalledWith({floatingBallPosition: 'left'}, expect.any(Function));
+    expect(mocks.config.floatingBallVerticalPosition).toBe(0.25);
+    expect(mocks.requestConfigPatch).toHaveBeenCalledWith({
+      floatingBallPosition: 'left', floatingBallVerticalPosition: 0.25,
+    }, expect.any(Function));
+    const configListener = mocks.subscribeConfig.mock.calls[0][0];
+    configListener({...mocks.config, floatingBallPosition: 'right', floatingBallVerticalPosition: 0.75});
+    expect(setPosition).toHaveBeenCalledWith('right', 0.75);
 
     mocks.isFullPageTranslationActive.mockReturnValueOnce(true);
     options.props.onTranslationToggle(true);
@@ -304,7 +314,7 @@ describe('悬浮球 content runtime', () => {
     mocks.sendMessage.mockRejectedValueOnce(new Error('settings failed'));
     mocks.requestConfigPatch.mockRejectedValueOnce(new Error('save failed'));
     options.props.onSettingsClick();
-    options.props.onPositionChanged('right');
+    options.props.onPositionChanged('right', 0.8);
     mocks.isFullPageTranslationActive.mockReturnValueOnce(false);
     options.props.onTranslationToggle(true);
     await Promise.resolve();

@@ -1,7 +1,7 @@
 /**
  * @file src/features/floating-ball/content/runtime.ts
  * 文件职责：协调悬浮球组件在网页中的创建、恢复位置、显隐、全屏避让、高级外观同步、权威翻译状态同步和卸载，并向组件注入全文翻译切换与打开设置页的动作。
- * 主要内容：维护单例 Shadow UI、迟到挂载 requestId、站点名单守卫、页面全屏显隐监听、响应式展示契约与配置订阅、全文会话订阅和 position-change 字段补丁，提供 mountFloatingBall、toggleFloatingBallTranslation、unmountFloatingBall 三个生命周期入口。
+ * 主要内容：维护单例 Shadow UI、迟到挂载 requestId、站点名单守卫、页面全屏显隐监听、响应式展示契约与配置订阅、全文会话订阅，并将拖动后的停靠侧和纵向比例作为同一配置补丁保存，提供 mountFloatingBall、toggleFloatingBallTranslation、unmountFloatingBall 三个生命周期入口。
  * 模块边界：运行时只拥有挂载和桥接职责，不实现拖拽视觉、外观归一化或全文翻译算法；FloatingBall.vue 负责交互，core/config 负责字段归一化，full-page feature 提供翻译动作，配置持久化通过 services/config 完成。
  */
 import FloatingBall from '@/src/features/floating-ball/ui/FloatingBall.vue';
@@ -24,6 +24,7 @@ import {createVueShadowUi, type VueShadowMount} from '@/src/platform/shadow-ui';
 interface FloatingBallExposed {
   toggleTranslation: () => void;
   setTranslationState: (isTranslating: boolean) => void;
+  setPosition: (side: 'left' | 'right', verticalPosition: number | null) => void;
 }
 
 let floatingBallInstance: FloatingBallExposed | null = null;
@@ -112,16 +113,16 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
     component: FloatingBall,
     props: {
       position: ballPosition,
+      verticalPosition: config.floatingBallVerticalPosition,
       showMenu: true,
       logoUrl: browser.runtime.getURL('/icon/128.png'),
       initialTranslating: isFullPageTranslationActive(),
       presentation,
       onSettingsClick: () => openOptionsPage(),
-      // 添加位置变化事件监听
-      onPositionChanged: (newPosition: 'left' | 'right') => {
-        // 只提交位置字段；配置服务会立即乐观同步，并在后台基于最新快照合并。
+      // 两个坐标字段必须一起提交，避免连续拖动或跨页面保存时只留下其中一个。
+      onPositionChanged: (newPosition: 'left' | 'right', verticalPosition: number) => {
         void requestConfigPatch(
-          {floatingBallPosition: newPosition},
+          {floatingBallPosition: newPosition, floatingBallVerticalPosition: verticalPosition},
           browser.runtime.sendMessage.bind(browser.runtime),
         ).catch((error: unknown) => console.error('Failed to save config:', error));
       },
@@ -153,6 +154,7 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
     unsubscribePresentationConfig = subscribeConfig((nextConfig) => {
       if (floatingBallPresentation !== presentation) return;
       Object.assign(presentation, readPresentation(nextConfig));
+      floatingBallInstance?.setPosition?.(nextConfig.floatingBallPosition, nextConfig.floatingBallVerticalPosition);
     });
     floatingBallInstance = (ui.mounted?.instance as FloatingBallExposed | null | undefined) ?? null;
     if (floatingBallInstance) {

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/floating-ball/ui/FloatingBall.vue
  * 文件职责：呈现低干扰、可拖拽和按需展开的页面悬浮球，并把全文翻译状态、拖动停靠、打开设置、高级外观参数和键盘关闭整合为可复用 Vue 组件。
- * 主要内容：组件按展示契约控制按钮显示方式、展开延迟、点击行为、紧凑尺寸与收起不透明度，使用指针位移阈值区分点击与拖拽，限制球体在视口内，发出位置变更与动作事件，并通过受控状态同步图标和文案。
+ * 主要内容：组件按展示契约控制按钮显示方式、展开延迟、点击行为、紧凑尺寸与收起不透明度，使用指针位移阈值区分点击与拖拽，按视口比例恢复纵向位置并限制球体在视口内，发出位置变更与动作事件，并通过受控状态同步图标和文案。
  * 模块边界：它只负责视觉与局部交互，不直接调用浏览器消息、保存配置或执行全文翻译；这些副作用由 content/runtime 通过 props、事件和 defineExpose 桥接，外观配置的归一化留在 core/config。
  -->
 <template>
@@ -80,6 +80,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { PropType, CSSProperties } from 'vue';
 import type { FloatingBallPresentation } from '@/src/features/floating-ball/types';
+import {resolveFloatingBallCenterY, toFloatingBallVerticalPosition} from '@/src/features/floating-ball/position';
 
 const DRAG_THRESHOLD = 6;
 const BALL_SIZE = 48;
@@ -101,6 +102,10 @@ const props = defineProps({
     default: 'right',
     validator: (value: string) => ['left', 'right'].includes(value),
   },
+  verticalPosition: {
+    type: Number as PropType<number | null>,
+    default: null,
+  },
   showMenu: {
     type: Boolean,
     default: true,
@@ -119,7 +124,7 @@ const props = defineProps({
     default: () => {},
   },
   onPositionChanged: {
-    type: Function as PropType<(newPosition: 'left' | 'right') => void>,
+    type: Function as PropType<(newPosition: 'left' | 'right', verticalPosition: number) => void>,
     default: () => {},
   },
   onTranslationToggle: {
@@ -147,7 +152,7 @@ interface PointerDragState {
 const isExpanded = ref(false);
 const positionStyle = ref<CSSProperties>({});
 const isDragging = ref(false);
-const draggedY = ref<number | null>(null);
+const verticalPosition = ref<number | null>(props.verticalPosition);
 const internalPosition = ref<'left' | 'right' | null>(null);
 const isTranslating = ref(props.initialTranslating);
 const floatingBall = ref<HTMLElement | null>(null);
@@ -223,10 +228,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function applyDockPositionStyle(containerHeight: number) {
-  const halfHeight = containerHeight / 2;
-  const centerY = draggedY.value === null
-    ? '50%'
-    : `${clamp(draggedY.value, halfHeight, Math.max(halfHeight, window.innerHeight - halfHeight))}px`;
+  const centerY = `${resolveFloatingBallCenterY(verticalPosition.value, window.innerHeight, containerHeight)}px`;
 
   positionStyle.value = {
     top: centerY,
@@ -316,10 +318,9 @@ function finishPointerInteraction(event: PointerEvent) {
   const rect = floatingBallMain.value?.getBoundingClientRect();
   const finalCenterY = rect ? rect.top + rect.height / 2 : event.clientY;
   const nextPosition = event.clientX < window.innerWidth / 2 ? 'left' : 'right';
-  const halfHeight = currentDrag.dockHeight / 2;
-  draggedY.value = clamp(finalCenterY, halfHeight, Math.max(halfHeight, window.innerHeight - halfHeight));
+  verticalPosition.value = toFloatingBallVerticalPosition(finalCenterY, window.innerHeight);
   internalPosition.value = nextPosition;
-  props.onPositionChanged(nextPosition);
+  props.onPositionChanged(nextPosition, verticalPosition.value);
   applyDockPositionStyle(currentDrag.dockHeight);
   nextTick(() => {
     isDragging.value = false;
@@ -378,7 +379,15 @@ function setTranslationState(nextState: boolean) {
   isTranslating.value = nextState;
 }
 
-defineExpose({ toggleTranslation, setTranslationState });
+/** 其他页面更改配置后，让已打开的页面同步位置；同值广播不打断当前拖动。 */
+function setPosition(side: 'left' | 'right', nextVerticalPosition: number | null) {
+  if (side === internalPosition.value && nextVerticalPosition === verticalPosition.value) return;
+  internalPosition.value = side;
+  verticalPosition.value = nextVerticalPosition;
+  nextTick(updatePositionStyle);
+}
+
+defineExpose({ toggleTranslation, setTranslationState, setPosition });
 
 function handleSettingsClick(event: MouseEvent) {
   props.onSettingsClick(event);
@@ -407,7 +416,11 @@ onBeforeUnmount(() => {
 watch(() => props.position, (newPosition) => {
   if (newPosition === internalPosition.value) return;
   internalPosition.value = newPosition;
-  draggedY.value = null;
+  updatePositionStyle();
+});
+
+watch(() => props.verticalPosition, (nextPosition) => {
+  verticalPosition.value = nextPosition;
   updatePositionStyle();
 });
 
@@ -423,6 +436,11 @@ watch(() => presentation.value.compact, () => {
 watch(() => presentation.value.toolsDisplay, (display) => {
   if (display !== 'hover') clearExpandTimer();
   if (display === 'hidden') isExpanded.value = false;
+  nextTick(updatePositionStyle);
+});
+
+watch(() => presentation.value.settingsEntryVisible, () => {
+  nextTick(updatePositionStyle);
 });
 </script>
 
