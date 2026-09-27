@@ -177,6 +177,8 @@ export function createOcrWorkerRuntime<TResult>(
                     await runAbortable(worker.setParameters({
                         tessedit_pageseg_mode: pageSegmentationMode,
                         preserve_interword_spaces: '1',
+                        // 识别期诊断（分辨率估计、缺少可选 osd 模型等）不进控制台；失败仍以异常返回。
+                        debug_file: '/dev/null',
                     }), signal);
                     configuredWorker = worker;
                     configuredMode = pageSegmentationMode;

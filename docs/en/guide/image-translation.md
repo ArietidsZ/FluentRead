@@ -19,11 +19,13 @@ If the translation connection is interrupted, it retries once automatically and 
 
 The recognition pack must match the image’s language. Automatic detection prepares Simplified Chinese, Traditional Chinese, English, and Japanese by default. Other supported languages require selecting the source language and downloading its pack.
 
+When the source language is automatic or Japanese, the Japanese pack recognizes both horizontal and vertical text. Vertical columns in a manga speech bubble are joined right to left into one passage before translation.
+
 The current translation service and target language are used. Hover and context-menu entries can be turned off separately in image settings.
 
 ## Small or blurry text?
 
-Open a clear original if possible. Vertical text, decorative fonts, complex backgrounds, and tables are harder to recognize. Check names, numbers, and units.
+Open a clear original if possible. Decorative fonts, complex backgrounds, tables, and vertical text in languages other than Japanese are harder to recognize. Check names, numbers, and units.
 
 Long translations may appear small inside the picture; use the text view to read them fully. Background repairs may leave marks, and you can always restore the original.
 

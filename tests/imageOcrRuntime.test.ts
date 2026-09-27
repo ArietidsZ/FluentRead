@@ -7,7 +7,7 @@ vi.mock('@/src/features/image-translation/services/ocrWorkerRuntime', () => ({
     createOcrWorkerRuntime: createRuntime,
 }));
 vi.mock('@/src/features/image-translation/services/ocrModelCache', () => ({removeOcrModelFiles: removeFiles}));
-vi.mock('tesseract.js', () => ({createWorker: tesseractCreateWorker, PSM: {SPARSE_TEXT: 11, SINGLE_BLOCK: 6}}));
+vi.mock('tesseract.js', () => ({createWorker: tesseractCreateWorker, PSM: {SPARSE_TEXT: 11, SPARSE_TEXT_OSD: 12, SINGLE_BLOCK: 6}}));
 
 const blockResult = () => ({data: {blocks: [{paragraphs: [{lines: [{
     text: 'hello', bbox: {x0: 10, y0: 10, x1: 50, y1: 30},
@@ -106,7 +106,8 @@ describe('图片 OCR 处理与结果缓存', () => {
         const {downloadImageOcrLanguages} = await import('@/src/features/image-translation/services/ocrRuntime');
         const controller = new AbortController();
         await downloadImageOcrLanguages(['jpn', 'eng'], controller.signal);
-        expect(ensureLanguages).toHaveBeenCalledWith(['jpn', 'eng'], controller.signal);
+        // 日文包附带竖排模型，一次下载写入同一缓存，避免首次识别竖排漫画时再联网。
+        expect(ensureLanguages).toHaveBeenCalledWith(['jpn', 'jpn_vert', 'eng'], controller.signal);
         ensureLanguages.mockRejectedValueOnce(new Error('download failed'));
         await expect(downloadImageOcrLanguages(['eng'])).rejects.toThrow('download failed');
     });
@@ -129,7 +130,21 @@ describe('图片 OCR 处理与结果缓存', () => {
         expect(recognize).toHaveBeenCalledTimes(4);
         await recognizeImage('one', 'ja');
         expect(recognize).toHaveBeenCalledTimes(5);
-        expect(recognize).toHaveBeenLastCalledWith('one', 'jpn+eng', undefined, undefined, undefined);
+        expect(recognize).toHaveBeenLastCalledWith('one', 'jpn+jpn_vert+eng', undefined, 12, undefined);
+    });
+
+    it('日文与自动源语言加载竖排模型并启用方向检测，其他语言保持稀疏模式 (#654)', async () => {
+        await recognizeImage('manga', 'auto');
+        expect(recognize).toHaveBeenLastCalledWith('manga', 'chi_sim+chi_tra+eng+jpn+jpn_vert', undefined, 12, undefined);
+        await recognizeImage('manga', 'zh-CN');
+        expect(recognize).toHaveBeenLastCalledWith('manga', 'chi_sim+eng', undefined, undefined, undefined);
+        recognize.mockResolvedValueOnce({data: {blocks: []}});
+        await recognizeImage('bubble', 'ja', undefined, {profile: 'area'});
+        expect(recognize).toHaveBeenNthCalledWith(3, 'scaled-image', 'jpn+jpn_vert+eng', undefined, 12, undefined);
+        expect(recognize).toHaveBeenNthCalledWith(4, 'scaled-image', 'jpn+jpn_vert+eng', undefined, 6);
+        const {removeImageOcrLanguages} = await import('@/src/features/image-translation/services/ocrRuntime');
+        await removeImageOcrLanguages(['jpn']);
+        expect(removeFiles).toHaveBeenLastCalledWith(['jpn', 'jpn_vert']);
     });
 
     it('单图和总输入字节预算限制缓存，不长期保留巨型 data URL', async () => {

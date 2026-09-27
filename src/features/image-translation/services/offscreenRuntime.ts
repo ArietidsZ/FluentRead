@@ -221,8 +221,10 @@ async function prepareTranslatedImage(
         }));
         renderedLines.forEach(line => {
             throwIfImageOperationAborted(signal);
-            const paddingX = Math.max(3, Math.round((line.bbox.y1 - line.bbox.y0) * 0.14));
-            const paddingY = Math.max(2, Math.round((line.bbox.y1 - line.bbox.y0) * 0.18));
+            // 横排按行高留白；竖排区域已含列间空白，按行高外扩会让细长列框溢出到相邻气泡。
+            const thickness = line.vertical ? 0 : line.bbox.y1 - line.bbox.y0;
+            const paddingX = Math.max(3, Math.round(thickness * 0.14));
+            const paddingY = Math.max(2, Math.round(thickness * 0.18));
             const left = Math.max(0, line.bbox.x0 - paddingX);
             const top = Math.max(0, line.bbox.y0 - paddingY);
             const width = Math.min(canvas.width - left, line.bbox.x1 - line.bbox.x0 + paddingX * 2);
