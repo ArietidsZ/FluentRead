@@ -506,6 +506,8 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     contextMenuEnabled: {group: 'translation', label: '右键全文翻译', format: formatBoolean},
     fullPageTranslationMode: {group: 'translation', label: '全文翻译范围', format: (value) => formatEnum(value, FULL_PAGE_MODE_LABELS)},
     floatingBallPosition: {group: 'translation', label: '悬浮球位置', format: (value) => formatEnum(value, SIDE_LABELS)},
+    floatingBallVerticalPosition: {group: 'translation', label: '悬浮球高度', format: (value) => typeof value === 'number'
+        ? `${Math.round(value * 100)}%` : '居中'},
     floatingBallHotkey: {group: 'translation', label: '全文翻译快捷键', format: (value) => formatEnum(value, FLOATING_HOTKEY_LABELS)},
     customFloatingBallHotkey: {group: 'translation', label: '自定义全文快捷键'},
     quickTranslationProfiles: {group: 'translation', label: '快捷翻译方案', format: formatQuickTranslationProfiles},
