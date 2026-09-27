@@ -31,7 +31,7 @@
             :hint="selectedPreset.className === 'fluent-display-blur-reveal' ? t('settings.translationStyle.blurRevealHint') : ''"
             @update:page-theme="pageTheme = $event"
           />
-          <div class="translation-style-highlight-toggle">
+          <div id="translation-sentence-highlight" class="translation-style-highlight-toggle">
             <span>
               <strong>{{ t('settings.general.bilingualSentenceHighlight') }}</strong>
               <small>{{ t('settings.general.bilingualSentenceHighlightDescription') }}</small>
@@ -79,7 +79,7 @@
         </section>
       </div>
 
-      <section class="translation-appearance-panel" aria-labelledby="translation-appearance-title" data-testid="translation-appearance-panel">
+      <section id="translation-appearance-panel" class="translation-appearance-panel" aria-labelledby="translation-appearance-title" data-testid="translation-appearance-panel">
         <header class="translation-appearance-heading">
           <span>
             <strong id="translation-appearance-title">{{ t('settings.translationStyle.customizeTitle') }}</strong>

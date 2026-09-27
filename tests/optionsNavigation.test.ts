@@ -186,6 +186,21 @@ describe('settings control search', () => {
     expect(filterSettingsSearchTargets('  ')).toEqual([])
     expect(new Set(settingsSearchTargets.map(item => item.id)).size).toBe(settingsSearchTargets.length)
   })
+
+  it('jumps to the sentence highlight switch and the translation appearance panel in Interface', () => {
+    expect(filterSettingsSearchTargets('逐句高亮')).toEqual([
+      expect.objectContaining({sectionId: 'settings-interface', targetId: 'translation-sentence-highlight'}),
+    ])
+    for (const keyword of ['译文外观', '线条颜色', '标记底色', '译文字号']) {
+      expect(filterSettingsSearchTargets(keyword)).toEqual([
+        expect.objectContaining({sectionId: 'settings-interface', targetId: 'translation-appearance-panel'}),
+      ])
+    }
+    // 译文样式本身是界面风格页第一组，搜索结果直接打开分区即可。
+    expect(filterSettingsSearchTargets('悬浮球').map(item => item.targetId)).toEqual([
+      'floating-ball-toggle', 'floating-ball-settings',
+    ])
+  })
 })
 
  describe('interface language recovery search', () => {

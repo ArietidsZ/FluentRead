@@ -1063,6 +1063,9 @@ describe('options UI composition architecture', () => {
     expect(styleSettings).toContain("t('settings.translationStyle.bilingualOnly')")
     expect(styleSettings).toContain('@click="config.display = 1"')
     expect(styleSettings).toContain('container-type: inline-size')
+    // 设置搜索的控件直达目标必须指向真实元素。
+    expect(styleSettings).toContain('id="translation-sentence-highlight"')
+    expect(styleSettings).toContain('id="translation-appearance-panel"')
     for (const testId of ['bilingual-highlight-preview', 'bilingual-highlight-preview-source', 'bilingual-highlight-preview-translation']) {
       expect(preview).toContain(`data-testid="${testId}"`)
     }

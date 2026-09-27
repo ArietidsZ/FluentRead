@@ -42,6 +42,14 @@ export const settingsSearchTargets: readonly SettingsSearchTarget[] = [
     id: 'floating-ball-settings', sectionId: 'settings-translation', targetId: 'floating-ball-settings',
     label: '悬浮球进阶设置', description: '翻译设置', searchTerms: '悬浮球配置、悬浮球设置、悬浮球位置',
   },
+  {
+    id: 'translation-sentence-highlight', sectionId: 'settings-interface', targetId: 'translation-sentence-highlight',
+    label: '双语逐句高亮', description: '界面风格', searchTerms: '',
+  },
+  {
+    id: 'translation-appearance', sectionId: 'settings-interface', targetId: 'translation-appearance-panel',
+    label: '译文外观', description: '界面风格', searchTerms: '译文颜色、线条颜色、标记底色、译文字号、译文字重、译文字体、译文不透明度',
+  },
 ]
 
 export const navigationGroups = [

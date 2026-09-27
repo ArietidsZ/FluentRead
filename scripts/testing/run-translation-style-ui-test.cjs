@@ -220,6 +220,20 @@ async function main() {
     assert.equal(await ranges.nth(0).inputValue(), '115');
     report.checks.push('settings reload keeps selected style and appearance');
 
+    // 设置搜索直达：颜色关键词定位到自定义外观面板，逐句高亮定位并聚焦开关。
+    const search = options.locator('.search-box input');
+    await search.fill('线条颜色');
+    await options.locator('.search-results button').first().click();
+    await options.waitForFunction(() => {
+      const rect = document.getElementById('translation-appearance-panel')?.getBoundingClientRect();
+      return Boolean(rect && rect.top >= 0 && rect.top < innerHeight);
+    });
+    await search.fill('逐句高亮');
+    await options.locator('.search-results button').first().click();
+    await options.waitForFunction(() => Boolean(document.activeElement?.closest('#translation-sentence-highlight')));
+    await options.mouse.move(0, 0);
+    report.checks.push('settings search jumps to the appearance panel and focuses the sentence highlight switch');
+
     // 6. 深色扩展界面与窄屏：无横向溢出，截图留证。
     await patchConfig({theme: 'dark'});
     await options.waitForFunction(() => document.documentElement.classList.contains('dark'));

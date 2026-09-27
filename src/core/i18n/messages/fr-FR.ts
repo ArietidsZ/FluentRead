@@ -2374,6 +2374,8 @@ export const frFRLegacyText: Readonly<Record<string, string>> = {
 
     // 悬浮球进阶设置与禁用网站名单的界面文案。
     '悬浮球进阶设置': 'Réglages avancés de la bulle flottante',
+    '悬浮球、显示悬浮球、开启悬浮球': 'Bulle flottante, afficher la bulle flottante, activer la bulle flottante',
+    '悬浮球配置、悬浮球设置、悬浮球位置': 'Configuration de la bulle flottante, réglages de la bulle flottante, position de la bulle flottante',
     '控制悬浮球的按钮显示方式、点击行为、尺寸与生效网站。关闭悬浮球后这些设置保留但不生效。': 'Contrôle l’affichage des boutons, l’action du clic, la taille et les sites concernés. Ces réglages sont conservés mais inactifs lorsque la bulle est désactivée.',
     '按钮显示方式': 'Affichage des boutons',
     '悬浮球上的翻译与设置按钮可以悬停时展开、始终显示，或完全隐藏只保留悬浮球本体。': 'Les boutons de traduction et de réglages peuvent apparaître au survol, rester visibles ou être masqués pour ne garder que la bulle.',
