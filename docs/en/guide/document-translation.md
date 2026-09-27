@@ -8,6 +8,10 @@ Choose **Document translation** in the extension menu and drop a file onto the p
 
 Supported formats include PDF, ePub, Word DOCX, HTML, TXT, Markdown, JSON, and SRT, VTT, ASS, SSA, and LRC subtitle files. Convert older `.doc` files to `.docx` first.
 
+## Translate in Obsidian
+
+FluentRead also has an [experimental Obsidian desktop plugin](https://github.com/FluentRead/FluentRead/tree/main/integrations/obsidian). Follow the build and install instructions in its directory, then translate Markdown notes or text-based PDFs from the command palette or file context menu. The plugin saves and opens a sibling bilingual Markdown note without overwriting the source. It currently uses Microsoft Translator, which receives the text to translate. PDF output is grouped by page rather than preserving the original PDF layout.
+
 ## Batch translation
 
 Select or drop multiple files, or use **Add files** in the file queue. Confirm the languages, service and model, then choose **Translate remaining files** to process unfinished documents in order.

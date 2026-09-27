@@ -8,6 +8,10 @@
 
 支持 PDF、ePub、Word（DOCX）、HTML、TXT、Markdown、JSON，以及 SRT、VTT、ASS、SSA、LRC 字幕文件。旧版 `.doc` 文件请先另存为 `.docx`。
 
+## 在 Obsidian 中翻译
+
+FluentRead 提供[实验性 Obsidian 桌面插件](https://github.com/FluentRead/FluentRead/tree/main/integrations/obsidian)。按照插件目录中的说明构建并安装后，可从命令面板或文件右键菜单翻译 Markdown 笔记和带文字层的 PDF。译文会作为相邻的双语 Markdown 笔记保存并分栏打开，原文件不会被覆盖。Obsidian 插件目前使用微软翻译；待译文字会发送到该服务。PDF 译文按页排列，不保留原 PDF 版式。
+
 ## 批量翻译
 
 可一次选择或拖入多个文件，也可在文件队列中点击 **添加文件**。确认语言、翻译服务和模型后，点击 **翻译剩余文件**，按顺序处理尚未完成的文档。
