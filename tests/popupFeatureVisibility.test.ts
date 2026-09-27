@@ -199,6 +199,7 @@ describe('popup feature visibility', () => {
         const settings = source('src/features/settings/ui/SettingsSections.vue');
         const modelSettings = source('src/features/settings/ui/VideoLocalModelSettings.vue');
         const appearance = source('src/features/settings/ui/VideoSubtitleAppearanceSettings.vue');
+        const translationStyle = source('src/features/settings/ui/TranslationStyleSettings.vue');
 
         expect(popup).toContain("video: 'settings-video'");
         expect(popup).toContain('config.videoSubtitleDisplayMode');
@@ -208,7 +209,10 @@ describe('popup feature visibility', () => {
         expect(settings).toContain('v-model="config.videoService"');
         expect(settings).toContain('v-model="config.videoSourceLanguage"');
         expect(settings).toContain('v-model="config.selectionTtsVoices"');
-        expect(settings).toContain('v-model="config.style"');
+        // 译文样式迁到界面风格页的样式卡片；弹窗“译文显示”只保留翻译模式并跳转到那里。
+        expect(settings).not.toContain('v-model="config.style"');
+        expect(translationStyle).toContain('@click="config.style = preset.value"');
+        expect(popup).toContain("appearance: 'settings-interface'");
         expect(settings).toContain('v-model="config.theme"');
         expect(modelSettings).toContain('v-model="config.videoLocalModel"');
         expect(appearance).toContain('v-model.number="config.videoSubtitleAppearance.fontScale"');

@@ -598,8 +598,8 @@
   background: color-mix(in srgb, #e4aa33 10%, var(--surface));
 }
 
-/* 其余设置页的框架性大表面。译文效果范例本身不重着色，以免误导网页翻译效果。 */
-:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card :is(.about-hero, .style-preview-card) {
+/* 其余设置页的框架性大表面。译文样式预览模拟网站自身配色，不在这里重着色，以免误导网页翻译效果。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .about-hero {
   border-color: var(--line);
   background: var(--surface-soft);
 }

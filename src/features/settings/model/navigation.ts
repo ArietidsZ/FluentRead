@@ -42,6 +42,14 @@ export const settingsSearchTargets: readonly SettingsSearchTarget[] = [
     id: 'floating-ball-settings', sectionId: 'settings-translation', targetId: 'floating-ball-settings',
     label: '悬浮球进阶设置', description: '翻译设置', searchTerms: '悬浮球配置、悬浮球设置、悬浮球位置',
   },
+  {
+    id: 'translation-sentence-highlight', sectionId: 'settings-interface', targetId: 'translation-sentence-highlight',
+    label: '双语逐句高亮', description: '界面风格', searchTerms: '',
+  },
+  {
+    id: 'translation-appearance', sectionId: 'settings-interface', targetId: 'translation-appearance-panel',
+    label: '译文外观', description: '界面风格', searchTerms: '译文颜色、线条颜色、标记底色、译文字号、译文字重、译文字体、译文不透明度',
+  },
 ]
 
 export const navigationGroups = [
@@ -52,7 +60,7 @@ export const navigationGroups = [
         id: 'settings-general', icon: '⌂', label: '通用设置', description: '服务、显示与网页辅助', group: '基础配置',
         heading: '通用设置', summary: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
         kicker: '基础配置', title: '通用设置', detail: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
-        searchDescription: '选择翻译服务、默认服务、译文显示、双语逐句高亮、网页辅助、AI 精翻、AI 智能上下文、默认目标语言、主题',
+        searchDescription: '选择翻译服务、默认服务、译文显示、翻译模式、网页辅助、AI 精翻、AI 智能上下文、默认目标语言、主题',
       },
       {
         id: 'settings-services', icon: '译', label: '翻译服务', description: '服务与模型', group: '基础配置',
@@ -67,10 +75,10 @@ export const navigationGroups = [
         searchDescription: '不翻译的语言、跳过语言、排除语言、简体中文、繁体中文、鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度',
       },
       {
-        id: 'settings-interface', icon: '▦', label: '界面风格', description: '界面与弹窗、动画与加载、菜单栏布局', group: '基础配置',
-        heading: '界面风格', summary: '选择喜欢的界面风格，调整动画加载效果，并编排菜单栏中的模块和快捷功能。',
-        kicker: '基础配置', title: '界面风格', detail: '选择喜欢的界面风格，调整动画加载效果，并编排菜单栏中的模块和快捷功能。',
-        searchDescription: '界面设置、界面与弹窗、动画与加载效果、界面动画、翻译加载样式、简洁、柔和圆环、跳跃圆点、行星轨道、星光、涟漪扩散、起伏波形、光线扫过、流沙沙漏、小彗星、翻转方块、弹跳小球、打字光标、扫描线、信号柱、弹窗风格、默认风格、简约风格、紧凑风格、高对比、奶酪、海盐、抹茶、樱花、夜幕、纸张护眼、Emoji、菜单栏布局、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏',
+        id: 'settings-interface', icon: '▦', label: '界面风格', description: '译文样式、界面与弹窗、动画与加载、菜单栏布局', group: '基础配置',
+        heading: '界面风格', summary: '调整网页译文的样式与颜色，选择喜欢的界面风格和动画加载效果，并编排菜单栏中的模块和快捷功能。',
+        kicker: '基础配置', title: '界面风格', detail: '调整网页译文的样式与颜色，选择喜欢的界面风格和动画加载效果，并编排菜单栏中的模块和快捷功能。',
+        searchDescription: '译文样式、双语样式、译文颜色、字体颜色、下划线颜色、划线颜色、线条颜色、标记底色、译文字号、译文字重、译文字体、不透明度、双语逐句高亮、模糊遮罩、双下划线、侧边色条、界面设置、界面与弹窗、动画与加载效果、界面动画、翻译加载样式、简洁、柔和圆环、跳跃圆点、行星轨道、星光、涟漪扩散、起伏波形、光线扫过、流沙沙漏、小彗星、翻转方块、弹跳小球、打字光标、扫描线、信号柱、弹窗风格、默认风格、简约风格、紧凑风格、高对比、奶酪、海盐、抹茶、樱花、夜幕、纸张护眼、Emoji、菜单栏布局、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏',
       },
     ],
   },

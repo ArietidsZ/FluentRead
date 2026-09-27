@@ -66,9 +66,24 @@ When you only want to read part of a page, such as a GitHub README, an article b
 
 If you use it often, turn on its shortcut in **Settings → Translation → Section translation** (default **Alt+R**, Option+R on a Mac); press it again while picking to exit. Headers, navigation and sidebars usually stay in the original language during page translation, but if you pick one of them yourself, its text is translated too and, like other interface text, replaces the original in place so the layout stays intact. Restoring page translation also restores any translated sections.
 
+## Translation style
+
+Choose how translations look in bilingual mode under **Settings → Interface style → Translation style**. Styles are grouped into **Text**, **Lines**, **Highlights**, and **Cards**, and every card shows the real effect. The preview beside them simulates a web page; switch between **Light page** and **Dark page** to check that translations stay readable on differently colored sites.
+
+**Customize appearance** lets you fine-tune:
+
+- **Text color**: give translations their own color, or keep **Default** to follow the page.
+- **Line color**: recolor underlines, wavy lines, borders, and quote bars.
+- **Highlight color**: recolor markers, study highlights, backgrounds, and cards; the strength adapts to each style.
+- **Font size, opacity, font weight, and font**: enlarge or shrink translations relative to the original, or make them bolder or softer.
+
+Each color offers curated swatches and a picker for any color; **Reset** returns to the style's own look. Color and size changes apply immediately to translations on open pages without translating again, while a new style is used from the next translation. Translation-only mode does not use these styles; the page shows a notice with a button to switch back to bilingual mode.
+
+**Blur until hover** keeps translations blurred until you point at them, so you can read the original first and then check your understanding.
+
 ## Bilingual sentence highlighting
 
-Enable **Settings → General → Bilingual sentence highlighting**, then hover over a sentence on either side to highlight its counterpart. No click or shortcut is needed. The settings preview contains several sentence pairs to try.
+Enable **Bilingual sentence highlighting** under **Settings → Interface style → Translation style**, then hover over a sentence on either side to highlight its counterpart. No click or shortcut is needed. The translation style preview next to it contains several sentence pairs to try.
 
 Equal sentence counts are paired in order. Split or merged sentences are grouped using order and relative length. This local approximation cannot verify translation accuracy and may not match heavily rewritten or reordered text. Hovering sends no translation requests and changes neither page text nor layout.
 
@@ -105,7 +120,7 @@ Save words, phrases, and sentences to the [learning center](/en/guide/vocabulary
 
 Use the ready-to-use free service or [connect a provider](/en/config/translation-engines) such as DeepL, an AI service, or a local Ollama model. Supported AI services can also use [glossaries](/en/guide/glossary).
 
-Set regular sites to translate automatically, exclude others, and adjust the [website reading area](/en/config/site-adaptation) when content is missed. Change translation styles, themes, and menu layout in [Settings](/en/config/).
+Set regular sites to translate automatically, exclude others, and adjust the [website reading area](/en/config/site-adaptation) when content is missed. Change [translation styles](#translation-style), themes, and menu layout in [Settings](/en/config/).
 
 Under **Advanced options → Request limits**, translation concurrency defaults to **10**, with **10 requests per second** and **250 per minute**. Existing saved settings are preserved. Set either rate limit to **0** to disable that limit.
 

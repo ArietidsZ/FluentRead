@@ -121,6 +121,15 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('emoji')).toEqual([
       expect.objectContaining({ id: 'settings-interface' }),
     ])
+    // 译文样式、颜色和逐句高亮都集中在界面风格页，不再同时命中通用设置。
+    for (const keyword of ['译文样式', '下划线颜色', '译文颜色', '标记底色', '双语逐句高亮', '模糊遮罩']) {
+      expect(filterNavigationItems(keyword)).toEqual([
+        expect.objectContaining({ id: 'settings-interface' }),
+      ])
+    }
+    expect(filterNavigationItems('翻译模式')).toEqual([
+      expect.objectContaining({ id: 'settings-general' }),
+    ])
     expect(filterNavigationItems('鼠标悬浮')).toEqual([
       expect.objectContaining({ id: 'settings-translation' }),
     ])
@@ -176,6 +185,21 @@ describe('settings control search', () => {
     ])
     expect(filterSettingsSearchTargets('  ')).toEqual([])
     expect(new Set(settingsSearchTargets.map(item => item.id)).size).toBe(settingsSearchTargets.length)
+  })
+
+  it('jumps to the sentence highlight switch and the translation appearance panel in Interface', () => {
+    expect(filterSettingsSearchTargets('逐句高亮')).toEqual([
+      expect.objectContaining({sectionId: 'settings-interface', targetId: 'translation-sentence-highlight'}),
+    ])
+    for (const keyword of ['译文外观', '线条颜色', '标记底色', '译文字号']) {
+      expect(filterSettingsSearchTargets(keyword)).toEqual([
+        expect.objectContaining({sectionId: 'settings-interface', targetId: 'translation-appearance-panel'}),
+      ])
+    }
+    // 译文样式本身是界面风格页第一组，搜索结果直接打开分区即可。
+    expect(filterSettingsSearchTargets('悬浮球').map(item => item.targetId)).toEqual([
+      'floating-ball-toggle', 'floating-ball-settings',
+    ])
   })
 })
 

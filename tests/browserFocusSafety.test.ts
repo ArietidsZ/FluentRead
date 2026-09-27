@@ -17,6 +17,7 @@ const FOCUS_SAFE_SCRIPTS = [
     'scripts/testing/run-startup-performance.cjs',
     'scripts/testing/run-ort-runtime-smoke.cjs',
     'scripts/testing/run-loading-motion-ui-test.cjs',
+    'scripts/testing/run-translation-style-ui-test.cjs',
     'scripts/testing/run-service-catalog-ui-test.cjs',
     'scripts/testing/run-service-library-ui-test.cjs',
     'scripts/run-privacy-boundary-test.cjs',

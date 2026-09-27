@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：包含正文/全部节点识别范围；模板按 activeSection 展示业务分区，图片与圈选分别复用仅在当前分区挂载的 OCR 管理组件，在界面风格页组织风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
+ * 主要内容：包含正文/全部节点识别范围；模板按 activeSection 展示业务分区，通用设置保留翻译模式并链接到界面风格页的译文样式，图片与圈选分别复用仅在当前分区挂载的 OCR 管理组件，在界面风格页组织译文样式、风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -49,36 +49,17 @@
       <SettingsItem label="翻译模式" description="双语对照保留原文，仅译文模式会替换原文显示。">
         <SegmentedControl v-model="config.display" :options="options.display" label="翻译模式" />
       </SettingsItem>
-      <SettingsItem v-show="config.display === 1" label="译文样式" description="选择后可在下方立即查看效果。">
-        <el-select v-model="config.style" aria-label="译文样式" placeholder="请选择译文显示样式" filterable>
-          <el-option-group v-for="group in styleGroups" :key="group.value" :label="group.label">
-            <el-option v-for="item in group.options" :key="item.value" :label="item.label" :value="item.value" :class="item.class" />
-          </el-option-group>
-        </el-select>
-      </SettingsItem>
-      <SettingsItem v-show="config.display === 1" :label="t('settings.general.bilingualSentenceHighlight')" :description="t('settings.general.bilingualSentenceHighlightDescription')">
-        <el-switch v-model="config.bilingualSentenceHighlightEnabled" class="settings-toggle" :aria-label="t('settings.general.bilingualSentenceHighlight')" />
-      </SettingsItem>
-      <div v-show="config.display === 1" class="style-preview-card" aria-live="polite">
-        <div
-          class="style-preview-example bilingual-highlight-preview"
-          :class="{ 'is-bilingual-highlight-enabled': config.bilingualSentenceHighlightEnabled }"
-          :data-bilingual-highlight-enabled="String(config.bilingualSentenceHighlightEnabled)"
-          data-testid="bilingual-highlight-preview"
-          data-i18n-ignore
-          @pointerleave="highlightPreviewSentence = null"
-          :aria-label="t('settings.general.bilingualSentenceHighlightDescription')"
+      <SettingsItem :label="t('settings.translationStyle.title')" :description="t('settings.translationStyle.description')">
+        <button
+          type="button"
+          class="settings-navigation-link"
+          data-testid="open-translation-style-settings"
+          @click="openSettingsSection('settings-interface')"
         >
-          <p class="style-preview-source" data-testid="bilingual-highlight-preview-source"><span v-for="(sentence, index) in ['Reading should feel calm and effortless. ', 'Move over a sentence to find its translation. ', 'Compare difficult passages at your own pace.']" :key="index"
-            :class="{ 'is-sentence-highlighted': config.bilingualSentenceHighlightEnabled && highlightPreviewSentence === index }"
-            :tabindex="config.bilingualSentenceHighlightEnabled ? 0 : -1"
-            @pointerenter="highlightPreviewSentence = index" @focus="highlightPreviewSentence = index" @blur="highlightPreviewSentence = null">{{ sentence }}</span></p>
-          <p :key="config.style" class="style-preview-text" :class="currentStyleClass" data-testid="bilingual-highlight-preview-translation"><span v-for="(sentence, index) in ['阅读应该轻松、自然。', '将光标移到某个句子上，即可找到对应译文。', '按照自己的节奏对照理解难懂的内容。']" :key="index"
-            :class="{ 'is-sentence-highlighted': config.bilingualSentenceHighlightEnabled && highlightPreviewSentence === index }"
-            :tabindex="config.bilingualSentenceHighlightEnabled ? 0 : -1"
-            @pointerenter="highlightPreviewSentence = index" @focus="highlightPreviewSentence = index" @blur="highlightPreviewSentence = null">{{ sentence }}</span></p>
-        </div>
-      </div>
+          <span>{{ t('settings.translationStyle.openFromGeneral') }}</span>
+          <el-icon aria-hidden="true"><ArrowRight /></el-icon>
+        </button>
+      </SettingsItem>
     </SettingsGroup>
     <div v-if="selectedTextServiceUnavailableMessage" class="disabled-section" role="status">
       <strong>当前默认服务在此浏览器不可用</strong>
@@ -740,7 +721,6 @@ import { ArrowRight, InfoFilled, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import browser from 'webextension-polyfill';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
-const highlightPreviewSentence = ref<number | null>(null)
 
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
@@ -1307,19 +1287,6 @@ onUnmounted(() => {
   darkModeMediaQuery.onchange = null;
   unsubscribeConfig();
 });
-
-// 计算样式分组
-const styleGroups = computed(() => {
-  const groups = options.styles.filter(item => item.disabled);
-  return groups.map(group => ({
-    ...group,
-    options: options.styles.filter(item => !item.disabled && item.group === group.value)
-  }));
-});
-
-const currentStyleClass = computed(() =>
-  options.styles.find(item => item.value === config.value.style && !item.disabled)?.class || 'fluent-display-default'
-);
 
 // 悬浮球开关的计算属性
 const floatingBallEnabled = computed({

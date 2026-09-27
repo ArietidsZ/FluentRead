@@ -8,7 +8,7 @@ Open full settings from the gear in the extension menu. Search for a setting whe
 | --- | --- |
 | Target language | You want to read another language |
 | Translation service | The free service is busy, or you have a preferred provider |
-| Translation style | You want the original and translation easier to tell apart |
+| Translation style and colors | You want the original and translation easier to tell apart, or translation colors that suit the page |
 | Hover and selection triggers | You want quicker access or fewer accidental popups |
 | Automatic translation and site rules | Some sites should always translate; others should stay as they are |
 
@@ -24,7 +24,7 @@ The setting applies to automatic and manual full-page translation, hover transla
 
 ## Appearance and menu layout
 
-Choose a light or dark theme and an interface style. In menu layout, drag sections or shortcut cards in the preview, hide unused entries, and add them back later. The list also offers ordering controls.
+The first section of **Interface style** is [Translation style](/en/guide/features#translation-style): pick how bilingual translations look and customize their text color, line color, highlight color, size, and more. Then choose a light or dark theme and an interface style. In menu layout, drag sections or shortcut cards in the preview, hide unused entries, and add them back later. The list also offers ordering controls.
 
 Hiding an entry only changes the menu. Turn off the corresponding feature in its own settings if you want to disable it.
 

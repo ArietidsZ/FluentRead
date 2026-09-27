@@ -170,6 +170,11 @@ import {
     type VideoSubtitleAppearance,
 } from './videoSubtitleAppearance';
 import {
+    DEFAULT_TRANSLATION_APPEARANCE,
+    normalizeTranslationAppearance,
+    type TranslationAppearance,
+} from './translationAppearance';
+import {
     DEFAULT_AREA_VISION_PROMPT,
     normalizeAreaVisionPrompt,
     normalizeModelVisionOverrides,
@@ -333,6 +338,7 @@ export class Config {
     excludedLanguages: string[]; // 网页全文、悬浮及标题翻译跳过的语言
     hotkey: string;
     style: number;
+    translationAppearance: TranslationAppearance; // 双语译文的颜色、线条、底色、字号、字重、字体与不透明度微调
     display: number = 1;
     service: string;
     documentService: string; // 文档翻译独立翻译服务
@@ -501,6 +507,7 @@ export class Config {
         this.to = defaultOption.to;
         this.excludedLanguages = [];
         this.style = defaultOption.style;
+        this.translationAppearance = normalizeTranslationAppearance(DEFAULT_TRANSLATION_APPEARANCE); // 默认沿用各样式自带配色
         this.display = defaultOption.display;
         this.hotkey = defaultOption.hotkey;
         this.service = defaultOption.service;
@@ -984,6 +991,7 @@ export function normalizeConfig(value: unknown): Config {
             : false;
     }
     normalized.bilingualSentenceHighlightEnabled = source.bilingualSentenceHighlightEnabled === true;
+    normalized.translationAppearance = normalizeTranslationAppearance(source.translationAppearance);
     normalized.translationScope = source.translationScope === 'all' ? 'all' : 'content';
     delete (normalized as unknown as Record<string, unknown>).translationStatus;
     // __fluentConfigRevision 只用于 storage 的写入顺序判断，不能进入运行时

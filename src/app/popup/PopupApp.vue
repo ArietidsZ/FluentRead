@@ -568,7 +568,7 @@ import {
 } from '@/src/services/translation/capabilities';
 
 type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'area' | 'video' | 'aiContext';
-type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-area-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
+type SettingsSection = 'settings-general' | 'settings-interface' | 'settings-image-translation' | 'settings-area-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 interface PopupQuickFeatureViewModel {
   id: PopupQuickFeatureId;
   label: string;
@@ -619,7 +619,7 @@ const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
   aiContext: 'settings-general',
   hover: 'settings-translation',
   selection: 'settings-translation',
-  appearance: 'settings-general',
+  appearance: 'settings-interface',
   image: 'settings-image-translation',
   area: 'settings-area-translation',
   video: 'settings-video',

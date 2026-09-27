@@ -79,6 +79,7 @@ const expectedNavigation = [
   ['settings-translation-center', '翻译中心'],
   ['settings-vocabulary', '学习中心'],
   ['settings-glossary', '术语库'],
+  ['settings-translation-stats', '翻译统计'],
   ['settings-model-usage', '模型用量'],
   ['settings-advanced', '高级选项'],
   ['settings-data', '备份与恢复'],
@@ -87,13 +88,14 @@ const expectedNavigation = [
 const expectedNavigationGroups = [
   ['基础配置', ['settings-general', 'settings-services', 'settings-translation', 'settings-interface']],
   ['专项翻译', ['settings-harness', 'settings-image-translation', 'settings-area-translation', 'settings-video', 'settings-sites']],
-  ['工具与学习', ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-model-usage']],
+  ['工具与学习', ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-translation-stats', 'settings-model-usage']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
 // 译文显示是“选择翻译服务”内的子分组；悬浮球进阶设置已并入翻译设置。
 const expectedGeneralGroups = ['选择翻译服务', '网页辅助'];
-const expectedGeneralSubgroups = ['译文显示'];
-const expectedInterfaceGroups = ['界面与弹窗', '动画与加载效果', '菜单栏布局', '界面字体'];
+// 译文显示相关设置已迁到界面风格页，通用设置不再有二级分组标题。
+const expectedGeneralSubgroups = [];
+const expectedInterfaceGroups = ['译文样式', '界面与弹窗', '动画与加载效果', '菜单栏布局', '界面字体'];
 const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '本地朗读', '输入框翻译', '全文翻译', '右键菜单', '悬浮球进阶设置', '段落复制'];
 const expectedLoadingStyles = [
   ['ring', '柔和圆环'],
@@ -514,6 +516,8 @@ async function verifyInterfaceDesignMatrix(page, skin, report) {
 }
 
 async function verifyBilingualHighlightPreview(page) {
+  // 逐句高亮开关与多句预览随“译文样式”迁到界面风格页第一组；验证完成后回到通用设置继续后续断言。
+  await page.locator('button[data-section="settings-interface"]').click();
   const preview = page.getByTestId('bilingual-highlight-preview');
   const source = page.getByTestId('bilingual-highlight-preview-source');
   const translation = page.getByTestId('bilingual-highlight-preview-translation');
@@ -522,115 +526,60 @@ async function verifyBilingualHighlightPreview(page) {
   if (await source.count() !== 1 || await translation.count() !== 1 || await toggle.count() !== 1) {
     throw new Error('双语逐句高亮预览缺少唯一的原文、译文或开关');
   }
+  const firstGroup = (await page.locator('#settings-interface .settings-group-heading h2').first().innerText()).trim();
+  if (firstGroup !== '译文样式') throw new Error(`界面风格第一组不是译文样式：${firstGroup}`);
 
-  const initialEnabled = await toggle.getAttribute('aria-checked') === 'true';
-  if (initialEnabled) {
+  const setEnabled = async (enabled) => {
+    if ((await toggle.getAttribute('aria-checked') === 'true') === enabled) return;
     await toggle.locator('..').click();
-    await page.waitForFunction(() =>
-      document.querySelector('[data-testid="bilingual-highlight-preview"]')
-        ?.getAttribute('data-bilingual-highlight-enabled') === 'false', undefined, {timeout});
-  }
-
-  const readState = () => preview.evaluate(element => {
-    const rect = element.getBoundingClientRect();
-    const style = getComputedStyle(element);
-    const source = element.querySelector('[data-testid="bilingual-highlight-preview-source"]');
-    const translation = element.querySelector('[data-testid="bilingual-highlight-preview-translation"]');
-    const sourceMarker = source ? getComputedStyle(source, '::before') : null;
-    const translationMarker = translation ? getComputedStyle(translation, '::before') : null;
-    const sourceStyle = source ? getComputedStyle(source) : null;
-    const translationStyle = translation ? getComputedStyle(translation) : null;
-    return {
-      enabled: element.getAttribute('data-bilingual-highlight-enabled'),
-      backgroundColor: style.backgroundColor,
-      boxShadow: style.boxShadow,
-      sourceMarker: sourceMarker ? {
-        content: sourceMarker.content,
-        width: sourceMarker.width,
-        backgroundColor: sourceMarker.backgroundColor,
-      } : null,
-      translationMarker: translationMarker ? {
-        content: translationMarker.content,
-        width: translationMarker.width,
-        backgroundColor: translationMarker.backgroundColor,
-      } : null,
-      sourceTextStyle: sourceStyle ? {color: sourceStyle.color, fontSize: sourceStyle.fontSize} : null,
-      translationTextStyle: translationStyle ? {
-        color: translationStyle.color,
-        fontSize: translationStyle.fontSize,
-      } : null,
-      rect: {x: rect.x, y: rect.y, width: rect.width, height: rect.height},
-    };
-  });
+    await page.waitForFunction(expected => document.querySelector('[data-testid="bilingual-highlight-preview"]')
+      ?.getAttribute('data-bilingual-highlight-enabled') === expected, String(enabled), {timeout});
+  };
+  const readState = () => preview.evaluate(element => ({
+    highlighted: [...element.querySelectorAll('.is-sentence-highlighted')].map(node => node.textContent.trim()),
+    rect: (({x, y, width, height}) => ({x, y, width, height}))(element.getBoundingClientRect()),
+  }));
+  const initialEnabled = await toggle.getAttribute('aria-checked') === 'true';
+  await setEnabled(false);
   await page.mouse.move(0, 0);
-  await page.evaluate(() => {
-    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-  });
-  await page.waitForTimeout(220);
   const before = await readState();
-  if (!before.sourceTextStyle || !before.translationTextStyle ||
-      before.sourceTextStyle.fontSize === before.translationTextStyle.fontSize ||
-      before.sourceTextStyle.color === before.translationTextStyle.color) {
-    throw new Error(`双语预览未清楚区分原文与译文层级：${JSON.stringify(before)}`);
-  }
-  await source.hover();
-  await page.waitForTimeout(180);
+  await source.locator('span').nth(1).hover();
+  await page.waitForTimeout(150);
   const disabledHover = await readState();
-  if (disabledHover.backgroundColor !== before.backgroundColor ||
-      disabledHover.boxShadow !== before.boxShadow ||
-      disabledHover.translationMarker?.content !== 'none') {
-    throw new Error(`关闭双语逐句高亮后预览仍响应 hover：${JSON.stringify({before, disabledHover})}`);
-  }
+  if (disabledHover.highlighted.length) throw new Error(`关闭双语逐句高亮后预览仍响应 hover：${JSON.stringify(disabledHover)}`);
 
-  await toggle.locator('..').click();
-  await page.waitForFunction(() =>
-    document.querySelector('[data-testid="bilingual-highlight-preview"]')
-      ?.getAttribute('data-bilingual-highlight-enabled') === 'true', undefined, {timeout});
-  await source.hover();
-  await page.waitForTimeout(180);
+  await setEnabled(true);
+  await source.locator('span').nth(1).hover();
+  await page.waitForTimeout(150);
   const sourceHover = await readState();
-  await translation.hover();
-  await page.waitForTimeout(180);
+  await translation.locator('span').nth(2).hover();
+  await page.waitForTimeout(150);
   const translationHover = await readState();
   await page.mouse.move(0, 0);
-  await toggle.focus();
-  await page.keyboard.press('Tab');
-  await page.waitForFunction(() =>
-    document.activeElement?.getAttribute('data-testid') === 'bilingual-highlight-preview', undefined, {timeout});
-  await page.waitForTimeout(180);
+  await translation.locator('span').nth(0).focus();
+  await page.waitForTimeout(150);
   const keyboardFocus = await readState();
-  const geometryDelta = Math.max(...[sourceHover, translationHover, keyboardFocus].flatMap((state) => [
+  for (const [state, expected] of [[sourceHover, 'Move over'], [translationHover, 'Compare difficult'], [keyboardFocus, 'Reading should']]) {
+    if (state.highlighted.length !== 2 || !state.highlighted[0].includes(expected)) {
+      throw new Error(`双语逐句高亮预览没有同步高亮原文与译文：${JSON.stringify({sourceHover, translationHover, keyboardFocus})}`);
+    }
+  }
+  const geometryDelta = Math.max(...[sourceHover, translationHover, keyboardFocus].flatMap(state => [
     Math.abs(state.rect.x - before.rect.x),
     Math.abs(state.rect.y - before.rect.y),
     Math.abs(state.rect.width - before.rect.width),
     Math.abs(state.rect.height - before.rect.height),
   ]));
-  const transparent = new Set(['rgba(0, 0, 0, 0)', 'transparent']);
-  if (transparent.has(sourceHover.backgroundColor) ||
-      sourceHover.backgroundColor === before.backgroundColor ||
-      sourceHover.backgroundColor !== translationHover.backgroundColor ||
-      sourceHover.boxShadow !== translationHover.boxShadow ||
-      sourceHover.backgroundColor !== keyboardFocus.backgroundColor ||
-      sourceHover.boxShadow !== keyboardFocus.boxShadow ||
-      sourceHover.sourceMarker?.content !== 'none' ||
-      !sourceHover.translationMarker ||
-      sourceHover.translationMarker.content === 'none' ||
-      sourceHover.translationMarker.width !== '2px' ||
-      transparent.has(sourceHover.translationMarker.backgroundColor) ||
-      JSON.stringify(sourceHover.translationMarker) !== JSON.stringify(translationHover.translationMarker) ||
-      JSON.stringify(sourceHover.translationMarker) !== JSON.stringify(keyboardFocus.translationMarker)) {
-    throw new Error(`双语逐句高亮预览的原文、译文和键盘焦点效果不一致：${JSON.stringify({before, sourceHover, translationHover, keyboardFocus})}`);
-  }
   if (geometryDelta > 0.5) throw new Error(`双语逐句高亮预览改变了几何尺寸：${geometryDelta}px`);
 
   const screenshot = await screenshotElement(preview, 'settings-bilingual-highlight-preview.png');
-  if (!initialEnabled) {
-    await toggle.locator('..').click();
-    await page.waitForFunction(() =>
-      document.querySelector('[data-testid="bilingual-highlight-preview"]')
-        ?.getAttribute('data-bilingual-highlight-enabled') === 'false', undefined, {timeout});
-  }
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  });
+  await setEnabled(initialEnabled);
   await page.mouse.move(0, 0);
+  await page.locator('button[data-section="settings-general"]').click();
+  await page.locator('#settings-general').waitFor({state: 'visible', timeout});
 
   return {
     initialEnabled,
@@ -1598,7 +1547,7 @@ async function main() {
     const interfaceGroups = (await interfaceSection.locator('.settings-group-heading h2').allTextContents()).map(value => value.trim());
     if (await interfaceSettingsGroup.count() !== 1 || await menuLayoutSettingsGroup.count() !== 1
       || JSON.stringify(interfaceGroups) !== JSON.stringify(expectedInterfaceGroups)) {
-      throw new Error(`界面布局没有按顺序提供界面与弹窗、菜单栏布局两个分组：${JSON.stringify(interfaceGroups)}`);
+      throw new Error(`界面风格没有按顺序提供译文样式、界面与弹窗、动画、菜单栏布局和字体分组：${JSON.stringify(interfaceGroups)}`);
     }
     if (/Popup\s*布局/iu.test(await interfaceSection.innerText())) {
       throw new Error('界面布局仍向用户显示 Popup 布局旧名称');
@@ -2241,7 +2190,8 @@ async function main() {
       // 明亮皮肤可以有意使用纯白内容卡；只拦截与当前皮肤语义底色不一致的硬编码白块。
       if (surface === '#fff' || surface === '#ffffff') return [];
       // 收款二维码需要白底保证扫码对比度，不属于皮肤表面。
-      const excluded = '.style-preview-example, .interface-skin-live-preview, .popup-layout-live-preview, .about-support-wechat';
+      // 译文样式预览与卡片缩略图模拟网站自身配色，按设计不随扩展皮肤着色。
+      const excluded = '.translation-style-preview-page, .translation-style-card-sample, .interface-skin-live-preview, .popup-layout-live-preview, .about-support-wechat';
       return [...document.querySelectorAll('.settings-card *')]
         .filter(element => {
           if (!(element instanceof HTMLElement) || element.closest(excluded)) return false;

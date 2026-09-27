@@ -75,7 +75,6 @@ fs.mkdirSync(output, {recursive: true});
     await page.reload(); await page.locator('.settings-app').waitFor();
     const service = page.getByRole('combobox', {name: '默认网页翻译服务', exact: true});
     const target = page.locator('[data-config-field="to"] input[role="combobox"]');
-    const style = page.getByRole('combobox', {name: '译文样式', exact: true});
     await open(service, 'options-service-menu');
     check(await root(service).locator('input').count() === 1 && (await root(service).innerText()).includes('搜索翻译服务'), '服务展开后显示明确搜索提示，并且只有一个输入框');
     check(await root(service).locator('.fluentread-select-search-icon').count() === 1, '展开时服务图标变成搜索图标');
@@ -99,7 +98,8 @@ fs.mkdirSync(output, {recursive: true});
     check(await service.getAttribute('aria-expanded') === 'false', '点击外部关闭菜单');
     await choose(target, 'French');
     const expectedTarget = await root(target).locator('.el-select__placeholder').innerText();
-    await open(style, 'options-style-menu'); await close(style);
+    // 译文样式已改为界面风格页的样式卡片；通用设置只保留跳转入口，不再是下拉菜单。
+    check(await page.getByTestId('open-translation-style-settings').count() === 1 && await page.getByRole('combobox', {name: '译文样式', exact: true}).count() === 0, '通用设置提供译文样式入口且不再保留旧下拉框');
     // 立即关闭选项页，验证已有后台持久化路径，不只检查当前 DOM。
     await page.close(); await newPage(); await go(report.manifest.options);
     check((await read()).service === 'deepseek', '服务选择关闭页面后仍保存');
