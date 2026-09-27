@@ -445,6 +445,19 @@ describe('后台右键菜单生命周期', () => {
         expect(runtime.isSupported).toBe(false);
         await expect(runtime.update(1)).resolves.toBeUndefined();
     });
+
+    it('右键菜单命名空间只有部分方法时不阻断后台启动', async () => {
+        const create = vi.fn();
+        vi.stubGlobal('browser', {
+            contextMenus: {create},
+            tabs: {query: vi.fn().mockResolvedValue([]), onActivated: event(), onUpdated: event(), onRemoved: event()},
+        });
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+        const runtime = await install();
+        expect(runtime.isSupported).toBe(false);
+        expect(create).not.toHaveBeenCalled();
+        await expect(runtime.update(1)).resolves.toBeUndefined();
+    });
 });
 
 describe('内容脚本右键触发桥', () => {

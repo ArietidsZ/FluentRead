@@ -7,8 +7,7 @@
 import {formatConnectionTestError, getFreeTranslationWeightSnapshot, runTranslationServiceConnectionTestWithUsage} from './providerRuntime';
 import {config, configReady} from '@/src/services/config/store';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
-import {createSelectionPageZoomHandler} from '@/src/features/selection-translation/background/pageZoomHandler';
-import {normalizeSelectionPageZoom, SELECTION_PAGE_ZOOM_CHANGED} from '@/src/features/selection-translation/pageZoom';
+import {createSelectionPageZoomBrowserPort, createSelectionPageZoomHandler} from '@/src/features/selection-translation/background/pageZoomHandler';
 import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/edgeTts';
 import {vocabularyBook} from '@/src/features/vocabulary/repository';
 import {clearTranslationCache, getTranslationCacheStats, translateWithCache} from '@/src/app/translation/runtime';
@@ -68,6 +67,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const translationRequestRegistry = createTranslationRequestRegistry();
     const imageOcrLanguageRepository = createImageOcrLanguageRepository(createConfigImageOcrLanguageStorage());
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
+    const selectionPageZoom = createSelectionPageZoomBrowserPort(browser.tabs);
     const selectionTtsSynthesizer = createSelectionTtsSynthesizer({
         getMode: () => config.selectionTtsMode,
         getLocalVoice: () => config.selectionTtsLocalVoice,
@@ -126,7 +126,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             translate: translateWithCache,
             warn: (message, error) => console.warn(message, error),
         }),
-        createSelectionPageZoomHandler((tabId) => browser.tabs.getZoom(tabId)),
+        createSelectionPageZoomHandler(selectionPageZoom.getZoom),
         ...imageGlossaryContext.wrap(createCapabilityGatedBackgroundHandlers<BackgroundRuntimeContext>(capabilities, {
             areaTranslation: () => createAreaTranslationRuntime(imageOcrLanguageRepository.assertDownloaded),
             imageTranslation: () => createImageTranslationBackgroundHandlers({
@@ -173,13 +173,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         }),
     );
     browser.runtime.onMessage.addListener(createBackgroundRuntimeMessageListener(router, (sender) => ({sender}) as BackgroundRuntimeContext));
-    browser.tabs.onZoomChange.addListener(({tabId, newZoomFactor}: {tabId: number; newZoomFactor: number}) => {
-        if (!isBrowserTabId(tabId)) return;
-        void browser.tabs.sendMessage(tabId, {
-            type: SELECTION_PAGE_ZOOM_CHANGED,
-            zoom: normalizeSelectionPageZoom(newZoomFactor),
-        }).catch(() => undefined);
-    });
+    selectionPageZoom.installZoomChangeListener();
     browser.tabs.onRemoved.addListener((tabId: number) => releaseVideoSubtitleOwnerForTab(Number(tabId)));
     installBrowserConfigStorageBroadcast();
 }
