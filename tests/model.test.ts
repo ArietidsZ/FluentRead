@@ -1588,6 +1588,11 @@ describe('划词翻译配置兼容', () => {
             selectionTranslatorTrigger: 'icon',
             selectionTranslatorHotkey: 'none',
         });
+        expect(normalizeConfig({selectionTranslatorMode: 'bilingual', selectionTranslatorTrigger: 'contextMenu', selectionTranslatorHotkey: 'Control'})).toMatchObject({
+            selectionTranslatorTrigger: 'contextMenu',
+            selectionTranslatorHotkey: 'none',
+            disableSelectionTranslator: false,
+        });
         expect(normalizeConfig({selectionTranslatorHotkey: 'Control'})).toMatchObject({
             selectionTranslatorTrigger: 'Control',
             selectionTranslatorHotkey: 'Control',

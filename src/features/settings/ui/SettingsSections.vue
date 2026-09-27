@@ -301,7 +301,7 @@
     <!-- 划词翻译模式选择 -->
     <el-row class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="选中文本后显示翻译入口；可选择直接弹出、图标、小点、预设快捷键或自定义快捷键。" placement="top-start" :show-after="500">
+        <el-tooltip class="box-item" effect="dark" :content="t('selectionTrigger.modeIntro')" placement="top-start" :show-after="500">
       <span class="popup-text popup-vertical-left">
         划词翻译
         <el-icon class="icon-margin">
@@ -316,7 +316,7 @@
     </el-row>
     <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row" :class="{ 'custom-hotkey-row': config.selectionTranslatorTrigger === 'custom' }">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="快捷键与直接弹出、显示图标和显示小点是并列的触发方式；选择快捷键后，选中文字时不会显示图标或小点。" placement="top-start" :show-after="500">
+        <el-tooltip class="box-item" effect="dark" :content="t('selectionTrigger.modeDescription')" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
             划词触发方式
             <el-icon class="icon-margin"><InfoFilled /></el-icon>
@@ -326,8 +326,11 @@
       <el-col :span="10" class="settings-control-field flex-end">
         <div class="hotkey-config">
           <el-select :model-value="config.selectionTranslatorTrigger" aria-label="划词翻译触发方式" placeholder="选择触发方式" size="small" style="width: 100%" @change="handleSelectionTriggerChange">
-            <el-option v-for="item in options.selectionTranslatorTriggers" :key="item.value" :label="item.label" :value="item.value" />
+            <el-option v-for="item in options.selectionTranslatorTriggers" :key="item.value" :label="item.value === 'contextMenu' ? t('selectionTrigger.contextMenu') : item.label" :value="item.value" />
           </el-select>
+          <small v-if="config.selectionTranslatorTrigger === 'contextMenu'" class="selection-context-menu-hint" :class="{ 'is-unavailable': config.contextMenuEnabled === false || config.contextMenuEntries?.translateSelection === false }">
+            {{ t(config.contextMenuEnabled === false || config.contextMenuEntries?.translateSelection === false ? 'selectionTrigger.contextMenuUnavailable' : 'selectionTrigger.contextMenuHint') }}
+          </small>
           <div v-if="config.selectionTranslatorTrigger === 'custom'" class="custom-hotkey-display">
             <span class="hotkey-text" v-if="config.customSelectionTranslatorHotkey">
               {{ getCustomSelectionHotkeyDisplayName() }}

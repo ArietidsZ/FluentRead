@@ -255,6 +255,15 @@ describe('右键菜单设置快照', () => {
         expect(snapshot.signature).toBe(readContextMenuSettings().signature);
     });
 
+    it('仅右键触发仍保留选区菜单入口', () => {
+        state.config.selectionTranslatorTrigger = 'contextMenu';
+        const snapshot = readContextMenuSettings();
+        expect(snapshot.enabled).toBe(true);
+        expect(snapshot.toggles.translateSelection).toBe(true);
+        expect(buildContextMenuPlan(snapshot.toggles).find((item) => item.bucket === 'selection')?.menuItemId)
+            .toBe(contextMenuItemId('selection', 'translateSelection'));
+    });
+
     it('关闭显示偏好后标题不再携带语言与快捷键', () => {
         state.config.contextMenuShowTargetLanguage = false;
         state.config.contextMenuShowShortcut = false;
