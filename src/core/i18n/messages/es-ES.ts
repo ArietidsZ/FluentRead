@@ -2306,6 +2306,8 @@ export const esESLegacyText: Readonly<Record<string, string>> = {
     '悬浮球收起不透明度': 'Opacidad de la burbuja flotante recogida',
     '悬浮球高度': "Altura de la burbuja flotante",
     '居中': "Centrada",
+    '悬浮球、显示悬浮球、开启悬浮球': "burbuja flotante, mostrar la burbuja flotante, activar la burbuja flotante",
+    '悬浮球配置、悬浮球设置、悬浮球位置': "configuración de la burbuja flotante, ajustes de la burbuja flotante, posición de la burbuja flotante",
     '禁用悬浮球网站': 'Sitios sin burbuja flotante',
     '不显示悬浮球的网站': 'Sitios sin burbuja flotante',
     '不显示悬浮球的网站名单': 'Lista de sitios sin burbuja flotante',

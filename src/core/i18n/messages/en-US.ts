@@ -2316,6 +2316,8 @@ export const enUSLegacyText: Readonly<Record<string, string>> = {
     '悬浮球收起不透明度': 'Floating ball collapsed opacity',
     '悬浮球高度': "Floating ball height",
     '居中': "Centered",
+    '悬浮球、显示悬浮球、开启悬浮球': "floating ball, show floating ball, enable floating ball",
+    '悬浮球配置、悬浮球设置、悬浮球位置': "floating ball configuration, floating ball settings, floating ball position",
     '禁用悬浮球网站': 'Sites without the floating ball',
     '不显示悬浮球的网站': 'Sites without the floating ball',
     '不显示悬浮球的网站名单': 'List of sites without the floating ball',
