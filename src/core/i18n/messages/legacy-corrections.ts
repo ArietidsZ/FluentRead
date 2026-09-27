@@ -443,6 +443,7 @@ const correctionRows: readonly LegacyCorrectionRow[] = [
     ['远程图片读取失败', 'Could not read the remote image', 'リモート画像を読み取れませんでした', '원격 이미지를 읽지 못했습니다', 'Impossible de lire l’image distante', 'Не удалось прочитать удалённое изображение', 'No se pudo leer la imagen remota'],
     ['图片文字翻译失败', 'Image text translation failed', '画像テキストの翻訳に失敗しました', '이미지 텍스트 번역에 실패했습니다', 'Échec de la traduction du texte de l’image', 'Не удалось перевести текст изображения', 'No se pudo traducir el texto de la imagen'],
     ['翻译成功', 'Translated', '翻訳しました', '번역했습니다', 'Traduit', 'Переведено', 'Traducido'],
+    ['无法把译文写入当前编辑器', 'Could not insert the translation into this editor', 'このエディターに訳文を挿入できませんでした', '이 편집기에 번역문을 넣지 못했습니다', 'Impossible d’insérer la traduction dans cet éditeur', 'Не удалось вставить перевод в этот редактор', 'No se pudo insertar la traducción en este editor'],
     ['翻译服务暂时不可用', 'The translation service is temporarily unavailable', '翻訳サービスは一時的に利用できません', '번역 서비스를 일시적으로 사용할 수 없습니다', 'Le service de traduction est temporairement indisponible', 'Сервис перевода временно недоступен', 'El servicio de traducción no está disponible temporalmente'],
     ['未设置', 'Not set', '未設定', '설정 안 됨', 'Non défini', 'Не задано', 'Sin configurar'],
     ['默认样式', 'Default style', '既定のスタイル', '기본 스타일', 'Style par défaut', 'Стиль по умолчанию', 'Estilo predeterminado'],

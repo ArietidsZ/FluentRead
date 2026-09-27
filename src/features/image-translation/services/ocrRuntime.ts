@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/ocrRuntime.ts
  * 文件职责：将 Tesseract.js Worker 适配为图片翻译可调用的 OCR 服务，配置扩展内 worker/core 资源并按源语言串行执行识别或语言包预下载。
- * 主要内容：配置扩展语言资源、转发引擎任务进度与图片/圈选识别策略；对图片解码设置超时并释放像素，圈选小图有界放大加边且仅空结果重试单块分割；坐标映回原图并按策略隔离有界缓存。
+ * 主要内容：配置扩展语言资源、转发引擎任务进度与图片/圈选识别策略；语言包附带竖排模型时启用带方向检测的稀疏分割；对图片解码设置超时并释放像素，圈选小图有界放大加边且仅空结果重试单块分割；坐标映回原图并按策略隔离有界缓存。
  * 模块边界：该文件是 Tesseract 基础设施边界，不保存下载状态、不翻译识别文本也不绘制图片；并发所有权由 ocrWorkerRuntime 管理，持久化由后台 repository 负责。
  */
 import { createWorker, PSM, type Worker } from 'tesseract.js';
@@ -13,7 +13,7 @@ import {
     restoreOcrLineCoordinates,
     type OcrLine,
 } from '@/src/features/image-translation/core';
-import type { ImageOcrLanguageCode } from '@/src/features/image-translation/ocrLanguages';
+import { getImageOcrModelLanguages, type ImageOcrLanguageCode } from '@/src/features/image-translation/ocrLanguages';
 import {removeOcrModelFiles} from './ocrModelCache';
 import { createOcrWorkerRuntime, type OcrWorkerPort } from './ocrWorkerRuntime';
 
@@ -24,7 +24,7 @@ function extensionAsset(path: string): string {
 
 type TesseractRecognitionResult = Awaited<ReturnType<Worker['recognize']>>;
 // 6.1.2 内置 core 在遍历语言 vector 时追加 CJK 模型声明的竖排子语言，会使迭代器失效并误读为「;」。
-// 所需语言已由 getOcrLanguages 显式传入；初始化时关闭隐式子语言，保留这些已下载主模型。
+// 所需语言（含 jpn_vert 等竖排模型）已由 getImageOcrModelLanguages 显式传入；初始化时关闭隐式子语言。
 // 上游同类修复：https://github.com/tesseract-ocr/tesseract/issues/4002；JS 类型未列出此 core 初始化参数。
 const OCR_INIT_CONFIG = {tessedit_load_sublangs: ''} as unknown as Parameters<typeof createWorker>[3];
 
@@ -153,7 +153,12 @@ export async function recognizeImage(
     options: OcrRecognitionOptions = {},
 ): Promise<OcrLine[]> {
     if (signal?.aborted) throw abortRecognition();
-    const languages = getOcrLanguages(sourceLanguage).join('+');
+    const packs = getOcrLanguages(sourceLanguage);
+    const models = getImageOcrModelLanguages(packs);
+    const languages = models.join('+');
+    // PSM 11 不做竖排判定，会把竖列逐行横读成乱序；PSM 12 在同样的稀疏分割上按版面判定方向，
+    // 竖排页交给 *_vert 模型，横排页结果与 PSM 11 一致。缺少 osd 模型只跳过文字方向旋转检测。
+    const layoutMode = models.length > packs.length ? PSM.SPARSE_TEXT_OSD : undefined;
     const profile = options.profile ?? 'image';
     const cacheKey = `${profile}\0${languages}\0${image}`;
     const cached = completedRecognitionCache.get(cacheKey);
@@ -165,7 +170,7 @@ export async function recognizeImage(
 
     const {recognitionImage, sourceWidth, sourceHeight, size} = await prepareOcrImage(image, profile, signal);
     if (signal?.aborted) throw abortRecognition();
-    const result = await ocrWorkerRuntime.recognize(recognitionImage, languages, signal, undefined, options.onProgress);
+    const result = await ocrWorkerRuntime.recognize(recognitionImage, languages, signal, layoutMode, options.onProgress);
     if (signal?.aborted) throw abortRecognition();
     const readLines = (recognition: TesseractRecognitionResult) => restoreOcrLineCoordinates(
         normalizeOcrLines(recognition.data.blocks), sourceWidth, sourceHeight, size.width, size.height, size.padding,
@@ -185,11 +190,11 @@ export async function downloadImageOcrLanguages(
     languages: ImageOcrLanguageCode[],
     signal?: AbortSignal,
 ): Promise<void> {
-    await ocrWorkerRuntime.ensureLanguages(languages, signal);
+    await ocrWorkerRuntime.ensureLanguages(getImageOcrModelLanguages(languages), signal);
 }
 
 export async function removeImageOcrLanguages(languages: ImageOcrLanguageCode[]): Promise<void> {
-    await ocrWorkerRuntime.clearModels(() => removeOcrModelFiles(languages));
+    await ocrWorkerRuntime.clearModels(() => removeOcrModelFiles(getImageOcrModelLanguages(languages)));
     completedRecognitionCache.clear();
     cachedRecognitionBytes = 0;
 }

@@ -142,6 +142,21 @@ describe('Offscreen 图片完整操作生命周期', () => {
         expect(images[0].src).toBe('');
     });
 
+    it('竖排区域只留最小边距，横排仍按行高外扩 (#654)', async () => {
+        imageOptions.push({width: 900, height: 700});
+        mocks.recognize.mockResolvedValueOnce([
+            {text: '第三話', bbox: {x0: 60, y0: 50, x1: 320, y1: 90}},
+            {text: '今日は本当に楽しかったね。', bbox: {x0: 598, y0: 101, x1: 762, y1: 290}, vertical: true},
+        ]);
+        sendMessage.mockImplementation((message, callback) => {
+            callback(message.type === 'fluentReadImageTranslateTexts' ? {success: true, translations: ['第三话', '今天真的很开心。']} : undefined);
+        });
+        const result = await translateImageInOffscreen('manga', 'ja', 'Page');
+        expect(result.lines[1]).toMatchObject({text: '今天真的很开心。', vertical: true});
+        expect(mocks.draw).toHaveBeenNthCalledWith(1, expect.anything(), '第三话', 54, 43, 272, 54, 'rgb(240,240,240)');
+        expect(mocks.draw).toHaveBeenNthCalledWith(2, expect.anything(), '今天真的很开心。', 595, 99, 170, 193, 'rgb(240,240,240)');
+    });
+
     it('允许预算边界图像继续 OCR，natural 尺寸不可用时使用已解码尺寸', async () => {
         imageOptions.push({width: 4096, height: 4096});
         mocks.recognize.mockRejectedValueOnce(new Error('OCR reached'));

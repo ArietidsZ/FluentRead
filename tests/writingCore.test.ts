@@ -7,9 +7,9 @@ import {writingSite, isWritingEditor, findReplyEditors, editorText, captureEdito
 import {parseWritingRequest} from '@/src/features/writing-assistant/background';
 export const request = {type: 'fluentReadWriting', action: 'run', requestId: 'write-1', intent: 'draft', instruction: 'Write an invitation', draft: '', context: '', language: 'zh-CN', tone: 'natural', history: []} as const;
 describe('Writing config and bounded protocol', () => {
-  it('exposes writing only on secure Gmail and GitHub Issue or PR routes', () => {
-    for (const url of ['https://mail.google.com/mail/u/0/#inbox/id', 'https://github.com/o/r/issues/1', 'https://github.com/o/r/pull/2/files']) expect(isWritingPage(url)).toBe(true);
-    for (const url of ['https://github.com/o/r', 'https://github.com/o/r/issues', 'https://github.com/o/r/discussions/1', 'https://github.com.evil.test/o/r/issues/1', 'http://github.com/o/r/issues/1', 'https://mail.google.com/settings', '!']) expect(isWritingPage(url)).toBe(false);
+  it('exposes writing only on secure Gmail, new GitHub Issue, and Issue or PR reply routes', () => {
+    for (const url of ['https://mail.google.com/mail/u/0/#inbox/id', 'https://github.com/o/r/issues/new', 'https://github.com/o/r/issues/new/?template=bug.md', 'https://github.com/o/r/issues/1', 'https://github.com/o/r/pull/2/files']) expect(isWritingPage(url)).toBe(true);
+    for (const url of ['https://github.com/o/r', 'https://github.com/o/r/issues', 'https://github.com/o/r/issues/new/choose', 'https://github.com/o/r/discussions/1', 'https://github.com.evil.test/o/r/issues/new', 'http://github.com/o/r/issues/new', 'https://mail.google.com/settings', '!']) expect(isWritingPage(url)).toBe(false);
   });
   it('enables missing preferences, preserves explicit opt-out and removes retired page controls', () => {
     expect(normalizeWritingPreferences(null)).toEqual(normalizeWritingPreferences([]));

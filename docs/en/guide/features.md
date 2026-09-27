@@ -4,7 +4,7 @@ FluentRead supports bilingual webpage translation, selection translation, and ho
 
 ## Page translation
 
-Open FluentRead and choose the page translation button. In bilingual mode, each translation sits beside its original paragraph. Headings, links, and article structure remain available for comparison. Common inline formulas are preserved where supported.
+Open FluentRead and choose the page translation button. In bilingual mode, each translation sits beside its original paragraph, and the original keeps its headings, links, and article structure. Paragraphs split only by links, bold, italics, or footnote markers are translated as a single unit and shown as one readable passage, so a sentence is never broken apart by inline formatting; machine translation services receive one request per such paragraph instead of one per fragment. Paragraphs with inline code, formulas, or images are still translated fragment by fragment so those elements stay intact in the translation. Common inline formulas are preserved where supported.
 
 By default, translation follows your reading position. Choose whole-page processing in settings if you want the entire page translated at once. Restore the original whenever you like, then translate again with another language or service.
 
@@ -15,6 +15,8 @@ When an announcement or modal dialog blocks the page, full-page translation hand
 ### Page floating ball
 
 Enable **Full-page translation ball** under **Settings → General → Page helpers** to show a shortcut at the edge of the page: click it to translate the whole page, click again to restore the original, and hold it to drag the ball up or down — it docks to the nearer side when you release it.
+
+You can also search settings for “Full-page translation floating ball” to jump to the switch, or search for “Floating ball advanced settings” to jump to its display, position, and site options.
 
 **Floating ball advanced settings** tunes the rest:
 

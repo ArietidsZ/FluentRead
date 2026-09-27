@@ -570,7 +570,7 @@ describe('options UI composition architecture', () => {
     expect(inputTranslationSettings).toContain("t('inputTranslation.triggerDescription')")
     expect(inputTranslationSettings).toContain('data-testid="input-translation-settings"')
     expect(inputTranslationMessages).toContain('"inputTranslation.triggerDescription"')
-    expect(inputTranslationMessages).toContain('密码框和富文本编辑器不会参与')
+    expect(inputTranslationMessages).toContain('支持普通输入框和富文本编辑器；密码框和代码编辑器不会参与')
     expect(settingsSections).not.toContain('任何文本输入框')
     expect(imagePublic).toContain("from './ui/ImageOcrSettings.vue'")
     expect(imageSettings).toContain('当前浏览器暂不支持图片翻译与 OCR')

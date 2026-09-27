@@ -85,7 +85,7 @@ export const zhCNMessages = {
     "inputTranslation.profileScope": "仅用于输入框翻译，连接参数沿用所选服务的设置。",
     "inputTranslation.adjustTiming": "连按速度",
     "inputTranslation.triggerGroup": "怎样触发",
-    "inputTranslation.triggerDescription": "仅支持普通文本输入框；密码框和富文本编辑器不会参与。",
+    "inputTranslation.triggerDescription": "支持普通输入框和富文本编辑器；密码框和代码编辑器不会参与。",
     "inputTranslation.trigger": "触发方式",
     "inputTranslation.triggerDescriptionShort": "选择连按快捷动作，或关闭输入框翻译。",
     "inputTranslation.interval": "相邻两次按键最大间隔",
