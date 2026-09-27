@@ -79,6 +79,7 @@ describe('OCR worker runtime', () => {
         expect(worker.setParameters).toHaveBeenLastCalledWith({
             tessedit_pageseg_mode: 11,
             preserve_interword_spaces: '1',
+            debug_file: '/dev/null',
         });
         expect(worker.recognize).toHaveBeenLastCalledWith('second', {}, {blocks: true}, 'fluent-read-ocr-2');
     });
@@ -134,7 +135,7 @@ describe('OCR worker runtime', () => {
         await expect(runtime.recognize('area', 'eng', undefined, 6)).rejects.toThrow('mode failed');
         await runtime.recognize('image-again', 'eng');
         expect(worker.setParameters).toHaveBeenCalledTimes(3);
-        expect(worker.setParameters).toHaveBeenLastCalledWith({tessedit_pageseg_mode: 11, preserve_interword_spaces: '1'});
+        expect(worker.setParameters).toHaveBeenLastCalledWith({tessedit_pageseg_mode: 11, preserve_interword_spaces: '1', debug_file: '/dev/null'});
         expect(worker.recognize).toHaveBeenCalledTimes(2);
     });
 
