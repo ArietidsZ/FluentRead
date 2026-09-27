@@ -160,6 +160,8 @@ interface FullPageSession extends FullPageRequestSessionState, ModalPrioritySess
     shadowEventController: AbortController;
     /** 可见性锚点 -> 等待该锚点进入视口的候选。 */
     observedCandidates: Map<HTMLElement, Map<Node, TranslationCandidate>>;
+    /** 最近一次 IO 通知为可见的锚点；同锚点迟到的候选需立即入队。 */
+    visibleCandidateAnchors: WeakSet<HTMLElement>;
     /** 候选元素 -> 候选 key；与可见性锚点分开保存，便于精确清理。 */
     candidateOwnerKeys: Map<HTMLElement, Set<Node>>;
     /** 宿主 owner/祖先 -> 其下活跃翻译目标，避免 mutation 时全局扫描状态。 */
@@ -552,6 +554,21 @@ function resolveFullPageVisibilityAnchor(candidate: HTMLElement): HTMLElement | 
     return null;
 }
 
+/** 仅在曾经可见的锚点被重新观察时复核位置，避免复用过期的 IO 状态。 */
+function isAnchorNearViewport(anchor: HTMLElement): boolean {
+    try {
+        const rect = anchor.getBoundingClientRect();
+        const width = window.innerWidth || document.documentElement.clientWidth;
+        const height = window.innerHeight || document.documentElement.clientHeight;
+        return width > 0 && height > 0 && rect.width > 0 && rect.height > 0 &&
+            rect.right > 0 && rect.left < width &&
+            rect.bottom > -FULL_PAGE_PREFETCH_MARGIN_PX &&
+            rect.top < height + FULL_PAGE_PREFETCH_MARGIN_PX;
+    } catch {
+        return false;
+    }
+}
+
 function removeCandidateObservation(session: FullPageSession, key: Node): void {
     const anchor = session.candidateAnchors.get(key);
     if (!anchor) return;
@@ -692,6 +709,7 @@ function refreshCandidateVisibilityBinding(
     }
 
     let observed = session.observedCandidates.get(nextAnchor);
+    const alreadyObserved = Boolean(observed);
     if (!observed) {
         observed = new Map();
         session.observedCandidates.set(nextAnchor, observed);
@@ -699,6 +717,15 @@ function refreshCandidateVisibilityBinding(
     observed.set(key, candidate);
     session.candidateAnchors.set(key, nextAnchor);
     session.observer.observe(nextAnchor);
+    // observe() 对已观察且仍可见的元素不会再次派发入视口事件。增量发现
+    // 可能在首个同容器候选完成后才登记其余歌词行，此时直接唤醒新候选。
+    if (session.visibleCandidateAnchors.has(nextAnchor) &&
+        (alreadyObserved || isAnchorNearViewport(nextAnchor))) {
+        queueFullPageCandidate(session, key, candidate, candidateLifecycleSource(candidate));
+        scheduleFullPageDrain(session);
+    } else if (!alreadyObserved) {
+        session.visibleCandidateAnchors.delete(nextAnchor);
+    }
     scheduleFullPageProgressPublish(session);
 }
 
@@ -1912,7 +1939,10 @@ function createFullPageSession(
         for (const entry of entries) {
             const node = entry.target as HTMLElement;
             const candidates = session.observedCandidates.get(node);
-            candidates?.forEach((candidate, key) => {
+            if (!candidates) continue;
+            if (entry.isIntersecting) session.visibleCandidateAnchors.add(node);
+            else session.visibleCandidateAnchors.delete(node);
+            candidates.forEach((candidate, key) => {
                 if (entry.isIntersecting) {
                     queueFullPageCandidate(session, key, candidate, candidateLifecycleSource(candidate));
                 } else {
@@ -1962,6 +1992,7 @@ function createFullPageSession(
         ...createFullPageQueueState(),
         scheduled: new Map(),
         observedCandidates: new Map(),
+        visibleCandidateAnchors: new WeakSet(),
         candidateOwnerKeys: new Map(),
         statefulTargetsByAncestor: new Map(),
         statefulAncestorsByTarget: new WeakMap(),
@@ -2008,6 +2039,7 @@ function disposeFullPageSession(session: FullPageSession): void {
     clearFullPageQueueState(session);
     session.scheduled.clear();
     session.observedCandidates.clear();
+    session.visibleCandidateAnchors = new WeakSet();
     session.candidateOwnerKeys.clear();
     session.statefulTargetsByAncestor.clear();
     session.statefulAncestorsByTarget = new WeakMap();
