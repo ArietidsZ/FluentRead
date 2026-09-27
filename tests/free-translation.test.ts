@@ -106,6 +106,19 @@ describe('免费翻译服务', () => {
         expect(myMemoryMock).not.toHaveBeenCalled();
     });
 
+    it('中文目标遇到整段日文时换线，后续段落仍可使用原线路', async () => {
+        mockConfig.freeTranslationOrder = ['microsoft', 'deeplx'];
+        const japanese = 'このファイルの最初の文字にも制限があります。簡単にするために、最初の文字として文字を使用できます。';
+        microsoftMock.mockResolvedValueOnce([japanese]).mockResolvedValueOnce(['下一段的中文译文']);
+        deeplxMock.mockResolvedValue('这个文件的首字母也有限制。');
+        const origin = 'There are also restrictions on the first character of this file.';
+
+        await expect(settle(translateFreeText(origin))).resolves.toBe('这个文件的首字母也有限制。');
+        await expect(settle(translateFreeText('The next paragraph has different text.'))).resolves.toBe('下一段的中文译文');
+        expect(microsoftMock).toHaveBeenCalledTimes(2);
+        expect(deeplxMock).toHaveBeenCalledOnce();
+    });
+
     it('英文标签列表被线路原样返回时换用后备服务，且不把该线路全局冷却', async () => {
         mockConfig.freeTranslationOrder = ['microsoft', 'deeplx'];
         const tags = 'solo, blush, smile, bangs, looking_at_viewer, long_hair, blue_eyes';

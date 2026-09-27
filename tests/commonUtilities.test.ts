@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {detectlang, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
-import {isLikelyUntranslatedResponse} from '@/src/core/translation/resultValidation';
+import {isClearlyWrongLanguageResponse, isLikelyUntranslatedResponse} from '@/src/core/translation/resultValidation';
 import {throttle} from '@/src/shared/function/throttle';
 import {getCenterPoint} from '@/src/shared/geometry/touch';
 
@@ -145,6 +145,17 @@ describe('语义化公共工具', () => {
             'id, status, user_name, updated_at, created_at, action', 'zh-Hans')).toBe(false);
         expect(isLikelyUntranslatedResponse('a_b, c_d, e_f, g_h, i_j, k_l',
             'a_b, c_d, e_f, g_h, i_j, k_l', 'zh-Hans')).toBe(false);
+    });
+
+    it('中文目标拒绝明确的日文段落，但保留短引用和含日文术语的中文译文', () => {
+        const origin = 'There are also restrictions on the first character of this file.';
+        const japanese = 'このファイルの最初の文字にも制限があります。簡単にするために、最初の文字として文字を使用できます。';
+        expect(isClearlyWrongLanguageResponse(origin, japanese, 'zh-Hans')).toBe(true);
+        expect(isClearlyWrongLanguageResponse(origin, japanese, 'zh-Hant')).toBe(true);
+        expect(isClearlyWrongLanguageResponse(origin, japanese, 'ja')).toBe(false);
+        expect(isClearlyWrongLanguageResponse(origin, '“ありがとう”这个词表示感谢，日文原句是“ありがとうございます”。', 'zh-Hans')).toBe(false);
+        expect(isClearlyWrongLanguageResponse(origin, '日语写作「ありがとう」。', 'zh-Hans')).toBe(false);
+        expect(isClearlyWrongLanguageResponse(origin, 'これは日本語です。', 'zh-Hans')).toBe(false);
     });
 
     it('只为精确数量的非空触摸点计算中心', () => {

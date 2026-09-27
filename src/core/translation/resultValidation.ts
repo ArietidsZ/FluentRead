@@ -1,7 +1,7 @@
 /**
  * @file src/core/translation/resultValidation.ts
- * 文件职责：识别翻译服务把明显需要翻译的来源原样返回的响应，避免将其当成成功译文。
- * 主要内容：比较规范化原文与结果，用可信语言识别判断外语正文，并补足中文目标下短标签列表缺少语法词而无法识别语言的情形。
+ * 文件职责：识别翻译服务误返原文或明显错语种的响应，避免将其当成成功译文。
+ * 主要内容：比较规范化原文与结果，用可信语言识别判断外语正文，补足中文目标下短标签列表和整段日文结果的保守判定。
  * 模块边界：仅做保守的纯文本判定；不读取配置或缓存、不请求服务，也不改写原文与译文。
  */
 import {getChineseScript} from '@/src/core/language/chinese';
@@ -37,4 +37,15 @@ export function isLikelyUntranslatedResponse(origin: string, result: string, tar
         return !identification.languages.some(language => isLanguageCodeMatch(language, targetLanguage));
     }
     return Boolean(getChineseScript(targetLanguage)) && isLatinKeywordList(origin);
+}
+
+/** 假名与汉字共同构成日文正文；少量日语名称、短引用和不确定的混合段落照常展示。 */
+export function isClearlyWrongLanguageResponse(origin: string, result: string, targetLanguage: string): boolean {
+    if (!origin.trim() || !result.trim() || !getChineseScript(targetLanguage)) return false;
+    const kanaCount = (result.match(/[\p{Script=Hiragana}\p{Script=Katakana}ーｰ]/gu) ?? []).length;
+    if (kanaCount < 16) return false;
+    const hanCount = (result.match(/\p{Script=Han}/gu) ?? []).length;
+    if (kanaCount * 2 < hanCount) return false;
+    const identification = identifyTextLanguage(result);
+    return identification.status === 'identified' && identification.languages.includes('ja');
 }
