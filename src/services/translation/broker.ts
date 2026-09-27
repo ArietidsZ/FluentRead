@@ -2,7 +2,7 @@
  * @file src/services/translation/broker.ts
  *
  * 文件职责：编排翻译请求的配置快照、语言解析、缓存、请求去重、超时与 provider 调用，是后台翻译用例的中心服务。
- * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量和类型，对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并按匿名额度身份、等待策略、清理代次与剩余 deadline 隔离 pending 请求；每次公开请求累计缓存复用、上游调用次数、耗时与免费链线路尝试，结束后向注入的统计端口交付只含规模数值、服务与线路标识的事件。 可核对的公开符号包括 createTranslationBroker、聚合导出。
+ * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量、类型及明显的原文回显，在剩余预算内重试并排除旧原文缓存；对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并按匿名额度身份、等待策略、清理代次与剩余 deadline 隔离 pending 请求；每次公开请求累计缓存复用、上游调用次数、耗时与免费链线路尝试，结束后向注入的统计端口交付只含规模数值、服务与线路标识的事件。 可核对的公开符号包括 createTranslationBroker、聚合导出。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -36,6 +36,7 @@ import {
     type TranslationRouteObservation,
 } from './requestSnapshot';
 import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
+import {isLikelyUntranslatedResponse} from '@/src/core/translation/resultValidation';
 import {buildGlossaryRevision, resolveGlossary} from '@/src/core/glossary';
 import {supportsTranslationGlossary} from './capabilities';
 import {
@@ -139,6 +140,17 @@ class AIContextRecoveryResponseError extends Error {
     constructor() {
         super('AI 翻译在无上下文重试后仍返回了网页参考内容，已停止展示并跳过缓存');
         this.name = 'AIContextRecoveryResponseError';
+    }
+}
+
+class UntranslatedResponseError extends Error {
+    readonly kind = 'response';
+    readonly retryable = false;
+    readonly code = 'UNTRANSLATED_RESPONSE';
+
+    constructor() {
+        super('翻译服务连续返回未翻译的原文，请尝试切换服务；使用 AI 时也可调整提示词');
+        this.name = 'UntranslatedResponseError';
     }
 }
 
@@ -355,11 +367,11 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         return value.normalize('NFKC').replace(/\s+/gu, ' ').trim();
     }
 
-    function isCacheableResult(_origin: string, result: unknown): result is string {
-        // provider 成功返回原文通常表示内容已经是目标语言；仍需缓存这个 no-op，
-        // 否则短纯 Han 等无法在请求前可靠识别的文本会在每轮全文翻译中重复请求。
+    function isCacheableResult(origin: string, result: unknown, targetLanguage: string): result is string {
+        // 同目标文字和短名称仍可缓存 no-op；明确外语或可读标签列表的旧原文缓存必须失效。
         return typeof result === 'string'
-            && Boolean(result.trim());
+            && Boolean(result.trim())
+            && !isLikelyUntranslatedResponse(origin, result, targetLanguage);
     }
 
     function requireSingleResult(result: unknown): string {
@@ -712,6 +724,29 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             && isDefinitePageContextLeak(origin, result, pageContext);
     }
 
+    /** 第一次可疑原文响应只重试当前槽；第二次仍相同时显式失败，避免污染页面与缓存。 */
+    async function recoverUntranslatedResult(
+        execution: TranslationRequestExecution,
+        message: TranslationSingleRequestMessage,
+        result: string,
+        requestDeadline: number,
+        context = '',
+        validationPageContext = '',
+    ): Promise<string> {
+        if (!isLikelyUntranslatedResponse(message.origin, result, execution.targetLanguage)) return result;
+        const retried = requireSingleResult(await callProviderWithinDeadline(
+            execution,
+            applyRemainingDeadline({...message, context, pageContext: ''}, requestDeadline),
+        ));
+        if (isDefiniteRecoveryPageContextLeak(
+            execution, message.origin, retried, validationPageContext, message.modelOverride,
+        )) throw new AIContextRecoveryResponseError();
+        if (isLikelyUntranslatedResponse(message.origin, retried, execution.targetLanguage)) {
+            throw new UntranslatedResponseError();
+        }
+        return retried;
+    }
+
     async function callSingleProviderWithoutPageContext(
         execution: TranslationRequestExecution,
         message: TranslationSingleRequestMessage,
@@ -729,7 +764,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             validationPageContext,
             message.modelOverride,
         )) throw new AIContextRecoveryResponseError();
-        return result;
+        return recoverUntranslatedResult(execution, message, result, requestDeadline, '', validationPageContext);
     }
 
     async function callSingleProviderWithContextRecovery(
@@ -749,7 +784,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             result,
             pageContext,
             message.modelOverride,
-        )) return result;
+        )) return recoverUntranslatedResult(execution, message, result, requestDeadline, context, pageContext);
 
         warn(
             '[FluentRead] AI page context leaked into translation; retrying once without page context:',
@@ -872,7 +907,11 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 pageContext,
             );
         }
-        return parsed;
+        const finalized = Array.from(parsed);
+        if (finalized.some((result, index) => isLikelyUntranslatedResponse(
+            message.origin[index] ?? '', result ?? '', execution.targetLanguage,
+        ))) throw new AIMultiSegmentResponseError();
+        return finalized;
     }
 
     async function callBatchProviderWithContextRecovery(
@@ -909,7 +948,16 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             ),
             message.origin.length,
         );
-        if (!promptBasedAI) return results;
+        if (!promptBasedAI) {
+            const finalized = Array.from(results, value => value ?? '');
+            for (let index = 0; index < finalized.length; index += 1) {
+                finalized[index] = await recoverUntranslatedResult(
+                    execution, {...message, origin: message.origin[index] ?? ''}, finalized[index] ?? '',
+                    requestDeadline, startWithoutPageContext ? '' : context, pageContext,
+                );
+            }
+            return finalized;
+        }
 
         for (let index = 0; index < results.length; index += 1) {
             const origin = message.origin[index] ?? '';
@@ -938,7 +986,14 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 pageContext,
             );
         }
-        return results;
+        const finalized = Array.from(results, value => value ?? '');
+        for (let index = 0; index < finalized.length; index += 1) {
+            finalized[index] = await recoverUntranslatedResult(
+                execution, {...message, origin: message.origin[index] ?? ''}, finalized[index] ?? '',
+                requestDeadline, startWithoutPageContext ? '' : context, pageContext,
+            );
+        }
+        return finalized;
     }
 
     function buildPageSummaryCacheKey(
@@ -1146,7 +1201,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     pageContext,
                     message.modelOverride,
                 );
-                if (isCacheableResult(message.origin, cached) && !leakedPageContext) {
+                if (isCacheableResult(message.origin, cached, execution.targetLanguage) && !leakedPageContext) {
                     execution.trace.cachedSegments = 1;
                     return cached;
                 }
@@ -1165,7 +1220,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                         pageContext,
                         requestDeadline,
                     );
-                if (isCacheableResult(message.origin, recovered)) {
+                if (isCacheableResult(message.origin, recovered, execution.targetLanguage)) {
                     await persistCacheWrite(requestGeneration, key, recovered);
                 }
                 return recovered;
@@ -1178,7 +1233,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 pageContext,
                 requestDeadline,
             );
-            if (isCacheableResult(message.origin, result)) {
+            if (isCacheableResult(message.origin, result, execution.targetLanguage)) {
                 await persistCacheWrite(requestGeneration, key, result);
             }
             return result;
@@ -1251,7 +1306,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             );
             const leakedCachedIndexes = new Set<number>();
             const validatedCached = cached.map((value, index) => {
-                if (value === null || !isCacheableResult(message.origin[index] ?? '', value)) return null;
+                if (value === null || !isCacheableResult(message.origin[index] ?? '', value, execution.targetLanguage)) return null;
                 if (!isDefiniteRecoveryPageContextLeak(
                     execution,
                     message.origin[index] ?? '',
@@ -1286,7 +1341,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 );
                 await Promise.all(translated.map(async (value, index) => {
                     const origin = message.origin[index] ?? '';
-                    if (!isCacheableResult(origin, value)) return;
+                    if (!isCacheableResult(origin, value, execution.targetLanguage)) return;
                     await persistCacheWrite(
                         requestGeneration,
                         buildBatchItemCacheKey(
@@ -1362,7 +1417,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 );
                 const value = translatedByKey.get(itemKey);
                 result[index] = value as string;
-                if (isCacheableResult(origin, value)) {
+                if (isCacheableResult(origin, value, execution.targetLanguage)) {
                     cacheWrites.push(persistCacheWrite(
                         requestGeneration,
                         itemKey,

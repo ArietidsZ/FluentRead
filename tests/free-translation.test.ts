@@ -106,6 +106,19 @@ describe('免费翻译服务', () => {
         expect(myMemoryMock).not.toHaveBeenCalled();
     });
 
+    it('英文标签列表被线路原样返回时换用后备服务，且不把该线路全局冷却', async () => {
+        mockConfig.freeTranslationOrder = ['microsoft', 'deeplx'];
+        const tags = 'solo, blush, smile, bangs, looking_at_viewer, long_hair, blue_eyes';
+        microsoftMock.mockImplementation(async ([text]) => [text]);
+        deeplxMock.mockResolvedValue('单人，脸红，微笑，刘海，看向观众，长发，蓝眼睛');
+
+        await expect(settle(translateFreeText(tags))).resolves.toBe('单人，脸红，微笑，刘海，看向观众，长发，蓝眼睛');
+        await expect(settle(translateFreeText('solo, blush, smile, bangs, long_hair, blue_eyes, white_dress')))
+            .resolves.toBe('单人，脸红，微笑，刘海，看向观众，长发，蓝眼睛');
+        expect(microsoftMock).toHaveBeenCalledTimes(2);
+        expect(deeplxMock).toHaveBeenCalledTimes(2);
+    });
+
     it('保存顺序里的有 Key 服务全部剔除，仅按所选免密钥服务翻译', async () => {
         mockConfig.freeTranslationOrder = ['azureTranslator', 'deepL', 'openai', 'custom:key-provider', 'myMemory', 'microsoft'];
         mockConfig.token = {azureTranslator: 'configured-key', deepL: 'free-key:fx', openai: 'secret-key'};

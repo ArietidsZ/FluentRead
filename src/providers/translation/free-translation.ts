@@ -1,7 +1,7 @@
 /**
  * @file src/providers/translation/free-translation.ts
  * 文件职责：按冻结的用户设置编排免费翻译，并接入有界请求、取消和跨段冷却。
- * 主要内容：装配免密钥服务、冻结匿名请求配置与批量预算，生成匿名连接身份，并把每次线路尝试的结果与耗时上报给调用方观察器。
+ * 主要内容：装配免密钥服务、冻结匿名请求配置与批量预算，生成匿名连接身份；识别明显未翻译的原文回显并尝试下一条线路，把每次线路尝试的结果与耗时上报给调用方观察器。
  * 模块边界：只装配已有 provider；健康状态与并发调度由 freeFallback 服务持有。
  */
 import sha256 from 'crypto-js/sha256';
@@ -25,7 +25,8 @@ import {
 import {config} from '@/src/services/config/store';
 import {abortErrorFromSignal} from '@/src/platform/http/runtime';
 import {freeTranslationHealthStorage} from '@/src/platform/storage/freeTranslationHealthStorage';
-import {createFreeFallbackRunner, type FreeFallbackCandidate} from '@/src/services/translation/freeFallback';
+import {createFreeFallbackRunner, UntranslatedFreeResultError, type FreeFallbackCandidate} from '@/src/services/translation/freeFallback';
+import {isLikelyUntranslatedResponse} from '@/src/core/translation/resultValidation';
 import {calculateFreeTranslationWeightSnapshot, type FreeTranslationWeightSnapshot} from '@/src/services/translation/freeWeights';
 import {
     attachTranslationProviderConfig,
@@ -132,9 +133,15 @@ function candidatesFor(text: string, message: PreparedRequest): {
             weight: provider.defaultWeight,
             maxConcurrency: id === 'microsoft' ? 2 : 1,
             minIntervalMs: id === 'microsoft' ? 100 : id === 'myMemory' || id === 'deeplx' ? 1000 : 300,
-            translate: (signal: AbortSignal) => providerTranslators[provider.id]({
-                ...message, origin: text, serviceOverride: id, abortSignal: signal,
-            }),
+            translate: async (signal: AbortSignal) => {
+                const result = await providerTranslators[provider.id]({
+                    ...message, origin: text, serviceOverride: id, abortSignal: signal,
+                });
+                if (typeof result === 'string' && isLikelyUntranslatedResponse(text, result, message.targetLanguage!)) {
+                    throw new UntranslatedFreeResultError();
+                }
+                return result;
+            },
         };
     });
     return {candidates, routeByIdentity};
