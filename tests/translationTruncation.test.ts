@@ -510,6 +510,45 @@ describe('translation truncation layout', () => {
         });
     });
 
+    it('expands a fixed-height line-clamped translation owner and restores its host style', async () => {
+        const {document} = parseHTML(`
+            <html><body><p id="owner" class="line-clamp-4" style="color: red;">
+                This long mod description occupies the original four-line card height.
+            </p></body></html>
+        `);
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const originalStyle = owner.getAttribute('style');
+        Object.defineProperty(document.defaultView, 'getComputedStyle', {
+            configurable: true,
+            value: (element: HTMLElement) => {
+                const activeClamp = element === owner && element.style.getPropertyValue('-webkit-line-clamp') !== 'unset';
+                return {
+                    webkitLineClamp: activeClamp ? '3' : 'none',
+                    maxHeight: 'none',
+                    height: element === owner ? owner.style.getPropertyValue('height') || '4em' : 'auto',
+                    display: element === owner ? '-webkit-box' : 'block',
+                    overflowY: element === owner ? 'hidden' : 'visible',
+                    overflow: element === owner ? 'hidden' : 'visible',
+                    getPropertyValue: (property: string) => property === '-webkit-line-clamp'
+                        ? activeClamp ? '3' : 'none' : '',
+                } as unknown as CSSStyleDeclaration;
+            },
+        });
+
+        await withDocumentRealm(document, async () => {
+            const wrapper = commitBilingualTranslation(owner);
+            expect(wrapper.isConnected).toBe(true);
+            expect(owner.style.getPropertyValue('-webkit-line-clamp')).toBe('unset');
+            expect(owner.style.getPropertyValue('height')).toBe('auto');
+            expect(ensureTranslationTruncationLayout(owner)).toBe(true);
+            expect(owner.style.getPropertyValue('height')).toBe('auto');
+
+            expect(restoreTranslation(owner)).toBe(true);
+            expect(owner.getAttribute('style')).toBe(originalStyle);
+            expect(hasTranslationLayoutOverride(owner)).toBe(false);
+        });
+    });
+
     it('sanitizes renderer HTML while preserving safe inline markup and configured style class', async () => {
         const {document} = parseHTML('<html><body><p id="owner">Readable paragraph.</p></body></html>');
         Object.defineProperty(document, 'baseURI', {
