@@ -271,6 +271,13 @@ export function normalizeFloatingBallCollapsedOpacity(value: unknown): number {
     );
 }
 
+/** 拖动后的视口纵向比例；旧配置用 null 保持居中，无效值不进入布局计算。 */
+export function normalizeFloatingBallVerticalPosition(value: unknown): number | null {
+    return typeof value === 'number' && Number.isFinite(value)
+        ? Math.min(1, Math.max(0, value))
+        : null;
+}
+
 export function normalizeFloatingBallToolsDisplay(value: unknown): FloatingBallToolsDisplay {
     return FLOATING_BALL_TOOLS_DISPLAY_VALUES.includes(value as FloatingBallToolsDisplay)
         ? value as FloatingBallToolsDisplay
@@ -393,6 +400,7 @@ export class Config {
     fullPageTranslationMode: FullPageTranslationMode; // 全文翻译按视口加载或立即处理整页
     disableFloatingBall: boolean; // 是否禁用悬浮球
     floatingBallPosition: 'left' | 'right'; // 悬浮球位置
+    floatingBallVerticalPosition: number | null; // 悬浮球中心相对视口高度的比例；null 表示居中
     floatingBallHotkey: string; // 悬浮球快捷键
     customFloatingBallHotkey: string; // 自定义悬浮球快捷键
     floatingBallToolsDisplay: FloatingBallToolsDisplay; // 悬浮球上翻译与设置按钮的显示方式
@@ -561,6 +569,7 @@ export class Config {
         this.fullPageTranslationMode = 'viewport'; // 默认按阅读进度翻译，避免一次发出过多请求
         this.disableFloatingBall = true; // 默认关闭悬浮球
         this.floatingBallPosition = 'right'; // 默认在右侧
+        this.floatingBallVerticalPosition = null; // 未拖动时保持视口纵向居中
         this.floatingBallHotkey = 'Alt+T'; // 默认快捷键为 Alt+T
         this.customFloatingBallHotkey = ''; // 自定义快捷键为空
         this.floatingBallToolsDisplay = 'hover'; // 默认指针悬停时才展开翻译与设置按钮
@@ -1182,6 +1191,9 @@ export function normalizeConfig(value: unknown): Config {
         source.mouseHoverTranslationDelay,
     );
     normalized.floatingBallToolsDisplay = normalizeFloatingBallToolsDisplay(source.floatingBallToolsDisplay);
+    normalized.floatingBallVerticalPosition = normalizeFloatingBallVerticalPosition(
+        source.floatingBallVerticalPosition,
+    );
     normalized.floatingBallHoverDelay = normalizeFloatingBallHoverDelay(source.floatingBallHoverDelay);
     normalized.floatingBallClickAction = normalizeFloatingBallClickAction(source.floatingBallClickAction);
     normalized.floatingBallCompact = source.floatingBallCompact === true;
