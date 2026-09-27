@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, it} from 'vitest';
 import {spawn} from 'node:child_process';
-import {mkdtemp, readFile, rm, mkdir, writeFile} from 'node:fs/promises';
+import {mkdtemp, readdir, readFile, rm, mkdir, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {resolve, join} from 'node:path';
 import {pathToFileURL} from 'node:url';
@@ -29,6 +29,8 @@ function launch(directory: string, args: string[], extraEnv: Record<string, stri
         FLUENTREAD_RESOURCE_LOCK_DIR: directory,
         FLUENTREAD_RESOURCE_LOCK_HELD: '',
         FLUENTREAD_RESOURCE_LOCK_TOKEN: '',
+        FLUENTREAD_RESOURCE_LOCK_SLOT: '',
+        FLUENTREAD_TEST_CONCURRENCY: '',
         ...extraEnv,
     }, stdio: ['ignore', 'pipe', 'pipe']});
     children.add(child);
@@ -43,7 +45,7 @@ function launch(directory: string, args: string[], extraEnv: Record<string, stri
             resolveResult({code, stdout, stderr});
         });
     });
-    return {child, done, output: () => stdout};
+    return {child, done, output: () => stdout, errors: () => stderr};
 }
 
 async function until(predicate: () => boolean | Promise<boolean>) {
@@ -66,6 +68,8 @@ describe('resource safe runner', () => {
         expect(parseCommand(['--', 'vitest', 'run', '--config', 'coverage.ts', '--', 'one.test.ts', '--', 'literal']).args)
             .toEqual(['run', '--config', 'coverage.ts', 'one.test.ts', '--', 'literal']);
         expect(parseCommand(['--max-workers', '1', '--', 'node', 'child.mjs']).maxWorkers).toBe(1);
+        expect(parseCommand(['--concurrency', '3', '--', 'node', 'child.mjs']).concurrency).toBe(3);
+        expect(() => parseArgs(['--concurrency', '0', '--', 'node'])).toThrow('--concurrency 必须是正整数');
         expect(() => parseArgs(['--max-workers', '0', '--', 'node'])).toThrow('正整数');
         expect(() => parseArgs(['--cpu-target', '100', '--', 'node'])).toThrow('10-90');
         expect(() => parseArgs(['--wait-ms', '-1', '--', 'node'])).toThrow('正整数');
@@ -75,7 +79,7 @@ describe('resource safe runner', () => {
         expect(parseArgs(['--help'])).toEqual({help: true});
     });
 
-    it('多个真实进程在同一资源目录串行运行，竞争回收死进程锁时不同时进入', async () => {
+    it('并发设为 1 时多个真实进程串行运行，竞争回收死进程锁时不同时进入', async () => {
         const directory = await workspace();
         await mkdir(join(directory, 'lock'));
         // 用已退出的真实进程 PID，避免误判一个任意 PID 是否仍然存在。
@@ -87,7 +91,8 @@ describe('resource safe runner', () => {
             fs.writeFileSync(p, 'held', {flag:'wx'});
             setTimeout(() => {fs.unlinkSync(p); console.log('completed');}, 100);`;
         // 5 个竞争者让“递归删除中途他人重建 reaping”的交错更容易暴露；旧实现约 7% 概率令其中一个等待者崩溃。
-        const jobs = Array.from({length: 5}, () => launch(directory, [runner, '--', process.execPath, '-e', code]));
+        const jobs = Array.from({length: 5}, () => launch(directory, [runner, '--', process.execPath, '-e', code],
+            {FLUENTREAD_TEST_CONCURRENCY: '1'}));
         const results = await Promise.all(jobs.map(job => job.done));
         expect(results.map(result => result.code), results.map(result => result.stderr).join('\n')).toEqual([0, 0, 0, 0, 0]);
         expect(results.every(result => result.stdout.includes('completed'))).toBe(true);
@@ -114,7 +119,7 @@ describe('resource safe runner', () => {
              await release();`]);
         await until(() => holder.output().includes('LOCK_READY'));
         const waiting = launch(directory, [runner, '--wait-ms', '50', '--', process.execPath, '-e', 'console.log("RAN")'], {
-            FLUENTREAD_RESOURCE_LOCK_HELD: '1', FLUENTREAD_RESOURCE_LOCK_TOKEN: 'expired',
+            FLUENTREAD_RESOURCE_LOCK_HELD: '1', FLUENTREAD_RESOURCE_LOCK_TOKEN: 'expired', FLUENTREAD_TEST_CONCURRENCY: '1',
         });
         const result = await waiting.done;
         expect(result.code).toBe(1);
@@ -123,6 +128,46 @@ describe('resource safe runner', () => {
         await writeFile(releasePath, 'release');
         expect((await holder.done).code).toBe(0);
         expect((await launch(directory, [runner, '--', process.execPath, '-e', '']).done).code).toBe(0);
+    });
+
+    it('并发槽位数限制同时运行的进程，满额后的进程等待空槽再运行', async () => {
+        const directory = await workspace();
+        const entered = join(directory, 'entered');
+        const releasePath = join(directory, 'release');
+        await mkdir(entered);
+        const code = `const fs = require('node:fs'); fs.writeFileSync(require('node:path').join(${JSON.stringify(entered)}, String(process.pid)), '');
+            const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(releasePath)})) clearInterval(timer); }, 10);`;
+        const jobs = Array.from({length: 3}, () => launch(directory, [runner, '--', process.execPath, '-e', code],
+            {FLUENTREAD_TEST_CONCURRENCY: '2'}));
+        await until(async () => (await readdir(entered)).length === 2);
+        // 第三个进程必须停在等待阶段：两个槽都被占用时不能越过上限。
+        await until(() => jobs.some(job => job.errors().includes('2 个并发槽已占满')));
+        await new Promise(resolveWait => setTimeout(resolveWait, 200));
+        expect(await readdir(entered)).toHaveLength(2);
+        await writeFile(releasePath, 'release');
+        const results = await Promise.all(jobs.map(job => job.done));
+        expect(results.map(result => result.code), results.map(result => result.stderr).join('\n')).toEqual([0, 0, 0]);
+        expect(await readdir(entered)).toHaveLength(3);
+        await expect(readdir(directory)).resolves.toEqual(expect.not.arrayContaining(['lock', 'lock-1']));
+    }, 15_000);
+
+    it('回收死进程占用的非首个槽位，嵌套 runner 按传递的槽位复用父锁', async () => {
+        const directory = await workspace();
+        // 槽 0 由仍在运行的测试进程占用，槽 1 属于已退出进程，父 runner 只能回收槽 1。
+        await mkdir(join(directory, 'lock'));
+        await writeFile(join(directory, 'lock/owner.json'), JSON.stringify({pid: process.pid, token: 'live-holder'}));
+        const dead = launch(directory, ['-e', '']);
+        await dead.done;
+        await mkdir(join(directory, 'lock-1'));
+        await writeFile(join(directory, 'lock-1/owner.json'), JSON.stringify({pid: dead.child.pid}));
+        const code = 'console.log("SLOT=" + process.env.FLUENTREAD_RESOURCE_LOCK_SLOT)';
+        // 嵌套 runner 若读错槽位，会因两个槽都被占用而在 100ms 后超时失败。
+        const result = await launch(directory, [runner, '--', process.execPath,
+            runner, '--wait-ms', '100', '--', process.execPath, '-e', code], {FLUENTREAD_TEST_CONCURRENCY: '2'}).done;
+        expect(result.code, result.stderr).toBe(0);
+        expect(result.stdout).toContain('SLOT=lock-1');
+        await expect(readFile(join(directory, 'lock-1/owner.json'))).rejects.toMatchObject({code: 'ENOENT'});
+        expect(JSON.parse(await readFile(join(directory, 'lock/owner.json'), 'utf8')).token).toBe('live-holder');
     });
 
     it('子进程失败或无法启动后释放锁，并保留退出码', async () => {
