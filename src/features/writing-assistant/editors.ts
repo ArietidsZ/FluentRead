@@ -1,7 +1,7 @@
 /**
  * @file src/features/writing-assistant/editors.ts
  * 文件职责：识别 Gmail/GitHub 回复编辑器与普通文本框，捕获可审阅上下文并安全填入草稿。
- * 主要内容：按评论容器识别新旧 GitHub 编辑器与原生操作区，构造项目、标题、原帖和最近回复的有界参考信息；限定当前会话并排除重复译文，快照编辑器和页面身份后安全写回。
+ * 主要内容：按评论容器识别新旧 GitHub 回复及新建 Issue 编辑器与原生操作区，构造项目、标题、原帖和最近回复的有界参考信息；限定当前会话并排除重复译文，快照编辑器和页面身份后安全写回。
  * 模块边界：只处理显式传入的 DOM，不监听页面、不联网、不发送表单；复杂富文本提供复制回退。
  */
 export type WritingSite = 'gmail' | 'github' | null;
@@ -23,9 +23,9 @@ export function isWritingEditor(element: Element | null, site: WritingSite): ele
     return element.getAttribute('contenteditable') === 'plaintext-only'
         || (site === 'gmail' && element.matches('[contenteditable="true"][role="textbox"]'));
 }
-export function findReplyEditors(doc: Document, site: WritingSite): HTMLElement[] {
+export function findReplyEditors(doc: Document, site: WritingSite, url: string = doc.URL): HTMLElement[] {
     const selector = site === 'gmail' ? '[contenteditable="true"][role="textbox"]'
-        : site === 'github' ? 'textarea[name="comment[body]"], textarea#new_comment_field, textarea[name="discussion[body]"], textarea[name="discussion_comment[body]"], [data-testid="comment-composer"] textarea, [data-testid="comment-box"] textarea' : '';
+        : site === 'github' ? `textarea[name="comment[body]"], textarea#new_comment_field, textarea[name="discussion[body]"], textarea[name="discussion_comment[body]"], [data-testid="comment-composer"] textarea, [data-testid="comment-box"] textarea, textarea[aria-labelledby="comment-composer-heading"]${githubNewIssueIdentity(url) ? ', textarea[name="issue[body]"], textarea#issue_body' : ''}` : '';
     return selector ? Array.from(doc.querySelectorAll<HTMLElement>(selector)).filter(element => isWritingEditor(element, site)).slice(0, 12) : [];
 }
 function actionIsVisible(element: HTMLElement): boolean {
@@ -37,7 +37,7 @@ function actionIsVisible(element: HTMLElement): boolean {
 /** 返回当前编辑框所属操作区的原生发送/评论按钮；空稿禁用状态仍可定位。 */
 export function findReplyActionAnchor(editor: HTMLElement, site: WritingSite): HTMLElement | null {
     if (!isWritingEditor(editor, site)) return null;
-    const scope = site === 'github' ? editor.closest(githubComposer)
+    const scope = site === 'github' ? editor.closest(githubComposer) ?? editor.closest('fieldset')
         : site === 'gmail' ? editor.closest('form, [role="dialog"], .M9') : null;
     if (!scope) return null;
     const selector = site === 'github'
@@ -46,7 +46,7 @@ export function findReplyActionAnchor(editor: HTMLElement, site: WritingSite): H
     const ownerSelector = site === 'github' ? githubComposer : 'form, [role="dialog"], .M9';
     const candidates = Array.from(scope.querySelectorAll<HTMLElement>(selector)).filter(candidate => {
         if (!actionIsVisible(candidate)) return false;
-        if (candidate.closest(ownerSelector) !== scope) return false;
+        if ((site === 'github' && scope.matches('fieldset') ? candidate.closest('fieldset') : candidate.closest(ownerSelector)) !== scope) return false;
         return true;
     });
     return candidates[0] ?? null;
@@ -99,6 +99,13 @@ function githubPageIdentity(url: string): string {
         return `当前项目：${owner}/${repo}\n帖子类型：${kind === 'issues' ? 'Issue' : 'Pull Request'} #${number}\n页面地址：https://github.com/${owner}/${repo}/${kind}/${number}`;
     } catch { return ''; }
 }
+function githubNewIssueIdentity(url: string): string {
+    try {
+        const parsed = new URL(url);
+        const match = /^\/([\w.-]{1,100})\/([\w.-]{1,100})\/issues\/new\/?$/.exec(parsed.pathname);
+        return parsed.origin === 'https://github.com' && match ? `当前项目：${match[1]}/${match[2]}\n帖子类型：新建 Issue` : '';
+    } catch { return ''; }
+}
 function recentContextText(snippets: HTMLElement[], budget: number, site: WritingSite): string {
     let remaining = budget;
     const texts: string[] = [];
@@ -123,12 +130,16 @@ export function collectReplyContext(doc: Document, site: WritingSite, editor?: H
     const snippets = visibleContextElements(root, selector);
     const inline = site === 'github' && Boolean(editor?.closest(`${githubReviewThread}, .js-inline-comment-form`));
     const titleRoot = site === 'github' && editor ? editor.closest('main') ?? root : root;
-    const title = firstContextText(titleRoot, site === 'github' ? 'main [data-testid="issue-title"], main bdi.js-issue-title, main .gh-header-title .js-issue-title' : 'h2.hP, input[name="subjectbox"]', 1000);
+    const newIssue = site === 'github' && editor ? githubNewIssueIdentity(url) : '';
+    const titleInput = newIssue ? editor!.closest('form')?.querySelector<HTMLInputElement>('input[name="issue[title]"], input#issue_title') : null;
+    const title = newIssue
+        ? titleInput && !titleInput.closest(`${hiddenContent}, ${excludedUi}`) && titleInput.getClientRects().length && !isCssHidden(titleInput) ? titleInput.value.trim().slice(0, 1000) : ''
+        : firstContextText(titleRoot, site === 'github' ? 'main [data-testid="issue-title"], main bdi.js-issue-title, main .gh-header-title .js-issue-title' : 'h2.hP, input[name="subjectbox"]', 1000);
     const original = site === 'github' && !inline ? snippets.find(element => element.closest(githubOriginalPost)) ?? snippets[0] : undefined;
     const starter = site === 'github' ? firstContextText(titleRoot, 'main [data-testid="issue-body"] [data-testid="issue-body-header-author"], main .js-issue .timeline-comment-header .author', 100) : '';
     const state = site === 'github' ? firstContextText(titleRoot, 'main [data-testid="header-state"], main .gh-header-meta .State', 100) : '';
     const header = [
-        site === 'github' ? githubPageIdentity(url) : '',
+        site === 'github' ? githubPageIdentity(url) || newIssue : '',
         title ? `${site === 'github' ? '帖子标题' : '邮件主题'}：${title}` : '',
         state ? `帖子状态：${state}` : '',
         starter ? `发起人：${starter}` : '',

@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/writing.ts
  * 文件职责：定义写作助手的持久化偏好、动作目录与配置规范化。
- * 主要内容：默认跟随翻译目标语言并使用简短自然回复，独立选择阅读对照语言，限定风格、身份和自定义语气边界，迁移旧偏好，以 HTTPS 和路径白名单限定网页回复入口。
+ * 主要内容：默认跟随翻译目标语言并使用简短自然回复，独立选择阅读对照语言，限定风格、身份和自定义语气边界，迁移旧偏好，以 HTTPS 和路径白名单限定 GitHub 新建 Issue 与回复入口。
  * 模块边界：仅处理纯数据；不读取编辑框、不调用模型、不保存配置。
  */
 import {isHarnessService} from './harness';
@@ -90,12 +90,12 @@ export function normalizeWritingPreferences(value: unknown, providers: readonly 
     };
 }
 
-/** 网页写作仅在 Gmail 邮件与 GitHub Issue/PR 的回复场景提供。 */
+/** 网页写作仅在 Gmail 邮件与 GitHub Issue 新建、Issue/PR 回复场景提供。 */
 export function isWritingPage(url: string): boolean {
     try {
         const location = new URL(url);
         if (location.protocol !== 'https:') return false;
         if (location.hostname === 'mail.google.com') return /^\/mail(?:\/|$)/u.test(location.pathname);
-        return location.hostname === 'github.com' && /^\/[^/]+\/[^/]+\/(?:issues|pull)\/\d+(?:\/|$)/u.test(location.pathname);
+        return location.hostname === 'github.com' && /^\/[^/]+\/[^/]+\/(?:issues\/new\/?$|(?:issues|pull)\/\d+(?:\/|$))/u.test(location.pathname);
     } catch { return false; }
 }

@@ -47,6 +47,10 @@ function fixture(site, variant = '') {
   if (site === 'github' && variant === 'issue421') {
     // 公开问题 #421 的最小语义结构：重复翻译标题、截图和无关项目链接；不复制用户身份或截图内容。
     body = `<span data-testid="header-state">Open</span><article data-testid="issue-body"><div data-testid="markdown-body"><img alt="Synthetic screenshot placeholder" width="80" height="40" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='40'%3E%3Crect width='80' height='40' fill='%23ddd'/%3E%3C/svg%3E"><p><a href="https://github.com/planetscale/vtprotobuf">https://github.com/planetscale/vtprotobuf</a></p></div></article>${githubComposer('')}`;
+  } else if (site === 'github' && variant === 'issue646-new') {
+    body = `<form id="new_issue"><input id="issue_title" name="issue[title]" value="A first report"><textarea id="editor" name="issue[body]" oninput="document.querySelector('#native-send').disabled=!this.value.trim()"></textarea><div class="actions"><button id="native-send" type="submit" disabled onclick="window.sent=(window.sent||0)+1">Submit new issue</button></div></form>`;
+  } else if (site === 'github' && variant === 'issue646-first') {
+    body = `<article data-testid="issue-body"><div data-testid="markdown-body">Original report with no replies yet.</div></article>${githubComposer('').replace('data-testid="comment-composer"', 'data-testid="issue-comment-composer"')}`;
   } else if (site === 'github') {
     body = `<div class="js-comment-body">Thanks for your work. Could you follow up next week?<span hidden>PRIVATE_HIDDEN_GITHUB</span><button hidden>Delete account</button></div>${githubComposer(variant === 'draft' ? 'My original draft' : '', variant === 'layout-github' ? 'layout-github' : '')}`;
   } else if (variant === 'multiple') {
@@ -74,7 +78,7 @@ function fixture(site, variant = '') {
 (async () => {
   const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
   const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-writing-browser'));
-  const suites = {harness: 'Harness tool loop, persisted learning memory, language translation and memory mutation cancellation', bilingual: 'Reply and reading language combinations, source-only insertion and translation lifecycle', i18n: 'Issue #490 seven-language writing panel and content boundaries', all: 'All writing regression cases', settings: 'Default writing preferences, custom input stability, persistence and open-card synchronization', github: 'GitHub writing lifecycle and staged preferences', gmail: 'Gmail writing lifecycle and staged preferences', recovery: 'Model ownership and partial-stream recovery', context: 'Issue #421 context, target-language ownership, staged style, Markdown editing and insertion', compose: 'Empty and subject-only new mail, Gmail conversation isolation and rich signatures', layout: 'Editor resize and preceding-DOM positioning', dynamic: 'Remount, disabled focus, scrolling and global website rule', presentation: 'Fresh-page global website rule, dark PR, mobile layouts and unsupported routes'};
+  const suites = {harness: 'Harness tool loop, persisted learning memory, language translation and memory mutation cancellation', bilingual: 'Reply and reading language combinations, source-only insertion and translation lifecycle', i18n: 'Issue #490 seven-language writing panel and content boundaries', all: 'All writing regression cases', settings: 'Default writing preferences, custom input stability, persistence and open-card synchronization', github: 'GitHub writing lifecycle and staged preferences', issue646: 'First GitHub issue reply and new issue creation', gmail: 'Gmail writing lifecycle and staged preferences', recovery: 'Model ownership and partial-stream recovery', context: 'Issue #421 context, target-language ownership, staged style, Markdown editing and insertion', compose: 'Empty and subject-only new mail, Gmail conversation isolation and rich signatures', layout: 'Editor resize and preceding-DOM positioning', dynamic: 'Remount, disabled focus, scrolling and global website rule', presentation: 'Fresh-page global website rule, dark PR, mobile layouts and unsupported routes'};
   const suite = arg('suite', 'all'); const selectedSuites = suite.split(',');
   assert(selectedSuites.every(name => Object.hasOwn(suites, name)), `--suite must select from ${Object.keys(suites).join(', ')}`);
   const runs = name => selectedSuites.includes('all') || selectedSuites.includes(name);
@@ -204,7 +208,7 @@ function fixture(site, variant = '') {
     // 写作连接跳转只改变服务页正在编辑的服务，不能改变网页翻译默认值。
     const unconfiguredWriting = (await read()).writing;
     await patch({writing: {...unconfiguredWriting, service: 'openai'}});
-    await settings.getByText('使用已保存的服务连接。写作服务可与网页翻译分别选择。', {exact: true}).waitFor();
+    await settings.getByRole('button', {name: '配置服务连接 →', exact: true}).waitFor();
     await settings.getByRole('button', {name: '配置服务连接 →', exact: true}).click();
     await settings.waitForURL(`${origin}/options.html#settings-services`);
     const serviceCatalog = settings.locator('.service-catalog[data-editing-service]'); await serviceCatalog.waitFor();
@@ -550,6 +554,28 @@ function fixture(site, variant = '') {
       assert.equal(await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); await settingControl('输出语言').scrollIntoViewIfNeeded(); await shot(settings, 'writing-default-preferences-mobile-dark'); assert.equal(requests.length, beforeThemeChange);
       await patch({theme: beforeSettingsConfig.theme, to: beforeSettingsConfig.to, writing: {...(await read()).writing, ...defaultExpression}}); await settings.setViewportSize({width: 1440, height: 1000}); await settings.reload(); await assertSettings(settings);
       report.cases.push('settings compact language picker and four direct chip groups persist without model calls, bounded custom tone/role keep editing through preset IDs and blank fallbacks, immediate-close persistence, already-open card uses changed defaults only on the next request, card application syncs settings, and dark 390px wrapping chip layout');
+    }
+    if (runs('issue646')) {
+      const first = await page('https://github.com/fluentread-fixture/project/issues/3?fixture=issue646-first', 'issue646-first-reply');
+      await entry(first).waitFor();
+      const firstReply = await oneGeneration(first, () => entry(first).click());
+      assert.match(quotedData(firstReply.body).context, /原帖：Original report with no replies yet/);
+      await shot(first, 'issue646-first-reply'); await closePage(first);
+
+      const created = await page('https://github.com/fluentread-fixture/project/issues/new?fixture=issue646-new', 'issue646-new-issue');
+      await entry(created).waitFor();
+      const before = requests.length; await entry(created).click();
+      await created.locator('.writing-empty button.writing-button').waitFor();
+      assert.equal(requests.length, before, 'new issue does not auto-generate a reply from its title');
+      await shot(created, 'issue646-new-issue-entry');
+      const generated = await oneGeneration(created, () => created.locator('.writing-empty button.writing-button').click());
+      assert.match(generated.body.messages[0].content, /根据用户要求起草完整文本/);
+      assert.match(quotedData(generated.body).context, /帖子类型：新建 Issue\n帖子标题：A first report/);
+      await created.getByRole('button', {name: '插入回复', exact: true}).click();
+      assert.equal(await created.locator('#editor').inputValue(), generated.text);
+      assert.equal(await created.evaluate(() => window.sent || 0), 0, 'the assistant never submits the issue');
+      await shot(created, 'issue646-new-issue-inserted'); await closePage(created);
+      report.cases.push('Issue #646 first reply and new issue creation show the native-row entry, use scoped context, and insert without submission');
     }
     for (const site of ['github', 'gmail'].filter(runs)) {
       await patch({writing: {...(await read()).writing, ...defaultExpression}});
