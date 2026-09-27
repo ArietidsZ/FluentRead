@@ -112,6 +112,25 @@ describe('userscript HTTP transport', () => {
             .rejects.toBeInstanceOf(TypeError);
     });
 
+    it('does not turn missing or zero GM HTTP statuses into successful translations', async () => {
+        globalThis.GM_xmlhttpRequest = (details) => {
+            queueMicrotask(() => details.onload?.({status: 0, statusText: '', responseText: ''}));
+            return {abort() {}};
+        };
+        await expect(userscriptFetch('https://api.example.test/network-failure'))
+            .rejects.toThrow('invalid HTTP status: 0');
+
+        globalThis.GM_xmlhttpRequest = undefined;
+        globalThis.GM = {
+            xmlHttpRequest: () => Promise.resolve({
+                statusText: 'OK',
+                responseText: '{"translation":"false success"}',
+            } as UserscriptXmlHttpResponse),
+        };
+        await expect(userscriptFetch('https://api.example.test/missing-status'))
+            .rejects.toThrow('invalid HTTP status: missing');
+    });
+
     it('propagates AbortSignal to the GM request handle', async () => {
         let aborted = false;
         globalThis.GM_xmlhttpRequest = () => ({abort() { aborted = true; }});
