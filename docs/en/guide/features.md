@@ -16,6 +16,8 @@ When an announcement or modal dialog blocks the page, full-page translation hand
 
 Enable **Full-page translation ball** under **Settings → General → Page helpers** to show a shortcut at the edge of the page: click it to translate the whole page, click again to restore the original, and hold it to drag the ball up or down — it docks to the nearer side when you release it.
 
+You can also search settings for “Full-page translation floating ball” to jump to the switch, or search for “Floating ball advanced settings” to jump to its display, position, and site options.
+
 **Floating ball advanced settings** tunes the rest:
 
 - **Button display**: show the translate and settings buttons on hover, always, or hide them and keep the ball alone.

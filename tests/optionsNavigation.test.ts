@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_NAVIGATION_SECTION,
   filterNavigationItems,
+  filterSettingsSearchTargets,
   isUiLanguageSearch,
   navigationGroups,
   navigationItems,
   resolveNavigationItem,
   resolveRequestedSection,
+  settingsSearchTargets,
 } from '@/src/features/settings/model/navigation'
 
 describe('options navigation view-model', () => {
@@ -158,6 +160,22 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('Harness')).toEqual([
       expect.objectContaining({ id: 'settings-harness' }),
     ])
+  })
+})
+
+describe('settings control search', () => {
+  it('finds the exact floating-ball switch label and its detailed settings', () => {
+    expect(filterSettingsSearchTargets('全文翻译悬浮球')).toEqual([
+      expect.objectContaining({sectionId: 'settings-general', targetId: 'floating-ball-toggle'}),
+    ])
+    expect(filterSettingsSearchTargets('悬浮球').map(item => item.targetId)).toEqual([
+      'floating-ball-toggle', 'floating-ball-settings',
+    ])
+    expect(filterSettingsSearchTargets('悬浮球配置')).toEqual([
+      expect.objectContaining({sectionId: 'settings-translation', targetId: 'floating-ball-settings'}),
+    ])
+    expect(filterSettingsSearchTargets('  ')).toEqual([])
+    expect(new Set(settingsSearchTargets.map(item => item.id)).size).toBe(settingsSearchTargets.length)
   })
 })
 

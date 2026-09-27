@@ -46,7 +46,7 @@
       </header>
 
       <div v-if="query && filteredResults.length" class="search-results">
-        <button v-for="result in filteredResults" :key="result.id" type="button" @click="selectResult(result.id)">
+        <button v-for="result in filteredResults" :key="result.id" type="button" @click="selectResult(result)">
           <span><strong>{{ result.label }}</strong><small>{{ result.searchDescription }}</small></span><b>打开 →</b>
         </button>
       </div>
@@ -129,7 +129,7 @@
 
 <script setup lang="ts">
 import UiIcon from '@/src/ui/components/UiIcon.vue'
-import {filterNavigationItems, isUiLanguageSearch} from '@/src/features/settings/model/navigation';
+import {filterNavigationItems, filterSettingsSearchTargets, isUiLanguageSearch, settingsSearchTargets} from '@/src/features/settings/model/navigation';
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
 import {getInterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
@@ -158,6 +158,8 @@ const activeSection = ref(resolveRequestedSection(window.location.hash))
 const navigationElement = ref<HTMLElement | null>(null)
 const settingsContentElement = ref<HTMLElement | null>(null)
 const mobileNavigationMedia = window.matchMedia('(max-width: 700px)')
+let searchRevealGeneration = 0
+let cancelPendingSearchReveal: (() => void) | null = null
 
 const navigation = navigationItems
 const contentComponentProps = computed(() => activeSection.value === 'settings-vocabulary'
@@ -181,6 +183,12 @@ const localizedNavigationGroups = computed(() => navigationGroups.map((group) =>
   })),
 })))
 const localizedNavigationItems = computed(() => localizedNavigationGroups.value.flatMap((group) => group.items))
+const localizedSearchTargets = computed(() => settingsSearchTargets.map((target) => ({
+  ...target,
+  label: translateLegacy(target.label),
+  description: translateLegacy(target.description),
+  searchTerms: `${target.label} ${target.searchTerms}`,
+})))
 const activeItem = computed(() => localizedNavigationItems.value.find((item) => item.id === resolveNavigationItem(activeSection.value).id)
   || localizedNavigationItems.value[0])
 const unsubscribeInterfaceConfig = subscribeConfig((nextConfig) => {
@@ -200,13 +208,31 @@ void configReady
     applyInterfaceFont('system')
   })
 
-const filteredResults = computed(() => filterNavigationItems(query.value, localizedNavigationItems.value).map(item =>
-  item.id === 'settings-general' && isUiLanguageSearch(query.value)
-    ? {...item, label: `${t('language.selectorLabel')} / Language`, searchDescription: t('language.settingsDescription')}
-    : item))
+type SearchResult = {id: string; sectionId: string; targetId?: string; label: string; searchDescription: string}
+const filteredResults = computed<SearchResult[]>(() => [
+  ...filterSettingsSearchTargets(query.value, localizedSearchTargets.value).map(target => ({
+    id: target.id,
+    sectionId: target.sectionId,
+    targetId: target.targetId,
+    label: target.label,
+    searchDescription: target.description,
+  })),
+  ...filterNavigationItems(query.value, localizedNavigationItems.value).map(item => ({
+    id: item.id,
+    sectionId: item.id,
+    label: item.id === 'settings-general' && isUiLanguageSearch(query.value)
+      ? `${t('language.selectorLabel')} / Language`
+      : item.label,
+    searchDescription: item.id === 'settings-general' && isUiLanguageSearch(query.value)
+      ? t('language.settingsDescription')
+      : item.searchDescription,
+  })),
+])
 
 function selectSection(id: string) {
   if (!navigation.some((item) => item.id === id)) return
+  searchRevealGeneration += 1
+  cancelPendingSearchReveal?.()
   activeSection.value = id
   query.value = ''
   if (window.location.hash !== `#${id}`) {
@@ -216,9 +242,54 @@ function selectSection(id: string) {
   void nextTick(() => settingsContentElement.value?.scrollTo({ top: 0, left: 0, behavior: 'instant' }))
 }
 
-async function selectResult(id: string) {
-  const revealLanguage = id === 'settings-general' && isUiLanguageSearch(query.value)
-  selectSection(id)
+async function selectResult(result: SearchResult) {
+  const revealLanguage = result.id === 'settings-general' && isUiLanguageSearch(query.value)
+  selectSection(result.sectionId)
+  if (result.targetId) {
+    const generation = searchRevealGeneration
+    await nextTick()
+    if (generation !== searchRevealGeneration) return
+    const content = settingsContentElement.value
+    if (!content) return
+    let timeoutId: number | undefined
+    const stop = () => {
+      observer.disconnect()
+      sizeObserver.disconnect()
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId)
+      for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) {
+        content.removeEventListener(event, stop, true)
+      }
+      if (cancelPendingSearchReveal === stop) cancelPendingSearchReveal = null
+    }
+    const revealTarget = () => {
+      if (generation !== searchRevealGeneration || query.value || activeSection.value !== result.sectionId) {
+        stop()
+        return
+      }
+      const target = document.getElementById(result.targetId!)
+      if (!target?.getClientRects().length) return
+      const targetRect = target.getBoundingClientRect()
+      const contentTop = content.getBoundingClientRect().top
+      const centerOffset = targetRect.height < content.clientHeight
+        ? (content.clientHeight - targetRect.height) / 2
+        : 0
+      content.scrollTo({
+        top: Math.max(0, content.scrollTop + targetRect.top - contentTop - centerOffset),
+        behavior: 'instant',
+      })
+      target.querySelector<HTMLElement>('[role="switch"]')?.focus({preventScroll: true})
+    }
+    const observer = new MutationObserver(revealTarget)
+    const sizeObserver = new ResizeObserver(revealTarget)
+    observer.observe(content, {subtree: true, childList: true, attributes: true, attributeFilter: ['style']})
+    sizeObserver.observe(content.firstElementChild ?? content)
+    for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) {
+      content.addEventListener(event, stop, {capture: true, passive: true})
+    }
+    cancelPendingSearchReveal = stop
+    timeoutId = window.setTimeout(stop, 3000)
+    revealTarget()
+  }
   if (revealLanguage) {
     await nextTick()
     const control = document.querySelector<HTMLElement>('[data-testid="ui-language-select"] input')
@@ -257,6 +328,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  cancelPendingSearchReveal?.()
   unsubscribeInterfaceConfig()
   window.removeEventListener('hashchange', syncSectionFromHash)
   mobileNavigationMedia.removeEventListener('change', handleMobileNavigationChange)
