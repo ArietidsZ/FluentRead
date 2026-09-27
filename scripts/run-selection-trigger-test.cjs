@@ -34,6 +34,7 @@ function parseArgs(argv) {
     headed: argv.includes('--headed'),
     chineseOnly: argv.includes('--chinese-only'),
     geometryOnly: argv.includes('--geometry-only'),
+    zoomOnly: argv.includes('--zoom-only'),
   };
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root，或设置 PLAYWRIGHT_ROOT');
   args.extensionDir = path.resolve(args.extensionDir);
@@ -971,7 +972,7 @@ async function main() {
     await page.goto('https://example.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await waitForContentScript(page);
 
-    if (args.geometryOnly) {
+    if (args.geometryOnly || args.zoomOnly) {
       const saved = await readStoredConfig(popup);
       await patchStoredConfig(popup, {
         on: true, disableSelectionTranslator: false, selectionTranslatorMode: 'bilingual',
@@ -1029,6 +1030,67 @@ async function main() {
         assert(r.x >= 10 && r.y >= 10 && r.right <= viewport.width - 10 && r.bottom <= viewport.height - 10, `窗口超出视口 ${JSON.stringify({r,viewport})}`);
         return r;
       };
+      if (args.zoomOnly) {
+        await open(TARGET_TEXT);
+        await ready();
+        const tabId = await popup.evaluate(async () => {
+          const tabs = await chrome.tabs.query({url: 'https://example.com/*'});
+          return tabs.find(tab => tab.active)?.id ?? tabs[0]?.id;
+        });
+        assert(Number.isInteger(tabId), '找不到隔离测试页的 tabId');
+        const samples = [];
+        for (const factor of [1, 2, 0.5, 1]) {
+          await popup.evaluate(({tabId, factor}) => chrome.tabs.setZoom(tabId, factor), {tabId, factor});
+          await page.waitForTimeout(450);
+          const zoom = await popup.evaluate(tabId => chrome.tabs.getZoom(tabId), tabId);
+          const card = await box();
+          const viewport = await page.evaluate(() => ({width: innerWidth, height: innerHeight, dpr: devicePixelRatio}));
+          samples.push({zoom, card, viewport, screenWidth: card.width * zoom, screenHeight: card.height * zoom});
+          await page.screenshot({path: path.join(args.artifactsDir, `selection-zoom-${String(factor).replace('.', '-')}.png`)});
+          assert(card.x >= 10 && card.y >= 10 && card.right <= viewport.width - 10 && card.bottom <= viewport.height - 10,
+            `缩放后卡片超出视口：${JSON.stringify(samples.at(-1))}`);
+        }
+        result.cases.push({id: 'geometry.page-zoom', status: process.argv.includes('--observe-only') ? 'observed' : 'passed', samples});
+        console.log(JSON.stringify({zoomSamples: samples}, null, 2));
+        if (!process.argv.includes('--observe-only')) {
+          const expected = samples[0];
+          assert(samples.every(sample => Math.abs(sample.screenWidth - expected.screenWidth) < 3
+            && Math.abs(sample.screenHeight - expected.screenHeight) < 4),
+            `页面缩放改变了卡片屏幕尺寸：${JSON.stringify(samples.map(sample => [sample.screenWidth, sample.screenHeight]))}`);
+          await popup.evaluate(({tabId}) => chrome.tabs.setZoom(tabId, 2), {tabId});
+          await page.reload({waitUntil: 'domcontentloaded'});
+          await waitForContentScript(page);
+          await open(TARGET_TEXT);
+          await ready();
+          const coldZoom = await popup.evaluate(tabId => chrome.tabs.getZoom(tabId), tabId);
+          const coldCard = await box();
+          assert(coldZoom === 2 && Math.abs(coldCard.width * coldZoom - expected.screenWidth) < 3,
+            `预设 200% 缩放后新页面的卡片尺寸不正确：${JSON.stringify({coldZoom, coldCard})}`);
+          await page.screenshot({path: path.join(args.artifactsDir, 'selection-zoom-cold-2.png')});
+          result.cases.push({id: 'geometry.zoom-before-load', status: 'passed', coldZoom, coldCard});
+          const beforeDrag = await box();
+          const afterDrag = await gesture('.fr-tooltip-header', 60, 20);
+          assert(near(afterDrag.x, beforeDrag.x + 60) && near(afterDrag.y, beforeDrag.y + 20), '200% 缩放下卡片拖动失败');
+          const afterResize = await gesture('[data-resize-edge="se"]', 40, 20);
+          assert(near(afterResize.width, afterDrag.width + 40) && near(afterResize.height, afterDrag.height + 20),
+            '200% 缩放下卡片调整大小失败');
+          await inside();
+          await popup.evaluate(({tabId}) => chrome.tabs.setZoom(tabId, 1), {tabId});
+          await page.waitForTimeout(450);
+          const afterReset = await box();
+          assert(near(afterReset.width, afterResize.width * 2) && near(afterReset.height, afterResize.height * 2),
+            '恢复 100% 缩放后手动尺寸没有保持屏幕大小');
+          await inside();
+          result.cases.push({id: 'geometry.zoom-drag-resize', status: 'passed', beforeDrag, afterDrag, afterResize, afterReset});
+        }
+        result.ok = result.consoleErrors.length === 0;
+        result.screenshots = ['selection-zoom-1.png', 'selection-zoom-2.png', 'selection-zoom-0-5.png', 'selection-zoom-cold-2.png']
+          .map(file => path.join(args.artifactsDir, file));
+        result.finishedAt = new Date().toISOString();
+        fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(result, null, 2)}\n`);
+        assert(result.ok, '浏览器控制台包含错误');
+        return;
+      }
       await open();
       await ready();
       const initial = await box();

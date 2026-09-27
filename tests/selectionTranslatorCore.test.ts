@@ -179,6 +179,19 @@ describe('selection translator core geometry', () => {
         expect(layout.left + layout.width).toBeLessThanOrEqual(390 - 12);
         expect(layout.top + layout.height).toBeLessThanOrEqual(640 - 12);
     });
+
+    it('uses visible dimensions for a reading card compensated against page zoom', () => {
+        const anchor = {top: 300, right: 340, bottom: 324, left: 300, width: 40, height: 24};
+        const enlargedPage = calculateReadingPopupLayout(anchor, {width: 640, height: 450}, 0.5);
+        expect(enlargedPage).toEqual({left: 300, top: 30, placement: 'top', width: 388, height: 520});
+        expect(enlargedPage.width * 0.5 * 2).toBe(388);
+
+        const reducedPage = calculateReadingPopupLayout(anchor, {width: 600, height: 400}, 2);
+        expect(reducedPage.width).toBe(288);
+        expect(reducedPage.height).toBe(188);
+        expect(reducedPage.left + reducedPage.width * 2).toBeLessThanOrEqual(600 - 12);
+        expect(reducedPage.top + reducedPage.height * 2).toBeLessThanOrEqual(400 - 12);
+    });
 });
 
 describe('selection translator presentation stability', () => {

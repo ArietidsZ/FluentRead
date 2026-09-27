@@ -36,6 +36,7 @@
       "tests/configApiKeys.test.ts",
       "tests/apiKeyCheckIdentity.test.ts",
       "tests/modalDialogHost.test.ts",
+      "tests/selectionPageZoom.test.ts",
       "tests/chineseLanguage.test.ts",
       "tests/aiContextPresentation.test.ts",
       "tests/aiSdkEndpoints.test.ts",

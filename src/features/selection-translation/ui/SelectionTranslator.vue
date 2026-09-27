@@ -1,12 +1,12 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
- * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、请求 token、弹窗定位、空白拖动、边角缩放和主题，以纯中文选区过滤统一划词和翻译卡片入口，其他文本保留保守同语言预检，以独立点击、延迟悬停和快捷键复用选区入口打开 Harness 阅读卡，按模型相关配置刷新阅读缓存，协调翻译、词典与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
+ * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、请求 token、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放和主题，以纯中文选区过滤统一划词和翻译卡片入口，其他文本保留保守同语言预检，以独立点击、延迟悬停和快捷键复用选区入口打开 Harness 阅读卡，按模型相关配置刷新阅读缓存，协调翻译、词典与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
   <div v-ui-i18n v-show="showIndicator || showTooltip || noticeMessage || copySuccess" class="fr-selection-translator-root" :data-display-delay="selectionSettings.delay" @pointerdown.stop @wheel.stop.passive="handleUiWheel">
-    <div v-if="showIndicator && !showTooltip && readingIndicatorEnabled" ref="reading-indicator-ref" class="fr-reading-indicator" :class="{'fr-dark-theme': isDarkTheme}" :style="readingIndicatorStyle" role="group" aria-label="选区操作" @pointerdown.prevent.stop>
+    <div v-if="showIndicator && !showTooltip && readingIndicatorEnabled" ref="reading-indicator-ref" class="fr-reading-indicator" :class="{'fr-dark-theme': isDarkTheme}" :style="[readingIndicatorStyle, readingIndicatorScaleStyle]" role="group" aria-label="选区操作" @pointerdown.prevent.stop>
       <button v-if="selectionSettings.mode !== 'disabled'" type="button" aria-label="打开划词翻译" @click="openTooltip()">翻译</button>
       <button v-for="action in readingActions" :key="action.id" type="button" :class="{'is-default': action.id === readingPreferences.defaultAction}" :data-default-action="action.id === readingPreferences.defaultAction ? 'true' : undefined" :aria-label="`${action.label}选中文本`" @pointerenter="scheduleReadingHover($event, action.id)" @pointerleave="cancelReadingHover" @click="openReading(action.id)">{{ action.label }}</button>
       <button v-if="!isPrivateContext" class="fr-reading-history-entry" type="button" aria-label="阅读记录" title="阅读记录" @click="openReadingHistory"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="M10 5.8V10l2.7 1.8" /></svg><span>记录</span></button>
@@ -15,7 +15,7 @@
       <span class="fr-selection-indicator-glyph" aria-hidden="true">↗</span>
     </button>
 
-    <section v-if="showTooltip" ref="tooltip-ref" class="fr-translation-tooltip" :class="{ 'fr-dark-theme': isDarkTheme, 'fr-reading-tooltip': readingMode, 'fr-popup-manipulating': popupManipulating }" :data-placement="popupPlacement" :style="tooltipStyle" role="dialog" :aria-label="readingMode ? '阅读理解' : '划词翻译结果'" @pointerdown.stop="beginPopupGesture" @pointermove="movePopupGesture" @pointerup="stopPopupGesture" @pointercancel="stopPopupGesture" @lostpointercapture="stopPopupGesture">
+    <section v-if="showTooltip" ref="tooltip-ref" class="fr-translation-tooltip" :class="{ 'fr-dark-theme': isDarkTheme, 'fr-reading-tooltip': readingMode, 'fr-popup-manipulating': popupManipulating }" :data-placement="popupPlacement" :style="[tooltipScaleStyle, tooltipStyle]" role="dialog" :aria-label="readingMode ? '阅读理解' : '划词翻译结果'" @pointerdown.stop="beginPopupGesture" @pointermove="movePopupGesture" @pointerup="stopPopupGesture" @pointercancel="stopPopupGesture" @lostpointercapture="stopPopupGesture">
       <header class="fr-tooltip-header">
         <div class="fr-tooltip-title">
           <img class="fr-tooltip-brand-icon" :src="selectionTranslatorIconUrl" alt="" aria-hidden="true" />
@@ -176,6 +176,7 @@ import {
 } from '@/src/features/selection-translation/protocol';
 import { createSelectionTtsContentController } from '@/src/features/selection-translation/content/selectionTtsContentController';
 import { setSelectionContextMenuHandler } from '@/src/features/selection-translation/content/contextMenuBridge';
+import {normalizeSelectionPageZoom, SELECTION_PAGE_ZOOM_CHANGED, SELECTION_PAGE_ZOOM_REQUEST} from '@/src/features/selection-translation/pageZoom';
 import { VOCABULARY_BOOK_CHANGED_MESSAGE, VOCABULARY_BOOK_MESSAGE, type VocabularyBookResponse } from '@/src/features/vocabulary/protocol';
 import {ReadingPanel, captureReadingSelection, type ReadingSelection} from '@/src/features/reading-assistant/public';
 import {HARNESS_ACTIONS, getHarnessModelCacheKey, normalizeHarnessPreferences, type HarnessActionId} from '@/src/core/config/harness';
@@ -214,6 +215,20 @@ const indicatorStyle = ref<Record<string, string>>({});
 const readingIndicatorStyle = ref<Record<string, string>>({visibility: 'hidden'});
 const tooltipStyle = ref<Record<string, string>>({});
 const popupPlacement = ref<'top' | 'bottom'>('top');
+const pageZoom = ref(1);
+const viewportSize = ref({width: window.innerWidth, height: window.innerHeight});
+const popupScale = computed(() => 1 / pageZoom.value);
+const tooltipScaleStyle = computed(() => ({
+  transform: `scale(${popupScale.value})`,
+  transformOrigin: 'top left',
+  maxWidth: `${Math.max(1, viewportSize.value.width - 24) / popupScale.value}px`,
+  maxHeight: `${Math.min(520, Math.max(1, viewportSize.value.height - 20) / popupScale.value)}px`,
+}));
+const readingIndicatorScaleStyle = computed(() => ({
+  transform: `scale(${popupScale.value})`,
+  transformOrigin: 'top left',
+  maxWidth: `${Math.max(1, viewportSize.value.width - 24) / popupScale.value}px`,
+}));
 const snapshot = ref<SelectionSnapshot | null>(null);
 const isPlaying = ref(false);
 const currentAudioKind = ref<AudioKind | null>(null);
@@ -231,6 +246,7 @@ const vocabularyBusy = ref(false);
 let readingHoverTimer: number | null = null;
 let selectionFrame: number | null = null;
 let positionFrame: number | null = null;
+let zoomRequestGeneration = 0;
 let selectionLossTimer: number | null = null;
 let selectionPresentationTimer: number | null = null;
 let selectionPresentationVersion = 0;
@@ -577,6 +593,7 @@ function resetPopupGeometry(): void {
 function applyManualPopupGeometry(): void {
   const element = tooltipRef.value;
   if (!element || !manualPopupPosition) return;
+  const scale = popupScale.value;
   const widthLimit = Math.max(1, window.innerWidth - 24);
   const heightLimit = Math.max(1, window.innerHeight - 24);
   const width = Math.min(manualPopupSize?.width ?? element.getBoundingClientRect().width, widthLimit);
@@ -587,8 +604,8 @@ function applyManualPopupGeometry(): void {
   if (manualPopupSize) manualPopupSize = {width, height};
   tooltipStyle.value = {
     left: `${left}px`, top: `${top}px`, visibility: 'visible',
-    maxWidth: `${widthLimit}px`, maxHeight: `${manualPopupSize ? heightLimit : Math.min(520, heightLimit)}px`,
-    ...(manualPopupSize ? {width: `${width}px`, height: `${height}px`} : {}),
+    maxWidth: `${widthLimit / scale}px`, maxHeight: `${manualPopupSize ? heightLimit / scale : Math.min(520, heightLimit / scale)}px`,
+    ...(manualPopupSize ? {width: `${width / scale}px`, height: `${height / scale}px`} : {}),
   };
 }
 
@@ -621,8 +638,8 @@ function movePopupGesture(event: PointerEvent): void {
   if (!edge) {
     manualPopupPosition = {left: rect.left + dx, top: rect.top + dy};
   } else {
-    const minWidth = Math.min(280, window.innerWidth - 24);
-    const minHeight = Math.min(140, window.innerHeight - 24);
+    const minWidth = Math.min(280 * popupScale.value, window.innerWidth - 24);
+    const minHeight = Math.min(140 * popupScale.value, window.innerHeight - 24);
     let {left, top, right, bottom} = rect;
     if (edge.includes('w')) left = Math.max(12, Math.min(rect.left + dx, right - minWidth));
     if (edge.includes('e')) right = Math.min(window.innerWidth - 12, Math.max(rect.right + dx, left + minWidth));
@@ -660,7 +677,7 @@ function updatePosition(refreshSelection = true): void {
     if (!tooltip || !snapshot.value) return;
     if (!readingMode.value && manualPopupPosition) { applyManualPopupGeometry(); return; }
     if (readingMode.value) {
-      const layout = calculateReadingPopupLayout(snapshot.value.anchor, {width: window.innerWidth, height: window.innerHeight});
+      const layout = calculateReadingPopupLayout(snapshot.value.anchor, {width: window.innerWidth, height: window.innerHeight}, popupScale.value);
       tooltipStyle.value = {left: `${layout.left}px`, top: `${layout.top}px`, width: `${layout.width}px`, height: `${layout.height}px`, visibility: 'visible'};
       popupPlacement.value = layout.placement;
       return;
@@ -676,6 +693,49 @@ function schedulePositionUpdate(): void {
   if (!showIndicator.value && !showTooltip.value) return;
   if (positionFrame !== null) return;
   positionFrame = window.requestAnimationFrame(() => { positionFrame = null; updatePosition(); });
+}
+
+function applyPageZoom(value: unknown): void {
+  const nextZoom = normalizeSelectionPageZoom(value);
+  const previousZoom = pageZoom.value;
+  if (nextZoom === previousZoom) return;
+  stopPopupGesture();
+  // 手动位置和尺寸以视口 CSS 像素保存；缩放后换算，才能保持屏幕上的实际位置和大小。
+  const ratio = previousZoom / nextZoom;
+  if (manualPopupPosition) manualPopupPosition = {
+    left: manualPopupPosition.left * ratio,
+    top: manualPopupPosition.top * ratio,
+  };
+  if (manualPopupSize) manualPopupSize = {
+    width: manualPopupSize.width * ratio,
+    height: manualPopupSize.height * ratio,
+  };
+  pageZoom.value = nextZoom;
+  viewportSize.value = {width: window.innerWidth, height: window.innerHeight};
+  schedulePositionUpdate();
+}
+
+async function requestPageZoom(): Promise<void> {
+  const generation = ++zoomRequestGeneration;
+  try {
+    const response = await browser.runtime.sendMessage({type: SELECTION_PAGE_ZOOM_REQUEST}) as {success?: boolean; zoom?: unknown} | undefined;
+    if (generation === zoomRequestGeneration && response?.success) applyPageZoom(response.zoom);
+  } catch {
+    // Userscript 等无 tabs.getZoom 的环境沿用页面默认尺寸。
+  }
+}
+
+function handlePageZoomChanged(message: unknown): undefined {
+  if (!message || typeof message !== 'object' || (message as {type?: unknown}).type !== SELECTION_PAGE_ZOOM_CHANGED) return undefined;
+  zoomRequestGeneration += 1;
+  applyPageZoom((message as {zoom?: unknown}).zoom);
+  return undefined;
+}
+
+function handleViewportResize(): void {
+  viewportSize.value = {width: window.innerWidth, height: window.innerHeight};
+  schedulePositionUpdate();
+  void requestPageZoom();
 }
 
 function openTooltip(forced = false): void {
@@ -1446,6 +1506,8 @@ onMounted(() => {
   systemThemeMedia.addEventListener('change', updateTheme);
   browser.runtime.onMessage.addListener(handleSelectionSettingsMessage);
   browser.runtime.onMessage.addListener(handleVocabularyBookChanged);
+  browser.runtime.onMessage.addListener(handlePageZoomChanged);
+  void requestPageZoom();
   releaseContextMenuHandler = setSelectionContextMenuHandler(translateSelectionFromContextMenu);
   unsubscribeConfig = subscribeConfig(() => { selectionConfigVersion.value += 1; });
   document.addEventListener('pointerdown', handlePointerDown, true);
@@ -1457,7 +1519,7 @@ onMounted(() => {
   window.addEventListener('blur', handleWindowBlur);
   browser.runtime.onMessage.addListener(handleSelectionTtsState);
   window.addEventListener('scroll', handleScroll, true);
-  window.addEventListener('resize', schedulePositionUpdate);
+  window.addEventListener('resize', handleViewportResize);
   watch(tooltipRef, (tooltip) => {
     stopPopupGesture();
     tooltipResizeObserver?.disconnect();
@@ -1523,6 +1585,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  zoomRequestGeneration += 1;
   releaseContextMenuHandler?.();
   releaseContextMenuHandler = null;
   stopPopupGesture();
@@ -1537,6 +1600,7 @@ onBeforeUnmount(() => {
   systemThemeMedia?.removeEventListener('change', updateTheme);
   browser.runtime.onMessage.removeListener(handleSelectionSettingsMessage);
   browser.runtime.onMessage.removeListener(handleVocabularyBookChanged);
+  browser.runtime.onMessage.removeListener(handlePageZoomChanged);
   unsubscribeConfig?.();
   unsubscribeConfig = null;
   tooltipResizeObserver?.disconnect();
@@ -1550,7 +1614,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('blur', handleWindowBlur);
   browser.runtime.onMessage.removeListener(handleSelectionTtsState);
   window.removeEventListener('scroll', handleScroll, true);
-  window.removeEventListener('resize', schedulePositionUpdate);
+  window.removeEventListener('resize', handleViewportResize);
   resetSelectionContentState(true);
 });
 </script>
