@@ -298,7 +298,7 @@ async function drawerCases(context, origin, errors, report, timeoutMs) {
 }
 
 async function settingsLinkCases(context, origin, errors, report, timeoutMs) {
-  const expected = {hover: 'settings-translation', selection: 'settings-translation', appearance: 'settings-general', image: 'settings-image-translation', area: 'settings-area-translation', video: 'settings-video'};
+  const expected = {hover: 'settings-translation', selection: 'settings-translation', appearance: 'settings-interface', image: 'settings-image-translation', area: 'settings-area-translation', video: 'settings-video'};
   const results = {};
   for (const [id, hash] of Object.entries(expected)) {
     const popup = await openPage(context, `${origin}/popup.html`, timeoutMs, errors);

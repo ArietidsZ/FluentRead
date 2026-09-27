@@ -1,8 +1,8 @@
 /**
  * @file src/app/content/page.css
- * 文件职责：定义内容脚本直接注入宿主文档的 FluentRead 专属视觉状态，覆盖翻译占位、重试、图片覆盖层、输入框反馈、已翻译提示框的鼠标命中保护和多种双语译文样式。
- * 主要内容：包含错误原因与重试控件、图片翻译按钮和 canvas、输入框 translating/success/error tooltip，以及 dimmed、下划线、卡片、标记、纸张、技术风等显示类和 GitHub ListView 双语标题的空行修复；段落 loading 已由自带 Shadow Root 的组件隔离。
- * 模块边界：选择器均以 fluent 前缀或受控状态类约束，不承担 Shadow UI 组件主题，也不决定何时添加类名；DOM 状态由各 content feature 管理，共享 token 由 src/ui/styles 提供。
+ * 文件职责：定义内容脚本直接注入宿主文档的 FluentRead 专属视觉状态，覆盖翻译占位、重试、图片覆盖层、输入框反馈、已翻译提示框的鼠标命中保护与双语逐句高亮。
+ * 主要内容：包含错误原因与重试控件、图片翻译按钮和 canvas、输入框 translating/success/error tooltip、显式换行源文行容器和 GitHub ListView 双语标题的空行修复；段落 loading 已由自带 Shadow Root 的组件隔离。
+ * 模块边界：选择器均以 fluent 前缀或受控状态类约束，不承担 Shadow UI 组件主题，也不决定何时添加类名；双语译文容器与译文样式预设统一在 src/ui/styles/translation-display.css，由 pageStyles 一并注入。
  */
 /* 内容脚本注入到宿主页面的 FluentRead 专属样式。 */
 .fluent-read-retry-wrapper {
@@ -254,64 +254,6 @@
     background: rgba(239, 68, 68, 0.85);
 }
 
-/* display 译文显示样式*/
-
-/* 弱化 */
-.fluent-display-dimmed {
-    opacity: 0.7;
-}
-
-/* 实线下划线 */
-.fluent-display-solid-underline {
-    border-bottom: 2px solid #409eff;
-}
-
-/* 虚线下划线 */
-.fluent-display-dot-underline {
-    border-bottom: 2px dotted #409eff;
-}
-
-/* 学习模式 */
-.fluent-display-learning-mode {
-    background: linear-gradient(transparent 60%, #ffd700 40%);
-}
-
-/* 透明模式 */
-.fluent-display-transparent-mode {
-    opacity: 0.85;
-}
-
-/* 阴影效果 */
-.fluent-display-card-mode {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
-    padding: 4px 8px;
-    border-radius: 4px;
-    background: rgba(64, 158, 255, 0.1);
-}
-
-/* 引用 */
-.fluent-display-quote {
-    border-left: 4px solid #409eff;
-    padding-left: 8px;
-    font-style: italic;
-}
-
-/* 加粗 */
-.fluent-display-bold {
-    font-weight: bold;
-}
-
-/* 双语模式，block 强制换行、inline-block 自适应换行 */
-.fluent-read-bilingual-content {
-    display: block; /* 设置为块级元素，强制换行 */
-    word-break: break-word; /* 允许在单词内断行，避免超出容器边界 */
-    margin: 8px 0 !important; /* 上下边距设置为8px，并强制覆盖其他样式 */
-    color: inherit; /* 保持文本颜色与周围文本一致 */
-    background: transparent; /* 确保背景透明，与周围背景融合 */
-    box-sizing: border-box; /* 使用 border-box 模型，确保内外边距和边框计算正确 */
-    overflow-wrap: break-word; /* 处理长单词或 URL 的断行，避免溢出 */
-}
-
 /* 显式换行的源文与译文占用同一行内盒子，避免块级译文与宿主 br 叠加出空白行。
  * 仅约束 FluentRead 自建且可恢复的行容器，不修改宿主段落和换行节点。 */
 .fluent-read-source-line[data-fr-translation-segment="true"] {
@@ -345,94 +287,4 @@
     background-color: rgba(239, 71, 118, 0.22);
     text-decoration: underline rgba(239, 71, 118, 0.65);
     text-decoration-thickness: 1px;
-}
-
-/* 马克笔 */
-.fluent-display-marker {
-    background: #ffeb3b;
-    padding: 0;
-    line-height: 1.6;
-    display: inline;
-    box-decoration-break: clone;
-}
-
-.fluent-display-lightyellow {
-    background-color: rgba(255, 235, 59, 0.2);
-}
-
-.fluent-display-lightblue {
-    background-color: rgba(64, 158, 255, 0.1);
-}
-
-.fluent-display-lightgray {
-    background-color: rgba(158, 158, 158, 0.1);
-}
-
-.fluent-display-italic {
-    font-style: italic;
-}
-
-.fluent-display-border {
-    border: 1px solid #409eff;
-    border-radius: 4px;
-    padding: 2px 6px;
-}
-
-.fluent-display-text-shadow {
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-/* 新增的双语翻译样式 */
-.fluent-display-modern-card {
-    background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%);
-    border-radius: 8px;
-    padding: 6px 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    margin: 4px 0;
-}
-
-.fluent-display-wavy {
-    text-decoration: wavy underline #409eff;
-    text-underline-offset: 4px;
-}
-
-.fluent-display-highlight-fade {
-    background: linear-gradient(104deg, rgba(64,158,255,0) 0.9%, rgba(64,158,255,0.1) 2.4%, rgba(64,158,255,0.15) 5.8%, rgba(64,158,255,0.1) 93%, rgba(64,158,255,0.1) 96%);
-    padding: 0.5em 0.8em;
-    border-radius: 4px;
-}
-
-.fluent-display-elegant {
-    font-family: "Georgia", serif;
-    color: #666;
-    line-height: 1.6;
-    letter-spacing: 0.3px;
-}
-
-.fluent-display-focus {
-    background: linear-gradient(to right, transparent, rgba(64,158,255,0.1) 4%, rgba(64,158,255,0.1) 96%, transparent);
-    padding: 4px 12px;
-    border-radius: 3px;
-}
-
-.fluent-display-paper {
-    background-color: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-    border: 1px solid #eee;
-    padding: 8px 12px;
-    border-radius: 6px;
-}
-
-.fluent-display-clean {
-    border-bottom: 1px solid #e4e7ed;
-    padding-bottom: 2px;
-    margin-bottom: 2px;
-}
-
-.fluent-display-tech {
-    font-family: "Consolas", monospace;
-    background: #f8f9fa;
-    padding: 2px 6px;
-    border-radius: 3px;
-    border: 1px solid #eee;
 }

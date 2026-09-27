@@ -239,6 +239,26 @@ const FLOATING_BALL_CLICK_ACTION_LABELS = new Map<unknown, string>([
     ['settings', '打开设置页'],
     ['none', '仅拖动'],
 ]);
+const TRANSLATION_APPEARANCE_FIELD_LABELS = new Map<string, string>([
+    ['textColor', '译文颜色'],
+    ['lineColor', '线条颜色'],
+    ['fillColor', '标记底色'],
+    ['fontScale', '译文字号'],
+    ['fontWeight', '译文字重'],
+    ['fontFamily', '译文字体'],
+    ['opacity', '译文不透明度'],
+]);
+// 颜色留空与 default 都表示沿用样式自带外观；字号和不透明度都是百分比。
+const TRANSLATION_APPEARANCE_VALUE_LABELS = new Map<unknown, string>([
+    ['', '默认'],
+    ['default', '默认'],
+    ['normal', '常规'],
+    ['semibold', '中粗'],
+    ['bold', '加粗'],
+    ['sans', '无衬线'],
+    ['serif', '衬线'],
+    ['mono', '等宽'],
+]);
 
 function formatEnum(value: unknown, labels: Map<unknown, string>): string {
     return labels.get(value) ?? formatValue(value);
@@ -253,6 +273,11 @@ function formatNumber(value: unknown, suffix = ''): string {
     return typeof value === 'number' && Number.isFinite(value)
         ? `${value}${suffix}`
         : formatValue(value);
+}
+
+function formatTranslationAppearanceValue(value: unknown): string {
+    if (typeof value === 'number') return formatNumber(value, '%');
+    return TRANSLATION_APPEARANCE_VALUE_LABELS.get(value) ?? formatValue(value);
 }
 
 function formatRequestRate(value: unknown): string {
@@ -445,6 +470,10 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
 
     display: {group: 'general', label: '翻译模式', format: (value) => formatEnum(value, DISPLAY_LABELS)},
     style: {group: 'general', label: '译文样式', format: (value) => formatEnum(value, STYLE_LABELS)},
+    translationAppearance: {group: 'general', label: '译文外观', mapping: {
+        itemLabel: (key) => TRANSLATION_APPEARANCE_FIELD_LABELS.get(key) ?? key,
+        format: formatTranslationAppearanceValue,
+    }},
     disableFloatingBall: {group: 'general', label: '全文翻译悬浮球', format: (value) => formatBoolean(value, true)},
     floatingBallToolsDisplay: {group: 'general', label: '悬浮球按钮显示方式', format: (value) => formatEnum(value, FLOATING_BALL_TOOLS_DISPLAY_LABELS)},
     floatingBallHoverDelay: {group: 'general', label: '悬浮球展开延迟', format: (value) => formatNumber(value, ' ms')},

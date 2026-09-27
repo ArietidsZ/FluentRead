@@ -192,7 +192,8 @@ async function main() {
     await shot(page, 'rich-text');
     await page.evaluate(() => document.querySelector('#rich').remove()); await wait(100); assert.equal(await highlights(), '');
     report.checks.push('linked and bold sentences, original node identity, detached owner cleanup');
-    const options = await createPage(`${origin}/options.html`);
+    // 逐句高亮开关与多句预览位于界面风格页第一组“译文样式”。
+    const options = await createPage(`${origin}/options.html#settings-interface`);
     const control = options.locator('.el-switch:has(input[aria-label="双语逐句高亮"])'); await control.waitFor({state: 'visible'});
     const preview = options.getByTestId('bilingual-highlight-preview');
     await preview.locator('[data-testid="bilingual-highlight-preview-source"] span').nth(1).hover();

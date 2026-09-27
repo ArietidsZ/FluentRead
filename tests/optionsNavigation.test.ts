@@ -121,6 +121,15 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('emoji')).toEqual([
       expect.objectContaining({ id: 'settings-interface' }),
     ])
+    // 译文样式、颜色和逐句高亮都集中在界面风格页，不再同时命中通用设置。
+    for (const keyword of ['译文样式', '下划线颜色', '译文颜色', '标记底色', '双语逐句高亮', '模糊遮罩']) {
+      expect(filterNavigationItems(keyword)).toEqual([
+        expect.objectContaining({ id: 'settings-interface' }),
+      ])
+    }
+    expect(filterNavigationItems('翻译模式')).toEqual([
+      expect.objectContaining({ id: 'settings-general' }),
+    ])
     expect(filterNavigationItems('鼠标悬浮')).toEqual([
       expect.objectContaining({ id: 'settings-translation' }),
     ])

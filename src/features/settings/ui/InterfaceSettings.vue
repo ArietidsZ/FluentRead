@@ -1,10 +1,12 @@
 <!--
  * @file src/features/settings/ui/InterfaceSettings.vue
- * 文件职责：组织界面风格、动画加载效果、菜单栏布局与界面字体四个偏好分组。
- * 主要内容：提供皮肤、动画及字体预览，通过预览和显隐列表编排区域与快捷入口；字体下载、重试和逐项清除都在对应字体卡片内完成。
- * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用。
+ * 文件职责：组织译文样式、界面风格、动画加载效果、菜单栏布局与界面字体五个偏好分组，其中网页译文样式排在第一位。
+ * 主要内容：先挂载译文样式分组，再提供皮肤、动画及字体预览，通过预览和显隐列表编排区域与快捷入口；字体下载、重试和逐项清除都在对应字体卡片内完成。
+ * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用，译文样式的细节由 TranslationStyleSettings 负责。
 -->
 <template>
+  <TranslationStyleSettings :config="props.config" />
+
   <SettingsGroup
     :title="translateLegacy('界面与弹窗')"
     :description="translateLegacy('从效率布局、趣味配色到夜间和护眼方案，选择适合自己的界面；也可以只留下常用栏目。')"
@@ -273,6 +275,7 @@ import InterfaceSkinPreview from './components/InterfaceSkinPreview.vue'
 import PopupLayoutPreview from './components/PopupLayoutPreview.vue'
 import PopupLayoutEditor from './PopupLayoutEditor.vue'
 import TranslationLoadingStyleSettings from './TranslationLoadingStyleSettings.vue'
+import TranslationStyleSettings from './TranslationStyleSettings.vue'
 import SettingsGroup from './components/SettingsGroup.vue'
 import SettingsItem from './components/SettingsItem.vue'
 
