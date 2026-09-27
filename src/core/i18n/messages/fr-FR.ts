@@ -2304,6 +2304,8 @@ export const frFRLegacyText: Readonly<Record<string, string>> = {
     '悬浮球收起不透明度': 'Opacité de la bulle flottante repliée',
     '悬浮球高度': "Hauteur de la bulle flottante",
     '居中': "Centrée",
+    '悬浮球、显示悬浮球、开启悬浮球': "bulle flottante, afficher la bulle flottante, activer la bulle flottante",
+    '悬浮球配置、悬浮球设置、悬浮球位置': "configuration de la bulle flottante, réglages de la bulle flottante, position de la bulle flottante",
     '禁用悬浮球网站': 'Sites sans bulle flottante',
     '不显示悬浮球的网站': 'Sites sans bulle flottante',
     '不显示悬浮球的网站名单': 'Liste des sites sans bulle flottante',
