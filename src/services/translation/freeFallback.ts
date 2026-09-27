@@ -1,7 +1,7 @@
 /**
  * @file src/services/translation/freeFallback.ts
  * 文件职责：在健康免费服务间加权均衡并自动回退，持久遵守各类错误的恢复窗口。
- * 主要内容：协调总预算、单次超时、服务并发与间隔、错误退避、恢复单探测、持久化、取消代际保护，并向调用方旁路上报每次线路尝试的结果与耗时。
+ * 主要内容：协调总预算、单次超时、服务并发与间隔、错误退避、恢复单探测、持久化、取消代际保护；把特定文本的原文回显作为不冷却线路的请求失败，并向调用方旁路上报每次线路尝试的结果与耗时。
  * 模块边界：只接收匿名身份、provider 回调和注入的存储端口；不读取用户配置或供应商凭据。
  */
 import {abortErrorFromSignal} from '@/src/platform/http/runtime';
@@ -68,6 +68,12 @@ interface Health {
 }
 class AttemptTimeoutError extends Error { constructor() { super('请求超时'); } }
 
+/** 响应只对当前文本无效，换线重试但不降低该服务对其他文本的权重。 */
+export class UntranslatedFreeResultError extends Error {
+    readonly freeFailure = 'request';
+    constructor() { super('返回未翻译原文'); }
+}
+
 function attemptOutcome(error: unknown, signal?: AbortSignal): FreeFallbackAttemptOutcome {
     if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) return 'cancelled';
     return error instanceof AttemptTimeoutError ? 'timeout' : 'error';
@@ -77,7 +83,8 @@ class InvalidTranslationError extends Error { constructor() { super('未返回�
 function safeFailure(error: unknown): string {
     const status = getFreeFailureStatus(error);
     if (status !== undefined) return `HTTP ${status}`;
-    if (error instanceof AttemptTimeoutError || error instanceof InvalidTranslationError) return error.message;
+    if (error instanceof AttemptTimeoutError || error instanceof InvalidTranslationError
+        || error instanceof UntranslatedFreeResultError) return error.message;
     return '请求失败';
 }
 

@@ -1,5 +1,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {detectlang, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+import {isLikelyUntranslatedResponse} from '@/src/core/translation/resultValidation';
 import {throttle} from '@/src/shared/function/throttle';
 import {getCenterPoint} from '@/src/shared/geometry/touch';
 
@@ -128,6 +129,22 @@ describe('语义化公共工具', () => {
     it('假名或谚文不能把希腊文和西里尔文正文误判为目标语言', () => {
         expect(shouldSkipTranslationForTarget('これは Ελληνικά の説明です。', 'ja-JP')).toBe(false);
         expect(shouldSkipTranslationForTarget('한국어 설명 Русский текст.', 'ko-KR')).toBe(false);
+    });
+
+    it('只把明确外语正文和可读英文标签列表的原文回显视为可疑响应', () => {
+        const sentence = 'This English sentence still needs a Chinese translation.';
+        const tags = 'solo, blush, smile, bangs, looking_at_viewer, long_hair, blue_eyes';
+        expect(isLikelyUntranslatedResponse(sentence, ` ${sentence} `, 'zh-Hans')).toBe(true);
+        expect(isLikelyUntranslatedResponse(tags, tags, 'zh-Hans')).toBe(true);
+        expect(isLikelyUntranslatedResponse(sentence, '这句英文仍需要翻译。', 'zh-Hans')).toBe(false);
+        expect(isLikelyUntranslatedResponse(sentence, sentence, 'en')).toBe(false);
+        expect(isLikelyUntranslatedResponse(tags, tags, 'en')).toBe(false);
+        expect(isLikelyUntranslatedResponse('', '', 'zh-Hans')).toBe(false);
+        expect(isLikelyUntranslatedResponse('OpenAI API', 'OpenAI API', 'zh-Hans')).toBe(false);
+        expect(isLikelyUntranslatedResponse('id, status, user_name, updated_at, created_at, action',
+            'id, status, user_name, updated_at, created_at, action', 'zh-Hans')).toBe(false);
+        expect(isLikelyUntranslatedResponse('a_b, c_d, e_f, g_h, i_j, k_l',
+            'a_b, c_d, e_f, g_h, i_j, k_l', 'zh-Hans')).toBe(false);
     });
 
     it('只为精确数量的非空触摸点计算中心', () => {
