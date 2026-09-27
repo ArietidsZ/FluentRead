@@ -219,6 +219,11 @@ vi.mock("@/src/core/translation/public", async (importOriginal) => {
         createTranslationSourceSnapshot: (element: HTMLElement, shouldStayOriginal?: (node: Element) => boolean) => ({
             slots: textSlots(element, shouldStayOriginal).map(({source}) => ({source})),
         }),
+        // 替身快照没有克隆骨架，按“多槽即可拍平”拼接整段原文；真实拍平判定由 translationCore 覆盖。
+        buildWholeBlockTranslationSource: (snapshot: {slots: ReadonlyArray<{source: string}>}) =>
+            snapshot.slots.length > 1
+                ? snapshot.slots.map(({source}) => source).join("").replace(/\s+/gu, " ").trim()
+                : null,
         evaluateHardGuard: (element: Element) => ({prune: isProtected(element)}),
         getComposedParent: (element: Element) => element.parentElement ??
             ((element.getRootNode?.() as {host?: Element})?.host ?? null),

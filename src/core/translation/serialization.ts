@@ -2,7 +2,7 @@
  * @file src/core/translation/serialization.ts
  *
  * 文件职责：把候选 DOM 安全序列化为可翻译文本槽，并在异步请求后依据源快照恢复到仍然匹配的真实节点。
- * 主要内容：定义 TranslationTextSlot、TranslationSourceSnapshot 与样式覆盖规则，负责槽位编码解析、活节点收集（排除候选内的独立 tooltip）、译文写入克隆、整块译文纯文本降级、隐藏/编辑/宿主 metadata 省略、可见公式骨架保全、译文产物过滤，以及识别 line-clamp 与溢出截断并提供临时解除截断的样式覆盖规则。 可核对的公开符号包括 TranslationTextSlot、TranslationSourceSnapshot、SerializedTranslationSlots、TranslationStyleOverride、translationTruncationStyleOverrides、serializeTranslationSlots、parseTranslationSlots、createTranslationSourceSnapshot。
+ * 主要内容：定义 TranslationTextSlot、TranslationSourceSnapshot 与样式覆盖规则，负责槽位编码解析、活节点收集（排除候选内的独立 tooltip）、译文写入克隆、可无损拍平骨架的整段原文重建与整块译文纯文本降级、隐藏/编辑/宿主 metadata 省略、可见公式骨架保全、译文产物过滤，以及识别 line-clamp 与溢出截断并提供临时解除截断的样式覆盖规则。 可核对的公开符号包括 TranslationTextSlot、TranslationSourceSnapshot、SerializedTranslationSlots、TranslationStyleOverride、translationTruncationStyleOverrides、serializeTranslationSlots、parseTranslationSlots、createTranslationSourceSnapshot、buildWholeBlockTranslationSource。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -361,16 +361,99 @@ export function collectLiveTranslationTextSlots(
 }
 
 /**
- * 整块译文：多槽候选改为一次整块请求后，整段译文落在首个槽位、其余槽位为空。
- * 此时逐槽骨架已经不对应任何译文，直接输出纯译文：否则整段译文会被塞进首个内联元素
- * （链接、加粗）的样式里，并留下一串空的内联骨架，既让译文本体变成可点击链接，
- * 又把站点悬停脚本引入译文内部。空槽判定按“规范化后为空”，以覆盖空格、换行与 &nbsp;。
+ * 整块请求只接受能被纯文本完整表达的骨架：除文本槽和空白外，只允许链接、强调等
+ * 不承载独立内容的内联包装与 <br>。行内代码、notranslate 术语、公式、图片、删除线
+ * 或块级结构一旦出现，纯文本译文就会吞掉它们，此时必须保留逐槽骨架。
+ */
+const wholeBlockInlineTags = new Set([
+    'a', 'abbr', 'b', 'bdi', 'bdo', 'big', 'br', 'cite', 'data', 'dfn', 'em', 'font', 'i', 'ins',
+    'mark', 'small', 'span', 'strong', 'sub', 'sup', 'time', 'u', 'wbr',
+]);
+
+/** 上下标只有 [1]、[note 2] 这类脚注标记能并入正文；指数或化学式拍平后会被读错。 */
+const wholeBlockFootnoteMarker = /^\[[^[\]]{1,24}\]$/u;
+
+export interface WholeBlockTranslationSourceOptions {
+    /** 宿主以 pre、pre-wrap 等方式保留源码换行时，文本里的换行本身就是可见断行。 */
+    preserveNewlines?: boolean;
+}
+
+/**
+ * 为多槽快照重建整段原文，供一次整块请求使用；骨架无法无损拍平时返回 null，
+ * 调用方继续逐槽请求。内联包装无缝拼接（Hello <b>world</b>! 仍是 Hello world!），
+ * 源码空白折叠为单个空格，<br> 转为换行。只读取脱离文档的克隆，不修改节点。
+ */
+export function buildWholeBlockTranslationSource(
+    snapshot: TranslationSourceSnapshot,
+    options: WholeBlockTranslationSourceOptions = {},
+): string | null {
+    const document = snapshot.clone.ownerDocument;
+    if (snapshot.slots.length < 2 || !document?.createTreeWalker) return null;
+    const slots = new Map(snapshot.slots.map((slot) => [slot.node, slot] as const));
+    // 1 | 4 分别是 SHOW_ELEMENT 与 SHOW_TEXT，避免依赖可能缺失的 NodeFilter 全局。
+    const walker = document.createTreeWalker(snapshot.clone, 1 | 4);
+    const parts: string[] = [];
+    let newlines = 0;
+    let space = false;
+    const addGap = (whitespace: string) => {
+        if (!whitespace) return;
+        if (options.preserveNewlines && whitespace.includes('\n')) newlines += whitespace.split('\n').length - 1;
+        else space = true;
+    };
+    for (let current = walker.nextNode(); current; current = walker.nextNode()) {
+        if (current.nodeType === 1) {
+            const element = current as Element;
+            const tag = element.localName;
+            if (tag === 'br') {
+                newlines += 1;
+                continue;
+            }
+            if (!wholeBlockInlineTags.has(tag) || element.matches(sourceFormulaSelector)) return null;
+            if ((tag === 'sup' || tag === 'sub') &&
+                !wholeBlockFootnoteMarker.test(normalizeTranslationText(element.textContent ?? ''))) return null;
+            continue;
+        }
+        const slot = slots.get(current as Text);
+        if (!slot) {
+            // 非槽位文本只能是排版空白；受保护但仍显示的文字无法写进纯文本译文。
+            if (normalizeTranslationText(current.nodeValue ?? '')) return null;
+            addGap(current.nodeValue ?? '');
+            continue;
+        }
+        addGap(slot.prefix);
+        if (parts.length > 0 && newlines > 0) parts.push('\n'.repeat(newlines));
+        else if (parts.length > 0 && space) parts.push(' ');
+        newlines = 0;
+        space = false;
+        parts.push(slot.source.replace(/\s+/gu, (whitespace) =>
+            options.preserveNewlines && whitespace.includes('\n') ? '\n' : ' '));
+        addGap(slot.suffix);
+    }
+    return parts.join('');
+}
+
+/**
+ * 整块译文：整段译文落在首个槽位、其余槽位为空。此时逐槽骨架已不对应任何译文，
+ * 直接输出纯译文：否则整段译文会被塞进首个内联元素（链接、加粗）的样式里，并留下
+ * 一串空的内联骨架。只有骨架可无损拍平时才降级，含代码、公式等内容的段落即使
+ * 其余槽位恰好为空也保留原骨架。空槽判定按“规范化后为空”，以覆盖空格、换行与 &nbsp;。
  */
 function isWholeBlockTranslation(snapshot: TranslationSourceSnapshot, translations: readonly string[]): boolean {
-    return snapshot.slots.length > 1
-        && translations.length === snapshot.slots.length
-        && Boolean(normalizeTranslationText(translations[0]!))
-        && translations.slice(1).every((translation) => !normalizeTranslationText(translation));
+    return translations.length === snapshot.slots.length
+        && Boolean(normalizeTranslationText(translations[0] ?? ''))
+        && translations.slice(1).every((translation) => !normalizeTranslationText(translation))
+        && buildWholeBlockTranslationSource(snapshot) !== null;
+}
+
+/** 按纯文本写入整块译文，译文中的换行还原为 <br>，其余内联骨架全部移除。 */
+function renderWholeBlockTranslation(clone: HTMLElement, translation: string): void {
+    const document = clone.ownerDocument;
+    const nodes: Node[] = [];
+    translation.split(/\r?\n/u).forEach((line, index) => {
+        if (index > 0) nodes.push(document.createElement('br'));
+        if (line) nodes.push(document.createTextNode(line));
+    });
+    clone.replaceChildren(...nodes);
 }
 
 /** 只修改脱离文档的快照文本节点；没有对应译文的槽位保持原文。 */
@@ -379,8 +462,7 @@ export function applyTranslationsToSnapshot(
     translations: readonly string[],
 ): string {
     if (isWholeBlockTranslation(snapshot, translations)) {
-        const document = snapshot.clone.ownerDocument;
-        snapshot.clone.replaceChildren(document.createTextNode(translations[0]!));
+        renderWholeBlockTranslation(snapshot.clone, translations[0]!);
         return snapshot.clone.innerHTML;
     }
     snapshot.slots.forEach((slot, index) => {
