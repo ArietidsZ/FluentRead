@@ -33,7 +33,12 @@ export interface BackgroundContextMenuRuntime {
 export function installBackgroundContextMenus(
     tabTranslationStates: TabTranslationStateStore,
 ): BackgroundContextMenuRuntime {
-    const isSupported = !!browser.contextMenus;
+    // Firefox Android 可能只暴露不完整的 namespace；所有必需方法齐备后才安装菜单。
+    const menus = browser.contextMenus;
+    const isSupported = typeof menus?.create === 'function'
+        && typeof menus.removeAll === 'function'
+        && typeof menus.update === 'function'
+        && typeof menus.onClicked?.addListener === 'function';
     let settings: ContextMenuSettingsSnapshot = readContextMenuSettings();
     let plan: readonly ContextMenuPlanItem[] = [];
     let syncQueue: Promise<void> = Promise.resolve();
