@@ -443,7 +443,7 @@ export function tongyiMsgTemplate(
                 ...(terms.length ? {terms} : {}),
             }
         };
-        return JSON.stringify(mergeCustomBody(payload, currentCustomBody(current, service)))
+        return JSON.stringify(mergeCustomBody(payload, currentCustomBody(current, service), ['translation_options']))
     }
     return model.startsWith("qwen-mt") ? mtModelTemplate() : normalTemplate()
 
