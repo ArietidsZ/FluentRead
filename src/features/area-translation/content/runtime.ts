@@ -44,14 +44,14 @@ export function mountAreaTranslator(ctx?: ContentScriptContext): void {
 }
 
 async function activateAreaTranslator(): Promise<boolean> {
-  if (!isAreaTranslatorMounted() || config.on === false || config.selectionAreaEnabled !== true) return false;
+  if (!isAreaTranslatorMounted()) return false;
   if (areaTranslatorInstance) return areaTranslatorInstance.beginSelection();
-  if (!contentScriptContext) return false;
 
   if (!mountingPromise) {
     const requestId = ++mountRequestId;
     let pending!: Promise<AreaTranslatorExposed | null>;
-    pending = createVueShadowUi(contentScriptContext, {
+    // launcher 只在 mountAreaTranslator 保存上下文后安装。
+    pending = createVueShadowUi(contentScriptContext!, {
       name: 'fluent-read-area-translator-ui',
       hostId: 'fluent-read-area-translator-container',
       component: AreaTranslator,

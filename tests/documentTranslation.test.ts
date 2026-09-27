@@ -59,6 +59,16 @@ describe('document translation parser', () => {
         expect(output).toContain('[Guide](https://example.com)');
     });
 
+    it('Markdown 空文件、frontmatter 和代码围栏内的数学标记保持原始结构', () => {
+        expect(parseDocument('empty.md', '').segments).toEqual([]);
+        const markdown = '---\ntitle: Private metadata\n---\n```text\n$$\n```\nVisible prose\n';
+        const parsed = parseDocument('notes.md', markdown);
+        expect(parsed.segments.map(segment => segment.source)).toEqual(['Visible prose']);
+        expect(renderDocument(parsed, ['可见正文'], 'translated')).toBe(markdown.replace('Visible prose', '可见正文'));
+        const math = parseDocument('math.md', '$$\nx^2 + y^2\n$$\nRegular text');
+        expect(math.segments.map(segment => segment.source)).toEqual(['Regular text']);
+    });
+
     it('Markdown 双语导出按原始行组合内联代码前后的译文', () => {
         const document = parseDocument('guide.md', 'Use `npm install` now.\n');
 

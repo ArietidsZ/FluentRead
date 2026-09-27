@@ -7,6 +7,7 @@ import {parseHTML} from 'linkedom';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import * as areaCore from '@/src/features/area-translation/core';
 import * as areaHotkey from '@/src/core/config/areaTranslation';
+import {shouldStartAreaTranslationFromHotkey} from '@/src/features/area-translation/content/areaHotkey';
 
 const Vue = createRequire(import.meta.url)('vue') as typeof import('vue');
 let app: import('vue').App | undefined;
@@ -64,7 +65,12 @@ function mountTranslator() {
       repeat: false, isComposing: false, target, composedPath: () => [target, document.body, document],
       preventDefault: vi.fn(), ...overrides,
     };
-    state.handleKeydown(event);
+    // 快捷键由无 DOM 的内容入口判断，组件只接收已授权的启动请求。
+    if (shouldStartAreaTranslationFromHotkey(event as unknown as KeyboardEvent,
+      config as unknown as Parameters<typeof shouldStartAreaTranslationFromHotkey>[1], document as unknown as Document)) {
+      event.preventDefault();
+      (vm.$ as any).exposed.beginSelection();
+    }
     return event;
   };
   return {state, config, document, focus, press, capture, translate};

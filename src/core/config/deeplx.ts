@@ -35,11 +35,6 @@ function resolveDeepLXEndpoint(endpoint: string, token: string): string | null {
   return endpoint.replace(DEEPLX_TOKEN_PLACEHOLDER, encodeURIComponent(token))
 }
 
-/** 当前生效地址是否要求把 API Key 注入 URL；供设置页判断空 Key 是否可匿名运行。 */
-export function hasDeepLXTokenPlaceholder(value: unknown): boolean {
-  return parseDeepLXEndpoints(value).some((endpoint) => DEEPLX_TOKEN_PLACEHOLDER_CHECK.test(endpoint))
-}
-
 /** 判断当前生效的 DeepLX 地址是否全部要求 API Key；proxy 地址优先。 */
 export function requiresDeepLXToken(configuredURL: unknown, proxyURL: unknown): boolean {
   const proxyEndpoints = parseDeepLXEndpoints(proxyURL)

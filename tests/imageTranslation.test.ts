@@ -68,6 +68,14 @@ describe('图片翻译 OCR 工具', () => {
         // 单独一列同样标记为竖排，只有 word 数据缺失时回退整行文本。
         expect(normalizeOcrLines([{paragraphs: [{lines: [{text: 'ドキドキ', bbox: box(27, 14, 74, 245), baseline: box(30, 14, 31, 245)}]}]}]))
             .toEqual([{text: 'ドキドキ', bbox: box(27, 14, 74, 245), vertical: true}]);
+        // 两个相隔很远的竖排气泡各自保持原列，不应被合并成一条译文。
+        expect(normalizeOcrLines([{paragraphs: [{lines: [
+            column('右边', box(600, 20, 630, 130), []),
+            column('左边', box(100, 20, 130, 130), []),
+        ]}]}])).toEqual([
+            {text: '右边', bbox: box(600, 20, 630, 130), vertical: true},
+            {text: '左边', bbox: box(100, 20, 130, 130), vertical: true},
+        ]);
     });
 
     it('只接受支持的语言包并去重，保证下载状态可持久化', () => {

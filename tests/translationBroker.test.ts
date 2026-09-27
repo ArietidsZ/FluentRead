@@ -652,6 +652,35 @@ describe('translation broker', () => {
         expect([...mocks.cacheStore.values()]).not.toContain(japanese);
     });
 
+    it('普通批量在校验后遇到被改写的结果与原文槽时按空串处理', async () => {
+        const origins = ['Alpha', 'Beta'] as Array<string | undefined>;
+        let providerOrigins: Array<string | undefined> | undefined;
+        const originalSome = Array.prototype.some;
+        let adjusted = false;
+        const someSpy = vi.spyOn(Array.prototype, 'some').mockImplementation(function (
+            this: unknown[], callback: (value: unknown, index: number, array: unknown[]) => unknown,
+            thisArg?: unknown,
+        ): boolean {
+            const result = Reflect.apply(originalSome, this, [callback, thisArg]) as boolean;
+            if (!adjusted && this.length === 2 && this[0] === '甲' && this[1] === '乙') {
+                providerOrigins![0] = undefined;
+                Object.defineProperty(this, 0, {configurable: true, get: () => undefined});
+                adjusted = true;
+            }
+            return result;
+        });
+        mocks.service.mockImplementation((message: {origin: Array<string | undefined>}) => {
+            providerOrigins = message.origin;
+            return Promise.resolve(['甲', '乙']);
+        });
+        try {
+            await expect(translateWithCache({origin: origins as string[], useCache: false})).resolves.toEqual(['', '乙']);
+            expect(adjusted).toBe(true);
+        } finally {
+            someSpy.mockRestore();
+        }
+    });
+
     it('bypasses cache when disabled globally or by request', async () => {
         mocks.service.mockResolvedValue('直连译文');
 
@@ -1583,6 +1612,23 @@ describe('translation broker', () => {
         warning.mockRestore();
     });
 
+    it('误返原文后的无上下文重试仍泄漏网页材料时拒绝展示和缓存', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        const origin = 'This English sentence still needs a Chinese translation.';
+        let bodyCalls = 0;
+        mocks.service.mockImplementation((message: {summaryPrompt?: string; origin: string}) => {
+            if (message.summaryPrompt) return Promise.resolve('Atoll article summary');
+            bodyCalls += 1;
+            return Promise.resolve(bodyCalls === 1 ? origin : `${origin} <webpage_context>Atoll private article</webpage_context>`);
+        });
+
+        await expect(translateWithCache({origin, pageContext: 'Page title: Atoll. Readable page content: private article.',
+            useCache: false})).rejects.toMatchObject({code: 'AI_CONTEXT_LEAK_AFTER_RECOVERY'});
+        expect(bodyCalls).toBe(2);
+        expect(mocks.cacheSet).not.toHaveBeenCalled();
+    });
+
     it('把旧缓存中的上下文回显视为 miss，并直接用无上下文结果覆盖', async () => {
         mocks.config.service = 'ai';
         mocks.config.enableAIContext = true;
@@ -2308,6 +2354,32 @@ describe('translation broker', () => {
             expect(adjusted).toBe(true);
         } finally {
             someSpy.mockRestore();
+        }
+    });
+
+    it('普通 AI 批量在结果数组复制后遇到缺失槽仍保持输出为字符串', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        mocks.service.mockResolvedValue(['甲文', '乙文']);
+        const originalFrom = Array.from;
+        let adjusted = false;
+        const fromSpy = vi.spyOn(Array, 'from').mockImplementation(((...args: unknown[]) => {
+            const result = Reflect.apply(originalFrom, Array, args) as unknown[];
+            const source = args[0];
+            if (!adjusted && Array.isArray(source) && source[0] === '甲文' && source[1] === '乙文'
+                && typeof args[1] === 'function') {
+                let lateValue: unknown;
+                Object.defineProperty(result, 0, {configurable: true,
+                    get: () => lateValue, set: (value: unknown) => { lateValue = value; }});
+                adjusted = true;
+            }
+            return result;
+        }) as typeof Array.from);
+        try {
+            await expect(translateWithCache({origin: ['Alpha', 'Beta'], useCache: false})).resolves.toEqual(['', '乙文']);
+            expect(adjusted).toBe(true);
+        } finally {
+            fromSpy.mockRestore();
         }
     });
 

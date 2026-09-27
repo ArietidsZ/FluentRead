@@ -117,7 +117,6 @@ export const VIDEO_SUBTITLE_PANEL_ACTIVE_CLASS = 'fluent-read-video-subtitle-pan
 export const YOUTUBE_HOST_PATTERN = /(^|\.)youtube\.com$/i;
 export const X_SUBTITLE_RESOURCE_MESSAGE = 'fluent-read-x-video-subtitle-resource';
 
-export const VIDEO_CAPTION_EMPTY_GRACE_MS = 420;
 export const VIDEO_CAPTION_STABILITY_MS = 80;
 export const VIDEO_CAPTION_MAX_WAIT_MS = 240;
 export const VIDEO_CAPTION_FALLBACK_SEGMENT_SELECTOR = '.captions-text';

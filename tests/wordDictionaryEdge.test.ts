@@ -1,4 +1,7 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
+import {createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
 import {
     clearWordDictionaryCache,
     createDefaultWordDictionaryProviders,
@@ -267,10 +270,19 @@ describe('word dictionary defensive provider parsing', () => {
 });
 
 describe('word dictionary provider network adapters', () => {
+    it('keeps every bundled ECDICT entry lossless in the compact row asset', () => {
+        const rows = JSON.parse(readFileSync(resolve(process.cwd(), 'public/ecdict-core.json'), 'utf8')) as string[][];
+        expect(rows).toHaveLength(20_000);
+        expect(rows.every(row => row.length === 4 && row.every(value => typeof value === 'string'))).toBe(true);
+        const originalShape = rows.map(([w, p, d, t]) => ({w, p, d, t, pos: ''}));
+        expect(createHash('sha256').update(JSON.stringify(originalShape)).digest('hex'))
+            .toBe('e50fd32d4a859b184fd5bae15d0278e6bf2b621acbe5c854bf460817668c8822');
+    });
+
     it('loads and memoizes the browser-local ECDICT index while filtering malformed rows', async () => {
         const getURL = vi.fn(() => 'moz-extension://fixture/ecdict-core.json');
         vi.stubGlobal('browser', {runtime: {getURL}});
-        const fetchMock = vi.fn(async () => response([null, {}, {w: ''}, {w: 'Local', p: 'ləʊkəl', d: 'adj. local', t: 'adj. 本地'}]));
+        const fetchMock = vi.fn(async () => response([null, {}, {w: ''}, ['broken'], ['Local', 'ləʊkəl', 'adj. local', 'adj. 本地']]));
         vi.stubGlobal('fetch', fetchMock);
         const local = provider(createDefaultWordDictionaryProviders(), 'ecdict-local');
 

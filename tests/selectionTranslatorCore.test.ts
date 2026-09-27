@@ -208,6 +208,10 @@ describe('selection translator core geometry', () => {
         expect(reducedPage.height).toBe(188);
         expect(reducedPage.left + reducedPage.width * 2).toBeLessThanOrEqual(600 - 12);
         expect(reducedPage.top + reducedPage.height * 2).toBeLessThanOrEqual(400 - 12);
+        for (const invalidScale of [0, -1, Infinity, NaN]) {
+            expect(calculateReadingPopupLayout(anchor, {width: 640, height: 450}, invalidScale))
+                .toEqual(calculateReadingPopupLayout(anchor, {width: 640, height: 450}, 1));
+        }
     });
 });
 

@@ -1,19 +1,9 @@
 /**
  * @file src/features/selection-translation/services/wordDictionary.ts
  * 文件职责：实现划词英文词典的多来源聚合、清洗、优先级合并、发音选择、缓存和超时降级，为词卡提供尽可能完整且安全的数据。
- * 主要内容：支持内置 ECDICT、有道、Free Dictionary、WiktAPI、Wiktionary REST 与 Datamuse，包含各响应解析器、HTML/URL 清洗、释义和音标去重、provider 工厂及 LRU 式 lookup。
+ * 主要内容：支持紧凑行格式的内置 ECDICT、有道、Free Dictionary、WiktAPI、Wiktionary REST 与 Datamuse，包含各响应解析器、HTML/URL 清洗、释义和音标去重、provider 工厂及 LRU 式 lookup。
  * 模块边界：本服务只获取和规范化词典数据，不渲染词卡、不翻译释义或加入词书；后台 wordLookupHandler 编排翻译，SelectionTranslator.vue 展示，HTTP 统一经过 platform/runtimeFetch。
  */
-/**
- * 单词学习卡片的数据适配层。
- *
- * 这里不把大型词典打进扩展包，而是调用公开的结构化词典服务，并把
- * 不同服务的响应归一化为同一份小数据结构。服务不可用时按顺序尝试
- * 中国境内优先的公共词典接口，以及 Free Dictionary API、Datamuse、
- * Wiktionary REST 和 WiktApi；这样单个免费服务的区域限制、限流或维护不会
- * 直接让划词卡片失效。
- */
-
 import {readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 
@@ -114,6 +104,8 @@ interface EcdictEntry {
     t?: unknown;
     pos?: unknown;
 }
+
+type EcdictCompactEntry = readonly [word: string, phonetic: string, definition: string, translation: string];
 
 interface WiktionaryDefinitionEntry {
     partOfSpeech?: unknown;
@@ -701,9 +693,9 @@ export interface WordDictionaryProvider {
 }
 
 function createEcdictProvider(): WordDictionaryProvider {
-    let indexPromise: Promise<Map<string, EcdictEntry>> | null = null;
+    let indexPromise: Promise<Map<string, EcdictEntry | EcdictCompactEntry>> | null = null;
 
-    const loadIndex = async (): Promise<Map<string, EcdictEntry>> => {
+    const loadIndex = async (): Promise<Map<string, EcdictEntry | EcdictCompactEntry>> => {
         if (indexPromise) return indexPromise;
         const url = localDictionaryUrl();
         if (!url) return new Map();
@@ -715,12 +707,18 @@ function createEcdictProvider(): WordDictionaryProvider {
             if (!response.ok) throw new Error(`local dictionary request failed: ${response.status}`);
             const payload = await readJsonResponse(response, 'local dictionary response is not valid JSON');
             const entries = Array.isArray(payload) ? payload : [];
-            return new Map(entries.flatMap((entry) => {
-                if (!entry || typeof entry !== 'object') return [];
-                const item = entry as EcdictEntry;
-                const word = textValue(item.w).toLowerCase();
-                return word ? [[word, item] as const] : [];
-            }));
+            const index = new Map<string, EcdictEntry | EcdictCompactEntry>();
+            for (const entry of entries) {
+                if (Array.isArray(entry)) {
+                    if (entry.length !== 4 || entry.some(value => typeof value !== 'string')) continue;
+                    const word = entry[0].toLowerCase();
+                    if (word) index.set(word, entry as unknown as EcdictCompactEntry);
+                } else if (entry && typeof entry === 'object') {
+                    const word = textValue((entry as EcdictEntry).w).toLowerCase();
+                    if (word) index.set(word, entry as EcdictEntry);
+                }
+            }
+            return index;
         })();
         try {
             return await indexPromise;
@@ -734,7 +732,11 @@ function createEcdictProvider(): WordDictionaryProvider {
         id: 'ecdict-local',
         async lookup(normalizedWord) {
             const entry = (await loadIndex()).get(normalizedWord);
-            return entry ? parseEcdictEntry(entry, normalizedWord) : null;
+            if (!entry) return null;
+            const parsed: EcdictEntry = Array.isArray(entry)
+                ? {w: entry[0], p: entry[1], d: entry[2], t: entry[3]}
+                : entry as EcdictEntry;
+            return parseEcdictEntry(parsed, normalizedWord);
         },
     };
 }

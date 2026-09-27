@@ -35,6 +35,9 @@ describe('issue #146 受限跨域正文 iframe', () => {
             [omgTop, 'https://googleads.g.doubleclick.net/pagead/ads'],
             [omgTop, omgFrame.replace('https://disqus.com', 'http://disqus.com')],
         ]) expect(isSupportedEmbeddedFramePair(top, frame), `${top} | ${frame}`).toBe(false);
+        expect(isSupportedEmbeddedTopUrl(null)).toBe(false);
+        expect(isSupportedEmbeddedFrameUrl('not a url')).toBe(false);
+        expect(isSupportedEmbeddedFramePair(omgTop, 'https://disqus.com/embed/comments/?f=omgubuntu')).toBe(false);
     });
 
     it('只允许状态和有限的切换参数，拒绝凭据或未知字段', () => {
@@ -44,6 +47,9 @@ describe('issue #146 受限跨域正文 iframe', () => {
             invocation: {targetLanguage: 'zh-Hans', scope: 'content'}})?.invocation)
             .toEqual({targetLanguage: 'zh-Hans', scope: 'content'});
         for (const bad of [
+            null,
+            [],
+            {type: 'wrong', action: 'state'},
             {type: EMBEDDED_FRAME_REQUEST, action: 'state', invocation: undefined},
             {type: EMBEDDED_FRAME_REQUEST, action: 'toggle', credentials: 'secret'},
             {type: EMBEDDED_FRAME_REQUEST, action: 'toggle', invocation: {sid: 'secret'}},
@@ -58,6 +64,13 @@ describe('issue #146 受限跨域正文 iframe', () => {
         await expect(request.handle({type: EMBEDDED_FRAME_REQUEST, action: 'state'}, context))
             .resolves.toEqual({enabled: true, sessionId: 2});
         expect(sendTabMessage).toHaveBeenCalledWith(42, {type: 'embeddedFrameCommand', action: 'state'}, {frameId: 0});
+        await expect(request.handle({type: EMBEDDED_FRAME_REQUEST, action: 'toggle',
+            invocation: {targetLanguage: 'zh-Hans'}}, context)).resolves.toEqual({enabled: true, sessionId: 2});
+        expect(sendTabMessage).toHaveBeenLastCalledWith(42, {type: 'embeddedFrameCommand', action: 'toggle',
+            invocation: {targetLanguage: 'zh-Hans'}}, {frameId: 0});
+        sendTabMessage.mockRejectedValueOnce(new Error('top frame gone'));
+        await expect(request.handle({type: EMBEDDED_FRAME_REQUEST, action: 'state'}, context))
+            .resolves.toEqual({success: false});
         for (const sender of [
             {...context.sender, frameId: 0},
             {...context.sender, tab: {id: 42, url: kaggleTop}},
@@ -70,6 +83,9 @@ describe('issue #146 受限跨域正文 iframe', () => {
         await expect(changed.handle({type: EMBEDDED_FRAME_CHANGED}, topContext))
             .resolves.toEqual({success: true});
         expect(sendTabMessage).toHaveBeenLastCalledWith(42, {type: 'embeddedFrameRefresh'});
+        sendTabMessage.mockRejectedValueOnce(new Error('child frame gone'));
+        await expect(changed.handle({type: EMBEDDED_FRAME_CHANGED}, topContext))
+            .resolves.toEqual({success: true});
         await expect(changed.handle({type: EMBEDDED_FRAME_CHANGED}, context))
             .resolves.toEqual({success: false});
     });

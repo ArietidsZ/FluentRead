@@ -102,6 +102,7 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
         owners.add('isolated-browser-regression');
     }
     if (path.startsWith('scripts/testing/')
+        || path.startsWith('scripts/agent-bridge/')
         || path.startsWith('scripts/wasm/')
         || PRODUCT_TOOL_SCRIPTS.includes(path)
         || path === 'scripts/verify-userscript-build.mjs'
@@ -194,6 +195,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/app/content/runtime.ts',
     // 邮件 frame 组合根绑定真实 WXT/DOM；纯同步器严格覆盖，注入和恢复由隔离浏览器验证。
     'src/app/content/qqMailFrameRuntime.ts',
+    // 受限跨域正文 frame 的入口只组装可信消息、配置订阅、DOM 生命周期与翻译能力；URL/消息授权由严格覆盖的纯模块与后台 handler 验证。
+    'src/app/content/embeddedFrameRuntime.ts',
     // 快捷翻译 composition 只把实时配置、旧手势仲裁与两类页面执行器接线；行为由 feature/runtime 单测和隔离浏览器回归验证。
     'src/app/content/quickTranslationRuntime.ts',
     // 页面快捷键 runtime 绑定真实可信 KeyboardEvent、Selection/Range 与 AbortSignal；纯匹配策略已严格覆盖，信任边界由回归测试验证。

@@ -931,7 +931,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             const origin = message.origin[index] ?? '';
             if (!isClearlyWrongLanguageResponse(origin, finalized[index] ?? '', execution.targetLanguage)) continue;
             finalized[index] = await recoverInvalidResult(
-                execution, {...message, origin}, finalized[index] ?? '', requestDeadline, '', pageContext,
+                execution, {...message, origin}, finalized[index], requestDeadline, '', pageContext,
             );
         }
         return finalized;
@@ -975,8 +975,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             const finalized = Array.from(results, value => value ?? '');
             for (let index = 0; index < finalized.length; index += 1) {
                 finalized[index] = await recoverInvalidResult(
-                    execution, {...message, origin: message.origin[index] ?? ''}, finalized[index] ?? '',
-                    requestDeadline, startWithoutPageContext ? '' : context, pageContext,
+                    execution, {...message, origin: message.origin[index] ?? ''}, finalized[index],
+                    requestDeadline, context, pageContext,
                 );
             }
             return finalized;

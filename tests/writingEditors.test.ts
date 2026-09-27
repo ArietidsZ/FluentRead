@@ -99,6 +99,9 @@ describe('Writing editor native action ownership', () => {
         doc.querySelector<HTMLInputElement>('#issue_title')!.value = '';
         expect(collectReplyContext(doc, 'github', editor, 'https://github.com/o/r/issues/new'))
             .toBe('当前项目：o/r\n帖子类型：新建 Issue');
+        doc.querySelector<HTMLInputElement>('#issue_title')!.setAttribute('hidden', '');
+        expect(collectReplyContext(doc, 'github', editor, 'https://github.com/o/r/issues/new'))
+            .toBe('当前项目：o/r\n帖子类型：新建 Issue');
     });
 
     it('recognizes the nameless React issue composer and locates its disabled Comment button', () => {
@@ -325,6 +328,11 @@ describe('Writing context belongs to the selected conversation', () => {
         const originalHtml = doc.body.innerHTML;
         expect(collectReplyContext(doc, 'github', editor)).toBe('原帖：Source issue.');
         expect(doc.body.innerHTML).toBe(originalHtml);
+    });
+
+    it('reads a nested GitHub comment body once when both wrappers match', () => {
+        const doc = page('<main><div class="js-comment-body">Outer <span class="js-comment-body">Inner</span></div></main>');
+        expect(collectReplyContext(doc, 'github')).toBe('原帖：Outer Inner');
     });
 
     it('limits PR replies to the containing review thread for current and legacy thread wrappers', () => {

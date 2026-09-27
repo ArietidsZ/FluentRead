@@ -56,7 +56,8 @@ function installGlobals(href = topUrl) {
         options?.signal?.addEventListener('abort', () => listeners.get(type)?.delete(listener), {once: true});
     };
     const remove = (type: string, listener: (...args: any[]) => any) => listeners.get(type)?.delete(listener);
-    const document = {addEventListener: vi.fn(add), removeEventListener: vi.fn(remove)};
+    const document = {addEventListener: vi.fn(add), removeEventListener: vi.fn(remove),
+        getElementById: vi.fn(() => mocks.mountSelection.mock.calls.length > 0 ? {} : null)};
     const window = Object.assign(new EventTarget(), {location: {href}, top: undefined as unknown});
     window.top = window;
     vi.stubGlobal('window', window);
@@ -147,6 +148,37 @@ describe('NetEase mail frame lifecycle', () => {
         mocks.config.disableSelectionTranslator = false;
         mocks.subscribeConfig.mock.calls[0][0]();
         await vi.waitFor(() => expect(mocks.mountSelection).toHaveBeenCalledTimes(2));
+        invalidate();
+    });
+
+    it('retries a stale selection mount after quickly disabling and re-enabling it', async () => {
+        const {window, document} = installGlobals('about:blank');
+        window.top = {location: {href: readTop}};
+        vi.stubGlobal('navigator', {});
+        mocks.sendMessage.mockResolvedValue({enabled: true, revision: 1, sessionId: null});
+        let resolveOldMount!: (value: unknown) => void;
+        const oldMount = new Promise<unknown>(resolve => { resolveOldMount = resolve; });
+        let mounted = false;
+        Object.assign(document, {getElementById: vi.fn(() => mounted ? {} : null)});
+        mocks.mountSelection.mockImplementationOnce(() => oldMount)
+            .mockImplementationOnce(() => oldMount)
+            .mockImplementationOnce(() => { mounted = true; return Promise.resolve({}); });
+
+        const {startNeteaseMailFrameApp} = await load();
+        let invalidate: () => void = () => undefined;
+        await startNeteaseMailFrameApp({isInvalid: false, onInvalidated: (callback: () => void) => { invalidate = callback; }} as never);
+        expect(mocks.mountSelection).toHaveBeenCalledOnce();
+
+        mocks.config.disableSelectionTranslator = true;
+        mocks.subscribeConfig.mock.calls[0][0]();
+        await vi.waitFor(() => expect(mocks.unmountSelection).toHaveBeenCalledOnce());
+        mocks.config.disableSelectionTranslator = false;
+        mocks.subscribeConfig.mock.calls[0][0]();
+        await vi.waitFor(() => expect(mocks.mountSelection).toHaveBeenCalledTimes(2));
+
+        resolveOldMount(null);
+        await vi.waitFor(() => expect(mocks.mountSelection).toHaveBeenCalledTimes(3));
+        expect(mounted).toBe(true);
         invalidate();
     });
 
