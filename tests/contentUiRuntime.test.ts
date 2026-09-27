@@ -55,10 +55,16 @@ interface MockUi {
   mounted?: {instance?: unknown};
   remove: ReturnType<typeof vi.fn>;
   shadowHost: HTMLElement;
+  uiContainer: HTMLElement;
 }
 
 function ui(instance: unknown = {mounted: true}): MockUi {
-  return {mounted: {instance}, remove: vi.fn(), shadowHost: document.createElement('div')};
+  return {
+    mounted: {instance},
+    remove: vi.fn(),
+    shadowHost: document.createElement('div'),
+    uiContainer: document.createElement('body'),
+  };
 }
 
 function pendingUi(): {promise: Promise<MockUi>; resolve: (value: MockUi) => void} {
@@ -230,11 +236,13 @@ describe('悬浮球 content runtime', () => {
 
     Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: fullscreenElement});
     await runtime.mountFloatingBall({} as never);
-    expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBe('none');
+    // Shadow 内的 :host display:block!important 会覆盖宿主行内样式，必须隐藏内部挂载容器。
+    expect(mountedUi.uiContainer.style.getPropertyValue('display')).toBe('none');
+    expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBeFalsy();
 
     Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: null});
     document.dispatchEvent(new Event('fullscreenchange'));
-    expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBeFalsy();
+    expect(mountedUi.uiContainer.style.getPropertyValue('display')).toBeFalsy();
 
     // 图片/文档等普通内容全屏时，即使页面其他位置存在视频，也不能误判为视频全屏。
     const nonVideoFullscreenElement = document.createElement('div');
@@ -242,7 +250,7 @@ describe('悬浮球 content runtime', () => {
     document.body.append(document.createElement('video'));
     Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: nonVideoFullscreenElement});
     document.dispatchEvent(new Event('fullscreenchange'));
-    expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBeFalsy();
+    expect(mountedUi.uiContainer.style.getPropertyValue('display')).toBeFalsy();
 
     // YouTube 等站点通常让播放器容器进入全屏，而不是让 video 元素本身进入全屏。
     const videoPlayer = document.createElement('div');
@@ -251,12 +259,12 @@ describe('悬浮球 content runtime', () => {
     videoPlayer.append(nestedPlayer);
     Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: videoPlayer});
     document.dispatchEvent(new Event('fullscreenchange'));
-    expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBe('none');
+    expect(mountedUi.uiContainer.style.getPropertyValue('display')).toBe('none');
 
     Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: fullscreenElement});
     runtime.unmountFloatingBall();
     document.dispatchEvent(new Event('fullscreenchange'));
-    expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBeFalsy();
+    expect(mountedUi.uiContainer.style.getPropertyValue('display')).toBeFalsy();
     Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: null});
   });
 
@@ -326,7 +334,11 @@ describe('悬浮球 content runtime', () => {
   });
 
   it('没有 exposed instance 时仍防止重复挂载并可完整清理', async () => {
-    const mountedUi = {remove: vi.fn(), shadowHost: document.createElement('div')};
+    const mountedUi = {
+      remove: vi.fn(),
+      shadowHost: document.createElement('div'),
+      uiContainer: document.createElement('body'),
+    };
     mocks.createVueShadowUi.mockResolvedValue(mountedUi);
     const runtime = await import('@/src/features/floating-ball/content/runtime');
 

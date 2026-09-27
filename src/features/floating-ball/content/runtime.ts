@@ -64,7 +64,7 @@ function openOptionsPage(): void {
     });
 }
 
-/** 仅视频自身或承载视频的播放器容器进入全屏时隐藏扩展浮层。 */
+/** 仅视频全屏时隐藏 Shadow 内的组件容器；宿主的 display 被基础样式锁定。 */
 function subscribeFullscreenVisibility(ui: ShadowRootContentScriptUi<VueShadowMount>): () => void {
     if (typeof document === 'undefined') return () => {};
 
@@ -73,16 +73,16 @@ function subscribeFullscreenVisibility(ui: ShadowRootContentScriptUi<VueShadowMo
         const isVideoFullscreen = fullscreenElement != null
             && (fullscreenElement.matches('video') || fullscreenElement.querySelector('video') !== null);
         if (isVideoFullscreen) {
-            ui.shadowHost.style.setProperty('display', 'none', 'important');
+            ui.uiContainer.style.setProperty('display', 'none', 'important');
         } else {
-            ui.shadowHost.style.removeProperty('display');
+            ui.uiContainer.style.removeProperty('display');
         }
     };
     document.addEventListener('fullscreenchange', syncVisibility, true);
     syncVisibility();
     return () => {
         document.removeEventListener('fullscreenchange', syncVisibility, true);
-        ui.shadowHost.style.removeProperty('display');
+        ui.uiContainer.style.removeProperty('display');
     };
 }
 
