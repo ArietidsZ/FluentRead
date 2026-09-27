@@ -1,8 +1,8 @@
 /**
  * @file src/app/content/qqMailFrameRuntime.ts
- * 文件职责：为旧版 QQ 邮箱 readmail 子页面组装悬停翻译，并把全文手势交给顶层会话。
- * 主要内容：绑定受限后台桥、无凭据会话快照、公共样式与键盘生命周期，按配置和页面离开释放子页面翻译。
- * 模块边界：只在经过后台认证的旧版 QQ 邮件 frame 激活，不挂载悬浮球等顶层 UI；候选算法、请求和异步状态仲裁分别由共享 feature 承担。
+ * 文件职责：为受支持邮箱的正文 frame 组装翻译，并把全文手势交给顶层会话。
+ * 主要内容：QQ 旧版与网易免费邮箱各自使用受限消息协议，共享无凭据会话快照、样式和键盘生命周期。
+ * 模块边界：只在经过后台认证的阅读 frame 激活，不挂载悬浮球等顶层 UI；翻译请求与异步状态由共享 feature 承担。
  */
 import {installContentPageLifecycle} from './pageLifecycle';
 import type {ContentScriptContext} from 'wxt/utils/content-script-context';
@@ -13,28 +13,42 @@ import {isExtensionDisabledOnSite} from '@/src/features/site-rules/domain';
 import {createFrameSessionController} from '@/src/features/full-page-translation/content/frameSession';
 import {isQqMailLegacyTopUrl, isQqMailReadmailUrl} from '@/src/features/full-page-translation/qqMailFrames';
 import {
+    isNeteaseMailChildUrl, isNeteaseMailReadUrl, isNeteaseMailTopUrl,
+    NETEASE_MAIL_FRAME_CHANGED_MESSAGE_TYPE, NETEASE_MAIL_FRAME_COMMAND_MESSAGE_TYPE,
+    NETEASE_MAIL_FRAME_REFRESH_MESSAGE_TYPE, NETEASE_MAIL_FRAME_REQUEST_MESSAGE_TYPE,
+} from '@/src/features/full-page-translation/neteaseMailFrames';
+import {
     autoTranslateEnglishPage, getFullPageTranslationFrameState,
     invalidateFullPageTranslationSessionCache, restoreOriginalContent,
     type PageTranslationInvocation,
 } from '@/src/features/full-page-translation/public';
 import {cancelAllTranslations} from '@/src/app/translation/client';
 import {getCenterPoint} from '@/src/shared/geometry/touch';
-import {cancelPendingHoverTranslation, handleTranslation, mountHoverTranslationContentFeature, noteBilingualHostGesture} from './features';
+import {cancelPendingHoverTranslation, handleTranslation, mountHoverTranslationContentFeature, mountSelectionTranslator, noteBilingualHostGesture, unmountSelectionTranslator} from './features';
 import {createContentHotkeyRuntime} from './hotkeyRuntime';
 import {mountConfiguredQuickTranslation} from './quickTranslationRuntime';
 import {installPageStyles} from './pageStyles';
 import {syncBilingualSentenceHighlight} from './bilingualSentenceHighlight';
 import {applyCoreTranslationPreferences, createContentSiteAdaptationRuntime} from './siteAdaptationRuntime';
 
+type MailFrameKind = 'qq' | 'netease';
+const messageTypes = {
+    qq: {changed: 'qqMailFrameChanged', command: 'qqMailFrameCommand', refresh: 'qqMailFrameRefresh', request: 'qqMailFrameRequest'},
+    netease: {changed: NETEASE_MAIL_FRAME_CHANGED_MESSAGE_TYPE, command: NETEASE_MAIL_FRAME_COMMAND_MESSAGE_TYPE,
+        refresh: NETEASE_MAIL_FRAME_REFRESH_MESSAGE_TYPE, request: NETEASE_MAIL_FRAME_REQUEST_MESSAGE_TYPE},
+} as const;
+
 /** 顶层消息仅通过扩展后台到达；页面事件只提示读取真实会话，不能设置快照。 */
-export function installQqMailTopFrameBridge(isEnabled: () => boolean, signal: AbortSignal): ((invocation?: PageTranslationInvocation) => void) | undefined {
-    if (!isQqMailLegacyTopUrl(window.location.href)) return;
+function installMailTopFrameBridge(kind: MailFrameKind, isEnabled: () => boolean, signal: AbortSignal): ((invocation?: PageTranslationInvocation) => void) | undefined {
+    if (!(kind === 'qq' ? isQqMailLegacyTopUrl(window.location.href) : isNeteaseMailTopUrl(window.location.href))) return;
+    const messages = messageTypes[kind];
+    const available = () => isEnabled() && (kind === 'qq' || isNeteaseMailReadUrl(window.location.href));
     const notify = () => {
-        try { void browser.runtime.sendMessage({type: 'qqMailFrameChanged'}).catch(() => undefined); }
+        try { void browser.runtime.sendMessage({type: messages.changed}).catch(() => undefined); }
         catch { /* 扩展更新使 runtime 同步失效时，文档恢复仍须完成。 */ }
     };
     const toggle = (invocation?: PageTranslationInvocation) => {
-        if (!isEnabled()) return;
+        if (!available()) return;
         const current = getFullPageTranslationFrameState();
         const snapshot = current.translationConfig;
         const sameProfile = invocation && snapshot && Object.entries(invocation).every(([key, value]) =>
@@ -44,23 +58,51 @@ export function installQqMailTopFrameBridge(isEnabled: () => boolean, signal: Ab
         if (!stop) autoTranslateEnglishPage(invocation);
     };
     const listener = (message: any, sender: any, respond: (value: unknown) => void): boolean => {
-        if (message?.type !== 'qqMailFrameCommand' || sender?.id !== browser.runtime.id) return false;
+        if (message?.type !== messages.command || sender?.id !== browser.runtime.id) return false;
         if (message.action !== 'state' && message.action !== 'toggle') return false;
         if (message.action === 'toggle') toggle(message.invocation);
-        respond({...getFullPageTranslationFrameState(), enabled: isEnabled()});
+        respond({...getFullPageTranslationFrameState(), enabled: available()});
         return true;
     };
     browser.runtime.onMessage.addListener(listener);
     signal.addEventListener('abort', () => browser.runtime.onMessage.removeListener(listener), {once: true});
     document.addEventListener('fluentread-translation-started', notify, {signal});
     document.addEventListener('fluentread-translation-ended', notify, {signal});
+    if (kind === 'netease') {
+        const routeChanged = () => {
+            if (!isNeteaseMailReadUrl(window.location.href)) restoreOriginalContent();
+            notify();
+        };
+        window.addEventListener('hashchange', routeChanged, {signal});
+        document.addEventListener('fluentread-route-change', routeChanged, {signal});
+    }
     notify();
     return toggle;
 }
 
+export function installQqMailTopFrameBridge(isEnabled: () => boolean, signal: AbortSignal): ((invocation?: PageTranslationInvocation) => void) | undefined {
+    return installMailTopFrameBridge('qq', isEnabled, signal);
+}
+
+export function installNeteaseMailTopFrameBridge(isEnabled: () => boolean, signal: AbortSignal): ((invocation?: PageTranslationInvocation) => void) | undefined {
+    return installMailTopFrameBridge('netease', isEnabled, signal);
+}
+
 /** 子 frame 先读取顶层授权状态，再挂载手势；未匹配的顶层或子页面没有 UI 和输入监听器。 */
-export async function startQqMailFrameApp(ctx: ContentScriptContext): Promise<void> {
-    if (window.top === window || !isQqMailReadmailUrl(window.location.href)) return;
+async function startMailFrameApp(ctx: ContentScriptContext, kind: MailFrameKind): Promise<void> {
+    if (window.top === window) return;
+    const readTopHref = () => {
+        if (kind === 'qq') return '';
+        try { return window.top?.location.href ?? ''; } catch { return ''; }
+    };
+    const topHref = readTopHref();
+    if (kind === 'qq' ? !isQqMailReadmailUrl(window.location.href)
+        : !isNeteaseMailChildUrl(window.location.href, topHref)) return;
+    const messages = messageTypes[kind];
+    const siteHref = () => kind === 'qq' ? window.location.href : readTopHref() || topHref;
+    const isReadableFrame = () => kind === 'qq' || (isNeteaseMailReadUrl(readTopHref())
+        && document.designMode !== 'on' && document.body?.isContentEditable !== true
+        && !/editor|compose|write|login|urs/iu.test(`${window.frameElement?.id ?? ''} ${window.frameElement?.className ?? ''}`));
     let disposed = false;
     const lifetime = new AbortController();
     let lifecycleController: ReturnType<typeof createFrameSessionController> | undefined;
@@ -78,26 +120,40 @@ export async function startQqMailFrameApp(ctx: ContentScriptContext): Promise<vo
     let removeStyles: (() => void) | null = null;
     let authorized = false;
     const enabled = () => !disposed && !pageLifecycle.isSuspended() && config.on !== false
-        && !isExtensionDisabledOnSite(window.location.href, config.disabledExtensionDomains);
+        && isReadableFrame()
+        && !isExtensionDisabledOnSite(siteHref(), config.disabledExtensionDomains);
     const toggle = (invocation?: PageTranslationInvocation) => {
         if (!enabled() || !authorized) return;
         try {
-            void browser.runtime.sendMessage({type: 'qqMailFrameRequest', action: 'toggle', ...(invocation ? {invocation} : {})})
+            void browser.runtime.sendMessage({type: messages.request, action: 'toggle', ...(invocation ? {invocation} : {})})
                 .then(() => controller.refresh()).catch(() => controller.suspend());
         } catch { controller.suspend(); }
     };
     const hotkeys = createContentHotkeyRuntime(() => !enabled() || !authorized,
-        {toggleFullPage: toggle, selectionAvailable: false});
+        {toggleFullPage: toggle, selectionAvailable: kind === 'netease'});
     const restore = () => { cancelPendingHoverTranslation(); restoreOriginalContent(); cancelAllTranslations(); };
+    const syncSelectionTranslator = () => {
+        if (kind !== 'netease' || !activation) return;
+        if (config.harness?.enabled !== true
+            && (config.disableSelectionTranslator === true || config.selectionTranslatorMode === 'disabled')) {
+            unmountSelectionTranslator();
+            return;
+        }
+        const currentActivation = activation;
+        void Promise.resolve(mountSelectionTranslator(ctx)).catch(() => {
+            if (activation === currentActivation) unmountSelectionTranslator();
+        });
+    };
     const setAvailable = (available: boolean) => {
         authorized = available;
         if (!available) {
             activation?.abort(); activation = null;
+            if (kind === 'netease') unmountSelectionTranslator();
             removeStyles?.(); removeStyles = null;
             syncBilingualSentenceHighlight(document, false);
             return;
         }
-        if (activation) return;
+        if (activation) { syncSelectionTranslator(); return; }
         activation = new AbortController();
         removeStyles = installPageStyles(ctx);
         syncBilingualSentenceHighlight(document, config.bilingualSentenceHighlightEnabled === true);
@@ -108,11 +164,12 @@ export async function startQqMailFrameApp(ctx: ContentScriptContext): Promise<vo
             ...hotkeys.selectionShortcutPorts,
         }, activation.signal);
         const resetFull = hotkeys.installFloatingBallHotkey(activation.signal);
+        syncSelectionTranslator();
         mountConfiguredQuickTranslation(config, hotkeys, () => !enabled() || !authorized, activation.signal,
             () => { resetHover(); resetFull(); }, toggle);
     };
     const controller = createFrameSessionController({
-        readState: () => browser.runtime.sendMessage({type: 'qqMailFrameRequest', action: 'state'}),
+        readState: () => browser.runtime.sendMessage({type: messages.request, action: 'state'}),
         isEnabled: enabled, setAvailable, restore,
         start: (state) => autoTranslateEnglishPage({
             service: state.translationConfig!.service, model: state.translationConfig!.model,
@@ -123,20 +180,20 @@ export async function startQqMailFrameApp(ctx: ContentScriptContext): Promise<vo
     lifecycleController = controller;
     const listener = (message: any, sender: any): false => {
         if (sender?.id !== browser.runtime.id) return false;
-        if (message?.type === 'qqMailFrameRefresh' && enabled()) void controller.refresh();
+        if (message?.type === messages.refresh && (kind === 'netease' || enabled())) void controller.refresh();
         if (message?.type === 'translationCacheCleared') invalidateFullPageTranslationSessionCache();
         return false;
     };
     const siteAdaptation = createContentSiteAdaptationRuntime(
-        config.siteAdaptation, new URL(window.location.href), () => controller.suspend());
+        config.siteAdaptation, new URL(siteHref()), () => controller.suspend());
     document.addEventListener('fluentread-route-change', () => {
-        if (siteAdaptation.routeChanged(new URL(window.location.href)) && enabled()) void controller.refresh();
+        if (siteAdaptation.routeChanged(new URL(siteHref())) && enabled()) void controller.refresh();
     }, {signal: lifetime.signal});
     browser.runtime.onMessage.addListener(listener);
     applyCoreTranslationPreferences(config);
     const unsubscribe = subscribeConfig(() => {
         applyCoreTranslationPreferences(config);
-        siteAdaptation.update(config.siteAdaptation, new URL(window.location.href));
+        siteAdaptation.update(config.siteAdaptation, new URL(siteHref()));
         syncBilingualSentenceHighlight(document, enabled() && authorized && config.bilingualSentenceHighlightEnabled === true);
         if (!enabled()) controller.suspend();
         else void controller.refresh();
@@ -147,4 +204,12 @@ export async function startQqMailFrameApp(ctx: ContentScriptContext): Promise<vo
         browser.runtime.onMessage.removeListener(listener);
     };
     if (enabled()) await controller.refresh();
+}
+
+export function startQqMailFrameApp(ctx: ContentScriptContext): Promise<void> {
+    return startMailFrameApp(ctx, 'qq');
+}
+
+export function startNeteaseMailFrameApp(ctx: ContentScriptContext): Promise<void> {
+    return startMailFrameApp(ctx, 'netease');
 }

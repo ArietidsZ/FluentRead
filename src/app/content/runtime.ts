@@ -39,7 +39,7 @@ import {
 } from './features';
 import {mountConfiguredQuickTranslation} from './quickTranslationRuntime';
 import {installPageStyles} from './pageStyles';
-import {installQqMailTopFrameBridge} from './qqMailFrameRuntime';
+import {installNeteaseMailTopFrameBridge, installQqMailTopFrameBridge} from './qqMailFrameRuntime';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {setMainWorldBridgesEnabled} from './mainWorldBridgeLifecycle';
 import {
@@ -96,8 +96,10 @@ export async function startContentApp(ctx: ContentScriptContext,
         }).catch(() => undefined);
     };
     const isPageRuntimeEnabled = (): boolean => !cleanedUp && !pageLifecycle.isSuspended() && !currentPageSiteDisabled && config.on !== false;
-    const qqMailFullPageToggle = capabilities.browser !== 'userscript'
-        ? installQqMailTopFrameBridge(isPageRuntimeEnabled, pageEventController.signal) : undefined;
+    const mailFullPageToggle = capabilities.browser !== 'userscript'
+        ? installQqMailTopFrameBridge(isPageRuntimeEnabled, pageEventController.signal)
+            ?? installNeteaseMailTopFrameBridge(isPageRuntimeEnabled, pageEventController.signal)
+        : undefined;
     const disposePageFeatures = (): void => {
         featureController?.abort(); featureController = null;
         optionalContentFeatures?.dispose(); optionalContentFeatures = null;
@@ -138,7 +140,7 @@ export async function startContentApp(ctx: ContentScriptContext,
         }, activationController.signal);
         const resetFullPageKeyboardGesture = hotkeys.installFloatingBallHotkey(activationController.signal);
         mountConfiguredQuickTranslation(config, hotkeys, () => currentPageSiteDisabled, activationController.signal,
-            () => { resetHoverKeyboardGesture(); resetFullPageKeyboardGesture(); }, qqMailFullPageToggle);
+            () => { resetHoverKeyboardGesture(); resetFullPageKeyboardGesture(); }, mailFullPageToggle);
 
         const pageFeatureRegistry = createContentFeatureRegistry([
             {
