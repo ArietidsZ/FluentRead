@@ -96,6 +96,8 @@ userscript 的 16 个选择器通过 HTMLElement 引用将菜单挂到设置面�
 
 真实脚本管理器回归使用 `pnpm test:userscript:manager`。它把最终 `.user.js` 作为文件安装到临时 profile 的 Violentmonkey MV3，在后台可见且不抢焦点的独立浏览器中检查六个 `@require`、页面注入、桌面和 390px 截图、设置面板、可信 Alt+T 全文翻译 `[1,0,1]`、原文与宿主全局保护，并保存 `evidence.json`。运行前需提供 Chromium 可执行文件、解压后的 Violentmonkey 2.49.0 扩展、Playwright 包目录与 focus-safe helper；测试会访问 jsDelivr 和当前默认翻译服务，不能代替 Safari Userscripts 或 Via 真机验证：
 
+新安装后立即打开网页可能早于脚本管理器完成 `@require` 下载：隔离 Violentmonkey 2.49.0 复现了主脚本先执行、`Vue is not defined`，同会话刷新及新标签页仍失败。回归脚本在首个测试页打开前等待每个依赖请求完成，并在证据中记录等待时间；这项等待只保证测试在依赖就绪时验收，不代表产品已消除脚本管理器的首次安装竞态。把依赖合并成单一 `@require` 的临时测试仍复现该错误。
+
 ```bash
 pnpm test:userscript:manager -- \
   --artifact .output/userscript/fluent-read.user.js \

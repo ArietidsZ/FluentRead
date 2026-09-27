@@ -126,8 +126,18 @@ async function main() {
     });
     const context = session.context;
     const requested = new Set(metadata.requires);
+    const successfulRequires = new Set();
     context.on('response', (response) => {
-      if (requested.has(response.url())) evidence.responses.push({url: response.url(), status: response.status()});
+      if (!requested.has(response.url())) return;
+      evidence.responses.push({url: response.url(), status: response.status()});
+    });
+    context.on('requestfinished', (request) => {
+      if (!requested.has(request.url())) return;
+      void request.response().then((response) => {
+        if (response && response.status() >= 200 && response.status() < 400) successfulRequires.add(request.url());
+      }).catch((error) => {
+        evidence.requestFailures.push({url: request.url(), error: error.message});
+      });
     });
     context.on('requestfailed', (request) => {
       if (requested.has(request.url())) evidence.requestFailures.push({url: request.url(), error: request.failure()?.errorText});
@@ -151,10 +161,15 @@ async function main() {
     ]);
     await chooser.setFiles(args.artifact);
     await managerPage.getByText(args.saveLabel, {exact: true}).click();
+    const savedAt = Date.now();
     await managerPage.getByText('FluentRead-流畅阅读', {exact: false}).first().waitFor({timeout: args.timeout});
-    // Violentmonkey fetches and persists @require files after the editor closes.
-    // Opening the fixture immediately can start injection before that work finishes.
-    await managerPage.waitForTimeout(6000);
+    // The editor can close while Violentmonkey is still downloading @require files.
+    // A new tab opened in that interval can receive the entry before Vue is available.
+    while (successfulRequires.size < requested.size && Date.now() - savedAt < args.timeout) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    evidence.requireReadyMs = Date.now() - savedAt;
+    if (successfulRequires.size < requested.size) throw new Error('Script manager did not finish @require downloads');
     evidence.managerInstalled = true;
 
     const page = await focusSafe.newPageWithoutForeground(context, args.timeout);
@@ -210,8 +225,6 @@ async function main() {
     evidence.windowPlacement = session.windowPlacement;
     evidence.focusPolicy = session.focusPolicy;
 
-    const successfulRequires = new Set(evidence.responses
-      .filter(({status}) => status >= 200 && status < 400).map(({url}) => url));
     for (const url of metadata.requires) {
       if (!successfulRequires.has(url)) throw new Error(`@require did not return success: ${url}`);
     }
