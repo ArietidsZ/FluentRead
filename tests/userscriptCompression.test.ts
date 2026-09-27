@@ -1,6 +1,7 @@
 import {gzipSync, gunzipSync} from 'node:zlib';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {inflateGzipBase64} from '@/userscript/compression';
+import {inflateWithPako as inflateWithBundledPako} from '@/userscript/pakoBundled';
 
 describe('userscript compressed assets', () => {
     afterEach(() => vi.unstubAllGlobals());
@@ -20,5 +21,12 @@ describe('userscript compressed assets', () => {
 
         await expect(inflateGzipBase64(encoded)).resolves.toBe(source);
         expect(ungzip).toHaveBeenCalledOnce();
+    });
+
+    it('inflates real gzip data with the packaged fallback without a manager global', () => {
+        const source = 'FluentRead 独立脚本兼容旧内核';
+        vi.stubGlobal('pako', undefined);
+
+        expect(inflateWithBundledPako(gzipSync(source))).toBe(source);
     });
 });

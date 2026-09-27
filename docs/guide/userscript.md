@@ -8,6 +8,12 @@
 
 Greasy Fork 上的版本可能晚于 GitHub 源码。排查问题时，请先查看安装页和脚本设置中的版本号。当前自动化运行验证覆盖 Chrome 与 Violentmonkey；Safari Userscripts 和 Via 仍需实际设备验证。
 
+### 从源码构建独立脚本
+
+如果要试用仓库中尚未发布到 Greasy Fork 的修复，可以在 FluentRead 仓库安装依赖后运行 `pnpm test:userscript:standalone`，将生成的 `.output/userscript-standalone/fluent-read.user.js` 通过脚本管理器的「从文件安装」导入。独立版把 Vue、界面库和旧浏览器所需的 gzip 解压库一起打包，安装时不依赖 `@require` 下载；普通翻译服务和首次切换其他界面语言仍需要联网。请选择安装独立版或精简版其中一种，避免重复运行。
+
+仓库也提供 `pnpm test:userscript` 生成体积较小的 `.output/userscript/fluent-read.user.js`，它在安装时需要脚本管理器下载固定版本的 `@require` 依赖。Violentmonkey 的首次文件安装曾出现依赖尚未就绪便执行脚本的问题；独立版在隔离的真实管理器中通过了立即打开页面的测试。两种构建都不是当前 Greasy Fork 页面已发布版本。
+
 安装完成后：
 
 1. 打开一篇普通网页；
@@ -17,7 +23,7 @@ Greasy Fork 上的版本可能晚于 GitHub 源码。排查问题时，请先查
 ## Safari Userscripts 安装与排查
 
 1. 从 App Store 安装 Userscripts，并在 Safari 的扩展设置中启用。iPhone/iPad 上打开「设置 → Safari → 扩展 → Userscripts」；允许它访问所有网站，并在 Safari 中选择「始终允许」。macOS 上也要为访问的网站授予权限。
-2. iPhone/iPad 上先在 Userscripts App 中设置脚本目录；macOS 可使用默认目录。在 Safari 打开上方安装页，通过 Userscripts 工具栏的安装提示保存并启用脚本。安装时保持联网，让管理器下载 `@require` 中的界面依赖。
+2. iPhone/iPad 上先在 Userscripts App 中设置脚本目录；macOS 可使用默认目录。安装 Greasy Fork 版本时，在 Safari 打开上方安装页，通过 Userscripts 工具栏的安装提示保存并启用。试用从源码构建的独立版时，把生成的 `.user.js` 放入该脚本目录，再打开 Userscripts 弹出窗口刷新文件列表。安装精简版时保持联网，让管理器下载 `@require` 中的界面依赖。
 3. 在 Userscripts 弹出窗口确认「Enable Injection」已开启，FluentRead 对当前网页已匹配且启用，然后刷新一个普通的 HTTP(S) 网页。设置从页面悬浮球打开；Safari Userscripts 没有脚本菜单命令。
 4. 如果脚本是直接加入脚本目录或从外部编辑器修改的，至少打开一次 Userscripts 弹出窗口，让它重新读取文件。仍未出现悬浮球时，请检查脚本版本、站点权限、当前页是否匹配，以及管理器是否成功下载依赖；反馈时附上 Safari、系统、Userscripts 版本和出问题的网页地址。
 
@@ -31,7 +37,7 @@ Greasy Fork 上的版本可能晚于 GitHub 源码。排查问题时，请先查
 - 使用免费服务、云端服务、AI 服务或自定义接口；
 - 在脚本自己的设置页中保存语言、服务和显示偏好。
 
-首次安装需要脚本管理器访问 jsDelivr，取得固定版本的界面依赖。简体中文和英文界面随脚本提供；首次切换到日语、韩语、法语、俄语或西班牙语时，脚本会从 jsDelivr 或 GitHub 下载对应的静态界面语言文件，并缓存在脚本管理器的私有存储中。这些请求不包含正在阅读的网页内容或 API Key。离线环境中，尚未缓存的语言会暂时使用中文界面。
+精简版首次安装需要脚本管理器访问 jsDelivr，取得固定版本的界面依赖；独立版已将这些依赖打包。简体中文和英文界面随脚本提供；首次切换到日语、韩语、法语、俄语或西班牙语时，脚本会从 jsDelivr 或 GitHub 下载对应的静态界面语言文件，并缓存在脚本管理器的私有存储中。这些请求不包含正在阅读的网页内容或 API Key。离线环境中，尚未缓存的语言会暂时使用中文界面。
 
 ## 和浏览器扩展有什么不同？
 

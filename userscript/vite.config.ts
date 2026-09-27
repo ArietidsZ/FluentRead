@@ -14,6 +14,7 @@ const packageJson = JSON.parse(fs.readFileSync(resolve(root, 'package.json'), 'u
     userscriptVersion: string;
 };
 const iconDataUrl = `data:image/png;base64,${fs.readFileSync(resolve(root, 'public/icon/64.png')).toString('base64')}`;
+const bundleLibraries = process.env.FLUENTREAD_USERSCRIPT_STANDALONE === '1';
 function installedVersion(name: string): string {
     const manifest = JSON.parse(fs.readFileSync(resolve(root, 'node_modules', name, 'package.json'), 'utf8')) as {version: string};
     return manifest.version;
@@ -21,14 +22,16 @@ function installedVersion(name: string): string {
 
 // 脚本管理器在安装时缓存固定版本的通用库；仓库资源固定到已发布提交，更新资源时同步换提交。
 const userscriptResourceCommit = 'c8f9d958b12bcaef61b9a83ac832e62084a805b3';
-const userscriptRequires = [
+const uiRequires = [
     `https://cdn.jsdelivr.net/npm/vue@${installedVersion('vue')}/dist/vue.global.prod.js`,
     `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${userscriptResourceCommit}/userscript/vueElementPlusBridge.v1.js`,
     `https://cdn.jsdelivr.net/npm/element-plus@${installedVersion('element-plus')}/dist/index.full.min.js`,
     `https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@${installedVersion('@element-plus/icons-vue')}/dist/index.iife.min.js`,
     `https://cdn.jsdelivr.net/npm/tldts@${installedVersion('tldts')}/dist/index.umd.min.js`,
-    'https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako_inflate.min.js',
 ];
+const userscriptRequires = bundleLibraries
+    ? []
+    : [...uiRequires, 'https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako_inflate.min.js'];
 const metadata = createUserscriptMetadata({version: packageJson.userscriptVersion, iconDataUrl, requires: userscriptRequires});
 const compressedUiLanguageBundles = Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
     .filter(([language]) => language === 'en-US')
@@ -66,11 +69,12 @@ export const compatibilityPreludeEnd = '/* FluentRead userscript compatibility p
 export const executionGuardStart = '/* FluentRead userscript execution guard:start */';
 export const executionGuardEnd = '/* FluentRead userscript execution guard:end */';
 
-export function wrapUserscriptEntry(entryCode: string, bootstrapCode: string): string {
+export function wrapUserscriptEntry(entryCode: string, bootstrapCode: string, thirdPartyNotices = ''): string {
     return [
         metadata,
         unicodeNotice,
         serviceIconsNotice,
+        ...(thirdPartyNotices ? [thirdPartyNotices] : []),
         executionGuardStart,
         'if (!globalThis.__fluentReadUserscriptBootstrapped) {',
         bootstrapCode,
@@ -78,6 +82,33 @@ export function wrapUserscriptEntry(entryCode: string, bootstrapCode: string): s
         '}',
         executionGuardEnd,
     ].join('\n');
+}
+
+function bundledLibraryNotices(moduleIds: readonly string[]): string {
+    const packageRoots = new Set<string>();
+    for (const id of moduleIds) {
+        if (!id.startsWith(projectRoot)) continue;
+        const match = /^(.*\/node_modules\/\.pnpm\/[^/]+\/node_modules\/)(@[^/]+\/[^/]+|[^/]+)/u.exec(id);
+        if (match) packageRoots.add(`${match[1]}${match[2]}`);
+    }
+    return [...packageRoots].sort().map((packageRoot) => {
+        const manifest = JSON.parse(fs.readFileSync(resolve(packageRoot, 'package.json'), 'utf8')) as {
+            name: string;
+            version: string;
+            license?: string;
+            repository?: string | {url?: string};
+        };
+        const licenseFile = fs.readdirSync(packageRoot).find((name) => /^LICEN[CS]E(?:[.-].*)?$/iu.test(name));
+        if (!manifest.license) throw new Error(`Missing bundled library license: ${manifest.name}`);
+        const repository = typeof manifest.repository === 'string'
+            ? manifest.repository
+            : manifest.repository?.url;
+        const licenseText = licenseFile
+            ? fs.readFileSync(resolve(packageRoot, licenseFile), 'utf8').trim()
+            : `License source: ${repository || `https://www.npmjs.com/package/${manifest.name}/v/${manifest.version}`}`;
+        if (licenseText.includes('*/')) throw new Error(`Unsafe bundled library license comment: ${manifest.name}`);
+        return `/*\n${manifest.name} ${manifest.version} — ${manifest.license}\n${licenseText}\n*/`;
+    }).join('\n');
 }
 
 // Via 等旧内核可能缺少共享核心使用的基础方法；在单文件入口最前方注入小型兼容层。
@@ -248,7 +279,11 @@ function bundleUserscriptCss(): Plugin {
             // 入口内部的幂等标记只能在整个 IIFE 顶层求值后生效。脚本管理器若对同一
             // 文档再次注入，必须在最外层跳过整个 bundle，否则内联模块会重复创建
             // 配置 store、watch 和 preparation barrier，即使 bootstrap 最后选择返回。
-            entry.code = wrapUserscriptEntry(entry.code, bootstrap);
+            entry.code = wrapUserscriptEntry(
+                entry.code,
+                bootstrap,
+                bundleLibraries ? bundledLibraryNotices(entry.moduleIds) : '',
+            );
 
             entry.code = entry.code.replace(/[\uFFFE\uFFFF]/gu, (character) => {
                 const codePoint = character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0');
@@ -293,6 +328,7 @@ function unwrapWxtEntrypoints(): Plugin {
 }
 
 export const userscriptAliases = [
+    ...(bundleLibraries ? [{find: '@/userscript/pakoRuntime', replacement: resolve(root, 'userscript/pakoBundled.ts')}] : []),
     // dexie 官方 ESM 入口把自身注册到跨 realm 共享的 globalThis[Symbol.for('Dexie')]，版本不一致时会在
     // 模块求值阶段直接抛错。脚本管理器（如 Safari 的 Userscripts）把脚本注入页面主 world，与宿主页面共享
     // 该注册表，必须换成不注册全局符号的入口，否则整个 bundle 会在入口处中断（issue #524）。
@@ -330,7 +366,7 @@ export default defineConfig({
         __FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__: JSON.stringify(userscriptResourceCommit),
     },
     build: {
-        outDir: resolve(root, '.output/userscript'),
+        outDir: resolve(root, bundleLibraries ? '.output/userscript-standalone' : '.output/userscript'),
         emptyOutDir: true,
         target: 'es2018',
         minify: 'esbuild',
@@ -344,7 +380,7 @@ export default defineConfig({
             fileName: () => 'fluent-read.user.js',
         },
         rollupOptions: {
-            external: ['vue', 'element-plus', '@element-plus/icons-vue', 'tldts'],
+            external: bundleLibraries ? [] : ['vue', 'element-plus', '@element-plus/icons-vue', 'tldts'],
             output: {
                 inlineDynamicImports: true,
                 entryFileNames: 'fluent-read.user.js',

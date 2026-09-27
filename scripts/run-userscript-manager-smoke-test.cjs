@@ -61,7 +61,7 @@ function readUserscriptMetadata(source) {
   if (!source.startsWith('// ==UserScript==\n')) throw new Error('Artifact lacks userscript metadata');
   const version = source.match(/^\/\/ @version\s+(\S+)$/m)?.[1];
   const requires = [...source.matchAll(/^\/\/ @require\s+(https:\/\/\S+)$/gm)].map((match) => match[1]);
-  if (!version || requires.length === 0) throw new Error('Artifact lacks version or @require declarations');
+  if (!version) throw new Error('Artifact lacks a version declaration');
   return {version, requires};
 }
 

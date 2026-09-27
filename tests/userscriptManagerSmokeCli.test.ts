@@ -37,6 +37,8 @@ describe('userscript manager smoke CLI', () => {
             version: '2.0.1',
             requires: ['https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js'],
         });
-        expect(() => readUserscriptMetadata('// ==UserScript==\n// ==/UserScript==')).toThrow('version or @require');
+        expect(readUserscriptMetadata('// ==UserScript==\n// @version      2.0.1\n// ==/UserScript=='))
+            .toEqual({version: '2.0.1', requires: []});
+        expect(() => readUserscriptMetadata('// ==UserScript==\n// ==/UserScript==')).toThrow('version declaration');
     });
 });
