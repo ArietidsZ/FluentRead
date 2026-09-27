@@ -1,12 +1,14 @@
 /**
  * @file src/app/background/messageRuntime.ts
  * 文件职责：构建并安装后台消息总运行时，把配置、翻译、OCR、TTS、生词本和标签页状态等公开 handler 连接到 browser.runtime。
- * 主要内容：创建图片 OCR 语言仓库和能力门控传输，绑定图片与圈选事务的真实页面及术语版本；注入配置、翻译、本机统计（模型用量与翻译统计）和词典依赖，注册类型化 router 并管理响应与错误。
+ * 主要内容：创建图片 OCR 语言仓库和能力门控传输，绑定图片与圈选事务的真实页面及术语版本；注入配置、翻译、本机统计、划词卡片页面缩放和词典依赖，注册类型化 router 并管理响应与错误。
  * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期，不实现各 feature 的业务算法、provider 协议或存储事务；具体实现均来自 features、services、providers 与 platform。
  */
 import {formatConnectionTestError, getFreeTranslationWeightSnapshot, runTranslationServiceConnectionTestWithUsage} from './providerRuntime';
 import {config, configReady} from '@/src/services/config/store';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
+import {createSelectionPageZoomHandler} from '@/src/features/selection-translation/background/pageZoomHandler';
+import {normalizeSelectionPageZoom, SELECTION_PAGE_ZOOM_CHANGED} from '@/src/features/selection-translation/pageZoom';
 import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/edgeTts';
 import {vocabularyBook} from '@/src/features/vocabulary/repository';
 import {clearTranslationCache, getTranslationCacheStats, translateWithCache} from '@/src/app/translation/runtime';
@@ -118,6 +120,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             translate: translateWithCache,
             warn: (message, error) => console.warn(message, error),
         }),
+        createSelectionPageZoomHandler((tabId) => browser.tabs.getZoom(tabId)),
         ...imageGlossaryContext.wrap(createCapabilityGatedBackgroundHandlers<BackgroundRuntimeContext>(capabilities, {
             areaTranslation: () => createAreaTranslationRuntime(imageOcrLanguageRepository.assertDownloaded),
             imageTranslation: () => createImageTranslationBackgroundHandlers({
@@ -164,6 +167,13 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         }),
     );
     browser.runtime.onMessage.addListener(createBackgroundRuntimeMessageListener(router, (sender) => ({sender}) as BackgroundRuntimeContext));
+    browser.tabs.onZoomChange.addListener(({tabId, newZoomFactor}: {tabId: number; newZoomFactor: number}) => {
+        if (!isBrowserTabId(tabId)) return;
+        void browser.tabs.sendMessage(tabId, {
+            type: SELECTION_PAGE_ZOOM_CHANGED,
+            zoom: normalizeSelectionPageZoom(newZoomFactor),
+        }).catch(() => undefined);
+    });
     browser.tabs.onRemoved.addListener((tabId: number) => releaseVideoSubtitleOwnerForTab(Number(tabId)));
     installBrowserConfigStorageBroadcast();
 }

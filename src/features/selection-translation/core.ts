@@ -1,7 +1,7 @@
 /**
  * @file src/features/selection-translation/core.ts
  * 文件职责：集中划词翻译的纯交互与内容算法，包括请求代次、词典回退、触发展示状态、选区过滤、上下文摘要、弹窗锚点和语音语言规范化。
- * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理同语种判断、文本清理、公式单份文本提取、敏感区域排除、多矩形选择、弹窗定位及仅用于朗读的普通话语言别名。
+ * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理同语种判断、文本清理、公式单份文本提取、敏感区域排除、多矩形选择、按页面缩放补偿的弹窗定位及仅用于朗读的普通话语言别名。
  * 模块边界：本模块不监听 document selection、不发消息、不渲染 Vue 或播放音频；组件负责连接 DOM，词典和 TTS 由 services/background 提供，函数保持确定性以供单元测试。
  */
 import {getElementTagName, isTopLevelApplicationShell} from '@/src/core/translation/public';
@@ -377,11 +377,16 @@ export function calculateSelectionPopupPosition(
     };
 }
 
-/** 阅读卡先预留固定视窗，再选择位置；正文增长不能改变定位尺寸或上下方位。 */
-export function calculateReadingPopupLayout(anchor: SelectionRect, viewport: ViewportSize): PopupPosition & PopupSize {
-    const width = Math.max(0, Math.min(388, viewport.width - 2 * DEFAULT_PADDING));
-    const height = Math.max(0, Math.min(520, viewport.height - 2 * DEFAULT_PADDING));
-    return {...calculateSelectionPopupPosition(anchor, {width, height}, viewport), width, height};
+/** 阅读卡先预留固定屏幕尺寸，再以补偿后的可见尺寸定位。 */
+export function calculateReadingPopupLayout(anchor: SelectionRect, viewport: ViewportSize, scale = 1): PopupPosition & PopupSize {
+    const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+    const visibleWidth = Math.max(0, Math.min(388 * safeScale, viewport.width - 2 * DEFAULT_PADDING));
+    const visibleHeight = Math.max(0, Math.min(520 * safeScale, viewport.height - 2 * DEFAULT_PADDING));
+    return {
+        ...calculateSelectionPopupPosition(anchor, {width: visibleWidth, height: visibleHeight}, viewport),
+        width: visibleWidth / safeScale,
+        height: visibleHeight / safeScale,
+    };
 }
 
 export function normalizeSpeechLanguage(language: string | undefined, fallback = 'en-US'): string {
