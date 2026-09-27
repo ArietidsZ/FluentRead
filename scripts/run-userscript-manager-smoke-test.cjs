@@ -97,6 +97,75 @@ async function startFixture(artifactBytes) {
   };
 }
 
+async function withSettingsShadow(page, callback, values = []) {
+  const cdp = await page.context().newCDPSession(page);
+  let objectId;
+  try {
+    const {root} = await cdp.send('DOM.getDocument', {depth: -1, pierce: true});
+    const find = (node) => {
+      const attributes = node.attributes || [];
+      if (attributes.includes('id')
+        && attributes[attributes.indexOf('id') + 1] === 'fluent-read-userscript-settings-container') return node;
+      for (const child of [...(node.children || []), ...(node.shadowRoots || [])]) {
+        const found = find(child);
+        if (found) return found;
+      }
+      return null;
+    };
+    const shadow = find(root)?.shadowRoots?.[0];
+    if (!shadow) throw new Error('Settings closed Shadow DOM was not found by browser inspection');
+    const resolved = await cdp.send('DOM.resolveNode', {nodeId: shadow.nodeId});
+    objectId = resolved.object.objectId;
+    const result = await cdp.send('Runtime.callFunctionOn', {
+      objectId,
+      functionDeclaration: callback.toString(),
+      arguments: values.map((value) => ({value})),
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
+    return result.result.value;
+  } finally {
+    if (objectId) await cdp.send('Runtime.releaseObject', {objectId}).catch(() => {});
+    await cdp.detach();
+  }
+}
+
+async function readFloatingBallSetting(page) {
+  return withSettingsShadow(page, function () {
+    const label = [...this.querySelectorAll('label.toggle')]
+      .find((item) => item.textContent.includes('显示全文翻译悬浮球'));
+    const input = label?.querySelector('input[type="checkbox"]');
+    if (!input) throw new Error('Floating ball setting was not found');
+    return input.checked;
+  });
+}
+
+async function saveFloatingBallSetting(page, enabled, timeout) {
+  const before = await withSettingsShadow(page, function (nextValue) {
+    const label = [...this.querySelectorAll('label.toggle')]
+      .find((item) => item.textContent.includes('显示全文翻译悬浮球'));
+    const input = label?.querySelector('input[type="checkbox"]');
+    if (!input) throw new Error('Floating ball setting was not found');
+    const previous = input.checked;
+    if (previous !== nextValue) input.click();
+    const save = this.querySelector('footer button.primary');
+    if (!save || save.disabled) throw new Error('Settings save button is not ready');
+    save.click();
+    return previous;
+  }, [enabled]);
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeout) {
+    const status = await withSettingsShadow(page, function () {
+      return this.querySelector('footer .status')?.textContent || '';
+    });
+    if (status.includes('设置已保存')) return {before, status};
+    if (status.includes('保存失败')) throw new Error(`Settings save failed: ${status}`);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error('Settings did not report a completed save');
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   for (const key of ['artifact', 'managerExtension', 'browserPath', 'focusSafeHelper']) {
@@ -257,6 +326,25 @@ async function main() {
     await page.screenshot({path: evidence.translatedScreenshot});
     evidence.restored = await toggle(0);
     evidence.retranslated = await toggle(1);
+
+    // Exercise the actual manager-backed GM storage, not just a simulated API.
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('fluentread-userscript-open-settings')));
+    await page.locator('#fluent-read-userscript-settings-container').waitFor({state: 'attached', timeout: args.timeout});
+    evidence.persistence = {initial: await readFloatingBallSetting(page)};
+    if (!evidence.persistence.initial) throw new Error('Floating ball was disabled before persistence test');
+    evidence.persistence.disabled = await saveFloatingBallSetting(page, false, args.timeout);
+    await page.locator('#fluent-read-floating-ball-container').waitFor({state: 'detached', timeout: args.timeout});
+    await page.reload({waitUntil: 'domcontentloaded'});
+    await page.waitForFunction(() => Boolean(document.querySelector('#fluent-read-page-styles')), undefined, {timeout: args.timeout});
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('fluentread-userscript-open-settings')));
+    await page.locator('#fluent-read-userscript-settings-container').waitFor({state: 'attached', timeout: args.timeout});
+    evidence.persistence.afterReload = await readFloatingBallSetting(page);
+    if (evidence.persistence.afterReload || await page.locator('#fluent-read-floating-ball-container').count()) {
+      throw new Error('Floating ball preference was lost after reloading the userscript page');
+    }
+    evidence.persistence.reenabled = await saveFloatingBallSetting(page, true, args.timeout);
+    await page.locator('#fluent-read-floating-ball-container').waitFor({state: 'attached', timeout: args.timeout});
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('fluentread-userscript-close-settings')));
     evidence.windowPlacement = session.windowPlacement;
     evidence.focusPolicy = session.focusPolicy;
 
