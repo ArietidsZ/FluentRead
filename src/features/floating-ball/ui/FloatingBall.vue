@@ -1,7 +1,7 @@
 <!--
  * @file src/features/floating-ball/ui/FloatingBall.vue
  * 文件职责：呈现低干扰、可拖拽和按需展开的页面悬浮球，并把全文翻译状态、拖动停靠、打开设置、高级外观参数和键盘关闭整合为可复用 Vue 组件。
- * 主要内容：组件按展示契约控制按钮显示方式、展开延迟、点击行为、紧凑尺寸与收起不透明度；停靠时为滚动条留出间距，收起时移除工具按钮的指针命中区；使用位移阈值区分点击与拖拽，按视口比例恢复纵向位置并限制球体在视口内，通过受控状态同步图标和文案。
+ * 主要内容：组件按展示契约控制按钮显示方式、展开延迟、触屏展开、点击行为、紧凑尺寸与收起不透明度；停靠时为滚动条留出间距，收起时移除工具按钮的指针命中区；使用位移阈值区分点击与拖拽，按视口比例恢复纵向位置并限制球体在视口内，通过受控状态同步图标和文案。
  * 模块边界：它只负责视觉与局部交互，不直接调用浏览器消息、保存配置或执行全文翻译；这些副作用由 content/runtime 通过 props、事件和 defineExpose 桥接，外观配置的归一化留在 core/config。
  -->
 <template>
@@ -158,6 +158,7 @@ const isTranslating = ref(props.initialTranslating);
 const floatingBall = ref<HTMLElement | null>(null);
 const floatingBallMain = ref<HTMLElement | null>(null);
 const dragState = ref<PointerDragState | null>(null);
+const touchExpanded = ref(false);
 let expandTimer: ReturnType<typeof setTimeout> | null = null;
 
 // 缺失字段按默认值补齐，避免旧配置或部分更新让模板读到 undefined。
@@ -169,7 +170,7 @@ const currentDisplayPosition = computed(() => internalPosition.value || props.po
 const isAlwaysExpanded = computed(() => presentation.value.toolsDisplay === 'always');
 const showTranslateTool = computed(() => props.showMenu && presentation.value.toolsDisplay !== 'hidden');
 const showSettingsTool = computed(() => showTranslateTool.value && presentation.value.settingsEntryVisible);
-const isMenuExpanded = computed(() => showTranslateTool.value && (isAlwaysExpanded.value || isExpanded.value));
+const isMenuExpanded = computed(() => showTranslateTool.value && (isAlwaysExpanded.value || isExpanded.value || touchExpanded.value));
 const isMainActionable = computed(() => presentation.value.clickAction !== 'none');
 const mainActionLabel = computed(() => {
   if (presentation.value.clickAction === 'settings') return '打开 FluentRead 设置';
@@ -251,6 +252,10 @@ function startDrag(event: PointerEvent) {
   if (event.pointerType === 'mouse' && event.button !== 0) return;
 
   event.preventDefault();
+  // 触屏没有稳定的 hover；轻点主体时让默认隐藏的翻译和设置工具保持可触达。
+  if (event.pointerType === 'touch' && presentation.value.toolsDisplay === 'hover' && showTranslateTool.value) {
+    touchExpanded.value = true;
+  }
   const dockRect = floatingBall.value?.getBoundingClientRect();
   const rect = floatingBallMain.value?.getBoundingClientRect() || dockRect;
   const mainWidth = rect?.width || fallbackBallSize();
@@ -281,6 +286,7 @@ function handlePointerMove(event: PointerEvent) {
     currentDrag.moved = true;
     clearExpandTimer();
     isExpanded.value = false;
+    touchExpanded.value = false;
     isDragging.value = true;
   }
 
@@ -394,9 +400,19 @@ function handleSettingsClick(event: MouseEvent) {
 }
 
 function handleDocumentKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Escape' || !isExpanded.value) return;
+  if (event.key !== 'Escape' || !isMenuExpanded.value) return;
   floatingBall.value?.querySelector<HTMLElement>(':focus')?.blur();
   isExpanded.value = false;
+  touchExpanded.value = false;
+}
+
+function handleDocumentPointerDown(event: PointerEvent) {
+  // closed Shadow DOM 在宿主外隐藏内部路径；比较 Shadow 宿主才能保留球内工具的触摸。
+  const root = floatingBall.value?.getRootNode();
+  const boundary = root instanceof ShadowRoot ? root.host : floatingBall.value;
+  if (touchExpanded.value && boundary && !event.composedPath().includes(boundary)) {
+    touchExpanded.value = false;
+  }
 }
 
 onMounted(() => {
@@ -404,6 +420,7 @@ onMounted(() => {
   updatePositionStyle();
   window.addEventListener('resize', updatePositionStyle);
   document.addEventListener('keydown', handleDocumentKeydown);
+  document.addEventListener('pointerdown', handleDocumentPointerDown, true);
 });
 
 onBeforeUnmount(() => {
@@ -411,6 +428,7 @@ onBeforeUnmount(() => {
   removePointerListeners();
   window.removeEventListener('resize', updatePositionStyle);
   document.removeEventListener('keydown', handleDocumentKeydown);
+  document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
 });
 
 watch(() => props.position, (newPosition) => {
@@ -436,7 +454,12 @@ watch(() => presentation.value.compact, () => {
 watch(() => presentation.value.toolsDisplay, (display) => {
   if (display !== 'hover') clearExpandTimer();
   if (display === 'hidden') isExpanded.value = false;
+  if (display !== 'hover') touchExpanded.value = false;
   nextTick(updatePositionStyle);
+});
+
+watch(() => props.showMenu, (visible) => {
+  if (!visible) touchExpanded.value = false;
 });
 
 watch(() => presentation.value.settingsEntryVisible, () => {
