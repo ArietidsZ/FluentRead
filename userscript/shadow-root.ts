@@ -14,6 +14,7 @@ type ShadowRootUiOptions<T> = {
 export interface ShadowRootContentScriptUi<T> {
     shadowHost: HTMLElement;
     shadow: ShadowRoot;
+    uiContainer: HTMLElement;
     mounted?: T;
     mount(): void;
     remove(): void;
@@ -65,6 +66,7 @@ export async function createShadowRootUi<T>(
     const ui: ShadowRootContentScriptUi<T> = {
         shadowHost,
         shadow,
+        uiContainer: container,
         mount() {
             if (isMounted) return;
             isMounted = true;
