@@ -1,7 +1,7 @@
 /**
  * @file src/features/selection-translation/background/pageZoomHandler.ts
  * 文件职责：仅向发起请求的内容脚本返回其所属标签页的页面缩放比例。
- * 主要内容：从可信 runtime sender 读取 tabId，按浏览器能力获取页面缩放并规范化结果；移动版缺少缩放 API 时沿用默认比例，避免后台启动中断。
+ * 主要内容：从可信 runtime sender 读取 tabId，按浏览器能力获取页面缩放并规范化结果；移动版缺少或拒绝缩放 API 时沿用默认比例，避免后台启动和划词卡片中断。
  * 模块边界：不接受消息体指定的标签页，不更改页面缩放或读取宿主页内容；浏览器 API 由组合层注入。
  */
 
@@ -42,7 +42,12 @@ export function createSelectionPageZoomHandler(getZoom: (tabId: number) => Promi
         async handle(_message: {type: typeof SELECTION_PAGE_ZOOM_REQUEST}, context: SelectionPageZoomContext) {
             const tabId = context.sender?.tab?.id;
             if (!isBrowserTabId(tabId)) return {success: false as const};
-            return {success: true as const, zoom: normalizeSelectionPageZoom(await getZoom(tabId))};
+            try {
+                return {success: true as const, zoom: normalizeSelectionPageZoom(await getZoom(tabId))};
+            } catch {
+                // 页面缩放只影响划词卡片定位；移动版可能拒绝查询当前标签页。
+                return {success: true as const, zoom: 1};
+            }
         },
     };
 }

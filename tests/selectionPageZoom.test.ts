@@ -34,6 +34,14 @@ describe('selection page zoom', () => {
         expect(sendMessage).not.toHaveBeenCalled();
     });
 
+    it('keeps selection cards usable when a mobile browser rejects the zoom request', async () => {
+        const getZoom = vi.fn(async () => { throw new Error('unsupported'); });
+        const handler = createSelectionPageZoomHandler(getZoom);
+        await expect(handler.handle({type: SELECTION_PAGE_ZOOM_REQUEST}, {sender: {tab: {id: 7}}}))
+            .resolves.toEqual({success: true, zoom: 1});
+        expect(getZoom).toHaveBeenCalledWith(7);
+    });
+
     it('preserves desktop zoom readings and forwards only valid tab changes', async () => {
         const getZoom = vi.fn(async () => 2);
         const sendMessage = vi.fn().mockResolvedValue(undefined);

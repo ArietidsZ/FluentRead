@@ -15,6 +15,8 @@ Choose your browser, add the extension from its store, and follow the browser’
 
 Pin FluentRead to your toolbar for easy access. Refresh pages that were already open before installation.
 
+On **Edge for Android** versions that offer extensions, find FluentRead through the browser's extension menu and open it from the installed extensions list. Use **Translate page** in its menu. If you enable the on-page floating ball in settings, tapping it toggles page translation and exposes its touch controls by default; tap elsewhere on the page to collapse them. Keyboard shortcuts and right-click menus are desktop controls. Extension availability on Edge for iPhone/iPad needs separate confirmation.
+
 ## Your first translation
 
 ### 1. Open an article

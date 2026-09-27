@@ -1,7 +1,7 @@
 /**
  * @file src/app/popup/popup.css
  * 文件职责：定义宽度随皮肤、高度随内容自适应的浏览器 Popup 视觉系统与交互状态，包括亮暗主题、服务选择、功能卡、设置抽屉、通知和响应式细节。
- * 主要内容：声明服务菜单、AI 精翻偏好及状态说明、翻译主按钮旁的局部翻译按钮、站点控制、两列三行默认快捷入口与抽屉等视觉样式；收紧默认纵向间距，在 560px 内滚动较长内容并允许站点操作换行，兼容皮肤、多语言和 Element Plus 内部结构。
+ * 主要内容：声明服务菜单、AI 精翻偏好及状态说明、翻译主按钮旁的局部翻译按钮、站点控制、两列三行默认快捷入口与抽屉等视觉样式；收紧默认纵向间距，让 Popup 宽高受移动视口约束并允许较长内容滚动，兼容皮肤、多语言和 Element Plus 内部结构。
  * 模块边界：样式只对应 PopupApp 的 DOM 和受控第三方组件，不决定配置值、能力可用性或消息行为；跨页面 token 在 src/ui/styles，Options/文档页各自维护页面样式。
  */
 @import "../../ui/styles/feedback.css";
@@ -36,7 +36,7 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #app { width: var(--interface-popup-width, 360px); min-width: var(--interface-popup-width, 360px); margin: 0; overflow-x: hidden; background: #f6f7fb; }
+html, body, #app { width: min(var(--interface-popup-width, 360px), 100vw); min-width: 0; margin: 0; overflow-x: hidden; background: #f6f7fb; }
 :root.dark body, :root.dark #app { background: #14161b; }
 button, select, input { font: inherit; }
 button { color: inherit; }
@@ -54,7 +54,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid rgba(239, 71, 11
 .popup-startup { display: flex; align-items: center; gap: 8px; padding: 20px; color: #737c8f; font-size: 12px; }
 .popup-startup img { border-radius: 7px; }
 .popup-startup i { width: 12px; height: 12px; margin-left: auto; border: 1.5px solid #d4d8e1; border-top-color: #737c8f; border-radius: 50%; }
-.popup-shell:not(.language-onboarding-shell) { max-height: 560px; overflow-y: auto; scrollbar-width: thin; }
+.popup-shell:not(.language-onboarding-shell) { max-height: min(560px, 100vh); max-height: min(560px, 100dvh); overflow-y: auto; scrollbar-width: thin; }
 .popup-content { position: relative; z-index: 1; }
 .popup-shell.language-onboarding-shell { overflow: hidden; }
 :root.dark .popup-shell {
