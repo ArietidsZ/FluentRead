@@ -248,7 +248,7 @@ describe('术语库与真实翻译编排协作', () => {
 });
 
 describe('术语模板与服务协议', () => {
-    it('高级请求体显式替换messages或translation_options时保留用户既有覆盖语义', () => {
+    it('高级请求体保留普通字段的覆盖语义，Qwen-MT 的 translation_options 保留未覆盖字段', () => {
         const config = Object.assign(new Config(), {glossaryTerms: [{source: 'agent', target: '智能体'}]});
         config.customBody.openai = JSON.stringify({messages: [{role: 'user', content: 'custom task'}]});
         config.customBody.tongyi = JSON.stringify({translation_options: {source_lang: 'auto', target_lang: 'English'}});
@@ -256,7 +256,16 @@ describe('术语模板与服务协议', () => {
         const common = JSON.parse(commonMsgTemplate('agent', undefined, undefined, undefined, 'openai', 'zh-Hans', undefined, current));
         expect(common.messages).toEqual([{role: 'user', content: 'custom task'}]);
         const mt = JSON.parse(tongyiMsgTemplate('agent', undefined, undefined, undefined, 'tongyi', 'zh-Hans', 'qwen-mt-plus', current));
-        expect(mt.translation_options).toEqual({source_lang: 'auto', target_lang: 'English'});
+        expect(mt.translation_options).toEqual({source_lang: 'auto', target_lang: 'English', terms: [{source: 'agent', target: '智能体'}]});
+    });
+
+    it('Qwen-MT 自定义 terms 不覆盖自动生成的语言参数，并优先于词库术语', () => {
+        const config = Object.assign(new Config(), {glossaryTerms: [{source: 'Token', target: '词元'}]});
+        config.customBody.tongyi = JSON.stringify({translation_options: {terms: [{source: 'Token', target: 'Token'}]}});
+        const current = createTranslationProviderConfigSnapshot(config);
+        const body = JSON.parse(tongyiMsgTemplate('Token', undefined, undefined, undefined, 'tongyi', 'en', 'qwen-mt-flash', current, undefined, 'auto'));
+        expect(body.translation_options).toEqual({source_lang: 'auto', target_lang: 'en', terms: [{source: 'Token', target: 'Token'}]});
+        expect(config.customBody.tongyi).toBe(JSON.stringify({translation_options: {terms: [{source: 'Token', target: 'Token'}]}}));
     });
     it('明确区分提示词AI、Qwen-MT与不支持的服务', () => {
         for (const [service, model] of [['openai', 'x'], ['custom:office', 'x'], ['tongyi', 'qwen-mt-plus']]) {

@@ -129,6 +129,13 @@ describe('mergeCustomBody（纯函数）', () => {
         expect(result).toEqual({ a: 1, b: 2 });
         expect(payload).toEqual({ a: 1 });
     });
+
+    it('仅对指定的对象键合并子字段，数组仍整体覆盖且不修改原对象', () => {
+        const payload = {translation_options: {source_lang: 'auto', target_lang: 'en', terms: [{source: 'old', target: '旧'}]}, messages: ['default']};
+        const result = mergeCustomBody(payload, JSON.stringify({translation_options: {terms: [{source: 'new', target: '新'}]}, messages: ['custom']}), ['translation_options']);
+        expect(result).toEqual({translation_options: {source_lang: 'auto', target_lang: 'en', terms: [{source: 'new', target: '新'}]}, messages: ['custom']});
+        expect(payload.translation_options.terms).toEqual([{source: 'old', target: '旧'}]);
+    });
 });
 
 describe('自定义请求体校验与配置兼容', () => {
