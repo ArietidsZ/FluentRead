@@ -79,6 +79,7 @@ const expectedNavigation = [
   ['settings-translation-center', '翻译中心'],
   ['settings-vocabulary', '学习中心'],
   ['settings-glossary', '术语库'],
+  ['settings-translation-stats', '翻译统计'],
   ['settings-model-usage', '模型用量'],
   ['settings-advanced', '高级选项'],
   ['settings-data', '备份与恢复'],
@@ -87,7 +88,7 @@ const expectedNavigation = [
 const expectedNavigationGroups = [
   ['基础配置', ['settings-general', 'settings-services', 'settings-translation', 'settings-interface']],
   ['专项翻译', ['settings-harness', 'settings-image-translation', 'settings-area-translation', 'settings-video', 'settings-sites']],
-  ['工具与学习', ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-model-usage']],
+  ['工具与学习', ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-translation-stats', 'settings-model-usage']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
 // 译文显示是“选择翻译服务”内的子分组；悬浮球进阶设置已并入翻译设置。
