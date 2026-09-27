@@ -17,6 +17,26 @@
     ]
   },
   {
+    "id": "discord-server-rail",
+    "name": "Discord 服务器图标栏",
+    "allScopes": true,
+    "match": {
+      "hosts": [
+        "discord.com",
+        "canary.discord.com",
+        "ptb.discord.com"
+      ],
+      "paths": [
+        "/channels/*"
+      ]
+    },
+    "mode": "augment",
+    "exclude": [
+      "[data-list-id=\"guildsnav\"]",
+      "nav[aria-label=\"Servers sidebar\"]"
+    ]
+  },
+  {
     "id": "bilibili",
     "name": "哔哩哔哩",
     "match": {

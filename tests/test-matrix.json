@@ -362,6 +362,7 @@
       "tests/sectionTranslationPicker.test.ts"
     ],
     "regression": [
+      "tests/discordServerIconBoundary.test.ts",
       "tests/myMemoryConnectionTest.test.ts",
       "tests/readingThemeStyles.test.ts",
       "tests/translationControlOwnership.test.ts",
