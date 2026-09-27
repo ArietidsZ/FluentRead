@@ -8,10 +8,17 @@ const {createRequire} = require('node:module');
 
 function parseArgs(argv) {
   if (argv[0] === '--') argv = argv.slice(1);
-  const args = {timeout: 60000, installLabel: '从文件安装', saveLabel: '保存并关闭'};
+  const args = {
+    timeout: 60000,
+    installMode: 'file',
+    installLabel: '从文件安装',
+    saveLabel: '保存并关闭',
+    installedLabel: '脚本已安装。',
+  };
   const names = new Set([
     'artifact', 'managerExtension', 'browserPath', 'playwrightRoot',
-    'focusSafeHelper', 'artifactsDir', 'timeout', 'installLabel', 'saveLabel',
+    'focusSafeHelper', 'artifactsDir', 'timeout', 'installMode',
+    'installLabel', 'saveLabel', 'installedLabel',
   ]);
   for (let index = 0; index < argv.length; index += 2) {
     const token = argv[index];
@@ -30,6 +37,7 @@ function parseArgs(argv) {
   }
   args.timeout = Number(args.timeout);
   if (!Number.isSafeInteger(args.timeout) || args.timeout < 1000) throw new Error('--timeout must be at least 1000 ms');
+  if (!['file', 'url'].includes(args.installMode)) throw new Error('--install-mode must be file or url');
   return args;
 }
 
@@ -66,9 +74,14 @@ function managerName(extensionPath, manifest) {
   return messages[key]?.message || manifest.name;
 }
 
-async function startFixture() {
+async function startFixture(artifactBytes) {
   const original = 'FluentRead keeps the original paragraph and adds a safe bilingual translation.';
-  const server = http.createServer((_request, response) => {
+  const server = http.createServer((request, response) => {
+    if (request.url === '/candidate.user.js') {
+      response.writeHead(200, {'content-type': 'application/javascript; charset=utf-8'});
+      response.end(artifactBytes);
+      return;
+    }
     response.writeHead(200, {'content-type': 'text/html; charset=utf-8'});
     response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FluentRead manager smoke</title></head><body><main><h1>FluentRead manager smoke</h1><p id="target">${original}</p></main></body></html>`);
   });
@@ -79,6 +92,7 @@ async function startFixture() {
   return {
     original,
     url: `http://127.0.0.1:${server.address().port}/fixture`,
+    installUrl: `http://127.0.0.1:${server.address().port}/candidate.user.js`,
     close: () => new Promise((resolve) => server.close(resolve)),
   };
 }
@@ -90,7 +104,8 @@ async function main() {
   }
   const manifest = JSON.parse(fs.readFileSync(path.join(args.managerExtension, 'manifest.json'), 'utf8'));
   if (manifest.manifest_version !== 3) throw new Error('This smoke test expects a Manifest V3 userscript manager');
-  const metadata = readUserscriptMetadata(fs.readFileSync(args.artifact, 'utf8'));
+  const artifactBytes = fs.readFileSync(args.artifact);
+  const metadata = readUserscriptMetadata(artifactBytes.toString('utf8'));
   const {chromium} = requirePlaywright(args.playwrightRoot);
   const focusSafe = requireFocusSafeHelper(args.focusSafeHelper);
   fs.mkdirSync(args.artifactsDir, {recursive: true});
@@ -102,13 +117,14 @@ async function main() {
     userscriptVersion: metadata.version,
     browserPath: args.browserPath,
     artifact: args.artifact,
+    installMode: args.installMode,
     requires: metadata.requires,
     responses: [],
     requestFailures: [],
     consoleErrors: [],
   };
   try {
-    fixture = await startFixture();
+    fixture = await startFixture(artifactBytes);
     session = await focusSafe.launchFocusSafePersistentContext({
       chromium,
       profileDir: profile,
@@ -154,21 +170,40 @@ async function main() {
     if (await permission.getAttribute('checked') === null) await permission.locator('cr-toggle').click();
     if (await permission.getAttribute('checked') === null) throw new Error('User scripts permission did not enable');
 
-    await managerPage.goto(`chrome-extension://${managerId}/options/index.html`, {waitUntil: 'domcontentloaded'});
-    const [chooser] = await Promise.all([
-      managerPage.waitForEvent('filechooser', {timeout: args.timeout}),
-      managerPage.getByText(args.installLabel, {exact: true}).click(),
-    ]);
-    await chooser.setFiles(args.artifact);
-    await managerPage.getByText(args.saveLabel, {exact: true}).click();
-    const savedAt = Date.now();
-    await managerPage.getByText('FluentRead-流畅阅读', {exact: false}).first().waitFor({timeout: args.timeout});
+    const installStartedAt = Date.now();
+    if (args.installMode === 'file') {
+      await managerPage.goto(`chrome-extension://${managerId}/options/index.html`, {waitUntil: 'domcontentloaded'});
+      const [chooser] = await Promise.all([
+        managerPage.waitForEvent('filechooser', {timeout: args.timeout}),
+        managerPage.getByText(args.installLabel, {exact: true}).click(),
+      ]);
+      await chooser.setFiles(args.artifact);
+      await managerPage.getByText(args.saveLabel, {exact: true}).click();
+      await managerPage.getByText('FluentRead-流畅阅读', {exact: false}).first().waitFor({timeout: args.timeout});
+    } else {
+      // Opening a .user.js URL follows the same confirmation path as a public script link.
+      // Violentmonkey redirects the navigation, which may reject the original goto promise.
+      try {
+        await managerPage.goto(fixture.installUrl, {waitUntil: 'domcontentloaded'});
+      } catch (error) {
+        if (!managerPage.url().includes('/confirm/index.html')) throw error;
+      }
+      await managerPage.waitForURL(/\/confirm\/index\.html/, {timeout: args.timeout});
+      await managerPage.locator('button#confirm').click({timeout: args.timeout});
+      await managerPage.getByText(args.installedLabel, {exact: false}).waitFor({timeout: args.timeout});
+      await managerPage.goto(`chrome-extension://${managerId}/options/index.html`, {waitUntil: 'domcontentloaded'});
+      await managerPage.waitForFunction((version) => {
+        const text = document.body.innerText;
+        return text.includes('FluentRead-流畅阅读') && text.includes(version);
+      }, metadata.version, {timeout: args.timeout});
+      evidence.dashboardRegistered = true;
+    }
     // The editor can close while Violentmonkey is still downloading @require files.
     // A new tab opened in that interval can receive the entry before Vue is available.
-    while (successfulRequires.size < requested.size && Date.now() - savedAt < args.timeout) {
+    while (successfulRequires.size < requested.size && Date.now() - installStartedAt < args.timeout) {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    evidence.requireReadyMs = Date.now() - savedAt;
+    evidence.requireReadyMs = Date.now() - installStartedAt;
     if (successfulRequires.size < requested.size) throw new Error('Script manager did not finish @require downloads');
     evidence.managerInstalled = true;
 

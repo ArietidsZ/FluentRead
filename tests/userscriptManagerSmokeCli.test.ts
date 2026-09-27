@@ -20,6 +20,9 @@ describe('userscript manager smoke CLI', () => {
     it('accepts pnpm argument separator and requires isolated manager inputs', () => {
         expect(parseArgs(['--', ...args])).toEqual(parseArgs(args));
         expect(parseArgs(args).timeout).toBe(60000);
+        expect(parseArgs(args).installMode).toBe('file');
+        expect(parseArgs([...args, '--install-mode', 'url']).installMode).toBe('url');
+        expect(() => parseArgs([...args, '--install-mode', 'remote'])).toThrow('--install-mode');
         expect(() => parseArgs(['--artifact', 'fluent-read.user.js'])).toThrow('Required argument');
         expect(() => parseArgs([...args, '--timeout', '0'])).toThrow('--timeout');
     });
