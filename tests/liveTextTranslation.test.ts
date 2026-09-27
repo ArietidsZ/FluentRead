@@ -15,6 +15,9 @@ vi.mock('@/src/core/translation/public', async (importOriginal) => {
         // 属性型按钮标签的安全边界由 core 唯一定义，测试不复制其判定规则。
         getTranslatableControlValueAttribute: actual.getTranslatableControlValueAttribute,
         normalizeTranslationText: actual.normalizeTranslationText,
+        // 整块请求的骨架判定只由 core 定义，这里直接复用真实实现。
+        createTranslationSourceSnapshot: actual.createTranslationSourceSnapshot,
+        buildWholeBlockTranslationSource: actual.buildWholeBlockTranslationSource,
     };
 });
 
@@ -24,6 +27,8 @@ vi.mock('@/src/features/full-page-translation/content/translationRequest', () =>
 
 import {parseHTML} from 'linkedom';
 import {createTranslationRequest, translateControlValue, translateLiveText} from '@/src/features/full-page-translation/content/liveTextTranslation';
+// 真实槽位收集器绕过上方对 public 的替身，让请求槽与 DOM 骨架保持一致。
+import {collectLiveTranslationTextSlots as collectRealSlots} from '@/src/core/translation/serialization';
 
 const snapshot = {service: 'microsoft', model: 'default', thinking: false, sourceLanguage: 'en', targetLanguage: 'zh',
     useCache: true, enableAIContext: false, enableAIMultiSegment: false, displayMode: 'single' as const, style: 0};
@@ -126,5 +131,110 @@ describe('实时文本翻译快照', () => {
         runtime.slots = [{node, prefix: '', source: '', suffix: ''}];
         runtime.translations = ['译文'];
         expect((await translateLiveText(document.body, snapshot)).changed).toBe(true);
+    });
+});
+
+describe('双语正文整块翻译', () => {
+    const bilingual = {...snapshot, displayMode: 'bilingual' as const};
+    beforeEach(() => {
+        runtime.slots = [];
+        runtime.translations = [];
+        runtime.translateTextSlots.mockReset();
+        runtime.translateTextSlots.mockImplementation(async () => runtime.translations);
+    });
+    const owner = (html: string) => {
+        const {document} = parseHTML(`<html><body>${html}</body></html>`);
+        const element = document.body.firstElementChild as HTMLElement;
+        runtime.slots = collectRealSlots(element);
+        return element;
+    };
+    const paragraph = () => owner('<p id="t">Read <a href="/g">the guide</a>.</p>');
+
+    it('多槽候选整块请求，整段译文只回填首个槽位', async () => {
+        const target = paragraph();
+        runtime.translateTextSlots.mockImplementation(async () => ['读完这份指南。']);
+
+        const result = await createTranslationRequest(target, 'content', 'bilingual', bilingual);
+        expect(runtime.translateTextSlots).toHaveBeenCalledTimes(1);
+        expect(runtime.translateTextSlots).toHaveBeenCalledWith(
+            ['Read the guide.'], bilingual, undefined, undefined, undefined, false);
+        expect(result).toEqual({
+            kind: 'snapshot',
+            sources: ['Read', 'the guide', '.'],
+            translations: ['读完这份指南。', '', ''],
+        });
+    });
+
+    it('整块请求没有有效译文时回退逐槽请求', async () => {
+        for (const empty of [[], [''], [' \u00a0']]) {
+            const target = paragraph();
+            runtime.translateTextSlots.mockReset();
+            runtime.translateTextSlots
+                .mockImplementationOnce(async () => empty)
+                .mockImplementation(async () => runtime.translations);
+            runtime.translations = ['译:Read', '译:the guide', '译:.'];
+
+            const result = await createTranslationRequest(target, 'content', 'bilingual', bilingual);
+            expect(runtime.translateTextSlots).toHaveBeenNthCalledWith(2,
+                ['Read', 'the guide', '.'], bilingual, undefined, undefined, undefined, false);
+            expect(result).toEqual({
+                kind: 'snapshot',
+                sources: ['Read', 'the guide', '.'],
+                translations: ['译:Read', '译:the guide', '译:.'],
+            });
+        }
+    });
+
+    it('整块译文与原文一致时按未变化上报，不再逐槽请求', async () => {
+        const target = paragraph();
+        runtime.translateTextSlots.mockImplementation(async () => ['Read the guide.']);
+
+        const result = await createTranslationRequest(target, 'content', 'bilingual', bilingual);
+        expect(runtime.translateTextSlots).toHaveBeenCalledTimes(1);
+        expect(result).toEqual({
+            kind: 'snapshot',
+            sources: ['Read', 'the guide', '.'],
+            translations: ['Read', 'the guide', '.'],
+        });
+    });
+
+    it('含行内代码等无法拍平内容的段落直接逐槽请求，不发整块请求', async () => {
+        const target = owner('<p>Use <code>fetch</code> to <b>load</b> data</p>');
+        runtime.translations = ['译:Use', '译:to', '译:load', '译:data'];
+
+        const result = await createTranslationRequest(target, 'content', 'bilingual', bilingual);
+        expect(runtime.translateTextSlots).toHaveBeenCalledTimes(1);
+        expect(runtime.translateTextSlots).toHaveBeenCalledWith(
+            ['Use', 'to', 'load', 'data'], bilingual, undefined, undefined, undefined, false);
+        expect(result).toMatchObject({translations: ['译:Use', '译:to', '译:load', '译:data']});
+    });
+
+    it('请求槽与渲染骨架不一致时放弃整块请求', async () => {
+        const target = paragraph();
+        runtime.slots = runtime.slots.slice(0, 2);
+        runtime.translations = ['译:Read', '译:the guide'];
+
+        await createTranslationRequest(target, 'content', 'bilingual', bilingual);
+        expect(runtime.translateTextSlots).toHaveBeenCalledTimes(1);
+        expect(runtime.translateTextSlots).toHaveBeenCalledWith(
+            ['Read', 'the guide'], bilingual, undefined, undefined, undefined, false);
+    });
+
+    it('宿主保留换行时整段原文保留文本换行，样式读取失败时按普通空白处理', async () => {
+        const html = '<p>one\n<a href="/x">two</a></p>';
+        const request = async (getComputedStyle: () => {whiteSpace: string}) => {
+            const target = owner(html);
+            Object.defineProperty(target.ownerDocument, 'defaultView', {configurable: true, value: {getComputedStyle}});
+            runtime.translateTextSlots.mockReset();
+            runtime.translateTextSlots.mockImplementation(async () => ['一二']);
+            await createTranslationRequest(target, 'content', 'bilingual', bilingual);
+            return runtime.translateTextSlots.mock.calls[0]?.[0];
+        };
+
+        expect(await request(() => ({whiteSpace: 'pre-wrap'}))).toEqual(['one\ntwo']);
+        expect(await request(() => ({whiteSpace: 'normal'}))).toEqual(['one two']);
+        expect(await request(() => {
+            throw new Error('detached');
+        })).toEqual(['one two']);
     });
 });

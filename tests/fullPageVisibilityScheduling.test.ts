@@ -219,6 +219,11 @@ vi.mock("@/src/core/translation/public", async (importOriginal) => {
         createTranslationSourceSnapshot: (element: HTMLElement, shouldStayOriginal?: (node: Element) => boolean) => ({
             slots: textSlots(element, shouldStayOriginal).map(({source}) => ({source})),
         }),
+        // 替身快照没有克隆骨架，按“多槽即可拍平”拼接整段原文；真实拍平判定由 translationCore 覆盖。
+        buildWholeBlockTranslationSource: (snapshot: {slots: ReadonlyArray<{source: string}>}) =>
+            snapshot.slots.length > 1
+                ? snapshot.slots.map(({source}) => source).join("").replace(/\s+/gu, " ").trim()
+                : null,
         evaluateHardGuard: (element: Element) => ({prune: isProtected(element)}),
         getComposedParent: (element: Element) => element.parentElement ??
             ((element.getRootNode?.() as {host?: Element})?.host ?? null),
@@ -924,12 +929,14 @@ describe("全文翻译可见性锚点", () => {
         setLayoutBox(target, 250, 40); setLayoutBox(prose, 600, 90);
         runtime.candidates = [{element: target, kind, reason: 'adapter'}, {element: prose, kind: 'content', reason: 'paragraph'}];
         handleBilingualTranslation(target, false); handleBilingualTranslation(prose, false); await finishScheduledWork();
-        expect(runtime.requests.mock.calls.flatMap(([sources]) => sources)).not.toContain('Analysis completed');
+        // 多槽候选现改为整块请求，来源是拼好的整段文本而不是单个片段。
+        const requestedText = () => runtime.requests.mock.calls.flatMap(([sources]) => sources).join('\n');
+        expect(requestedText()).not.toContain('Analysis completed');
         const proseWrapper = prose.querySelector('.fluent-read-bilingual-content');
         runtime.candidates = [{element: target, kind, reason: 'expanded', scope: 'all'}, {element: prose, kind: 'content', reason: 'paragraph', scope: 'all'}];
         runtime.config.translationScope = 'all'; runtime.config.fullPageTranslationMode = 'all';
         autoTranslateEnglishPage(); await finishScheduledWork();
-        expect(runtime.requests.mock.calls.flatMap(([sources]) => sources)).toContain('Analysis completed');
+        expect(requestedText()).toContain('Analysis completed');
         expect(getTranslationState(target)?.scope).toBe('all');
         expect(prose.querySelector('.fluent-read-bilingual-content')).toBe(proseWrapper);
         if (kind === 'control') expect(label.textContent).toBe('译:Analysis completed');
@@ -5964,7 +5971,7 @@ describe("全文翻译可见性锚点", () => {
         },
     );
 
-    it("普通后代新增 translate=no 后复用未变文本槽并排除受保护文本", async () => {
+    it("普通后代新增 translate=no 后重建整块译文并排除受保护文本", async () => {
         runtime.config.display = 1;
         document.body.innerHTML = `
             <p id="prose">
@@ -5999,7 +6006,7 @@ describe("全文翻译可见性锚点", () => {
         visibilityObserver.emit(paragraph, true);
         await finishScheduledWork();
 
-        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
         expect(firstWrapper.isConnected).toBe(false);
         const refreshedWrapper = paragraph.querySelector<HTMLElement>(".fluent-read-bilingual-content")!;
         expect(refreshedWrapper).toBeTruthy();
@@ -6488,8 +6495,7 @@ describe("悬停重挂请求与 synthetic 提交回归", () => {
         expect(state.controller.signal.aborted).toBe(false);
         expect(segment.querySelector(".fluent-read-bilingual-content")).toBe(wrapper);
         expect(wrapper.isConnected).toBe(true);
-        expect(wrapper.textContent).toContain(`译:${inlinePrefix.trim()}`);
-        expect(wrapper.textContent).toContain(`译:${emphasized}`);
+        expect(wrapper.textContent).toContain(`译:${inlinePrefix.trim()} ${emphasized}`);
         expect(runtime.requests).toHaveBeenCalledTimes(1);
 
         await vi.advanceTimersByTimeAsync(50);

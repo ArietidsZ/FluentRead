@@ -52,6 +52,7 @@ export {
 export type {TranslationTextProtectionCache} from './text';
 export {
     applyTranslationsToSnapshot,
+    buildWholeBlockTranslationSource,
     collectLiveTranslationTextSlots,
     createTranslationSourceSnapshot,
     hasActiveTranslationLineClamp,
@@ -65,6 +66,7 @@ export type {
     TranslationSourceSnapshot,
     TranslationStyleOverride,
     TranslationTextSlot,
+    WholeBlockTranslationSourceOptions,
 } from './serialization';
 export {createDeclarativeAdapter} from './adapters/declarative';
 export {
