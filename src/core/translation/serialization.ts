@@ -445,11 +445,14 @@ function isWholeBlockTranslation(snapshot: TranslationSourceSnapshot, translatio
         && buildWholeBlockTranslationSource(snapshot) !== null;
 }
 
-/** 按纯文本写入整块译文，译文中的换行还原为 <br>，其余内联骨架全部移除。 */
+/**
+ * 按纯文本写入整块译文，译文中的换行还原为 <br>，其余内联骨架全部移除。
+ * 服务返回的首尾换行不对应任何原文断行，先去掉，避免译文前后多出空行。
+ */
 function renderWholeBlockTranslation(clone: HTMLElement, translation: string): void {
     const document = clone.ownerDocument;
     const nodes: Node[] = [];
-    translation.split(/\r?\n/u).forEach((line, index) => {
+    translation.trim().split(/\r?\n/u).forEach((line, index) => {
         if (index > 0) nodes.push(document.createElement('br'));
         if (line) nodes.push(document.createTextNode(line));
     });

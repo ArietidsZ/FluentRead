@@ -3344,6 +3344,8 @@ describe('整块译文的纯文本渲染', () => {
     it('整块译文里的换行还原为 <br>', () => {
         expect(render('<p>one<br><b>two</b></p>', ['一\n二', ''])).toBe('一<br>二');
         expect(render('<p>one<br><br><b>two</b></p>', ['一\r\n\n二', ''])).toBe('一<br><br>二');
+        // 服务返回的首尾换行不对应原文断行，不能渲染成译文前后的空行。
+        expect(render('<p>one<br><b>two</b></p>', ['\n一\n二\n\n', ''])).toBe('一<br>二');
     });
 
     it('长度不符、首槽为空或后续槽仍有译文时不走整块降级', () => {
