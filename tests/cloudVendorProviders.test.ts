@@ -159,6 +159,10 @@ describe('Azure 翻译', () => {
         expect(url.searchParams.get('from')).toBe('en');
         expect(url.searchParams.get('to')).toBe('zh-Hant');
 
+        config.serviceRegion[services.azureTranslator] = 'japanwest';
+        await azureTranslator({origin: 'Hello'});
+        expect(lastCall().headers.get('Ocp-Apim-Subscription-Region')).toBe('japanwest');
+
         config.serviceRegion[services.azureTranslator] = 'not-a-region';
         await azureTranslator({origin: 'Hello'});
         expect(lastCall().headers.has('Ocp-Apim-Subscription-Region')).toBe(false);
