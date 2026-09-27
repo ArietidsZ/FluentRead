@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
     unmountSelectionTranslator: vi.fn(),
     unmountTranslationProgressPanel: vi.fn(),
     translateSelectionFromContextMenu: vi.fn(),
+    startAreaTranslationFromContextMenu: vi.fn(),
     startSectionTranslationPicker: vi.fn(),
     sendMessage: vi.fn(),
 }));
@@ -59,6 +60,7 @@ vi.mock('@/src/app/content/features', () => ({
     unmountSelectionTranslator: mocks.unmountSelectionTranslator,
     unmountTranslationProgressPanel: mocks.unmountTranslationProgressPanel,
     translateSelectionFromContextMenu: mocks.translateSelectionFromContextMenu,
+    startAreaTranslationFromContextMenu: mocks.startAreaTranslationFromContextMenu,
     startSectionTranslationPicker: mocks.startSectionTranslationPicker,
 }));
 
@@ -289,6 +291,35 @@ describe('内容脚本 runtime 消息协议', () => {
         handler({type: 'contextMenuTranslate', action: 'selection'}, {}, respond);
         expect(respond).toHaveBeenLastCalledWith({status: 'success'});
         expect(mocks.startSectionTranslationPicker).toHaveBeenCalledTimes(2);
+    });
+
+    it('圈选右键命令等待按需挂载结果后如实回复', async () => {
+        const {createContentRuntimeMessageHandler} = await import('@/src/app/content/messageRuntime');
+        const respond = vi.fn();
+        const handler = createContentRuntimeMessageHandler({} as never, {
+            isSiteDisabled: () => false,
+            updateSiteDisabled: vi.fn(async () => undefined),
+        }, {areaTranslation: true} as never);
+
+        mocks.startAreaTranslationFromContextMenu.mockResolvedValueOnce(true).mockResolvedValueOnce(false)
+            .mockRejectedValueOnce(new Error('mount failed')).mockImplementationOnce(() => { throw new Error('start failed'); });
+        expect(handler({type: 'contextMenuTranslate', action: 'area'}, {}, respond)).toBe(true);
+        await vi.waitFor(() => expect(respond).toHaveBeenLastCalledWith({status: 'success'}));
+        handler({type: 'contextMenuTranslate', action: 'area'}, {}, respond);
+        await vi.waitFor(() => expect(respond).toHaveBeenLastCalledWith({status: 'disabled'}));
+        handler({type: 'contextMenuTranslate', action: 'area'}, {}, respond);
+        await vi.waitFor(() => expect(respond).toHaveBeenLastCalledWith({status: 'failed'}));
+        handler({type: 'contextMenuTranslate', action: 'area'}, {}, respond);
+        await vi.waitFor(() => expect(respond).toHaveBeenCalledTimes(4));
+        expect(respond).toHaveBeenLastCalledWith({status: 'failed'});
+
+        const unsupported = createContentRuntimeMessageHandler({} as never, {
+            isSiteDisabled: () => false,
+            updateSiteDisabled: vi.fn(async () => undefined),
+        }, {areaTranslation: false} as never);
+        unsupported({type: 'contextMenuTranslate', action: 'area'}, {}, respond);
+        expect(respond).toHaveBeenLastCalledWith({status: 'disabled'});
+        expect(mocks.startAreaTranslationFromContextMenu).toHaveBeenCalledTimes(4);
     });
 
     it('站点停用或总开关关闭时局部翻译请求被拒绝，不进入选择模式', async () => {

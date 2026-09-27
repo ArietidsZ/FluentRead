@@ -1,7 +1,7 @@
 <!--
  * @file src/features/area-translation/ui/AreaTranslator.vue
  * 文件职责：提供独立圈选阅读工具，按配置的快捷键（默认 Shift+Z）进入选区模式，松开鼠标后展示可拖动、可核对、可复制的原文与译文卡片。
- * 主要内容：管理选择、截图、识别、翻译、结果和失败状态；缺少语言包时一键下载后续接原截图，重试复用同一截图，取消或新选区使旧请求失效，卡片显示本次真实识别方式、回退原因及服务模型，支持原图核对与 AI 校对文。
+ * 主要内容：由可信快捷键或右键命令按需挂载，管理选择、截图、识别、翻译、结果和失败状态；缺少语言包时一键下载后续接原截图，重试复用同一截图，取消或新选区使旧请求失效。
  * 模块边界：组件只调用圈选客户端，不执行 OCR 或网络请求；截图权限归后台，像素只在封闭 Shadow UI 展示，所有页面监听、异步状态与临时截图在关闭或卸载时清理。
  -->
 <template>
@@ -79,8 +79,6 @@ import { isCustomOpenAIProviderId } from '@/src/core/config/customOpenAI';
 import { useUiI18n } from '@/src/ui/i18n';
 import { captureVisibleAreaInExtension, translateCapturedAreaInExtension, type AreaTranslationResult } from '@/src/features/area-translation/services/client';
 import { isUsableAreaRect, normalizeAreaRect, type AreaPoint, type AreaRect, type AreaTranslationSelection } from '@/src/features/area-translation/core';
-import { matchesAreaTranslationHotkey } from '@/src/core/config/areaTranslation';
-import { setAreaContextMenuHandler } from '@/src/features/area-translation/content/contextMenuBridge';
 import {prepareImageOcrLanguages} from '@/src/features/image-translation/public';
 import type { ImageTranslationStage } from '@/src/features/image-translation/protocol';
 
@@ -147,39 +145,6 @@ function isInsideExtensionUi(target: EventTarget | null): boolean {
   const host = document.getElementById('fluent-read-area-translator-container');
   return Boolean(host && target instanceof Node && host.contains(target));
 }
-// 这些标签天生可聚焦；焦点停在它们上面（例如播放器、按钮、折叠块）不代表用户正在输入文字。
-const NATIVE_FOCUSABLE_TAGS = ['A', 'AREA', 'AUDIO', 'BUTTON', 'DETAILS', 'EMBED', 'IFRAME', 'LABEL', 'OBJECT', 'SUMMARY', 'VIDEO'];
-const TYPING_ROLES = ['textbox', 'searchbox', 'combobox', 'spinbutton'];
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (['INPUT', 'TEXTAREA', 'SELECT', 'OPTION'].includes(target.tagName)) return true;
-  if (target.isContentEditable) return true;
-  if (target.closest('[contenteditable="true"], [contenteditable="plaintext-only"], [contenteditable=""]')) return true;
-  const role = target.getAttribute('role');
-  return typeof role === 'string' && TYPING_ROLES.includes(role.toLowerCase());
-}
-/** 逐层穿过可读取的 ShadowRoot，找到真正持有焦点的元素。 */
-function deepActiveElement(): Element | null {
-  let focused = document.activeElement;
-  while (focused?.shadowRoot?.activeElement) focused = focused.shadowRoot.activeElement;
-  return focused;
-}
-/**
- * 焦点元素自身不可聚焦时，真实输入框只能在无法读取的封闭 ShadowRoot 内，按输入保守处理；
- * 自定义元素同样保守。带 tabindex 的容器和原生可聚焦元素只是普通焦点，不再吞掉快捷键。
- */
-function isOpaqueFocusHost(element: Element): boolean {
-  if (['BODY', 'HTML'].includes(element.tagName)) return false;
-  if (element.tagName.includes('-')) return true;
-  if (element.hasAttribute('tabindex')) return false;
-  return !NATIVE_FOCUSABLE_TAGS.includes(element.tagName);
-}
-function isEditingInPage(event: KeyboardEvent): boolean {
-  if (event.composedPath().some(isTypingTarget)) return true;
-  const focused = deepActiveElement();
-  return Boolean(focused) && (isTypingTarget(focused) || isOpaqueFocusHost(focused!));
-}
-let releaseContextMenuHandler: (() => void) | null = null;
 function isEnabled(): boolean { return config.on !== false && config.selectionAreaEnabled === true; }
 function clearResult(): void {
   stopPanelDrag();
@@ -213,14 +178,9 @@ function handleKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && phase.value !== 'idle') {
     event.preventDefault();
     clearResult();
-    return;
   }
-  if (!isEnabled() || event.repeat || event.isComposing
-    || !matchesAreaTranslationHotkey(event, config.selectionAreaHotkey, config.customSelectionAreaHotkey)
-    || isInsideExtensionUi(event.target) || isEditingInPage(event)) return;
-  event.preventDefault();
-  beginSelection();
 }
+defineExpose({beginSelection});
 function pointFromEvent(event: PointerEvent): AreaPoint {
   return {x: Math.min(window.innerWidth, Math.max(0, event.clientX)), y: Math.min(window.innerHeight, Math.max(0, event.clientY))};
 }
@@ -401,7 +361,6 @@ onMounted(() => {
   updateTheme();
   systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
   systemThemeMedia.addEventListener('change', updateTheme);
-  releaseContextMenuHandler = setAreaContextMenuHandler(beginSelection);
   document.addEventListener('keydown', handleKeydown, true);
   document.addEventListener('pointerdown', handlePointerdown, true);
   document.addEventListener('pointermove', handlePointermove, true);
@@ -413,8 +372,6 @@ onMounted(() => {
   window.addEventListener('blur', handleWindowBlur);
 });
 onBeforeUnmount(() => {
-  releaseContextMenuHandler?.();
-  releaseContextMenuHandler = null;
   systemThemeMedia?.removeEventListener('change', updateTheme);
   document.removeEventListener('keydown', handleKeydown, true);
   document.removeEventListener('pointerdown', handlePointerdown, true);

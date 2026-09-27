@@ -956,7 +956,14 @@ async function main() {
     await page.waitForSelector('#fluent-read-page-styles', { state: 'attached', timeout: args.timeout });
     await page.waitForSelector('#fluent-read-floating-ball-container', { state: 'attached', timeout: args.timeout });
     await page.waitForSelector('#fluent-read-selection-translator-container', { state: 'attached', timeout: args.timeout });
+    if (await page.locator('#fluent-read-area-translator-container').count()) {
+      throw new Error('未触发圈选翻译时已注入圈选宿主');
+    }
+    await activatePage(page);
+    await page.locator('h1').click();
+    await page.keyboard.press('Shift+Z');
     await page.waitForSelector('#fluent-read-area-translator-container', { state: 'attached', timeout: args.timeout });
+    await page.keyboard.press('Escape');
     await page.hover('#privacy-image');
     await page.waitForSelector('#fluent-read-image-translation-root', { state: 'attached', timeout: args.timeout });
     await page.screenshot({ path: path.join(artifactsDir, 'privacy-boundary-before-events.png'), fullPage: true });

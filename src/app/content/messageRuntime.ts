@@ -25,6 +25,7 @@ import {
     unmountTranslationProgressPanel,
 } from './features';
 import {forwardLegacyCacheClear} from './cacheMessage';
+import {respondToAreaContextMenu} from './areaContextMenuResponse';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {rejectUnsupportedContentFeature} from './featureRegistry';
 export interface ContentRuntimeMessageState {
@@ -32,10 +33,7 @@ export interface ContentRuntimeMessageState {
     isPageSuspended?(): boolean;
     updateSiteDisabled(disabled: boolean): Promise<void>;
 }
-export type ContentRuntimeMessageHandler = (
-    message: unknown, sender: unknown,
-    sendResponse: (response?: unknown) => void,
-) => boolean;
+export type ContentRuntimeMessageHandler = (message: unknown, sender: unknown, sendResponse: (response?: unknown) => void) => boolean;
 /** 创建当前 document 私有的 runtime message handler，避免跨生命周期共享可变状态。 */
 export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, state: ContentRuntimeMessageState,
     capabilities: BrowserCapabilities = browserCapabilities): ContentRuntimeMessageHandler {
@@ -156,7 +154,7 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
                 return true;
             }
             if (payload.action === 'area') {
-                sendResponse({status: capabilities.areaTranslation && startAreaTranslationFromContextMenu() ? 'success' : 'disabled'});
+                respondToAreaContextMenu(capabilities.areaTranslation, startAreaTranslationFromContextMenu, sendResponse);
                 return true;
             }
             if (payload.action === 'fullPage' || payload.action === 'restore') {
