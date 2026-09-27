@@ -87,7 +87,7 @@ export const frFRMessages = {
     "inputTranslation.profileScope": "S'applique uniquement aux champs de texte. La connexion utilise les paramètres du service sélectionné.",
     "inputTranslation.adjustTiming": "Vitesse de répétition",
     "inputTranslation.triggerGroup": "Déclenchement",
-    "inputTranslation.triggerDescription": "Les champs de mot de passe et les éditeurs de texte enrichi sont exclus.",
+    "inputTranslation.triggerDescription": "Fonctionne dans les champs de texte et les éditeurs de texte enrichi ; les champs de mot de passe et les éditeurs de code sont exclus.",
     "inputTranslation.trigger": "Déclencheur",
     "inputTranslation.triggerDescriptionShort": "Choisissez un raccourci ou désactivez la traduction des champs.",
     "inputTranslation.interval": "Intervalle maximal entre les touches",

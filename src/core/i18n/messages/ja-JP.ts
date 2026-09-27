@@ -87,7 +87,7 @@ export const jaJPMessages = {
     "inputTranslation.profileScope": "入力欄の翻訳にのみ適用されます。接続情報は選択したサービスの設定を使用します。",
     "inputTranslation.adjustTiming": "連打速度",
     "inputTranslation.triggerGroup": "起動方法",
-    "inputTranslation.triggerDescription": "通常のテキスト入力欄に対応します。パスワード欄とリッチテキストは対象外です。",
+    "inputTranslation.triggerDescription": "テキスト入力欄とリッチテキストエディターに対応します。パスワード欄とコードエディターは対象外です。",
     "inputTranslation.trigger": "起動操作",
     "inputTranslation.triggerDescriptionShort": "キー操作を選択するか、入力欄の翻訳を無効にします。",
     "inputTranslation.interval": "連続するキー入力の最大間隔",
