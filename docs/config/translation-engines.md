@@ -154,6 +154,18 @@ DeepSeek 的新编号见[官方更新记录](https://api-docs.deepseek.com/updat
 
 使用 [OpenCode Zen](https://opencode.ai/docs/zen/) 或 [OpenCode Go](https://opencode.ai/docs/go/) 时，需同时核对所选模型支持的协议和对应地址。Zen 与 Go 的 Base URL 分别为 `https://opencode.ai/zen/v1` 和 `https://opencode.ai/zen/go/v1`；请从官方模型表中选择支持 `/chat/completions` 的模型，并填写 API 的模型 ID，而非 OpenCode 配置中的 `opencode/` 或 `opencode-go/` 前缀。仅提供 `/responses`、`/messages` 或 Gemini 原生接口的模型不能直接用于此自定义服务。
 
+### 使用本机 Agent 的 ACP 桥接
+
+浏览器扩展不能直接启动本机 CLI，也不能连接 ACP 的标准输入输出。FluentRead 提供可选的[本机 ACP 桥接程序](https://github.com/FluentRead/FluentRead/blob/main/scripts/agent-bridge/bridge.mjs)：它只监听 `127.0.0.1`，将自定义服务的文本请求交给已登录的 [GitHub Copilot CLI](https://docs.github.com/en/copilot/reference/copilot-cli-reference/acp-server) 或 [OpenCode ACP Agent](https://opencode.ai/docs/acp/)。需要在自己的电脑上安装对应官方 CLI，并先按官方说明完成登录。桥接程序不接收登录凭据，也不替代服务商的额度与使用规则。
+
+1. 在 FluentRead 源码目录运行 `node scripts/agent-bridge/bridge.mjs --agent=copilot`。OpenCode 用户改用 `--agent=opencode`。保持这个终端运行。
+2. 终端会显示本机接口地址和本次启动生成的令牌。在 **自定义服务** 中新增服务，地址填 `http://127.0.0.1:47627/v1/chat/completions`，**API Key** 填终端显示的令牌，模型填 `default`，然后点击 **检查连接**。`default` 使用 CLI 已配置的默认模型；也可以填 Agent 通过 ACP 提供的模型 ID。重启桥接程序后若生成新令牌，需要更新此 API Key。
+3. 选择该自定义服务进行文本翻译。每次请求独立创建会话；桥接会禁用 Agent 工具，拒绝文件、终端和权限请求。仅支持文本和非流式 Chat Completions 请求，图片请求会被拒绝。要停止桥接，在终端按 Ctrl+C。
+
+桥接仅允许带令牌的浏览器扩展来源访问；不要把令牌写入公开配置、截图或 Issue。网页内容会作为翻译提示发送到所选 Agent 使用的模型服务，Agent 也可能保存本机会话记录。桥接会串行处理请求；全文翻译可能发起多次 Agent 提示，每次提示都可能消耗订阅额度。实际模型与额度以服务商账号为准。该功能目前经过本地模拟 ACP Agent 的协议测试，尚未用真实 Copilot/OpenCode 账号验证。
+
+若已有 OpenCode Zen API Key，只想使用其当前提供的免费模型 Big Pickle，可以直接按上文的 Zen API 地址配置自定义服务，模型 ID 填 `big-pickle`，**无需**启动 ACP 桥接；免费模型的期限、隐私条款与是否可用以[官方模型表](https://opencode.ai/docs/zen/)为准。
+
 如果检查连接提示 HTTP 404 并返回 HTML 网页，请核对接口地址和模型协议；这类返回不能证明 API Key 无效。JSON 格式的模型错误会继续显示服务商的具体说明。请勿在反馈中公开 API Key。
 
 ### 自定义请求头
