@@ -84,6 +84,13 @@ describe('云服务厂商目录', () => {
             expect(resolveCloudRegion(service, ' unknown-region ')).toBe(getDefaultCloudRegion(service));
         }
         expect(resolveCloudRegion(services.azureTranslator, 'westeurope')).toBe('westeurope');
+        // #653：日本西部等官方 Translator 区域不能在保存或请求时被静默回落到 global。
+        for (const region of ['japanwest', 'koreacentral', 'eastus2', 'northeurope', 'southafricanorth']) {
+            expect(resolveCloudRegion(services.azureTranslator, region)).toBe(region);
+        }
+        const azureRegions = cloudRegionOptions[services.azureTranslator]!.map(option => option.value);
+        expect(new Set(azureRegions).size).toBe(azureRegions.length);
+        for (const region of azureRegions) expect(region, region).toMatch(/^[a-z0-9]+$/u);
         expect(resolveCloudRegion(services.aliyunTranslation, ' ap-southeast-1 ')).toBe('ap-southeast-1');
         expect(getDefaultCloudRegion(services.openai)).toBe('');
         expect(resolveCloudRegion(services.openai, 'cn-north-1')).toBe('');
@@ -203,6 +210,12 @@ describe('云服务厂商凭据的配置领域规则', () => {
                 expect(localized, `${language}: ${message}`).not.toBe(message);
                 if (language !== 'ja-JP') expect(localized, `${language}: ${message}`).not.toMatch(/[㐀-鿿]/u);
             }
+            for (const {value, label} of Object.values(cloudRegionOptions).flat()) {
+                const localized = translateLegacyText(label, language);
+                expect(localized, `${language}: ${label}`).toContain(value);
+                // 日文的 Azure 官方地名可能与中文同形（如「英国南部」），其余语言不得残留中文。
+                if (language !== 'ja-JP') expect(localized, `${language}: ${label}`).not.toMatch(/[㐀-鿿]/u);
+            }
             expect(translateLegacyText('云服务厂商', language)).not.toBe('云服务厂商');
             expect(translateLegacyText('谷歌云翻译', language)).toBe('Google Cloud Translation');
             const guide = getServiceCredentialGuide(services.aliyunTranslation)!;
@@ -222,7 +235,7 @@ describe('云服务厂商凭据的配置领域规则', () => {
             ...new Config(),
             secret: {[services.aliyunTranslation]: 'sk', cozecom: 'stale', broken: 42},
             serviceRegion: {
-                [services.azureTranslator]: 'westeurope',
+                [services.azureTranslator]: 'japanwest',
                 [services.aliyunTranslation]: 'mars-1',
                 [services.openai]: 'us-east-1',
                 [services.volcTranslation]: 7,
@@ -230,7 +243,7 @@ describe('云服务厂商凭据的配置领域规则', () => {
         } as unknown as Partial<Config>);
         expect(normalized.secret).toEqual({[services.aliyunTranslation]: 'sk'});
         expect(normalized.serviceRegion).toEqual({
-            [services.azureTranslator]: 'westeurope',
+            [services.azureTranslator]: 'japanwest',
             [services.aliyunTranslation]: 'cn-hangzhou',
         });
         expect(normalizeConfig({...new Config(), secret: 'nope', serviceRegion: null} as unknown as Partial<Config>))

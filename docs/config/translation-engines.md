@@ -130,12 +130,13 @@ Azure、阿里云与火山引擎的区域会参与请求签名或决定请求域
 | Gemini | `gemini-3.5-flash-lite` |
 | 通义千问 | `qwen3.8-flash` |
 | Claude | `claude-haiku-4-5` |
+| 小米 MiMo | `mimo-v2.6-flash` |
 | 阶跃星辰 | `step-2-mini` |
 | OpenRouter | `google/gemini-3.5-flash-lite` |
 
 除上表外，**聚合平台与接口**分组还收录了 Mistral AI、Cohere、Cerebras、Together AI、Fireworks AI、DeepInfra 与 Perplexity 等 OpenAI 兼容平台，配置方式与其他 AI 服务相同：填写平台密钥并选择模型。
 
-更新模型列表不会覆盖你已保存的有效模型或自定义模型。DeepSeek 默认关闭思考；部分模型无法完全关闭思考时，使用其支持的最低档。更大的模型仍可手动选择，实际费用以服务商为准。
+更新模型列表不会覆盖你已保存的有效模型或自定义模型。MiMo 的 `mimo-v2.5` 和 `mimo-v2.5-pro` 将于北京时间 2026 年 10 月 21 日 10:00 下线；已保存的官方模型选择会分别更新为 `mimo-v2.6-flash` 和 `mimo-v2.6-pro`，自定义模型名称保持原样。见[小米下线公告](https://mimo.mi.com/docs/zh-CN/updates/deprecate)。DeepSeek 默认关闭思考；部分模型无法完全关闭思考时，使用其支持的最低档。更大的模型仍可手动选择，实际费用以服务商为准。
 
 DeepSeek 的新编号见[官方更新记录](https://api-docs.deepseek.com/updates/)；原来的 `deepseek-v4-flash` 仍可作为兼容别名使用。已下线的混元 `hy3-preview` 会更新为 `hy3`。
 

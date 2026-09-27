@@ -131,10 +131,11 @@ New configurations favor lightweight models for everyday translation:
 | Gemini | `gemini-3.5-flash-lite` |
 | Qwen | `qwen3.8-flash` |
 | Claude | `claude-haiku-4-5` |
+| Xiaomi MiMo | `mimo-v2.6-flash` |
 | StepFun | `step-2-mini` |
 | OpenRouter | `google/gemini-3.5-flash-lite` |
 
-Catalog updates preserve your saved supported and custom models. Thinking is off by default for DeepSeek; models that cannot disable it use their lowest supported level. Larger models remain available for manual selection. Charges depend on the provider.
+Catalog updates preserve your saved supported and custom models. MiMo will retire `mimo-v2.5` and `mimo-v2.5-pro` at 10:00 Beijing time on October 21, 2026. Saved official selections move to `mimo-v2.6-flash` and `mimo-v2.6-pro` respectively; custom model names stay unchanged. See the [Xiaomi retirement notice](https://mimo.mi.com/docs/zh-CN/updates/deprecate). Thinking is off by default for DeepSeek; models that cannot disable it use their lowest supported level. Larger models remain available for manual selection. Charges depend on the provider.
 
 See the [DeepSeek changelog](https://api-docs.deepseek.com/updates/) for the new ID. The previous `deepseek-v4-flash` ID remains available as a compatibility alias. The retired Hunyuan `hy3-preview` is migrated to `hy3`.
 
