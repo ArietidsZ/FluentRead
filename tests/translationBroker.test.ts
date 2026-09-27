@@ -592,6 +592,33 @@ describe('translation broker', () => {
         expect([...mocks.cacheStore.values()]).toEqual(['缓存修复后的译文']);
     });
 
+    it('重试误返日文的中文请求，且不复用旧日文缓存', async () => {
+        const origin = 'There are also restrictions on the first character of this file.';
+        const japanese = 'このファイルの最初の文字にも制限があります。簡単にするために、最初の文字として文字を使用できます。';
+        mocks.service.mockResolvedValueOnce(japanese).mockResolvedValueOnce('这个文件的首字母也有限制。');
+        await expect(translateWithCache({origin})).resolves.toBe('这个文件的首字母也有限制。');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect([...mocks.cacheStore.values()]).toEqual(['这个文件的首字母也有限制。']);
+
+        await clearTranslationCache();
+        mocks.cacheGet.mockResolvedValueOnce(japanese);
+        mocks.service.mockResolvedValueOnce('缓存修复后的中文译文');
+        await expect(translateWithCache({origin})).resolves.toBe('缓存修复后的中文译文');
+        expect(mocks.service).toHaveBeenCalledTimes(3);
+        expect([...mocks.cacheStore.values()]).toEqual(['缓存修复后的中文译文']);
+    });
+
+    it('服务连续误返整段日文时拒绝展示和缓存', async () => {
+        const origin = 'There are also restrictions on the first character of this file.';
+        const japanese = 'このファイルの最初の文字にも制限があります。簡単にするために、最初の文字として文字を使用できます。';
+        mocks.service.mockResolvedValue(japanese);
+        await expect(translateWithCache({origin})).rejects.toMatchObject({
+            kind: 'response', code: 'WRONG_LANGUAGE_RESPONSE', retryable: false,
+        });
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(mocks.cacheSet).not.toHaveBeenCalled();
+    });
+
     it('英文标签列表连续返回原文时报告失败，不把原文写进缓存', async () => {
         const origin = 'solo, blush, smile, bangs, looking_at_viewer, long_hair, blue_eyes';
         mocks.service.mockResolvedValue(origin);
@@ -611,6 +638,18 @@ describe('translation broker', () => {
         expect(mocks.service).toHaveBeenCalledTimes(2);
         expect(mocks.service.mock.calls[1][0]).toMatchObject({origin: foreign});
         expect([...mocks.cacheStore.values()]).toEqual(expect.arrayContaining(['英文句子的译文', '中文', '已翻译']));
+    });
+
+    it('普通批量请求只重试误返日文的槽位', async () => {
+        const origin = 'There are also restrictions on the first character of this file.';
+        const japanese = 'このファイルの最初の文字にも制限があります。簡単にするために、最初の文字として文字を使用できます。';
+        mocks.service.mockResolvedValueOnce([japanese, '第二段已译成中文。'])
+            .mockResolvedValueOnce('这个文件的首字母也有限制。');
+        await expect(translateWithCache({origin: [origin, 'The second paragraph is different.']}))
+            .resolves.toEqual(['这个文件的首字母也有限制。', '第二段已译成中文。']);
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(mocks.service.mock.calls[1][0]).toMatchObject({origin});
+        expect([...mocks.cacheStore.values()]).not.toContain(japanese);
     });
 
     it('bypasses cache when disabled globally or by request', async () => {
@@ -1703,6 +1742,24 @@ describe('translation broker', () => {
             aiMultiSegment: true,
         })).resolves.toEqual(['第一段', '第二段']);
         expect(mocks.service).not.toHaveBeenCalled();
+    });
+
+    it('AI 多段仅重试日文异常槽，保留其余正确译文', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = false;
+        const origin = 'There are also restrictions on the first character of this file.';
+        const other = 'The next paragraph explains another point.';
+        const japanese = 'このファイルの最初の文字にも制限があります。簡単にするために、最初の文字として文字を使用できます。';
+        mocks.service.mockImplementation((message: {origin: string}) => Promise.resolve(
+            message.origin === origin ? '这个文件的首字母也有限制。'
+                : message.origin.replace(origin, japanese).replace(other, '下一段说明另一点。'),
+        ));
+
+        await expect(translateWithCache({origin: [origin, other], aiMultiSegment: true}))
+            .resolves.toEqual(['这个文件的首字母也有限制。', '下一段说明另一点。']);
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(mocks.service.mock.calls[1][0]).toMatchObject({origin, context: '', pageContext: ''});
+        expect([...mocks.cacheStore.values()]).not.toContain(japanese);
     });
 
     it('AI 多段缓存包含完整批次与槽位指纹，不跨邻段组合或重复槽位误用', async () => {

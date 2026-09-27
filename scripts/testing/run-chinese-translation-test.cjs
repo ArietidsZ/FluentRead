@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// 中文简繁、--spanish 西班牙语及 --multilingual-same-target 多语言同目标生产浏览器回归：临时 Edge、无前台焦点启动、真实配置选择和真实快捷键。
+// 中文简繁、--spanish 西班牙语、--wrong-language 错语种恢复及 --multilingual-same-target 多语言同目标生产浏览器回归：临时 Edge、无前台焦点启动、真实配置选择和真实快捷键。
 // 默认同时验证截图中文零请求、相邻外语正常翻译和动态评论换语言后的重新识别。
 // loopback AI fixture 只验证请求与 UI 链路；--live-google 独立报告无需凭据的外部服务实译。
 const assert = require('node:assert/strict');
@@ -13,6 +13,8 @@ const chinesePosts = require('../../tests/fixtures/chinese-language-posts.json')
 const modelPost = require('../../tests/fixtures/chinese-language-model-post.json');
 const {multilingualFixtureTranslation, renderMultilingualPage, runMultilingualSameTargetCases} = require('./multilingual-same-target-browser.cjs');
 const multilingualMode = process.argv.includes('--multilingual-same-target');
+const wrongLanguageMode = process.argv.includes('--wrong-language');
+const wrongLanguageResult = 'このファイルの最初の文字にも制限があります。簡単にするために、最初の文字として文字を使用できます。';
 const releaseNote = '云端模型清单允许清空，且不再连带拒掉无关偏好的保存';
 const sameLanguageTexts = [
   ...chinesePosts,
@@ -103,6 +105,7 @@ function assertScript(text, target) {
 }
 async function startFixture() {
   const requests = [];
+  let sentWrongLanguage = false;
   const server = http.createServer(async (request, response) => {
     response.setHeader('Access-Control-Allow-Origin', '*');
     response.setHeader('Access-Control-Allow-Headers', '*');
@@ -134,7 +137,11 @@ async function startFixture() {
         // 先记录到达端点的请求，未知原文被夹具拒绝也必须计数，避免漏检无效请求。
         const entry = {source, target, targetName, prompt};
         requests.push(entry);
-        const translated = fixtureTranslation(source, target);
+        let translated = fixtureTranslation(source, target);
+        if (wrongLanguageMode && !sentWrongLanguage && target === 'zh-Hans' && source.includes(paragraphs.en[0])) {
+          sentWrongLanguage = true;
+          translated = wrongLanguageResult;
+        }
         entry.translated = translated;
         response.setHeader('Content-Type', 'application/json');
         response.end(JSON.stringify({id: 'chinese-script-fixture', object: 'chat.completion', created: 1,
@@ -397,6 +404,23 @@ async function main() {
         await article.close(); currentPage = popup;
       }
     };
+    if (wrongLanguageMode) {
+      report.scope = 'Issue #185: production full-page translation retries a clearly Japanese response for a Chinese target, restores, and translates again from cache';
+      const result = await runCase({from: 'en', to: 'zh-Hans'}, 'full');
+      report.fixture.cases.push(result);
+      const attempts = fixture.requests.filter(request => request.source.includes(paragraphs.en[0]));
+      assert.equal(attempts.length, 2, '异常段落只应进行一次纠错重试');
+      assert.equal(attempts[0].translated, wrongLanguageResult);
+      assert.equal(attempts[1].translated, paragraphs['zh-Hans'][0]);
+      assert.equal(report.consoleErrors.length, 0, JSON.stringify(report.consoleErrors));
+      assert.equal(report.windowPlacement.mode, 'background-visible-no-focus');
+      assert.equal(report.windowPlacement.browserFrontmost, false);
+      report.wrongLanguage = {attempts: attempts.length, rejectedJapanese: true,
+        restored: result.sourceRestored, counts: result.counts, translated: result.translated};
+      report.fixture.ok = true;
+      report.ok = true;
+      return;
+    }
     for (const mode of ['hover', 'full']) {
       for (const pair of pairs) report.fixture.cases.push(await runCase(pair, mode));
     }

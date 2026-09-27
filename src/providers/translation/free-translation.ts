@@ -25,8 +25,8 @@ import {
 import {config} from '@/src/services/config/store';
 import {abortErrorFromSignal} from '@/src/platform/http/runtime';
 import {freeTranslationHealthStorage} from '@/src/platform/storage/freeTranslationHealthStorage';
-import {createFreeFallbackRunner, UntranslatedFreeResultError, type FreeFallbackCandidate} from '@/src/services/translation/freeFallback';
-import {isLikelyUntranslatedResponse} from '@/src/core/translation/resultValidation';
+import {createFreeFallbackRunner, UntranslatedFreeResultError, WrongLanguageFreeResultError, type FreeFallbackCandidate} from '@/src/services/translation/freeFallback';
+import {isClearlyWrongLanguageResponse, isLikelyUntranslatedResponse} from '@/src/core/translation/resultValidation';
 import {calculateFreeTranslationWeightSnapshot, type FreeTranslationWeightSnapshot} from '@/src/services/translation/freeWeights';
 import {
     attachTranslationProviderConfig,
@@ -139,6 +139,9 @@ function candidatesFor(text: string, message: PreparedRequest): {
                 });
                 if (typeof result === 'string' && isLikelyUntranslatedResponse(text, result, message.targetLanguage!)) {
                     throw new UntranslatedFreeResultError();
+                }
+                if (typeof result === 'string' && isClearlyWrongLanguageResponse(text, result, message.targetLanguage!)) {
+                    throw new WrongLanguageFreeResultError();
                 }
                 return result;
             },
