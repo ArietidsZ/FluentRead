@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getOcrLanguages, normalizeOcrLines, selectChangedTranslations } from '@/src/features/image-translation/core';
 import { inpaintTextRegions } from '@/src/features/image-translation/services/inpainting';
-import { IMAGE_OCR_LANGUAGE_PACKS, IMAGE_OCR_RECOMMENDED_LANGUAGES, normalizeImageOcrLanguageCodes } from '@/src/features/image-translation/ocrLanguages';
+import { getImageOcrModelLanguages, IMAGE_OCR_LANGUAGE_PACKS, IMAGE_OCR_RECOMMENDED_LANGUAGES, normalizeImageOcrLanguageCodes } from '@/src/features/image-translation/ocrLanguages';
 import { getImageTextBackgroundColor, getImageTextColor } from '@/src/features/image-translation/services/rendering';
 
 describe('图片翻译 OCR 工具', () => {
@@ -22,6 +22,52 @@ describe('图片翻译 OCR 工具', () => {
         expect(IMAGE_OCR_RECOMMENDED_LANGUAGES).toEqual(['chi_sim', 'chi_tra', 'eng', 'jpn']);
         expect(IMAGE_OCR_LANGUAGE_PACKS.filter(pack => pack.recommended).map(pack => pack.code)).toEqual(IMAGE_OCR_RECOMMENDED_LANGUAGES);
         expect(getOcrLanguages('auto')).toEqual(['chi_sim', 'chi_tra', 'eng', 'jpn']);
+    });
+
+    it('日文语言包附带竖排模型，竖排模型紧跟横排模型且不改变主语言 (#654)', () => {
+        expect(getImageOcrModelLanguages(['jpn', 'eng'])).toEqual(['jpn', 'jpn_vert', 'eng']);
+        expect(getImageOcrModelLanguages(IMAGE_OCR_RECOMMENDED_LANGUAGES)).toEqual(['chi_sim', 'chi_tra', 'eng', 'jpn', 'jpn_vert']);
+        expect(getImageOcrModelLanguages(['chi_sim', 'eng'])).toEqual(['chi_sim', 'eng']);
+        expect(getImageOcrModelLanguages(['jpn', 'jpn'])).toEqual(['jpn', 'jpn_vert']);
+        expect(getImageOcrModelLanguages([])).toEqual([]);
+    });
+
+    it('按竖直基线识别竖排列：列内按 y 排序，同一气泡的列从右到左合并，不跨气泡或改动横排行 (#654)', () => {
+        const box = (x0: number, y0: number, x1: number, y1: number) => ({x0, y0, x1, y1});
+        const column = (text: string, bbox: ReturnType<typeof box>, words: Array<[string, number, ReturnType<typeof box>]>) => ({
+            text, bbox, baseline: box(bbox.x0 + 2, bbox.y0, bbox.x0 + 3, bbox.y1),
+            words: words.map(([wordText, confidence, wordBox]) => ({text: wordText, confidence, bbox: wordBox})),
+        });
+        // 精简自 jpn+jpn_vert、PSM 12 对竖排气泡的真实输出：首个 word 框常覆盖整列，后续 word 横向更宽。
+        const blocks = [{paragraphs: [
+            {lines: [column('お前はもう', box(222, 113, 254, 279), [
+                ['お', 96, box(222, 113, 254, 152)], ['前', 96, box(225, 160, 251, 204)], ['は', 96, box(215, 203, 258, 228)],
+                ['も', 86, box(227, 227, 248, 252)], ['う', 92, box(228, 256, 245, 279)],
+            ])]},
+            {lines: [column('死んでいる。', box(171, 111, 203, 291), [
+                ['死ん', 95, box(171, 111, 203, 291)], ['で', 96, box(162, 208, 207, 228)],
+                ['いる', 93, box(162, 227, 207, 271)], ['。', 90, box(162, 270, 207, 296)],
+            ])]},
+            {lines: [column("覚悟しろ'", box(119, 111, 151, 268), [
+                ['覚悟', 93, box(119, 111, 151, 268)], ['し', 92, box(104, 221, 155, 235)],
+                ['ろ', 93, box(104, 234, 155, 251)], ["'", 8, box(104, 250, 155, 270)],
+            ])]},
+            // 同一列被切成两段，仍按上下顺序并入同一气泡。
+            {lines: [column('今', box(733, 401, 762, 435), [['今', 92, box(733, 401, 762, 435)]])]},
+            {lines: [column('日は', box(734, 462, 761, 520), [['日', 96, box(736, 462, 760, 487)], ['は', 93, box(734, 491, 761, 520)]])]},
+            {lines: [column('楽しい', box(689, 401, 716, 500), [['楽しい', 95, box(689, 401, 716, 500)]])]},
+            {lines: [{text: '第三話', bbox: box(61, 58, 137, 82), baseline: box(61, 82, 137, 82), words: [
+                {text: '第', confidence: 92, bbox: box(61, 58, 85, 82)}, {text: '三話', confidence: 93, bbox: box(96, 58, 137, 82)},
+            ]}]},
+        ]}];
+        expect(normalizeOcrLines(blocks)).toEqual([
+            {text: 'お前はもう死んでいる。覚悟しろ', bbox: box(104, 111, 258, 296), vertical: true},
+            {text: '今日は楽しい', bbox: box(689, 401, 762, 520), vertical: true},
+            {text: '第三話', bbox: box(61, 58, 137, 82)},
+        ]);
+        // 单独一列同样标记为竖排，只有 word 数据缺失时回退整行文本。
+        expect(normalizeOcrLines([{paragraphs: [{lines: [{text: 'ドキドキ', bbox: box(27, 14, 74, 245), baseline: box(30, 14, 31, 245)}]}]}]))
+            .toEqual([{text: 'ドキドキ', bbox: box(27, 14, 74, 245), vertical: true}]);
     });
 
     it('只接受支持的语言包并去重，保证下载状态可持久化', () => {

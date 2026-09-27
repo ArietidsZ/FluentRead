@@ -473,7 +473,7 @@
         </el-row>
 
         <!-- 悬浮球开关 -->
-      <el-row class="settings-control-row">
+      <el-row id="floating-ball-toggle" class="settings-control-row">
         <el-col :span="20" class="settings-control-label floating-ball-control-label lightblue rounded-corner">
           <el-tooltip class="box-item" effect="dark" content="控制是否显示屏幕边缘的即时翻译悬浮球，用于对整个网页进行翻译" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">

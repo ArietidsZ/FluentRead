@@ -70,7 +70,9 @@
 
 `node scripts/run-input-translation-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-input-translation` 使用生产扩展和临时 Edge profile，在第二屏后台验证输入框配置保存、三击间隔与恢复默认、独立模型和提示词、窄屏与深色布局，以及真实按键的翻译、取消、恢复和失败重试。
 
-供应商响应与网页均为本地夹具，报告中的请求记录用于核对模型、提示词和原文；不代表外部服务连通性或模型翻译质量。`tests/inputTranslationConfig.test.ts`、`tests/inputTranslationBackground.test.ts` 和输入框内容脚本测试覆盖配置迁移、缓存隔离、输入快照、选区、输入法和迟到结果保护。Firefox 与用户脚本构建需另外执行，Edge 结果不能替代其运行时验证。
+供应商响应与网页均为本地夹具，报告中的请求记录用于核对模型、提示词和原文；不代表外部服务连通性或模型翻译质量。`tests/inputTranslationConfig.test.ts`、`tests/inputTranslationBackground.test.ts` 和输入框内容脚本测试覆盖配置迁移、缓存隔离、输入快照、选区、输入法和迟到结果保护；`tests/inputEditableHost.test.ts` 覆盖编辑宿主的光标度量、选区同步等待、合成粘贴与原生插入回退。
+
+同一专项还验证富文本编辑区：原生 contenteditable 通过可撤销的原生插入写回，撤销后恢复粗体结构；模拟 Lexical/Draft.js 的模型驱动编辑器只在 selectionchange 后同步选区，报告中的 `modelEditorLog` 用于确认整段粘贴发生在选区同步之后、没有重复插入；plaintext-only 支持三连触发，密码框和代码编辑器保持不参与。`node scripts/run-rich-text-input-editors-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-rich-text-editors` 从 esm.sh 与 jsDelivr 加载真实的 Quill、ProseMirror、Lexical、Slate 和 Draft.js，逐个验证三连触发后编辑器自身模型只含译文、原文不含触发符，以及恢复原文；该脚本需要联网获取编辑器，结果不代表具体网站的定制编辑器。Firefox 与用户脚本构建需另外执行，Edge 结果不能替代其运行时验证。
 
 ## 设置页视口与滚动
 
@@ -123,22 +125,25 @@ FluentRead 把测试按意图分组，而不是把所有文件塞进一个难以
 ## 按需运行
 
 测试、类型检查和生产构建的 package scripts 统一经过
-`scripts/testing/run-resource-safe.mjs`。默认同一台机器上的 FluentRead worktree
-共用一把锁，Vitest 最多使用 2 个 worker，并关闭测试文件并行；直接运行
-`pnpm exec vitest` 也通过 globalSetup 等待同一把锁。嵌套的 package 命令复用父锁，
-子进程结束或收到终止信号后才释放；已退出进程遗留的锁可自动回收。
+`scripts/testing/run-resource-safe.mjs`。同一台机器上的 FluentRead worktree
+共用一组全局锁槽位，默认最多 5 个任务同时运行，第 6 个起排队等待空槽；每个任务中
+Vitest 最多使用 2 个 worker，并关闭测试文件并行。直接运行 `pnpm exec vitest` 也通过
+globalSetup 占用同一组槽位。嵌套的 package 命令复用父进程所持槽位，子进程结束或收到
+终止信号后才释放；已退出进程遗留的槽位可自动回收。槽 0 沿用旧版唯一的 `lock` 目录，
+尚未更新的 worktree 仍会在这个槽位上与新版本互相协调。
 
 默认显示的 60% 是协作式资源预算标记，不是 CPU 使用率硬上限，也不会根据
 这个百分比自动计算 worker 数量。需要进一步减少占用时使用
 `FLUENTREAD_TEST_MAX_WORKERS=1 pnpm test`。直接调用浏览器脚本或其他高负载命令时，
 可使用 `node scripts/testing/run-resource-safe.mjs -- <命令及参数>`。
-默认最多等待锁 30 分钟，可用 `FLUENTREAD_TEST_LOCK_WAIT_MS` 调整。
+默认最多等待锁 30 分钟，可用 `FLUENTREAD_TEST_LOCK_WAIT_MS` 调整；并发槽位数可用
+`FLUENTREAD_TEST_CONCURRENCY` 或 `--concurrency <n>` 调整，设为 1 时恢复完全串行。
 `FLUENTREAD_RESOURCE_LOCK_DIR` 仅用于专项锁隔离验证；日常任务不要改写它，否则
 不同目录的任务无法互相协调。
 
-`tests/resourceSafeRunner.test.ts` 使用真实 Node 子进程验证并发互斥、死进程锁竞争回收
+`tests/resourceSafeRunner.test.ts` 使用真实 Node 子进程验证并发槽位上限与排队、串行模式下的互斥、死进程锁竞争回收
 （取得清理权后整代锁目录原子改名再删除，避免递归删除中途被其他等待者重建清理标记而崩溃）、
-父子锁复用、worker 参数、Vitest setup、等待超时、退出码和 SIGTERM 释放。
+非首个槽位的回收与父子锁复用、worker 参数、Vitest setup、等待超时、退出码和 SIGTERM 释放。
 `pnpm test -- <文件>` 和 coverage 命令的首个 Vitest 转发分隔符会被兼容处理；
 其他命令中的 `--` 原样保留。
 
@@ -534,7 +539,7 @@ Ko-fi 的 Monthly 按钮把 tooltip 插在按钮内部。回归同时覆盖提�
 
 ## 写作助手回复场景
 
-`tests/writingCore`、`writingEditors`、`writingBackground`、`writingRuntime`、`writingIntegration` 覆盖默认开启及旧配置迁移、目标语言解析、长度/风格/语气/角色边界、网页范围、有界请求、来源校验、取消与超时、冻结模型、用量、当前编辑器的会话范围、编辑器快照和原生输入事件。上下文检查包含项目身份、Issue/PR 标题、原帖与最近回复预算，以及 PR 行内线程和 Gmail 会话隔离。`tests/writingMarkdown.test.ts` 检查纯文本投影中的段落、列表、代码缩进、表格、链接地址、转义与不执行 HTML 的边界。对应可执行模块按四维 100% 覆盖率要求验收；`tests/i18n.test.ts` 的全量界面扫描检查写作卡片与设置中的静态文案，配置选项标签另核对六种外语译文。
+`tests/writingCore`、`writingEditors`、`writingBackground`、`writingRuntime`、`writingIntegration` 覆盖默认开启及旧配置迁移、目标语言解析、长度/风格/语气/角色边界、网页范围（包括 GitHub 新建 Issue）、有界请求、来源校验、取消与超时、冻结模型、用量、当前编辑器的会话范围、编辑器快照和原生输入事件。编辑器检查包含只有原帖时的首条回复与新建 Issue 表单；上下文检查包含项目身份、Issue/PR 标题、原帖与最近回复预算，以及 PR 行内线程和 Gmail 会话隔离。`tests/writingMarkdown.test.ts` 检查纯文本投影中的段落、列表、代码缩进、表格、链接地址、转义与不执行 HTML 的边界。对应可执行模块按四维 100% 覆盖率要求验收；`tests/i18n.test.ts` 的全量界面扫描检查写作卡片与设置中的静态文案，配置选项标签另核对六种外语译文。
 
 写作卡片顶部独立设置「回复语言」与「对照语言」。对照默认跟随界面语言，可选择具体语言或关闭；回复与对照相同时切换为单语展示：隐藏对照标题及区域，恢复普通写作说明，保留语言入口且不重复请求。对照显示在正文下方，仅供阅读，复制和插入仍只使用回复正文。`tests/writingReference.test.ts` 检查独立流的取消、迟到结果隔离、编辑与版本快照、会话及服务失效、五份完整结果缓存、失败重试和超长正文不截断。对照使用忠实翻译指令，不受写作篇幅、风格和角色要求影响。
 

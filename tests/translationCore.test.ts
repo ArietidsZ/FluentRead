@@ -3,6 +3,7 @@ import {describe, expect, it, vi} from 'vitest';
 
 import {
     applyTranslationsToSnapshot,
+    buildWholeBlockTranslationSource,
     collectLiveTranslationTextSlots,
     createDeclarativeAdapter,
     createTranslationCore,
@@ -3320,5 +3321,98 @@ describe('悬浮视觉文本块的边界条件', () => {
         } finally {
             restore();
         }
+    });
+});
+
+describe('整块译文的纯文本渲染', () => {
+    const snapshotOf = (html: string) => {
+        const {document} = parseHTML(`<html><body>${html}</body></html>`);
+        return createTranslationSourceSnapshot(document.body.firstElementChild as HTMLElement);
+    };
+    const render = (html: string, translations: readonly string[]) =>
+        applyTranslationsToSnapshot(snapshotOf(html), translations);
+
+    it('多槽候选的整块译文输出纯文本，不把整段译文塞进首个链接', () => {
+        const html = '<p>Read <a href="/g">the guide</a>.</p>';
+        expect(render(html, ['读完这份指南。', '', ''])).toBe('读完这份指南。');
+        // 其余槽位只是空白同样按整块处理，覆盖模型返回空格与 &nbsp; 的情形。
+        expect(render(html, ['读完这份指南。', ' ', '\u00a0'])).toBe('读完这份指南。');
+        // 逐槽译文仍按内联骨架回填，链接与加粗保留。
+        expect(render(html, ['读', '指南', '。'])).toContain('<a href="/g">指南</a>');
+    });
+
+    it('整块译文里的换行还原为 <br>', () => {
+        expect(render('<p>one<br><b>two</b></p>', ['一\n二', ''])).toBe('一<br>二');
+        expect(render('<p>one<br><br><b>two</b></p>', ['一\r\n\n二', ''])).toBe('一<br><br>二');
+        // 服务返回的首尾换行不对应原文断行，不能渲染成译文前后的空行。
+        expect(render('<p>one<br><b>two</b></p>', ['\n一\n二\n\n', ''])).toBe('一<br>二');
+    });
+
+    it('长度不符、首槽为空或后续槽仍有译文时不走整块降级', () => {
+        const html = '<p>Read <a href="/g">the guide</a>.</p>';
+        expect(render(html, ['读'])).toContain('the guide');
+        expect(render(html, ['', '', ''])).toBe(' <a href="/g"></a>');
+        expect(render(html, ['整段。', '次槽', ''])).toContain('次槽');
+    });
+
+    it('单槽候选不触发整块降级', () => {
+        expect(render('<p>Single.</p>', ['单个。'])).toBe('单个。');
+    });
+
+    it('含行内代码、受保护术语、公式或图片的骨架即使后续槽为空也保留原内容', () => {
+        expect(render('<p>Use <code>fetch</code> here</p>', ['使用 fetch', ''])).toContain('<code>fetch</code>');
+        expect(render('<p>Call <span translate="no">Acme</span> now</p>', ['呼叫', '']))
+            .toContain('<span translate="no">Acme</span>');
+        expect(render('<p>Let <span class="katex">x</span> be <b>big</b></p>', ['设 x 很大', '', '']))
+            .toContain('class="katex"');
+        expect(render('<p>See <img src="a.png"> <b>here</b></p>', ['看这里', ''])).toContain('<img src="a.png">');
+    });
+});
+
+describe('整块请求的整段原文重建', () => {
+    const source = (html: string, preserveNewlines?: boolean) => {
+        const {document} = parseHTML(`<html><body>${html}</body></html>`);
+        const snapshot = createTranslationSourceSnapshot(document.body.firstElementChild as HTMLElement);
+        return buildWholeBlockTranslationSource(snapshot, preserveNewlines === undefined ? undefined : {preserveNewlines});
+    };
+
+    it('内联格式无缝拼接，源码空白折叠为单个空格', () => {
+        expect(source('<p><b>one</b><i>two</i></p>')).toBe('onetwo');
+        expect(source('<p>Hello <b>world</b>!</p>')).toBe('Hello world!');
+        expect(source('<p>\n  Read <a href="/g">the\n guide</a> <em>now</em>\n</p>')).toBe('Read the guide now');
+        expect(source('<p>Hello\n<b>world</b></p>')).toBe('Hello world');
+    });
+
+    it('<br> 转为换行，首尾的换行与分隔不产生多余空白', () => {
+        expect(source('<p>one<br><b>two</b></p>')).toBe('one\ntwo');
+        expect(source('<p>one\n<br> <b>two</b></p>')).toBe('one\ntwo');
+        expect(source('<p>one<br><br><b>two</b></p>')).toBe('one\n\ntwo');
+        expect(source('<p><br>one <b>two</b><br></p>')).toBe('one two');
+    });
+
+    it('宿主保留换行时文本内的换行也作为断行保留', () => {
+        expect(source('<p>one\n<a href="/x">two</a> three\nfour</p>', true)).toBe('one\ntwo three\nfour');
+        expect(source('<p>one\n<a href="/x">two</a> three\nfour</p>', false)).toBe('one two three four');
+    });
+
+    it('只有 [1] 这类脚注标记的上下标可以并入整段', () => {
+        expect(source('<p>Cats<sup class="reference"><a href="#n1">[1]</a></sup> purr <b>loudly</b>.</p>'))
+            .toBe('Cats[1] purr loudly.');
+        expect(source('<p>Area is <b>x</b><sup>2</sup></p>')).toBeNull();
+        expect(source('<p>Water is H<sub>2</sub><i>O</i></p>')).toBeNull();
+    });
+
+    it('无法无损拍平的骨架返回 null，由调用方逐槽请求', () => {
+        expect(source('<p>Use <code>fetch</code> here</p>')).toBeNull();
+        expect(source('<p>one<span translate="no">X</span>s</p>')).toBeNull();
+        expect(source('<p>See <img src="a.png"> <b>here</b></p>')).toBeNull();
+        expect(source('<p>Let <span class="katex">x</span> be <b>big</b></p>')).toBeNull();
+        expect(source('<p>Was <del>ten</del> <b>eight</b></p>')).toBeNull();
+        expect(source('<div>Intro <p>Nested <b>block</b></p></div>')).toBeNull();
+        expect(source('<p>Only one slot</p>')).toBeNull();
+    });
+
+    it('被快照省略的隐藏文字与图标不阻止整块请求', () => {
+        expect(source('<p>Open <span hidden>secret</span> the <b>door</b></p>')).toBe('Open the door');
     });
 });

@@ -63,6 +63,8 @@ describe('低干扰悬浮 UI', () => {
     expect(rightFallback).toBeGreaterThanOrEqual(0.4);
     expect(rightFallback).toBeLessThanOrEqual(0.6);
     expect(variableFallback(leftCollapsed, 'opacity', '--fr-ball-collapsed-opacity')).toBe(rightFallback);
+    expect(rightCollapsed).toContain('transform: translateX(0)');
+    expect(leftCollapsed).toContain('transform: translateX(0)');
     expect(numericDeclaration(expanded, 'opacity')).toBe(1);
     expect(numericDeclaration(cssRule(floatingBall, '.dragging .floating-ball-main'), 'opacity')).toBe(1);
     expect(cssRule(
@@ -122,6 +124,7 @@ describe('低干扰悬浮 UI', () => {
     const tool = cssRule(floatingBall, '.floating-ball-tool');
 
     expect(numericDeclaration(root, '--fr-ball-size')).toBe(48);
+    expect(numericDeclaration(root, '--fr-ball-tool-size')).toBeGreaterThanOrEqual(40);
     expect(numericDeclaration(compact, '--fr-ball-size')).toBeLessThan(48);
     expect(numericDeclaration(compact, '--fr-ball-tool-size'))
       .toBeLessThan(numericDeclaration(root, '--fr-ball-tool-size'));
@@ -129,7 +132,20 @@ describe('低干扰悬浮 UI', () => {
     expect(main).toContain('height: var(--fr-ball-size)');
     expect(tool).toContain('width: var(--fr-ball-tool-size)');
     expect(floatingBall).toContain("'--fr-ball-collapsed-opacity': String(presentation.value.collapsedOpacity / 100)");
-    expect(cssRule(floatingBall, '.floating-ball-item')).toContain('translateX(var(--fr-ball-size))');
+    const gap = numericDeclaration(root, '--fr-ball-edge-gap');
+    const rightDock = cssRule(floatingBall, '.fr-floating-ball[data-position="right"]');
+    const leftDock = cssRule(floatingBall, '.fr-floating-ball[data-position="left"]');
+    const hiddenRight = cssRule(floatingBall, '.floating-ball-item');
+    const hiddenLeft = cssRule(floatingBall, '.fr-floating-ball[data-position="left"] .floating-ball-item');
+    const rightShift = Number(hiddenRight.match(/translateX\(([0-9]+)px\)/u)?.[1]);
+    const leftShift = Number(hiddenLeft.match(/translateX\(-([0-9]+)px\)/u)?.[1]);
+    expect(rightDock).toContain('right: var(--fr-ball-edge-gap)');
+    expect(leftDock).toContain('left: var(--fr-ball-edge-gap)');
+    expect(gap - rightShift).toBeGreaterThanOrEqual(16);
+    expect(gap - leftShift).toBeGreaterThanOrEqual(16);
+    expect(cssRule(floatingBall, '.floating-ball-tool')).toContain('pointer-events: none');
+    expect(cssRule(floatingBall, '.fr-floating-ball.floating-ball-expanded .floating-ball-tool'))
+      .toContain('pointer-events: auto');
   });
 
   it('进度面板使用半透明背景，并由活动请求而非离屏候选决定显隐', () => {

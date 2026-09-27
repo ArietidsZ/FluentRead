@@ -23,6 +23,27 @@ export type NavigationGroup = {
   items: readonly NavigationItem[]
 }
 
+export type SettingsSearchTarget = {
+  id: string
+  sectionId: string
+  targetId: string
+  label: string
+  description: string
+  searchTerms: string
+}
+
+/** 表单内的直达入口与真实控件共用 targetId，避免搜索只停在长分区顶部。 */
+export const settingsSearchTargets: readonly SettingsSearchTarget[] = [
+  {
+    id: 'floating-ball-toggle', sectionId: 'settings-general', targetId: 'floating-ball-toggle',
+    label: '全文翻译悬浮球', description: '通用设置', searchTerms: '悬浮球、显示悬浮球、开启悬浮球',
+  },
+  {
+    id: 'floating-ball-settings', sectionId: 'settings-translation', targetId: 'floating-ball-settings',
+    label: '悬浮球进阶设置', description: '翻译设置', searchTerms: '悬浮球配置、悬浮球设置、悬浮球位置',
+  },
+]
+
 export const navigationGroups = [
   {
     label: '基础配置',
@@ -197,4 +218,11 @@ export function filterNavigationItems(query: string, items: readonly NavigationI
   return items.filter(item => (languageSearch && item.id === 'settings-general') ||
     `${item.label}${item.description}${item.heading}${item.summary}${item.searchDescription}`.toLocaleLowerCase().includes(keyword))
     .sort((left, right) => languageSearch ? Number(right.id === 'settings-general') - Number(left.id === 'settings-general') : 0)
+}
+
+/** 控件搜索保留完整标签匹配，支持从搜索结果直达表单中的具体位置。 */
+export function filterSettingsSearchTargets(query: string, items: readonly SettingsSearchTarget[] = settingsSearchTargets): SettingsSearchTarget[] {
+  const keyword = query.trim().toLocaleLowerCase()
+  if (!keyword) return []
+  return items.filter(item => `${item.label}${item.description}${item.searchTerms}`.toLocaleLowerCase().includes(keyword))
 }

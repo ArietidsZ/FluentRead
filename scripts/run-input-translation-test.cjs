@@ -18,7 +18,50 @@ let session;
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const html = `<!doctype html><html><head><meta charset="utf-8"><title>输入框翻译 · 交互验证</title><style>
 body{margin:0;padding:48px;background:#f5f3f7;color:#292337;font:16px/1.7 system-ui}main{max-width:820px;margin:auto;background:white;border-radius:20px;padding:32px}h1{margin:0;font-size:26px}p{color:#696275}label{display:block;margin:24px 0}input,textarea,[contenteditable]{box-sizing:border-box;width:100%;padding:14px;border:1px solid #cfc8da;border-radius:10px;font:18px/1.6 system-ui}textarea{min-height:130px}small{color:#81758b}
-</style></head><body><main><h1>输入框翻译</h1><p>输入、触发、继续编辑与恢复原文</p><label>消息<textarea id="message">明天下午见面。</textarea></label><label>另一输入框<input id="other" value="请帮我确认时间。"></label><label>密码<input id="password" type="password" value="private"></label><label>富文本编辑区<div id="rich" contenteditable="true"><b>这段格式需要保留。</b></div></label><label>纯文本编辑区<div id="plain" contenteditable="plaintext-only">你好</div></label><small>本页使用本地测试响应，验证扩展交互。</small></main></body></html>`;
+</style></head><body><main><h1>输入框翻译</h1><p>输入、触发、继续编辑与恢复原文</p><label>消息<textarea id="message">明天下午见面。</textarea></label><label>另一输入框<input id="other" value="请帮我确认时间。"></label><label>密码<input id="password" type="password" value="private"></label><label>富文本编辑区<div id="rich" contenteditable="true"><b>这段格式需要保留。</b></div></label><label>模型驱动编辑器<div id="model" contenteditable="true"></div></label><label>纯文本编辑区<div id="plain" contenteditable="plaintext-only">你好</div></label><label>代码编辑器<div class="cm-editor"><div id="code" class="cm-content" contenteditable="true">const a = 1;</div></div></label><small>本页使用本地测试响应，验证扩展交互。</small></main><script>
+// 模拟 Lexical/Draft.js：拦截 beforeinput 与 paste，只在 selectionchange 事件里同步模型选区，再由模型重新渲染 DOM。
+(() => {
+  const root = document.getElementById('model');
+  const model = {text: '模型编辑器原文。', start: 0, end: 0};
+  const log = window.modelEditorLog = [];
+  const render = () => {
+    root.textContent = model.text;
+    if (document.activeElement !== root || !root.firstChild) return;
+    const range = document.createRange();
+    range.setStart(root.firstChild, model.start);
+    range.setEnd(root.firstChild, model.end);
+    getSelection().removeAllRanges();
+    getSelection().addRange(range);
+  };
+  const offset = (node, value) => node === root ? (value === 0 ? 0 : model.text.length) : value;
+  document.addEventListener('selectionchange', () => {
+    const selection = getSelection();
+    if (!selection.rangeCount || !root.contains(selection.anchorNode)) return;
+    const range = selection.getRangeAt(0);
+    model.start = offset(range.startContainer, range.startOffset);
+    model.end = offset(range.endContainer, range.endOffset);
+  });
+  const replace = (text, source) => {
+    log.push({source, start: model.start, end: model.end, length: model.text.length, text});
+    model.text = model.text.slice(0, model.start) + text + model.text.slice(model.end);
+    model.start = model.end = model.start + text.length;
+    render();
+  };
+  root.addEventListener('beforeinput', event => {
+    if (event.inputType !== 'insertText') return;
+    event.preventDefault();
+    replace(event.data || '', 'beforeinput');
+  });
+  root.addEventListener('paste', event => {
+    event.preventDefault();
+    replace(event.clipboardData.getData('text/plain'), 'paste');
+  });
+  document.getElementById('message').addEventListener('keydown', event => {
+    if (event.ctrlKey && event.key === 'Enter') window.pageSawCtrlEnter = true;
+  });
+  render();
+})();
+</script></body></html>`;
 
 async function main() {
   try {
@@ -345,13 +388,67 @@ async function main() {
     await expectValue('Let us meet tomorrow afternoon.');
     report.cases.push({name: 'failure retains text and next trigger succeeds', passed: true});
 
+    const editorText = selector => page.locator(selector).evaluate(element => element.textContent);
+    async function expectEditor(selector, value) {
+      try { await page.waitForFunction(({selector, value}) => document.querySelector(selector).textContent === value, {selector, value}, {timeout: 15000}); }
+      catch (error) {
+        report.failedEditor = {selector, expected: value, actual: await editorText(selector)};
+        await snap('failed-editor', page);
+        throw error;
+      }
+    }
+    const lastSourceText = async () => JSON.stringify((await requests()).at(-1).body);
+
+    // 聚焦编辑宿主时光标位于开头：触发符插在原文之前，同样不能进入原文。
+    await page.locator('#rich').focus(); await triple();
+    await expectEditor('#rich', 'Let us meet tomorrow afternoon.');
+    assert.ok((await lastSourceText()).includes('这段格式需要保留。'));
+    assert.ok(!(await lastSourceText()).includes('这段格式需要保留。='), 'trigger symbols are removed from rich text source');
+    await snap('06-rich-editor-translated', page);
+    // macOS 撤销是 Meta+Z，其他平台是 Control+Z。
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.waitForFunction(() => document.querySelector('#rich').innerHTML === '<b>==这段格式需要保留。</b>');
+    report.cases.push({name: 'native rich editor translates via undoable native editing; undo restores bold formatting', passed: true});
+
+    await page.locator('#model').focus(); await triple();
+    await expectEditor('#model', 'Let us meet tomorrow afternoon.');
+    const modelLog = await page.evaluate(() => window.modelEditorLog);
+    const modelWrite = modelLog.at(-1);
+    assert.deepEqual({source: modelWrite.source, start: modelWrite.start, end: modelWrite.end}, {source: 'paste', start: 0, end: modelWrite.length},
+      `model-driven editor receives a whole-document paste after selection sync: ${JSON.stringify(modelLog)}`);
+    assert.ok((await lastSourceText()).includes('模型编辑器原文。') && !(await lastSourceText()).includes('模型编辑器原文。='));
+    // 上一个编辑器的提示有 300ms 淡出动画，取 DOM 中最后挂载的恢复按钮。
+    await pause(400);
+    const restoreButtons = [];
+    const collectRestore = node => {
+      if (node.nodeName === 'BUTTON' && (node.children || []).some(child => child.nodeValue === '恢复原文')) restoreButtons.push(node);
+      for (const child of [...(node.children || []), ...(node.shadowRoots || [])]) collectRestore(child);
+    };
+    collectRestore((await domSession.send('DOM.getDocument', {depth: -1, pierce: true})).root);
+    report.modelRestoreCandidates = restoreButtons.length;
+    const modelRestore = restoreButtons.at(-1);
+    assert.ok(modelRestore, 'rich editor translation offers restore original');
+    const modelQuad = (await domSession.send('DOM.getBoxModel', {nodeId: modelRestore.nodeId})).model.content;
+    await pause(250);
+    await page.mouse.click((modelQuad[0] + modelQuad[4]) / 2, (modelQuad[1] + modelQuad[5]) / 2);
+    await expectEditor('#model', '模型编辑器原文。');
+    report.modelEditorLog = await page.evaluate(() => window.modelEditorLog);
+    report.cases.push({name: 'model-driven editor gets whole-content paste after selection sync, restore original', passed: true});
+
+    await page.locator('#plain').focus(); await triple();
+    await expectEditor('#plain', 'Let us meet tomorrow afternoon.');
+    report.cases.push({name: 'plaintext-only editor supports triple trigger', passed: true});
+
     before = (await requests()).length;
     await page.locator('#password').focus(); await triple();
-    await page.locator('#rich').focus(); await triple();
+    await page.locator('#code').focus(); await triple();
     await pause(500);
     assert.equal((await requests()).length, before);
-    assert.equal(await page.locator('#rich b').count(), 1);
-    report.cases.push({name: 'password and rich editor excluded', passed: true});
+    const passwordValue = await page.locator('#password').inputValue();
+    assert.equal(passwordValue.replace(/=/g, ''), 'private');
+    assert.equal(passwordValue.length, 'private'.length + 3, 'all three password keys stay with the host input');
+    assert.equal(await editorText('#code'), '===const a = 1;');
+    report.cases.push({name: 'password and code editor excluded', passed: true});
     await snap('06-host-inputs-preserved', page);
     for (const [trigger, symbol] of [['triple_space', 'Space'], ['triple_dash', '-']]) {
       await patch({inputBoxTranslationTrigger: trigger});
@@ -362,6 +459,7 @@ async function main() {
     assert.ok((await options.getByTestId('input-translation-trigger').textContent()).includes('Ctrl+Enter'), 'saved legacy shortcut retains its readable label');
     await textarea.fill('普通快捷键翻译'); await page.keyboard.press('Control+Enter');
     await expectValue('Let us meet tomorrow afternoon.');
+    assert.equal(await page.evaluate(() => window.pageSawCtrlEnter === true), false, 'consumed Control+Enter does not reach page send shortcuts');
     report.cases.push({name: 'Space, dash and Control+Enter triggers', passed: true});
     await patch({inputBoxTranslationTrigger: 'triple_equal', inputBoxTranslationInterval: 1200});
     await textarea.fill('间隔设置立即生效'); await triple('=', 650);

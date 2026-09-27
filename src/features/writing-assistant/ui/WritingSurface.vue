@@ -47,7 +47,7 @@ function scan() {
   if (!allowed()) { close(false); snapshot.value = undefined; clearEntries(); return; }
   const site = writingSite(location.href);
   if (!site) { clearEntries(); return; }
-  const editors = findReplyEditors(document, site).filter(element => {
+  const editors = findReplyEditors(document, site, location.href).filter(element => {
     const rect = element.getBoundingClientRect();
     return visible(element) && rect.width >= 120 && rect.height >= 20 && Boolean(findReplyActionAnchor(element, site));
   });
@@ -87,7 +87,8 @@ function open(element: HTMLElement) {
   if (snapshot.value?.element !== element || snapshot.value.signature !== next.signature || snapshot.value.url !== next.url) {
     snapshot.value = next; draft.value = editorText(element).slice(0, 12000);
     context.value = collectReplyContext(document, writingSite(location.href), element, location.href);
-    const hasReply = next.site === 'gmail' ? /(?:^|\n\n)当前邮件：/.test(context.value) : Boolean(context.value.trim());
+    const hasReply = next.site === 'gmail' ? /(?:^|\n\n)当前邮件：/.test(context.value)
+      : !/^\/[^/]+\/[^/]+\/issues\/new\/?$/.test(new URL(next.url).pathname) && Boolean(context.value.trim());
     intent.value = draft.value.trim() ? 'polish' : hasReply ? 'reply' : 'draft'; sessionKey.value++;
   }
   opened.value = true;
