@@ -172,7 +172,9 @@ import {
 import {
     DEFAULT_TRANSLATION_APPEARANCE,
     normalizeTranslationAppearance,
+    normalizeTranslationStyleProfiles,
     type TranslationAppearance,
+    type TranslationStyleProfile,
 } from './translationAppearance';
 import {
     DEFAULT_AREA_VISION_PROMPT,
@@ -339,6 +341,8 @@ export class Config {
     hotkey: string;
     style: number;
     translationAppearance: TranslationAppearance; // 双语译文的颜色、线条、底色、字号、字重、字体与不透明度微调
+    translationStyleProfiles: TranslationStyleProfile[]; // 用户保存的可命名译文样式快照
+    activeTranslationStyleProfileId: string; // 当前选中的样式快照；外观可继续编辑，保存时再更新快照
     display: number = 1;
     service: string;
     documentService: string; // 文档翻译独立翻译服务
@@ -508,6 +512,8 @@ export class Config {
         this.excludedLanguages = [];
         this.style = defaultOption.style;
         this.translationAppearance = normalizeTranslationAppearance(DEFAULT_TRANSLATION_APPEARANCE); // 默认沿用各样式自带配色
+        this.translationStyleProfiles = [];
+        this.activeTranslationStyleProfileId = '';
         this.display = defaultOption.display;
         this.hotkey = defaultOption.hotkey;
         this.service = defaultOption.service;
@@ -992,6 +998,10 @@ export function normalizeConfig(value: unknown): Config {
     }
     normalized.bilingualSentenceHighlightEnabled = source.bilingualSentenceHighlightEnabled === true;
     normalized.translationAppearance = normalizeTranslationAppearance(source.translationAppearance);
+    normalized.translationStyleProfiles = normalizeTranslationStyleProfiles(source.translationStyleProfiles);
+    normalized.activeTranslationStyleProfileId = typeof source.activeTranslationStyleProfileId === 'string'
+        && normalized.translationStyleProfiles.some((profile) => profile.id === source.activeTranslationStyleProfileId)
+        ? source.activeTranslationStyleProfileId : '';
     normalized.translationScope = source.translationScope === 'all' ? 'all' : 'content';
     delete (normalized as unknown as Record<string, unknown>).translationStatus;
     // __fluentConfigRevision 只用于 storage 的写入顺序判断，不能进入运行时

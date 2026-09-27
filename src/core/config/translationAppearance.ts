@@ -126,6 +126,37 @@ export interface TranslationAppearance {
     opacity: number;
 }
 
+/** 用户保存的译文样式快照；编号仍引用内置样式，外观覆盖单独保存。 */
+export interface TranslationStyleProfile {
+    id: string;
+    name: string;
+    style: number;
+    appearance: TranslationAppearance;
+}
+
+export const MAX_TRANSLATION_STYLE_PROFILES = 12;
+
+export function normalizeTranslationStyleProfiles(value: unknown): TranslationStyleProfile[] {
+    if (!Array.isArray(value)) return [];
+    const profiles: TranslationStyleProfile[] = [];
+    const ids = new Set<string>();
+    // 正常界面最多 12 项；导入配置也只扫描有限前缀，避免异常大数组拖慢每次归一化。
+    for (const item of value.slice(0, 100)) {
+        if (!item || typeof item !== 'object') continue;
+        const source = item as Record<string, unknown>;
+        const id = typeof source.id === 'string' ? source.id.trim() : '';
+        const name = typeof source.name === 'string'
+            ? source.name.replace(/[\u0000-\u001f\u007f]/gu, '').trim().slice(0, 30)
+            : '';
+        if (!/^[a-zA-Z0-9_-]{1,64}$/u.test(id) || ids.has(id) || !name
+            || !TRANSLATION_STYLE_PRESETS.some((preset) => preset.value === source.style)) continue;
+        profiles.push({id, name, style: source.style as number, appearance: normalizeTranslationAppearance(source.appearance)});
+        ids.add(id);
+        if (profiles.length === MAX_TRANSLATION_STYLE_PROFILES) break;
+    }
+    return profiles;
+}
+
 export const TRANSLATION_FONT_SCALE_RANGE = {min: 80, max: 150, step: 5} as const;
 export const TRANSLATION_OPACITY_RANGE = {min: 40, max: 100, step: 5} as const;
 

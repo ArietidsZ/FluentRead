@@ -36,7 +36,10 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #app { width: min(var(--interface-popup-width, 360px), 100vw); min-width: 0; margin: 0; overflow-x: hidden; background: #f6f7fb; }
+/* 工具栏 popup 的 viewport 由文档内容决定；根宽度不能再依赖 100vw，否则首次打开时会自我收缩。 */
+html { width: var(--interface-popup-width, 360px); }
+body, #app { width: 100%; }
+html, body, #app { min-width: 0; margin: 0; overflow-x: hidden; background: #f6f7fb; }
 :root.dark body, :root.dark #app { background: #14161b; }
 button, select, input { font: inherit; }
 button { color: inherit; }
@@ -54,9 +57,9 @@ button:focus-visible, select:focus-visible { outline: 3px solid rgba(239, 71, 11
 .popup-startup { display: flex; align-items: center; gap: 8px; padding: 20px; color: #737c8f; font-size: 12px; }
 .popup-startup img { border-radius: 7px; }
 .popup-startup i { width: 12px; height: 12px; margin-left: auto; border: 1.5px solid #d4d8e1; border-top-color: #737c8f; border-radius: 50%; }
-.popup-shell:not(.language-onboarding-shell) { max-height: min(560px, 100vh); max-height: min(560px, 100dvh); overflow-y: auto; scrollbar-width: thin; }
+.popup-shell { max-height: min(560px, 100vh); max-height: min(560px, 100dvh); overflow-y: auto; scrollbar-width: thin; }
 .popup-content { position: relative; z-index: 1; }
-.popup-shell.language-onboarding-shell { overflow: hidden; }
+.popup-shell.language-onboarding-shell { overflow-x: hidden; }
 :root.dark .popup-shell {
   background:
     radial-gradient(circle at 92% 0, rgba(239, 71, 118, .16), transparent 32%),

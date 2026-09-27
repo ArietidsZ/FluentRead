@@ -8,6 +8,14 @@ function source(path: string): string {
 }
 
 describe('popup feature visibility', () => {
+    it('gives the toolbar popup an intrinsic width before the browser sizes its viewport', () => {
+        const styles = source('src/app/popup/popup.css');
+        expect(styles).toContain('html { width: var(--interface-popup-width, 360px); }');
+        expect(styles).toContain('body, #app { width: 100%; }');
+        expect(styles).not.toContain('width: min(var(--interface-popup-width, 360px), 100vw)');
+        expect(styles).toContain('.popup-shell { max-height: min(560px, 100vh);');
+    });
+
     it('keeps the real Popup under a first-open language mask until confirmation', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         const onboarding = source('src/ui/components/UiLanguageOnboarding.vue');
@@ -48,7 +56,8 @@ describe('popup feature visibility', () => {
         expect(onboarding).not.toContain('.language-onboarding-card::before');
         expect(onboarding).toContain('class="onboarding-success"');
         expect(onboarding).toContain('setTimeout(() =>');
-        expect(styles).toContain('.popup-shell.language-onboarding-shell { overflow: hidden; }');
+        expect(styles).toContain('.popup-shell.language-onboarding-shell { overflow-x: hidden; }');
+        expect(styles).toContain('.popup-shell { max-height: min(560px, 100vh);');
         expect(i18n).toContain('function isRelevantUiMutation');
         expect(i18n).toContain('setTimeout(() => {');
         expect(i18n).toContain('state.observer.disconnect();');
@@ -211,7 +220,7 @@ describe('popup feature visibility', () => {
         expect(settings).toContain('v-model="config.selectionTtsVoices"');
         // 译文样式迁到界面风格页的样式卡片；弹窗“译文显示”只保留翻译模式并跳转到那里。
         expect(settings).not.toContain('v-model="config.style"');
-        expect(translationStyle).toContain('@click="config.style = preset.value"');
+        expect(translationStyle).toContain('@click="selectPreset(preset.value)"');
         expect(popup).toContain("appearance: 'settings-interface'");
         expect(settings).toContain('v-model="config.theme"');
         expect(modelSettings).toContain('v-model="config.videoLocalModel"');

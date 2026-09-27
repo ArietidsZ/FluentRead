@@ -1,9 +1,8 @@
 <!--
 @file src/features/settings/ui/TranslationStyleSettings.vue
 文件职责：作为“界面风格”页的第一个分组，集中设置网页双语译文的样式预设、外观微调和双语逐句高亮，并提供与网页一致的实时预览。
-主要内容：左侧用真实译文样式表渲染迷你网页预览与逐句高亮开关，右侧按文字、线条、标记、卡片分类展示带实时缩略效果的样式卡片；
-下方可自定义译文颜色、线条颜色、标记底色、字号、不透明度、字重和字体，并一键恢复默认；仅译文模式下提示并可切回双语对照。
-模块边界：本组件只编辑父级传入的 Config 草稿（style、translationAppearance、bilingualSentenceHighlightEnabled、display），不持久化配置、
+主要内容：先展示可复用的命名样式和内置样式选择，再展示精简的实时预览；自定义颜色、字体等参数默认折叠，并能保存、更新或删除多套样式。
+模块边界：本组件只编辑父级传入的 Config 草稿（style、translationAppearance、translationStyleProfiles 等），不持久化配置、
 不向网页注入样式；预设元数据和外观声明来自 core/config/translationAppearance，网页应用由 content 层负责。
 -->
 <template>
@@ -19,32 +18,25 @@
       </div>
 
       <div class="translation-style-workbench">
-        <div class="translation-style-stage">
-          <TranslationStylePreview
-            :style-class="selectedPreset.className"
-            :appearance-style="appearanceStyle"
-            :highlight-enabled="config.bilingualSentenceHighlightEnabled"
-            :translation-before-original="config.translationBeforeOriginal"
-            :page-theme="pageTheme"
-            :caption="t('settings.translationStyle.currentPreset', { name: translateLegacy(selectedPreset.label) })"
-            :customized="customized"
-            :hint="selectedPreset.className === 'fluent-display-blur-reveal' ? t('settings.translationStyle.blurRevealHint') : ''"
-            @update:page-theme="pageTheme = $event"
-          />
-          <div id="translation-sentence-highlight" class="translation-style-highlight-toggle">
-            <span>
-              <strong>{{ t('settings.general.bilingualSentenceHighlight') }}</strong>
-              <small>{{ t('settings.general.bilingualSentenceHighlightDescription') }}</small>
-            </span>
-            <el-switch
-              v-model="config.bilingualSentenceHighlightEnabled"
-              class="settings-toggle"
-              :aria-label="t('settings.general.bilingualSentenceHighlight')"
-            />
-          </div>
-        </div>
-
         <section class="translation-style-gallery" aria-labelledby="translation-style-gallery-title">
+          <div v-if="config.translationStyleProfiles.length" class="translation-style-saved">
+            <strong id="translation-style-saved-title">{{ t('settings.translationStyle.savedTitle') }}</strong>
+            <div class="translation-style-saved-list" role="radiogroup" aria-labelledby="translation-style-saved-title">
+              <button
+                v-for="profile in config.translationStyleProfiles"
+                :key="profile.id"
+                type="button"
+                class="translation-style-saved-card"
+                :class="{ selected: config.activeTranslationStyleProfileId === profile.id }"
+                role="radio"
+                :aria-checked="config.activeTranslationStyleProfileId === profile.id"
+                @click="selectProfile(profile)"
+              >
+                <strong>{{ profile.name }}</strong>
+                <small>{{ t('settings.translationStyle.profileBase', { name: translateLegacy(getTranslationStylePreset(profile.style)?.label ?? '') }) }}</small>
+              </button>
+            </div>
+          </div>
           <header class="translation-style-gallery-heading">
             <strong id="translation-style-gallery-title">{{ t('settings.translationStyle.presetsTitle') }}</strong>
             <SegmentedControl
@@ -62,14 +54,14 @@
               type="button"
               role="radio"
               class="translation-style-card"
-              :class="{ selected: config.style === preset.value }"
-              :aria-checked="config.style === preset.value"
+              :class="{ selected: !config.activeTranslationStyleProfileId && config.style === preset.value }"
+              :aria-checked="!config.activeTranslationStyleProfileId && config.style === preset.value"
               :aria-label="translateLegacy(preset.label)"
               :data-style-value="preset.value"
-              @click="config.style = preset.value"
+              @click="selectPreset(preset.value)"
             >
               <span class="translation-style-card-sample" :data-page-theme="pageTheme" aria-hidden="true" data-i18n-ignore>
-                <span class="fluent-read-bilingual-content" :class="preset.className" :style="appearanceStyle" lang="zh-CN">阅读轻松自然</span>
+                <span class="fluent-read-bilingual-content" :class="preset.className" :style="presetAppearanceStyle" lang="zh-CN">阅读轻松自然</span>
               </span>
               <span class="translation-style-card-name">{{ translateLegacy(preset.label) }}</span>
               <span class="translation-style-card-check" aria-hidden="true"><i /></span>
@@ -77,83 +69,142 @@
           </div>
           <p class="translation-style-apply-hint">{{ t('settings.translationStyle.applyHint') }}</p>
         </section>
+
+        <div class="translation-style-stage">
+          <TranslationStylePreview
+            :style-class="selectedPreset.className"
+            :appearance-style="appearanceStyle"
+            :highlight-enabled="config.bilingualSentenceHighlightEnabled"
+            :translation-before-original="config.translationBeforeOriginal"
+            :page-theme="pageTheme"
+            :caption="t('settings.translationStyle.currentPreset', { name: activeProfile?.name ?? translateLegacy(selectedPreset.label) })"
+            :customized="customized"
+            :hint="selectedPreset.className === 'fluent-display-blur-reveal' ? t('settings.translationStyle.blurRevealHint') : ''"
+            @update:page-theme="pageTheme = $event"
+          />
+          <div id="translation-sentence-highlight" class="translation-style-highlight-toggle">
+            <span>
+              <strong>{{ t('settings.general.bilingualSentenceHighlight') }}</strong>
+              <small>{{ t('settings.general.bilingualSentenceHighlightDescription') }}</small>
+            </span>
+            <el-switch
+              v-model="config.bilingualSentenceHighlightEnabled"
+              class="settings-toggle"
+              :aria-label="t('settings.general.bilingualSentenceHighlight')"
+            />
+          </div>
+        </div>
       </div>
 
       <section id="translation-appearance-panel" class="translation-appearance-panel" aria-labelledby="translation-appearance-title" data-testid="translation-appearance-panel">
-        <header class="translation-appearance-heading">
-          <span>
+        <button
+          type="button"
+          class="translation-appearance-disclosure"
+          :aria-expanded="customExpanded"
+          aria-controls="translation-appearance-content"
+          @click="customExpanded = !customExpanded"
+        >
+          <span class="translation-appearance-disclosure-copy">
             <strong id="translation-appearance-title">{{ t('settings.translationStyle.customizeTitle') }}</strong>
-            <small>{{ t('settings.translationStyle.customizeDescription') }}</small>
+            <small>{{ t('settings.translationStyle.customizeCollapsedHint') }}</small>
           </span>
-          <button type="button" class="translation-appearance-reset" :disabled="!customized" @click="resetAppearance">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
-            {{ t('settings.translationStyle.reset') }}
-          </button>
-        </header>
-        <div class="translation-appearance-grid">
-          <div class="translation-appearance-colors">
-            <TranslationColorField
-              v-model="appearance.textColor"
-              field-id="translation-text-color"
-              :label="t('settings.translationStyle.textColor')"
-              :swatches="TRANSLATION_TEXT_COLOR_SWATCHES"
-            />
-            <TranslationColorField
-              v-model="appearance.lineColor"
-              field-id="translation-line-color"
-              :label="t('settings.translationStyle.lineColor')"
-              :swatches="TRANSLATION_LINE_COLOR_SWATCHES"
-              :hint="selectedPreset.usesLine ? '' : t('settings.translationStyle.lineUnused')"
-            />
-            <TranslationColorField
-              v-model="appearance.fillColor"
-              field-id="translation-fill-color"
-              :label="t('settings.translationStyle.fillColor')"
-              :swatches="TRANSLATION_FILL_COLOR_SWATCHES"
-              :hint="selectedPreset.usesFill ? '' : t('settings.translationStyle.fillUnused')"
-            />
+          <span v-if="profileDirty" class="translation-appearance-status">{{ t('settings.translationStyle.unsavedChanges') }}</span>
+          <span v-else-if="customized" class="translation-appearance-status">{{ t('settings.translationStyle.customized') }}</span>
+          <svg class="translation-appearance-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+        </button>
+        <div v-if="customExpanded" id="translation-appearance-content" class="translation-appearance-content">
+          <header class="translation-appearance-heading">
+            <small>{{ t('settings.translationStyle.customizeDescription') }}</small>
+            <button type="button" class="translation-appearance-reset" :disabled="!customized" @click="resetAppearance">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
+              {{ t('settings.translationStyle.reset') }}
+            </button>
+          </header>
+          <div class="translation-appearance-grid">
+            <div class="translation-appearance-colors">
+              <TranslationColorField
+                v-model="appearance.textColor"
+                field-id="translation-text-color"
+                :label="t('settings.translationStyle.textColor')"
+                :swatches="TRANSLATION_TEXT_COLOR_SWATCHES"
+              />
+              <TranslationColorField
+                v-model="appearance.lineColor"
+                field-id="translation-line-color"
+                :label="t('settings.translationStyle.lineColor')"
+                :swatches="TRANSLATION_LINE_COLOR_SWATCHES"
+                :hint="selectedPreset.usesLine ? '' : t('settings.translationStyle.lineUnused')"
+              />
+              <TranslationColorField
+                v-model="appearance.fillColor"
+                field-id="translation-fill-color"
+                :label="t('settings.translationStyle.fillColor')"
+                :swatches="TRANSLATION_FILL_COLOR_SWATCHES"
+                :hint="selectedPreset.usesFill ? '' : t('settings.translationStyle.fillUnused')"
+              />
+            </div>
+            <div class="translation-appearance-typography">
+              <label class="translation-appearance-range">
+                <span>{{ t('settings.translationStyle.fontSize') }}<b>{{ appearance.fontScale }}%</b></span>
+                <input
+                  v-model.number="appearance.fontScale"
+                  type="range"
+                  :min="TRANSLATION_FONT_SCALE_RANGE.min"
+                  :max="TRANSLATION_FONT_SCALE_RANGE.max"
+                  :step="TRANSLATION_FONT_SCALE_RANGE.step"
+                  :aria-label="t('settings.translationStyle.fontSize')"
+                >
+              </label>
+              <label class="translation-appearance-range">
+                <span>{{ t('settings.translationStyle.opacity') }}<b>{{ appearance.opacity }}%</b></span>
+                <input
+                  v-model.number="appearance.opacity"
+                  type="range"
+                  :min="TRANSLATION_OPACITY_RANGE.min"
+                  :max="TRANSLATION_OPACITY_RANGE.max"
+                  :step="TRANSLATION_OPACITY_RANGE.step"
+                  :aria-label="t('settings.translationStyle.opacity')"
+                >
+              </label>
+              <div class="translation-appearance-choice">
+                <span>{{ t('settings.translationStyle.fontWeightLabel') }}</span>
+                <SegmentedControl
+                  :model-value="appearance.fontWeight"
+                  :options="fontWeightOptions"
+                  :label="t('settings.translationStyle.fontWeightLabel')"
+                  @update:model-value="selectFontWeight"
+                />
+              </div>
+              <div class="translation-appearance-choice">
+                <span>{{ t('settings.translationStyle.fontFamilyLabel') }}</span>
+                <SegmentedControl
+                  :model-value="appearance.fontFamily"
+                  :options="fontFamilyOptions"
+                  :label="t('settings.translationStyle.fontFamilyLabel')"
+                  @update:model-value="selectFontFamily"
+                />
+              </div>
+            </div>
           </div>
-          <div class="translation-appearance-typography">
-            <label class="translation-appearance-range">
-              <span>{{ t('settings.translationStyle.fontSize') }}<b>{{ appearance.fontScale }}%</b></span>
+          <div class="translation-profile-editor">
+            <label for="translation-profile-name">{{ t('settings.translationStyle.profileName') }}</label>
+            <div class="translation-profile-editor-row">
               <input
-                v-model.number="appearance.fontScale"
-                type="range"
-                :min="TRANSLATION_FONT_SCALE_RANGE.min"
-                :max="TRANSLATION_FONT_SCALE_RANGE.max"
-                :step="TRANSLATION_FONT_SCALE_RANGE.step"
-                :aria-label="t('settings.translationStyle.fontSize')"
+                id="translation-profile-name"
+                v-model="profileNameDraft"
+                type="text"
+                maxlength="30"
+                :placeholder="t('settings.translationStyle.profileNamePlaceholder')"
               >
-            </label>
-            <label class="translation-appearance-range">
-              <span>{{ t('settings.translationStyle.opacity') }}<b>{{ appearance.opacity }}%</b></span>
-              <input
-                v-model.number="appearance.opacity"
-                type="range"
-                :min="TRANSLATION_OPACITY_RANGE.min"
-                :max="TRANSLATION_OPACITY_RANGE.max"
-                :step="TRANSLATION_OPACITY_RANGE.step"
-                :aria-label="t('settings.translationStyle.opacity')"
-              >
-            </label>
-            <div class="translation-appearance-choice">
-              <span>{{ t('settings.translationStyle.fontWeightLabel') }}</span>
-              <SegmentedControl
-                :model-value="appearance.fontWeight"
-                :options="fontWeightOptions"
-                :label="t('settings.translationStyle.fontWeightLabel')"
-                @update:model-value="selectFontWeight"
-              />
+              <button type="button" class="translation-profile-save" :disabled="config.translationStyleProfiles.length >= MAX_TRANSLATION_STYLE_PROFILES || !profileNameDraft.trim()" @click="saveProfile">
+                {{ t('settings.translationStyle.saveAsNew') }}
+              </button>
             </div>
-            <div class="translation-appearance-choice">
-              <span>{{ t('settings.translationStyle.fontFamilyLabel') }}</span>
-              <SegmentedControl
-                :model-value="appearance.fontFamily"
-                :options="fontFamilyOptions"
-                :label="t('settings.translationStyle.fontFamilyLabel')"
-                @update:model-value="selectFontFamily"
-              />
+            <div v-if="activeProfile" class="translation-profile-actions">
+              <button type="button" :disabled="!profileNameDraft.trim() || !profileDirty" @click="updateProfile">{{ t('settings.translationStyle.updateSaved') }}</button>
+              <button type="button" class="translation-profile-delete" @click="deleteProfile">{{ t('settings.translationStyle.deleteSaved') }}</button>
             </div>
+            <small v-if="config.translationStyleProfiles.length >= MAX_TRANSLATION_STYLE_PROFILES">{{ t('settings.translationStyle.profileLimit') }}</small>
           </div>
         </div>
       </section>
@@ -177,10 +228,13 @@ import {
   TRANSLATION_STYLE_CATEGORIES,
   TRANSLATION_STYLE_PRESETS,
   TRANSLATION_TEXT_COLOR_SWATCHES,
+  MAX_TRANSLATION_STYLE_PROFILES,
   getTranslationAppearanceStyle,
   getTranslationStylePreset,
   isDefaultTranslationAppearance,
+  normalizeTranslationAppearance,
   type TranslationStyleCategory,
+  type TranslationStyleProfile,
 } from '@/src/core/config/translationAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
 import SettingsGroup from './components/SettingsGroup.vue'
@@ -198,11 +252,24 @@ const config = computed(() => props.config)
 const selectedPreset = computed(() => getTranslationStylePreset(config.value.style) ?? TRANSLATION_STYLE_PRESETS[0])
 const appearance = computed(() => config.value.translationAppearance)
 const appearanceStyle = computed(() => getTranslationAppearanceStyle(appearance.value))
+const presetAppearanceStyle = computed(() => config.value.activeTranslationStyleProfileId ? {} : appearanceStyle.value)
 const customized = computed(() => !isDefaultTranslationAppearance(appearance.value))
+const activeProfile = computed(() => config.value.translationStyleProfiles.find((profile) => profile.id === config.value.activeTranslationStyleProfileId))
+const customExpanded = ref(false)
+const profileNameDraft = ref('')
+const profileDirty = computed(() => activeProfile.value && (
+  config.value.style !== activeProfile.value.style
+  || profileNameDraft.value.trim() !== activeProfile.value.name
+  || (Object.keys(DEFAULT_TRANSLATION_APPEARANCE) as Array<keyof typeof DEFAULT_TRANSLATION_APPEARANCE>)
+    .some((key) => appearance.value[key] !== activeProfile.value?.appearance[key])
+))
 const pageTheme = ref<'light' | 'dark'>('light')
 const activeCategory = ref<TranslationStyleCategory>(selectedPreset.value.category)
 // 弹窗、历史恢复或导入改变样式时切到对应分类，保证当前样式卡片可见。
 watch(() => selectedPreset.value.category, (category) => { activeCategory.value = category })
+watch(() => [config.value.activeTranslationStyleProfileId, activeProfile.value?.name], () => {
+  profileNameDraft.value = activeProfile.value?.name ?? ''
+}, {immediate: true})
 const visiblePresets = computed(() => TRANSLATION_STYLE_PRESETS.filter((preset) => preset.category === activeCategory.value))
 const categoryOptions = computed(() => TRANSLATION_STYLE_CATEGORIES.map((category) => ({value: category.value, label: t(category.labelKey)})))
 const fontWeightOptions = computed(() => TRANSLATION_FONT_WEIGHT_OPTIONS.map((option) => ({value: option.value, label: t(option.labelKey)})))
@@ -210,6 +277,56 @@ const fontFamilyOptions = computed(() => TRANSLATION_FONT_FAMILY_OPTIONS.map((op
 
 function selectCategory(value: string | number): void {
   activeCategory.value = TRANSLATION_STYLE_CATEGORIES.find((category) => category.value === value)?.value ?? activeCategory.value
+}
+
+function selectPreset(style: number): void {
+  // 离开已保存的快照时恢复内置样式原貌；内置样式间切换仍沿用当前的全局外观微调。
+  if (config.value.activeTranslationStyleProfileId) {
+    config.value.translationAppearance = {...DEFAULT_TRANSLATION_APPEARANCE}
+  }
+  config.value.activeTranslationStyleProfileId = ''
+  config.value.style = style
+}
+
+function selectProfile(profile: TranslationStyleProfile): void {
+  config.value.style = profile.style
+  config.value.translationAppearance = {...profile.appearance}
+  config.value.activeTranslationStyleProfileId = profile.id
+}
+
+function profileName(): string {
+  return profileNameDraft.value.trim().slice(0, 30)
+}
+
+function saveProfile(): void {
+  if (config.value.translationStyleProfiles.length >= MAX_TRANSLATION_STYLE_PROFILES || !profileName()) return
+  let id: string
+  do {
+    id = `style-${globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`}`
+  } while (config.value.translationStyleProfiles.some((profile) => profile.id === id))
+  const profile: TranslationStyleProfile = {
+    id,
+    name: profileName(),
+    style: config.value.style,
+    appearance: normalizeTranslationAppearance(appearance.value),
+  }
+  config.value.translationStyleProfiles = [...config.value.translationStyleProfiles, profile]
+  config.value.activeTranslationStyleProfileId = profile.id
+}
+
+function updateProfile(): void {
+  if (!activeProfile.value || !profileName()) return
+  const id = activeProfile.value.id
+  config.value.translationStyleProfiles = config.value.translationStyleProfiles.map((profile) => profile.id === id
+    ? {id, name: profileName(), style: config.value.style, appearance: normalizeTranslationAppearance(appearance.value)}
+    : profile)
+}
+
+function deleteProfile(): void {
+  if (!activeProfile.value) return
+  const id = activeProfile.value.id
+  config.value.translationStyleProfiles = config.value.translationStyleProfiles.filter((profile) => profile.id !== id)
+  config.value.activeTranslationStyleProfileId = ''
 }
 
 function selectFontWeight(value: string | number): void {
@@ -229,8 +346,8 @@ function resetAppearance(): void {
 .translation-style-settings {
   display: grid;
   min-width: 0;
-  gap: 16px;
-  padding: 16px;
+  gap: 14px;
+  padding: 14px;
   /* 分组宽度随侧栏变化，布局按分组自身宽度切换，而不是按窗口宽度。 */
   container-type: inline-size;
 }
@@ -268,7 +385,7 @@ function resetAppearance(): void {
   min-width: 0;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 16px;
+  gap: 14px;
 }
 
 .translation-style-stage {
@@ -312,8 +429,20 @@ function resetAppearance(): void {
   display: grid;
   min-width: 0;
   align-content: start;
-  gap: 12px;
+  gap: 10px;
 }
+
+.translation-style-saved { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.translation-style-saved > strong { color: var(--ink); font-size: 12.5px; }
+.translation-style-saved-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 7px; }
+.translation-style-saved-card {
+  display: grid; min-width: 0; gap: 3px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px;
+  color: var(--ink); background: var(--surface); cursor: pointer; font: inherit; text-align: left;
+}
+.translation-style-saved-card strong { overflow: hidden; font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.translation-style-saved-card small { color: var(--muted); font-size: 10px; }
+.translation-style-saved-card.selected { border-color: var(--brand); background: var(--brand-soft); }
+.translation-style-saved-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 .translation-style-gallery-heading {
   display: flex;
@@ -342,7 +471,7 @@ function resetAppearance(): void {
 
 .translation-style-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
   gap: 8px;
 }
 
@@ -447,34 +576,46 @@ function resetAppearance(): void {
 }
 
 .translation-appearance-panel {
-  display: grid;
   min-width: 0;
-  gap: 14px;
-  padding: 14px 16px 16px;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface-soft);
 }
 
+.translation-appearance-disclosure {
+  display: flex; width: 100%; min-width: 0; align-items: center; gap: 12px; padding: 12px 16px;
+  border: 0; color: var(--ink); background: transparent; cursor: pointer; font: inherit; text-align: left;
+}
+.translation-appearance-disclosure:hover { background: color-mix(in srgb, var(--brand) 4%, var(--surface-soft)); }
+.translation-appearance-disclosure:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.translation-appearance-disclosure-copy { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.translation-appearance-disclosure-copy strong { font-size: 12.5px; }
+.translation-appearance-disclosure-copy small { color: var(--muted); font-size: 10.5px; line-height: 1.45; }
+.translation-appearance-status { flex: none; color: var(--brand-strong); font-size: 10.5px; font-weight: 700; }
+.translation-appearance-chevron { width: 16px; height: 16px; flex: none; transition: transform 150ms ease; }
+.translation-appearance-disclosure[aria-expanded="true"] .translation-appearance-chevron { transform: rotate(180deg); }
+.translation-appearance-content { display: grid; gap: 16px; padding: 14px 16px 16px; border-top: 1px solid var(--line); }
+
+.translation-profile-editor { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.translation-profile-editor > label { color: var(--ink); font-size: 11.5px; font-weight: 700; }
+.translation-profile-editor-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.translation-profile-editor-row input { flex: 1 1 190px; min-width: 0; min-height: 34px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); }
+.translation-profile-editor button { min-height: 32px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--brand-strong); background: var(--surface); cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }
+.translation-profile-editor button:hover:not(:disabled) { border-color: var(--brand); background: var(--brand-soft); }
+.translation-profile-editor button:disabled { opacity: .5; cursor: default; }
+.translation-profile-editor .translation-profile-save { border-color: var(--brand); color: #fff; background: var(--brand); }
+.translation-profile-editor .translation-profile-save:hover:not(:disabled) { color: var(--brand-strong); }
+.translation-profile-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.translation-profile-editor .translation-profile-delete { color: var(--muted); }
+.translation-profile-editor > small { color: var(--muted); font-size: 10px; }
+
 .translation-appearance-heading {
   display: flex;
   min-width: 0;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-
-.translation-appearance-heading > span {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.translation-appearance-heading strong {
-  color: var(--ink);
-  font-size: 12.5px;
-  line-height: 1.45;
 }
 
 .translation-appearance-heading small {
@@ -554,8 +695,11 @@ function resetAppearance(): void {
 }
 
 @container (min-width: 860px) {
-  .translation-style-workbench { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
   .translation-appearance-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+}
+
+@container (min-width: 700px) {
+  .translation-style-workbench { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
 }
 
 @container (max-width: 480px) {
@@ -565,6 +709,7 @@ function resetAppearance(): void {
 
 @media (max-width: 520px) {
   .translation-style-settings { padding: 12px; }
-  .translation-appearance-panel { padding: 12px; }
+  .translation-appearance-disclosure { padding: 12px; }
+  .translation-appearance-content { padding: 12px; }
 }
 </style>

@@ -1,7 +1,9 @@
 import {describe, expect, it} from 'vitest';
 import {options} from '@/src/core/config/catalog';
+import {normalizeConfig} from '@/src/core/config/model';
 import {
     DEFAULT_TRANSLATION_APPEARANCE,
+    MAX_TRANSLATION_STYLE_PROFILES,
     TRANSLATION_APPEARANCE_SELECTOR,
     TRANSLATION_FILL_COLOR_SWATCHES,
     TRANSLATION_FONT_FAMILY_OPTIONS,
@@ -19,6 +21,7 @@ import {
     isDefaultTranslationAppearance,
     normalizeTranslationAppearance,
     normalizeTranslationColor,
+    normalizeTranslationStyleProfiles,
 } from '@/src/core/config/translationAppearance';
 
 describe('译文样式预设注册表', () => {
@@ -102,6 +105,35 @@ describe('译文外观归一化', () => {
         expect(TRANSLATION_FONT_FAMILY_OPTIONS.map((option) => option.value)).toEqual(['default', 'sans', 'serif', 'mono']);
         // 字体族均以通用族结尾，浏览器才会按译文 lang 选择对应书写体系的系统字体。
         expect(TRANSLATION_FONT_FAMILY_OPTIONS.slice(1).every((option) => /(?:sans-serif|serif|monospace)$/u.test(option.cssValue))).toBe(true);
+    });
+});
+
+describe('用户保存的译文样式', () => {
+    it('只保留有效且不重复的命名快照，并归一化各自的外观', () => {
+        const profiles = normalizeTranslationStyleProfiles([
+            {id: 'night', name: '  夜读  ', style: 22, appearance: {textColor: '#ABC', fontScale: 111}},
+            {id: 'night', name: '重复', style: 1},
+            {id: 'bad id', name: '非法编号', style: 1},
+            {id: 'unknown', name: '未知样式', style: 999},
+            {id: 'empty', name: '  ', style: 0},
+            {id: 'paper', name: '纸张\u0000样式', style: 9, appearance: {opacity: 73}},
+        ]);
+        expect(profiles).toEqual([
+            {id: 'night', name: '夜读', style: 22, appearance: {...DEFAULT_TRANSLATION_APPEARANCE, textColor: '#aabbcc', fontScale: 110}},
+            {id: 'paper', name: '纸张样式', style: 9, appearance: {...DEFAULT_TRANSLATION_APPEARANCE, opacity: 75}},
+        ]);
+    });
+
+    it('对导入的快照数量设限，并只保留指向现有快照的选择', () => {
+        const source = Array.from({length: MAX_TRANSLATION_STYLE_PROFILES + 3}, (_, index) => ({
+            id: `style-${index}`, name: `样式 ${index}`, style: index % 2 ? 9 : 22,
+            appearance: {opacity: 80},
+        }));
+        const config = normalizeConfig({translationStyleProfiles: source, activeTranslationStyleProfileId: 'style-2'});
+        expect(config.translationStyleProfiles).toHaveLength(MAX_TRANSLATION_STYLE_PROFILES);
+        expect(config.activeTranslationStyleProfileId).toBe('style-2');
+        expect(normalizeConfig({...config, activeTranslationStyleProfileId: 'style-14'}).activeTranslationStyleProfileId).toBe('');
+        expect(normalizeConfig({translationStyleProfiles: 'broken'}).translationStyleProfiles).toEqual([]);
     });
 });
 
