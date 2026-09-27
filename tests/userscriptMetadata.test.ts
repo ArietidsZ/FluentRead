@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {createUserscriptMetadata} from '@/userscript/metadata';
 
 describe('userscript metadata', () => {
-    it('targets classic GM APIs supported by Via and allows provider requests', () => {
+    it('keeps the content-world GM contract required by Safari and classic managers', () => {
         const metadata = createUserscriptMetadata({version: '1.2.3'});
 
         expect(metadata.startsWith('// ==UserScript==\n')).toBe(true);
@@ -15,7 +15,11 @@ describe('userscript metadata', () => {
         expect(metadata).toContain('// @grant        GM.setValue');
         expect(metadata).toContain('// @grant        GM.xmlHttpRequest');
         expect(metadata).toContain('// @connect      *');
+        expect(metadata).toContain('// @match        http://*/*');
+        expect(metadata).toContain('// @match        https://*/*');
         expect(metadata).toContain('// @run-at       document-start');
+        expect(metadata).toContain('// @inject-into  content');
+        expect(metadata).toContain('// @noframes');
         expect(metadata).not.toContain('@require');
     });
 });

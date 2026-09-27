@@ -6,7 +6,16 @@ If you use Tampermonkey, Violentmonkey, Via, or Safari Userscripts, you can inst
 
 Open the [FluentRead Greasy Fork page](https://greasyfork.org/en/scripts/482986), follow your script manager’s installation prompts, then open a regular webpage. Confirm that the script is enabled.
 
-The Greasy Fork release may lag behind the GitHub source. Check the version on the installation page and in script settings when reporting a problem.
+The Greasy Fork release may lag behind the GitHub source. Check the version on the installation page and in script settings when reporting a problem. Automated runtime checks currently cover Chrome with Violentmonkey; Safari Userscripts and Via still need device testing.
+
+## Safari Userscripts setup and troubleshooting
+
+1. Install Userscripts from the App Store and enable its Safari extension. On iPhone/iPad, go to Settings → Safari → Extensions → Userscripts, allow access to all websites, and choose Always Allow in Safari. On macOS, grant the extension access to the sites you visit.
+2. On iPhone/iPad, set a scripts directory in the Userscripts app first; macOS can use the default directory. Open the installation page above in Safari and use the Userscripts toolbar installation prompt to save and enable the script. Stay online while the manager downloads its `@require` UI libraries.
+3. In the Userscripts popup, confirm Enable Injection is on and FluentRead is matched and enabled for the current site. Reload a regular HTTP(S) page. Open FluentRead settings from its page floating button; Safari Userscripts does not provide script menu commands.
+4. If you added or edited the script directly in its directory, open the Userscripts popup at least once to refresh its file list. If the floating button is still missing, check the script version, site permission, URL match, and whether the required libraries downloaded. Include Safari, system, and Userscripts versions and the affected URL in a report.
+
+These steps follow the [official Userscripts installation and metadata documentation](https://github.com/quoid/userscripts/tree/release/4.x.x). Runtime behavior on Safari still needs device verification.
 
 ## What it can do
 

@@ -27,6 +27,7 @@ const assertions = [
   [source.includes('// @grant        GM_xmlhttpRequest'), 'GM_xmlhttpRequest grant is required'],
   [source.includes('// @grant        GM.getValue') && source.includes('// @grant        GM.setValue'), 'Safari GM storage grants are required'],
   [source.includes('// @grant        GM.xmlHttpRequest'), 'Safari GM request grant is required'],
+  [source.includes('// @inject-into  content'), 'Safari GM APIs require content-world injection'],
   [source.includes('// @connect      *'), 'provider requests require @connect'],
   [source.includes('// @require      https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js'), 'pinned Vue @require is missing'],
   [source.includes('// @require      https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@c8f9d958b12bcaef61b9a83ac832e62084a805b3/userscript/vueElementPlusBridge.v1.js'), 'pinned Vue / Element Plus UMD bridge @require is missing'],
