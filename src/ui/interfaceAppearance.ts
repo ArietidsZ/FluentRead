@@ -23,6 +23,20 @@ export const availableInterfaceFonts = readonly(availableFonts)
 const installedFiles = new Set<string>()
 const openFontCache = async () => caches.open('fluentread-interface-fonts-v1')
 let availabilityVersion = 0
+let activeInterfaceAppearanceRoot: HTMLElement | null = null
+
+/**
+ * Options 页面通常把皮肤写到 document.documentElement；userscript 的完整设置页
+ * 运行在 closed ShadowRoot 时，需要把同一份变量写到该 ShadowRoot 的 host。
+ * 未设置时保持扩展页面原有行为。
+ */
+export function setInterfaceAppearanceRoot(root: HTMLElement | null): void {
+  activeInterfaceAppearanceRoot = root
+}
+
+function resolveInterfaceAppearanceRoot(): HTMLElement | null {
+  return activeInterfaceAppearanceRoot || (typeof document !== 'undefined' ? document.documentElement : null)
+}
 
 function removeInstalledFontFiles(font: InterfaceFont): void {
   const protectedFiles = new Set(
@@ -79,23 +93,30 @@ export function retryInterfaceFont(source?: InterfaceFontSourceId): void {
   void fontLoader.load(fontLoadState.value.font, source, true)
 }
 
-export function applyInterfaceSkin(value: unknown): InterfaceSkin {
+export function applyInterfaceSkin(value: unknown, root?: HTMLElement | null): InterfaceSkin {
   const skin = getInterfaceSkinOption(value)
-  if (typeof document !== 'undefined') {
-    document.documentElement.dataset.interfaceSkin = skin.value
-    document.documentElement.dataset.interfaceSkinKind = skin.kind
-    document.documentElement.style.setProperty('--interface-popup-width', `${skin.popupWidth}px`)
+  const target = root || resolveInterfaceAppearanceRoot()
+  if (target) {
+    target.dataset.interfaceSkin = skin.value
+    target.dataset.interfaceSkinKind = skin.kind
+    target.style.setProperty('--interface-popup-width', `${skin.popupWidth}px`)
   }
   return skin.value
 }
 
-export function applyInterfaceFont(value: unknown): InterfaceFont {
+export function applyInterfaceFont(value: unknown, root?: HTMLElement | null): InterfaceFont {
   const font = getInterfaceFontOption(value)
-  if (typeof document !== 'undefined') {
-    document.documentElement.dataset.interfaceFont = font.value
-    document.documentElement.style.setProperty('--interface-font-family', font.fontFamily)
-    document.documentElement.style.setProperty('--el-font-family', font.fontFamily)
+  const target = root || resolveInterfaceAppearanceRoot()
+  if (target) {
+    target.dataset.interfaceFont = font.value
+    target.style.setProperty('--interface-font-family', font.fontFamily)
+    target.style.setProperty('--el-font-family', font.fontFamily)
     void fontLoader.load(font.value)
   }
   return font.value
+}
+
+export function applyInterfaceTheme(dark: boolean, root?: HTMLElement | null): void {
+  const target = root || resolveInterfaceAppearanceRoot()
+  target?.classList.toggle('dark', dark)
 }

@@ -14,6 +14,7 @@ const packageJson = JSON.parse(fs.readFileSync(resolve(root, 'package.json'), 'u
     userscriptVersion: string;
 };
 const iconDataUrl = `data:image/png;base64,${fs.readFileSync(resolve(root, 'public/icon/64.png')).toString('base64')}`;
+const approveDataUrl = `data:image/jpeg;base64,${fs.readFileSync(resolve(root, 'public/misc/approve.jpg')).toString('base64')}`;
 const bundleLibraries = process.env.FLUENTREAD_USERSCRIPT_STANDALONE === '1';
 function installedVersion(name: string): string {
     const manifest = JSON.parse(fs.readFileSync(resolve(root, 'node_modules', name, 'package.json'), 'utf8')) as {version: string};
@@ -274,6 +275,7 @@ function bundleUserscriptCss(): Plugin {
             const bootstrap = [
                 compatibilityPrelude,
                 `globalThis.__FLUENTREAD_ICON_DATA__=${JSON.stringify(iconDataUrl)};`,
+                ...(bundleLibraries ? [`globalThis.__FLUENTREAD_APPROVE_DATA__=${JSON.stringify(approveDataUrl)};`] : []),
                 `globalThis.__fluentReadUserscriptCssCompressed=${JSON.stringify(compressedCss)};`,
             ].join('\n');
             // 入口内部的幂等标记只能在整个 IIFE 顶层求值后生效。脚本管理器若对同一
@@ -364,6 +366,7 @@ export default defineConfig({
         __FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__: JSON.stringify(compressedUiLanguageBundles),
         __FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__: JSON.stringify(remoteUiLanguageBundles),
         __FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__: JSON.stringify(userscriptResourceCommit),
+        __FLUENTREAD_FULL_OPTIONS__: JSON.stringify(bundleLibraries),
     },
     build: {
         outDir: resolve(root, bundleLibraries ? '.output/userscript-standalone' : '.output/userscript'),

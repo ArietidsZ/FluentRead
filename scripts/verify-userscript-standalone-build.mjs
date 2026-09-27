@@ -15,7 +15,9 @@ const assertions = [
     [metadata.includes('// @inject-into  content'), 'GM APIs require content-world injection'],
     [metadata.includes('// @grant        GM.xmlHttpRequest'), 'Safari request grant is missing'],
     [metadata.includes('// @grant        GM_xmlhttpRequest'), 'Classic request grant is missing'],
+    [metadata.includes('// @grant        GM.openInTab') && metadata.includes('// @grant        GM_openInTab'), 'Settings tab grants are missing'],
     [!/^\/\/ @require\s/gmu.test(metadata), 'Standalone installation must not need remote JavaScript'],
+    [source.includes('fluentread-userscript-settings'), 'Full Options route is missing'],
     [source.includes('pako 2.1.0 —'), 'Bundled gzip fallback or license notice is missing'],
     [source.includes('@vue/runtime-dom 3.5.13 —'), 'Bundled Vue or license notice is missing'],
     [source.includes('element-plus 2.9.3 —'), 'Bundled UI or license notice is missing'],
@@ -24,5 +26,7 @@ for (const [passed, message] of assertions) {
     if (!passed) throw new Error(message);
 }
 const bytes = Buffer.byteLength(source);
-if (bytes > 2_500_000) throw new Error(`Standalone userscript grew past 2,500,000 bytes: ${bytes}`);
+// Full Options adds its navigation, settings forms, and CSS to the direct-install build.
+// This build is hosted outside Greasy Fork, whose separate rules cap scripts at 2 MB.
+if (bytes > 3_600_000) throw new Error(`Standalone userscript grew past 3,600,000 bytes: ${bytes}`);
 console.log(`Verified ${artifact} (${bytes.toLocaleString()} bytes; no @require)`);

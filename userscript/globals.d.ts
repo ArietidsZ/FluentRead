@@ -36,6 +36,7 @@ declare global {
         listValues?: () => unknown;
         xmlHttpRequest?: (details: UserscriptXmlHttpRequestDetails) => unknown;
         registerMenuCommand?: (label: string, listener: () => void) => unknown;
+        openInTab?: (url: string, openInBackground?: boolean) => unknown;
     }
 
     var GM: UserscriptModernApi | undefined;
@@ -46,15 +47,18 @@ declare global {
     var GM_listValues: undefined | (() => string[] | Promise<string[]>);
     var GM_xmlhttpRequest: undefined | ((details: UserscriptXmlHttpRequestDetails) => UserscriptXmlHttpRequestHandle | void);
     var GM_registerMenuCommand: undefined | ((label: string, listener: () => void) => unknown);
+    var GM_openInTab: undefined | ((url: string, options?: Record<string, unknown>) => unknown);
     var GM_addStyle: undefined | ((css: string) => unknown);
     var unsafeWindow: Window | undefined;
     var __FLUENTREAD_ICON_DATA__: string | undefined;
+    var __FLUENTREAD_APPROVE_DATA__: string | undefined;
     var __fluentReadUserscriptCss: string | undefined;
     var __fluentReadUserscriptCssCompressed: string | undefined;
     var pako: {ungzip(data: Uint8Array, options?: {to?: string}): string | Uint8Array} | undefined;
     const __FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__: Readonly<Record<string, string>>;
     const __FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__: Readonly<Record<string, string>>;
     const __FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__: string;
+    const __FLUENTREAD_FULL_OPTIONS__: boolean;
     var browser: any;
     var chrome: any;
 }

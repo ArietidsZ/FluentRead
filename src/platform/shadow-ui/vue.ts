@@ -23,19 +23,22 @@ export interface VueShadowUiOptions {
   name: string;
   hostId: string;
   component: Component;
-  props?: Record<string, unknown>;
+  props?: Record<string, unknown> | ((container: HTMLElement) => Record<string, unknown>);
   zIndex?: number;
   mode?: 'open' | 'closed';
+  /** 将当前 app 的插件和全局组件注册交给调用方；默认只安装基础 i18n。 */
+  configureApp?: (app: VueApp) => void;
+  /** 让 Shadow UI 承载一个独立的全视口页面，而不是零尺寸浮层。 */
+  viewport?: boolean;
 }
 
-const SHADOW_FOUNDATION = `
+function buildShadowFoundation(viewport = false): string {
+  return `
   :host {
     all: initial !important;
     display: block !important;
-    position: relative !important;
-    width: 0 !important;
-    height: 0 !important;
-    overflow: visible !important;
+    position: ${viewport ? 'fixed' : 'relative'} !important;
+    ${viewport ? 'left: 0 !important; top: 0 !important; width: 100vw !important; height: 100vh !important; overflow: hidden !important;' : 'width: 0 !important; height: 0 !important; overflow: visible !important;'}
     contain: none !important;
     color-scheme: light dark;
   }
@@ -49,12 +52,30 @@ const SHADOW_FOUNDATION = `
     overflow: visible !important;
   }
 
+  :host[data-fluent-read-viewport-ui="true"] {
+    display: block !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    pointer-events: auto !important;
+  }
+
+  :host[data-fluent-read-viewport-ui="true"] > div {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
   *,
   *::before,
   *::after {
     box-sizing: border-box;
   }
 `;
+}
 
 /**
  * 把 Vue 组件挂载到隔离的 Shadow DOM。
@@ -67,28 +88,39 @@ export async function createVueShadowUi(
   ctx: ContentScriptContext,
   options: VueShadowUiOptions,
 ): Promise<ShadowRootContentScriptUi<VueShadowMount>> {
-  const ui = await createShadowRootUi<VueShadowMount>(ctx, {
+  // `viewport` 是 userscript 对 WXT Shadow UI 契约的扩展字段；扩展构建使用 WXT
+  // 类型，userscript alias 使用本地兼容实现，因此在边界处保留运行时字段并收窄类型。
+  const shadowUiOptions = {
     name: options.name,
     position: 'overlay',
     alignment: 'top-left',
     zIndex: options.zIndex ?? 2_147_483_647,
     mode: options.mode ?? 'open',
+    viewport: options.viewport,
+    scopeRoot: options.viewport,
     inheritStyles: false,
     isolateEvents: ['keydown', 'keyup', 'keypress'],
-    css: SHADOW_FOUNDATION,
+    css: buildShadowFoundation(Boolean(options.viewport)),
     onMount(container) {
-      const app = createApp(options.component, options.props ?? {});
-      app.use(createUiI18nPlugin());
+      const props = typeof options.props === 'function' ? options.props(container) : options.props ?? {};
+      const app = createApp(options.component, props);
+      if (options.configureApp) options.configureApp(app);
+      else app.use(createUiI18nPlugin());
       const instance = app.mount(container);
       return { app, instance };
     },
     onRemove(mounted) {
       mounted?.app.unmount();
     },
-  });
+  } as Parameters<typeof createShadowRootUi<VueShadowMount>>[1] & {
+    viewport?: boolean;
+    scopeRoot?: boolean;
+  };
+  const ui = await createShadowRootUi<VueShadowMount>(ctx, shadowUiOptions);
 
   ui.shadowHost.id = options.hostId;
   ui.shadowHost.setAttribute('data-fluent-read-ui', options.name);
+  if (options.viewport) ui.shadowHost.setAttribute('data-fluent-read-viewport-ui', 'true');
   ui.mount();
   return ui;
 }

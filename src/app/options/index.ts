@@ -4,7 +4,7 @@
  * 主要内容：维护显式组件和图标清单，载入 Element Plus、settings-page 及共享 token 样式，createApp(OptionsApp) 后逐项注册并挂载到给定 selector。
  * 模块边界：此文件只做 UI 依赖装配，不实现导航、设置保存或业务组件；OptionsApp 管理页面状态，各 feature 负责配置和词汇逻辑，WXT 入口决定启动时机。
  */
-import { createApp, type Component } from 'vue'
+import { createApp, type App, type Component } from 'vue'
 import {
   ElButton,
   ElCollapse,
@@ -103,12 +103,26 @@ const ELEMENT_ICONS: Record<string, Component> = {
   WarningFilled,
 }
 
-/** options 的唯一组装入口：注册页面依赖后挂载 Vue 根组件。 */
-export async function mountOptionsApp(selector: string): Promise<void> {
-  await configReady
-  await ensureUiLanguageBundle(config.uiLanguage)
-  const app = createApp(OptionsApp)
-  app.use(createUiI18nPlugin({documentRoot: document.body, documentTitleKey: 'metadata.optionsTitle'}))
+export interface OptionsAppInstallOptions {
+  /**
+   * 扩展 Options 使用 document.body；userscript 的完整 Options UI 挂在 closed ShadowRoot
+   * 时传 null，避免 i18n 扫描或修改宿主网页。
+   */
+  documentRoot?: HTMLElement | null;
+  documentTitleKey?: string;
+}
+
+/**
+ * 把 Options 页面所需的插件、组件和 Element Plus 组件注册到现有 Vue app。
+ *
+ * 独立扩展页与 userscript 的独立设置标签页共用这一个装配入口，避免为了换挂载
+ * 容器而复制一份 SettingsSections / LearningCenter 的组件注册清单。
+ */
+export function installOptionsApp(app: App, installOptions: OptionsAppInstallOptions = {}): void {
+  app.use(createUiI18nPlugin({
+    documentRoot: installOptions.documentRoot === undefined ? document.body : installOptions.documentRoot,
+    documentTitleKey: installOptions.documentTitleKey ?? 'metadata.optionsTitle',
+  }))
   app.component('ElSelect', UiSelect)
 
   for (const component of ELEMENT_COMPONENTS) {
@@ -117,6 +131,13 @@ export async function mountOptionsApp(selector: string): Promise<void> {
   for (const [name, component] of Object.entries(ELEMENT_ICONS)) {
     app.component(name, component)
   }
+}
 
+/** options 的唯一组装入口：注册页面依赖后挂载 Vue 根组件。 */
+export async function mountOptionsApp(selector: string): Promise<void> {
+  await configReady
+  await ensureUiLanguageBundle(config.uiLanguage)
+  const app = createApp(OptionsApp)
+  installOptionsApp(app)
   app.mount(selector)
 }

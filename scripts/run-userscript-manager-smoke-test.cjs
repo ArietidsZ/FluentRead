@@ -14,11 +14,13 @@ function parseArgs(argv) {
     installLabel: '从文件安装',
     saveLabel: '保存并关闭',
     installedLabel: '脚本已安装。',
+    settingsMode: 'compact',
   };
   const names = new Set([
     'artifact', 'managerExtension', 'browserPath', 'playwrightRoot',
     'focusSafeHelper', 'artifactsDir', 'timeout', 'installMode',
     'installLabel', 'saveLabel', 'installedLabel',
+    'settingsMode',
   ]);
   for (let index = 0; index < argv.length; index += 2) {
     const token = argv[index];
@@ -38,6 +40,7 @@ function parseArgs(argv) {
   args.timeout = Number(args.timeout);
   if (!Number.isSafeInteger(args.timeout) || args.timeout < 1000) throw new Error('--timeout must be at least 1000 ms');
   if (!['file', 'url'].includes(args.installMode)) throw new Error('--install-mode must be file or url');
+  if (!['compact', 'full'].includes(args.settingsMode)) throw new Error('--settings-mode must be compact or full');
   return args;
 }
 
@@ -298,6 +301,103 @@ async function main() {
     await page.setViewportSize({width: 390, height: 844});
     await page.screenshot({path: evidence.mobileScreenshot});
     await page.setViewportSize({width: 1280, height: 900});
+
+    if (args.settingsMode === 'full') {
+      // A trusted click invokes the installed manager's GM.openInTab path.
+      // Directly navigating to the hash would miss a broken settings entry.
+      await page.evaluate(() => {
+        const trigger = document.createElement('button');
+        trigger.id = 'fluentread-test-open-settings';
+        trigger.textContent = 'Open FluentRead settings';
+        trigger.addEventListener('click', () => window.dispatchEvent(new CustomEvent('fluentread-userscript-open-settings')));
+        document.body.appendChild(trigger);
+      });
+      const openedPage = context.waitForEvent('page', {timeout: args.timeout});
+      await page.locator('#fluentread-test-open-settings').click();
+      const settingsPage = await openedPage;
+      await settingsPage.waitForURL(/#fluentread-userscript-settings(?:\/|$)/, {timeout: args.timeout});
+      evidence.settingsTabUrl = settingsPage.url();
+      if (!evidence.settingsTabUrl.startsWith(fixture.url)) throw new Error('Settings tab opened outside the current fixture origin');
+      await page.evaluate(() => document.querySelector('#fluentread-test-open-settings')?.remove());
+      settingsPage.on('console', (message) => {
+        if (message.type() === 'error') evidence.consoleErrors.push(`settings: ${message.text().slice(0, 300)}`);
+      });
+      settingsPage.on('pageerror', (error) => evidence.consoleErrors.push(`settings: ${error.message.slice(0, 300)}`));
+      await settingsPage.locator('#fluent-read-userscript-settings-container').waitFor({state: 'attached', timeout: args.timeout});
+      evidence.settings = await withSettingsShadow(settingsPage, function () {
+        return {
+          fullOptions: Boolean(this.querySelector('.settings-app button[data-section="settings-services"]')),
+          closedShadow: this.host.shadowRoot === null,
+        };
+      });
+      evidence.settings.pageIsolation = await settingsPage.evaluate(() => ({
+        floatingBall: document.querySelectorAll('#fluent-read-floating-ball-container').length,
+        contentStyles: document.querySelectorAll('#fluent-read-page-styles').length,
+        rootClass: document.documentElement.className,
+        rootStyle: document.documentElement.getAttribute('style'),
+      }));
+      if (!evidence.settings.fullOptions || !evidence.settings.closedShadow
+        || evidence.settings.pageIsolation.floatingBall || evidence.settings.pageIsolation.contentStyles
+        || evidence.settings.pageIsolation.rootClass || evidence.settings.pageIsolation.rootStyle) {
+        throw new Error(`Manager-backed full Options isolation failed: ${JSON.stringify(evidence.settings)}`);
+      }
+      await withSettingsShadow(settingsPage, function () {
+        const dark = [...this.querySelectorAll('[role="radiogroup"][aria-label="界面主题"] button')]
+          .find((button) => button.textContent.trim() === '暗色主题');
+        if (!dark) throw new Error('Full Options theme control was not found');
+        dark.click();
+      });
+      await settingsPage.waitForFunction(() => document.querySelector('#fluent-read-userscript-settings-container') !== null);
+      const startedAt = Date.now();
+      while (Date.now() - startedAt < args.timeout) {
+        const dark = await withSettingsShadow(settingsPage, function () { return this.host.classList.contains('dark'); });
+        if (dark) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      await settingsPage.waitForTimeout(350);
+      await settingsPage.reload({waitUntil: 'domcontentloaded'});
+      await settingsPage.locator('#fluent-read-userscript-settings-container').waitFor({state: 'attached', timeout: args.timeout});
+      await settingsPage.waitForFunction(() => document.querySelector('#fluent-read-userscript-settings-container') !== null);
+      await settingsPage.waitForTimeout(250);
+      evidence.settings.persistedTheme = await withSettingsShadow(settingsPage, function () {
+        return [...this.querySelectorAll('[role="radiogroup"][aria-label="界面主题"] button')]
+          .find((button) => button.textContent.trim() === '暗色主题')?.getAttribute('aria-checked');
+      });
+      if (evidence.settings.persistedTheme !== 'true') throw new Error('Full Options theme did not persist across manager-backed reload');
+      evidence.settingsScreenshot = path.join(args.artifactsDir, 'full-options.png');
+      await settingsPage.screenshot({path: evidence.settingsScreenshot});
+      await settingsPage.close();
+
+      const toggle = async (expected) => {
+        await page.keyboard.down('Alt');
+        await page.keyboard.press('t');
+        await page.keyboard.up('Alt');
+        await page.waitForFunction((count) =>
+          document.querySelectorAll('#target .fluent-read-bilingual-content').length === count,
+        expected, {timeout: args.timeout});
+        return page.evaluate(() => ({
+          count: document.querySelectorAll('#target .fluent-read-bilingual-content').length,
+          original: document.querySelector('#target')?.firstChild?.textContent,
+          translation: document.querySelector('#target .fluent-read-bilingual-content')?.textContent || '',
+        }));
+      };
+      evidence.translated = await toggle(1);
+      evidence.restored = await toggle(0);
+      evidence.retranslated = await toggle(1);
+      if (evidence.translated.original !== fixture.original || evidence.restored.original !== fixture.original
+        || evidence.retranslated.original !== fixture.original
+        || !/[\u3400-\u9fff]/u.test(evidence.retranslated.translation)
+        || evidence.consoleErrors.length || evidence.requestFailures.length) {
+        throw new Error('Manager-backed translation or restore failed after full Options use');
+      }
+      evidence.windowPlacement = session.windowPlacement;
+      evidence.focusPolicy = session.focusPolicy;
+      if (evidence.windowPlacement?.browserFrontmost !== false
+        || evidence.focusPolicy !== 'launchservices-no-foreground') throw new Error('Browser focus isolation failed');
+      evidence.status = 'passed';
+      console.log(`Verified full Options userscript ${metadata.version} in ${evidence.manager}; evidence: ${args.artifactsDir}`);
+      return;
+    }
 
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('fluentread-userscript-open-settings')));
     await page.waitForFunction(() => Boolean(document.querySelector('#fluent-read-userscript-settings-container')), undefined, {timeout: args.timeout});

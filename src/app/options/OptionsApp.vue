@@ -8,7 +8,7 @@
   <div class="settings-app">
     <aside class="sidebar">
       <div class="brand">
-        <img src="/icon/128.png" alt="" />
+        <img :src="iconUrl" alt="" />
         <div><strong>流畅阅读</strong></div>
       </div>
 
@@ -56,7 +56,7 @@
         <KeepAlive>
         <section v-if="activeSection === 'settings-about'" id="settings-about" class="about-page" aria-labelledby="about-title">
           <div class="about-hero">
-            <img class="about-logo" src="/icon/128.png" alt="流畅阅读图标" />
+            <img class="about-logo" :src="iconUrl" alt="流畅阅读图标" />
             <div>
               <h3 id="about-title">{{ t('options.aboutHeroTitle') }}</h3>
               <p>{{ t('options.aboutHeroDescription') }}</p>
@@ -75,13 +75,13 @@
                   <a
                     class="about-support-method about-support-wechat"
                     data-support-method="wechat"
-                    href="/misc/approve.jpg"
+                    :href="approveUrl"
                     target="_blank"
                     rel="noopener noreferrer"
                     :aria-label="t('popup.donationOpenCode')"
                   >
                     <!-- 绑定表达式让模板编译器保留 public 路径，避免再打包一份带 hash 的同图。 -->
-                    <img class="about-support-qr" :src="'/misc/approve.jpg'" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
+                    <img class="about-support-qr" :src="approveUrl" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
                   </a>
                 </section>
                 <section class="about-support-option about-support-kofi-option">
@@ -148,23 +148,50 @@ import {
   configReady,
   subscribeConfig,
 } from '@/src/services/config/store'
-import {applyInterfaceFont, applyInterfaceSkin} from '@/src/ui/interfaceAppearance'
+import {applyInterfaceFont, applyInterfaceSkin, setInterfaceAppearanceRoot} from '@/src/ui/interfaceAppearance'
 
+const props = defineProps<{
+  appearanceRoot?: HTMLElement | null
+  queryRoot?: ParentNode | null
+  settingsHashPrefix?: string
+  initialSection?: string
+  locationRouting?: 'internal'
+}>()
 const version = process.env.VUE_APP_VERSION
+const iconUrl = globalThis.__FLUENTREAD_ICON_DATA__ || '/icon/128.png'
+const approveUrl = globalThis.__FLUENTREAD_APPROVE_DATA__ || '/misc/approve.jpg'
 const {t, translateLegacy} = useUiI18n()
 const query = ref('')
 const interfaceSkin = ref(getInterfaceSkinOption(runtimeConfig.interfaceSkin))
-const activeSection = ref(resolveRequestedSection(window.location.hash))
+function sectionFromHash(hash: string): string {
+  if (!props.settingsHashPrefix) return resolveRequestedSection(hash)
+  const prefix = `${props.settingsHashPrefix}/`
+  return resolveRequestedSection(hash.startsWith(prefix) ? `#${hash.slice(prefix.length)}` : '')
+}
+
+function hashForSection(section: string): string {
+  return props.settingsHashPrefix ? `${props.settingsHashPrefix}/${section}` : `#${section}`
+}
+
+const activeSection = ref(props.initialSection || sectionFromHash(window.location.hash))
 const navigationElement = ref<HTMLElement | null>(null)
 const settingsContentElement = ref<HTMLElement | null>(null)
 const mobileNavigationMedia = window.matchMedia('(max-width: 700px)')
 let searchRevealGeneration = 0
 let cancelPendingSearchReveal: (() => void) | null = null
 
+if (props.appearanceRoot) setInterfaceAppearanceRoot(props.appearanceRoot)
+
 const navigation = navigationItems
 const contentComponentProps = computed(() => activeSection.value === 'settings-vocabulary'
   ? {onNavigate: selectSection}
-  : {activeSection: activeSection.value})
+  : {
+      activeSection: activeSection.value,
+      appearanceRoot: props.appearanceRoot,
+      queryRoot: props.queryRoot,
+      settingsHashPrefix: props.settingsHashPrefix,
+      onNavigateSection: selectSection,
+    })
 const localizedNavigationGroups = computed(() => navigationGroups.map((group) => ({
   ...group,
   label: translateLegacy(group.label),
@@ -193,19 +220,19 @@ const activeItem = computed(() => localizedNavigationItems.value.find((item) => 
   || localizedNavigationItems.value[0])
 const unsubscribeInterfaceConfig = subscribeConfig((nextConfig) => {
   interfaceSkin.value = getInterfaceSkinOption(nextConfig.interfaceSkin)
-  applyInterfaceSkin(nextConfig.interfaceSkin)
-  applyInterfaceFont(nextConfig.interfaceFont)
+  applyInterfaceSkin(nextConfig.interfaceSkin, props.appearanceRoot)
+  applyInterfaceFont(nextConfig.interfaceFont, props.appearanceRoot)
 })
 
 void configReady
   .then(() => {
     interfaceSkin.value = getInterfaceSkinOption(runtimeConfig.interfaceSkin)
-    applyInterfaceSkin(runtimeConfig.interfaceSkin)
-    applyInterfaceFont(runtimeConfig.interfaceFont)
+    applyInterfaceSkin(runtimeConfig.interfaceSkin, props.appearanceRoot)
+    applyInterfaceFont(runtimeConfig.interfaceFont, props.appearanceRoot)
   })
   .catch(() => {
-    applyInterfaceSkin('default')
-    applyInterfaceFont('system')
+    applyInterfaceSkin('default', props.appearanceRoot)
+    applyInterfaceFont('system', props.appearanceRoot)
   })
 
 type SearchResult = {id: string; sectionId: string; targetId?: string; label: string; searchDescription: string}
@@ -235,8 +262,11 @@ function selectSection(id: string) {
   cancelPendingSearchReveal?.()
   activeSection.value = id
   query.value = ''
-  if (window.location.hash !== `#${id}`) {
-    history.replaceState(null, '', `#${id}`)
+  if (props.locationRouting !== 'internal') {
+    const nextHash = hashForSection(id)
+    if (window.location.hash !== nextHash) {
+      history.replaceState(null, '', nextHash)
+    }
   }
   // 分区 DOM 更新后归零真正的内容滚动区，避免切换菜单仍停留在上个长表单的底部。
   void nextTick(() => settingsContentElement.value?.scrollTo({ top: 0, left: 0, behavior: 'instant' }))
@@ -266,7 +296,7 @@ async function selectResult(result: SearchResult) {
         stop()
         return
       }
-      const target = document.getElementById(result.targetId!)
+      const target = (props.queryRoot || document).querySelector<HTMLElement>(`#${result.targetId}`)
       if (!target?.getClientRects().length) return
       const targetRect = target.getBoundingClientRect()
       const contentTop = content.getBoundingClientRect().top
@@ -292,7 +322,7 @@ async function selectResult(result: SearchResult) {
   }
   if (revealLanguage) {
     await nextTick()
-    const control = document.querySelector<HTMLElement>('[data-testid="ui-language-select"] input')
+    const control = (props.queryRoot || document).querySelector<HTMLElement>('[data-testid="ui-language-select"] input')
     control?.scrollIntoView({block: 'center'})
     control?.focus()
   }
@@ -317,17 +347,20 @@ function handleMobileNavigationChange() {
 }
 
 function syncSectionFromHash() {
-  selectSection(resolveRequestedSection(window.location.hash))
+  selectSection(sectionFromHash(window.location.hash))
 }
 
 onMounted(() => {
-  syncSectionFromHash()
-  window.addEventListener('hashchange', syncSectionFromHash)
+  if (props.locationRouting !== 'internal') {
+    syncSectionFromHash()
+    window.addEventListener('hashchange', syncSectionFromHash)
+  }
   mobileNavigationMedia.addEventListener('change', handleMobileNavigationChange)
   void revealActiveNavigation()
 })
 
 onBeforeUnmount(() => {
+  if (props.appearanceRoot) setInterfaceAppearanceRoot(null)
   cancelPendingSearchReveal?.()
   unsubscribeInterfaceConfig()
   window.removeEventListener('hashchange', syncSectionFromHash)

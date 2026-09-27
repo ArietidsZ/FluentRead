@@ -21,6 +21,9 @@ describe('userscript manager smoke CLI', () => {
         expect(parseArgs(['--', ...args])).toEqual(parseArgs(args));
         expect(parseArgs(args).timeout).toBe(60000);
         expect(parseArgs(args).installMode).toBe('file');
+        expect(parseArgs(args).settingsMode).toBe('compact');
+        expect(parseArgs([...args, '--settings-mode', 'full']).settingsMode).toBe('full');
+        expect(() => parseArgs([...args, '--settings-mode', 'unknown'])).toThrow('--settings-mode');
         expect(parseArgs([...args, '--install-mode', 'url']).installMode).toBe('url');
         expect(() => parseArgs([...args, '--install-mode', 'remote'])).toThrow('--install-mode');
         expect(() => parseArgs(['--artifact', 'fluent-read.user.js'])).toThrow('Required argument');

@@ -13,6 +13,9 @@
     :fit-input-width="true"
     :filterable="filterable"
     :multiple="multiple"
+    :teleported="teleported"
+    :placement="placement"
+    :fallback-placements="insideShadowRoot ? ['bottom-start', 'top-start', 'right', 'left'] : undefined"
     :no-match-text="t('select.noMatch')"
     :no-data-text="t('select.noData')"
     v-bind="$attrs"
@@ -31,16 +34,41 @@
   </ElSelect>
 </template>
 <script setup lang="ts">
-import {ref, useSlots, type Slots} from 'vue';
+import {computed, getCurrentInstance, onBeforeUnmount, onMounted, ref, useSlots, type Slots} from 'vue';
 import {ElSelect} from 'element-plus';
 import {useUiI18n} from '@/src/ui/i18n';
 import 'element-plus/es/components/select/style/css';
 defineOptions({inheritAttrs: false});
-defineProps<{popperClass?: string; filterable?: boolean; multiple?: boolean; searchPlaceholder?: string}>();
+defineProps<{
+  popperClass?: string
+  filterable?: boolean
+  multiple?: boolean
+  searchPlaceholder?: string
+}>();
 const {t} = useUiI18n();
 const menuOpen = ref(false);
 const slots: Slots = useSlots();
 const select = ref<InstanceType<typeof ElSelect>>();
+const teleported = ref(true);
+const componentInstance = getCurrentInstance();
+const narrowViewport = ref(false);
+const insideShadowRoot = ref(false);
+const placement = computed(() => insideShadowRoot.value && narrowViewport.value ? 'top-start' : 'bottom-start');
+const updateViewportPlacement = () => {
+  narrowViewport.value = typeof window !== 'undefined' && window.innerWidth <= 700;
+};
+onMounted(() => {
+  const element = componentInstance?.vnode.el;
+  if (element instanceof HTMLElement && element.getRootNode() instanceof ShadowRoot) {
+    insideShadowRoot.value = true;
+    teleported.value = false;
+  }
+});
+onMounted(() => {
+  updateViewportPlacement();
+  window.addEventListener('resize', updateViewportPlacement);
+});
+onBeforeUnmount(() => window.removeEventListener('resize', updateViewportPlacement));
 defineExpose({
   focus: () => select.value?.focus(),
   blur: () => select.value?.blur(),
