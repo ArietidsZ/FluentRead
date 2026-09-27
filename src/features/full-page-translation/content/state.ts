@@ -843,7 +843,9 @@ function currentBilingualSourceStructureMatches(
  * roving tabindex 组件会为新出现的链接补写 -1/0。它不改变译文、链接目的地
  * 或可见性，不能被当成宿主删除译文。Font Rendering 的粗体修正会在
  * wrapper 及行内后代添加 ultimate-bold-correct 属性或 class；这同样只是字体标记。
- * 只在精确 HTML 不同时克隆比较。漂移判定可额外忽略链接 title 的增删改，
+ * ShortPixel 也会给新插入的译文及其后代补写值为 1 的 data-spai-bg-prepared；
+ * 该扫描标记不改变正文，不能让每次插入都消耗译文修复预算。只在精确 HTML
+ * 不同时克隆比较。漂移判定可额外忽略链接 title 的增删改，
  * 但 href、事件、可见性与其他属性仍须保持，不能把所有属性变化都当作页面装饰。
  */
 function bilingualContentMatchesWithHostTabOrder(
@@ -858,6 +860,9 @@ function bilingualContentMatchesWithHostTabOrder(
     const current = artifact.cloneNode(true) as HTMLElement;
     const expected = template.cloneNode(true) as HTMLElement;
     for (const clone of [current, expected]) {
+        for (const element of Array.from(clone.querySelectorAll('[data-spai-bg-prepared="1"]'))) {
+            element.removeAttribute('data-spai-bg-prepared');
+        }
         if (allowLinkTitleDrift) {
             for (const link of Array.from(clone.querySelectorAll('a[href][title]'))) {
                 link.removeAttribute('title');
@@ -906,10 +911,12 @@ function bilingualWrapperAttributesMatch(artifact: HTMLElement, state: Translati
     const templateAttributes = new Map(Array.from(template.attributes, ({name, value}) => [name, value]));
     for (const {name, value} of Array.from(artifact.attributes)) {
         if (name === 'ultimate-bold-correct' && value === '') continue;
+        if (name === 'data-spai-bg-prepared' && value === '1') continue;
         if (name !== 'class' && templateAttributes.get(name) !== value) return false;
     }
     for (const [name, value] of templateAttributes) {
         if (name === 'ultimate-bold-correct' && value === '') continue;
+        if (name === 'data-spai-bg-prepared' && value === '1') continue;
         if (name !== 'class' && artifact.getAttribute(name) !== value) return false;
     }
     const trustedClasses = new Set(Array.from(template.classList).filter((name) => name !== 'ultimate-bold-correct'));

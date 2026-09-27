@@ -40,6 +40,7 @@ import {
 import {mountConfiguredQuickTranslation} from './quickTranslationRuntime';
 import {installPageStyles} from './pageStyles';
 import {installQqMailTopFrameBridge} from './qqMailFrameRuntime';
+import {installEmbeddedTopFrameBridge} from './embeddedFrameRuntime';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {setMainWorldBridgesEnabled} from './mainWorldBridgeLifecycle';
 import {
@@ -98,6 +99,9 @@ export async function startContentApp(ctx: ContentScriptContext,
     const isPageRuntimeEnabled = (): boolean => !cleanedUp && !pageLifecycle.isSuspended() && !currentPageSiteDisabled && config.on !== false;
     const qqMailFullPageToggle = capabilities.browser !== 'userscript'
         ? installQqMailTopFrameBridge(isPageRuntimeEnabled, pageEventController.signal) : undefined;
+    if (capabilities.browser !== 'userscript') {
+        installEmbeddedTopFrameBridge(isPageRuntimeEnabled, pageEventController.signal);
+    }
     const disposePageFeatures = (): void => {
         featureController?.abort(); featureController = null;
         optionalContentFeatures?.dispose(); optionalContentFeatures = null;

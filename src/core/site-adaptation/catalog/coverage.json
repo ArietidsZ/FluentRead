@@ -1291,7 +1291,7 @@
     {
       "capability": "cross-origin-frames",
       "status": "separate-runtime",
-      "reason": "跨源邮件或嵌入内容需要既有权限与 frame 通信边界；JSON 只能在其可访问的文档内选择内容。"
+      "reason": "OMG! Ubuntu 的 Disqus 评论与 Kaggle Notebook 正文使用受限 frame 运行时；其他跨源邮件或嵌入内容仍需各自的权限与通信边界，JSON 只能在可访问的文档内选择内容。"
     },
     {
       "capability": "virtualized-layout",

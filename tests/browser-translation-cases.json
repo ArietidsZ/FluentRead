@@ -745,7 +745,7 @@
     "interactionSelectors": ["main a[href], article a[href]"],
     "modes": ["hover", "full"],
     "tier": "quarantine",
-    "quarantineReason": "当前隔离浏览器取得 HTTP 200 教程外壳，但等待后仍无 main/article 段落；本次未观察到登录墙或人机验证，保留为客户端正文渲染观察样本。",
+    "quarantineReason": "教程 Markdown 正文在跨域 kaggleusercontent.com iframe；本矩阵只检查顶层 main/article 段落，故继续隔离。专用 frame 实站测试已覆盖翻译、恢复和再次翻译。",
     "hoverHotkey": "Control",
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation"
