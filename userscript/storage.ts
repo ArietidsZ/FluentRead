@@ -1,3 +1,5 @@
+import {getUserscriptFunction} from './api';
+
 type StorageListener = (nextValue: unknown, previousValue?: unknown) => void;
 
 const listeners = new Map<string, Set<StorageListener>>();
@@ -46,16 +48,16 @@ function decodeStoredValue(value: unknown): unknown {
  * 内存回退仅服务于缺少 GM API 的测试或受限环境，不跨页面持久化。
  */
 export async function getStoredValue<T>(key: string): Promise<T | null> {
-    const getValue = globalThis.GM_getValue;
+    const getValue = getUserscriptFunction('GM_getValue', 'getValue');
     if (typeof getValue === 'function') {
-        return decodeStoredValue(await Promise.resolve(getValue<unknown>(key, null))) as T | null;
+        return decodeStoredValue(await Promise.resolve(getValue(key, null))) as T | null;
     }
     return (memoryFallback.get(key) ?? null) as T | null;
 }
 
 export async function setStoredValue<T>(key: string, value: T): Promise<void> {
     const previousValue = await getStoredValue<T>(key);
-    const setValue = globalThis.GM_setValue;
+    const setValue = getUserscriptFunction('GM_setValue', 'setValue');
     if (typeof setValue === 'function') {
         await Promise.resolve(setValue(key, JSON.stringify(value)));
     } else {
@@ -67,7 +69,7 @@ export async function setStoredValue<T>(key: string, value: T): Promise<void> {
 
 export async function removeStoredValue(key: string): Promise<void> {
     const previousValue = await getStoredValue(key);
-    const deleteValue = globalThis.GM_deleteValue;
+    const deleteValue = getUserscriptFunction('GM_deleteValue', 'deleteValue');
     if (typeof deleteValue === 'function') {
         await Promise.resolve(deleteValue(key));
     } else {
@@ -79,7 +81,7 @@ export async function removeStoredValue(key: string): Promise<void> {
 
 /** 统一枚举 GM 键；计数等跨页面派生状态只读取自己的命名空间。 */
 export async function listStoredKeys(): Promise<string[]> {
-    const listValues = globalThis.GM_listValues;
+    const listValues = getUserscriptFunction('GM_listValues', 'listValues');
     if (typeof listValues === 'function') {
         const keys = await Promise.resolve(listValues());
         return Array.isArray(keys) ? keys.filter((key): key is string => typeof key === 'string') : [];

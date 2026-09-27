@@ -14,6 +14,7 @@
     "build": "node scripts/testing/run-resource-safe.mjs -- wxt build",
     "build:userscript": "node scripts/testing/run-resource-safe.mjs -- vite build --config userscript/vite.config.ts",
     "build:obsidian": "tsc -p integrations/obsidian/tsconfig.json --noEmit && vite build --config integrations/obsidian/vite.config.ts",
+    "generate:userscript-languages": "node scripts/generate-userscript-language-data.mjs",
     "build:firefox": "node scripts/testing/run-resource-safe.mjs -- wxt build -b firefox",
     "zip": "node scripts/testing/run-resource-safe.mjs -- wxt zip",
     "zip:firefox": "node scripts/testing/run-resource-safe.mjs -- wxt zip -b firefox",

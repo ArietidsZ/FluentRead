@@ -8,6 +8,7 @@ function readSource(path: string): string {
 
 describe('standalone userscript privacy boundaries', () => {
     const userscriptStorage = readSource('userscript/storage.ts');
+    const userscriptApi = readSource('userscript/api.ts');
     const userscriptCount = readSource('userscript/count.ts');
     const userscriptMain = readSource('userscript/main.ts');
     const userscriptHttp = readSource('userscript/http.ts');
@@ -18,9 +19,11 @@ describe('standalone userscript privacy boundaries', () => {
 
     it('keeps userscript configuration in GM storage instead of host-page Web Storage', () => {
         expect(userscriptStorage).not.toMatch(/\b(?:localStorage|sessionStorage)\b/);
-        expect(userscriptStorage).toContain('globalThis.GM_getValue');
-        expect(userscriptStorage).toContain('globalThis.GM_setValue');
-        expect(userscriptStorage).toContain('globalThis.GM_deleteValue');
+        expect(userscriptStorage).toContain("getUserscriptFunction('GM_getValue', 'getValue')");
+        expect(userscriptStorage).toContain("getUserscriptFunction('GM_setValue', 'setValue')");
+        expect(userscriptStorage).toContain("getUserscriptFunction('GM_deleteValue', 'deleteValue')");
+        expect(userscriptApi).toContain('(globalThis as Record<string, unknown>)[legacyName]');
+        expect(userscriptApi).toContain("typeof GM === 'undefined'");
     });
 
     it('计数副本只使用随机 GM 命名空间，不把页面证据或凭据写入键名', () => {

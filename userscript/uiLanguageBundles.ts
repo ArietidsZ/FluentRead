@@ -1,14 +1,88 @@
 /**
  * @file userscript/uiLanguageBundles.ts
- * 文件职责：在 userscript 单文件产物中替换扩展运行时的界面语言资源加载器。
- * 主要内容：模块求值时静态注册全部非中文资源包，ensureUiLanguageBundle 始终立即成功，renderWithUiLanguageBundle 只需同步渲染一次。
- * 模块边界：userscript 没有可按 URL 读取的扩展资源目录，只能内联全部语言；扩展产物继续按需加载。
+ * 文件职责：按需加载并注册 userscript 的六种非中文界面语言。
+ * 主要内容：英文内嵌 gzip；其他语言从静态 JSON 获取并缓存在 GM 私有存储中。
+ * 模块边界：只注册核心 i18n 资源，不访问宿主网页存储；扩展继续使用自己的按需资源加载器。
  */
-import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+import {
+    hasUiLanguageBundle,
+    normalizeUiLanguage,
+    registerUiLanguageBundle,
+    type RegisteredUiLanguage,
+    type UiLanguageBundle,
+} from '@/src/core/i18n';
 import type {EnsureUiLanguageBundle, renderWithUiLanguageBundle as RenderWithUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
+import {inflateGzipBase64} from './compression';
+import {userscriptFetch} from './http';
+import {getStoredValue, setStoredValue} from './storage';
 
-registerAllUiLanguageBundles();
+const pending = new Map<RegisteredUiLanguage, Promise<boolean>>();
 
-export const ensureUiLanguageBundle: EnsureUiLanguageBundle = () => Promise.resolve(true);
+async function inflateBundle(base64: string): Promise<UiLanguageBundle> {
+    return JSON.parse(await inflateGzipBase64(base64)) as UiLanguageBundle;
+}
 
-export const renderWithUiLanguageBundle: typeof RenderWithUiLanguageBundle = (_language, render) => render();
+function isBundle(value: unknown): value is UiLanguageBundle {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const candidate = value as Partial<UiLanguageBundle>;
+    return Boolean(candidate.messages && typeof candidate.messages === 'object'
+        && candidate.legacyText && typeof candidate.legacyText === 'object'
+        && Array.isArray(candidate.legacyPatterns?.early)
+        && Array.isArray(candidate.legacyPatterns?.late));
+}
+
+async function fetchRemoteBundle(fileName: string): Promise<UiLanguageBundle> {
+    const cacheKey = `fluentread:ui-language:${fileName}`;
+    const cached = await getStoredValue<UiLanguageBundle>(cacheKey).catch(() => null);
+    if (isBundle(cached)) return cached;
+
+    const sources = [
+        `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@main/userscript/languages/${fileName}`,
+        `https://raw.githubusercontent.com/FluentRead/FluentRead/main/userscript/languages/${fileName}`,
+    ];
+    let lastError: unknown;
+    for (const url of sources) {
+        try {
+            const response = await userscriptFetch(url, {credentials: 'omit'});
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const bundle = await response.json();
+            if (!isBundle(bundle)) throw new TypeError('界面语言资源格式无效');
+            // GM 私有存储只是离线缓存；缓存失败不影响本次显示。
+            await setStoredValue(cacheKey, bundle).catch(() => undefined);
+            return bundle;
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    throw lastError;
+}
+
+export const ensureUiLanguageBundle: EnsureUiLanguageBundle = (value) => {
+    const language = normalizeUiLanguage(value);
+    if (hasUiLanguageBundle(language)) return Promise.resolve(true);
+    const registered = language as RegisteredUiLanguage;
+    const compressed = __FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__[registered];
+    const remoteFile = __FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__[registered];
+    if (!compressed && !remoteFile) return Promise.resolve(false);
+    const existing = pending.get(registered);
+    if (existing) return existing;
+    const request = (compressed ? inflateBundle(compressed) : fetchRemoteBundle(remoteFile))
+        .then((bundle) => {
+            if (!isBundle(bundle)) throw new TypeError('界面语言资源格式无效');
+            registerUiLanguageBundle(registered, bundle);
+            return true;
+        })
+        .catch((error: unknown) => {
+            console.warn('[FluentRead] userscript 界面语言资源不可用', error);
+            return false;
+        })
+        .finally(() => pending.delete(registered));
+    pending.set(registered, request);
+    return request;
+};
+
+export const renderWithUiLanguageBundle: typeof RenderWithUiLanguageBundle = (language, render) => {
+    render();
+    if (hasUiLanguageBundle(normalizeUiLanguage(language))) return;
+    void ensureUiLanguageBundle(language).then((loaded) => { if (loaded) render(); });
+};

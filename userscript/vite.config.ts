@@ -1,17 +1,52 @@
 import fs from 'node:fs';
+import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
+import {gzipSync} from 'node:zlib';
 import vue from '@vitejs/plugin-vue';
 import ts from 'typescript';
 import {defineConfig, normalizePath, type Plugin} from 'vite';
 import {createUserscriptMetadata} from './metadata';
+import {UI_LANGUAGE_BUNDLES} from '../src/core/i18n/bundles';
 
 const root = resolve(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(resolve(root, 'package.json'), 'utf8')) as {
     version: string;
     userscriptVersion: string;
 };
-const iconDataUrl = `data:image/png;base64,${fs.readFileSync(resolve(root, 'public/icon/128.png')).toString('base64')}`;
-const metadata = createUserscriptMetadata({version: packageJson.userscriptVersion, iconDataUrl});
+const iconDataUrl = `data:image/png;base64,${fs.readFileSync(resolve(root, 'public/icon/64.png')).toString('base64')}`;
+function installedVersion(name: string): string {
+    const manifest = JSON.parse(fs.readFileSync(resolve(root, 'node_modules', name, 'package.json'), 'utf8')) as {version: string};
+    return manifest.version;
+}
+
+// 脚本管理器在安装时缓存固定版本的通用库；业务代码仍留在本仓库的单文件中。
+const userscriptRequires = [
+    `https://cdn.jsdelivr.net/npm/vue@${installedVersion('vue')}/dist/vue.global.prod.js`,
+    'https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@main/userscript/vueElementPlusBridge.v1.js',
+    `https://cdn.jsdelivr.net/npm/element-plus@${installedVersion('element-plus')}/dist/index.full.min.js`,
+    `https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@${installedVersion('@element-plus/icons-vue')}/dist/index.iife.min.js`,
+    `https://cdn.jsdelivr.net/npm/tldts@${installedVersion('tldts')}/dist/index.umd.min.js`,
+    'https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako_inflate.min.js',
+];
+const metadata = createUserscriptMetadata({version: packageJson.userscriptVersion, iconDataUrl, requires: userscriptRequires});
+const compressedUiLanguageBundles = Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
+    .filter(([language]) => language === 'en-US')
+    .map(([language, bundle]) => [
+    language,
+    gzipSync(Buffer.from(JSON.stringify(bundle))).toString('base64'),
+]));
+const remoteUiLanguageBundles = Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
+    .filter(([language]) => language !== 'en-US')
+    .map(([language, bundle]) => {
+        const contents = JSON.stringify(bundle);
+        const digest = createHash('sha256').update(contents).digest('hex').slice(0, 16);
+        const fileName = `${language}.${digest}.json`;
+        const filePath = resolve(root, 'userscript/languages', fileName);
+        if (!fs.existsSync(filePath) || fs.readFileSync(filePath, 'utf8').trimEnd() !== contents) {
+            throw new Error(`Userscript language data missing or stale: ${fileName}; run pnpm generate:userscript-languages`);
+        }
+        return [language, fileName];
+    }));
 const unicodeNotice = `/*\n${fs.readFileSync(resolve(root, 'public/third-party-notices/unicode-17.0.0.txt'), 'utf8')}\n*/`;
 const serviceIconsNotice = `/*\n${fs.readFileSync(resolve(root, 'public/third-party-notices/lobe-icons-MIT.txt'), 'utf8')}\n*/`;
 const browserShimPath = resolve(root, 'userscript/browser.ts');
@@ -197,6 +232,7 @@ function bundleUserscriptCss(): Plugin {
           handler(_options, bundle) {
             const cssEntries = Object.entries(bundle).filter(([, item]) => item.type === 'asset' && item.fileName.endsWith('.css'));
             const css = cssEntries.map(([, item]) => String(item.type === 'asset' ? item.source : '')).join('\n');
+            const compressedCss = gzipSync(Buffer.from(css, 'utf8')).toString('base64');
             cssEntries.forEach(([fileName]) => delete bundle[fileName]);
 
             const entry = Object.values(bundle).find((item) => item.type === 'chunk' && item.isEntry);
@@ -205,7 +241,7 @@ function bundleUserscriptCss(): Plugin {
             const bootstrap = [
                 compatibilityPrelude,
                 `globalThis.__FLUENTREAD_ICON_DATA__=${JSON.stringify(iconDataUrl)};`,
-                `globalThis.__fluentReadUserscriptCss=${JSON.stringify(css)};`,
+                `globalThis.__fluentReadUserscriptCssCompressed=${JSON.stringify(compressedCss)};`,
             ].join('\n');
             // 入口内部的幂等标记只能在整个 IIFE 顶层求值后生效。脚本管理器若对同一
             // 文档再次注入，必须在最外层跳过整个 bundle，否则内联模块会重复创建
@@ -261,8 +297,10 @@ export const userscriptAliases = [
     {find: /^dexie$/u, replacement: resolve(root, 'userscript/dexie.ts')},
     {find: '@/src/platform/storage/credentialContext', replacement: resolve(root, 'userscript/credentialContext.ts')},
     {find: '@/src/platform/storage/configStorageRuntime', replacement: resolve(root, 'userscript/storage.ts')},
-    // 扩展按界面语言读取构建产物中的资源包；单文件 userscript 没有资源目录，改为静态注册全部语言。
+    // 扩展从本地资源读取界面语言；userscript 内嵌英文，其他语言从仓库静态 JSON 按需加载。
     {find: '@/src/platform/i18n/uiLanguageBundles', replacement: resolve(root, 'userscript/uiLanguageBundles.ts')},
+    {find: /^@\/src\/services\/translation\/context\/browser$/u, replacement: resolve(root, 'userscript/pageContext.ts')},
+    {find: /^@\/src\/services\/translation\/context$/u, replacement: resolve(root, 'userscript/pageTranslationContext.ts')},
     // app/content 只依赖 feature 公开契约；在此边界替换，才能保证扩展专属 runtime 不进入产物。
     {find: '@/src/features/area-translation/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
     {find: '@/src/features/image-translation/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
@@ -285,6 +323,8 @@ export default defineConfig({
         'process.env.NODE_ENV': JSON.stringify('production'),
         'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.version),
         'process.env.VUE_APP_USERSCRIPT_VERSION': JSON.stringify(packageJson.userscriptVersion),
+        __FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__: JSON.stringify(compressedUiLanguageBundles),
+        __FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__: JSON.stringify(remoteUiLanguageBundles),
     },
     build: {
         outDir: resolve(root, '.output/userscript'),
@@ -301,9 +341,16 @@ export default defineConfig({
             fileName: () => 'fluent-read.user.js',
         },
         rollupOptions: {
+            external: ['vue', 'element-plus', '@element-plus/icons-vue', 'tldts'],
             output: {
                 inlineDynamicImports: true,
                 entryFileNames: 'fluent-read.user.js',
+                globals: {
+                    vue: 'Vue',
+                    'element-plus': 'ElementPlus',
+                    '@element-plus/icons-vue': 'ElementPlusIconsVue',
+                    tldts: 'tldts',
+                },
             },
         },
     },

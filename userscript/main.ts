@@ -5,6 +5,8 @@ import {createUserscriptContentContext} from './context';
 import {userscriptFetch} from './http';
 import {ensureUserscriptConfig} from './initialize';
 import {getUserscriptConfigCount} from './count';
+import {getUserscriptFunction} from './api';
+import {inflateGzipBase64} from './compression';
 import {waitForContentDocument} from '@/src/app/content/pageLifecycle';
 import {
     completeUserscriptConfigPreparation,
@@ -25,7 +27,7 @@ async function waitForDocumentBody(): Promise<void> {
 }
 
 function registerMenu(label: string, listener: () => void): void {
-    const register = globalThis.GM_registerMenuCommand;
+    const register = getUserscriptFunction('GM_registerMenuCommand', 'registerMenuCommand');
     if (typeof register === 'function') register(label, listener);
 }
 
@@ -40,6 +42,9 @@ async function bootstrap(): Promise<void> {
     disposeShadowAndRouteBridge = installShadowAndRouteBridge();
     setRuntimeFetch(userscriptFetch);
     try {
+        if (globalThis.__fluentReadUserscriptCssCompressed) {
+            globalThis.__fluentReadUserscriptCss = await inflateGzipBase64(globalThis.__fluentReadUserscriptCssCompressed);
+        }
         await ensureUserscriptConfig();
         completeUserscriptConfigPreparation();
     } catch (error) {

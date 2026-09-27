@@ -11,6 +11,9 @@ describe('userscript metadata', () => {
         expect(metadata).toContain('// @version      1.2.3');
         expect(metadata).toContain('// @grant        GM_xmlhttpRequest');
         expect(metadata).toContain('// @grant        GM_registerMenuCommand');
+        expect(metadata).toContain('// @grant        GM.getValue');
+        expect(metadata).toContain('// @grant        GM.setValue');
+        expect(metadata).toContain('// @grant        GM.xmlHttpRequest');
         expect(metadata).toContain('// @connect      *');
         expect(metadata).toContain('// @run-at       document-start');
         expect(metadata).not.toContain('@require');

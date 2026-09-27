@@ -13,6 +13,7 @@ function parseArgs(argv, env = process.env) {
     focusSafeHelper: env.FLUENTREAD_FOCUS_SAFE_HELPER || '',
     timeout: 60000,
     suite: 'full',
+    gmMode: 'legacy',
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -30,6 +31,7 @@ function parseArgs(argv, env = process.env) {
   }
   args.timeout = Number(args.timeout);
   if (!['full', 'selects'].includes(args.suite)) throw new Error(`无法识别测试套件：${args.suite}`);
+  if (!['legacy', 'modern'].includes(args.gmMode)) throw new Error(`无法识别 GM 模式：${args.gmMode}`);
   if (!args.artifact) throw new Error('必须传入 --artifact');
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root');
   if (!args.artifactsDir) throw new Error('必须传入 --artifacts-dir');
@@ -59,6 +61,37 @@ function loadFocusSafeBrowser(helperPath) {
     if (typeof helper[name] !== 'function') throw new Error(`后台浏览器辅助脚本缺少接口：${name}`);
   }
   return helper;
+}
+
+async function preloadUserscriptRequires(page, artifact) {
+  const root = path.resolve(path.dirname(artifact), '../..');
+  const source = fs.readFileSync(artifact, 'utf8');
+  const requires = [...source.matchAll(/^\/\/ @require\s+https:\/\/cdn\.jsdelivr\.net\/(?:npm\/([^\s]+)|gh\/FluentRead\/FluentRead@main\/userscript\/(vueElementPlusBridge\.v1\.js))$/gm)]
+    .map((match) => match[1] || match[2]);
+  const vendors = [
+    ['vue@', 'vue/dist/vue.global.prod.js'],
+    ['element-plus@', 'element-plus/dist/index.full.min.js'],
+    ['@element-plus/icons-vue@', '@element-plus/icons-vue/dist/index.iife.min.js'],
+    ['tldts@', 'tldts/dist/index.umd.min.js'],
+  ];
+  for (const required of requires) {
+    if (required === 'vueElementPlusBridge.v1.js') {
+      await page.addScriptTag({path: path.join(root, 'userscript', required)});
+      continue;
+    }
+    if (required.startsWith('pako@')) continue; // Edge uses DecompressionStream; pako fallback has a focused unit test.
+    const entry = vendors.find(([prefix]) => required.startsWith(prefix));
+    if (!entry) throw new Error(`未知的 userscript @require：${required}`);
+    const localPath = path.join(root, 'node_modules', entry[1]);
+    if (!fs.existsSync(localPath)) throw new Error(`找不到 userscript @require 测试依赖：${localPath}`);
+    await page.addScriptTag({path: localPath});
+  }
+  if (requires.length && await page.evaluate(() =>
+    typeof Vue === 'undefined' || typeof ElementPlus === 'undefined'
+    || typeof ElementPlusIconsVue === 'undefined' || typeof tldts === 'undefined')) {
+    throw new Error('userscript @require 依赖未在浏览器中建立全局入口');
+  }
+  return requires;
 }
 
 function assertDedicatedProfile(profileDir) {
@@ -271,25 +304,37 @@ async function main() {
       sharedGmStore.delete(key);
     });
     await context.exposeFunction('__fluentReadGmList', () => [...sharedGmStore.keys()]);
-    await context.addInitScript(() => {
+    await context.addInitScript(({modern}) => {
       Object.defineProperty(window, '__fluentReadOriginalAttachShadow', {value: Element.prototype.attachShadow});
       Object.defineProperty(window, '__fluentReadUserscriptSettingsShadow', {value: null, writable: true});
       Object.defineProperty(window, '__fluentReadSmokeBridgeEvents', {value: {shadow: 0, route: 0}});
       document.addEventListener('fluentread-open-shadow-root', () => { window.__fluentReadSmokeBridgeEvents.shadow += 1; });
       document.addEventListener('fluentread-route-change', () => { window.__fluentReadSmokeBridgeEvents.route += 1; });
-      window.GM_getValue = (key, fallback) => window.__fluentReadGmGet(key, fallback);
-      window.GM_setValue = (key, value) => window.__fluentReadGmSet(key, value);
-      window.GM_deleteValue = (key) => window.__fluentReadGmDelete(key);
-      window.GM_listValues = () => window.__fluentReadGmList();
-      window.GM_registerMenuCommand = () => 1;
+      if (modern) {
+        window.GM = {
+          getValue: (key, fallback) => window.__fluentReadGmGet(key, fallback),
+          setValue: (key, value) => window.__fluentReadGmSet(key, value),
+          deleteValue: (key) => window.__fluentReadGmDelete(key),
+          listValues: () => window.__fluentReadGmList(),
+        };
+      } else {
+        window.GM_getValue = (key, fallback) => window.__fluentReadGmGet(key, fallback);
+        window.GM_setValue = (key, value) => window.__fluentReadGmSet(key, value);
+        window.GM_deleteValue = (key) => window.__fluentReadGmDelete(key);
+        window.GM_listValues = () => window.__fluentReadGmList();
+        window.GM_registerMenuCommand = () => 1;
+      }
       window.GM_addStyle = (css) => {
         const style = document.createElement('style');
         style.textContent = css;
         document.documentElement.appendChild(style);
         return style;
       };
-      window.GM_xmlhttpRequest = (details) => {
+      const request = (details) => {
         let aborted = false;
+        let complete;
+        let fail;
+        const pending = modern ? new Promise((resolve, reject) => { complete = resolve; fail = reject; }) : null;
         const timer = setTimeout(() => {
           if (aborted) return;
           try {
@@ -297,20 +342,32 @@ async function main() {
             const responseText = JSON.stringify(body.map((text) => ({
               translations: [{text: `译文：${String(text).replace(/<[^>]+>/g, '')}`}],
             })));
-            details.onload?.({
+            const response = {
               status: 200,
               statusText: 'OK',
               responseText,
               responseHeaders: 'content-type: application/json; charset=utf-8',
               finalUrl: details.url,
-            });
+            };
+            if (modern) complete(response);
+            else details.onload?.(response);
           } catch (error) {
-            details.onerror?.({status: 500, statusText: String(error), responseText: ''});
+            if (modern) fail(error);
+            else details.onerror?.({status: 500, statusText: String(error), responseText: ''});
           }
         }, 1000);
-        return {abort() { aborted = true; clearTimeout(timer); details.onabort?.({status: 0, statusText: 'aborted'}); }};
+        const abort = () => {
+          aborted = true;
+          clearTimeout(timer);
+          if (modern) fail(new DOMException('Aborted', 'AbortError'));
+          else details.onabort?.({status: 0, statusText: 'aborted'});
+        };
+        if (modern) { pending.abort = abort; return pending; }
+        return {abort};
       };
-    });
+      if (modern) window.GM.xmlHttpRequest = request;
+      else window.GM_xmlhttpRequest = request;
+    }, {modern: args.gmMode === 'modern'});
 
     const page = await selectUserscriptTestPage(args.background, context, createIsolatedPage);
     await page.emulateMedia({reducedMotion: 'no-preference'});
@@ -326,7 +383,9 @@ async function main() {
       Object.defineProperty(window, '__fluentReadBrowserBeforeInjection', {value: window.browser});
       Object.defineProperty(window, '__fluentReadChromeBeforeInjection', {value: window.chrome});
     });
+    let preloadedRequires;
     try {
+      preloadedRequires = await preloadUserscriptRequires(page, artifact);
       await page.addScriptTag({path: artifact});
       await page.waitForSelector('#fluent-read-page-styles', {state: 'attached', timeout: args.timeout});
       await page.addStyleTag({content: `
@@ -452,6 +511,9 @@ async function main() {
         return {
           visibleSelectCount: root.querySelectorAll('.fluentread-select').length,
           nativeSelectCount: root.querySelectorAll('select').length,
+          unexpectedNativeSelects: [...root.querySelectorAll('select')]
+            .filter((select) => select.getAttribute('aria-label') !== '免费翻译选择模式')
+            .map((select) => select.outerHTML.slice(0, 300)),
           menuInsideShadow: menu.getRootNode() === root,
           menuInsideBackdrop: root.querySelector('.fr-userscript-settings-backdrop').contains(menu),
           menuOutsideScrollArea: !menu.closest('.settings-grid, .fr-userscript-settings'),
@@ -461,7 +523,7 @@ async function main() {
         };
       });
       await page.screenshot({path: path.join(artifactsDir, 'userscript-service-menu.png')});
-      if (settingsSelectState.visibleSelectCount < 12 || settingsSelectState.nativeSelectCount !== 0
+      if (settingsSelectState.visibleSelectCount < 12 || settingsSelectState.unexpectedNativeSelects.length !== 0
         || !settingsSelectState.menuInsideShadow || !settingsSelectState.menuInsideBackdrop
         || !settingsSelectState.menuOutsideScrollArea || !settingsSelectState.menuInsideViewport
         || settingsSelectState.inputCount !== 1 || settingsSelectState.triggerLabelWhileOpen !== '搜索翻译服务') {
@@ -674,6 +736,7 @@ async function main() {
           localStorage.setItem('__fluentReadHostLocalSentinel', 'host-local-sentinel');
           sessionStorage.setItem('__fluentReadHostSessionSentinel', 'host-session-sentinel');
         });
+        await preloadUserscriptRequires(countingPage, artifact);
         await countingPage.addScriptTag({path: artifact});
         await countingPage.waitForSelector('#fluent-read-page-styles', {state: 'attached', timeout: args.timeout});
         await countingPage.waitForSelector('#fluent-read-floating-ball-container', {state: 'attached', timeout: args.timeout});
@@ -696,7 +759,7 @@ async function main() {
 
       const recoveryPage = await createCountingPage();
       const recovered = await recoveryPage.evaluate(async () => {
-        const rawConfig = await window.GM_getValue('local:config', null);
+        const rawConfig = await window.__fluentReadGmGet('local:config', null);
         const parsedConfig = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
         return {
           count: parsedConfig?.count,
@@ -711,7 +774,7 @@ async function main() {
       }
       await recoveryPage.waitForTimeout(250);
       const stableRecoveredCount = await recoveryPage.evaluate(async () => {
-        const rawConfig = await window.GM_getValue('local:config', null);
+        const rawConfig = await window.__fluentReadGmGet('local:config', null);
         const parsedConfig = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
         return parsedConfig?.count;
       });
@@ -741,11 +804,11 @@ async function main() {
     }
 
     await page.evaluate(() => {
-      return window.GM_getValue('local:config', null).then((rawConfig) => {
+      return window.__fluentReadGmGet('local:config', null).then((rawConfig) => {
         const nextConfig = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
         nextConfig.service = 'openai';
         nextConfig.token = {...nextConfig.token, openai: ''};
-        return window.GM_setValue('local:config', JSON.stringify(nextConfig));
+        return window.__fluentReadGmSet('local:config', JSON.stringify(nextConfig));
       }).then(() => {
         window.dispatchEvent(new Event('focus'));
       });
@@ -813,7 +876,9 @@ async function main() {
       isolatedProfile: profileDir,
       artifact,
       fixtureUrl: fixture.url,
-      transport: 'legacy GM_xmlhttpRequest deterministic browser shim',
+      transport: `${args.gmMode} GM deterministic browser shim`,
+      gmMode: args.gmMode,
+      preloadedRequires,
       hoverCounts,
       fullPageCounts,
       finalState,
