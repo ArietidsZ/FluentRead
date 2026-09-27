@@ -531,6 +531,18 @@ node scripts/testing/run-area-translation-flow-test.cjs \
 
 标签切换用例通过 `connectOverCDP({noDefaults: true})` 禁用 Playwright 默认焦点模拟，验证浏览器真实的 `visible → hidden` 及在途取消。窄屏用例先稳定布局和页面焦点，再圈选；深色卡片同时断言外围透明，配置变更断言主题和静态进度立即更新。
 
+## 局部翻译选择流程
+
+```bash
+node scripts/testing/run-section-translation-flow-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <path> \
+  --focus-safe-helper <path> \
+  --artifacts-dir /private/tmp/fluentread-section-flow
+```
+
+使用临时 Edge profile、防抢焦点 helper 和 CDP 真实指针/按键，在类 GitHub 仓库页夹具上验证：Popup 局部按钮与主按钮同排等高，消息进入选择模式后高亮鼠标下的段落，↑ 扩大到 README 并在范围内保持选择；点击 README 内的链接只翻译该区域且不跳转、网页收不到点击，视口外段落排在最后翻译，导航、文件列表、侧栏、页脚和代码保持原文；再次选择同一区域显示“恢复原文”并只恢复该区域。伪造点击和 Esc 不影响选择，真实 Esc 与右键退出且不发请求；主动选择侧栏时按全部节点范围翻译；已是目标语言与空白区域给出提示且不请求服务；快捷键默认关闭、开启后可进入和退出且在输入框中让行；全文恢复原文同时清除局部译文，关闭插件立即退出选择模式。追加 `--github-url <仓库地址>` 可在真实 GitHub README 上重复点选流程并断言 README 之外没有译文。翻译传输是确定性 Google 夹具，不代表外部服务可用性。
+
 ### 悬浮说明框翻译稳定性
 
 `run-full-page-translation-test.cjs` 在全文翻译会话中动态创建与旧 Bootstrap 相同结构的 tooltip，按原文高度定位，使双语内容增高后覆盖触发图标。真实 CDP 鼠标连续执行两次移入、持续停留和移出，断言每次只打开一次、译文仅一份、图标仍获得鼠标命中，移出后正常关闭。报告的 `tooltipHover` 同时记录语义 tooltip、未翻译提示、交互弹层和恢复原文后的命中边界。该保护只作用于已翻译的纯说明提示框，保留链接、按钮和可聚焦控件的交互。此测试为本地结构夹具，不代表登录后的真实网站验证。

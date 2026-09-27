@@ -85,6 +85,10 @@
       "tests/paragraphCopyConfig.test.ts",
       "tests/paragraphCopyCore.test.ts",
       "tests/paragraphCopyRuntime.test.ts",
+      "tests/sectionTranslationConfig.test.ts",
+      "tests/sectionTranslationCore.test.ts",
+      "tests/sectionTranslationRegion.test.ts",
+      "tests/sectionTranslationRuntime.test.ts",
       "tests/hotkey.test.ts",
       "tests/i18n.test.ts",
       "tests/contentHotkeyRuntime.test.ts",
@@ -351,7 +355,8 @@
       "tests/bilingualSentenceHighlight.test.ts",
       "tests/languageIdentificationCorpus.test.ts",
       "tests/sameTargetLanguageClient.test.ts",
-      "tests/sameTargetLanguageSlots.test.ts"
+      "tests/sameTargetLanguageSlots.test.ts",
+      "tests/sectionTranslationPicker.test.ts"
     ],
     "regression": [
       "tests/myMemoryConnectionTest.test.ts",

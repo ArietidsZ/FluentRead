@@ -1,7 +1,7 @@
 /**
  * @file src/features/paragraph-copy/content/index.ts
  * 文件职责：在宿主页面监听段落复制快捷键，把鼠标当前所指的段落文字按配置口径写入剪贴板，并用页内通知说明复制结果。
- * 主要内容：记录最近一次指针位置，过滤输入场景与站点停用状态，按候选或最近块级祖先定位段落，组合原文/译文/双语文本，先用 Clipboard API 再回退 execCommand，并在 AbortSignal 结束时移除监听。
+ * 主要内容：记录最近一次指针位置，借助 shared/dom 过滤输入场景并检查站点停用状态，按候选或最近块级祖先定位段落，组合原文/译文/双语文本，先用 Clipboard API 再回退 execCommand，并在 AbortSignal 结束时移除监听。
  * 模块边界：本模块只处理手势、取词与剪贴板写入，不解析快捷键字符串、不发起翻译、不渲染设置界面；按键口径归 core/config/paragraphCopy，段落文本组合归 features/paragraph-copy/core，通知外观归 page-notice。
  */
 import {config} from '@/src/services/config/store';
@@ -12,45 +12,11 @@ import {
 } from '@/src/core/config/paragraphCopy';
 import {resolveTranslationCandidateAtPoint} from '@/src/core/translation/public';
 import {showPageNotice} from '@/src/features/page-notice/public';
+import {isEditingInPage} from '@/src/shared/dom/editingTarget';
 import {composeParagraphCopyText, findCopyableBlock, readParagraphTexts} from '../core';
 
 export interface ParagraphCopyContentOptions {
     isSiteDisabled: () => boolean;
-}
-
-const TYPING_ROLES = ['textbox', 'searchbox', 'combobox', 'spinbutton'];
-// 这些标签天生可聚焦；焦点停在它们上面不代表用户正在输入文字。
-const NATIVE_FOCUSABLE_TAGS = ['A', 'AREA', 'AUDIO', 'BUTTON', 'DETAILS', 'EMBED', 'IFRAME', 'LABEL', 'OBJECT', 'SUMMARY', 'VIDEO'];
-
-function isTypingTarget(target: EventTarget | null): boolean {
-    const element = target as Element | null;
-    if (!element || typeof (element as Element).getAttribute !== 'function') return false;
-    if (['INPUT', 'TEXTAREA', 'SELECT', 'OPTION'].includes(element.tagName)) return true;
-    if ((element as HTMLElement).isContentEditable) return true;
-    if (element.closest('[contenteditable="true"], [contenteditable="plaintext-only"], [contenteditable=""]')) return true;
-    const role = element.getAttribute('role');
-    return typeof role === 'string' && TYPING_ROLES.includes(role.toLowerCase());
-}
-
-/** 逐层穿过可读取的 ShadowRoot，找到真正持有焦点的元素。 */
-function deepActiveElement(): Element | null {
-    let focused = document.activeElement;
-    while (focused?.shadowRoot?.activeElement) focused = focused.shadowRoot.activeElement;
-    return focused;
-}
-
-/** 焦点停在无法读取的封闭 ShadowRoot 宿主或自定义元素上时，保守当作输入场景放行按键。 */
-function isOpaqueFocusHost(element: Element): boolean {
-    if (['BODY', 'HTML'].includes(element.tagName)) return false;
-    if (element.tagName.includes('-')) return true;
-    if (element.hasAttribute('tabindex')) return false;
-    return !NATIVE_FOCUSABLE_TAGS.includes(element.tagName);
-}
-
-function isEditingInPage(event: KeyboardEvent): boolean {
-    if (typeof event.composedPath === 'function' && event.composedPath().some(isTypingTarget)) return true;
-    const focused = deepActiveElement();
-    return Boolean(focused) && (isTypingTarget(focused) || isOpaqueFocusHost(focused!));
 }
 
 /** http 页面没有 Clipboard API，快捷键仍是可信手势，因此保留 execCommand 回退。 */

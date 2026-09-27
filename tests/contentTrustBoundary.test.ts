@@ -56,6 +56,17 @@ describe('host-page trust boundary', () => {
     expect(source('src/features/image-translation/content/runtime.ts')).toContain("attachShadow({ mode: 'closed' })");
   });
 
+  it('keeps the section picker behind trusted input and a closed shadow root', () => {
+    const picker = source('src/features/section-translation/content/picker.ts');
+    const entry = source('src/features/section-translation/content/index.ts');
+
+    // 网页脚本不能伪造点击或按键替用户选择区域并发起翻译，也不能读取选择浮层。
+    expect(picker).toContain("attachShadow({mode: 'closed'})");
+    expect(picker.match(/if \(!event\.isTrusted\) return;/g)?.length).toBeGreaterThanOrEqual(9);
+    expect(entry.match(/if \(!event\.isTrusted\) return;/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(`${picker}\n${entry}`).not.toContain('CustomEvent');
+  });
+
   it('keeps selection UI wheel handling out of the host document', () => {
     const selection = source('src/features/selection-translation/ui/SelectionTranslator.vue');
 

@@ -33,7 +33,7 @@ vi.mock('@/src/app/content/features', () => ({
         'inputBoxTranslationConfigKey', 'isAreaTranslatorMounted', 'isFullPageTranslationActive',
         'mountAreaTranslator', 'mountFloatingBall', 'mountImageTranslator', 'mountSelectionTranslator',
         'mountTranslationProgressPanel', 'mountVideoSubtitleTranslation', 'isSupportedVideoPage',
-        'mountParagraphCopyContentFeature',
+        'mountParagraphCopyContentFeature', 'mountSectionTranslationContentFeature',
         'unmountAreaTranslator', 'unmountFloatingBall',
         'unmountImageTranslator', 'unmountSelectionTranslator', 'unmountTranslationProgressPanel',
     ].map(name => [name, vi.fn()])),

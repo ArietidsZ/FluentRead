@@ -595,6 +595,7 @@
 
     <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
       <ParagraphCopySettings :config="config" />
+      <SectionTranslationSettings :config="config" />
       <ExcludedLanguageSettings v-model="config.excludedLanguages" />
     </section>
 
@@ -770,6 +771,7 @@ const AreaTranslationSettings = defineAsyncComponent(() => import('./AreaTransla
 const InputTranslationSettings = defineAsyncComponent(() => import('./InputTranslationSettings.vue'));
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 const ParagraphCopySettings = defineAsyncComponent(() => import('./ParagraphCopySettings.vue'));
+const SectionTranslationSettings = defineAsyncComponent(() => import('./SectionTranslationSettings.vue'));
 const ParagraphHandlingSettings = defineAsyncComponent(() => import('./ParagraphHandlingSettings.vue'));
 const TranslationCacheSettings = defineAsyncComponent(() => import('./TranslationCacheSettings.vue'));
 import SettingsGroup from './components/SettingsGroup.vue';

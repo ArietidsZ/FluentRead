@@ -903,6 +903,34 @@ describe('快捷翻译方案配置', () => {
         expect(released.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Alt+J', enabled: true});
     });
 
+    it('局部翻译快捷键默认关闭，只接受预设与可用的自定义值', () => {
+        expect(new Config()).toMatchObject({
+            sectionTranslationHotkeyEnabled: false, sectionTranslationHotkey: 'Alt+R', customSectionTranslationHotkey: '',
+        });
+        expect(normalizeConfig({})).toMatchObject({
+            sectionTranslationHotkeyEnabled: false, sectionTranslationHotkey: 'Alt+R', customSectionTranslationHotkey: '',
+        });
+        expect(normalizeConfig({sectionTranslationHotkeyEnabled: true, sectionTranslationHotkey: 'shift+x'}))
+            .toMatchObject({sectionTranslationHotkeyEnabled: true, sectionTranslationHotkey: 'Shift+X'});
+        expect(normalizeConfig({sectionTranslationHotkeyEnabled: 'yes'})).toMatchObject({sectionTranslationHotkeyEnabled: false});
+        expect(normalizeConfig({sectionTranslationHotkey: 'custom', customSectionTranslationHotkey: 'alt+k'}))
+            .toMatchObject({sectionTranslationHotkey: 'custom', customSectionTranslationHotkey: 'Alt+K'});
+        // 选择自定义却没有可用组合键时回到默认预设，开启的快捷键不会失去可用组合。
+        expect(normalizeConfig({sectionTranslationHotkey: 'custom', customSectionTranslationHotkey: 'cmd+k'}))
+            .toMatchObject({sectionTranslationHotkey: 'Alt+R', customSectionTranslationHotkey: ''});
+        for (const invalid of [undefined, 'none', 'Ctrl+C', 42]) {
+            expect(normalizeConfig({sectionTranslationHotkey: invalid}).sectionTranslationHotkey).toBe('Alt+R');
+        }
+    });
+
+    it('快捷翻译方案只在局部翻译快捷键开启时避让它', () => {
+        const profile = {id: 'section-clash', enabled: true, action: 'hover', hotkey: 'Alt+R'};
+        const occupied = normalizeConfig({sectionTranslationHotkeyEnabled: true, quickTranslationProfiles: [profile]});
+        expect(occupied.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Alt+R', enabled: false});
+        const released = normalizeConfig({sectionTranslationHotkeyEnabled: false, quickTranslationProfiles: [profile]});
+        expect(released.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Alt+R', enabled: true});
+    });
+
     it('划词快捷键与快捷翻译可共存，圈选的默认快捷键仍保留既有所有权', () => {
         const normalized = normalizeConfig({
             selectionTranslatorMode: 'bilingual',
