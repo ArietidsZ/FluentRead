@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { areaRectToImageCrop, isUsableAreaRect, normalizeAreaRect } from '@/src/features/area-translation/core';
 import {
     areaTranslationHotkeyDisplayName,
@@ -9,6 +9,7 @@ import {
     normalizeCustomAreaTranslationHotkey,
     resolveAreaTranslationHotkey,
 } from '@/src/core/config/areaTranslation';
+import {shouldStartAreaTranslationFromHotkey} from '@/src/features/area-translation/content/areaHotkey';
 
 function keyboardEvent(init: Partial<KeyboardEvent>): KeyboardEvent {
     return {
@@ -60,6 +61,66 @@ describe('圈选翻译快捷键配置', () => {
         expect(matchesAreaTranslationHotkey(shiftZ, 'custom', 'Alt+X')).toBe(false);
         // macOS 上 Option+X 会把 key 变成不可配置字形，匹配必须回退到物理 code。
         expect(matchesAreaTranslationHotkey(keyboardEvent({key: '≈', code: 'KeyX', altKey: true}), 'custom', 'Alt+X')).toBe(true);
+    });
+});
+
+describe('圈选翻译按需入口', () => {
+    class FocusElement extends EventTarget {
+        isContentEditable = false;
+        editableAncestor = false;
+        tabIndexEnabled = false;
+        shadowRoot: {activeElement: FocusElement | null} | null = null;
+        constructor(readonly tagName: string, private readonly role: string | null = null) { super(); }
+        closest(selector: string): FocusElement | null { return selector.includes('contenteditable') && this.editableAncestor ? this : null; }
+        getAttribute(name: string): string | null { return name === 'role' ? this.role : null; }
+        hasAttribute(name: string): boolean { return name === 'tabindex' && this.tabIndexEnabled; }
+        contains(target: EventTarget | null): boolean { return target === this; }
+    }
+    const settings = {on: true, selectionAreaEnabled: true, selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''};
+
+    it('仅可信且不在编辑器中的快捷键会创建覆盖层', () => {
+        vi.stubGlobal('HTMLElement', FocusElement);
+        vi.stubGlobal('Node', FocusElement);
+        try {
+            const body = new FocusElement('BODY');
+            const input = new FocusElement('INPUT');
+            const button = new FocusElement('BUTTON');
+            const opaqueHost = new FocusElement('MY-EDITOR');
+            const roleEditor = new FocusElement('DIV', 'textbox');
+            const nestedEditor = new FocusElement('SPAN');
+            nestedEditor.editableAncestor = true;
+            const focusContainer = new FocusElement('DIV');
+            focusContainer.tabIndexEnabled = true;
+            const openShadowHost = new FocusElement('MY-WIDGET');
+            openShadowHost.shadowRoot = {activeElement: button};
+            const doc = {activeElement: body, getElementById: () => null} as unknown as Document;
+            const event = (target: FocusElement, overrides: Record<string, unknown> = {}) => ({
+                key: 'Z', code: 'KeyZ', shiftKey: true, ctrlKey: false, altKey: false, metaKey: false,
+                isTrusted: true, repeat: false, isComposing: false, target,
+                composedPath: () => [target], ...overrides,
+            }) as unknown as KeyboardEvent;
+
+            expect(shouldStartAreaTranslationFromHotkey(event(body), settings, doc)).toBe(true);
+            expect(shouldStartAreaTranslationFromHotkey(event(body, {isTrusted: false}), settings, doc)).toBe(false);
+            expect(shouldStartAreaTranslationFromHotkey(event(body, {repeat: true}), settings, doc)).toBe(false);
+            expect(shouldStartAreaTranslationFromHotkey(event(body, {key: 'X', code: 'KeyX'}), settings, doc)).toBe(false);
+            expect(shouldStartAreaTranslationFromHotkey(event(input), settings, doc)).toBe(false);
+            expect(shouldStartAreaTranslationFromHotkey(event(roleEditor), settings, doc)).toBe(false);
+            expect(shouldStartAreaTranslationFromHotkey(event(nestedEditor), settings, doc)).toBe(false);
+            expect(shouldStartAreaTranslationFromHotkey(event(body, {composedPath: () => [new EventTarget(), body]}), settings, doc)).toBe(true);
+            expect(shouldStartAreaTranslationFromHotkey(event(button), settings, {...doc, activeElement: button} as unknown as Document)).toBe(true);
+            expect(shouldStartAreaTranslationFromHotkey(event(body), settings, {...doc, activeElement: focusContainer} as unknown as Document)).toBe(true);
+            expect(shouldStartAreaTranslationFromHotkey(event(body), settings, {...doc, activeElement: openShadowHost} as unknown as Document)).toBe(true);
+            expect(shouldStartAreaTranslationFromHotkey(event(body), settings, {...doc, activeElement: null} as unknown as Document)).toBe(true);
+            expect(shouldStartAreaTranslationFromHotkey(event(body), settings, {...doc, activeElement: opaqueHost} as unknown as Document)).toBe(false);
+            expect(shouldStartAreaTranslationFromHotkey(event(body), {...settings, on: false}, doc)).toBe(false);
+            expect(shouldStartAreaTranslationFromHotkey(event(body), {...settings, selectionAreaEnabled: false}, doc)).toBe(false);
+            expect(shouldStartAreaTranslationFromHotkey(event(body), settings, {
+                ...doc, getElementById: () => body,
+            } as unknown as Document)).toBe(false);
+        } finally {
+            vi.unstubAllGlobals();
+        }
     });
 });
 

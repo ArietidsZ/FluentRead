@@ -464,6 +464,8 @@ export default defineConfig({
                 'src/core/i18n/messages/runtime-feedback.ts',
                 'src/core/i18n/messages/runtime-feedback-patterns.ts',
                 'src/core/config/areaTranslation.ts',
+                'src/features/area-translation/content/areaHotkey.ts',
+                'src/app/content/areaContextMenuResponse.ts',
                 'src/core/config/paragraphCopy.ts',
                 'src/core/config/sectionTranslation.ts',
                 'src/core/config/catalog.ts',
