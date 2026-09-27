@@ -50,8 +50,11 @@ import {createSelectionTtsSynthesizer} from '@/src/features/selection-translatio
 import {installWritingBackgroundRuntime} from './writingRuntime';
 import {installHarnessBackgroundRuntime} from './harnessRuntime';
 import {createImageGlossaryContext} from './imageGlossaryContext';
+import {createEmbeddedFrameBackgroundHandlers, type EmbeddedFrameBackgroundContext} from
+    '@/src/features/full-page-translation/background/embeddedFrameHandlers';
 import {buildGlossaryRevision} from '@/src/core/glossary';
-type BackgroundRuntimeContext = QQMailFrameBackgroundContext & NeteaseMailFrameBackgroundContext & ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
+type BackgroundRuntimeContext = QQMailFrameBackgroundContext & NeteaseMailFrameBackgroundContext
+    & EmbeddedFrameBackgroundContext & ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
     & FullPageBackgroundContext & AreaTranslationBackgroundContext;
 export interface BackgroundMessageRuntimeOptions {
     tabTranslationStates: TabTranslationStateStore;
@@ -82,6 +85,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         createTranslationCancelHandler(translationRequestRegistry),
         installHarnessBackgroundRuntime(cancelWriting),
         ...createQqMailFrameBackgroundHandlers({sendTabMessage: (tabId, message, options) => browser.tabs.sendMessage(tabId, message, options)}),
+        ...createEmbeddedFrameBackgroundHandlers({sendTabMessage: (tabId, message, options) => browser.tabs.sendMessage(tabId, message, options)}),
         ...createNeteaseMailFrameBackgroundHandlers({sendTabMessage: (tabId, message, options) => browser.tabs.sendMessage(tabId, message, options)}),
         ...createTranslationCacheHandlers(clearTranslationCache, getTranslationCacheStats, createTranslationCacheInvalidationBroadcaster({
             queryTabs: () => browser.tabs.query({}) as Promise<Array<{id?: number}>>,

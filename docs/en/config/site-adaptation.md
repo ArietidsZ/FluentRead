@@ -13,6 +13,8 @@ Discord's server icon rail stays unchanged in both reading-area and all-nodes mo
 3. For menus and navigation, enable recognition of all nodes in advanced page-recognition settings, then restore and retranslate.
 4. For text inside an image or chart, try [area translation](/en/guide/area-translation).
 
+In the browser extension, full-page translation also covers Disqus comments on OMG! Ubuntu articles and Markdown tutorial text in Kaggle Notebooks. Scroll down to translate later content.
+
 ## Translate every time—or leave it alone
 
 Use website rules to enable automatic translation for regular sites or disable FluentRead on a particular site. Refresh or reopen the page after saving to confirm the behavior.

@@ -561,5 +561,122 @@
     "watchIgnore": [
       ".countdown"
     ]
+  },
+  {
+    "id": "linuxiac",
+    "name": "Linuxiac",
+    "match": {
+      "hosts": [
+        "linuxiac.com",
+        "www.linuxiac.com"
+      ]
+    },
+    "priority": 420,
+    "profile": "article",
+    "mode": "augment",
+    "content": [
+      {
+        "css": [
+          "#main h1.page-title",
+          "#main .page-description > p",
+          "#main .ultp-block-title",
+          "#main .ultp-block-excerpt"
+        ],
+        "key": "linuxiac-headlines-and-leads",
+        "atomic": true
+      }
+    ],
+    "exclude": [
+      "#header",
+      ".ct-breadcrumbs",
+      ".entry-meta",
+      ".ultp-block-meta-element"
+    ]
+  },
+  {
+    "id": "phoronix",
+    "name": "Phoronix",
+    "match": {
+      "hosts": [
+        "phoronix.com",
+        "www.phoronix.com"
+      ]
+    },
+    "priority": 420,
+    "mode": "augment",
+    "content": [
+      {
+        "css": [
+          "#main article.full h1"
+        ],
+        "key": "phoronix-headline",
+        "atomic": true
+      },
+      {
+        "css": [
+          "#main article.full .content"
+        ],
+        "key": "phoronix-article-lines",
+        "atomic": true,
+        "splitOnBr": true
+      }
+    ],
+    "protect": [
+      "pre",
+      "code",
+      "kbd",
+      "samp",
+      "input",
+      "textarea",
+      "button",
+      "select"
+    ],
+    "exclude": [
+      "nav",
+      "#linklist",
+      "#litemenu"
+    ]
+  },
+  {
+    "id": "omgubuntu-disqus-comments",
+    "name": "OMG! Ubuntu Comments",
+    "match": {
+      "hosts": ["disqus.com"],
+      "paths": ["/embed/comments/"]
+    },
+    "priority": 430,
+    "mode": "focus",
+    "content": [
+      {
+        "css": [".post-message p", ".post-message li", ".post-message blockquote"],
+        "key": "disqus-comment-text",
+        "atomic": true
+      }
+    ],
+    "protect": ["pre", "code", "kbd", "input", "textarea", "button", "select"]
+  },
+  {
+    "id": "kaggle-notebook-markdown",
+    "name": "Kaggle Notebook",
+    "match": {
+      "hosts": ["www.kaggleusercontent.com"],
+      "paths": ["/kf/*/__results__.html"]
+    },
+    "priority": 430,
+    "mode": "focus",
+    "content": [
+      {
+        "css": [
+          ".text_cell_render h1", ".text_cell_render h2", ".text_cell_render h3",
+          ".text_cell_render h4", ".text_cell_render h5", ".text_cell_render h6",
+          ".text_cell_render p", ".text_cell_render li", ".text_cell_render blockquote",
+          ".text_cell_render th", ".text_cell_render td", ".text_cell_render figcaption"
+        ],
+        "key": "kaggle-markdown-prose",
+        "atomic": true
+      }
+    ],
+    "protect": ["pre", "code", "kbd", "samp", "input", "textarea", "button", "select"],
+    "exclude": [".code_cell", ".input_prompt", ".output_prompt", ".output"]
   }
 ]

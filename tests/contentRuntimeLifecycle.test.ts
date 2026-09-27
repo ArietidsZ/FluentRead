@@ -1,3 +1,9 @@
+/**
+ * @file tests/contentRuntimeLifecycle.test.ts
+ * 文件职责：验证内容应用启动、配置等待、页面暂停恢复与离开时的生命周期边界。
+ * 主要内容：隔离各 feature 的组合根依赖，确认迟到初始化和伪造页面事件不会挂载功能。
+ * 模块边界：不测试各 feature 的 Vue 组件或真实翻译请求；跨域 frame 的身份与会话另有专门测试。
+ */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {installContentPageLifecycle, waitForContentDocument} from '@/src/app/content/pageLifecycle';
 
@@ -56,6 +62,7 @@ vi.mock('@/src/app/content/qqMailFrameRuntime', () => ({
     installQqMailTopFrameBridge: vi.fn(),
     installNeteaseMailTopFrameBridge: vi.fn(),
 }));
+vi.mock('@/src/app/content/embeddedFrameRuntime', () => ({installEmbeddedTopFrameBridge: vi.fn()}));
 vi.mock('@/src/app/content/mainWorldBridgeLifecycle', () => ({setMainWorldBridgesEnabled: mocks.setBridges}));
 vi.mock('@/src/app/content/messageRuntime', () => ({createContentRuntimeMessageHandler: mocks.createMessageHandler}));
 vi.mock('@/src/app/content/bilingualSentenceHighlight', () => ({syncBilingualSentenceHighlight: mocks.syncHighlight}));

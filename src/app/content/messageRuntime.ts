@@ -40,7 +40,8 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
     return (message, _sender, sendResponse) => {
         if (!message || typeof message !== 'object') return false;
         const payload = message as Record<string, unknown>;
-        if (payload.type === 'qqMailFrameCommand' || payload.type === 'qqMailFrameRefresh') return false;
+        if (payload.type === 'qqMailFrameCommand' || payload.type === 'qqMailFrameRefresh' ||
+            payload.type === 'embeddedFrameCommand' || payload.type === 'embeddedFrameRefresh') return false;
         if (payload.message === 'clearCache') {
             forwardLegacyCacheClear(
                 (request) => browser.runtime.sendMessage(request),
