@@ -166,6 +166,7 @@
       "tests/cloudVendorCatalog.test.ts",
       "tests/siteRules.test.ts",
       "tests/issue146EmbeddedFrames.test.ts",
+      "tests/supportedFrameEntrypoint.test.ts",
       "tests/issue146SiteRules.test.ts",
       "tests/shadowUi.test.ts",
       "tests/tabTranslationState.test.ts",
