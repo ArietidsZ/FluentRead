@@ -11,6 +11,14 @@ type LegacyCorrectionRow = readonly [source: string, enUS: string, jaJP: string,
 
 /** 设置页、弹窗、文档页和各功能面板中的标签、按钮与说明。 */
 const correctionRows: readonly LegacyCorrectionRow[] = [
+    ['中英双向划词', 'Chinese–English selection translation', '中国語・英語の双方向選択翻訳', '중국어·영어 양방향 선택 번역', 'Traduction de sélection chinois–anglais', 'Перевод выделения между китайским и английским', 'Traducción de selección chino–inglés'],
+    ['开启后，选中与目标语言相同的中文或英文也会显示划词入口，并自动译成另一种语言。卡片内可临时切换译文语言，不会修改默认设置。', 'Show the selection action for Chinese or English text already in the target language, and translate it into the other language. You can change the target in the card without changing your defaults.', '有効にすると、翻訳先と同じ中国語または英語を選択した場合も翻訳操作が表示され、もう一方の言語へ翻訳します。カード内の切り替えは既定の設定を変更しません。', '켜면 대상 언어와 같은 중국어 또는 영어를 선택해도 번역 메뉴가 표시되고 다른 언어로 번역합니다. 카드에서 언어를 바꿔도 기본 설정은 변경되지 않습니다.', 'Affiche l’action de traduction pour du texte chinois ou anglais déjà dans la langue cible et le traduit dans l’autre langue. Le choix dans la carte ne change pas les réglages par défaut.', 'Показывает перевод для китайского или английского текста, уже написанного на целевом языке, и переводит на другой язык. Выбор в карточке не меняет настройки по умолчанию.', 'Muestra la acción de traducción para texto chino o inglés que ya está en el idioma de destino y lo traduce al otro idioma. Cambiar el idioma en la tarjeta no modifica la configuración predeterminada.'],
+    ['划词译文语言', 'Selection target language', '選択範囲の翻訳先言語', '선택 영역 번역 대상 언어', 'Langue cible de la sélection', 'Язык перевода выделения', 'Idioma de destino de la selección'],
+    ['译为', 'Translate to', '翻訳先', '번역 대상', 'Traduire en', 'Перевести на', 'Traducir a'],
+    ['选中文字已是中文', 'Selected text is already Chinese', '選択したテキストはすでに中国語です', '선택한 텍스트가 이미 중국어입니다', 'Le texte sélectionné est déjà en chinois', 'Выделенный текст уже на китайском', 'El texto seleccionado ya está en chino'],
+    ['选中文字已是英文', 'Selected text is already English', '選択したテキストはすでに英語です', '선택한 텍스트가 이미 영어입니다', 'Le texte sélectionné est déjà en anglais', 'Выделенный текст уже на английском', 'El texto seleccionado ya está en inglés'],
+    ['译为中文', 'Translate to Chinese', '中国語に翻訳', '중국어로 번역', 'Traduire en chinois', 'Перевести на китайский', 'Traducir al chino'],
+    ['译为英文', 'Translate to English', '英語に翻訳', '영어로 번역', 'Traduire en anglais', 'Перевести на английский', 'Traducir al inglés'],
     // 翻译统计导航与搜索。
     ['翻译统计', 'Translation statistics', '翻訳統計', '번역 통계', 'Statistiques de traduction', 'Статистика перевода', 'Estadísticas de traducción'],
     ['请求规模、耗时与服务表现', 'Request size, duration and service performance', 'リクエスト規模、所要時間、サービスの状況', '요청 규모, 소요 시간, 서비스 성능', 'Taille des requêtes, durée et performances des services', 'Размер запросов, время и работа сервисов', 'Tamaño de solicitudes, duración y rendimiento de los servicios'],

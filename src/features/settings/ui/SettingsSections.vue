@@ -390,6 +390,13 @@
         <span class="input-suffix">ms</span>
       </el-col>
     </el-row>
+    <SettingsItem
+      v-if="config.selectionTranslatorMode !== 'disabled' && ['en', 'zh-Hans', 'zh-Hant'].includes(config.to)"
+      label="中英双向划词"
+      description="开启后，选中与目标语言相同的中文或英文也会显示划词入口，并自动译成另一种语言。卡片内可临时切换译文语言，不会修改默认设置。"
+    >
+      <el-switch v-model="config.selectionTranslatorBidirectional" class="settings-toggle" aria-label="中英双向划词" />
+    </SettingsItem>
     <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="朗读失败时按这里的顺序依次尝试；留空则根据当前语言自动选择。" placement="top-start" :show-after="500">

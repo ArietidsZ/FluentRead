@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
- * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、请求 token、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放和主题，以纯中文选区过滤统一划词和翻译卡片入口，其他文本保留保守同语言预检，以独立点击、延迟悬停和快捷键复用选区入口打开 Harness 阅读卡，按模型相关配置刷新阅读缓存，协调翻译、词典与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
+ * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、请求 token、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放和主题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换目标语言；复用选区入口打开 Harness 阅读卡，协调翻译、词典、词书与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -43,6 +43,11 @@
         <ReadingPanel :selection="readingSelection" :preferences="readingPreferences" :active="readingMode" :initial-action="readingInitialAction" :history-only="readingHistoryOnly" :source-language="selectionSettings.from" :target-language="selectionSettings.to" :playing-source-text="isPlaying && currentAudioKind === 'source' ? currentAudioText : ''" :model-revision="readingModelRevision" :vocabulary-enabled="config.vocabularyBookEnabled" :private-context="isPrivateContext" :animations="config.animations" @play-source="toggleAudio($event, 'source')" @source-change="stopAudio()" @resize="schedulePositionUpdate" />
       </div>
       <div v-show="!readingMode" class="fr-tooltip-content" aria-live="polite">
+        <div v-if="canChooseChineseEnglishTarget" class="fr-direction-row" role="group" aria-label="划词译文语言">
+          <span>译为</span>
+          <button type="button" :data-target-language="chineseTargetLanguage" :class="{ 'is-active': effectiveTargetLanguage === chineseTargetLanguage }" :aria-pressed="effectiveTargetLanguage === chineseTargetLanguage" :disabled="isSelectedTextInChinese" :title="isSelectedTextInChinese ? '选中文字已是中文' : '译为中文'" @click="chooseSelectionTarget(chineseTargetLanguage)">{{ chineseTargetLanguage === 'zh-Hant' ? '繁體中文' : '简体中文' }}</button>
+          <button type="button" data-target-language="en" :class="{ 'is-active': effectiveTargetLanguage === 'en' }" :aria-pressed="effectiveTargetLanguage === 'en'" :disabled="isSelectedTextInEnglish" :title="isSelectedTextInEnglish ? '选中文字已是英文' : '译为英文'" @click="chooseSelectionTarget('en')">English</button>
+        </div>
         <div v-if="isLoading && !translationResult && !wordCard && !wordCardError" class="fr-loading-state"><span :class="['fr-loading-spinner', { 'fr-static': !config.animations }]" aria-hidden="true" /><span>正在查询…</span></div>
         <div v-else-if="error && !translationResult && !wordCard" class="fr-error-state"><span>{{ error }}</span><button type="button" @click="retryTranslation">重试</button></div>
         <div v-else class="fr-translation-container">
@@ -170,7 +175,7 @@ import { translateText } from '@/src/app/translation/client';
 import {detectlang, shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey } from '@/src/core/hotkey';
 import { isSingleEnglishWord, normalizeEnglishWord, type WordCardData, type WordPronunciation } from '@/src/features/selection-translation/services/wordDictionary';
-import { calculateReadingPopupLayout, calculateSelectionPopupPosition, chooseSelectionRect, getSelectionPresentationDelayRemaining, readSelectionText, normalizeSpeechLanguage, reconcileSelectionPresentation, resolveSelectionDictionaryFallback, resolveSelectionVocabularyAnswer, SelectionRequestTokenGate, shouldIgnoreSelection, summarizeSelectionContext, type SelectionAnswerCandidate, type SelectionContentRequest, type SelectionRect } from '@/src/features/selection-translation/core';
+import { calculateReadingPopupLayout, calculateSelectionPopupPosition, chooseSelectionRect, getSelectionPresentationDelayRemaining, isChineseEnglishTarget, readSelectionText, normalizeSpeechLanguage, reconcileSelectionPresentation, resolveSelectionDictionaryFallback, resolveSelectionVocabularyAnswer, selectionReverseTarget, SelectionRequestTokenGate, shouldIgnoreSelection, summarizeSelectionContext, type SelectionAnswerCandidate, type SelectionContentRequest, type SelectionRect } from '@/src/features/selection-translation/core';
 import {
   createSelectionTtsClientRequestId,
 } from '@/src/features/selection-translation/protocol';
@@ -196,6 +201,8 @@ const tooltipRef = useTemplateRef<HTMLElement>('tooltip-ref');
 const readingIndicatorRef = useTemplateRef<HTMLElement>('reading-indicator-ref');
 const selectionTranslatorIconUrl = browser.runtime.getURL('/icon/128.png');
 const selectedText = ref('');
+const selectionTargetOverride = ref<string | null>(null);
+const manuallyRequestedSelection = ref(false);
 const activeContentRequest = ref<SelectionContentRequest | null>(null);
 const translationAnswer = ref<SelectionAnswerCandidate | null>(null);
 const dictionaryAnswer = ref<SelectionAnswerCandidate | null>(null);
@@ -294,7 +301,8 @@ watch(() => {
   return getHarnessModelCacheKey(config);
 }, () => { readingModelRevision.value += 1; });
 const readingEnabled = computed(() => readingPreferences.value.enabled);
-const readingIndicatorEnabled = computed(() => readingEnabled.value && readingPreferences.value.trigger !== 'shortcut');
+const readingIndicatorEnabled = computed(() => readingEnabled.value && readingPreferences.value.trigger !== 'shortcut'
+  && !shouldSkipChineseSelection(selectedText.value, selectionSettings.value.to));
 const readingActions = computed(() => HARNESS_ACTIONS.filter(action => readingPreferences.value.actions.includes(action.id)));
 const readingDefaultActionLabel = computed(() => HARNESS_ACTIONS.find(action => action.id === readingPreferences.value.defaultAction)!.label);
 
@@ -315,6 +323,7 @@ const selectionSettings = computed(() => {
     theme: config.theme,
     from: config.from,
     to: config.to,
+    bidirectional: config.selectionTranslatorBidirectional,
     service: config.service,
     model: `${config.model?.[config.service] || ''}:${config.customModel?.[config.service] || ''}`,
   };
@@ -338,12 +347,30 @@ const SELECTION_LOSS_GRACE_MS = 160;
 const PENDING_SELECTION_SHORTCUT_MS = 250;
 
 const selectedWord = computed(() => normalizeEnglishWord(selectedText.value));
-const isWordSelection = computed(() => Boolean(selectedWord.value) && (selectionSettings.value.from === 'auto' || /^en(?:-|$)/i.test(selectionSettings.value.from)));
+const canChooseChineseEnglishTarget = computed(() => isChineseEnglishTarget(selectionSettings.value.to));
+const chineseTargetLanguage = computed(() => selectionSettings.value.to === 'zh-Hant'
+  ? 'zh-Hant' : selectionSettings.value.to === 'zh-Hans' ? 'zh-Hans'
+    : selectionSettings.value.from === 'zh-Hant' ? 'zh-Hant' : 'zh-Hans');
+const isSelectedTextInChinese = computed(() => shouldSkipChineseSelection(selectedText.value, 'zh-Hans'));
+const isSelectedTextInEnglish = computed(() => shouldSkipTranslationForTarget(selectedText.value, 'en')
+  && /[A-Za-z]/.test(selectedText.value));
+const reverseTargetLanguage = computed(() => selectionReverseTarget(selectedText.value, selectionSettings.value.to, selectionSettings.value.from));
+const effectiveTargetLanguage = computed(() => selectionTargetOverride.value
+  ?? ((selectionSettings.value.bidirectional || manuallyRequestedSelection.value) && reverseTargetLanguage.value
+    ? reverseTargetLanguage.value : selectionSettings.value.to));
+const effectiveSourceLanguage = computed(() => {
+  if (selectionTargetOverride.value) return 'auto';
+  return reverseTargetLanguage.value && effectiveTargetLanguage.value === reverseTargetLanguage.value
+    ? selectionSettings.value.to : selectionSettings.value.from;
+});
+const isWordSelection = computed(() => Boolean(selectedWord.value) && effectiveTargetLanguage.value !== 'en'
+  && (effectiveSourceLanguage.value === 'auto' || /^en(?:-|$)/i.test(effectiveSourceLanguage.value)));
 const isWordCardVisible = computed(() => isWordSelection.value && wordCard.value !== null);
 const isPrivateContext = browser.extension.inIncognitoContext === true;
 const currentContentRequest = computed<SelectionContentRequest | null>(() => {
   const request = activeContentRequest.value;
-  if (!request || snapshot.value?.text !== request.text || selectedText.value !== request.text || config.to !== request.targetLanguage) return null;
+  if (!request || snapshot.value?.text !== request.text || selectedText.value !== request.text
+    || effectiveTargetLanguage.value !== request.targetLanguage) return null;
   return request;
 });
 const vocabularyAnswer = computed(() => resolveSelectionVocabularyAnswer(currentContentRequest.value, translationAnswer.value, dictionaryAnswer.value));
@@ -409,6 +436,7 @@ function isSelectionReadSuppressed(): boolean {
 }
 
 function isSelectionInTargetLanguage(text: string): boolean {
+  if (selectionSettings.value.bidirectional && selectionReverseTarget(text, config.to, config.from)) return false;
   return shouldSkipChineseSelection(text, config.to) || shouldSkipTranslationForTarget(text, config.to);
 }
 
@@ -541,8 +569,10 @@ function applySelection(next: SelectionSnapshot | null, shortcutTriggered = fals
   dismissedSelection = null;
   cancelSelectionLoss();
   // 右键菜单是用户明确下达的指令：即使选区已是目标语言也照常出卡片，不静默丢弃。
-  if (!forced && shouldSkipChineseSelection(next.text, config.to)) { hideAll(); return; }
+  if (!forced && shouldSkipChineseSelection(next.text, config.to)
+    && !(selectionSettings.value.bidirectional && selectionReverseTarget(next.text, config.to, config.from))) { hideAll(); return; }
   if (isSameSelection(snapshot.value, next)) {
+    if (forced) manuallyRequestedSelection.value = true;
     if (readingTriggered) openReading();
     else if (forced) openTooltip(true);
     else if (shortcutTriggered) scheduleSelectionPresentation('tooltip');
@@ -552,6 +582,8 @@ function applySelection(next: SelectionSnapshot | null, shortcutTriggered = fals
   cancelSelectionPresentation();
   selectionSettledAt = performance.now();
   resetSelectionContentState();
+  selectionTargetOverride.value = null;
+  manuallyRequestedSelection.value = forced;
   readingMode.value = false;
   readingSelection.value = null;
   readingIndicatorStyle.value = {visibility: 'hidden'};
@@ -741,6 +773,7 @@ function handleViewportResize(): void {
 function openTooltip(forced = false): void {
   if (selectionSettings.value.mode === 'disabled' && readingEnabled.value) { openReading(); return; }
   if (!snapshot.value || (!forced && isSelectionInTargetLanguage(snapshot.value.text))) { hideAll(); return; }
+  if (forced) manuallyRequestedSelection.value = true;
   cancelSelectionPresentation();
   const wasVisible = showTooltip.value;
   showIndicator.value = true;
@@ -801,12 +834,14 @@ function openReadingCard(): void {
 }
 
 function shouldUseWordCard(text: string): boolean {
-  return isSingleEnglishWord(text) && (config.from === 'auto' || /^en(?:-|$)/i.test(config.from));
+  return isSingleEnglishWord(text) && effectiveTargetLanguage.value !== 'en'
+    && (effectiveSourceLanguage.value === 'auto' || /^en(?:-|$)/i.test(effectiveSourceLanguage.value));
 }
 
 function beginSelectionContentRequest(text: string): SelectionContentRequest {
   resetSelectionContentState();
-  const request = { text, targetLanguage: config.to, generation: ++contentRequestGeneration };
+  const request = { text, sourceLanguage: effectiveSourceLanguage.value,
+    targetLanguage: effectiveTargetLanguage.value, generation: ++contentRequestGeneration };
   activeContentRequest.value = request;
   return request;
 }
@@ -942,7 +977,8 @@ async function requestTranslation(request: SelectionContentRequest): Promise<voi
   isLoading.value = true;
   error.value = '';
   try {
-    const result = await translateText(text, document.title, { signal: controller.signal, targetLanguage: request.targetLanguage });
+    const result = await translateText(text, document.title, { signal: controller.signal,
+      sourceLanguage: request.sourceLanguage, targetLanguage: request.targetLanguage });
     if (requestId !== translationRequestId || !isContentRequestCurrent(request)) return;
     translationResult.value = result;
     translationAnswer.value = {...request, answer: result};
@@ -960,6 +996,14 @@ async function requestTranslation(request: SelectionContentRequest): Promise<voi
 function retryTranslation(): void {
   if (!snapshot.value) return;
   requestSelectionContent(snapshot.value.text);
+}
+
+function chooseSelectionTarget(targetLanguage: string): void {
+  if (!snapshot.value || targetLanguage === effectiveTargetLanguage.value
+    || (targetLanguage === 'en' && isSelectedTextInEnglish.value)
+    || (targetLanguage !== 'en' && isSelectedTextInChinese.value)) return;
+  selectionTargetOverride.value = targetLanguage;
+  void requestSelectionContent(snapshot.value.text);
 }
 
 async function requestWordCard(request: SelectionContentRequest): Promise<void> {
@@ -1019,8 +1063,11 @@ async function copyText(text: string, kind: CopyKind): Promise<void> {
   } catch (cause) { console.error('Copy selection text failed:', cause); }
 }
 
-function sourceLanguage(text: string): string { return normalizeSpeechLanguage(config.from === 'auto' ? detectlang(text) : config.from, 'en-US'); }
-function translationLanguage(): string { return normalizeSpeechLanguage(config.to, 'zh-CN'); }
+function sourceLanguage(text: string): string {
+  const requestedSource = currentContentRequest.value?.sourceLanguage ?? config.from;
+  return normalizeSpeechLanguage(requestedSource === 'auto' ? detectlang(text) : requestedSource, 'en-US');
+}
+function translationLanguage(): string { return normalizeSpeechLanguage(currentContentRequest.value?.targetLanguage ?? effectiveTargetLanguage.value, 'zh-CN'); }
 function speechLanguage(text: string, kind: AudioKind): string { return kind === 'translation' ? translationLanguage() : sourceLanguage(text); }
 
 function selectVoice(language: string): SpeechSynthesisVoice | undefined {
@@ -1344,6 +1391,8 @@ function hideAll(): void {
   cancelSelectionPresentation();
   selectionSettledAt = 0;
   resetSelectionContentState(true);
+  selectionTargetOverride.value = null;
+  manuallyRequestedSelection.value = false;
   readingMode.value = false;
   readingSelection.value = null;
   showIndicator.value = false;
@@ -1540,6 +1589,7 @@ onMounted(() => {
     selectionSettings.value.service,
     selectionSettings.value.model,
     config.vocabularyBookEnabled,
+    selectionSettings.value.bidirectional,
   ] as const, (nextSettings, previousSettings) => {
     const themeChanged = !previousSettings || nextSettings[0] !== previousSettings[0];
     const triggerChanged = !previousSettings
@@ -1552,12 +1602,19 @@ onMounted(() => {
     const translationProviderChanged = !previousSettings
       || nextSettings[7] !== previousSettings[7]
       || nextSettings[8] !== previousSettings[8];
+    const directionEntryChanged = !previousSettings || nextSettings[10] !== previousSettings[10];
     if (themeChanged) updateTheme();
     if (!snapshot.value) return;
+    if (languageChanged) {
+      selectionTargetOverride.value = null;
+      manuallyRequestedSelection.value = false;
+    }
     if (languageChanged && readingMode.value) { hideAll(); return; }
-    if (languageChanged && (shouldSkipChineseSelection(snapshot.value.text, config.to)
+    if ((languageChanged || directionEntryChanged) && !manuallyRequestedSelection.value
+      && (shouldSkipChineseSelection(snapshot.value.text, config.to)
+      && !(selectionSettings.value.bidirectional && selectionReverseTarget(snapshot.value.text, config.to, config.from))
       || (!readingEnabled.value && isSelectionInTargetLanguage(snapshot.value.text)))) { hideAll(); return; }
-    if (languageChanged || translationProviderChanged) resetSelectionContentState();
+    if (languageChanged || translationProviderChanged || directionEntryChanged) resetSelectionContentState();
     if (triggerChanged) {
       const nextPresentation = reconcileSelectionPresentation({
         showIndicator: showIndicator.value,
@@ -1574,7 +1631,7 @@ onMounted(() => {
       scheduleSelectionPresentation(pendingSelectionPresentation);
       return;
     }
-    if (languageChanged || translationProviderChanged) {
+    if (languageChanged || translationProviderChanged || directionEntryChanged) {
       if (showTooltip.value && !readingMode.value) void requestSelectionContent(snapshot.value.text);
     }
     if (previousSettings && nextSettings[9] !== previousSettings[9] && showTooltip.value && isWordSelection.value) {
@@ -1671,6 +1728,13 @@ onBeforeUnmount(() => {
 .fr-close-btn { width: 30px; height: 30px; font-size: 21px; line-height: 1; border-radius: 10px; }
 .fr-close-btn:hover, .fr-close-btn:focus-visible { background: #f1f1f5; color: #303038; outline: none; }
 .fr-tooltip-content { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px 12px; scrollbar-color: rgba(108, 105, 112, .4) transparent; scrollbar-width: thin; }
+.fr-direction-row { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; color: #807b84; font-size: 11px; }
+.fr-direction-row > span { margin-right: 2px; font-weight: 650; }
+.fr-direction-row button { padding: 4px 9px; border: 1px solid #e9dfe4; border-radius: 7px; background: #faf8f9; color: #6c5963; font: inherit; font-weight: 650; cursor: pointer; }
+.fr-direction-row button:hover:not(:disabled), .fr-direction-row button:focus-visible { border-color: #d67499; color: #a23d65; outline: 2px solid transparent; }
+.fr-direction-row button:focus-visible { box-shadow: 0 0 0 2px #d67499; }
+.fr-direction-row button.is-active { border-color: #e8a8bf; background: #fcebf2; color: #a53c65; }
+.fr-direction-row button:disabled { opacity: .45; cursor: default; }
 .fr-translation-container { display: grid; gap: 10px; }
 .fr-loading-state, .fr-error-state { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 80px; color: #777780; font-size: 13px; }
 .fr-error-state { flex-direction: column; color: #c43b63; }
@@ -1741,6 +1805,9 @@ onBeforeUnmount(() => {
 .fr-dark-theme { border-color: #44444e; background: rgba(40, 40, 48, .98); color: #f1f1f4; }
 .fr-reading-tooltip.fr-dark-theme { background: #282830; }
 .fr-dark-theme .fr-tooltip-header { border-color: #4b4b56; }
+.fr-dark-theme .fr-direction-row { color: #b9aeb5; }
+.fr-dark-theme .fr-direction-row button { border-color: #564a51; background: #373039; color: #dfcbd4; }
+.fr-dark-theme .fr-direction-row button.is-active { border-color: #a76580; background: #553846; color: #ffd9e7; }
 .fr-dark-theme .fr-tooltip-title span { color: #f1edf1; }
 .fr-dark-theme .fr-tooltip-brand-icon { opacity: .86; }
 .fr-dark-theme .fr-action-btn:hover, .fr-dark-theme .fr-close-btn:hover { background: #50505b; color: #fff; }

@@ -496,6 +496,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     selectionTranslatorHotkey: {group: 'translation', label: '划词快捷键', format: (value) => formatEnum(value, SELECTION_TRIGGER_LABELS)},
     customSelectionTranslatorHotkey: {group: 'translation', label: '自定义划词快捷键'},
     selectionTranslatorDelay: {group: 'translation', label: '划词显示延迟', format: (value) => formatNumber(value, ' ms')},
+    selectionTranslatorBidirectional: {group: 'translation', label: '中英双向划词', format: (value) => formatBoolean(value, true)},
     selectionTtsVoices: {group: 'translation', label: '划词朗读音色'},
     selectionTtsMode: {group: 'translation', label: '朗读合成策略', format: (value) => formatEnum(value, LOCAL_TTS_MODE_LABELS)},
     selectionTtsLocalVoice: {group: 'translation', label: '本地朗读音色'},

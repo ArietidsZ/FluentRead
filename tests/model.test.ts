@@ -21,6 +21,7 @@ import {
     normalizeFloatingBallToolsDisplay,
 } from '@/src/core/config/model';
 import { getMimoEndpoint, MIMO_ENDPOINTS, MINIMAX_ENDPOINTS, tongyiTokenPlanUrl, urls } from '@/src/core/config/constants';
+
 import { currentModelIds, customModelString, defaultModelIds, defaultModels, defaultOption, LEGACY_DEFAULT_USER_ROLES, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 import {
     CUSTOM_OPENAI_RESERVED_MODEL_ID,
@@ -31,6 +32,15 @@ import {
     MAX_QUICK_TRANSLATION_PROFILES,
 } from '@/src/core/config/quickTranslation';
 import {createApiKeyRequirementKey} from '@/src/core/config/validation';
+
+describe('中英双向划词配置', () => {
+    it('默认关闭，只有明确的布尔 true 才启用', () => {
+        expect(new Config().selectionTranslatorBidirectional).toBe(false);
+        expect(normalizeConfig({}).selectionTranslatorBidirectional).toBe(false);
+        expect(normalizeConfig({selectionTranslatorBidirectional: true}).selectionTranslatorBidirectional).toBe(true);
+        expect(normalizeConfig({selectionTranslatorBidirectional: 'true' as unknown as boolean}).selectionTranslatorBidirectional).toBe(false);
+    });
+});
 
 describe('AI 模型编号列表', () => {
     it('DeepL API 旧配置保持 Free 端点，并持久保留明确选择的 Pro 套餐', () => {
