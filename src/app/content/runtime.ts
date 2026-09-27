@@ -1,7 +1,7 @@
 /**
  * @file src/app/content/runtime.ts
  * 文件职责：作为内容脚本应用的顶层 composition root，协调配置就绪、站点规则、公共样式、主世界桥、功能注册表、快捷键和消息监听生命周期。
- * 主要内容：安装内联 page.css，构建输入框与页面 feature registry，按 capability 和配置挂载全文周边、局部翻译、悬浮、划词、区域、图片、视频与写作助手等能力；订阅配置变化并处理停用、往返缓存暂停恢复与销毁。
+ * 主要内容：先排除原始 XML 文档以保留浏览器原生展示，再安装内联 page.css，构建输入框与页面 feature registry，按 capability 和配置挂载全文周边、局部翻译、悬浮、划词、区域、图片、视频与写作助手等能力；订阅配置变化并处理停用、往返缓存暂停恢复与销毁。
  * 模块边界：本文件只负责依赖装配和页面激活所有权，不实现具体翻译算法、组件内部状态、provider 请求或配置存储；这些职责分别属于 features、services 与 platform。
  */
 import {isWritingPage} from '@/src/core/config/writing';
@@ -16,6 +16,7 @@ import {cancelAllTranslations} from '@/src/app/translation/client';
 import {resetPageTranslationContextCache} from '@/src/services/translation/context';
 import {clearLegacyPageTranslationCache} from '@/src/services/translation/legacyPageCache';
 import {getCenterPoint} from '@/src/shared/geometry/touch';
+import {isRawXmlContentDocument} from '@/src/shared/dom/documentType';
 import {createContentFeatureRegistry, type ContentFeatureRegistry} from './featureRegistry';
 import {createContentHotkeyRuntime} from './hotkeyRuntime';
 import {createContentRuntimeMessageHandler, type ContentRuntimeMessageHandler} from './messageRuntime';
@@ -54,6 +55,7 @@ import {applyCoreTranslationPreferences, createContentSiteAdaptationRuntime} fro
 import {createOptionalContentFeatureRuntime, type OptionalContentFeatureRuntime} from './optionalFeatures';
 export async function startContentApp(ctx: ContentScriptContext,
     capabilities: BrowserCapabilities = browserCapabilities): Promise<void> {
+    if (isRawXmlContentDocument(document)) return;
     const pageEventController = new AbortController();
     let cleanedUp = false;
     let pageAvailability: ContentPageAvailabilityRuntime | null = null;
