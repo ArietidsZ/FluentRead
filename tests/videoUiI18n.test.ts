@@ -4,7 +4,6 @@ import {parseHTML} from 'linkedom';
 import {
   createVideoPlayerMenu,
   isVideoModelPromptOpen,
-  readVideoModelPromptSelection,
   renderVideoAiMenu,
   renderVideoMenuMode,
   renderVideoModelPrompt,
@@ -175,7 +174,7 @@ describe('video player menu composition', () => {
     expect(isVideoModelPromptOpen(menu)).toBe(true);
     expect(main.hidden).toBe(true);
     expect(prompt.hidden).toBe(false);
-    expect(readVideoModelPromptSelection(menu)).toBe('base');
+    expect(prompt.dataset.selectedModel).toBe('base');
     const options = [...prompt.querySelectorAll<HTMLElement>('[data-model-choice]')];
     expect(options.map(option => [option.dataset.modelChoice, option.getAttribute('aria-checked')])).toEqual([['tiny', 'false'], ['base', 'true']]);
     expect(options[0].textContent).toContain('约 100 MB');
@@ -256,7 +255,6 @@ describe('video player menu composition', () => {
     expect(menu.dataset.layout).toBe('wide');
     player.removeChild(menu);
     syncVideoPlayerMenuLayout(menu);
-    expect(readVideoModelPromptSelection(menu)).toBeNull();
   });
 
   it('renders idle, checking, running, waiting, error, and unsupported states accessibly', () => {

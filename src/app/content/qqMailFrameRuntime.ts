@@ -5,6 +5,7 @@
  * 模块边界：只在经过后台认证的阅读 frame 激活，不挂载悬浮球等顶层 UI；翻译请求与异步状态由共享 feature 承担。
  */
 import {installContentPageLifecycle} from './pageLifecycle';
+import {ensureContentFeatureMounted} from './featureLifecycle';
 import type {ContentScriptContext} from 'wxt/utils/content-script-context';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
 import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
@@ -119,6 +120,7 @@ async function startMailFrameApp(ctx: ContentScriptContext, kind: MailFrameKind)
     let activation: AbortController | null = null;
     let removeStyles: (() => void) | null = null;
     let authorized = false;
+    let selectionMountGeneration = 0;
     const enabled = () => !disposed && !pageLifecycle.isSuspended() && config.on !== false
         && isReadableFrame()
         && !isExtensionDisabledOnSite(siteHref(), config.disabledExtensionDomains);
@@ -134,19 +136,28 @@ async function startMailFrameApp(ctx: ContentScriptContext, kind: MailFrameKind)
     const restore = () => { cancelPendingHoverTranslation(); restoreOriginalContent(); cancelAllTranslations(); };
     const syncSelectionTranslator = () => {
         if (kind !== 'netease' || !activation) return;
+        const generation = ++selectionMountGeneration;
         if (config.harness?.enabled !== true
             && (config.disableSelectionTranslator === true || config.selectionTranslatorMode === 'disabled')) {
             unmountSelectionTranslator();
             return;
         }
         const currentActivation = activation;
-        void Promise.resolve(mountSelectionTranslator(ctx)).catch(() => {
-            if (activation === currentActivation) unmountSelectionTranslator();
+        void ensureContentFeatureMounted({
+            mount: () => mountSelectionTranslator(ctx),
+            isMounted: () => Boolean(document.getElementById('fluent-read-selection-translator-container')),
+            isStillDesired: () => activation === currentActivation && authorized && enabled()
+                && selectionMountGeneration === generation
+                && (config.harness?.enabled === true
+                    || (config.disableSelectionTranslator !== true && config.selectionTranslatorMode !== 'disabled')),
+        }).catch(() => {
+            if (activation === currentActivation && selectionMountGeneration === generation) unmountSelectionTranslator();
         });
     };
     const setAvailable = (available: boolean) => {
         authorized = available;
         if (!available) {
+            selectionMountGeneration += 1;
             activation?.abort(); activation = null;
             if (kind === 'netease') unmountSelectionTranslator();
             removeStyles?.(); removeStyles = null;

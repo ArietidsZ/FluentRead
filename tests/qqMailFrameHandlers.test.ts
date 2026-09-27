@@ -137,6 +137,14 @@ describe('NetEase mail reading frame relay', () => {
         expect(isNeteaseMailChildUrl('about:blank', readTop)).toBe(true);
         expect(isNeteaseMailChildUrl('about:srcdoc', readTop)).toBe(true);
         expect(isNeteaseMailChildUrl('about:blank', 'https://evil.example/js6/main.jsp#module=read.ReadModule')).toBe(false);
+        expect(isNeteaseMailTopUrl(null)).toBe(false);
+        expect(isNeteaseMailTopUrl('invalid URL')).toBe(false);
+        expect(isNeteaseMailChildUrl('https://evil.example/frame', readTop)).toBe(false);
+        expect(isNeteaseMailChildUrl('invalid URL', readTop)).toBe(false);
+        expect(isNeteaseMailChildUrl('https://mail.163.com/js6/frame.jsp', readTop)).toBe(true);
+        expect(isNeteaseMailChildUrl(readTop, readTop)).toBe(false);
+        expect(isNeteaseMailChildUrl('https://user@mail.163.com/js6/frame.jsp', readTop)).toBe(false);
+        expect(isNeteaseMailChildUrl('https://:pass@mail.163.com/js6/frame.jsp', readTop)).toBe(false);
         for (const url of ['http://mail.163.com/js6/main.jsp', 'https://evil.other.mail.163.com/js6/main.jsp',
             'https://mail.163.com/js6/other.jsp', 'https://user:pass@mail.163.com/js6/main.jsp']) {
             expect(isNeteaseMailTopUrl(url)).toBe(false);
@@ -149,6 +157,7 @@ describe('NetEase mail reading frame relay', () => {
         const sender = {frameId: 3, url: 'about:blank', tab: {id: 42, url: readTop}};
         const state = {type: 'neteaseMailFrameRequest', action: 'state'} as const;
         expect(parseNeteaseMailFrameRequest({...state, sid: 'secret'})).toBeNull();
+        expect(parseNeteaseMailFrameRequest({type: 'wrong', action: 'state'})).toBeNull();
         expect(parseNeteaseMailFrameRequest({type: state.type, action: 'toggle', invocation: {sid: 'secret'}})).toBeNull();
         await expect(request.handle(state, {sender})).resolves.toMatchObject({enabled: true});
         expect(sendTabMessage).toHaveBeenCalledWith(42, {type: 'neteaseMailFrameCommand', action: 'state'}, {frameId: 0});
@@ -157,16 +166,24 @@ describe('NetEase mail reading frame relay', () => {
         expect(sendTabMessage).toHaveBeenLastCalledWith(42, {
             type: 'neteaseMailFrameCommand', action: 'toggle', invocation: {targetLanguage: 'zh-Hans'},
         }, {frameId: 0});
+        sendTabMessage.mockRejectedValueOnce(new Error('top frame gone'));
+        await expect(request.handle(state, {sender})).resolves.toEqual({success: false});
         for (const bad of [
             {...sender, frameId: 0},
             {...sender, tab: {id: 42, url: listTop}},
             {...sender, origin: 'https://mail.126.com'},
             {...sender, url: 'https://evil.example/'},
+            {...sender, tab: {id: -1, url: readTop}},
         ]) {
             await expect(request.handle(state, {sender: bad})).resolves.toEqual({success: false});
         }
         await expect(changed.handle({type: 'neteaseMailFrameChanged'}, {sender: {frameId: 0, url: listTop, tab: {id: 42, url: listTop}}}))
             .resolves.toEqual({success: true});
         expect(sendTabMessage).toHaveBeenLastCalledWith(42, {type: 'neteaseMailFrameRefresh'});
+        await expect(changed.handle({type: 'neteaseMailFrameChanged', extra: true} as never,
+            {sender: {frameId: 0, url: listTop, tab: {id: 42, url: listTop}}})).resolves.toEqual({success: false});
+        sendTabMessage.mockRejectedValueOnce(new Error('child frame gone'));
+        await expect(changed.handle({type: 'neteaseMailFrameChanged'},
+            {sender: {frameId: 0, url: listTop, tab: {id: 42, url: listTop}}})).resolves.toEqual({success: true});
     });
 });

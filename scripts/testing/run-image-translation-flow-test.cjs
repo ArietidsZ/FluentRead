@@ -622,6 +622,43 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
     await page.waitForTimeout(150);
     assert.equal(await ui("return this.querySelector('.fluent-read-image-translation-overlay img')?.dataset.probeIdentity"), 'retained');
     report.cases.push('scroll retains same decoded bitmap');
+    currentCase = 'hover survives unrelated DOM mutations with an existing translated image';
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(150);
+    await page.evaluate(() => {
+        const second = document.createElement('img');
+        second.id = 'hover-second';
+        second.alt = 'second English image';
+        second.src = document.querySelector('#sample').src;
+        second.style.cssText = 'position:fixed;right:20px;top:64px;width:240px;height:120px;z-index:5;background:#fff';
+        document.body.appendChild(second);
+        const heading = document.querySelector('h1');
+        heading.dataset.originalText = heading.textContent;
+        let tick = 0;
+        window.__fluentReadHoverMutationTimer = setInterval(() => {heading.textContent = `Image page update ${++tick}`;}, 40);
+    });
+    try {
+        await page.waitForFunction(() => document.querySelector('#hover-second')?.naturalWidth > 0);
+        const secondBounds = await page.locator('#hover-second').boundingBox();
+        await page.mouse.move(secondBounds.x + secondBounds.width / 2, secondBounds.y + secondBounds.height / 2);
+        await page.waitForTimeout(750);
+        const phases = await ui("return [...this.querySelectorAll('.fr-image-controls')].map(control => control.dataset.phase)");
+        report.hoverMutation = {phases, heading: await page.locator('h1').textContent()};
+        assert.ok(Number(report.hoverMutation.heading?.match(/^Image page update (\d+)$/)?.[1]) >= 2);
+        assert.ok(phases.includes('translated') && phases.includes('idle'), `动态页面第二张图片入口未显示：${JSON.stringify(phases)}`);
+        report.cases.push('second image hover survives unrelated live DOM updates');
+        await shot('04-live-dom-second-image-hover');
+    } finally {
+        await page.evaluate(() => {
+            clearInterval(window.__fluentReadHoverMutationTimer);
+            const heading = document.querySelector('h1');
+            heading.textContent = heading.dataset.originalText;
+            delete heading.dataset.originalText;
+            document.querySelector('#hover-second')?.remove();
+        });
+        await page.mouse.move(10, 10);
+    }
+    await wait(() => ui("return this.querySelectorAll('.fr-image-controls').length === 1"));
     await verifyGeometryCases({worker, ui, wait, shot});
     currentCase = 'dynamic source, cancellation and retry';
     await popup.evaluate(async () => {

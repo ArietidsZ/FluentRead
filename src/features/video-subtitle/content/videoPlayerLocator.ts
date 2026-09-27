@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/videoPlayerLocator.ts
  * 文件职责：在 X/YouTube 的单页播放器和信息流 DOM 中选择当前视频，并维护稳定的视频身份。
- * 主要内容：按全屏、用户悬浮/聚焦、当前帖子和可见性排序候选，跟踪 DOM 重挂载与媒体源变化。
+ * 主要内容：按全屏、用户悬浮/聚焦、当前帖子和可见性排序候选；视频节点变化立即重扫，繁忙信息流的无关 DOM 更新合并为低频重扫。
  * 模块边界：只读取播放器 DOM 与页面事件，不创建 FluentRead 节点、不处理字幕或配置；绑定和生命周期由上层负责。
  */
 
@@ -299,6 +299,7 @@ export function createVideoPlayerLocator(options: VideoPlayerLocatorOptions = {}
   const onFullscreen = () => sync();
   let domSyncPending = false;
   let domSyncHandle: number | undefined;
+  let deferredDomSyncHandle: number | undefined;
   const flushDomSync = () => {
     domSyncPending = false;
     domSyncHandle = undefined;
@@ -313,16 +314,37 @@ export function createVideoPlayerLocator(options: VideoPlayerLocatorOptions = {}
       domSyncHandle = view.setTimeout(flushDomSync, 0);
     }
   };
+  const scheduleDeferredDomSync = () => {
+    if (domSyncPending || deferredDomSyncHandle !== undefined) return;
+    // 信息流持续插入文字和计数时，按帧全页查询视频会产生大量布局读取。
+    // 保留定期重扫以捕获未直接改动 video 节点的可见性和路由变化。
+    deferredDomSyncHandle = view.setTimeout(() => {
+      deferredDomSyncHandle = undefined;
+      scheduleDomSync();
+    }, 250);
+  };
   const isOwnedNode = (node: Node): boolean => {
     if (!(node instanceof Element)) return false;
     return node.classList.contains('fluent-read-video-ui') || Boolean(node.closest('.fluent-read-video-ui'));
+  };
+  const containsVideo = (node: Node): boolean => {
+    if (node.nodeType !== 1 && node.nodeType !== 11) return false;
+    const element = node as Element;
+    return element.tagName?.toLowerCase() === 'video' || Boolean(element.querySelector?.('video'));
   };
   const onDom = (records: MutationRecord[]) => {
     if (records.length > 0 && records.every((record) => {
       if (isOwnedNode(record.target)) return true;
       return [...record.addedNodes, ...record.removedNodes].every(isOwnedNode);
     })) return;
-    scheduleDomSync();
+    const playerChanged = records.some((record) =>
+      Boolean(selected?.player.contains(record.target))
+      || [...record.addedNodes, ...record.removedNodes].some(containsVideo));
+    if (playerChanged) {
+      if (deferredDomSyncHandle !== undefined) view.clearTimeout(deferredDomSyncHandle);
+      deferredDomSyncHandle = undefined;
+      scheduleDomSync();
+    } else scheduleDeferredDomSync();
   };
   document.addEventListener('pointerover', onPointer, true);
   document.addEventListener('pointerout', onPointerOut, true);
@@ -345,6 +367,7 @@ export function createVideoPlayerLocator(options: VideoPlayerLocatorOptions = {}
     },
     destroy() {
       observer?.disconnect();
+      if (deferredDomSyncHandle !== undefined) view.clearTimeout(deferredDomSyncHandle);
       if (domSyncHandle !== undefined) {
         if (typeof view.cancelAnimationFrame === 'function') view.cancelAnimationFrame(domSyncHandle);
         else view.clearTimeout(domSyncHandle);

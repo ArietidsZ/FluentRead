@@ -39,6 +39,7 @@ function setup(markup: string, url = 'https://x.com/cerebras') {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -326,7 +327,7 @@ describe('video player locator', () => {
       disconnect() {}
     });
     const locator = createVideoPlayerLocator({document: fixture.document, window: fixture.window, isXPage: () => false});
-    mutation?.([{target: fixture.document.body, addedNodes: [fixture.document.createElement('span')], removedNodes: []} as unknown as MutationRecord]);
+    mutation?.([{target: fixture.document.body, addedNodes: [fixture.document.createElement('video')], removedNodes: []} as unknown as MutationRecord]);
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(locator.getTarget()?.video).toBe(fixture.videos[0]);
     locator.destroy();
@@ -354,6 +355,7 @@ describe('video player locator', () => {
   });
 
   it('ignores FluentRead-owned mutation records and coalesces external records into one frame', () => {
+    vi.useFakeTimers();
     const fixture = setup('<div class="player"><video></video></div>');
     const rawObserver = globalThis.MutationObserver;
     let mutation: ((records: MutationRecord[]) => void) | undefined;
@@ -372,12 +374,88 @@ describe('video player locator', () => {
     mutation?.([{target: fixture.document.body, addedNodes: [owned], removedNodes: []} as unknown as MutationRecord]);
     mutation?.([{target: owned, addedNodes: [fixture.document.createTextNode('owned')], removedNodes: []} as unknown as MutationRecord]);
     mutation?.([{target: fixture.document.body, addedNodes: [fixture.document.createTextNode('external')], removedNodes: []} as unknown as MutationRecord]);
+    vi.advanceTimersByTime(250);
     expect(frame).toBeTypeOf('function');
-    frame?.();
-    mutation?.([{target: fixture.document.body, addedNodes: [fixture.document.createElement('span')], removedNodes: []} as unknown as MutationRecord]);
+    frame?.(); frame = undefined;
+    mutation?.([{target: fixture.document.body, addedNodes: [fixture.document.createElement('video')], removedNodes: []} as unknown as MutationRecord]);
+    mutation?.([{target: fixture.document.body, addedNodes: [fixture.document.createElement('video')], removedNodes: []} as unknown as MutationRecord]);
     locator.destroy();
     expect(cancelCount).toBe(1);
     vi.stubGlobal('MutationObserver', rawObserver);
+  });
+
+  it('bounds full video rescans during a busy X timeline while noticing inserted videos promptly', () => {
+    vi.useFakeTimers();
+    const fixture = setup('<div class="player"><video></video></div>');
+    let mutation!: (records: MutationRecord[]) => void;
+    let frame: (() => void) | undefined;
+    Object.defineProperty(fixture.window, 'requestAnimationFrame', {configurable: true,
+      value: (callback: () => void) => { frame = callback; return 9; }});
+    vi.stubGlobal('MutationObserver', class {
+      constructor(callback: (records: MutationRecord[]) => void) { mutation = callback; }
+      observe() {}
+      disconnect() {}
+    });
+    const locator = createVideoPlayerLocator({document: fixture.document, window: fixture.window, isXPage: () => true});
+    locator.sync();
+    const scans = vi.spyOn(fixture.document, 'querySelectorAll');
+    scans.mockClear();
+    for (let index = 0; index < 60; index += 1) {
+      mutation([{target: fixture.document.body, addedNodes: [fixture.document.createTextNode('timeline')],
+        removedNodes: []} as unknown as MutationRecord]);
+      vi.advanceTimersByTime(16);
+      frame?.(); frame = undefined;
+    }
+    expect(scans.mock.calls.filter(([selector]) => selector === 'video').length).toBeLessThanOrEqual(5);
+
+    const newContainer = fixture.document.createElement('div');
+    newContainer.innerHTML = '<video></video>';
+    fixture.document.body.append(newContainer);
+    mutation([{target: fixture.document.body, addedNodes: [newContainer], removedNodes: []} as unknown as MutationRecord]);
+    expect(frame).toBeTypeOf('function');
+    const beforeInsertion = scans.mock.calls.filter(([selector]) => selector === 'video').length;
+    frame?.(); frame = undefined;
+    expect(scans.mock.calls.filter(([selector]) => selector === 'video').length).toBe(beforeInsertion + 1);
+    vi.advanceTimersByTime(300);
+    expect(frame).toBeUndefined();
+    locator.destroy();
+  });
+
+  it('cancels a deferred timeline scan when the locator is destroyed', () => {
+    vi.useFakeTimers();
+    const fixture = setup('<div class="player"><video></video></div>');
+    let mutation!: (records: MutationRecord[]) => void;
+    vi.stubGlobal('MutationObserver', class {
+      constructor(callback: (records: MutationRecord[]) => void) { mutation = callback; }
+      observe() {}
+      disconnect() {}
+    });
+    const locator = createVideoPlayerLocator({document: fixture.document, window: fixture.window});
+    const scans = vi.spyOn(fixture.document, 'querySelectorAll');
+    mutation([{target: fixture.document.body, addedNodes: [fixture.document.createTextNode('timeline')],
+      removedNodes: []} as unknown as MutationRecord]);
+    locator.destroy();
+    vi.advanceTimersByTime(300);
+    expect(scans).not.toHaveBeenCalledWith('video');
+  });
+
+  it('clears a pending timeout when requestAnimationFrame is unavailable', () => {
+    vi.useFakeTimers();
+    const fixture = setup('<div class="player"><video></video></div>');
+    let mutation!: (records: MutationRecord[]) => void;
+    Object.defineProperty(fixture.window, 'requestAnimationFrame', {configurable: true, value: undefined});
+    Object.defineProperty(fixture.window, 'cancelAnimationFrame', {configurable: true, value: undefined});
+    const clearTimeout = vi.spyOn(fixture.window, 'clearTimeout');
+    vi.stubGlobal('MutationObserver', class {
+      constructor(callback: (records: MutationRecord[]) => void) { mutation = callback; }
+      observe() {}
+      disconnect() {}
+    });
+    const locator = createVideoPlayerLocator({document: fixture.document, window: fixture.window});
+    mutation([{target: fixture.document.body, addedNodes: [fixture.document.createElement('video')],
+      removedNodes: []} as unknown as MutationRecord]);
+    locator.destroy();
+    expect(clearTimeout).toHaveBeenCalled();
   });
 
   it('handles deep X wrappers and a document without a documentElement', () => {

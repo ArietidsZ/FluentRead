@@ -10,10 +10,14 @@ const mocks = vi.hoisted(() => ({
     },
     createVueShadowUi: vi.fn(),
     createModalDialogHostController: vi.fn(),
+    shouldStartAreaTranslationFromHotkey: vi.fn(),
 }));
 
 vi.mock('@/src/services/config/store', () => ({config: mocks.config}));
 vi.mock('@/src/platform/shadow-ui', () => ({createVueShadowUi: mocks.createVueShadowUi}));
+vi.mock('@/src/features/area-translation/content/areaHotkey', () => ({
+    shouldStartAreaTranslationFromHotkey: mocks.shouldStartAreaTranslationFromHotkey,
+}));
 vi.mock('@/src/features/selection-translation/content/modalDialogHost', () => ({
     createModalDialogHostController: mocks.createModalDialogHostController,
 }));
@@ -49,6 +53,7 @@ beforeEach(() => {
     vi.resetModules();
     mocks.createVueShadowUi.mockReset();
     mocks.createModalDialogHostController.mockReset();
+    mocks.shouldStartAreaTranslationFromHotkey.mockReset();
     mocks.config.harness = undefined;
     mocks.config.disableSelectionTranslator = false;
     mocks.config.selectionTranslatorMode = 'bilingual';
@@ -227,6 +232,27 @@ describe('划词翻译挂载生命周期', () => {
 });
 
 describe('圈选翻译按需挂载生命周期', () => {
+    it('可信快捷键由入口启动覆盖层，未匹配手势不创建 UI', async () => {
+        const beginSelection = vi.fn().mockReturnValue(true);
+        mocks.createVueShadowUi.mockResolvedValue(ui({beginSelection}));
+        const addEventListener = vi.spyOn(document, 'addEventListener');
+        const runtime = await import('@/src/features/area-translation/content/runtime');
+        runtime.mountAreaTranslator({} as never);
+        const onKeydown = addEventListener.mock.calls.find(([type]) => type === 'keydown')?.[1] as (event: KeyboardEvent) => void;
+        const event = {preventDefault: vi.fn()} as unknown as KeyboardEvent;
+
+        mocks.shouldStartAreaTranslationFromHotkey.mockReturnValueOnce(false).mockReturnValueOnce(true);
+        onKeydown(event);
+        expect(mocks.createVueShadowUi).not.toHaveBeenCalled();
+        onKeydown(event);
+        await vi.waitFor(() => expect(beginSelection).toHaveBeenCalledOnce());
+        expect(event.preventDefault).toHaveBeenCalledOnce();
+        runtime.unmountAreaTranslator();
+        // 已排队的旧事件回调即使迟到，也不得重新创建覆盖层。
+        mocks.shouldStartAreaTranslationFromHotkey.mockReturnValueOnce(true);
+        onKeydown(event);
+        expect(mocks.createVueShadowUi).toHaveBeenCalledOnce();
+    });
     it('空闲页面只注册入口，不创建 Shadow DOM；卸载时清除入口', async () => {
         const runtime = await import('@/src/features/area-translation/content/runtime');
         const {startAreaTranslationFromContextMenu} = await import('@/src/features/area-translation/content/contextMenuBridge');

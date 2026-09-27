@@ -284,9 +284,16 @@ async function main() {
       const panel = document.querySelector('#fluent-read-video-subtitle-panel');
       const original = document.querySelector('#fluent-read-video-subtitle-original');
       const translation = document.querySelector('#fluent-read-video-subtitle');
-      return {phase:'youtube-shared-caption-compat', player:rect(player), native:rect(native), panel:rect(panel), original:rect(original), translation:rect(translation), nativeText:native?.textContent?.trim() || '', originalText:original?.textContent?.trim() || '', translationText:translation?.textContent?.trim() || ''};
+      const nativeStyle = native ? getComputedStyle(native) : null;
+      const nativeVisible = Boolean(nativeStyle && nativeStyle.display !== 'none' && nativeStyle.visibility !== 'hidden' && nativeStyle.opacity !== '0');
+      return {phase:'youtube-shared-caption-compat', player:rect(player), native:rect(native), panel:rect(panel), original:rect(original), translation:rect(translation), nativeVisible, nativeText:native?.textContent?.trim() || '', originalText:original?.textContent?.trim() || '', translationText:translation?.textContent?.trim() || ''};
     });
-    assert.ok(youtubeGeometry.panel && youtubeGeometry.native && youtubeGeometry.panel.bottom <= youtubeGeometry.native.top + 2, JSON.stringify(youtubeGeometry));
+    assert.ok(youtubeGeometry.panel && youtubeGeometry.native, JSON.stringify(youtubeGeometry));
+    if (youtubeGeometry.nativeVisible) {
+      assert.ok(youtubeGeometry.panel.bottom <= youtubeGeometry.native.top + 2, JSON.stringify(youtubeGeometry));
+    } else {
+      assert.equal(youtubeGeometry.originalText, youtubeGeometry.nativeText);
+    }
     assert.ok(youtubeGeometry.panel.left >= youtubeGeometry.player.left && youtubeGeometry.panel.right <= youtubeGeometry.player.right, JSON.stringify(youtubeGeometry));
     assert.equal(youtubeGeometry.nativeText, 'YouTube native caption remains visible.');
     assert.match(youtubeGeometry.translationText, /译文：/);

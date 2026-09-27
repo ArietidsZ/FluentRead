@@ -156,6 +156,9 @@ describe('语义化公共工具', () => {
         expect(isClearlyWrongLanguageResponse(origin, '“ありがとう”这个词表示感谢，日文原句是“ありがとうございます”。', 'zh-Hans')).toBe(false);
         expect(isClearlyWrongLanguageResponse(origin, '日语写作「ありがとう」。', 'zh-Hans')).toBe(false);
         expect(isClearlyWrongLanguageResponse(origin, 'これは日本語です。', 'zh-Hans')).toBe(false);
+        expect(isClearlyWrongLanguageResponse(origin, 'あ'.repeat(20), 'zh-Hans')).toBe(true);
+        expect(isClearlyWrongLanguageResponse(origin, 'あ'.repeat(16) + '汉'.repeat(33), 'zh-Hans')).toBe(false);
+        expect(isClearlyWrongLanguageResponse(origin, '这是中文译文。', 'zh-Hans')).toBe(false);
     });
 
     it('只为精确数量的非空触摸点计算中心', () => {

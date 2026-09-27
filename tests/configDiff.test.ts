@@ -9,6 +9,13 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('双向划词开关使用对用户可见的启停状态', () => {
+        const changes = group(buildConfigDiff(
+            {selectionTranslatorBidirectional: false},
+            {selectionTranslatorBidirectional: true},
+        ), 'translation')?.changes;
+        expect(changes).toEqual([{key: 'selectionTranslatorBidirectional', label: '中英双向划词', before: '开启', after: '关闭'}]);
+    });
     it('悬浮球拖动后的高度在配置历史中以比例显示', () => {
         expect(group(buildConfigDiff(
             {floatingBallVerticalPosition: null},

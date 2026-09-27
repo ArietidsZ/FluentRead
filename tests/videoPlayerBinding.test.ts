@@ -543,6 +543,37 @@ it('controls observer ignores unrelated and owned mutations and rebinds host con
  notify([{target:fixture.player,addedNodes:[controls],removedNodes:[]} as unknown as MutationRecord],{} as MutationObserver);
 });
 
+it('skips text-only player updates and unrelated mixed records while rebinding replaced controls', () => {
+  const fixture = createFixture('<div class="player"><video></video><div class="ytp-right-controls"><button>settings</button><button>other</button></div></div>');
+  let notify!: MutationCallback;
+  vi.stubGlobal('MutationObserver', class {
+    constructor(callback: MutationCallback) { notify = callback; }
+    observe() {}
+    disconnect() {}
+  });
+  const button = fixture.document.createElement('button');
+  const binding = createVideoPlayerBinding({document: fixture.document, locator: fixture.locator,
+    getState: () => ({enabled: true}), createButton: () => button});
+  const scans = vi.spyOn(fixture.locator, 'sync');
+  scans.mockClear();
+  for (let index = 0; index < 60; index += 1) {
+    notify([
+      {target: fixture.player, addedNodes: [fixture.document.createTextNode(`time ${index}`)], removedNodes: [], type: 'childList'},
+      {target: fixture.document.body, addedNodes: [fixture.document.createElement('div')], removedNodes: [], type: 'childList'},
+    ] as unknown as MutationRecord[], {} as MutationObserver);
+  }
+  expect(scans).not.toHaveBeenCalled();
+  const previous = fixture.player.querySelector('.ytp-right-controls')!;
+  const replacement = fixture.document.createElement('div');
+  replacement.className = 'ytp-right-controls';
+  replacement.innerHTML = '<button>new settings</button><button>new other</button>';
+  previous.replaceWith(replacement);
+  notify([{target: fixture.player, addedNodes: [replacement], removedNodes: [previous], type: 'childList'} as unknown as MutationRecord], {} as MutationObserver);
+  expect(scans).toHaveBeenCalledOnce();
+  expect(button.parentElement).toBe(replacement);
+  binding.destroy();
+});
+
 it('missing MutationObserver still supports explicit sync and clean teardown', () => {
  const fixture=createFixture();vi.stubGlobal('MutationObserver',undefined);
  const button=fixture.document.createElement('button');

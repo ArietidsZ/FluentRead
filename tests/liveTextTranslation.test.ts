@@ -222,9 +222,10 @@ describe('双语正文整块翻译', () => {
 
     it('宿主保留换行时整段原文保留文本换行，样式读取失败时按普通空白处理', async () => {
         const html = '<p>one\n<a href="/x">two</a></p>';
-        const request = async (getComputedStyle: () => {whiteSpace: string}) => {
+        const request = async (getComputedStyle: (() => {whiteSpace: string}) | null) => {
             const target = owner(html);
-            Object.defineProperty(target.ownerDocument, 'defaultView', {configurable: true, value: {getComputedStyle}});
+            Object.defineProperty(target.ownerDocument, 'defaultView', {configurable: true,
+                value: getComputedStyle ? {getComputedStyle} : null});
             runtime.translateTextSlots.mockReset();
             runtime.translateTextSlots.mockImplementation(async () => ['一二']);
             await createTranslationRequest(target, 'content', 'bilingual', bilingual);
@@ -233,6 +234,7 @@ describe('双语正文整块翻译', () => {
 
         expect(await request(() => ({whiteSpace: 'pre-wrap'}))).toEqual(['one\ntwo']);
         expect(await request(() => ({whiteSpace: 'normal'}))).toEqual(['one two']);
+        expect(await request(null)).toEqual(['one two']);
         expect(await request(() => {
             throw new Error('detached');
         })).toEqual(['one two']);

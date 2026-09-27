@@ -16,7 +16,7 @@ vi.mock("@/src/services/config/store", () => ({config: mockConfig}));
 import deeplx, {
     getDeepLXRequestLanguages,
 } from "@/src/providers/translation/deeplx";
-import {DEFAULT_DEEPLX_ENDPOINT, getDeepLXEndpoints, hasDeepLXTokenPlaceholder, requiresDeepLXToken} from '@/src/core/config/deeplx';
+import {DEFAULT_DEEPLX_ENDPOINT, getDeepLXEndpoints, requiresDeepLXToken} from '@/src/core/config/deeplx';
 
 const FANYIMAO_ENDPOINT = 'https://freeapi.fanyimao.cn/translate?token={{apiKey}}';
 const DEEPLX_COMMUNITY_ENDPOINT = 'https://api.deeplx.org/{{apiKey}}/translate';
@@ -67,8 +67,6 @@ describe("DeepLX endpoint configuration", () => {
             .toEqual(["https://freeapi.fanyimao.cn/translate?token=site-token"]);
         expect(() => getDeepLXEndpoints(DEEPLX_COMMUNITY_ENDPOINT, "", ""))
             .toThrow('DeepLX 地址包含 {{apiKey}} 或 {{token}} 占位符');
-        expect(hasDeepLXTokenPlaceholder(DEEPLX_COMMUNITY_ENDPOINT)).toBe(true);
-        expect(hasDeepLXTokenPlaceholder('https://self-hosted.example/translate')).toBe(false);
         expect(requiresDeepLXToken(DEEPLX_COMMUNITY_ENDPOINT, '')).toBe(true);
         expect(requiresDeepLXToken('https://self-hosted.example/translate', DEEPLX_COMMUNITY_ENDPOINT)).toBe(true);
     });

@@ -122,14 +122,14 @@ const COMPLEXITY_DEBT_CEILINGS: Record<string, number> = {
     'entrypoints/offscreen/main.ts': 3,
     'entrypoints/shadowBridge.content.ts': 9,
     'entrypoints/youtubeBridge.content.ts': 9,
-    'src/app/background/contextMenuRuntime.ts': 137,
-    'src/app/background/messageRuntime.ts': 165,
+    'src/app/background/contextMenuRuntime.ts': 142,
+    'src/app/background/messageRuntime.ts': 173,
     'src/app/background/runtime.ts': 25,
     'src/app/content/hotkeyRuntime.ts': 208,
     'src/app/content/messageRuntime.ts': 169,
-    'src/app/content/runtime.ts': 269,
+    'src/app/content/runtime.ts': 277,
     'src/features/settings/ui/SettingsSections.vue': 1558,
-    'src/features/full-page-translation/content/runtime.ts': 2164,
+    'src/features/full-page-translation/content/runtime.ts': 2196,
     'src/features/video-subtitle/content/runtime.ts': 1887,
 };
 

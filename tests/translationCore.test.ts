@@ -3353,6 +3353,10 @@ describe('整块译文的纯文本渲染', () => {
         expect(render(html, ['读'])).toContain('the guide');
         expect(render(html, ['', '', ''])).toBe(' <a href="/g"></a>');
         expect(render(html, ['整段。', '次槽', ''])).toContain('次槽');
+        const sparse = new Array<string>(3);
+        sparse[1] = '';
+        sparse[2] = '';
+        expect(render(html, sparse)).toBe('Read <a href="/g"></a>');
     });
 
     it('单槽候选不触发整块降级', () => {
@@ -3400,6 +3404,20 @@ describe('整块请求的整段原文重建', () => {
             .toBe('Cats[1] purr loudly.');
         expect(source('<p>Area is <b>x</b><sup>2</sup></p>')).toBeNull();
         expect(source('<p>Water is H<sub>2</sub><i>O</i></p>')).toBeNull();
+    });
+
+    it('脱离文档的异常空值不会使整段骨架重建抛错', () => {
+        const {document} = parseHTML('<html><body><p>Read <a href="/g">the guide</a> <sup>[1]</sup> now.</p></body></html>');
+        const snapshot = createTranslationSourceSnapshot(document.body.firstElementChild as HTMLElement);
+        const footnote = snapshot.clone.querySelector('sup')!;
+        Object.defineProperty(footnote, 'textContent', {configurable: true, value: null});
+        expect(buildWholeBlockTranslationSource(snapshot)).toBeNull();
+
+        Object.defineProperty(footnote, 'textContent', {configurable: true, value: '[1]'});
+        const gap = [...snapshot.clone.childNodes].find(node => node.nodeType === 3 && !node.nodeValue?.trim());
+        expect(gap).toBeDefined();
+        Object.defineProperty(gap, 'nodeValue', {configurable: true, value: null});
+        expect(buildWholeBlockTranslationSource(snapshot)).toBeTypeOf('string');
     });
 
     it('无法无损拍平的骨架返回 null，由调用方逐槽请求', () => {

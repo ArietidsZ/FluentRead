@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/videoPlayerBinding.ts
  * 文件职责：把字幕入口和菜单绑定到定位器选中的视频播放器，并在信息流、全屏及原生控件重挂载时保持稳定。
- * 主要内容：以画中画和全屏控件为锚点维护入口顺序，管理 fallback 控件、进度徽标和禁用状态下的节点清理。
+ * 主要内容：以画中画和全屏控件为锚点维护入口顺序，忽略播放器纯文本突变，管理 fallback 控件、进度徽标和禁用状态下的节点清理。
  * 模块边界：只管理 FluentRead 播放器节点的挂载位置与事件；按钮行为、菜单内容和字幕业务由调用方注入。
  */
 
@@ -291,11 +291,16 @@ export function createVideoPlayerBinding(options: VideoPlayerBindingOptions): Vi
     sync();
   });
   const controlsObserver = typeof MutationObserver !== 'undefined' ? new MutationObserver(records => {
-    if (!target || !records.some(record => target!.player.contains(record.target))) return;
+    if (!target) return;
+    const player = target.player;
+    const playerRecords = records.filter(record => player.contains(record.target));
+    if (playerRecords.length === 0) return;
     const isOwned = (node: Node) => node instanceof Element && Boolean(node.closest('.fluent-read-video-ui'));
     const correctlyPlaced = button?.parentElement === host && button?.nextElementSibling === before;
-    if (records.every(record => isOwned(record.target) || (record.type !== 'attributes' && correctlyPlaced
-      && [...record.addedNodes, ...record.removedNodes].every(isOwned)))) return;
+    if (playerRecords.every(record => isOwned(record.target)
+      || (record.type === 'childList' && [...record.addedNodes, ...record.removedNodes].every(node => node.nodeType === 3))
+      || (record.type !== 'attributes' && correctlyPlaced
+        && [...record.addedNodes, ...record.removedNodes].every(isOwned)))) return;
     sync();
   }) : null;
   controlsObserver?.observe(document, {childList: true, subtree: true, attributes: true, attributeFilter: ['aria-label', 'title', 'data-testid']});

@@ -80,6 +80,28 @@ function assert(condition, message) {
     if (!condition) throw new Error(message);
 }
 
+function verifySharedFrameEntrypoint(manifest, files, browser) {
+    const entries = manifest.content_scripts ?? [];
+    const shared = entries.filter(entry => entry.js?.includes('content-scripts/supportedFrame.js'));
+    const expectedMatches = [
+        'https://disqus.com/embed/comments/*',
+        'https://mail.qq.com/cgi-bin/readmail*',
+        'https://www.kaggleusercontent.com/kf/*/__results__.html*',
+    ];
+    assert(shared.length === 1, `${browser} 必须只注册一次共用子 frame 入口`);
+    assert(JSON.stringify([...shared[0].matches].sort()) === JSON.stringify(expectedMatches),
+        `${browser} 共用子 frame 入口的匹配范围变化`);
+    assert(shared[0].all_frames === true && shared[0].match_about_blank !== true
+        && shared[0].run_at === 'document_end', `${browser} 共用子 frame 注入条件变化`);
+    assert(files.includes('content-scripts/supportedFrame.js') && files.includes('content-scripts/supportedFrame.css'),
+        `${browser} 缺少共用子 frame 脚本或样式`);
+    assert(!files.some(file => /^content-scripts\/(?:qqMailFrame|embeddedArticleFrame)\.(?:js|css)$/u.test(file)),
+        `${browser} 保留了冗余的旧子 frame 产物`);
+    const netease = entries.find(entry => entry.js?.includes('content-scripts/neteaseMailFrame.js'));
+    assert(netease?.all_frames === true && netease.match_about_blank === true,
+        `${browser} 网易邮箱必须继续匹配 about:blank 正文子 frame`);
+}
+
 export function findUnexpectedCurrentVersionArchives(outputFiles, version, expectedArchives) {
     const escapedVersion = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const currentVersionArchive = new RegExp(
@@ -156,6 +178,8 @@ async function main() {
     assert(firefoxBackground.includes(firefoxBuildMarker), 'Firefox 后台脚本缺少 firefox/MV2 runtime capability 构建标记');
     assert(!chromeBackground.includes('import.meta'), 'Chrome classic MV3 background 不得残留 import.meta 语法');
     assert(!firefoxBackground.includes('import.meta'), 'Firefox classic MV2 background 不得残留 import.meta 语法');
+    verifySharedFrameEntrypoint(chromeManifest, chromeFiles, 'Chrome');
+    verifySharedFrameEntrypoint(firefoxManifest, firefoxFiles, 'Firefox');
 
     let firefoxArchives = [];
     let firefoxArchiveOcrAssets = [];

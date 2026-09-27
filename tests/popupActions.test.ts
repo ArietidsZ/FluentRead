@@ -22,7 +22,7 @@ describe('Popup actions across configuration and page state', () => {
             query: vi.fn(async () => [{id: 3}]),
             sendMessage: vi.fn(async () => ({status: 'success', isTranslated: false})),
         }};
-        const action = loadAction('togglePageTranslation', {browser, pageTranslated, translating, showNotice,
+        const action = loadAction('togglePageTranslation', {browser, pageTranslated, translating, showNotice, isThunderbird: false,
             isBrowserTabId: (id: unknown) => typeof id === 'number', credentialWarning: {value: '缺少 API Key'}});
         await action();
         expect(browser.tabs.sendMessage).toHaveBeenCalledWith(3, {type: 'contextMenuTranslate', action: 'restore'});

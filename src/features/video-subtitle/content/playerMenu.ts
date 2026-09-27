@@ -400,11 +400,6 @@ export function renderVideoModelPrompt(menu: HTMLElement, state: VideoModelPromp
     menu.dataset.view = 'model-prompt';
 }
 
-export function readVideoModelPromptSelection(menu: HTMLElement): VideoLocalTranscriptionModel | null {
-    const selected = menu.querySelector<HTMLElement>('[data-model-prompt]')?.dataset.selectedModel;
-    return selected === 'tiny' || selected === 'base' ? selected : null;
-}
-
 export function isVideoModelPromptOpen(menu: HTMLElement): boolean {
     return menu.dataset.view === 'model-prompt';
 }

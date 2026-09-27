@@ -4,11 +4,9 @@ import {
     isSupportedVideoPage,
     mountAreaTranslator,
     mountImageTranslator,
-    mountNewApiComponent,
     mountVideoSubtitleTranslation,
     unmountAreaTranslator,
     unmountImageTranslator,
-    unmountNewApiComponent,
 } from '@/userscript/unsupportedCapabilities';
 
 describe('userscript extension-only capability stubs', () => {
@@ -18,8 +16,6 @@ describe('userscript extension-only capability stubs', () => {
         expect(mountImageTranslator()).toBeUndefined();
         expect(unmountAreaTranslator()).toBeUndefined();
         expect(unmountImageTranslator()).toBeUndefined();
-        expect(mountNewApiComponent()).toBeUndefined();
-        expect(unmountNewApiComponent()).toBeUndefined();
         expect(mountVideoSubtitleTranslation()()).toBeUndefined();
         expect(isSupportedVideoPage()).toBe(false);
     });

@@ -39,6 +39,7 @@ const EXPECTED_PROVIDER_FILES = [
     'hunyuan-translation.ts',
     'local-translation.ts',
     'microsoft.ts',
+    'microsoftTransport.ts',
     'responses-api.ts',
     'tencent.ts',
     'tongyi.ts',
@@ -91,13 +92,13 @@ function resolveProjectSpecifier(providerPath: string, specifier: string): strin
     return relative(PROJECT_ROOT, absolute).split(sep).join('/');
 }
 
-function runtimeFetchCalls(path: string): ts.CallExpression[] {
+function runtimeFetchCalls(path: string, transportName = 'runtimeFetch'): ts.CallExpression[] {
     const source = readProjectFile(`src/providers/translation/${path}`);
     const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
     const calls: ts.CallExpression[] = [];
     const visit = (node: ts.Node) => {
         if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)
-            && node.expression.text === 'runtimeFetch') {
+            && node.expression.text === transportName) {
             calls.push(node);
         }
         ts.forEachChild(node, visit);
@@ -167,7 +168,6 @@ describe('translation provider architecture', () => {
             'gemini.ts',
             'google.ts',
             'hunyuan-translation.ts',
-            'microsoft.ts',
             'tencent.ts',
             'tongyi.ts',
             'xiaoniu.ts',
@@ -180,6 +180,11 @@ describe('translation provider architecture', () => {
         });
 
         expect(violations).toEqual([]);
+        const microsoftAdapter = readProjectFile('src/providers/translation/microsoft.ts');
+        expect(microsoftAdapter).toContain('translateMicrosoftTextsWithTransport(runtimeFetch, texts, fromLang, toLang, abortSignal)');
+        const microsoftTransportCalls = runtimeFetchCalls('microsoftTransport.ts', 'transport');
+        expect(microsoftTransportCalls).toHaveLength(1);
+        expect(microsoftTransportCalls.every((call) => objectLiteralHasSignal(call.arguments[1]))).toBe(true);
     });
 
     it('AI SDK compatibility transport 通过 runtimeFetch，不绕过 userscript 网络端口', () => {

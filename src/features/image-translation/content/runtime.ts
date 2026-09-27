@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/runtime.ts
  * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和原图/译图切换，保持宿主图片与响应式图片资源不变。
- * 主要内容：在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，限制像素读取和结果缓存，换图、取消与卸载时停止旧请求并释放资源。
+ * 主要内容：在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新并复核待显示图片的指针位置，限制像素读取和结果缓存，换图、取消与卸载时停止旧请求并释放资源。
  * 模块边界：本运行时只读取页面允许访问的 Canvas 像素并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
 import { config, subscribeConfig } from '@/src/services/config/store';
@@ -768,10 +768,12 @@ let pendingPointerMove: {
     pointerType: string;
 } | null = null;
 let pointerRevealTimer: number | null = null;
+let pointerRevealPoint: {x: number; y: number} | null = null;
 
 function clearPointerRevealTimer(): void {
     if (pointerRevealTimer !== null) window.clearTimeout(pointerRevealTimer);
     pointerRevealTimer = null;
+    pointerRevealPoint = null;
 }
 
 type PointerHitEvent = Pick<PointerEvent, 'target' | 'clientX' | 'clientY' | 'isTrusted' | 'pointerType'>;
@@ -810,7 +812,10 @@ function handlePointerOver(event: PointerHitEvent): void {
         pointerImage = null;
         return;
     }
-    if (pointerImage === image && image && (pointerRevealTimer !== null || states.has(image))) return;
+    if (pointerImage === image && image && (pointerRevealTimer !== null || states.has(image))) {
+        if (pointerRevealTimer !== null) pointerRevealPoint = {x: event.clientX, y: event.clientY};
+        return;
+    }
     clearPointerRevealTimer();
     if (pointerImage && pointerImage !== image) hideImageButton(pointerImage);
     pointerImage = image;
@@ -820,12 +825,20 @@ function handlePointerOver(event: PointerHitEvent): void {
         return;
     }
     const source = sourceIdentity(image);
+    pointerRevealPoint = {x: event.clientX, y: event.clientY};
     // 同一张图片停留后再显示；快速扫过不创建 DOM、观察器或请求。
     pointerRevealTimer = window.setTimeout(() => {
+        const pointer = pointerRevealPoint;
         pointerRevealTimer = null;
+        pointerRevealPoint = null;
         if (mounted && pointerImage === image && image.isConnected && sourceIdentity(image) === source
             && config.on && !config.disableImageTranslator && config.imageTranslationHoverEnabled !== false) {
-            showImageButton(image);
+            const rect = image.getBoundingClientRect();
+            const pointerStillInside = !pointer || !Number.isFinite(pointer.x) || !Number.isFinite(pointer.y)
+                || (pointer.x >= rect.left && pointer.x < rect.right && pointer.y >= rect.top && pointer.y < rect.bottom);
+            const style = getComputedStyle(image);
+            if (pointerStillInside && style.display !== 'none' && style.visibility !== 'hidden'
+                && isImageHoverEligible(image)) showImageButton(image);
         }
     }, 600);
 }
@@ -886,16 +899,20 @@ export function toggleContextMenuImage(srcUrl?: unknown): boolean {
     return true;
 }
 
-function scheduleViewportChange(): void {
-    if (pointerRevealTimer !== null) {
-        clearPointerRevealTimer();
-        pointerImage = null;
-    }
+function scheduleOverlayPositionUpdate(): void {
     if (!mounted || activeStates.size === 0 || positionFrame !== null) return;
     positionFrame = window.requestAnimationFrame(() => {
         positionFrame = null;
         activeStates.forEach(updateOverlayPosition);
     });
+}
+
+function scheduleViewportChange(): void {
+    if (pointerRevealTimer !== null) {
+        clearPointerRevealTimer();
+        pointerImage = null;
+    }
+    scheduleOverlayPositionUpdate();
 }
 
 function handleLayoutMutations(records: MutationRecord[]): void {
@@ -911,7 +928,8 @@ function handleLayoutMutations(records: MutationRecord[]): void {
             if (!image.isConnected) deleteCachedResult(image);
         });
     }
-    scheduleViewportChange();
+    // 无关 DOM 更新不应取消仍在指针下的图片；计时器到期时重新检查位置和资格。
+    scheduleOverlayPositionUpdate();
 }
 
 /** 空闲时不接收整页变更；首个覆盖层出现时恢复观察，最后一个移除时释放。 */

@@ -72,7 +72,14 @@ function isCssHidden(element: Element): boolean {
 }
 function visibleContextElements(root: ParentNode, selector: string): HTMLElement[] {
     const candidates = Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(element => !element.closest(`${hiddenContent}, [contenteditable], ${excludedUi}`) && element.getClientRects().length > 0 && !isCssHidden(element));
-    return candidates.filter(element => !candidates.some(other => other !== element && other.contains(element)));
+    const candidateSet = new Set(candidates);
+    // 嵌套的匹配节点只保留外层；沿祖先链查询避免评论数增长时逐对比较。
+    return candidates.filter(element => {
+        for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+            if (candidateSet.has(parent)) return false;
+        }
+        return true;
+    });
 }
 function contextText(element: HTMLElement): string {
     const copy = element.cloneNode(true) as HTMLElement;

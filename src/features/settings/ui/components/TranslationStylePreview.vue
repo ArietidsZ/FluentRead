@@ -8,8 +8,7 @@
 <template>
   <figure class="translation-style-preview" :data-page-theme="pageTheme">
     <div class="translation-style-preview-toolbar">
-      <span class="translation-style-preview-dots" aria-hidden="true"><i /><i /><i /></span>
-      <span class="translation-style-preview-address" aria-hidden="true" data-i18n-ignore>example.com/reading</span>
+      <strong>{{ t('settings.translationStyle.previewTitle') }}</strong>
       <SegmentedControl
         class="translation-style-preview-theme"
         :model-value="pageTheme"
@@ -26,11 +25,10 @@
       data-i18n-ignore
       @pointerleave="activeSentence = null"
     >
-      <i class="translation-style-preview-skeleton is-title" aria-hidden="true" />
       <p class="translation-style-preview-paragraph">
         <template v-for="block in blockOrder" :key="block">
           <span v-if="block === 'source'" class="translation-style-preview-source" data-testid="bilingual-highlight-preview-source"><span
-            v-for="(sentence, index) in ['Reading should feel calm and effortless. ', 'Move over a sentence to find its translation. ', 'Compare difficult passages at your own pace.']"
+            v-for="(sentence, index) in ['Reading should feel calm and effortless. ', 'Move over a sentence to find its translation.']"
             :key="index"
             :class="{ 'is-sentence-highlighted': highlightEnabled && activeSentence === index }"
             :tabindex="highlightEnabled ? 0 : -1"
@@ -46,7 +44,7 @@
             lang="zh-CN"
             data-testid="bilingual-highlight-preview-translation"
           ><span
-            v-for="(sentence, index) in ['阅读应该轻松、自然。', '将光标移到某个句子上，即可找到对应译文。', '按照自己的节奏对照理解难懂的内容。']"
+            v-for="(sentence, index) in ['阅读应该轻松、自然。', '将光标移到某个句子上，即可找到对应译文。']"
             :key="index"
             :class="{ 'is-sentence-highlighted': highlightEnabled && activeSentence === index }"
             :tabindex="highlightEnabled ? 0 : -1"
@@ -56,8 +54,6 @@
           >{{ sentence }}</span></span>
         </template>
       </p>
-      <i class="translation-style-preview-skeleton" aria-hidden="true" />
-      <i class="translation-style-preview-skeleton is-short" aria-hidden="true" />
     </div>
     <figcaption class="translation-style-preview-caption">
       <strong>{{ caption }}</strong>
@@ -119,41 +115,12 @@ function selectPageTheme(value: string | number): void {
   display: flex;
   min-width: 0;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   padding: 7px 8px 7px 12px;
   border-bottom: 1px solid var(--line);
 }
-
-.translation-style-preview-dots {
-  display: inline-flex;
-  flex: none;
-  gap: 5px;
-}
-
-.translation-style-preview-dots > i {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #ff5f57;
-}
-
-.translation-style-preview-dots > i:nth-child(2) { background: #febc2e; }
-.translation-style-preview-dots > i:nth-child(3) { background: #28c840; }
-
-.translation-style-preview-address {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  padding: 3px 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--muted);
-  background: var(--surface);
-  font-size: 10px;
-  line-height: 1.4;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.translation-style-preview-toolbar > strong { color: var(--ink); font-size: 11.5px; }
 
 .translation-style-preview-theme.segmented-control {
   width: auto;
@@ -173,14 +140,13 @@ function selectPageTheme(value: string | number): void {
 .translation-style-preview-page {
   --translation-preview-page: #fff;
   --translation-preview-ink: #1f2328;
-  --translation-preview-skeleton: rgba(15, 23, 42, .08);
   min-width: 0;
-  padding: 18px 20px 16px;
+  padding: 14px 16px;
   color: var(--translation-preview-ink);
   background: var(--translation-preview-page);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
-  font-size: 15px;
-  line-height: 1.75;
+  font-size: 13px;
+  line-height: 1.65;
   overflow-wrap: anywhere;
   transition: background-color 180ms ease, color 180ms ease;
 }
@@ -188,29 +154,8 @@ function selectPageTheme(value: string | number): void {
 .translation-style-preview[data-page-theme="dark"] .translation-style-preview-page {
   --translation-preview-page: #17191e;
   --translation-preview-ink: #e6e8ec;
-  --translation-preview-skeleton: rgba(255, 255, 255, .1);
 }
-
-.translation-style-preview-skeleton {
-  display: block;
-  width: 92%;
-  height: 8px;
-  margin: 0 0 10px;
-  border-radius: 999px;
-  background: var(--translation-preview-skeleton);
-}
-
-.translation-style-preview-skeleton.is-title {
-  width: 42%;
-  height: 12px;
-  margin-bottom: 14px;
-}
-
-.translation-style-preview-skeleton.is-short { width: 58%; margin-bottom: 0; }
-
-.translation-style-preview-paragraph {
-  margin: 0 0 14px;
-}
+.translation-style-preview-paragraph { margin: 0; }
 
 .bilingual-highlight-preview .is-sentence-highlighted {
   background-color: rgba(239, 71, 118, .22);
@@ -253,8 +198,6 @@ function selectPageTheme(value: string | number): void {
 }
 
 @media (max-width: 460px) {
-  .translation-style-preview-address { display: none; }
-  .translation-style-preview-toolbar { justify-content: space-between; }
   .translation-style-preview-page { padding: 14px 14px 12px; }
 }
 </style>
