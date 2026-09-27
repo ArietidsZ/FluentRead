@@ -6,36 +6,11 @@
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
-import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import type {TranslationLanguageOverride} from '@/src/services/translation/languages';
-import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
+import {translateMicrosoftTextsWithTransport} from './microsoftTransport';
 import type {TranslationProviderRequest} from '@/src/services/translation/requestSnapshot';
-
-const MICROSOFT_TRANSLATE_URL = "https://edge.microsoft.com/translate/translatetext";
-
-type MicrosoftTranslation = {
-    translations?: Array<{text?: string}>;
-};
-
-function escapeHtmlText(text: string): string {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function decodeHtmlText(text: string): string {
-    return text
-        .replace(/&#(?:0*39);|&#x0*27;/gi, "'")
-        .replace(/&quot;/gi, '"')
-        .replace(/&gt;/gi, '>')
-        .replace(/&lt;/gi, '<')
-        .replace(/&amp;/gi, '&');
-}
 
 export async function translateMicrosoftTexts(
     texts: string[],
@@ -43,43 +18,7 @@ export async function translateMicrosoftTexts(
     toLang: string,
     abortSignal?: AbortSignal,
 ): Promise<string[]> {
-    if (texts.length === 0) return [];
-
-    fromLang = normalizeChineseLanguageCode(fromLang);
-    toLang = normalizeChineseLanguageCode(toLang);
-    const url = new URL(MICROSOFT_TRANSLATE_URL);
-    // 通用 sr 按原生名称的西里尔书写系统请求，避免服务端隐式选择拉丁字母。
-    url.searchParams.set('from', fromLang === 'auto' ? '' : fromLang === 'sr' ? 'sr-Cyrl' : fromLang);
-    url.searchParams.set('to', toLang === 'sr' ? 'sr-Cyrl' : toLang);
-    url.searchParams.set('isEnterpriseClient', 'false');
-
-    const resp = await runtimeFetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        // endpoint 始终会运行 HTML 标签对齐器。转义可避免纯文本比较运算符和用户输入
-        // 被解释为标记。
-        body: JSON.stringify(texts.map(escapeHtmlText)),
-        signal: abortSignal,
-    });
-
-    if (!resp.ok) {
-        throw createHttpStatusError(resp, '翻译失败');
-    }
-
-    const result = await readJsonResponse<MicrosoftTranslation[]>(resp, '微软翻译返回的不是有效 JSON');
-    if (!Array.isArray(result) || result.length !== texts.length) {
-        throw new Error(`微软翻译返回数量异常: 期望 ${texts.length} 条，实际 ${Array.isArray(result) ? result.length : 0} 条`);
-    }
-
-    return result.map((item, index) => {
-        const translatedText = item?.translations?.[0]?.text;
-        if (typeof translatedText !== 'string') {
-            throw new Error(`微软翻译第 ${index + 1} 条结果缺少译文`);
-        }
-        return decodeHtmlText(translatedText);
-    });
+    return translateMicrosoftTextsWithTransport(runtimeFetch, texts, fromLang, toLang, abortSignal);
 }
 
 async function microsoft(message: TranslationProviderRequest & TranslationLanguageOverride) {
