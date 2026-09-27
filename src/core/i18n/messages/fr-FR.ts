@@ -2302,6 +2302,8 @@ export const frFRLegacyText: Readonly<Record<string, string>> = {
     '数值越小越透明、越不遮挡网页；鼠标悬停、展开和拖动时始终完全清晰。': 'Des valeurs plus basses rendent la bulle plus transparente. Au survol, à l’ouverture et pendant le déplacement, elle reste parfaitement visible.',
     '悬浮球收起时不透明度': 'Opacité de la bulle flottante repliée',
     '悬浮球收起不透明度': 'Opacité de la bulle flottante repliée',
+    '悬浮球高度': "Hauteur de la bulle flottante",
+    '居中': "Centrée",
     '禁用悬浮球网站': 'Sites sans bulle flottante',
     '不显示悬浮球的网站': 'Sites sans bulle flottante',
     '不显示悬浮球的网站名单': 'Liste des sites sans bulle flottante',
