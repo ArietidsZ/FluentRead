@@ -1,4 +1,5 @@
 import {describe, expect, it, vi} from 'vitest';
+import {installShadowAndRouteBridge} from '@/src/platform/shadow-ui/pageBridge';
 import {
     ROUTE_CHANGE_EVENT,
     SHADOW_BRIDGE_DISPOSE_EVENT,
@@ -196,6 +197,17 @@ function xReplayPolicy(includePageHref = true) {
 }
 
 describe('ShadowRoot 与路由 MAIN world bridge core', () => {
+    it('原始 XML 文档不安装 MAIN world 宿主方法补丁', () => {
+        vi.stubGlobal('document', {contentType: 'text/xml'});
+        try {
+            const dispose = installShadowAndRouteBridge();
+            expect(dispose).toBeTypeOf('function');
+            expect(() => dispose()).not.toThrow();
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
     it('透明转发宿主方法的真实参数数量，保留缺参异常及既有包装器语义', () => {
         const fixture = shadowFixture();
         const expectedError = new TypeError('2 arguments required');
