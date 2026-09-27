@@ -58,7 +58,10 @@ vi.mock('@/src/app/content/hotkeyRuntime', () => ({
 }));
 vi.mock('@/src/app/content/quickTranslationRuntime', () => ({mountConfiguredQuickTranslation: vi.fn()}));
 vi.mock('@/src/app/content/pageStyles', () => ({installPageStyles: mocks.installPageStyles}));
-vi.mock('@/src/app/content/qqMailFrameRuntime', () => ({installQqMailTopFrameBridge: vi.fn()}));
+vi.mock('@/src/app/content/qqMailFrameRuntime', () => ({
+    installQqMailTopFrameBridge: vi.fn(),
+    installNeteaseMailTopFrameBridge: vi.fn(),
+}));
 vi.mock('@/src/app/content/embeddedFrameRuntime', () => ({installEmbeddedTopFrameBridge: vi.fn()}));
 vi.mock('@/src/app/content/mainWorldBridgeLifecycle', () => ({setMainWorldBridgesEnabled: mocks.setBridges}));
 vi.mock('@/src/app/content/messageRuntime', () => ({createContentRuntimeMessageHandler: mocks.createMessageHandler}));
