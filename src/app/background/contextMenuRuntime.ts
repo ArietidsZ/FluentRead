@@ -17,6 +17,7 @@ import {renderContextMenuTitle} from '@/src/core/context-menu/presentation';
 import {isBrowserTabId, type TabTranslationState, TabTranslationStateStore} from './tabTranslationState';
 import {createTabTranslationStateReader} from './tabTranslationQuery';
 import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
+import {browserCapabilities} from '@/src/platform/browser/capabilities';
 
 const NEUTRAL_STATE: TabTranslationState = {isTranslated: false, isSiteDisabled: false};
 
@@ -33,7 +34,8 @@ export interface BackgroundContextMenuRuntime {
 export function installBackgroundContextMenus(
     tabTranslationStates: TabTranslationStateStore,
 ): BackgroundContextMenuRuntime {
-    const isSupported = !!browser.contextMenus;
+    // Thunderbird 包不请求网页右键菜单权限；邮件操作由 message_display_action 承担。
+    const isSupported = browserCapabilities.browser !== 'thunderbird' && !!browser.contextMenus;
     let settings: ContextMenuSettingsSnapshot = readContextMenuSettings();
     let plan: readonly ContextMenuPlanItem[] = [];
     let syncQueue: Promise<void> = Promise.resolve();

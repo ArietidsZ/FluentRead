@@ -11,6 +11,7 @@ Choose your browser, add the extension from its store, and follow the browser’
 | Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/djnlaiohfaaifbibleebjggkghlmcpcj) |
 | Edge | [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/kakgmllfpjldjhcnkghpplmlbnmcoflp) |
 | Firefox | [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/) |
+| Thunderbird | [Build and install the email translation add-on](/en/guide/thunderbird) |
 | A browser with a script manager | [Userscript guide](/en/guide/userscript) |
 
 Pin FluentRead to your toolbar for easy access. Refresh pages that were already open before installation.

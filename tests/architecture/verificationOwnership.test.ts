@@ -34,6 +34,7 @@ type VerificationOwner =
     | 'isolated-browser-regression'
     | 'strict-v8-coverage'
     | 'test-infrastructure-contract'
+    | 'thunderbird-build'
     | 'userscript-build';
 
 interface OwnedFile {
@@ -91,6 +92,7 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
 
     // 步骤 3：各自独立的发布出口和测试基础设施由对应流水线负责。
     if (path.startsWith('userscript/')) owners.add('userscript-build');
+    if (path.startsWith('scripts/thunderbird/')) owners.add('thunderbird-build');
     if (path === 'src/services/config/store.ts') owners.add('config-storage-functional');
     if (path === 'src/features/document-translation/ui/pdfPreview.ts') owners.add('document-browser-functional');
     if (path === 'src/features/full-page-translation/content/state.ts') owners.add('full-page-state-functional');
@@ -180,6 +182,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/features/video-subtitle/content/ui.ts',
     // 后台消息 composition 只把 provider、feature handler 与 browser API 静态注入；各 handler/路由均已严格覆盖。
     'src/app/background/messageRuntime.ts',
+    // Thunderbird 邮件显示 API 接线由定向测试和隔离 Thunderbird 邮件实测共同验证。
+    'src/app/background/thunderbirdMessageRuntime.ts',
     // 圈选 composition 仅从消息总入口拆出截图、裁剪和翻译依赖接线；纯路由/事务严格覆盖，并有真实浏览器专项。
     'src/app/background/areaRuntime.ts',
     // 配置存储 runtime 只把真实 browser/configStorage API 注入严格覆盖的广播策略和 OCR 仓库。

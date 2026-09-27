@@ -99,6 +99,24 @@ describe('browser capability contract', () => {
         expect(readRuntimeUserAgent({navigator: {userAgent: 1}})).toBe('');
     });
 
+    it('restricts Firefox-shared DOM features when its package runs in Thunderbird', () => {
+        const firefox = resolveBrowserCapabilities({browser: 'firefox', manifestVersion: 2});
+        const thunderbird = applyRuntimeBrowserConstraints(
+            firefox,
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:140.0) Gecko/20100101 Thunderbird/140.0',
+        );
+        expect(thunderbird).toMatchObject({
+            browser: 'thunderbird',
+            manifestVersion: 2,
+            extensionDom: false,
+            imageOcr: false,
+            imageTranslation: false,
+            areaTranslation: false,
+            selectionTtsExtensionPlayback: false,
+        });
+        expect(applyRuntimeBrowserConstraints(firefox, 'Firefox/140.0')).toBe(firefox);
+    });
+
     it('derives safe defaults when WXT compile-time env fields are missing or invalid', () => {
         expect(browserBuildTargetFromEnv()).toEqual({browser: 'unknown', manifestVersion: 2});
         expect(browserBuildTargetFromEnv({BROWSER: ''})).toEqual({browser: 'unknown', manifestVersion: 2});

@@ -69,6 +69,11 @@ export function applyRuntimeBrowserConstraints(
     capabilities: BrowserCapabilities,
     userAgent: string,
 ): BrowserCapabilities {
+    // Thunderbird 复用 Firefox MV2 产物，但不具备浏览器标签页的共享 DOM 容器。
+    // 邮件正文的基础全文/划词翻译仍可用；OCR、圈选和本地语音需另行适配。
+    if (capabilities.browser === 'firefox' && /\bThunderbird\//i.test(userAgent)) {
+        return resolveBrowserCapabilities({browser: 'thunderbird', manifestVersion: capabilities.manifestVersion});
+    }
     if (capabilities.browser !== 'chrome' || !/\bEdg(?:A|iOS)?\//i.test(userAgent)) return capabilities;
     return Object.freeze({...capabilities, browser: 'edge', chromeTranslation: false});
 }
