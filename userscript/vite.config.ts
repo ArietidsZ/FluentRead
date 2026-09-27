@@ -151,9 +151,10 @@ type BrowserGlobal = 'browser' | 'chrome';
  * 借助 TypeScript 符号解析查找真正未绑定的 browser/chrome 标识符；属性名和类型引用
  * 不应触发注入，避免对普通业务对象产生误改写。
  */
-function findFreeBrowserGlobals(code: string, id: string): BrowserGlobal[] {
+export function findFreeBrowserGlobals(code: string, id: string): BrowserGlobal[] {
     const sourceFile = ts.createSourceFile(id, code, ts.ScriptTarget.Latest, true);
     const options: ts.CompilerOptions = {
+        allowJs: true,
         module: ts.ModuleKind.ESNext,
         noLib: true,
         noResolve: true,
