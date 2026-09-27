@@ -3,6 +3,11 @@ import {describe, expect, it, vi} from 'vitest';
 import {
     createQqMailFrameBackgroundHandlers,
 } from '@/src/features/full-page-translation/background/qqMailFrameHandlers';
+import {createNeteaseMailFrameBackgroundHandlers} from '@/src/features/full-page-translation/background/neteaseMailFrameHandlers';
+import {
+    isNeteaseMailChildUrl, isNeteaseMailReadUrl, isNeteaseMailTopUrl,
+    parseNeteaseMailFrameRequest, type NeteaseMailFrameRequest,
+} from '@/src/features/full-page-translation/neteaseMailFrames';
 import {
     isQqMailLegacyTopUrl,
     isQqMailReadmailUrl,
@@ -116,5 +121,52 @@ describe('QQ legacy frame relay', () => {
         sendTabMessage.mockRejectedValueOnce(new Error('no receiver'));
         await expect(changed.handle({type: QQ_MAIL_FRAME_CHANGED_MESSAGE_TYPE}, context)).resolves.toEqual({success: true});
         await expect(changed.handle({type: QQ_MAIL_FRAME_CHANGED_MESSAGE_TYPE}, {sender: {...context.sender, frameId: 1}})).resolves.toEqual({success: false});
+    });
+});
+
+describe('NetEase mail reading frame relay', () => {
+    const readTop = 'https://mail.163.com/js6/main.jsp?sid=redacted#module=read.ReadModule%7C%7B%7D';
+    const listTop = 'https://mail.163.com/js6/main.jsp?sid=redacted#module=mbox.ListModule%7C%7B%7D';
+    it('restricts hosts and reading routes without parsing session parameters', () => {
+        for (const host of ['mail.163.com', 'mail.126.com', 'mail.yeah.net']) {
+            expect(isNeteaseMailReadUrl(`https://${host}/js6/main.jsp#module=read.ReadModule%7C%7B%7D`)).toBe(true);
+        }
+        expect(isNeteaseMailReadUrl('https://hw.mail.163.com/js6/main.jsp#module=read.ReadModule')).toBe(true);
+        expect(isNeteaseMailTopUrl(listTop)).toBe(true);
+        expect(isNeteaseMailReadUrl(listTop)).toBe(false);
+        expect(isNeteaseMailChildUrl('about:blank', readTop)).toBe(true);
+        expect(isNeteaseMailChildUrl('about:srcdoc', readTop)).toBe(true);
+        expect(isNeteaseMailChildUrl('about:blank', 'https://evil.example/js6/main.jsp#module=read.ReadModule')).toBe(false);
+        for (const url of ['http://mail.163.com/js6/main.jsp', 'https://evil.other.mail.163.com/js6/main.jsp',
+            'https://mail.163.com/js6/other.jsp', 'https://user:pass@mail.163.com/js6/main.jsp']) {
+            expect(isNeteaseMailTopUrl(url)).toBe(false);
+        }
+    });
+
+    it('validates request fields and forwards only a reading child to frame zero', async () => {
+        const sendTabMessage = vi.fn(async () => ({enabled: true, revision: 1, sessionId: null}));
+        const [request, changed] = createNeteaseMailFrameBackgroundHandlers({sendTabMessage});
+        const sender = {frameId: 3, url: 'about:blank', tab: {id: 42, url: readTop}};
+        const state = {type: 'neteaseMailFrameRequest', action: 'state'} as const;
+        expect(parseNeteaseMailFrameRequest({...state, sid: 'secret'})).toBeNull();
+        expect(parseNeteaseMailFrameRequest({type: state.type, action: 'toggle', invocation: {sid: 'secret'}})).toBeNull();
+        await expect(request.handle(state, {sender})).resolves.toMatchObject({enabled: true});
+        expect(sendTabMessage).toHaveBeenCalledWith(42, {type: 'neteaseMailFrameCommand', action: 'state'}, {frameId: 0});
+        const toggle: NeteaseMailFrameRequest = {type: 'neteaseMailFrameRequest', action: 'toggle', invocation: {targetLanguage: 'zh-Hans'}};
+        await request.handle(toggle, {sender});
+        expect(sendTabMessage).toHaveBeenLastCalledWith(42, {
+            type: 'neteaseMailFrameCommand', action: 'toggle', invocation: {targetLanguage: 'zh-Hans'},
+        }, {frameId: 0});
+        for (const bad of [
+            {...sender, frameId: 0},
+            {...sender, tab: {id: 42, url: listTop}},
+            {...sender, origin: 'https://mail.126.com'},
+            {...sender, url: 'https://evil.example/'},
+        ]) {
+            await expect(request.handle(state, {sender: bad})).resolves.toEqual({success: false});
+        }
+        await expect(changed.handle({type: 'neteaseMailFrameChanged'}, {sender: {frameId: 0, url: listTop, tab: {id: 42, url: listTop}}}))
+            .resolves.toEqual({success: true});
+        expect(sendTabMessage).toHaveBeenLastCalledWith(42, {type: 'neteaseMailFrameRefresh'});
     });
 });
