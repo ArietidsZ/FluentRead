@@ -19,10 +19,11 @@ function installedVersion(name: string): string {
     return manifest.version;
 }
 
-// 脚本管理器在安装时缓存固定版本的通用库；业务代码仍留在本仓库的单文件中。
+// 脚本管理器在安装时缓存固定版本的通用库；仓库资源固定到已发布提交，更新资源时同步换提交。
+const userscriptResourceCommit = 'c8f9d958b12bcaef61b9a83ac832e62084a805b3';
 const userscriptRequires = [
     `https://cdn.jsdelivr.net/npm/vue@${installedVersion('vue')}/dist/vue.global.prod.js`,
-    'https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@main/userscript/vueElementPlusBridge.v1.js',
+    `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${userscriptResourceCommit}/userscript/vueElementPlusBridge.v1.js`,
     `https://cdn.jsdelivr.net/npm/element-plus@${installedVersion('element-plus')}/dist/index.full.min.js`,
     `https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@${installedVersion('@element-plus/icons-vue')}/dist/index.iife.min.js`,
     `https://cdn.jsdelivr.net/npm/tldts@${installedVersion('tldts')}/dist/index.umd.min.js`,
@@ -325,6 +326,7 @@ export default defineConfig({
         'process.env.VUE_APP_USERSCRIPT_VERSION': JSON.stringify(packageJson.userscriptVersion),
         __FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__: JSON.stringify(compressedUiLanguageBundles),
         __FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__: JSON.stringify(remoteUiLanguageBundles),
+        __FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__: JSON.stringify(userscriptResourceCommit),
     },
     build: {
         outDir: resolve(root, '.output/userscript'),

@@ -37,8 +37,8 @@ async function fetchRemoteBundle(fileName: string): Promise<UiLanguageBundle> {
     if (isBundle(cached)) return cached;
 
     const sources = [
-        `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@main/userscript/languages/${fileName}`,
-        `https://raw.githubusercontent.com/FluentRead/FluentRead/main/userscript/languages/${fileName}`,
+        `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${__FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__}/userscript/languages/${fileName}`,
+        `https://raw.githubusercontent.com/FluentRead/FluentRead/${__FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__}/userscript/languages/${fileName}`,
     ];
     let lastError: unknown;
     for (const url of sources) {

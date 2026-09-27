@@ -66,7 +66,7 @@ function loadFocusSafeBrowser(helperPath) {
 async function preloadUserscriptRequires(page, artifact) {
   const root = path.resolve(path.dirname(artifact), '../..');
   const source = fs.readFileSync(artifact, 'utf8');
-  const requires = [...source.matchAll(/^\/\/ @require\s+https:\/\/cdn\.jsdelivr\.net\/(?:npm\/([^\s]+)|gh\/FluentRead\/FluentRead@main\/userscript\/(vueElementPlusBridge\.v1\.js))$/gm)]
+  const requires = [...source.matchAll(/^\/\/ @require\s+https:\/\/cdn\.jsdelivr\.net\/(?:npm\/([^\s]+)|gh\/FluentRead\/FluentRead@[a-f0-9]{40}\/userscript\/(vueElementPlusBridge\.v1\.js))$/gm)]
     .map((match) => match[1] || match[2]);
   const vendors = [
     ['vue@', 'vue/dist/vue.global.prod.js'],

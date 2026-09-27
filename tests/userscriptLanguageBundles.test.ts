@@ -5,6 +5,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 const languageDir = resolve(process.cwd(), 'userscript/languages');
 const fileName = readdirSync(languageDir).find((name) => name.startsWith('fr-FR.'))!;
 const source = readFileSync(resolve(languageDir, fileName), 'utf8');
+const resourceCommit = 'c8f9d958b12bcaef61b9a83ac832e62084a805b3';
 
 describe('userscript remote UI language data', () => {
     afterEach(() => {
@@ -26,11 +27,12 @@ describe('userscript remote UI language data', () => {
         };
         vi.stubGlobal('__FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__', {});
         vi.stubGlobal('__FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__', {'fr-FR': fileName});
+        vi.stubGlobal('__FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__', resourceCommit);
 
         const first = await import('@/userscript/uiLanguageBundles');
         await expect(first.ensureUiLanguageBundle('fr-FR')).resolves.toBe(true);
         expect(requests).toEqual([
-            `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@main/userscript/languages/${fileName}`,
+            `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${resourceCommit}/userscript/languages/${fileName}`,
         ]);
         expect(values.has(`fluentread:ui-language:${fileName}`)).toBe(true);
 
@@ -55,12 +57,13 @@ describe('userscript remote UI language data', () => {
         };
         vi.stubGlobal('__FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__', {});
         vi.stubGlobal('__FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__', {'fr-FR': fileName});
+        vi.stubGlobal('__FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__', resourceCommit);
 
         const loader = await import('@/userscript/uiLanguageBundles');
         await expect(loader.ensureUiLanguageBundle('fr-FR')).resolves.toBe(true);
         expect(requests).toEqual([
-            `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@main/userscript/languages/${fileName}`,
-            `https://raw.githubusercontent.com/FluentRead/FluentRead/main/userscript/languages/${fileName}`,
+            `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${resourceCommit}/userscript/languages/${fileName}`,
+            `https://raw.githubusercontent.com/FluentRead/FluentRead/${resourceCommit}/userscript/languages/${fileName}`,
         ]);
     });
 });

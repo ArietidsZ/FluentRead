@@ -29,7 +29,8 @@ const assertions = [
   [source.includes('// @grant        GM.xmlHttpRequest'), 'Safari GM request grant is required'],
   [source.includes('// @connect      *'), 'provider requests require @connect'],
   [source.includes('// @require      https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js'), 'pinned Vue @require is missing'],
-  [source.includes('// @require      https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@main/userscript/vueElementPlusBridge.v1.js'), 'Vue / Element Plus UMD bridge @require is missing'],
+  [source.includes('// @require      https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@c8f9d958b12bcaef61b9a83ac832e62084a805b3/userscript/vueElementPlusBridge.v1.js'), 'pinned Vue / Element Plus UMD bridge @require is missing'],
+  [!source.includes('FluentRead/FluentRead@main/userscript/'), 'userscript resources must use an immutable commit'],
   [source.indexOf('vue.global.prod.js') < source.indexOf('vueElementPlusBridge.v1.js')
     && source.indexOf('vueElementPlusBridge.v1.js') < source.indexOf('element-plus@2.9.3/dist/index.full.min.js'), 'Vue bridge must load between Vue and Element Plus'],
   [source.includes('// @require      https://cdn.jsdelivr.net/npm/element-plus@2.9.3/dist/index.full.min.js'), 'pinned Element Plus @require is missing'],
