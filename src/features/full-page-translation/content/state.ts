@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/state.ts
  * 文件职责：维护每个被翻译 DOM 节点的可恢复状态、请求代次、译文工件和共享布局覆盖所有权，确保重复翻译、宿主变更和移除节点都能安全收敛。
- * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、兼容字体标记与链接提示的译文复验及有界重挂、截断及高度约束的共享样式租约、祖先观察器引用计数、文本槽回写、按钮型 input 标签属性的原值记录与回滚、按区域枚举译文所有者，以及全量恢复。
+ * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、兼容字体标记与链接提示的译文复验及有界重挂、含固定高度 line-clamp 的共享样式租约、祖先观察器引用计数、文本槽回写、按钮型 input 标签属性的原值记录与回滚、按区域枚举译文所有者，以及全量恢复。
  * 模块边界：该模块不发现候选、不请求翻译也不生成译文 HTML；runtime 负责会话编排，renderer 负责内容创建，本文件仅拥有 DOM 状态与可逆样式资源，避免跨 session 误删新结果。
  */
 import {getTranslatableControlValueAttribute, isTranslationTooltip} from "@/src/core/translation/dom";
@@ -16,6 +16,7 @@ import {
     createTranslationTextProtectionCache,
     getComposedParent,
     getCurrentTranslationCore,
+    hasActiveTranslationLineClamp,
     hasActiveTranslationTruncation,
     isProtectedDescendantElement,
     isTranslationTextElementProtected,
@@ -1616,7 +1617,12 @@ export function ensureTranslationTruncationLayout(owner: HTMLElement): boolean {
         if (elementIsBoundary) releaseTranslationHeightOverride(element);
         const truncation = hasActiveTranslationTruncation(element);
         if (sharedLayoutOverrides.has(element) || truncation) {
-            acquireTranslationLayoutOverride(owner, element, truncation ? translationTruncationStyleOverrides : []);
+            // 有些站点把 line-clamp 与固定 height、overflow:hidden 同时设在译文 owner 上。
+            // 只解除行数限制仍会把中文裁在盒子外；此处一并恢复自然高度，并由租约负责还原。
+            const overrides = !truncation ? [] : hasActiveTranslationLineClamp(element)
+                ? [...translationTruncationStyleOverrides, ...translationHeightStyleOverrides]
+                : translationTruncationStyleOverrides;
+            acquireTranslationLayoutOverride(owner, element, overrides);
         }
         heightBoundary ||= elementIsBoundary;
         // 必须在解除当前内层 clamp 后读外层几何；先收集全部祖先会读到尚未展开的旧高度。
