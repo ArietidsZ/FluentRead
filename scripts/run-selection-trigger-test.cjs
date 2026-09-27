@@ -37,6 +37,7 @@ function parseArgs(argv) {
     directionOnly: argv.includes('--direction-only'),
     geometryOnly: argv.includes('--geometry-only'),
     zoomOnly: argv.includes('--zoom-only'),
+    scrollOnly: argv.includes('--scroll-only'),
   };
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root，或设置 PLAYWRIGHT_ROOT');
   args.extensionDir = path.resolve(args.extensionDir);
@@ -1009,6 +1010,92 @@ async function main() {
     page.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`console: ${message.text()}`); });
     await page.goto('https://example.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await waitForContentScript(page);
+
+    if (args.scrollOnly) {
+      const saved = await readStoredConfig(popup);
+      await patchStoredConfig(popup, {
+        on: true, disableSelectionTranslator: false, selectionTranslatorMode: 'bilingual',
+        selectionTranslatorTrigger: 'dot', selectionTranslatorDelay: 0,
+        to: 'zh-Hans', from: 'auto', service: 'microsoft',
+        hotkey: 'none', floatingBallHotkey: 'none',
+        harness: {...saved.harness, enabled: false},
+      });
+      await page.waitForTimeout(600);
+      await page.evaluate(() => { document.body.style.minHeight = '2400px'; });
+      await resetFixture(page);
+      await selectTextWithDomRange(page, '#target');
+      await waitForSelectionUi(page, {indicator: true, tooltip: false}, '滚动前显示划词小点');
+      const initialUi = await readSelectionUi(page);
+      assert(initialUi.indicatorClass.includes('fr-selection-indicator--dot'), '滚动测试没有使用小点入口');
+      const beforeScreenshot = path.join(args.artifactsDir, 'selection-dot-before-scroll.png');
+      await page.screenshot({path: beforeScreenshot});
+      result.screenshots.push(beforeScreenshot);
+      await page.evaluate(() => window.scrollTo(0, 220));
+      await page.waitForFunction(() => window.scrollY >= 200);
+      await waitForSelectionUi(page, {indicator: false, tooltip: false}, '整页滚动后隐藏小点');
+      const afterPageScroll = await readSelectionUi(page);
+      assert(afterPageScroll.selectionText === initialUi.selectionText, '滚动不应清除网页原生选区');
+      const afterScreenshot = path.join(args.artifactsDir, 'selection-dot-after-scroll.png');
+      await page.screenshot({path: afterScreenshot});
+      result.screenshots.push(afterScreenshot);
+      result.cases.push({id: 'scroll.page-hides-dot', status: 'passed', selectionText: afterPageScroll.selectionText});
+
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await resetFixture(page);
+      await page.evaluate(() => {
+        const target = document.querySelector('#target');
+        const scroller = document.createElement('div');
+        scroller.id = 'selection-nested-scroller';
+        scroller.style.cssText = 'height:120px;overflow-y:auto;max-width:900px';
+        target.before(scroller);
+        scroller.append(target);
+        scroller.insertAdjacentHTML('beforeend', '<div style="height:500px"></div>');
+      });
+      await selectTextWithDomRange(page, '#target');
+      await waitForSelectionUi(page, {indicator: true}, '容器滚动前显示划词小点');
+      await page.evaluate(() => { document.querySelector('#selection-nested-scroller').scrollTop = 80; });
+      await page.waitForFunction(() => document.querySelector('#selection-nested-scroller').scrollTop >= 80);
+      await waitForSelectionUi(page, {indicator: false, tooltip: false}, '嵌套容器滚动后隐藏小点');
+      result.cases.push({id: 'scroll.nested-container-hides-dot', status: 'passed'});
+
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await patchStoredConfig(popup, {selectionTranslatorDelay: 1200});
+      await page.waitForTimeout(300);
+      await resetFixture(page);
+      await selectTextWithDomRange(page, '#target');
+      const beforeDelayedScroll = await readSelectionUi(page);
+      assert(!beforeDelayedScroll.indicator && !beforeDelayedScroll.tooltip, '延迟期间不应显示划词入口');
+      await page.evaluate(() => window.scrollTo(0, 160));
+      await page.waitForFunction(() => window.scrollY >= 150);
+      await page.waitForTimeout(1400);
+      const afterDelayedScroll = await readSelectionUi(page);
+      assert(!afterDelayedScroll.indicator && !afterDelayedScroll.tooltip, '滚动后旧选区的延迟小点重新出现');
+      result.cases.push({id: 'scroll.cancels-pending-dot', status: 'passed'});
+
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await patchStoredConfig(popup, {selectionTranslatorDelay: 0});
+      await page.waitForTimeout(300);
+      await resetFixture(page);
+      await selectTextWithDomRange(page, '#target');
+      await waitForSelectionUi(page, {indicator: true}, '打开卡片前显示小点');
+      await clickSelectionIndicator(page);
+      await waitForSelectionUi(page, {tooltip: true, translation: true, resultPrefix: '测试译文：'}, '已打开划词卡片');
+      const requestsBeforeCardScroll = translationRequestCount;
+      await page.evaluate(() => window.scrollTo(0, 220));
+      await page.waitForFunction(() => window.scrollY >= 200);
+      await page.waitForTimeout(250);
+      const afterCardScroll = await readSelectionUi(page);
+      assert(afterCardScroll.tooltip && afterCardScroll.translation, '已打开的翻译卡片不应随页面滚动关闭');
+      assert(translationRequestCount === requestsBeforeCardScroll, '页面滚动不应重复发起翻译请求');
+      result.cases.push({id: 'scroll.keeps-open-card', status: 'passed', requests: translationRequestCount});
+
+      assert(result.consoleErrors.length === 0, `浏览器控制台异常：${JSON.stringify(result.consoleErrors)}`);
+      result.ok = true;
+      result.providerEvidence = 'Local Microsoft response fixture; scroll and native selection behavior verified in isolated Edge.';
+      fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(result, null, 2)}\n`);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      return;
+    }
 
     if (args.contextMenuOnly) {
       const saved = await readStoredConfig(popup);

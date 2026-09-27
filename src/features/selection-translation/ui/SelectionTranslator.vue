@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
- * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、请求 token、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放和主题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换目标语言；复用选区入口打开 Harness 阅读卡，协调翻译、词典、词书与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
+ * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、页面滚动时未打开入口的清理、请求 token、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放和主题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换目标语言；复用选区入口打开 Harness 阅读卡，协调翻译、词典、词书与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -1479,6 +1479,14 @@ function handleUiWheel(): void { suppressSelectionRead(); }
 function handleScroll(event: Event): void {
   if (isInsideUi(event.target)) {
     suppressSelectionRead();
+    return;
+  }
+  // 页面或其滚动容器移动后，未打开的入口不再跟随旧选区。
+  // 选区读取可能还在下一帧或 selectionchange 队列中；连同显示计时器一起清理，
+  // 避免滚动结束后才出现小点或卡片。拖选中的自动滚动仍由 pointerup 处理新选区。
+  if (!showTooltip.value) {
+    if (!isSelecting && (snapshot.value || selectionFrame !== null
+      || Date.now() - lastTrustedSelectionInteractionAt <= TRUSTED_SELECTION_INTERACTION_GRACE_MS)) hideAll();
     return;
   }
   schedulePositionUpdate();
