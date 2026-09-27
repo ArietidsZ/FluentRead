@@ -39,10 +39,12 @@ describe('通义实际模型与 endpoint 路由', () => {
         vi.stubGlobal('fetch', fetchMock);
         mockConfig.model = {[services.tongyi]: 'qwen3.6-flash'};
         mockConfig.customModel = {};
+        mockConfig.customBody = {};
         mockConfig.proxy = {};
     });
 
     afterEach(() => {
+        mockConfig.customBody = {};
         vi.unstubAllGlobals();
     });
 
@@ -69,6 +71,14 @@ describe('通义实际模型与 endpoint 路由', () => {
         expect(fetchMock.mock.calls[0]![0]).toBe(
             'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
         );
+    });
+
+    it('Qwen-MT 请求发送自定义术语时保留源语言和目标语言', async () => {
+        mockConfig.customBody[services.tongyi] = JSON.stringify({translation_options: {terms: [{source: 'Token', target: 'Token'}]}});
+        await expect(tongyi({origin: 'Token', serviceOverride: services.tongyi, modelOverride: 'qwen-mt-flash', sourceLanguage: 'auto', targetLanguage: 'en'})).resolves.toBe('译文');
+
+        const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+        expect(body.translation_options).toEqual({source_lang: 'auto', target_lang: 'en', terms: [{source: 'Token', target: 'Token'}]});
     });
 });
 
