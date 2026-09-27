@@ -81,7 +81,7 @@
     <section v-if="moduleId === 'translation'" class="hero-card" data-popup-module="translation">
       <div class="hero-heading">
         <div>
-          <h1>{{ config.on ? '网页翻译' : '翻译功能已暂停' }}</h1>
+          <h1>{{ config.on ? (isThunderbird ? '邮件翻译' : '网页翻译') : '翻译功能已暂停' }}</h1>
         </div>
         <div class="hero-switches">
           <button class="switch" type="button" role="switch" :aria-checked="config.on" :aria-label="config.on ? '暂停插件' : '启用插件'" @click="setPluginEnabled(!config.on)"><i /></button>
@@ -241,14 +241,16 @@
         >
           <span v-if="translating" class="spinner" />
           <span v-else class="translate-glyph">A↔译</span>
-          <span class="translate-label">{{ pageTranslated ? '恢复当前网页' : '翻译当前网页' }}</span>
+          <span class="translate-label">{{ pageTranslated ? (isThunderbird ? '恢复当前邮件' : '恢复当前网页') : (isThunderbird ? '翻译当前邮件' : '翻译当前网页') }}</span>
           <kbd
+            v-if="!isThunderbird"
             class="translate-hotkey"
             :class="{ disabled: !defaultFullPageHotkeyEnabled }"
             :title="fullPageHotkeyTitle"
           ><span>{{ fullPageHotkey }}</span></kbd>
         </button>
         <button
+          v-if="!isThunderbird"
           class="section-translate-button"
           type="button"
           data-testid="section-translation"
@@ -720,7 +722,8 @@ const servicePickerAriaLabel = computed(() => serviceModelLabel.value
   ? `翻译服务：${serviceLabel.value}，当前模型：${serviceModelLabel.value}`
   : `翻译服务：${serviceLabel.value}`);
 const credentialWarning = computed(() => selectedServiceUnavailableMessage.value || getMissingCredentialMessage(config.value.service, config.value));
-const currentSiteSupported = computed(() => currentTabId.value !== null && Boolean(currentSiteDomain.value));
+const isThunderbird = browserCapabilities.browser === 'thunderbird';
+const currentSiteSupported = computed(() => !isThunderbird && currentTabId.value !== null && Boolean(currentSiteDomain.value));
 const currentSiteRuleEnabled = computed(() => currentSiteSupported.value
   && (config.value.alwaysTranslateDomains ?? []).includes(currentSiteDomain.value));
 const currentSiteAlwaysTranslated = computed(() => currentSiteSupported.value
@@ -739,7 +742,8 @@ const aiContextPresentation = computed(() => resolveAIContextPresentation({
 const isSiteModuleVisible = computed(() => config.value.interfaceVisibility.popupSiteRule
   && currentSiteSupported.value);
 const visiblePopupQuickFeatureIds = computed(() => config.value.popupQuickFeatureOrder.filter(
-  (featureId) => config.value.popupQuickFeatureVisibility[featureId],
+  (featureId) => config.value.popupQuickFeatureVisibility[featureId]
+    && (!isThunderbird || ['hover', 'selection', 'appearance'].includes(featureId)),
 ));
 const visiblePopupModuleOrder = computed(() => config.value.popupModuleOrder.filter((moduleId) => {
   if (moduleId === 'translation') return true;
@@ -1134,7 +1138,7 @@ async function hydrateCurrentSite() {
     if (typeof tab?.id !== 'number') return;
     currentTabId.value = tab.id;
     currentSiteDomain.value = getSiteBaseDomain(tab.pendingUrl || tab.url || '') || '';
-    if (!currentSiteDomain.value) return;
+    if (!currentSiteDomain.value && !isThunderbird) return;
 
     try {
       const response = await browser.tabs.sendMessage(tab.id, {
@@ -1249,10 +1253,10 @@ async function togglePageTranslation() {
     pageTranslated.value = typeof response.isTranslated === 'boolean'
       ? response.isTranslated
       : action === 'fullPage';
-    showNotice(pageTranslated.value ? '正在翻译当前网页' : '已恢复网页原文');
+    showNotice(pageTranslated.value ? (isThunderbird ? '正在翻译当前邮件' : '正在翻译当前网页') : (isThunderbird ? '已恢复邮件原文' : '已恢复网页原文'));
   } catch (error) {
     console.error(error);
-    showNotice('当前页面暂不支持翻译，请刷新后重试', 'error');
+    showNotice(isThunderbird ? '请先打开一封邮件，然后重试翻译' : '当前页面暂不支持翻译，请刷新后重试', 'error');
   } finally { translating.value = false; }
 }
 

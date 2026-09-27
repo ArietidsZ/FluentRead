@@ -15,6 +15,7 @@
     "build:userscript": "node scripts/testing/run-resource-safe.mjs -- vite build --config userscript/vite.config.ts",
     "build:obsidian": "tsc -p integrations/obsidian/tsconfig.json --noEmit && vite build --config integrations/obsidian/vite.config.ts",
     "build:firefox": "node scripts/testing/run-resource-safe.mjs -- wxt build -b firefox",
+    "build:thunderbird": "pnpm build:firefox && node scripts/thunderbird/package.mjs",
     "zip": "node scripts/testing/run-resource-safe.mjs -- wxt zip",
     "zip:firefox": "node scripts/testing/run-resource-safe.mjs -- wxt zip -b firefox",
     "compile": "node scripts/testing/run-resource-safe.mjs -- vue-tsc --noEmit",

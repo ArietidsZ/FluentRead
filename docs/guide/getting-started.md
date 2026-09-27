@@ -11,6 +11,7 @@
 | Chrome | [Chrome 应用商店](https://chromewebstore.google.com/detail/djnlaiohfaaifbibleebjggkghlmcpcj) |
 | Edge | [Edge 加载项](https://microsoftedge.microsoft.com/addons/detail/kakgmllfpjldjhcnkghpplmlbnmcoflp) |
 | Firefox | [Firefox 附加组件](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/) |
+| Thunderbird | [邮件翻译源码构建与安装指南](/guide/thunderbird) |
 | 使用脚本管理器的浏览器 | [油猴脚本安装指南](/guide/userscript) |
 
 建议将 FluentRead 固定到浏览器工具栏。安装前已经打开的网页，请刷新一次。

@@ -2,7 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const state = vi.hoisted(() => ({
     config: {} as Record<string, unknown>,
-    capability: {imageTranslation: true, areaTranslation: true},
+    capability: {browser: 'chrome', imageTranslation: true, areaTranslation: true},
 }));
 const subscriptions: Array<(config: unknown) => void> = [];
 
@@ -86,6 +86,7 @@ beforeEach(() => {
     Object.assign(state.config, defaultConfig());
     state.capability.imageTranslation = true;
     state.capability.areaTranslation = true;
+    state.capability.browser = 'chrome';
 });
 
 afterEach(() => {
@@ -457,6 +458,17 @@ describe('后台右键菜单生命周期', () => {
         expect(runtime.isSupported).toBe(false);
         expect(create).not.toHaveBeenCalled();
         await expect(runtime.update(1)).resolves.toBeUndefined();
+    });
+
+    it('Thunderbird 即使暴露完整网页菜单接口也只使用邮件工具栏', async () => {
+        const api = stubBrowser();
+        state.capability.browser = 'thunderbird';
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+        const runtime = await install();
+        await settle();
+        expect(runtime.isSupported).toBe(false);
+        expect(api.contextMenus.create).not.toHaveBeenCalled();
+        expect(api.contextMenus.onClicked.addListener).not.toHaveBeenCalled();
     });
 });
 

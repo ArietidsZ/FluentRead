@@ -15,6 +15,7 @@ const guide = (en = false) => {
       items: [
         item('使用指南', 'User guide', '/guide/'),
         item('安装与第一次翻译', 'Installation', '/guide/getting-started'),
+        item('Thunderbird 邮件翻译', 'Thunderbird email translation', '/guide/thunderbird'),
         item(
           '网页与划词翻译',
           'Webpage and selection translation',

@@ -18,6 +18,40 @@ function permissionsFor(browser: string, manifestVersion: 2 | 3): string[] {
 }
 
 describe('extension manifest capability contract', () => {
+    it('builds a separate Thunderbird package with mail display access and no browser page injection', async () => {
+        const packageUrl = pathToFileURL(resolve(PROJECT_ROOT, 'scripts/thunderbird/package.mjs')).href;
+        const {createThunderbirdManifest} = await import(/* @vite-ignore */ packageUrl) as {
+            createThunderbirdManifest(source: any): any;
+        };
+        const firefox = {
+            manifest_version: 2,
+            name: 'FluentRead',
+            version: '0.0.35',
+            background: {scripts: ['background.js']},
+            permissions: ['storage', '<all_urls>'],
+            browser_specific_settings: {gecko: {
+                id: '{3096bd53-3bda-4556-b076-ebf47442a5c1}',
+                strict_min_version: '140.0',
+                data_collection_permissions: {required: ['websiteContent']},
+            }},
+            content_scripts: [{matches: ['<all_urls>'], js: ['content-scripts/content.js']}],
+        };
+        const mail = createThunderbirdManifest(firefox);
+        expect(mail.manifest_version).toBe(2);
+        expect(mail.background).toEqual(firefox.background);
+        expect(mail.content_scripts).toBeUndefined();
+        expect(mail.permissions).toContain('messagesModify');
+        expect(mail.permissions).not.toContain('contextMenus');
+        expect(mail.permissions.filter((permission: string) => permission === 'messagesModify')).toHaveLength(1);
+        expect(mail.browser_specific_settings.gecko.id).not.toBe(firefox.browser_specific_settings.gecko.id);
+        expect(mail.browser_specific_settings.gecko.strict_min_version).toBe('140.0');
+        expect(mail.browser_specific_settings.gecko.data_collection_permissions).toBeUndefined();
+        expect(mail.message_display_action.default_icon['16']).toBe('icon/16.png');
+        expect(firefox.content_scripts).toHaveLength(1);
+        expect(() => createThunderbirdManifest({...firefox, manifest_version: 3})).toThrow('MV2');
+        expect(() => createThunderbirdManifest({...firefox, browser_specific_settings: {}})).toThrow('Gecko');
+    });
+
     it('旧 QQ 与受限正文入口启用子 frame 注入，通用网页仍保持顶层注入', () => {
         const entry = sourceBody('entrypoints/qqMailFrame.content.ts');
         expect(entry).toContain("matches: ['https://mail.qq.com/cgi-bin/readmail*']");

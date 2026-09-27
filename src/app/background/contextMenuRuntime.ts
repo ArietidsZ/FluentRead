@@ -17,6 +17,7 @@ import {renderContextMenuTitle} from '@/src/core/context-menu/presentation';
 import {isBrowserTabId, type TabTranslationState, TabTranslationStateStore} from './tabTranslationState';
 import {createTabTranslationStateReader} from './tabTranslationQuery';
 import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
+import {browserCapabilities} from '@/src/platform/browser/capabilities';
 
 const NEUTRAL_STATE: TabTranslationState = {isTranslated: false, isSiteDisabled: false};
 
@@ -33,9 +34,10 @@ export interface BackgroundContextMenuRuntime {
 export function installBackgroundContextMenus(
     tabTranslationStates: TabTranslationStateStore,
 ): BackgroundContextMenuRuntime {
-    // Firefox Android 可能只暴露不完整的 namespace；所有必需方法齐备后才安装菜单。
+    // Thunderbird 使用邮件工具栏；Firefox Android 可能只暴露不完整的菜单接口。
     const menus = browser.contextMenus;
-    const isSupported = typeof menus?.create === 'function'
+    const isSupported = browserCapabilities.browser !== 'thunderbird'
+        && typeof menus?.create === 'function'
         && typeof menus.removeAll === 'function'
         && typeof menus.update === 'function'
         && typeof menus.onClicked?.addListener === 'function';
