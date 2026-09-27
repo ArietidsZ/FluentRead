@@ -184,7 +184,7 @@
     "service": "freeTranslation"
   },
   "darklyrics-gris": {
-    "url": "https://www.darklyrics.com/lyrics/gris/iltaitunefort.html#2",
+    "url": "http://www.darklyrics.com/lyrics/gris/iltaitunefort.html#2",
     "hoverSelector": ".lyrics",
     "requiredSelectors": [".lyrics"],
     "coverageRules": [
@@ -194,7 +194,7 @@
     "interactionSelectors": ["a[href]"],
     "modes": ["hover", "full"],
     "tier": "quarantine",
-    "quarantineReason": "该站点在当前验证网络中持续 ERR_CONNECTION_CLOSED；保留为联网环境观察样本。",
+    "quarantineReason": "该站点的 HTTPS 在当前验证网络中超时，HTTP 页面可达；保留为外部站点联网观察样本。",
     "hoverHotkey": "Control",
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation"

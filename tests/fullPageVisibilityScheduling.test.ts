@@ -502,6 +502,7 @@ describe("全文翻译可见性锚点", () => {
 
     afterEach(() => {
         restoreOriginalContent();
+        runtime.realCore = null;
         vi.clearAllTimers();
         vi.useRealTimers();
         for (const [name, descriptor] of replacedGlobals) {
@@ -6086,6 +6087,98 @@ describe("全文翻译可见性锚点", () => {
 
         expect(runtime.requests).toHaveBeenCalledTimes(4);
         expect(singleTranslationText(paragraph)).toBe("译:Late prose became readable after hydration.");
+    });
+
+    it('real core retains every br-separated lyric body after restore and retranslate', async () => {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'viewport';
+        document.body.innerHTML = '<div class="lyrics">'
+            + '<h3>1. First song</h3><br>First readable lyric line.<br>Another French lyric line.<br>'
+            + '<h3>2. Second song</h3><br>Second readable lyric line.<br>Another lyric line here.<br>'
+            + '<h3>3. Third song</h3><br>Third readable lyric line.<br>One more lyric line.<br>'
+            + '</div>';
+        const lyrics = document.querySelector<HTMLElement>('.lyrics')!;
+        setLayoutBox(lyrics, 600, 700);
+        runtime.realCore = new TranslationCandidateCore({url: new URL('http://www.darklyrics.com/lyrics/example.html')});
+
+        const bodyWrapperCounts = () => [...lyrics.querySelectorAll('h3')].map((heading) => {
+            let next = heading.nextSibling;
+            let count = 0;
+            while (next && next.nodeName !== 'H3') {
+                if (next.nodeType === 1) {
+                    const element = next as Element;
+                    count += (element.matches('.fluent-read-bilingual-content') ? 1 : 0)
+                        + element.querySelectorAll('.fluent-read-bilingual-content').length;
+                }
+                next = next.nextSibling;
+            }
+            return count;
+        });
+
+        for (let pass = 0; pass < 2; pass += 1) {
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            const observer = TestIntersectionObserver.instances.at(-1)!;
+            observer.emit(lyrics, true);
+            for (const heading of lyrics.querySelectorAll('h3')) observer.emit(heading, true);
+            await finishScheduledWork();
+            expect(bodyWrapperCounts(), `pass ${pass + 1}`).toEqual([1, 1, 1]);
+            restoreOriginalContent();
+            expect(lyrics.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(0);
+        }
+    });
+
+    it('queues a late lyric body when its shared viewport anchor is already visible', async () => {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'viewport';
+        replaceGlobal('innerWidth', 1000);
+        replaceGlobal('innerHeight', 800);
+        document.body.innerHTML = '<div class="lyrics"><h3>First song</h3><br>First lyric line for translation.<br></div>';
+        const lyrics = document.querySelector<HTMLElement>('.lyrics')!;
+        setLayoutBox(lyrics, 600, 700);
+        const moveLyrics = setViewportRect(lyrics, 0, 700);
+        runtime.realCore = new TranslationCandidateCore({url: new URL('http://www.darklyrics.com/lyrics/example.html')});
+
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const observer = TestIntersectionObserver.instances.at(-1)!;
+        expect(observer.observed.has(lyrics)).toBe(true);
+        observer.emit(lyrics, true);
+        await finishScheduledWork();
+        expect(lyrics.textContent).toContain('译:First lyric line for translation.');
+
+        const heading = document.createElement('h3');
+        heading.textContent = 'Second song';
+        const breakBefore = document.createElement('br');
+        const source = document.createTextNode('Second lyric line must not wait for another intersection.');
+        const breakAfter = document.createElement('br');
+        lyrics.append(heading, breakBefore, source, breakAfter);
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: 'childList', target: lyrics,
+            addedNodes: [heading, breakBefore, source, breakAfter] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+
+        expect(lyrics.textContent).toContain('译:Second lyric line must not wait for another intersection.');
+
+        moveLyrics(10_000);
+        const thirdHeading = document.createElement('h3');
+        thirdHeading.textContent = 'Third song';
+        const thirdBreak = document.createElement('br');
+        const thirdSource = document.createTextNode('Third lyric must stay queued while offscreen.');
+        lyrics.append(thirdHeading, thirdBreak, thirdSource);
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: 'childList', target: lyrics,
+            addedNodes: [thirdHeading, thirdBreak, thirdSource] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(lyrics.textContent).not.toContain('译:Third lyric must stay queued while offscreen.');
+        moveLyrics(0);
+        observer.emit(lyrics, true);
+        await finishScheduledWork();
+        expect(lyrics.textContent).toContain('译:Third lyric must stay queued while offscreen.');
     });
 });
 

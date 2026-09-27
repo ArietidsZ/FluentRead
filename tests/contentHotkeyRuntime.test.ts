@@ -123,6 +123,21 @@ function visibleSelection(text: string): Selection {
 }
 
 describe('全文翻译快捷键状态联动', () => {
+    it('仅右键触发不占用划词快捷键', async () => {
+        mocks.config.selectionTranslatorTrigger = 'contextMenu';
+        mocks.config.customSelectionTranslatorHotkey = 'Ctrl+Shift+Y';
+        mocks.getSelection.mockReturnValue(visibleSelection('Selected English text'));
+        mocks.shouldClaimConfiguredHotkey.mockImplementationOnce((
+            _event: KeyboardEvent,
+            configured: string,
+        ) => configured !== 'none');
+        const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
+        const ports = createContentHotkeyRuntime(() => false).selectionShortcutPorts;
+        expect(ports.getConfiguredSelectionHotkey()).toBe('none');
+        expect(ports.shouldReserveSelectionShortcut(keyboardEvent() as unknown as KeyboardEvent)).toBe(false);
+        expect(mocks.shouldClaimConfiguredHotkey).toHaveBeenCalledWith(expect.anything(), 'none', 'Ctrl+Shift+Y', expect.any(Function));
+    });
+
     it('划词关闭、全局关闭或站点禁用时不向 quick 暴露残留划词快捷键和候选', async () => {
         const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
         const getSelection = vi.fn(() => { throw new Error('disabled path must not inspect selection'); });

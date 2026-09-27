@@ -117,7 +117,7 @@ export interface SelectionPresentationState {
     showTooltip: boolean;
 }
 
-export type SelectionPresentationTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
+export type SelectionPresentationTrigger = 'direct' | 'icon' | 'dot' | 'shortcut' | 'contextMenu';
 
 /** 延迟配置变化仍以当前选区稳定时刻为起点，避免刷新配置后重新等待完整时长。 */
 export function getSelectionPresentationDelayRemaining(
@@ -137,7 +137,7 @@ export function reconcileSelectionPresentation(
 ): SelectionPresentationState {
     if (!triggerChanged) return current;
     if (trigger === 'direct') return { showIndicator: false, showTooltip: true };
-    if (trigger === 'shortcut') return { showIndicator: false, showTooltip: false };
+    if (trigger === 'shortcut' || trigger === 'contextMenu') return { showIndicator: false, showTooltip: false };
     return { showIndicator: true, showTooltip: false };
 }
 

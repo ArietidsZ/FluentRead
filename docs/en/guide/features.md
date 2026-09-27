@@ -95,6 +95,8 @@ Enable bilingual selection translation in the extension menu, select a word or p
 
 With Chinese or English as your default target, the card's “Translate to” buttons let you change the language for this selection without changing the page translation setting. Selections already in the target language are skipped by default. To translate both Chinese and English selections directly, turn on **Chinese–English selection translation** under **Settings → Translation → Selection translation**. The card then chooses the other language for same-language selections. You can also open a skipped selection through the right-click menu and translate it in the opposite direction.
 
+If you often select text to copy or read it and prefer no nearby translation hint, choose **Context menu only** under **Settings → Translation → Selection translation → Trigger**. The selection icon and dot will stay hidden. To translate, select text and choose **Translate selected text** from the context menu. Keep the context menu and its selection entry enabled. The reading card has its own selection-hint setting.
+
 You can change the trigger to a direct popup, a key, or another gesture, and adjust its delay. A regular translation service is enough for a quick translation.
 
 ## Hover translation
