@@ -5,6 +5,8 @@ import {createUserscriptContentContext} from './context';
 import {userscriptFetch} from './http';
 import {ensureUserscriptConfig} from './initialize';
 import {getUserscriptConfigCount} from './count';
+import {getUserscriptFunction} from './api';
+import {inflateGzipBase64} from './compression';
 import {waitForContentDocument} from '@/src/app/content/pageLifecycle';
 import {
     completeUserscriptConfigPreparation,
@@ -25,7 +27,7 @@ async function waitForDocumentBody(): Promise<void> {
 }
 
 function registerMenu(label: string, listener: () => void): void {
-    const register = globalThis.GM_registerMenuCommand;
+    const register = getUserscriptFunction('GM_registerMenuCommand', 'registerMenuCommand');
     if (typeof register === 'function') register(label, listener);
 }
 
@@ -40,6 +42,9 @@ async function bootstrap(): Promise<void> {
     disposeShadowAndRouteBridge = installShadowAndRouteBridge();
     setRuntimeFetch(userscriptFetch);
     try {
+        if (globalThis.__fluentReadUserscriptCssCompressed) {
+            globalThis.__fluentReadUserscriptCss = await inflateGzipBase64(globalThis.__fluentReadUserscriptCssCompressed);
+        }
         await ensureUserscriptConfig();
         completeUserscriptConfigPreparation();
     } catch (error) {
@@ -87,7 +92,7 @@ async function bootstrap(): Promise<void> {
         return true;
     };
     let runtimeDisposed = false;
-    const disposeRuntime = () => {
+    const disposeRuntime = (pageLeaving = false) => {
         if (runtimeDisposed) return;
         runtimeDisposed = true;
         window.removeEventListener('fluentread-userscript-open-settings', openSettings);
@@ -95,13 +100,18 @@ async function bootstrap(): Promise<void> {
         window.removeEventListener('focus', synchronizeVisibleCount);
         document.removeEventListener('visibilitychange', synchronizeVisibleCount);
         browser.runtime.onMessage.removeListener(toggleTranslationListener);
-        resetPlatformMessageHandler();
         try {
             closeSettings();
         } catch (error) {
             console.error('[FluentRead userscript] 关闭设置面板失败', error);
         }
-        ctx.invalidate();
+        try {
+            ctx.invalidate();
+        } finally {
+            // pagehide 的计数 flush 可能还在等待 GM 存储；离页时保留同页消息处理器，
+            // 直到脚本沙箱随文档销毁，避免把最后一批增量送进空适配器。
+            if (!pageLeaving) resetPlatformMessageHandler();
+        }
     };
     disposeUserscriptRuntime = disposeRuntime;
     setPlatformMessageHandler(platformModule.createPlatformMessageHandler(openSettings));
@@ -141,12 +151,14 @@ async function bootstrap(): Promise<void> {
     void browser.runtime.sendMessage({type: 'userscriptCacheMaintenance'}).catch(() => undefined);
 
     // 单页 userscript 没有扩展 content-script 的自动销毁钩子，离页时显式释放监听器和 Shadow UI。
-    window.addEventListener('beforeunload', () => {
-        disposeRuntime();
+    window.addEventListener('pagehide', (event) => {
+        // BFCache 往返由共享 pageLifecycle 暂停/恢复；只有真正离页才销毁沙箱运行时。
+        if (!event.isTrusted || event.persisted) return;
+        disposeRuntime(true);
         disposeUserscriptRuntime = undefined;
         disposeShadowAndRouteBridge?.();
         disposeShadowAndRouteBridge = undefined;
-    }, {once: true});
+    });
 }
 
 void bootstrap().catch((error) => {

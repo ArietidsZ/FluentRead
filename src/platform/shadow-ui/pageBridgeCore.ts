@@ -79,6 +79,20 @@ function restoreMethod<T extends (...args: never[]) => unknown>(
     }
 }
 
+function clearBridgeState(host: Record<string, unknown>, key: string): void {
+    try {
+        if (Reflect.deleteProperty(host, key)) return;
+    } catch {
+        // 脚本管理器可能用拒绝 deleteProperty 的 Window 代理承载 bridge 状态。
+    }
+    try {
+        // 安装时允许赋值的代理通常也允许清空；否则残留标记会阻止重新启用 bridge。
+        host[key] = undefined;
+    } catch {
+        // 宿主拒绝清理时，前面的 wrapper 和事件监听器仍须完成释放。
+    }
+}
+
 /** 与 DOM 全局无关的 MAIN world bridge 状态机。 */
 export function installShadowRouteBridgeCore(environment: ShadowRouteBridgeEnvironment): () => void {
     const previous = environment.stateHost[SHADOW_BRIDGE_STATE_KEY] as ShadowRouteBridgeState | undefined;
@@ -135,7 +149,7 @@ export function installShadowRouteBridgeCore(environment: ShadowRouteBridgeEnvir
         environment.windowEvents.removeEventListener('hashchange', dispatchRouteChange);
         environment.navigationEvents?.removeEventListener('currententrychange', dispatchRouteChange);
         environment.documentEvents.removeEventListener(SHADOW_BRIDGE_DISPOSE_EVENT, dispose);
-        delete environment.stateHost[SHADOW_BRIDGE_STATE_KEY];
+        clearBridgeState(environment.stateHost, SHADOW_BRIDGE_STATE_KEY);
     };
 
     // 步骤 1：三个宿主方法独立安装；单个只读 API 不妨碍其余路由/ShadowRoot 观测。
@@ -170,7 +184,7 @@ export function installShadowRouteBridgeLifecycleCore(environment: ShadowRouteBr
         environment.documentEvents.removeEventListener(SHADOW_BRIDGE_DISPOSE_EVENT, disable);
         environment.documentEvents.removeEventListener(SHADOW_BRIDGE_ENABLE_EVENT, enable);
         disposeBridge();
-        delete environment.stateHost[SHADOW_BRIDGE_LIFECYCLE_STATE_KEY];
+        clearBridgeState(environment.stateHost, SHADOW_BRIDGE_LIFECYCLE_STATE_KEY);
     };
 
     environment.documentEvents.addEventListener(SHADOW_BRIDGE_DISPOSE_EVENT, disable);

@@ -1,4 +1,5 @@
 import type {RuntimeFetch} from '@/src/platform/http/runtime';
+import {getUserscriptFunction} from './api';
 
 export function parseResponseHeaders(rawHeaders = ''): Headers {
     const headers = new Headers();
@@ -97,10 +98,10 @@ function shouldUseNativeFetch(url: string): boolean {
     }
 }
 
-/** 以 Via 支持的旧式 GM API 实现兼容 fetch 的传输层。 */
+/** 以旧式或现代 GM 请求 API 实现兼容 fetch 的传输层。 */
 export const userscriptFetch: RuntimeFetch = async (input, init) => {
     const request = await resolveRequest(input, init);
-    const gmRequest = globalThis.GM_xmlhttpRequest;
+    const gmRequest = getUserscriptFunction('GM_xmlhttpRequest', 'xmlHttpRequest');
     // GM_xmlhttpRequest 只接管 HTTP(S) 跨域请求；blob/data 等协议仍交给网页原生 fetch。
     if (!gmRequest || shouldUseNativeFetch(request.url)) {
         return globalThis.fetch(input, init);
@@ -125,12 +126,12 @@ export const userscriptFetch: RuntimeFetch = async (input, init) => {
 
         request.signal?.addEventListener('abort', onAbort, {once: true});
         try {
-            handle = gmRequest({
+            const result = gmRequest({
                 method: request.method,
                 url: request.url,
                 headers: headersToRecord(request.headers),
                 data: request.body ?? undefined,
-                onload(response) {
+                onload(response: UserscriptXmlHttpResponse) {
                     // 完成门先关闭再构造 Response；构造失败必须 reject，否则调用方与后续 abort 都无法结算。
                     finish(() => {
                         try {
@@ -140,16 +141,31 @@ export const userscriptFetch: RuntimeFetch = async (input, init) => {
                         }
                     });
                 },
-                onerror(response) {
+                onerror(response: UserscriptXmlHttpResponse) {
                     finish(() => reject(errorFromResponse('GM_xmlhttpRequest failed', response)));
                 },
-                ontimeout(response) {
+                ontimeout(response: UserscriptXmlHttpResponse) {
                     finish(() => reject(errorFromResponse('GM_xmlhttpRequest timed out', response)));
                 },
                 onabort() {
                     finish(() => reject(abortError()));
                 },
             });
+            handle = result as UserscriptXmlHttpRequestHandle | void;
+            // Safari Userscripts 的 GM.xmlHttpRequest 返回 Promise；旧式管理器
+            // 则只调用 onload。两种完成方式共用 finish，避免重复应答。
+            if (result && typeof result.then === 'function') {
+                result.then(
+                    (response: UserscriptXmlHttpResponse) => finish(() => {
+                        try {
+                            resolve(responseFromUserscript(response));
+                        } catch (error) {
+                            reject(error);
+                        }
+                    }),
+                    (error: unknown) => finish(() => reject(error)),
+                );
+            }
         } catch (error) {
             finish(() => reject(error));
         }

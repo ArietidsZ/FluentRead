@@ -14,6 +14,24 @@ describe('userscript GM storage adapter', () => {
         globalThis.GM_setValue = undefined;
         globalThis.GM_deleteValue = undefined;
         globalThis.GM_listValues = undefined;
+        globalThis.GM = undefined;
+    });
+
+    it('persists with Safari Userscripts async GM.* when classic functions are absent', async () => {
+        const values = new Map<string, unknown>();
+        globalThis.GM = {
+            async getValue(key, fallback) { return values.has(key) ? values.get(key) : fallback; },
+            async setValue(key, value) { values.set(key, value); },
+            async deleteValue(key) { values.delete(key); },
+            async listValues() { return [...values.keys()]; },
+        };
+
+        await setStoredValue('local:safari', {on: true});
+        expect(values.get('local:safari')).toBe('{"on":true}');
+        await expect(getStoredValue('local:safari')).resolves.toEqual({on: true});
+        await expect(listStoredKeys()).resolves.toEqual(['local:safari']);
+        await removeStoredValue('local:safari');
+        await expect(listStoredKeys()).resolves.toEqual([]);
     });
 
     it('serializes objects for legacy GM implementations', async () => {

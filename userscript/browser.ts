@@ -1,4 +1,4 @@
-import {getStoredValue, setStoredValue} from './storage';
+import {getStoredValue, listStoredKeys, setStoredValue} from './storage';
 
 type RuntimeListener = (
     message: any,
@@ -106,9 +106,7 @@ const browser = {
                         return [key, value ?? fallback];
                     })));
                 }
-                const names = typeof globalThis.GM_listValues === 'function'
-                    ? await Promise.resolve(globalThis.GM_listValues())
-                    : [];
+                const names = await listStoredKeys();
                 return Object.fromEntries(await Promise.all(names.map(async (key) => [key, await getStoredValue(key)])));
             },
             async set(values: Record<string, unknown>): Promise<void> {

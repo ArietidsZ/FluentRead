@@ -4,6 +4,7 @@ import {
     executionGuardEnd,
     executionGuardStart,
     findDexieGlobalRegistration,
+    findFreeBrowserGlobals,
     injectUserscriptBrowserImports,
     userscriptAliases,
     wrapUserscriptEntry,
@@ -98,5 +99,17 @@ describe('userscript browser shim injection', () => {
             '<script setup>browser.runtime.sendMessage({})</script>',
             resolve(process.cwd(), 'src/RawComponent.vue'),
         )).toBeNull();
+    });
+
+    it('checks generated JavaScript for free extension globals', () => {
+        const bundleId = resolve(process.cwd(), '.output/userscript/fluent-read.user.js');
+        expect(findFreeBrowserGlobals(
+            'const browser = {runtime: {}}; void browser.runtime; const chrome = browser; void chrome.runtime;',
+            bundleId,
+        )).toEqual([]);
+        expect(findFreeBrowserGlobals(
+            'browser.runtime.sendMessage({}); chrome.runtime.getURL("icon.png");',
+            bundleId,
+        )).toEqual(['browser', 'chrome']);
     });
 });
