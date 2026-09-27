@@ -303,6 +303,7 @@
       "tests/free-translation.test.ts",
       "tests/fullPageTranslationIndicators.test.ts",
       "tests/floatingUiPresentation.test.ts",
+      "tests/floatingBallPosition.test.ts",
       "tests/featureTranslationClients.test.ts",
       "tests/gemini.test.ts",
       "tests/google.test.ts",
