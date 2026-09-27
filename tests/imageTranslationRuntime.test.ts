@@ -162,6 +162,18 @@ function setup() {
     };
 }
 
+function addSecondHoverImage(env: ReturnType<typeof setup>, getRect: () => DOMRect): HTMLImageElement {
+    const second = env.image.ownerDocument.createElement('img') as HTMLImageElement;
+    second.src = 'https://example.test/second.png';
+    Object.defineProperties(second, {
+        naturalWidth: {value: 400}, naturalHeight: {value: 200}, complete: {value: true},
+        currentSrc: {get: () => second.src}, offsetWidth: {value: 400}, offsetHeight: {value: 200},
+    });
+    second.getBoundingClientRect = getRect;
+    env.parent.appendChild(second);
+    return second;
+}
+
 beforeEach(() => {
     vi.useFakeTimers();
     settings.imageTranslationHoverEnabled = true; settings.imageTranslationContextMenuEnabled = true;
@@ -731,6 +743,50 @@ it('同图停留 600ms 才出现入口，移动不重置等待，离开和卸载
     env.dispatch(env.image, 'pointerover'); unmountImageTranslator(); vi.advanceTimersByTime(600);
     expect(document.getElementById('fluent-read-image-translation-root')).toBeNull();
     expect(client.translate).not.toHaveBeenCalled();
+});
+
+it('已有译图时无关 DOM 更新不取消另一张仍在指针下的图片入口', async () => {
+    const env = setup();
+    env.hover(); env.click(); await flush();
+    const second = addSecondHoverImage(env, () => ({left: 500, top: 40, right: 900, bottom: 240, width: 400, height: 200}) as DOMRect);
+    env.dispatch(second, 'pointerover', true, {clientX: 600, clientY: 100});
+    vi.advanceTimersByTime(300);
+    const unrelated = env.image.ownerDocument.createElement('span');
+    env.observers[0].callback([{type: 'childList', target: env.parent, addedNodes: [unrelated], removedNodes: []} as unknown as MutationRecord], {} as MutationObserver);
+    vi.advanceTimersByTime(300);
+    expect(env.roots.at(-1)?.querySelectorAll('.fr-image-controls')).toHaveLength(2);
+});
+
+it('DOM 更新使待显示的图片移出指针或变成头像时不显示入口', async () => {
+    const env = setup();
+    env.hover(); env.click(); await flush();
+    let rect = {left: 500, top: 40, right: 900, bottom: 240, width: 400, height: 200} as DOMRect;
+    const second = addSecondHoverImage(env, () => rect);
+    env.dispatch(second, 'pointerover', true, {clientX: 600, clientY: 100});
+    rect = {left: 100, top: 300, right: 500, bottom: 500, width: 400, height: 200} as DOMRect;
+    env.observers[0].callback([{type: 'childList', target: env.parent, addedNodes: [], removedNodes: []} as unknown as MutationRecord], {} as MutationObserver);
+    vi.advanceTimersByTime(600);
+    expect(env.roots.at(-1)?.querySelectorAll('.fr-image-controls')).toHaveLength(1);
+
+    rect = {left: 500, top: 40, right: 900, bottom: 240, width: 400, height: 200} as DOMRect;
+    env.dispatch(second, 'pointerover', true, {clientX: 600, clientY: 100});
+    second.className = 'avatar';
+    env.observers[0].callback([{type: 'attributes', attributeName: 'class', target: second} as unknown as MutationRecord], {} as MutationObserver);
+    vi.advanceTimersByTime(600);
+    expect(env.roots.at(-1)?.querySelectorAll('.fr-image-controls')).toHaveLength(1);
+});
+
+it('等待期间指针在图片内移动后以最新位置判断入口', async () => {
+    const env = setup();
+    env.hover(); env.click(); await flush();
+    let rect = {left: 500, top: 40, right: 900, bottom: 240, width: 400, height: 200} as DOMRect;
+    const second = addSecondHoverImage(env, () => rect);
+    env.dispatch(second, 'pointerover', true, {clientX: 600, clientY: 100});
+    env.dispatch(second, 'pointermove', true, {clientX: 800, clientY: 100});
+    env.runFrames();
+    rect = {left: 700, top: 40, right: 1100, bottom: 240, width: 400, height: 200} as DOMRect;
+    vi.advanceTimersByTime(600);
+    expect(env.roots.at(-1)?.querySelectorAll('.fr-image-controls')).toHaveLength(2);
 });
 
 
