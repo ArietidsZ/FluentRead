@@ -26,6 +26,7 @@ import {ruRULegacyText, ruRUMessages} from '@/src/core/i18n/messages/ru-RU';
 import {zhCNMessages} from '@/src/core/i18n/messages/zh-CN';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {translationLoadingStyleOptions} from '@/src/core/config/translationLoadingStyle';
+import {TRANSLATION_STYLE_PRESETS} from '@/src/core/config/translationAppearance';
 import {interfaceFontOptions, interfaceSkinGroups, interfaceSkinOptions, popupModuleOptions, popupQuickFeatureOptions} from '@/src/core/config/interfaceAppearance';
 import {buildConfigDiff} from '@/src/core/config/diff';
 import {getMultilingualTargetLanguageLabel, options, services} from '@/src/core/config/catalog';
@@ -377,6 +378,27 @@ describe('界面 i18n 契约', () => {
       expect(translate(option.labelKey, 'zh-CN')).toBe(option.label);
       expect(translate(option.descriptionKey, 'zh-CN')).toBe(option.description);
     }
+  });
+
+  it('译文样式分组、外观微调与全部预设名称覆盖每种界面语言', () => {
+    const styleKeys = Object.keys(zhCNMessages).filter((key) => key.startsWith('settings.translationStyle.'));
+    expect(styleKeys.length).toBeGreaterThan(50);
+    for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      for (const key of styleKeys) {
+        const value = translate(key, language);
+        expect(value, `${language}: ${key}`).not.toBe(key);
+        if (language !== 'ja-JP') expect(value, `${language}: ${key}`).not.toMatch(/[\u3400-\u9fff]/u);
+      }
+      for (const preset of TRANSLATION_STYLE_PRESETS) {
+        const localized = translateLegacyText(preset.label, language);
+        expect(localized, `${language}: ${preset.label}`).not.toBe(preset.label);
+        if (language !== 'ja-JP') expect(localized, `${language}: ${preset.label}`).not.toMatch(/[\u3400-\u9fff]/u);
+      }
+    }
+    expect(translate('settings.translationStyle.currentPreset', 'en-US', {name: 'Bold'})).toBe('Current style: Bold');
+    expect(translate('settings.translationStyle.title', 'fr-FR')).toBe('Style de la traduction');
+    expect(translateLegacyText('模糊遮罩', 'en-US')).toBe('Blur until hover');
+    expect(translateLegacyText('标记底色', 'es-ES')).toBe('Color de resaltado');
   });
 
   it('用稳定 key 完整本地化快捷翻译方案及其动态提示', () => {

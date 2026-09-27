@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
         selectionTranslatorMode: 'bilingual',
         disableSelectionTranslator: false,
         customSelectionTranslatorHotkey: '',
+        selectionTranslatorBidirectional: false,
+        from: 'auto',
         to: 'zh',
     },
     autoTranslateEnglishPage: vi.fn(),
@@ -87,6 +89,8 @@ beforeEach(() => {
         selectionTranslatorMode: 'bilingual',
         disableSelectionTranslator: false,
         customSelectionTranslatorHotkey: '',
+        selectionTranslatorBidirectional: false,
+        from: 'auto',
         to: 'zh',
     });
     mocks.isFullPageTranslationActive.mockReturnValue(false);
@@ -325,5 +329,17 @@ describe('纯中文选区不占用划词或翻译卡片快捷键', () => {
         mocks.config.to = 'en';
         expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(true);
         expect(runtime.selectionShortcutPorts.shouldReserveSelectionShortcut(event)).toBe(true);
+    });
+
+    it('启用中英双向划词后，中文选区仅占用划词快捷键，阅读快捷键仍跳过', async () => {
+        mocks.config.selectionTranslatorTrigger = 'Control';
+        mocks.config.selectionTranslatorBidirectional = true;
+        mocks.getSelection.mockReturnValue(visibleSelection('你好，世界！'));
+        const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
+        const runtime = createContentHotkeyRuntime(() => false);
+        expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(true);
+        mocks.config.harness = {enabled: true, trigger: 'shortcut', customHotkey: 'Alt+R'};
+        mocks.matchesConfiguredHotkey.mockReturnValue(true);
+        expect(runtime.selectionShortcutPorts.shouldReserveSelectionShortcut(keyboardEvent() as unknown as KeyboardEvent)).toBe(false);
     });
 });

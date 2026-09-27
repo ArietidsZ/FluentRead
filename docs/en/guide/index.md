@@ -9,6 +9,7 @@ For initial setup, see [Installation](/en/guide/getting-started).
 | What you have in front of you | Where to go |
 | --- | --- |
 | An article or webpage | [Webpage and selection translation](/en/guide/features) |
+| One part of a page, such as a README or comments | [Section translation](/en/guide/features#section-translation) |
 | A tricky sentence | [Reading card](/en/guide/deepseek-harness) |
 | Text inside an image | [Image translation](/en/guide/image-translation) · [Area translation](/en/guide/area-translation) |
 | A PDF, book, or Word file | [Documents](/en/guide/document-translation) |

@@ -73,6 +73,12 @@ import {
     resolveParagraphCopyHotkey,
     type ParagraphCopyContentMode,
 } from '@/src/core/config/paragraphCopy';
+import {
+    DEFAULT_SECTION_TRANSLATION_HOTKEY,
+    normalizeCustomSectionTranslationHotkey,
+    normalizeSectionTranslationHotkey,
+    resolveSectionTranslationHotkey,
+} from '@/src/core/config/sectionTranslation';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import {
     DEFAULT_LOCAL_TTS_MODE,
@@ -163,6 +169,11 @@ import {
     normalizeVideoSubtitleAppearance,
     type VideoSubtitleAppearance,
 } from './videoSubtitleAppearance';
+import {
+    DEFAULT_TRANSLATION_APPEARANCE,
+    normalizeTranslationAppearance,
+    type TranslationAppearance,
+} from './translationAppearance';
 import {
     DEFAULT_AREA_VISION_PROMPT,
     normalizeAreaVisionPrompt,
@@ -327,6 +338,7 @@ export class Config {
     excludedLanguages: string[]; // 网页全文、悬浮及标题翻译跳过的语言
     hotkey: string;
     style: number;
+    translationAppearance: TranslationAppearance; // 双语译文的颜色、线条、底色、字号、字重、字体与不透明度微调
     display: number = 1;
     service: string;
     documentService: string; // 文档翻译独立翻译服务
@@ -418,6 +430,9 @@ export class Config {
     paragraphCopyHotkey: string; // 段落复制触发快捷键；'custom' 表示使用自定义组合键
     customParagraphCopyHotkey: string; // 自定义段落复制快捷键
     paragraphCopyContent: ParagraphCopyContentMode; // 段落复制写入剪贴板的内容口径
+    sectionTranslationHotkeyEnabled: boolean; // 是否用快捷键进入局部翻译的区域选择模式
+    sectionTranslationHotkey: string; // 局部翻译快捷键；'custom' 表示使用自定义组合键
+    customSectionTranslationHotkey: string; // 自定义局部翻译快捷键
     disableSelectionTranslator: boolean; // 是否禁用划词翻译
     selectionAreaEnabled: boolean; // 是否启用圈选翻译
     selectionAreaHotkey: string; // 圈选翻译触发快捷键；'custom' 表示使用自定义组合键
@@ -442,6 +457,7 @@ export class Config {
     selectionTranslatorHotkey: string; // 旧版快捷键字段；与 selectionTranslatorTrigger 中的快捷键选项保持镜像
     customSelectionTranslatorHotkey: string; // 自定义划词翻译快捷键
     selectionTranslatorDelay: number; // 选区稳定后显示划词翻译入口的延迟（毫秒）
+    selectionTranslatorBidirectional: boolean; // 中英目标下为同语言选区提供反向划词入口
     selectionTtsVoices: string[]; // 划词朗读的 Edge TTS 音色回退顺序
     selectionTtsMode: LocalTtsMode; // 朗读在线/本地合成策略
     selectionTtsLocalVoice: LocalTtsVoiceId; // 本地 Kokoro 音色，auto 表示按语言选择
@@ -491,6 +507,7 @@ export class Config {
         this.to = defaultOption.to;
         this.excludedLanguages = [];
         this.style = defaultOption.style;
+        this.translationAppearance = normalizeTranslationAppearance(DEFAULT_TRANSLATION_APPEARANCE); // 默认沿用各样式自带配色
         this.display = defaultOption.display;
         this.hotkey = defaultOption.hotkey;
         this.service = defaultOption.service;
@@ -587,6 +604,9 @@ export class Config {
         this.paragraphCopyHotkey = DEFAULT_PARAGRAPH_COPY_HOTKEY; // 默认 Alt+C，避开浏览器的 Ctrl+C
         this.customParagraphCopyHotkey = ''; // 自定义段落复制快捷键为空
         this.paragraphCopyContent = DEFAULT_PARAGRAPH_COPY_CONTENT_MODE; // 默认跟随段落当前显示形态
+        this.sectionTranslationHotkeyEnabled = false; // 默认关闭，局部翻译先从 Popup 进入，避免未主动选择时接管快捷键
+        this.sectionTranslationHotkey = DEFAULT_SECTION_TRANSLATION_HOTKEY; // 默认 Alt+R，开启后才监听
+        this.customSectionTranslationHotkey = ''; // 自定义局部翻译快捷键为空
         this.disableSelectionTranslator = true; // 默认关闭划词翻译
         this.selectionAreaEnabled = true; // 默认开启，按快捷键圈选后才截图翻译
         this.selectionAreaHotkey = DEFAULT_AREA_TRANSLATION_HOTKEY; // 默认 Shift+Z，可改为其他预设或自定义组合键
@@ -611,6 +631,7 @@ export class Config {
         this.selectionTranslatorHotkey = 'none'; // 默认不增加额外快捷键，保持原有划词行为
         this.customSelectionTranslatorHotkey = ''; // 自定义划词翻译快捷键为空
         this.selectionTranslatorDelay = DEFAULT_SELECTION_TRANSLATOR_DELAY;
+        this.selectionTranslatorBidirectional = false; // 保留默认的同语言跳过，用户可按需开启双向入口
         this.selectionTtsVoices = []; // 默认按当前语言使用内置音色回退顺序
         this.selectionTtsMode = DEFAULT_LOCAL_TTS_MODE;
         this.selectionTtsLocalVoice = DEFAULT_LOCAL_TTS_VOICE;
@@ -970,6 +991,7 @@ export function normalizeConfig(value: unknown): Config {
             : false;
     }
     normalized.bilingualSentenceHighlightEnabled = source.bilingualSentenceHighlightEnabled === true;
+    normalized.translationAppearance = normalizeTranslationAppearance(source.translationAppearance);
     normalized.translationScope = source.translationScope === 'all' ? 'all' : 'content';
     delete (normalized as unknown as Record<string, unknown>).translationStatus;
     // __fluentConfigRevision 只用于 storage 的写入顺序判断，不能进入运行时
@@ -1244,6 +1266,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.selectionTranslatorDelay = normalizeSelectionTranslatorDelay(
         source.selectionTranslatorDelay,
     );
+    normalized.selectionTranslatorBidirectional = source.selectionTranslatorBidirectional === true;
     // 兼容上一版“触发方式 + 可选快捷键”配置，并将最终状态收敛为单一触发方式。
     if (!hasExplicitSelectionTrigger
         && ['direct', 'icon', 'dot'].includes(normalized.selectionTranslatorTrigger)
@@ -1287,6 +1310,15 @@ export function normalizeConfig(value: unknown): Config {
         normalized.paragraphCopyHotkey = DEFAULT_PARAGRAPH_COPY_HOTKEY;
     }
     normalized.paragraphCopyContent = normalizeParagraphCopyContentMode(source.paragraphCopyContent);
+    if (typeof normalized.sectionTranslationHotkeyEnabled !== 'boolean') {
+        normalized.sectionTranslationHotkeyEnabled = false;
+    }
+    normalized.customSectionTranslationHotkey = normalizeCustomSectionTranslationHotkey(source.customSectionTranslationHotkey);
+    normalized.sectionTranslationHotkey = normalizeSectionTranslationHotkey(source.sectionTranslationHotkey);
+    // 选择自定义却没有可用组合键时回到预设默认值，开启的快捷键不会失去可用组合。
+    if (normalized.sectionTranslationHotkey === 'custom' && !normalized.customSectionTranslationHotkey) {
+        normalized.sectionTranslationHotkey = DEFAULT_SECTION_TRANSLATION_HOTKEY;
+    }
     if (typeof normalized.disableImageTranslator !== 'boolean') {
         normalized.disableImageTranslator = true;
     }
@@ -1330,6 +1362,9 @@ export function normalizeConfig(value: unknown): Config {
                     : []),
                 ...(normalized.paragraphCopyEnabled
                     ? [resolveParagraphCopyHotkey(normalized.paragraphCopyHotkey, normalized.customParagraphCopyHotkey)]
+                    : []),
+                ...(normalized.sectionTranslationHotkeyEnabled
+                    ? [resolveSectionTranslationHotkey(normalized.sectionTranslationHotkey, normalized.customSectionTranslationHotkey)]
                     : []),
                 inputBoxTranslationTriggerHotkey(normalized.inputBoxTranslationTrigger),
             ],

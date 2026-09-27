@@ -1,7 +1,8 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-    config: {on: true, disabledExtensionDomains: [], bilingualSentenceHighlightEnabled: false},
+    config: {on: true, disabledExtensionDomains: [], bilingualSentenceHighlightEnabled: false,
+        selectionTranslatorMode: 'bilingual', disableSelectionTranslator: false},
     configReady: Promise.resolve(),
     sendMessage: vi.fn(),
     addRuntimeListener: vi.fn(),
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     getState: vi.fn(),
     isDisabled: vi.fn(() => false),
     subscribeConfig: vi.fn(), installStyles: vi.fn(), removeStyles: vi.fn(), syncHighlight: vi.fn(),
+    mountSelection: vi.fn(), unmountSelection: vi.fn(),
 }));
 
 vi.mock('@/src/services/config/store', () => ({
@@ -31,6 +33,7 @@ vi.mock('@/src/shared/geometry/touch', () => ({getCenterPoint: vi.fn()}));
 vi.mock('@/src/app/content/features', () => ({
     cancelPendingHoverTranslation: vi.fn(), handleTranslation: vi.fn(), mountHoverTranslationContentFeature: () => vi.fn(),
     noteBilingualHostGesture: vi.fn(),
+    mountSelectionTranslator: mocks.mountSelection, unmountSelectionTranslator: mocks.unmountSelection,
 }));
 vi.mock('@/src/app/content/hotkeyRuntime', () => ({
     createContentHotkeyRuntime: () => ({installFloatingBallHotkey: () => vi.fn()}),
@@ -82,11 +85,91 @@ beforeEach(() => {
     mocks.config.on = true;
     mocks.configReady = Promise.resolve();
     mocks.config.bilingualSentenceHighlightEnabled = false;
+    mocks.config.selectionTranslatorMode = 'bilingual';
+    mocks.config.disableSelectionTranslator = false;
     mocks.isDisabled.mockReturnValue(false);
     mocks.subscribeConfig.mockReset().mockReturnValue(vi.fn());
     mocks.installStyles.mockReset().mockReturnValue(mocks.removeStyles);
     mocks.removeStyles.mockReset();
     mocks.syncHighlight.mockReset();
+    mocks.mountSelection.mockReset();
+    mocks.unmountSelection.mockReset();
+});
+
+describe('NetEase mail frame lifecycle', () => {
+    const readTop = 'https://mail.163.com/js6/main.jsp?sid=redacted#module=read.ReadModule%7C%7B%7D';
+    const listTop = 'https://mail.163.com/js6/main.jsp?sid=redacted#module=mbox.ListModule%7C%7B%7D';
+
+    it('mounts selection translation only in an authorized reading frame and releases it on route exit', async () => {
+        const {window} = installGlobals('about:blank');
+        window.top = {location: {href: readTop}};
+        vi.stubGlobal('navigator', {});
+        mocks.sendMessage.mockResolvedValue({enabled: true, revision: 1, sessionId: null});
+        const {startNeteaseMailFrameApp} = await load();
+        let invalidate: () => void = () => undefined;
+        await startNeteaseMailFrameApp({isInvalid: false, onInvalidated: (callback: () => void) => { invalidate = callback; }} as never);
+        expect(mocks.sendMessage).toHaveBeenCalledWith({type: 'neteaseMailFrameRequest', action: 'state'});
+        expect(mocks.installStyles).toHaveBeenCalledOnce();
+        expect(mocks.mountSelection).toHaveBeenCalledOnce();
+        (window.top as {location: {href: string}}).location.href = listTop;
+        const listener = mocks.addRuntimeListener.mock.calls[0][0];
+        listener({type: 'neteaseMailFrameRefresh'}, {id: 'extension-id'});
+        await vi.waitFor(() => expect(mocks.unmountSelection).toHaveBeenCalledOnce());
+        invalidate();
+    });
+
+    it('never mounts on top-level pages or editable compose frames', async () => {
+        const top = installGlobals(readTop);
+        const {startNeteaseMailFrameApp} = await load();
+        await startNeteaseMailFrameApp({isInvalid: false, onInvalidated: vi.fn()} as never);
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        top.window.location.href = 'about:blank';
+        top.window.top = {location: {href: readTop}};
+        (top.window as typeof top.window & {frameElement: {className: string}}).frameElement = {className: 'APP-editor-iframe'};
+        await startNeteaseMailFrameApp({isInvalid: false, onInvalidated: vi.fn()} as never);
+        expect(mocks.mountSelection).not.toHaveBeenCalled();
+    });
+
+    it('tracks selection setting changes while the reading frame stays open', async () => {
+        const {window} = installGlobals('about:blank');
+        window.top = {location: {href: readTop}};
+        vi.stubGlobal('navigator', {});
+        mocks.sendMessage.mockResolvedValue({enabled: true, revision: 1, sessionId: null});
+        const {startNeteaseMailFrameApp} = await load();
+        let invalidate: () => void = () => undefined;
+        await startNeteaseMailFrameApp({isInvalid: false, onInvalidated: (callback: () => void) => { invalidate = callback; }} as never);
+        expect(mocks.mountSelection).toHaveBeenCalledOnce();
+        mocks.config.selectionTranslatorMode = 'disabled';
+        mocks.config.disableSelectionTranslator = true;
+        mocks.subscribeConfig.mock.calls[0][0]();
+        await vi.waitFor(() => expect(mocks.unmountSelection).toHaveBeenCalledOnce());
+        mocks.config.selectionTranslatorMode = 'bilingual';
+        mocks.config.disableSelectionTranslator = false;
+        mocks.subscribeConfig.mock.calls[0][0]();
+        await vi.waitFor(() => expect(mocks.mountSelection).toHaveBeenCalledTimes(2));
+        invalidate();
+    });
+
+    it('reports the real top session and clears it when leaving the read route', async () => {
+        const {window} = installGlobals(readTop);
+        const {installNeteaseMailTopFrameBridge} = await load();
+        const abort = new AbortController();
+        installNeteaseMailTopFrameBridge(() => true, abort.signal);
+        const listener = mocks.addRuntimeListener.mock.calls[0][0];
+        const respond = vi.fn();
+        listener({type: 'neteaseMailFrameCommand', action: 'state'}, {id: 'extension-id'}, respond);
+        expect(respond).toHaveBeenLastCalledWith(expect.objectContaining({enabled: true}));
+        listener({type: 'neteaseMailFrameCommand', action: 'toggle', invocation: {targetLanguage: 'zh-Hans'}}, {id: 'extension-id'}, respond);
+        expect(mocks.autoTranslateEnglishPage).toHaveBeenCalledWith({targetLanguage: 'zh-Hans'});
+        mocks.restoreOriginalContent.mockClear();
+        window.location.href = listTop;
+        window.dispatchEvent(new Event('hashchange'));
+        expect(mocks.restoreOriginalContent).toHaveBeenCalledOnce();
+        expect(mocks.sendMessage).toHaveBeenLastCalledWith({type: 'neteaseMailFrameChanged'});
+        listener({type: 'neteaseMailFrameCommand', action: 'state'}, {id: 'extension-id'}, respond);
+        expect(respond).toHaveBeenLastCalledWith(expect.objectContaining({enabled: false}));
+        abort.abort();
+    });
 });
 
 describe('QQ legacy frame startup 生命周期', () => {

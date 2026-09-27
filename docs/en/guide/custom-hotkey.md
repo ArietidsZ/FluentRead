@@ -8,6 +8,7 @@ Keyboard shortcuts and mouse actions can trigger webpage, selection, and hover t
 | Translate page / restore original | **Alt + T**; Alt is usually labeled Option on a Mac |
 | Capture an area | Press **Shift+Z** (configurable), then drag |
 | Copy the paragraph under the mouse | Point at it and press **Alt+C** (Option+C on a Mac) |
+| Translate one section of a page | Click **Section** in the extension menu, or turn on the **Alt+R** shortcut (Option+R on a Mac) |
 | Translate a selection | Enable selection translation, select text, and click the nearby icon |
 
 ## Change a trigger
@@ -24,6 +25,8 @@ Paragraph copy lives in **Settings → Translation → Paragraph copy**, where y
 - **Original and translation**: copies both blocks, ordered by your translated-text position setting.
 
 A notice tells you what was copied and how many characters. The shortcut stays inactive in input fields and editable areas, and **Ctrl+C** keeps copying the selected text.
+
+The section translation shortcut is off by default. Turn it on in **Settings → Translation → Section translation**, where you can pick a preset or record your own combination. While picking, press **↑/↓** to change the section and **Esc** or the shortcut again to exit. See [section translation](/en/guide/features#section-translation).
 
 Selection can show an icon, a small dot, open directly, or wait for a key. Keep an icon or add a delay if it appears too often.
 

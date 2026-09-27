@@ -4,6 +4,8 @@ If content is missing or too much is translated, start with the simple checks.
 
 GitHub release notes show translations after each explicit source line break for easy comparison. List items containing several paragraphs are translated paragraph by paragraph.
 
+Discord's server icon rail stays unchanged in both reading-area and all-nodes modes; channel message text remains translatable.
+
 ## Missing content
 
 1. Refresh pages after installing or updating.

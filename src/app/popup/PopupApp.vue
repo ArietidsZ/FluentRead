@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，让现场开关与显示操作保持简短，将长期偏好引导到对应设置页。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及两列快捷功能，语言选项与快捷抽屉按需挂载；图片、圈选和划词拥有独立状态、抽屉与设置入口，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、局部翻译入口、AI 语境偏好与可用状态、站点规则及两列快捷功能，语言选项与快捷抽屉按需挂载；图片、圈选和划词拥有独立状态、抽屉与设置入口，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -247,6 +247,21 @@
             :class="{ disabled: !defaultFullPageHotkeyEnabled }"
             :title="fullPageHotkeyTitle"
           ><span>{{ fullPageHotkey }}</span></kbd>
+        </button>
+        <button
+          class="section-translate-button"
+          type="button"
+          data-testid="section-translation"
+          :disabled="!config.on"
+          :aria-label="sectionTranslationLabel"
+          :title="sectionTranslationLabel"
+          @click="startSectionTranslation"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15" />
+            <path d="m10 10 7 2.6-3 1.1-1.1 3z" />
+          </svg>
+          <span>{{ t('popup.sectionTranslation') }}</span>
         </button>
       </div>
 
@@ -523,6 +538,7 @@ import {
 } from '@/src/core/config/quickTranslation';
 import {resolveConfiguredHotkey} from '@/src/core/hotkey';
 import {areaTranslationHotkeyDisplayName, resolveAreaTranslationHotkey} from '@/src/core/config/areaTranslation';
+import {sectionTranslationHotkeyDisplayName} from '@/src/core/config/sectionTranslation';
 import {
   getCustomOpenAIProvider,
   withCustomOpenAIServiceOptions,
@@ -552,7 +568,7 @@ import {
 } from '@/src/services/translation/capabilities';
 
 type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'area' | 'video' | 'aiContext';
-type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-area-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
+type SettingsSection = 'settings-general' | 'settings-interface' | 'settings-image-translation' | 'settings-area-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 interface PopupQuickFeatureViewModel {
   id: PopupQuickFeatureId;
   label: string;
@@ -603,7 +619,7 @@ const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
   aiContext: 'settings-general',
   hover: 'settings-translation',
   selection: 'settings-translation',
-  appearance: 'settings-general',
+  appearance: 'settings-interface',
   image: 'settings-image-translation',
   area: 'settings-area-translation',
   video: 'settings-video',
@@ -635,6 +651,13 @@ const areaHotkeyDisplayName = computed(() => areaTranslationHotkeyDisplayName(
   config.value.customSelectionAreaHotkey,
 ));
 const areaHotkeyParts = computed(() => areaHotkeyDisplayName.value.split('+'));
+// 局部翻译按钮只有图标和短标签，完整用途与已开启的快捷键放在提示与无障碍名称里。
+const sectionTranslationLabel = computed(() => {
+  const title = t('popup.sectionTranslationTitle');
+  if (!config.value.sectionTranslationHotkeyEnabled) return title;
+  const shortcut = sectionTranslationHotkeyDisplayName(config.value.sectionTranslationHotkey, config.value.customSectionTranslationHotkey);
+  return `${title} · ${t('popup.sectionTranslationShortcut', {shortcut})}`;
+});
 const allServiceOptions = computed(() => withCustomOpenAIServiceOptions(
   options.services,
   config.value.customOpenAIProviders,
@@ -1226,6 +1249,24 @@ async function togglePageTranslation() {
     console.error(error);
     showNotice('当前页面暂不支持翻译，请刷新后重试', 'error');
   } finally { translating.value = false; }
+}
+
+// 进入网页的区域选择模式后立即关闭 Popup，让用户直接在页面上点选要翻译的区域。
+async function startSectionTranslation() {
+  if (credentialWarning.value) {
+    showNotice(credentialWarning.value, 'error');
+    return;
+  }
+  try {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (!isBrowserTabId(tab?.id)) throw new Error('No active tab');
+    const response = await browser.tabs.sendMessage(tab.id, { type: 'contextMenuTranslate', action: 'section' }) as { status?: string } | undefined;
+    if (response?.status !== 'success') throw new Error(response?.status === 'disabled' ? 'Plugin disabled' : 'Section picker unavailable');
+    window.close();
+  } catch (error) {
+    console.error(error);
+    showNotice(t('popup.sectionTranslationUnavailable'), 'error');
+  }
 }
 
 async function clearCache() {

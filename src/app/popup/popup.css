@@ -1,7 +1,7 @@
 /**
  * @file src/app/popup/popup.css
  * 文件职责：定义宽度随皮肤、高度随内容自适应的浏览器 Popup 视觉系统与交互状态，包括亮暗主题、服务选择、功能卡、设置抽屉、通知和响应式细节。
- * 主要内容：声明服务菜单、AI 精翻偏好及状态说明、站点控制、两列三行默认快捷入口与抽屉等视觉样式；收紧默认纵向间距，在 560px 内滚动较长内容并允许站点操作换行，兼容皮肤、多语言和 Element Plus 内部结构。
+ * 主要内容：声明服务菜单、AI 精翻偏好及状态说明、翻译主按钮旁的局部翻译按钮、站点控制、两列三行默认快捷入口与抽屉等视觉样式；收紧默认纵向间距，在 560px 内滚动较长内容并允许站点操作换行，兼容皮肤、多语言和 Element Plus 内部结构。
  * 模块边界：样式只对应 PopupApp 的 DOM 和受控第三方组件，不决定配置值、能力可用性或消息行为；跨页面 token 在 src/ui/styles，Options/文档页各自维护页面样式。
  */
 @import "../../ui/styles/feedback.css";
@@ -214,6 +214,16 @@ h2 { margin-bottom: 0; font-size: 15px; line-height: 1.35; letter-spacing: -.01e
 .translate-hotkey span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .translate-hotkey.disabled { opacity: .72; }
 .translate-button.translated .translate-hotkey { border-color: rgba(255, 255, 255, .48); background: rgba(255, 255, 255, .18); }
+.section-translate-button {
+  display: inline-flex; flex: none; flex-direction: column; align-items: center; justify-content: center; align-self: stretch; gap: 1px;
+  min-width: 50px; min-height: 0; padding: 3px 8px; border: 1px solid var(--line); border-radius: 14px; color: var(--brand-strong);
+  background: var(--surface-soft); font-size: 10px; font-weight: 750; line-height: 1.1; white-space: nowrap; cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, opacity 160ms ease;
+}
+.section-translate-button svg { width: 16px; height: 16px; }
+.section-translate-button:hover:not(:disabled) { transform: translateY(-1px); border-color: rgba(239, 71, 118, .32); background: var(--brand-soft); }
+.section-translate-button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.section-translate-button:disabled { cursor: not-allowed; opacity: .48; }
 /* AI 精翻共享服务卡片的高度，仅展示紧凑状态；开关与说明在抽屉展开。 */
 .service-selection { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft); }
 :root .popup-shell .service-selection .service-field { flex: 1 1 auto; min-width: 0; width: auto; border: 0; border-radius: inherit; background: transparent; box-shadow: none; }

@@ -1446,12 +1446,20 @@
         "sites": [
           "QQ邮箱",
           "网易163/126邮箱",
+          "网易yeah邮箱"
+        ],
+        "status": "runtime-or-dom-review-needed",
+        "priority": "medium",
+        "reason": "QQ旧版阅读页和网易JS6阅读页已有独立frame运行时；仍需使用登录后的真实邮件核验正文结构与全部交互形态。"
+      },
+      {
+        "sites": [
           "iCloud邮箱",
           "Migadu邮箱"
         ],
         "status": "runtime-or-dom-review-needed",
         "priority": "medium",
-        "reason": "QQ邮箱已有独立frame运行时，但未把其所有文档形态迁入该JSON目录；其他邮箱仍需核验正文frame与消息边界，不能由已有三邮箱规则推断支持。"
+        "reason": "尚未核验正文frame与消息边界，不能由其他邮箱的专用运行时推断支持。"
       },
       {
         "sites": [

@@ -97,6 +97,7 @@ export function collectUiSourceCopy(root) {
         'src/features/document-translation/ui/presentation.ts',
         'src/core/config/interfaceAppearance.ts',
         'src/core/config/translationLoadingStyle.ts',
+        'src/core/config/translationAppearance.ts',
         'src/core/config/writingPreview.ts',
         'src/core/config/videoSubtitleAppearance.ts',
         'src/core/config/harness.ts',

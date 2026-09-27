@@ -7,6 +7,7 @@ import {
     ensureTranslationTruncationLayout,
     getOwnedTranslationCandidateAtPoint,
     getTranslationOwnersForRemovedNode,
+    getTranslationOwnersWithin,
     getTranslationSourceStructureSignature,
     getTranslationState,
     isTranslationSourceStructureOverflow,
@@ -467,6 +468,26 @@ describe("指定节点翻译状态机", () => {
         expect(candidate).not.toHaveProperty('nodes');
         Object.defineProperty(document, 'elementsFromPoint', {value: () => []});
         expect(getOwnedTranslationCandidateAtPoint(document, 999, 999)).toBeNull();
+    });
+
+    it("按组合树列出区域内的译文所有者，不包含区域外、脱离文档或已恢复的节点", () => {
+        const {document} = parseHTML('<html><body><article id="section"><p id="inside">One.</p><div id="host"></div></article><p id="outside">Two.</p></body></html>');
+        const section = document.querySelector('#section')!;
+        const inside = document.querySelector<HTMLElement>('#inside')!;
+        const outside = document.querySelector<HTMLElement>('#outside')!;
+        const shadowRoot = document.querySelector('#host')!.attachShadow({mode: 'open'});
+        const shadowParagraph = document.createElement('p');
+        shadowRoot.appendChild(shadowParagraph);
+        const detached = document.createElement('p');
+        for (const node of [inside, outside, shadowParagraph, detached]) expect(beginTranslation(node, 'bilingual')).not.toBeNull();
+
+        expect(getTranslationOwnersWithin(section)).toHaveLength(2);
+        expect(getTranslationOwnersWithin(section)).toEqual(expect.arrayContaining([inside, shadowParagraph]));
+        expect(getTranslationOwnersWithin(document)).toHaveLength(3);
+        restoreTranslation(inside);
+        expect(getTranslationOwnersWithin(section)).toEqual([shadowParagraph]);
+        for (const node of [outside, shadowParagraph, detached]) restoreTranslation(node);
+        expect(getTranslationOwnersWithin(document)).toEqual([]);
     });
 
     it("能在宿主移除双语 wrapper 后找到并清理其 owner", () => {

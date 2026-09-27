@@ -52,4 +52,32 @@ describe('Popup actions across configuration and page state', () => {
         expect(browser.tabs.sendMessage).not.toHaveBeenCalled();
     });
 
+    it('局部翻译先检查服务可用性，进入页面选择模式后关闭 Popup，失败时留在 Popup 说明原因', async () => {
+        const showNotice = vi.fn();
+        const close = vi.fn();
+        const sendMessage = vi.fn(async () => ({status: 'success'}));
+        const browser = {tabs: {query: vi.fn(async () => [{id: 7}]), sendMessage}};
+        const t = (key: string) => key;
+        const ports = {browser, showNotice, t, window: {close}, isBrowserTabId: (id: unknown) => typeof id === 'number'};
+        const blocked = loadAction('startSectionTranslation', {...ports, credentialWarning: {value: '缺少 API Key'}});
+        await blocked();
+        expect(showNotice).toHaveBeenLastCalledWith('缺少 API Key', 'error');
+        expect(sendMessage).not.toHaveBeenCalled();
+
+        const action = loadAction('startSectionTranslation', {...ports, credentialWarning: {value: ''}});
+        vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        await action();
+        expect(sendMessage).toHaveBeenCalledWith(7, {type: 'contextMenuTranslate', action: 'section'});
+        expect(close).toHaveBeenCalledOnce();
+
+        for (const response of [{status: 'failed'}, {status: 'disabled'}, undefined]) {
+            sendMessage.mockResolvedValueOnce(response as never);
+            await action();
+            expect(showNotice).toHaveBeenLastCalledWith('popup.sectionTranslationUnavailable', 'error');
+        }
+        browser.tabs.query.mockResolvedValueOnce([{}] as never);
+        await action();
+        expect(showNotice).toHaveBeenLastCalledWith('popup.sectionTranslationUnavailable', 'error');
+        expect(close).toHaveBeenCalledOnce();
+    });
 });

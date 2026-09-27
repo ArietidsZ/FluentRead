@@ -577,6 +577,42 @@ describe('translation broker', () => {
         expect(mocks.cacheSet).not.toHaveBeenCalled();
     });
 
+    it('重试误返英文原文的单条请求，并修复已持久化的原文缓存', async () => {
+        const origin = 'This English sentence still needs a Chinese translation.';
+        mocks.service.mockResolvedValueOnce(origin).mockResolvedValueOnce('这句英文仍需要翻译成中文。');
+        await expect(translateWithCache({origin})).resolves.toBe('这句英文仍需要翻译成中文。');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect([...mocks.cacheStore.values()]).toEqual(['这句英文仍需要翻译成中文。']);
+
+        await clearTranslationCache();
+        mocks.cacheGet.mockResolvedValueOnce(origin);
+        mocks.service.mockResolvedValueOnce('缓存修复后的译文');
+        await expect(translateWithCache({origin})).resolves.toBe('缓存修复后的译文');
+        expect(mocks.service).toHaveBeenCalledTimes(3);
+        expect([...mocks.cacheStore.values()]).toEqual(['缓存修复后的译文']);
+    });
+
+    it('英文标签列表连续返回原文时报告失败，不把原文写进缓存', async () => {
+        const origin = 'solo, blush, smile, bangs, looking_at_viewer, long_hair, blue_eyes';
+        mocks.service.mockResolvedValue(origin);
+        await expect(translateWithCache({origin})).rejects.toMatchObject({
+            kind: 'response', code: 'UNTRANSLATED_RESPONSE', retryable: false,
+        });
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(mocks.cacheSet).not.toHaveBeenCalled();
+    });
+
+    it('批量请求只重试误返原文的槽位，保留已成功的译文和合法同文结果', async () => {
+        const foreign = 'This English sentence still needs a Chinese translation.';
+        mocks.service.mockResolvedValueOnce([foreign, '中文', '已翻译'])
+            .mockResolvedValueOnce('英文句子的译文');
+        await expect(translateWithCache({origin: [foreign, '中文', 'Other text']}))
+            .resolves.toEqual(['英文句子的译文', '中文', '已翻译']);
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(mocks.service.mock.calls[1][0]).toMatchObject({origin: foreign});
+        expect([...mocks.cacheStore.values()]).toEqual(expect.arrayContaining(['英文句子的译文', '中文', '已翻译']));
+    });
+
     it('bypasses cache when disabled globally or by request', async () => {
         mocks.service.mockResolvedValue('直连译文');
 
@@ -1939,6 +1975,20 @@ describe('translation broker', () => {
             retryable: false,
             code: 'AI_MULTI_SEGMENT_RESPONSE_INVALID',
         });
+    });
+
+    it('AI 多段中只要有明确外语槽回显原文就拒绝整包缓存并触发逐槽降级', async () => {
+        mocks.config.service = 'ai';
+        const foreign = 'This English sentence still needs a Chinese translation.';
+        const second = 'Another English sentence explains how the result should be translated.';
+        mocks.service.mockImplementation((message: {origin: string}) => Promise.resolve(
+            message.origin.replace(second, '另一句英文已经译成中文。'),
+        ));
+
+        await expect(translateWithCache({origin: [foreign, second], aiMultiSegment: true}))
+            .rejects.toMatchObject({kind: 'response', code: 'AI_MULTI_SEGMENT_RESPONSE_INVALID'});
+        expect(mocks.service).toHaveBeenCalledOnce();
+        expect(mocks.cacheSet).not.toHaveBeenCalled();
     });
 
     it('AI 多段协议允许空原文保留空槽并翻译其余段落', async () => {

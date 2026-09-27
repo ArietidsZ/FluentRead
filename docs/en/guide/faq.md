@@ -18,9 +18,9 @@ Open the extension menu and choose restore original. Restore before retrying wit
 
 The page may not be recognized correctly, or too many requests may be reaching a busy service. Try one paragraph, then check page recognition and the connection.
 
-## Can QQ Mail messages be translated?
+## Can webmail messages be translated?
 
-Open an individual message and try translating, refreshing if needed. Different mailbox versions may use different layouts. If it fails, report the mailbox version and a redacted screenshot, not the full message or login information.
+FluentRead has a dedicated message-frame path for legacy QQ Mail and the JS6 reading pages of NetEase 163, 126, and yeah free mail. Open an individual message and try page or selection translation; refresh the mailbox if needed. Compose editors are excluded. Mailbox versions can use different layouts. If it still fails, report the mailbox domain, the page path with `sid` and other parameters removed, the browser version, and a redacted screenshot. Do not share a full message or login details.
 
 ## Why is there no AI explanation?
 

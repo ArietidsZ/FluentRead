@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/ParagraphCopySettings.vue
  * 文件职责：在翻译交互设置中提供"复制鼠标所指段落"的开关、触发快捷键与复制内容口径，让用户不必先选中文字也能取走一整段。
- * 主要内容：绑定 paragraphCopyEnabled、paragraphCopyHotkey、customParagraphCopyHotkey 与 paragraphCopyContent，提供预设与自定义录制入口，并对悬浮、全文、划词、圈选、输入框翻译和快捷翻译方案的占用给出冲突提示。
+ * 主要内容：绑定 paragraphCopyEnabled、paragraphCopyHotkey、customParagraphCopyHotkey 与 paragraphCopyContent，提供预设与自定义录制入口，并对悬浮、全文、划词、圈选、局部翻译、输入框翻译和快捷翻译方案的占用给出冲突提示。
  * 模块边界：本组件只修改传入的 config 对象并提示冲突，不持久化配置、不监听网页按键、不访问剪贴板；快捷键归一化归 core/config/paragraphCopy，复制行为归 features/paragraph-copy。
  -->
 <template>
@@ -51,6 +51,7 @@ import {
     paragraphCopyHotkeyDisplayName,
 } from '@/src/core/config/paragraphCopy';
 import {resolveAreaTranslationHotkey} from '@/src/core/config/areaTranslation';
+import {resolveSectionTranslationHotkey} from '@/src/core/config/sectionTranslation';
 import {canonicalizeHotkey, resolveConfiguredHotkey} from '@/src/core/hotkey';
 import {
     findEnabledQuickTranslationHotkeyConflict,
@@ -88,6 +89,12 @@ function reservedHotkeyOwners(): {hotkey: string; feature: string}[] {
                 ? resolveAreaTranslationHotkey(props.config.selectionAreaHotkey, props.config.customSelectionAreaHotkey)
                 : '',
             feature: t('popup.areaTranslation'),
+        },
+        {
+            hotkey: props.config.sectionTranslationHotkeyEnabled
+                ? resolveSectionTranslationHotkey(props.config.sectionTranslationHotkey, props.config.customSectionTranslationHotkey)
+                : '',
+            feature: t('sectionTranslation.settings.title'),
         },
         {hotkey: inputBoxTranslationTriggerHotkey(props.config.inputBoxTranslationTrigger), feature: translateLegacy('输入框翻译')},
     ];

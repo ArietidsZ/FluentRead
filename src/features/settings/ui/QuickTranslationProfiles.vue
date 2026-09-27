@@ -243,6 +243,7 @@ import {
 } from '@/src/core/config/customOpenAI'
 import type {Config} from '@/src/core/config/model'
 import {resolveAreaTranslationHotkey} from '@/src/core/config/areaTranslation'
+import {resolveSectionTranslationHotkey} from '@/src/core/config/sectionTranslation'
 import {
   createQuickTranslationProfile,
   inputBoxTranslationTriggerHotkey,
@@ -400,6 +401,12 @@ function legacyHotkeyEntries(): Array<{hotkey: string, label: string}> {
     entries.push({
       hotkey: resolveAreaTranslationHotkey(props.config.selectionAreaHotkey, props.config.customSelectionAreaHotkey),
       label: translateLegacy('圈选翻译'),
+    })
+  }
+  if (props.config.sectionTranslationHotkeyEnabled) {
+    entries.push({
+      hotkey: resolveSectionTranslationHotkey(props.config.sectionTranslationHotkey, props.config.customSectionTranslationHotkey),
+      label: t('sectionTranslation.settings.title'),
     })
   }
   const inputBoxHotkey = inputBoxTranslationTriggerHotkey(props.config.inputBoxTranslationTrigger)

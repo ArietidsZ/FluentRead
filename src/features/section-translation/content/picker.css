@@ -1,0 +1,204 @@
+/**
+ * @file src/features/section-translation/content/picker.css
+ * 文件职责：定义局部翻译选择模式在封闭 Shadow Root 内的视觉，包括跟随鼠标的区域高亮框、说明点击结果的标签，以及可避让鼠标的操作提示条。
+ * 主要内容：高亮框按“翻译/恢复原文/无可翻译内容”三种语气着色，换选区域时平滑过渡、滚动时立即贴合，标签显示动作、段落数和元素简称，提示条列出点击、方向键与 Esc 操作并提供关闭按钮；确认选择时播放短暂收束动画，触屏隐藏键盘提示，减少动态效果时关闭过渡。
+ * 模块边界：该样式只注入 picker.ts 创建的 Shadow Root，不影响宿主页面，也不决定区域判定或翻译行为；宿主元素的抗覆盖布局由 TypeScript 以内联 important 设置。
+ */
+:host {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+.fr-section-box {
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: none;
+    border: 2px solid #ef4776;
+    border-radius: 6px;
+    background: rgba(239, 71, 118, .09);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .72), 0 8px 26px rgba(239, 71, 118, .16);
+    pointer-events: none;
+}
+
+.fr-section-box.is-visible {
+    display: block;
+}
+
+/* 只在换选区域时平滑过渡；滚动和缩放时立即贴合，避免高亮框拖在内容后面。 */
+.fr-section-box.is-following {
+    transition: transform 90ms ease-out, width 90ms ease-out, height 90ms ease-out, border-color 120ms ease, background-color 120ms ease;
+}
+
+.fr-section-box.tone-restore {
+    border-color: #3f6ad8;
+    background: rgba(63, 106, 216, .08);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .72), 0 8px 26px rgba(63, 106, 216, .16);
+}
+
+.fr-section-box.tone-muted {
+    border-style: dashed;
+    border-color: #8b93a3;
+    background: rgba(139, 147, 163, .08);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .6);
+}
+
+.fr-section-box.is-confirmed {
+    animation: fr-section-confirm 320ms ease-out forwards;
+}
+
+@keyframes fr-section-confirm {
+    0% { opacity: 1; background-color: rgba(239, 71, 118, .22); }
+    100% { opacity: 0; background-color: rgba(239, 71, 118, .04); }
+}
+
+.fr-section-label {
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: none;
+    max-width: calc(100vw - 16px);
+    align-items: center;
+    gap: 7px;
+    padding: 4px 9px;
+    overflow: hidden;
+    border-radius: 7px;
+    color: #fff;
+    background: #e93267;
+    box-shadow: 0 6px 18px rgba(24, 27, 38, .22);
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.35;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.fr-section-label.is-visible {
+    display: inline-flex;
+}
+
+.fr-section-label.tone-restore {
+    background: #3f6ad8;
+}
+
+.fr-section-label.tone-muted {
+    background: #5f6776;
+}
+
+.fr-section-label-action {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fr-section-label-meta {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    opacity: .82;
+    text-overflow: ellipsis;
+}
+
+.fr-section-bar {
+    position: fixed;
+    bottom: 18px;
+    left: 50vw;
+    display: flex;
+    max-width: calc(100vw - 24px);
+    align-items: center;
+    gap: 10px;
+    padding: 7px 7px 7px 14px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 12px;
+    color: #f4f5f9;
+    background: rgba(24, 27, 38, .93);
+    box-shadow: 0 14px 34px rgba(12, 14, 22, .28);
+    font-size: 12.5px;
+    line-height: 1.4;
+    pointer-events: auto;
+    transform: translateX(-50%);
+    transition: opacity 140ms ease;
+}
+
+.fr-section-bar.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.fr-section-bar-title {
+    flex: none;
+    color: #ff8fb0;
+    font-weight: 800;
+}
+
+.fr-section-bar-instruction {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fr-section-bar-keys {
+    flex: none;
+    color: #aeb4c2;
+    white-space: nowrap;
+}
+
+.fr-section-bar-close {
+    display: inline-flex;
+    width: 26px;
+    height: 26px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    color: #f4f5f9;
+    background: rgba(255, 255, 255, .1);
+    font: inherit;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.fr-section-bar-close:hover {
+    background: rgba(255, 255, 255, .2);
+}
+
+.fr-section-bar-close:focus-visible {
+    outline: 2px solid #ff8fb0;
+    outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+    .fr-section-bar-keys {
+        display: none;
+    }
+}
+
+@media (max-width: 520px) {
+    .fr-section-bar-keys {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fr-section-box.is-following,
+    .fr-section-bar {
+        transition: none;
+    }
+
+    .fr-section-box.is-confirmed {
+        animation: none;
+        opacity: 0;
+    }
+}

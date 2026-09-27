@@ -181,6 +181,32 @@ describe('配置差异预览', () => {
         })]));
     });
 
+    it('逐项预览译文外观微调，默认颜色与百分比使用可读文案', () => {
+        const defaults = {textColor: '', lineColor: '', fillColor: '', fontScale: 100, fontWeight: 'default', fontFamily: 'default', opacity: 100};
+        const result = buildConfigDiff({style: 1, translationAppearance: defaults}, {
+            style: 24,
+            translationAppearance: {...defaults, lineColor: '#ef4776', fontScale: 115, fontWeight: 'semibold', fontFamily: 'serif', opacity: 80},
+        });
+
+        expect(group(result, 'general')?.changes).toEqual(expect.arrayContaining([
+            {key: 'style', label: '译文样式', before: '加粗显示', after: '双下划线'},
+            {key: 'translationAppearance.lineColor', label: '线条颜色', before: '默认', after: '#ef4776'},
+            {key: 'translationAppearance.fontScale', label: '译文字号', before: '100%', after: '115%'},
+            {key: 'translationAppearance.fontWeight', label: '译文字重', before: '默认', after: '中粗'},
+            {key: 'translationAppearance.fontFamily', label: '译文字体', before: '默认', after: '衬线'},
+            {key: 'translationAppearance.opacity', label: '译文不透明度', before: '100%', after: '80%'},
+        ]));
+        const reverted = buildConfigDiff({translationAppearance: {fontWeight: 'bold', fontFamily: 'mono', textColor: '#1d4ed8'}}, {
+            translationAppearance: {fontWeight: 'normal', fontFamily: 'sans', textColor: '', unknownField: true},
+        });
+        expect(group(reverted, 'general')?.changes).toEqual(expect.arrayContaining([
+            {key: 'translationAppearance.fontWeight', label: '译文字重', before: '加粗', after: '常规'},
+            {key: 'translationAppearance.fontFamily', label: '译文字体', before: '等宽', after: '无衬线'},
+            {key: 'translationAppearance.textColor', label: '译文颜色', before: '#1d4ed8', after: '默认'},
+            {key: 'translationAppearance.unknownField', label: 'unknownField', before: '未设置', after: '开启'},
+        ]));
+    });
+
     it('显示圈选的独立翻译方式和服务变更', () => {
         const result = buildConfigDiff({areaTranslationMode: 'standard', areaTranslationService: ''}, {
             areaTranslationMode: 'ai', areaTranslationService: 'microsoft',
@@ -221,6 +247,18 @@ describe('配置差异预览', () => {
         expect(group(custom, 'translation')?.changes).toEqual(expect.arrayContaining([
             {key: 'paragraphCopyHotkey', label: '段落复制快捷键', before: 'Alt+C', after: '自定义快捷键'},
             {key: 'customParagraphCopyHotkey', label: '自定义段落复制快捷键', before: '未设置', after: 'Alt+J'},
+        ]));
+    });
+
+    it('显示局部翻译快捷键的开关与组合', () => {
+        const changed = buildConfigDiff(
+            {sectionTranslationHotkeyEnabled: false, sectionTranslationHotkey: 'Alt+R', customSectionTranslationHotkey: ''},
+            {sectionTranslationHotkeyEnabled: true, sectionTranslationHotkey: 'custom', customSectionTranslationHotkey: 'Alt+J'},
+        );
+        expect(group(changed, 'translation')?.changes).toEqual(expect.arrayContaining([
+            {key: 'sectionTranslationHotkeyEnabled', label: '局部翻译快捷键', before: '关闭', after: '开启'},
+            {key: 'sectionTranslationHotkey', label: '局部翻译快捷键组合', before: 'Alt+R', after: '自定义快捷键'},
+            {key: 'customSectionTranslationHotkey', label: '自定义局部翻译快捷键', before: '未设置', after: 'Alt+J'},
         ]));
     });
 

@@ -94,6 +94,7 @@ import {
     DEFAULT_AREA_TRANSLATION_HOTKEY,
 } from '@/src/core/config/areaTranslation';
 import {canonicalizeHotkey, resolveConfiguredHotkey} from '@/src/core/hotkey';
+import {resolveSectionTranslationHotkey} from '@/src/core/config/sectionTranslation';
 import {
     findEnabledQuickTranslationHotkeyConflict,
     inputBoxTranslationTriggerHotkey,
@@ -132,6 +133,12 @@ function reservedHotkeyOwners(): {hotkey: string; feature: string}[] {
                 ? ''
                 : resolveConfiguredHotkey(props.config.selectionTranslatorTrigger, props.config.customSelectionTranslatorHotkey),
             feature: t('popup.selectionTranslation'),
+        },
+        {
+            hotkey: props.config.sectionTranslationHotkeyEnabled
+                ? resolveSectionTranslationHotkey(props.config.sectionTranslationHotkey, props.config.customSectionTranslationHotkey)
+                : '',
+            feature: t('sectionTranslation.settings.title'),
         },
         {hotkey: inputBoxTranslationTriggerHotkey(props.config.inputBoxTranslationTrigger), feature: translateLegacy('输入框翻译')},
     ];

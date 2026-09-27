@@ -110,6 +110,9 @@
   box-shadow: none;
   font-size: 10.5px;
 }
+:root[data-interface-skin="compact"] .section-translate-button {
+  border-radius: 9px;
+}
 
 :root[data-interface-skin="compact"] .translate-label {
   min-width: 0;

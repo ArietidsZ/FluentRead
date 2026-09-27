@@ -21,6 +21,7 @@ import {
     normalizeFloatingBallToolsDisplay,
 } from '@/src/core/config/model';
 import { getMimoEndpoint, MIMO_ENDPOINTS, MINIMAX_ENDPOINTS, tongyiTokenPlanUrl, urls } from '@/src/core/config/constants';
+
 import { currentModelIds, customModelString, defaultModelIds, defaultModels, defaultOption, LEGACY_DEFAULT_USER_ROLES, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 import {
     CUSTOM_OPENAI_RESERVED_MODEL_ID,
@@ -31,6 +32,15 @@ import {
     MAX_QUICK_TRANSLATION_PROFILES,
 } from '@/src/core/config/quickTranslation';
 import {createApiKeyRequirementKey} from '@/src/core/config/validation';
+
+describe('中英双向划词配置', () => {
+    it('默认关闭，只有明确的布尔 true 才启用', () => {
+        expect(new Config().selectionTranslatorBidirectional).toBe(false);
+        expect(normalizeConfig({}).selectionTranslatorBidirectional).toBe(false);
+        expect(normalizeConfig({selectionTranslatorBidirectional: true}).selectionTranslatorBidirectional).toBe(true);
+        expect(normalizeConfig({selectionTranslatorBidirectional: 'true' as unknown as boolean}).selectionTranslatorBidirectional).toBe(false);
+    });
+});
 
 describe('AI 模型编号列表', () => {
     it('DeepL API 旧配置保持 Free 端点，并持久保留明确选择的 Pro 套餐', () => {
@@ -903,6 +913,34 @@ describe('快捷翻译方案配置', () => {
         expect(released.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Alt+J', enabled: true});
     });
 
+    it('局部翻译快捷键默认关闭，只接受预设与可用的自定义值', () => {
+        expect(new Config()).toMatchObject({
+            sectionTranslationHotkeyEnabled: false, sectionTranslationHotkey: 'Alt+R', customSectionTranslationHotkey: '',
+        });
+        expect(normalizeConfig({})).toMatchObject({
+            sectionTranslationHotkeyEnabled: false, sectionTranslationHotkey: 'Alt+R', customSectionTranslationHotkey: '',
+        });
+        expect(normalizeConfig({sectionTranslationHotkeyEnabled: true, sectionTranslationHotkey: 'shift+x'}))
+            .toMatchObject({sectionTranslationHotkeyEnabled: true, sectionTranslationHotkey: 'Shift+X'});
+        expect(normalizeConfig({sectionTranslationHotkeyEnabled: 'yes'})).toMatchObject({sectionTranslationHotkeyEnabled: false});
+        expect(normalizeConfig({sectionTranslationHotkey: 'custom', customSectionTranslationHotkey: 'alt+k'}))
+            .toMatchObject({sectionTranslationHotkey: 'custom', customSectionTranslationHotkey: 'Alt+K'});
+        // 选择自定义却没有可用组合键时回到默认预设，开启的快捷键不会失去可用组合。
+        expect(normalizeConfig({sectionTranslationHotkey: 'custom', customSectionTranslationHotkey: 'cmd+k'}))
+            .toMatchObject({sectionTranslationHotkey: 'Alt+R', customSectionTranslationHotkey: ''});
+        for (const invalid of [undefined, 'none', 'Ctrl+C', 42]) {
+            expect(normalizeConfig({sectionTranslationHotkey: invalid}).sectionTranslationHotkey).toBe('Alt+R');
+        }
+    });
+
+    it('快捷翻译方案只在局部翻译快捷键开启时避让它', () => {
+        const profile = {id: 'section-clash', enabled: true, action: 'hover', hotkey: 'Alt+R'};
+        const occupied = normalizeConfig({sectionTranslationHotkeyEnabled: true, quickTranslationProfiles: [profile]});
+        expect(occupied.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Alt+R', enabled: false});
+        const released = normalizeConfig({sectionTranslationHotkeyEnabled: false, quickTranslationProfiles: [profile]});
+        expect(released.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Alt+R', enabled: true});
+    });
+
     it('划词快捷键与快捷翻译可共存，圈选的默认快捷键仍保留既有所有权', () => {
         const normalized = normalizeConfig({
             selectionTranslatorMode: 'bilingual',
@@ -1045,6 +1083,19 @@ describe('双语逐句高亮配置', () => {
         expect(normalizeConfig({bilingualSentenceHighlightEnabled: true}).bilingualSentenceHighlightEnabled).toBe(true);
         expect(normalizeConfig({bilingualSentenceHighlightEnabled: false}).bilingualSentenceHighlightEnabled).toBe(false);
         expect(normalizeConfig({bilingualSentenceHighlightEnabled: 'true'}).bilingualSentenceHighlightEnabled).toBe(false);
+    });
+});
+
+describe('译文外观配置', () => {
+    it('默认沿用样式自带外观，并归一化导入或存储中的外观微调', () => {
+        const defaults = {textColor: '', lineColor: '', fillColor: '', fontScale: 100, fontWeight: 'default', fontFamily: 'default', opacity: 100};
+        expect(new Config().translationAppearance).toEqual(defaults);
+        expect(normalizeConfig({}).translationAppearance).toEqual(defaults);
+        expect(normalizeConfig({translationAppearance: 'broken'}).translationAppearance).toEqual(defaults);
+        expect(normalizeConfig({translationAppearance: {textColor: '#1D4ED8', lineColor: '#ef4776', fontScale: 118, opacity: 3, fontWeight: 'bold', fontFamily: 'nope'}}).translationAppearance)
+            .toEqual({...defaults, textColor: '#1d4ed8', lineColor: '#ef4776', fontScale: 120, opacity: 40, fontWeight: 'bold'});
+        // 预设编号保持原样，新增编号可直接持久化。
+        expect(normalizeConfig({style: 28}).style).toBe(28);
     });
 });
 

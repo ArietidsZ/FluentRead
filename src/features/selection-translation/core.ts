@@ -1,12 +1,13 @@
 /**
  * @file src/features/selection-translation/core.ts
  * 文件职责：集中划词翻译的纯交互与内容算法，包括请求代次、词典回退、触发展示状态、选区过滤、上下文摘要、弹窗锚点和语音语言规范化。
- * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理同语种判断、文本清理、公式单份文本提取、敏感区域排除、多矩形选择、按页面缩放补偿的弹窗定位及仅用于朗读的普通话语言别名。
+ * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理中英划词反向目标、同语种判断、文本清理、公式单份文本提取、敏感区域排除、多矩形选择、按页面缩放补偿的弹窗定位及仅用于朗读的普通话语言别名。
  * 模块边界：本模块不监听 document selection、不发消息、不渲染 Vue 或播放音频；组件负责连接 DOM，词典和 TTS 由 services/background 提供，函数保持确定性以供单元测试。
  */
 import {getElementTagName, isTopLevelApplicationShell} from '@/src/core/translation/public';
 import {getChineseScript, normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {isLanguageCodeMatch} from '@/src/core/language/codes';
+import {isTextInLanguage, shouldSkipChineseSelection} from '@/src/core/language/detect';
 
 export interface SelectionRect {
     top: number;
@@ -35,8 +36,23 @@ export interface PopupPosition {
 
 export interface SelectionContentRequest {
     text: string;
+    sourceLanguage?: string;
     targetLanguage: string;
     generation: number;
+}
+
+/** 中英双向入口仅用于默认目标为英语或中文的划词卡片。 */
+export function isChineseEnglishTarget(language: string): boolean {
+    return language === 'en' || Boolean(getChineseScript(language));
+}
+
+/** 只在选区可信地属于当前目标语言时反向；不对短歧义词或其他语言猜测方向。 */
+export function selectionReverseTarget(text: string, targetLanguage: string, sourceLanguage: string): string | null {
+    if (getChineseScript(targetLanguage) && shouldSkipChineseSelection(text, targetLanguage)) return 'en';
+    if (targetLanguage === 'en' && isTextInLanguage(text, 'en')) {
+        return getChineseScript(sourceLanguage) ? normalizeChineseLanguageCode(sourceLanguage) : 'zh-Hans';
+    }
+    return null;
 }
 
 export interface SelectionAnswerCandidate extends SelectionContentRequest {

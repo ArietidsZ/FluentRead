@@ -32,6 +32,17 @@ describe('extension manifest capability contract', () => {
         expect(sourceBody('entrypoints/content.ts')).not.toContain('allFrames');
     });
 
+    it('网易邮箱独立入口覆盖受限主机及 about:blank 正文 frame', () => {
+        const entry = sourceBody('entrypoints/neteaseMailFrame.content.ts');
+        for (const host of ['mail.163.com', 'mail.126.com', 'mail.yeah.net']) {
+            expect(entry).toContain(`https://*.${host}/*`);
+        }
+        expect(entry).toContain('allFrames: true');
+        expect(entry).toContain('matchAboutBlank: true');
+        expect(entry).not.toContain('matchOriginAsFallback');
+        expect(sourceBody('entrypoints/content.ts')).not.toContain('allFrames');
+    });
+
     it('通用网页内容脚本在基础 DOM 出现前注入，让 loading 页面也能建立翻译入口', () => {
         expect(sourceBody('entrypoints/content.ts')).toContain("runAt: 'document_start'");
     });

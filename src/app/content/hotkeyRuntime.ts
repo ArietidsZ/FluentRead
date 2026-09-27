@@ -1,11 +1,12 @@
 /**
  * @file src/app/content/hotkeyRuntime.ts
  * 文件职责：在宿主页面统一接管 FluentRead 的键盘与鼠标快捷手势，并按配置、站点禁用状态和冲突优先级路由到相应翻译动作。
- * 主要内容：按录制器同一逻辑按键记录组合键，监听 keydown/keyup、pointer 与 touch 状态，匹配悬浮、全文、划词、翻译卡片和区域快捷键，以纯中文选区过滤和保守同语言预检处理选择文本占用与默认行为阻止，并提供 dispose 清理监听器。
+ * 主要内容：按录制器同一逻辑按键记录组合键，监听 keydown/keyup、pointer 与 touch 状态，匹配悬浮、全文、划词、翻译卡片和区域快捷键；同语言选区默认跳过，开启中英双向划词后为反向翻译预留快捷键，并提供 dispose 清理监听器。
  * 模块边界：这里判定并分派手势，不实现语言检测算法、翻译请求、UI 挂载或配置持久化；具体动作由注入/导入的 feature 公共函数完成。
  */
 import {config} from '@/src/services/config/store';
 import {shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+import {selectionReverseTarget} from '@/src/features/selection-translation/core';
 import {
     addPressedHotkeyEventKey,
     deletePressedHotkeyEventKey,
@@ -55,8 +56,10 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean,
 
         const range = selection.getRangeAt(0);
         const text = readSelectionText(range, selection.toString());
-        if (!text || text.length > 4096 || shouldSkipChineseSelection(text, config.to)
-            || (!reading && shouldSkipTranslationForTarget(text, config.to))) return false;
+        const canReverse = !reading && config.selectionTranslatorBidirectional
+            && Boolean(selectionReverseTarget(text, config.to, config.from));
+        if (!text || text.length > 4096 || (shouldSkipChineseSelection(text, config.to) && !canReverse)
+            || (!reading && shouldSkipTranslationForTarget(text, config.to) && !canReverse)) return false;
 
         if (shouldIgnoreSelection(range)) return false;
         if (Array.from(range.getClientRects()).some((rect) => rect.width > 0 || rect.height > 0)) return true;
