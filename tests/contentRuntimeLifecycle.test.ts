@@ -1,11 +1,12 @@
 /**
  * @file tests/contentRuntimeLifecycle.test.ts
  * 文件职责：验证内容应用启动、配置等待、页面暂停恢复与离开时的生命周期边界。
- * 主要内容：隔离各 feature 的组合根依赖，确认迟到初始化和伪造页面事件不会挂载功能。
+ * 主要内容：隔离各 feature 的组合根依赖，确认原始 XML 不会启动运行时，迟到初始化和伪造页面事件不会挂载功能。
  * 模块边界：不测试各 feature 的 Vue 组件或真实翻译请求；跨域 frame 的身份与会话另有专门测试。
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {installContentPageLifecycle, waitForContentDocument} from '@/src/app/content/pageLifecycle';
+import {isRawXmlContentDocument} from '@/src/shared/dom/documentType';
 
 const mocks = vi.hoisted(() => ({
     config: {
@@ -154,6 +155,22 @@ describe('content document 基础 DOM 就绪边界', () => {
     });
 });
 
+describe('内容脚本文档类型边界', () => {
+    it.each([
+        ['text/html', false],
+        ['application/xhtml+xml', false],
+        ['text/plain', false],
+        ['application/json', false],
+        ['text/xml', true],
+        ['application/xml', true],
+        ['application/rss+xml', true],
+        ['image/svg+xml', true],
+        ['text/xsl', true],
+    ] as const)('%s 是否属于原始 XML 文档：%s', (contentType, expected) => {
+        expect(isRawXmlContentDocument({contentType})).toBe(expected);
+    });
+});
+
 describe('content runtime 页面生命周期', () => {
     it('取消离开不卸载，往返缓存暂停后可恢复，真正离开只销毁一次', () => {
         const target = new EventTarget();
@@ -232,10 +249,11 @@ describe('content composition root 冷启动与暂停恢复', () => {
         mocks.installPageStyles.mockReturnValue(mocks.removeStyles);
         mocks.subscribeConfig.mockReturnValue(vi.fn());
         mocks.createMessageHandler.mockReturnValue(vi.fn());
+        invalidated = vi.fn();
         context = {isInvalid: false, onInvalidated: callback => { invalidated = callback; }};
         page = Object.assign(new EventTarget(), {location: {href: 'https://example.com/article'}});
         vi.stubGlobal('window', page);
-        vi.stubGlobal('document', Object.assign(new EventTarget(), {getElementById: () => null}));
+        vi.stubGlobal('document', Object.assign(new EventTarget(), {contentType: 'text/html', getElementById: () => null}));
         vi.stubGlobal('navigator', {});
         vi.stubGlobal('browser', {runtime: {
             sendMessage: vi.fn().mockResolvedValue(undefined),
@@ -244,6 +262,33 @@ describe('content composition root 冷启动与暂停恢复', () => {
     });
 
     afterEach(() => { invalidated?.(); vi.unstubAllGlobals(); });
+
+    it.each(['text/xml', 'application/xml', 'application/rss+xml', 'image/svg+xml'])('%s 文档不等待配置，也不挂载页面功能或桥', async contentType => {
+        Object.assign(document, {contentType});
+        const registerInvalidation = vi.fn();
+        context.onInvalidated = registerInvalidation;
+        const {startContentApp} = await import('@/src/app/content/runtime');
+        await startContentApp(context as never);
+        expect(mocks.installPageStyles).not.toHaveBeenCalled();
+        expect(mocks.setBridges).not.toHaveBeenCalled();
+        expect(mocks.addRuntimeListener).not.toHaveBeenCalled();
+        expect(mocks.subscribeConfig).not.toHaveBeenCalled();
+        expect(registerInvalidation).not.toHaveBeenCalled();
+    });
+
+    it('XHTML 文档仍可启动网页功能', async () => {
+        Object.assign(document, {contentType: 'application/xhtml+xml'});
+        const {startContentApp} = await import('@/src/app/content/runtime');
+        const starting = startContentApp(context as never); ready(); await starting;
+        expect(mocks.installPageStyles).toHaveBeenCalledOnce();
+    });
+
+    it('纯文本页面保留现有的网页功能入口', async () => {
+        Object.assign(document, {contentType: 'text/plain'});
+        const {startContentApp} = await import('@/src/app/content/runtime');
+        const starting = startContentApp(context as never); ready(); await starting;
+        expect(mocks.installPageStyles).toHaveBeenCalledOnce();
+    });
 
     it('main 新写作功能遵循同一启停和 BFCache 恢复生命周期', async () => {
         Object.assign(page, {location: {href: 'https://github.com/FluentRead/FluentRead/issues/1'}});

@@ -782,6 +782,29 @@
     "service": "freeTranslation",
     "notes": "实时首页标题列表；另由 run-translation-viewport-test.cjs 检查逐帧滚动稳定性。"
   },
+  "factorio-issue-209": {
+    "url": "https://mods.factorio.com/",
+    "selector": ".mod-list > .panel-inset-lighter:nth-child(2) p.result-field.pre-line.line-clamp-4",
+    "requiredSelectors": [
+      ".mod-list > .panel-inset-lighter:nth-child(-n+3) p.result-field.pre-line.line-clamp-4"
+    ],
+    "coverageRules": [
+      {
+        "name": "first-three-mod-descriptions",
+        "selector": ".mod-list > .panel-inset-lighter:nth-child(-n+3) p.result-field.pre-line.line-clamp-4",
+        "kind": "content",
+        "minInitial": 3
+      }
+    ],
+    "forbiddenSelectors": ["input[name=\"query\"]"],
+    "interactionSelectors": [".mod-list a.result-field[href]"],
+    "modes": ["hover", "full"],
+    "tier": "required",
+    "hoverHotkey": "Control",
+    "fullPageHotkey": "Alt+T",
+    "service": "freeTranslation",
+    "notes": "Issue #209：检查模组卡片前三条描述的全文覆盖；固定高度 line-clamp 的可见性另由布局回归验证。"
+  },
   "producthunt-posting-access": {
     "url": "https://help.producthunt.com/en/articles/481909-how-can-i-get-access-to-post",
     "hoverSelector": "article p",

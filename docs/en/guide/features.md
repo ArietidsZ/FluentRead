@@ -6,7 +6,11 @@ FluentRead supports bilingual webpage translation, selection translation, and ho
 
 Open FluentRead and choose the page translation button. In bilingual mode, each translation sits beside its original paragraph, and the original keeps its headings, links, and article structure. Paragraphs split only by links, bold, italics, or footnote markers are translated as a single unit and shown as one readable passage, so a sentence is never broken apart by inline formatting; machine translation services receive one request per such paragraph instead of one per fragment. Paragraphs with inline code, formulas, or images are still translated fragment by fragment so those elements stay intact in the translation. Common inline formulas are preserved where supported.
 
+When you open a raw XML, RSS, or SVG file directly, FluentRead leaves the document untouched so the browser can display it normally. HTML and XHTML pages remain translatable.
+
 By default, translation follows your reading position. Choose whole-page processing in settings if you want the entire page translated at once. Restore the original whenever you like, then translate again with another language or service.
+
+Fixed-height cards and line-clamped summaries expand while bilingual text is shown, so the translation stays visible without overlapping the next card. Restoring the original also restores the page's height and truncation styles; independent scroll areas keep their original behavior.
 
 When an announcement or modal dialog blocks the page, full-page translation handles the active dialog first and automatically continues with the page after you close it. A dialog that appears during translation pauses unfinished page tasks while preserving existing translations. If progress feedback is enabled, it explains that translation will continue after the dialog closes. Restoring the original also cancels this automatic continuation. Non-blocking notices and panels do not pause the page.
 
@@ -91,7 +95,7 @@ This works in bilingual mode. Restoring the original, disabling the option, leav
 
 ## Selection translation
 
-Enable bilingual selection translation in the extension menu, select a word or passage, and click the nearby icon. Copy the result or read the original aloud. In the browser extension, the card keeps its screen size when you zoom the page in or out. Drag the header or the blank space around the content to move the window, or drag any edge or corner to resize it. Text wraps to fit the width, and long content scrolls inside the card. Your adjustments last until the card closes; a new selection opens at the default size near the selected text.
+Enable bilingual selection translation in the extension menu, select a word or passage, and click the nearby icon. If you selected text only to read or copy it, scrolling the page or its content pane dismisses the unopened icon or dot; an open card stays available. Copy the result or read the original aloud. In the browser extension, the card keeps its screen size when you zoom the page in or out. Drag the header or the blank space around the content to move the window, or drag any edge or corner to resize it. Text wraps to fit the width, and long content scrolls inside the card. Your adjustments last until the card closes; a new selection opens at the default size near the selected text.
 
 With Chinese or English as your default target, the card's “Translate to” buttons let you change the language for this selection without changing the page translation setting. Selections already in the target language are skipped by default. To translate both Chinese and English selections directly, turn on **Chinese–English selection translation** under **Settings → Translation → Selection translation**. The card then chooses the other language for same-language selections. You can also open a skipped selection through the right-click menu and translate it in the opposite direction.
 

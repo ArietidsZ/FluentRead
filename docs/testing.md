@@ -200,6 +200,8 @@ GitHub Issue #1029 的任务列表在 React 加载后会变成一个外层 LI �
 
 OpenRouter 模型卡片曾在解除内部两行截断后仍保持外层 `height:176px`，使居中的双语内容覆盖相邻卡片。`translationHeightLayout.test.ts` 检查插入后由内向外测量、共享高度租约、宿主样式更新、窗口 resize、滚动/定位边界和移除清理；`translationTruncation.test.ts` 检查几何判断与安全边界。
 
+Factorio 模组列表的描述同时使用 `-webkit-line-clamp`、`height:4em` 与 `overflow:hidden`。旧逻辑虽已创建译文节点，却只解除行数限制，长描述的中文仍被固定高度裁掉。`translationTruncation.test.ts` 覆盖 owner 自身的高度租约、重复布局复核和恢复原样式；Issue #209 的实时页面专项只检查前三条描述的全文翻译、恢复与再次翻译，并以截图核对译文可见性。
+
 内置 OpenRouter 规则按模型标题节点跳过名称与详情页 API 标识，避免在双语结果中重复名称。`translationCore.test.ts` 覆盖供应商列表、模型列表、详情页、祖先快照与域名边界，同一模型链接下的介绍仍可翻译。
 
 生产扩展的确定性布局回归使用真实 Control / Alt+T、临时 Edge profile 和后台窗口：
@@ -622,6 +624,10 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 ```
 
 使用临时 Edge profile、不抢焦点的可见窗口和本地 HTTP 模拟模型，验证自定义服务的请求头保存、关闭重开、稳定会话 ID、服务隔离、非法输入阻断、清空恢复及窄屏布局。报告包含实际收到的测试请求和截图；测试只使用虚构凭据，不验证 OpenCode Go 或其他真实服务账号。配置加密、完整备份、公开导出脱敏、端点绑定和缓存快照由确定性测试覆盖。
+
+### 本机 ACP 桥接（issue #227）
+
+`pnpm test:agent-bridge` 使用随机本机端口和模拟 ACP 子进程，验证 Chat Completions 到 ACP 的协议转换、OpenAI 兼容 SDK 解析、独立会话、模型选择、令牌与扩展来源检查、权限拒绝以及工具调用后的恢复。它不调用真实 Copilot/OpenCode 账号，不证明供应商额度或 CLI 版本兼容性；这些需要在用户已登录相应 CLI 的环境中另行确认。
 
 ## 划词窗口拖动与缩放（issue #525）
 

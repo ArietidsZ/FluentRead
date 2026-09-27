@@ -34,8 +34,13 @@ export interface BackgroundContextMenuRuntime {
 export function installBackgroundContextMenus(
     tabTranslationStates: TabTranslationStateStore,
 ): BackgroundContextMenuRuntime {
-    // Thunderbird 包不请求网页右键菜单权限；邮件操作由 message_display_action 承担。
-    const isSupported = browserCapabilities.browser !== 'thunderbird' && !!browser.contextMenus;
+    // Thunderbird 使用邮件工具栏；Firefox Android 可能只暴露不完整的菜单接口。
+    const menus = browser.contextMenus;
+    const isSupported = browserCapabilities.browser !== 'thunderbird'
+        && typeof menus?.create === 'function'
+        && typeof menus.removeAll === 'function'
+        && typeof menus.update === 'function'
+        && typeof menus.onClicked?.addListener === 'function';
     let settings: ContextMenuSettingsSnapshot = readContextMenuSettings();
     let plan: readonly ContextMenuPlanItem[] = [];
     let syncQueue: Promise<void> = Promise.resolve();
