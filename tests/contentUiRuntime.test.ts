@@ -1,9 +1,11 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {parseHTML} from 'linkedom';
 
 const mocks = vi.hoisted(() => ({
   config: {
     disableFloatingBall: false,
     floatingBallPosition: '' as '' | 'left' | 'right',
+    floatingBallVerticalPosition: null as number | null,
     floatingBallToolsDisplay: 'hover',
     floatingBallHoverDelay: 0,
     floatingBallClickAction: 'translate',
@@ -53,10 +55,17 @@ vi.mock('@/src/features/full-page-translation/ui/TranslationProgressPanel.vue', 
 interface MockUi {
   mounted?: {instance?: unknown};
   remove: ReturnType<typeof vi.fn>;
+  shadowHost: HTMLElement;
+  uiContainer: HTMLElement;
 }
 
 function ui(instance: unknown = {mounted: true}): MockUi {
-  return {mounted: {instance}, remove: vi.fn()};
+  return {
+    mounted: {instance},
+    remove: vi.fn(),
+    shadowHost: document.createElement('div'),
+    uiContainer: document.createElement('body'),
+  };
 }
 
 function pendingUi(): {promise: Promise<MockUi>; resolve: (value: MockUi) => void} {
@@ -70,10 +79,15 @@ function pendingUi(): {promise: Promise<MockUi>; resolve: (value: MockUi) => voi
 }
 
 beforeEach(() => {
+  const parsed = parseHTML('<!doctype html><html><body></body></html>');
+  vi.stubGlobal('window', parsed.window);
+  vi.stubGlobal('document', parsed.document);
+  vi.stubGlobal('Event', parsed.window.Event);
   vi.resetModules();
   Object.assign(mocks.config, {
     disableFloatingBall: false,
     floatingBallPosition: '',
+    floatingBallVerticalPosition: null,
     floatingBallToolsDisplay: 'hover',
     floatingBallHoverDelay: 0,
     floatingBallClickAction: 'translate',
@@ -105,6 +119,8 @@ beforeEach(() => {
   mocks.subscribeConfig.mockReturnValue(mocks.unsubscribeConfig);
 });
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe('悬浮球 content runtime', () => {
   it('在没有上下文或功能被禁用时不创建 UI', async () => {
     const runtime = await import('@/src/features/floating-ball/content/runtime');
@@ -118,12 +134,13 @@ describe('悬浮球 content runtime', () => {
   it('通过关闭 Shadow DOM 组装交互，并在卸载时清理翻译状态', async () => {
     const toggleTranslation = vi.fn();
     const setTranslationState = vi.fn();
-    const mountedUi = ui({toggleTranslation, setTranslationState});
+    const setPosition = vi.fn();
+    const mountedUi = ui({toggleTranslation, setTranslationState, setPosition});
     mocks.createVueShadowUi.mockResolvedValue(mountedUi);
     const runtime = await import('@/src/features/floating-ball/content/runtime');
     const context = {name: 'content'} as never;
 
-    await expect(runtime.mountFloatingBall(context)).resolves.toEqual({toggleTranslation, setTranslationState});
+    await expect(runtime.mountFloatingBall(context)).resolves.toEqual({toggleTranslation, setTranslationState, setPosition});
     const [, options] = mocks.createVueShadowUi.mock.calls[0];
     expect(options).toEqual(expect.objectContaining({
       name: 'fluent-read-floating-ball-ui',
@@ -132,6 +149,7 @@ describe('悬浮球 content runtime', () => {
     }));
     expect(options.props).toEqual(expect.objectContaining({
       position: 'right',
+      verticalPosition: null,
       logoUrl: 'chrome-extension://fixture/icon/128.png',
       initialTranslating: false,
     }));
@@ -154,11 +172,17 @@ describe('悬浮球 content runtime', () => {
     expect(toggleTranslation).toHaveBeenCalledOnce();
 
     options.props.onSettingsClick();
-    options.props.onPositionChanged('left');
+    options.props.onPositionChanged('left', 0.25);
     await Promise.resolve();
     expect(mocks.sendMessage).toHaveBeenCalledWith({type: 'openOptionsPage'});
     expect(mocks.config.floatingBallPosition).toBe('left');
-    expect(mocks.requestConfigPatch).toHaveBeenCalledWith({floatingBallPosition: 'left'}, expect.any(Function));
+    expect(mocks.config.floatingBallVerticalPosition).toBe(0.25);
+    expect(mocks.requestConfigPatch).toHaveBeenCalledWith({
+      floatingBallPosition: 'left', floatingBallVerticalPosition: 0.25,
+    }, expect.any(Function));
+    const configListener = mocks.subscribeConfig.mock.calls[0][0];
+    configListener({...mocks.config, floatingBallPosition: 'right', floatingBallVerticalPosition: 0.75});
+    expect(setPosition).toHaveBeenCalledWith('right', 0.75);
 
     mocks.isFullPageTranslationActive.mockReturnValueOnce(true);
     options.props.onTranslationToggle(true);
@@ -214,6 +238,46 @@ describe('悬浮球 content runtime', () => {
     expect(presentation.toolsDisplay).toBe('always');
   });
 
+  it('仅视频全屏时隐藏悬浮球，普通元素全屏不隐藏，退出后恢复并在卸载时清理监听', async () => {
+    const mountedUi = ui({toggleTranslation: vi.fn(), setTranslationState: vi.fn()});
+    mocks.createVueShadowUi.mockResolvedValue(mountedUi);
+    const runtime = await import('@/src/features/floating-ball/content/runtime');
+    const fullscreenElement = document.createElement('video');
+
+    Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: fullscreenElement});
+    await runtime.mountFloatingBall({} as never);
+    // Shadow 内的 :host display:block!important 会覆盖宿主行内样式，必须隐藏内部挂载容器。
+    expect(mountedUi.uiContainer.style.getPropertyValue('display')).toBe('none');
+    expect(mountedUi.shadowHost.style.getPropertyValue('display')).toBeFalsy();
+
+    Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: null});
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(mountedUi.uiContainer.style.getPropertyValue('display')).toBeFalsy();
+
+    // 图片/文档等普通内容全屏时，即使页面其他位置存在视频，也不能误判为视频全屏。
+    const nonVideoFullscreenElement = document.createElement('div');
+    nonVideoFullscreenElement.append(document.createElement('img'));
+    document.body.append(document.createElement('video'));
+    Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: nonVideoFullscreenElement});
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(mountedUi.uiContainer.style.getPropertyValue('display')).toBeFalsy();
+
+    // YouTube 等站点通常让播放器容器进入全屏，而不是让 video 元素本身进入全屏。
+    const videoPlayer = document.createElement('div');
+    const nestedPlayer = document.createElement('div');
+    nestedPlayer.append(document.createElement('video'));
+    videoPlayer.append(nestedPlayer);
+    Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: videoPlayer});
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(mountedUi.uiContainer.style.getPropertyValue('display')).toBe('none');
+
+    Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: fullscreenElement});
+    runtime.unmountFloatingBall();
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(mountedUi.uiContainer.style.getPropertyValue('display')).toBeFalsy();
+    Object.defineProperty(document, 'fullscreenElement', {configurable: true, value: null});
+  });
+
   it('站点在悬浮球禁用名单中时不挂载，移出名单后恢复', async () => {
     const originalLocation = Reflect.get(globalThis, 'location');
     Reflect.set(globalThis, 'location', {href: 'https://mail.example.com/inbox'});
@@ -250,7 +314,7 @@ describe('悬浮球 content runtime', () => {
     mocks.sendMessage.mockRejectedValueOnce(new Error('settings failed'));
     mocks.requestConfigPatch.mockRejectedValueOnce(new Error('save failed'));
     options.props.onSettingsClick();
-    options.props.onPositionChanged('right');
+    options.props.onPositionChanged('right', 0.8);
     mocks.isFullPageTranslationActive.mockReturnValueOnce(false);
     options.props.onTranslationToggle(true);
     await Promise.resolve();
@@ -280,7 +344,11 @@ describe('悬浮球 content runtime', () => {
   });
 
   it('没有 exposed instance 时仍防止重复挂载并可完整清理', async () => {
-    const mountedUi = {remove: vi.fn()};
+    const mountedUi = {
+      remove: vi.fn(),
+      shadowHost: document.createElement('div'),
+      uiContainer: document.createElement('body'),
+    };
     mocks.createVueShadowUi.mockResolvedValue(mountedUi);
     const runtime = await import('@/src/features/floating-ball/content/runtime');
 

@@ -9,6 +9,15 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('悬浮球拖动后的高度在配置历史中以比例显示', () => {
+        expect(group(buildConfigDiff(
+            {floatingBallVerticalPosition: null},
+            {floatingBallVerticalPosition: 0.25},
+        ), 'translation')?.changes).toEqual([{
+            key: 'floatingBallVerticalPosition', label: '悬浮球高度', before: '居中', after: '25%',
+        }]);
+    });
+
     it('字幕校时记录保留正负偏移和毫秒单位', () => {
         const changes = group(buildConfigDiff({videoSubtitleOffsetMs: -500}, {videoSubtitleOffsetMs: 1000}), 'videoSubtitles')?.changes;
         expect(changes).toEqual([{key: 'videoSubtitleOffsetMs', label: '字幕时间偏移', before: '-500ms', after: '1000ms'}]);

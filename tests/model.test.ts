@@ -108,7 +108,9 @@ describe('AI 模型编号列表', () => {
         expect(models.get(services.minimax)).toContain('MiniMax-M2.7');
         expect(models.get(services.minimax)).toContain('MiniMax-M3');
         expect(models.get(services.minimax)).toContain('MiniMax-M3.1');
-        expect(models.get(services.mimo)).toContain('mimo-v2.5-pro');
+        expect(models.get(services.mimo)).toEqual([
+            'mimo-v2.6-flash', 'mimo-v2.6-pro', customModelString,
+        ]);
         expect(models.get(services.jieyue)).toContain('step-3.5-flash');
         expect(models.get(services.huanYuan)).toContain('hy3');
         expect(models.get(services.grok)).toContain('grok-4.5');
@@ -1221,6 +1223,40 @@ describe('旧模型编号兼容迁移', () => {
             expect(normalized.model[services.claude]).toBe(supportedModel);
         },
     );
+
+    it('将 MiMo 即将下线的网页和文档模型迁移到对应 2.6 型号，并保留模型级偏好', () => {
+        const normalized = normalizeConfig({
+            model: {[services.mimo]: 'mimo-v2.5'},
+            documentModel: {[services.mimo]: 'mimo-v2.5-pro'},
+            modelThinking: {[services.mimo]: {
+                'mimo-v2.5': false,
+                'mimo-v2.5-pro': true,
+            }},
+        });
+
+        expect(new Config().model[services.mimo]).toBe('mimo-v2.6-flash');
+        expect(new Config().documentModel[services.mimo]).toBe('mimo-v2.6-flash');
+        expect(normalized.model[services.mimo]).toBe('mimo-v2.6-flash');
+        expect(normalized.documentModel[services.mimo]).toBe('mimo-v2.6-pro');
+        expect(normalized.modelThinking[services.mimo]).toEqual({
+            'mimo-v2.6-flash': false,
+            'mimo-v2.6-pro': true,
+        });
+        expect(normalizeConfig(normalized)).toEqual(normalized);
+    });
+
+    it('MiMo 自定义模型名称继续使用原值', () => {
+        const normalized = normalizeConfig({
+            model: {[services.mimo]: customModelString},
+            customModel: {[services.mimo]: 'mimo-v2.5'},
+            customModels: {[services.mimo]: ['mimo-v2.5']},
+            modelThinking: {[services.mimo]: {'mimo-v2.5': true}},
+        });
+
+        expect(normalized.model[services.mimo]).toBe(customModelString);
+        expect(normalized.customModel[services.mimo]).toBe('mimo-v2.5');
+        expect(normalized.modelThinking[services.mimo]).toEqual({'mimo-v2.5': true});
+    });
 
     it.each([
         ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b'],
