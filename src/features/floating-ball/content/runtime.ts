@@ -1,7 +1,7 @@
 /**
  * @file src/features/floating-ball/content/runtime.ts
- * 文件职责：协调悬浮球组件在网页中的创建、恢复位置、显隐、高级外观同步、权威翻译状态同步和卸载，并向组件注入全文翻译切换与打开设置页的动作。
- * 主要内容：维护单例 Shadow UI、迟到挂载 requestId、站点名单守卫、响应式展示契约与配置订阅、全文会话订阅，并将拖动后的停靠侧和纵向比例作为同一配置补丁保存，提供 mountFloatingBall、toggleFloatingBallTranslation、unmountFloatingBall 三个生命周期入口。
+ * 文件职责：协调悬浮球组件在网页中的创建、恢复位置、显隐、全屏避让、高级外观同步、权威翻译状态同步和卸载，并向组件注入全文翻译切换与打开设置页的动作。
+ * 主要内容：维护单例 Shadow UI、迟到挂载 requestId、站点名单守卫、页面全屏显隐监听、响应式展示契约与配置订阅、全文会话订阅，并将拖动后的停靠侧和纵向比例作为同一配置补丁保存，提供 mountFloatingBall、toggleFloatingBallTranslation、unmountFloatingBall 三个生命周期入口。
  * 模块边界：运行时只拥有挂载和桥接职责，不实现拖拽视觉、外观归一化或全文翻译算法；FloatingBall.vue 负责交互，core/config 负责字段归一化，full-page feature 提供翻译动作，配置持久化通过 services/config 完成。
  */
 import FloatingBall from '@/src/features/floating-ball/ui/FloatingBall.vue';
@@ -35,6 +35,7 @@ let contentScriptContext: ContentScriptContext | null = null;
 let unsubscribeFullPageTranslationProgress: (() => void) | null = null;
 let unsubscribePresentationConfig: (() => void) | null = null;
 let floatingBallPresentation: FloatingBallPresentation | null = null;
+let removeFullscreenListener: (() => void) | null = null;
 
 /** 把实时配置折叠为组件需要的展示契约；字段语义与归一化都由 core/config 保证。 */
 function readPresentation(source: Config): FloatingBallPresentation {
@@ -62,6 +63,28 @@ function openOptionsPage(): void {
     void browser.runtime.sendMessage({type: 'openOptionsPage'}).catch((error: unknown) => {
         console.error('[FluentRead] 打开设置页失败', error);
     });
+}
+
+/** 仅视频全屏时隐藏 Shadow 内的组件容器；宿主的 display 被基础样式锁定。 */
+function subscribeFullscreenVisibility(ui: ShadowRootContentScriptUi<VueShadowMount>): () => void {
+    if (typeof document === 'undefined') return () => {};
+
+    const syncVisibility = () => {
+        const fullscreenElement = document.fullscreenElement;
+        const isVideoFullscreen = fullscreenElement != null
+            && (fullscreenElement.matches('video') || fullscreenElement.querySelector('video') !== null);
+        if (isVideoFullscreen) {
+            ui.uiContainer.style.setProperty('display', 'none', 'important');
+        } else {
+            ui.uiContainer.style.removeProperty('display');
+        }
+    };
+    document.addEventListener('fullscreenchange', syncVisibility, true);
+    syncVisibility();
+    return () => {
+        document.removeEventListener('fullscreenchange', syncVisibility, true);
+        ui.uiContainer.style.removeProperty('display');
+    };
 }
 
 /** 创建并挂载悬浮球 */
@@ -124,6 +147,8 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
     }
 
     floatingBallUi = ui;
+    removeFullscreenListener?.();
+    removeFullscreenListener = subscribeFullscreenVisibility(ui);
     // 订阅只服务当前实例；迟到的旧订阅不得继续写回已被替换的展示契约。
     unsubscribePresentationConfig?.();
     unsubscribePresentationConfig = subscribeConfig((nextConfig) => {
@@ -170,6 +195,8 @@ export function unmountFloatingBall() {
   unsubscribeFullPageTranslationProgress = null;
   unsubscribePresentationConfig?.();
   unsubscribePresentationConfig = null;
+  removeFullscreenListener?.();
+  removeFullscreenListener = null;
   floatingBallPresentation = null;
   if (floatingBallUi || floatingBallInstance) {
     if (isFullPageTranslationActive()) {
