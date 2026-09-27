@@ -37,6 +37,7 @@
     "test:video:x-fixture": "node scripts/testing/run-resource-safe.mjs -- node scripts/run-x-subtitle-sync-test.cjs",
     "test:watch": "node scripts/testing/run-resource-safe.mjs -- vitest",
     "test:userscript": "node scripts/testing/run-resource-safe.mjs -- pnpm build:userscript && node scripts/verify-userscript-build.mjs",
+    "test:userscript:manager": "node scripts/run-userscript-manager-smoke-test.cjs",
     "postinstall": "wxt prepare",
     "docs:dev": "vitepress dev docs",
     "docs:build": "node scripts/testing/run-resource-safe.mjs -- vitepress build docs",

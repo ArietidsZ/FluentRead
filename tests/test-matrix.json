@@ -188,6 +188,7 @@
       "tests/userscriptHttp.test.ts",
       "tests/userscriptInitialize.test.ts",
       "tests/userscriptLanguageBundles.test.ts",
+      "tests/userscriptManagerSmokeCli.test.ts",
       "tests/userscriptPageContext.test.ts",
       "tests/userscriptPlatform.test.ts",
       "tests/userscriptRequires.test.ts",

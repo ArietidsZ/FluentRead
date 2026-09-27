@@ -94,6 +94,18 @@
 
 userscript 的 16 个选择器通过 HTMLElement 引用将菜单挂到设置面板自己的 Shadow Root 内，避免宿主样式污染或面板内部滚动裁剪。`scripts/run-userscript-smoke-test.cjs --suite selects` 使用内存 GM 接口夹具验证单框搜索、键盘选择、取消不保存、数值设置保存重开和亮暗/窄屏菜单；默认 `--suite full` 保留既有翻译冒烟夹具，两组单独运行以避免修改配置的测试相互干扰。它不等同于真实 Userscripts/Tampermonkey 扩展或 Safari 验证。
 
+真实脚本管理器回归使用 `pnpm test:userscript:manager`。它把最终 `.user.js` 作为文件安装到临时 profile 的 Violentmonkey MV3，在后台可见且不抢焦点的独立浏览器中检查六个 `@require`、页面注入、桌面和 390px 截图、设置面板、可信 Alt+T 全文翻译 `[1,0,1]`、原文与宿主全局保护，并保存 `evidence.json`。运行前需提供 Chromium 可执行文件、解压后的 Violentmonkey 2.49.0 扩展、Playwright 包目录与 focus-safe helper；测试会访问 jsDelivr 和当前默认翻译服务，不能代替 Safari Userscripts 或 Via 真机验证：
+
+```bash
+pnpm test:userscript:manager -- \
+  --artifact .output/userscript/fluent-read.user.js \
+  --manager-extension <Violentmonkey-MV3-目录> \
+  --browser-path <Chromium-可执行文件> \
+  --playwright-root <Playwright-Node包目录> \
+  --focus-safe-helper <focus-safe-browser.cjs-路径> \
+  --artifacts-dir <临时证据目录>
+```
+
 生产包构建后运行 `node scripts/testing/run-select-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-select-ui-production`，在临时 Edge profile 的后台可见窗口中检查选择、搜索、键盘操作、关闭菜单、保存重开、多选与禁用状态，以及桌面、窄屏和深色菜单截图。测试只使用临时配置，不调用翻译服务，也不证明真实服务质量。完整扩展 UI 回归仍使用 UI 测试技能的 `run-ui-test.cjs --suite full`，失败时区分控件回归与旧页面断言。
 
 ## 公告优先与关闭后续译
