@@ -159,7 +159,7 @@ const navigationElement = ref<HTMLElement | null>(null)
 const settingsContentElement = ref<HTMLElement | null>(null)
 const mobileNavigationMedia = window.matchMedia('(max-width: 700px)')
 let searchRevealGeneration = 0
-let pendingSearchReveal: MutationObserver | null = null
+let cancelPendingSearchReveal: (() => void) | null = null
 
 const navigation = navigationItems
 const contentComponentProps = computed(() => activeSection.value === 'settings-vocabulary'
@@ -232,8 +232,7 @@ const filteredResults = computed<SearchResult[]>(() => [
 function selectSection(id: string) {
   if (!navigation.some((item) => item.id === id)) return
   searchRevealGeneration += 1
-  pendingSearchReveal?.disconnect()
-  pendingSearchReveal = null
+  cancelPendingSearchReveal?.()
   activeSection.value = id
   query.value = ''
   if (window.location.hash !== `#${id}`) {
@@ -252,28 +251,44 @@ async function selectResult(result: SearchResult) {
     if (generation !== searchRevealGeneration) return
     const content = settingsContentElement.value
     if (!content) return
-    const revealTarget = (): boolean => {
-      if (generation !== searchRevealGeneration || query.value || activeSection.value !== result.sectionId) return true
+    let timeoutId: number | undefined
+    const stop = () => {
+      observer.disconnect()
+      sizeObserver.disconnect()
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId)
+      for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) {
+        content.removeEventListener(event, stop, true)
+      }
+      if (cancelPendingSearchReveal === stop) cancelPendingSearchReveal = null
+    }
+    const revealTarget = () => {
+      if (generation !== searchRevealGeneration || query.value || activeSection.value !== result.sectionId) {
+        stop()
+        return
+      }
       const target = document.getElementById(result.targetId!)
-      if (!target?.getClientRects().length) return false
-      target.scrollIntoView({block: 'center'})
-      target.querySelector<HTMLElement>('[role="switch"]')?.focus({preventScroll: true})
-      return true
-    }
-    if (!revealTarget()) {
-      const observer = new MutationObserver(() => {
-        if (revealTarget()) {
-          observer.disconnect()
-          if (pendingSearchReveal === observer) pendingSearchReveal = null
-        }
+      if (!target?.getClientRects().length) return
+      const targetRect = target.getBoundingClientRect()
+      const contentTop = content.getBoundingClientRect().top
+      const centerOffset = targetRect.height < content.clientHeight
+        ? (content.clientHeight - targetRect.height) / 2
+        : 0
+      content.scrollTo({
+        top: Math.max(0, content.scrollTop + targetRect.top - contentTop - centerOffset),
+        behavior: 'instant',
       })
-      pendingSearchReveal = observer
-      observer.observe(content, {subtree: true, childList: true, attributes: true, attributeFilter: ['style']})
-      window.setTimeout(() => {
-        observer.disconnect()
-        if (pendingSearchReveal === observer) pendingSearchReveal = null
-      }, 5000)
+      target.querySelector<HTMLElement>('[role="switch"]')?.focus({preventScroll: true})
     }
+    const observer = new MutationObserver(revealTarget)
+    const sizeObserver = new ResizeObserver(revealTarget)
+    observer.observe(content, {subtree: true, childList: true, attributes: true, attributeFilter: ['style']})
+    sizeObserver.observe(content.firstElementChild ?? content)
+    for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) {
+      content.addEventListener(event, stop, {capture: true, passive: true})
+    }
+    cancelPendingSearchReveal = stop
+    timeoutId = window.setTimeout(stop, 3000)
+    revealTarget()
   }
   if (revealLanguage) {
     await nextTick()
@@ -313,7 +328,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  pendingSearchReveal?.disconnect()
+  cancelPendingSearchReveal?.()
   unsubscribeInterfaceConfig()
   window.removeEventListener('hashchange', syncSectionFromHash)
   mobileNavigationMedia.removeEventListener('change', handleMobileNavigationChange)
