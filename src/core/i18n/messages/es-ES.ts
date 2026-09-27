@@ -87,7 +87,7 @@ export const esESMessages = {
     "inputTranslation.profileScope": "Solo se aplica a los campos de texto. La conexión usa la configuración del servicio seleccionado.",
     "inputTranslation.adjustTiming": "Velocidad de repetición",
     "inputTranslation.triggerGroup": "Cómo activar",
-    "inputTranslation.triggerDescription": "Se excluyen las contraseñas y los editores de texto enriquecido.",
+    "inputTranslation.triggerDescription": "Funciona en campos de texto y editores de texto enriquecido; se omiten las contraseñas y los editores de código.",
     "inputTranslation.trigger": "Activador",
     "inputTranslation.triggerDescriptionShort": "Elige una acción de teclado o desactiva la traducción.",
     "inputTranslation.interval": "Intervalo máximo entre pulsaciones",

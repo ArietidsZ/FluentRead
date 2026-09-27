@@ -87,7 +87,7 @@ export const koKRMessages = {
     "inputTranslation.profileScope": "입력란 번역에만 적용됩니다. 연결 정보는 선택한 서비스의 설정을 사용합니다.",
     "inputTranslation.adjustTiming": "연속 입력 속도",
     "inputTranslation.triggerGroup": "실행 방법",
-    "inputTranslation.triggerDescription": "일반 텍스트 입력란만 지원합니다. 비밀번호 및 서식 있는 편집기는 제외됩니다.",
+    "inputTranslation.triggerDescription": "텍스트 입력란과 서식 있는 편집기를 지원합니다. 비밀번호 입력란과 코드 편집기는 제외됩니다.",
     "inputTranslation.trigger": "실행 방식",
     "inputTranslation.triggerDescriptionShort": "키 동작을 선택하거나 입력란 번역을 끕니다.",
     "inputTranslation.interval": "연속 키 입력 사이의 최대 간격",

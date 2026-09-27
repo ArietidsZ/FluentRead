@@ -6,7 +6,10 @@ import {
     getInputBoxText,
     getInputBoxValueAfterInsertion,
     getInputBoxValueSnapshot,
+    normalizeEditableText,
     normalizeInputBoxTranslationInterval,
+    isEditableHost,
+    isFormControl,
     isInputElement,
     matchesInputBoxTrigger,
     removeInsertedTriggerSymbols,
@@ -16,11 +19,21 @@ function keyEvent(key: string, code: string, shiftKey = false): KeyboardEvent {
     return { key, code, shiftKey } as KeyboardEvent;
 }
 
-function fakeElement(tagName: string, attributes: Record<string, string> = {}): HTMLElement {
+function fakeElement(
+    tagName: string,
+    attributes: Record<string, string> = {},
+    matches: {closest?: string; placeholder?: boolean} = {},
+): HTMLElement {
     return {
         tagName,
         getAttribute(name: string) {
             return attributes[name] ?? null;
+        },
+        closest(selector: string) {
+            return matches.closest && selector.includes(matches.closest) ? {} : null;
+        },
+        querySelector(selector: string) {
+            return matches.placeholder && selector.includes('data-slate-placeholder') ? {} : null;
         },
         isContentEditable: false,
         value: '',
@@ -40,20 +53,39 @@ describe('输入框快捷键', () => {
         expect(matchesInputBoxTrigger(keyEvent('_', 'Minus', true), 'triple_dash')).toBe(false);
     });
 
-    it('只识别非敏感输入与 plaintext-only，并拒绝密码、富文本和只读控件', () => {
+    it('识别非敏感输入、纯文本与富文本编辑宿主，并拒绝密码、只读和代码编辑器', () => {
         expect(isInputElement(null)).toBe(false);
         expect(isInputElement({ ...fakeElement('INPUT'), disabled: true } as unknown as HTMLElement)).toBe(false);
         expect(isInputElement(fakeElement('DIV', { contenteditable: 'plaintext-only' }))).toBe(true);
         expect(isInputElement(fakeElement('INPUT'))).toBe(true);
         expect(isInputElement({ ...fakeElement('INPUT'), type: 'password' } as unknown as HTMLElement)).toBe(false);
         expect(isInputElement({ ...fakeElement('INPUT'), type: 'PASSWORD' } as unknown as HTMLElement)).toBe(false);
-        expect(isInputElement({
-            ...fakeElement('DIV', { contenteditable: 'true' }),
-            isContentEditable: true,
-        } as unknown as HTMLElement)).toBe(false);
+        for (const value of ['true', 'TRUE', '']) {
+            expect(isInputElement(fakeElement('DIV', { contenteditable: value }))).toBe(true);
+        }
+        expect(isInputElement(fakeElement('DIV', { contenteditable: 'false' }))).toBe(false);
+        expect(isInputElement(fakeElement('DIV', { contenteditable: 'true', 'aria-readonly': 'true' }))).toBe(false);
+        expect(isInputElement(fakeElement('DIV', { contenteditable: 'true', 'aria-disabled': 'true' }))).toBe(false);
+        expect(isInputElement(fakeElement('DIV', { contenteditable: 'true' }, {closest: '.cm-content'}))).toBe(false);
+        expect(isInputElement(fakeElement('DIV', { contenteditable: 'true' }, {closest: '.monaco-editor'}))).toBe(false);
         expect(isInputElement({ ...fakeElement('INPUT'), type: 'button' } as unknown as HTMLElement)).toBe(false);
         expect(isInputElement({ ...fakeElement('TEXTAREA'), readOnly: true } as unknown as HTMLElement)).toBe(false);
         expect(isInputElement(fakeElement('DIV'))).toBe(false);
+        expect(isEditableHost(fakeElement('TEXTAREA'))).toBe(false);
+        expect(isFormControl(fakeElement('TEXTAREA'))).toBe(true);
+        expect(isFormControl(fakeElement('DIV', { contenteditable: 'true' }))).toBe(false);
+    });
+
+    it('编辑宿主原文剔除零宽占位与 Slate 占位提示，并统一不换行空格', () => {
+        expect(normalizeEditableText('a\u00A0b\u200B\uFEFFc')).toBe('a bc');
+        expect(getInputBoxText({
+            ...fakeElement('DIV', { contenteditable: 'true' }),
+            innerText: 'Hello\u00A0world\uFEFF\n',
+        } as unknown as HTMLElement)).toBe('Hello world\n');
+        expect(getInputBoxText({
+            ...fakeElement('DIV', { contenteditable: 'true' }, {placeholder: true}),
+            innerText: 'Message #general',
+        } as unknown as HTMLElement)).toBe('');
     });
 
     it('能穿透开放 Shadow DOM 获取真实焦点，但仍拒绝其中的密码框', () => {
@@ -92,34 +124,9 @@ describe('输入框快捷键', () => {
         });
     });
 
-    it('plaintext-only 仅在唯一直接文本节点时报告选区，多节点一律保守返回 null', () => {
-        const textNode = {nodeType: 3};
-        const singleText = {
-            ...fakeElement('DIV', {contenteditable: 'plaintext-only'}),
-            childNodes: [textNode],
-            firstChild: textNode,
-            contains: () => true,
-            ownerDocument: {
-                getSelection: () => ({
-                    rangeCount: 1,
-                    anchorNode: textNode,
-                    getRangeAt: () => ({
-                        startContainer: textNode,
-                        endContainer: textNode,
-                        startOffset: 2,
-                        endOffset: 3,
-                    }),
-                }),
-            },
-        } as unknown as HTMLElement;
-        expect(getInputBoxSelection(singleText)).toEqual({start: 2, end: 3});
-
-        const multiText = {
-            ...singleText,
-            childNodes: [textNode, {nodeType: 3}],
-        } as unknown as HTMLElement;
-        expect(getInputBoxSelection(multiText)).toBeNull();
+    it('选区读取只服务原生输入控件，编辑宿主交给光标文本度量', () => {
         expect(getInputBoxSelection(fakeElement('DIV', {contenteditable: 'plaintext-only'}))).toBeNull();
+        expect(getInputBoxSelection(fakeElement('DIV', {contenteditable: 'true'}))).toBeNull();
     });
 
     it('覆盖无效触发区间与输入框选区缺省分支', () => {

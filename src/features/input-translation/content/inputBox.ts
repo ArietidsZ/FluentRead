@@ -1,10 +1,16 @@
 /**
  * @file src/features/input-translation/content/inputBox.ts
- * 文件职责：提供输入框快捷翻译使用的纯 DOM 判定与提交守卫，统一处理非敏感 input、textarea、纯文本 contenteditable 和 Shadow DOM 深层焦点。
- * 主要内容：定义三连空格/等号/减号触发类型，包含活动元素查找、可编辑控件识别、文本与值快照读取、请求提交有效性判断、键盘匹配，以及本次实际插入字符区间的清理。
- * 模块边界：该模块不注册事件、不发送翻译请求也不改变控件值；content/index.ts 负责生命周期与写回，后台 handler 负责翻译，函数保持可单测且不持有全局状态。
+ * 文件职责：提供输入框快捷翻译使用的纯 DOM 判定与提交守卫，统一处理非敏感 input、textarea、contenteditable 编辑宿主（含富文本编辑器）和 Shadow DOM 深层焦点。
+ * 主要内容：定义三连空格/等号/减号触发类型，包含活动元素查找、原生控件与编辑宿主识别、文本与值快照读取、原生控件选区读取、请求提交有效性判断、键盘匹配，以及本次实际插入字符区间的清理。
+ * 模块边界：该模块不注册事件、不发送翻译请求也不改变控件值；编辑宿主的光标度量与原生编辑写回位于 editableHost.ts，content/index.ts 负责生命周期与写回编排，后台 handler 负责翻译，函数保持可单测且不持有全局状态。
  */
 const TEXT_INPUT_TYPES = new Set(['text', 'search', 'url', 'email', 'tel']);
+const EDITABLE_HOST_VALUES = new Set(['', 'true', 'plaintext-only']);
+// 代码编辑器常用连续空格缩进，整段替换还会破坏语法树与光标映射，保持由宿主自行处理。
+const CODE_EDITOR_SELECTOR = '.cm-content, .cm-editor, .monaco-editor, .ace_editor, .CodeMirror';
+// Slate 在空编辑器内渲染可见占位文本；占位存在时编辑内容为空，不能把提示语当作原文。
+const EDITOR_PLACEHOLDER_SELECTOR = '[data-slate-placeholder]';
+const IGNORED_EDITABLE_CHARACTERS = /[\u200B\uFEFF]/g;
 
 export {
     normalizeInputBoxTranslationInterval,
@@ -27,6 +33,24 @@ export function getDeepActiveElement(rootDocument: Document = document): Element
 
     return activeElement;
 }
+/** 判断元素是否是原生 input/textarea 控件。 */
+export function isFormControl(element: Element): element is HTMLInputElement | HTMLTextAreaElement {
+    const tagName = element.tagName.toLowerCase();
+    return tagName === 'input' || tagName === 'textarea';
+}
+
+/**
+ * 判断元素是否是可参与翻译的 contenteditable 编辑宿主，包括富文本编辑器。
+ * 富文本写回不直接改写 innerText/innerHTML，而是交给 editableHost.ts 的原生编辑路径，
+ * 由编辑器自己更新模型；只读声明和代码编辑器保持不参与。
+ */
+export function isEditableHost(element: Element): element is HTMLElement {
+    const value = element.getAttribute('contenteditable');
+    if (value === null || !EDITABLE_HOST_VALUES.has(value.toLowerCase())) return false;
+    if (element.getAttribute('aria-readonly') === 'true' || element.getAttribute('aria-disabled') === 'true') return false;
+    return !element.closest(CODE_EDITOR_SELECTOR);
+}
+
 /** 判断元素是否是可翻译的文本输入目标。 */
 export function isInputElement(element: Element | null): element is HTMLElement {
     if (!element) return false;
@@ -39,51 +63,34 @@ export function isInputElement(element: Element | null): element is HTMLElement 
     }
     if (tagName === 'textarea') return true;
 
-    // 富文本编辑器的 innerText 写回会删除链接、mention 与内嵌控件。这里只接受
-    // 浏览器明确声明为纯文本的编辑区；普通 contenteditable 继续由页面自己管理。
-    return element.getAttribute('contenteditable')?.toLowerCase() === 'plaintext-only';
+    return isEditableHost(element);
 }
 
-/** 获取输入目标中的纯文本。 */
+/** 统一编辑器内部的零宽占位与不换行空格，避免宿主表示差异进入原文或打断三连判定。 */
+export function normalizeEditableText(text: string): string {
+    return text.replace(IGNORED_EDITABLE_CHARACTERS, '').replace(/\u00A0/g, ' ');
+}
+
+/** 获取输入目标中的纯文本；编辑宿主按可见换行读取并剔除编辑器占位。 */
 export function getInputBoxText(element: HTMLElement): string {
-    const tagName = element.tagName.toLowerCase();
+    if (isFormControl(element)) return element.value;
+    if (element.querySelector(EDITOR_PLACEHOLDER_SELECTOR)) return '';
 
-    if (tagName === 'input' || tagName === 'textarea') {
-        return (element as HTMLInputElement | HTMLTextAreaElement).value;
-    }
-
-    return element.innerText || element.textContent || '';
+    return normalizeEditableText(element.innerText || element.textContent || '');
 }
 
-/** 读取输入框当前选区；plaintext-only 无法可靠映射时返回 null，交给调用方保留宿主输入。 */
+/** 读取原生输入控件当前选区；编辑宿主的光标由 editableHost.ts 按文本度量读取。 */
 export function getInputBoxSelection(element: HTMLElement): InputBoxSelection | null {
-    const tagName = element.tagName.toLowerCase();
-    if (tagName === 'input' || tagName === 'textarea') {
-        const inputElement = element as HTMLInputElement | HTMLTextAreaElement;
-        const valueLength = inputElement.value.length;
-        if (inputElement.selectionStart === null || inputElement.selectionEnd === null) return null;
-        const start = typeof inputElement.selectionStart === 'number'
-            ? inputElement.selectionStart
-            : valueLength;
-        const end = typeof inputElement.selectionEnd === 'number'
-            ? inputElement.selectionEnd
-            : start;
-        return {start, end};
-    }
-
-    const selection = element.ownerDocument?.getSelection?.();
-    const onlyTextChild = element.childNodes?.length === 1 && element.firstChild?.nodeType === 3
-        ? element.firstChild
-        : null;
-    if (onlyTextChild && selection?.rangeCount && selection.anchorNode && element.contains(selection.anchorNode)) {
-        const range = selection.getRangeAt(0);
-        if (range.startContainer === onlyTextChild
-            && range.endContainer === onlyTextChild) {
-            return {start: range.startOffset, end: range.endOffset};
-        }
-    }
-
-    return null;
+    if (!isFormControl(element)) return null;
+    const valueLength = element.value.length;
+    if (element.selectionStart === null || element.selectionEnd === null) return null;
+    const start = typeof element.selectionStart === 'number'
+        ? element.selectionStart
+        : valueLength;
+    const end = typeof element.selectionEnd === 'number'
+        ? element.selectionEnd
+        : start;
+    return {start, end};
 }
 
 /** 计算一次触发键默认插入后，输入框将拥有的值和选区。 */
@@ -127,11 +134,7 @@ export function removeInsertedTriggerSymbols(
  * 用于确认异步翻译返回前用户是否编辑过输入框。
  */
 export function getInputBoxValueSnapshot(element: HTMLElement): string {
-    const tagName = element.tagName.toLowerCase();
-
-    if (tagName === 'input' || tagName === 'textarea') {
-        return (element as HTMLInputElement | HTMLTextAreaElement).value;
-    }
+    if (isFormControl(element)) return element.value;
 
     return element.innerText || element.textContent || '';
 }

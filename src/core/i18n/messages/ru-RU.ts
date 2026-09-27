@@ -87,7 +87,7 @@ export const ruRUMessages = {
     "inputTranslation.profileScope": "Применяется только к переводу текстовых полей. Параметры подключения берутся из настроек выбранного сервиса.",
     "inputTranslation.adjustTiming": "Скорость повторных нажатий",
     "inputTranslation.triggerGroup": "Способ запуска",
-    "inputTranslation.triggerDescription": "Поддерживаются обычные текстовые поля. Пароли и форматированный текст исключены.",
+    "inputTranslation.triggerDescription": "Работает в текстовых полях и редакторах форматированного текста; поля паролей и редакторы кода пропускаются.",
     "inputTranslation.trigger": "Запуск",
     "inputTranslation.triggerDescriptionShort": "Выберите сочетание клавиш или отключите перевод полей.",
     "inputTranslation.interval": "Максимальный интервал между нажатиями",

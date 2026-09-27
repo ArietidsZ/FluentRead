@@ -101,6 +101,7 @@
       "tests/contextMenu.test.ts",
       "tests/remoteImage.test.ts",
       "tests/inputBox.test.ts",
+      "tests/inputEditableHost.test.ts",
       "tests/inputTranslationConfig.test.ts",
       "tests/inputTranslationBackground.test.ts",
       "tests/interfaceAppearance.test.ts",

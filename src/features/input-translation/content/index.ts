@@ -1,8 +1,9 @@
 /**
  * @file src/features/input-translation/content/index.ts
- * 文件职责：实现网页输入框翻译 feature 的可注入生命周期，根据配置识别三连触发符、冻结请求所有权、调用后台并把译文安全提交回原控件。
- * 主要内容：定义配置、依赖和 feature 契约，提供启用判断、配置键和 input/change 事件写回，创建 closed Shadow tooltip 展示翻译中/成功/失败，并防止元素或配置变化后的迟到提交。
- * 模块边界：本文件拥有内容页事件与临时 UI，不直接调用 provider 或全局 browser API；sendMessage、Shadow UI、站点禁用和 generation 均由 composition root 注入，输入纯算法来自 inputBox.ts。
+ * 文件职责：实现网页输入框翻译 feature 的可注入生命周期，根据配置识别三连触发符、冻结请求所有权、调用后台并把译文安全提交回原控件或富文本编辑器。
+ * 主要内容：定义配置、依赖和 feature 契约，提供启用判断、配置键，原生控件用原生 setter 与 input/change 事件写回，编辑宿主按光标文本度量推进三连序列并经 editableHost.ts 的原生编辑路径写回；
+ * 创建 closed Shadow tooltip 展示翻译中/成功/失败与恢复原文，并防止元素或配置变化后的迟到提交。
+ * 模块边界：本文件拥有内容页事件与临时 UI，不直接调用 provider 或全局 browser API；sendMessage、Shadow UI、站点禁用和 generation 均由 composition root 注入，输入纯算法来自 inputBox.ts，编辑宿主度量与写回来自 editableHost.ts。
  */
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import type { ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shadow-root';
@@ -16,6 +17,7 @@ import {
     getInputBoxText,
     getInputBoxValueAfterInsertion,
     getInputBoxValueSnapshot,
+    isFormControl,
     isInputElement,
     matchesInputBoxTrigger,
     normalizeInputBoxTranslationInterval,
@@ -23,6 +25,13 @@ import {
     type InputBoxSelection,
     type InputBoxTrigger,
 } from './inputBox';
+import {
+    insertIntoEditableCaretState,
+    isSameEditableCaretState,
+    readEditableCaretState,
+    replaceEditableText,
+    type EditableCaretState,
+} from './editableHost';
 
 export interface InputTranslationContentConfig {
     on?: boolean;
@@ -162,28 +171,34 @@ export function isInputBoxTranslationEnabled(
         && config.inputBoxTranslationTrigger !== 'disabled';
 }
 
-export function setInputBoxText(element: HTMLElement, text: string): void {
-    // 写回本身也是安全边界：异步期间页面可能把普通输入框改成 password，
-    // 或把 plaintext-only 编辑区升级成富文本。直接调用者也不能绕过资格判定。
-    if (!isInputElement(element)) return;
-    const tagName = element.tagName.toLowerCase();
+/**
+ * 把文本写回输入目标，返回是否已写入。
+ * 原生控件同步写入；编辑宿主经 editableHost.ts 的原生编辑路径异步写入，isCurrent 在真正写入前再次校验请求所有权。
+ */
+export async function setInputBoxText(
+    element: HTMLElement,
+    text: string,
+    isCurrent: () => boolean = () => true,
+): Promise<boolean> {
+    // 写回本身也是安全边界：异步期间页面可能把普通输入框改成 password 或只读，
+    // 直接调用者也不能绕过资格判定。
+    if (!isInputElement(element)) return false;
 
-    if (tagName === 'input' || tagName === 'textarea') {
-        const inputElement = element as HTMLInputElement | HTMLTextAreaElement;
+    if (isFormControl(element)) {
         // React/Vue 等受控输入框通过自身 tracker 观察原生 setter；直接赋值可能被宿主回滚。
         const valueSetter = Object.getOwnPropertyDescriptor(
-            Object.getPrototypeOf(inputElement),
+            Object.getPrototypeOf(element),
             'value',
         )?.set;
-        if (valueSetter) valueSetter.call(inputElement, text);
-        else inputElement.value = text;
-        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
-        inputElement.dispatchEvent(new Event('change', { bubbles: true }));
-        return;
+        if (valueSetter) valueSetter.call(element, text);
+        else element.value = text;
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
     }
 
-    element.innerText = text;
-    element.dispatchEvent(new Event('input', { bubbles: true }));
+    // 富文本编辑器由自身模型渲染 DOM；直接改写 innerText 会被回滚或删除链接、mention 等结构。
+    return await replaceEditableText(element, text, isCurrent) === 'replaced';
 }
 
 function getTooltipIcon(type: 'translating' | 'success' | 'error'): string {
@@ -260,6 +275,20 @@ export function createInputTranslationContentFeature(
         editGenerations.set(element, readEditGeneration(element) + 1);
     };
 
+    /** 写回期间把宿主事件标记为扩展自身编辑，避免把自己的 input 当作用户编辑而取消请求。 */
+    const writeOwnedText = async (
+        element: HTMLElement,
+        text: string,
+        isCurrent: () => boolean,
+    ): Promise<boolean> => {
+        internalWriteElement = element;
+        try {
+            return await setInputBoxText(element, text, isCurrent);
+        } finally {
+            internalWriteElement = null;
+        }
+    };
+
     const addInputBoxAnimation = (
         element: HTMLElement,
         animationType: 'translating' | 'success' | 'error',
@@ -284,7 +313,7 @@ export function createInputTranslationContentFeature(
         type: 'translating' | 'success' | 'error',
         requestId: number,
         signal: AbortSignal,
-        restore?: {label: string; onRestore: () => void},
+        restore?: {label: string; onRestore: () => Promise<void>},
     ): Promise<HTMLElement | null> => {
         removeExistingTooltip();
         inputTooltipOwnerRequestId = requestId;
@@ -370,7 +399,7 @@ export function createInputTranslationContentFeature(
                         if (!(event as Event & {isTrusted?: boolean}).isTrusted) return;
                         event.preventDefault();
                         event.stopPropagation();
-                        restore.onRestore();
+                        void restore.onRestore();
                     });
                     tooltip.appendChild(restoreButton);
                 }
@@ -477,42 +506,47 @@ export function createInputTranslationContentFeature(
                     return;
                 }
 
-                element.classList.remove('fluent-input-translating');
-                removeExistingTooltip(requestId);
                 if (translatedText && translatedText !== originalText) {
-                    internalWriteElement = element;
-                    try {
-                        setInputBoxText(element, translatedText);
-                    } finally {
-                        internalWriteElement = null;
+                    // 步骤 4：编辑宿主写回需要等待编辑器同步选区，期间继续由当前请求持有提示和动画。
+                    const written = await writeOwnedText(element, translatedText, isCurrentAndUnchanged);
+                    if (!written && !isCurrentAndUnchanged()) {
+                        clearOwnedVisuals();
+                        return;
                     }
-                    observedInputValues.set(element, translatedText);
+                    element.classList.remove('fluent-input-translating');
+                    removeExistingTooltip(requestId);
+                    if (!written) {
+                        addInputBoxAnimation(element, 'error', requestId);
+                        await createTranslationTooltip(element, '无法把译文写入当前编辑器', 'error', requestId, requestSignal);
+                        setTimeout(() => removeExistingTooltip(requestId), 8000);
+                        return;
+                    }
+                    const translatedSnapshot = getInputBoxValueSnapshot(element);
+                    observedInputValues.set(element, translatedSnapshot);
                     const translatedEditGeneration = readEditGeneration(element);
+                    const canRestore = () => !signal.aborted
+                        && !requestSignal.aborted
+                        && requestId === activeInputTranslationRequestId
+                        && isInputElement(element)
+                        && element.isConnected !== false
+                        && deps.readConfigGeneration() === configGeneration
+                        && readEditGeneration(element) === translatedEditGeneration
+                        && getInputBoxValueSnapshot(element) === translatedSnapshot
+                        && isEnabled()
+                        && !deps.isSiteDisabled();
                     addInputBoxAnimation(element, 'success', requestId);
                     await createTranslationTooltip(element, '翻译成功', 'success', requestId, requestSignal, {
                         label: '恢复原文',
-                        onRestore: () => {
-                            if (signal.aborted
-                                || requestSignal.aborted
-                                || requestId !== activeInputTranslationRequestId
-                                || !isInputElement(element)
-                                || element.isConnected === false
-                                || deps.readConfigGeneration() !== configGeneration
-                                || readEditGeneration(element) !== translatedEditGeneration
-                                || getInputBoxValueSnapshot(element) !== translatedText
-                                || !isEnabled()
-                                || deps.isSiteDisabled()) return;
-                            internalWriteElement = element;
-                            try {
-                                setInputBoxText(element, originalText);
-                            } finally {
-                                internalWriteElement = null;
-                            }
-                            observedInputValues.set(element, originalText);
+                        onRestore: async () => {
+                            if (!canRestore()) return;
+                            if (!await writeOwnedText(element, originalText, canRestore)) return;
+                            observedInputValues.set(element, getInputBoxValueSnapshot(element));
                             removeExistingTooltip(requestId);
                         },
                     });
                 } else {
+                    element.classList.remove('fluent-input-translating');
+                    removeExistingTooltip(requestId);
                     addInputBoxAnimation(element, 'error', requestId);
                     await createTranslationTooltip(element, '内容无需翻译', 'error', requestId, requestSignal);
                 }
@@ -550,19 +584,25 @@ export function createInputTranslationContentFeature(
     const mount = (signal: AbortSignal): void => {
         let keyPressCount = 0;
         let keyPressTimer: ReturnType<typeof setTimeout> | null = null;
-        let lastInputElement: HTMLElement | null = null;
-        let triggerSequence: {
+        // 原生控件按 value/选区区间校验连续插入；编辑宿主的块级 DOM 无法映射为 value 区间，
+        // 改用 textContent 口径的文本与折叠光标偏移校验，并在第一次插入前冻结可见原文。
+        type TriggerSequence = {
             element: HTMLElement;
             trigger: InputBoxTrigger;
-            count: number;
+        } & ({
+            kind: 'control';
             insertedStart: number;
             expectedValue: string;
             expectedSelection: InputBoxSelection;
-        } | null = null;
+        } | {
+            kind: 'editable';
+            sourceText: string;
+            expectedCaret: EditableCaretState;
+        });
+        let triggerSequence: TriggerSequence | null = null;
 
         const resetKeyPresses = () => {
             keyPressCount = 0;
-            lastInputElement = null;
             triggerSequence = null;
             if (keyPressTimer) {
                 clearTimeout(keyPressTimer);
@@ -590,6 +630,11 @@ export function createInputTranslationContentFeature(
                 && current.end === expected.end;
         };
 
+        const sequenceStillMatches = (sequence: TriggerSequence): boolean => (sequence.kind === 'control'
+            ? getInputBoxValueSnapshot(sequence.element) === sequence.expectedValue
+                && selectionMatches(sequence.element, sequence.expectedSelection)
+            : isSameEditableCaretState(readEditableCaretState(sequence.element), sequence.expectedCaret));
+
         const handleMutation = (event: Event) => {
             const element = activeEventElement(event);
             if (!element || !isInputElement(element)) return;
@@ -606,18 +651,11 @@ export function createInputTranslationContentFeature(
                 invalidate();
             }
             if (!triggerSequence || triggerSequence.element !== element) return;
-            if (getInputBoxValueSnapshot(element) !== triggerSequence.expectedValue
-                || !selectionMatches(element, triggerSequence.expectedSelection)) {
-                resetKeyPresses();
-            }
+            if (!sequenceStillMatches(triggerSequence)) resetKeyPresses();
         };
 
         const handleSelectionChange = () => {
-            if (!triggerSequence) return;
-            if (getInputBoxValueSnapshot(triggerSequence.element) !== triggerSequence.expectedValue
-                || !selectionMatches(triggerSequence.element, triggerSequence.expectedSelection)) {
-                resetKeyPresses();
-            }
+            if (triggerSequence && !sequenceStillMatches(triggerSequence)) resetKeyPresses();
         };
 
         const handleCompositionStart = (event: Event) => {
@@ -627,6 +665,62 @@ export function createInputTranslationContentFeature(
             if (activeRequestElement
                 && internalWriteElement !== activeRequestElement
                 && activeRequestController) invalidate();
+        };
+
+        /** 推进原生控件的三连序列，返回清理本次插入符号后的原文；选区不可用时返回 null。 */
+        const advanceControlSequence = (
+            element: HTMLInputElement | HTMLTextAreaElement,
+            trigger: InputBoxTrigger,
+            symbol: string,
+        ): string | null => {
+            const currentValue = getInputBoxValueSnapshot(element);
+            const currentSelection = getInputBoxSelection(element);
+            if (!currentSelection) return null;
+            const afterInsertion = getInputBoxValueAfterInsertion(currentValue, currentSelection, symbol);
+            if (triggerSequence?.kind === 'control'
+                && triggerSequence.element === element
+                && triggerSequence.trigger === trigger
+                && sequenceStillMatches(triggerSequence)) {
+                keyPressCount += 1;
+                triggerSequence.expectedValue = afterInsertion.value;
+                triggerSequence.expectedSelection = afterInsertion.selection;
+                return removeInsertedTriggerSymbols(currentValue, trigger, triggerSequence.insertedStart, 2);
+            }
+            keyPressCount = 1;
+            triggerSequence = {
+                kind: 'control',
+                element,
+                trigger,
+                insertedStart: currentSelection.start,
+                expectedValue: afterInsertion.value,
+                expectedSelection: afterInsertion.selection,
+            };
+            return currentValue;
+        };
+
+        /** 推进编辑宿主的三连序列，返回第一次插入前冻结的可见原文；光标不可用时返回 null。 */
+        const advanceEditableSequence = (
+            element: HTMLElement,
+            trigger: InputBoxTrigger,
+            symbol: string,
+        ): string | null => {
+            const caret = readEditableCaretState(element);
+            if (!caret) return null;
+            const expectedCaret = insertIntoEditableCaretState(caret, symbol);
+            if (triggerSequence?.kind === 'editable'
+                && triggerSequence.element === element
+                && triggerSequence.trigger === trigger
+                && isSameEditableCaretState(caret, triggerSequence.expectedCaret)) {
+                keyPressCount += 1;
+                triggerSequence.expectedCaret = expectedCaret;
+                return triggerSequence.sourceText;
+            }
+            keyPressCount = 1;
+            // 块级换行只能从渲染后的可见文本读取，而插入后的触发符无法精确映射回 innerText，
+            // 因此在第一次插入前冻结原文。
+            const sourceText = getInputBoxText(element);
+            triggerSequence = {kind: 'editable', element, trigger, sourceText, expectedCaret};
+            return sourceText;
         };
 
         const handleKeyDown = async (event: KeyboardEvent) => {
@@ -639,6 +733,7 @@ export function createInputTranslationContentFeature(
             if (event.key === 'Escape') {
                 if (activeRequestController) {
                     event.preventDefault();
+                    event.stopPropagation();
                     invalidate();
                 }
                 resetKeyPresses();
@@ -660,20 +755,17 @@ export function createInputTranslationContentFeature(
 
             const triggerType = deps.config.inputBoxTranslationTrigger;
             // 步骤 1：保留 Ctrl+Enter 兼容触发；三连击把 Ctrl 视为中断修饰键。
+            // 已消费的触发键不再传给页面，避免聊天和评论编辑器把 Ctrl+Enter 当作发送。
             if (triggerType === 'ctrl_enter') {
                 if (event.ctrlKey && event.key === 'Enter') {
                     event.preventDefault();
+                    event.stopPropagation();
                     await handleInputBoxTranslation(activeElement, signal);
                 }
                 return;
             }
 
             if (triggerType === 'triple_space' || triggerType === 'triple_equal' || triggerType === 'triple_dash') {
-                // contenteditable 的多节点选区无法可靠映射为字符串区间；保留宿主输入，交给 Ctrl+Enter 兼容路径。
-                if (!['input', 'textarea'].includes(activeElement.tagName.toLowerCase())) {
-                    resetKeyPresses();
-                    return;
-                }
                 if (event.ctrlKey || !matchesInputBoxTrigger(event, triggerType as InputBoxTrigger)) {
                     resetKeyPresses();
                     return;
@@ -681,44 +773,19 @@ export function createInputTranslationContentFeature(
 
                 const trigger = triggerType as InputBoxTrigger;
                 const symbol = trigger === 'triple_space' ? ' ' : trigger === 'triple_equal' ? '=' : '-';
-                const currentValue = getInputBoxValueSnapshot(activeElement);
-                const currentSelection = getInputBoxSelection(activeElement);
-                if (!currentSelection) {
+                // 步骤 2：按控件类型推进连续序列；无法可靠读取选区或光标时保留宿主输入。
+                const sourceText = isFormControl(activeElement)
+                    ? advanceControlSequence(activeElement, trigger, symbol)
+                    : advanceEditableSequence(activeElement, trigger, symbol);
+                if (sourceText === null) {
                     resetKeyPresses();
                     return;
                 }
-                if (lastInputElement !== activeElement || !triggerSequence
-                    || triggerSequence.trigger !== trigger
-                    || currentValue !== triggerSequence.expectedValue
-                    || !selectionMatches(activeElement, triggerSequence.expectedSelection)) {
-                    const afterInsertion = getInputBoxValueAfterInsertion(currentValue, currentSelection, symbol);
-                    keyPressCount = 1;
-                    lastInputElement = activeElement;
-                    triggerSequence = {
-                        element: activeElement,
-                        trigger,
-                        count: 1,
-                        insertedStart: currentSelection.start,
-                        expectedValue: afterInsertion.value,
-                        expectedSelection: afterInsertion.selection,
-                    };
-                } else {
-                    keyPressCount += 1;
-                    triggerSequence.count = keyPressCount;
-                    const afterInsertion = getInputBoxValueAfterInsertion(currentValue, currentSelection, symbol);
-                    triggerSequence.expectedValue = afterInsertion.value;
-                    triggerSequence.expectedSelection = afterInsertion.selection;
-                }
 
-                // 步骤 2：第三次按键先阻止触发符号继续进入页面，再启动异步翻译。
+                // 步骤 3：第三次按键先阻止触发符号继续进入页面，再启动异步翻译。
                 if (keyPressCount === 3) {
                     event.preventDefault();
-                    const sourceText = removeInsertedTriggerSymbols(
-                        currentValue,
-                        trigger,
-                        triggerSequence.insertedStart,
-                        2,
-                    );
+                    event.stopPropagation();
                     resetKeyPresses();
                     await handleInputBoxTranslation(activeElement, signal, sourceText);
                     return;

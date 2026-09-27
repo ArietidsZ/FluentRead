@@ -88,7 +88,7 @@ export const enUSMessages = {
     "inputTranslation.profileScope": "Only applies to text field translation. Connection details follow the selected service's settings.",
     "inputTranslation.adjustTiming": "Repeat speed",
     "inputTranslation.triggerGroup": "How to trigger",
-    "inputTranslation.triggerDescription": "Only ordinary text fields are supported; password fields and rich text editors are skipped.",
+    "inputTranslation.triggerDescription": "Works in text fields and rich text editors; password fields and code editors are skipped.",
     "inputTranslation.trigger": "Trigger",
     "inputTranslation.triggerDescriptionShort": "Choose a repeated key action or turn off text field translation.",
     "inputTranslation.interval": "Maximum gap between key presses",
