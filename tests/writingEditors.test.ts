@@ -76,6 +76,31 @@ const githubComposer = `<div data-testid="comment-composer">
 </div>`;
 
 describe('Writing editor native action ownership', () => {
+    it('finds a first reply even when the issue has no comments yet', () => {
+        const unwrappedComposer = githubComposer.replace('data-testid="comment-composer"', 'data-testid="issue-comment-composer"');
+        const doc = page(`<main><div data-testid="issue-body"><div data-testid="markdown-body">Original report</div></div>${unwrappedComposer}</main>`);
+        const [editor] = findReplyEditors(doc, 'github');
+        expect(findReplyEditors(doc, 'github')).toHaveLength(1);
+        expect(findReplyActionAnchor(editor, 'github')?.textContent).toBe('Comment');
+        expect(collectReplyContext(doc, 'github', editor, 'https://github.com/o/r/issues/1')).toContain('原帖：Original report');
+    });
+
+    it('finds only the new issue body and its own submit action', () => {
+        const doc = page(`<main><h1 data-testid="issue-title">Generic page heading</h1><form id="new-issue"><input id="issue_title" name="issue[title]" value="A first report">
+          <textarea id="issue_body" name="issue[body]"></textarea>
+          <button type="submit" disabled>Submit new issue</button></form>
+          <form id="unrelated"><textarea name="unrelated"></textarea><button type="submit">Other action</button></form></main>`);
+        const [editor] = findReplyEditors(doc, 'github', 'https://github.com/o/r/issues/new');
+        expect(findReplyEditors(doc, 'github', 'https://github.com/o/r/issues/new')).toHaveLength(1);
+        expect(findReplyEditors(doc, 'github', 'https://github.com/o/r/issues/3')).toHaveLength(0);
+        expect(findReplyActionAnchor(editor, 'github')?.textContent).toBe('Submit new issue');
+        expect(collectReplyContext(doc, 'github', editor, 'https://github.com/o/r/issues/new?template=bug.md'))
+            .toBe('当前项目：o/r\n帖子类型：新建 Issue\n帖子标题：A first report');
+        doc.querySelector<HTMLInputElement>('#issue_title')!.value = '';
+        expect(collectReplyContext(doc, 'github', editor, 'https://github.com/o/r/issues/new'))
+            .toBe('当前项目：o/r\n帖子类型：新建 Issue');
+    });
+
     it('recognizes the nameless React issue composer and locates its disabled Comment button', () => {
         const doc = page(`<main>${githubComposer}</main><nav><textarea></textarea></nav>
           <div data-fluent-read-ui="writing"><textarea name="comment[body]"></textarea></div>`);

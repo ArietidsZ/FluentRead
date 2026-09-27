@@ -6,9 +6,9 @@
  -->
 <template>
   <div class="writing-settings">
-    <p class="writing-description">在 GitHub 和 Gmail 的回复框旁点「写作助手」，起草回复或完善已有草稿。</p>
+    <p class="writing-description">在 GitHub 新建 Issue、Issue/PR 回复和 Gmail 邮件编辑区点击「写作助手」，起草内容或完善草稿。</p>
     <SettingsGroup>
-      <FeatureEnableCard v-model="config.writing.enabled" title="启用写作助手" description="自动出现在 GitHub 和 Gmail 的回复区。点击入口开始写作，发送前由你确认。" />
+      <FeatureEnableCard v-model="config.writing.enabled" title="启用写作助手" description="在 GitHub 新建 Issue、Issue/PR 回复和 Gmail 邮件编辑区自动显示。点击入口开始写作，提交或发送前由你确认。" />
     </SettingsGroup>
     <SettingsGroup title="写作服务">
       <div class="writing-service-grid">
