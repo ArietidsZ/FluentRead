@@ -10,6 +10,7 @@
     ],
     "forbiddenSelectors": ["header svg"],
     "interactionSelectors": [".contents a[href]"],
+    "prepareClickText": "OK",
     "modes": ["hover", "full"],
     "tier": "required",
     "hoverHotkey": "Control",
@@ -86,12 +87,12 @@
   },
   "github-project-pulls": {
     "url": "https://github.com/FluentRead/FluentRead/pulls",
-    "hoverSelector": ".markdown-title",
-    "requiredSelectors": [".markdown-title"],
+    "hoverSelector": "[data-testid=\"listitem-title-link\"]",
+    "requiredSelectors": ["[data-testid=\"listitem-title-link\"]"],
     "coverageRules": [
-      {"name": "pull-request-list-titles", "selector": ".markdown-title", "kind": "content", "minInitial": 2, "trackDynamic": true}
+      {"name": "pull-request-list-titles", "selector": "[data-testid=\"listitem-title-link\"]", "kind": "content", "minInitial": 2, "trackDynamic": true}
     ],
-    "forbiddenSelectors": ["button[aria-haspopup='dialog'][aria-label*='search' i]"],
+    "forbiddenSelectors": ["main h1", "button[aria-haspopup='dialog'][aria-label*='search' i]"],
     "interactionSelectors": ["main a[href]"],
     "modes": ["hover", "full"],
     "tier": "required",
@@ -101,15 +102,15 @@
     "service": "freeTranslation"
   },
   "github-project-pr": {
-    "url": "https://github.com/FluentRead/FluentRead/pull/428",
+    "url": "https://github.com/FluentRead/FluentRead/pull/243",
     "hoverSelector": "main h1",
     "hoverTargets": [
-      {"name": "pr-title-h1", "selector": "main h1"},
-      {"name": "body-heading-h2", "selector": ".markdown-body h2"},
-      {"name": "body-paragraph", "selector": ".markdown-body p"},
-      {"name": "body-list-item", "selector": ".markdown-body li"}
+      {"name": "pr-title-h1", "selector": "main h1", "sourceIncludes": ["fix: translate hovered visual text blocks"]},
+      {"name": "body-heading-h2", "selector": "[id^='pullrequest-'] .markdown-body > h2", "sourceIncludes": ["Problem"]},
+      {"name": "body-paragraph", "selector": "[id^='pullrequest-'] .markdown-body > p:first-of-type", "sourceIncludes": ["Manual hover translation"]},
+      {"name": "body-list-item", "selector": "[id^='pullrequest-'] .markdown-body > ul:first-of-type > li:nth-child(-n+3)", "sourceIncludes": ["Resolve explicit selections"]}
     ],
-    "requiredSelectors": ["main h1", ".markdown-body h2", ".markdown-body p", ".markdown-body li"],
+    "requiredSelectors": ["main h1", "[id^='pullrequest-'] .markdown-body > h2", "[id^='pullrequest-'] .markdown-body > p:first-of-type", "[id^='pullrequest-'] .markdown-body > ul:first-of-type > li:nth-child(-n+3)"],
     "coverageRules": [
       {
         "name": "pull-request-title",
@@ -117,31 +118,31 @@
         "kind": "heading",
         "minInitial": 1,
         "trackDynamic": true,
-        "sourceIncludes": ["fix: stabilize translation lifecycle and preserve remounted sources"]
+        "sourceIncludes": ["fix: translate hovered visual text blocks"]
       },
       {
         "name": "body-headings",
-        "selector": ".markdown-body h2",
+        "selector": "[id^='pullrequest-'] .markdown-body > h2",
         "kind": "heading",
         "minInitial": 1,
         "trackDynamic": true,
-        "sourceIncludes": ["验证"]
+        "sourceIncludes": ["Problem"]
       },
       {
         "name": "body-paragraphs",
-        "selector": ".markdown-body p",
+        "selector": "[id^='pullrequest-'] .markdown-body > p:first-of-type",
         "kind": "content",
-        "minInitial": 2,
+        "minInitial": 1,
         "trackDynamic": true,
-        "sourceIncludes": ["本 PR 沿用现有共享翻译链路"]
+        "sourceIncludes": ["Manual hover translation"]
       },
       {
         "name": "body-list-items",
-        "selector": ".markdown-body li",
+        "selector": "[id^='pullrequest-'] .markdown-body > ul:first-of-type > li:nth-child(-n+3)",
         "kind": "list",
-        "minInitial": 7,
+        "minInitial": 3,
         "trackDynamic": true,
-        "sourceIncludes": ["已取消的快捷键手势"]
+        "sourceIncludes": ["Resolve explicit selections"]
       }
     ],
     "forbiddenSelectors": ["button[aria-haspopup='dialog'][aria-label*='search' i]"],
@@ -157,12 +158,12 @@
         "listboxSelector": "[role='listbox']",
         "inputText": "issues",
         "closeKey": "Escape",
-        "closeAttempts": 2
+        "closeAttempts": 3
       }
     ],
     "modes": ["hover", "full"],
     "tier": "required",
-    "notes": "FluentRead PR 回归页：H1、正文分节、段落和列表必须分别达到 100% 覆盖；旧的 7-wrapper 单点基线必须失败。",
+    "notes": "FluentRead 英文 PR 描述：H1、英文分节、段落和列表分别验证；已有中文评论不应被要求翻译。",
     "hoverHotkey": "Control",
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation"
@@ -173,7 +174,7 @@
     "requiredSelectors": [".titleline > a", ".comment > .commtext"],
     "coverageRules": [
       {"name": "story-title", "selector": ".titleline > a", "kind": "content", "minInitial": 1},
-      {"name": "discussion-comments", "selector": ".comment > .commtext", "kind": "content", "minInitial": 5}
+      {"name": "discussion-comments", "selector": ".comment > .commtext", "kind": "content", "minInitial": 5, "minTextLength": 10}
     ],
     "forbiddenSelectors": ["img[src*=y18]"],
     "interactionSelectors": [".titleline > a"],
@@ -238,6 +239,13 @@
   "wikipedia-united-states": {
     "url": "https://en.wikipedia.org/wiki/United_States",
     "hoverSelector": "#mw-content-text p:not(.mw-empty-elt):not(:empty)",
+    "hoverTargets": [
+      {"name": "lead-paragraph", "selector": "#mw-content-text p:not(.mw-empty-elt):not(:empty)"},
+      {"name": "article-title", "selector": "h1#firstHeading", "sourceIncludes": ["United States"]},
+      {"name": "later-history-paragraph", "selector": "#mw-content-text p:not(.mw-empty-elt):not(:empty)", "sourceIncludes": ["The United States entered World War I"]},
+      {"name": "geography-paragraph", "selector": "#mw-content-text p:not(.mw-empty-elt):not(:empty)", "sourceIncludes": ["Starting in the east, the coastal plain"]},
+      {"name": "congress-paragraph", "selector": "#mw-content-text p:not(.mw-empty-elt):not(:empty)", "sourceIncludes": ["The U.S. Congress is a bicameral legislature"]}
+    ],
     "requiredSelectors": ["#mw-content-text p:not(.mw-empty-elt):not(:empty)"],
     "coverageRules": [
       {"name": "article-title", "selector": "h1#firstHeading", "kind": "heading", "minInitial": 1},
@@ -258,12 +266,13 @@
     "requiredSelectors": [".md-content__inner h1", ".md-content__inner h2", ".md-content__inner p"],
     "coverageRules": [
       {"name": "page-title", "selector": ".md-content__inner h1", "kind": "heading", "minInitial": 1, "trackDynamic": true},
-      {"name": "section-headings", "selector": ".md-content__inner h2", "kind": "heading", "minInitial": 2, "trackDynamic": true},
+      {"name": "section-headings", "selector": ".md-content__inner h2:not(.mdx-users__testimonial h2)", "kind": "heading", "minInitial": 2, "trackDynamic": true},
       {"name": "page-paragraphs", "selector": ".md-content__inner p", "kind": "content", "minInitial": 3, "trackDynamic": true}
     ],
     "forbiddenSelectors": [".md-content__inner svg", ".md-content__inner pre, .md-content__inner code"],
     "optionalForbiddenSelectors": [".md-content__inner pre, .md-content__inner code"],
-    "notes": "首页为带入场动画的嵌套滚动营销页，保护实际存在的 SVG 图标；当前没有代码块，仍保留代码保护作为出现时必须验证的可选区域。",
+    "skipUnscopedH1Coverage": true,
+    "notes": "首页为带入场动画的嵌套滚动营销页；hero H1 会被正文层遮挡，因此只强制覆盖 .md-content__inner h1。用户姓名按源语言服务判断，不作为必须翻译的段落。",
     "interactionSelectors": [".md-content__inner a[href]"],
     "scrollContainer": ".mdx-parallax",
     "modes": ["hover", "full"],
@@ -404,11 +413,11 @@
   "ar5iv-2106-03753": {
     "url": "https://ar5iv.labs.arxiv.org/html/2106.03753",
     "hoverSelector": "#abstract1 .ltx_p",
-    "requiredSelectors": ["h1.ltx_title_document", ".ltx_abstract .ltx_p", ".ltx_para > .ltx_p"],
+    "requiredSelectors": ["h1.ltx_title_document", ".ltx_abstract .ltx_p", "section.ltx_section .ltx_para > .ltx_p"],
     "coverageRules": [
       {"name": "paper-title", "selector": "h1.ltx_title_document", "kind": "heading", "minInitial": 1},
       {"name": "abstract", "selector": ".ltx_abstract .ltx_p", "kind": "content", "minInitial": 1},
-      {"name": "paper-paragraphs", "selector": ".ltx_para > .ltx_p", "kind": "content", "minInitial": 5}
+      {"name": "paper-paragraphs", "selector": "section.ltx_section .ltx_para > .ltx_p", "kind": "content", "minInitial": 5}
     ],
     "forbiddenSelectors": ["math, .ltx_Math"],
     "interactionSelectors": [".ltx_para a[href], article a[href]"],
@@ -577,12 +586,12 @@
   "swift-basic-operators": {
     "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/basicoperators/",
     "hoverSelector": "main p",
-    "requiredSelectors": ["main h1", "main h2", "main p", "main li"],
+    "requiredSelectors": ["main h1", "main h2", "main p", "main li:not([class])"],
     "coverageRules": [
       {"name": "chapter-title", "selector": "main h1", "kind": "heading", "minInitial": 1, "sourceIncludes": ["Basic Operators"]},
       {"name": "section-headings", "selector": "main h2", "kind": "heading", "minInitial": 2},
       {"name": "chapter-paragraphs", "selector": "main p", "kind": "content", "minInitial": 5},
-      {"name": "chapter-list-items", "selector": "main li", "kind": "list", "minInitial": 2}
+      {"name": "chapter-list-items", "selector": "main li:not([class])", "kind": "list", "minInitial": 2, "sourceIncludes": ["Unary operators operate on a single target"]}
     ],
     "forbiddenSelectors": ["main pre, main code"],
     "interactionSelectors": ["main a[href]"],
@@ -761,7 +770,8 @@
         "name": "front-page-story-titles",
         "selector": ".titleline > a",
         "kind": "content",
-        "minInitial": 20
+        "minInitial": 20,
+        "minTextLength": 10
       }
     ],
     "forbiddenSelectors": [

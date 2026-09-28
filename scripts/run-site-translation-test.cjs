@@ -196,7 +196,9 @@ function assertCoverageRestoration(report, phase) {
   return report;
 }
 
-function withMandatoryHeadingCoverage(rules) {
+function withMandatoryHeadingCoverage(rules, protectPageHeading = false) {
+  // 站点自身的列表页标题属于应用 UI，显式纳入 forbidden contract 时保留原文。
+  if (protectPageHeading) return [...rules];
   return [
     ...rules,
     {
@@ -222,6 +224,7 @@ const COVERAGE_EXCLUDED_SELECTOR_LIST = [
   '.sr-only',
   '.visually-hidden',
   'script',
+  'style',
   'pre',
   'code',
   '.MathJax_Display',
@@ -271,7 +274,8 @@ async function waitForCoverageReady(page, rules, timeout) {
         const style = getComputedStyle(node);
         const text = sourceText(node);
         return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' &&
-          naturalLanguage(text) && (!rule.requiresPhrase || /[\s.,:;!?()\-]/u.test(text));
+          naturalLanguage(text) && text.length >= (rule.minTextLength || 0) &&
+          (!rule.requiresPhrase || /[\s.,:;!?()\-]/u.test(text));
       };
       return coverageRules.every((rule) => {
         const texts = [...document.querySelectorAll(rule.selector)].filter((node) => eligible(node, rule)).map(sourceText);
@@ -365,7 +369,8 @@ async function installCoverageTracker(page, rules) {
       const rect = node.getBoundingClientRect();
       const style = getComputedStyle(node);
       return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' &&
-        naturalLanguage(text) && (!rule.requiresPhrase || /[\s.,:;!?()\-]/u.test(text));
+        naturalLanguage(text) && text.length >= (rule.minTextLength || 0) &&
+        (!rule.requiresPhrase || /[\s.,:;!?()\-]/u.test(text));
     };
     const ownedByRuleNode = (owned, node, selector) => {
       try {
@@ -613,6 +618,7 @@ async function installCoverageTracker(page, rules) {
     window[trackerKey] = {
       scan: cheapRefresh,
       metrics: () => ({...metrics}),
+      beginRevealRound() { activatedMissing.clear(); },
       reset() {
         activatedMissing.clear();
         for (const state of states) {
@@ -645,7 +651,7 @@ async function installCoverageTracker(page, rules) {
         if (status.translated) return {...status, found: true, alreadyTranslated: true};
         if (activatedMissing.has(token)) return {...status, found: false, reason: 'already-activated'};
         activatedMissing.add(token);
-        found.record.node.scrollIntoView?.({block: 'center', inline: 'nearest'});
+        found.record.node.scrollIntoView?.({block: 'center', inline: 'nearest', behavior: 'instant'});
         return {...status, found: true, alreadyTranslated: false};
       },
       missingStatuses(tokens) {
@@ -659,6 +665,29 @@ async function installCoverageTracker(page, rules) {
           }
           return {token, connected: false, eligible: false, translated: false, loading: false, retry: false,
             rule: '', source: '', reason: 'stale-token'};
+        });
+      },
+      diagnoseMissing(tokens) {
+        return tokens.slice(0, 8).map((token) => {
+          const found = findToken(token);
+          const node = found?.record.node;
+          if (!(node instanceof HTMLElement)) return {token, connected: false};
+          const parent = node.parentElement;
+          return {
+            token,
+            tag: node.tagName,
+            html: node.outerHTML.slice(0, 1200),
+            parent: parent ? `${parent.tagName.toLowerCase()}#${parent.id}.${parent.className}`.slice(0, 300) : '',
+            ruleMatch: node.matches(found.state.rule.selector),
+            viewport: (() => {const rect = node.getBoundingClientRect(); return {
+              top: Math.round(rect.top), bottom: Math.round(rect.bottom), height: Math.round(rect.height),
+              innerHeight,
+            };})(),
+            ownWrappers: node.querySelectorAll('.fluent-read-bilingual-content').length,
+            parentWrappers: parent?.querySelectorAll('.fluent-read-bilingual-content').length || 0,
+            nextSibling: node.nextElementSibling?.outerHTML.slice(0, 500) || '',
+            translate: node.closest('[translate]')?.getAttribute('translate') || '',
+          };
         });
       },
       report() {
@@ -761,18 +790,23 @@ function validateCoverageRevealStatuses(statuses, phase) {
 // 越过较晚发现的节点，而真实用户返回该区域时会触发它。这里冻结一批当前仍连接、
 // 尚未满足严格覆盖的节点，并各自给予一次可见机会。覆盖标准本身不会放宽：
 // 有界收敛后仍在重试、服务结果未变化、节点断开或缺少 wrapper，测试都会失败。
-async function settleCoverageByReveal(page, timeout, phase) {
+async function settleCoverageByReveal(page, timeout, phase, round = 0) {
   const startedAt = Date.now();
-  const maxAttempts = 128;
-  const dwellMs = 900;
+  const maxAttempts = 256;
+  const dwellMs = 2000;
   const batch = await page.evaluate(
-    (trackerKey) => window[trackerKey]?.snapshotMissing?.() || [],
+    (trackerKey) => {
+      const tracker = window[trackerKey];
+      tracker?.beginRevealRound?.();
+      return tracker?.snapshotMissing?.() || [];
+    },
     COVERAGE_TRACKER_KEY,
   );
   // 每个叶节点固定停留一次，整批停留之外再保留 timeout 等待共享队列收敛。
-  // 若只给固定 timeout，67–128 个节点的合法批次会在逐节点阶段必然耗尽预算。
+  // 若只给固定 timeout，长页合法批次会在逐节点阶段必然耗尽预算。
   const deadline = startedAt + batch.length * dwellMs + timeout;
   if (batch.length === 0) return [];
+  reportProgress(`${phase} 第 ${round + 1} 轮回访 ${batch.length} 个仍缺译的正文节点`);
   if (batch.length > maxAttempts) {
     throw new Error(`${phase} 缺失节点超过有界唤醒上限：${JSON.stringify({
       missingCount: batch.length,
@@ -803,9 +837,17 @@ async function settleCoverageByReveal(page, timeout, phase) {
       validateCoverageRevealStatuses([activated], phase);
     }
     attempted += 1;
-    // 让精确叶节点在视口中停留足够久，以等待浏览器 IO 回调和下一轮分时发现任务；
-    // 存在嵌套滚动容器时，scrollIntoView 会自然选择最近的一层。
-    await page.waitForTimeout(Math.min(dwellMs, Math.max(1, deadline - Date.now())));
+    // 精确叶节点一旦提交译文就继续下一项；未提交时保留完整可见窗口，
+    // 等浏览器 IO 回调和分时发现任务。避免对已完成的长页节点空等。
+    try {
+      await page.waitForFunction(
+        ({trackerKey, token}) => window[trackerKey]?.missingStatuses?.([token])?.[0]?.translated === true,
+        {trackerKey: COVERAGE_TRACKER_KEY, token: item.token},
+        {timeout: Math.min(dwellMs, Math.max(1, deadline - Date.now())), polling: 100},
+      );
+    } catch (error) {
+      if (!/Timeout/i.test(error.message)) throw error;
+    }
     await observeCoverage(page);
   }
 
@@ -821,6 +863,30 @@ async function settleCoverageByReveal(page, timeout, phase) {
     ({trackerKey, requestedTokens}) => window[trackerKey]?.missingStatuses?.(requestedTokens) || [],
     {trackerKey: COVERAGE_TRACKER_KEY, requestedTokens: tokens},
   );
+  const unresolved = statuses.filter((status) => !status.translated);
+  if (unresolved.length > 0 && round < 2 && unresolved.length < batch.length) {
+    // 免费服务慢请求占满并发槽时，先等已派发请求收敛，再为尚未派发的节点
+    // 提供一次新的可见机会；不能让快速模拟滚动永久撤回它们的 pending。
+    return settleCoverageByReveal(page, timeout, phase, round + 1);
+  }
+  if (unresolved.length > 0) {
+    const diagnostics = await page.evaluate(
+      ({trackerKey, requestedTokens}) => window[trackerKey]?.diagnoseMissing?.(requestedTokens) || [],
+      {trackerKey: COVERAGE_TRACKER_KEY, requestedTokens: tokens.filter((token) =>
+        statuses.some((status) => status.token === token && !status.translated))},
+    );
+    process.stderr.write(`${phase} 诊断：${JSON.stringify(diagnostics)}\n`);
+    const runtimeState = await page.evaluate(() => {
+      const host = document.querySelector('#fluent-read-translation-status-container');
+      const panel = host?.shadowRoot?.querySelector('.fr-translation-progress');
+      return {
+        progress: panel ? {...panel.dataset} : null,
+        scrollBehavior: getComputedStyle(document.documentElement).scrollBehavior,
+        scrollY: window.scrollY,
+      };
+    });
+    process.stderr.write(`${phase} 运行状态：${JSON.stringify(runtimeState)}\n`);
+  }
   validateCoverageRevealStatuses(statuses, phase);
   return statuses;
 }
@@ -1493,7 +1559,7 @@ async function scrollAndWaitFullPage(page, timeout, scrollContainerSelector, tar
         container.scrollTop = nextPosition;
         return;
       }
-      window.scrollTo(0, nextPosition);
+      window.scrollTo({top: nextPosition, behavior: 'instant'});
     }, {position, selector: scrollContainerSelector || ''});
 
   await moveTo(0);
@@ -1712,10 +1778,30 @@ async function waitForHoverPointer(page, targetConfig, timeout) {
     previous = point;
     await page.waitForTimeout(50);
   }
-  throw new Error(`悬浮原文没有稳定且可命中的位置：${JSON.stringify({targetConfig, lastPoint: previous})}`);
+  const targetState = await page.evaluate(({selector, index}) => {
+    const node = document.querySelectorAll(selector)[index];
+    const rect = node?.getBoundingClientRect();
+    const sample = [...(node?.childNodes || [])].slice(0, 6).map(child => ({
+      type: child.nodeType, text: child.textContent?.trim().slice(0, 100),
+      tag: child.nodeType === 1 ? child.tagName : null,
+    }));
+    const hitX = rect ? Math.min(innerWidth - 1, Math.max(0, rect.left + rect.width * 0.35)) : 0;
+    const hitY = rect ? Math.min(innerHeight - 1, Math.max(0, rect.top + rect.height / 2)) : 0;
+    const hitStack = document.elementsFromPoint(hitX, hitY).slice(0, 6).map(element => ({
+      tag: element.tagName, id: element.id, className: String(element.className).slice(0, 140),
+    }));
+    return {html: node?.outerHTML.slice(0, 900), rect: rect && {x: rect.x, y: rect.y, width: rect.width, height: rect.height},
+      viewport: {width: innerWidth, height: innerHeight}, sample, hitStack,
+      listSamples: [...document.querySelectorAll('main li')].slice(0, 40).map(item => ({
+        text: item.textContent?.trim().replace(/\s+/gu, ' ').slice(0, 90),
+        className: item.className,
+        parentClass: item.parentElement?.className,
+      }))};
+  }, targetConfig);
+  throw new Error(`悬浮原文没有稳定且可命中的位置：${JSON.stringify({targetConfig, lastPoint: previous, targetState})}`);
 }
 
-async function toggleHover(page, target, targetConfig, expectedCount, timeout) {
+async function toggleHover(page, target, targetConfig, expectedCount, timeout, attempt) {
   const {selector, index} = targetConfig;
   await target.scrollIntoViewIfNeeded();
   // 还原译文会改变布局，宿主也可能继续滚动或播放入场动画。固定等待后取外框
@@ -1750,7 +1836,7 @@ async function toggleHover(page, target, targetConfig, expectedCount, timeout) {
           (wrapper.parentElement?.textContent || '').trim().slice(0, 160)),
       };
     }, {targetSelector: selector, targetIndex: index, point: {x, y}});
-    throw new Error(`${error.message}\n悬浮 case 诊断（期望 wrapper=${expectedCount}）：${JSON.stringify(diagnostics)}`);
+    throw new Error(`${error.message}\n悬浮 case 诊断（${JSON.stringify(targetConfig)}，第 ${attempt} 次，期望 wrapper=${expectedCount}）：${JSON.stringify(diagnostics)}`);
   }
 }
 
@@ -1835,9 +1921,19 @@ async function closeInteractionDialog(page, scenario, timeout, phase) {
       lastError = error;
     }
   }
+  const dialogState = await page.evaluate(selector => {
+    const dialog = document.querySelector(selector);
+    const active = document.activeElement;
+    return {dialogVisible: Boolean(dialog?.getBoundingClientRect().width && dialog?.getBoundingClientRect().height),
+      dialogText: dialog?.textContent?.trim().slice(0, 300),
+      activeElement: active?.outerHTML.slice(0, 400),
+      openDialogs: [...document.querySelectorAll('[role="dialog"],dialog')]
+        .filter(node => node.getBoundingClientRect().width && node.getBoundingClientRect().height)
+        .map(node => ({role: node.getAttribute('role'), label: node.getAttribute('aria-label')}))};
+  }, scenario.dialogSelector);
   throw new Error(
     `${phase}/${scenario.name} 对话框在 ${scenario.closeAttempts} 次 ${scenario.closeKey} 后仍未隐藏` +
-    (lastError?.message ? `：${lastError.message}` : ''),
+    (lastError?.message ? `：${lastError.message}` : '') + `；诊断：${JSON.stringify(dialogState)}`,
   );
 }
 
@@ -1977,7 +2073,7 @@ async function runHoverCase(page, hoverTargets, requiredSelectors, pageContract,
     const neighborCounts = [];
 
     for (const expected of [1, 0, 1]) {
-      await toggleHover(page, target, runtimeTargetConfig, expected, timeout);
+      await toggleHover(page, target, runtimeTargetConfig, expected, timeout, counts.length + 1);
       counts.push(await target.locator('.fluent-read-bilingual-content').count());
       const neighborCount = await targets.evaluateAll((nodes, activeIndex) => nodes.reduce((count, node, index) =>
         count + (index === activeIndex ? 0 : node.querySelectorAll('.fluent-read-bilingual-content').length), 0), runtimeTargetConfig.index);
@@ -2017,7 +2113,7 @@ async function runHoverCase(page, hoverTargets, requiredSelectors, pageContract,
     // 为下一个语义类型清场，避免前一个 H1 的译文让全局 wrapper 计数
     // 掩盖 H2/P/LI 的真实命中结果。最后一个目标保留最终 [1] 状态。
     if (targetNumber < hoverTargets.length - 1) {
-      await toggleHover(page, target, runtimeTargetConfig, 0, timeout);
+      await toggleHover(page, target, runtimeTargetConfig, 0, timeout, 4);
       await assertWrapperUniqueness(page, 0, `${targetConfig.name} 悬浮目标清场`);
       await assertRequiredRestored(page, pageContract, `${targetConfig.name} 悬浮目标清场`);
     }
@@ -2074,6 +2170,11 @@ async function runFullTranslationPass(context, pass) {
           parent: node.parentElement?.outerHTML.slice(0, 500) || '',
         })),
         bodyText: (document.body?.innerText || '').slice(0, 1000),
+        activeElement: document.activeElement?.outerHTML.slice(0, 500),
+        targetAncestors: (() => {const values = []; let node = targetNode; while (node && values.length < 8) {
+          values.push({tag: node.tagName, className: node.className, translate: node.getAttribute('translate'),
+            contenteditable: node.getAttribute('contenteditable')}); node = node.parentElement;
+        } return values;})(),
       };
     }, selector);
     throw new Error(`${error.message}\n全文 case 诊断：${JSON.stringify(diagnostics)}`);
@@ -2128,6 +2229,7 @@ async function runFullCase(
   interactionScenarios,
   controlSelector,
   scrollContainer,
+  skipUnscopedH1Coverage,
   timeout,
   artifactsDir,
 ) {
@@ -2138,7 +2240,9 @@ async function runFullCase(
     timeout,
     '全文翻译前基线',
   );
-  const runtimeCoverageRules = withMandatoryHeadingCoverage(coverageRules);
+  const runtimeCoverageRules = withMandatoryHeadingCoverage(coverageRules,
+    skipUnscopedH1Coverage ||
+    pageContract.forbiddenState.some(({selector}) => /(?:^|[\s>+~,(])h1\b/iu.test(selector)));
   await installCoverageTracker(page, runtimeCoverageRules);
   const passContext = {
     page,
@@ -2264,6 +2368,17 @@ async function main() {
     // 当前 main 默认关闭悬浮球，但 Control/Alt+T 快捷键仍独立工作；
     // 这里等待 content script 初始化，而不是要求 UI 浮球必须存在。
     await page.waitForTimeout(1000);
+    if (args.prepareClickText) {
+      // Cookie 同意框等真正阻塞页面的站点对话框需由可信 UI 操作关闭，随后再验证正文全文翻译。
+      const button = page.getByText(args.prepareClickText, {exact: true}).last();
+      const appeared = await button.waitFor({state: 'visible', timeout: Math.min(args.timeout, 10000)})
+        .then(() => true, () => false);
+      if (appeared) {
+        await button.click({timeout: args.timeout});
+        await button.waitFor({state: 'hidden', timeout: args.timeout});
+        reportProgress(`已关闭站点对话框：${args.prepareClickText}`);
+      }
+    }
     if (args.prepareScrollSelector) {
       // Some landing pages reveal existing DOM only after it enters the viewport.
       // Use normal browser scrolling; never remove the site's hidden markers.
@@ -2293,6 +2408,8 @@ async function main() {
       args.mutableForbiddenSelectors,
     );
     const configResult = await readConfig(context, args.timeout, createPage, activateTab);
+    // 读取配置时会临时激活 popup 页；关闭它后显式还原目标页，确保真实快捷键发给站点标签页。
+    await activateTab(context, page, args.timeout);
     const config = configResult.config || {};
     const expectedHotkey = args.mode === 'hover' ? args.hoverHotkey : args.fullPageHotkey;
     if (config.service !== args.service) throw new Error(`服务不符：预期 ${args.service}，实际 ${config.service}`);
@@ -2320,6 +2437,7 @@ async function main() {
         args.interactionScenarios,
         args.controlSelector,
         args.scrollContainer,
+        args.skipUnscopedH1Coverage,
         args.timeout,
         artifactsDir,
       );

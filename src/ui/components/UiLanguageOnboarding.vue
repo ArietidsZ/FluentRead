@@ -1,7 +1,7 @@
 <!--
  * @file src/ui/components/UiLanguageOnboarding.vue
  * 文件职责：承载 FluentRead Popup 首次打开时的欢迎与界面语言选择引导。
- * 主要内容：先展示多语言欢迎画面，再进入符合 Popup 风格的语言卡片选择；确认后显示成功动效并把控制权交回真正 Popup。
+ * 主要内容：以正常文档流撑开工具栏 Popup，先展示多语言欢迎画面，再进入语言卡片选择；确认后显示成功动效并把控制权交回主界面。
  * 模块边界：组件只负责首次引导的呈现与确认，不读取配置、不决定浏览器 locale 映射；配置保存由 src/ui/i18n.ts 负责，语言规则由 src/core/i18n 提供。
 -->
 <template>
@@ -235,11 +235,9 @@ onMounted(focusCurrentStep);
 
 <style scoped>
 .language-onboarding {
-  position: absolute;
+  position: relative;
   z-index: 20;
-  inset: 0;
   display: grid;
-  min-height: 100%;
   padding: 14px;
   place-items: center;
   overflow: hidden;

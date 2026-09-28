@@ -194,7 +194,7 @@ describe('site adaptation settings persistence and editor behavior', () => {
         expect(parsed.rules[0]).toEqual(current.rules[0]);
         expect(parsed.rules[1]).toMatchObject({
             id: 'builtin', mode: 'focus', protect: ['code', 'button'],
-            content: [{css: ['.title']}, {css: ['article p']}],
+            content: [{css: ['article p']}, {css: ['.title']}],
         });
         expect(parsed.rules[1]).not.toHaveProperty('profile');
         expect(builtin.rules[0]).toHaveProperty('profile', 'article');

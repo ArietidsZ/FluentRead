@@ -20,6 +20,13 @@ const TEST_GROUPS = ['architecture', 'unit', 'functional', 'regression'];
 
 const LOCAL_BROWSER_FIXTURES = [
     {
+        id: 'popup-first-run-height',
+        label: 'fresh popup onboarding and main-content height regression',
+        script: 'scripts/testing/run-popup-first-run-height-test.cjs',
+        backgroundArgs: ['--background'],
+        supportsHeaded: false,
+    },
+    {
         id: 'selection-trigger',
         label: 'selection trigger browser regression',
         script: 'scripts/run-selection-trigger-test.cjs',

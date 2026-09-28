@@ -70,6 +70,10 @@ When you only want to read part of a page, such as a GitHub README, an article b
 
 If you use it often, turn on its shortcut in **Settings → Translation → Section translation** (default **Alt+R**, Option+R on a Mac); press it again while picking to exit. Headers, navigation and sidebars usually stay in the original language during page translation, but if you pick one of them yourself, its text is translated too and, like other interface text, replaces the original in place so the layout stays intact. Restoring page translation also restores any translated sections.
 
+## English word lookup
+
+The selection card includes 3,000 common English dictionary entries, available offline without a separate download. Looking up a less common word can use online dictionaries immediately while the extension downloads and verifies the full dictionary in the background for later local lookups. The full data file is about 3.9 MB and is cached by the browser. If the download fails, the common-word dictionary and online sources remain available. The fixed asset URL never contains the word you looked up.
+
 ## Translation style
 
 Choose how translations look in bilingual mode under **Settings → Interface style → Translation style**. Styles are grouped into **Text**, **Lines**, **Highlights**, and **Cards**, and every card shows the real effect. The preview beside them simulates a web page; switch between **Light page** and **Dark page** to check that translations stay readable on differently colored sites.

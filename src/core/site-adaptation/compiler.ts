@@ -71,7 +71,9 @@ function unique<T>(items: readonly T[], key: (item: T) => string): T[] {
 
 function resolveRecipe(pack: SiteRulePack, rule: SiteRule): SiteRecipe {
     const profile = rule.profile ? pack.profiles?.[rule.profile] : undefined;
-    const content = unique([...(profile?.content ?? []), ...(rule.content ?? [])],
+    // 专站选择器必须先于宽泛的 profile 规则。两者都匹配同一正文节点时，
+    // 由专站决定 atomic/splitOnBr，否则 profile 的 main p 会吞掉专站决策。
+    const content = unique([...(rule.content ?? []), ...(profile?.content ?? [])],
         (item: SiteContentRule) => JSON.stringify([item.css, item.resolve ?? 'self', item.atomic ?? true, item.splitOnBr ?? false, item.key ?? '']));
     const result: SiteRecipe = {mode: rule.mode ?? profile?.mode ?? 'augment', content};
     for (const key of ['protect', 'exclude', 'watchIgnore', 'omit', 'literalLabels', 'literalTokens'] as const) {

@@ -146,13 +146,14 @@
           <el-switch v-model="config.imageTranslationContextMenuEnabled" class="settings-toggle" :aria-label="t('image.context')" :disabled="!imageTranslationEnabled || !browserCapabilities.imageTranslation" />
         </SettingsItem>
       </SettingsGroup>
-      <ImageOcrSettings />
+      <ImageOcrSettings v-if="props.activeSection === 'settings-image-translation'" />
     </section>
     <section v-if="hasVisitedSection('settings-area-translation')" v-show="props.activeSection === 'settings-area-translation'" id="settings-area-translation" class="settings-section">
       <AreaTranslationSettings
         :config="config"
         :service-options="availableServiceOptions"
         :enabled="selectionAreaTranslationEnabled"
+        :active="props.activeSection === 'settings-area-translation'"
         @update:enabled="selectionAreaTranslationEnabled = $event"
       />
     </section>

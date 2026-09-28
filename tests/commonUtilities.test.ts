@@ -141,6 +141,17 @@ describe('语义化公共工具', () => {
         expect(isLikelyUntranslatedResponse(tags, tags, 'en')).toBe(false);
         expect(isLikelyUntranslatedResponse('', '', 'zh-Hans')).toBe(false);
         expect(isLikelyUntranslatedResponse('OpenAI API', 'OpenAI API', 'zh-Hans')).toBe(false);
+        expect(isLikelyUntranslatedResponse('Frontend Developer', 'Frontend Developer', 'zh-Hans')).toBe(true);
+        expect(isLikelyUntranslatedResponse('Frontend Developer', '前端开发者', 'zh-Hans')).toBe(false);
+        expect(isLikelyUntranslatedResponse('Visual Studio', 'Visual Studio', 'zh-Hans')).toBe(true);
+        expect(isLikelyUntranslatedResponse('Frontend Developer', 'Frontend Developer', 'en')).toBe(false);
+        const pullRequestTitle = 'feat: add Google Drive configuration sync';
+        expect(isLikelyUntranslatedResponse(pullRequestTitle,
+            'feat：add Google Drive configuration sync', 'zh-Hans')).toBe(true);
+        expect(isLikelyUntranslatedResponse(pullRequestTitle,
+            '功能：新增 Google Drive 配置同步', 'zh-Hans')).toBe(false);
+        expect(isLikelyUntranslatedResponse('Microsoft Visual Studio Code',
+            'Microsoft Visual Studio Code', 'zh-Hans')).toBe(false);
         expect(isLikelyUntranslatedResponse('id, status, user_name, updated_at, created_at, action',
             'id, status, user_name, updated_at, created_at, action', 'zh-Hans')).toBe(false);
         expect(isLikelyUntranslatedResponse('a_b, c_d, e_f, g_h, i_j, k_l',

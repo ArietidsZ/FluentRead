@@ -132,6 +132,16 @@ describe('免费翻译服务', () => {
         expect(deeplxMock).toHaveBeenCalledTimes(2);
     });
 
+    it('短英文标题被线路原样返回时换用后备服务', async () => {
+        mockConfig.freeTranslationOrder = ['transmart', 'google'];
+        webMock.mockResolvedValue('Frontend Developer');
+        googleMock.mockResolvedValue('前端开发者');
+
+        await expect(settle(translateFreeText('Frontend Developer'))).resolves.toBe('前端开发者');
+        expect(webMock).toHaveBeenCalledWith('transmart', 'Frontend Developer', 'auto', 'zh-Hans', expect.any(AbortSignal));
+        expect(googleMock).toHaveBeenCalledOnce();
+    });
+
     it('保存顺序里的有 Key 服务全部剔除，仅按所选免密钥服务翻译', async () => {
         mockConfig.freeTranslationOrder = ['azureTranslator', 'deepL', 'openai', 'custom:key-provider', 'myMemory', 'microsoft'];
         mockConfig.token = {azureTranslator: 'configured-key', deepL: 'free-key:fx', openai: 'secret-key'};

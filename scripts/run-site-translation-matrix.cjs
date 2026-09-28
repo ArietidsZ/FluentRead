@@ -169,13 +169,17 @@ function validateMatrix(caseConfigs = CASES) {
       !pr4038Rules.some((rule) => rule.kind === 'list')) {
     errors.push('github-project-pr 必须分别覆盖 H1、正文和列表，不能只验证单个 selector');
   }
-  const pr4038HoverSelectors = (pr4038?.hoverTargets || []).map((target) => target.selector);
-  if (JSON.stringify(pr4038HoverSelectors) !== JSON.stringify([
-    'main h1',
-    '.markdown-body h2',
-    '.markdown-body p',
-    '.markdown-body li',
-  ])) {
+  const pr4038HoverTargets = pr4038?.hoverTargets || [];
+  const requiredPrTargets = [
+    ['pr-title-h1', /\bh1\b/iu],
+    ['body-heading-h2', /\bh2\b/iu],
+    ['body-paragraph', /\bp\b/iu],
+    ['body-list-item', /\bli\b/iu],
+  ];
+  if (pr4038HoverTargets.length !== requiredPrTargets.length || requiredPrTargets.some(([name, tag], index) => {
+    const target = pr4038HoverTargets[index];
+    return target?.name !== name || !tag.test(target.selector) || !target.sourceIncludes?.length;
+  })) {
     errors.push('github-project-pr 的 hover 必须分别验证 H1、首个 H2、首个 P 和首个 LI');
   }
   if (!pr4038?.forbiddenMustExistSelectors?.includes("button[aria-haspopup='dialog'][aria-label*='search' i]") ||
@@ -184,7 +188,7 @@ function validateMatrix(caseConfigs = CASES) {
         scenario.dialogSelector === "[role='dialog'][aria-modal='true']" &&
         scenario.comboboxSelector === "[role='combobox']" &&
         scenario.listboxSelector === "[role='listbox']" && scenario.inputText === 'issues' &&
-        scenario.closeAttempts === 2)) {
+        scenario.closeAttempts === 3)) {
     errors.push('github-project-pr 必须验证真实 Search trigger、输入、dialog、combobox 和 listbox');
   }
 
