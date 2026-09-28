@@ -1,12 +1,13 @@
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
-import {dirname, resolve} from 'node:path';
+import {basename, dirname, resolve} from 'node:path';
 import {gzipSync} from 'node:zlib';
 import vue from '@vitejs/plugin-vue';
 import ts from 'typescript';
 import {defineConfig, normalizePath, type Plugin} from 'vite';
 import {createUserscriptMetadata} from './metadata';
 import {UI_LANGUAGE_BUNDLES} from '../src/core/i18n/bundles';
+import {zhCNMessages} from '../src/core/i18n/messages/zh-CN';
 
 const root = resolve(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(resolve(root, 'package.json'), 'utf8')) as {
@@ -16,6 +17,27 @@ const packageJson = JSON.parse(fs.readFileSync(resolve(root, 'package.json'), 'u
 const iconDataUrl = `data:image/png;base64,${fs.readFileSync(resolve(root, 'public/icon/64.png')).toString('base64')}`;
 const approveDataUrl = `data:image/jpeg;base64,${fs.readFileSync(resolve(root, 'public/misc/approve.jpg')).toString('base64')}`;
 const bundleLibraries = process.env.FLUENTREAD_USERSCRIPT_STANDALONE === '1';
+const greasyForkSource = process.env.FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE === '1';
+const vendorUrl = process.env.FLUENTREAD_USERSCRIPT_VENDOR_URL;
+const dataUrl = process.env.FLUENTREAD_USERSCRIPT_DATA_URL;
+const allowedResourceUrl = (url: string | undefined) => Boolean(url && /^(?:https:\/\/|http:\/\/127\.0\.0\.1(?::\d+)?\/)/u.test(url));
+if (greasyForkSource && (!allowedResourceUrl(vendorUrl) || !allowedResourceUrl(dataUrl))) {
+    throw new Error('Greasy Fork source build requires vendor and data resource URLs');
+}
+const vendorGlobals: Record<string, string> = {
+    ai: 'FluentReadUserscriptVendor.ai',
+    '@ai-sdk/openai-compatible': 'FluentReadUserscriptVendor.openAICompatible',
+    'crypto-js/sha256': 'FluentReadUserscriptVendor.sha256',
+    'crypto-js/md5': 'FluentReadUserscriptVendor.md5',
+    'crypto-js/hmac-sha256': 'FluentReadUserscriptVendor.hmacSha256',
+    'crypto-js/aes': 'FluentReadUserscriptVendor.aes',
+    'crypto-js/enc-utf8': 'FluentReadUserscriptVendor.encUtf8',
+    'crypto-js/enc-base64': 'FluentReadUserscriptVendor.encBase64',
+    'crypto-js/mode-ecb': 'FluentReadUserscriptVendor.modeEcb',
+    'crypto-js/pad-pkcs7': 'FluentReadUserscriptVendor.padPkcs7',
+    'dexie/dist/dexie.min.js': 'FluentReadUserscriptVendor.Dexie',
+    'franc-min': 'FluentReadUserscriptVendor.francMin',
+};
 function installedVersion(name: string): string {
     const manifest = JSON.parse(fs.readFileSync(resolve(root, 'node_modules', name, 'package.json'), 'utf8')) as {version: string};
     return manifest.version;
@@ -25,6 +47,9 @@ function installedVersion(name: string): string {
 const userscriptResourceCommit = '184a3d74f61b9d2a8d47080787f7e0180b98414d';
 // 语言文件的内容哈希来自合并后的消息目录，固定到首次包含这些文件的提交。
 const userscriptLanguageResourceCommit = '70d3d901033a579e32a5bf5e6af14555f0d140bb';
+const iconMetaUrl = greasyForkSource
+    ? `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${userscriptResourceCommit}/public/icon/64.png`
+    : iconDataUrl;
 const uiRequires = [
     `https://cdn.jsdelivr.net/npm/vue@${installedVersion('vue')}/dist/vue.global.prod.js`,
     `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${userscriptResourceCommit}/userscript/vueElementPlusBridge.v1.js`,
@@ -34,9 +59,10 @@ const uiRequires = [
 ];
 const userscriptRequires = bundleLibraries
     ? []
-    : [...uiRequires, 'https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako_inflate.min.js'];
-const metadata = createUserscriptMetadata({version: packageJson.userscriptVersion, iconDataUrl, requires: userscriptRequires});
-const compressedUiLanguageBundles = Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
+    : [...uiRequires, 'https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako_inflate.min.js',
+        ...(greasyForkSource ? [vendorUrl!, dataUrl!] : [])];
+const metadata = createUserscriptMetadata({version: packageJson.userscriptVersion, iconDataUrl: iconMetaUrl, requires: userscriptRequires});
+const compressedUiLanguageBundles = greasyForkSource ? {} : Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
     .filter(([language]) => language === 'en-US')
     .map(([language, bundle]) => [
     language,
@@ -61,7 +87,10 @@ const projectRoot = `${normalizePath(root)}/`;
 const siteCatalogDir = resolve(root, 'src/core/site-adaptation/catalog');
 const siteCatalogFiles = new Set(['established.json', 'websites.json', 'profiles.json']
     .map((name) => resolve(siteCatalogDir, name)));
+const siteCatalogData = Object.fromEntries([...siteCatalogFiles]
+    .map((sourcePath) => [basename(sourcePath, '.json'), JSON.parse(fs.readFileSync(sourcePath, 'utf8'))]));
 const compressedCatalogPrefix = '\0fluentread-userscript-site-catalog:';
+const externalChineseMessagesId = '\0fluentread-userscript-zh-cn.js';
 
 /** 只压缩站点规则 JSON；产品逻辑仍留在可审查的 userscript 主文件中。 */
 export function createUserscriptCatalogCompressionPlugin(): Plugin {
@@ -69,15 +98,23 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
         name: 'compress-userscript-site-catalog',
         enforce: 'pre',
         resolveId(source, importer) {
+            if (greasyForkSource && source === './messages/zh-CN'
+                && importer?.split('?')[0] === resolve(root, 'src/core/i18n/index.ts')) return externalChineseMessagesId;
             if (!importer || !source.endsWith('.json')) return null;
             const sourcePath = resolve(dirname(importer.split('?')[0]), source);
             // 以 .js 结尾，避免 Vite 的 JSON 插件再次尝试解析虚拟模块源码。
             return siteCatalogFiles.has(sourcePath) ? `${compressedCatalogPrefix}${sourcePath}.js` : null;
         },
         load(id) {
+            if (id === externalChineseMessagesId) {
+                return 'export const zhCNMessages = globalThis.__FLUENTREAD_USERSCRIPT_DATA__.zhCNMessages;';
+            }
             if (!id.startsWith(compressedCatalogPrefix)) return null;
             const sourcePath = id.slice(compressedCatalogPrefix.length, -'.js'.length);
             if (!siteCatalogFiles.has(sourcePath)) throw new Error(`Unexpected userscript site catalog: ${sourcePath}`);
+            if (greasyForkSource) {
+                return `export default globalThis.__FLUENTREAD_USERSCRIPT_DATA__.siteCatalogs.${basename(sourcePath, '.json')};`;
+            }
             const contents = JSON.stringify(JSON.parse(fs.readFileSync(sourcePath, 'utf8')));
             const compressed = gzipSync(Buffer.from(contents)).toString('base64');
             const digest = createHash('sha256').update(contents).digest('hex');
@@ -122,7 +159,7 @@ export function wrapUserscriptEntry(entryCode: string, bootstrapCode: string, th
 function bundledLibraryNotices(moduleIds: readonly string[]): string {
     const packageRoots = new Set<string>();
     for (const id of moduleIds) {
-        if (!id.startsWith(projectRoot)) continue;
+        if (id.startsWith('\0')) continue;
         const match = /^(.*\/node_modules\/\.pnpm\/[^/]+\/node_modules\/)(@[^/]+\/[^/]+|[^/]+)/u.exec(id);
         if (match) packageRoots.add(`${match[1]}${match[2]}`);
     }
@@ -300,17 +337,37 @@ function bundleUserscriptCss(): Plugin {
           handler(_options, bundle) {
             const cssEntries = Object.entries(bundle).filter(([, item]) => item.type === 'asset' && item.fileName.endsWith('.css'));
             const css = cssEntries.map(([, item]) => String(item.type === 'asset' ? item.source : '')).join('\n');
-            const compressedCss = gzipSync(Buffer.from(css, 'utf8')).toString('base64');
+            const compressedCss = greasyForkSource ? '' : gzipSync(Buffer.from(css, 'utf8')).toString('base64');
             cssEntries.forEach(([fileName]) => delete bundle[fileName]);
+
+            if (greasyForkSource) {
+                // Greasy Fork 的源码文件保留产品逻辑，静态词条、站点规则和样式单独随固定版本缓存。
+                const data = {
+                    english: UI_LANGUAGE_BUNDLES['en-US'],
+                    zhCNMessages,
+                    siteCatalogs: siteCatalogData,
+                    css,
+                };
+                this.emitFile({
+                    type: 'asset',
+                    fileName: 'fluentread-data.v1.js',
+                    source: [
+                        '/* FluentRead non-code data: UI translations, site rules and CSS. */',
+                        `globalThis.__FLUENTREAD_USERSCRIPT_DATA__=${JSON.stringify(data)};`,
+                    ].join('\n'),
+                });
+            }
 
             const entry = Object.values(bundle).find((item) => item.type === 'chunk' && item.isEntry);
             if (!entry || entry.type !== 'chunk') throw new Error('Userscript entry chunk was not generated');
 
             const bootstrap = [
                 compatibilityPrelude,
-                `globalThis.__FLUENTREAD_ICON_DATA__=${JSON.stringify(iconDataUrl)};`,
+                `globalThis.__FLUENTREAD_ICON_DATA__=${JSON.stringify(iconMetaUrl)};`,
                 ...(bundleLibraries ? [`globalThis.__FLUENTREAD_APPROVE_DATA__=${JSON.stringify(approveDataUrl)};`] : []),
-                `globalThis.__fluentReadUserscriptCssCompressed=${JSON.stringify(compressedCss)};`,
+                ...(greasyForkSource
+                    ? ['globalThis.__fluentReadUserscriptCss=globalThis.__FLUENTREAD_USERSCRIPT_DATA__.css;']
+                    : [`globalThis.__fluentReadUserscriptCssCompressed=${JSON.stringify(compressedCss)};`]),
             ].join('\n');
             // 入口内部的幂等标记只能在整个 IIFE 顶层求值后生效。脚本管理器若对同一
             // 文档再次注入，必须在最外层跳过整个 bundle，否则内联模块会重复创建
@@ -340,9 +397,12 @@ function bundleUserscriptCss(): Plugin {
           },
         },
         writeBundle(_options, bundle) {
-            const files = Object.values(bundle).map((item) => item.fileName);
-            if (files.length !== 1 || files[0] !== 'fluent-read.user.js') {
-                throw new Error(`Userscript build must emit one file, received: ${files.join(', ')}`);
+            const files = Object.values(bundle).map((item) => item.fileName).sort();
+            const expected = greasyForkSource
+                ? ['fluent-read.user.js', 'fluentread-data.v1.js']
+                : ['fluent-read.user.js'];
+            if (JSON.stringify(files) !== JSON.stringify(expected)) {
+                throw new Error(`Userscript build emitted unexpected files: ${files.join(', ')}`);
             }
         },
     };
@@ -406,10 +466,11 @@ export default defineConfig({
         __FLUENTREAD_FULL_OPTIONS__: JSON.stringify(bundleLibraries),
     },
     build: {
-        outDir: resolve(root, bundleLibraries ? '.output/userscript-standalone' : '.output/userscript'),
+        outDir: resolve(root, bundleLibraries ? '.output/userscript-standalone'
+            : greasyForkSource ? '.output/userscript-greasyfork' : '.output/userscript'),
         emptyOutDir: true,
         target: 'es2018',
-        minify: 'esbuild',
+        minify: greasyForkSource ? false : 'esbuild',
         sourcemap: false,
         cssCodeSplit: false,
         assetsInlineLimit: Number.MAX_SAFE_INTEGER,
@@ -420,7 +481,10 @@ export default defineConfig({
             fileName: () => 'fluent-read.user.js',
         },
         rollupOptions: {
-            external: bundleLibraries ? [] : ['vue', 'element-plus', '@element-plus/icons-vue', 'tldts'],
+            external: bundleLibraries ? [] : [
+                'vue', 'element-plus', '@element-plus/icons-vue', 'tldts',
+                ...(greasyForkSource ? Object.keys(vendorGlobals) : []),
+            ],
             output: {
                 inlineDynamicImports: true,
                 entryFileNames: 'fluent-read.user.js',
@@ -429,6 +493,7 @@ export default defineConfig({
                     'element-plus': 'ElementPlus',
                     '@element-plus/icons-vue': 'ElementPlusIconsVue',
                     tldts: 'tldts',
+                    ...(greasyForkSource ? vendorGlobals : {}),
                 },
             },
         },

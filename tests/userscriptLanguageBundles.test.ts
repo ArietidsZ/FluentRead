@@ -17,6 +17,23 @@ describe('userscript remote UI language data', () => {
         globalThis.GM = undefined;
     });
 
+    it('registers the English bundle supplied by the pinned data resource without a network request', async () => {
+        const requests: string[] = [];
+        globalThis.GM = {
+            xmlHttpRequest(details) { requests.push(details.url); throw new Error('unexpected request'); },
+        };
+        vi.stubGlobal('__FLUENTREAD_USERSCRIPT_DATA__', {english: UI_LANGUAGE_BUNDLES['en-US']});
+        vi.stubGlobal('__FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__', {});
+        vi.stubGlobal('__FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__', {});
+
+        const {hasUiLanguageBundle} = await import('@/src/core/i18n');
+        expect(hasUiLanguageBundle('en-US')).toBe(false);
+        const loader = await import('@/userscript/uiLanguageBundles');
+        await expect(loader.ensureUiLanguageBundle('en-US')).resolves.toBe(true);
+        expect(hasUiLanguageBundle('en-US')).toBe(true);
+        expect(requests).toEqual([]);
+    });
+
     it('downloads a generated language resource once and loads it from private GM cache next time', async () => {
         const values = new Map<string, unknown>();
         const requests: string[] = [];

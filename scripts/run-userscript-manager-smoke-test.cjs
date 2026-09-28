@@ -63,7 +63,11 @@ function requireFocusSafeHelper(helperPath) {
 function readUserscriptMetadata(source) {
   if (!source.startsWith('// ==UserScript==\n')) throw new Error('Artifact lacks userscript metadata');
   const version = source.match(/^\/\/ @version\s+(\S+)$/m)?.[1];
-  const requires = [...source.matchAll(/^\/\/ @require\s+(https:\/\/\S+)$/gm)].map((match) => match[1]);
+  const requires = [...source.matchAll(/^\/\/ @require\s+(\S+)$/gm)].map((match) => match[1]);
+  if (requires.some((url) => !url.startsWith('https://')
+    && !/^http:\/\/127\.0\.0\.1:\d+\/fluentread-(?:vendor|data)\.v1\.js$/u.test(url))) {
+    throw new Error('Unsupported userscript @require URL in manager smoke test');
+  }
   if (!version) throw new Error('Artifact lacks a version declaration');
   return {version, requires};
 }
@@ -294,6 +298,7 @@ async function main() {
       original: document.querySelector('#target')?.textContent,
       pageVue: typeof window.Vue,
       pageElementPlus: typeof window.ElementPlus,
+      pageVendor: typeof window.FluentReadUserscriptVendor,
     }));
     evidence.desktopScreenshot = path.join(args.artifactsDir, 'desktop.png');
     evidence.mobileScreenshot = path.join(args.artifactsDir, 'mobile.png');
@@ -531,8 +536,9 @@ async function main() {
     }
     if (evidence.requestFailures.length || evidence.consoleErrors.length) throw new Error('Network or console errors occurred');
     if (evidence.initial.original !== fixture.original) throw new Error('Initial source text changed');
-    if (evidence.initial.pageVue !== 'undefined' || evidence.initial.pageElementPlus !== 'undefined') {
-      throw new Error('Userscript leaked UI globals into the host page');
+    if (evidence.initial.pageVue !== 'undefined' || evidence.initial.pageElementPlus !== 'undefined'
+      || evidence.initial.pageVendor !== 'undefined') {
+      throw new Error('Userscript leaked library globals into the host page');
     }
     if (!evidence.settings.open || !evidence.settings.closedShadow) throw new Error('Settings did not open in a closed Shadow DOM');
     if (![evidence.translated, evidence.restored, evidence.retranslated].every((state) =>

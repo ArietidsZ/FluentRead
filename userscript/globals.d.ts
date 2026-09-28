@@ -1,3 +1,5 @@
+import type {UiLanguageBundle} from '@/src/core/i18n';
+
 export {};
 
 declare global {
@@ -54,6 +56,12 @@ declare global {
     var __FLUENTREAD_APPROVE_DATA__: string | undefined;
     var __fluentReadUserscriptCss: string | undefined;
     var __fluentReadUserscriptCssCompressed: string | undefined;
+    var __FLUENTREAD_USERSCRIPT_DATA__: {
+        english: UiLanguageBundle;
+        zhCNMessages: Record<string, unknown>;
+        siteCatalogs: Record<string, unknown>;
+        css: string;
+    } | undefined;
     var pako: {ungzip(data: Uint8Array, options?: {to?: string}): string | Uint8Array} | undefined;
     const __FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__: Readonly<Record<string, string>>;
     const __FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__: Readonly<Record<string, string>>;
