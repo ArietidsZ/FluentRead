@@ -76,13 +76,13 @@ async function preloadUserscriptRequires(page, artifact) {
     ['element-plus@', 'element-plus/dist/index.full.min.js'],
     ['@element-plus/icons-vue@', '@element-plus/icons-vue/dist/index.iife.min.js'],
     ['tldts@', 'tldts/dist/index.umd.min.js'],
+    ['pako@', 'pako/dist/pako_inflate.min.js'],
   ];
   for (const required of requires) {
     if (required === 'vueElementPlusBridge.v1.js') {
       await page.addScriptTag({path: path.join(root, 'userscript', required)});
       continue;
     }
-    if (required.startsWith('pako@')) continue; // Edge uses DecompressionStream; pako fallback has a focused unit test.
     const entry = vendors.find(([prefix]) => required.startsWith(prefix));
     if (!entry) throw new Error(`未知的 userscript @require：${required}`);
     const localPath = path.join(root, 'node_modules', entry[1]);
@@ -91,7 +91,8 @@ async function preloadUserscriptRequires(page, artifact) {
   }
   if (requires.length && await page.evaluate(() =>
     typeof Vue === 'undefined' || typeof ElementPlus === 'undefined'
-    || typeof ElementPlusIconsVue === 'undefined' || typeof tldts === 'undefined')) {
+    || typeof ElementPlusIconsVue === 'undefined' || typeof tldts === 'undefined'
+    || typeof pako === 'undefined')) {
     throw new Error('userscript @require 依赖未在浏览器中建立全局入口');
   }
   return requires;

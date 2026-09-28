@@ -1,8 +1,12 @@
+import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
+import {gunzipSync} from 'node:zlib';
 import {describe, expect, it} from 'vitest';
 import {
     executionGuardEnd,
     executionGuardStart,
+    createUserscriptCatalogCompressionPlugin,
     findDexieGlobalRegistration,
     findFreeBrowserGlobals,
     injectUserscriptBrowserImports,
@@ -15,6 +19,26 @@ const sourceModuleId = resolve(process.cwd(), 'src/app/content/runtime.ts');
 const vueScriptModuleId = `${resolve(process.cwd(), 'src/features/selection-translation/ui/SelectionTranslator.vue')}?vue&type=script&setup=true&lang.ts`;
 
 describe('userscript browser shim injection', () => {
+    it('keeps all site rule JSON data intact when embedding compressed offline catalogs', () => {
+        const plugin = createUserscriptCatalogCompressionPlugin() as unknown as {
+            resolveId: (source: string, importer: string) => string | null;
+            load: (id: string) => string | null;
+        };
+        const importer = resolve(process.cwd(), 'src/core/site-adaptation/catalog.ts');
+        for (const name of ['established', 'websites', 'profiles']) {
+            const id = plugin.resolveId(`./catalog/${name}.json`, importer);
+            expect(id).toContain('fluentread-userscript-site-catalog:');
+            const moduleSource = plugin.load(id!);
+            const base64 = moduleSource?.match(/atob\("([A-Za-z0-9+/=]+)"\)/u)?.[1];
+            expect(base64).toBeTruthy();
+            const original = JSON.parse(readFileSync(resolve(process.cwd(), `src/core/site-adaptation/catalog/${name}.json`), 'utf8'));
+            const restored = JSON.parse(gunzipSync(Buffer.from(base64!, 'base64')).toString('utf8'));
+            expect(restored).toEqual(original);
+            expect(moduleSource).toContain(createHash('sha256').update(JSON.stringify(original)).digest('hex'));
+        }
+        expect(plugin.resolveId('./catalog/other.json', importer)).toBeNull();
+    });
+
     it('wraps the complete single-file runtime in a duplicate-injection guard', () => {
         const wrapped = wrapUserscriptEntry('ENTRY_SENTINEL', 'BOOTSTRAP_SENTINEL');
         const guardStart = wrapped.indexOf(executionGuardStart);
