@@ -14,6 +14,7 @@ function parseArgs(argv, env = process.env) {
     timeout: 60000,
     suite: 'full',
     gmMode: 'legacy',
+    engine: 'chromium',
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -32,10 +33,12 @@ function parseArgs(argv, env = process.env) {
   args.timeout = Number(args.timeout);
   if (!['full', 'selects', 'options', 'options-route'].includes(args.suite)) throw new Error(`无法识别测试套件：${args.suite}`);
   if (!['legacy', 'modern'].includes(args.gmMode)) throw new Error(`无法识别 GM 模式：${args.gmMode}`);
+  if (!['chromium', 'webkit'].includes(args.engine)) throw new Error(`无法识别浏览器引擎：${args.engine}`);
+  if (args.engine === 'webkit' && !args.background) throw new Error('WebKit 回归只允许无窗口的后台模式');
   if (!args.artifact) throw new Error('必须传入 --artifact');
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root');
   if (!args.artifactsDir) throw new Error('必须传入 --artifacts-dir');
-  if (args.background && !args.focusSafeHelper) {
+  if (args.background && args.engine === 'chromium' && !args.focusSafeHelper) {
     throw new Error('后台模式必须传入 --focus-safe-helper 或设置 FLUENTREAD_FOCUS_SAFE_HELPER');
   }
   if (args.focusSafeHelper) args.focusSafeHelper = path.resolve(args.focusSafeHelper);
@@ -233,10 +236,10 @@ async function main() {
   const artifact = path.resolve(args.artifact);
   const artifactsDir = path.resolve(args.artifactsDir);
   if (!fs.existsSync(artifact)) throw new Error(`userscript 产物不存在：${artifact}`);
-  if (!fs.existsSync(args.browserPath)) throw new Error(`Edge 不存在：${args.browserPath}`);
+  if (args.engine === 'chromium' && !fs.existsSync(args.browserPath)) throw new Error(`Chromium 浏览器不存在：${args.browserPath}`);
   fs.mkdirSync(artifactsDir, {recursive: true});
 
-  const {chromium} = loadPlaywright(args.playwrightRoot);
+  const {chromium, webkit} = loadPlaywright(args.playwrightRoot);
   const fixture = await startFixtureServer();
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-userscript-edge-'));
   assertDedicatedProfile(profileDir);
@@ -268,7 +271,14 @@ async function main() {
         '--no-first-run',
         '--no-default-browser-check',
     ];
-    if (args.background) {
+    if (args.engine === 'webkit') {
+      const browser = await webkit.launch({headless: true, timeout: args.timeout});
+      context = await browser.newContext({viewport: {width: 1280, height: 900}});
+      closeBrowser = () => browser.close();
+      launchMode = 'playwright-webkit-headless';
+      focusPolicy = 'headless-no-window';
+      windowPlacement = {mode: 'headless', visible: false, hidden: true, browserFrontmost: false};
+    } else if (args.background) {
       const focusSafe = loadFocusSafeBrowser(args.focusSafeHelper);
       const browserSession = await focusSafe.launchFocusSafePersistentContext({
         chromium,
@@ -1112,8 +1122,8 @@ async function main() {
 
     await page.screenshot({path: path.join(artifactsDir, 'userscript-final.png'), fullPage: true});
     const evidence = {
-      browser: path.basename(args.browserPath),
-      isolatedProfile: profileDir,
+      browser: args.engine === 'webkit' ? 'Playwright WebKit' : path.basename(args.browserPath),
+      isolatedProfile: args.engine === 'webkit' ? null : profileDir,
       artifact,
       fixtureUrl: fixture.url,
       transport: `${args.gmMode} GM deterministic browser shim`,
