@@ -22,7 +22,7 @@ function installedVersion(name: string): string {
 }
 
 // 脚本管理器在安装时缓存固定版本的通用库；仓库资源固定到已发布提交，更新资源时同步换提交。
-const userscriptResourceCommit = 'c8f9d958b12bcaef61b9a83ac832e62084a805b3';
+const userscriptResourceCommit = '184a3d74f61b9d2a8d47080787f7e0180b98414d';
 const uiRequires = [
     `https://cdn.jsdelivr.net/npm/vue@${installedVersion('vue')}/dist/vue.global.prod.js`,
     `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${userscriptResourceCommit}/userscript/vueElementPlusBridge.v1.js`,

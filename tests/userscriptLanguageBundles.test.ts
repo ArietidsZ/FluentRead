@@ -1,11 +1,14 @@
-import {readFileSync, readdirSync} from 'node:fs';
+import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
 import {afterEach, describe, expect, it, vi} from 'vitest';
+import {UI_LANGUAGE_BUNDLES} from '@/src/core/i18n/bundles';
 
 const languageDir = resolve(process.cwd(), 'userscript/languages');
-const fileName = readdirSync(languageDir).find((name) => name.startsWith('fr-FR.'))!;
+const digest = createHash('sha256').update(JSON.stringify(UI_LANGUAGE_BUNDLES['fr-FR'])).digest('hex').slice(0, 16);
+const fileName = `fr-FR.${digest}.json`;
 const source = readFileSync(resolve(languageDir, fileName), 'utf8');
-const resourceCommit = 'c8f9d958b12bcaef61b9a83ac832e62084a805b3';
+const resourceCommit = '184a3d74f61b9d2a8d47080787f7e0180b98414d';
 
 describe('userscript remote UI language data', () => {
     afterEach(() => {
