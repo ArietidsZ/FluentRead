@@ -1,4 +1,4 @@
-import {getStoredValue, listStoredKeys, setStoredValue} from './storage';
+import {getStoredValue, listStoredKeys, setStoredValue, storage as userscriptStorage} from './storage';
 
 type RuntimeListener = (
     message: any,
@@ -12,6 +12,25 @@ export const UNHANDLED_RUNTIME_MESSAGE = Symbol('unhandled-runtime-message');
 const runtimeListeners = new Set<RuntimeListener>();
 const defaultPlatformMessageHandler: PlatformMessageHandler = async () => UNHANDLED_RUNTIME_MESSAGE;
 let platformMessageHandler: PlatformMessageHandler = defaultPlatformMessageHandler;
+type StorageChange = {oldValue?: unknown; newValue?: unknown};
+type StorageChangedListener = (changes: Record<string, StorageChange>, areaName: string) => void;
+const storageChangedListeners = new Set<StorageChangedListener>();
+const storageKeyWatchers = new Set<string>();
+
+function watchStorageKey(key: string): void {
+    if (storageKeyWatchers.has(key)) return;
+    storageKeyWatchers.add(key);
+    userscriptStorage.watch(key, (nextValue, previousValue) => {
+        const changes = {[key]: {oldValue: previousValue, newValue: nextValue}};
+        storageChangedListeners.forEach((listener) => listener(changes, 'local'));
+    });
+}
+
+const storageOnChanged = {
+    addListener(listener: StorageChangedListener): void { storageChangedListeners.add(listener); },
+    removeListener(listener: StorageChangedListener): void { storageChangedListeners.delete(listener); },
+    hasListener(listener: StorageChangedListener): boolean { return storageChangedListeners.has(listener); },
+};
 
 export function setPlatformMessageHandler(handler: PlatformMessageHandler): void {
     platformMessageHandler = handler;
@@ -96,11 +115,16 @@ const browser = {
         local: {
             // webextension storage.local 在 userscript 中由 GM 存储承接，并维持相同的批量键形态。
             async get(keys?: string | string[] | Record<string, unknown>): Promise<Record<string, unknown>> {
-                if (typeof keys === 'string') return {[keys]: await getStoredValue(keys)};
+                if (typeof keys === 'string') {
+                    watchStorageKey(keys);
+                    return {[keys]: await getStoredValue(keys)};
+                }
                 if (Array.isArray(keys)) {
+                    keys.forEach(watchStorageKey);
                     return Object.fromEntries(await Promise.all(keys.map(async (key) => [key, await getStoredValue(key)])));
                 }
                 if (keys && typeof keys === 'object') {
+                    Object.keys(keys).forEach(watchStorageKey);
                     return Object.fromEntries(await Promise.all(Object.entries(keys).map(async ([key, fallback]) => {
                         const value = await getStoredValue(key);
                         return [key, value ?? fallback];
@@ -110,9 +134,11 @@ const browser = {
                 return Object.fromEntries(await Promise.all(names.map(async (key) => [key, await getStoredValue(key)])));
             },
             async set(values: Record<string, unknown>): Promise<void> {
+                Object.keys(values).forEach(watchStorageKey);
                 await Promise.all(Object.entries(values).map(([key, value]) => setStoredValue(key, value)));
             },
         },
+        onChanged: storageOnChanged,
     },
 };
 

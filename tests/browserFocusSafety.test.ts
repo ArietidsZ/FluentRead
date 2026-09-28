@@ -419,6 +419,14 @@ describe('browser regression focus safety', () => {
         expect(headed.focusSafeHelper).toBe('');
     });
 
+    it('WebKit userscript 回归只运行无窗口模式，且不需要前台浏览器 helper', () => {
+        const {parseArgs} = require(resolve(PROJECT_ROOT, 'scripts/run-userscript-smoke-test.cjs'));
+        const args = [...RUNNER_CLI_CASES[0].requiredArgs, '--engine', 'webkit'];
+
+        expect(parseArgs(args, {}).engine).toBe('webkit');
+        expect(() => parseArgs([...args, '--headed'], {})).toThrow('WebKit 回归只允许无窗口的后台模式');
+    });
+
     it('站点矩阵把后台 helper、独立证据目录和网络授权传给每个子进程', () => {
         const source = readScript('scripts/run-site-translation-matrix.cjs');
 

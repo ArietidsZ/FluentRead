@@ -19,6 +19,8 @@ export const zhCNMessages = {
     "settings.excludedLanguages.less": "收起语言",
     "settings.excludedLanguages.clear": "清空选择",
     "settings.excludedLanguages.hint": "自动保存，下次开始翻译时生效。短文本或无法确定语言的内容仍会翻译。",
+    "options.userscriptUnavailableTitle": "油猴脚本暂不支持此功能",
+    "options.userscriptUnavailableDescription": "此功能需要浏览器扩展的运行环境。请安装 FluentRead 浏览器扩展后使用。",
     ...localTtsChineseMessages,
     ...translationStatsChineseMessages,
     "settings.services.library.freeReady": "无需 API Key，自动选择可用的免费服务。",

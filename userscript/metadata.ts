@@ -10,12 +10,14 @@ const grants = [
     'GM_listValues',
     'GM_xmlhttpRequest',
     'GM_registerMenuCommand',
+    'GM_openInTab',
     'GM_addStyle',
     'GM.getValue',
     'GM.setValue',
     'GM.deleteValue',
     'GM.listValues',
     'GM.xmlHttpRequest',
+    'GM.openInTab',
 ];
 
 export function createUserscriptMetadata({version, iconDataUrl, requires = []}: UserscriptMetadataOptions): string {

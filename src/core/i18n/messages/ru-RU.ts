@@ -21,6 +21,8 @@ export const ruRUMessages = {
     "settings.excludedLanguages.less": "Свернуть языки",
     "settings.excludedLanguages.clear": "Очистить выбор",
     "settings.excludedLanguages.hint": "Сохраняется автоматически и применяется при следующем запуске перевода. Короткий текст или текст с неопределённым языком может переводиться.",
+    "options.userscriptUnavailableTitle": "Недоступно в пользовательском скрипте",
+    "options.userscriptUnavailableDescription": "Для этой функции нужна среда браузерного расширения. Установите расширение FluentRead, чтобы использовать её.",
     ...localTtsRussianMessages,
     ...translationStatsRussianMessages,
     "settings.services.library.freeReady": "Ключ API не нужен. Доступные бесплатные сервисы выбираются автоматически.",

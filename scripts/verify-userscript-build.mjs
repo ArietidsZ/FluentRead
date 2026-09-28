@@ -30,13 +30,14 @@ const assertions = [
   [source.includes('// @inject-into  content'), 'Safari GM APIs require content-world injection'],
   [source.includes('// @connect      *'), 'provider requests require @connect'],
   [source.includes('// @require      https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js'), 'pinned Vue @require is missing'],
-  [source.includes('// @require      https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@c8f9d958b12bcaef61b9a83ac832e62084a805b3/userscript/vueElementPlusBridge.v1.js'), 'pinned Vue / Element Plus UMD bridge @require is missing'],
+  [source.includes('// @require      https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@184a3d74f61b9d2a8d47080787f7e0180b98414d/userscript/vueElementPlusBridge.v1.js'), 'pinned Vue / Element Plus UMD bridge @require is missing'],
   [!source.includes('FluentRead/FluentRead@main/userscript/'), 'userscript resources must use an immutable commit'],
   [source.indexOf('vue.global.prod.js') < source.indexOf('vueElementPlusBridge.v1.js')
     && source.indexOf('vueElementPlusBridge.v1.js') < source.indexOf('element-plus@2.9.3/dist/index.full.min.js'), 'Vue bridge must load between Vue and Element Plus'],
   [source.includes('// @require      https://cdn.jsdelivr.net/npm/element-plus@2.9.3/dist/index.full.min.js'), 'pinned Element Plus @require is missing'],
   [source.includes('// @require      https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako_inflate.min.js'), 'pako fallback @require is missing'],
   [source.includes('globalThis.__fluentReadUserscriptCssCompressed='), 'userscript CSS must be compressed'],
+  [source.includes('__FLUENTREAD_BROWSER_CAPABILITY_BUILD__:userscript:mv2__'), 'userscript browser capability marker is missing'],
   [artifactBytes <= MAX_USERSCRIPT_BYTES, `artifact exceeds the ${MAX_USERSCRIPT_BYTES.toLocaleString()}-byte size budget`],
   [!/(^|[^\w])import\s*\(/u.test(source), 'the artifact must not contain runtime dynamic imports'],
   [!/\bglobalThis\s*(?:\.\s*(?:browser|chrome)\b|\[\s*['"](?:browser|chrome)['"]\s*\])/u.test(source), 'privileged browser shims must stay lexical'],
@@ -49,6 +50,7 @@ const assertions = [
   [!source.includes('fluent-read-area-translator-container'), 'area translator must be excluded from userscript'],
   [!source.includes('fluent-read-image-translation-root'), 'image translator must be excluded from userscript'],
   [!source.includes('fluent-read-video-subtitle-style'), 'video subtitle runtime must be excluded from userscript'],
+  [!source.includes('fluent-read-writing-assistant'), 'writing assistant runtime must be excluded from userscript'],
   [!source.includes('fluent:prefill'), 'page-driven New API config bridge must be excluded from userscript'],
   [!source.includes('CHROME_TRANSLATE_OFFSCREEN'), 'Chrome offscreen translator must be excluded from userscript'],
 ];

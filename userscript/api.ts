@@ -5,15 +5,15 @@
 export type UserscriptMethod = (...args: any[]) => any;
 
 export function getUserscriptFunction(
-    legacyName: string,
-    modernName: string,
+    legacyName?: string,
+    modernName?: string,
 ): UserscriptMethod | undefined {
-    const legacy = (globalThis as Record<string, unknown>)[legacyName];
+    const legacy = legacyName ? (globalThis as Record<string, unknown>)[legacyName] : undefined;
     if (typeof legacy === 'function') return legacy as UserscriptMethod;
 
     // 有的脚本管理器将授权 API 注入为词法绑定，而非 window 属性。
     const modernNamespace = typeof GM === 'undefined' ? undefined : GM;
-    const modern = modernNamespace?.[modernName as keyof typeof modernNamespace];
+    const modern = modernName ? modernNamespace?.[modernName as keyof typeof modernNamespace] : undefined;
     return typeof modern === 'function'
         ? (modern as UserscriptMethod).bind(modernNamespace)
         : undefined;

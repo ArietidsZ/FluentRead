@@ -188,6 +188,7 @@
       "tests/translationStability.test.ts",
       "tests/userscriptCount.test.ts",
       "tests/userscriptCompression.test.ts",
+      "tests/userscriptFullOptions.test.ts",
       "tests/userscriptHttp.test.ts",
       "tests/userscriptInitialize.test.ts",
       "tests/userscriptLanguageBundles.test.ts",

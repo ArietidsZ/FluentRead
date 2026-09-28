@@ -180,6 +180,7 @@
 <script setup lang="ts">
 import UiIcon from '@/src/ui/components/UiIcon.vue'
 import UiSelect from '@/src/ui/components/UiSelect.vue';
+import {applyInterfaceTheme} from '@/src/ui/interfaceAppearance'
 import {ElOption} from 'element-plus';
 function translateControlLabel(value: string): string { return translateLegacyText(value, normalizeUiLanguage(runtimeConfig.uiLanguage)); }
 
@@ -403,7 +404,7 @@ async function requestVocabulary<T>(request: VocabularyBookRequest): Promise<T> 
 function applyTheme(): void {
   const dark = runtimeConfig.theme === 'dark'
     || (runtimeConfig.theme === 'auto' && Boolean(darkMedia?.matches));
-  document.documentElement.classList.toggle('dark', dark);
+  applyInterfaceTheme(dark);
 }
 
 function scheduleTimeRefresh(): void {
