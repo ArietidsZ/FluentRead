@@ -143,7 +143,13 @@ describe('语义化公共工具', () => {
         expect(isLikelyUntranslatedResponse('OpenAI API', 'OpenAI API', 'zh-Hans')).toBe(false);
         expect(isLikelyUntranslatedResponse('Frontend Developer', 'Frontend Developer', 'zh-Hans')).toBe(true);
         expect(isLikelyUntranslatedResponse('Frontend Developer', '前端开发者', 'zh-Hans')).toBe(false);
-        expect(isLikelyUntranslatedResponse('Visual Studio', 'Visual Studio', 'zh-Hans')).toBe(true);
+        expect(isLikelyUntranslatedResponse('Software Engineer', 'Software Engineer', 'zh-Hans')).toBe(true);
+        expect(isLikelyUntranslatedResponse('Visual Studio', 'Visual Studio', 'zh-Hans')).toBe(false);
+        for (const name of ['Taylor Swift', 'Frank Sinatra', 'Elvis Presley', 'Whitney Houston', 'Mariah Carey', 'Britney Spears', 'Lady Gaga', 'Silicon Valley', 'World Wide Web', 'Human Genome Project']) {
+            expect(isLikelyUntranslatedResponse(name, name, 'zh-Hans')).toBe(false);
+        }
+        expect(isLikelyUntranslatedResponse('Recording Industry Association of America',
+            'Recording Industry Association of America', 'zh-Hans')).toBe(false);
         expect(isLikelyUntranslatedResponse('Frontend Developer', 'Frontend Developer', 'en')).toBe(false);
         const pullRequestTitle = 'feat: add Google Drive configuration sync';
         expect(isLikelyUntranslatedResponse(pullRequestTitle,

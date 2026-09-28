@@ -206,7 +206,7 @@ function selectedEntries(args, entries) {
   return entries.filter(([, config]) => args.includeQuarantine || config.tier !== 'quarantine');
 }
 
-function childArgs(args, name, mode) {
+function childArgs(args, name, mode, attempt = 1) {
   const values = [
     CASE_RUNNER,
     '--case', name,
@@ -219,7 +219,8 @@ function childArgs(args, name, mode) {
   if (args.timeout) values.push('--timeout', args.timeout);
   if (args.focusSafeHelper) values.push('--focus-safe-helper', args.focusSafeHelper);
   if (args.allowNetwork) values.push('--allow-network');
-  if (args.artifactsDir) values.push('--artifacts-dir', path.join(path.resolve(args.artifactsDir), name, mode));
+  if (args.artifactsDir) values.push('--artifacts-dir', path.join(path.resolve(args.artifactsDir), name, mode,
+    ...(attempt > 1 ? [`attempt-${attempt}`] : [])));
   return values;
 }
 
@@ -314,6 +315,17 @@ function runChildWithWatchdog(command, values, options = {}) {
   });
 }
 
+/** 网络/宿主初始化可能偶发失败；重试必须是全新浏览器且再次跑完整契约。 */
+async function runJobAttempts(runAttempt, maxAttempts) {
+  const attempts = [];
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const result = await runAttempt(attempt);
+    attempts.push(result);
+    if (result.ok || result.timedOut) break;
+  }
+  return {...attempts[attempts.length - 1], attempts};
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const matrix = validateMatrix();
@@ -346,7 +358,12 @@ async function main() {
   for (const job of jobs) {
     process.stdout.write(`\n=== ${job.name} / ${job.mode} / ${job.tier} ===\n`);
     const timeoutMs = computeJobTimeoutMs(args.timeout, job.mode, args.jobTimeout);
-    const child = await runChildWithWatchdog(process.execPath, childArgs(args, job.name, job.mode), {timeoutMs});
+    const child = await runJobAttempts((attempt) => {
+      if (attempt > 1) {
+        process.stdout.write(`[site-translation-matrix] ${job.name}/${job.mode} 第 ${attempt} 次完整复测\n`);
+      }
+      return runChildWithWatchdog(process.execPath, childArgs(args, job.name, job.mode, attempt), {timeoutMs});
+    }, job.tier === 'required' ? 2 : 1);
     if (child.timedOut) {
       process.stderr.write(`[site-translation-matrix] ${job.name}/${job.mode} 总 watchdog 超时 ` +
         `(${timeoutMs}ms)，已终止隔离浏览器进程组\n`);
@@ -360,6 +377,8 @@ async function main() {
     ok: requiredFailures.length === 0 && (!args.failOnQuarantine || quarantineFailures.length === 0),
     jobs: results.length,
     passed: results.filter((result) => result.ok).length,
+    recoveredFailures: results.filter((result) => result.ok && result.attempts.length > 1)
+      .map((result) => ({name: result.name, mode: result.mode, attempts: result.attempts})),
     requiredFailures,
     quarantineFailures,
     timeoutFailures: results.filter((result) => result.timedOut),
@@ -376,4 +395,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = {MATRIX_REQUIREMENTS, computeJobTimeoutMs, runChildWithWatchdog, validateMatrix};
+module.exports = {MATRIX_REQUIREMENTS, computeJobTimeoutMs, runChildWithWatchdog, runJobAttempts, validateMatrix};

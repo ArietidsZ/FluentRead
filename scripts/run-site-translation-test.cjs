@@ -1522,12 +1522,19 @@ async function waitForTranslationIdle(page, timeout, phase, minimumRetryBudget =
     await page.evaluate((key) => { delete window[key]; }, idleKey).catch(() => {});
   }
 
-  const retries = await page.evaluate((selector) => [...document.querySelectorAll(selector)].map((node) => ({
-    ownerTag: node.parentElement?.tagName || '',
-    ownerId: node.parentElement?.id || '',
-    ownerClass: typeof node.parentElement?.className === 'string' ? node.parentElement.className : '',
-    ownerText: (node.parentElement?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 240),
-  })), ownedRetry);
+  const retries = await page.evaluate((selector) => [...document.querySelectorAll(selector)].map((node) => {
+    // 只有终态失败时读取用户可见的“错误原因”；不暴露服务层原始请求或凭据。
+    node.querySelector('.fluent-read-reason')?.click();
+    const notice = document.querySelector('#fluent-read-page-notice-host')?.shadowRoot
+      ?.querySelector('.page-notice:last-child .notice-detail');
+    return {
+      ownerTag: node.parentElement?.tagName || '',
+      ownerId: node.parentElement?.id || '',
+      ownerClass: typeof node.parentElement?.className === 'string' ? node.parentElement.className : '',
+      ownerText: (node.parentElement?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 240),
+      errorReason: (notice?.textContent || '').trim().slice(0, 400),
+    };
+  }), ownedRetry);
   if (retries.length > 0) throw new Error(`${phase} 存在终态翻译失败：${JSON.stringify(retries)}`);
 }
 

@@ -30,15 +30,24 @@ function isLatinKeywordList(value: string): boolean {
     return readableTags >= 6 && words >= 6;
 }
 
-/** 两个普通英文词组成的短标题常被语言检测视为不确定，但原文回显不能算作译文。 */
+/** 职业标题常被语言检测视为不确定；只对明确的通用职位词判定原文回显。 */
 function isLatinShortHeading(value: string): boolean {
     const words = value.trim().split(/\s+/u);
-    return words.length === 2 && words.every(word => /^[A-Za-z][a-z]{3,}[.!?]?$/u.test(word));
+    return words.length === 2 && words.every(word => /^[A-Za-z][a-z]{3,}[.!?]?$/u.test(word))
+        && /^(?:developer|engineer|designer|manager|analyst|architect|administrator|scientist|researcher|specialist|consultant|programmer|translator|editor|writer|teacher|student|operator|technician)$/iu.test(words[1]);
+}
+
+/** 两个首字母大写的词可能是人名、地名或品牌；不能因原样保留就使整段失败。 */
+function isPossiblyProperName(value: string): boolean {
+    const words = value.trim().split(/\s+/u);
+    return words.length === 2 && words.every(word => /^[A-Z][a-z]{2,}$/u.test(word))
+        && !isLatinShortHeading(value);
 }
 
 /** 拒绝外语正文及英文标题的原文回显；缩写、代码与部分专名保持保守判定。 */
 export function isLikelyUntranslatedResponse(origin: string, result: string, targetLanguage: string): boolean {
     if (!origin.trim() || comparable(origin) !== comparable(result)) return false;
+    if (getChineseScript(targetLanguage) && isPossiblyProperName(origin)) return false;
     const identification = identifyTextLanguage(origin);
     if (identification.status === 'identified') {
         return !identification.languages.some(language => isLanguageCodeMatch(language, targetLanguage));

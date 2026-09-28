@@ -123,6 +123,26 @@ describe('双语快照展示保护', () => {
         expect(clicked).toHaveBeenCalledOnce();
     });
 
+    it('只翻译可读链接标题与周围正文，纯网址和域名保持原链接', () => {
+        const {owner} = page('<a href="http://www.tubesnow.com/">http://www.tubesnow.com/</a> <a href="https://pub.dev/publishers/dash-overflow.net">dash-overflow.net</a> <a href="/guide">the guide</a>');
+        const originalLinks = [...owner.querySelectorAll('a')];
+        const snapshot = createTranslationSourceSnapshot(owner);
+        const sources = snapshot.slots.map(slot => slot.source);
+        expect(sources).toContain('Read this explanation');
+        expect(sources).toContain('the guide');
+        expect(sources).not.toContain('http://www.tubesnow.com/');
+        expect(sources).not.toContain('dash-overflow.net');
+        expect(collectLiveTranslationTextSlots(owner).map(slot => slot.source)).toEqual(sources);
+
+        const html = applyTranslationsToSnapshot(snapshot, sources.map(source => `译:${source}`));
+        const wrapper = appendBilingualTranslation(owner, html, {sourceSkeleton: snapshot.clone});
+        expect([...wrapper.querySelectorAll('a')].map(link => link.textContent)).toEqual([
+            'http://www.tubesnow.com/', 'dash-overflow.net', '译:the guide',
+        ]);
+        wrapper.remove();
+        expect([...owner.querySelectorAll('a')]).toEqual(originalLinks);
+    });
+
     it('依据实时隐藏状态重建副本，不因禁译祖先或已克隆的属性丢失漏出文字', () => {
         const {owner} = page('<span translate="no"><span id="changing">CURRENT_LITERAL</span></span>');
         const changing = owner.querySelector<HTMLElement>('#changing')!;

@@ -21,6 +21,7 @@ import {
 
 const identifierPatterns = [
     /^https?:\/\/\S+$/iu,
+    /^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:[:/?#]\S*)?$/iu,
     /^\S+@\S+\.\S+$/u,
     /^@[\p{L}\p{N}_-]+$/u,
     /^u\/[\p{L}\p{N}_-]+$/u,

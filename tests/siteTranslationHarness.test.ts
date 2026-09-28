@@ -200,6 +200,7 @@ const {
   MATRIX_REQUIREMENTS,
   computeJobTimeoutMs,
   runChildWithWatchdog,
+  runJobAttempts,
   validateMatrix,
 } = require('../scripts/run-site-translation-matrix.cjs') as {
   MATRIX_REQUIREMENTS: {
@@ -220,6 +221,10 @@ const {
       killProcessGroupImpl?: (child: EventEmitter & {pid?: number}, signal: string) => boolean;
     },
   ) => Promise<{ok: boolean; timedOut: boolean; signal: string | null}>;
+  runJobAttempts: (
+    runAttempt: (attempt: number) => Promise<{ok: boolean; timedOut: boolean}>,
+    maxAttempts: number,
+  ) => Promise<{ok: boolean; timedOut: boolean; attempts: Array<{ok: boolean; timedOut: boolean}>}>;
   validateMatrix: (caseConfigs?: Record<string, unknown>) => {
     entries: Array<[string, unknown]>;
     required: Array<[string, unknown]>;
@@ -1709,6 +1714,17 @@ describe('real-site translation matrix gates', () => {
       'setInterval(() => {}, 1000)',
     ], {timeoutMs: 80, killGraceMs: 30, stdio: 'ignore'});
     expect(result).toMatchObject({ok: false, timedOut: true});
+  });
+
+  it('retries a failed required site in a fresh complete run while keeping both outcomes visible', async () => {
+    const flaky = vi.fn(async (attempt: number) => ({ok: attempt === 2, timedOut: false}));
+    const recovered = await runJobAttempts(flaky, 2);
+    expect(flaky.mock.calls.map(([attempt]) => attempt)).toEqual([1, 2]);
+    expect(recovered).toMatchObject({ok: true, attempts: [{ok: false}, {ok: true}]});
+
+    const timedOut = vi.fn(async () => ({ok: false, timedOut: true}));
+    expect(await runJobAttempts(timedOut, 2)).toMatchObject({ok: false, attempts: [{timedOut: true}]});
+    expect(timedOut).toHaveBeenCalledTimes(1);
   });
 
   it('still SIGKILLs the process group when the direct child closes after SIGTERM', async () => {
