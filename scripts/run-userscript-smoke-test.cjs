@@ -710,8 +710,23 @@ async function main() {
       if (!darkSummaryChannels || darkSummaryChannels.some((channel) => channel > 120)) {
         throw new Error(`深色设置仍有浅色权重卡片：${darkSummaryColor}`);
       }
+      const ballAfterNavigation = await page.evaluate(() => {
+        const ball = document.querySelector('#fluent-read-floating-ball-container');
+        return ball ? {
+          suspended: ball.getAttribute('data-fluent-read-ui-suspended'),
+          computedVisibility: getComputedStyle(ball).visibility,
+        } : null;
+      });
+      if (ballAfterNavigation?.suspended !== 'true' || ballAfterNavigation.computedVisibility !== 'hidden') {
+        throw new Error(`设置页导航后悬浮球重新露出：${JSON.stringify(ballAfterNavigation)}`);
+      }
       await page.screenshot({path: path.join(artifactsDir, 'userscript-full-options.png'), fullPage: false});
       await page.setViewportSize({width: 390, height: 844});
+      const ballAtNarrow = await page.evaluate(() => {
+        const ball = document.querySelector('#fluent-read-floating-ball-container');
+        return ball ? getComputedStyle(ball).visibility : null;
+      });
+      if (ballAtNarrow !== 'hidden') throw new Error(`窄屏设置页悬浮球重新露出：${ballAtNarrow}`);
       const narrow = await page.evaluate(() => {
         const app = window.__fluentReadUserscriptSettingsShadow.querySelector('.settings-app');
         return {width: innerWidth, appWidth: app.getBoundingClientRect().width, scrollWidth: app.scrollWidth};
@@ -733,7 +748,8 @@ async function main() {
       });
       if (ballAfterClose !== 'visible') throw new Error(`关闭页内设置后悬浮球没有恢复：${ballAfterClose}`);
       const evidence = {initial, hostBefore, hostAfter, savedTheme: decodeStoredValue(sharedGmStore.get('local:config')).theme,
-        darkSummaryColor, dropdownInsideShadow, narrow, visitedSections, ballDuringSettings, ballAfterClose,
+        darkSummaryColor, dropdownInsideShadow, narrow, visitedSections, ballDuringSettings, ballAfterNavigation,
+        ballAtNarrow, ballAfterClose,
         section, launchMode, focusPolicy, windowPlacement,
         transport: 'local fixture with deterministic GM shim; no live provider or userscript manager certification'};
       fs.writeFileSync(path.join(artifactsDir, 'options-evidence.json'), `${JSON.stringify(evidence, null, 2)}\n`);
