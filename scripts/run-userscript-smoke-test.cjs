@@ -605,6 +605,31 @@ async function main() {
         }
         visitedSections.push(id);
       }
+      for (const [id, noticeId, unsupportedControl] of [
+        ['settings-translation', 'context-menu', '.context-menu-preview'],
+        ['settings-interface', 'popup-layout', '[data-popup-layout-workbench]'],
+      ]) {
+        await page.evaluate((section) => {
+          window.__fluentReadUserscriptSettingsShadow.querySelector(`button[data-section="${section}"]`).click();
+        }, id);
+        await page.waitForFunction(({section, notice}) => {
+          const root = window.__fluentReadUserscriptSettingsShadow;
+          return root?.querySelector(`button[data-section="${section}"]`)?.getAttribute('aria-current') === 'page'
+            && Boolean(root.querySelector(`[data-userscript-unavailable="${notice}"]`));
+        }, {section: id, notice: noticeId}, {timeout: args.timeout});
+        const embeddedAvailability = await page.evaluate(({notice, selector}) => {
+          const root = window.__fluentReadUserscriptSettingsShadow;
+          const content = root.querySelector(`[data-userscript-unavailable="${notice}"]`);
+          return {
+            unavailableMessage: content?.textContent?.includes('此功能需要浏览器扩展的运行环境'),
+            unsupportedControl: Boolean(root.querySelector(selector)),
+          };
+        }, {notice: noticeId, selector: unsupportedControl});
+        if (!embeddedAvailability.unavailableMessage || embeddedAvailability.unsupportedControl) {
+          throw new Error(`${id} 的扩展专属控件处理异常：${JSON.stringify(embeddedAvailability)}`);
+        }
+        visitedSections.push(id);
+      }
       const hostAfter = await page.evaluate(() => ({
         hash: location.hash,
         title: document.title,
