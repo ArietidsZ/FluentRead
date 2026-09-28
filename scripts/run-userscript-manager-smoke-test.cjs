@@ -364,6 +364,59 @@ async function main() {
           .find((button) => button.textContent.trim() === '暗色主题')?.getAttribute('aria-checked');
       });
       if (evidence.settings.persistedTheme !== 'true') throw new Error('Full Options theme did not persist across manager-backed reload');
+      const readFloatingBallSwitch = () => withSettingsShadow(settingsPage, function () {
+        const control = this.querySelector('[role="switch"][aria-label="全文翻译悬浮球"]');
+        if (!control) throw new Error('Full Options floating ball switch was not found');
+        return control.getAttribute('aria-checked') === 'true';
+      });
+      const waitForFloatingBallSwitch = async (expected) => {
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < args.timeout) {
+          try {
+            if (await readFloatingBallSwitch() === expected) return;
+          } catch {
+            // The closed Shadow UI can attach before the Vue control mounts.
+          }
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        throw new Error(`Full Options floating ball switch did not reach ${expected}`);
+      };
+      const setFloatingBallSwitch = async (enabled) => {
+        await withSettingsShadow(settingsPage, function (nextValue) {
+          const control = this.querySelector('[role="switch"][aria-label="全文翻译悬浮球"]');
+          if (!control) throw new Error('Full Options floating ball switch was not found');
+          if ((control.getAttribute('aria-checked') === 'true') !== nextValue) control.click();
+        }, [enabled]);
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < args.timeout) {
+          // Userscript GM storage refreshes when the source tab regains focus.
+          await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+          const visible = await page.locator('#fluent-read-floating-ball-container').count() > 0;
+          if (visible === enabled) return;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        throw new Error(`Full Options floating ball change did not reach the source page: ${enabled}`);
+      };
+      evidence.settings.floatingBallInitiallyEnabled = await readFloatingBallSwitch();
+      if (!evidence.settings.floatingBallInitiallyEnabled) throw new Error('Floating ball started disabled in the full Options smoke');
+      await setFloatingBallSwitch(false);
+      await settingsPage.reload({waitUntil: 'domcontentloaded'});
+      await settingsPage.locator('#fluent-read-userscript-settings-container').waitFor({state: 'attached', timeout: args.timeout});
+      await waitForFloatingBallSwitch(false);
+      evidence.settings.floatingBallDisabledAfterReload = await readFloatingBallSwitch();
+      if (evidence.settings.floatingBallDisabledAfterReload) throw new Error('Full Options floating ball disable did not persist');
+      await setFloatingBallSwitch(true);
+      await settingsPage.reload({waitUntil: 'domcontentloaded'});
+      await settingsPage.locator('#fluent-read-userscript-settings-container').waitFor({state: 'attached', timeout: args.timeout});
+      await waitForFloatingBallSwitch(true);
+      evidence.settings.floatingBallReenabledAfterReload = await readFloatingBallSwitch();
+      if (!evidence.settings.floatingBallReenabledAfterReload) throw new Error('Full Options floating ball reenable did not persist');
+      evidence.settings.themePreservedAfterFloatingBall = await withSettingsShadow(settingsPage, function () {
+        const selected = [...this.querySelectorAll('[role="radiogroup"][aria-label="界面主题"] button')]
+          .find((button) => button.textContent.trim() === '暗色主题');
+        return this.host.classList.contains('dark') && selected?.getAttribute('aria-checked') === 'true';
+      });
+      if (!evidence.settings.themePreservedAfterFloatingBall) throw new Error('Floating ball edits overwrote the saved theme');
       evidence.settingsScreenshot = path.join(args.artifactsDir, 'full-options.png');
       await settingsPage.screenshot({path: evidence.settingsScreenshot});
       await settingsPage.close();
