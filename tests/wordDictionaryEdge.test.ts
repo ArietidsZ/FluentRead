@@ -1,7 +1,9 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {createHash} from 'node:crypto';
+import {createHash, webcrypto} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
+import {canCacheOptionalEcdict, downloadFullEcdict, readCachedFullEcdict} from '@/src/features/selection-translation/services/ecdictAsset';
+import {setRuntimeFetch} from '@/src/platform/http/runtime';
 import {
     clearWordDictionaryCache,
     createDefaultWordDictionaryProviders,
@@ -50,9 +52,141 @@ function card(
 
 afterEach(() => {
     clearWordDictionaryCache();
+    setRuntimeFetch();
     vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+});
+
+function optionalDictionaryCache() {
+    const stored = new Map<string, Response>();
+    const cache = {
+        match: async (key: string) => stored.get(key)?.clone(),
+        put: async (key: string, value: Response) => { stored.set(key, value.clone()); },
+        delete: async (key: string) => stored.delete(key),
+    };
+    vi.stubGlobal('caches', {open: async () => cache});
+    vi.stubGlobal('crypto', webcrypto);
+    return {stored, cache};
+}
+
+const fullEcdictBytes = () => new Uint8Array(readFileSync(resolve(process.cwd(), 'assets/optional/ecdict-core-full.json')));
+
+describe('optional full ECDICT asset', () => {
+    it('does not download into a host page without an extension runtime', async () => {
+        optionalDictionaryCache();
+        const requested: string[] = [];
+        setRuntimeFetch(async input => {
+            requested.push(String(input));
+            return new Response(fullEcdictBytes());
+        });
+        expect(await provider(createDefaultWordDictionaryProviders(), 'ecdict-local').lookup('puma')).toBeNull();
+        expect(requested).toEqual([]);
+    });
+
+    it('does not start an optional download when persistent cache support is unavailable', async () => {
+        vi.stubGlobal('caches', undefined);
+        expect(canCacheOptionalEcdict()).toBe(false);
+        expect(await readCachedFullEcdict()).toBeNull();
+        await expect(downloadFullEcdict()).rejects.toThrow('cache unavailable');
+    });
+
+    it('validates the fixed asset, falls back to a second source and reuses the cached copy', async () => {
+        const {stored} = optionalDictionaryCache();
+        const bytes = fullEcdictBytes();
+        const requested: string[] = [];
+        setRuntimeFetch(async input => {
+            requested.push(String(input));
+            return new Response(requested.length === 1 ? new Uint8Array([1, 2, 3]) : bytes);
+        });
+
+        const rows = await downloadFullEcdict();
+        expect(rows).toHaveLength(20_000);
+        expect(rows.at(-1)?.[0]).toBe('bis');
+        expect(requested).toHaveLength(2);
+        expect(requested.every(url => !url.includes('puma') && url.includes('ecdict-core.json'))).toBe(true);
+        expect(stored.size).toBe(1);
+        expect((await readCachedFullEcdict())?.at(-1)?.[0]).toBe('bis');
+    });
+
+    it('rejects a tampered cache entry and an oversized download before accepting a valid source', async () => {
+        const {stored} = optionalDictionaryCache();
+        const bytes = fullEcdictBytes();
+        stored.set('https://fluentread.app/__optional_assets__/ecdict/b0f0768e6730dfd07b895527ff56169f4d44904c58532b4cdd750aa97374071a.json',
+            new Response(new Uint8Array(bytes.length)));
+        expect(await readCachedFullEcdict()).toBeNull();
+        expect(stored.size).toBe(0);
+
+        let attempts = 0;
+        setRuntimeFetch(async () => new Response(++attempts === 1 ? new Uint8Array(bytes.length + 1) : bytes));
+        expect(await downloadFullEcdict()).toHaveLength(20_000);
+        expect(attempts).toBe(2);
+    });
+
+    it('serves uncommon words after background download while keeping the first lookup nonblocking', async () => {
+        const {stored} = optionalDictionaryCache();
+        vi.stubGlobal('browser', {runtime: {getURL: () => 'moz-extension://fixture/ecdict-core.json'}});
+        const core = new Uint8Array(readFileSync(resolve(process.cwd(), 'public/ecdict-core.json')));
+        const full = fullEcdictBytes();
+        const requested: string[] = [];
+        setRuntimeFetch(async input => {
+            requested.push(String(input));
+            return new Response(String(input).startsWith('moz-extension:') ? core : full);
+        });
+        const local = provider(createDefaultWordDictionaryProviders(), 'ecdict-local');
+
+        expect(await local.lookup('puma')).toBeNull();
+        await vi.waitFor(() => expect(stored.size).toBe(1));
+        await vi.waitFor(async () => expect((await local.lookup('puma'))?.word).toBe('puma'));
+        expect(requested.filter(url => url.startsWith('moz-extension:'))).toHaveLength(1);
+        expect(requested.filter(url => url.startsWith('https:'))).toHaveLength(1);
+
+        const reopened = provider(createDefaultWordDictionaryProviders(), 'ecdict-local');
+        expect((await reopened.lookup('puma'))?.word).toBe('puma');
+        expect(requested.filter(url => url.startsWith('https:'))).toHaveLength(1);
+    });
+
+    it('waits for connectivity and deduplicates an in-flight optional download', async () => {
+        optionalDictionaryCache();
+        vi.stubGlobal('browser', {runtime: {getURL: () => 'moz-extension://fixture/ecdict-core.json'}});
+        vi.stubGlobal('navigator', {onLine: false});
+        const core = new Uint8Array(readFileSync(resolve(process.cwd(), 'public/ecdict-core.json')));
+        const full = fullEcdictBytes();
+        const pending: Array<(response: Response) => void> = [];
+        setRuntimeFetch(async input => String(input).startsWith('moz-extension:')
+            ? new Response(core)
+            : new Promise<Response>(resolve => { pending.push(resolve); }));
+        const local = provider(createDefaultWordDictionaryProviders(), 'ecdict-local');
+
+        expect(await local.lookup('puma')).toBeNull();
+        expect(pending).toHaveLength(0);
+        vi.stubGlobal('navigator', {onLine: true});
+        expect(await local.lookup('puma')).toBeNull();
+        expect(await local.lookup('bis')).toBeNull();
+        expect(pending).toHaveLength(1);
+        pending[0](new Response(full));
+        await vi.waitFor(async () => expect((await local.lookup('bis'))?.word).toBe('bis'));
+        expect(pending).toHaveLength(1);
+    });
+
+    it('backs off after all fixed asset mirrors fail', async () => {
+        optionalDictionaryCache();
+        vi.stubGlobal('browser', {runtime: {getURL: () => 'moz-extension://fixture/ecdict-core.json'}});
+        const core = new Uint8Array(readFileSync(resolve(process.cwd(), 'public/ecdict-core.json')));
+        let remoteRequests = 0;
+        setRuntimeFetch(async input => {
+            if (String(input).startsWith('moz-extension:')) return new Response(core);
+            remoteRequests += 1;
+            return new Response('', {status: 503});
+        });
+        const local = provider(createDefaultWordDictionaryProviders(), 'ecdict-local');
+
+        expect(await local.lookup('puma')).toBeNull();
+        await vi.waitFor(() => expect(remoteRequests).toBe(3));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(await local.lookup('bis')).toBeNull();
+        expect(remoteRequests).toBe(3);
+    });
 });
 
 describe('word dictionary Unicode and untrusted payload boundaries', () => {
@@ -270,9 +404,12 @@ describe('word dictionary defensive provider parsing', () => {
 });
 
 describe('word dictionary provider network adapters', () => {
-    it('keeps every bundled ECDICT entry lossless in the compact row asset', () => {
-        const rows = JSON.parse(readFileSync(resolve(process.cwd(), 'public/ecdict-core.json'), 'utf8')) as string[][];
+    it('ships the first 3,000 frequency-ranked entries and preserves the full optional asset', () => {
+        const core = JSON.parse(readFileSync(resolve(process.cwd(), 'public/ecdict-core.json'), 'utf8')) as string[][];
+        const rows = JSON.parse(readFileSync(resolve(process.cwd(), 'assets/optional/ecdict-core-full.json'), 'utf8')) as string[][];
+        expect(core).toHaveLength(3_000);
         expect(rows).toHaveLength(20_000);
+        expect(core).toEqual(rows.slice(0, 3_000));
         expect(rows.every(row => row.length === 4 && row.every(value => typeof value === 'string'))).toBe(true);
         const originalShape = rows.map(([w, p, d, t]) => ({w, p, d, t, pos: ''}));
         expect(createHash('sha256').update(JSON.stringify(originalShape)).digest('hex'))

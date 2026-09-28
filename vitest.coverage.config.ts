@@ -597,6 +597,7 @@ export default defineConfig({
                 'src/features/selection-translation/background/offscreenAdapter.ts',
                 'src/features/selection-translation/background/wordLookupHandler.ts',
                 'src/features/selection-translation/services/edgeTtsPolicy.ts',
+                'src/features/selection-translation/services/wordNormalization.ts',
                 'src/features/selection-translation/services/wordDictionary.ts',
                 'src/features/video-subtitle/content/youtubeSubtitleData.ts',
                 'src/features/video-subtitle/content/youtubeTimedTextBridgeCore.ts',

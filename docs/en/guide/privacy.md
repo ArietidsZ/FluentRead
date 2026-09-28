@@ -18,6 +18,8 @@ The feature and service you choose determine which content leaves the browser. F
 
 Initial recognition-pack and local-model preparation requires network downloads. Input translation is disabled by default and handles text you deliberately submit from ordinary fields, not password fields.
 
+English word cards include a common-word dictionary. Looking up a word outside it may download and cache a fixed full-dictionary data file of about 3.9 MB from JSDMirror, GitHub Raw, or jsDelivr. That static asset request does not include the word being looked up. Online dictionary providers may still receive the word as described above.
+
 Sites configured for automatic translation can start requests automatically. Choosing a local translation model does not also make dictionaries, read-aloud, downloads, or other tools offline.
 
 ## What stays in the browser?
@@ -27,6 +29,8 @@ Settings, rules, glossaries, collections, and review records are stored in this 
 Regular-window reading-card conversations are retained for 30 days and can be viewed or deleted. Private windows do not read or save this history and do not provide persistent learning collections.
 
 Translation cache defaults to at most 5 MiB or 2,000 entries, with a maximum entry lifetime of 24 hours. You can adjust or clear it. X transcript caching keeps text and timing for up to 32 videos and 7 days, not recognition audio. Clear it in video settings.
+
+The optional full English dictionary is held in the browser's CacheStorage. Clearing browser data or uninstalling the extension removes it.
 
 Document translation and edits stay in the current page. Download files before leaving.
 

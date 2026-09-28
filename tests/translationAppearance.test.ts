@@ -111,11 +111,15 @@ describe('译文外观归一化', () => {
 describe('用户保存的译文样式', () => {
     it('只保留有效且不重复的命名快照，并归一化各自的外观', () => {
         const profiles = normalizeTranslationStyleProfiles([
+            null,
+            42,
+            {name: '缺少编号', style: 0},
             {id: 'night', name: '  夜读  ', style: 22, appearance: {textColor: '#ABC', fontScale: 111}},
             {id: 'night', name: '重复', style: 1},
             {id: 'bad id', name: '非法编号', style: 1},
             {id: 'unknown', name: '未知样式', style: 999},
             {id: 'empty', name: '  ', style: 0},
+            {id: 'nonstring', name: 123, style: 0},
             {id: 'paper', name: '纸张\u0000样式', style: 9, appearance: {opacity: 73}},
         ]);
         expect(profiles).toEqual([

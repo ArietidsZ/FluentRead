@@ -23,6 +23,40 @@ function documentFor(html: string): Document {
 }
 
 describe('网站正文规则目录', () => {
+    it('ar5iv 定理中的可读叙述可形成候选，内联 MathML 保持受保护', () => {
+        const url = new URL('https://ar5iv.labs.arxiv.org/html/2106.03753');
+        const adapter = adapterById.get('ar5iv')!;
+        const document = documentFor(`
+            <article><div class="ltx_para"><p id="theorem" class="ltx_p">
+            <span class="ltx_text ltx_font_italic">In single-hop beeping networks of size
+            <math class="ltx_Math"><mi>n</mi></math>, there exists a deterministic algorithm
+            that names distinct nodes in time slots.</span></p></div></article>
+        `);
+        const core = new TranslationCandidateCore({url, adapters: [adapter]});
+        const candidate = core.discover(document).find(item => item.element.id === 'theorem');
+        expect(candidate?.adapterId).toBe('ar5iv');
+        expect(extractTranslationText(document.getElementById('theorem')!, core.shouldStayOriginal))
+            .toContain('there exists a deterministic algorithm');
+    });
+
+    it('Wikipedia 多层章节内的段落也属于正文候选', () => {
+        const url = new URL('https://en.wikipedia.org/wiki/United_States');
+        const adapter = adapterById.get('wikipedia')!;
+        const document = documentFor(`
+            <main id="mw-content-text"><div class="mw-parser-output">
+            <section><section><p id="nested">The later history section describes how
+            <a href="/wiki/Example">national legislation</a> and <a href="/wiki/Another">court decisions</a>
+            changed the country over several decades.<sup class="reference">[42]</sup></p>
+            </section></section></div></main>
+        `);
+        const core = new TranslationCandidateCore({url, adapters: [adapter]});
+        const candidates = core.discover(document);
+        expect(candidates.find(candidate => candidate.element.id === 'nested')?.adapterId).toBe('wikipedia');
+        expect(adapter.decide(document.getElementById('nested')!, {url})).toMatchObject({
+            kind: 'force-target', atomic: true,
+        });
+    });
+
     it('整个目录满足统一 JSON 契约，使用有效选择器和可追踪的独立设计记录', () => {
         expect(pack.rules.length).toBeGreaterThanOrEqual(100);
         expect(validateSelectors(pack, documentFor('<main></main>'))).toEqual([]);
