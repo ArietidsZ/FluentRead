@@ -4,7 +4,7 @@ import type {ShadowRootContentScriptUi} from 'wxt/utils/content-script-ui/shadow
 
 let settingsUi: ShadowRootContentScriptUi<VueShadowMount> | null = null;
 
-export async function openUserscriptSettings(ctx: unknown): Promise<void> {
+export async function openUserscriptSettings(ctx: unknown, _section?: string): Promise<void> {
     if (settingsUi) return;
     let ui: ShadowRootContentScriptUi<VueShadowMount> | null = null;
     const close = () => {

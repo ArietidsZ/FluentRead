@@ -14,6 +14,7 @@ function parseArgs(argv, env = process.env) {
     timeout: 60000,
     suite: 'full',
     gmMode: 'legacy',
+    engine: 'chromium',
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -30,12 +31,14 @@ function parseArgs(argv, env = process.env) {
     index += 1;
   }
   args.timeout = Number(args.timeout);
-  if (!['full', 'selects'].includes(args.suite)) throw new Error(`无法识别测试套件：${args.suite}`);
+  if (!['full', 'selects', 'options', 'options-route'].includes(args.suite)) throw new Error(`无法识别测试套件：${args.suite}`);
   if (!['legacy', 'modern'].includes(args.gmMode)) throw new Error(`无法识别 GM 模式：${args.gmMode}`);
+  if (!['chromium', 'webkit'].includes(args.engine)) throw new Error(`无法识别浏览器引擎：${args.engine}`);
+  if (args.engine === 'webkit' && !args.background) throw new Error('WebKit 回归只允许无窗口的后台模式');
   if (!args.artifact) throw new Error('必须传入 --artifact');
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root');
   if (!args.artifactsDir) throw new Error('必须传入 --artifacts-dir');
-  if (args.background && !args.focusSafeHelper) {
+  if (args.background && args.engine === 'chromium' && !args.focusSafeHelper) {
     throw new Error('后台模式必须传入 --focus-safe-helper 或设置 FLUENTREAD_FOCUS_SAFE_HELPER');
   }
   if (args.focusSafeHelper) args.focusSafeHelper = path.resolve(args.focusSafeHelper);
@@ -233,10 +236,10 @@ async function main() {
   const artifact = path.resolve(args.artifact);
   const artifactsDir = path.resolve(args.artifactsDir);
   if (!fs.existsSync(artifact)) throw new Error(`userscript 产物不存在：${artifact}`);
-  if (!fs.existsSync(args.browserPath)) throw new Error(`Edge 不存在：${args.browserPath}`);
+  if (args.engine === 'chromium' && !fs.existsSync(args.browserPath)) throw new Error(`Chromium 浏览器不存在：${args.browserPath}`);
   fs.mkdirSync(artifactsDir, {recursive: true});
 
-  const {chromium} = loadPlaywright(args.playwrightRoot);
+  const {chromium, webkit} = loadPlaywright(args.playwrightRoot);
   const fixture = await startFixtureServer();
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-userscript-edge-'));
   assertDedicatedProfile(profileDir);
@@ -268,7 +271,14 @@ async function main() {
         '--no-first-run',
         '--no-default-browser-check',
     ];
-    if (args.background) {
+    if (args.engine === 'webkit') {
+      const browser = await webkit.launch({headless: true, timeout: args.timeout});
+      context = await browser.newContext({viewport: {width: 1280, height: 900}});
+      closeBrowser = () => browser.close();
+      launchMode = 'playwright-webkit-headless';
+      focusPolicy = 'headless-no-window';
+      windowPlacement = {mode: 'headless', visible: false, hidden: true, browserFrontmost: false};
+    } else if (args.background) {
       const focusSafe = loadFocusSafeBrowser(args.focusSafeHelper);
       const browserSession = await focusSafe.launchFocusSafePersistentContext({
         chromium,
@@ -305,6 +315,11 @@ async function main() {
     });
     await context.exposeFunction('__fluentReadGmList', () => [...sharedGmStore.keys()]);
     await context.addInitScript(({modern}) => {
+      // Reproduce issue #524's Dexie collision by making a different version
+      // visible in the same execution realm before FluentRead's bundle runs.
+      const hostDexie = Object.freeze({semVer: '4.4.4', owner: 'host-page-fixture'});
+      Object.defineProperty(window, '__fluentReadHostDexieBeforeInjection', {value: hostDexie});
+      window[Symbol.for('Dexie')] = hostDexie;
       Object.defineProperty(window, '__fluentReadOriginalAttachShadow', {value: Element.prototype.attachShadow});
       Object.defineProperty(window, '__fluentReadUserscriptSettingsShadow', {value: null, writable: true});
       Object.defineProperty(window, '__fluentReadSmokeBridgeEvents', {value: {shadow: 0, route: 0}});
@@ -428,6 +443,18 @@ async function main() {
     if (!pageGlobalsPreserved.browser || !pageGlobalsPreserved.chrome) {
       throw new Error(`页面 browser/chrome 全局被 userscript 覆盖：${JSON.stringify(pageGlobalsPreserved)}`);
     }
+    const hostDexie = await page.evaluate(() => {
+      const value = window[Symbol.for('Dexie')];
+      return {
+        semVer: value?.semVer,
+        owner: value?.owner,
+        sameInstance: value === window.__fluentReadHostDexieBeforeInjection,
+      };
+    });
+    if (hostDexie.semVer !== '4.4.4' || hostDexie.owner !== 'host-page-fixture'
+      || !hostDexie.sameInstance) {
+      throw new Error(`userscript 覆盖了宿主页面的 Dexie 注册：${JSON.stringify(hostDexie)}`);
+    }
 
     const gmStoreBeforeReinjection = new Map(sharedGmStore);
     await page.addScriptTag({path: artifact});
@@ -446,6 +473,242 @@ async function main() {
       || reinjectionState.settingsHosts !== 0
       || changedGmKeys.length > 0) {
       throw new Error(`userscript 重复注入不是幂等操作：${JSON.stringify({reinjectionState, changedGmKeys})}`);
+    }
+
+    if (args.suite === 'options-route') {
+      const settingsPage = await createIsolatedPage();
+      settingsPage.on('pageerror', (error) => consoleErrors.push(`settings pageerror: ${error.message}`));
+      settingsPage.on('console', (message) => {
+        if (message.type() === 'error') consoleErrors.push(`settings console: ${message.text()}`);
+      });
+      await settingsPage.goto(`${fixture.url}#fluentread-userscript-settings/settings-general`, {waitUntil: 'domcontentloaded', timeout: args.timeout});
+      await settingsPage.evaluate(() => {
+        const original = Element.prototype.attachShadow;
+        Element.prototype.attachShadow = function captureSettingsRoot(init) {
+          const root = original.call(this, init);
+          if (this.getAttribute('data-fluent-read-userscript-host') === 'fluent-read-userscript-settings-ui') {
+            window.__fluentReadUserscriptSettingsShadow = root;
+          }
+          return root;
+        };
+      });
+      await preloadUserscriptRequires(settingsPage, artifact);
+      await settingsPage.addScriptTag({path: artifact});
+      await settingsPage.waitForFunction(() => window.__fluentReadUserscriptSettingsShadow?.querySelector('.settings-app'), undefined, {timeout: args.timeout});
+      const result = await settingsPage.evaluate(() => {
+        const host = document.querySelector('#fluent-read-userscript-settings-container');
+        const root = window.__fluentReadUserscriptSettingsShadow;
+        return {
+          hash: location.hash,
+          closedShadow: host?.shadowRoot === null,
+          fullOptions: Boolean(root.querySelector('.settings-app [data-section="settings-services"]')),
+          overlayClose: Boolean(root.querySelector('button.userscript-settings-close')),
+          contentStyles: document.querySelectorAll('#fluent-read-page-styles').length,
+          floatingBalls: document.querySelectorAll('#fluent-read-floating-ball-container').length,
+          hostRootClass: document.documentElement.className,
+          hostRootStyle: document.documentElement.getAttribute('style'),
+        };
+      });
+      if (!result.closedShadow || !result.fullOptions || result.overlayClose || result.contentStyles || result.floatingBalls
+        || result.hostRootClass || result.hostRootStyle) {
+        throw new Error(`独立设置标签页启动了网页功能或污染了宿主：${JSON.stringify(result)}`);
+      }
+      await settingsPage.screenshot({path: path.join(artifactsDir, 'userscript-options-route.png'), fullPage: false});
+      const evidence = {result, sourceFloatingBall: await page.locator('#fluent-read-floating-ball-container').count(),
+        launchMode, focusPolicy, windowPlacement,
+        transport: 'local fixture with deterministic GM shim; no live provider or userscript manager certification'};
+      fs.writeFileSync(path.join(artifactsDir, 'options-route-evidence.json'), `${JSON.stringify(evidence, null, 2)}\n`);
+      if (consoleErrors.length) throw new Error(`浏览器控制台出现错误：${JSON.stringify(consoleErrors)}`);
+      console.log(JSON.stringify(evidence, null, 2));
+      return;
+    }
+
+    if (args.suite === 'options') {
+      await page.evaluate(() => history.replaceState(null, '', '#host-route'));
+      const hostBefore = await page.evaluate(() => ({
+        hash: location.hash,
+        title: document.title,
+        rootClass: document.documentElement.className,
+        rootStyle: document.documentElement.getAttribute('style'),
+        rootSkin: document.documentElement.dataset.interfaceSkin,
+      }));
+      await page.evaluate(() => {
+        const originalAttachShadow = Element.prototype.attachShadow;
+        const originalOpen = window.open;
+        window.open = () => null; // Force the documented same-page fallback when tabs are blocked.
+        Element.prototype.attachShadow = function captureSettingsRoot(init) {
+          const root = originalAttachShadow.call(this, init);
+          if (this.getAttribute('data-fluent-read-userscript-host') === 'fluent-read-userscript-settings-ui') {
+            window.__fluentReadUserscriptSettingsShadow = root;
+          }
+          return root;
+        };
+        window.__fluentReadRestoreSettingsObserver = () => {
+          Element.prototype.attachShadow = originalAttachShadow;
+          window.open = originalOpen;
+        };
+        window.dispatchEvent(new CustomEvent('fluentread-userscript-open-settings'));
+      });
+      try {
+        await page.waitForFunction(() => window.__fluentReadUserscriptSettingsShadow?.querySelector('.settings-app'), undefined, {timeout: args.timeout});
+      } finally {
+        await page.evaluate(() => window.__fluentReadRestoreSettingsObserver());
+      }
+      const settingsHost = page.locator('#fluent-read-userscript-settings-container');
+      const initial = await settingsHost.evaluate((host) => ({
+        closedShadow: host.shadowRoot === null,
+        lightDomText: host.textContent?.trim() || '',
+        viewportWidth: host.getBoundingClientRect().width,
+      }));
+      if (!initial.closedShadow || initial.lightDomText || initial.viewportWidth < 300) {
+        throw new Error(`完整 Options 未隔离在全视口 closed Shadow DOM：${JSON.stringify(initial)}`);
+      }
+      const ballDuringSettings = await page.evaluate(() => {
+        const ball = document.querySelector('#fluent-read-floating-ball-container');
+        return ball ? {
+          hostName: ball.getAttribute('data-fluent-read-userscript-host'),
+          suspended: ball.getAttribute('data-fluent-read-ui-suspended'),
+          computedVisibility: getComputedStyle(ball).visibility,
+        } : null;
+      });
+      if (ballDuringSettings?.suspended !== 'true' || ballDuringSettings.computedVisibility !== 'hidden') {
+        throw new Error(`页内完整设置没有遮蔽悬浮球：${JSON.stringify(ballDuringSettings)}`);
+      }
+      await page.waitForFunction(() => window.__fluentReadUserscriptSettingsShadow?.querySelector('[role="radiogroup"][aria-label="界面主题"] button'), undefined, {timeout: args.timeout});
+      await page.evaluate(() => {
+        const input = window.__fluentReadUserscriptSettingsShadow.querySelector('input[aria-label="默认网页翻译服务"]');
+        if (!input) throw new Error('完整 Options 缺少默认翻译服务选择器');
+        input.closest('.el-select__wrapper')?.click();
+      });
+      await page.waitForFunction(() => [...window.__fluentReadUserscriptSettingsShadow.querySelectorAll('.el-select-dropdown')]
+        .some((menu) => menu.getBoundingClientRect().height > 0), undefined, {timeout: args.timeout});
+      const dropdownInsideShadow = await page.evaluate(() => [...window.__fluentReadUserscriptSettingsShadow.querySelectorAll('.el-select-dropdown')]
+        .some((menu) => menu.getBoundingClientRect().height > 0 && menu.getRootNode() === window.__fluentReadUserscriptSettingsShadow));
+      if (!dropdownInsideShadow) throw new Error('翻译服务下拉菜单离开了 closed ShadowRoot');
+      await page.keyboard.press('Escape');
+      await page.evaluate(() => {
+        const root = window.__fluentReadUserscriptSettingsShadow;
+        const dark = [...root.querySelectorAll('[role="radiogroup"][aria-label="界面主题"] button')]
+          .find((button) => button.textContent.trim() === '暗色主题');
+        if (!dark) throw new Error('找不到完整 Options 的暗色主题设置');
+        dark.click();
+      });
+      await page.waitForFunction(() => {
+        const root = window.__fluentReadUserscriptSettingsShadow;
+        return root?.host.classList.contains('dark');
+      }, undefined, {timeout: args.timeout});
+      await page.waitForFunction(() => window.__fluentReadGmGet('local:config', null)
+        .then((raw) => JSON.parse(raw || '{}').theme === 'dark'), undefined, {timeout: args.timeout});
+      const unavailableSections = [
+        'settings-image-translation', 'settings-area-translation', 'settings-video',
+        'settings-writing', 'settings-translation-stats', 'settings-model-usage',
+      ];
+      const visitedSections = [];
+      for (const id of [...unavailableSections, 'settings-vocabulary', 'settings-data', 'settings-about']) {
+        await page.evaluate((section) => {
+          window.__fluentReadUserscriptSettingsShadow.querySelector(`button[data-section="${section}"]`).click();
+        }, id);
+        await page.waitForFunction((section) => {
+          const root = window.__fluentReadUserscriptSettingsShadow;
+          return root?.querySelector(`button[data-section="${section}"]`)?.getAttribute('aria-current') === 'page'
+            && Boolean(root.querySelector(`#${section}`));
+        }, id, {timeout: args.timeout});
+        if (await page.evaluate(() => location.hash) !== '#host-route') {
+          throw new Error(`页内 ${id} 导航改写了宿主网页路由`);
+        }
+        if (unavailableSections.includes(id)) {
+          const unavailable = await page.evaluate((section) => {
+            const root = window.__fluentReadUserscriptSettingsShadow;
+            const notice = root.querySelector(`#${section}.userscript-unavailable`);
+            return Boolean(notice?.textContent?.includes('油猴脚本暂不支持此功能'))
+              && !notice.querySelector('input, button, [role="switch"]');
+          }, id);
+          if (!unavailable) throw new Error(`${id} 仍显示无法生效的油猴设置控件`);
+        }
+        visitedSections.push(id);
+      }
+      for (const [id, noticeId, unsupportedControl] of [
+        ['settings-translation', 'context-menu', '.context-menu-preview'],
+        ['settings-interface', 'popup-layout', '[data-popup-layout-workbench]'],
+      ]) {
+        await page.evaluate((section) => {
+          window.__fluentReadUserscriptSettingsShadow.querySelector(`button[data-section="${section}"]`).click();
+        }, id);
+        await page.waitForFunction(({section, notice}) => {
+          const root = window.__fluentReadUserscriptSettingsShadow;
+          return root?.querySelector(`button[data-section="${section}"]`)?.getAttribute('aria-current') === 'page'
+            && Boolean(root.querySelector(`[data-userscript-unavailable="${notice}"]`));
+        }, {section: id, notice: noticeId}, {timeout: args.timeout});
+        const embeddedAvailability = await page.evaluate(({notice, selector}) => {
+          const root = window.__fluentReadUserscriptSettingsShadow;
+          const content = root.querySelector(`[data-userscript-unavailable="${notice}"]`);
+          return {
+            unavailableMessage: content?.textContent?.includes('此功能需要浏览器扩展的运行环境'),
+            unsupportedControl: Boolean(root.querySelector(selector)),
+          };
+        }, {notice: noticeId, selector: unsupportedControl});
+        if (!embeddedAvailability.unavailableMessage || embeddedAvailability.unsupportedControl) {
+          throw new Error(`${id} 的扩展专属控件处理异常：${JSON.stringify(embeddedAvailability)}`);
+        }
+        visitedSections.push(id);
+      }
+      const hostAfter = await page.evaluate(() => ({
+        hash: location.hash,
+        title: document.title,
+        rootClass: document.documentElement.className,
+        rootStyle: document.documentElement.getAttribute('style'),
+        rootSkin: document.documentElement.dataset.interfaceSkin,
+      }));
+      if (JSON.stringify(hostBefore) !== JSON.stringify(hostAfter)) {
+        throw new Error(`设置主题污染了宿主文档：${JSON.stringify({hostBefore, hostAfter})}`);
+      }
+      await page.evaluate(() => {
+        window.__fluentReadUserscriptSettingsShadow.querySelector('button[data-section="settings-services"]').click();
+      });
+      await page.waitForFunction(() => window.__fluentReadUserscriptSettingsShadow
+        ?.querySelector('.settings-app h1')?.textContent?.includes('翻译服务'), undefined, {timeout: args.timeout});
+      if (await page.evaluate(() => location.hash) !== '#host-route') {
+        throw new Error('页内设置导航改写了宿主网页路由');
+      }
+      await page.waitForFunction(() => window.__fluentReadUserscriptSettingsShadow
+        ?.querySelector('[data-testid="free-translation-weight-summary"]'), undefined, {timeout: args.timeout});
+      const darkSummaryColor = await page.evaluate(() => getComputedStyle(
+        window.__fluentReadUserscriptSettingsShadow.querySelector('[data-testid="free-translation-weight-summary"]'),
+      ).backgroundColor);
+      const darkSummaryChannels = darkSummaryColor.match(/\d+/g)?.slice(0, 3).map(Number);
+      if (!darkSummaryChannels || darkSummaryChannels.some((channel) => channel > 120)) {
+        throw new Error(`深色设置仍有浅色权重卡片：${darkSummaryColor}`);
+      }
+      await page.screenshot({path: path.join(artifactsDir, 'userscript-full-options.png'), fullPage: false});
+      await page.setViewportSize({width: 390, height: 844});
+      const narrow = await page.evaluate(() => {
+        const app = window.__fluentReadUserscriptSettingsShadow.querySelector('.settings-app');
+        return {width: innerWidth, appWidth: app.getBoundingClientRect().width, scrollWidth: app.scrollWidth};
+      });
+      await page.screenshot({path: path.join(artifactsDir, 'userscript-full-options-narrow.png'), fullPage: false});
+      if (narrow.appWidth > narrow.width + 2 || narrow.scrollWidth > narrow.width + 2) {
+        throw new Error(`窄屏完整设置页横向溢出：${JSON.stringify(narrow)}`);
+      }
+      const section = await page.evaluate(() => window.__fluentReadUserscriptSettingsShadow.querySelector('.settings-app h1')?.textContent?.trim());
+      await page.evaluate(() => {
+        const closeButton = window.__fluentReadUserscriptSettingsShadow.querySelector('button.userscript-settings-close');
+        if (closeButton?.getAttribute('aria-label') !== '关闭') throw new Error('页内完整设置缺少可访问的关闭按钮');
+        closeButton.click();
+      });
+      await settingsHost.waitFor({state: 'detached', timeout: args.timeout});
+      const ballAfterClose = await page.evaluate(() => {
+        const ball = document.querySelector('#fluent-read-floating-ball-container');
+        return ball ? getComputedStyle(ball).visibility : null;
+      });
+      if (ballAfterClose !== 'visible') throw new Error(`关闭页内设置后悬浮球没有恢复：${ballAfterClose}`);
+      const evidence = {initial, hostBefore, hostAfter, savedTheme: decodeStoredValue(sharedGmStore.get('local:config')).theme,
+        darkSummaryColor, dropdownInsideShadow, narrow, visitedSections, ballDuringSettings, ballAfterClose,
+        section, launchMode, focusPolicy, windowPlacement,
+        transport: 'local fixture with deterministic GM shim; no live provider or userscript manager certification'};
+      fs.writeFileSync(path.join(artifactsDir, 'options-evidence.json'), `${JSON.stringify(evidence, null, 2)}\n`);
+      if (consoleErrors.length) throw new Error(`浏览器控制台出现错误：${JSON.stringify(consoleErrors)}`);
+      console.log(JSON.stringify(evidence, null, 2));
+      return;
     }
 
     // Keep UI draft/persistence checks isolated from the translation smoke fixture.
@@ -584,7 +847,15 @@ async function main() {
       return;
     }
 
-    await page.evaluate(() => window.dispatchEvent(new CustomEvent('fluentread-userscript-open-settings')));
+    await page.evaluate(() => {
+      const originalOpen = window.open;
+      window.open = () => null; // Test the same-page fallback before continuing translation checks.
+      try {
+        window.dispatchEvent(new CustomEvent('fluentread-userscript-open-settings'));
+      } finally {
+        window.open = originalOpen;
+      }
+    });
     const settingsHost = page.locator('#fluent-read-userscript-settings-container');
     await settingsHost.waitFor({state: 'attached', timeout: args.timeout});
     const settingsSecurity = await settingsHost.evaluate((host) => ({
@@ -872,8 +1143,8 @@ async function main() {
 
     await page.screenshot({path: path.join(artifactsDir, 'userscript-final.png'), fullPage: true});
     const evidence = {
-      browser: path.basename(args.browserPath),
-      isolatedProfile: profileDir,
+      browser: args.engine === 'webkit' ? 'Playwright WebKit' : path.basename(args.browserPath),
+      isolatedProfile: args.engine === 'webkit' ? null : profileDir,
       artifact,
       fixtureUrl: fixture.url,
       transport: `${args.gmMode} GM deterministic browser shim`,
@@ -883,6 +1154,7 @@ async function main() {
       fullPageCounts,
       finalState,
       pageGlobalsPreserved,
+      hostDexie,
       reinjectionState: {...reinjectionState, gmStoreUnchanged: true},
       settingsSecurity,
       userscriptLoadingStyle,

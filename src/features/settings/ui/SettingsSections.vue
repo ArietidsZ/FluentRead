@@ -578,7 +578,13 @@
         <QuickTranslationProfiles :config="config" action="full-page" :profiles="config.quickTranslationProfiles"
           @update:profiles="config.quickTranslationProfiles = $event" />
       </SettingsGroup>
-      <ContextMenuSettings :config="config" />
+      <SettingsGroup
+        v-if="browserCapabilities.browser === 'userscript'"
+        data-userscript-unavailable="context-menu"
+        :title="t('contextMenuSettings.title')"
+        :description="t('options.userscriptUnavailableDescription')"
+      />
+      <ContextMenuSettings v-else :config="config" />
     </section>
 
     <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" id="floating-ball-settings" class="settings-section settings-section-continuation">
@@ -637,6 +643,7 @@
       v-if="hasVisitedSection('settings-model-usage')"
       v-show="props.activeSection === 'settings-model-usage'"
       :active="props.activeSection === 'settings-model-usage'"
+      :query-root="props.queryRoot"
     />
     <ConfigManagement v-if="hasVisitedSection('settings-data')" v-show="props.activeSection === 'settings-data'" id="settings-data" :config="config" />
   </div>
@@ -735,8 +742,8 @@ const ServiceCatalog = defineAsyncComponent(() => import('./services/ServiceCata
 const ServiceConfiguration = defineAsyncComponent(() => import('./services/ServiceConfiguration.vue'));
 const CustomOpenAIProviderDialog = defineAsyncComponent(() => import('./services/CustomOpenAIProviderDialog.vue'));
 const TranslationCenter = defineAsyncComponent(() => import('@/src/features/translation-center/public').then(module => module.TranslationCenter));
-const openInputServiceSettings = (service: string) => { setConfigurationService(service); window.location.hash = 'settings-services'; };
-const openWritingServiceSettings = () => { setConfigurationService(config.value.writing.service || config.value.service); window.location.hash = 'settings-services'; };
+const openInputServiceSettings = (service: string) => { setConfigurationService(service); openSettingsSection('settings-services'); };
+const openWritingServiceSettings = () => { setConfigurationService(config.value.writing.service || config.value.service); openSettingsSection('settings-services'); };
 const WritingSettings = defineAsyncComponent(() => import('./WritingSettings.vue'));
 const HarnessSettings = defineAsyncComponent(() => import('./HarnessSettings.vue'));
 const GlossarySettings = defineAsyncComponent(() => import('@/src/features/glossary/public').then(module => module.GlossarySettings));
@@ -771,6 +778,7 @@ import SettingsItem from './components/SettingsItem.vue';
 import RequestLimitFields from './services/RequestLimitFields.vue';
 import SegmentedControl from './components/SegmentedControl.vue';
 import {localizeServiceOptions, useUiI18n} from '@/src/ui/i18n';
+import {applyInterfaceTheme} from '@/src/ui/interfaceAppearance';
 const ConfigManagement = defineAsyncComponent(() => import('./ConfigManagement.vue'));
 const QuickTranslationProfiles = defineAsyncComponent(() => import('./QuickTranslationProfiles.vue'));
 const ContextMenuSettings = defineAsyncComponent(() => import('./ContextMenuSettings.vue'));
@@ -790,6 +798,14 @@ import {
 
 const props = withDefaults(defineProps<{
   activeSection?: string
+  /** userscript 的 Options 页面把路由放在原网页 URL 的 hash 前缀后。 */
+  settingsHashPrefix?: string
+  /** 在 closed ShadowRoot 内定位需要滚动到的设置项。 */
+  queryRoot?: ParentNode | null
+  /** 主题类应写到 Shadow host，而不是宿主网页的 documentElement。 */
+  appearanceRoot?: HTMLElement | null
+  /** Options 根组件处理导航；页内回退时不能改写宿主网页的 hash。 */
+  onNavigateSection?: (section: string) => void
 }>(), {
   activeSection: 'settings-general',
 })
@@ -803,11 +819,17 @@ watch(() => props.activeSection, (section) => {
 const {language, t, translateLegacy} = useUiI18n();
 
 function openSettingsSection(section: string, targetId?: string): void {
-  if (window.location.hash !== `#${section}`) window.location.hash = section;
+  if (props.onNavigateSection) props.onNavigateSection(section);
+  else {
+    const nextHash = props.settingsHashPrefix
+      ? `${props.settingsHashPrefix}/${section}`
+      : `#${section}`;
+    if (window.location.hash !== nextHash) window.location.hash = nextHash;
+  }
   if (!targetId) return;
   let attempts = 0;
   const scrollWhenMounted = () => {
-    const target = document.getElementById(targetId);
+    const target = (props.queryRoot || document).querySelector<HTMLElement>(`#${targetId}`);
     if (target) {
       target.scrollIntoView({block: 'start'});
       return;
@@ -824,10 +846,10 @@ const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 function updateTheme(theme: string) {
   if (theme === 'auto') {
     // 自动模式下，直接使用系统主题
-    document.documentElement.classList.toggle('dark', darkModeMediaQuery.matches);
+    applyInterfaceTheme(darkModeMediaQuery.matches, props.appearanceRoot);
   } else {
     // 手动模式下，使用选择的主题
-    document.documentElement.classList.toggle('dark', theme === 'dark');
+    applyInterfaceTheme(theme === 'dark', props.appearanceRoot);
   }
 }
 // 配置信息

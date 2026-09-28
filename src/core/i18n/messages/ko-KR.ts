@@ -21,6 +21,8 @@ export const koKRMessages = {
     "settings.excludedLanguages.less": "언어 접기",
     "settings.excludedLanguages.clear": "선택 지우기",
     "settings.excludedLanguages.hint": "자동 저장되며 다음 번역부터 적용됩니다. 짧거나 언어를 판별할 수 없는 텍스트는 번역될 수 있습니다.",
+    "options.userscriptUnavailableTitle": "유저스크립트에서 사용할 수 없음",
+    "options.userscriptUnavailableDescription": "이 기능에는 브라우저 확장 프로그램의 실행 환경이 필요합니다. FluentRead 확장 프로그램을 설치해 사용하세요.",
     ...localTtsKoreanMessages,
     ...translationStatsKoreanMessages,
     "settings.services.library.freeReady": "API 키 없이 사용 가능한 무료 서비스를 자동으로 선택합니다.",

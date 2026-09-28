@@ -37,7 +37,9 @@
   --el-bg-color-overlay: #2b2e37;
   --el-fill-color-blank: var(--surface);
   --el-fill-color-light: var(--surface-soft);
+  --el-fill-color-extra-light: #292c35;
   --el-fill-color-lighter: #2b2e37;
+  --el-color-primary-light-9: #382630;
   --el-fill-color-dark: #1b1e24;
   --el-border-color: var(--line);
   --el-border-color-light: var(--line);
@@ -58,7 +60,7 @@ body { height: 100%; margin: 0; min-width: 0; overflow: hidden; background: #f5f
 button, input { font: inherit; }
 button:focus-visible, input:focus-visible { outline: 3px solid rgba(239, 71, 118, .2); outline-offset: 2px; }
 
-.settings-app { display: flex; width: 100%; height: 100vh; min-height: 0; overflow: hidden; }
+.settings-app { display: flex; width: 100%; height: 100vh; min-height: 0; overflow: hidden; color: var(--ink); background: #f5f6fa; }
 .sidebar {
   position: relative; z-index: 5; display: flex; flex: 0 0 232px; width: 232px; height: 100vh; min-height: 0; padding: 24px 16px 18px;
   flex-direction: column; border-right: 1px solid var(--line); background: rgba(255, 255, 255, .88);
@@ -100,6 +102,13 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
 .search-box > span { color: var(--muted); font-size: 20px; }
 .search-box input { width: 100%; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 12px; }
 .search-box input::placeholder { color: #9ca3b2; }
+.userscript-settings-close {
+  display: grid; flex: 0 0 44px; width: 44px; height: 44px; place-items: center;
+  border: 1px solid var(--line); border-radius: 14px; color: var(--ink);
+  background: var(--surface); cursor: pointer;
+}
+.userscript-settings-close:hover { color: var(--brand-strong); background: var(--surface-soft); }
+.userscript-settings-close:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 2px; }
 .search-results, .search-empty { margin: -14px 0 22px; padding: 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
 .search-results { display: grid; gap: 4px; }
 .search-results button { display: flex; align-items: center; justify-content: space-between; padding: 11px 12px; border: 0; border-radius: 10px; background: transparent; text-align: left; cursor: pointer; }
@@ -112,6 +121,9 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
 
 /* 将表单中的绝对定位辅助文本约束在内容滚动区，避免越过裁剪边界撑高文档并触发整页锚点滚动。 */
 .settings-card { position: relative; width: 100%; min-height: 0; padding: 2px 6px 18px; border: 0; border-radius: 0; background: transparent; box-shadow: none; flex: 1 1 auto; overflow: auto; }
+.userscript-unavailable { width: min(100%, 680px); margin: 24px auto; padding: 28px 32px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+.userscript-unavailable h2 { margin-bottom: 10px; color: var(--ink); font-size: 19px; }
+.userscript-unavailable p { margin-bottom: 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
 .settings-card.services-view {
   display: flex; width: calc(100% + 80px); margin-right: -40px; margin-left: -40px; padding: 0; border-right: 0; border-left: 0; border-radius: 0;
   flex-direction: column; overflow: hidden;
@@ -381,6 +393,8 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
   .workspace { width: 100%; height: auto; min-height: 0; padding: 24px 14px; flex: 1 1 auto; overflow: hidden; }
   .topbar { gap: 18px; margin-bottom: 20px; }
   .topbar-tools { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .has-overlay-close .topbar-tools { align-items: center; flex-direction: row; }
+  .has-overlay-close .search-box { flex: 1 1 auto; min-width: 0; }
   h1 { font-size: 25px; }
   .search-box { height: 44px; }
   .settings-card { padding: 20px 8px 14px; border-radius: 20px; }
@@ -449,7 +463,8 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
 
-:root.dark body { background: #191b21; }
+:root.dark body,
+:root.dark .settings-app { background: #191b21; }
 :root.dark .sidebar { border-color: var(--line); background: rgba(28, 30, 37, .94); }
 :root.dark .nav-group-label { color: #858d9d; }
 :root.dark .search-box,

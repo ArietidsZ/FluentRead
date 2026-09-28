@@ -22,6 +22,8 @@ export const enUSMessages = {
     "settings.excludedLanguages.less": "Show fewer languages",
     "settings.excludedLanguages.clear": "Clear selection",
     "settings.excludedLanguages.hint": "Saved automatically for the next translation session. Short text or text with an uncertain language may still be translated.",
+    "options.userscriptUnavailableTitle": "Unavailable in the userscript",
+    "options.userscriptUnavailableDescription": "This feature needs the browser extension runtime. Install the FluentRead extension to use it.",
     ...localTtsEnglishMessages,
     ...translationStatsEnglishMessages,
     "settings.services.library.freeReady": "No API key needed. Available free services are selected automatically.",

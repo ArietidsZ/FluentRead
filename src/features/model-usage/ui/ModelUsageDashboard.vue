@@ -542,7 +542,11 @@ const breakdownSortOptions: Array<{key: BreakdownSortKey; label: string}> = [
   {key: 'total', label: '总计'},
 ]
 
-const props = withDefaults(defineProps<{active?: boolean}>(), {active: true})
+const props = withDefaults(defineProps<{
+  active?: boolean
+  /** userscript 设置页的 modal 背景位于 closed ShadowRoot 内。 */
+  queryRoot?: ParentNode | null
+}>(), {active: true})
 const {t, translateLegacy, language} = useUiI18n()
 const customOpenAIProviders = ref<CustomOpenAIProvider[]>(config.customOpenAIProviders)
 const snapshot = ref<DashboardSnapshot | null>(null)
@@ -969,7 +973,7 @@ function closeResetDialog(): void {
 }
 
 function setSettingsBackgroundInert(value: boolean): void {
-  const settingsApp = document.querySelector<HTMLElement>('.settings-app')
+  const settingsApp = (props.queryRoot || document).querySelector<HTMLElement>('.settings-app')
   if (value) settingsApp?.setAttribute('inert', '')
   else settingsApp?.removeAttribute('inert')
 }

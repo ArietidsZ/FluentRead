@@ -77,6 +77,7 @@
   <TranslationLoadingStyleSettings :config="props.config" />
 
   <SettingsGroup
+    v-if="browserCapabilities.browser !== 'userscript'"
     :title="t('settings.interface.popupLayout.label')"
     :description="t('settings.interface.popupLayout.description')"
   >
@@ -174,6 +175,12 @@
       </div>
     </div>
   </SettingsGroup>
+  <SettingsGroup
+    v-else
+    data-userscript-unavailable="popup-layout"
+    :title="t('settings.interface.popupLayout.label')"
+    :description="t('options.userscriptUnavailableDescription')"
+  />
 
   <SettingsGroup
     class="interface-font-group"
@@ -270,6 +277,7 @@ import {
   type InterfaceFont,
 } from '@/src/core/config/interfaceAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
+import {browserCapabilities} from '@/src/platform/browser/capabilities'
 import {availableInterfaceFonts, clearInterfaceFont, interfaceFontLoadState, refreshInterfaceFontAvailability, retryInterfaceFont} from '@/src/ui/interfaceAppearance'
 import InterfaceSkinPreview from './components/InterfaceSkinPreview.vue'
 import PopupLayoutPreview from './components/PopupLayoutPreview.vue'

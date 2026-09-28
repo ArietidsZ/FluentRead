@@ -14,6 +14,7 @@ const packageJson = JSON.parse(fs.readFileSync(resolve(root, 'package.json'), 'u
     userscriptVersion: string;
 };
 const iconDataUrl = `data:image/png;base64,${fs.readFileSync(resolve(root, 'public/icon/64.png')).toString('base64')}`;
+const approveDataUrl = `data:image/jpeg;base64,${fs.readFileSync(resolve(root, 'public/misc/approve.jpg')).toString('base64')}`;
 const bundleLibraries = process.env.FLUENTREAD_USERSCRIPT_STANDALONE === '1';
 function installedVersion(name: string): string {
     const manifest = JSON.parse(fs.readFileSync(resolve(root, 'node_modules', name, 'package.json'), 'utf8')) as {version: string};
@@ -21,7 +22,7 @@ function installedVersion(name: string): string {
 }
 
 // 脚本管理器在安装时缓存固定版本的通用库；仓库资源固定到已发布提交，更新资源时同步换提交。
-const userscriptResourceCommit = 'c8f9d958b12bcaef61b9a83ac832e62084a805b3';
+const userscriptResourceCommit = '184a3d74f61b9d2a8d47080787f7e0180b98414d';
 const uiRequires = [
     `https://cdn.jsdelivr.net/npm/vue@${installedVersion('vue')}/dist/vue.global.prod.js`,
     `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${userscriptResourceCommit}/userscript/vueElementPlusBridge.v1.js`,
@@ -274,6 +275,7 @@ function bundleUserscriptCss(): Plugin {
             const bootstrap = [
                 compatibilityPrelude,
                 `globalThis.__FLUENTREAD_ICON_DATA__=${JSON.stringify(iconDataUrl)};`,
+                ...(bundleLibraries ? [`globalThis.__FLUENTREAD_APPROVE_DATA__=${JSON.stringify(approveDataUrl)};`] : []),
                 `globalThis.__fluentReadUserscriptCssCompressed=${JSON.stringify(compressedCss)};`,
             ].join('\n');
             // 入口内部的幂等标记只能在整个 IIFE 顶层求值后生效。脚本管理器若对同一
@@ -343,6 +345,7 @@ export const userscriptAliases = [
     {find: '@/src/features/area-translation/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
     {find: '@/src/features/image-translation/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
     {find: '@/src/features/video-subtitle/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
+    {find: '@/src/features/writing-assistant/public', replacement: resolve(root, 'userscript/writingAssistant.ts')},
     {find: /^\.\/chrome-translator$/u, replacement: resolve(root, 'userscript/chromeTranslator.ts')},
     {find: '@wxt-dev/storage', replacement: resolve(root, 'userscript/storage.ts')},
     {find: 'webextension-polyfill', replacement: resolve(root, 'userscript/browser.ts')},
@@ -361,9 +364,12 @@ export default defineConfig({
         'process.env.NODE_ENV': JSON.stringify('production'),
         'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.version),
         'process.env.VUE_APP_USERSCRIPT_VERSION': JSON.stringify(packageJson.userscriptVersion),
+        'import.meta.env.BROWSER': JSON.stringify('userscript'),
+        'import.meta.env.MANIFEST_VERSION': '2',
         __FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__: JSON.stringify(compressedUiLanguageBundles),
         __FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__: JSON.stringify(remoteUiLanguageBundles),
         __FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__: JSON.stringify(userscriptResourceCommit),
+        __FLUENTREAD_FULL_OPTIONS__: JSON.stringify(bundleLibraries),
     },
     build: {
         outDir: resolve(root, bundleLibraries ? '.output/userscript-standalone' : '.output/userscript'),

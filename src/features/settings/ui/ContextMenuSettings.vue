@@ -32,7 +32,7 @@
           <span class="context-menu-preview-scene-title">{{ scene.title }}</span>
           <ul v-if="scene.items.length > 0" class="context-menu-preview-list">
             <li v-for="item in scene.items" :key="item.id">
-              <img src="/icon/16.png" width="16" height="16" alt="" aria-hidden="true" />
+              <img :src="iconUrl" width="16" height="16" alt="" aria-hidden="true" />
               <span>{{ item.title }}</span>
             </li>
           </ul>
@@ -68,6 +68,7 @@ import { useUiI18n } from '@/src/ui/i18n';
 const props = defineProps<{config: Config}>();
 const config = computed(() => props.config);
 const { language, t } = useUiI18n();
+const iconUrl = globalThis.__FLUENTREAD_ICON_DATA__ || '/icon/16.png';
 
 // 每个入口先说明“什么时候会看到它”，再说明它做什么；不可用时补上前置条件，避免只能靠猜。
 const ENTRY_COPY: Readonly<Record<ContextMenuActionId, {label: string; description: string; unavailable: string}>> = {

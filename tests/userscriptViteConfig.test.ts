@@ -38,6 +38,7 @@ describe('userscript browser shim injection', () => {
         for (const feature of ['area-translation', 'image-translation', 'video-subtitle']) {
             expect(stringAliases.get(`@/src/features/${feature}/public`)).toMatch(/userscript\/unsupportedCapabilities\.ts$/u);
         }
+        expect(stringAliases.get('@/src/features/writing-assistant/public')).toMatch(/userscript\/writingAssistant\.ts$/u);
         expect(stringAliases.get('@/src/platform/storage/credentialContext')).toMatch(/userscript\/credentialContext\.ts$/u);
         expect(stringAliases.get('@/src/platform/storage/configStorageRuntime')).toMatch(/userscript\/storage\.ts$/u);
         expect(userscriptAliases.at(-1)?.find).toBe('@');
