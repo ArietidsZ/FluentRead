@@ -102,6 +102,13 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
 .search-box > span { color: var(--muted); font-size: 20px; }
 .search-box input { width: 100%; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 12px; }
 .search-box input::placeholder { color: #9ca3b2; }
+.userscript-settings-close {
+  display: grid; flex: 0 0 44px; width: 44px; height: 44px; place-items: center;
+  border: 1px solid var(--line); border-radius: 14px; color: var(--ink);
+  background: var(--surface); cursor: pointer;
+}
+.userscript-settings-close:hover { color: var(--brand-strong); background: var(--surface-soft); }
+.userscript-settings-close:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 2px; }
 .search-results, .search-empty { margin: -14px 0 22px; padding: 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
 .search-results { display: grid; gap: 4px; }
 .search-results button { display: flex; align-items: center; justify-content: space-between; padding: 11px 12px; border: 0; border-radius: 10px; background: transparent; text-align: left; cursor: pointer; }
@@ -386,6 +393,8 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
   .workspace { width: 100%; height: auto; min-height: 0; padding: 24px 14px; flex: 1 1 auto; overflow: hidden; }
   .topbar { gap: 18px; margin-bottom: 20px; }
   .topbar-tools { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .has-overlay-close .topbar-tools { align-items: center; flex-direction: row; }
+  .has-overlay-close .search-box { flex: 1 1 auto; min-width: 0; }
   h1 { font-size: 25px; }
   .search-box { height: 44px; }
   .settings-card { padding: 20px 8px 14px; border-radius: 20px; }

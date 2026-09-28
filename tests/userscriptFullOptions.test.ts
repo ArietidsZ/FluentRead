@@ -83,6 +83,7 @@ describe('full userscript Options entry', () => {
         expect(options.props({getRootNode: () => ({})})).toMatchObject({
             locationRouting: 'internal',
             settingsHashPrefix: undefined,
+            onClose: closeUserscriptSettings,
         });
         expect(window.location.hash).toBe('#host-route');
         closeUserscriptSettings();

@@ -171,7 +171,8 @@ describe('options UI composition architecture', () => {
     const sections = source('src/features/settings/ui/SettingsSections.vue')
 
     expect(optionsApp).toContain('<KeepAlive>')
-    expect(optionsApp).toContain('v-if="activeSection === \'settings-about\'"')
+    expect(optionsApp).toContain('v-else-if="activeSection === \'settings-about\'"')
+    expect(optionsApp).toContain('v-if="userscriptUnavailableSection"')
     expect(optionsApp).toContain('v-else\n            :is="activeSection === \'settings-vocabulary\' ? LearningCenter : SettingsSections"')
     expect(optionsApp).toContain(':key="activeSection === \'settings-vocabulary\' ? \'learning\' : \'settings\'"')
     expect(optionsApp).toContain('defineAsyncComponent(() => import(\'@/src/features/settings/ui/SettingsSections.vue\'))')
@@ -294,8 +295,11 @@ describe('options UI composition architecture', () => {
     expect(settingsGroupTitles(interfaceSettings)).toEqual([
       "translateLegacy('界面与弹窗')",
       "t('settings.interface.popupLayout.label')",
+      "t('settings.interface.popupLayout.label')",
       "t('settings.interface.font.label')",
     ])
+    expect(interfaceSettings).toContain("v-if=\"browserCapabilities.browser !== 'userscript'\"")
+    expect(interfaceSettings).toContain('data-userscript-unavailable="popup-layout"')
     expect(interfaceSettings).not.toContain('interface-font-advanced')
     expect(interfaceSettings).toContain('interface-font-card-status')
     expect(interfaceSettings).toContain('clearInterfaceFont')
@@ -1116,7 +1120,10 @@ describe('options UI composition architecture', () => {
       '鼠标悬浮翻译',
       '划词翻译',
       '全文翻译',
+      "t('contextMenuSettings.title')",
     ])
+    expect(translation).toContain("v-if=\"browserCapabilities.browser === 'userscript'\"")
+    expect(translation).toContain('data-userscript-unavailable="context-menu"')
     expect(translation).toContain('aria-label="鼠标悬浮快捷键"')
     expect(translation).toContain('label="划词翻译模式"')
     expect(translation).toContain('<InputTranslationSettings')

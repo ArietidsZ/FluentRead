@@ -69,6 +69,11 @@ function buildShadowFoundation(viewport = false): string {
     overflow: hidden !important;
   }
 
+  :host([data-fluent-read-ui-suspended="true"]) {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
   *,
   *::before,
   *::after {

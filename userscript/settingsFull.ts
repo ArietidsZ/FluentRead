@@ -15,6 +15,47 @@ export {buildUserscriptSettingsUrl, isUserscriptSettingsUrl};
 let settingsUi: ShadowRootContentScriptUi<VueShadowMount> | null = null;
 let settingsMountPromise: Promise<void> | null = null;
 let settingsGeneration = 0;
+let hiddenBallHost: HTMLElement | null = null;
+let previousBallSuspendedAttribute: string | null = null;
+let ballObserver: MutationObserver | null = null;
+
+function restoreHiddenBallHost(): void {
+    if (hiddenBallHost && hiddenBallHost.getAttribute('data-fluent-read-ui-suspended') === 'true') {
+        if (previousBallSuspendedAttribute !== null) {
+            hiddenBallHost.setAttribute('data-fluent-read-ui-suspended', previousBallSuspendedAttribute);
+        } else {
+            hiddenBallHost.removeAttribute('data-fluent-read-ui-suspended');
+        }
+    }
+    hiddenBallHost = null;
+    previousBallSuspendedAttribute = null;
+}
+
+function restoreFloatingBall(): void {
+    ballObserver?.disconnect();
+    ballObserver = null;
+    restoreHiddenBallHost();
+}
+
+function hideFloatingBallBehindOverlay(): void {
+    if (typeof document === 'undefined' || ballObserver) return;
+    const sync = () => {
+        const nextHost = document.querySelector<HTMLElement>(
+            '#fluent-read-floating-ball-container[data-fluent-read-userscript-host="fluent-read-floating-ball-ui"]',
+        );
+        if (nextHost === hiddenBallHost) return;
+        restoreHiddenBallHost();
+        if (!nextHost) return;
+        hiddenBallHost = nextHost;
+        previousBallSuspendedAttribute = nextHost.getAttribute('data-fluent-read-ui-suspended');
+        nextHost.setAttribute('data-fluent-read-ui-suspended', 'true');
+    };
+    if (typeof MutationObserver !== 'undefined') {
+        ballObserver = new MutationObserver(sync);
+        ballObserver.observe(document.documentElement, {childList: true, subtree: true});
+    }
+    sync();
+}
 
 function showInPageFallback(ctx: unknown, section?: string): void {
     void mountSettingsUi(ctx, section).catch((error) => {
@@ -88,6 +129,7 @@ async function mountSettingsUi(ctx: unknown, section?: string): Promise<void> {
     if (settingsUi) return;
     if (settingsMountPromise) return settingsMountPromise;
     const generation = settingsGeneration;
+    if (!separateSettingsPage) hideFloatingBallBehindOverlay();
     const mountPromise = createVueShadowUi(ctx as never, {
         name: 'fluent-read-userscript-settings-ui',
         hostId: 'fluent-read-userscript-settings-container',
@@ -101,6 +143,7 @@ async function mountSettingsUi(ctx: unknown, section?: string): Promise<void> {
                 settingsHashPrefix: separateSettingsPage ? USERSCRIPT_SETTINGS_HASH : undefined,
                 initialSection: separateSettingsPage ? undefined : section,
                 locationRouting: separateSettingsPage ? undefined : 'internal',
+                onClose: separateSettingsPage ? undefined : closeUserscriptSettings,
             };
         },
         configureApp: (app) => installOptionsApp(app, {documentRoot: null}),
@@ -114,6 +157,9 @@ async function mountSettingsUi(ctx: unknown, section?: string): Promise<void> {
     settingsMountPromise = mountPromise;
     try {
         await mountPromise;
+    } catch (error) {
+        if (generation === settingsGeneration) restoreFloatingBall();
+        throw error;
     } finally {
         if (settingsMountPromise === mountPromise) settingsMountPromise = null;
     }
@@ -122,6 +168,11 @@ async function mountSettingsUi(ctx: unknown, section?: string): Promise<void> {
 export function closeUserscriptSettings(): void {
     settingsGeneration += 1;
     settingsMountPromise = null;
-    settingsUi?.remove();
+    const ui = settingsUi;
     settingsUi = null;
+    try {
+        ui?.remove();
+    } finally {
+        restoreFloatingBall();
+    }
 }

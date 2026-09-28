@@ -5,7 +5,7 @@
  模块边界：组件负责页面壳、导航状态和界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
 -->
 <template>
-  <div class="settings-app">
+  <div class="settings-app" :class="{'has-overlay-close': Boolean(props.onClose)}">
     <aside class="sidebar">
       <div class="brand">
         <img :src="iconUrl" alt="" />
@@ -42,6 +42,9 @@
             <UiIcon name="search" :size="16" />
             <input v-model.trim="query" type="search" :placeholder="t('options.searchPlaceholder')" />
           </label>
+          <button v-if="props.onClose" type="button" class="userscript-settings-close" :aria-label="t('common.close')" :title="t('common.close')" @click="props.onClose()">
+            <UiIcon name="close" :size="18" />
+          </button>
         </div>
       </header>
 
@@ -161,6 +164,7 @@ const props = defineProps<{
   settingsHashPrefix?: string
   initialSection?: string
   locationRouting?: 'internal'
+  onClose?: () => void
 }>()
 const version = process.env.VUE_APP_VERSION
 const iconUrl = globalThis.__FLUENTREAD_ICON_DATA__ || '/icon/128.png'

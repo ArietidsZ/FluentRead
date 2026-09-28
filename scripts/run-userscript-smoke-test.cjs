@@ -502,13 +502,14 @@ async function main() {
           hash: location.hash,
           closedShadow: host?.shadowRoot === null,
           fullOptions: Boolean(root.querySelector('.settings-app [data-section="settings-services"]')),
+          overlayClose: Boolean(root.querySelector('button.userscript-settings-close')),
           contentStyles: document.querySelectorAll('#fluent-read-page-styles').length,
           floatingBalls: document.querySelectorAll('#fluent-read-floating-ball-container').length,
           hostRootClass: document.documentElement.className,
           hostRootStyle: document.documentElement.getAttribute('style'),
         };
       });
-      if (!result.closedShadow || !result.fullOptions || result.contentStyles || result.floatingBalls
+      if (!result.closedShadow || !result.fullOptions || result.overlayClose || result.contentStyles || result.floatingBalls
         || result.hostRootClass || result.hostRootStyle) {
         throw new Error(`独立设置标签页启动了网页功能或污染了宿主：${JSON.stringify(result)}`);
       }
@@ -561,6 +562,17 @@ async function main() {
       }));
       if (!initial.closedShadow || initial.lightDomText || initial.viewportWidth < 300) {
         throw new Error(`完整 Options 未隔离在全视口 closed Shadow DOM：${JSON.stringify(initial)}`);
+      }
+      const ballDuringSettings = await page.evaluate(() => {
+        const ball = document.querySelector('#fluent-read-floating-ball-container');
+        return ball ? {
+          hostName: ball.getAttribute('data-fluent-read-userscript-host'),
+          suspended: ball.getAttribute('data-fluent-read-ui-suspended'),
+          computedVisibility: getComputedStyle(ball).visibility,
+        } : null;
+      });
+      if (ballDuringSettings?.suspended !== 'true' || ballDuringSettings.computedVisibility !== 'hidden') {
+        throw new Error(`页内完整设置没有遮蔽悬浮球：${JSON.stringify(ballDuringSettings)}`);
       }
       await page.waitForFunction(() => window.__fluentReadUserscriptSettingsShadow?.querySelector('[role="radiogroup"][aria-label="界面主题"] button'), undefined, {timeout: args.timeout});
       await page.evaluate(() => {
@@ -678,10 +690,19 @@ async function main() {
         throw new Error(`窄屏完整设置页横向溢出：${JSON.stringify(narrow)}`);
       }
       const section = await page.evaluate(() => window.__fluentReadUserscriptSettingsShadow.querySelector('.settings-app h1')?.textContent?.trim());
-      await page.evaluate(() => window.dispatchEvent(new CustomEvent('fluentread-userscript-close-settings')));
+      await page.evaluate(() => {
+        const closeButton = window.__fluentReadUserscriptSettingsShadow.querySelector('button.userscript-settings-close');
+        if (closeButton?.getAttribute('aria-label') !== '关闭') throw new Error('页内完整设置缺少可访问的关闭按钮');
+        closeButton.click();
+      });
       await settingsHost.waitFor({state: 'detached', timeout: args.timeout});
+      const ballAfterClose = await page.evaluate(() => {
+        const ball = document.querySelector('#fluent-read-floating-ball-container');
+        return ball ? getComputedStyle(ball).visibility : null;
+      });
+      if (ballAfterClose !== 'visible') throw new Error(`关闭页内设置后悬浮球没有恢复：${ballAfterClose}`);
       const evidence = {initial, hostBefore, hostAfter, savedTheme: decodeStoredValue(sharedGmStore.get('local:config')).theme,
-        darkSummaryColor, dropdownInsideShadow, narrow, visitedSections,
+        darkSummaryColor, dropdownInsideShadow, narrow, visitedSections, ballDuringSettings, ballAfterClose,
         section, launchMode, focusPolicy, windowPlacement,
         transport: 'local fixture with deterministic GM shim; no live provider or userscript manager certification'};
       fs.writeFileSync(path.join(artifactsDir, 'options-evidence.json'), `${JSON.stringify(evidence, null, 2)}\n`);
