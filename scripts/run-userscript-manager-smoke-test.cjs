@@ -83,6 +83,7 @@ function managerName(extensionPath, manifest) {
 
 async function startFixture(artifactBytes) {
   const original = 'FluentRead keeps the original paragraph and adds a safe bilingual translation.';
+  const adjacent = 'This adjacent paragraph must stay untouched during hover translation.';
   const server = http.createServer((request, response) => {
     if (request.url === '/candidate.user.js') {
       response.writeHead(200, {'content-type': 'application/javascript; charset=utf-8'});
@@ -90,7 +91,7 @@ async function startFixture(artifactBytes) {
       return;
     }
     response.writeHead(200, {'content-type': 'text/html; charset=utf-8'});
-    response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FluentRead manager smoke</title></head><body><main><h1>FluentRead manager smoke</h1><p id="target">${original}</p></main></body></html>`);
+    response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FluentRead manager smoke</title></head><body><main><h1>FluentRead manager smoke</h1><p id="target">${original}</p><p id="adjacent">${adjacent}</p></main></body></html>`);
   });
   await new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -98,6 +99,7 @@ async function startFixture(artifactBytes) {
   });
   return {
     original,
+    adjacent,
     url: `http://127.0.0.1:${server.address().port}/fixture`,
     installUrl: `http://127.0.0.1:${server.address().port}/candidate.user.js`,
     close: () => new Promise((resolve) => server.close(resolve)),
@@ -173,6 +175,57 @@ async function saveFloatingBallSetting(page, enabled, timeout) {
   throw new Error('Settings did not report a completed save');
 }
 
+async function hoverToggle(page, expected, timeout) {
+  const box = await page.locator('#target').boundingBox();
+  if (!box) throw new Error('Hover target is not visible');
+  const x = box.x + Math.min(Math.max(box.width * .35, 10), box.width - 10);
+  const y = box.y + box.height * .5;
+  await page.mouse.move(x, y);
+  await page.mouse.click(x, y);
+  await page.keyboard.down('Control');
+  await page.keyboard.up('Control');
+  await page.waitForFunction((count) =>
+    document.querySelectorAll('#target .fluent-read-bilingual-content').length === count,
+  expected, {timeout});
+  return page.evaluate(() => ({
+    count: document.querySelectorAll('#target .fluent-read-bilingual-content').length,
+    original: document.querySelector('#target')?.firstChild?.textContent,
+    translation: document.querySelector('#target .fluent-read-bilingual-content')?.textContent || '',
+    adjacent: document.querySelector('#adjacent')?.textContent,
+    adjacentTranslations: document.querySelectorAll('#adjacent .fluent-read-bilingual-content').length,
+    url: location.href,
+  }));
+}
+
+async function fullPageToggle(page, expected, timeout) {
+  await page.keyboard.down('Alt');
+  await page.keyboard.press('t');
+  await page.keyboard.up('Alt');
+  await page.waitForFunction((count) => ['#target', '#adjacent'].every((selector) =>
+    document.querySelectorAll(`${selector} .fluent-read-bilingual-content`).length === count),
+  expected, {timeout});
+  return page.evaluate(() => ({
+    count: document.querySelectorAll('#target .fluent-read-bilingual-content').length,
+    original: document.querySelector('#target')?.firstChild?.textContent,
+    translation: document.querySelector('#target .fluent-read-bilingual-content')?.textContent || '',
+    adjacentCount: document.querySelectorAll('#adjacent .fluent-read-bilingual-content').length,
+    adjacentOriginal: document.querySelector('#adjacent')?.firstChild?.textContent,
+    adjacentTranslation: document.querySelector('#adjacent .fluent-read-bilingual-content')?.textContent || '',
+    url: location.href,
+  }));
+}
+
+async function readHostDexie(page) {
+  return page.evaluate(() => {
+    const value = window[Symbol.for('Dexie')];
+    return {
+      semVer: value?.semVer,
+      owner: value?.owner,
+      sameInstance: value === window.__fluentReadHostDexieBeforeInjection,
+    };
+  });
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   for (const key of ['artifact', 'managerExtension', 'browserPath', 'focusSafeHelper']) {
@@ -216,7 +269,15 @@ async function main() {
       viewport: {width: 1280, height: 900},
       timeout: args.timeout,
     });
+    evidence.launchMode = session.launchMode;
+    if (evidence.launchMode !== 'macos-background-cdp') throw new Error('Browser did not use focus-safe background CDP launch');
     const context = session.context;
+    await context.addInitScript(() => {
+      if (location.pathname !== '/fixture') return;
+      const hostDexie = Object.freeze({semVer: '4.4.4', owner: 'host-page-fixture'});
+      Object.defineProperty(window, '__fluentReadHostDexieBeforeInjection', {value: hostDexie});
+      window[Symbol.for('Dexie')] = hostDexie;
+    });
     const requested = new Set(metadata.requires);
     const successfulRequires = new Set();
     context.on('response', (response) => {
@@ -300,12 +361,31 @@ async function main() {
       pageElementPlus: typeof window.ElementPlus,
       pageVendor: typeof window.FluentReadUserscriptVendor,
     }));
+    evidence.hostDexieBefore = await readHostDexie(page);
+    if (evidence.hostDexieBefore.semVer !== '4.4.4'
+      || evidence.hostDexieBefore.owner !== 'host-page-fixture'
+      || !evidence.hostDexieBefore.sameInstance) {
+      throw new Error(`Userscript changed the host Dexie singleton: ${JSON.stringify(evidence.hostDexieBefore)}`);
+    }
     evidence.desktopScreenshot = path.join(args.artifactsDir, 'desktop.png');
     evidence.mobileScreenshot = path.join(args.artifactsDir, 'mobile.png');
     await page.screenshot({path: evidence.desktopScreenshot});
     await page.setViewportSize({width: 390, height: 844});
     await page.screenshot({path: evidence.mobileScreenshot});
     await page.setViewportSize({width: 1280, height: 900});
+
+    evidence.hover = [];
+    for (const count of [1, 0, 1, 0]) {
+      const state = await hoverToggle(page, count, args.timeout);
+      evidence.hover.push(state);
+      if (state.count !== count || state.original !== fixture.original
+        || state.adjacent !== fixture.adjacent || state.adjacentTranslations !== 0
+        || state.url !== fixture.url || (count === 1 && !/[\u3400-\u9fff]/u.test(state.translation))) {
+        throw new Error(`Manager-backed hover translation failed: ${JSON.stringify(state)}`);
+      }
+    }
+    evidence.hostDexieAfterHover = await readHostDexie(page);
+    if (!evidence.hostDexieAfterHover.sameInstance) throw new Error('Hover translation replaced the host Dexie singleton');
 
     if (args.settingsMode === 'full') {
       // A trusted click invokes the installed manager's GM.openInTab path.
@@ -451,25 +531,16 @@ async function main() {
       await settingsPage.screenshot({path: evidence.settingsScreenshot});
       await settingsPage.close();
 
-      const toggle = async (expected) => {
-        await page.keyboard.down('Alt');
-        await page.keyboard.press('t');
-        await page.keyboard.up('Alt');
-        await page.waitForFunction((count) =>
-          document.querySelectorAll('#target .fluent-read-bilingual-content').length === count,
-        expected, {timeout: args.timeout});
-        return page.evaluate(() => ({
-          count: document.querySelectorAll('#target .fluent-read-bilingual-content').length,
-          original: document.querySelector('#target')?.firstChild?.textContent,
-          translation: document.querySelector('#target .fluent-read-bilingual-content')?.textContent || '',
-        }));
-      };
+      const toggle = (expected) => fullPageToggle(page, expected, args.timeout);
       evidence.translated = await toggle(1);
       evidence.restored = await toggle(0);
       evidence.retranslated = await toggle(1);
       if (evidence.translated.original !== fixture.original || evidence.restored.original !== fixture.original
         || evidence.retranslated.original !== fixture.original
+        || [evidence.translated, evidence.restored, evidence.retranslated].some((state, index) =>
+          state.adjacentOriginal !== fixture.adjacent || state.adjacentCount !== [1, 0, 1][index])
         || !/[\u3400-\u9fff]/u.test(evidence.retranslated.translation)
+        || !/[\u3400-\u9fff]/u.test(evidence.retranslated.adjacentTranslation)
         || evidence.consoleErrors.length || evidence.requestFailures.length) {
         throw new Error('Manager-backed translation or restore failed after full Options use');
       }
@@ -490,20 +561,7 @@ async function main() {
     }));
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('fluentread-userscript-close-settings')));
 
-    const toggle = async (expected) => {
-      await page.keyboard.down('Alt');
-      await page.keyboard.press('t');
-      await page.keyboard.up('Alt');
-      await page.waitForFunction((count) =>
-        document.querySelectorAll('#target .fluent-read-bilingual-content').length === count,
-      expected, {timeout: args.timeout});
-      return page.evaluate(() => ({
-        count: document.querySelectorAll('#target .fluent-read-bilingual-content').length,
-        original: document.querySelector('#target')?.firstChild?.textContent,
-        translation: document.querySelector('#target .fluent-read-bilingual-content')?.textContent || '',
-        url: location.href,
-      }));
-    };
+    const toggle = (expected) => fullPageToggle(page, expected, args.timeout);
     evidence.translated = await toggle(1);
     evidence.translatedScreenshot = path.join(args.artifactsDir, 'translated.png');
     await page.screenshot({path: evidence.translatedScreenshot});
@@ -522,6 +580,8 @@ async function main() {
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('fluentread-userscript-open-settings')));
     await page.locator('#fluent-read-userscript-settings-container').waitFor({state: 'attached', timeout: args.timeout});
     evidence.persistence.afterReload = await readFloatingBallSetting(page);
+    evidence.hostDexieAfterReload = await readHostDexie(page);
+    if (!evidence.hostDexieAfterReload.sameInstance) throw new Error('Reload replaced the host Dexie singleton');
     if (evidence.persistence.afterReload || await page.locator('#fluent-read-floating-ball-container').count()) {
       throw new Error('Floating ball preference was lost after reloading the userscript page');
     }
@@ -541,10 +601,16 @@ async function main() {
       throw new Error('Userscript leaked library globals into the host page');
     }
     if (!evidence.settings.open || !evidence.settings.closedShadow) throw new Error('Settings did not open in a closed Shadow DOM');
-    if (![evidence.translated, evidence.restored, evidence.retranslated].every((state) =>
-      state.original === fixture.original && state.url === fixture.url)) throw new Error('Translation altered the original page');
+    if ([evidence.translated, evidence.restored, evidence.retranslated].some((state, index) =>
+      state.original !== fixture.original || state.adjacentOriginal !== fixture.adjacent
+      || state.count !== [1, 0, 1][index] || state.adjacentCount !== [1, 0, 1][index]
+      || state.url !== fixture.url)) throw new Error('Translation altered the original page');
     if (!/[\u3400-\u9fff]/u.test(evidence.translated.translation)
-      || !/[\u3400-\u9fff]/u.test(evidence.retranslated.translation)) throw new Error('Translation did not produce Chinese text');
+      || !/[\u3400-\u9fff]/u.test(evidence.translated.adjacentTranslation)
+      || !/[\u3400-\u9fff]/u.test(evidence.retranslated.translation)
+      || !/[\u3400-\u9fff]/u.test(evidence.retranslated.adjacentTranslation)) {
+      throw new Error('Translation did not produce Chinese text');
+    }
     if (evidence.windowPlacement?.mode !== 'background-visible-no-focus'
       || evidence.windowPlacement.browserFrontmost !== false
       || evidence.focusPolicy !== 'launchservices-no-foreground') throw new Error('Browser focus isolation failed');
