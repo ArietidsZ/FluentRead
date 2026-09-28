@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
-import {resolve} from 'node:path';
+import {dirname, resolve} from 'node:path';
 import {gzipSync} from 'node:zlib';
 import vue from '@vitejs/plugin-vue';
 import ts from 'typescript';
@@ -56,6 +56,38 @@ const unicodeNotice = `/*\n${fs.readFileSync(resolve(root, 'public/third-party-n
 const serviceIconsNotice = `/*\n${fs.readFileSync(resolve(root, 'public/third-party-notices/lobe-icons-MIT.txt'), 'utf8')}\n*/`;
 const browserShimPath = resolve(root, 'userscript/browser.ts');
 const projectRoot = `${normalizePath(root)}/`;
+const siteCatalogDir = resolve(root, 'src/core/site-adaptation/catalog');
+const siteCatalogFiles = new Set(['established.json', 'websites.json', 'profiles.json']
+    .map((name) => resolve(siteCatalogDir, name)));
+const compressedCatalogPrefix = '\0fluentread-userscript-site-catalog:';
+
+/** 只压缩站点规则 JSON；产品逻辑仍留在可审查的 userscript 主文件中。 */
+export function createUserscriptCatalogCompressionPlugin(): Plugin {
+    return {
+        name: 'compress-userscript-site-catalog',
+        enforce: 'pre',
+        resolveId(source, importer) {
+            if (!importer || !source.endsWith('.json')) return null;
+            const sourcePath = resolve(dirname(importer.split('?')[0]), source);
+            // 以 .js 结尾，避免 Vite 的 JSON 插件再次尝试解析虚拟模块源码。
+            return siteCatalogFiles.has(sourcePath) ? `${compressedCatalogPrefix}${sourcePath}.js` : null;
+        },
+        load(id) {
+            if (!id.startsWith(compressedCatalogPrefix)) return null;
+            const sourcePath = id.slice(compressedCatalogPrefix.length, -'.js'.length);
+            if (!siteCatalogFiles.has(sourcePath)) throw new Error(`Unexpected userscript site catalog: ${sourcePath}`);
+            const contents = JSON.stringify(JSON.parse(fs.readFileSync(sourcePath, 'utf8')));
+            const compressed = gzipSync(Buffer.from(contents)).toString('base64');
+            const digest = createHash('sha256').update(contents).digest('hex');
+            return [
+                `/* Non-code site rules: ${normalizePath(sourcePath).slice(projectRoot.length)}; sha256 ${digest}. */`,
+                "import {inflateWithPako} from '@/userscript/pakoRuntime';",
+                `const bytes = Uint8Array.from(atob(${JSON.stringify(compressed)}), (character) => character.charCodeAt(0));`,
+                'export default JSON.parse(inflateWithPako(bytes));',
+            ].join('\n');
+        },
+    };
+}
 
 // dexie 的官方入口以 Symbol.for('Dexie') 作为跨 realm 的单例注册表；该注册一旦进入油猴产物，
 // 与宿主页面的 Dexie 副本撞上不同版本就会在入口处抛错。用产物文本兜底，防止别名将来被改坏。
@@ -356,7 +388,7 @@ export const userscriptAliases = [
 export default defineConfig({
     root,
     publicDir: false,
-    plugins: [unwrapWxtEntrypoints(), injectUserscriptBrowserShim(), vue(), bundleUserscriptCss()],
+    plugins: [unwrapWxtEntrypoints(), createUserscriptCatalogCompressionPlugin(), injectUserscriptBrowserShim(), vue(), bundleUserscriptCss()],
     resolve: {
         alias: userscriptAliases,
     },
