@@ -14,6 +14,8 @@ Greasy Fork 上的版本可能晚于 GitHub 源码。排查问题时，请先查
 
 仓库也提供 `pnpm test:userscript` 生成体积较小的 `.output/userscript/fluent-read.user.js`，它在安装时需要脚本管理器下载固定版本的 `@require` 依赖。Violentmonkey 的首次文件安装曾出现依赖尚未就绪便执行脚本的问题；独立版在隔离的真实管理器中通过了立即打开页面的测试。两种构建都不是当前 Greasy Fork 页面已发布版本。
 
+仓库另有面向 Greasy Fork 源码规则的精简版：运行 `pnpm build:userscript:greasyfork`，生成 `.output/userscript-greasyfork/fluent-read.user.js`。它保留可阅读的翻译逻辑，并把第三方库、静态词条、站点规则和样式放在固定 Git 提交的 `@require` 资源中。安装时必须联网下载这些资源；使用精简设置面板。源码构建低于 Greasy Fork 的 2 MB 上限，但是否被网站接受仍取决于实际提交审核，仓库构建不会自动更新 Greasy Fork 页面。维护资源时先运行 `node scripts/build-userscript-greasyfork.mjs --prepare-resources` 并提交生成的两个文件，再运行正式构建，使两个 `@require` 都锁定到该提交。
+
 安装完成后：
 
 1. 打开一篇普通网页；

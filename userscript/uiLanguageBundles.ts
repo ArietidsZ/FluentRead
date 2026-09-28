@@ -61,12 +61,13 @@ export const ensureUiLanguageBundle: EnsureUiLanguageBundle = (value) => {
     const language = normalizeUiLanguage(value);
     if (hasUiLanguageBundle(language)) return Promise.resolve(true);
     const registered = language as RegisteredUiLanguage;
+    const embedded = registered === 'en-US' ? globalThis.__FLUENTREAD_USERSCRIPT_DATA__?.english : undefined;
     const compressed = __FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__[registered];
     const remoteFile = __FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__[registered];
-    if (!compressed && !remoteFile) return Promise.resolve(false);
+    if (!embedded && !compressed && !remoteFile) return Promise.resolve(false);
     const existing = pending.get(registered);
     if (existing) return existing;
-    const request = (compressed ? inflateBundle(compressed) : fetchRemoteBundle(remoteFile))
+    const request = (embedded ? Promise.resolve(embedded) : compressed ? inflateBundle(compressed) : fetchRemoteBundle(remoteFile))
         .then((bundle) => {
             if (!isBundle(bundle)) throw new TypeError('界面语言资源格式无效');
             registerUiLanguageBundle(registered, bundle);

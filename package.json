@@ -13,6 +13,7 @@
     "dev:firefox": "wxt -b firefox",
     "build": "node scripts/testing/run-resource-safe.mjs -- wxt build",
     "build:userscript": "node scripts/testing/run-resource-safe.mjs -- vite build --config userscript/vite.config.ts",
+    "build:userscript:greasyfork": "node scripts/testing/run-resource-safe.mjs -- node scripts/build-userscript-greasyfork.mjs",
     "build:userscript:standalone": "node scripts/testing/run-resource-safe.mjs -- node scripts/build-userscript-standalone.mjs",
     "build:obsidian": "tsc -p integrations/obsidian/tsconfig.json --noEmit && vite build --config integrations/obsidian/vite.config.ts",
     "generate:userscript-languages": "node scripts/generate-userscript-language-data.mjs",

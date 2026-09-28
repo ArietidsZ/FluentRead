@@ -69,6 +69,8 @@ function loadFocusSafeBrowser(helperPath) {
 async function preloadUserscriptRequires(page, artifact) {
   const root = path.resolve(path.dirname(artifact), '../..');
   const source = fs.readFileSync(artifact, 'utf8');
+  const vendorRequire = /^\/\/ @require\s+https?:\/\/[^\s]+\/fluentread-vendor\.v1\.js$/m.test(source);
+  const dataRequire = /^\/\/ @require\s+https?:\/\/[^\s]+\/fluentread-data\.v1\.js$/m.test(source);
   const requires = [...source.matchAll(/^\/\/ @require\s+https:\/\/cdn\.jsdelivr\.net\/(?:npm\/([^\s]+)|gh\/FluentRead\/FluentRead@[a-f0-9]{40}\/userscript\/(vueElementPlusBridge\.v1\.js))$/gm)]
     .map((match) => match[1] || match[2]);
   const vendors = [
@@ -88,6 +90,34 @@ async function preloadUserscriptRequires(page, artifact) {
     const localPath = path.join(root, 'node_modules', entry[1]);
     if (!fs.existsSync(localPath)) throw new Error(`找不到 userscript @require 测试依赖：${localPath}`);
     await page.addScriptTag({path: localPath});
+  }
+  if (vendorRequire) {
+    await page.addScriptTag({path: path.join(root, '.output/userscript-vendor/fluentread-vendor.v1.js')});
+    requires.push('fluentread-vendor.v1.js');
+    if (!await page.evaluate(() => {
+      const vendor = globalThis.FluentReadUserscriptVendor;
+      return typeof vendor?.ai?.generateText === 'function'
+        && typeof vendor?.ai?.APICallError?.isInstance === 'function'
+        && typeof vendor?.openAICompatible?.createOpenAICompatible === 'function'
+        && typeof vendor?.sha256 === 'function'
+        && typeof vendor?.md5 === 'function'
+        && typeof vendor?.hmacSha256 === 'function'
+        && typeof vendor?.aes?.encrypt === 'function'
+        && typeof vendor?.Dexie === 'function'
+        && typeof vendor?.francMin?.francAll === 'function';
+    })) {
+      throw new Error('userscript vendor @require did not expose its pinned library exports');
+    }
+  }
+  if (dataRequire) {
+    await page.addScriptTag({path: path.join(root, '.output/userscript-greasyfork/fluentread-data.v1.js')});
+    requires.push('fluentread-data.v1.js');
+    if (!await page.evaluate(() => Boolean(globalThis.__FLUENTREAD_USERSCRIPT_DATA__?.english?.messages
+      && globalThis.__FLUENTREAD_USERSCRIPT_DATA__?.zhCNMessages
+      && globalThis.__FLUENTREAD_USERSCRIPT_DATA__?.siteCatalogs
+      && globalThis.__FLUENTREAD_USERSCRIPT_DATA__?.css))) {
+      throw new Error('userscript data @require did not expose UI, site and CSS data');
+    }
   }
   if (requires.length && await page.evaluate(() =>
     typeof Vue === 'undefined' || typeof ElementPlus === 'undefined'
