@@ -363,6 +363,8 @@ export default defineConfig({
         'process.env.NODE_ENV': JSON.stringify('production'),
         'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.version),
         'process.env.VUE_APP_USERSCRIPT_VERSION': JSON.stringify(packageJson.userscriptVersion),
+        'import.meta.env.BROWSER': JSON.stringify('userscript'),
+        'import.meta.env.MANIFEST_VERSION': '2',
         __FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__: JSON.stringify(compressedUiLanguageBundles),
         __FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__: JSON.stringify(remoteUiLanguageBundles),
         __FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__: JSON.stringify(userscriptResourceCommit),

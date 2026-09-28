@@ -54,7 +54,11 @@
 
       <section ref="settingsContentElement" class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
         <KeepAlive>
-        <section v-if="activeSection === 'settings-about'" id="settings-about" class="about-page" aria-labelledby="about-title">
+        <section v-if="userscriptUnavailableSection" :id="activeSection" class="userscript-unavailable" role="status">
+          <h2>{{ t('options.userscriptUnavailableTitle') }}</h2>
+          <p>{{ t('options.userscriptUnavailableDescription') }}</p>
+        </section>
+        <section v-else-if="activeSection === 'settings-about'" id="settings-about" class="about-page" aria-labelledby="about-title">
           <div class="about-hero">
             <img class="about-logo" :src="iconUrl" alt="流畅阅读图标" />
             <div>
@@ -149,6 +153,7 @@ import {
   subscribeConfig,
 } from '@/src/services/config/store'
 import {applyInterfaceFont, applyInterfaceSkin, setInterfaceAppearanceRoot} from '@/src/ui/interfaceAppearance'
+import {browserCapabilities} from '@/src/platform/browser/capabilities'
 
 const props = defineProps<{
   appearanceRoot?: HTMLElement | null
@@ -174,6 +179,16 @@ function hashForSection(section: string): string {
 }
 
 const activeSection = ref(props.initialSection || sectionFromHash(window.location.hash))
+const userscriptUnavailableSections = new Set([
+  'settings-image-translation',
+  'settings-area-translation',
+  'settings-video',
+  'settings-writing',
+  'settings-translation-stats',
+  'settings-model-usage',
+])
+const userscriptUnavailableSection = computed(() => browserCapabilities.browser === 'userscript'
+  && userscriptUnavailableSections.has(activeSection.value))
 const navigationElement = ref<HTMLElement | null>(null)
 const settingsContentElement = ref<HTMLElement | null>(null)
 const mobileNavigationMedia = window.matchMedia('(max-width: 700px)')

@@ -577,8 +577,12 @@ async function main() {
       }, undefined, {timeout: args.timeout});
       await page.waitForFunction(() => window.__fluentReadGmGet('local:config', null)
         .then((raw) => JSON.parse(raw || '{}').theme === 'dark'), undefined, {timeout: args.timeout});
+      const unavailableSections = [
+        'settings-image-translation', 'settings-area-translation', 'settings-video',
+        'settings-writing', 'settings-translation-stats', 'settings-model-usage',
+      ];
       const visitedSections = [];
-      for (const id of ['settings-writing', 'settings-vocabulary', 'settings-model-usage', 'settings-data', 'settings-about']) {
+      for (const id of [...unavailableSections, 'settings-vocabulary', 'settings-data', 'settings-about']) {
         await page.evaluate((section) => {
           window.__fluentReadUserscriptSettingsShadow.querySelector(`button[data-section="${section}"]`).click();
         }, id);
@@ -589,6 +593,15 @@ async function main() {
         }, id, {timeout: args.timeout});
         if (await page.evaluate(() => location.hash) !== '#host-route') {
           throw new Error(`页内 ${id} 导航改写了宿主网页路由`);
+        }
+        if (unavailableSections.includes(id)) {
+          const unavailable = await page.evaluate((section) => {
+            const root = window.__fluentReadUserscriptSettingsShadow;
+            const notice = root.querySelector(`#${section}.userscript-unavailable`);
+            return Boolean(notice?.textContent?.includes('油猴脚本暂不支持此功能'))
+              && !notice.querySelector('input, button, [role="switch"]');
+          }, id);
+          if (!unavailable) throw new Error(`${id} 仍显示无法生效的油猴设置控件`);
         }
         visitedSections.push(id);
       }

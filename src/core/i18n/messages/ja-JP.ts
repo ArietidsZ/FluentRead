@@ -21,6 +21,8 @@ export const jaJPMessages = {
     "settings.excludedLanguages.less": "言語を折りたたむ",
     "settings.excludedLanguages.clear": "選択を解除",
     "settings.excludedLanguages.hint": "自動保存され、次回の翻訳から適用されます。短い文章や言語を判別できない内容は翻訳される場合があります。",
+    "options.userscriptUnavailableTitle": "ユーザースクリプトでは利用できません",
+    "options.userscriptUnavailableDescription": "この機能にはブラウザー拡張機能の実行環境が必要です。利用するには FluentRead 拡張機能をインストールしてください。",
     ...localTtsJapaneseMessages,
     ...translationStatsJapaneseMessages,
     "settings.services.library.freeReady": "API キーは不要です。利用可能な無料サービスを自動で選択します。",

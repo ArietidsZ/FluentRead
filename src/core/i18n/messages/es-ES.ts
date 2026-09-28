@@ -21,6 +21,8 @@ export const esESMessages = {
     "settings.excludedLanguages.less": "Menos idiomas",
     "settings.excludedLanguages.clear": "Borrar selección",
     "settings.excludedLanguages.hint": "Se guarda automáticamente para la próxima traducción. El texto corto o cuyo idioma no se pueda identificar puede traducirse.",
+    "options.userscriptUnavailableTitle": "No disponible en el script de usuario",
+    "options.userscriptUnavailableDescription": "Esta función requiere el entorno de la extensión del navegador. Instala la extensión FluentRead para usarla.",
     ...localTtsSpanishMessages,
     ...translationStatsSpanishMessages,
     "settings.services.library.freeReady": "No se necesita una clave API. Los servicios gratuitos disponibles se seleccionan automáticamente.",

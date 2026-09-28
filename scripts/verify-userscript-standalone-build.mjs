@@ -18,6 +18,7 @@ const assertions = [
     [metadata.includes('// @grant        GM.openInTab') && metadata.includes('// @grant        GM_openInTab'), 'Settings tab grants are missing'],
     [!/^\/\/ @require\s/gmu.test(metadata), 'Standalone installation must not need remote JavaScript'],
     [source.includes('fluentread-userscript-settings'), 'Full Options route is missing'],
+    [source.includes('__FLUENTREAD_BROWSER_CAPABILITY_BUILD__:userscript:mv2__'), 'Userscript browser capability marker is missing'],
     [source.includes('pako 2.1.0 —'), 'Bundled gzip fallback or license notice is missing'],
     [source.includes('@vue/runtime-dom 3.5.13 —'), 'Bundled Vue or license notice is missing'],
     [source.includes('element-plus 2.9.3 —'), 'Bundled UI or license notice is missing'],

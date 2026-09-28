@@ -21,6 +21,8 @@ export const frFRMessages = {
     "settings.excludedLanguages.less": "Moins de langues",
     "settings.excludedLanguages.clear": "Effacer la sélection",
     "settings.excludedLanguages.hint": "Enregistré automatiquement pour la prochaine traduction. Les textes courts ou dont la langue est incertaine peuvent être traduits.",
+    "options.userscriptUnavailableTitle": "Indisponible dans le userscript",
+    "options.userscriptUnavailableDescription": "Cette fonction nécessite l’environnement de l’extension de navigateur. Installez l’extension FluentRead pour l’utiliser.",
     ...localTtsFrenchMessages,
     ...translationStatsFrenchMessages,
     "settings.services.library.freeReady": "Aucune clé API requise. Les services gratuits disponibles sont sélectionnés automatiquement.",

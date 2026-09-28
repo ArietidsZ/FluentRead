@@ -342,6 +342,31 @@ async function main() {
         throw new Error(`Manager-backed full Options isolation failed: ${JSON.stringify(evidence.settings)}`);
       }
       await withSettingsShadow(settingsPage, function () {
+        this.querySelector('button[data-section="settings-video"]')?.click();
+      });
+      const unavailableStartedAt = Date.now();
+      while (Date.now() - unavailableStartedAt < args.timeout) {
+        evidence.settings.videoUnavailable = await withSettingsShadow(settingsPage, function () {
+          const notice = this.querySelector('#settings-video.userscript-unavailable');
+          return Boolean(notice?.textContent?.includes('油猴脚本暂不支持此功能'))
+            && !notice.querySelector('input, button, [role="switch"]');
+        });
+        if (evidence.settings.videoUnavailable) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      if (!evidence.settings.videoUnavailable) throw new Error('Manager-backed video section still exposes unsupported controls');
+      await withSettingsShadow(settingsPage, function () {
+        this.querySelector('button[data-section="settings-general"]')?.click();
+      });
+      const generalStartedAt = Date.now();
+      while (Date.now() - generalStartedAt < args.timeout) {
+        const generalReady = await withSettingsShadow(settingsPage, function () {
+          return Boolean(this.querySelector('[role="radiogroup"][aria-label="界面主题"] button'));
+        });
+        if (generalReady) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      await withSettingsShadow(settingsPage, function () {
         const dark = [...this.querySelectorAll('[role="radiogroup"][aria-label="界面主题"] button')]
           .find((button) => button.textContent.trim() === '暗色主题');
         if (!dark) throw new Error('Full Options theme control was not found');

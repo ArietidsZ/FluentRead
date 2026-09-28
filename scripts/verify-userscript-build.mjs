@@ -37,6 +37,7 @@ const assertions = [
   [source.includes('// @require      https://cdn.jsdelivr.net/npm/element-plus@2.9.3/dist/index.full.min.js'), 'pinned Element Plus @require is missing'],
   [source.includes('// @require      https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako_inflate.min.js'), 'pako fallback @require is missing'],
   [source.includes('globalThis.__fluentReadUserscriptCssCompressed='), 'userscript CSS must be compressed'],
+  [source.includes('__FLUENTREAD_BROWSER_CAPABILITY_BUILD__:userscript:mv2__'), 'userscript browser capability marker is missing'],
   [artifactBytes <= MAX_USERSCRIPT_BYTES, `artifact exceeds the ${MAX_USERSCRIPT_BYTES.toLocaleString()}-byte size budget`],
   [!/(^|[^\w])import\s*\(/u.test(source), 'the artifact must not contain runtime dynamic imports'],
   [!/\bglobalThis\s*(?:\.\s*(?:browser|chrome)\b|\[\s*['"](?:browser|chrome)['"]\s*\])/u.test(source), 'privileged browser shims must stay lexical'],
