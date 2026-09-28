@@ -67,8 +67,13 @@ function openSettingsTab(ctx: unknown, section?: string): boolean {
     const settingsUrl = buildUserscriptSettingsUrl(window.location.href, section);
     if (settingsUrl === window.location.href) return false;
 
-    // Tampermonkey/Violentmonkey 等管理器提供的专用 API 不受普通 window.open
-    // 弹窗策略影响；Via 等不提供时再退回浏览器原生新标签页。
+    // Android WebView 的脚本管理器可能无视 active 参数，在后台打开标签页。
+    // 在移动端直接挂载页内设置，让点击悬浮球后立即看到操作结果。
+    if (typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)) return false;
+
+    // Tampermonkey/Violentmonkey 等管理器提供的专用 API 可显式激活新标签页。
+    // 未提供此能力时直接使用页内面板；普通 window.open 可能只在后台
+    // 创建标签页，让用户误以为点击设置没有反应。
     const legacyOpenInTab = getUserscriptFunction('GM_openInTab');
     if (legacyOpenInTab) {
         try {
@@ -76,7 +81,7 @@ function openSettingsTab(ctx: unknown, section?: string): boolean {
             void Promise.resolve(result).catch(() => showInPageFallback(ctx, section));
             return true;
         } catch {
-            // 继续尝试 window.open；部分管理器只声明 API 但运行时不可用。
+            // 部分管理器只声明 API 但运行时不可用，继续尝试现代接口。
         }
     }
 
@@ -90,29 +95,10 @@ function openSettingsTab(ctx: unknown, section?: string): boolean {
                 .catch(() => showInPageFallback(ctx, section));
             return true;
         } catch {
-            // 继续尝试 window.open；部分管理器只声明 API 但运行时不可用。
+            // 直接使用页内面板。
         }
     }
-
-    try {
-        // 不能在这里传入 noopener：部分 Chromium 会在保留新标签页的同时返回
-        // null，脚本便会误判为弹窗被拦截并在源网页重复挂载面板。设置页 URL
-        // 仍来自当前网页，拿到句柄后立即切断 opener，保留源页面隔离。
-        const openedWindow = window.open(
-            settingsUrl,
-            'fluentread-userscript-settings',
-        );
-        if (openedWindow) {
-            try {
-                openedWindow.opener = null;
-            } catch {
-                // opener 只是一层额外防护；设置页本身仍在 closed Shadow DOM 内运行。
-            }
-        }
-        return Boolean(openedWindow);
-    } catch {
-        return false;
-    }
+    return false;
 }
 
 export async function openUserscriptSettings(ctx: unknown, section?: string): Promise<void> {

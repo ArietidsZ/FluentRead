@@ -916,6 +916,46 @@ describe("synthetic 双语工件的真实 observer 生命周期", () => {
 
 
 describe('tooltip 翻译生命周期命中保护', () => {
+    it.each([
+        ['普通正文', '<p id="target">Ordinary English paragraph.</p>', false],
+        ['tooltip 内层', '<div class="tooltip"><div class="tooltip-inner" id="target">Support monthly</div></div>', true],
+        ['包含 tooltip 的控件', '<button id="target"><div class="tooltip"><div class="tooltip-inner">Support monthly</div></div></button>', true],
+        ['ARIA tooltip', '<div role="tooltip" id="target">Support monthly</div>', true],
+        ['没有直接内层的同名类', '<div class="tooltip" id="target"><span><span class="tooltip-inner">Other content</span></span></div>', false],
+    ])('旧版 WebView 不支持 :has 时仍可翻译%s', (_label, markup, isTooltip) => {
+        const {document} = parseHTML(`<html><body>${markup}</body></html>`);
+        const node = document.querySelector('#target') as HTMLElement;
+        const originalClosest = node.closest.bind(node);
+        const originalQuerySelector = node.querySelector.bind(node);
+        const originalQuerySelectorAll = node.querySelectorAll.bind(node);
+        const rejectHas = (selector: string) => {
+            if (selector.includes(':has(')) throw new SyntaxError('Unsupported selector :has');
+        };
+        const closest = vi.spyOn(node, 'closest').mockImplementation((selector) => {
+            rejectHas(selector);
+            return originalClosest(selector);
+        });
+        const querySelector = vi.spyOn(node, 'querySelector').mockImplementation((selector) => {
+            rejectHas(selector);
+            return originalQuerySelector(selector);
+        });
+        const querySelectorAll = vi.spyOn(node, 'querySelectorAll').mockImplementation((selector) => {
+            rejectHas(selector);
+            return originalQuerySelectorAll(selector);
+        });
+
+        try {
+            const attempt = beginTranslation(node, 'bilingual', 'content');
+            expect(attempt).not.toBeNull();
+            expect(node.hasAttribute('data-fr-tooltip-translation-active')).toBe(isTooltip);
+            restoreTranslation(node);
+        } finally {
+            closest.mockRestore();
+            querySelector.mockRestore();
+            querySelectorAll.mockRestore();
+        }
+    });
+
     it.each(['inside', 'self', 'ancestor'])('覆盖 %s 的直接控件翻译并在取消后清理', (placement) => {
         const {document} = parseHTML('<html><body><div role="button" id="control"><div class="tooltip"><div class="tooltip-inner">Support ThinkStu monthly</div></div></div></body></html>');
         const node = document.querySelector(placement === 'inside' ? '.tooltip-inner' : placement === 'self' ? '.tooltip' : '#control') as HTMLElement;

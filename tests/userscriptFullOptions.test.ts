@@ -62,16 +62,36 @@ describe('full userscript Options entry', () => {
         expect(mocks.createVueShadowUi).not.toHaveBeenCalled();
     });
 
-    it('uses the full Options inside a closed Shadow UI when opening a tab is blocked', async () => {
+    it('opens settings in-page on Android even if GM_openInTab exists', async () => {
+        const openInTab = vi.fn();
+        vi.stubGlobal('navigator', {userAgent: 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36'});
         vi.stubGlobal('window', {
             location: {href: 'https://example.test/article#host-route', hash: '#host-route'},
-            open: vi.fn(() => null),
+            open: vi.fn(),
+        });
+        vi.stubGlobal('GM', undefined);
+        vi.stubGlobal('GM_openInTab', openInTab);
+
+        await openUserscriptSettings({id: 'context'}, 'settings-general');
+
+        expect(openInTab).not.toHaveBeenCalled();
+        expect(window.open).not.toHaveBeenCalled();
+        expect(mocks.createVueShadowUi).toHaveBeenCalledOnce();
+        expect(window.location.hash).toBe('#host-route');
+    });
+
+    it('opens the full Options in-page when no manager tab API exists', async () => {
+        const browserOpen = vi.fn();
+        vi.stubGlobal('window', {
+            location: {href: 'https://example.test/article#host-route', hash: '#host-route'},
+            open: browserOpen,
         });
         vi.stubGlobal('GM', undefined);
         vi.stubGlobal('GM_openInTab', undefined);
 
         await openUserscriptSettings({id: 'context'});
 
+        expect(browserOpen).not.toHaveBeenCalled();
         expect(mocks.createVueShadowUi).toHaveBeenCalledWith(
             {id: 'context'},
             expect.objectContaining({mode: 'closed', viewport: true}),
@@ -88,6 +108,26 @@ describe('full userscript Options entry', () => {
         expect(window.location.hash).toBe('#host-route');
         closeUserscriptSettings();
         expect(mocks.remove).toHaveBeenCalledOnce();
+    });
+
+    it('keeps the selected settings section in the in-page fallback', async () => {
+        vi.stubGlobal('window', {
+            location: {href: 'https://example.test/article#host-route', hash: '#host-route'},
+            open: vi.fn(),
+        });
+        vi.stubGlobal('GM', undefined);
+        vi.stubGlobal('GM_openInTab', undefined);
+
+        await openUserscriptSettings({id: 'context'}, 'settings-services');
+
+        const options = mocks.createVueShadowUi.mock.calls[0][1];
+        vi.stubGlobal('ShadowRoot', class {});
+        vi.stubGlobal('HTMLElement', class {});
+        expect(options.props({getRootNode: () => ({})})).toMatchObject({
+            initialSection: 'settings-services',
+            locationRouting: 'internal',
+        });
+        expect(window.location.hash).toBe('#host-route');
     });
 
     it('falls back to the in-page Options when GM.openInTab rejects asynchronously', async () => {
