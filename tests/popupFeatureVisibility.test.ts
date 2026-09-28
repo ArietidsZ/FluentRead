@@ -13,7 +13,8 @@ describe('popup feature visibility', () => {
         expect(styles).toContain('html { width: var(--interface-popup-width, 360px); }');
         expect(styles).toContain('body, #app { width: 100%; }');
         expect(styles).not.toContain('width: min(var(--interface-popup-width, 360px), 100vw)');
-        expect(styles).toContain('.popup-shell { max-height: min(560px, 100vh);');
+        expect(styles).toContain('.popup-shell { max-height: 560px; overflow-y: auto;');
+        expect(styles).not.toContain('max-height: min(560px, 100dvh)');
     });
 
     it('keeps the real Popup under a first-open language mask until confirmation', () => {
@@ -24,7 +25,7 @@ describe('popup feature visibility', () => {
 
         expect(popup).toContain('uiLanguageSetupCompleted');
         expect(popup).toContain('<UiLanguageOnboarding');
-        expect(popup).toContain('<div class="popup-content" :inert="showLanguageOnboarding">');
+        expect(popup).toContain('<div v-show="!showLanguageOnboarding" class="popup-content" :inert="showLanguageOnboarding">');
         expect(popup).toContain('@confirmed="handleLanguageOnboardingConfirmed"');
         expect(popup).toContain('if (!showLanguageOnboarding.value) await hydrateCurrentSite();');
         expect(popup).toContain('void hydrateCurrentSite();');
@@ -57,7 +58,8 @@ describe('popup feature visibility', () => {
         expect(onboarding).toContain('class="onboarding-success"');
         expect(onboarding).toContain('setTimeout(() =>');
         expect(styles).toContain('.popup-shell.language-onboarding-shell { overflow-x: hidden; }');
-        expect(styles).toContain('.popup-shell { max-height: min(560px, 100vh);');
+        expect(styles).toContain('.popup-shell { max-height: 560px; overflow-y: auto;');
+        expect(onboarding).toContain('.language-onboarding {\n  position: relative;');
         expect(i18n).toContain('function isRelevantUiMutation');
         expect(i18n).toContain('setTimeout(() => {');
         expect(i18n).toContain('state.observer.disconnect();');
@@ -245,7 +247,7 @@ describe('popup feature visibility', () => {
         expect(areaSettings).toContain('props.config.areaTranslationMode');
         expect(areaSettings).toContain(':placeholder="t(\'area.settings.followService\')"');
         expect(areaSettings).toContain('servicesType.isUseAIContext');
-        expect(areaSettings).toContain('<ImageOcrSettings id-prefix="area" />');
+        expect(areaSettings).toContain('<ImageOcrSettings v-if="props.active" id-prefix="area" />');
         expect(ocrSettings).toContain('`${props.idPrefix}-ocr-pack-title`');
     });
 

@@ -96,7 +96,7 @@ const expectedGeneralGroups = ['选择翻译服务', '网页辅助'];
 // 译文显示相关设置已迁到界面风格页，通用设置不再有二级分组标题。
 const expectedGeneralSubgroups = [];
 const expectedInterfaceGroups = ['译文样式', '界面与弹窗', '动画与加载效果', '菜单栏布局', '界面字体'];
-const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '本地朗读', '输入框翻译', '全文翻译', '右键菜单', '悬浮球进阶设置', '段落复制'];
+const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '本地朗读', '输入框翻译', '全文翻译', '右键菜单', '悬浮球进阶设置', '段落复制', '局部翻译', '不翻译的语言'];
 const expectedLoadingStyles = [
   ['ring', '柔和圆环'],
   ['minimal', '简洁'],
@@ -549,17 +549,17 @@ async function verifyBilingualHighlightPreview(page) {
   if (disabledHover.highlighted.length) throw new Error(`关闭双语逐句高亮后预览仍响应 hover：${JSON.stringify(disabledHover)}`);
 
   await setEnabled(true);
-  await source.locator('span').nth(1).hover();
+  await source.locator('span').nth(0).hover();
   await page.waitForTimeout(150);
   const sourceHover = await readState();
-  await translation.locator('span').nth(2).hover();
+  await translation.locator('span').nth(1).hover();
   await page.waitForTimeout(150);
   const translationHover = await readState();
   await page.mouse.move(0, 0);
   await translation.locator('span').nth(0).focus();
   await page.waitForTimeout(150);
   const keyboardFocus = await readState();
-  for (const [state, expected] of [[sourceHover, 'Move over'], [translationHover, 'Compare difficult'], [keyboardFocus, 'Reading should']]) {
+  for (const [state, expected] of [[sourceHover, 'Reading should'], [translationHover, 'Move over'], [keyboardFocus, 'Reading should']]) {
     if (state.highlighted.length !== 2 || !state.highlighted[0].includes(expected)) {
       throw new Error(`双语逐句高亮预览没有同步高亮原文与译文：${JSON.stringify({sourceHover, translationHover, keyboardFocus})}`);
     }
@@ -590,6 +590,72 @@ async function verifyBilingualHighlightPreview(page) {
     geometryDelta,
     screenshot,
   };
+}
+
+async function verifyNamedTranslationStyles(page) {
+  const readConfig = async () => page.evaluate(async () => {
+    const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
+    return typeof response.value === 'string' ? JSON.parse(response.value) : response.value;
+  });
+  const waitForProfiles = async (count, activeName) => page.waitForFunction(async ({count, activeName}) => {
+    const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
+    const config = typeof response.value === 'string' ? JSON.parse(response.value) : response.value;
+    const active = config.translationStyleProfiles.find(profile => profile.id === config.activeTranslationStyleProfileId);
+    return config.translationStyleProfiles.length === count && (active?.name || '') === activeName;
+  }, {count, activeName}, {timeout});
+
+  await page.locator('button[data-section="settings-interface"]').click();
+  const panel = page.getByTestId('translation-style-settings');
+  await panel.waitFor({state: 'visible', timeout});
+  const original = await readConfig();
+  if (original.translationStyleProfiles.length || original.activeTranslationStyleProfileId) {
+    throw new Error('隔离设置页并非空白译文样式状态');
+  }
+  const disclosure = panel.locator('.translation-appearance-disclosure');
+  if (await disclosure.getAttribute('aria-expanded') !== 'false') throw new Error('自定义外观未默认折叠');
+  await disclosure.click();
+  const name = panel.locator('#translation-profile-name');
+  await name.fill('回归阅读');
+  await panel.getByRole('button', {name: '保存为新样式'}).click();
+  await waitForProfiles(1, '回归阅读');
+  const first = await readConfig();
+  await panel.locator(`.translation-style-card:not([data-style-value="${first.style}"])`).first().click();
+  await name.fill('回归对照');
+  await panel.getByRole('button', {name: '保存为新样式'}).click();
+  await waitForProfiles(2, '回归对照');
+  const second = await readConfig();
+  if (second.translationStyleProfiles[0].style === second.translationStyleProfiles[1].style) {
+    throw new Error('第二套命名样式未保存独立的内置样式选择');
+  }
+  await page.reload({waitUntil: 'domcontentloaded', timeout});
+  await page.locator('button[data-section="settings-interface"]').click();
+  await panel.waitFor({state: 'visible', timeout});
+  const saved = panel.locator('.translation-style-saved-list');
+  if (await saved.getByRole('radio').count() !== 2
+    || await saved.getByRole('radio', {name: /回归对照/u}).getAttribute('aria-checked') !== 'true') {
+    throw new Error('两套命名样式在设置页重载后未恢复');
+  }
+  await saved.getByRole('radio', {name: /回归阅读/u}).click();
+  await waitForProfiles(2, '回归阅读');
+  if ((await readConfig()).style !== first.style) throw new Error('切换已保存样式后未恢复对应译文样式');
+  await saved.getByRole('radio', {name: /回归对照/u}).click();
+  await waitForProfiles(2, '回归对照');
+  await panel.locator('.translation-appearance-disclosure').click();
+  await panel.getByRole('button', {name: '删除已选样式'}).click();
+  await waitForProfiles(1, '');
+  await saved.getByRole('radio', {name: /回归阅读/u}).click();
+  await waitForProfiles(1, '回归阅读');
+  await panel.getByRole('button', {name: '删除已选样式'}).click();
+  await waitForProfiles(0, '');
+  const restored = await readConfig();
+  if (restored.style !== original.style
+    || JSON.stringify(restored.translationAppearance) !== JSON.stringify(original.translationAppearance)) {
+    throw new Error('删除测试样式后未恢复初始译文外观');
+  }
+  await page.locator('button[data-section="settings-general"]').click();
+  await page.locator('#settings-general').waitFor({state: 'visible', timeout});
+  return {savedNames: second.translationStyleProfiles.map(profile => profile.name), reloadRestored: true,
+    selectionRestored: true, deleted: true, initialStyleRestored: true};
 }
 
 async function seedModelUsageFixture(page) {
@@ -1346,6 +1412,7 @@ async function main() {
       if (await anchor.count() !== 1 || !await anchor.isVisible()) throw new Error(`页面锚点不可见：${id}`);
       if (id === 'settings-image-translation' || id === 'settings-area-translation') {
         const expectedOcrTitle = id === 'settings-area-translation' ? 'area-ocr-pack-title' : 'image-ocr-pack-title';
+        await anchor.locator(`#${expectedOcrTitle}`).waitFor({state: 'attached', timeout});
         if (await anchor.locator(`#${expectedOcrTitle}`).count() !== 1
           || await page.locator('.image-ocr-pack-list').count() !== 1) {
           throw new Error(`${id} 未复用唯一的活动 OCR 语言包管理界面`);
@@ -2751,6 +2818,7 @@ async function main() {
     await page.locator('button[data-section="settings-translation"]').click();
     report.screenshots.push(await screenshot(page, 'settings-dark-translation.png'));
     await page.locator('button[data-section="settings-interface"]').click();
+    await page.locator('#settings-interface .loading-style-option').first().waitFor({state: 'visible', timeout});
     const darkLoadingStyleSurfaces = await page.locator('.loading-style-option').evaluateAll(cards => (
       cards.map(card => ({
         selected: card.classList.contains('selected'),
@@ -2791,6 +2859,8 @@ async function main() {
     report.bilingualHighlightPreview = await verifyBilingualHighlightPreview(page);
     report.screenshots.push(report.bilingualHighlightPreview.screenshot);
     report.assertions.bilingualHighlightPreview = true;
+    report.namedTranslationStyles = await verifyNamedTranslationStyles(page);
+    report.assertions.namedTranslationStyles = true;
 
     const defaultServiceCard = generalSection.getByTestId('default-translation-service-card');
     await defaultServiceCard.waitFor({state: 'visible', timeout});

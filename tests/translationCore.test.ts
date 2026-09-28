@@ -43,6 +43,7 @@ import {
 } from '@/src/core/translation/layout';
 import {
     hasMeaningfulTranslationTextInNodes,
+    isIdentifierLikeText,
     isTranslationTextNodeProtected,
 } from '@/src/core/translation/text';
 import {
@@ -2297,11 +2298,15 @@ describe('translation candidate core', () => {
             <html><body><main>
                 <p id="hash">a1b2c3d4</p>
                 <p id="number">2026-08-18</p>
+                <p id="domain">dash-overflow.net</p>
                 <p id="words">A meaningful release description.</p>
             </main></body></html>
         `).document);
 
         expect(ids).toEqual(['words']);
+        expect(isIdentifierLikeText('kubernetes.nginx.org')).toBe(true);
+        expect(isIdentifierLikeText('https://github.com/github/gitignore')).toBe(true);
+        expect(isIdentifierLikeText('the guide')).toBe(false);
     });
 
     it('shares the unified language decision: short CJK needs script evidence and ambiguous Latin words stay translatable', () => {

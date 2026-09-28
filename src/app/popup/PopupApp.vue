@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，让现场开关与显示操作保持简短，将长期偏好引导到对应设置页。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、局部翻译入口、AI 语境偏好与可用状态、站点规则及两列快捷功能，语言选项与快捷抽屉按需挂载；图片、圈选和划词拥有独立状态、抽屉与设置入口，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、局部翻译入口、AI 语境偏好与可用状态、站点规则及两列快捷功能；首次语言引导独占可见内容并撑开弹窗，语言选项与快捷抽屉按需挂载；图片、圈选和划词拥有独立状态、抽屉与设置入口，监听配置并持久化。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -27,7 +27,7 @@
       @confirmed="handleLanguageOnboardingConfirmed"
     />
 
-    <div class="popup-content" :inert="showLanguageOnboarding">
+    <div v-show="!showLanguageOnboarding" class="popup-content" :inert="showLanguageOnboarding">
     <header class="popup-header">
       <div class="brand">
         <img src="/icon/128.png" alt="" />

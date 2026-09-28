@@ -59,7 +59,7 @@
         </el-select>
       </SettingsItem>
     </SettingsGroup>
-    <ImageOcrSettings id-prefix="area" />
+    <ImageOcrSettings v-if="props.active" id-prefix="area" />
   </details>
   <el-dialog v-model="promptEditorOpen" :title="t('area.settings.visionPrompt')" width="min(640px, calc(100vw - 32px))" append-to-body destroy-on-close>
     <p class="area-prompt-description">{{ t('area.settings.visionPromptDescription') }}</p>
@@ -111,6 +111,7 @@ const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components
 const props = defineProps<{
   config: Config;
   enabled: boolean;
+  active: boolean;
   serviceOptions: readonly {value: string; label: string; disabled?: boolean}[];
 }>();
 const emit = defineEmits<{'update:enabled': [enabled: boolean]}>();

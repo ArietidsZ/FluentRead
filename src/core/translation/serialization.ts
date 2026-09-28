@@ -6,7 +6,7 @@
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
-import {createTranslationTextProtectionCache, isTranslationTextNodeProtected, normalizeTranslationText} from './text';
+import {createTranslationTextProtectionCache, isIdentifierLikeText, isTranslationTextNodeProtected, normalizeTranslationText} from './text';
 import type {TranslationTextProtectionCache} from './text';
 import {
     hasContentEditableMarker,
@@ -224,6 +224,9 @@ function translationTextSlotParts(
         protectionOptions,
         protectionCache,
     )) return null;
+    // 纯网址、域名及其他链接标识符只作为可见骨架保留。把它们逐槽发送给
+    // 翻译服务既浪费请求，也会把正常的原样返回误判成翻译失败。
+    if (isIdentifierLikeText(match[2]) && node.parentElement?.closest('a[href]')) return null;
     return {prefix: match[1], source: match[2], suffix: match[3]};
 }
 

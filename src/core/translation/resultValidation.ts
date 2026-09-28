@@ -9,7 +9,8 @@ import {isLanguageCodeMatch} from '@/src/core/language/codes';
 import {identifyTextLanguage} from '@/src/core/language/identify';
 
 function comparable(value: string): string {
-    return value.normalize('NFKC').replace(/\s+/gu, ' ').trim();
+    // 免费服务有时只把英文标题的冒号换成全角并删去后面的空格。
+    return value.normalize('NFKC').replace(/\s*:\s*/gu, ':').replace(/\s+/gu, ' ').trim();
 }
 
 /** 标签列表缺少功能词，统计语言识别通常只能给出不可信的猜测。 */
@@ -29,14 +30,32 @@ function isLatinKeywordList(value: string): boolean {
     return readableTags >= 6 && words >= 6;
 }
 
-/** 只拒绝可信外语正文或长英文标签列表的原文回显；短词、代码和名称允许原样返回。 */
+/** 职业标题常被语言检测视为不确定；只对明确的通用职位词判定原文回显。 */
+function isLatinShortHeading(value: string): boolean {
+    const words = value.trim().split(/\s+/u);
+    return words.length === 2 && words.every(word => /^[A-Za-z][a-z]{3,}[.!?]?$/u.test(word))
+        && /^(?:developer|engineer|designer|manager|analyst|architect|administrator|scientist|researcher|specialist|consultant|programmer|translator|editor|writer|teacher|student|operator|technician)$/iu.test(words[1]);
+}
+
+/** 两个首字母大写的词可能是人名、地名或品牌；不能因原样保留就使整段失败。 */
+function isPossiblyProperName(value: string): boolean {
+    const words = value.trim().split(/\s+/u);
+    return words.length === 2 && words.every(word => /^[A-Z][a-z]{2,}$/u.test(word))
+        && !isLatinShortHeading(value);
+}
+
+/** 拒绝外语正文及英文标题的原文回显；缩写、代码与部分专名保持保守判定。 */
 export function isLikelyUntranslatedResponse(origin: string, result: string, targetLanguage: string): boolean {
     if (!origin.trim() || comparable(origin) !== comparable(result)) return false;
+    if (getChineseScript(targetLanguage) && isPossiblyProperName(origin)) return false;
     const identification = identifyTextLanguage(origin);
     if (identification.status === 'identified') {
         return !identification.languages.some(language => isLanguageCodeMatch(language, targetLanguage));
     }
-    return Boolean(getChineseScript(targetLanguage)) && isLatinKeywordList(origin);
+    return Boolean(getChineseScript(targetLanguage)) && !/[\u3400-\u9fff]/u.test(result) && (
+        isLatinKeywordList(origin) || isLatinShortHeading(origin) ||
+        (origin.match(/\b[a-z]{3,}\b/gu) ?? []).length >= 3
+    );
 }
 
 /** 假名与汉字共同构成日文正文；少量日语名称、短引用和不确定的混合段落照常展示。 */

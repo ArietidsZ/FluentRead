@@ -2884,8 +2884,12 @@
         "css": [
           ".mw-parser-output > p",
           ".mw-parser-output > section > p",
-          ".mw-parser-output h2"
+          ".mw-parser-output section p"
         ],
+        "atomic": true
+      },
+      {
+        "css": [".mw-parser-output h2"],
         "atomic": false
       }
     ],
