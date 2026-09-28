@@ -429,6 +429,20 @@ export function resolveTranslationStateNode(candidate: TranslationCandidate): HT
     return null;
 }
 
+/** 旧版 WebView 的 DOM 选择器不支持 :has；复用候选层的 tooltip 判定。 */
+function hasTranslationTooltip(node: HTMLElement): boolean {
+    const selector = '[role="tooltip"], .tooltip';
+    let ancestor = node.closest?.(selector) ?? null;
+    while (ancestor) {
+        if (isTranslationTooltip(ancestor)) return true;
+        ancestor = ancestor.parentElement?.closest(selector) ?? null;
+    }
+    for (const descendant of node.querySelectorAll?.(selector) ?? []) {
+        if (isTranslationTooltip(descendant)) return true;
+    }
+    return false;
+}
+
 /**
  * 开始一次新的节点翻译请求。
  * loading 状态不能重复发起请求；error 状态可以被调用方先恢复后重试。
@@ -493,8 +507,7 @@ export function beginTranslation(
         controller: new AbortController(),
     };
 
-    const tooltipSelector = '[role="tooltip"], .tooltip:has(> .tooltip-inner)';
-    if (node.closest?.(tooltipSelector) || node.querySelector?.(tooltipSelector)) {
+    if (hasTranslationTooltip(node)) {
         state.originalTooltipTranslationAttribute = previous?.originalTooltipTranslationAttribute !== undefined
             ? previous.originalTooltipTranslationAttribute
             : node.getAttribute('data-fr-tooltip-translation-active');
