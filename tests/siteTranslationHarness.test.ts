@@ -93,6 +93,7 @@ const {
     minSeen: number;
     trackDynamic: boolean;
     requiresPhrase?: boolean;
+    minTextLength?: number;
     sourceIncludes: string[];
   }>;
   normalizeHoverTargets: (targets: unknown[], options?: string | {
@@ -185,7 +186,7 @@ const {
     rules: unknown[],
     timeout: number,
   ) => Promise<void>;
-  withMandatoryHeadingCoverage: (rules: unknown[]) => Array<{
+  withMandatoryHeadingCoverage: (rules: unknown[], protectPageHeading?: boolean) => Array<{
     name: string;
     selector: string;
     kind: string;
@@ -199,6 +200,7 @@ const {
   MATRIX_REQUIREMENTS,
   computeJobTimeoutMs,
   runChildWithWatchdog,
+  runJobAttempts,
   validateMatrix,
 } = require('../scripts/run-site-translation-matrix.cjs') as {
   MATRIX_REQUIREMENTS: {
@@ -219,6 +221,10 @@ const {
       killProcessGroupImpl?: (child: EventEmitter & {pid?: number}, signal: string) => boolean;
     },
   ) => Promise<{ok: boolean; timedOut: boolean; signal: string | null}>;
+  runJobAttempts: (
+    runAttempt: (attempt: number) => Promise<{ok: boolean; timedOut: boolean}>,
+    maxAttempts: number,
+  ) => Promise<{ok: boolean; timedOut: boolean; attempts: Array<{ok: boolean; timedOut: boolean}>}>;
   validateMatrix: (caseConfigs?: Record<string, unknown>) => {
     entries: Array<[string, unknown]>;
     required: Array<[string, unknown]>;
@@ -299,6 +305,22 @@ describe('site translation coverage contract', () => {
         missedSamples: ['Forgotten title'],
       },
     ], 'global heading')).toThrow('mandatory-visible-latin-h1 仅翻译 0/1 个节点');
+  });
+
+  it('protects a list page H1 only when its forbidden contract explicitly owns that heading', () => {
+    const rules = normalizeCoverageRules(cases['github-project-pulls'].coverageRules);
+    expect(cases['github-project-pulls'].forbiddenSelectors).toContain('main h1');
+    expect(withMandatoryHeadingCoverage(rules).some(({name}) => name === 'mandatory-visible-latin-h1')).toBe(true);
+    expect(withMandatoryHeadingCoverage(rules, true)).toEqual(rules);
+  });
+
+  it('uses an explicit minimum length for live-site coverage of short product names', () => {
+    expect(normalizeCoverageRules(cases['hacker-news-8863'].coverageRules)
+      .find(({name}) => name === 'discussion-comments')?.minTextLength).toBe(10);
+    const invalidCases = structuredClone(cases) as unknown as Record<string, Record<string, unknown>>;
+    const rules = invalidCases['hacker-news-8863'].coverageRules as Array<Record<string, unknown>>;
+    rules[1].minTextLength = -1;
+    expect(() => validateMatrix(invalidCases)).toThrow('minTextLength 必须是非负整数');
   });
 
   it('does not count screen-reader-only headings as visible page headings', () => {
@@ -453,6 +475,7 @@ describe('site translation coverage contract', () => {
       const tracker = (window as unknown as Record<string, {
         snapshotMissing: () => Array<{token: string; source: string}>;
         activateMissing: (token: string) => {found: boolean; reason?: string};
+        beginRevealRound: () => void;
         missingStatuses: (tokens: string[]) => Array<{translated: boolean}>;
         stop: () => void;
       }>)[COVERAGE_TRACKER_KEY];
@@ -467,6 +490,9 @@ describe('site translation coverage contract', () => {
       expect(tracker.activateMissing(token)).toMatchObject({found: true});
       expect(revealed).toEqual(['missing']);
       expect(tracker.activateMissing(token)).toMatchObject({found: false, reason: 'already-activated'});
+      tracker.beginRevealRound();
+      expect(tracker.activateMissing(token)).toMatchObject({found: true});
+      expect(revealed).toEqual(['missing', 'missing']);
 
       const missing = document.querySelector('#missing')!;
       const wrapper = document.createElement('span');
@@ -619,7 +645,7 @@ describe('site translation coverage contract', () => {
   });
 
   it('fails before an unbounded reveal loop when a page has too many missing leaves', async () => {
-    const batch = Array.from({length: 129}, (_, index) => ({
+    const batch = Array.from({length: 257}, (_, index) => ({
       token: `0:${index}:0`,
       rule: 'paragraphs',
       source: `Natural paragraph ${index}`,
@@ -637,7 +663,7 @@ describe('site translation coverage contract', () => {
     expect(page.evaluate).toHaveBeenCalledTimes(1);
   });
 
-  it('budgets one dwell per bounded missing leaf before the shared idle wait', async () => {
+  it('budgets one bounded translation poll per missing leaf before the shared idle wait', async () => {
     const batch = Array.from({length: 100}, (_, index) => ({
       token: `0:${index}:0`,
       rule: 'paragraphs',
@@ -659,19 +685,45 @@ describe('site translation coverage contract', () => {
         if (request.token) return {found: true, token: request.token, alreadyTranslated: false};
         return request.requestedTokens!.map((token) => ({...batch[Number(token.split(':')[1])], translated: true}));
       }),
-      // 模拟真实停留耗时；旧预算 60s 在第 67 个叶节点前就会耗尽，与译文是否完成无关。
-      waitForTimeout: vi.fn(async (ms: number) => { now += ms; }),
-      waitForFunction: vi.fn(async () => undefined),
+      // 模拟每个叶节点耗尽可见窗口；批次预算必须覆盖全部 100 个节点。
+      waitForFunction: vi.fn(async (_fn: unknown, _argument: unknown, options?: {timeout?: number}) => {
+        if (options?.timeout === 2000) now += 2000;
+      }),
     };
     try {
       const statuses = await settleCoverageByReveal(page, 60_000, 'coverage');
       expect(statuses).toHaveLength(100);
-      expect(page.waitForTimeout).toHaveBeenCalledTimes(100);
-      expect(page.waitForTimeout.mock.calls.every(([ms]) => ms === 900)).toBe(true);
-      expect(page.waitForFunction).toHaveBeenCalledOnce();
+      expect(page.waitForFunction).toHaveBeenCalledTimes(101);
+      expect(page.waitForFunction.mock.calls.filter(([, , options]) => options?.timeout === 2000)).toHaveLength(100);
     } finally {
       dateNow.mockRestore();
     }
+  });
+
+  it('revisits only remaining leaves after slow requests release the translation queue', async () => {
+    const batch = ['0:0:0', '0:1:0'].map(token => ({
+      token, rule: 'paragraphs', source: `Natural paragraph ${token}`, connected: true,
+      eligible: true, translated: false, loading: false, retry: false,
+    }));
+    let round = 0;
+    const page = {
+      evaluate: vi.fn(async (fn: Function, argument: unknown) => {
+        if (argument === COVERAGE_TRACKER_KEY) {
+          if (fn.toString().includes('snapshotMissing')) return round++ === 0 ? batch : [batch[1]];
+          return undefined;
+        }
+        if (typeof argument === 'string') return [];
+        const request = argument as {token?: string; requestedTokens?: string[]};
+        if (request.token) return {found: true, token: request.token, alreadyTranslated: false};
+        return request.requestedTokens!.map(token => ({...batch[Number(token.split(':')[1])],
+          translated: round > 1 || token === batch[0].token}));
+      }),
+      waitForFunction: vi.fn(async () => undefined),
+    };
+    const statuses = await settleCoverageByReveal(page, 60_000, 'coverage');
+    expect(statuses).toHaveLength(1);
+    expect(statuses[0]).toMatchObject({token: batch[1].token, translated: true});
+    expect(round).toBe(2);
   });
 
   it('normalizes only adjacent Text runs around protected MathJax roots', async () => {
@@ -1442,6 +1494,7 @@ describe('site translation coverage contract', () => {
       waitForSelector: async () => {
         throw new Error('dialog remains visible');
       },
+      evaluate: async () => ({dialogVisible: true}),
     };
 
     await expect(closeInteractionDialog(page, scenario!, 60_000, 'first-translation'))
@@ -1663,6 +1716,17 @@ describe('real-site translation matrix gates', () => {
     expect(result).toMatchObject({ok: false, timedOut: true});
   });
 
+  it('retries a failed required site in a fresh complete run while keeping both outcomes visible', async () => {
+    const flaky = vi.fn(async (attempt: number) => ({ok: attempt === 2, timedOut: false}));
+    const recovered = await runJobAttempts(flaky, 2);
+    expect(flaky.mock.calls.map(([attempt]) => attempt)).toEqual([1, 2]);
+    expect(recovered).toMatchObject({ok: true, attempts: [{ok: false}, {ok: true}]});
+
+    const timedOut = vi.fn(async () => ({ok: false, timedOut: true}));
+    expect(await runJobAttempts(timedOut, 2)).toMatchObject({ok: false, attempts: [{timedOut: true}]});
+    expect(timedOut).toHaveBeenCalledTimes(1);
+  });
+
   it('still SIGKILLs the process group when the direct child closes after SIGTERM', async () => {
     vi.useFakeTimers();
     try {
@@ -1772,6 +1836,7 @@ describe('real-site translation matrix gates', () => {
     expect(cases['sqlite-select-language'].tier).toBe('required');
     expect(cases['git-book-version-control'].tier).toBe('required');
     expect(cases['github-project-pulls'].forbiddenSelectors).toEqual([
+      'main h1',
       "button[aria-haspopup='dialog'][aria-label*='search' i]",
     ]);
     expect(cases['brown-pl-introduction'].forbiddenSelectors).toEqual(['table.RktBlk']);
@@ -1898,13 +1963,13 @@ describe('real-site translation matrix gates', () => {
     expect(protectedNodes.some((node) => node.tagName === 'CODE' && node.parentElement?.tagName === 'P')).toBe(true);
   });
 
-  it('keeps PR 4038 title, body headings, paragraphs and lists as separate requirements', () => {
+  it('keeps the English PR title, body headings, paragraphs and lists as separate requirements', () => {
     const rules = normalizeCoverageRules(cases['github-project-pr'].coverageRules);
     expect(rules.map(({selector}) => selector)).toEqual([
       'main h1',
-      '.markdown-body h2',
-      '.markdown-body p',
-      '.markdown-body li',
+      "[id^='pullrequest-'] .markdown-body > h2",
+      "[id^='pullrequest-'] .markdown-body > p:first-of-type",
+      "[id^='pullrequest-'] .markdown-body > ul:first-of-type > li:nth-child(-n+3)",
     ]);
     expect(rules.every(({selector}) => !selector.includes(','))).toBe(true);
     expect(rules.every(({trackDynamic}) => trackDynamic)).toBe(true);
@@ -1913,18 +1978,18 @@ describe('real-site translation matrix gates', () => {
     });
     expect(prHoverTargets.map(({selector}) => selector)).toEqual([
       'main h1',
-      '.markdown-body h2',
-      '.markdown-body p',
-      '.markdown-body li',
+      "[id^='pullrequest-'] .markdown-body > h2",
+      "[id^='pullrequest-'] .markdown-body > p:first-of-type",
+      "[id^='pullrequest-'] .markdown-body > ul:first-of-type > li:nth-child(-n+3)",
     ]);
-    expect(prHoverTargets.find(({selector}) => selector === '.markdown-body h2')?.sourceIncludes).toEqual([
-      '验证',
+    expect(prHoverTargets.find(({selector}) => selector.endsWith('> h2'))?.sourceIncludes).toEqual([
+      'Problem',
     ]);
-    expect(prHoverTargets.find(({selector}) => selector === '.markdown-body li')?.sourceIncludes).toEqual([
-      '已取消的快捷键手势',
+    expect(prHoverTargets.find(({selector}) => selector.includes('> li:nth-child'))?.sourceIncludes).toEqual([
+      'Resolve explicit selections',
     ]);
     expect(rules.find(({name}) => name === 'body-list-items')?.sourceIncludes).toEqual([
-      '已取消的快捷键手势',
+      'Resolve explicit selections',
     ]);
     expect(cases['github-project-pr'].forbiddenMustExistSelectors).toEqual([
       "button[aria-haspopup='dialog'][aria-label*='search' i]",
@@ -1937,7 +2002,7 @@ describe('real-site translation matrix gates', () => {
         comboboxSelector: "[role='combobox']",
         listboxSelector: "[role='listbox']",
         inputText: 'issues',
-        closeAttempts: 2,
+        closeAttempts: 3,
       }),
     ]);
   });

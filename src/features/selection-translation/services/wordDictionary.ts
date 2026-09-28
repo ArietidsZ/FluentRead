@@ -1,11 +1,15 @@
 /**
  * @file src/features/selection-translation/services/wordDictionary.ts
  * 文件职责：实现划词英文词典的多来源聚合、清洗、优先级合并、发音选择、缓存和超时降级，为词卡提供尽可能完整且安全的数据。
- * 主要内容：支持紧凑行格式的内置 ECDICT、有道、Free Dictionary、WiktAPI、Wiktionary REST 与 Datamuse，包含各响应解析器、HTML/URL 清洗、释义和音标去重、provider 工厂及 LRU 式 lookup。
+ * 主要内容：支持高频 ECDICT 内置词库与按需缓存的完整词库、有道、Free Dictionary、WiktAPI、Wiktionary REST 与 Datamuse，包含各响应解析器、HTML/URL 清洗、释义和音标去重、provider 工厂及 LRU 式 lookup。
  * 模块边界：本服务只获取和规范化词典数据，不渲染词卡、不翻译释义或加入词书；后台 wordLookupHandler 编排翻译，SelectionTranslator.vue 展示，HTTP 统一经过 platform/runtimeFetch。
  */
 import {readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
+import {canCacheOptionalEcdict, downloadFullEcdict, readCachedFullEcdict, type EcdictCompactRow} from './ecdictAsset';
+import {normalizeEnglishWord} from './wordNormalization';
+
+export {isSingleEnglishWord, normalizeEnglishWord} from './wordNormalization';
 
 export type WordDictionaryProviderId = 'ecdict-local' | 'youdao-web' | 'free-dictionary' | 'wiktapi' | 'wiktionary-rest' | 'datamuse';
 
@@ -105,15 +109,12 @@ interface EcdictEntry {
     pos?: unknown;
 }
 
-type EcdictCompactEntry = readonly [word: string, phonetic: string, definition: string, translation: string];
-
 interface WiktionaryDefinitionEntry {
     partOfSpeech?: unknown;
     language?: unknown;
     definitions?: unknown;
 }
 
-const MAX_WORD_LENGTH = 64;
 const LOOKUP_TIMEOUT_MS = 4_000;
 const CHINA_PROVIDER_TIMEOUT_MS = 1_800;
 const WIKTAPI_TIMEOUT_MS = 1_200;
@@ -152,25 +153,6 @@ const SOURCE_INFO: Record<WordDictionaryProviderId, WordDictionarySource> = {
         url: 'https://www.datamuse.com/api/',
     },
 };
-
-/**
- * 把网页中常见的排版引号/连字符折叠为词典协议可接受的 ASCII 形式。
- * 其余 Unicode 字符仍会被拒绝，避免把同形异义字符或零宽字符发送给第三方服务。
- */
-export function normalizeEnglishWord(value: string): string | null {
-    const normalized = String(value || '')
-        .trim()
-        .normalize('NFC')
-        .replace(/[‘’ʼ]/gu, "'")
-        .replace(/[‐‑‒–—]/gu, '-');
-    if (normalized.length === 0 || normalized.length > MAX_WORD_LENGTH) return null;
-    if (!/^[A-Za-z]+(?:[-'][A-Za-z]+)*$/u.test(normalized)) return null;
-    return normalized.toLowerCase();
-}
-
-export function isSingleEnglishWord(value: string): boolean {
-    return normalizeEnglishWord(value) !== null;
-}
 
 function textValue(value: unknown): string {
     return typeof value === 'string' ? value.trim() : '';
@@ -693,12 +675,29 @@ export interface WordDictionaryProvider {
 }
 
 function createEcdictProvider(): WordDictionaryProvider {
-    let indexPromise: Promise<Map<string, EcdictEntry | EcdictCompactEntry>> | null = null;
+    type EcdictIndex = Map<string, EcdictEntry | EcdictCompactRow>;
+    let indexPromise: Promise<EcdictIndex> | null = null;
+    let optionalIndexPromise: Promise<EcdictIndex | null> | null = null;
+    let optionalDownload: Promise<void> | null = null;
+    let nextDownloadAt = 0;
 
-    const loadIndex = async (): Promise<Map<string, EcdictEntry | EcdictCompactEntry>> => {
+    const indexRows = (entries: unknown[]): EcdictIndex => {
+        const index: EcdictIndex = new Map();
+        for (const entry of entries) {
+            if (Array.isArray(entry)) {
+                if (entry.length !== 4 || entry.some(value => typeof value !== 'string')) continue;
+                const word = entry[0].toLowerCase();
+                if (word) index.set(word, entry as unknown as EcdictCompactRow);
+            } else if (entry && typeof entry === 'object') {
+                const word = textValue((entry as EcdictEntry).w).toLowerCase();
+                if (word) index.set(word, entry as EcdictEntry);
+            }
+        }
+        return index;
+    };
+
+    const loadIndex = async (url: string): Promise<EcdictIndex> => {
         if (indexPromise) return indexPromise;
-        const url = localDictionaryUrl();
-        if (!url) return new Map();
 
         // 步骤 1：同一后台生命周期只解析一次本地词库；若读取失败则清掉失败 Promise，
         // 让浏览器资源短暂不可用后的下一次查询能够自动恢复。
@@ -707,18 +706,7 @@ function createEcdictProvider(): WordDictionaryProvider {
             if (!response.ok) throw new Error(`local dictionary request failed: ${response.status}`);
             const payload = await readJsonResponse(response, 'local dictionary response is not valid JSON');
             const entries = Array.isArray(payload) ? payload : [];
-            const index = new Map<string, EcdictEntry | EcdictCompactEntry>();
-            for (const entry of entries) {
-                if (Array.isArray(entry)) {
-                    if (entry.length !== 4 || entry.some(value => typeof value !== 'string')) continue;
-                    const word = entry[0].toLowerCase();
-                    if (word) index.set(word, entry as unknown as EcdictCompactEntry);
-                } else if (entry && typeof entry === 'object') {
-                    const word = textValue((entry as EcdictEntry).w).toLowerCase();
-                    if (word) index.set(word, entry as EcdictEntry);
-                }
-            }
-            return index;
+            return indexRows(entries);
         })();
         try {
             return await indexPromise;
@@ -728,10 +716,36 @@ function createEcdictProvider(): WordDictionaryProvider {
         }
     };
 
+    const loadOptionalIndex = (): Promise<EcdictIndex | null> => {
+        if (!optionalIndexPromise) {
+            optionalIndexPromise = readCachedFullEcdict().then(rows => rows ? indexRows(rows) : null);
+        }
+        return optionalIndexPromise;
+    };
+
+    const startOptionalDownload = (): void => {
+        if (optionalDownload || Date.now() < nextDownloadAt
+            || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
+        // 当前词立即交给线上 provider；完整词库在后台准备好，后续查询从本地命中。
+        optionalDownload = downloadFullEcdict()
+            .then(rows => { optionalIndexPromise = Promise.resolve(indexRows(rows)); })
+            .catch(() => { nextDownloadAt = Date.now() + 30 * 60_000; })
+            .finally(() => { optionalDownload = null; });
+    };
+
     return {
         id: 'ecdict-local',
         async lookup(normalizedWord) {
-            const entry = (await loadIndex()).get(normalizedWord);
+            // Userscript 没有打包扩展词库；不能在宿主页面上下文中下载可选资源。
+            const url = localDictionaryUrl();
+            if (!url) return null;
+            const coreIndex = await loadIndex(url);
+            let entry = coreIndex.get(normalizedWord);
+            if (!entry && canCacheOptionalEcdict()) {
+                const optionalIndex = await loadOptionalIndex();
+                entry = optionalIndex?.get(normalizedWord);
+                if (!optionalIndex) startOptionalDownload();
+            }
             if (!entry) return null;
             const parsed: EcdictEntry = Array.isArray(entry)
                 ? {w: entry[0], p: entry[1], d: entry[2], t: entry[3]}

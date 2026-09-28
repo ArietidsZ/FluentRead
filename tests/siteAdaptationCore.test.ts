@@ -409,14 +409,14 @@ describe('site adaptation compilation', () => {
         expect(matches('/x', '/x')).toBe(true);
     });
 
-    it('expands profile lists in order, removes duplicates and overrides mode', () => {
+    it('places site rules before profile defaults, removes duplicates and overrides mode', () => {
         const shared = {css: ['p'], resolve: 'self' as const, atomic: true};
         const input: SiteRulePack = {
             version: 1, profiles: {prose: {mode: 'focus', content: [shared], protect: ['code'], exclude: ['aside'], watchIgnore: ['time']}},
             rules: [rule({profile: 'prose', mode: 'augment', content: [{css: ['p']}, {css: ['h1'], key: 'title'}], protect: ['code', 'button'], exclude: ['aside', 'nav'], watchIgnore: ['time', '.clock']})],
         };
         const resolved = resolveSiteRule(input, input.rules[0]!);
-        expect(resolved).toEqual(rule({mode: 'augment', content: [shared, {css: ['h1'], key: 'title'}], protect: ['code', 'button'], exclude: ['aside', 'nav'], watchIgnore: ['time', '.clock']}));
+        expect(resolved).toEqual(rule({mode: 'augment', content: [{css: ['p']}, {css: ['h1'], key: 'title'}], protect: ['code', 'button'], exclude: ['aside', 'nav'], watchIgnore: ['time', '.clock']}));
         expect(parseSiteRulePack(pack([resolved])).ok).toBe(true);
         expect(compileSiteRulePack(input)[0]!.genericCandidatePolicy).toBe('allow');
         expect(compileSiteRulePack({...input, rules: [rule({profile: 'prose'})]})[0]!.genericCandidatePolicy).toBe('targets-only');

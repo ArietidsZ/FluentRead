@@ -247,6 +247,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/platform/shadow-ui/pageBridge.ts',
     // Edge TTS 运行时绑定 Web Crypto、第三方网络协议与 AbortSignal；纯音色、SSML、分段和 token 时效策略已严格覆盖。
     'src/features/selection-translation/services/edgeTts.ts',
+    // 可选 ECDICT 资产绑定 CacheStorage、Web Crypto 和固定 CDN 响应；完整性、缓存与降级由词典功能测试及双浏览器构建验证。
+    'src/features/selection-translation/services/ecdictAsset.ts',
     // Provider 注册表与 AI SDK transport 是依赖注入/网络协议组装；由注册表契约、功能测试和双浏览器构建共同验证。
     'src/providers/translation/registry.ts',
     'src/providers/translation/local-translation.ts',

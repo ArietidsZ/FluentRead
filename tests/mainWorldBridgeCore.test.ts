@@ -381,6 +381,25 @@ describe('ShadowRoot 与路由 MAIN world bridge core', () => {
         expect(fixture.attach.value).toBe(fixture.originalAttach);
     });
 
+    it('宿主代理同时拒绝删除和清空状态时仍恢复原始 API', () => {
+        const fixture = shadowFixture(false);
+        const stateHost = new Proxy(fixture.stateHost, {
+            deleteProperty: () => { throw new Error('delete denied'); },
+            set(target, key, value) {
+                if (value === undefined) throw new Error('write denied');
+                return Reflect.set(target, key, value);
+            },
+        });
+        fixture.environment.stateHost = stateHost;
+        const dispose = installShadowRouteBridgeCore(fixture.environment);
+
+        expect(() => dispose()).not.toThrow();
+        expect(fixture.attach.value).toBe(fixture.originalAttach);
+        expect(fixture.push.value).toBe(fixture.originalPush);
+        expect(fixture.replace.value).toBe(fixture.originalReplace);
+        expect(fixture.windowEvents.listeners.get('popstate')?.size).toBe(0);
+    });
+
     it('宿主后来包装我们的 API 时保留宿主包装，但禁用旧桥通知且恢复后只通知一次', () => {
         const fixture = shadowFixture(false);
         const dispose = installShadowRouteBridgeLifecycleCore(fixture.environment);

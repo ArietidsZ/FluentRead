@@ -8,7 +8,7 @@ const languageDir = resolve(process.cwd(), 'userscript/languages');
 const digest = createHash('sha256').update(JSON.stringify(UI_LANGUAGE_BUNDLES['fr-FR'])).digest('hex').slice(0, 16);
 const fileName = `fr-FR.${digest}.json`;
 const source = readFileSync(resolve(languageDir, fileName), 'utf8');
-const resourceCommit = 'ed6dc29b78cc3db8ad0d1864ef27091c1d707050';
+const resourceCommit = '70d3d901033a579e32a5bf5e6af14555f0d140bb';
 
 describe('userscript remote UI language data', () => {
     afterEach(() => {

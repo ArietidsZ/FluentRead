@@ -44,7 +44,9 @@ function installedVersion(name: string): string {
 }
 
 // 脚本管理器在安装时缓存固定版本的通用库；仓库资源固定到已发布提交，更新资源时同步换提交。
-const userscriptResourceCommit = 'ed6dc29b78cc3db8ad0d1864ef27091c1d707050';
+const userscriptResourceCommit = '184a3d74f61b9d2a8d47080787f7e0180b98414d';
+// 语言文件的内容哈希来自合并后的消息目录，固定到首次包含这些文件的提交。
+const userscriptLanguageResourceCommit = '70d3d901033a579e32a5bf5e6af14555f0d140bb';
 const iconMetaUrl = greasyForkSource
     ? `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${userscriptResourceCommit}/public/icon/64.png`
     : iconDataUrl;
@@ -460,7 +462,7 @@ export default defineConfig({
         'import.meta.env.MANIFEST_VERSION': '2',
         __FLUENTREAD_USERSCRIPT_LANGUAGE_BUNDLES__: JSON.stringify(compressedUiLanguageBundles),
         __FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__: JSON.stringify(remoteUiLanguageBundles),
-        __FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__: JSON.stringify(userscriptResourceCommit),
+        __FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__: JSON.stringify(userscriptLanguageResourceCommit),
         __FLUENTREAD_FULL_OPTIONS__: JSON.stringify(bundleLibraries),
     },
     build: {

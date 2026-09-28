@@ -127,7 +127,10 @@ async function main() {
         if (predicate(value)) return value;
         await new Promise(resolve => setTimeout(resolve, 50));
       }
-      throw new Error('配置未达到预期持久化状态');
+      const current = await readConfig();
+      const names = current.glossaryLibraries?.map(library => ({id: library.id, name: library.name})) || [];
+      const status = await ui?.locator('.glossary-save-state, .glossary-error').allTextContents().catch(() => []);
+      throw new Error(`配置未达到预期持久化状态: ${JSON.stringify({names, status})}`);
     };
     const shot = async (page, name) => {
       const file = path.join(artifactsDir, `${name}.png`);
@@ -399,7 +402,9 @@ async function main() {
     fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
     await launched?.close();
     await fixture.close();
-    fs.rmSync(profileDir, {recursive: true, force: true});
+    // Edge 的 profile 子进程可能在 context.close() 返回后短暂补写 Default。
+    // 允许 Node 内置的 ENOTEMPTY/EBUSY 重试，避免成功用例被清理竞态误判。
+    fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 8, retryDelay: 250});
     process.stdout.write(`${JSON.stringify({ok: report.ok, cases: report.cases, error: report.error, artifactsDir})}\n`);
   }
 }
