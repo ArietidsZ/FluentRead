@@ -94,6 +94,8 @@
 
 userscript 的 16 个选择器通过 HTMLElement 引用将菜单挂到设置面板自己的 Shadow Root 内，避免宿主样式污染或面板内部滚动裁剪。`scripts/run-userscript-smoke-test.cjs --suite selects` 使用内存 GM 接口夹具验证单框搜索、键盘选择、取消不保存、数值设置保存重开和亮暗/窄屏菜单；默认 `--suite full` 保留既有翻译冒烟夹具，两组单独运行以避免修改配置的测试相互干扰。它不等同于真实 Userscripts/Tampermonkey 扩展或 Safari 验证。
 
+该浏览器夹具还会在同一执行环境的全局对象上预置 Dexie `4.4.4`，再执行当前打包脚本并检查预置实例未被覆盖。官方 Dexie `4.4.5` 入口在同一条件下会抛出 issue #524 中的版本冲突；分别用 `--gm-mode modern` 和 `--gm-mode legacy` 验证两类脚本管理器 API 的启动、设置和翻译路径。此项只模拟版本冲突和 GM 接口，不代表已在 Safari Userscripts 或 Via 真机上运行。
+
 真实脚本管理器回归使用 `pnpm test:userscript:manager`。默认把最终 `.user.js` 作为文件安装到临时 profile 的 Violentmonkey MV3；`--install-mode url` 从本机 HTTP 地址安装同一构建产物，经过脚本管理器确认页并等待已安装列表出现脚本版本，更接近公开脚本链接的安装流程。两种模式都在后台可见且不抢焦点的独立浏览器中检查声明的 `@require`（独立版为零个）、页面注入、桌面和 390px 截图、设置面板、可信 Alt+T 全文翻译 `[1,0,1]`、原文与宿主全局保护；随后在真实管理器中保存关闭悬浮球、刷新确认配置保留、重新开启并检查当前页同步，最后断言控制台无卸载错误。报告保存 `evidence.json`。运行前需提供 Chromium 可执行文件、解压后的 Violentmonkey 2.49.0 扩展、Playwright 包目录与 focus-safe helper；翻译仍访问当前默认服务，精简版安装还会访问 jsDelivr，不能代替 Safari Userscripts 或 Via 真机验证：
 
 精简版新安装后立即打开网页可能早于脚本管理器完成 `@require` 下载：隔离 Violentmonkey 2.49.0 的文件安装复现了主脚本先执行、`Vue is not defined`，同会话刷新及新标签页仍失败。URL 安装确认页通常等下载完成才启用安装按钮，但点击后立刻打开测试页也曾出现未注入的情况。精简版回归在首个测试页打开前等待每个依赖请求完成；URL 模式还等待管理器列表显示脚本版本。独立版用 `pnpm test:userscript:standalone` 构建到 `.output/userscript-standalone/fluent-read.user.js`，内置 Vue、Element Plus、tldts 与 pako，没有 `@require`；首次文件安装立即打开页面的两次真实管理器回归均通过翻译、设置和刷新检查。独立版大小约 2.31 MB，不能直接发布到 Greasy Fork；这两种构建都未在 Safari Userscripts 或 Via 设备上验证。

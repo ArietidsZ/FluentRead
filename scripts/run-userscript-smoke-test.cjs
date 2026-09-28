@@ -305,6 +305,11 @@ async function main() {
     });
     await context.exposeFunction('__fluentReadGmList', () => [...sharedGmStore.keys()]);
     await context.addInitScript(({modern}) => {
+      // Reproduce issue #524's Dexie collision by making a different version
+      // visible in the same execution realm before FluentRead's bundle runs.
+      const hostDexie = Object.freeze({semVer: '4.4.4', owner: 'host-page-fixture'});
+      Object.defineProperty(window, '__fluentReadHostDexieBeforeInjection', {value: hostDexie});
+      window[Symbol.for('Dexie')] = hostDexie;
       Object.defineProperty(window, '__fluentReadOriginalAttachShadow', {value: Element.prototype.attachShadow});
       Object.defineProperty(window, '__fluentReadUserscriptSettingsShadow', {value: null, writable: true});
       Object.defineProperty(window, '__fluentReadSmokeBridgeEvents', {value: {shadow: 0, route: 0}});
@@ -427,6 +432,18 @@ async function main() {
     }));
     if (!pageGlobalsPreserved.browser || !pageGlobalsPreserved.chrome) {
       throw new Error(`页面 browser/chrome 全局被 userscript 覆盖：${JSON.stringify(pageGlobalsPreserved)}`);
+    }
+    const hostDexie = await page.evaluate(() => {
+      const value = window[Symbol.for('Dexie')];
+      return {
+        semVer: value?.semVer,
+        owner: value?.owner,
+        sameInstance: value === window.__fluentReadHostDexieBeforeInjection,
+      };
+    });
+    if (hostDexie.semVer !== '4.4.4' || hostDexie.owner !== 'host-page-fixture'
+      || !hostDexie.sameInstance) {
+      throw new Error(`userscript 覆盖了宿主页面的 Dexie 注册：${JSON.stringify(hostDexie)}`);
     }
 
     const gmStoreBeforeReinjection = new Map(sharedGmStore);
@@ -883,6 +900,7 @@ async function main() {
       fullPageCounts,
       finalState,
       pageGlobalsPreserved,
+      hostDexie,
       reinjectionState: {...reinjectionState, gmStoreUnchanged: true},
       settingsSecurity,
       userscriptLoadingStyle,

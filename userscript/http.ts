@@ -22,7 +22,12 @@ export function parseResponseHeaders(rawHeaders = ''): Headers {
 const NULL_BODY_STATUSES = new Set([204, 205, 304]);
 
 function responseFromUserscript(response: UserscriptXmlHttpResponse): Response {
-    const status = response.status >= 200 && response.status <= 599 ? response.status : 200;
+    // GM 请求只承接 HTTP(S)。status 0 或缺失表示管理器没有取得有效 HTTP 响应，
+    // 不能伪装成 200，否则翻译调度会把网络失败计为成功并吞掉后备/重试。
+    const status = response.status;
+    if (!Number.isInteger(status) || status < 200 || status > 599) {
+        throw new TypeError(`GM_xmlhttpRequest returned invalid HTTP status: ${Number.isFinite(status) ? status : 'missing'}`);
+    }
     // Via 只明确支持 responseText，未声明桌面脚本管理器提供的可选
     // responseType/anonymous 扩展，因此以文本作为可移植基线。
     const body = NULL_BODY_STATUSES.has(status) ? null : response.responseText ?? String(response.response || '');
