@@ -30,7 +30,7 @@ const assertions = [
   [source.includes('// @inject-into  content'), 'Safari GM APIs require content-world injection'],
   [source.includes('// @connect      *'), 'provider requests require @connect'],
   [source.includes('// @require      https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js'), 'pinned Vue @require is missing'],
-  [source.includes('// @require      https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@184a3d74f61b9d2a8d47080787f7e0180b98414d/userscript/vueElementPlusBridge.v1.js'), 'pinned Vue / Element Plus UMD bridge @require is missing'],
+  [source.includes('// @require      https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@ed6dc29b78cc3db8ad0d1864ef27091c1d707050/userscript/vueElementPlusBridge.v1.js'), 'pinned Vue / Element Plus UMD bridge @require is missing'],
   [!source.includes('FluentRead/FluentRead@main/userscript/'), 'userscript resources must use an immutable commit'],
   [source.indexOf('vue.global.prod.js') < source.indexOf('vueElementPlusBridge.v1.js')
     && source.indexOf('vueElementPlusBridge.v1.js') < source.indexOf('element-plus@2.9.3/dist/index.full.min.js'), 'Vue bridge must load between Vue and Element Plus'],
