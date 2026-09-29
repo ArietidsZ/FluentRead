@@ -1,4 +1,4 @@
-import {defineConfig, type ConfigEnv, type UserManifest} from 'wxt';
+import {defineConfig, type ConfigEnv, type UserManifest, type Entrypoint, type EntrypointGroup} from 'wxt';
 import vue from '@vitejs/plugin-vue';
 import {resolve} from 'path';
 import fs from 'fs';
@@ -78,6 +78,18 @@ export function extendRemoteConfigBuildConfig(
     const remoteOnlyTypes = new Set(['content-script', 'popup', 'options', 'unlisted-page']);
     if (entrypoints.length === 0 || !entrypoints.every((entrypoint) => remoteOnlyTypes.has(entrypoint.type))) return;
     viteConfig.plugins = [...(viteConfig.plugins ?? []), remoteConfigStorageBuildPlugin()];
+}
+
+/** 三个入口都由 new Worker(..., {type: 'module'}) 启动，可共享一次 ESM 构建及依赖 chunk。 */
+export function groupModuleWorkers(groups: EntrypointGroup[]): void {
+    const moduleWorkers = new Set(['localTranslationWorker', 'localTtsWorker', 'videoTranscriptionWorker']);
+    const workers = groups.filter((group): group is Entrypoint =>
+        !Array.isArray(group) && group.type === 'unlisted-script' && moduleWorkers.has(group.name));
+    if (workers.length < 2) return;
+    const index = groups.indexOf(workers[0]);
+    for (const worker of workers) groups.splice(groups.indexOf(worker), 1);
+    // 只组合明确使用模块加载的自有 Worker；内容脚本和 classic background 仍由 WXT 单独打包。
+    groups.splice(index, 0, workers);
 }
 
 /** 根据编译目标能力生成权限，避免 Firefox/MV2 产物声明不可用的 Offscreen API。 */
@@ -187,10 +199,15 @@ export default defineConfig({
     manifest: createExtensionManifest,
     zip: {
         name: 'fluent-read',
+        // 默认等级 9 的压缩耗时明显更长；6 保留标准 DEFLATE 和全部文件，平衡打包速度与体积。
+        compressionLevel: 6,
         // 仅排除本地测试产物；Firefox 同样需要可复现的 OCR worker/core 资产。
         excludeSources: ['coverage/**'],
     },
     hooks: {
+        'entrypoints:grouped': (wxt, groups) => {
+            if (wxt.config.command === 'build') groupModuleWorkers(groups);
+        },
         'vite:build:extendConfig': (entrypoints, viteConfig) => extendRemoteConfigBuildConfig(entrypoints, viteConfig as {plugins?: unknown[]}),
         'build:publicAssets': (_wxt, files) => {
             // 非中文界面文案只生成一份 JSON，由各运行上下文按当前语言加载，不再内联进每个 bundle。
