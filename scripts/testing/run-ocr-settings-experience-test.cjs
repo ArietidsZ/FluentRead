@@ -86,7 +86,10 @@ async function shot(name) {
   const popup=await newPageWithoutForeground(launched.context,30000);
   popup.on('pageerror',e=>report.errors.push(e.message));
   await popup.goto(`chrome-extension://${extensionId}/${report.manifest.popup}`);
-  await popup.locator('[aria-label="源语言"]').filter({hasText:/法语|Français/}).waitFor();
+  await popup.locator('[data-testid="onboarding-language-next"]').click();
+  await popup.locator('.onboarding-language-option[data-language="zh-CN"]').click();
+  await popup.locator('.onboarding-form .onboarding-confirm').click();
+  await popup.locator('.language-pair > label').first().filter({hasText:/法语|Français/}).waitFor();
   const popupShot=path.join(artifacts,'07-popup-source-persisted.png');
   await popup.screenshot({path:popupShot});report.screenshots.push(popupShot);
   await popup.close();report.cases.push(currentCase);
