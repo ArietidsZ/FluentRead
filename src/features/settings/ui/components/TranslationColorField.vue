@@ -1,8 +1,8 @@
 <!--
 @file src/features/settings/ui/components/TranslationColorField.vue
-文件职责：为译文颜色、线条颜色和标记底色提供统一的色板选择行，支持“默认”、精选色和任意自定义取色。
+文件职责：为译文颜色、独立背景、线条颜色和标记底色提供统一的色板选择行，支持“默认”、精选色、取色器和精确输入。
 主要内容：以 radiogroup 语义渲染默认选项与色块，支持方向键、Home、End 的漫游焦点；选中色板以外的颜色时点亮彩虹取色器并显示该色，
-取色结果统一归一为小写六位十六进制，并可附带当前样式不适用的提示。
+取色器和颜色名、RGB、十六进制输入统一归一为小写六位十六进制，非法输入留在编辑框并显示错误，不写入配置。
 模块边界：只通过 v-model 发出颜色字符串，不读写配置，也不决定颜色如何作用到网页；色板与归一化规则来自 core/config/translationAppearance。
 -->
 <template>
@@ -53,11 +53,25 @@
         />
       </span>
     </div>
+    <input
+      v-model="colorDraft"
+      class="translation-color-value"
+      type="text"
+      :aria-label="`${label} · ${t('settings.translationStyle.customColor')}`"
+      :aria-invalid="invalidColor"
+      :aria-describedby="invalidColor ? `${fieldId}-error` : undefined"
+      placeholder="red / rgb(255, 0, 0) / #ff0000"
+      autocomplete="off"
+      spellcheck="false"
+      @blur="commitColorDraft"
+      @keydown.enter.prevent="commitColorDraft"
+    >
+    <small v-if="invalidColor" :id="`${fieldId}-error`" class="translation-color-error" role="alert">{{ t('settings.translationStyle.colorInvalid') }}</small>
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from 'vue'
+import {computed, ref, watch} from 'vue'
 import {ElColorPicker} from 'element-plus'
 import {normalizeTranslationColor, type TranslationColorSwatch} from '@/src/core/config/translationAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
@@ -76,12 +90,31 @@ const emit = defineEmits<{
 
 const {t} = useUiI18n()
 const groupElement = ref<HTMLElement | null>(null)
+const colorDraft = ref(props.modelValue)
+const invalidColor = ref(false)
+watch(() => props.modelValue, (value) => {
+  colorDraft.value = value
+  invalidColor.value = false
+})
 const isCustom = computed(() => Boolean(props.modelValue) && !props.swatches.some((swatch) => swatch.value === props.modelValue))
 // 漫游焦点落在当前选中的色块；自定义颜色由取色器表示，此时焦点回到“默认”。
 const focusIndex = computed(() => Math.max(0, props.swatches.findIndex((swatch) => swatch.value === props.modelValue) + 1))
 
 function select(value: string | null | undefined): void {
-  emit('update:modelValue', normalizeTranslationColor(value ?? ''))
+  const normalized = normalizeTranslationColor(value ?? '')
+  colorDraft.value = normalized
+  invalidColor.value = false
+  emit('update:modelValue', normalized)
+}
+
+function commitColorDraft(): void {
+  const input = colorDraft.value.trim()
+  const normalized = normalizeTranslationColor(input)
+  if (input && !normalized) {
+    invalidColor.value = true
+    return
+  }
+  select(normalized)
 }
 
 function handleKeydown(event: KeyboardEvent, currentIndex: number): void {
@@ -228,4 +261,21 @@ function handleKeydown(event: KeyboardEvent, currentIndex: number): void {
 .translation-color-custom.selected :deep(.el-color-picker__trigger) {
   box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--brand);
 }
+
+.translation-color-value {
+  box-sizing: border-box;
+  width: min(100%, 250px);
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+  font-size: 10.5px;
+}
+
+.translation-color-value:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.translation-color-value[aria-invalid="true"] { border-color: #dc2626; }
+.translation-color-error { color: #b91c1c; font-size: 10.5px; }
 </style>

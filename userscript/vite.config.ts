@@ -46,7 +46,7 @@ function installedVersion(name: string): string {
 // 脚本管理器在安装时缓存固定版本的通用库；仓库资源固定到已发布提交，更新资源时同步换提交。
 const userscriptResourceCommit = '184a3d74f61b9d2a8d47080787f7e0180b98414d';
 // 语言文件的内容哈希来自合并后的消息目录，固定到首次包含这些文件的提交。
-const userscriptLanguageResourceCommit = '70d3d901033a579e32a5bf5e6af14555f0d140bb';
+const userscriptLanguageResourceCommit = '338e778ef0d1dc6e5ef49193838a0df7c89a5ac6';
 const iconMetaUrl = greasyForkSource
     ? `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${userscriptResourceCommit}/public/icon/64.png`
     : iconDataUrl;
@@ -82,6 +82,7 @@ const remoteUiLanguageBundles = Object.fromEntries(Object.entries(UI_LANGUAGE_BU
     }));
 const unicodeNotice = `/*\n${fs.readFileSync(resolve(root, 'public/third-party-notices/unicode-17.0.0.txt'), 'utf8')}\n*/`;
 const serviceIconsNotice = `/*\n${fs.readFileSync(resolve(root, 'public/third-party-notices/lobe-icons-MIT.txt'), 'utf8')}\n*/`;
+const tinycolorNotice = `/*\n@ctrl/tinycolor 3.6.1 — MIT\n${fs.readFileSync(resolve(root, 'public/third-party-notices/tinycolor-MIT.txt'), 'utf8')}\n*/`;
 const browserShimPath = resolve(root, 'userscript/browser.ts');
 const projectRoot = `${normalizePath(root)}/`;
 const siteCatalogDir = resolve(root, 'src/core/site-adaptation/catalog');
@@ -146,6 +147,7 @@ export function wrapUserscriptEntry(entryCode: string, bootstrapCode: string, th
         metadata,
         unicodeNotice,
         serviceIconsNotice,
+        ...(!bundleLibraries ? [tinycolorNotice] : []),
         ...(thirdPartyNotices ? [thirdPartyNotices] : []),
         executionGuardStart,
         'if (!globalThis.__fluentReadUserscriptBootstrapped) {',

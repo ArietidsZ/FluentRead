@@ -31,6 +31,9 @@ describe('网页译文外观样式同步', () => {
         expect(document.querySelectorAll(`#${TRANSLATION_APPEARANCE_STYLE_ID}`)).toHaveLength(1);
         expect(document.getElementById(TRANSLATION_APPEARANCE_STYLE_ID)).toBe(style);
         expect(style.textContent).toContain('color: #1d4ed8 !important;');
+        syncTranslationAppearanceStyles(document, {backgroundColor: 'rgb(255, 248, 204)', fontScale: 117});
+        expect(style.textContent).toContain('background: #fff8cc !important;');
+        expect(style.textContent).toContain('font-size: 117% !important;');
     });
 
     it('默认外观或页面功能停用时移除样式节点，空文档安全跳过', () => {

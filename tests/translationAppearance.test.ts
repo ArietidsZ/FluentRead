@@ -3,6 +3,7 @@ import {options} from '@/src/core/config/catalog';
 import {normalizeConfig} from '@/src/core/config/model';
 import {
     DEFAULT_TRANSLATION_APPEARANCE,
+    TRANSLATION_BACKGROUND_COLOR_SWATCHES,
     MAX_TRANSLATION_STYLE_PROFILES,
     TRANSLATION_APPEARANCE_SELECTOR,
     TRANSLATION_FILL_COLOR_SWATCHES,
@@ -22,6 +23,7 @@ import {
     normalizeTranslationAppearance,
     normalizeTranslationColor,
     normalizeTranslationStyleProfiles,
+    parseTranslationCustomCss,
 } from '@/src/core/config/translationAppearance';
 
 describe('译文样式预设注册表', () => {
@@ -64,10 +66,12 @@ describe('译文样式预设注册表', () => {
 });
 
 describe('译文外观归一化', () => {
-    it('颜色只接受三位或六位十六进制并统一为小写六位', () => {
+    it('颜色名称、RGB 与三位或六位十六进制统一为安全的小写六位色值', () => {
         expect(normalizeTranslationColor('#ABCDEF')).toBe('#abcdef');
         expect(normalizeTranslationColor(' #aBc ')).toBe('#aabbcc');
-        for (const invalid of ['red', '#12', '#12345g', 'rgb(1, 2, 3)', 123, null, undefined]) {
+        expect(normalizeTranslationColor('ReBeccAPurple')).toBe('#663399');
+        expect(normalizeTranslationColor('rgb(1, 2, 255)')).toBe('#0102ff');
+        for (const invalid of ['banana', 'transparent', '#12', '#12345g', 'rgb(256, 2, 3)', 'red; background: url(https://example.com)', 123, null, undefined]) {
             expect(normalizeTranslationColor(invalid)).toBe('');
         }
     });
@@ -76,14 +80,14 @@ describe('译文外观归一化', () => {
         expect(normalizeTranslationAppearance(undefined)).toEqual(DEFAULT_TRANSLATION_APPEARANCE);
         expect(normalizeTranslationAppearance('broken')).toEqual(DEFAULT_TRANSLATION_APPEARANCE);
         expect(normalizeTranslationAppearance({
-            textColor: '#1D4ED8', lineColor: 'blue', fillColor: '#abc', fontScale: 107, fontWeight: 'semibold',
+            textColor: '#1D4ED8', backgroundColor: 'rgb(10, 20, 30)', lineColor: 'blue', fillColor: '#abc', fontScale: 107, fontWeight: 'semibold',
             fontFamily: 'serif', opacity: 72,
         })).toEqual({
-            textColor: '#1d4ed8', lineColor: '', fillColor: '#aabbcc', fontScale: 105, fontWeight: 'semibold',
-            fontFamily: 'serif', opacity: 70,
+            textColor: '#1d4ed8', backgroundColor: '#0a141e', lineColor: '#0000ff', fillColor: '#aabbcc', fontScale: 107, fontWeight: 'semibold',
+            fontFamily: 'serif', opacity: 70, customCss: '',
         });
-        expect(normalizeTranslationAppearance({fontScale: 400, opacity: 10})).toMatchObject({fontScale: 150, opacity: 40});
-        expect(normalizeTranslationAppearance({fontScale: 10, opacity: 101})).toMatchObject({fontScale: 80, opacity: 100});
+        expect(normalizeTranslationAppearance({fontScale: 400, opacity: 10})).toMatchObject({fontScale: 250, opacity: 40});
+        expect(normalizeTranslationAppearance({fontScale: 10, opacity: 101})).toMatchObject({fontScale: 50, opacity: 100});
         expect(normalizeTranslationAppearance({fontScale: '120', opacity: ' '})).toMatchObject({fontScale: 120, opacity: 100});
         expect(normalizeTranslationAppearance({fontScale: Number.NaN, opacity: {}})).toMatchObject({fontScale: 100, opacity: 100});
         expect(normalizeTranslationAppearance({fontWeight: 'heavy', fontFamily: 'cursive'})).toMatchObject({fontWeight: 'default', fontFamily: 'default'});
@@ -94,10 +98,28 @@ describe('译文外观归一化', () => {
         expect(isDefaultTranslationAppearance({...DEFAULT_TRANSLATION_APPEARANCE, fontScale: '100'})).toBe(true);
         expect(isDefaultTranslationAppearance({...DEFAULT_TRANSLATION_APPEARANCE, opacity: 95})).toBe(false);
         expect(isDefaultTranslationAppearance({...DEFAULT_TRANSLATION_APPEARANCE, lineColor: '#ef4776'})).toBe(false);
+        expect(isDefaultTranslationAppearance({...DEFAULT_TRANSLATION_APPEARANCE, backgroundColor: 'red'})).toBe(false);
+        expect(isDefaultTranslationAppearance({...DEFAULT_TRANSLATION_APPEARANCE, customCss: 'border-radius: 6px;'})).toBe(false);
+    });
+
+    it('仅解析安全的译文 CSS 声明，拒绝选择器、定位和远程资源', () => {
+        expect(parseTranslationCustomCss('color: rebeccapurple; background: rgb(255, 248, 204); font-size: 117%; border-radius: 6px;')).toEqual({
+            declarations: [
+                {property: 'color', value: 'rebeccapurple'},
+                {property: 'background', value: 'rgb(255, 248, 204)'},
+                {property: 'font-size', value: '117%'},
+                {property: 'border-radius', value: '6px'},
+            ], invalidCount: 0,
+        });
+        const unsafe = parseTranslationCustomCss('color: red; position: fixed; background: url(https://example.com/x); } body { color: blue;');
+        expect(unsafe).toEqual({declarations: [{property: 'color', value: 'red'}], invalidCount: 3});
+        expect(buildTranslationAppearanceCss({customCss: 'color: red; } body { color: blue;'})).toBe(
+            `${TRANSLATION_APPEARANCE_SELECTOR} {\n    color: red !important;\n}\n`,
+        );
     });
 
     it('色板与选项引用存在的 i18n key，且色值已归一化', () => {
-        for (const swatch of [...TRANSLATION_TEXT_COLOR_SWATCHES, ...TRANSLATION_LINE_COLOR_SWATCHES, ...TRANSLATION_FILL_COLOR_SWATCHES]) {
+        for (const swatch of [...TRANSLATION_TEXT_COLOR_SWATCHES, ...TRANSLATION_BACKGROUND_COLOR_SWATCHES, ...TRANSLATION_LINE_COLOR_SWATCHES, ...TRANSLATION_FILL_COLOR_SWATCHES]) {
             expect(normalizeTranslationColor(swatch.value)).toBe(swatch.value);
             expect(swatch.labelKey).toBe(`settings.translationStyle.colors.${swatch.id}`);
         }
@@ -114,7 +136,7 @@ describe('用户保存的译文样式', () => {
             null,
             42,
             {name: '缺少编号', style: 0},
-            {id: 'night', name: '  夜读  ', style: 22, appearance: {textColor: '#ABC', fontScale: 111}},
+            {id: 'night', name: '  夜读  ', style: 22, appearance: {textColor: '#ABC', backgroundColor: 'navy', fontScale: 111}},
             {id: 'night', name: '重复', style: 1},
             {id: 'bad id', name: '非法编号', style: 1},
             {id: 'unknown', name: '未知样式', style: 999},
@@ -123,7 +145,7 @@ describe('用户保存的译文样式', () => {
             {id: 'paper', name: '纸张\u0000样式', style: 9, appearance: {opacity: 73}},
         ]);
         expect(profiles).toEqual([
-            {id: 'night', name: '夜读', style: 22, appearance: {...DEFAULT_TRANSLATION_APPEARANCE, textColor: '#aabbcc', fontScale: 110}},
+            {id: 'night', name: '夜读', style: 22, appearance: {...DEFAULT_TRANSLATION_APPEARANCE, textColor: '#aabbcc', backgroundColor: '#000080', fontScale: 111}},
             {id: 'paper', name: '纸张样式', style: 9, appearance: {...DEFAULT_TRANSLATION_APPEARANCE, opacity: 75}},
         ]);
     });
@@ -150,7 +172,7 @@ describe('译文外观声明与页面样式表', () => {
 
     it('把线条、底色强弱、文字颜色和排版转换为网页与预览共用的声明', () => {
         expect(getTranslationAppearanceDeclarations({
-            textColor: '#1d4ed8', lineColor: '#EF4776', fillColor: '#4ade80', fontScale: 115,
+            textColor: '#1d4ed8', backgroundColor: 'rgb(248, 250, 252)', lineColor: '#EF4776', fillColor: '#4ade80', fontScale: 115,
             fontWeight: 'bold', fontFamily: 'mono', opacity: 80,
         })).toEqual([
             {property: '--fluent-read-translation-line', value: '#ef4776'},
@@ -159,6 +181,7 @@ describe('译文外观声明与页面样式表', () => {
             {property: '--fluent-read-translation-fill-faint', value: 'rgba(74, 222, 128, 0.12)'},
             {property: '--fluent-read-translation-surface', value: '#edfcf2'},
             {property: '--fluent-read-translation-surface-deep', value: '#d4f7e1'},
+            {property: 'background', value: '#f8fafc'},
             {property: 'color', value: '#1d4ed8'},
             {property: 'font-size', value: '115%'},
             {property: 'font-weight', value: '700'},
@@ -183,5 +206,9 @@ describe('译文外观声明与页面样式表', () => {
             + '}\n',
         );
         expect(TRANSLATION_APPEARANCE_SELECTOR).toBe('.fluent-read-bilingual-content[data-fr-translation-owned="true"]');
+        expect(buildTranslationAppearanceCss({backgroundColor: 'red', fontScale: 117})).toContain('    background: #ff0000 !important;\n    font-size: 117% !important;');
+        expect(getTranslationAppearanceStyle({textColor: '#ff0000', customCss: 'color: navy; border-radius: 6px;'})).toMatchObject({
+            color: 'navy', 'border-radius': '6px',
+        });
     });
 });
