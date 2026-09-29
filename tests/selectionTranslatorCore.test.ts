@@ -11,6 +11,8 @@ import {
     isSelectionExcludedTagName,
     normalizeSelectionText,
     readSelectionText,
+    readSelectionParts,
+    translateSelectionParts,
     normalizeSpeechLanguage,
     reconcileSelectionPresentation,
     resolveSelectionDictionaryFallback,
@@ -149,6 +151,107 @@ function mockRange(start: Node | null, end: Node | null, options: MockRangeOptio
         },
     } as unknown as Range;
 }
+
+describe('issue #704 inline code in prose selections', () => {
+    function fixture(html: string, fragmentHtml = html) {
+        const {document} = parseHTML('<html><body><main><p></p></main></body></html>');
+        const paragraph = document.querySelector('p')!;
+        paragraph.innerHTML = html;
+        paragraph.querySelectorAll('*').forEach(element => {
+            element.getClientRects = () => [{width: 20, height: 16}] as unknown as DOMRectList;
+        });
+        const range = mockRange(paragraph.firstChild, paragraph.lastChild, {
+            commonAncestor: paragraph, intersectingNodes: [...paragraph.querySelectorAll('*')],
+        });
+        range.cloneContents = () => {
+            const template = document.createElement('template');
+            template.innerHTML = fragmentHtml;
+            return template.content.cloneNode(true) as DocumentFragment;
+        };
+        return {document, paragraph, range};
+    }
+
+    it('allows prose crossing highlighted code and freezes exact code text without host attributes', () => {
+        const {paragraph, range} = fixture('Run <code class="host" onclick="alert(1)"><span> a  &lt;b&gt; </span></code> now.');
+        const before = paragraph.outerHTML;
+        expect(shouldIgnoreSelection(range)).toBe(false);
+        expect(readSelectionParts(range, 'browser text')).toEqual([
+            {kind: 'text', text: 'Run '}, {kind: 'code', text: ' a  <b> '}, {kind: 'text', text: ' now.'},
+        ]);
+        expect(readSelectionText(range, 'browser text')).toBe('Run  a  <b>  now.');
+        expect(paragraph.outerHTML).toBe(before);
+    });
+
+    it('keeps partial and multiple code fragments, line breaks and formula normalization', () => {
+        const {range} = fixture('Read <code>first</code> and <code>second</code>.',
+            '<code>st</code> and <code>sec</code> now.<br>Next <math>x</math>.');
+        expect(readSelectionParts(range, '')).toEqual([
+            {kind: 'code', text: 'st'}, {kind: 'text', text: ' and '},
+            {kind: 'code', text: 'sec'}, {kind: 'text', text: ' now.\nNext $x$.'},
+        ]);
+        const blocks = fixture('<p>Use <code>x</code>.</p><p>Continue.</p>');
+        expect(readSelectionText(blocks.range, '')).toBe('Use x.\n\nContinue.');
+    });
+
+    it('rejects code-only content even when the common ancestor is a wrapper', () => {
+        for (const html of ['<code>text</code>', ' <code>one</code>, <code>two</code> ']) {
+            const {range} = fixture(html);
+            expect(readSelectionParts(range, 'text')).toEqual([]);
+        }
+        const {paragraph} = fixture('<code>word</code>');
+        expect(readSelectionParts({commonAncestorContainer: paragraph.firstChild} as unknown as Range, 'word')).toEqual([]);
+    });
+
+    it.each([
+        '<pre><code>command</code></pre>',
+        '<code translate="no">command</code>',
+        '<code class="notranslate">command</code>',
+        '<code contenteditable="">command</code>',
+        '<code><span contenteditable="true">command</span></code>',
+        '<code role="button">command</code>',
+        '<code role=" BUTTON ">command</code>',
+        '<code><button>command</button></code>',
+        '<span translate="no"><code>command</code></span>',
+        '<button><code>command</code></button>',
+        '<code aria-hidden="true">command</code>',
+    ])('retains protected selection boundary: %s', html => {
+        const {range} = fixture('Read ' + html + ' now.');
+        expect(shouldIgnoreSelection(range)).toBe(true);
+    });
+
+    it('allows selection endpoints inside code but keeps block-styled code excluded', () => {
+        const {document, paragraph, range} = fixture('<code><span>part</span></code> of the sentence.');
+        Object.assign(range, {startContainer: paragraph.querySelector('span')!.firstChild});
+        expect(shouldIgnoreSelection(range)).toBe(false);
+        const view = document.defaultView!;
+        Object.defineProperty(view, 'getComputedStyle', {configurable: true, value: () => ({display: 'block'})});
+        expect(shouldIgnoreSelection(range)).toBe(true);
+        Object.defineProperty(view, 'getComputedStyle', {configurable: true, value: () => ({display: 'inline-block'})});
+        expect(shouldIgnoreSelection(range)).toBe(false);
+        delete (view as unknown as Record<string, unknown>).getComputedStyle;
+    });
+
+    it('sends only prose through batch translation and preserves code and punctuation locally', async () => {
+        const parts = [{kind: 'text' as const, text: 'Run '}, {kind: 'code' as const, text: ' a  <b> '},
+            {kind: 'text' as const, text: ' now. '}, {kind: 'code' as const, text: 'x'}, {kind: 'text' as const, text: '.'}];
+        const translate = vi.fn().mockResolvedValue(['执行', '现在。']);
+        const translated = await translateSelectionParts(parts, translate);
+        expect(translate).toHaveBeenCalledWith(['Run', 'now.']);
+        expect(translated.map(part => part.text).join('')).toBe('执行  a  <b>  现在。 x.');
+        expect(translated.filter(part => part.kind === 'code')).toEqual(parts.filter(part => part.kind === 'code'));
+        expect(parts[0].text).toBe('Run ');
+        expect(await translateSelectionParts([{kind: 'code', text: '<script>'}], translate)).toEqual([{kind: 'code', text: '<script>'}]);
+        expect(translate).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects failed or incomplete batches instead of exposing partial or stale translations', async () => {
+        const parts = [{kind: 'text' as const, text: 'Read '}, {kind: 'code' as const, text: 'x'}];
+        for (const results of [[], ['  ']]) {
+            await expect(translateSelectionParts(parts, async () => results)).rejects.toThrow('Invalid selection translation');
+        }
+        await expect(translateSelectionParts(parts, async () => {throw new Error('cancelled');})).rejects.toThrow('cancelled');
+    });
+});
 
 describe('selection translator core geometry', () => {
     const rects = [

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
- * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、页面滚动时未打开入口的清理、请求 token、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放和主题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换目标语言；复用选区入口打开 Harness 阅读卡，协调翻译、词典、词书与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
+ * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、页面滚动时未打开入口的清理、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放和主题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换目标语言；复用选区入口打开 Harness 阅读卡，协调翻译、词典、词书与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -89,7 +89,7 @@
                     <span>{{ isCopied('translation') ? '已复制' : '复制' }}</span>
                   </button>
                 </div>
-                <pre>{{ translationResult }}</pre>
+                <pre><template v-for="(part, index) in translationParts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><template v-else>{{ part.text }}</template></template></pre>
               </div>
               <div v-else-if="isLoading" class="fr-word-translation-loading">正在翻译释义…</div>
               <div v-if="wordCard.meanings.length > 0" class="fr-word-meaning-toolbar">
@@ -134,7 +134,7 @@
                 </button>
               </div>
             </div>
-            <pre>{{ selectedText }}</pre>
+            <pre><template v-for="(part, index) in snapshot?.parts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><template v-else>{{ part.text }}</template></template></pre>
           </div>
           <div v-if="(selectionSettings.mode === 'bilingual' || selectionSettings.mode === 'translation-only') && !isWordCardVisible" class="fr-text-block fr-translation-result">
             <div class="fr-text-block-header">
@@ -151,7 +151,7 @@
                 </button>
               </div>
             </div>
-            <pre>{{ translationResult }}</pre>
+            <pre><template v-for="(part, index) in translationParts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><template v-else>{{ part.text }}</template></template></pre>
           </div>
           <div v-if="error && (translationResult || wordCard)" class="fr-inline-error"><span>{{ error }}</span><button type="button" @click="retryTranslation">重试</button></div>
           <div v-if="isPlaying" class="fr-playing-status"><span>正在播放{{ currentAudioKind === 'source' ? '原文' : currentAudioKind === 'word' ? '单词' : '译文' }}</span><button type="button" aria-label="停止播放" title="停止播放" @click="stopAudioFromUi">停止</button></div>
@@ -171,12 +171,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import browser from 'webextension-polyfill';
 import { config, subscribeConfig } from '@/src/services/config/store';
-import { translateText } from '@/src/app/translation/client';
+import { translateText, translateTextBatch } from '@/src/app/translation/client';
 import {detectlang, shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey } from '@/src/core/hotkey';
 import type { WordCardData, WordPronunciation } from '@/src/features/selection-translation/services/wordDictionary';
 import { isSingleEnglishWord, normalizeEnglishWord } from '@/src/features/selection-translation/services/wordNormalization';
-import { calculateReadingPopupLayout, calculateSelectionPopupPosition, chooseSelectionRect, getSelectionPresentationDelayRemaining, isChineseEnglishTarget, readSelectionText, normalizeSpeechLanguage, reconcileSelectionPresentation, resolveSelectionDictionaryFallback, resolveSelectionVocabularyAnswer, selectionReverseTarget, SelectionRequestTokenGate, shouldIgnoreSelection, summarizeSelectionContext, type SelectionAnswerCandidate, type SelectionContentRequest, type SelectionRect } from '@/src/features/selection-translation/core';
+import { calculateReadingPopupLayout, calculateSelectionPopupPosition, chooseSelectionRect, getSelectionPresentationDelayRemaining, isChineseEnglishTarget, readSelectionParts, translateSelectionParts, normalizeSpeechLanguage, reconcileSelectionPresentation, resolveSelectionDictionaryFallback, resolveSelectionVocabularyAnswer, selectionReverseTarget, SelectionRequestTokenGate, shouldIgnoreSelection, summarizeSelectionContext, type SelectionAnswerCandidate, type SelectionContentRequest, type SelectionRect, type SelectionTextPart } from '@/src/features/selection-translation/core';
 import {
   createSelectionTtsClientRequestId,
 } from '@/src/features/selection-translation/protocol';
@@ -196,7 +196,7 @@ const {t} = useUiI18n();
 type SelectionTrigger = 'direct' | 'icon' | 'dot' | 'shortcut' | 'contextMenu';
 type AudioKind = 'source' | 'translation' | 'word';
 type CopyKind = 'source' | 'translation';
-interface SelectionSnapshot { text: string; range: Range; anchor: SelectionRect; isForward: boolean; }
+interface SelectionSnapshot { text: string; parts: SelectionTextPart[]; range: Range; anchor: SelectionRect; isForward: boolean; }
 
 const tooltipRef = useTemplateRef<HTMLElement>('tooltip-ref');
 const readingIndicatorRef = useTemplateRef<HTMLElement>('reading-indicator-ref');
@@ -208,6 +208,7 @@ const activeContentRequest = ref<SelectionContentRequest | null>(null);
 const translationAnswer = ref<SelectionAnswerCandidate | null>(null);
 const dictionaryAnswer = ref<SelectionAnswerCandidate | null>(null);
 const translationResult = ref('');
+const translationParts = ref<SelectionTextPart[]>([]);
 const isLoading = ref(false);
 const error = ref('');
 const showIndicator = ref(false);
@@ -401,7 +402,8 @@ function readSelectionSnapshot(): SelectionSnapshot | null {
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0 || selection.isCollapsed || isExtensionSelection(selection)) return null;
   const range = selection.getRangeAt(0).cloneRange();
-  const text = readSelectionText(range, selection.toString());
+  const parts = readSelectionParts(range, selection.toString());
+  const text = parts.map(part => part.text).join('');
   if (!text || text.length > 4096) return null;
 
   if (shouldIgnoreSelection(range)) return null;
@@ -410,7 +412,7 @@ function readSelectionSnapshot(): SelectionSnapshot | null {
   const isForward = selection.anchorNode === range.startContainer && selection.anchorOffset === range.startOffset;
   const anchor = chooseSelectionRect(visualRects, isForward);
   if (!anchor || (anchor.width === 0 && anchor.height === 0)) return null;
-  return { text, range, anchor, isForward };
+  return { text, parts, range, anchor, isForward };
 }
 
 function scheduleSelectionRead(shortcutTriggered = false): void {
@@ -443,7 +445,7 @@ function isSelectionInTargetLanguage(text: string): boolean {
 }
 
 function isSameSelection(left: SelectionSnapshot | null, right: SelectionSnapshot): boolean {
-  if (!left || left.text !== right.text) return false;
+  if (!left || left.text !== right.text || JSON.stringify(left.parts) !== JSON.stringify(right.parts)) return false;
   return left.range.startContainer === right.range.startContainer
     && left.range.startOffset === right.range.startOffset
     && left.range.endContainer === right.range.endContainer
@@ -483,6 +485,7 @@ function resetSelectionContentState(clearSelectionText = false): void {
   translationAnswer.value = null;
   dictionaryAnswer.value = null;
   translationResult.value = '';
+  translationParts.value = [];
   error.value = '';
   wordCard.value = null;
   isWordCardLoading.value = false;
@@ -972,6 +975,7 @@ function openLocalTtsSettings(): void {
 
 async function requestTranslation(request: SelectionContentRequest): Promise<void> {
   const text = request.text;
+  const parts = snapshot.value!.parts;
   translationAbortController?.abort();
   const controller = new AbortController();
   translationAbortController = controller;
@@ -979,9 +983,13 @@ async function requestTranslation(request: SelectionContentRequest): Promise<voi
   isLoading.value = true;
   error.value = '';
   try {
-    const result = await translateText(text, document.title, { signal: controller.signal,
-      sourceLanguage: request.sourceLanguage, targetLanguage: request.targetLanguage });
+    const options = {signal: controller.signal, sourceLanguage: request.sourceLanguage, targetLanguage: request.targetLanguage};
+    const translated = parts.some(part => part.kind === 'code')
+      ? await translateSelectionParts(parts, texts => translateTextBatch(texts, document.title, options))
+      : [{kind: 'text' as const, text: await translateText(text, document.title, options)}];
+    const result = translated.map(part => part.text).join('');
     if (requestId !== translationRequestId || !isContentRequestCurrent(request)) return;
+    translationParts.value = translated;
     translationResult.value = result;
     translationAnswer.value = {...request, answer: result};
   } catch (cause) {
@@ -1794,6 +1802,7 @@ onBeforeUnmount(() => {
 .fr-text-block { padding: 2px 1px 4px; }
 .fr-text-block + .fr-text-block { padding-top: 10px; border-top: 1px solid rgba(127, 127, 140, .16); }
 .fr-original-text { color: #666570; }
+.fr-inline-code { padding: 1px 4px; border-radius: 4px; background: rgba(127, 127, 127, .14); color: inherit; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .92em; white-space: pre-wrap; }
 .fr-translation-result { color: #39373d; }
 .fr-text-block-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; }
 .fr-text-label { margin: 0; color: #9797a4; font-size: 11px; font-weight: 750; letter-spacing: .01em; }
