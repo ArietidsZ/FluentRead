@@ -15,6 +15,22 @@ import {translationStatsFrenchMessages} from './translationStats';
 import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
+    "video.subtitleTitle": "Sous-titres",
+    "video.subtitleTools": "Options des sous-titres",
+    "video.downloadGroup": "Télécharger les sous-titres",
+    "video.back": "Retour à l’affichage",
+    "video.closeMenu": "Fermer le menu des sous-titres",
+    "video.sourceOff": "Sous-titres désactivés",
+    "video.source.native": "Sous-titres natifs · {count} segments",
+    "video.source.cache": "Sous-titres enregistrés · {count} segments",
+    "video.source.ai": "Sous-titres IA · {count} segments",
+    "video.sourcePreparing": "Génération des sous-titres",
+    "video.sourceChecking": "Recherche des sous-titres enregistrés…",
+    "video.sourceMissing": "Aucun sous-titre détecté pour le moment",
+    "video.sourceMissingHint": "Activez les sous-titres ou transcrivez avec l’IA locale.",
+    "video.translationFailedHint": "Échec de traduction",
+    "video.retryTranslation": "Réessayer",
+    "video.regenerate": "Reconnaître à nouveau cette vidéo",
     "writing.experience.enableDescription": "Rédigez et améliorez vos réponses dans GitHub et Gmail, puis relisez-les avant l’envoi.",
     "writing.experience.disabled": "Le bouton de rédaction est masqué. Vos préférences sont conservées.",
     "writing.experience.paused": "Réactivez l’extension pour utiliser l’assistant de rédaction.",

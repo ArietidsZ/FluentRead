@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/playerMenu.ts
  * 文件职责：组装播放器字幕菜单，以紧凑行呈现显示方式、字幕时间、本地 AI 字幕与下载操作，并在同一弹层内提供模型下载确认。
- * 主要内容：创建带可访问名称的四段显示方式、单行校时步进器、单行 AI 状态与进度、下载按钮和模型选择卡片；按播放器尺寸在单列与矮行布局间切换。
+ * 主要内容：X 首层聚焦显示方式和当前需要的操作，校时、导出和重新识别放在可返回的选项页；复用稳定节点呈现字幕来源、故障恢复、AI 进度和模型确认。
  * 模块边界：只操作 FluentRead 自己的菜单节点，不读取存储、不发起识别或绑定全局事件；运行时负责配置、请求与清理。
  */
 import type {VideoSubtitleDisplayMode} from '@/src/core/config/model';
@@ -30,7 +30,7 @@ const WIDE_LAYOUT_MIN_PLAYER_WIDTH_PX = 300;
 /** 单列菜单高度超过播放器可用高度的这一比例时，改用更矮的双列，留出画面上半部分。 */
 const STACK_LAYOUT_MAX_HEIGHT_RATIO = .8;
 
-type IconName = 'settings' | 'minus' | 'plus' | 'reset' | 'sparkle' | 'download' | 'close';
+type IconName = 'settings' | 'minus' | 'plus' | 'reset' | 'sparkle' | 'download' | 'close' | 'back' | 'next';
 const ICON_PATHS: Record<IconName, string[]> = {
     settings: ['M4 7h9', 'M17 7h3', 'M4 17h3', 'M11 17h9', 'M15 5v4', 'M9 15v4'],
     minus: ['M6 12h12'],
@@ -39,6 +39,8 @@ const ICON_PATHS: Record<IconName, string[]> = {
     sparkle: ['M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9-1.9 5.1-1.9-5.1L5 10.5l5.1-1.9z', 'M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z'],
     download: ['M12 4v10.5', 'M7.5 10.5 12 15l4.5-4.5', 'M5 19.5h14'],
     close: ['M7 7l10 10', 'M17 7 7 17'],
+    back: ['M14 6l-6 6 6 6'],
+    next: ['M10 6l6 6-6 6'],
 };
 
 // YouTube 启用 Trusted Types，图标只能逐个创建节点，不能写入 innerHTML。
@@ -82,9 +84,16 @@ function setAccessibleName(element: HTMLElement, label: string): void {
     element.title = label;
 }
 
-function createHeader(language: UiLanguage): HTMLElement {
+function createHeader(language: UiLanguage, compact = false): HTMLElement {
     const title = createTextElement('div', 'fluent-read-video-menu-title', '');
-    title.appendChild(createTextElement('span', 'fluent-read-video-menu-brand', localizeVideoUiText('流畅阅读', language)));
+    if (compact) {
+        const back = createButton('fluent-read-video-menu-back', {'data-action': 'close-subtitle-tools', role: 'menuitem'});
+        back.dataset.i18nAriaKey = 'video.back';
+        setAccessibleName(back, translateVideoUi('video.back', language));
+        back.hidden = true;
+        back.appendChild(createIcon('back'));
+        title.append(back, keyedText('span', 'fluent-read-video-menu-brand', 'video.subtitleTitle', language));
+    } else title.appendChild(createTextElement('span', 'fluent-read-video-menu-brand', localizeVideoUiText('流畅阅读', language)));
     const settings = createButton('fluent-read-video-menu-item fluent-read-video-menu-settings', {
         'data-action': 'open-settings', role: 'menuitem',
     });
@@ -93,13 +102,17 @@ function createHeader(language: UiLanguage): HTMLElement {
     const service = createTextElement('span', 'fluent-read-video-menu-service', '');
     service.dataset.serviceLabel = 'true';
     settings.append(service, createIcon('settings'));
-    title.appendChild(settings);
+    const close = createButton('fluent-read-video-menu-close', {'data-action': 'close-menu', role: 'menuitem'});
+    close.dataset.i18nAriaKey = 'video.closeMenu';
+    setAccessibleName(close, translateVideoUi('video.closeMenu', language));
+    close.appendChild(createIcon('close'));
+    title.append(settings, close);
     return title;
 }
 
 function createModeGroup(language: UiLanguage): HTMLElement {
     const group = createTextElement('div', 'fluent-read-video-menu-mode-group', '');
-    group.setAttribute('role', 'radiogroup');
+    group.setAttribute('role', 'group');
     group.setAttribute('aria-label', translateVideoUi('video.displayMode', language));
     for (const mode of VIDEO_MENU_MODES) {
         const item = keyedText('button', 'fluent-read-video-menu-mode', VIDEO_MENU_MODE_KEYS[mode], language);
@@ -184,21 +197,186 @@ export function createVideoPlayerMenu(language: UiLanguage, withLocalGeneration:
     menu.hidden = true;
     menu.dataset.layout = 'stack';
     menu.dataset.view = 'main';
+    menu.dataset.compact = String(withLocalGeneration);
+    menu.dataset.panel = 'watch';
     menu.setAttribute('role', 'menu');
     menu.setAttribute('aria-label', translateVideoUi('video.menuAriaLabel', language));
     markVideoUi(menu);
 
-    // 显示设置与操作各成一组：单列时逐行排列，矮播放器的双列布局中每组压成一行。
+    const main = createTextElement('div', 'fluent-read-video-menu-main', '');
+    main.appendChild(createHeader(language, withLocalGeneration));
+    if (withLocalGeneration) {
+        const watch = createTextElement('div', 'fluent-read-video-menu-watch', '');
+        const primary = createTextElement('div', 'fluent-read-video-menu-primary-ai', '');
+        primary.appendChild(createAiGroup(language));
+        const more = keyedText('button', 'fluent-read-video-menu-more', 'video.subtitleTools', language);
+        more.type = 'button';
+        more.dataset.action = 'open-subtitle-tools';
+        more.setAttribute('role', 'menuitem');
+        more.setAttribute('aria-expanded', 'false');
+        more.setAttribute('aria-controls', 'fluent-read-video-menu-tools');
+        // 标签与箭头分开，避免语言刷新移除图标。
+        const label = keyedText('span', '', 'video.subtitleTools', language);
+        delete more.dataset.i18nKey;
+        more.replaceChildren(label, createIcon('next'));
+        watch.append(createModeGroup(language), createSourceStatus(language), primary, more);
+
+        const tools = createTextElement('div', 'fluent-read-video-menu-tools', '');
+        tools.id = 'fluent-read-video-menu-tools';
+        tools.hidden = true;
+        const downloads = createTextElement('div', 'fluent-read-video-menu-export', '');
+        downloads.append(keyedText('span', 'fluent-read-video-menu-row-label', 'video.downloadGroup', language), createDownloadActions(language), createDownloadStatus());
+        const secondary = createTextElement('div', 'fluent-read-video-menu-secondary-ai', '');
+        const regenerate = keyedText('button', 'fluent-read-video-menu-secondary', 'video.regenerate', language);
+        regenerate.type = 'button';
+        regenerate.dataset.action = 'regenerate-ai-subtitle';
+        regenerate.setAttribute('role', 'menuitem');
+        regenerate.hidden = true;
+        tools.append(createTimingRow(language), downloads, secondary, regenerate);
+        main.append(watch, tools);
+        menu.append(main, createModelPrompt(language));
+        return menu;
+    }
+
     const display = createTextElement('div', 'fluent-read-video-menu-section fluent-read-video-menu-display', '');
     display.append(createModeGroup(language), createTimingRow(language));
     const actions = createTextElement('div', 'fluent-read-video-menu-section fluent-read-video-menu-actions', '');
     if (withLocalGeneration) actions.appendChild(createAiGroup(language));
     actions.append(createDownloadActions(language), createDownloadStatus());
-    const main = createTextElement('div', 'fluent-read-video-menu-main', '');
-    main.append(createHeader(language), display, actions);
+    main.append(display, actions);
     menu.appendChild(main);
     if (withLocalGeneration) menu.appendChild(createModelPrompt(language));
     return menu;
+}
+
+/** 选项页复用原节点；每秒状态更新不能把用户弹回首页。 */
+export function setVideoMenuToolsOpen(menu: HTMLElement, open: boolean): void {
+    const watch = menu.querySelector<HTMLElement>('.fluent-read-video-menu-watch');
+    const tools = menu.querySelector<HTMLElement>('.fluent-read-video-menu-tools');
+    if (!watch || !tools) return;
+    watch.hidden = open;
+    tools.hidden = !open;
+    menu.dataset.panel = open ? 'tools' : 'watch';
+    menu.querySelector<HTMLElement>('[data-action="close-subtitle-tools"]')!.hidden = !open;
+    menu.querySelector<HTMLElement>('[data-action="open-subtitle-tools"]')!.setAttribute('aria-expanded', String(open));
+    syncVideoPlayerMenuLayout(menu);
+}
+
+/** 来源与错误只在菜单内解释，不在视频画面上反复弹出提示。 */
+function createSourceStatus(language: UiLanguage): HTMLElement {
+    const group = createTextElement('div', 'fluent-read-video-menu-source', '');
+    const status = createTextElement('div', 'fluent-read-video-menu-source-status', '');
+    status.dataset.sourceStatus = 'true';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    status.setAttribute('aria-atomic', 'true');
+    const hint = createTextElement('p', 'fluent-read-video-menu-source-hint', '');
+    hint.dataset.sourceHint = 'true';
+    const actions = createTextElement('div', 'fluent-read-video-menu-source-actions', '');
+    for (const [action, key] of [
+        ['retry-subtitle-translation', 'video.retryTranslation'],
+    ]) {
+        const button = keyedText('button', 'fluent-read-video-menu-secondary', key, language);
+        button.type = 'button';
+        button.dataset.action = action;
+        button.setAttribute('role', 'menuitem');
+        button.hidden = true;
+        actions.appendChild(button);
+    }
+    group.append(status, hint, actions);
+    return group;
+}
+
+export interface VideoSourceStatus {
+    enabled: boolean;
+    source: 'none' | 'native' | 'cache' | 'ai';
+    cueCount: number;
+    checking: boolean;
+    generating: boolean;
+    translationFailed: boolean;
+    canRegenerate: boolean;
+}
+
+const renderingSourceMenus = new WeakSet<HTMLElement>();
+
+export function renderVideoSourceStatus(menu: HTMLElement, state: VideoSourceStatus, language: UiLanguage): void {
+    // 移动正在聚焦的 AI 操作会触发播放器 blur → 状态同步，不能重入同一次节点移动。
+    if (renderingSourceMenus.has(menu)) return;
+    renderingSourceMenus.add(menu);
+    try { renderSourceStatus(menu, state, language); }
+    finally { renderingSourceMenus.delete(menu); }
+}
+
+function renderSourceStatus(menu: HTMLElement, state: VideoSourceStatus, language: UiLanguage): void {
+    const group = menu.querySelector<HTMLElement>('.fluent-read-video-menu-source');
+    if (!group) return;
+    const key = !state.enabled ? 'video.sourceOff'
+        : state.source !== 'none' ? `video.source.${state.source}`
+            : state.generating ? 'video.sourcePreparing'
+                : state.checking ? 'video.sourceChecking' : 'video.sourceMissing';
+    const status = group.querySelector<HTMLElement>('[data-source-status]')!;
+    const label = translateVideoUi(key, language, {count: state.cueCount});
+    // 每秒同步不重写 live region，避免读屏器反复播报同一条状态。
+    if (status.textContent !== label) status.textContent = label;
+    const hintKey = !state.enabled ? ''
+        : state.translationFailed ? 'video.translationFailedHint'
+            : state.source === 'none' && !state.generating && !state.checking ? 'video.sourceMissingHint' : '';
+    const hint = group.querySelector<HTMLElement>('[data-source-hint]')!;
+    const hintText = hintKey ? translateVideoUi(hintKey, language) : '';
+    if (hint.textContent !== hintText) hint.textContent = hintText;
+    hint.hidden = !hintText;
+    group.dataset.error = String(state.translationFailed && state.enabled);
+    const aiButton = menu.querySelector<HTMLElement>('[data-action="toggle-ai-subtitle"]');
+    if (aiButton) {
+        aiButton.dataset.native = String(state.source === 'native');
+        const aiGroup = aiButton.parentElement!;
+        const primary = menu.querySelector<HTMLElement>('.fluent-read-video-menu-primary-ai')!;
+        const secondary = menu.querySelector<HTMLElement>('.fluent-read-video-menu-secondary-ai')!;
+        const destination = state.source === 'none' || state.generating ? primary : secondary;
+        if (aiGroup.parentElement !== destination) {
+            const heldFocus = aiGroup.contains(document.activeElement);
+            destination.appendChild(aiGroup);
+            if (destination === primary && state.generating && menu.dataset.panel === 'tools') {
+                setVideoMenuToolsOpen(menu, false);
+            }
+            if (heldFocus && destination === secondary && menu.dataset.panel === 'watch') {
+                menu.querySelector<HTMLButtonElement>('[data-mode][aria-checked="true"]')?.focus();
+            }
+        }
+        primary.hidden = !state.enabled || destination !== primary;
+        secondary.hidden = destination !== secondary;
+    }
+    group.querySelector<HTMLButtonElement>('[data-action="retry-subtitle-translation"]')!.hidden = !state.enabled || !state.translationFailed;
+    group.querySelector<HTMLElement>('.fluent-read-video-menu-source-actions')!.hidden = !state.enabled || !state.translationFailed;
+    menu.querySelector<HTMLButtonElement>('[data-action="regenerate-ai-subtitle"]')!.hidden = !state.canRegenerate;
+    const canResetTiming = menu.querySelector<HTMLElement>('[data-timing-row]')?.hidden === false;
+    menu.querySelector<HTMLElement>('[data-action="open-subtitle-tools"]')!.hidden = !state.enabled || (state.source === 'none' && !canResetTiming);
+    for (const button of menu.querySelectorAll<HTMLButtonElement>('.fluent-read-video-menu-download')) {
+        // 导出中由原操作释放按钮；来源刷新不能提前解除 busy 状态。
+        if (button.getAttribute('aria-busy') === 'true') continue;
+        button.disabled = !state.enabled || state.cueCount === 0;
+    }
+}
+
+/** 菜单内的方向键移动焦点，Space 等按键不冒泡成宿主播放器的暂停/快进。 */
+export function handleVideoMenuNavigation(event: KeyboardEvent): void {
+    if (!event.isTrusted) return;
+    const menu = event.currentTarget as HTMLElement;
+    if (!(event.target instanceof HTMLElement) || !menu.contains(event.target)) return;
+    event.stopPropagation();
+    const keys = ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+    if (!keys.includes(event.key)) return;
+    const horizontal = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
+    const scope = horizontal ? event.target.closest('.fluent-read-video-menu-mode-group') : menu;
+    if (!scope) return;
+    const buttons = Array.from(scope.querySelectorAll<HTMLButtonElement>('button'))
+        .filter(button => !button.disabled && !button.closest('[hidden]'));
+    if (!buttons.length) return;
+    event.preventDefault();
+    const current = buttons.indexOf(event.target as HTMLButtonElement);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
+        : (current + (event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 1) + buttons.length) % buttons.length;
+    buttons[next].focus();
 }
 
 /** “关闭”由总开关或隐藏字幕决定；三种显示方式只在字幕实际可见时高亮。 */
@@ -267,7 +445,7 @@ export function renderVideoAiMenu(menu: HTMLElement, state: VideoAiMenuState, la
         else detail = translateVideoUi('video.aiPreparing', language);
     } else if (state.running) detail = translateVideoUi('video.aiGenerating', language);
     else if (state.requested) detail = translateVideoUi('video.aiWaitingForPlayback', language);
-    else if (state.error && !downloading) detail = state.error;
+    if (state.error && !downloading && !state.checking) detail = state.error;
     button.disabled = !state.available || state.checking || downloading;
     button.setAttribute('aria-checked', String(state.active));
     button.dataset.processing = String(processing || state.checking || downloading);
@@ -280,7 +458,7 @@ export function renderVideoAiMenu(menu: HTMLElement, state: VideoAiMenuState, la
     labelElement.dataset.i18nKey = labelKey;
     labelElement.textContent = translateVideoUi(labelKey, language);
     button.querySelector<HTMLElement>('[data-state]')!.textContent = detail;
-    button.title = state.error && !downloading ? state.error : '';
+    button.title = state.error && !downloading ? state.error : detail;
 }
 
 const downloadStatusVersions = new WeakMap<HTMLElement, number>();
@@ -415,6 +593,11 @@ export function syncVideoPlayerMenuLayout(menu: HTMLElement): void {
     const width = player.clientWidth;
     const height = player.clientHeight;
     if (!width || !height) return;
+    // X 观看首页已精简，不再因为少量说明把菜单拉成 440px 的横向面板。
+    if (menu.dataset.compact === 'true' && menu.dataset.panel === 'watch' && menu.dataset.view !== 'model-prompt') {
+        menu.dataset.layout = 'stack';
+        return;
+    }
     // 下载反馈只短暂出现，不参与布局判断，避免文字出现和消失时菜单来回切换形状。
     menu.dataset.layout = 'stack';
     menu.dataset.measuring = 'true';

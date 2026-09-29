@@ -15,11 +15,22 @@ export class VideoTranslationCache {
     this.translationScheduler = new VideoTranslationScheduler(translate);
   }
   clear(): void {
-    this.pretranslationCacheVersion += 1;
     this.translatedVideoCache.clear();
+    this.cancelPending();
+  }
+  /** 只切换显示方式时取消在途请求，保留已经成功的译文。 */
+  cancelPending(): void {
+    this.pretranslationCacheVersion += 1;
     this.inFlightVideoTranslations.clear();
     this.videoTranslationFailures.clear();
     this.translationScheduler.clear();
+  }
+  /** 当前句失败可单独重试，保留同一视频中已经成功的译文。 */
+  retryFailures(): void {
+    this.videoTranslationFailures.clear();
+  }
+  hasFailure(source: string): boolean {
+    return this.videoTranslationFailures.has(source.replace(/[\s\u3000]+/g, ' ').trim());
   }
   request(source: string, prefetch = false): Promise<string> {
     const key = source.replace(/[\s\u3000]+/g, ' ').trim();
@@ -46,15 +57,17 @@ export class VideoTranslationCache {
     request = this.translationScheduler.request(key, prefetch)
       .then((translated) => {
         const result = typeof translated === 'string' ? translated.trim() : '';
+        // 空响应不是成功译文，更不能在下次播放时把原文冒充译文缓存命中。
+        if (!result) throw new Error('视频字幕翻译返回空内容');
         if (requestVersion === this.pretranslationCacheVersion) {
           this.videoTranslationFailures.delete(key);
-          this.translatedVideoCache.set(key, result || source);
+          this.translatedVideoCache.set(key, result);
           if (this.translatedVideoCache.size > 160) {
             const oldestKey = this.translatedVideoCache.keys().next().value;
             if (oldestKey) this.translatedVideoCache.delete(oldestKey);
           }
         }
-        return typeof translated === 'string' ? translated : source;
+        return result;
       })
       .catch((error) => {
         if (requestVersion === this.pretranslationCacheVersion) {

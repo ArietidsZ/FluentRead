@@ -1,5 +1,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {parseHTML} from 'linkedom';
+import type {VideoSubtitleCue} from '@/src/features/video-subtitle/content/youtubeSubtitleData';
 vi.mock('@/src/services/config/store', () => ({config: {uiLanguage: 'zh-CN'}}));
 import {XCaptionSource} from '@/src/features/video-subtitle/content/xCaptionSource';
 import {getXSubtitleBottomInset, VIDEO_AI_CAPTION_CONTAINER_ID} from '@/src/features/video-subtitle/content/ui';
@@ -16,7 +17,7 @@ function fixture() {
   const korean = {kind: 'subtitles', mode: 'showing', language: 'ko', activeCues: [koreanCue], cues: [koreanCue]};
   const english = {kind: 'subtitles', mode: 'disabled', language: 'en', activeCues: [englishCue], cues: [englishCue]};
   Object.assign(video, {currentTime: 1, textTracks: [english, korean]});
-  const state = {video, player: video.parentElement!, enabled: true, aiActive: false, aiCues: [], sidecarCues: [], language: 'auto'};
+  const state = {video, player: video.parentElement!, enabled: true, aiActive: false, aiCues: [] as VideoSubtitleCue[], sidecarCues: [] as VideoSubtitleCue[], language: 'auto'};
   const source = new XCaptionSource(() => state);
   return {source, state, document, korean, english};
 }
@@ -86,6 +87,16 @@ describe('X 原生字幕来源', () => {
     expect(source.sync()!.textContent).toBe('');
     expect(korean.mode).toBe('showing');
     expect(english.mode).toBe('disabled');
+  });
+  it('原生时间轴的静音空档不混入缓存或 sidecar 的旧字幕', () => {
+    const {source, state, korean, english} = fixture();
+    Object.assign(korean, {activeCues: []});
+    Object.assign(english, {activeCues: []});
+    state.aiCues = [{startMs: 0, durationMs: 5000, text: 'Old AI subtitle'}];
+    state.sidecarCues = [{startMs: 0, durationMs: 5000, text: 'Other subtitle track'}];
+    expect(source.sync()!.textContent).toBe('');
+    state.aiActive = true;
+    expect(source.sync()!.textContent).toBe('Old AI subtitle');
   });
   it('展开播放器后把唯一字幕容器移入新宿主，不留在旧播放器', () => {
     const {source, state, document} = fixture();

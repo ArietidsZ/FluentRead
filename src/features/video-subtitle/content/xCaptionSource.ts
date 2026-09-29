@@ -93,6 +93,7 @@ export class XCaptionSource {
     }
 
     const currentMs = video && Number.isFinite(video.currentTime) ? video.currentTime * 1000 : Number.NaN;
+    const hasNativeTimeline = this.selectedNativeTracks().some(track => (track.cues?.length || 0) > 0);
     let text = '';
     let sourceKind = 'none';
     let cueId = '';
@@ -121,14 +122,14 @@ export class XCaptionSource {
       }
     }
 
-    if (!aiActive && !text && sidecarCues.length > 0) {
+    if (!aiActive && !hasNativeTimeline && sidecarCues.length > 0) {
       const activeCue = this.getActiveCueAtTime(sidecarCues, currentMs);
       if (activeCue) {
         text = activeCue.text;
         sourceKind = 'sidecar';
       }
     }
-    if (!aiActive && !text && aiCues.length > 0) {
+    if (!aiActive && !hasNativeTimeline && sidecarCues.length === 0 && aiCues.length > 0) {
       const activeCue = getVisibleVideoAiCue(aiCues, currentMs);
       if (activeCue) {
         text = activeCue.text;

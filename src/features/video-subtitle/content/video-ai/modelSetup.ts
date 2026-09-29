@@ -45,6 +45,7 @@ export interface VideoAiModelSetup {
 }
 
 export function createVideoAiModelSetup(dependencies: VideoAiModelSetupDependencies): VideoAiModelSetup {
+    let requestEpoch = 0;
     let checking = false;
     let downloading = false;
     let choice: VideoAiModelChoice | null = null;
@@ -56,7 +57,9 @@ export function createVideoAiModelSetup(dependencies: VideoAiModelSetupDependenc
 
         async request(canShowChoice) {
             if (checking || downloading) return;
-            const isCurrent = dependencies.captureRequest();
+            const captured = dependencies.captureRequest();
+            const epoch = ++requestEpoch;
+            const isCurrent = () => epoch === requestEpoch && captured();
             const model = dependencies.getConfiguredModel();
             checking = true;
             dependencies.setError('');
@@ -90,6 +93,8 @@ export function createVideoAiModelSetup(dependencies: VideoAiModelSetupDependenc
         },
 
         cancel() {
+            // 检查中关闭菜单也要作废迟到结果；已明确确认的模型下载可在后台完成。
+            if (checking || choice) requestEpoch += 1;
             if (!choice) return;
             choice = null;
             dependencies.onChange();
@@ -109,7 +114,7 @@ export function createVideoAiModelSetup(dependencies: VideoAiModelSetupDependenc
                 try {
                     await requestLocalVideoModelDownload(model, dependencies.sendMessage);
                 } catch (error) {
-                    dependencies.setError(dependencies.formatDownloadError((error as Error).message));
+                    if (isCurrent()) dependencies.setError(dependencies.formatDownloadError((error as Error).message));
                     return;
                 } finally {
                     downloading = false;
