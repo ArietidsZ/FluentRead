@@ -3,9 +3,35 @@ import {parseHTML} from 'linkedom';
 import {isWritingPage, normalizeWritingPreferences, normalizeWritingReferenceLanguage, resolveWritingReferenceLanguage, normalizeWritingLanguage, resolveWritingLanguage, WRITING_ACTIONS, WRITING_LANGUAGES, WRITING_LENGTHS, WRITING_STYLES, WRITING_ROLES, WRITING_TONES, WRITING_ROLE_MAX_LENGTH, WRITING_TONE_MAX_LENGTH} from '@/src/core/config/writing';
 import {options} from '@/src/core/config/catalog';
 import {Config, normalizeConfig} from '@/src/core/config/model';
+import {resolveWritingReadiness} from '@/src/core/config/writingReadiness';
+import {createApiKeyRequirementKey} from '@/src/core/config/validation';
 import {writingSite, isWritingEditor, findReplyEditors, editorText, captureEditor, collectReplyContext, applyWritingDraft} from '@/src/features/writing-assistant/editors';
 import {parseWritingRequest} from '@/src/features/writing-assistant/background';
 export const request = {type: 'fluentReadWriting', action: 'run', requestId: 'write-1', intent: 'draft', instruction: 'Write an invitation', draft: '', context: '', language: 'zh-CN', tone: 'natural', history: []} as const;
+describe('Writing readiness shared by settings, card and runtime', () => {
+  it('distinguishes unsupported default, absent model and missing credentials before sending', () => {
+    const config = new Config(); config.service = 'microsoft';
+    expect(resolveWritingReadiness(config)).toMatchObject({ready: false, issue: 'service', supported: false});
+    config.writing.service = 'openai'; config.model.openai = ''; config.customModel.openai = '';
+    expect(resolveWritingReadiness(config)).toMatchObject({ready: false, issue: 'model', model: ''});
+    config.writing.model = ' custom-model '; config.token.openai = ' ';
+    expect(resolveWritingReadiness(config)).toMatchObject({ready: false, issue: 'credential', model: 'custom-model'});
+    expect(resolveWritingReadiness(config, false)).toMatchObject({ready: true, model: 'custom-model'});
+    config.token.openai = 'synthetic-key';
+    expect(resolveWritingReadiness(config)).toMatchObject({ready: true, issue: null, message: ''});
+  });
+  it('resolves inherited custom models and respects a model-specific key exemption without changing preferences', () => {
+    const config = new Config(); config.service = 'openai'; config.model.openai = '自定义模型'; config.customModel.openai = 'local-model'; config.token.openai = '';
+    config.requireApiKey[createApiKeyRequirementKey('openai', 'local-model')] = false;
+    const before = JSON.stringify(config);
+    expect(resolveWritingReadiness(config)).toMatchObject({ready: true, service: 'openai', model: 'local-model'});
+    expect(JSON.stringify(config)).toBe(before);
+    config.writing.model = 'other-model';
+    expect(resolveWritingReadiness(config).issue).toBe('credential');
+    config.writing.model = '   ';
+    expect(resolveWritingReadiness(config).issue).toBe('model');
+  });
+});
 describe('Writing config and bounded protocol', () => {
   it('exposes writing only on secure Gmail, new GitHub Issue, and Issue or PR reply routes', () => {
     for (const url of ['https://mail.google.com/mail/u/0/#inbox/id', 'https://github.com/o/r/issues/new', 'https://github.com/o/r/issues/new/?template=bug.md', 'https://github.com/o/r/issues/1', 'https://github.com/o/r/pull/2/files']) expect(isWritingPage(url)).toBe(true);

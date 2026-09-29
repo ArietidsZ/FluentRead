@@ -15,6 +15,22 @@ import {translationStatsJapaneseMessages} from './translationStats';
 import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
+    "writing.experience.enableDescription": "GitHub と Gmail で返信の下書きや推敲を行えます。確認してから送信してください。",
+    "writing.experience.disabled": "ページの執筆ボタンは非表示です。設定は保持されます。",
+    "writing.experience.paused": "拡張機能を再開すると執筆アシスタントを使えます。",
+    "writing.experience.inheritModel": "サービスのモデルを使用 · {model}",
+    "writing.experience.inheritModelEmpty": "サービスのモデルを使用",
+    "writing.experience.roleHelp": "このやり取りでの立場を選びます。迷ったら「自動」のままにしてください。",
+    "writing.experience.previewTitle": "表現のプレビュー",
+    "writing.experience.previewNote": "表現の違いを示すサンプルです。AI へのリクエストは行いません。",
+    "writing.experience.setupTitle": "あと一歩で書き始められます",
+    "writing.experience.emptyDraft": "宛先、目的、要点を入力して、最初の下書きを作りましょう。",
+    "writing.experience.incomplete": "この下書きは未完成です。使用前に確認してください。",
+    "writing.experience.stoppedEmpty": "停止しました。要点を追加して再生成できます。",
+    "writing.experience.suggestionThanks": "お礼とフォローアップ",
+    "writing.experience.suggestionProgress": "進捗を伝える",
+    "writing.experience.suggestionDecline": "丁寧に断る",
+
     "settings.excludedLanguages.title": "翻訳しない言語",
     "settings.excludedLanguages.description": "翻訳が不要な言語を複数選択できます。ページ全体、マウスオーバー、ページタイトルの翻訳で原文を保持します。",
     "settings.excludedLanguages.more": "その他の言語",

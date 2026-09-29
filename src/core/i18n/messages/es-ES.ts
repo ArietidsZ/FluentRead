@@ -15,6 +15,22 @@ import {translationStatsSpanishMessages} from './translationStats';
 import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
+    "writing.experience.enableDescription": "Redacta y mejora respuestas en GitHub y Gmail. Revísalas antes de enviarlas.",
+    "writing.experience.disabled": "El botón de escritura está oculto. Tus preferencias se conservan.",
+    "writing.experience.paused": "Reactiva la extensión para usar el asistente de escritura.",
+    "writing.experience.inheritModel": "Modelo del servicio · {model}",
+    "writing.experience.inheritModelEmpty": "Usar modelo del servicio",
+    "writing.experience.roleHelp": "Elige tu papel en la conversación o deja la opción automática.",
+    "writing.experience.previewTitle": "Vista previa del estilo",
+    "writing.experience.previewNote": "El ejemplo muestra diferencias de estilo sin llamar a la IA.",
+    "writing.experience.setupTitle": "Un paso más para empezar a escribir",
+    "writing.experience.emptyDraft": "Indica el destinatario, el propósito y los puntos clave para crear un primer borrador.",
+    "writing.experience.incomplete": "Este borrador está incompleto. Revísalo antes de usarlo.",
+    "writing.experience.stoppedEmpty": "Detenido. Añade tus puntos clave y vuelve a generar.",
+    "writing.experience.suggestionThanks": "Agradecer y dar seguimiento",
+    "writing.experience.suggestionProgress": "Informar del progreso",
+    "writing.experience.suggestionDecline": "Rechazar con cortesía",
+
     "settings.excludedLanguages.title": "Idiomas que no se traducen",
     "settings.excludedLanguages.description": "Selecciona los idiomas que puedes leer. La traducción de página, al pasar el cursor y del título conservará el texto original.",
     "settings.excludedLanguages.more": "Más idiomas",
