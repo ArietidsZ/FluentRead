@@ -2,7 +2,9 @@
 
 Read original subtitles and translations together on YouTube and X, or show just one language.
 
-The open subtitle menu stays available when X hides its playback controls. Switches, display modes, and AI subtitle status update as you use them. Click outside the menu or press Esc to close it.
+The open subtitle menu stays available when X hides its playback controls. Switches, display modes, and AI subtitle status update as you use them. Click outside, use the close button, or press Esc to close it. Arrow keys move focus inside the menu without seeking the video.
+
+The compact X menu puts display modes first. **Subtitle options** contains timing, downloads, and regeneration; use the back arrow or Esc to return. The source line shows native captions, saved local subtitles, or AI subtitles. When none are detected, it explains how to proceed and disables empty downloads. Native captions take priority over automatically restored AI subtitles; explicitly generated AI captions keep their own timeline.
 
 ## A video with subtitles
 
@@ -24,7 +26,7 @@ The desktop Chrome / Edge extension can try local AI transcription:
 
 1. Download the Tiny or Base speech model in video settings. Initial downloads are about 100 MB and 150 MB respectively; extra runtime files may be needed later.
 2. Return to the X player and choose to generate AI subtitles.
-3. Wait for recognition and translation. You can stop the job.
+3. Wait for recognition. You can stop the job. Once recognition finishes, the timeline is available immediately; translations are fetched near the playback position. Original-only mode does not request translations.
 
 Audio recognition runs locally; recognized subtitle text still goes to your translation service. Model downloads require a network connection. Processing depends on video length and your computer. Videos up to 20 minutes are supported; some formats or restricted media cannot be read.
 
@@ -39,3 +41,5 @@ Use the menu to show or hide subtitles and download them. Completed X transcript
 Check that subtitles are enabled and the video has a native track. For X AI subtitles, confirm the model download and try specifying the spoken language.
 
 Recognition can mishear names or background audio, and translations can be wrong. Check important details against the original subtitles and audio.
+
+Open **Subtitle options → Regenerate this video** to bypass its saved subtitles without clearing other videos or downloading an already installed model again. Existing subtitles remain available until model confirmation. Translation failures keep the recognized original and timeline; use **Retry** to recover without repeating speech recognition.

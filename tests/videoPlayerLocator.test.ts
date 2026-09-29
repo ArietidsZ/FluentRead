@@ -95,6 +95,22 @@ describe('video player locator', () => {
     locator.destroy();
   });
 
+  it('selects a generic player through its overlay without treating adjacent post text as video intent', () => {
+    const {document, window, videos} = setup('<section><p id="text">Post text</p><div id="one"><video></video><button id="overlay-one"><span>Play</span></button></div></section><section><div id="two"><video></video><button id="overlay-two">Play</button></div></section>');
+    for (const id of ['one', 'two']) document.getElementById(id)!.getBoundingClientRect = () => ({width: 640, height: 360}) as DOMRect;
+    const locator = createVideoPlayerLocator({document, window, isXPage: () => true});
+    const emit = (id: string) => document.getElementById(id)!.dispatchEvent(new (window as unknown as {Event: typeof Event}).Event('pointerover', {bubbles: true}));
+    emit('text');
+    expect(locator.getTarget()).toBeNull();
+    emit('overlay-two');
+    expect(locator.getTarget()?.video).toBe(videos[1]);
+    emit('text');
+    expect(locator.getTarget()?.video).toBe(videos[1]);
+    emit('overlay-one');
+    expect(locator.getTarget()?.video).toBe(videos[0]);
+    locator.destroy();
+  });
+
   it('clears current interaction after leaving while retaining the selected feed video', () => {
     const {document, window, videos} = setup('<article><div class="one"><video></video></div></article>');
     const locator = createVideoPlayerLocator({document, window, isXPage: () => true});
