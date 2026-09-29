@@ -4,13 +4,13 @@ import {createFreeFallbackRunner, type FreeFallbackCandidate, type PersistedFree
 const candidate = (identity: string, translate: FreeFallbackCandidate['translate'], extra: Partial<FreeFallbackCandidate> = {}): FreeFallbackCandidate => ({identity, label: identity, translate, ...extra});
 
 describe('balanced free fallback routing', () => {
-  it('starts with the first candidate and avoids repeating it on the next request', async () => {
+  it('allows a fast healthy candidate to serve consecutive requests', async () => {
     const calls: string[] = [];
     const runner = createFreeFallbackRunner(1, {random: () => 0});
     const candidates = ['microsoft', 'google', 'myMemory'].map(id => candidate(id, async () => { calls.push(id); return id; }));
     await expect(runner(candidates, {mode: 'balanced', timeoutMs: 100, cooldownMs: 10})).resolves.toBe('microsoft');
-    await expect(runner(candidates, {mode: 'balanced', timeoutMs: 100, cooldownMs: 10})).resolves.toBe('google');
-    expect(calls).toEqual(['microsoft', 'google']);
+    await expect(runner(candidates, {mode: 'balanced', timeoutMs: 100, cooldownMs: 10})).resolves.toBe('microsoft');
+    expect(calls).toEqual(['microsoft', 'microsoft']);
   });
 
   it('uses persisted performance in runner selection and keeps the healthy candidate favored', async () => {
@@ -24,8 +24,8 @@ describe('balanced free fallback routing', () => {
     const b = candidate('b', vi.fn(async () => { calls.b += 1; return 'b'; }), {weight: 3});
     const c = candidate('c', vi.fn(async () => { calls.c += 1; return 'c'; }), {weight: 3});
     await expect(runner([a, b, c], {mode: 'balanced', timeoutMs: 100, cooldownMs: 10})).resolves.toBe('a');
-    await expect(runner([a, b, c], {mode: 'balanced', timeoutMs: 100, cooldownMs: 10})).resolves.toBe('c');
-    expect(calls).toEqual({a: 1, b: 0, c: 1});
+    await expect(runner([a, b, c], {mode: 'balanced', timeoutMs: 100, cooldownMs: 10})).resolves.toBe('a');
+    expect(calls).toEqual({a: 2, b: 0, c: 0});
     expect(persistence.load).toHaveBeenCalledOnce();
     expect(persistence.save).toHaveBeenCalled();
   });
@@ -153,16 +153,11 @@ describe('balanced free fallback routing', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
   });
 
-  it('cancels a hanging persistence save without leaving its abort listener behind', async () => {
+  it('reports exhausted services immediately even when persistence hangs', async () => {
     const save = vi.fn(() => new Promise<void>(() => undefined));
-    const persistence = {load: vi.fn(async () => []), save};
-    const runner = createFreeFallbackRunner(1, {persistence});
-    const controller = new AbortController();
-    const bad = candidate('bad-save', vi.fn().mockRejectedValue(Object.assign(new Error('busy'), {status: 429})));
-    const pending = runner([bad], {timeoutMs: 500, cooldownMs: 10, signal: controller.signal});
-    await new Promise(resolve => setTimeout(resolve, 0));
-    controller.abort();
-    await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+    const runner = createFreeFallbackRunner(1, {persistence: {load: async () => [], save}});
+    const bad = candidate('bad-save', async () => { throw Object.assign(new Error('busy'), {status: 429}); });
+    await expect(runner([bad], {timeoutMs: 500, cooldownMs: 10})).rejects.toMatchObject({retryable: false});
     expect(save).toHaveBeenCalledOnce();
   });
 
@@ -221,38 +216,20 @@ describe('balanced free fallback routing', () => {
     expect(persistence.save).toHaveBeenCalledOnce();
   });
 
-  it('cancels after a recovered unhealthy probe has persisted its reset', async () => {
+  it('does not tie result delivery or cancellation to storage completion', async () => {
     const controller = new AbortController();
-    const persistence = {
-      load: vi.fn(async () => [{identity: 'recovering', retryAt: 0, failures: 1, category: 'rate-limit', performance: {reliability: 0.5, latencyMs: 1000, observedAt: Date.now()}}]),
-      save: vi.fn(async () => { queueMicrotask(() => controller.abort()); }),
-    };
-    const runner = createFreeFallbackRunner(1, {persistence});
-    const recovering = candidate('recovering', vi.fn().mockResolvedValue('recovered'));
-    await expect(runner([recovering], {timeoutMs: 100, cooldownMs: 10, signal: controller.signal})).rejects.toMatchObject({name: 'AbortError'});
-    expect(recovering.translate).toHaveBeenCalledOnce();
+    let release!: () => void;
+    const runner = createFreeFallbackRunner(1, {persistence: {
+      load: async () => [],
+      save: () => new Promise<void>(resolve => { release = resolve; }),
+    }});
+    await expect(runner([candidate('ok', async () => 'ready')], {
+      timeoutMs: 100, cooldownMs: 10, signal: controller.signal,
+    })).resolves.toBe('ready');
+    controller.abort();
+    release();
+    expect((await runner.getHealthSnapshot())[0]?.failures).toBe(0);
   });
-
-  it.each([1, 7, 8, 9])('cancels after persistence save completion at microtask offset %i', async offset => {
-    const controller = new AbortController();
-    const persistence = {
-      load: vi.fn(async () => [{identity: 'recover-offset', retryAt: 0, failures: 1, category: 'rate-limit', performance: {reliability: 0.5, latencyMs: 1000, observedAt: Date.now()}}]),
-      save: vi.fn(() => {
-        let resolveSave!: () => void;
-        const result = new Promise<void>(resolve => { resolveSave = resolve; });
-        resolveSave();
-        let chain = Promise.resolve();
-        for (let index = 0; index < offset; index += 1) chain = chain.then(() => undefined);
-        chain.then(() => controller.abort());
-        return result;
-      }),
-    };
-    const runner = createFreeFallbackRunner(1, {persistence});
-    const provider = candidate('recover-offset', vi.fn(async () => 'recovered'));
-    await expect(runner([provider], {timeoutMs: 200, cooldownMs: 10, signal: controller.signal})).rejects.toMatchObject({name: 'AbortError'});
-    expect(provider.translate).toHaveBeenCalledOnce();
-  });
-
 
   it('preserves a cooling legacy record without performance while persisting a successful service', async () => {
     const legacy = {identity: 'old', retryAt: Date.now() + 100_000, failures: 1, category: 'blocked'};
