@@ -1,7 +1,7 @@
 /**
  * @file src/services/translation/freeRoutingPolicy.ts
  * 文件职责：把免费服务错误转换为有界恢复时间，并按权重选择可用服务。
- * 主要内容：区分请求错误、限流、额度、访问拦截与短暂故障，尊重服务端恢复时间，执行退避和随机分配。
+ * 主要内容：区分故障并尊重恢复时间，结合峰值平滑耗时、可靠性与在途负载分流，计算慢请求的备用启动时间。
  * 模块边界：纯策略函数，不请求网络、不读存储、不保留网页正文或凭据。
  */
 export type FreeFailureCategory = 'rate-limit' | 'quota' | 'blocked' | 'unavailable' | 'request';
@@ -17,9 +17,12 @@ export interface FreeProviderPerformance {
 export function observeFreeProviderPerformance(
     previous: FreeProviderPerformance | undefined, success: boolean, latencyMs: number, now: number,
 ): FreeProviderPerformance {
+    const observedLatency = Math.min(60_000, Math.max(1, latencyMs));
     return {
         reliability: (previous?.reliability ?? 1) * 0.75 + (success ? 0.25 : 0),
-        latencyMs: success ? (previous?.latencyMs ?? 1000) * 0.75 + Math.min(60_000, Math.max(1, latencyMs)) * 0.25
+        // 变慢立即反映，变快平滑恢复；冷启动直接使用首个真实观测。
+        latencyMs: success ? Math.max(observedLatency,
+            (previous?.latencyMs ?? observedLatency) * 0.75 + observedLatency * 0.25)
             : previous?.latencyMs ?? 1000,
         observedAt: now,
     };
@@ -33,7 +36,12 @@ export function getDynamicFreeProviderWeight(
     const age = Math.min(1, Math.max(0, now - performance.observedAt) / 86_400_000);
     const reliability = performance.reliability + (1 - performance.reliability) * age;
     const latency = performance.latencyMs + (1000 - performance.latencyMs) * age;
-    return Math.max(0.05, baseWeight * reliability ** 2 * Math.min(1, 1000 / Math.max(1, latency)));
+    return Math.max(0.05, baseWeight * reliability ** 2 * Math.min(4, 1000 / Math.max(1, latency)));
+}
+
+/** 仅明显慢于近期表现时争取备用，冷启动为 1.5 秒；短超时仍按用户设置执行。 */
+export function getFreeHedgeDelayMs(performance?: FreeProviderPerformance): number {
+    return Math.min(2000, Math.max(800, (performance?.latencyMs ?? 1000) * 1.5));
 }
 
 export function getFreeFailureStatus(error: unknown): number | undefined {
@@ -79,10 +87,10 @@ export function getFreeFailureCooldown(
 }
 
 export function selectWeightedFreeCandidate<T extends {identity: string; weight?: number}>(
-    candidates: readonly T[], random: number, previous?: string,
+    candidates: readonly T[], random: number,
 ): T | undefined {
-    const alternatives = candidates.filter(candidate => candidate.identity !== previous);
-    const pool = alternatives.length ? alternatives : candidates;
+    // 不再强制避开上一条成功线路：两个服务时会退化为 50/50，抵消速度权重。
+    const pool = candidates;
     if (!pool.length) return undefined;
     const weights = pool.map(candidate => typeof candidate.weight === 'number' && Number.isFinite(candidate.weight)
         ? Math.min(100, Math.max(0.05, candidate.weight)) : 1);

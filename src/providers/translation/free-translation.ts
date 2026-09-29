@@ -17,6 +17,7 @@ import {urls} from '@/src/core/config/constants';
 import {DEFAULT_DEEPLX_ENDPOINT} from '@/src/core/config/deeplx';
 import {
     FREE_TRANSLATION_PROVIDERS,
+    FREE_TRANSLATION_TOTAL_TIMEOUT_MS,
     normalizeFreeTranslationOrder,
     normalizeFreeTranslationTimeoutMs,
     normalizeFreeTranslationCooldownMs,
@@ -86,7 +87,8 @@ function prepareRequest(message: FreeTranslationRequest): PreparedRequest {
         sourceLanguage: message.sourceLanguage || current.from,
         targetLanguage: message.targetLanguage || current.to,
         [FREE_TRANSLATION_DEADLINE]: typeof budget === 'number' && Number.isFinite(budget)
-            ? Date.now() + Math.max(0, budget) : undefined,
+            ? Date.now() + Math.min(FREE_TRANSLATION_TOTAL_TIMEOUT_MS, Math.max(0, budget))
+            : Date.now() + FREE_TRANSLATION_TOTAL_TIMEOUT_MS,
     }, current);
 }
 

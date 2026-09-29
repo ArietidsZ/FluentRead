@@ -56,8 +56,8 @@
           </template>
           <details v-if="draft.service === services.freeTranslation">
             <summary>自动降级顺序与连接设置</summary>
-            <p class="hint">所有后备均无需密钥。自动均衡由后台根据成功率、响应耗时和近期错误动态分配；默认优先微软。至少保留一路。MyMemory 邮箱可留空。</p>
-            <label><span>选择模式</span><select v-model="draft.freeTranslationMode" aria-label="免费翻译选择模式"><option value="balanced">自动均衡</option><option value="sequential">优先顺序</option></select></label>
+            <p class="hint">无需填写密钥。优先使用快且稳定的服务，遇到问题自动切换。至少开启一个服务，MyMemory 邮箱可留空。</p>
+            <label><span>选择模式</span><select v-model="draft.freeTranslationMode" aria-label="免费翻译选择模式"><option value="balanced">智能加速</option><option value="sequential">优先顺序</option></select></label>
             <div v-for="(id, index) in draft.freeTranslationOrder" :key="id" class="fallback-order-row">
               <span>{{ fallbackLabel(id) }}</span>
               <button v-if="draft.freeTranslationMode === 'sequential'" type="button" :disabled="index === 0" :aria-label="`上移 ${fallbackLabel(id)}`" @click="moveFallback(index, -1)">↑</button>
@@ -143,7 +143,7 @@
           <label><span>失败后最多重试</span><input v-model.number="draft.translationMaxRetries" type="number" min="0" max="10" /></label>
           <label><span>退避初始间隔（ms）</span><input v-model.number="draft.translationBackoffBaseMs" type="number" min="100" max="60000" step="100" /></label>
           <label><span>退避最大间隔（ms）</span><input v-model.number="draft.translationBackoffMaxMs" type="number" min="1000" max="300000" step="1000" /></label>
-          <p class="hint">请求限制作用于 userscript 当前页面的共享翻译调度；重试使用指数退避，并尊重服务端 Retry-After。</p>
+          <p class="hint">请求限制作用于 userscript 当前页面的共享翻译调度；普通服务重试使用指数退避，并尊重服务端 Retry-After。免费翻译每个服务最多尝试一次，整轮最多 20 秒，不重复全局重试。</p>
         </fieldset>
 
         <details>
