@@ -459,10 +459,12 @@ export class Config {
     deeplApiPlan: DeepLApiPlan; // DeepL API Free / Pro 套餐
     deeplx: string; // DeepLX 服务地址
     selectionTranslatorMode: string; // 划词翻译显示模式: 'disabled' | 'bilingual' | 'translation-only'
-    selectionTranslatorTrigger: string; // 划词翻译互斥触发方式: 'direct' | 'icon' | 'dot' | 'contextMenu' | 'Control' | 'Alt' | 'Shift' | 'custom'
+    selectionTranslatorPresentation: 'simple' | 'card'; // 划词翻译的默认呈现，独立于原文/译文显示偏好
+    selectionTranslatorTrigger: string; // 划词翻译互斥触发方式: 'direct' | 'icon' | 'dot' | 'hover' | 'contextMenu' | 'Control' | 'Alt' | 'Shift' | 'custom'
     selectionTranslatorHotkey: string; // 旧版快捷键字段；与 selectionTranslatorTrigger 中的快捷键选项保持镜像
     customSelectionTranslatorHotkey: string; // 自定义划词翻译快捷键
     selectionTranslatorDelay: number; // 选区稳定后显示划词翻译入口的延迟（毫秒）
+    selectionTranslatorAutoDismiss: boolean; // 继续阅读或复制原文时收起，避免浮层长时间遮挡页面
     selectionTranslatorBidirectional: boolean; // 中英目标下为同语言选区提供反向划词入口
     selectionTtsVoices: string[]; // 划词朗读的 Edge TTS 音色回退顺序
     selectionTtsMode: LocalTtsMode; // 朗读在线/本地合成策略
@@ -636,10 +638,12 @@ export class Config {
         this.deeplApiPlan = DEFAULT_DEEPL_API_PLAN; // 兼容既有 DeepL API Free 默认端点
         this.deeplx = defaultOption.deeplx; // DeepLX 默认服务地址
         this.selectionTranslatorMode = 'disabled'; // 默认关闭划词翻译
+        this.selectionTranslatorPresentation = 'simple';
         this.selectionTranslatorTrigger = 'icon'; // 默认显示可发现的操作图标
         this.selectionTranslatorHotkey = 'none'; // 默认不增加额外快捷键，保持原有划词行为
         this.customSelectionTranslatorHotkey = ''; // 自定义划词翻译快捷键为空
         this.selectionTranslatorDelay = DEFAULT_SELECTION_TRANSLATOR_DELAY;
+        this.selectionTranslatorAutoDismiss = true;
         this.selectionTranslatorBidirectional = false; // 保留默认的同语言跳过，用户可按需开启双向入口
         this.selectionTtsVoices = []; // 默认按当前语言使用内置音色回退顺序
         this.selectionTtsMode = DEFAULT_LOCAL_TTS_MODE;
@@ -1264,7 +1268,17 @@ export function normalizeConfig(value: unknown): Config {
     if (!['disabled', 'bilingual', 'translation-only'].includes(normalized.selectionTranslatorMode)) {
         normalized.selectionTranslatorMode = 'disabled';
     }
-    const selectionTriggerValues = ['direct', 'icon', 'dot', 'contextMenu', 'Control', 'Alt', 'Shift', 'custom'];
+    // 仅旧版本缺失呈现字段时迁移；关闭统一开关后，学习偏好不能再次把功能打开。
+    const legacySelection = source.selectionTranslatorPresentation === undefined;
+    normalized.selectionTranslatorPresentation = source.selectionTranslatorPresentation === 'card'
+        || (legacySelection && (normalized.harness.enabled || normalized.selectionTranslatorMode !== 'disabled')) ? 'card' : 'simple';
+    if (legacySelection && normalized.harness.enabled && normalized.selectionTranslatorMode === 'disabled') {
+        normalized.selectionTranslatorMode = 'bilingual';
+        normalized.selectionTranslatorTrigger = normalized.harness.trigger === 'shortcut' ? 'custom'
+            : normalized.harness.trigger === 'hover' ? 'hover' : 'icon';
+        if (normalized.harness.trigger === 'shortcut') normalized.customSelectionTranslatorHotkey = normalized.harness.customHotkey;
+    }
+    const selectionTriggerValues = ['direct', 'icon', 'dot', 'hover', 'contextMenu', 'Control', 'Alt', 'Shift', 'custom'];
     const selectionShortcutValues = ['Control', 'Alt', 'Shift', 'custom'];
     const hasExplicitSelectionTrigger = typeof source.selectionTranslatorTrigger === 'string'
         && selectionTriggerValues.includes(source.selectionTranslatorTrigger);
@@ -1281,6 +1295,8 @@ export function normalizeConfig(value: unknown): Config {
         source.selectionTranslatorDelay,
     );
     normalized.selectionTranslatorBidirectional = source.selectionTranslatorBidirectional === true;
+    normalized.selectionTranslatorAutoDismiss = typeof source.selectionTranslatorAutoDismiss === 'boolean'
+        ? source.selectionTranslatorAutoDismiss : true;
     // 兼容上一版“触发方式 + 可选快捷键”配置，并将最终状态收敛为单一触发方式。
     if (!hasExplicitSelectionTrigger
         && ['direct', 'icon', 'dot'].includes(normalized.selectionTranslatorTrigger)

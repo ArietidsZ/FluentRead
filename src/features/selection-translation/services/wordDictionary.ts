@@ -4,6 +4,7 @@
  * 主要内容：支持高频 ECDICT 内置词库与按需缓存的完整词库、有道、Free Dictionary、WiktAPI、Wiktionary REST 与 Datamuse，包含各响应解析器、HTML/URL 清洗、释义和音标去重、provider 工厂及 LRU 式 lookup。
  * 模块边界：本服务只获取和规范化词典数据，不渲染词卡、不翻译释义或加入词书；后台 wordLookupHandler 编排翻译，SelectionTranslator.vue 展示，HTTP 统一经过 platform/runtimeFetch。
  */
+import {describePartOfSpeech} from '@/src/core/language/partOfSpeech';
 import {readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 import {canCacheOptionalEcdict, downloadFullEcdict, readCachedFullEcdict, type EcdictCompactRow} from './ecdictAsset';
@@ -185,37 +186,7 @@ function stripHtml(value: unknown): string {
 }
 
 function normalizePartOfSpeech(value: unknown): string {
-    const valueText = textValue(value);
-    if (!valueText) return '其他';
-    const normalized = valueText.toLowerCase().replace(/\.$/u, '');
-    const labels: Record<string, string> = {
-        adj: '形容词',
-        adjective: '形容词',
-        adv: '副词',
-        adverb: '副词',
-        article: '冠词',
-        a: '形容词',
-        aux: '助动词',
-        conjunction: '连词',
-        conj: '连词',
-        dat: '代词',
-        determiner: '限定词',
-        int: '感叹词',
-        interjection: '感叹词',
-        intj: '感叹词',
-        noun: '名词',
-        n: '名词',
-        obj: '代词',
-        preposition: '介词',
-        prep: '介词',
-        pronoun: '代词',
-        pron: '代词',
-        vi: '动词',
-        vt: '动词',
-        verb: '动词',
-        v: '动词',
-    };
-    return labels[normalized] || valueText;
+    return describePartOfSpeech(value).label;
 }
 
 function createPartialCard(normalizedWord: string, source: WordDictionarySource): WordCardData {
