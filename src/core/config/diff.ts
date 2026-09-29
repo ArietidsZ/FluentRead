@@ -241,12 +241,14 @@ const FLOATING_BALL_CLICK_ACTION_LABELS = new Map<unknown, string>([
 ]);
 const TRANSLATION_APPEARANCE_FIELD_LABELS = new Map<string, string>([
     ['textColor', '译文颜色'],
+    ['backgroundColor', '译文背景色'],
     ['lineColor', '线条颜色'],
     ['fillColor', '标记底色'],
     ['fontScale', '译文字号'],
     ['fontWeight', '译文字重'],
     ['fontFamily', '译文字体'],
     ['opacity', '译文不透明度'],
+    ['customCss', 'CSS'],
 ]);
 // 颜色留空与 default 都表示沿用样式自带外观；字号和不透明度都是百分比。
 const TRANSLATION_APPEARANCE_VALUE_LABELS = new Map<unknown, string>([

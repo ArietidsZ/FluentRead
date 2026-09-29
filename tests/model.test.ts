@@ -1088,12 +1088,12 @@ describe('双语逐句高亮配置', () => {
 
 describe('译文外观配置', () => {
     it('默认沿用样式自带外观，并归一化导入或存储中的外观微调', () => {
-        const defaults = {textColor: '', lineColor: '', fillColor: '', fontScale: 100, fontWeight: 'default', fontFamily: 'default', opacity: 100};
+        const defaults = {textColor: '', backgroundColor: '', lineColor: '', fillColor: '', fontScale: 100, fontWeight: 'default', fontFamily: 'default', opacity: 100, customCss: ''};
         expect(new Config().translationAppearance).toEqual(defaults);
         expect(normalizeConfig({}).translationAppearance).toEqual(defaults);
         expect(normalizeConfig({translationAppearance: 'broken'}).translationAppearance).toEqual(defaults);
         expect(normalizeConfig({translationAppearance: {textColor: '#1D4ED8', lineColor: '#ef4776', fontScale: 118, opacity: 3, fontWeight: 'bold', fontFamily: 'nope'}}).translationAppearance)
-            .toEqual({...defaults, textColor: '#1d4ed8', lineColor: '#ef4776', fontScale: 120, opacity: 40, fontWeight: 'bold'});
+            .toEqual({...defaults, textColor: '#1d4ed8', lineColor: '#ef4776', fontScale: 118, opacity: 40, fontWeight: 'bold'});
         // 预设编号保持原样，新增编号可直接持久化。
         expect(normalizeConfig({style: 28}).style).toBe(28);
     });

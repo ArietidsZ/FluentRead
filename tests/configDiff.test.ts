@@ -189,7 +189,7 @@ describe('配置差异预览', () => {
     });
 
     it('逐项预览译文外观微调，默认颜色与百分比使用可读文案', () => {
-        const defaults = {textColor: '', lineColor: '', fillColor: '', fontScale: 100, fontWeight: 'default', fontFamily: 'default', opacity: 100};
+        const defaults = {textColor: '', backgroundColor: '', lineColor: '', fillColor: '', fontScale: 100, fontWeight: 'default', fontFamily: 'default', opacity: 100, customCss: ''};
         const result = buildConfigDiff({style: 1, translationAppearance: defaults}, {
             style: 24,
             translationAppearance: {...defaults, lineColor: '#ef4776', fontScale: 115, fontWeight: 'semibold', fontFamily: 'serif', opacity: 80},

@@ -81,11 +81,14 @@ Choose how translations look in bilingual mode under **Settings → Interface st
 **Customize appearance** lets you fine-tune:
 
 - **Text color**: give translations their own color, or keep **Default** to follow the page.
+- **Translation background**: set an independent background for plain translations or any preset; **Default** keeps that preset's background.
 - **Line color**: recolor underlines, wavy lines, borders, and quote bars.
 - **Highlight color**: recolor markers, study highlights, backgrounds, and cards; the strength adapts to each style.
-- **Font size, opacity, font weight, and font**: enlarge or shrink translations relative to the original, or make them bolder or softer.
+- **Font size, opacity, font weight, and font**: use the slider or enter an exact size from 50% to 250% relative to the original, or make translations bolder or softer.
 
-Each color offers curated swatches and a picker for any color; **Reset** returns to the style's own look. Color and size changes apply immediately to translations on open pages without translating again, while a new style is used from the next translation. Translation-only mode does not use these styles; the page shows a notice with a button to switch back to bilingual mode.
+Each color offers curated swatches, a picker, and direct input for a CSS color name, `rgb(r, g, b)`, or a hex value. Invalid values are not saved. **Reset** returns to the style's own look. Color and size changes apply immediately to translations on open pages without translating again, while a new style is used from the next translation. Translation-only mode does not use these styles; the page shows a notice with a button to switch back to bilingual mode.
+
+You can also enter declarations under **Enter CSS directly**, such as `color: rebeccapurple; background: rgb(255, 248, 204); font-size: 117%;`. Leave out the selector. Common appearance properties are supported; URLs, selectors, and positioning properties are ignored. Valid declarations override the matching controls above and appear in the live preview. Saved styles show their own effect on their cards.
 
 **Blur until hover** keeps translations blurred until you point at them, so you can read the original first and then check your understanding.
 

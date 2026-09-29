@@ -82,6 +82,7 @@ const remoteUiLanguageBundles = Object.fromEntries(Object.entries(UI_LANGUAGE_BU
     }));
 const unicodeNotice = `/*\n${fs.readFileSync(resolve(root, 'public/third-party-notices/unicode-17.0.0.txt'), 'utf8')}\n*/`;
 const serviceIconsNotice = `/*\n${fs.readFileSync(resolve(root, 'public/third-party-notices/lobe-icons-MIT.txt'), 'utf8')}\n*/`;
+const tinycolorNotice = `/*\n@ctrl/tinycolor 3.6.1 — MIT\n${fs.readFileSync(resolve(root, 'public/third-party-notices/tinycolor-MIT.txt'), 'utf8')}\n*/`;
 const browserShimPath = resolve(root, 'userscript/browser.ts');
 const projectRoot = `${normalizePath(root)}/`;
 const siteCatalogDir = resolve(root, 'src/core/site-adaptation/catalog');
@@ -146,6 +147,7 @@ export function wrapUserscriptEntry(entryCode: string, bootstrapCode: string, th
         metadata,
         unicodeNotice,
         serviceIconsNotice,
+        ...(!bundleLibraries ? [tinycolorNotice] : []),
         ...(thirdPartyNotices ? [thirdPartyNotices] : []),
         executionGuardStart,
         'if (!globalThis.__fluentReadUserscriptBootstrapped) {',

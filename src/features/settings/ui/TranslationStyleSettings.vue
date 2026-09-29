@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/TranslationStyleSettings.vue
-文件职责：作为“界面风格”页的第一个分组，集中设置网页双语译文的样式预设、外观微调和双语逐句高亮，并提供与网页一致的实时预览。
-主要内容：先展示可复用的命名样式和内置样式选择，再展示精简的实时预览；自定义颜色、字体等参数默认折叠，并能保存、更新或删除多套样式。
+文件职责：作为“界面风格”页的第一个分组，集中设置网页双语译文的样式预设、文字与独立背景色、精确字号等外观微调和双语逐句高亮，并提供与网页一致的实时预览。
+主要内容：命名样式卡片展示各自真实外观；当前预览实时反映颜色、字体与安全的自定义 CSS 声明，并能保存、更新或删除多套样式。
 模块边界：本组件只编辑父级传入的 Config 草稿（style、translationAppearance、translationStyleProfiles 等），不持久化配置、
 不向网页注入样式；预设元数据和外观声明来自 core/config/translationAppearance，网页应用由 content 层负责。
 -->
@@ -32,6 +32,14 @@
                 :aria-checked="config.activeTranslationStyleProfileId === profile.id"
                 @click="selectProfile(profile)"
               >
+                <span class="translation-style-card-sample" :data-page-theme="pageTheme" aria-hidden="true" data-i18n-ignore>
+                  <span
+                    class="fluent-read-bilingual-content"
+                    :class="getTranslationStylePreset(profile.style)?.className"
+                    :style="getTranslationAppearanceStyle(profile.appearance)"
+                    lang="zh-CN"
+                  >阅读轻松自然</span>
+                </span>
                 <strong>{{ profile.name }}</strong>
                 <small>{{ t('settings.translationStyle.profileBase', { name: translateLegacy(getTranslationStylePreset(profile.style)?.label ?? '') }) }}</small>
               </button>
@@ -129,6 +137,12 @@
                 :swatches="TRANSLATION_TEXT_COLOR_SWATCHES"
               />
               <TranslationColorField
+                v-model="appearance.backgroundColor"
+                field-id="translation-background-color"
+                :label="t('settings.translationStyle.backgroundColor')"
+                :swatches="TRANSLATION_BACKGROUND_COLOR_SWATCHES"
+              />
+              <TranslationColorField
                 v-model="appearance.lineColor"
                 field-id="translation-line-color"
                 :label="t('settings.translationStyle.lineColor')"
@@ -144,17 +158,32 @@
               />
             </div>
             <div class="translation-appearance-typography">
-              <label class="translation-appearance-range">
+              <div class="translation-appearance-range">
                 <span>{{ t('settings.translationStyle.fontSize') }}<b>{{ appearance.fontScale }}%</b></span>
-                <input
-                  v-model.number="appearance.fontScale"
-                  type="range"
-                  :min="TRANSLATION_FONT_SCALE_RANGE.min"
-                  :max="TRANSLATION_FONT_SCALE_RANGE.max"
-                  :step="TRANSLATION_FONT_SCALE_RANGE.step"
-                  :aria-label="t('settings.translationStyle.fontSize')"
-                >
-              </label>
+                <div class="translation-appearance-scale-controls">
+                  <input
+                    v-model.number="appearance.fontScale"
+                    type="range"
+                    :min="TRANSLATION_FONT_SCALE_RANGE.min"
+                    :max="TRANSLATION_FONT_SCALE_RANGE.max"
+                    :step="TRANSLATION_FONT_SCALE_RANGE.step"
+                    :aria-label="t('settings.translationStyle.fontSize')"
+                  >
+                  <span class="translation-appearance-percent-input">
+                    <input
+                      type="number"
+                      :value="appearance.fontScale"
+                      :min="TRANSLATION_FONT_SCALE_RANGE.min"
+                      :max="TRANSLATION_FONT_SCALE_RANGE.max"
+                      step="1"
+                      :aria-label="t('settings.translationStyle.fontSize')"
+                      data-testid="translation-font-scale-value"
+                      @change="commitFontScale"
+                    >
+                    <span aria-hidden="true">%</span>
+                  </span>
+                </div>
+              </div>
               <label class="translation-appearance-range">
                 <span>{{ t('settings.translationStyle.opacity') }}<b>{{ appearance.opacity }}%</b></span>
                 <input
@@ -185,6 +214,21 @@
                 />
               </div>
             </div>
+          </div>
+          <div class="translation-custom-css">
+            <label for="translation-custom-css">{{ t('settings.translationStyle.customCssTitle') }}</label>
+            <small id="translation-custom-css-hint">{{ t('settings.translationStyle.customCssHint') }}</small>
+            <textarea
+              id="translation-custom-css"
+              v-model="appearance.customCss"
+              :maxlength="MAX_TRANSLATION_CUSTOM_CSS_LENGTH"
+              :aria-invalid="cssValidation.invalidCount > 0"
+              aria-describedby="translation-custom-css-hint"
+              rows="4"
+              spellcheck="false"
+              placeholder="color: rebeccapurple;&#10;background: rgb(255, 248, 204);&#10;font-size: 117%;"
+            />
+            <small v-if="cssValidation.invalidCount" class="translation-custom-css-error" role="alert">{{ t('settings.translationStyle.customCssInvalid') }}</small>
           </div>
           <div class="translation-profile-editor">
             <label for="translation-profile-name">{{ t('settings.translationStyle.profileName') }}</label>
@@ -219,6 +263,8 @@ import {computed, ref, watch} from 'vue'
 import type {Config} from '@/src/core/config/model'
 import {
   DEFAULT_TRANSLATION_APPEARANCE,
+  MAX_TRANSLATION_CUSTOM_CSS_LENGTH,
+  TRANSLATION_BACKGROUND_COLOR_SWATCHES,
   TRANSLATION_FILL_COLOR_SWATCHES,
   TRANSLATION_FONT_FAMILY_OPTIONS,
   TRANSLATION_FONT_SCALE_RANGE,
@@ -233,6 +279,7 @@ import {
   getTranslationStylePreset,
   isDefaultTranslationAppearance,
   normalizeTranslationAppearance,
+  parseTranslationCustomCss,
   type TranslationStyleCategory,
   type TranslationStyleProfile,
 } from '@/src/core/config/translationAppearance'
@@ -252,6 +299,7 @@ const config = computed(() => props.config)
 const selectedPreset = computed(() => getTranslationStylePreset(config.value.style) ?? TRANSLATION_STYLE_PRESETS[0])
 const appearance = computed(() => config.value.translationAppearance)
 const appearanceStyle = computed(() => getTranslationAppearanceStyle(appearance.value))
+const cssValidation = computed(() => parseTranslationCustomCss(appearance.value.customCss))
 const presetAppearanceStyle = computed(() => config.value.activeTranslationStyleProfileId ? {} : appearanceStyle.value)
 const customized = computed(() => !isDefaultTranslationAppearance(appearance.value))
 const activeProfile = computed(() => config.value.translationStyleProfiles.find((profile) => profile.id === config.value.activeTranslationStyleProfileId))
@@ -335,6 +383,16 @@ function selectFontWeight(value: string | number): void {
 
 function selectFontFamily(value: string | number): void {
   appearance.value.fontFamily = TRANSLATION_FONT_FAMILY_OPTIONS.find((option) => option.value === value)?.value ?? 'default'
+}
+
+function commitFontScale(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const value = input.value.trim()
+  const normalized = value
+    ? normalizeTranslationAppearance({fontScale: value}).fontScale
+    : appearance.value.fontScale
+  appearance.value.fontScale = normalized
+  input.value = String(normalized)
 }
 
 function resetAppearance(): void {
@@ -443,6 +501,7 @@ function resetAppearance(): void {
 .translation-style-saved-card small { color: var(--muted); font-size: 10px; }
 .translation-style-saved-card.selected { border-color: var(--brand); background: var(--brand-soft); }
 .translation-style-saved-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.translation-style-saved-card .translation-style-card-sample { min-height: 54px; margin-bottom: 2px; }
 
 .translation-style-gallery-heading {
   display: flex;
@@ -683,12 +742,65 @@ function resetAppearance(): void {
   font-variant-numeric: tabular-nums;
 }
 
-.translation-appearance-range input {
+.translation-appearance-scale-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.translation-appearance-range input[type="range"] {
   width: 100%;
   margin: 0;
   accent-color: var(--brand);
   cursor: pointer;
 }
+
+.translation-appearance-percent-input {
+  display: inline-flex;
+  width: 70px;
+  flex: none;
+  align-items: center;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--surface);
+  font-size: 11px;
+}
+
+.translation-appearance-percent-input input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.translation-appearance-percent-input:focus-within { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+.translation-custom-css { display: grid; min-width: 0; gap: 7px; }
+.translation-custom-css label { color: var(--ink); font-size: 11.5px; font-weight: 700; }
+.translation-custom-css small { color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+.translation-custom-css textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  background: var(--surface);
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.translation-custom-css textarea:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.translation-custom-css textarea[aria-invalid="true"] { border-color: #dc2626; }
+.translation-custom-css .translation-custom-css-error { color: #b91c1c; }
 
 .translation-appearance-choice :deep(.segmented-control button) {
   min-height: 30px;

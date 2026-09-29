@@ -1,11 +1,13 @@
 /**
  * @file src/core/config/translationAppearance.ts
- * 文件职责：定义网页双语译文的样式预设注册表，以及用户对译文颜色、线条、底色、字号、字重、字体和不透明度的微调契约。
+ * 文件职责：定义网页双语译文的样式预设注册表，以及用户对译文颜色、独立背景、字号和自定义 CSS 声明等外观的微调契约。
  * 主要内容：维护预设的稳定编号、页面类名、旧版分组与设置页分类，并标注预设是否使用线条或底色；提供外观默认值、
  * 存储与导入值归一化、精选色板和颜色换算，以及把外观转换为 CSS 声明和页面样式表文本的纯函数，供设置预览与内容脚本共用。
  * 模块边界：只处理纯数据与字符串，不访问 DOM、浏览器存储或配置仓库；预设的视觉规则位于 src/ui/styles/translation-display.css，
  * 页面样式表由 content composition root 注入，设置界面只消费这里导出的元数据与声明。
  */
+
+import {TinyColor} from '@ctrl/tinycolor';
 
 export type TranslationStyleCategory = 'text' | 'line' | 'mark' | 'card';
 export type TranslationStyleLegacyGroup = 'basic' | 'underline' | 'card' | 'highlight' | 'background' | 'special' | 'pro' | 'transparent';
@@ -114,6 +116,8 @@ export type TranslationFontFamily = 'default' | 'sans' | 'serif' | 'mono';
 export interface TranslationAppearance {
     /** 空字符串沿用网页与样式自带的文字颜色。 */
     textColor: string;
+    /** 空字符串沿用样式自带的背景；显式颜色覆盖所有样式的背景，包括普通译文。 */
+    backgroundColor: string;
     /** 空字符串沿用样式自带的线条颜色。 */
     lineColor: string;
     /** 空字符串沿用样式自带的标记和底色。 */
@@ -124,6 +128,8 @@ export interface TranslationAppearance {
     fontFamily: TranslationFontFamily;
     /** 译文不透明度百分比。 */
     opacity: number;
+    /** 只作用于 FluentRead 译文容器的外观 CSS 声明；非法属性和值不会注入网页。 */
+    customCss: string;
 }
 
 /** 用户保存的译文样式快照；编号仍引用内置样式，外观覆盖单独保存。 */
@@ -157,17 +163,19 @@ export function normalizeTranslationStyleProfiles(value: unknown): TranslationSt
     return profiles;
 }
 
-export const TRANSLATION_FONT_SCALE_RANGE = {min: 80, max: 150, step: 5} as const;
+export const TRANSLATION_FONT_SCALE_RANGE = {min: 50, max: 250, step: 1} as const;
 export const TRANSLATION_OPACITY_RANGE = {min: 40, max: 100, step: 5} as const;
 
 export const DEFAULT_TRANSLATION_APPEARANCE: Readonly<TranslationAppearance> = Object.freeze({
     textColor: '',
+    backgroundColor: '',
     lineColor: '',
     fillColor: '',
     fontScale: 100,
     fontWeight: 'default',
     fontFamily: 'default',
     opacity: 100,
+    customCss: '',
 });
 
 export const TRANSLATION_FONT_WEIGHT_OPTIONS: ReadonlyArray<{readonly value: TranslationFontWeight; readonly labelKey: string; readonly cssValue: string}> = [
@@ -207,6 +215,16 @@ export const TRANSLATION_TEXT_COLOR_SWATCHES: readonly TranslationColorSwatch[] 
     swatch('violet', '#6d28d9'),
     swatch('snow', '#f1f5f9'),
     swatch('gold', '#fde68a'),
+];
+
+/** 独立背景色使用浅色为主，避免色板选中后立即遮住默认深色译文。 */
+export const TRANSLATION_BACKGROUND_COLOR_SWATCHES: readonly TranslationColorSwatch[] = [
+    swatch('yellow', '#fff8cc'),
+    swatch('blue', '#eff6ff'),
+    swatch('green', '#ecfdf5'),
+    swatch('pink', '#fce7f3'),
+    swatch('gray', '#e5e7eb'),
+    swatch('slate', '#334155'),
 ];
 
 export const TRANSLATION_LINE_COLOR_SWATCHES: readonly TranslationColorSwatch[] = [
@@ -249,8 +267,64 @@ export function normalizeTranslationColor(value: unknown): string {
     if (typeof value !== 'string') return '';
     const color = value.trim().toLowerCase();
     if (/^#[\da-f]{6}$/u.test(color)) return color;
-    if (!/^#[\da-f]{3}$/u.test(color)) return '';
-    return `#${[...color.slice(1)].map((digit) => digit + digit).join('')}`;
+    if (/^#[\da-f]{3}$/u.test(color)) {
+        return `#${[...color.slice(1)].map((digit) => digit + digit).join('')}`;
+    }
+    const rgb = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/u.exec(color);
+    if (rgb) {
+        const values = rgb.slice(1).map(Number);
+        return values.every((channel) => channel <= 255)
+            ? `#${values.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`
+            : '';
+    }
+    // 仅接受单个 CSS 命名色，不让配置值携带任意 CSS 片段进入网页样式表。
+    if (!/^[a-z]{3,20}$/u.test(color)) return '';
+    const named = new TinyColor(color);
+    return named.isValid && named.getAlpha() === 1 ? named.toHexString().toLowerCase() : '';
+}
+
+export const MAX_TRANSLATION_CUSTOM_CSS_LENGTH = 2000;
+
+/** 只允许影响译文外观的属性，禁止选择器、定位、外部资源和宿主页面规则。 */
+const TRANSLATION_CUSTOM_CSS_PROPERTIES = new Set([
+    'color', 'background', 'background-color', 'font-size', 'font-weight', 'font-family', 'font-style',
+    'line-height', 'letter-spacing', 'opacity', 'text-decoration', 'text-decoration-color',
+    'text-decoration-style', 'text-decoration-thickness', 'text-shadow', 'border', 'border-color',
+    'border-radius', 'box-shadow', 'padding',
+]);
+
+function normalizeTranslationCustomCss(value: unknown): string {
+    return typeof value === 'string'
+        ? value.slice(0, MAX_TRANSLATION_CUSTOM_CSS_LENGTH).replace(/[\u0000-\u0008\u000b-\u001f\u007f]/gu, '')
+        : '';
+}
+
+export interface TranslationCustomCssResult {
+    readonly declarations: TranslationAppearanceDeclaration[];
+    readonly invalidCount: number;
+}
+
+/** 逐条验证声明再重建样式表，绝不直接拼接用户输入的 CSS 文本。 */
+export function parseTranslationCustomCss(value: unknown): TranslationCustomCssResult {
+    const source = normalizeTranslationCustomCss(value);
+    const declarations: TranslationAppearanceDeclaration[] = [];
+    let invalidCount = 0;
+    for (const part of source.split(';')) {
+        const entry = part.trim();
+        if (!entry) continue;
+        const separator = entry.indexOf(':');
+        const property = entry.slice(0, separator).trim().toLowerCase();
+        const cssValue = entry.slice(separator + 1).trim();
+        if (separator < 1 || !TRANSLATION_CUSTOM_CSS_PROPERTIES.has(property) || cssValue.length > 200
+            || !/^[a-z\d\s#.,()%+'"\/_*-]+$/iu.test(cssValue)
+            || /(?:url|image-set|expression|attr|var)\s*\(|\/\*|\*\/|!important/iu.test(cssValue)
+            || declarations.length >= 24) {
+            invalidCount += 1;
+            continue;
+        }
+        declarations.push({property, value: cssValue});
+    }
+    return {declarations, invalidCount};
 }
 
 function normalizeStep(value: unknown, fallback: number, range: {readonly min: number; readonly max: number; readonly step: number}): number {
@@ -271,12 +345,14 @@ export function normalizeTranslationAppearance(value: unknown): TranslationAppea
     const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
     return {
         textColor: normalizeTranslationColor(source.textColor),
+        backgroundColor: normalizeTranslationColor(source.backgroundColor),
         lineColor: normalizeTranslationColor(source.lineColor),
         fillColor: normalizeTranslationColor(source.fillColor),
         fontScale: normalizeStep(source.fontScale, DEFAULT_TRANSLATION_APPEARANCE.fontScale, TRANSLATION_FONT_SCALE_RANGE),
         fontWeight: normalizeChoice(source.fontWeight, TRANSLATION_FONT_WEIGHT_OPTIONS),
         fontFamily: normalizeChoice(source.fontFamily, TRANSLATION_FONT_FAMILY_OPTIONS),
         opacity: normalizeStep(source.opacity, DEFAULT_TRANSLATION_APPEARANCE.opacity, TRANSLATION_OPACITY_RANGE),
+        customCss: normalizeTranslationCustomCss(source.customCss),
     };
 }
 
@@ -322,6 +398,7 @@ export function getTranslationAppearanceDeclarations(value: unknown): Translatio
             {property: TRANSLATION_APPEARANCE_VARIABLES.surfaceDeep, value: mixWithWhite(appearance.fillColor, 0.24)},
         );
     }
+    if (appearance.backgroundColor) declarations.push({property: 'background', value: appearance.backgroundColor});
     if (appearance.textColor) declarations.push({property: 'color', value: appearance.textColor});
     if (appearance.fontScale !== DEFAULT_TRANSLATION_APPEARANCE.fontScale) {
         declarations.push({property: 'font-size', value: `${appearance.fontScale}%`});
@@ -333,6 +410,7 @@ export function getTranslationAppearanceDeclarations(value: unknown): Translatio
     if (appearance.opacity !== DEFAULT_TRANSLATION_APPEARANCE.opacity) {
         declarations.push({property: 'opacity', value: String(appearance.opacity / 100)});
     }
+    declarations.push(...parseTranslationCustomCss(appearance.customCss).declarations);
     return declarations;
 }
 
