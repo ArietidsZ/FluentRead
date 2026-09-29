@@ -13,7 +13,7 @@
       <section><h4>语气</h4><WritingChoices v-model="toneChoice" :options="toneOptions" label="语气" :disabled="saving" /><input v-if="toneChoice === 'custom'" v-model="customTone" :maxlength="WRITING_TONE_MAX_LENGTH" :disabled="saving" aria-label="自定义语气" placeholder="例如：耐心、鼓励，避免夸张" /></section>
       <section><h4>您的角色</h4><WritingChoices v-model="roleChoice" :options="roleOptions" label="您的角色" :disabled="saving" /><input v-if="roleChoice === 'custom'" v-model="customRole" :maxlength="WRITING_ROLE_MAX_LENGTH" :disabled="saving" aria-label="自定义角色" placeholder="例如：正在排查问题的项目维护者" /></section>
     </div>
-    <footer><button type="button" class="writing-button" :disabled="saving" @click="emit('cancel')">取消</button><button type="button" class="writing-button primary" :disabled="saving || !valid" @click="confirm">{{ saving ? '正在保存…' : actionLabel }}</button></footer>
+    <footer><button type="button" class="writing-button" :disabled="saving" @click="emit('cancel')">取消</button><button type="button" class="writing-button primary" :disabled="saving || !valid" @click="confirm">{{ saving ? '正在保存…' : changed ? actionLabel : '应用' }}</button></footer>
   </div>
 </template>
 <script setup lang="ts">
@@ -31,7 +31,9 @@ const roleChoice = ref(WRITING_ROLES.some(item => item.value === selection.role)
 const customTone = ref(toneChoice.value === 'custom' ? selection.tone : '');
 const customRole = ref(roleChoice.value === 'custom' ? selection.role : '');
 const valid = computed(() => (toneChoice.value !== 'custom' || Boolean(customTone.value.trim())) && (roleChoice.value !== 'custom' || Boolean(customRole.value.trim())));
-function confirm() { emit('apply', {...selection, tone: toneChoice.value === 'custom' ? customTone.value.trim() : toneChoice.value, role: roleChoice.value === 'custom' ? customRole.value.trim() : roleChoice.value}); }
+const selected = computed(() => ({...selection, tone: toneChoice.value === 'custom' ? customTone.value.trim() : toneChoice.value, role: roleChoice.value === 'custom' ? customRole.value.trim() : roleChoice.value}));
+const changed = computed(() => Object.entries(selected.value).some(([key, value]) => props.modelValue[key as keyof StylePreferences] !== value));
+function confirm() { emit('apply', selected.value); }
 </script>
 <style scoped>
 .writing-style-editor{display:flex;flex-direction:column;flex:1;min-height:0;padding:4px 20px 0}.writing-subheading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}.writing-subheading h3{font-size:15px;font-weight:650;margin:0}.writing-style-fields{min-height:0;overflow:auto;overscroll-behavior:contain;padding:1px 2px 4px}.writing-style-fields section+section{margin-top:9px}.writing-style-fields h4{font-size:12px;font-weight:500;color:var(--w-muted);margin:0 0 5px}.writing-style-fields input{display:block;width:100%;box-sizing:border-box;margin-top:8px;border:1px solid var(--w-line);background:var(--w-soft);color:var(--w-ink);border-radius:9px;padding:9px 11px;font:inherit;font-size:12px}.writing-style-fields input:focus-visible{outline:2px solid var(--w-brand);outline-offset:1px}.writing-style-fields p{color:var(--w-muted);font-size:11px;margin:7px 0 0}footer{display:flex;justify-content:flex-end;gap:9px;flex-shrink:0;border-top:1px solid var(--w-line);padding:10px 0;margin-top:9px}@media(max-width:540px){.writing-style-editor{padding-inline:14px}}

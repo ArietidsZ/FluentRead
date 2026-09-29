@@ -15,6 +15,22 @@ import {translationStatsRussianMessages} from './translationStats';
 import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
+    "writing.experience.enableDescription": "Создавайте и улучшайте ответы в GitHub и Gmail. Проверьте текст перед отправкой.",
+    "writing.experience.disabled": "Кнопка помощника скрыта. Настройки сохранены.",
+    "writing.experience.paused": "Возобновите работу расширения, чтобы использовать помощника.",
+    "writing.experience.inheritModel": "Модель сервиса · {model}",
+    "writing.experience.inheritModelEmpty": "Использовать модель сервиса",
+    "writing.experience.roleHelp": "Выберите свою роль в беседе или оставьте автоматический выбор.",
+    "writing.experience.previewTitle": "Пример стиля",
+    "writing.experience.previewNote": "Пример показывает различия стиля без обращения к ИИ.",
+    "writing.experience.setupTitle": "Ещё один шаг — и можно писать",
+    "writing.experience.emptyDraft": "Укажите адресата, цель и основные мысли для первого черновика.",
+    "writing.experience.incomplete": "Этот черновик не завершён. Проверьте его перед использованием.",
+    "writing.experience.stoppedEmpty": "Остановлено. Добавьте основные мысли и запустите снова.",
+    "writing.experience.suggestionThanks": "Благодарность и уточнение",
+    "writing.experience.suggestionProgress": "Сообщить о ходе работы",
+    "writing.experience.suggestionDecline": "Вежливо отказать",
+
     "glossary.serviceReady": "Текущий сервис веб-перевода поддерживает глоссарии с учётом языка и сайта.",
     "glossary.serviceUnavailable": "Текущий сервис или модель веб-перевода не поддерживает глоссарии. Их можно редактировать.",
     "glossary.configureService": "Выбрать сервис",

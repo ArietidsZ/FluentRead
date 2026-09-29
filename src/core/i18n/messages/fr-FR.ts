@@ -15,6 +15,22 @@ import {translationStatsFrenchMessages} from './translationStats';
 import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
+    "writing.experience.enableDescription": "Rédigez et améliorez vos réponses dans GitHub et Gmail, puis relisez-les avant l’envoi.",
+    "writing.experience.disabled": "Le bouton de rédaction est masqué. Vos préférences sont conservées.",
+    "writing.experience.paused": "Réactivez l’extension pour utiliser l’assistant de rédaction.",
+    "writing.experience.inheritModel": "Modèle du service · {model}",
+    "writing.experience.inheritModelEmpty": "Utiliser le modèle du service",
+    "writing.experience.roleHelp": "Choisissez votre rôle dans l’échange, ou laissez le mode automatique.",
+    "writing.experience.previewTitle": "Aperçu du style",
+    "writing.experience.previewNote": "Cet exemple illustre le style sans solliciter l’IA.",
+    "writing.experience.setupTitle": "Une dernière étape avant de rédiger",
+    "writing.experience.emptyDraft": "Indiquez le destinataire, l’objectif et les points clés pour créer un premier brouillon.",
+    "writing.experience.incomplete": "Ce brouillon est incomplet. Vérifiez-le avant de l’utiliser.",
+    "writing.experience.stoppedEmpty": "Arrêté. Ajoutez vos points clés et relancez la génération.",
+    "writing.experience.suggestionThanks": "Remercier et faire le suivi",
+    "writing.experience.suggestionProgress": "Donner des nouvelles",
+    "writing.experience.suggestionDecline": "Décliner poliment",
+
     "glossary.serviceReady": "Le service web actuel prend en charge les glossaires selon leur langue et leur portée.",
     "glossary.serviceUnavailable": "Le service ou modèle web actuel ne prend pas en charge les glossaires. Ils restent modifiables.",
     "glossary.configureService": "Choisir un service",
