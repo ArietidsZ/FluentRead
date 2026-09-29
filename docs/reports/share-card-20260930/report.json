@@ -60,5 +60,10 @@
     "showSource": true,
     "showBrand": true
   },
-  "status": "passed"
+  "status": "passed",
+  "integrationBase": "f58e4c28",
+  "targetedTests": {
+    "files": 14,
+    "passed": 1032
+  }
 }
