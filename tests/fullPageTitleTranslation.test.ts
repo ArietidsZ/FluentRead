@@ -79,6 +79,55 @@ afterEach(() => {
 });
 
 describe('全文翻译的页面标题', () => {
+    it('路由改写标题时立即取消旧请求，只为稳定标题创建新请求', async () => {
+        const signals: AbortSignal[] = [];
+        hooks.translateText.mockImplementation((_text, _context, options) => {
+            signals.push((options as {signal: AbortSignal}).signal);
+            return new Promise(() => {});
+        });
+        startFullPageTitleTranslation(snapshot);
+        pageSetsTitle('Loading Next Page');
+        expect(signals[0]!.aborted).toBe(true);
+        pageSetsTitle('Next Page');
+        await vi.advanceTimersByTimeAsync(150);
+        expect(signals).toHaveLength(2);
+        expect(signals[1]!.aborted).toBe(false);
+        expect(hooks.translateText.mock.calls[1]![0]).toBe('Next Page');
+        stopFullPageTitleTranslation();
+        expect(signals[1]!.aborted).toBe(true);
+    });
+
+    it.each(['', '已经是中文的标题'])('新标题无需翻译时也取消旧请求：%s', async title => {
+        let signal: AbortSignal | undefined;
+        hooks.translateText.mockImplementation((_text, _context, options) => {
+            signal = (options as {signal: AbortSignal}).signal;
+            return new Promise(() => {});
+        });
+        startFullPageTitleTranslation(snapshot);
+        hooks.shouldSkip.mockReturnValue(true);
+        pageSetsTitle(title);
+        expect(signal!.aborted).toBe(true);
+        await vi.advanceTimersByTimeAsync(200);
+        expect(hooks.translateText).toHaveBeenCalledTimes(1);
+        expect(currentTitle).toBe(title);
+    });
+
+    it('标题已改变但观察者微任务尚未送达时，旧译文也不能覆盖宿主标题', async () => {
+        let resolveFirst!: (value: string) => void;
+        hooks.translateText.mockImplementationOnce(() => new Promise(resolve => { resolveFirst = resolve; }));
+        startFullPageTitleTranslation(snapshot);
+        currentTitle = 'Next Page';
+        resolveFirst('迟到的旧标题');
+        await Promise.resolve();
+        expect(currentTitle).toBe('Next Page');
+        hooks.translateText.mockResolvedValue('下一页');
+        connected.forEach(callback => callback());
+        await vi.advanceTimersByTimeAsync(200);
+        expect(currentTitle).toBe('下一页');
+        stopFullPageTitleTranslation();
+        expect(currentTitle).toBe('Next Page');
+    });
+
     it('会话启动后把标题替换为译文，恢复时写回原标题', async () => {
         hooks.translateText.mockResolvedValue('今日要闻');
 

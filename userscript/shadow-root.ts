@@ -22,39 +22,6 @@ export interface ShadowRootContentScriptUi<T> {
     remove(): void;
 }
 
-/** 在 userscript 启动阶段恢复构建时 gzip 的共享样式，保持完整页面样式不占用上传体积。 */
-export async function prepareUserscriptCss(): Promise<void> {
-    if (globalThis.__fluentReadUserscriptCss || !globalThis.__fluentReadUserscriptCssCompressed) return;
-
-    const encoded = globalThis.__fluentReadUserscriptCssCompressed;
-    const binary = atob(encoded);
-    const compressed = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-        compressed[index] = binary.charCodeAt(index);
-    }
-    if (typeof DecompressionStream === 'function') {
-        const decompressed = new Blob([compressed])
-            .stream()
-            .pipeThrough(new DecompressionStream('gzip'));
-        globalThis.__fluentReadUserscriptCss = await new Response(decompressed).text();
-        return;
-    }
-
-    // Safari 14/15 and older embedded WebViews do not provide
-    // DecompressionStream. pako is an external @require fallback so the full
-    // settings stylesheet remains compressed in the Greasy Fork upload.
-    const gzip = (globalThis as typeof globalThis & {
-        pako?: {ungzip(data: Uint8Array, options?: {to?: string}): string | Uint8Array};
-    }).pako;
-    if (!gzip || typeof gzip.ungzip !== 'function') {
-        throw new Error('当前浏览器缺少 CSS gzip 解压能力，请更新浏览器或重新保存 userscript 的 @require 依赖');
-    }
-    const text = gzip.ungzip(compressed, {to: 'string'});
-    globalThis.__fluentReadUserscriptCss = typeof text === 'string'
-        ? text
-        : new TextDecoder().decode(text);
-}
-
 function installStyles(shadow: ShadowRoot, localCss = '', scopeRoot = false): void {
     // 构建时汇总的全局 CSS 与当前组件 CSS 只写入 ShadowRoot，避免污染宿主网页样式。
     const css = [globalThis.__fluentReadUserscriptCss || '', localCss].filter(Boolean).join('\n');

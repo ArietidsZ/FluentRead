@@ -4,7 +4,7 @@
  * 主要内容：约束术语库与条目数量，规范 Unicode、语言及域名，将常见中文旧语言标签统一到简繁脚本；生成无冲突标识并保留显式停用选择，非法网站范围不会扩大成全局范围。
  * 模块边界：只处理传入数据并计算同步 SHA-256，不读取浏览器状态、不发网络请求，也不承担提示词或界面渲染。
  */
-import sha256 from 'crypto-js/sha256';
+import {sha256Hex} from '@/src/shared/function/sha256';
 import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 
 export interface GlossaryEntry {
@@ -174,5 +174,5 @@ export function buildGlossaryRevision(
         targetLanguage: library.targetLanguage, domains: library.domains,
         entries: library.entries.map(({source, target, caseSensitive}) => ({source, target, caseSensitive})),
     }));
-    return `glossary-v1:${sha256(JSON.stringify(semantic)).toString()}`;
+    return `glossary-v1:${sha256Hex(JSON.stringify(semantic))}`;
 }

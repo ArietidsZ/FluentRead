@@ -6,7 +6,7 @@ import {resolveBrowserCapabilities} from './src/platform/browser/capabilities';
 import {wllamaExtensionWorker} from './scripts/testing/wllama-extension-build';
 import {createUiLanguageBundleFiles} from './src/core/i18n/bundles';
 import {UI_LANGUAGE_BUNDLE_DIRECTORY} from './src/core/i18n/language';
-import {packageWasmDiagnostics} from './scripts/wasm/package-diagnostics';
+import {packageWasmDiagnostics, packageTesseractWasm} from './scripts/wasm/package-diagnostics';
 
 
 const packageJson = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
@@ -206,7 +206,9 @@ export default defineConfig({
             files.push({absoluteSrc: resolve(ttsOrtDist, 'ort-wasm-simd-threaded.asyncify.wasm'), relativeDest: 'fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm'});
             const ocrCore = files.find(file => file.relativeDest === 'fluent-read-ocr/core/tesseract-core-simd-lstm.wasm.js');
             if (!ocrCore || !('absoluteSrc' in ocrCore)) throw new Error('Missing packaged OCR core');
-            ocrCore.absoluteSrc = packageWasmDiagnostics(__dirname, ocrCore.absoluteSrc, 'tesseract-core-simd-lstm.wasm.js', 'tesseract');
+            const packagedOcr = packageTesseractWasm(__dirname, ocrCore.absoluteSrc);
+            ocrCore.absoluteSrc = packagedOcr.glue;
+            files.push({absoluteSrc: packagedOcr.wasm, relativeDest: 'fluent-read-ocr/core/tesseract-core-simd-lstm.wasm'});
         },
     },
 

@@ -16,14 +16,14 @@ import {
     EMBEDDED_FRAME_REQUEST, isSupportedEmbeddedFrameUrl, isSupportedEmbeddedTopUrl,
 } from '@/src/features/full-page-translation/embeddedFrames';
 import {
-    autoTranslateEnglishPage, getFullPageTranslationFrameState,
+    autoTranslateEnglishPage, getFullPageTranslationFrameState, cancelPendingHoverTranslation,
+    handleTranslation, noteBilingualHostGesture,
     invalidateFullPageTranslationSessionCache, restoreOriginalContent,
     type PageTranslationInvocation,
 } from '@/src/features/full-page-translation/public';
 import {cancelAllTranslations} from '@/src/app/translation/client';
 import {getCenterPoint} from '@/src/shared/geometry/touch';
-import {cancelPendingHoverTranslation, handleTranslation, mountHoverTranslationContentFeature,
-    noteBilingualHostGesture} from './features';
+import {mountHoverTranslationContentFeature} from '@/src/features/hover-translation/public';
 import {createContentHotkeyRuntime} from './hotkeyRuntime';
 import {mountConfiguredQuickTranslation} from './quickTranslationRuntime';
 import {installPageStyles} from './pageStyles';

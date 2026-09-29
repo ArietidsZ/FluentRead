@@ -33,6 +33,16 @@ describe('multi-key request orchestration', () => {
         expect(used).toEqual([first]);
     });
 
+    it.each([false, true])('does not compute unused rotation scope for a single key (enabled=%s)', async enabled => {
+        const readEndpoint = vi.fn(() => 'https://fixture.invalid');
+        const proxy = Object.defineProperty({}, 'demo', {get: readEndpoint});
+        const source = {token: {demo: first}, proxy, apiKeyRotationEnabled: {demo: enabled}};
+        const operation = vi.fn(async selected => selected.token.demo);
+        await expect(run(source, 'demo', operation)).resolves.toBe(first);
+        expect(readEndpoint).not.toHaveBeenCalled();
+        expect(operation).toHaveBeenCalledTimes(1);
+    });
+
     it('clears stale tokens when an explicit service key list is empty or blank', async () => {
         const operation = vi.fn(async (source: any) => source);
         const stale = {token: {demo: 'stale-secret'}, apiKeys: {demo: []}};
