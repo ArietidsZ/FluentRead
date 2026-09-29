@@ -15,6 +15,22 @@ import {translationStatsKoreanMessages} from './translationStats';
 import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
+    "writing.experience.enableDescription": "GitHub와 Gmail에서 답장을 작성하고 다듬으세요. 확인 후 직접 보내세요.",
+    "writing.experience.disabled": "웹페이지 작성 버튼이 숨겨졌습니다. 설정은 유지됩니다.",
+    "writing.experience.paused": "확장 프로그램을 다시 켜면 글쓰기 도우미를 사용할 수 있습니다.",
+    "writing.experience.inheritModel": "서비스 모델 사용 · {model}",
+    "writing.experience.inheritModelEmpty": "서비스 모델 사용",
+    "writing.experience.roleHelp": "대화에서의 역할을 선택하세요. 확실하지 않으면 자동으로 두세요.",
+    "writing.experience.previewTitle": "표현 미리보기",
+    "writing.experience.previewNote": "표현 차이를 보여 주는 예시이며 AI를 호출하지 않습니다.",
+    "writing.experience.setupTitle": "한 단계만 더 진행하면 글쓰기를 시작할 수 있어요",
+    "writing.experience.emptyDraft": "받는 사람, 목적, 핵심 내용을 적어 첫 초안을 만들어 보세요.",
+    "writing.experience.incomplete": "아직 완성되지 않은 초안입니다. 사용 전에 확인하세요.",
+    "writing.experience.stoppedEmpty": "중지했습니다. 핵심 내용을 추가한 후 다시 생성하세요.",
+    "writing.experience.suggestionThanks": "감사 및 후속 연락",
+    "writing.experience.suggestionProgress": "진행 상황 공유",
+    "writing.experience.suggestionDecline": "정중히 거절",
+
     "glossary.serviceReady": "현재 웹 번역 서비스는 용어집을 지원하며 언어와 사이트 범위에 따라 적용합니다.",
     "glossary.serviceUnavailable": "현재 웹 번역 서비스 또는 모델은 용어집을 지원하지 않습니다. 편집은 가능합니다.",
     "glossary.configureService": "번역 서비스 선택",

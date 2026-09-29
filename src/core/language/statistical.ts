@@ -144,7 +144,8 @@ function canonicalFrancCode(code: string, script: StatisticalScript): string {
  */
 export function assessStatisticalLanguage(script: StatisticalScript, words: readonly string[]): StatisticalAssessment {
     const thresholds = STATISTICAL_THRESHOLDS;
-    const lowered = words.map(word => word.toLocaleLowerCase().replace(/\u0307/gu, '').replace(/’/gu, "'"));
+    // 功能词词典使用 Unicode 默认大小写；不能让宿主的土耳其语区域设置把英文 I 改成 ı。
+    const lowered = words.map(word => word.toLowerCase().replace(/\u0307/gu, '').replace(/’/gu, "'"));
     // 印度诸文字的元音符号属于音节，与字母一起计数，避免 Devanagari 文本被低估长度。
     const letters = lowered.flatMap(word => [...word].filter(character => /[\p{L}\p{M}]/u.test(character)));
     const {scores, hits} = scoreFunctionWords(script, new Set(lowered));

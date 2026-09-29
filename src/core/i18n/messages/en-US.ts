@@ -16,6 +16,22 @@ import {translationStatsEnglishMessages} from './translationStats';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
+    "writing.experience.enableDescription": "Draft and improve replies in GitHub and Gmail. Review them before sending.",
+    "writing.experience.disabled": "The writing button is hidden. Your preferences are kept.",
+    "writing.experience.paused": "Resume the extension to use the writing assistant.",
+    "writing.experience.inheritModel": "Use service model · {model}",
+    "writing.experience.inheritModelEmpty": "Use service model",
+    "writing.experience.roleHelp": "Choose your role in the conversation, or leave it on Auto.",
+    "writing.experience.previewTitle": "Style preview",
+    "writing.experience.previewNote": "This sample shows style differences without calling AI.",
+    "writing.experience.setupTitle": "One more step to start writing",
+    "writing.experience.emptyDraft": "Describe the recipient, purpose and key points to create a first draft.",
+    "writing.experience.incomplete": "This draft is incomplete. Review it before using it.",
+    "writing.experience.stoppedEmpty": "Stopped. Add your key points and generate again.",
+    "writing.experience.suggestionThanks": "Thank and follow up",
+    "writing.experience.suggestionProgress": "Share an update",
+    "writing.experience.suggestionDecline": "Politely decline",
+
     "glossary.serviceReady": "Your web translation service supports glossaries within their language and website scope.",
     "glossary.serviceUnavailable": "Your current web translation service or model does not support glossaries. You can still edit them.",
     "glossary.configureService": "Choose a translation service",

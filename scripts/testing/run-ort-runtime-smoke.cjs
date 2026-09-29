@@ -1,6 +1,6 @@
 'use strict';
 
-// 在独立产物副本中用真实 ORT 执行微型 ONNX 图，验证原始 WASM 的 CPU/GPU 加载与算子。
+// 在独立产物副本中验证生产 Worker 的模块加载/消息，再用真实 ORT 执行微型 ONNX 图。
 // 只附加测试页/Worker，保留被测扩展的 CSP；不下载模型、不修改生产产物。
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,7 +19,7 @@ const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-ort-smoke-prof
 const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-ort-smoke-extension-'));
 fs.mkdirSync(artifacts, {recursive: true});
 fs.cpSync(source, fixture, {recursive: true});
-const report = {source, prototype, diagnostics, cases: [], errors: [], evidence: 'Real ONNX Identity session in an owned extension Worker; this does not claim full translation, speech synthesis or transcription quality.'};
+const report = {source, prototype, diagnostics, workerEntries: [], cases: [], errors: [], evidence: 'Production Worker entry/chunk loading and no-model message handling, plus real ONNX Identity sessions in owned probe Workers; this does not claim full translation, speech synthesis or transcription quality.'};
 const expectedDigests = {};
 
 // ONNX ModelProto: Identity(float32[1]) with opset 13, generated without a model download.
@@ -90,6 +90,44 @@ self.onmessage = async ({data: {backend}}) => {
     page.on('console', message => consoleLogs.push({type: message.type(), text: message.text()}));
     page.on('pageerror', error => report.errors.push(error.message));
     await page.goto(`${origin}/probe.html`);
+    const workerCases = [
+      {entry: 'localTranslationWorker', requests: [
+        {requestId: 1, type: 'dispose'}, {requestId: 2, type: 'translate', text: ''}, {requestId: 3, type: 'dispose'},
+      ], expected: [
+        {requestId: 1, success: true}, {requestId: 2, success: false, error: 'LOCAL_TRANSLATION_INVALID_REQUEST'}, {requestId: 3, success: true},
+      ]},
+      {entry: 'localTtsWorker', requests: [
+        {requestId: 1, type: 'dispose'}, {requestId: 2, type: 'synthesize', text: ''}, {requestId: 3, type: 'dispose'},
+      ], expected: [
+        {requestId: 1, success: true}, {requestId: 2, success: false, error: '本地 TTS 文本为空'}, {requestId: 3, success: true},
+      ]},
+      {entry: 'videoTranscriptionWorker', requests: [
+        {requestId: 1, type: 'transcribe'}, {type: 'dispose'}, {requestId: 2, type: 'transcribe'},
+      ], expected: [
+        {requestId: 1, success: true, text: '', segments: []}, {requestId: 2, success: true, text: '', segments: []},
+      ]},
+    ];
+    for (const {entry, requests, expected} of workerCases) {
+      // 两个独立 Worker 使用相同请求号，覆盖共享 chunk 后的上下文隔离；加载前立即排队消息。
+      const instances = await page.evaluate(({entry, requests, count}) => Promise.all([0, 1].map(() => new Promise((resolve, reject) => {
+        const worker = new Worker(new URL(`${entry}.js`, location.href), {type: 'module'});
+        const responses = [];
+        const timer = setTimeout(() => {worker.terminate(); reject(new Error(`${entry} initialization timed out`));}, 15000);
+        worker.onerror = event => {clearTimeout(timer); worker.terminate(); reject(new Error(`${entry}: ${event.message}`));};
+        worker.onmessage = event => {
+          responses.push(event.data);
+          if (responses.length === count) {clearTimeout(timer); worker.terminate(); resolve(responses);}
+        };
+        requests.forEach(request => worker.postMessage(request));
+      }))), {entry, requests, count: expected.length});
+      report.workerEntries.push({entry, instances});
+      for (const responses of instances) {
+        assert.equal(responses.length, expected.length);
+        expected.forEach((response, index) => {
+          for (const [key, value] of Object.entries(response)) assert.deepEqual(responses[index][key], value, `${entry} response ${index}: ${key}`);
+        });
+      }
+    }
     for (const label of ['opus-whisper', 'kokoro']) {
       for (const backend of ['wasm', 'webgpu']) {
       const logStart = consoleLogs.length;

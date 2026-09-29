@@ -1,53 +1,58 @@
 <!--
  * @file src/features/settings/ui/WritingSettings.vue
  * 文件职责：提供写作助手总开关、默认回复偏好和 AI 服务连接设置。
- * 主要内容：按启用、写作服务、回答风格组织设置；写作服务集中配置 AI 服务、模型、输出与对照语言。
+ * 主要内容：用单层开关、紧凑的服务语言网格与并排风格示例组织设置，提前提示缺失配置，清楚区分默认偏好与真实生成。
  * 模块边界：只编辑设置中心持久化的同一份写作配置；不提供快捷键、重复入口开关或网站列表，不请求模型也不生成真实正文。
  -->
 <template>
   <div class="writing-settings">
-    <p class="writing-description">在 GitHub 新建 Issue、Issue/PR 回复和 Gmail 邮件编辑区点击「写作助手」，起草内容或完善草稿。</p>
-    <SettingsGroup>
-      <FeatureEnableCard v-model="config.writing.enabled" title="启用写作助手" description="在 GitHub 新建 Issue、Issue/PR 回复和 Gmail 邮件编辑区自动显示。点击入口开始写作，提交或发送前由你确认。" />
-    </SettingsGroup>
+    <FeatureEnableCard v-model="config.writing.enabled" title="启用写作助手" :description="t('writing.experience.enableDescription')" />
+    <p v-if="!config.writing.enabled" class="writing-description" role="status">{{ t('writing.experience.disabled') }}</p>
+    <p v-else-if="!config.on" class="writing-description" role="status">{{ t('writing.experience.paused') }}</p>
     <SettingsGroup title="写作服务">
       <div class="writing-service-grid">
         <SettingsItem label="AI 服务" stacked>
-          <el-select v-model="config.writing.service" aria-label="写作服务" placeholder="选择 AI 服务" @change="config.writing.model = ''" filterable>
-            <el-option v-if="defaultSupported" value="" :label="`跟随默认服务 · ${defaultServiceLabel}`" />
+          <el-select v-model="config.writing.service" :empty-values="[null, undefined]" aria-label="写作服务" placeholder="选择 AI 服务" @change="config.writing.model = ''" filterable>
+            <el-option value="" :label="`跟随默认服务 · ${defaultServiceLabel}`" />
             <el-option v-for="item in serviceOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </SettingsItem>
         <SettingsItem label="模型" stacked>
-          <el-select v-model="config.writing.model" clearable filterable allow-create default-first-option aria-label="写作模型" :placeholder="resolvedModel || '选择或输入模型'" :disabled="!supported">
+          <template #copy><div class="writing-model-label"><strong>模型</strong><button v-if="supported" type="button" @click="emit('configure-service')">配置服务连接 →</button></div></template>
+          <el-select v-model="config.writing.model" :empty-values="[null, undefined]" filterable allow-create default-first-option aria-label="写作模型" placeholder="选择或输入模型" :disabled="!supported">
+            <el-option value="" :label="resolvedModel ? t('writing.experience.inheritModel', {model: resolvedModel}) : t('writing.experience.inheritModelEmpty')" />
             <el-option v-for="item in modelOptions" :key="item" :label="item" :value="item" />
           </el-select>
         </SettingsItem>
-      </div>
-      <SettingsItem label="输出语言" description="默认跟随网页翻译的目标语言。">
+      <SettingsItem label="输出语言" stacked>
         <el-select v-model="config.writing.language" class="writing-default-language" aria-label="输出语言" filterable>
           <el-option v-for="item in WRITING_LANGUAGES" :key="item.value" :value="item.value" :label="item.value === 'target' ? `跟随目标语言 · ${targetLanguageLabel}` : item.label" />
         </el-select>
       </SettingsItem>
-      <SettingsItem :label="t('writing.referenceLanguage')" :description="t('writing.referenceDescription')">
+      <SettingsItem :label="t('writing.referenceLanguage')" stacked>
         <el-select v-model="config.writing.referenceLanguage" class="writing-default-language" :aria-label="t('writing.referenceLanguage')" filterable>
           <el-option value="ui" :label="t('writing.interfaceLanguage')" />
           <el-option value="off" :label="t('writing.referenceDisabled')" />
           <el-option v-for="item in WRITING_LANGUAGES.filter(item => item.value !== 'target')" :key="item.value" :value="item.value" :label="item.label" />
         </el-select>
       </SettingsItem>
-      <div class="writing-connection"><button type="button" @click="emit('configure-service')">配置服务连接 →</button></div>
+      </div>
+      <div v-if="readiness.issue" class="writing-connection">
+        <p class="writing-setup-message" role="status">{{ readiness.message }}</p>
+      </div>
     </SettingsGroup>
-    <SettingsGroup title="回答风格" description="设置会自动保存，并与写作卡片中的偏好同步。调整这里不会生成正文。">
+    <SettingsGroup title="回答风格">
       <div class="writing-default-style">
+        <div class="writing-style-controls">
         <section><h3>长度</h3><WritingChoices v-model="config.writing.length" :options="WRITING_LENGTHS" label="长度" /></section>
         <section><h3>风格</h3><WritingChoices v-model="config.writing.style" :options="WRITING_STYLES" label="风格" /></section>
         <section><h3>语气</h3><WritingChoices v-model="toneChoice" :options="toneOptions" label="语气" />
           <div v-if="toneChoice === 'custom'" class="writing-custom-preference"><el-input :model-value="customTone" :maxlength="WRITING_TONE_MAX_LENGTH" aria-label="自定义语气" placeholder="例如：耐心、鼓励，避免夸张" @update:model-value="updateCustomTone" /><small>留空时使用自然语气。</small></div>
         </section>
-        <section><h3>您的角色</h3><WritingChoices v-model="roleChoice" :options="roleOptions" label="您的角色" />
+        <section><h3 :title="t('writing.experience.roleHelp')">您的角色</h3><WritingChoices v-model="roleChoice" :options="roleOptions" label="您的角色" />
           <div v-if="roleChoice === 'custom'" class="writing-custom-preference"><el-input :model-value="customRole" :maxlength="WRITING_ROLE_MAX_LENGTH" aria-label="自定义角色" placeholder="例如：正在排查问题的项目维护者" @update:model-value="updateCustomRole" /><small>留空时不指定回复身份。</small></div>
         </section>
+        </div>
         <WritingStylePreview
           :length="config.writing.length" :style="config.writing.style"
           :tone="toneChoice === 'custom' ? customTone || 'custom' : config.writing.tone" :role="roleChoice === 'custom' ? customRole || 'custom' : config.writing.role"
@@ -63,6 +68,7 @@ import {useUiI18n} from '@/src/ui/i18n';
 import type {Config} from '@/src/core/config/model';
 import {models, options, resolveConfiguredModel} from '@/src/core/config/catalog';
 import {isHarnessService} from '@/src/core/config/harness';
+import {resolveWritingReadiness} from '@/src/core/config/writingReadiness';
 import {getCustomOpenAIProviderModels, isCustomOpenAIProviderId} from '@/src/core/config/customOpenAI';
 import {WRITING_LANGUAGES, WRITING_LENGTHS, WRITING_STYLES, WRITING_TONES, WRITING_ROLES, WRITING_TONE_MAX_LENGTH, WRITING_ROLE_MAX_LENGTH, resolveWritingLanguage, resolveWritingReferenceLanguage} from '@/src/core/config/writing';
 import {WritingChoices} from '@/src/features/writing-assistant/public';
@@ -101,21 +107,40 @@ const {choice: toneChoice, text: customTone, update: updateCustomTone} = customP
 const {choice: roleChoice, text: customRole, update: updateCustomRole} = customPreference('role', WRITING_ROLES, WRITING_ROLE_MAX_LENGTH, 'auto');
 const serviceOptions = computed(() => [...options.services.filter(item => !item.disabled && isHarnessService(item.value)), ...config.value.customOpenAIProviders.map(item => ({value: item.id, label: item.name}))]);
 const service = computed(() => config.value.writing.service || config.value.service);
-const supported = computed(() => isHarnessService(service.value, config.value.customOpenAIProviders));
-const defaultSupported = computed(() => isHarnessService(config.value.service, config.value.customOpenAIProviders));
-const defaultServiceLabel = computed(() => serviceOptions.value.find(item => item.value === config.value.service)?.label || config.value.service);
+const readiness = computed(() => resolveWritingReadiness(config.value));
+const supported = computed(() => readiness.value.supported);
+const defaultServiceLabel = computed(() => options.services.find(item => item.value === config.value.service)?.label || serviceOptions.value.find(item => item.value === config.value.service)?.label || config.value.service);
 const resolvedModel = computed(() => resolveConfiguredModel(config.value.model[service.value], config.value.customModel[service.value]));
 const modelOptions = computed(() => (isCustomOpenAIProviderId(service.value) ? getCustomOpenAIProviderModels(config.value.customOpenAIProviders, service.value) : models.get(service.value) ?? []).filter(item => item !== '自定义模型'));
 // 对照语言在示例里只提示一行，真实译文仍由写作卡片在生成后请求。
 const referencePreviewLabel = computed(() => {
   const language = resolveWritingReferenceLanguage(config.value.writing.referenceLanguage, uiLanguage.value);
-  if (!language) return '';
+  if (!language || language === resolveWritingLanguage(config.value.writing.language, config.value.to)) return '';
   return (WRITING_LANGUAGES.find(item => item.value === language)?.label || language).split(' / ')[0];
 });
 </script>
 <style scoped>
-.writing-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:16px;border-bottom:1px solid var(--line)}
-.writing-service-grid :deep(.settings-item){min-width:0;min-height:0;padding:0;border:0!important;background:transparent}
-
-.writing-settings{max-width:880px;margin:0 auto}.writing-description{margin:0 0 22px;color:var(--muted);font-size:13px;line-height:1.8}.writing-default-language{max-width:280px!important}.writing-default-style{--w-brand:var(--brand);--w-brand-soft:var(--brand-soft);--w-ink:var(--ink);--w-soft:var(--surface-soft);--w-line:var(--line);display:flex;flex-direction:column;gap:16px;padding:16px 18px}.writing-default-style h3{margin:0 0 8px;font-size:12px;line-height:1.5;font-weight:600;color:var(--ink)}.writing-default-style :deep(.writing-choices){gap:7px}.writing-default-style :deep(.writing-choices button){box-sizing:border-box;min-height:32px;height:32px;padding:6px 12px;font-size:12px;line-height:18px;border-radius:8px}.writing-custom-preference{display:flex;flex-direction:column;gap:6px;width:100%;max-width:420px;min-width:0;margin-top:9px}.writing-custom-preference small{font-size:10.5px;line-height:1.55;color:var(--muted)}.writing-connection{display:flex;justify-content:flex-end;align-items:center;padding:0 18px 16px}.writing-connection button{flex-shrink:0;border:0;padding:0;background:none;color:var(--brand);font:inherit;font-size:12px;cursor:pointer}.writing-connection button:focus-visible{outline:2px solid var(--brand);outline-offset:4px}@media(max-width:600px){.writing-service-grid{grid-template-columns:minmax(0,1fr)}.writing-default-style{padding:14px 12px;gap:15px}}@media(max-width:480px){.writing-default-language{max-width:none!important}.writing-custom-preference{max-width:none}}
+.writing-settings{max-width:1040px;margin:0 auto}
+.writing-settings>.feature-enable-card{margin:0 0 18px;padding:16px 18px;box-shadow:none;background:var(--surface)}
+.writing-description{margin:-6px 0 18px;color:var(--muted);font-size:12px;line-height:1.7}
+.writing-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;padding:16px 18px}
+.writing-service-grid :deep(.settings-item){min-width:0;min-height:0;padding:0;gap:8px;border:0!important;background:transparent}
+.writing-service-grid :deep(.settings-item-control){align-self:end}
+.writing-default-language{max-width:none!important}
+.writing-model-label{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.writing-connection{padding:12px 18px;border-top:1px solid var(--line);background:var(--surface-soft)}
+.writing-setup-message{margin:0;color:var(--muted);font-size:11px;line-height:1.65}
+.writing-setup-message{color:var(--ink)}
+.writing-model-label button{flex-shrink:0;border:0;padding:4px 0;background:none;color:var(--brand);font:inherit;font-size:12px;cursor:pointer}
+.writing-model-label button:focus-visible{outline:2px solid var(--brand);outline-offset:4px}
+.writing-default-style{--w-brand:var(--brand);--w-brand-soft:var(--brand-soft);--w-ink:var(--ink);--w-soft:var(--surface-soft);--w-line:var(--line);display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px;padding:16px 18px;align-items:start}
+.writing-style-controls{display:flex;flex-direction:column;gap:16px;min-width:0}
+.writing-default-style h3{margin:0 0 8px;font-size:12px;line-height:1.5;font-weight:600;color:var(--ink)}
+.writing-default-style :deep(.writing-choices){gap:6px}
+.writing-default-style :deep(.writing-choices button){box-sizing:border-box;min-height:32px;padding:6px 11px;font-size:12px;line-height:18px;border-radius:8px}
+.writing-default-style :deep(.style-preview){margin:0;min-width:0}
+.writing-custom-preference{display:flex;flex-direction:column;gap:6px;width:100%;min-width:0;margin-top:9px}
+.writing-custom-preference small{font-size:10.5px;line-height:1.55;color:var(--muted)}
+@media(max-width:1100px){.writing-default-style{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.writing-service-grid{grid-template-columns:minmax(0,1fr);padding:14px 12px;gap:16px}.writing-service-grid :deep(.settings-item-copy){min-height:0}.writing-default-style{padding:16px 12px}.writing-connection{align-items:flex-start;flex-direction:column;padding:12px}.writing-settings>.feature-enable-card{padding:14px 12px}}
 </style>

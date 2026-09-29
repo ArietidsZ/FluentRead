@@ -24,6 +24,7 @@ export default defineConfig({
         minWorkers: 1,
         fileParallelism: false,
         include: [
+            'tests/sha256.test.ts',
             'tests/bilingualSentenceHighlight.test.ts',
             'tests/onnxWasmBinary.test.ts',
             'tests/onnxWebGpu.test.ts',
@@ -352,6 +353,7 @@ export default defineConfig({
             reportsDirectory: 'coverage/core',
             reporter: ['text', 'json-summary', 'html'],
             include: [
+                'src/shared/function/sha256.ts',
                 'src/core/translation/sentenceAlignment.ts',
                 'src/features/full-page-translation/content/sentenceHighlight.ts',
                 'src/app/content/bilingualSentenceHighlight.ts',
@@ -382,6 +384,7 @@ export default defineConfig({
                 'src/features/writing-assistant/client.ts',
                 'src/features/writing-assistant/content.ts',
                 'src/core/config/writing.ts',
+                'src/core/config/writingReadiness.ts',
                 'src/core/config/writingPreview.ts',
                 'src/features/writing-assistant/entryPlacement.ts',
                 'src/features/writing-assistant/background.ts',

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/writing-assistant/ui/WritingSurface.vue
  * 文件职责：在隔离层中为 Gmail 与 GitHub 回复编辑器定位写作入口，维护当前编辑器的写作会话。
- * 主要内容：将入口内嵌到当前网页的原生操作行，同时用 Shadow DOM 隔离按钮内部样式；跟随编辑器与提交按钮重排，隐藏或移除编辑器时清理会话入口。
+ * 主要内容：将入口内嵌到当前网页的原生操作行，同时用 Shadow DOM 隔离按钮内部样式；跟随编辑器、提交按钮和异步界面语言资源更新，隐藏或移除编辑器时清理会话入口。
  * 模块边界：只拥有网页 DOM 和编辑器快照，不注册写作快捷键或网站停用名单，不执行模型和自动发送操作。
  -->
 <template>
@@ -12,12 +12,13 @@ import {computed, onBeforeUnmount, onMounted, ref, shallowRef, watch} from 'vue'
 import browser from 'webextension-polyfill';
 import {config as initialConfig, subscribeConfig} from '@/src/services/config/store';
 import {isExtensionDisabledOnSite} from '@/src/core/site-rules/domain';
-import {translateLegacyText, normalizeUiLanguage} from '@/src/core/i18n';
+import {useUiI18n} from '@/src/ui/i18n';
 import {isWritingPage, type WritingIntent} from '@/src/core/config/writing';
 import {applyWritingDraft, captureEditor, collectReplyContext, editorText, findReplyEditors, findReplyActionAnchor, isWritingEditor, writingSite, type EditorSnapshot} from '../editors';
 import {placeWritingEntry, prepareWritingEntryHost} from '../entryPlacement';
 import WritingPanel from './WritingPanel.vue';
 const config = shallowRef(initialConfig);
+const {translateLegacy, language: uiLanguage, bundleRevision} = useUiI18n();
 const unsubscribeConfig = subscribeConfig(value => { config.value = value; });
 onBeforeUnmount(unsubscribeConfig);
 const iconUrl = browser.runtime.getURL('/icon/128.png');
@@ -70,10 +71,10 @@ function scan() {
     entry.action = action;
     placeWritingEntry(entry.action, entry.host, site);
     entry.host.dataset.theme = dark.value ? 'dark' : 'light';
-    const label = translateLegacyText('写作助手', normalizeUiLanguage(config.value.uiLanguage));
+    const label = translateLegacy('写作助手');
     const node = entry.button.querySelector('span')!; if (node.textContent !== label) node.textContent = label;
     entry.button.setAttribute('aria-label', label);
-    entry.button.title = translateLegacyText('起草回复或完善已有草稿', normalizeUiLanguage(config.value.uiLanguage));
+    entry.button.title = translateLegacy('起草回复或完善已有草稿');
     entry.button.setAttribute('aria-haspopup', 'dialog');
     entry.button.setAttribute('aria-expanded', String(opened.value && snapshot.value?.element === editor));
   }
@@ -99,7 +100,7 @@ function fillDraft(text: string): string | undefined {
   if (!failure) { snapshot.value = captureEditor(snapshot.value.element, location.href); close(); }
   return failure;
 }
-watch(() => JSON.stringify([config.value.on, config.value.writing.enabled, config.value.disabledExtensionDomains, config.value.uiLanguage, dark.value]), scan);
+watch(() => JSON.stringify([config.value.on, config.value.writing.enabled, config.value.disabledExtensionDomains, uiLanguage.value, bundleRevision.value, dark.value]), scan);
 watch(opened, () => { for (const [editor, entry] of entries) entry.button.setAttribute('aria-expanded', String(opened.value && snapshot.value?.element === editor)); });
 onMounted(() => {
   scan(); observer = new MutationObserver(records => { if (records.some(record => !ownUi(record.target) && (record.type !== 'childList' || [...record.addedNodes, ...record.removedNodes].some(node => !ownUi(node))))) schedule(); });

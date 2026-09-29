@@ -28,6 +28,33 @@ beforeEach(() => {
 });
 
 describe('document translation API', () => {
+    it.each(['microsoft', 'openai'])('默认服务 %s 在整份文档期间保持不变', async (service) => {
+        mocks.defaultService = service;
+        const observed: string[] = [];
+        const translate = async (sources: string | string[], _context: string, options: {serviceOverride?: string}) => {
+            observed.push(options.serviceOverride || mocks.defaultService);
+            mocks.defaultService = 'changed-service';
+            return sources;
+        };
+        mocks.translateText.mockImplementation(translate);
+        mocks.translateTextBatch.mockImplementation(translate);
+        await translateDocumentSegments(Array.from({length: 17}, (_, id) => ({id, source: `Source ${id}`})), {fileName: 'stable.txt'});
+        expect(observed.length).toBeGreaterThan(1);
+        expect(new Set(observed)).toEqual(new Set([service]));
+    });
+
+    it('显式服务与模型同语言一样在任务开始时快照，调用方修改参数不会混用模型', async () => {
+        const options = {fileName: 'stable.txt', serviceOverride: 'openai', modelOverride: 'before'};
+        const observed: Array<[string, string]> = [];
+        mocks.translateText.mockImplementation(async (source: string, _context: string, request: typeof options) => {
+            observed.push([request.serviceOverride, request.modelOverride]);
+            options.serviceOverride = 'changed'; options.modelOverride = 'after';
+            return source;
+        });
+        await translateDocumentSegments(Array.from({length: 7}, (_, id) => ({id, source: `Source ${id}`})), options);
+        expect(observed).toEqual(Array.from({length: 7}, () => ['openai', 'before']));
+    });
+
     it('整份文档冻结术语版本与选择，分批期间修改入口设置不能改变后续请求', async () => {
         const selected = ['technical'];
         const glossary = {glossaryIds: selected, glossaryRevision: 'version-before'};

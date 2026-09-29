@@ -78,7 +78,7 @@ function fixture(site, variant = '') {
 (async () => {
   const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
   const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-writing-browser'));
-  const suites = {harness: 'Harness tool loop, persisted learning memory, language translation and memory mutation cancellation', bilingual: 'Reply and reading language combinations, source-only insertion and translation lifecycle', i18n: 'Issue #490 seven-language writing panel and content boundaries', all: 'All writing regression cases', settings: 'Default writing preferences, custom input stability, persistence and open-card synchronization', github: 'GitHub writing lifecycle and staged preferences', issue646: 'First GitHub issue reply and new issue creation', gmail: 'Gmail writing lifecycle and staged preferences', recovery: 'Model ownership and partial-stream recovery', context: 'Issue #421 context, target-language ownership, staged style, Markdown editing and insertion', compose: 'Empty and subject-only new mail, Gmail conversation isolation and rich signatures', layout: 'Editor resize and preceding-DOM positioning', dynamic: 'Remount, disabled focus, scrolling and global website rule', presentation: 'Fresh-page global website rule, dark PR, mobile layouts and unsupported routes'};
+  const suites = {experience: 'Writing readiness, retry intent, empty-state guidance, keyboard flow and responsive settings', harness: 'Harness tool loop, persisted learning memory, language translation and memory mutation cancellation', bilingual: 'Reply and reading language combinations, source-only insertion and translation lifecycle', i18n: 'Issue #490 seven-language writing panel and content boundaries', all: 'All writing regression cases', settings: 'Default writing preferences, custom input stability, persistence and open-card synchronization', github: 'GitHub writing lifecycle and staged preferences', issue646: 'First GitHub issue reply and new issue creation', gmail: 'Gmail writing lifecycle and staged preferences', recovery: 'Model ownership and partial-stream recovery', context: 'Issue #421 context, target-language ownership, staged style, Markdown editing and insertion', compose: 'Empty and subject-only new mail, Gmail conversation isolation and rich signatures', layout: 'Editor resize and preceding-DOM positioning', dynamic: 'Remount, disabled focus, scrolling and global website rule', presentation: 'Fresh-page global website rule, dark PR, mobile layouts and unsupported routes'};
   const suite = arg('suite', 'all'); const selectedSuites = suite.split(',');
   assert(selectedSuites.every(name => Object.hasOwn(suites, name)), `--suite must select from ${Object.keys(suites).join(', ')}`);
   const runs = name => selectedSuites.includes('all') || selectedSuites.includes(name);
@@ -279,6 +279,82 @@ function fixture(site, variant = '') {
       await dialog(p).waitFor(); await p.locator('.writing-panel').evaluate(async element => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); window.writingSamples = []; window.sampleWriting = true; const sample = () => { if (!window.sampleWriting) return; const rect = element.getBoundingClientRect(); window.writingSamples.push({x: rect.x, y: rect.y, width: rect.width, height: rect.height}); requestAnimationFrame(sample); }; sample(); });
     };
     const endSampling = async (p, site) => { const samples = await p.evaluate(() => { window.sampleWriting = false; return window.writingSamples; }); assert(samples.length >= 5, 'streaming must include multiple visible frames'); const deltas = Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, Math.max(...samples.map(rect => rect[key])) - Math.min(...samples.map(rect => rect[key]))])); assert(Object.values(deltas).every(delta => delta === 0), `zero streaming jitter: ${JSON.stringify(deltas)}`); report.cardStability.push({site, sampleCount: samples.length, deltas}); };
+
+    if (runs('experience')) {
+      const configured = await read();
+      await patch({writing: {...configured.writing, model: '', role: 'maintainer'}});
+      await settings.reload(); await assertSettings(settings);
+      assert.match(await settings.locator('.el-select').filter({has: settings.getByRole('combobox', {name: '写作模型', exact: true})}).locator('.el-select__placeholder').innerText(), /跟随服务模型/);
+      for (const width of [1440, 820, 390]) {
+        await settings.setViewportSize({width, height: 1100});
+        await settings.locator('.writing-default-style').scrollIntoViewIfNeeded();
+        assert(await settings.locator('.writing-settings').evaluate(el => el.scrollWidth <= el.clientWidth + 1), `settings fit ${width}px`);
+        if (width === 1440) {
+          const controls = await settings.locator('.writing-style-controls').boundingBox(); const sample = await settings.locator('.style-preview').boundingBox();
+          assert(sample.x > controls.x + controls.width, 'desktop preview sits alongside choices');
+          assert(Math.abs(sample.y - controls.y) < 2, 'choices and preview align at the top');
+        }
+        await shot(settings, `writing-experience-settings-${width}`);
+      }
+      await settings.setViewportSize({width: 1440, height: 1100});
+      await patch({theme: 'dark'}); await shot(settings, 'writing-experience-settings-dark');
+      await patch({theme: 'light', writing: configured.writing, token: {...configured.token, openai: ''}});
+      const p = await page('https://github.com/fluentread-fixture/project/issues/920', 'experience');
+      const beforeSetup = requests.length; await entry(p).click();
+      await p.getByText('还差一步，就能开始写作', {exact: true}).waitFor();
+      assert.equal(requests.length, beforeSetup, 'missing key is handled before any model call');
+      await shot(p, 'writing-experience-missing-connection');
+      await patch({token: {...initial.token, openai: 'synthetic-writing-key'}});
+      await oneGeneration(p, () => p.getByRole('button', {name: '重试', exact: true}).click());
+      const beforeNoChange = requests.length;
+      await p.getByRole('button', {name: '回答风格', exact: true}).click();
+      await p.getByRole('button', {name: '应用', exact: true}).click();
+      await preview(p).waitFor(); await wait(150); assert.equal(requests.length, beforeNoChange, 'unchanged preferences do not regenerate');
+      await p.getByRole('button', {name: '回答风格', exact: true}).click();
+      await selectStyle(p, '语气', '坚定'); await p.keyboard.press('Escape');
+      await preview(p).waitFor(); assert(await dialog(p).isVisible(), 'Escape leaves the subview first');
+      assert.equal((await read()).writing.tone, configured.writing.tone, 'Escape discards staged choices');
+      const beforeTranslation = requests.length; responsePlans.push({fail: true});
+      const beforeText = await readDraft(p); await chooseLanguage(p, 'English', 'English');
+      await p.getByRole('alert').waitFor(); assert.equal(await readDraft(p), beforeText);
+      const failedTranslation = requestBody(beforeTranslation);
+      await oneGeneration(p, () => p.getByRole('button', {name: '重试', exact: true}).click());
+      assert.deepEqual(requests.at(-1).body.messages, failedTranslation.messages, 'retry preserves translation intent, source, language and instructions');
+      assert.match(requests.at(-1).body.messages[0].content, /忠实翻译草稿/);
+      await shot(p, 'writing-experience-reply');
+      await p.setViewportSize({width: 390, height: 844});
+      assert(await p.locator('.writing-panel').evaluate(el => el.scrollWidth <= el.clientWidth + 1));
+      await shot(p, 'writing-experience-reply-mobile');
+      await p.setViewportSize({width: 1440, height: 1000}); await patch({theme: 'dark'}); await shot(p, 'writing-experience-reply-dark');
+      await patch({theme: 'light'}); await closePage(p);
+      const empty = await page('https://mail.google.com/mail/u/0/?fixture=new#inbox', 'experience-empty');
+      const beforeEmpty = requests.length; await entry(empty).click();
+      await empty.getByRole('button', {name: '感谢与跟进', exact: true}).click();
+      assert.equal(await instruction(empty).inputValue(), '感谢与跟进'); assert.equal(requests.length, beforeEmpty, 'suggestions only populate the composer');
+      await shot(empty, 'writing-experience-empty');
+      await instruction(empty).fill('Invite Alex to discuss the proposal next week.');
+      await instruction(empty).press('Enter'); assert.equal(requests.length, beforeEmpty, 'Enter inserts a newline');
+      await oneGeneration(empty, () => instruction(empty).press('Control+Enter'));
+      assert.equal(await empty.evaluate(() => window.sent || 0), 0, 'keyboard generation never sends the email');
+      await closePage(empty);
+      const stopped = await page('https://github.com/fluentread-fixture/project/issues/921', 'experience-stopped');
+      responsePlans.push({initialDelay: 1700}); const beforeStop = requests.length;
+      await entry(stopped).click(); await assertRequestCount(beforeStop + 1);
+      await stopped.getByRole('button', {name: '停止', exact: true}).click();
+      await stopped.getByText('已停止，可以补充要点后重新生成。', {exact: true}).waitFor();
+      assert(await stopped.locator('.writing-empty').getByRole('button', {name: '生成回复', exact: true}).isEnabled());
+      await wait(1900); assert.equal(await preview(stopped).count(), 0, 'late output cannot revive a stopped request');
+      await shot(stopped, 'writing-experience-stopped'); await closePage(stopped);
+      const partial = await page('https://github.com/fluentread-fixture/project/issues/922', 'experience-partial');
+      responsePlans.push({partialFailure: true}); const beforePartial = requests.length;
+      await entry(partial).click(); await partial.getByRole('alert').waitFor();
+      await partial.getByText('这版草稿尚未生成完整，请检查后使用。', {exact: true}).waitFor();
+      const failedPartial = requestBody(beforePartial);
+      await oneGeneration(partial, () => partial.getByRole('button', {name: '重试', exact: true}).click());
+      assert.deepEqual(requests.at(-1).body.messages, failedPartial.messages, 'retry does not treat unedited partial output as a new source');
+      await closePage(partial); await patch({writing: configured.writing});
+      report.cases.push('experience: missing configuration sends no request; unchanged style costs no request; Escape cancels staged choices; failed translation and unedited partial output retry the original task; suggestions only fill; Ctrl+Enter generates without sending; stopping before output offers recovery and ignores late content; desktop, dark, 820px and 390px layouts');
+    }
     if (runs('harness')) {
       const memoryText = 'Prefer concise writing with concrete examples.';
       const memoryCommand = (action, input) => settings.evaluate(({action, input}) => chrome.runtime.sendMessage({type: 'fluentReadHarness', action, ...(input ? {input} : {})}), {action, input});
@@ -365,7 +441,7 @@ function fixture(site, variant = '') {
       const sameCount = requests.length; await chooseReference('English'); await original().waitFor();
       await panel.locator('[data-writing-reference]').waitFor({state: 'detached'});
       assert.equal(await panel.locator('[data-reading-answer]').count(), 1, 'same-language mode displays the reply only');
-      assert.equal(await panel.locator('.writing-footnote').innerText(), '由 AI 辅助起草，检查后再发送。');
+      assert.equal(await panel.locator('.writing-footnote').count(), 0, 'routine reminders do not take space from the draft');
       assert.equal(await panel.locator('.writing-reference-trigger').getAttribute('title'), '回复与对照语言相同');
       assert(await panel.locator('.writing-reference-trigger').isVisible(), 'reading language remains adjustable');
       await wait(200); assert.equal(requests.length, sameCount); await shot(p, 'writing-same-language-single-reply');
@@ -444,7 +520,7 @@ function fixture(site, variant = '') {
       await p.locator('[data-fluent-read-ui="writing-entry"] button').click();
       for (const [language, title] of locales) {
         await patch({uiLanguage: language});
-        await until(async () => await panel.getAttribute('aria-label') === title, `${language} dialog localization`);
+        await until(async () => await panel.getAttribute('aria-label') === title && await panel.locator('h2').innerText() === title && await p.locator('[data-fluent-read-ui="writing-entry"] button').getAttribute('aria-label') === title, `${language} dialog and entry localization`);
         assert.equal(await panel.locator('h2').innerText(), title);
         assert.equal(await p.locator('[data-fluent-read-ui="writing-entry"] button').getAttribute('aria-label'), title);
         assert.equal(await panel.locator('.writing-provider').getAttribute('title'), '写作助手', 'model name is user data');
@@ -647,7 +723,7 @@ function fixture(site, variant = '') {
     await patch({writing: {...originalWriting, model: 'writing-fixture-a'}});
     const modelPage = await page('https://github.com/fluentread-fixture/project/issues/20', 'writing-model-ownership');
     const modelA = await oneGeneration(modelPage, () => entry(modelPage).click());
-    const modelLabel = () => modelPage.locator('.writing-provider small').innerText();
+    const modelLabel = () => modelPage.locator('.writing-provider').getAttribute('title');
     assert.equal(modelA.body.model, 'writing-fixture-a'); assert.equal(await modelLabel(), 'writing-fixture-a-actual');
     const beforeModelChange = requests.length; await patch({writing: {...originalWriting, model: 'writing-fixture-b'}}); await wait(250);
     assert.equal(await readDraft(modelPage), modelA.text); assert.equal(await modelLabel(), 'writing-fixture-a-actual'); assert.equal(requests.length, beforeModelChange);

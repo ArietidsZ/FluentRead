@@ -13,6 +13,22 @@ import {translationStatsChineseMessages} from './translationStats';
 import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
+    "writing.experience.enableDescription": "在 GitHub 和 Gmail 编辑区起草回复、完善草稿，检查后由你发送。",
+    "writing.experience.disabled": "已关闭网页写作入口，下面的偏好仍会保留。",
+    "writing.experience.paused": "插件已暂停，恢复插件后即可使用写作助手。",
+    "writing.experience.inheritModel": "跟随服务模型 · {model}",
+    "writing.experience.inheritModelEmpty": "跟随服务模型",
+    "writing.experience.roleHelp": "选择你在这次沟通中的身份；不确定时保留自动。",
+    "writing.experience.previewTitle": "表达效果预览",
+    "writing.experience.previewNote": "示例仅展示表达差别，不会请求 AI。",
+    "writing.experience.setupTitle": "还差一步，就能开始写作",
+    "writing.experience.emptyDraft": "写下收件人、目的和要点，帮你起草第一版。",
+    "writing.experience.incomplete": "这版草稿尚未生成完整，请检查后使用。",
+    "writing.experience.stoppedEmpty": "已停止，可以补充要点后重新生成。",
+    "writing.experience.suggestionThanks": "感谢与跟进",
+    "writing.experience.suggestionProgress": "说明进展",
+    "writing.experience.suggestionDecline": "礼貌婉拒",
+
     "glossary.serviceReady": "当前网页翻译服务支持术语库；按语言和网站范围应用。",
     "glossary.serviceUnavailable": "当前网页翻译服务或模型不支持术语库，词库仍可编辑。",
     "glossary.configureService": "选择翻译服务",

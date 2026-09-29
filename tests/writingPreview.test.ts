@@ -5,6 +5,15 @@ import {WRITING_PREVIEW_SCENARIO, isWritingPreviewPreset, writingPreviewFallback
 const base = {length: 'standard', style: 'auto', tone: 'natural', role: 'auto'} as const;
 
 describe('写作助手设置页示例草稿', () => {
+  it('示例在只有反馈时不虚构复现、根因或修复承诺', () => {
+    for (const {value: length} of WRITING_LENGTHS) {
+      for (const {value: role} of WRITING_ROLES) {
+        const text = writingPreviewParagraphs({...base, length, role}).map(item => item.text).join('\n');
+        expect(text).not.toMatch(/已复现|已确认|我复现了|复现后|排进|这周给|已经整理|关闭其他扩展后/);
+        expect(text).toMatch(/确认|不明|核实/);
+      }
+    }
+  });
   it('简短压缩正文但保留角色，详细增加说明', () => {
     const short = writingPreviewParagraphs({...base, length: 'short'});
     const standard = writingPreviewParagraphs({...base, length: 'standard'});

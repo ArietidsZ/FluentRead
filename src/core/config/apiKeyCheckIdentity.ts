@@ -5,7 +5,7 @@
  * 模块边界：本文件只做纯身份计算，不读写配置、不发起网络请求、不保存健康状态；调用方负责在检测开始前执行校验。
  */
 
-import sha256 from 'crypto-js/sha256';
+import {sha256Hex} from '@/src/shared/function/sha256';
 import {getServiceApiKeyRows, type ApiKeyConfigSource} from './apiKeys';
 
 export interface ApiKeyCheckIdentitySource extends ApiKeyConfigSource {
@@ -71,7 +71,7 @@ export function createApiKeyCheckRevision(source: ApiKeyCheckIdentitySource, ser
         route,
         customProvider,
     };
-    return sha256(JSON.stringify(identity)).toString();
+    return sha256Hex(JSON.stringify(identity));
 }
 
 export function matchesApiKeyCheckRevision(
