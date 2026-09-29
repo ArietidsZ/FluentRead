@@ -36,7 +36,7 @@ async function mountMetadataRender(): Promise<RenderElement[]> {
   const loaded = await server.ssrLoadModule('/src/features/glossary/ui/GlossarySettings.vue');
   const component = loaded.default;
   // 保留真实模板的值绑定和事件；无关 v-model 的原生 DOM 指令交给浏览器回归。
-  component.render = new Function('Vue', renderCode)({...runtime, vModelText: {}, vModelSelect: {}, vModelCheckbox: {}});
+  component.render = new Function('Vue', renderCode)({...runtime, vModelText: {}, vModelSelect: {}, vModelCheckbox: {}, vShow: {}});
   app.unmount();
   const elements: RenderElement[] = [];
   const host = runtime.createRenderer<RenderElement, RenderElement>({
@@ -437,6 +437,85 @@ describe('GlossarySettings compiled component', () => {
     expect(state.fileError).toContain('无法读取');
     state.importText = 'source,target\nretry,重试'; state.invalidateFileRead(); await settle();
     expect(state.fileError).toBe(''); expect(state.canImport).toBe(true);
+  });
+
+  it('starts new libraries in the current target language with unique names and guards library capacity', async () => {
+    await state.addLibrary(); await state.addLibrary();
+    expect(config.glossaryLibraries.map(item => item.name)).toEqual(['新术语库', '新术语库 2']);
+    expect(config.glossaryLibraries.every(item => item.targetLanguage === 'zh-hans')).toBe(true);
+    expect(state.settingsOpen).toBe(true); expect(state.section).toBe('libraries');
+    state.previewText = 'token'; state.previewTarget = 'ja';
+    expect(state.previewLibraries.every((item: any) => item.reason === 'target')).toBe(true);
+    await state.persist({glossaryLibraries: Array.from({length: 20}, (_, index) => fixture(`lib-${index}`))});
+    const calls = requestConfigPatch.mock.calls.length;
+    await state.addLibrary();
+    expect(requestConfigPatch).toHaveBeenCalledTimes(calls); expect(state.error).toContain('超出容量');
+  });
+
+  it('preserves per-library entry drafts on navigation, including switching during a pending save', async () => {
+    await state.persist({glossaryLibraries: [fixture('first'), fixture('second')]});
+    state.editEntry(); state.entryDraft.source = 'unsaved'; state.entryDraft.target = '草稿';
+    state.selectLibrary('second'); expect(state.entryDraft).toBeNull();
+    state.editEntry(); state.entryDraft.source = 'another';
+    state.selectLibrary('first'); expect(state.entryDraft.source).toBe('unsaved');
+    let release!: () => void;
+    requestConfigPatch.mockImplementationOnce(async patch => {await new Promise<void>(resolve => {release = resolve;}); Object.assign(config, patch); listeners.forEach(listener => listener(config));});
+    const saving = state.saveEntry(); await settle(); state.selectLibrary('second');
+    release(); await saving;
+    expect(state.entryDraft.source).toBe('another');
+    state.selectLibrary('first'); expect(state.entryDraft).toBeNull();
+    expect(config.glossaryLibraries[0].entries.at(-1)?.target).toBe('草稿');
+    state.selectLibrary('second'); state.cancelEntry(); state.selectLibrary('first'); state.selectLibrary('second');
+    expect(state.entryDraft).toBeNull();
+  });
+
+  it('blocks shadowed duplicates with Unicode and case semantics but allows distinct case-sensitive spellings', async () => {
+    await state.persist({glossaryLibraries: [fixture()]});
+    state.editEntry(); Object.assign(state.entryDraft, {source: ' TOKEN ', target: '代币'});
+    expect(state.duplicateEntry.source).toBe('token');
+    await state.saveEntry(); expect(config.glossaryLibraries[0].entries).toHaveLength(1);
+    expect(state.error).toContain('已有匹配');
+    state.cancelEntry(); state.editEntry(state.selected.entries[0]); state.entryDraft.caseSensitive = true; await state.saveEntry();
+    state.editEntry(); Object.assign(state.entryDraft, {source: 'TOKEN', target: '代币', caseSensitive: true});
+    expect(state.duplicateEntry).toBeUndefined(); await state.saveEntry();
+    expect(config.glossaryLibraries[0].entries).toHaveLength(2);
+    state.editEntry(); Object.assign(state.entryDraft, {source: 'café', target: '咖啡'}); await state.saveEntry();
+    state.editEntry(); Object.assign(state.entryDraft, {source: 'cafe\u0301', target: '咖啡馆'});
+    expect(state.duplicateEntry.source).toBe('café');
+  });
+
+  it('confirms replacing unsaved entries and keeps the draft when cancelled', async () => {
+    await state.persist({glossaryLibraries: [fixture()]});
+    state.editEntry(); state.entryDraft.source = 'draft';
+    confirm.mockRejectedValueOnce('cancel');
+    await state.editEntry(state.selected.entries[0]); expect(state.entryDraft.source).toBe('draft');
+    await state.editEntry(state.selected.entries[0]); expect(state.entryDraft.source).toBe('token');
+    expect(confirm).toHaveBeenCalledTimes(2);
+  });
+
+  it('merges entry changes with the latest list and never restores an externally deleted entry', async () => {
+    await state.persist({glossaryLibraries: [fixture()]});
+    state.editEntry(state.selected.entries[0]); state.entryDraft.target = '更新';
+    const saving = state.saveEntry();
+    config.glossaryLibraries[0].entries.push({id: 'external', source: 'external', target: '外部', caseSensitive: false});
+    listeners.forEach(listener => listener(config));
+    await saving; expect(config.glossaryLibraries[0].entries.map(item => item.target)).toEqual(['更新', '外部']);
+    state.editEntry(state.selected.entries[0]); state.entryDraft.target = '不应恢复';
+    const staleSave = state.saveEntry();
+    config.glossaryLibraries[0].entries.shift(); listeners.forEach(listener => listener(config));
+    await staleSave;
+    expect(config.glossaryLibraries[0].entries).toHaveLength(1);
+    expect(state.entryDraft.target).toBe('不应恢复'); expect(state.error).toContain('已在其他页面删除');
+  });
+
+  it('keeps a dirty draft when clicking its own edit action and rejects an entry deleted before Save', async () => {
+    await state.persist({glossaryLibraries: [fixture()]});
+    state.editEntry(state.selected.entries[0]); state.entryDraft.target = '未保存';
+    await state.editEntry(state.selected.entries[0]); expect(state.entryDraft.target).toBe('未保存');
+    config.glossaryLibraries[0].entries = []; listeners.forEach(listener => listener(config));
+    await state.saveEntry();
+    expect(config.glossaryLibraries[0].entries).toEqual([]);
+    expect(state.entryDraft.target).toBe('未保存'); expect(state.error).toContain('已在其他页面删除');
   });
 
   it('requires confirmation before deletion and unsubscribes when unmounted', async () => {

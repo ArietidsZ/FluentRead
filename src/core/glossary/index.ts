@@ -7,7 +7,7 @@
 export {GLOSSARY_LIMITS, createGlossaryEntry, createGlossaryLibrary, normalizeGlossaryLibraries,
     normalizeGlossaryDomain, normalizeGlossaryIds, buildGlossaryRevision} from './model';
 export type {GlossaryLibrary, GlossaryEntry} from './model';
-export {resolveGlossary} from './match';
+export {resolveGlossary, getGlossaryScopeReason, glossarySourcesOverlap} from './match';
 export type {GlossaryContext} from './match';
 export {decodeGlossaryText, parseGlossaryImport, exportGlossary} from './transfer';
 export type {GlossaryImportFormat} from './transfer';
