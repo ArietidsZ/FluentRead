@@ -30,7 +30,7 @@ const MAX_IMAGE_READ_EDGE = 8192;
 const MAX_CACHED_IMAGES = 6;
 const MAX_CACHED_PIXELS = 8_000_000;
 
-type ImageTranslationLine = OcrLine & {backgroundColor: string};
+type ImageTranslationLine = OcrLine & {backgroundColor: string; sourceText?: string};
 type ImageControls = ReturnType<typeof createImageControls>;
 
 interface ImageTranslationState {
@@ -306,6 +306,7 @@ function updateOverlayPosition(state: ImageTranslationState): void {
         return;
     }
     ensureImageOverlayRoot();
+    state.controls.reader.dataset.theme = config.theme === 'dark' || (config.theme === 'auto' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
     if (sourceIdentity(state.image) !== state.sourceIdentity || !presentationMatchesSource(state.image, state.presentation)) invalidateSource(state);
     if (state.hoverEntry && state.phase === 'idle' && !isImageHoverEligible(state.image)) {
         removeState(state);
@@ -411,13 +412,17 @@ function createState(image: HTMLImageElement, hoverEntry = false): ImageTranslat
             else void translateImage(state);
         },
         onDismiss: () => { const state = states.get(image); if (state) removeState(state); },
+        onInspect: () => {
+            const current = states.get(image);
+            if (current && !current.controls.reader.hidden) activeStates.forEach(state => {if (state !== current) state.controls.hideReader();});
+        },
         onPrepare: () => {
             const state = states.get(image);
             if (state) void translateImage(state, true);
         },
     });
     overlay.append(controls.feedback, controls.element);
-    ensureImageOverlayRoot().appendChild(overlay);
+    ensureImageOverlayRoot().append(overlay, controls.reader);
     const state: ImageTranslationState = {
         image, presentation: resolveImagePresentation(image), needsPreparation: false, overlay, controls, phase: 'idle', abortController: null, hovered: true, hoverEntry,
         hoverTimer: null, resizeObserver: null, imageLoadHandler: null,
@@ -963,6 +968,7 @@ export function mountImageTranslator(): void {
     });
     let currentUiLanguage = config.uiLanguage;
     const stopLanguageWatch = subscribeConfig(next => {
+        scheduleOverlayPositionUpdate();
         if (next.uiLanguage === currentUiLanguage) return;
         const language = currentUiLanguage = next.uiLanguage;
         renderWithUiLanguageBundle(language, () => {

@@ -130,7 +130,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         ...imageGlossaryContext.wrap(createCapabilityGatedBackgroundHandlers<BackgroundRuntimeContext>(capabilities, {
             areaTranslation: () => createAreaTranslationRuntime(imageOcrLanguageRepository.assertDownloaded),
             imageTranslation: () => createImageTranslationBackgroundHandlers({
-                assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded,
+                assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded, getDownloadedLanguages: imageOcrLanguageRepository.getDownloaded,
                 ...imageTranslationOffscreenAdapter,
                 translateTexts: translateWithCache,
                 getTranslationService: () => config.service,

@@ -168,7 +168,7 @@ describe('圈选翻译快捷键触发', () => {
     expect(f.state.selectionRect).toEqual({left: 10, top: 10, width: 0, height: 0});
   });
 
-  it('已经出结果后页面滚动使截图坐标失效，清除结果；卡片内部滚动保留结果', () => {
+  it('截图完成后页面和卡片滚动保留结果，截图未完成时页面变化取消旧坐标', () => {
     const f = mountTranslator();
     f.state.activeRect = {left: 10, top: 20, width: 120, height: 90};
     f.state.phase = 'translated';
@@ -180,7 +180,25 @@ describe('圈选翻译快捷键触发', () => {
     f.state.handleViewportChange({target: inside});
     expect(f.state.phase).toBe('translated');
     f.state.handleViewportChange({target: f.document.body});
+    expect(f.state.phase).toBe('translated');
+    expect(f.state.activeRect).not.toBeNull();
+    f.state.phase = 'loading';
+    f.state.capturePending = true;
+    f.state.handleViewportChange({target: f.document.body});
     expect(f.state.phase).toBe('idle');
     expect(f.state.activeRect).toBeNull();
+  });
+
+  it('选区开始后缩小窗口，后续结果按新的视口宽度约束', () => {
+    const f = mountTranslator();
+    f.press();
+    window.innerWidth = 390;
+    window.innerHeight = 600;
+    f.state.handleViewportChange({target: f.document.body});
+    const style = f.state.panelStyle({left: 800, top: 700, width: 120, height: 90});
+    expect(style.width).toBe('366px');
+    expect(style.left).toBe('12px');
+    expect(style.top).toBe('360px');
+    expect(f.state.phase).toBe('selecting');
   });
 });

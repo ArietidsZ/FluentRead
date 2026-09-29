@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/background/handlers.ts
  * 文件职责：定义跨域图片读取、整图翻译、文本批译、阶段进度、取消和语言包下载后台消息，并对来自页面或扩展 UI 的未知输入执行严格校验。
- * 主要内容：包含消息解析、OCR 语言白名单、阶段与百分比通知和取消预算；图片文本去重批量和有界并发翻译同时保留后台恢复的可信页面范围、源语言与术语版本。
+ * 主要内容：包含消息解析、OCR 语言白名单、阶段与百分比通知和取消预算；逐包下载排队、去重、部分成功保存和跨页状态查询；图片文本去重批量和有界并发翻译同时保留后台恢复的可信页面范围、源语言与术语版本。
  * 模块边界：本文件只负责协议入口与用例编排，不直接运行 Tesseract、Canvas、网络 fetch 或 Offscreen；图像读取和运算能力均由 Offscreen adapter 与 services 实现并由 app 注入。
  */
 import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, normalizeImageProgress, type ImageTranslationStage} from '../progress';
@@ -9,6 +9,7 @@ import {
     IMAGE_OCR_LANGUAGE_PACKS,
     normalizeImageOcrLanguageCodes,
     type ImageOcrLanguageCode,
+    type ImageOcrDownloadState,
 } from '@/src/features/image-translation/ocrLanguages';
 import {
     attachTranslationRequestControl,
@@ -65,6 +66,7 @@ export interface ImageProgressContext {readonly sender?: {readonly tab?: {readon
 export interface ImageProgressMessage {type: typeof IMAGE_PROGRESS_MESSAGE_TYPE; requestId?: unknown; stage?: unknown; progress?: unknown}
 
 export type ImageTranslationBackgroundMessage =
+    | {type: 'fluentReadImageOcrStatus'}
     | ImageProgressMessage
     | ImageTranslateMessage
     | ImageTranslateTextsMessage
@@ -101,6 +103,7 @@ export interface ImageTranslationBackgroundDependencies {
     readonly translateTexts: (request: ImageTextTranslationRequest) => Promise<string | string[]>;
     readonly removeLanguages?: (languages: ImageOcrLanguageCode[]) => Promise<void>;
     readonly markLanguagesRemoved?: (languages: ImageOcrLanguageCode[]) => Promise<ImageOcrLanguageCode[]>;
+    readonly getDownloadedLanguages?: () => Promise<ImageOcrLanguageCode[]>;
     readonly downloadLanguages: (languages: ImageOcrLanguageCode[]) => Promise<void>;
     readonly markLanguagesDownloaded: (languages: ImageOcrLanguageCode[]) => Promise<ImageOcrLanguageCode[]>;
     readonly now?: () => number;
@@ -366,13 +369,50 @@ export function createImageTranslationBackgroundHandlers(
     const textOperationRegistry = createImageOperationRegistry('image-text');
     const progressOwners = new Map<string, {context: ImageProgressContext}>();
 
+    // 语言包任务属于后台而非设置组件，关闭/重开设置仍可恢复真实排队状态。
+    const modelStates = new Map<ImageOcrLanguageCode, ImageOcrDownloadState>();
+    const pendingDownloads = new Map<ImageOcrLanguageCode, Promise<ImageOcrLanguageCode[]>>();
     let modelMutationTail: Promise<unknown> = Promise.resolve();
     const mutateModels = <T>(operation: () => Promise<T>): Promise<T> => {
         const result = modelMutationTail.then(operation, operation);
         modelMutationTail = result.then(() => undefined, () => undefined);
         return result;
     };
+    const downloadOne = (language: ImageOcrLanguageCode): Promise<ImageOcrLanguageCode[]> => {
+        const existing = pendingDownloads.get(language);
+        if (existing) return existing;
+        modelStates.set(language, {phase: 'queued'});
+        const pending = mutateModels(async () => {
+            try {
+                const downloaded = await dependencies.getDownloadedLanguages?.();
+                if (downloaded?.includes(language)) {
+                    modelStates.delete(language);
+                    return downloaded;
+                }
+                modelStates.set(language, {phase: 'downloading'});
+                await dependencies.downloadLanguages([language]);
+                // 每个包单独落库，后续失败不会丢失已完成的进度。
+                const languages = await dependencies.markLanguagesDownloaded([language]);
+                modelStates.delete(language);
+                return languages;
+            } catch (error) {
+                modelStates.set(language, {phase: 'error', error: error instanceof Error ? error.message : String(error)});
+                throw error;
+            }
+        }).finally(() => {
+            if (pendingDownloads.get(language) === pending) pendingDownloads.delete(language);
+        });
+        pendingDownloads.set(language, pending);
+        return pending;
+    };
     return [
+        {
+            type: 'fluentReadImageOcrStatus',
+            async handle() {
+                const languages = await dependencies.getDownloadedLanguages?.() ?? [];
+                return {success: true, languages, states: Object.fromEntries(modelStates)};
+            },
+        },
         {
             type: IMAGE_PROGRESS_MESSAGE_TYPE,
             async handle(message: ImageProgressMessage, context: ImageProgressContext = {}) {
@@ -445,9 +485,17 @@ export function createImageTranslationBackgroundHandlers(
             async handle(message: ImageOcrDownloadMessage) {
                 const languages = parseOcrLanguages(message.languages);
                 if (!dependencies.removeLanguages || !dependencies.markLanguagesRemoved) throw new Error('语言包清除不可用');
+                // 删除后的新下载必须排在删除之后，不能复用删除之前尚在结束的任务。
+                languages.forEach(language => pendingDownloads.delete(language));
                 return mutateModels(async () => {
-                    await dependencies.removeLanguages!(languages);
-                    return {success: true, languages: await dependencies.markLanguagesRemoved!(languages)};
+                    languages.forEach(language => modelStates.set(language, {phase: 'removing'}));
+                    try {
+                        await dependencies.removeLanguages!(languages);
+                        const remaining = await dependencies.markLanguagesRemoved!(languages);
+                        return {success: true, languages: remaining};
+                    } finally {
+                        languages.forEach(language => modelStates.delete(language));
+                    }
                 });
             },
         },
@@ -455,11 +503,12 @@ export function createImageTranslationBackgroundHandlers(
             type: IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE,
             async handle(message: ImageOcrDownloadMessage) {
                 const languages = parseOcrLanguages(message.languages);
-                return mutateModels(async () => {
-                    await dependencies.downloadLanguages(languages);
-                    const downloaded = await dependencies.markLanguagesDownloaded(languages);
-                    return {success: true, languages: downloaded};
-                });
+                // 接住每个排队任务的失败并继续准备其他语言，调用方最后获得完整结果或明确错误。
+                const results = await Promise.allSettled(languages.map(downloadOne));
+                const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+                if (failed) throw failed.reason;
+                const last = results[results.length - 1] as PromiseFulfilledResult<ImageOcrLanguageCode[]>;
+                return {success: true, languages: await dependencies.getDownloadedLanguages?.() ?? last.value};
             },
         },
     ];

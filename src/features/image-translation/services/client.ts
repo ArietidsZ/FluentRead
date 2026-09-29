@@ -9,6 +9,7 @@ import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, normalizeImageProg
 import type { OcrLine } from '@/src/features/image-translation/core';
 
 interface ImageTranslationLine extends OcrLine {
+    sourceText?: string;
     backgroundColor: string;
 }
 
