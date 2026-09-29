@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/ocrRuntime.ts
  * 文件职责：将 Tesseract.js Worker 适配为图片翻译可调用的 OCR 服务，配置扩展内 worker/core 资源并按源语言串行执行识别或语言包预下载。
- * 主要内容：配置扩展语言资源、转发引擎任务进度与图片/圈选识别策略；语言包附带竖排模型时启用带方向检测的稀疏分割；对图片解码设置超时并释放像素，圈选小图有界放大加边且仅空结果重试单块分割；坐标映回原图并按策略隔离有界缓存。
+ * 主要内容：配置扩展语言资源、转发引擎任务进度与图片/圈选识别策略；语言包附带竖排模型时启用带方向检测的稀疏分割；对图片解码设置超时并释放像素，圈选小图有界放大加边，圈选或小图片仅空结果重试单块分割，不缓存空结果；坐标映回原图并按策略隔离有界缓存。
  * 模块边界：该文件是 Tesseract 基础设施边界，不保存下载状态、不翻译识别文本也不绘制图片；并发所有权由 ocrWorkerRuntime 管理，持久化由后台 repository 负责。
  */
 import { createWorker, PSM, type Worker } from 'tesseract.js';
@@ -176,13 +176,14 @@ export async function recognizeImage(
         normalizeOcrLines(recognition.data.blocks), sourceWidth, sourceHeight, size.width, size.height, size.padding,
     );
     let lines = readLines(result);
-    if (profile === 'area' && lines.length === 0) {
-        // 空结果才尝试另一种布局假设，不为每次圈选翻倍耗时，也不降低噪声阈值。
+    if (lines.length === 0 && (profile === 'area' || (sourceWidth <= 1000 && sourceHeight <= 500))) {
+        // 圈选与小图片空结果才尝试单块分割，不给大型整页翻倍耗时，不降低噪声阈值。
         const fallback = await ocrWorkerRuntime.recognize(recognitionImage, languages, signal, PSM.SINGLE_BLOCK);
         if (signal?.aborted) throw abortRecognition();
         lines = readLines(fallback);
     }
-    cacheRecognition(cacheKey, lines);
+    // 空结果不是稳定成功；用户重试时应重新识别，避免暂时失败被负缓存永久复用。
+    if (lines.length > 0) cacheRecognition(cacheKey, lines);
     return lines;
 }
 

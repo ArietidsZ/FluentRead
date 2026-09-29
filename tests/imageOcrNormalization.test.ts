@@ -103,3 +103,24 @@ describe('图片 OCR 有界尺寸和可信文本', () => {
         expect(selectChangedTranslations(lines, ['  ', '\n', ' 三 '])).toEqual([{text: '三', bbox}]);
     });
 });
+
+
+describe('OCR 重复框处理', () => {
+    it('去掉同位置的重复检测，保留其他位置的相同价格与数字', () => {
+        const box = {x0: 10, y0: 10, x1: 110, y1: 30};
+        const result = normalizeOcrLines([{paragraphs: [{lines: [
+            {text: '123.45', bbox: box},
+            {text: '123.45', bbox: {...box, x0: 11}},
+            {text: '123.45', bbox: {...box, y0: 50, y1: 70}},
+            {text: '123.46', bbox: box},
+        ]}]}]);
+        expect(result.map(line => line.text)).toEqual(['123.45', '123.45', '123.46']);
+        expect(result[1].bbox.y0).toBe(50);
+    });
+    it('部分重叠的相同短词并非重复，仍分别参与识别与绘制', () => {
+        expect(normalizeOcrLines([{paragraphs: [{lines: [
+            {text: 'Yes', bbox: {x0: 0, y0: 0, x1: 100, y1: 20}},
+            {text: 'Yes', bbox: {x0: 50, y0: 0, x1: 150, y1: 20}},
+        ]}]}])).toHaveLength(2);
+    });
+});

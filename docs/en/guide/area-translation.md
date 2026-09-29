@@ -11,7 +11,7 @@ Use area translation for words inside screenshots, charts, paused video frames, 
 
 If recognition packs are missing, choose **Download language pack and retry**. The required packs download and translation continues using the same capture. You can retry a failed download or press Esc to cancel.
 
-Press **Esc** to exit. Choose a new selection to capture elsewhere, or retranslate to reuse the current capture with a changed service. Scrolling or resizing closes a finished result; selection mode itself is not cancelled by a page's own scrolling.
+Press **Esc** to exit. Choose a new selection to capture elsewhere, or retranslate to reuse the current capture with a changed service. After capture, scrolling or resizing keeps the result card available for comparison. Scrolling before capture finishes cancels the old selection to avoid recognizing the wrong area. Switching tabs still closes the result and releases the capture; selection mode itself is not cancelled by a page's own scrolling.
 
 ## Change the shortcut
 

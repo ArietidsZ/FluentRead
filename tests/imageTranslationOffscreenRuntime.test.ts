@@ -118,7 +118,7 @@ describe('Offscreen 图片完整操作生命周期', () => {
         const controller = new AbortController();
         const remove = vi.spyOn(controller.signal, 'removeEventListener');
         const result = await translateImageInOffscreen('original-image', 'en', 'Page', controller.signal, 'image-1');
-        expect(result).toEqual({image: 'data:image/png;base64,translated', lines: [{...lines[0], text: '你好', backgroundColor: 'rgb(240,240,240)'}]});
+        expect(result).toEqual({image: 'data:image/png;base64,translated', lines: [{...lines[0], text: '你好', sourceText: 'Hello', backgroundColor: 'transparent'}]});
         expect(images).toHaveLength(1);
         expect(mocks.recognize).toHaveBeenCalledWith('original-image', 'en', controller.signal, {onProgress:expect.any(Function)});
         expect(canvases[0].context.drawImage).toHaveBeenCalledWith(images[0], 0, 0, 32, 16);
@@ -214,12 +214,19 @@ describe('Offscreen 图片完整操作生命周期', () => {
         expect(images[0].onerror).toBeNull();
     });
 
-    it('没有识别结果或没有变化的译文时停止，避免无效 Canvas 分配', async () => {
+    it.each([{translations: []}, {translations: ['   ']}])('空缺译文保留原文供核对，不擦除文字或绘制空白 %j', async ({translations}) => {
+        sendMessage.mockImplementation((_, callback) => callback({success: true, translations}));
+        const result = await translateImageInOffscreen('unchanged', 'en', '');
+        expect(result.lines).toEqual([{...lines[0], sourceText: 'Hello', backgroundColor: 'transparent'}]);
+        expect(canvases).toHaveLength(0);
+    });
+
+    it('无文字明确失败，原样译文仍返回可复制原文且不分配 Canvas', async () => {
         mocks.recognize.mockResolvedValueOnce([]);
         await expect(translateImageInOffscreen('empty', 'en', '')).rejects.toThrow('没有识别到图片文字');
         expect(sendMessage).not.toHaveBeenCalled();
         sendMessage.mockImplementation((_, callback) => callback({success: true, translations: ['Hello']}));
-        await expect(translateImageInOffscreen('unchanged', 'en', '')).rejects.toThrow('没有需要翻译的文字');
+        await expect(translateImageInOffscreen('unchanged', 'en', '')).resolves.toEqual({image: 'unchanged', lines: [{...lines[0], sourceText: 'Hello', backgroundColor: 'transparent'}]});
         expect(canvases).toHaveLength(0);
         expect(images.every(image => image.src === '')).toBe(true);
     });

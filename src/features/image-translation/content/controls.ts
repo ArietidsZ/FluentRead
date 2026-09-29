@@ -1,15 +1,16 @@
 /**
  * @file src/features/image-translation/content/controls.ts
  * 文件职责：创建图片翻译的轻量操作条，持续展示读取、识别、翻译与失败状态，支持取消、重试和首次语言准备。
- * 主要内容：提供低透明度灰度入口、隔离样式、可信手势按钮、识别百分比与可选全文详情；长译文可选择复制，减少只能看位图的阅读障碍。
+ * 主要内容：提供低透明度灰度入口、隔离样式、可信手势按钮、识别百分比与可选全文详情；长译文在独立视口面板内可核对原文和一键复制，减少只能看位图的阅读障碍。
  * 模块边界：仅操作所属 Shadow DOM，不读取配置、不访问网络、不持有图片请求；业务动作及生命周期由 content/runtime 注入。
  */
+import {createImageTextReader, IMAGE_READER_CSS, type ImageReaderLine} from './textReader';
 import {normalizeImageProgress} from '../progress';
 import brandIcon from '../../../../public/icon/32.png?inline';
 
 export type ImageControlPhase = 'idle' | 'loading' | 'translated' | 'error';
 // 沿用 ui/styles/tokens.css 的品牌、文字与表面色；在所属 Shadow UI 内声明，避免继承宿主变量。
-export const IMAGE_CONTROLS_CSS = `
+export const IMAGE_CONTROLS_CSS = IMAGE_READER_CSS + `
 .fr-image-controls,.fr-image-feedback {--fr-image-brand:#dc315f;--fr-image-brand-soft:#fff0f4;--fr-image-ink:#172033;--fr-image-muted:#737c8f;--fr-image-line:#e5e8ef;--fr-image-surface:#fff;color:var(--fr-image-ink);font:13px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-sizing:border-box;}
 .fr-image-controls {position:absolute;left:8px;bottom:8px;max-width:calc(100% - 16px);display:flex;flex-direction:column;align-items:flex-start;gap:6px;pointer-events:auto;z-index:2;}
 .fr-image-feedback {position:absolute;left:50%;top:50%;width:max-content;display:flex;flex-direction:column;gap:8px;transform:translate(-50%,-50%);padding:12px 14px;border:1px solid var(--fr-image-line);border-radius:12px;background:var(--fr-image-surface);box-shadow:0 8px 28px rgba(27,36,57,.12),0 2px 6px rgba(27,36,57,.04);pointer-events:none;}
@@ -42,7 +43,6 @@ export const IMAGE_CONTROLS_CSS = `
 .fr-image-feedback .fr-image-prepare,.fr-image-feedback[data-preparation=false] .fluent-read-image-translation-button {order:-1;background:var(--fr-image-brand);color:#fff;font-weight:650;}
 .fr-image-feedback .fr-image-prepare:hover,.fr-image-feedback[data-preparation=false] .fluent-read-image-translation-button:hover {background:#c62752;color:#fff;}
 .fr-image-feedback .fr-image-dismiss,.fr-image-feedback[data-preparation=true] .fluent-read-image-translation-button {color:var(--fr-image-muted);}
-.fr-image-details {margin:0;padding:12px;max-height:160px;max-width:320px;overflow:auto;border:1px solid var(--fr-image-line);border-radius:12px;background:var(--fr-image-surface);color:var(--fr-image-ink);box-shadow:0 3px 12px rgba(27,36,57,.08);white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;font:13px/1.6 system-ui,sans-serif;}
 @keyframes fr-image-spin {to {transform:rotate(360deg);}}
 @media (prefers-reduced-motion: reduce) {.fr-image-spinner {animation:none;}.fr-image-controls .fr-image-actions {transition:none;}}
 `;
@@ -82,11 +82,12 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
     dismiss.type = 'button';
     dismiss.className = 'fr-image-dismiss';
     dismiss.textContent = '关闭';
-    const details = document.createElement('pre');
-    details.className = 'fr-image-details';
-    details.setAttribute('aria-label', '图片完整译文');
-    details.tabIndex = 0;
-    details.hidden = true;
+    const reader = createImageTextReader(localize, () => {
+        inspect.setAttribute('aria-expanded', 'false');
+        if (!disposed && !inspect.hidden) inspect.focus({preventScroll: true});
+    });
+    const details = reader.element;
+    let hasLines = false;
     let phase: ImageControlPhase = 'idle';
     let sourceMessage = '翻译图片';
     let progress: number | undefined;
@@ -95,7 +96,7 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
         prepare.textContent = localize('下载语言包并翻译');
         inspect.textContent = localize('文字');
         inspect.setAttribute('aria-label', localize('查看完整译文'));
-        details.setAttribute('aria-label', localize('图片完整译文'));
+        reader.refreshLanguage();
         dismiss.textContent = localize('关闭');
         dismiss.title = localize('关闭图片翻译提示');
         dismiss.setAttribute('aria-label', dismiss.title);
@@ -119,7 +120,7 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
         if (target === prepare) actions.onPrepare();
         if (target === dismiss) actions.onDismiss?.();
         if (target === inspect) {
-            details.hidden = !details.hidden;
+            if (details.hidden) reader.open(); else reader.close();
             inspect.setAttribute('aria-expanded', String(!details.hidden));
             actions.onInspect?.();
         }
@@ -157,7 +158,7 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
         const actionsOwner = feedbackOwnsActions ? feedback : element;
         // 进度更新会频繁刷新状态；仅在状态容器变化时移动操作条，避免重挂载打断悬停与焦点。
         if (row.parentElement !== actionsOwner) actionsOwner.append(row);
-        inspect.hidden = next !== 'translated' || !details.textContent;
+        inspect.hidden = next !== 'translated' || !hasLines;
         if (next !== 'translated') {
             details.hidden = true;
             inspect.setAttribute('aria-expanded', 'false');
@@ -165,13 +166,16 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
     };
     update('idle', '翻译图片');
     return {
-        element, feedback, button, status, spinner, dismiss, update, refreshLanguage,
-        setLines(lines: Array<{text: string}>) {
-            details.textContent = lines.map(line => line.text).join('\n');
+        element, feedback, button, status, spinner, dismiss, update, refreshLanguage, reader: details,
+        hideReader() {details.hidden = true; inspect.setAttribute('aria-expanded', 'false');},
+        setLines(lines: ImageReaderLine[]) {
+            hasLines = lines.length > 0;
+            reader.setLines(lines);
             inspect.hidden = phase !== 'translated' || lines.length === 0;
         },
         dispose() {
             disposed = true;
+            reader.dispose();
             element.removeEventListener('click', handleClick);
             row.removeEventListener('click', handleClick);
             for (const event of ['pointerdown', 'keydown', 'keyup', 'wheel']) {

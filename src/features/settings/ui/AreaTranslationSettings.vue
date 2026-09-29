@@ -51,15 +51,7 @@
   </SettingsGroup>
   <details class="area-ocr-details" :open="!prefersVision">
     <summary>{{ t('area.settings.ocrDetails') }}</summary>
-    <SettingsGroup>
-      <SettingsItem :label="t('area.settings.sourceLanguage')" :description="t('area.settings.sourceLanguageDescription')">
-        <el-select v-model="props.config.from" :aria-label="t('area.settings.sourceLanguage')">
-          <el-option v-if="!sourceLanguages.some(item => item.value === props.config.from)" :value="props.config.from" :label="props.config.from" disabled />
-          <el-option v-for="item in sourceLanguages" :key="item.value" :value="item.value" :label="t(item.label)" />
-        </el-select>
-      </SettingsItem>
-    </SettingsGroup>
-    <ImageOcrSettings v-if="props.active" id-prefix="area" />
+    <ImageOcrSettings v-if="props.active" id-prefix="area" v-model:source-language="props.config.from" />
   </details>
   <el-dialog v-model="promptEditorOpen" :title="t('area.settings.visionPrompt')" width="min(640px, calc(100vw - 32px))" append-to-body destroy-on-close>
     <p class="area-prompt-description">{{ t('area.settings.visionPromptDescription') }}</p>
@@ -209,13 +201,7 @@ const supportsAI = computed(() => servicesType.isUseAIContext(
 const unavailableMessage = computed(() => getTranslationServiceUnavailableMessage(service.value));
 const savedServiceUnavailable = computed(() => props.config.areaTranslationService
   && !props.serviceOptions.some(item => item.value === props.config.areaTranslationService));
-const sourceLanguages = [
-  {value: 'auto', label: 'area.settings.languageAuto'},
-  {value: 'en', label: 'area.settings.languageEnglish'},
-  {value: 'zh-Hans', label: 'area.settings.languageChinese'},
-  {value: 'zh-Hant', label: 'area.settings.languageTraditionalChinese'},
-  {value: 'ja', label: 'area.settings.languageJapanese'},
-];
+
 </script>
 
 <style scoped>

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/area-translation/ui/AreaTranslator.vue
  * 文件职责：提供独立圈选阅读工具，按配置的快捷键（默认 Shift+Z）进入选区模式，松开鼠标后展示可拖动、可核对、可复制的原文与译文卡片。
- * 主要内容：由可信快捷键或右键命令按需挂载，管理选择、截图、识别、翻译、结果和失败状态；缺少语言包时一键下载后续接原截图，重试复用同一截图，取消或新选区使旧请求失效。
+ * 主要内容：由可信快捷键或右键命令按需挂载，管理选择、截图、识别、翻译、结果和失败状态；截图后保留阅读卡片，页面滚动或缩放不丢失结果；缺少语言包时一键下载后续接原截图，重试复用同一截图，取消或新选区使旧请求失效。
  * 模块边界：组件只调用圈选客户端，不执行 OCR 或网络请求；截图权限归后台，像素只在封闭 Shadow UI 展示，所有页面监听、异步状态与临时截图在关闭或卸载时清理。
  -->
 <template>
@@ -89,6 +89,7 @@ const selectionRect = ref<AreaRect | null>(null);
 const activeRect = ref<AreaRect | null>(null);
 const panelElement = ref<HTMLElement | null>(null);
 const panelPosition = ref<AreaPoint | null>(null);
+const viewport = ref({width: window.innerWidth, height: window.innerHeight});
 let panelDrag: {pointerId: number; x: number; y: number; left: number; top: number; handle: HTMLElement} | null = null;
 
 function stopPanelDrag(): void {
@@ -132,11 +133,11 @@ function areaStyle(rect: AreaRect): Record<string, string> {
   return {left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`};
 }
 function panelStyle(rect: AreaRect): Record<string, string> {
-  const width = Math.min(460, Math.max(1, window.innerWidth - 24));
-  const left = Math.max(12, Math.min(panelPosition.value?.x ?? rect.left, window.innerWidth - width - 12));
+  const width = Math.min(460, Math.max(1, viewport.value.width - 24));
+  const left = Math.max(12, Math.min(panelPosition.value?.x ?? rect.left, viewport.value.width - width - 12));
   const below = rect.top + rect.height + 10;
-  const top = Math.max(12, Math.min(panelPosition.value?.y ?? (below + 220 < window.innerHeight ? below : rect.top), window.innerHeight - 240));
-  return {left: `${left}px`, top: `${top}px`, width: `${width}px`, maxHeight: `${Math.max(1, window.innerHeight - top - 12)}px`};
+  const top = Math.max(12, Math.min(panelPosition.value?.y ?? (below + 220 < viewport.value.height ? below : rect.top), viewport.value.height - 240));
+  return {left: `${left}px`, top: `${top}px`, width: `${width}px`, maxHeight: `${Math.max(1, viewport.value.height - top - 12)}px`};
 }
 function updateTheme(): void {
   isDarkTheme.value = config.theme === 'dark' || (config.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -170,6 +171,7 @@ function clearResult(): void {
 function beginSelection(): boolean {
   clearResult();
   if (!isEnabled()) return false;
+  viewport.value = {width: window.innerWidth, height: window.innerHeight};
   phase.value = 'selecting';
   return true;
 }
@@ -200,8 +202,8 @@ function handlePointermove(event: PointerEvent): void {
     event.stopPropagation();
     const width = panelElement.value?.getBoundingClientRect().width ?? 460;
     panelPosition.value = {
-      x: Math.max(12, Math.min(panelDrag.left + event.clientX - panelDrag.x, window.innerWidth - width - 12)),
-      y: Math.max(12, Math.min(panelDrag.top + event.clientY - panelDrag.y, window.innerHeight - 240)),
+      x: Math.max(12, Math.min(panelDrag.left + event.clientX - panelDrag.x, viewport.value.width - width - 12)),
+      y: Math.max(12, Math.min(panelDrag.top + event.clientY - panelDrag.y, viewport.value.height - 240)),
     };
     return;
   }
@@ -333,8 +335,9 @@ async function openSettings(): Promise<void> {
   } catch { showFeedback('无法打开设置，请从扩展菜单打开圈选设置'); }
 }
 function handleViewportChange(event: Event): void {
-  // 卡片自己的滚动不能销毁结果；页面滚动/缩放则使旧截图坐标失效。
+  // 卡片自己的滚动不触发重排；截图前的页面滚动/缩放会使旧选区坐标失效。
   if (isInsideExtensionUi(event.target)) return;
+  viewport.value = {width: window.innerWidth, height: window.innerHeight};
   // 选区模式还没有截图，页面自身的动画或懒加载滚动不能把用户刚打开的选区关掉；
   // 只重置进行中的拖拽，避免起点停留在已经滚走的位置。
   if (isSelecting.value) {
@@ -345,7 +348,8 @@ function handleViewportChange(event: Event): void {
     }
     return;
   }
-  clearResult();
+  // 截图之后结果是独立阅读内容；滚动页面不再丢弃文字，缩放只重新约束面板位置。
+  if (capturePending.value) clearResult();
 }
 function handleVisibilityChange(): void {
   // captureVisibleTab 截取窗口的活动标签页，切走后不得将新标签页的内容作为本次选区处理。

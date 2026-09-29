@@ -132,7 +132,7 @@ function cer(actual, expected) {
   worker = context.serviceWorkers().find(w => w.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker');
   popup = await newPageWithoutForeground(context, 30000);
   await popup.goto(`chrome-extension://${new URL(worker.url()).host}/popup.html`);
-  await patch({on: true, selectionAreaEnabled: true, disableImageTranslator: true, disableSelectionTranslator: true, from: 'en', to: 'zh-Hans', service: 'google', areaTranslationService: '', areaTranslationMode: 'standard'});
+  await patch({on: true, selectionAreaEnabled: true, disableImageTranslator: true, disableSelectionTranslator: true, from: 'en', to: 'zh-Hans', service: 'google', areaTranslationService: '', areaTranslationMode: 'standard', areaRecognitionMode: 'ocr'});
   await worker.evaluate(({translation}) => {
     const original = globalThis.fetch.bind(globalThis);
     globalThis.__areaFixture = {requests: [], aborted: 0, delay: 300};
@@ -159,7 +159,11 @@ function cer(actual, expected) {
   page = await newPageWithoutForeground(context, 30000); page.on('pageerror', e => report.errors.push(e.message));
   await page.goto(`http://127.0.0.1:${server.address().port}/`); cdp = await context.newCDPSession(page);
   await activateExtensionTabWithoutForeground(context, page, 30000);
-  await wait(() => ui('return true'));
+  // 圈选 UI 按需挂载；先用可信快捷键唤起再退出，不能等待尚未触发的空宿主。
+  await page.waitForTimeout(500);
+  await page.keyboard.press('Shift+Z');
+  await wait(() => ui("return !!this.querySelector('.fr-area-selecting')"));
+  await page.keyboard.press('Escape');
   currentCase = 'synthetic shortcut ignored';
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown',{key:'Z',code:'KeyZ',shiftKey:true,bubbles:true})));
   assert.equal(await ui("return !!this.querySelector('.fr-area-selecting')"), false); report.cases.push(currentCase);
@@ -173,6 +177,9 @@ function cer(actual, expected) {
   await page.keyboard.press('Escape'); await page.locator('h1').click(); report.cases.push(currentCase);
   currentCase = 'custom shortcut replaces the default one';
   await patch({selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'Alt+K'});
+  // 保存响应先于内容页的异步配置订阅；先验证新快捷键生效，再断言旧键已停用。
+  await wait(async () => {await page.keyboard.press('Alt+K'); return ui("return !!this.querySelector('.fr-area-selecting')");}, 10000);
+  await page.keyboard.press('Escape');
   await wait(async () => (await ui("return !!this.querySelector('.fr-area-selecting')")) === false);
   await page.keyboard.press('Shift+Z');
   assert.equal(await ui("return !!this.querySelector('.fr-area-selecting')"), false, 'default shortcut must stop working');
@@ -180,6 +187,8 @@ function cer(actual, expected) {
   await wait(() => ui("return !!this.querySelector('.fr-area-selecting')"));
   await page.keyboard.press('Escape');
   await patch({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''});
+  await wait(async () => {await page.keyboard.press('Shift+Z'); return ui("return !!this.querySelector('.fr-area-selecting')");}, 10000);
+  await page.keyboard.press('Escape');
   await page.locator('h1').click(); report.cases.push(currentCase);
   for (const mode of ['open', 'closed']) {
     currentCase = `${mode} shadow input keeps Shift+Z`;
@@ -240,7 +249,7 @@ function cer(actual, expected) {
   await activateExtensionTabWithoutForeground(context,popup,30000); report.tabSwitchState={visibility:await page.evaluate(()=>document.visibilityState),tabs:await worker.evaluate(()=>chrome.tabs.query({}).then(tabs=>tabs.map(({active,url,windowId})=>({active,url,windowId}))))}; assert.equal(report.tabSwitchState.visibility,'hidden'); await page.waitForTimeout(3200);
   assert.equal(await ui("return !!this.querySelector('.fr-area-panel')"),false);assert.ok(await worker.evaluate(()=>globalThis.__areaFixture.aborted)>beforeSwitch.aborted);
   await worker.evaluate(()=>{globalThis.__areaFixture.delay=50;});await select();await waitResult();report.cases.push(currentCase);
-  currentCase='page scroll invalidates selection'; await page.evaluate(()=>scrollTo(0,100)); await wait(()=>ui("return !this.querySelector('.fr-area-panel')")); await page.evaluate(()=>scrollTo(0,0)); report.cases.push(currentCase);
+  currentCase='captured result survives page scroll'; await page.evaluate(()=>scrollTo(0,100)); await page.waitForTimeout(200); assert.ok(await ui("return !!this.querySelector('.fr-area-panel')")); await page.evaluate(()=>scrollTo(0,0)); report.cases.push(currentCase);
   currentCase='narrow dark result geometry'; await patch({theme:'dark'}); await wait(()=>ui("return this.querySelector('.fr-area-translator-root')?.classList.contains('fr-area-dark')")); await page.setViewportSize({width:390,height:780}); await page.evaluate(()=>{document.body.style.margin='16px';const c=document.querySelector('#sample');c.width=350;c.style.width='350px';paint(18,true);}); await select(); await waitResult();
   report.darkColors=await ui("const p=this.querySelector('.fr-area-panel');return {background:getComputedStyle(p).backgroundColor,text:getComputedStyle(p).color,overlay:getComputedStyle(this.querySelector('.fr-area-translator-root')).backgroundColor};"); assert.equal(report.darkColors.background,'rgb(43, 38, 48)'); assert.equal(report.darkColors.overlay,'rgba(0, 0, 0, 0)');
   const narrow=await ui("const p=this.querySelector('.fr-area-panel'),r=p.getBoundingClientRect();return {left:r.left,right:r.right,bottom:r.bottom,width:innerWidth,height:innerHeight,overflow:p.scrollWidth>p.clientWidth};"); assert.ok(narrow.left>=0&&narrow.right<=narrow.width&&narrow.bottom<=narrow.height&&!narrow.overflow); report.narrowGeometry=narrow; await shot('05-dark-narrow'); report.cases.push(currentCase);
