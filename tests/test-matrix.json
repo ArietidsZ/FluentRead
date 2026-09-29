@@ -292,7 +292,12 @@
       "tests/languageTechnicalTokens.test.ts",
       "tests/languageScripts.test.ts",
       "tests/languageStatistical.test.ts",
-      "tests/languageIdentification.test.ts"
+      "tests/languageIdentification.test.ts",
+      "tests/shareCardCore.test.ts",
+      "tests/shareCardExcerpt.test.ts",
+      "tests/shareCardRender.test.ts",
+      "tests/shareCardRuntime.test.ts",
+      "tests/shareCardExport.test.ts"
     ],
     "functional": [
       "tests/resourceSafeRunner.test.ts",

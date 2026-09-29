@@ -61,3 +61,5 @@ export {
     readSelectionText,
     shouldIgnoreSelection,
 } from '@/src/features/selection-translation/public';
+
+export {mountShareCard, unmountShareCard, isShareCardMounted} from '@/src/features/share-card/public';
