@@ -217,17 +217,10 @@ export function createTranslationRequestScheduler(
         if (concurrency && state.active >= limits.concurrency) return Number.POSITIVE_INFINITY;
         if (!countRate) return 0;
         let wait = 0;
-        if (limits.perSecond > 0) {
-            // starts 按时间非降序（时钟回拨会清空），因此近一秒的记录是它的后缀：
-            // 数出后缀长度即可，不必为每次判定复制一份数组。
-            const threshold = current - 1_000;
-            let recentSecond = 0;
-            for (let index = state.starts.length - 1; index >= 0 && state.starts[index]! > threshold; index -= 1) {
-                recentSecond += 1;
-            }
-            if (recentSecond >= limits.perSecond) {
-                wait = Math.max(wait, state.starts[state.starts.length - limits.perSecond]! + 1_000 - current);
-            }
+        if (limits.perSecond > 0 && state.starts.length >= limits.perSecond) {
+            // 启动时间单调递增：只需检查倒数第 N 条何时离开窗口，不必逐条数最近一秒的记录。
+            // 配置动态降低上限时也使用同一位置，恰好满一秒的记录不再占用速率额度。
+            wait = Math.max(wait, state.starts[state.starts.length - limits.perSecond]! + 1_000 - current);
         }
         if (limits.perMinute > 0 && state.starts.length >= limits.perMinute) {
             wait = Math.max(wait, state.starts[state.starts.length - limits.perMinute]! + 60_000 - current);

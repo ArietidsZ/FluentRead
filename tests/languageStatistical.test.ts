@@ -4,7 +4,7 @@
  * 统计模型缺失语言的功能词专用路径，以及正字法反证、功能词矛盾、不支持语言和过短文本的拒绝分支。
  * 同时核对 franc-min 模型清单与功能词数据的一致性，防止依赖升级或数据编辑悄悄改变判断前提。
  */
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {data as francMinData} from 'franc-min/data.js';
 import {translationLanguageOptions} from '@/src/core/language/catalog';
 import {
@@ -63,6 +63,21 @@ describe('数据前提', () => {
 });
 
 describe('可信路径', () => {
+    it('统计判断不随宿主默认土耳其语大小写规则改变', () => {
+        const text = 'THIS IS THE ORIGINAL TEXT IN THIS PARAGRAPH AND IT IS WRITTEN IN ENGLISH.';
+        const expected = assess('Latin', text);
+        expect(expected.language).toBe('en');
+        const lower = String.prototype.toLocaleLowerCase;
+        const hostLocale = vi.spyOn(String.prototype, 'toLocaleLowerCase').mockImplementation(function(this: string) {
+            return lower.call(this, 'tr');
+        });
+        try {
+            expect(assess('Latin', text)).toEqual(expected);
+        } finally {
+            hostLocale.mockRestore();
+        }
+    });
+
     it.each([
         ['Latin', 'This paragraph explains how the translation extension keeps the original text and shows the translated sentence below it.', 'en'],
         ['Latin', 'Le fichier est introuvable sur le serveur.', 'fr'],

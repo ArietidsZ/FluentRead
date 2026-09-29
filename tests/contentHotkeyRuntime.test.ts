@@ -34,14 +34,15 @@ vi.mock('@/src/core/hotkey', async (importOriginal) => ({
     matchesConfiguredHotkey: mocks.matchesConfiguredHotkey,
     shouldClaimConfiguredHotkey: mocks.shouldClaimConfiguredHotkey,
 }));
-vi.mock('@/src/app/content/features', () => ({
+vi.mock('@/src/features/full-page-translation/public', () => ({
     autoTranslateEnglishPage: mocks.autoTranslateEnglishPage,
     isFullPageTranslationActive: mocks.isFullPageTranslationActive,
-    isSameLanguage: vi.fn(() => false),
-    readSelectionText: vi.fn((_range: Range, value: string) => value),
     restoreOriginalContent: mocks.restoreOriginalContent,
+}));
+vi.mock('@/src/features/selection-translation/core', async importOriginal => ({
+    ...await importOriginal<typeof import('@/src/features/selection-translation/core')>(),
+    readSelectionText: vi.fn((_range: Range, value: string) => value),
     shouldIgnoreSelection: vi.fn(() => false),
-    toggleFloatingBallTranslation: mocks.toggleFloatingBallTranslation,
 }));
 
 type Listener = (event: Record<string, unknown>) => void;

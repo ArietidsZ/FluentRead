@@ -17,7 +17,7 @@ vi.mock('@/src/features/quick-translation/public', () => ({
         mocks.mountedDependencies = deps;
     },
 }));
-vi.mock('@/src/app/content/features', () => ({
+vi.mock('@/src/features/full-page-translation/public', () => ({
     autoTranslateEnglishPage: mocks.autoTranslateEnglishPage,
     cancelPendingHoverTranslation: mocks.cancelPendingHoverTranslation,
     handleTranslation: mocks.handleTranslation,

@@ -4,7 +4,7 @@
  * 主要内容：使用摘要隔离服务及端点状态，逐次绑定不可变凭据，共享总预算，限制每次请求每个 Key 只尝试一次并清理错误中的凭据。
  * 模块边界：本服务不读取全局配置、不保存密钥或执行 HTTP；调度、取消与实际请求由调用方提供，健康权重仅存于当前运行进程。
  */
-import sha256 from 'crypto-js/sha256';
+import {sha256Hex} from '@/src/shared/function/sha256';
 import {getServiceApiKeys, getServiceApiKeyRows, type ApiKeyConfigSource} from '@/src/core/config/apiKeys';
 import {createApiKeyRotation, classifyApiKeyFailure} from '@/src/core/translation/apiKeyPool';
 import {normalizeApiKeyRecoveryMs} from '@/src/core/config/scheduling';
@@ -67,7 +67,7 @@ function scopeFor(source: KeyConfig, service: string, model?: string): string {
     }
     selected.customEndpoint = (fields.customOpenAIProviders as {id: string; endpoint?: string}[] | undefined)
         ?.find(item => item.id === service)?.endpoint;
-    return sha256(JSON.stringify(selected)).toString();
+    return sha256Hex(JSON.stringify(selected));
 }
 
 /** provider 回显的任意 key 都不得进入 runtime 错误或日志。 */
@@ -95,11 +95,18 @@ export async function runWithApiKeyRotation<T extends KeyConfig, R>(
     operation: (selected: T, attempt: ApiKeyAttempt) => Promise<R>,
     options: ApiKeyRequestOptions = {},
 ): Promise<R> {
+    cancelled(options.signal);
     const keys = [...new Set(getServiceApiKeys(source, service))];
+    // 普通单 Key 和显式关闭轮询的请求不读轮询身份，也不散列全部密钥。
+    // 单项检测仍必须进入健康状态路径，不能被此快捷路径绕过。
+    const rotationEnabled = source.apiKeyRotationEnabled?.[service] !== false && keys.length > 1;
+    if (options.keyIndex === undefined && !rotationEnabled) {
+        return operation(withServiceApiKey(source, service, keys[0] ?? ''), {attempt: 0});
+    }
     const now = options.now ?? Date.now;
     const rotation = getRotation(source);
     const scope = scopeFor(source, service, options.model);
-    const ids = keys.map(key => sha256(key).toString());
+    const ids = keys.map(key => sha256Hex(key));
     const excluded: string[] = [];
     let lastError: unknown;
     cancelled(options.signal);
@@ -110,7 +117,7 @@ export async function runWithApiKeyRotation<T extends KeyConfig, R>(
             throw new Error('这个 API Key 已更改或为空，请重新检查');
         }
         const key = rows[options.keyIndex].trim();
-        const id = sha256(key).toString();
+        const id = sha256Hex(key);
         // 初始化/同步列表但不领取普通轮询租约，检测不会被冷却阻挡。
         rotation.nextRetry(scope, ids, [], now());
         try {
@@ -125,12 +132,6 @@ export async function runWithApiKeyRotation<T extends KeyConfig, R>(
                 failure === 'cooldown' ? serializeTranslationError(error).retryAfterMs : undefined);
             throw redactApiKeyError(error, keys);
         }
-    }
-
-    // 默认只使用首个 Key；显式关闭时保留其他 Key 但不参与请求，方便用户稍后重新启用轮询。
-    const rotationEnabled = source.apiKeyRotationEnabled?.[service] !== false && keys.length > 1;
-    if (!rotationEnabled) {
-        return operation(withServiceApiKey(source, service, keys[0] ?? ''), {attempt: 0});
     }
 
     while (excluded.length < keys.length) {

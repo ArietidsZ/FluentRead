@@ -88,6 +88,48 @@ describe('local translation paragraph language detection', () => {
     vi.resetModules();
   });
 
+  it('ignores an old Worker error after cancellation and preserves the replacement request', async () => {
+    vi.resetModules();
+    vi.doMock('@/src/features/local-translation/offscreen/downloads', () => ({
+      createLocalTranslationDownloadManager: () => ({status: async () => ({tasks: [{model: LOCAL_TRANSLATION_MODEL_IDS.opusZhEn, phase: 'ready'}]})}),
+    }));
+    const workers: FakeWorker[] = [];
+    class FakeWorker {
+      onmessage?: (event: any) => void;
+      onerror?: (event: any) => void;
+      message: any;
+      terminate = vi.fn();
+      constructor() { workers.push(this); }
+      postMessage(message: any) { this.message = message; }
+      complete(result: string) { this.onmessage?.({data: {requestId: this.message.requestId, success: true, result}}); }
+    }
+    vi.stubGlobal('Worker', FakeWorker);
+    vi.stubGlobal('window', {setTimeout, clearTimeout, location: {href: 'https://extension.test/offscreen.html'}});
+    const {translateLocalText, disposeLocalTranslationWorker} = await import('@/src/features/local-translation/offscreen/translation');
+    const request = {model: LOCAL_TRANSLATION_MODEL_IDS.opusZhEn, text: 'Hello', sourceLanguage: 'en', targetLanguage: 'zh'};
+    const controller = new AbortController();
+    try {
+      const first = translateLocalText(request, controller.signal);
+      const cancelled = expect(first).rejects.toMatchObject({name: 'AbortError'});
+      await vi.waitFor(() => expect(workers).toHaveLength(1));
+      controller.abort();
+      await cancelled;
+      const second = translateLocalText(request);
+      const completed = expect(second).resolves.toBe('新译文');
+      await vi.waitFor(() => expect(workers).toHaveLength(2));
+      workers[0].onerror?.({message: 'late failure from cancelled worker'});
+      workers[1].complete('新译文');
+      await completed;
+      expect(workers[1].terminate).not.toHaveBeenCalled();
+      const third = translateLocalText(request);
+      const rejected = expect(third).rejects.toThrow('current worker failed');
+      await vi.waitFor(() => expect(workers[1].message.requestId).toBe(3));
+      workers[1].onerror?.({message: 'current worker failed'});
+      await rejected;
+      expect(workers[1].terminate).toHaveBeenCalledOnce();
+    } finally { disposeLocalTranslationWorker(); }
+  });
+
   it('uses real detection with paragraph context, preserves explicit choices and handles blank context', async () => {
     vi.resetModules();
     vi.doMock('@/src/features/local-translation/offscreen/downloads', () => ({

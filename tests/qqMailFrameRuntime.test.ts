@@ -27,12 +27,12 @@ vi.mock('@/src/features/full-page-translation/public', () => ({
     getFullPageTranslationFrameState: mocks.getState,
     invalidateFullPageTranslationSessionCache: vi.fn(),
     restoreOriginalContent: mocks.restoreOriginalContent,
+    cancelPendingHoverTranslation: vi.fn(), handleTranslation: vi.fn(), noteBilingualHostGesture: vi.fn(),
 }));
 vi.mock('@/src/app/translation/client', () => ({cancelAllTranslations: vi.fn()}));
 vi.mock('@/src/shared/geometry/touch', () => ({getCenterPoint: vi.fn()}));
-vi.mock('@/src/app/content/features', () => ({
-    cancelPendingHoverTranslation: vi.fn(), handleTranslation: vi.fn(), mountHoverTranslationContentFeature: () => vi.fn(),
-    noteBilingualHostGesture: vi.fn(),
+vi.mock('@/src/features/hover-translation/public', () => ({mountHoverTranslationContentFeature: () => vi.fn()}));
+vi.mock('@/src/features/selection-translation/public', () => ({
     mountSelectionTranslator: mocks.mountSelection, unmountSelectionTranslator: mocks.unmountSelection,
 }));
 vi.mock('@/src/app/content/hotkeyRuntime', () => ({
