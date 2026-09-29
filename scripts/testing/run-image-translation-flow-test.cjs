@@ -598,10 +598,17 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
     assert.ok(report.progress.some(t => t.includes('生成译图')));
     await shot('02-translated');
     await click('文字');
-    const fullText = await ui("return this.querySelector('.fr-image-details').textContent");
+    const fullText = await ui("return this.querySelector('.fr-image-reader-body').textContent");
     assert.match(fullText, /欢迎|单击|语言/);
     report.translatedText = fullText;
     report.cases.push('real language download, OCR, translation and replacement');
+    await click('原文对照');
+    assert.match(await ui("return this.querySelector('.fr-image-reader-body').textContent"), /Welcome|Translate|Read/);
+    const readerGeometry = await ui("const r=this.querySelector('.fr-image-reader').getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:innerWidth,height:innerHeight,parent:this.querySelector('.fr-image-reader').parentElement.className};");
+    assert.ok(readerGeometry.left >= 0 && readerGeometry.right <= readerGeometry.width && readerGeometry.bottom <= readerGeometry.height);
+    assert.notEqual(readerGeometry.parent, 'fluent-read-image-translation-overlay');
+    report.readerGeometry = readerGeometry;
+    report.cases.push('independent viewport reader preserves recognized original alongside translation');
     await shot('03-complete-text');
     await click('文字');
     currentCase = 'restore and cached redisplay';

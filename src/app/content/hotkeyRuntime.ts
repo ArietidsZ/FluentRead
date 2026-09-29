@@ -6,7 +6,7 @@
  */
 import {config} from '@/src/services/config/store';
 import {shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
-import {selectionReverseTarget} from '@/src/features/selection-translation/core';
+import {readSelectionText, selectionReverseTarget, shouldIgnoreSelection} from '@/src/features/selection-translation/core';
 import {
     addPressedHotkeyEventKey,
     deletePressedHotkeyEventKey,
@@ -16,10 +16,8 @@ import {
 import {
     autoTranslateEnglishPage,
     isFullPageTranslationActive,
-    readSelectionText,
     restoreOriginalContent,
-    shouldIgnoreSelection,
-} from './features';
+} from '@/src/features/full-page-translation/public';
 
 /** 悬浮、快捷翻译与邮件 frame 共享的划词快捷键仲裁端口，组合根整体注入，避免逐项重复接线。 */
 export interface SelectionShortcutPorts {

@@ -317,15 +317,17 @@ describe('图片翻译流程优化',()=>{
         const onAction = vi.fn();
         const ui = createImageControls({onAction, onPrepare: vi.fn()});
         document.body.append(ui.feedback, ui.element);
-        const inspect = ui.element.querySelectorAll('button')[2];
+        const inspect = ui.element.querySelectorAll<HTMLButtonElement>('.fr-image-actions button')[2];
         ui.update('translated', '完成');
         expect(inspect.hidden).toBe(true);
         ui.setLines([{text: '完整译文'}]);
         expect(inspect.hidden).toBe(false);
         const click = {isTrusted: true, stopPropagation: vi.fn(), target: inspect} as unknown as MouseEvent;
-        clicks[0](click);
+        const event = new window.Event('click', {bubbles: true});
+        Object.defineProperty(event, 'isTrusted', {value: true});
+        inspect.dispatchEvent(event);
         expect(inspect.getAttribute('aria-expanded')).toBe('true');
-        clicks[0](click);
+        inspect.dispatchEvent(event);
         expect(inspect.getAttribute('aria-expanded')).toBe('false');
         ui.setLines([]);
         expect(inspect.hidden).toBe(true);
@@ -387,5 +389,22 @@ describe('图片控件界面语言', () => {
         expect(controls.button.textContent).toBe('原图');
         expect(details.textContent).toBe('原文');
         controls.dispose();
+    });
+});
+
+
+describe('图片结果面板所有权', () => {
+    it('打开另一图片可隐藏旧面板，关闭文字面板恢复入口的展开状态', () => {
+        const {document,window}=parseHTML('<html></html>');vi.stubGlobal('document',document);
+        const ui=createImageControls({onAction() {},onPrepare() {}});
+        document.body.append(ui.element);
+        const click=(node:Element)=>{const e=new window.Event('click',{bubbles:true});Object.defineProperty(e,'isTrusted',{value:true});node.dispatchEvent(e);};
+        ui.setLines([{text:'译文',sourceText:'Source'}]);ui.update('translated','完成');
+        const inspect=ui.element.querySelectorAll<HTMLButtonElement>('.fr-image-actions button')[2];
+        click(inspect);expect(ui.reader.hidden).toBe(false);
+        ui.hideReader();expect(ui.reader.hidden).toBe(true);expect(inspect.getAttribute('aria-expanded')).toBe('false');
+        click(inspect);click(ui.reader.querySelectorAll('header button')[1]);
+        expect(ui.reader.hidden).toBe(true);expect(inspect.getAttribute('aria-expanded')).toBe('false');
+        ui.dispose();
     });
 });

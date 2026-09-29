@@ -1,6 +1,6 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
- * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
+ * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏词书、双语分享卡片、重试和关闭。
  * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放和主题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；以统一入口和普通/卡片呈现按需打开学习面板，协调翻译、词典、词书与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
@@ -23,6 +23,7 @@
         <div class="fr-tooltip-actions">
           <button v-if="!readingMode" class="fr-mode-btn" type="button" :aria-pressed="cardMode" @click="toggleCardMode">{{ cardMode ? '普通翻译' : '卡片模式' }}</button>
           <button v-if="readingMode" class="fr-mode-btn" type="button" @click="openTooltip()">返回译文</button>
+          <button v-if="!readingMode && shareCardAvailable && translationResult && !isLoading" class="fr-action-btn fr-share-card-entry" type="button" :title="t('shareCard.create')" :aria-label="t('shareCard.create')" @click="openShareCard({original: selectedText, translation: translationResult})"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7M21 3l-9 9M10 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" /></svg></button>
           <button
             v-if="!readingMode && config.vocabularyBookEnabled && isWordSelection && !isPrivateContext"
             class="fr-action-btn fr-vocabulary-btn"
@@ -171,6 +172,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import browser from 'webextension-polyfill';
+import {openShareCard, isShareCardMounted} from '@/src/features/share-card/public';
 import { config, subscribeConfig } from '@/src/services/config/store';
 import { translateText, translateTextBatch } from '@/src/app/translation/client';
 import {detectlang, shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
@@ -194,6 +196,7 @@ const props = defineProps<{
   onSelectionRangeChange?: (range: Range | null) => void;
 }>();
 const {t, translateLegacy} = useUiI18n();
+const shareCardAvailable = isShareCardMounted();
 
 type SelectionTrigger = 'direct' | 'icon' | 'dot' | 'shortcut' | 'contextMenu';
 type AudioKind = 'source' | 'translation' | 'word';
@@ -1427,6 +1430,7 @@ function hideAll(): void {
   vocabularyBusy.value = false;
 }
 function isInsideUi(target: EventTarget | null): boolean {
+  if (target instanceof Element && target.id === 'fluent-read-share-card-container') return true;
   const node = target instanceof Node ? target : null;
   if (!node) return false;
   const host = document.getElementById('fluent-read-selection-translator-container');
@@ -1559,7 +1563,7 @@ function handleScroll(event: Event): void {
   schedulePositionUpdate();
 }
 function handleKeydown(event: KeyboardEvent): void {
-  if (!event.isTrusted) return;
+  if (!event.isTrusted || (event.target instanceof Element && event.target.id === 'fluent-read-share-card-container')) return;
   lastTrustedSelectionInteractionAt = Date.now();
   if (isInsideUi(event.target)) {
     suppressSelectionRead();
@@ -1908,4 +1912,5 @@ onBeforeUnmount(() => {
 .fr-dark-theme .fr-word-meaning em, .fr-dark-theme .fr-word-definition-zh, .fr-dark-theme .fr-word-example-zh, .fr-dark-theme .fr-word-translation-loading, .fr-dark-theme .fr-word-empty { color: #c8aab5; }
 .fr-dark-theme .fr-word-fallback-note { background: #4a303b; }
 @media (prefers-reduced-motion: reduce) { .fr-selection-indicator, .fr-loading-spinner { transition: none; animation: none; } }
+
 </style>

@@ -2,9 +2,62 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {describe, expect, it} from 'vitest';
-import {remoteConfigStorageBuildPlugin, createExtensionManifest, extendRemoteConfigBuildConfig} from '@/wxt.config';
+import type {Entrypoint, EntrypointGroup} from 'wxt';
+import {remoteConfigStorageBuildPlugin, createExtensionManifest, extendRemoteConfigBuildConfig, groupModuleWorkers} from '@/wxt.config';
 
 const PROJECT_ROOT = resolve(__dirname, '..');
+
+function buildEntrypoint(name: string, type: Entrypoint['type'] = 'unlisted-script'): Entrypoint {
+    return {name, type, inputPath: `/entrypoints/${name}.ts`, outputDir: '/output', options: {}} as Entrypoint;
+}
+
+describe('module worker build groups', () => {
+    it('三个已知模块 Worker 共享构建，保留其顺序及其他构建组的对象', () => {
+        const workers = ['localTranslationWorker', 'localTtsWorker', 'videoTranscriptionWorker'].map(name => buildEntrypoint(name));
+        const background = buildEntrypoint('background', 'background');
+        const content = buildEntrypoint('content', 'content-script');
+        const classic = buildEntrypoint('otherWorker');
+        const pages = [buildEntrypoint('options', 'options'), buildEntrypoint('popup', 'popup')];
+        const groups: EntrypointGroup[] = [background, workers[0], content, workers[1], classic, workers[2], pages];
+
+        groupModuleWorkers(groups);
+
+        expect(groups).toEqual([background, workers, content, classic, pages]);
+        expect(groups[1]).not.toBe(workers);
+        for (const entry of [background, content, classic, pages]) expect(groups).toContain(entry);
+        for (const worker of workers) expect(groups[1]).toContain(worker);
+        const grouped = [...groups];
+        groupModuleWorkers(groups);
+        expect(groups).toEqual(grouped);
+        expect(groups[1]).toBe(grouped[1]);
+    });
+
+    it('部分构建仍可以组合两个模块 Worker', () => {
+        const workers = ['videoTranscriptionWorker', 'localTranslationWorker'].map(name => buildEntrypoint(name));
+        const groups: EntrypointGroup[] = [...workers];
+        groupModuleWorkers(groups);
+        expect(groups).toEqual([workers]);
+    });
+
+    it('不足两个可组合入口时保留原有构建方式', () => {
+        for (const groups of [[], [buildEntrypoint('localTtsWorker')], [buildEntrypoint('unknown')]]) {
+            const before = [...groups];
+            groupModuleWorkers(groups);
+            expect(groups).toEqual(before);
+        }
+    });
+
+    it('同名的内容脚本、后台或已分组入口不会被改成模块 Worker', () => {
+        const groups: EntrypointGroup[] = [
+            buildEntrypoint('localTranslationWorker', 'content-script'),
+            buildEntrypoint('localTtsWorker', 'background'),
+            [buildEntrypoint('videoTranscriptionWorker')],
+        ];
+        const before = [...groups];
+        groupModuleWorkers(groups);
+        expect(groups).toEqual(before);
+    });
+});
 
 function sourceBody(path: string): string {
     const source = readFileSync(resolve(PROJECT_ROOT, path), 'utf8');

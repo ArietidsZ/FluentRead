@@ -9,15 +9,17 @@ The hover entry skips common avatars, icons, logos, emoji, video previews, and s
 1. Make sure image translation is enabled. Click the icon near the image’s lower-left corner, or use the image’s context menu.
 2. For a new source language, follow the prompt to download its recognition pack and translate.
 3. Wait for recognition and translation. Choose cancel if you want to stop.
-4. Switch between original and translated image, or open the text view to copy the full result.
+4. Switch between original and translated image, or open **Text** in a separate reading panel. Compare the recognized original and translation, and copy either the translation or both. Long text remains readable even for small images.
 
-Canceling a translation does not remove downloaded language packs. Later images can reuse them.
+Canceling a translation does not remove downloaded language packs. Later images can reuse them. If text stays unchanged, you can still read and copy the recognized result.
+
+Language settings show the packs needed for your source language, downloaded packs, and active tasks first. Expand other languages as needed. Download progress is shown per pack; you can leave the settings page and return later. Completed packs are kept when another pack fails. Retrying downloads only missing packs. Removed packs need to be downloaded again.
 
 If the translation connection is interrupted, it retries once automatically and remains cancelable. If it still fails, choose **Retry**. After an extension update or reload, refresh the webpage before trying again.
 
 ## Choose the source language
 
-The recognition pack must match the image’s language. Automatic detection prepares Simplified Chinese, Traditional Chinese, English, and Japanese by default. Other supported languages require selecting the source language and downloading its pack.
+Choose the recognition source language in the language-pack manager. This setting is shared with webpage and area translation. The recognition pack must match the image’s language. Automatic detection prepares Simplified Chinese, Traditional Chinese, English, and Japanese by default. Other supported languages require selecting the source language and downloading its pack.
 
 When the source language is automatic or Japanese, the Japanese pack recognizes both horizontal and vertical text. Vertical columns in a manga speech bubble are joined right to left into one passage before translation.
 

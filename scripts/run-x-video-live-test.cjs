@@ -139,6 +139,7 @@ async function readPageState(page) {
       loginSignals: document.querySelectorAll('input[type="password"], a[href*="/login"], [data-testid*="login" i], [data-testid*="signup" i]').length,
       videoCount: videos.length,
       videos,
+      playerVideoIndex: player ? [...document.querySelectorAll('video')].indexOf(player.querySelector('video')) : -1,
       videosWithGeometry: videosWithGeometry.length,
       button: button ? {
         connected: button.isConnected,
@@ -197,9 +198,13 @@ async function pickVisibleVideo(page) {
   const index = await page.evaluate(() => {
     const candidates = [...document.querySelectorAll('video')].map((video, index) => {
       const rect = video.getBoundingClientRect();
-      return {index, area: rect.width * rect.height, duration: Number.isFinite(video.duration) ? video.duration : 0, src: video.currentSrc || video.src};
+      const visibleArea = Math.max(0, Math.min(innerWidth, rect.right) - Math.max(0, rect.left))
+        * Math.max(0, Math.min(innerHeight, rect.bottom) - Math.max(0, rect.top));
+      return {index, visibleArea, area: rect.width * rect.height, duration: Number.isFinite(video.duration) ? video.duration : 0, src: video.currentSrc || video.src};
     }).filter(candidate => candidate.area > 0);
-    candidates.sort((left, right) => Number(Boolean(right.src)) - Number(Boolean(left.src)) || right.duration - left.duration || right.area - left.area);
+    // Main media can load after a reply GIF. Prefer what the user is actually
+    // looking at instead of scrolling to a loaded but off-screen reply.
+    candidates.sort((left, right) => right.visibleArea - left.visibleArea || Number(Boolean(right.src)) - Number(Boolean(left.src)) || right.duration - left.duration || right.area - left.area);
     return candidates[0]?.index ?? -1;
   });
   return index >= 0 ? page.locator('video').nth(index) : null;
@@ -208,25 +213,27 @@ async function pickVisibleVideo(page) {
 async function hoverVisibleVideo(page) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const video = await pickVisibleVideo(page);
-    if (!video) return false;
+    if (!video) return null;
     try {
       await video.scrollIntoViewIfNeeded({timeout: 10_000});
-      // X places a media link above the video. Hover the actual hit target with
-      // normal Playwright actionability checks so the site's link stays intact.
-      const anchorIndex = await video.evaluate(element => {
+      // Public X players may put a link or an unnamed overlay above the video.
+      // Move the real pointer to its visible center: hovering <video> itself
+      // would wait for that legitimate overlay to stop intercepting events.
+      const point = await video.evaluate(element => {
         const rect = element.getBoundingClientRect();
-        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        const anchor = hit?.closest('a[href*="/status/"][href*="/video/"]');
-        return anchor ? [...document.querySelectorAll('a')].indexOf(anchor) : -1;
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        return rect.width > 0 && rect.height > 0 && document.elementFromPoint(x, y)
+          ? {x, y, videoIndex: [...document.querySelectorAll('video')].indexOf(element)} : null;
       });
-      const target = anchorIndex >= 0 ? page.locator('a').nth(anchorIndex) : video;
-      await target.hover({timeout: 10_000});
-      return true;
+      if (!point) continue;
+      await page.mouse.move(point.x, point.y);
+      return {videoIndex: point.videoIndex};
     } catch {
       await page.waitForTimeout(500);
     }
   }
-  return false;
+  return null;
 }
 
 async function persistPluginState(control, enabled) {
@@ -387,7 +394,8 @@ async function main() {
     try { await waitForVideo(page, 12_000); } catch (error) { report.profileVideoWaitError = error.message; }
     const profileVideo = await pickVisibleVideo(page);
     if (profileVideo) {
-      if (!await hoverVisibleVideo(page)) report.profileVideoHoverError = '视频在悬浮期间被 X 重挂载，三次重试均未命中';
+      report.profileHoverTarget = await hoverVisibleVideo(page);
+      if (!report.profileHoverTarget) report.profileVideoHoverError = '三次重试后仍未能将鼠标移入可见视频';
       await page.waitForTimeout(900);
       const hovered = await inspectControls(page, report, 'profile-hover');
       report.assertions.profileVideoHoverEntry = Boolean(hovered.button?.connected);
@@ -417,7 +425,8 @@ async function main() {
       report.blocked.push({phase: 'status', reason: classifyBlocking(statusInitial) ? 'login-or-site-block' : 'no-visible-video'});
       await screenshotAndDom(page, options.artifactsDir, 'status-no-video', report);
     } else {
-      if (!await hoverVisibleVideo(page)) report.statusVideoHoverError = '视频在悬浮期间被 X 重挂载，三次重试均未命中';
+      report.statusHoverTarget = await hoverVisibleVideo(page);
+      if (!report.statusHoverTarget) report.statusVideoHoverError = '三次重试后仍未能将鼠标移入可见视频';
       await page.waitForTimeout(900);
       const statusHover = await inspectControls(page, report, 'status-hover');
       report.assertions.statusEntryPresent = Boolean(statusHover.button?.connected);
@@ -429,6 +438,7 @@ async function main() {
       const menuState = await inspectMenu(page, report, 'status-menu');
       report.assertions.menuVisible = Boolean(menuState.menu?.visible);
       report.assertions.menuSamePlayer = Boolean(menuState.menu?.buttonSamePlayer);
+      report.assertions.menuOwnsHoveredVideo = Boolean(report.statusHoverTarget && menuState.playerVideoIndex === report.statusHoverTarget.videoIndex);
       await screenshotAndDom(page, options.artifactsDir, 'status-menu', report);
 
       const fullscreenControl = page.locator('[aria-label*="Full screen" i]:visible, [aria-label*="Fullscreen" i]:visible, [aria-label*="全屏"]:visible');
@@ -469,6 +479,7 @@ async function main() {
       'statusEntryPresent',
       'menuVisible',
       'menuSamePlayer',
+      'menuOwnsHoveredVideo',
       'globalConfigOffRemovesIcon',
     ];
     report.success = required.every(key => report.assertions[key] === true) && report.blocked.length === 0;

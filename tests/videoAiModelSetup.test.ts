@@ -50,6 +50,17 @@ describe('video AI model setup', () => {
     expect(dependencies.onChange).toHaveBeenCalledTimes(2);
   });
 
+  it('closing during a pending model check never starts recognition from a late result', async () => {
+    const status = deferred<unknown>();
+    const {controller, dependencies} = setup({sendMessage: vi.fn(() => status.promise)});
+    const pending = controller.request(() => true);
+    controller.cancel();
+    status.resolve({success: true, models: ['tiny']});
+    await pending;
+    expect(dependencies.startGeneration).not.toHaveBeenCalled();
+    expect(controller.choice).toBeNull();
+  });
+
   it('recommends Tiny, lets the user switch, and downloads before starting', async () => {
     const {controller, events, dependencies, sendMessage} = setup({responses: {
       fluentReadGetLocalVideoModelState: [{success: true, models: []}],

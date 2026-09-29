@@ -67,7 +67,7 @@ describe('free translation settings compiled component', () => {
   }
 
   it('shows free service controls immediately while leaving timeout in advanced mode', () => {
-    expect(elements.some(element => element.props['aria-label'] === '自动均衡')).toBe(true);
+    expect(elements.some(element => element.props['aria-label'] === 'settings.services.freeWeights.mode')).toBe(true);
     expect(elements.filter(element => element.props['data-fallback-provider'])).toHaveLength(FREE_TRANSLATION_PROVIDERS.length);
     expect(elements.some(element => element.props['aria-label'] === '每个服务最多等待（秒）')).toBe(false);
     expect(control('MyMemory 联系邮箱')).toBeDefined();
@@ -81,7 +81,10 @@ describe('free translation settings compiled component', () => {
     expect(control('启用 微软翻译')).toBeDefined();
     expect(elements.some(element => element.props['aria-label'] === '启用 微软翻译')).toBe(true);
     expect(elements.some(element => element.props['data-testid'] === 'free-translation-weight-summary')).toBe(true);
-    expect(elements.filter(element => element.props['data-provider-weight'])).toHaveLength(FREE_TRANSLATION_PROVIDERS.length);
+    expect(elements.filter(element => element.props['data-provider-weight'])).toHaveLength(config.freeTranslationOrder.length);
+    const details = elements.find(element => element.props['data-testid'] === 'free-routing-details');
+    expect(details?.tag).toBe('details');
+    expect(details?.props.open).toBeUndefined();
     expect(elements.find(element => element.props['data-provider-weight'] === 'microsoft')?.text).toBe('20.8%');
     expect(readFileSync(resolve(process.cwd(), componentPath), 'utf8')).not.toContain('setWeight');
   });
@@ -91,9 +94,22 @@ describe('free translation settings compiled component', () => {
     await runtime.nextTick();
     expect(config.freeTranslationMode).toBe('sequential');
     expect(control('下移 微软翻译').props.disabled).toBe(false);
-    control('自动均衡').props.onChange();
+    control('settings.services.freeWeights.mode').props.onChange();
     await runtime.nextTick();
     expect(config.freeTranslationMode).toBe('balanced');
+  });
+
+  it('shows cooling only for an enabled service and keeps allocation details collapsed', async () => {
+    state.weightSnapshot = {total: 100, observedAt: Date.now(), entries: [{providerId: 'microsoft', weight: 0, status: 'cooling'}]};
+    await runtime.nextTick();
+    expect(state.weightStatus('microsoft')).toBe('cooling');
+    state.toggle('microsoft', false);
+    await runtime.nextTick();
+    expect(state.weightStatus('microsoft')).toBe('disabled');
+    state.weightSnapshot = {total: 100, observedAt: Date.now(), entries: [{providerId: 'microsoft', weight: 0, status: 'disabled'}]};
+    state.toggle('microsoft', true);
+    await runtime.nextTick();
+    expect(state.weightStatus('microsoft')).toBe('ready');
   });
 
   it('keeps at least one service enabled', async () => {

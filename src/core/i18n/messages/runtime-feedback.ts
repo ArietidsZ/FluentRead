@@ -11,6 +11,12 @@ type RuntimeFeedbackRow = readonly [source: string, enUS: string, jaJP: string, 
 
 /** 翻译调度、服务商适配器与连接测试返回给页面、划词卡片和设置页的反馈。 */
 const translationRows: readonly RuntimeFeedbackRow[] = [
+    ["图片文字", "Image text", "画像内の文字", "이미지 텍스트", "Texte de l’image", "Текст изображения", "Texto de la imagen"],
+    ["原文对照", "Compare original", "原文と比較", "원문 비교", "Comparer à l’original", "Сравнить с оригиналом", "Comparar original"],
+    ["关闭文字面板", "Close text panel", "文字パネルを閉じる", "텍스트 패널 닫기", "Fermer le panneau de texte", "Закрыть текстовую панель", "Cerrar panel de texto"],
+    ["复制对照", "Copy both", "対訳をコピー", "대역 복사", "Copier les deux", "Копировать оба текста", "Copiar ambos"],
+    ["本地 OCR · 请核对名称和数字", "Local OCR · Check names and numbers", "ローカル OCR · 名前と数字をご確認ください", "로컬 OCR · 이름과 숫자를 확인하세요", "OCR local · Vérifiez les noms et nombres", "Локальное OCR · Проверьте имена и числа", "OCR local · Revisa nombres y números"],
+
     ['翻译请求已取消', 'The translation request was canceled', '翻訳リクエストはキャンセルされました', '번역 요청이 취소되었습니다', 'La demande de traduction a été annulée', 'Запрос на перевод отменён', 'Se canceló la solicitud de traducción'],
     ['翻译请求已取消。', 'The translation request was canceled.', '翻訳リクエストはキャンセルされました。', '번역 요청이 취소되었습니다.', 'La demande de traduction a été annulée.', 'Запрос на перевод отменён.', 'Se canceló la solicitud de traducción.'],
     ['翻译已取消', 'Translation canceled', '翻訳はキャンセルされました', '번역이 취소되었습니다', 'Traduction annulée', 'Перевод отменён', 'Traducción cancelada'],
@@ -375,7 +381,6 @@ const imageDocumentRows: readonly RuntimeFeedbackRow[] = [
     ['图片解码超时，请重试', 'Decoding the image timed out. Try again.', '画像のデコードがタイムアウトしました。再試行してください', '이미지 디코딩 시간이 초과되었습니다. 다시 시도하세요', 'Le décodage de l’image a expiré. Réessayez.', 'Время декодирования изображения истекло. Повторите попытку.', 'La decodificación de la imagen agotó el tiempo de espera. Vuelve a intentarlo.'],
     ['图片解码超时，请重新圈选或重试', 'Decoding the image timed out. Select the area again or retry.', '画像のデコードがタイムアウトしました。範囲を選び直すか再試行してください', '이미지 디코딩 시간이 초과되었습니다. 영역을 다시 선택하거나 다시 시도하세요', 'Le décodage de l’image a expiré. Sélectionnez à nouveau la zone ou réessayez.', 'Время декодирования изображения истекло. Выделите область заново или повторите попытку.', 'La decodificación de la imagen agotó el tiempo de espera. Vuelve a seleccionar el área o reinténtalo.'],
     ['图片中没有可翻译文字', 'The image has no text to translate', '画像に翻訳できるテキストがありません', '이미지에 번역할 텍스트가 없습니다', 'L’image ne contient aucun texte à traduire', 'На изображении нет текста для перевода', 'La imagen no tiene texto que traducir'],
-    ['图片中没有需要翻译的文字', 'The image has no text that needs translation', '画像に翻訳が必要なテキストがありません', '이미지에 번역이 필요한 텍스트가 없습니다', 'L’image ne contient aucun texte à traduire', 'На изображении нет текста, который нужно перевести', 'La imagen no tiene texto que haya que traducir'],
     ['没有识别到图片文字', 'No text was recognized in the image', '画像のテキストを認識できませんでした', '이미지에서 텍스트를 인식하지 못했습니다', 'Aucun texte n’a été reconnu dans l’image', 'Текст на изображении не распознан', 'No se reconoció texto en la imagen'],
     ['图片文字翻译总时间已耗尽', 'The total time for translating the image text ran out', '画像テキストの翻訳全体の制限時間を超えました', '이미지 텍스트 번역 전체 시간을 모두 사용했습니다', 'Le temps total de traduction du texte de l’image est écoulé', 'Общее время перевода текста изображения истекло', 'Se agotó el tiempo total para traducir el texto de la imagen'],
     ['图片文字翻译超时，请重试', 'Translating the image text timed out. Try again.', '画像テキストの翻訳がタイムアウトしました。再試行してください', '이미지 텍스트 번역 시간이 초과되었습니다. 다시 시도하세요', 'La traduction du texte de l’image a expiré. Réessayez.', 'Время перевода текста изображения истекло. Повторите попытку.', 'La traducción del texto de la imagen agotó el tiempo de espera. Vuelve a intentarlo.'],

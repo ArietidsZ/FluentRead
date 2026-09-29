@@ -33,6 +33,7 @@
       "tests/requestLimitSettings.test.ts"
     ],
     "unit": [
+      "tests/sha256.test.ts",
       "tests/configApiKeys.test.ts",
       "tests/apiKeyCheckIdentity.test.ts",
       "tests/modalDialogHost.test.ts",
@@ -292,7 +293,12 @@
       "tests/languageTechnicalTokens.test.ts",
       "tests/languageScripts.test.ts",
       "tests/languageStatistical.test.ts",
-      "tests/languageIdentification.test.ts"
+      "tests/languageIdentification.test.ts",
+      "tests/shareCardCore.test.ts",
+      "tests/shareCardExcerpt.test.ts",
+      "tests/shareCardRender.test.ts",
+      "tests/shareCardRuntime.test.ts",
+      "tests/shareCardExport.test.ts"
     ],
     "functional": [
       "tests/resourceSafeRunner.test.ts",
@@ -349,6 +355,7 @@
       "tests/imageOcrRuntime.test.ts",
       "tests/imageTranslationPresentation.test.ts",
       "tests/imageTranslationFlow.test.ts",
+      "tests/imageTextReader.test.ts",
       "tests/imageTranslationClientRecovery.test.ts",
       "tests/imageTranslationRuntime.test.ts",
       "tests/imageTranslationPageRead.test.ts",

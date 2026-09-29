@@ -17,6 +17,23 @@ export type ImageOcrLanguagePack = {
     recommended: boolean;
 };
 
+/** 源语言选择和语言包准备共用同一目录，保留翻译配置使用的规范语言代码。 */
+export const IMAGE_OCR_SOURCE_LANGUAGES = [
+    {value: 'auto', label: '自动检测'}, {value: 'en', label: 'English'},
+    {value: 'zh-Hans', label: '简体中文'}, {value: 'zh-Hant', label: '繁體中文'},
+    {value: 'ja', label: '日本語'}, {value: 'es', label: 'Español'},
+    {value: 'ko', label: '한국어'}, {value: 'fr', label: 'Français'}, {value: 'ru', label: 'Русский'},
+] as const;
+
+/** 仅公开任务阶段与错误，不保存凭据、图片或用户文本；完成状态以语言仓库为准。 */
+export type ImageOcrDownloadState = {phase: 'queued' | 'downloading' | 'removing' | 'error'; error?: string};
+export interface ImageOcrStatusResponse {
+    success?: boolean;
+    languages?: unknown;
+    states?: Partial<Record<ImageOcrLanguageCode, ImageOcrDownloadState>>;
+    error?: string;
+}
+
 export const IMAGE_OCR_LANGUAGE_STATE_KEY = 'fluentReadImageOcrLanguages';
 
 export const IMAGE_OCR_LANGUAGE_PACKS: ImageOcrLanguagePack[] = [

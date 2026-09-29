@@ -1,3 +1,4 @@
+import {createImageTranslationBackgroundHandlers} from '@/src/features/image-translation/background/handlers';
 import {describe, expect, it, vi} from 'vitest';
 
 import {createImageOcrLanguageRepository} from '@/src/features/image-translation/background/ocrLanguageRepository';
@@ -96,5 +97,92 @@ describe('图片后台服务', () => {
         await expect(repository.assertDownloaded('zh-TW')).rejects.toThrow('繁體中文语言包');
         storage.get.mockResolvedValueOnce({[IMAGE_OCR_LANGUAGE_STATE_KEY]: ['eng', 'chi_tra']});
         await expect(repository.assertDownloaded('zh-Hant')).resolves.toBeUndefined();
+    });
+});
+
+
+describe('OCR 语言包任务的用户可见状态', () => {
+    function harness() {
+        const downloaded = new Set<string>();
+        const dependencies = {
+            assertLanguagesDownloaded: async () => {}, translateImage: async () => ({}), fetchImage: async () => '',
+            getTranslationService: () => 'google', supportsBatchTranslation: () => false, translateTexts: async () => '',
+            getDownloadedLanguages: vi.fn(async () => [...downloaded] as any),
+            downloadLanguages: vi.fn(async (_codes: string[]) => {}),
+            markLanguagesDownloaded: vi.fn(async (codes: string[]) => {codes.forEach(code => downloaded.add(code)); return [...downloaded] as any;}),
+            removeLanguages: vi.fn(async (_codes: string[]) => {}),
+            markLanguagesRemoved: vi.fn(async (codes: string[]) => {codes.forEach(code => downloaded.delete(code)); return [...downloaded] as any;}),
+        };
+        const handlers = createImageTranslationBackgroundHandlers(dependencies);
+        const request = (type: string, languages?: string[]) => handlers.find(handler => handler.type === type)!.handle({type, languages} as any);
+        return {dependencies, request, downloaded};
+    }
+    it('下载器返回非 Error 失败仍保留可读错误，旧适配器缺少状态读取时安全返回空快照', async () => {
+        const {request, dependencies} = harness();
+        dependencies.downloadLanguages.mockRejectedValueOnce('network unavailable');
+        await expect(request('fluentReadImageOcrDownload', ['eng'])).rejects.toBe('network unavailable');
+        expect(await request('fluentReadImageOcrStatus')).toMatchObject({states: {eng: {phase: 'error', error: 'network unavailable'}}});
+        const {getDownloadedLanguages: _read, ...legacy} = dependencies;
+        const handler = createImageTranslationBackgroundHandlers(legacy).find(item => item.type === 'fluentReadImageOcrStatus')!;
+        expect(await handler.handle({type: 'fluentReadImageOcrStatus'})).toEqual({success: true, languages: [], states: {}});
+    });
+    it('并发重复下载合并为单包任务，并显示真实排队与执行状态', async () => {
+        const {request, dependencies} = harness();
+        let finish!: () => void;
+        dependencies.downloadLanguages.mockImplementationOnce(() => new Promise(resolve => {finish = resolve;}));
+        const first = request('fluentReadImageOcrDownload', ['eng', 'jpn']);
+        const duplicate = request('fluentReadImageOcrDownload', ['eng']);
+        await vi.waitFor(() => expect(dependencies.downloadLanguages).toHaveBeenCalledTimes(1));
+        expect(await request('fluentReadImageOcrStatus')).toMatchObject({languages: [], states: {eng: {phase: 'downloading'}, jpn: {phase: 'queued'}}});
+        finish();
+        await Promise.all([first, duplicate]);
+        expect(dependencies.downloadLanguages.mock.calls).toEqual([[['eng']], [['jpn']]]);
+        expect(await request('fluentReadImageOcrStatus')).toMatchObject({languages: ['eng', 'jpn'], states: {}});
+        await request('fluentReadImageOcrDownload', ['eng']);
+        expect(dependencies.downloadLanguages).toHaveBeenCalledTimes(2);
+    });
+    it('中途失败保留前后成功项，只重试缺失包并清理行内错误', async () => {
+        const {request, dependencies} = harness();
+        dependencies.downloadLanguages.mockImplementationOnce(async () => {}).mockRejectedValueOnce(new Error('offline'));
+        await expect(request('fluentReadImageOcrDownload', ['eng', 'jpn', 'fra'])).rejects.toThrow('offline');
+        expect(await request('fluentReadImageOcrStatus')).toMatchObject({languages: ['eng', 'fra'], states: {jpn: {phase: 'error', error: 'offline'}}});
+        await request('fluentReadImageOcrDownload', ['eng', 'jpn', 'fra']);
+        expect(dependencies.downloadLanguages.mock.calls).toEqual([[['eng']], [['jpn']], [['fra']], [['jpn']]]);
+        expect(await request('fluentReadImageOcrStatus')).toMatchObject({languages: ['eng', 'fra', 'jpn'], states: {}});
+    });
+    it('下载后排队移除再下载，最后一次用户操作胜出', async () => {
+        const {request, dependencies, downloaded} = harness();
+        let finish!: () => void;
+        dependencies.downloadLanguages.mockImplementationOnce(() => new Promise(resolve => {finish = resolve;}));
+        const first = request('fluentReadImageOcrDownload', ['eng']);
+        await vi.waitFor(() => expect(dependencies.downloadLanguages).toHaveBeenCalledOnce());
+        const remove = request('fluentReadImageOcrRemove', ['eng']);
+        const last = request('fluentReadImageOcrDownload', ['eng']);
+        finish();
+        await Promise.all([first, remove, last]);
+        expect(dependencies.downloadLanguages).toHaveBeenCalledTimes(2);
+        expect(downloaded.has('eng')).toBe(true);
+    });
+    it('旧下载失败不会移除后来排队的重试，重试期间仍能合并重复请求', async () => {
+        const {request, dependencies, downloaded} = harness();
+        let fail!: (error: Error) => void;
+        let finishRetry!: () => void;
+        dependencies.downloadLanguages
+            .mockImplementationOnce(() => new Promise((_resolve, reject) => {fail = reject;}))
+            .mockImplementationOnce(() => new Promise(resolve => {finishRetry = resolve;}));
+        const first = request('fluentReadImageOcrDownload', ['eng']);
+        const failed = expect(first).rejects.toThrow('offline');
+        await vi.waitFor(() => expect(dependencies.downloadLanguages).toHaveBeenCalledOnce());
+        const remove = request('fluentReadImageOcrRemove', ['eng']);
+        const retry = request('fluentReadImageOcrDownload', ['eng']);
+        fail(new Error('offline'));
+        await failed;
+        await vi.waitFor(() => expect(dependencies.downloadLanguages).toHaveBeenCalledTimes(2));
+        const duplicate = request('fluentReadImageOcrDownload', ['eng']);
+        finishRetry();
+        await Promise.all([remove, retry, duplicate]);
+        expect(dependencies.downloadLanguages).toHaveBeenCalledTimes(2);
+        expect(downloaded.has('eng')).toBe(true);
+        expect(await request('fluentReadImageOcrStatus')).toMatchObject({languages: ['eng'], states: {}});
     });
 });

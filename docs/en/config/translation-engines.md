@@ -6,7 +6,9 @@ FluentRead displays translations produced by your selected service. Use the defa
 
 The service directory is organized by category and can be searched. Selecting an entry opens its settings; choose the default service later from General settings or the extension menu.
 
-The **Advanced settings** section is collapsed by default. Inside it, **Keys and authentication**, **Translation preferences**, **Request settings**, and **Custom requests** separate key management, model preferences, request limits, and custom request parameters. Cloud services show their free quota and setup steps by default; eligibility and overage behavior depend on the provider and plan.
+The model and connection fields stay visible. **Key management** sits beside the API Key fields. **Model preferences**, **Prompt templates**, **Request limits**, and **API compatibility** expand independently as needed. Collapsing a section keeps its settings active and saved. Cloud services show a quota summary; expand the setup guide for instructions. Eligibility and overage behavior depend on the provider and plan.
+
+In General settings, **Configure service** beside the default service opens its configuration directly. On narrow screens, the service directory opens with **Switch service to configure** and closes after selection.
 
 ## Which one fits?
 
@@ -35,7 +37,7 @@ Clicking a service in the directory only opens its configuration. The **Check co
 
 ## Use several API keys
 
-For a service with an API Key field, open **Advanced settings → Keys and authentication**, enable key rotation, and add one key per row using **Add key** below the list. Existing single keys are kept. All rows use the same service address, model, region, and custom headers; use a separate custom service when those settings differ.
+For a service with an API Key field, open **Key management** below the API Key fields, enable key rotation, and add one key per row using **Add key** below the list. Existing single keys are kept. All rows use the same service address, model, region, and custom headers; use a separate custom service when those settings differ.
 
 Requests are shared evenly at first. If a key fails, FluentRead tries another and temporarily reduces how often the failing key is used. Invalid keys and exhausted quotas can be paused. The default recovery wait is 1 minute; adjust it from **Settings → Advanced → Request limits** between 1 and 60 minutes. A rate limit with a server-provided waiting period follows that period instead. Changing keys does not bypass your configured request rate or total timeout. Health is temporary and resets when the extension's background process restarts.
 
@@ -94,7 +96,7 @@ The **Cloud vendors** group lists the official machine translation APIs of the m
 | Baidu Translate | Standard tier: 50,000 characters per month | APP ID + secret key |
 | Volcengine Translation | 2 million characters per month | Access Key ID + Secret Access Key + region |
 
-Select any cloud vendor in settings and the service details show its **free quota**, a three-step setup guide, and links to the **console** and **API docs** by default. Follow the guide to obtain the key, enter it in the form below, and click **Check connection**. Free allowances, eligibility and overage behavior depend on the provider console and your current plan.
+Select any cloud vendor in settings to see its free quota summary. Expand **Setup guide** for the three-step instructions and links to the **console** and **API docs**. Follow the guide to obtain the key, enter it in the form below, and click **Check connection**. Free allowances, eligibility and overage behavior depend on the provider console and your current plan.
 
 ::: tip Match the region to your resource
 For Azure, Alibaba Cloud, and Volcengine the region is part of the request signature or decides the request host. A wrong region usually shows up as 401/403 or a signature mismatch; keep it identical to the region of the resource in the console.
@@ -145,7 +147,7 @@ For Azure, enter the actual deployment name as the model and your resource or co
 
 ### Custom-service Base URLs
 
-Custom services use **OpenAI Chat Completions**. Enter a complete endpoint or a Base URL ending in a version path such as `/v1`. For example, `https://opencode.ai/zen/v1` sends requests to `https://opencode.ai/zen/v1/chat/completions`. A bare host and port gets `/v1/chat/completions`; other nonstandard paths are treated as complete endpoints. A proxy configured in advanced settings still takes priority and is used as a complete endpoint without automatic path completion. Query parameters are preserved.
+Custom services use **OpenAI Chat Completions**. Enter a complete endpoint or a Base URL ending in a version path such as `/v1`. For example, `https://opencode.ai/zen/v1` sends requests to `https://opencode.ai/zen/v1/chat/completions`. A bare host and port gets `/v1/chat/completions`; other nonstandard paths are treated as complete endpoints. A proxy configured in API compatibility still takes priority and is used as a complete endpoint without automatic path completion. Query parameters are preserved.
 
 For [OpenCode Zen](https://opencode.ai/docs/zen/) or [OpenCode Go](https://opencode.ai/docs/go/), check both the model protocol and its endpoint. Their Base URLs are `https://opencode.ai/zen/v1` and `https://opencode.ai/zen/go/v1`, respectively. Choose a model supporting `/chat/completions` in the official model table, and enter its API model ID without the `opencode/` or `opencode-go/` configuration prefix. Models requiring `/responses`, `/messages`, or the native Gemini API cannot be used directly with this custom service.
 
@@ -193,7 +195,7 @@ Youdao Web and ICIBA currently support English and Simplified Chinese directions
 
 ## Custom request headers
 
-Select a custom OpenAI-compatible service in the categorized directory, then open **Advanced settings → Custom requests → Custom request headers**. Enter a JSON object with string values, for example:
+Select a custom OpenAI-compatible service in the categorized directory, then open **API compatibility → Custom request headers**. Enter a JSON object with string values, for example:
 
 ```json
 {"x-opencode-session": "a71a2ad6-1d1f-4e92-a30e-e35c8fd623ab"}

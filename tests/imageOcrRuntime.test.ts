@@ -191,7 +191,7 @@ describe('图片 OCR 处理与结果缓存', () => {
         expect(sources.every(source => source.src === '')).toBe(true);
     });
 
-    it('圈选稀疏模式空结果才以单块模式重试一次，普通图片保留单次识别', async () => {
+    it('圈选和小图片空结果重试一次且不缓存空结果，大图仍只识别一次', async () => {
         recognize.mockResolvedValueOnce({data: {blocks: []}});
         await expect(recognizeImage('area', 'en', undefined, {profile: 'area'})).resolves.toHaveLength(1);
         expect(recognize).toHaveBeenNthCalledWith(1, 'scaled-image', 'eng', undefined, undefined, undefined);
@@ -200,9 +200,12 @@ describe('图片 OCR 处理与结果缓存', () => {
         await expect(recognizeImage('blank', 'en', undefined, {profile: 'area'})).resolves.toEqual([]);
         expect(recognize).toHaveBeenCalledTimes(4);
         await recognizeImage('blank', 'en', undefined, {profile: 'area'});
-        expect(recognize).toHaveBeenCalledTimes(4);
+        expect(recognize).toHaveBeenCalledTimes(6);
         await expect(recognizeImage('normal', 'en')).resolves.toEqual([]);
-        expect(recognize).toHaveBeenCalledTimes(5);
+        expect(recognize).toHaveBeenCalledTimes(8);
+        dimensions = {width: 1200, height: 800};
+        await expect(recognizeImage('large-empty', 'en')).resolves.toEqual([]);
+        expect(recognize).toHaveBeenCalledTimes(9);
     });
 
     it('圈选第二次识别取消或失败不写缓存，重试重新识别', async () => {

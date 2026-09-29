@@ -53,7 +53,7 @@ import {
     normalizeFreeTranslationTimeoutMs,
     normalizeFreeTranslationCooldownMs,
 } from '@/src/core/config/freeTranslation';
-import sha256 from 'crypto-js/sha256';
+import {sha256Hex} from '@/src/shared/function/sha256';
 import {getDeepLEndpoint} from '@/src/core/config/deepl';
 import {waitForBoundedPersistence} from './persistenceBarrier';
 import {runWithApiKeyRotation} from './apiKeyRotation';
@@ -504,7 +504,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             } : {}),
             ...(usesMyMemory ? {email: (current.myMemoryEmail ?? '').trim()} : {}),
         };
-        return `:anonymous:${sha256(JSON.stringify(identity)).toString()}`;
+        return `:anonymous:${sha256Hex(JSON.stringify(identity))}`;
     }
 
     function requestAbortError(): Error {
@@ -1197,7 +1197,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             message.sourceLanguageDetectionText,
         );
         const imageInput = getTranslationImageInput(message);
-        const imageSuffix = imageInput ? `:image:${sha256(imageInput).toString()}` : '';
+        const imageSuffix = imageInput ? `:image:${sha256Hex(imageInput)}` : '';
         const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${imageSuffix}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}`;
         const existing = pendingTranslations.get(pendingKey);
         // 共享的是 provider 工作；每个等待者仍需保留自己的取消和截止边界。

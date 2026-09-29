@@ -1,7 +1,9 @@
 import {describe, expect, it, vi} from 'vitest';
-import {readFileSync} from 'node:fs';
+import {readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {runInNewContext} from 'node:vm';
-import {instrumentWasmDiagnostics} from '../scripts/wasm/package-diagnostics';
+import {instrumentWasmDiagnostics, splitTesseractWasm, packageTesseractWasm} from '../scripts/wasm/package-diagnostics';
 
 const adapter = readFileSync(new URL('../scripts/wasm/diagnostics.js', import.meta.url), 'utf8');
 const createLog = () => {
@@ -11,6 +13,55 @@ const createLog = () => {
 };
 
 describe('packaged WASM diagnostic severity', () => {
+    it('拆分真实 OCR 内核后 WASM 字节完全一致，JS 不再携带 Base64 内核', () => {
+        const source = readFileSync(new URL('../public/fluent-read-ocr/core/tesseract-core-simd-lstm.wasm.js', import.meta.url), 'utf8');
+        const {code, wasm} = splitTesseractWasm(source);
+        const original = source.match(/"data:application\/octet-stream;base64,([A-Za-z0-9+/]+={0,2})"/)![1];
+        expect(wasm.equals(Buffer.from(original, 'base64'))).toBe(true);
+        expect(WebAssembly.validate(wasm)).toBe(true);
+        expect(code).not.toContain(original);
+        expect(code.length).toBeLessThan(150_000);
+        expect(Buffer.byteLength(code) + wasm.length).toBeLessThan(Buffer.byteLength(source) - 900_000);
+    });
+
+    it('本地 WASM 路径相对于扩展 Worker 解析，并保留显式 locateFile', () => {
+        const source = '(function(TesseractCore = {})  { const binary = "data:application/octet-stream;base64,AGFzbQEAAAA="; return TesseractCore; })';
+        const {code} = splitTesseractWasm(source);
+        for (const origin of ['chrome-extension://fixture', 'moz-extension://fixture']) {
+            const core = runInNewContext(code, {URL, self: {location: {href: `${origin}/fluent-read-ocr/worker/worker.min.js`}}});
+            const module = core();
+            expect(module.locateFile('tesseract-core-simd-lstm.wasm', 'ignored/'))
+                .toBe(`${origin}/fluent-read-ocr/core/tesseract-core-simd-lstm.wasm`);
+            expect(module.locateFile('another.dat', 'prefix/')).toBe('prefix/another.dat');
+            const locateFile = vi.fn();
+            expect(core({locateFile}).locateFile).toBe(locateFile);
+        }
+    });
+
+    it.each(['', 'function(TesseractCore = {})  {}',
+        'function(TesseractCore = {})  {"data:application/octet-stream;base64,A=="}',
+        'function(TesseractCore = {})  {"data:application/octet-stream;base64,YWJj"}',
+        'function(TesseractCore = {})  {"data:application/octet-stream;base64,AGFzbQEAAAA=";"data:application/octet-stream;base64,AGFzbQEAAAA="}'])
+    ('不猜测陌生或损坏的 vendor 内核格式 %#', source => {
+        expect(() => splitTesseractWasm(source)).toThrow(/Unsupported|Invalid/);
+    });
+
+    it('打包同时输出原始 WASM 与诊断 glue，原 vendor 文件保持不变', () => {
+        const root = mkdtempSync(join(tmpdir(), 'fluentread-ocr-package-test-'));
+        try {
+            mkdirSync(join(root, 'scripts/wasm'), {recursive: true});
+            writeFileSync(join(root, 'scripts/wasm/diagnostics.js'), adapter);
+            const source = new URL('../public/fluent-read-ocr/core/tesseract-core-simd-lstm.wasm.js', import.meta.url);
+            const original = readFileSync(source, 'utf8');
+            const result = packageTesseractWasm(root, source.pathname);
+            expect(readFileSync(result.wasm).equals(splitTesseractWasm(original).wasm)).toBe(true);
+            expect(readFileSync(result.glue, 'utf8')).toContain('n=b.printErr||fluentReadWasmStderr');
+            expect(readFileSync(source, 'utf8')).toBe(original);
+        } finally {
+            rmSync(root, {recursive: true, force: true});
+        }
+    });
+
     it('保留 ONNX 原始严重级别，去除终端颜色并保留性能警告', () => {
         const {output, write} = createLog();
         const warning = '2026-09-13 15:13:13.499400 [W:onnxruntime:, session_state.cc:1280 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers';

@@ -1,28 +1,19 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：包含正文/全部节点识别范围；模板按 activeSection 展示业务分区，通用设置保留翻译模式并链接到界面风格页的译文样式，图片与圈选分别复用仅在当前分区挂载的 OCR 管理组件，在界面风格页组织译文样式、风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
+ * 主要内容：包含正文/全部节点识别范围；模板按 activeSection 展示业务分区，通用设置按日常翻译、网页辅助、基本偏好组织控件，提供当前默认服务的配置入口并保留译文样式跨页入口；图片与圈选分别复用仅在当前分区挂载的 OCR 管理组件，在界面风格页组织译文样式、风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
-  <section v-if="hasVisitedSection('settings-general')" v-show="props.activeSection === 'settings-general'" id="settings-general" class="settings-section">
-    <SettingsGroup>
-      <SettingsItem label="插件状态" :description="config.on ? '网页翻译和快捷功能正在运行。' : '当前已暂停，其他偏好仍可继续调整。'">
-        <el-switch v-model="config.on" class="settings-switch" aria-label="插件状态" @change="handlePluginStateChange" />
-      </SettingsItem>
-      <SettingsItem :label="t('settings.general.language')" :description="t('language.settingsDescription')"><UiLanguageSelector compact /></SettingsItem>
-      <SettingsItem label="界面主题" description="只影响扩展界面，不会改变网页本身的配色。">
-        <SegmentedControl v-model="config.theme" :options="options.theme" label="界面主题" />
-      </SettingsItem>
-    </SettingsGroup>
+  <section v-if="hasVisitedSection('settings-general')" v-show="props.activeSection === 'settings-general'" id="settings-general" class="settings-section general-settings-section">
     <SettingsGroup
-      title="选择翻译服务"
-      description="设置网页翻译默认使用的服务；模型和凭据仍在“翻译服务”页配置。"
+      title="日常翻译"
+      description="选择网页翻译默认使用的服务、目标语言和显示模式。"
       data-testid="translation-display-settings"
     >
       <SettingsItem label="默认网页翻译服务" :description="t('quickTranslation.defaultServiceDescription')">
         <div
-          class="service-default-control"
+          class="service-default-control general-service-control"
           data-testid="default-translation-service-card"
           :data-default-service="config.service"
         >
@@ -35,6 +26,14 @@
               </el-option>
             </el-option-group>
           </el-select>
+          <button
+            type="button"
+            class="general-service-configure"
+            data-testid="configure-default-translation-service"
+            @click="setConfigurationService(config.service); openSettingsSection('settings-services')"
+          >
+            配置服务
+          </button>
         </div>
       </SettingsItem>
       <SettingsItem
@@ -255,7 +254,7 @@
           <el-switch v-model="config.imageTranslationContextMenuEnabled" class="settings-toggle" :aria-label="t('image.context')" :disabled="!imageTranslationEnabled || !browserCapabilities.imageTranslation" />
         </SettingsItem>
       </SettingsGroup>
-      <ImageOcrSettings v-if="props.activeSection === 'settings-image-translation'" />
+      <ImageOcrSettings v-if="props.activeSection === 'settings-image-translation'" v-model:source-language="config.from" />
     </section>
     <section v-if="hasVisitedSection('settings-area-translation')" v-show="props.activeSection === 'settings-area-translation'" id="settings-area-translation" class="settings-section">
       <AreaTranslationSettings
@@ -515,6 +514,15 @@
           </el-col>
         </el-row>
 
+      </SettingsGroup>
+      <SettingsGroup title="基本偏好" description="管理插件运行状态、界面语言和主题。">
+        <SettingsItem label="插件状态" :description="config.on ? '网页翻译和快捷功能正在运行。' : '当前已暂停，其他偏好仍可继续调整。'">
+          <el-switch v-model="config.on" class="settings-switch" aria-label="插件状态" @change="handlePluginStateChange" />
+        </SettingsItem>
+        <SettingsItem :label="t('settings.general.language')" :description="t('language.settingsDescription')"><UiLanguageSelector compact /></SettingsItem>
+        <SettingsItem label="界面主题" description="只影响扩展界面，不会改变网页本身的配色。">
+          <SegmentedControl v-model="config.theme" :options="options.theme" label="界面主题" />
+        </SettingsItem>
       </SettingsGroup>
     </section>
 

@@ -48,6 +48,7 @@ async function main() {
     globalThis.fetch = async (input, init) => {
       if (!String(input?.url || input).startsWith('https://edge.microsoft.com/translate/translatetext')) return originalFetch(input, init);
       globalThis.fixtureTranslationCalls += 1;
+      if (globalThis.fixtureTranslationFails) return new Response(JSON.stringify([{translations: [{text: ''}]}]), {status: 200, headers: {'content-type': 'application/json'}});
       return new Response(JSON.stringify([{translations: [{text: '字幕菜单同步测试'}]}]), {status: 200, headers: {'content-type': 'application/json'}});
     };
   });
@@ -72,7 +73,16 @@ async function main() {
     cues: [{startMs: 0, durationMs: 10000, text: 'Subtitle menu state fixture.'}]}));
   assert.equal(cached.cached, true);
   const url = 'https://x.com/fluentread/status/424242';
-  await context.route('https://video.twimg.com/**', route => route.fulfill({contentType: 'video/mp4', body: fs.readFileSync(mediaFile)}));
+  await context.route('https://video.twimg.com/**', route => {
+    const bytes = fs.readFileSync(mediaFile);
+    const range = route.request().headers().range?.match(/^bytes=(\d+)-(\d*)$/);
+    if (!range) return route.fulfill({contentType: 'video/mp4', headers: {'accept-ranges': 'bytes'}, body: bytes});
+    const start = Number(range[1]);
+    const end = range[2] ? Math.min(Number(range[2]), bytes.length - 1) : bytes.length - 1;
+    return route.fulfill({status: 206, contentType: 'video/mp4',
+      headers: {'accept-ranges': 'bytes', 'content-range': `bytes ${start}-${end}/${bytes.length}`},
+      body: bytes.subarray(start, end + 1)});
+  });
   await context.route(url, route => route.fulfill({contentType: 'text/html', body: `<!doctype html><html><head><meta charset="utf-8"><style>
     .fixture-controls{position:absolute;bottom:0;left:12px;right:12px;display:flex;align-items:center;height:44px;background:#222;color:#fff}
     .fixture-controls button{display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex:none;padding:0;border:0;background:transparent;color:#fff;font-size:20px}
@@ -149,6 +159,13 @@ async function main() {
   report.checks.push('320–960px 视频内图标固定在画中画和全屏之间；宿主移位/删除、控件重建、全屏进出后恢复，原生按钮仍可点击');
   const menu = page.locator('#fluent-read-video-subtitle-menu');
   const action = name => menu.locator(`[data-action="${name}"]`);
+  const clickAction = async name => {
+    if (!(await action(name).isVisible())) {
+      const inTools = await action(name).evaluate(button => Boolean(button.closest('.fluent-read-video-menu-tools')));
+      await action(inTools ? 'open-subtitle-tools' : 'close-subtitle-tools').click();
+    }
+    await action(name).click();
+  };
   const checked = async (locator, expected) => {
     await locator.evaluate((element, value) => new Promise((resolve, reject) => {
       const started = Date.now();
@@ -162,29 +179,52 @@ async function main() {
     await menu.screenshot({path: path.join(artifacts, `${name}.png`)});
     fs.writeFileSync(path.join(artifacts, `${name}.html`), await menu.evaluate(element => element.outerHTML));
   };
+  const checkCompactState = async name => {
+    const player = page.locator('[data-testid="videoPlayer"]');
+    const previous = await player.getAttribute('style');
+    await player.evaluate(node => { node.style.width = '390px'; node.style.height = '220px'; });
+    const geometry = await menu.evaluate(node => ({width: node.getBoundingClientRect().width,
+      height: node.getBoundingClientRect().height, scrolls: node.scrollHeight > node.clientHeight + 1,
+      overflowX: node.scrollWidth > node.clientWidth + 1}));
+    await player.screenshot({path: path.join(artifacts, `${name}-small.png`)});
+    assert.ok(geometry.width <= 280 && geometry.height <= 172 && !geometry.scrolls && !geometry.overflowX, JSON.stringify({name, ...geometry}));
+    (report.compactStates ||= []).push({name, ...geometry});
+    await player.evaluate((node, style) => style === null ? node.removeAttribute('style') : node.setAttribute('style', style), previous);
+  };
   await page.locator('#fluent-read-video-subtitle-button').click();
   await checked(action('toggle-ai-subtitle'), true);
   await screenshot('ready');
+  assert.equal(await action('toggle-ai-subtitle').isVisible(), false);
+  assert.equal(await action('download-subtitles').isVisible(), false);
+  assert.equal(await action('regenerate-ai-subtitle').isVisible(), false);
+  await action('open-subtitle-tools').click();
+  assert.equal(await action('download-subtitles').isVisible(), true);
+  assert.equal(await action('regenerate-ai-subtitle').isVisible(), true);
+  await screenshot('subtitle-options');
+  await menu.press('Escape');
+  assert.equal(await menu.isVisible(), true);
+  assert.equal(await action('open-subtitle-tools').evaluate(node => node === document.activeElement), true);
+  report.checks.push('观看首页隐藏重复关闭和导出，字幕选项可访问校时、下载、重新识别，Esc 返回并恢复焦点');
   await page.evaluate(() => {
     window.fixtureControls = document.querySelector('.fixture-controls');
     window.fixtureMenu = document.querySelector('#fluent-read-video-subtitle-menu');
     window.fixtureControls.remove();
   });
   await page.waitForFunction(() => !document.querySelector('#fluent-read-video-subtitle-button'));
-  await action('toggle-ai-subtitle').click();
+  await clickAction('toggle-ai-subtitle');
   await screenshot('after-close-ai');
   await checked(action('toggle-ai-subtitle'), false);
   assert.match(await action('toggle-ai-subtitle').innerText(), /生成 AI 字幕/);
   assert.equal(await action('toggle-ai-subtitle').locator('[data-state]').innerText(), '');
   await page.waitForFunction(() => !document.querySelector('#fluent-read-video-subtitle-original')?.textContent);
   report.checks.push('关闭 AI 后字幕消失，按钮和已就绪状态立即更新');
-  await action('toggle-ai-subtitle').click();
+  await clickAction('toggle-ai-subtitle');
   await checked(action('toggle-ai-subtitle'), true);
   const modes = ['bilingual', 'translation-only', 'original-only', 'off'];
   const checkedMode = async selected => {
     for (const candidate of modes) await checked(menu.locator(`[data-mode="${candidate}"]`), candidate === selected);
   };
-  assert.equal(await menu.locator('[data-action="toggle-translation"], [data-action="toggle-visible"], [data-action="regenerate-ai-subtitle"]').count(), 0);
+  assert.equal(await menu.locator('[data-action="toggle-translation"], [data-action="toggle-visible"]').count(), 0);
   for (const mode of ['translation-only', 'original-only', 'bilingual']) {
     await menu.locator(`[data-mode="${mode}"]`).click();
     await checkedMode(mode);
@@ -194,7 +234,13 @@ async function main() {
         layer.classList.contains(`fluent-read-video-display-${candidate}`) === (selected === candidate));
     }, mode);
   }
-  report.checks.push('四段显示方式同步且保持单选');
+  await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle')?.textContent === '字幕菜单同步测试');
+  const beforeModeToggle = await worker.evaluate(() => globalThis.fixtureTranslationCalls);
+  await menu.locator('[data-mode="original-only"]').click();
+  await menu.locator('[data-mode="bilingual"]').click();
+  await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle')?.textContent === '字幕菜单同步测试');
+  assert.equal(await worker.evaluate(() => globalThis.fixtureTranslationCalls), beforeModeToggle);
+  report.checks.push('四段显示方式同步且保持单选；原文与双语切换保留已完成译文，不重复请求');
   await menu.locator('[data-mode="off"]').click();
   await checkedMode('off');
   await checked(action('toggle-ai-subtitle'), false);
@@ -242,12 +288,12 @@ async function main() {
       return Promise.resolve(response);
     };
   })()`});
-  await action('toggle-ai-subtitle').click();
+  await clickAction('toggle-ai-subtitle');
   await checked(action('toggle-ai-subtitle'), false);
   const cleared = await control.evaluate(() => chrome.runtime.sendMessage({type: 'fluentReadClearVideoAiSubtitleCache'}));
   assert.equal(cleared.success, true);
   await fakeResponses({fluentReadGetLocalVideoModelState: [{success: false, error: 'fixture readiness failure'}]});
-  await action('toggle-ai-subtitle').click();
+  await clickAction('toggle-ai-subtitle');
   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"]')?.title === '无法读取模型状态，请重试');
   assert.match(await action('toggle-ai-subtitle').innerText(), /重试生成 AI 字幕/);
   report.checks.push('模型状态读取失败时单行显示错误并允许重试');
@@ -255,7 +301,7 @@ async function main() {
     fluentReadGetLocalVideoModelState: [{success: true, models: []}, {success: true, models: []}],
     fluentReadPrepareLocalVideoModel: [{success: false, error: '模型文件下载失败（503）：config.json'}],
   });
-  await action('toggle-ai-subtitle').click();
+  await clickAction('toggle-ai-subtitle');
   const prompt = menu.locator('[data-model-prompt]');
   await prompt.waitFor({state: 'visible'});
   assert.equal(await menu.locator('.fluent-read-video-menu-main').isVisible(), false);
@@ -267,7 +313,7 @@ async function main() {
   await prompt.locator('[data-action="model-prompt-cancel"]').first().click();
   await prompt.waitFor({state: 'hidden'});
   assert.equal(await menu.locator('.fluent-read-video-menu-main').isVisible(), true);
-  await action('toggle-ai-subtitle').click();
+  await clickAction('toggle-ai-subtitle');
   await prompt.waitFor({state: 'visible'});
   await prompt.locator('[data-model-choice="tiny"]').click();
   await checked(prompt.locator('[data-model-choice="tiny"]'), true);
@@ -276,17 +322,25 @@ async function main() {
   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"]')?.title?.startsWith('模型下载失败：'));
   assert.deepEqual(optionsPage.filter(url => url.includes('options.html')), []);
   report.checks.push('首次生成先在菜单内确认模型与大小，取消可返回，确认后下载失败给出单行错误且不跳转设置页');
-  await probe.detach();
   const reseeded = await control.evaluate(() => chrome.runtime.sendMessage({type: 'fluentReadSetVideoAiSubtitleCache',
     source: {mediaId: '424242'}, model: 'tiny', sourceLanguage: 'auto',
     cues: [{startMs: 0, durationMs: 10000, text: 'Subtitle menu state fixture.'}]}));
   assert.equal(reseeded.cached, true);
-  await action('toggle-ai-subtitle').click();
+  await clickAction('toggle-ai-subtitle');
   await checked(action('toggle-ai-subtitle'), true);
   report.checks.push('缓存命中时直接恢复 AI 字幕，不弹出模型确认');
+  await page.waitForFunction(() => document.querySelector('[data-source-status]')?.textContent.includes('本地字幕'));
+  await fakeResponses({fluentReadGetLocalVideoModelState: [{success: true, models: []}]});
+  await clickAction('regenerate-ai-subtitle');
+  await prompt.waitFor({state: 'visible'});
+  assert.match(await page.locator('#fluent-read-video-subtitle-original').textContent(), /Subtitle menu/);
+  await prompt.locator('[data-action="model-prompt-cancel"]').first().click();
+  await checked(action('toggle-ai-subtitle'), true);
+  report.checks.push('重新识别绕过当前视频缓存；模型确认前保留现有字幕，取消后仍可观看');
+  await probe.detach();
   for (const name of ['download-subtitles', 'download-translated-subtitles', 'download-bilingual-subtitles']) {
     const downloaded = page.waitForEvent('download');
-    await action(name).click();
+    await clickAction(name);
     const download = await downloaded;
     const destination = path.join(artifacts, `${name}.srt`);
     await download.saveAs(destination);
@@ -302,6 +356,7 @@ async function main() {
   assert.ok(report.downloads['download-bilingual-subtitles'].filename.endsWith('-bilingual.srt'), report.downloads['download-bilingual-subtitles'].filename);
   report.checks.push('原文、译文和双语下载及结果反馈正常，双语文件保留两行');
   await screenshot('controls-absent');
+  await action('close-subtitle-tools').click();
   await page.evaluate(() => document.querySelector('[data-testid="videoPlayer"]').append(window.fixtureControls));
   await page.locator('#fluent-read-video-subtitle-button').waitFor({state: 'attached'});
   await checkPlacement('controls-restored');
@@ -320,7 +375,7 @@ async function main() {
   await options.waitForURL(/options.html/);
   report.checks.push('设置入口打开视频设置');
   await options.close();
-  for (const [name, width, height, layout] of [['phone-landscape', 390, 220, 'wide'], ['portrait', 300, 530, 'stack'], ['desktop', 960, 540, 'stack']]) {
+  for (const [name, width, height, layout] of [['phone-landscape', 390, 220, 'stack'], ['portrait', 300, 530, 'stack'], ['desktop', 960, 540, 'stack']]) {
     await page.locator('[data-testid="videoPlayer"]').evaluate((player, size) => {
       player.style.width = `${size.width}px`;
       player.style.height = `${size.height}px`;
@@ -342,18 +397,18 @@ async function main() {
     (report.menuLayouts ||= []).push({name, layout, ...geometry});
     await page.locator('[data-testid="videoPlayer"]').screenshot({path: path.join(artifacts, `menu-${name}.png`)});
   }
-  report.checks.push('手机横屏播放器使用矮行布局，竖屏与桌面保持单列，菜单不滚动、不越出播放器');
+  report.checks.push('观看首页在390×220、竖屏和桌面保持280px紧凑单列，不滚动、不越出播放器');
   // 识别结果已是目标语言（繁体中文 → 简体中文目标）时不请求翻译，双语只显示原文一行。
   const chineseCue = '所以成進去的相機 然後基本上 這個東西';
   assert.equal((await control.evaluate(() => chrome.runtime.sendMessage({type: 'fluentReadClearVideoAiSubtitleCache'}))).success, true);
   assert.equal((await control.evaluate(text => chrome.runtime.sendMessage({type: 'fluentReadSetVideoAiSubtitleCache',
     source: {mediaId: '424242'}, model: 'tiny', sourceLanguage: 'auto', cues: [{startMs: 0, durationMs: 10000, text}]}), chineseCue)).cached, true);
   if (!(await menu.isVisible())) await page.locator('#fluent-read-video-subtitle-button').click();
-  await action('toggle-ai-subtitle').click();
+  await clickAction('toggle-ai-subtitle');
   await checked(action('toggle-ai-subtitle'), false);
   await page.evaluate(() => { const video = document.querySelector('video'); video.pause(); video.currentTime = 2; });
   const callsBeforeChinese = await worker.evaluate(() => globalThis.fixtureTranslationCalls);
-  await action('toggle-ai-subtitle').click();
+  await clickAction('toggle-ai-subtitle');
   await checked(action('toggle-ai-subtitle'), true);
   await page.waitForFunction(text => document.querySelector('#fluent-read-video-subtitle-original')?.textContent === text, chineseCue);
   await page.waitForTimeout(1500);
@@ -366,11 +421,97 @@ async function main() {
   await page.locator('[data-testid="videoPlayer"]').screenshot({path: path.join(artifacts, 'same-language-bilingual.png')});
   assert.equal(await worker.evaluate(() => globalThis.fixtureTranslationCalls), callsBeforeChinese);
   report.checks.push('识别结果已是目标语言时不请求翻译：双语只显示原文一行，仅译文模式仍显示该句');
+  // A long cached timeline must be usable independently of translation service availability.
+  await clickAction('toggle-ai-subtitle');
+  await checked(action('toggle-ai-subtitle'), false);
+  const seededLong = await control.evaluate(() => chrome.runtime.sendMessage({type: 'fluentReadSetVideoAiSubtitleCache',
+    source: {mediaId: '424242'}, model: 'tiny', sourceLanguage: 'auto',
+    cues: Array.from({length: 200}, (_, i) => ({startMs: i * 5000, durationMs: 4800, text: `This is subtitle number ${i + 1}.`}))}));
+  assert.equal(seededLong.cached, true);
+  await worker.evaluate(() => { globalThis.fixtureTranslationFails = true; globalThis.fixtureTranslationCalls = 0; });
+  await clickAction('toggle-ai-subtitle');
+  await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"]')?.dataset.ready === 'true');
+  await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-original')?.textContent === 'This is subtitle number 1.');
+  await action('retry-subtitle-translation').waitFor({state: 'visible'});
+  assert.match(await menu.locator('[data-source-status]').innerText(), /200/);
+  assert.ok(await worker.evaluate(() => globalThis.fixtureTranslationCalls) <= 8, 'Only nearby captions are prefetched');
+  await screenshot('translation-failed');
+  await checkCompactState('translation-failed');
+  await worker.evaluate(() => { globalThis.fixtureTranslationFails = false; });
+  await action('retry-subtitle-translation').click();
+  await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle')?.textContent === '字幕菜单同步测试');
+  await action('retry-subtitle-translation').waitFor({state: 'hidden'});
+  report.checks.push('200 句缓存无需全片翻译即可就绪；服务空响应保留原文与时间轴，单独重试后恢复译文');
+
+  // Keyboard controls must not trigger the player's key handlers.
+  await page.evaluate(() => { window.fixtureHostKeys = 0; document.querySelector('[data-testid="videoPlayer"]').addEventListener('keydown', () => window.fixtureHostKeys++); });
+  await menu.locator('[data-mode="bilingual"]').focus();
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await menu.locator('[data-mode="translation-only"]').evaluate(node => node === document.activeElement), true);
+  assert.equal(await page.evaluate(() => window.fixtureHostKeys), 0);
+  await page.keyboard.press('Escape');
+  assert.equal(await menu.isVisible(), false);
+  assert.equal(await page.locator('#fluent-read-video-subtitle-button').evaluate(node => node === document.activeElement), true);
+  await page.locator('#fluent-read-video-subtitle-button').click();
+  await action('close-menu').click();
+  assert.equal(await menu.isVisible(), false);
+  await page.locator('#fluent-read-video-subtitle-button').click();
+  report.checks.push('方向键移动选项焦点、不触发播放器快进；Esc 和关闭按钮返回入口焦点');
+
+  // Native captions arriving after cache restoration should replace the automatic cache.
+  await page.evaluate(() => {
+    const track = document.querySelector('video').addTextTrack('captions', 'English', 'en');
+    track.addCue(new VTTCue(0, 4, 'Native captions arrived.'));
+    track.addCue(new VTTCue(6, 10, 'Native second caption.'));
+    track.mode = 'showing';
+  });
+  await page.waitForFunction(() => document.querySelector('[data-source-status]')?.textContent === '原生字幕 · 2 条');
+  await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-original')?.textContent === 'Native captions arrived.');
+  await page.evaluate(() => { document.querySelector('video').currentTime = 5; });
+  await page.waitForFunction(() => Math.abs(document.querySelector('video').currentTime - 5) < .01 && !document.querySelector('video').seeking);
+  await page.waitForFunction(() => !document.querySelector('#fluent-read-video-subtitle-original')?.textContent);
+  await screenshot('native-source');
+  report.checks.push('迟到的原生字幕优先于自动恢复的 AI 缓存；原生静音空档不混入旧 AI 字幕');
+
+  // Original-only must load and display sidecar captions without making translation calls.
+  await patchConfig({videoSubtitleDisplayMode: 'original-only'});
+  await control.evaluate(() => chrome.runtime.sendMessage({type: 'fluentReadClearVideoAiSubtitleCache'}));
+  await page.reload();
+  await page.locator('#fluent-read-video-subtitle-button').click();
+  await page.waitForFunction(() => document.querySelector('[data-source-status]')?.textContent === '暂未检测到字幕');
+  assert.equal(await action('download-subtitles').isDisabled(), true);
+  await screenshot('no-subtitles');
+  await checkCompactState('no-subtitles');
+  const beforeOriginalOnly = await worker.evaluate(() => globalThis.fixtureTranslationCalls);
+  await page.evaluate(() => window.postMessage({source: 'fluent-read', type: 'fluent-read-x-video-subtitle-resource',
+    pageHref: location.href, url: 'https://video.twimg.com/ext_tw_video/424242/pu/captions/en.vtt',
+    responseText: 'WEBVTT\n\n00:00:00.000 --> 00:00:09.000\nOriginal-only sidecar.\n'}, location.origin));
+  await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-original')?.textContent === 'Original-only sidecar.');
+  await page.waitForTimeout(500);
+  assert.equal(await worker.evaluate(() => globalThis.fixtureTranslationCalls), beforeOriginalOnly);
+  assert.equal(await action('download-subtitles').isDisabled(), false);
+  report.checks.push('无字幕时解释下一步并禁用空导出；仅原文模式可加载原生 sidecar 且翻译请求为零');
+  await patchConfig({videoSubtitleVisible: false});
+  assert.equal((await control.evaluate(() => chrome.runtime.sendMessage({type: 'fluentReadSetVideoAiSubtitleCache',
+    source: {mediaId: '424242'}, model: 'tiny', sourceLanguage: 'auto',
+    cues: [{startMs: 0, durationMs: 10000, text: 'Recovered while showing originals.'}]}))).cached, true);
+  await page.reload();
+  await page.locator('#fluent-read-video-subtitle-button').click();
+  await menu.locator('[data-mode="original-only"]').click();
+  await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-original')?.textContent === 'Recovered while showing originals.');
+  report.checks.push('初始隐藏字幕后选择仅原文可恢复本地字幕缓存，无需切到双语');
   assert.deepEqual(report.errors, []);
   report.success = true;
 }
 main().catch(async error => {
   report.failure = error.stack;
+  if (page) report.failureState = await page.evaluate(() => {
+    const video = document.querySelector('video');
+    return {time: video?.currentTime, duration: video?.duration, seeking: video?.seeking,
+      tracks: [...(video?.textTracks || [])].map(t => ({mode: t.mode, active: [...(t.activeCues || [])].map(c => ({text: c.text, start: c.startTime, end: c.endTime}))})),
+      original: document.querySelector('#fluent-read-video-subtitle-original')?.textContent,
+      synthetic: document.querySelector('#fluent-read-video-ai-captions')?.textContent};
+  }).catch(() => null);
   if (page) await page.screenshot({path: path.join(artifacts, 'failure.png')}).catch(() => {});
   process.exitCode = 1;
 }).finally(async () => {

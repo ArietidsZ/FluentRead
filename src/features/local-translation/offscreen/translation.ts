@@ -2,7 +2,7 @@
  * @file src/features/local-translation/offscreen/translation.ts
  *
  * 文件职责：在 Offscreen Document 中管理本地翻译 Worker、模型缓存和请求取消。
- * 主要内容：串行复用模型 Worker，按模型切换时终止旧实例，并向后台提供下载、状态、清除和文本翻译能力。
+ * 主要内容：串行复用模型 Worker，按模型切换时终止旧实例，隔离旧实例的迟到错误，并向后台提供下载、状态、清除和文本翻译能力。
  * 模块边界：不读取配置、不访问宿主网页 DOM；语言码解析由 core 配置模块负责。
  */
 import {
@@ -133,6 +133,7 @@ function getWorker(): Worker {
         else pending.reject(new Error(response.error || '本地翻译 Worker 失败'));
     };
     worker.onerror = (event) => {
+        if (translationWorker !== worker) return;
         terminateWorker(new Error(event.message || '本地翻译 Worker 已停止'));
     };
     translationWorker = worker;

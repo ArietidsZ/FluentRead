@@ -48,6 +48,12 @@
 
 生产扩展构建后运行 `node scripts/testing/run-custom-base-url-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-issue626-ui`。专项使用临时 Edge profile、第二屏后台窗口和本地 HTTP 夹具，检查 Zen/Go 形状的 Base URL、根地址、完整和非标准接口、关闭重开后的配置、HTML 404 与手动重试，以及 390px 对话框。报告记录实际路径、模型和鉴权断言，不记录密钥。它证明扩展请求链路，不代表真实 OpenCode 账号、模型可用性或 Firefox 运行时验证。
 
+## X 字幕来源与恢复体验
+
+`node scripts/run-video-menu-state-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-x-experience-proof` 验证生产扩展在临时 Edge profile 中的播放器操作、全屏、320–960px 控件位置、横屏紧凑菜单、缓存恢复、模型确认与三类 SRT 下载。
+
+同一专项覆盖 200 条缓存字幕按播放位置预取、空翻译响应与独立重试、双语和原文切换复用译文、重新识别绕过缓存且确认前保留原文、迟到原生轨道优先、原生静音空档、原文模式加载 sidecar、初始隐藏后恢复字幕和键盘焦点。页面、识别结果与翻译响应为受控夹具，不代表真实 X 登录会话、Whisper 识别质量或外部翻译服务可用性。产品取舍见 [体验复核](./reports/x-video-experience-20260930/README.md)。
+
 ## YouTube 全屏与字幕同步
 
 同一专项还覆盖滚动字幕的上一句残留、窗口裁切的旧行、连续每 40ms 增词、无时间轴的请求启动延迟与缓存重播。报告中的 `dispatchMs` 只度量原文变化到请求发出的等待，不包含真实供应商耗时；译文仍使用确定性响应，不能据此声称真实视频端到端零延迟。
@@ -406,6 +412,22 @@ node scripts/testing/run-popup-quick-settings-ui-test.cjs \
 该专项使用生产扩展、临时 Edge profile 和第二屏后台窗口，检查六个快捷抽屉的完整可见性、对应设置入口、亮暗主题、划词与视频模式、隐藏字幕恢复、已有偏好保留、修改后立即关闭与重开、跨页面同步及连续写入。完整设置另验证 17 个导航入口、390px 布局、本地模型卡片在视频关闭后的禁用状态、字幕外观跟随配置草稿更新，以及迁入的朗读声音可以编辑并保存。配置通过真实后台消息写入本次临时扩展，不读取日常浏览器配置。
 
 该脚本不下载模型、不调用外部翻译服务，也不验证播放器字幕质量或 Firefox 真实界面；不能把专项通过等同于其他 UI 套件或真实翻译链路通过。报告分别记录窗口位置、焦点策略、配置行为、布局尺寸、控制台错误和截图。
+
+## 设置层级与渐进展开
+
+通用页按日常翻译、网页辅助、基本偏好排序；服务页将密钥管理放在 API Key 旁，模型偏好、提示词、请求限制和接口兼容分别展开。可运行以下专项验证这些入口：
+
+```bash
+node scripts/testing/run-settings-hierarchy-ui-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <Node包目录> \
+  --focus-safe-helper <focus-safe-browser.cjs路径> \
+  --artifacts-dir /private/tmp/fluentread-settings-hierarchy
+```
+
+该专项在独立临时 Edge profile 中验证默认服务配置直达、浏览目录不改变默认服务、键盘展开、多 Key 保留、模型偏好与提示词保存、请求限制、快速关闭后的持久化、连续写入与两个设置页同步。还检查 18 个设置分区、1024/820/390 像素布局、窄屏目录及图标、深色和英文界面，并导出截图、布局尺寸与控制台错误。
+
+浏览器使用第二屏可见但不抢焦点窗口，结束后仅清理测试 profile。所有凭据都是测试占位符，不调用真实翻译服务；桌面窄屏验证不等同于手机或 Firefox 实机验证。
 
 ## 翻译服务目录
 

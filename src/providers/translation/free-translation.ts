@@ -4,7 +4,7 @@
  * 主要内容：装配免密钥服务、冻结匿名请求配置与批量预算，生成匿名连接身份；识别明显未翻译的原文回显并尝试下一条线路，把每次线路尝试的结果与耗时上报给调用方观察器。
  * 模块边界：只装配已有 provider；健康状态与并发调度由 freeFallback 服务持有。
  */
-import sha256 from 'crypto-js/sha256';
+import {sha256Hex} from '@/src/shared/function/sha256';
 import {translateMicrosoftTexts} from './microsoft';
 import {translateDeepLXText} from './deeplx';
 import {translateGoogleText} from './google';
@@ -17,6 +17,7 @@ import {urls} from '@/src/core/config/constants';
 import {DEFAULT_DEEPLX_ENDPOINT} from '@/src/core/config/deeplx';
 import {
     FREE_TRANSLATION_PROVIDERS,
+    FREE_TRANSLATION_TOTAL_TIMEOUT_MS,
     normalizeFreeTranslationOrder,
     normalizeFreeTranslationTimeoutMs,
     normalizeFreeTranslationCooldownMs,
@@ -86,7 +87,8 @@ function prepareRequest(message: FreeTranslationRequest): PreparedRequest {
         sourceLanguage: message.sourceLanguage || current.from,
         targetLanguage: message.targetLanguage || current.to,
         [FREE_TRANSLATION_DEADLINE]: typeof budget === 'number' && Number.isFinite(budget)
-            ? Date.now() + Math.max(0, budget) : undefined,
+            ? Date.now() + Math.min(FREE_TRANSLATION_TOTAL_TIMEOUT_MS, Math.max(0, budget))
+            : Date.now() + FREE_TRANSLATION_TOTAL_TIMEOUT_MS,
     }, current);
 }
 
@@ -96,7 +98,7 @@ function providerIdentity(id: string, current: TranslationProviderConfigSnapshot
     const connection = id === services.deeplx
         ? [DEFAULT_DEEPLX_ENDPOINT]
         : id === services.myMemory ? [urls[id], current.myMemoryEmail] : [id];
-    return `${id}:${sha256(JSON.stringify(connection)).toString()}`;
+    return `${id}:${sha256Hex(JSON.stringify(connection))}`;
 }
 
 /** 为设置页提供当前免费服务权重；只暴露服务 ID 与健康状态，不暴露连接身份哈希。 */

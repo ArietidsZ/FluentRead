@@ -248,5 +248,19 @@ export function normalizeOcrLines(
         }
         flush();
     });
-    return mergeVerticalOcrColumns(normalized);
+    // 相同文字且几乎完全重叠才视为重复检测；不同位置的按钮、数字和重复行必须保留。
+    const seen = new Map<string, OcrLine[]>();
+    const unique = normalized.filter(line => {
+        const key = `${line.vertical ? 'vertical' : 'horizontal'}\0${line.text}`;
+        const candidates = seen.get(key) ?? [];
+        const duplicate = candidates.some(previous => {
+            const intersection = Math.max(0, getAxisOverlap(previous.bbox, line.bbox, X_AXIS))
+                * Math.max(0, getAxisOverlap(previous.bbox, line.bbox, Y_AXIS));
+            const area = (box: OcrBox) => getAxisSize(box, X_AXIS) * getAxisSize(box, Y_AXIS);
+            return intersection / (area(previous.bbox) + area(line.bbox) - intersection) >= 0.9;
+        });
+        if (!duplicate) {candidates.push(line); seen.set(key, candidates);}
+        return !duplicate;
+    });
+    return mergeVerticalOcrColumns(unique);
 }

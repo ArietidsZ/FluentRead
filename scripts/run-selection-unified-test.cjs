@@ -32,6 +32,7 @@ async function assertCompactLayout() {
    const range=document.createRange();range.selectNodeContents(block.querySelector('pre'));
    for(const rect of range.getClientRects())for(const button of block.querySelectorAll('button')){const b=button.getBoundingClientRect();if(rect.left<b.right&&rect.right>b.left&&rect.top<b.bottom&&rect.bottom>b.top)overlaps.push(button.getAttribute('aria-label'));}
   }
+  const title=this.querySelector('.fr-tooltip-title').getBoundingClientRect(),actions=this.querySelector('.fr-tooltip-actions').getBoundingClientRect();if(title.right>actions.left)overlaps.push('header controls');
   return {left:card.left,right:card.right,viewport:innerWidth,height:card.height,overlaps,headerHeight:this.querySelector('header').getBoundingClientRect().height};
  }`});
  const data=measured.result.value;assert.deepEqual(data.overlaps,[],'text overlaps compact controls');assert(data.left>=0&&data.right<=data.viewport+1,'card outside viewport');assert(data.headerHeight<=45,'header occupies too much space');return data;
@@ -103,6 +104,7 @@ async function main(){
    await page.setViewportSize({width:1440,height:960});await patch({theme:'dark'});report.compactLayouts.push(await assertCompactLayout());await screenshot(page,'plain-translation-dark');await patch({theme:'light'});
    const translationCountBeforeModeSwitch=report.translationRequests;
    record('simple selection shows translation without study request');
+   await clickNode(cls('fr-share-card-entry'));await until(()=>node(cls('fr-card-primary')),'share studio did not open');await screenshot(page,'selection-share-studio');await clickNode(cls('fr-card-close'));await until(async()=>!(await node(cls('fr-card-primary'))),'share studio did not close');assert(await node(cls('fr-translation-tooltip')),'share studio close lost the translation');assert.equal(report.translationRequests,translationCountBeforeModeSwitch);record('compact share action opens studio and preserves the selection result on close');
    await clickNode(button('卡片模式'));await until(()=>node(cls('fr-study-toolbar')),'card toolbar missing');await wait(150);assert.equal(report.translationRequests,translationCountBeforeModeSwitch,'view switch repeated the translation request');assert.equal(report.aiRequests,0);assert.equal((await support.readStoredConfig(popup)).selectionTranslatorPresentation,'simple');record('temporary card mode leaves global preference intact');
    await clickNode(button('词性与句法'));await until(()=>node(cls('fr-sentence-tokens')),'grounded grammar tokens missing');const hostScroll=await page.evaluate(()=>scrollY);await clickNode(n=>support.cdpAttribute(n,'data-pos')==='noun');await wait(150);
    const tree=await support.getSelectionUiTree(page);const details=support.findCdpNode(tree.root,cls('fr-sentence-detail'));const scrollArea=support.findCdpNode(tree.root,cls('fr-reading-result'));
@@ -111,7 +113,7 @@ async function main(){
    await screenshot(page,'sentence-grammar');assert.equal(report.aiRequests,1);record('sentence grammar streams through real extension and supports token clicks');
    await clickNode(button('返回译文'));await until(()=>node(cls('fr-translation-result')),'return to translation missing');await clickNode(button('词性与句法'));await wait(500);assert.equal(report.aiRequests,1);record('completed explanation reused when returning to grammar');
    await page.keyboard.press('Escape');assert.equal(await node(cls('fr-translation-tooltip')),null);await page.locator('#host-action').click();await wait(300);assert.equal(await node(cls('fr-selection-indicator')),null);record('dismissed selection stays closed after unrelated click');
-   await patch({selectionTranslatorPresentation:'card'});await select('#word');await until(()=>node(cls('fr-word-meaning')),'word dictionary missing');assert(support.cdpText(await node(cls('fr-word-meaning'))).includes('形容词'));await screenshot(page,'word-card');record('word card loads dictionary with normalized part-of-speech labels');
+   await patch({selectionTranslatorPresentation:'card'});await select('#word');await until(()=>node(cls('fr-word-meaning')),'word dictionary missing');assert(support.cdpText(await node(cls('fr-word-meaning'))).includes('形容词'));await screenshot(page,'word-card');await page.setViewportSize({width:390,height:800});await wait(200);report.compactLayouts.push(await assertCompactLayout());await screenshot(page,'word-card-390');await page.setViewportSize({width:1440,height:960});await wait(200);record('word card loads dictionary with normalized part-of-speech labels');
    await page.keyboard.press('Escape');await patch({selectionTranslatorPresentation:'simple',selectionTranslatorTrigger:'icon',selectionTranslatorAutoDismiss:true});
    const beforeQuiet=report.translationRequests;
    await page.mouse.click(20,20);await choose('#sentence');await until(()=>node(cls('fr-selection-indicator')),'quiet entry missing');

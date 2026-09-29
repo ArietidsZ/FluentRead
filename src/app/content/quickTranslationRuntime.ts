@@ -16,7 +16,7 @@ import {
     handleTranslation,
     isFullPageTranslationActive,
     restoreOriginalContent,
-} from './features';
+} from '@/src/features/full-page-translation/public';
 
 /** 安装额外方案；命中时清空旧手势状态，再由当前方案独占后续按键。 */
 export function mountConfiguredQuickTranslation(

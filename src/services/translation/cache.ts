@@ -6,7 +6,7 @@
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
-import sha256 from 'crypto-js/sha256';
+import {sha256Hex} from '@/src/shared/function/sha256';
 import Dexie, { type Table } from 'dexie';
 import {
   normalizeTranslationCacheLimits,
@@ -71,7 +71,7 @@ export function buildTranslationCacheKey(identity: TranslationCacheIdentity): st
     version: TRANSLATION_CACHE_VERSION,
     ...identity,
   });
-  const digest = sha256(payload).toString();
+  const digest = sha256Hex(payload);
   return `v${TRANSLATION_CACHE_VERSION}:${digest}`;
 }
 
