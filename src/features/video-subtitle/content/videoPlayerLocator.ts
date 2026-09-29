@@ -183,6 +183,16 @@ function interactionVideo(
     if (videos.length === 1) return videos[0] as HTMLVideoElement;
   }
 
+  // X 的部分播放器没有旧 data-testid，指针会落在 video 的兄弟覆盖层。
+  // 只在有限祖先中找唯一视频，且目标必须属于其实际播放器；相邻帖子文字不能选中视频。
+  let scope: Element | null = target;
+  for (let depth = 0; scope && scope !== document.body && scope !== document.documentElement && depth < 8;
+    depth += 1, scope = scope.parentElement) {
+    const videos = scope.querySelectorAll<HTMLVideoElement>('video');
+    if (videos.length > 1) break;
+    if (videos.length === 1 && playerForVideo(videos[0], view).contains(target)) return videos[0];
+  }
+
   const post = target.closest('article');
   if (post) {
     const videos = post.querySelectorAll('video');

@@ -3,6 +3,8 @@ import {parseHTML} from 'linkedom';
 
 import {
   createVideoPlayerMenu,
+  renderVideoSourceStatus,
+  setVideoMenuToolsOpen,
   isVideoModelPromptOpen,
   renderVideoAiMenu,
   renderVideoMenuMode,
@@ -94,7 +96,7 @@ describe('video player menu composition', () => {
     const chineseLabel = menu.getAttribute('aria-label');
     refreshVideoUiAccessibility(menu, null, document, 'en-US', 'Enabled');
     expect(menu.getAttribute('aria-label')).not.toBe(chineseLabel);
-    expect(menu.querySelector('[role="radiogroup"]')?.getAttribute('aria-label')).toBeTruthy();
+    expect(menu.querySelector('.fluent-read-video-menu-mode-group')?.getAttribute('aria-label')).toBeTruthy();
     for (const element of document.querySelectorAll('[id]')) {
       expect(element.getAttribute('aria-label')).toBeTruthy();
     }
@@ -103,7 +105,7 @@ describe('video player menu composition', () => {
     expect(button.title).toBe(button.getAttribute('aria-label'));
   });
 
-  it('groups one display choice, timing, AI and downloads without switches or a re-recognize action', () => {
+  it('keeps viewing controls primary and places timing, export and regeneration in a returnable options page', () => {
     const {document} = parseHTML('<!doctype html><body></body>');
     vi.stubGlobal('document', document);
 
@@ -115,31 +117,40 @@ describe('video player menu composition', () => {
     expect(menu.getAttribute('aria-label')).toBeTruthy();
     expect(menu.getAttribute('data-fluent-read-ui')).toBe('video-subtitle');
     expect(menu.getAttribute('translate')).toBe('no');
-    expect(menu.querySelector('[data-action="toggle-translation"], [data-action="toggle-visible"], [data-action="regenerate-ai-subtitle"]')).toBeNull();
+    expect(menu.querySelector('[data-action="toggle-translation"], [data-action="toggle-visible"]')).toBeNull();
     expect(menu.querySelectorAll('[role="menuitemcheckbox"]')).toHaveLength(1);
     expect([...menu.querySelectorAll<HTMLElement>('.fluent-read-video-menu-mode-group [data-mode]')].map(item => [item.dataset.mode, item.textContent]))
       .toEqual([['bilingual', '双语'], ['translation-only', '译文'], ['original-only', '原文'], ['off', '关闭']]);
-    const display = menu.querySelector('.fluent-read-video-menu-display')!;
+    const display = menu.querySelector('.fluent-read-video-menu-watch')!;
     expect(display.querySelector('.fluent-read-video-menu-mode-group')).toBeTruthy();
-    expect(display.querySelector('[data-timing-row]')).toBeTruthy();
+    expect(display.querySelector('[data-timing-row]')).toBeNull();
+    const tools = menu.querySelector<HTMLElement>('.fluent-read-video-menu-tools')!;
+    expect(tools.hidden).toBe(true);
+    expect(tools.querySelector('[data-timing-row]')).toBeTruthy();
     const timingControls = menu.querySelector('.fluent-read-video-menu-timing-controls');
     expect([...timingControls!.children].map(element => element.getAttribute('data-action') || element.getAttribute('data-subtitle-offset')))
       .toEqual(['reset-subtitle-timing', 'subtitle-earlier', 'true', 'subtitle-later']);
-    const actions = menu.querySelector('.fluent-read-video-menu-actions')!;
-    expect(actions.querySelector('.fluent-read-video-menu-ai-group [data-action="toggle-ai-subtitle"]')).toBeTruthy();
+    const actions = tools;
+    expect(display.querySelector('.fluent-read-video-menu-ai-group [data-action="toggle-ai-subtitle"]')).toBeTruthy();
     expect([...actions.querySelectorAll<HTMLButtonElement>('.fluent-read-video-menu-download')].map(button => [button.dataset.action, button.textContent, button.getAttribute('aria-label')]))
       .toEqual([
-        ['download-subtitles', '原文字幕', '下载原文字幕'],
-        ['download-translated-subtitles', '译文字幕', '下载译文字幕'],
-        ['download-bilingual-subtitles', '双语字幕', '下载双语字幕'],
+        ['download-subtitles', '原文', '下载原文字幕'],
+        ['download-translated-subtitles', '译文', '下载译文字幕'],
+        ['download-bilingual-subtitles', '双语', '下载双语字幕'],
       ]);
     expect(actions.querySelector('[data-download-status]')?.getAttribute('aria-live')).toBe('polite');
     expect(menu.querySelector<HTMLElement>('[data-model-prompt]')?.hidden).toBe(true);
+    setVideoMenuToolsOpen(menu, true);
+    expect(display.hasAttribute('hidden')).toBe(true);
+    expect(tools.hidden).toBe(false);
+    expect(menu.querySelector('[data-action="open-subtitle-tools"]')?.getAttribute('aria-expanded')).toBe('true');
+    setVideoMenuToolsOpen(menu, false);
+    expect(tools.hidden).toBe(true);
 
     const withoutLocalGeneration = createVideoPlayerMenu('en-US', false);
     expect(withoutLocalGeneration.querySelector('[data-action="toggle-ai-subtitle"]')).toBeNull();
     expect(withoutLocalGeneration.querySelector('[data-model-prompt]')).toBeNull();
-    expect(withoutLocalGeneration.querySelector('[role="radiogroup"]')?.textContent).toBe('BothTranslatedOriginalOff');
+    expect(withoutLocalGeneration.querySelector('.fluent-read-video-menu-mode-group')?.textContent).toBe('BothTranslatedOriginalOff');
   });
 
   it('renders the selected display choice, disables it when FluentRead is globally off and relocalizes keyed labels', () => {
@@ -161,6 +172,50 @@ describe('video player menu composition', () => {
     expect(menu.querySelector('[data-action="download-translated-subtitles"]')?.getAttribute('aria-label')).toBe(
       menu.querySelector('[data-action="download-translated-subtitles"]')?.getAttribute('title'),
     );
+  });
+
+  it('explains missing, cached, native and failed captions with only relevant recovery actions', () => {
+    const {document} = parseHTML('<!doctype html><body></body>');
+    vi.stubGlobal('document', document);
+    const menu = createVideoPlayerMenu('zh-CN', true);
+    const state = {enabled: true, source: 'none' as const, cueCount: 0, checking: false,
+      generating: false, translationFailed: false, canRegenerate: false};
+    const status = menu.querySelector('[data-source-status]')!;
+    const retry = menu.querySelector<HTMLButtonElement>('[data-action="retry-subtitle-translation"]')!;
+    const regenerate = menu.querySelector<HTMLButtonElement>('[data-action="regenerate-ai-subtitle"]')!;
+    renderVideoSourceStatus(menu, state, 'zh-CN');
+    expect(status.textContent).toBe('暂未检测到字幕');
+    expect(menu.querySelector('[data-source-hint]')?.textContent).toContain('本地 AI');
+    expect(retry.hidden && regenerate.hidden).toBe(true);
+    expect([...menu.querySelectorAll<HTMLButtonElement>('.fluent-read-video-menu-download')].every(button => button.disabled)).toBe(true);
+    renderVideoSourceStatus(menu, {...state, checking: true}, 'en-US');
+    expect(status.textContent).toBe('Checking saved subtitles…');
+    renderVideoSourceStatus(menu, {...state, source: 'cache', cueCount: 12, canRegenerate: true, translationFailed: true}, 'zh-CN');
+    expect(status.textContent).toBe('本地字幕 · 12 条');
+    expect(retry.hidden || regenerate.hidden).toBe(false);
+    expect(menu.querySelector('[data-source-hint]')?.textContent).toBe('这句翻译失败');
+    expect(menu.querySelector('[data-action="toggle-ai-subtitle"]')?.closest('.fluent-read-video-menu-tools')).toBeTruthy();
+    expect(regenerate.closest('.fluent-read-video-menu-tools')).toBeTruthy();
+    setVideoMenuToolsOpen(menu, true);
+    const download = menu.querySelector<HTMLButtonElement>('.fluent-read-video-menu-download')!;
+    download.disabled = true;
+    download.setAttribute('aria-busy', 'true');
+    renderVideoSourceStatus(menu, {...state, source: 'native', cueCount: 2}, 'en-US');
+    expect(status.textContent).toBe('Native captions · 2 cues');
+    expect(menu.dataset.panel).toBe('tools');
+    expect(download.disabled).toBe(true);
+    expect(retry.hidden && regenerate.hidden).toBe(true);
+    renderVideoSourceStatus(menu, {...state, generating: true}, 'zh-CN');
+    expect(menu.dataset.panel).toBe('watch');
+    expect(menu.querySelector('[data-action="toggle-ai-subtitle"]')?.closest('.fluent-read-video-menu-primary-ai')).toBeTruthy();
+    renderVideoSubtitleTiming(menu, 500, false, 'zh-CN');
+    renderVideoSourceStatus(menu, state, 'zh-CN');
+    expect(menu.querySelector<HTMLElement>('[data-action="open-subtitle-tools"]')?.hidden).toBe(false);
+    renderVideoSubtitleTiming(menu, 0, false, 'zh-CN');
+    renderVideoSourceStatus(menu, state, 'zh-CN');
+    expect(menu.querySelector<HTMLElement>('[data-action="open-subtitle-tools"]')?.hidden).toBe(true);
+    renderVideoSourceStatus(menu, {...state, enabled: false}, 'zh-CN');
+    expect(status.textContent).toBe('字幕已关闭');
   });
 
   it('opens a model confirmation view with recommendation, sizes and downloaded state, then returns to the menu', () => {
@@ -241,6 +296,8 @@ describe('video player menu composition', () => {
     expect(menu.dataset.layout).toBe('stack');
     menu.hidden = false;
     syncVideoPlayerMenuLayout(menu);
+    expect(menu.dataset.layout).toBe('stack');
+    setVideoMenuToolsOpen(menu, true);
     expect(menu.dataset.layout).toBe('wide');
     expect(menu.dataset.measuring).toBeUndefined();
     size(640, 360, 172);

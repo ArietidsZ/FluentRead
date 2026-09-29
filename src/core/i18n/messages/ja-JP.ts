@@ -15,6 +15,22 @@ import {translationStatsJapaneseMessages} from './translationStats';
 import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
+    "video.subtitleTitle": "動画字幕",
+    "video.subtitleTools": "字幕オプション",
+    "video.downloadGroup": "字幕をダウンロード",
+    "video.back": "表示方法に戻る",
+    "video.closeMenu": "字幕メニューを閉じる",
+    "video.sourceOff": "字幕はオフです",
+    "video.source.native": "動画の字幕 · {count} 件",
+    "video.source.cache": "保存済み字幕 · {count} 件",
+    "video.source.ai": "AI 字幕 · {count} 件",
+    "video.sourcePreparing": "字幕を生成中",
+    "video.sourceChecking": "保存済み字幕を確認中…",
+    "video.sourceMissing": "字幕がまだ見つかりません",
+    "video.sourceMissingHint": "動画の字幕をオンにするか、ローカル AI で文字起こしできます。",
+    "video.translationFailedHint": "翻訳できませんでした",
+    "video.retryTranslation": "再試行",
+    "video.regenerate": "この動画を再認識",
     "writing.experience.enableDescription": "GitHub と Gmail で返信の下書きや推敲を行えます。確認してから送信してください。",
     "writing.experience.disabled": "ページの執筆ボタンは非表示です。設定は保持されます。",
     "writing.experience.paused": "拡張機能を再開すると執筆アシスタントを使えます。",

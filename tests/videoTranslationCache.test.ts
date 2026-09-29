@@ -2,13 +2,42 @@ import {describe, expect, it, vi} from 'vitest';
 import {VideoTranslationCache} from '@/src/features/video-subtitle/content/translationCache';
 
 describe('VideoTranslationCache', () => {
-  it('规范化 key、合并请求、缓存结果并回退空译文为原文', async () => {
+  it('规范化 key、合并请求、缓存结果且不把空译文当成成功', async () => {
     const translate = vi.fn(async (text: string) => text === 'empty' ? '' : `译-${text}`);
     const cache = new VideoTranslationCache(translate);
     await expect(cache.request('  hello   world ')).resolves.toBe('译-hello world');
     await expect(cache.request('hello world')).resolves.toBe('译-hello world');
+    await expect(cache.request('empty')).rejects.toThrow('空内容');
     await expect(cache.request('empty')).resolves.toBe('');
+    expect(cache.hasFailure(' empty ')).toBe(true);
     expect(translate).toHaveBeenCalledTimes(2);
+  });
+  it('手动重试失败句，保留成功缓存并合并重复点击', async () => {
+    let fail = true;
+    const translate = vi.fn(async (text: string) => {
+      if (text === 'failed' && fail) throw new Error('offline');
+      return `译-${text}`;
+    });
+    const cache = new VideoTranslationCache(translate);
+    await cache.request('success');
+    await expect(cache.request('failed')).rejects.toThrow('offline');
+    expect(cache.hasFailure('failed')).toBe(true);
+    fail = false;
+    cache.retryFailures();
+    await expect(Promise.all([cache.request('failed'), cache.request('failed')])).resolves.toEqual(['译-failed', '译-failed']);
+    await expect(cache.request('success')).resolves.toBe('译-success');
+    expect(cache.hasFailure('failed')).toBe(false);
+    expect(translate).toHaveBeenCalledTimes(3);
+  });
+  it('隐藏译文时取消在途请求，但重新显示可复用已完成译文', async () => {
+    const translate = vi.fn((text: string) => text === 'saved' ? Promise.resolve('已缓存') : new Promise<string>(() => undefined));
+    const cache = new VideoTranslationCache(translate);
+    await cache.request('saved');
+    const pending = cache.request('pending');
+    cache.cancelPending();
+    await expect(pending).rejects.toThrow('切换');
+    await expect(cache.request('saved')).resolves.toBe('已缓存');
+    expect(translate.mock.calls.filter(([text]) => text === 'saved')).toHaveLength(1);
   });
   it('clear 后迟到结果不写回，失败进入退避', async () => {
     let resolve!: (value: string) => void;
@@ -46,9 +75,9 @@ describe('VideoTranslationCache', () => {
     for (let i = 0; i < 161; i += 1) await fail.request(`failure-${i}`).catch(() => undefined);
     await expect(fail.request('failure-0')).rejects.toThrow('no');
   });
-  it('空 key 与非字符串 provider 结果按约定回退', async () => {
+  it('空 key 不请求，非字符串 provider 结果进入失败退避', async () => {
     const cache = new VideoTranslationCache(async () => 1 as unknown as string);
     await expect(cache.request('   ')).resolves.toBe('   ');
-    await expect(cache.request('non-string')).resolves.toBe('non-string');
+    await expect(cache.request('non-string')).rejects.toThrow('空内容');
   });
 });
