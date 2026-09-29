@@ -378,13 +378,13 @@ function trackActiveNode(node: HTMLElement): WeakRef<HTMLElement> {
 function clearOwnershipIndex(owner: HTMLElement): void {
     const indexedNodes = indexedNodesByOwner.get(owner);
     if (!indexedNodes) return;
+    const ownerRef = activeRefsByNode.get(owner);
 
     indexedNodes.forEach((indexedNode) => {
         const owners = ownersByIndexedNode.get(indexedNode);
-        owners?.forEach((ref) => {
-            const candidate = ref.deref();
-            if (!candidate || candidate === owner) owners.delete(ref);
-        });
+        // 稳定的 WeakRef 就是索引键；清理一个段落不应遍历同一祖先的全部段落。
+        // 失效引用由索引读取入口清理，不把全文恢复退化成 O(段落数²)。
+        if (ownerRef) owners?.delete(ownerRef);
         if (owners?.size === 0) ownersByIndexedNode.delete(indexedNode);
     });
     indexedNodesByOwner.delete(owner);
@@ -1347,11 +1347,14 @@ function retainTranslationLayoutRoot(owner: HTMLElement, root: TranslationLayout
 function releaseTranslationLayoutRoot(owner: HTMLElement, root: TranslationLayoutObserverRoot): void {
     const observerState = layoutObserversByRoot.get(root);
     if (!observerState) return;
-    observerState.owners.forEach((ref) => {
+    const ownerRef = activeRefsByNode.get(owner);
+    if (ownerRef) observerState.owners.delete(ownerRef);
+    // 只需知道是否还有活跃 owner。找到第一个便停止，最后一次释放才会扫掉剩余死引用。
+    for (const ref of observerState.owners) {
         const candidate = ref.deref();
-        if (!candidate || candidate === owner || !states.has(candidate)) observerState?.owners.delete(ref);
-    });
-    if (observerState.owners.size > 0) return;
+        if (candidate && states.has(candidate)) return;
+        observerState.owners.delete(ref);
+    }
     observerState.observer.disconnect();
     observerState.releaseResizeListener();
     layoutObserversByRoot.delete(root);
@@ -1465,10 +1468,15 @@ function releaseTranslationLayoutOverride(
     const override = sharedLayoutOverrides.get(element);
     const ownerRef = activeRefsByNode.get(owner);
     if (override && ownerRef) override.owners.delete(ownerRef);
-    override?.owners.forEach((ref) => {
-        const candidate = ref.deref();
-        if (!candidate || !states.has(candidate)) override.owners.delete(ref);
-    });
+    if (override) {
+        // 与共享观察器相同，只需找到一个存活租户就能确认还不能恢复样式。
+        // 批量恢复同一裁剪容器的段落时，不能为每个段落重新扫描所有兄弟。
+        for (const ref of override.owners) {
+            const candidate = ref.deref();
+            if (candidate && states.has(candidate)) break;
+            override.owners.delete(ref);
+        }
+    }
     if (override?.owners.size === 0) restoreSharedTranslationLayoutOverride(element, override);
     state.layoutOverrideElements?.delete(element);
 }

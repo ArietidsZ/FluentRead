@@ -1,5 +1,5 @@
 import {parseHTML} from 'linkedom';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 
 import {
     applyTranslationsToSnapshot,
@@ -11,6 +11,44 @@ import {isForeignTranslationBoundary} from '@/src/core/translation/dom';
 import {isTranslationTextNodeProtected} from '@/src/core/translation/text';
 
 describe('translation snapshot mapping performance', () => {
+    it('旧 WebView 只探测一次 :has 能力，回退仍识别直属外部译文和同任务 DOM 变更', () => {
+        const {document} = parseHTML('<html><body><article><p id="source">Source text.</p></article></body></html>');
+        const source = document.querySelector('#source')!;
+        const article = source.parentElement!;
+        const unsupported = vi.spyOn(source, 'matches').mockImplementation(() => { throw new SyntaxError('Unsupported :has'); });
+        expect(isForeignTranslationBoundary(source)).toBe(false);
+        const wrapper = document.createElement('font');
+        wrapper.className = 'immersive-translate-target-wrapper';
+        source.append(wrapper);
+        expect(isForeignTranslationBoundary(source)).toBe(true);
+        expect(isForeignTranslationBoundary(article)).toBe(false);
+        wrapper.remove();
+        expect(isForeignTranslationBoundary(source)).toBe(false);
+        expect(unsupported).toHaveBeenCalledTimes(1);
+        unsupported.mockRestore();
+    });
+    it('外部译文边界在同一任务的插入、改类、移动和删除后立即更新', () => {
+        const {document} = parseHTML('<html><body><article><p id="a">First source.</p><div id="b"><p>Nested source.</p></div></article></body></html>');
+        const article = document.querySelector('article')!;
+        const a = document.querySelector('#a')!;
+        const b = document.querySelector('#b')!;
+        const wrapper = document.createElement('font');
+        expect(isForeignTranslationBoundary(a)).toBe(false);
+        a.append(wrapper);
+        wrapper.className = 'immersive-translate-target-wrapper';
+        expect(isForeignTranslationBoundary(a)).toBe(true);
+        expect(isForeignTranslationBoundary(article)).toBe(false);
+        b.firstElementChild!.append(wrapper);
+        expect(isForeignTranslationBoundary(a)).toBe(false);
+        expect(isForeignTranslationBoundary(b)).toBe(false);
+        expect(isForeignTranslationBoundary(b.firstElementChild!)).toBe(true);
+        wrapper.className = '';
+        expect(isForeignTranslationBoundary(b.firstElementChild!)).toBe(false);
+        wrapper.className = 'immersive-translate-target-wrapper';
+        wrapper.remove();
+        expect(isForeignTranslationBoundary(b.firstElementChild!)).toBe(false);
+    });
+
     it('maps a large flat candidate with linear tree-walker work and no sibling path scans', () => {
         const {document} = parseHTML('<html><body><div id="target"></div></body></html>');
         const target = document.querySelector('#target') as HTMLElement;

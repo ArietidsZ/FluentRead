@@ -1,15 +1,15 @@
 /**
  * @file src/features/full-page-translation/content/runtime.ts
  * 文件职责：实现全文翻译的页面级会话引擎，负责候选发现、可见性调度、批量请求、动态 DOM 重扫、失败重试、缓存复用和恢复原文。
- * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、弹窗优先调度、精确属性写入过滤、候选所有权和生命周期重试；按阅读进度撤回离开预取区的待派发候选，冻结配置与识别范围，在弹窗关闭后继续正文，按实际节点阶段发布进度及工具栏结果；向局部翻译开放单候选 translateTarget 与单个译文所有者的恢复入口。
+ * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、弹窗优先调度、精确属性写入过滤、候选所有权和生命周期重试；按时间片派发并在全文结果提交前让出主线程，合并同段 DOM 写入；按阅读进度撤回离开预取区的待派发候选，冻结配置与识别范围，在弹窗关闭后继续正文，按实际节点阶段发布进度及工具栏结果；向局部翻译开放单候选 translateTarget 与单个译文所有者的恢复入口。
  * 模块边界：这是 content 侧编排层，不实现 provider 协议、纯候选算法或底层状态存储；翻译调用经 app client，发现规则来自 core/translation，渲染与状态分别交给 renderer、liveTextRender 和 state。
  */
 import {resolveTranslationToolbarStatus, countFullPageTranslationWork} from '../toolbarStatus';
 import {getFullPageTranslationStateRevision, notifyFullPageTranslationState, notifyTranslationToolbarStatus} from './stateNotification';
 import type {FrameTranslationState} from './frameSession';
 import { checkConfig } from "@/src/app/translation/check";
-import {insertFailedTip, insertLoadingSpinner} from '@/src/features/full-page-translation/ui/translationIndicators';
-import {clearTranslationFailedHost} from '@/src/features/full-page-translation/core/hostMarkers';
+import {insertFailedTip} from '@/src/features/full-page-translation/ui/translationIndicators';
+import {scheduleTranslationLoadingIndicator} from './loadingIndicator';
 import {syncModalTranslationHint} from '../ui/modalProgressHint';
 import { styles } from "@/src/core/config/constants";
 import {
@@ -78,7 +78,6 @@ import {
     setBilingualSkeletonRefreshHandler,
     setRenderedStyleAttribute,
     setRetryWrapper,
-    setSpinner,
     isTranslationLayoutOverrideMutation,
     type TranslationState,
 } from "@/src/features/full-page-translation/content/state";
@@ -121,7 +120,7 @@ import {
     createTranslationRequest,
     type TranslationResult,
 } from '@/src/features/full-page-translation/content/liveTextTranslation';
-import {consumeOrphanedOwnerClassMutation, isTextEquivalentHostReplacement, normalizeOrphanedSingleSlots, normalizeOrphanedTranslationArtifacts, normalizeOrphanedTranslationOwner}
+import {clearOrphanedTranslationArtifacts, consumeOrphanedOwnerClassMutation, isTextEquivalentHostReplacement, normalizeOrphanedSingleSlots, normalizeOrphanedTranslationArtifacts, normalizeOrphanedTranslationOwner}
     from '@/src/features/full-page-translation/content/orphanArtifacts';
 import {createFullPageRequestSessionState, disposeFullPageRequestSession, getHoverTranslationRequestSession, invalidateContextSensitiveRequestCache, invalidateFullPageRequestSessionCache, invalidateFullPageRequestSessionForRoute, invalidateHoverTranslationRequestSession, resetHoverTranslationRequestSession, type FullPageRequestSessionState} from '@/src/features/full-page-translation/content/requestSession';
 import {getSiteAdapterAttributeFilter} from '@/src/core/site-adaptation/compiler';
@@ -390,7 +389,6 @@ function markFailedTranslation(
     error: unknown,
     owner?: FullPageSession, snapshot?: FullPageTranslationConfigSnapshot,
 ): TranslationTargetOutcome {
-    withFullPageViewportAnchor(() => spinner?.remove(), [node]);
     if (!node.isConnected ||
         !attemptSourceIsCurrent(node, attempt.state) ||
         !markTranslationError(node, attempt.state, attempt.generation, false)) {
@@ -400,17 +398,20 @@ function markFailedTranslation(
             attemptNode: node,
         };
     }
-    const retryWrapper = withFullPageViewportAnchor(() => insertFailedTip(
-        node,
-        error instanceof Error ? error.message : String(error || "翻译失败"),
-        () => {
-            const retryOwner = owner?.active ? owner : undefined;
-            const retrySnapshot = snapshot?.requestOverridesApplied ? snapshot : undefined;
-            void translateTarget(candidate,
-                retryOwner?.translationConfig.displayMode ?? retrySnapshot?.displayMode ?? (config.display === styles.bilingualTranslation ? "bilingual" : "single"),
-                false, retryOwner, retrySnapshot, true);
-        },
-    ), [node]);
+    const retryWrapper = withFullPageViewportAnchor(() => {
+        spinner?.remove();
+        return insertFailedTip(
+            node,
+            error instanceof Error ? error.message : String(error || "翻译失败"),
+            () => {
+                const retryOwner = owner?.active ? owner : undefined;
+                const retrySnapshot = snapshot?.requestOverridesApplied ? snapshot : undefined;
+                void translateTarget(candidate,
+                    retryOwner?.translationConfig.displayMode ?? retrySnapshot?.displayMode ?? (config.display === styles.bilingualTranslation ? "bilingual" : "single"),
+                    false, retryOwner, retrySnapshot, true);
+            },
+        );
+    }, [node]);
     setRetryWrapper(node, retryWrapper);
     setRenderedStyleAttribute(node);
     return {status: "failed"};
@@ -426,7 +427,6 @@ async function renderTranslation(
     owner?: FullPageSession,
 ): Promise<TranslationTargetOutcome> {
     const { state, generation } = attempt;
-    const spinner = state.spinner;
 
     const staleOutcome = (): TranslationTargetOutcome => ({
         status: "stale",
@@ -436,9 +436,12 @@ async function renderTranslation(
 
     try {
         const result = await request;
+        // 缓存命中/批量响应会在同一个微任务检查点完成很多段。给每个全文提交独立的
+        // 浏览器任务，让输入与绘制能够穿插；让出后仍须复验取消、generation 和宿主节点。
+        if (owner) await new Promise<void>(resolve => window.setTimeout(resolve, 0));
         if (state.controller.signal.aborted || getTranslationState(node) !== state || (owner && !owner.active)) return staleOutcome();
-        withFullPageViewportAnchor(() => spinner?.remove(), [node]);
         if ((requestSession.renderCommitGeneration ?? 0) !== requestCommitGeneration) return staleOutcome();
+        const spinner = state.spinner;
 
         // 目标文本即使不变，class/role/可见性变化也可能把所有权移到另一语义块。
         // 提交前必须复验原 owner；合成行内段因 materialize 已移动节点，
@@ -489,13 +492,16 @@ async function renderTranslation(
         // a deferred layout reevaluation does not mistake that harmless remount
         // for a second source edit.
         state.sourceTextNodes = getCurrentTranslationStateTextNodes(node, state);
-        state.sourceHTML = node.innerHTML;
-
-        const content = withFullPageViewportAnchor(() =>
-            appendBilingualTranslation(node, translatedText, {
+        // 原文和输出骨架的只读校验完成后才撤下 loading；避免“先删 spinner → 强制
+        // 重排校验 → 插译文 → 再重排”。两项 DOM 写入共用一次锚点事务。
+        const content = withFullPageViewportAnchor(() => {
+            spinner?.remove();
+            state.sourceHTML = node.innerHTML;
+            return appendBilingualTranslation(node, translatedText, {
                 sourceSkeleton: freshSnapshot.clone, targetLanguage: snapshot.targetLanguage,
                 style: snapshot.style, sourceText: result.sources.join('\n'),
-            }), [node]);
+            });
+        }, [node]);
         setBilingualContent(node, content, {sources: result.sources, translations: result.translations,
             targetLanguage: snapshot.targetLanguage, style: snapshot.style});
         setRenderedStyleAttribute(node);
@@ -503,7 +509,7 @@ async function renderTranslation(
     } catch (error) {
         if (state.controller.signal.aborted || getTranslationState(node) !== state || (owner && !owner.active)) return staleOutcome();
         if ((requestSession.renderCommitGeneration ?? 0) !== requestCommitGeneration) return staleOutcome();
-        return markFailedTranslation(node, candidate, attempt, spinner, error, owner, snapshot);
+        return markFailedTranslation(node, candidate, attempt, state.spinner, error, owner, snapshot);
     }
 }
 
@@ -873,7 +879,9 @@ export async function translateTarget(candidate: TranslationCandidate, displayMo
         candidate = visualCandidate;
     }
 
-    const materialized = withFullPageViewportAnchor(() => materializeCandidate(candidate), [candidate.element]);
+    const materialized = candidate.nodes?.length && !candidate.manualChunk
+        ? withFullPageViewportAnchor(() => materializeCandidate(candidate), [candidate.element])
+        : materializeCandidate(candidate);
     if (!materialized) {
         return {
             status: "not-current",
@@ -930,14 +938,13 @@ export async function translateTarget(candidate: TranslationCandidate, displayMo
     )
         .finally(() => signal.removeEventListener('abort', cancelQueuedRequest));
     if (synthetic) node.setAttribute('data-fr-translation-segment', 'true');
-    const spinner = withFullPageViewportAnchor(() => insertLoadingSpinner(node), [node]);
-    setSpinner(node, spinner);
+    const cancelLoading = scheduleTranslationLoadingIndicator(node, attempt.state, Boolean(owner));
     registerSessionStatefulTarget(statefulSession, candidate.element, node);
     const outcome = await renderTranslation(
         node,
         candidate,
         attempt,
-        request,
+        request.finally(cancelLoading),
         translationConfig,
         requestSession,
         requestCommitGeneration,
@@ -1118,6 +1125,8 @@ function drainFullPage(session: FullPageSession): void {
     refreshFullPageModal(session);
     session.draining = true;
     const maxConcurrent = normalizeMaxConcurrentTranslations(config.maxConcurrentTranslations);
+    const startedAt = performance.now();
+    let needsAnotherSlice = false;
 
     // 有空闲槽时才集中测量锚点；一轮派发内复用，避免 loading 写入后重复读取布局。
     let plan: FullPageDispatchPlan | undefined;
@@ -1150,8 +1159,13 @@ function drainFullPage(session: FullPageSession): void {
                     scheduleFullPageDrain(session);
                 }
             });
+        if (performance.now() - startedAt >= 8) {
+            needsAnotherSlice = session.inFlightCandidates.size < maxConcurrent && session.pending.size > 0;
+            break;
+        }
     }
     session.draining = false;
+    if (needsAnotherSlice) scheduleFullPageDrain(session);
     scheduleFullPageProgressPublish(session);
 }
 
@@ -2080,29 +2094,7 @@ export function restoreOriginalContent(): void {
     // 兼容升级前遗留的 wrapper/属性；新状态机不会依赖这些标记，但旧页面
     // 不应在扩展热更新后留下半截译文。
     const roots: Node[] = [document.documentElement, ...getOpenShadowRoots(document.documentElement)];
-    for (const root of roots) {
-        const queryRoot = root as Node & ParentNode;
-        if (typeof queryRoot.querySelectorAll !== 'function') continue;
-        // 用户可能在 clone/remount 后、50ms 发现批次运行前立即恢复。先解包
-        // single-slot 中的 light DOM 原文，避免通用 orphan 删除把原文一并移除。
-        normalizeOrphanedSingleSlots(root);
-        const orphanOwners = new Set<Element>();
-        queryRoot.querySelectorAll('[data-fr-translation-owned="true"]').forEach((element) => {
-            const owner = element.parentElement;
-            const htmlOwner = asHTMLElement(owner);
-            if (htmlOwner && getTranslationState(htmlOwner)) return;
-            if (owner) orphanOwners.add(owner);
-            element.remove();
-        });
-        orphanOwners.forEach((owner) => {
-            const htmlOrphanOwner = asHTMLElement(owner);
-            if (htmlOrphanOwner) clearTranslationFailedHost(htmlOrphanOwner);
-        });
-        queryRoot.querySelectorAll('[data-fr-translation-segment="true"]').forEach((segment) => {
-            if (!segment.parentNode || getTranslationState(asHTMLElement(segment) as HTMLElement)) return;
-            segment.replaceWith(...Array.from(segment.childNodes));
-        });
-    }
+    roots.forEach(clearOrphanedTranslationArtifacts);
     notifyFullPageTranslationState(false);
 }
 

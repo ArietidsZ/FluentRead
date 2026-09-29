@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/liveTextRender.ts
  * 文件职责：把实时文本槽与按钮属性两类替换式译文提交到宿主 DOM，并给出统一的提交结论。
- * 主要内容：复验请求期间发生变化的 Text 槽身份；为仅译文正文挂载闭合 Shadow 槽，为交互控件原位回写 Text，为按钮型 input 改写标签属性；所有写入都在视口锚点内执行，并返回 committed/stale/unchanged/empty 供调用方映射为目标结果。 可核对的公开符号包括 LiveTextRenderCommit、renderLiveTextResult。
+ * 主要内容：在撤下 loading 前复验实时 Text 槽，复用同范围槽快照；为仅译文正文挂载闭合 Shadow 槽，为交互控件原位回写 Text，为按钮型 input 改写标签属性；loading 移除和译文写入共用视口锚点，并返回 committed/stale/unchanged/empty 供调用方映射为目标结果。 可核对的公开符号包括 LiveTextRenderCommit、renderLiveTextResult。
  * 模块边界：本文件只负责一次已完成请求的渲染提交，不发起请求、不调度候选、不监听 DOM 变更，也不决定重试与会话生命周期。
  */
 import {
@@ -45,8 +45,12 @@ function renderControlValue(
         withFullPageViewportAnchor(() => discardTranslation(node, state), [node]);
         return result.complete ? 'unchanged' : 'empty';
     }
+    const spinner = state.spinner;
     if (!markTranslationComplete(node, state, generation, false)) return 'stale';
-    withFullPageViewportAnchor(() => node.setAttribute(result.attribute, result.text), [node]);
+    withFullPageViewportAnchor(() => {
+        spinner?.remove();
+        node.setAttribute(result.attribute, result.text);
+    }, [node]);
     setControlValueApplied(node, result.text);
     return 'committed';
 }
@@ -71,26 +75,35 @@ function renderLiveText(
         withFullPageViewportAnchor(() => discardTranslation(node, state), [node]);
         return result.nodes.length === 0 ? 'empty' : 'unchanged';
     }
-    const currentNodes = getCurrentTranslationStateTextNodes(node, state);
     const currentParts = collectLiveTranslationTextSlots(
         node,
         getCurrentTranslationCore(scope).shouldStayOriginal,
         getTranslationStateProtectionBoundary(node, state),
         getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, node),
     );
+    // 正常路径的会话范围已冻结；同一次同步提交直接复用完整槽快照，避免再遍历一次
+    // 宿主和全部祖先。范围不一致的兼容调用仍分别校验，不能扩大可写入的文本集合。
+    const currentNodes = scope === state.scope
+        ? currentParts.map(slot => slot.node)
+        : getCurrentTranslationStateTextNodes(node, state);
     const rebound = reboundLiveTextResult(currentNodes, result, currentParts);
     if (!rebound) return 'stale';
+    const spinner = state.spinner;
     if (!markTranslationComplete(node, state, generation, false)) return 'stale';
-    setLiveTranslationSourceSnapshot(node, rebound.nodes);
     if (state.mode === 'single' && state.kind === 'content') {
-        const hosts = withFullPageViewportAnchor(() =>
-            appendSingleTranslationSlots(node, rebound.slots, {targetLanguage}), [node]);
+        const hosts = withFullPageViewportAnchor(() => {
+            spinner?.remove();
+            setLiveTranslationSourceSnapshot(node, rebound.nodes);
+            return appendSingleTranslationSlots(node, rebound.slots, {targetLanguage});
+        }, [node]);
         if (hosts.length !== rebound.slots.length) return 'stale';
         setSingleTextSlotHosts(node, hosts);
         return 'committed';
     }
     // rebound 已按当前前后缀逐槽生成展示值；直接复用，避免两处拼接规则漂移。
     withFullPageViewportAnchor(() => {
+        spinner?.remove();
+        setLiveTranslationSourceSnapshot(node, rebound.nodes);
         rebound.slots.forEach(({node: slotNode, text}) => {
             if (slotNode.isConnected) slotNode.nodeValue = text;
         });

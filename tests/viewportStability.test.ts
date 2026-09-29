@@ -160,6 +160,20 @@ describe('全文翻译视口稳定性', () => {
         expect(withFullPageViewportAnchor(() => undefined)).toBeUndefined();
     });
 
+    it('普通祖先不读取会强制布局的滚动尺寸，且保留回调的同步行为', () => {
+        const {document} = globalThis;
+        const article = document.createElement('article');
+        const target = document.createElement('p');
+        article.append(target); document.body.append(article);
+        const geometryRead = vi.fn(() => 100);
+        Object.defineProperties(article, {scrollHeight: {get: geometryRead}, clientHeight: {get: geometryRead}});
+        replaceGlobal('getComputedStyle', () => ({overflowY: 'visible'}));
+        replaceGlobal('scrollY', 0);
+        Object.defineProperty(document, 'elementFromPoint', {configurable: true, value: vi.fn(() => target)});
+        expect(withFullPageViewportAnchor(() => 'written', [target])).toBe('written');
+        expect(geometryRead).not.toHaveBeenCalled();
+    });
+
     it('innerHeight 为零时仍安全计算 elementFromPoint 的回退坐标', () => {
         const {document, window} = globalThis as unknown as {document: Document; window: Window & typeof globalThis};
         const anchor = document.createElement('p');

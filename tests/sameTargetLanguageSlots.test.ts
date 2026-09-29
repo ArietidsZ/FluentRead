@@ -84,6 +84,14 @@ afterEach(() => {
 });
 
 describe('各请求路径共用逐槽判断', () => {
+    it('中文 README 中的英文名称不触发请求，旁边独立的英文段落照常翻译', async () => {
+        runtime.config.to = 'zh-Hans';
+        const source = 'FluentRead 支持在原网页中对照阅读原文与译文，并提供划词翻译、AI 阅读辅助、图片翻译、文档翻译和视频双语字幕。翻译卡片接入了 DeepSeek Harness 会话内核的浏览器适配，支持结合上下文解释选中文字并连续追问。';
+        const result = await translateTextSlots([source, english], captureFullPageTranslationConfig());
+        expect(result).toEqual([source, `T:${english}`]);
+        expect(submitted()).toEqual([english]);
+    });
+
     it.each([
         ['microsoft', 'batch'],
         ['freeTranslation', 'batch'],

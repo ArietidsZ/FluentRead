@@ -115,6 +115,28 @@ describe('Codeforces named form controls', () => {
 });
 
 describe('translation candidate core', () => {
+    it.each(['content', 'all'] as const)('GitHub %s 范围跳过代码行子树，同时保留同一 diff 表格中的评论', scope => {
+        const {document} = parseHTML(`<html><body><main><table class="diff-table"><tbody>
+            <tr><td class="blob-code" id="code"><span>This is a source code comment, not page prose.</span></td></tr>
+            <tr><td class="line-comments"><div class="markdown-body"><p id="review">Please explain the reason for this change.</p></div></td></tr>
+            </tbody></table><p id="summary">The following changes improve the browser performance.</p>
+            <table class="js-file-line-container"><tr><td id="file-code">Source file text stays unchanged.</td></tr></table></main></body></html>`);
+        const core = createTranslationCore({url: new URL('https://github.com/openai/codex/compare/base...head'), scope});
+        const code = document.querySelector('#code')!;
+        const fileCode = document.querySelector('#file-code')!;
+        const candidates = core.discover(document);
+        expect(candidates.map(candidate => candidate.element.id)).toEqual(expect.arrayContaining(['review', 'summary']));
+        expect(core.resolve(code.firstChild)).toBeNull();
+        expect(core.resolve(fileCode.firstChild)).toBeNull();
+        expect(core.shouldIgnoreMutation(code)).toBe(true);
+        expect(extractTranslationText(document.querySelector('main')!, core.shouldStayOriginal)).not.toContain('source code comment');
+        expect([...core.discoverSteps(code)].some(step => step.element === code.firstElementChild)).toBe(false);
+        const other = createTranslationCore({url: new URL('https://example.test/'), scope});
+        expect(other.shouldStayOriginal(code)).toBe(false);
+        code.className = '';
+        expect(core.shouldStayOriginal(code)).toBe(false);
+        expect(core.shouldIgnoreMutation(code)).toBe(false);
+    });
     it.each([
         ['provider', 'https://openrouter.ai/provider/minimax'],
         ['models', 'https://openrouter.ai/models'],

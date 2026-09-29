@@ -25,6 +25,7 @@ import {
     beginTranslation,
     getTranslationState,
     restoreTranslation,
+    setSpinner,
 } from '@/src/features/full-page-translation/content/state';
 
 function page(html: string) {
@@ -73,14 +74,69 @@ describe('替换式译文提交', () => {
         vi.unstubAllGlobals();
     });
 
+    it('控件先完成所有样式复验，再一次性撤下 loading 和写入译文', () => {
+        const document = page('<main><button id="save">Save draft</button></main>');
+        const node = document.querySelector<HTMLElement>('#save')!;
+        const source = node.firstChild as Text;
+        const attempt = beginTranslation(node, 'bilingual', 'control', false, 'Save draft', [source])!;
+        const spinner = document.createElement('span');
+        spinner.className = 'fluent-read-loading';
+        node.append(spinner);
+        setSpinner(node, spinner);
+        let readsAfterRemoval = 0;
+        Object.defineProperty(document.defaultView!, 'getComputedStyle', {configurable: true, value: () => {
+            if (!spinner.isConnected) readsAfterRemoval++;
+            return {display: 'block', visibility: 'visible', position: 'static', overflowY: 'visible'};
+        }});
+        expect(renderLiveTextResult(node, attempt.state, attempt.generation, liveResult({
+            sources: ['Save draft'], translations: ['保存草稿'], nodes: [source],
+        }), undefined, 'zh-CN')).toBe('committed');
+        expect(readsAfterRemoval).toBe(0);
+        expect(spinner.isConnected).toBe(false);
+        expect(attempt.state.sourceHTML).toBe('Save draft');
+        restoreTranslation(node);
+        expect(node.textContent).toBe('Save draft');
+    });
+
+    it('冻结范围内的提交只收集一次实时槽，并拒绝宿主已替换的来源', () => {
+        const document = page('<button id="save">Save draft</button>');
+        const node = document.querySelector<HTMLElement>('#save')!;
+        const original = node.firstChild as Text;
+        const attempt = beginTranslation(node, 'bilingual', 'control', false, 'Save draft', [original])!;
+        attempt.state.scope = 'all';
+        node.textContent = 'Publish now';
+        const actual = node.firstChild as Text;
+        const read = vi.fn(() => [{node: actual, prefix: '', source: actual.data, suffix: ''}]);
+        runtime.slots = read;
+        expect(renderLiveTextResult(node, attempt.state, attempt.generation, liveResult({
+            sources: ['Save draft'], translations: ['保存草稿'], nodes: [original],
+        }), 'all', 'zh-CN')).toBe('stale');
+        expect(read).toHaveBeenCalledTimes(1);
+        expect(node.textContent).toBe('Publish now');
+        node.textContent = 'Save draft';
+        const replacement = node.firstChild as Text;
+        read.mockImplementation(() => [{node: replacement, prefix: '', source: replacement.data, suffix: ''}]);
+        expect(renderLiveTextResult(node, attempt.state, attempt.generation, liveResult({
+            sources: ['Save draft'], translations: ['保存草稿'], nodes: [original],
+        }), 'all', 'zh-CN')).toBe('committed');
+        expect(read).toHaveBeenCalledTimes(2);
+        expect(node.textContent).toBe('保存草稿');
+        restoreTranslation(node);
+        expect(node.textContent).toBe('Save draft');
+    });
+
     it('按钮型 input 的译文写入标签属性，恢复原文时回滚插件自己的写入', () => {
         const document = page('<input id="save" type="button" value="Save draft">');
         const node = document.querySelector<HTMLElement>('#save')!;
         const attempt = beginTranslation(node, 'bilingual', 'control', false, 'Save draft', [])!;
+        const spinner = document.createElement('span');
+        node.after(spinner);
+        setSpinner(node, spinner);
 
         expect(renderLiveTextResult(node, attempt.state, attempt.generation,
             controlValueResult(), 'content', 'zh-CN')).toBe('committed');
         expect(node.getAttribute('value')).toBe('保存草稿');
+        expect(spinner.isConnected).toBe(false);
         expect(getTranslationState(node)).toMatchObject({phase: 'translated', textSlotsApplied: true});
 
         restoreTranslation(node);
