@@ -74,8 +74,8 @@ async function main() {
   }
   async function keys() { return page.locator('[data-api-key-list] [data-api-key-index]'); }
   async function enableKeyRotation() {
-    const settings = page.locator('[data-configuration-group="advanced"]');
-    if (!(await settings.evaluate(node => node.hasAttribute('open')))) await settings.locator('summary').click();
+    const settings = page.locator('[data-configuration-group="connection"] > details.service-disclosure[data-configuration-group="keys"]');
+    if (!(await settings.evaluate(node => node.hasAttribute('open')))) await settings.locator(':scope > summary').click();
     const control = page.locator('[data-api-key-rotation-setting] .el-switch');
     if (await control.getAttribute('aria-checked') !== 'true') await control.click();
   }
@@ -250,11 +250,13 @@ async function main() {
   await page.screenshot({path: path.join(artifactsDir, 'api-keys-narrow.png')}); report.screenshots.push('api-keys-narrow.png');
   report.cases.push('dark-narrow-no-horizontal-overflow');
   await page.close(); await open();
+  const directoryToggle = page.locator('.mobile-directory-toggle');
+  if (await directoryToggle.isVisible() && await directoryToggle.getAttribute('aria-expanded') !== 'true') await directoryToggle.click();
   await page.locator('[data-service-value]').filter({hasText: 'API Key Fixture'}).click();
   assert.equal(await (await keys()).count(), 11);
   report.cases.push('reopen-persistence');
-  const advanced = page.locator('[data-configuration-group="advanced"]');
-  if (!(await advanced.evaluate(node => node.hasAttribute('open')))) await advanced.locator('summary').click();
+  const keySettings = page.locator('[data-configuration-group="connection"] > details.service-disclosure[data-configuration-group="keys"]');
+  if (!(await keySettings.evaluate(node => node.hasAttribute('open')))) await keySettings.locator(':scope > summary').click();
   assert.equal(await page.locator('[data-api-key-auth-policy]').count(), 1);
   assert.equal(await page.getByTestId('custom-service-delete').count(), 1);
   assert.equal(await page.locator('.detail-hero [data-testid="custom-service-delete"]').count(), 0);

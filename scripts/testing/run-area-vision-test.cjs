@@ -172,10 +172,12 @@ async function sourceText() {return ui("return this.querySelector('.fr-area-sour
   currentCase='model capability control saves per model';
   async function openModelSettings() {
     await settings.goto(`${origin}/options.html#settings-services`);
+    await settings.locator('.service-catalog').waitFor({state:'visible'});
+    const directoryToggle=settings.locator('.mobile-directory-toggle');
+    if(await directoryToggle.isVisible() && await directoryToggle.getAttribute('aria-expanded')!=='true') await directoryToggle.click();
     await settings.locator('[data-service-value="openai"]').click();
-    const advanced=settings.locator('[data-configuration-group="advanced"]');
-    const translationGroup=advanced.locator('[data-configuration-group="translation"]');
-    if(await advanced.getAttribute('open')===null) await advanced.locator('summary').click();
+    const translationGroup=settings.locator('details.service-disclosure[data-configuration-group="translation"]');
+    if(await translationGroup.getAttribute('open')===null) await translationGroup.locator(':scope > summary').click();
     await translationGroup.getByTestId('model-vision-capability').waitFor();
   }
   await openModelSettings();

@@ -1,12 +1,49 @@
 /**
  * @file src/features/settings/ui/settings-sections.css
- * 文件职责：定义 SettingsSections 各业务分区的专属样式，覆盖网站规则、视频、连接配置和能力禁用提示。
- * 主要内容：包含设置行、服务 endpoint 提示、深色主题与响应式调整；译文样式预览已移至界面风格页，并直接复用网页的 translation-display.css。
+ * 文件职责：定义 SettingsSections 各业务分区的专属样式，覆盖通用设置、网站规则、视频、连接配置和能力禁用提示。
+ * 主要内容：包含通用页默认服务与配置按钮的自适应排列、设置行、服务 endpoint 提示、深色主题与响应式调整；译文样式预览已移至界面风格页，并直接复用网页的 translation-display.css。
  * 模块边界：该样式表只描述设置分区的视觉，不应改变配置行为或宿主网页；Options 页面骨架由 settings-page.css 管理，图片 OCR 等独立组件保留自己的 scoped CSS。
  */
 
 .settings-section {
   min-width: 0;
+}
+
+.general-settings-section .general-service-control {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.general-settings-section .general-service-control :deep(.el-select) {
+  flex: 1 1 180px;
+  width: auto;
+}
+
+.general-settings-section .general-service-configure {
+  flex: 0 0 auto;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--brand-strong);
+  background: var(--surface);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.general-settings-section .general-service-configure:hover {
+  border-color: var(--brand);
+  background: var(--surface-soft);
+}
+
+.general-settings-section .general-service-configure:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .site-settings-section {

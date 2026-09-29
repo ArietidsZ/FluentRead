@@ -12,7 +12,7 @@
         <p v-if="props.allowMultiple" class="api-key-help">{{ t('settings.services.keys.help') }}</p>
       </div>
     </header>
-    <div v-if="props.allowMultiple" class="api-key-overview" aria-live="polite">
+    <div v-if="props.allowMultiple && (busy || summary)" class="api-key-overview" aria-live="polite">
       <span v-if="busy" class="api-key-progress" role="status">
         <span class="api-key-spinner" />
         {{ checkingIndex >= 0 ? t('settings.services.keys.checkingRow', {number: checkingIndex + 1}) : t('settings.services.keys.checking') }}
@@ -195,7 +195,7 @@ async function addKey(): Promise<void> {
   .api-key-error { grid-column: 1 / -1; margin-top: 2px; }
   .api-key-list-footer { padding-inline: 8px; }
 }
-.api-key-list.is-single { display: grid; grid-template-columns: minmax(0, 160px) minmax(0, 640px); justify-content: space-between; align-items: start; gap: 10px 16px; margin: 0; padding: 12px 0; border: 0; border-top: 1px solid var(--line, #e3e7ee); border-radius: 0; container-type: normal; }
+.api-key-list.is-single { display: grid; grid-template-columns: 140px minmax(0, 640px); justify-content: start; align-items: start; gap: 10px 16px; margin: 0; padding: 12px 0; border: 0; border-top: 1px solid var(--line, #e3e7ee); border-radius: 0; container-type: normal; }
 .is-single .api-key-heading { display: contents; }
 .is-single .api-key-heading-copy { grid-column: 1; grid-row: 1; padding-top: 9px; }
 .is-single .api-key-heading-title strong { font-size: 13px; font-weight: 550; }
@@ -203,7 +203,7 @@ async function addKey(): Promise<void> {
 .is-single .api-key-row.is-single-row { display: flex; flex-direction: column; align-items: stretch; padding: 0; gap: 4px; }
 .is-single .api-key-number { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .is-single .api-key-entry { width: 100%; justify-self: end; }
-.is-single .api-key-row-status:has(.api-key-state.is-idle) { visibility: hidden; }
+.is-single .api-key-row-status:empty, .is-single .api-key-row-status:has(.api-key-state.is-idle) { display: none; }
 .is-single .api-key-error { margin: 0; }
 @media (max-width: 900px) {
   .api-key-list.is-single { grid-template-columns: minmax(0, 160px) minmax(0, 1fr); justify-content: normal; gap: 8px 12px; }

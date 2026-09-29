@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/model/navigation.ts
  * 文件职责：定义设置中心侧边栏的导航信息模型，并提供默认分区、哈希解析与搜索过滤等不依赖 Vue 或浏览器 API 的纯规则。
- * 主要内容：包含按功能分组的标题、副标题、图标、关键词和 section ID，从同一注册表派生导航列表与后台合法分区 ID，导出 resolveNavigationItem、resolveRequestedSection 与 filterNavigationItems。
+ * 主要内容：包含按功能分组的标题、副标题、图标、关键词和 section ID；通用页文案对应日常翻译、网页辅助与基本偏好的阅读顺序，从同一注册表派生导航列表与后台合法分区 ID，导出 resolveNavigationItem、resolveRequestedSection 与 filterNavigationItems。
  * 模块边界：该模块只描述导航元数据，不切换 DOM、不写 location.hash 也不保存配置；Options 页面负责路由同步，SettingsSections.vue 负责各分区实际内容。
  */
 export type NavigationItem = {
@@ -57,10 +57,10 @@ export const navigationGroups = [
     label: '基础配置',
     items: [
       {
-        id: 'settings-general', icon: '⌂', label: '通用设置', description: '服务、显示与网页辅助', group: '基础配置',
-        heading: '通用设置', summary: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
-        kicker: '基础配置', title: '通用设置', detail: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
-        searchDescription: '选择翻译服务、默认服务、译文显示、翻译模式、网页辅助、AI 精翻、AI 智能上下文、默认目标语言、主题',
+        id: 'settings-general', icon: '⌂', label: '通用设置', description: '日常翻译、网页辅助与基本偏好', group: '基础配置',
+        heading: '通用设置', summary: '设置日常翻译的默认服务、目标语言和模式，再调整网页辅助与基本偏好。',
+        kicker: '基础配置', title: '通用设置', detail: '设置日常翻译的默认服务、目标语言和模式，再调整网页辅助与基本偏好。',
+        searchDescription: '日常翻译、选择翻译服务、默认服务、配置服务、译文显示、译文外观、翻译模式、网页辅助、AI 精翻、AI 智能上下文、默认目标语言、基本偏好、插件状态、界面语言、主题',
       },
       {
         id: 'settings-services', icon: '译', label: '翻译服务', description: '服务与模型', group: '基础配置',

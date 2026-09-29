@@ -91,8 +91,8 @@ const expectedNavigationGroups = [
   ['工具与学习', ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-translation-stats', 'settings-model-usage']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
-// 译文显示是“选择翻译服务”内的子分组；悬浮球进阶设置已并入翻译设置。
-const expectedGeneralGroups = ['选择翻译服务', '网页辅助'];
+// 通用设置优先呈现日常翻译，再提供网页辅助和基本偏好；悬浮球进阶设置位于翻译设置。
+const expectedGeneralGroups = ['日常翻译', '网页辅助', '基本偏好'];
 // 译文显示相关设置已迁到界面风格页，通用设置不再有二级分组标题。
 const expectedGeneralSubgroups = [];
 const expectedInterfaceGroups = ['译文样式', '界面与弹窗', '动画与加载效果', '菜单栏布局', '界面字体'];
@@ -2793,27 +2793,33 @@ async function main() {
       // 直接从完整服务列表打开 OpenAI。
       await page.locator('[data-service-value="openai"]:visible').first().click();
     }
-    const darkAdvancedSettings = page.locator('[data-configuration-group="advanced"]');
-    const darkTranslationSettings = darkAdvancedSettings.locator('[data-configuration-group="translation"]');
-    await darkAdvancedSettings.waitFor({state: 'visible', timeout});
+    const darkTranslationSettings = page.locator('details.service-disclosure[data-configuration-group="translation"]');
+    await darkTranslationSettings.waitFor({state: 'visible', timeout});
     const darkThinkingSwitch = darkTranslationSettings.getByRole('switch', {
       name: '当前模型是否启用 Thinking',
       includeHidden: true,
     });
     const darkThinkingControl = darkThinkingSwitch.locator('..');
-    if (await darkThinkingControl.isVisible()) throw new Error('模型 Thinking 没有收纳到关闭的高级设置中');
-    await darkAdvancedSettings.locator('summary').click();
+    if (await darkThinkingControl.isVisible()) throw new Error('模型 Thinking 没有收纳到关闭的模型偏好中');
+    await darkTranslationSettings.locator(':scope > summary').click();
     await darkThinkingControl.waitFor({state: 'visible', timeout});
-    const thinkingDarkSurface = await darkAdvancedSettings
-      .evaluate(element => getComputedStyle(element).backgroundColor);
+    const thinkingDarkSurface = await darkTranslationSettings.evaluate(element => {
+      // 独立 disclosure 使用透明背景，检查实际承载它的表面，不能把透明黑当作暗色通过。
+      for (let surface = element; surface; surface = surface.parentElement) {
+        const color = getComputedStyle(surface).backgroundColor;
+        const channels = color.match(/\d+(?:\.\d+)?/g)?.map(Number) || [];
+        if (channels.length === 3 || (channels.length === 4 && channels[3] > 0)) return color;
+      }
+      return '';
+    });
     if (!isDarkColor(thinkingDarkSurface)) {
-      throw new Error(`包含模型 Thinking 的高级设置仍为亮色：${thinkingDarkSurface}`);
+      throw new Error(`包含模型 Thinking 的模型偏好表面仍为亮色：${thinkingDarkSurface}`);
     }
     report.informationArchitecture.modelThinkingDarkSurface = thinkingDarkSurface;
     report.screenshots.push(await screenshot(page, 'settings-dark-services.png'));
-    await darkAdvancedSettings.locator('summary').click();
-    if (await darkAdvancedSettings.getAttribute('open') !== null) {
-      throw new Error('暗色验证后没有恢复高级设置的默认折叠状态');
+    await darkTranslationSettings.locator(':scope > summary').click();
+    if (await darkTranslationSettings.getAttribute('open') !== null) {
+      throw new Error('暗色验证后没有恢复模型偏好的默认折叠状态');
     }
     await page.locator('button[data-section="settings-translation"]').click();
     report.screenshots.push(await screenshot(page, 'settings-dark-translation.png'));
@@ -3164,21 +3170,20 @@ async function main() {
         !== customServiceFixture.apiKey) {
       throw new Error('新建自定义服务的名称、接口、模型或 API Key 没有进入详情配置');
     }
-    const advancedSettings = serviceCatalog.locator('[data-configuration-group="advanced"]');
-    const translationSettings = advancedSettings.locator('[data-configuration-group="translation"]');
+    const translationSettings = serviceCatalog.locator('details.service-disclosure[data-configuration-group="translation"]');
     const currentThinkingSwitch = translationSettings.getByRole('switch', {
       name: '当前模型是否启用 Thinking',
       includeHidden: true,
     });
-    if (await advancedSettings.getAttribute('open') !== null) {
-      throw new Error('新建自定义服务时高级设置没有保持默认折叠');
+    if (await serviceCatalog.locator('details.service-disclosure').evaluateAll(panels => panels.some(panel => panel.open))) {
+      throw new Error('新建自定义服务时独立配置面板没有保持默认折叠');
     }
     if (await currentThinkingSwitch.getAttribute('aria-checked') !== 'false') {
       throw new Error('新建模型的 Thinking 没有保持默认关闭');
     }
     const currentThinkingControl = currentThinkingSwitch.locator('..');
-    if (await currentThinkingControl.isVisible()) throw new Error('模型 Thinking 没有默认收纳在高级设置中');
-    await advancedSettings.locator('summary').click();
+    if (await currentThinkingControl.isVisible()) throw new Error('模型 Thinking 没有默认收纳在模型偏好中');
+    await translationSettings.locator(':scope > summary').click();
     if (!await currentThinkingControl.isVisible()) throw new Error('当前模型 Thinking 开关没有可见的交互控件');
     await currentThinkingControl.click();
     await page.waitForFunction(() => document.querySelector('[aria-label="当前模型是否启用 Thinking"]')
@@ -3219,7 +3224,7 @@ async function main() {
     }, customServiceFixture.secondModel, {timeout});
     await page.waitForTimeout(500);
     report.assertions.modelThinkingPerModel = true;
-    report.assertions.modelThinkingInAdvancedSettings = true;
+    report.assertions.modelThinkingInModelPreferences = true;
     await page.waitForTimeout(500);
     report.informationArchitecture.serviceCatalogHierarchy.customService = {
       dynamicId: true,
