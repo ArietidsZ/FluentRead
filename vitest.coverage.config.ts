@@ -384,6 +384,7 @@ export default defineConfig({
                 'src/features/writing-assistant/client.ts',
                 'src/features/writing-assistant/content.ts',
                 'src/core/config/writing.ts',
+                'src/core/config/writingReadiness.ts',
                 'src/core/config/writingPreview.ts',
                 'src/features/writing-assistant/entryPlacement.ts',
                 'src/features/writing-assistant/background.ts',
