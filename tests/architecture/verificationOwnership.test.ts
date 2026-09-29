@@ -107,7 +107,9 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
         || PRODUCT_TOOL_SCRIPTS.includes(path)
         || path === 'scripts/generate-userscript-language-data.mjs'
         || path === 'scripts/build-userscript-standalone.mjs'
+        || path === 'scripts/build-userscript-greasyfork.mjs'
         || path === 'scripts/verify-userscript-build.mjs'
+        || path === 'scripts/verify-userscript-greasyfork-build.mjs'
         || path === 'scripts/verify-userscript-standalone-build.mjs'
         || path === 'scripts/export-site-rule-pack.mjs'
         || path === 'scripts/update-readme-contributors.mjs'

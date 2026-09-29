@@ -17,6 +17,20 @@ function fixture(overrides: Record<string, string>) {
 }
 
 describe('visual-only accessibility text protection', () => {
+    it.each<Record<string, string>>([
+        {overflow: 'visible'},
+        {clip: 'auto'},
+        {position: 'static'},
+    ])('普通定位容器不读取会强制布局的尺寸 %j', overrides => {
+        const {hint, style, prose} = fixture(overrides);
+        let geometryReads = 0;
+        for (const property of ['width', 'height']) Object.defineProperty(style, property, {
+            get: () => { geometryReads++; return '240px'; },
+        });
+        expect(isHiddenTranslationElement(hint)).toBe(false);
+        expect(extractTranslationText(prose)).toContain('draggable');
+        expect(geometryReads).toBe(0);
+    });
     it.each([
         ['legacy rect', {}],
         ['modern inset', {clip: 'auto', clipPath: 'inset(50%)'}],

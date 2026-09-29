@@ -38,12 +38,11 @@ function findScrollableAncestor(element: HTMLElement): HTMLElement | null {
     let current = element.parentElement;
     while (current && current !== document.body) {
         try {
-            // 先做便宜的溢出量比较：绝大多数祖先都不滚动，可以跳过
-            // getComputedStyle 带来的样式重算。两个条件仍是与关系，语义不变。
-            if (current.scrollHeight > current.clientHeight) {
-                const style = document.defaultView?.getComputedStyle(current);
-                if (style && /(auto|scroll|overlay)/u.test(style.overflowY)) return current;
-            }
+            // scrollHeight/clientHeight 会在每次译文写入后强制整页布局。先排除普通的
+            // overflow:visible 祖先，只对实际允许滚动的容器测量几何；两项条件仍需同时成立。
+            const style = current.ownerDocument.defaultView?.getComputedStyle(current);
+            if (style && /(auto|scroll|overlay)/u.test(style.overflowY) &&
+                current.scrollHeight > current.clientHeight) return current;
         } catch {
             // Host custom elements can throw while their layout is being rebuilt.
         }

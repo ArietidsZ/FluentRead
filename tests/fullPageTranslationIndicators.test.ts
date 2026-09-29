@@ -21,9 +21,64 @@ import {
   insertFailedTip,
   insertLoadingSpinner,
 } from '@/src/features/full-page-translation/ui/translationIndicators';
+import {scheduleTranslationLoadingIndicator} from '@/src/features/full-page-translation/content/loadingIndicator';
+import {beginTranslation, getTranslationState, restoreTranslation, markTranslationComplete} from '@/src/features/full-page-translation/content/state';
 
 const originalDocument = globalThis.document;
 const originalWindow = globalThis.window;
+
+describe('延迟全文 loading', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+  const start = () => {
+    const node = document.querySelector<HTMLElement>('#target')!;
+    return {node, ...beginTranslation(node, 'bilingual')!};
+  };
+
+  it('快请求取消展示不写宿主 DOM；慢请求只显示一次并能正常恢复', () => {
+    const {node, state} = start();
+    const cancel = scheduleTranslationLoadingIndicator(node, state, true);
+    vi.advanceTimersByTime(179);
+    expect(node.querySelector('.fluent-read-loading')).toBeNull();
+    cancel(); cancel();
+    vi.advanceTimersByTime(500);
+    expect(node.innerHTML).toBe('Source');
+    const cleanup = scheduleTranslationLoadingIndicator(node, state, true);
+    vi.advanceTimersByTime(180);
+    expect(state.spinner?.isConnected).toBe(true);
+    cleanup();
+    vi.advanceTimersByTime(500);
+    expect(node.querySelectorAll('.fluent-read-loading')).toHaveLength(1);
+    restoreTranslation(node);
+    expect(node.innerHTML).toBe('Source');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('悬浮即时显示，已经取消的请求没有计时器或 DOM 写入', () => {
+    const {node, state} = start();
+    scheduleTranslationLoadingIndicator(node, state, false)();
+    expect(state.spinner?.isConnected).toBe(true);
+    restoreTranslation(node);
+    scheduleTranslationLoadingIndicator(node, state, true)();
+    expect(node.innerHTML).toBe('Source');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each(['abort', 'detached', 'replaced', 'settled'] as const)('迟到回调不影响 %s 的 generation', reason => {
+    const {node, state, generation} = start();
+    scheduleTranslationLoadingIndicator(node, state, true);
+    if (reason === 'abort') {
+      // 已排入任务队列的回调可能赶上取消；即使 clearTimeout 无效也必须二次核对。
+      vi.spyOn(window, 'clearTimeout').mockImplementation(() => {});
+      state.controller.abort();
+    } else if (reason === 'detached') node.remove();
+    else if (reason === 'replaced') restoreTranslation(node);
+    else markTranslationComplete(node, state, generation);
+    vi.advanceTimersByTime(180);
+    expect(node.querySelector('.fluent-read-loading')).toBeNull();
+    if (getTranslationState(node)) restoreTranslation(node);
+  });
+});
 
 function dispatchCancelableClick(target: Element): Event {
   const EventConstructor = (window as unknown as {Event: typeof Event}).Event;

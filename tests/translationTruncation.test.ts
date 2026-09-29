@@ -41,6 +41,7 @@ import {
     appendSingleTranslationSlots,
 } from '@/src/features/full-page-translation/content/renderer';
 import {
+    clearOrphanedTranslationArtifacts,
     consumeOrphanedOwnerClassMutation,
     isTextEquivalentHostReplacement,
     normalizeOrphanedTranslationArtifacts,
@@ -400,6 +401,30 @@ describe('translation truncation layout', () => {
             expect(svgArtifact.parentElement).toBe(svg);
             expect(svg.getAttribute('class')).toBe('fluent-read-bilingual');
         });
+    });
+
+    it('全文遗留产物清理保护活动状态、片段原文和宿主同步移除的节点', () => {
+        const {document} = parseHTML('<html><body><p id="active" data-fr-translation-segment="true">Live source<span data-fr-translation-owned="true">Live translation</span></p><span id="orphan" data-fr-translation-segment="true">Original text</span><span id="removed" data-fr-translation-segment="true">Removed by host</span><svg><g data-fr-translation-owned="true"></g></svg></body></html>');
+        const active = document.querySelector<HTMLElement>('#active')!;
+        beginTranslation(active, 'bilingual');
+        const orphan = document.querySelector<HTMLElement>('#orphan')!;
+        const removed = document.querySelector<HTMLElement>('#removed')!;
+        const replaceWith = orphan.replaceWith.bind(orphan);
+        // 自定义元素的断连回调可以在解包前一个片段时同步移除下一个片段。
+        orphan.replaceWith = (...nodes) => { replaceWith(...nodes); removed.remove(); };
+        clearOrphanedTranslationArtifacts(document.createTextNode('No query surface'));
+        clearOrphanedTranslationArtifacts(document.body);
+        expect(active.textContent).toBe('Live sourceLive translation');
+        expect(active.parentElement).toBe(document.body);
+        expect(document.body.textContent).toContain('Original text');
+        expect(document.body.textContent).not.toContain('Removed by host');
+        expect(document.querySelector('svg > g')).toBeNull();
+        restoreTranslation(active);
+        const fragment = document.createDocumentFragment();
+        const artifact = document.createElement('span');
+        artifact.setAttribute('data-fr-translation-owned', 'true'); fragment.append(artifact);
+        clearOrphanedTranslationArtifacts(fragment);
+        expect(fragment.childNodes.length).toBe(0);
     });
 
     it('只把同文本 childList 替换识别为页面上下文不变的框架重挂', () => {

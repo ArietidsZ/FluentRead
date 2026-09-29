@@ -55,6 +55,17 @@
     ]
   },
   {
+    "id": "github-code-lines",
+    "name": "GitHub 代码行",
+    "allScopes": true,
+    "match": {"hosts": ["github.com"]},
+    "priority": 600,
+    "mode": "augment",
+    "exclude": [".blob-code", ".js-file-line-container"],
+    "protect": [".blob-code", ".js-file-line-container"],
+    "watchIgnore": [".blob-code", ".js-file-line-container"]
+  },
+  {
     "id": "github",
     "name": "GitHub",
     "match": {

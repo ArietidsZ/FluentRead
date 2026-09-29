@@ -512,6 +512,34 @@ describe("全文翻译可见性锚点", () => {
         replacedGlobals.clear();
     });
 
+    it('响应就绪后先处理宿主任务，恢复期间返回的译文不能覆盖新原文', async () => {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<p>The browser must allow a click before committing this translation.</p>';
+        const paragraph = document.querySelector('p')!;
+        setLayoutBox(paragraph, 600, 80);
+        runtime.candidates = [{element: paragraph, kind: 'content', reason: 'paragraph'}];
+        const pending = deferred<string[]>();
+        runtime.requests.mockImplementation(() => pending.promise);
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        await waitForRequestCount(1);
+        let hostTaskRan = false;
+        window.setTimeout(() => {
+            hostTaskRan = true;
+            expect(paragraph.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            restoreOriginalContent();
+            paragraph.textContent = 'Host updated the original after cancellation.';
+        }, 0);
+        pending.resolve(['浏览器保持响应。']);
+        await finishScheduledWork();
+        expect(hostTaskRan).toBe(true);
+        expect(paragraph.textContent).toBe('Host updated the original after cancellation.');
+        expect(paragraph.querySelector('.fluent-read-bilingual-content')).toBeNull();
+        expect(getTranslationState(paragraph)).toBeUndefined();
+        expect(isFullPageTranslationActive()).toBe(false);
+    });
+
     function announcementFixture() {
         runtime.config.display = 1;
         document.body.innerHTML = '<main><p id="page">The original article should wait for the announcement.</p><p id="later">Another article paragraph remains queued.</p></main><section id="notice" role="dialog" aria-modal="true"><p id="announcement">Please read this important announcement before continuing.</p><button id="close">Close announcement</button></section>';
@@ -1487,6 +1515,7 @@ describe("全文翻译可见性锚点", () => {
         TestIntersectionObserver.instances[0]!.emit(button, true);
         await waitForRequestCount(1);
 
+        await vi.advanceTimersByTimeAsync(180); // 慢请求才挂载段内 loading。
         const state = getTranslationState(button)!;
         const spinner = state.spinner!;
         expect(state.phase).toBe('loading');
@@ -1554,6 +1583,7 @@ describe("全文翻译可见性锚点", () => {
         visibilityObserver.emit(first, true);
         await waitForRequestCount(1);
 
+        await vi.advanceTimersByTimeAsync(180); // 慢请求才挂载段内 loading。
         const loadingState = getTranslationState(first)!;
         const loadingSpinner = loadingState.spinner!;
         TestMutationObserver.instances.at(-1)!.emit([{
@@ -4235,6 +4265,7 @@ describe("全文翻译可见性锚点", () => {
         await vi.advanceTimersByTimeAsync(1);
         await Promise.resolve();
         expect(runtime.requests).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(180); // 慢请求才挂载段内 loading。
         expect(firstParagraph.querySelectorAll('.fluent-read-loading')).toHaveLength(1);
 
         let current = firstParagraph;
@@ -4257,6 +4288,7 @@ describe("全文翻译可见性锚点", () => {
             await Promise.resolve();
             await Promise.resolve();
 
+            await vi.advanceTimersByTimeAsync(180);
             const directLoading = Array.from(replacement.children).filter((child) =>
                 child.matches('.fluent-read-loading[data-fr-translation-owned="true"]'));
             expect(removed.isConnected).toBe(false);
@@ -5019,6 +5051,7 @@ describe("全文翻译可见性锚点", () => {
         await Promise.resolve();
 
         expect(runtime.requests).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(180); // 慢请求才挂载段内 loading。
         const segment = host.querySelector<HTMLElement>('[data-fr-translation-segment="true"]')!;
         const spinner = segment.querySelector<HTMLElement>('[data-fr-translation-owned="true"]')!;
         expect(Array.from(segment.childNodes).filter((node) => node !== spinner)).toEqual(sourceNodes);
@@ -5217,6 +5250,7 @@ describe("全文翻译可见性锚点", () => {
         await vi.advanceTimersByTimeAsync(1);
         await Promise.resolve();
 
+        await vi.advanceTimersByTimeAsync(180); // 慢请求才挂载段内 loading。
         const segment = host.querySelector<HTMLElement>('[data-fr-translation-segment="true"]')!;
         const spinner = segment.querySelector<HTMLElement>('[data-fr-translation-owned="true"]')!;
         const mutationObserver = TestMutationObserver.instances.at(-1)!;
@@ -6413,9 +6447,13 @@ describe("悬停重挂请求与 synthetic 提交回归", () => {
         setLayoutBox(host, 640, 120);
         runtime.candidates = [{element: host, nodes: sourceNodes, kind: "content", reason: "generic-inline-run"}];
 
+        const pending = deferred<string[]>();
+        runtime.requests.mockImplementationOnce(() => pending.promise);
         autoTranslateEnglishPage();
         await vi.advanceTimersByTimeAsync(50);
         TestIntersectionObserver.instances[0]!.emit(host, true);
+        await vi.advanceTimersByTimeAsync(181);
+        pending.resolve(runtime.requests.mock.calls[0]![0].map(origin => `译:${origin}`));
         await finishScheduledWork();
 
         const segment = host.querySelector<HTMLElement>('[data-fr-translation-segment="true"]')!;

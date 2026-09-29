@@ -33,6 +33,8 @@ const extensionSelector = [
 ].join(',');
 
 const foreignTranslationWrapperClass = 'immersive-translate-target-wrapper';
+// 只缓存选择器能力，不缓存 DOM 结论；旧 WebView 每个文档最多触发一次语法异常。
+const directChildHasSupport = new WeakMap<Document, boolean>();
 
 const hardPruneTags = new Set([
     'head', 'script', 'style', 'noscript', 'iframe', 'input', 'textarea',
@@ -78,15 +80,23 @@ export function isExtensionElementSelf(element: Element): boolean {
  * 外部译文可能插在原文的直属 font wrapper 中。该父节点才是已被接管的
  * 最小原文单元，不能沿 querySelector 把整篇文章或整个页面都视为已翻译。
  * 不把它标为 FluentRead owned：只停止本插件在这里写入，清理时绝不删除对方 DOM。
- * 该判断位于每个文本节点的祖先守卫热路径上；Blink 的 `querySelector(':scope > …')`
- * 会匹配整棵后代树，因此直接检查直属子元素，避免长文章的祖先检查随正文规模二次增长。
+ * 原生 :has(> ...) 只匹配直属子节点；不能用 querySelector(':scope > ...') 或文档级
+ * class 集合替代：大型 diff 页面上前者仍会搜索子树，后者会因无关 DOM 写入失效。
+ * 旧 WebView 回退实时 class 集合再核对直属父级；Shadow DOM 和离线树同样实时生效。
  */
 export function isForeignTranslationBoundary(element: Element): boolean {
     if (element.classList.contains(foreignTranslationWrapperClass)) return true;
     if (isDocumentSurface(element)) return false;
-    const children = element.children;
-    for (let index = 0; index < children.length; index += 1) {
-        if (children[index]!.classList.contains(foreignTranslationWrapperClass)) return true;
+    if (directChildHasSupport.get(element.ownerDocument) !== false) {
+        try {
+            return element.matches(`:has(> .${foreignTranslationWrapperClass})`);
+        } catch {
+            directChildHasSupport.set(element.ownerDocument, false);
+        }
+    }
+    const wrappers = element.getElementsByClassName(foreignTranslationWrapperClass);
+    for (let index = 0; index < wrappers.length; index += 1) {
+        if (wrappers[index]!.parentElement === element) return true;
     }
     return false;
 }
@@ -186,13 +196,15 @@ function getPresentationProtection(element: Element): 'hidden' | 'icon-font' | u
         // 无障碍辅助文本常没有固定类名，而是绝对定位到 1px 裁剪盒。单独的 overflow
         // 或 clip 不能代表隐藏（正文卡片也会截断）；只识别同时满足全部条件的辅助盒。
         if ((style.position === 'absolute' || style.position === 'fixed') &&
-            /^(?:0(?:\.\d+)?|1(?:\.0+)?)px$/u.test(style.width) &&
-            /^(?:0(?:\.\d+)?|1(?:\.0+)?)px$/u.test(style.height) &&
             (style.overflow === 'hidden' || style.overflow === 'clip' ||
                 (style.overflowX === 'hidden' && style.overflowY === 'hidden'))) {
             const clip = style.clip?.replace(/[\s,]+/gu, ' ').trim();
             const collapsedRect = /^rect\((0(?:px)?|1px) \1 \1 \1\)$/u.test(clip ?? '');
-            if (collapsedRect || style.clipPath?.replace(/\s+/gu, '') === 'inset(50%)') return 'hidden';
+            // width/height 是解析后的几何值，读取会强制布局。先排除没有辅助文本裁剪的
+            // 普通 absolute/fixed 容器，避免每次收集来源槽都重排整张大型页面。
+            if ((collapsedRect || style.clipPath?.replace(/\s+/gu, '') === 'inset(50%)') &&
+                /^(?:0(?:\.\d+)?|1(?:\.0+)?)px$/u.test(style.width) &&
+                /^(?:0(?:\.\d+)?|1(?:\.0+)?)px$/u.test(style.height)) return 'hidden';
         }
         // 只检查首选字体；正文把图标字体列为 fallback 时仍需翻译。字体家族而非文本内容
         // 决定 settings 等词是字形索引，不能按单词或宽泛的 class 名裁剪正文。

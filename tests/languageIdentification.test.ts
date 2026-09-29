@@ -135,6 +135,32 @@ describe('中日韩', () => {
 });
 
 describe('用户反馈原文', () => {
+    it.each([
+        'FluentRead 支持在原网页中对照阅读原文与译文，并提供划词翻译、AI 阅读辅助、图片翻译、文档翻译和视频双语字幕。翻译卡片接入了 DeepSeek Harness 会话内核的浏览器适配，支持结合上下文解释选中文字并连续追问。',
+        '请在 Chrome 或 Firefox 浏览器中打开扩展设置，然后重新加载网页。',
+        '翻译服务支持 DeepSeek Harness 会话内核的浏览器适配。',
+        '我们介绍 New York 城市公共交通系统的使用方法。',
+    ])('中文正文中嵌入未带版本的名称仍属于中文：%s', text => {
+        expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(true);
+        expect(shouldSkipTranslationForTarget(text, 'en')).toBe(false);
+        expect(shouldSkipTranslationForTarget(text, 'zh-Hant')).toBe(false);
+    });
+
+    it.each([
+        '这里是一段中文说明。Please translate this sentence.',
+        '这里是一段中文说明。Welcome to our website.',
+        '请点击 Click Here 按钮后阅读完整说明。',
+        '这里是一段中文说明，请翻译“Hello”。',
+        '这里是一段中文说明，请翻译“AI Harness 后面的中文也保留。',
+        '这里是一段中文说明，请翻译 AI Harness”后面的中文也保留。',
+        '这里是一段中文说明，请翻译 café 这个词。',
+        '这里是一段中文说明。Harness',
+        '这个界面会显示 ERROR PLEASE RETRY 提示信息。',
+        '请阅读 Long Product Name With Many Words 的使用说明。',
+    ])('名称规则不吞掉外语句子、引文或歧义词：%s', text => {
+        expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(false);
+    });
+
     const releaseNote = '云端模型清单允许清空，且不再连带拒掉无关偏好的保存';
     it.each([...modelPost, modelPost.join('\n'), releaseNote, `${releaseNote} (84522b3)`, `${releaseNote}\n(84522b3)`])(
         '中文发布说明与模型公告跳过简体目标，外语目标和繁体目标仍翻译 %#', text => {

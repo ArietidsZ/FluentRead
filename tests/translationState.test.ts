@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {parseHTML} from "linkedom";
 import {
+    acquireTranslationLayoutOverride,
     beginTranslation,
     detachFailedTranslationUi,
     discardTranslation,
@@ -856,6 +857,36 @@ describe("指定节点翻译状态机", () => {
 });
 
 describe("synthetic 双语工件的真实 observer 生命周期", () => {
+    it('批量恢复共享祖先的段落时以线性引用访问释放索引和观察器', () => {
+        const {document} = parseHTML('<html><body><article></article></body></html>');
+        const article = document.querySelector('article')!;
+        const owners: HTMLElement[] = [];
+        for (let index = 0; index < 120; index += 1) {
+            const owner = document.createElement('p');
+            owner.textContent = `Source paragraph ${index}.`;
+            article.append(owner); owners.push(owner);
+            const attempt = beginTranslation(owner, 'bilingual')!;
+            markTranslationComplete(owner, attempt.state, attempt.generation);
+            const wrapper = document.createElement('span');
+            wrapper.className = 'fluent-read-bilingual-content';
+            wrapper.setAttribute('data-fr-translation-owned', 'true');
+            wrapper.textContent = '译文'; owner.append(wrapper);
+            setBilingualContent(owner, wrapper);
+            expect(ensureTranslationTruncationLayout(owner)).toBe(true);
+            acquireTranslationLayoutOverride(owner, article, [{property: 'height', value: 'auto', priority: 'important'}]);
+        }
+        const deref = vi.spyOn(WeakRef.prototype, 'deref');
+        try {
+            owners.forEach(owner => restoreTranslation(owner));
+            expect(deref.mock.calls.length).toBeLessThan(owners.length * 20);
+        } finally { deref.mockRestore(); }
+        expect(article.querySelector('.fluent-read-bilingual-content')).toBeNull();
+        owners.forEach((owner, index) => {
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(owner.textContent).toBe(`Source paragraph ${index}.`);
+        });
+    });
+
     function committedSyntheticSegment() {
         const {document} = parseHTML(`
             <html><body><div id="host"><span id="segment" data-fr-translation-segment="true">Inline source.</span></div></body></html>

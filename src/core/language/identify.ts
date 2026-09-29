@@ -2,7 +2,7 @@
  * @file src/core/language/identify.ts
  *
  * 文件职责：对一段待翻译文本给出与目标语言无关的语言识别结论，是全文、悬浮、标题、划词和共享翻译客户端同目标跳过判断的唯一证据来源。
- * 主要内容：规范空白后生成技术标识符遮蔽副本并按文字切词；以非名称字母量确定主文字，把其他文字正文判为混合，把缩写、内部大写名称、格式名和带版本名称限制为不能主导结论的少量权重；中日韩分别使用假名/谚文/汉字规则并以中文专用字形排除中日、中韩误判；单一语言文字直接给出结论；Latin、Cyrillic、Arabic、Devanagari 交给统计评估，并逐句检查是否夹带可信的其他语言句子；结果以文本为键做有界缓存，目标语言与排除列表不进入缓存。可核对的公开符号包括 identifyTextLanguage、LanguageIdentification、LanguageIdentificationStatus、clearLanguageIdentificationCache、normalizeLanguageEvidenceText。
+ * 主要内容：规范空白后生成技术标识符遮蔽副本并按文字切词；以非名称字母量确定主文字，把其他文字正文判为混合；结合汉字上下文辨别少量嵌入名称，保护外语句子、功能词和引述文本；把缩写、内部大写名称、格式名和带版本名称限制为不能主导结论的少量权重。中日韩分别使用假名/谚文/汉字规则并以中文专用字形排除中日、中韩误判；单一语言文字直接给出结论；Latin、Cyrillic、Arabic、Devanagari 交给统计评估，并逐句检查是否夹带可信的其他语言句子；结果以文本为键做有界缓存，目标语言与排除列表不进入缓存。
  * 模块边界：本文件属于 core 纯算法，不比较目标语言、不读取配置或页面 lang、不修改原文与 DOM；配置语言匹配和各功能入口语义由 detect.ts 负责。
  */
 
@@ -10,7 +10,7 @@ import {classifyChineseHan, hasSimplifiedChineseEvidence, hasTraditionalChineseE
 import {SCRIPT_UNIQUE_LANGUAGES, hasScriptUniqueVeto, segmentScriptWords, type ScriptWord, type WritingScript} from './scripts';
 import {assessStatisticalLanguage} from './statistical';
 import {classifyEmbeddedLatinWord, createLanguageDetectionCopy, isAcronymWord, isMixedCaseName} from './technicalTokens';
-import type {StatisticalScript} from './lexicon';
+import {FUNCTION_WORDS, type StatisticalScript} from './lexicon';
 
 export type LanguageIdentificationStatus = 'empty' | 'identified' | 'unknown' | 'mixed';
 
@@ -34,6 +34,7 @@ const KOREAN_MAX_HANJA_RUN = 8;
 // 句末标点覆盖 Latin/CJK、阿拉伯文（؟ ؛ ۔）、印度诸文字（। ॥）、希腊文问号及亚美尼亚、缅甸、高棉、吉兹文句号。
 const SENTENCE_BOUNDARY_PATTERN = /(?<=[.!?。！？;；:：\u061F\u061B\u06D4\u0964\u0965\u037E\u0589\u104B\u17D4\u1362])\s*(?=\S)|\n+/u;
 const identificationCache = new Map<string, LanguageIdentification>();
+const LATIN_FUNCTION_WORDS = new Set(Object.values(FUNCTION_WORDS.Latin).flatMap(words => [...words]));
 
 const EMPTY: LanguageIdentification = Object.freeze({status: 'empty', languages: Object.freeze([])});
 const UNKNOWN: LanguageIdentification = Object.freeze({status: 'unknown', languages: Object.freeze([])});
@@ -65,12 +66,14 @@ interface EmbeddedEvidence {
  * 统计主文字以外的词：其他文字的多字母词都是外语正文；Latin 词按名称/格式/单字母/正文分类；
  * 希腊字母单字常作数学或物理符号，不视为外语。
  */
-function assessEmbeddedWords(words: readonly ScriptWord[], isMain: (word: ScriptWord) => boolean, versionedNames: number): EmbeddedEvidence {
+function assessEmbeddedWords(words: readonly ScriptWord[], isMain: (word: ScriptWord) => boolean, versionedNames: number,
+    embeddedNames: ReadonlySet<ScriptWord> = new Set()): EmbeddedEvidence {
     let foreignProse = false;
     let nameWeight = versionedNames * 2;
     for (const word of words) {
         if (isMain(word)) continue;
         if (word.script === 'Latin') {
+            if (embeddedNames.has(word)) { nameWeight += 2; continue; }
             const {role, weight} = classifyEmbeddedLatinWord(word.text);
             if (role === 'prose') foreignProse = true;
             nameWeight += weight;
@@ -80,6 +83,38 @@ function assessEmbeddedWords(words: readonly ScriptWord[], isMain: (word: Script
         foreignProse = true;
     }
     return {foreignProse, nameWeight};
+}
+
+/**
+ * 中文技术说明常把未带版本的名称直接嵌入正文（例如 DeepSeek Harness）。逐词拒绝所有
+ * 首字母大写词会让整段重复翻译。按连续 Latin 短语判断：只接纳紧邻汉字的 1–3 词名称，
+ * 小写正文、功能词、引号和句子边界都不能被名称规则吞掉；少量名称仍受母语字数门槛约束。
+ * 不依赖产品名单、页面 lang 或目标语言，也不改变送给供应商的原文。
+ */
+function findEmbeddedNames(copy: string, words: readonly ScriptWord[]): ReadonlySet<ScriptWord> {
+    const names = new Set<ScriptWord>();
+    if (words.reduce((count, word) => count + (word.script === 'Han' ? word.letters : 0), 0) < 8) return names;
+    for (let index = 0; index < words.length; index += 1) {
+        if (words[index]!.script !== 'Latin') continue;
+        const start = index;
+        while (index + 1 < words.length && words[index + 1]!.script === 'Latin' &&
+            /^[ \t-]+$/u.test(copy.slice(words[index]!.end, words[index + 1]!.start))) index += 1;
+        const run = words.slice(start, index + 1);
+        if (run.length > 3 || run.at(-1)!.end - run[0]!.start > 64) continue;
+        const before = copy.slice(Math.max(0, run[0]!.start - 4), run[0]!.start).trimEnd();
+        const after = copy.slice(run.at(-1)!.end, run.at(-1)!.end + 4).trimStart();
+        const hanBefore = /\p{Script=Han}$/u.test(before);
+        const hanAfter = /^\p{Script=Han}/u.test(after);
+        if (!hanBefore && !hanAfter) continue;
+        // 纯首字母大写名称需要两侧正文支撑；被标点切断的孤立词不能靠另一侧的汉字获准。
+        if ((!hanBefore || !hanAfter) && !run.some(word => isMixedCaseName(word.text) || isAcronymWord(word.text))) continue;
+        // 引述的外语词不是名称点缀；只借助另一侧汉字也不能越过引号。
+        if (/["'“‘「『]$/u.test(before) || /^["'”’」』]/u.test(after)) continue;
+        if (!run.every(word => !LATIN_FUNCTION_WORDS.has(word.text.toLowerCase()) &&
+            (classifyEmbeddedLatinWord(word.text).role !== 'prose' || /^[A-Z][a-z]{1,23}$/u.test(word.text)))) continue;
+        for (const word of run) names.add(word);
+    }
+    return names;
 }
 
 function statisticalWords(words: readonly ScriptWord[], script: StatisticalScript): string[] {
@@ -106,13 +141,14 @@ function containsForeignSentence(copy: string, script: StatisticalScript, langua
     });
 }
 
-function identifyCjk(copy: string, words: readonly ScriptWord[], versionedNames: number): LanguageIdentification {
+function identifyCjk(copy: string, words: readonly ScriptWord[], versionedNames: number,
+    embeddedNames: ReadonlySet<ScriptWord>): LanguageIdentification {
     const counts = {Han: 0, Kana: 0, Hangul: 0};
     for (const word of words) {
         if (word.script === 'Han' || word.script === 'Kana' || word.script === 'Hangul') counts[word.script] += word.letters;
     }
     const native = counts.Han + counts.Kana + counts.Hangul;
-    const embedded = assessEmbeddedWords(words, word => CJK_SCRIPTS.has(word.script), versionedNames);
+    const embedded = assessEmbeddedWords(words, word => CJK_SCRIPTS.has(word.script), versionedNames, embeddedNames);
     if (embedded.foreignProse || (counts.Kana > 0 && counts.Hangul > 0)) return MIXED;
     // 名称只能点缀正文：按词计权后超过母语字符一半时，无法证明整段属于目标语言。
     if (embedded.nameWeight * 2 > native) return UNKNOWN;
@@ -140,19 +176,20 @@ function identifyUncached(value: string): LanguageIdentification {
     const detectionCopy = createLanguageDetectionCopy(value);
     const words = segmentScriptWords(detectionCopy.text);
     if (words.length === 0) return UNKNOWN;
+    const embeddedNames = findEmbeddedNames(detectionCopy.text, words);
 
     // 主文字按“非名称字母”决定：PDF、OpenAI 这类名称不能把中文句子变成 Latin 文本。
     const weights = new Map<string, number>();
     for (const word of words) {
         const group = CJK_SCRIPTS.has(word.script) ? 'CJK' : word.script;
-        const contributes = word.script !== 'Latin' || classifyEmbeddedLatinWord(word.text).role === 'prose';
+        const contributes = word.script !== 'Latin' || (!embeddedNames.has(word) && classifyEmbeddedLatinWord(word.text).role === 'prose');
         if (contributes) weights.set(group, (weights.get(group) ?? 0) + word.letters);
     }
     const ranked = [...weights].sort((left, right) => right[1] - left[1]);
     if (ranked.length === 0 || (ranked[1] && ranked[1][1] === ranked[0]![1])) return UNKNOWN;
     const main = ranked[0]![0];
 
-    if (main === 'CJK') return identifyCjk(detectionCopy.text, words, detectionCopy.versionedNames);
+    if (main === 'CJK') return identifyCjk(detectionCopy.text, words, detectionCopy.versionedNames, embeddedNames);
 
     const script = main as WritingScript;
     const embedded = assessEmbeddedWords(words, word => word.script === script, script === 'Latin' ? 0 : detectionCopy.versionedNames);
