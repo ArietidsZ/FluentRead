@@ -4,6 +4,25 @@ import {createGlossaryLibrary} from '@/src/core/glossary';
 import {getVideoTranslationConfigFingerprint, mergeBilingualVideoSubtitleCues, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, findProgressiveVideoCaptionCue} from '@/src/features/video-subtitle/content/subtitleLogic';
 
 describe('video subtitle logic', () => {
+  it('长时间轴播放时只读取当前时段的文本，保持 seek 与原位编辑可见', () => {
+    let reads = 0;
+    const cues = Array.from({length: 6000}, (_, index) => ({
+      startMs: index * 1000, durationMs: 1000,
+      get text() { reads += 1; return `Caption ${index}`; },
+    }));
+    for (const index of [3000, 5999, 0, 1200]) {
+      reads = 0;
+      expect(selectYoutubeCaptionCue(cues, `Caption ${index}`, index * 1000 + 50))
+        .toEqual({cue: cues[index], stale: false});
+      expect(reads).toBe(1);
+    }
+    const edited = {startMs: 0, durationMs: 1000, text: 'Before'};
+    expect(selectYoutubeCaptionCue([edited], 'Before', 10).cue).toBe(edited);
+    edited.text = 'After';
+    expect(selectYoutubeCaptionCue([edited], 'After', 10).cue).toBe(edited);
+    expect(selectYoutubeCaptionCue([edited], 'Before', 10)).toEqual({cue: null, stale: false});
+  });
+
   it('双语导出保留时间轴，把原文和译文分成两行，相同内容只保留一行', () => {
     const cues = [
       {startMs: 0, durationMs: 1000, text: ' Hello world '},

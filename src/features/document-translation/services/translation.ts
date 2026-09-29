@@ -162,6 +162,8 @@ export function createDocumentSegmentTranslator(
         // 步骤 1：一次文档任务固定语言对，不能被设置页同步更新或用户中途改选污染后续批次。
         const sourceLanguage = options.sourceLanguage;
         const targetLanguage = options.targetLanguage;
+        const service = options.serviceOverride || gateway.getDefaultService();
+        const model = options.modelOverride;
         let completed = segments.length - pending.length;
         const reportProgress = () => options.onProgress?.({completed, total: segments.length});
         const commit = (id: number, translation: string) => {
@@ -171,7 +173,6 @@ export function createDocumentSegmentTranslator(
         };
         reportProgress();
 
-        const service = options.serviceOverride || gateway.getDefaultService();
         if (gateway.supportsBatch(service)) {
             for (const batch of splitBatches(pending)) {
                 throwIfAborted(options.signal);
@@ -183,8 +184,8 @@ export function createDocumentSegmentTranslator(
                             ...glossaryOptions,
                             signal: options.signal,
                             pageContext,
-                            serviceOverride: options.serviceOverride,
-                            modelOverride: options.modelOverride,
+                            serviceOverride: service,
+                            modelOverride: model,
                             sourceLanguage,
                             targetLanguage,
                             maxRetries: options.maxRetries,
@@ -220,8 +221,8 @@ export function createDocumentSegmentTranslator(
                         ...glossaryOptions,
                         signal: options.signal,
                         pageContext,
-                        serviceOverride: options.serviceOverride,
-                        modelOverride: options.modelOverride,
+                        serviceOverride: service,
+                        modelOverride: model,
                         sourceLanguage,
                         targetLanguage,
                         maxRetries: options.maxRetries,

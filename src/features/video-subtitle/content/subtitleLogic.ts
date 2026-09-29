@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/subtitleLogic.ts
  * 文件职责：提供字幕批量翻译、配置指纹和渐进文本展示的纯逻辑。
- * 主要内容：合成双语导出文本、去重并限制批译并发，生成服务配置键，按原文进度截取译文与按时间选择渐进字幕，按滚动字幕末尾匹配当前句，并以手动偏移计算有效字幕区间。
+ * 主要内容：合成双语导出文本、去重并限制批译并发，生成服务配置键，按原文进度截取译文与按时间选择渐进字幕；播放时先筛选当前区间再匹配文本，仅无匹配时扫描全轴识别过期字幕，并以手动偏移计算有效字幕区间。
  * 模块边界：只处理输入数据和注入翻译函数，不读取 DOM、全局配置或浏览器接口。
  */
 import {buildGlossaryRevision} from '@/src/core/glossary';
@@ -103,13 +103,12 @@ export function selectYoutubeCaptionCue(
   if (!visible || !Number.isFinite(currentMs)) return {cue: null, stale: false};
   let selected: VideoSubtitleCue | null = null;
   let selectedRank = Infinity;
-  let timedTextMatch = false;
   for (const cue of cues) {
+    // 正常播放每帧只清洗当前区间的文本；长视频的其他数千句无需反复替换和大小写转换。
+    if (currentMs < cue.startMs || currentMs >= cue.startMs + cue.durationMs || cue.durationMs <= 0) continue;
     const text = normalizeVideoCaptionText(cue.text).toLocaleLowerCase();
     if (!text) continue;
     const directRank = text === visible ? 0 : text.startsWith(visible) ? 1 : 3;
-    if (directRank < 2) timedTextMatch = true;
-    if (currentMs < cue.startMs || currentMs >= cue.startMs + cue.durationMs || cue.durationMs <= 0) continue;
     const rank = directRank < 3 ? directRank : hasRollingCaptionPrefix(visible, text) ? 1
       : visible.length >= 3 && (text.includes(visible) || visible.includes(text)) ? 2 : 3;
     if (rank === 3) continue;
@@ -118,7 +117,13 @@ export function selectYoutubeCaptionCue(
       selectedRank = rank;
     }
   }
-  return {cue: selected, stale: !selected && timedTextMatch};
+  if (selected) return {cue: selected, stale: false};
+  // 无当前匹配才判断原生播放器是否残留旧句；找到首个前缀即可停止，不改变跨时段重复句语义。
+  const stale = cues.some(cue => {
+    const text = normalizeVideoCaptionText(cue.text).toLocaleLowerCase();
+    return text.startsWith(visible);
+  });
+  return {cue: null, stale};
 }
 
 interface TranslateVideoSubtitleCuesOptions {

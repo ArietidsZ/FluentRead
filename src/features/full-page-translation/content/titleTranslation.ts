@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/titleTranslation.ts
  * 文件职责：在全文翻译会话期间翻译页面标题，并在恢复时把标题交还给页面。
- * 主要内容：以 <title> 当前文本为源、复用会话冻结的配置快照发起翻译；观察 head 子树以跟随 SPA 改写的标题；用「上次写入值」区分自身写入与页面写入来阻断自激循环；用 generation 丢弃迟到结果；恢复时仅在译文仍然在位时写回原标题。 可核对的公开符号包括 startFullPageTitleTranslation、stopFullPageTitleTranslation、isFullPageTitleTranslationActive。
+ * 主要内容：以 <title> 当前文本为源、复用会话冻结的配置快照发起翻译；观察 head 子树以跟随 SPA 改写的标题；用「上次写入值」区分自身写入与页面写入来阻断自激循环；源标题变化时取消旧请求，并用 generation 与写前快照丢弃迟到结果；恢复时仅在译文仍然在位时写回原标题。
  * 模块边界：本文件只读写 document.title 并观察 head，不参与正文候选遍历、不渲染双语 DOM、不读取配置存储；翻译经 translateText 发出，配置由调用方传入的快照提供。
  *
  * 背景：正文候选遍历把整个 <head> 列为硬裁剪标签（core/translation/dom.ts），标题因此
@@ -49,10 +49,10 @@ async function translateCurrentTitle(active: TitleTranslationState): Promise<voi
     }
 
     // 会话已结束，或源标题在请求期间又变了：这份结果已经过期。
-    if (state !== active || active.generation !== generation) return;
+    if (state !== active || active.generation !== generation || document.title !== source) return;
     const normalized = translated.trim();
     if (!normalized || normalized === source) return;
-    // 先记录再写入：写入会同步触发观察者，此时必须已能识别出这是自身写入。
+    // 先记录再写入：观察者稍后收到变更记录时，必须能识别出这是自身写入。
     active.appliedTitle = normalized;
     document.title = normalized;
 }
@@ -79,6 +79,9 @@ function handleTitleMutation(active: TitleTranslationState): void {
     active.originalTitle = current;
     active.appliedTitle = null;
     active.generation += 1;
+    // 路由已不再使用旧标题，即使新标题为空或无需翻译，也立即归还旧请求的资源。
+    active.controller.abort();
+    active.controller = new AbortController();
     scheduleTranslate(active);
 }
 
