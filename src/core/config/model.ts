@@ -6,6 +6,7 @@
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
+import {normalizeShareCardPreferences, type ShareCardPreferences} from '@/src/core/config/shareCard';
 import type {TranslationScope} from '@/src/core/translation/types';
 import {
     currentModelIds,
@@ -387,6 +388,7 @@ export class Config {
     user_role: IMapping;
     count: number;  // 翻译次数
     theme: string;  // 主题模式：'auto' | 'light' | 'dark'
+    shareCard: ShareCardPreferences; // 双语卡片外观，不保存摘录正文
     interfaceSkin: InterfaceSkin; // 扩展界面皮肤；默认保留当前界面
     interfaceFont: InterfaceFont; // 设置页和扩展弹窗使用的字体方案
     interfaceVisibility: InterfaceVisibility; // Popup 栏目可见性
@@ -563,6 +565,7 @@ export class Config {
         this.user_role = userRoleFactory();
         this.count = 0;
         this.theme = 'auto';  // 默认跟随系统
+        this.shareCard = normalizeShareCardPreferences();
         this.interfaceSkin = 'default'; // 默认保留当前界面
         this.interfaceFont = DEFAULT_INTERFACE_FONT; // 默认使用现代无衬线字体栈
         this.interfaceVisibility = {...DEFAULT_INTERFACE_VISIBILITY};
@@ -1250,6 +1253,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.alwaysTranslateDomains = normalizeAlwaysTranslateDomains(source.alwaysTranslateDomains);
     normalized.disabledExtensionDomains = normalizeDisabledExtensionDomains(source.disabledExtensionDomains);
     normalized.siteAdaptation = normalizeSiteAdaptationSettings(source.siteAdaptation);
+    normalized.shareCard = normalizeShareCardPreferences(source.shareCard);
     normalized.interfaceSkin = normalizeInterfaceSkin(source.interfaceSkin);
     normalized.interfaceFont = normalizeInterfaceFont(source.interfaceFont);
     normalized.interfaceVisibility = normalizeInterfaceVisibility(source.interfaceVisibility);

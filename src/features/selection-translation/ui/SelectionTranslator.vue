@@ -1,6 +1,6 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
- * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
+ * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏词书、双语分享卡片、重试和关闭。
  * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、页面滚动时未打开入口的清理、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放和主题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换目标语言；复用选区入口打开 Harness 阅读卡，协调翻译、词典、词书与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
@@ -153,6 +153,7 @@
             </div>
             <pre><template v-for="(part, index) in translationParts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><template v-else>{{ part.text }}</template></template></pre>
           </div>
+          <button v-if="shareCardAvailable && translationResult && !isLoading" class="fr-share-card-entry" type="button" @click="openShareCard({original: selectedText, translation: translationResult})">{{ t('shareCard.create') }}</button>
           <div v-if="error && (translationResult || wordCard)" class="fr-inline-error"><span>{{ error }}</span><button type="button" @click="retryTranslation">重试</button></div>
           <div v-if="isPlaying" class="fr-playing-status"><span>正在播放{{ currentAudioKind === 'source' ? '原文' : currentAudioKind === 'word' ? '单词' : '译文' }}</span><button type="button" aria-label="停止播放" title="停止播放" @click="stopAudioFromUi">停止</button></div>
         </div>
@@ -170,6 +171,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import browser from 'webextension-polyfill';
+import {openShareCard, isShareCardMounted} from '@/src/features/share-card/public';
 import { config, subscribeConfig } from '@/src/services/config/store';
 import { translateText, translateTextBatch } from '@/src/app/translation/client';
 import {detectlang, shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
@@ -192,6 +194,7 @@ const props = defineProps<{
   onSelectionRangeChange?: (range: Range | null) => void;
 }>();
 const {t} = useUiI18n();
+const shareCardAvailable = isShareCardMounted();
 
 type SelectionTrigger = 'direct' | 'icon' | 'dot' | 'shortcut' | 'contextMenu';
 type AudioKind = 'source' | 'translation' | 'word';
@@ -1413,6 +1416,7 @@ function hideAll(): void {
   vocabularyBusy.value = false;
 }
 function isInsideUi(target: EventTarget | null): boolean {
+  if (target instanceof Element && target.id === 'fluent-read-share-card-container') return true;
   const node = target instanceof Node ? target : null;
   if (!node) return false;
   const host = document.getElementById('fluent-read-selection-translator-container');
@@ -1501,7 +1505,7 @@ function handleScroll(event: Event): void {
   schedulePositionUpdate();
 }
 function handleKeydown(event: KeyboardEvent): void {
-  if (!event.isTrusted) return;
+  if (!event.isTrusted || (event.target instanceof Element && event.target.id === 'fluent-read-share-card-container')) return;
   lastTrustedSelectionInteractionAt = Date.now();
   if (isInsideUi(event.target)) {
     suppressSelectionRead();
@@ -1851,4 +1855,8 @@ onBeforeUnmount(() => {
 .fr-dark-theme .fr-word-meaning em, .fr-dark-theme .fr-word-definition-zh, .fr-dark-theme .fr-word-example-zh, .fr-dark-theme .fr-word-translation-loading, .fr-dark-theme .fr-word-empty { color: #c8aab5; }
 .fr-dark-theme .fr-word-fallback-note { background: #4a303b; }
 @media (prefers-reduced-motion: reduce) { .fr-selection-indicator, .fr-loading-spinner { transition: none; animation: none; } }
+
+.fr-share-card-entry { display: block; width: 100%; margin-top: 10px; padding: 9px 12px; border: 1px solid #b7c7b480; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+.fr-share-card-entry:hover { background: #809c7020; }
+.fr-share-card-entry:focus-visible { outline: 2px solid #789566; outline-offset: 2px; }
 </style>

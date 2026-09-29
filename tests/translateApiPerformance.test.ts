@@ -455,6 +455,19 @@ describe('translation API request lifecycle performance', () => {
     expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
   });
 
+  it.each(['single', 'batch', 'video'] as const)('免费翻译 %s 不重复执行三轮全局重试', async kind => {
+    mocks.config.service = 'freeTranslation';
+    mocks.config.videoService = 'freeTranslation';
+    mocks.sendMessage.mockRejectedValue(new Error('free pool exhausted'));
+    const request = kind === 'single' ? translateText('Readable source', 'Context', {maxRetries: 3})
+      : kind === 'batch' ? translateTextBatch(['First source', 'Second source'], 'Context', {maxRetries: 3})
+      : translateVideoText('Readable subtitle');
+    await expect(request).rejects.toThrow('free pool exhausted');
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(mocks.sendMessage).toHaveBeenCalledOnce();
+    expect(mocks.config.translationMaxRetries).toBe(3);
+  });
+
   it('读取任务调度设置，按指数退避并在上限处封顶', async () => {
     mocks.config.translationMaxRetries = 2;
     mocks.config.translationBackoffBaseMs = 600;

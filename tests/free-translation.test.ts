@@ -44,7 +44,9 @@ const httpFailure = (statusCode = 503) => Object.assign(new Error('private origi
 const readSnapshot = (message: object) => getTranslationProviderConfig(message, mockConfig as never);
 
 beforeEach(async () => {
+    vi.restoreAllMocks();
     vi.resetAllMocks();
+    vi.spyOn(Math, 'random').mockReturnValue(0);
     vi.resetModules();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-05T00:00:00Z'));
@@ -66,7 +68,7 @@ beforeEach(async () => {
     ({attachTranslationProviderConfig, createTranslationProviderConfigSnapshot, getTranslationProviderConfig}
         = await import('@/src/services/translation/requestSnapshot'));
 });
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('免费翻译服务', () => {
     it('保留微软、DeepLX、谷歌优先顺序并新增 MyMemory 官方后备', async () => {
