@@ -1,71 +1,51 @@
-# AI reading card
+# Selection translation
 
-The AI reading card explains selected text, analyzes sentence structure, describes usage, and provides exercises. Follow-up questions retain the conversation context.
+Select text to see its translation beside the original. The former translation card is now part of Selection translation, with one entry, activation method and master switch.
 
-## DeepSeek Harness
+## Choose a default view
 
-FluentRead is open source, and the reading card integrates a **browser adaptation of the DeepSeek Harness session core**. It supports contextual follow-up questions and reading history.
+Open **Settings → Selection translation** and enable the feature.
 
-The adaptation uses the upstream conversation-event and message organization components. FluentRead connects these to your selection, AI model, and learning records. You can choose your own AI service; it does not require a DeepSeek model. [FluentRead source](https://github.com/FluentRead/FluentRead) · [DeepSeek Harness attribution and license](https://github.com/FluentRead/FluentRead/blob/main/public/third-party-notices/deepseek-harness-MIT.txt)
+- **Simple translation** shows the source and translation with copy and speech controls.
+- **Card mode** adds dictionary pronunciations and word classes, with optional AI learning actions.
 
-<a href="/screenshots/en/reading-card.webp" target="_blank" rel="noopener noreferrer"><img class="doc-screenshot" src="/screenshots/en/reading-card.webp" alt="The reading card explaining a selected sentence, with follow-up questions available" width="2560" height="1600" loading="lazy" /></a>
+Switch views inside a popup at any time, reusing its translation. This changes only the current selection; the next selection uses your saved default. The settings preview uses fixed examples and sends no requests.
 
-## Setup
+Simple translation keeps language and view controls in one compact toolbar, with copy and speech controls beside the text. Dictionary cards put pronunciations on a shared row when space allows.
 
-Open **Settings → Translation card**, enable it, and choose a configured AI service and model. Enter connection details under [Translation services](/en/config/translation-engines).
+Simple translation uses the default translation service. English dictionary lookup does not require AI. Dictionary meanings are grouped by word class; these describe possible uses, not necessarily the word’s role in the current sentence. If lookup fails, the translation remains available.
 
-## Use it on a webpage
+## Activation and display
 
-Double-click a word or select a sentence, then choose an action:
+Both views share the icon, dot, direct popup, hover-over-icon, shortcut and context-menu activation settings. Hovering opens the popup after the configured wait; moving away cancels it. Shortcuts and context-menu mode do not show an extra toolbar.
 
-| Action | Use it when |
-| --- | --- |
-| Understand | You want the meaning, tone, or implied context |
-| Analyze sentence | You need the main clause and how the pieces fit |
-| Usage | You want natural expressions and common combinations |
-| Practice | You want to try using what you’ve just read |
+For fewer interruptions, keep the default **Show icon** and click only when needed. A custom shortcut or context-menu mode hides floating entries entirely. Direct popup is suited to repeated lookups; it can interrupt people who select text while reading. Upgrades preserve your chosen activation method.
 
-By default, selecting text only shows the actions; clicking an action starts AI. Under **Open the reading card**, you can also choose:
+**Dismiss when continuing to read** is on by default. Scrolling the page or copying the original dismisses the popup, and moving away from an unopened entry hides it after a short grace period. Native selection and copying remain intact. Scrolling or copying within the card keeps it open. Turn this preference off to compare a translation while scrolling the page.
 
-- **Hover with delay**: hover over a learning action in the selection toolbar to open it and start generating. Moving away or clicking elsewhere cancels the wait. Adjust the delay from 200 to 3000 milliseconds.
-- **Keyboard shortcut**: select text, then press **Alt+R** (Option+R on Mac) to open your preferred action. Click the key combination in settings to record a different shortcut.
+Escape or a click elsewhere closes the popup. A dismissed selection does not reopen by itself. Disabling Selection translation stops both views while keeping learning preferences.
 
-Click another webpage control or press Escape to close the toolbar and card. A retained selection will not reopen them; select text again or deliberately press the shortcut to reopen.
+## Optional AI explanations
 
-Continue with a follow-up question, or use the speaker beside the original to listen; click again to stop.
+Enable **AI explanations**, expand **Service & learning preferences**, and select a configured AI service and model. Opening a card does not call AI. Choose an action to request an explanation:
 
-If you selected one word and the card offers to understand the whole sentence, clicking that option expands the analysis to its sentence.
+- **Understand** explains meaning, tone and references.
+- **Parts of speech & syntax** explains the sentence structure and labels source fragments.
+- **Usage** teaches natural expressions and collocations.
+- **Practice** provides a short exercise.
 
-## Collections and reading history
+Click an annotated fragment to see its word class, meaning and syntactic role. A noun may be a subject in one sentence and an object in another. The default grammar prompt requests a compact table that the interface matches to the source in order. Unmatched or incomplete output, and custom formats, remain readable as ordinary text. AI analysis may be wrong; check the original when in doubt.
 
-Save a word, phrase, or sentence to the [learning center](/en/guide/vocabulary-book). You can save the original before the AI response finishes.
+Completed answers are reused when switching learning actions within the current card. Use Regenerate for a new answer, return to the translation, or ask a follow-up. Changing the source, model, language or learning preferences invalidates related cached answers.
 
-The card’s history and the learning center’s reading history show the same conversations. In regular windows, conversations stay locally for 30 days. You can reopen, continue, or delete them. Opening history does not make a new AI request.
+## Context and records
 
-## Adjust the explanation
+Under **Context, learning memory & instructions**, choose the selection alone or allow its paragraph. This does not read the entire page. Learning memory is optional and off by default. Custom prompts are preserved.
 
-After the enable section, expand **Try the translation card** to explore example answers without calling a model.
+Save expressions to the [Learning center](/en/guide/vocabulary-book). Reading conversations stay on this device for 30 days. Viewing records sends no model request. Private windows do not read or save history. See [Data and privacy](/en/guide/privacy).
 
-**Translation settings** groups the service and model, opening method and actions, answer preferences, and source scope in one card. Choose your learning level and explanation length, and hide actions you do not use.
+## Existing preferences
 
-The source scope controls what the model can reference. The default permits the current paragraph; choose selection-only to send just the selected text. More context can help with references, but sends more text.
+Upgrades preserve services, custom models, actions, context and prompts. Existing standalone cards migrate to the unified feature, including their activation method when ordinary selection translation was disabled. Old settings links still work.
 
-You can expand the prompt editor to adjust the general instruction and each action. Clear a template or restore its default to reset it. Changes apply to the next analysis.
-
-Default prompts follow the interface language and support Chinese, English, Japanese, Korean, French, Russian, and Spanish. Empty templates and restored defaults use the current interface language; custom text is preserved. The target language controls the response language independently.
-
-## Optional learning memories
-
-If enabled, learning memories can retain preferences or notes you choose to keep and use them in later explanations. You can review, disable, delete, or clear them. Memories used for a cloud explanation are sent to the selected AI service.
-
-## Data and accuracy
-
-An action or follow-up sends the selection, permitted context, and necessary conversation to the selected AI service. Private windows neither read nor save local conversation history.
-
-AI can misread tone, grammar, or facts. Compare with the original or ask why. See [Data & privacy](/en/guide/privacy).
-
-### Switching learning actions
-
-Within the same card, switching from Understand to Analyze sentence and back restores the completed answer. Follow-up questions continue that action’s conversation. Choose **Regenerate** for a new explanation. Changing the source, model, answer language, or explanation settings invalidates earlier results. After closing the card, you can continue from Reading history.
-
-When paragraph context is allowed, the model receives that paragraph with the selected text to help resolve references. Selection-only mode sends only the selected text. With limited context, the assistant should explain what the text supports first, then briefly identify any ambiguity.
+Learning conversations continue to use the browser adaptation of DeepSeek Harness, without requiring a DeepSeek model. [Source and license](https://github.com/FluentRead/FluentRead/blob/main/public/third-party-notices/deepseek-harness-MIT.txt)

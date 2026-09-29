@@ -12,7 +12,7 @@ import {isConfiguredCustomOpenAIProvider, isCustomOpenAIProviderId, type CustomO
 
 export const HARNESS_ACTIONS = [
     {id: 'meaning', label: '读懂', description: '解释这段内容在说什么。'},
-    {id: 'grammar', label: '拆句', description: '拆解句子结构和关键语法。'},
+    {id: 'grammar', label: '词性与句法', description: '拆解句子结构和关键语法。'},
     {id: 'usage', label: '用法', description: '说明词语或表达的自然用法。'},
     {id: 'practice', label: '练习', description: '根据内容生成一个小练习。'},
 ] as const;

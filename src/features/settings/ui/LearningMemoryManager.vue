@@ -7,7 +7,7 @@
 <template>
   <section class="fr-learning-memory" :aria-label="t('learning.memory')">
     <header class="fr-memory-heading">
-      <div><h2>{{ t('learning.memory') }}</h2><p>{{ enabled ? t('learning.memoryEnabled') : t('learning.memoryDisabled') }} <button type="button" class="fr-memory-link" @click="emit('navigate', 'settings-harness')">{{ t('learning.memorySettings') }}</button></p></div>
+      <div><h2>{{ t('learning.memory') }}</h2><p>{{ enabled ? t('learning.memoryEnabled') : t('learning.memoryDisabled') }} <button type="button" class="fr-memory-link" @click="emit('navigate', 'settings-selection')">{{ t('learning.memorySettings') }}</button></p></div>
       <button v-if="!editor" type="button" class="fr-memory-button fr-memory-primary" :disabled="loading || mutating || memories.length >= 200" @click="createMemory">{{ t('learning.memoryAdd') }}</button>
     </header>
     <p class="fr-memory-retention">{{ t('learning.memoryRetention') }}</p>

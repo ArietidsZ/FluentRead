@@ -217,8 +217,8 @@ async function openSelectionOptions(context, extensionId, result) {
   const options = await createIsolatedPage(context);
   options.on('pageerror', (error) => result.consoleErrors.push(`options pageerror: ${error.message}`));
   options.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`options console: ${message.text()}`); });
-  await options.goto(`chrome-extension://${extensionId}/options.html#settings-translation`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await options.getByRole('radiogroup', { name: '划词翻译模式' }).waitFor({ state: 'visible', timeout: 60000 });
+  await options.goto(`chrome-extension://${extensionId}/options.html#settings-selection`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await options.getByRole('switch', { name: '启用划词翻译' }).waitFor({ state: 'visible', timeout: 60000 });
   return options;
 }
 
@@ -1691,7 +1691,7 @@ async function main() {
         {id: 'direct', selectionTranslatorTrigger: 'direct', enabled: false, trigger: 'click'},
         {id: 'selection-shortcut', selectionTranslatorTrigger: 'Control', enabled: false, trigger: 'click'},
         {id: 'card-click', selectionTranslatorTrigger: 'icon', enabled: true, trigger: 'click'},
-        {id: 'card-hover', selectionTranslatorTrigger: 'icon', enabled: true, trigger: 'hover'},
+        {id: 'card-hover', selectionTranslatorTrigger: 'hover', enabled: true, trigger: 'hover'},
         {id: 'card-shortcut', selectionTranslatorTrigger: 'Control', enabled: true, trigger: 'shortcut'},
         {id: 'card-only', selectionTranslatorTrigger: 'icon', enabled: true, trigger: 'shortcut', selectionTranslatorMode: 'disabled'},
       ]) {
@@ -1730,10 +1730,10 @@ async function main() {
       result.cases.push({id: 'target-change-and-selection-replacement', status: 'passed'});
       await configure({selectionTranslatorTrigger: 'icon', harness: {...saved.harness, enabled: true, trigger: 'click'}});
       await select('Hello world');
-      assert((await readSelectionUi(page)).readingIndicator, '外语翻译卡片入口未恢复');
+      assert((await readSelectionUi(page)).indicator, '外语统一划词入口未恢复');
       await select('你好');
       const finalUi = await readSelectionUi(page);
-      assert(!finalUi.readingIndicator && !finalUi.tooltip, '中文翻译卡片入口未隐藏');
+      assert(!finalUi.indicator && !finalUi.readingIndicator && !finalUi.tooltip, '中文统一划词入口未隐藏');
       result.cases.push({id: 'reading-indicator-restores-for-foreign-selection', status: 'passed', ui: finalUi});
       const screenshot = path.join(args.artifactsDir, 'chinese-selection-no-card.png');
       await page.screenshot({path: screenshot}); result.screenshots.push(screenshot);
@@ -2296,7 +2296,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+if (require.main === module) main().catch((error) => {
   process.stderr.write(`${error.stack || error.message}\n`);
   process.exitCode = 1;
 });
+
+module.exports = {readStoredConfig, patchStoredConfig, sendExtensionMessage, waitForWorker, selectTextWithDomRange, getSelectionUiTree, findCdpNode, cdpAttribute, hasCdpClass, cdpText, clickSelectionIndicator, closeSelectionUi};

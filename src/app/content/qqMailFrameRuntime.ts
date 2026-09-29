@@ -137,8 +137,7 @@ async function startMailFrameApp(ctx: ContentScriptContext, kind: MailFrameKind)
     const syncSelectionTranslator = () => {
         if (kind !== 'netease' || !activation) return;
         const generation = ++selectionMountGeneration;
-        if (config.harness?.enabled !== true
-            && (config.disableSelectionTranslator === true || config.selectionTranslatorMode === 'disabled')) {
+        if (config.disableSelectionTranslator === true || config.selectionTranslatorMode === 'disabled') {
             unmountSelectionTranslator();
             return;
         }
@@ -148,8 +147,7 @@ async function startMailFrameApp(ctx: ContentScriptContext, kind: MailFrameKind)
             isMounted: () => Boolean(document.getElementById('fluent-read-selection-translator-container')),
             isStillDesired: () => activation === currentActivation && authorized && enabled()
                 && selectionMountGeneration === generation
-                && (config.harness?.enabled === true
-                    || (config.disableSelectionTranslator !== true && config.selectionTranslatorMode !== 'disabled')),
+                && (config.disableSelectionTranslator !== true && config.selectionTranslatorMode !== 'disabled'),
         }).catch(() => {
             if (activation === currentActivation && selectionMountGeneration === generation) unmountSelectionTranslator();
         });

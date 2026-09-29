@@ -121,3 +121,69 @@ describe('reading answer presentation', () => {
         expect(sentenceAroundSelection('First. Second.', 'First. Second.')).toBe('First. Second.');
     });
 });
+
+import {anchorSentenceAnalysis} from '@/src/features/reading-assistant/sentenceAnalysis';
+import {describePartOfSpeech} from '@/src/core/language/partOfSpeech';
+
+describe('grounded part-of-speech annotations', () => {
+    const table = (rows: string[][], headers = ['Text', 'POS', 'Role', 'Meaning']) => ({kind: 'table' as const, headers, rows});
+    it('anchors repeated words in order and keeps grammatical roles separate', () => {
+        const annotations = anchorSentenceAnalysis(table([['The', 'article', '限定名词', '这'], ['reader', 'noun', '主语', '读者'], ['reads', 'verb', '谓语', '读'], ['the', 'article', '限定名词', '这'], ['book', 'noun', '宾语', '书']]), 'The reader reads the book.');
+        expect(annotations?.map(item => [item.text, item.part.label, item.start])).toEqual([['The', '冠词', 0], ['reader', '名词', 4], ['reads', '动词', 11], ['the', '冠词', 17], ['book', '名词', 21]]);
+        expect(annotations?.[4].role).toBe('宾语');
+        expect(anchorSentenceAnalysis(table([['had', 'verb', '谓语', '有'], ['had', 'auxiliary', '助动词', '过去完成']]), 'had had')?.map(item => item.start)).toEqual([0,4]);
+    });
+    it('does not attach invented, overlapping, reordered or partial words', () => {
+        for (const rows of [[['he', 'pronoun', '主语', '他']], [['bird', 'noun', '主语', '鸟']], [['reader', 'noun', '主语', '读者'], ['The', 'article', '限定词', '这']], [['The reader', 'phrase', '主语', '读者'], ['reader', 'noun', '主语', '读者']]]) {
+            expect(anchorSentenceAnalysis(table(rows), 'The reader reads.')).toBeNull();
+        }
+    });
+    it('falls back for ordinary tables, incomplete streaming rows and excessive input', () => {
+        expect(anchorSentenceAnalysis(table([['The','article','determiner','this']], ['A','B','C','D']), 'The')).toBeNull();
+        expect(anchorSentenceAnalysis(table([['The','article','']]), 'The')).toBeNull();
+        expect(anchorSentenceAnalysis(table([]), 'The')).toBeNull();
+        expect(anchorSentenceAnalysis({kind:'paragraph',text:'hello'}, 'hello')).toBeNull();
+        expect(anchorSentenceAnalysis(table([['a','noun','role','meaning']]), 'a'.repeat(4097))).toBeNull();
+        expect(anchorSentenceAnalysis(table(Array.from({length:81}, () => ['a','noun','role','meaning'])), 'a '.repeat(81))).toBeNull();
+    });
+    it('keeps unrecognized POS and hostile text as inert data', () => {
+        expect(describePartOfSpeech('art.')).toMatchObject({id:'article', label:'冠词'});
+        expect(describePartOfSpeech('名词')).toMatchObject({id:'noun'});
+        expect(describePartOfSpeech('主语')).toMatchObject({id:'other', label:'主语'});
+        expect(describePartOfSpeech(null)).toMatchObject({id:'other',label:'其他'});
+        const source = '<script>alert(1)</script>';
+        const result = anchorSentenceAnalysis(table([[source,'unknown','<img src=x>','text']]), source);
+        expect(result?.[0]).toMatchObject({text:source, role:'<img src=x>',part:{id:'other'}});
+    });
+});
+
+
+import {sentenceAnalysis} from '@/src/core/config/selectionPreview';
+it('renders the offline settings example with the same grounded grammar parser', () => {
+    const block = readingAnswerBlocks(sentenceAnalysis)[0];
+    expect(anchorSentenceAnalysis(block, 'The curious reader explores new ideas.')?.map(item => item.part.id))
+        .toEqual(['article', 'adjective', 'noun', 'verb', 'adjective', 'noun']);
+});
+it('rejects incomplete annotations, overlong fields and prefixes of longer words', () => {
+    const headers = ['Text', 'POS', 'Role', 'Meaning'];
+    const make = (row: string[], source = 'a') => anchorSentenceAnalysis({kind:'table', headers, rows:[row]}, source);
+    expect(make(['a','noun','subject','meaning'], '')).toBeNull();
+    for (const index of [0,1,2,3]) {
+        const row = ['a','noun','subject','meaning']; row[index] = '';
+        expect(make(row)).toBeNull();
+    }
+    expect(make(['a'.repeat(301),'noun','role','meaning'], 'a'.repeat(301))).toBeNull();
+    expect(make(['a','noun','r'.repeat(401),'meaning'])).toBeNull();
+    expect(make(['a','noun','role','m'.repeat(401)])).toBeNull();
+    expect(make(['a','noun','role','meaning'], 'apple')).toBeNull();
+    expect(make(['a','noun','role','meaning'], 'ba')).toBeNull();
+    expect(make(['a','noun','role','meaning'], 'a!')?.[0].text).toBe('a');
+    expect(make(['!','unknown','role','meaning'], '!a')?.[0].text).toBe('!');
+    expect(anchorSentenceAnalysis({kind:'table',headers:headers.slice(1),rows:[['a','noun','role','meaning']]}, 'a')).toBeNull();
+    expect(anchorSentenceAnalysis({kind:'table',headers:['原文片段','词性','句中作用','含义'],rows:[['**a**','`noun`','role','meaning']]}, 'a')?.[0].part.id).toBe('noun');
+});
+it('normalizes dictionary POS variants without guessing an unknown word class', () => {
+    for (const label of ['s.', 'adjective satellite', '形容詞']) expect(describePartOfSpeech(label).id).toBe('adjective');
+    expect(describePartOfSpeech('  ')).toMatchObject({id:'other',label:'其他'});
+    expect(describePartOfSpeech('x'.repeat(100)).label).toHaveLength(80);
+});

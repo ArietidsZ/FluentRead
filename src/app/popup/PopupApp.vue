@@ -411,10 +411,14 @@
 
       <div v-else-if="activeDrawer === 'selection'" class="drawer-content">
         <div>
+          <div class="setting-row">
+            <span><strong>划词触发方式</strong><small>不想显示浮动入口？选择快捷键或仅右键菜单。</small></span>
+            <button class="secondary-action" type="button" @click="openOptions('settings-selection')">调整触发方式</button>
+          </div>
           <div v-if="config.selectionTranslatorMode !== 'disabled'" class="interaction-preview">
             <span class="selection-box">选择文字</span><span>＋</span>
             <i v-if="config.selectionTranslatorTrigger === 'dot'" class="pink-dot" />
-            <span v-else-if="config.selectionTranslatorTrigger === 'icon'" class="selection-preview-icon">↗</span>
+            <span v-else-if="['icon', 'hover'].includes(config.selectionTranslatorTrigger)" class="selection-preview-icon">↗</span>
             <strong v-else-if="config.selectionTranslatorTrigger === 'direct'">直接弹出</strong>
             <strong v-else-if="config.selectionTranslatorTrigger === 'contextMenu'">{{ t('selectionTrigger.contextMenu') }}</strong>
             <kbd v-else>{{ selectionTriggerPreview }}</kbd>
@@ -424,6 +428,13 @@
             <label>划词翻译</label>
             <div class="chips three" role="group" aria-label="划词翻译模式">
               <button v-for="item in selectionModes" :key="item.value" type="button" :class="{ selected: config.selectionTranslatorMode === item.value }" :aria-pressed="config.selectionTranslatorMode === item.value" @click="setSelectionMode(item.value)">{{ item.label }}</button>
+            </div>
+          </div>
+          <div class="choice-block">
+            <label>默认呈现</label>
+            <div class="chips" role="group" aria-label="划词默认呈现">
+              <button type="button" :class="{selected: config.selectionTranslatorPresentation === 'simple'}" :aria-pressed="config.selectionTranslatorPresentation === 'simple'" @click="config.selectionTranslatorPresentation = 'simple'">普通翻译</button>
+              <button type="button" :class="{selected: config.selectionTranslatorPresentation === 'card'}" :aria-pressed="config.selectionTranslatorPresentation === 'card'" @click="config.selectionTranslatorPresentation = 'card'">卡片模式</button>
             </div>
           </div>
           <button class="wordbook-shortcut" type="button" @click="openOptions('settings-vocabulary')">
@@ -571,7 +582,7 @@ import {
 } from '@/src/services/translation/capabilities';
 
 type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'area' | 'video' | 'aiContext';
-type SettingsSection = 'settings-general' | 'settings-interface' | 'settings-image-translation' | 'settings-area-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
+type SettingsSection = 'settings-selection' | 'settings-general' | 'settings-interface' | 'settings-image-translation' | 'settings-area-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 interface PopupQuickFeatureViewModel {
   id: PopupQuickFeatureId;
   label: string;
@@ -621,7 +632,7 @@ const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
 const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
   aiContext: 'settings-general',
   hover: 'settings-translation',
-  selection: 'settings-translation',
+  selection: 'settings-selection',
   appearance: 'settings-interface',
   image: 'settings-image-translation',
   area: 'settings-area-translation',

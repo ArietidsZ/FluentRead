@@ -376,21 +376,21 @@ describe('内容脚本 runtime 消息协议', () => {
             translationProgressPanelEnabled: true,
         });
     });
-    it('关闭划词翻译仍保留 Harness，而总开关关闭会卸载共享界面', async () => {
+    it('关闭划词翻译即卸载共享界面，不被已启用的学习偏好覆盖', async () => {
         const {createContentRuntimeMessageHandler} = await import('@/src/app/content/messageRuntime');
         const handler = createContentRuntimeMessageHandler({} as never, {isSiteDisabled: () => false, updateSiteDisabled: vi.fn()});
         const respond = vi.fn();
         mocks.config.harness = {enabled: true};
         handler({type: 'updateSelectionTranslatorMode', mode: 'disabled'}, {}, respond);
-        expect(mocks.mountSelectionTranslator).toHaveBeenCalledOnce();
-        expect(mocks.unmountSelectionTranslator).not.toHaveBeenCalled();
+        expect(mocks.mountSelectionTranslator).not.toHaveBeenCalled();
+        expect(mocks.unmountSelectionTranslator).toHaveBeenCalledOnce();
         mocks.config.on = false;
         handler({type: 'updateSelectionTranslatorMode', mode: 'disabled'}, {}, respond);
-        expect(mocks.unmountSelectionTranslator).toHaveBeenCalledOnce();
+        expect(mocks.unmountSelectionTranslator).toHaveBeenCalledTimes(2);
         mocks.config.on = true;
         mocks.config.harness.enabled = false;
         handler({type: 'updateSelectionTranslatorMode', mode: 'disabled'}, {}, respond);
-        expect(mocks.unmountSelectionTranslator).toHaveBeenCalledTimes(2);
+        expect(mocks.unmountSelectionTranslator).toHaveBeenCalledTimes(3);
     });
 
 });

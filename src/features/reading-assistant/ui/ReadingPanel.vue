@@ -50,7 +50,7 @@
         <summary data-i18n-ignore>{{ t("reading.priorTurns", {count: priorAnswers.length}) }}</summary>
         <article v-for="turn in priorAnswers" :key="turn.id" class="fr-reading-turn">
           <p class="fr-reading-question"><span data-i18n-ignore>{{ turn.question || translateLegacy(actionLabelFor(turn.intent)) }}</span><small>{{ statusLabel(turn.status) }}</small></p>
-          <ReadingAnswer :text="turn.answer" />
+          <ReadingAnswer :text="turn.answer" :source-text="activeText" />
         </article>
       </details>
       <p v-if="currentQuestion" class="fr-reading-question" data-i18n-ignore>{{ currentQuestion }}</p>
@@ -61,7 +61,7 @@
       </div>
       <p v-if="stopped && !busy" class="fr-reading-status" role="status">已停止<button type="button" @click="retry">继续生成</button></p>
       <div v-if="answer" class="fr-reading-answer" :aria-busy="busy">
-        <ReadingAnswer :text="answer" />
+        <ReadingAnswer :text="answer" :source-text="activeText" />
       </div>
       <p v-if="!busy && !answer && !error && !stopped" class="fr-reading-hint">选一种方式，理解这段表达。</p>
     <footer v-if="answer && !busy" class="fr-reading-footer">
@@ -77,7 +77,7 @@
     <p v-if="feedback" class="fr-reading-feedback" role="status">{{ feedback }}</p>
     <p v-if="sessionWarning" class="fr-reading-feedback" role="status">{{ sessionWarning }}</p>
     </template>
-    <div class="fr-reading-context"><span>{{ privateContext ? '隐私模式：不保存记录' : '阅读记录保存在本机 30 天' }}</span><button type="button" aria-label="打开翻译卡片设置" @click="openSettings()">设置</button></div>
+    <div class="fr-reading-context"><span>{{ privateContext ? '隐私模式：不保存记录' : '阅读记录保存在本机 30 天' }}</span><button type="button" aria-label="打开划词翻译设置" @click="openSettings()">设置</button></div>
   </div>
 </template>
 
@@ -142,7 +142,7 @@ const currentTurnKey = ref('');
 const priorAnswers = computed(() => previousAnswers.value.filter(turn => turn.id !== currentTurnKey.value));
 const sessionOffset = ref(0);
 const hasMoreSessions = ref(false);
-const actionLabels: Record<string, string> = {meaning: '读懂', grammar: '拆句', usage: '用法', practice: '练习'};
+const actionLabels: Record<string, string> = {meaning: '读懂', grammar: '词性与句法', usage: '用法', practice: '练习'};
 const statusLabels: Record<string, string> = {streaming: '进行中', completed: '已完成', stopped: '已停止', error: '失败'};
 const actionLabelFor = (value: string) => actionLabels[value] || '学习';
 const statusLabel = (value: string) => statusLabels[value] || '未知状态';
@@ -343,11 +343,11 @@ function ask(): void {
   void run(prompt, history.map(turn => ({...turn})));
 }
 function retry(): void { void run(lastQuestion, lastHistory, true); }
-async function openSettings(section = 'settings-harness'): Promise<void> {
+async function openSettings(section = 'settings-selection'): Promise<void> {
   try {
     const response = await browser.runtime.sendMessage({type: 'openOptionsPage', section}) as {success?: unknown} | undefined;
     if (response?.success !== true) throw new Error('打开设置失败');
-  } catch { feedback.value = section === 'settings-services' ? '打开设置失败，请从扩展菜单进入“翻译服务”。' : '打开设置失败，请从专项翻译进入“翻译卡片”。'; }
+  } catch { feedback.value = section === 'settings-services' ? '打开设置失败，请从扩展菜单进入“翻译服务”。' : '打开设置失败，请从专项翻译进入“划词翻译”。'; }
 }
 async function copyAnswer(): Promise<void> {
   try {

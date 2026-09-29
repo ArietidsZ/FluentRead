@@ -82,8 +82,117 @@
   <section v-if="hasVisitedSection('settings-writing')" v-show="props.activeSection === 'settings-writing'" id="settings-writing" class="settings-section">
     <WritingSettings :config="config" @configure-service="openWritingServiceSettings()" />
   </section>
-  <section v-if="hasVisitedSection('settings-harness')" v-show="props.activeSection === 'settings-harness'" id="settings-harness" class="settings-section">
-    <HarnessSettings :config="config" />
+  <section v-if="hasVisitedSection('settings-selection')" v-show="props.activeSection === 'settings-selection'" id="settings-selection" class="settings-section">
+    <SelectionSettings :config="config">
+    <SettingsGroup title="触发与显示" description="推荐点击图标：选中后不直接翻译。快捷键和仅右键菜单不显示浮动入口。">
+    <SettingsItem v-if="config.selectionTranslatorMode !== 'disabled'" label="显示内容" description="两种呈现均可保留原文或只显示译文。">
+      <SegmentedControl v-model="config.selectionTranslatorMode" :options="selectionTranslatorModeOptions.filter(item => item.value !== 'disabled')" label="划词显示内容" />
+    </SettingsItem>
+    <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row" :class="{ 'custom-hotkey-row': config.selectionTranslatorTrigger === 'custom' }">
+      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
+        <el-tooltip class="box-item" effect="dark" :content="t('selectionTrigger.modeDescription')" placement="top-start" :show-after="500">
+          <span class="popup-text popup-vertical-left">
+            划词触发方式
+            <el-icon class="icon-margin"><InfoFilled /></el-icon>
+          </span>
+        </el-tooltip>
+      </el-col>
+      <el-col :span="10" class="settings-control-field flex-end">
+        <div class="hotkey-config">
+          <el-select :model-value="config.selectionTranslatorTrigger" aria-label="划词翻译触发方式" placeholder="选择触发方式" size="small" style="width: 100%" @change="handleSelectionTriggerChange">
+            <el-option v-for="item in options.selectionTranslatorTriggers" :key="item.value" :label="item.value === 'contextMenu' ? t('selectionTrigger.contextMenu') : item.label" :value="item.value" />
+          </el-select>
+          <small v-if="config.selectionTranslatorTrigger === 'direct'" class="selection-context-menu-hint">直接弹出会在每次划词后打开译文，容易打断阅读。</small>
+          <small v-if="config.selectionTranslatorTrigger === 'contextMenu'" class="selection-context-menu-hint" :class="{ 'is-unavailable': config.contextMenuEnabled === false || config.contextMenuEntries?.translateSelection === false }">
+            {{ t(config.contextMenuEnabled === false || config.contextMenuEntries?.translateSelection === false ? 'selectionTrigger.contextMenuUnavailable' : 'selectionTrigger.contextMenuHint') }}
+          </small>
+          <div v-if="config.selectionTranslatorTrigger === 'custom'" class="custom-hotkey-display">
+            <span class="hotkey-text" v-if="config.customSelectionTranslatorHotkey">
+              {{ getCustomSelectionHotkeyDisplayName() }}
+            </span>
+            <span class="hotkey-text placeholder-text" v-else>
+              点击设置自定义快捷键
+            </span>
+            <el-button
+              size="small"
+              type="text"
+              class="edit-button"
+              aria-label="编辑划词翻译快捷键"
+              title="编辑划词翻译快捷键"
+              @click="openCustomSelectionHotkeyDialog"
+            >
+              <el-icon><Edit /></el-icon>
+            </el-button>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+    <SettingsItem v-if="config.selectionTranslatorMode !== 'disabled'" label="继续阅读时自动收起" description="滚动页面或复制原文时收起；鼠标远离后隐藏未点击的入口。卡片内的滚动和复制不受影响。">
+      <el-switch v-model="config.selectionTranslatorAutoDismiss" class="settings-toggle" aria-label="继续阅读时自动收起" />
+    </SettingsItem>
+    <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
+      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
+        <el-tooltip class="box-item" effect="dark" content="从选区稳定后开始计时，再显示图标、小点或翻译面板；快捷键在等待结束后按下会立即显示。" placement="top-start" :show-after="500">
+          <span class="popup-text popup-vertical-left">
+            划词显示延迟
+            <el-icon class="icon-margin"><InfoFilled /></el-icon>
+          </span>
+        </el-tooltip>
+      </el-col>
+      <el-col :span="10" class="settings-control-field flex-end translation-delay-field">
+        <el-input-number
+          v-model="config.selectionTranslatorDelay"
+          aria-label="划词翻译显示延迟"
+          :min="SELECTION_TRANSLATOR_DELAY_MIN"
+          :max="SELECTION_TRANSLATOR_DELAY_MAX"
+          :step="SELECTION_TRANSLATOR_DELAY_STEP"
+          controls-position="right"
+          @change="handleSelectionTranslatorDelayChange"
+        />
+        <span class="input-suffix">ms</span>
+      </el-col>
+    </el-row>
+    <SettingsItem
+      v-if="config.selectionTranslatorMode !== 'disabled' && ['en', 'zh-Hans', 'zh-Hant'].includes(config.to)"
+      label="中英双向划词"
+      description="开启后，选中与目标语言相同的中文或英文也会显示划词入口，并自动译成另一种语言。卡片内可临时切换译文语言，不会修改默认设置。"
+    >
+      <el-switch v-model="config.selectionTranslatorBidirectional" class="settings-toggle" aria-label="中英双向划词" />
+    </SettingsItem>
+    <SettingsItem v-if="config.selectionTranslatorTrigger === 'hover'" label="悬停等待" description="停在划词图标上片刻后打开；移开即取消。">
+      <el-input-number v-model="config.harness.hoverDelay" :min="200" :max="3000" :step="100" aria-label="悬停等待时间" />
+    </SettingsItem>
+    </SettingsGroup>
+    <template #advanced><SettingsGroup title="朗读声音">
+    <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
+      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
+        <el-tooltip class="box-item" effect="dark" content="朗读失败时按这里的顺序依次尝试；留空则根据当前语言自动选择。" placement="top-start" :show-after="500">
+          <span class="popup-text popup-vertical-left">
+            语音回退顺序
+            <el-icon class="icon-margin"><InfoFilled /></el-icon>
+          </span>
+        </el-tooltip>
+      </el-col>
+      <el-col :span="10" class="settings-control-field flex-end">
+        <div class="selection-tts-voice-control">
+          <el-select
+            v-model="config.selectionTtsVoices"
+            multiple
+            filterable
+            collapse-tags
+            collapse-tags-tooltip
+            aria-label="划词翻译语音回退顺序"
+            placeholder="自动按语言选择"
+            no-data-text="没有可用音色"
+          >
+            <el-option v-for="item in selectionTtsVoiceOptions" :key="item.value" :label="`${item.label} · ${item.locale}`" :value="item.value" />
+          </el-select>
+          <small>留空时按当前语言自动尝试多个免费 Edge 音色；选中多个后按此顺序回退，不需要 API Key。</small>
+        </div>
+      </el-col>
+    </el-row>
+    </SettingsGroup><LocalTtsSettings :config="config" /></template>
+    </SelectionSettings>
   </section>
   <section v-if="hasVisitedSection('settings-glossary')" v-show="props.activeSection === 'settings-glossary'" id="settings-glossary" class="settings-section">
     <GlossarySettings />
@@ -298,119 +407,11 @@
     </section>
 
     <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
-    <SettingsGroup title="划词翻译" description="选中文字后的展示内容、触发方式和等待时间。">
-    <!-- 划词翻译模式选择 -->
-    <el-row class="settings-control-row">
-      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" :content="t('selectionTrigger.modeIntro')" placement="top-start" :show-after="500">
-      <span class="popup-text popup-vertical-left">
-        划词翻译
-        <el-icon class="icon-margin">
-          <InfoFilled />
-        </el-icon>
-      </span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="10" class="settings-control-field flex-end">
-        <SegmentedControl v-model="config.selectionTranslatorMode" :options="selectionTranslatorModeOptions" label="划词翻译模式" />
-      </el-col>
-    </el-row>
-    <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row" :class="{ 'custom-hotkey-row': config.selectionTranslatorTrigger === 'custom' }">
-      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" :content="t('selectionTrigger.modeDescription')" placement="top-start" :show-after="500">
-          <span class="popup-text popup-vertical-left">
-            划词触发方式
-            <el-icon class="icon-margin"><InfoFilled /></el-icon>
-          </span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="10" class="settings-control-field flex-end">
-        <div class="hotkey-config">
-          <el-select :model-value="config.selectionTranslatorTrigger" aria-label="划词翻译触发方式" placeholder="选择触发方式" size="small" style="width: 100%" @change="handleSelectionTriggerChange">
-            <el-option v-for="item in options.selectionTranslatorTriggers" :key="item.value" :label="item.value === 'contextMenu' ? t('selectionTrigger.contextMenu') : item.label" :value="item.value" />
-          </el-select>
-          <small v-if="config.selectionTranslatorTrigger === 'contextMenu'" class="selection-context-menu-hint" :class="{ 'is-unavailable': config.contextMenuEnabled === false || config.contextMenuEntries?.translateSelection === false }">
-            {{ t(config.contextMenuEnabled === false || config.contextMenuEntries?.translateSelection === false ? 'selectionTrigger.contextMenuUnavailable' : 'selectionTrigger.contextMenuHint') }}
-          </small>
-          <div v-if="config.selectionTranslatorTrigger === 'custom'" class="custom-hotkey-display">
-            <span class="hotkey-text" v-if="config.customSelectionTranslatorHotkey">
-              {{ getCustomSelectionHotkeyDisplayName() }}
-            </span>
-            <span class="hotkey-text placeholder-text" v-else>
-              点击设置自定义快捷键
-            </span>
-            <el-button
-              size="small"
-              type="text"
-              class="edit-button"
-              aria-label="编辑划词翻译快捷键"
-              title="编辑划词翻译快捷键"
-              @click="openCustomSelectionHotkeyDialog"
-            >
-              <el-icon><Edit /></el-icon>
-            </el-button>
-          </div>
-        </div>
-      </el-col>
-    </el-row>
-    <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
-      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="从选区稳定后开始计时，再显示图标、小点或翻译面板；快捷键在等待结束后按下会立即显示。" placement="top-start" :show-after="500">
-          <span class="popup-text popup-vertical-left">
-            划词显示延迟
-            <el-icon class="icon-margin"><InfoFilled /></el-icon>
-          </span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="10" class="settings-control-field flex-end translation-delay-field">
-        <el-input-number
-          v-model="config.selectionTranslatorDelay"
-          aria-label="划词翻译显示延迟"
-          :min="SELECTION_TRANSLATOR_DELAY_MIN"
-          :max="SELECTION_TRANSLATOR_DELAY_MAX"
-          :step="SELECTION_TRANSLATOR_DELAY_STEP"
-          controls-position="right"
-          @change="handleSelectionTranslatorDelayChange"
-        />
-        <span class="input-suffix">ms</span>
-      </el-col>
-    </el-row>
-    <SettingsItem
-      v-if="config.selectionTranslatorMode !== 'disabled' && ['en', 'zh-Hans', 'zh-Hant'].includes(config.to)"
-      label="中英双向划词"
-      description="开启后，选中与目标语言相同的中文或英文也会显示划词入口，并自动译成另一种语言。卡片内可临时切换译文语言，不会修改默认设置。"
-    >
-      <el-switch v-model="config.selectionTranslatorBidirectional" class="settings-toggle" aria-label="中英双向划词" />
-    </SettingsItem>
-    <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
-      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="朗读失败时按这里的顺序依次尝试；留空则根据当前语言自动选择。" placement="top-start" :show-after="500">
-          <span class="popup-text popup-vertical-left">
-            语音回退顺序
-            <el-icon class="icon-margin"><InfoFilled /></el-icon>
-          </span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="10" class="settings-control-field flex-end">
-        <div class="selection-tts-voice-control">
-          <el-select
-            v-model="config.selectionTtsVoices"
-            multiple
-            filterable
-            collapse-tags
-            collapse-tags-tooltip
-            aria-label="划词翻译语音回退顺序"
-            placeholder="自动按语言选择"
-            no-data-text="没有可用音色"
-          >
-            <el-option v-for="item in selectionTtsVoiceOptions" :key="item.value" :label="`${item.label} · ${item.locale}`" :value="item.value" />
-          </el-select>
-          <small>留空时按当前语言自动尝试多个免费 Edge 音色；选中多个后按此顺序回退，不需要 API Key。</small>
-        </div>
-      </el-col>
-    </el-row>
+    <SettingsGroup title="划词翻译" description="普通翻译、卡片模式与学习偏好已集中到独立页面。">
+      <SettingsItem label="划词翻译设置" description="统一管理触发方式、词典、句法讲解和朗读。">
+        <button type="button" class="settings-navigation-link" @click="openSettingsSection('settings-selection')">打开划词翻译设置 →</button>
+      </SettingsItem>
     </SettingsGroup>
-    <LocalTtsSettings :config="config" />
     </section>
 
     <!-- 高级选项 -->
@@ -745,7 +746,7 @@ const TranslationCenter = defineAsyncComponent(() => import('@/src/features/tran
 const openInputServiceSettings = (service: string) => { setConfigurationService(service); openSettingsSection('settings-services'); };
 const openWritingServiceSettings = () => { setConfigurationService(config.value.writing.service || config.value.service); openSettingsSection('settings-services'); };
 const WritingSettings = defineAsyncComponent(() => import('./WritingSettings.vue'));
-const HarnessSettings = defineAsyncComponent(() => import('./HarnessSettings.vue'));
+const SelectionSettings = defineAsyncComponent(() => import('./SelectionSettings.vue'));
 const GlossarySettings = defineAsyncComponent(() => import('@/src/features/glossary/public').then(module => module.GlossarySettings));
 const AlwaysTranslateSites = defineAsyncComponent(() => import('./AlwaysTranslateSites.vue'));
 const FloatingBallSettings = defineAsyncComponent(() => import('./FloatingBallSettings.vue'));

@@ -522,6 +522,8 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     sectionTranslationHotkey: {group: 'translation', label: '局部翻译快捷键组合', format: value => value === 'custom' ? '自定义快捷键' : formatValue(value)},
     customSectionTranslationHotkey: {group: 'translation', label: '自定义局部翻译快捷键'},
     disableSelectionTranslator: {group: 'translation', label: '划词翻译', format: (value) => formatBoolean(value, true)},
+    selectionTranslatorPresentation: {group: 'translation', label: '划词呈现方式', format: (value) => value === 'card' ? '卡片模式' : '普通翻译'},
+    selectionTranslatorAutoDismiss: {group: 'translation', label: '继续阅读时自动收起'},
     selectionTranslatorMode: {group: 'translation', label: '划词显示模式', format: (value) => formatEnum(value, SELECTION_MODE_LABELS)},
     selectionTranslatorTrigger: {group: 'translation', label: '划词触发方式', format: (value) => formatEnum(value, SELECTION_TRIGGER_LABELS)},
     selectionTranslatorHotkey: {group: 'translation', label: '划词快捷键', format: (value) => formatEnum(value, SELECTION_TRIGGER_LABELS)},

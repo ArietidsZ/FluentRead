@@ -584,14 +584,15 @@ export const options = {
     ],
     // 划词翻译互斥触发方式。仅右键菜单与快捷键均不显示划词图标或小点。
     selectionTranslatorTriggers: [
-        {value: "direct", label: "直接弹出"},
         {value: "icon", label: "显示图标"},
         {value: "dot", label: "显示小点"},
         {value: "contextMenu", label: "仅右键菜单"},
+        {value: "custom", label: "自定义"},
         {value: "Control", label: "Ctrl"},
         {value: "Alt", label: "Alt / Option"},
         {value: "Shift", label: "Shift"},
-        {value: "custom", label: "自定义"},
+        {value: 'hover', label: '悬停图标'},
+        {value: "direct", label: "直接弹出"},
     ],
     services: [
         // 机器翻译

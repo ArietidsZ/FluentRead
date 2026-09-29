@@ -352,6 +352,9 @@ export default defineConfig({
             reportsDirectory: 'coverage/core',
             reporter: ['text', 'json-summary', 'html'],
             include: [
+                'src/core/language/partOfSpeech.ts',
+                'src/features/reading-assistant/sentenceAnalysis.ts',
+                'src/core/config/selectionPreview.ts',
                 'src/core/translation/sentenceAlignment.ts',
                 'src/features/full-page-translation/content/sentenceHighlight.ts',
                 'src/app/content/bilingualSentenceHighlight.ts',
