@@ -38,6 +38,7 @@ function parseArgs(argv) {
     geometryOnly: argv.includes('--geometry-only'),
     zoomOnly: argv.includes('--zoom-only'),
     scrollOnly: argv.includes('--scroll-only'),
+    inlineCodeOnly: argv.includes('--inline-code-only'),
   };
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root，或设置 PLAYWRIGHT_ROOT');
   args.extensionDir = path.resolve(args.extensionDir);
@@ -883,6 +884,7 @@ async function main() {
   let translationRequestCount = 0;
   const translationRequestEvents = [];
   let translationResponseDelayMs = 0;
+  const inlineCodeRequests = [];
   const translationServer = http.createServer(async (request, response) => {
     const fixtureRequestUrl = new URL(request.url, 'http://127.0.0.1');
     if (request.method !== 'POST' || fixtureRequestUrl.pathname !== '/translate') {
@@ -897,9 +899,12 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, translationResponseDelayMs));
     }
     let source = '';
+    let sources = [];
     try {
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
       source = Array.isArray(body) ? String(body[0] || '') : String(body?.[0] || body?.text || '');
+      sources = Array.isArray(body) ? body.map(String) : [source];
+      if (args.inlineCodeOnly) inlineCodeRequests.push(...sources);
     } catch {
       source = '';
     }
@@ -908,7 +913,7 @@ async function main() {
       'content-type': 'application/json; charset=utf-8',
     });
     const directionSuffix = args.directionOnly ? ` [to=${fixtureRequestUrl.searchParams.get('to') || ''}]` : '';
-    response.end(JSON.stringify([{ translations: [{ text: `测试译文：${source}${directionSuffix}` }] }]));
+    response.end(JSON.stringify((args.inlineCodeOnly ? sources : [source]).map(text => ({ translations: [{ text: `测试译文：${text}${directionSuffix}` }] }))));
   });
   await new Promise((resolve, reject) => {
     translationServer.once('error', reject);
@@ -1010,6 +1015,128 @@ async function main() {
     page.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`console: ${message.text()}`); });
     await page.goto('https://example.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await waitForContentScript(page);
+
+    if (args.inlineCodeOnly) {
+      const saved = await readStoredConfig(popup);
+      await patchStoredConfig(popup, {
+        on: true, disableSelectionTranslator: false, selectionTranslatorMode: 'bilingual',
+        selectionTranslatorTrigger: 'icon', selectionTranslatorDelay: 0,
+        to: 'zh-Hans', from: 'auto', service: 'microsoft', useCache: false,
+        hotkey: 'none', floatingBallHotkey: 'none',
+        harness: {...saved.harness, enabled: false},
+      });
+      await page.waitForTimeout(600);
+      const select = async (html, partial = false) => {
+        await activateInputPage(page);
+        await closeSelectionUi(page);
+        await resetFixture(page);
+        await page.locator('#target').evaluate((target, markup) => {target.innerHTML = markup;}, html);
+        await page.mouse.click(30, 30);
+        return page.evaluate(partial => {
+          const target = document.querySelector('#target');
+          const range = document.createRange();
+          range.selectNodeContents(target);
+          if (partial) {
+            range.setStart(target.querySelector('code').firstChild, 2);
+            range.setEnd(target.lastChild, target.lastChild.textContent.length - 1);
+          }
+          const selection = window.getSelection();
+          selection.removeAllRanges(); selection.addRange(range);
+          return target.innerHTML;
+        }, partial);
+      };
+      const readCodes = async () => {
+        const {session, root} = await getSelectionUiTree(page);
+        await session.send('DOM.enable');
+        await session.send('CSS.enable');
+        const host = findCdpNode(root, node => cdpAttribute(node, 'id') === 'fluent-read-selection-translator-container');
+        const codes = [];
+        const walk = node => {
+          if (node.nodeName === 'CODE') codes.push(node);
+          cdpChildren(node).forEach(walk);
+        };
+        walk(host);
+        const values = [];
+        for (const code of codes) {
+          const {computedStyle} = await session.send('CSS.getComputedStyleForNode', {nodeId: code.nodeId});
+          values.push({text: cdpText(code), attributes: code.attributes,
+            font: computedStyle.find(item => item.name === 'font-family')?.value});
+        }
+        return values;
+      };
+      const markup = 'Run <code class="host-code" style="color:red"><span>npm  install</span></code> before calling <code>&lt;Widget /&gt;</code> in your application.';
+      for (const trigger of ['icon', 'direct', 'Control']) {
+        await patchStoredConfig(popup, {selectionTranslatorTrigger: trigger});
+        await page.waitForTimeout(300);
+        const before = await select(markup);
+        if (trigger === 'icon') {
+          await waitForSelectionUi(page, {indicator: true, tooltip: false}, '包含行内代码时显示图标');
+          await clickSelectionIndicator(page);
+        } else if (trigger === 'Control') {
+          await page.waitForTimeout(250);
+          await page.keyboard.press('Control');
+        }
+        await waitForSelectionUi(page, {tooltip: true, translation: true, resultPrefix: '测试译文：'}, '行内代码段落翻译');
+        const codes = await readCodes();
+        assert(JSON.stringify(codes.map(code => code.text)) === JSON.stringify(['npm  install', '<Widget />', 'npm  install', '<Widget />']),
+          `原文与译文代码内容不一致：${JSON.stringify(codes)}`);
+        assert(codes.every(code => code.font.includes('monospace') && !code.attributes.includes('host-code')), '代码格式丢失或宿主属性泄漏');
+        assert(await page.locator('#target').evaluate(target => target.innerHTML) === before, '划词翻译改写了宿主 DOM');
+        result.cases.push({id: `inline-code.${trigger}`, status: 'passed', codes, ui: await readSelectionUi(page)});
+        if (trigger === 'icon') {
+          const screenshot = path.join(args.artifactsDir, 'inline-code-card.png');
+          await page.screenshot({path: screenshot}); result.screenshots.push(screenshot);
+          await clickSelectionCopyButton(page, 'translation');
+          await waitForCopyFeedback(page, '已复制译文');
+        }
+      }
+      await patchStoredConfig(popup, {selectionTranslatorTrigger: 'icon'});
+      await page.waitForTimeout(300);
+      await select('<code>command</code> finishes this sentence.', true);
+      await waitForSelectionUi(page, {indicator: true}, '代码内部起始的部分选区');
+      await clickSelectionIndicator(page);
+      await waitForSelectionUi(page, {tooltip: true, translation: true}, '部分选区译文');
+      assert((await readCodes()).every(code => code.text === 'mmand'), '部分选区读取了未选中的代码');
+      result.cases.push({id: 'inline-code.partial-range', status: 'passed'});
+      for (const [id, html] of [
+        ['code-only', '<code>npm install</code>'],
+        ['pre', 'Read <pre><code>npm install</code></pre> now.'],
+        ['block-code', 'Read <code style="display:block">npm install</code> now.'],
+        ['opt-out', 'Read <code translate="no">npm install</code> now.'],
+        ['button', 'Read <code><button>npm install</button></code> now.'],
+      ]) {
+        const requests = translationRequestCount;
+        await select(html);
+        await page.waitForTimeout(400);
+        const ui = await readSelectionUi(page);
+        assert(!ui.indicator && !ui.tooltip && translationRequestCount === requests, `排除区被放行：${id}`);
+        result.cases.push({id: `inline-code.reject-${id}`, status: 'passed'});
+      }
+      translationResponseDelayMs = 1000;
+      await select('Delayed prose <code>old_code</code> finishes slowly.');
+      await waitForSelectionUi(page, {indicator: true}, '延迟翻译入口');
+      await clickSelectionIndicator(page);
+      await waitForSelectionUi(page, {tooltip: true}, '延迟翻译卡片');
+      await select('New paragraph <code>new_code</code> replaces the selection.');
+      await waitForSelectionUi(page, {indicator: true}, '新选区入口');
+      translationResponseDelayMs = 0;
+      await clickSelectionIndicator(page);
+      await waitForSelectionUi(page, {tooltip: true, translation: true, resultPrefix: '测试译文：'}, '新选区译文');
+      await page.waitForTimeout(1300);
+      assert((await readCodes()).every(code => code.text === 'new_code'), '迟到响应覆盖了新选区代码');
+      result.cases.push({id: 'inline-code.reselection-cancels-old-result', status: 'passed'});
+      assert(inlineCodeRequests.length > 0 && inlineCodeRequests.every(text => !/npm|Widget|command|mmand|old_code|new_code/.test(text)),
+        `代码被发送给翻译服务：${JSON.stringify(inlineCodeRequests)}`);
+      await closeSelectionUi(page);
+      await waitForSelectionUi(page, {tooltip: false, indicator: false}, '关闭后清理卡片');
+      assert(result.consoleErrors.length === 0, `浏览器控制台异常：${JSON.stringify(result.consoleErrors)}`);
+      result.ok = true;
+      result.translationRequests = inlineCodeRequests;
+      result.providerEvidence = 'Local Microsoft batch response fixture; selected DOM ranges and trusted CDP input in isolated Edge. Not a Zen/Firefox runtime or live-provider test.';
+      fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(result, null, 2)}\n`);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      return;
+    }
 
     if (args.scrollOnly) {
       const saved = await readStoredConfig(popup);
