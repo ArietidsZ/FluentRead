@@ -137,6 +137,8 @@ async function main() {
     }, patch).then(result => assert.equal(result.success, true));
     const visibleService = service => page.locator(`[data-service-value="${service}"]:visible`).first();
     const selectService = async service => {
+      const directoryToggle = page.locator('.mobile-directory-toggle');
+      if (await directoryToggle.isVisible() && await directoryToggle.getAttribute('aria-expanded') !== 'true') await directoryToggle.click();
       await visibleService(service).click();
       await page.locator(`[data-service-configuration-service="${service}"]`).waitFor({state: 'visible'});
     };
@@ -153,22 +155,29 @@ async function main() {
         const node = document.querySelector(selector);
         if (!node) return null;
         const rect = node.getBoundingClientRect();
-        return {top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width, height: rect.height};
+        const style = getComputedStyle(node);
+        return {top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width, height: rect.height,
+          visible: rect.width > 0 && rect.height > 0 && style.visibility === 'visible' && Number(style.opacity) > 0};
       };
       return {
         row: box('[data-api-key-list] [data-api-key-index]'),
         input: box('[data-api-key-list] .api-key-entry .el-input__wrapper'),
         testButton: box('.detail-hero [data-connection-test-button]'),
-        nextGroup: box('[data-configuration-group="advanced"]'),
+        result: box('[data-api-key-list] .api-key-state.is-checking, [data-api-key-list] .api-key-state.is-success, [data-api-key-list] .api-key-state.is-error'),
+        nextGroup: box('[data-configuration-group="connection"] > details.service-disclosure[data-configuration-group="keys"]'),
       };
     });
     const assertStable = (before, after, label) => {
-      for (const key of ['row', 'input', 'testButton', 'nextGroup']) {
+      for (const key of ['input', 'testButton']) {
         assert(before[key] && after[key], `${label}: missing ${key}`);
         assert(Math.abs(before[key].top - after[key].top) <= 1, `${label}: ${key} top shifted`);
         assert(Math.abs(before[key].height - after[key].height) <= 1, `${label}: ${key} height shifted`);
         assert(Math.abs(before[key].width - after[key].width) <= 1, `${label}: ${key} width shifted`);
       }
+      // 空状态不预留结果高度；结果出现后可推动下一组，但控件位置保持稳定且内容不得重叠。
+      assert(after.result?.visible, `${label}: check status/result must be visible`);
+      assert(after.nextGroup?.visible, `${label}: next settings group must be visible`);
+      assert(after.result.bottom <= after.nextGroup.top + 1, `${label}: check status/result overlaps the next settings group`);
       report.layoutMetrics.push({label, before, after});
     };
 
@@ -287,13 +296,13 @@ async function main() {
     await selectService('tencent');
     const guide = page.getByTestId('service-credential-guide');
     await guide.waitFor({state: 'visible'});
-    assert.equal(await guide.getAttribute('open'), '');
-    await guide.locator('summary').click();
     assert.equal(await guide.getAttribute('open'), null);
+    await guide.locator(':scope > summary').click();
+    assert.equal(await guide.getAttribute('open'), '');
     await selectService('volcTranslation');
-    assert.equal(await page.getByTestId('service-credential-guide').getAttribute('open'), '');
+    assert.equal(await page.getByTestId('service-credential-guide').getAttribute('open'), null);
     assert.equal(await page.locator('.service-catalog').getAttribute('data-default-service'), defaultService);
-    report.cases.push('cloud-quota-guide-open-reset-and-default-service-unchanged');
+    report.cases.push('cloud-quota-guide-collapsed-reset-and-default-service-unchanged');
 
     assert(report.requests.length > 0 && report.requests.every(item => !item.authorizationPresent));
     assert.equal(report.consoleErrors.length, 0);

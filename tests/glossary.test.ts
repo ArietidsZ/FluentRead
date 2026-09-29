@@ -3,7 +3,7 @@ import {describe, expect, it, vi} from 'vitest';
 import {
     buildGlossaryRevision, createGlossaryEntry, createGlossaryLibrary, exportGlossary,
     GLOSSARY_LIMITS, normalizeGlossaryDomain, normalizeGlossaryIds, normalizeGlossaryLibraries,
-    decodeGlossaryText, parseGlossaryImport, resolveGlossary, type GlossaryContext, type GlossaryLibrary,
+    decodeGlossaryText, parseGlossaryImport, resolveGlossary, getGlossaryScopeReason, glossarySourcesOverlap, type GlossaryContext, type GlossaryLibrary,
 } from '@/src/core/glossary';
 
 const entry = (source = 'API', target = '接口', caseSensitive = false) => ({id: `term-${source.replace(/[^a-z]/giu, '') || '1'}`, source, target, caseSensitive});
@@ -488,5 +488,30 @@ describe('术语文件预览与导出', () => {
         const explicit = parseGlossaryImport('source,target,fluentreadEscaped\nAPI,接口,source', 'csv');
         expect(explicit.libraries[0].entries[0].source).toBe('API');
         expect(exportGlossary(library({entries: [entry('\tX', '\nY')]}), 'csv')).toContain("'\tX");
+    });
+});
+
+
+describe('术语库范围解释与重复原词一致性', () => {
+    it.each([
+        [{enabled: false}, {}, 'disabled'],
+        [{}, {glossaryIds: []}, 'selection'],
+        [{sourceLanguage: 'ja'}, {}, 'source'],
+        [{targetLanguage: 'ja'}, {}, 'target'],
+        [{domains: ['example.com']}, {}, 'website'],
+        [{entries: []}, {}, 'empty'],
+        [{sourceLanguage: 'ja'}, {sourceLanguage: 'auto'}, 'eligible'],
+        [{sourceLanguage: 'en', targetLanguage: 'zh-hans', domains: ['example.com']}, {pageUrl: 'https://sub.example.com'}, 'eligible'],
+    ] as const)('explains exclusion using the same scope rules as translation: %s %s %s', (overrides, ctx, reason) => {
+        const item = library(overrides as Partial<GlossaryLibrary>);
+        const request = context(ctx as Partial<GlossaryContext>);
+        expect(getGlossaryScopeReason(item, request)).toBe(reason);
+        expect(resolveGlossary([item], request).terms.length).toBe(reason === 'eligible' ? 1 : 0);
+    });
+    it('compares normalized spellings without collapsing distinct case-sensitive terms', () => {
+        expect(glossarySourcesOverlap(entry('cafe\u0301'), entry('café'))).toBe(true);
+        expect(glossarySourcesOverlap(entry(' token '), entry('TOKEN', '', true))).toBe(true);
+        expect(glossarySourcesOverlap(entry('Token', '', true), entry('TOKEN', '', true))).toBe(false);
+        expect(glossarySourcesOverlap(entry('Token', '', true), entry('token'))).toBe(true);
     });
 });

@@ -407,6 +407,22 @@ node scripts/testing/run-popup-quick-settings-ui-test.cjs \
 
 该脚本不下载模型、不调用外部翻译服务，也不验证播放器字幕质量或 Firefox 真实界面；不能把专项通过等同于其他 UI 套件或真实翻译链路通过。报告分别记录窗口位置、焦点策略、配置行为、布局尺寸、控制台错误和截图。
 
+## 设置层级与渐进展开
+
+通用页按日常翻译、网页辅助、基本偏好排序；服务页将密钥管理放在 API Key 旁，模型偏好、提示词、请求限制和接口兼容分别展开。可运行以下专项验证这些入口：
+
+```bash
+node scripts/testing/run-settings-hierarchy-ui-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <Node包目录> \
+  --focus-safe-helper <focus-safe-browser.cjs路径> \
+  --artifacts-dir /private/tmp/fluentread-settings-hierarchy
+```
+
+该专项在独立临时 Edge profile 中验证默认服务配置直达、浏览目录不改变默认服务、键盘展开、多 Key 保留、模型偏好与提示词保存、请求限制、快速关闭后的持久化、连续写入与两个设置页同步。还检查 18 个设置分区、1024/820/390 像素布局、窄屏目录及图标、深色和英文界面，并导出截图、布局尺寸与控制台错误。
+
+浏览器使用第二屏可见但不抢焦点窗口，结束后仅清理测试 profile。所有凭据都是测试占位符，不调用真实翻译服务；桌面窄屏验证不等同于手机或 Firefox 实机验证。
+
 ## 翻译服务目录
 
 服务目录只有“我的服务”和“全部服务”两级入口，自定义 OpenAI 兼容服务在创建后作为“全部服务”中的一个分类出现。两个生产扩展专项使用相同的隔离浏览器参数，分工如下：
