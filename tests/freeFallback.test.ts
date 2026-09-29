@@ -337,3 +337,138 @@ describe('free provider fallback coordinator', () => {
             .rejects.not.toThrow('secret');
     });
 });
+
+describe('speed-first free routing', () => {
+    const fastOptions = {mode: 'balanced' as const, timeoutMs: 5000, cooldownMs: 1000};
+    const delayed = (id: string, ms: number, reject = false) => candidate(id, vi.fn(() => new Promise<string>((resolve, fail) => {
+        setTimeout(() => reject ? fail(failure(503)) : resolve(`译:${id}`), ms);
+    })));
+
+    it('returns the backup at 1.6s instead of waiting 5s, cancelling the loser without a failure', async () => {
+        const run = createFreeFallbackRunner(3, {random: () => 0});
+        const slow = candidate('slow', vi.fn(() => new Promise(() => undefined)));
+        const backup = delayed('backup', 100);
+        const events: FreeFallbackAttempt[] = [];
+        const request = run([slow, backup], {...fastOptions, onAttempt: event => events.push(event)});
+        await vi.advanceTimersByTimeAsync(1499);
+        expect(backup.translate).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(101);
+        await expect(request).resolves.toBe('译:backup');
+        expect(vi.mocked(slow.translate).mock.calls[0][0].aborted).toBe(true);
+        expect(events.map(item => [item.identity, item.outcome])).toEqual([['backup', 'success'], ['slow', 'cancelled']]);
+        expect((await run.getHealthSnapshot()).some(item => item.identity === 'slow')).toBe(false);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('keeps fast requests single and switches immediately on a real failure', async () => {
+        const run = createFreeFallbackRunner(3, {random: () => 0});
+        const backup = candidate('backup');
+        await expect(run([candidate('fast'), backup], fastOptions)).resolves.toBe('译:fast');
+        expect(backup.translate).not.toHaveBeenCalled();
+        await expect(run([candidate('failed', vi.fn().mockRejectedValue(failure(503))), backup], fastOptions)).resolves.toBe('译:backup');
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it.each(['primary', 'backup'] as const)('still accepts the %s result when the other racing service fails', async winner => {
+        const run = createFreeFallbackRunner(3, {random: () => 0});
+        const primary = delayed('primary', 1700, winner !== 'primary');
+        const backup = delayed('backup', 100, winner !== 'backup');
+        const request = run([primary, backup], fastOptions);
+        await vi.advanceTimersByTimeAsync(1700);
+        await expect(request).resolves.toBe(`译:${winner}`);
+    });
+
+    it('continues through distinct services after both racing attempts fail', async () => {
+        const run = createFreeFallbackRunner(3, {random: () => 0});
+        const first = delayed('a', 1700, true), second = delayed('b', 100, true), third = candidate('c');
+        const request = run([first, second, third], fastOptions);
+        await vi.advanceTimersByTimeAsync(1700);
+        await expect(request).resolves.toBe('译:c');
+        for (const item of [first, second, third]) expect(item.translate).toHaveBeenCalledOnce();
+    });
+
+    it('does not hedge sequential mode, a single enabled service, or a short timeout', async () => {
+        for (const variant of ['sequential', 'single', 'short'] as const) {
+            const run = createFreeFallbackRunner(1, {random: () => 0});
+            const first = delayed('a', 900), second = candidate('b');
+            const request = run(variant === 'single' ? [first] : [first, second], {
+                ...fastOptions, mode: variant === 'sequential' ? 'sequential' : 'balanced',
+                timeoutMs: variant === 'short' ? 1000 : 5000,
+            });
+            await vi.advanceTimersByTimeAsync(900);
+            await expect(request).resolves.toBe('译:a');
+            expect(second.translate).not.toHaveBeenCalled();
+        }
+    });
+
+    it('shares one extra concurrency slot across requests and refills a limited hedge budget', async () => {
+        const run = createFreeFallbackRunner(3, {random: () => 0});
+        const a = delayed('a', 3000), b = delayed('b', 3000);
+        const aBackup = delayed('a-backup', 100), bBackup = candidate('b-backup');
+        const first = run([a, aBackup], fastOptions);
+        const second = run([b, bBackup], fastOptions);
+        await vi.advanceTimersByTimeAsync(3000);
+        await expect(first).resolves.toBe('译:a-backup');
+        await expect(second).resolves.toBe('译:b');
+        expect(bBackup.translate).not.toHaveBeenCalled();
+        // 两次成功仅补回 0.4，不能每个慢段落都追加外发。
+        const thirdBackup = candidate('c-backup');
+        const third = run([delayed('c', 3000), thirdBackup], fastOptions);
+        await vi.advanceTimersByTimeAsync(3000);
+        await expect(third).resolves.toBe('译:c');
+        expect(thirdBackup.translate).not.toHaveBeenCalled();
+        await run([candidate('fast-1')], fastOptions);
+        await run([candidate('fast-2')], fastOptions);
+        const last = run([delayed('d', 3000), candidate('d-backup')], fastOptions);
+        await vi.advanceTimersByTimeAsync(1500);
+        await expect(last).resolves.toBe('译:d-backup');
+    });
+
+    it('rechecks backup availability after the delay and honors provider limits', async () => {
+        const run = createFreeFallbackRunner(3, {random: () => 0});
+        const busy = {...candidate('busy'), maxConcurrency: 0};
+        const primary = delayed('primary', 1800);
+        const request = run([primary, busy], fastOptions);
+        await vi.advanceTimersByTimeAsync(1800);
+        await expect(request).resolves.toBe('译:primary');
+        expect(busy.translate).not.toHaveBeenCalled();
+    });
+
+    it('cancels both active attempts and releases the hedge slot and timers', async () => {
+        const run = createFreeFallbackRunner(3, {random: () => 0});
+        const controller = new AbortController();
+        const a = candidate('a', vi.fn(() => new Promise(() => undefined)));
+        const b = candidate('b', vi.fn(() => new Promise(() => undefined)));
+        const request = run([a, b], {...fastOptions, signal: controller.signal});
+        const rejected = expect(request).rejects.toMatchObject({name: 'AbortError'});
+        await vi.advanceTimersByTimeAsync(1500);
+        controller.abort();
+        await rejected;
+        for (const item of [a, b]) expect(vi.mocked(item.translate).mock.calls[0][0].aborted).toBe(true);
+        expect(vi.getTimerCount()).toBe(0);
+        await expect(run([candidate('next')], fastOptions)).resolves.toBe('译:next');
+    });
+
+    it('caps even an extended caller deadline at twenty seconds with no repeat of the service pool', async () => {
+        const run = createFreeFallbackRunner(3, {random: () => 0});
+        const a = candidate('a', vi.fn(() => new Promise(() => undefined)));
+        const b = candidate('b', vi.fn(() => new Promise(() => undefined)));
+        const request = run([a, b], {...fastOptions, timeoutMs: 30_000, deadline: Date.now() + 60_000});
+        const rejected = expect(request).rejects.toMatchObject({message: '请求超时', retryable: false});
+        await vi.advanceTimersByTimeAsync(20_000);
+        await rejected;
+        expect(vi.getTimerCount()).toBe(0);
+        expect(a.translate).toHaveBeenCalledOnce();
+        expect(b.translate).toHaveBeenCalledOnce();
+    });
+
+    it('returns promptly with hanging storage and a throwing observer', async () => {
+        const run = createFreeFallbackRunner(1, {persistence: {load: async () => [], save: () => new Promise(() => undefined)}});
+        const observer = vi.fn(() => { throw new Error('statistics unavailable'); });
+        const request = run([candidate('a')], {...fastOptions, onAttempt: observer});
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(request).resolves.toBe('译:a');
+        expect(observer).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+});

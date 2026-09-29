@@ -8,10 +8,10 @@ const source = readFileSync(resolve(process.cwd(), 'userscript/SettingsPanel.vue
 describe('userscript free translation settings', () => {
     it('exposes mode controls, with ordering controls limited to sequential mode', () => {
         expect(source).toContain('v-model="draft.freeTranslationMode"');
-        expect(source).toContain('value="balanced">自动均衡');
+        expect(source).toContain('value="balanced">智能加速');
         expect(source).toContain('value="sequential">优先顺序');
         expect(source).not.toContain('freeTranslationWeights');
-        expect(source).toContain('成功率、响应耗时和近期错误动态分配');
+        expect(source).toContain('优先使用快且稳定的服务');
         expect(source).toContain('v-if="draft.freeTranslationMode === \'sequential\'"');
         expect(source).not.toContain('draft.freeTranslationCooldownMs');
     });
