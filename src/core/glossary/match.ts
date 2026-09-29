@@ -1,7 +1,7 @@
 /**
  * @file src/core/glossary/match.ts
  * 文件职责：在翻译请求的文字、语言及网站范围中解析真正命中的术语，并报告可解释的固定译名冲突。
- * 主要内容：使用字面字符串检索、英文与其他非中日韩文字的词边界、大小写选项及长词优先；库与条目顺序决定同源词冲突胜者。
+ * 主要内容：共享可解释的语言和网站范围判定、原词重复判断，使用字面检索、词边界、大小写选项与长词优先；库与条目顺序决定冲突胜者。
  * 模块边界：属于纯匹配算法，不读取配置、不构建提示词、不进行翻译后的字符串替换；返回结果仅携带实际命中的原词和译词。
  */
 import {cleanGlossaryText, normalizeGlossaryDomain, normalizeGlossaryIds, normalizeGlossaryLanguage,
@@ -21,6 +21,27 @@ export interface GlossaryContext {
     targetLanguage: string;
     pageUrl?: string;
     glossaryIds?: string[] | null;
+}
+
+/** 与实际请求共用范围判定，界面可解释未参与匹配的原因，不另写一套近似规则。 */
+export function getGlossaryScopeReason(library: GlossaryLibrary, context: GlossaryContext):
+    'disabled' | 'selection' | 'source' | 'target' | 'website' | 'empty' | 'eligible' {
+    const selected = normalizeGlossaryIds(context.glossaryIds);
+    const source = normalizeGlossaryLanguage(context.sourceLanguage);
+    const target = normalizeGlossaryLanguage(context.targetLanguage);
+    if (!library.enabled) return 'disabled';
+    if (selected && !selected.includes(library.id)) return 'selection';
+    if (source && !languageMatches(normalizeGlossaryLanguage(library.sourceLanguage), source)) return 'source';
+    if (!languageMatches(normalizeGlossaryLanguage(library.targetLanguage), target)) return 'target';
+    if (!domainMatches(library.domains, context.pageUrl)) return 'website';
+    return library.entries.length ? 'eligible' : 'empty';
+}
+
+/** 大小写敏感且拼写不同的词可以并存；其余同源词沿用请求中的优先级规则。 */
+export function glossarySourcesOverlap(a: {source: string; caseSensitive: boolean}, b: {source: string; caseSensitive: boolean}): boolean {
+    const left = cleanGlossaryText(a.source);
+    const right = cleanGlossaryText(b.source);
+    return left === right || ((!a.caseSensitive || !b.caseSensitive) && left.toLowerCase() === right.toLowerCase());
 }
 
 function languageMatches(rule: string, actual: string): boolean {
@@ -69,23 +90,15 @@ function containsTerm(text: string, source: string, caseSensitive: boolean): boo
 export function resolveGlossary(libraries: readonly GlossaryLibrary[], context: GlossaryContext): {
     terms: GlossaryTerm[]; conflicts: GlossaryConflict[];
 } {
-    const selected = normalizeGlossaryIds(context.glossaryIds);
-    const sourceLanguage = normalizeGlossaryLanguage(context.sourceLanguage);
-    const targetLanguage = normalizeGlossaryLanguage(context.targetLanguage);
     const texts = (Array.isArray(context.text) ? context.text : [context.text]).map(cleanGlossaryText);
     const chosen: {term: GlossaryTerm; caseSensitive: boolean}[] = [];
     const conflicts: GlossaryConflict[] = [];
     for (const library of normalizeGlossaryLibraries(libraries)) {
-        if (!library.enabled || (selected && !selected.includes(library.id))
-            // 自动源语没有可靠的明确语言值，先以原词命中筛选，避免默认 auto 排除所有有源语约束的库。
-            || (sourceLanguage !== '' && !languageMatches(library.sourceLanguage, sourceLanguage))
-            || !languageMatches(library.targetLanguage, targetLanguage)
-            || !domainMatches(library.domains, context.pageUrl)) continue;
+        if (getGlossaryScopeReason(library, context) !== 'eligible') continue;
         for (const entry of library.entries) {
             if (!texts.some((text) => containsTerm(text, entry.source, entry.caseSensitive))) continue;
             const term = {source: entry.source, target: entry.target || entry.source};
-            const previous = chosen.find((item) => item.term.source === term.source
-                || ((!item.caseSensitive || !entry.caseSensitive) && item.term.source.toLowerCase() === term.source.toLowerCase()));
+            const previous = chosen.find((item) => glossarySourcesOverlap({...item.term, caseSensitive: item.caseSensitive}, entry));
             if (previous) {
                 if (previous.term.target !== term.target) conflicts.push({source: entry.source,
                     keptTarget: previous.term.target, ignoredTarget: term.target, libraryId: library.id, entryId: entry.id});

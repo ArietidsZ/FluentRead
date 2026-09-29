@@ -1,92 +1,117 @@
 <!--
  * @file src/features/glossary/ui/GlossarySettings.vue
  * 文件职责：提供可直接上手的个人术语库设置，集中管理词库、适用语言、网站范围和固定译名。
- * 主要内容：支持内置主题词库添加、启停排序、词条搜索编辑、文件导入导出，以及使用真实领域解析器的本地匹配预览。
+ * 主要内容：按我的词库、内置词库和匹配预览组织操作；管理独立草稿、范围解释、重复词条校验与基于最新词表的串行保存。
  * 模块边界：配置通过现有 requestConfigPatch 保存并在失败时回读权威状态；文件只在本地解析，界面不请求翻译服务、不改写宿主网页。
  -->
 <template>
   <div class="fluentread-glossary" data-testid="glossary-settings" data-i18n-ignore>
     <FeatureEnableCard :model-value="enabled" :title="t('glossary.enable')" :description="t('glossary.intro')" :disabled="busy || !ready" @update:model-value="setEnabled" />
-    <p class="glossary-help">{{ t('glossary.services') }}</p>
-    <p v-if="error" class="glossary-error" role="alert">{{ error }}</p>
-    <p class="glossary-save-state" role="status" aria-live="polite">{{ busy ? t('glossary.saving') : saved && !hasMetadataDraft ? t('glossary.saved') : '' }}</p>
+    <div class="glossary-status-strip">
+      <p class="glossary-help"><UiIcon :name="serviceSupported ? 'info' : 'plug'" :size="15" /> {{ t(serviceSupported ? 'glossary.serviceReady' : 'glossary.serviceUnavailable') }} <a v-if="!serviceSupported" href="#settings-services">{{ t('glossary.configureService') }}</a></p>
+      <span class="glossary-save-state" role="status" aria-live="polite">{{ busy ? t('glossary.saving') : saved && !hasMetadataDraft && !entryDraft ? t('glossary.saved') : '' }}</span>
+    </div>
+    <p v-if="error" class="glossary-error glossary-notice" role="alert">{{ error }}</p>
 
-    <div class="glossary-toolbar">
-      <strong>{{ t('glossary.libraries') }} <small>{{ libraries.length }}/{{ GLOSSARY_LIMITS.libraries }}</small></strong>
+    <div class="glossary-toolbar glossary-main-toolbar">
+      <nav class="glossary-navigation" :aria-label="t('glossary.title')">
+        <button v-for="item in sections" :key="item.id" type="button" :aria-pressed="section === item.id" @click="section = item.id"><UiIcon :name="item.icon" :size="16" />{{ t(item.label) }}<span v-if="item.id === 'libraries'" class="glossary-count">{{ libraries.length }}</span></button>
+      </nav>
       <div class="glossary-actions">
-        <button type="button" :disabled="busy || !ready" @click="openImport">{{ t('glossary.import') }}</button>
-        <button type="button" class="primary" :disabled="busy || !ready || libraries.length >= GLOSSARY_LIMITS.libraries" @click="addLibrary">{{ t('glossary.newLibrary') }}</button>
+        <button type="button" :disabled="busy || !ready || atLibraryLimit" @click="openImport">{{ t('glossary.import') }}</button>
+        <button type="button" class="primary" :disabled="busy || !ready || atLibraryLimit" @click="addLibrary"><UiIcon name="plus" :size="16" />{{ t('glossary.newLibrary') }}</button>
       </div>
     </div>
-    <div v-if="!libraries.length" class="glossary-card glossary-empty">
-      <span aria-hidden="true"><UiIcon name="glossary" :size="28" /></span><h3>{{ t('glossary.emptyTitle') }}</h3>
-      <p>{{ t('glossary.emptyHelp') }}</p><code>large language model → 大语言模型<br />FluentRead → FluentRead</code>
-    </div>
-    <div v-else class="glossary-workbench">
-      <aside class="glossary-card glossary-libraries" :aria-label="t('glossary.libraries')">
-        <div v-for="(library, index) in libraries" :key="library.id" class="glossary-library-row" :class="{selected: selectedId === library.id}">
-          <button type="button" class="glossary-library-name" :aria-pressed="selectedId === library.id" @click="selectLibrary(library.id)">
-            <strong>{{ library.name }}</strong><small>{{ t('glossary.entryCount', {count: library.entries.length}) }} · {{ library.enabled ? t('glossary.on') : t('glossary.off') }}</small>
-          </button>
-          <div class="glossary-library-order">
-            <button type="button" :aria-label="t('glossary.moveUp', {name: library.name})" :disabled="busy || index === 0" @click="moveLibrary(index, -1)">↑</button>
-            <button type="button" :aria-label="t('glossary.moveDown', {name: library.name})" :disabled="busy || index === libraries.length - 1" @click="moveLibrary(index, 1)">↓</button>
-          </div>
+    <p v-if="atLibraryLimit" class="glossary-warning">{{ t('glossary.capacity') }}</p>
+
+    <div v-show="section === 'libraries'">
+      <div v-if="!libraries.length" class="glossary-card glossary-empty">
+        <div class="glossary-empty-copy"><span class="glossary-empty-icon"><UiIcon name="glossary" :size="26" /></span><h3>{{ t('glossary.emptyTitle') }}</h3><p class="glossary-help">{{ t('glossary.emptyHelp') }}</p>
+          <button type="button" class="primary" @click="section = 'builtins'">{{ t('glossary.browseBuiltins') }}<UiIcon name="arrow-right" :size="16" /></button>
         </div>
-        <p class="glossary-help">{{ t('glossary.priority') }}</p>
-      </aside>
-      <section v-if="selected" :key="`${selected.id}-${viewRevision}`" class="glossary-card glossary-editor" :aria-label="t('glossary.librarySettings')">
-        <fieldset :disabled="!ready">
-          <div class="glossary-metadata">
-            <label class="glossary-wide">{{ t('glossary.name') }}<input :value="metadataValue('name')" :maxlength="GLOSSARY_LIMITS.nameLength" @input="editMetadata('name', $event)" @change="updateName" /></label>
-            <label>{{ t('glossary.sourceLanguage') }}<ElSelect class="glossary-select"  :model-value="selected.sourceLanguage" :aria-label="t('glossary.sourceLanguage')" @change="updateLanguage('sourceLanguage', $event)" filterable>
-              <ElOption value="" :label="t('glossary.anyLanguage')" /><ElOption v-for="item in languageOptions(selected.sourceLanguage)" :key="item.value" :value="item.value" :label="item.label" />
-            </ElSelect></label>
-            <label>{{ t('glossary.targetLanguage') }}<ElSelect class="glossary-select"  :model-value="selected.targetLanguage" :aria-label="t('glossary.targetLanguage')" @change="updateLanguage('targetLanguage', $event)" filterable>
-              <ElOption value="" :label="t('glossary.anyLanguage')" /><ElOption v-for="item in languageOptions(selected.targetLanguage)" :key="item.value" :value="item.value" :label="item.label" />
-            </ElSelect></label>
-            <label class="glossary-wide">{{ t('glossary.domains') }}<textarea rows="2" :value="metadataValue('domains')" :aria-label="t('glossary.domains')" :placeholder="t('glossary.domainsPlaceholder')" @input="editMetadata('domains', $event)" @change="updateDomains" /><small>{{ t('glossary.domainsHelp') }}</small></label>
+        <div class="glossary-examples"><div><span>large language model</span><UiIcon name="arrow-right" :size="16" /><strong>大语言模型</strong></div><div><span>FluentRead</span><UiIcon name="arrow-right" :size="16" /><strong>FluentRead <small>{{ t('glossary.keepOriginal') }}</small></strong></div></div>
+      </div>
+      <div v-else class="glossary-workbench">
+        <aside class="glossary-card glossary-libraries" :class="{'is-expanded': mobileLibrariesOpen}" :aria-label="t('glossary.libraries')">
+          <button type="button" class="glossary-mobile-picker" :aria-label="t('glossary.selection')" :aria-expanded="mobileLibrariesOpen" @click="mobileLibrariesOpen = !mobileLibrariesOpen"><UiIcon name="glossary" :size="18" /><span>{{ selected?.name }}<small>{{ t('glossary.libraries') }} · {{ libraries.length }}</small></span><UiIcon name="chevron-down" :size="16" /></button>
+          <div class="glossary-library-list">
+          <div class="glossary-list-heading"><strong>{{ t('glossary.libraries') }}</strong><small>{{ libraries.length }}/{{ GLOSSARY_LIMITS.libraries }}</small></div>
+          <div v-for="(library, index) in libraries" :key="library.id" class="glossary-library-row" :class="{selected: selectedId === library.id}">
+            <button type="button" class="glossary-library-name" :aria-pressed="selectedId === library.id" @click="selectLibrary(library.id)">
+              <strong>{{ library.name }}</strong><small>{{ t('glossary.entryCount', {count: library.entries.length}) }} · {{ t(!library.enabled ? 'glossary.off' : !enabled ? 'glossary.masterPaused' : 'glossary.on') }}</small>
+            </button>
+            <div class="glossary-library-order">
+              <button type="button" :aria-label="t('glossary.moveUp', {name: library.name})" :disabled="busy || index === 0" @click="moveLibrary(index, -1)">↑</button>
+              <button type="button" :aria-label="t('glossary.moveDown', {name: library.name})" :disabled="busy || index === libraries.length - 1" @click="moveLibrary(index, 1)">↓</button>
+            </div>
           </div>
-          <div class="glossary-toolbar">
-            <label class="glossary-check"><input type="checkbox" :checked="selected.enabled" @change="patchLibrary({enabled: ($event.target as HTMLInputElement).checked})" />{{ t('glossary.libraryEnabled') }}</label>
-            <div class="glossary-actions"><ElSelect class="glossary-select"  v-model="exportFormat" :aria-label="t('glossary.exportFormat')"><ElOption label="CSV" :value="'CSV'" /><ElOption label="TSV" :value="'TSV'" /><ElOption label="JSON" :value="'JSON'" /></ElSelect><button type="button" @click="downloadLibrary">{{ t('glossary.export') }}</button><button type="button" class="danger" @click="deleteLibrary">{{ t('glossary.deleteLibrary') }}</button></div>
+          <p class="glossary-help">{{ t('glossary.priority') }}</p>
           </div>
-        </fieldset>
-        <div class="glossary-entry-toolbar">
-          <input v-model="query" type="search" :aria-label="t('glossary.search')" :placeholder="t('glossary.search')" />
-          <button type="button" :disabled="!ready || selected.entries.length >= GLOSSARY_LIMITS.entriesPerLibrary" @click="editEntry()">{{ t('glossary.addEntry') }}</button>
-        </div>
-        <form v-if="entryDraft" class="glossary-entry-form" @submit.prevent="saveEntry">
-          <label>{{ t('glossary.source') }}<input v-model="entryDraft.source" required :maxlength="GLOSSARY_LIMITS.termLength" /></label>
-          <label>{{ t('glossary.target') }}<input v-model="entryDraft.target" :maxlength="GLOSSARY_LIMITS.termLength" :placeholder="t('glossary.keepOriginal')" /></label>
-          <label class="glossary-check"><input v-model="entryDraft.caseSensitive" type="checkbox" />{{ t('glossary.caseSensitive') }}</label>
-          <small v-if="duplicateEntry" class="glossary-warning">{{ t('glossary.duplicateHelp') }}</small>
-          <div class="glossary-actions"><button type="button" @click="entryDraft = null">{{ t('common.cancel') }}</button><button type="submit" class="primary" :disabled="busy">{{ t('common.save') }}</button></div>
-        </form>
-        <div class="glossary-table-scroll">
-          <table class="glossary-table"><thead><tr><th>{{ t('glossary.source') }}</th><th>{{ t('glossary.target') }}</th><th>{{ t('glossary.actions') }}</th></tr></thead>
-            <tbody><tr v-for="entry in visibleEntries" :key="entry.id"><td><span>{{ entry.source }}</span><small v-if="entry.caseSensitive">Aa</small></td><td>{{ entry.target || t('glossary.keepOriginal') }}</td><td><div class="glossary-actions"><button type="button" :disabled="busy" :aria-label="t('glossary.editNamed', {name: entry.source})" @click="editEntry(entry)">{{ t('glossary.edit') }}</button><button type="button" :disabled="busy" :aria-label="t('glossary.deleteNamed', {name: entry.source})" @click="deleteEntry(entry)">{{ t('glossary.delete') }}</button></div></td></tr>
-            <tr v-if="!filteredEntries.length"><td colspan="3" class="glossary-no-results">{{ query ? t('glossary.noResults') : t('glossary.noEntries') }}</td></tr></tbody>
-          </table>
-        </div>
-        <div v-if="filteredEntries.length > PAGE_SIZE" class="glossary-pagination"><button type="button" :aria-label="t('glossary.previousPage')" :disabled="entryPage === 0" @click="entryPage--">←</button><span>{{ entryPage + 1 }}/{{ Math.ceil(filteredEntries.length / PAGE_SIZE) }}</span><button type="button" :aria-label="t('glossary.nextPage')" :disabled="(entryPage + 1) * PAGE_SIZE >= filteredEntries.length" @click="entryPage++">→</button></div>
-      </section>
+        </aside>
+        <section v-if="selected" :key="`${selected.id}-${viewRevision}`" class="glossary-card glossary-editor" :aria-label="t('glossary.librarySettings')">
+          <header class="glossary-editor-heading">
+            <div><h3>{{ selected.name }}</h3><p class="glossary-help">{{ languageLabel(selected.sourceLanguage) }} → {{ languageLabel(selected.targetLanguage) }} · {{ selected.domains.length ? t('glossary.websiteCount', {count: selected.domains.length}) : t('glossary.allWebsites') }}</p></div>
+            <label class="glossary-check"><input type="checkbox" :disabled="busy || !ready" :checked="selected.enabled" @change="patchLibrary({enabled: ($event.target as HTMLInputElement).checked})" />{{ t('glossary.libraryEnabled') }}</label>
+          </header>
+          <details class="glossary-settings-details" :open="settingsOpen" @toggle="settingsOpen = ($event.target as HTMLDetailsElement).open">
+            <summary><UiIcon name="sliders" :size="16" />{{ t('glossary.librarySettings') }}<span>{{ t('glossary.settingsSummary') }}</span></summary>
+            <fieldset :disabled="!ready">
+              <div class="glossary-metadata">
+                <label class="glossary-wide">{{ t('glossary.name') }}<input ref="nameInput" :value="metadataValue('name')" :maxlength="GLOSSARY_LIMITS.nameLength" @input="editMetadata('name', $event)" @change="updateName" /></label>
+                <label>{{ t('glossary.sourceLanguage') }}<ElSelect class="glossary-select" :empty-values="[null, undefined]" :model-value="selected.sourceLanguage" :aria-label="t('glossary.sourceLanguage')" @change="updateLanguage('sourceLanguage', $event)" filterable>
+                  <ElOption value="" :label="t('glossary.anyLanguage')" /><ElOption v-for="item in languageOptions(selected.sourceLanguage)" :key="item.value" :value="item.value" :label="item.label" />
+                </ElSelect></label>
+                <label>{{ t('glossary.targetLanguage') }}<ElSelect class="glossary-select" :empty-values="[null, undefined]" :model-value="selected.targetLanguage" :aria-label="t('glossary.targetLanguage')" @change="updateLanguage('targetLanguage', $event)" filterable>
+                  <ElOption value="" :label="t('glossary.anyLanguage')" /><ElOption v-for="item in languageOptions(selected.targetLanguage)" :key="item.value" :value="item.value" :label="item.label" />
+                </ElSelect></label>
+                <label class="glossary-wide">{{ t('glossary.domains') }}<textarea rows="2" :value="metadataValue('domains')" :aria-label="t('glossary.domains')" :placeholder="t('glossary.domainsPlaceholder')" @input="editMetadata('domains', $event)" @change="updateDomains" /><small>{{ t('glossary.domainsHelp') }}</small></label>
+              </div>
+              <div class="glossary-toolbar">
+                <button type="button" class="danger" :disabled="busy" @click="deleteLibrary">{{ t('glossary.deleteLibrary') }}</button>
+                <div class="glossary-actions"><ElSelect class="glossary-select" v-model="exportFormat" :aria-label="t('glossary.exportFormat')"><ElOption label="CSV" value="CSV" /><ElOption label="TSV" value="TSV" /><ElOption label="JSON" value="JSON" /></ElSelect><button type="button" @click="downloadLibrary">{{ t('glossary.export') }}</button></div>
+              </div>
+            </fieldset>
+          </details>
+          <div class="glossary-entry-toolbar">
+            <div class="glossary-search"><UiIcon name="search" :size="17" /><input v-model="query" type="search" :aria-label="t('glossary.search')" :placeholder="t('glossary.search')" /></div>
+            <button type="button" :disabled="!ready || busy || atEntryLimit" @click="editEntry()"><UiIcon name="plus" :size="15" />{{ t('glossary.addEntry') }}</button>
+          </div>
+          <p v-if="atEntryLimit" class="glossary-warning">{{ t('glossary.capacity') }}</p>
+          <form v-if="entryDraft" class="glossary-entry-form" @submit.prevent="saveEntry">
+            <div class="glossary-form-heading"><strong>{{ t(selected.entries.some(entry => entry.id === entryDraft?.id) ? 'glossary.edit' : 'glossary.addEntry') }}</strong><small>{{ t('glossary.draftHint') }}</small></div>
+            <label>{{ t('glossary.source') }}<input ref="sourceInput" v-model="entryDraft.source" required :maxlength="GLOSSARY_LIMITS.termLength" placeholder="large language model" /></label>
+            <label>{{ t('glossary.target') }}<input v-model="entryDraft.target" :aria-label="t('glossary.target')" aria-describedby="glossary-target-help" :maxlength="GLOSSARY_LIMITS.termLength" :placeholder="t('glossary.keepOriginal')" /><small id="glossary-target-help">{{ t('glossary.blankTarget') }}</small></label>
+            <label class="glossary-check"><input v-model="entryDraft.caseSensitive" type="checkbox" />{{ t('glossary.caseSensitive') }}</label>
+            <div v-if="duplicateEntry" class="glossary-warning glossary-wide" role="status">{{ t('glossary.duplicateHelp') }} <button type="button" @click="editEntry(duplicateEntry)">{{ t('glossary.editExisting') }}</button></div>
+            <div class="glossary-actions glossary-wide"><button type="button" @click="cancelEntry">{{ t('common.cancel') }}</button><button type="submit" class="primary" :disabled="busy || Boolean(duplicateEntry) || !entryDraft.source.trim()">{{ t('common.save') }}</button></div>
+          </form>
+          <div class="glossary-table-scroll">
+            <table class="glossary-table"><thead><tr><th>{{ t('glossary.source') }}</th><th>{{ t('glossary.target') }}</th><th>{{ t('glossary.actions') }}</th></tr></thead>
+              <tbody><tr v-for="entry in visibleEntries" :key="entry.id"><td><span>{{ entry.source }}</span><small v-if="entry.caseSensitive" :title="t('glossary.caseSensitive')">Aa</small></td><td><span :class="{'glossary-original': !entry.target}">{{ entry.target || t('glossary.keepOriginal') }}</span></td><td><div class="glossary-actions"><button type="button" :disabled="busy" :aria-label="t('glossary.editNamed', {name: entry.source})" @click="editEntry(entry)"><UiIcon name="pen" :size="15" /></button><button type="button" :disabled="busy" :aria-label="t('glossary.deleteNamed', {name: entry.source})" @click="deleteEntry(entry)"><UiIcon name="close" :size="15" /></button></div></td></tr>
+              <tr v-if="!filteredEntries.length"><td colspan="3" class="glossary-no-results"><UiIcon :name="query ? 'search' : 'glossary'" :size="24" /><p>{{ query ? t('glossary.noResults') : t('glossary.noEntries') }}</p><button v-if="query" type="button" @click="query = ''">{{ t('glossary.clearSearch') }}</button></td></tr></tbody>
+            </table>
+          </div>
+          <footer class="glossary-editor-footer"><small>{{ t('glossary.entryCount', {count: filteredEntries.length}) }}</small><div v-if="filteredEntries.length > PAGE_SIZE" class="glossary-pagination"><button type="button" :aria-label="t('glossary.previousPage')" :disabled="entryPage === 0" @click="entryPage--">←</button><span>{{ entryPage + 1 }}/{{ Math.ceil(filteredEntries.length / PAGE_SIZE) }}</span><button type="button" :aria-label="t('glossary.nextPage')" :disabled="(entryPage + 1) * PAGE_SIZE >= filteredEntries.length" @click="entryPage++">→</button></div><button type="button" class="glossary-text-button" @click="section = 'preview'">{{ t('glossary.preview') }}<UiIcon name="arrow-right" :size="14" /></button></footer>
+        </section>
+      </div>
     </div>
 
-    <BuiltinGlossaries :libraries="libraries" :enabled="enabled" :disabled="busy || !ready" @add="addBuiltin" />
+    <BuiltinGlossaries v-show="section === 'builtins'" :libraries="libraries" :disabled="busy || !ready" @add="addBuiltin" />
 
-    <section class="glossary-card glossary-preview">
+    <section v-show="section === 'preview'" class="glossary-card glossary-preview">
       <h3>{{ t('glossary.preview') }}</h3><p class="glossary-help">{{ t('glossary.previewHelp') }}</p>
       <label>{{ t('glossary.previewText') }}<textarea v-model="previewText" rows="3" placeholder="FluentRead uses a large language model." /></label>
       <div class="glossary-preview-context">
-        <label>{{ t('glossary.sourceLanguage') }}<ElSelect class="glossary-select"  v-model="previewSource" :aria-label="t('glossary.sourceLanguage')" filterable><ElOption value="" :label="t('glossary.autoLanguage')" /><ElOption v-for="item in languageOptions(previewSource)" :key="item.value" :value="item.value" :label="item.label" /></ElSelect></label>
-        <label>{{ t('glossary.targetLanguage') }}<ElSelect class="glossary-select"  v-model="previewTarget" :aria-label="t('glossary.targetLanguage')" filterable><ElOption v-for="item in languageOptions(previewTarget)" :key="item.value" :value="item.value" :label="item.label" /></ElSelect></label>
+        <label>{{ t('glossary.sourceLanguage') }}<ElSelect class="glossary-select" :empty-values="[null, undefined]" v-model="previewSource" :aria-label="t('glossary.sourceLanguage')" filterable><ElOption value="" :label="t('glossary.autoLanguage')" /><ElOption v-for="item in languageOptions(previewSource)" :key="item.value" :value="item.value" :label="item.label" /></ElSelect></label>
+        <label>{{ t('glossary.targetLanguage') }}<ElSelect class="glossary-select" v-model="previewTarget" :aria-label="t('glossary.targetLanguage')" filterable><ElOption v-for="item in languageOptions(previewTarget)" :key="item.value" :value="item.value" :label="item.label" /></ElSelect></label>
         <label>{{ t('glossary.previewUrl') }}<input v-model="previewUrl" type="url" placeholder="https://example.com/article" /></label>
       </div>
-      <p v-if="!enabled" class="glossary-warning">{{ t('glossary.previewDisabled') }}</p>
+      <p v-if="!enabled" class="glossary-warning glossary-notice">{{ t('glossary.previewDisabled') }}</p>
       <p v-if="previewText && !preview.terms.length" class="glossary-help">{{ t('glossary.noMatches') }}</p>
       <div v-if="preview.terms.length" class="glossary-matches" data-testid="glossary-matches"><span v-for="term in preview.terms" :key="term.source">{{ term.source }} → {{ term.target }}</span></div>
-      <div v-if="preview.conflicts.length" class="glossary-warning" role="status"><strong>{{ t('glossary.conflicts') }}</strong><p v-for="(conflict, index) in preview.conflicts" :key="index">{{ t('glossary.conflict', {source: conflict.source, kept: conflict.keptTarget, ignored: conflict.ignoredTarget}) }}</p></div>
+      <div v-if="preview.conflicts.length" class="glossary-warning glossary-notice" role="status"><strong>{{ t('glossary.conflicts') }}</strong><p v-for="(conflict, index) in preview.conflicts" :key="index">{{ t('glossary.conflict', {source: conflict.source, kept: conflict.keptTarget, ignored: conflict.ignoredTarget}) }}</p></div>
+      <div class="glossary-diagnostics" v-if="libraries.length"><div v-for="item in previewLibraries" :key="item.library.id"><button type="button" class="glossary-text-button" @click="selectLibrary(item.library.id)">{{ item.library.name }}</button><span :class="{'glossary-help': item.reason === 'eligible', 'glossary-warning': item.reason !== 'eligible'}">{{ t(`glossary.reason.${item.reason}`) }}</span></div></div>
+      <details class="glossary-service-help"><summary>{{ t('glossary.serviceDetails') }}</summary><p class="glossary-help">{{ t('glossary.services') }}</p></details>
     </section>
 
     <el-dialog v-model="importOpen" :title="t('glossary.import')" width="min(720px, calc(100vw - 28px))" :close-on-click-modal="false" class="glossary-import-dialog">
@@ -115,21 +140,39 @@ import ElSelect from '@/src/ui/components/UiSelect.vue';
 import {ElOption} from 'element-plus';
 import 'element-plus/es/components/select/style/css';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
-import {computed, onBeforeUnmount, ref, watch} from 'vue';
+import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue';
 import {ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
 import {config, configReady, requestConfigPatch, subscribeConfig} from '@/src/services/config/store';
 import {getMultilingualTargetLanguageLabel, options} from '@/src/core/config/catalog';
 import {GLOSSARY_LIMITS, createGlossaryEntry, createGlossaryLibrary, normalizeGlossaryDomain,
-  normalizeGlossaryLibraries, resolveGlossary, parseGlossaryImport, exportGlossary,
+  normalizeGlossaryLibraries, resolveGlossary, getGlossaryScopeReason, glossarySourcesOverlap, parseGlossaryImport, exportGlossary,
   decodeGlossaryText, type GlossaryEntry, type GlossaryLibrary, type GlossaryImportFormat} from '@/src/core/glossary';
 import {useUiI18n} from '@/src/ui/i18n';
 import {addBuiltinGlossary, BUILTIN_GLOSSARIES} from '@/src/core/glossary/builtins';
 import BuiltinGlossaries from './BuiltinGlossaries.vue';
+import {normalizeGlossaryLanguage, cleanGlossaryText} from '@/src/core/glossary/model';
+import {supportsTranslationGlossary} from '@/src/services/translation/capabilities';
 
 const {t, language} = useUiI18n();
 const libraries = ref<GlossaryLibrary[]>([]);
 const enabled = ref(false);
+const serviceSupported = ref(false);
+const section = ref<'libraries' | 'builtins' | 'preview'>('libraries');
+const sections = [
+  {id: 'libraries', label: 'glossary.libraries', icon: 'glossary'},
+  {id: 'builtins', label: 'glossary.builtin.title', icon: 'book'},
+  {id: 'preview', label: 'glossary.preview', icon: 'search'},
+] as const;
+const settingsOpen = ref(false);
+const mobileLibrariesOpen = ref(false);
+const sourceInput = ref<HTMLInputElement>();
+const nameInput = ref<HTMLInputElement>();
+const entryDrafts = new Map<string, GlossaryEntry>();
+const entryDraftOrigins = new Map<string, string>();
+const atLibraryLimit = computed(() => libraries.value.length >= GLOSSARY_LIMITS.libraries);
+const atEntryLimit = computed(() => (selected.value?.entries.length || 0) >= GLOSSARY_LIMITS.entriesPerLibrary
+  || libraries.value.reduce((count, library) => count + library.entries.length, 0) >= GLOSSARY_LIMITS.totalEntries);
 const selectedId = ref('');
 const ready = ref(false);
 const busy = ref(false);
@@ -149,17 +192,25 @@ let pendingSaves = 0;
 let saveQueue: Promise<unknown> = Promise.resolve();
 let fileReadGeneration = 0;
 const selected = computed(() => libraries.value.find(item => item.id === selectedId.value));
-const filteredEntries = computed(() => (selected.value?.entries || []).filter(entry => `${entry.source}\n${entry.target}`.toLocaleLowerCase().includes(query.value.toLocaleLowerCase())));
+const filteredEntries = computed(() => (selected.value?.entries || []).filter(entry => `${entry.source}\n${entry.target}`.toLocaleLowerCase().includes(query.value.trim().toLocaleLowerCase())));
 const visibleEntries = computed(() => filteredEntries.value.slice(entryPage.value * PAGE_SIZE, (entryPage.value + 1) * PAGE_SIZE));
-const duplicateEntry = computed(() => entryDraft.value && selected.value?.entries.some(entry => entry.id !== entryDraft.value!.id && entry.source.toLowerCase() === entryDraft.value!.source.trim().toLowerCase()));
+const duplicateEntry = computed(() => entryDraft.value && selected.value?.entries.find(entry => entry.id !== entryDraft.value!.id && glossarySourcesOverlap(entry, entryDraft.value!)));
+const entryDirty = computed(() => {
+  if (!entryDraft.value) return false;
+  const original = selected.value?.entries.find(entry => entry.id === entryDraft.value!.id);
+  return original ? JSON.stringify(original) !== JSON.stringify(entryDraft.value)
+    : Boolean(entryDraft.value.source || entryDraft.value.target || entryDraft.value.caseSensitive);
+});
 watch([query, selectedId, () => filteredEntries.value.length], () => {entryPage.value = 0;});
 
 function hydrate(next = config): void {
   const previousId = selectedId.value;
   libraries.value = normalizeGlossaryLibraries(next.glossaryLibraries);
   enabled.value = next.glossaryEnabled;
+  serviceSupported.value = supportsTranslationGlossary(next.service || '', next.model?.[next.service] || '');
+  for (const id of entryDrafts.keys()) if (!libraries.value.some(item => item.id === id)) {entryDrafts.delete(id); entryDraftOrigins.delete(id);}
   if (!libraries.value.some(item => item.id === selectedId.value)) selectedId.value = libraries.value[0]?.id || '';
-  if (selectedId.value !== previousId) metadataDrafts.value = {};
+  if (selectedId.value !== previousId) {metadataDrafts.value = {}; entryDraft.value = entryDrafts.get(selectedId.value) || null;}
 }
 const unsubscribe = subscribeConfig(next => {if (!disposed) hydrate(next);});
 void configReady.then(() => {if (!disposed) {hydrate(); ready.value = true;}}).catch(() => {if (!disposed) error.value = t('glossary.loadFailed');});
@@ -183,11 +234,25 @@ function persist(patch: GlossaryPatch | (() => GlossaryPatch)): Promise<boolean>
   return operation;
 }
 function setEnabled(value: boolean): void {void persist({glossaryEnabled: value});}
-function selectLibrary(id: string): void {selectedId.value = id; entryDraft.value = null; metadataDrafts.value = {}; query.value = '';}
+function selectLibrary(id: string): void {
+  section.value = 'libraries'; mobileLibrariesOpen.value = false;
+  if (id === selectedId.value) return;
+  if (entryDraft.value) entryDrafts.set(selectedId.value, entryDraft.value);
+  selectedId.value = id; entryDraft.value = entryDrafts.get(id) || null; metadataDrafts.value = {}; query.value = ''; settingsOpen.value = false;
+}
 async function addLibrary(): Promise<void> {
+  if (busy.value || !ready.value) return;
+  if (atLibraryLimit.value) {error.value = t('glossary.capacity'); return;}
   const library = createGlossaryLibrary(libraries.value);
-  library.name = t('glossary.newName');
-  if (await persist({glossaryLibraries: [...libraries.value, library]})) selectLibrary(library.id);
+  const base = t('glossary.newName');
+  let name = base; let suffix = 2;
+  while (libraries.value.some(item => item.name === name)) name = `${base} ${suffix++}`;
+  library.name = name;
+  library.targetLanguage = normalizeGlossaryLanguage(config.to);
+  if (await persist({glossaryLibraries: [...libraries.value, library]})) {
+    selectLibrary(library.id); settingsOpen.value = true;
+    await nextTick(); nameInput.value?.focus(); nameInput.value?.select();
+  }
 }
 async function addBuiltin(id: string): Promise<void> {
   if (busy.value || !ready.value) return;
@@ -239,6 +304,7 @@ function languageOptions(current: string): {value: string; label: string}[] {
   return values;
 }
 function moveLibrary(index: number, direction: number): void {
+  if (busy.value || index < 0 || index >= libraries.value.length || index + direction < 0 || index + direction >= libraries.value.length) return;
   const next = [...libraries.value];
   [next[index], next[index + direction]] = [next[index + direction], next[index]];
   void persist({glossaryLibraries: next});
@@ -250,22 +316,59 @@ async function deleteLibrary(): Promise<void> {
   const library = selected.value;
   if (library && await confirmDeletion(library.name)) await persist(() => ({glossaryLibraries: libraries.value.filter(item => item.id !== library.id)}));
 }
-function editEntry(entry?: GlossaryEntry): void {entryDraft.value = entry ? {...entry} : createGlossaryEntry(selected.value?.entries || []);}
+async function editEntry(entry?: GlossaryEntry): Promise<void> {
+  const libraryId = selectedId.value;
+  if (entry && entryDraft.value?.id === entry.id) {sourceInput.value?.focus(); return;}
+  if (entryDirty.value && entryDraft.value?.id !== entry?.id) {
+    try {await ElMessageBox.confirm(t('glossary.discardDraft'), t('glossary.edit'), {confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel')});} catch {return;}
+  }
+  if (selectedId.value !== libraryId) return;
+  entryDraft.value = entry ? {...entry} : createGlossaryEntry(selected.value?.entries || []);
+  if (entry) entryDraftOrigins.set(libraryId, entry.id);
+  else entryDraftOrigins.delete(libraryId);
+  await nextTick(); sourceInput.value?.focus();
+}
+function cancelEntry(): void {entryDrafts.delete(selectedId.value); entryDraftOrigins.delete(selectedId.value); entryDraft.value = null;}
 async function saveEntry(): Promise<void> {
   const library = selected.value; const draft = entryDraft.value;
-  if (!library || !draft) return;
+  if (!library || !draft || busy.value) return;
   const submittedDraft = {...draft};
-  const source = submittedDraft.source.trim();
+  const source = cleanGlossaryText(submittedDraft.source);
   if (!source) {error.value = t('glossary.sourceRequired'); return;}
-  const entry = {...submittedDraft, source, target: submittedDraft.target.trim()};
-  const existing = library.entries.some(item => item.id === entry.id);
-  const entries = existing ? library.entries.map(item => item.id === entry.id ? entry : item) : [...library.entries, entry];
-  if (entries.length > GLOSSARY_LIMITS.entriesPerLibrary || libraries.value.reduce((total, item) => total + (item.id === library.id ? entries.length : item.entries.length), 0) > GLOSSARY_LIMITS.totalEntries) {error.value = t('glossary.capacity'); return;}
-  // 保存期间仍可继续编辑；旧回执只能清空内容未变化的同一份草稿。
-  if (await patchLibrary({entries}) && entryDraft.value === draft
-    && draft.id === submittedDraft.id && draft.source === submittedDraft.source
-    && draft.target === submittedDraft.target && draft.caseSensitive === submittedDraft.caseSensitive) entryDraft.value = null;
+  if (duplicateEntry.value) {error.value = t('glossary.duplicateHelp'); return;}
+  const entry = {...submittedDraft, source, target: cleanGlossaryText(submittedDraft.target)};
+  const editing = entryDraftOrigins.get(library.id) === entry.id;
+  let validationError = '';
+  // 队列执行时合并最新词条列表，避免旧快照覆盖同时到达的修改或让已删除的词条复活。
+  const success = await persist(() => {
+    const current = libraries.value.find(item => item.id === library.id);
+    if (!current || (editing && !current.entries.some(item => item.id === entry.id))) {
+      validationError = t('glossary.entryChanged'); throw new Error('stale entry');
+    }
+    if (current.entries.some(item => (!editing || item.id !== entry.id) && glossarySourcesOverlap(item, entry))) {
+      validationError = t('glossary.duplicateHelp'); throw new Error('duplicate entry');
+    }
+    if (!editing && current.entries.some(item => item.id === entry.id)) entry.id = createGlossaryEntry(current.entries).id;
+    const entries = editing ? current.entries.map(item => item.id === entry.id ? entry : item) : [...current.entries, entry];
+    if (entries.length > GLOSSARY_LIMITS.entriesPerLibrary || libraries.value.reduce((total, item) => total + (item.id === library.id ? entries.length : item.entries.length), 0) > GLOSSARY_LIMITS.totalEntries) {
+      validationError = t('glossary.capacity'); throw new Error('capacity');
+    }
+    return {glossaryLibraries: libraries.value.map(item => item.id === library.id ? {...item, entries} : item)};
+  });
+  if (validationError) error.value = validationError;
+  if (success) {
+    draft.id = entry.id;
+    // 保存成功但仍继续输入时，下一次保存必须更新同一词条。
+    if (entryDraft.value === draft || entryDrafts.get(library.id) === draft) entryDraftOrigins.set(library.id, entry.id);
+    if (draft.source === submittedDraft.source && draft.target === submittedDraft.target && draft.caseSensitive === submittedDraft.caseSensitive) {
+      if (entryDraft.value === draft || entryDrafts.get(library.id) === draft) entryDraftOrigins.delete(library.id);
+      if (entryDraft.value === draft) entryDraft.value = null;
+      if (entryDrafts.get(library.id) === draft) entryDrafts.delete(library.id);
+    }
+  }
 }
+function languageLabel(value: string): string {return value ? languageOptions(value).find(item => item.value === value)?.label || value : t('glossary.anyLanguage');}
+
 async function deleteEntry(entry: GlossaryEntry): Promise<void> {
   const libraryId = selected.value?.id;
   if (libraryId && await confirmDeletion(entry.source)) await persist(() => ({glossaryLibraries: libraries.value.map(library => library.id === libraryId ? {...library, entries: library.entries.filter(item => item.id !== entry.id)} : library)}));
@@ -281,10 +384,12 @@ function downloadLibrary(): void {
 }
 
 const previewText = ref('');
-const previewSource = ref('en');
+const previewSource = ref('');
 const previewTarget = ref(config.to.toLowerCase());
 const previewUrl = ref('');
-const preview = computed(() => resolveGlossary(libraries.value, {text: previewText.value, sourceLanguage: previewSource.value, targetLanguage: previewTarget.value, pageUrl: previewUrl.value}));
+const previewContext = computed(() => ({text: previewText.value, sourceLanguage: previewSource.value, targetLanguage: previewTarget.value, pageUrl: previewUrl.value}));
+const preview = computed(() => resolveGlossary(libraries.value, previewContext.value));
+const previewLibraries = computed(() => libraries.value.map(library => ({library, reason: getGlossaryScopeReason(library, previewContext.value)})));
 
 const importOpen = ref(false);
 const importText = ref('');
@@ -317,7 +422,7 @@ async function readImportFile(event: Event): Promise<void> {
   if (!disposed && generation === fileReadGeneration) input.value = '';
 }
 async function confirmImport(): Promise<void> {
-  if (!canImport.value) return;
+  if (!canImport.value || busy.value) return;
   const next = [...libraries.value];
   let firstId = '';
   for (const imported of importPreview.value.libraries) {
