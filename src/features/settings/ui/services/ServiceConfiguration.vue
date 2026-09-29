@@ -1,6 +1,6 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
- * 文件职责：渲染当前翻译服务的详细连接配置，按连接配置、翻译偏好、请求设置和自定义请求分组显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体和请求头等字段，以及服务和模型的独立请求限制。
+ * 文件职责：渲染当前翻译服务的详细连接配置，按常用连接字段、就近的密钥管理和独立折叠的模型偏好、提示词、请求限制、接口兼容显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体和请求头等字段，以及服务和模型的独立请求限制。
  * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，展示 DeepLX 完整地址与 Token 示例，将成对密钥的 ID 编辑同步到 apiKeys 和兼容 token，管理所有服务可空 Key 发起的连接检查、配置与消息等待超时、Chrome 当前语言对的点击准备及进度，并通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
@@ -47,7 +47,8 @@
     </section>
     </Teleport>
     <section v-if="service !== services.freeTranslation && service !== services.localTranslation" class="connection-card" data-configuration-group="connection">
-      <header class="configuration-group-heading"><h5>连接配置</h5></header>
+      <p v-if="service === services.microsoft || service === services.google" class="configuration-scope">{{ t('settings.organization.noSetup') }}</p>
+      <header v-else class="configuration-group-heading"><h5>{{ t('settings.organization.connection') }}</h5></header>
     <template v-if="service === services.myMemory">
       <div class="connection-field" data-mymemory-email>
         <div class="connection-field-label"><strong>联系邮箱（可选）</strong><small>不填写也可以使用</small></div>
@@ -291,31 +292,9 @@
       :connection-state="standaloneApiKeyCheck" :check-mode="apiKeyCheckMode"
       @add="addApiKey" @update="updateApiKey" @remove="removeApiKey" @test="testSingleApiKey"
     />
-    <p v-if="service === services.deeplx && deepLXRequiresToken && !apiKeyIndexes.length" class="field-warning" data-deeplx-key-required role="status">{{ deepLXTokenHelp }}</p>
-
-    <div
-      v-if="connectionTestMessage && (!compute.showToken || compute.showServiceSecret)"
-      class="connection-test-result"
-      :class="`is-${connectionTestState}`"
-      data-connection-test-status
-      role="status"
-      aria-live="polite"
-    >
-      <strong>{{ connectionTestTitle }}</strong>
-      <span>{{ connectionTestMessage }}</span>
-      <details v-if="connectionTestDetails" class="connection-test-details">
-        <summary>{{ t('settings.services.chromePreparation.errorDetailsSummary') }}</summary>
-        <code>{{ connectionTestDetails }}</code>
-      </details>
-    </div>
-    </section>
-
-    <details v-if="service !== services.localTranslation" :key="service + '-advanced-settings'" class="custom-advanced-settings" data-configuration-group="advanced" data-testid="custom-service-advanced">
-      <summary><strong>高级设置</strong><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
-      <div class="advanced-groups">
-    <section :key="service + '-keys'" v-if="compute.showToken && !compute.showServiceSecret" class="advanced-group" data-configuration-group="keys" >
-      <header class="advanced-group-heading"><span class="advanced-summary-copy"><strong>密钥与认证</strong><small>管理多 Key 轮换与验证方式</small></span></header>
-      <div class="custom-advanced-content">
+    <details v-if="compute.showToken && !compute.showServiceSecret" :key="service + '-keys'" id="service-keys-settings" class="service-disclosure credential-options" data-configuration-group="keys">
+      <summary><span class="advanced-summary-copy"><strong>{{ t('settings.organization.keys') }}</strong><small>{{ t('settings.organization.keysHelp') }}</small></span><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
+      <div class="disclosure-content">
         <div v-if="compute.showToken && !compute.showServiceSecret" class="connection-field api-key-rotation-setting" data-api-key-rotation-setting>
           <div class="connection-field-label">
             <strong>{{ t('settings.services.keys.multiKeyTitle') }}</strong>
@@ -339,17 +318,39 @@
           </div>
         </div>
       </div>
+    </details>
+    <p v-if="service === services.deeplx && deepLXRequiresToken && !apiKeyIndexes.length" class="field-warning" data-deeplx-key-required role="status">{{ deepLXTokenHelp }}</p>
+
+    <div
+      v-if="connectionTestMessage && (!compute.showToken || compute.showServiceSecret)"
+      class="connection-test-result"
+      :class="`is-${connectionTestState}`"
+      data-connection-test-status
+      role="status"
+      aria-live="polite"
+    >
+      <strong>{{ connectionTestTitle }}</strong>
+      <span>{{ connectionTestMessage }}</span>
+      <details v-if="connectionTestDetails" class="connection-test-details">
+        <summary>{{ t('settings.services.chromePreparation.errorDetailsSummary') }}</summary>
+        <code>{{ connectionTestDetails }}</code>
+      </details>
+    </div>
     </section>
-    <section :key="service + '-translation'" v-if="compute.showAI" class="advanced-group" data-configuration-group="translation" >
-      <header class="advanced-group-heading"><span class="advanced-summary-copy"><strong>翻译偏好</strong><small>调整当前模型的思考、识图与提示词</small></span></header>
-      <div class="custom-advanced-content">
+
+    <div v-if="service !== services.localTranslation" class="service-options-heading"><h5>{{ t('settings.organization.optional') }}</h5><span>{{ t('settings.organization.optionalHelp') }}</span></div>
+    <details v-if="compute.showAI && compute.showModel" :key="service + '-translation'" id="service-translation-settings" class="service-disclosure" data-configuration-group="translation">
+      <summary><span class="advanced-summary-copy"><strong>{{ t('settings.organization.model') }}</strong><small>{{ t('settings.organization.modelHelp') }}</small></span><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
+      <div class="disclosure-content">
+        <p class="configuration-scope">{{ t('settings.organization.modelScope', {model: effectiveModelLabel || t('settings.services.currentModel')}) }}</p>
+
           <div v-if="compute.showModel" class="connection-field" data-testid="model-thinking-control">
             <div class="connection-field-label">
-              <strong>Thinking</strong>
-              <small>{{ effectiveModelLabel || '当前模型' }}</small>
+              <strong>{{ t('settings.organization.thinking') }}</strong>
+              <small>{{ t('settings.organization.thinkingHelp') }}</small>
             </div>
             <div class="connection-field-control model-thinking-setting">
-              <small>默认关闭；仅在已适配接口生效，无法关闭时使用最低档</small>
+
               <el-switch
                 :model-value="selectedModelThinking"
                 :disabled="!effectiveModelLabel"
@@ -362,7 +363,7 @@
           <div v-if="compute.showModel" class="connection-field" data-testid="model-vision-control">
             <div class="connection-field-label">
               <strong>{{ t('settings.services.visionCapability') }}</strong>
-              <small>{{ effectiveModelLabel || t('settings.services.currentModel') }}</small>
+
             </div>
             <div class="connection-field-control model-vision-setting">
               <el-select v-model="visionOverride" data-testid="model-vision-capability" :aria-label="t('settings.services.visionCapability')" :disabled="!supportsVisionTransport(service, effectiveModelLabel)">
@@ -374,6 +375,12 @@
             </div>
           </div>
 
+
+      </div>
+    </details>
+    <details v-if="compute.showAI" :key="service + '-prompts'" id="service-prompts-settings" class="service-disclosure" data-configuration-group="prompts">
+      <summary><span class="advanced-summary-copy"><strong>{{ t('settings.organization.prompts') }}</strong><small>{{ t('settings.organization.promptsHelp') }}</small></span><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
+      <div class="disclosure-content">
           <div class="custom-template-heading">
             <div>
               <strong>请求模板</strong>
@@ -388,21 +395,22 @@
           </div>
 
       </div>
-    </section>
-    <section :key="service + '-requests'" v-if="service !== services.localTranslation" class="advanced-group" data-configuration-group="requests" >
-      <header class="advanced-group-heading"><span class="advanced-summary-copy"><strong>请求设置</strong><small>调整请求频率、等待时间与连接方式</small></span></header>
-      <div class="custom-advanced-content">
+    </details>
+    <details v-if="service !== services.localTranslation" :key="service + '-requests'" id="service-requests-settings" class="service-disclosure" data-configuration-group="requests">
+      <summary><span class="advanced-summary-copy"><strong>{{ t('settings.organization.requests') }}</strong><small>{{ t('settings.organization.requestsHelp') }}</small></span><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
+      <div class="disclosure-content">
         <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="true" />
         <RequestLimitSettings :config="config" :service="service" :model="compute.showModel ? effectiveModelLabel : undefined" />
+
+      </div>
+    </details>
+    <details v-if="compute.showDeepseekApiType || (compute.showAI && compute.showProxy) || compute.showCustomBody || Boolean(customProvider)" :key="service + '-custom-request'" id="service-custom-request-settings" class="service-disclosure" data-configuration-group="custom-request">
+      <summary><span class="advanced-summary-copy"><strong>{{ t('settings.organization.compatibility') }}</strong><small>{{ t('settings.organization.compatibilityHelp') }}</small></span><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
+      <div class="disclosure-content">
         <div v-if="compute.showDeepseekApiType" class="connection-field"><div class="connection-field-label"><strong>API 格式</strong></div><div class="connection-field-control"><el-select v-model="config.deepseekApiType" aria-label="API 格式" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select><p class="provider-field-help">选择 DeepSeek 接口使用的 API 格式。</p></div></div>
 
           <div v-if="compute.showAI && compute.showProxy" class="connection-field"><div class="connection-field-label"><strong>代理地址</strong></div><div class="connection-field-control"><el-input v-model="config.proxy[service]" aria-label="代理地址" placeholder="默认直连自定义接口" /><p class="provider-field-help">可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里。</p></div></div>
 
-      </div>
-    </section>
-    <section :key="service + '-advanced'" v-if="compute.showCustomBody || Boolean(customProvider)" class="advanced-group" data-configuration-group="custom-request">
-      <header class="advanced-group-heading"><span class="advanced-summary-copy"><strong>自定义请求</strong><small>为兼容接口补充请求头或 JSON 参数</small></span></header>
-      <div class="custom-advanced-content">
           <div v-if="customProvider" class="connection-field custom-headers-field" data-testid="custom-service-headers">
             <div class="connection-field-label"><strong>自定义请求头</strong></div>
             <div class="connection-field-control">
@@ -419,12 +427,10 @@
 
 
       </div>
-    </section>
-        <div v-if="compute.showCustomOpenAI" class="service-maintenance-actions">
-          <button type="button" class="delete-service-button" data-testid="custom-service-delete" @click="confirmDeleteProvider">删除服务</button>
-        </div>
-      </div>
     </details>
+    <div v-if="compute.showCustomOpenAI" class="service-maintenance-actions">
+      <button type="button" class="delete-service-button" data-testid="custom-service-delete" @click="confirmDeleteProvider">删除服务</button>
+    </div>
   </section>
 </template>
 
@@ -1035,18 +1041,18 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.service-connection-section { container-type: inline-size; display: grid; gap: 16px; color: var(--ink, #172033); }
-.connection-card, .custom-advanced-settings { min-width: 0; border: 1px solid var(--line, #e4e7ef); border-radius: 14px; background: var(--surface, #fff); }
+.service-connection-section { container-type: inline-size; display: grid; gap: 0; color: var(--ink, #172033); }
+.connection-card { min-width: 0; border: 1px solid var(--line, #e4e7ef); border-radius: 14px; background: var(--surface, #fff); }
 .connection-card { padding: 20px; }
 .configuration-group-heading { margin-bottom: 8px; }
 .configuration-group-heading h5 { margin: 0; color: var(--ink); font-size: 14px; font-weight: 650; line-height: 1.5; }
 .configuration-group-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.connection-field { display: grid; grid-template-columns: 160px minmax(0, 1fr); align-items: start; gap: 16px; padding: 14px 0; }
+.connection-field { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: start; gap: 16px; padding: 14px 0; }
 .connection-field + .connection-field { border-top: 1px solid var(--line, #e4e7ef); }
 .connection-field-label { display: grid; gap: 5px; min-width: 0; padding-top: 8px; }
 .connection-field-label strong { color: var(--ink); font-size: 13px; font-weight: 550; line-height: 1.5; }
 .connection-field-label small, .provider-field-help, .custom-headers-help, .model-thinking-setting > small, .model-vision-setting > small { color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
-.connection-field-control { display: flex; flex-direction: column; align-items: flex-end; justify-self: end; width: 100%; max-width: 640px; min-width: 0; }
+.connection-field-control { display: flex; flex-direction: column; align-items: stretch; justify-self: start; width: 100%; max-width: 640px; min-width: 0; }
 .connection-field-control :deep(.el-input), .connection-field-control :deep(.el-select), .connection-field-control :deep(.el-textarea) { width: 100% !important; max-width: 640px !important; }
 .connection-field-control :deep(.el-select) { max-width: 360px !important; }
 .service-connection-section :deep(.el-input__wrapper), .service-connection-section :deep(.el-select:not(.fluentread-select) .el-select__wrapper) { min-height: 38px; padding: 0 11px; border-radius: 10px; background: var(--surface, #fff); border-color: var(--line); }
@@ -1057,19 +1063,32 @@ onBeforeUnmount(() => {
 .provider-field-help code { font-size: 11px; }
 .credential-control { display: grid; justify-items: end; gap: 8px; }
 .api-key-requirement { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+[data-configuration-group="translation"] .connection-field { grid-template-columns: minmax(0, 1fr) auto; }
+[data-configuration-group="translation"] .model-vision-setting { width: min(280px, 100%); }
 .model-vision-setting { display: grid; justify-items: end; gap: 7px; }
-.model-thinking-setting { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; }
+.model-thinking-setting { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 16px; }
 .model-thinking-setting :deep(.el-switch) { flex: none; }
-.custom-advanced-settings > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; min-height: 68px; color: var(--ink); cursor: pointer; list-style: none; border-radius: 14px; }
-.custom-advanced-settings > summary::-webkit-details-marker { display: none; }
-.custom-advanced-settings > summary:hover { background: var(--surface-soft, #f7f8fb); }
-.advanced-summary-copy { display: grid; gap: 5px; min-width: 0; }
-.advanced-summary-copy strong { font-size: 13px; font-weight: 600; line-height: 1.5; }
+/* 独立用途行让低频设置保持可发现；展开内容不再套多层卡片。 */
+.service-disclosure { min-width: 0; border-bottom: 1px solid var(--line); }
+.service-disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 2px; min-height: 58px; cursor: pointer; list-style: none; border-radius: 8px; }
+.service-disclosure > summary::-webkit-details-marker { display: none; }
+.service-disclosure > summary:hover { background: var(--surface-soft); }
+.advanced-summary-copy { display: grid; gap: 4px; min-width: 0; }
+.advanced-summary-copy strong { color: var(--ink); font-size: 13px; font-weight: 600; line-height: 1.5; }
 .advanced-summary-copy small { color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .advanced-chevron { width: 16px; height: 16px; flex: none; color: var(--muted); transition: transform 150ms ease; }
-.custom-advanced-settings[open] > summary .advanced-chevron { transform: rotate(180deg); }
-.custom-advanced-content { margin: 0 20px; padding: 4px 0 16px; border-top: 1px solid var(--line); }
-.custom-template-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 8px 0 14px; padding-top: 18px; border-top: 1px solid var(--line); }
+.service-disclosure[open] > summary .advanced-chevron { transform: rotate(180deg); }
+.disclosure-content { padding: 0 2px 18px; }
+.service-options-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+.service-options-heading h5 { margin: 0; font-size: 13px; color: var(--ink); font-weight: 650; }
+.service-options-heading span, .configuration-scope { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.credential-options { border-bottom: 0; }
+.credential-options > summary { min-height: 36px; padding: 6px 2px; }
+.credential-options .advanced-summary-copy { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.credential-options .advanced-summary-copy strong { color: var(--brand-strong); font-size: 12px; font-weight: 500; }
+.credential-options .connection-field { grid-template-columns: minmax(0, 1fr) auto; }
+.credential-options .connection-field-control { justify-self: end; }
+.custom-template-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 4px 0 14px; padding-top: 0; }
 .custom-template-heading > div { display: grid; gap: 6px; }
 .custom-template-heading strong { color: var(--ink); font-size: 13px; font-weight: 600; }
 .custom-template-heading small { color: var(--muted); font-size: 12px; line-height: 1.6; }
@@ -1084,7 +1103,7 @@ onBeforeUnmount(() => {
 .is-spinning { animation: connection-spin 1s linear infinite; }
 @keyframes connection-spin { to { transform: rotate(360deg); } }
 .service-connection-action { position: relative; }
-.service-connection-action .connection-test-button { width: 116px; white-space: nowrap; }
+.service-connection-action .connection-test-button { width: auto; min-width: 116px; white-space: nowrap; }
 .header-connection-status { position: absolute; top: calc(100% + 3px); right: 0; color: var(--muted); font-size: 11px; line-height: 17px; white-space: nowrap; }
 .header-connection-status.is-success { color: var(--el-color-success); }
 .header-connection-status.is-error { color: var(--el-color-danger); }
@@ -1110,10 +1129,11 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand); o
 @container (max-width: 600px) {
   .connection-card { padding: 16px; }
   .connection-field { grid-template-columns: 1fr; gap: 8px; }
+  [data-configuration-group="translation"] .connection-field { grid-template-columns: minmax(0, 1fr); }
+  [data-configuration-group="translation"] .model-thinking-setting { justify-self: end; }
+  [data-configuration-group="translation"] .model-vision-setting { width: 100%; }
   .connection-field-label { padding-top: 0; }
   .connection-field-control { max-width: none; }
-  .custom-advanced-settings > summary { padding: 14px 16px; }
-  .custom-advanced-content { margin: 0 16px; }
   .custom-template-heading { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { .advanced-chevron { transition: none; } .is-spinning { animation: none; } }
@@ -1130,15 +1150,5 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand); o
 .field-help-button { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 7px; color: var(--muted); background: transparent; cursor: help; }
 .field-help-button:hover { color: var(--brand-strong); background: var(--brand-soft); }
 .minimax-endpoint, .mimo-endpoint { margin: 5px 0 14px; }
-.service-connection-section > .custom-advanced-settings > summary { min-height: 54px; padding: 12px 14px; }
-.service-connection-section > .custom-advanced-settings .advanced-summary-copy { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-@container (max-width: 520px) { .provider-account-fields { grid-template-columns: 1fr; gap: 8px; } .service-connection-section > .custom-advanced-settings .advanced-summary-copy { display: grid; gap: 5px; } }
-
-.advanced-groups { display: grid; gap: 14px; padding: 0 16px 16px; }
-.advanced-group { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-.advanced-group-heading { padding: 14px 16px; background: var(--surface-soft); border-bottom: 1px solid var(--line); }
-.advanced-group .custom-advanced-content { margin: 0 16px; border-top: 0; }
-.advanced-group[data-configuration-group="keys"] .connection-field { grid-template-columns: minmax(0, 1fr) auto; }
-.advanced-group .advanced-summary-copy { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; }
-.custom-advanced-settings > summary > strong { font-size: 13px; font-weight: 600; }
+@container (max-width: 520px) { .provider-account-fields { grid-template-columns: 1fr; gap: 8px; } .credential-options .advanced-summary-copy { display: grid; gap: 4px; } }
 </style>

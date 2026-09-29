@@ -125,8 +125,8 @@ async function main() {
     report.cases.push(`${name.toLowerCase()}-endpoint`);
   }
 
-  const advanced = page.locator('[data-configuration-group="advanced"]');
-  await advanced.locator('summary').click();
+  const customRequest = page.locator('details.service-disclosure[data-configuration-group="custom-request"]');
+  await customRequest.locator(':scope > summary').click();
   const proxy = page.getByRole('textbox', {name: '代理地址', exact: true});
   await proxy.fill(`${host}/`);
   const key = page.locator('[data-api-key-list] input').first();
@@ -139,7 +139,7 @@ async function main() {
   await page.waitForFunction(() => document.querySelector('[data-api-key-list] input')?.value === '');
   await key.fill('issue626-fixture-token');
   await check('/custom-generate');
-  await advanced.locator('summary').click();
+  await customRequest.locator(':scope > summary').click();
   report.cases.push('clear-proxy-restores-custom-endpoint');
 
   rejectRequest = true;
@@ -155,6 +155,8 @@ async function main() {
   report.cases.push('html-404-clean-message-no-retry-and-manual-recovery');
 
   await page.setViewportSize({width: 390, height: 844});
+  const directoryToggle = page.locator('.mobile-directory-toggle');
+  if (await directoryToggle.isVisible() && await directoryToggle.getAttribute('aria-expanded') !== 'true') await directoryToggle.click();
   await page.getByTestId('custom-service-add').click();
   const dialog = page.getByTestId('custom-service-dialog');
   assert((await dialog.innerText()).includes('Base URL'));
