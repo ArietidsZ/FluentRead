@@ -177,6 +177,9 @@ function cer(actual, expected) {
   await page.keyboard.press('Escape'); await page.locator('h1').click(); report.cases.push(currentCase);
   currentCase = 'custom shortcut replaces the default one';
   await patch({selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'Alt+K'});
+  // 保存响应先于内容页的异步配置订阅；先验证新快捷键生效，再断言旧键已停用。
+  await wait(async () => {await page.keyboard.press('Alt+K'); return ui("return !!this.querySelector('.fr-area-selecting')");}, 10000);
+  await page.keyboard.press('Escape');
   await wait(async () => (await ui("return !!this.querySelector('.fr-area-selecting')")) === false);
   await page.keyboard.press('Shift+Z');
   assert.equal(await ui("return !!this.querySelector('.fr-area-selecting')"), false, 'default shortcut must stop working');
@@ -184,6 +187,8 @@ function cer(actual, expected) {
   await wait(() => ui("return !!this.querySelector('.fr-area-selecting')"));
   await page.keyboard.press('Escape');
   await patch({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''});
+  await wait(async () => {await page.keyboard.press('Shift+Z'); return ui("return !!this.querySelector('.fr-area-selecting')");}, 10000);
+  await page.keyboard.press('Escape');
   await page.locator('h1').click(); report.cases.push(currentCase);
   for (const mode of ['open', 'closed']) {
     currentCase = `${mode} shadow input keeps Shift+Z`;
