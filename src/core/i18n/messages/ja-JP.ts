@@ -15,6 +15,9 @@ import {translationStatsJapaneseMessages} from './translationStats';
 import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
+    "glossary.matchCount": "{count} 件の用語が一致",
+    "glossary.previewInactive": "有効にすると翻訳に使用します",
+    "glossary.preferredTranslation": "指定の訳語",
     "glossary.simpleIntro": "用語の訳し方を指定します。訳語を空欄にすると原文を保持します。",
     "glossary.more": "その他",
     "glossary.manageOrder": "用語集の優先順位",

@@ -16,6 +16,9 @@ import {translationStatsEnglishMessages} from './translationStats';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
+    "glossary.matchCount": "{count} matching terms",
+    "glossary.previewInactive": "Enable to use in translations",
+    "glossary.preferredTranslation": "Preferred translation",
     "glossary.simpleIntro": "Set preferred translations. Leave the translation blank to keep the original.",
     "glossary.more": "More",
     "glossary.manageOrder": "Glossary priority",

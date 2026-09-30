@@ -15,6 +15,9 @@ import {translationStatsFrenchMessages} from './translationStats';
 import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
+    "glossary.matchCount": "{count} termes correspondants",
+    "glossary.previewInactive": "Activer pour les traductions",
+    "glossary.preferredTranslation": "Traduction souhaitée",
     "glossary.simpleIntro": "Définissez vos traductions. Laissez la traduction vide pour conserver le terme original.",
     "glossary.more": "Plus",
     "glossary.manageOrder": "Priorité des glossaires",

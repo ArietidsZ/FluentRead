@@ -15,6 +15,9 @@ import {translationStatsKoreanMessages} from './translationStats';
 import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
+    "glossary.matchCount": "용어 {count}개 일치",
+    "glossary.previewInactive": "활성화하면 번역에 적용됩니다",
+    "glossary.preferredTranslation": "지정 번역",
     "glossary.simpleIntro": "지정한 용어의 번역을 사용합니다. 번역을 비워 두면 원문을 유지합니다.",
     "glossary.more": "더 보기",
     "glossary.manageOrder": "용어집 우선순위",

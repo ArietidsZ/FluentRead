@@ -15,6 +15,9 @@ import {translationStatsSpanishMessages} from './translationStats';
 import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
+    "glossary.matchCount": "{count} términos coincidentes",
+    "glossary.previewInactive": "Activa para usar al traducir",
+    "glossary.preferredTranslation": "Traducción preferida",
     "glossary.simpleIntro": "Define las traducciones que prefieres. Deja la traducción vacía para conservar el original.",
     "glossary.more": "Más",
     "glossary.manageOrder": "Prioridad de glosarios",

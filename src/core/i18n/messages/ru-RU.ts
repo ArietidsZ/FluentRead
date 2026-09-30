@@ -15,6 +15,9 @@ import {translationStatsRussianMessages} from './translationStats';
 import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
+    "glossary.matchCount": "Найдено терминов: {count}",
+    "glossary.previewInactive": "Включите для перевода",
+    "glossary.preferredTranslation": "Заданный перевод",
     "glossary.simpleIntro": "Задайте перевод терминов. Оставьте перевод пустым, чтобы сохранить оригинал.",
     "glossary.more": "Ещё",
     "glossary.manageOrder": "Приоритет глоссариев",

@@ -105,8 +105,20 @@
           <button type="button" @click="previewOpen = false; section = 'builtins'">{{ t('glossary.builtin.title') }}</button>
         </div>
         <div v-else>
-          <p class="glossary-help">{{ t('glossary.localCheckHelp') }}</p>
           <label>{{ t('glossary.previewText') }}<textarea v-model="previewText" rows="2" placeholder="FluentRead uses a large language model." /></label>
+          <section v-if="preview.terms.length" class="glossary-match-result" data-testid="glossary-matches" :aria-label="t('glossary.matchCount', {count: preview.terms.length})">
+            <header class="glossary-match-heading">
+              <strong role="status" aria-live="polite">{{ t('glossary.matchCount', {count: preview.terms.length}) }}</strong>
+              <div v-if="!enabled" class="glossary-match-activation"><span>{{ t('glossary.previewInactive') }}</span><button type="button" :disabled="busy || !ready" @click="setEnabled(true)">{{ t('glossary.enable') }}</button></div>
+              <span v-else class="glossary-match-enabled"><span aria-hidden="true">●</span>{{ t('featureEnable.on') }}</span>
+            </header>
+            <div class="glossary-match-table-scroll"><table class="glossary-match-table">
+              <thead><tr><th scope="col">{{ t('glossary.source') }}</th><th scope="col">{{ t('glossary.preferredTranslation') }}</th></tr></thead>
+              <tbody><tr v-for="term in preview.terms" :key="term.source"><td>{{ term.source }}</td><td><strong>{{ term.target }}</strong></td></tr></tbody>
+            </table></div>
+          </section>
+          <div v-else-if="previewText.trim()" class="glossary-no-match"><p>{{ t('glossary.noMatches') }}</p><button type="button" class="glossary-text-button" :disabled="busy || atEntryLimit" @click="startEntry(previewText)">{{ t(previewText.trim().length <= GLOSSARY_LIMITS.termLength ? 'glossary.addFromPreview' : 'glossary.addEntry') }}</button></div>
+          <div v-if="preview.conflicts.length" class="glossary-warning" role="status"><strong>{{ t('glossary.conflicts') }}</strong><p v-for="(conflict, index) in preview.conflicts" :key="index">{{ t('glossary.conflict', {source: conflict.source, kept: conflict.keptTarget, ignored: conflict.ignoredTarget}) }}</p></div>
           <details class="glossary-preview-options"><summary>{{ t('glossary.checkScope') }}</summary>
       <div class="glossary-preview-context">
         <label>{{ t('glossary.sourceLanguage') }}<ElSelect class="glossary-select" :empty-values="[null, undefined]" v-model="previewSource" :aria-label="t('glossary.sourceLanguage')" filterable><ElOption value="" :label="t('glossary.autoLanguage')" /><ElOption v-for="item in languageOptions(previewSource)" :key="item.value" :value="item.value" :label="item.label" /></ElSelect></label>
@@ -115,10 +127,6 @@
       </div>
 
           </details>
-          <p v-if="!enabled" class="glossary-warning">{{ t('glossary.previewDisabled') }}</p>
-          <div v-if="preview.terms.length" class="glossary-matches" data-testid="glossary-matches"><span v-for="term in preview.terms" :key="term.source">{{ term.source }} → {{ term.target }}</span></div>
-          <div v-else-if="previewText.trim()" class="glossary-no-match"><p>{{ t('glossary.noMatches') }}</p><button type="button" class="glossary-text-button" :disabled="busy || atEntryLimit" @click="startEntry(previewText)">{{ t('glossary.addFromPreview') }}</button></div>
-          <div v-if="preview.conflicts.length" class="glossary-warning" role="status"><strong>{{ t('glossary.conflicts') }}</strong><p v-for="(conflict, index) in preview.conflicts" :key="index">{{ t('glossary.conflict', {source: conflict.source, kept: conflict.keptTarget, ignored: conflict.ignoredTarget}) }}</p></div>
           <details v-if="previewText.trim() && (!preview.terms.length || preview.conflicts.length)" class="glossary-diagnostic-details"><summary>{{ t('glossary.checkReasons') }}</summary>
       <div class="glossary-diagnostics" v-if="libraries.length"><div v-for="item in previewLibraries" :key="item.library.id"><button type="button" class="glossary-text-button" @click="selectLibrary(item.library.id)">{{ item.library.name }}</button><span :class="{'glossary-help': item.reason === 'eligible', 'glossary-warning': item.reason !== 'eligible'}">{{ t(`glossary.reason.${item.reason}`) }}</span></div></div>
 

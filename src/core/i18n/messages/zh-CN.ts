@@ -13,6 +13,9 @@ import {translationStatsChineseMessages} from './translationStats';
 import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
+    "glossary.matchCount": "匹配到 {count} 个词条",
+    "glossary.previewInactive": "启用后用于翻译",
+    "glossary.preferredTranslation": "指定译法",
     "glossary.simpleIntro": "指定词语的固定译法，译词留空可保留原文。",
     "glossary.more": "更多",
     "glossary.manageOrder": "调整词库优先级",
