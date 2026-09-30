@@ -1,44 +1,39 @@
 # Glossaries
 
-Glossaries specify consistent translations for names, products, and technical terms. Entries guide AI translations; the separate learning collection is used for study.
+Specify consistent wording for names, products, and technical terms in machine and AI translation.
 
-## Create a glossary
+## Add your first term
 
-1. Open **Glossaries** and enable the feature.
-2. Create a glossary or add a built-in topic for AI, software, finance, research, or product names.
-3. Enter source and target terms. Leave the translation empty to preserve the original.
-4. Save the entry, then paste a sentence into **Match preview** to check which terms apply.
+1. Open **Glossaries** and click **Add entry**. A glossary is created for you when needed.
+2. Enter the source and translation, then **Save**. Leave the translation blank to retain the spelling found in the source.
+3. Enable the feature at the top. Saved terms apply to subsequent translations.
 
-Glossary settings save automatically; entry edits require **Save**. Saved changes apply to the next translation. Restore existing webpage translations before translating again.
+You can also preview and add a **Built-in glossary**. This creates an editable copy and preserves your master switch setting. Restore existing webpage translations before translating again.
 
-## Which services use it?
+Entries are shown directly. Switch between multiple glossaries with the top selector. **More** contains import, new glossary, and priority controls. The active language and website scope remain visible above the entries. Click that summary or **More → Glossary settings** to edit scope, export, or delete. Case sensitivity is an optional entry setting.
 
-Supported AI translation services use glossary terms. Machine services such as Microsoft, Google, DeepL, DeepLX, and Chrome built-in translation currently do not. AI may still ignore a preferred translation, so check important terms.
+Settings save automatically; entry edits require **Save**. Drafts survive switching glossaries within the same page. Save before closing it.
 
-## Use it in the right places
+## How translation works
 
-Choose source and target languages and optional website scope. Empty website scope applies globally. Website-specific glossaries do not apply to local documents without a URL.
+FluentRead matches terms locally, replaces them with separate placeholders before sending the source, and fills your wording into the returned translation. Longer overlapping phrases take priority. Repeated occurrences are protected independently. Only restored results reach the display and cache; changing a matched rule invalidates the related cache.
 
-When multiple glossaries define the same source term, earlier glossaries take priority. Adjust their order or separate subject areas. A glossary name is for organization; it does not make the AI infer the article’s subject.
+Machine services and AI use this shared process. AI prompts ask the model to preserve markers; Qwen-MT receives marker-to-marker mappings in its native terms field. Custom request bodies retain their field override behavior.
 
-## Import and keep a backup
+Placeholders hide some context and can affect surrounding grammar. They work best for fixed terms and names. If a service loses, duplicates, or changes markers, the request fails with a retry/switch-service message. Damaged results are not displayed or cached. Actual marker preservation depends on the service.
 
-Import CSV, TSV, or JSON from a file or pasted text. Imports create new glossaries rather than replacing existing ones. Check the preview before confirming.
+## Scope and checking
 
-File imports detect UTF-8, BOM-marked UTF-16, and common GB18030 encodings from their bytes, so CSV files saved by Excel on a Chinese system are not silently read as mojibake.
+New glossaries default to the current target language. Existing language and website scopes remain unchanged. Empty website scope applies globally; website-scoped glossaries do not apply to local documents without a URL. Documents and videos can select their own glossaries.
 
-JSON keeps complete glossary settings; CSV and TSV are useful for spreadsheet editing. Glossaries are also included in configuration backup and restore.
+Earlier glossaries win when multiple entries define the same source term. Priority is available under **More**. Duplicate entries offer an action to edit the existing term. Distinct case-sensitive spellings can coexist; imported entries are not silently merged.
 
-## Data
+Open **More → Match preview** only when needed. The check opens in a dialog; it is not offered for an empty glossary, which guides you to add an entry first. Preview defaults to automatic source language and the current target; optional language and website conditions are collapsed. Exclusion reasons are available when nothing matches or definitions conflict. Preview runs locally even with the master switch off, while actual translation respects the switch.
 
-Editing and match previews run locally. Translation sends only terms matched in the current source and their requested translations, not the entire glossary. Terms can contain business information, so choose your service accordingly.
+## Import, export, and data
 
-## Managing and checking glossaries
+Use **More → Import glossary** for CSV, TSV, or JSON files or pasted content. Check the preview before confirming. Imports create new glossaries without replacing existing ones. File imports detect UTF-8, BOM-marked UTF-16, and common GB18030 encodings.
 
-The settings page separates **My glossaries**, **Built-in glossaries**, and **Match preview**. Built-in cards show actual sample entries; adding a glossary creates an editable copy without changing the master switch. New custom glossaries default to the current translation target language. Existing language scopes are preserved.
+Export under **Glossary settings**. JSON preserves all settings; CSV and TSV support spreadsheet editing. Configuration backups also include glossaries.
 
-Entries come first in the editor. Expand **Glossary settings** to change the name, languages, website scope, export format, or delete the glossary. Settings save automatically; entry edits require **Save**. Entry drafts survive switching glossaries within the same settings page. Save them before closing the page. Switching to another entry asks before discarding unsaved changes.
-
-Matching source terms in the same glossary are flagged with an **Edit existing entry** action. Distinct case-sensitive spellings can coexist. Imported entries are not silently merged or removed. Across glossaries, earlier glossaries still take priority.
-
-**Match preview** uses the same scope and matching rules as translation and explains excluded glossaries: disabled, empty, source/target language mismatch, or a missing/out-of-scope URL. Automatic source language checks terms directly. Preview remains available when the master switch is off, but actual translation will not use the glossary. It makes no translation requests and cannot guarantee model compliance. Document and video selections may further restrict which glossaries apply.
+Editing, matching, and target restoration happen locally. Translation sends protected source text and marker-preservation constraints, not the whole glossary. Surrounding text, configured page context, and custom request bodies still follow normal service behavior; placeholders do not anonymize an entire request.

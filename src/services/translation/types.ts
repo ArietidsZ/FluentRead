@@ -122,6 +122,8 @@ export interface TranslationConfigSnapshot {
     videoGlossaryIds?: readonly string[] | null;
     /** 仅后台从原文命中后派生，绝不直接采纳公开消息传入的术语。 */
     glossaryTerms?: readonly TranslationGlossaryTerm[];
+    /** 仅在 provider 调用边界生成；提示词只能要求原样保留这些占位符。 */
+    glossaryProtectedTokens?: readonly string[];
     /** 与冻结词库配合，为批量 provider 的每次实际上游调用重新筛选命中词。 */
     glossaryMatchContext?: Readonly<{
         sourceLanguage: string;

@@ -143,12 +143,12 @@ describe('GlossarySettings compiled component', () => {
     expect(state.selected).toBeUndefined(); expect(state.preview.terms).toEqual([]);
     expect(requestConfigPatch).not.toHaveBeenCalled();
     const component = readFileSync(resolve(process.cwd(), 'src/features/glossary/ui/GlossarySettings.vue'), 'utf8');
-    for (const key of ['glossary.emptyTitle', 'glossary.emptyHelp', 'glossary.services', 'glossary.previewDisabled']) {
+    for (const key of ['glossary.emptyTitle', 'glossary.startHelp', 'glossary.previewDisabled']) {
       expect(component).toContain(`t('${key}')`);
       for (const language of ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) expect(translate(key, language)).not.toBe(key);
     }
-    expect(translate('glossary.services', 'zh-CN')).toContain('qwen-mt');
-    expect(translate('glossary.services', 'zh-CN')).toContain('机器翻译暂不应用');
+    expect(translate('glossary.services', 'zh-CN')).toContain('机器翻译和 AI 翻译');
+    expect(translate('glossary.services', 'zh-CN')).toContain('自动填回指定译法');
     expect(translate('glossary.previewDisabled', 'zh-CN')).toContain('实际翻译不会使用');
   });
 
@@ -518,6 +518,18 @@ describe('GlossarySettings compiled component', () => {
     expect(state.entryDraft.target).toBe('未保存'); expect(state.error).toContain('已在其他页面删除');
   });
 
+  it('starts the first entry directly, hides advanced controls and saves a matchable term', async () => {
+    expect(state.previewOpen).toBe(false); expect(state.settingsOpen).toBe(false);
+    await state.startEntry('large language model');
+    expect(state.libraries).toHaveLength(1); expect(state.settingsOpen).toBe(false);
+    expect(state.entryDraft.source).toBe('large language model');
+    state.entryDraft.target = '大语言模型'; await state.saveEntry();
+    expect(state.totalEntries).toBe(1);
+    state.previewText = 'large language model';
+    expect(state.preview.terms).toEqual([{source: 'large language model', target: '大语言模型'}]);
+    expect(state.enabled).toBe(false);
+  });
+
   it('requires confirmation before deletion and unsubscribes when unmounted', async () => {
     await state.addLibrary(); confirm.mockRejectedValueOnce('cancel'); await state.deleteLibrary();
     expect(config.glossaryLibraries).toHaveLength(1);
@@ -531,7 +543,7 @@ describe('Glossary integration and user-content boundaries', () => {
   it('gives every branded select and pagination control an exact accessible name', () => {
     const component = readFileSync(resolve(process.cwd(), 'src/features/glossary/ui/GlossarySettings.vue'), 'utf8');
     const selects = component.match(/<ElSelect\b[^>]*>/gu) || [];
-    expect(selects).toHaveLength(6);
+    expect(selects).toHaveLength(7);
     for (const select of selects) expect(select).toContain(':aria-label="t(\'glossary.');
     expect(selects.filter(select => select.includes("t('glossary.sourceLanguage')"))).toHaveLength(2);
     expect(selects.filter(select => select.includes("t('glossary.targetLanguage')"))).toHaveLength(2);

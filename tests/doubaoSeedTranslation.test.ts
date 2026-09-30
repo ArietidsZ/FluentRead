@@ -80,7 +80,7 @@ describe('Doubao-Seed-Translation 模型识别与语言映射', () => {
         expect(models.get(services.doubao)).toContain(DOUBAO_SEED_TRANSLATION_MODEL_ID);
         expect(servicesType.isUseAIContext(services.doubao, DOUBAO_SEED_TRANSLATION_MODEL_ID)).toBe(false);
         expect(servicesType.isUseAIContext(services.doubao, 'doubao-seed-1-6-250615')).toBe(true);
-        expect(supportsTranslationGlossary(services.doubao, DOUBAO_SEED_TRANSLATION_MODEL_ID)).toBe(false);
+        expect(supportsTranslationGlossary(services.doubao, DOUBAO_SEED_TRANSLATION_MODEL_ID)).toBe(true);
         expect(supportsVisionTransport(services.doubao, DOUBAO_SEED_TRANSLATION_MODEL_ID)).toBe(false);
         expect(supportsVisionTransport(services.doubao, 'doubao-seed-1-6-250615')).toBe(true);
     });
