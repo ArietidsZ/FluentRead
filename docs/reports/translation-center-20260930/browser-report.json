@@ -12,6 +12,7 @@
     "keyboard-reorder-retains-results",
     "model-search-escape-focus-return",
     "configure-service-and-return-retains-work",
+    "cross-page-layout-sync-retains-work",
     "stop-retains-success-and-rejects-late-response",
     "add-does-not-spend-provider-requests",
     "quick-close-persistence-no-text-storage",
@@ -61,6 +62,7 @@
     "stale-results.png",
     "comparison-grid.png",
     "service-picker.png",
+    "configure-in-place.png",
     "stopped.png",
     "persisted-reopen.png",
     "layout-1440.png",
@@ -133,8 +135,8 @@
       "name": "ChatGPT"
     },
     "frontmostAfter": {
-      "pid": 8643,
-      "name": "ChatGPT"
+      "pid": 59380,
+      "name": "Google Chrome"
     }
   },
   "contrast": [
@@ -161,14 +163,14 @@
       }
     }
   ],
-  "sourceScreenshotDirectory": "/private/tmp/fluentread-translation-center-production-20260930-complete",
+  "sourceScreenshotDirectory": "/private/tmp/fluentread-translation-center-production-20260930-integrated",
   "visualReview": {
-    "reviewed": 20,
-    "passed": 20,
+    "reviewed": 21,
+    "passed": 21,
     "notes": [
-      "窄屏改为上下布局，无横向溢出。",
-      "深色主题在动画稳定后复核；语言选择和主按钮对比度通过断言。",
-      "多语言内容正常换行；用户定义服务名保持原样。"
+      "就地配置弹窗目标服务正确，原工作台仍可见；退出后保留原文及完成译文。",
+      "1440/1024/820/390px 无横向溢出。",
+      "深色主题及七语言已复核，对比度断言通过。"
     ]
   }
 }

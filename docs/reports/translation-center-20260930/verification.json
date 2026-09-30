@@ -2,9 +2,9 @@
   "date": "2026-09-30",
   "project": "FluentRead",
   "feature": "翻译中心",
-  "baseCommit": "e9ba03c76318dbe283e9dbf569b119a681a1ee8a",
+  "baseCommit": "ed67b2a90c97309fa1cc7e001795f694ef22364a",
   "branch": "codex/translation-center-20260930",
-  "userscriptLanguageResourceCommit": "eef212ac971d57eaa441f4702dceca1a2e9ef93f",
+  "userscriptLanguageResourceCommit": "96b9572363b7dfa59e4be0922f9ab10b76c8613d",
   "outcome": "将翻译中心整理为输入、对比、调整的轻量工作台，服务状态与请求相互独立。",
   "designDecisions": [
     {
@@ -44,21 +44,25 @@
   },
   "checks": {
     "focusedTests": {
-      "total": 981,
-      "passed": 981,
-      "failed": 0,
-      "startedAt": "2026-09-30T06:40:58.381Z",
+      "total": 1028,
+      "passed": 1024,
+      "failed": 4,
+      "startedAt": "2026-09-30T07:08:21.614Z",
       "files": [
         "tests/configDiff.test.ts",
         "tests/configTransfer.test.ts",
         "tests/i18n.test.ts",
         "tests/model.test.ts",
+        "tests/optionsAppNavigationLifecycle.test.ts",
+        "tests/optionsNavigation.test.ts",
+        "tests/popupFeatureVisibility.test.ts",
         "tests/settingsUiArchitecture.test.ts",
         "tests/translationCenterComponent.test.ts",
         "tests/translationCenterSession.test.ts",
         "tests/architecture/sourceFileHeaders.test.ts"
       ],
-      "command": "pnpm test -- tests/translationCenterSession.test.ts tests/translationCenterComponent.test.ts tests/settingsUiArchitecture.test.ts tests/i18n.test.ts tests/model.test.ts tests/configDiff.test.ts tests/configTransfer.test.ts tests/architecture/sourceFileHeaders.test.ts --reporter=json"
+      "status": "completed-with-identical-baseline-failures",
+      "command": "pnpm test -- tests/translationCenterSession.test.ts tests/translationCenterComponent.test.ts tests/settingsUiArchitecture.test.ts tests/i18n.test.ts tests/model.test.ts tests/configDiff.test.ts tests/configTransfer.test.ts tests/architecture/sourceFileHeaders.test.ts tests/optionsAppNavigationLifecycle.test.ts tests/optionsNavigation.test.ts tests/popupFeatureVisibility.test.ts --reporter=json"
     },
     "newSessionCoverage": {
       "file": "src/features/translation-center/model/comparison.ts",
@@ -107,8 +111,8 @@
     "userscriptArtifactVerification": {
       "status": "passed",
       "command": "node scripts/verify-userscript-build.mjs",
-      "artifactBytes": 1887724,
-      "note": "语言资源提交只在本地；未上传到 GitHub，不声称远端资源 URL 已可用。"
+      "artifactBytes": 1888103,
+      "note": "固定资源提交为本任务整合提交，Git 树包含全部五个新语言资源；不声称商店发布。"
     },
     "docsBuild": {
       "status": "passed",
@@ -118,7 +122,7 @@
       "status": "passed",
       "command": "pnpm test:audit",
       "files": 410,
-      "cases": 5283
+      "cases": 5284
     },
     "diffWhitespace": {
       "status": "passed",
@@ -129,8 +133,8 @@
       "report": "browser-report.json",
       "browser": "Microsoft Edge",
       "artifact": ".output/chrome-mv3",
-      "cases": 12,
-      "screenshots": 20,
+      "cases": 13,
+      "screenshots": 21,
       "consoleErrors": 0,
       "providerEvidence": "local HTTP OpenAI-compatible fixtures through the actual extension client and background",
       "clipboardEvidence": "page mock; user system clipboard unchanged",
@@ -183,6 +187,10 @@
           "status": "passed"
         },
         {
+          "name": "cross-page-layout-sync-retains-work",
+          "status": "passed"
+        },
+        {
           "name": "stop-retains-success-and-rejects-late-response",
           "status": "passed"
         },
@@ -199,72 +207,96 @@
           "status": "passed"
         }
       ],
-      "command": "node scripts/testing/run-translation-center-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <bundled-node-modules> --focus-safe-helper <fluentread-extension-ui-test>/scripts/focus-safe-browser.cjs --artifacts-dir <evidence-directory>"
+      "command": "node scripts/testing/run-translation-center-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <bundled-node-modules> --focus-safe-helper <fluentread-extension-ui-test>/scripts/focus-safe-browser.cjs --artifacts-dir <evidence-directory>",
+      "configurationEvidence": "in-place compact service dialog with unchanged hash/default service",
+      "crossPageEvidence": "two independent settings pages; a layout change propagates while the other page retains source text and completed results"
+    },
+    "architectureBaselineComparison": {
+      "total": 22,
+      "passed": 20,
+      "failed": 2,
+      "startedAt": "2026-09-30T07:12:32.825Z",
+      "files": [
+        "tests/architecture/moduleBoundaries.test.ts",
+        "tests/architecture/verificationOwnership.test.ts"
+      ],
+      "command": "pnpm test -- tests/architecture/moduleBoundaries.test.ts tests/architecture/verificationOwnership.test.ts --reporter=json"
+    },
+    "testSummary": {
+      "total": 1050,
+      "passed": 1044,
+      "failed": 6,
+      "note": "六项失败全部在同日最新 main 的独立 worktree 上复现；标准化路径与堆栈行号后，完整失败文本一致，无新增失败。"
     }
   },
   "baselineFailures": {
-    "comparison": "相同三份测试在未改动基线与最终任务工作树均为 36 通过、4 失败；新增翻译中心模块已纳入覆盖率边界。",
+    "baseCommit": "ed67b2a90c97309fa1cc7e001795f694ef22364a",
     "baseline": {
-      "total": 40,
-      "passed": 36,
-      "failed": 4,
-      "failures": [
-        {
-          "file": "tests/popupFeatureVisibility.test.ts",
-          "name": "popup feature visibility separates area translation from text selection and image translation"
-        },
-        {
-          "file": "tests/popupFeatureVisibility.test.ts",
-          "name": "popup feature visibility routes hover and selection drawers to the merged translation settings section"
-        },
-        {
-          "file": "tests/architecture/moduleBoundaries.test.ts",
-          "name": "architecture module boundaries 历史巨型文件不得继续增长，后续迁移只降低债务上限"
-        },
-        {
-          "file": "tests/architecture/verificationOwnership.test.ts",
-          "name": "repository verification ownership src 中每个可执行非组装模块都进入四维 100% 覆盖率边界"
-        }
+      "total": 116,
+      "passed": 110,
+      "failed": 6,
+      "startedAt": "2026-09-30T07:15:04.396Z",
+      "files": [
+        "tests/configDiff.test.ts",
+        "tests/i18n.test.ts",
+        "tests/architecture/moduleBoundaries.test.ts",
+        "tests/architecture/verificationOwnership.test.ts"
       ]
     },
-    "current": {
-      "total": 40,
-      "passed": 36,
-      "failed": 4,
-      "failures": [
-        {
-          "file": "tests/popupFeatureVisibility.test.ts",
-          "name": "popup feature visibility separates area translation from text selection and image translation"
-        },
-        {
-          "file": "tests/popupFeatureVisibility.test.ts",
-          "name": "popup feature visibility routes hover and selection drawers to the merged translation settings section"
-        },
-        {
-          "file": "tests/architecture/moduleBoundaries.test.ts",
-          "name": "architecture module boundaries 历史巨型文件不得继续增长，后续迁移只降低债务上限"
-        },
-        {
-          "file": "tests/architecture/verificationOwnership.test.ts",
-          "name": "repository verification ownership src 中每个可执行非组装模块都进入四维 100% 覆盖率边界"
-        }
-      ]
+    "currentSummary": {
+      "total": 1050,
+      "passed": 1044,
+      "failed": 6,
+      "note": "六项失败全部在同日最新 main 的独立 worktree 上复现；标准化路径与堆栈行号后，完整失败文本一致，无新增失败。"
     },
-    "causes": [
-      "popupFeatureVisibility 两处断言引用既有 UI 的旧结构/旧导航目标。",
-      "video-subtitle/content/runtime.ts 在基线为 1909 行，高于历史上限 1887；本任务未修改该文件。",
-      "既有 share-card 相关 7 个可执行模块未纳入严格覆盖边界；本任务未修改这些模块。"
+    "matching": [
+      {
+        "file": "tests/configDiff.test.ts",
+        "name": "配置差异预览 显示界面皮肤和 Popup 栏目可见性，并安全处理异常栏目值",
+        "currentMatch": true,
+        "messageMatch": true,
+        "firstLine": "AssertionError: expected [ Array(5) ] to deeply equal ArrayContaining{…}"
+      },
+      {
+        "file": "tests/i18n.test.ts",
+        "name": "i18n 全量界面扫描 Vue 文案和展示注册表在非中文界面有本地化结果",
+        "currentMatch": true,
+        "messageMatch": true,
+        "firstLine": "AssertionError: expected [ …(15) ] to deeply equal []"
+      },
+      {
+        "file": "tests/i18n.test.ts",
+        "name": "运行期反馈文案资源 每条精确反馈都来自真实源码，不重复，并在每种界面语言中完整本地化",
+        "currentMatch": true,
+        "messageMatch": true,
+        "firstLine": "AssertionError: expected [ Array(5) ] to deeply equal []"
+      },
+      {
+        "file": "tests/i18n.test.ts",
+        "name": "旧界面译文人工校正 校正原文仍在界面源码中使用，不重复，并覆盖此前的译文",
+        "currentMatch": true,
+        "messageMatch": true,
+        "firstLine": "AssertionError: expected [ '暂停插件', '打开视频字幕设置，当前已开启', …(8) ] to deeply equal []"
+      },
+      {
+        "file": "tests/architecture/moduleBoundaries.test.ts",
+        "name": "architecture module boundaries 历史巨型文件不得继续增长，后续迁移只降低债务上限",
+        "currentMatch": true,
+        "messageMatch": true,
+        "firstLine": "AssertionError: expected [ { …(3) } ] to deeply equal []"
+      },
+      {
+        "file": "tests/architecture/verificationOwnership.test.ts",
+        "name": "repository verification ownership src 中每个可执行非组装模块都进入四维 100% 覆盖率边界",
+        "currentMatch": true,
+        "messageMatch": true,
+        "firstLine": "AssertionError: expected [ Array(7) ] to deeply equal []"
+      }
     ],
-    "unchangedModules": [
-      "src/core/config/shareCard.ts",
-      "src/features/full-page-translation/content/excerpt.ts",
-      "src/features/share-card/content/runtime.ts",
-      "src/features/share-card/core.ts",
-      "src/features/share-card/export.ts",
-      "src/features/share-card/render.ts",
-      "src/features/share-card/themes.ts"
-    ],
-    "scope": "已复现并记录，不扩大本任务修复范围。"
+    "extraFailures": [],
+    "method": "比较最新 main 与本任务工作树的同名失败，完整错误文本只标准化本机路径及堆栈行号。",
+    "scope": "不扩大本次翻译中心任务修复已有的 Popup 栏目差异断言、界面本地化扫描、反馈/校正文案过期、历史文件上限与七个 share-card 模块覆盖归属问题。",
+    "baselinePreparation": "独立 worktree 执行 wxt prepare 生成缺失的 .wxt/tsconfig.json 后重跑；首次无有效测试用例的引导失败不计作基线结果。"
   },
   "evidenceLimits": [
     "未运行全量回归。",
@@ -273,16 +305,23 @@
     "390px 为桌面浏览器视口，非真实手机。",
     "开发服务器启动尝试未形成有效浏览器证据，浏览器结论仅基于最终生产产物。",
     "临时复用了主工作树的 node_modules，不构成干净安装验证。",
-    "未推送分支、创建 PR、合并或发布商店。"
+    "不属于商店发版；构建和本机服务夹具不证明商店验收或真实供应商连接。"
   ],
   "sourceSha256": {
     "src/features/translation-center/ui/TranslationCenter.vue": "bcb7df34a47f59843574fc9e7a7ced15e47c8e242069401ae2460ded0aa32373",
     "src/features/translation-center/model/comparison.ts": "2e4bf449b38b0da6b102875cd79e29586cc9b9fcf48bfb34743bfea6076fd5de",
-    "src/features/settings/ui/SettingsSections.vue": "086c3cf2c061c16a3485f394890f2e6ab16eb05fe507956f96f45e5b821f4551",
+    "src/features/settings/ui/SettingsSections.vue": "391b8448828d1598901f03196c149e886ebf53727e19a223a4d34adc3621ce54",
     "src/core/config/model.ts": "5d0ea3e9ddbcb2bbf89b83a00c7d9db241ac0f78c6c8b23dd964402d3254db8f",
     "tests/translationCenterComponent.test.ts": "0510cc2e0f31f575cc9766e5750c7b59d6be120a90ac46ab43c139a6978d17ee",
     "tests/translationCenterSession.test.ts": "e3377ea3fe2c79caf6460eb0936c0a8f522c9c3afd3f5310a5eaf5460f36f7c3",
-    "scripts/testing/run-translation-center-ui-test.cjs": "039c8ddced7c199c95242b5c9f29b8482dbbb96885becebe3ba4db9920f29188",
-    "userscript/vite.config.ts": "56930b5a3dc32e4f74ecabd1d10cc2675c020165acb041e4ac1c5a64586a3ec0"
-  }
+    "scripts/testing/run-translation-center-ui-test.cjs": "884e00982a32d9b3daa11f7f4018be85db7d5abc13ef35da5586e295883b964a",
+    "userscript/vite.config.ts": "29d3ecef6025c5dc838f8285d7041b1f3ec512d59c9bd38a5baa8da46aa12ac0"
+  },
+  "originalImplementationBase": "e9ba03c76318dbe283e9dbf569b119a681a1ee8a",
+  "integrationCommit": "96b9572363b7dfa59e4be0922f9ab10b76c8613d",
+  "integrationNotes": [
+    "保留最新 main 的设置页就地配置弹窗与精简导航；翻译中心关闭配置弹窗后保留原文和完成结果。",
+    "重新生成包含翻译中心及最新 main 界面文案的语言资源，资源指针固定到包含全部文件的提交。",
+    "新增真实双设置页的布局同步断言；仍不操作用户日常浏览器或系统剪贴板。"
+  ]
 }
