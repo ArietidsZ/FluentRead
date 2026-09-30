@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：普通页面连续展示任务分组，统计页保留可切换视图，集中分配功能服务并将模型用量合并到翻译统计，保留已访问表单实例；包含正文/全部节点识别范围；模板按 activeSection 展示业务分区，通用设置首先展示全局翻译开关，再按日常翻译、网页辅助、基本偏好组织控件，提供当前默认服务的配置入口并保留译文样式跨页入口；图片与圈选合并在同页，共享仅在当前分区挂载的 OCR 管理组件；服务连接在主页面的服务目录内编辑，在界面风格页组织译文样式、风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
+ * 主要内容：普通页面连续展示任务分组，统计与网站规则保留按任务切换的视图，集中分配功能服务并将模型用量合并到翻译统计，保留已访问表单实例；包含正文/全部节点识别范围；模板按 activeSection 展示业务分区，通用设置首先展示全局翻译开关，再按日常翻译、网页辅助、基本偏好组织控件，提供当前默认服务的配置入口并保留译文样式跨页入口；图片与圈选合并在同页，共享仅在当前分区挂载的 OCR 管理组件；服务连接在主页面的服务目录内编辑，在界面风格页组织译文样式、风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -73,20 +73,17 @@
   </section>
   <section v-if="hasVisitedSection('settings-sites')" v-show="props.activeSection === 'settings-sites'" id="settings-sites" class="settings-section site-settings-section">
     <SettingsPanel name="rules" :active="props.activePanel">
-<SettingsGroup>
-      <SettingsItem label="所有网站自动翻译" description="页面基本结构可用后自动开始翻译；关闭后仍保留下面的名单。">
-        <el-switch v-model="config.autoTranslate" class="settings-toggle" aria-label="所有网站自动翻译" />
-      </SettingsItem>
-    </SettingsGroup>
-    <AlwaysTranslateSites v-model="config.alwaysTranslateDomains" />
-    <AlwaysTranslateSites v-model="config.disabledExtensionDomains" variant="disable-extension" />
+      <SitePreferencesSettings :settings="config" :save-preferences="persistConfigPatch" />
 </SettingsPanel>
     <SettingsPanel name="adaptation" :active="props.activePanel">
-<SiteAdaptationSettings :model-value="config.siteAdaptation" :save-settings="saveSiteAdaptationSettings" />
+      <SiteAdaptationSettings :model-value="config.siteAdaptation" :save-settings="saveSiteAdaptationSettings" :inspect-rule-id="siteRuleInspectId" />
 </SettingsPanel>
+    <SettingsPanel name="preview" :active="props.activePanel">
+      <SiteRulePreview :settings="config" :adaptation="config.siteAdaptation" :scope="config.translationScope" @inspect-rule="inspectSiteRule" />
+    </SettingsPanel>
   </section>
   <section v-if="hasVisitedSection('settings-translation-center')" v-show="props.activeSection === 'settings-translation-center'" id="settings-translation-center" class="settings-section translation-center-section">
-    <TranslationCenter />
+    <TranslationCenter @configure-service="openInputServiceSettings" />
   </section>
   <section v-if="hasVisitedSection('settings-writing')" v-show="props.activeSection === 'settings-writing'" id="settings-writing" class="settings-section">
     <WritingSettings :config="config" @configure-service="openWritingServiceSettings()" />
@@ -706,7 +703,7 @@ import SettingsPanel from './components/SettingsPanel.vue';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 
 // Main 处理配置信息
-import { computed, defineAsyncComponent, ref, watch, onUnmounted } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref, watch, onUnmounted } from 'vue'
 
 import {isValidAzureEndpoint} from '@/src/core/config/azure';
 import { cloudRegionOptions, customModelString, defaultOption, getCloudCredentialLabels, getDefaultCloudRegion, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
@@ -776,9 +773,17 @@ const openWritingServiceSettings = () => openInputServiceSettings(config.value.w
 const WritingSettings = defineAsyncComponent(() => import('./WritingSettings.vue'));
 const SelectionSettings = defineAsyncComponent(() => import('./SelectionSettings.vue'));
 const GlossarySettings = defineAsyncComponent(() => import('@/src/features/glossary/public').then(module => module.GlossarySettings));
-const AlwaysTranslateSites = defineAsyncComponent(() => import('./AlwaysTranslateSites.vue'));
 const FloatingBallSettings = defineAsyncComponent(() => import('./FloatingBallSettings.vue'));
 const SiteAdaptationSettings = defineAsyncComponent(() => import('./SiteAdaptationSettings.vue'));
+const SitePreferencesSettings = defineAsyncComponent(() => import('./SitePreferencesSettings.vue'));
+const SiteRulePreview = defineAsyncComponent(() => import('./SiteRulePreview.vue'));
+const siteRuleInspectId = ref('');
+async function inspectSiteRule(id: string) {
+  siteRuleInspectId.value = '';
+  await nextTick();
+  siteRuleInspectId.value = id;
+  openSettingsSection('settings-sites', 'adaptation');
+}
 import type {SiteAdaptationSettings as SiteAdaptationConfig} from '@/src/core/site-adaptation/types';
 import {
   createApiKeyRequirementKey,

@@ -1,264 +1,251 @@
 <!--
  * @file src/features/settings/ui/SiteAdaptationSettings.vue
- * 文件职责：展示内置网站适配并编辑本地 JSON 自定义规则。
- * 主要内容：提供搜索、单条停用、展开规则、模板复制、草稿校验、文件导入导出和网址匹配预览。
- * 模块边界：组件经父级提供的异步保存端口提交合法配置，等待后台确认；不请求预览网址，不执行规则代码。
+ * 文件职责：提供易发现、可解释、可扩展的正文适配规则工作区。
+ * 主要内容：统一有效规则目录、来源筛选、无损可视化编辑、分步保存、冲突保护、合并导入、草稿撤销与离页提醒。
+ * 模块边界：复用规则包与严格校验，保存等待后台确认；不请求网址、不执行规则代码，不将草稿误当作生效配置。
  -->
 <template>
-  <details class="adaptation-card" data-setting="site-adaptation">
-    <summary class="adaptation-summary">
-      <span><strong>{{ tr('网站适配') }}</strong><small>{{ tr('自动识别正文，保留按钮、代码与页面控件。') }}</small></span>
-      <span class="adaptation-count">{{ tr('内置规则') }} {{ builtinSiteRulePack.rules.length }}</span>
-    </summary>
-    <div class="adaptation-body">
-      <label class="adaptation-toggle">
-        <span><strong>{{ tr('启用网站适配') }}</strong><small>{{ tr('内置规则默认生效，也可添加自己的规则。') }}</small></span>
+  <div class="rule-workspace" data-setting="site-adaptation">
+    <section class="rule-card">
+      <header class="rule-heading">
+        <div><h3>{{ tr('正文适配') }}</h3><p>{{ tr('调整哪些区域翻译、哪些保留原文。内置规则开箱即用，自定义规则可按域名与路径精细设置。') }}</p></div>
         <el-switch :model-value="modelValue.enabled" :disabled="saving" :aria-label="tr('启用网站适配')" @update:model-value="setEnabled(Boolean($event))" />
-      </label>
-
-      <details class="adaptation-section">
-        <summary>{{ tr('查看内置规则') }}</summary>
-        <label class="adaptation-field">
-          <span>{{ tr('搜索网站') }}</span>
-          <input v-model="search" type="search" :placeholder="tr('输入网站名称或域名')" autocomplete="off" @input="visibleLimit = 30" />
-        </label>
-        <div class="adaptation-rule-list" role="list" :aria-label="tr('内置规则')">
-          <article v-for="rule in visibleRules" :key="rule.id" role="listitem" class="adaptation-rule" :data-adaptation-rule="rule.id">
-            <button class="adaptation-rule-name" type="button" @click="selectedRule = rule">
-              <strong data-i18n-ignore>{{ rule.name }}</strong><small data-i18n-ignore>{{ rule.match.hosts.join(', ') }}</small>
-              <small v-if="customIds.has(rule.id)">{{ tr('已由自定义规则覆盖') }}</small>
-            </button>
-            <el-switch :model-value="!modelValue.disabledRuleIds.includes(rule.id)" :disabled="saving" :aria-label="`${tr('启用规则')} ${rule.name}`"
-              @update:model-value="toggleRule(rule.id, Boolean($event))" />
-          </article>
+      </header>
+      <p v-if="!modelValue.enabled" class="rule-notice">{{ tr('正文适配已关闭，规则仍保留；网页使用通用正文识别。') }}</p>
+      <div v-if="isDirty || saving" ref="saveBar" class="draft-bar" role="status"><span>{{ tr(saving ? '正在保存，等待后台确认。' : '草稿未保存，网页仍使用已保存规则。') }}</span><button type="button" class="rule-primary" :disabled="saving || !!form || draftConflict" :aria-busy="saving" @click="saveDraft">{{ tr(saving ? '正在保存' : '保存并应用') }}</button></div>
+      <p v-if="draftConflict" class="rule-error" role="alert">{{ tr('已保存规则在其他页面发生变化。草稿已保留，请先导出或复制草稿，再恢复最新配置并重新合并。') }}</p>
+      <div class="catalog-toolbar">
+        <label class="rule-field"><span class="sr-only">{{ tr('搜索网站规则') }}</span><input v-model="search" type="search" :aria-label="tr('搜索网站规则')" :placeholder="tr('输入网站名称、域名或规则标识')" @input="visibleLimit = 30" /></label>
+        <button type="button" class="rule-primary" :disabled="saving || !!form" @click="startForm()">{{ tr('新建规则') }}</button>
+      </div>
+      <div class="catalog-filters" role="group" :aria-label="tr('筛选网站规则')">
+        <button v-for="option in filters" :key="option.id" type="button" :aria-pressed="filter === option.id" :class="{'is-active': filter === option.id}" @click="filter = option.id; visibleLimit = 30">{{ tr(option.label) }} <span>{{ option.count }}</span></button>
+      </div>
+      <p class="rule-hint">{{ tr('同 ID 的自定义规则完整替换内置规则；移除自定义版本后恢复内置版本。') }}</p>
+      <div v-if="form" ref="formArea" class="visual-editor" data-rule-form>
+        <header class="rule-heading"><div><h3>{{ tr(editingId ? '编辑规则' : '新建规则') }}</h3><p>{{ tr('每行填写一项。暂存后可继续检查，点击保存规则才会影响网页。') }}</p></div><button type="button" :disabled="saving" @click="cancelForm">{{ tr('取消编辑') }}</button></header>
+        <p v-if="formConflict" class="rule-error" role="alert">{{ tr('规则已从其他页面更新，请关闭编辑器后重新打开，避免覆盖新配置。') }}</p>
+        <div class="rule-columns">
+          <label class="rule-field"><span>{{ tr('规则名称') }}</span><input v-model="form.name" data-i18n-ignore :aria-label="tr('规则名称')" maxlength="160" :placeholder="tr('例如：我的技术博客')" /></label>
+          <label class="rule-field"><span>{{ tr('规则标识') }}</span><input v-model="form.id" data-i18n-ignore :aria-label="tr('规则标识')" :disabled="!!editingId" maxlength="96" placeholder="my-article-site" /><small class="rule-hint">{{ tr('用于覆盖与识别；创建后保持稳定。') }}</small></label>
+          <label class="rule-field"><span>{{ tr('匹配域名') }}</span><textarea v-model="form.hosts" data-i18n-ignore rows="3" :aria-label="tr('匹配域名')" placeholder="example.com&#10;*.example.com" /><small class="rule-hint">{{ tr('不含协议或路径；*.example.com 包含主域和子域。') }}</small></label>
+          <div><label class="rule-field"><span>{{ tr('匹配路径（可选）') }}</span><textarea v-model="form.paths" data-i18n-ignore rows="2" :aria-label="tr('匹配路径（可选）')" placeholder="/articles/*" /></label><label class="rule-field"><span>{{ tr('排除路径（可选）') }}</span><textarea v-model="form.excludePaths" data-i18n-ignore rows="2" :aria-label="tr('排除路径（可选）')" placeholder="/account/*" /></label></div>
         </div>
-        <p v-if="!matchingRules.length" class="adaptation-hint">{{ tr('没有匹配的网站规则。') }}</p>
-        <button v-if="visibleRules.length < matchingRules.length" type="button" @click="visibleLimit += 30">{{ tr('显示更多') }} ({{ visibleRules.length }}/{{ matchingRules.length }})</button>
-        <div v-if="selectedRule" class="adaptation-rule-detail">
-          <div class="adaptation-actions"><strong data-i18n-ignore>{{ selectedRule.name }}</strong><button type="button" @click="selectedRule = null">{{ tr('关闭') }}</button></div>
-          <pre data-i18n-ignore>{{ selectedRuleJson }}</pre>
-          <button type="button" @click="copyRule(selectedRule)">{{ tr('复制到自定义草稿') }}</button>
-        </div>
-        <div class="adaptation-actions"><button type="button" @click="downloadPack(builtinSiteRulePack, 'fluentread-builtin-sites.json')">{{ tr('导出内置规则') }}</button></div>
-      </details>
-
-      <section class="adaptation-section" aria-labelledby="adaptation-custom-heading">
-        <h4 id="adaptation-custom-heading">{{ tr('自定义规则') }} <span class="adaptation-count">{{ modelValue.custom.rules.length }}</span></h4>
-        <p class="adaptation-hint">{{ tr('编辑后点击保存。同 ID 的自定义规则会完整替换内置规则；删除后恢复内置规则。') }}</p>
-        <div class="adaptation-actions">
-          <button type="button" @click="insertExample">{{ tr('插入示例') }}</button>
-          <button type="button" @click="fileInput?.click()">{{ tr('导入 JSON') }}</button>
-          <button type="button" :disabled="saving" @click="downloadPack(modelValue.custom, 'fluentread-custom-sites.json')">{{ tr('导出已保存规则') }}</button>
-          <input ref="fileInput" hidden type="file" accept=".json,application/json" @change="importFile" />
-        </div>
-        <label class="adaptation-field">
-          <span>{{ tr('JSON 编辑草稿') }} <small v-if="isDirty">{{ tr('未保存') }}</small></span>
-          <textarea v-model="draft" data-i18n-ignore rows="15" spellcheck="false" autocomplete="off"
-            :aria-invalid="issues.length > 0" aria-describedby="adaptation-editor-feedback" @input="markDraftEdited" />
-        </label>
-        <div id="adaptation-editor-feedback" aria-live="polite">
-          <ul v-if="issues.length" class="adaptation-errors" role="alert"><li v-for="(issue, index) in issues" :key="index"><code data-i18n-ignore>{{ issue.path }}</code> {{ tr(issue.message) }}</li></ul>
-          <p v-else-if="status" class="adaptation-hint" role="status">{{ tr(status) }}</p>
-        </div>
-        <div class="adaptation-actions">
-          <button type="button" class="adaptation-primary" :disabled="!isDirty || saving" :aria-busy="saving" @click="saveDraft">{{ tr(saving ? '正在保存' : '保存规则') }}</button>
-          <button type="button" :disabled="!isDirty || saving" @click="restoreSaved">{{ tr('恢复已保存草稿') }}</button>
-          <button type="button" @click="clearCustom">{{ tr('清空自定义草稿') }}</button>
-          <button v-if="undoDraft !== null" type="button" @click="undoReplacement">{{ tr('撤销草稿替换') }}</button>
-        </div>
-        <details class="adaptation-guide">
-          <summary>{{ tr('如何编写规则') }}</summary>
-          <p><a href="https://fluent.thinkstu.com/guide/custom-site-rules" target="_blank" rel="noopener noreferrer">{{ tr('查看完整自定义教程') }}</a></p>
-          <dl>
-            <dt><code>match</code></dt><dd>{{ tr('hosts 指定域名；*.example.com 包含主域名与子域。paths 和 excludePaths 按网址路径匹配，* 表示任意字符。') }}</dd>
-            <dt><code>mode</code></dt><dd>{{ tr('augment 在通用识别上补充正文；focus 只翻译 content 选中的区域。') }}</dd>
-            <dt><code>content</code></dt><dd>{{ tr('css 填写 CSS 选择器。atomic 为 true 时将区域作为整体翻译，false 时继续发现内部明确声明的正文目标。focus 模式需同时声明段落选择器。') }}</dd>
-            <dt><code>protect / exclude</code></dt><dd>{{ tr('protect 保留区域原文；exclude 同时排除该区域的正文扫描。') }}</dd>
-            <dt><code>watchIgnore</code></dt><dd>{{ tr('忽略指定区域的动态变化，仅用于时钟、计数器等持续更新的非正文。') }}</dd>
-            <dt><code>priority</code></dt><dd>{{ tr('正文候选优先使用数字较大的规则，同值按规则顺序。所有命中规则的保护区域共同生效；任一 focus 规则会限制通用正文识别。') }}</dd>
-          </dl>
-        </details>
+        <label class="rule-field"><span>{{ tr('识别模式') }}</span><select v-model="form.mode" :aria-label="tr('识别模式')"><option value="augment">{{ tr('补充识别：在通用正文上增加指定区域') }}</option><option value="focus">{{ tr('限定范围：只翻译指定的正文区域') }}</option></select></label>
+        <section class="content-editor"><h4>{{ tr('正文区域') }}</h4><p class="rule-hint">{{ tr('推荐精确到标题、段落或列表项，如 article h1、article p。限定范围模式至少需要一个区域。') }}</p>
+          <div v-for="(content, index) in form.content" :key="index" class="content-row">
+            <label class="rule-field"><span>{{ tr('CSS 选择器') }} {{ index + 1 }}</span><textarea v-model="content.css" data-i18n-ignore rows="3" :aria-label="tr('正文 CSS 选择器') + ' ' + (index + 1)" placeholder="article h1&#10;article p&#10;article li" /></label>
+            <div class="rule-actions"><label><input v-model="content.atomic" type="checkbox" /> {{ tr('将选中节点作为整体翻译') }}</label><button type="button" :aria-label="tr('移除正文区域') + ' ' + (index + 1)" @click="form.content.splice(index, 1)">{{ tr('移除') }}</button></div>
+            <details><summary>{{ tr('区域高级选项') }}</summary><label class="rule-field"><span>{{ tr('节点解析') }}</span><select v-model="content.resolve"><option value="self">{{ tr('使用选中节点') }}</option><option value="closest">{{ tr('使用最近的匹配祖先') }}</option></select></label><label><input v-model="content.splitOnBr" type="checkbox" /> {{ tr('按直接子级换行标签分段') }}</label><label class="rule-field"><span>{{ tr('区域标识（可选）') }}</span><input v-model="content.key" data-i18n-ignore /></label></details>
+          </div>
+          <button type="button" :disabled="form.content.length >= SITE_RULE_LIMITS.content" @click="form.content.push({css: '', atomic: true, resolve: 'self', splitOnBr: false})">{{ tr('添加正文区域') }}</button>
+        </section>
+        <div class="rule-columns"><label class="rule-field"><span>{{ tr('保留原文区域（可选）') }}</span><textarea v-model="form.protect" data-i18n-ignore rows="3" :aria-label="tr('保留原文区域（可选）')" placeholder="code&#10;pre&#10;button" /></label><label class="rule-field"><span>{{ tr('排除扫描区域（可选）') }}</span><textarea v-model="form.exclude" data-i18n-ignore rows="3" :aria-label="tr('排除扫描区域（可选）')" placeholder="nav&#10;.advertisement" /></label></div>
+        <details><summary>{{ tr('更多匹配选项') }}</summary><div class="rule-columns"><label class="rule-field"><span>{{ tr('优先级') }}</span><input v-model.number="form.priority" type="number" min="-10000" max="10000" step="1" :aria-label="tr('优先级')" /><small class="rule-hint">{{ tr('数字越大，正文候选越优先；保护区域仍共同生效。') }}</small></label><label class="rule-field"><span>{{ tr('忽略动态变化区域（可选）') }}</span><textarea v-model="form.watchIgnore" data-i18n-ignore rows="3" :aria-label="tr('忽略动态变化区域（可选）')" /><small class="rule-hint">{{ tr('仅用于时钟、计数器等非正文。') }}</small></label></div><p v-if="originalRule" class="rule-hint">{{ tr('未展示的高级字段会完整保留；需要修改时请使用高级 JSON 编辑。') }}</p></details>
+        <ul v-if="issues.length" class="rule-error" role="alert"><li v-for="(issue, index) in issues" :key="index"><code data-i18n-ignore>{{ issue.path }}</code> {{ tr(issue.message) }}</li></ul>
+        <div class="rule-actions"><button type="button" class="rule-primary" :disabled="formConflict" @click="stageForm">{{ tr('暂存规则') }}</button><span class="rule-hint">{{ tr('暂存不会立即应用到网页。') }}</span></div>
+      </div>
+      <div class="catalog-list" role="list" :aria-label="tr('网站规则目录')">
+        <article v-for="item in visibleRules" :key="item.rule.id" class="catalog-rule" role="listitem" :data-adaptation-rule="item.rule.id">
+          <button class="catalog-name" type="button" :aria-expanded="selectedId === item.rule.id" @click="selectedId = selectedId === item.rule.id ? '' : item.rule.id">
+            <strong data-i18n-ignore>{{ item.rule.name }}</strong><small data-i18n-ignore>{{ item.rule.match.hosts.join(', ') }}</small><span class="catalog-tags"><span class="rule-badge">{{ tr(item.source === 'custom' ? item.overridesBuiltin ? '自定义覆盖' : '自定义' : '内置') }}</span><span>{{ tr((item.rule.mode ?? item.pack.profiles?.[item.rule.profile ?? '']?.mode) === 'focus' ? '限定正文' : '补充识别') }}</span><span v-if="!item.enabled">{{ tr('已停用') }}</span></span>
+          </button>
+          <el-switch :model-value="item.enabled" :disabled="saving || isDirty || !!form" :aria-label="tr('启用规则') + ' ' + item.rule.name" @update:model-value="toggleRule(item.rule.id, Boolean($event))" />
+        </article>
+      </div>
+      <div v-if="!matchingRules.length" class="rule-empty"><strong>{{ tr('没有匹配的网站规则。') }}</strong><p>{{ tr('试试其他关键词，或切换规则来源。') }}</p></div>
+      <button v-if="visibleRules.length < matchingRules.length" type="button" class="catalog-more" @click="visibleLimit += 30">{{ tr('显示更多') }} ({{ visibleRules.length }}/{{ matchingRules.length }})</button>
+      <section v-if="selected && selectedResolved" class="rule-detail" data-rule-detail>
+        <header class="rule-heading"><div><h3 data-i18n-ignore>{{ selected.rule.name }}</h3><p data-i18n-ignore>{{ selected.rule.id }}</p></div><button type="button" @click="selectedId = ''">{{ tr('关闭详情') }}</button></header>
+        <dl><dt>{{ tr('匹配域名') }}</dt><dd data-i18n-ignore>{{ selectedResolved.match.hosts.join(' · ') }}</dd><dt>{{ tr('匹配路径') }}</dt><dd data-i18n-ignore>{{ selectedResolved.match.paths?.join(' · ') || tr('所有路径') }}</dd><dt v-if="selectedResolved.match.excludePaths?.length">{{ tr('排除路径') }}</dt><dd v-if="selectedResolved.match.excludePaths?.length" data-i18n-ignore>{{ selectedResolved.match.excludePaths.join(' · ') }}</dd><dt>{{ tr('正文区域') }}</dt><dd data-i18n-ignore>{{ selectedResolved.content?.flatMap(item => item.css).join(' · ') || tr('通用正文识别') }}</dd><dt>{{ tr('保留原文') }}</dt><dd data-i18n-ignore>{{ selectedResolved.protect?.join(' · ') || '—' }}</dd><dt>{{ tr('排除扫描') }}</dt><dd data-i18n-ignore>{{ selectedResolved.exclude?.join(' · ') || '—' }}</dd><dt>{{ tr('优先级') }}</dt><dd>{{ selectedResolved.priority ?? 0 }}</dd></dl>
+        <div class="rule-actions"><button type="button" class="rule-primary" :disabled="saving || !!form" @click="startForm(selected)">{{ tr(selected.source === 'builtin' ? '基于此规则自定义' : '编辑自定义规则') }}</button><button v-if="selected.source === 'custom'" type="button" :disabled="saving || !!form" @click="removeCustom(selected.rule.id)">{{ tr('从草稿移除') }}</button><button type="button" @click="downloadPack({version: 1, rules: [selectedResolved]}, selected.rule.id + '.json')">{{ tr('导出此规则') }}</button></div>
+        <details><summary>{{ tr('查看展开后的 JSON') }}</summary><pre data-i18n-ignore>{{ JSON.stringify(selectedResolved, null, 2) }}</pre></details>
       </section>
-
-      <section class="adaptation-section" aria-labelledby="adaptation-preview-heading">
-        <h4 id="adaptation-preview-heading">{{ tr('网址匹配预览') }}</h4>
-        <p class="adaptation-hint">{{ tr('按已保存规则预览；仅检查网址匹配，实际内容以网页结构为准。') }}</p>
-        <label class="adaptation-field"><span>{{ tr('输入完整网址') }}</span><input v-model="previewUrl" type="url" placeholder="https://example.com/articles/hello" autocomplete="off" spellcheck="false" /></label>
-        <div v-if="previewUrl" class="adaptation-preview" aria-live="polite">
-          <p v-if="!preview.ok">{{ tr('请输入以 http:// 或 https:// 开头的完整网址。') }}</p>
-          <template v-else>
-            <p v-if="!preview.rules.length">{{ tr('未命中专属规则，将使用通用正文识别。') }}</p>
-            <p v-else-if="!preview.rules.some(item => item.enabled)">{{ tr('匹配规则均已停用，将使用通用正文识别。') }}</p>
-            <ol v-if="preview.rules.length"><li v-for="item in preview.rules" :key="item.rule.id"><strong data-i18n-ignore>{{ item.rule.name }}</strong> · {{ tr(item.source === 'custom' ? '自定义' : '内置') }} · {{ tr(item.enabled ? '已启用' : '已停用') }}</li></ol>
-          </template>
-        </div>
-      </section>
-    </div>
-  </details>
+    </section>
+    <section class="rule-card" aria-labelledby="adaptation-custom-heading">
+      <header class="rule-heading"><div><h3 id="adaptation-custom-heading">{{ tr('自定义规则与备份') }}</h3><p>{{ tr('可视化编辑和 JSON 使用同一份草稿。保存前先检查，导入默认合并而不是清空现有规则。') }}</p></div><span v-if="isDirty" class="rule-badge">{{ tr('未保存') }}</span></header>
+      <div class="rule-actions import-actions"><button type="button" :disabled="saving || !!form" @click="insertExample">{{ tr('插入示例') }}</button><label class="import-mode">{{ tr('导入方式') }} <select v-model="importMode" :disabled="saving"><option value="merge">{{ tr('合并（同 ID 替换）') }}</option><option value="replace">{{ tr('替换整个草稿') }}</option></select></label><button type="button" :disabled="saving || !!form" @click="fileInput?.click()">{{ tr('导入 JSON') }}</button><button type="button" @click="downloadPack(modelValue.custom, 'fluentread-custom-sites.json')">{{ tr('导出已保存规则') }}</button><button v-if="isDirty && parsedDraft.ok" type="button" @click="downloadPack(workingPack, 'fluentread-draft-sites.json')">{{ tr('导出草稿') }}</button><button type="button" @click="downloadPack(builtinSiteRulePack, 'fluentread-builtin-sites.json')">{{ tr('导出内置规则') }}</button><input ref="fileInput" hidden type="file" accept=".json,application/json" @change="importFile" /></div>
+      <details :open="jsonOpen" class="json-editor" @toggle="jsonOpen = ($event.target as HTMLDetailsElement).open"><summary>{{ tr('高级 JSON 编辑') }}</summary><p class="rule-hint">{{ tr('支持模板、多个内容区域及全部高级字段；每次保存都会校验格式、域名、路径与 CSS 选择器。') }}</p><label class="rule-field"><span>{{ tr('JSON 编辑草稿') }}</span><textarea v-model="draft" data-i18n-ignore rows="16" spellcheck="false" autocomplete="off" :disabled="saving || !!form" :aria-label="tr('JSON 编辑草稿')" :aria-invalid="issues.length > 0" aria-describedby="adaptation-editor-feedback" @input="markDraftEdited" /></label><div class="rule-actions"><button type="button" :disabled="saving || !!form" @click="validateDraft">{{ tr('校验草稿') }}</button><button type="button" :disabled="saving || !!form" @click="clearCustom">{{ tr('清空自定义草稿') }}</button></div></details>
+      <div id="adaptation-editor-feedback" aria-live="polite"><ul v-if="issues.length" class="rule-error" role="alert"><li v-for="(issue, index) in issues" :key="index"><code data-i18n-ignore>{{ issue.path }}</code> {{ tr(issue.message) }}</li></ul><p v-else-if="status" class="rule-hint" role="status">{{ tr(status) }}</p></div>
+      <div class="rule-actions save-actions"><button type="button" class="rule-primary" :disabled="!isDirty || saving || !!form || draftConflict" :aria-busy="saving" @click="saveDraft">{{ tr(saving ? '正在保存' : '保存规则') }}</button><button type="button" :disabled="!isDirty || saving || !!form" @click="restoreSaved">{{ tr('恢复已保存草稿') }}</button><button v-if="undoDraft !== null" type="button" :disabled="saving || !!form" @click="undoReplacement">{{ tr('撤销草稿替换') }}</button><span class="rule-hint">{{ tr(saving ? '正在保存，等待后台确认。' : isDirty ? '目录显示草稿；网页仍使用已保存规则。' : '当前规则已保存。') }}</span></div>
+      <details class="rule-guide"><summary>{{ tr('如何编写规则') }}</summary><p class="rule-hint">{{ tr('补充识别会保留通用正文；限定范围只使用命中的正文区域。所有命中规则的保护区域共同生效，任一限定范围规则会限制通用识别。') }}</p><p class="rule-hint">{{ tr('修改规则会恢复正在翻译的页面，请重新触发翻译；网址预览不验证网站当前 DOM。') }}</p><a href="https://fluent.thinkstu.com/guide/custom-site-rules" target="_blank" rel="noopener noreferrer">{{ tr('查看完整自定义教程') }}</a></details>
+    </section>
+  </div>
 </template>
-
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue';
+import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue';
 import {builtinSiteRulePack} from '@/src/core/site-adaptation/catalog';
 import {resolveSiteRule} from '@/src/core/site-adaptation/compiler';
 import {SITE_RULE_LIMITS} from '@/src/core/site-adaptation/schema';
 import type {SiteAdaptationSettings, SiteRule, SiteRuleIssue, SiteRulePack} from '@/src/core/site-adaptation/types';
-import {
-  completeSiteRuleDraftSave, copySiteRuleToDraft, createSiteAdaptationCommitter, createSiteRuleDraftImportGuard,
-  formatSiteRulePack, parseSiteAdaptationDraft, previewSiteRules,
-  reconcileSiteRuleDraft, searchSiteRules, setSiteRuleEnabled, SITE_ADAPTATION_EXAMPLE,
-} from '../model/siteAdaptationEditor';
 import {useUiI18n} from '@/src/ui/i18n';
-
-const props = defineProps<{
-  modelValue: SiteAdaptationSettings;
-  saveSettings: (value: SiteAdaptationSettings) => Promise<void>;
-}>();
+import {buildSiteRuleFromForm, completeSiteRuleDraftSave, copySiteRuleToDraft, createSiteAdaptationCommitter,
+  createSiteRuleDraftImportGuard, createSiteRuleForm, formatSiteRulePack, listSiteRuleCatalog, mergeSiteRuleDraft,
+  parseSiteAdaptationDraft, reconcileSiteRuleDraft, searchSiteRules, setSiteRuleEnabled, SITE_ADAPTATION_EXAMPLE,
+  upsertSiteRuleDraft, type SiteRuleCatalogItem, type SiteRuleForm} from '../model/siteAdaptationEditor';
+const props = defineProps<{modelValue: SiteAdaptationSettings; saveSettings: (value: SiteAdaptationSettings) => Promise<void>; inspectRuleId?: string}>();
 const {translateLegacy: tr} = useUiI18n();
-const search = ref('');
-const visibleLimit = ref(30);
-const selectedRule = ref<SiteRule | null>(null);
-const draft = ref(formatSiteRulePack(props.modelValue.custom));
-const draftOwned = ref(false);
-const saving = ref(false);
+const search = ref(''); const filter = ref('all'); const visibleLimit = ref(30); const selectedId = ref('');
+const draft = ref(formatSiteRulePack(props.modelValue.custom)); const draftOwned = ref(false);
+const draftBase = ref(draft.value); const saveBar = ref<HTMLElement | null>(null); const formArea = ref<HTMLElement | null>(null);
+const saving = ref(false); const undoDraft = ref<string | null>(null); const issues = ref<SiteRuleIssue[]>([]); const status = ref('');
+const fileInput = ref<HTMLInputElement | null>(null); const importMode = ref('merge'); const jsonOpen = ref(false);
+const form = ref<SiteRuleForm | null>(null); const originalRule = ref<SiteRule>(); const editingId = ref<string | null>(null);
+let formBaseline = ''; let formSettingsBaseline = ''; let formInitial = '';
 const committer = createSiteAdaptationCommitter(value => props.saveSettings(value));
 const importGuard = createSiteRuleDraftImportGuard();
-const undoDraft = ref<string | null>(null);
-const issues = ref<SiteRuleIssue[]>([]);
-const status = ref('');
-const previewUrl = ref('');
-const fileInput = ref<HTMLInputElement | null>(null);
 const isDirty = computed(() => draft.value !== formatSiteRulePack(props.modelValue.custom));
-const matchingRules = computed(() => searchSiteRules(builtinSiteRulePack.rules, search.value));
+const hasUnsavedWork = computed(() => saving.value || isDirty.value || (!!form.value && JSON.stringify(form.value) !== formInitial));
+function warnBeforeExit(event: BeforeUnloadEvent) {
+  if (!hasUnsavedWork.value) return;
+  event.preventDefault(); event.returnValue = '';
+}
+watch(hasUnsavedWork, active => {
+  if (active) window.addEventListener('beforeunload', warnBeforeExit);
+  else window.removeEventListener('beforeunload', warnBeforeExit);
+}, {immediate: true});
+onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeExit));
+const draftConflict = computed(() => draftOwned.value && isDirty.value && !saving.value && draftBase.value !== formatSiteRulePack(props.modelValue.custom));
+const parsedDraft = computed(() => parseSiteAdaptationDraft(draft.value, document));
+const workingPack = computed(() => parsedDraft.value.ok ? parsedDraft.value.pack : props.modelValue.custom);
+const catalog = computed(() => listSiteRuleCatalog(builtinSiteRulePack, {...props.modelValue, custom: workingPack.value}));
+const filters = computed(() => [{id: 'all', label: '全部规则', count: catalog.value.length},
+  {id: 'custom', label: '自定义', count: catalog.value.filter(item => item.source === 'custom').length},
+  {id: 'builtin', label: '内置', count: catalog.value.filter(item => item.source === 'builtin').length},
+  {id: 'disabled', label: '已停用', count: catalog.value.filter(item => !item.enabled).length}]);
+const matchingRules = computed(() => {
+  const matching = new Set(searchSiteRules(catalog.value.map(item => item.rule), search.value).map(rule => rule.id));
+  return catalog.value.filter(item => matching.has(item.rule.id) && (filter.value === 'all' || (filter.value === 'disabled' ? !item.enabled : item.source === filter.value)));
+});
 const visibleRules = computed(() => matchingRules.value.slice(0, visibleLimit.value));
-const customIds = computed(() => new Set(props.modelValue.custom.rules.map(rule => rule.id)));
-const selectedRuleJson = computed(() => selectedRule.value ? JSON.stringify(resolveSiteRule(builtinSiteRulePack, selectedRule.value), null, 2) : '');
-const preview = computed(() => previewSiteRules(previewUrl.value, builtinSiteRulePack, props.modelValue));
-
+const selected = computed(() => catalog.value.find(item => item.rule.id === selectedId.value));
+const selectedResolved = computed(() => selected.value ? resolveSiteRule(selected.value.pack, selected.value.rule) : null);
+watch(() => props.inspectRuleId, id => { if (id) { selectedId.value = id; search.value = id; filter.value = 'all'; visibleLimit.value = 30; } }, {immediate: true});
+const formConflict = computed(() => !!form.value && (draft.value !== formBaseline || formatSiteRulePack(props.modelValue.custom) !== formSettingsBaseline));
 watch(() => props.modelValue.custom, (incoming, previous) => {
   draft.value = reconcileSiteRuleDraft(draft.value, previous, incoming, draftOwned.value || saving.value);
 });
-
 function clearFeedback() { issues.value = []; status.value = ''; }
-function markDraftEdited() { draftOwned.value = true; clearFeedback(); }
+function markDraftEdited() { if (!draftOwned.value) draftBase.value = formatSiteRulePack(props.modelValue.custom); draftOwned.value = true; clearFeedback(); }
+function replaceDraft(value: string) { undoDraft.value = draft.value; draft.value = value; markDraftEdited(); }
 async function commitSettings(value: SiteAdaptationSettings): Promise<boolean> {
   if (saving.value) return false;
   clearFeedback(); saving.value = true;
-  const result = await committer.commit(value);
-  saving.value = false;
-  if (result !== 'saved') {
-    issues.value = [{path: '$', message: '保存失败，草稿仍保留；请重试。'}];
-    return false;
-  }
+  const result = await committer.commit(value); saving.value = false;
+  if (result !== 'saved') { issues.value = [{path: '$', message: '保存失败，草稿仍保留；请重试。'}]; return false; }
   return true;
 }
-function setEnabled(enabled: boolean) { return commitSettings({...props.modelValue, enabled}); }
-function toggleRule(id: string, enabled: boolean) { return commitSettings(setSiteRuleEnabled(props.modelValue, id, enabled)); }
+async function setEnabled(enabled: boolean) { if (await commitSettings({...props.modelValue, enabled})) status.value = '网站适配设置已保存。'; }
+async function toggleRule(id: string, enabled: boolean) { if (await commitSettings(setSiteRuleEnabled(props.modelValue, id, enabled))) status.value = '规则开关已保存。'; }
+function validateDraft() { clearFeedback(); const result = parsedDraft.value; if (!result.ok) issues.value = result.issues; else status.value = '草稿校验通过，点击保存规则后生效。'; }
 async function saveDraft() {
-  if (saving.value) return;
-  clearFeedback();
-  const submitted = draft.value;
-  const result = parseSiteAdaptationDraft(submitted, document);
-  if (!result.ok) { issues.value = result.issues; return; }
+  if (saving.value || form.value || draftConflict.value) return;
+  clearFeedback(); const submitted = draft.value; const result = parsedDraft.value;
+  if (!result.ok) { issues.value = result.issues; jsonOpen.value = true; return; }
   draftOwned.value = true;
   if (!await commitSettings({...props.modelValue, custom: result.pack})) return;
   const completed = completeSiteRuleDraftSave(draft.value, submitted, result.pack);
   draft.value = completed.draft;
-  if (completed.clearUndo) { undoDraft.value = null; draftOwned.value = false; }
-  status.value = completed.clearUndo
-    ? '规则已应用；正在翻译的页面会恢复原文，请重新触发翻译。'
-    : '已保存提交的规则，新的草稿修改尚未保存。';
+  if (completed.clearUndo) { undoDraft.value = null; draftOwned.value = false; draftBase.value = formatSiteRulePack(result.pack); }
+  status.value = completed.clearUndo ? '规则已应用；正在翻译的页面会恢复原文，请重新触发翻译。' : '已保存提交的规则，新的草稿修改尚未保存。';
 }
-function replaceDraft(value: string) { undoDraft.value = draft.value; draft.value = value; markDraftEdited(); }
-function restoreSaved() { replaceDraft(formatSiteRulePack(props.modelValue.custom)); }
-function clearCustom() { replaceDraft(formatSiteRulePack({version: 1, rules: []})); status.value = '已清空草稿，点击保存后生效。'; }
-function undoReplacement() {
-  if (undoDraft.value === null) return;
-  draft.value = undoDraft.value; undoDraft.value = null; markDraftEdited();
-}
-function copyRule(rule: SiteRule, source = builtinSiteRulePack) {
-  const result = copySiteRuleToDraft(draft.value, source, rule, document);
+function startForm(item?: SiteRuleCatalogItem) {
+  if (!parsedDraft.value.ok) { issues.value = parsedDraft.value.issues; jsonOpen.value = true; return; }
+  originalRule.value = item ? resolveSiteRule(item.pack, item.rule) : undefined;
+  editingId.value = item?.rule.id ?? null;
+  form.value = createSiteRuleForm(originalRule.value);
+  formBaseline = draft.value; formSettingsBaseline = formatSiteRulePack(props.modelValue.custom); formInitial = JSON.stringify(form.value);
   clearFeedback();
+  void nextTick(() => formArea.value?.scrollIntoView({block: 'start'}));
+}
+function cancelForm() {
+  if (JSON.stringify(form.value) !== formInitial && !window.confirm(tr('放弃尚未暂存的规则修改？'))) return;
+  form.value = null; originalRule.value = undefined;
+}
+function stageForm() {
+  if (!form.value || formConflict.value) return;
+  clearFeedback();
+  if (!editingId.value && builtinSiteRulePack.rules.some(rule => rule.id === form.value!.id.trim())) {
+    issues.value = [{path: '$.id', message: '该标识属于内置规则，请从目录选择“基于此规则自定义”。'}]; return;
+  }
+  const result = upsertSiteRuleDraft(draft.value, buildSiteRuleFromForm(form.value, originalRule.value), editingId.value, document);
   if (!result.ok) { issues.value = result.issues; return; }
-  replaceDraft(result.draft);
-  status.value = '已加入草稿，编辑后点击保存。';
+  const id = form.value.id.trim(); replaceDraft(result.draft); form.value = null; originalRule.value = undefined;
+  filter.value = 'custom'; search.value = ''; selectedId.value = id; visibleLimit.value = 30;
+  status.value = '规则已暂存，检查后点击保存规则。';
+  void nextTick(() => saveBar.value?.scrollIntoView({block: 'nearest'}));
 }
-function insertExample() { copyRule(SITE_ADAPTATION_EXAMPLE.rules[0]!, SITE_ADAPTATION_EXAMPLE); }
+function removeCustom(id: string) {
+  const parsed = parsedDraft.value; if (!parsed.ok) { issues.value = parsed.issues; jsonOpen.value = true; return; }
+  replaceDraft(formatSiteRulePack({...parsed.pack, rules: parsed.pack.rules.filter(rule => rule.id !== id)}));
+  status.value = '已从草稿移除；保存后生效，同 ID 内置规则将恢复。';
+}
+function restoreSaved() { replaceDraft(formatSiteRulePack(props.modelValue.custom)); draftBase.value = draft.value; draftOwned.value = false; }
+function clearCustom() { replaceDraft(formatSiteRulePack({version: 1, rules: []})); status.value = '已清空草稿，点击保存后生效。'; }
+function undoReplacement() { if (undoDraft.value === null) return; draft.value = undoDraft.value; undoDraft.value = null; markDraftEdited(); }
+function insertExample() {
+  const example = SITE_ADAPTATION_EXAMPLE.rules[0]!; const parsed = parsedDraft.value;
+  if (parsed.ok && parsed.pack.rules.some(rule => rule.id === example.id)) {
+    status.value = '示例已存在，现有修改已保留。'; filter.value = 'custom'; search.value = example.id; return;
+  }
+  const result = copySiteRuleToDraft(draft.value, SITE_ADAPTATION_EXAMPLE, example, document);
+  if (!result.ok) { issues.value = result.issues; jsonOpen.value = true; return; }
+  replaceDraft(result.draft); filter.value = 'custom'; selectedId.value = example.id; search.value = '';
+  status.value = '示例已加入草稿，编辑后点击保存规则。';
+}
 async function importFile(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = '';
-  if (!file) return;
-  const importTicket = importGuard.begin(draft.value);
-  clearFeedback();
+  const input = event.target as HTMLInputElement; const file = input.files?.[0]; input.value = '';
+  if (!file || saving.value || form.value) return;
+  const ticket = importGuard.begin(draft.value); const mode = importMode.value; clearFeedback();
   if (file.size > SITE_RULE_LIMITS.bytes) { issues.value = [{path: '$', message: '规则包不能超过 2 MB'}]; return; }
   try {
-    const text = await file.text();
-    const state = importGuard.check(importTicket, draft.value);
+    const text = await file.text(); const state = importGuard.check(ticket, draft.value);
     if (state === 'superseded') return;
-    if (state === 'edited') { status.value = '读取文件期间草稿已更改，请重新导入以替换当前草稿。'; return; }
-    replaceDraft(text);
-    const result = parseSiteAdaptationDraft(text, document);
-    if (!result.ok) issues.value = result.issues;
-    else status.value = '已导入草稿，检查后点击保存。';
-  } catch {
-    if (importGuard.check(importTicket, draft.value) === 'current') {
-      issues.value = [{path: '$', message: '无法读取文件，请重新选择本地 JSON 文件。'}];
-    }
-  }
+    if (state === 'edited' || saving.value || form.value) { status.value = '读取文件期间草稿已更改，请重新导入以替换当前草稿。'; return; }
+    const parsed = parseSiteAdaptationDraft(text, document);
+    if (!parsed.ok) { issues.value = parsed.issues; return; }
+    const result = mode === 'merge' ? mergeSiteRuleDraft(draft.value, parsed.pack, document) : {ok: true as const, draft: formatSiteRulePack(parsed.pack)};
+    if (!result.ok) { issues.value = result.issues; return; }
+    replaceDraft(result.draft); filter.value = 'custom'; search.value = ''; status.value = '已导入草稿，检查后点击保存。';
+  } catch { if (importGuard.check(ticket, draft.value) === 'current') issues.value = [{path: '$', message: '无法读取文件，请重新选择本地 JSON 文件。'}]; }
 }
 function downloadPack(pack: SiteRulePack, filename: string) {
   const url = URL.createObjectURL(new Blob([formatSiteRulePack(pack)], {type: 'application/json;charset=utf-8'}));
-  const link = document.createElement('a');
-  link.href = url; link.download = filename; link.click();
+  const link = document.createElement('a'); link.href = url; link.download = filename; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 </script>
-
 <style scoped>
-.adaptation-card { width: min(100%, 1080px); margin: 0 auto 16px; overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: var(--surface-soft); color: var(--ink); }
-.adaptation-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 20px; cursor: pointer; }
-.adaptation-summary > span:first-child { display: grid; gap: 6px; }
-.adaptation-summary strong { font-size: 18px; }
-.adaptation-summary small, .adaptation-toggle small { color: var(--muted); font-size: 11px; line-height: 1.55; }
-.adaptation-summary::after { content: '+'; color: var(--muted); font-size: 20px; }
-.adaptation-card[open] > .adaptation-summary::after { content: '−'; }
-.adaptation-count { flex-shrink: 0; color: var(--muted); font-size: 11px; font-weight: 500; }
-.adaptation-body { padding: 0 20px 20px; }
-.adaptation-toggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-top: 1px solid var(--line); }
-.adaptation-toggle > span { display: grid; gap: 5px; font-size: 13px; }
-.adaptation-section { padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--line); }
-.adaptation-section > summary, .adaptation-guide > summary { cursor: pointer; font-size: 13px; font-weight: 600; }
-h4 { display: flex; gap: 10px; align-items: center; margin: 0 0 8px; font-size: 14px; }
-.adaptation-field { display: grid; gap: 7px; margin: 14px 0; font-size: 12px; }
-.adaptation-field span { display: flex; gap: 10px; }
-.adaptation-field small { color: var(--brand-strong); }
-input:not([type=file]), textarea { box-sizing: border-box; width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); padding: 11px 12px; font: inherit; }
-textarea { resize: vertical; min-height: 230px; font: 12px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; tab-size: 2; }
-button { min-height: 32px; padding: 6px 11px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface); font: inherit; font-size: 12px; cursor: pointer; }
-button:disabled { opacity: .5; cursor: default; }
-button:hover:not(:disabled) { border-color: var(--brand-strong); }
-button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 3px; }
-.adaptation-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
-.adaptation-primary { background: var(--brand-strong); border-color: var(--brand-strong); color: white; }
-.adaptation-rule-list { max-height: 350px; overflow: auto; margin-bottom: 10px; }
-.adaptation-rule { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 7px 0; }
-.adaptation-rule-name { display: grid; gap: 4px; min-width: 0; border: 0; background: transparent; text-align: left; }
-.adaptation-rule-name small { overflow-wrap: anywhere; color: var(--muted); font-size: 10px; }
-.adaptation-rule-detail { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-.adaptation-rule-detail .adaptation-actions { justify-content: space-between; margin-top: 0; font-size: 13px; }
-pre { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
-.adaptation-hint, .adaptation-guide, .adaptation-preview { margin: 8px 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
-.adaptation-errors { padding-left: 18px; font-size: 12px; line-height: 1.7; color: var(--danger, #bb233b); overflow-wrap: anywhere; }
-.adaptation-guide { margin-top: 16px; }
-dl { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 9px 14px; }
-dd { margin: 0; }
-ol { padding-left: 22px; }
-@media (max-width: 700px) {
-  .adaptation-summary { padding: 16px; gap: 8px; }
-  .adaptation-summary strong { font-size: 16px; }
-  .adaptation-body { padding: 0 16px 16px; }
-  .adaptation-summary .adaptation-count { max-width: 75px; font-size: 10px; }
-  dl { grid-template-columns: 1fr; gap: 5px; } dd { margin-bottom: 9px; }
-}
+@import './site-rule-workspace.css';
+.catalog-toolbar { display: flex; gap: 12px; align-items: center; margin-top: 20px; }
+.draft-bar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 12px; margin-top: 16px; border: 1px solid var(--brand-strong); border-radius: 9px; background: var(--surface); color: var(--muted); font-size: 12px; }
+.catalog-toolbar .rule-field { margin: 0; flex: 1; }
+.catalog-filters { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+.catalog-filters button { border-color: transparent; background: var(--surface-soft); }
+.catalog-filters button.is-active { border-color: var(--brand-strong); color: var(--brand-strong); }
+.catalog-filters span { margin-left: 5px; color: var(--muted); font-size: 11px; }
+.catalog-list { max-height: 430px; overflow: auto; scrollbar-gutter: stable; margin-top: 16px; }
+.catalog-rule { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); padding: 10px 7px 10px 0; }
+.catalog-rule .catalog-name { display: grid; gap: 7px; min-width: 0; text-align: left; border: 0; background: transparent; }
+.catalog-name strong { font-size: 13px; overflow-wrap: anywhere; }
+.catalog-name small { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.catalog-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; font-size: 11px; color: var(--muted); }
+.catalog-more { margin-top: 12px; }
+.rule-detail, .visual-editor { border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-top: 20px; background: var(--surface-soft); }
+.rule-detail dl { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 12px; margin: 20px 0; font-size: 12px; line-height: 1.7; }
+.rule-detail dt { color: var(--muted); } .rule-detail dd { margin: 0; overflow-wrap: anywhere; }
+.rule-workspace details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+.rule-workspace summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 550; }
+.rule-detail pre { max-height: 350px; }
+.content-row { border: 1px solid var(--line); border-radius: 9px; padding: 14px; margin-bottom: 14px; }
+.content-row label { font-size: 12px; line-height: 1.7; }
+.content-row input[type=checkbox] { accent-color: var(--brand-strong); }
+.content-editor { margin: 20px 0; }
+.import-actions { margin: 18px 0; }
+.import-mode { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 12px; color: var(--muted); }
+.import-mode select { max-width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); }
+.json-editor textarea { font: 12px/1.7 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.save-actions { margin-top: 18px; }
+.rule-guide a { color: var(--brand-strong); font-size: 12px; }
+@media (max-width: 650px) { .catalog-toolbar { flex-wrap: wrap; } .catalog-toolbar .rule-field { flex-basis: 100%; } .rule-detail, .visual-editor { padding: 15px; } .rule-detail dl { grid-template-columns: minmax(0, 1fr); gap: 4px; } .rule-detail dd { margin-bottom: 8px; } }
 </style>

@@ -9,6 +9,11 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('翻译中心布局在历史中以阅读方式展示', () => {
+        expect(group(buildConfigDiff({translationCenterLayout: 'list'}, {translationCenterLayout: 'grid'}), 'tools')?.changes).toEqual([
+            {key: 'translationCenterLayout', label: '翻译中心结果布局', before: '列表阅读', after: '并排对比'},
+        ]);
+    });
     it('双向划词开关使用对用户可见的启停状态', () => {
         const changes = group(buildConfigDiff(
             {selectionTranslatorBidirectional: false},

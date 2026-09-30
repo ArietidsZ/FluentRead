@@ -5,12 +5,16 @@
  * 模块边界：只提供纯数据，不读取配置、不访问浏览器；新界面仍应使用稳定 message key，这里只修正仍在界面中使用的旧中文文案。
  */
 import type {RegisteredUiLanguage} from '../types';
+import {createSiteRuleText, getSiteRuleTextSources} from './siteRules';
 
 /** 中文原文，随后依次为 English、日本語、한국어、Français、Русский、Español。 */
 type LegacyCorrectionRow = readonly [source: string, enUS: string, jaJP: string, koKR: string, frFR: string, ruRU: string, esES: string];
 
 /** 设置页、弹窗、文档页和各功能面板中的标签、按钮与说明。 */
 const correctionRows: readonly LegacyCorrectionRow[] = [
+    ["翻译中心结果布局","Comparison result layout","比較結果の表示形式","비교 결과 배치","Disposition des comparaisons","Расположение результатов сравнения","Diseño de comparación"],
+    ["并排对比","Side-by-side comparison","並列比較","나란히 비교","Comparaison côte à côte","Сравнение рядом","Comparación en paralelo"],
+    ["列表阅读","List reading","リスト表示","목록 읽기","Lecture en liste","Чтение списком","Lectura en lista"],
     ["悬浮翻译服务", "Hover translation service", "ホバー翻訳サービス", "마우스 오버 번역 서비스", "Service de traduction au survol", "Сервис перевода при наведении", "Servicio de traducción al pasar el cursor"],
     ["划词翻译服务", "Selection translation service", "選択翻訳サービス", "선택 번역 서비스", "Service de traduction de sélection", "Сервис перевода выделения", "Servicio de traducción de selección"],
     ["图片翻译服务", "Image translation service", "画像翻訳サービス", "이미지 번역 서비스", "Service de traduction d’images", "Сервис перевода изображений", "Servicio de traducción de imágenes"],
@@ -129,7 +133,6 @@ const correctionRows: readonly LegacyCorrectionRow[] = [
     ['翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、最大耗时、P95、响应速度、成功率、失败原因、超时、缓存命中、服务对比、性能', 'Translation statistics, request statistics, request size, characters, duration, average duration, longest duration, maximum duration, P95, response speed, success rate, failure reasons, timeouts, cache hits, service comparison, performance', '翻訳統計、リクエスト統計、リクエストサイズ、リクエスト規模、文字数、所要時間、平均所要時間、最長所要時間、最大所要時間、P95、応答速度、成功率、失敗の原因、タイムアウト、キャッシュヒット、サービス比較、パフォーマンス', '번역 통계, 요청 통계, 요청 크기, 요청 규모, 글자 수, 소요 시간, 평균 소요 시간, 최장 소요 시간, 최대 소요 시간, P95, 응답 속도, 성공률, 실패 원인, 시간 초과, 캐시 적중, 서비스 비교, 성능', 'Statistiques de traduction, statistiques des requêtes, taille des requêtes, caractères, durée, durée moyenne, durée la plus longue, durée maximale, P95, vitesse de réponse, taux de réussite, causes d’échec, délais dépassés, succès de cache, comparaison des services, performances', 'Статистика перевода, статистика запросов, размер запроса, символы, время, среднее время, самое долгое время, максимальное время, P95, скорость ответа, успешность, причины сбоев, тайм-ауты, попадания в кэш, сравнение сервисов, производительность', 'Estadísticas de traducción, estadísticas de solicitudes, tamaño de solicitud, caracteres, duración, duración media, duración más larga, duración máxima, P95, velocidad de respuesta, tasa de éxito, motivos de fallo, tiempos de espera, aciertos de caché, comparación de servicios, rendimiento'],
     ['快捷键', 'Shortcuts', 'ショートカット', '단축키', 'Raccourcis clavier', 'Сочетания клавиш', 'Atajos de teclado'],
     ['自定义快捷键', 'Custom shortcuts', 'カスタムショートカット', '사용자 지정 단축키', 'Raccourcis personnalisés', 'Пользовательские сочетания клавиш', 'Atajos personalizados'],
-    ['⠿ 拖动卡片可排序', '⠿ Drag cards to reorder', '⠿ カードをドラッグして並べ替え', '⠿ 카드를 끌어 순서 변경', '⠿ Glissez les cartes pour les réordonner', '⠿ Перетащите карточки, чтобы изменить порядок', '⠿ Arrastra las tarjetas para reordenarlas'],
     ['JSON 字符串路径翻译表格', 'JSON string path translation table', 'JSON 文字列パスの翻訳表', 'JSON 문자열 경로 번역 표', 'Tableau de traduction des chemins de chaînes JSON', 'Таблица перевода строк JSON по путям', 'Tabla de traducción de rutas de cadenas JSON'],
     ['MiniMax API 区域', 'MiniMax API region', 'MiniMax API リージョン', 'MiniMax API 리전', 'Région de l’API MiniMax', 'Регион API MiniMax', 'Región de la API de MiniMax'],
     ['MiniMax 区域', 'MiniMax region', 'MiniMax リージョン', 'MiniMax 리전', 'Région MiniMax', 'Регион MiniMax', 'Región de MiniMax'],
@@ -153,7 +156,6 @@ const correctionRows: readonly LegacyCorrectionRow[] = [
     ['保留原版式', 'Original layout kept', '元のレイアウトを保持', '원래 레이아웃 유지', 'Mise en page d’origine conservée', 'Исходная вёрстка сохранена', 'Diseño original conservado'],
     ['修改会自动保存到当前 AI 服务；可用变量可以一键插入。', 'Changes save automatically to the current AI service; insert available variables with one click.', '変更は現在の AI サービスに自動保存されます。利用できる変数はワンクリックで挿入できます。', '변경 사항은 현재 AI 서비스에 자동 저장되며, 사용 가능한 변수를 한 번에 삽입할 수 있습니다.', 'Les modifications sont enregistrées automatiquement pour le service IA actuel ; insérez les variables disponibles en un clic.', 'Изменения автоматически сохраняются для текущего ИИ-сервиса; доступные переменные вставляются одним нажатием.', 'Los cambios se guardan automáticamente en el servicio de IA actual; inserta las variables disponibles con un clic.'],
     ['关闭圈选翻译结果', 'Close area translation result', '範囲翻訳の結果を閉じる', '영역 번역 결과 닫기', 'Fermer le résultat de la traduction de zone', 'Закрыть результат перевода области', 'Cerrar el resultado de la traducción de área'],
-    ['关闭更多服务', 'Close service picker', 'サービスの選択を閉じる', '서비스 선택 닫기', 'Fermer la sélection de services', 'Закрыть выбор сервисов', 'Cerrar el selector de servicios'],
     ['关闭翻译结果', 'Close translation result', '翻訳結果を閉じる', '번역 결과 닫기', 'Fermer le résultat de traduction', 'Закрыть результат перевода', 'Cerrar el resultado de la traducción'],
     ['关闭自定义快捷键', 'Close custom shortcut dialog', 'カスタムショートカットを閉じる', '사용자 지정 단축키 닫기', 'Fermer la boîte de dialogue du raccourci personnalisé', 'Закрыть окно пользовательского сочетания клавиш', 'Cerrar el diálogo de atajo personalizado'],
     ['划词显示延迟', 'Selection translation delay', '選択範囲の翻訳の表示遅延', '선택 영역 번역 표시 지연', 'Délai d’affichage de la traduction de la sélection', 'Задержка показа перевода выделенного текста', 'Retraso de la traducción de la selección'],
@@ -189,7 +191,6 @@ const correctionRows: readonly LegacyCorrectionRow[] = [
     ['打开视频字幕设置，当前已开启', 'Open video subtitle settings (currently on)', '動画字幕の設定を開く（現在オン）', '동영상 자막 설정 열기(현재 켜짐)', 'Ouvrir les réglages des sous-titres vidéo (activés)', 'Открыть настройки субтитров видео (сейчас включены)', 'Abrir los ajustes de subtítulos de vídeo (activados)'],
     ['打开视频字幕设置，点击开启字幕翻译', 'Open video subtitle settings to turn on subtitle translation', '動画字幕の設定を開いて字幕翻訳をオンにする', '동영상 자막 설정을 열어 자막 번역 켜기', 'Ouvrir les réglages des sous-titres vidéo pour activer leur traduction', 'Открыть настройки субтитров видео, чтобы включить их перевод', 'Abrir los ajustes de subtítulos de vídeo para activar su traducción'],
     ['打开设置', 'Open settings', '設定を開く', '설정 열기', 'Ouvrir les réglages', 'Открыть настройки', 'Abrir ajustes'],
-    ['拖动调整顺序，也可用 Alt+↑/↓', 'Drag to reorder, or use Alt+↑/↓', 'ドラッグで並べ替え（Alt+↑/↓ でも可）', '끌어서 순서 변경(Alt+↑/↓도 가능)', 'Glissez pour réordonner, ou utilisez Alt+↑/↓', 'Перетащите, чтобы изменить порядок, или используйте Alt+↑/↓', 'Arrastra para reordenar o usa Alt+↑/↓'],
     ['按下你想使用的快捷键', 'Press the shortcut you want to use', '使いたいショートカットを押してください', '사용할 단축키를 누르세요', 'Appuyez sur le raccourci souhaité', 'Нажмите нужное сочетание клавиш', 'Pulsa el atajo que quieres usar'],
     ['按住拖动调整位置', 'Hold and drag to move', '長押ししてドラッグで移動', '길게 눌러 끌어서 이동', 'Maintenez et faites glisser pour déplacer', 'Удерживайте и перетащите, чтобы переместить', 'Mantén pulsado y arrastra para mover'],
     ['按住指定快捷键并悬停在文本上进行翻译', 'Hold the chosen shortcut and hover over text to translate it', '指定したショートカットを押したままテキストにカーソルを合わせると翻訳します', '지정한 단축키를 누른 채 텍스트에 마우스를 올리면 번역합니다', 'Maintenez le raccourci choisi et survolez un texte pour le traduire', 'Удерживайте выбранное сочетание и наведите курсор на текст, чтобы перевести его', 'Mantén pulsado el atajo elegido y pasa el cursor sobre el texto para traducirlo'],
@@ -260,7 +261,6 @@ const correctionRows: readonly LegacyCorrectionRow[] = [
     ['请选择 MiniMax 计费方式', 'Select MiniMax billing type', 'MiniMax の課金方式を選択', 'MiniMax 과금 방식 선택', 'Choisissez le mode de facturation MiniMax', 'Выберите способ оплаты MiniMax', 'Selecciona el tipo de facturación de MiniMax'],
     ['请选择小米 MiMo API 集群', 'Select Xiaomi MiMo API cluster', 'Xiaomi MiMo API クラスターを選択', 'Xiaomi MiMo API 클러스터 선택', 'Choisissez le cluster de l’API Xiaomi MiMo', 'Выберите кластер API Xiaomi MiMo', 'Selecciona el clúster de la API de Xiaomi MiMo'],
     ['请选择小米 MiMo 计费方式', 'Select Xiaomi MiMo billing type', 'Xiaomi MiMo の課金方式を選択', 'Xiaomi MiMo 과금 방식 선택', 'Choisissez le mode de facturation Xiaomi MiMo', 'Выберите способ оплаты Xiaomi MiMo', 'Selecciona el tipo de facturación de Xiaomi MiMo'],
-    ['输入要翻译的句子…', 'Enter text to translate…', '翻訳したい文を入力…', '번역할 문장 입력…', 'Saisissez la phrase à traduire…', 'Введите предложение для перевода…', 'Escribe la frase que quieres traducir…'],
     ['选择 DeepSeek 接口使用的 API 格式。', 'Choose the API format used by the DeepSeek endpoint.', 'DeepSeek エンドポイントで使う API 形式を選択してください。', 'DeepSeek 엔드포인트에서 사용할 API 형식을 선택하세요.', 'Choisissez le format d’API utilisé par le point de terminaison DeepSeek.', 'Выберите формат API для endpoint DeepSeek.', 'Elige el formato de API que usa el endpoint de DeepSeek.'],
     ['选择与 MiniMax Key 来源一致的 API 区域。Token Plan Key（sk-cp-）和按量付费 Key 不能互换。', 'Choose the API region that matches where your MiniMax key was issued. Token Plan keys (sk-cp-) and pay-as-you-go keys are not interchangeable.', 'MiniMax キーの発行元に合う API リージョンを選択してください。Token Plan キー（sk-cp-）と従量課金キーは相互に使えません。', 'MiniMax 키를 발급받은 곳과 같은 API 리전을 선택하세요. Token Plan 키(sk-cp-)와 종량제 키는 서로 바꿔 쓸 수 없습니다.', 'Choisissez la région d’API correspondant à l’origine de votre clé MiniMax. Les clés Token Plan (sk-cp-) et les clés à l’usage ne sont pas interchangeables.', 'Выберите регион API, в котором выдан ключ MiniMax. Ключи Token Plan (sk-cp-) и ключи с оплатой по факту не взаимозаменяемы.', 'Elige la región de la API que coincida con el origen de tu clave de MiniMax. Las claves Token Plan (sk-cp-) y las de pago por uso no son intercambiables.'],
     ['选择快捷键', 'Select a shortcut', 'ショートカットを選択', '단축키 선택', 'Choisir un raccourci', 'Выберите сочетание клавиш', 'Seleccionar atajo'],
@@ -350,7 +350,6 @@ const correctionRows: readonly LegacyCorrectionRow[] = [
     ['正在清除…', 'Clearing…', '削除しています…', '지우는 중…', 'Effacement…', 'Очистка…', 'Borrando…'],
     ['正在解析文件…', 'Reading file…', 'ファイルを解析しています…', '파일을 분석하는 중…', 'Analyse du fichier…', 'Разбор файла…', 'Analizando el archivo…'],
     ['确认清除统计', 'Clear statistics', '統計を削除', '통계 지우기', 'Effacer les statistiques', 'Очистить статистику', 'Borrar estadísticas'],
-    ['等待输入', 'Waiting for input', '入力待ち', '입력 대기', 'En attente de saisie', 'Ожидание ввода', 'Esperando texto'],
     ['流畅阅读图标', 'FluentRead icon', 'FluentRead のアイコン', 'FluentRead 아이콘', 'Icône FluentRead', 'Значок FluentRead', 'Icono de FluentRead'],
     ['多服务对比', 'Compare services', 'サービス比較', '서비스 비교', 'Comparer les services', 'Сравнение сервисов', 'Comparar servicios'],
     ['输入一句话，同时查看多个翻译服务的结果，并支持重复翻译。', 'Enter one sentence to compare results from several translation services, and translate again whenever you like.', '1 文を入力すると複数の翻訳サービスの結果を同時に比較でき、何度でも翻訳し直せます。', '문장 하나를 입력해 여러 번역 서비스의 결과를 함께 비교하고 다시 번역할 수 있습니다.', 'Saisissez une phrase pour comparer les résultats de plusieurs services de traduction et relancez la traduction à volonté.', 'Введите предложение, чтобы сравнить результаты нескольких сервисов перевода и при необходимости перевести снова.', 'Escribe una frase para comparar los resultados de varios servicios de traducción y vuelve a traducir cuando quieras.'],
@@ -484,24 +483,10 @@ const correctionRows: readonly LegacyCorrectionRow[] = [
     ['将删除全部单词、上下文和复习记录。设置和模型用量不受影响，此操作无法撤销。', 'All words, context, and review records will be deleted. Settings and model usage are not affected. This cannot be undone.', 'すべての単語、文脈、復習記録を削除します。設定とモデル使用量には影響しません。この操作は元に戻せません。', '모든 단어, 문맥, 복습 기록을 삭제합니다. 설정과 모델 사용량에는 영향이 없습니다. 이 작업은 되돌릴 수 없습니다.', 'Tous les mots, le contexte et les enregistrements de révision seront supprimés. Les réglages et l’utilisation des modèles ne sont pas concernés. Cette action est irréversible.', 'Будут удалены все слова, контекст и записи повторения. Настройки и использование моделей не затрагиваются. Это действие нельзя отменить.', 'Se eliminarán todas las palabras, el contexto y los registros de repaso. La configuración y el uso de modelos no se ven afectados. Esta acción no se puede deshacer.'],
     ['单词本已清空', 'Wordbook cleared', '単語帳を空にしました', '단어장을 비웠습니다', 'Vocabulaire vidé', 'Словарь очищен', 'Vocabulario vaciado'],
     ['当前浏览器暂不支持 Chrome 内置翻译；该对比项已暂时隐藏，原配置会保留。', 'This browser does not support Chrome’s built-in translation yet, so this comparison service is hidden for now. Its settings are kept.', 'このブラウザーは Chrome の組み込み翻訳にまだ対応していないため、この比較項目は一時的に非表示です。設定は保持されます。', '이 브라우저는 아직 Chrome 기본 제공 번역을 지원하지 않아 이 비교 항목을 잠시 숨겼습니다. 기존 설정은 유지됩니다.', 'Ce navigateur ne prend pas encore en charge la traduction intégrée de Chrome ; ce service de comparaison est masqué pour le moment et ses réglages sont conservés.', 'Этот браузер пока не поддерживает встроенный перевод Chrome, поэтому этот вариант сравнения временно скрыт. Настройки сохранены.', 'Este navegador aún no admite la traducción integrada de Chrome, así que este servicio de comparación se oculta por ahora. Se conserva su configuración.'],
-    ['交换源语言和目标语言', 'Swap source and target languages', '翻訳元と翻訳先の言語を入れ替え', '원본 언어와 대상 언어 바꾸기', 'Inverser les langues source et cible', 'Поменять исходный язык и язык перевода', 'Intercambiar idiomas de origen y destino'],
-    ['添加更多翻译服务', 'Add more translation services', '翻訳サービスを追加', '번역 서비스 추가', 'Ajouter des services de traduction', 'Добавить другие сервисы перевода', 'Añadir más servicios de traducción'],
-    ['添加更多服务', 'Add more services', 'サービスを追加', '서비스 더 추가', 'Ajouter des services', 'Добавить сервисы', 'Añadir más servicios'],
-    ['选择后会加入右侧对比列表，并自动保存。', 'Selected services are added to the comparison list on the right and saved automatically.', '選択したサービスは右側の比較リストに追加され、自動的に保存されます。', '선택한 서비스는 오른쪽 비교 목록에 추가되고 자동으로 저장됩니다.', 'Les services choisis sont ajoutés à la liste de comparaison à droite et enregistrés automatiquement.', 'Выбранные сервисы добавляются в список сравнения справа и сохраняются автоматически.', 'Los servicios elegidos se añaden a la lista de comparación de la derecha y se guardan automáticamente.'],
-    ['搜索服务名称', 'Search service names', 'サービス名で検索', '서비스 이름 검색', 'Rechercher un service', 'Поиск по названию сервиса', 'Buscar por nombre de servicio'],
-    ['没有找到可添加的翻译服务', 'No translation services to add', '追加できる翻訳サービスはありません', '추가할 번역 서비스가 없습니다', 'Aucun service de traduction à ajouter', 'Нет сервисов перевода для добавления', 'No hay servicios de traducción que añadir'],
-    ['右侧卡片可拖动排序', 'Drag the cards on the right to reorder', '右側のカードはドラッグで並べ替えできます', '오른쪽 카드를 끌어 순서를 바꿀 수 있습니다', 'Glissez les cartes à droite pour les réordonner', 'Перетащите карточки справа, чтобы изменить порядок', 'Arrastra las tarjetas de la derecha para reordenarlas'],
     ['待翻译文本', 'Text to translate', '翻訳するテキスト', '번역할 텍스트', 'Texte à traduire', 'Текст для перевода', 'Texto para traducir'],
-    ['对比结果', 'Comparison results', '比較結果', '비교 결과', 'Résultats de la comparaison', 'Результаты сравнения', 'Resultados de la comparación'],
-    ['点击“开始翻译”，在这里查看结果', 'Click “Start translation” to see results here', '「翻訳を開始」をクリックすると、ここに結果が表示されます', '“번역 시작”을 클릭하면 여기에 결과가 표시됩니다', 'Cliquez sur « Commencer la traduction » pour voir les résultats ici', 'Нажмите «Начать перевод», чтобы увидеть результаты здесь', 'Haz clic en «Empezar a traducir» para ver los resultados aquí'],
-    ['翻译中…', 'Translating…', '翻訳中…', '번역 중…', 'Traduction…', 'Перевод…', 'Traduciendo…'],
     ['完成', 'Done', '完了', '완료', 'Terminé', 'Готово', 'Completado'],
     ['失败', 'Failed', '失敗', '실패', 'Échec', 'Ошибка', 'Error'],
     ['复制译文', 'Copy translation', '訳文をコピー', '번역문 복사', 'Copier la traduction', 'Копировать перевод', 'Copiar traducción'],
-    ['服务返回了空译文。', 'The service returned an empty translation.', 'サービスが空の訳文を返しました。', '서비스가 빈 번역문을 반환했습니다.', 'Le service a renvoyé une traduction vide.', 'Сервис вернул пустой перевод.', 'El servicio devolvió una traducción vacía.'],
-    ['本轮请求已取消', 'This run was canceled', '今回のリクエストはキャンセルされました', '이번 요청이 취소되었습니다', 'Cette série de requêtes a été annulée', 'Этот запуск отменён', 'Se canceló esta ejecución'],
-    ['无需密钥，自动尝试多个免费接口', 'No API key needed; tries several free endpoints automatically', 'キー不要。複数の無料エンドポイントを自動で試します', '키가 필요 없으며 여러 무료 엔드포인트를 자동으로 시도합니다', 'Aucune clé requise ; plusieurs points de terminaison gratuits sont essayés automatiquement', 'Ключ не нужен; автоматически пробует несколько бесплатных endpoint', 'No necesita clave; prueba automáticamente varios endpoints gratuitos'],
-    ['使用设置中已保存的连接配置', 'Uses the connection settings saved in Settings', '設定に保存した接続設定を使います', '설정에 저장한 연결 설정을 사용합니다', 'Utilise les réglages de connexion enregistrés', 'Использует сохранённые в настройках параметры подключения', 'Usa la configuración de conexión guardada en los ajustes'],
     ['流畅阅读文档翻译', 'FluentRead document translation', 'FluentRead 文書翻訳', 'FluentRead 문서 번역', 'Traduction de documents FluentRead', 'Перевод документов FluentRead', 'Traducción de documentos de FluentRead'],
     ['Word 文档', 'Word document', 'Word 文書', 'Word 문서', 'Document Word', 'Документ Word', 'Documento de Word'],
     ['打开新文件', 'Open another file', '別のファイルを開く', '다른 파일 열기', 'Ouvrir un autre fichier', 'Открыть другой файл', 'Abrir otro archivo'],
@@ -537,7 +522,6 @@ const correctionRows: readonly LegacyCorrectionRow[] = [
     ['「谷歌翻译」仅支持双语模式，请切换翻译服务', 'Google Translate supports only bilingual mode. Switch to another translation service.', 'Google Translate は二言語表示のみ対応しています。翻訳サービスを切り替えてください', 'Google Translate는 이중 언어 모드만 지원합니다. 번역 서비스를 바꾸세요', 'Google Translate ne prend en charge que le mode bilingue. Choisissez un autre service de traduction.', 'Google Translate поддерживает только двуязычный режим. Выберите другой сервис перевода.', 'Google Translate solo admite el modo bilingüe. Cambia a otro servicio de traducción.'],
     ['当前翻译服务还没有配置 API Key，请前往设置页面填写后再试。', 'The current translation service has no API key yet. Add it in settings and try again.', '現在の翻訳サービスに API キーが設定されていません。設定で入力してから再試行してください。', '현재 번역 서비스에 API 키가 설정되지 않았습니다. 설정에서 입력한 뒤 다시 시도하세요.', 'Le service de traduction actuel n’a pas encore de clé API. Ajoutez-la dans les réglages, puis réessayez.', 'Для текущего сервиса перевода не указан API-ключ. Добавьте его в настройках и повторите попытку.', 'El servicio de traducción actual aún no tiene clave API. Añádela en los ajustes y vuelve a intentarlo.'],
     ['扩展已更新或重新加载，请刷新当前页面后再试。', 'The extension was updated or reloaded. Refresh this page and try again.', '拡張機能が更新または再読み込みされました。このページを再読み込みしてから再試行してください。', '확장 프로그램이 업데이트되었거나 다시 로드되었습니다. 이 페이지를 새로고침한 뒤 다시 시도하세요.', 'L’extension a été mise à jour ou rechargée. Actualisez cette page et réessayez.', 'Расширение обновлено или перезагружено. Обновите страницу и повторите попытку.', 'La extensión se actualizó o se recargó. Recarga esta página y vuelve a intentarlo.'],
-    ['翻译服务未返回结果，请稍后重试。', 'The translation service returned no result. Try again later.', '翻訳サービスから結果が返されませんでした。しばらくしてから再試行してください。', '번역 서비스가 결과를 반환하지 않았습니다. 잠시 후 다시 시도하세요.', 'Le service de traduction n’a renvoyé aucun résultat. Réessayez plus tard.', 'Сервис перевода не вернул результат. Повторите попытку позже.', 'El servicio de traducción no devolvió ningún resultado. Vuelve a intentarlo más tarde.'],
     ['远程图片读取失败', 'Could not read the remote image', 'リモート画像を読み取れませんでした', '원격 이미지를 읽지 못했습니다', 'Impossible de lire l’image distante', 'Не удалось прочитать удалённое изображение', 'No se pudo leer la imagen remota'],
     ['图片文字翻译失败', 'Image text translation failed', '画像テキストの翻訳に失敗しました', '이미지 텍스트 번역에 실패했습니다', 'Échec de la traduction du texte de l’image', 'Не удалось перевести текст изображения', 'No se pudo traducir el texto de la imagen'],
     ['翻译成功', 'Translated', '翻訳しました', '번역했습니다', 'Traduit', 'Переведено', 'Traducido'],
@@ -687,11 +671,11 @@ const LANGUAGE_COLUMNS: Readonly<Record<RegisteredUiLanguage, 1 | 2 | 3 | 4 | 5 
 
 /** 返回全部校正原文，供契约测试核对仍在界面源码中使用。 */
 export function getLegacyCorrectionSources(): string[] {
-    return correctionRows.map(([source]) => source);
+    return [...correctionRows.map(([source]) => source), ...getSiteRuleTextSources()];
 }
 
 /** 按界面语言展开校正词典，由各语言目录作为最后一层合并进 legacyText。 */
 export function createLegacyCorrectionText(language: RegisteredUiLanguage): Readonly<Record<string, string>> {
     const column = LANGUAGE_COLUMNS[language];
-    return Object.fromEntries(correctionRows.map((row) => [row[0], row[column]]));
+    return {...Object.fromEntries(correctionRows.map((row) => [row[0], row[column]])), ...createSiteRuleText(language)};
 }

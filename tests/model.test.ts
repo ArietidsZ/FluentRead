@@ -677,6 +677,12 @@ describe('图片翻译配置', () => {
 });
 
 describe('翻译中心配置', () => {
+    it('结果布局默认列表，保留并排选择且安全归一化旧配置', () => {
+        expect(new Config().translationCenterLayout).toBe('list');
+        expect(normalizeConfig({}).translationCenterLayout).toBe('list');
+        expect(normalizeConfig({translationCenterLayout: 'grid'}).translationCenterLayout).toBe('grid');
+        expect(normalizeConfig({translationCenterLayout: 'invalid'}).translationCenterLayout).toBe('list');
+    });
     it('默认使用服务列表，保存后保留去重后的服务顺序和语言选择', () => {
         expect(new Config().translationCenterServices).toEqual([]);
         expect(normalizeConfig({

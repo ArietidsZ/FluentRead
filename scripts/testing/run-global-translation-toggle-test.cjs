@@ -124,7 +124,7 @@ async function main() {
     const send = () => popup.evaluate(source => chrome.runtime.sendMessage({origin: source, context: 'Global toggle fixture', sourceLanguage: 'en', targetLanguage: 'zh-Hans', useCache: false}), SOURCE);
     const center = await createPage(`${origin}/options.html#settings-translation-center`);
     const documentPage = await createPage(`${origin}/document.html`);
-    const sourceInput = center.getByRole('textbox', {name: '待翻译文本'});
+    const sourceInput = center.locator('.translation-editor textarea');
     await sourceInput.fill(SOURCE);
     const centerButton = center.locator('.translate-primary-button');
     const until = async (predicate, label) => {
@@ -171,6 +171,8 @@ async function main() {
     await until(() => fixture.requests.length > beforeCenter, 'center active request');
     await patchConfig({on: false});
     await until(async () => await centerButton.isDisabled() && !(await centerButton.innerText()).includes('翻译中'), 'center stops');
+    assert.equal(await center.locator('.translation-result-card[data-status=cancelled]').count(), 1);
+    assert.equal(await center.locator('.translation-result-error').count(), 0);
     await until(() => fixture.requests.at(-1).aborted, 'center provider cancelled');
     fixture.hold(false);
     const pausedCount = fixture.requests.length;

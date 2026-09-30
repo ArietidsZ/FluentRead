@@ -33,6 +33,7 @@
       "tests/requestLimitSettings.test.ts"
     ],
     "unit": [
+      "tests/translationCenterSession.test.ts",
       "tests/featureTranslationServices.test.ts",
       "tests/sha256.test.ts",
       "tests/configApiKeys.test.ts",
@@ -303,6 +304,7 @@
       "tests/shareCardStudio.test.ts"
     ],
     "functional": [
+      "tests/translationCenterComponent.test.ts",
       "tests/resourceSafeRunner.test.ts",
       "tests/settingsCompositionAutosave.test.ts",
       "tests/chineseTranslationProviders.test.ts",

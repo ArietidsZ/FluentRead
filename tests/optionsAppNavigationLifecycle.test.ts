@@ -75,7 +75,7 @@ async function mountOptions(hash = '#settings-selection') {
     nextSibling: () => null, querySelector: () => null, setScopeId: () => undefined,
     cloneNode: () => ({}), insertStaticContent: () => [{}, {}],
   });
-  let state!: {activeSection: string; query: string; activeItem: {id: string}; selectSection: (id: string, target?: string) => void; activePanel: string; selectPanel: (id: string) => void; isGroupOpen: (index: number) => boolean; toggleGroup: (index: number) => void; settingsContentElement: {scrollTo: typeof scrollTo} | null};
+  let state!: {activeSection: string; query: string; activeItem: {id: string}; selectSection: (id: string, target?: string) => void; activePanel: string; activePanels: {id: string}[]; contentComponentProps: {activePanel?: string}; selectPanel: (id: string) => void; isGroupOpen: (index: number) => boolean; toggleGroup: (index: number) => void; settingsContentElement: {scrollTo: typeof scrollTo} | null};
   const app = renderer.createApp({
     setup: () => () => runtime.h(component, {
       ref: (instance: any) => { if (instance) state = instance.$.setupState; },
@@ -96,6 +96,20 @@ async function mountOptions(hash = '#settings-selection') {
 }
 
 describe('OptionsApp mounted hash navigation', () => {
+  it('isolates website tasks while preserving the continuous layout of ordinary settings', async () => {
+    const {state} = await mountOptions('#settings-sites');
+    expect(state.activePanels.map(panel => panel.id)).toEqual(['rules', 'adaptation', 'preview']);
+    expect(state.contentComponentProps.activePanel).toBe('rules');
+    state.selectPanel('preview');
+    expect(state.activePanel).toBe('preview');
+    expect(state.contentComponentProps.activePanel).toBe('preview');
+    state.selectSection('settings-sites', 'adaptation');
+    expect(state.contentComponentProps.activePanel).toBe('adaptation');
+    state.selectSection('settings-image-translation');
+    expect(state.activePanels).toEqual([]);
+    expect(state.contentComponentProps.activePanel).toBeUndefined();
+  });
+
   it('follows same-document deep links and history hash changes after the initial mount', async () => {
     const {state, navigateHash, replaceState, scrollTo, windowScrollTo} = await mountOptions();
     expect(state.activeSection).toBe('settings-selection');

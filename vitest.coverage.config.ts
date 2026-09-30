@@ -24,6 +24,7 @@ export default defineConfig({
         minWorkers: 1,
         fileParallelism: false,
         include: [
+            'tests/translationCenterSession.test.ts',
             'tests/featureTranslationServices.test.ts',
             'tests/sha256.test.ts',
             'tests/bilingualSentenceHighlight.test.ts',
@@ -356,6 +357,7 @@ export default defineConfig({
             reportsDirectory: 'coverage/core',
             reporter: ['text', 'json-summary', 'html'],
             include: [
+                'src/features/translation-center/model/comparison.ts',
                 'src/core/config/featureServices.ts',
                 'src/core/language/partOfSpeech.ts',
                 'src/features/reading-assistant/sentenceAnalysis.ts',
@@ -659,6 +661,7 @@ export default defineConfig({
                 'src/core/site-adaptation/literalLabel.ts',
                 'src/core/site-adaptation/session.ts',
                 'src/features/settings/model/siteAdaptationEditor.ts',
+                'src/features/settings/model/sitePreferences.ts',
                 'src/core/translation/adapters/declarative.ts',
                 'src/core/translation/current.ts',
                 'src/core/translation/dom.ts',

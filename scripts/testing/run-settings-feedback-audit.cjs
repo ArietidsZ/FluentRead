@@ -97,7 +97,7 @@ async function main() {
       });
       assert(metrics.outerWidth <= metrics.pageWidth + 1, `${section.id} page overflow`);
       assert(metrics.cardScrollWidth <= metrics.cardWidth + 1, `${section.id} card overflow`);
-      assert.equal(metrics.tabs.length, section.id === 'settings-translation-stats' ? 2 : 0);
+      assert.equal(metrics.tabs.length, section.id === 'settings-translation-stats' ? 2 : section.id === 'settings-sites' ? 3 : 0);
       for (const card of metrics.featureCards) {assert(card.height >= 44); assert(!/^(未开启|已开启)$/mu.test(card.text));}
       report.pages.push({...section, ...metrics});
       await shot(page, `${section.id}-top`);
@@ -234,7 +234,7 @@ async function main() {
     assert.equal(await page.locator('.nav-group-items [aria-current=page]').getAttribute('data-section'), 'settings-image-translation');
     assert.equal(await page.locator('.settings-page-tabs').count(), 0);
     await shot(page, 'image-area-alias');
-    report.checks.push('model usage and region translation legacy links resolve to merged sections; only statistics has view navigation');
+    report.checks.push('model usage and region translation legacy links resolve to merged sections; statistics and website rules retain task view navigation');
 
     for (const section of sections) {
       await page.setViewportSize({width: 390, height: 900});

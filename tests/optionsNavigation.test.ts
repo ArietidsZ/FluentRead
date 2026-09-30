@@ -32,7 +32,6 @@ describe('options navigation view-model', () => {
           'settings-selection',
           'settings-image-translation',
           'settings-video',
-          'settings-sites',
         ],
       },
       {
@@ -41,7 +40,7 @@ describe('options navigation view-model', () => {
       },
       {
         label: '系统与数据',
-        items: ['settings-advanced', 'settings-data', 'settings-about'],
+        items: ['settings-sites', 'settings-advanced', 'settings-data', 'settings-about'],
       },
     ])
     expect(navigationItems.map((item) => item.label)).toEqual([
@@ -52,12 +51,12 @@ describe('options navigation view-model', () => {
       '划词翻译',
       '图片翻译',
       '视频字幕翻译',
-      '网站规则',
       '写作助手',
       '翻译中心',
       '学习中心',
       '术语库',
       '翻译统计',
+      '网站规则',
       '高级选项',
       '备份与恢复',
       '关于流畅阅读',
@@ -93,6 +92,9 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('圈选')).toEqual([expect.objectContaining({id: 'settings-image-translation'})])
     expect(resolveRequestedSection('#settings-video')).toBe('settings-video')
     expect(resolveRequestedSection('settings-sites')).toBe('settings-sites')
+    expect(resolveNavigationItem('settings-sites').group).toBe('系统与数据')
+    expect(resolveSettingsPanel('settings-sites', 'preview')).toBe('preview')
+    expect(settingsPagePanels['settings-sites'].map(panel => panel.id)).toEqual(['rules', 'adaptation', 'preview'])
     expect(resolveRequestedSection('#settings-webpage')).toBe('settings-translation')
     expect(resolveRequestedSection('#settings-shortcuts')).toBe('settings-translation')
     expect(resolveRequestedSection('#settings-interface')).toBe('settings-interface')
