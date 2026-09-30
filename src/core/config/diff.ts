@@ -619,6 +619,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     translationCenterServices: {group: 'tools', label: '翻译中心服务', format: (value) => Array.isArray(value) ? formatArray(value, formatService) : formatValue(value)},
     translationCenterSourceLanguage: {group: 'tools', label: '翻译中心源语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
     translationCenterTargetLanguage: {group: 'tools', label: '翻译中心目标语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
+    translationCenterLayout: {group: 'tools', label: '翻译中心结果布局', format: (value) => value === 'grid' ? '并排对比' : '列表阅读'},
     vocabularyBookEnabled: {group: 'tools', label: '单词本', format: formatBoolean},
 };
 const FIELD_ORDER = new Map(Object.keys(FIELD_DEFINITIONS).map((field, index) => [field, index]));
