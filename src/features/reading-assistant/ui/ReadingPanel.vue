@@ -1,20 +1,14 @@
 <!--
  * @file src/features/reading-assistant/ui/ReadingPanel.vue
- * 文件职责：在原有划词卡内提供读懂、拆句、用法、练习和连续追问，保持阅读上下文与原生选区体验。
- * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；统一呈现 Markdown、原文朗读、句子收藏和 30 天问答记录，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
+ * 文件职责：在划词卡内以内容为主呈现学习回答，提供紧凑动作栏、按需原文与连续追问。
+ * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；把原文朗读、句子收藏和 30 天问答记录收进次级操作，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
  * 模块边界：不持有模型密钥、不扫描页面、不直接请求供应商；记录由后台会话仓库保存，父划词组件负责选区、位置和 Shadow UI 生命周期。
  -->
 <template>
-  <div class="fr-reading" data-reading-panel>
-    <div class="fr-reading-navigation">
-      <template v-if="showRecords">
-        <button type="button" aria-label="返回当前阅读" @click="closeRecords">‹ 返回当前阅读</button>
-        <span>阅读记录</span>
-      </template>
-      <template v-else>
-        <span>{{ historicalText ? '继续上次阅读' : '理解选中的文字' }}</span>
-        <button v-if="!privateContext" type="button" @click="openRecords">阅读记录</button>
-      </template>
+  <div class="fr-reading" data-reading-panel @pointerdown="dismissToolsOutside" @focusin="dismissToolsOutside">
+    <div v-if="showRecords" class="fr-reading-navigation">
+      <button type="button" aria-label="返回当前阅读" @click="closeRecords">‹ 返回当前阅读</button>
+      <span>阅读记录</span>
     </div>
     <section v-if="showRecords" class="fr-reading-records fr-reading-scroll" aria-label="阅读记录">
       <p class="fr-reading-hint">选择一条，继续上次的问答。记录仅保存在本机 30 天。</p>
@@ -30,22 +24,28 @@
       </div>
     </section>
     <template v-else>
-    <div class="fr-reading-source">
-      <p data-i18n-ignore>{{ activeText }}</p>
-      <div class="fr-reading-source-tools">
-      <button v-if="!historicalText && selection.sentence !== selection.text && !wholeSentence" type="button" @click="expandSentence">理解整句</button>
-      <span v-else-if="wholeSentence">已展开到整句</span>
-      <button type="button" class="fr-reading-speak" :aria-label="playingSourceText === activeText ? '停止朗读' : '朗读原文'" :title="playingSourceText === activeText ? '停止朗读' : '朗读原文'" :aria-pressed="playingSourceText === activeText" @click="emit('play-source', activeText)">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path v-if="playingSourceText !== activeText" d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/><path v-else d="M16 8v8m4-8v8"/></svg>
-      </button>
-      <button v-if="canSaveWord" type="button" :aria-label="saved ? '已收藏原文' : '收藏原文'" :disabled="saving || saved" @click="saveWord">{{ saved ? '已收藏' : '收藏' }}</button>
+    <div class="fr-reading-toolbar">
+      <div class="fr-reading-actions" role="group" aria-label="学习方式">
+        <button v-for="action in actions" :key="action.id" type="button" :aria-label="action.label" :title="action.label" :aria-pressed="intent === action.id" @click="startAction(action.id)">{{ action.id === 'grammar' ? '句法' : action.label }}</button>
       </div>
-    </div>
-    <div class="fr-reading-actions" role="group" aria-label="学习方式">
-      <button v-for="action in actions" :key="action.id" type="button" :aria-pressed="intent === action.id" @click="startAction(action.id)">{{ action.label }}</button>
-      <button type="button" class="fr-reading-regenerate" :disabled="busy" title="重新生成当前学习方式的回答" @click="regenerate">重新生成</button>
+      <details ref="toolsMenu" class="fr-reading-tools" @keydown.esc.stop.prevent="closeTools(true)">
+        <summary aria-label="更多操作" title="更多操作"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary>
+        <div class="fr-reading-tool-list" @click="closeToolsAfterAction">
+          <button type="button" :disabled="busy" @click="regenerate">重新生成</button>
+          <button type="button" :aria-pressed="playingSourceText === activeText" @click="emit('play-source', activeText)">{{ playingSourceText === activeText ? '停止朗读' : '朗读原文' }}</button>
+          <button v-if="!historicalText && selection.sentence !== selection.text && !wholeSentence" type="button" @click="expandSentence">理解整句</button>
+          <button v-if="canSaveWord" type="button" :disabled="saving || saved" @click="saveWord">{{ saved ? '已收藏原文' : '收藏原文' }}</button>
+          <button v-if="!privateContext" type="button" @click="openRecords">阅读记录</button>
+          <button type="button" aria-label="打开划词翻译设置" @click="openSettings()">设置</button>
+          <p>{{ privateContext ? '隐私模式：不保存记录' : '阅读记录保存在本机 30 天' }}<span v-if="model" data-i18n-ignore>{{ model }}</span><span v-if="memoryCount" data-i18n-ignore>{{ t("reading.memoryReferences", {count: memoryCount}) }}</span></p>
+        </div>
+      </details>
     </div>
     <div ref="answerScroll" class="fr-reading-scroll fr-reading-result" aria-live="polite" aria-atomic="false">
+      <details v-if="!answerHasSource" class="fr-reading-source">
+        <summary><span>原文</span><span class="fr-reading-source-excerpt" data-i18n-ignore>{{ activeText }}</span></summary>
+        <p data-i18n-ignore>{{ activeText }}</p>
+      </details>
       <details v-if="priorAnswers.length" class="fr-reading-session-detail">
         <summary data-i18n-ignore>{{ t("reading.priorTurns", {count: priorAnswers.length}) }}</summary>
         <article v-for="turn in priorAnswers" :key="turn.id" class="fr-reading-turn">
@@ -65,7 +65,6 @@
       </div>
       <p v-if="!busy && !answer && !error && !stopped" class="fr-reading-hint">选一种方式，理解这段表达。</p>
     <footer v-if="answer && !busy" class="fr-reading-footer">
-      <span :title="model">{{ model }}<small v-if="memoryCount" data-i18n-ignore> · {{ t("reading.memoryReferences", {count: memoryCount}) }}</small></span>
       <button type="button" @click="copyAnswer">{{ copied ? '已复制' : '复制' }}</button>
       <button v-if="preferences.memoryEnabled && !privateContext && !stopped && !error" type="button" :disabled="remembering || remembered" title="将这段原文与回答保存为长期学习记忆" @click="rememberLearning">{{ remembered ? '已记住' : '记住要点' }}</button>
     </footer>
@@ -77,7 +76,6 @@
     <p v-if="feedback" class="fr-reading-feedback" role="status">{{ feedback }}</p>
     <p v-if="sessionWarning" class="fr-reading-feedback" role="status">{{ sessionWarning }}</p>
     </template>
-    <div class="fr-reading-context"><span>{{ privateContext ? '隐私模式：不保存记录' : '阅读记录保存在本机 30 天' }}</span><button type="button" aria-label="打开划词翻译设置" @click="openSettings()">设置</button></div>
   </div>
 </template>
 
@@ -88,6 +86,8 @@ import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import browser from 'webextension-polyfill';
 import {HARNESS_ACTIONS, type HarnessActionId, type HarnessPreferences} from '@/src/core/config/harness';
 import ReadingAnswer from './ReadingAnswer.vue';
+import {readingAnswerBlocks} from '../answerFormat';
+import {anchorSentenceAnalysis} from '../sentenceAnalysis';
 import type {ReadingSelection, ReadingTurn} from '../types';
 import {getHarnessSession, listHarnessSessions, streamReading, saveLearningMemory} from '../client';
 import type {HarnessSession, HarnessSessionSummary, HarnessStoredTurnStatus} from '@/src/services/harness/sessionTypes';
@@ -121,6 +121,8 @@ const actionLabel = computed(() => HARNESS_ACTIONS.find(action => action.id === 
 const question = ref('');
 const currentQuestion = ref('');
 const answer = ref('');
+// 句法回答已完整展示可交互原文时，不再重复占用一行；普通或自定义回答仍可展开原文。
+const answerHasSource = computed(() => readingAnswerBlocks(answer.value).some(block => Boolean(anchorSentenceAnalysis(block, activeText.value))));
 const busy = ref(false);
 const stopped = ref(false);
 const error = ref('');
@@ -137,6 +139,24 @@ const showRecords = ref(false);
 const recordsLoading = ref(false);
 const recordsError = ref('');
 const answerScroll = ref<HTMLElement>();
+const toolsMenu = ref<HTMLDetailsElement>();
+function closeTools(restoreFocus = false): void {
+  if (!toolsMenu.value) return;
+  toolsMenu.value.open = false;
+  if (restoreFocus) toolsMenu.value.querySelector('summary')?.focus({preventScroll: true});
+}
+function dismissTools(): boolean {
+  if (!toolsMenu.value?.open) return false;
+  closeTools(true);
+  return true;
+}
+defineExpose({dismissTools});
+function dismissToolsOutside(event: Event): void {
+  if (toolsMenu.value?.open && !toolsMenu.value.contains(event.target as Node)) closeTools();
+}
+function closeToolsAfterAction(event: MouseEvent): void {
+  if ((event.target as Element).closest('button')) closeTools(true);
+}
 const previousAnswers = ref<Array<ReadingTurn & {id: string; intent: HarnessActionId; status: HarnessStoredTurnStatus}>>([]);
 const currentTurnKey = ref('');
 const priorAnswers = computed(() => previousAnswers.value.filter(turn => turn.id !== currentTurnKey.value));
@@ -383,10 +403,10 @@ async function saveWord(): Promise<void> {
 }
 watch(() => JSON.stringify([props.preferences, props.targetLanguage, props.sourceLanguage, props.modelRevision]), () => { actionCache.clear(); cancelRequest(); stopped.value = true; feedback.value = '设置已更新，重新生成可使用新的设置。'; });
 watch(() => JSON.stringify(props.selection), () => { actionCache.clear(); cancelRequest(); historicalText.value = ''; historicalContext.value = ''; previousAnswers.value = []; history.splice(0); sessionId = ''; question.value = ''; answer.value = ''; wholeSentence.value = false; saved.value = false; });
-watch(activeText, text => { saved.value = false; emit('source-change', text); });
+watch(activeText, text => { closeTools(); saved.value = false; emit('source-change', text); });
 watch(() => [props.initialAction, props.historyOnly, props.active] as const, ([action, only, active], [oldAction, oldOnly, oldActive]) => {
   restoreEpoch += 1;
-  if (!active) { emit('source-change', ''); if (busy.value) stop(); return; }
+  if (!active) { closeTools(); emit('source-change', ''); if (busy.value) stop(); return; }
   if (only) openRecords();
   else if (action !== oldAction || oldOnly || !oldActive) startAction(action || props.preferences.defaultAction);
 });
@@ -422,7 +442,7 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 </script>
 
 <style scoped>
-.fr-reading { --fr-reading-line: #eee8ec; --fr-reading-muted: #756a74; --fr-reading-button: #826573; --fr-reading-soft: #faf7f9; display: flex; flex-direction: column; height: 100%; min-height: 0; box-sizing: border-box; padding: 10px 14px; overflow: hidden; color: #35333c; font: 13px/1.7 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.fr-reading { --fr-reading-line: #eee8ec; --fr-reading-muted: #756a74; --fr-reading-button: #826573; --fr-reading-soft: #faf7f9; display: flex; flex-direction: column; height: 100%; min-height: 0; box-sizing: border-box; padding: 6px 14px 10px; overflow: hidden; color: #35333c; font: 13px/1.7 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 .fr-reading-navigation { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; color: var(--fr-reading-muted); font-size: 11px; }
 .fr-reading-navigation button { color: #a64b6e; }
 .fr-reading-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 2px 5px 4px 0; }
@@ -442,16 +462,28 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading button { cursor: pointer; border: 0; background: none; color: var(--fr-reading-button); padding: 3px 6px; border-radius: 6px; }
 .fr-reading button:focus-visible, .fr-reading input:focus-visible { outline: 2px solid #cd527f; outline-offset: 2px; }
 .fr-reading button:disabled { opacity: .5; cursor: default; }
-.fr-reading-source { flex-shrink: 0; border-left: 2px solid #e6c3d0; padding: 0 0 0 10px; margin: 2px 0 10px; }
-.fr-reading-source p { margin: 0; max-height: 58px; overflow: auto; font-size: 12px; color: #69616b; user-select: text; white-space: pre-wrap; overflow-wrap: anywhere; }
-.fr-reading-source-tools { display: flex; align-items: center; gap: 10px; min-height: 25px; }
-.fr-reading-source-tools button, .fr-reading-source-tools > span { font-size: 11px; color: #a64b6e; }
-.fr-reading-source-tools .fr-reading-speak { margin-left: auto; display: inline-flex; align-items: center; padding: 5px; }
-.fr-reading-speak[aria-pressed='true'] { background: var(--fr-reading-soft); }
-.fr-reading-actions { flex-shrink: 0; display: flex; gap: 4px; padding-bottom: 10px; }
-.fr-reading-actions button { flex: 1; color: var(--fr-reading-muted); background: #f5f3f5; padding: 5px 2px; }
-.fr-reading-actions button[aria-pressed='true'] { background: #f9e7ee; color: #9d3e61; font-weight: 600; }
-.fr-reading-actions .fr-reading-regenerate { flex: 0 0 auto; background: none; padding: 5px; font-size: 10px; color: var(--fr-reading-muted); }
+.fr-reading-toolbar { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-bottom: 8px; }
+.fr-reading-actions { display: flex; flex: 1; min-width: 0; gap: 4px; border-bottom: 1px solid var(--fr-reading-line); }
+.fr-reading-actions button { flex: 1 1 auto; min-width: 0; min-height: 32px; padding: 4px 6px; border-radius: 0; border-bottom: 2px solid transparent; color: var(--fr-reading-muted); font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.fr-reading-actions button[aria-pressed='true'] { border-bottom-color: #b85579; color: #9d3e61; font-weight: 600; }
+.fr-reading-actions button:hover, .fr-reading-tools summary:hover { background: var(--fr-reading-soft); }
+.fr-reading-tools { position: relative; flex: 0 0 auto; }
+.fr-reading-tools summary { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; list-style: none; cursor: pointer; color: var(--fr-reading-muted); }
+.fr-reading-tools summary::-webkit-details-marker { display: none; }
+.fr-reading summary:focus-visible { outline: 2px solid #cd527f; outline-offset: 2px; }
+.fr-reading-tool-list { position: absolute; z-index: 2; inset-inline-end: 0; top: 36px; width: 204px; max-height: min(310px, 55vh); overflow: auto; overscroll-behavior: contain; padding: 5px; background: var(--fr-reading-menu, #fff); border: 1px solid var(--fr-reading-line); border-radius: 9px; box-shadow: 0 5px 18px #0002; }
+.fr-reading-tool-list button { display: block; width: 100%; min-height: 30px; text-align: start; font-size: 12px; padding: 4px 8px; color: inherit; }
+.fr-reading-tool-list button:hover { background: var(--fr-reading-soft); }
+.fr-reading-tool-list p { border-top: 1px solid var(--fr-reading-line); margin: 4px 0 0; padding: 6px 8px 3px; color: var(--fr-reading-muted); font-size: 10px; overflow-wrap: anywhere; }
+.fr-reading-tool-list p span { display: block; }
+.fr-reading-source { margin: 0 0 10px; color: var(--fr-reading-muted); font-size: 12px; }
+.fr-reading-source summary { display: flex; align-items: baseline; gap: 8px; cursor: pointer; min-height: 24px; }
+.fr-reading-source summary::before { content: '›'; flex: 0 0 auto; }
+.fr-reading-source[open] summary::before { transform: rotate(90deg); }
+.fr-reading-source summary > span:first-of-type { flex-shrink: 0; font-size: 11px; }
+.fr-reading-source-excerpt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fr-reading-source[open] .fr-reading-source-excerpt { visibility: hidden; }
+.fr-reading-source p { margin: 4px 0 0; padding-inline-start: 12px; border-inline-start: 2px solid var(--fr-reading-line); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .fr-reading-status { display: flex; align-items: center; gap: 8px; color: var(--fr-reading-muted); font-size: 12px; }
 .fr-reading-status button { margin-left: auto; }
 .fr-reading-pulse { width: 6px; height: 6px; border-radius: 50%; background: #c76688; animation: fr-reading-breathe 1.4s ease-in-out infinite; }
@@ -462,22 +494,18 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading-error p { margin: 0 0 4px; }
 .fr-reading-question { margin: 0 0 10px; border-bottom: 1px solid var(--fr-reading-line); padding-bottom: 8px; color: #986077; user-select: text; overflow-wrap: anywhere; }
 .fr-reading-answer { user-select: text; overflow-wrap: anywhere; }
-.fr-reading-footer { display: flex; gap: 5px; align-items: center; margin: 8px 0; font-size: 11px; }
-.fr-reading-footer > span { color: var(--fr-reading-muted); margin-right: auto; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fr-reading-followup { flex-shrink: 0; display: flex; gap: 6px; margin-top: 8px; padding: 5px 5px 5px 10px; border: 1px solid #eae2e7; border-radius: 11px; }
+.fr-reading-footer { display: flex; gap: 5px; align-items: center; margin: 8px 0 0; font-size: 11px; }
+.fr-reading-followup { flex-shrink: 0; display: flex; gap: 6px; margin-top: 6px; padding: 3px 3px 3px 10px; border: 1px solid #eae2e7; border-radius: 11px; }
 .fr-reading-followup input { min-width: 0; flex: 1; width: 100%; border: 0; outline: none; color: inherit; background: transparent; font-size: 12px; user-select: text; }
 .fr-reading-followup input::placeholder { color: var(--fr-reading-muted); font-size: 11px; }
-.fr-reading-followup button { background: #b85579; color: white; width: 27px; height: 27px; line-height: 20px; }
-.fr-reading-context { flex-shrink: 0; display: flex; align-items: center; gap: 8px; margin-top: 7px; font-size: 10px; color: var(--fr-reading-muted); }
-.fr-reading-context button { margin-left: auto; font-size: 10px; }
-.fr-dark-theme .fr-reading { --fr-reading-line: #514651; --fr-reading-muted: #b6a9b5; --fr-reading-button: #e4a0bc; --fr-reading-soft: #352f38; color: #e6e0e8; }
-.fr-dark-theme .fr-reading-source p { color: #b5aab6; }
-.fr-dark-theme .fr-reading-actions button { background: #38313c; color: #bdb0c1; }
-.fr-dark-theme .fr-reading-actions button[aria-pressed='true'] { background: #50313f; color: #f1b6ce; }
+.fr-reading-followup button { background: #b85579; color: white; width: 28px; height: 28px; line-height: 20px; }
+.fr-dark-theme .fr-reading { --fr-reading-line: #514651; --fr-reading-muted: #b6a9b5; --fr-reading-button: #e4a0bc; --fr-reading-soft: #352f38; --fr-reading-menu: #29242d; color: #e6e0e8; }
+.fr-dark-theme .fr-reading-actions button { color: #bdb0c1; }
+.fr-dark-theme .fr-reading-actions button[aria-pressed='true'] { border-bottom-color: #e4a0bc; color: #f1b6ce; }
 .fr-dark-theme .fr-reading-followup { border-color: #554651; }
 .fr-dark-theme .fr-reading-error { background: #482e35; color: #f5acb6; }
-.fr-dark-theme .fr-reading-navigation button, .fr-dark-theme .fr-reading-source button, .fr-dark-theme .fr-reading-session small span, .fr-dark-theme .fr-reading-question { color: #e4a0bc; }
-@media (max-height: 420px) { .fr-reading-source p { max-height: 30px; } .fr-reading-navigation { margin-bottom: 3px; } .fr-reading-source { margin-bottom: 6px; } .fr-reading-context { margin-top: 2px; } }
+.fr-dark-theme .fr-reading-navigation button, .fr-dark-theme .fr-reading-session small span, .fr-dark-theme .fr-reading-question { color: #e4a0bc; }
+@media (max-height: 420px) { .fr-reading-toolbar { padding-bottom: 4px; } .fr-reading-followup { margin-top: 4px; } }
 @keyframes fr-reading-breathe { 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) { .fr-reading-pulse { animation: none; } }
 </style>

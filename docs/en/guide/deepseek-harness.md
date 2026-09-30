@@ -34,9 +34,9 @@ Enable **AI explanations**, expand **Service & learning preferences**, and selec
 - **Usage** teaches natural expressions and collocations.
 - **Practice** provides a short exercise.
 
-Click an annotated fragment to see its word class, meaning and syntactic role. A noun may be a subject in one sentence and an object in another. The default grammar prompt requests a compact table that the interface matches to the source in order. Unmatched or incomplete output, and custom formats, remain readable as ordinary text. AI analysis may be wrong; check the original when in doubt.
+The compact Grammar tab opens parts-of-speech and syntax analysis. The source reads as one continuous sentence with underlined interactive fragments. Click a fragment or use the left/right arrow keys to see its meaning, word class and syntactic role. General word-class explanations expand on demand. When annotations already show the sentence, the duplicate source is omitted; other answers offer a collapsed source for reference. A noun may be a subject in one sentence and an object in another. The default grammar prompt requests a compact table that the interface matches to the source in order. Unmatched or incomplete output, and custom formats, remain readable as ordinary text. AI analysis may be wrong; check the original when in doubt.
 
-Completed answers are reused when switching learning actions within the current card. Use Regenerate for a new answer, return to the translation, or ask a follow-up. Changing the source, model, language or learning preferences invalidates related cached answers.
+Completed answers are reused when switching learning actions within the current card. Choose Regenerate in More actions for a new answer, return to the translation, or ask a follow-up. More actions also contains source speech, sentence expansion, saving, reading history and settings. Changing the source, model, language or learning preferences invalidates related cached answers.
 
 ## Context and records
 

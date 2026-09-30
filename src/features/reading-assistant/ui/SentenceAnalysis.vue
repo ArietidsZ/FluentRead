@@ -1,27 +1,30 @@
 <!--
  * @file src/features/reading-assistant/ui/SentenceAnalysis.vue
- * 文件职责：在原文上展示词性标签，并让学习者点击查看片段含义与句中作用。
- * 主要内容：保留原文顺序和未标注文字，以文字加颜色表达类别；支持键盘按钮、明确选中状态及深浅主题。
+ * 文件职责：在连贯的原文上展示轻量词性标注，并让学习者点击查看片段含义与句中作用。
+ * 主要内容：保留原文顺序和未标注文字，以细下划线标明可点片段；含义与句中作用优先，通用说明按需展开，支持方向键切换及深浅主题。
  * 模块边界：只接收已经锚定的标注，不进行词性猜测、不发起请求，不写入宿主网页。
  -->
 <template>
   <section class="fr-sentence-analysis" :aria-label="translateLegacy('词性与句法')">
-    <p class="fr-sentence-help">{{ translateLegacy('点击原文片段，查看词性和句中作用') }}</p>
-    <div class="fr-sentence-tokens" role="group" :aria-label="translateLegacy('原文词性标注')">
+    <div class="fr-sentence-tokens" role="group" :aria-label="translateLegacy('原文词性标注')" :title="translateLegacy('点击原文片段，查看词性和句中作用')" @keydown="navigateAnnotations">
       <template v-for="(annotation, index) in annotations" :key="`${annotation.start}-${annotation.end}`">
         <span class="fr-sentence-gap">{{ source.slice(index ? annotations[index - 1].end : 0, annotation.start) }}</span>
-        <button type="button" :data-pos="annotation.part.id" :aria-pressed="selected === index" :aria-label="`${annotation.text} · ${translateLegacy(annotation.part.label)} · ${annotation.role}`" @click="selectAnnotation(index)">
-          <span>{{ annotation.text }}</span><small>{{ translateLegacy(annotation.part.label) }}</small>
+        <button type="button" :data-pos="annotation.part.id" :aria-pressed="selected === index" :tabindex="selected === index ? 0 : -1" :aria-label="`${annotation.text} · ${translateLegacy(annotation.part.label)} · ${annotation.role}`" @click="selectAnnotation(index)">
+          {{ annotation.text }}
         </button>
       </template>
       <span>{{ source.slice(annotations[annotations.length - 1]?.end || 0) }}</span>
     </div>
     <div v-if="active" ref="detail" class="fr-sentence-detail" aria-live="polite">
-      <strong>{{ active.text }} <small>{{ translateLegacy(active.part.label) }} {{ active.part.abbreviation }}</small></strong>
-      <dl><dt>{{ translateLegacy('句中作用') }}</dt><dd>{{ active.role }}</dd><dt>{{ translateLegacy('含义') }}</dt><dd>{{ active.meaning }}</dd></dl>
-      <p>{{ translateLegacy(active.part.description) }}</p>
+      <div class="fr-sentence-detail-heading"><strong>{{ active.text }}</strong><span>{{ translateLegacy(active.part.label) }}</span></div>
+      <p class="fr-sentence-meaning">{{ active.meaning }}</p>
+      <p class="fr-sentence-role"><span>{{ translateLegacy('句中作用') }}</span>{{ active.role }}</p>
+      <details :key="selected" class="fr-sentence-reference">
+        <summary>{{ translateLegacy('词性说明') }}</summary>
+        <p>{{ translateLegacy(active.part.description) }}</p>
+        <p>{{ translateLegacy('AI 根据原文分析；同一个词在不同句子中可能有不同词性。') }}</p>
+      </details>
     </div>
-    <small class="fr-sentence-disclaimer">{{ translateLegacy('AI 根据原文分析；同一个词在不同句子中可能有不同词性。') }}</small>
   </section>
 </template>
 <script setup lang="ts">
@@ -40,31 +43,45 @@ async function selectAnnotation(index: number): Promise<void> {
   if (!element || !viewport) return;
   const box = element.getBoundingClientRect();
   const bounds = viewport.getBoundingClientRect();
-  if (box.bottom > bounds.bottom) viewport.scrollTop += box.bottom - bounds.bottom + 8;
+  if (box.bottom > bounds.bottom) viewport.scrollTop += Math.min(box.bottom - bounds.bottom + 8, box.top - bounds.top);
+}
+
+function navigateAnnotations(event: KeyboardEvent): void {
+  const last = props.annotations.length - 1;
+  const next = event.key === 'ArrowRight' ? Math.min(last, selected.value + 1)
+    : event.key === 'ArrowLeft' ? Math.max(0, selected.value - 1)
+      : event.key === 'Home' ? 0 : event.key === 'End' ? last : -1;
+  if (next < 0 || !(event.target instanceof HTMLButtonElement)) return;
+  event.preventDefault(); event.stopPropagation();
+  void selectAnnotation(next);
+  (event.currentTarget as HTMLElement).querySelectorAll('button')[next]?.focus({preventScroll: true});
 }
 
 const active = computed(() => props.annotations[selected.value] || props.annotations[0]);
 watch(() => props.source, () => { selected.value = 0; });
 </script>
 <style scoped>
-.fr-sentence-analysis { margin:12px 0; }
-.fr-sentence-help { margin:0 0 10px; font-size:11px; opacity:.7; }
-.fr-sentence-tokens { display:flex; align-items:center; flex-wrap:wrap; gap:6px 4px; line-height:1.4; }
-.fr-sentence-tokens button { --pos-color:#846242; font:inherit; display:inline-flex; flex-direction:column; align-items:center; gap:5px; padding:7px 9px; border:1px solid color-mix(in srgb,var(--pos-color) 35%,transparent); border-radius:8px; background:color-mix(in srgb,var(--pos-color) 8%,transparent); color:inherit; cursor:pointer; max-width:100%; overflow-wrap:anywhere; }
+.fr-sentence-analysis { margin: 10px 0; }
+.fr-sentence-tokens { line-height: 2.15; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fr-sentence-tokens button { --pos-color: #846242; font: inherit; display: inline; line-height: inherit; padding: 2px 0; border: 0; border-bottom: 1.5px solid color-mix(in srgb,var(--pos-color) 50%,transparent); border-radius: 2px 2px 0 0; background: transparent; color: inherit; cursor: pointer; white-space: inherit; overflow-wrap: anywhere; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .fr-sentence-tokens button[data-pos=noun], .fr-sentence-tokens button[data-pos=pronoun] { --pos-color:#3c7fbb; }
 .fr-sentence-tokens button[data-pos=verb], .fr-sentence-tokens button[data-pos=auxiliary] { --pos-color:#bd5481; }
 .fr-sentence-tokens button[data-pos=adjective], .fr-sentence-tokens button[data-pos=adverb] { --pos-color:#398579; }
 .fr-sentence-tokens button[data-pos=article], .fr-sentence-tokens button[data-pos=determiner] { --pos-color:#9c713b; }
 .fr-sentence-tokens button[data-pos=conjunction], .fr-sentence-tokens button[data-pos=preposition] { --pos-color:#8067bc; }
-.fr-sentence-tokens button[aria-pressed=true] { border-color:var(--pos-color); background:color-mix(in srgb,var(--pos-color) 17%,transparent); box-shadow:0 0 0 1px var(--pos-color); }
-.fr-sentence-tokens button:focus-visible { outline:2px solid currentColor; outline-offset:3px; }
-.fr-sentence-tokens small { font-size:10px; opacity:.8; }
-.fr-sentence-gap { white-space:pre-wrap; }
-.fr-sentence-detail { margin:14px 0 8px; border:1px solid var(--fr-answer-border,#e9e9ef); border-radius:9px; padding:12px; background:var(--fr-answer-soft,transparent); }
-.fr-sentence-detail strong { display:flex; flex-wrap:wrap; gap:8px; font-size:13px; }
-.fr-sentence-detail strong small { font-size:11px; font-weight:400; opacity:.75; }
-.fr-sentence-detail dl { display:grid; grid-template-columns:auto 1fr; gap:7px 12px; margin:10px 0; font-size:12px; }
-.fr-sentence-detail dt { opacity:.65; }.fr-sentence-detail dd { margin:0; overflow-wrap:anywhere; }
-.fr-sentence-detail p { margin:0; font-size:11px; opacity:.7; }
-.fr-sentence-disclaimer { font-size:10px; opacity:.65; line-height:1.6; }
+.fr-sentence-tokens button[aria-pressed=true] { border-bottom-color: var(--pos-color); background: color-mix(in srgb,var(--pos-color) 16%,transparent); }
+.fr-sentence-tokens button:hover { background: color-mix(in srgb,var(--pos-color) 10%,transparent); }
+.fr-sentence-tokens button:focus-visible, .fr-sentence-reference summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.fr-sentence-detail { margin: 10px 0 0; border-top: 1px solid var(--fr-answer-border,#e9e9ef); padding-top: 10px; }
+.fr-sentence-detail-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.fr-sentence-detail-heading strong { font-size: 13px; }
+.fr-sentence-detail-heading > span { font-size: 11px; opacity: .75; }
+.fr-sentence-detail p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.fr-sentence-meaning { font-size: 14px; line-height: 1.7; }
+.fr-sentence-role { font-size: 12px; }
+.fr-sentence-role > span { margin-inline-end: 8px; opacity: .65; }
+.fr-sentence-reference { margin-top: 6px; font-size: 11px; color: var(--fr-reading-muted, var(--el-text-color-secondary, #756a74)); }
+.fr-sentence-reference summary { cursor: pointer; width: fit-content; }
+.fr-sentence-reference p { line-height: 1.7; }
+.fr-dark-theme .fr-sentence-reference { color: #b6a9b5; }
 </style>

@@ -164,7 +164,7 @@ async function main(){
    await page.keyboard.press('Alt+r');await until(()=>node(cls('fr-translation-tooltip')),'unified shortcut did not open');record('unified custom shortcut opens selected text without an extra icon');
    await page.keyboard.press('Escape');await patch({uiLanguage:'en-US',selectionTranslatorPresentation:'card',selectionTranslatorTrigger:'icon'});
    await until(async()=>(await optionsPage.locator('h1').innerText()).includes('Selection'),'English settings did not update');
-   await optionsPage.getByRole('button',{name:'Sentence',exact:true}).click();assert((await optionsPage.locator('.fr-sentence-tokens').innerText()).includes('noun'));await screenshot(optionsPage,'settings-english');
+   await optionsPage.getByRole('button',{name:'Sentence',exact:true}).click();await optionsPage.locator('.fr-sentence-tokens button[data-pos=noun]').first().click();assert((await optionsPage.locator('.fr-sentence-detail').innerText()).includes('noun'));await screenshot(optionsPage,'settings-english');
    await patch({uiLanguage:'zh-CN'});
    await optionsPage.getByRole('switch',{name:'启用划词翻译'}).click();await until(async()=>!(await page.locator('#fluent-read-selection-translator-container').count()),'master off left UI mounted');await choose('#sentence');await wait(400);assert.equal(await node(cls('fr-selection-indicator')),null);record('master off unmounts even when AI preference remains enabled');
    assert.equal(await page.locator('#neighbor').innerText(),'Learning grows with every question.');assert.equal(report.consoleErrors.length,0);report.ok=true;

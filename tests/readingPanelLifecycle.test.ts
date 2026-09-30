@@ -74,6 +74,21 @@ async function mountPanel(overrides: Record<string, unknown> = {}, sessions: Har
 }
 
 describe('reading action ownership and reuse', () => {
+  it('omits duplicate source only when the current answer really renders the source annotations', async () => {
+    const {panel, finish, calls} = await mountPanel();
+    const table = '| Text | POS | Role | Meaning |\n| --- | --- | --- | --- |\n| Practice | noun | 主语 | 练习 |';
+    expect(panel.answerHasSource).toBe(false);
+    calls[0].callbacks.progress({kind: 'text', text: table});
+    expect(panel.answerHasSource).toBe(true);
+    finish(table);
+    panel.startAction('grammar'); finish('A custom explanation without a table.');
+    expect(panel.answerHasSource).toBe(false);
+    panel.startAction('meaning');
+    expect(panel.answerHasSource).toBe(true);
+    panel.regenerate(); finish(table.replace('Practice |', 'Invented |'));
+    expect(panel.answerHasSource).toBe(false);
+  });
+
   it('reuses meaning after grammar and unrelated config refreshes, including deactivate/reactivate', async () => {
     const {panel, props, calls, finish, tick} = await mountPanel();
     const config = new Config();
