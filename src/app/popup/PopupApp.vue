@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，让现场开关与显示操作保持简短，将长期偏好引导到对应设置页。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，以图标汇总功能提供商，按需加载功能服务选择面板，编排语言选择、局部翻译入口、AI 语境偏好与可用状态、站点规则及两列快捷功能；首次语言引导独占可见内容并撑开弹窗，语言选项与快捷抽屉按需挂载；图片与圈选共享快捷抽屉，保留各自开关和触发方式，监听配置并持久化。
+ 主要内容：在配置 hydration 后汇总翻译服务，保留版本、赞赏、网页翻译与恢复、局部选择及站点开关；按需加载功能服务选择面板与快捷抽屉，首次语言引导独占内容，所有偏好沿用配置持久化。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -33,12 +33,14 @@
         <img src="/icon/128.png" alt="" />
         <div>
           <strong>流畅阅读</strong>
+          <small class="brand-version" data-testid="popup-version">v{{ version }}</small>
           <small v-if="!config.on">{{ t('popup.heroDisabled') }}</small>
         </div>
       </div>
       <div class="header-actions">
         <button ref="donationTrigger" class="donation-button" type="button" :title="t('popup.donationTitle')" :aria-label="t('popup.donationTitle')" @click="openDonation()">
           <Coffee />
+          <span>{{ t('popup.donationButton') }}</span>
         </button>
         <button class="settings-button" type="button" title="完整设置" aria-label="打开完整设置" @click="openOptions()">
           <Setting />
@@ -107,6 +109,24 @@
         <button type="button" @click="openOptions('settings-services')">去设置</button>
       </div>
 
+      <div class="translate-action">
+        <button class="translate-button" :class="{ translated: pageTranslated }" type="button"
+          data-testid="page-translation" :aria-pressed="pageTranslated" :aria-busy="translating"
+          :title="t(pageTranslated ? 'popup.restoreCurrentPage' : 'popup.translateCurrentPage')"
+          :disabled="!config.on || currentSiteExtensionDisabled || translating" @click="togglePageTranslation">
+          <span v-if="translating" class="spinner" aria-hidden="true" />
+          <span v-else class="translate-glyph" aria-hidden="true">A↔译</span>
+          <span class="translate-label">{{ t(pageTranslated ? 'popup.restoreCurrentPage' : 'popup.translateCurrentPage') }}</span>
+          <kbd v-if="pageTranslationHotkey" class="translate-hotkey">{{ pageTranslationHotkey }}</kbd>
+        </button>
+        <button v-if="!isThunderbird" class="section-translate-button" type="button" data-testid="section-translation"
+          :disabled="!config.on || currentSiteExtensionDisabled || translating" :aria-label="sectionTranslationLabel" :title="sectionTranslationLabel"
+          @click="startSectionTranslation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15M10 10l7 2.6-3 1.1-1.1 3z" /></svg>
+          <span>{{ t('popup.sectionTranslation') }}</span>
+        </button>
+      </div>
+
       <PopupSiteRule
         v-if="siteModuleNestedInTranslation && isSiteModuleVisible"
         v-bind="siteRuleModuleProps"
@@ -129,7 +149,6 @@
       class="features"
       data-popup-module="quickFeatures"
     >
-      <span class="eyebrow features-eyebrow">快捷功能</span>
       <div class="feature-grid">
         <button
           v-for="feature in visiblePopupQuickFeatures"
@@ -254,27 +273,11 @@
           </div>
           <small v-if="quickHoverProfiles.length > 3">{{ t('popup.quickTranslation.moreProfiles', {count: quickHoverProfiles.length - 3}) }}</small>
         </div>
-        <button
-          v-if="!isThunderbird"
-          class="section-translate-button"
-          type="button"
-          data-testid="section-translation"
-          :disabled="!config.on"
-          :aria-label="sectionTranslationLabel"
-          :title="sectionTranslationLabel"
-          @click="startSectionTranslation"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15" />
-            <path d="m10 10 7 2.6-3 1.1-1.1 3z" />
-          </svg>
-          <span>{{ t('popup.sectionTranslation') }}</span>
-        </button>
       </div>
 
       <div v-else-if="activeDrawer === 'selection'" class="drawer-content">
         <div>
-          <div class="setting-row">
+          <div class="setting-row selection-trigger-setting">
             <span><strong>划词触发方式</strong><small>不想显示浮动入口？选择快捷键或仅右键菜单。</small></span>
             <button class="secondary-action" type="button" @click="openOptions('settings-selection')">调整触发方式</button>
           </div>
@@ -295,7 +298,7 @@
           </div>
           <div class="choice-block">
             <label>默认呈现</label>
-            <div class="chips" role="group" aria-label="划词默认呈现">
+            <div class="chips two" role="group" aria-label="划词默认呈现">
               <button type="button" :class="{selected: config.selectionTranslatorPresentation === 'simple'}" :aria-pressed="config.selectionTranslatorPresentation === 'simple'" @click="config.selectionTranslatorPresentation = 'simple'">普通翻译</button>
               <button type="button" :class="{selected: config.selectionTranslatorPresentation === 'card'}" :aria-pressed="config.selectionTranslatorPresentation === 'card'" @click="config.selectionTranslatorPresentation = 'card'">卡片模式</button>
             </div>
@@ -376,7 +379,7 @@ import {
   findEnabledQuickTranslationHotkeyConflict,
   type QuickTranslationProfile,
 } from '@/src/core/config/quickTranslation';
-import {resolveConfiguredHotkey} from '@/src/core/hotkey';
+import {parseHotkey, resolveConfiguredHotkey} from '@/src/core/hotkey';
 import {areaTranslationHotkeyDisplayName, resolveAreaTranslationHotkey} from '@/src/core/config/areaTranslation';
 import {sectionTranslationHotkeyDisplayName} from '@/src/core/config/sectionTranslation';
 import {
@@ -424,6 +427,7 @@ import {featureServiceDefinitions, getFeatureService} from '@/src/core/config/fe
 const PopupServices = defineAsyncComponent(() => import('./PopupServices.vue'));
 const ElDrawer = defineAsyncComponent(() => import('./PopupDrawer'));
 const {t, translateLegacy} = useUiI18n();
+const version = browser.runtime.getManifest().version;
 // composition root 已等待配置服务；首次渲染直接使用完整快照，不能先暴露默认布局。
 const config = ref(normalizeConfig(runtimeConfig));
 const onboardingLanguage = ref<UiLanguage>('zh-CN');
@@ -431,6 +435,7 @@ const drawerVisible = ref(false);
 const drawerMounted = ref(false);
 const activeDrawer = ref<DrawerName>('hover');
 const translating = ref(false);
+const pageTranslated = ref(false);
 const currentTabId = ref<number | null>(null);
 const currentSiteDomain = ref('');
 const clearingCache = ref(false);
@@ -536,8 +541,11 @@ const aiContextPresentation = computed(() => resolveAIContextPresentation({
   missingCredentials: Boolean(getMissingCredentialMessage(config.value.service, config.value)),
   translating: translating.value,
 }));
-const isSiteModuleVisible = computed(() => config.value.interfaceVisibility.popupSiteRule
-  && currentSiteSupported.value);
+const isSiteModuleVisible = computed(() => config.value.interfaceVisibility.popupSiteRule && !isThunderbird);
+const pageTranslationHotkey = computed(() => {
+  const shortcut = resolveConfiguredHotkey(config.value.floatingBallHotkey, config.value.customFloatingBallHotkey);
+  return shortcut && shortcut !== 'none' ? parseHotkey(shortcut).displayName : '';
+});
 const visiblePopupQuickFeatureIds = computed(() => config.value.popupQuickFeatureOrder.filter(
   (featureId) => config.value.popupQuickFeatureVisibility[featureId]
     && (!isThunderbird || ['hover', 'selection', 'appearance'].includes(featureId)),
@@ -584,6 +592,7 @@ const currentSiteExtensionSwitchLabel = computed(() => currentSiteSupported.valu
   : '在此网站禁用扩展（当前页面不可用）');
 const siteRuleModuleProps = computed(() => ({
   domain: currentSiteDomain.value,
+  supported: currentSiteSupported.value,
   alwaysTranslated: currentSiteAlwaysTranslated.value,
   extensionDisabled: currentSiteExtensionDisabled.value,
   autoTranslate: config.value.autoTranslate,
@@ -828,11 +837,17 @@ function showNotice(message: string, type: 'success' | 'error' = 'success') {
 async function hydrateCurrentSite() {
   currentTabId.value = null;
   currentSiteDomain.value = '';
+  pageTranslated.value = false;
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (typeof tab?.id !== 'number') return;
     currentTabId.value = tab.id;
     currentSiteDomain.value = getSiteBaseDomain(tab.pendingUrl || tab.url || '') || '';
+    // 首屏入口立即可用；状态查询失败只说明当前页没有内容脚本，不隐藏站点控制。
+    try {
+      const response = await browser.tabs.sendMessage(tab.id, {type: 'getFullPageTranslationState'}) as {isTranslated?: boolean} | undefined;
+      pageTranslated.value = response?.isTranslated === true;
+    } catch { pageTranslated.value = false; }
   } catch (error) {
     console.warn('[FluentRead] 无法读取当前网站', error);
   }
@@ -877,9 +892,9 @@ async function setCurrentSiteAlwaysTranslated(enabled: boolean) {
       action: 'fullPage',
     }) as { status?: string; isTranslated?: boolean } | undefined;
     if (response?.status !== 'success') throw new Error('Translation failed');
+    pageTranslated.value = response.isTranslated !== false;
     showNotice(`已开启 ${domain} 的始终翻译`);
-  } catch (error) {
-    console.error(error);
+  } catch {
     showNotice(`已保存 ${domain}，当前网页请刷新后重试`, 'error');
   } finally {
     translating.value = false;
@@ -896,6 +911,7 @@ function setCurrentSiteExtensionDisabled(enabled: boolean) {
     ? currentDomains.includes(domain) ? currentDomains : [...currentDomains, domain]
     : currentDomains.filter(item => item !== domain);
   translating.value = false;
+  if (enabled) pageTranslated.value = false;
 
   showNotice(enabled ? `已在 ${domain} 禁用扩展` : `已恢复 ${domain} 的扩展`);
 }
@@ -918,8 +934,28 @@ async function openDocumentTranslation() {
   window.close();
 }
 
+async function togglePageTranslation() {
+  if (!config.value.on || currentSiteExtensionDisabled.value || translating.value) return;
+  if (!pageTranslated.value && credentialWarning.value) {
+    showNotice(credentialWarning.value, 'error');
+    return;
+  }
+  const action = pageTranslated.value ? 'restore' : 'fullPage';
+  translating.value = true;
+  try {
+    const [tab] = await browser.tabs.query({active: true, currentWindow: true});
+    if (!isBrowserTabId(tab?.id)) throw new Error('No active tab');
+    const response = await browser.tabs.sendMessage(tab.id, {type: 'contextMenuTranslate', action}) as {status?: string; isTranslated?: boolean} | undefined;
+    if (response?.status !== 'success') throw new Error(response?.status || 'Translation failed');
+    pageTranslated.value = typeof response.isTranslated === 'boolean' ? response.isTranslated : action === 'fullPage';
+  } catch {
+    showNotice(isThunderbird ? '请先打开一封邮件，然后重试翻译' : '当前页面暂不支持翻译，请刷新后重试', 'error');
+  } finally { translating.value = false; }
+}
+
 // 进入网页的区域选择模式后立即关闭 Popup，让用户直接在页面上点选要翻译的区域。
 async function startSectionTranslation() {
+  if (!config.value.on || currentSiteExtensionDisabled.value || translating.value) return;
   if (credentialWarning.value) {
     showNotice(credentialWarning.value, 'error');
     return;
@@ -930,8 +966,7 @@ async function startSectionTranslation() {
     const response = await browser.tabs.sendMessage(tab.id, { type: 'contextMenuTranslate', action: 'section' }) as { status?: string } | undefined;
     if (response?.status !== 'success') throw new Error(response?.status === 'disabled' ? 'Plugin disabled' : 'Section picker unavailable');
     window.close();
-  } catch (error) {
-    console.error(error);
+  } catch {
     showNotice(t('popup.sectionTranslationUnavailable'), 'error');
   }
 }

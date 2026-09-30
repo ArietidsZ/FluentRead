@@ -14,14 +14,21 @@ function loadAction(name: string, ports: Record<string, unknown>) {
 }
 
 describe('Popup actions across configuration and page state', () => {
-    it('Popup 启动仅读取站点，不再请求网页翻译状态', async () => {
-        const browser = {tabs: {query: vi.fn(async () => [{id: 3, url: 'https://example.com/article'}]), sendMessage: vi.fn()}};
+    it('Popup 启动读取真实网页状态，恢复按钮与当前内容状态一致，缺少内容脚本不隐藏站点', async () => {
+        const browser = {tabs: {query: vi.fn(async () => [{id: 3, url: 'https://example.com/article'}]), sendMessage: vi.fn(async () => ({isTranslated: true}))}};
         const currentTabId = {value: null};
         const currentSiteDomain = {value: ''};
-        await loadAction('hydrateCurrentSite', {browser, currentTabId, currentSiteDomain, getSiteBaseDomain: () => 'example.com'})();
+        const pageTranslated = {value: false};
+        const action = loadAction('hydrateCurrentSite', {browser, currentTabId, currentSiteDomain, pageTranslated, getSiteBaseDomain: () => 'example.com'});
+        await action();
         expect(currentTabId.value).toBe(3);
         expect(currentSiteDomain.value).toBe('example.com');
-        expect(browser.tabs.sendMessage).not.toHaveBeenCalled();
+        expect(browser.tabs.sendMessage).toHaveBeenCalledWith(3, {type: 'getFullPageTranslationState'});
+        expect(pageTranslated.value).toBe(true);
+        browser.tabs.sendMessage.mockRejectedValueOnce(new Error('No receiver'));
+        await action();
+        expect(pageTranslated.value).toBe(false);
+        expect(currentSiteDomain.value).toBe('example.com');
     });
 
     it('总开关保留在设置页，Popup 只展示暂停状态', () => {
@@ -48,7 +55,8 @@ describe('Popup actions across configuration and page state', () => {
         const sendMessage = vi.fn(async () => ({status: 'success'}));
         const browser = {tabs: {query: vi.fn(async () => [{id: 7}]), sendMessage}};
         const t = (key: string) => key;
-        const ports = {browser, showNotice, t, window: {close}, isBrowserTabId: (id: unknown) => typeof id === 'number'};
+        const ports = {browser, showNotice, t, window: {close}, isBrowserTabId: (id: unknown) => typeof id === 'number',
+            config: {value: {on: true}}, currentSiteExtensionDisabled: {value: false}, translating: {value: false}};
         const blocked = loadAction('startSectionTranslation', {...ports, credentialWarning: {value: '缺少 API Key'}});
         await blocked();
         expect(showNotice).toHaveBeenLastCalledWith('缺少 API Key', 'error');
@@ -69,5 +77,53 @@ describe('Popup actions across configuration and page state', () => {
         await action();
         expect(showNotice).toHaveBeenLastCalledWith('popup.sectionTranslationUnavailable', 'error');
         expect(close).toHaveBeenCalledOnce();
+    });
+
+    it('网页翻译→恢复→再翻译使用对应消息，失败/禁用/无脚本时不误标成功', async () => {
+        const pageTranslated = {value: false};
+        const translating = {value: false};
+        const showNotice = vi.fn();
+        const sendMessage = vi.fn(async (_id: number, message: {action: string}) => ({status: 'success', isTranslated: message.action === 'fullPage'}));
+        const browser = {tabs: {query: vi.fn(async () => [{id: 7}]), sendMessage}};
+        const ports = {browser, pageTranslated, translating, showNotice, config: {value: {on: true}},
+            currentSiteExtensionDisabled: {value: false}, credentialWarning: {value: ''}, isThunderbird: false,
+            isBrowserTabId: (id: unknown) => typeof id === 'number'};
+        const action = loadAction('togglePageTranslation', ports);
+        await action(); expect(pageTranslated.value).toBe(true);
+        await action(); expect(pageTranslated.value).toBe(false);
+        await action(); expect(pageTranslated.value).toBe(true);
+        expect(sendMessage.mock.calls.map(call => call[1].action)).toEqual(['fullPage', 'restore', 'fullPage']);
+        for (const response of [{status: 'failed'}, {status: 'disabled'}, undefined]) {
+            pageTranslated.value = false;
+            sendMessage.mockResolvedValueOnce(response as never);
+            await action();
+            expect(pageTranslated.value).toBe(false);
+            expect(translating.value).toBe(false);
+            expect(showNotice).toHaveBeenLastCalledWith('当前页面暂不支持翻译，请刷新后重试', 'error');
+        }
+        sendMessage.mockRejectedValueOnce(new Error('No receiver'));
+        await action(); expect(pageTranslated.value).toBe(false);
+        browser.tabs.query.mockResolvedValueOnce([{}] as never);
+        await action(); expect(pageTranslated.value).toBe(false);
+    });
+
+    it('暂停、站点禁用和执行中阻止新操作，缺少凭据不阻止恢复已有译文', async () => {
+        const sendMessage = vi.fn(async () => ({status: 'success', isTranslated: false}));
+        const ports = {browser: {tabs: {query: vi.fn(async () => [{id: 7}]), sendMessage}},
+            config: {value: {on: true}}, currentSiteExtensionDisabled: {value: false}, translating: {value: false},
+            pageTranslated: {value: false}, credentialWarning: {value: '缺少 API Key'}, showNotice: vi.fn(), isThunderbird: false,
+            isBrowserTabId: (id: unknown) => typeof id === 'number', t: (key: string) => key, window: {close: vi.fn()}};
+        const action = loadAction('togglePageTranslation', ports);
+        await action(); expect(sendMessage).not.toHaveBeenCalled();
+        ports.pageTranslated.value = true;
+        await action(); expect(sendMessage).toHaveBeenCalledWith(7, {type: 'contextMenuTranslate', action: 'restore'});
+        ports.credentialWarning.value = '';
+        for (const name of ['config', 'currentSiteExtensionDisabled', 'translating']) {
+            ports.config.value.on = name !== 'config';
+            ports.currentSiteExtensionDisabled.value = name === 'currentSiteExtensionDisabled';
+            ports.translating.value = name === 'translating';
+            await action(); await loadAction('startSectionTranslation', ports)();
+        }
+        expect(sendMessage).toHaveBeenCalledOnce();
     });
 });

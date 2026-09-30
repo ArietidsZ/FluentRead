@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/components/PopupLayoutPreview.vue
 文件职责：在界面设置中用真实 DOM 呈现当前 Popup 模块与快捷功能布局，帮助用户在保存前直接理解排序和显隐结果。
-主要内容：按皮肤预览色或当前氛围语义色、顶层模块顺序、相邻站点栏目规则及快捷功能顺序绘制缩放后的 Popup，提供整块拖动、键盘排序与当前编辑层级反馈，并即时移除被隐藏的区域。
+主要内容：按皮肤与模块规则绘制含网页/局部操作、横向服务图标及开源胶囊的缩放 Popup，提供整块拖动、键盘排序与编辑层级反馈，并即时移除被隐藏区域，保持与实际 Popup 的展示对应。
 模块边界：本组件只消费外部投影后的布局数据，通过排序事件编辑布局，不读写配置或浏览器状态，也不执行 Popup 的业务行为。
 -->
 <template>
@@ -41,6 +41,7 @@
               <span><b>{{ t('popup.providers.title') }}</b></span>
               <span class="preview-provider-icons"><ServiceIcon service="google" size="small" /><ServiceIcon service="microsoft" size="small" /></span><em>›</em>
             </div>
+            <div class="layout-preview-action-row" aria-hidden="true"><span class="layout-preview-action">{{ t('popup.translateCurrentPage') }}</span><span class="layout-preview-section-action">{{ t('popup.sectionTranslation') }}</span></div>
             <PopupLayoutPreviewItem
               v-if="siteModuleNestedInTranslation && siteModule"
               :item="siteModule"
@@ -49,8 +50,8 @@
               class="layout-preview-site nested"
               data-preview-popup-module="siteRule"
             >
-              <span aria-hidden="true"><small>{{ siteModule?.label }}</small><b>fluentread.app</b></span>
-              <i aria-hidden="true" /><i aria-hidden="true" />
+              <span class="preview-site-rule-button" aria-hidden="true">{{ translateLegacy('始终翻译此网站') }} <i /></span>
+              <span class="preview-site-rule-button preview-site-disable" aria-hidden="true">{{ translateLegacy('在此网站禁用扩展') }} <i /></span>
             </PopupLayoutPreviewItem>
           </PopupLayoutPreviewItem>
 
@@ -62,8 +63,8 @@
             class="layout-preview-module layout-preview-site"
             data-preview-popup-module="siteRule"
           >
-            <span aria-hidden="true"><small>{{ module.label }}</small><b>fluentread.app</b></span>
-            <i aria-hidden="true" /><i aria-hidden="true" />
+            <span class="preview-site-rule-button" aria-hidden="true">{{ translateLegacy('始终翻译此网站') }} <i /></span>
+            <span class="preview-site-rule-button preview-site-disable" aria-hidden="true">{{ translateLegacy('在此网站禁用扩展') }} <i /></span>
           </PopupLayoutPreviewItem>
 
           <PopupLayoutPreviewItem
@@ -75,8 +76,7 @@
             class="layout-preview-module preview-quick-features"
             data-preview-popup-module="quickFeatures"
           >
-            <div class="layout-preview-section-heading">
-              <strong class="layout-preview-section-title" aria-hidden="true">{{ module.label }}</strong>
+            <div v-if="editScope === 'popupModule'" class="layout-preview-section-heading">
               <button
                 v-if="editScope === 'popupModule'"
                 type="button"
@@ -110,7 +110,7 @@
             data-preview-popup-module="footer"
           >
             <span aria-hidden="true">0</span>
-            <b aria-hidden="true">{{ t('popup.openSourceProject') }}</b>
+            <b aria-hidden="true">{{ t('popup.openSourceProject') }} ↗</b>
             <strong aria-hidden="true">{{ t('popup.clearCache') }}</strong>
           </PopupLayoutPreviewItem>
         </template>
@@ -388,7 +388,7 @@ function featureGlyph(id: string): string {
 
 .layout-preview-service {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 10px;
+  grid-template-columns: minmax(0, 1fr) auto 10px;
   align-items: center;
   gap: 6px;
   padding: 5px 6px;
@@ -422,10 +422,11 @@ function featureGlyph(id: string): string {
 
 .layout-preview-site {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 24px 24px;
+  grid-template-columns: auto auto;
+  justify-content: start;
   align-items: center;
   gap: 5px;
-  padding: 7px 8px;
+  padding: 5px 7px;
   border: 1px solid color-mix(in srgb, var(--layout-preview-ink) 10%, transparent);
   border-radius: 10px;
   background: var(--layout-preview-surface);
@@ -436,6 +437,10 @@ function featureGlyph(id: string): string {
   border-color: transparent;
   background: var(--layout-preview-canvas);
 }
+
+.layout-preview-site > .preview-site-rule-button { display: flex; flex-direction: row; align-items: center; gap: 4px; padding: 4px 6px; border: 1px solid color-mix(in srgb, var(--layout-preview-accent) 25%, transparent); border-radius: 6px; color: var(--layout-preview-accent); background: var(--layout-preview-surface); font-size: 7px; line-height: 1.4; }
+.layout-preview-site > .preview-site-disable { color: color-mix(in srgb, var(--layout-preview-ink) 65%, transparent); border-color: color-mix(in srgb, var(--layout-preview-ink) 15%, transparent); }
+.preview-site-rule-button > i { width: 4px; height: 4px; flex: none; border-radius: 50%; background: color-mix(in srgb, var(--layout-preview-ink) 35%, transparent); }
 
 .layout-preview-site > i {
   position: relative;
@@ -525,7 +530,11 @@ function featureGlyph(id: string): string {
 }
 
 .layout-preview-footer b {
-  color: color-mix(in srgb, var(--layout-preview-ink) 68%, transparent);
+  padding: 3px 6px;
+  border: 1px solid color-mix(in srgb, var(--layout-preview-accent) 24%, transparent);
+  border-radius: 99px;
+  color: var(--layout-preview-accent);
+  background: color-mix(in srgb, var(--layout-preview-accent) 8%, var(--layout-preview-canvas));
   font-weight: 700;
 }
 
@@ -666,5 +675,8 @@ function featureGlyph(id: string): string {
 .layout-preview-section-heading button { border: 0; padding: 3px; color: var(--layout-preview-accent); background: transparent; font: inherit; font-size: 9px; cursor: pointer; }
 .layout-preview-section-heading button:focus-visible { outline: 2px solid var(--layout-preview-accent); }
 .layout-preview-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.preview-provider-icons { display: flex; align-items: center; gap: 3px; margin-left: auto; }
+.layout-preview-service > .preview-provider-icons { display: flex; flex-direction: row; align-items: center; gap: 3px; }
+.layout-preview-action-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px; }
+.layout-preview-section-action { display: grid; place-items: center; padding: 0 8px; border: 1px solid color-mix(in srgb, var(--layout-preview-ink) 12%, transparent); border-radius: 8px; color: var(--layout-preview-accent); background: var(--layout-preview-canvas); font-size: 9px; font-weight: 700; }
+.popup-layout-live-preview[data-preview-skin="default"] .layout-preview-popup { background: var(--layout-preview-canvas); box-shadow: none; }
 </style>
