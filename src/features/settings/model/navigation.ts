@@ -69,9 +69,9 @@ export const navigationGroups = [
         searchDescription: '机器翻译、云服务厂商、谷歌云、Azure、阿里云、腾讯云、百度、火山引擎、Ollama、模型服务商、聚合平台、OpenAI、DeepSeek、硅基流动、OpenRouter、模型与令牌',
       },
       {
-        id: 'settings-translation', icon: '译', label: '翻译设置', description: '悬浮、划词、输入框与全文', group: '基础配置',
-        heading: '翻译设置', summary: '按使用顺序管理鼠标悬浮、划词、输入框和全文翻译。',
-        kicker: '基础配置', title: '翻译设置', detail: '设置鼠标悬浮、划词、输入框与全文翻译的触发方式。',
+        id: 'settings-translation', icon: '译', label: '翻译设置', description: '悬浮、输入框与全文', group: '基础配置',
+        heading: '翻译设置', summary: '按使用顺序管理鼠标悬浮、输入框和全文翻译。',
+        kicker: '基础配置', title: '翻译设置', detail: '设置鼠标悬浮、输入框与全文翻译的触发方式。',
         searchDescription: '不翻译的语言、跳过语言、排除语言、简体中文、繁体中文、鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度',
       },
       {
@@ -86,10 +86,10 @@ export const navigationGroups = [
     label: '专项翻译',
     items: [
       {
-        id: 'settings-harness', icon: '文', label: '翻译卡片', description: '选区学习辅助', group: '专项翻译',
-        heading: '翻译卡片', summary: '选中文本后按需调用 AI，帮助理解、拆句、掌握用法和练习。',
-        kicker: '专项翻译', title: '翻译卡片', detail: '配置选区学习辅助的服务、上下文范围和回答偏好。',
-        searchDescription: '翻译卡片、阅读卡、Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关',
+        id: 'settings-selection', icon: '文', label: '划词翻译', description: '普通翻译与学习卡片', group: '专项翻译',
+        heading: '划词翻译', summary: '选中文字即看译文，也能通过卡片查词、理解词性和句法。',
+        kicker: '专项翻译', title: '划词翻译', detail: '统一管理划词的触发、呈现与学习偏好。',
+        searchDescription: '划词翻译、普通翻译、卡片模式、词性、句法、冠词、名词、触发、朗读、翻译卡片、阅读卡、Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关',
       },
       {
         id: 'settings-image-translation', icon: '图', label: '图片翻译', description: '网页图片与 OCR', group: '专项翻译',
@@ -189,6 +189,7 @@ export const NAVIGATION_SECTION_IDS = navigationGroups.flatMap<NavigationSection
 
 /** 旧设置入口与学习中心的新语义别名统一解析，不增加重复导航项目。 */
 export const NAVIGATION_SECTION_ALIASES: ReadonlyMap<string, string> = new Map([
+  ['settings-harness', 'settings-selection'],
   ['settings-webpage', 'settings-translation'],
   ['settings-shortcuts', 'settings-translation'],
   ['settings-learning-center', 'settings-vocabulary'],

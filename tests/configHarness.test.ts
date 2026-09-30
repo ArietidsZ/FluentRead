@@ -5,6 +5,15 @@ import {type HarnessPromptKind} from '@/src/core/harness/prompts'
 import { Config, normalizeConfig } from '@/src/core/config/model'
 
 describe('Harness config contract', () => {
+  it('defaults to quiet dismissal while preserving an explicit opt-out and trigger choice', () => {
+    expect(new Config().selectionTranslatorAutoDismiss).toBe(true);
+    for (const value of [undefined, null, 'false', 0, true]) {
+      expect(normalizeConfig({selectionTranslatorAutoDismiss: value}).selectionTranslatorAutoDismiss).toBe(true);
+    }
+    expect(normalizeConfig({selectionTranslatorAutoDismiss: false, selectionTranslatorTrigger: 'direct'})).toMatchObject({
+      selectionTranslatorAutoDismiss: false, selectionTranslatorTrigger: 'direct',
+    });
+  });
   it('preserves opt-in triggers and falls back safely for legacy or malformed settings', () => {
     expect(normalizeHarnessPreferences({})).toMatchObject({trigger: 'click', customHotkey: 'Alt+R', hoverDelay: 600});
     expect(normalizeHarnessPreferences({trigger: 'shortcut', customHotkey: ' Ctrl+Shift+R ', hoverDelay: 875.4})).toMatchObject({trigger: 'shortcut', customHotkey: 'Ctrl+Shift+R', hoverDelay: 875});
@@ -169,5 +178,30 @@ describe('reading model cache identity', () => {
     const endpoint = getHarnessModelCacheKey(config);
     config.token.deepseek = 'changed-token';
     expect(getHarnessModelCacheKey(config)).not.toBe(endpoint);
+  });
+});
+
+// 统一入口迁移必须是一次性的，不能在关闭划词后被旧学习开关重新开启。
+describe('unified selection preferences', () => {
+  it('defaults new users to simple translation and preserves existing enabled experiences', () => {
+    expect(normalizeConfig({}).selectionTranslatorPresentation).toBe('simple');
+    expect(normalizeConfig({selectionTranslatorMode: 'translation-only'})).toMatchObject({selectionTranslatorPresentation: 'card', selectionTranslatorMode: 'translation-only'});
+    const migrated = normalizeConfig({selectionTranslatorMode: 'disabled', harness: {enabled: true, trigger: 'shortcut', customHotkey: 'Alt+R', service: 'deepseek', model: 'custom-reader'}});
+    expect(migrated).toMatchObject({selectionTranslatorMode: 'bilingual', disableSelectionTranslator: false, selectionTranslatorPresentation: 'card', selectionTranslatorTrigger: 'custom', customSelectionTranslatorHotkey: 'Alt+R'});
+    expect(migrated.harness).toMatchObject({service: 'deepseek', model: 'custom-reader'});
+    expect(normalizeConfig({...migrated, selectionTranslatorMode: 'disabled'})).toMatchObject({selectionTranslatorMode: 'disabled', disableSelectionTranslator: true, harness: {enabled: true}});
+  });
+  it('migrates hover without overriding an existing selection shortcut', () => {
+    expect(normalizeConfig({harness: {enabled: true, trigger: 'hover', hoverDelay: 950}})).toMatchObject({selectionTranslatorTrigger: 'hover', harness: {hoverDelay: 950}});
+    expect(normalizeConfig({selectionTranslatorMode: 'bilingual', selectionTranslatorTrigger: 'Shift', harness: {enabled: true, trigger: 'shortcut', customHotkey: 'Alt+R'}}).selectionTranslatorTrigger).toBe('Shift');
+    expect(normalizeConfig({selectionTranslatorPresentation: 'invalid', harness: {enabled: true}}).selectionTranslatorMode).toBe('disabled');
+    expect(normalizeConfig({selectionTranslatorPresentation: 'simple', selectionTranslatorTrigger: 'hover'}).selectionTranslatorTrigger).toBe('hover');
+  });
+  it('updates exact built-in grammar prompts but retains custom instructions', () => {
+    const template = getDefaultHarnessPrompt('grammar', 'en-US');
+    expect(template).toContain('Text | POS | Role | Meaning');
+    const old = template.split('\n\nFor grammar analysis')[0];
+    expect(resolveHarnessPrompt(old, 'grammar', 'en-US')).toBe(template);
+    expect(resolveHarnessPrompt('My grammar instructions', 'grammar', 'zh-CN')).toBe('My grammar instructions');
   });
 });

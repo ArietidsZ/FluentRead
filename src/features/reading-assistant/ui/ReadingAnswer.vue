@@ -1,8 +1,8 @@
 <!--
  * @file src/features/reading-assistant/ui/ReadingAnswer.vue
  * 文件职责：统一呈现阅读回答、流式生成内容和已保存问答，提供清晰而紧凑的阅读层次。
- * 主要内容：把安全 Markdown 结构渲染为标题、列表、引用、代码和表格，使用局部主题与产品颜色变量兼容选区 Shadow UI 与设置页面，保持深色引用和代码的可读性。
- * 模块边界：仅接收文本与紧凑模式，不请求模型、不读取存储，不插入 HTML、不创建可点击外链或远程图片。
+ * 主要内容：把安全 Markdown 结构渲染为标题、列表、引用、代码和表格，对能够对应原文的词性表格提供交互标注，使用局部主题与产品颜色变量兼容选区 Shadow UI 与设置页面，保持深色引用和代码的可读性。
+ * 模块边界：仅接收回答、可选原文与紧凑模式，不请求模型、不读取存储，不插入 HTML、不创建可点击外链或远程图片。
  -->
 <template>
   <div class="fr-reading-markdown" :class="{'is-compact': compact}" data-reading-answer data-i18n-ignore>
@@ -14,15 +14,19 @@
       <component :is="block.ordered ? 'ol' : 'ul'" v-else-if="block.kind === 'list'" :start="block.ordered ? block.start : undefined">
         <li v-for="(item, itemIndex) in block.items" :key="itemIndex"><AnswerInline :text="item" /></li>
       </component>
+      <SentenceAnalysis v-else-if="annotations[index]" :source="sourceText" :annotations="annotations[index]!" />
       <div v-else-if="block.kind === 'table'" class="fr-reading-table"><table><thead><tr><th v-for="(cell, column) in block.headers" :key="column" scope="col"><AnswerInline :text="cell" /></th></tr></thead><tbody><tr v-for="(row, rowIndex) in block.rows" :key="rowIndex"><td v-for="(cell, column) in row" :key="column"><AnswerInline :text="cell" /></td></tr></tbody></table></div>
     </template>
   </div>
 </template>
 <script setup lang="ts">
+import SentenceAnalysis from './SentenceAnalysis.vue';
+import {anchorSentenceAnalysis} from '../sentenceAnalysis';
 import {computed, h} from 'vue';
 import {readingAnswerBlocks, readingAnswerSpans} from '../answerFormat';
-const props = withDefaults(defineProps<{text: string; compact?: boolean}>(), {compact: true});
+const props = withDefaults(defineProps<{text: string; compact?: boolean; sourceText?: string}>(), {compact: true, sourceText: ''});
 const blocks = computed(() => readingAnswerBlocks(props.text));
+const annotations = computed(() => blocks.value.map(block => anchorSentenceAnalysis(block, props.sourceText)));
 const inlineTags = {text: 'span', strong: 'strong', emphasis: 'em', code: 'code'} as const;
 const AnswerInline = ({text}: {text: string}) => readingAnswerSpans(text).map(span => h(inlineTags[span.kind], span.text));
 </script>

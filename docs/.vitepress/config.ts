@@ -26,7 +26,7 @@ const guide = (en = false) => {
     {
       text: en ? 'Translation and learning' : '翻译与学习',
       items: [
-        item('翻译卡片', 'Reading card', '/guide/deepseek-harness'),
+        item('划词翻译', 'Selection translation', '/guide/deepseek-harness'),
         item('学习中心', 'Learning center', '/guide/vocabulary-book'),
         item('图片翻译', 'Image translation', '/guide/image-translation'),
         item('圈选翻译', 'Area translation', '/guide/area-translation'),

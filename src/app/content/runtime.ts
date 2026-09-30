@@ -163,7 +163,7 @@ export async function startContentApp(ctx: ContentScriptContext,
             },
             {
                 id: 'selection-translator',
-                isEnabled: () => config.on && (config.disableSelectionTranslator !== true || config.harness?.enabled === true),
+                isEnabled: () => config.on && config.disableSelectionTranslator !== true && config.selectionTranslatorMode !== 'disabled',
                 mount: () => mountSelectionTranslator(ctx),
                 unmount: unmountSelectionTranslator,
                 isMounted: () => Boolean(document.getElementById('fluent-read-selection-translator-container')),

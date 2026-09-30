@@ -1052,3 +1052,14 @@ describe('旧界面译文人工校正', () => {
     }
   });
 });
+
+import {describePartOfSpeech} from '@/src/core/language/partOfSpeech';
+it('localizes word-class labels and learning explanations from the shared registry', () => {
+    for (const id of ['noun','verb','adjective','adverb','article','determiner','pronoun','preposition','conjunction','auxiliary','interjection','numeral','phrase','']) {
+        const part = describePartOfSpeech(id);
+        for (const language of ['en-US','ja-JP','ko-KR','fr-FR','ru-RU','es-ES'] as const) {
+            expect(translateLegacyText(part.label, language)).not.toBe(part.label);
+            expect(translateLegacyText(part.description, language)).not.toBe(part.description);
+        }
+    }
+});

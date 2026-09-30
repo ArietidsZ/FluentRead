@@ -18,7 +18,7 @@ afterEach(async () => {
   delete (globalThis as Record<string, unknown>)[TEST_KEY];
 });
 
-async function mountOptions(hash = '#settings-harness') {
+async function mountOptions(hash = '#settings-selection') {
   const location = {hash};
   const windowEvents = new EventTarget();
   const mediaAdd = vi.fn();
@@ -98,14 +98,14 @@ async function mountOptions(hash = '#settings-harness') {
 describe('OptionsApp mounted hash navigation', () => {
   it('follows same-document deep links and history hash changes after the initial mount', async () => {
     const {state, navigateHash, replaceState, scrollTo, windowScrollTo} = await mountOptions();
-    expect(state.activeSection).toBe('settings-harness');
+    expect(state.activeSection).toBe('settings-selection');
     state.query = 'pending search';
     await navigateHash('#settings-vocabulary');
     expect(state.activeSection).toBe('settings-vocabulary');
     expect(state.activeItem.id).toBe('settings-vocabulary');
     expect(state.query).toBe('');
-    await navigateHash('#settings-harness');
-    expect(state.activeSection).toBe('settings-harness');
+    await navigateHash('#settings-selection');
+    expect(state.activeSection).toBe('settings-selection');
     await navigateHash('#settings-vocabulary');
     expect(state.activeSection).toBe('settings-vocabulary');
     expect(replaceState).not.toHaveBeenCalled();
@@ -124,10 +124,10 @@ describe('OptionsApp mounted hash navigation', () => {
     expect(state.activeSection).toBe('settings-vocabulary');
     expect(location.hash).toBe('#settings-vocabulary');
     expect(replaceState).toHaveBeenCalledTimes(3);
-    state.selectSection('settings-harness');
-    expect(location.hash).toBe('#settings-harness');
-    expect(state.activeSection).toBe('settings-harness');
-    state.selectSection('settings-harness');
+    state.selectSection('settings-selection');
+    expect(location.hash).toBe('#settings-selection');
+    expect(state.activeSection).toBe('settings-selection');
+    state.selectSection('settings-selection');
     expect(replaceState).toHaveBeenCalledTimes(4);
   });
 
@@ -142,6 +142,6 @@ describe('OptionsApp mounted hash navigation', () => {
     expect(mediaRemove).toHaveBeenCalledOnce();
     expect(unsubscribeConfig).toHaveBeenCalledOnce();
     await navigateHash('#settings-vocabulary');
-    expect(state.activeSection).toBe('settings-harness');
+    expect(state.activeSection).toBe('settings-selection');
   });
 });
