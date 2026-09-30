@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/TranslationStyleSettings.vue
 文件职责：作为“界面风格”页的第一个分组，集中设置网页双语译文的样式预设、文字与独立背景色、精确字号等外观微调，并提供与网页一致的实时预览。
-主要内容：以紧凑可视卡片比较各样式效果，减少嵌套边框并突出当前选择；当前预览实时反映颜色、字体与安全的自定义 CSS 声明，并能保存、更新或删除多套样式。
+主要内容：以紧凑可视卡片比较内置样式和已保存样式的独立外观快照，减少嵌套边框并突出当前选择；当前预览实时反映颜色、字体与安全的自定义 CSS 声明，并能保存、更新或删除多套样式。
 模块边界：本组件只编辑父级传入的 Config 草稿（style、translationAppearance、translationStyleProfiles 等），不持久化配置、
 不向网页注入样式；预设元数据和外观声明来自 core/config/translationAppearance，网页应用由 content 层负责。
 -->
@@ -30,10 +30,18 @@
                 :class="{ selected: config.activeTranslationStyleProfileId === profile.id }"
                 role="radio"
                 :aria-checked="config.activeTranslationStyleProfileId === profile.id"
+                :aria-label="profile.name"
+                :title="profile.name"
                 @click="selectProfile(profile)"
               >
-                <strong>{{ profile.name }}</strong>
-                <small>{{ t('settings.translationStyle.profileBase', { name: translateLegacy(getTranslationStylePreset(profile.style)?.label ?? '') }) }}</small>
+                <span class="translation-style-card-sample" :data-page-theme="pageTheme" aria-hidden="true" data-i18n-ignore>
+                  <span class="fluent-read-bilingual-content" :class="getTranslationStylePreset(profile.style)?.className" :style="getTranslationAppearanceStyle(profile.appearance)" lang="zh-CN">阅读轻松自然</span>
+                </span>
+                <span class="translation-style-saved-card-copy">
+                  <strong>{{ profile.name }}</strong>
+                  <small>{{ t('settings.translationStyle.profileBase', { name: translateLegacy(getTranslationStylePreset(profile.style)?.label ?? '') }) }}</small>
+                </span>
+                <span class="translation-style-card-check" aria-hidden="true"><i /></span>
               </button>
             </div>
           </div>
@@ -443,9 +451,10 @@ function resetAppearance(): void {
 .translation-style-saved > strong { color: var(--ink); font-size: 12.5px; }
 .translation-style-saved-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 7px; }
 .translation-style-saved-card {
-  display: grid; min-width: 0; gap: 3px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px;
+  position: relative; display: grid; min-width: 0; gap: 7px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px;
   color: var(--ink); background: var(--surface); cursor: pointer; font: inherit; text-align: left;
 }
+.translation-style-saved-card-copy { display: grid; min-width: 0; gap: 3px; padding-right: 18px; }
 .translation-style-saved-card strong { overflow: hidden; font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
 .translation-style-saved-card small { color: var(--muted); font-size: 10px; }
 .translation-style-saved-card.selected { border-color: var(--brand); background: var(--brand-soft); }
@@ -560,7 +569,8 @@ function resetAppearance(): void {
   background: var(--surface);
 }
 
-.translation-style-card.selected .translation-style-card-check {
+.translation-style-card.selected .translation-style-card-check,
+.translation-style-saved-card.selected .translation-style-card-check {
   border-color: var(--brand);
   background: var(--brand);
 }
@@ -573,7 +583,8 @@ function resetAppearance(): void {
   opacity: 0;
 }
 
-.translation-style-card.selected .translation-style-card-check > i { opacity: 1; }
+.translation-style-card.selected .translation-style-card-check > i,
+.translation-style-saved-card.selected .translation-style-card-check > i { opacity: 1; }
 
 .translation-style-apply-hint {
   margin: 0;
