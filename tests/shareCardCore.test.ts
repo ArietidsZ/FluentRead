@@ -1,9 +1,13 @@
 import {describe, expect, it} from 'vitest';
 import {Config, normalizeConfig} from '@/src/core/config/model';
-import {normalizeShareCardPreferences} from '@/src/core/config/shareCard';
+import {normalizeShareCardPreferences, SHARE_CARD_THEMES} from '@/src/core/config/shareCard';
 import {cardGraphemes, cardSourceDomain, cleanCardText, validateCardExcerpt, wrapCardText} from '@/src/features/share-card/core';
 
 describe('双语分享卡片内容与外观', () => {
+    it('八套样式稳定且新增样式通过持久化归一化往返', () => {
+        expect(SHARE_CARD_THEMES).toHaveLength(8); expect(new Set(SHARE_CARD_THEMES).size).toBe(8);
+        for (const theme of SHARE_CARD_THEMES) expect(normalizeConfig(JSON.parse(JSON.stringify({shareCard: {theme}}))).shareCard.theme).toBe(theme);
+    });
     it('旧配置得到珊瑚默认样式且只持久化白名单外观字段', () => {
         expect(new Config().shareCard).toEqual(normalizeShareCardPreferences());
         const result = normalizeConfig({shareCard: {theme: 'prism', format: 'square', showSource: false, original: 'private excerpt', source: 'secret URL'}});

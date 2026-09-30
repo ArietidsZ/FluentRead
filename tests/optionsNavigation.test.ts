@@ -27,7 +27,7 @@ describe('options navigation view-model', () => {
       {
         label: '专项翻译',
         items: [
-          'settings-harness',
+          'settings-selection',
           'settings-image-translation',
           'settings-area-translation',
           'settings-video',
@@ -48,7 +48,7 @@ describe('options navigation view-model', () => {
       '翻译服务',
       '翻译设置',
       '界面风格',
-      '翻译卡片',
+      '划词翻译',
       '图片翻译',
       '圈选翻译',
       '视频字幕翻译',
@@ -80,8 +80,9 @@ describe('options navigation view-model', () => {
       .toBe('查看发起的大模型调用、Token 消耗与使用趋势。')
     expect(resolveRequestedSection('#settings-translation-stats')).toBe('settings-translation-stats')
     expect(resolveNavigationItem('settings-translation-stats')).toMatchObject({group: '工具与学习', title: '翻译统计'})
-    expect(resolveRequestedSection('#settings-harness')).toBe('settings-harness')
-    expect(resolveNavigationItem('settings-harness').group).toBe('专项翻译')
+    expect(resolveRequestedSection('#settings-harness')).toBe('settings-selection')
+    expect(resolveRequestedSection('#settings-selection')).toBe('settings-selection')
+    expect(resolveNavigationItem('settings-selection').group).toBe('专项翻译')
     expect(resolveNavigationItem('settings-vocabulary').title).toBe('学习中心')
     expect(resolveRequestedSection('#settings-vocabulary')).toBe('settings-vocabulary')
     expect(resolveRequestedSection('#settings-learning-center')).toBe('settings-vocabulary')
@@ -167,7 +168,7 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('')).toEqual([])
     expect(filterNavigationItems('不存在的设置项')).toEqual([])
     expect(filterNavigationItems('Harness')).toEqual([
-      expect.objectContaining({ id: 'settings-harness' }),
+      expect.objectContaining({ id: 'settings-selection' }),
     ])
   })
 })

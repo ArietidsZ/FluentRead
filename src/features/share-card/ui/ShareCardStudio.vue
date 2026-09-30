@@ -1,7 +1,7 @@
 <!--
  * @file src/features/share-card/ui/ShareCardStudio.vue
  * 文件职责：提供双语卡片的轻量入口和所见即所得编辑预览，服务网页段落与划词结果。
- * 主要内容：原生模态对话框、四套风格、尺寸和字号选择、可编辑双语、来源与署名开关、PNG 保存复制与系统分享；外观写回共享配置，内容仅在本次打开期间存在。
+ * 主要内容：原生模态对话框、品牌色分段选择与开关、八套图片风格、双语编辑及 PNG 导出；固定底栏提供醒目的成功、错误和忙碌反馈，外观写回共享配置。
  * 模块边界：组件位于封闭 Shadow UI，不读取网页正文、不调用翻译服务；渲染与导出委托独立适配器，关闭时释放 Blob URL 并使迟到渲染失效。
  -->
 <template>
@@ -9,7 +9,7 @@
     <button v-if="anchor && !opened" class="fr-card-launcher" :style="{left: `${anchor.x}px`, top: `${anchor.y}px`}" type="button" @click="emit('activate')">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8" cy="9" r="1.3"/><path d="m4 17 5-5 4 4 3-3 4 4"/></svg>{{ t('shareCard.create') }}
     </button>
-    <dialog ref="dialog" :style="{'--fr-card-accent': CARD_THEMES[preferences.theme].uiAccent}" class="fr-card-dialog" aria-labelledby="fr-card-title" @cancel.prevent="close" @close="cleanup" @keydown.stop @pointerdown.stop @click.stop>
+    <dialog ref="dialog" class="fr-card-dialog" aria-labelledby="fr-card-title" @cancel.prevent="close" @close="cleanup" @keydown.stop @pointerdown.stop @click.stop>
       <template v-if="opened">
         <header class="fr-card-header">
           <div><h2 id="fr-card-title">{{ t('shareCard.create') }}</h2></div>
@@ -34,13 +34,15 @@
             </fieldset>
             <details class="fr-card-more"><summary>{{ t('shareCard.more') }}</summary>
             <div class="fr-card-options-row">
-              <label>{{ t('shareCard.format') }}<select :value="preferences.format" @change="setPreference('format', ($event.target as HTMLSelectElement).value)"><option value="auto">{{ t('shareCard.auto') }}</option><option value="square">{{ t('shareCard.square') }}</option></select></label>
-              <label>{{ t('shareCard.fontSize') }}<select :value="preferences.fontSize" @change="setPreference('fontSize', ($event.target as HTMLSelectElement).value)"><option value="small">{{ t('shareCard.small') }}</option><option value="medium">{{ t('shareCard.medium') }}</option><option value="large">{{ t('shareCard.large') }}</option></select></label>
+              <fieldset class="fr-card-choice"><legend>{{ t('shareCard.format') }}</legend><div class="fr-card-segments">
+                <button v-for="format in ['auto', 'square'] as const" :key="format" type="button" :data-format="format" :aria-pressed="preferences.format === format" @click="setPreference('format', format)">{{ t(`shareCard.${format}`) }}</button>
+              </div></fieldset>
+              <fieldset class="fr-card-choice"><legend>{{ t('shareCard.fontSize') }}</legend><div class="fr-card-segments">
+                <button v-for="size in ['small', 'medium', 'large'] as const" :key="size" type="button" :data-font-size="size" :aria-pressed="preferences.fontSize === size" @click="setPreference('fontSize', size)">{{ t(`shareCard.${size}`) }}</button>
+              </div></fieldset>
             </div>
             <div class="fr-card-checks">
-              <label><input type="checkbox" :checked="preferences.translationFirst" @change="setPreference('translationFirst', ($event.target as HTMLInputElement).checked)" />{{ t('shareCard.translationFirst') }}</label>
-              <label><input type="checkbox" :checked="preferences.showSource" @change="setPreference('showSource', ($event.target as HTMLInputElement).checked)" />{{ t('shareCard.showSource') }}</label>
-              <label><input type="checkbox" :checked="preferences.showBrand" @change="setPreference('showBrand', ($event.target as HTMLInputElement).checked)" />{{ t('shareCard.showBrand') }}</label>
+              <label v-for="key in ['translationFirst', 'showSource', 'showBrand'] as const" :key="key"><span>{{ t(`shareCard.${key}`) }}</span><input type="checkbox" role="switch" :data-setting="key" :checked="preferences[key]" @change="setPreference(key, ($event.target as HTMLInputElement).checked)" /></label>
             </div>
             <label v-if="preferences.showSource" class="fr-card-source">{{ t('shareCard.source') }}<input v-model="excerpt.source" maxlength="160" :placeholder="t('shareCard.sourceHint')" /></label>
             </details>
@@ -54,11 +56,17 @@
           </aside>
         </div>
         <footer class="fr-card-footer">
-          <p v-if="status || renderError || rendering" class="fr-card-feedback" role="status" :class="{'is-error': statusError}">{{ status || renderError || t('shareCard.rendering') }}</p>
+          <div class="fr-card-feedback-region" aria-live="polite" aria-atomic="true">
+            <p v-if="status || renderError || rendering" :key="feedbackSequence" class="fr-card-feedback" :class="{'is-error': renderError || statusError, 'is-success': status && !statusError && !renderError, 'is-pending': !status && !renderError}">
+              <svg v-if="status || renderError" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path v-if="statusError || renderError" d="M10 5v6m0 3v.2"/><path v-else d="m6 10 3 3 5-6"/></svg>
+              <span v-else class="fr-card-spinner" aria-hidden="true" />
+              <span>{{ renderError || status || t('shareCard.rendering') }}</span>
+            </p>
+          </div>
           <span class="fr-card-local-note">{{ t('shareCard.local') }}</span>
           <div class="fr-card-export-actions">
-            <button v-if="shareAvailable" type="button" :disabled="!ready || busy" @click="exportImage('share')">{{ t('shareCard.share') }}</button>
-            <button type="button" :disabled="!ready || busy || !copyAvailable" :title="copyAvailable ? t('shareCard.copy') : t('shareCard.copyUnavailable')" @click="exportImage('copy')">{{ t('shareCard.copy') }}</button>
+            <button v-if="shareAvailable" type="button" data-action="share" :disabled="!ready || busy" :aria-busy="activeAction === 'share'" @click="exportImage('share')"><span v-if="activeAction === 'share'" class="fr-card-spinner" aria-hidden="true" />{{ t('shareCard.share') }}</button>
+            <button type="button" data-action="copy" :disabled="!ready || busy || !copyAvailable" :aria-busy="activeAction === 'copy'" :title="copyAvailable ? t('shareCard.copy') : t('shareCard.copyUnavailable')" @click="exportImage('copy')"><span v-if="activeAction === 'copy'" class="fr-card-spinner" aria-hidden="true" />{{ t('shareCard.copy') }}</button>
             <button class="fr-card-primary" type="button" :disabled="!ready || busy" @click="saveImage">{{ t('shareCard.save') }}</button>
           </div>
           <p v-if="!copyAvailable" class="fr-card-fallback">{{ t('shareCard.copyUnavailable') }}</p>
@@ -75,7 +83,6 @@ import {config, requestConfigPatch} from '@/src/services/config/store';
 import {normalizeShareCardPreferences, SHARE_CARD_THEMES, type ShareCardPreferences} from '@/src/core/config/shareCard';
 import {useUiI18n} from '@/src/ui/i18n';
 import {SHARE_CARD_MAX_CHARACTERS, type ShareCardExcerpt} from '../core';
-import {CARD_THEMES} from '../themes';
 import {renderShareCard, ShareCardRenderError, type RenderedShareCard} from '../render';
 import {canCopyCardImage, canShareCardImage, copyCardImage, shareCardFilename, shareCardImage} from '../export';
 
@@ -95,6 +102,8 @@ const rendering = ref(false);
 const busy = ref(false);
 const status = ref('');
 const statusError = ref(false);
+const feedbackSequence = ref(0);
+const activeAction = ref<'copy' | 'share' | ''>('');
 const copyAvailable = canCopyCardImage();
 const shareAvailable = computed(() => Boolean(result.value && canShareCardImage(result.value.blob)));
 const ready = computed(() => Boolean(result.value && !renderError.value && !rendering.value));
@@ -113,12 +122,13 @@ function cleanup(): void {
     opened.value = false; openGeneration++; generation++;
     clearTimeout(renderTimer); releaseImage();
     Object.assign(excerpt, {original: '', translation: '', source: ''});
-    status.value = ''; renderError.value = ''; busy.value = false;
+    status.value = ''; statusError.value = false; renderError.value = ''; busy.value = false; activeAction.value = '';
     emit('closed');
 }
 function close(): void { dialog.value?.close(); cleanup(); }
 async function open(value: ShareCardExcerpt): Promise<void> {
     editorOpen.value = false;
+    busy.value = false; activeAction.value = ''; status.value = ''; statusError.value = false;
     preferences.value = normalizeShareCardPreferences(config.shareCard);
     Object.assign(excerpt, value);
     opened.value = true;
@@ -130,16 +140,17 @@ async function open(value: ShareCardExcerpt): Promise<void> {
 }
 function setPreference(key: keyof ShareCardPreferences, value: unknown): void {
     preferences.value = normalizeShareCardPreferences({...preferences.value, [key]: value});
+    const current = openGeneration;
     // 字段补丁在队列实际执行时与最新权威偏好合并，其他页面的无关偏好不会被旧快照覆盖。
     saveQueue = saveQueue.then(() => requestConfigPatch({shareCard: normalizeShareCardPreferences({...config.shareCard, [key]: value})}, browser.runtime.sendMessage.bind(browser.runtime))).catch(() => {
-        if (disposed || !opened.value) return;
-        statusError.value = true; status.value = t('shareCard.preferenceFailed');
+        if (disposed || !opened.value || current !== openGeneration) return;
+        showFeedback('shareCard.preferenceFailed', true);
     });
 }
 function scheduleRender(): void {
     if (!opened.value) return;
     const current = ++generation;
-    rendering.value = true; status.value = ''; statusError.value = false; renderError.value = '';
+    rendering.value = true; renderError.value = '';
     // 渲染期间保留上张画面避免布局闪动；ready 立即变为 false，不允许保存过期内容。
     clearTimeout(renderTimer);
     renderTimer = setTimeout(async () => {
@@ -158,25 +169,31 @@ function scheduleRender(): void {
         } finally { if (current === generation) rendering.value = false; }
     }, 100);
 }
+function showFeedback(key: string, error = false): void {
+    statusError.value = error; status.value = t(key); feedbackSequence.value++;
+}
 function saveImage(): void {
-    if (!ready.value || !dialog.value) return;
+    if (!ready.value || !dialog.value || busy.value) return;
     const link = document.createElement('a'); link.href = imageUrl.value; link.download = shareCardFilename();
-    dialog.value.append(link); link.click(); link.remove();
-    statusError.value = false; status.value = t('shareCard.saved');
+    try {
+        dialog.value.append(link); link.click();
+        showFeedback('shareCard.saved');
+    } catch { showFeedback('shareCard.saveFailed', true); }
+    finally { link.remove(); }
 }
 async function exportImage(kind: 'copy' | 'share'): Promise<void> {
     if (!ready.value || !result.value || busy.value) return;
-    const current = generation;
-    busy.value = true; status.value = ''; statusError.value = false;
+    const current = openGeneration;
+    busy.value = true; activeAction.value = kind; status.value = ''; statusError.value = false;
     try {
         // PNG 已在预览时生成；可信点击内立即调用，避免异步渲染耗掉瞬时用户激活。
         const outcome = kind === 'copy' ? await copyCardImage(result.value.blob) : await shareCardImage(result.value.blob);
-        if (current !== generation || disposed) return;
-        status.value = outcome === 'cancelled' ? '' : t(kind === 'copy' ? 'shareCard.copied' : 'shareCard.shared');
+        if (current !== openGeneration || !opened.value || disposed) return;
+        if (outcome !== 'cancelled') showFeedback(kind === 'copy' ? 'shareCard.copied' : 'shareCard.shared');
     } catch {
-        if (current !== generation || disposed) return;
-        statusError.value = true; status.value = t(kind === 'copy' ? 'shareCard.copyFailed' : 'shareCard.shareFailed');
-    } finally { if (!disposed) busy.value = false; }
+        if (current !== openGeneration || !opened.value || disposed) return;
+        showFeedback(kind === 'copy' ? 'shareCard.copyFailed' : 'shareCard.shareFailed', true);
+    } finally { if (!disposed && current === openGeneration) { busy.value = false; activeAction.value = ''; } }
 }
 watch([preferences, excerpt, language], scheduleRender, {deep: true, flush: 'sync'});
 onBeforeUnmount(() => { disposed = true; dialog.value?.close(); cleanup(); clearTimeout(renderTimer); releaseImage(); });
@@ -184,17 +201,18 @@ defineExpose({open, close, setAnchor: (value: {x: number; y: number} | null) => 
 </script>
 
 <style scoped>
-.fr-card-root { font: 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; color: #242731; text-align: left; color-scheme: light; }
+.fr-card-root { --fr-card-accent: #ef4776; --fr-card-soft: #fff0f4; font: 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; color: #172033; text-align: left; color-scheme: light; }
+*, *::before, *::after { box-sizing: border-box; }
 button, input, textarea, select { font: inherit; } button, select, input[type=checkbox], summary { cursor: pointer; }
 button { border: 1px solid #dfe1e8; border-radius: 8px; background: #fff; color: inherit; padding: 9px 13px; } button:hover { background: #f5f6fa; } button:disabled { cursor: default; opacity: .45; }
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #2453ed; outline-offset: 3px; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--fr-card-accent); outline-offset: 3px; }
 .fr-card-launcher { position: fixed; display: flex; align-items: center; gap: 6px; padding: 6px 10px; box-shadow: 0 3px 12px #172c2620; white-space: nowrap; font-size: 12px; z-index: 2147483647; }
 .fr-card-launcher svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; }
-.fr-card-dialog { position: fixed; inset: 0; margin: auto; width: min(520px, calc(100vw - 24px)); max-width: none; max-height: min(760px, calc(100dvh - 32px)); padding: 0; border: 1px solid #e6e7ec; border-radius: 16px; background: #ffffff; color: #242731; box-shadow: 0 24px 80px #14261f30; overflow: auto; overscroll-behavior: contain; }
+.fr-card-dialog { position: fixed; inset: 0; margin: auto; width: min(560px, calc(100vw - 24px)); max-width: none; max-height: min(800px, calc(100dvh - 32px)); padding: 0; border: 1px solid #e5e8ef; border-radius: 16px; background: #ffffff; color: #172033; box-shadow: 0 24px 80px #14261f30; overflow: hidden; overscroll-behavior: contain; }
 .fr-card-dialog[open] { display: flex; flex-direction: column; } .fr-card-dialog::backdrop { background: #171b3066; }
 .fr-card-header { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 16px 22px 12px; flex-shrink: 0; }
 h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.5; } .fr-card-close { font-size: 22px; line-height: 1; padding: 4px 7px; border-color: transparent; background: transparent; color: #747888; }
-.fr-card-workspace { min-height: 0; overflow: auto; }
+.fr-card-workspace { min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #cdd2df transparent; }
 .fr-card-preview { padding: 0 22px 6px; min-width: 0; }
 .fr-card-preview-top { display: flex; justify-content: space-between; gap: 12px; color: #858997; font-size: 10px; margin-bottom: 9px; }
 .fr-card-image-wrap { min-height: 180px; display: flex; justify-content: center; align-items: flex-start; }
@@ -206,7 +224,7 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.5; } .fr-card-
 .fr-card-themes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
 .fr-card-themes button { padding: 5px 5px 6px; display: grid; justify-items: center; gap: 5px; font-size: 11px; background: transparent; border: 2px solid transparent; border-radius: 9px; }
 .fr-card-themes button:hover { background: #f3f4f8; }
-.fr-card-themes button[aria-pressed=true] { border-color: var(--fr-card-accent); background: #f6f7fb; color: var(--fr-card-accent); }
+.fr-card-themes button[aria-pressed=true] { border-color: var(--fr-card-accent); background: var(--fr-card-soft); color: #dc315f; }
 .fr-card-swatch { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 6px; overflow: hidden; width: 100%; height: 39px; padding: 9px 12px; border-radius: 4px; box-shadow: inset 0 0 0 1px #00000008; }
 .fr-card-swatch i { position: relative; display: block; width: 90%; height: 2px; background: #ffffffd9; z-index: 1; }
 .fr-card-swatch i + i { width: 65%; height: 1px; background: #e2eaff; }
@@ -220,13 +238,34 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.5; } .fr-card-
 .fr-card-swatch--pearl { background: #fff; border: 3px solid #e8eaf2; flex-direction: row; align-items: flex-start; gap: 5px; }
 .fr-card-swatch--pearl i { width: 46%; height: 11px; background: repeating-linear-gradient(#575b69 0 1px, transparent 1px 4px); }
 .fr-card-swatch--pearl i + i { width: 38%; height: 7px; background: repeating-linear-gradient(#9196a6 0 1px, transparent 1px 4px); }
+.fr-card-swatch--moss { background: #edf3e6; border-left: 5px solid #dce8cd; } .fr-card-swatch--moss i { background: #2d4935; } .fr-card-swatch--moss i + i { background: #739063; }
+.fr-card-swatch--linen { background: #faf4e8; border: 1px solid #c9b89b; } .fr-card-swatch--linen i { background: #493b30; } .fr-card-swatch--linen i + i { background: #9a6740; }
+.fr-card-swatch--sunset { background: linear-gradient(#fff1df, #efb5ad); align-items: center; } .fr-card-swatch--sunset i { background: #63372e; } .fr-card-swatch--sunset i + i { background: #a35242; }
+.fr-card-swatch--blueprint { background: repeating-linear-gradient(0deg, transparent 0 9px, #aacde012 9px 10px), #15324d; flex-direction: row; align-items: flex-start; gap: 5px; } .fr-card-swatch--blueprint i { width: 46%; height: 11px; background: repeating-linear-gradient(#eef7ff 0 1px, transparent 1px 4px); } .fr-card-swatch--blueprint i + i { width: 38%; height: 7px; background: repeating-linear-gradient(#a5c1d4 0 1px, transparent 1px 4px); }
 .fr-card-more, .fr-card-edit { grid-column: 1/-1; border-top: 1px solid #eceef3; padding: 10px 0; }
-summary { font-size: 12px; color: #656b7c; } summary span { float: right; color: #9095a2; font-size: 10px; }
+summary { display: flex; align-items: center; gap: 8px; min-height: 32px; list-style: none; font-size: 12px; font-weight: 600; color: #515b70; } summary::-webkit-details-marker { display: none; } summary::before { content: ''; width: 6px; height: 6px; flex: none; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); } details[open] > summary::before { transform: rotate(45deg); } summary span { margin-left: auto; color: #9095a2; font-size: 10px; font-weight: 400; }
 .fr-card-options-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
 label { display: grid; gap: 5px; font-size: 12px; } select, input:not([type=checkbox]), textarea { width: 100%; min-width: 0; border: 1px solid #dfe1e8; background: #fff; color: #292e3d; border-radius: 7px; padding: 7px 9px; }
-.fr-card-checks { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 16px 0; } .fr-card-checks label { display: flex; align-items: center; gap: 6px; } input[type=checkbox] { accent-color: var(--fr-card-accent, #2453ed); margin: 0; width: 14px; height: 14px; }
+.fr-card-choice { min-width: 0; border: 0; padding: 0; margin: 0; }
+.fr-card-choice legend { margin-bottom: 7px; padding: 0; font-size: 12px; color: #515b70; }
+.fr-card-segments { display: flex; gap: 3px; padding: 3px; border: 1px solid #e5e8ef; border-radius: 10px; background: #f7f8fb; }
+.fr-card-segments button { flex: 1; min-width: 0; min-height: 34px; padding: 5px 4px; border: 0; border-radius: 7px; background: transparent; font-size: 11px; color: #737c8f; }
+.fr-card-segments button[aria-pressed=true] { background: #fff; color: #dc315f; font-weight: 600; box-shadow: 0 1px 5px #17203312; }
+.fr-card-checks { display: grid; gap: 0; margin: 16px 0; padding: 2px 12px; border: 1px solid #e5e8ef; border-radius: 12px; background: #f7f8fb; }
+.fr-card-checks label { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; cursor: pointer; } .fr-card-checks label + label { border-top: 1px solid #e5e8ef; }
+input[type=checkbox] { appearance: none; flex: none; position: relative; margin: 0; width: 36px; height: 22px; border: 0; border-radius: 20px; background: #aab2c1; transition: background 160ms ease; }
+input[type=checkbox]::before { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #17203326; transition: transform 160ms ease; } input[type=checkbox]:checked { background: var(--fr-card-accent); } input[type=checkbox]:checked::before { transform: translateX(14px); }
+input:not([type=checkbox]), textarea { border-radius: 10px; background: #f7f8fb; } input:not([type=checkbox]):focus, textarea:focus { background: #fff; }
 .fr-card-source { margin-bottom: 8px; } .fr-card-edit:not([open]) summary span { display: none; } .fr-card-edit p { color: #818796; font-size: 11px; margin: 10px 0; } .fr-card-edit label { margin-top: 10px; } textarea { resize: vertical; min-height: 65px; line-height: 1.6; }
 .fr-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 14px 22px 18px; border-top: 1px solid #eceef3; flex-shrink: 0; }
-.fr-card-feedback { margin: 0; width: 100%; color: #656b7c; font-size: 11px; } .fr-card-feedback.is-error { color: #a44632; } .fr-card-export-actions { display: flex; gap: 7px; margin-left: auto; } .fr-card-primary { background: var(--fr-card-accent); color: #fff; border-color: var(--fr-card-accent); } .fr-card-primary:hover { filter: brightness(.92); background: var(--fr-card-accent); } .fr-card-local-note { color: #858997; font-size: 10px; } .fr-card-fallback { flex-basis: 100%; margin: 0; font-size: 11px; color: #747b8b; }
+.fr-card-feedback-region { width: 100%; } .fr-card-feedback-region:empty { display: none; }
+.fr-card-feedback { display: flex; align-items: center; gap: 9px; margin: 0; width: 100%; padding: 10px 12px; border: 1px solid #cddff5; border-radius: 10px; background: #eaf3ff; color: #306ba3; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.fr-card-feedback.is-success { background: #eaf8f4; border-color: #bce5d8; color: #267260; } .fr-card-feedback.is-error { background: #fff0f3; border-color: #f1ccd7; color: #b1435e; }
+.fr-card-feedback svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.fr-card-export-actions { display: flex; gap: 7px; margin-left: auto; } .fr-card-export-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; }
+.fr-card-primary { background: var(--fr-card-accent); color: #fff; border-color: var(--fr-card-accent); } .fr-card-primary:hover { background: #dc315f; border-color: #dc315f; } .fr-card-local-note { color: #858997; font-size: 10px; } .fr-card-fallback { flex-basis: 100%; margin: 0; font-size: 11px; color: #747b8b; }
+.fr-card-spinner { display: inline-block; width: 14px; height: 14px; flex: none; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: fr-card-spin .8s linear infinite; } @keyframes fr-card-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fr-card-spinner { animation: none; } input[type=checkbox], input[type=checkbox]::before { transition: none; } }
 @media (max-width: 460px) { .fr-card-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 12px; } .fr-card-header { padding: 12px 16px; } .fr-card-preview { padding: 0 14px 4px; } .fr-card-controls { padding: 12px 14px 6px; } .fr-card-footer { padding: 12px 14px; } .fr-card-local-note { width: 100%; } .fr-card-export-actions { width: 100%; } .fr-card-export-actions button { flex: 1; white-space: nowrap; } }
+@media (max-width: 380px) { .fr-card-options-row { grid-template-columns: 1fr; } }
 </style>

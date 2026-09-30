@@ -1,7 +1,7 @@
 /**
  * @file src/features/share-card/render.ts
  * 文件职责：用本地 Canvas 排版双语摘录，生成预览与导出共用的高清 PNG。
- * 主要内容：按各主题字体真实度量换行，珊瑚采用上下分区，月白采用双栏，晴空居中，流光使用彩色文字；保持紧凑自适应高度或方形缩字，容量不足时拒绝裁切。
+ * 主要内容：按八套主题字体真实度量换行，珊瑚上下分区，月白与蓝图双栏，晴空与落日居中，流光彩字，抹茶与书页衬线摘录；容量不足时拒绝裁切。
  * 模块边界：不截图宿主页面、不加载远程字体或图片、不上传文字；消费摘录与外观，装饰委托 themes，剪贴板及下载由导出适配器负责。
  */
 import type {ShareCardPreferences} from '@/src/core/config/shareCard';
@@ -24,8 +24,8 @@ export async function renderShareCard(excerpt: ShareCardExcerpt, preferences: Sh
     const theme = CARD_THEMES[preferences.theme];
     const {inset} = theme;
     const fullWidth = WIDTH - inset * 2;
-    const columns = preferences.theme === 'pearl';
-    const centered = preferences.theme === 'sky';
+    const columns = preferences.theme === 'pearl' || preferences.theme === 'blueprint';
+    const centered = preferences.theme === 'sky' || preferences.theme === 'sunset';
     const textWidth = columns ? (fullWidth - 40) / 2 : fullWidth;
     const firstFont = (size: number) => theme.font.replace('{size}', String(size));
     const secondFont = (size: number) => `400 ${size}px ${CARD_SECONDARY_FONT}`;
@@ -74,11 +74,11 @@ export async function renderShareCard(excerpt: ShareCardExcerpt, preferences: Sh
     const ink = preferences.theme === 'prism' ? cardPrismInk(context, WIDTH, top) : theme.ink;
     drawLines(first, firstFont(fontSize), fontSize * 1.4, ink);
     if (columns) {
-        context.fillStyle = '#e4e5ec'; context.fillRect(WIDTH / 2, top, 1, contentHeight);
+        context.fillStyle = preferences.theme === 'blueprint' ? '#90bcd166' : '#e4e5ec'; context.fillRect(WIDTH / 2, top, 1, contentHeight);
         y = top;
     } else {
         if (preferences.theme !== 'coral') {
-            context.fillStyle = preferences.theme === 'prism' ? '#74738e' : '#6097c7';
+            context.fillStyle = theme.accent;
             context.fillRect(centered ? WIDTH / 2 - 12 : inset, y + 10, 24, 1);
         }
         y += gap;
