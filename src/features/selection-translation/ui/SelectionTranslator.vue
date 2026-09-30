@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏词书、双语分享卡片、重试和关闭。
- * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放和主题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；以统一入口和普通/卡片呈现按需打开学习面板，协调翻译、词典、词书与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
+ * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放和主题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；以统一入口和普通/卡片呈现按需打开学习面板，按普通划词独立服务协调翻译、词典、词书与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -325,8 +325,8 @@ const selectionSettings = computed(() => {
     from: config.from,
     to: config.to,
     bidirectional: config.selectionTranslatorBidirectional,
-    service: config.service,
-    model: `${config.model?.[config.service] || ''}:${config.customModel?.[config.service] || ''}`,
+    service: config.selectionTranslationService || config.service,
+    model: `${config.model?.[config.selectionTranslationService || config.service] || ''}:${config.customModel?.[config.selectionTranslationService || config.service] || ''}`,
   };
 });
 const selectionShortcutConfig = computed(() => selectionShortcutTriggers.has(selectionSettings.value.trigger)
@@ -1000,7 +1000,7 @@ async function requestTranslation(request: SelectionContentRequest): Promise<voi
   isLoading.value = true;
   error.value = '';
   try {
-    const options = {signal: controller.signal, sourceLanguage: request.sourceLanguage, targetLanguage: request.targetLanguage};
+    const options = {signal: controller.signal, sourceLanguage: request.sourceLanguage, targetLanguage: request.targetLanguage, serviceOverride: selectionSettings.value.service};
     const translated = parts.some(part => part.kind === 'code')
       ? await translateSelectionParts(parts, texts => translateTextBatch(texts, document.title, options))
       : [{kind: 'text' as const, text: await translateText(text, document.title, options)}];

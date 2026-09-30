@@ -2,10 +2,10 @@
 @file src/features/settings/ui/components/SettingsItem.vue
 文件职责：统一单条设置的标签、辅助说明和操作控件布局，使长配置页面保持清晰的阅读节奏与对齐关系。
 主要内容：支持常规双列和 stacked 单列模式、禁用视觉状态、可替换的说明区与控制区插槽，以及窄屏下从横向到纵向的响应式排列。
-模块边界：本组件只处理展示和插槽排版，不拥有字段值、不触发持久化，也不约束所嵌套 Element Plus 或自定义控件的业务行为。
+模块边界：本组件只处理展示和插槽排版，不拥有字段值、不触发持久化；只有独立开关行将文案区点击转发给原控件，其禁用与键盘行为仍由原控件处理。
 -->
 <template>
-  <div class="settings-item" :class="{ stacked, disabled }">
+  <div class="settings-item" :class="{ stacked, disabled }" @click="toggleSimpleSwitch">
     <div class="settings-item-copy">
       <slot name="copy">
         <strong>{{ label }}</strong>
@@ -19,6 +19,14 @@
 </template>
 
 <script setup lang="ts">
+function toggleSimpleSwitch(event: MouseEvent): void {
+  const target = event.target as HTMLElement
+  if (target.closest('button, a, input, select, textarea, .el-switch, [role="button"]') || window.getSelection()?.toString()) return
+  const row = event.currentTarget as HTMLElement
+  const control = row.querySelector<HTMLElement>(':scope > .settings-item-control > .el-switch:not(.is-disabled)')
+  control?.click()
+}
+
 withDefaults(defineProps<{
   label: string
   description?: string
@@ -34,15 +42,15 @@ withDefaults(defineProps<{
 <style scoped>
 .settings-item {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(220px, 360px);
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 320px);
   align-items: center;
   gap: 24px;
   min-height: 66px;
-  padding: 12px 16px;
+  padding: 16px 20px;
   transition: background 150ms ease;
 }
 
-.settings-item:hover { background: var(--surface-soft); }
+.settings-item:hover { background: transparent; }
 .settings-item.disabled { opacity: .58; }
 
 .settings-item-copy {
@@ -52,16 +60,16 @@ withDefaults(defineProps<{
   gap: 3px;
 }
 
-.settings-item-copy strong {
+.settings-item-copy :deep(strong) {
   color: var(--ink);
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 550;
   line-height: 1.45;
 }
 
-.settings-item-copy small {
+.settings-item-copy :deep(small) {
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.55;
 }
 

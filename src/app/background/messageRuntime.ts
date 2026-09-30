@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/messageRuntime.ts
  * 文件职责：构建并安装后台消息总运行时，把配置、翻译、OCR、TTS、生词本和标签页状态等公开 handler 连接到 browser.runtime。
- * 主要内容：创建图片 OCR 语言仓库和能力门控传输，绑定图片与圈选事务的真实页面及术语版本；注入配置、翻译、本机统计、划词卡片页面缩放和词典依赖，注册类型化 router 并管理响应与错误。
+ * 主要内容：创建图片 OCR 语言仓库和能力门控传输，绑定图片与圈选事务的真实页面及术语版本；为图片和划词释义注入独立服务选择，注入配置、翻译、本机统计、划词卡片页面缩放和词典依赖，注册类型化 router 并管理响应与错误。
  * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期，不实现各 feature 的业务算法、provider 协议或存储事务；具体实现均来自 features、services、providers 与 platform。
  */
 import {formatConnectionTestError, getFreeTranslationWeightSnapshot, runTranslationServiceConnectionTestWithUsage} from './providerRuntime';
@@ -123,7 +123,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         createSelectionWordLookupHandler({
             lookupWord,
             getDefaultTargetLanguage: () => config.to,
-            translate: translateWithCache,
+            translate: (request) => translateWithCache({...request, serviceOverride: config.selectionTranslationService || config.service}),
             warn: (message, error) => console.warn(message, error),
         }),
         createSelectionPageZoomHandler(selectionPageZoom.getZoom),
@@ -133,7 +133,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
                 assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded, getDownloadedLanguages: imageOcrLanguageRepository.getDownloaded,
                 ...imageTranslationOffscreenAdapter,
                 translateTexts: translateWithCache,
-                getTranslationService: () => config.service,
+                getTranslationService: () => config.imageTranslationService || config.service,
                 supportsBatchTranslation: supportsTranslationBatch,
                 markLanguagesDownloaded: imageOcrLanguageRepository.markDownloaded,
                 markLanguagesRemoved: imageOcrLanguageRepository.markRemoved,

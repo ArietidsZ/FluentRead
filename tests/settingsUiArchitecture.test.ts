@@ -227,7 +227,7 @@ describe('options UI composition architecture', () => {
 
     expect(settingsSections).toContain("const TranslationStatsDashboard = defineAsyncComponent(() => import('@/src/features/translation-stats/public').then(module => module.TranslationStatsDashboard))")
     expect(settingsSections).toContain("v-if=\"hasVisitedSection('settings-translation-stats')\"")
-    expect(settingsSections).toContain(":active=\"props.activeSection === 'settings-translation-stats'\"")
+    expect(settingsSections).toContain(":active=\"props.activeSection === 'settings-translation-stats' && props.activePanel !== 'usage'\"")
     expect(statsPublic).toContain("from './ui/TranslationStatsDashboard.vue'")
     expect(dashboard).toContain('id="settings-translation-stats"')
     expect(dashboard).toContain("type: 'translationStats'")
@@ -287,10 +287,10 @@ describe('options UI composition architecture', () => {
     expect(source('src/features/vocabulary/ui/public.ts')).toContain("from './VocabularyBook.vue'")
     expect(settingsSections).not.toContain('@/entrypoints/')
     expect(settingsSections).toContain('<style scoped src="./settings-sections.css"></style>')
-    expect(settingsSections).toContain('<InterfaceSettings :config="config" />')
+    expect(settingsSections).toContain('<InterfaceSettings :config="config" :active-panel="props.activePanel" />')
     expect(settingsSections).toContain('data-config-field="to"')
-    expect(activeSectionSource(settingsSections, 'settings-general')).not.toContain('<InterfaceSettings :config="config" />')
-    expect(activeSectionSource(settingsSections, 'settings-interface')).toContain('<InterfaceSettings :config="config" />')
+    expect(activeSectionSource(settingsSections, 'settings-general')).not.toContain('<InterfaceSettings :config="config" :active-panel="props.activePanel" />')
+    expect(activeSectionSource(settingsSections, 'settings-interface')).toContain('<InterfaceSettings :config="config" :active-panel="props.activePanel" />')
     expect(activeSectionSource(settingsSections, 'settings-interface')).toContain('id="settings-interface"')
     expect(settingsGroupTitles(interfaceSettings)).toEqual([
       "translateLegacy('界面与弹窗')",
@@ -414,8 +414,8 @@ describe('options UI composition architecture', () => {
     expect(sharedOcrSettings).toContain(':aria-labelledby="`${props.idPrefix}-ocr-pack-title`"')
     expect(sharedOcrSettings).not.toContain('id="image-ocr-pack-title"')
     expect(settingsSections).toContain("const ModelUsageDashboard = defineAsyncComponent(() => import('@/src/features/model-usage/public').then(module => module.ModelUsageDashboard))")
-    expect(settingsSections).toContain("v-show=\"props.activeSection === 'settings-model-usage'\"")
-    expect(settingsSections).toContain(":active=\"props.activeSection === 'settings-model-usage'\"")
+    expect(settingsSections).toContain('<SettingsPanel name="usage" :active="props.activePanel">')
+    expect(settingsSections).toContain(":active=\"props.activeSection === 'settings-translation-stats' && props.activePanel === 'usage'\"")
     expect(modelUsagePublic).toContain("from './ui/ModelUsageDashboard.vue'")
     expect(modelUsageDashboard).toContain('id="settings-model-usage"')
     expect(modelUsageDashboard).toContain("type: 'modelUsage'")
@@ -1058,7 +1058,7 @@ describe('options UI composition architecture', () => {
     const popup = source('src/app/popup/PopupApp.vue')
 
     const template = interfaceSettings.match(/<template>([\s\S]*)<\/template>/u)?.[1] ?? ''
-    expect(template.trimStart().startsWith('<TranslationStyleSettings :config="props.config" />')).toBe(true)
+    expect(template.trimStart()).toMatch(/^<SettingsPanel name="translation"[^>]*>\s*<TranslationStyleSettings/)
     expect(styleSettings).toContain("import '@/src/ui/styles/translation-display.css'")
     expect(styleSettings).toContain('v-for="preset in visiblePresets"')
     expect(styleSettings).toContain(':class="preset.className"')
@@ -1121,14 +1121,13 @@ describe('options UI composition architecture', () => {
 
     expect(settingsGroupTitles(translation)).toEqual([
       '鼠标悬浮翻译',
-      '划词翻译',
       '全文翻译',
       "t('contextMenuSettings.title')",
     ])
     expect(translation).toContain("v-if=\"browserCapabilities.browser === 'userscript'\"")
     expect(translation).toContain('data-userscript-unavailable="context-menu"')
     expect(translation).toContain('aria-label="鼠标悬浮快捷键"')
-    expect(translation).toContain("openSettingsSection('settings-selection')")
+    expect(translation).not.toContain("openSettingsSection('settings-selection')")
     expect(activeSectionSource(settings, 'settings-selection')).toContain('label="划词显示内容"')
     expect(translation).toContain('<InputTranslationSettings')
     expect(inputTranslation.indexOf('data-testid="input-translation-trigger"')).toBeLessThan(inputTranslation.indexOf('data-testid="input-translation-target"'))
@@ -1169,8 +1168,8 @@ describe('options UI composition architecture', () => {
     const fullPageProfiles = translation.indexOf('action="full-page"')
     const inputTranslationSection = translation.indexOf('<InputTranslationSettings')
     expect(hoverProfiles).toBeGreaterThan(translation.indexOf('aria-label="悬浮翻译延迟"'))
-    expect(hoverProfiles).toBeLessThan(translation.indexOf('title="划词翻译"'))
-    expect(inputTranslationSection).toBeGreaterThan(translation.indexOf('title="划词翻译"'))
+    expect(hoverProfiles).toBeLessThan(inputTranslationSection)
+    expect(inputTranslationSection).toBeGreaterThan(hoverProfiles)
     expect(inputTranslationSection).toBeLessThan(translation.indexOf('title="全文翻译"'))
     expect(fullPageProfiles).toBeGreaterThan(translation.indexOf('label="全文翻译范围"'))
     expect(fullPageProfiles).toBeGreaterThan(translation.indexOf('aria-label="右键全文翻译"'))

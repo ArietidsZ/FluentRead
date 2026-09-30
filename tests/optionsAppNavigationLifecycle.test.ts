@@ -75,7 +75,7 @@ async function mountOptions(hash = '#settings-selection') {
     nextSibling: () => null, querySelector: () => null, setScopeId: () => undefined,
     cloneNode: () => ({}), insertStaticContent: () => [{}, {}],
   });
-  let state!: {activeSection: string; query: string; activeItem: {id: string}; selectSection: (id: string) => void; settingsContentElement: {scrollTo: typeof scrollTo} | null};
+  let state!: {activeSection: string; query: string; activeItem: {id: string}; selectSection: (id: string, target?: string) => void; activePanel: string; selectPanel: (id: string) => void; isGroupOpen: (index: number) => boolean; toggleGroup: (index: number) => void; settingsContentElement: {scrollTo: typeof scrollTo} | null};
   const app = renderer.createApp({
     setup: () => () => runtime.h(component, {
       ref: (instance: any) => { if (instance) state = instance.$.setupState; },
@@ -144,4 +144,39 @@ describe('OptionsApp mounted hash navigation', () => {
     await navigateHash('#settings-vocabulary');
     expect(state.activeSection).toBe('settings-selection');
   });
+});
+
+
+it('reveals collapsed groups and the correct page category for a cross-page control', async () => {
+  const {state, location} = await mountOptions('#settings-general');
+  expect(state.isGroupOpen(0)).toBe(true);
+  expect(state.isGroupOpen(3)).toBe(false);
+  state.selectSection('settings-advanced', 'cache');
+  expect(state.activePanel).toBe('cache');
+  expect(state.isGroupOpen(3)).toBe(true);
+  expect(location.hash).toBe('#settings-advanced');
+  state.selectPanel('requests');
+  expect(state.activePanel).toBe('requests');
+  state.selectSection('settings-translation', 'floating-ball-settings');
+  expect(state.activePanel).toBe('tools');
+  state.selectSection('settings-translation');
+  expect(state.activePanel).toBe('hover');
+  state.toggleGroup(3);
+  expect(state.isGroupOpen(3)).toBe(false);
+  state.toggleGroup(3);
+  expect(state.isGroupOpen(3)).toBe(true);
+});
+
+it('keeps model-usage deep links inside the statistics page and preserves the tab on reload', async () => {
+  const {state, location, navigateHash} = await mountOptions('#settings-model-usage');
+  expect(state.activeSection).toBe('settings-translation-stats');
+  expect(state.activePanel).toBe('usage');
+  expect(location.hash).toBe('#settings-model-usage');
+  state.selectPanel('overview');
+  expect(location.hash).toBe('#settings-translation-stats');
+  state.selectPanel('usage');
+  expect(location.hash).toBe('#settings-model-usage');
+  await navigateHash('#settings-general');
+  await navigateHash('#settings-model-usage');
+  expect(state.activePanel).toBe('usage');
 });

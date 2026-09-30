@@ -24,6 +24,7 @@ export default defineConfig({
         minWorkers: 1,
         fileParallelism: false,
         include: [
+            'tests/featureTranslationServices.test.ts',
             'tests/sha256.test.ts',
             'tests/bilingualSentenceHighlight.test.ts',
             'tests/onnxWasmBinary.test.ts',
@@ -354,6 +355,7 @@ export default defineConfig({
             reportsDirectory: 'coverage/core',
             reporter: ['text', 'json-summary', 'html'],
             include: [
+                'src/core/config/featureServices.ts',
                 'src/core/language/partOfSpeech.ts',
                 'src/features/reading-assistant/sentenceAnalysis.ts',
                 'src/core/config/selectionPreview.ts',

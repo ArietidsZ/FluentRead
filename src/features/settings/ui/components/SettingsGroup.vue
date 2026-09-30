@@ -28,16 +28,16 @@ defineProps<{
   box-sizing: border-box;
   width: min(100%, 1080px);
   min-width: 0;
-  margin: 0 auto 16px;
+  margin: 0 auto 24px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--surface);
   box-shadow: none;
 }
 
 .settings-group-heading {
   margin: 0;
-  padding: 12px 16px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--line);
   border-radius: 11px 11px 0 0;
   background: transparent;
@@ -55,7 +55,7 @@ defineProps<{
 .settings-group-heading p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -77,7 +77,7 @@ defineProps<{
 .settings-group-body :deep(.el-row) {
   min-height: 60px !important;
   margin: 0 !important;
-  padding: 10px 16px !important;
+  padding: 14px 20px !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -89,7 +89,7 @@ defineProps<{
 }
 
 .settings-group-body :deep(.el-row:hover) {
-  background: var(--surface-soft) !important;
+  background: transparent !important;
   transform: none !important;
 }
 

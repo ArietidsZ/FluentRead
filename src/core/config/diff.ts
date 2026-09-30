@@ -511,6 +511,9 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     deepseekApiType: {group: 'translationServices', label: 'DeepSeek API 格式', format: (value) => formatEnum(value, DEEPSEEK_API_LABELS)},
     deepseekThinkingMode: {group: 'translationServices', label: 'DeepSeek 思考模式', format: (value) => formatEnum(value, DEEPSEEK_THINKING_LABELS)},
 
+    hoverTranslationService: {group: 'translation', label: '悬浮翻译服务', format: formatService},
+    selectionTranslationService: {group: 'translation', label: '划词翻译服务', format: formatService},
+    imageTranslationService: {group: 'tools', label: '图片翻译服务', format: formatService},
     hotkey: {group: 'translation', label: '鼠标悬浮快捷键', format: (value) => formatEnum(value, HOVER_TRIGGER_LABELS)},
     customHotkey: {group: 'translation', label: '自定义悬浮快捷键'},
     mouseHoverTranslationDelay: {group: 'translation', label: '悬浮翻译延迟', format: (value) => formatNumber(value, ' ms')},

@@ -38,6 +38,7 @@ const runtime = vi.hoisted(() => ({
     retryCallbacks: [] as Array<() => void>,
     config: {
         service: "microsoft",
+        hoverTranslationService: "",
         model: {microsoft: "microsoft-default", freeTranslation: "free-default"} as Record<string, string>,
         customModel: {} as Record<string, string>,
         modelThinking: {} as Record<string, Record<string, boolean>>,
@@ -6317,6 +6318,27 @@ describe("悬停重挂请求与 synthetic 提交回归", () => {
         await expect(translateTextSlots([source], snapshot, undefined, undefined, resetSession))
             .resolves.toEqual([`新译:${source}`]);
         expect(runtime.requests).toHaveBeenCalledTimes(3);
+    });
+
+    it("悬浮独立服务优先于网页默认，快捷方案覆盖继续优先", async () => {
+        document.body.innerHTML = '<p id="hover-service">Independent hover translation service.</p>';
+        const owner = document.querySelector<HTMLElement>('#hover-service')!;
+        setLayoutBox(owner, 620, 96);
+        runtime.config.display = 1;
+        runtime.pointCandidate = {element: owner, kind: 'content', reason: 'test'};
+        runtime.candidates = [runtime.pointCandidate];
+        runtime.realCore = null;
+        runtime.config.hoverTranslationService = 'google';
+        try {
+            handleTranslation(20, 20);
+            await finishScheduledWork();
+            expect(runtime.requestOptions.at(-1)).toMatchObject({serviceOverride: 'google'});
+            expect(runtime.config.service).toBe('microsoft');
+            restoreOriginalContent();
+            handleTranslation(20, 20, {service: 'freeTranslation', model: 'profile-model'});
+            await finishScheduledWork();
+            expect(runtime.requestOptions.at(-1)).toMatchObject({serviceOverride: 'freeTranslation', modelOverride: 'profile-model'});
+        } finally { runtime.config.hoverTranslationService = ''; }
     });
 
     it("route reset 后纯 hover 在途结果不得提交，下一代请求仍可正常翻译", async () => {

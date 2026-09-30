@@ -179,7 +179,7 @@ beforeEach(() => {
     settings.imageTranslationHoverEnabled = true; settings.imageTranslationContextMenuEnabled = true;
     settings.uiLanguage = 'zh-CN';
     settings.on = true; settings.disableImageTranslator = false; settings.to = 'zh-Hans'; settings.useCache = true;
-    settings.service = 'google'; settings.model = {}; settings.customModel = {}; settings.customBody = {}; settings.proxy = {}; settings.customOpenAIProviders = []; settings.token = {};
+    settings.imageTranslationService = ''; settings.service = 'google'; settings.model = {}; settings.customModel = {}; settings.customBody = {}; settings.proxy = {}; settings.customOpenAIProviders = []; settings.token = {};
     client.translate.mockReset().mockResolvedValue(result);
     client.prepare.mockReset().mockResolvedValue(undefined);
     client.fetch.mockReset();
@@ -385,7 +385,16 @@ describe('图片翻译前台交互与生命周期', () => {
         expect(env.bitmap()).toBeNull();
     });
 
-    it('同 URL 重新加载与目标语言变更都使已恢复的缓存失效', async () => {
+    it('图片独立服务切换使缓存失效，默认网页服务保持不变', async () => {
+        const env = setup(); env.hover(); env.click(); await flush(); env.click();
+        settings.imageTranslationService = 'microsoft'; env.click(); await flush();
+        expect(client.translate).toHaveBeenCalledTimes(2);
+        expect(settings.service).toBe('google');
+        env.click(); settings.imageTranslationService = ''; env.click(); await flush();
+        expect(client.translate).toHaveBeenCalledTimes(3);
+    });
+
+    it('同 URL 重新加载与目标语言变更都使已恢复的缓存失效' , async () => {
         const env = setup(); env.hover(); env.click(); await flush(); env.click();
         env.dispatch(env.image, 'pointerout'); vi.advanceTimersByTime(200);
         env.dispatch(env.image, 'load'); env.hover(); env.click(); await flush();
