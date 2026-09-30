@@ -1,10 +1,10 @@
 /**
  * @file src/core/config/shareCard.ts
  * 文件职责：定义双语分享卡片可持久化的外观偏好与稳定默认值。
- * 主要内容：限定四套风格、自适应或方形尺寸、字号、双语顺序及来源和署名开关，并兼容旧配置与非法输入。
+ * 主要内容：限定八套风格、自适应或方形尺寸、字号、双语顺序及来源和署名开关，并兼容旧配置与非法输入。
  * 模块边界：只归一化外观，不保存摘录、网页标题、URL 或生成的图片，不访问浏览器和 Vue。
  */
-export const SHARE_CARD_THEMES = ['coral', 'sky', 'prism', 'pearl'] as const;
+export const SHARE_CARD_THEMES = ['coral', 'sky', 'prism', 'pearl', 'moss', 'linen', 'sunset', 'blueprint'] as const;
 export type ShareCardTheme = typeof SHARE_CARD_THEMES[number];
 export interface ShareCardPreferences {
     theme: ShareCardTheme;

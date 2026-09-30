@@ -298,7 +298,8 @@
       "tests/shareCardExcerpt.test.ts",
       "tests/shareCardRender.test.ts",
       "tests/shareCardRuntime.test.ts",
-      "tests/shareCardExport.test.ts"
+      "tests/shareCardExport.test.ts",
+      "tests/shareCardStudio.test.ts"
     ],
     "functional": [
       "tests/resourceSafeRunner.test.ts",

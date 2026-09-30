@@ -1,7 +1,7 @@
 /**
  * @file src/features/share-card/themes.ts
- * 文件职责：定义分享卡片的四套视觉语言，并绘制不承载用户内容的背景材质。
- * 主要内容：珊瑚的红白分区、晴空的透亮蓝色、流光的深色彩字、月白的珠光双栏；保留文字对比度，装饰随内容高度适配。
+ * 文件职责：定义分享卡片的八套视觉语言，并绘制不承载用户内容的背景材质。
+ * 主要内容：珊瑚、晴空、流光、月白及抹茶、书页、落日、蓝图；组合上下分区、居中与双栏排版，保留文字对比度，装饰随内容高度适配。
  * 模块边界：只在已确定尺寸的 Canvas 上绘图，不测量或裁切正文，不访问配置存储、网络及宿主页面，也不加载外部设计素材。
  */
 import type {ShareCardTheme} from '@/src/core/config/shareCard';
@@ -13,6 +13,10 @@ export const CARD_THEMES = {
     sky: {background: '#eaf5ff', ink: '#153d65', secondary: '#315e80', accent: '#306fa3', muted: '#47728f', font: `600 {size}px ${SANS}`, inset: 48, uiAccent: '#22689e'},
     prism: {background: '#12131a', ink: '#b6b7ff', secondary: '#e1e2e9', accent: '#bcb4e7', muted: '#a8aabf', font: `600 {size}px ${SANS}`, inset: 48, uiAccent: '#5653b8'},
     pearl: {background: '#eaeaf0', ink: '#292b34', secondary: '#5e6270', accent: '#777d96', muted: '#7b7e8c', font: `600 {size}px ${SANS}`, inset: 48, uiAccent: '#4a4e5c'},
+    moss: {background: '#edf3e6', ink: '#2d4935', secondary: '#4b6351', accent: '#54734a', muted: '#62735d', font: `500 {size}px ${SERIF}`, inset: 56, uiAccent: '#54734a'},
+    linen: {background: '#faf4e8', ink: '#493b30', secondary: '#6b5948', accent: '#9a6740', muted: '#857361', font: `500 {size}px ${SERIF}`, inset: 56, uiAccent: '#9a6740'},
+    sunset: {background: '#ffe5d6', ink: '#63372e', secondary: '#774e43', accent: '#a35242', muted: '#8d6254', font: `600 {size}px ${SANS}`, inset: 48, uiAccent: '#a35242'},
+    blueprint: {background: '#15324d', ink: '#eef7ff', secondary: '#c7dceb', accent: '#b5d9ed', muted: '#a5c1d4', font: `500 {size}px ${SANS}`, inset: 48, uiAccent: '#306fa3'},
 } as const satisfies Record<ShareCardTheme, unknown>;
 export const CARD_SECONDARY_FONT = SANS;
 
@@ -46,7 +50,7 @@ export function paintCardBackground(context: CanvasRenderingContext2D, theme: Sh
     } else if (theme === 'prism') {
         glow(context, 90, height + 140, 290, '#3759c945', width, height);
         glow(context, width - 30, height + 140, 290, '#c1478c38', width, height);
-    } else {
+    } else if (theme === 'pearl') {
         const gradient = context.createLinearGradient(0, 0, width, height);
         gradient.addColorStop(0, '#e6effc'); gradient.addColorStop(.45, '#f4eaf1'); gradient.addColorStop(1, '#dcebed');
         context.fillStyle = gradient; context.fillRect(0, 0, width, height);
@@ -57,6 +61,28 @@ export function paintCardBackground(context: CanvasRenderingContext2D, theme: Sh
         if (typeof context.roundRect === 'function') context.roundRect(12, 12, width - 24, height - 24, 18);
         else context.rect(12, 12, width - 24, height - 24);
         context.fill(); context.shadowColor = 'transparent'; context.stroke();
+    } else if (theme === 'moss') {
+        context.fillStyle = '#dce8cd'; context.fillRect(0, 0, 18, height);
+        context.fillStyle = '#739063'; context.fillRect(32, 46, 3, height - 100);
+        context.strokeStyle = '#9aaf833d'; context.lineWidth = 1;
+        for (const radius of [24, 38, 52]) { context.beginPath(); context.arc(width - 12, height + 12, radius, 0, Math.PI * 2); context.stroke(); }
+    } else if (theme === 'linen') {
+        context.strokeStyle = '#c9b89b'; context.lineWidth = 1;
+        context.strokeRect(20, 20, width - 40, height - 40);
+        context.fillStyle = '#9a6740'; context.fillRect(56, 30, 28, 3);
+        // 装饰仅位于边缘，不在正文背后制造纹理噪声。
+        context.fillStyle = '#c9b89b'; context.fillRect(width - 76, height - 26, 20, 1);
+    } else if (theme === 'sunset') {
+        const gradient = context.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, '#fff1df'); gradient.addColorStop(.55, '#ffe2cf'); gradient.addColorStop(1, '#efb5ad');
+        context.fillStyle = gradient; context.fillRect(0, 0, width, height);
+        glow(context, width / 2, -100, 240, '#ffffff', width, height);
+        context.fillStyle = '#ffffff26'; context.beginPath(); context.arc(width + 12, height + 100, 170, 0, Math.PI * 2); context.fill();
+    } else if (theme === 'blueprint') {
+        context.strokeStyle = '#aacde012'; context.lineWidth = .5;
+        for (let x = 16; x < width; x += 32) { context.beginPath(); context.moveTo(x, 0); context.lineTo(x, height); context.stroke(); }
+        for (let y = 16; y < height; y += 32) { context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke(); }
+        context.strokeStyle = '#90bcd177'; context.strokeRect(20, 20, width - 40, height - 40);
     }
     context.restore();
 }
