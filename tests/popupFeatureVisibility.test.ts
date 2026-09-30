@@ -10,7 +10,7 @@ function source(path: string): string {
 describe('popup feature visibility', () => {
     it('gives the toolbar popup an intrinsic width before the browser sizes its viewport', () => {
         const styles = source('src/app/popup/popup.css');
-        expect(styles).toContain('html { width: var(--interface-popup-width, 360px); }');
+        expect(styles).toContain('html { width: var(--interface-popup-width, 320px); }');
         expect(styles).toContain('body, #app { width: 100%; }');
         expect(styles).not.toContain('width: min(var(--interface-popup-width, 360px), 100vw)');
         expect(styles).toContain('.popup-shell { max-height: 560px; overflow-y: auto;');
@@ -100,6 +100,31 @@ describe('popup feature visibility', () => {
         }
         expect(popup).toContain("item.value === 'auto'");
         expect(popup).toContain('translateLegacy(item.label)');
+    });
+
+    it('keeps popup language filtering without the decorative search icon', () => {
+        const popup = source('src/app/popup/PopupLanguageSelect.vue');
+        const select = source('src/ui/components/UiSelect.vue');
+        expect(popup).toContain('filterable');
+        expect(popup).toContain(':show-search-icon="false"');
+        expect(select).toContain('showSearchIcon !== false');
+        expect(select).toContain(':filterable="filterable"');
+    });
+
+    it('prioritizes switches and useful diagrams in three quick panels while retaining internal scrolling and navigation', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const styles = source('src/app/popup/popup.css');
+        expect(popup).toContain("'popup-quick-drawer': ['hover', 'selection', 'image'].includes(activeDrawer)");
+        expect(styles).toContain('max-height: calc(100% - 8px)');
+        expect(styles).toContain('.popup-drawer .el-drawer__body { min-height: 0; padding: 0; overflow-x: hidden; overflow-y: auto;');
+        expect(styles).toContain('scrollbar-gutter: stable; scrollbar-width: thin;');
+        expect(popup).not.toContain('class="wordbook-shortcut"');
+        expect(popup).not.toContain('class="setting-row selection-trigger-setting"');
+        expect(popup).toContain('data-testid="hover-enable"');
+        expect(popup).toContain('data-testid="selection-enable"');
+        expect(popup).toContain('data-testid="area-translation-demo"');
+        expect(popup).toContain("t('popup.quickSettings.moreSettings')");
+        expect(popup).toContain('class="drawer-settings-link"');
     });
 
     it('uses the same multilingual display policy for interface-language selectors', () => {
@@ -273,7 +298,8 @@ describe('popup feature visibility', () => {
         expect(popup).toContain('{{ quickProfileSummary(profile) }}');
         expect(popup).toContain("t('popup.quickTranslation.defaultHoverShortcut')");
         expect(popup).toContain("t('popup.quickTranslation.defaultOnly', {count: quickHoverProfiles.length})");
-        expect(popup).toContain("t('popup.quickSettings.disableHoverShortcut')");
+        expect(popup).toContain('@click="toggleDefaultHoverShortcut"');
+        expect(popup).toContain(':aria-checked="defaultHoverEnabled"');
         expect(popup).toContain("t('popup.quickSettings.chooseHoverShortcut')");
         expect(popup).not.toContain("setHoverHotkey('Control')");
         expect(popup).toContain("resolveConfiguredHotkey(config.value.hotkey, config.value.customHotkey)");

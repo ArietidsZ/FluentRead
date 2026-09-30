@@ -421,6 +421,7 @@ export const jaJPMessages = {
     "popup.quickSettings.videoPlayerHint": "プレーヤーの字幕メニューで表示・非表示を切り替え、原文や訳文をダウンロードできます。対応する X 動画ではローカル AI 字幕も生成できます。",
     "popup.quickSettings.appearanceDescription": "原文と訳文を並べるか、訳文のみを表示します。",
     "popup.quickSettings.hoverSettings": "ホバー翻訳の設定",
+    "popup.quickSettings.moreSettings": "詳細設定",
     "popup.quickSettings.hoverSettingsHint": "ショートカットと個別の翻訳設定",
     "popup.quickSettings.selectionSettings": "選択範囲翻訳の設定",
     "popup.quickSettings.selectionSettingsHint": "起動方法、表示の遅延、読み上げ音声",

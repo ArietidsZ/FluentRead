@@ -419,6 +419,7 @@ export const zhCNMessages = {
     "popup.quickSettings.videoPlayerHint": "在播放器的字幕菜单中，可显示或隐藏字幕、下载原文或译文；支持的 X 视频还可生成本地 AI 字幕。",
     "popup.quickSettings.appearanceDescription": "双语对照保留原文，仅译文专注阅读翻译。",
     "popup.quickSettings.hoverSettings": "悬停翻译设置",
+    "popup.quickSettings.moreSettings": "更多设置",
     "popup.quickSettings.hoverSettingsHint": "快捷键与独立翻译方案",
     "popup.quickSettings.selectionSettings": "划词翻译设置",
     "popup.quickSettings.selectionSettingsHint": "触发方式、显示延迟与朗读声音",

@@ -421,6 +421,7 @@ export const koKRMessages = {
     "popup.quickSettings.videoPlayerHint": "플레이어의 자막 메뉴에서 자막을 표시하거나 숨기고 원문 또는 번역문을 다운로드할 수 있습니다. 지원되는 X 동영상에서는 로컬 AI 자막도 생성할 수 있습니다.",
     "popup.quickSettings.appearanceDescription": "원문과 번역문을 함께 보거나 번역문만 읽으세요.",
     "popup.quickSettings.hoverSettings": "마우스 오버 번역 설정",
+    "popup.quickSettings.moreSettings": "추가 설정",
     "popup.quickSettings.hoverSettingsHint": "단축키 및 개별 번역 프로필",
     "popup.quickSettings.selectionSettings": "선택 번역 설정",
     "popup.quickSettings.selectionSettingsHint": "실행 방식, 표시 지연 및 읽기 음성",

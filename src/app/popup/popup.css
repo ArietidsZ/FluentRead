@@ -1,7 +1,7 @@
 /**
  * @file src/app/popup/popup.css
  * 文件职责：定义宽度随皮肤、高度由内容撑开且最高 560px 的浏览器 Popup 视觉系统与交互状态，包括亮暗主题、服务选择、功能卡、设置抽屉、通知和响应式细节。
- * 主要内容：以白色默认画布、浅灰控件和品牌色强调网页翻译、局部选择及站点控制；定义版本与赞赏、翻译服务汇总、两列入口、完整开源胶囊与不挤压说明的抽屉，兼容皮肤、多语言和 Element Plus 内部结构。
+ * 主要内容：以白色窄版画布、浅灰控件和品牌色强调网页翻译、局部选择及站点控制；定义版本与赞赏、翻译服务汇总、两列入口、完整开源胶囊与开关优先的快捷抽屉，保留操作示意、舒展间距和必要的内部滚动。
  * 模块边界：样式只对应 PopupApp 的 DOM 和受控第三方组件，不决定配置值、能力可用性或消息行为；跨页面 token 在 src/ui/styles，Options/文档页各自维护页面样式。
  */
 @import "../../ui/styles/feedback.css";
@@ -37,7 +37,7 @@
 
 * { box-sizing: border-box; }
 /* 工具栏 popup 的 viewport 由文档内容决定；根宽度不能再依赖 100vw，否则首次打开时会自我收缩。 */
-html { width: var(--interface-popup-width, 360px); }
+html { width: var(--interface-popup-width, 320px); }
 body, #app { width: 100%; }
 html, body, #app { min-width: 0; margin: 0; overflow-x: hidden; background: #fff; }
 :root.dark body, :root.dark #app { background: #14161b; }
@@ -408,7 +408,7 @@ footer > button { justify-self: end; }
 
 .popup-drawer-modal { background: rgba(17, 20, 29, .48) !important; backdrop-filter: blur(2px); }
 .popup-drawer {
-  width: min(100vw, var(--interface-popup-width, 360px)) !important; min-height: 260px !important; max-height: 88vh;
+  width: min(100vw, var(--interface-popup-width, 320px)) !important; min-height: 260px !important; max-height: 88vh;
   margin: 0 auto !important; padding: 8px 20px 18px; overflow: hidden;
   border-radius: 24px 24px 0 0 !important; background: var(--surface) !important;
   box-shadow: 0 -18px 46px rgba(13, 17, 28, .18);
@@ -530,6 +530,7 @@ footer > button { justify-self: end; }
 .video-quick-settings .setting-row { margin-top: 0; }
 .video-player-hint { margin-top: 14px; font-size: 11px; line-height: 1.6; }
 .chips button { min-width: 0; overflow-wrap: anywhere; }
+.chips button:disabled { color: var(--muted); cursor: not-allowed; opacity: .6; box-shadow: none; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
@@ -551,6 +552,41 @@ footer > button { justify-self: end; }
 .hero-card .language-pair { margin-top: 0; }
 .selection-area-panel { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 8px; }
 .drawer-content > .section-translate-button { margin-top: 12px; height: 40px; width: 100%; }
+
+/* 三个快捷面板优先呈现开关和关键示意，保留舒展间距；额外方案或长文案自然在内部滚动。 */
+.popup-drawer.popup-quick-drawer { max-height: calc(100% - 8px); min-height: 0 !important; padding: 8px 16px 14px; }
+.popup-quick-drawer .el-drawer__body { scrollbar-gutter: stable; scrollbar-width: thin; }
+.popup-quick-drawer .drawer-handle { margin: 0 auto 12px; }
+.popup-quick-drawer .drawer-header { gap: 10px; }
+.popup-quick-drawer .drawer-header h2 { font-size: 18px; }
+.popup-quick-drawer .drawer-header p { margin-top: 5px; font-size: 11px; line-height: 1.5; }
+.popup-quick-drawer .drawer-header > button { width: 30px; height: 30px; border-radius: 10px; font-size: 23px; }
+.popup-quick-drawer .drawer-content { margin-top: 14px; }
+.popup-quick-drawer .interaction-preview { gap: 7px; min-height: 60px; margin-top: 10px; padding: 10px; border-radius: 12px; font-size: 12px; }
+.popup-quick-drawer .interaction-preview .cursor { font-size: 25px; }
+.popup-quick-drawer .interaction-preview kbd, .hover-keycap { max-width: 100%; padding: 8px 10px; border: 0; border-radius: 10px; color: #fff; background: #252832; box-shadow: 0 4px 9px rgba(0, 0, 0, .14); font: 11px ui-monospace, SFMono-Regular, monospace; overflow-wrap: anywhere; }
+.hover-keycap { cursor: pointer; }
+.hover-keycap:hover { background: #363b46; }
+.hover-translation-preview.preview-disabled { opacity: .65; }
+.popup-quick-drawer .setting-row { gap: 12px; min-height: 56px; margin-top: 10px; padding: 10px 12px; border-radius: 12px; }
+.popup-quick-drawer .quick-enable-row { margin-top: 0; }
+.popup-quick-drawer .quick-profile-preview { gap: 6px; margin-top: 12px; }
+.popup-quick-drawer .quick-profile-preview-row { min-height: 34px; padding: 6px 8px; border-radius: 9px; }
+.popup-quick-drawer .choice-block { margin-top: 12px; }
+.popup-quick-drawer .chips { gap: 6px; }
+.popup-quick-drawer .chips button { min-height: 36px; padding: 7px 8px; border-radius: 10px; }
+.popup-quick-drawer .image-methods { grid-auto-rows: auto; gap: 8px; }
+.popup-quick-drawer .image-method { gap: 10px; min-height: 68px; padding: 10px 12px; border-radius: 12px; }
+.popup-quick-drawer .image-method-copy { gap: 4px; }
+.popup-quick-drawer .image-method-copy strong { font-size: 12px; }
+.popup-quick-drawer .image-method-copy small { font-size: 10px; line-height: 1.4; }
+.popup-quick-drawer .quick-area-preview { flex-wrap: wrap; gap: 7px; min-height: 64px; margin-top: 0; padding: 10px; border-radius: 12px; font-size: 12px; }
+.quick-area-preview .area-hotkey { flex-wrap: wrap; justify-content: center; min-width: 0; }
+.quick-area-preview .area-hotkey kbd, .quick-area-preview .area-hotkey kbd:first-child { min-width: 0; padding: 8px 10px; font-size: 11px; border-radius: 10px; box-shadow: 0 4px 9px rgba(0, 0, 0, .14); }
+.quick-area-preview .area-ring { flex: none; width: 21px; height: 15px; }
+.quick-area-preview.preview-disabled { opacity: .65; }
+.popup-quick-drawer .drawer-settings-link { min-height: 36px; margin-top: 14px; padding: 10px 2px 0; color: var(--muted); }
+.popup-quick-drawer .drawer-settings-link:hover strong { color: var(--ink); text-decoration: none; }
 
 /* 紧凑阅读布局：颜色强调当前选择，语言、服务与快捷入口以留白建立层级。 */
 .popup-shell[data-interface-skin="default"] { background: var(--surface); }

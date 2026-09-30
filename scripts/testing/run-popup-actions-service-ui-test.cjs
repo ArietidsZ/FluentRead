@@ -6,8 +6,12 @@ const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
+const {execFile} = require('node:child_process');
+const {promisify} = require('node:util');
+const execFileAsync = promisify(execFile);
 const arg = (name, fallback) => {const i = process.argv.indexOf(`--${name}`); return i < 0 ? fallback : process.argv[i + 1];};
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
+const headed = process.argv.includes('--headed'); // 仅在本次用户明确允许前台测试后传入。
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-popup-actions-service-ui'));
 const {chromium} = require(path.join(arg('playwright-root', '/Users/thinkstu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules'), 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper', '/Users/thinkstu/.codex/skills/fluentread-extension-ui-test/scripts/focus-safe-browser.cjs'));
@@ -37,6 +41,7 @@ const server = http.createServer(async (request, response) => {
   response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Popup actions fixture</title><style>body{padding:50px;font:18px/1.8 system-ui;background:#fff;color:#263044}article{max-width:800px}section{padding:20px;border:1px solid #ddd;margin:16px 0}</style></head><body><article><h1 translate="no">Popup actions fixture</h1><section id="chosen"><p id="primary">${SOURCE}</p></section><section id="other"><p translate="no">This other section must stay unchanged.</p></section></article></body></html>`);
 });
 let launched, context, control, popup, content, origin, currentCase = 'launch';
+let focusMonitor, focusMonitorBusy = false;
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-popup-actions-'));
 fs.mkdirSync(artifactsDir, {recursive: true});
 async function until(test, label, duration = 15000) {const end = Date.now() + duration; while (Date.now() < end) {if (await test()) return; await wait(60);} throw new Error(`${label}: timeout`);}
@@ -119,6 +124,39 @@ async function drawer(id = 'services') {
   await popup.locator('.drawer-surface').waitFor(); await wait(300);
 }
 async function closeDrawer() {await popup.locator('.drawer-header > button').click(); await popup.locator('.drawer-surface').waitFor({state: 'hidden'});}
+async function closeTestPage(page) {
+  // CDP Page.close 关闭当前页偶尔会激活 macOS 窗口；先在隔离窗口切回控制页，再用扩展 API 移除准确页签。
+  const tabId = await page.evaluate(async () => (await chrome.tabs.getCurrent()).id);
+  await control.evaluate(async tabId => {
+    const anchor = await chrome.tabs.getCurrent();
+    await chrome.tabs.update(anchor.id, {active: true});
+    await chrome.tabs.remove(tabId);
+  }, tabId);
+}
+async function monitorBackgroundWindow() {
+  const browser = context.browser();
+  const session = await browser.newBrowserCDPSession();
+  const {processInfo} = await session.send('SystemInfo.getProcessInfo');
+  const browserPid = processInfo.find(process => process.type === 'browser').id;
+  await session.detach();
+  report.focusMonitor = {samples: 0, violations: []};
+  focusMonitor = setInterval(async () => {
+    if (focusMonitorBusy) return; focusMonitorBusy = true;
+    try {
+      const {stdout} = await execFileAsync('/usr/bin/osascript', ['-l', 'JavaScript', '-e',
+        "ObjC.import('AppKit'); const app = $.NSWorkspace.sharedWorkspace.frontmostApplication; JSON.stringify({pid:Number(app.processIdentifier),name:ObjC.unwrap(app.localizedName)});"], {timeout: 5000});
+      const foreground = JSON.parse(stdout.trim()); report.focusMonitor.samples++;
+      if (foreground.pid === browserPid) {
+        report.windowPlacement.browserFrontmost = true;
+        report.focusMonitor.violations.push({at: new Date().toISOString(), foreground});
+        clearInterval(focusMonitor); await launched.close();
+      }
+    } catch (error) {
+      report.focusMonitor.violations.push({at: new Date().toISOString(), error: error.message});
+      clearInterval(focusMonitor); await launched.close();
+    } finally {focusMonitorBusy = false;}
+  }, 1000);
+}
 async function pick(field, value) {
   await popup.locator(`[data-feature-service="${field}"]`).click();
   await popup.locator('.service-picker-search input').fill(value);
@@ -131,12 +169,14 @@ async function main() {
     const fixtureUrl = `http://127.0.0.1:${server.address().port}/article`;
     const manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, 'manifest.json')));
     assert(manifest.action.default_popup && (manifest.options_page || manifest.options_ui.page)); report.manifest = {version: manifest.version, popup: manifest.action.default_popup, options: manifest.options_page || manifest.options_ui.page};
-    launched = await launchFocusSafePersistentContext({chromium, profileDir, background: true, headless: false,
+    launched = await launchFocusSafePersistentContext({chromium, profileDir, background: !headed, headless: false,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', viewport: {width: 1440, height: 960}, displayTarget: 'secondary', timeout,
       browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check']});
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
-    assert.equal(report.windowPlacement.browserFrontmost, false); assert.equal(report.launchMode, 'macos-background-cdp');
+    if (headed) {assert.equal(report.focusPolicy, 'foreground-authorized'); assert.equal(report.windowPlacement.mode, 'headed-centered');}
+    else {assert.equal(report.windowPlacement.browserFrontmost, false); assert.equal(report.launchMode, 'macos-background-cdp');}
     context = launched.context;
+    if (!headed) await monitorBackgroundWindow();
     const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', {timeout});
     worker.on('console', message => {if (message.type() === 'error') report.consoleErrors.push({url: worker.url(), message: message.text()});});
     origin = `chrome-extension://${new URL(worker.url()).host}`;
@@ -153,6 +193,154 @@ async function main() {
     const pageTab = await control.evaluate(async url => (await chrome.tabs.query({})).find(tab => tab.url === url).id, fixtureUrl);
     await until(async () => {try {return (await control.evaluate(tab => chrome.tabs.sendMessage(tab, {type: 'getFullPageTranslationState'}), pageTab)).status === 'success';} catch {return false;}}, 'content ready');
     popup = await openPopup();
+    if (process.argv.includes('--density-only')) {
+      const baseline = process.argv.includes('--density-baseline');
+      report.capturedAt = new Date().toISOString();
+      report.evidenceBoundary = 'Production popup and hover/selection/image quick panels in isolated Edge; measured at intrinsic toolbar-sized viewport. Internal vertical scrolling is allowed; controls must remain reachable. No live-provider, native toolbar or Firefox runtime claim.';
+      const measure = async name => {
+        await wait(250);
+        const dims = await popup.locator('.drawer-surface').evaluate(node => {
+          const body = node.closest('.el-drawer__body'); const drawer = body.closest('.el-drawer');
+          const rect = body.getBoundingClientRect();
+          const controls = [...node.querySelectorAll('button')].filter(button => button.getClientRects().length).map(button => {
+            const r = button.getBoundingClientRect(); return {name: button.getAttribute('aria-label') || button.textContent.trim(), top: r.top, bottom: r.bottom, left: r.left, right: r.right};
+          });
+          const primary = node.querySelector('.drawer-content [role="switch"]')?.getBoundingClientRect();
+          return {clientHeight: body.clientHeight, scrollHeight: body.scrollHeight, scrollTop: body.scrollTop, overflowY: getComputedStyle(body).overflowY,
+            horizontalOverflow: body.scrollWidth > body.clientWidth + 1, drawerHeight: drawer.getBoundingClientRect().height,
+            bodyTop: rect.top, bodyBottom: rect.bottom, viewportWidth: innerWidth, viewportHeight: innerHeight,
+            primary: primary && {top: primary.top, bottom: primary.bottom}, controls};
+        });
+        report.layout[name] = dims;
+        if (!baseline) {
+          assert(!dims.horizontalOverflow && dims.overflowY === 'auto', `${name}: scroll boundary ${JSON.stringify(dims)}`);
+          assert(dims.primary && dims.primary.top >= dims.bodyTop - 1 && dims.primary.bottom <= Math.min(dims.bodyBottom, dims.viewportHeight) + 1, `${name}: primary switch not initially visible`);
+          assert(dims.controls.every(r => r.name && r.left >= 0 && r.right <= dims.viewportWidth + 1), `${name}: missing accessible label or horizontal clipping`);
+          const title = await popup.locator('.drawer-header h2').evaluate(node => ({scroll: node.scrollWidth, client: node.clientWidth}));
+          assert(title.scroll <= title.client + 1, `${name}: title overflow`);
+          for (const button of await popup.locator('.drawer-surface button:visible:not(:disabled)').all()) {
+            await button.focus();
+            const reachable = await button.evaluate(node => {
+              const r = node.getBoundingClientRect(); const body = node.closest('.el-drawer__body').getBoundingClientRect();
+              return r.top >= body.top - 1 && r.bottom <= Math.min(body.bottom, innerHeight) + 1;
+            });
+            assert(reachable, `${name}: keyboard focus cannot reveal ${await button.innerText()}`);
+          }
+          await popup.locator('.el-drawer__body').evaluate(node => {node.scrollTop = 0;});
+          await popup.mouse.move(100, Math.max(10, dims.bodyBottom - 20)); await popup.mouse.wheel(0, 600); await wait(80);
+          dims.wheelScrollTop = await popup.locator('.el-drawer__body').evaluate(node => node.scrollTop);
+          if (dims.scrollHeight > dims.clientHeight + 1) assert(dims.wheelScrollTop > 0, `${name}: overflowing body cannot scroll`);
+          await popup.locator('.drawer-settings-link').focus();
+          assert.match(await popup.locator('.drawer-settings-link').innerText(), name.endsWith('-english') ? /^More settings\s*↗$/u : /^更多设置\s*↗$/u);
+          await popup.locator('.drawer-header > button').focus();
+          await popup.locator('.el-drawer__body').evaluate(node => {node.scrollTop = 0;});
+        }
+      };
+      const variants = baseline ? [['light', 'light', 'default', 'zh-CN', 340]] : [
+        ['light', 'light', 'default', 'zh-CN', 320], ['dark', 'dark', 'default', 'zh-CN', 320],
+        ['minimal', 'light', 'minimal', 'zh-CN', 310], ['compact', 'light', 'compact', 'zh-CN', 300],
+        ['ocean', 'light', 'ocean', 'zh-CN', 320], ['english', 'light', 'default', 'en-US', 320],
+      ];
+      for (const [name, theme, interfaceSkin, uiLanguage, width] of variants) {
+        currentCase = `density-${name}`;
+        await patch({theme, interfaceSkin, uiLanguage, hotkey: 'Control', quickTranslationProfiles: [],
+          selectionTranslatorMode: 'bilingual', selectionTranslatorTrigger: 'dot', selectionTranslatorPresentation: 'card'});
+        const main = await geometry(popup, name);
+        if (!baseline) {
+          assert.equal(main.width, width); assert(main.scrollHeight <= main.clientHeight + 1, `${name}: popup scroll`);
+          assert.equal(await popup.locator('.language-pair .fluentread-select-search-icon').count(), 0);
+          assert.equal(await popup.locator('.site-rule-row [role="switch"]').count(), 2);
+          assert.equal(await popup.locator('[data-testid="page-translation"]').count(), 1);
+          assert.equal(await popup.locator('[data-testid="section-translation"]').count(), 1);
+          assert.equal(await popup.locator('[data-testid="popup-version"]').innerText(), `v${manifest.version}`);
+        }
+        await shot(popup, `density-popup-${name}`);
+        for (const id of ['hover', 'selection', 'image']) {
+          await drawer(id); await measure(`${id}-${name}`); await shot(popup, `density-${id}-${name}`); await closeDrawer();
+        }
+        report.cases.push(`${name}: intrinsic popup width, primary switches visible and all panel controls reachable`);
+      }
+      if (baseline) {report.ok = true; return;}
+      currentCase = 'density-interaction';
+      await patch({theme: 'light', interfaceSkin: 'default', uiLanguage: 'zh-CN', from: 'auto'}); await fitPopup(popup);
+      await shot(popup, 'density-popup-auto');
+      // 图标移除不应移除搜索，也不改变 Options 的默认搜索装饰。
+      const language = popup.locator('.language-pair .fluentread-select').first();
+      await language.click(); await language.locator('input').fill('英语');
+      assert.equal(await popup.locator('.language-pair .fluentread-select-search-icon').count(), 0);
+      await popup.locator('.fluentread-select-popper:visible').getByRole('option', {name: /English.*英语/u}).click();
+      await saved('from', 'en');
+      await drawer('hover'); await popup.locator('[data-testid="hover-enable"]').click();
+      await closeTestPage(popup); popup = await openPopup(); await saved('hotkey', 'none'); await drawer('hover');
+      await measure('hover-disabled'); await shot(popup, 'density-hover-disabled');
+      const optionsEvent = context.waitForEvent('page'); await popup.getByRole('button', {name: '选择快捷键', exact: true}).click();
+      const options = await optionsEvent; observe(options); await options.waitForURL(`${origin}/options.html#settings-translation`);
+      await options.locator('#settings-translation').waitFor();
+      await options.locator('nav [data-section="settings-general"]').click();
+      await options.locator('[data-testid="default-translation-service-card"]').waitFor();
+      assert(await options.locator('.fluentread-select-search-icon').count() > 0); await closeTestPage(options);
+      popup = await openPopup(); await drawer('hover');
+      assert.equal(await popup.locator('[data-testid="hover-enable"]').getAttribute('aria-checked'), 'false');
+      await popup.locator('[data-testid="hover-enable"]').click(); await closeTestPage(popup); popup = await openPopup(); await saved('hotkey', 'Control');
+      await drawer('hover'); await measure('hover-reenabled'); await shot(popup, 'density-hover-reenabled');
+      const hoverOptionsEvent = context.waitForEvent('page'); await popup.locator('.drawer-settings-link').click();
+      const hoverOptions = await hoverOptionsEvent; await hoverOptions.waitForURL(`${origin}/options.html#settings-translation`); await closeTestPage(hoverOptions);
+      popup = await openPopup();
+      report.persistenceCases.push({name: 'default hover disable and reenable restore Control after immediate close', passed: true});
+      const profiles = Array.from({length: 8}, (_, i) => ({id: `density-${i}`, enabled: true, action: 'hover', hotkey: `Alt+${i + 1}`, service: '', model: '', targetLanguage: '', displayMode: 'inherit', fullPageMode: 'inherit'}));
+      await patch({hotkey: 'custom', customHotkey: 'Control+Alt+Shift+J', quickTranslationProfiles: profiles, interfaceSkin: 'compact'}); await fitPopup(popup);
+      await drawer('hover'); await measure('hover-eight-profiles'); await shot(popup, 'density-hover-profiles');
+      await popup.locator('[data-testid="hover-enable"]').click(); await closeTestPage(popup); popup = await openPopup(); await saved('hotkey', 'none');
+      assert.deepEqual((await read()).quickTranslationProfiles, profiles); await drawer('hover');
+      await popup.locator('[data-testid="hover-enable"]').click(); await closeTestPage(popup); popup = await openPopup(); await saved('hotkey', 'custom');
+      assert.equal((await read()).customHotkey, 'Control+Alt+Shift+J'); assert.deepEqual((await read()).quickTranslationProfiles, profiles);
+      report.persistenceCases.push({name: 'custom hover shortcut restored without resetting eight independent profiles', passed: true});
+      await patch({hotkey: 'Control', quickTranslationProfiles: [], interfaceSkin: 'default'}); await fitPopup(popup);
+      await drawer('selection');
+      assert.equal(await popup.locator('.selection-trigger-setting, .wordbook-shortcut').count(), 0);
+      for (const trigger of ['dot', 'icon', 'hover', 'direct', 'contextMenu', 'Control', 'Alt', 'Shift', 'custom']) {
+        await patch({selectionTranslatorTrigger: trigger, customSelectionTranslatorHotkey: 'Control+Alt+Shift+K'});
+        await measure(`selection-trigger-${trigger}`);
+      }
+      for (const mode of ['双语显示', '仅译文']) {
+        await popup.getByRole('group', {name: '划词翻译模式', exact: true}).getByRole('button', {name: mode, exact: true}).click();
+        await measure(`selection-mode-${mode}`);
+      }
+      await popup.getByRole('button', {name: '普通翻译', exact: true}).click(); await closeTestPage(popup); popup = await openPopup();
+      await saved('selectionTranslatorPresentation', 'simple'); await drawer('selection');
+      assert.equal(await popup.getByRole('button', {name: '普通翻译', exact: true}).getAttribute('aria-pressed'), 'true');
+      await measure('selection-reopened'); await shot(popup, 'density-selection-reopened');
+      await saved('selectionTranslatorMode', 'translation-only');
+      await popup.locator('[data-testid="selection-enable"]').click(); await closeTestPage(popup); popup = await openPopup(); await saved('selectionTranslatorMode', 'disabled');
+      await drawer('selection'); assert.equal(await popup.getByRole('button', {name: '仅译文', exact: true}).isDisabled(), true);
+      await measure('selection-disabled'); await shot(popup, 'density-selection-disabled');
+      await popup.locator('[data-testid="selection-enable"]').click(); await closeTestPage(popup); popup = await openPopup(); await saved('selectionTranslatorMode', 'translation-only');
+      await saved('selectionTranslatorPresentation', 'simple'); await drawer('selection');
+      await measure('selection-reenabled'); await shot(popup, 'density-selection-reenabled');
+      const selectionOptionsEvent = context.waitForEvent('page'); await popup.locator('.drawer-settings-link').click();
+      const selectionOptions = await selectionOptionsEvent; await selectionOptions.waitForURL(`${origin}/options.html#settings-selection`); await closeTestPage(selectionOptions);
+      popup = await openPopup(); await drawer('image');
+      report.latestWriteWins = true;
+      report.persistenceCases.push({name: 'two mode writes, presentation and master off/on preserve final translation-only preference', passed: true});
+      const oldImage = (await read()).disableImageTranslator; const oldArea = (await read()).selectionAreaEnabled;
+      await popup.getByRole('switch', {name: '启用或关闭图片翻译', exact: true}).click();
+      await popup.getByRole('switch', {name: '启用或关闭圈选翻译', exact: true}).click();
+      await closeTestPage(popup); popup = await openPopup(); await saved('disableImageTranslator', !oldImage); await saved('selectionAreaEnabled', !oldArea);
+      await drawer('image'); await measure('image-reopened'); await shot(popup, 'density-image-reopened');
+      assert.equal(await popup.locator('[data-testid="area-translation-demo"] .area-ring').count(), 1);
+      assert.deepEqual(await popup.locator('[data-testid="area-translation-demo"] kbd').allTextContents(), ['Shift', 'Z']);
+      await patch({selectionAreaEnabled: true, selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'Control+Alt+Shift+L'});
+      await measure('image-custom-hotkey'); await shot(popup, 'density-image-custom-hotkey');
+      const mac = await popup.evaluate(() => /Mac|iPod|iPhone|iPad/u.test(navigator.platform));
+      assert.deepEqual(await popup.locator('[data-testid="area-translation-demo"] kbd').allTextContents(), mac ? ['Control', 'Option', 'Shift', 'L'] : ['Ctrl', 'Alt', 'Shift', 'L']);
+      const imageOptionsEvent = context.waitForEvent('page'); await popup.locator('.drawer-settings-link').click();
+      const imageOptions = await imageOptionsEvent; await imageOptions.waitForURL(`${origin}/options.html#settings-image-translation`); await closeTestPage(imageOptions);
+      report.quickClose = true;
+      report.persistenceCases.push({name: 'two independent image switches then immediate close-reopen', passed: true});
+      report.cases.push('language still searchable without icon; default/custom hover restore; selection mode restore; region keycaps and ring; real More settings navigation');
+      if (!headed) assert.deepEqual(report.focusMonitor.violations, []);
+      assert.deepEqual(report.consoleErrors, []); report.ok = true; return;
+    }
     if (process.argv.includes('--footer-only')) {
       // 仅验证开源入口的视觉改动，避免重复整个服务/翻译矩阵。
       report.evidenceBoundary = 'Production popup/footer and settings preview in isolated Edge; no translation or persistence matrix in this footer-only run.';
@@ -294,16 +482,16 @@ async function main() {
     report.quickClose = true; report.latestWriteWins = true; report.persistenceCases.push({name: 'service-two-writes-quick-close', passed: true});
     currentCase = 'selection-layout';
     await drawer('selection');
-    const row = popup.locator('.selection-trigger-setting'); const dims = await row.evaluate(node => {const text = node.querySelector('span').getBoundingClientRect(); const button = node.querySelector('button').getBoundingClientRect(); return {textWidth: text.width, textBottom: text.bottom, buttonTop: button.top, rowHeight: node.getBoundingClientRect().height};});
-    assert(dims.textWidth > 180 && dims.buttonTop >= dims.textBottom && dims.rowHeight < 160); report.layout.selectionRow = dims;
+    assert.equal(await popup.locator('.selection-trigger-setting, .wordbook-shortcut').count(), 0);
+    assert.equal(await popup.locator('[data-testid="selection-enable"][role="switch"]').count(), 1);
     await shot(popup, 'selection-drawer');
     await popup.locator('.drawer-settings-link').scrollIntoViewIfNeeded(); await shot(popup, 'selection-drawer-bottom');
     await popup.getByRole('button', {name: '普通翻译', exact: true}).click(); await popup.close(); popup = await openPopup(); await drawer('selection');
     assert.equal(await popup.getByRole('button', {name: '普通翻译', exact: true}).getAttribute('aria-pressed'), 'true'); await shot(popup, 'selection-reopened'); await closeDrawer();
     report.persistenceCases.push({name: 'selection-presentation-quick-close', passed: true});
-    const optionsEvent = context.waitForEvent('page'); await drawer('selection'); await popup.getByRole('button', {name: '调整触发方式', exact: true}).click(); const options = await optionsEvent;
+    const optionsEvent = context.waitForEvent('page'); await drawer('selection'); await popup.locator('.drawer-settings-link').click(); const options = await optionsEvent;
     await options.waitForURL(`${origin}/options.html#settings-selection`); observe(options); await options.locator('#settings-selection').waitFor();
-    report.cases.push('selection setting text is horizontal, button below; real API opens dedicated options');
+    report.cases.push('selection master switch first, redundant cards removed; More settings opens dedicated options');
     currentCase = 'settings-preview';
     await options.setViewportSize({width: 1440, height: 960});
     await options.locator('nav [data-section="settings-interface"]').click();
@@ -338,6 +526,7 @@ async function main() {
     if (popup && !popup.isClosed()) {await shot(popup, 'failure').catch(() => {}); report.failure.text = await popup.locator('body').innerText().catch(() => '');}
     throw error;
   } finally {
+    clearInterval(focusMonitor);
     fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
     if (launched) await launched.close();
     server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
