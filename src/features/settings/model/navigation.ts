@@ -109,12 +109,6 @@ export const navigationGroups = [
         kicker: '专项翻译', title: '视频字幕翻译', detail: '设置 YouTube/X 字幕翻译服务、显示方式和字号。',
         searchDescription: 'YouTube、X、Twitter、视频字幕、本地 AI、Whisper、视频翻译服务、显示模式、字幕字号、DeepLX、微软翻译',
       },
-      {
-        id: 'settings-sites', icon: '站', label: '网站规则', description: '自动翻译、禁用与网站适配', group: '专项翻译',
-        heading: '网站规则', summary: '管理网站翻译偏好，以及正文和界面的翻译范围。',
-        kicker: '专项翻译', title: '网站规则', detail: '自动翻译与禁用名单按主域名生效；网站适配可进一步指定路径和内容区域。',
-        searchDescription: '网站、域名、网址、主域名、自动翻译、始终翻译、禁用扩展、子域、网站适配、兼容、JSON、自定义规则、正文、保护区域',
-      },
     ],
   },
   {
@@ -155,6 +149,12 @@ export const navigationGroups = [
   {
     label: '系统与数据',
     items: [
+      {
+        id: 'settings-sites', icon: '站', label: '网站规则', description: '网站偏好、正文适配与生效预览', group: '系统与数据',
+        heading: '网站规则', summary: '按网站调整翻译与显示偏好，扩展正文适配，并检查规则为何生效。',
+        kicker: '系统与数据', title: '网站规则', detail: '自动翻译与禁用名单按主域名生效；正文适配可进一步指定路径和内容区域。预览仅检查已保存配置，不访问网站。',
+        searchDescription: '网站、域名、网址、主域名、自动翻译、始终翻译、禁用扩展、子域、网站适配、兼容、隐藏悬浮球、生效预览、规则目录、可视化编辑、导入导出、JSON、自定义规则、正文、保护区域',
+      },
       {
         id: 'settings-advanced', icon: '◇', label: '高级选项', description: '性能与模板', group: '系统与数据',
         heading: '高级选项', summary: '管理缓存、并发、限流和重试等运行策略。',
@@ -261,8 +261,9 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
     {"id": "font", "labelKey": "options.panel.font", "searchTerms": "字体 font Inter Noto Sans Roboto Manrope WenKai", "targetIds": []},
   ],
   'settings-sites': [
-    {"id": "rules", "labelKey": "options.panel.rules", "searchTerms": "自动翻译 禁用网站 域名", "targetIds": []},
-    {"id": "adaptation", "labelKey": "options.panel.adaptation", "searchTerms": "网站适配 JSON 正文 保护区域", "targetIds": []},
+    {"id": "rules", "labelKey": "options.panel.rules", "searchTerms": "自动翻译 禁用网站 域名 隐藏悬浮球 网站偏好", "targetIds": []},
+    {"id": "adaptation", "labelKey": "options.panel.adaptation", "searchTerms": "网站适配 JSON 正文 保护区域 自定义规则 可视化编辑 导入 导出", "targetIds": []},
+    {id: 'preview', labelKey: 'options.panel.sitePreview', searchTerms: '生效预览 网址匹配 检查规则 优先级', targetIds: []},
   ],
   'settings-video': [
     {"id": "general", "labelKey": "options.panel.video", "searchTerms": "字幕 开关 翻译服务 显示模式 术语库", "targetIds": []},

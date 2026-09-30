@@ -69,17 +69,14 @@
   </section>
   <section v-if="hasVisitedSection('settings-sites')" v-show="props.activeSection === 'settings-sites'" id="settings-sites" class="settings-section site-settings-section">
     <SettingsPanel name="rules" :active="props.activePanel">
-<SettingsGroup>
-      <SettingsItem label="所有网站自动翻译" description="页面基本结构可用后自动开始翻译；关闭后仍保留下面的名单。">
-        <el-switch v-model="config.autoTranslate" class="settings-toggle" aria-label="所有网站自动翻译" />
-      </SettingsItem>
-    </SettingsGroup>
-    <AlwaysTranslateSites v-model="config.alwaysTranslateDomains" />
-    <AlwaysTranslateSites v-model="config.disabledExtensionDomains" variant="disable-extension" />
+      <SitePreferencesSettings :settings="config" :save-preferences="persistConfigPatch" />
 </SettingsPanel>
     <SettingsPanel name="adaptation" :active="props.activePanel">
-<SiteAdaptationSettings :model-value="config.siteAdaptation" :save-settings="saveSiteAdaptationSettings" />
+      <SiteAdaptationSettings :model-value="config.siteAdaptation" :save-settings="saveSiteAdaptationSettings" :inspect-rule-id="siteRuleInspectId" />
 </SettingsPanel>
+    <SettingsPanel name="preview" :active="props.activePanel">
+      <SiteRulePreview :settings="config" :adaptation="config.siteAdaptation" :scope="config.translationScope" @inspect-rule="inspectSiteRule" />
+    </SettingsPanel>
   </section>
   <section v-if="hasVisitedSection('settings-translation-center')" v-show="props.activeSection === 'settings-translation-center'" id="settings-translation-center" class="settings-section translation-center-section">
     <TranslationCenter />
@@ -717,7 +714,7 @@ import SettingsPanel from './components/SettingsPanel.vue';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 
 // Main 处理配置信息
-import { computed, defineAsyncComponent, ref, watch, onUnmounted } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref, watch, onUnmounted } from 'vue'
 
 import {isValidAzureEndpoint} from '@/src/core/config/azure';
 import { cloudRegionOptions, customModelString, defaultOption, getCloudCredentialLabels, getDefaultCloudRegion, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
@@ -786,9 +783,17 @@ const openWritingServiceSettings = () => { setConfigurationService(config.value.
 const WritingSettings = defineAsyncComponent(() => import('./WritingSettings.vue'));
 const SelectionSettings = defineAsyncComponent(() => import('./SelectionSettings.vue'));
 const GlossarySettings = defineAsyncComponent(() => import('@/src/features/glossary/public').then(module => module.GlossarySettings));
-const AlwaysTranslateSites = defineAsyncComponent(() => import('./AlwaysTranslateSites.vue'));
 const FloatingBallSettings = defineAsyncComponent(() => import('./FloatingBallSettings.vue'));
 const SiteAdaptationSettings = defineAsyncComponent(() => import('./SiteAdaptationSettings.vue'));
+const SitePreferencesSettings = defineAsyncComponent(() => import('./SitePreferencesSettings.vue'));
+const SiteRulePreview = defineAsyncComponent(() => import('./SiteRulePreview.vue'));
+const siteRuleInspectId = ref('');
+async function inspectSiteRule(id: string) {
+  siteRuleInspectId.value = '';
+  await nextTick();
+  siteRuleInspectId.value = id;
+  openSettingsSection('settings-sites', 'adaptation');
+}
 import type {SiteAdaptationSettings as SiteAdaptationConfig} from '@/src/core/site-adaptation/types';
 import {
   createApiKeyRequirementKey,
