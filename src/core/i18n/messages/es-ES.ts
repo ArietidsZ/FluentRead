@@ -421,6 +421,7 @@ export const esESMessages = {
     "popup.quickSettings.videoPlayerHint": "Usa el menú de subtítulos del reproductor para mostrarlos u ocultarlos y descargar el original o la traducción. Los vídeos de X compatibles también permiten generar subtítulos con IA local.",
     "popup.quickSettings.appearanceDescription": "Muestra el original junto a la traducción o lee solo la traducción.",
     "popup.quickSettings.hoverSettings": "Ajustes de traducción al pasar el cursor",
+    "popup.quickSettings.moreSettings": "Más ajustes",
     "popup.quickSettings.hoverSettingsHint": "Atajos y perfiles de traducción independientes",
     "popup.quickSettings.selectionSettings": "Ajustes de traducción de selección",
     "popup.quickSettings.selectionSettingsHint": "Activación, retraso de visualización y voz de lectura",

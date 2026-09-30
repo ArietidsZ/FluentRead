@@ -422,6 +422,7 @@ export const enUSMessages = {
     "popup.quickSettings.videoPlayerHint": "Use the player’s subtitle menu to show or hide subtitles and download original or translated subtitles. Supported X videos can also generate local AI subtitles.",
     "popup.quickSettings.appearanceDescription": "Keep the original alongside the translation, or read the translation alone.",
     "popup.quickSettings.hoverSettings": "Hover translation settings",
+    "popup.quickSettings.moreSettings": "More settings",
     "popup.quickSettings.hoverSettingsHint": "Shortcuts and independent translation profiles",
     "popup.quickSettings.selectionSettings": "Selection translation settings",
     "popup.quickSettings.selectionSettingsHint": "Trigger, display delay, and reading voice",

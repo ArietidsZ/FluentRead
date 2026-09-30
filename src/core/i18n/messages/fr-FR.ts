@@ -421,6 +421,7 @@ export const frFRMessages = {
     "popup.quickSettings.videoPlayerHint": "Le menu du lecteur permet d’afficher ou de masquer les sous-titres et de télécharger l’original ou la traduction. Les vidéos X compatibles permettent aussi de générer des sous-titres avec l’IA locale.",
     "popup.quickSettings.appearanceDescription": "Gardez l’original avec la traduction, ou lisez uniquement la traduction.",
     "popup.quickSettings.hoverSettings": "Réglages de traduction au survol",
+    "popup.quickSettings.moreSettings": "Plus de réglages",
     "popup.quickSettings.hoverSettingsHint": "Raccourcis et profils de traduction indépendants",
     "popup.quickSettings.selectionSettings": "Réglages de traduction de sélection",
     "popup.quickSettings.selectionSettingsHint": "Déclenchement, délai d’affichage et voix de lecture",

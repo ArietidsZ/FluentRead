@@ -1,14 +1,16 @@
 <!--
  @file src/app/popup/PopupLanguageSelect.vue
  文件职责：隔离 Popup 语言选择器的渲染，使关闭的菜单不创建完整语言选项 DOM。
- 主要内容：关闭时直接解析已保存语言的标签，打开时复用 UiSelect 的搜索、键盘与定位；语言文案缓存只依赖界面语言。
+ 主要内容：关闭时直接解析已保存语言的标签，不占用空间展示搜索图标；打开时保留 UiSelect 的搜索、键盘与定位，语言文案缓存只依赖界面语言。
  模块边界：不读写配置或浏览器状态，选择结果通过 v-model 交给 PopupApp 持久化。
 -->
 <template>
   <UiSelect
     :model-value="modelValue"
     :disabled="disabled"
+    :title="selectedLabel"
     filterable
+    :show-search-icon="false"
     :persistent="false"
     @update:model-value="$emit('update:modelValue', $event)"
     @visible-change="menuOpen = $event"

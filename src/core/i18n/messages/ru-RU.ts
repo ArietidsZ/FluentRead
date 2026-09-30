@@ -421,6 +421,7 @@ export const ruRUMessages = {
     "popup.quickSettings.videoPlayerHint": "В меню плеера можно показать или скрыть субтитры и скачать оригинал или перевод. Для поддерживаемых видео X также доступно создание субтитров с локальным ИИ.",
     "popup.quickSettings.appearanceDescription": "Читайте оригинал вместе с переводом или только перевод.",
     "popup.quickSettings.hoverSettings": "Настройки перевода при наведении",
+    "popup.quickSettings.moreSettings": "Больше настроек",
     "popup.quickSettings.hoverSettingsHint": "Горячие клавиши и отдельные профили перевода",
     "popup.quickSettings.selectionSettings": "Настройки перевода выделенного текста",
     "popup.quickSettings.selectionSettingsHint": "Способ вызова, задержка показа и голос чтения",
