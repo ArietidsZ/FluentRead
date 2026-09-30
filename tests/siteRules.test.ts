@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {listSitePreferences, previewSitePreferences, updateSitePreference} from '@/src/features/settings/model/sitePreferences';
+import {createSiteRuleText, getSiteRuleTextSources} from '@/src/core/i18n/messages/siteRules';
 
 import {
     getSiteBaseDomain,
@@ -11,6 +12,21 @@ import {
     normalizeFloatingBallDisabledDomains,
     shouldAutoTranslatePage,
 } from '@/src/features/site-rules/domain';
+
+describe('网站规则工作区文案', () => {
+    it('为全部六种非中文界面提供独立、无重复且非空的完整文案', () => {
+        const sources = getSiteRuleTextSources();
+        expect(new Set(sources).size).toBe(sources.length);
+        for (const locale of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+            const translated = createSiteRuleText(locale);
+            expect(Object.keys(translated)).toEqual(sources);
+            for (const source of sources) {
+                expect(translated[source]?.trim()).toBeTruthy();
+                expect(translated[source]).not.toBe(source);
+            }
+        }
+    });
+});
 
 describe('始终翻译网站规则', () => {
     it('使用 Public Suffix List 统一为可注册域名，并覆盖私有后缀', () => {
