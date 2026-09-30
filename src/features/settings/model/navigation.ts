@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/model/navigation.ts
  * 文件职责：定义设置中心侧边栏的导航信息模型，并提供默认分区、哈希解析与搜索过滤等不依赖 Vue 或浏览器 API 的纯规则。
- * 主要内容：包含按功能分组的标题、副标题、图标、关键词和 section ID；通用页文案对应日常翻译、网页辅助与基本偏好的阅读顺序，从同一注册表派生导航列表与后台合法分区 ID，导出 resolveNavigationItem、resolveRequestedSection 与 filterNavigationItems。
+ * 主要内容：包含按功能分组的标题、副标题、图标、关键词和 section ID，以及页内分类、服务分配与模型用量深链接；通用页文案对应日常翻译、网页辅助与基本偏好的阅读顺序，从同一注册表派生导航列表与后台合法分区 ID，导出 resolveNavigationItem、resolveRequestedSection 与 filterNavigationItems。
  * 模块边界：该模块只描述导航元数据，不切换 DOM、不写 location.hash 也不保存配置；Options 页面负责路由同步，SettingsSections.vue 负责各分区实际内容。
  */
 export type NavigationItem = {
@@ -148,13 +148,7 @@ export const navigationGroups = [
         id: 'settings-translation-stats', icon: '◔', label: '翻译统计', description: '请求规模、耗时与服务表现', group: '工具与学习',
         heading: '翻译统计', summary: '查看每次翻译请求的规模和耗时，比较各翻译服务的响应速度与稳定性。',
         kicker: '本地工具', title: '翻译统计', detail: '查看翻译请求的规模、耗时分布和各服务的表现。',
-        searchDescription: '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、最大耗时、P95、响应速度、成功率、失败原因、超时、缓存命中、服务对比、性能',
-      },
-      {
-        id: 'settings-model-usage', icon: '▥', label: '模型用量', description: 'Token、缓存与请求记录', group: '工具与学习',
-        heading: '查看大模型调用用量', summary: '按服务、模型和时间范围查看本机 FluentRead 的请求与 Token。',
-        kicker: '本地工具', title: '模型用量', detail: '查看发起的大模型调用、Token 消耗与使用趋势。',
-        searchDescription: '模型用量、调用统计、Token、请求记录、耗时、输入 Token、输出 Token、缓存输入、缓存写入、缓存命中率、导入、导出、Kimi、月之暗面、OpenAI、DeepSeek',
+        searchDescription: '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、最大耗时、P95、响应速度、成功率、失败原因、超时、缓存命中、服务对比、性能' + '模型用量、调用统计、Token、请求记录、耗时、输入 Token、输出 Token、缓存输入、缓存写入、缓存命中率、导入、导出、Kimi、月之暗面、OpenAI、DeepSeek',
       },
     ],
   },
@@ -189,6 +183,7 @@ export const NAVIGATION_SECTION_IDS = navigationGroups.flatMap<NavigationSection
 
 /** 旧设置入口与学习中心的新语义别名统一解析，不增加重复导航项目。 */
 export const NAVIGATION_SECTION_ALIASES: ReadonlyMap<string, string> = new Map([
+  ['settings-model-usage', 'settings-translation-stats'],
   ['settings-harness', 'settings-selection'],
   ['settings-webpage', 'settings-translation'],
   ['settings-shortcuts', 'settings-translation'],
@@ -234,4 +229,64 @@ export function filterSettingsSearchTargets(query: string, items: readonly Setti
   const keyword = query.trim().toLocaleLowerCase()
   if (!keyword) return []
   return items.filter(item => `${item.label}${item.description}${item.searchTerms}`.toLocaleLowerCase().includes(keyword))
+}
+
+/** 页内分类只决定展示位置，不写入用户配置；搜索与跨页入口共享此注册表。 */
+export type SettingsPagePanel = {
+  id: string
+  labelKey: string
+  searchTerms: string
+  targetIds: readonly string[]
+}
+export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePanel[]>> = {
+  'settings-translation-stats': [
+    {id: 'overview', labelKey: 'options.panel.statsOverview', searchTerms: '翻译统计 请求 耗时 成功率 缓存', targetIds: []},
+    {id: 'usage', labelKey: 'options.panel.modelUsage', searchTerms: '模型用量 Token AI 成本 输入 输出 调用', targetIds: ['settings-model-usage']},
+  ],
+  'settings-services': [
+    {id: 'assignments', labelKey: 'featureServices.assignments', searchTerms: '按功能 分配 服务 网页 悬浮 划词 输入 字幕 文档 图片 圈选 写作', targetIds: ['feature-services']},
+    {id: 'connections', labelKey: 'featureServices.connections', searchTerms: 'API Key 模型 供应商 连接 密钥 自定义接口', targetIds: ['service-connections']},
+  ],
+  'settings-translation': [
+    {"id": "hover", "labelKey": "options.panel.hover", "searchTerms": "鼠标悬浮 快捷键 延迟", "targetIds": []},
+    {"id": "input", "labelKey": "options.panel.input", "searchTerms": "输入框 连按 空格", "targetIds": []},
+    {"id": "page", "labelKey": "options.panel.page", "searchTerms": "全文 快捷键 多段 范围 右键", "targetIds": []},
+    {"id": "tools", "labelKey": "options.panel.tools", "searchTerms": "悬浮球 位置 段落复制 分段 跳过语言 排除语言", "targetIds": ["floating-ball-settings"]},
+  ],
+  'settings-interface': [
+    {"id": "translation", "labelKey": "options.panel.translation", "searchTerms": "译文 样式 颜色 字号 高亮", "targetIds": ["translation-appearance-panel", "translation-sentence-highlight"]},
+    {"id": "skin", "labelKey": "options.panel.skin", "searchTerms": "弹窗 皮肤 界面风格", "targetIds": []},
+    {"id": "layout", "labelKey": "options.panel.layout", "searchTerms": "菜单栏 布局 栏目 排序", "targetIds": []},
+    {"id": "motion", "labelKey": "options.panel.motion", "searchTerms": "动画 加载", "targetIds": []},
+    {"id": "font", "labelKey": "options.panel.font", "searchTerms": "字体 font Inter Noto Sans Roboto Manrope WenKai", "targetIds": []},
+  ],
+  'settings-sites': [
+    {"id": "rules", "labelKey": "options.panel.rules", "searchTerms": "自动翻译 禁用网站 域名", "targetIds": []},
+    {"id": "adaptation", "labelKey": "options.panel.adaptation", "searchTerms": "网站适配 JSON 正文 保护区域", "targetIds": []},
+  ],
+  'settings-video': [
+    {"id": "general", "labelKey": "options.panel.video", "searchTerms": "字幕 开关 翻译服务 显示模式 术语库", "targetIds": []},
+    {"id": "appearance", "labelKey": "options.panel.appearance", "searchTerms": "字幕外观 颜色 字号", "targetIds": []},
+    {"id": "local", "labelKey": "options.panel.local", "searchTerms": "X 本地 AI Whisper 语音 识别", "targetIds": []},
+  ],
+  'settings-advanced': [
+    {"id": "recognition", "labelKey": "options.panel.recognition", "searchTerms": "页面识别 节点 段落 标题 侧栏", "targetIds": []},
+    {"id": "requests", "labelKey": "options.panel.requests", "searchTerms": "并发 限流 重试 性能 密钥 恢复 退避", "targetIds": []},
+    {"id": "cache", "labelKey": "options.panel.cache", "searchTerms": "缓存 容量 条数 存储 清除", "targetIds": []},
+  ],
+  'settings-image-translation': [
+    {"id": "entries", "labelKey": "options.panel.entries", "searchTerms": "图片 悬停 右键", "targetIds": []},
+    {"id": "ocr", "labelKey": "options.panel.ocr", "searchTerms": "OCR 语言包 识别 下载", "targetIds": []},
+  ],
+  'settings-data': [
+    {"id": "backup", "labelKey": "options.panel.backup", "searchTerms": "备份 导入 导出 JSON", "targetIds": []},
+    {"id": "history", "labelKey": "options.panel.history", "searchTerms": "历史 最近修改 自动快照 撤销 恢复", "targetIds": []},
+  ],
+}
+
+/** 控件深链优先打开其所属分类；缺失或过期分类回落到第一页。 */
+export function resolveSettingsPanel(sectionId: string, panelOrTargetId?: string): string {
+  const panels = settingsPagePanels[NAVIGATION_SECTION_ALIASES.get(sectionId) ?? sectionId] ?? []
+  if (sectionId === 'settings-model-usage') return 'usage'
+  return (panels.find(panel => panel.id === panelOrTargetId || panel.targetIds.includes(panelOrTargetId ?? '')) ?? panels[0])?.id ?? ''
 }

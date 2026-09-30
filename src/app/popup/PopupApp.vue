@@ -225,6 +225,7 @@
         </div>
       </div>
 
+      <button class="feature-service-shortcut" type="button" data-testid="popup-feature-services" @click="openOptions('settings-services')">{{ t('featureServices.open') }} <span aria-hidden="true">↗</span></button>
       <div v-if="credentialWarning" class="credential-warning" role="alert">
         <span><strong>配置提醒</strong>{{ credentialWarning }}</span>
         <button type="button" @click="openOptions('settings-services')">去设置</button>
@@ -1335,3 +1336,9 @@ function setVideoTranslationEnabled(enabled: boolean) {
   config.value.videoTranslationEnabled = enabled;
 }
 </script>
+
+<style scoped>
+.feature-service-shortcut { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 8px 2px; margin: -4px 0 8px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 11px; text-align: start; cursor: pointer; }
+.feature-service-shortcut:hover { color: var(--brand-strong); }
+.feature-service-shortcut:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+</style>

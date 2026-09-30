@@ -1,13 +1,16 @@
 <!--
 @file src/features/settings/ui/ConfigManagement.vue
 文件职责：提供备份与恢复页面的完整数据备份和设置历史。
-主要内容：首先挂载唯一的完整备份入口，再展示最近修改与自动设置快照，在摘要中解析动态自定义服务名称，并在恢复前展示差异。
+主要内容：按页内分类切换完整备份入口与设置历史，保留最近修改与自动设置快照，在摘要中解析动态自定义服务名称，并在恢复前展示差异。
 模块边界：本组件拥有设置历史的预览与恢复；主动备份和旧文件兼容导入由 LocalDataManagement 统一编排。
 -->
 <template>
   <section class="config-management">
-    <LocalDataManagement :config="config" />
+    <SettingsPanel name="backup" :active="props.activePanel">
+<LocalDataManagement :config="config" />
+</SettingsPanel>
 
+<SettingsPanel name="history" :active="props.activePanel">
     <header class="history-heading">
       <h2>设置历史</h2>
       <p>用于找回误改的设置；不包含单词本、模型用量或 API 凭据。</p>
@@ -72,6 +75,7 @@
       </section>
     </div>
 
+</SettingsPanel>
     <el-dialog
       v-model="previewVisible"
       class="config-preview-dialog"
@@ -148,9 +152,13 @@ import {
 } from '@/src/services/config';
 import {toRestorableConfig} from '@/src/services/config/history';
 import {useUiI18n} from '@/src/ui/i18n';
+import SettingsPanel from './components/SettingsPanel.vue';
 import LocalDataManagement from './LocalDataManagement.vue';
 
-const props = defineProps<{config: Config}>();
+const props = defineProps<{
+  config: Config
+  activePanel?: string
+}>();
 const {language, translateLegacy} = useUiI18n();
 const sendRuntimeMessage = browser.runtime.sendMessage.bind(browser.runtime);
 

@@ -1,7 +1,7 @@
 <!--
  @file src/app/options/OptionsApp.vue
  文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和学习中心入口，并把选中分区交给对应 feature UI。
- 主要内容：渲染品牌侧栏、版本信息、搜索框与主内容区，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航。
+ 主要内容：渲染可折叠分组侧栏、窄屏分类选择、页内分类和全局搜索与主内容区，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
  模块边界：组件负责页面壳、导航状态和界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
 -->
 <template>
@@ -9,12 +9,20 @@
     <aside class="sidebar">
       <div class="brand">
         <img :src="iconUrl" alt="" />
-        <div><strong>流畅阅读</strong></div>
+        <div><strong>流畅阅读</strong><small>{{ t('options.center') }}</small></div>
       </div>
 
+          <label class="search-box">
+            <UiIcon name="search" :size="16" />
+            <input v-model.trim="query" type="search" :placeholder="t('options.search')" :aria-label="t('options.search')" @keydown.esc="query = ''" />
+          </label>
+
       <nav ref="navigationElement" :aria-label="t('options.navLabel')">
-        <section v-for="group in localizedNavigationGroups" :key="group.label" class="nav-group">
-          <span class="nav-group-label">{{ group.label }}</span>
+        <section v-for="(group, index) in localizedNavigationGroups" :key="group.label" class="nav-group">
+          <button type="button" class="nav-group-toggle" :aria-expanded="isGroupOpen(index)" :aria-controls="`settings-nav-group-${index}`" @click="toggleGroup(index)">
+            <span>{{ group.label }}</span><span class="nav-chevron" :class="{open: isGroupOpen(index)}" aria-hidden="true">›</span>
+          </button>
+          <div v-show="isGroupOpen(index)" :id="`settings-nav-group-${index}`" class="nav-group-items">
           <button
             v-for="item in group.items"
             :key="item.id"
@@ -27,35 +35,38 @@
             <span class="nav-icon"><SettingsNavigationIcon :section="item.id" /></span>
             <strong>{{ item.label }}</strong>
           </button>
+          </div>
         </section>
       </nav>
+      <select class="mobile-settings-navigation" :value="activeSection" :aria-label="t('options.navLabel')" @change="selectSection(($event.target as HTMLSelectElement).value)">
+        <optgroup v-for="group in localizedNavigationGroups" :key="group.label" :label="group.label">
+          <option v-for="item in group.items" :key="item.id" :value="item.id">{{ item.label }}</option>
+        </optgroup>
+      </select>
     </aside>
 
     <main class="workspace">
       <InterfaceBackdrop :motif="interfaceSkin.motif" />
-      <header class="topbar">
-        <div>
-          <h1>{{ activeItem.title }}</h1>
-        </div>
-        <div class="topbar-tools">
-          <label class="search-box">
-            <UiIcon name="search" :size="16" />
-            <input v-model.trim="query" type="search" :placeholder="t('options.searchPlaceholder')" />
-          </label>
-          <button v-if="props.onClose" type="button" class="userscript-settings-close" :aria-label="t('common.close')" :title="t('common.close')" @click="props.onClose()">
-            <UiIcon name="close" :size="18" />
-          </button>
-        </div>
+      <h1 class="settings-content-title">{{ activeItem.title }}</h1>
+      <header v-if="(activePanels.length && !userscriptUnavailableSection) || props.onClose" class="topbar">
+        <nav v-if="activePanels.length && !userscriptUnavailableSection" class="settings-page-tabs" :aria-label="t('options.categories')">
+        <button v-for="panel in activePanels" :key="panel.id" type="button" :data-settings-category="panel.id" :aria-current="activePanel === panel.id ? 'true' : undefined" @click="selectPanel(panel.id)">{{ t(panel.labelKey) }}</button>
+      </nav>
+        <button v-if="props.onClose" type="button" class="userscript-settings-close" :aria-label="t('common.close')" :title="t('common.close')" @click="props.onClose()">
+          <UiIcon name="close" :size="18" />
+        </button>
       </header>
 
       <div v-if="query && filteredResults.length" class="search-results">
         <button v-for="result in filteredResults" :key="result.id" type="button" @click="selectResult(result)">
-          <span><strong>{{ result.label }}</strong><small>{{ result.searchDescription }}</small></span><b>打开 →</b>
+          <span><strong>{{ result.label }}</strong><small>{{ result.searchDescription }}</small></span><b>{{ t('options.open') }} →</b>
         </button>
       </div>
       <div v-else-if="query" class="search-empty">{{ t('options.searchEmpty', {query}) }}</div>
 
-      <section ref="settingsContentElement" class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
+
+
+      <section ref="settingsContentElement" class="settings-card" :style="{ '--settings-switch-on-label': JSON.stringify(t('featureEnable.on')), '--settings-switch-off-label': JSON.stringify(t('featureEnable.off')) }" :class="{ 'services-view': activeSection === 'settings-services' && activePanel === 'connections', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
         <KeepAlive>
         <section v-if="userscriptUnavailableSection" :id="activeSection" class="userscript-unavailable" role="status">
           <h2>{{ t('options.userscriptUnavailableTitle') }}</h2>
@@ -136,7 +147,7 @@
 
 <script setup lang="ts">
 import UiIcon from '@/src/ui/components/UiIcon.vue'
-import {filterNavigationItems, filterSettingsSearchTargets, isUiLanguageSearch, settingsSearchTargets} from '@/src/features/settings/model/navigation';
+import {settingsPagePanels, resolveSettingsPanel, filterNavigationItems, filterSettingsSearchTargets, isUiLanguageSearch, settingsSearchTargets} from '@/src/features/settings/model/navigation';
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
 import {getInterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
@@ -173,16 +184,33 @@ const {t, translateLegacy} = useUiI18n()
 const query = ref('')
 const interfaceSkin = ref(getInterfaceSkinOption(runtimeConfig.interfaceSkin))
 function sectionFromHash(hash: string): string {
-  if (!props.settingsHashPrefix) return resolveRequestedSection(hash)
+  if (!props.settingsHashPrefix) return hash.replace(/^#/, '')
   const prefix = `${props.settingsHashPrefix}/`
-  return resolveRequestedSection(hash.startsWith(prefix) ? `#${hash.slice(prefix.length)}` : '')
+  return hash.startsWith(prefix) ? hash.slice(prefix.length) : ''
 }
 
 function hashForSection(section: string): string {
   return props.settingsHashPrefix ? `${props.settingsHashPrefix}/${section}` : `#${section}`
 }
 
-const activeSection = ref(props.initialSection || sectionFromHash(window.location.hash))
+const initialDestination = props.initialSection || sectionFromHash(window.location.hash)
+const activeSection = ref(resolveRequestedSection(initialDestination))
+const expandedGroups = ref(new Set<number>([0, navigationGroups.findIndex(group => group.items.some(item => item.id === activeSection.value))]))
+function isGroupOpen(index: number): boolean {
+  return expandedGroups.value.has(index)
+}
+function toggleGroup(index: number): void {
+  const next = new Set(expandedGroups.value)
+  if (next.has(index)) next.delete(index)
+  else next.add(index)
+  expandedGroups.value = next
+}
+const selectedPanels = ref<Record<string, string>>({[activeSection.value]: resolveSettingsPanel(initialDestination)})
+const activePanels = computed(() => settingsPagePanels[activeSection.value] ?? [])
+const activePanel = computed(() => resolveSettingsPanel(activeSection.value, selectedPanels.value[activeSection.value]))
+function selectPanel(id: string): void {
+  selectSection(activeSection.value, id)
+}
 const userscriptUnavailableSections = new Set([
   'settings-image-translation',
   'settings-area-translation',
@@ -206,6 +234,7 @@ const contentComponentProps = computed(() => activeSection.value === 'settings-v
   ? {onNavigate: selectSection}
   : {
       activeSection: activeSection.value,
+      activePanel: activePanel.value,
       appearanceRoot: props.appearanceRoot,
       queryRoot: props.queryRoot,
       settingsHashPrefix: props.settingsHashPrefix,
@@ -254,8 +283,11 @@ void configReady
     applyInterfaceFont('system', props.appearanceRoot)
   })
 
-type SearchResult = {id: string; sectionId: string; targetId?: string; label: string; searchDescription: string}
+type SearchResult = {id: string; sectionId: string; targetId?: string; panelId?: string; label: string; searchDescription: string}
 const filteredResults = computed<SearchResult[]>(() => [
+  ...Object.entries(settingsPagePanels).flatMap(([sectionId, panels]) => panels
+    .filter(panel => query.value && `${t(panel.labelKey)} ${panel.searchTerms}`.toLocaleLowerCase().includes(query.value.toLocaleLowerCase()))
+    .map(panel => ({id: `${sectionId}/${panel.id}`, sectionId, panelId: panel.id, label: t(panel.labelKey), searchDescription: localizedNavigationItems.value.find(item => item.id === sectionId)?.label ?? ''}))),
   ...filterSettingsSearchTargets(query.value, localizedSearchTargets.value).map(target => ({
     id: target.id,
     sectionId: target.sectionId,
@@ -271,18 +303,22 @@ const filteredResults = computed<SearchResult[]>(() => [
       : item.label,
     searchDescription: item.id === 'settings-general' && isUiLanguageSearch(query.value)
       ? t('language.settingsDescription')
-      : item.searchDescription,
+      : item.description,
   })),
 ])
 
-function selectSection(id: string) {
+function selectSection(requestedId: string, panelOrTargetId?: string) {
+  const id = resolveRequestedSection(requestedId)
+  if (requestedId === 'settings-model-usage') panelOrTargetId = 'usage'
   if (!navigation.some((item) => item.id === id)) return
   searchRevealGeneration += 1
   cancelPendingSearchReveal?.()
+  selectedPanels.value[id] = resolveSettingsPanel(id, panelOrTargetId)
+  expandedGroups.value = new Set([...expandedGroups.value, navigationGroups.findIndex(group => group.items.some(item => item.id === id))])
   activeSection.value = id
   query.value = ''
   if (props.locationRouting !== 'internal') {
-    const nextHash = hashForSection(id)
+    const nextHash = hashForSection(id === 'settings-translation-stats' && selectedPanels.value[id] === 'usage' ? 'settings-model-usage' : id)
     if (window.location.hash !== nextHash) {
       history.replaceState(null, '', nextHash)
     }
@@ -293,7 +329,7 @@ function selectSection(id: string) {
 
 async function selectResult(result: SearchResult) {
   const revealLanguage = result.id === 'settings-general' && isUiLanguageSearch(query.value)
-  selectSection(result.sectionId)
+  selectSection(result.sectionId, result.targetId || result.panelId)
   if (result.targetId) {
     const generation = searchRevealGeneration
     await nextTick()

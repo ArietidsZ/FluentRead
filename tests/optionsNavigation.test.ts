@@ -9,6 +9,8 @@ import {
   resolveNavigationItem,
   resolveRequestedSection,
   settingsSearchTargets,
+  resolveSettingsPanel,
+  settingsPagePanels,
 } from '@/src/features/settings/model/navigation'
 
 describe('options navigation view-model', () => {
@@ -36,7 +38,7 @@ describe('options navigation view-model', () => {
       },
       {
         label: '工具与学习',
-        items: ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-translation-stats', 'settings-model-usage'],
+        items: ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-translation-stats'],
       },
       {
         label: '系统与数据',
@@ -58,7 +60,6 @@ describe('options navigation view-model', () => {
       '学习中心',
       '术语库',
       '翻译统计',
-      '模型用量',
       '高级选项',
       '备份与恢复',
       '关于流畅阅读',
@@ -76,8 +77,10 @@ describe('options navigation view-model', () => {
     expect(resolveNavigationItem('settings-interface').title).toBe('界面风格')
     expect(resolveRequestedSection('#settings-glossary')).toBe('settings-glossary')
     expect(resolveNavigationItem('settings-glossary').group).toBe('工具与学习')
-    expect(resolveNavigationItem('settings-model-usage').detail)
-      .toBe('查看发起的大模型调用、Token 消耗与使用趋势。')
+    expect(resolveNavigationItem('settings-model-usage').id).toBe('settings-translation-stats')
+    expect(resolveRequestedSection('#settings-model-usage')).toBe('settings-translation-stats')
+    expect(resolveSettingsPanel('settings-model-usage')).toBe('usage')
+    expect(resolveSettingsPanel('settings-translation-stats')).toBe('overview')
     expect(resolveRequestedSection('#settings-translation-stats')).toBe('settings-translation-stats')
     expect(resolveNavigationItem('settings-translation-stats')).toMatchObject({group: '工具与学习', title: '翻译统计'})
     expect(resolveRequestedSection('#settings-harness')).toBe('settings-selection')
@@ -102,7 +105,7 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems(' glossary ')).toEqual([expect.objectContaining({id: 'settings-glossary'})])
     expect(filterNavigationItems(' OPENAI ')).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'settings-services' }),
-      expect.objectContaining({ id: 'settings-model-usage' }),
+      expect.objectContaining({ id: 'settings-translation-stats' }),
     ]))
     expect(filterNavigationItems('主域名')).toEqual([
       expect.objectContaining({ id: 'settings-sites' }),
@@ -147,10 +150,10 @@ describe('options navigation view-model', () => {
       expect.objectContaining({ id: 'settings-services' }),
     ])
     expect(filterNavigationItems(' KIMI ')).toEqual([
-      expect.objectContaining({ id: 'settings-model-usage' }),
+      expect.objectContaining({ id: 'settings-translation-stats' }),
     ])
     expect(filterNavigationItems('Token')).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'settings-model-usage' }),
+      expect.objectContaining({ id: 'settings-translation-stats' }),
     ]))
     for (const keyword of ['翻译统计', '平均耗时', '最长耗时', 'P95', '请求规模']) {
       expect(filterNavigationItems(keyword)).toEqual(expect.arrayContaining([
@@ -220,3 +223,27 @@ describe('settings control search', () => {
 it('普通搜索维持原导航顺序', () => { expect(filterNavigationItems('翻译').length).toBeGreaterThan(1); });
 
 it('语言搜索在多个匹配项中优先显示通用设置', () => { const matches=filterNavigationItems('语'); expect(matches.length).toBeGreaterThan(1);expect(matches[0].id).toBe('settings-general'); });
+
+
+describe('settings page categories', () => {
+  it('opens the category that owns a deep-linked control', () => {
+    expect(resolveSettingsPanel('settings-translation', 'floating-ball-settings')).toBe('tools')
+    expect(resolveSettingsPanel('settings-interface', 'translation-appearance-panel')).toBe('translation')
+    expect(resolveSettingsPanel('settings-interface', 'translation-sentence-highlight')).toBe('translation')
+    expect(resolveSettingsPanel('settings-interface', 'font')).toBe('font')
+  })
+  it('falls back safely for old or unknown category links', () => {
+    expect(resolveSettingsPanel('settings-interface', 'missing')).toBe('translation')
+    expect(resolveSettingsPanel('settings-interface')).toBe('translation')
+    expect(resolveSettingsPanel('settings-general')).toBe('')
+    expect(resolveSettingsPanel('unknown', 'cache')).toBe('')
+  })
+  it('keeps every category attached to a real settings page without ambiguous targets', () => {
+    for (const [section, panels] of Object.entries(settingsPagePanels)) {
+      expect(navigationItems.some(item => item.id === section)).toBe(true)
+      expect(new Set(panels.map(panel => panel.id)).size).toBe(panels.length)
+      const targets = panels.flatMap(panel => panel.targetIds)
+      expect(new Set(targets).size).toBe(targets.length)
+    }
+  })
+})

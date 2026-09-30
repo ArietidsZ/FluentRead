@@ -224,8 +224,8 @@ function removeDomain(domain: string) {
   margin: 0 auto 16px;
   padding: 20px;
   border: 1px solid var(--line, #e5e8ef);
-  border-radius: 20px;
-  background: var(--surface-soft, #f7f8fb);
+  border-radius: 10px;
+  background: var(--surface, #fff);
 }
 
 .site-rules-heading {
@@ -242,7 +242,7 @@ function removeDomain(domain: string) {
 .site-rules-heading h3 {
   margin: 0 0 6px;
   color: var(--ink, #172033);
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .site-rules-heading p {
@@ -320,13 +320,12 @@ function removeDomain(domain: string) {
   padding: 0 15px;
   border: 0;
   color: #fff;
-  background: linear-gradient(135deg, #f35482, #e93267);
-  box-shadow: 0 8px 18px rgba(233, 50, 103, .18);
+  background: var(--brand, #ef4776);
+  box-shadow: none;
 }
 
 .site-rules-add:hover {
-  box-shadow: 0 10px 22px rgba(233, 50, 103, .26);
-  transform: translateY(-1px);
+  background: var(--brand-strong, #dc315f);
 }
 
 .site-rules-feedback {
@@ -417,11 +416,11 @@ function removeDomain(domain: string) {
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr);
   align-items: center;
-  min-height: 84px;
+  min-height: 62px;
   margin-top: 14px;
   padding: 14px 16px;
-  border: 1px dashed #d9dde6;
-  border-radius: 16px;
+  border: 0;
+  border-radius: 8px;
   color: var(--muted, #737c8f);
   background: var(--surface, #fff);
   column-gap: 11px;
@@ -442,7 +441,7 @@ function removeDomain(domain: string) {
 .site-rules-empty small {
   max-width: 390px;
   margin-top: 2px;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.55;
 }
 

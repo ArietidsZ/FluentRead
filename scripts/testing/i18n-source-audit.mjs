@@ -25,7 +25,13 @@ export function collectUiSourceCopy(root) {
     function script(source, file) {
         const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
         function visit(node) {
-            if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) add(node.text, file);
+            if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+                // 搜索别名只用于匹配，不渲染；仍审计标签、说明与其他用户可见文案。
+                const parent = node.parent;
+                const isSearchAlias = parent && ts.isPropertyAssignment(parent)
+                    && parent.initializer === node && parent.name.getText(ast).replace(/["']/gu, '') === 'searchTerms';
+                if (!isSearchAlias) add(node.text, file);
+            }
             ts.forEachChild(node, visit);
         }
         visit(ast);

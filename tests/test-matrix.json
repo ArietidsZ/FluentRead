@@ -33,6 +33,7 @@
       "tests/requestLimitSettings.test.ts"
     ],
     "unit": [
+      "tests/featureTranslationServices.test.ts",
       "tests/sha256.test.ts",
       "tests/configApiKeys.test.ts",
       "tests/apiKeyCheckIdentity.test.ts",

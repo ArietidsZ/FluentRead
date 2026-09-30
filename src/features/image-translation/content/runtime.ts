@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/runtime.ts
  * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和原图/译图切换，保持宿主图片与响应式图片资源不变。
- * 主要内容：在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新并复核待显示图片的指针位置，限制像素读取和结果缓存，换图、取消与卸载时停止旧请求并释放资源。
+ * 主要内容：在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新并复核待显示图片的指针位置，限制像素读取和结果缓存，按图片独立服务及模型变化失效缓存，换图、取消与卸载时停止旧请求并释放资源。
  * 模块边界：本运行时只读取页面允许访问的 Canvas 像素并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
 import { config, subscribeConfig } from '@/src/services/config/store';
@@ -93,7 +93,7 @@ function sourceIdentity(image: HTMLImageElement): string {
 }
 
 function configurationIdentity(): string {
-    const service = config.service;
+    const service = config.imageTranslationService || config.service;
     // 只保留公开翻译语义；端点、请求体、凭据与完整 provider 对象不进入位图缓存键。
     return JSON.stringify([
         configurationRevision,
@@ -107,7 +107,7 @@ function configurationIdentity(): string {
 
 function watchTranslationConfiguration(): () => void {
     return watchEffect(() => {
-        const service = config.service;
+        const service = config.imageTranslationService || config.service;
         const selectedModel = config.model?.[service];
         const customModel = config.customModel?.[service];
         // 只建立响应式依赖，不序列化、不保留原始参数副本；结果仅保存单调递增修订号。

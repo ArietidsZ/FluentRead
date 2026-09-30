@@ -19,7 +19,7 @@
               <span class="selection-choice-mark" aria-hidden="true">{{ config.selectionTranslatorPresentation === mode.value ? '●' : '○' }}</span>
             </button>
           </div>
-          <p class="selection-mode-note">普通翻译使用默认翻译服务。卡片查词无需 AI；读懂、词性与句法等讲解在点击后才调用 AI。</p>
+          <p class="selection-mode-note">{{ t('featureServices.selectionHint') }}</p>
         </div>
         <div class="selection-preview" aria-label="划词效果预览">
           <div class="selection-preview-caption"><span>效果预览</span><small>示例，不发送请求</small></div>
@@ -47,6 +47,8 @@
 </template>
 <script setup lang="ts">
 import {computed, ref} from 'vue';
+import {useUiI18n} from '@/src/ui/i18n';
+const {t} = useUiI18n();
 import type {Config} from '@/src/core/config/model';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 import SettingsGroup from './components/SettingsGroup.vue';

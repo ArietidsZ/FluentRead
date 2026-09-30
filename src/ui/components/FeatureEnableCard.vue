@@ -1,17 +1,17 @@
 <!--
  * @file src/ui/components/FeatureEnableCard.vue
- * 文件职责：以带轻边框与柔和阴影的设置卡展示功能总开关，保留清晰的启停状态。
- * 主要内容：将说明与右侧状态开关对齐，通过轻微层次区分总开关与普通设置，适配窄屏、键盘操作与亮暗主题。
+ * 文件职责：以整块可点击的紧凑设置卡展示功能总开关，使操作与标题紧邻并明确启停状态。
+ * 主要内容：在左侧放置大尺寸开关，标题旁显示文本状态；整块按钮支持点击、空格与回车，并适配禁用、窄屏及亮暗主题。
  * 模块边界：仅发送布尔值更新，不保存配置、不判断平台能力；禁用状态由调用方传入。
  -->
 <template>
   <div class="feature-enable-card" :class="{enabled: modelValue, unavailable: disabled}">
-    <div class="feature-enable-copy">
-      <div class="feature-enable-heading"><strong>{{ title }}</strong></div>
-      <p v-if="description">{{ description }}</p>
-    </div>
     <button type="button" role="switch" :aria-label="title" :aria-checked="modelValue" :disabled="disabled" @click="emit('update:modelValue', !modelValue)">
-      <span>{{ t(disabled ? 'featureEnable.unavailable' : modelValue ? 'featureEnable.on' : 'featureEnable.off') }}</span><i aria-hidden="true"><b /></i>
+      <i aria-hidden="true"><b /></i>
+      <span class="feature-enable-copy">
+        <span class="feature-enable-heading"><strong>{{ title }}</strong><span class="feature-enable-state">{{ t(disabled ? 'featureEnable.unavailable' : modelValue ? 'featureEnable.on' : 'featureEnable.off') }}</span></span>
+        <span v-if="description" class="feature-enable-description">{{ description }}</span>
+      </span>
     </button>
   </div>
 </template>
@@ -22,19 +22,22 @@ const emit = defineEmits<{'update:modelValue': [value: boolean]}>();
 const {t} = useUiI18n();
 </script>
 <style scoped>
-.feature-enable-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 12px 12px 8px; padding: 16px; border: 1px solid var(--line, #e7e9f0); border-radius: 12px; background: linear-gradient(135deg, var(--surface, #fff), var(--surface-soft, #f7f8fb)); box-shadow: 0 3px 12px rgba(23, 32, 51, .055), inset 0 1px 0 color-mix(in srgb, var(--surface, #fff) 75%, transparent); }
-.feature-enable-card.enabled { border-color: color-mix(in srgb, var(--brand, #ef4776) 24%, var(--line, #e7e9f0)); box-shadow: 0 3px 12px rgba(23, 32, 51, .055), inset 2px 0 0 color-mix(in srgb, var(--brand, #ef4776) 55%, transparent); }
-.feature-enable-card.unavailable { box-shadow: none; }
-.feature-enable-copy { min-width: 0; }
-.feature-enable-heading strong { color: var(--ink, #172033); font-size: 14px; font-weight: 650; }
-.feature-enable-copy p { margin: 5px 0 0; color: var(--muted, #737c8f); font-size: 12px; line-height: 1.6; }
-.feature-enable-card button { display: inline-flex; flex: none; align-items: center; justify-content: flex-end; gap: 10px; min-height: 44px; padding: 0 2px 0 8px; border: 0; border-radius: 8px; color: var(--muted, #737c8f); background: transparent; font: inherit; font-size: 12px; cursor: pointer; }
-.feature-enable-card button:focus-visible { outline: 2px solid var(--brand, #ef4776); outline-offset: 3px; }
-.feature-enable-card button:hover i { box-shadow: 0 0 0 3px var(--brand-soft, #fff0f4); }
-.feature-enable-card i { display: flex; flex: none; align-items: center; width: 42px; height: 24px; padding: 3px; border-radius: 20px; background: var(--muted, #737c8f); }
-.feature-enable-card b { width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
-.enabled i { background: var(--brand, #ef4776); }
-.enabled b { transform: translateX(18px); }
+.feature-enable-card { margin: 0 0 20px; border: 1px solid var(--line, #d7dce5); border-radius: 10px; background: var(--surface, #fff); overflow: hidden; }
+.feature-enable-card.enabled { border-color: color-mix(in srgb, var(--brand, #ef4776) 35%, var(--line, #d7dce5)); background: color-mix(in srgb, var(--brand, #ef4776) 4%, var(--surface, #fff)); }
+.feature-enable-card button { display: flex; align-items: flex-start; gap: 16px; width: 100%; min-height: 76px; padding: 18px 20px; border: 0; color: var(--ink, #172033); background: transparent; font: inherit; text-align: start; cursor: pointer; }
+.feature-enable-card button:hover:not(:disabled) { background: color-mix(in srgb, var(--brand, #ef4776) 5%, transparent); }
+.feature-enable-card button:focus-visible { outline: 2px solid var(--brand, #ef4776); outline-offset: -3px; }
+.feature-enable-copy { display: block; min-width: 0; }
+.feature-enable-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-height: 28px; }
+.feature-enable-heading strong { font-size: 14px; font-weight: 650; }
+.feature-enable-state { color: var(--muted, #667085); font-size: 12px; font-weight: 500; }
+.enabled .feature-enable-state { color: var(--brand-strong, #b82d56); }
+.feature-enable-description { display: block; margin-top: 4px; color: var(--muted, #667085); font-size: 12px; line-height: 1.6; }
+.feature-enable-card i { display: flex; box-sizing: border-box; flex: none; align-items: center; width: 50px; height: 28px; padding: 3px; border: 1px solid color-mix(in srgb, var(--muted, #667085) 65%, transparent); border-radius: 999px; background: var(--muted, #667085); }
+.feature-enable-card b { width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.16); transition: transform 150ms ease; }
+.enabled i { background: var(--brand, #ef4776); border-color: var(--brand, #ef4776); }
+.enabled b { transform: translateX(22px); }
 .feature-enable-card button:disabled { opacity: .55; cursor: not-allowed; }
-@media (max-width: 600px) { .feature-enable-card { gap: 12px; margin: 10px; padding: 14px; } .feature-enable-card button { gap: 7px; } }
+@media (max-width: 600px) { .feature-enable-card button { gap: 12px; padding: 15px 14px; } }
+@media (prefers-reduced-motion: reduce) { .feature-enable-card b { transition: none; } }
 </style>
