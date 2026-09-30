@@ -1,7 +1,7 @@
 /**
  * @file src/features/reading-assistant/sentenceAnalysis.ts
  * 文件职责：将模型的词性表格严格对应到用户选中的原文，生成可交互的句法片段。
- * 主要内容：校验固定列、片段边界、顺序、长度和数量，区分词性与句中作用；保留未标注原文，歧义或不匹配时回退普通回答。
+ * 主要内容：校验固定列、片段边界、顺序、长度和数量，区分词性与句中作用；从作用说明取首个短分句供总览，不推断或重分类；保留未标注原文，歧义或不匹配时回退普通回答。
  * 模块边界：不推断语法、不执行模型文本、不生成 HTML；渲染与选择状态由 SentenceAnalysis.vue 管理。
  */
 import {describePartOfSpeech} from '@/src/core/language/partOfSpeech';
@@ -39,4 +39,11 @@ export function anchorSentenceAnalysis(block: ReadingAnswerBlock, source: string
         cursor = end;
     }
     return result;
+}
+
+/** 总览只取已有作用说明的首个分句；完整说明保留在详情与按钮标题中。 */
+export function summarizeSentenceRole(role: string): string {
+    const text = role.trim();
+    const summary = text.split(/[，,；;。\n]/u)[0].trim();
+    return summary || text;
 }

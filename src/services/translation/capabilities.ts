@@ -32,8 +32,7 @@ export function supportsTranslationBatch(service: string): boolean {
 }
 
 /**
- * 通用提示词 AI 使用术语约束；通义 Qwen-MT 使用原生 terms，其余协议不替换译文。
- * 豆包翻译专用模型的 translation_options 没有术语字段，因此不在此列。
+ * 统一编排在发送前保护命中术语、返回后填回译法，机器翻译与 AI 共用同一契约。
  */
 export function supportsTranslationGlossary(
     service: string,
@@ -41,7 +40,7 @@ export function supportsTranslationGlossary(
     serviceTypes: Pick<typeof servicesType, 'isUseAIContext'> = servicesType,
 ): boolean {
     return serviceTypes.isUseAIContext(service, model)
-        || (service === services.tongyi && model.startsWith('qwen-mt'));
+        || servicesType.isAI(service) || servicesType.isMachine(service);
 }
 
 export function isTranslationServiceAvailable(

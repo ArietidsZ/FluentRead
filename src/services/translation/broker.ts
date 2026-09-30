@@ -39,6 +39,7 @@ import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/trans
 import {isClearlyWrongLanguageResponse, isLikelyUntranslatedResponse} from '@/src/core/translation/resultValidation';
 import {buildGlossaryRevision, resolveGlossary} from '@/src/core/glossary';
 import {supportsTranslationGlossary} from './capabilities';
+import {getGlossaryProtectionEntries, isGlossaryOnlyResult, prepareGlossaryRequest} from './glossaryProtection';
 import {
     isDefinitePageContextLeak,
     isLikelyPageContextLeak,
@@ -328,7 +329,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             ...(current.customHeaders?.[service] ? {customHeaders: current.customHeaders[service]} : {}),
             systemRole: current.system_role[service] || '',
             userRole: current.user_role[service] || '',
-            ...(glossaryTerms.length ? {glossaryTerms} : {}),
+            ...(glossaryTerms.length ? {glossaryTerms, glossaryProtection: {version: 1,
+                entries: getGlossaryProtectionEntries(current, origin)}} : {}),
             deepseekApiType: current.deepseekApiType,
             modelThinking: execution.thinking,
             transportProfile: deps.serviceTypes.isAiSdk(service)
@@ -378,12 +380,12 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         return value.normalize('NFKC').replace(/\s+/gu, ' ').trim();
     }
 
-    function isCacheableResult(origin: string, result: unknown, targetLanguage: string): result is string {
+    function isCacheableResult(origin: string, result: unknown, targetLanguage: string, current: TranslationProviderConfigSnapshot): result is string {
         // 同目标文字和短名称仍可缓存 no-op；旧原文或明确错语种的缓存必须失效。
         return typeof result === 'string'
             && Boolean(result.trim())
-            && !isLikelyUntranslatedResponse(origin, result, targetLanguage)
-            && !isClearlyWrongLanguageResponse(origin, result, targetLanguage);
+            && (isGlossaryOnlyResult(current, origin, result) || (!isLikelyUntranslatedResponse(origin, result, targetLanguage)
+            && !isClearlyWrongLanguageResponse(origin, result, targetLanguage)));
     }
 
     function requireSingleResult(result: unknown): string {
@@ -658,9 +660,10 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                             reject(new TranslationProviderDeadlineError());
                         }, remainingTimeoutMs);
                     });
-                    const operation = Promise.resolve().then(() => {
+                    const operation = Promise.resolve().then(async () => {
                         throwIfRequestAborted(execution.abortSignal);
-                        return provider(providerMessage);
+                        const protectedRequest = prepareGlossaryRequest(providerMessage, execution.config);
+                        return protectedRequest.restore(await provider({...protectedRequest.message}));
                     });
                     // 调度调用方可能已因 deadline/取消收到结果，但真实 provider transport
                     // 仍需结束后才能释放后台并发槽，避免旧请求与新请求叠加。
@@ -745,6 +748,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         context = '',
         validationPageContext = '',
     ): Promise<string> {
+        if (isGlossaryOnlyResult(execution.config, message.origin, result)) return result;
         if (!isLikelyUntranslatedResponse(message.origin, result, execution.targetLanguage)
             && !isClearlyWrongLanguageResponse(message.origin, result, execution.targetLanguage)) return result;
         const retried = requireSingleResult(await callProviderWithinDeadline(
@@ -754,6 +758,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         if (isDefiniteRecoveryPageContextLeak(
             execution, message.origin, retried, validationPageContext, message.modelOverride,
         )) throw new AIContextRecoveryResponseError();
+        if (isGlossaryOnlyResult(execution.config, message.origin, retried)) return retried;
         if (isLikelyUntranslatedResponse(message.origin, retried, execution.targetLanguage)) {
             throw new UntranslatedResponseError();
         }
@@ -924,12 +929,13 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             );
         }
         const finalized = Array.from(parsed);
-        if (finalized.some((result, index) => isLikelyUntranslatedResponse(
+        if (finalized.some((result, index) => !isGlossaryOnlyResult(execution.config, message.origin[index], result) && isLikelyUntranslatedResponse(
             message.origin[index] ?? '', result ?? '', execution.targetLanguage,
         ))) throw new AIMultiSegmentResponseError();
         for (let index = 0; index < finalized.length; index += 1) {
             const origin = message.origin[index] ?? '';
-            if (!isClearlyWrongLanguageResponse(origin, finalized[index] ?? '', execution.targetLanguage)) continue;
+            if (isGlossaryOnlyResult(execution.config, origin, finalized[index])
+                || !isClearlyWrongLanguageResponse(origin, finalized[index] ?? '', execution.targetLanguage)) continue;
             finalized[index] = await recoverInvalidResult(
                 execution, {...message, origin}, finalized[index], requestDeadline, '', pageContext,
             );
@@ -1224,7 +1230,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     pageContext,
                     message.modelOverride,
                 );
-                if (isCacheableResult(message.origin, cached, execution.targetLanguage) && !leakedPageContext) {
+                if (isCacheableResult(message.origin, cached, execution.targetLanguage, execution.config) && !leakedPageContext) {
                     execution.trace.cachedSegments = 1;
                     return cached;
                 }
@@ -1243,7 +1249,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                         pageContext,
                         requestDeadline,
                     );
-                if (isCacheableResult(message.origin, recovered, execution.targetLanguage)) {
+                if (isCacheableResult(message.origin, recovered, execution.targetLanguage, execution.config)) {
                     await persistCacheWrite(requestGeneration, key, recovered);
                 }
                 return recovered;
@@ -1256,7 +1262,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 pageContext,
                 requestDeadline,
             );
-            if (isCacheableResult(message.origin, result, execution.targetLanguage)) {
+            if (isCacheableResult(message.origin, result, execution.targetLanguage, execution.config)) {
                 await persistCacheWrite(requestGeneration, key, result);
             }
             return result;
@@ -1329,7 +1335,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             );
             const leakedCachedIndexes = new Set<number>();
             const validatedCached = cached.map((value, index) => {
-                if (value === null || !isCacheableResult(message.origin[index] ?? '', value, execution.targetLanguage)) return null;
+                if (value === null || !isCacheableResult(message.origin[index] ?? '', value, execution.targetLanguage, execution.config)) return null;
                 if (!isDefiniteRecoveryPageContextLeak(
                     execution,
                     message.origin[index] ?? '',
@@ -1364,7 +1370,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 );
                 await Promise.all(translated.map(async (value, index) => {
                     const origin = message.origin[index] ?? '';
-                    if (!isCacheableResult(origin, value, execution.targetLanguage)) return;
+                    if (!isCacheableResult(origin, value, execution.targetLanguage, execution.config)) return;
                     await persistCacheWrite(
                         requestGeneration,
                         buildBatchItemCacheKey(
@@ -1440,7 +1446,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 );
                 const value = translatedByKey.get(itemKey);
                 result[index] = value as string;
-                if (isCacheableResult(origin, value, execution.targetLanguage)) {
+                if (isCacheableResult(origin, value, execution.targetLanguage, execution.config)) {
                     cacheWrites.push(persistCacheWrite(
                         requestGeneration,
                         itemKey,
