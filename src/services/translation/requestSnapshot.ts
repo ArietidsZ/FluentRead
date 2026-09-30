@@ -96,6 +96,11 @@ export function getTranslationGlossarySourceText(origin: string | string[]): str
 
 /** 同一批次逐条发送时仍只外发该条原文真正命中的术语，摘要由模板显式跳过。 */
 export function getTranslationGlossaryTerms(current: TranslationProviderConfigSnapshot, origin: string | string[]) {
+    if (current.glossaryProtectedTokens) {
+        const texts = Array.isArray(origin) ? origin : [origin];
+        return current.glossaryProtectedTokens.filter(token => texts.some(text => text.includes(token)))
+            .map(token => ({source: token, target: token}));
+    }
     const context = current.glossaryMatchContext;
     if (!context) return current.glossaryTerms ?? [];
     if (!current.glossaryTerms?.length) return [];

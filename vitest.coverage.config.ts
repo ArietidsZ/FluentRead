@@ -490,6 +490,8 @@ export default defineConfig({
                 'src/core/glossary/model.ts',
                 'src/core/glossary/builtins.ts',
                 'src/core/glossary/match.ts',
+                'src/core/glossary/protection.ts',
+                'src/services/translation/glossaryProtection.ts',
                 'src/core/glossary/transfer.ts',
                 'src/core/config/constants.ts',
                 'src/core/config/credentialBinding.ts',

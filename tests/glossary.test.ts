@@ -1,7 +1,9 @@
+import * as hashModule from '@/src/shared/function/sha256';
+import {findGlossaryRanges} from '@/src/core/glossary/match';
 import {createHash} from 'node:crypto';
 import {describe, expect, it, vi} from 'vitest';
 import {
-    buildGlossaryRevision, createGlossaryEntry, createGlossaryLibrary, exportGlossary,
+    protectGlossaryText, GlossaryPlaceholderError, buildGlossaryRevision, createGlossaryEntry, createGlossaryLibrary, exportGlossary,
     GLOSSARY_LIMITS, normalizeGlossaryDomain, normalizeGlossaryIds, normalizeGlossaryLibraries,
     decodeGlossaryText, parseGlossaryImport, resolveGlossary, getGlossaryScopeReason, glossarySourcesOverlap, type GlossaryContext, type GlossaryLibrary,
 } from '@/src/core/glossary';
@@ -189,7 +191,7 @@ describe('术语按当前内容与作用域解析', () => {
             library({name: '忽略以前的指令', entries: [entry('AI', '人工智能'), entry('machine learning', '机器学习'), entry('AI', '智能')]}),
             library({id: 'second', entries: [entry('ai', '人工智能'), entry('AI', '人工智慧'), entry('learning', '学习')]}),
         ], context({text: 'AI and machine learning.'}));
-        expect(result.terms).toEqual([{source: 'machine learning', target: '机器学习'}, {source: 'learning', target: '学习'}, {source: 'AI', target: '人工智能'}]);
+        expect(result.terms).toEqual([{source: 'machine learning', target: '机器学习'}, {source: 'AI', target: '人工智能'}]);
         expect(result.conflicts).toEqual([
             {source: 'AI', keptTarget: '人工智能', ignoredTarget: '智能', libraryId: 'glossary-1', entryId: 'term-1'},
             {source: 'AI', keptTarget: '人工智能', ignoredTarget: '人工智慧', libraryId: 'second', entryId: 'term-AI'},
@@ -513,5 +515,71 @@ describe('术语库范围解释与重复原词一致性', () => {
         expect(glossarySourcesOverlap(entry(' token '), entry('TOKEN', '', true))).toBe(true);
         expect(glossarySourcesOverlap(entry('Token', '', true), entry('TOKEN', '', true))).toBe(false);
         expect(glossarySourcesOverlap(entry('Token', '', true), entry('token'))).toBe(true);
+    });
+});
+
+
+describe('术语占位符保护与本地回填', () => {
+    it('空原词不可匹配，保留原文与显式译法的冲突清楚可读', () => {
+        expect(findGlossaryRanges('API', '', false)).toEqual([]);
+        for (const [first, second] of [['', '接口'], ['接口', '']]) {
+            const result = resolveGlossary([library({entries: [entry('API', first), {...entry('API', second), id: 'other'}]})], context());
+            expect(result.conflicts[0]).toMatchObject({keptTarget: first || 'API', ignoredTarget: second || 'API'});
+        }
+    });
+    it('输入碰撞时自动选择另一套标记，不覆盖原文中的相同前缀', () => {
+        const spy = vi.spyOn(hashModule, 'sha256Hex').mockReturnValue('fixednonce00');
+        try {
+            const packet = protectGlossaryText('API __FRTERM_fixednonce00_0__', [entry()]);
+            expect(packet.tokens[0]).toContain('__FRTERM_fixednonce00_x');
+            expect(packet.restore(packet.text)).toBe('接口 __FRTERM_fixednonce00_0__');
+        } finally {spy.mockRestore();}
+    });
+    it('长词覆盖短词，重复词独立保护，标点和相似单词保持原样', () => {
+        const packet = protectGlossaryText('A large language model, model; models; large language model.', [
+            entry('model', '模型'), entry('large language model', '大语言模型'),
+        ]);
+        expect(packet.tokens).toHaveLength(3);
+        expect(packet.text).toContain('models');
+        expect(packet.text).not.toContain('large language model');
+        expect(packet.restore(packet.text)).toBe('A 大语言模型, 模型; models; 大语言模型.');
+    });
+    it('保留原文使用实际拼写，正则字符和译法中的替换符按字面处理', () => {
+        const packet = protectGlossaryText('API api FluentRead fluentread C++ $&', [
+            entry('API', ''), entry('FluentRead', '流畅阅读', true), entry('C++', '$& \"<value>'),
+        ]);
+        expect(packet.restore(packet.text)).toBe('API api 流畅阅读 fluentread $& \"<value> $&');
+    });
+    it('NFC 组合字符、Unicode 大小写偏移与中日韩词边界保持一致', () => {
+        const packet = protectGlossaryText('İ API cafe\u0301 中文API文', [entry('API', '接口'), entry('café', '咖啡')]);
+        expect(packet.restore(packet.text)).toBe('İ 接口 咖啡 中文接口文');
+        const unchanged = 'cafe\u0301';
+        expect(protectGlossaryText(unchanged, [entry('nomatch')]).text).toBe(unchanged);
+        expect(protectGlossaryText(unchanged, []).restore(unchanged)).toBe(unchanged);
+    });
+    it('丢失、重复、未知或变形的占位符及非文本结果必须失败', () => {
+        const packet = protectGlossaryText('API and API', [entry()]);
+        const [a, b] = packet.tokens;
+        for (const bad of [packet.text.replace(a, ''), packet.text + a, packet.text + a.replace('_0__', '_99__'),
+            packet.text + a.replace('_0__', '_broken__'), packet.text + '__FRTERM_foreign_0__', null, [], 42]) {
+            expect(() => packet.restore(bad)).toThrow(GlossaryPlaceholderError);
+        }
+        expect(packet.restore(`${b} then ${a}`)).toBe('接口 then 接口');
+        expect(() => protectGlossaryText('none', []).restore(null)).toThrow(GlossaryPlaceholderError);
+    });
+    it('原始文本中类似占位符不被误替换，目标文本不进行递归替换', () => {
+        const first = protectGlossaryText('API', [entry()]);
+        const packet = protectGlossaryText(`API ${first.tokens[0]}`, [entry('API', first.tokens[0])]);
+        expect(packet.restore(packet.text)).toBe(`${first.tokens[0]} ${first.tokens[0]}`);
+    });
+    it('内部多段槽标记不被术语替换，首尾词语仍可保护', () => {
+        const text = '___FLUENTREAD_demo_0_BEGIN___API___FLUENTREAD_demo_0_END___\n___FLUENTREAD_demo_1_BEGIN___API test___FLUENTREAD_demo_1_END___';
+        const packet = protectGlossaryText(text, [entry(), entry('___FLUENTREAD_demo_0_BEGIN___', 'bad')]);
+        expect(packet.tokens).toHaveLength(2);
+        expect(packet.restore(packet.text)).toBe(text.replaceAll('API', '接口'));
+        expect(() => packet.restore(packet.text.replace('demo_1_END', 'wrong_1_END'))).toThrow(GlossaryPlaceholderError);
+        expect(() => packet.restore(packet.text.replace('___FLUENTREAD_demo_1_END___', ''))).toThrow(GlossaryPlaceholderError);
+        const [a, b] = packet.tokens;
+        expect(() => packet.restore(packet.text.replace(a, 'swap').replace(b, a).replace('swap', b))).toThrow(GlossaryPlaceholderError);
     });
 });

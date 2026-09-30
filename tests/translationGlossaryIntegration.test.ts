@@ -1,3 +1,4 @@
+import {getGlossaryProtectionEntries, isGlossaryOnlyResult} from '@/src/services/translation/glossaryProtection';
 import {describe, expect, it, vi} from 'vitest';
 import {Config} from '@/src/core/config/model';
 import {resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
@@ -42,7 +43,7 @@ function harness() {
     const cache = new Map<string, string>();
     const identities: Record<string, unknown>[] = [];
     const calls: Array<{message: Record<string, unknown>; snapshot: TranslationProviderConfigSnapshot; body: any}> = [];
-    const provider = vi.fn(async (message: Record<string, unknown>): Promise<string | string[]> => {
+    const provider = vi.fn(async (message: Record<string, unknown>): Promise<unknown> => {
         const snapshot = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(config));
         const translate = (origin: string) => {
             const body = JSON.parse(commonMsgTemplate(origin, message.pageContext as string | undefined,
@@ -50,7 +51,7 @@ function harness() {
                 'openai', 'zh-Hans', 'model-fixture', snapshot));
             calls.push({message, snapshot, body});
             if (message.summaryPrompt) return 'This page explains translation systems.';
-            return getTranslationGlossaryTerms(snapshot, origin)[0]?.target ?? `译文:${origin}`;
+            return snapshot.glossaryProtectedTokens?.some(token => origin.includes(token)) ? origin : `译文:${origin}`;
         };
         return Array.isArray(message.origin) ? message.origin.map(origin => translate(String(origin))) : translate(String(message.origin));
     });
@@ -75,16 +76,84 @@ function harness() {
 }
 
 describe('术语库与真实翻译编排协作', () => {
-    it('只把当前原文命中的词对写进提示词，未命中条目和网站规则不外发', async () => {
+    it('只把当前原文命中的占位符约束写进提示词，译法和网站规则不外发', async () => {
         const h = harness();
-        await expect(h.request({origin: 'An agent works here.'})).resolves.toBe('智能体');
+        await expect(h.request({origin: 'An agent works here.'})).resolves.toBe('An 智能体 works here.');
         const payload = JSON.stringify(h.calls[0].body);
-        expect(payload).toContain('智能体');
+        expect(payload).toContain('__FRTERM_');
+        expect(payload).not.toContain('智能体');
         expect(payload).not.toContain('此条不该发送');
         expect(payload).not.toContain('technical');
         expect(payload).not.toContain('docs.example.com');
         expect(h.identities[0]).toMatchObject({glossaryTerms: [{source: 'agent', target: '智能体'}]});
         expect(Object.isFrozen(h.calls[0].snapshot.glossaryLibraries?.[0].entries[0])).toBe(true);
+    });
+
+    it('机器翻译通过同一保护链：保留重复术语、批量条目和原始语言检测样本', async () => {
+        const h = harness();
+        await expect(h.request({origin: ['agent, agent!', 'unrelated'], serviceOverride: 'microsoft'}))
+            .resolves.toEqual(['智能体, 智能体!', '此条不该发送']);
+        expect(h.calls[0].message.sourceLanguageDetectionText).toBe('agent, agent!\nunrelated');
+        expect(String(h.calls[0].message.origin)).not.toContain('agent');
+        await expect(h.request({origin: 'agent', serviceOverride: 'microsoft', glossaryRevision: 'old-version'}))
+            .rejects.toMatchObject({code: 'GLOSSARY_REVISION_CHANGED'});
+    });
+
+    it('服务损坏或重复标记时不显示或缓存残缺译文，重新翻译能恢复', async () => {
+        const h = harness();
+        h.provider.mockResolvedValueOnce('服务把术语丢失了');
+        await expect(h.request({origin: 'agent'})).rejects.toMatchObject({code: 'GLOSSARY_PLACEHOLDER_INVALID', retryable: false});
+        expect(h.cache.size).toBe(0);
+        await expect(h.request({origin: 'agent'})).resolves.toBe('智能体');
+        expect([...h.cache.values()]).toEqual(['智能体']);
+    });
+
+    it('批量结果不能把另一个片段的标记串入本条或返回错误形状', async () => {
+        for (const result of ['wrong shape', ['missing'], [null, null]]) {
+            const h = harness();
+            h.provider.mockResolvedValue(result);
+            await expect(h.request({origin: ['agent', 'unrelated'], serviceOverride: 'microsoft'}))
+                .rejects.toMatchObject({code: 'GLOSSARY_PLACEHOLDER_INVALID'});
+            expect(h.cache.size).toBe(0);
+        }
+        const h = harness();
+        h.provider.mockImplementation(async message => [...message.origin as string[]].reverse());
+        await expect(h.request({origin: ['agent', 'unrelated'], serviceOverride: 'microsoft'}))
+            .rejects.toMatchObject({code: 'GLOSSARY_PLACEHOLDER_INVALID'});
+    });
+
+    it('未命中片段不能混入相邻片段的标记，原片段即使保留标记也拒绝整包', async () => {
+        const h = harness();
+        h.provider.mockImplementation(async message => {
+            const origins = message.origin as string[];
+            return [origins[0], `其他译文 ${origins[0]}`];
+        });
+        await expect(h.request({origin: ['agent', 'no match'], serviceOverride: 'microsoft'}))
+            .rejects.toMatchObject({code: 'GLOSSARY_PLACEHOLDER_INVALID'});
+        expect(h.cache.size).toBe(0);
+    });
+
+    it('同一原词的大小写规则改变后不复用旧缓存', async () => {
+        const h = harness();
+        await expect(h.request({origin: 'Agent agent'})).resolves.toBe('智能体 智能体');
+        h.config.glossaryLibraries[0].entries[0].caseSensitive = true;
+        await expect(h.request({origin: 'Agent agent'})).resolves.toBe('Agent 智能体');
+        expect(h.provider).toHaveBeenCalledTimes(2);
+    });
+
+    it('用户指定整句保留原文不会被回显校验拒绝，缓存仍可复用', async () => {
+        const h = harness();
+        h.config.glossaryLibraries[0].entries = [{id: 'phrase', source: 'large language model', target: '', caseSensitive: false}];
+        for (let i = 0; i < 2; i++) await expect(h.request({origin: 'large language model'})).resolves.toBe('large language model');
+        expect(h.provider).toHaveBeenCalledTimes(1);
+    });
+
+    it('缺失词库或当前片段无实际词条时不能豁免回显检查', () => {
+        const snapshot = createTranslationProviderConfigSnapshot(new Config());
+        const missing = {...snapshot, glossaryLibraries: undefined, glossaryTerms: [{source: 'agent', target: '智能体'}],
+            glossaryMatchContext: {sourceLanguage: 'en', targetLanguage: 'zh-hans'}};
+        expect(getGlossaryProtectionEntries(missing, 'agent')).toEqual([]);
+        expect(isGlossaryOnlyResult(missing, 'agent', 'agent')).toBe(false);
     });
 
     it('网站范围只采用内部真实来源，原文上下文和同名payload不能冒充网站', async () => {
@@ -96,13 +165,11 @@ describe('术语库与真实翻译编排协作', () => {
             {pageUrl: 'https://private.example/path', context: 'page'}))).resolves.toBe('内部代理');
     });
 
-    it('显式空选择、关闭总开关和机器翻译都不干预原来的翻译结果', async () => {
+    it('显式空选择和关闭总开关不干预原来的翻译结果', async () => {
         const h = harness();
         await expect(h.request({origin: 'agent', glossaryIds: []})).resolves.toBe('译文:agent');
         h.config.glossaryEnabled = false;
         await expect(h.request({origin: 'agent'})).resolves.toBe('译文:agent');
-        h.config.glossaryEnabled = true;
-        await expect(h.request({origin: 'agent', serviceOverride: 'microsoft', glossaryRevision: 'old-version'})).resolves.toBe('译文:agent');
         expect(h.calls.every(call => !JSON.stringify(call.body).includes('fluentread_glossary'))).toBe(true);
         expect(h.identities.every(identity => !Object.hasOwn(identity, 'glossaryTerms'))).toBe(true);
     });
@@ -158,9 +225,9 @@ describe('术语库与真实翻译编排协作', () => {
     it('批量provider逐条发上游时不会把另一个片段才命中的词一起发送', async () => {
         const h = harness();
         await expect(h.request({origin: ['agent', 'unrelated']})).resolves.toEqual(['智能体', '此条不该发送']);
-        expect(JSON.stringify(h.calls[0].body)).toContain('智能体');
+        expect(JSON.stringify(h.calls[0].body)).toContain('__FRTERM_');
         expect(JSON.stringify(h.calls[0].body)).not.toContain('此条不该发送');
-        expect(JSON.stringify(h.calls[1].body)).toContain('此条不该发送');
+        expect(JSON.stringify(h.calls[1].body)).toContain('__FRTERM_');
         expect(JSON.stringify(h.calls[1].body)).not.toContain('智能体');
     });
 
@@ -181,9 +248,10 @@ describe('术语库与真实翻译编排协作', () => {
         });
         await expect(h.request({origin: origins, aiMultiSegment: true})).resolves.toEqual(['智能体', 'Use 智能体']);
         expect(h.calls).toHaveLength(1);
-        expect(h.calls[0].message.origin).toBe(packet.payload);
+        expect(h.calls[0].message.origin).toContain(packet.starts[0]);
+        expect(h.calls[0].message.origin).toContain('__FRTERM_');
         const body = JSON.stringify(h.calls[0].body);
-        expect(body).toContain('智能体');
+        expect(body).toContain('__FRTERM_');
         expect(body).not.toContain('内部标记不外发');
     });
 
@@ -192,10 +260,11 @@ describe('术语库与真实翻译编排协作', () => {
         const packet = serializeTranslationSlots(['agent', 'More text']);
         await h.request({origin: packet.payload, serviceOverride: 'tongyi', modelOverride: 'qwen-mt-plus'});
         const current = h.calls[0].snapshot;
-        const body = JSON.parse(tongyiMsgTemplate(packet.payload, undefined, undefined, undefined,
+        const protectedPayload = String(h.calls[0].message.origin);
+        const body = JSON.parse(tongyiMsgTemplate(protectedPayload, undefined, undefined, undefined,
             'tongyi', 'zh-Hans', 'qwen-mt-plus', current));
-        expect(body.messages).toEqual([{role: 'user', content: packet.payload}]);
-        expect(body.translation_options.terms).toEqual([{source: 'agent', target: '智能体'}]);
+        expect(body.messages).toEqual([{role: 'user', content: protectedPayload}]);
+        expect(body.translation_options.terms).toEqual(current.glossaryProtectedTokens?.map(token => ({source: token, target: token})));
         expect(h.identities[0]).toMatchObject({glossaryTerms: [{source: 'agent', target: '智能体'}]});
     });
 
@@ -207,7 +276,7 @@ describe('术语库与真实翻译编排协作', () => {
         expect(summary).toBeDefined();
         expect(JSON.stringify(summary?.body)).not.toContain('fluentread_glossary');
         const translation = h.calls.find(call => !call.message.summaryPrompt);
-        expect(JSON.stringify(translation?.body)).toContain('智能体');
+        expect(JSON.stringify(translation?.body)).toContain('__FRTERM_');
     });
 
     it('上下文泄漏后的无上下文恢复仍保留原请求冻结术语，不吸收中途编辑', async () => {
@@ -220,7 +289,7 @@ describe('术语库与真实翻译编排协作', () => {
             if (!message.summaryPrompt && !translated) {
                 translated = true;
                 h.config.glossaryLibraries[0].entries[0].target = '中途新译名';
-                return '智能体 <webpage_context>leaked private reference</webpage_context>';
+                return `${message.origin} <webpage_context>leaked private reference</webpage_context>`;
             }
             return result;
         });
@@ -231,7 +300,7 @@ describe('术语库与真实翻译编排协作', () => {
         expect(translations[1].message.pageContext).toBe('');
         for (const call of translations) {
             expect(call.snapshot.glossaryTerms).toEqual([{source: 'agent', target: '智能体'}]);
-            expect(JSON.stringify(call.body)).toContain('智能体');
+            expect(JSON.stringify(call.body)).toContain('__FRTERM_');
             expect(JSON.stringify(call.body)).not.toContain('中途新译名');
         }
     });
@@ -267,11 +336,11 @@ describe('术语模板与服务协议', () => {
         expect(body.translation_options).toEqual({source_lang: 'auto', target_lang: 'en', terms: [{source: 'Token', target: 'Token'}]});
         expect(config.customBody.tongyi).toBe(JSON.stringify({translation_options: {terms: [{source: 'Token', target: 'Token'}]}}));
     });
-    it('明确区分提示词AI、Qwen-MT与不支持的服务', () => {
-        for (const [service, model] of [['openai', 'x'], ['custom:office', 'x'], ['tongyi', 'qwen-mt-plus']]) {
+    it('机器翻译、提示词AI和专用翻译模型共用保护，未知服务不启用', () => {
+        for (const [service, model] of [['openai', 'x'], ['custom:office', 'x'], ['tongyi', 'qwen-mt-plus'], ['microsoft', ''], ['chromeTranslator', ''], ['deepL', ''], ['huanYuanTranslation', '']]) {
             expect(supportsTranslationGlossary(service, model)).toBe(true);
         }
-        for (const service of ['microsoft', 'chromeTranslator', 'deepL', 'huanYuanTranslation', 'unknown']) {
+        for (const service of ['unknown']) {
             expect(supportsTranslationGlossary(service)).toBe(false);
         }
     });
