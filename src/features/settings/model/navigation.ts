@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/model/navigation.ts
  * 文件职责：定义设置中心侧边栏的导航信息模型，并提供默认分区、哈希解析与搜索过滤等不依赖 Vue 或浏览器 API 的纯规则。
- * 主要内容：包含按功能分组的标题、副标题、图标、关键词和 section ID，以及页内分类、服务分配与模型用量深链接；通用页文案对应日常翻译、网页辅助与基本偏好的阅读顺序，从同一注册表派生导航列表与后台合法分区 ID，导出 resolveNavigationItem、resolveRequestedSection 与 filterNavigationItems。
+ * 主要内容：包含按功能分组的标题、副标题、图标、关键词和 section ID，以及同页分组、服务分配与模型用量深链接；旧圈选地址解析为图片页；通用页文案对应日常翻译、网页辅助与基本偏好的阅读顺序，从同一注册表派生导航列表与后台合法分区 ID，导出 resolveNavigationItem、resolveRequestedSection 与 filterNavigationItems。
  * 模块边界：该模块只描述导航元数据，不切换 DOM、不写 location.hash 也不保存配置；Options 页面负责路由同步，SettingsSections.vue 负责各分区实际内容。
  */
 export type NavigationItem = {
@@ -92,16 +92,10 @@ export const navigationGroups = [
         searchDescription: '划词翻译、普通翻译、卡片模式、词性、句法、冠词、名词、触发、朗读、翻译卡片、阅读卡、Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关',
       },
       {
-        id: 'settings-image-translation', icon: '图', label: '图片翻译', description: '网页图片与 OCR', group: '专项翻译',
-        heading: '图片翻译', summary: '管理网页图片翻译和本地 OCR 语言包。',
+        id: 'settings-image-translation', icon: '图', label: '图片翻译', description: '网页图片、圈选区域与 OCR', group: '专项翻译',
+        heading: '图片翻译', summary: '管理网页图片、圈选区域和共享的本地 OCR 语言包。',
         kicker: '专项翻译', title: '图片翻译', detail: '悬停网页图片，从图片入口识别和翻译文字。',
-        searchDescription: '图片翻译、OCR、语言包、中文、英文、日文、下载',
-      },
-      {
-        id: 'settings-area-translation', icon: '▣', label: '圈选翻译', description: '截取区域与文字识别', group: '专项翻译',
-        heading: '圈选翻译', summary: '圈选屏幕中的文字，选择标准翻译或 AI 上下文增强。',
-        kicker: '专项翻译', title: '圈选翻译', detail: '独立配置圈选翻译的开关、识别语言和翻译服务。',
-        searchDescription: '圈选翻译、区域翻译、截图、图片输入、识图、视觉、提示词、Shift+Z、OCR、微软、免费翻译、AI、纠错、语言包',
+        searchDescription: '图片翻译、圈选翻译、区域翻译、截图、识图、视觉、Shift+Z、OCR、语言包、中文、英文、日文、下载',
       },
       {
         id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube/X 边看边译', group: '专项翻译',
@@ -184,6 +178,7 @@ export const NAVIGATION_SECTION_IDS = navigationGroups.flatMap<NavigationSection
 /** 旧设置入口与学习中心的新语义别名统一解析，不增加重复导航项目。 */
 export const NAVIGATION_SECTION_ALIASES: ReadonlyMap<string, string> = new Map([
   ['settings-model-usage', 'settings-translation-stats'],
+  ['settings-area-translation', 'settings-image-translation'],
   ['settings-harness', 'settings-selection'],
   ['settings-webpage', 'settings-translation'],
   ['settings-shortcuts', 'settings-translation'],
@@ -245,7 +240,6 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
   ],
   'settings-services': [
     {id: 'assignments', labelKey: 'featureServices.assignments', searchTerms: '按功能 分配 服务 网页 悬浮 划词 输入 字幕 文档 图片 圈选 写作', targetIds: ['feature-services']},
-    {id: 'connections', labelKey: 'featureServices.connections', searchTerms: 'API Key 模型 供应商 连接 密钥 自定义接口', targetIds: ['service-connections']},
   ],
   'settings-translation': [
     {"id": "hover", "labelKey": "options.panel.hover", "searchTerms": "鼠标悬浮 快捷键 延迟", "targetIds": []},
@@ -276,6 +270,7 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
   ],
   'settings-image-translation': [
     {"id": "entries", "labelKey": "options.panel.entries", "searchTerms": "图片 悬停 右键", "targetIds": []},
+    {id: 'area', labelKey: 'area.settings.title', searchTerms: '圈选 区域 截图 识图 视觉 Shift+Z', targetIds: ['settings-area-translation']},
     {"id": "ocr", "labelKey": "options.panel.ocr", "searchTerms": "OCR 语言包 识别 下载", "targetIds": []},
   ],
   'settings-data': [
@@ -288,5 +283,6 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
 export function resolveSettingsPanel(sectionId: string, panelOrTargetId?: string): string {
   const panels = settingsPagePanels[NAVIGATION_SECTION_ALIASES.get(sectionId) ?? sectionId] ?? []
   if (sectionId === 'settings-model-usage') return 'usage'
+  if (sectionId === 'settings-area-translation') return 'area'
   return (panels.find(panel => panel.id === panelOrTargetId || panel.targetIds.includes(panelOrTargetId ?? '')) ?? panels[0])?.id ?? ''
 }
