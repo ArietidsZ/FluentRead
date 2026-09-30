@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 学习面板密度专项：在隔离生产扩展中用用户反馈的原句检查首屏、点词、键盘、折叠操作和追问。
+// 学习面板密度专项：在隔离生产扩展中用用户反馈的原句检查首屏、点词、常驻句子结构、键盘、折叠操作和追问。
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -55,7 +55,7 @@ async function shot(name) {
 }
 async function layout() {return ui(function(){
  const area=this.querySelector('.fr-reading-result').getBoundingClientRect(),tokens=this.querySelector('.fr-sentence-tokens'),detail=this.querySelector('.fr-sentence-detail').getBoundingClientRect(),card=this.getBoundingClientRect();
- return{cardHeight:card.height,cardWidth:card.width,answerHeight:area.height,tokensHeight:tokens.getBoundingClientRect().height,sourceCopies:this.querySelectorAll('.fr-reading-source').length,sourceText:tokens.textContent,detailVisible:detail.top>=area.top&&detail.bottom<=area.bottom,overflow:this.scrollWidth>this.clientWidth+1,hostScroll:scrollY};
+ return{cardHeight:card.height,cardWidth:card.width,answerHeight:area.height,tokensHeight:tokens.getBoundingClientRect().height,sourceCopies:this.querySelectorAll('.fr-reading-source').length,sourceText:[...tokens.children].map(element=>element.matches('button') ? (element.querySelector('.fr-sentence-token-text')||element).textContent : element.textContent).join(''),labels:[...tokens.querySelectorAll('.fr-sentence-token-meta')].map(element=>({text:element.textContent.trim(),visible:element.getBoundingClientRect().bottom<=area.bottom&&element.getBoundingClientRect().top>=area.top,clipped:element.scrollWidth>element.clientWidth+1})),detailVisible:detail.top>=area.top&&detail.bottom<=area.bottom,overflow:this.scrollWidth>this.clientWidth+1,hostScroll:scrollY};
 });}
 async function main(){
  fs.mkdirSync(output,{recursive:true});const profileDir=fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-reading-density-'));
@@ -83,8 +83,9 @@ async function main(){
   await select('#sentence');await until(()=>node(cls('fr-study-toolbar')),'learning entry missing');await clickNode(button('词性与句法'));await settled();
   report.initial=await layout();
   if(process.argv.includes('--baseline')){await shot('before');report.ok=true;return;}
-  assert.equal(report.initial.sourceCopies,0);assert.equal(report.initial.sourceText.trim(),sentence);assert(report.initial.answerHeight>=365,'too little room for the answer');assert(report.initial.tokensHeight<90,'annotations still occupy too much space');assert(report.initial.detailVisible);assert.equal(report.initial.overflow,false);
-  await shot('grammar-after');record('user sentence is continuous with no repeated original and selected details visible');
+  assert.equal(report.initial.sourceCopies,0);assert.equal(report.initial.sourceText.trim(),sentence);assert(report.initial.answerHeight>=365,'too little room for the answer');assert(report.initial.tokensHeight<115,'annotations still occupy too much space');assert(report.initial.detailVisible);assert.equal(report.initial.overflow,false);
+  await shot('grammar-after');record('user sentence stays in source order with no repeated original and selected details visible');
+  assert.deepEqual(report.initial.labels.map(item=>item.text),['定语 · 形容词','主语 · 短语','谓语 · 动词','定语 · 形容词','宾语 · 短语']);assert(report.initial.labels.every(item=>item.visible&&!item.clipped));record('all fragment roles and word classes are visible before any click');
   await clickNode(n=>support.cdpAttribute(n,'data-pos')==='phrase');
   assert.equal(await ui(function(){return this.querySelector('.fr-sentence-meaning').textContent}),'打印顺序');
   await page.keyboard.press('ArrowRight');assert.equal(await ui(function(){return this.querySelector('.fr-sentence-detail-heading strong').textContent}),'have');
@@ -105,14 +106,14 @@ async function main(){
   record('follow-up sends once and ordinary answers retain an expandable source');
   nextAnswer=grammar;await menu();await clickNode(button('重新生成'));await settled();assert.equal(report.aiRequests,count+2);assert.equal(await ui(function(){return !!this.querySelector('.fr-reading-source')}),false);record('regenerate is available on demand and restores compact annotations');
   await clickNode(button('返回译文'));await clickNode(button('词性与句法'));await settled();assert.equal(report.aiRequests,count+2);record('returning from translation reuses the current explanation');
-  await page.setViewportSize({width:390,height:800});await wait(200);report.narrow=await layout();assert.equal(report.narrow.overflow,false);assert(report.narrow.detailVisible);await shot('grammar-390');
+  await page.setViewportSize({width:390,height:800});await wait(200);report.narrow=await layout();assert.equal(report.narrow.overflow,false);assert(report.narrow.detailVisible);assert(report.narrow.labels.every(item=>item.visible&&!item.clipped));await shot('grammar-390');
   await patch({theme:'dark'});await shot('grammar-dark');await patch({uiLanguage:'en-US'});await wait(150);
   await clickNode(n=>n.nodeName==='SUMMARY'&&support.cdpAttribute(n,'aria-label')==='More actions');await clickNode(button('Regenerate'));await settled();
   assert(await ui(function(){return [...this.querySelectorAll('.fr-reading-actions button')].every(button=>button.scrollWidth<=button.clientWidth+1)}),'English action labels are clipped');
   assert.equal(await ui(function(){return this.querySelector('.fr-reading-actions button[aria-pressed=true]').textContent}),'Grammar');
   assert((await ui(function(){return this.querySelector('.fr-sentence-detail').textContent})).includes('adjective'));await shot('grammar-english-dark');record('390px, dark theme and English remain compact and localized');
   await patch({theme:'light',uiLanguage:'zh-CN'});await page.setViewportSize({width:1440,height:960});
-  await menu();await clickNode(button('理解整句'));await settled();assert.equal(await ui(function(){return this.querySelector('.fr-sentence-tokens').textContent.trim()}),sentence+'.');record('sentence expansion remains available without a permanent toolbar row');
+  await menu();await clickNode(button('理解整句'));await settled();assert.equal(await ui(function(){return [...this.querySelector('.fr-sentence-tokens').children].map(element=>element.matches('button') ? element.querySelector('.fr-sentence-token-text').textContent : element.textContent).join('').trim()}),sentence+'.');record('sentence expansion remains available without a permanent toolbar row');
   await menu();await clickNode(n=>n.nodeName==='BUTTON'&&support.cdpAttribute(n,'aria-label')==='打开划词翻译设置');await until(async()=>context.pages().some(p=>p.url().includes('options.html')),'settings did not open');record('settings remain accessible through secondary actions');
   await helper.activateExtensionTabWithoutForeground(context,page);
   nextAnswer=grammar+'\n\n'+('Additional explanatory detail. '.repeat(90));await menu();await clickNode(button('重新生成'));await settled();
