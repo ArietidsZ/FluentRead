@@ -16,7 +16,6 @@ import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
     "glossary.matchCount": "{count} termes correspondants",
-    "glossary.previewInactive": "Activer pour les traductions",
     "glossary.preferredTranslation": "Traduction souhaitée",
     "glossary.simpleIntro": "Définissez vos traductions. Laissez la traduction vide pour conserver le terme original.",
     "glossary.more": "Plus",
@@ -25,7 +24,6 @@ export const frFRMessages = {
     "glossary.addFirst": "Ajouter le premier terme",
     "glossary.emptyLibraryHelp": "Ce glossaire est vide. Enregistrez un terme pour l’utiliser dans la traduction.",
     "glossary.matchOptions": "Options de correspondance",
-    "glossary.enableToApply": "Termes enregistrés. Activez les glossaires pour la prochaine traduction.",
     "glossary.checkHint": "Vérifier un passage au besoin",
     "glossary.previewNeedsEntries": "Aucun terme enregistré. Ajoutez un terme ou un glossaire intégré.",
     "glossary.localCheckHelp": "Vérifie les termes enregistrés localement, sans demande de traduction ni ajout automatique.",

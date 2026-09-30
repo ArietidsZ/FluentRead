@@ -28,7 +28,7 @@ New glossaries default to the current target language. Existing language and web
 
 Earlier glossaries win when multiple entries define the same source term. Priority is available under **More**. Duplicate entries offer an action to edit the existing term. Distinct case-sensitive spellings can coexist; imported entries are not silently merged.
 
-Open **More → Match preview** only when needed. The check opens in a dialog; it is not offered for an empty glossary, which guides you to add an entry first. Results show matching terms and preferred translations in two columns, with a match count and an enable action when needed. Preview defaults to automatic source language and the current target; optional language and website conditions are collapsed. Exclusion reasons are available when nothing matches or definitions conflict. Preview runs locally even with the master switch off, while actual translation respects the switch.
+Open **More → Match preview** only when needed. The check opens in a dialog; it is not offered for an empty glossary, which guides you to add an entry first. Results show matching terms and preferred translations in two columns, with a match count. The enable switch stays on the main page. Preview defaults to automatic source language and the current target; optional language and website conditions are collapsed. Exclusion reasons are available when nothing matches or definitions conflict. Preview runs locally even with the master switch off, while actual translation respects the switch.
 
 ## Import, export, and data
 

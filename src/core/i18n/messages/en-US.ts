@@ -17,7 +17,6 @@ import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
     "glossary.matchCount": "{count} matching terms",
-    "glossary.previewInactive": "Enable to use in translations",
     "glossary.preferredTranslation": "Preferred translation",
     "glossary.simpleIntro": "Set preferred translations. Leave the translation blank to keep the original.",
     "glossary.more": "More",
@@ -26,7 +25,6 @@ export const enUSMessages = {
     "glossary.addFirst": "Add your first term",
     "glossary.emptyLibraryHelp": "This glossary is empty. Save a term before using it in translation.",
     "glossary.matchOptions": "Matching options",
-    "glossary.enableToApply": "Terms are saved. Enable glossaries to use them in your next translation.",
     "glossary.checkHint": "Check a passage when needed",
     "glossary.previewNeedsEntries": "No saved terms yet. Add a term or a built-in glossary first.",
     "glossary.localCheckHelp": "Checks saved terms locally. No translation request is sent and no terms are added automatically.",

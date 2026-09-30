@@ -66,8 +66,7 @@
           </div>
           <footer v-if="selected.entries.length" class="glossary-editor-footer"><small>{{ t('glossary.entryCount', {count: filteredEntries.length}) }}</small><div v-if="filteredEntries.length > PAGE_SIZE" class="glossary-pagination"><button type="button" :aria-label="t('glossary.previousPage')" :disabled="entryPage === 0" @click="entryPage--">←</button><span>{{ entryPage + 1 }}/{{ Math.ceil(filteredEntries.length / PAGE_SIZE) }}</span><button type="button" :aria-label="t('glossary.nextPage')" :disabled="(entryPage + 1) * PAGE_SIZE >= filteredEntries.length" @click="entryPage++">→</button></div></footer>
 
-        <p v-if="totalEntries && !enabled" class="glossary-inline-state">{{ t('glossary.enableToApply') }} <button type="button" class="glossary-text-button" :disabled="busy" @click="setEnabled(true)">{{ t('glossary.enable') }}</button></p>
-        <p v-else-if="!selected.enabled" class="glossary-inline-state">{{ t('glossary.reason.disabled') }} <button type="button" class="glossary-text-button" :disabled="busy" @click="patchLibrary({enabled: true})">{{ t('glossary.libraryEnabled') }}</button></p>
+        <p v-if="!selected.enabled" class="glossary-inline-state">{{ t('glossary.reason.disabled') }} <button type="button" class="glossary-text-button" :disabled="busy" @click="patchLibrary({enabled: true})">{{ t('glossary.libraryEnabled') }}</button></p>
           <details v-show="settingsOpen" class="glossary-settings-details" :open="settingsOpen" @toggle="settingsOpen = ($event.target as HTMLDetailsElement).open">
             <summary><UiIcon name="sliders" :size="16" />{{ t('glossary.librarySettings') }}<span>{{ t('glossary.settingsSummary') }}</span></summary>
             <fieldset :disabled="!ready">
@@ -109,8 +108,6 @@
           <section v-if="preview.terms.length" class="glossary-match-result" data-testid="glossary-matches" :aria-label="t('glossary.matchCount', {count: preview.terms.length})">
             <header class="glossary-match-heading">
               <strong role="status" aria-live="polite">{{ t('glossary.matchCount', {count: preview.terms.length}) }}</strong>
-              <div v-if="!enabled" class="glossary-match-activation"><span>{{ t('glossary.previewInactive') }}</span><button type="button" :disabled="busy || !ready" @click="setEnabled(true)">{{ t('glossary.enable') }}</button></div>
-              <span v-else class="glossary-match-enabled"><span aria-hidden="true">●</span>{{ t('featureEnable.on') }}</span>
             </header>
             <div class="glossary-match-table-scroll"><table class="glossary-match-table">
               <thead><tr><th scope="col">{{ t('glossary.source') }}</th><th scope="col">{{ t('glossary.preferredTranslation') }}</th></tr></thead>

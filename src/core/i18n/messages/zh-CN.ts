@@ -14,7 +14,6 @@ import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
     "glossary.matchCount": "匹配到 {count} 个词条",
-    "glossary.previewInactive": "启用后用于翻译",
     "glossary.preferredTranslation": "指定译法",
     "glossary.simpleIntro": "指定词语的固定译法，译词留空可保留原文。",
     "glossary.more": "更多",
@@ -23,7 +22,6 @@ export const zhCNMessages = {
     "glossary.addFirst": "添加第一个词条",
     "glossary.emptyLibraryHelp": "这个词库还是空的，保存词条后才能参与翻译。",
     "glossary.matchOptions": "匹配选项",
-    "glossary.enableToApply": "词条已保存，开启术语库后用于下一次翻译。",
     "glossary.checkHint": "需要时检查一段原文",
     "glossary.previewNeedsEntries": "还没有已保存的词条。请先添加词条，或添加一个内置词库。",
     "glossary.localCheckHelp": "仅检查已保存词条，不会调用翻译服务，也不会自动添加术语。",

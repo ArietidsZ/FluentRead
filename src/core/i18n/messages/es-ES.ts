@@ -16,7 +16,6 @@ import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
     "glossary.matchCount": "{count} términos coincidentes",
-    "glossary.previewInactive": "Activa para usar al traducir",
     "glossary.preferredTranslation": "Traducción preferida",
     "glossary.simpleIntro": "Define las traducciones que prefieres. Deja la traducción vacía para conservar el original.",
     "glossary.more": "Más",
@@ -25,7 +24,6 @@ export const esESMessages = {
     "glossary.addFirst": "Añade tu primer término",
     "glossary.emptyLibraryHelp": "Este glosario está vacío. Guarda un término para usarlo al traducir.",
     "glossary.matchOptions": "Opciones de coincidencia",
-    "glossary.enableToApply": "Términos guardados. Activa los glosarios para la próxima traducción.",
     "glossary.checkHint": "Comprueba un texto cuando lo necesites",
     "glossary.previewNeedsEntries": "Aún no hay términos guardados. Añade un término o un glosario integrado.",
     "glossary.localCheckHelp": "Comprueba los términos guardados localmente. No solicita traducciones ni añade términos automáticamente.",

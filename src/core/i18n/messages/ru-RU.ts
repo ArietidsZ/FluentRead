@@ -16,7 +16,6 @@ import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
     "glossary.matchCount": "Найдено терминов: {count}",
-    "glossary.previewInactive": "Включите для перевода",
     "glossary.preferredTranslation": "Заданный перевод",
     "glossary.simpleIntro": "Задайте перевод терминов. Оставьте перевод пустым, чтобы сохранить оригинал.",
     "glossary.more": "Ещё",
@@ -25,7 +24,6 @@ export const ruRUMessages = {
     "glossary.addFirst": "Добавить первый термин",
     "glossary.emptyLibraryHelp": "Глоссарий пуст. Сохраните термин, чтобы использовать его при переводе.",
     "glossary.matchOptions": "Параметры совпадения",
-    "glossary.enableToApply": "Термины сохранены. Включите глоссарии для следующего перевода.",
     "glossary.checkHint": "Проверить текст при необходимости",
     "glossary.previewNeedsEntries": "Нет сохранённых терминов. Сначала добавьте термин или встроенный глоссарий.",
     "glossary.localCheckHelp": "Локальная проверка сохранённых терминов. Запрос перевода не отправляется, термины не добавляются автоматически.",

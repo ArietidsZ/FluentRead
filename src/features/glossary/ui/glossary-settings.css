@@ -125,12 +125,8 @@
 .glossary-scope-summary > span + span { padding-left: 12px; border-left: 1px solid var(--line); }
 
 .glossary-match-result { margin-top: 20px; }
-.glossary-match-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-bottom: 12px; }
+.glossary-match-heading { padding-bottom: 12px; }
 .glossary-match-heading > strong { color: var(--ink); font-size: 13px; font-weight: 600; }
-.glossary-match-activation { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
-.fluentread-glossary .glossary-match-activation button { min-height: 30px; padding: 4px 9px; font-size: 12px; color: var(--brand, var(--el-color-primary)); border-color: var(--line); }
-.glossary-match-enabled { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); font-size: 12px; }
-.glossary-match-enabled > span { color: var(--el-color-success); font-size: 8px; }
 .glossary-match-table-scroll { max-height: 300px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
 .glossary-match-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
 .glossary-match-table th { background: var(--surface-soft); color: var(--muted); font-weight: 400; text-align: left; font-size: 12px; }

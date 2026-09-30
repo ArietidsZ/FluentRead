@@ -197,17 +197,12 @@ async function main() {
     await options.getByTestId('glossary-preview').getByTestId('glossary-matches').getByRole('cell', {name: '大语言模型', exact: true}).waitFor();
     await options.getByTestId('glossary-preview').locator('.glossary-preview-options summary').click();
     await shot(options, 'glossary-first-match');
-    await options.getByTestId('glossary-matches').getByRole('button', {name: '启用术语库', exact: true}).click();
-    await waitConfig(config => config.glossaryEnabled);
-    await options.getByTestId('glossary-matches').locator('.glossary-match-enabled').filter({hasText: '已开启'}).waitFor();
-    await shot(options, 'glossary-match-enabled');
+    assert.equal((await readConfig()).glossaryEnabled, false, '关闭总开关时仍能匹配，预览不会自动开启实际翻译');
     await options.setViewportSize({width: 390, height: 850});
     assert(await options.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
     await shot(options, 'glossary-match-narrow');
     await options.setViewportSize({width: 1440, height: 960});
     await showSettings();
-    await ui.getByRole('switch', {name: '启用术语库'}).uncheck();
-    await waitConfig(config => !config.glossaryEnabled);
     await ui.getByRole('button', {name: '删除词库', exact: true}).click();
     await options.locator('.el-message-box').getByRole('button', {name: '删除', exact: true}).click();
     await waitConfig(config => config.glossaryLibraries.length === 0);

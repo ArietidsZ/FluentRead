@@ -143,13 +143,12 @@ describe('GlossarySettings compiled component', () => {
     expect(state.selected).toBeUndefined(); expect(state.preview.terms).toEqual([]);
     expect(requestConfigPatch).not.toHaveBeenCalled();
     const component = readFileSync(resolve(process.cwd(), 'src/features/glossary/ui/GlossarySettings.vue'), 'utf8');
-    for (const key of ['glossary.emptyTitle', 'glossary.startHelp', 'glossary.previewInactive']) {
+    for (const key of ['glossary.emptyTitle', 'glossary.startHelp']) {
       expect(component).toContain(`t('${key}')`);
       for (const language of ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) expect(translate(key, language)).not.toBe(key);
     }
     expect(translate('glossary.services', 'zh-CN')).toContain('机器翻译和 AI 翻译');
     expect(translate('glossary.services', 'zh-CN')).toContain('自动填回指定译法');
-    expect(translate('glossary.previewInactive', 'zh-CN')).toContain('启用后用于翻译');
   });
 
   it('creates libraries and preserves blank translations, case options, search, and order', async () => {

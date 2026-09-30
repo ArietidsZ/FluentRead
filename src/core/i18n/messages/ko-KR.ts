@@ -16,7 +16,6 @@ import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
     "glossary.matchCount": "용어 {count}개 일치",
-    "glossary.previewInactive": "활성화하면 번역에 적용됩니다",
     "glossary.preferredTranslation": "지정 번역",
     "glossary.simpleIntro": "지정한 용어의 번역을 사용합니다. 번역을 비워 두면 원문을 유지합니다.",
     "glossary.more": "더 보기",
@@ -25,7 +24,6 @@ export const koKRMessages = {
     "glossary.addFirst": "첫 용어 추가",
     "glossary.emptyLibraryHelp": "빈 용어집입니다. 용어를 저장하면 번역에 사용할 수 있습니다.",
     "glossary.matchOptions": "일치 옵션",
-    "glossary.enableToApply": "용어가 저장되었습니다. 용어집을 켜면 다음 번역에 적용됩니다.",
     "glossary.checkHint": "필요할 때 원문 확인",
     "glossary.previewNeedsEntries": "저장된 용어가 없습니다. 용어나 기본 용어집을 먼저 추가하세요.",
     "glossary.localCheckHelp": "저장된 용어를 로컬에서 확인합니다. 번역을 요청하거나 용어를 자동으로 추가하지 않습니다.",

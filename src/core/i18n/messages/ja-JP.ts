@@ -16,7 +16,6 @@ import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
     "glossary.matchCount": "{count} 件の用語が一致",
-    "glossary.previewInactive": "有効にすると翻訳に使用します",
     "glossary.preferredTranslation": "指定の訳語",
     "glossary.simpleIntro": "用語の訳し方を指定します。訳語を空欄にすると原文を保持します。",
     "glossary.more": "その他",
@@ -25,7 +24,6 @@ export const jaJPMessages = {
     "glossary.addFirst": "最初の用語を追加",
     "glossary.emptyLibraryHelp": "この用語集は空です。用語を保存すると翻訳に使用できます。",
     "glossary.matchOptions": "一致条件",
-    "glossary.enableToApply": "用語を保存しました。用語集を有効にすると次回の翻訳に使用されます。",
     "glossary.checkHint": "必要なときに原文を確認",
     "glossary.previewNeedsEntries": "保存済みの用語がありません。用語または内蔵用語集を追加してください。",
     "glossary.localCheckHelp": "保存済みの用語を端末内で確認します。翻訳の送信や用語の自動追加は行いません。",
