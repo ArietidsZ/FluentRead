@@ -1069,8 +1069,8 @@
     "screenIndex": 1,
     "browserFrontmost": false,
     "frontmostBefore": {
-      "pid": 8643,
-      "name": "ChatGPT"
+      "pid": 76304,
+      "name": "微信"
     },
     "frontmostAfter": {
       "pid": 8643,
@@ -1089,5 +1089,7 @@
     "height": 600
   },
   "popupShortcut": true,
-  "evidenceScope": "Curated original screenshots; complete layout and interaction results retained."
+  "testedSource": "76ef4011af5fe35d4015aee4010853fe8a50716e",
+  "integratedMain": "c653714189f8e7010f92b8964f4b0d4dfef795e6",
+  "evidenceScope": "Latest main integrated. Curated original screenshots; complete layout and interaction results retained."
 }
