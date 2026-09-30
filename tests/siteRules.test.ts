@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import {listSitePreferences, previewSitePreferences, updateSitePreference} from '@/src/features/settings/model/sitePreferences';
+import {createSiteRuleText, getSiteRuleTextSources} from '@/src/core/i18n/messages/siteRules';
 
 import {
     getSiteBaseDomain,
@@ -10,6 +12,21 @@ import {
     normalizeFloatingBallDisabledDomains,
     shouldAutoTranslatePage,
 } from '@/src/features/site-rules/domain';
+
+describe('网站规则工作区文案', () => {
+    it('为全部六种非中文界面提供独立、无重复且非空的完整文案', () => {
+        const sources = getSiteRuleTextSources();
+        expect(new Set(sources).size).toBe(sources.length);
+        for (const locale of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+            const translated = createSiteRuleText(locale);
+            expect(Object.keys(translated)).toEqual(sources);
+            for (const source of sources) {
+                expect(translated[source]?.trim()).toBeTruthy();
+                expect(translated[source]).not.toBe(source);
+            }
+        }
+    });
+});
 
 describe('始终翻译网站规则', () => {
     it('使用 Public Suffix List 统一为可注册域名，并覆盖私有后缀', () => {
@@ -140,5 +157,56 @@ describe('悬浮球禁用网站规则', () => {
             alwaysTranslateDomains: ['example.com'],
         })).toBe(true);
         expect(isAlwaysTranslateSite('https://news.example.com/', ['example.com'])).toBe(true);
+    });
+});
+
+describe('统一网站偏好与生效解释', () => {
+    const config = () => ({on: true, autoTranslate: false, disableFloatingBall: false,
+        alwaysTranslateDomains: ['https://docs.example.com/a', 'example.com'],
+        disabledExtensionDomains: ['example.com'], floatingBallDisabledDomains: ['mail.example.com', 'other.test']});
+    it('将旧数组按主域归并为一行，保留重叠偏好并支持搜索', () => {
+        const source = config();
+        const rows = listSitePreferences(source);
+        expect(rows).toEqual([
+            {domain: 'example.com', alwaysTranslate: true, extensionDisabled: true, floatingBallHidden: true},
+            {domain: 'other.test', alwaysTranslate: false, extensionDisabled: false, floatingBallHidden: true},
+        ]);
+        expect(listSitePreferences(source, '  EXAMPLE ')).toEqual([rows[0]]);
+        expect(listSitePreferences(source, 'missing')).toEqual([]);
+        expect(source.alwaysTranslateDomains).toHaveLength(2);
+    });
+    it('编辑与删除只影响目标域名，不突变源名单，撤销可以完整补回', () => {
+        const source = config(); const snapshot = structuredClone(source);
+        const row = listSitePreferences(source)[0]!;
+        const removed = updateSitePreference(source, 'https://news.example.com/a', null)!;
+        expect(removed).toEqual({alwaysTranslateDomains: [], disabledExtensionDomains: [], floatingBallDisabledDomains: ['other.test']});
+        expect(updateSitePreference(removed, row.domain, row)).toEqual({
+            alwaysTranslateDomains: ['example.com'], disabledExtensionDomains: ['example.com'], floatingBallDisabledDomains: ['other.test', 'example.com'],
+        });
+        expect(updateSitePreference(source, 'co.uk', row)).toBeNull();
+        expect(source).toEqual(snapshot);
+        expect(updateSitePreference(source, row.domain, {...row, extensionDisabled: false})?.disabledExtensionDomains).toEqual([]);
+    });
+    it.each([
+        ['暂停', {on: false, autoTranslate: true}, 'paused', 'paused'],
+        ['网站禁用', {autoTranslate: true}, 'disabled', 'disabled'],
+        ['全局自动', {disabledExtensionDomains: [], autoTranslate: true}, 'global', 'hidden-site'],
+        ['网站自动', {disabledExtensionDomains: []}, 'site', 'hidden-site'],
+        ['全局隐藏', {disabledExtensionDomains: [], disableFloatingBall: true}, 'site', 'hidden-global'],
+        ['手动翻译', {disabledExtensionDomains: [], alwaysTranslateDomains: [], floatingBallDisabledDomains: []}, 'manual', 'visible'],
+    ])('解释%s并与运行时自动翻译判定保持一致', (_, patch, translation, ball) => {
+        const source = {...config(), ...patch};
+        const preview = previewSitePreferences('https://news.example.com/a', source)!;
+        expect(preview.translation).toBe(translation);
+        expect(preview.floatingBall).toBe(ball);
+        expect(preview.domain).toBe('example.com');
+        expect(shouldAutoTranslatePage(preview.url, source)).toBe(['global', 'site'].includes(translation));
+    });
+    it('拒绝不完整网址及非网页协议，支持无注册域与 IP 的全局行为', () => {
+        expect(previewSitePreferences('not a URL', config())).toBeNull();
+        expect(previewSitePreferences('example.com', config())).toBeNull();
+        expect(previewSitePreferences('file:///private/tmp/a.html', config())).toBeNull();
+        expect(previewSitePreferences('https://co.uk/', {...config(), autoTranslate: true})).toMatchObject({domain: null, translation: 'global'});
+        expect(previewSitePreferences('http://127.0.0.1/a', config())).toMatchObject({domain: '127.0.0.1', translation: 'manual'});
     });
 });

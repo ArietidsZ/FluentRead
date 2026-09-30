@@ -8,7 +8,9 @@ import {
     completeSiteRuleDraftSave, copySiteRuleToDraft, createSiteAdaptationCommitter, createSiteRuleDraftImportGuard,
     formatSiteRulePack, parseSiteAdaptationDraft, previewSiteRules,
     reconcileSiteRuleDraft, searchSiteRules, setSiteRuleEnabled, SITE_ADAPTATION_EXAMPLE,
+    buildSiteRuleFromForm, createSiteRuleForm, listSiteRuleCatalog, mergeSiteRuleDraft, upsertSiteRuleDraft,
 } from '@/src/features/settings/model/siteAdaptationEditor';
+import {resolveSiteRule} from '@/src/core/site-adaptation/compiler';
 import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
 
 // 扩展运行时按需加载界面语言；本文件验证全部语言的文案契约，因此一次注册全部资源包。
@@ -24,6 +26,83 @@ const settings = (patch: Partial<SiteAdaptationSettings> = {}): SiteAdaptationSe
 });
 
 describe('site adaptation settings persistence and editor behavior', () => {
+    it('presents one effective rule per identifier and distinguishes custom overrides from additions', () => {
+        const builtin = pack(rule('same'), rule('builtin'));
+        const custom = pack(rule('same', {name: 'My override'}), rule('new'));
+        const rows = listSiteRuleCatalog(builtin, settings({enabled: false, disabledRuleIds: ['same'], custom}));
+        expect(rows.map(item => [item.rule.id, item.source, item.overridesBuiltin, item.enabled])).toEqual([
+            ['same', 'custom', true, false], ['builtin', 'builtin', false, true], ['new', 'custom', false, true],
+        ]);
+        expect(rows[0]!.rule.name).toBe('My override');
+        expect(rows[0]!.pack).toBe(custom);
+        expect(builtin.rules[0]!.name).toBe('same');
+    });
+    it('roundtrips advanced content, CSS commas and inherited template behavior through the visual form', () => {
+        const source: SiteRulePack = {version: 1, profiles: {base: {
+            mode: 'focus', content: [{css: [':is(article, main) p'], atomic: false, resolve: 'closest', splitOnBr: true, key: 'paragraph'}],
+            protect: ['pre'], omit: ['.private'], literalLabels: ['b'], literalTokens: ['code'],
+        }}, rules: [rule('advanced', {profile: 'base', allScopes: true, content: undefined,
+            match: {hosts: ['example.com'], paths: ['/read/*'], excludePaths: ['/read/private/*']}, watchIgnore: ['.clock'], exclude: ['nav']})]};
+        const expanded = resolveSiteRule(source, source.rules[0]!);
+        const form = createSiteRuleForm(expanded);
+        form.name = 'User name'; form.protect += '\nbutton'; form.priority = 25;
+        const rebuilt = buildSiteRuleFromForm(form, expanded);
+        expect(rebuilt).toMatchObject({name: 'User name', allScopes: true, mode: 'focus', priority: 25,
+            omit: ['.private'], literalLabels: ['b'], literalTokens: ['code'], protect: ['pre', 'button']});
+        expect(rebuilt.content).toEqual(expanded.content);
+        expect(rebuilt.match).toEqual(expanded.match);
+        expect(rebuilt).not.toHaveProperty('profile');
+        expect(parseSiteAdaptationDraft(formatSiteRulePack(pack(rebuilt)), document).ok).toBe(true);
+        expect(expanded.name).toBe('advanced');
+    });
+    it('creates minimal rules and omits cleared optional lists without inventing empty content', () => {
+        const empty = createSiteRuleForm();
+        expect(empty).toMatchObject({id: '', mode: 'augment', content: [], protect: ''});
+        Object.assign(empty, {id: 'new', name: 'New', hosts: ' example.com\n *.example.com ', protect: '', exclude: '', watchIgnore: ''});
+        const minimal = buildSiteRuleFromForm(empty, rule('old', {profile: 'old', protect: ['button'], exclude: ['nav'], watchIgnore: ['.clock']}));
+        expect(minimal).toEqual({id: 'new', name: 'New', mode: 'augment', priority: 0, match: {hosts: ['example.com', '*.example.com']}});
+        const form = createSiteRuleForm(rule('content-defaults'));
+        expect(form.content[0]).toMatchObject({resolve: 'self', splitOnBr: false, atomic: true});
+        form.content[0]!.key = '  ';
+        expect(buildSiteRuleFromForm(form).content![0]).not.toHaveProperty('key');
+        form.content[0]!.key = '  content-key ';
+        expect(buildSiteRuleFromForm(form).content![0]!.key).toBe('content-key');
+    });
+    it('explains all-node scope using the same allScopes boundary as the runtime engine', () => {
+        const builtin = pack(rule('content-only', {mode: 'focus'}), rule('all', {allScopes: true}));
+        expect(previewSiteRules('https://example.com', builtin, settings(), 'all')).toMatchObject({ok: true,
+            rules: [{rule: {id: 'content-only'}, applicable: false, enabled: false}, {rule: {id: 'all'}, applicable: true, enabled: true}]});
+        expect(previewSiteRules('https://example.com', builtin, settings())).toMatchObject({ok: true,
+            rules: [{applicable: true, enabled: true}, {applicable: true, enabled: true}]});
+    });
+    it('upserts only the selected draft rule, retaining other rules and profiles, and blocks ID collisions', () => {
+        const source = {version: 1 as const, profiles: {local: {protect: ['code']}}, rules: [rule('one'), rule('two')]};
+        const text = formatSiteRulePack(source);
+        const updated = upsertSiteRuleDraft(text, rule('one', {name: 'Changed'}), 'one', document);
+        expect(updated.ok).toBe(true);
+        if (!updated.ok) throw new Error('Expected a valid update');
+        expect(JSON.parse(updated.draft)).toEqual({...source, rules: [rule('one', {name: 'Changed'}), rule('two')]});
+        expect(upsertSiteRuleDraft(text, rule('one'), null, document)).toMatchObject({ok: false, issues: [{path: '$.id'}]});
+        expect(upsertSiteRuleDraft('{broken', rule('new'), null, document).ok).toBe(false);
+        expect(upsertSiteRuleDraft(text, rule('new', {protect: ['[']}), null, document).ok).toBe(false);
+        const added = upsertSiteRuleDraft(text, rule('new'), null, document);
+        expect(added.ok && JSON.parse(added.draft).rules.map((item: SiteRule) => item.id)).toEqual(['one', 'two', 'new']);
+    });
+    it('merges imported rules without dropping existing rules and refuses conflicting profile definitions', () => {
+        const source = {version: 1 as const, profiles: {base: {protect: ['code']}}, rules: [rule('one'), rule('two')]};
+        const incoming = {version: 1 as const, profiles: {base: {protect: ['code']}, added: {exclude: ['nav']}}, rules: [rule('two', {name: 'Imported'}), rule('three')]};
+        const merged = mergeSiteRuleDraft(formatSiteRulePack(source), incoming, document);
+        expect(merged.ok).toBe(true);
+        if (!merged.ok) throw new Error('Expected merge');
+        expect(JSON.parse(merged.draft)).toEqual({version: 1, profiles: incoming.profiles,
+            rules: [rule('one'), rule('two', {name: 'Imported'}), rule('three')]});
+        expect(mergeSiteRuleDraft(formatSiteRulePack(source), {...incoming, profiles: {base: {protect: ['button']}}}, document))
+            .toMatchObject({ok: false, issues: [{path: '$.profiles.base'}]});
+        expect(mergeSiteRuleDraft('{broken', incoming, document).ok).toBe(false);
+        const minimal = mergeSiteRuleDraft(formatSiteRulePack(pack()), pack(rule('new')), document);
+        expect(minimal.ok && JSON.parse(minimal.draft)).toEqual(pack(rule('new')));
+        expect(mergeSiteRuleDraft(formatSiteRulePack(source), pack(rule('bad', {protect: ['[']})), document).ok).toBe(false);
+    });
     it('migrates older configurations to enabled builtins and independent empty custom packs', () => {
         const first = new Config();
         const second = normalizeConfig({});

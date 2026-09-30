@@ -1,7 +1,7 @@
 <!--
  @file src/app/options/OptionsApp.vue
  文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和学习中心入口，并把选中分区交给对应 feature UI。
- 主要内容：渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示，仅统计保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
+ 主要内容：渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示，统计与网站规则按任务保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
  模块边界：组件负责页面壳、导航状态和界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
 -->
 <template>
@@ -147,7 +147,7 @@
 
 <script setup lang="ts">
 import UiIcon from '@/src/ui/components/UiIcon.vue'
-import {settingsPagePanels, resolveSettingsPanel, filterNavigationItems, filterSettingsSearchTargets, isUiLanguageSearch, settingsSearchTargets} from '@/src/features/settings/model/navigation';
+import {SETTINGS_TABBED_SECTION_IDS, settingsPagePanels, resolveSettingsPanel, filterNavigationItems, filterSettingsSearchTargets, isUiLanguageSearch, settingsSearchTargets} from '@/src/features/settings/model/navigation';
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
 import {getInterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
@@ -206,7 +206,7 @@ function toggleGroup(index: number): void {
   expandedGroups.value = next
 }
 const selectedPanels = ref<Record<string, string>>({[activeSection.value]: resolveSettingsPanel(initialDestination)})
-const activePanels = computed(() => activeSection.value === 'settings-translation-stats' ? settingsPagePanels[activeSection.value] : [])
+const activePanels = computed(() => SETTINGS_TABBED_SECTION_IDS.has(activeSection.value) ? settingsPagePanels[activeSection.value] : [])
 const activePanel = computed(() => resolveSettingsPanel(activeSection.value, selectedPanels.value[activeSection.value]))
 function selectPanel(id: string): void {
   selectSection(activeSection.value, id)
@@ -234,7 +234,7 @@ const contentComponentProps = computed(() => activeSection.value === 'settings-v
   ? {onNavigate: selectSection}
   : {
       activeSection: activeSection.value,
-      activePanel: activeSection.value === 'settings-translation-stats' ? activePanel.value : undefined,
+      activePanel: activePanels.value.length ? activePanel.value : undefined,
       appearanceRoot: props.appearanceRoot,
       queryRoot: props.queryRoot,
       settingsHashPrefix: props.settingsHashPrefix,
@@ -326,7 +326,7 @@ function selectSection(requestedId: string, panelOrTargetId?: string) {
   }
   // 分区 DOM 更新后归零真正的内容滚动区，避免切换菜单仍停留在上个长表单的底部。
   void nextTick(() => settingsContentElement.value?.scrollTo({ top: 0, left: 0, behavior: 'instant' }))
-  if (panelOrTargetId && id !== 'settings-translation-stats') {
+  if (panelOrTargetId && !SETTINGS_TABBED_SECTION_IDS.has(id)) {
     void revealSettingsTarget({id, sectionId: id, targetId: settingsPagePanels[id]?.some(panel => panel.id === panelOrTargetId) ? undefined : panelOrTargetId, panelId: selectedPanels.value[id], label: '', searchDescription: ''})
   }
 }

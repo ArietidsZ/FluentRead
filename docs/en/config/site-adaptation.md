@@ -17,7 +17,11 @@ In the browser extension, full-page translation also covers Disqus comments on O
 
 ## Translate every time—or leave it alone
 
-Use website rules to enable automatic translation for regular sites or disable FluentRead on a particular site. Refresh or reopen the page after saving to confirm the behavior.
+Open **System & data → Website rules → Site preferences** to manage always-translate, disable-extension, and hide-floating-button preferences in one row per site. Host input is normalized to the root domain and includes its subdomains; paths and ports are not stored.
+
+Disabling the extension takes precedence over automatic translation but retains the other preferences for re-enabling. Hiding the floating button keeps shortcuts and other features available. Global automatic translation applies to every non-disabled site and retains the site list. Removing a site's preferences restores global defaults and can be undone.
+
+Content rules adjust translation regions by host, path, and CSS selectors. Effective preview checks saved preferences, matching rules, and priority without visiting the site; it does not guarantee that the actual page can translate. Confirm the behavior on the real page after saving.
 
 ## Still wrong?
 

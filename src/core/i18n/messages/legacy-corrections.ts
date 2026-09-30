@@ -5,6 +5,7 @@
  * 模块边界：只提供纯数据，不读取配置、不访问浏览器；新界面仍应使用稳定 message key，这里只修正仍在界面中使用的旧中文文案。
  */
 import type {RegisteredUiLanguage} from '../types';
+import {createSiteRuleText, getSiteRuleTextSources} from './siteRules';
 
 /** 中文原文，随后依次为 English、日本語、한국어、Français、Русский、Español。 */
 type LegacyCorrectionRow = readonly [source: string, enUS: string, jaJP: string, koKR: string, frFR: string, ruRU: string, esES: string];
@@ -670,11 +671,11 @@ const LANGUAGE_COLUMNS: Readonly<Record<RegisteredUiLanguage, 1 | 2 | 3 | 4 | 5 
 
 /** 返回全部校正原文，供契约测试核对仍在界面源码中使用。 */
 export function getLegacyCorrectionSources(): string[] {
-    return correctionRows.map(([source]) => source);
+    return [...correctionRows.map(([source]) => source), ...getSiteRuleTextSources()];
 }
 
 /** 按界面语言展开校正词典，由各语言目录作为最后一层合并进 legacyText。 */
 export function createLegacyCorrectionText(language: RegisteredUiLanguage): Readonly<Record<string, string>> {
     const column = LANGUAGE_COLUMNS[language];
-    return Object.fromEntries(correctionRows.map((row) => [row[0], row[column]]));
+    return {...Object.fromEntries(correctionRows.map((row) => [row[0], row[column]])), ...createSiteRuleText(language)};
 }
