@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/components/InterfaceSkinPreview.vue
 文件职责：以真实 DOM 绘制当前所选界面皮肤的迷你 Popup 范例，让用户不依赖截图即可预判配色、层次和密度。
-主要内容：以注册表色值展示布局型皮肤，以当前语义色展示氛围配色及其深浅模式，渲染品牌栏、语言选择、翻译服务、主操作和快捷入口。
+主要内容：以注册表色值展示布局型皮肤，以当前语义色展示氛围配色及其深浅模式，渲染品牌栏、语言选择、翻译服务和快捷入口。
 模块边界：本组件只展示装饰性范例，不提供可交互控件、不读取或保存配置，也不模拟网页翻译结果；皮肤选择仍由 InterfaceSettings 拥有。
 -->
 <template>
@@ -21,7 +21,7 @@
           <strong>{{ translateLegacy('流畅阅读') }}</strong>
           <small>{{ skinLabel }}</small>
         </span>
-        <i class="preview-switch"><b /></i>
+
       </header>
 
       <div class="preview-language-pair">
@@ -35,8 +35,6 @@
         <span><small>{{ translateLegacy('翻译服务') }}</small><strong>{{ translateLegacy('免费翻译服务') }}</strong></span>
         <b>⌄</b>
       </div>
-
-      <div class="preview-action">{{ translateLegacy('翻译当前网页') }}</div>
 
       <div class="preview-features">
         <span><i>{{ skin.value === 'emoji' ? '📖' : '文' }}</i>{{ translateLegacy('文档翻译') }}</span>

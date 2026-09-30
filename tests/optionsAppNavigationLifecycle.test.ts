@@ -150,6 +150,8 @@ describe('OptionsApp mounted hash navigation', () => {
 it('reveals collapsed groups and the correct page category for a cross-page control', async () => {
   const {state, location} = await mountOptions('#settings-general');
   expect(state.isGroupOpen(0)).toBe(true);
+  expect(state.isGroupOpen(3)).toBe(true);
+  state.toggleGroup(3);
   expect(state.isGroupOpen(3)).toBe(false);
   state.selectSection('settings-advanced', 'cache');
   expect(state.activePanel).toBe('cache');

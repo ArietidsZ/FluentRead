@@ -1,7 +1,7 @@
 <!--
  * @file src/features/glossary/ui/GlossarySettings.vue
  * 文件职责：提供可直接上手的个人术语库设置，集中管理词库、适用语言、网站范围和固定译名。
- * 主要内容：以词条编辑为主流程，按需展开范围设置与本地检查；管理独立草稿、范围解释、重复词条校验与基于最新词表的串行保存。
+ * 主要内容：以词条编辑为主流程，按需展开范围设置与本地检查，页面底部直接展示内置词库；管理独立草稿、范围解释、重复词条校验与基于最新词表的串行保存。
  * 模块边界：配置通过现有 requestConfigPatch 保存并在失败时回读权威状态；文件只在本地解析，界面不请求翻译服务、不改写宿主网页。
  -->
 <template>
@@ -9,12 +9,11 @@
     <FeatureEnableCard :model-value="enabled" :title="t('glossary.enable')" :description="t('glossary.simpleIntro')" :disabled="busy || !ready" @update:model-value="setEnabled" />
     <p v-if="error" class="glossary-error glossary-notice" role="alert">{{ error }}</p>
 
-    <div v-show="section === 'libraries'">
+    <div>
       <div class="glossary-toolbar glossary-main-toolbar">
         <label v-if="libraries.length > 1" class="glossary-library-picker"><span class="glossary-visually-hidden">{{ t('glossary.selection') }}</span><ElSelect class="glossary-select" :model-value="selectedId" :aria-label="t('glossary.selection')" @change="selectLibrary"><ElOption v-for="library in libraries" :key="library.id" :value="library.id" :label="library.name" /></ElSelect></label>
         <strong v-else>{{ selected?.name || t('glossary.libraries') }}</strong>
         <div class="glossary-actions">
-          <button type="button" @click="section = 'builtins'">{{ t('glossary.builtin.title') }}</button>
           <details class="glossary-more" @keydown.esc="moreOpen = false" :open="moreOpen" @toggle="moreOpen = ($event.target as HTMLDetailsElement).open">
             <summary>{{ t('glossary.more') }}</summary>
             <div class="glossary-more-menu">
@@ -92,8 +91,7 @@
       <span class="glossary-save-state" role="status" aria-live="polite">{{ busy ? t('glossary.saving') : saved && !hasMetadataDraft && !entryDraft ? t('glossary.saved') : '' }}</span>
 
     </div>
-    <div v-show="section === 'builtins'" class="glossary-builtins-page">
-      <button type="button" class="glossary-text-button glossary-back" @click="section = 'libraries'">← {{ t('glossary.libraries') }}</button>
+    <div ref="builtinsElement" class="glossary-builtins-page">
       <BuiltinGlossaries :libraries="libraries" :disabled="busy || !ready" @add="addBuiltin" />
     </div>
     <el-dialog v-model="previewOpen" :title="t('glossary.preview')" width="min(760px, calc(100vw - 28px))" class="glossary-check-dialog">
@@ -101,7 +99,7 @@
         <div v-if="!totalEntries" class="glossary-preview-empty">
           <p>{{ t('glossary.previewNeedsEntries') }}</p>
           <button type="button" class="primary" :disabled="busy || !ready" @click="startEntry()">{{ t('glossary.addEntry') }}</button>
-          <button type="button" @click="previewOpen = false; section = 'builtins'">{{ t('glossary.builtin.title') }}</button>
+          <button type="button" @click="showBuiltins()">{{ t('glossary.builtin.title') }}</button>
         </div>
         <div v-else>
           <label>{{ t('glossary.previewText') }}<textarea v-model="previewText" rows="2" placeholder="FluentRead uses a large language model." /></label>
@@ -173,7 +171,12 @@ import {normalizeGlossaryLanguage, cleanGlossaryText} from '@/src/core/glossary/
 const {t, language} = useUiI18n();
 const libraries = ref<GlossaryLibrary[]>([]);
 const enabled = ref(false);
-const section = ref<'libraries' | 'builtins'>('libraries');
+const builtinsElement = ref<HTMLElement | null>(null);
+async function showBuiltins(): Promise<void> {
+  previewOpen.value = false;
+  await nextTick();
+  builtinsElement.value?.scrollIntoView({block: 'start', behavior: 'smooth'});
+}
 const moreOpen = ref(false);
 const previewOpen = ref(false);
 const totalEntries = computed(() => libraries.value.reduce((count, library) => count + library.entries.length, 0));
@@ -246,7 +249,7 @@ function persist(patch: GlossaryPatch | (() => GlossaryPatch)): Promise<boolean>
 }
 function setEnabled(value: boolean): void {void persist({glossaryEnabled: value});}
 function selectLibrary(id: string): void {
-  section.value = 'libraries'; moreOpen.value = false; previewOpen.value = false;
+  moreOpen.value = false; previewOpen.value = false;
   if (id === selectedId.value) return;
   if (entryDraft.value) entryDrafts.set(selectedId.value, entryDraft.value);
   selectedId.value = id; entryDraft.value = entryDrafts.get(id) || null; metadataDrafts.value = {}; query.value = ''; settingsOpen.value = false;
@@ -256,7 +259,7 @@ async function startEntry(source = ''): Promise<void> {
   if (!ready.value || busy.value) return;
   if (!selected.value) await addLibrary();
   if (!selected.value || error.value) return;
-  section.value = 'libraries'; settingsOpen.value = false; previewOpen.value = false;
+  settingsOpen.value = false; previewOpen.value = false;
   const previous = entryDraft.value;
   await editEntry();
   if (entryDraft.value && entryDraft.value !== previous && cleanGlossaryText(source).length <= GLOSSARY_LIMITS.termLength) entryDraft.value.source = cleanGlossaryText(source);
