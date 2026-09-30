@@ -293,6 +293,7 @@ describe('options UI composition architecture', () => {
     expect(activeSectionSource(settingsSections, 'settings-interface')).toContain('<InterfaceSettings :config="config" :active-panel="props.activePanel" />')
     expect(activeSectionSource(settingsSections, 'settings-interface')).toContain('id="settings-interface"')
     expect(settingsGroupTitles(interfaceSettings)).toEqual([
+      "t('settings.interface.readingAssistance')",
       "translateLegacy('界面与弹窗')",
       "t('settings.interface.popupLayout.label')",
       "t('settings.interface.popupLayout.label')",
@@ -400,7 +401,7 @@ describe('options UI composition architecture', () => {
     expect(settingsSections).toContain('<ImageOcrSettings v-if="props.activeSection === \'settings-image-translation\'" v-model:source-language="config.from" />')
     expect(settingsSections).toContain("v-if=\"hasVisitedSection('settings-image-translation')\"")
     expect(settingsSections).toContain('<AreaTranslationSettings')
-    expect(settingsSections).toContain("v-if=\"hasVisitedSection('settings-area-translation')\"")
+    expect(settingsSections).toContain('id="settings-area-translation"')
     const areaSettings = source('src/features/settings/ui/AreaTranslationSettings.vue')
     const sharedOcrSettings = source('src/features/image-translation/ui/ImageOcrSettings.vue')
     expect(areaSettings).toContain('<ImageOcrSettings v-if="props.active" id-prefix="area" v-model:source-language="props.config.from" />')
@@ -586,8 +587,7 @@ describe('options UI composition architecture', () => {
     expect(videoModelSettings).toContain("@/src/platform/browser/capabilities")
     expect(videoModelSettings).toContain('!browserCapabilities.extensionDom')
     expect(videoModelSettings).toContain('当前浏览器不支持本地 AI 字幕，无法下载或运行本地模型。')
-    expect(popup).toContain('v-if="!browserCapabilities.extensionDom"')
-    expect(popup).toContain('当前浏览器不支持 X 本地 AI 字幕，视频原生字幕翻译仍可使用。')
+    expect(popup).not.toContain("activeDrawer === 'video'")
     expect(popup).toContain("openOptions(drawerSettingsSection[activeDrawer])")
     expect(videoRuntime).toContain("import {browserCapabilities} from '@/src/platform/browser/capabilities'")
     const playerMenu = source('src/features/video-subtitle/content/playerMenu.ts')
@@ -1037,7 +1037,8 @@ describe('options UI composition architecture', () => {
     expect(styles).not.toContain('.style-preview-text')
     expect(styles).not.toContain('.bilingual-highlight-preview')
 
-    expect(services).toContain('<ServiceCatalog')
+    expect(services).toContain('<FeatureServiceSettings')
+    expect(settings).toContain('<ServiceCatalog :compact="!serviceDirectoryOpen"')
     expect(services).not.toContain('data-testid="default-translation-service-card"')
     expect(services).not.toContain('aria-label="默认网页翻译服务"')
     expect(services).not.toContain('<SettingsGroup')
@@ -1061,17 +1062,17 @@ describe('options UI composition architecture', () => {
     expect(template.trimStart()).toMatch(/^<SettingsPanel name="translation"[^>]*>\s*<TranslationStyleSettings/)
     expect(styleSettings).toContain("import '@/src/ui/styles/translation-display.css'")
     expect(styleSettings).toContain('v-for="preset in visiblePresets"')
-    expect(styleSettings).toContain(':class="preset.className"')
+    expect(styleSettings).toContain('@click="selectPreset(preset.value)"')
     expect(styleSettings).toContain(':appearance-style="appearanceStyle"')
-    expect(styleSettings).toContain(':style="presetAppearanceStyle"')
+    expect(styleSettings).toContain(':class="preset.className"')
     expect(styleSettings).toContain('getTranslationAppearanceStyle(appearance.value)')
     for (const field of ['textColor', 'lineColor', 'fillColor']) expect(styleSettings).toContain(`v-model="appearance.${field}"`)
-    expect(styleSettings).toContain('v-model="config.bilingualSentenceHighlightEnabled"')
+    expect(interfaceSettings).toContain('v-model="props.config.bilingualSentenceHighlightEnabled"')
     expect(styleSettings).toContain("t('settings.translationStyle.bilingualOnly')")
     expect(styleSettings).toContain('@click="config.display = 1"')
     expect(styleSettings).toContain('container-type: inline-size')
     // 设置搜索的控件直达目标必须指向真实元素。
-    expect(styleSettings).toContain('id="translation-sentence-highlight"')
+    expect(interfaceSettings).toContain('id="translation-sentence-highlight"')
     expect(styleSettings).toContain('id="translation-appearance-panel"')
     for (const testId of ['bilingual-highlight-preview', 'bilingual-highlight-preview-source', 'bilingual-highlight-preview-translation']) {
       expect(preview).toContain(`data-testid="${testId}"`)

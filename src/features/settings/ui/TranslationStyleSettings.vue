@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/TranslationStyleSettings.vue
-文件职责：作为“界面风格”页的第一个分组，集中设置网页双语译文的样式预设、文字与独立背景色、精确字号等外观微调和双语逐句高亮，并提供与网页一致的实时预览。
-主要内容：命名样式卡片展示各自真实外观；当前预览实时反映颜色、字体与安全的自定义 CSS 声明，并能保存、更新或删除多套样式。
+文件职责：作为“界面风格”页的第一个分组，集中设置网页双语译文的样式预设、文字与独立背景色、精确字号等外观微调，并提供与网页一致的实时预览。
+主要内容：以紧凑可视卡片比较各样式效果，减少嵌套边框并突出当前选择；当前预览实时反映颜色、字体与安全的自定义 CSS 声明，并能保存、更新或删除多套样式。
 模块边界：本组件只编辑父级传入的 Config 草稿（style、translationAppearance、translationStyleProfiles 等），不持久化配置、
 不向网页注入样式；预设元数据和外观声明来自 core/config/translationAppearance，网页应用由 content 层负责。
 -->
@@ -32,14 +32,6 @@
                 :aria-checked="config.activeTranslationStyleProfileId === profile.id"
                 @click="selectProfile(profile)"
               >
-                <span class="translation-style-card-sample" :data-page-theme="pageTheme" aria-hidden="true" data-i18n-ignore>
-                  <span
-                    class="fluent-read-bilingual-content"
-                    :class="getTranslationStylePreset(profile.style)?.className"
-                    :style="getTranslationAppearanceStyle(profile.appearance)"
-                    lang="zh-CN"
-                  >阅读轻松自然</span>
-                </span>
                 <strong>{{ profile.name }}</strong>
                 <small>{{ t('settings.translationStyle.profileBase', { name: translateLegacy(getTranslationStylePreset(profile.style)?.label ?? '') }) }}</small>
               </button>
@@ -90,17 +82,7 @@
             :hint="selectedPreset.className === 'fluent-display-blur-reveal' ? t('settings.translationStyle.blurRevealHint') : ''"
             @update:page-theme="pageTheme = $event"
           />
-          <div id="translation-sentence-highlight" class="translation-style-highlight-toggle">
-            <span>
-              <strong>{{ t('settings.general.bilingualSentenceHighlight') }}</strong>
-              <small>{{ t('settings.general.bilingualSentenceHighlightDescription') }}</small>
-            </span>
-            <el-switch
-              v-model="config.bilingualSentenceHighlightEnabled"
-              class="settings-toggle"
-              :aria-label="t('settings.general.bilingualSentenceHighlight')"
-            />
-          </div>
+
         </div>
       </div>
 
@@ -313,19 +295,17 @@ const profileDirty = computed(() => activeProfile.value && (
 ))
 const pageTheme = ref<'light' | 'dark'>('light')
 const activeCategory = ref<TranslationStyleCategory>(selectedPreset.value.category)
-// 弹窗、历史恢复或导入改变样式时切到对应分类，保证当前样式卡片可见。
-watch(() => selectedPreset.value.category, (category) => { activeCategory.value = category })
+watch(() => selectedPreset.value.category, category => { activeCategory.value = category })
+const visiblePresets = computed(() => TRANSLATION_STYLE_PRESETS.filter(preset => preset.category === activeCategory.value))
+function selectCategory(value: string | number): void {
+  activeCategory.value = TRANSLATION_STYLE_CATEGORIES.find(category => category.value === value)?.value ?? activeCategory.value
+}
 watch(() => [config.value.activeTranslationStyleProfileId, activeProfile.value?.name], () => {
   profileNameDraft.value = activeProfile.value?.name ?? ''
 }, {immediate: true})
-const visiblePresets = computed(() => TRANSLATION_STYLE_PRESETS.filter((preset) => preset.category === activeCategory.value))
 const categoryOptions = computed(() => TRANSLATION_STYLE_CATEGORIES.map((category) => ({value: category.value, label: t(category.labelKey)})))
 const fontWeightOptions = computed(() => TRANSLATION_FONT_WEIGHT_OPTIONS.map((option) => ({value: option.value, label: t(option.labelKey)})))
 const fontFamilyOptions = computed(() => TRANSLATION_FONT_FAMILY_OPTIONS.map((option) => ({value: option.value, label: t(option.labelKey)})))
-
-function selectCategory(value: string | number): void {
-  activeCategory.value = TRANSLATION_STYLE_CATEGORIES.find((category) => category.value === value)?.value ?? activeCategory.value
-}
 
 function selectPreset(style: number): void {
   // 离开已保存的快照时恢复内置样式原貌；内置样式间切换仍沿用当前的全局外观微调。
@@ -452,37 +432,6 @@ function resetAppearance(): void {
   gap: 10px;
 }
 
-.translation-style-highlight-toggle {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 11px 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
-}
-
-.translation-style-highlight-toggle > span {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.translation-style-highlight-toggle strong {
-  color: var(--ink);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.translation-style-highlight-toggle small {
-  color: var(--muted);
-  font-size: 10.5px;
-  line-height: 1.55;
-}
-
 .translation-style-gallery {
   display: grid;
   min-width: 0;
@@ -501,7 +450,6 @@ function resetAppearance(): void {
 .translation-style-saved-card small { color: var(--muted); font-size: 10px; }
 .translation-style-saved-card.selected { border-color: var(--brand); background: var(--brand-soft); }
 .translation-style-saved-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-.translation-style-saved-card .translation-style-card-sample { min-height: 54px; margin-bottom: 2px; }
 
 .translation-style-gallery-heading {
   display: flex;
@@ -539,9 +487,9 @@ function resetAppearance(): void {
   display: grid;
   min-width: 0;
   gap: 7px;
-  padding: 6px 6px 9px;
+  padding: 9px 10px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 9px;
   color: var(--ink);
   background: var(--surface);
   cursor: pointer;
@@ -558,7 +506,7 @@ function resetAppearance(): void {
 .translation-style-card.selected {
   border-color: var(--brand);
   background: color-mix(in srgb, var(--brand) 5%, var(--surface));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 16%, transparent);
+  box-shadow: inset 0 0 0 1px var(--brand);
 }
 
 .translation-style-card:focus-visible {
@@ -570,7 +518,7 @@ function resetAppearance(): void {
 .translation-style-card-sample {
   display: grid;
   min-width: 0;
-  min-height: 58px;
+  min-height: 42px;
   align-content: center;
   overflow: hidden;
   padding: 0 10px;
@@ -587,7 +535,7 @@ function resetAppearance(): void {
 .translation-style-card-sample[data-page-theme="dark"] {
   color: #e6e8ec;
   background: #17191e;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+  box-shadow: none;
 }
 
 .translation-style-card-name {
@@ -814,14 +762,16 @@ function resetAppearance(): void {
   .translation-style-workbench { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
 }
 
-@container (max-width: 480px) {
-  .translation-style-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .translation-style-highlight-toggle { align-items: flex-start; }
-}
-
 @media (max-width: 520px) {
   .translation-style-settings { padding: 12px; }
   .translation-appearance-disclosure { padding: 12px; }
   .translation-appearance-content { padding: 12px; }
 }
+/* 样式本身就是信息：单层卡片保留真实缩略效果，不再叠放装饰性内框。 */
+.translation-style-card-sample { border: 0; border-radius: 4px; padding: 8px 2px; box-shadow: none; }
+.translation-style-card-name { padding-left: 0; font-size: 11px; font-weight: 500; color: var(--muted); }
+.translation-style-card.selected .translation-style-card-name { color: var(--brand-strong); font-weight: 650; }
+.translation-style-card-check { right: 9px; bottom: 9px; }
+.translation-style-categories.segmented-control { min-width: 220px; max-width: 290px; }
+@container (max-width: 480px) { .translation-style-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

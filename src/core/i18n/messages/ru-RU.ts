@@ -483,6 +483,11 @@ export const ruRUMessages = {
     "modelCache.removing": "Удаление…",
     "modelCache.removeFailed": "Не удалось удалить. Повторите попытку.",
 
+    "popup.image.web": "Изображения",
+    "popup.image.webHint": "Распознать и перевести текст",
+    "popup.image.area": "Область экрана",
+    "popup.image.areaHint": "Нажмите и выделите область",
+    "settings.interface.readingAssistance": "Помощь при чтении",
     "featureEnable.on": "Включено",
     "featureEnable.off": "Выключено",
     "featureEnable.unavailable": "Недоступно",

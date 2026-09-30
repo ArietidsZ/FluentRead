@@ -91,9 +91,9 @@ describe('界面皮肤与栏目配置', () => {
     expect(normalizeConfig({interfaceSkin: 'emoji'}).interfaceSkin).toBe('emoji')
     expect(normalizeConfig({interfaceFont: 'noto-sans-sc'}).interfaceFont).toBe('noto-sans-sc')
     expect(interfaceSkinOptions.every((item) => interfaceSkinUsesContentHeight(item.value))).toBe(true)
-    expect(interfaceSkinOptions.filter((item) => !['minimal', 'compact'].includes(item.value)).every((item) => item.popupWidth === 360)).toBe(true)
-    expect(getInterfaceSkinOption('minimal').popupWidth).toBe(350)
-    expect(getInterfaceSkinOption('compact').popupWidth).toBe(340)
+    expect(interfaceSkinOptions.filter((item) => !['minimal', 'compact'].includes(item.value)).every((item) => item.popupWidth === 340)).toBe(true)
+    expect(getInterfaceSkinOption('minimal').popupWidth).toBe(330)
+    expect(getInterfaceSkinOption('compact').popupWidth).toBe(320)
     expect(interfaceVisibilityOptions.map((item) => item.key)).toEqual([
       'popupQuickFeatures',
       'popupSiteRule',
@@ -110,8 +110,6 @@ describe('界面皮肤与栏目配置', () => {
       'selection',
       'appearance',
       'image',
-      'area',
-      'video',
       'document',
     ])
   })
@@ -154,8 +152,6 @@ describe('界面皮肤与栏目配置', () => {
       'selection',
       'appearance',
       'image',
-      'area',
-      'video',
     ])
     expect(normalizePopupQuickFeatureOrder(null)).toEqual(DEFAULT_POPUP_QUICK_FEATURE_ORDER)
 
@@ -169,16 +165,23 @@ describe('界面皮肤与栏目配置', () => {
       selection: true,
       appearance: false,
       image: true,
-      area: true,
-      video: true,
       document: true,
     })
   })
 
-  it('默认保留六个入口，显式添加译文显示后仍持久保留', () => {
+  it('合并旧圈选入口时保留排序、可见性和独立功能偏好', () => {
+    const migrated = normalizeConfig({popupQuickFeatureOrder: ['area', 'image', 'video', 'hover'], popupQuickFeatureVisibility: {image: false, area: true}, selectionAreaEnabled: true, disableImageTranslator: true, videoTranslationEnabled: true})
+    expect(migrated.popupQuickFeatureOrder).toEqual(['image', 'hover', 'selection', 'appearance', 'document'])
+    expect(migrated.popupQuickFeatureVisibility.image).toBe(true)
+    expect(migrated).toMatchObject({selectionAreaEnabled: true, disableImageTranslator: true, videoTranslationEnabled: true})
+    expect(normalizePopupQuickFeatureVisibility({image: false, area: false}).image).toBe(false)
+    expect(normalizeConfig(migrated)).toEqual(migrated)
+  })
+
+  it('默认保留四个入口，显式添加译文显示后仍持久保留', () => {
     const initial = normalizeConfig({})
     expect(initial.popupQuickFeatureOrder.filter(id => initial.popupQuickFeatureVisibility[id]))
-      .toEqual(['hover', 'selection', 'image', 'area', 'video', 'document'])
+      .toEqual(['hover', 'selection', 'image', 'document'])
     const visible = withPopupQuickFeatureVisibility(initial.popupQuickFeatureVisibility, 'appearance', true)
     expect(normalizeConfig({...initial, popupQuickFeatureVisibility: visible}).popupQuickFeatureVisibility.appearance).toBe(true)
   })
@@ -208,10 +211,10 @@ describe('界面皮肤与栏目配置', () => {
     expect(interfaceSkinUsesContentHeight('minimal')).toBe(true)
     expect(interfaceSkinUsesContentHeight('paper')).toBe(true)
     expect(interfaceSkinUsesContentHeight('unknown')).toBe(true)
-    expect(getInterfaceSkinOption('default').popupWidth).toBe(360)
-    expect(getInterfaceSkinOption('minimal').popupWidth).toBe(350)
-    expect(getInterfaceSkinOption('compact').popupWidth).toBe(340)
-    expect(getInterfaceSkinOption('unknown').popupWidth).toBe(360)
+    expect(getInterfaceSkinOption('default').popupWidth).toBe(340)
+    expect(getInterfaceSkinOption('minimal').popupWidth).toBe(330)
+    expect(getInterfaceSkinOption('compact').popupWidth).toBe(320)
+    expect(getInterfaceSkinOption('unknown').popupWidth).toBe(340)
 
     expect(normalizeInterfaceVisibility({popupQuickFeatures: false})).toEqual({
       popupQuickFeatures: false,
@@ -257,16 +260,12 @@ describe('界面皮肤与栏目配置', () => {
       'selection',
       'appearance',
       'image',
-      'area',
-      'video',
     ])
     expect(normalized.popupQuickFeatureVisibility).toEqual({
       hover: true,
       selection: true,
       appearance: false,
       image: false,
-      area: true,
-      video: true,
       document: true,
     })
     expect(normalizeConfig({

@@ -1,12 +1,12 @@
 <!--
  * @file src/features/settings/ui/FeatureServiceSettings.vue
  * 文件职责：提供按功能分配翻译服务的统一入口，让默认服务、继承关系和独立选择在一页内可见。
- * 主要内容：使用相同的服务目录与图标展示网页默认、各功能服务、有效模型和缺失凭据提示；AI 功能仅提供兼容服务，配置连接入口保持独立于默认选择。
+ * 主要内容：使用相同的服务目录与图标展示网页默认、各功能服务、有效模型和缺失凭据提示；AI 功能仅提供兼容服务，配置连接就地打开编辑窗，服务目录按钮允许管理未使用的服务，默认选择保持独立。
  * 模块边界：仅修改父级传入的配置草稿，复用现有字段与自动保存；不保存第二份映射，不发起翻译或测试连接请求。
  -->
 <template>
   <div class="feature-services" data-testid="feature-services" data-i18n-ignore>
-    <p class="feature-services-intro">{{ t('featureServices.intro') }}</p>
+    <div class="feature-services-toolbar"><p class="feature-services-intro">{{ t('featureServices.intro') }}</p><el-button id="service-connections" @click="emit('manage-services')">{{ t('settings.services.library.shortlist') }}</el-button></div>
     <SettingsGroup>
       <SettingsItem :label="t('featureServices.default')" :description="t('featureServices.defaultHelp')">
         <div class="feature-service-control" data-feature-service="default">
@@ -14,7 +14,7 @@
             <template #prefix><ServiceIcon :service="config.service" :label="serviceLabel(config.service)" size="small" /></template>
             <el-option v-for="option in choices(config.service)" :key="option.value" :value="option.value" :label="option.label" :disabled="option.disabled"><span class="feature-service-option"><ServiceIcon :service="option.value" :label="option.label" size="small" />{{ option.label }}</span></el-option>
           </el-select>
-          <button class="feature-service-connection" type="button" @click="emit('configure-service', config.service)">{{ t('featureServices.connection') }} <span aria-hidden="true">↗</span></button>
+          <button class="feature-service-connection" type="button" @click="emit('configure-service', config.service)">{{ t('featureServices.connection') }}</button>
         </div>
       </SettingsItem>
     </SettingsGroup>
@@ -34,7 +34,7 @@
             <el-option v-for="option in choices(getFeatureService(config, feature), feature.aiOnly)" :key="option.value" :value="option.value" :label="option.label" :disabled="option.disabled"><span class="feature-service-option"><ServiceIcon :service="option.value" :label="option.label" size="small" />{{ option.label }}</span></el-option>
           </el-select>
           <div class="feature-service-meta">
-            <button class="feature-service-connection" type="button" :aria-label="`${t(`featureServices.${feature.id}`)} · ${t('featureServices.connection')}`" @click="emit('configure-service', effectiveService(feature))">{{ t('featureServices.connection') }} <span aria-hidden="true">↗</span></button>
+            <button class="feature-service-connection" type="button" :aria-label="`${t(`featureServices.${feature.id}`)} · ${t('featureServices.connection')}`" @click="emit('configure-service', effectiveService(feature))">{{ t('featureServices.connection') }}</button>
           </div>
           <small v-if="warning(feature)" class="feature-service-warning" role="status">{{ warning(feature) }}</small>
         </div>
@@ -55,7 +55,7 @@ import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 type ServiceOption = {value: string; label: string; disabled?: boolean};
 const props = defineProps<{config: Config; serviceOptions: readonly ServiceOption[]}>();
-const emit = defineEmits<{'configure-service': [service: string]; 'open-center': []}>();
+const emit = defineEmits<{'configure-service': [service: string]; 'open-center': []; 'manage-services': []}>();
 const {t, translateLegacy} = useUiI18n();
 const serviceLabel = (service: string) => props.serviceOptions.find(option => option.value === service)?.label || service;
 const effectiveService = (feature: FeatureServiceDefinition) => getFeatureService(props.config, feature) || props.config.service;
@@ -74,6 +74,7 @@ function warning(feature: FeatureServiceDefinition): string {
 </script>
 <style scoped>
 .feature-services { max-width: 1080px; margin: 0 auto; }
+.feature-services-toolbar { display: flex; align-items: start; justify-content: space-between; gap: 20px; margin-bottom: 16px; }
 .feature-services-intro { margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.7; }
 .feature-service-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-width: 0; }
 .feature-service-control :deep(.el-select) { width: 100%; }

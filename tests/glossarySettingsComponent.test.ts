@@ -442,7 +442,7 @@ describe('GlossarySettings compiled component', () => {
     await state.addLibrary(); await state.addLibrary();
     expect(config.glossaryLibraries.map(item => item.name)).toEqual(['新术语库', '新术语库 2']);
     expect(config.glossaryLibraries.every(item => item.targetLanguage === 'zh-hans')).toBe(true);
-    expect(state.settingsOpen).toBe(true); expect(state.section).toBe('libraries');
+    expect(state.settingsOpen).toBe(true); expect(state.selected).toBeTruthy();
     state.previewText = 'token'; state.previewTarget = 'ja';
     expect(state.previewLibraries.every((item: any) => item.reason === 'target')).toBe(true);
     await state.persist({glossaryLibraries: Array.from({length: 20}, (_, index) => fixture(`lib-${index}`))});

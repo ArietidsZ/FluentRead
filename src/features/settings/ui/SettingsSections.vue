@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：通过 activePanel 将长页面拆为可切换的任务分类，集中分配功能服务并将模型用量合并到翻译统计，保留已访问表单实例；包含正文/全部节点识别范围；模板按 activeSection 展示业务分区，通用设置按日常翻译、网页辅助、基本偏好组织控件，提供当前默认服务的配置入口并保留译文样式跨页入口；图片与圈选分别复用仅在当前分区挂载的 OCR 管理组件，在界面风格页组织译文样式、风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
+ * 主要内容：通过 activePanel 将长页面拆为可切换的任务分类，集中分配功能服务并将模型用量合并到翻译统计，保留已访问表单实例；包含正文/全部节点识别范围；模板按 activeSection 展示业务分区，通用设置按日常翻译、网页辅助、基本偏好组织控件，提供当前默认服务的配置入口并保留译文样式跨页入口；图片与圈选合并在同页，共享仅在当前分区挂载的 OCR 管理组件；服务连接通过按需挂载的原地弹窗编辑，在界面风格页组织译文样式、风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -29,7 +29,7 @@
             type="button"
             class="general-service-configure"
             data-testid="configure-default-translation-service"
-            @click="setConfigurationService(config.service); openSettingsSection('settings-services', 'connections')"
+            @click="openInputServiceSettings(config.service)"
           >
             配置服务
           </button>
@@ -206,52 +206,8 @@
     <!-- 翻译服务 -->
     <section v-if="hasVisitedSection('settings-services')" v-show="props.activeSection === 'settings-services'" id="settings-services" class="settings-section">
       <SettingsPanel name="assignments" :active="props.activePanel">
-        <FeatureServiceSettings :config="config" :service-options="availableServiceOptions" @configure-service="openInputServiceSettings" @open-center="openSettingsSection('settings-translation-center')" />
+        <FeatureServiceSettings :config="config" :service-options="availableServiceOptions" @configure-service="openInputServiceSettings" @manage-services="openServiceDirectory" @open-center="openSettingsSection('settings-translation-center')" />
       </SettingsPanel>
-      <SettingsPanel name="connections" :active="props.activePanel">
-      <ServiceCatalog
-        :service="selectedConfigurationService"
-        :default-service="config.service"
-        :website="selectedConfigurationWebsite"
-        :credential-guide="selectedConfigurationCredentialGuide"
-        :selected-model="selectedConfigurationModel"
-        :services="configurationCompute.filteredServices"
-        :favorite-services="config.favoriteServices"
-        :configured-services="configuredServiceIds"
-        :model-options="configurationModelOptions"
-        :show-model="configurationCompute.showModel"
-        :maximum-models="MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER"
-        :maximum-model-length="MAX_CUSTOM_OPENAI_MODEL_LENGTH"
-        :custom-model-count="selectedConfigurationCustomModelCount"
-        :allow-custom-models="configurationCompute.allowCustomModels"
-        @update:service="setConfigurationService"
-        @update:favorites="config.favoriteServices = $event"
-        @update:model="selectConfigurationModel"
-        @add:service="openCustomProviderDialog"
-        @add:model="addConfigurationModel"
-        @remove:model="removeConfigurationModel"
-      >
-        <template #configuration="{ connectionActionTarget }">
-          <ServiceConfiguration
-            :connection-action-target="connectionActionTarget"
-            :config="config"
-            :service="selectedConfigurationService"
-            :selected-model-thinking="selectedConfigurationModelThinking"
-            :compute="configurationCompute"
-            :options="options"
-            :is-valid-azure-endpoint="isValidAzureEndpoint"
-            :custom-provider="selectedCustomProvider"
-            @update:model-thinking="updateSelectedConfigurationModelThinking"
-            @update:custom-provider="updateSelectedCustomProvider"
-            @delete:custom-provider="deleteSelectedCustomProvider"
-          />
-        </template>
-      </ServiceCatalog>
-      </SettingsPanel>
-      <CustomOpenAIProviderDialog
-        v-model="customProviderDialogOpen"
-        @submit="createCustomProvider"
-      />
     </section>
     <section v-if="hasVisitedSection('settings-image-translation')" v-show="props.activeSection === 'settings-image-translation'" id="settings-image-translation" class="settings-section image-translation-settings">
       <SettingsPanel name="entries" :active="props.activePanel">
@@ -267,18 +223,14 @@
         </SettingsItem>
       </SettingsGroup>
 </SettingsPanel>
-      <SettingsPanel name="ocr" :active="props.activePanel">
-<ImageOcrSettings v-if="props.activeSection === 'settings-image-translation'" v-model:source-language="config.from" />
-</SettingsPanel>
-    </section>
-    <section v-if="hasVisitedSection('settings-area-translation')" v-show="props.activeSection === 'settings-area-translation'" id="settings-area-translation" class="settings-section">
-      <AreaTranslationSettings
-        :config="config"
-        :service-options="availableServiceOptions"
-        :enabled="selectionAreaTranslationEnabled"
-        :active="props.activeSection === 'settings-area-translation'"
-        @update:enabled="selectionAreaTranslationEnabled = $event"
-      />
+      <SettingsPanel name="area">
+        <div id="settings-area-translation">
+          <AreaTranslationSettings :config="config" :service-options="availableServiceOptions" :enabled="selectionAreaTranslationEnabled" :active="props.activeSection === 'settings-image-translation'" :show-ocr="false" @update:enabled="selectionAreaTranslationEnabled = $event" />
+        </div>
+      </SettingsPanel>
+      <SettingsPanel name="ocr">
+        <ImageOcrSettings v-if="props.activeSection === 'settings-image-translation'" v-model:source-language="config.from" />
+      </SettingsPanel>
     </section>
     <section v-if="hasVisitedSection('settings-video')" v-show="props.activeSection === 'settings-video'" id="settings-video" class="settings-section">
       <SettingsPanel name="general" :active="props.activePanel">
@@ -557,7 +509,7 @@
         :config="config"
         :service-options="availableServiceOptions"
         @trigger-change="handleInputBoxTranslationTriggerChange"
-        @configure-service="openInputServiceSettings"
+        @configure-service="openInputServiceSettings" @manage-services="openServiceDirectory"
       />
     </SettingsPanel>
 </section>
@@ -710,6 +662,47 @@
       @cancel="handleCustomSelectionHotkeyCancel"
     />
   </template>
+  <el-dialog v-model="serviceDialogOpen" :title="t('featureServices.connections')" :width="serviceDirectoryOpen ? 'min(1080px, calc(100vw - 32px))' : 'min(760px, calc(100vw - 32px))'" :lock-scroll="false" destroy-on-close class="service-configuration-dialog">
+      <ServiceCatalog :compact="!serviceDirectoryOpen"
+        :service="selectedConfigurationService"
+        :default-service="config.service"
+        :website="selectedConfigurationWebsite"
+        :credential-guide="selectedConfigurationCredentialGuide"
+        :selected-model="selectedConfigurationModel"
+        :services="configurationCompute.filteredServices"
+        :favorite-services="config.favoriteServices"
+        :configured-services="configuredServiceIds"
+        :model-options="configurationModelOptions"
+        :show-model="configurationCompute.showModel"
+        :maximum-models="MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER"
+        :maximum-model-length="MAX_CUSTOM_OPENAI_MODEL_LENGTH"
+        :custom-model-count="selectedConfigurationCustomModelCount"
+        :allow-custom-models="configurationCompute.allowCustomModels"
+        @update:service="setConfigurationService"
+        @update:favorites="config.favoriteServices = $event"
+        @update:model="selectConfigurationModel"
+        @add:service="openCustomProviderDialog"
+        @add:model="addConfigurationModel"
+        @remove:model="removeConfigurationModel"
+      >
+        <template #configuration="{ connectionActionTarget }">
+          <ServiceConfiguration
+            :connection-action-target="connectionActionTarget"
+            :config="config"
+            :service="selectedConfigurationService"
+            :selected-model-thinking="selectedConfigurationModelThinking"
+            :compute="configurationCompute"
+            :options="options"
+            :is-valid-azure-endpoint="isValidAzureEndpoint"
+            :custom-provider="selectedCustomProvider"
+            @update:model-thinking="updateSelectedConfigurationModelThinking"
+            @update:custom-provider="updateSelectedCustomProvider"
+            @delete:custom-provider="deleteSelectedCustomProvider"
+          />
+        </template>
+      </ServiceCatalog>
+  </el-dialog>
+  <CustomOpenAIProviderDialog v-model="customProviderDialogOpen" @submit="createCustomProvider" />
 </template>
 
 <script lang="ts" setup>
@@ -781,8 +774,11 @@ const ServiceCatalog = defineAsyncComponent(() => import('./services/ServiceCata
 const ServiceConfiguration = defineAsyncComponent(() => import('./services/ServiceConfiguration.vue'));
 const CustomOpenAIProviderDialog = defineAsyncComponent(() => import('./services/CustomOpenAIProviderDialog.vue'));
 const TranslationCenter = defineAsyncComponent(() => import('@/src/features/translation-center/public').then(module => module.TranslationCenter));
-const openInputServiceSettings = (service: string) => { setConfigurationService(service); openSettingsSection('settings-services', 'connections'); };
-const openWritingServiceSettings = () => { setConfigurationService(config.value.writing.service || config.value.service); openSettingsSection('settings-services', 'connections'); };
+const serviceDialogOpen = ref(false);
+const serviceDirectoryOpen = ref(false);
+const openInputServiceSettings = (service: string) => { setConfigurationService(service); serviceDirectoryOpen.value = false; serviceDialogOpen.value = true; };
+const openServiceDirectory = () => { serviceDirectoryOpen.value = true; serviceDialogOpen.value = true; };
+const openWritingServiceSettings = () => openInputServiceSettings(config.value.writing.service || config.value.service);
 const WritingSettings = defineAsyncComponent(() => import('./WritingSettings.vue'));
 const SelectionSettings = defineAsyncComponent(() => import('./SelectionSettings.vue'));
 const GlossarySettings = defineAsyncComponent(() => import('@/src/features/glossary/public').then(module => module.GlossarySettings));

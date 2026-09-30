@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，让现场开关与显示操作保持简短，将长期偏好引导到对应设置页。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、局部翻译入口、AI 语境偏好与可用状态、站点规则及两列快捷功能；首次语言引导独占可见内容并撑开弹窗，语言选项与快捷抽屉按需挂载；图片、圈选和划词拥有独立状态、抽屉与设置入口，监听配置并持久化。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排语言与服务选择、局部翻译入口、AI 语境偏好与可用状态、站点规则及两列快捷功能；首次语言引导独占可见内容并撑开弹窗，语言选项与快捷抽屉按需挂载；图片与圈选共享快捷抽屉，保留各自开关和触发方式，监听配置并持久化。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -33,13 +33,12 @@
         <img src="/icon/128.png" alt="" />
         <div>
           <strong>流畅阅读</strong>
-          <small data-i18n-ignore>v{{ version }}</small>
+          <small v-if="!config.on">{{ t('popup.heroDisabled') }}</small>
         </div>
       </div>
       <div class="header-actions">
         <button ref="donationTrigger" class="donation-button" type="button" :title="t('popup.donationTitle')" :aria-label="t('popup.donationTitle')" @click="openDonation()">
           <Coffee />
-          <span>{{ t('popup.donationButton') }}</span>
         </button>
         <button class="settings-button" type="button" title="完整设置" aria-label="打开完整设置" @click="openOptions()">
           <Setting />
@@ -79,15 +78,6 @@
 
     <template v-for="moduleId in visiblePopupModuleOrder" :key="moduleId">
     <section v-if="moduleId === 'translation'" class="hero-card" data-popup-module="translation">
-      <div class="hero-heading">
-        <div>
-          <h1>{{ config.on ? (isThunderbird ? '邮件翻译' : '网页翻译') : '翻译功能已暂停' }}</h1>
-        </div>
-        <div class="hero-switches">
-          <button class="switch" type="button" role="switch" :aria-checked="config.on" :aria-label="config.on ? '暂停插件' : '启用插件'" @click="setPluginEnabled(!config.on)"><i /></button>
-        </div>
-      </div>
-
       <div class="language-pair">
         <label>
           <span>源语言</span>
@@ -122,20 +112,7 @@
           </span>
           <span class="chevron" :class="{ open: servicePickerOpen }">⌄</span>
         </button>
-        <button
-          class="ai-context-control"
-          data-testid="ai-context-help"
-          type="button"
-          :data-ai-context-state="aiContextPresentation.state"
-          :aria-label="`${t('popup.aiContext.help')} · ${t(`popup.aiContext.status.${aiContextPresentation.state}`)}`"
-          :title="t(aiContextPresentation.descriptionKey)"
-          aria-haspopup="dialog"
-          :aria-expanded="drawerVisible && activeDrawer === 'aiContext'"
-          @click="openAIContextSettings"
-        >
-          <span class="ai-context-name">{{ t('popup.aiContext.title') }} <span aria-hidden="true">›</span></span>
-          <span class="ai-context-status" role="status">{{ t(`popup.aiContext.status.${aiContextPresentation.state}`) }}</span>
-        </button>
+
         </div>
 
         <div v-if="servicePickerOpen" class="service-picker-panel" role="dialog" aria-label="选择翻译服务">
@@ -225,47 +202,25 @@
         </div>
       </div>
 
+      <div class="service-tools">
       <button class="feature-service-shortcut" type="button" data-testid="popup-feature-services" @click="openOptions('settings-services')">{{ t('featureServices.open') }} <span aria-hidden="true">↗</span></button>
+        <button
+          class="ai-context-control"
+          data-testid="ai-context-help"
+          type="button"
+          :data-ai-context-state="aiContextPresentation.state"
+          :aria-label="`${t('popup.aiContext.help')} · ${t(`popup.aiContext.status.${aiContextPresentation.state}`)}`"
+          :title="t(aiContextPresentation.descriptionKey)"
+          aria-haspopup="dialog"
+          :aria-expanded="drawerVisible && activeDrawer === 'aiContext'"
+          @click="openAIContextSettings"
+        >
+          <span class="ai-context-name">{{ t('popup.aiContext.title') }} <span aria-hidden="true">›</span></span>
+        </button>
+      </div>
       <div v-if="credentialWarning" class="credential-warning" role="alert">
         <span><strong>配置提醒</strong>{{ credentialWarning }}</span>
         <button type="button" @click="openOptions('settings-services')">去设置</button>
-      </div>
-
-      <div class="translate-action">
-        <button
-          class="translate-button"
-          :class="{ translated: pageTranslated }"
-          type="button"
-          :disabled="!config.on || translating || (!pageTranslated && Boolean(selectedServiceUnavailableMessage))"
-          :aria-pressed="pageTranslated"
-          @click="togglePageTranslation"
-        >
-          <span v-if="translating" class="spinner" />
-          <span v-else class="translate-glyph">A↔译</span>
-          <span class="translate-label">{{ pageTranslated ? (isThunderbird ? '恢复当前邮件' : '恢复当前网页') : (isThunderbird ? '翻译当前邮件' : '翻译当前网页') }}</span>
-          <kbd
-            v-if="!isThunderbird"
-            class="translate-hotkey"
-            :class="{ disabled: !defaultFullPageHotkeyEnabled }"
-            :title="fullPageHotkeyTitle"
-          ><span>{{ fullPageHotkey }}</span></kbd>
-        </button>
-        <button
-          v-if="!isThunderbird"
-          class="section-translate-button"
-          type="button"
-          data-testid="section-translation"
-          :disabled="!config.on"
-          :aria-label="sectionTranslationLabel"
-          :title="sectionTranslationLabel"
-          @click="startSectionTranslation"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15" />
-            <path d="m10 10 7 2.6-3 1.1-1.1 3z" />
-          </svg>
-          <span>{{ t('popup.sectionTranslation') }}</span>
-        </button>
       </div>
 
       <PopupSiteRule
@@ -358,7 +313,7 @@
       <div class="drawer-surface">
         <div class="drawer-handle" />
         <header class="drawer-header">
-        <div><span class="eyebrow">快捷设置</span><h2>{{ drawerTitle }}</h2><p>{{ drawerDescription }}</p></div>
+        <div><h2>{{ drawerTitle }}</h2><p v-if="activeDrawer !== 'image'">{{ drawerDescription }}</p></div>
         <button type="button" aria-label="关闭" @click="drawerVisible = false">×</button>
         </header>
 
@@ -408,6 +363,22 @@
           </div>
           <small v-if="quickHoverProfiles.length > 3">{{ t('popup.quickTranslation.moreProfiles', {count: quickHoverProfiles.length - 3}) }}</small>
         </div>
+        <button
+          v-if="!isThunderbird"
+          class="section-translate-button"
+          type="button"
+          data-testid="section-translation"
+          :disabled="!config.on"
+          :aria-label="sectionTranslationLabel"
+          :title="sectionTranslationLabel"
+          @click="startSectionTranslation"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15" />
+            <path d="m10 10 7 2.6-3 1.1-1.1 3z" />
+          </svg>
+          <span>{{ t('popup.sectionTranslation') }}</span>
+        </button>
       </div>
 
       <div v-else-if="activeDrawer === 'selection'" class="drawer-content">
@@ -447,60 +418,25 @@
 
       </div>
 
-      <div v-else-if="activeDrawer === 'area'" class="drawer-content">
-        <div class="selection-area-panel">
-          <div v-if="!browserCapabilities.areaTranslation" class="capability-unavailable" role="status">
-            <strong>当前浏览器暂不支持圈选翻译</strong>
-            <small>原有开关偏好已保留；回到 Chrome 后仍会按原设置生效。</small>
-          </div>
-          <div v-else class="area-translation-block">
-            <div class="area-translation-heading">
-              <div>
-                <strong>启用圈选翻译</strong>
-                <small>翻译图片或无法直接选中的页面文字</small>
-              </div>
-              <button class="switch compact" type="button" role="switch" :aria-checked="config.selectionAreaEnabled" aria-label="启用或关闭圈选翻译" @click="setAreaEnabled(!config.selectionAreaEnabled)"><i /></button>
-            </div>
-            <div class="area-translation-preview" :aria-keyshortcuts="areaHotkey"><div class="area-hotkey" data-i18n-ignore><kbd v-for="part in areaHotkeyParts" :key="part">{{ part }}</kbd></div><span>＋</span><i class="area-ring" /><span>＝</span><strong>翻译选中区域</strong></div>
-            <small class="drawer-hint">{{ t('area.settings.shortcut', {shortcut: areaHotkeyDisplayName}) }}</small>
-            <small class="drawer-hint">{{ t(config.areaTranslationMode === 'ai' ? 'area.settings.aiDescription' : 'area.settings.standardDescription') }}</small>
-          </div>
-        </div>
-      </div>
-
-      <div v-else-if="activeDrawer === 'image'" class="drawer-content">
+      <div v-else-if="activeDrawer === 'image'" class="drawer-content image-methods">
         <div v-if="!browserCapabilities.imageTranslation" class="capability-unavailable" role="status">
           <strong>当前浏览器暂不支持图片翻译与 OCR</strong>
           <small>原有开关偏好已保留；请在 Chrome 中使用此功能。</small>
         </div>
-        <div v-else class="image-translation-preview">
-          <div class="image-translation-preview-art"><span>文字</span><b>文</b></div>
-          <div>
-            <strong>悬停图片显示翻译入口</strong>
-            <small>点击图片左下角的小图标即可识别并翻译图片文字</small>
-          </div>
+        <button v-if="browserCapabilities.imageTranslation" class="image-method" :class="{enabled: !config.disableImageTranslator}" type="button" role="switch" :aria-checked="!config.disableImageTranslator" aria-label="启用或关闭图片翻译" @click="setImageTranslatorEnabled(config.disableImageTranslator)">
+          <svg class="image-method-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg>
+          <span class="image-method-copy"><strong>{{ t('popup.image.web') }}</strong><small>{{ t('popup.image.webHint') }}</small></span>
+          <span class="switch compact" :aria-checked="!config.disableImageTranslator" aria-hidden="true"><i /></span>
+        </button>
+        <div v-if="!browserCapabilities.areaTranslation" class="capability-unavailable" role="status">
+          <strong>当前浏览器暂不支持圈选翻译</strong>
+          <small>原有开关偏好已保留；回到 Chrome 后仍会按原设置生效。</small>
         </div>
-        <div v-if="browserCapabilities.imageTranslation" class="setting-row">
-          <span><strong>启用图片翻译</strong><small>在网页图片左下角显示“翻译”按钮</small></span>
-          <button class="switch compact" type="button" role="switch" :aria-checked="!config.disableImageTranslator" aria-label="启用或关闭图片翻译" @click="setImageTranslatorEnabled(config.disableImageTranslator)"><i /></button>
-        </div>
-      </div>
-
-      <div v-else-if="activeDrawer === 'video'" class="drawer-content video-quick-settings">
-        <div class="setting-row video-enable-row">
-          <span><strong>字幕翻译</strong><small data-i18n-ignore>{{ t('popup.quickSettings.videoEnableHint') }}</small></span>
-          <button class="switch compact" type="button" role="switch" :aria-checked="config.videoTranslationEnabled" aria-label="启用或关闭视频字幕翻译" @click="setVideoTranslationEnabled(!config.videoTranslationEnabled)"><i /></button>
-        </div>
-        <button v-if="config.videoTranslationEnabled && !config.videoSubtitleVisible" class="secondary-action" type="button" data-i18n-ignore @click="config.videoSubtitleVisible = true">{{ t('video.showSubtitles') }}</button>
-        <div v-if="config.videoTranslationEnabled && config.videoSubtitleVisible" class="choice-block">
-          <label data-i18n-ignore>{{ t('video.displayMode') }}</label>
-          <div class="chips three" role="group" :aria-label="t('video.displayMode')">
-            <button v-for="item in videoDisplayModes" :key="item.value" type="button" :class="{ selected: config.videoSubtitleDisplayMode === item.value }" :aria-pressed="config.videoSubtitleDisplayMode === item.value" @click="config.videoSubtitleDisplayMode = item.value">{{ item.label }}</button>
-          </div>
-        </div>
-        <p class="drawer-hint video-player-hint" data-i18n-ignore>{{ t('popup.quickSettings.videoPlayerHint') }}</p>
-        <small v-if="!browserCapabilities.extensionDom" class="drawer-hint capability-warning">当前浏览器不支持 X 本地 AI 字幕，视频原生字幕翻译仍可使用。</small>
-        <small v-if="selectedVideoServiceUnavailableMessage" class="drawer-hint capability-warning">{{ selectedVideoServiceUnavailableMessage }}</small>
+        <button v-else class="image-method" :class="{enabled: config.selectionAreaEnabled}" type="button" role="switch" :aria-checked="config.selectionAreaEnabled" aria-label="启用或关闭圈选翻译" @click="setAreaEnabled(!config.selectionAreaEnabled)">
+          <svg class="image-method-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+          <span class="image-method-copy"><strong>{{ t('popup.image.area') }}</strong><small class="image-method-shortcut"><kbd data-i18n-ignore>{{ areaHotkeyDisplayName }}</kbd><span>{{ t('popup.image.areaHint') }}</span></small></span>
+          <span class="switch compact" :aria-checked="config.selectionAreaEnabled" aria-hidden="true"><i /></span>
+        </button>
       </div>
 
       <div v-else class="drawer-content">
@@ -582,7 +518,7 @@ import {
   isTranslationServiceAvailable,
 } from '@/src/services/translation/capabilities';
 
-type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'area' | 'video' | 'aiContext';
+type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'aiContext';
 type SettingsSection = 'settings-selection' | 'settings-general' | 'settings-interface' | 'settings-image-translation' | 'settings-area-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 interface PopupQuickFeatureViewModel {
   id: PopupQuickFeatureId;
@@ -599,7 +535,6 @@ interface PopupQuickFeatureViewModel {
 }
 const ElDrawer = defineAsyncComponent(() => import('./PopupDrawer'));
 const {t, translateLegacy} = useUiI18n();
-const version = process.env.VUE_APP_VERSION;
 // composition root 已等待配置服务；首次渲染直接使用完整快照，不能先暴露默认布局。
 const config = ref(normalizeConfig(runtimeConfig));
 const onboardingLanguage = ref<UiLanguage>('zh-CN');
@@ -607,7 +542,6 @@ const drawerVisible = ref(false);
 const drawerMounted = ref(false);
 const activeDrawer = ref<DrawerName>('hover');
 const translating = ref(false);
-const pageTranslated = ref(false);
 const currentTabId = ref<number | null>(null);
 const currentSiteDomain = ref('');
 const clearingCache = ref(false);
@@ -636,8 +570,6 @@ const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
   selection: 'settings-selection',
   appearance: 'settings-interface',
   image: 'settings-image-translation',
-  area: 'settings-area-translation',
-  video: 'settings-video',
 };
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
@@ -665,7 +597,6 @@ const areaHotkeyDisplayName = computed(() => areaTranslationHotkeyDisplayName(
   config.value.selectionAreaHotkey,
   config.value.customSelectionAreaHotkey,
 ));
-const areaHotkeyParts = computed(() => areaHotkeyDisplayName.value.split('+'));
 // 局部翻译按钮只有图标和短标签，完整用途与已开启的快捷键放在提示与无障碍名称里。
 const sectionTranslationLabel = computed(() => {
   const title = t('popup.sectionTranslationTitle');
@@ -708,7 +639,6 @@ const popularServiceOptions = computed(() => popularServiceValues
   .filter((item): item is any => Boolean(item)));
 const moreServiceOptions = computed(() => serviceSearchResults.value.filter((item: any) => !popularServiceValues.includes(item.value)));
 const selectedServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
-const selectedVideoServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.videoService));
 const selectedCustomOpenAIProvider = computed(() => getCustomOpenAIProvider(
   config.value.customOpenAIProviders,
   config.value.service,
@@ -771,15 +701,13 @@ const siteModuleNestedInTranslation = computed(() => {
   return translationIndex >= 0 && visiblePopupModuleOrder.value[translationIndex + 1] === 'siteRule';
 });
 const lastVisiblePopupModule = computed(() => visiblePopupModuleOrder.value.at(-1));
-const emojiFeatureIcons: Record<PopupQuickFeatureId, string> = {hover: '🖱️', selection: '✍️', appearance: '🎨', image: '🖼️', area: '✂️', video: '🎬', document: '📖'};
+const emojiFeatureIcons: Record<PopupQuickFeatureId, string> = {hover: '🖱️', selection: '✍️', appearance: '🎨', image: '🖼️', document: '📖'};
 // 快捷入口采用一致的线宽与画布；主题配色和 Emoji 风格仍由既有皮肤控制。
 const featureIconPaths: Record<PopupQuickFeatureId, string> = {
   hover: 'M5 3l14 10-7 1-3 7-4-18z M12 14l5 6',
   selection: 'M8 4h8 M12 4v16 M8 20h8 M5 8H3v8h2 M19 8h2v8h-2',
   appearance: 'M3 19L9 5l6 14 M5 15h8 M16 12c5-3 6 1 5 7 M21 15c-7-2-6 6 0 3',
   image: 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M4 16l5-5 4 4 3-3 4 4 M16 8h.01',
-  area: 'M8 3H3v5 M16 3h5v5 M21 16v5h-5 M8 21H3v-5 M8 8h8v8H8z',
-  video: 'M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M10 9l5 3-5 3z',
   document: 'M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5z M14 3v5h5 M9 12h6 M9 16h6',
 };
 const popupUsesContentHeight = computed(() => interfaceSkinUsesContentHeight(config.value.interfaceSkin)
@@ -814,8 +742,6 @@ const defaultHoverEnabled = computed(() => Boolean(defaultHoverHotkey.value && d
 const hoverKey = computed(() => defaultHoverEnabled.value ? defaultHoverHotkey.value : '未设置');
 const quickHoverProfiles = computed(() => enabledQuickTranslationProfiles(config.value.quickTranslationProfiles, 'hover')
   .filter((profile) => isTranslationServiceAvailable(profile.service || config.value.service)));
-const quickFullPageProfiles = computed(() => enabledQuickTranslationProfiles(config.value.quickTranslationProfiles, 'full-page')
-  .filter((profile) => isTranslationServiceAvailable(profile.service || config.value.service)));
 const hoverProfileCount = computed(() => quickHoverProfiles.value.length + (defaultHoverEnabled.value ? 1 : 0));
 const hoverPreviewKey = computed(() => !defaultHoverEnabled.value
   ? quickHoverProfiles.value[0]?.hotkey || t('common.notSet')
@@ -823,22 +749,6 @@ const hoverPreviewKey = computed(() => !defaultHoverEnabled.value
 const hoverSummary = computed(() => quickHoverProfiles.value.length
   ? t('popup.quickTranslation.profileCount', {count: hoverProfileCount.value})
   : defaultHoverEnabled.value ? hoverKey.value.replace('Control', 'Ctrl') : '已关闭');
-const defaultFullPageHotkey = computed(() => resolveConfiguredHotkey(
-  config.value.floatingBallHotkey,
-  config.value.customFloatingBallHotkey,
-));
-const defaultFullPageHotkeyEnabled = computed(() => Boolean(
-  defaultFullPageHotkey.value && defaultFullPageHotkey.value !== 'none',
-));
-const fullPageHotkey = computed(() => defaultFullPageHotkeyEnabled.value
-  ? defaultFullPageHotkey.value
-  : quickFullPageProfiles.value.length ? t('popup.quickTranslation.defaultNotSet') : t('common.notSet'));
-const fullPageHotkeyHint = computed(() => !defaultFullPageHotkeyEnabled.value && quickFullPageProfiles.value.length
-  ? t('popup.quickTranslation.fullPageHint', {count: quickFullPageProfiles.value.length})
-  : '');
-const fullPageHotkeyTitle = computed(() => fullPageHotkeyHint.value
-  ? `${fullPageHotkey.value} · ${fullPageHotkeyHint.value}`
-  : fullPageHotkey.value);
 function quickProfileSummary(profile: QuickTranslationProfile): string {
   const service = profile.service || config.value.service;
   const serviceName = allServiceOptions.value.find((item: any) => item.value === service)?.label || service;
@@ -853,8 +763,7 @@ const selectionSummary = computed(() => config.value.selectionTranslatorMode ===
 const displaySummary = computed(() => config.value.display === 1 ? `双语 · ${styleLabel.value}` : '仅显示译文');
 const imageTranslationSummary = computed(() => !browserCapabilities.imageTranslation
   ? '当前浏览器不可用'
-  : config.value.disableImageTranslator ? '已关闭' : '悬停图片');
-const videoSummary = computed(() => config.value.videoTranslationEnabled ? 'YouTube / X' : '已关闭');
+  : config.value.selectionAreaEnabled ? areaHotkeyDisplayName.value : config.value.disableImageTranslator ? '已关闭' : '悬停图片');
 const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQuickFeatureViewModel>>(() => ({
   hover: {
     id: 'hover',
@@ -892,33 +801,8 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     icon: '▧',
     iconTone: 'teal',
     showStatus: true,
-    active: browserCapabilities.imageTranslation && !config.value.disableImageTranslator,
+    active: (browserCapabilities.imageTranslation && !config.value.disableImageTranslator) || (browserCapabilities.areaTranslation && config.value.selectionAreaEnabled),
     open: () => openDrawer('image'),
-  },
-  area: {
-    id: 'area',
-    label: t('popup.areaTranslation'),
-    summary: !browserCapabilities.areaTranslation ? '当前浏览器不可用' : config.value.selectionAreaEnabled ? areaHotkeyDisplayName.value : '已关闭',
-    icon: '▣',
-    iconTone: 'violet',
-    showStatus: true,
-    active: browserCapabilities.areaTranslation && config.value.selectionAreaEnabled,
-    open: () => openDrawer('area'),
-  },
-  video: {
-    id: 'video',
-    label: t('popup.videoSubtitles'),
-    summary: videoSummary.value,
-    icon: 'CC',
-    iconTone: 'teal',
-    showStatus: true,
-    active: config.value.videoTranslationEnabled,
-    className: `video-feature-card${config.value.videoTranslationEnabled ? '' : ' needs-enable'}`,
-    dataFeature: 'video-subtitle',
-    ariaLabel: config.value.videoTranslationEnabled
-      ? '打开视频字幕设置，当前已开启'
-      : '打开视频字幕设置，点击开启字幕翻译',
-    open: () => openDrawer('video'),
   },
   document: {
     id: 'document',
@@ -935,21 +819,14 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
 }));
 const visiblePopupQuickFeatures = computed(() => visiblePopupQuickFeatureIds.value
   .map((featureId) => popupQuickFeatureViewModels.value[featureId]));
-const drawerTitle = computed(() => ({ aiContext: t('popup.aiContext.title'), hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译设置', area: t('area.settings.title'), video: '视频字幕设置' }[activeDrawer.value]));
+const drawerTitle = computed(() => ({ aiContext: t('popup.aiContext.title'), hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译' }[activeDrawer.value]));
 const drawerDescription = computed(() => ({
   aiContext: t('popup.aiContext.intro'),
   hover: '把鼠标停在文本上，用轻量快捷键获取即时译文。',
   selection: '选中网页文字，按你的偏好获取译文。',
-  area: t('area.settings.intro'),
   appearance: t('popup.quickSettings.appearanceDescription'),
   image: '把鼠标移到图片上，从图片左下角打开翻译入口。',
-  video: '翻译 YouTube/X 字幕，或在 X 本地生成字幕。',
 }[activeDrawer.value]));
-const videoDisplayModes = [
-  { value: 'bilingual', label: '双语' },
-  { value: 'translation-only', label: '仅译文' },
-  { value: 'original-only', label: '仅原文' },
-] as const;
 const selectionModes = [
   { value: 'disabled', label: '关闭' },
   { value: 'bilingual', label: '双语显示' },
@@ -1150,16 +1027,6 @@ async function hydrateCurrentSite() {
     if (typeof tab?.id !== 'number') return;
     currentTabId.value = tab.id;
     currentSiteDomain.value = getSiteBaseDomain(tab.pendingUrl || tab.url || '') || '';
-    if (!currentSiteDomain.value && !isThunderbird) return;
-
-    try {
-      const response = await browser.tabs.sendMessage(tab.id, {
-        type: 'getFullPageTranslationState',
-      }) as { status?: string; isTranslated?: boolean } | undefined;
-      if (response?.status === 'success') pageTranslated.value = response.isTranslated === true;
-    } catch {
-      // 当前页面可能尚未注入内容脚本；站点规则仍然可以读取和编辑。
-    }
   } catch (error) {
     console.warn('[FluentRead] 无法读取当前网站', error);
   }
@@ -1204,7 +1071,6 @@ async function setCurrentSiteAlwaysTranslated(enabled: boolean) {
       action: 'fullPage',
     }) as { status?: string; isTranslated?: boolean } | undefined;
     if (response?.status !== 'success') throw new Error('Translation failed');
-    pageTranslated.value = typeof response.isTranslated === 'boolean' ? response.isTranslated : true;
     showNotice(`已开启 ${domain} 的始终翻译`);
   } catch (error) {
     console.error(error);
@@ -1223,16 +1089,13 @@ function setCurrentSiteExtensionDisabled(enabled: boolean) {
   config.value.disabledExtensionDomains = enabled
     ? currentDomains.includes(domain) ? currentDomains : [...currentDomains, domain]
     : currentDomains.filter(item => item !== domain);
-  pageTranslated.value = false;
   translating.value = false;
 
   showNotice(enabled ? `已在 ${domain} 禁用扩展` : `已恢复 ${domain} 的扩展`);
 }
 
 // 配置订阅是内容功能的唯一状态来源；避免无 revision 的广播晚到后覆盖新快照。
-function setPluginEnabled(enabled: boolean) {
-  config.value.on = enabled;
-}
+
 
 function openDrawer(name: DrawerName) { activeDrawer.value = name; drawerMounted.value = true; drawerVisible.value = true; }
 async function openOptions(section?: SettingsSection) {
@@ -1247,29 +1110,6 @@ async function openOptions(section?: SettingsSection) {
 async function openDocumentTranslation() {
   await browser.tabs.create({ url: browser.runtime.getURL('document.html') });
   window.close();
-}
-
-async function togglePageTranslation() {
-  if (!pageTranslated.value && credentialWarning.value) {
-    showNotice(credentialWarning.value, 'error');
-    return;
-  }
-
-  translating.value = true;
-  const action = pageTranslated.value ? 'restore' : 'fullPage';
-  try {
-    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (!isBrowserTabId(tab?.id)) throw new Error('No active tab');
-    const response = await browser.tabs.sendMessage(tab.id, { type: 'contextMenuTranslate', action }) as { status?: string; isTranslated?: boolean } | undefined;
-    if (response?.status !== 'success') throw new Error(response?.status === 'disabled' ? 'Plugin disabled' : 'Translation failed');
-    pageTranslated.value = typeof response.isTranslated === 'boolean'
-      ? response.isTranslated
-      : action === 'fullPage';
-    showNotice(pageTranslated.value ? (isThunderbird ? '正在翻译当前邮件' : '正在翻译当前网页') : (isThunderbird ? '已恢复邮件原文' : '已恢复网页原文'));
-  } catch (error) {
-    console.error(error);
-    showNotice(isThunderbird ? '请先打开一封邮件，然后重试翻译' : '当前页面暂不支持翻译，请刷新后重试', 'error');
-  } finally { translating.value = false; }
 }
 
 // 进入网页的区域选择模式后立即关闭 Popup，让用户直接在页面上点选要翻译的区域。
@@ -1331,9 +1171,6 @@ function setImageTranslatorEnabled(enabled: boolean) {
     return;
   }
   config.value.disableImageTranslator = !enabled;
-}
-function setVideoTranslationEnabled(enabled: boolean) {
-  config.value.videoTranslationEnabled = enabled;
 }
 </script>
 

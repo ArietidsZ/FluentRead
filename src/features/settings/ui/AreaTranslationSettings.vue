@@ -1,6 +1,6 @@
 <!--
  * @file src/features/settings/ui/AreaTranslationSettings.vue
- * 文件职责：提供独立圈选翻译设置，组织触发快捷键、识别与翻译的常用选择，并按需提供提示词和本地语言包设置。
+ * 文件职责：提供图片翻译内的圈选区域设置，组织触发快捷键、识别与翻译的常用选择，并按需提供提示词和本地语言包设置。
  * 主要内容：复用设置行和品牌按钮，提供预设与自定义录制的圈选快捷键及占用提示，显示当前模型识图能力，通过独立编辑弹窗修改识图提示词，将 OCR 语言设置收纳在可展开区域。
  * 模块边界：只修改父级配置并发出开关事件；配置持久化由 SettingsSections 负责，快捷键解析与归一化归 core，不截图、不调用模型、不下载识别资源。
  -->
@@ -49,7 +49,7 @@
     </SettingsItem>
     <p class="area-settings-note area-privacy">{{ t(prefersVision ? 'area.settings.visionPrivacy' : 'area.settings.privacy') }}</p>
   </SettingsGroup>
-  <details class="area-ocr-details" :open="!prefersVision">
+  <details v-if="props.showOcr !== false" class="area-ocr-details" :open="!prefersVision">
     <summary>{{ t('area.settings.ocrDetails') }}</summary>
     <ImageOcrSettings v-if="props.active" id-prefix="area" v-model:source-language="props.config.from" />
   </details>
@@ -104,6 +104,7 @@ const props = defineProps<{
   config: Config;
   enabled: boolean;
   active: boolean;
+  showOcr?: boolean;
   serviceOptions: readonly {value: string; label: string; disabled?: boolean}[];
 }>();
 const emit = defineEmits<{'update:enabled': [enabled: boolean]}>();

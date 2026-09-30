@@ -54,8 +54,8 @@ const checkLayout = async label => {
     page = await open('options.html');
     await page.locator('#settings-general [data-testid="default-translation-service-card"]').waitFor();
     const ids = await page.locator('.sidebar button[data-section]').evaluateAll(items => items.map(item => item.dataset.section));
-    assert.equal(ids.length, 17);
-    assert.equal(await page.locator('.sidebar button[data-section]:visible').count(), 4, 'Only primary settings initially expanded');
+    assert.equal(ids.length, 16);
+    assert.equal(await page.locator('.sidebar button[data-section]:visible').count(), 16, 'All groups initially expanded');
     const navigate = async id => {
       if (await page.locator('.mobile-settings-navigation').isVisible()) await page.locator('.mobile-settings-navigation').selectOption(id);
       else {
@@ -90,7 +90,8 @@ const checkLayout = async label => {
     });
     assert.deepEqual(duplicateIds, []);
     await navigate('settings-services');
-    await page.locator('[data-settings-category="connections"]').click();
+    await page.locator('#service-connections').click();
+    await page.locator('.service-catalog').waitFor();
     const catalog = page.locator('[data-default-service][data-editing-service]');
     const defaultService = await catalog.getAttribute('data-default-service');
     const alternative = page.locator(`[data-service-value]:not([data-service-value="${defaultService}"])`).first();
@@ -99,34 +100,58 @@ const checkLayout = async label => {
     assert.equal(await catalog.getAttribute('data-editing-service'), editingService);
     assert.equal(await catalog.getAttribute('data-default-service'), defaultService);
     report.serviceEditingPreservesDefault = true;
-    // Switching categories keeps the actual selected style and its preview.
+    await page.keyboard.press('Escape');
+    const beforeHash = await page.evaluate(() => location.hash);
+    await page.locator('[data-feature-service="hover"] .feature-service-connection').click();
+    await page.locator('.service-catalog.compact').waitFor();
+    assert.equal(await page.evaluate(() => location.hash), beforeHash);
+    assert.equal(await page.locator('.service-catalog .service-rail').count(), 0);
+    await page.waitForTimeout(350);
+    await shot('service-in-place');
+    await page.keyboard.press('Escape');
+    assert(await page.locator('[data-feature-service="hover"]').isVisible());
+    report.inPlaceConfiguration = true;
+    await page.setViewportSize({width: 390, height: 900});
+    await page.locator('[data-feature-service="hover"] .feature-service-connection').click();
+    await page.locator('.service-catalog.compact').waitFor();
+    await page.waitForTimeout(350);
+    const dialogBounds = await page.locator('.service-configuration-dialog').boundingBox();
+    assert(dialogBounds.x >= 0 && dialogBounds.x + dialogBounds.width <= 391);
+    assert.equal(await page.evaluate(() => document.body.classList.contains('el-popup-parent--hidden')), false);
+    await shot('mobile-service-in-place');
+    await page.keyboard.press('Escape');
+    await page.setViewportSize({width: 1440, height: 960});
     await navigate('settings-interface');
-    const style = page.locator('[data-style-value][aria-checked="false"]').first();
-    const styleValue = await style.getAttribute('data-style-value');
-    await style.click();
-    await page.locator('[data-settings-category="skin"]').click();
-    await page.locator('[data-settings-category="translation"]').click();
-    assert.equal(await page.locator(`[data-style-value="${styleValue}"]`).getAttribute('aria-checked'), 'true');
+    await page.locator('[data-style-value="0"]').click();
+    await page.locator('[data-style-value="1"]').click();
+    await page.locator('.translation-style-stage .fluent-display-bold').waitFor();
+    assert.equal(await page.locator('.translation-style-stage #translation-sentence-highlight').count(), 0);
+    await page.locator('#translation-sentence-highlight').waitFor();
+    await shot('style-simplified');
+    await navigate('settings-general');
+    await navigate('settings-interface');
+    await page.locator('.translation-style-stage .fluent-display-bold').waitFor();
     report.categoryStatePreserved = true;
     // Search must open the correct category, including a collapsed sidebar group.
     const search = page.locator('.search-box input');
     for (const [query, section, category] of [['界面字体', 'settings-interface', 'font'], ['翻译缓存', 'settings-advanced', 'cache'], ['输入框', 'settings-translation', 'input']]) {
       await search.fill(query);
       await page.locator('.search-results button').first().click();
-      assert.equal(await page.locator('[data-settings-category][aria-current]').getAttribute('data-settings-category'), category);
+      assert.equal(await page.locator('[data-settings-category]').count(), 0);
+      await page.locator(`[data-settings-panel="${category}"]:visible`).waitFor();
       assert.equal(await page.evaluate(() => location.hash), `#${section}`);
       assert.equal(await search.inputValue(), '');
     }
     await search.fill('悬浮球进阶设置');
     await page.locator('.search-results button').first().click();
-    assert.equal(await page.locator('[data-settings-category][aria-current]').getAttribute('data-settings-category'), 'tools');
+    assert.equal(await page.locator('[data-settings-category]').count(), 0);
     await page.locator('#floating-ball-settings').waitFor();
     await search.fill('no-such-setting-xyz'); await page.locator('.search-empty').waitFor();
     await search.press('Escape'); assert.equal(await search.inputValue(), '');
     report.search = true;
     await navigate('settings-general');
     await page.locator('[data-testid="open-floating-ball-settings"]').click();
-    await page.locator('[data-settings-category="tools"][aria-current]').waitFor();
+    await page.locator('#floating-ball-settings').waitFor();
     report.crossCategoryLink = true;
     // Existing persistence pipeline must survive the new presentation layer.
     const readConfig = p => p.evaluate(async () => { const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}); if (!r.success) throw new Error(r.error); return typeof r.value === 'string' ? JSON.parse(r.value) : r.value; });
@@ -167,7 +192,7 @@ const checkLayout = async label => {
     await shot('feature-services-reopened');
     report.persistenceCases.push('Independent service assignments survive close and reopen');
     await navigate('settings-translation');
-    await page.locator('[data-settings-category="input"]').click();
+    await page.locator('[data-settings-panel="input"]:visible').waitFor();
     assert((await page.locator('.input-translation-service-control').innerText()).includes('谷歌翻译'));
     report.featureServiceAssignments = true;
     await navigate('settings-glossary');
@@ -180,7 +205,19 @@ const checkLayout = async label => {
     await toggle.focus(); await page.keyboard.press('Space');
     assert.equal(await toggle.getAttribute('aria-checked'), checked);
     const hitArea = await toggle.boundingBox(); assert(hitArea.width > 300 && hitArea.height >= 44);
+    const positions = await master.evaluate(el => ({text: el.querySelector('.feature-enable-copy').getBoundingClientRect().left, toggle: el.querySelector('.feature-enable-control').getBoundingClientRect().left, state: el.querySelector('.feature-enable-state')}));
+    assert(positions.toggle > positions.text); assert.equal(positions.state, null);
+    await page.locator('.glossary-builtins-page').waitFor();
+    assert.equal(await page.locator('.glossary-builtins-page').evaluate(el => Boolean(el.closest('details:not([open])'))), false);
     await shot('glossary-master-switch');
+    await page.locator('.glossary-builtins-page').scrollIntoViewIfNeeded();
+    await shot('glossary-builtins-visible');
+    await page.goto(`${base}/options.html#settings-area-translation`);
+    await page.locator('#settings-image-translation #settings-area-translation').waitFor();
+    assert.equal(await page.locator('.sidebar button[data-section="settings-area-translation"]').count(), 0);
+    assert.equal(await page.locator('#settings-image-translation [data-testid="ocr-language-manager"]').count(), 1);
+    await shot('image-area-unified');
+    report.imageAreaConsolidation = true;
     await navigate('settings-sites');
     const autoRow = page.locator('#settings-sites .settings-item').first();
     const autoBefore = await autoRow.getByRole('switch').getAttribute('aria-checked');
@@ -250,7 +287,7 @@ const checkLayout = async label => {
     await popup.locator('[data-testid="popup-feature-services"]').click();
     const featureOptions = await openedOptions;
     await featureOptions.waitForURL('**/options.html#settings-services');
-    await featureOptions.locator('[data-settings-category="assignments"][aria-current]').waitFor();
+    await featureOptions.locator('[data-testid="feature-services"]').waitFor();
     report.popupShortcut = true;
     report.crossPageSync = true;
     assert.deepEqual(report.consoleErrors, []);

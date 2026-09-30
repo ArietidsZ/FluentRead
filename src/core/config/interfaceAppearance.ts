@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/interfaceAppearance.ts
  * 文件职责：定义 FluentRead 扩展的可插拔皮肤、字体、Popup 模块布局与栏目可见性配置契约，作为 Options、Popup 和配置持久化共同依赖的单一来源。
- * 主要内容：维护界面皮肤的分组、背景图案、预览与尺寸策略，提供本地字体栈预设，以及 Popup 区域和快捷功能卡片的两级注册表、默认顺序、可见性和安全归一化函数。
+ * 主要内容：维护界面皮肤的分组、背景图案、预览与尺寸策略，提供本地字体栈预设，以及 Popup 区域和快捷功能卡片的两级注册表、默认顺序、可见性和安全归一化函数；旧圈选入口迁入图片，视频入口移出 Popup，但保留功能配置。
  * 模块边界：本文件只描述纯配置规则和用户可见元数据，不读取浏览器存储、不操作 DOM，也不决定具体页面布局；DOM 皮肤应用由 src/ui/interfaceAppearance.ts 负责。
  */
 
@@ -27,7 +27,7 @@ export const interfaceSkinOptions = [
     group: 'utility',
     kind: 'default',
     popupHeight: 'content',
-    popupWidth: 360,
+    popupWidth: 340,
     preview: {canvas: '#f6f7fb', surface: '#ffffff', accent: '#ef4776', ink: '#172033'},
   },
   {
@@ -38,7 +38,7 @@ export const interfaceSkinOptions = [
     group: 'utility',
     kind: 'minimal',
     popupHeight: 'content',
-    popupWidth: 350,
+    popupWidth: 330,
     preview: {canvas: '#ffffff', surface: '#f3f4f6', accent: '#ef4776', ink: '#313743'},
   },
   {
@@ -49,7 +49,7 @@ export const interfaceSkinOptions = [
     group: 'utility',
     kind: 'compact',
     popupHeight: 'content',
-    popupWidth: 340,
+    popupWidth: 320,
     preview: {canvas: '#f5f6f8', surface: '#ffffff', accent: '#dc315f', ink: '#283042'},
   },
   {
@@ -60,7 +60,7 @@ export const interfaceSkinOptions = [
     group: 'utility',
     kind: 'contrast',
     popupHeight: 'content',
-    popupWidth: 360,
+    popupWidth: 340,
     preview: {canvas: '#ffffff', surface: '#f6dd00', accent: '#111111', ink: '#000000'},
   },
   {
@@ -71,7 +71,7 @@ export const interfaceSkinOptions = [
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
-    popupWidth: 360,
+    popupWidth: 340,
     preview: {canvas: '#fff9e9', surface: '#fffefa', accent: '#946d2f', ink: '#35322b'},
   },
   {
@@ -82,7 +82,7 @@ export const interfaceSkinOptions = [
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
-    popupWidth: 360,
+    popupWidth: 340,
     preview: {canvas: '#f1fbff', surface: '#ffffff', accent: '#0676b7', ink: '#123c52'},
   },
   {
@@ -93,7 +93,7 @@ export const interfaceSkinOptions = [
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
-    popupWidth: 360,
+    popupWidth: 340,
     preview: {canvas: '#f7fbed', surface: '#fffffc', accent: '#327b28', ink: '#274025'},
   },
   {
@@ -104,7 +104,7 @@ export const interfaceSkinOptions = [
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
-    popupWidth: 360,
+    popupWidth: 340,
     preview: {canvas: '#fff5f7', surface: '#fffefe', accent: '#c83474', ink: '#52263c'},
   },
   {
@@ -115,7 +115,7 @@ export const interfaceSkinOptions = [
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
-    popupWidth: 360,
+    popupWidth: 340,
     preview: {canvas: '#fffaf0', surface: '#fffefd', accent: '#7143ca', ink: '#352447'},
   },
   {
@@ -126,7 +126,7 @@ export const interfaceSkinOptions = [
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
-    popupWidth: 360,
+    popupWidth: 340,
     preview: {canvas: '#151c26', surface: '#1d2632', accent: '#9eb5d0', ink: '#e5ebf2'},
   },
   {
@@ -137,7 +137,7 @@ export const interfaceSkinOptions = [
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
-    popupWidth: 360,
+    popupWidth: 340,
     preview: {canvas: '#f3f0e9', surface: '#fbf9f3', accent: '#806b51', ink: '#37352f'},
   },
   {
@@ -148,7 +148,7 @@ export const interfaceSkinOptions = [
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
-    popupWidth: 360,
+    popupWidth: 340,
     preview: {canvas: '#f4f1ff', surface: '#fcfbff', accent: '#5147a8', ink: '#28264a'},
   },
   {
@@ -159,7 +159,7 @@ export const interfaceSkinOptions = [
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
-    popupWidth: 360,
+    popupWidth: 340,
     preview: {canvas: '#f1f7f5', surface: '#fbfffd', accent: '#087f65', ink: '#172c32'},
   },
   {
@@ -170,7 +170,7 @@ export const interfaceSkinOptions = [
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
-    popupWidth: 360,
+    popupWidth: 340,
     preview: {canvas: '#fff4ee', surface: '#fffdfa', accent: '#b64f3b', ink: '#422b35'},
   },
 ] as const
@@ -273,8 +273,6 @@ export const POPUP_QUICK_FEATURE_IDS = [
   'selection',
   'appearance',
   'image',
-  'area',
-  'video',
   'document',
 ] as const
 
@@ -375,20 +373,6 @@ export const popupQuickFeatureOptions: readonly PopupQuickFeatureOption[] = [
     descriptionKey: 'settings.interface.popupQuickFeatures.modules.image.description',
   },
   {
-    id: 'area',
-    label: '圈选翻译',
-    description: '截取页面区域，识别文字后翻译。',
-    labelKey: 'settings.interface.popupQuickFeatures.modules.area.label',
-    descriptionKey: 'settings.interface.popupQuickFeatures.modules.area.description',
-  },
-  {
-    id: 'video',
-    label: '视频翻译',
-    description: '打开视频字幕翻译设置。',
-    labelKey: 'settings.interface.popupQuickFeatures.modules.video.label',
-    descriptionKey: 'settings.interface.popupQuickFeatures.modules.video.description',
-  },
-  {
     id: 'document',
     label: '文档翻译',
     description: '打开文档翻译入口。',
@@ -475,7 +459,7 @@ export function normalizePopupQuickFeatureVisibility(value: unknown): PopupQuick
   return Object.fromEntries(
     POPUP_QUICK_FEATURE_IDS.map((id) => [
       id,
-      typeof source[id] === 'boolean' ? source[id] : DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY[id],
+      id === 'image' && source.area === true ? true : typeof source[id] === 'boolean' ? source[id] : DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY[id],
     ]),
   ) as PopupQuickFeatureVisibility
 }
@@ -519,5 +503,7 @@ export function normalizePopupModuleOrder(value: unknown): PopupModuleId[] {
 
 /** 快捷入口顺序采用与顶层模块相同的插件式兼容策略。 */
 export function normalizePopupQuickFeatureOrder(value: unknown): PopupQuickFeatureId[] {
-  return normalizeRegisteredOrder(value, POPUP_QUICK_FEATURE_IDS)
+  // 旧圈选入口并入图片，保留用户排列意图；视频配置本身不受入口收敛影响。
+  const migrated = Array.isArray(value) ? value.map(id => id === 'area' ? 'image' : id) : value
+  return normalizeRegisteredOrder(migrated, POPUP_QUICK_FEATURE_IDS)
 }
