@@ -13,8 +13,8 @@ function extractBlock(startNeedle: string, endNeedle: string): string {
 }
 
 describe('VocabularyBook component lifecycle wiring', () => {
-  it('opens the merged translation settings when selection translation is disabled', () => {
-    expect(source).toContain("emit('navigate', 'settings-translation')");
+  it('opens selection settings when selection translation is disabled', () => {
+    expect(source).toContain("emit('navigate', 'settings-selection')");
     expect(source).not.toContain("emit('navigate', 'settings-shortcuts')");
   });
 

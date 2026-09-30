@@ -57,7 +57,7 @@
       <SegmentedControl v-model="config.harness.contextMode" :options="contextModeOptions" label="上下文范围" />
     </SettingsItem>
     <SettingsItem v-if="config.harness.contextMode === 'paragraph'" label="段落最多发送" description="控制可参考的原文长度，通常保留默认值即可。">
-      <div class="harness-context-limit"><el-input-number v-model="config.harness.maxContextChars" :min="500" :max="4000" :step="100" controls-position="right" aria-label="上下文上限" /><span>字符</span></div>
+      <div class="harness-context-limit"><el-input-number v-model="config.harness.maxContextChars" :min="500" :max="4000" :step="100" aria-label="上下文上限" /><span>字符</span></div>
     </SettingsItem>
   </SettingsGroup>
   <SettingsGroup class="harness-memory-settings" :title="t('learning.memory')" :description="t('settings.memoryHelp')">

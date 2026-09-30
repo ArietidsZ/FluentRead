@@ -37,7 +37,6 @@
           :max="FLOATING_BALL_HOVER_DELAY_MAX"
           :step="FLOATING_BALL_HOVER_DELAY_STEP"
           :disabled="!enabled"
-          controls-position="right"
           @change="handleHoverDelayChange"
         />
         <span class="input-suffix">ms</span>
@@ -97,7 +96,6 @@
           :max="FLOATING_BALL_COLLAPSED_OPACITY_MAX"
           :step="FLOATING_BALL_COLLAPSED_OPACITY_STEP"
           :disabled="!enabled"
-          controls-position="right"
           @change="handleCollapsedOpacityChange"
         />
         <span class="input-suffix">%</span>
@@ -171,13 +169,14 @@ function handleDisabledDomainsChange(domains: string[]) {
 
 <style scoped>
 .floating-ball-number-field {
+  width: min(100%, 212px);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .floating-ball-number-field :deep(.el-input-number) {
-  width: 124px;
+  width: min(100%, 184px);
 }
 
 .input-suffix {

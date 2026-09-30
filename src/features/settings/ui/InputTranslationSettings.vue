@@ -10,7 +10,7 @@
       <SettingsItem :label="t('inputTranslation.trigger')">
         <template #copy>
           <strong>{{ t('inputTranslation.trigger') }}</strong>
-          <el-popover v-if="inputConfig.inputBoxTranslationTrigger.startsWith('triple_')" trigger="click" placement="bottom-start" :width="280">
+          <el-popover v-if="inputConfig.inputBoxTranslationTrigger.startsWith('triple_')" trigger="click" placement="bottom-start" :width="280" popper-class="fluentread-settings-number-popover">
             <template #reference>
               <button type="button" class="input-translation-text-button input-translation-timing-link" data-testid="input-translation-timing-toggle">
                 {{ t('inputTranslation.adjustTiming') }} · {{ interval }} {{ t('inputTranslation.intervalUnit') }}
@@ -27,7 +27,6 @@
                   :min="INPUT_BOX_TRANSLATION_INTERVAL_MIN"
                   :max="INPUT_BOX_TRANSLATION_INTERVAL_MAX"
                   :step="INPUT_BOX_TRANSLATION_INTERVAL_STEP"
-                  controls-position="right"
                   @update:model-value="setIntervalValue"
                 />
                 <span>{{ t('inputTranslation.intervalUnit') }}</span>
@@ -342,7 +341,7 @@ function configureService(): void {
 .input-translation-timing-panel strong { font-weight: 600; }
 .input-translation-timing-panel p { margin: 8px 0 12px; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .input-translation-interval-control { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
-.input-translation-interval-control :deep(.el-input-number) { width: 132px; }
+.input-translation-interval-control :deep(.el-input-number) { width: min(100%, 184px); }
 
 .input-translation-field { display: flex; min-width: 0; flex-direction: column; gap: 8px; }
 .input-translation-field label { color: var(--ink); font-size: 12.5px; font-weight: 600; }

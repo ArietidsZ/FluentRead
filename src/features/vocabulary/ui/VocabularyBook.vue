@@ -1,6 +1,6 @@
 <!--
  * @file src/features/vocabulary/ui/VocabularyBook.vue
- * 文件职责：实现学习中心本地单词与句子收藏及主动复习界面，覆盖原句学习、自主造句反馈、收藏开关、原文朗读、筛选分页、记忆卡、删除撤销和数据操作。
+ * 文件职责：实现学习中心本地单词与句子收藏及主动复习界面，覆盖原句学习、自主造句反馈、整卡可操作的收藏开关、原文朗读、筛选分页、记忆卡、删除撤销和数据操作。
  * 主要内容：组件通过 runtime 消息读取和修改词条，使用字段级配置补丁保存收藏开关，协调稳定复习队列、页面生命周期、键盘评分、主题、时间刷新与跨页面变更通知，并在轻量“更多”菜单中提供隐私安全的 Anki 导出和清空操作。
  * 模块边界：UI 不直接访问 Dexie 或上传学习数据；完整备份与旧文件导入统一进入备份与恢复页，数据库操作集中在后台 repository/handler，导出的上下文和来源只有用户明确选择时才包含。
  -->
@@ -8,27 +8,19 @@
   <div class="vocabulary-book">
     <VocabularyStudy v-if="studyEntry" :key="studyEntry.id" :entry="studyEntry" :reference="entryTranslation(studyEntry)" @close="selectedEntryId = ''" @speak="toggleEntrySpeech(studyEntry)" @navigate="emit('navigate', $event)" />
     <template v-else>
-    <section v-if="!reviewActive" class="beta-panel">
-      <div class="beta-copy">
-        <div>
-          <h3>{{ betaEnabled ? '学习收藏入口已开启' : '先开启学习收藏' }}</h3>
-          <p v-if="!betaEnabled">主动收藏单词、表达或句子；关闭入口不会删除已有收藏和复习记录。</p>
-        </div>
-      </div>
-      <button
-        class="beta-switch"
-        type="button"
-        role="switch"
-        aria-label="启用或关闭本地单词本"
-        :aria-checked="betaEnabled"
-        :disabled="configBusy"
-        @click="setBetaEnabled(!betaEnabled)"
-      ><i /></button>
-    </section>
+    <FeatureEnableCard
+      v-if="!reviewActive"
+      class="vocabulary-saving-control"
+      :title="translateControlLabel('学习收藏')"
+      :description="translateControlLabel('主动收藏单词、表达或句子；关闭入口不会删除已有收藏和复习记录。')"
+      :model-value="betaEnabled"
+      :disabled="configBusy"
+      @update:model-value="setBetaEnabled"
+    />
 
     <div v-if="!reviewActive && betaEnabled && !selectionTranslatorEnabled" class="selection-reminder" role="note">
       <span>收藏入口位于网页学习卡中；当前划词翻译和阅读助手都未开启。</span>
-      <button type="button" @click="emit('navigate', 'settings-translation')">前往开启</button>
+      <button type="button" @click="emit('navigate', 'settings-selection')">前往开启</button>
     </div>
 
 
@@ -179,6 +171,7 @@
 
 <script setup lang="ts">
 import UiIcon from '@/src/ui/components/UiIcon.vue'
+import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {applyInterfaceTheme} from '@/src/ui/interfaceAppearance'
 import {ElOption} from 'element-plus';
@@ -815,17 +808,10 @@ onBeforeUnmount(() => {
 .review-answer .study-entry-button { min-height: 32px; margin-top: 10px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; color: var(--brand-strong); background: var(--surface-soft); cursor: pointer; font: inherit; font-size: 11px; }
 .row-actions .study-entry-button { color:var(--brand); border-color:var(--brand); font-weight:600; }
 
+.vocabulary-saving-control { margin: 0; }
 .vocabulary-book { position: relative; display: grid; gap: 14px; color: var(--ink); }
-.beta-panel, .privacy-note, .selection-reminder, .primary-actions, .toolbar, .review-shell { border: 0; background: transparent; }
-.beta-panel { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0; }
+.privacy-note, .selection-reminder, .primary-actions, .toolbar, .review-shell { border: 0; background: transparent; }
 
-.beta-copy { display: flex; min-width: 0; align-items: flex-start; gap: 12px; }
-.beta-copy h3 { margin: 0; color: var(--muted); font-size: 12px; font-weight: 500; }
-.beta-copy p { margin: 5px 0 0; max-width: 600px; color: var(--muted); font-size: 11px; line-height: 1.55; }
-.beta-switch { position: relative; flex: none; width: 36px; height: 20px; padding: 2px; border: 0; border-radius: 999px; background: var(--line); cursor: pointer; }
-.beta-switch i { display: block; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 180ms ease; }
-.beta-switch[aria-checked="true"] { background: var(--brand); }
-.beta-switch[aria-checked="true"] i { transform: translateX(16px); }
 .selection-reminder { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .selection-reminder button { flex: none; border: 0; padding: 0; color: var(--brand-strong); background: transparent; cursor: pointer; font: inherit; }
 .privacy-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 2px; padding: 12px 0 0; border-top: 1px solid var(--line); color: var(--muted); }
@@ -947,7 +933,6 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   .word-progress { align-items: flex-start; }
 }
 @media (max-width: 560px) {
-  .beta-panel { align-items: flex-start; }
   .word-heading, .answer-heading { flex-wrap: wrap; }
   .summary-grid { gap: 8px 20px; }
   .toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -959,5 +944,5 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   .review-card { padding: 18px 13px; }
   .review-actions { grid-template-columns: 1fr; }
 }
-@media (prefers-reduced-motion: reduce) { .beta-switch i, .loading-ring { transition: none; animation: none; } }
+@media (prefers-reduced-motion: reduce) { .loading-ring { transition: none; animation: none; } }
 </style>

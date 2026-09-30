@@ -155,7 +155,6 @@
           :min="SELECTION_TRANSLATOR_DELAY_MIN"
           :max="SELECTION_TRANSLATOR_DELAY_MAX"
           :step="SELECTION_TRANSLATOR_DELAY_STEP"
-          controls-position="right"
           @change="handleSelectionTranslatorDelayChange"
         />
         <span class="input-suffix">ms</span>
@@ -409,7 +408,6 @@
           :min="MOUSE_HOVER_TRANSLATION_DELAY_MIN"
           :max="MOUSE_HOVER_TRANSLATION_DELAY_MAX"
           :step="MOUSE_HOVER_TRANSLATION_DELAY_STEP"
-          controls-position="right"
           @change="handleMouseHoverTranslationDelayChange"
         />
         <span class="input-suffix">ms</span>
