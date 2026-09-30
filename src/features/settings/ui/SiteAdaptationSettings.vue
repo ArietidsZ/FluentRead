@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SiteAdaptationSettings.vue
  * 文件职责：提供易发现、可解释、可扩展的正文适配规则工作区。
- * 主要内容：统一有效规则目录、来源筛选、无损可视化编辑、分步保存、冲突保护、合并导入与草稿撤销。
+ * 主要内容：统一有效规则目录、来源筛选、无损可视化编辑、分步保存、冲突保护、合并导入、草稿撤销与离页提醒。
  * 模块边界：复用规则包与严格校验，保存等待后台确认；不请求网址、不执行规则代码，不将草稿误当作生效配置。
  -->
 <template>
@@ -73,7 +73,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import {computed, nextTick, ref, watch} from 'vue';
+import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue';
 import {builtinSiteRulePack} from '@/src/core/site-adaptation/catalog';
 import {resolveSiteRule} from '@/src/core/site-adaptation/compiler';
 import {SITE_RULE_LIMITS} from '@/src/core/site-adaptation/schema';
@@ -95,6 +95,16 @@ let formBaseline = ''; let formSettingsBaseline = ''; let formInitial = '';
 const committer = createSiteAdaptationCommitter(value => props.saveSettings(value));
 const importGuard = createSiteRuleDraftImportGuard();
 const isDirty = computed(() => draft.value !== formatSiteRulePack(props.modelValue.custom));
+const hasUnsavedWork = computed(() => saving.value || isDirty.value || (!!form.value && JSON.stringify(form.value) !== formInitial));
+function warnBeforeExit(event: BeforeUnloadEvent) {
+  if (!hasUnsavedWork.value) return;
+  event.preventDefault(); event.returnValue = '';
+}
+watch(hasUnsavedWork, active => {
+  if (active) window.addEventListener('beforeunload', warnBeforeExit);
+  else window.removeEventListener('beforeunload', warnBeforeExit);
+}, {immediate: true});
+onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeExit));
 const draftConflict = computed(() => draftOwned.value && isDirty.value && !saving.value && draftBase.value !== formatSiteRulePack(props.modelValue.custom));
 const parsedDraft = computed(() => parseSiteAdaptationDraft(draft.value, document));
 const workingPack = computed(() => parsedDraft.value.ok ? parsedDraft.value.pack : props.modelValue.custom);

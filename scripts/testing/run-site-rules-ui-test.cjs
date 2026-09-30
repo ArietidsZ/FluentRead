@@ -189,11 +189,19 @@ async function main() {
     const json = adaptation.getByRole('textbox', {name: 'JSON 编辑草稿', exact: true});
     const saved = await json.inputValue();
     await json.fill('{broken');
+    assert.equal(await page.evaluate(() => {
+      const event = new Event('beforeunload', {cancelable: true});
+      window.dispatchEvent(event); return event.defaultPrevented;
+    }), true, 'Unsaved draft must request the browser leave warning');
     await adaptation.getByRole('button', {name: '保存规则', exact: true}).click();
     await adaptation.getByRole('alert').first().waitFor();
     assert.equal((await readConfig()).siteAdaptation.custom.rules.length, 2);
     await adaptation.getByRole('button', {name: '恢复已保存草稿', exact: true}).click();
     assert.equal(await json.inputValue(), saved);
+    assert.equal(await page.evaluate(() => {
+      const event = new Event('beforeunload', {cancelable: true});
+      window.dispatchEvent(event); return event.defaultPrevented;
+    }), false, 'Saved state must not block leaving');
     // 外部写入不能覆盖未保存草稿，也不能被旧草稿静默回写。
     await json.fill(saved.replace('导入规则', '草稿名称'));
     const current = (await readConfig()).siteAdaptation;
@@ -239,7 +247,7 @@ async function main() {
     assert.match(await preview.textContent(), /不适用于全部节点/);
     assert.doesNotMatch(await preview.locator('.preview-adaptation .rule-notice').textContent(), /命中限定范围规则/);
     await patchConfig({translationScope: 'content'});
-    report.caseCoverage.push(...['system-navigation', 'domain-union-and-disable-precedence', 'global-auto-empty-state', 'quick-close-persistence', 'controlled-popup-cross-page', 'visual-rule-staging-and-save', 'saved-config-preview-and-jump', 'merge-import-preserves-existing', 'invalid-json-preserves-saved', 'external-draft-conflict', 'builtin-override-disable-remove-restore', 'all-node-scope-preview'].map(id => ({id, status: 'passed'})));
+    report.caseCoverage.push(...['system-navigation', 'domain-union-and-disable-precedence', 'global-auto-empty-state', 'quick-close-persistence', 'controlled-popup-cross-page', 'visual-rule-staging-and-save', 'saved-config-preview-and-jump', 'merge-import-preserves-existing', 'invalid-json-preserves-saved', 'unsaved-exit-protection', 'external-draft-conflict', 'builtin-override-disable-remove-restore', 'all-node-scope-preview'].map(id => ({id, status: 'passed'})));
     await page.close(); page = await open(); await panel('adaptation');
     await page.locator('[data-setting="site-adaptation"]').waitFor();
     await page.locator('[data-setting="site-adaptation"] .catalog-filters').getByRole('button', {name: /^自定义/}).click();
@@ -264,8 +272,8 @@ async function main() {
     await patchConfig({uiLanguage: 'zh-CN'});
     await page.getByRole('heading', {name: '正文适配', exact: true}).waitFor();
     await page.locator('nav [data-section="settings-data"]').click();
-    await page.locator('[data-settings-category="history"]').click();
     await page.locator('.version-entry').first().waitFor();
+    await page.locator('.version-entry').first().scrollIntoViewIfNeeded();
     assert.match(await page.locator('.version-entry').first().textContent(), /v[0-9]+/);
     await shot('configuration-history');
     report.persistenceCases.push({name: 'history-version-and-time', passed: true});

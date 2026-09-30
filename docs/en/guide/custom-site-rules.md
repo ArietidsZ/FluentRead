@@ -8,7 +8,7 @@ Open **System & data → Website rules**. Site preferences, content rules, and a
 
 Search content rules by site name, host, or rule ID. Open the details and customize a built-in rule, or create a new rule. Export a backup first.
 
-Use one host, path, or CSS selector per line; commas inside CSS remain intact. Augment adds targets to general recognition; focus limits recognition to declared content. Stage your changes, then save and apply. Switching categories retains the draft, but closing or reloading settings does not save it.
+Use one host, path, or CSS selector per line; commas inside CSS remain intact. Augment adds targets to general recognition; focus limits recognition to declared content. Stage your changes, then save and apply. Switching categories retains the draft. Unsaved edits request the browser's close/reload warning, but drafts are not saved automatically. Confirming departure still discards them; save or export first.
 
 Advanced JSON supports profiles and every advanced field. Import merges by default: matching IDs replace whole rules, while other rules remain. Conflicting profile definitions are rejected. Whole-draft replacement is optional and can be undone before saving. Removing a custom override and saving restores its built-in version; the disabled ID state remains.
 
