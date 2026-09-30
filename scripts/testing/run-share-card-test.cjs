@@ -15,6 +15,7 @@ const original = 'Somewhere, something incredible is waiting to be known.';
 const translation = '在某个地方，正有不可思议的事物，等待我们去发现。';
 const report = {checks: [], errors: [], service: 'microsoft protocol with controlled local response', profile: 'temporary'};
 let session, page, browser, popup, sequence = 0;
+const executionContexts = [];
 const attr = (n, key) => { const a = n?.attributes || []; const i = a.indexOf(key); return i < 0 ? '' : a[i + 1]; };
 function find(n, predicate) {if (!n) return null; if (predicate(n)) return n; for (const child of [...n.children || [], ...n.shadowRoots || []]) {const match = find(child, predicate); if (match) return match;} return null;}
 function all(n, predicate, out = []) {if (!n) return out; if (predicate(n)) out.push(n); for (const child of [...n.children || [], ...n.shadowRoots || []]) all(child, predicate, out); return out;}
@@ -48,6 +49,7 @@ async function toggle() {const box=await page.locator('#target').boundingBox(); 
   await patch({uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,on:true,service:'microsoft',useCache:false,display:1,from:'auto',to:'zh-Hans',hotkey:'Control',disableSelectionTranslator:false,selectionTranslatorMode:'bilingual',selectionTranslatorTrigger:'icon',selectionTranslatorDelay:0});
   await context.route('https://example.com/**',r=>r.fulfill({status:200,contentType:'text/html',headers:{'content-security-policy':"img-src 'none'; object-src 'none'"},body:`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Reading notes</title><style>body{margin:0;background:#f5f5f0;font:22px/1.9 Georgia;color:#26352c} main{max-width:700px;margin:100px auto}h1{font-size:30px}button{font-size:90px!important;background:red!important}dialog{color:red!important}#neighbor{margin-top:100px}</style></head><body><main><h1>A small reading moment</h1><p id="target">${original}</p><p id="neighbor">This neighboring paragraph must remain unchanged.</p></main></body></html>`}));
   page=await focus.newPageWithoutForeground(context); page.on('pageerror',e=>report.errors.push(e.message)); await page.goto('https://example.com/private/article?token=secret#note'); await page.locator('#fluent-read-page-styles').waitFor({state:'attached'}); session=await context.newCDPSession(page);
+  session.on('Runtime.executionContextCreated', ({context}) => executionContexts.push(context)); await session.send('Runtime.enable');
   await toggle(); await page.locator('#target .fluent-read-bilingual-content').waitFor(); assert.equal(await page.locator('#target .fluent-read-bilingual-content').innerText(),translation); assert.equal(await page.locator('#neighbor .fluent-read-bilingual-content').count(),0);
   await openCard(); assert.equal(await page.evaluate(()=>document.querySelector('#fluent-read-share-card-container').shadowRoot),null);
   await savePreview('coral'); await page.screenshot({path:path.join(output,'studio-desktop.png')}); report.checks.push('paragraph entry, closed Shadow DOM, hostile CSS + image CSP, default coral preview');
@@ -55,32 +57,65 @@ async function toggle() {const box=await page.locator('#target').boundingBox(); 
   let fields=all(await tree(),n=>n.nodeName==='TEXTAREA'); assert.equal(await call(fields[0],'function(){return this.value}'),original); assert.equal(await call(fields[1],'function(){return this.value}'),translation);
   await clickNode(n=>n.nodeName==='SUMMARY' && all(n,x=>x.nodeName==='#text').some(x=>x.nodeValue.includes('更多设置')));
   const source=await nodeBy(n=>n.nodeName==='INPUT'&&attr(n,'maxlength')==='160'); assert.equal(await call(source,'function(){return this.value}'),'example.com');
-  for(const theme of ['sky','prism','pearl']){await clickNode(n=>attr(n,'data-theme')===theme); await savePreview(theme);}
-  const previews = ['coral','sky','prism','pearl'].map(name => ({name, data: fs.readFileSync(path.join(output,name+'.png')).toString('base64')}));
+  const themes = ['coral','sky','prism','pearl','moss','linen','sunset','blueprint'];
+  assert.equal(all(await tree(), n => themes.includes(attr(n,'data-theme'))).length, 8);
+  for(const theme of themes.slice(1)){await clickNode(n=>attr(n,'data-theme')===theme); await savePreview(theme); await wait(async()=>(await config()).shareCard.theme===theme, 'persisted '+theme);}
+  const previews = themes.map(name => ({name, data: fs.readFileSync(path.join(output,name+'.png')).toString('base64')}));
+  assert.equal(new Set(previews.map(p=>p.data)).size, 8, 'eight distinct exported designs');
   const gallery = await popup.evaluate(async previews => {
-    const canvas = document.createElement('canvas'); canvas.width=1320; canvas.height=790; const ctx=canvas.getContext('2d');
-    ctx.fillStyle='#f3f4f8'; ctx.fillRect(0,0,1320,790);
-    const labels=['01  珊瑚 · Coral  /  默认','02  晴空 · Sky','03  流光 · Prism','04  月白 · Pearl'];
+    const canvas = document.createElement('canvas'); canvas.width=1320; canvas.height=1570; const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#f3f4f8'; ctx.fillRect(0,0,1320,1570);
+    const labels=['01  珊瑚 · Coral  /  默认','02  晴空 · Sky','03  流光 · Prism','04  月白 · Pearl','05  抹茶 · Matcha','06  书页 · Linen','07  落日 · Sunset','08  蓝图 · Blueprint'];
     for(let i=0;i<previews.length;i++) {const img=new Image(); img.src='data:image/png;base64,'+previews[i].data; await img.decode(); const x=36+(i%2)*642,y=48+Math.floor(i/2)*380; ctx.fillStyle='#323847';ctx.font='500 18px system-ui';ctx.fillText(labels[i],x,y-15);ctx.drawImage(img,x,y,606,606*img.height/img.width);}
     return canvas.toDataURL();
   },previews);
   fs.writeFileSync(path.join(output,'styles-comparison.png'),Buffer.from(gallery.split(',')[1],'base64'));
   report.images = Object.fromEntries(previews.map(({name})=>[name,(()=>{const png=fs.readFileSync(path.join(output,name+'.png'));return {bytes:png.length,width:png.readUInt32BE(16),height:png.readUInt32BE(20)};})()]));
   report.savedPreferences = (await config()).shareCard;
+  await clickNode(n=>attr(n,'data-theme')==='pearl'); await ready();
   await wait(async()=>(await config()).shareCard.theme==='pearl','saved theme');
-  const format = all(await tree(),n=>n.nodeName==='SELECT')[0];
-  await call(format, 'function(){this.value="square";this.dispatchEvent(new Event("change",{bubbles:true}))}');
+  await clickNode(n=>attr(n,'data-format')==='square');
   await ready(); const square = await imageData(); assert.equal(square.width,square.height);
   await fillNode(all(await tree(),n=>n.nodeName==='TEXTAREA')[0],'A thought to remember. '.repeat(22));
   await wait(async()=>{const n=find(await tree(),x=>cls(x,'fr-card-primary')); return n && call(n,'function(){return this.disabled}');}, 'square overflow blocked');
-  await call(all(await tree(),n=>n.nodeName==='SELECT')[0], 'function(){this.value="auto";this.dispatchEvent(new Event("change",{bubbles:true}))}');
+  await clickNode(n=>attr(n,'data-format')==='auto');
   await ready(); await fillNode(all(await tree(),n=>n.nodeName==='TEXTAREA')[0],original); await ready();
   report.checks.push('square export, overflow rejected, auto layout recovery');
-  const preview=await imageData(); const downloadEvent=page.waitForEvent('download'); await clickNode(n=>cls(n,'fr-card-primary')); const downloaded=await downloadEvent; const file=path.join(output,'downloaded-card.png'); await downloaded.saveAs(file); assert.equal(fs.readFileSync(file).toString('base64'),preview.data.split(',')[1]); report.checks.push('four styles, persisted preference, actual PNG download identical to preview');
+  const preview=await imageData(); const downloadEvent=page.waitForEvent('download'); await clickNode(n=>cls(n,'fr-card-primary')); const downloaded=await downloadEvent; const file=path.join(output,'downloaded-card.png'); await downloaded.saveAs(file); assert.equal(fs.readFileSync(file).toString('base64'),preview.data.split(',')[1]);
+  await nodeBy(n=>cls(n,'fr-card-feedback')&&cls(n,'is-success')); await page.screenshot({path:path.join(output,'save-success.png')});
+  report.checks.push('eight styles, each preference persisted, actual PNG download identical to preview, prominent save feedback');
+  // 仅在隔离扩展执行上下文替换导出 API，验证可见反馈，不覆盖用户剪贴板、不调用系统分享。
+  const isolated = executionContexts.find(c=>c.origin===`chrome-extension://${extensionId}` && !c.auxData?.isDefault);
+  assert(isolated, 'extension execution context');
+  const mockExport = async expression => {
+    const result = await session.send('Runtime.evaluate', {contextId:isolated.id, expression});
+    assert(!result.exceptionDetails, JSON.stringify(result.exceptionDetails));
+  };
+  await mockExport(`Object.defineProperty(navigator.clipboard, 'write', {configurable:true,value:()=>Promise.resolve()})`);
+  await clickNode(n=>attr(n,'data-action')==='copy'); await nodeBy(n=>cls(n,'fr-card-feedback')&&cls(n,'is-success'));
+  let feedback=await nodeBy(n=>cls(n,'fr-card-feedback')); assert((await call(feedback,'function(){return this.textContent}')).includes('图片已复制'));
+  await page.screenshot({path:path.join(output,'copy-success.png')});
+  await mockExport(`Object.defineProperty(navigator.clipboard, 'write', {configurable:true,value:()=>Promise.reject(new DOMException('Denied','NotAllowedError'))})`);
+  await clickNode(n=>attr(n,'data-action')==='copy'); feedback=await nodeBy(n=>cls(n,'fr-card-feedback')&&cls(n,'is-error')); assert((await call(feedback,'function(){return this.textContent}')).includes('未能复制'));
+  await page.screenshot({path:path.join(output,'copy-error.png')});
+  report.checks.push('trusted clicks with isolated clipboard success/rejection stubs show semantic banners; system clipboard untouched');
+  await mockExport(`Object.defineProperty(navigator,'share',{configurable:true,value:()=>Promise.resolve()})`);
+  await clickNode(n=>attr(n,'data-action')==='share'); feedback=await nodeBy(n=>cls(n,'fr-card-feedback')&&cls(n,'is-success')); assert((await call(feedback,'function(){return this.textContent}')).includes('已交给系统分享'));
+  await mockExport(`Object.defineProperty(navigator,'share',{configurable:true,value:()=>Promise.reject(new DOMException('Denied','NotAllowedError'))})`);
+  await clickNode(n=>attr(n,'data-action')==='share'); await nodeBy(n=>cls(n,'fr-card-feedback')&&cls(n,'is-error'));
+  await mockExport(`Object.defineProperty(navigator,'share',{configurable:true,value:()=>Promise.reject(new DOMException('Cancelled','AbortError'))})`);
+  await clickNode(n=>attr(n,'data-action')==='share'); await wait(async()=>!find(await tree(),n=>cls(n,'fr-card-feedback')), 'sharing cancelled without false success');
+  report.checks.push('isolated system-share success/rejection/cancellation stubs show correct feedback; no system share invoked');
+  for (const key of ['translationFirst','showSource','showBrand']) {
+    await clickNode(n=>attr(n,'data-setting')===key); await ready(); const field=await nodeBy(n=>attr(n,'data-setting')===key);
+    const checked=await call(field,'function(){return this.checked}'); await wait(async()=>(await config()).shareCard[key]===checked, 'switch persisted '+key);
+    await clickNode(n=>attr(n,'data-setting')===key); await ready();
+  }
+  for (const size of ['small','large','medium']) {await clickNode(n=>attr(n,'data-font-size')===size); await ready();}
+  await page.screenshot({path:path.join(output,'studio-settings.png')}); report.checks.push('brand segmented settings and keyboard-native switches update previews and persist');
   fields=all(await tree(),n=>n.nodeName==='TEXTAREA'); await fillNode(fields[0],'a'.repeat(3001)); await wait(async()=>{const n=find(await tree(),x=>cls(x,'fr-card-primary')); return n && call(n,'function(){return this.disabled}');},'long disabled'); await wait(async()=>!find(await tree(),n=>n.nodeName==='CANVAS'),'invalid preview cleared'); await fillNode((all(await tree(),n=>n.nodeName==='TEXTAREA'))[0],original); await ready();
   await clickNode(n=>n.nodeName==='SUMMARY' && all(n,x=>x.nodeName==='#text').some(x=>x.nodeValue.includes('编辑摘录')));
-  await clickNode(n=>n.nodeName==='SUMMARY' && all(n,x=>x.nodeName==='#text').some(x=>x.nodeValue.includes('更多设置')));
-  await page.setViewportSize({width:390,height:844}); await page.screenshot({path:path.join(output,'studio-mobile.png')}); const bounds=await call(await nodeBy(n=>cls(n,'fr-card-dialog')),'function(){const r=this.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:innerWidth,height:innerHeight}}'); assert(bounds.left>=0&&bounds.right<=bounds.width&&bounds.top>=0&&bounds.bottom<=bounds.height); report.checks.push('long text blocked without stale export, 390px responsive dialog');
+  await page.setViewportSize({width:390,height:844}); await page.screenshot({path:path.join(output,'studio-mobile.png')}); const bounds=await call(await nodeBy(n=>cls(n,'fr-card-dialog')),'function(){const r=this.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:innerWidth,height:innerHeight,scrollWidth:this.scrollWidth,clientWidth:this.clientWidth}}'); assert(bounds.left>=0&&bounds.right<=bounds.width&&bounds.top>=0&&bounds.bottom<=bounds.height); assert(bounds.scrollWidth<=bounds.clientWidth); report.checks.push('long text blocked without stale export, 390px responsive dialog with expanded settings');
   await closeCard(); await page.setViewportSize({width:1280,height:900}); await openCard(); const active=await nodeBy(n=>attr(n,'data-theme')==='pearl'); assert.equal(attr(active,'aria-pressed'),'true'); await closeCard();
   await toggle(); await wait(()=>page.locator('#target .fluent-read-bilingual-content').count().then(n=>n===0),'restore'); await toggle(); await page.locator('#target .fluent-read-bilingual-content').waitFor(); assert.equal(await page.locator('#target .fluent-read-bilingual-content').count(),1); report.checks.push('translate / restore / retranslate [1,0,1], no adjacent paragraph change');
   // 通过真实拖选打开划词结果，再验证它复用同一个工作台。
