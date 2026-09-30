@@ -51,6 +51,162 @@ async function verifyLanguageMenus(page) {
   return {search: true, keyboardSelection: true, escape: true, closedOptions: 0, crossPageSync: true, languageRoundTrip: true, reopened: true};
 }
 
+async function verifyProviders(page, context, base) {
+  const read = () => page.evaluate(async () => (await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value);
+  const patch = async values => page.evaluate(async values => {
+    const current = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
+    const result = await chrome.runtime.sendMessage({type: 'persistConfig', mode: 'patch', config: values,
+      expected: Object.fromEntries(Object.keys(values).map(key => [key, current.value[key]])),
+      clientId: 'popup-provider-layout', sequence: Date.now(), baseRevision: current.value.__fluentConfigRevision || 0});
+    if (!result?.success) throw new Error(result?.error || 'provider config failed');
+  }, values);
+  const checkWidth = async () => {
+    if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)) throw new Error('Provider UI overflows');
+  };
+  const open = async () => { await page.locator('[data-testid="popup-feature-services"]').click(); await page.locator('.popup-provider-fields').waitFor(); };
+  const choose = async (id, label) => {
+    const field = page.locator(`[data-feature-service="${id}"]`);
+    await field.locator('.el-select__wrapper').click();
+    const combobox = field.getByRole('combobox');
+    const list = await combobox.getAttribute('aria-controls');
+    await page.locator(`#${list}`).getByRole('option', {name: label, exact: true}).click();
+  };
+  await patch({theme: 'light', to: 'zh-Hans'});
+  await page.waitForFunction(() => !document.documentElement.classList.contains('dark'));
+  await open();
+  if (await page.locator('[data-feature-service]').count() !== 10) throw new Error('Missing feature assignments');
+  if (await page.locator('.el-select-dropdown__item').count()) throw new Error('Closed provider menus mount hidden options');
+  await page.locator('.popup-drawer').screenshot({path: path.join(artifactsDir, 'providers.png')});
+  const before = await read();
+  await choose('selection', '微软翻译');
+  await choose('default', '谷歌翻译');
+  await page.waitForFunction(async () => {
+    const c = (await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value;
+    return c.service === 'google' && c.selectionTranslationService === 'microsoft';
+  });
+  let saved = await read();
+  if (saved.hoverTranslationService !== before.hoverTranslationService || saved.videoService !== before.videoService) throw new Error('Assigning a feature changed another feature');
+  await choose('selection', '跟随默认 · 谷歌翻译');
+  await page.reload({waitUntil: 'load'});
+  await page.locator('.popup-shell[data-config-ready="true"]').waitFor();
+  saved = await read();
+  if (saved.selectionTranslationService !== '' || saved.service !== 'google') throw new Error('Quick close lost inherited assignment');
+  await open();
+  const reading = page.locator('[data-feature-service="reading"]');
+  await reading.locator('.el-select__wrapper').click();
+  let list = await reading.getByRole('combobox').getAttribute('aria-controls');
+  if (await page.locator(`#${list}`).getByRole('option', {name: '微软翻译', exact: true}).count()) throw new Error('AI-only feature offers machine service');
+  await reading.getByRole('combobox').press('Escape');
+  const defaultField = page.locator('[data-feature-service="default"]');
+  await defaultField.locator('.el-select__wrapper').click();
+  await defaultField.getByRole('combobox').fill('gpt');
+  list = await defaultField.getByRole('combobox').getAttribute('aria-controls');
+  await page.locator(`#${list}`).getByRole('option', {name: 'OpenAI', exact: true}).waitFor();
+  await defaultField.getByRole('combobox').press('Escape');
+  await page.locator('[data-testid="ai-context-help"]').click();
+  await page.locator('[data-testid="ai-context-description"]').waitFor();
+  await page.locator('.drawer-heading button').click();
+  await page.locator('.popup-provider-fields').waitFor();
+  await page.locator('.drawer-header > button').click();
+  await page.locator('.popup-drawer').waitFor({state: 'hidden'});
+  if (await page.locator('[data-testid="ai-context-help"]:visible').count()) throw new Error('AI shortcut still in main popup');
+  await page.locator('.popup-shell').screenshot({path: path.join(artifactsDir, 'popup-providers-assigned.png')});
+  for (const skin of ['compact', 'minimal', 'default']) {
+    await patch({interfaceSkin: skin});
+    await page.waitForFunction(skin => document.querySelector('.popup-shell')?.dataset.interfaceSkin === skin, skin);
+    await checkWidth();
+    await page.locator('.popup-shell').screenshot({path: path.join(artifactsDir, `popup-${skin}.png`)});
+  }
+  const settings = await newPageWithoutForeground(context, 30000);
+  settings.on('pageerror', error => report.consoleErrors.push(error.message));
+  await settings.setViewportSize({width: 1440, height: 960});
+  await settings.goto(`${base}/options.html#settings-services`);
+  const catalog = settings.locator('.service-catalog');
+  await catalog.waitFor();
+  if (await settings.locator('.el-overlay:visible').count()) throw new Error('Service management still opens in an overlay');
+  if (await settings.locator('#settings-services [data-testid="feature-services"]').count()) throw new Error('Feature assignments still appear in translation services');
+  await settings.locator('[data-service-value="microsoft"]').click();
+  if (await catalog.getAttribute('data-default-service') !== 'google') throw new Error('Editing a connection changed default');
+  await settings.screenshot({path: path.join(artifactsDir, 'service-workspace.png')});
+  await settings.setViewportSize({width: 390, height: 900});
+  await settings.locator('.mobile-directory-toggle').click();
+  await settings.locator('[data-service-value="google"]').click();
+  if (await settings.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error('Service page overflows mobile viewport');
+  await settings.screenshot({path: path.join(artifactsDir, 'service-workspace-mobile.png')});
+  await settings.setViewportSize({width: 1440, height: 960});
+  await settings.goto(`${base}/options.html#settings-general`);
+  await settings.locator('.search-box input').fill('功能分配');
+  await settings.locator('.search-results button').filter({hasText: '功能分配'}).first().click();
+  await settings.locator('#feature-services').waitFor();
+  if (await settings.locator('#feature-services [data-feature-service]').count() !== 9) throw new Error('General settings are missing feature service assignments');
+  await settings.locator('#feature-services').scrollIntoViewIfNeeded();
+  await settings.screenshot({path: path.join(artifactsDir, 'general-assignments.png')});
+  await settings.locator('#feature-services [data-feature-service="hover"] .feature-service-connection').click();
+  await settings.locator('#settings-services .service-catalog').waitFor();
+  if (await catalog.getAttribute('data-default-service') !== 'google') throw new Error('Opening feature connection changed default service');
+  if (await settings.locator('#settings-services [data-feature-service]').count()) throw new Error('Feature connection opens assignments in service directory');
+  await settings.goto(`${base}/options.html#settings-general`);
+  const master = settings.locator('[data-testid="plugin-master-setting"]').getByRole('switch');
+  await master.waitFor();
+  const bounds = await master.boundingBox();
+  if (bounds.y > 220) throw new Error('Global switch is not at the top of General settings');
+  await settings.screenshot({path: path.join(artifactsDir, 'general-master.png')});
+  // Offline fixtures exercise the production content lifecycle, without logging in or sending translation requests.
+  const fixtures = [];
+  for (const site of ['youtube', 'x']) {
+    const url = site === 'youtube' ? 'https://www.youtube.com/watch?v=fluentread-global-switch' : 'https://x.com/FluentRead/status/123456/video/1';
+    const container = site === 'youtube' ? 'id="movie_player" class="html5-video-player"' : 'data-testid="videoPlayer"';
+    const controls = site === 'youtube' ? 'class="ytp-right-controls"' : 'class="fixture-controls"';
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${site} switch fixture</title></head><body><main><article><div ${container} style="position:relative;width:800px;height:450px;background:#182434"><video muted controls style="width:100%;height:100%"></video><div ${controls} style="position:absolute;bottom:0;right:0;display:flex;height:40px"><button aria-label="Play">Play</button><button aria-label="Settings">Settings</button><button aria-label="Fullscreen">Fullscreen</button></div></div></article></main></body></html>`;
+    await context.route(url, route => route.fulfill({status: 200, contentType: 'text/html', body: html}));
+    const fixture = await newPageWithoutForeground(context, 30000);
+    await fixture.goto(url);
+    await fixture.locator('.fluent-read-video-subtitle-button').waitFor({timeout: 20000});
+    fixtures.push({site, page: fixture});
+  }
+  const preferencesBeforePause = await read();
+  await master.click();
+  await settings.waitForFunction(async () => !(await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value.on);
+  for (const fixture of fixtures) {
+    await fixture.page.locator('.fluent-read-video-subtitle-button').waitFor({state: 'detached'});
+    if (await fixture.page.locator('.fluent-read-video-ui').count()) throw new Error(`${fixture.site}: video UI remains after pause`);
+    await fixture.page.screenshot({path: path.join(artifactsDir, `${fixture.site}-paused.png`)});
+    await fixture.page.reload();
+    await fixture.page.waitForTimeout(600);
+    if (await fixture.page.locator('.fluent-read-video-ui').count()) throw new Error(`${fixture.site}: disabled UI reappears on reload`);
+  }
+  if ((await read()).videoTranslationEnabled !== preferencesBeforePause.videoTranslationEnabled) throw new Error('Global switch overwrote subtitle preferences');
+  await master.click();
+  for (const fixture of fixtures) {
+    await fixture.page.locator('.fluent-read-video-subtitle-button').waitFor();
+    await fixture.page.close();
+  }
+  report.globalSwitch = {topOfGeneral: true, youtubeRemoved: true, xRemoved: true, survivesReload: true, restored: true, preservesPreferences: true, fixture: 'offline DOM with production content scripts'};
+  await settings.goto(`${base}/options.html#settings-selection`);
+  await settings.locator('.harness-provider-row').waitFor();
+  await settings.locator('.harness-provider-row').scrollIntoViewIfNeeded();
+  await settings.screenshot({path: path.join(artifactsDir, 'selection-preferences.png')});
+  const advanced = settings.locator('.harness-advanced');
+  await settings.locator('.selection-advanced').scrollIntoViewIfNeeded();
+  const summaries = await settings.locator('.harness-advanced > summary, .selection-advanced > summary').evaluateAll(nodes => nodes.map(node => ({
+    height: node.getBoundingClientRect().height,
+    background: getComputedStyle(node).backgroundColor,
+    surface: getComputedStyle(node.closest('.settings-app')).getPropertyValue('--surface').trim(),
+    marker: getComputedStyle(node).listStyleType,
+    chevron: getComputedStyle(node, '::after').content,
+  })));
+  if (summaries.some(summary => summary.height > 46 || summary.marker !== 'none' || summary.chevron !== '""')) throw new Error('Advanced settings still use oversized or ambiguous disclosure rows');
+  await settings.screenshot({path: path.join(artifactsDir, 'selection-disclosures.png')});
+  await advanced.locator(':scope > summary').focus();
+  await advanced.locator(':scope > summary').press('Enter');
+  if (!await advanced.evaluate(node => node.open)) throw new Error('Advanced settings cannot be expanded with keyboard');
+  await advanced.locator('.harness-memory-settings').waitFor();
+  await advanced.locator(':scope > summary').press('Enter');
+  report.disclosures = {commonPreferencesVisible: true, keyboardExpansion: true, summaries};
+  await settings.close();
+  report.providers = {independentAssignments: true, inheritDefault: true, quickClose: true, aiOnly: true, modelSearch: true, noHiddenOptions: true, localDrawer: true, stableServiceWorkspace: true, assignmentLocation: 'general', assignmentSearchAndConnectionLink: true, editingPreservesDefault: true, skins: ['default', 'minimal', 'compact']};
+}
+
 async function main() {
   let launched;
   try {
@@ -169,6 +325,7 @@ async function main() {
         await page.locator('.popup-drawer').screenshot({path: path.join(artifactsDir, 'popup-hover.png')});
         await page.locator('.drawer-header button').click();
         report.compactWorkflow = {features, imageAndAreaIndependent: true, sectionActionReachable: true};
+        if (process.argv.includes('--verify-providers')) await verifyProviders(page, context, extensionOrigin);
       }
       await session.detach();
       await page.close();

@@ -354,6 +354,7 @@
       "tests/zhipuCredentials.test.ts",
       "tests/qqMailFrameRuntime.test.ts",
       "tests/translationCachePolicyBinding.test.ts",
+      "tests/translationAvailability.test.ts",
       "tests/harnessSessionRepository.test.ts",
       "tests/harnessConversationPersistence.test.ts",
       "tests/imageOcrRuntime.test.ts",

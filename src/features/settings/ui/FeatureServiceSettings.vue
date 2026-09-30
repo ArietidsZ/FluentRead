@@ -1,23 +1,12 @@
 <!--
  * @file src/features/settings/ui/FeatureServiceSettings.vue
- * 文件职责：提供按功能分配翻译服务的统一入口，让默认服务、继承关系和独立选择在一页内可见。
- * 主要内容：使用相同的服务目录与图标展示网页默认、各功能服务、有效模型和缺失凭据提示；AI 功能仅提供兼容服务，配置连接就地打开编辑窗，服务目录按钮允许管理未使用的服务，默认选择保持独立。
+ * 文件职责：在通用设置中集中分配各功能的翻译服务，沿用日常翻译中的默认服务，显示继承关系和独立选择。
+ * 主要内容：使用相同的服务目录与图标展示各功能服务、有效模型和缺失凭据提示；AI 功能仅提供兼容服务，配置连接定位到翻译服务页，默认选择保持独立。
  * 模块边界：仅修改父级传入的配置草稿，复用现有字段与自动保存；不保存第二份映射，不发起翻译或测试连接请求。
  -->
 <template>
   <div class="feature-services" data-testid="feature-services" data-i18n-ignore>
-    <div class="feature-services-toolbar"><p class="feature-services-intro">{{ t('featureServices.intro') }}</p><el-button id="service-connections" @click="emit('manage-services')">{{ t('settings.services.library.shortlist') }}</el-button></div>
-    <SettingsGroup>
-      <SettingsItem :label="t('featureServices.default')" :description="t('featureServices.defaultHelp')">
-        <div class="feature-service-control" data-feature-service="default">
-          <el-select v-model="config.service" :aria-label="t('featureServices.default')" filterable :search-placeholder="t('select.searchService')">
-            <template #prefix><ServiceIcon :service="config.service" :label="serviceLabel(config.service)" size="small" /></template>
-            <el-option v-for="option in choices(config.service)" :key="option.value" :value="option.value" :label="option.label" :disabled="option.disabled"><span class="feature-service-option"><ServiceIcon :service="option.value" :label="option.label" size="small" />{{ option.label }}</span></el-option>
-          </el-select>
-          <button class="feature-service-connection" type="button" @click="emit('configure-service', config.service)">{{ t('featureServices.connection') }}</button>
-        </div>
-      </SettingsItem>
-    </SettingsGroup>
+    <div class="feature-services-toolbar"><p class="feature-services-intro">{{ t('featureServices.intro') }}</p></div>
     <SettingsGroup>
       <SettingsItem v-for="feature in featureServiceDefinitions" :key="feature.id" :label="t(`featureServices.${feature.id}`)">
         <template #copy>
@@ -55,7 +44,7 @@ import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 type ServiceOption = {value: string; label: string; disabled?: boolean};
 const props = defineProps<{config: Config; serviceOptions: readonly ServiceOption[]}>();
-const emit = defineEmits<{'configure-service': [service: string]; 'open-center': []; 'manage-services': []}>();
+const emit = defineEmits<{'configure-service': [service: string]; 'open-center': []}>();
 const {t, translateLegacy} = useUiI18n();
 const serviceLabel = (service: string) => props.serviceOptions.find(option => option.value === service)?.label || service;
 const effectiveService = (feature: FeatureServiceDefinition) => getFeatureService(props.config, feature) || props.config.service;

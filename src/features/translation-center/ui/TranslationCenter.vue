@@ -1,7 +1,7 @@
 <!--
  * @file src/features/translation-center/ui/TranslationCenter.vue
  * 文件职责：提供以输入和多服务对照为中心的翻译工作台，清晰展示凭据、请求进度和旧结果。
- * 主要内容：复用配置补丁保存语言、顺序和结果布局；服务目录按凭据状态分组并支持模型搜索；卡片提供配置入口、独立重试和复制，设置同步保留原文及结果，请求身份和停止由 comparison 模型维护。
+ * 主要内容：复用配置补丁保存语言、顺序和结果布局；服务目录按凭据状态分组并支持模型搜索；卡片提供配置入口、独立重试和复制，设置同步保留原文及结果，请求身份和停止由 comparison 模型维护，全局暂停取消在途任务并保留输入与已完成结果。
  * 模块边界：不实现 provider 协议、不保存原文和译文、不更改网页默认服务；翻译复用 app client，设置导航交给外层，卸载时释放自有页面监听器和请求。
  -->
 <template>
@@ -18,6 +18,7 @@
         </div>
         <div class="translation-editor"><textarea ref="sourceEditor" v-model="sourceText" data-i18n-ignore :maxlength="MAX_TEXT_LENGTH" :placeholder="ct('placeholder')" :aria-label="ct('input')" aria-describedby="translation-input-help" @keydown="handleEditorKeydown" /><button v-if="!sourceText" class="example-button" type="button" @click="useExample"><UiIcon name="pen" :size="15" />{{ ct('example') }}</button></div>
         <div class="translation-input-meta"><span>{{ sourceText.length.toLocaleString() }} / 5,000</span><span v-if="isRunning" role="status">{{ ct('progress', {done: settledCount, total: requestedCount}) }}</span></div>
+        <p v-if="!translationEnabled" class="input-notice translation-paused" role="status">{{ t('popup.heroDisabled') }} · <a href="#settings-general">{{ translateLegacy('通用设置') }}</a></p>
         <p v-if="sameLanguage" class="input-notice" role="status">{{ ct('sameLanguage') }}</p>
         <p v-if="!readyCards.length" class="input-notice" role="status">{{ ct('noReady') }}</p>
         <div class="translation-input-footer"><button v-if="isRunning" class="translate-stop-button" type="button" @click="session.stop()"><UiIcon name="close" :size="16" />{{ ct('stop') }}</button><button v-else class="translate-primary-button" type="button" :disabled="!canTranslate || !readyCards.length" @click="runTranslation"><UiIcon name="translate" :size="17" />{{ ct(state.run ? 'again' : 'start') }}<kbd>{{ shortcutLabel }}</kbd></button><p id="translation-input-help">{{ ct('privacy') }}</p></div>
@@ -70,6 +71,7 @@ import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {getCustomOpenAIProvider, getCustomOpenAIProviderModels, isConfiguredCustomOpenAIProvider, type CustomOpenAIProvider, withCustomOpenAIServiceOptions} from '@/src/core/config/customOpenAI';
 import {config, configReady, requestConfigPatch, subscribeConfig} from '@/src/services/config/store';
 import {translateText} from '@/src/app/translation/client';
+import {TranslationRequestError} from '@/src/services/translation/errors';
 import {createComparisonSession, isComparisonStale, MAX_COMPARISON_TEXT_LENGTH, type ComparisonCard, type ComparisonState} from '../model/comparison';
 
 const emit = defineEmits<{(event: 'configure-service', service: string): void}>();
@@ -97,6 +99,7 @@ const customOpenAIProviders = ref<CustomOpenAIProvider[]>([]);
 // 全局配置不是 Vue proxy；订阅版本驱动模型及凭据状态更新。
 const configRevision = ref(0);
 const configHydrated = ref(false);
+const translationEnabled = ref(false);
 let disposed = false;
 let unsubscribeConfig: (() => void) | undefined;
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
@@ -122,7 +125,7 @@ const sourceLanguageOptions = computed(() => options.from);
 const targetLanguageOptions = computed(() => options.to);
 const selectedServiceValues = computed(() => new Set(cards.value.map(card => card.service)));
 const sameLanguage = computed(() => sourceLanguage.value === targetLanguage.value);
-const canTranslate = computed(() => configHydrated.value && !!sourceText.value.trim() && sourceText.value.length <= MAX_TEXT_LENGTH && !sameLanguage.value);
+const canTranslate = computed(() => configHydrated.value && translationEnabled.value && !!sourceText.value.trim() && sourceText.value.length <= MAX_TEXT_LENGTH && !sameLanguage.value);
 const isRunning = computed(() => cards.value.some(card => card.status === 'loading'));
 const readyCards = computed(() => cards.value.filter(card => !credentialWarning(card.service)));
 const successfulCards = computed(() => cards.value.filter(card => card.status === 'success' && !isStale(card)));
@@ -132,10 +135,21 @@ const currentTaskCards = computed(() => cards.value.filter(card => card.status =
 const requestedCount = computed(() => currentTaskCards.value.length);
 const settledCount = computed(() => currentTaskCards.value.filter(card => card.status !== 'loading').length);
 const shortcutLabel = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ ↵' : 'Ctrl ↵';
-const session = createComparisonSession(state, (service, input, signal) => translateText(input.text, 'FluentRead 翻译中心', {
+const session = createComparisonSession(state, async (service, input, signal) => {
+  try {
+    return await translateText(input.text, 'FluentRead 翻译中心', {
   maxRetries: 0, timeout: 30_000, useCache: false, serviceOverride: service,
   sourceLanguage: input.sourceLanguage, targetLanguage: input.targetLanguage, modelOverride: input.model || undefined, signal,
-}));
+    });
+  } catch (error) {
+    // 后台暂停响应可能先于配置订阅到达，仍须停止全部未完成项。
+    if (error instanceof TranslationRequestError && error.code === 'TRANSLATION_DISABLED') {
+      translationEnabled.value = false;
+      session.stop();
+    }
+    throw error;
+  }
+});
 function serviceModel(service: string): string {
   void configRevision.value;
   return servicesType.isAI(service) || isConfiguredCustomOpenAIProvider(customOpenAIProviders.value, service)
@@ -219,6 +233,8 @@ function persistTranslationCenterConfig(...fields: TranslationCenterConfigField[
 }
 function retrySave() {persistTranslationCenterConfig(...failedSave);}
 function hydrateTranslationCenterConfig(nextConfig = config): void {
+  translationEnabled.value = nextConfig.on;
+  if (!translationEnabled.value) session.stop();
   customOpenAIProviders.value = nextConfig.customOpenAIProviders.map(provider => ({...provider, models: [...provider.models]}));
   configRevision.value++;
   const available = new Set(serviceOptions.value.map(item => item.value));
@@ -280,6 +296,7 @@ onUnmounted(() => {disposed = true; session.dispose(); endCardDrag(); unsubscrib
 </script>
 <style scoped>
 .translation-center { display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 0; height: 100%; padding: 22px 26px; color: var(--ink); background: var(--surface-soft); overflow: hidden; }
+.translation-paused a { color: var(--brand-strong); text-underline-offset: 3px; }
 .translation-center * { box-sizing: border-box; }
 .translation-center-intro { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: none; min-height: 20px; }
 .translation-center-intro p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }.save-status { white-space: nowrap; color: var(--muted); font-size: 11px; }

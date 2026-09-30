@@ -126,9 +126,10 @@ async function main() {
   await cardA().locator('.card-connection-footer button').click(); await page.locator('.service-catalog').waitFor();
   assert.equal(await page.locator('.service-catalog').getAttribute('data-editing-service'), 'custom:center-a');
   assert.equal((await readConfig()).service, previousDefault);
-  assert.equal(await page.evaluate(() => location.hash), previousHash);
-  assert.equal(await page.locator('.service-catalog.compact').count(), 1); await shot('configure-in-place');
-  await page.keyboard.press('Escape'); await page.locator('.service-configuration-dialog').waitFor({state: 'hidden'});
+  assert.match(await page.evaluate(() => location.hash), /^#settings-services/);
+  assert.equal(await page.locator('.service-catalog.compact, .service-configuration-dialog').count(), 0); await shot('configure-workspace');
+  await page.evaluate(hash => {location.hash = hash;}, previousHash);
+  await page.locator('.translation-editor textarea').waitFor({state: 'visible'});
   assert.equal(await page.locator('.translation-editor textarea').inputValue(), sourceText); assert.equal(await cardA().getAttribute('data-status'), 'success');
   record('configure-service-and-return-retains-work');
   const syncPage = await newPageWithoutForeground(context); syncPage.on('pageerror', error => report.consoleErrors.push(error.message));

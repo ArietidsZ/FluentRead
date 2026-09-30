@@ -7,13 +7,12 @@
 <template>
   <section
     class="service-catalog"
-    :class="{compact}"
     aria-label="翻译服务配置"
     :data-default-service="defaultService"
     :data-editing-service="service"
   >
     <div class="catalog-layout">
-      <aside v-if="!compact" class="service-rail" :class="{ 'is-expanded': directoryOpen }" :aria-label="t('settings.services.library.shortlist')">
+      <aside class="service-rail" :class="{ 'is-expanded': directoryOpen }" :aria-label="t('settings.services.library.shortlist')">
         <button ref="directoryToggle" type="button" class="mobile-directory-toggle" :aria-expanded="directoryOpen" :aria-controls="directoryId" @click="directoryOpen = !directoryOpen">
           <ServiceIcon :service="isCustomOpenAIProviderId(service) ? 'custom' : service" :label="selectedService?.label" size="small" />
           <span class="mobile-directory-name">{{ selectedService?.label }}</span><small>{{ t('settings.organization.chooseService') }}</small>
@@ -173,7 +172,6 @@ interface ModelPickerOption {
 }
 
 const props = defineProps<{
-  compact?: boolean;
   service: string
   defaultService: string
   website?: ServiceWebsite
@@ -247,7 +245,6 @@ watch(() => props.service, async () => {
 <style scoped>
 .service-catalog { display: flex; height: min(650px, 70dvh); min-height: 0; color: var(--ink, #172033); background: var(--surface, #fff); }
 .catalog-layout { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 0; flex: 1; overflow: hidden; }
-.service-catalog.compact .catalog-layout { grid-template-columns: minmax(0, 1fr); }
 .service-rail { display: flex; flex-direction: column; min-height: 0; padding: 16px 12px; border-right: 1px solid var(--line, #e4e7ef); background: var(--surface-soft, #fafbfc); }
 .rail-heading { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 6px 10px; }
 .rail-heading > div { display: flex; align-items: baseline; gap: 5px; min-width: 0; }

@@ -311,7 +311,7 @@ export const popupModuleOptions: readonly PopupModuleOption[] = [
   {
     id: 'translation',
     label: '翻译控制',
-    description: '语言、翻译服务与网页翻译按钮。',
+    description: '翻译语言与各功能的服务提供商。',
     labelKey: 'settings.interface.popupLayout.modules.translation.label',
     descriptionKey: 'settings.interface.popupLayout.modules.translation.description',
     required: true,
@@ -327,7 +327,7 @@ export const popupModuleOptions: readonly PopupModuleOption[] = [
   {
     id: 'quickFeatures',
     label: '快捷功能栏',
-    description: '显示悬停、划词、图片、视频和文档等快捷入口。',
+    description: '显示悬停、划词、图片和文档翻译入口。',
     labelKey: 'settings.interface.popupLayout.modules.quickFeatures.label',
     descriptionKey: 'settings.interface.popupLayout.modules.quickFeatures.description',
     visibilityKey: 'popupQuickFeatures',

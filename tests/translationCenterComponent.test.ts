@@ -10,6 +10,7 @@ import * as profiles from '@/src/core/config/customOpenAI';
 import * as validation from '@/src/core/config/validation';
 import * as comparison from '@/src/features/translation-center/model/comparison';
 import {translate} from '@/src/core/i18n';
+import {TranslationRequestError, serializeTranslationError} from '@/src/services/translation/errors';
 
 const filename = 'src/features/translation-center/ui/TranslationCenter.vue';
 const source = readFileSync(filename, 'utf8');
@@ -29,7 +30,7 @@ beforeEach(async () => {
   vi.stubGlobal('navigator', {platform: 'MacIntel', clipboard: {writeText: copy}});
   vi.stubGlobal('document', {body: {style: {userSelect: 'text'}}, addEventListener: vi.fn(), removeEventListener: vi.fn(), elementFromPoint: vi.fn()});
   const api = {...catalog, ...profiles, ...validation, ...comparison, config, configReady: Promise.resolve(),
-    subscribeConfig: (fn: typeof subscription) => {subscription = fn; return vi.fn();}, requestConfigPatch: requestPatch, translateText,
+    subscribeConfig: (fn: typeof subscription) => {subscription = fn; return vi.fn();}, requestConfigPatch: requestPatch, translateText, TranslationRequestError,
     filterAvailableTranslationServices: (items: any[]) => items.filter(item => item.value !== 'chromeTranslator'),
     isTranslationServiceAvailable: (service: string) => service !== 'chromeTranslator',
     useUiI18n: () => ({language: vue.ref('zh-CN'), translateLegacy: (value: string) => value, t: (key: string, params: any) => translate(key, 'zh-CN', params)}),
@@ -70,13 +71,13 @@ describe('translation center product workflow', () => {
   });
   it('preserves results and input when cards reorder or unrelated configuration syncs', async () => {
     state.sourceText = 'Original'; state.runTranslation(); await vue.nextTick();
-    expect(state.cards[0].result).toBe('translated');
+    await vi.waitFor(() => expect(state.cards[0].result).toBe('translated'));
     state.moveCard('freeTranslation', 1);
-    expect(state.cards[1].result).toBe('translated');
+    await vi.waitFor(() => expect(state.cards[1].result).toBe('translated'));
     expect(requestPatch.mock.calls[0][0]).toEqual({translationCenterServices: ['google', 'freeTranslation']});
     Object.assign(config, requestPatch.mock.calls[0][0]); subscription(config);
     config.animations = false; subscription(config);
-    expect(state.sourceText).toBe('Original'); expect(state.successfulCards).toHaveLength(2);
+    expect(state.sourceText).toBe('Original'); await vi.waitFor(() => expect(state.successfulCards).toHaveLength(2));
   });
   it('excludes stale results from aggregate copy and snapshots language across edits', async () => {
     const pending = deferred(); translateText.mockReturnValueOnce(pending.promise);
@@ -93,6 +94,37 @@ describe('translation center product workflow', () => {
     expect(state.incompleteCards).toHaveLength(1); const kept = state.cards[1].result;
     state.retryIncomplete(); await vue.nextTick(); await vue.nextTick();
     expect(translateText).toHaveBeenCalledTimes(3); expect(state.cards[1].result).toBe(kept);
+  });
+  it('blocks every launch path while globally paused and resumes only on user action', async () => {
+    state.sourceText = 'Original'; config.on = false; subscription(config);
+    state.runTranslation(); state.retryService('google'); state.retryIncomplete();
+    state.handleEditorKeydown({key: 'Enter', ctrlKey: true, isComposing: false, preventDefault: vi.fn()});
+    expect(state.canTranslate).toBe(false); expect(translateText).not.toHaveBeenCalled();
+    config.on = true; subscription(config);
+    expect(state.canTranslate).toBe(true); expect(translateText).not.toHaveBeenCalled();
+    state.runTranslation(); await vue.nextTick();
+    await vi.waitFor(() => expect(state.successfulCards).toHaveLength(2));
+  });
+  it('global pause aborts pending cards while retaining source and completed results', async () => {
+    const pending = deferred(); translateText.mockReturnValueOnce(pending.promise);
+    state.sourceText = 'Original'; state.runTranslation(); await vue.nextTick();
+    await vi.waitFor(() => expect(state.cards[1].result).toBe('translated'));
+    config.on = false; subscription(config);
+    expect(translateText.mock.calls[0][2].signal.aborted).toBe(true);
+    expect(state.cards[0].status).toBe('cancelled'); expect(state.cards[1].status).toBe('success');
+    pending.resolve('late'); await vue.nextTick(); await vue.nextTick();
+    expect(state.cards[0].result).toBe(''); await vi.waitFor(() => expect(state.cards[1].result).toBe('translated'));
+    expect(state.sourceText).toBe('Original');
+    config.on = true; subscription(config); expect(translateText).toHaveBeenCalledTimes(2);
+  });
+  it('treats a backend pause arriving before storage sync as cancellation for all pending cards', async () => {
+    const pending = deferred();
+    translateText.mockRejectedValueOnce(new TranslationRequestError(serializeTranslationError({message: 'paused', code: 'TRANSLATION_DISABLED', retryable: false}))).mockReturnValueOnce(pending.promise);
+    state.sourceText = 'Original'; state.runTranslation(); await vue.nextTick(); await vue.nextTick();
+    expect(state.translationEnabled).toBe(false); expect(state.isRunning).toBe(false);
+    expect(state.cards.every((card: any) => card.status === 'cancelled' && !card.error)).toBe(true);
+    expect(translateText.mock.calls[1][2].signal.aborted).toBe(true);
+    pending.resolve('late'); await vue.nextTick(); expect(state.cards[1].result).toBe('');
   });
   it('stops work on clear and never accepts a late completion', async () => {
     const pending = deferred(); translateText.mockReturnValueOnce(pending.promise);

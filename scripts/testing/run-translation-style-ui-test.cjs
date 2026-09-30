@@ -69,7 +69,23 @@ async function main() {
       result.on('console', message => { if (message.type() === 'error') report.consoleErrors.push(`console: ${message.text()}`); });
       await result.goto(url, {waitUntil: 'domcontentloaded'}); return result;
     };
-    const shot = async (surface, name) => {const file = path.join(artifactsDir, `${name}.png`); await surface.screenshot({path: file}); report.screenshots.push(file);};
+    const shot = async (surface, name) => {
+      const owner = typeof surface.page === 'function' ? surface.page() : surface;
+      const viewport = owner.viewportSize();
+      let expanded = false;
+      if (surface !== owner) {
+        // 设置页在内部容器中滚动；让整组真实进入视口再截图，避免截图把被裁剪的区域渲染成空白。
+        const height = Math.ceil(await surface.evaluate(element => element.getBoundingClientRect().height));
+        if (height + 100 > viewport.height) {
+          await owner.setViewportSize({width: viewport.width, height: height + 100});
+          expanded = true;
+        }
+        await surface.scrollIntoViewIfNeeded();
+      }
+      const file = path.join(artifactsDir, `${name}.png`);
+      await surface.screenshot({path: file}); report.screenshots.push(file);
+      if (expanded) await owner.setViewportSize(viewport);
+    };
     const popup = await createPage(`${origin}/popup.html`);
     const readConfig = () => popup.evaluate(async () => {
       const result = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
@@ -240,14 +256,14 @@ async function main() {
     await shot(group, '04-desktop-dark-page');
     report.checks.push('preview switches between light and dark web pages');
 
-    // 4. 仅译文模式提示可一键切回双语；逐句高亮开关在同一分组内保存。
+    // 4. 仅译文模式提示可一键切回双语；逐句高亮在界面风格的阅读辅助分组中保存。
     await patchConfig({display: 0});
     const note = options.locator('.translation-style-mode-note');
     await note.waitFor({state: 'visible'});
     await note.getByRole('button').click();
     await untilConfig(config => config.display === 1, 'switch to bilingual');
     await note.waitFor({state: 'detached'});
-    const highlightSwitch = options.locator('.translation-style-highlight-toggle .el-switch');
+    const highlightSwitch = options.locator('#translation-sentence-highlight .el-switch');
     await highlightSwitch.click();
     await untilConfig(config => config.bilingualSentenceHighlightEnabled === true, 'sentence highlight toggle');
     await options.locator('[data-testid="bilingual-highlight-preview-source"] span').nth(1).hover();

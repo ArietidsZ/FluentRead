@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/ui/settings-page.css
  * 文件职责：定义 Options 设置应用的全局页面骨架与 Element Plus 外观覆盖，包括分组侧边栏与搜索、页内分类、滚动工作区、设置卡片和特殊全宽业务视图。
- * 主要内容：样式引入共享 token，配置桌面与窄屏响应式布局、焦点态、导航分组、表单控件、服务/翻译中心视图、深色主题及固定标签列和控件列。
+ * 主要内容：样式引入共享 token，配置桌面与窄屏响应式布局、焦点态、导航分组、数字输入的独立操作区、表单控件、服务/翻译中心视图、深色主题及固定标签列和控件列。
  * 模块边界：该文件只作用于扩展设置页面的整体布局，不承载配置逻辑或 feature 内部组件细节；分区专属样式在 settings-sections.css，通用设计变量位于 src/ui/styles/tokens.css。
  */
 @import "../../../ui/styles/tokens.css";
@@ -132,9 +132,9 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .settings-card.services-view #settings-services { display: flex !important; min-height: 0; flex: 1 1 0%; flex-direction: column; }
 .settings-card.services-view .service-catalog { min-height: 0 !important; height: 0 !important; margin: 0; border-right: 0; border-left: 0; border-radius: 0; flex: 1 1 0%; }
 .settings-card.services-view .service-catalog .catalog-layout { min-height: 0; overflow: hidden; }
-.settings-card.services-view .service-configuration-slot .service-connection-section { margin-top: 0; padding-top: 0; border-top: 0; }
-.settings-card.services-view .service-configuration-slot .subsection-heading { margin-right: 0; margin-left: 0; }
-.settings-card.services-view .service-configuration-slot .el-row { margin-right: 0 !important; margin-left: 0 !important; }
+.settings-card .service-catalog .service-configuration-slot .service-connection-section { margin-top: 0; padding-top: 0; border-top: 0; }
+.settings-card .service-catalog .service-configuration-slot .subsection-heading { margin-right: 0; margin-left: 0; }
+.settings-card .service-catalog .service-configuration-slot .el-row { margin-right: 0 !important; margin-left: 0 !important; }
 .settings-card.translation-center-view {
   display: flex; width: calc(100% + 80px); margin-right: -40px; margin-left: -40px; padding: 0; border-right: 0; border-left: 0; border-radius: 0;
   flex-direction: column; overflow: hidden;
@@ -185,6 +185,49 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .settings-card .fluentread-select .el-select__wrapper { min-height: 40px; }
 .settings-card .el-input-group__prepend,
 .settings-card .el-input-group__append { border-color: #e2e6ef; background: #f8f9fc; }
+
+.fluentread-settings-number-popover .el-input-number .el-input__wrapper { border: 1px solid var(--line); box-shadow: none; }
+.fluentread-settings-number-popover .el-input-number .el-input__wrapper.is-focus { border-color: var(--brand); }
+
+/* 数值始终位于独立的中间区域；左右按钮有完整高度，避免通用输入框 padding 覆盖控件预留空间。 */
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number:not(.is-without-controls) {
+  --el-input-number-controls-width: 44px;
+  height: 44px;
+  line-height: 42px;
+}
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number:not(.is-without-controls) .el-input { height: 44px; }
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number:not(.is-without-controls) .el-input__wrapper {
+  min-height: 44px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  padding: 0 50px;
+}
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number:not(.is-without-controls) .el-input__inner {
+  min-width: 0;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number__increase,
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number__decrease {
+  top: 1px;
+  bottom: 1px;
+  width: 44px;
+  height: auto;
+  color: var(--muted);
+  background: var(--surface-soft);
+  border-color: var(--line);
+}
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number__increase { border-radius: 0 7px 7px 0; }
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number__decrease { border-radius: 7px 0 0 7px; }
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number__increase:hover:not(.is-disabled),
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number__decrease:hover:not(.is-disabled) {
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+}
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number__increase.is-disabled,
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number__decrease.is-disabled { color: var(--muted); opacity: .4; }
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number__increase:focus-visible,
+:is(.settings-app .settings-card, .fluentread-settings-number-popover) .el-input-number__decrease:focus-visible { outline: 2px solid var(--brand); outline-offset: -3px; }
 
 /* 设置项使用固定的标签列与控件列，避免浏览器缩放后由 el-col 的百分比宽度互相挤压。 */
 .settings-card .settings-control-row {
@@ -539,19 +582,26 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .settings-app .topbar .settings-page-tabs button { padding: 10px 2px 12px; font-weight: 600; }
 .settings-app .userscript-settings-close { margin-left: auto; width: 36px; height: 36px; flex-basis: 36px; border-radius: 8px; }
 .settings-app .search-results, .settings-app .search-empty { margin: 0 0 18px; }
-/* 二级折叠入口使用可辨认的整行底色和边框，不把可操作标题画成辅助文字。 */
+/* 折叠标题保持清晰命中区域，用右侧箭头表达层级；常规设置不使用大面积强调色。 */
 .settings-app .workspace .settings-card details > summary {
-  min-height: 44px; padding: 12px 16px; border: 1px solid color-mix(in srgb, var(--brand) 20%, var(--line));
-  border-radius: 8px; color: var(--ink); background: color-mix(in srgb, var(--brand) 5%, var(--surface));
-  font-size: 13px; font-weight: 650; line-height: 1.5; cursor: pointer;
+  display: flex; align-items: center; gap: 12px; list-style: none;
+  min-height: 44px; padding: 11px 16px; border: 1px solid var(--line);
+  border-radius: 8px; color: var(--ink); background: var(--surface);
+  font-size: 13px; font-weight: 600; line-height: 1.5; cursor: pointer;
 }
-.settings-app .workspace .settings-card details > summary::marker { color: var(--brand-strong); }
-.settings-app .workspace .settings-card details > summary:hover,
-.settings-app .workspace .settings-card details > summary:focus-visible { border-color: var(--brand); background: var(--brand-soft); }
+.settings-app .workspace .settings-card details > summary::-webkit-details-marker { display: none; }
+.settings-app .workspace .settings-card details > summary::marker { content: ''; }
+.settings-app .workspace .settings-card details > summary:not(:has(.advanced-chevron, .details-chevron, .credential-guide-chevron))::after {
+  content: ''; width: 7px; height: 7px; flex: none; margin-left: auto;
+  border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(-45deg);
+}
+.settings-app .workspace .settings-card details[open] > summary::after { transform: rotate(45deg); }
+.settings-app .workspace .settings-card details > summary:hover { background: var(--surface-soft); }
+.settings-app .workspace .settings-card details > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .settings-app .workspace .settings-card details[open] > summary { margin-bottom: 12px; }
-.settings-app .settings-card summary :is(.advanced-chevron, .details-chevron) { width: 18px; height: 18px; color: var(--brand-strong); opacity: 1; }
-.settings-app .settings-card .translation-appearance-disclosure { border-bottom: 1px solid color-mix(in srgb, var(--brand) 20%, var(--line)); background: color-mix(in srgb, var(--brand) 5%, var(--surface)); }
-.settings-app .settings-card .translation-appearance-chevron { color: var(--brand-strong); }
+.settings-app .settings-card summary :is(.advanced-chevron, .details-chevron) { width: 18px; height: 18px; color: var(--muted); opacity: 1; }
+.settings-app .settings-card .translation-appearance-disclosure { border-bottom: 1px solid var(--line); background: var(--surface); }
+.settings-app .settings-card .translation-appearance-chevron { color: var(--muted); }
 @media (max-width: 700px) {
   .settings-app .sidebar { flex-wrap: wrap; gap: 10px 14px; }
   .settings-app .sidebar .brand { padding: 0; }
@@ -576,3 +626,6 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 }
 
 .settings-card.services-view [data-settings-panel="connections"] { display: flex; flex: 1 1 0%; min-height: 0; flex-direction: column; }
+
+.service-assignments-section { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
+.service-assignments-section > h2 { margin: 0 0 12px; color: var(--ink); font-size: 16px; }

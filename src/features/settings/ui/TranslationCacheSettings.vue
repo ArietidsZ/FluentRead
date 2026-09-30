@@ -50,13 +50,13 @@
             <span>{{ t('settings.cache.maxSize') }}</span>
             <el-input-number v-model="draftMiB" :min="MIN_TRANSLATION_CACHE_MAX_BYTES / MIB"
               :max="MAX_TRANSLATION_CACHE_MAX_BYTES / MIB" :step="1" :precision="0"
-              :disabled="busy" controls-position="right" :aria-label="t('settings.cache.maxSize')" />
+              :disabled="busy" :aria-label="t('settings.cache.maxSize')" />
           </label>
           <label>
             <span>{{ t('settings.cache.maxEntries') }}</span>
             <el-input-number v-model="draftEntries" :min="MIN_TRANSLATION_CACHE_MAX_ENTRIES"
               :max="MAX_TRANSLATION_CACHE_MAX_ENTRIES" :step="100" :precision="0"
-              :disabled="busy" controls-position="right" :aria-label="t('settings.cache.maxEntries')" />
+              :disabled="busy" :aria-label="t('settings.cache.maxEntries')" />
           </label>
           <el-button native-type="submit" type="primary" size="small"
             :disabled="busy || !limitsValid || !limitsChanged" :loading="saving">

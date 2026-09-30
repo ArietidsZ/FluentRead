@@ -1,11 +1,14 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：通过 activePanel 将长页面拆为可切换的任务分类，集中分配功能服务并将模型用量合并到翻译统计，保留已访问表单实例；包含正文/全部节点识别范围；模板按 activeSection 展示业务分区，通用设置按日常翻译、网页辅助、基本偏好组织控件，提供当前默认服务的配置入口并保留译文样式跨页入口；图片与圈选合并在同页，共享仅在当前分区挂载的 OCR 管理组件；服务连接通过按需挂载的原地弹窗编辑，在界面风格页组织译文样式、风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
+ * 主要内容：普通页面连续展示任务分组，统计与网站规则保留按任务切换的视图，集中分配功能服务并将模型用量合并到翻译统计，保留已访问表单实例；包含正文/全部节点识别范围；模板按 activeSection 展示业务分区，通用设置首先展示全局翻译开关，再按日常翻译、网页辅助、基本偏好组织控件，提供当前默认服务的配置入口并保留译文样式跨页入口；图片与圈选合并在同页，共享仅在当前分区挂载的 OCR 管理组件；服务连接在主页面的服务目录内编辑，在界面风格页组织译文样式、风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
   <section v-if="hasVisitedSection('settings-general')" v-show="props.activeSection === 'settings-general'" id="settings-general" class="settings-section general-settings-section">
+    <SettingsGroup class="plugin-master-setting" data-testid="plugin-master-setting">
+      <FeatureEnableCard v-model="config.on" :title="t('settings.general.masterTitle')" :description="t('settings.general.masterHelp')" @update:model-value="handlePluginStateChange" />
+    </SettingsGroup>
     <SettingsGroup
       title="日常翻译"
       data-testid="translation-display-settings"
@@ -35,9 +38,6 @@
           </button>
         </div>
       </SettingsItem>
-      <SettingsItem :label="t('featureServices.assignments')" :description="t('featureServices.shortHelp')">
-        <button type="button" class="settings-navigation-link" data-testid="open-feature-services" @click="openSettingsSection('settings-services', 'assignments')">{{ t('featureServices.open') }} <el-icon aria-hidden="true"><ArrowRight /></el-icon></button>
-      </SettingsItem>
       <SettingsItem
         data-testid="translation-language-setting"
         :label="t('settings.general.defaultTargetLanguage')"
@@ -66,6 +66,10 @@
       <strong>当前默认服务在此浏览器不可用</strong>
       <p>{{ selectedTextServiceUnavailableMessage }}请在上方选择可用服务。</p>
     </div>
+    <section id="feature-services" class="service-assignments-section" :aria-label="t('featureServices.assignments')">
+      <h2>{{ t('featureServices.assignments') }}</h2>
+      <FeatureServiceSettings :config="config" :service-options="availableServiceOptions" @configure-service="openInputServiceSettings" @open-center="openSettingsSection('settings-translation-center')" />
+    </section>
   </section>
   <section v-if="hasVisitedSection('settings-sites')" v-show="props.activeSection === 'settings-sites'" id="settings-sites" class="settings-section site-settings-section">
     <SettingsPanel name="rules" :active="props.activePanel">
@@ -148,7 +152,6 @@
           :min="SELECTION_TRANSLATOR_DELAY_MIN"
           :max="SELECTION_TRANSLATOR_DELAY_MAX"
           :step="SELECTION_TRANSLATOR_DELAY_STEP"
-          controls-position="right"
           @change="handleSelectionTranslatorDelayChange"
         />
         <span class="input-suffix">ms</span>
@@ -202,8 +205,45 @@
   <div class="settings-main-sections">
     <!-- 翻译服务 -->
     <section v-if="hasVisitedSection('settings-services')" v-show="props.activeSection === 'settings-services'" id="settings-services" class="settings-section">
-      <SettingsPanel name="assignments" :active="props.activePanel">
-        <FeatureServiceSettings :config="config" :service-options="availableServiceOptions" @configure-service="openInputServiceSettings" @manage-services="openServiceDirectory" @open-center="openSettingsSection('settings-translation-center')" />
+      <SettingsPanel name="connections" :active="props.activePanel">
+      <ServiceCatalog
+        :service="selectedConfigurationService"
+        :default-service="config.service"
+        :website="selectedConfigurationWebsite"
+        :credential-guide="selectedConfigurationCredentialGuide"
+        :selected-model="selectedConfigurationModel"
+        :services="configurationCompute.filteredServices"
+        :favorite-services="config.favoriteServices"
+        :configured-services="configuredServiceIds"
+        :model-options="configurationModelOptions"
+        :show-model="configurationCompute.showModel"
+        :maximum-models="MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER"
+        :maximum-model-length="MAX_CUSTOM_OPENAI_MODEL_LENGTH"
+        :custom-model-count="selectedConfigurationCustomModelCount"
+        :allow-custom-models="configurationCompute.allowCustomModels"
+        @update:service="setConfigurationService"
+        @update:favorites="config.favoriteServices = $event"
+        @update:model="selectConfigurationModel"
+        @add:service="openCustomProviderDialog"
+        @add:model="addConfigurationModel"
+        @remove:model="removeConfigurationModel"
+      >
+        <template #configuration="{ connectionActionTarget }">
+          <ServiceConfiguration
+            :connection-action-target="connectionActionTarget"
+            :config="config"
+            :service="selectedConfigurationService"
+            :selected-model-thinking="selectedConfigurationModelThinking"
+            :compute="configurationCompute"
+            :options="options"
+            :is-valid-azure-endpoint="isValidAzureEndpoint"
+            :custom-provider="selectedCustomProvider"
+            @update:model-thinking="updateSelectedConfigurationModelThinking"
+            @update:custom-provider="updateSelectedCustomProvider"
+            @delete:custom-provider="deleteSelectedCustomProvider"
+          />
+        </template>
+      </ServiceCatalog>
       </SettingsPanel>
     </section>
     <section v-if="hasVisitedSection('settings-image-translation')" v-show="props.activeSection === 'settings-image-translation'" id="settings-image-translation" class="settings-section image-translation-settings">
@@ -365,7 +405,6 @@
           :min="MOUSE_HOVER_TRANSLATION_DELAY_MIN"
           :max="MOUSE_HOVER_TRANSLATION_DELAY_MAX"
           :step="MOUSE_HOVER_TRANSLATION_DELAY_STEP"
-          controls-position="right"
           @change="handleMouseHoverTranslationDelayChange"
         />
         <span class="input-suffix">ms</span>
@@ -486,9 +525,6 @@
 
       </SettingsGroup>
       <SettingsGroup title="基本偏好">
-        <SettingsItem label="插件状态" :description="config.on ? '网页翻译和快捷功能正在运行。' : '当前已暂停，其他偏好仍可继续调整。'">
-          <el-switch v-model="config.on" class="settings-switch" aria-label="插件状态" @change="handlePluginStateChange" />
-        </SettingsItem>
         <SettingsItem :label="t('settings.general.language')" :description="t('language.settingsDescription')"><UiLanguageSelector compact /></SettingsItem>
         <SettingsItem label="界面主题" description="只影响扩展界面，不会改变网页本身的配色。">
           <SegmentedControl v-model="config.theme" :options="options.theme" label="界面主题" />
@@ -659,46 +695,6 @@
       @cancel="handleCustomSelectionHotkeyCancel"
     />
   </template>
-  <el-dialog v-model="serviceDialogOpen" :title="t('featureServices.connections')" :width="serviceDirectoryOpen ? 'min(1080px, calc(100vw - 32px))' : 'min(760px, calc(100vw - 32px))'" :lock-scroll="false" destroy-on-close class="service-configuration-dialog">
-      <ServiceCatalog :compact="!serviceDirectoryOpen"
-        :service="selectedConfigurationService"
-        :default-service="config.service"
-        :website="selectedConfigurationWebsite"
-        :credential-guide="selectedConfigurationCredentialGuide"
-        :selected-model="selectedConfigurationModel"
-        :services="configurationCompute.filteredServices"
-        :favorite-services="config.favoriteServices"
-        :configured-services="configuredServiceIds"
-        :model-options="configurationModelOptions"
-        :show-model="configurationCompute.showModel"
-        :maximum-models="MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER"
-        :maximum-model-length="MAX_CUSTOM_OPENAI_MODEL_LENGTH"
-        :custom-model-count="selectedConfigurationCustomModelCount"
-        :allow-custom-models="configurationCompute.allowCustomModels"
-        @update:service="setConfigurationService"
-        @update:favorites="config.favoriteServices = $event"
-        @update:model="selectConfigurationModel"
-        @add:service="openCustomProviderDialog"
-        @add:model="addConfigurationModel"
-        @remove:model="removeConfigurationModel"
-      >
-        <template #configuration="{ connectionActionTarget }">
-          <ServiceConfiguration
-            :connection-action-target="connectionActionTarget"
-            :config="config"
-            :service="selectedConfigurationService"
-            :selected-model-thinking="selectedConfigurationModelThinking"
-            :compute="configurationCompute"
-            :options="options"
-            :is-valid-azure-endpoint="isValidAzureEndpoint"
-            :custom-provider="selectedCustomProvider"
-            @update:model-thinking="updateSelectedConfigurationModelThinking"
-            @update:custom-provider="updateSelectedCustomProvider"
-            @delete:custom-provider="deleteSelectedCustomProvider"
-          />
-        </template>
-      </ServiceCatalog>
-  </el-dialog>
   <CustomOpenAIProviderDialog v-model="customProviderDialogOpen" @submit="createCustomProvider" />
 </template>
 
@@ -771,10 +767,8 @@ const ServiceCatalog = defineAsyncComponent(() => import('./services/ServiceCata
 const ServiceConfiguration = defineAsyncComponent(() => import('./services/ServiceConfiguration.vue'));
 const CustomOpenAIProviderDialog = defineAsyncComponent(() => import('./services/CustomOpenAIProviderDialog.vue'));
 const TranslationCenter = defineAsyncComponent(() => import('@/src/features/translation-center/public').then(module => module.TranslationCenter));
-const serviceDialogOpen = ref(false);
-const serviceDirectoryOpen = ref(false);
-const openInputServiceSettings = (service: string) => { setConfigurationService(service); serviceDirectoryOpen.value = false; serviceDialogOpen.value = true; };
-const openServiceDirectory = () => { serviceDirectoryOpen.value = true; serviceDialogOpen.value = true; };
+const openInputServiceSettings = (service: string) => { setConfigurationService(service); openSettingsSection('settings-services', 'connections'); };
+const openServiceDirectory = () => openSettingsSection('settings-services', 'connections');
 const openWritingServiceSettings = () => openInputServiceSettings(config.value.writing.service || config.value.service);
 const WritingSettings = defineAsyncComponent(() => import('./WritingSettings.vue'));
 const SelectionSettings = defineAsyncComponent(() => import('./SelectionSettings.vue'));

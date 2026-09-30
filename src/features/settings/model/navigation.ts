@@ -35,6 +35,10 @@ export type SettingsSearchTarget = {
 /** 表单内的直达入口与真实控件共用 targetId，避免搜索只停在长分区顶部。 */
 export const settingsSearchTargets: readonly SettingsSearchTarget[] = [
   {
+    id: 'feature-services', sectionId: 'settings-general', targetId: 'feature-services',
+    label: '功能分配', description: '通用设置', searchTerms: '按功能选择服务、默认服务、提供商',
+  },
+  {
     id: 'floating-ball-toggle', sectionId: 'settings-general', targetId: 'floating-ball-toggle',
     label: '全文翻译悬浮球', description: '通用设置', searchTerms: '悬浮球、显示悬浮球、开启悬浮球',
   },
@@ -242,7 +246,7 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
     {id: 'usage', labelKey: 'options.panel.modelUsage', searchTerms: '模型用量 Token AI 成本 输入 输出 调用', targetIds: ['settings-model-usage']},
   ],
   'settings-services': [
-    {id: 'assignments', labelKey: 'featureServices.assignments', searchTerms: '按功能 分配 服务 网页 悬浮 划词 输入 字幕 文档 图片 圈选 写作', targetIds: ['feature-services']},
+    {id: 'connections', labelKey: 'featureServices.connections', searchTerms: '连接 服务 密钥 API 模型', targetIds: []},
   ],
   'settings-translation': [
     {"id": "hover", "labelKey": "options.panel.hover", "searchTerms": "鼠标悬浮 快捷键 延迟", "targetIds": []},
