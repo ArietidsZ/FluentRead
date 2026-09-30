@@ -503,6 +503,7 @@ export class Config {
     translationCenterServices: string[]; // 翻译中心已选服务及其展示顺序
     translationCenterSourceLanguage: string; // 翻译中心源语言
     translationCenterTargetLanguage: string; // 翻译中心目标语言
+    translationCenterLayout: 'list' | 'grid'; // 翻译中心结果列表或并排布局
     writing: WritingPreferences; // 写作助手偏好
     harness: HarnessPreferences; // Harness 学习辅助偏好
 
@@ -685,6 +686,7 @@ export class Config {
         this.translationCenterServices = [];
         this.translationCenterSourceLanguage = '';
         this.translationCenterTargetLanguage = '';
+        this.translationCenterLayout = 'list';
         this.writing = normalizeWritingPreferences(undefined);
         this.harness = normalizeHarnessPreferences(DEFAULT_HARNESS_PREFERENCES);
     }
@@ -1383,6 +1385,7 @@ export function normalizeConfig(value: unknown): Config {
         .filter(service => isSupportedTranslationService(service, normalized.customOpenAIProviders));
     normalized.translationCenterSourceLanguage = normalizeConfigLanguage(source.translationCenterSourceLanguage);
     normalized.translationCenterTargetLanguage = normalizeConfigLanguage(source.translationCenterTargetLanguage);
+    normalized.translationCenterLayout = source.translationCenterLayout === 'grid' ? 'grid' : 'list';
     normalized.glossaryEnabled = source.glossaryEnabled === true;
     normalized.glossaryLibraries = normalizeGlossaryLibraries(source.glossaryLibraries);
     normalized.documentGlossaryIds = normalizeGlossaryIds(source.documentGlossaryIds, normalized.glossaryLibraries);

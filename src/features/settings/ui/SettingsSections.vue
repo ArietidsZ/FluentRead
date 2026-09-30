@@ -82,7 +82,7 @@
 </SettingsPanel>
   </section>
   <section v-if="hasVisitedSection('settings-translation-center')" v-show="props.activeSection === 'settings-translation-center'" id="settings-translation-center" class="settings-section translation-center-section">
-    <TranslationCenter />
+    <TranslationCenter @configure-service="openInputServiceSettings" />
   </section>
   <section v-if="hasVisitedSection('settings-writing')" v-show="props.activeSection === 'settings-writing'" id="settings-writing" class="settings-section">
     <WritingSettings :config="config" @configure-service="openWritingServiceSettings()" />

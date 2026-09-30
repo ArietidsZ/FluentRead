@@ -696,7 +696,7 @@ describe('options UI composition architecture', () => {
     expect(document).toContain('管理模型 ↗')
     expect(document).not.toContain('aria-label="文档自定义模型名称"')
     expect(document).toContain("'这个自定义服务尚未保存模型，请先前往服务设置添加模型。'")
-    expect(translationCenter).toContain('isConfiguredCustomOpenAIProvider(customOpenAIProviders.value, item.value)')
+    expect(translationCenter).toContain('isConfiguredCustomOpenAIProvider(customOpenAIProviders.value, service)')
     expect(configManagement).toContain('getCustomOpenAIProviderLabel(value.customOpenAIProviders, value.service)')
     expect(modelUsageDashboard).toContain('getCustomOpenAIProviderLabel(customOpenAIProviders.value, serviceId)')
     expect(modelUsageDashboard).toContain('const unsubscribeConfig = subscribeConfig(nextConfig =>')
@@ -795,8 +795,8 @@ describe('options UI composition architecture', () => {
     expect(translationCenter).toContain("persistTranslationCenterConfig('target')")
     expect(translationCenter).toContain("persistTranslationCenterConfig('services')")
     expect(translationCenter).toContain("persistTranslationCenterConfig('source', 'target')")
-    expect(translationCenter).toContain('const requestedFields = new Set(fields)')
-    expect(translationCenter).toContain('if (Object.keys(patch).length === 0) return')
+    expect(translationCenter).toContain('const requestedFields = new Set([...failedSave, ...fields])')
+    expect(translationCenter).toContain('if (Object.keys(patch).length === 0) {')
   })
 
   it('uses patches for ordinary autosaves and hands pending popup and settings chains to the config service on exit', () => {
