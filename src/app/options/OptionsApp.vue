@@ -1,7 +1,7 @@
 <!--
  @file src/app/options/OptionsApp.vue
  文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和学习中心入口，并把选中分区交给对应 feature UI。
- 主要内容：渲染可折叠分组侧栏、窄屏分类选择、页内分类和全局搜索与主内容区，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
+ 主要内容：渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示，仅统计保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
  模块边界：组件负责页面壳、导航状态和界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
 -->
 <template>
@@ -66,7 +66,7 @@
 
 
 
-      <section ref="settingsContentElement" class="settings-card" :style="{ '--settings-switch-on-label': JSON.stringify(t('featureEnable.on')), '--settings-switch-off-label': JSON.stringify(t('featureEnable.off')) }" :class="{ 'services-view': activeSection === 'settings-services' && activePanel === 'connections', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
+      <section ref="settingsContentElement" class="settings-card" :class="{ 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
         <KeepAlive>
         <section v-if="userscriptUnavailableSection" :id="activeSection" class="userscript-unavailable" role="status">
           <h2>{{ t('options.userscriptUnavailableTitle') }}</h2>
@@ -195,7 +195,7 @@ function hashForSection(section: string): string {
 
 const initialDestination = props.initialSection || sectionFromHash(window.location.hash)
 const activeSection = ref(resolveRequestedSection(initialDestination))
-const expandedGroups = ref(new Set<number>([0, navigationGroups.findIndex(group => group.items.some(item => item.id === activeSection.value))]))
+const expandedGroups = ref(new Set<number>(navigationGroups.map((_, index) => index)))
 function isGroupOpen(index: number): boolean {
   return expandedGroups.value.has(index)
 }
@@ -206,7 +206,7 @@ function toggleGroup(index: number): void {
   expandedGroups.value = next
 }
 const selectedPanels = ref<Record<string, string>>({[activeSection.value]: resolveSettingsPanel(initialDestination)})
-const activePanels = computed(() => settingsPagePanels[activeSection.value] ?? [])
+const activePanels = computed(() => activeSection.value === 'settings-translation-stats' ? settingsPagePanels[activeSection.value] : [])
 const activePanel = computed(() => resolveSettingsPanel(activeSection.value, selectedPanels.value[activeSection.value]))
 function selectPanel(id: string): void {
   selectSection(activeSection.value, id)
@@ -234,7 +234,7 @@ const contentComponentProps = computed(() => activeSection.value === 'settings-v
   ? {onNavigate: selectSection}
   : {
       activeSection: activeSection.value,
-      activePanel: activePanel.value,
+      activePanel: activeSection.value === 'settings-translation-stats' ? activePanel.value : undefined,
       appearanceRoot: props.appearanceRoot,
       queryRoot: props.queryRoot,
       settingsHashPrefix: props.settingsHashPrefix,
@@ -310,6 +310,7 @@ const filteredResults = computed<SearchResult[]>(() => [
 function selectSection(requestedId: string, panelOrTargetId?: string) {
   const id = resolveRequestedSection(requestedId)
   if (requestedId === 'settings-model-usage') panelOrTargetId = 'usage'
+  if (requestedId === 'settings-area-translation') panelOrTargetId = 'area'
   if (!navigation.some((item) => item.id === id)) return
   searchRevealGeneration += 1
   cancelPendingSearchReveal?.()
@@ -325,12 +326,14 @@ function selectSection(requestedId: string, panelOrTargetId?: string) {
   }
   // 分区 DOM 更新后归零真正的内容滚动区，避免切换菜单仍停留在上个长表单的底部。
   void nextTick(() => settingsContentElement.value?.scrollTo({ top: 0, left: 0, behavior: 'instant' }))
+  if (panelOrTargetId && id !== 'settings-translation-stats') {
+    void revealSettingsTarget({id, sectionId: id, targetId: settingsPagePanels[id]?.some(panel => panel.id === panelOrTargetId) ? undefined : panelOrTargetId, panelId: selectedPanels.value[id], label: '', searchDescription: ''})
+  }
 }
 
-async function selectResult(result: SearchResult) {
-  const revealLanguage = result.id === 'settings-general' && isUiLanguageSearch(query.value)
-  selectSection(result.sectionId, result.targetId || result.panelId)
-  if (result.targetId) {
+// 同页定位保留懒加载：目标挂载后滚动，用户开始操作即停止定位。
+async function revealSettingsTarget(result: SearchResult) {
+  if (result.targetId || result.panelId) {
     const generation = searchRevealGeneration
     await nextTick()
     if (generation !== searchRevealGeneration) return
@@ -351,7 +354,8 @@ async function selectResult(result: SearchResult) {
         stop()
         return
       }
-      const target = (props.queryRoot || document).querySelector<HTMLElement>(`#${result.targetId}`)
+      const selector = result.targetId ? `#${result.targetId}` : `[data-settings-panel="${result.panelId}"]`
+      const target = content.querySelector<HTMLElement>(`#${result.sectionId}`)?.querySelector<HTMLElement>(selector)
       if (!target?.getClientRects().length) return
       const targetRect = target.getBoundingClientRect()
       const contentTop = content.getBoundingClientRect().top
@@ -375,6 +379,11 @@ async function selectResult(result: SearchResult) {
     timeoutId = window.setTimeout(stop, 3000)
     revealTarget()
   }
+}
+
+async function selectResult(result: SearchResult) {
+  const revealLanguage = result.id === 'settings-general' && isUiLanguageSearch(query.value)
+  selectSection(result.sectionId, result.targetId || result.panelId)
   if (revealLanguage) {
     await nextTick()
     const control = (props.queryRoot || document).querySelector<HTMLElement>('[data-testid="ui-language-select"] input')

@@ -31,7 +31,6 @@ describe('options navigation view-model', () => {
         items: [
           'settings-selection',
           'settings-image-translation',
-          'settings-area-translation',
           'settings-video',
         ],
       },
@@ -51,7 +50,6 @@ describe('options navigation view-model', () => {
       '界面风格',
       '划词翻译',
       '图片翻译',
-      '圈选翻译',
       '视频字幕翻译',
       '写作助手',
       '翻译中心',
@@ -89,8 +87,9 @@ describe('options navigation view-model', () => {
     expect(resolveRequestedSection('#settings-vocabulary')).toBe('settings-vocabulary')
     expect(resolveRequestedSection('#settings-learning-center')).toBe('settings-vocabulary')
     expect(resolveNavigationItem('missing').id).toBe(DEFAULT_NAVIGATION_SECTION)
-    expect(resolveRequestedSection('#settings-area-translation')).toBe('settings-area-translation')
-    expect(filterNavigationItems('圈选')).toEqual([expect.objectContaining({id: 'settings-area-translation'})])
+    expect(resolveRequestedSection('#settings-area-translation')).toBe('settings-image-translation')
+    expect(resolveSettingsPanel('settings-area-translation')).toBe('area')
+    expect(filterNavigationItems('圈选')).toEqual([expect.objectContaining({id: 'settings-image-translation'})])
     expect(resolveRequestedSection('#settings-video')).toBe('settings-video')
     expect(resolveRequestedSection('settings-sites')).toBe('settings-sites')
     expect(resolveNavigationItem('settings-sites').group).toBe('系统与数据')

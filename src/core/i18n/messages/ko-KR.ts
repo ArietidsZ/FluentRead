@@ -421,6 +421,11 @@ export const koKRMessages = {
     "modelCache.removing": "삭제 중…",
     "modelCache.removeFailed": "삭제하지 못했습니다. 다시 시도하세요.",
 
+    "popup.image.web": "웹 이미지",
+    "popup.image.webHint": "이미지 속 텍스트 인식 및 번역",
+    "popup.image.area": "화면 영역",
+    "popup.image.areaHint": "누른 뒤 드래그하여 선택",
+    "settings.interface.readingAssistance": "읽기 지원",
     "featureEnable.on": "켜짐",
     "featureEnable.off": "꺼짐",
     "featureEnable.unavailable": "사용 불가",

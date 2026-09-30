@@ -561,10 +561,8 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
   .settings-app .workspace .settings-card details > summary { padding: 12px; }
 }
 
-/* 开关保留原生语义与字段绑定，增加整组命中区域和可读状态。 */
-.settings-app .settings-card .el-switch { --el-switch-on-color: var(--brand); --el-switch-off-color: var(--muted); min-width: 108px; width: auto !important; height: 44px !important; gap: 8px; justify-content: flex-end; border-radius: 8px; }
-.settings-app .settings-card .el-switch::after { content: var(--settings-switch-off-label); color: var(--muted); font-size: 12px; white-space: nowrap; }
-.settings-app .settings-card .el-switch.is-checked::after { content: var(--settings-switch-on-label); color: var(--brand-strong); }
+/* 开关保留原生语义与字段绑定，增加命中区域，状态由滑块位置及颜色表达。 */
+.settings-app .settings-card .el-switch { --el-switch-on-color: var(--brand); --el-switch-off-color: var(--muted); min-width: 52px; width: auto !important; height: 44px !important; gap: 8px; justify-content: flex-end; border-radius: 8px; }
 .settings-app .settings-card .el-switch__core { min-width: 48px !important; width: 48px !important; height: 28px !important; border-radius: 999px; }
 .settings-app .settings-card .el-switch__action { left: 3px; width: 20px; height: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.14); }
 .settings-app .settings-card .el-switch.is-checked .el-switch__action { left: calc(100% - 23px); }

@@ -14,32 +14,22 @@ function loadAction(name: string, ports: Record<string, unknown>) {
 }
 
 describe('Popup actions across configuration and page state', () => {
-    it('恢复已翻译页面不依赖当前服务凭据，只有新翻译才校验凭据', async () => {
-        const pageTranslated = {value: true};
-        const translating = {value: false};
-        const showNotice = vi.fn();
-        const browser = {tabs: {
-            query: vi.fn(async () => [{id: 3}]),
-            sendMessage: vi.fn(async () => ({status: 'success', isTranslated: false})),
-        }};
-        const action = loadAction('togglePageTranslation', {browser, pageTranslated, translating, showNotice, isThunderbird: false,
-            isBrowserTabId: (id: unknown) => typeof id === 'number', credentialWarning: {value: '缺少 API Key'}});
-        await action();
-        expect(browser.tabs.sendMessage).toHaveBeenCalledWith(3, {type: 'contextMenuTranslate', action: 'restore'});
-        expect(pageTranslated.value).toBe(false);
-        expect(translating.value).toBe(false);
-        await action();
-        expect(browser.tabs.sendMessage).toHaveBeenCalledOnce();
-        expect(showNotice).toHaveBeenLastCalledWith('缺少 API Key', 'error');
+    it('Popup 启动仅读取站点，不再请求网页翻译状态', async () => {
+        const browser = {tabs: {query: vi.fn(async () => [{id: 3, url: 'https://example.com/article'}]), sendMessage: vi.fn()}};
+        const currentTabId = {value: null};
+        const currentSiteDomain = {value: ''};
+        await loadAction('hydrateCurrentSite', {browser, currentTabId, currentSiteDomain, getSiteBaseDomain: () => 'example.com'})();
+        expect(currentTabId.value).toBe(3);
+        expect(currentSiteDomain.value).toBe('example.com');
+        expect(browser.tabs.sendMessage).not.toHaveBeenCalled();
     });
 
-    it('快速切换总开关只修改 on，不广播会重写内容配置的旧功能开关', () => {
-        const config = {value: {on: true, disableFloatingBall: true, selectionTranslatorMode: 'bilingual', selectionAreaEnabled: true}};
-        const broadcast = vi.fn();
-        const action = loadAction('setPluginEnabled', {config, broadcast, browserCapabilities: {areaTranslation: true, imageTranslation: true}});
-        action(false); action(true);
-        expect(config.value).toEqual({on: true, disableFloatingBall: true, selectionTranslatorMode: 'bilingual', selectionAreaEnabled: true});
-        expect(broadcast).not.toHaveBeenCalled();
+    it('总开关保留在设置页，Popup 只展示暂停状态', () => {
+        const popup = readFileSync(resolve(__dirname, '../src/app/popup/PopupApp.vue'), 'utf8');
+        const settings = readFileSync(resolve(__dirname, '../src/features/settings/ui/SettingsSections.vue'), 'utf8');
+        expect(popup).not.toContain('setPluginEnabled');
+        expect(popup).toContain('v-if="!config.on"');
+        expect(settings).toContain('v-model="config.on"');
     });
     it('站点禁用快速撤回不发送可能晚到的页面覆盖命令', () => {
         const config = {value: {disabledExtensionDomains: [] as string[]}};

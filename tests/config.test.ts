@@ -457,8 +457,8 @@ describe('统一配置存储', () => {
             selectionAreaEnabled: true, disableImageTranslator: true,
             areaTranslationMode: 'standard', areaTranslationService: '',
         });
-        expect(configStore.config.popupQuickFeatureOrder.filter(id => id === 'area')).toHaveLength(1);
-        expect(configStore.config.popupQuickFeatureVisibility.area).toBe(true);
+        expect(configStore.config.popupQuickFeatureOrder.filter(id => id === 'image')).toHaveLength(1);
+        expect(configStore.config.popupQuickFeatureVisibility.image).toBe(true);
         await configStore.saveConfig({...configStore.config, areaTranslationMode: 'ai', areaTranslationService: 'openai'});
         expect(storageState.get('local:config')).toMatchObject({areaTranslationMode: 'ai', areaTranslationService: 'openai'});
     });
@@ -509,8 +509,8 @@ describe('统一配置存储', () => {
         expect(normalizeConfig({areaTranslationService: 'custom:area', customOpenAIProviders}).areaTranslationService).toBe('custom:area');
         expect(normalizeConfig({areaTranslationService: 'custom'}).customOpenAIProviders.some(provider => provider.id === 'custom')).toBe(true);
         const layout = normalizeConfig({popupQuickFeatureOrder: ['image', 'selection', 'area', 'area', 'unknown'], popupQuickFeatureVisibility: {image: false, area: false}});
-        expect(layout.popupQuickFeatureOrder.filter(id => id === 'area')).toHaveLength(1);
-        expect(layout.popupQuickFeatureVisibility).toMatchObject({image: false, area: false});
+        expect(layout.popupQuickFeatureOrder.filter(id => id === 'image')).toHaveLength(1);
+        expect(layout.popupQuickFeatureVisibility).toMatchObject({image: false});
     });
 
     it('为旧配置默认关闭图片、开启视频和圈选，并补齐视频服务和字号', async () => {

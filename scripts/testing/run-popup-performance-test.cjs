@@ -41,7 +41,7 @@ async function verifyLanguageMenus(page) {
   await patchConfig({to: 'de', uiLanguage: 'en-US', theme: 'dark'}, 1);
   await page.waitForFunction(() => document.documentElement.lang === 'en-US' && document.body.innerText.includes('Settings'));
   await page.waitForFunction(() => /German|Deutsch/u.test(document.querySelectorAll('.language-pair .el-select')[1]?.textContent || ''));
-  await page.screenshot({path: path.join(artifactsDir, 'popup-dark-en.png')});
+  await page.locator('.popup-shell').screenshot({path: path.join(artifactsDir, 'popup-dark-en.png')});
   await patchConfig({uiLanguage: 'zh-CN'}, 2);
   await page.waitForFunction(() => document.documentElement.lang === 'zh-CN' && document.body.innerText.includes('设置'));
   const expected = (await target.innerText()).trim();
@@ -135,7 +135,7 @@ async function main() {
       sample.index = index;
       report.samples.push(sample);
       if (index === 0) {
-        await page.screenshot({path: path.join(artifactsDir, 'popup.png')});
+        await page.locator('.popup-shell').screenshot({path: path.join(artifactsDir, 'popup.png')});
         // 记录浏览器实际解析的脚本字节，不依赖扩展协议缺失的 Resource Timing。
         const parsed = new Set();
         session.on('Debugger.scriptParsed', event => { if (event.url.startsWith(extensionOrigin)) parsed.add(new URL(event.url).pathname); });
@@ -143,7 +143,33 @@ async function main() {
         report.initialScripts = [...parsed].map(file => ({file, bytes: fs.statSync(path.join(extensionDir, file)).size}));
         report.initialScriptBytes = report.initialScripts.reduce((sum, item) => sum + item.bytes, 0);
       }
-      if (index === 6 && process.argv.includes('--verify-ui')) report.languageMenus = await verifyLanguageMenus(page);
+      if (index === 6 && process.argv.includes('--verify-ui')) {
+        await page.setViewportSize({width: Math.ceil(sample.width), height: Math.max(440, Math.ceil(sample.height))});
+        report.languageMenus = await verifyLanguageMenus(page);
+        const features = await page.locator('[data-popup-quick-feature]').evaluateAll(items => items.map(item => item.dataset.popupQuickFeature));
+        if (features.join(',') !== 'hover,selection,image,document') throw new Error('Popup 默认快捷入口不正确');
+        if (await page.locator('.popup-header [role="switch"]').count()) throw new Error('Popup 仍有插件总开关');
+        if (await page.locator('.translate-action').count()) throw new Error('Popup 仍有重复网页翻译按钮');
+        await page.locator('[data-popup-quick-feature="image"]').click();
+        const imageSwitch = page.getByRole('switch', {name: '启用或关闭图片翻译', exact: true});
+        const areaSwitch = page.getByRole('switch', {name: '启用或关闭圈选翻译', exact: true});
+        await areaSwitch.waitFor();
+        const beforeImage = await imageSwitch.getAttribute('aria-checked');
+        const beforeArea = await areaSwitch.getAttribute('aria-checked');
+        await imageSwitch.click();
+        if (await areaSwitch.getAttribute('aria-checked') !== beforeArea) throw new Error('图片开关影响圈选偏好');
+        await imageSwitch.click();
+        await areaSwitch.click();
+        if (await imageSwitch.getAttribute('aria-checked') !== beforeImage) throw new Error('圈选开关影响图片偏好');
+        await areaSwitch.click();
+        await page.locator('.popup-drawer').screenshot({path: path.join(artifactsDir, 'popup-image-area.png')});
+        await page.locator('.drawer-header button').click();
+        await page.locator('[data-popup-quick-feature="hover"]').click();
+        await page.locator('[data-testid="section-translation"]').waitFor();
+        await page.locator('.popup-drawer').screenshot({path: path.join(artifactsDir, 'popup-hover.png')});
+        await page.locator('.drawer-header button').click();
+        report.compactWorkflow = {features, imageAndAreaIndependent: true, sectionActionReachable: true};
+      }
       await session.detach();
       await page.close();
     }

@@ -32,10 +32,6 @@
             class="layout-preview-module preview-translation"
             data-preview-popup-module="translation"
           >
-            <div class="layout-preview-hero" aria-hidden="true">
-              <span><small>{{ t('popup.webTranslation') }}</small><strong>{{ t('popup.heroEnabled') }}</strong></span>
-              <i><b /></i>
-            </div>
             <div class="layout-preview-languages" aria-hidden="true">
               <span><small>{{ t('popup.sourceLanguage') }}</small><b>{{ translateLegacy('自动检测') }}</b></span>
               <em>→</em>
@@ -46,7 +42,6 @@
               <span><small>{{ t('popup.translationService') }}</small><b>{{ translateLegacy('免费翻译服务') }}</b></span>
               <em>⌄</em>
             </div>
-            <div class="layout-preview-action" aria-hidden="true">{{ t('popup.translateCurrentPage') }}</div>
             <PopupLayoutPreviewItem
               v-if="siteModuleNestedInTranslation && siteModule"
               :item="siteModule"

@@ -422,6 +422,11 @@ export const enUSMessages = {
     "modelCache.removing": "Removing…",
     "modelCache.removeFailed": "Could not remove the model. Try again.",
 
+    "popup.image.web": "Web images",
+    "popup.image.webHint": "Recognize and translate image text",
+    "popup.image.area": "Screen region",
+    "popup.image.areaHint": "Press, then drag to select",
+    "settings.interface.readingAssistance": "Reading assistance",
     "featureEnable.on": "On",
     "featureEnable.off": "Off",
     "featureEnable.unavailable": "Unavailable",

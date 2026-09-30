@@ -421,6 +421,11 @@ export const frFRMessages = {
     "modelCache.removing": "Suppression…",
     "modelCache.removeFailed": "Échec de la suppression. Réessayez.",
 
+    "popup.image.web": "Images web",
+    "popup.image.webHint": "Reconnaître et traduire le texte",
+    "popup.image.area": "Zone à capturer",
+    "popup.image.areaHint": "Appuyer, puis tracer la zone",
+    "settings.interface.readingAssistance": "Aide à la lecture",
     "featureEnable.on": "Activé",
     "featureEnable.off": "Désactivé",
     "featureEnable.unavailable": "Indisponible",

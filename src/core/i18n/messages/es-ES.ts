@@ -421,6 +421,11 @@ export const esESMessages = {
     "modelCache.removing": "Eliminando…",
     "modelCache.removeFailed": "No se pudo eliminar. Inténtalo de nuevo.",
 
+    "popup.image.web": "Imágenes web",
+    "popup.image.webHint": "Reconocer y traducir el texto",
+    "popup.image.area": "Área de pantalla",
+    "popup.image.areaHint": "Pulsar y arrastrar para seleccionar",
+    "settings.interface.readingAssistance": "Ayuda de lectura",
     "featureEnable.on": "Activado",
     "featureEnable.off": "Desactivado",
     "featureEnable.unavailable": "No disponible",

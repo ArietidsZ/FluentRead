@@ -421,6 +421,11 @@ export const jaJPMessages = {
     "modelCache.removing": "削除中…",
     "modelCache.removeFailed": "削除できませんでした。再試行してください。",
 
+    "popup.image.web": "ウェブ画像",
+    "popup.image.webHint": "画像内の文字を認識して翻訳",
+    "popup.image.area": "範囲を選択",
+    "popup.image.areaHint": "押してからドラッグで選択",
+    "settings.interface.readingAssistance": "読書サポート",
     "featureEnable.on": "有効",
     "featureEnable.off": "無効",
     "featureEnable.unavailable": "利用不可",

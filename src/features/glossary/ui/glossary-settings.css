@@ -69,7 +69,8 @@
 
 .fluentread-glossary button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; }
 .fluentread-glossary a { color: var(--brand, var(--el-color-primary)); }
-.fluentread-glossary :deep(.feature-enable-card) { margin: 0; padding: 0 2px 16px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; box-shadow: none; }
+.fluentread-glossary :deep(.feature-enable-card) { margin-bottom: 24px; }
+.glossary-builtins-page { margin-top: 32px; scroll-margin-top: 24px; }
 .glossary-main-toolbar { margin: 18px 0 12px; gap: 12px; }
 .glossary-main-toolbar > strong { min-width: 0; overflow-wrap: anywhere; }
 .glossary-library-picker { width: min(260px, 100%); }

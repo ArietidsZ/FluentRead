@@ -419,6 +419,11 @@ export const zhCNMessages = {
     "modelCache.removing": "清除中…",
     "modelCache.removeFailed": "清除失败，请重试。",
 
+    "popup.image.web": "网页图片",
+    "popup.image.webHint": "识别并翻译图片文字",
+    "popup.image.area": "圈选区域",
+    "popup.image.areaHint": "按下后拖动框选",
+    "settings.interface.readingAssistance": "阅读辅助",
     "featureEnable.on": "已开启",
     "featureEnable.off": "未开启",
     "featureEnable.unavailable": "当前不可用",
