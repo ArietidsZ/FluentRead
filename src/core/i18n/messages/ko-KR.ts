@@ -17,6 +17,9 @@ import {localTranslationKoreanMessages} from './localTranslation';
 export const koKRMessages = {
     "options.panel.statsOverview": "번역 개요",
     "options.panel.modelUsage": "모델 사용량",
+    "settings.general.masterTitle": "번역 기능 사용",
+    "settings.general.masterHelp": "끄면 모든 번역을 중지하고 웹페이지와 동영상의 번역 버튼을 숨깁니다. 다시 켤 때를 위해 설정은 유지됩니다.",
+    "popup.providers.title": "제공업체",
     "featureServices.assignments": "기능별 할당",
     "featureServices.connections": "연결 설정",
     "featureServices.intro": "기능별 서비스를 선택하세요. 변경 사항은 자동 저장되며 기존 개별 설정은 유지됩니다.",

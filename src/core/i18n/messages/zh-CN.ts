@@ -15,6 +15,9 @@ import {localTranslationChineseMessages} from './localTranslation';
 export const zhCNMessages = {
     "options.panel.statsOverview": "翻译概览",
     "options.panel.modelUsage": "模型用量",
+    "settings.general.masterTitle": "启用翻译功能",
+    "settings.general.masterHelp": "关闭后停止所有翻译，并隐藏网页和视频中的翻译入口。再次开启会恢复原有偏好。",
+    "popup.providers.title": "提供商",
     "featureServices.assignments": "功能分配",
     "featureServices.connections": "服务连接",
     "featureServices.intro": "在这里为各项功能选择服务，修改后自动保存。已有的独立配置会保留。",

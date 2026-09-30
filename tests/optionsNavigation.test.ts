@@ -177,6 +177,9 @@ describe('options navigation view-model', () => {
 
 describe('settings control search', () => {
   it('finds the exact floating-ball switch label and its detailed settings', () => {
+    expect(filterSettingsSearchTargets('功能分配')).toEqual([
+      expect.objectContaining({sectionId: 'settings-general', targetId: 'feature-services'}),
+    ])
     expect(filterSettingsSearchTargets('全文翻译悬浮球')).toEqual([
       expect.objectContaining({sectionId: 'settings-general', targetId: 'floating-ball-toggle'}),
     ])

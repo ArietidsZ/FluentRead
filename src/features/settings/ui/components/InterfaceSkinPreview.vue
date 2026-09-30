@@ -31,9 +31,8 @@
       </div>
 
       <div class="preview-service">
-        <i>译</i>
-        <span><small>{{ translateLegacy('翻译服务') }}</small><strong>{{ translateLegacy('免费翻译服务') }}</strong></span>
-        <b>⌄</b>
+        <span><strong>{{ t('popup.providers.title') }}</strong></span>
+        <span class="preview-provider-icons"><ServiceIcon service="google" size="small" /><ServiceIcon service="microsoft" size="small" /><b>›</b></span>
       </div>
 
       <div class="preview-features">
@@ -46,6 +45,7 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
+import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
 import type {InterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
@@ -55,7 +55,7 @@ const props = defineProps<{
   skinLabel: string
   previewLabel: string
 }>()
-const {translateLegacy} = useUiI18n()
+const {t, translateLegacy} = useUiI18n()
 
 const previewStyle = computed(() => {
   const preview = props.skin.preview
@@ -393,4 +393,5 @@ const previewStyle = computed(() => {
 .interface-skin-live-preview[data-preview-skin="arcade"] .preview-popup {
   background-size: var(--skin-canvas-background-size, auto);
 }
+.preview-provider-icons { display: flex; align-items: center; gap: 3px; margin-left: auto; }
 </style>

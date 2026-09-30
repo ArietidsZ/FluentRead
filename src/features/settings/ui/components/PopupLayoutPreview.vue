@@ -38,9 +38,8 @@
               <span><small>{{ t('popup.targetLanguage') }}</small><b>{{ translateLegacy('简体中文') }}</b></span>
             </div>
             <div class="layout-preview-service" aria-hidden="true">
-              <i>译</i>
-              <span><small>{{ t('popup.translationService') }}</small><b>{{ translateLegacy('免费翻译服务') }}</b></span>
-              <em>⌄</em>
+              <span><b>{{ t('popup.providers.title') }}</b></span>
+              <span class="preview-provider-icons"><ServiceIcon service="google" size="small" /><ServiceIcon service="microsoft" size="small" /></span><em>›</em>
             </div>
             <PopupLayoutPreviewItem
               v-if="siteModuleNestedInTranslation && siteModule"
@@ -122,6 +121,7 @@
 </template>
 
 <script setup lang="ts">
+import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import {computed, ref, watch} from 'vue'
 import PopupLayoutPreviewItem from './PopupLayoutPreviewItem.vue'
 import {usePopupLayoutReorder} from '../usePopupLayoutReorder'
@@ -666,4 +666,5 @@ function featureGlyph(id: string): string {
 .layout-preview-section-heading button { border: 0; padding: 3px; color: var(--layout-preview-accent); background: transparent; font: inherit; font-size: 9px; cursor: pointer; }
 .layout-preview-section-heading button:focus-visible { outline: 2px solid var(--layout-preview-accent); }
 .layout-preview-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.preview-provider-icons { display: flex; align-items: center; gap: 3px; margin-left: auto; }
 </style>

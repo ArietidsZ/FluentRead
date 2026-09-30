@@ -17,6 +17,9 @@ import {localTranslationFrenchMessages} from './localTranslation';
 export const frFRMessages = {
     "options.panel.statsOverview": "Vue d’ensemble",
     "options.panel.modelUsage": "Utilisation des modèles",
+    "settings.general.masterTitle": "Activer la traduction",
+    "settings.general.masterHelp": "Désactivez toutes les traductions et masquez les commandes sur les pages et les vidéos. Vos préférences sont conservées.",
+    "popup.providers.title": "Fournisseurs",
     "featureServices.assignments": "Attribution par fonction",
     "featureServices.connections": "Connexions",
     "featureServices.intro": "Choisissez un service par fonction. Les changements sont enregistrés automatiquement et les choix existants sont conservés.",

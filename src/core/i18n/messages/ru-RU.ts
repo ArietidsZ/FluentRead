@@ -17,6 +17,9 @@ import {localTranslationRussianMessages} from './localTranslation';
 export const ruRUMessages = {
     "options.panel.statsOverview": "Обзор переводов",
     "options.panel.modelUsage": "Использование моделей",
+    "settings.general.masterTitle": "Включить перевод",
+    "settings.general.masterHelp": "Отключает весь перевод и скрывает его элементы управления на страницах и в видео. Ваши настройки сохраняются.",
+    "popup.providers.title": "Провайдеры",
     "featureServices.assignments": "Назначение по функциям",
     "featureServices.connections": "Подключения",
     "featureServices.intro": "Выберите сервис для каждой функции. Изменения сохраняются автоматически; прежние индивидуальные настройки сохраняются.",

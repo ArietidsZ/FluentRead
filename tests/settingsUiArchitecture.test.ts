@@ -1037,8 +1037,10 @@ describe('options UI composition architecture', () => {
     expect(styles).not.toContain('.style-preview-text')
     expect(styles).not.toContain('.bilingual-highlight-preview')
 
-    expect(services).toContain('<FeatureServiceSettings')
-    expect(settings).toContain('<ServiceCatalog :compact="!serviceDirectoryOpen"')
+    expect(general).toContain('<FeatureServiceSettings')
+    expect(services).not.toContain('<FeatureServiceSettings')
+    expect(services).toContain('<ServiceCatalog')
+    expect(settings).not.toContain('service-configuration-dialog')
     expect(services).not.toContain('data-testid="default-translation-service-card"')
     expect(services).not.toContain('aria-label="默认网页翻译服务"')
     expect(services).not.toContain('<SettingsGroup')

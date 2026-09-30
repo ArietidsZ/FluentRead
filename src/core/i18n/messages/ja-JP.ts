@@ -17,6 +17,9 @@ import {localTranslationJapaneseMessages} from './localTranslation';
 export const jaJPMessages = {
     "options.panel.statsOverview": "翻訳の概要",
     "options.panel.modelUsage": "モデル使用量",
+    "settings.general.masterTitle": "翻訳機能を有効にする",
+    "settings.general.masterHelp": "オフにするとすべての翻訳を停止し、ウェブページと動画の翻訳ボタンを非表示にします。設定は保持されます。",
+    "popup.providers.title": "プロバイダー",
     "featureServices.assignments": "機能別の割り当て",
     "featureServices.connections": "接続設定",
     "featureServices.intro": "各機能のサービスを選択します。変更は自動保存され、既存の個別設定は保持されます。",

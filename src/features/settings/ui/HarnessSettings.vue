@@ -1,14 +1,12 @@
 <!--
  * @file src/features/settings/ui/HarnessSettings.vue
  * 文件职责：作为统一划词翻译的学习子设置，配置 AI 讲解、模型和阅读偏好。
- * 主要内容：提供按需 AI 讲解开关，将服务和回答偏好放入折叠栏，另行组织原文范围、学习记忆、提示词和开源来源。
+ * 主要内容：提供按需 AI 讲解开关，直接展示服务和回答偏好，另行组织原文范围、学习记忆、提示词和开源来源。
  * 模块边界：只编辑传入 Config 的 harness 字段；阅读记录由学习中心统一呈现，不发起模型请求，不拥有网页选区或提示词。
  -->
 <template>
   <SettingsGroup title="AI 深入讲解" description="卡片中的可选能力。点击读懂、词性与句法、用法或练习后才发送请求。">
     <FeatureEnableCard v-model="config.harness.enabled" title="启用 AI 讲解" description="使用你配置的 AI 服务，围绕选中的原文继续学习。关闭后仍可翻译和查词。" />
-    <details class="harness-preferences">
-      <summary>服务与学习偏好</summary>
     <div class="harness-provider-row">
       <div class="harness-provider-field">
         <label>翻译服务</label>
@@ -51,7 +49,6 @@
       </el-select>
     </SettingsItem>
 
-    </details>
   </SettingsGroup>
 
   <details class="harness-advanced"><summary>上下文、学习记忆与自定义指令</summary>
@@ -112,8 +109,8 @@ function toggleAction(id: HarnessActionId) {
 </script>
 
 <style scoped>
-.harness-preferences > summary, .harness-advanced > summary { padding:16px 18px; cursor:pointer; color:var(--ink); font-size:13px; font-weight:600; }
-.harness-advanced { width:min(100%,1080px); margin:0 auto 24px; border:1px solid var(--line); border-radius:12px; }
+.harness-advanced > summary { padding:16px 18px; cursor:pointer; color:var(--ink); font-size:13px; font-weight:600; }
+.harness-advanced { width:min(100%,1080px); margin:0 auto 12px; }
 .harness-advanced[open] { border:0; }
 summary:focus-visible { outline:2px solid var(--brand); outline-offset:-4px; }
 .harness-attribution { display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; width:min(100%,1080px); margin:0 auto 10px; padding:4px 4px 12px; color:var(--muted); font-size:12px; line-height:1.7; }

@@ -18,6 +18,9 @@ import {localTranslationEnglishMessages} from './localTranslation';
 export const enUSMessages = {
     "options.panel.statsOverview": "Translation overview",
     "options.panel.modelUsage": "Model usage",
+    "settings.general.masterTitle": "Enable translation",
+    "settings.general.masterHelp": "Turn off all translation and hide translation controls on webpages and videos. Your preferences are kept for when you turn it back on.",
+    "popup.providers.title": "Providers",
     "featureServices.assignments": "Feature assignments",
     "featureServices.connections": "Connections",
     "featureServices.intro": "Choose a service for each feature. Changes save automatically; existing independent choices are kept.",

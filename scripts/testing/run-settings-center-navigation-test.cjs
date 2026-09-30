@@ -90,7 +90,6 @@ const checkLayout = async label => {
     });
     assert.deepEqual(duplicateIds, []);
     await navigate('settings-services');
-    await page.locator('#service-connections').click();
     await page.locator('.service-catalog').waitFor();
     const catalog = page.locator('[data-default-service][data-editing-service]');
     const defaultService = await catalog.getAttribute('data-default-service');
@@ -100,26 +99,18 @@ const checkLayout = async label => {
     assert.equal(await catalog.getAttribute('data-editing-service'), editingService);
     assert.equal(await catalog.getAttribute('data-default-service'), defaultService);
     report.serviceEditingPreservesDefault = true;
-    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.el-overlay:visible').count(), 0);
     const beforeHash = await page.evaluate(() => location.hash);
     await page.locator('[data-feature-service="hover"] .feature-service-connection').click();
-    await page.locator('.service-catalog.compact').waitFor();
     assert.equal(await page.evaluate(() => location.hash), beforeHash);
-    assert.equal(await page.locator('.service-catalog .service-rail').count(), 0);
-    await page.waitForTimeout(350);
-    await shot('service-in-place');
-    await page.keyboard.press('Escape');
-    assert(await page.locator('[data-feature-service="hover"]').isVisible());
+    assert.equal(await page.locator('.service-catalog .service-rail').count(), 1);
+    assert.equal(await page.locator('.el-overlay:visible').count(), 0);
+    await shot('service-workspace');
     report.inPlaceConfiguration = true;
     await page.setViewportSize({width: 390, height: 900});
-    await page.locator('[data-feature-service="hover"] .feature-service-connection').click();
-    await page.locator('.service-catalog.compact').waitFor();
-    await page.waitForTimeout(350);
-    const dialogBounds = await page.locator('.service-configuration-dialog').boundingBox();
-    assert(dialogBounds.x >= 0 && dialogBounds.x + dialogBounds.width <= 391);
-    assert.equal(await page.evaluate(() => document.body.classList.contains('el-popup-parent--hidden')), false);
-    await shot('mobile-service-in-place');
-    await page.keyboard.press('Escape');
+    await page.locator('.service-catalog').scrollIntoViewIfNeeded();
+    await checkLayout('mobile-service-workspace');
+    await shot('mobile-service-workspace');
     await page.setViewportSize({width: 1440, height: 960});
     await navigate('settings-interface');
     await page.locator('[data-style-value="0"]').click();
@@ -156,8 +147,8 @@ const checkLayout = async label => {
     // Existing persistence pipeline must survive the new presentation layer.
     const readConfig = p => p.evaluate(async () => { const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}); if (!r.success) throw new Error(r.error); return typeof r.value === 'string' ? JSON.parse(r.value) : r.value; });
     const originalConfig = await readConfig(page);
-    await navigate('settings-services');
-    assert.equal(await page.locator('[data-feature-service]').count(), 10);
+    await navigate('settings-general');
+    assert.equal(await page.locator('[data-feature-service]').count(), 9);
     const selectFeature = async (id, label) => {
       const combobox = page.locator(`[data-feature-service="${id}"]`).getByRole('combobox');
       await combobox.click();
@@ -186,7 +177,7 @@ const checkLayout = async label => {
     await page.keyboard.press('Escape');
     await shot('feature-services-assigned');
     await page.close();
-    page = await open('options.html#settings-services');
+    page = await open('options.html#settings-general');
     await page.locator('[data-testid="feature-services"]').waitFor();
     assert.equal((await readConfig(page)).selectionTranslationService, 'microsoft');
     await shot('feature-services-reopened');
@@ -283,11 +274,9 @@ const checkLayout = async label => {
     assert(popupMetrics.height <= 600, JSON.stringify(popupMetrics));
     await popup.screenshot({path: path.join(artifacts, 'popup-services-shortcut.png')});
     report.popupMetrics = popupMetrics;
-    const openedOptions = context.waitForEvent('page');
     await popup.locator('[data-testid="popup-feature-services"]').click();
-    const featureOptions = await openedOptions;
-    await featureOptions.waitForURL('**/options.html#settings-services');
-    await featureOptions.locator('[data-testid="feature-services"]').waitFor();
+    await popup.locator('.popup-provider-fields').waitFor();
+    assert.equal(await popup.locator('[data-feature-service]').count(), 10);
     report.popupShortcut = true;
     report.crossPageSync = true;
     assert.deepEqual(report.consoleErrors, []);

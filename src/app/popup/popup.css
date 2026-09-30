@@ -1,7 +1,7 @@
 /**
  * @file src/app/popup/popup.css
  * 文件职责：定义宽度随皮肤、高度由内容撑开且最高 560px 的浏览器 Popup 视觉系统与交互状态，包括亮暗主题、服务选择、功能卡、设置抽屉、通知和响应式细节。
- * 主要内容：声明服务菜单、AI 精翻偏好及状态说明、翻译主按钮旁的局部翻译按钮、站点控制、两列三行默认快捷入口与抽屉等视觉样式；收紧默认纵向间距，让 Popup 宽高受移动视口约束并允许较长内容滚动，兼容皮肤、多语言和 Element Plus 内部结构。
+ * 主要内容：声明服务菜单、AI 精翻偏好及状态说明、提供商汇总及按功能选择抽屉、站点控制、两列快捷入口与抽屉等视觉样式；收紧默认纵向间距，让 Popup 宽高受移动视口约束并允许较长内容滚动，兼容皮肤、多语言和 Element Plus 内部结构。
  * 模块边界：样式只对应 PopupApp 的 DOM 和受控第三方组件，不决定配置值、能力可用性或消息行为；跨页面 token 在 src/ui/styles，Options/文档页各自维护页面样式。
  */
 @import "../../ui/styles/feedback.css";
@@ -552,27 +552,21 @@ footer > button { justify-self: end; }
 .selection-area-panel { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 8px; }
 .drawer-content > .section-translate-button { margin-top: 12px; height: 40px; width: 100%; }
 
-.service-tools { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
-.service-tools .feature-service-shortcut { flex: 1; width: auto; margin: 0; }
-.service-tools .ai-context-control { flex: none; width: auto; min-height: 32px; margin: 0; padding: 4px 0 4px 8px; border: 0; background: transparent; }
-
 /* 紧凑阅读布局：颜色强调当前选择，语言、服务与快捷入口以留白建立层级。 */
 .popup-shell[data-interface-skin="default"] { background: var(--surface-soft); }
-.popup-header { margin-bottom: 12px; }
+.popup-header { margin-bottom: 10px; }
 .popup-header .brand strong { font-size: 14px; }
 .popup-header .donation-button { color: var(--muted); background: var(--surface); border-color: var(--line); }
-.hero-card { border-radius: 14px; padding: 12px; }
-.service-tools .ai-context-name { font-size: 11px; font-weight: 500; color: var(--muted); }
-.service-tools .feature-service-shortcut { min-height: 32px; }
-.features { margin-top: 14px; }
+.hero-card { border-radius: 14px; padding: 10px 12px 4px; }
+.features { margin-top: 10px; }
 .features-eyebrow { font-size: 11px; font-weight: 500; letter-spacing: 0; }
 .feature-grid { gap: 8px; }
-.feature-card { min-height: 54px; padding: 8px; grid-template-columns: 26px minmax(0, 1fr) 6px; gap: 8px; border-radius: 10px; }
+.feature-card { min-height: 50px; padding: 7px 8px; grid-template-columns: 26px minmax(0, 1fr) 6px; gap: 8px; border-radius: 10px; }
 .feature-icon { width: 26px; height: 28px; }
 .feature-card strong { font-size: 11.5px; font-weight: 600; }
 .feature-card small { font-size: 10px; }
 .popup-shell[data-interface-skin="default"] .feature-icon { color: var(--brand-strong); background: var(--brand-soft); }
-footer { min-height: 32px; margin-top: 12px; border-top: 1px solid var(--line); padding-top: 6px; }
+footer { min-height: 30px; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 6px; }
 footer button { font-weight: 500; color: var(--muted); }
 .opensource-link span { display: none; }
 .image-area-setting { margin-top: 12px; }
@@ -589,3 +583,17 @@ footer button { font-weight: 500; color: var(--muted); }
 .image-method-shortcut { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; }
 .image-method-shortcut kbd { border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; background: var(--surface); color: var(--ink); font: 10px/1.5 inherit; }
 .image-method .switch { pointer-events: none; }
+
+/* 服务汇总只有一行；具体功能与 AI 偏好在抽屉中展开，不为隐藏内容预留高度。 */
+.provider-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 44px; margin-top: 8px; padding: 6px 0; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+.provider-summary > strong { font-size: 12px; font-weight: 600; }
+.provider-summary:hover { color: var(--brand-strong); }
+.provider-summary-icons { display: flex; align-items: center; padding-left: 6px; }
+.provider-avatar { display: grid; place-items: center; width: 29px; height: 29px; margin-left: -6px; border: 2px solid var(--surface); border-radius: 50%; background: var(--surface-soft); }
+.provider-avatar :is(.service-icon) { width: 23px; height: 23px; border-radius: 50%; }
+.provider-overflow { font-size: 10px; color: var(--muted); }
+.provider-summary-chevron { margin-left: 7px; font-size: 19px; color: var(--muted); }
+.drawer-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.provider-drawer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+.provider-drawer-actions button { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 36px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); color: var(--ink); font-size: 11px; cursor: pointer; }
+.language-pair { grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); gap: 6px; }

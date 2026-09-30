@@ -95,8 +95,8 @@ const modes = [
 .selection-preview-word p { line-height:1.7; }
 .selection-preview-word small, .selection-preview-footnote { color:var(--muted); font-size:11px; line-height:1.7; }
 .selection-preview-footnote { display:block; margin-top:18px; }
-.selection-advanced { width:min(100%,1080px); margin:0 auto 24px; }
-.selection-advanced > summary { padding:16px 18px; color:var(--ink); cursor:pointer; font-size:14px; font-weight:600; border:1px solid var(--line); border-radius:12px; margin-bottom:14px; }
+.selection-advanced { width:min(100%,1080px); margin:0 auto 12px; }
+.selection-advanced > summary { padding:16px 18px; color:var(--ink); cursor:pointer; font-size:14px; font-weight:600; border:1px solid var(--line); border-radius:12px; margin-bottom:0; }
 button:focus-visible, summary:focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
 @media(max-width:850px) { .selection-setup { grid-template-columns:1fr; padding:16px; gap:18px; } }
 </style>

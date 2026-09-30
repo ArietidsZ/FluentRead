@@ -69,7 +69,7 @@ describe('popup feature visibility', () => {
         const settings = source('src/features/settings/ui/SettingsSections.vue');
         const options = source('src/app/options/OptionsApp.vue');
 
-        expect(settings.indexOf('label="插件状态"')).toBeLessThan(settings.indexOf("t('settings.general.language')"));
+        expect(settings.indexOf('data-testid="plugin-master-setting"')).toBeLessThan(settings.indexOf("t('settings.general.language')"));
         expect(settings.indexOf("t('settings.general.language')")).toBeLessThan(settings.indexOf('label="界面主题"'));
         expect(settings.indexOf("t('settings.general.defaultTargetLanguage')")).toBeGreaterThan(settings.indexOf('data-testid="default-translation-service-card"'));
         expect(settings.indexOf("t('settings.general.defaultTargetLanguage')")).toBeLessThan(settings.indexOf('label="翻译模式"'));
@@ -278,41 +278,28 @@ describe('popup feature visibility', () => {
         expect(styles).toContain('.setting-row small.independent-profile-note');
         expect(styles).toContain('flex: 0 1 84px');
         expect(styles).toContain('.translate-hotkey span');
-        expect(popup).toContain('ref<HTMLElement | HTMLElement[] | null>(null)');
-        expect(popup).toContain('Array.isArray(servicePicker.value)');
-        expect(popup).toContain('pickers.some(picker => picker?.contains(target))');
-        expect(popup).toContain('ref<HTMLInputElement | HTMLInputElement[] | null>(null)');
-        expect(popup).toContain('Array.isArray(serviceSearchInput.value)');
-        expect(popup).toContain('void nextTick(focusServiceSearchInput)');
     });
 
     it('filters Chrome Translator but renders old synchronized selections as unavailable', () => {
         const popup = source('src/app/popup/PopupApp.vue');
 
-        expect(popup).toContain('filterAvailableTranslationServices(allServiceOptions.value)');
+        expect(source('src/app/popup/PopupServices.vue')).toContain('isTranslationServiceAvailable(option.value)');
         expect(popup).toContain('selectedServiceUnavailableMessage');
         expect(popup).not.toContain("activeDrawer === 'video'");
         expect(source('src/features/settings/ui/SettingsSections.vue')).toContain('Chrome内置AI翻译（当前浏览器不可用）');
         expect(popup).toContain('原有开关偏好已保留');
     });
 
-    it('supports quick popup search by service name and model keyword', () => {
+    it('opens a lazy per-feature provider panel with service and model search', () => {
         const popup = source('src/app/popup/PopupApp.vue');
-        const styles = source('src/app/popup/popup.css');
-
-        expect(popup).toContain('searchServiceOptions(');
+        const panel = source('src/app/popup/PopupServices.vue');
+        expect(popup).toContain("defineAsyncComponent(() => import('./PopupServices.vue'))");
         expect(popup).toContain('withCustomOpenAIServiceOptions(');
-        expect(popup).toContain('config.value.customOpenAIProviders.forEach(provider => merged.set(provider.id, provider.models))');
-        expect(popup).toContain('searchableModels.value');
-        expect(popup).toContain('aria-label="搜索翻译服务或模型"');
-        expect(popup).toContain('class="service-picker-panel" role="dialog" aria-label="选择翻译服务"');
-        expect(popup).toContain('role="listbox" aria-label="匹配的翻译服务"');
-        expect(popup).toContain('placeholder="搜索服务或模型，如 gpt、qwen"');
-        expect(popup).toContain(':data-matching-models="item.matchingModels.join(\',\') || undefined"');
-        expect(popup).toContain('没有找到包含“{{ serviceSearchQuery.trim() }}”的服务或模型');
-        expect(popup).toContain('inputs[0]?.focus()');
-        expect(popup).toContain('const moreServicesOpen = ref(true)');
-        expect(popup).toContain('moreServicesOpen.value = true');
-        expect(styles).toContain('.service-picker-results { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }');
+        expect(panel).toContain('searchServiceOptions(');
+        expect(panel).toContain('searchableModels.value');
+        expect(panel).toContain('provider.models');
+        expect(panel).toContain('setFeatureService(props.config, feature, service)');
+        expect(panel).toContain(':persistent="false"');
+        expect(popup).not.toContain('class="service-tools"');
     });
 });

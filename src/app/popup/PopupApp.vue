@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，让现场开关与显示操作保持简短，将长期偏好引导到对应设置页。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排语言与服务选择、局部翻译入口、AI 语境偏好与可用状态、站点规则及两列快捷功能；首次语言引导独占可见内容并撑开弹窗，语言选项与快捷抽屉按需挂载；图片与圈选共享快捷抽屉，保留各自开关和触发方式，监听配置并持久化。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，以图标汇总功能提供商，按需加载功能服务选择面板，编排语言选择、局部翻译入口、AI 语境偏好与可用状态、站点规则及两列快捷功能；首次语言引导独占可见内容并撑开弹窗，语言选项与快捷抽屉按需挂载；图片与圈选共享快捷抽屉，保留各自开关和触发方式，监听配置并持久化。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -90,134 +90,18 @@
         </label>
       </div>
 
-      <div ref="servicePicker" class="service-picker">
-        <div class="service-selection">
-        <button
-          class="service-field"
-          type="button"
-          :disabled="!config.on"
-          aria-haspopup="listbox"
-          :aria-expanded="servicePickerOpen"
-          :aria-label="servicePickerAriaLabel"
-          :data-selected-model="serviceModelLabel || undefined"
-          @click="toggleServicePicker"
-        >
-          <ServiceIcon :service="config.service" :label="serviceLabel" size="small" />
-          <span class="service-copy">
-            <small>翻译服务</small>
-            <span class="service-value">
-              <strong>{{ serviceLabel }}</strong>
-              <em v-if="serviceModelLabel" class="service-model" :title="serviceModelLabel">{{ serviceModelLabel }}</em>
-            </span>
+      <button class="provider-summary" type="button" data-testid="popup-feature-services"
+        :aria-label="t('featureServices.open')" :title="providerSummaryTitle" aria-haspopup="dialog"
+        :aria-expanded="drawerVisible && activeDrawer === 'services'" @click="openDrawer('services')">
+        <strong>{{ t('popup.providers.title') }}</strong>
+        <span class="provider-summary-icons" aria-hidden="true">
+          <span v-for="service in assignedProviders.slice(0, 4)" :key="service" class="provider-avatar">
+            <ServiceIcon :service="service" :label="providerLabel(service)" size="small" />
           </span>
-          <span class="chevron" :class="{ open: servicePickerOpen }">⌄</span>
-        </button>
-
-        </div>
-
-        <div v-if="servicePickerOpen" class="service-picker-panel" role="dialog" aria-label="选择翻译服务">
-          <label class="service-search">
-            <Search aria-hidden="true" />
-            <input
-              ref="serviceSearchInput"
-              v-model="serviceSearchQuery"
-              type="search"
-              autocomplete="off"
-              spellcheck="false"
-              aria-label="搜索翻译服务或模型"
-              placeholder="搜索服务或模型，如 gpt、qwen"
-            />
-            <button v-if="serviceSearchQuery" type="button" aria-label="清空服务搜索" @click="clearServiceSearch">×</button>
-          </label>
-
-          <div class="service-picker-results">
-            <div v-if="serviceSearchActive && serviceSearchResults.length" class="service-group" role="listbox" aria-label="匹配的翻译服务">
-              <span class="service-group-label">匹配服务</span>
-              <button
-                v-for="item in serviceSearchResults"
-                :key="item.value"
-                class="service-option"
-                type="button"
-                role="option"
-                :data-service-value="item.value"
-                :data-matching-models="item.matchingModels.join(',') || undefined"
-                :aria-selected="config.service === item.value"
-                @click="selectService(item.value)"
-              >
-                <ServiceIcon :service="item.value" :label="item.label" size="small" />
-                <span class="service-option-copy">
-                  <strong>{{ item.label }}</strong>
-                  <small v-if="item.matchingModels.length">{{ matchingModelSummary(item.matchingModels) }}</small>
-                </span>
-                <span v-if="config.service === item.value" class="service-option-check">✓</span>
-              </button>
-            </div>
-
-            <p v-else-if="serviceSearchActive" class="service-search-empty" role="status">
-              没有找到包含“{{ serviceSearchQuery.trim() }}”的服务或模型
-            </p>
-
-            <template v-else>
-              <div class="service-group" role="listbox" aria-label="常用翻译服务">
-                <span class="service-group-label">常用服务</span>
-                <button
-                  v-for="item in popularServiceOptions"
-                  :key="item.value"
-                  class="service-option"
-                  type="button"
-                  role="option"
-                  :data-service-value="item.value"
-                  :aria-selected="config.service === item.value"
-                  @click="selectService(item.value)"
-                >
-                  <ServiceIcon :service="item.value" :label="item.label" size="small" />
-                  <span class="service-option-copy"><strong>{{ item.label }}</strong></span>
-                  <span v-if="config.service === item.value" class="service-option-check">✓</span>
-                </button>
-              </div>
-
-              <button class="service-more-toggle" type="button" :aria-expanded="moreServicesOpen" @click="moreServicesOpen = !moreServicesOpen">
-                <span>更多服务</span>
-                <span class="service-more-meta">{{ moreServiceOptions.length }} 项 <b :class="{ open: moreServicesOpen }">⌄</b></span>
-              </button>
-
-              <div v-if="moreServicesOpen" class="service-group service-group-more" role="listbox" aria-label="更多翻译服务">
-                <button
-                  v-for="item in moreServiceOptions"
-                  :key="item.value"
-                  class="service-option"
-                  type="button"
-                  role="option"
-                  :data-service-value="item.value"
-                  :aria-selected="config.service === item.value"
-                  @click="selectService(item.value)"
-                >
-                  <ServiceIcon :service="item.value" :label="item.label" size="small" />
-                  <span class="service-option-copy"><strong>{{ item.label }}</strong></span>
-                  <span v-if="config.service === item.value" class="service-option-check">✓</span>
-                </button>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
-
-      <div class="service-tools">
-      <button class="feature-service-shortcut" type="button" data-testid="popup-feature-services" @click="openOptions('settings-services')">{{ t('featureServices.open') }} <span aria-hidden="true">↗</span></button>
-        <button
-          class="ai-context-control"
-          data-testid="ai-context-help"
-          type="button"
-          :data-ai-context-state="aiContextPresentation.state"
-          :aria-label="`${t('popup.aiContext.help')} · ${t(`popup.aiContext.status.${aiContextPresentation.state}`)}`"
-          :title="t(aiContextPresentation.descriptionKey)"
-          aria-haspopup="dialog"
-          :aria-expanded="drawerVisible && activeDrawer === 'aiContext'"
-          @click="openAIContextSettings"
-        >
-          <span class="ai-context-name">{{ t('popup.aiContext.title') }} <span aria-hidden="true">›</span></span>
-        </button>
-      </div>
+          <span v-if="assignedProviders.length > 4" class="provider-avatar provider-overflow">+{{ assignedProviders.length - 4 }}</span>
+          <span class="provider-summary-chevron">›</span>
+        </span>
+      </button>
       <div v-if="credentialWarning" class="credential-warning" role="alert">
         <span><strong>配置提醒</strong>{{ credentialWarning }}</span>
         <button type="button" @click="openOptions('settings-services')">去设置</button>
@@ -313,11 +197,18 @@
       <div class="drawer-surface">
         <div class="drawer-handle" />
         <header class="drawer-header">
-        <div><h2>{{ drawerTitle }}</h2><p v-if="activeDrawer !== 'image'">{{ drawerDescription }}</p></div>
+        <div class="drawer-heading"><button v-if="activeDrawer === 'aiContext'" type="button" :aria-label="t('popup.providers.title')" @click="openDrawer('services')">←</button><div><h2>{{ drawerTitle }}</h2><p v-if="!['image', 'services'].includes(activeDrawer)">{{ drawerDescription }}</p></div></div>
         <button type="button" aria-label="关闭" @click="drawerVisible = false">×</button>
         </header>
 
-      <div v-if="activeDrawer === 'aiContext'" class="drawer-content ai-context-details" data-i18n-ignore>
+      <div v-if="activeDrawer === 'services'" class="drawer-content provider-drawer-content">
+        <PopupServices :config="config" :service-options="allServiceOptions" />
+        <div class="provider-drawer-actions">
+          <button type="button" data-testid="ai-context-help" @click="openAIContextSettings">{{ t('popup.aiContext.title') }} <span aria-hidden="true">›</span></button>
+          <button type="button" @click="openOptions('settings-services')">{{ t('featureServices.connections') }} <span aria-hidden="true">↗</span></button>
+        </div>
+      </div>
+      <div v-else-if="activeDrawer === 'aiContext'" class="drawer-content ai-context-details" data-i18n-ignore>
         <div class="ai-context-detail-state" :data-ai-context-state="aiContextPresentation.state">
           <span class="ai-context-status" role="status">{{ t(`popup.aiContext.status.${aiContextPresentation.state}`) }}</span>
           <p data-testid="ai-context-description">{{ t(aiContextPresentation.descriptionKey) }}</p>
@@ -449,7 +340,7 @@
       </div>
 
         <p v-if="notice && noticeType === 'error'" class="notice error" role="alert">{{ notice }}</p>
-        <button v-if="activeDrawer !== 'aiContext'" class="drawer-settings-link" type="button" data-i18n-ignore @click="openOptions(drawerSettingsSection[activeDrawer])">
+        <button v-if="!['aiContext', 'services'].includes(activeDrawer)" class="drawer-settings-link" type="button" data-i18n-ignore @click="openOptions(drawerSettingsSection[activeDrawer])">
           <span><strong>{{ t(`popup.quickSettings.${activeDrawer}Settings`) }}</strong><small>{{ t(`popup.quickSettings.${activeDrawer}SettingsHint`) }}</small></span>
           <span aria-hidden="true">↗</span>
         </button>
@@ -472,12 +363,10 @@ import {
   requestConfigPatch,
   subscribeConfig,
 } from '@/src/services/config/store';
-import { Search, Setting } from '@element-plus/icons-vue';
+import { Setting } from '@element-plus/icons-vue';
 import {normalizeConfig} from '@/src/core/config/model';
 import {resolveUiLanguageFromLocale, type UiLanguage} from '@/src/core/i18n';
 import {
-  customModelString,
-  models,
   options,
   resolveConfiguredModel,
   servicesType,
@@ -500,7 +389,6 @@ import {
   interfaceSkinUsesContentHeight,
   type PopupQuickFeatureId,
 } from '@/src/core/config/interfaceAppearance';
-import { getSelectedModelLabel, searchServiceOptions } from '@/src/ui/view-model/serviceCatalog';
 import { resolveAIContextPresentation } from '@/src/ui/view-model/aiContext';
 import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
 import {applyInterfaceFont, applyInterfaceSkin} from '@/src/ui/interfaceAppearance';
@@ -513,12 +401,11 @@ import {useUiI18n} from '@/src/ui/i18n';
 import PopupSiteRule from './PopupSiteRule.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {
-  filterAvailableTranslationServices,
   getTranslationServiceUnavailableMessage,
   isTranslationServiceAvailable,
 } from '@/src/services/translation/capabilities';
 
-type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'aiContext';
+type DrawerName = 'services' | 'hover' | 'selection' | 'appearance' | 'image' | 'aiContext';
 type SettingsSection = 'settings-selection' | 'settings-general' | 'settings-interface' | 'settings-image-translation' | 'settings-area-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 interface PopupQuickFeatureViewModel {
   id: PopupQuickFeatureId;
@@ -533,6 +420,8 @@ interface PopupQuickFeatureViewModel {
   ariaLabel?: string;
   open: () => void | Promise<void>;
 }
+import {featureServiceDefinitions, getFeatureService} from '@/src/core/config/featureServices';
+const PopupServices = defineAsyncComponent(() => import('./PopupServices.vue'));
 const ElDrawer = defineAsyncComponent(() => import('./PopupDrawer'));
 const {t, translateLegacy} = useUiI18n();
 // composition root 已等待配置服务；首次渲染直接使用完整快照，不能先暴露默认布局。
@@ -550,13 +439,6 @@ const donationCard = ref<HTMLElement | null>(null);
 const donationTrigger = ref<HTMLButtonElement | null>(null);
 const notice = ref('');
 const noticeType = ref<'success' | 'error'>('success');
-// This template ref lives inside the configurable module v-for, so Vue exposes
-// it as an array even though the translation module itself is unique.
-const servicePicker = ref<HTMLElement | HTMLElement[] | null>(null);
-const serviceSearchInput = ref<HTMLInputElement | HTMLInputElement[] | null>(null);
-const serviceSearchQuery = ref('');
-const servicePickerOpen = ref(false);
-const moreServicesOpen = ref(true);
 const hydrated = ref(false);
 const showLanguageOnboarding = ref(false);
 let lastSerialized = '';
@@ -565,6 +447,7 @@ let pageExitSaveStarted = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
 const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
+  services: 'settings-services',
   aiContext: 'settings-general',
   hover: 'settings-translation',
   selection: 'settings-selection',
@@ -613,43 +496,18 @@ const allServiceOptions = computed(() => withCustomOpenAIServiceOptions(
   description: item.description ? translateLegacy(item.description) : item.description,
   searchTerms: [...(item.searchTerms || []), translateLegacy(item.label)],
 })));
-const serviceOptions = computed(() => filterAvailableTranslationServices(allServiceOptions.value));
-const searchableModels = computed<ReadonlyMap<string, readonly string[]>>(() => {
-  const merged = new Map<string, readonly string[]>(models);
-  Object.entries(config.value.customModels).forEach(([service, savedModels]) => {
-    merged.set(service, Array.from(new Set([
-      ...(merged.get(service) || []).filter((model) => model !== customModelString),
-      ...savedModels,
-    ])));
-  });
-  config.value.customOpenAIProviders.forEach(provider => merged.set(provider.id, provider.models));
-  return merged;
-});
-const serviceSearchActive = computed(() => Boolean(serviceSearchQuery.value.trim()));
-const serviceSearchResults = computed(() => searchServiceOptions(
-  serviceOptions.value,
-  serviceSearchQuery.value,
-  searchableModels.value,
-  config.value.model,
-  config.value.customModel,
-));
-const popularServiceValues = ['freeTranslation', 'microsoft', 'google', 'deepL', 'deeplx', 'deepseek', 'openai', 'gemini', 'claude'];
-const popularServiceOptions = computed(() => popularServiceValues
-  .map(value => serviceSearchResults.value.find((item: any) => item.value === value))
-  .filter((item): item is any => Boolean(item)));
-const moreServiceOptions = computed(() => serviceSearchResults.value.filter((item: any) => !popularServiceValues.includes(item.value)));
+const providerLabel = (service: string) => allServiceOptions.value.find(item => item.value === service)?.label || service;
+const assignedProviders = computed(() => [...new Set([
+  config.value.service,
+  ...featureServiceDefinitions.map(feature => getFeatureService(config.value, feature) || config.value.service),
+  ...enabledQuickTranslationProfiles(config.value.quickTranslationProfiles).map(profile => profile.service).filter(Boolean),
+])]);
+const providerSummaryTitle = computed(() => `${t('featureServices.shortHelp')}\n${assignedProviders.value.map(providerLabel).join(' · ')}`);
 const selectedServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
 const selectedCustomOpenAIProvider = computed(() => getCustomOpenAIProvider(
   config.value.customOpenAIProviders,
   config.value.service,
 ));
-const serviceLabel = computed(() => {
-  const label = allServiceOptions.value.find((item: any) => item.value === config.value.service)?.label || config.value.service;
-  return selectedServiceUnavailableMessage.value ? `${label}（当前浏览器不可用）` : label;
-});
-const serviceModelLabel = computed(() => selectedCustomOpenAIProvider.value
-  ? config.value.model[config.value.service] || selectedCustomOpenAIProvider.value.models[0] || '未选择模型'
-  : getSelectedModelLabel(config.value.service, config.value.model, config.value.customModel));
 const aiContextModel = computed(() => selectedCustomOpenAIProvider.value
   ? config.value.model[config.value.service] || selectedCustomOpenAIProvider.value.models[0] || ''
   : resolveConfiguredModel(
@@ -660,9 +518,6 @@ const canUseAIContext = computed(() => servicesType.isUseAIContext(
   selectedCustomOpenAIProvider.value ? 'custom' : config.value.service,
   aiContextModel.value,
 ));
-const servicePickerAriaLabel = computed(() => serviceModelLabel.value
-  ? `翻译服务：${serviceLabel.value}，当前模型：${serviceModelLabel.value}`
-  : `翻译服务：${serviceLabel.value}`);
 const credentialWarning = computed(() => selectedServiceUnavailableMessage.value || getMissingCredentialMessage(config.value.service, config.value));
 const isThunderbird = browserCapabilities.browser === 'thunderbird';
 const currentSiteSupported = computed(() => !isThunderbird && currentTabId.value !== null && Boolean(currentSiteDomain.value));
@@ -819,8 +674,9 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
 }));
 const visiblePopupQuickFeatures = computed(() => visiblePopupQuickFeatureIds.value
   .map((featureId) => popupQuickFeatureViewModels.value[featureId]));
-const drawerTitle = computed(() => ({ aiContext: t('popup.aiContext.title'), hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译' }[activeDrawer.value]));
+const drawerTitle = computed(() => ({ services: t('popup.providers.title'), aiContext: t('popup.aiContext.title'), hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译' }[activeDrawer.value]));
 const drawerDescription = computed(() => ({
+  services: '',
   aiContext: t('popup.aiContext.intro'),
   hover: '把鼠标停在文本上，用轻量快捷键获取即时译文。',
   selection: '选中网页文字，按你的偏好获取译文。',
@@ -899,15 +755,6 @@ watch(() => config.value.interfaceFont, font => applyInterfaceFont(font));
 watch(popupUsesContentHeight, applyPopupHeightMode, {immediate: true});
 darkMode.onchange = () => { if (config.value.theme === 'auto') applyTheme('auto'); };
 
-function closeServicePicker(event?: Event) {
-  const target = event?.target;
-  const pickers = Array.isArray(servicePicker.value)
-    ? servicePicker.value
-    : [servicePicker.value];
-  if (target instanceof Node && pickers.some(picker => picker?.contains(target))) return;
-  servicePickerOpen.value = false;
-  serviceSearchQuery.value = '';
-}
 async function openDonation() {
   donationVisible.value = true;
   await nextTick();
@@ -934,61 +781,20 @@ function handleDonationKeydown(event: KeyboardEvent) {
     }
   }
 }
-function handleServicePickerKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') closeServicePicker();
-}
-function focusServiceSearchInput() {
-  const inputs = Array.isArray(serviceSearchInput.value)
-    ? serviceSearchInput.value
-    : [serviceSearchInput.value];
-  inputs[0]?.focus();
-}
-function toggleServicePicker() {
-  if (!config.value.on) return;
-  servicePickerOpen.value = !servicePickerOpen.value;
-  if (servicePickerOpen.value) {
-    moreServicesOpen.value = true;
-    void nextTick(focusServiceSearchInput);
-  } else {
-    serviceSearchQuery.value = '';
-  }
-}
-function selectService(value: string) {
-  config.value.service = value;
-  servicePickerOpen.value = false;
-  serviceSearchQuery.value = '';
-}
-function clearServiceSearch() {
-  serviceSearchQuery.value = '';
-  void nextTick(focusServiceSearchInput);
-}
-function matchingModelSummary(matchingModels: string[]) {
-  const visibleModels = matchingModels.slice(0, 2);
-  const remainingCount = matchingModels.length - visibleModels.length;
-  return remainingCount > 0
-    ? `${visibleModels.join(' · ')} +${remainingCount}`
-    : visibleModels.join(' · ');
-}
 function toggleAIContext() {
   if (aiContextPresentation.value.toggleDisabled) return;
   config.value.enableAIContext = !config.value.enableAIContext;
 }
 function openAIContextSettings() {
-  servicePickerOpen.value = false;
-  serviceSearchQuery.value = '';
   openDrawer('aiContext');
 }
 onMounted(() => {
-  document.addEventListener('pointerdown', closeServicePicker);
-  document.addEventListener('keydown', handleServicePickerKeydown);
   document.addEventListener('keydown', handleDonationKeydown);
 });
 onUnmounted(() => {
   persistOnPageExit();
   window.removeEventListener('pagehide', saveOnPageHide);
   unsubscribeConfig();
-  document.removeEventListener('pointerdown', closeServicePicker);
-  document.removeEventListener('keydown', handleServicePickerKeydown);
   document.removeEventListener('keydown', handleDonationKeydown);
   darkMode.onchange = null;
   delete document.documentElement.dataset.popupHeight;
@@ -1173,9 +979,3 @@ function setImageTranslatorEnabled(enabled: boolean) {
   config.value.disableImageTranslator = !enabled;
 }
 </script>
-
-<style scoped>
-.feature-service-shortcut { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 8px 2px; margin: -4px 0 8px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 11px; text-align: start; cursor: pointer; }
-.feature-service-shortcut:hover { color: var(--brand-strong); }
-.feature-service-shortcut:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-</style>

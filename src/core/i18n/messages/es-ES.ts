@@ -17,6 +17,9 @@ import {localTranslationSpanishMessages} from './localTranslation';
 export const esESMessages = {
     "options.panel.statsOverview": "Resumen de traducción",
     "options.panel.modelUsage": "Uso de modelos",
+    "settings.general.masterTitle": "Activar traducción",
+    "settings.general.masterHelp": "Desactiva toda la traducción y oculta sus controles en páginas y vídeos. Tus preferencias se conservan.",
+    "popup.providers.title": "Proveedores",
     "featureServices.assignments": "Asignación por función",
     "featureServices.connections": "Conexiones",
     "featureServices.intro": "Elige un servicio para cada función. Los cambios se guardan automáticamente y se conservan las selecciones existentes.",
