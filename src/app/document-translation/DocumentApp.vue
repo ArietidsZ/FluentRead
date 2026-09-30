@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：组织多文件队列、顺序批量翻译、独立任务快照与 ZIP 下载，以及设置、可暂停续译、阅读与全量校订、独立导出流程；维护设置快照、增量译文、未下载保护、异步提交所有权，并复用格式阅读器与配置同步。
+ 主要内容：联动全局启停并保留已完成片段，组织多文件队列、顺序批量翻译、独立任务快照与 ZIP 下载，以及设置、可暂停续译、阅读与全量校订、独立导出流程；维护设置快照、增量译文、未下载保护、异步提交所有权，并复用格式阅读器与配置同步。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -22,13 +22,14 @@
 
     <input ref="fileInput" class="visually-hidden" type="file" multiple :accept="accept" tabindex="-1" @change="handleFileInput" />
     <main class="document-main">
+      <p v-if="hydrated && !config.on" class="notice" role="status" data-testid="document-translation-paused">{{ t('popup.heroDisabled') }} · <button type="button" @click="openGeneralSettings">通用设置</button></p>
       <section v-if="documentQueue.length" class="document-batch" :aria-label="t('document.batch.queue')" :aria-busy="openingFile">
         <div class="batch-toolbar">
           <strong>{{ t('document.batch.queue') }} · {{ documentQueue.length }}</strong>
           <span role="status">{{ batchRunning ? t('document.batch.running') : openingFile ? t('document.batch.importing') : t('document.batch.completed', {count: batchCompletedCount}) }}</span>
           <button type="button" :disabled="queueBusy" @click="openFilePicker">{{ t('document.batch.add') }}</button>
           <button v-if="batchRunning" type="button" @click="pauseTranslation">{{ t('document.batch.pause') }}</button>
-          <button v-else type="button" :disabled="queueBusy || !hydrated || Boolean(credentialWarning) || !batchPendingCount" @click="startBatch">{{ t('document.batch.start') }}</button>
+          <button v-else type="button" :disabled="!config.on || queueBusy || !hydrated || Boolean(credentialWarning) || !batchPendingCount" @click="startBatch">{{ t('document.batch.start') }}</button>
           <label>{{ t('document.batch.output') }}<ElSelect class="batch-output" v-model="outputMode" :disabled="queueBusy" :aria-label="t('document.batch.output')" append-to=".document-app"><ElOption value="bilingual" :label="translateLegacy('双语')" /><ElOption value="translated" :label="translateLegacy('仅译文')" /></ElSelect></label>
           <button type="button" :disabled="queueBusy || !batchCompletedCount" @click="downloadBatch">{{ t('document.batch.zip') }}</button>
         </div>
@@ -157,7 +158,7 @@
         <p class="sidebar-status-hint">{{ statusHint }}</p>
           <div class="translation-actions">
             <button v-if="translating" class="ghost-button pause-button" type="button" @click="pauseTranslation">暂停翻译</button>
-            <button v-else class="translate-document-button" :class="{ 'is-secondary': translationComplete }" type="button" :disabled="!hydrated || queueBusy || Boolean(credentialWarning)" @click="requestTranslation">
+            <button v-else class="translate-document-button" :class="{ 'is-secondary': translationComplete }" type="button" :disabled="!config.on || !hydrated || queueBusy || Boolean(credentialWarning)" @click="requestTranslation">
               {{ translationActionLabel }}<span aria-hidden="true"> →</span>
             </button>
           </div>
@@ -393,6 +394,7 @@ import {ElOption} from 'element-plus';
 import 'element-plus/es/components/select/style/css';
 import {markRaw, computed, onMounted, onUnmounted, reactive, ref, watch} from 'vue';
 import DocumentSegmentEditor from './DocumentSegmentEditor.vue';
+import {TranslationRequestError} from '@/src/services/translation/errors';
 import browser from 'webextension-polyfill';
 import {
   Config,
@@ -585,7 +587,7 @@ function queueStatus(item: DocumentQueueItem): string {
 }
 
 async function startBatch(): Promise<void> {
-  if (queueBusy.value || !hydrated.value || credentialWarning.value) return;
+  if (!config.on || queueBusy.value || !hydrated.value || credentialWarning.value) return;
   saveActiveDocument();
   const pending = documentQueue.value.filter(item => item.document && !completeItem(item));
   // 已有译文的语言或术语设置不同，留给单文件的重译确认处理，避免批量按钮抹掉校订。
@@ -938,6 +940,7 @@ unsubscribeConfig = subscribeConfig((nextConfig) => {
   applyingExternalConfig = true;
   try {
     Object.assign(config, nextConfig);
+    if (!config.on && (translating.value || batchRunning.value)) pauseTranslation();
   } finally {
     applyingExternalConfig = false;
   }
@@ -1078,7 +1081,7 @@ function requestReset(): void {
 }
 
 function requestTranslation(): void {
-  if (queueBusy.value) return;
+  if (!config.on || queueBusy.value) return;
   if (translationComplete.value || (settingsChanged.value && hasTranslation.value)) {
     pendingAction.value = 'restart';
     confirmDialog.value?.showModal();
@@ -1107,7 +1110,7 @@ function pauseTranslation(): void {
 
 async function startTranslation(restart = false): Promise<void> {
   const document = parsedDocument.value;
-  if (!document || translating.value || !hydrated.value || preparingDownload.value || credentialWarning.value) return;
+  if (!config.on || !document || translating.value || !hydrated.value || preparingDownload.value || credentialWarning.value) return;
   if (restart) {
     translatedSegments.value = [];
     settledTranslations.value = [];
@@ -1140,6 +1143,10 @@ async function startTranslation(restart = false): Promise<void> {
     });
   } catch (error) {
     if (requestId !== translationRequestId || parsedDocument.value !== document) return;
+    if (error instanceof TranslationRequestError && error.code === 'TRANSLATION_DISABLED') {
+      pauseTranslation();
+      return;
+    }
     runState.value = 'failed';
     showError(error instanceof Error ? error.message : String(error));
   } finally {
@@ -1193,6 +1200,10 @@ function guardBeforeUnload(event: BeforeUnloadEvent): void {
   if (!hasUnsavedWork.value && !preparingDownload.value) return;
   event.preventDefault();
   event.returnValue = '';
+}
+
+async function openGeneralSettings(): Promise<void> {
+  await browser.tabs.create({url: `${browser.runtime.getURL('options.html')}#settings-general`});
 }
 
 async function openSettings(): Promise<void> {

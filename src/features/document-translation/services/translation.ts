@@ -1,9 +1,10 @@
 /**
  * @file src/features/document-translation/services/translation.ts
  * 文件职责：编排文档片段的批量翻译流程，在固定语言和服务快照下按数量及字符预算拆批，并向调用方持续报告确定性进度。
- * 主要内容：定义进度与逐段提交契约，复用已有译文继续未完成片段，提供文件解析所有权，固定文件级上下文，校验批次结果并阻止取消和失败后的迟到提交。
+ * 主要内容：定义进度与逐段提交契约，复用已有译文继续未完成片段，提供文件解析所有权，固定文件级上下文，透传全局暂停状态、校验批次结果并阻止取消和失败后的迟到提交。
  * 模块边界：该层不解析文件、不持久化配置，也不直接绑定具体 provider；上层负责冻结用户设置并注入 gateway，文档结构由 core 提供，网络和缓存语义由应用翻译客户端承担。
  */
+import {TranslationRequestError} from '@/src/services/translation/errors';
 import type {DocumentSegment} from '@/src/features/document-translation/core/document';
 
 export interface DocumentTranslationProgress {
@@ -199,6 +200,7 @@ export function createDocumentSegmentTranslator(
                     reportProgress();
                 } catch (error) {
                     throwIfAborted(options.signal);
+                    if (error instanceof TranslationRequestError && error.code === 'TRANSLATION_DISABLED') throw error;
                     throw new Error(`第 ${batch[0].id + 1} 段文档翻译失败：${getErrorMessage(error)}`);
                 }
             }
@@ -238,6 +240,7 @@ export function createDocumentSegmentTranslator(
                     if (stopped) return;
                     stopped = true;
                     if (options.signal?.aborted) throwIfAborted(options.signal);
+                    if (error instanceof TranslationRequestError && error.code === 'TRANSLATION_DISABLED') throw error;
                     throw new Error(`第 ${segment.id + 1} 段文档翻译失败：${getErrorMessage(error)}`);
                 }
             }

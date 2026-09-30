@@ -1,7 +1,7 @@
 <!--
  * @file src/features/translation-center/ui/TranslationCenter.vue
  * 文件职责：实现多翻译服务并排对比工作台，允许输入文本、选择和交换语言、增删服务、拖动排序、并发翻译、单项重试及复制结果。
- * 主要内容：组件用字段级补丁持久化语言和服务顺序，合并内置及动态自定义服务并按名称、端点或模型搜索，按浏览器能力隐藏不可用项，维护每张卡片的 idle/loading/success/error 状态，支持指针与键盘排序、复制全部和最大长度约束。
+ * 主要内容：组件同步全局启停并取消在途任务，用字段级补丁持久化语言和服务顺序，合并内置及动态自定义服务并按名称、端点或模型搜索，按浏览器能力隐藏不可用项，维护每张卡片的 idle/loading/success/error 状态，支持指针与键盘排序、复制全部和最大长度约束。
  * 模块边界：该 UI 不实现 provider 协议或凭据存储；翻译统一调用 app/translation client，服务目录来自 core/config，Options 外层负责组件挂载且原配置在能力不足时保持不变。
  -->
 <template>
@@ -113,11 +113,12 @@
         />
 
         <div class="translation-input-footer">
-          <span>{{ sourceText.length }}/5000</span>
+          <span v-if="!translationEnabled" class="translation-paused" role="status">{{ t('popup.heroDisabled') }} · <a href="#settings-general">通用设置</a></span>
+          <span v-else>{{ sourceText.length }}/5000</span>
           <button
             class="translate-primary-button"
             type="button"
-            :disabled="!sourceText.trim() || !cards.length || isRunning"
+            :disabled="!translationEnabled || !sourceText.trim() || !cards.length || isRunning"
             @click="runTranslation"
           >
             <span>{{ isRunning ? '翻译中…' : runCount ? '再次翻译' : '开始翻译' }}</span>
@@ -208,7 +209,7 @@
             </div>
             <div v-else class="translation-result-error">
               <p>{{ card.error }}</p>
-              <button type="button" :disabled="!sourceText.trim() || isRunning" @click="retryService(card.service)">重试</button>
+              <button type="button" :disabled="!translationEnabled || !sourceText.trim() || isRunning" @click="retryService(card.service)">重试</button>
             </div>
           </article>
         </div>
@@ -223,6 +224,7 @@ import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {ElOption} from 'element-plus';
 
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import {TranslationRequestError} from '@/src/services/translation/errors';
 import browser from 'webextension-polyfill'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import {useUiI18n} from '@/src/ui/i18n'
@@ -269,11 +271,12 @@ const DEFAULT_COMPARISON_SERVICES = ['freeTranslation', 'google', 'openai', 'dee
 const MAX_TEXT_LENGTH = 5000
 
 const sourceText = ref('')
-const {language, translateLegacy} = useUiI18n()
+const {language, translateLegacy, t} = useUiI18n()
 const sourceLanguage = ref('auto')
 const targetLanguage = ref('zh-Hans')
 const runCount = ref(0)
 const isRunning = ref(false)
+const translationEnabled = ref(false)
 const servicePickerOpen = ref(false)
 const serviceSearchQuery = ref('')
 const copiedService = ref('')
@@ -414,7 +417,20 @@ function persistTranslationCenterConfig(...fields: TranslationCenterConfigField[
   })
 }
 
+function updateTranslationAvailability(enabled: boolean): void {
+  translationEnabled.value = enabled
+  if (enabled || !isRunning.value) return
+  activeRunId += 1
+  activeController?.abort()
+  activeController = null
+  isRunning.value = false
+  for (const card of cards.value) {
+    if (card.status === 'loading') card.status = 'idle'
+  }
+}
+
 function hydrateTranslationCenterConfig(nextConfig = config): void {
+  updateTranslationAvailability(nextConfig.on)
   customOpenAIProviders.value = nextConfig.customOpenAIProviders.map(provider => ({
     ...provider,
     models: [...provider.models],
@@ -569,6 +585,10 @@ async function translateCard(card: TranslationCard, text: string, runId: number,
   } catch (error) {
     if (runId !== activeRunId) return
     if (controller.signal.aborted) return
+    if (error instanceof TranslationRequestError && error.code === 'TRANSLATION_DISABLED') {
+      updateTranslationAvailability(false)
+      return
+    }
     card.status = 'error'
     card.error = formatError(error)
     card.duration = Math.max(1, Math.round(performance.now() - startedAt))
@@ -577,7 +597,7 @@ async function translateCard(card: TranslationCard, text: string, runId: number,
 
 async function runTranslation(): Promise<void> {
   const text = sourceText.value.trim()
-  if (!text || !cards.value.length || isRunning.value) return
+  if (!translationEnabled.value || !text || !cards.value.length || isRunning.value) return
   if (text.length > MAX_TEXT_LENGTH) return
 
   activeController?.abort()
@@ -597,7 +617,7 @@ async function runTranslation(): Promise<void> {
 async function retryService(service: string): Promise<void> {
   const text = sourceText.value.trim()
   const card = cards.value.find(item => item.service === service)
-  if (!text || !card || isRunning.value) return
+  if (!translationEnabled.value || !text || !card || isRunning.value) return
 
   activeController?.abort()
   const controller = new AbortController()
@@ -632,6 +652,7 @@ onMounted(async () => {
       ...provider,
       models: [...provider.models],
     }))
+    updateTranslationAvailability(nextConfig.on)
     if (draggingService.value) return
     hydrateTranslationCenterConfig(nextConfig)
   })
@@ -823,6 +844,7 @@ onUnmounted(() => {
   outline: none;
 }
 .translation-input-panel textarea::placeholder { color: var(--muted); }
+.translation-paused a { color: var(--brand-strong); text-underline-offset: 3px; }
 .translation-input-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
 .translate-primary-button { display: inline-flex; align-items: center; gap: 11px; min-height: 40px; padding: 0 14px; border: 0; border-radius: 11px; color: #fff; background: var(--brand); cursor: pointer; font-size: 12px; font-weight: 600; box-shadow: none; }
 .translate-primary-button:hover:not(:disabled) { background: var(--brand-strong);  }

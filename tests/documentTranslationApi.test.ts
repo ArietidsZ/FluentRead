@@ -1,3 +1,4 @@
+import {TranslationRequestError, serializeTranslationError} from '@/src/services/translation/errors';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {
@@ -359,4 +360,15 @@ describe('document incremental translation and resume', () => {
         await expect(translateDocumentSegments(segments.slice(0, 1), {fileName: 'late.txt', signal: controller.signal, onSegment})).rejects.toMatchObject({name: 'AbortError'});
         expect(onSegment).not.toHaveBeenCalled();
     });
+});
+
+// 后台停用响应可以早于本页面的配置广播，必须透传状态码供页面转为暂停。
+it.each(['microsoft', 'openai'])('服务 %s 的全局暂停不被包装为片段翻译失败', async (service) => {
+    const error = new TranslationRequestError(serializeTranslationError({message: 'paused', code: 'TRANSLATION_DISABLED', retryable: false}));
+    const translate = createDocumentSegmentTranslator({
+        waitUntilReady: async () => {}, getDefaultService: () => service,
+        supportsBatch: value => value === 'microsoft',
+        translateText: async () => {throw error;}, translateTextBatch: async () => {throw error;},
+    });
+    await expect(translate([{id: 0, source: 'Source text'}], {fileName: 'sample.txt'})).rejects.toBe(error);
 });
