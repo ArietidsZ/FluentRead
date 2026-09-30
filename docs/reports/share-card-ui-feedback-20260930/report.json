@@ -33,12 +33,12 @@
     "screenIndex": 1,
     "browserFrontmost": false,
     "frontmostBefore": {
-      "pid": 44386,
-      "name": "Google Chrome"
+      "pid": 8643,
+      "name": "ChatGPT"
     },
     "frontmostAfter": {
-      "pid": 44386,
-      "name": "Google Chrome"
+      "pid": 8643,
+      "name": "ChatGPT"
     }
   },
   "images": {
