@@ -122,7 +122,7 @@ describe('reading answer presentation', () => {
     });
 });
 
-import {anchorSentenceAnalysis} from '@/src/features/reading-assistant/sentenceAnalysis';
+import {anchorSentenceAnalysis, summarizeSentenceRole} from '@/src/features/reading-assistant/sentenceAnalysis';
 import {describePartOfSpeech} from '@/src/core/language/partOfSpeech';
 
 describe('grounded part-of-speech annotations', () => {
@@ -186,4 +186,16 @@ it('normalizes dictionary POS variants without guessing an unknown word class', 
     for (const label of ['s.', 'adjective satellite', '形容詞']) expect(describePartOfSpeech(label).id).toBe('adjective');
     expect(describePartOfSpeech('  ')).toMatchObject({id:'other',label:'其他'});
     expect(describePartOfSpeech('x'.repeat(100)).label).toHaveLength(80);
+});
+
+it('keeps sentence role summaries grounded in the existing explanation rather than guessing grammar', () => {
+    expect(summarizeSentenceRole(' 定语，修饰 printing sequences ')).toBe('定语');
+    expect(summarizeSentenceRole('主语')).toBe('主语');
+    expect(summarizeSentenceRole('Modifier, describes the subject')).toBe('Modifier');
+    expect(summarizeSentenceRole('修饰后面的名词短语')).toBe('修饰后面的名词短语');
+    expect(summarizeSentenceRole('并非主语；具体作用取决于上下文')).toBe('并非主语');
+    expect(summarizeSentenceRole('未知。需要上下文')).toBe('未知');
+    expect(summarizeSentenceRole('Custom role\nMore information')).toBe('Custom role');
+    expect(summarizeSentenceRole('，无简短标题')).toBe('，无简短标题');
+    expect(summarizeSentenceRole('   ')).toBe('');
 });

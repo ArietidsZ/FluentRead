@@ -47,7 +47,7 @@
         <button v-else type="button" @click="openSelectionSettings">配置 AI 讲解</button>
       </div>
       <div v-if="readingSelection" v-show="readingMode" class="fr-tooltip-content fr-reading-content">
-        <ReadingPanel :selection="readingSelection" :preferences="readingPreferences" :active="readingMode" :initial-action="readingInitialAction" :history-only="readingHistoryOnly" :source-language="selectionSettings.from" :target-language="selectionSettings.to" :playing-source-text="isPlaying && currentAudioKind === 'source' ? currentAudioText : ''" :model-revision="readingModelRevision" :vocabulary-enabled="config.vocabularyBookEnabled" :private-context="isPrivateContext" :animations="config.animations" @play-source="toggleAudio($event, 'source')" @source-change="stopAudio()" @resize="schedulePositionUpdate" />
+        <ReadingPanel ref="reading-panel-ref" :selection="readingSelection" :preferences="readingPreferences" :active="readingMode" :initial-action="readingInitialAction" :history-only="readingHistoryOnly" :source-language="selectionSettings.from" :target-language="selectionSettings.to" :playing-source-text="isPlaying && currentAudioKind === 'source' ? currentAudioText : ''" :model-revision="readingModelRevision" :vocabulary-enabled="config.vocabularyBookEnabled" :private-context="isPrivateContext" :animations="config.animations" @play-source="toggleAudio($event, 'source')" @source-change="stopAudio()" @resize="schedulePositionUpdate" />
       </div>
       <div v-show="!readingMode" class="fr-tooltip-content" aria-live="polite">
         <div v-if="isLoading && !translationResult && !wordCard && !wordCardError" class="fr-loading-state"><span :class="['fr-loading-spinner', { 'fr-static': !config.animations }]" aria-hidden="true" /><span>正在查询…</span></div>
@@ -204,6 +204,7 @@ type CopyKind = 'source' | 'translation';
 interface SelectionSnapshot { text: string; parts: SelectionTextPart[]; range: Range; anchor: SelectionRect; isForward: boolean; }
 
 const tooltipRef = useTemplateRef<HTMLElement>('tooltip-ref');
+const readingPanelRef = useTemplateRef<InstanceType<typeof ReadingPanel>>('reading-panel-ref');
 const selectionTranslatorIconUrl = browser.runtime.getURL('/icon/128.png');
 const selectedText = ref('');
 const selectionTargetOverride = ref<string | null>(null);
@@ -1567,6 +1568,7 @@ function handleKeydown(event: KeyboardEvent): void {
   lastTrustedSelectionInteractionAt = Date.now();
   if (isInsideUi(event.target)) {
     suppressSelectionRead();
+    if (event.key === 'Escape' && readingPanelRef.value?.dismissTools()) { event.preventDefault(); event.stopPropagation(); return; }
     if (event.key === 'Escape' && snapshot.value) hideAll();
     return;
   }
