@@ -153,6 +153,30 @@ async function main() {
     const pageTab = await control.evaluate(async url => (await chrome.tabs.query({})).find(tab => tab.url === url).id, fixtureUrl);
     await until(async () => {try {return (await control.evaluate(tab => chrome.tabs.sendMessage(tab, {type: 'getFullPageTranslationState'}), pageTab)).status === 'success';} catch {return false;}}, 'content ready');
     popup = await openPopup();
+    if (process.argv.includes('--footer-only')) {
+      // 仅验证开源入口的视觉改动，避免重复整个服务/翻译矩阵。
+      report.evidenceBoundary = 'Production popup/footer and settings preview in isolated Edge; no translation or persistence matrix in this footer-only run.';
+      for (const [name, theme, interfaceSkin] of [
+        ['light', 'light', 'default'], ['dark', 'dark', 'default'],
+        ['minimal', 'light', 'minimal'], ['compact', 'light', 'compact'], ['ocean', 'light', 'ocean'],
+      ]) {
+        await patch({theme, interfaceSkin}); await geometry(popup, name); await wait(250);
+        const styles = await popup.locator('.opensource-link').evaluate(node => {
+          const s = getComputedStyle(node); return {border: s.borderColor, color: s.color, background: s.backgroundColor};
+        });
+        assert.equal(styles.border, 'rgba(0, 0, 0, 0)'); report.layout[`footer-${name}`] = styles;
+        await shot(popup, `footer-popup-${name}`); report.cases.push(`${name}: neutral open-source capsule without visible border`);
+      }
+      await patch({theme: 'light', interfaceSkin: 'default'}); await geometry(popup, 'light');
+      await popup.locator('.opensource-link').hover(); await wait(250);
+      assert.equal(await popup.locator('.opensource-link').evaluate(node => getComputedStyle(node).borderColor), 'rgba(0, 0, 0, 0)');
+      await shot(popup, 'footer-popup-hover');
+      const options = await open(`${origin}/options.html#settings-interface`, {width: 1440, height: 960});
+      const preview = options.locator('.popup-layout-live-preview'); await preview.scrollIntoViewIfNeeded();
+      assert.equal(await preview.locator('.layout-preview-footer b').evaluate(node => getComputedStyle(node).borderColor), 'rgba(0, 0, 0, 0)');
+      await shot(preview, 'footer-layout-preview');
+      assert.deepEqual(report.consoleErrors, []); report.ok = true; return;
+    }
     currentCase = 'restored-main';
     assert.equal((await popup.locator('[data-testid="popup-version"]').innerText()).trim(), `v${manifest.version}`);
     assert.match(await popup.locator('.donation-button').innerText(), /赞赏/);

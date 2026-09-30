@@ -531,10 +531,10 @@ function featureGlyph(id: string): string {
 
 .layout-preview-footer b {
   padding: 3px 6px;
-  border: 1px solid color-mix(in srgb, var(--layout-preview-accent) 24%, transparent);
+  border: 1px solid transparent;
   border-radius: 99px;
-  color: var(--layout-preview-accent);
-  background: color-mix(in srgb, var(--layout-preview-accent) 8%, var(--layout-preview-canvas));
+  color: inherit;
+  background: color-mix(in srgb, var(--layout-preview-ink) 4%, var(--layout-preview-canvas));
   font-weight: 700;
 }
 
