@@ -11,6 +11,11 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe('卡片排版边界', () => {
+    it.each(SHARE_CARD_THEMES)('%s 支持方形和隐藏页脚，超长摘录不会裁切导出', async theme => {
+        const result = await renderShareCard({original: 'Hello', translation: '你好', source: 'private'}, normalizeShareCardPreferences({theme, format: 'square', showSource: false, showBrand: false}));
+        expect(result.width).toBe(result.height); expect(painted.map(item => item.text)).not.toContain('private');
+        await expect(renderShareCard({original: 'a\n'.repeat(90), translation: '译', source: ''}, normalizeShareCardPreferences({theme}))).rejects.toMatchObject({reason: 'long'});
+    });
     it.each(SHARE_CARD_THEMES)('%s 原译文完整保留，高清导出且正文位于画面内', async theme => {
         const result = await renderShareCard({original: 'A sentence worth keeping.', translation: '一句值得珍藏的话。', source: 'example.com'}, normalizeShareCardPreferences({theme}));
         expect(result.width).toBe(960); expect(result.height).toBeGreaterThanOrEqual(450);
@@ -24,8 +29,8 @@ describe('卡片排版边界', () => {
         expect(result.blob.type).toBe('image/png');
         expect(canvas.getContext().rect).toHaveBeenCalled();
     });
-    it('月白双栏各自换行，译文在前时左右互换且来源不进入正文区', async () => {
-        await renderShareCard({original: 'Keep reading', translation: '继续阅读', source: 'example.com'}, normalizeShareCardPreferences({theme: 'pearl', translationFirst: true}));
+    it.each(['pearl', 'blueprint'] as const)('%s 双栏各自换行，译文在前时左右互换且来源不进入正文区', async theme => {
+        await renderShareCard({original: 'Keep reading', translation: '继续阅读', source: 'example.com'}, normalizeShareCardPreferences({theme, translationFirst: true}));
         const first = painted.find(item => item.text === '继续阅读')!;
         const second = painted.find(item => item.text === 'Keep reading')!;
         expect(first.x).toBeLessThan(320); expect(second.x).toBeGreaterThan(320);
