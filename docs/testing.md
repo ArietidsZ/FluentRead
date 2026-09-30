@@ -1,5 +1,13 @@
 # 测试与回归
 
+## Popup 操作恢复与翻译服务 UI
+
+`node scripts/testing/run-popup-actions-service-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <捆绑Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-popup-actions-ui` 只运行本次 Popup、服务分配、划词抽屉及界面预览专项，不触发全量回归。
+
+使用第二屏可见但不抢焦点的临时 Edge profile，检查真实内容脚本的全文翻译—恢复—再次翻译、局部点选、站点规则立即关闭重开、每个可用服务及九项功能分配、继承和自定义模型搜索、当前更多服务可见性、本地图标及键盘导航。还检查版本、赞赏、开源胶囊的新标签页导航、默认白底、无域名的两个紧凑站点开关、翻译服务选择框、划词说明宽度、设置预览横排图标、390px 窄屏、深色及多种皮肤、配置跨页同步和控制台错误。
+
+测试页只替换工具栏 Popup 的 active-tab 查询，返回一个真实本地网页标签；翻译使用本地确定性 OpenAI 兼容端点，错误分支和 GitHub 导航使用明确标注的响应夹具。不证明外部翻译服务、Firefox 实机或商店发布。完成后检查报告中的全部截图，并保存逐项复核结论；见[本次报告](./reports/popup-ui-restoration-20260930/README.md)。
+
 ## 划词行内代码（issue #704）
 
 `tests/selectionTranslatorCore.test.ts` 覆盖行内代码与正文混排、部分代码选区、多段代码、公式、代码空白、代码块和交互边界，以及只翻译正文和批量失败处理。生产构建后运行 `node scripts/run-selection-trigger-test.cjs --inline-code-only --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir <证据目录>`，在临时 Edge profile 的后台可见窗口验证图标、直接弹出和快捷键，检查原文/译文代码节点、宿主 DOM 不变、请求不含代码、复制反馈及改选后的迟到响应保护。

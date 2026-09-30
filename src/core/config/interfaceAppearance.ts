@@ -28,7 +28,7 @@ export const interfaceSkinOptions = [
     kind: 'default',
     popupHeight: 'content',
     popupWidth: 340,
-    preview: {canvas: '#f6f7fb', surface: '#ffffff', accent: '#ef4776', ink: '#172033'},
+    preview: {canvas: '#ffffff', surface: '#f7f8fb', accent: '#ef4776', ink: '#172033'},
   },
   {
     value: 'minimal',

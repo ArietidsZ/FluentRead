@@ -182,10 +182,18 @@ describe('popup feature visibility', () => {
         expect(vocabulary).not.toMatch(/>\s*Beta\s*<|开启 Beta|Beta 已开启|单词本 Beta/u);
     });
 
-    it('removes duplicate page actions and video/area cards from the popup', () => {
+    it('keeps page and section translation directly reachable without adding video/area cards', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         expect(popupQuickFeatureOptions.map(feature => feature.id)).toEqual(['hover', 'selection', 'appearance', 'image', 'document']);
-        expect(popup).not.toContain('togglePageTranslation');
+        expect(popup).toContain('data-testid="page-translation"');
+        expect(popup).toContain('@click="togglePageTranslation"');
+        expect(popup).toContain('data-testid="section-translation"');
+        expect(popup.indexOf('data-testid="section-translation"')).toBeLessThan(popup.indexOf('<el-drawer'));
+        expect(popup).not.toContain('class="eyebrow features-eyebrow"');
+        expect(popup).toContain('data-testid="popup-version"');
+        expect(popup).toContain("browser.runtime.getManifest().version");
+        expect(popup).toContain("t('popup.donationButton')");
+        expect(source('src/app/popup/popup.css')).not.toContain('.opensource-link span { display: none; }');
         expect(popup).not.toContain("activeDrawer === 'video'");
         expect(popup).not.toContain("activeDrawer === 'area'");
     });
@@ -276,7 +284,7 @@ describe('popup feature visibility', () => {
         expect(popup).not.toContain('CustomHotkeyInput');
         expect(styles).toContain('.quick-profile-preview-row');
         expect(styles).toContain('.setting-row small.independent-profile-note');
-        expect(styles).toContain('flex: 0 1 84px');
+        expect(styles).toContain('flex: 0 2 64px');
         expect(styles).toContain('.translate-hotkey span');
     });
 
@@ -299,7 +307,24 @@ describe('popup feature visibility', () => {
         expect(panel).toContain('searchableModels.value');
         expect(panel).toContain('provider.models');
         expect(panel).toContain('setFeatureService(props.config, feature, service)');
-        expect(panel).toContain(':persistent="false"');
+        expect(panel).toContain('class="popup-service-overview"');
+        expect(panel).toContain('class="popup-service-picker"');
+        expect(panel).toContain('role="listbox"');
+        expect(panel).not.toContain('<UiSelect');
         expect(popup).not.toContain('class="service-tools"');
+    });
+
+    it('keeps two compact site switches without a visible domain and frames the service entry', () => {
+        const site = source('src/app/popup/PopupSiteRule.vue');
+        const preview = source('src/features/settings/ui/components/PopupLayoutPreview.vue');
+        const styles = source('src/app/popup/popup.css');
+        expect(site).not.toContain('class="site-rule-copy"');
+        expect(site).not.toContain('<span>当前网站</span>');
+        expect(site).toContain(':data-site-domain="props.domain"');
+        expect(site).toContain('always-translate-site');
+        expect(site).toContain('disable-extension-site');
+        expect(preview).not.toContain('fluentread.app');
+        expect(preview).toContain('preview-site-rule-button');
+        expect(styles).toMatch(/\.provider-summary \{[^}]*border: 1px solid var\(--line\)/);
     });
 });
