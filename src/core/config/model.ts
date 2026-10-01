@@ -13,6 +13,7 @@ import {
     defaultModelIds,
     defaultModels,
     defaultOption,
+    options,
     LEGACY_DEFAULT_USER_ROLES,
     models,
     resolveCloudRegion,
@@ -340,6 +341,7 @@ export class Config {
     to: string;
     excludedLanguages: string[]; // 网页全文、悬浮及标题翻译跳过的语言
     hotkey: string;
+    hoverShortcutBeforeDisable: string; // 关闭默认悬停开关前的选择，重开恢复；不参与运行时触发
     style: number;
     translationAppearance: TranslationAppearance; // 双语译文的颜色、线条、底色、字号、字重、字体与不透明度微调
     translationStyleProfiles: TranslationStyleProfile[]; // 用户保存的可命名译文样式快照
@@ -462,6 +464,7 @@ export class Config {
     deeplApiPlan: DeepLApiPlan; // DeepL API Free / Pro 套餐
     deeplx: string; // DeepLX 服务地址
     selectionTranslatorMode: string; // 划词翻译显示模式: 'disabled' | 'bilingual' | 'translation-only'
+    selectionTranslatorModeBeforeDisable: 'bilingual' | 'translation-only'; // 关闭前的显示偏好，重开恢复
     selectionTranslatorPresentation: 'simple' | 'card'; // 划词翻译的默认呈现，独立于原文/译文显示偏好
     selectionTranslatorTrigger: string; // 划词翻译互斥触发方式: 'direct' | 'icon' | 'dot' | 'hover' | 'contextMenu' | 'Control' | 'Alt' | 'Shift' | 'custom'
     selectionTranslatorHotkey: string; // 旧版快捷键字段；与 selectionTranslatorTrigger 中的快捷键选项保持镜像
@@ -524,6 +527,7 @@ export class Config {
         this.activeTranslationStyleProfileId = '';
         this.display = defaultOption.display;
         this.hotkey = defaultOption.hotkey;
+        this.hoverShortcutBeforeDisable = defaultOption.hotkey;
         this.service = defaultOption.service;
         this.hoverTranslationService = '';
         this.selectionTranslationService = '';
@@ -645,6 +649,7 @@ export class Config {
         this.deeplApiPlan = DEFAULT_DEEPL_API_PLAN; // 兼容既有 DeepL API Free 默认端点
         this.deeplx = defaultOption.deeplx; // DeepLX 默认服务地址
         this.selectionTranslatorMode = 'disabled'; // 默认关闭划词翻译
+        this.selectionTranslatorModeBeforeDisable = 'bilingual';
         this.selectionTranslatorPresentation = 'simple';
         this.selectionTranslatorTrigger = 'icon'; // 默认显示可发现的操作图标
         this.selectionTranslatorHotkey = 'none'; // 默认不增加额外快捷键，保持原有划词行为
@@ -1247,6 +1252,10 @@ export function normalizeConfig(value: unknown): Config {
         normalized.mimoRegion = 'cn';
     }
 
+    const enabledHoverChoices = options.keys.filter(item => !('disabled' in item && item.disabled) && item.value !== 'none').map(item => item.value);
+    normalized.hoverShortcutBeforeDisable = enabledHoverChoices.includes(normalized.hotkey)
+        ? normalized.hotkey : enabledHoverChoices.includes(source.hoverShortcutBeforeDisable ?? '')
+            ? source.hoverShortcutBeforeDisable! : defaultOption.hotkey;
     normalized.mouseHoverTranslationDelay = normalizeMouseHoverTranslationDelay(
         source.mouseHoverTranslationDelay,
     );
@@ -1333,6 +1342,9 @@ export function normalizeConfig(value: unknown): Config {
     normalized.selectionTtsMode = normalizeLocalTtsMode(source.selectionTtsMode);
     normalized.selectionTtsLocalVoice = normalizeLocalTtsVoice(source.selectionTtsLocalVoice);
     normalized.disableSelectionTranslator = normalized.selectionTranslatorMode === 'disabled';
+    normalized.selectionTranslatorModeBeforeDisable = normalized.selectionTranslatorMode === 'translation-only'
+        || (normalized.selectionTranslatorMode === 'disabled' && source.selectionTranslatorModeBeforeDisable === 'translation-only')
+        ? 'translation-only' : 'bilingual';
     if (typeof normalized.vocabularyBookEnabled !== 'boolean') {
         normalized.vocabularyBookEnabled = false;
     }

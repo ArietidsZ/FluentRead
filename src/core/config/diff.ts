@@ -72,6 +72,9 @@ const EXCLUDED_FIELDS = new Set([
     'persistCredentials',
     'videoServiceDefaultMigrated',
     'uiLanguageSetupCompleted',
+    // 关闭前偏好随快照保存，但不作为独立用户操作重复展示。
+    'hoverShortcutBeforeDisable',
+    'selectionTranslatorModeBeforeDisable',
     '__fluentConfigRevision',
 ]);
 const CREDENTIAL_FIELDS = new Set<string>(CONFIG_CREDENTIAL_FIELDS);

@@ -1,7 +1,7 @@
 <!--
  * @file src/ui/components/UiSelect.vue
  * 文件职责：提供扩展界面统一的下拉选择外观，避免浏览器原生菜单破坏品牌风格。
- * 主要内容：复用 Element Plus 的选择、筛选、多选、键盘与弹层定位，透传属性、事件和插槽，合并菜单类名并统一亮暗主题、选中标记及窄屏边界。
+ * 主要内容：复用 Element Plus 的选择、筛选、多选、键盘与弹层定位，支持按调用方需要独立关闭搜索装饰，透传属性、事件和插槽并统一菜单主题及窄屏边界。
  * 模块边界：不解释选项、不读写配置；选项内容和挂载容器由调用方提供，不用于宿主网页原生控件。
  -->
 <template>
@@ -22,7 +22,7 @@
     :popper-class="['fluentread-select-popper', filterable && 'fluentread-select-popper--searchable', popperClass].filter(Boolean).join(' ')"
     @visible-change="menuOpen = $event"
   >
-    <template v-if="filterable && (!slots.prefix || menuOpen)" #prefix>
+    <template v-if="filterable && showSearchIcon !== false && (!slots.prefix || menuOpen)" #prefix>
       <svg class="fluentread-select-search-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="m12.5 12.5 4 4" /></svg>
     </template>
     <template v-if="filterable && !multiple && !slots.label" #label="{label}">
@@ -39,12 +39,13 @@ import {ElSelect} from 'element-plus';
 import {useUiI18n} from '@/src/ui/i18n';
 import 'element-plus/es/components/select/style/css';
 defineOptions({inheritAttrs: false});
-defineProps<{
+withDefaults(defineProps<{
   popperClass?: string
   filterable?: boolean
+  showSearchIcon?: boolean
   multiple?: boolean
   searchPlaceholder?: string
-}>();
+}>(), {showSearchIcon: true});
 const {t} = useUiI18n();
 const menuOpen = ref(false);
 const slots: Slots = useSlots();
