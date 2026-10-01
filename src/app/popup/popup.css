@@ -555,7 +555,8 @@ footer > button { justify-self: end; }
 
 /* 三个快捷面板优先呈现开关和关键示意，保留舒展间距；额外方案或长文案自然在内部滚动。 */
 .popup-drawer.popup-quick-drawer { max-height: calc(100% - 8px); min-height: 0 !important; padding: 8px 16px 14px; }
-.popup-quick-drawer .el-drawer__body { scrollbar-gutter: stable; scrollbar-width: thin; }
+/* macOS 覆盖式滚动条不会响应 stable 槽位，额外留白让关闭按钮和控件始终避开滚动条。 */
+.popup-quick-drawer .el-drawer__body { padding-right: 8px; scrollbar-gutter: stable; scrollbar-width: thin; }
 .popup-quick-drawer .drawer-handle { margin: 0 auto 12px; }
 .popup-quick-drawer .drawer-header { gap: 10px; }
 .popup-quick-drawer .drawer-header h2 { font-size: 18px; }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-// Popup 修复专项：生产产物、临时 Edge、真实配置/content 消息、本地确定性服务；不操作用户浏览器。
+// Popup 修复专项：生产产物、临时 Chromium 浏览器、真实配置/content 消息、本地确定性服务；不操作用户浏览器。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
@@ -11,14 +11,16 @@ const {promisify} = require('node:util');
 const execFileAsync = promisify(execFile);
 const arg = (name, fallback) => {const i = process.argv.indexOf(`--${name}`); return i < 0 ? fallback : process.argv[i + 1];};
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
+const browserPath = arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
+const loadViaCdp = process.argv.includes('--load-via-cdp');
 const headed = process.argv.includes('--headed'); // 仅在本次用户明确允许前台测试后传入。
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-popup-actions-service-ui'));
 const {chromium} = require(path.join(arg('playwright-root', '/Users/thinkstu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules'), 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper', '/Users/thinkstu/.codex/skills/fluentread-extension-ui-test/scripts/focus-safe-browser.cjs'));
 const timeout = 30000;
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-const report = {ok: false, artifact: 'production', extensionDir, cases: [], persistenceCases: [], quickClose: false, latestWriteWins: false, crossPageSync: false, consoleErrors: [], screenshots: [], layout: {},
-  evidenceBoundary: 'Real production extension in isolated Edge; active-tab lookup points to an actual local tab. Translation transport is a local deterministic provider. Failure UI uses named message-response fixtures. No live-provider or Firefox runtime claim.'};
+const report = {ok: false, artifact: 'production', extensionDir, browserPath, cases: [], persistenceCases: [], quickClose: false, latestWriteWins: false, crossPageSync: false, consoleErrors: [], screenshots: [], layout: {},
+  evidenceBoundary: 'Real production extension in an isolated Chromium browser; active-tab lookup points to an actual local tab. Translation transport is a local deterministic provider. Failure UI uses named message-response fixtures. No live-provider or Firefox runtime claim.'};
 const SOURCE = 'Reading should feel calm and effortless. Colors and lines should follow the page you are reading.';
 const TRANSLATION = '阅读应该轻松、自然。颜色和线条应当贴合你正在阅读的网页。';
 const service = 'custom:popup-fixture';
@@ -80,14 +82,17 @@ async function openPopup(failure) {
     chrome.tabs.query = (info, callback) => {
       if (!info.active) return query(info, callback);
       const {active: _active, ...rest} = info;
-      return query(rest, tabs => callback(tabs.filter(tab => tab.url === fixtureUrl)));
+      const filter = tabs => tabs.filter(tab => tab.url === fixtureUrl);
+      // 新版 Chromium 原生 Promise 与旧版 callback 调用都要保持，不能让夹具改变真实 API 契约。
+      return typeof callback === 'function' ? query(rest, tabs => callback(filter(tabs))) : query(rest).then(filter);
     };
     if (failure) {
       const send = chrome.tabs.sendMessage.bind(chrome.tabs);
       chrome.tabs.sendMessage = (id, message, callback) => {
         if (message.type !== 'contextMenuTranslate') return send(id, message, callback);
         if (failure === 'no-receiver') {throw new Error('Fixture: no content script');}
-        callback(failure === 'undefined' ? undefined : {status: failure});
+        const response = failure === 'undefined' ? undefined : {status: failure};
+        return typeof callback === 'function' ? callback(response) : Promise.resolve(response);
       };
     }
   }, {fixtureUrl: content.url(), failure});
@@ -165,22 +170,52 @@ async function pick(field, value) {
 }
 async function main() {
   try {
-    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    await new Promise((resolve, reject) => {server.once('error', reject); server.listen(0, '127.0.0.1', resolve);});
     const fixtureUrl = `http://127.0.0.1:${server.address().port}/article`;
     const manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, 'manifest.json')));
     assert(manifest.action.default_popup && (manifest.options_page || manifest.options_ui.page)); report.manifest = {version: manifest.version, popup: manifest.action.default_popup, options: manifest.options_page || manifest.options_ui.page};
     launched = await launchFocusSafePersistentContext({chromium, profileDir, background: !headed, headless: false,
-      browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', viewport: {width: 1440, height: 960}, displayTarget: 'secondary', timeout,
-      browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+      browserPath, viewport: {width: 1440, height: 960}, displayTarget: 'secondary', timeout,
+      browserArgs: [...(loadViaCdp ? ['--enable-unsafe-extension-debugging'] : [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`]), '--no-first-run', '--no-default-browser-check']});
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     if (headed) {assert.equal(report.focusPolicy, 'foreground-authorized'); assert.equal(report.windowPlacement.mode, 'headed-centered');}
     else {assert.equal(report.windowPlacement.browserFrontmost, false); assert.equal(report.launchMode, 'macos-background-cdp');}
     context = launched.context;
     if (!headed) await monitorBackgroundWindow();
-    const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', {timeout});
+    let expectedExtensionId = '';
+    if (loadViaCdp) {
+      const session = await context.browser().newBrowserCDPSession();
+      try {expectedExtensionId = (await session.send('Extensions.loadUnpacked', {path: extensionDir})).id;}
+      finally {await session.detach();}
+      report.extensionLoad = {method: 'Extensions.loadUnpacked', id: expectedExtensionId};
+      // 动态载入的 MV3 worker 可能尚未被发现；先用返回的准确 ID 打开页面，唤醒真实后台。
+      origin = `chrome-extension://${expectedExtensionId}`;
+      control = await open(`${origin}/${manifest.action.default_popup}`);
+      const actual = await control.evaluate(() => {
+        const m = chrome.runtime.getManifest(); return {name: m.name, version: m.version, popup: m.action?.default_popup};
+      });
+      assert.deepEqual(actual, {name: manifest.name, version: manifest.version, popup: manifest.action.default_popup});
+      report.loadedManifest = actual;
+    }
+    // 浏览器可能自带其他扩展 worker；只绑定清单匹配的 FluentRead，不能使用第一个 worker 猜 ID。
+    let worker;
+    await until(async () => {
+      for (const candidate of context.serviceWorkers()) {
+        const url = candidate.url();
+        if (!url.startsWith('chrome-extension://') || !url.endsWith(`/${manifest.background.service_worker}`)
+          || (expectedExtensionId && new URL(url).host !== expectedExtensionId)) continue;
+        const actual = await candidate.evaluate(() => {
+          const m = chrome.runtime.getManifest(); return {name: m.name, version: m.version, popup: m.action?.default_popup};
+        }).catch(() => null);
+        if (actual?.name === manifest.name && actual?.version === manifest.version && actual?.popup === manifest.action.default_popup) {
+          worker = candidate; report.loadedManifest = actual; return true;
+        }
+      }
+      return false;
+    }, 'production extension worker', timeout);
     worker.on('console', message => {if (message.type() === 'error') report.consoleErrors.push({url: worker.url(), message: message.text()});});
     origin = `chrome-extension://${new URL(worker.url()).host}`;
-    control = await open(`${origin}/popup.html`);
+    if (!control) control = await open(`${origin}/${manifest.action.default_popup}`);
     await until(async () => Boolean((await read()).service), 'initial config');
     const initial = await read();
     await patch({on: true, uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true, theme: 'light', interfaceSkin: 'default',
@@ -196,7 +231,7 @@ async function main() {
     if (process.argv.includes('--density-only')) {
       const baseline = process.argv.includes('--density-baseline');
       report.capturedAt = new Date().toISOString();
-      report.evidenceBoundary = 'Production popup and hover/selection/image quick panels in isolated Edge; measured at intrinsic toolbar-sized viewport. Internal vertical scrolling is allowed; controls must remain reachable. No live-provider, native toolbar or Firefox runtime claim.';
+      report.evidenceBoundary = 'Production popup and hover/selection/image quick panels in an isolated Chromium browser; measured at intrinsic toolbar-sized viewport. Internal vertical scrolling is allowed; controls must remain reachable. No live-provider, native toolbar or Firefox runtime claim.';
       const measure = async name => {
         await wait(250);
         const dims = await popup.locator('.drawer-surface').evaluate(node => {
@@ -206,14 +241,17 @@ async function main() {
             const r = button.getBoundingClientRect(); return {name: button.getAttribute('aria-label') || button.textContent.trim(), top: r.top, bottom: r.bottom, left: r.left, right: r.right};
           });
           const primary = node.querySelector('.drawer-content [role="switch"]')?.getBoundingClientRect();
+          const closeButton = node.querySelector('.drawer-header > button').getBoundingClientRect();
           return {clientHeight: body.clientHeight, scrollHeight: body.scrollHeight, scrollTop: body.scrollTop, overflowY: getComputedStyle(body).overflowY,
             horizontalOverflow: body.scrollWidth > body.clientWidth + 1, drawerHeight: drawer.getBoundingClientRect().height,
-            bodyTop: rect.top, bodyBottom: rect.bottom, viewportWidth: innerWidth, viewportHeight: innerHeight,
+            bodyTop: rect.top, bodyBottom: rect.bottom, bodyRight: rect.right, closeButtonRight: closeButton.right,
+            scrollbarPadding: parseFloat(getComputedStyle(body).paddingRight), viewportWidth: innerWidth, viewportHeight: innerHeight,
             primary: primary && {top: primary.top, bottom: primary.bottom}, controls};
         });
         report.layout[name] = dims;
         if (!baseline) {
           assert(!dims.horizontalOverflow && dims.overflowY === 'auto', `${name}: scroll boundary ${JSON.stringify(dims)}`);
+          assert(dims.scrollbarPadding >= 8 && dims.closeButtonRight <= dims.bodyRight - 7, `${name}: close button overlaps overlay scrollbar`);
           assert(dims.primary && dims.primary.top >= dims.bodyTop - 1 && dims.primary.bottom <= Math.min(dims.bodyBottom, dims.viewportHeight) + 1, `${name}: primary switch not initially visible`);
           assert(dims.controls.every(r => r.name && r.left >= 0 && r.right <= dims.viewportWidth + 1), `${name}: missing accessible label or horizontal clipping`);
           const title = await popup.locator('.drawer-header h2').evaluate(node => ({scroll: node.scrollWidth, client: node.clientWidth}));
@@ -329,7 +367,7 @@ async function main() {
       await drawer('image'); await measure('image-reopened'); await shot(popup, 'density-image-reopened');
       assert.equal(await popup.locator('[data-testid="area-translation-demo"] .area-ring').count(), 1);
       assert.deepEqual(await popup.locator('[data-testid="area-translation-demo"] kbd').allTextContents(), ['Shift', 'Z']);
-      await patch({selectionAreaEnabled: true, selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'Control+Alt+Shift+L'});
+      await patch({selectionAreaEnabled: true, selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'Ctrl+Alt+Shift+L'});
       await measure('image-custom-hotkey'); await shot(popup, 'density-image-custom-hotkey');
       const mac = await popup.evaluate(() => /Mac|iPod|iPhone|iPad/u.test(navigator.platform));
       assert.deepEqual(await popup.locator('[data-testid="area-translation-demo"] kbd').allTextContents(), mac ? ['Control', 'Option', 'Shift', 'L'] : ['Ctrl', 'Alt', 'Shift', 'L']);
