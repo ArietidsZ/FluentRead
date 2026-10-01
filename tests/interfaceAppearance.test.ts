@@ -91,9 +91,9 @@ describe('界面皮肤与栏目配置', () => {
     expect(normalizeConfig({interfaceSkin: 'emoji'}).interfaceSkin).toBe('emoji')
     expect(normalizeConfig({interfaceFont: 'noto-sans-sc'}).interfaceFont).toBe('noto-sans-sc')
     expect(interfaceSkinOptions.every((item) => interfaceSkinUsesContentHeight(item.value))).toBe(true)
-    expect(interfaceSkinOptions.filter((item) => !['minimal', 'compact'].includes(item.value)).every((item) => item.popupWidth === 340)).toBe(true)
-    expect(getInterfaceSkinOption('minimal').popupWidth).toBe(330)
-    expect(getInterfaceSkinOption('compact').popupWidth).toBe(320)
+    expect(interfaceSkinOptions.filter((item) => !['minimal', 'compact'].includes(item.value)).every((item) => item.popupWidth === 320)).toBe(true)
+    expect(getInterfaceSkinOption('minimal').popupWidth).toBe(310)
+    expect(getInterfaceSkinOption('compact').popupWidth).toBe(300)
     expect(interfaceVisibilityOptions.map((item) => item.key)).toEqual([
       'popupQuickFeatures',
       'popupSiteRule',
@@ -211,10 +211,10 @@ describe('界面皮肤与栏目配置', () => {
     expect(interfaceSkinUsesContentHeight('minimal')).toBe(true)
     expect(interfaceSkinUsesContentHeight('paper')).toBe(true)
     expect(interfaceSkinUsesContentHeight('unknown')).toBe(true)
-    expect(getInterfaceSkinOption('default').popupWidth).toBe(340)
-    expect(getInterfaceSkinOption('minimal').popupWidth).toBe(330)
-    expect(getInterfaceSkinOption('compact').popupWidth).toBe(320)
-    expect(getInterfaceSkinOption('unknown').popupWidth).toBe(340)
+    expect(getInterfaceSkinOption('default').popupWidth).toBe(320)
+    expect(getInterfaceSkinOption('minimal').popupWidth).toBe(310)
+    expect(getInterfaceSkinOption('compact').popupWidth).toBe(300)
+    expect(getInterfaceSkinOption('unknown').popupWidth).toBe(320)
 
     expect(normalizeInterfaceVisibility({popupQuickFeatures: false})).toEqual({
       popupQuickFeatures: false,

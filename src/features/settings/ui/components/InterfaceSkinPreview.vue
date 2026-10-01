@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/components/InterfaceSkinPreview.vue
 文件职责：以真实 DOM 绘制当前所选界面皮肤的迷你 Popup 范例，让用户不依赖截图即可预判配色、层次和密度。
-主要内容：以注册表色值展示布局型皮肤，以当前语义色展示氛围配色及其深浅模式，渲染品牌栏、语言选择、翻译服务和快捷入口。
+主要内容：以注册表色值展示布局型皮肤，以当前语义色展示氛围配色及其深浅模式，渲染品牌栏、语言选择、横向翻译服务图标、网页/局部翻译及快捷入口。
 模块边界：本组件只展示装饰性范例，不提供可交互控件、不读取或保存配置，也不模拟网页翻译结果；皮肤选择仍由 InterfaceSettings 拥有。
 -->
 <template>
@@ -34,6 +34,8 @@
         <span><strong>{{ t('popup.providers.title') }}</strong></span>
         <span class="preview-provider-icons"><ServiceIcon service="google" size="small" /><ServiceIcon service="microsoft" size="small" /><b>›</b></span>
       </div>
+
+      <div class="preview-action-row"><span class="preview-action">{{ t('popup.translateCurrentPage') }}</span><span class="preview-section-action">{{ t('popup.sectionTranslation') }}</span></div>
 
       <div class="preview-features">
         <span><i>{{ skin.value === 'emoji' ? '📖' : '文' }}</i>{{ translateLegacy('文档翻译') }}</span>
@@ -183,7 +185,7 @@ const previewStyle = computed(() => {
 
 .preview-service {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 7px;
   min-height: 37px;
@@ -393,5 +395,9 @@ const previewStyle = computed(() => {
 .interface-skin-live-preview[data-preview-skin="arcade"] .preview-popup {
   background-size: var(--skin-canvas-background-size, auto);
 }
-.preview-provider-icons { display: flex; align-items: center; gap: 3px; margin-left: auto; }
+.preview-service > .preview-provider-icons { display: flex; flex-direction: row; align-items: center; gap: 3px; }
+.preview-provider-icons > b { font-size: 12px; color: color-mix(in srgb, var(--preview-ink) 55%, transparent); }
+.preview-action-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px; }
+.preview-section-action { display: grid; place-items: center; padding: 0 7px; border: 1px solid color-mix(in srgb, var(--preview-ink) 12%, transparent); border-radius: 9px; background: var(--preview-surface); color: var(--preview-accent); font-size: 7px; font-weight: 700; }
+.interface-skin-live-preview[data-preview-skin="default"] .preview-popup { background: var(--preview-canvas); box-shadow: none; }
 </style>

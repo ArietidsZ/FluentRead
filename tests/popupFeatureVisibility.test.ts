@@ -10,7 +10,7 @@ function source(path: string): string {
 describe('popup feature visibility', () => {
     it('gives the toolbar popup an intrinsic width before the browser sizes its viewport', () => {
         const styles = source('src/app/popup/popup.css');
-        expect(styles).toContain('html { width: var(--interface-popup-width, 360px); }');
+        expect(styles).toContain('html { width: var(--interface-popup-width, 320px); }');
         expect(styles).toContain('body, #app { width: 100%; }');
         expect(styles).not.toContain('width: min(var(--interface-popup-width, 360px), 100vw)');
         expect(styles).toContain('.popup-shell { max-height: 560px; overflow-y: auto;');
@@ -102,6 +102,31 @@ describe('popup feature visibility', () => {
         expect(popup).toContain('translateLegacy(item.label)');
     });
 
+    it('keeps popup language filtering without the decorative search icon', () => {
+        const popup = source('src/app/popup/PopupLanguageSelect.vue');
+        const select = source('src/ui/components/UiSelect.vue');
+        expect(popup).toContain('filterable');
+        expect(popup).toContain(':show-search-icon="false"');
+        expect(select).toContain('showSearchIcon !== false');
+        expect(select).toContain(':filterable="filterable"');
+    });
+
+    it('prioritizes switches and useful diagrams in three quick panels while retaining internal scrolling and navigation', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const styles = source('src/app/popup/popup.css');
+        expect(popup).toContain("'popup-quick-drawer': ['hover', 'selection', 'image'].includes(activeDrawer)");
+        expect(styles).toContain('max-height: calc(100% - 8px)');
+        expect(styles).toContain('.popup-drawer .el-drawer__body { min-height: 0; padding: 0; overflow-x: hidden; overflow-y: auto;');
+        expect(styles).toContain('scrollbar-gutter: stable; scrollbar-width: thin;');
+        expect(popup).not.toContain('class="wordbook-shortcut"');
+        expect(popup).not.toContain('class="setting-row selection-trigger-setting"');
+        expect(popup).toContain('data-testid="hover-enable"');
+        expect(popup).toContain('data-testid="selection-enable"');
+        expect(popup).toContain('data-testid="area-translation-demo"');
+        expect(popup).toContain("t('popup.quickSettings.moreSettings')");
+        expect(popup).toContain('class="drawer-settings-link"');
+    });
+
     it('uses the same multilingual display policy for interface-language selectors', () => {
         const selector = source('src/ui/components/UiLanguageSelector.vue');
         const onboarding = source('src/ui/components/UiLanguageOnboarding.vue');
@@ -182,10 +207,18 @@ describe('popup feature visibility', () => {
         expect(vocabulary).not.toMatch(/>\s*Beta\s*<|开启 Beta|Beta 已开启|单词本 Beta/u);
     });
 
-    it('removes duplicate page actions and video/area cards from the popup', () => {
+    it('keeps page and section translation directly reachable without adding video/area cards', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         expect(popupQuickFeatureOptions.map(feature => feature.id)).toEqual(['hover', 'selection', 'appearance', 'image', 'document']);
-        expect(popup).not.toContain('togglePageTranslation');
+        expect(popup).toContain('data-testid="page-translation"');
+        expect(popup).toContain('@click="togglePageTranslation"');
+        expect(popup).toContain('data-testid="section-translation"');
+        expect(popup.indexOf('data-testid="section-translation"')).toBeLessThan(popup.indexOf('<el-drawer'));
+        expect(popup).not.toContain('class="eyebrow features-eyebrow"');
+        expect(popup).toContain('data-testid="popup-version"');
+        expect(popup).toContain("browser.runtime.getManifest().version");
+        expect(popup).toContain("t('popup.donationButton')");
+        expect(source('src/app/popup/popup.css')).not.toContain('.opensource-link span { display: none; }');
         expect(popup).not.toContain("activeDrawer === 'video'");
         expect(popup).not.toContain("activeDrawer === 'area'");
     });
@@ -265,7 +298,8 @@ describe('popup feature visibility', () => {
         expect(popup).toContain('{{ quickProfileSummary(profile) }}');
         expect(popup).toContain("t('popup.quickTranslation.defaultHoverShortcut')");
         expect(popup).toContain("t('popup.quickTranslation.defaultOnly', {count: quickHoverProfiles.length})");
-        expect(popup).toContain("t('popup.quickSettings.disableHoverShortcut')");
+        expect(popup).toContain('@click="toggleDefaultHoverShortcut"');
+        expect(popup).toContain(':aria-checked="defaultHoverEnabled"');
         expect(popup).toContain("t('popup.quickSettings.chooseHoverShortcut')");
         expect(popup).not.toContain("setHoverHotkey('Control')");
         expect(popup).toContain("resolveConfiguredHotkey(config.value.hotkey, config.value.customHotkey)");
@@ -276,7 +310,7 @@ describe('popup feature visibility', () => {
         expect(popup).not.toContain('CustomHotkeyInput');
         expect(styles).toContain('.quick-profile-preview-row');
         expect(styles).toContain('.setting-row small.independent-profile-note');
-        expect(styles).toContain('flex: 0 1 84px');
+        expect(styles).toContain('flex: 0 2 64px');
         expect(styles).toContain('.translate-hotkey span');
     });
 
@@ -299,7 +333,24 @@ describe('popup feature visibility', () => {
         expect(panel).toContain('searchableModels.value');
         expect(panel).toContain('provider.models');
         expect(panel).toContain('setFeatureService(props.config, feature, service)');
-        expect(panel).toContain(':persistent="false"');
+        expect(panel).toContain('class="popup-service-overview"');
+        expect(panel).toContain('class="popup-service-picker"');
+        expect(panel).toContain('role="listbox"');
+        expect(panel).not.toContain('<UiSelect');
         expect(popup).not.toContain('class="service-tools"');
+    });
+
+    it('keeps two compact site switches without a visible domain and frames the service entry', () => {
+        const site = source('src/app/popup/PopupSiteRule.vue');
+        const preview = source('src/features/settings/ui/components/PopupLayoutPreview.vue');
+        const styles = source('src/app/popup/popup.css');
+        expect(site).not.toContain('class="site-rule-copy"');
+        expect(site).not.toContain('<span>当前网站</span>');
+        expect(site).toContain(':data-site-domain="props.domain"');
+        expect(site).toContain('always-translate-site');
+        expect(site).toContain('disable-extension-site');
+        expect(preview).not.toContain('fluentread.app');
+        expect(preview).toContain('preview-site-rule-button');
+        expect(styles).toMatch(/\.provider-summary \{[^}]*border: 1px solid var\(--line\)/);
     });
 });
