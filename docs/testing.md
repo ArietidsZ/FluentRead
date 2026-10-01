@@ -4,11 +4,13 @@
 
 `node scripts/testing/run-popup-actions-service-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <捆绑Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-popup-actions-ui` 只运行本次 Popup、服务分配、划词抽屉及界面预览专项，不触发全量回归。
 
+默认使用隔离 Edge。需要改用另一个已安装的 Chromium 浏览器时，显式传 `--browser-path <浏览器可执行文件>`；支持动态扩展加载的浏览器还可传 `--load-via-cdp`，用 `Extensions.loadUnpacked` 返回的准确 ID 打开清单页面，再核对扩展名称、版本和 Popup，不能拿浏览器自带的第一个 worker 猜扩展 ID。动态模式不混用旧的命令行扩展加载参数。测试页的 active-tab 查询夹具同时保留 Promise 和 callback 契约，仍返回真实本地网页标签；不改变产品 API 或关闭焦点保护。
+
 仅调整底部开源入口样式时，追加 `--footer-only`，只复核浅深色、简洁/紧凑/海盐皮肤、悬停和设置预览中的开源胶囊，不重复服务选择与翻译流程。
 
 仅检查 Popup 窄版与悬停、划词、图片三个快捷面板时，追加 `--density-only`。以页面内在尺寸模拟工具栏视口，检查浅深色、简洁/紧凑/海盐和英文界面的主屏与三个面板：没有横向溢出，标题与首要开关首次可见，所有按钮可通过键盘聚焦进入可见范围。记录 `scrollHeight`、`clientHeight` 和实际滚动；长文案与额外方案允许内部滚动，不能用裁切隐藏内容。还覆盖无搜索装饰但可搜索的语言框、悬停/圈选示意、额外悬停方案、关闭重开后恢复快捷键与划词模式、两个图片开关独立保存、连续写入最后值胜出，以及三个“更多设置”的实际导航。`--density-baseline` 仅与此专项组合用于记录旧产物布局，不包含新布局通过断言。
 
-默认仍采用后台隔离窗口与真实前台 PID 保护，并额外持续采样前台应用；任何抢焦点检测立即停止并清理，不能通过禁用保护完成测试。若后台环境持续无法保持焦点隔离，先征得用户本次明确同意，才可追加 `--headed` 使用第二屏居中的独立临时前台窗口，报告中标记 `foreground-authorized`。新快捷面板的追加验收及未完成边界见[窄版与快捷面板记录](./reports/popup-ui-restoration-20260930/quick-panel-refinement.md)。
+默认仍采用后台隔离窗口与真实前台 PID 保护，并额外持续采样前台应用；任何抢焦点检测立即停止并清理，不能通过禁用保护完成测试。若后台环境持续无法保持焦点隔离，先征得用户本次明确同意，才可追加 `--headed` 使用第二屏居中的独立临时前台窗口，报告中标记 `foreground-authorized`。快捷面板专项还检查关闭按钮距滚动体右沿至少 8px，避免 macOS 覆盖式滚动条遮住控件。新快捷面板的追加验收及历史边界见[窄版与快捷面板记录](./reports/popup-ui-restoration-20260930/quick-panel-refinement.md)。
 
 使用第二屏可见但不抢焦点的临时 Edge profile，检查真实内容脚本的全文翻译—恢复—再次翻译、局部点选、站点规则立即关闭重开、每个可用服务及九项功能分配、继承和自定义模型搜索、当前更多服务可见性、本地图标及键盘导航。还检查版本、赞赏、开源胶囊的新标签页导航、默认白底、无域名的两个紧凑站点开关、翻译服务选择框、划词说明宽度、设置预览横排图标、390px 窄屏、深色及多种皮肤、配置跨页同步和控制台错误。
 

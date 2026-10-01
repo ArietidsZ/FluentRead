@@ -1,6 +1,6 @@
 # 窄版 Popup 与快捷面板追加记录
 
-日期：2026-10-01。任务 worktree 和分支保持原位置。用户已撤回合并要求，PR #726 保持打开，没有合并或启用自动合并。本轮实现仍在本地，未上传新源代码提交。
+日期：2026-10-01。用户已重新授权合并 PR #726，窄版与快捷面板源码已上传。下文的部分验收及“尚未上传”说明保留上一个检查点的历史；最新结果见[合并前最终复核](#合并前最终复核)。
 
 ## 当前实现
 
@@ -40,3 +40,25 @@ i18n 契约 **48/52 通过**，仍是原先四个基线失败：旧快捷入口�
 最新五个非英语语言文件已生成并保存于本地资源提交 `782c629f6586fe43ed58e58add794eac630afaca`，Userscript 固定到这个提交。提交目前尚未上传，**未证明真实 CDN 可取得这一轮的新文件**；之前资源提交 b36776a 的真实 CDN 验证不等同于本轮新资源可用。
 
 主检出 `/Users/thinkstu/Desktop/copy/FluentRead` 仍干净且未用于实现。任务位于 `/Users/thinkstu/Desktop/copy/FluentRead-popup-actions-service-ui-20260930`，临时依赖链接仅用于复用已有依赖，不是全新安装证明。未修改或借鉴两个参考仓库。
+
+## 合并前最终复核
+
+用户重新提出“合并”后，没有将其当作前台测试授权。继续使用第二屏正常尺寸的后台隔离浏览器，焦点保护与持续前台 PID 监控保持开启；不操作用户日常浏览器、配置或已安装扩展。
+
+Edge 后台焦点问题没有绕过。替代 Chrome 的前几轮检查失败，分别暴露旧命令行加载失效、未载入目标 worker、混用旧加载参数导致页面被拦截、测试 active-tab 夹具只支持 callback，以及自定义快捷键种子未采用配置的规范 `Ctrl` 写法。失败记录保留于 `merge-validation/`，不能称这些失败轮次为通过。修正测试加载与夹具，不改变产品查询或快捷键归一化规则。
+
+最终生产产物 `.output/chrome-mv3` 使用独立临时 Chrome 154 profile，通过 `Extensions.loadUnpacked` 返回的准确 ID 载入并核对清单，运行 `--density-only` 专项。结果 [report.json](./merge-validation/report.json) 为 **ok=true**：
+
+- 六种主屏及各自三个快捷面板全部通过：浅色、深色、简洁、紧凑、海盐、英文；宽度仍为 320/310/300px，主屏高度 437/428/390px，英文默认 497.875px，无横向溢出或 footer 裁切。
+- 默认三个快捷面板滚动体为 268/268、316/316、326/326，常用中文内容无滚动。八个额外悬停方案为 360/458，允许内部滚动 98px，并验证所有按钮通过键盘聚焦进入可见范围。
+- 实际截图发现 macOS 覆盖式滚动条不为 `scrollbar-gutter: stable` 预留空间，因此补充 8px 右侧安全留白。每种面板的关闭按钮距滚动体右沿至少 8px；实测与截图均复核，不隐藏滚动条或裁切内容。
+- 语言框无搜索装饰但仍能筛选，其他设置页保留图标；默认悬停关闭重开恢复 Control，自定义快捷键与八个独立方案保持；划词两次模式写入、关闭重开恢复仅译文及呈现偏好；两个图片开关立即关闭重开后独立保存。
+- 圈选示意保留实际 Shift/Z 或自定义 Control/Option/Shift/L 键帽与圈选图形。悬停、划词、图片三个“更多设置”真实导航到对应完整设置页面。
+- `quickClose=true`、`latestWriteWins=true`，四组持久化断言通过；本专项没有执行完整跨页配置同步矩阵，`crossPageSync=false` 不能理解成同步失败或通过证明。
+- 页面及 worker 控制台错误 **0**。`launchMode=macos-background-cdp`、`focusPolicy=launchservices-no-foreground`、`windowPlacement.mode=background-visible-no-focus`、`browserFrontmost=false`，61 次前台采样无违规；实例及临时 profile 由脚本清理。
+
+最终 **33 张截图已全部逐张查看**，未编辑图片。主要画面：[窄版自动检测主屏](./merge-validation/density-popup-auto.png)、[悬停开关与示意](./merge-validation/density-hover-light.png)、[划词关键偏好](./merge-validation/density-selection-light.png)、[图片与圈选示意](./merge-validation/density-image-light.png)、[多方案滚动与关闭按钮](./merge-validation/density-hover-profiles.png)、[自定义圈选示意](./merge-validation/density-image-custom-hotkey.png)。
+
+最后 8px 样式改动后再次执行七个相关测试文件，**263/263 通过**；类型检查、Chrome MV3、Firefox MV2 生产构建及文档构建通过。日志：[针对性测试](./merge-validation/tests.txt)、[类型检查](./merge-validation/compile.txt)、[Chrome](./merge-validation/chrome.txt)、[Firefox](./merge-validation/firefox.txt)、[浏览器专项](./merge-validation/browser.txt)、[文档](./merge-validation/docs.txt)。前述 Userscript 构建、模拟语言加载、目录登记及四个既有 i18n 基线失败的边界不变；没有运行全量回归、Firefox 实机、真实外部翻译服务或商店发布验收。
+
+资源提交 `782c629f6586fe43ed58e58add794eac630afaca` 已上传并保留在分支历史。五个固定提交的真实 jsDelivr 语言 URL 均下载成功、逐字节匹配本地文件；资源文件与当前产品提交一致。文件名、固定 URL 前缀与 SHA-256 见 [cdn-resources.json](./merge-validation/cdn-resources.json)。这不代表浏览器已安装产物更新，也没有修改发布版本。
