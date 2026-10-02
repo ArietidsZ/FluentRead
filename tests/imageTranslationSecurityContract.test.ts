@@ -27,11 +27,12 @@ function sourceText(): string {
 
 function imageElement(): HTMLImageElement {
     return {
+        isConnected: true, getAttribute: () => null,
         naturalWidth: 40,
         naturalHeight: 20,
-        currentSrc: 'https://attacker.example/rebinding.png',
-        src: 'https://attacker.example/rebinding.png',
-    } as HTMLImageElement;
+        currentSrc: 'https://images.example.com/chart.png',
+        src: 'https://images.example.com/chart.png',
+    } as unknown as HTMLImageElement;
 }
 
 describe('图片翻译跨域读取安全契约', () => {
@@ -54,7 +55,7 @@ describe('图片翻译跨域读取安全契约', () => {
         ))).toBe(false);
     });
 
-    it('Offscreen 远程图片只允许 HTTPS X/Twitter 媒体域，拒绝任意网页 URL', async () => {
+    it('Offscreen 远程图片拒绝内网目标，接受公网 CDN 图片，后台另行核验图片任务', async () => {
         const request = vi.fn(async () => ({
             ok: true,
             status: 200,
@@ -62,8 +63,8 @@ describe('图片翻译跨域读取安全契约', () => {
             arrayBuffer: async () => new Uint8Array([1]).buffer,
         }));
 
-        await expect(fetchRemoteImageForOcr('https://attacker.example/rebinding.png', request))
-            .rejects.toThrow('跨域图片来源');
+        await expect(fetchRemoteImageForOcr('https://127.0.0.1/rebinding.png', request))
+            .rejects.toThrow('内网图片地址');
         expect(request).not.toHaveBeenCalled();
         await expect(fetchRemoteImageForOcr('https://pbs.twimg.com/media/demo.png', request))
             .resolves.toBe('data:image/png;base64,AQ==');
@@ -95,8 +96,8 @@ describe('图片翻译跨域读取安全契约', () => {
             getContext: vi.fn(() => context),
             toDataURL: vi.fn(() => 'data:image/png;base64,local'),
         };
-        vi.stubGlobal('browser', {runtime: {sendMessage}});
-        vi.stubGlobal('document', {createElement: vi.fn(() => canvas)});
+        vi.stubGlobal('browser', {runtime: {id: 'test-id', sendMessage, onMessage: {addListener: vi.fn(), removeListener: vi.fn()}}});
+        vi.stubGlobal('document', {URL: 'https://page.example.com/', createElement: vi.fn(() => canvas)});
 
         await expect(getImageData(imageElement())).resolves.toBe('data:image/png;base64,local');
         expect(context.drawImage).toHaveBeenCalledOnce();
@@ -126,14 +127,14 @@ describe('图片翻译跨域读取安全契约', () => {
                 }),
             };
             vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
-            vi.stubGlobal('browser', {runtime: {sendMessage}});
-            vi.stubGlobal('document', {createElement: vi.fn(() => canvas)});
+            vi.stubGlobal('browser', {runtime: {id: 'test-id', sendMessage, onMessage: {addListener: vi.fn(), removeListener: vi.fn()}}});
+            vi.stubGlobal('document', {URL: 'https://page.example.com/', createElement: vi.fn(() => canvas)});
             sendMessage.mockResolvedValue({success: true, image: 'data:image/png;base64,remote'});
 
             await expect(getImageData(imageElement())).resolves.toBe('data:image/png;base64,remote');
             expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
                 type: 'fluentReadImageFetch',
-                url: 'https://attacker.example/rebinding.png',
+                url: 'https://images.example.com/chart.png',
             }));
         },
     );

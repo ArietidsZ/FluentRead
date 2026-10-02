@@ -4,6 +4,7 @@
  * 主要内容：包含消息解析、OCR 语言白名单、阶段与百分比通知和取消预算；逐包下载排队、去重、部分成功保存和跨页状态查询；图片文本去重批量和有界并发翻译同时保留后台恢复的可信页面范围、源语言与术语版本。
  * 模块边界：本文件只负责协议入口与用例编排，不直接运行 Tesseract、Canvas、网络 fetch 或 Offscreen；图像读取和运算能力均由 Offscreen adapter 与 services 实现并由 app 注入。
  */
+import {normalizeRemoteImageUrl} from '../services/remoteImage';
 import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, normalizeImageProgress, type ImageTranslationStage} from '../progress';
 import {
     IMAGE_OCR_LANGUAGE_PACKS,
@@ -98,6 +99,7 @@ export interface ImageTranslationBackgroundDependencies {
         options: ImageOperationOptions,
     ) => Promise<unknown>;
     readonly fetchImage: (url: string, options: ImageOperationOptions) => Promise<unknown>;
+    readonly assertImageSource?: (url: string, options: ImageOperationOptions, context: ImageProgressContext) => Promise<void>;
     readonly getTranslationService: () => string;
     readonly supportsBatchTranslation: (service: string) => boolean;
     readonly translateTexts: (request: ImageTextTranslationRequest) => Promise<string | string[]>;
@@ -453,9 +455,15 @@ export function createImageTranslationBackgroundHandlers(
         },
         {
             type: IMAGE_FETCH_MESSAGE_TYPE,
-            async handle(message: ImageFetchMessage) {
-                const url = parseRequiredString(message.url, 'url');
-                const image = await operationRegistry.run(message, options => dependencies.fetchImage(url, options));
+            async handle(message: ImageFetchMessage, context: ImageProgressContext = {}) {
+                const source = parseRequiredString(message.url, 'url');
+                const url = normalizeRemoteImageUrl(source);
+                const image = await operationRegistry.run(message, async options => {
+                    if (!dependencies.assertImageSource) throw new Error('图片来源未授权');
+                    await dependencies.assertImageSource(source, options, context);
+                    if (options.signal.aborted) throw Object.assign(new Error('图片读取已取消'), {name: 'AbortError'});
+                    return dependencies.fetchImage(url, options);
+                });
                 if (typeof image !== 'string' || !image.startsWith('data:image/')) {
                     throw new Error('远程图片结果无效');
                 }

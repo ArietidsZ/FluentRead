@@ -39,7 +39,7 @@ afterEach(() => {
 });
 
 describe('Offscreen 远程图片读取', () => {
-    it('只接受 HTTPS X/Twitter 媒体域，并拒绝无效地址、凭据和自定义端口', () => {
+    it('接受公网 HTTPS 图片域，拒绝非 HTTPS、凭据、端口和内网目标', () => {
         expect(normalizeRemoteImageUrl('https://pbs.twimg.com/media/demo.png?format=png'))
             .toBe('https://pbs.twimg.com/media/demo.png?format=png');
         expect(normalizeRemoteImageUrl('https://twimg.com/media/demo.png'))
@@ -47,13 +47,26 @@ describe('Offscreen 远程图片读取', () => {
         expect(normalizeRemoteImageUrl('https://pbs.twimg.com./media/demo.png'))
             .toBe('https://pbs.twimg.com./media/demo.png');
 
+        for (const source of ['https://z-cdn-media.chatglm.cn/chart.png', 'https://images.unsplash.com/a', 'https://cdn.example.com/image?id=1']) {
+            expect(normalizeRemoteImageUrl(source)).toBe(source);
+        }
+        expect(normalizeRemoteImageUrl('https://cdn.example.com/a.png#view')).toBe('https://cdn.example.com/a.png');
+        for (const source of ['https://cdn.example.com:443/a.png']) expect(normalizeRemoteImageUrl(source)).toBe('https://cdn.example.com/a.png');
+
         for (const source of [
             '',
             'not a URL',
             'http://pbs.twimg.com/media/demo.png',
             'https://user:pass@pbs.twimg.com/media/demo.png',
             'https://pbs.twimg.com:8443/media/demo.png',
-            'https://example.com/media/demo.png',
+            'https://localhost/a.png', 'https://localhost./a.png', 'https://a.localhost/a.png',
+            'https://machine/a.png', 'https://machine.local/a.png', 'https://machine.internal/a.png',
+            'https://machine.home.arpa/a.png', 'https://example.test/a.png',
+            'https://127.0.0.1/a.png', 'https://2130706433/a.png', 'https://0x7f000001/a.png',
+            'https://10.0.0.1/a.png', 'https://192.168.0.1/a.png', 'https://169.254.169.254/a.png',
+            'https://[::1]/a.png', 'https://[::ffff:127.0.0.1]/a.png', 'file:///tmp/a.png',
+            'data:image/png,abc', 'javascript:alert(1)',
+
         ]) {
             expect(() => normalizeRemoteImageUrl(source)).toThrow();
         }
@@ -130,8 +143,8 @@ describe('Offscreen 远程图片读取', () => {
         const unsafeBodyCancel = vi.fn(async () => undefined);
         await expect(fetchRemoteImageForOcr(
             'https://pbs.twimg.com/media/unsafe.png',
-            async () => response({url: 'https://attacker.example/unsafe.png', body: {cancel: unsafeBodyCancel} as never}),
-        )).rejects.toThrow('跨域图片来源');
+            async () => response({url: 'https://127.0.0.1/unsafe.png', body: {cancel: unsafeBodyCancel} as never}),
+        )).rejects.toThrow('内网图片地址');
         expect(unsafeBodyCancel).toHaveBeenCalledOnce();
     });
 
@@ -243,7 +256,7 @@ describe('Offscreen 远程图片读取', () => {
         const timeoutPending = fetchRemoteImageForOcr(
             'https://pbs.twimg.com/media/timeout.png', timeoutRequest,
         );
-        const timeoutRejection = expect(timeoutPending).rejects.toThrow('远程图片读取超时');
+        const timeoutRejection = expect(timeoutPending).rejects.toThrow('图片读取超时');
         await vi.advanceTimersByTimeAsync(REMOTE_IMAGE_TIMEOUT_MS);
         await timeoutRejection;
         expect(timeoutSignal.aborted).toBe(true);
@@ -266,7 +279,7 @@ describe('Offscreen 远程图片读取', () => {
             return response({contentLength: null, body});
         });
         const pending = fetchRemoteImageForOcr('https://pbs.twimg.com/media/hanging.png', request);
-        const rejection = expect(pending).rejects.toThrow('远程图片读取超时');
+        const rejection = expect(pending).rejects.toThrow('图片读取超时');
         await vi.advanceTimersByTimeAsync(REMOTE_IMAGE_TIMEOUT_MS);
         await rejection;
         expect(signal.aborted).toBe(true);
@@ -280,6 +293,15 @@ describe('Offscreen 远程图片读取', () => {
             'https://pbs.twimg.com/media/array-large.png',
             async () => response({contentLength: null, body: null, arrayBuffer: async () => new ArrayBuffer(MAX_REMOTE_IMAGE_BYTES + 1)}),
         )).rejects.toThrow('图片文件过大');
+    });
+
+    it('响应体最后清理时取消也不交付旧图片，非 Error 的流错误保留可读说明', async () => {
+        const caller = new AbortController();
+        const reader = {read: vi.fn(async () => ({done: true, value: undefined})), cancel: vi.fn(async () => {}), releaseLock: vi.fn(() => caller.abort())};
+        await expect(fetchRemoteImageForOcr('https://cdn.example.com/cancel.png',
+            async () => response({body: {getReader: () => reader} as never}), caller.signal)).rejects.toMatchObject({name: 'AbortError'});
+        await expect(fetchRemoteImageForOcr('https://cdn.example.com/broken.png',
+            async () => response({body: null, arrayBuffer: async () => {throw 'stream unavailable';}}))).rejects.toThrow('图片数据读取失败');
     });
 
     it('Offscreen 网络端口委托真实 fetch，并保留 signal', async () => {
