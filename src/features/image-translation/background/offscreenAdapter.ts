@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/background/offscreenAdapter.ts
  * 文件职责：把跨域图片读取、图片识别、整图翻译和 OCR 语言包下载请求适配为平台 Offscreen 消息，并校验隔离文档返回的结构后交还后台 handlers。
- * 主要内容：包含 OffscreenResponse 解析、data:image 与 lines 数组验证、译图 image/lines 结果收窄，以及 createImageTranslationOffscreenAdapter 和默认 extensionDomClient 实例。
+ * 主要内容：回查原页面当前图片任务的短期授权；包含 OffscreenResponse 解析、data:image 与 lines 数组验证、译图 image/lines 结果收窄，以及 createImageTranslationOffscreenAdapter 和默认 extensionDomClient 实例。
  * 模块边界：适配器不创建 Offscreen document、不执行 OCR/绘制，也不读取配置；文档生命周期属于 platform/offscreen，实际运算在 services/offscreenRuntime 与 ocrRuntime 中完成。
  */
 import {extensionDomClient} from '@/src/platform/offscreen/extensionClient';
@@ -122,4 +122,33 @@ export const imageTranslationProgressTransport = {
         if (typeof tabId !== 'number') return;
         await browser.tabs.sendMessage(tabId, message, {frameId: context.sender?.frameId ?? 0}).catch(() => undefined);
     },
+};
+
+/** 后台回查同一 frame 的短期请求授权，扩展 UI 或任意 URL 消息不能直接发起远程抓图。 */
+export function createImageSourceVerifier(
+    sendTabMessage: (tabId: number, message: object, options: {frameId: number}) => Promise<unknown>,
+) {
+    return async (url: string, options: ImageOffscreenOperationOptions, context: ImageProgressContext): Promise<void> => {
+        const sender = context.sender;
+        const tabId = sender?.tab?.id;
+        const frameId = sender?.frameId ?? 0;
+        if (typeof tabId !== 'number' || !Number.isSafeInteger(tabId) || tabId < 0
+            || !Number.isSafeInteger(frameId) || frameId < 0 || typeof sender?.url !== 'string'
+            || !/^(?:https?:|file:)\/\//u.test(sender.url)) throw new Error('图片来源未授权');
+        if (options.signal.aborted) throw new Error('图片读取已取消');
+        let response: unknown;
+        try {
+            response = await sendTabMessage(tabId, {
+                type: 'fluentReadImageValidateSource', requestId: options.requestId, url, documentUrl: sender.url,
+            }, {frameId});
+        } catch { throw new Error('图片来源已失效，请重试'); }
+        if (options.signal.aborted) throw new Error('图片读取已取消');
+        if (!response || typeof response !== 'object' || (response as {valid?: unknown}).valid !== true) {
+            throw new Error('图片来源已失效，请重试');
+        }
+    };
+}
+
+export const imageTranslationSourceTransport = {
+    assertImageSource: createImageSourceVerifier((tabId, message, options) => browser.tabs.sendMessage(tabId, message, options)),
 };
