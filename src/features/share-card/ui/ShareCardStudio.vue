@@ -1,7 +1,7 @@
 <!--
  * @file src/features/share-card/ui/ShareCardStudio.vue
  * 文件职责：提供划词翻译结果的双语卡片编辑预览与图片导出。
- * 主要内容：原生模态对话框、品牌色分段选择与开关、八套图片风格、双语编辑及 PNG 导出；固定底栏提供醒目的成功、错误和忙碌反馈，外观写回共享配置。
+ * 主要内容：原生模态对话框、品牌色分段选择与开关、八套图片风格、双语编辑及 PNG 复制、保存；固定底栏提供醒目的成功、错误和忙碌反馈，外观写回共享配置。
  * 模块边界：组件位于封闭 Shadow UI，不读取网页正文、不调用翻译服务；渲染与导出委托独立适配器，关闭时释放 Blob URL 并使迟到渲染失效。
  -->
 <template>
@@ -62,8 +62,7 @@
           </div>
           <span class="fr-card-local-note">{{ t('shareCard.local') }}</span>
           <div class="fr-card-export-actions">
-            <button v-if="shareAvailable" type="button" data-action="share" :disabled="!ready || busy" :aria-busy="activeAction === 'share'" @click="exportImage('share')"><span v-if="activeAction === 'share'" class="fr-card-spinner" aria-hidden="true" />{{ t('shareCard.share') }}</button>
-            <button type="button" data-action="copy" :disabled="!ready || busy || !copyAvailable" :aria-busy="activeAction === 'copy'" :title="copyAvailable ? t('shareCard.copy') : t('shareCard.copyUnavailable')" @click="exportImage('copy')"><span v-if="activeAction === 'copy'" class="fr-card-spinner" aria-hidden="true" />{{ t('shareCard.copy') }}</button>
+            <button type="button" data-action="copy" :disabled="!ready || busy || !copyAvailable" :aria-busy="activeAction === 'copy'" :title="copyAvailable ? t('shareCard.copy') : t('shareCard.copyUnavailable')" @click="copyImage"><span v-if="activeAction === 'copy'" class="fr-card-spinner" aria-hidden="true" />{{ t('shareCard.copy') }}</button>
             <button class="fr-card-primary" type="button" :disabled="!ready || busy" @click="saveImage">{{ t('shareCard.save') }}</button>
           </div>
           <p v-if="!copyAvailable" class="fr-card-fallback">{{ t('shareCard.copyUnavailable') }}</p>
@@ -81,7 +80,7 @@ import {normalizeShareCardPreferences, SHARE_CARD_THEMES, type ShareCardPreferen
 import {useUiI18n} from '@/src/ui/i18n';
 import {SHARE_CARD_MAX_CHARACTERS, type ShareCardExcerpt} from '../core';
 import {renderShareCard, ShareCardRenderError, type RenderedShareCard} from '../render';
-import {canCopyCardImage, canShareCardImage, copyCardImage, shareCardFilename, shareCardImage} from '../export';
+import {canCopyCardImage, copyCardImage, shareCardFilename} from '../export';
 
 const emit = defineEmits<{closed: []}>();
 const {t, language} = useUiI18n();
@@ -99,9 +98,8 @@ const busy = ref(false);
 const status = ref('');
 const statusError = ref(false);
 const feedbackSequence = ref(0);
-const activeAction = ref<'copy' | 'share' | ''>('');
+const activeAction = ref<'copy' | ''>('');
 const copyAvailable = canCopyCardImage();
-const shareAvailable = computed(() => Boolean(result.value && canShareCardImage(result.value.blob)));
 const ready = computed(() => Boolean(result.value && !renderError.value && !rendering.value));
 let generation = 0;
 let openGeneration = 0;
@@ -177,18 +175,18 @@ function saveImage(): void {
     } catch { showFeedback('shareCard.saveFailed', true); }
     finally { link.remove(); }
 }
-async function exportImage(kind: 'copy' | 'share'): Promise<void> {
+async function copyImage(): Promise<void> {
     if (!ready.value || !result.value || busy.value) return;
     const current = openGeneration;
-    busy.value = true; activeAction.value = kind; status.value = ''; statusError.value = false;
+    busy.value = true; activeAction.value = 'copy'; status.value = ''; statusError.value = false;
     try {
         // PNG 已在预览时生成；可信点击内立即调用，避免异步渲染耗掉瞬时用户激活。
-        const outcome = kind === 'copy' ? await copyCardImage(result.value.blob) : await shareCardImage(result.value.blob);
+        await copyCardImage(result.value.blob);
         if (current !== openGeneration || !opened.value || disposed) return;
-        if (outcome !== 'cancelled') showFeedback(kind === 'copy' ? 'shareCard.copied' : 'shareCard.shared');
+        showFeedback('shareCard.copied');
     } catch {
         if (current !== openGeneration || !opened.value || disposed) return;
-        showFeedback(kind === 'copy' ? 'shareCard.copyFailed' : 'shareCard.shareFailed', true);
+        showFeedback('shareCard.copyFailed', true);
     } finally { if (!disposed && current === openGeneration) { busy.value = false; activeAction.value = ''; } }
 }
 watch([preferences, excerpt, language], scheduleRender, {deep: true, flush: 'sync'});
