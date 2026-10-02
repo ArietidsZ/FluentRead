@@ -238,5 +238,20 @@ describe('Google Drive 同步事务', () => {
         vi.mocked(f.ports.auth.disconnect).mockRejectedValueOnce(new Error('fixture cache clear failed'));
         await expect(f.service.cancel()).rejects.toThrow('fixture cache clear failed');
     });
+    it('只有所属设置页关闭才取消预览，后台重启后仍能识别所属页签', async () => {
+        const f = fixture();
+        await f.service.cancelTab(73);
+        expect(f.ports.auth.disconnect).not.toHaveBeenCalled();
+        const preview = await f.service.prepare(password, 73);
+        await f.service.cancelTab(74);
+        expect((f.state as DriveSyncState).prepared?.id).toBe(preview.id);
+        expect(f.ports.auth.disconnect).not.toHaveBeenCalled();
+        await createGoogleDriveSync(f.ports).cancelTab(73);
+        expect(f.state).not.toHaveProperty('prepared');
+        expect(f.state).toMatchObject({connected: false});
+        expect(f.ports.auth.disconnect).toHaveBeenCalledOnce();
+        expect(f.ports.api.write).not.toHaveBeenCalled();
+        await expect(f.service.commit(preview.id, password, 'upload', {})).rejects.toThrow('失效');
+    });
 
 });
