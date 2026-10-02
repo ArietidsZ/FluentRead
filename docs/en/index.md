@@ -1,7 +1,8 @@
 ---
 layout: home
 markdownStyles: false
-title: Closer languages. A bigger world.
+title: FluentRead
+titleTemplate: false
 ---
 
 <ProductHomeEn />
