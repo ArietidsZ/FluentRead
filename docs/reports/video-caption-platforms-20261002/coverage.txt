@@ -1,0 +1,20 @@
+RUN  v2.1.9 /Users/thinkstu/Desktop/copy/FluentRead-video-caption-platforms-20261002
+      Coverage enabled with v8
+
+ ✓ tests/videoCaptionPlatforms.test.ts (25 tests) 39ms
+ ✓ tests/videoSubtitleDownloads.test.ts (7 tests) 37ms
+
+ Test Files  2 passed (2)
+      Tests  32 passed (32)
+   Start at  17:14:54
+   Duration  1.66s (transform 290ms, setup 0ms, collect 655ms, tests 76ms, environment 0ms, prepare 155ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+-------------------|---------|----------|---------|---------|-------------------
+All files          |     100 |      100 |     100 |     100 |
+ downloads.ts      |     100 |      100 |     100 |     100 |
+ platforms.ts      |     100 |      100 |     100 |     100 |
+ ...manCaptions.ts |     100 |      100 |     100 |     100 |
+-------------------|---------|----------|---------|---------|-------------------

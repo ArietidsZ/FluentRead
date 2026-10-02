@@ -236,6 +236,7 @@ export function getVideoTranslationConfigFingerprint(value: Config): string {
     service,
     from: value.from,
     videoSourceLanguage: value.videoSourceLanguage,
+    videoPreferHumanSubtitles: value.videoPreferHumanSubtitles,
     glossaryRevision: buildGlossaryRevision(value.glossaryLibraries, value.glossaryEnabled),
     videoGlossaryIds: value.videoGlossaryIds,
     to: value.to,
