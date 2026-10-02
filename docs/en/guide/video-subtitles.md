@@ -23,7 +23,7 @@ The compact X menu puts display modes first. **Subtitle options** contains timin
 2. Open a YouTube or X video and find the FluentRead icon just before the fullscreen button. On X, it stays between picture-in-picture and fullscreen when controls reappear or fullscreen changes.
 3. Choose bilingual, translation-only, or original-only display.
 
-FluentRead uses subtitle tracks or subtitle text provided by the page. It cannot guarantee translations where no subtitles are available. The subtitle translation service is independent of the webpage service.
+FluentRead uses subtitle tracks or subtitle text provided by the page. It cannot guarantee translations where no subtitles are available. The subtitle translation service follows the webpage service by default; you can select a separate service in video translation settings.
 
 The subtitle menu also works in YouTube fullscreen. Bilingual subtitles share one panel. Previous translations clear when captions change, disappear, or you seek. If a translation is still loading, the original appears first; the translation is added only while its caption is still current.
 

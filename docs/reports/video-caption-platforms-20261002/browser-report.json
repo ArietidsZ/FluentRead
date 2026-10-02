@@ -73,5 +73,6 @@
   "bilingualDownload": true,
   "errors": [],
   "profileMode": "temporary-isolated",
-  "provider": "deterministic Microsoft translation fixture; no live provider validation"
+  "provider": "deterministic Microsoft translation fixture; no live provider validation",
+  "baseCommit": "c3e705b4a4e3cb3cbd2538791836ad8cbd7fb5c4"
 }
