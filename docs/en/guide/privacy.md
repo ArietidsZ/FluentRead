@@ -1,4 +1,8 @@
-# Data & privacy
+# Privacy policy
+
+Updated: October 3, 2026.
+
+This policy describes how the FluentRead browser extension handles translation content, local records, service credentials, and optional Google Drive configuration backups. FluentRead is a bilingual translation and reading-assistance tool maintained by its open-source project contributors. The website and this policy are publicly accessible without signing in. Translation does not require connecting a Google account.
 
 The feature and service you choose determine which content leaves the browser. FluentRead does not run its own translation server; cloud translation is handled by the selected provider.
 
@@ -11,10 +15,12 @@ The feature and service you choose determine which content leaves the browser. F
 | Extra AI context | Page title, description, and parts of the article to the AI service; off by default |
 | Reading card and learning explanations | Submitted expressions, permitted source context, necessary conversation, and enabled memories used for the response, to the selected AI service |
 | Glossaries | Only matched terms and preferred translations, attached to supported AI requests |
-| Images and area capture | Recognition happens locally; recognized text goes to the service. Image pixels are not uploaded for text translation |
+| Images and local OCR area capture | Recognition happens locally; recognized text goes to the selected translation service |
+| Area capture with model recognition | When enabled and supported by the model, the cropped selection is sent to the selected provider for recognition, followed by text translation; the full screen is not uploaded |
 | Documents | Files are parsed locally; text to translate goes to the selected service |
 | Video subtitles | Subtitle text goes to the subtitle service. X local AI audio recognition happens on the device |
 | Dictionary and read-aloud | Requested words or text go to the corresponding dictionary or voice service |
+| Google Drive configuration sync (Chrome testing feature) | After explicit confirmation, an encrypted complete configuration backup is saved to your own Google Drive; the scope is described below |
 
 Initial recognition-pack and local-model preparation requires network downloads. Input translation is disabled by default and handles text you deliberately submit from ordinary fields, not password fields.
 
@@ -24,7 +30,7 @@ Sites configured for automatic translation can start requests automatically. Cho
 
 ## What stays in the browser?
 
-Settings, rules, glossaries, collections, and review records are stored in this browser’s extension storage. Free-translation health, error, and performance statistics are also stored locally for background balancing and cooldown recovery. Credentials are stored locally for the corresponding services; someone with access to the browser profile or backups may still access them.
+Settings, rules, glossaries, collections, and review records are stored in this browser’s extension storage. Free-translation health, error, and performance statistics are also stored locally for background balancing and cooldown recovery. Service credentials are stored locally by default. When you deliberately use Drive sync, they are also included in the configuration backup described below. Someone with access to the browser profile or backups may still access them.
 
 Regular-window reading-card conversations are retained for 30 days and can be viewed or deleted. Private windows do not read or save this history and do not provide persistent learning collections.
 
@@ -34,7 +40,38 @@ The optional full English dictionary is held in the browser's CacheStorage. Clea
 
 Document translation and edits stay in the current page. Download files before leaving.
 
-## Control and remove data
+## Google Drive configuration sync
+
+Drive configuration sync is currently being tested in the Chrome extension. Availability depends on the settings page of your installed version. Its purpose is to back up and restore FluentRead settings across your own devices. It does not provide translation or require a persistent connected state.
+
+### When is data accessed, and what is accessed?
+
+Only choosing the Google Drive sync action starts authorization for that operation and reads the backup to prepare a preview. Uploading or applying downloaded settings requires your confirmation of the direction and changes. Opening settings does not automatically access Google Drive.
+
+- **Configuration:** includes API keys, OAuth tokens, authentication headers, custom request bodies, and authentication parameters in URLs. Wordbooks, conversations, and usage statistics are excluded. These OAuth tokens are your configured service credentials; the access token for Google sync is excluded from the backup.
+- **Google permissions:** only `drive.appdata`, which manages FluentRead's own hidden application data. The extension does not request access to your other Drive files, Gmail messages, or contacts. See [Google's application-data documentation](https://developers.google.com/workspace/drive/api/guides/appdata).
+- **Account information:** the selected account's Drive identifier prevents mixing configurations from different accounts. Email, when returned by Google, is used only in the preview. No separate email identity permission is requested, and sync works without an email response.
+- **Authorization tokens:** Chrome's identity API manages them for Google API requests. Completion, failure, cancellation, or leaving settings clears the extension's identity cache. Clearing that cache does not revoke the permission in your Google account or delete a backup.
+
+### Storage and protection
+
+The backup is sent over HTTPS directly to your own Google Drive hidden application data folder as `fluentread-config.encrypted.json`. It does not pass through a FluentRead developer configuration server or appear as a regular My Drive file. The account identifier, last-sync time, and an encrypted copy used to compare changes remain in this browser.
+
+The configuration is encrypted on the device before upload using a fixed, publicly available application passphrase. You do not enter a password. **Anyone who obtains the encrypted backup can decrypt it using the public passphrase.** Access protection primarily depends on your Google account, application permissions, and device security. Protect your account, browser profile, and exported backups. Do not attach a backup or complete configuration to a public report.
+
+### Stop access and delete data
+
+Each sync requires a deliberate action. Stop initiating sync to stop further operations. To revoke permission, select FluentRead in [your Google account's third-party connections](https://myaccount.google.com/connections) and remove access. Sync then requires authorization again.
+
+The cloud backup remains until you delete it. In Google Drive on the web, use **Settings → Manage apps → FluentRead → Options → Delete hidden app data**. Revoking access, uninstalling the browser extension, or clearing local records does not by itself delete the Drive backup. Deleting the cloud backup does not erase settings already downloaded on other devices.
+
+### Use of Google data
+
+Google account identifiers and configuration backups are used only to check the selected account and synchronize or restore settings. During sync, the account identifier and complete backup are not sent to third parties other than Google. FluentRead does not sell this data or use it for advertising, profiling, or generating content unrelated to sync. Google Workspace API data is not used to develop, improve, or train non-personalized AI or machine-learning models. Developers do not inspect your backup through the sync service. You may voluntarily submit a report after removing credentials and private content. Restored service credentials continue to be used with your selected translation services; the first section explains what those requests send.
+
+FluentRead's use of information received from Google APIs adheres to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), including applicable Limited Use requirements. Google APIs support configuration backup and restoration, not the generation of non-consensual intimate imagery. Google's own handling of cloud storage and account data is also governed by [Google's Privacy Policy](https://policies.google.com/privacy).
+
+## Control and remove other data
 
 Turn off automatic translation, extra AI context, memories, or saving if you do not need them. Restrict the reading card to the current selection to send less context.
 
@@ -42,4 +79,12 @@ Clearing translation cache does not delete learning collections. Manage collecti
 
 Backups can include credentials, source sentences, and source information. Check export scope and file contents before sharing. Refer to each cloud provider’s policy for its retention and use of submitted content.
 
-Contact the project through [GitHub Issues](https://github.com/FluentRead/FluentRead/issues) or [email](mailto:a1914493943@gmail.com). Remove credentials and private text from reports.
+## Website and external links
+
+The website stores your language preference in your browser for later visits. Clearing the site's browser data removes it. When you visit GitHub, an extension store, Google, or a translation provider's website, that service's own privacy policy also applies.
+
+## Policy updates and contact
+
+The policy is updated as features and data handling change, with the date shown at the top. Changes to the purposes or scope of Google data use will be disclosed, and consent requested before new access or use.
+
+For privacy questions or data-deletion help, contact the project maintainers through [GitHub Issues](https://github.com/FluentRead/FluentRead/issues) or [email](mailto:a1914493943@gmail.com). Remove credentials, account information, and private text from public reports.

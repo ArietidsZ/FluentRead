@@ -23,4 +23,4 @@ Choose languages, translation styles, automatic translation, and menu layout in 
 
 The free translation service is ready to use. To use your own provider or AI explanations, follow [Translation services](/en/config/translation-engines). Providers may charge separately.
 
-For help, see [Troubleshooting](/en/guide/faq). See [Data & privacy](/en/guide/privacy) for what stays local and what goes to a service.
+For help, see [Troubleshooting](/en/guide/faq). The [privacy policy](/en/guide/privacy) explains local data, provider requests, Google Drive configuration sync, and deletion controls.
