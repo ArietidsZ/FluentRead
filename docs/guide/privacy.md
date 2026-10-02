@@ -66,7 +66,7 @@ Google Drive 配置同步目前处于 Chrome 扩展测试阶段，是否可用�
 
 ### Google 数据用于什么？
 
-Google 账号标识和配置备份仅用于账号核对、配置同步与恢复。FluentRead 不出售这些数据，不将其用于广告、用户画像、通用 AI 模型训练或与同步无关的内容生成。开发者不会通过同步服务查看你的备份；问题反馈由你自愿提供，反馈前请删除凭据与私人内容。恢复后的服务凭据会继续用于你选择的翻译服务，翻译请求的数据范围见本政策第一节。
+Google 账号标识和配置备份仅用于账号核对、配置同步与恢复。同步过程中不会将账号标识或整份备份发送给 Google 以外的第三方。FluentRead 不出售这些数据，不将其用于广告、用户画像或与同步无关的内容生成，也不使用 Google Workspace API 数据开发、改进或训练非个性化 AI 或机器学习模型。开发者不会通过同步服务查看你的备份；问题反馈由你自愿提供，反馈前请删除凭据与私人内容。恢复后的服务凭据会继续用于你选择的翻译服务，翻译请求的数据范围见本政策第一节。
 
 FluentRead 使用 Google API 收到的信息遵守 [Google API 服务用户数据政策](https://developers.google.com/terms/api-services-user-data-policy)，包括适用的 Limited Use（有限使用）要求。Google API 用于配置备份与恢复，不用于生成未经同意的私密影像。Google 自身对云端存储与账号数据的处理还适用 [Google 隐私政策](https://policies.google.com/privacy)。
 
