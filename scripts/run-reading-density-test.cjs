@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 学习面板密度专项：在隔离生产扩展中用用户反馈的原句检查首屏、点词、常驻句子结构、键盘、折叠操作和追问。
+// 学习面板专项：在隔离生产扩展中检查四个动作的原句滚动、首屏、点词、键盘、次级操作和追问。
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -15,6 +15,7 @@ const helper = require(path.resolve(arg('focus-safe-helper')));
 const sentence = 'Different printing sequences have different filament switching sequences';
 const grammar = '| Text | POS | Role | Meaning |\n| --- | --- | --- | --- |\n| Different | adjective | 定语，修饰 printing sequences | 不同的 |\n| printing sequences | phrase | 主语 | 打印顺序 |\n| have | verb | 谓语 | 具有、带来 |\n| different | adjective | 定语，修饰后面的名词短语 | 不同的 |\n| filament switching sequences | phrase | 宾语 | 耗材切换顺序 |\n\n### 句子主干\n打印顺序不同，耗材的切换顺序也会不同。\n\n这里的 switching 修饰 sequences，说明是“切换的顺序”。';
 let nextAnswer = grammar;
+let chunkDelay = 15;
 const report = {providerEvidence:'Production extension in isolated Edge; translation and AI responses use deterministic local fixtures. No live translation or AI quality claim.',ok:false,cases:[],screenshots:[],consoleErrors:[],translationRequests:0,aiRequests:0};
 const record = name => {report.cases.push(name); console.log('PASS',name);};
 const wait = ms => new Promise(resolve=>setTimeout(resolve,ms));
@@ -37,7 +38,7 @@ async function choose(selector) {
 }
 async function select(selector) {await helper.activateExtensionTabWithoutForeground(context,page); await page.mouse.click(20,20); await choose(selector); await until(()=>node(cls('fr-selection-indicator')),'selection indicator missing');
  const state=await support.getSelectionUiTree(page);const indicator=support.findCdpNode(state.root,cls('fr-selection-indicator'));const {model}=await state.session.send('DOM.getBoxModel',{nodeId:indicator.nodeId});
- const anchor=await page.evaluate(()=>{const r=getSelection().getRangeAt(0).getBoundingClientRect();return {right:r.right,bottom:r.bottom};});
+ const anchor=await page.evaluate(()=>{const range=getSelection().getRangeAt(0),r=[...range.getClientRects()].at(-1)||range.getBoundingClientRect();return {right:r.right,bottom:r.bottom};});
  assert(Math.abs(model.border[0]+model.width/2-anchor.right)<24 && Math.abs(model.border[1]+model.height/2-anchor.bottom)<24,'selection icon is not anchored beside the selected text');
  await clickNode(cls('fr-selection-indicator')); await until(()=>node(cls('fr-translation-tooltip')),'selection popup missing');}
 async function patch(value) {await support.patchStoredConfig(popup,value); await wait(350);}
@@ -57,6 +58,23 @@ async function layout() {return ui(function(){
  const area=this.querySelector('.fr-reading-result').getBoundingClientRect(),tokens=this.querySelector('.fr-sentence-tokens'),detail=this.querySelector('.fr-sentence-detail').getBoundingClientRect(),card=this.getBoundingClientRect();
  return{cardHeight:card.height,cardWidth:card.width,answerHeight:area.height,tokensHeight:tokens.getBoundingClientRect().height,sourceCopies:this.querySelectorAll('.fr-reading-source').length,sourceText:[...tokens.children].map(element=>element.matches('button') ? (element.querySelector('.fr-sentence-token-text')||element).textContent : element.textContent).join(''),labels:[...tokens.querySelectorAll('.fr-sentence-token-meta')].map(element=>({text:element.textContent.trim(),visible:element.getBoundingClientRect().bottom<=area.bottom&&element.getBoundingClientRect().top>=area.top,clipped:element.scrollWidth>element.clientWidth+1})),detailVisible:detail.top>=area.top&&detail.bottom<=area.bottom,overflow:this.scrollWidth>this.clientWidth+1,hostScroll:scrollY};
 });}
+async function sourceLayout() {return ui(function(){
+ const scroll=this.querySelector('.fr-reading-result'),area=scroll.getBoundingClientRect(),source=scroll.querySelector('.fr-reading-source'),text=source.querySelector('p').getBoundingClientRect(),body=scroll.querySelector('.fr-reading-body').getBoundingClientRect();
+ return {text:source.querySelector('p').textContent,sourceTag:source.tagName,sourceFirst:scroll.firstElementChild===source,scrollTop:scroll.scrollTop,sourceTop:text.top-area.top,sourceBottom:text.bottom-area.top,bodyTop:body.top-area.top,contentPadding:parseFloat(getComputedStyle(scroll).paddingTop),overflow:this.scrollWidth>this.clientWidth+1,hostScroll:scrollY};
+});}
+async function assertSourceSkipped(expected=sentence) {
+ await until(async()=>{const state=await sourceLayout();return state.scrollTop>0&&state.sourceBottom<=1;},'source was not skipped after popup layout settled');
+ const state=await sourceLayout();
+ assert.equal(state.text,expected);assert.equal(state.sourceTag,'SECTION');assert(state.sourceFirst);assert(state.scrollTop>0);assert(state.sourceBottom<=1,`source is still visible: ${JSON.stringify(state)}`);assert(state.bodyTop>=-1&&state.bodyTop<=state.contentPadding+1,`answer is not aligned below the source: ${JSON.stringify(state)}`);assert.equal(state.hostScroll,0);assert.equal(state.overflow,false);
+ return state;
+}
+async function revealSource(expected=sentence) {
+ const area=await ui(function(){const r=this.querySelector('.fr-reading-result').getBoundingClientRect();return{x:r.x+20,y:r.y+50}});
+ await page.mouse.move(area.x,area.y);await page.mouse.wheel(0,-5000);
+ await until(async()=>(await sourceLayout()).scrollTop===0,'upward wheel did not reveal the source');
+ const state=await sourceLayout();assert.equal(state.text,expected);assert(state.sourceTop>=0);assert(state.sourceBottom>0);assert.equal(state.hostScroll,0);
+ return state;
+}
 async function main(){
  fs.mkdirSync(output,{recursive:true});const profileDir=fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-reading-density-'));
  server=http.createServer(async(req,res)=>{
@@ -64,7 +82,7 @@ async function main(){
   report.aiRequests++;for await(const part of req){};
   res.writeHead(200,{'content-type':'text/event-stream','access-control-allow-origin':'*'});
   const response=nextAnswer;
-  for(const part of response.match(/[\s\S]{1,40}/g)){res.write('data: '+JSON.stringify({id:'fixture',choices:[{index:0,delta:{content:part},finish_reason:null}]})+'\n\n');await wait(15);}
+  for(const part of response.match(/[\s\S]{1,40}/g)){res.write('data: '+JSON.stringify({id:'fixture',choices:[{index:0,delta:{content:part},finish_reason:null}]})+'\n\n');await wait(chunkDelay);}
   res.end('data: '+JSON.stringify({id:'fixture',choices:[{index:0,delta:{},finish_reason:'stop'}]})+'\n\ndata: [DONE]\n\n');
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const port=server.address().port;
@@ -83,6 +101,39 @@ async function main(){
   await select('#sentence');await until(()=>node(cls('fr-study-toolbar')),'learning entry missing');await clickNode(button('词性与句法'));await settled();
   report.initial=await layout();
   if(process.argv.includes('--baseline')){await shot('before');report.ok=true;return;}
+  await assertSourceSkipped();
+  if(process.argv.includes('--source-scroll-only')) {
+    report.sourcePositions=[];
+    for(const [action,label] of [['meaning','读懂'],['grammar','句法'],['usage','用法'],['practice','练习']]) {
+      nextAnswer=action==='grammar'?grammar:`### ${label}\n\n这句话说明打印顺序会影响耗材切换顺序。`;
+      await clickNode(button(label));await settled();
+      report.sourcePositions.push({action,...await assertSourceSkipped()});await shot(`source-skipped-${action}`);
+      await revealSource();await shot(`source-visible-${action}`);record(`${label}: starts after full source; upward wheel reveals it without scrolling the host`);
+    }
+    const cachedCount=report.aiRequests;
+    await clickNode(button('读懂'));await settled();await assertSourceSkipped();assert.equal(report.aiRequests,cachedCount);record('cached action reopens after the source without a model request');
+    await menu();await clickNode(button('查看原文'));await until(async()=>(await sourceLayout()).scrollTop===0,'source shortcut did not reveal the source');
+    assert(await ui(function(){return this.getRootNode().activeElement===this.querySelector('.fr-reading-result')}));assert.equal(report.aiRequests,cachedCount);record('source shortcut reveals the original, focuses its scroll area and makes no request');
+    await clickNode(n=>n.nodeName==='INPUT'&&support.cdpAttribute(n,'aria-label')==='继续追问');await page.keyboard.type('保留输入');await clickNode(button('读懂'));await wait(100);
+    assert.equal((await sourceLayout()).scrollTop,0);assert.equal(await ui(function(){return this.querySelector('.fr-reading-followup input').value}),'保留输入');assert.equal(report.aiRequests,cachedCount);record('clicking the active tab preserves the source view and unsent follow-up');
+    await clickNode(n=>n.nodeName==='INPUT'&&support.cdpAttribute(n,'aria-label')==='继续追问');await page.keyboard.press('Meta+A');await page.keyboard.press('Backspace');
+    chunkDelay=40;nextAnswer='### 连续回答\n\n'+('打印顺序不同，耗材切换顺序也不同。\n\n'.repeat(45));
+    await menu();await clickNode(button('重新生成'));await until(()=>ui(function(){return !!this.querySelector('.fr-reading-status')}),'streaming status missing');
+    await assertSourceSkipped();await revealSource();await settled();assert.equal((await sourceLayout()).scrollTop,0);record('scrolling up during generation remains at the source through all streamed updates and completion');
+    chunkDelay=15;nextAnswer='这是追问的简短回答。';
+    await clickNode(n=>n.nodeName==='INPUT'&&support.cdpAttribute(n,'aria-label')==='继续追问');await page.keyboard.type('解释一下');await page.keyboard.press('Enter');await settled();await assertSourceSkipped();await revealSource();record('short follow-up also starts after the source and allows scrolling up');
+    await menu();await clickNode(button('阅读记录'));await until(()=>node(cls('fr-reading-records')),'records missing');await clickNode(button('‹ 返回当前阅读'));await assertSourceSkipped();
+    await menu();await clickNode(button('阅读记录'));await until(()=>node(cls('fr-reading-session')),'saved session missing');await clickNode(cls('fr-reading-session'));await settled();await assertSourceSkipped();await revealSource();record('returning from records and restoring a saved conversation retains full source above the answer');
+    for(const [width,height,theme] of [[390,800,'light'],[390,800,'dark'],[1440,960,'light']]) {
+      await page.setViewportSize({width,height});await patch({theme});
+      await clickNode(button('用法'));await settled();await assertSourceSkipped();await revealSource();await shot(`source-${width}-${theme}`);record(`${width}px ${theme}: full source stays readable and the host stays still`);
+    }
+    await page.keyboard.press('Escape');
+    const longSource='When a model is printed using a particular filament, then it can only be printed using the corresponding nozzle. '.repeat(10).trim();
+    await page.evaluate(text=>{document.querySelector('#sentence').textContent=text;document.querySelector('#sentence').parentElement.style.maxWidth='1100px';document.body.style.margin='20px';document.querySelector('#sentence').style.fontSize='13px';},longSource);
+    await select('#sentence');await clickNode(button('读懂'));await settled();await assertSourceSkipped(longSource);await revealSource(longSource);await shot('source-long');record('a long selected passage is retained in full above a short answer');
+    assert.equal(report.consoleErrors.length,0);report.ok=true;return;
+  }
   if (process.argv.includes('--multilingual-only')) {
     for (const language of ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES']) {
       await patch({uiLanguage: language});
@@ -102,8 +153,8 @@ async function main(){
     assert.equal(await page.evaluate(() => document.documentElement.lang), 'en', 'host language is unchanged');
     report.ok = true; return;
   }
-  assert.equal(report.initial.sourceCopies,0);assert.equal(report.initial.sourceText.trim(),sentence);assert(report.initial.answerHeight>=365,'too little room for the answer');assert(report.initial.tokensHeight<115,'annotations still occupy too much space');assert(report.initial.detailVisible);assert.equal(report.initial.overflow,false);
-  await shot('grammar-after');record('user sentence stays in source order with no repeated original and selected details visible');
+  assert.equal(report.initial.sourceCopies,1);await assertSourceSkipped();assert.equal(report.initial.sourceText.trim(),sentence);assert(report.initial.answerHeight>=365,'too little room for the answer');assert(report.initial.tokensHeight<115,'annotations still occupy too much space');assert(report.initial.detailVisible);assert.equal(report.initial.overflow,false);
+  await shot('grammar-after');record('user sentence stays in source order with full original above the initial view and selected details visible');
   assert.deepEqual(report.initial.labels.map(item=>item.text),['定语 · 形容词','主语 · 短语','谓语 · 动词','定语 · 形容词','宾语 · 短语']);assert(report.initial.labels.every(item=>item.visible&&!item.clipped));record('all fragment roles and word classes are visible before any click');
   await clickNode(n=>support.cdpAttribute(n,'data-pos')==='phrase');
   assert.equal(await ui(function(){return this.querySelector('.fr-sentence-meaning').textContent}),'打印顺序');
@@ -121,9 +172,9 @@ async function main(){
   assert.equal(await ui(function(){return this.querySelector('.fr-reading-followup input').value}),'Why switching?');assert.equal(report.aiRequests,count);record('history round trip preserves answer and unsent follow-up without a new request');
   nextAnswer='Switching describes the type of sequence. Here it modifies sequences.';
   await clickNode(n=>n.nodeName==='INPUT'&&support.cdpAttribute(n,'aria-label')==='继续追问');await page.keyboard.press('Enter');await settled();assert.equal(report.aiRequests,count+1);
-  assert.equal(await ui(function(){return this.querySelector('.fr-reading-source').open}),false);await clickNode(n=>n.nodeName==='SUMMARY'&&support.cdpText(n).startsWith('原文'));assert(await ui(function(){return this.querySelector('.fr-reading-source').open}));
-  record('follow-up sends once and ordinary answers retain an expandable source');
-  nextAnswer=grammar;await menu();await clickNode(button('重新生成'));await settled();assert.equal(report.aiRequests,count+2);assert.equal(await ui(function(){return !!this.querySelector('.fr-reading-source')}),false);record('regenerate is available on demand and restores compact annotations');
+  await assertSourceSkipped();await revealSource();
+  record('follow-up sends once and upward scrolling reveals the full source');
+  nextAnswer=grammar;await menu();await clickNode(button('重新生成'));await settled();assert.equal(report.aiRequests,count+2);await assertSourceSkipped();record('regenerate is available on demand and restores compact annotations');
   await clickNode(button('返回译文'));await clickNode(button('词性与句法'));await settled();assert.equal(report.aiRequests,count+2);record('returning from translation reuses the current explanation');
   await page.setViewportSize({width:390,height:800});await wait(200);report.narrow=await layout();assert.equal(report.narrow.overflow,false);assert(report.narrow.detailVisible);assert(report.narrow.labels.every(item=>item.visible&&!item.clipped));await shot('grammar-390');
   await patch({theme:'dark'});await shot('grammar-dark');await patch({uiLanguage:'en-US'});await wait(150);

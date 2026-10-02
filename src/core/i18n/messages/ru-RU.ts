@@ -1506,6 +1506,7 @@ export const ruRUMessages = {
     "document.layoutPreview": "Предпросмотр чтения {format}",
     "document.segmentTranslation": "Перевод фрагмента {number}",
     "reading.priorTurns": "Предыдущий диалог ({count} обменов)",
+    "reading.viewSource": "Показать оригинал",
     "reading.historyTurns": "Диалогов: {count}",
     "reading.generatingAction": "{action}…",
     "reading.memoryReferences": "С учётом {count} записей памяти",

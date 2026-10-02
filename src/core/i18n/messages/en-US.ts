@@ -1511,6 +1511,7 @@ export const enUSMessages = {
     "document.layoutPreview": "{format} reading layout preview",
     "document.segmentTranslation": "Translation for segment {number}",
     "reading.priorTurns": "Earlier conversation ({count} rounds)",
+    "reading.viewSource": "View original",
     "reading.historyTurns": "{count} conversations",
     "reading.generatingAction": "{action}…",
     "reading.memoryReferences": "Using {count} memories",
