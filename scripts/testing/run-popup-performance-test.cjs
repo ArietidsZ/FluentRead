@@ -103,11 +103,8 @@ async function verifyProviders(page, context, base) {
   list = await defaultField.getByRole('combobox').getAttribute('aria-controls');
   await page.locator(`#${list}`).getByRole('option', {name: 'OpenAI', exact: true}).waitFor();
   await defaultField.getByRole('combobox').press('Escape');
-  await page.locator('[data-testid="ai-context-help"]').click();
-  await page.locator('[data-testid="ai-context-description"]').waitFor();
-  await page.locator('.drawer-heading button').click();
-  await page.locator('.popup-provider-fields').waitFor();
-  await page.locator('.drawer-header > button').click();
+  if (await page.locator('.provider-drawer-actions, [data-testid="ai-context-help"]').count()) throw new Error('Removed provider footer actions are still mounted');
+  await page.locator('.drawer-surface button[aria-label="关闭"]').click();
   await page.locator('.popup-drawer').waitFor({state: 'hidden'});
   if (await page.locator('[data-testid="ai-context-help"]:visible').count()) throw new Error('AI shortcut still in main popup');
   await page.locator('.popup-shell').screenshot({path: path.join(artifactsDir, 'popup-providers-assigned.png')});

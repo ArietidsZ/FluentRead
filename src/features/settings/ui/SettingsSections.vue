@@ -273,9 +273,10 @@
       <SettingsPanel name="general" :active="props.activePanel">
       <SettingsGroup>
         <FeatureEnableCard v-model="config.videoTranslationEnabled" title="视频字幕翻译" description="翻译 YouTube 或 X 播放器中的字幕，不上传音频或视频内容。"  />
-        <SettingsItem label="视频翻译服务" description="与网页翻译服务相互独立；AI 服务会提前预取字幕。" :disabled="!config.videoTranslationEnabled">
-          <el-select v-model="config.videoService" aria-label="视频字幕翻译服务" :disabled="!config.videoTranslationEnabled" placeholder="请选择服务" filterable>
-            <el-option v-if="selectedVideoServiceUnavailableMessage" label="Chrome内置AI翻译（当前浏览器不可用）" :value="config.videoService" disabled />
+        <SettingsItem label="视频翻译服务" description="默认跟随网页翻译服务，也可单独选择；AI 服务会提前预取字幕。" :disabled="!config.videoTranslationEnabled">
+          <el-select v-model="config.videoService" :empty-values="[null, undefined]" aria-label="视频字幕翻译服务" :disabled="!config.videoTranslationEnabled" placeholder="请选择服务" filterable>
+            <el-option :label="t('featureServices.followDefault')" value="" />
+            <el-option v-if="config.videoService && selectedVideoServiceUnavailableMessage" label="Chrome内置AI翻译（当前浏览器不可用）" :value="config.videoService" disabled />
             <el-option v-for="item in videoServiceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" />
           </el-select>
           <p v-if="selectedVideoServiceUnavailableMessage" class="capability-warning">{{ selectedVideoServiceUnavailableMessage }}</p>
@@ -1044,12 +1045,12 @@ const configuredServiceIds = computed(() => availableServiceOptions.value
 const videoServiceOptions = computed(() => availableServiceOptions.value.filter((item: any) => !item.disabled));
 const videoGlossaryDescription = computed(() => {
   if (!config.value.glossaryEnabled) return t('glossary.disabledHint');
-  const service = config.value.videoService;
+  const service = config.value.videoService || config.value.service;
   const model = resolveConfiguredModel(config.value.model[service], config.value.customModel[service]);
   return t(supportsTranslationGlossary(service, model) ? 'glossary.scopeHint' : 'glossary.unsupportedHint');
 });
 const selectedTextServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
-const selectedVideoServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.videoService));
+const selectedVideoServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.videoService || config.value.service));
 const fullPageTranslationModeOptions = [
   {value: 'viewport', label: '按阅读进度'},
   {value: 'all', label: '翻译到页底'},
@@ -1156,8 +1157,8 @@ function deleteSelectedCustomProvider(): void {
     // 不能用 `${service}:` 做前缀删除：旧 ID `custom` 也是新 ID
     // `custom:*` 的前缀，会误删其他自定义服务的免 Key 偏好。
     if (next.service === service) next.service = defaultOption.service;
-    if (next.documentService === service) next.documentService = defaultOption.service;
-    if (next.videoService === service) next.videoService = services.microsoft;
+    if (next.documentService === service) next.documentService = '';
+    if (next.videoService === service) next.videoService = '';
     next.translationCenterServices = next.translationCenterServices.filter((item) => item !== service);
     if (service === LEGACY_CUSTOM_OPENAI_PROVIDER_ID) next.custom = defaultOption.custom;
   });

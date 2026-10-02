@@ -50,7 +50,7 @@ function parseRequiredString(value: unknown, field: string): string {
 }
 
 /**
- * 从本地配置建立一次输入框翻译的独立 provider snapshot。
+ * 从本地配置按独立选择或网页默认建立输入框翻译 provider snapshot。
  * 只有通用提示词型 AI 服务接收输入框 prompt；机器翻译和原生 MT 模型沿用原配置，
  * 从而不会把无效的提示词或模型设置误传给不支持它们的 provider。
  */
@@ -62,7 +62,7 @@ export function createInputBoxTranslationRequest(
     const service = normalizeInputBoxTranslationService(
         current.inputBoxTranslationService,
         current.customOpenAIProviders,
-    );
+    ) || current.service;
     const model = normalizeInputBoxTranslationModel(current.inputBoxTranslationModel);
     const configuredModel = resolveConfiguredModel(current.model[service], current.customModel[service]);
     const effectiveModel = model || configuredModel;

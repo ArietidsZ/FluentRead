@@ -157,6 +157,13 @@ afterEach(() => {
 });
 
 describe('input translation content feature', () => {
+    it('继承服务变更作废输入请求键，独立服务忽略网页默认变更', () => {
+        const base = {on: true, service: 'google', inputBoxTranslationTrigger: 'triple_slash', inputBoxTranslationTarget: 'en', inputBoxTranslationService: ''};
+        expect(inputBoxTranslationConfigKey(base)).not.toBe(inputBoxTranslationConfigKey({...base, service: 'microsoft'}));
+        const independent = {...base, inputBoxTranslationService: 'deepseek'};
+        expect(inputBoxTranslationConfigKey(independent)).toBe(inputBoxTranslationConfigKey({...independent, service: 'microsoft'}));
+    });
+
     it.each([
         {isComposing: true}, {keyCode: 229}, {repeat: true},
         {altKey: true}, {metaKey: true}, {shiftKey: true},
@@ -238,7 +245,7 @@ describe('input translation content feature', () => {
             on: true,
             inputBoxTranslationTrigger: 'ctrl_enter',
             inputBoxTranslationTarget: 'en',
-        })).toBe(JSON.stringify([true, 'ctrl_enter', 'en', 1000, 'microsoft', '', '', '']));
+        })).toBe(JSON.stringify([true, 'ctrl_enter', 'en', 1000, 'freeTranslation', '', '', '']));
         expect(isInputBoxTranslationEnabled({on: true, inputBoxTranslationTrigger: 'ctrl_enter'}, false)).toBe(true);
         expect(isInputBoxTranslationEnabled({on: false, inputBoxTranslationTrigger: 'ctrl_enter'}, false)).toBe(false);
         expect(isInputBoxTranslationEnabled({on: true, inputBoxTranslationTrigger: 'disabled'}, false)).toBe(false);
