@@ -9,7 +9,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img :src="iconUrl" alt="" />
-        <div><strong>流畅阅读</strong><small>{{ t('options.center') }}</small></div>
+        <div><strong>流畅阅读</strong></div>
       </div>
       <p class="sidebar-tagline" data-testid="brand-tagline" data-i18n-ignore>{{ t('brand.tagline') }}</p>
 
