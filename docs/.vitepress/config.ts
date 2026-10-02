@@ -61,7 +61,7 @@ const guide = (en = false) => {
       text: en ? 'Help' : '帮助',
       items: [
         item('常见问题', 'Troubleshooting', '/guide/faq'),
-        item('数据与隐私', 'Data & privacy', '/guide/privacy'),
+        item('隐私政策', 'Privacy policy', '/guide/privacy'),
         { text: en ? 'Support the project' : '支持项目', link: supportUrl },
       ],
     },
@@ -80,6 +80,10 @@ const theme = (en = false) => ({
     {
       text: en ? 'Help' : '帮助',
       link: en ? '/en/guide/faq' : '/guide/faq',
+    },
+    {
+      text: en ? 'Privacy' : '隐私政策',
+      link: en ? '/en/guide/privacy' : '/guide/privacy',
     },
     {
       text: en ? 'Install' : '安装',
@@ -108,8 +112,8 @@ const theme = (en = false) => ({
   langMenuLabel: en ? 'Language' : '切换语言',
   footer: {
     message: en
-      ? brandTaglines['en-US']
-      : brandTaglines['zh-CN'],
+      ? `${brandTaglines['en-US']} · <a href="/en/guide/privacy">Privacy policy</a>`
+      : `${brandTaglines['zh-CN']} · <a href="/guide/privacy">隐私政策</a>`,
     copyright: '© FluentRead · GPL-3.0',
   },
 })

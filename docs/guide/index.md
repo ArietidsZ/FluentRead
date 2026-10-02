@@ -23,4 +23,4 @@ FluentRead 流畅阅读是一款开源的浏览器双语翻译插件，支持网
 
 免费翻译服务可以直接开始；需要 AI 讲解或已有付费服务时，再按[翻译服务指南](/config/translation-engines)连接。服务商可能单独收费。
 
-遇到问题请看[常见问题](/guide/faq)。想了解哪些内容会发送给服务商，请看[数据与隐私](/guide/privacy)。
+遇到问题请看[常见问题](/guide/faq)。想了解哪些内容会发送给服务商、Google Drive 配置同步的范围与删除方式，请看[隐私政策](/guide/privacy)。
