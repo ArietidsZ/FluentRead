@@ -493,7 +493,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     const currentMs = observedVideo.currentTime * 1000 - subtitleOffsetMs;
     if (!Number.isFinite(currentMs)) return;
 
-    const windowMs = getVideoPretranslationWindowMs(config.videoService);
+    const windowMs = getVideoPretranslationWindowMs(config.videoService || config.service);
     let queued = 0;
     for (const cue of pretranslationCues) {
       const endMs = cue.startMs + Math.max(cue.durationMs, 500);
@@ -1022,7 +1022,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     const selectedMode: VideoMenuMode = enabled && visible ? normalizeVideoSubtitleDisplayMode(config.videoSubtitleDisplayMode) : 'off';
     renderVideoMenuMode(menu, selectedMode, !config.on, status);
     const service = menu.querySelector<HTMLElement>('[data-service-label]');
-    if (service) service.textContent = localizeVideoUiText(getVideoServiceLabel(config.videoService), language);
+    if (service) service.textContent = localizeVideoUiText(getVideoServiceLabel(config.videoService || config.service), language);
     refreshVideoUiText(menu, language);
     refreshVideoUiAccessibility(menu, button, document, language, status);
     renderVideoSubtitleTiming(menu, subtitleOffsetMs, enabled && pretranslationCues.length > 0, language);

@@ -25,7 +25,7 @@ describe('输入框翻译配置', () => {
     it('保留默认服务、空模型与独立默认提示词，并规范化 interval', () => {
         const config = normalizeConfig({});
         expect(config.inputBoxTranslationInterval).toBe(DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL);
-        expect(config.inputBoxTranslationService).toBe(services.microsoft);
+        expect(config.inputBoxTranslationService).toBe('');
         expect(config.inputBoxTranslationModel).toBe('');
         expect(config.inputBoxTranslationPrompt).toBe('');
         expect(config.inputBoxTranslationSystemPrompt).toBe('');
@@ -40,7 +40,7 @@ describe('输入框翻译配置', () => {
         expect(normalizeConfig({inputBoxTranslationInterval: 801.9}).inputBoxTranslationInterval).toBe(801);
     });
 
-    it('无效服务回退微软，合法配置服务和用户文本保留', () => {
+    it('无效服务回退跟随默认，合法配置服务和用户文本保留', () => {
         const customOpenAIProviders = [{
             id: 'custom:input',
             name: '输入服务',
@@ -59,7 +59,7 @@ describe('输入框翻译配置', () => {
         expect(config.inputBoxTranslationPrompt).toBe('  语气自然  \n');
         expect(config.inputBoxTranslationSystemPrompt).toBe('  只输出译文  \n');
         expect(normalizeConfig({inputBoxTranslationService: 'unknown'}).inputBoxTranslationService)
-            .toBe(services.microsoft);
+            .toBe('');
     });
 
     it('执行 prompt 只补齐缺失变量，并保留用户原始指令', () => {
@@ -78,8 +78,8 @@ describe('输入框翻译配置', () => {
         expect(normalizeInputBoxTranslationInterval(200.9)).toBe(200);
         expect(normalizeInputBoxTranslationModel(12)).toBe('');
         expect(normalizeInputBoxTranslationPrompt(12)).toBe('');
-        expect(normalizeInputBoxTranslationService(null)).toBe(services.microsoft);
-        expect(normalizeInputBoxTranslationService('custom:missing')).toBe(services.microsoft);
+        expect(normalizeInputBoxTranslationService(null)).toBe('');
+        expect(normalizeInputBoxTranslationService('custom:missing')).toBe('');
         expect(normalizeInputBoxTranslationService(services.microsoft)).toBe(services.microsoft);
         expect(normalizeInputBoxTranslationService(services.deepseek)).toBe(services.deepseek);
         expect(supportsInputBoxTranslationPrompt(services.deepseek, 'deepseek-chat')).toBe(true);

@@ -4,6 +4,18 @@ import {createGlossaryLibrary} from '@/src/core/glossary';
 import {getVideoTranslationConfigFingerprint, mergeBilingualVideoSubtitleCues, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, findProgressiveVideoCaptionCue} from '@/src/features/video-subtitle/content/subtitleLogic';
 
 describe('video subtitle logic', () => {
+  it('继承默认的视频指纹随网页服务变更，独立服务不受影响', () => {
+    const config = new Config();
+    config.service = 'google';
+    const inherited = getVideoTranslationConfigFingerprint(config);
+    config.service = 'microsoft';
+    expect(getVideoTranslationConfigFingerprint(config)).not.toBe(inherited);
+    config.videoService = 'deepseek';
+    const independent = getVideoTranslationConfigFingerprint(config);
+    config.service = 'google';
+    expect(getVideoTranslationConfigFingerprint(config)).toBe(independent);
+  });
+
   it('长时间轴播放时只读取当前时段的文本，保持 seek 与原位编辑可见', () => {
     let reads = 0;
     const cues = Array.from({length: 6000}, (_, index) => ({

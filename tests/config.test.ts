@@ -521,7 +521,7 @@ describe('统一配置存储', () => {
         expect(configStore.config.videoTranslationEnabled).toBe(true);
         expect(configStore.config.selectionAreaEnabled).toBe(true);
         expect(configStore.config.disableImageTranslator).toBe(true);
-        expect(configStore.config.videoService).toBe('microsoft');
+        expect(configStore.config.videoService).toBe('');
         expect(configStore.config.videoLocalModel).toBe('tiny');
         expect(configStore.config.videoSubtitleVisible).toBe(true);
         expect(configStore.config.videoSubtitleDisplayMode).toBe('bilingual');
@@ -551,15 +551,15 @@ describe('统一配置存储', () => {
         ]));
     });
 
-    it('文档翻译遇到未知服务时回退到免费翻译服务', async () => {
+    it('文档翻译遇到未知服务时回退到跟随默认', async () => {
         const configStore = await loadConfigModule({...storedConfig, documentService: 'unknown-service'});
 
         await configStore.configReady;
 
-        expect(configStore.config.documentService).toBe('freeTranslation');
+        expect(configStore.config.documentService).toBe('');
     });
 
-    it('保留用户选择的视频 AI 服务，并将未知服务回退到微软翻译', async () => {
+    it('保留用户选择的视频 AI 服务，并将未知服务回退到跟随默认', async () => {
         const aiConfigStore = await loadConfigModule({ ...storedConfig, videoService: 'openai' });
 
         await aiConfigStore.configReady;
@@ -570,19 +570,19 @@ describe('统一配置存储', () => {
 
         await invalidConfigStore.configReady;
 
-        expect(invalidConfigStore.config.videoService).toBe('microsoft');
+        expect(invalidConfigStore.config.videoService).toBe('');
     });
 
-    it('把早期 Beta 写入的 DeepLX 默认值一次迁移为微软翻译', async () => {
+    it('把早期 Beta 写入的 DeepLX 默认值一次迁移为跟随默认', async () => {
         const configStore = await loadConfigModule({ ...storedConfig, videoService: 'deeplx' });
 
         await configStore.configReady;
 
-        expect(configStore.config.videoService).toBe('microsoft');
+        expect(configStore.config.videoService).toBe('');
         expect(configStore.config.videoServiceDefaultMigrated).toBe(true);
         expect(storageMock.setItem).toHaveBeenCalledWith(
             'local:config',
-            expect.objectContaining({ videoService: 'microsoft', videoServiceDefaultMigrated: true }),
+            expect.objectContaining({ videoService: '', videoServiceDefaultMigrated: true }),
         );
     });
 

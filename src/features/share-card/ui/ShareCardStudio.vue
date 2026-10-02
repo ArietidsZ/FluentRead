@@ -1,14 +1,11 @@
 <!--
  * @file src/features/share-card/ui/ShareCardStudio.vue
- * 文件职责：提供双语卡片的轻量入口和所见即所得编辑预览，服务网页段落与划词结果。
+ * 文件职责：提供划词翻译结果的双语卡片编辑预览与图片导出。
  * 主要内容：让多语言导出操作完整换行，原生模态对话框、品牌色分段选择与开关、八套图片风格、双语编辑及 PNG 导出；固定底栏提供醒目的成功、错误和忙碌反馈，外观写回共享配置。
  * 模块边界：组件位于封闭 Shadow UI，不读取网页正文、不调用翻译服务；渲染与导出委托独立适配器，关闭时释放 Blob URL 并使迟到渲染失效。
  -->
 <template>
   <div class="fr-card-root" @pointerdown.stop @pointerup.stop @click.stop @wheel.stop.passive>
-    <button v-if="anchor && !opened" class="fr-card-launcher" :style="{left: `${anchor.x}px`, top: `${anchor.y}px`}" type="button" @click="emit('activate')">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8" cy="9" r="1.3"/><path d="m4 17 5-5 4 4 3-3 4 4"/></svg>{{ t('shareCard.create') }}
-    </button>
     <dialog ref="dialog" class="fr-card-dialog" :lang="language" aria-labelledby="fr-card-title" @cancel.prevent="close" @close="cleanup" @keydown.stop @pointerdown.stop @click.stop>
       <template v-if="opened">
         <header class="fr-card-header">
@@ -86,8 +83,7 @@ import {SHARE_CARD_MAX_CHARACTERS, type ShareCardExcerpt} from '../core';
 import {renderShareCard, ShareCardRenderError, type RenderedShareCard} from '../render';
 import {canCopyCardImage, canShareCardImage, copyCardImage, shareCardFilename, shareCardImage} from '../export';
 
-const anchor = ref<{x: number; y: number} | null>(null);
-const emit = defineEmits<{activate: []; closed: []}>();
+const emit = defineEmits<{closed: []}>();
 const {t, language} = useUiI18n();
 const dialog = ref<HTMLDialogElement>();
 const canvasSlot = ref<HTMLElement>();
@@ -197,7 +193,7 @@ async function exportImage(kind: 'copy' | 'share'): Promise<void> {
 }
 watch([preferences, excerpt, language], scheduleRender, {deep: true, flush: 'sync'});
 onBeforeUnmount(() => { disposed = true; dialog.value?.close(); cleanup(); clearTimeout(renderTimer); releaseImage(); });
-defineExpose({open, close, setAnchor: (value: {x: number; y: number} | null) => { anchor.value = value; }});
+defineExpose({open, close});
 </script>
 
 <style scoped>
@@ -206,8 +202,6 @@ defineExpose({open, close, setAnchor: (value: {x: number; y: number} | null) => 
 button, input, textarea, select { font: inherit; } button, select, input[type=checkbox], summary { cursor: pointer; }
 button { border: 1px solid #dfe1e8; border-radius: 8px; background: #fff; color: inherit; padding: 9px 13px; } button:hover { background: #f5f6fa; } button:disabled { cursor: default; opacity: .45; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--fr-card-accent); outline-offset: 3px; }
-.fr-card-launcher { position: fixed; display: flex; align-items: center; gap: 6px; padding: 6px 10px; box-shadow: 0 3px 12px #172c2620; white-space: nowrap; font-size: 12px; z-index: 2147483647; }
-.fr-card-launcher svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; }
 .fr-card-dialog { position: fixed; inset: 0; margin: auto; width: min(560px, calc(100vw - 24px)); max-width: none; max-height: min(800px, calc(100dvh - 32px)); padding: 0; border: 1px solid #e5e8ef; border-radius: 16px; background: #ffffff; color: #172033; box-shadow: 0 24px 80px #14261f30; overflow: hidden; overscroll-behavior: contain; }
 .fr-card-dialog[open] { display: flex; flex-direction: column; } .fr-card-dialog::backdrop { background: #171b3066; }
 .fr-card-header { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 16px 22px 12px; flex-shrink: 0; }
