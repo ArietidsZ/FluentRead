@@ -301,7 +301,9 @@
       "tests/shareCardRender.test.ts",
       "tests/shareCardRuntime.test.ts",
       "tests/shareCardExport.test.ts",
-      "tests/shareCardStudio.test.ts"
+      "tests/shareCardStudio.test.ts",
+      "tests/videoCaptionPlatforms.test.ts",
+      "tests/videoSubtitleDownloads.test.ts"
     ],
     "functional": [
       "tests/translationCenterComponent.test.ts",
@@ -385,7 +387,8 @@
       "tests/languageIdentificationCorpus.test.ts",
       "tests/sameTargetLanguageClient.test.ts",
       "tests/sameTargetLanguageSlots.test.ts",
-      "tests/sectionTranslationPicker.test.ts"
+      "tests/sectionTranslationPicker.test.ts",
+      "tests/videoCaptionPlatformRuntime.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",
