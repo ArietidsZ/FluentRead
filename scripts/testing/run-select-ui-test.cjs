@@ -7,7 +7,7 @@ const arg = (key, fallback) => { const i = process.argv.indexOf('--' + key); ret
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const output = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-select-ui-production'));
 const {chromium} = require(path.join(arg('playwright-root', ''), 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper', ''));
+const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper', ''));
 const report = {ok: false, extensionDir, caseCoverage: [], screenshots: [], consoleErrors: [], persistenceCases: [], responsive: []};
 const check = (condition, message) => { if (!condition) throw new Error(message); report.caseCoverage.push(message); };
 fs.mkdirSync(output, {recursive: true});
@@ -94,17 +94,21 @@ fs.mkdirSync(output, {recursive: true});
     check(await popup().locator('.el-select-dropdown__item:visible').count() === 1, '搜索 DeepSeek 只显示匹配服务'); await shot('options-service-search');
     await service.press('ArrowDown'); await service.press('Enter'); await popup().waitFor({state: 'hidden'});
     check((await root(service).innerText()).includes('DeepSeek'), '方向键和 Enter 选择服务');
-    await open(service); await page.locator('.topbar h1').click(); await popup().waitFor({state: 'hidden'});
+    await open(service); await page.locator('.sidebar').click({position: {x: 6, y: 6}}); await popup().waitFor({state: 'hidden'});
     check(await service.getAttribute('aria-expanded') === 'false', '点击外部关闭菜单');
     await choose(target, 'French');
     const expectedTarget = await root(target).locator('.el-select__placeholder').innerText();
     // 译文样式已改为界面风格页的样式卡片；通用设置只保留跳转入口，不再是下拉菜单。
     check(await page.getByTestId('open-translation-style-settings').count() === 1 && await page.getByRole('combobox', {name: '译文样式', exact: true}).count() === 0, '通用设置提供译文样式入口且不再保留旧下拉框');
     // 立即关闭选项页，验证已有后台持久化路径，不只检查当前 DOM。
-    await page.close(); await newPage(); await go(report.manifest.options);
+    const previousPage = page;
+    const previousTab = await previousPage.evaluate(async () => (await chrome.tabs.getCurrent()).id);
+    await newPage(); await go(report.manifest.options);
+    await activateExtensionTabWithoutForeground(context, page);
+    await page.evaluate(tabId => chrome.tabs.remove(tabId), previousTab);
     check((await read()).service === 'deepseek', '服务选择关闭页面后仍保存');
     check((await page.locator('[data-config-field="to"] .el-select__placeholder').innerText()) === expectedTarget, '语言选择关闭页面后仍保存');
-    report.persistenceCases.push({close: 'page.close', reopenedService: (await read()).service, reopenedLanguage: (await read()).to, visibleLanguage: expectedTarget});
+    report.persistenceCases.push({close: 'chrome.tabs.remove after background parking', reopenedService: (await read()).service, reopenedLanguage: (await read()).to, visibleLanguage: expectedTarget});
     await shot('options-reopened');
     const uiLanguage = page.locator('[data-testid="ui-language-select"] input');
     await open(uiLanguage, 'interface-language-menu');
@@ -120,6 +124,7 @@ fs.mkdirSync(output, {recursive: true});
       check(await input.evaluate(el => getComputedStyle(el).outlineStyle === 'none'), `${skin}/${theme} 搜索输入没有重复焦点框`);
       report.responsive.push({skin, theme, ...m}); await close(input);
     }
+    if (process.argv.includes('--controls-only')) { report.ok = true; return; }
     await patch({theme:'light',interfaceSkin:'default'}); await page.setViewportSize({width:1440,height:1000});
     await nav('settings-model-usage');
     const usage = page.getByRole('combobox', {name:'模型用量服务',exact:true});

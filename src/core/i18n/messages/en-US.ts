@@ -18,6 +18,7 @@ import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
     "brand.tagline": brandTaglines['en-US'],
+    "popup.translationCount": "{count} translations",
     "translationCenter.endpointMissing": "Set the custom service endpoint first.",
     "translationCenter.modelMissing": "Choose or enter a model first.",
     "translationCenter.noReady": "Configure at least one service to translate.",

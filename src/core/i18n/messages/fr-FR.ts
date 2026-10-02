@@ -17,6 +17,7 @@ import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
     "brand.tagline": brandTaglines['fr-FR'],
+    "popup.translationCount": "{count} traductions",
     "translationCenter.endpointMissing": "Renseignez d’abord l’adresse du service personnalisé.",
     "translationCenter.modelMissing": "Choisissez ou saisissez d’abord un modèle.",
     "translationCenter.noReady": "Configurez au moins un service pour traduire.",

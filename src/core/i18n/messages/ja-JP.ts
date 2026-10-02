@@ -17,6 +17,7 @@ import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
     "brand.tagline": brandTaglines['ja-JP'],
+    "popup.translationCount": "翻訳 {count} 回",
     "translationCenter.endpointMissing": "先にカスタムサービスの URL を設定してください。",
     "translationCenter.modelMissing": "先にモデルを選択・入力してください。",
     "translationCenter.noReady": "翻訳するには少なくとも一つのサービスを設定してください。",

@@ -1,7 +1,7 @@
 <!--
  * @file src/ui/components/UiLanguageOnboarding.vue
  * 文件职责：承载 FluentRead Popup 首次打开时的欢迎与界面语言选择引导。
- * 主要内容：以正常文档流撑开工具栏 Popup，先展示多语言欢迎画面与中英文品牌宣传语，再进入语言卡片选择；确认后显示成功动效并把控制权交回主界面。
+ * 主要内容：以正常文档流撑开工具栏 Popup，先加载英语资源并展示多语言欢迎画面与中英文品牌宣传语，再进入语言卡片选择；确认后显示成功动效并把控制权交回主界面。
  * 模块边界：组件只负责首次引导的呈现与确认，不读取配置、不决定浏览器 locale 映射；配置保存由 src/ui/i18n.ts 负责，语言规则由 src/core/i18n 提供。
 -->
 <template>
@@ -141,6 +141,7 @@ import {
   type UiLanguage,
 } from '@/src/core/i18n';
 import {useUiI18n} from '@/src/ui/i18n';
+import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
 
 const props = defineProps<{
   initialLanguage: UiLanguage;
@@ -171,6 +172,7 @@ const languageOptionButtons = ref<HTMLButtonElement[]>([]);
 const confirming = ref(false);
 const celebrating = ref(false);
 const errorMessage = ref('');
+const englishReady = ref(false);
 let transitionTimer: ReturnType<typeof setTimeout> | undefined;
 
 watch(() => props.initialLanguage, value => {
@@ -186,11 +188,11 @@ function messageZh(key: string, params?: TranslationParams): string {
 }
 
 function messageEn(key: string, params?: TranslationParams): string {
-  return translate(key, 'en-US', params);
+  return englishReady.value ? translate(key, 'en-US', params) : '';
 }
 
 function bilingualMessage(key: string, params?: TranslationParams): string {
-  return `${messageZh(key, params)} / ${messageEn(key, params)}`;
+  return [messageZh(key, params), messageEn(key, params)].filter(Boolean).join(' / ');
 }
 
 function focusCurrentStep(): void {
@@ -235,7 +237,10 @@ onBeforeUnmount(() => {
 });
 
 watch(step, focusCurrentStep);
-onMounted(focusCurrentStep);
+onMounted(() => {
+  focusCurrentStep();
+  void ensureUiLanguageBundle('en-US').then(loaded => { englishReady.value = loaded; });
+});
 </script>
 
 <style scoped>

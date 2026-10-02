@@ -1,13 +1,14 @@
 <!--
  * @file src/ui/components/UiSelect.vue
  * 文件职责：提供扩展界面统一的下拉选择外观，避免浏览器原生菜单破坏品牌风格。
- * 主要内容：复用 Element Plus 的选择、筛选、多选、键盘与弹层定位，支持按调用方需要独立关闭搜索装饰，透传属性、事件和插槽并统一菜单主题及窄屏边界。
+ * 主要内容：复用 Element Plus 的选择、筛选、多选、键盘与弹层定位，支持按调用方需要独立关闭搜索装饰，单选长标签在关闭时自然换行，透传属性、事件和插槽并统一菜单主题及窄屏边界。
  * 模块边界：不解释选项、不读写配置；选项内容和挂载容器由调用方提供，不用于宿主网页原生控件。
  -->
 <template>
   <ElSelect
     ref="select"
     class="fluentread-select"
+    :class="{'fluentread-select--wrap-label': wrapLabel && !multiple && !menuOpen}"
     :show-arrow="false"
     :offset="6"
     :fit-input-width="true"
@@ -40,12 +41,13 @@ import {useUiI18n} from '@/src/ui/i18n';
 import 'element-plus/es/components/select/style/css';
 defineOptions({inheritAttrs: false});
 withDefaults(defineProps<{
+  wrapLabel?: boolean
   popperClass?: string
   filterable?: boolean
   showSearchIcon?: boolean
   multiple?: boolean
   searchPlaceholder?: string
-}>(), {showSearchIcon: true});
+}>(), {showSearchIcon: true, wrapLabel: true});
 const {t} = useUiI18n();
 const menuOpen = ref(false);
 const slots: Slots = useSlots();
@@ -109,6 +111,19 @@ defineExpose({
 .fluentread-select .el-select__input:focus-visible { outline: none !important; }
 .fluentread-select .el-select__placeholder.is-transparent { color: var(--muted, #737c8f); }
 .fluentread-select .el-select__caret { color: var(--muted, #737c8f); font-size: 14px; }
+.fluentread-select--wrap-label .el-select__selection { align-items: center; }
+/* 关闭时用标签撑开高度，筛选输入保留焦点入口但不额外占一行。 */
+.fluentread-select--wrap-label .el-select__input-wrapper { position: absolute; inset: 0; opacity: 0; }
+.fluentread-select--wrap-label .el-select__placeholder {
+  position: static;
+  transform: none;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.fluentread-select--wrap-label .el-select__placeholder > span { white-space: normal; }
 .fluentread-select-search-icon { width: 15px; height: 15px; flex: none; fill: none; stroke: var(--muted, #737c8f); stroke-width: 1.5; stroke-linecap: round; }
 .fluentread-select .el-tag { --el-tag-text-color: var(--ink, #172033); --el-tag-bg-color: var(--surface, #fff); --el-tag-border-color: var(--line, #e5e8ef); border-radius: 6px; }
 
