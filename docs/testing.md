@@ -46,7 +46,7 @@
 
 `tests/googleDriveEncryption.test.ts`、`tests/googleDriveConfig.test.ts`、`tests/googleDriveAuth.test.ts`、`tests/googleDriveApi.test.ts`、`tests/googleDriveSync.test.ts`、`tests/googleDriveSyncClient.test.ts` 和 `tests/backgroundGoogleDriveSync.test.ts` 验证完整凭据快照、认证加密、账号隔离、差异隐藏、三方合并、过期与一次性预览、MV3 后台重启恢复和失败回滚。`tests/i18n.test.ts` 还验证同步状态及隐藏内容的多语言展示。
 
-生产扩展构建后执行 `node scripts/testing/run-google-drive-sync-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <扩展界面测试技能>/scripts/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用临时 Edge profile、第二屏后台可见窗口，先验证实际 Edge 的不支持提示，再注入虚构 Chrome Identity 与 Google Drive 响应；检查真实页面的预览、上传与下载方向、加密完整凭据恢复、错误口令、私有存储边界、离开后清空口令，以及中英文 390px 布局。
+生产扩展构建后执行 `node scripts/testing/run-google-drive-sync-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <扩展界面测试技能>/scripts/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用临时 Edge profile、第二屏后台可见窗口，先验证实际 Edge 的不支持提示，再注入虚构 Chrome Identity 与 Google Drive 响应；检查真实页面的预览、上传与下载方向、加密完整凭据恢复、损坏文件阻断、私有存储边界、无口令输入流程，以及中英文 390px 布局。
 
 该证据覆盖生产扩展页面、后台 Web Crypto 与实际配置存储；Google 登录授权和 Drive HTTP 为受控夹具，不代表真实 Google 账号、两台设备或商店发行版本的联调结果。配置与公开发布步骤见 [Google Drive 同步教程](./maintainers/google-drive-sync-guide.md)。
 

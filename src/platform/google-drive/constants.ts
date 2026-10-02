@@ -17,3 +17,6 @@ export const GOOGLE_DRIVE_MAX_BYTES = 5 * 1024 * 1024;
 
 // Chrome 商店 CRX 签名中的公开公钥；SHA-256 前 16 字节对应上方官方扩展 ID。
 export const GOOGLE_DRIVE_EXTENSION_PUBLIC_KEY = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzyYQdG/K1kp2h+orQITmCJYrUP3FkUgay+KYlUMO74J0uaOBJ0A2lz0kooci0epVm3DKIqiFMQs8g5pGxKfwieLYju4/v6jK4X3AnRH+3Wj0WhnY0yMD61IN/HissrFnmBTfApW7BoVfjUUwhsHJ7pYJHMhgpbidJ15SA7X82iRpu+WxE413BKSi2q6TwNSgi7D1Vq6W9Iuaz1tPQW9CGgfir3P5enUqUasLv6icLVXq5xduFISrsJxZW0dJyGxpwOqEBGbg2g9i73M/iFao7N7pZdBvZJh63ZzlZTNM7FshCzkZpM0MJhuJhrLmR1AYCWQ1kiTfwCX+6EvAgBQyrQIDAQAB';
+
+// 固定应用口令是公开的格式兼容参数；拿到密文的人可以据此解密，访问保护依赖 Google 授权。
+export const GOOGLE_DRIVE_APPLICATION_PASSPHRASE = 'FluentReadEncryption';

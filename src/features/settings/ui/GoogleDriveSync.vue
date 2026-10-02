@@ -1,8 +1,8 @@
 <!--
 @file src/features/settings/ui/GoogleDriveSync.vue
 文件职责：提供 Google Drive 完整配置同步入口和用户确认预览。
-主要内容：连接账号、输入临时口令、选择方向、逐项处理隐藏内容的冲突与失败提示。
-模块边界：页面不获取完整同步快照或令牌；关闭预览或离开页面会清空口令。
+主要内容：连接账号、自动加密、选择方向、逐项处理隐藏内容的冲突与失败提示。
+模块边界：页面不获取完整同步快照或令牌；固定应用口令由后台使用；页面不提供用户口令输入。
 -->
 <template>
   <section class="drive-sync" data-testid="google-drive-sync" aria-labelledby="drive-sync-title" :aria-busy="busy">
@@ -11,18 +11,14 @@
       <span class="drive-badge">本机加密</span>
     </header>
     <p class="drive-boundary">包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。</p>
+    <p class="drive-boundary">使用固定应用口令自动加密，无需输入。此口令随源码公开；云端文件的访问保护依赖 Google 账号和授权。</p>
     <p class="drive-status" role="status">{{ statusText }}</p>
     <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="drive-error" />
     <div v-if="status?.available" class="drive-actions">
       <el-button v-if="!status.account" type="primary" :loading="busy" data-testid="google-drive-connect" @click="connect">连接 Google 账号</el-button>
       <template v-else>
-        <div class="drive-password">
-          <label for="drive-passphrase">同步口令</label>
-          <el-input id="drive-passphrase" v-model="passphrase" type="password" show-password autocomplete="off" :disabled="busy" placeholder="至少 12 个字符，所有设备使用同一口令" />
-          <small>请使用自己独有的长口令并妥善保存。口令不会上传或保存；遗忘后无法解密云端配置。</small>
-        </div>
         <div class="drive-buttons">
-          <el-button type="primary" :loading="busy" :disabled="passphrase.trim().length < 12" data-testid="google-drive-preview" @click="prepare">预览同步</el-button>
+          <el-button type="primary" :loading="busy" :disabled="busy" data-testid="google-drive-preview" @click="prepare">预览同步</el-button>
           <el-button :disabled="busy" @click="disconnect">断开连接</el-button>
         </div>
       </template>
@@ -56,10 +52,6 @@
           <el-pagination v-if="preview.changes.length > 40" v-model:current-page="page" :page-size="40" :total="preview.changes.length" layout="prev, pager, next" />
         </template>
         <p v-else-if="preview.hasRemote">两端配置相同。</p>
-        <div v-if="!preview.hasRemote" class="drive-password drive-confirmation">
-          <label for="drive-passphrase-confirm">再次输入同步口令</label>
-          <el-input id="drive-passphrase-confirm" v-model="confirmation" type="password" autocomplete="off" :disabled="busy" placeholder="确认口令，避免创建无法解密的备份" />
-        </div>
         <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
       </template>
       <template #footer>
@@ -86,8 +78,6 @@ const {t, translateLegacy} = useUiI18n();
 const status = ref<DriveSyncStatus | null>(null);
 const busy = ref(false);
 const error = ref('');
-const passphrase = ref('');
-const confirmation = ref('');
 const preview = ref<DriveSyncPreview | null>(null);
 const previewVisible = ref(false);
 const direction = ref<DriveSyncDirection | ''>('');
@@ -97,7 +87,7 @@ const visibleChanges = computed(() => preview.value?.changes.slice((page.value -
 const statusText = computed(() => !status.value ? '正在检查同步状态…' : !status.value.available ? status.value.reason : !status.value.account ? '尚未连接 Google 账号' : status.value.lastSyncedAt ? t('settings.drive.lastSync', {email: status.value.account.email, time: new Date(status.value.lastSyncedAt).toLocaleString()}) : t('settings.drive.neverSync', {email: status.value.account.email}));
 const directionHint = computed(() => direction.value === 'upload' ? '本机完整配置及凭据将替换云端快照。' : direction.value === 'download' ? '云端完整配置及凭据将替换本机设置。' : direction.value === 'merge' ? '未冲突的修改已自动选择；请确认每项冲突的保留方向。' : '请先选择同步方向。');
 const commitLabel = computed(() => direction.value === 'download' ? '下载并应用' : direction.value === 'merge' ? '合并并同步' : '加密并上传');
-const canCommit = computed(() => Boolean(preview.value && direction.value && (preview.value.hasRemote || confirmation.value === passphrase.value) && (direction.value !== 'merge' || preview.value.changes.every(change => choices.value[change.id] === 'local' || choices.value[change.id] === 'remote'))));
+const canCommit = computed(() => Boolean(preview.value && direction.value && (direction.value !== 'merge' || preview.value.changes.every(change => choices.value[change.id] === 'local' || choices.value[change.id] === 'remote'))));
 let alive = true;
 async function perform(operation: () => Promise<void>) {
   if (busy.value) return;
@@ -107,15 +97,14 @@ async function perform(operation: () => Promise<void>) {
   finally {if (alive) busy.value = false;}
 }
 async function connect() {await perform(async () => {status.value = await client.connect();});}
-async function disconnect() {await perform(async () => {await client.disconnect(); passphrase.value = ''; status.value = await client.status();});}
+async function disconnect() {await perform(async () => {await client.disconnect(); status.value = await client.status();});}
 async function prepare() {
   await perform(async () => {
-    const result = await client.prepare(passphrase.value);
+    const result = await client.prepare();
     if (!alive) {await client.cancel(); return;}
     preview.value = result;
     choices.value = Object.fromEntries(result.changes.filter(change => change.recommended).map(change => [change.id, change.recommended!]));
     direction.value = !result.hasRemote ? 'upload' : result.hasBaseline ? 'merge' : '';
-    confirmation.value = '';
     page.value = 1;
     previewVisible.value = true;
   });
@@ -126,12 +115,12 @@ async function commit() {
     try {await ElMessageBox.confirm(directionHint.value, '确认替换完整配置', {confirmButtonText: '确认替换', cancelButtonText: '返回预览', type: 'warning'});} catch {return;}
   }
   await perform(async () => {
-    status.value = await client.commit(preview.value!.id, passphrase.value, direction.value as DriveSyncDirection, choices.value);
+    status.value = await client.commit(preview.value!.id, direction.value as DriveSyncDirection, choices.value);
     previewVisible.value = false;
     ElMessage.success('Google Drive 配置同步完成');
   });
 }
-function clearPreview() {preview.value = null; passphrase.value = ''; confirmation.value = ''; choices.value = {}; void client.cancel().catch(() => undefined);}
+function clearPreview() {preview.value = null; choices.value = {}; void client.cancel().catch(() => undefined);}
 onMounted(() => {void perform(async () => {
   try {status.value = await client.status();}
   catch (failure) {
@@ -146,12 +135,10 @@ onUnmounted(() => {alive = false; clearPreview();});
 .drive-sync {padding: 24px; margin-bottom: 24px; border: 1px solid var(--el-border-color); border-radius: 16px; background: var(--el-bg-color); color: var(--el-text-color-primary);}
 .drive-heading {display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;}
 .drive-heading h2 {margin: 0; font-size: 19px;}
-.drive-heading p, .drive-boundary, .drive-footnote, .drive-password small, .drive-direction p {color: var(--el-text-color-secondary); font-size: 13px; line-height: 1.7;}
+.drive-heading p, .drive-boundary, .drive-footnote, .drive-direction p {color: var(--el-text-color-secondary); font-size: 13px; line-height: 1.7;}
 .drive-badge {white-space: nowrap; border-radius: 20px; padding: 4px 10px; font-size: 12px; color: var(--el-color-primary); background: var(--el-color-primary-light-9);}
 .drive-status, .drive-preview-account {overflow-wrap: anywhere; font-size: 14px;}
 .drive-error, .drive-actions {margin-top: 16px;}
-.drive-password {display: grid; gap: 8px; max-width: 580px;}
-.drive-password label {font-weight: 600; font-size: 14px;}
 .drive-buttons {display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px;}
 .drive-buttons :deep(.el-button) {margin-left: 0;}
 .drive-footnote {margin-bottom: 0;}
@@ -163,6 +150,5 @@ onUnmounted(() => {alive = false; clearPreview();});
 .drive-change strong span {font-size: 12px; font-weight: 400; color: var(--el-color-warning); margin-left: 8px;}
 .drive-values {display: grid; grid-template-columns: 1fr 1fr; gap: 16px; overflow-wrap: anywhere;}
 .drive-values p {font-size: 13px; color: var(--el-text-color-secondary);}
-.drive-confirmation {margin: 18px 0;}
 @media (max-width: 600px) {.drive-sync {padding: 16px;}.drive-heading {flex-wrap: wrap;}.drive-values {grid-template-columns: 1fr; gap: 0;}.drive-direction :deep(.el-radio-group) {display: flex; flex-wrap: wrap; gap: 6px;}.drive-direction :deep(.el-radio-button__inner) {border: 1px solid var(--el-border-color); border-radius: 6px;}}
 </style>

@@ -1,5 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {createGoogleDriveSyncHandler, isGoogleDriveSettingsSender, GOOGLE_DRIVE_SYNC_MESSAGE_TYPE as type} from '@/src/app/background/handlers/googleDriveSync';
+import {GOOGLE_DRIVE_APPLICATION_PASSPHRASE} from '@/src/platform/google-drive/constants';
 import {DriveError} from '@/src/platform/google-drive/auth';
 import {DriveEncryptionError} from '@/src/platform/google-drive/encryption';
 import {DriveConfigError} from '@/src/core/config/driveSync';
@@ -25,22 +26,22 @@ describe('Google Drive 可信消息协议', () => {
             expect(await allowed.handler.handle({type, action}, {})).toMatchObject({success: true});
             expect(allowed.service[action]).toHaveBeenCalledOnce();
         }
-        await allowed.handler.handle({type, action: 'prepare', passphrase: 'fixture long password'}, {});
-        expect(allowed.service.prepare).toHaveBeenCalledWith('fixture long password');
-        await allowed.handler.handle({type, action: 'commit', passphrase: 'fixture long password', id: 'fixture-id', direction: 'merge', choices: {'0': 'local', '1': 'remote'}}, {});
-        expect(allowed.service.commit).toHaveBeenCalledWith('fixture-id', 'fixture long password', 'merge', {'0': 'local', '1': 'remote'});
+        await allowed.handler.handle({type, action: 'prepare'}, {});
+        expect(allowed.service.prepare).toHaveBeenCalledWith(GOOGLE_DRIVE_APPLICATION_PASSPHRASE);
+        await allowed.handler.handle({type, action: 'commit', id: 'fixture-id', direction: 'merge', choices: {'0': 'local', '1': 'remote'}}, {});
+        expect(allowed.service.commit).toHaveBeenCalledWith('fixture-id', GOOGLE_DRIVE_APPLICATION_PASSPHRASE, 'merge', {'0': 'local', '1': 'remote'});
     });
-    it('拒绝非法动作、口令、预览 ID、方向与冲突选择', async () => {
+    it('拒绝非法动作、预览 ID、方向与冲突选择', async () => {
         const f = fixture();
-        for (const message of [{}, {action: 'bad'}, {action: 'prepare'}, {action: 'prepare', passphrase: 1}, {action: 'commit'}, {action: 'commit', passphrase: 'fixture'}, {action: 'commit', passphrase: 'fixture', id: 'x'.repeat(65)}, {action: 'commit', passphrase: 'fixture', id: 'id', direction: 'bad'}]) expect(await f.handler.handle({type, ...message}, {})).toMatchObject({success: false});
-        for (const choices of [undefined, null, [], 1, {'bad-secret-field': 'local'}, {'0': 'bad'}, Object.fromEntries(Array.from({length: 50_001}, (_, id) => [String(id), 'local']))]) expect(await f.handler.handle({type, action: 'commit', passphrase: 'fixture', id: 'id', direction: 'merge', choices}, {})).toMatchObject({success: false});
+        for (const message of [{}, {action: 'bad'}, {action: 'commit'}, {action: 'commit', id: 'x'.repeat(65)}, {action: 'commit', id: 'id', direction: 'bad'}]) expect(await f.handler.handle({type, ...message}, {})).toMatchObject({success: false});
+        for (const choices of [undefined, null, [], 1, {'bad-secret-field': 'local'}, {'0': 'bad'}, Object.fromEntries(Array.from({length: 50_001}, (_, id) => [String(id), 'local']))]) expect(await f.handler.handle({type, action: 'commit', id: 'id', direction: 'merge', choices}, {})).toMatchObject({success: false});
         expect(f.service.commit).not.toHaveBeenCalled();
     });
     it('只返回已知安全错误，绝不反射外部错误或密钥', async () => {
         const f = fixture();
         for (const error of [new DriveError('fixture safe drive error'), new DriveEncryptionError('fixture safe encryption error'), new DriveConfigError('fixture safe config error')]) {
             vi.mocked(f.service.status).mockRejectedValueOnce(error);
-            expect(await f.handler.handle({type, action: 'status'}, {})).toEqual({success: false, error: error.message});
+            expect(await f.handler.handle({type, action: 'status'}, {})).toEqual({success: false, error: error instanceof DriveEncryptionError ? '同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。' : error.message});
         }
         for (const error of [new Error('fixture-private-upstream-key'), 'fixture-private-token', null]) {
             vi.mocked(f.service.status).mockRejectedValueOnce(error);

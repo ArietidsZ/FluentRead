@@ -79,21 +79,17 @@ async function main() {
         await page.locator('[data-testid="google-drive-connect"]').waitFor();
         check(await worker.evaluate(() => globalThis.__driveFixture.authorizations === 0), 'opening settings never requests interactive authorization');
         await page.locator('[data-testid="google-drive-connect"]').click();
-        await page.locator('#drive-passphrase').waitFor();
-        const password = 'fixture UI secure passphrase';
-        await page.locator('#drive-passphrase').fill(password);
+        await page.locator('[data-testid="google-drive-preview"]').waitFor();
+        check(await card.locator('input[type="password"]').count() === 0, 'connected account never asks for a passphrase');
         await page.locator('[data-testid="google-drive-preview"]').click();
-        await page.locator('#drive-passphrase-confirm').waitFor();
+        await page.locator('.el-dialog').waitFor();
         check(await worker.evaluate(() => globalThis.__driveFixture.uploads === 0), 'preview has no cloud write');
-        check(await page.locator('[data-testid="google-drive-confirm"]').isDisabled(), 'first upload requires matching confirmation');
-        await page.locator('#drive-passphrase-confirm').fill('different fixture password');
-        check(await page.locator('[data-testid="google-drive-confirm"]').isDisabled(), 'mismatched confirmation blocks upload');
-        await page.locator('#drive-passphrase-confirm').fill(password);
+        check(await page.locator('.el-dialog input[type="password"]').count() === 0, 'first upload needs no passphrase confirmation');
+        check(await page.locator('[data-testid="google-drive-confirm"]').isEnabled(), 'first upload is ready after explicit preview');
         await page.locator('[data-testid="google-drive-confirm"]').click();
         await page.getByText('Google Drive 配置同步完成', {exact: true}).waitFor();
         await page.locator('.el-dialog').waitFor({state: 'hidden'});
-        check(await page.locator('#drive-passphrase').inputValue() === '', 'successful sync clears passphrase');
-        check(await worker.evaluate(pass => {const state = globalThis.__driveFixture; return state.uploads === 1 && !state.content.includes(pass) && !state.content.includes('fixture-identity-token');}, password), 'upload contains encryption envelope only');
+        check(await worker.evaluate(() => {const state = globalThis.__driveFixture; return state.uploads === 1 && !state.content.includes('FluentReadEncryption') && !state.content.includes('fixture-identity-token');}), 'upload contains encryption envelope only');
 
         // 使用现有可信配置保存端口修改虚构凭据与语言，验证真实配置存储恢复。
         async function savePatch(patch, sequence) {
@@ -106,7 +102,6 @@ async function main() {
             check(response.success === true, `real background config persistence ${sequence}${response.success ? '' : `: ${response.error}`}`);
         }
         await savePatch({to: 'fr', token: {openai: 'fixture-private-api-key'}, apiKeys: {openai: ['fixture-private-api-key']}, customBody: {openai: '{"auth":"fixture-private-body"}'}, proxy: {openai: 'https://fixture.invalid/?key=fixture-private-url'}}, 1);
-        await page.locator('#drive-passphrase').fill(password);
         await page.locator('[data-testid="google-drive-preview"]').click();
         await page.locator('.drive-change').first().waitFor();
         const dialog = page.locator('.el-dialog');
@@ -122,11 +117,17 @@ async function main() {
         await page.locator('.el-dialog').waitFor({state: 'hidden'});
         check(await worker.evaluate(() => !globalThis.__driveFixture.content.includes('fixture-private')), 'complete credentials remain opaque in cloud fixture');
         await savePatch({to: 'de', token: {}, apiKeys: {}, customBody: {}, proxy: {}}, 2);
-        await page.locator('#drive-passphrase').fill('incorrect fixture password');
+        await worker.evaluate(() => {
+            const state = globalThis.__driveFixture;
+            state.originalContent = state.content;
+            const envelope = JSON.parse(state.content);
+            envelope.ciphertext = (envelope.ciphertext[0] === 'A' ? 'B' : 'A') + envelope.ciphertext.slice(1);
+            state.content = JSON.stringify(envelope);
+        });
         await page.locator('[data-testid="google-drive-preview"]').click();
-        await card.getByText('同步口令不正确', {exact: false}).waitFor();
-        check((await page.evaluate(() => chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}))).value.to === 'de', 'wrong passphrase leaves local configuration unchanged');
-        await page.locator('#drive-passphrase').fill(password);
+        await card.getByText('同步文件无法解密', {exact: false}).waitFor();
+        check((await page.evaluate(() => chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}))).value.to === 'de', 'corrupted cloud file leaves local configuration unchanged');
+        await worker.evaluate(() => {globalThis.__driveFixture.content = globalThis.__driveFixture.originalContent;});
         await page.locator('[data-testid="google-drive-preview"]').click();
         await dialog.getByText('云端 → 本机', {exact: true}).click();
         check(await dialog.getByRole('radio', {name: '云端 → 本机', exact: true}).isChecked(), 'download direction has checked radio state');
@@ -139,15 +140,14 @@ async function main() {
         const hiddenState = await page.evaluate(() => chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:googleDriveEncryptedSyncState'}));
         check(hiddenState.success === false, 'private sync state is excluded from public storage proxy');
         await page.reload({waitUntil: 'domcontentloaded'});
-        await page.locator('#drive-passphrase').waitFor();
-        check(await page.locator('#drive-passphrase').inputValue() === '', 'reopening settings does not retain passphrase');
+        await page.locator('[data-testid="google-drive-preview"]').waitFor();
+        check(await card.locator('input[type="password"]').count() === 0, 'reopening settings still requires no passphrase');
         const screenshot = path.join(artifactsDir, 'encrypted-sync-desktop.png');
         await page.screenshot({path: screenshot}); report.screenshots.push(screenshot);
-        await page.locator('#drive-passphrase').fill(password);
         await page.locator('button[data-section="settings-general"]').click();
         await page.locator('button[data-section="settings-data"]').click();
-        await page.locator('#drive-passphrase').waitFor();
-        check(await page.locator('#drive-passphrase').inputValue() === '', 'leaving backup panel destroys temporary passphrase');
+        await page.locator('[data-testid="google-drive-preview"]').waitFor();
+        check(await card.locator('input[type="password"]').count() === 0, 'returning to backup panel requires no passphrase');
         await page.setViewportSize({width: 390, height: 900});
         await activateExtensionTabWithoutForeground(context, page);
         check(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), '390px settings has no horizontal overflow');

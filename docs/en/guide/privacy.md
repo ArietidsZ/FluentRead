@@ -37,7 +37,7 @@ Document translation and edits stay in the current page. Download files before l
 
 ## Control and remove data
 
-Drive sync requires connecting a Google account and entering a personal long passphrase. The passphrase is never uploaded or persisted and is cleared when leaving the backup page. Another device needs the same account and passphrase to restore the configuration. Wordbooks, conversations, and usage statistics are excluded. Application access isolation and local encryption reduce exposure; protect your account, device, and passphrase. A forgotten passphrase cannot decrypt the existing file.
+Drive sync requires connecting a Google account and confirming each operation; users do not enter a passphrase. The extension automatically uses the fixed application passphrase `FluentReadEncryption` to encrypt the complete configuration locally before upload. Another device can restore it after connecting the same account. Wordbooks, conversations, and usage statistics are excluded. The fixed passphrase is public in the source code, so someone who obtains the encrypted file can decrypt it. Cloud access protection primarily relies on your Google account and application authorization. Protect your account, devices, and cloud files.
 
 Disconnecting clears the extension's identity cache while keeping the cloud file and local configuration. Revoke access through your Google account's third-party connections. To delete hidden data, use Google Drive Settings → Manage apps → FluentRead → Delete hidden app data. Deleting cloud data does not erase settings already downloaded on other devices.
 
