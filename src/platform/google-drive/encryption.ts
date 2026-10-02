@@ -1,10 +1,10 @@
 /**
  * @file src/platform/google-drive/encryption.ts
- * 文件职责：使用用户口令在本机生成可跨设备解密的 Google Drive 配置密文。
+ * 文件职责：使用调用方提供的口令在本机生成可跨设备解密的 Google Drive 配置密文。
  * 主要内容：以 PBKDF2-SHA256 六十万次迭代派生不可导出的 AES-256-GCM 密钥，
  * 使用随机盐、随机 IV 和版本认证数据，严格限制格式、大小及密码输入并拒绝降级。
  * 模块边界：只处理 Web Crypto 与 JSON 信封，不访问配置、浏览器身份、存储或网络；
- * 用户口令由设置页短暂持有，不写入密文、源码、持久化状态或日志。
+ * 不定义应用口令策略；当前生产后台传入公开固定口令，不要求设置页收集密码。
  */
 import {GOOGLE_DRIVE_MAX_BYTES} from './constants';
 

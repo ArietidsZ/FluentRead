@@ -116,6 +116,15 @@ async function main() {
         await page.getByRole('button', {name: '确认替换', exact: true}).click();
         await page.locator('.el-dialog').waitFor({state: 'hidden'});
         check(await worker.evaluate(() => !globalThis.__driveFixture.content.includes('fixture-private')), 'complete credentials remain opaque in cloud fixture');
+        check(await worker.evaluate(async () => {
+            const envelope = JSON.parse(globalThis.__driveFixture.content);
+            const decode = value => Uint8Array.from(atob(value), char => char.charCodeAt(0));
+            const material = await crypto.subtle.importKey('raw', new TextEncoder().encode('FluentReadEncryption'), 'PBKDF2', false, ['deriveKey']);
+            const key = await crypto.subtle.deriveKey({name: 'PBKDF2', hash: 'SHA-256', iterations: envelope.iterations, salt: decode(envelope.salt)}, material, {name: 'AES-GCM', length: 256}, false, ['decrypt']);
+            const plaintext = await crypto.subtle.decrypt({name: 'AES-GCM', iv: decode(envelope.iv), additionalData: new TextEncoder().encode('fluentread-drive-encrypted:1:PBKDF2:SHA-256:600000:AES-256-GCM'), tagLength: 128}, key, decode(envelope.ciphertext));
+            const text = new TextDecoder().decode(plaintext);
+            return ['fixture-private-api-key', 'fixture-private-body', 'fixture-private-url'].every(value => text.includes(value));
+        }), 'supplied application passphrase decrypts the complete uploaded fixture');
         await savePatch({to: 'de', token: {}, apiKeys: {}, customBody: {}, proxy: {}}, 2);
         await worker.evaluate(() => {
             const state = globalThis.__driveFixture;
