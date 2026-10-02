@@ -1,7 +1,7 @@
 <!--
  * @file src/features/writing-assistant/ui/WritingPanel.vue
  * 文件职责：承载网页回复的写作流程，在固定卡片中起草、核对引用、调整风格并插回当前编辑器。
- * 主要内容：统一配置就绪提示、草稿和请求状态，保留失败任务的语义以便准确重试；支持分层返回、键盘提交、未完成版本提示与独立阅读对照。
+ * 主要内容：让多语言标题、语言选择与操作按可用空间换行；统一配置就绪提示、草稿和请求状态，保留失败任务的语义以便准确重试；支持分层返回、键盘提交、未完成版本提示与独立阅读对照。
  * 模块边界：不自行读取网页或发送回复，引用由宿主传入；后台负责模型请求，编辑器快照负责写回，Gmail 仅插入可读纯文本。
  -->
 <template>
@@ -282,5 +282,19 @@ function openSettings() { void browser.runtime.sendMessage({type: 'openOptionsPa
 .writing-title h3{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .writing-preview{overflow-wrap:anywhere}
 @media(max-width:540px){.writing-header{padding:12px 14px}.writing-language-bar{padding:8px 14px}.writing-language-bar button{flex-wrap:nowrap;gap:5px}.writing-language-bar small{width:auto}.writing-main{padding-inline:14px}.writing-actions{padding-inline:14px}.writing-composer{margin-inline:14px}.writing-provider{max-width:100px}.writing-style-trigger{max-width:none}.writing-preferences{width:100%}}
+/* 面板保持原有尺寸，较长界面文案通过换行保留完整含义。 */
+.writing-header h2, .writing-title h3 { overflow: visible; white-space: normal; overflow-wrap: anywhere; }
+.writing-header h2 { flex: 1; }
+.writing-title, .writing-toolbar, .writing-preferences { flex-wrap: wrap; }
+.writing-title { align-items: baseline; }
+.writing-language-bar span { min-width: 0; overflow: visible; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+.writing-style-trigger, .writing-language-trigger { max-width: 100%; white-space: normal; overflow: visible; overflow-wrap: anywhere; text-align: start; }
+.writing-style-trigger small { max-width: none; overflow: visible; }
+.writing-panel :deep(.writing-button), .writing-panel :deep(.writing-text-button) { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+@media(max-width:540px) {
+  .writing-language-bar button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 6px; }
+  .writing-language-bar small { grid-column: 1 / -1; white-space: normal; text-align: start; }
+  .writing-language-bar svg { grid-column: 2; grid-row: 2; }
+}
 @media(max-height:520px){.writing-panel{overflow-y:auto}.writing-main{flex:1 0 100px}.writing-style-editor,.writing-language-picker{min-height:120px}}
 </style>
