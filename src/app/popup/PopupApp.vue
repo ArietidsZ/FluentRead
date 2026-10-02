@@ -212,21 +212,17 @@
       :append-to-body="true"
       modal-class="popup-drawer-modal"
       class="popup-drawer"
-      :class="{ 'popup-quick-drawer': ['hover', 'selection', 'image'].includes(activeDrawer) }"
+      :class="{ 'popup-quick-drawer': ['hover', 'selection', 'image'].includes(activeDrawer), 'popup-services-drawer': activeDrawer === 'services' }"
     >
       <div class="drawer-surface">
         <div class="drawer-handle" />
-        <header class="drawer-header">
+        <header v-if="activeDrawer !== 'services'" class="drawer-header">
         <div class="drawer-heading"><button v-if="activeDrawer === 'aiContext'" type="button" :aria-label="t('popup.providers.title')" @click="openDrawer('services')">←</button><div><h2>{{ drawerTitle }}</h2><p v-if="!['image', 'services'].includes(activeDrawer)">{{ drawerDescription }}</p></div></div>
         <button type="button" aria-label="关闭" @click="drawerVisible = false">×</button>
         </header>
 
       <div v-if="activeDrawer === 'services'" class="drawer-content provider-drawer-content">
-        <PopupServices :config="config" :service-options="allServiceOptions" />
-        <div class="provider-drawer-actions">
-          <button type="button" data-testid="ai-context-help" @click="openAIContextSettings">{{ t('popup.aiContext.title') }} <span aria-hidden="true">›</span></button>
-          <button type="button" @click="openOptions('settings-services')">{{ t('featureServices.connections') }} <span aria-hidden="true">↗</span></button>
-        </div>
+        <PopupServices :config="config" :service-options="allServiceOptions" @close="drawerVisible = false" />
       </div>
       <div v-else-if="activeDrawer === 'aiContext'" class="drawer-content ai-context-details" data-i18n-ignore>
         <div class="ai-context-detail-state" :data-ai-context-state="aiContextPresentation.state">
@@ -781,9 +777,6 @@ function handleDonationKeydown(event: KeyboardEvent) {
 function toggleAIContext() {
   if (aiContextPresentation.value.toggleDisabled) return;
   config.value.enableAIContext = !config.value.enableAIContext;
-}
-function openAIContextSettings() {
-  openDrawer('aiContext');
 }
 onMounted(() => {
   document.addEventListener('keydown', handleDonationKeydown);

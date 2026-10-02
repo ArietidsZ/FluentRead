@@ -491,7 +491,7 @@ export async function translateTextBatch(
 }
 
 /**
- * 翻译视频字幕。视频字幕使用独立的服务配置，但仍通过 background
+ * 翻译视频字幕。视频字幕可继承网页默认或独立选择服务，通过 background
  * 统一请求、缓存和错误边界；只发送字幕纯文本，允许 X 原语言独立于网页设置。
  */
 export async function translateVideoText(origin: string, signal?: AbortSignal, sourceLanguage?: string): Promise<string> {
@@ -503,7 +503,7 @@ export async function translateVideoText(origin: string, signal?: AbortSignal, s
     glossaryIds: config.videoGlossaryIds,
   });
 
-  const service = config.videoService;
+  const service = config.videoService || config.service;
   const model = resolveConfiguredModel(config.model[service], config.customModel[service]);
   const thinking = isModelThinkingEnabled(config.modelThinking, service, model);
   const languages = getTranslationLanguages({sourceLanguage});

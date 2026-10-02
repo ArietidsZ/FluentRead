@@ -56,7 +56,7 @@
           </button>
         </template>
         <div class="input-translation-service-control" data-testid="input-translation-profile-editor">
-          <el-select id="input-translation-service-control" v-model="translationService" data-testid="input-translation-service" :aria-label="t('inputTranslation.service')" filterable>
+          <el-select id="input-translation-service-control" v-model="translationService" :empty-values="[null, undefined]" data-testid="input-translation-service" :aria-label="t('inputTranslation.service')" filterable>
             <el-option v-for="item in serviceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" :disabled="item.disabled">
               <span class="input-translation-service-option">
                 <ServiceIcon :service="item.value" :label="item.label" size="small" />
@@ -186,7 +186,7 @@ const triggerOptions = computed(() => inputConfig.value.inputBoxTranslationTrigg
   : options.inputBoxTranslationTrigger)
 const targetOptions = computed(() => options.inputBoxTranslationTarget)
 const serviceOptions = computed(() => {
-  const visible = props.serviceOptions.filter((item) => !item.disabled)
+  const visible = [{value: '', label: t('featureServices.followDefault')}, ...props.serviceOptions.filter((item) => !item.disabled)]
   const selected = inputConfig.value.inputBoxTranslationService
   if (!selected || visible.some((item) => item.value === selected)) return visible
   return [{value: selected, label: selected, disabled: true}, ...visible]
@@ -205,7 +205,7 @@ const targetLanguage = computed({
 })
 
 const translationService = computed({
-  get: () => inputConfig.value.inputBoxTranslationService || 'microsoft',
+  get: () => inputConfig.value.inputBoxTranslationService,
   set: (value: string) => {
     if (value !== inputConfig.value.inputBoxTranslationService) inputConfig.value.inputBoxTranslationModel = ''
     inputConfig.value.inputBoxTranslationService = value
@@ -217,8 +217,10 @@ const translationModel = computed({
   set: (value: string | undefined) => { inputConfig.value.inputBoxTranslationModel = value?.trim() || '' },
 })
 
+const effectiveTranslationService = computed(() => translationService.value || props.config.service)
+
 const credentialWarning = computed(() => {
-  const service = translationService.value
+  const service = effectiveTranslationService.value
   const message = getMissingCredentialMessage(service, {
     ...props.config,
     model: {...props.config.model, [service]: translationModel.value || props.config.model[service]},
@@ -237,22 +239,22 @@ const userPrompt = computed({
   set: (value: string) => { inputConfig.value.inputBoxTranslationPrompt = value.slice(0, MAX_PROMPT_LENGTH) },
 })
 
-const isMachineService = computed(() => servicesType.isMachine(translationService.value))
+const isMachineService = computed(() => servicesType.isMachine(effectiveTranslationService.value))
 const isInputTranslationEnabled = computed(() => inputConfig.value.inputBoxTranslationTrigger !== 'disabled')
 const effectiveModel = computed(() => translationModel.value || resolveConfiguredModel(
-  inputConfig.value.model[translationService.value],
-  inputConfig.value.customModel[translationService.value],
+  inputConfig.value.model[effectiveTranslationService.value],
+  inputConfig.value.customModel[effectiveTranslationService.value],
 ))
 const isAiService = computed(() => !isMachineService.value && (
-  isCustomOpenAIProviderId(translationService.value) || servicesType.isAI(translationService.value)
+  isCustomOpenAIProviderId(effectiveTranslationService.value) || servicesType.isAI(effectiveTranslationService.value)
 ))
-const showModel = computed(() => isAiService.value && servicesType.isUseModel(translationService.value))
+const showModel = computed(() => isAiService.value && servicesType.isUseModel(effectiveTranslationService.value))
 const showPrompt = computed(() => isAiService.value && supportsInputBoxTranslationPrompt(
-  translationService.value,
+  effectiveTranslationService.value,
   effectiveModel.value,
 ))
 const modelOptions = computed(() => {
-  const service = translationService.value
+  const service = effectiveTranslationService.value
   const providerModels = isCustomOpenAIProviderId(service)
     ? getCustomOpenAIProviderModels(inputConfig.value.customOpenAIProviders, service)
     : models.get(service) || []
@@ -315,7 +317,7 @@ const workflowDescription = computed(() => {
 })
 
 function configureService(): void {
-  emit('configure-service', translationService.value)
+  emit('configure-service', effectiveTranslationService.value)
 }
 </script>
 
