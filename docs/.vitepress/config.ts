@@ -1,6 +1,5 @@
 import brandTaglines from '../../src/core/i18n/messages/brand-taglines.json'
 import { defineConfig } from 'vitepress'
-import { localeBootstrap } from './theme/locale-preference.mjs'
 
 const supportUrl = 'https://github.com/FluentRead/FluentRead#support'
 
@@ -118,7 +117,7 @@ const theme = (en = false) => ({
   },
 })
 export default defineConfig({
-  title: 'FluentRead-流畅阅读',
+  title: 'FluentRead',
   description:
     `${brandTaglines['zh-CN']} 一款开源的浏览器双语翻译插件。`,
   lang: 'zh-CN',
@@ -133,7 +132,6 @@ export default defineConfig({
     'free-translation-apis.md',
   ],
   head: [
-    ['script', {}, localeBootstrap],
     ['meta', { name: 'theme-color', content: '#bc2854' }],
     ['link', { rel: 'icon', href: '/logo.webp' }],
   ],
@@ -141,7 +139,7 @@ export default defineConfig({
     root: {
       label: '简体中文',
       lang: 'zh-CN',
-      title: 'FluentRead-流畅阅读',
+      title: 'FluentRead',
       themeConfig: theme(),
     },
     en: {

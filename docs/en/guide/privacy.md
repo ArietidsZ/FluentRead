@@ -53,11 +53,28 @@ Only choosing the Google Drive sync action starts authorization for that operati
 - **Account information:** the selected account's Drive identifier prevents mixing configurations from different accounts. Email, when returned by Google, is used only in the preview. No separate email identity permission is requested, and sync works without an email response.
 - **Authorization tokens:** Chrome's identity API manages them for Google API requests. Completion, failure, cancellation, or leaving settings clears the extension's identity cache. Clearing that cache does not revoke the permission in your Google account or delete a backup.
 
+The operation handles the following data. Backup access is limited to FluentRead's own hidden application data folder.
+
+| Data category | Specific content | Purpose |
+| --- | --- | --- |
+| Configuration backup content | Translation providers and models, languages and appearance, shortcuts, website rules, glossaries, custom prompts, and the service credentials and request parameters listed above | Upload to back up settings; download to preview differences, then restore or merge settings in the direction you confirm |
+| Google account information | Drive account identifier and email address when Google returns it | The identifier prevents mixing backups from different accounts; email is only displayed in the current preview |
+| FluentRead backup file information | File ID, name, version, modification time, and available version-check information | Locate the configuration file and check for changes during sync to avoid overwriting newer settings from another device |
+| Google access token for this operation | A short-lived authorization token obtained through Chrome's identity API | Authenticate authorized requests to Google; it is not uploaded as configuration or provided to translation services |
+
+Content you enter into prompts, custom request bodies, or URLs is also part of the configuration backup. Sync does not scan webpages or read downloaded documents, learning records, conversations, or usage records as backup content.
+
 ### Storage and protection
 
 The backup is sent over HTTPS directly to your own Google Drive hidden application data folder as `fluentread-config.encrypted.json`. It does not pass through a FluentRead developer configuration server or appear as a regular My Drive file. The account identifier, last-sync time, and an encrypted copy used to compare changes remain in this browser.
 
 The configuration is encrypted on the device before upload using a fixed, publicly available application passphrase. You do not enter a password. **Anyone who obtains the encrypted backup can decrypt it using the public passphrase.** Access protection primarily depends on your Google account, application permissions, and device security. Protect your account, browser profile, and exported backups. Do not attach a backup or complete configuration to a public report.
+
+| Storage location | Content and retention |
+| --- | --- |
+| Your Google Drive | The encrypted configuration file remains until you delete hidden application data; successful uploads update that file |
+| This browser's extension storage | Account identifier, last-sync time, and an encrypted configuration copy for comparing changes remain until the relevant browser data is cleared or the extension is uninstalled; changing accounts rebuilds the comparison baseline |
+| Temporary operation state | Account and file information, the confirmation preview, and its encrypted snapshot; previews are valid for 10 minutes, and completion, failure, cancellation, or leaving settings clears pending state and the authorization cache |
 
 ### Stop access and delete data
 
@@ -81,7 +98,7 @@ Backups can include credentials, source sentences, and source information. Check
 
 ## Website and external links
 
-The website stores your language preference in your browser for later visits. Clearing the site's browser data removes it. When you visit GitHub, an extension store, Google, or a translation provider's website, that service's own privacy policy also applies.
+GitHub Pages hosts the website, which requires no registration or login. Chinese and English content have separate URLs; switching languages is a deliberate choice, and the homepage does not automatically redirect to a different language URL. Website preferences such as appearance are stored in your browser and can be removed by clearing the site's browser data. The website does not read configuration backups or service credentials from the extension. The hosting service's processing of access requests is also governed by [GitHub's Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement). When you visit an extension store, Google, or a translation provider's website, that service's own privacy policy also applies.
 
 ## Policy updates and contact
 

@@ -6,8 +6,6 @@
 
 **Closer languages. A bigger world.**
 
-让语言更近，让世界更大。
-
 An open-source browser extension for bilingual translation.
 
 [Install](#installation) · [Website](https://read.thinkstu.com/en/) · [User guide](https://read.thinkstu.com/en/guide/) · [Privacy policy](https://read.thinkstu.com/en/guide/privacy) · [简体中文](./misc/README_ZH.md) · [LINUX DO Community](https://linux.do) · [GPL-3.0](./LICENSE)
