@@ -92,7 +92,7 @@
 
 生产扩展构建后运行 `node scripts/run-reading-density-test.cjs --source-scroll-only --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir <证据目录>`。
 
-专项在临时 Edge profile、第二屏后台窗口中验证读懂、句法、用法和练习的完整原句保留在顶部，默认只滚过原句，真实向上滚轮可以直接查看。覆盖短回答、长选区、流式生成期间向上滚动后保持位置、缓存动作切换、追问、阅读记录往返与恢复、390px 窄屏和深色主题；检查页面本身不滚动、面板无横向溢出。网页与模型响应为确定性夹具，不代表在线模型质量或 Firefox 运行时验证。去掉 `--source-scroll-only` 可同时检查句法标注、键盘切词和次级操作。
+专项在临时 Edge profile、第二屏后台窗口中验证读懂、句法、用法和练习的完整原句保留在顶部，默认只滚过原句，真实向上滚轮可以直接查看。覆盖首次打开、短回答、长选区、流式生成期间向上滚动后保持位置、缓存动作切换、查看原文入口及键盘焦点、重复点击当前标签保留位置和未发送追问、追问、阅读记录往返与恢复、390px 窄屏和深色主题；检查页面本身不滚动、面板无横向溢出。网页与模型响应为确定性夹具，不代表在线模型质量或 Firefox 运行时验证。去掉 `--source-scroll-only` 可同时检查句法标注、键盘切词和次级操作。
 
 ## 阅读卡深色主题（issue #574）
 

@@ -31,7 +31,7 @@
       <details ref="toolsMenu" class="fr-reading-tools" @keydown.esc.stop.prevent="closeTools(true)">
         <summary aria-label="更多操作" title="更多操作"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary>
         <div class="fr-reading-tool-list" @click="closeToolsAfterAction">
-          <button type="button" data-i18n-ignore @click="showSource">{{ t('reading.viewSource') }}</button>
+          <button type="button" data-i18n-ignore @click.stop="showSource">{{ t('reading.viewSource') }}</button>
           <button type="button" :disabled="busy" @click="regenerate">重新生成</button>
           <button type="button" :aria-pressed="playingSourceText === activeText" @click="emit('play-source', activeText)">{{ playingSourceText === activeText ? '停止朗读' : '朗读原文' }}</button>
           <button v-if="!historicalText && selection.sentence !== selection.text && !wholeSentence" type="button" @click="expandSentence">理解整句</button>
@@ -166,13 +166,13 @@ function resetReadingPosition(): void {
     });
   });
 }
-async function showSource(): Promise<void> {
+function showSource(): void {
   cancelReadingPosition();
+  closeTools();
   const viewport = answerScroll.value;
   if (!viewport) return;
   viewport.scrollTop = 0;
-  await nextTick();
-  if (props.active && !showRecords.value && viewport === answerScroll.value) viewport.focus({preventScroll: true});
+  viewport.focus({preventScroll: true});
 }
 const toolsMenu = ref<HTMLDetailsElement>();
 function closeTools(restoreFocus = false): void {
