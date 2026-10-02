@@ -126,6 +126,7 @@ async function main(){
     await menu();await clickNode(button('阅读记录'));await until(()=>node(cls('fr-reading-session')),'saved session missing');await clickNode(cls('fr-reading-session'));await settled();await assertSourceSkipped();await revealSource();record('returning from records and restoring a saved conversation retains full source above the answer');
     for(const [width,height,theme] of [[390,800,'light'],[390,800,'dark'],[1440,960,'light']]) {
       await page.setViewportSize({width,height});await patch({theme});
+      await clickNode(button('读懂'));await settled();
       await clickNode(button('用法'));await settled();await assertSourceSkipped();await revealSource();await shot(`source-${width}-${theme}`);record(`${width}px ${theme}: full source stays readable and the host stays still`);
     }
     await page.keyboard.press('Escape');
