@@ -11,7 +11,10 @@ export const GOOGLE_DRIVE_SCOPES = [
 ] as const;
 export const GOOGLE_DRIVE_CONFIG_FILE_NAME = 'fluentread-config.encrypted.json';
 export const GOOGLE_DRIVE_SYNC_STATE_KEY = 'local:googleDriveEncryptedSyncState';
-export const GOOGLE_DRIVE_MAX_BYTES = 5 * 1024 * 1024;
+// 配置 JSON 与云端密文分开预算；预览只额外包含少量账号和期限元数据。
+export const GOOGLE_DRIVE_MAX_CONFIG_BYTES = 20 * 1024 * 1024;
+export const GOOGLE_DRIVE_MAX_PREVIEW_BYTES = GOOGLE_DRIVE_MAX_CONFIG_BYTES + 1024 * 1024;
+export const GOOGLE_DRIVE_MAX_BYTES = 32 * 1024 * 1024;
 
 
 // Chrome 商店 CRX 签名中的公开公钥；SHA-256 前 16 字节对应上方官方扩展 ID。

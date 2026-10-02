@@ -610,10 +610,6 @@ const learningToolRows: readonly RuntimeFeedbackRow[] = [
 /** 邮件弹窗在 Thunderbird 中使用的标题、操作和状态反馈。 */
 const popupMailRows: readonly RuntimeFeedbackRow[] = [
     ['邮件翻译', 'Email translation', 'メール翻訳', '메일 번역', 'Traduction des e-mails', 'Перевод писем', 'Traducción de correos'],
-    ['恢复当前邮件', 'Restore this email', 'このメールを元に戻す', '현재 메일 원문 복원', 'Restaurer cet e-mail', 'Вернуть оригинал письма', 'Restaurar este correo'],
-    ['翻译当前邮件', 'Translate this email', 'このメールを翻訳', '현재 메일 번역', 'Traduire cet e-mail', 'Перевести это письмо', 'Traducir este correo'],
-    ['正在翻译当前邮件', 'Translating this email', 'このメールを翻訳しています', '현재 메일 번역 중', 'Traduction de cet e-mail en cours', 'Идёт перевод письма', 'Traduciendo este correo'],
-    ['已恢复邮件原文', 'Original email restored', 'メールの原文に戻しました', '메일 원문을 복원했습니다', 'E-mail original restauré', 'Оригинал письма восстановлен', 'Se restauró el correo original'],
     ['请先打开一封邮件，然后重试翻译', 'Open an email, then try translating again', 'メールを開いてから、もう一度翻訳してください', '메일을 연 다음 다시 번역해 주세요', 'Ouvrez un e-mail, puis réessayez de le traduire', 'Откройте письмо и повторите попытку перевода', 'Abre un correo y vuelve a intentar traducirlo'],
 ];
 

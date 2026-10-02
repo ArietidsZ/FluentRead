@@ -88,10 +88,23 @@ describe('界面 i18n 契约', () => {
       expect(translate('settings.drive.account', language, {email: 'tester@fixture.invalid'})).toContain('tester@fixture.invalid');
       expect(translate('settings.drive.selectedAccount', language)).not.toMatch(/^settings\.drive\./u);
       expect(translate('settings.drive.differences', language, {count: 23})).toContain('23');
+      for (const source of ['Google Drive 请求失败（HTTP 500），请重试。', '读取 Google 账号失败（HTTP 401）。', '翻译连接：google；自定义服务：2；凭据和地址已隐藏']) {
+        const translated = translateLegacyText(source, language);
+        if (source.includes('HTTP')) expect(translated).toContain('HTTP');
+        expect(translated).not.toBe(source);
+      }
       expect(translate('settings.drive.lastSync', language, {time: 'fixture-time'})).toContain('fixture-time');
-      for (const source of ['Google Drive 配置同步', '立即与Google Drive同步', '未允许 Google Drive 配置数据权限，请重新同步并在 Google 授权页面允许访问配置数据。', '翻译连接与凭据（整组）', '已设置（内容隐藏）', '本机 → 云端', '云端 → 本机']) {
+      for (const source of ['Google Drive 配置同步', '立即与Google Drive同步', '未允许 Google Drive 配置数据权限，请重新同步并在 Google 授权页面允许访问配置数据。', '翻译连接与凭据（整组）', '已设置（内容隐藏）', '本机 → 云端', '云端 → 本机', 'Google Drive 网络请求失败或响应无效，请检查网络后重试。', '同步预览已失效，请重新生成。', '另一个设置页面正在确认同步，请先完成或取消该页面的预览。', '悬停翻译延迟（毫秒）', '划词翻译延迟（毫秒）', '禁用悬浮球']) {
         expect(translateLegacyText(source, language)).not.toBe(source);
       }
+    }
+  });
+
+  it('Google Drive 全部固定反馈和设置名称覆盖六种非中文界面语言', () => {
+    const files = ['src/platform/google-drive/auth.ts', 'src/platform/google-drive/api.ts', 'src/core/config/driveSync.ts', 'src/services/config/googleDriveSync.ts', 'src/services/config/googleDriveSyncClient.ts', 'src/app/background/handlers/googleDriveSync.ts'];
+    const sources = new Set(files.flatMap(file => [...readFileSync(file, 'utf8').matchAll(/'([^'\n]*[\u4e00-\u9fff][^'\n]*)'/gu)].map(match => match[1])));
+    for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      expect([...sources].filter(source => translateLegacyText(source, language) === source), language).toEqual([]);
     }
   });
 

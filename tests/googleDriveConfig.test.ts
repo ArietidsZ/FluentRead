@@ -58,4 +58,37 @@ describe('Google Drive 完整快照和安全合并', () => {
         for (const [left, right] of [[[], {}], [[1], [1, 2]], [{a: 1}, {b: 1}], [{a: 1}, {a: 2}], [null, 1]]) expect(driveValuesEqual(left, right)).toBe(false);
         expect(buildDriveSyncDiff({}, {}, {}).changes).toEqual([]);
     });
+    it('普通设置可辨认名称和值；伪装成普通字段的复杂私密对象仍掩码', () => {
+        const diff = buildDriveSyncDiff(null,
+            {mouseHoverTranslationDelay: 100, selectionTranslatorDelay: 200, disableFloatingBall: false},
+            {mouseHoverTranslationDelay: 300, selectionTranslatorDelay: 400, disableFloatingBall: true});
+        expect(diff.changes.map(change => change.label)).toEqual(['悬停翻译延迟（毫秒） · 1', '划词翻译延迟（毫秒） · 2', '禁用悬浮球 · 3']);
+        expect(diff.changes[0]).toMatchObject({local: '100', remote: '300', sensitive: false});
+        expect(diff.changes[2]).toMatchObject({local: '关闭', remote: '开启'});
+        expect(JSON.stringify(buildDriveSyncDiff(null, {theme: {private: 'fixture-secret'}}, {theme: 'dark'}).changes)).not.toContain('fixture-secret');
+    });
+    it('兼容缺省嵌套偏好并隐藏空连接、未知结构及伪装的普通字段', () => {
+        const payload = complete();
+        expect(() => parseDriveSyncPayload(driveSyncPayload({...payload, translationCenterServices: null, favoriteServices: null, quickTranslationProfiles: null, writing: null, harness: null}))).not.toThrow();
+        expect(() => parseDriveSyncPayload(driveSyncPayload({...payload, quickTranslationProfiles: [null, {service: 'google'}]}))).not.toThrow();
+        const diff = buildDriveSyncDiff(null, {theme: 'light', future: {a: 1}, customOpenAIProviders: []}, {theme: null, future: {a: 2}, customOpenAIProviders: [{name: 'fixture-private'}]});
+        expect(JSON.stringify(diff.changes)).not.toContain('fixture-private');
+        expect(buildDriveSyncDiff(null, {}, {token: {openai: 'fixture'}}).changes[0].local).toBe('空值');
+    });
+    it('拒绝各功能引用已删除服务，服务选择与连接定义必须一起合并', () => {
+        const base = complete({customOpenAIProviders: [{id: 'custom:fixture', name: 'Fixture', endpoint: 'https://fixture.invalid/v1', models: ['fixture-model']}]});
+        const local = complete({...base, customOpenAIProviders: []});
+        for (const field of ['service', 'documentService', 'hoverTranslationService', 'selectionTranslationService', 'imageTranslationService', 'videoService', 'areaTranslationService', 'inputBoxTranslationService']) {
+            const remote = complete({...base, [field]: 'custom:fixture'});
+            const diff = buildDriveSyncDiff(base, local, remote);
+            expect(diff.changes.filter(change => change.conflict)).toHaveLength(1);
+            const merged = resolveDriveSyncDiff(diff, Object.fromEntries(diff.changes.map(change => [change.id, 'remote'])));
+            expect(parseDriveSyncPayload(driveSyncPayload(merged))).toEqual(remote);
+            expect(() => parseDriveSyncPayload(driveSyncPayload({...local, [field]: 'custom:fixture'}))).toThrow();
+        }
+        for (const patch of [{translationCenterServices: ['custom:missing']}, {favoriteServices: ['custom:missing']}, {quickTranslationProfiles: [{service: 'custom:missing'}]}, {writing: {service: 'custom:missing'}}, {harness: {service: 'custom:missing'}}]) {
+            expect(() => parseDriveSyncPayload(driveSyncPayload({...local, ...patch}))).toThrow('不存在');
+        }
+    });
+
 });

@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {decryptDriveConfig, DRIVE_ENCRYPTION_FORMAT, DRIVE_ENCRYPTION_ITERATIONS, encryptDriveConfig, validateDrivePassphrase} from '@/src/platform/google-drive/encryption';
-import {GOOGLE_DRIVE_MAX_BYTES} from '@/src/platform/google-drive/constants';
+import {decryptDriveConfig, DRIVE_ENCRYPTION_FORMAT, DRIVE_ENCRYPTION_ITERATIONS, encryptDriveConfig, encryptDrivePreview, decryptDrivePreview, validateDrivePassphrase} from '@/src/platform/google-drive/encryption';
+import {GOOGLE_DRIVE_MAX_BYTES, GOOGLE_DRIVE_MAX_CONFIG_BYTES, GOOGLE_DRIVE_MAX_PREVIEW_BYTES} from '@/src/platform/google-drive/constants';
 
 const password = 'fixture only long passphrase';
 afterEach(() => vi.unstubAllGlobals());
@@ -45,4 +45,15 @@ describe('Google Drive 本机认证加密', () => {
         const content = await encryptDriveConfig(undefined, password);
         await expect(decryptDriveConfig(content, password)).rejects.toThrow('有效 JSON');
     });
+    it('20 MiB 配置边界及预览独立预算，超过配置上限的暂存不能冒充云端配置', async () => {
+        const value = {x: 'x'.repeat(GOOGLE_DRIVE_MAX_CONFIG_BYTES - 8)};
+        const content = await encryptDriveConfig(value, password);
+        expect(content.length).toBeLessThan(GOOGLE_DRIVE_MAX_BYTES);
+        expect(await decryptDriveConfig(content, password)).toEqual(value);
+        const transaction = await encryptDrivePreview({local: value, metadata: 'fixture'}, password);
+        expect(await decryptDrivePreview(transaction, password)).toEqual({local: value, metadata: 'fixture'});
+        await expect(decryptDriveConfig(transaction, password)).rejects.toThrow('过大');
+        await expect(encryptDriveConfig({x: value.x + 'x'}, password)).rejects.toThrow('过大');
+        await expect(encryptDrivePreview({x: 'x'.repeat(GOOGLE_DRIVE_MAX_PREVIEW_BYTES)}, password)).rejects.toThrow('过大');
+    }, 30_000);
 });
