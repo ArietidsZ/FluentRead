@@ -89,13 +89,13 @@ stderr | tests/config.test.ts > 统一配置存储 > 凭据安全水合失败时
     at initializeConfig (/Users/thinkstu/Desktop/copy/FluentRead-video-caption-platforms-20261002/src/services/config/store.ts:629:53)
     at processTicksAndRejections (node:internal/process/task_queues:95:5)
 
- ✓ tests/config.test.ts (128 tests) 9487ms
-   ✓ 统一配置存储 > 补丁链超过后台批次上限时不发出部分链 2084ms
- ❯ tests/configDiff.test.ts (43 tests | 1 failed) 29ms
+ ✓ tests/config.test.ts (128 tests) 9834ms
+   ✓ 统一配置存储 > 补丁链超过后台批次上限时不发出部分链 2076ms
+ ❯ tests/configDiff.test.ts (43 tests | 1 failed) 30ms
    × 配置差异预览 > 显示界面皮肤和 Popup 栏目可见性，并安全处理异常栏目值 9ms
      → expected [ Array(5) ] to deeply equal ArrayContaining{…}
- ✓ tests/siteAdaptationCore.test.ts (36 tests) 145ms
- ✓ tests/videoSubtitle.test.ts (29 tests) 29ms
+ ✓ tests/siteAdaptationCore.test.ts (36 tests) 143ms
+ ✓ tests/videoSubtitle.test.ts (29 tests) 30ms
 stderr | tests/videoUiI18n.test.ts
 [FluentRead] 配置读取或安全迁移失败，保留已读取的公开配置 Error: 配置存储运行时不可用
     at Object.getItem (/Users/thinkstu/Desktop/copy/FluentRead-video-caption-platforms-20261002/src/platform/storage/configStorageRuntime.ts:36:29)
@@ -109,29 +109,29 @@ stderr | tests/videoUiI18n.test.ts
     at /Users/thinkstu/Desktop/copy/FluentRead-video-caption-platforms-20261002/src/features/video-subtitle/content/ui.ts:2:31
     at VitestExecutor.runModule (file:///Users/thinkstu/Desktop/copy/FluentRead/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
 
- ✓ tests/videoUiI18n.test.ts (12 tests) 32ms
- ❯ tests/architecture/verificationOwnership.test.ts (9 tests | 2 failed) 654ms
+ ✓ tests/videoUiI18n.test.ts (12 tests) 30ms
+ ❯ tests/architecture/verificationOwnership.test.ts (9 tests | 2 failed) 673ms
    × repository verification ownership > 每个产品、构建和测试基础设施文件都有明确验证归属 5ms
      → expected [ { …(2) } ] to deeply equal []
-   × repository verification ownership > src 中每个可执行非组装模块都进入四维 100% 覆盖率边界 441ms
+   × repository verification ownership > src 中每个可执行非组装模块都进入四维 100% 覆盖率边界 468ms
      → expected [ Array(8) ] to deeply equal []
- ✓ tests/videoCaptionPlatformRuntime.test.ts (15 tests) 59ms
- ❯ tests/architecture/moduleBoundaries.test.ts (13 tests | 1 failed) 2480ms
-   ✓ architecture module boundaries > src 的静态依赖图不存在跨文件循环 886ms
-   ✓ architecture module boundaries > src 只能通过精确登记的 composition/browser/provider 迁移边界读取 entrypoints 686ms
-   ✓ architecture module boundaries > feature 不能跨目录读取另一个 feature 的内部实现 358ms
+ ✓ tests/videoCaptionPlatformRuntime.test.ts (15 tests) 63ms
+ ❯ tests/architecture/moduleBoundaries.test.ts (13 tests | 1 failed) 2502ms
+   ✓ architecture module boundaries > src 的静态依赖图不存在跨文件循环 899ms
+   ✓ architecture module boundaries > src 只能通过精确登记的 composition/browser/provider 迁移边界读取 entrypoints 690ms
+   ✓ architecture module boundaries > feature 不能跨目录读取另一个 feature 的内部实现 364ms
    × architecture module boundaries > 文档 WXT 页面只通过 app public API 进入垂直功能切片 25ms
      → expected [ …(2) ] to deeply equal [ '@/src/app/document-translation' ]
-   ✓ architecture module boundaries > 按需加载的大体积资源不得被扩展运行时代码静态引入 335ms
+   ✓ architecture module boundaries > 按需加载的大体积资源不得被扩展运行时代码静态引入 331ms
  ✓ tests/youtubeSubtitleData.test.ts (14 tests) 8ms
- ✓ tests/siteAdaptationCatalog.test.ts (235 tests) 1051ms
- ✓ tests/videoSubtitleLogic.test.ts (19 tests) 37ms
- ✓ tests/videoCaptionPlatforms.test.ts (25 tests) 34ms
- ✓ tests/videoSubtitleDownloads.test.ts (7 tests) 34ms
- ✓ tests/featureTranslationServices.test.ts (6 tests) 16ms
- ✓ tests/architecture/sourceFileHeaders.test.ts (699 tests) 201ms
- ✓ tests/videoTranslationCache.test.ts (8 tests) 11ms
- ✓ tests/videoSubtitleLanguage.test.ts (3 tests) 16ms
+ ✓ tests/siteAdaptationCatalog.test.ts (235 tests) 1058ms
+ ✓ tests/videoSubtitleLogic.test.ts (19 tests) 38ms
+ ✓ tests/videoCaptionPlatforms.test.ts (25 tests) 36ms
+ ✓ tests/videoSubtitleDownloads.test.ts (7 tests) 35ms
+ ✓ tests/featureTranslationServices.test.ts (6 tests) 15ms
+ ✓ tests/architecture/sourceFileHeaders.test.ts (699 tests) 202ms
+ ✓ tests/videoTranslationCache.test.ts (8 tests) 12ms
+ ✓ tests/videoSubtitleLanguage.test.ts (3 tests) 17ms
  ✓ tests/videoTranslationScheduler.test.ts (3 tests) 8ms
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
@@ -265,7 +265,7 @@ AssertionError: expected [ Array(8) ] to deeply equal []
 
  Test Files  3 failed | 15 passed (18)
       Tests  4 failed | 1300 passed (1304)
-   Start at  18:04:05
-   Duration  20.62s (transform 1.39s, setup 0ms, collect 3.92s, tests 14.33s, environment 2ms, prepare 625ms)
+   Start at  18:10:53
+   Duration  21.06s (transform 1.41s, setup 0ms, collect 3.94s, tests 14.73s, environment 2ms, prepare 633ms)
 
  ELIFECYCLE  Test failed. See above for more details.
