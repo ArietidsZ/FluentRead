@@ -10,7 +10,7 @@ Closer languages. A bigger world.
 
 一款开源的浏览器双语翻译插件。
 
-[安装](#安装) · [官网](https://fluent.thinkstu.com/) · [使用指南](https://fluent.thinkstu.com/guide/) · [English](../README.md) · [LINUX DO 社区](https://linux.do) · [GPL-3.0](../LICENSE)
+[安装](#安装) · [官网](https://fluent.thinkstu.com/) · [使用指南](https://fluent.thinkstu.com/guide/) · [隐私政策](../docs/guide/privacy.md) · [English](../README.md) · [LINUX DO 社区](https://linux.do) · [GPL-3.0](../LICENSE)
 
 </div>
 
@@ -105,4 +105,8 @@ FluentRead 的成长离不开开源社区。感谢以下项目及其贡献者的
 
 FluentRead 按 [GPL-3.0](../LICENSE) 开源发布，第三方组件的来源与许可见[第三方声明](../public/third-party-notices/)。
 
-云端翻译会将相关文字发送给所选服务。文件解析、图片识别及本地模型功能的数据范围见[数据与隐私](https://fluent.thinkstu.com/guide/privacy)。
+云端翻译会将相关文字发送给所选服务。设置和学习记录默认保存在浏览器中。文件解析、图片识别、本地模型、保存期限与删除方式见[隐私政策](../docs/guide/privacy.md)。
+
+Google Drive 配置同步正在 Chrome 扩展中测试，是否可用以所安装版本为准。每次由你主动触发，上传或应用配置前需要确认。备份保存在你自己的云盘中。包含API Key、OAuth Token、鉴权请求头、自定义请求体及URL中的鉴权参数，不包含单词本、聊天记录和用量统计。本次 Google 同步的访问令牌也不进入备份。
+
+同步仅申请 `drive.appdata` 权限，使用固定公开的应用口令加密；持有备份密文的人可以解密，请保护账号、应用授权与设备。Google 数据的范围与删除方式见[同步隐私说明](../docs/guide/privacy.md#google-drive-配置同步)。这些数据不出售，不用于广告、通用 AI 训练或与同步无关的内容生成。
