@@ -21,6 +21,7 @@ import {
 } from '@/src/services/config/autoBackupStore';
 import {configStorage} from '@/src/platform/storage/configStorageRuntime';
 import type {BackgroundMessageHandler} from './messageRouter';
+import {createGoogleDriveSyncRuntime} from './googleDriveSyncRuntime';
 import {createConfigAutoBackupRestoreHandler} from './handlers/configAutoBackup';
 import {createConfigStorageReadHandler} from './handlers/configStorage';
 import {createConfigCountIncrementHandler} from './handlers/configCount';
@@ -46,6 +47,7 @@ export function createConfigBackgroundHandlers<TContext extends ConfigPersistenc
         isExtensionUrl: (url) => url.startsWith(browser.runtime.getURL('/')),
     });
     return [
+        createGoogleDriveSyncRuntime(mutations),
         createConfigStorageReadHandler({
             ready: configReady,
             read: async key => {

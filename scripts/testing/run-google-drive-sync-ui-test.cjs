@@ -1,0 +1,161 @@
+'use strict';
+/**
+ * @file scripts/testing/run-google-drive-sync-ui-test.cjs
+ * 文件职责：在临时 Edge 的后台可见窗口验证生产构建的加密同步页面与后台端口。
+ * 主要内容：验证浏览器支持提示，再用虚构身份和 Drive HTTP 夹具覆盖确认、失败、恢复与窄屏。
+ * 模块边界：不连接真实 Google 账号，不读取日常 profile；报告只保存断言与虚构测试截图。
+ */
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+function arg(name, fallback) {const index = process.argv.indexOf(`--${name}`); return index < 0 ? fallback : process.argv[index + 1];}
+const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
+const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-drive-sync-ui'));
+const playwrightRoot = arg('playwright-root');
+const helperPath = arg('focus-safe-helper');
+if (!playwrightRoot || !helperPath) throw new Error('必须显式指定 Playwright 和 focus-safe helper');
+const {chromium} = require(path.join(playwrightRoot, 'playwright'));
+const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(helperPath);
+const manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, 'manifest.json'), 'utf8'));
+fs.mkdirSync(artifactsDir, {recursive: true});
+
+async function main() {
+    const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-drive-sync-profile-'));
+    const report = {ok: false, evidence: 'production extension, isolated Edge, synthetic Chrome identity and Drive responses', extensionDir, launchMode: null, focusPolicy: null, windowPlacement: null, cases: [], consoleErrors: [], screenshots: []};
+    let launched;
+    function check(condition, label) {if (!condition) throw new Error(label); report.cases.push(label);}
+    try {
+        launched = await launchFocusSafePersistentContext({chromium, profileDir, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', headless: false, background: true, displayTarget: 'secondary', browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check'], viewport: {width: 1440, height: 1000}, timeout: 30_000});
+        report.launchMode = launched.launchMode; report.focusPolicy = launched.focusPolicy; report.windowPlacement = launched.windowPlacement;
+        const {context} = launched;
+        const worker = context.serviceWorkers().find(worker => worker.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker', {timeout: 30_000, predicate: worker => worker.url().startsWith('chrome-extension://')});
+        const extensionId = new URL(worker.url()).host;
+        check(extensionId === 'djnlaiohfaaifbibleebjggkghlmcpcj', 'public key keeps official extension ID');
+        check(manifest.permissions.includes('identity') && manifest.oauth2.scopes.length === 2, 'Chrome manifest has minimal OAuth permissions');
+        const page = await newPageWithoutForeground(context, 30_000);
+        page.on('pageerror', error => report.consoleErrors.push(error.message));
+        page.on('console', message => {if (message.type() === 'error') report.consoleErrors.push(message.text());});
+        const settingsUrl = `chrome-extension://${extensionId}/options.html#settings-data`;
+        await page.goto(settingsUrl, {waitUntil: 'domcontentloaded'});
+        await page.locator('button[data-section="settings-data"]').click();
+        const card = page.locator('[data-testid="google-drive-sync"]');
+        await card.waitFor({state: 'visible'});
+        await card.getByText('Google Drive 同步目前支持 Chrome 扩展', {exact: false}).waitFor();
+        check(await page.locator('[data-testid="google-drive-connect"]').count() === 0, 'Edge explicitly shows unsupported native OAuth');
+
+        // 夹具只修改本次临时 profile 的 worker，不授权或访问任何真实账号。
+        await worker.evaluate(() => {
+            Object.defineProperty(navigator, 'userAgent', {get: () => 'Chrome/142.0.0.0 fixture'});
+            globalThis.__driveFixture = {content: null, version: 0, authorizations: 0, uploads: 0, networkFailure: false};
+            chrome.identity.getAuthToken = async ({interactive, scopes}) => {if (interactive) globalThis.__driveFixture.authorizations++; return {token: 'fixture-identity-token', grantedScopes: scopes};};
+            chrome.identity.removeCachedAuthToken = async () => undefined;
+            chrome.identity.clearAllCachedAuthTokens = async () => undefined;
+            const original = globalThis.fetch.bind(globalThis);
+            globalThis.fetch = async (input, init = {}) => {
+                const url = new URL(String(input));
+                const state = globalThis.__driveFixture;
+                const metadata = () => ({id: 'fixture-file', version: String(state.version), modifiedTime: '2026-10-02T00:00:00Z'});
+                const json = value => new Response(JSON.stringify(value), {headers: {'content-type': 'application/json'}});
+                if (url.hostname !== 'www.googleapis.com') return original(input, init);
+                if (state.networkFailure) return new Response('fixture upstream failure', {status: 503});
+                if (url.pathname === '/oauth2/v2/userinfo') return json({id: 'fixture-account', email: 'tester@fixture.invalid'});
+                if (url.pathname.startsWith('/upload/drive/v3/files')) {
+                    const body = String(init.body);
+                    const marker = 'Content-Type: application/json\r\n\r\n';
+                    const start = body.indexOf(marker) + marker.length;
+                    const content = body.slice(start, body.indexOf('\r\n--', start));
+                    const envelope = JSON.parse(content);
+                    if (envelope.format !== 'fluentread-drive-encrypted' || !envelope.ciphertext) throw new Error('fixture rejected plaintext upload');
+                    state.content = content; state.version++; state.uploads++;
+                    return json(metadata());
+                }
+                if (url.pathname === '/drive/v3/files') return json({files: state.content ? [metadata()] : []});
+                if (url.searchParams.get('alt') === 'media') return new Response(state.content);
+                if (url.pathname === '/drive/v3/files/fixture-file') return json(metadata());
+                throw new Error('unexpected fixture Google endpoint');
+            };
+        });
+        await page.reload({waitUntil: 'domcontentloaded'});
+        await page.locator('[data-testid="google-drive-connect"]').waitFor();
+        check(await worker.evaluate(() => globalThis.__driveFixture.authorizations === 0), 'opening settings never requests interactive authorization');
+        await page.locator('[data-testid="google-drive-connect"]').click();
+        await page.locator('#drive-passphrase').waitFor();
+        const password = 'fixture UI secure passphrase';
+        await page.locator('#drive-passphrase').fill(password);
+        await page.locator('[data-testid="google-drive-preview"]').click();
+        await page.locator('#drive-passphrase-confirm').waitFor();
+        check(await worker.evaluate(() => globalThis.__driveFixture.uploads === 0), 'preview has no cloud write');
+        check(await page.locator('[data-testid="google-drive-confirm"]').isDisabled(), 'first upload requires matching confirmation');
+        await page.locator('#drive-passphrase-confirm').fill('different fixture password');
+        check(await page.locator('[data-testid="google-drive-confirm"]').isDisabled(), 'mismatched confirmation blocks upload');
+        await page.locator('#drive-passphrase-confirm').fill(password);
+        await page.locator('[data-testid="google-drive-confirm"]').click();
+        await page.getByText('Google Drive 配置同步完成', {exact: true}).waitFor();
+        await page.locator('.el-dialog').waitFor({state: 'hidden'});
+        check(await page.locator('#drive-passphrase').inputValue() === '', 'successful sync clears passphrase');
+        check(await worker.evaluate(pass => {const state = globalThis.__driveFixture; return state.uploads === 1 && !state.content.includes(pass) && !state.content.includes('fixture-identity-token');}, password), 'upload contains encryption envelope only');
+
+        // 使用现有可信配置保存端口修改虚构凭据与语言，验证真实配置存储恢复。
+        async function savePatch(patch, sequence) {
+            const response = await page.evaluate(async ({patch, sequence}) => {
+                const current = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
+                const credentials = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:credentials'});
+                const complete = {...current.value, ...credentials.value};
+                return chrome.runtime.sendMessage({type: 'persistConfig', mode: 'replace', config: {...complete, ...patch}, clientId: 'fixture-drive-ui', sequence});
+            }, {patch, sequence});
+            check(response.success === true, `real background config persistence ${sequence}${response.success ? '' : `: ${response.error}`}`);
+        }
+        await savePatch({to: 'fr', token: {openai: 'fixture-private-api-key'}, apiKeys: {openai: ['fixture-private-api-key']}, customBody: {openai: '{"auth":"fixture-private-body"}'}, proxy: {openai: 'https://fixture.invalid/?key=fixture-private-url'}}, 1);
+        await page.locator('#drive-passphrase').fill(password);
+        await page.locator('[data-testid="google-drive-preview"]').click();
+        await page.locator('.drive-change').first().waitFor();
+        const dialog = page.locator('.el-dialog');
+        check(!(await dialog.innerText()).includes('fixture-private'), 'preview masks private keys, bodies and URLs');
+        await dialog.getByText('本机 → 云端', {exact: true}).click();
+        const previewShot = path.join(artifactsDir, 'encrypted-sync-preview.png');
+        await page.screenshot({path: previewShot}); report.screenshots.push(previewShot);
+        await page.locator('[data-testid="google-drive-confirm"]').click();
+        await page.getByRole('button', {name: '确认替换', exact: true}).click();
+        await page.locator('.el-dialog').waitFor({state: 'hidden'});
+        check(await worker.evaluate(() => !globalThis.__driveFixture.content.includes('fixture-private')), 'complete credentials remain opaque in cloud fixture');
+        await savePatch({to: 'de', token: {}, apiKeys: {}, customBody: {}, proxy: {}}, 2);
+        await page.locator('#drive-passphrase').fill('incorrect fixture password');
+        await page.locator('[data-testid="google-drive-preview"]').click();
+        await card.getByText('同步口令不正确', {exact: false}).waitFor();
+        check((await page.evaluate(() => chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}))).value.to === 'de', 'wrong passphrase leaves local configuration unchanged');
+        await page.locator('#drive-passphrase').fill(password);
+        await page.locator('[data-testid="google-drive-preview"]').click();
+        await dialog.getByText('云端 → 本机', {exact: true}).click();
+        await page.locator('[data-testid="google-drive-confirm"]').click();
+        await page.getByRole('button', {name: '确认替换', exact: true}).click();
+        await page.locator('.el-dialog').waitFor({state: 'hidden'});
+        const restored = await page.evaluate(() => chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:credentials'}));
+        check(JSON.stringify(restored.value).includes('fixture-private-api-key'), 'download restores full credentials through real storage');
+        check((await page.evaluate(() => chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}))).value.to === 'fr', 'download restores cloud language');
+        const hiddenState = await page.evaluate(() => chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:googleDriveEncryptedSyncState'}));
+        check(hiddenState.success === false, 'private sync state is excluded from public storage proxy');
+        await page.reload({waitUntil: 'domcontentloaded'});
+        await page.locator('#drive-passphrase').waitFor();
+        check(await page.locator('#drive-passphrase').inputValue() === '', 'reopening settings does not retain passphrase');
+        const screenshot = path.join(artifactsDir, 'encrypted-sync-desktop.png');
+        await page.screenshot({path: screenshot}); report.screenshots.push(screenshot);
+        await page.locator('#drive-passphrase').fill(password);
+        await page.locator('button[data-section="settings-general"]').click();
+        await page.locator('button[data-section="settings-data"]').click();
+        await page.locator('#drive-passphrase').waitFor();
+        check(await page.locator('#drive-passphrase').inputValue() === '', 'leaving backup panel destroys temporary passphrase');
+        await page.setViewportSize({width: 390, height: 900});
+        await activateExtensionTabWithoutForeground(context, page);
+        check(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), '390px settings has no horizontal overflow');
+        const mobile = path.join(artifactsDir, 'encrypted-sync-mobile.png');
+        await page.screenshot({path: mobile}); report.screenshots.push(mobile);
+        check(report.consoleErrors.length === 0, 'no settings console errors');
+        report.ok = true;
+    } finally {
+        if (launched) await launched.close();
+        fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
+        fs.rmSync(profileDir, {recursive: true, force: true});
+    }
+    console.log(JSON.stringify(report, null, 2));
+}
+main().catch(error => {console.error(error.message); process.exitCode = 1;});
