@@ -7,7 +7,7 @@ import {DriveConfigError} from '@/src/core/config/driveSync';
 import type {createGoogleDriveSync} from '@/src/services/config/googleDriveSync';
 
 function fixture(trusted = true) {
-    const service = {status: vi.fn(), connect: vi.fn(), disconnect: vi.fn(), cancel: vi.fn(), prepare: vi.fn(), commit: vi.fn()} as unknown as ReturnType<typeof createGoogleDriveSync>;
+    const service = {status: vi.fn(), cancel: vi.fn(), prepare: vi.fn(), commit: vi.fn()} as unknown as ReturnType<typeof createGoogleDriveSync>;
     return {service, handler: createGoogleDriveSyncHandler(service, () => trusted)};
 }
 describe('Google Drive 可信消息协议', () => {
@@ -19,10 +19,10 @@ describe('Google Drive 可信消息协议', () => {
     });
     it('拒绝内容脚本发送者，合法设置消息只向服务传递必要参数', async () => {
         const f = fixture(false);
-        expect(await f.handler.handle({type, action: 'connect'}, {})).toMatchObject({success: false});
-        expect(f.service.connect).not.toHaveBeenCalled();
+        expect(await f.handler.handle({type, action: 'prepare'}, {})).toMatchObject({success: false});
+        expect(f.service.prepare).not.toHaveBeenCalled();
         const allowed = fixture();
-        for (const action of ['status', 'connect', 'disconnect', 'cancel'] as const) {
+        for (const action of ['status', 'cancel'] as const) {
             expect(await allowed.handler.handle({type, action}, {})).toMatchObject({success: true});
             expect(allowed.service[action]).toHaveBeenCalledOnce();
         }
@@ -33,7 +33,7 @@ describe('Google Drive 可信消息协议', () => {
     });
     it('拒绝非法动作、预览 ID、方向与冲突选择', async () => {
         const f = fixture();
-        for (const message of [{}, {action: 'bad'}, {action: 'commit'}, {action: 'commit', id: 'x'.repeat(65)}, {action: 'commit', id: 'id', direction: 'bad'}]) expect(await f.handler.handle({type, ...message}, {})).toMatchObject({success: false});
+        for (const message of [{}, {action: 'bad'}, {action: 'connect'}, {action: 'disconnect'}, {action: 'commit'}, {action: 'commit', id: 'x'.repeat(65)}, {action: 'commit', id: 'id', direction: 'bad'}]) expect(await f.handler.handle({type, ...message}, {})).toMatchObject({success: false});
         for (const choices of [undefined, null, [], 1, {'bad-secret-field': 'local'}, {'0': 'bad'}, Object.fromEntries(Array.from({length: 50_001}, (_, id) => [String(id), 'local']))]) expect(await f.handler.handle({type, action: 'commit', id: 'id', direction: 'merge', choices}, {})).toMatchObject({success: false});
         expect(f.service.commit).not.toHaveBeenCalled();
     });

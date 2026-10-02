@@ -51,9 +51,15 @@ describe('Chrome Google 身份边界', () => {
         vi.mocked(f.ports.identity!.getAuthToken).mockRejectedValueOnce(new Error('fixture provider private error'));
         await expect(f.auth.open()).rejects.toThrow('授权未完成');
         vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({});
-        await expect(f.auth.open()).rejects.toThrow('不完整');
+        await expect(f.auth.open()).rejects.toThrow('有效授权');
         vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({token: 'fixture-access', grantedScopes: [GOOGLE_DRIVE_SCOPES[0]]});
-        await expect(f.auth.open()).rejects.toThrow('不完整');
+        await expect(f.auth.open()).rejects.toThrow('邮箱权限');
+        vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({token: 'fixture-access', grantedScopes: [GOOGLE_DRIVE_SCOPES[1]]});
+        await expect(f.auth.open()).rejects.toThrow('勾选配置数据访问权限');
+        vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({token: 'fixture-access', grantedScopes: [GOOGLE_DRIVE_SCOPES[0], 'email']});
+        expect((await f.auth.open()).account.id).toBe('fixture-account');
+        vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({token: 'fixture-access', grantedScopes: ['email']});
+        await expect(f.auth.open()).rejects.toThrow('配置数据权限');
         vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({token: 'fixture-access'});
         expect((await f.auth.open()).account.id).toBe('fixture-account');
     });

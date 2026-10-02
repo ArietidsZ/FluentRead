@@ -30,7 +30,6 @@ function fixture() {
 }
 async function synced() {
     const f = fixture();
-    await f.service.connect();
     const preview = await f.service.prepare(password);
     await f.service.commit(preview.id, password, 'upload', {});
     return f;
@@ -38,7 +37,6 @@ async function synced() {
 describe('Google Drive 同步事务', () => {
     it('MV3 后台重启后仍可用口令恢复一次性预览，暂存中没有明文凭据', async () => {
         const first = fixture();
-        await first.service.connect();
         const initial = await first.service.prepare(password);
         const prepared = first.state as DriveSyncState;
         expect(JSON.stringify(prepared)).not.toMatch(/fixture-key-a|fixture-header-a|fixture-body-a|fixture-oauth-a/u);
@@ -47,16 +45,14 @@ describe('Google Drive 同步事务', () => {
         await createGoogleDriveSync(first.ports).commit(existing.id, password, 'merge', {});
         expect(first.state).not.toHaveProperty('prepared');
         const second = fixture(); second.remote = first.remote;
-        await second.service.connect();
         const download = await second.service.prepare(password);
         await createGoogleDriveSync(second.ports).commit(download.id, password, 'download', {});
         expect(second.local).toEqual(first.local);
     });
     it('拒绝损坏预览元数据与被人为延长的过期预览', async () => {
-        const f = fixture(); await f.service.connect();
-        for (const prepared of [null, {}, {id: 1}, {id: 'id'}, {id: 'id', expiresAt: 'bad'}, {id: 'id', expiresAt: 1000}, {id: 'id', expiresAt: 1000, content: 1}]) {
+        const f = fixture(); for (const prepared of [null, {}, {id: 1}, {id: 'id'}, {id: 'id', expiresAt: 'bad'}, {id: 'id', expiresAt: 1000}, {id: 'id', expiresAt: 1000, content: 1}]) {
             f.state = {...f.state as DriveSyncState, prepared};
-            expect(await f.service.status()).toMatchObject({account: owner});
+            expect(await f.service.status()).toMatchObject({account: null});
         }
         const preview = await f.service.prepare(password);
         const state = f.state as DriveSyncState;
@@ -69,34 +65,39 @@ describe('Google Drive 同步事务', () => {
         await expect(f.service.commit('different-id', password, 'upload', {})).rejects.toThrow('失效');
         expect(next.id).not.toBe('different-id');
     });
-    it('只由连接动作交互授权；首次上传前无写入，持久化只含密文基线', async () => {
+    it('每次点击只授权一次，结束后清理缓存且保留密文基线与同步时间', async () => {
         const f = fixture();
         expect(await f.service.status()).toMatchObject({account: null});
         expect(f.ports.auth.open).not.toHaveBeenCalled();
-        await expect(f.service.prepare(password)).rejects.toThrow('先连接');
-        expect(await f.service.connect()).toMatchObject({account: owner, lastSyncedAt: null});
-        expect(f.ports.auth.open).toHaveBeenCalledWith(true);
         const preview = await f.service.prepare(password);
+        expect(f.ports.auth.open).toHaveBeenCalledOnce();
+        expect(f.ports.auth.open).toHaveBeenCalledWith(true);
         expect(preview).toMatchObject({hasRemote: false, hasBaseline: false, changes: []});
         expect(f.ports.api.write).not.toHaveBeenCalled();
-        await f.service.commit(preview.id, password, 'upload', {});
+        expect(await f.service.status()).toMatchObject({account: null});
+        expect(f.ports.auth.disconnect).not.toHaveBeenCalled();
+        expect(await f.service.commit(preview.id, password, 'upload', {})).toMatchObject({account: null, lastSyncedAt: 1000});
         const persisted = f.state as DriveSyncState;
         for (const secret of ['fixture-key-a', 'fixture-header-a', 'fixture-body-a', 'fixture-url-a', 'fixture-oauth-a', password, 'fixture-auth-token']) {expect(JSON.stringify(persisted)).not.toContain(secret); expect(f.remote!.content).not.toContain(secret);}
         expect(toDriveSyncConfig((await decryptDriveConfig(f.remote!.content, password) as {config: unknown}).config)).toEqual(f.local);
-        expect(persisted).toMatchObject({connected: true, accountId: owner.id, lastSyncedAt: 1000});
+        expect(persisted).toMatchObject({connected: false, accountId: owner.id, lastSyncedAt: 1000});
         expect(f.ports.apply).not.toHaveBeenCalled();
-        expect(await f.service.status()).toMatchObject({account: owner, lastSyncedAt: 1000});
-        await f.service.disconnect();
-        expect(await f.service.status()).toMatchObject({account: null});
+        expect(await f.service.status()).toMatchObject({account: null, lastSyncedAt: 1000});
+        expect(f.ports.auth.open).toHaveBeenCalledTimes(2);
         expect(f.remote).not.toBeNull();
         expect(f.ports.auth.disconnect).toHaveBeenCalledOnce();
+        const again = await f.service.prepare(password);
+        expect(again.hasBaseline).toBe(true);
+        expect(f.ports.auth.open).toHaveBeenLastCalledWith(true);
+        await f.service.cancel();
+        expect(f.state).toEqual(persisted);
+        expect(f.ports.auth.disconnect).toHaveBeenCalledTimes(2);
     });
     it('第二设备必须明确下载，精确恢复凭据及其删除，口令错误不产生任何写入', async () => {
         const first = await synced();
         const second = fixture();
         second.remote = first.remote;
         second.local = config({token: {openai: 'fixture-other'}, key: 'fixture-remove-me'});
-        await second.service.connect();
         await expect(second.service.prepare('wrong fixture password')).rejects.toThrow('口令不正确');
         expect(second.ports.apply).not.toHaveBeenCalled();
         expect(second.ports.api.write).not.toHaveBeenCalled();
@@ -125,7 +126,6 @@ describe('Google Drive 同步事务', () => {
     });
     it('拒绝过期、取消、口令变化、本机修改和账号切换的预览', async () => {
         const f = fixture();
-        await f.service.connect();
         let preview = await f.service.prepare(password);
         f.clock = preview.expiresAt;
         await expect(f.service.commit(preview.id, password, 'upload', {})).rejects.toThrow('失效');
@@ -176,38 +176,67 @@ describe('Google Drive 同步事务', () => {
         vi.mocked(f.ports.apply).mockRejectedValue(new Error('fixture total storage failure'));
         await expect(f.service.commit(again.id, password, 'download', {})).rejects.toThrow('保存和恢复失败');
     });
-    it('旧基线无法解密和换账号时不隐含合并；重新连接同账号保留基线', async () => {
+    it('旧基线无法解密和换账号时不隐含合并；再次同步同账号保留基线', async () => {
         const f = await synced();
         const state = f.state as DriveSyncState;
         f.state = {...state, baseline: 'obsolete plaintext baseline'};
         expect((await f.service.prepare(password)).hasBaseline).toBe(false);
         f.state = state;
-        await f.service.connect();
         expect((await f.service.prepare(password)).hasBaseline).toBe(true);
         f.account = {id: 'fixture-account-b', email: 'other@fixture.invalid'};
-        expect(await f.service.status()).toMatchObject({lastSyncedAt: null});
+        expect(await f.service.status()).toMatchObject({account: null, lastSyncedAt: 1000});
         expect((await f.service.prepare(password)).hasBaseline).toBe(false);
-        await f.service.connect();
         expect(f.state).toMatchObject({accountId: 'fixture-account-b', baseline: '', lastSyncedAt: null});
     });
-    it('防御未配置浏览器、无效状态、授权失败、断开状态和不存在的同步方向', async () => {
+    it('防御未配置浏览器、无效状态、授权失败、已结束事务和不存在的同步方向', async () => {
         const f = fixture();
         for (const state of [[], {}, {version: 2}, {version: 1}, {version: 1, connected: true}, {version: 1, connected: true, accountId: 'a'}, {version: 1, connected: true, accountId: 'a', baseline: ''}, {version: 1, connected: true, accountId: 'a', baseline: '', lastSyncedAt: 'bad'}]) {f.state = state; expect(await f.service.status()).toMatchObject({account: null});}
         vi.mocked(f.ports.auth.availability).mockReturnValueOnce({available: false, reason: 'fixture unsupported'});
         expect(await f.service.status()).toMatchObject({available: false});
-        await f.service.connect();
         vi.mocked(f.ports.auth.open).mockRejectedValueOnce(new Error('fixture auth failure'));
-        expect(await f.service.status()).toMatchObject({account: null});
+        await expect(f.service.prepare(password)).rejects.toThrow('fixture auth failure');
+        expect(f.ports.auth.disconnect).toHaveBeenCalledOnce();
         let preview = await f.service.prepare(password);
         await expect(f.service.commit(preview.id, password, 'download', {})).rejects.toThrow('无效的同步方向');
         preview = await f.service.prepare(password);
-        await f.service.disconnect();
+        await f.service.cancel();
         await expect(f.service.commit(preview.id, password, 'upload', {})).rejects.toThrow('失效');
-        await f.service.connect();
         preview = await f.service.prepare(password);
         f.state = {...f.state as DriveSyncState, connected: false};
-        await expect(f.service.commit(preview.id, password, 'upload', {})).rejects.toThrow('已断开');
+        await expect(f.service.commit(preview.id, password, 'upload', {})).rejects.toThrow('授权已结束');
         await expect(f.service.prepare('short')).rejects.toThrow('12');
         await expect(f.service.commit('missing', 'short', 'upload', {})).rejects.toThrow('12');
     });
+    it('旧连接及过期事务在状态检查时清理，不发起 Google 请求', async () => {
+        const f = await synced();
+        const state = f.state as DriveSyncState;
+        f.state = {...state, connected: true};
+        vi.mocked(f.ports.auth.open).mockClear();
+        vi.mocked(f.ports.auth.disconnect).mockClear();
+        expect(await f.service.status()).toMatchObject({account: null, lastSyncedAt: 1000});
+        expect(f.ports.auth.open).not.toHaveBeenCalled();
+        expect(f.ports.auth.disconnect).toHaveBeenCalledOnce();
+        const preview = await f.service.prepare(password);
+        f.clock = preview.expiresAt;
+        expect(await f.service.status()).toMatchObject({account: null, lastSyncedAt: 1000});
+        expect(f.state).toEqual(state);
+        expect(f.ports.auth.disconnect).toHaveBeenCalledTimes(2);
+    });
+    it('预览、写入和清理失败都尝试清除授权缓存，原基线不被失败预览替换', async () => {
+        const f = await synced();
+        const state = f.state;
+        vi.mocked(f.ports.api.read).mockRejectedValueOnce(new Error('fixture read failed'));
+        await expect(f.service.prepare(password)).rejects.toThrow('fixture read failed');
+        expect(f.state).toEqual(state);
+        expect(f.ports.auth.disconnect).toHaveBeenCalledTimes(2);
+        vi.mocked(f.ports.readState).mockRejectedValueOnce(new Error('fixture state read failed'));
+        await expect(f.service.cancel()).rejects.toThrow('fixture state read failed');
+        expect(f.ports.auth.disconnect).toHaveBeenCalledTimes(3);
+        vi.mocked(f.ports.writeState).mockRejectedValueOnce(new Error('fixture state write failed'));
+        await expect(f.service.cancel()).rejects.toThrow('fixture state write failed');
+        expect(f.ports.auth.disconnect).toHaveBeenCalledTimes(4);
+        vi.mocked(f.ports.auth.disconnect).mockRejectedValueOnce(new Error('fixture cache clear failed'));
+        await expect(f.service.cancel()).rejects.toThrow('fixture cache clear failed');
+    });
+
 });

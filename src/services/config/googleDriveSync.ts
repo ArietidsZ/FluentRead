@@ -1,7 +1,7 @@
 /**
  * @file src/services/config/googleDriveSync.ts
  * 文件职责：编排完整配置的 Google Drive 加密同步与用户确认事务。
- * 主要内容：账号绑定、密文基线、三方合并、掩码预览、过期与并发检查、失败恢复。
+ * 主要内容：单次授权、账号绑定、密文基线、三方合并、掩码预览、过期检查与自动清理授权缓存。
  * 模块边界：通过端口读写配置与 Drive；不持久化口令，不向设置页面传递完整配置。
  */
 import {buildDriveSyncDiff, driveSyncPayload, driveValuesEqual, parseDriveSyncPayload, resolveDriveSyncDiff, toDriveSyncConfig, type DriveSyncConfig, type DriveSyncDiff} from '@/src/core/config/driveSync';
@@ -11,6 +11,7 @@ import type {DriveFile, DriveRemote} from '@/src/platform/google-drive/api';
 
 export interface DriveSyncState {
     version: 1;
+    // 兼容已有状态：只标记待确认事务，完成、失败或取消后立即设为 false。
     connected: boolean;
     accountId: string;
     baseline: string;
@@ -67,38 +68,29 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
         queue = result.catch(() => undefined);
         return result;
     }
+    async function finishSession(): Promise<void> {
+        pending = null;
+        try {
+            const state = readState(await ports.readState());
+            delete state.prepared;
+            await ports.writeState({...state, connected: false});
+        } finally {await ports.auth.disconnect();}
+    }
     async function status(): Promise<DriveSyncStatus> {
         const availability = ports.auth.availability();
         const state = readState(await ports.readState());
-        if (!availability.available || !state.connected) return {...availability, account: null, lastSyncedAt: null};
-        try {
-            const session = await ports.auth.open(false);
-            return {...availability, account: session.account, lastSyncedAt: session.account.id === state.accountId ? state.lastSyncedAt : null};
-        } catch {return {...availability, account: null, lastSyncedAt: null};}
-    }
-    async function connect(): Promise<DriveSyncStatus> {
-        const session = await ports.auth.open(true);
-        const state = readState(await ports.readState());
-        const next = session.account.id === state.accountId ? state : emptyState();
-        delete next.prepared;
-        await ports.writeState({...next, connected: true, accountId: session.account.id});
-        pending = null;
-        return {...ports.auth.availability(), account: session.account, lastSyncedAt: next.lastSyncedAt};
-    }
-    async function disconnect(): Promise<void> {
-        pending = null;
-        const state = readState(await ports.readState());
-        delete state.prepared;
-        await ports.writeState({...state, connected: false});
-        await ports.auth.disconnect();
+        // 打开设置不获取令牌；顺便清理旧实现留下的连接或已经过期的事务。
+        if (state.connected && (!state.prepared || state.prepared.expiresAt <= ports.now())) await finishSession();
+        return {...availability, account: null, lastSyncedAt: state.lastSyncedAt};
     }
     async function prepare(passphrase: string): Promise<DriveSyncPreview> {
         validateDrivePassphrase(passphrase);
         pending = null;
-        const state = readState(await ports.readState());
-        if (!state.connected) throw new DriveError('请先连接 Google 账号。');
+        const session = await ports.auth.open(true);
+        const previous = readState(await ports.readState());
+        const state = previous.accountId === session.account.id ? previous : emptyState();
+        delete state.prepared;
         const local = toDriveSyncConfig(await ports.snapshot());
-        const session = await ports.auth.open(false);
         const remote = await ports.api.read(session);
         const remoteConfig = remote ? parseDriveSyncPayload(await decryptDriveConfig(remote.content, passphrase)) : null;
         let baseline: DriveSyncConfig | null = null;
@@ -111,7 +103,7 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
         pending = {preview, local, remote, remoteConfig, diff, proof: await proof(preview.id, passphrase)};
         // MV3 worker 可能在用户阅读预览时休眠；待确认快照仅以口令密文保存。
         const content = await encryptDriveConfig({preview, local, remote, baseline: baseline ? state.baseline : '', proof: pending.proof}, passphrase);
-        await ports.writeState({...state, prepared: {id: preview.id, expiresAt: preview.expiresAt, content}});
+        await ports.writeState({...state, connected: true, accountId: session.account.id, prepared: {id: preview.id, expiresAt: preview.expiresAt, content}});
         return preview;
     }
     async function commit(id: string, passphrase: string, direction: DriveSyncDirection, choices: Record<string, unknown>): Promise<DriveSyncStatus> {
@@ -131,7 +123,7 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
         await ports.writeState(state);
         if (!current || current.preview.id !== id || current.preview.expiresAt <= ports.now()) throw new DriveError('同步预览已失效，请重新生成。');
         if (await proof(id, passphrase) !== current.proof) throw new DriveError('同步口令已修改，请重新生成预览。');
-        if (!state.connected) throw new DriveError('账号已断开，请重新连接。');
+        if (!state.connected) throw new DriveError('本次同步授权已结束，请重新生成预览。');
         const session = await ports.auth.open(false);
         if (session.account.id !== current.preview.account.id) throw new DriveError('Google 账号已切换，请重新生成同步预览。');
         if (!driveValuesEqual(toDriveSyncConfig(await ports.snapshot()), current.local)) throw new DriveError('本机配置已变化，请重新生成同步预览。');
@@ -150,18 +142,17 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
                 throw new DriveError('本机保存失败，已恢复原配置；请重新预览后重试。');
             }
         }
-        await ports.writeState({version: 1, connected: true, accountId: session.account.id, baseline: content, lastSyncedAt: ports.now()});
-        return {...ports.auth.availability(), account: session.account, lastSyncedAt: ports.now()};
+        await ports.writeState({version: 1, connected: false, accountId: session.account.id, baseline: content, lastSyncedAt: ports.now()});
+        return {...ports.auth.availability(), account: null, lastSyncedAt: ports.now()};
     }
     return {
-        status: () => exclusive(status), connect: () => exclusive(connect), disconnect: () => exclusive(disconnect),
-        prepare: (passphrase: string) => exclusive(() => prepare(passphrase)),
-        commit: (id: string, passphrase: string, direction: DriveSyncDirection, choices: Record<string, unknown>) => exclusive(() => commit(id, passphrase, direction, choices)),
-        cancel: () => exclusive(async () => {
-            pending = null;
-            const state = readState(await ports.readState());
-            delete state.prepared;
-            await ports.writeState(state);
+        status: () => exclusive(status),
+        prepare: (passphrase: string) => exclusive(async () => {
+            try {return await prepare(passphrase);} catch (error) {await finishSession(); throw error;}
         }),
+        commit: (id: string, passphrase: string, direction: DriveSyncDirection, choices: Record<string, unknown>) => exclusive(async () => {
+            try {return await commit(id, passphrase, direction, choices);} finally {await finishSession();}
+        }),
+        cancel: () => exclusive(finishSession),
     };
 }
