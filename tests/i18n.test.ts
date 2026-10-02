@@ -88,7 +88,7 @@ describe('界面 i18n 契约', () => {
       expect(translate('settings.drive.account', language, {email: 'tester@fixture.invalid'})).toContain('tester@fixture.invalid');
       expect(translate('settings.drive.differences', language, {count: 23})).toContain('23');
       expect(translate('settings.drive.lastSync', language, {email: 'tester@fixture.invalid', time: 'fixture-time'})).toContain('fixture-time');
-      for (const source of ['Google Drive 配置同步', '同步口令', '翻译连接与凭据（整组）', '已设置（内容隐藏）', '本机 → 云端', '云端 → 本机']) {
+      for (const source of ['Google Drive 配置同步', '预览同步', '翻译连接与凭据（整组）', '已设置（内容隐藏）', '本机 → 云端', '云端 → 本机']) {
         expect(translateLegacyText(source, language)).not.toBe(source);
       }
     }

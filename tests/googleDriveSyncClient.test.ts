@@ -8,10 +8,11 @@ describe('同步设置请求端口', () => {
         mocks.send.mockResolvedValue({success: true, data: {fixture: true}});
         expect(await client.status()).toEqual({fixture: true});
         await client.connect(); await client.disconnect(); await client.cancel();
-        await client.prepare('fixture-password');
-        await client.commit('fixture-id', 'fixture-password', 'download', {'0': 'remote'});
+        await client.prepare();
+        await client.commit('fixture-id', 'download', {'0': 'remote'});
         expect(mocks.send.mock.calls.map(call => call[0].action)).toEqual(['status', 'connect', 'disconnect', 'cancel', 'prepare', 'commit']);
-        expect(mocks.send).toHaveBeenLastCalledWith({type: 'googleDriveEncryptedSync', action: 'commit', id: 'fixture-id', passphrase: 'fixture-password', direction: 'download', choices: {'0': 'remote'}});
+        expect(mocks.send.mock.calls.every(([message]) => !('passphrase' in message))).toBe(true);
+        expect(mocks.send).toHaveBeenLastCalledWith({type: 'googleDriveEncryptedSync', action: 'commit', id: 'fixture-id', direction: 'download', choices: {'0': 'remote'}});
     });
     it('后台不可用、无响应和失败响应都有可见错误', async () => {
         mocks.send.mockRejectedValueOnce(new Error('fixture transport private error'));

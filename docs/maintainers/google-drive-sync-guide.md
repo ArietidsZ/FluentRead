@@ -30,7 +30,7 @@ FluentRead 直接把配置保存到**每位用户自己的 Google Drive**。开�
 | 测试用户 | Testing 阶段允许授权的 Google 账号 | 只在 Cloud 控制台填写，无需写进代码 |
 | Google 同步访问令牌 | 证明本次 Drive 请求已获授权 | 不公开，不放进同步配置，交给 Chrome 管理 |
 | 配置中的服务 API Key、OAuth Token | 连接翻译服务和用户自定义接口 | 包含在加密配置内，不以明文上传 |
-| 同步口令 | 在不同设备派生相同的解密密钥 | 用户自己保存，不上传、不持久化 |
+| 固定应用口令 | 后台使用 `FluentReadEncryption`，用户无需输入 | 随开源代码公开，不能作为保密凭据 |
 
 因此，Client ID 可以理解为应用的公开登记编号。知道它不等于能够访问某个用户的云盘，还必须获得该用户的授权和有效访问令牌。[Chrome Identity 官方文档](https://developer.chrome.com/docs/extensions/reference/api/identity)
 
@@ -48,8 +48,9 @@ sequenceDiagram
     B->>C: getAuthToken(interactive=true)
     C-->>U: 登录与权限确认
     C-->>B: 短期访问令牌
-    U->>S: 输入同步口令、请求预览
-    S->>B: 临时口令
+    U->>S: 请求同步预览
+    S->>B: 预览请求
+    B->>B: 自动使用固定应用口令
     B->>G: 读取隐藏应用配置
     B->>B: 读取完整本机配置、解密云端、生成差异
     B-->>S: 隐藏私密内容的预览
@@ -71,9 +72,9 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    A[电脑 A 完整配置] --> EA[口令派生密钥并加密]
+    A[电脑 A 完整配置] --> EA[固定应用口令派生密钥并加密]
     EA --> D[用户自己的 Drive appDataFolder]
-    D --> EB[电脑 B 使用同一口令解密]
+    D --> EB[电脑 B 自动解密]
     EB --> P[先预览，再确认应用]
     P --> B[电脑 B 完整配置]
 ```
@@ -82,13 +83,13 @@ flowchart LR
 
 ## 5 为什么还要本机加密
 
-Drive 的应用隔离控制“哪个应用能访问文件”。本机加密让存储端接收到密文，两者解决不同问题。它仍然要求用户保护 Google 账号、设备与口令，不能表述为绝对安全。
+Drive 的应用隔离控制“哪个应用能访问文件”。本机加密让上传文件不包含明文配置；本次采用固定公开口令，文件保密主要依赖 Google 账号和应用授权。请保护账号、设备与文件，不能表述为绝对安全。
 
-不能使用写死在源码中的 `FluentReadEncryption` 作为云端秘密：源码公开后，任何人都能取得这把通用密钥。本次改用用户自己选择的长口令，至少 12 个字符；建议使用密码管理器生成并保存，避免常用词或短密码。
+按本方案的免输入要求，后台自动使用固定应用口令 `FluentReadEncryption`。用户连接 Google 账号后直接预览和确认，无需设置或记忆同步口令。这个值会随扩展及开源代码发布；任何拿到密文的人都可以据此解密。它不能提供独立于 Google 账号权限的保密保障，也不能称为用户独占密钥或秘密。
 
 ```mermaid
 flowchart TD
-    P[用户口令] --> K[PBKDF2 SHA-256 / 600000 次]
+    P[固定应用口令 FluentReadEncryption] --> K[PBKDF2 SHA-256 / 600000 次]
     S[每次随机生成 16 字节盐] --> K
     K --> A[AES-256-GCM 不可导出密钥]
     C[完整配置 JSON] --> E[认证加密]
@@ -98,7 +99,7 @@ flowchart TD
     F --> D[上传 Google Drive]
 ```
 
-PBKDF2 增加猜测口令的计算成本；AES-GCM 的认证标签用于检测错误密钥和被修改的内容。随机盐与 IV 使相同配置重复上传也产生不同密文。派生与加密使用浏览器的 [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/deriveKey)，PBKDF2-SHA256 迭代参数参考 [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)。
+PBKDF2 用于派生密钥；AES-GCM 的认证标签可检测不匹配的密钥和未正确认证的损坏数据。随机盐与 IV 使相同配置重复上传也产生不同密文。固定口令已经公开，增加迭代次数不能恢复其秘密性；持有文件的人也能够解密后修改并重新生成有效密文。派生与加密使用浏览器的 [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/deriveKey)，PBKDF2-SHA256 迭代参数参考 [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)。
 
 云端只保存版本化加密封装，例如：
 
@@ -115,9 +116,9 @@ PBKDF2 增加猜测口令的计算成本；AES-GCM 的认证标签用于检测�
 }
 ```
 
-内部明文包含完整凭据：API Key、配置中的 OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。预览不会展示这些内容。没有明文降级路线，错误口令或损坏文件会停止同步，不修改本机配置。
+内部明文包含完整凭据：API Key、配置中的 OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。预览不会展示这些内容。没有明文降级路线，无法解密或损坏的文件会停止同步，不修改本机配置。
 
-口令只在当前备份页暂存，关闭预览或离开备份页会清空。其他设备必须输入相同口令。遗忘口令无法找回旧密文；若需要重新开始，请先确保某台设备仍持有完整配置，再在 Drive 应用管理中删除旧隐藏数据并创建新快照。
+设置页没有口令输入框，固定应用口令只由后台使用，不在配置快照中另行保存。其他设备连接同一个 Google 账号即可恢复。若文件使用不同口令或已损坏，请先确保某台设备仍持有完整配置，再在 Drive 应用管理中删除旧隐藏数据并创建新快照。修改固定应用口令会影响旧文件兼容，必须先设计迁移流程。
 
 ## 6 Google Cloud 控制台怎样操作
 
@@ -220,13 +221,13 @@ manifest 由 WXT 回调在加载环境变量后生成，包含 `identity` 权限
 
 1. 打开 FluentRead 设置 → **备份与恢复 → 备份与导入**。
 2. 在 Google Drive 配置同步卡片点击 **连接 Google 账号**，完成 Google 的授权。
-3. 确认显示的账号正确，输入自己选择的长口令，点击 **预览同步**。
-4. 云端为空时选择 **本机 → 云端**，再次输入同一口令。
+3. 确认显示的账号正确，点击 **预览同步**，无需输入口令。
+4. 云端为空时确认 **本机 → 云端**，检查同步范围。
 5. 点击 **加密并上传**，等待同步完成及上次同步时间更新。
 
 电脑 B：
 
-1. 连接同一个 Google 账号，输入 A 使用的同步口令。
+1. 连接同一个 Google 账号，无需输入口令。
 2. 请求预览，选择 **云端 → 本机**。
 3. 核对隐藏内容的差异摘要，确认替换本机配置与凭据。
 4. 打开翻译服务页检查已恢复的连接信息，再验证你自己的实际服务请求。
@@ -269,7 +270,7 @@ flowchart TD
 
 | 情况 | 用户操作与结果 |
 | --- | --- |
-| 口令错误或密文损坏 | 不写入本机，检查口令或从持有完整配置的设备重新建立快照 |
+| 文件无法解密或已损坏 | 不写入本机，从持有完整配置的设备重新建立快照 |
 | 本机或云端在预览后改变 | 重新预览 |
 | 网络失败、403 或配额限制 | 保留原基线，检查网络、范围与测试用户后重试 |
 | 账号切换 | 停止确认，重新核对账号与预览 |
@@ -280,7 +281,7 @@ flowchart TD
 
 断开缓存与撤销 Google 许可是两个动作。删除云端文件不会删除已下载到其他设备的配置。[Chrome 缓存清理](https://developer.chrome.com/docs/extensions/reference/api/identity)、[Google 应用数据管理](https://developers.google.com/workspace/drive/api/guides/appdata)
 
-本次没有定时自动同步、口令变更向导或扩展内删除云端按钮。这些能力需要独立设计恢复与确认流程后再开放。
+本次没有定时自动同步、固定口令迁移或扩展内删除云端按钮。这些能力需要独立设计恢复与确认流程后再开放。
 
 ## 11 维护代码在哪里
 
@@ -294,7 +295,7 @@ flowchart TD
 | `src/services/config/googleDriveSync.ts` | 预览、确认、密文基线、失败处理 |
 | `src/app/background/googleDriveSyncRuntime.ts` | 权威凭据快照、现有配置保存端口与修改队列 |
 | `src/app/background/handlers/googleDriveSync.ts` | 仅允许设置页操作的可信消息协议 |
-| `src/features/settings/ui/GoogleDriveSync.vue` | 账号、临时口令、方向和冲突确认界面 |
+| `src/features/settings/ui/GoogleDriveSync.vue` | 账号、免口令预览、方向和冲突确认界面 |
 
 同步通过现有 `prepareHydratedConfigForExport` 等待完整凭据读取。不能使用不含凭据的公开配置、历史快照或内容脚本配置作为上传源；读取失败必须停止，不能把默认空凭据当作用户删除。
 
