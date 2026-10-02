@@ -1506,6 +1506,7 @@ export const frFRMessages = {
     "document.layoutPreview": "Aperçu de lecture {format}",
     "document.segmentTranslation": "Traduction du segment {number}",
     "reading.priorTurns": "Échanges précédents ({count})",
+    "reading.viewSource": "Voir le texte original",
     "reading.historyTurns": "{count} échanges",
     "reading.generatingAction": "{action}…",
     "reading.memoryReferences": "Référence à {count} mémoires",

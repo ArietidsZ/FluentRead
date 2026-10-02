@@ -1506,6 +1506,7 @@ export const koKRMessages = {
     "document.layoutPreview": "{format} 읽기 레이아웃 미리보기",
     "document.segmentTranslation": "{number}번째 구간 번역",
     "reading.priorTurns": "이전 대화({count}회)",
+    "reading.viewSource": "원문 보기",
     "reading.historyTurns": "대화 {count}회",
     "reading.generatingAction": "{action} 중…",
     "reading.memoryReferences": "기억 {count}개 참고",

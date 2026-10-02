@@ -21,6 +21,7 @@ const runtime = createRequire(import.meta.url)('vue') as typeof import('vue');
 afterEach(async () => {
   unmount?.(); unmount = undefined;
   await server?.close(); server = undefined;
+  vi.unstubAllGlobals();
   delete (globalThis as Record<string, unknown>)[TEST_KEY];
 });
 
@@ -74,19 +75,64 @@ async function mountPanel(overrides: Record<string, unknown> = {}, sessions: Har
 }
 
 describe('reading action ownership and reuse', () => {
-  it('omits duplicate source only when the current answer really renders the source annotations', async () => {
-    const {panel, finish, calls} = await mountPanel();
-    const table = '| Text | POS | Role | Meaning |\n| --- | --- | --- | --- |\n| Practice | noun | 主语 | 练习 |';
-    expect(panel.answerHasSource).toBe(false);
-    calls[0].callbacks.progress({kind: 'text', text: table});
-    expect(panel.answerHasSource).toBe(true);
-    finish(table);
-    panel.startAction('grammar'); finish('A custom explanation without a table.');
-    expect(panel.answerHasSource).toBe(false);
-    panel.startAction('meaning');
-    expect(panel.answerHasSource).toBe(true);
-    panel.regenerate(); finish(table.replace('Practice |', 'Invented |'));
-    expect(panel.answerHasSource).toBe(false);
+  it('keeps the current tab position and unsent follow-up, and offers a focused source shortcut without a request', async () => {
+    const {panel, finish, calls, tick} = await mountPanel();
+    finish('Current answer'); await tick();
+    const viewport = {scrollTop: 0, focus: vi.fn()};
+    panel.answerScroll = viewport;
+    panel.question = 'An unsent follow-up';
+    panel.chooseAction('meaning'); await tick();
+    expect(viewport.scrollTop).toBe(0); expect(panel.question).toBe('An unsent follow-up'); expect(calls).toHaveLength(1);
+    viewport.scrollTop = 300; await panel.showSource();
+    expect(viewport.scrollTop).toBe(0); expect(viewport.focus).toHaveBeenCalledWith({preventScroll: true}); expect(calls).toHaveLength(1);
+  });
+
+  it('positions after the popup layout settles and cancels delayed positioning on user interaction or unmount', async () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let frameId = 0;
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.set(++frameId, callback); return frameId; });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id); });
+    const flushFrame = () => { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback(0)); };
+    const {panel, tick} = await mountPanel();
+    const viewport = {scrollTop: 0};
+    const body = {offsetTop: 40};
+    panel.answerScroll = viewport; panel.answerBody = body;
+    flushFrame();
+    expect(viewport.scrollTop).toBe(0);
+    body.offsetTop = 120; flushFrame();
+    expect(viewport.scrollTop).toBe(120);
+    panel.startAction('grammar'); await tick(); flushFrame();
+    viewport.scrollTop = 0; panel.cancelReadingPosition(); flushFrame();
+    expect(viewport.scrollTop).toBe(0);
+    panel.startAction('usage'); await tick();
+    expect(frames.size).toBe(1);
+    unmount?.(); unmount = undefined; flushFrame();
+    expect(frames.size).toBe(0); expect(viewport.scrollTop).toBe(0);
+  });
+
+  it('starts each action after the source and preserves an upward scroll during streaming and completion', async () => {
+    const {panel, finish, calls, tick} = await mountPanel();
+    const viewport = {scrollTop: 0};
+    panel.answerScroll = viewport;
+    panel.answerBody = {offsetTop: 80};
+    finish('Initial explanation');
+    for (const action of ['meaning', 'grammar', 'usage', 'practice']) {
+      panel.startAction(action); await tick();
+      expect(viewport.scrollTop).toBe(80);
+      viewport.scrollTop = 0;
+      calls.at(-1)!.callbacks.progress({kind: 'text', text: 'Partial explanation'}); await tick();
+      expect(viewport.scrollTop).toBe(0);
+      finish('Completed explanation'); await tick();
+      expect(viewport.scrollTop).toBe(0);
+    }
+    const count = calls.length;
+    panel.startAction('meaning'); await tick();
+    expect(viewport.scrollTop).toBe(80); expect(calls).toHaveLength(count);
+    panel.question = 'A follow-up'; panel.ask(); await tick();
+    expect(viewport.scrollTop).toBe(80);
+    viewport.scrollTop = 0;
+    finish('Follow-up answer'); await tick();
+    expect(viewport.scrollTop).toBe(0);
   });
 
   it('reuses meaning after grammar and unrelated config refreshes, including deactivate/reactivate', async () => {
