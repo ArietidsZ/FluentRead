@@ -10,7 +10,7 @@
 
 An open-source browser extension for bilingual translation.
 
-[Install](#installation) · [Website](https://fluent.thinkstu.com/en/) · [User guide](https://fluent.thinkstu.com/en/guide/) · [简体中文](./misc/README_ZH.md) · [LINUX DO Community](https://linux.do) · [GPL-3.0](./LICENSE)
+[Install](#installation) · [Website](https://fluent.thinkstu.com/en/) · [User guide](https://fluent.thinkstu.com/en/guide/) · [Privacy policy](./PRIVACY.md) · [简体中文](./misc/README_ZH.md) · [LINUX DO Community](https://linux.do) · [GPL-3.0](./LICENSE)
 
 </div>
 
@@ -105,4 +105,8 @@ Thank you to everyone who has contributed to FluentRead, including the many we c
 
 FluentRead is released under [GPL-3.0](./LICENSE). See [third-party notices](./public/third-party-notices/) for component attribution and licenses.
 
-Cloud translation sends relevant text to the selected provider. See [data and privacy](https://fluent.thinkstu.com/en/guide/privacy) for file parsing, image recognition, and local model behavior.
+Cloud translation sends relevant text to the selected provider. Settings and learning records stay in your browser by default. See the [privacy policy](./PRIVACY.md) for file parsing, image recognition, local models, retention, and deletion controls.
+
+Google Drive configuration sync is being tested in the Chrome extension; availability depends on your installed version. Each sync starts with your action and requires confirmation before uploading or applying settings. The backup stays in your own Drive and includes API keys, configured OAuth tokens, authentication headers, custom request bodies, and authentication parameters in URLs. Wordbooks, conversations, usage statistics, and the Google sync access token are excluded.
+
+Sync requests only `drive.appdata`. Encryption uses a public application passphrase, so anyone who obtains the encrypted backup can decrypt it; account, permission, and device security remain essential. See the [Google data and deletion details](./docs/en/guide/privacy.md#google-drive-configuration-sync). Google data is not sold or used for advertising, general-purpose AI training, or unrelated content generation.

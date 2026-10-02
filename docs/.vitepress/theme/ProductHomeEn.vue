@@ -44,6 +44,9 @@ const chrome =
         <a :href="withBase('/en/guide/deepseek-harness')"
           >DeepSeek Harness session core <span aria-hidden="true">→</span></a
         >
+        <a :href="withBase('/en/guide/privacy')"
+          >Privacy policy <span aria-hidden="true">→</span></a
+        >
       </p>
       <figure class="product-main-shot">
         <a
@@ -209,7 +212,7 @@ const chrome =
         <p class="product-subnote">
           Third-party services may require their own credentials or paid
           credits. Cloud translation sends the text to your chosen service.
-          <a :href="withBase('/en/guide/privacy')">Data & privacy</a>
+          <a :href="withBase('/en/guide/privacy')">Read the privacy policy</a>
         </p>
       </div>
       <figure class="product-popup-shot">
@@ -227,6 +230,37 @@ const chrome =
             alt="FluentRead’s menu with target language, translation service, and reading tools"
         /></a>
       </figure>
+    </section>
+
+    <section class="product-story product-data" aria-labelledby="data-title">
+      <div class="product-story-copy">
+        <p class="product-eyebrow">Data & privacy</p>
+        <h2 id="data-title">Data follows your choices</h2>
+        <p>
+          Settings and learning records stay in your browser. Cloud translation
+          sends content to your chosen provider. The policy also explains local
+          recognition and model downloads.
+        </p>
+        <a class="product-text-link" :href="withBase('/en/guide/privacy')"
+          >Read the privacy policy <span aria-hidden="true">→</span></a
+        >
+      </div>
+      <div class="product-sync-summary">
+        <span class="product-preview-label">Chrome testing feature</span>
+        <h3>Google Drive configuration sync</h3>
+        <p>
+          Start a sync to save your complete configuration in your own Google
+          Drive and restore it on another device.
+        </p>
+        <p>
+          Includes service credentials, such as API keys. Wordbooks, conversations,
+          and usage statistics are excluded. Review the scope, encryption, and
+          deletion controls before syncing.
+        </p>
+        <a class="product-text-link" :href="withBase('/en/guide/privacy#google-drive-configuration-sync')"
+          >Understand sync data <span aria-hidden="true">→</span></a
+        >
+      </div>
     </section>
 
     <section class="product-open" aria-labelledby="open-title">
