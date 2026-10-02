@@ -76,13 +76,13 @@ describe('Google Drive 同步事务', () => {
         expect(f.ports.api.write).not.toHaveBeenCalled();
         expect(await f.service.status()).toMatchObject({account: null});
         expect(f.ports.auth.disconnect).not.toHaveBeenCalled();
-        expect(await f.service.commit(preview.id, password, 'upload', {})).toMatchObject({account: null, lastSyncedAt: 1000});
+        expect(await f.service.commit(preview.id, password, 'upload', {})).toMatchObject({account: owner, lastSyncedAt: 1000});
         const persisted = f.state as DriveSyncState;
         for (const secret of ['fixture-key-a', 'fixture-header-a', 'fixture-body-a', 'fixture-url-a', 'fixture-oauth-a', password, 'fixture-auth-token']) {expect(JSON.stringify(persisted)).not.toContain(secret); expect(f.remote!.content).not.toContain(secret);}
         expect(toDriveSyncConfig((await decryptDriveConfig(f.remote!.content, password) as {config: unknown}).config)).toEqual(f.local);
         expect(persisted).toMatchObject({connected: false, accountId: owner.id, lastSyncedAt: 1000});
         expect(f.ports.apply).not.toHaveBeenCalled();
-        expect(await f.service.status()).toMatchObject({account: null, lastSyncedAt: 1000});
+        expect(await f.service.status()).toMatchObject({account: owner, lastSyncedAt: 1000});
         expect(f.ports.auth.open).toHaveBeenCalledTimes(2);
         expect(f.remote).not.toBeNull();
         expect(f.ports.auth.disconnect).toHaveBeenCalledOnce();
@@ -184,9 +184,9 @@ describe('Google Drive 同步事务', () => {
         f.state = state;
         expect((await f.service.prepare(password)).hasBaseline).toBe(true);
         f.account = {id: 'fixture-account-b', email: 'other@fixture.invalid'};
-        expect(await f.service.status()).toMatchObject({account: null, lastSyncedAt: 1000});
+        expect(await f.service.status()).toMatchObject({account: owner, lastSyncedAt: 1000});
         expect((await f.service.prepare(password)).hasBaseline).toBe(false);
-        expect(f.state).toMatchObject({accountId: 'fixture-account-b', baseline: '', lastSyncedAt: null});
+        expect(f.state).toMatchObject({accountId: 'fixture-account-b', baseline: '', lastSyncedAt: 1000});
     });
     it('升级为 Drive 账号标识时不能按同邮箱复用旧 OAuth 基线，确认前保留两端配置', async () => {
         const f = await synced();
@@ -197,7 +197,7 @@ describe('Google Drive 同步事务', () => {
         f.account = {id: 'drive:fixture-account-a', email: owner.email};
         const preview = await f.service.prepare(password);
         expect(preview.hasBaseline).toBe(false);
-        expect(preview.changes.some(change => change.conflict && change.local === '"de"')).toBe(true);
+        expect(preview.changes.some(change => change.conflict && change.label === '目标语言' && change.local.includes('德语'))).toBe(true);
         expect(f.local).toEqual(local);
         expect(f.remote).toEqual(remote);
         expect(f.ports.api.write).toHaveBeenCalledTimes(writes);
@@ -235,12 +235,12 @@ describe('Google Drive 同步事务', () => {
         f.state = {...state, connected: true};
         vi.mocked(f.ports.auth.open).mockClear();
         vi.mocked(f.ports.auth.disconnect).mockClear();
-        expect(await f.service.status()).toMatchObject({account: null, lastSyncedAt: 1000});
+        expect(await f.service.status()).toMatchObject({account: owner, lastSyncedAt: 1000});
         expect(f.ports.auth.open).not.toHaveBeenCalled();
         expect(f.ports.auth.disconnect).toHaveBeenCalledOnce();
         const preview = await f.service.prepare(password);
         f.clock = preview.expiresAt;
-        expect(await f.service.status()).toMatchObject({account: null, lastSyncedAt: 1000});
+        expect(await f.service.status()).toMatchObject({account: owner, lastSyncedAt: 1000});
         expect(f.state).toEqual(state);
         expect(f.ports.auth.disconnect).toHaveBeenCalledTimes(2);
     });
@@ -355,5 +355,34 @@ describe('Google Drive 同步事务', () => {
         expect(second.local).toEqual(first.local);
         expect(second.ports.api.write).not.toHaveBeenCalled();
     }, 30_000);
+
+    it('成功同步记录账号，重开不授权；换号取消或失败仍保留上次成功记录', async () => {
+        const f = await synced();
+        vi.mocked(f.ports.auth.open).mockClear();
+        expect(await createGoogleDriveSync(f.ports).status()).toMatchObject({account: owner, lastSyncedAt: 1000});
+        expect(f.ports.auth.open).not.toHaveBeenCalled();
+        f.account = {id: 'fixture-account-b', email: 'b@fixture.invalid'};
+        const pending = await f.service.prepare(password, 1, 'owner');
+        expect(pending.account.email).toBe('b@fixture.invalid');
+        await f.service.cancel(pending.id, 1, 'owner');
+        expect(await f.service.status()).toMatchObject({account: owner, lastSyncedAt: 1000});
+        vi.mocked(f.ports.auth.open).mockRejectedValueOnce(new Error('fixture-cancelled-authorization'));
+        await expect(f.service.prepare(password, 1, 'owner')).rejects.toThrow('fixture-cancelled-authorization');
+        expect(await f.service.status()).toMatchObject({account: owner, lastSyncedAt: 1000});
+        const next = await f.service.prepare(password, 1, 'owner');
+        await f.service.commit(next.id, password, 'download', {}, 1, 'owner');
+        expect(await f.service.status()).toMatchObject({account: {id: 'fixture-account-b', email: 'b@fixture.invalid'}});
+    });
+    it('旧版缺少账号记录仍显示时间，损坏记录不会进入界面', async () => {
+        const f = fixture();
+        const state = {version: 1, connected: false, accountId: 'old', baseline: '', lastSyncedAt: 1000};
+        for (const lastSyncedAccount of [undefined, null, {}, {id: 'bad'}, {id: 1, email: 'bad'}, {id: 'bad', email: 1}]) {
+            f.state = {...state, lastSyncedAccount};
+            expect(await f.service.status()).toMatchObject({account: null, lastSyncedAt: 1000});
+        }
+        f.account = {id: 'new', email: ''};
+        await f.service.prepare(password);
+        expect(await f.service.status()).toMatchObject({account: null, lastSyncedAt: 1000});
+    });
 
 });

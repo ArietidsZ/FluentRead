@@ -62,8 +62,8 @@ describe('Google Drive 完整快照和安全合并', () => {
         const diff = buildDriveSyncDiff(null,
             {mouseHoverTranslationDelay: 100, selectionTranslatorDelay: 200, disableFloatingBall: false},
             {mouseHoverTranslationDelay: 300, selectionTranslatorDelay: 400, disableFloatingBall: true});
-        expect(diff.changes.map(change => change.label)).toEqual(['悬停翻译延迟（毫秒） · 1', '划词翻译延迟（毫秒） · 2', '禁用悬浮球 · 3']);
-        expect(diff.changes[0]).toMatchObject({local: '100', remote: '300', sensitive: false});
+        expect(diff.changes.map(change => change.label)).toEqual(['悬停翻译延迟（毫秒）', '划词翻译延迟（毫秒）', '禁用悬浮球']);
+        expect(diff.changes[0]).toMatchObject({local: '100 ms', remote: '300 ms', sensitive: false});
         expect(diff.changes[2]).toMatchObject({local: '关闭', remote: '开启'});
         expect(JSON.stringify(buildDriveSyncDiff(null, {theme: {private: 'fixture-secret'}}, {theme: 'dark'}).changes)).not.toContain('fixture-secret');
     });
@@ -88,6 +88,24 @@ describe('Google Drive 完整快照和安全合并', () => {
         }
         for (const patch of [{translationCenterServices: ['custom:missing']}, {favoriteServices: ['custom:missing']}, {quickTranslationProfiles: [{service: 'custom:missing'}]}, {writing: {service: 'custom:missing'}}, {harness: {service: 'custom:missing'}}]) {
             expect(() => parseDriveSyncPayload(driveSyncPayload({...local, ...patch}))).toThrow('不存在');
+        }
+    });
+
+    it('复合外观按组比较，提示词仍隐藏，常见单位与枚举直接可读', () => {
+        const diff = buildDriveSyncDiff(null,
+            {translationAppearance: {color: 'fixture-secret', weight: 300}, system_role: 'fixture-secret', translationCacheMaxBytes: 10485760, theme: 'light', floatingBallCollapsedOpacity: 75, videoSubtitleOffsetMs: 100, translationCacheMaxEntries: 10000, on: null},
+            {translationAppearance: {color: 'other-secret', weight: 400}, system_role: 'other-secret', translationCacheMaxBytes: 5242880, theme: 'dark', floatingBallCollapsedOpacity: 50, videoSubtitleOffsetMs: 200, translationCacheMaxEntries: 2000, on: true});
+        expect(diff.changes.filter(change => change.label === '译文外观')).toHaveLength(1);
+        expect(JSON.stringify(diff.changes)).not.toMatch(/fixture-secret|other-secret/u);
+        expect(diff.changes.find(change => change.label === '翻译缓存容量上限')).toMatchObject({local: '10 MiB', remote: '5 MiB'});
+        expect(diff.changes.find(change => change.label === '主题')).toMatchObject({local: '亮色主题', remote: '暗色主题'});
+        expect(diff.changes.find(change => change.label === '悬浮球收起不透明度')).toMatchObject({local: '75%', remote: '50%'});
+        expect(diff.changes.find(change => change.label === '字幕时间偏移')).toMatchObject({local: '100 ms', remote: '200 ms'});
+        expect(diff.changes.find(change => change.label === '翻译缓存条数上限')).toMatchObject({local: '10000', remote: '2000'});
+        const selected = resolveDriveSyncDiff(diff, Object.fromEntries(diff.changes.map(change => [change.id, 'remote'])));
+        expect(selected.translationAppearance).toEqual({color: 'other-secret', weight: 400});
+        for (const patch of [{from: 'en'}, {to: 'fr'}, {style: 1}, {inputBoxTranslationInterval: 100}, {videoSubtitleFontSize: 100}, {theme: 'unknown'}, {translationCacheMaxBytes: Infinity}]) {
+            expect(buildDriveSyncDiff(null, {}, patch).changes).toHaveLength(1);
         }
     });
 

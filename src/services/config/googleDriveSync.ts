@@ -1,7 +1,8 @@
 /**
  * @file src/services/config/googleDriveSync.ts
  * 文件职责：编排完整配置的 Google Drive 加密同步与用户确认事务。
- * 主要内容：单次授权、账号绑定、密文基线、三方合并、掩码预览、过期检查与自动清理授权缓存。
+ * 主要内容：单次授权、账号绑定、上次成功同步的账号记录、密文基线、三方合并、
+ * 掩码预览、过期检查与自动清理授权缓存；换号失败不改动成功记录。
  * 模块边界：通过端口读写配置与 Drive；不持久化口令，不向设置页面传递完整配置。
  */
 import {buildDriveSyncDiff, driveSyncPayload, driveValuesEqual, parseDriveSyncPayload, resolveDriveSyncDiff, toDriveSyncConfig, type DriveSyncConfig, type DriveSyncDiff} from '@/src/core/config/driveSync';
@@ -16,6 +17,7 @@ export interface DriveSyncState {
     accountId: string;
     baseline: string;
     lastSyncedAt: number | null;
+    lastSyncedAccount?: DriveAccount;
     prepared?: {id: string; expiresAt: number; content: string; tabId?: number; clientId?: string; format?: 2; remote?: DriveRemote | null};
 }
 export interface DriveSyncStatus {available: boolean; reason: string; account: DriveAccount | null; lastSyncedAt: number | null}
@@ -49,7 +51,9 @@ function emptyState(): DriveSyncState {return {version: 1, connected: false, acc
 function readState(value: unknown): DriveSyncState {
     if (!value || typeof value !== 'object' || !('version' in value) || value.version !== 1 || !('connected' in value) || typeof value.connected !== 'boolean' || !('accountId' in value) || typeof value.accountId !== 'string' || !('baseline' in value) || typeof value.baseline !== 'string' || !('lastSyncedAt' in value) || !(value.lastSyncedAt === null || typeof value.lastSyncedAt === 'number')) return emptyState();
     const prepared = 'prepared' in value ? value.prepared as DriveSyncState['prepared'] : undefined;
+    const lastAccount = 'lastSyncedAccount' in value ? value.lastSyncedAccount as Partial<DriveAccount> | null : null;
     return {version: 1, connected: value.connected, accountId: value.accountId, baseline: value.baseline, lastSyncedAt: value.lastSyncedAt,
+        ...(lastAccount && typeof lastAccount.id === 'string' && typeof lastAccount.email === 'string' ? {lastSyncedAccount: {id: lastAccount.id, email: lastAccount.email}} : {}),
         ...(prepared && typeof prepared.id === 'string' && typeof prepared.expiresAt === 'number' && typeof prepared.content === 'string' ? {prepared} : {}),
     };
 }
@@ -84,14 +88,15 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
         const state = readState(await ports.readState());
         // 打开设置不获取令牌；顺便清理旧实现留下的连接或已经过期的事务。
         if (state.connected && (!state.prepared || state.prepared.expiresAt <= ports.now())) await finishSession();
-        return {...availability, account: null, lastSyncedAt: state.lastSyncedAt};
+        return {...availability, account: state.lastSyncedAccount ?? null, lastSyncedAt: state.lastSyncedAt};
     }
     async function prepare(passphrase: string, tabId?: number, clientId?: string): Promise<DriveSyncPreview> {
         validateDrivePassphrase(passphrase);
         pending = null;
         const session = await ports.auth.open(true);
         const previous = readState(await ports.readState());
-        const state = previous.accountId === session.account.id ? previous : emptyState();
+        // 换账号只重置合并基线；取消或授权失败时仍能看到上次成功同步的账号及时间。
+        const state = previous.accountId === session.account.id ? previous : {...emptyState(), lastSyncedAt: previous.lastSyncedAt, ...(previous.lastSyncedAccount ? {lastSyncedAccount: previous.lastSyncedAccount} : {})};
         delete state.prepared;
         const local = toDriveSyncConfig(await ports.snapshot());
         const remote = await ports.api.read(session);
@@ -152,8 +157,8 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
                 throw new DriveError('本机保存失败，已恢复原配置；请重新预览后重试。');
             }
         }
-        await ports.writeState({version: 1, connected: false, accountId: session.account.id, baseline: content, lastSyncedAt: ports.now()});
-        return {...ports.auth.availability(), account: null, lastSyncedAt: ports.now()};
+        await ports.writeState({version: 1, connected: false, accountId: session.account.id, baseline: content, lastSyncedAt: ports.now(), lastSyncedAccount: session.account});
+        return {...ports.auth.availability(), account: session.account, lastSyncedAt: ports.now()};
     }
     return {
         status: () => exclusive(status),
