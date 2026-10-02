@@ -48,9 +48,9 @@ sequenceDiagram
     B->>C: getAuthToken(interactive=true)
     C-->>U: 登录与权限确认
     C-->>B: 短期访问令牌
-    B->>G: 读取隐藏应用配置
     U->>S: 输入同步口令、请求预览
     S->>B: 临时口令
+    B->>G: 读取隐藏应用配置
     B->>B: 读取完整本机配置、解密云端、生成差异
     B-->>S: 隐藏私密内容的预览
     U->>S: 选择方向、确认
