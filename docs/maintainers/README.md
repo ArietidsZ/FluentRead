@@ -15,3 +15,5 @@
 - 宣传素材在仓库根部 `marketing/`，不复制到站点。
 
 图片采集、压缩、商店规格与验证命令见 `marketing/README.md`。
+
+[Google Drive 同步开发教程](./google-drive-sync-guide.md) 说明完整配置的本机加密、Google Cloud 申请步骤、Chrome 客户端配置、同步确认与验证边界。

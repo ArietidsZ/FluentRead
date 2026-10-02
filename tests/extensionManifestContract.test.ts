@@ -2,6 +2,8 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {describe, expect, it} from 'vitest';
+import {createHash} from 'node:crypto';
+import {GOOGLE_DRIVE_DEFAULT_CLIENT_ID, GOOGLE_DRIVE_EXTENSION_ID, GOOGLE_DRIVE_EXTENSION_PUBLIC_KEY, GOOGLE_DRIVE_SCOPES} from '@/src/platform/google-drive/constants';
 import type {Entrypoint, EntrypointGroup} from 'wxt';
 import {remoteConfigStorageBuildPlugin, createExtensionManifest, extendRemoteConfigBuildConfig, groupModuleWorkers} from '@/wxt.config';
 
@@ -71,6 +73,19 @@ function permissionsFor(browser: string, manifestVersion: 2 | 3): string[] {
 }
 
 describe('extension manifest capability contract', () => {
+    it('Chrome 原生 OAuth 绑定公开商店身份；其他构建不声明 Chrome 客户端', () => {
+        const chrome = createExtensionManifest({browser: 'chrome', manifestVersion: 3});
+        expect(chrome.oauth2).toEqual({client_id: GOOGLE_DRIVE_DEFAULT_CLIENT_ID, scopes: GOOGLE_DRIVE_SCOPES});
+        expect(chrome.key).toBe(GOOGLE_DRIVE_EXTENSION_PUBLIC_KEY);
+        const digest = createHash('sha256').update(Buffer.from(GOOGLE_DRIVE_EXTENSION_PUBLIC_KEY, 'base64')).digest('hex').slice(0, 32);
+        expect([...digest].map(value => String.fromCharCode(97 + parseInt(value, 16))).join('')).toBe(GOOGLE_DRIVE_EXTENSION_ID);
+        expect(permissionsFor('chrome', 3).filter(permission => permission === 'identity')).toHaveLength(1);
+        for (const browser of ['edge', 'firefox', 'safari']) {
+            const manifest = createExtensionManifest({browser, manifestVersion: browser === 'firefox' ? 2 : 3});
+            expect(manifest.oauth2).toBeUndefined(); expect(manifest.key).toBeUndefined();
+            expect(manifest.permissions).not.toContain('identity');
+        }
+    });
     it('builds a separate Thunderbird package with mail display access and no browser page injection', async () => {
         const packageUrl = pathToFileURL(resolve(PROJECT_ROOT, 'scripts/thunderbird/package.mjs')).href;
         const {createThunderbirdManifest} = await import(/* @vite-ignore */ packageUrl) as {
