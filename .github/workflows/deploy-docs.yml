@@ -43,7 +43,10 @@ jobs:
           node-version: 22
           cache: pnpm
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # Website builds do not need WXT entrypoint discovery or local AI binaries.
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Prepare website build tools
+        run: pnpm rebuild esbuild
       - name: Build documentation
         run: pnpm docs:build
       - name: Upload website

@@ -15,6 +15,8 @@
 
 修改 `docs` 并合并到 `main` 后，工作流使用锁文件中的 pnpm 版本安装依赖，执行 `pnpm docs:build`，仅上传 `docs/.vitepress/dist`。构建失败时不会执行发布。相关 Pull Request 只构建，不部署；也可在 Actions 中手动运行 `main` 的工作流。
 
+工作流安装依赖时跳过生命周期脚本，仅准备网站使用的 esbuild，避免运行扩展的 WXT 初始化和本地 AI 二进制下载。`docs/tsconfig.json` 独立于扩展生成的 `.wxt` 配置，官网构建不需要先构建扩展。
+
 本地预览：
 
 ```sh
