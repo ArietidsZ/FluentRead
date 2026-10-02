@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/GoogleDriveSync.vue
 文件职责：提供 Google Drive 完整配置同步入口和用户确认预览。
-主要内容：从统一同步按钮连接账号并预览、自动加密、选择方向、处理隐藏内容的冲突与失败提示。
+主要内容：单次授权同步入口、自动加密、方向选择与冲突预览；结束后不保留持续连接状态。
 模块边界：页面不获取完整同步快照或令牌；固定应用口令由后台使用；页面不提供用户口令输入。
 -->
 <template>
@@ -11,13 +11,12 @@
       <span class="drive-badge">本机加密</span>
     </header>
     <p class="drive-boundary">包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。</p>
-    <p class="drive-status" role="status">{{ statusText }}</p>
+    <p v-if="statusText" class="drive-status" role="status">{{ statusText }}</p>
     <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="drive-error" />
     <div v-if="status?.available" class="drive-actions">
       <el-button type="primary" :loading="busy" :disabled="busy" data-testid="google-drive-sync-now" @click="prepare">立即与Google Drive同步</el-button>
-      <el-button v-if="status.account" :disabled="busy" @click="disconnect">断开连接</el-button>
     </div>
-    <el-dialog v-model="previewVisible" title="确认 Google Drive 同步" width="min(900px, calc(100vw - 24px))" :close-on-click-modal="!busy" :close-on-press-escape="!busy" :show-close="!busy" destroy-on-close @closed="clearPreview">
+    <el-dialog v-model="previewVisible" title="确认 Google Drive 同步" width="min(900px, calc(100vw - 24px))" :close-on-click-modal="!busy" :close-on-press-escape="!busy" :show-close="!busy" :before-close="cancelPreview" destroy-on-close @closed="clearPreview">
       <template v-if="preview">
         <p class="drive-preview-account">{{ t('settings.drive.account', {email: preview.account.email}) }}</p>
         <el-alert v-if="!preview.hasRemote" title="云端还没有同步文件。本次将创建加密的完整配置快照。" type="info" :closable="false" />
@@ -48,7 +47,7 @@
         <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
       </template>
       <template #footer>
-        <el-button :disabled="busy" @click="previewVisible = false">取消</el-button>
+        <el-button :disabled="busy" @click="cancelPreview">取消</el-button>
         <el-button type="primary" :loading="busy" :disabled="!canCommit" data-testid="google-drive-confirm" @click="commit">{{ commitLabel }}</el-button>
       </template>
     </el-dialog>
@@ -77,7 +76,7 @@ const direction = ref<DriveSyncDirection | ''>('');
 const choices = ref<Record<string, string>>({});
 const page = ref(1);
 const visibleChanges = computed(() => preview.value?.changes.slice((page.value - 1) * 40, page.value * 40) ?? []);
-const statusText = computed(() => !status.value ? '正在检查同步状态…' : !status.value.available ? status.value.reason : !status.value.account ? '尚未连接 Google 账号' : status.value.lastSyncedAt ? t('settings.drive.lastSync', {email: status.value.account.email, time: new Date(status.value.lastSyncedAt).toLocaleString()}) : t('settings.drive.neverSync', {email: status.value.account.email}));
+const statusText = computed(() => !status.value ? '正在检查同步状态…' : !status.value.available ? status.value.reason : status.value.lastSyncedAt ? t('settings.drive.lastSync', {time: new Date(status.value.lastSyncedAt).toLocaleString()}) : '');
 const directionHint = computed(() => direction.value === 'upload' ? '本机完整配置及凭据将替换云端快照。' : direction.value === 'download' ? '云端完整配置及凭据将替换本机设置。' : direction.value === 'merge' ? '未冲突的修改已自动选择；请确认每项冲突的保留方向。' : '请先选择同步方向。');
 const commitLabel = computed(() => direction.value === 'download' ? '下载并应用' : direction.value === 'merge' ? '合并并同步' : '加密并上传');
 const canCommit = computed(() => Boolean(preview.value && direction.value && (direction.value !== 'merge' || preview.value.changes.every(change => choices.value[change.id] === 'local' || choices.value[change.id] === 'remote'))));
@@ -89,14 +88,8 @@ async function perform(operation: () => Promise<void>) {
   try {await operation();} catch (failure) {if (alive) error.value = failure instanceof Error ? failure.message : '同步未完成，请重试。';}
   finally {if (alive) busy.value = false;}
 }
-async function disconnect() {await perform(async () => {await client.disconnect(); status.value = await client.status();});}
 async function prepare() {
   await perform(async () => {
-    if (!status.value?.account) {
-      const connected = await client.connect();
-      if (!alive) return;
-      status.value = connected;
-    }
     const result = await client.prepare();
     if (!alive) {await client.cancel(); return;}
     preview.value = result;
@@ -112,12 +105,16 @@ async function commit() {
     try {await ElMessageBox.confirm(directionHint.value, '确认替换完整配置', {confirmButtonText: '确认替换', cancelButtonText: '返回预览', type: 'warning'});} catch {return;}
   }
   await perform(async () => {
-    status.value = await client.commit(preview.value!.id, direction.value as DriveSyncDirection, choices.value);
-    previewVisible.value = false;
-    ElMessage.success('Google Drive 配置同步完成');
+    try {
+      status.value = await client.commit(preview.value!.id, direction.value as DriveSyncDirection, choices.value);
+      ElMessage.success('Google Drive 配置同步完成');
+    } finally {previewVisible.value = false;}
   });
 }
-function clearPreview() {preview.value = null; choices.value = {}; void client.cancel().catch(() => undefined);}
+async function cancelPreview() {await perform(async () => {await client.cancel(); previewVisible.value = false;});}
+function clearPreview() {preview.value = null; choices.value = {};}
+function endSession() {void client.cancel().catch(() => undefined);}
+onMounted(() => {window.addEventListener('pagehide', endSession);});
 onMounted(() => {void perform(async () => {
   try {status.value = await client.status();}
   catch (failure) {
@@ -125,7 +122,7 @@ onMounted(() => {void perform(async () => {
     throw failure;
   }
 });});
-onUnmounted(() => {alive = false; clearPreview();});
+onUnmounted(() => {alive = false; window.removeEventListener('pagehide', endSession); clearPreview(); endSession();});
 </script>
 
 <style scoped>

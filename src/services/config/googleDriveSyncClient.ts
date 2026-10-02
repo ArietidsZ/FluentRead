@@ -1,7 +1,7 @@
 /**
  * @file src/services/config/googleDriveSyncClient.ts
  * 文件职责：为设置页面提供加密同步的类型化后台请求端口。
- * 主要内容：发送状态、授权、预览与一次性确认请求，并检查标准响应。
+ * 主要内容：发送无授权状态检查、单次同步预览、确认与取消请求，并检查标准响应。
  * 模块边界：不读取配置、不加密、不调用 Google；不接收口令，由后台自动使用固定应用口令。
  */
 import browser from 'webextension-polyfill';
@@ -16,8 +16,6 @@ async function request<T>(action: string, data: Record<string, unknown> = {}): P
 }
 export const googleDriveSyncClient = {
     status: () => request<DriveSyncStatus>('status'),
-    connect: () => request<DriveSyncStatus>('connect'),
-    disconnect: () => request<void>('disconnect'),
     prepare: () => request<DriveSyncPreview>('prepare'),
     commit: (id: string, direction: DriveSyncDirection, choices: Record<string, string>) => request<DriveSyncStatus>('commit', {id, direction, choices}),
     cancel: () => request<void>('cancel'),

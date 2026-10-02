@@ -44,14 +44,10 @@ sequenceDiagram
     participant C as Chrome Identity
     participant G as Google Drive
     U->>S: 点击立即与Google Drive同步
-    opt 尚未连接 Google 账号
-        S->>B: 连接请求
-        B->>C: getAuthToken(interactive=true)
-        C-->>U: 登录与权限确认
-        C-->>B: 短期访问令牌
-        B-->>S: 连接成功
-    end
-    S->>B: 自动请求同步预览
+    S->>B: 单次同步预览请求
+    B->>C: getAuthToken(interactive=true)
+    C-->>U: 必要时登录与权限确认
+    C-->>B: 本次操作的短期访问令牌
     B->>B: 自动使用固定应用口令
     B->>G: 读取隐藏应用配置
     B->>B: 读取完整本机配置、解密云端、生成差异
@@ -61,10 +57,13 @@ sequenceDiagram
     B->>B: 本机加密完整配置
     B->>G: 上传密文
     B->>B: 必要时应用合并配置、保存密文基线
+    B->>C: 清理扩展身份缓存
     B-->>S: 同步完成
 ```
 
-打开设置页只做非交互状态检查。点击“立即与Google Drive同步”后，未连接时先显示登录与权限窗口，连接成功后自动生成预览；确认预览后才会上传或应用配置。Google 身份 API 在 Chrome 中管理短期令牌及缓存；401 时清除失效缓存并只重试一次，账号变化则停止本次操作。[Chrome Identity](https://developer.chrome.com/docs/extensions/reference/api/identity)
+打开设置页只读取本机同步记录，不获取令牌或访问 Google。每次点击“立即与Google Drive同步”后才为本次操作取得授权，必要时显示登录与权限窗口，再生成预览；确认预览后才会上传或应用配置。完成、失败、取消预览或离开设置后自动清理扩展身份缓存，不显示持续连接状态或“断开连接”按钮。保留密文基线与上次同步时间，便于下次同步。401 时只刷新一次，账号变化则停止本次操作。[Chrome Identity](https://developer.chrome.com/docs/extensions/reference/api/identity)
+
+Google 授权页面使用它自己的语言设置；若左下角显示 English (United States)，可在该下拉框中选择简体中文。Drive 配置数据权限可能以未勾选的复选框出现，请勾选后再点击 Continue（继续）。没有勾选时，同步会停止并提示缺少哪项权限，不会上传配置。邮箱权限属于账号身份授权，可能已在前一页确认；扩展兼容 `email` 与 `userinfo.email` 的返回形式。[Google 分项权限说明](https://developers.google.com/identity/protocols/oauth2/resources/granular-permissions)
 
 ## 4 配置存在用户自己的云盘哪里
 
@@ -268,7 +267,7 @@ flowchart TD
 
 **并发边界：**Drive 文件接口在本实现中没有经过真实多设备并发的原子条件写入验证。没有可用条件标识时，预检查与写入之间仍有短暂竞争窗口；两个设备同时创建也可能产生同名文件。检测到重复文件时会停止，不猜测该覆盖哪一个。不要把预检查描述成跨设备事务锁。
 
-## 10 失败、断开与删除
+## 10 失败、结束授权与删除
 
 | 情况 | 用户操作与结果 |
 | --- | --- |
@@ -277,11 +276,11 @@ flowchart TD
 | 网络失败、403 或配额限制 | 保留原基线，检查网络、范围与测试用户后重试 |
 | 账号切换 | 停止确认，重新核对账号与预览 |
 | 下载保存失败 | 尝试恢复原配置；恢复也失败时明确提示检查本机存储 |
-| 断开连接 | 清除扩展身份缓存；保留本机配置与云端文件 |
+| 完成、失败或取消同步 | 自动清除扩展身份缓存；保留本机配置、密文基线与云端文件 |
 | 撤销 Google 许可 | 在 Google 账号的第三方连接中移除 FluentRead |
 | 删除隐藏云端数据 | Google Drive 网页 → 设置 → 管理应用 → FluentRead → 删除隐藏应用数据 |
 
-断开缓存与撤销 Google 许可是两个动作。删除云端文件不会删除已下载到其他设备的配置。[Chrome 缓存清理](https://developer.chrome.com/docs/extensions/reference/api/identity)、[Google 应用数据管理](https://developers.google.com/workspace/drive/api/guides/appdata)
+清理扩展缓存与在 Google 账号中撤销许可是两个动作。单次操作结束后不主动调用 Google 的许可撤销接口。删除云端文件不会删除已下载到其他设备的配置。[Chrome 缓存清理](https://developer.chrome.com/docs/extensions/reference/api/identity)、[Google 应用数据管理](https://developers.google.com/workspace/drive/api/guides/appdata)
 
 本次没有定时自动同步、固定口令迁移或扩展内删除云端按钮。这些能力需要独立设计恢复与确认流程后再开放。
 

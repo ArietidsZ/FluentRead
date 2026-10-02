@@ -31,8 +31,6 @@ export function createGoogleDriveSyncHandler(service: Service, trusted: (sender:
             try {
                 let data: unknown;
                 if (message.action === 'status') data = await service.status();
-                else if (message.action === 'connect') data = await service.connect();
-                else if (message.action === 'disconnect') data = await service.disconnect();
                 else if (message.action === 'cancel') data = await service.cancel();
                 else if (message.action === 'prepare') data = await service.prepare(GOOGLE_DRIVE_APPLICATION_PASSPHRASE);
                 else if (message.action === 'commit' && typeof message.id === 'string' && message.id.length <= 64 && ['upload', 'download', 'merge'].includes(message.direction as string)) {

@@ -6,8 +6,7 @@
       "settings.drive.local": "本机：{value}",
       "settings.drive.remote": "云端：{value}",
       "settings.drive.choice": "{label}，合并选择",
-      "settings.drive.lastSync": "{email} · 上次同步 {time}",
-      "settings.drive.neverSync": "{email} · 尚未同步"
+      "settings.drive.lastSync": "上次同步 {time}"
     },
     "legacy": {}
   },
@@ -18,8 +17,7 @@
       "settings.drive.local": "Device: {value}",
       "settings.drive.remote": "Cloud: {value}",
       "settings.drive.choice": "Merge choice for {label}",
-      "settings.drive.lastSync": "{email} · Last sync {time}",
-      "settings.drive.neverSync": "{email} · Not synced yet"
+      "settings.drive.lastSync": "Last sync {time}"
     },
     "legacy": {
       "Google Drive 配置同步": "Google Drive configuration sync",
@@ -27,9 +25,7 @@
       "本机加密": "Encrypted locally",
       "包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。": "Includes API keys, OAuth tokens, authentication headers, custom request bodies, and authentication parameters in URLs. Syncs configuration only; excludes wordbooks, conversations, and usage statistics.",
       "正在检查同步状态…": "Checking sync status…",
-      "尚未连接 Google 账号": "No Google account connected",
       "立即与Google Drive同步": "Sync with Google Drive now",
-      "断开连接": "Disconnect",
       "确认 Google Drive 同步": "Confirm Google Drive sync",
       "云端还没有同步文件。本次将创建加密的完整配置快照。": "There is no cloud file yet. This will create an encrypted complete configuration snapshot.",
       "这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。": "This device has no sync baseline for this account. Choose a direction. Downloading replaces local configuration and credentials.",
@@ -62,7 +58,13 @@
       "已删除": "Deleted",
       "空值": "Empty",
       "同步未完成，请重试。": "Sync did not complete. Try again.",
-      "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "The sync file cannot be decrypted or is damaged. Check the cloud backup; device settings have not changed."
+      "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "The sync file cannot be decrypted or is damaged. Check the cloud backup; device settings have not changed.",
+      "Google 授权未完成，请点击同步按钮后重试。": "Google authorization was not completed. Click the sync button to retry.",
+      "Google 未返回有效授权，请点击同步按钮重试。": "Google did not return valid authorization. Click the sync button to retry.",
+      "未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。": "Google Drive configuration data access was not allowed. Sync again, select the configuration data permission on Google’s consent page, then click Continue.",
+      "未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。": "Google account email access was not allowed. Sync again and allow email access.",
+      "Google 账号响应无效，请重新同步。": "Google returned invalid account information. Sync again.",
+      "本次同步授权已结束，请重新生成预览。": "Authorization for this sync has ended. Generate a new preview."
     }
   },
   "ja-JP": {
@@ -72,8 +74,7 @@
       "settings.drive.local": "端末：{value}",
       "settings.drive.remote": "クラウド：{value}",
       "settings.drive.choice": "{label} の統合選択",
-      "settings.drive.lastSync": "{email} · 前回の同期 {time}",
-      "settings.drive.neverSync": "{email} · 同期未実行"
+      "settings.drive.lastSync": "前回の同期 {time}"
     },
     "legacy": {
       "Google Drive 配置同步": "Google Drive 設定同期",
@@ -81,9 +82,7 @@
       "本机加密": "端末内で暗号化",
       "包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。": "API キー、OAuth トークン、認証ヘッダー、カスタムリクエスト本文、URL の認証パラメータを含みます。設定のみを同期し、単語帳、会話履歴、利用統計は含みません。",
       "正在检查同步状态…": "同期状態を確認中…",
-      "尚未连接 Google 账号": "Google アカウント未接続",
       "立即与Google Drive同步": "今すぐGoogle Driveと同期",
-      "断开连接": "接続解除",
       "确认 Google Drive 同步": "Google Drive 同期の確認",
       "云端还没有同步文件。本次将创建加密的完整配置快照。": "クラウドファイルはまだありません。暗号化された設定全体のスナップショットを作成します。",
       "这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。": "この端末でこのアカウントを初めて同期します。方向を選択してください。ダウンロードすると端末の設定と認証情報を置き換えます。",
@@ -116,7 +115,13 @@
       "已删除": "削除済み",
       "空值": "空",
       "同步未完成，请重试。": "同期が完了しませんでした。再試行してください。",
-      "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "同期ファイルを復号できないか、破損しています。クラウドバックアップを確認してください。端末の設定は変更されていません。"
+      "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "同期ファイルを復号できないか、破損しています。クラウドバックアップを確認してください。端末の設定は変更されていません。",
+      "Google 授权未完成，请点击同步按钮后重试。": "Google の認可が完了していません。同期ボタンで再試行してください。",
+      "Google 未返回有效授权，请点击同步按钮重试。": "Google から有効な認可が返されませんでした。同期ボタンで再試行してください。",
+      "未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。": "Google Drive の設定データへのアクセスが許可されていません。再度同期し、Google の認可画面で設定データへのアクセスにチェックを入れてから「続行」をクリックしてください。",
+      "未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。": "Google アカウントのメールアドレスへのアクセスが許可されていません。再度同期して許可してください。",
+      "Google 账号响应无效，请重新同步。": "Google アカウント情報の応答が無効です。再度同期してください。",
+      "本次同步授权已结束，请重新生成预览。": "今回の同期の認可は終了しました。新しいプレビューを作成してください。"
     }
   },
   "ko-KR": {
@@ -126,8 +131,7 @@
       "settings.drive.local": "기기: {value}",
       "settings.drive.remote": "클라우드: {value}",
       "settings.drive.choice": "{label} 병합 선택",
-      "settings.drive.lastSync": "{email} · 마지막 동기화 {time}",
-      "settings.drive.neverSync": "{email} · 아직 동기화하지 않음"
+      "settings.drive.lastSync": "마지막 동기화 {time}"
     },
     "legacy": {
       "Google Drive 配置同步": "Google Drive 설정 동기화",
@@ -135,9 +139,7 @@
       "本机加密": "기기에서 암호화",
       "包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。": "API 키, OAuth 토큰, 인증 헤더, 사용자 지정 요청 본문 및 URL의 인증 매개변수를 포함합니다. 설정만 동기화하며 단어장, 대화 기록, 사용 통계는 제외합니다.",
       "正在检查同步状态…": "동기화 상태 확인 중…",
-      "尚未连接 Google 账号": "연결된 Google 계정 없음",
       "立即与Google Drive同步": "지금 Google Drive와 동기화",
-      "断开连接": "연결 해제",
       "确认 Google Drive 同步": "Google Drive 동기화 확인",
       "云端还没有同步文件。本次将创建加密的完整配置快照。": "아직 클라우드 파일이 없습니다. 전체 설정의 암호화된 스냅샷을 만듭니다.",
       "这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。": "이 기기에서 이 계정을 처음 동기화합니다. 방향을 선택하세요. 다운로드하면 기기 설정과 인증 정보를 교체합니다.",
@@ -170,7 +172,13 @@
       "已删除": "삭제됨",
       "空值": "빈 값",
       "同步未完成，请重试。": "동기화가 완료되지 않았습니다. 다시 시도하세요.",
-      "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "동기화 파일을 복호화할 수 없거나 손상되었습니다. 클라우드 백업을 확인하세요. 기기 설정은 변경되지 않았습니다."
+      "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "동기화 파일을 복호화할 수 없거나 손상되었습니다. 클라우드 백업을 확인하세요. 기기 설정은 변경되지 않았습니다.",
+      "Google 授权未完成，请点击同步按钮后重试。": "Google 권한 부여가 완료되지 않았습니다. 동기화 버튼을 눌러 다시 시도하세요.",
+      "Google 未返回有效授权，请点击同步按钮重试。": "Google에서 유효한 권한을 반환하지 않았습니다. 동기화 버튼을 눌러 다시 시도하세요.",
+      "未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。": "Google Drive 설정 데이터 권한이 허용되지 않았습니다. 다시 동기화하고 Google 권한 화면에서 설정 데이터 접근 권한을 선택한 다음 계속을 누르세요.",
+      "未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。": "Google 계정 이메일 권한이 허용되지 않았습니다. 다시 동기화하고 이메일 접근을 허용하세요.",
+      "Google 账号响应无效，请重新同步。": "Google 계정 응답이 올바르지 않습니다. 다시 동기화하세요.",
+      "本次同步授权已结束，请重新生成预览。": "이번 동기화 권한이 종료되었습니다. 미리 보기를 다시 생성하세요."
     }
   },
   "fr-FR": {
@@ -180,8 +188,7 @@
       "settings.drive.local": "Appareil : {value}",
       "settings.drive.remote": "Cloud : {value}",
       "settings.drive.choice": "Choix de fusion pour {label}",
-      "settings.drive.lastSync": "{email} · Dernière synchronisation {time}",
-      "settings.drive.neverSync": "{email} · Pas encore synchronisé"
+      "settings.drive.lastSync": "Dernière synchronisation {time}"
     },
     "legacy": {
       "Google Drive 配置同步": "Synchronisation des réglages Google Drive",
@@ -189,9 +196,7 @@
       "本机加密": "Chiffrement local",
       "包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。": "Inclut les clés API, jetons OAuth, en-têtes d’authentification, corps de requête personnalisés et paramètres d’authentification des URL. Synchronise uniquement les réglages, sans carnet de mots, conversations ni statistiques.",
       "正在检查同步状态…": "Vérification de la synchronisation…",
-      "尚未连接 Google 账号": "Aucun compte Google connecté",
       "立即与Google Drive同步": "Synchroniser avec Google Drive maintenant",
-      "断开连接": "Déconnecter",
       "确认 Google Drive 同步": "Confirmer la synchronisation Google Drive",
       "云端还没有同步文件。本次将创建加密的完整配置快照。": "Aucun fichier dans le cloud. Une copie chiffrée de tous les réglages sera créée.",
       "这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。": "Première synchronisation de ce compte sur cet appareil. Choisissez un sens. Le téléchargement remplace les réglages et identifiants locaux.",
@@ -224,7 +229,13 @@
       "已删除": "Supprimé",
       "空值": "Vide",
       "同步未完成，请重试。": "Synchronisation inachevée. Réessayez.",
-      "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "Le fichier est indéchiffrable ou endommagé. Vérifiez la sauvegarde du cloud ; les réglages locaux n’ont pas changé."
+      "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "Le fichier est indéchiffrable ou endommagé. Vérifiez la sauvegarde du cloud ; les réglages locaux n’ont pas changé.",
+      "Google 授权未完成，请点击同步按钮后重试。": "L’autorisation Google n’a pas abouti. Cliquez sur le bouton de synchronisation pour réessayer.",
+      "Google 未返回有效授权，请点击同步按钮重试。": "Google n’a pas renvoyé d’autorisation valide. Cliquez sur le bouton de synchronisation pour réessayer.",
+      "未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。": "L’accès aux données de configuration Google Drive n’a pas été autorisé. Relancez la synchronisation, cochez cette autorisation sur la page Google, puis cliquez sur Continuer.",
+      "未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。": "L’accès à l’adresse e-mail du compte Google n’a pas été autorisé. Relancez la synchronisation et autorisez cet accès.",
+      "Google 账号响应无效，请重新同步。": "Les informations du compte Google sont invalides. Relancez la synchronisation.",
+      "本次同步授权已结束，请重新生成预览。": "L’autorisation de cette synchronisation a pris fin. Générez un nouvel aperçu."
     }
   },
   "ru-RU": {
@@ -234,8 +245,7 @@
       "settings.drive.local": "Устройство: {value}",
       "settings.drive.remote": "Облако: {value}",
       "settings.drive.choice": "Выбор при объединении: {label}",
-      "settings.drive.lastSync": "{email} · Последняя синхронизация {time}",
-      "settings.drive.neverSync": "{email} · Ещё не синхронизировано"
+      "settings.drive.lastSync": "Последняя синхронизация {time}"
     },
     "legacy": {
       "Google Drive 配置同步": "Синхронизация настроек с Google Drive",
@@ -243,9 +253,7 @@
       "本机加密": "Шифрование на устройстве",
       "包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。": "Включает ключи API, токены OAuth, заголовки авторизации, пользовательские тела запросов и параметры авторизации в URL. Синхронизируются только настройки, без словаря, переписки и статистики.",
       "正在检查同步状态…": "Проверка состояния синхронизации…",
-      "尚未连接 Google 账号": "Аккаунт Google не подключён",
       "立即与Google Drive同步": "Синхронизировать с Google Drive сейчас",
-      "断开连接": "Отключить",
       "确认 Google Drive 同步": "Подтвердить синхронизацию Google Drive",
       "云端还没有同步文件。本次将创建加密的完整配置快照。": "В облаке ещё нет файла. Будет создан зашифрованный снимок всех настроек.",
       "这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。": "Это первая синхронизация данного аккаунта на устройстве. Выберите направление. Загрузка заменит локальные настройки и учётные данные.",
@@ -278,7 +286,13 @@
       "已删除": "Удалено",
       "空值": "Пусто",
       "同步未完成，请重试。": "Синхронизация не завершена. Повторите попытку.",
-      "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "Файл синхронизации не расшифровывается или повреждён. Проверьте облачную копию; локальные настройки не изменены."
+      "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "Файл синхронизации не расшифровывается или повреждён. Проверьте облачную копию; локальные настройки не изменены.",
+      "Google 授权未完成，请点击同步按钮后重试。": "Авторизация Google не завершена. Нажмите кнопку синхронизации, чтобы повторить.",
+      "Google 未返回有效授权，请点击同步按钮重试。": "Google не предоставил действующую авторизацию. Нажмите кнопку синхронизации, чтобы повторить.",
+      "未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。": "Доступ к данным конфигурации Google Drive не разрешён. Повторите синхронизацию, отметьте разрешение на странице Google и нажмите «Продолжить».",
+      "未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。": "Доступ к адресу электронной почты Google не разрешён. Повторите синхронизацию и разрешите доступ.",
+      "Google 账号响应无效，请重新同步。": "Google вернул неверные данные аккаунта. Повторите синхронизацию.",
+      "本次同步授权已结束，请重新生成预览。": "Авторизация этой синхронизации завершена. Создайте новый предварительный просмотр."
     }
   },
   "es-ES": {
@@ -288,8 +302,7 @@
       "settings.drive.local": "Dispositivo: {value}",
       "settings.drive.remote": "Nube: {value}",
       "settings.drive.choice": "Elección de combinación para {label}",
-      "settings.drive.lastSync": "{email} · Última sincronización {time}",
-      "settings.drive.neverSync": "{email} · Sin sincronizar"
+      "settings.drive.lastSync": "Última sincronización {time}"
     },
     "legacy": {
       "Google Drive 配置同步": "Sincronización de ajustes con Google Drive",
@@ -297,9 +310,7 @@
       "本机加密": "Cifrado local",
       "包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。": "Incluye claves API, tokens OAuth, cabeceras de autenticación, cuerpos de solicitud personalizados y parámetros de autenticación en URL. Solo sincroniza ajustes; excluye vocabulario, conversaciones y estadísticas.",
       "正在检查同步状态…": "Comprobando la sincronización…",
-      "尚未连接 Google 账号": "Ninguna cuenta de Google conectada",
       "立即与Google Drive同步": "Sincronizar con Google Drive ahora",
-      "断开连接": "Desconectar",
       "确认 Google Drive 同步": "Confirmar sincronización con Google Drive",
       "云端还没有同步文件。本次将创建加密的完整配置快照。": "Todavía no hay archivo en el cloud. Se creará una copia cifrada de todos los ajustes.",
       "这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。": "Primera sincronización de esta cuenta en este dispositivo. Elige una dirección. La descarga reemplaza los ajustes y credenciales locales.",
@@ -332,7 +343,13 @@
       "已删除": "Eliminado",
       "空值": "Vacío",
       "同步未完成，请重试。": "La sincronización no se completó. Inténtalo de nuevo.",
-      "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "No se puede descifrar el archivo o está dañado. Revisa la copia del cloud; los ajustes locales no han cambiado."
+      "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "No se puede descifrar el archivo o está dañado. Revisa la copia del cloud; los ajustes locales no han cambiado.",
+      "Google 授权未完成，请点击同步按钮后重试。": "La autorización de Google no se ha completado. Pulsa el botón de sincronización para reintentar.",
+      "Google 未返回有效授权，请点击同步按钮重试。": "Google no ha devuelto una autorización válida. Pulsa el botón de sincronización para reintentar.",
+      "未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。": "No se ha permitido el acceso a los datos de configuración de Google Drive. Vuelve a sincronizar, marca ese permiso en la página de Google y pulsa Continuar.",
+      "未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。": "No se ha permitido el acceso al correo de la cuenta de Google. Vuelve a sincronizar y permite ese acceso.",
+      "Google 账号响应无效，请重新同步。": "Google ha devuelto información de cuenta no válida. Vuelve a sincronizar.",
+      "本次同步授权已结束，请重新生成预览。": "La autorización para esta sincronización ha finalizado. Genera una nueva vista previa."
     }
   }
 }

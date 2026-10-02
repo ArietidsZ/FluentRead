@@ -39,8 +39,12 @@ export function createDriveAuth(ports: DriveAuthPorts) {
         if (!state.available) throw new DriveError(state.reason);
         let result: Awaited<ReturnType<DriveIdentity['getAuthToken']>>;
         try {result = await ports.identity!.getAuthToken({interactive, enableGranularPermissions: true, scopes: [...GOOGLE_DRIVE_SCOPES]});}
-        catch {throw new DriveError('Google 授权未完成，请点击连接账号后重试。');}
-        if (!result.token || (result.grantedScopes && !GOOGLE_DRIVE_SCOPES.every(scope => result.grantedScopes!.includes(scope)))) throw new DriveError('Google 授权范围不完整，请重新连接并允许应用数据与邮箱权限。');
+        catch {throw new DriveError('Google 授权未完成，请点击同步按钮后重试。');}
+        if (!result.token) throw new DriveError('Google 未返回有效授权，请点击同步按钮重试。');
+        if (result.grantedScopes) {
+            if (!result.grantedScopes.includes(GOOGLE_DRIVE_SCOPES[0])) throw new DriveError('未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。');
+            if (!result.grantedScopes.includes(GOOGLE_DRIVE_SCOPES[1]) && !result.grantedScopes.includes('email')) throw new DriveError('未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。');
+        }
         return result.token;
     }
     async function account(accessToken: string): Promise<DriveAccount> {
@@ -50,7 +54,7 @@ export function createDriveAuth(ports: DriveAuthPorts) {
             const response = await ports.fetch('https://www.googleapis.com/oauth2/v2/userinfo', {headers: {Authorization: `Bearer ${accessToken}`}, signal: controller.signal});
             if (!response.ok) throw new DriveError(`读取 Google 账号失败（HTTP ${response.status}）。`, response.status);
             const data: unknown = await response.json();
-            if (!data || typeof data !== 'object' || !('id' in data) || !('email' in data) || typeof data.id !== 'string' || !data.id || typeof data.email !== 'string' || !data.email) throw new DriveError('Google 账号响应无效，请重新连接。');
+            if (!data || typeof data !== 'object' || !('id' in data) || !('email' in data) || typeof data.id !== 'string' || !data.id || typeof data.email !== 'string' || !data.email) throw new DriveError('Google 账号响应无效，请重新同步。');
             return {id: data.id, email: data.email};
         })();
         return operation.catch(error => {
