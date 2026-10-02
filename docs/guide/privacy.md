@@ -47,10 +47,10 @@ Google Drive 配置同步目前处于 Chrome 扩展测试阶段，是否可用�
 
 只有你点击“立即与Google Drive同步”时，扩展才为本次操作请求 Google 授权并读取备份以生成预览。确认同步方向与变更后，才上传配置或将下载的配置应用到本机。打开设置页不会自动访问 Google Drive。
 
-- **配置范围：**包含API Key、OAuth Token、鉴权请求头、自定义请求体及URL中的鉴权参数，不包含单词本、聊天记录和用量统计。这里的 OAuth Token 是你配置的服务凭据；本次 Google 同步的访问令牌不放进备份。
-- **Google 权限：**只申请管理 FluentRead 自己隐藏应用数据的 `drive.appdata` 权限，不请求读取你的其他 Drive 文件、Gmail 邮件或联系人。该权限的说明见 [Google 官方文档](https://developers.google.com/workspace/drive/api/guides/appdata)。
-- **账号信息：**通过 Drive 读取本次同步账号的标识，防止把不同账号的配置混用；Google 返回邮箱时，仅用于同步预览展示。不另行申请邮箱身份权限，未返回邮箱也可同步。
-- **授权令牌：**由 Chrome 身份接口管理，仅用于本次 Google API 请求。操作完成、失败、取消预览或离开设置后，扩展清除身份缓存。清除缓存不会撤销你在 Google 账号中授予的许可，也不会删除备份。
+- **配置范围**：包含API Key、OAuth Token、鉴权请求头、自定义请求体及URL中的鉴权参数，不包含单词本、聊天记录和用量统计。这里的 OAuth Token 是你配置的服务凭据；本次 Google 同步的访问令牌不放进备份。
+- **Google 权限**：只申请管理 FluentRead 自己隐藏应用数据的 `drive.appdata` 权限，不请求读取你的其他 Drive 文件、Gmail 邮件或联系人。该权限的说明见 [Google 官方文档](https://developers.google.com/workspace/drive/api/guides/appdata)。
+- **账号信息**：通过 Drive 读取本次同步账号的标识，防止把不同账号的配置混用；Google 返回邮箱时，仅用于同步预览展示。不另行申请邮箱身份权限，未返回邮箱也可同步。
+- **授权令牌**：由 Chrome 身份接口管理，仅用于本次 Google API 请求。操作完成、失败、取消预览或离开设置后，扩展清除身份缓存。清除缓存不会撤销你在 Google 账号中授予的许可，也不会删除备份。
 
 ### 保存在哪里，如何保护？
 
