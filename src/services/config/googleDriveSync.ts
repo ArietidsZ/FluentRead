@@ -5,7 +5,7 @@
  * 模块边界：通过端口读写配置与 Drive；不持久化口令，不向设置页面传递完整配置。
  */
 import {buildDriveSyncDiff, driveSyncPayload, driveValuesEqual, parseDriveSyncPayload, resolveDriveSyncDiff, toDriveSyncConfig, type DriveSyncConfig, type DriveSyncDiff} from '@/src/core/config/driveSync';
-import {decryptDriveConfig, encryptDriveConfig, validateDrivePassphrase} from '@/src/platform/google-drive/encryption';
+import {decryptDriveConfig, encryptDriveConfig, decryptDrivePreview, encryptDrivePreview, validateDrivePassphrase} from '@/src/platform/google-drive/encryption';
 import {DriveError, type DriveAccount, type DriveSession} from '@/src/platform/google-drive/auth';
 import type {DriveFile, DriveRemote} from '@/src/platform/google-drive/api';
 
@@ -16,7 +16,7 @@ export interface DriveSyncState {
     accountId: string;
     baseline: string;
     lastSyncedAt: number | null;
-    prepared?: {id: string; expiresAt: number; content: string; tabId?: number};
+    prepared?: {id: string; expiresAt: number; content: string; tabId?: number; clientId?: string; format?: 2; remote?: DriveRemote | null};
 }
 export interface DriveSyncStatus {available: boolean; reason: string; account: DriveAccount | null; lastSyncedAt: number | null}
 export interface DriveSyncPreview {
@@ -60,6 +60,9 @@ async function proof(id: string, passphrase: string): Promise<string> {
 function sameRemote(left: DriveRemote | null, right: DriveRemote | null): boolean {
     return left === null ? right === null : right !== null && left.file.id === right.file.id && left.file.version === right.file.version && left.content === right.content;
 }
+function owns(state: DriveSyncState, tabId?: number, clientId?: string): boolean {
+    return state.prepared?.tabId === tabId && state.prepared?.clientId === clientId;
+}
 export function createGoogleDriveSync(ports: DriveSyncPorts) {
     let pending: Pending | null = null;
     let queue: Promise<unknown> = Promise.resolve();
@@ -83,7 +86,7 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
         if (state.connected && (!state.prepared || state.prepared.expiresAt <= ports.now())) await finishSession();
         return {...availability, account: null, lastSyncedAt: state.lastSyncedAt};
     }
-    async function prepare(passphrase: string, tabId?: number): Promise<DriveSyncPreview> {
+    async function prepare(passphrase: string, tabId?: number, clientId?: string): Promise<DriveSyncPreview> {
         validateDrivePassphrase(passphrase);
         pending = null;
         const session = await ports.auth.open(true);
@@ -102,8 +105,9 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
         const preview: DriveSyncPreview = {id: crypto.randomUUID(), account: session.account, hasRemote: Boolean(remote), hasBaseline: Boolean(baseline), changes: diff?.changes ?? [], expiresAt: ports.now() + 10 * 60_000};
         pending = {preview, local, remote, remoteConfig, diff, proof: await proof(preview.id, passphrase)};
         // MV3 worker 可能在用户阅读预览时休眠；待确认快照仅以口令密文保存。
-        const content = await encryptDriveConfig({preview, local, remote, baseline: baseline ? state.baseline : '', proof: pending.proof}, passphrase);
-        await ports.writeState({...state, connected: true, accountId: session.account.id, prepared: {id: preview.id, expiresAt: preview.expiresAt, content, tabId}});
+        // 本机快照只封装一次；云端已经是密文，基线已经存在状态中，避免再次加密放大三倍。
+        const content = await encryptDrivePreview({preview: {...preview, changes: []}, local, proof: pending.proof}, passphrase);
+        await ports.writeState({...state, connected: true, accountId: session.account.id, prepared: {id: preview.id, expiresAt: preview.expiresAt, content, tabId, clientId, format: 2, remote}});
         return preview;
     }
     async function commit(id: string, passphrase: string, direction: DriveSyncDirection, choices: Record<string, unknown>): Promise<DriveSyncStatus> {
@@ -111,7 +115,11 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
         const state = readState(await ports.readState());
         if (!state.prepared || state.prepared.id !== id || state.prepared.expiresAt <= ports.now()) throw new DriveError('同步预览已失效，请重新生成。');
         if (!pending) {
-            const restored = await decryptDriveConfig(state.prepared.content, passphrase) as {preview: DriveSyncPreview; local: DriveSyncConfig; remote: DriveRemote | null; baseline: string; proof: string};
+            const restored = await decryptDrivePreview(state.prepared.content, passphrase) as {preview: DriveSyncPreview; local: DriveSyncConfig; remote: DriveRemote | null; baseline: string; proof: string};
+            if (state.prepared.format === 2) {
+                restored.remote = state.prepared.remote ?? null;
+                restored.baseline = restored.preview.hasBaseline ? state.baseline : '';
+            }
             const local = parseDriveSyncPayload(driveSyncPayload(restored.local));
             const remoteConfig = restored.remote ? parseDriveSyncPayload(await decryptDriveConfig(restored.remote.content, passphrase)) : null;
             const baseline = restored.baseline ? parseDriveSyncPayload(await decryptDriveConfig(restored.baseline, passphrase)) : null;
@@ -132,6 +140,8 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
         else if (direction === 'download' && current.remoteConfig) next = current.remoteConfig;
         else if (direction === 'merge' && current.diff) next = resolveDriveSyncDiff(current.diff, choices);
         else throw new DriveError('无效的同步方向，请重新选择。');
+        // 必须在任何云端写入之前验证完整配置及服务引用；不能依赖 apply 才发现无效合并。
+        next = parseDriveSyncPayload(driveSyncPayload(next));
         const content = direction === 'download' ? current.remote!.content : await encryptDriveConfig(driveSyncPayload(next), passphrase);
         if (!sameRemote(await ports.api.read(session), current.remote)) throw new DriveError('云端配置已变化，请重新生成同步预览。');
         if (direction !== 'download') await ports.api.write(session, content, current.remote?.file ?? null);
@@ -147,13 +157,29 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
     }
     return {
         status: () => exclusive(status),
-        prepare: (passphrase: string, tabId?: number) => exclusive(async () => {
-            try {return await prepare(passphrase, tabId);} catch (error) {await finishSession(); throw error;}
+        prepare: (passphrase: string, tabId?: number, clientId?: string) => exclusive(async () => {
+            const state = readState(await ports.readState());
+            if (state.prepared && state.prepared.expiresAt > ports.now() && !owns(state, tabId, clientId)) {
+                throw new DriveError('另一个设置页面正在确认同步，请先完成或取消该页面的预览。');
+            }
+            try {return await prepare(passphrase, tabId, clientId);} catch (error) {await finishSession(); throw error;}
         }),
-        commit: (id: string, passphrase: string, direction: DriveSyncDirection, choices: Record<string, unknown>) => exclusive(async () => {
+        commit: (id: string, passphrase: string, direction: DriveSyncDirection, choices: Record<string, unknown>, tabId?: number, clientId?: string) => exclusive(async () => {
+            const state = readState(await ports.readState());
+            // 不属于调用方的错误确认不能清理其他页面的事务或令牌。
+            if (state.prepared && (!owns(state, tabId, clientId) || state.prepared.id !== id)) {
+                throw new DriveError('同步预览属于其他页面或已失效，请在原设置页面继续。');
+            }
             try {return await commit(id, passphrase, direction, choices);} finally {await finishSession();}
         }),
-        cancel: () => exclusive(finishSession),
+        cancel: (id?: string, tabId?: number, clientId?: string) => exclusive(async () => {
+            if (id === undefined && tabId === undefined && clientId === undefined) return finishSession();
+            const state = readState(await ports.readState());
+            if (state.prepared && (!owns(state, tabId, clientId) || (id !== undefined && state.prepared.id !== id))) return;
+            // 没有预览时，UI 的取消不触碰另一页仍在授权的缓存；内部调用仍可清理旧状态。
+            if (!state.prepared && clientId !== undefined) return;
+            await finishSession();
+        }),
         cancelTab: (tabId: number) => exclusive(async () => {
             const state = readState(await ports.readState());
             if (state.prepared?.tabId === tabId) await finishSession();

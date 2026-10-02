@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {Config, normalizeConfig} from '@/src/core/config/model';
-import {driveSyncPayload, toDriveSyncConfig} from '@/src/core/config/driveSync';
+import {driveSyncPayload, parseDriveSyncPayload, toDriveSyncConfig} from '@/src/core/config/driveSync';
 import {decryptDriveConfig, encryptDriveConfig} from '@/src/platform/google-drive/encryption';
 import {createGoogleDriveSync, type DriveSyncPorts, type DriveSyncState} from '@/src/services/config/googleDriveSync';
 import type {DriveRemote} from '@/src/platform/google-drive/api';
@@ -273,7 +273,87 @@ describe('Google Drive 同步事务', () => {
         expect(f.state).toMatchObject({connected: false});
         expect(f.ports.auth.disconnect).toHaveBeenCalledOnce();
         expect(f.ports.api.write).not.toHaveBeenCalled();
-        await expect(f.service.commit(preview.id, password, 'upload', {})).rejects.toThrow('失效');
+        await expect(f.service.commit(preview.id, password, 'upload', {}, 73)).rejects.toThrow('失效');
     });
+
+    it('无关页面的取消、确认和新预览都不能破坏当前页事务；所属页面仍可确认', async () => {
+        const f = fixture();
+        const preview = await f.service.prepare(password, 73, 'page-a');
+        await f.service.cancel(preview.id, 74, 'page-b');
+        await f.service.cancel('obsolete-id', 73, 'page-a');
+        await expect(f.service.commit(preview.id, password, 'upload', {}, 74, 'page-b')).rejects.toThrow('其他页面');
+        await expect(f.service.commit('obsolete-id', password, 'upload', {}, 73, 'page-a')).rejects.toThrow('失效');
+        await expect(f.service.prepare(password, 74, 'page-b')).rejects.toThrow('另一个设置页面');
+        expect((f.state as DriveSyncState).prepared?.id).toBe(preview.id);
+        expect(f.ports.auth.open).toHaveBeenCalledOnce();
+        expect(f.ports.auth.disconnect).not.toHaveBeenCalled();
+        await createGoogleDriveSync(f.ports).commit(preview.id, password, 'upload', {}, 73, 'page-a');
+        expect(f.ports.api.write).toHaveBeenCalledOnce();
+        expect(f.ports.auth.disconnect).toHaveBeenCalledOnce();
+    });
+    it('没有页签编号也按客户端绑定，取消空事务不清理其他授权，过期事务可由新页面重建', async () => {
+        const f = fixture();
+        await f.service.cancel(undefined, undefined, 'page-b');
+        expect(f.ports.auth.disconnect).not.toHaveBeenCalled();
+        const first = await f.service.prepare(password, undefined, 'page-a');
+        await f.service.cancel(undefined, undefined, 'page-b');
+        await expect(f.service.prepare(password, undefined, 'page-b')).rejects.toThrow('另一个设置页面');
+        await f.service.cancel(first.id, undefined, 'page-a');
+        expect(f.state).not.toHaveProperty('prepared');
+        const expiring = await f.service.prepare(password, 73, 'page-a');
+        f.clock = expiring.expiresAt;
+        const next = await f.service.prepare(password, 74, 'page-b');
+        expect(next.id).not.toBe(expiring.id);
+        await f.service.cancel(next.id, 74, 'page-b');
+    });
+    it('删除自定义服务和另一端选择它形成整组冲突，确认后备份可再次读取', async () => {
+        const f = await synced();
+        const base = f.local;
+        const providerId = (base.customOpenAIProviders as {id: string}[])[0].id;
+        f.local = config({...base, customOpenAIProviders: []});
+        const remoteConfig = config({...base, service: providerId});
+        f.remote = {file: {...f.remote!.file, version: '2'}, content: await encryptDriveConfig(driveSyncPayload(remoteConfig), password)};
+        const before = structuredClone(f.remote);
+        const writes = vi.mocked(f.ports.api.write).mock.calls.length;
+        const preview = await f.service.prepare(password);
+        expect(preview.changes.some(change => change.conflict && change.sensitive)).toBe(true);
+        await expect(f.service.commit(preview.id, password, 'merge', {})).rejects.toThrow('每个冲突');
+        expect(f.remote).toEqual(before);
+        expect(f.ports.api.write).toHaveBeenCalledTimes(writes);
+        const retry = await f.service.prepare(password);
+        await f.service.commit(retry.id, password, 'merge', Object.fromEntries(retry.changes.map(change => [change.id, 'remote'])));
+        expect(parseDriveSyncPayload(await decryptDriveConfig(f.remote!.content, password))).toEqual(remoteConfig);
+        expect((await f.service.prepare(password)).hasBaseline).toBe(true);
+        await f.service.cancel();
+    });
+    it('最终快照无效时，在任何云端写入及本机应用之前拒绝', async () => {
+        const f = fixture();
+        const preview = await f.service.prepare(password);
+        const state = f.state as DriveSyncState;
+        const saved = await decryptDriveConfig(state.prepared!.content, password) as {local: Record<string, unknown>};
+        saved.local = {...saved.local, documentService: 'custom:missing'};
+        state.prepared!.content = await encryptDriveConfig(saved, password);
+        await expect(createGoogleDriveSync(f.ports).commit(preview.id, password, 'upload', {})).rejects.toThrow('不存在');
+        expect(f.ports.api.write).not.toHaveBeenCalled();
+        expect(f.ports.apply).not.toHaveBeenCalled();
+    });
+    it('6MiB 合法请求体首次上传后可再次预览，后台重启后可合并及跨设备恢复', async () => {
+        const first = fixture();
+        first.local = config({...first.local, customBody: {openai: JSON.stringify({instructions: 'x'.repeat(6 * 1024 * 1024)})}});
+        const initial = await first.service.prepare(password);
+        await first.service.commit(initial.id, password, 'upload', {});
+        const same = await first.service.prepare(password);
+        expect(same.changes).toEqual([]);
+        const persisted = first.state as DriveSyncState;
+        const envelope = await decryptDriveConfig(persisted.prepared!.content, password);
+        expect(envelope).not.toHaveProperty('remote');
+        expect(envelope).not.toHaveProperty('baseline');
+        await createGoogleDriveSync(first.ports).commit(same.id, password, 'merge', {});
+        const second = fixture(); second.remote = first.remote;
+        const restore = await second.service.prepare(password);
+        await createGoogleDriveSync(second.ports).commit(restore.id, password, 'download', {});
+        expect(second.local).toEqual(first.local);
+        expect(second.ports.api.write).not.toHaveBeenCalled();
+    }, 30_000);
 
 });

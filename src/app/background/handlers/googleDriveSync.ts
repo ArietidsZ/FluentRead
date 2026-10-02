@@ -13,7 +13,7 @@ import {DriveEncryptionError} from '@/src/platform/google-drive/encryption';
 import {DriveConfigError} from '@/src/core/config/driveSync';
 
 export const GOOGLE_DRIVE_SYNC_MESSAGE_TYPE = 'googleDriveEncryptedSync';
-export interface DriveSyncMessage {type: typeof GOOGLE_DRIVE_SYNC_MESSAGE_TYPE; action?: unknown; id?: unknown; direction?: unknown; choices?: unknown}
+export interface DriveSyncMessage {type: typeof GOOGLE_DRIVE_SYNC_MESSAGE_TYPE; action?: unknown; clientId?: unknown; id?: unknown; direction?: unknown; choices?: unknown}
 type Service = ReturnType<typeof createGoogleDriveSync>;
 export function isGoogleDriveSettingsSender(sender: ConfigPersistenceContext['sender'], extensionId: string, optionsUrl: string): boolean {
     if (!sender?.url || sender.id !== extensionId) return false;
@@ -30,17 +30,20 @@ export function createGoogleDriveSyncHandler(service: Service, trusted: (sender:
             if (!trusted(context.sender)) return {success: false, error: 'Google Drive 同步仅允许从扩展设置页面操作。'};
             try {
                 let data: unknown;
+                const tabId = context.sender?.tab?.id;
+                if (message.action !== 'status' && (typeof message.clientId !== 'string' || !/^[a-zA-Z0-9-]{1,64}$/u.test(message.clientId))) return {success: false, error: '无效的 Google Drive 同步操作。'};
+                const clientId = message.clientId as string;
                 if (message.action === 'status') data = await service.status();
-                else if (message.action === 'cancel') data = await service.cancel();
-                else if (message.action === 'prepare') data = await service.prepare(GOOGLE_DRIVE_APPLICATION_PASSPHRASE, context.sender?.tab?.id);
+                else if (message.action === 'cancel' && (message.id === undefined || (typeof message.id === 'string' && message.id.length <= 64))) data = await service.cancel(message.id as string | undefined, tabId, clientId);
+                else if (message.action === 'prepare') data = await service.prepare(GOOGLE_DRIVE_APPLICATION_PASSPHRASE, tabId, clientId);
                 else if (message.action === 'commit' && typeof message.id === 'string' && message.id.length <= 64 && ['upload', 'download', 'merge'].includes(message.direction as string)) {
                     const choices = message.choices;
                     if (!choices || typeof choices !== 'object' || Array.isArray(choices) || Object.keys(choices).length > 50_000 || !Object.entries(choices).every(([key, value]) => /^\d+$/u.test(key) && (value === 'local' || value === 'remote'))) return {success: false, error: '无效的同步差异选择。'};
-                    data = await service.commit(message.id, GOOGLE_DRIVE_APPLICATION_PASSPHRASE, message.direction as 'upload' | 'download' | 'merge', choices as Record<string, unknown>);
+                    data = await service.commit(message.id, GOOGLE_DRIVE_APPLICATION_PASSPHRASE, message.direction as 'upload' | 'download' | 'merge', choices as Record<string, unknown>, tabId, clientId);
                 } else return {success: false, error: '无效的 Google Drive 同步操作。'};
                 return {success: true, data};
             } catch (error) {
-                return {success: false, error: error instanceof DriveEncryptionError ? '同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。' : error instanceof DriveError || error instanceof DriveConfigError ? error.message : '同步未完成，请检查网络和配置存储后重新预览。'};
+                return {success: false, error: error instanceof DriveEncryptionError ? error.message === '同步配置过大，请减少自定义设置后重试' ? error.message : '同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。' : error instanceof DriveError || error instanceof DriveConfigError ? error.message : '同步未完成，请检查网络和配置存储后重新预览。'};
             }
         },
     };

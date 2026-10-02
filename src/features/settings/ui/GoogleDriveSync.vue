@@ -16,7 +16,7 @@
     <div v-if="status?.available" class="drive-actions">
       <el-button type="primary" :loading="busy" :disabled="busy" data-testid="google-drive-sync-now" @click="prepare">立即与Google Drive同步</el-button>
     </div>
-    <el-dialog v-model="previewVisible" title="确认 Google Drive 同步" width="min(900px, calc(100vw - 24px))" :close-on-click-modal="!busy" :close-on-press-escape="!busy" :show-close="!busy" :before-close="cancelPreview" destroy-on-close @closed="clearPreview">
+    <el-dialog class="drive-dialog" v-model="previewVisible" title="确认 Google Drive 同步" width="min(900px, calc(100vw - 24px))" :close-on-click-modal="!busy" :close-on-press-escape="!busy" :show-close="!busy" :before-close="cancelPreview" destroy-on-close @closed="clearPreview">
       <template v-if="preview">
         <p class="drive-preview-account">{{ preview.account.email ? t('settings.drive.account', {email: preview.account.email}) : t('settings.drive.selectedAccount') }}</p>
         <el-alert v-if="!preview.hasRemote" title="云端还没有同步文件。本次将创建加密的完整配置快照。" type="info" :closable="false" />
@@ -48,7 +48,7 @@
       </template>
       <template #footer>
         <el-button :disabled="busy" @click="cancelPreview">取消</el-button>
-        <el-button type="primary" :loading="busy" :disabled="!canCommit" data-testid="google-drive-confirm" @click="commit">{{ commitLabel }}</el-button>
+        <el-button type="primary" :loading="busy" :disabled="busy || !canCommit" data-testid="google-drive-confirm" @click="commit">{{ commitLabel }}</el-button>
       </template>
     </el-dialog>
   </section>
@@ -66,7 +66,7 @@ import {useUiI18n} from '@/src/ui/i18n';
 import {googleDriveSyncClient as client} from '@/src/services/config/googleDriveSyncClient';
 import type {DriveSyncDirection, DriveSyncPreview, DriveSyncStatus} from '@/src/services/config/googleDriveSync';
 
-const {t, translateLegacy} = useUiI18n();
+const {t, translateLegacy, language} = useUiI18n();
 const status = ref<DriveSyncStatus | null>(null);
 const busy = ref(false);
 const error = ref('');
@@ -76,7 +76,7 @@ const direction = ref<DriveSyncDirection | ''>('');
 const choices = ref<Record<string, string>>({});
 const page = ref(1);
 const visibleChanges = computed(() => preview.value?.changes.slice((page.value - 1) * 40, page.value * 40) ?? []);
-const statusText = computed(() => !status.value ? '正在检查同步状态…' : !status.value.available ? status.value.reason : status.value.lastSyncedAt ? t('settings.drive.lastSync', {time: new Date(status.value.lastSyncedAt).toLocaleString()}) : '');
+const statusText = computed(() => !status.value ? '正在检查同步状态…' : !status.value.available ? status.value.reason : status.value.lastSyncedAt ? t('settings.drive.lastSync', {time: new Date(status.value.lastSyncedAt).toLocaleString(language.value)}) : '');
 const directionHint = computed(() => direction.value === 'upload' ? '本机完整配置及凭据将替换云端快照。' : direction.value === 'download' ? '云端完整配置及凭据将替换本机设置。' : direction.value === 'merge' ? '未冲突的修改已自动选择；请确认每项冲突的保留方向。' : '请先选择同步方向。');
 const commitLabel = computed(() => direction.value === 'download' ? '下载并应用' : direction.value === 'merge' ? '合并并同步' : '加密并上传');
 const canCommit = computed(() => Boolean(preview.value && direction.value && (direction.value !== 'merge' || preview.value.changes.every(change => choices.value[change.id] === 'local' || choices.value[change.id] === 'remote'))));
@@ -85,13 +85,13 @@ async function perform(operation: () => Promise<void>) {
   if (busy.value) return;
   busy.value = true;
   error.value = '';
-  try {await operation();} catch (failure) {if (alive) error.value = failure instanceof Error ? failure.message : '同步未完成，请重试。';}
+  try {await operation();} catch (failure) {if (alive) error.value = failure instanceof Error ? translateLegacy(failure.message) : '同步未完成，请重试。';}
   finally {if (alive) busy.value = false;}
 }
 async function prepare() {
   await perform(async () => {
     const result = await client.prepare();
-    if (!alive) {await client.cancel(); return;}
+    if (!alive) {await client.cancel(result.id); return;}
     preview.value = result;
     choices.value = Object.fromEntries(result.changes.filter(change => change.recommended).map(change => [change.id, change.recommended!]));
     direction.value = !result.hasRemote ? 'upload' : result.hasBaseline ? 'merge' : '';
@@ -111,9 +111,9 @@ async function commit() {
     } finally {previewVisible.value = false;}
   });
 }
-async function cancelPreview() {await perform(async () => {await client.cancel(); previewVisible.value = false;});}
+async function cancelPreview() {await perform(async () => {await client.cancel(preview.value?.id); previewVisible.value = false;});}
 function clearPreview() {preview.value = null; choices.value = {};}
-function endSession() {void client.cancel().catch(() => undefined);}
+function endSession() {if (preview.value || busy.value) void client.cancel(preview.value?.id).catch(() => undefined);}
 onMounted(() => {void perform(async () => {
   try {status.value = await client.status();}
   catch (failure) {
@@ -121,10 +121,13 @@ onMounted(() => {void perform(async () => {
     throw failure;
   }
 });});
-onUnmounted(() => {alive = false; clearPreview(); endSession();});
+onUnmounted(() => {alive = false; endSession(); clearPreview();});
 </script>
 
 <style scoped>
+:deep(.drive-dialog) {display: flex; flex-direction: column; max-height: calc(100dvh - 32px); margin: 16px auto;}
+:deep(.drive-dialog .el-dialog__body) {overflow-y: auto; min-height: 0;}
+:deep(.drive-dialog .el-dialog__header), :deep(.drive-dialog .el-dialog__footer) {flex-shrink: 0;}
 .drive-sync {padding: 24px; margin-bottom: 24px; border: 1px solid var(--el-border-color); border-radius: 16px; background: var(--el-bg-color); color: var(--el-text-color-primary);}
 .drive-heading {display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;}
 .drive-heading h2 {margin: 0; font-size: 19px;}
