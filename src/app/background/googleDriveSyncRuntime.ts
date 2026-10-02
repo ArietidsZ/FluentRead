@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/googleDriveSyncRuntime.ts
  * 文件职责：为后台加密同步服务连接现有完整配置与原生 Chrome 身份端口。
- * 主要内容：完整凭据读取、精确替换导入、密文基线存储、设置页发送者校验。
+ * 主要内容：完整凭据读写、密文基线、设置页校验，以及由后台处理所属页签关闭或重新加载。
  * 模块边界：仅装配依赖；配置写入复用现有持久化与修改队列，不向内容脚本公开密文基线。
  */
 import {config, configReady, prepareHydratedConfigForExport, saveConfig} from '@/src/services/config/store';
@@ -31,5 +31,7 @@ export function createGoogleDriveSyncRuntime(mutations: ConfigMutationCoordinato
         writeState: state => configStorage.setItem(GOOGLE_DRIVE_SYNC_STATE_KEY, state),
         now: Date.now,
     });
+    browser.tabs.onRemoved.addListener((tabId: number) => {void service.cancelTab(tabId).catch(() => undefined);});
+    browser.tabs.onUpdated.addListener((tabId: number, change: {status?: string}) => {if (change.status === 'loading') void service.cancelTab(tabId).catch(() => undefined);});
     return createGoogleDriveSyncHandler({...service, commit: (...args) => mutations.run(() => service.commit(...args))}, sender => isGoogleDriveSettingsSender(sender, browser.runtime.id, browser.runtime.getURL('options.html')));
 }

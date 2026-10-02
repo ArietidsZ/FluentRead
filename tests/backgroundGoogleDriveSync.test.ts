@@ -27,7 +27,9 @@ describe('Google Drive 可信消息协议', () => {
             expect(allowed.service[action]).toHaveBeenCalledOnce();
         }
         await allowed.handler.handle({type, action: 'prepare'}, {});
-        expect(allowed.service.prepare).toHaveBeenCalledWith(GOOGLE_DRIVE_APPLICATION_PASSPHRASE);
+        expect(allowed.service.prepare).toHaveBeenCalledWith(GOOGLE_DRIVE_APPLICATION_PASSPHRASE, undefined);
+        await allowed.handler.handle({type, action: 'prepare'}, {sender: {tab: {id: 73}}});
+        expect(allowed.service.prepare).toHaveBeenLastCalledWith(GOOGLE_DRIVE_APPLICATION_PASSPHRASE, 73);
         await allowed.handler.handle({type, action: 'commit', id: 'fixture-id', direction: 'merge', choices: {'0': 'local', '1': 'remote'}}, {});
         expect(allowed.service.commit).toHaveBeenCalledWith('fixture-id', GOOGLE_DRIVE_APPLICATION_PASSPHRASE, 'merge', {'0': 'local', '1': 'remote'});
     });

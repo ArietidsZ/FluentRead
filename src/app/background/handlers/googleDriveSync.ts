@@ -32,7 +32,7 @@ export function createGoogleDriveSyncHandler(service: Service, trusted: (sender:
                 let data: unknown;
                 if (message.action === 'status') data = await service.status();
                 else if (message.action === 'cancel') data = await service.cancel();
-                else if (message.action === 'prepare') data = await service.prepare(GOOGLE_DRIVE_APPLICATION_PASSPHRASE);
+                else if (message.action === 'prepare') data = await service.prepare(GOOGLE_DRIVE_APPLICATION_PASSPHRASE, context.sender?.tab?.id);
                 else if (message.action === 'commit' && typeof message.id === 'string' && message.id.length <= 64 && ['upload', 'download', 'merge'].includes(message.direction as string)) {
                     const choices = message.choices;
                     if (!choices || typeof choices !== 'object' || Array.isArray(choices) || Object.keys(choices).length > 50_000 || !Object.entries(choices).every(([key, value]) => /^\d+$/u.test(key) && (value === 'local' || value === 'remote'))) return {success: false, error: '无效的同步差异选择。'};

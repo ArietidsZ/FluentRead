@@ -177,7 +177,8 @@ async function main() {
         await closingPage.locator('[data-testid="google-drive-sync-now"]').click();
         await closingPage.locator('.el-dialog').waitFor({state: 'visible'});
         const beforeClose = await worker.evaluate(() => globalThis.__driveFixture.clears);
-        await closingPage.close();
+        const closingTabId = await closingPage.evaluate(async () => (await chrome.tabs.getCurrent()).id);
+        await worker.evaluate(tabId => chrome.tabs.remove(tabId), closingTabId);
         for (let retry = 0; retry < 30 && await worker.evaluate(() => globalThis.__driveFixture.clears) === beforeClose; retry++) await page.waitForTimeout(100);
         check(await worker.evaluate(before => globalThis.__driveFixture.clears === before + 1, beforeClose), 'closing the options tab ends the pending authorization');
         const beforeReopen = await worker.evaluate(() => ({requests: globalThis.__driveFixture.requests, authorizations: globalThis.__driveFixture.authorizations}));

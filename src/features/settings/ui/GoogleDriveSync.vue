@@ -114,7 +114,6 @@ async function commit() {
 async function cancelPreview() {await perform(async () => {await client.cancel(); previewVisible.value = false;});}
 function clearPreview() {preview.value = null; choices.value = {};}
 function endSession() {void client.cancel().catch(() => undefined);}
-onMounted(() => {window.addEventListener('pagehide', endSession);});
 onMounted(() => {void perform(async () => {
   try {status.value = await client.status();}
   catch (failure) {
@@ -122,7 +121,7 @@ onMounted(() => {void perform(async () => {
     throw failure;
   }
 });});
-onUnmounted(() => {alive = false; window.removeEventListener('pagehide', endSession); clearPreview(); endSession();});
+onUnmounted(() => {alive = false; clearPreview(); endSession();});
 </script>
 
 <style scoped>

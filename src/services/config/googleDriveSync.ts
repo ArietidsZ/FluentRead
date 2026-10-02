@@ -16,7 +16,7 @@ export interface DriveSyncState {
     accountId: string;
     baseline: string;
     lastSyncedAt: number | null;
-    prepared?: {id: string; expiresAt: number; content: string};
+    prepared?: {id: string; expiresAt: number; content: string; tabId?: number};
 }
 export interface DriveSyncStatus {available: boolean; reason: string; account: DriveAccount | null; lastSyncedAt: number | null}
 export interface DriveSyncPreview {
@@ -83,7 +83,7 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
         if (state.connected && (!state.prepared || state.prepared.expiresAt <= ports.now())) await finishSession();
         return {...availability, account: null, lastSyncedAt: state.lastSyncedAt};
     }
-    async function prepare(passphrase: string): Promise<DriveSyncPreview> {
+    async function prepare(passphrase: string, tabId?: number): Promise<DriveSyncPreview> {
         validateDrivePassphrase(passphrase);
         pending = null;
         const session = await ports.auth.open(true);
@@ -103,7 +103,7 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
         pending = {preview, local, remote, remoteConfig, diff, proof: await proof(preview.id, passphrase)};
         // MV3 worker 可能在用户阅读预览时休眠；待确认快照仅以口令密文保存。
         const content = await encryptDriveConfig({preview, local, remote, baseline: baseline ? state.baseline : '', proof: pending.proof}, passphrase);
-        await ports.writeState({...state, connected: true, accountId: session.account.id, prepared: {id: preview.id, expiresAt: preview.expiresAt, content}});
+        await ports.writeState({...state, connected: true, accountId: session.account.id, prepared: {id: preview.id, expiresAt: preview.expiresAt, content, tabId}});
         return preview;
     }
     async function commit(id: string, passphrase: string, direction: DriveSyncDirection, choices: Record<string, unknown>): Promise<DriveSyncStatus> {
@@ -147,12 +147,16 @@ export function createGoogleDriveSync(ports: DriveSyncPorts) {
     }
     return {
         status: () => exclusive(status),
-        prepare: (passphrase: string) => exclusive(async () => {
-            try {return await prepare(passphrase);} catch (error) {await finishSession(); throw error;}
+        prepare: (passphrase: string, tabId?: number) => exclusive(async () => {
+            try {return await prepare(passphrase, tabId);} catch (error) {await finishSession(); throw error;}
         }),
         commit: (id: string, passphrase: string, direction: DriveSyncDirection, choices: Record<string, unknown>) => exclusive(async () => {
             try {return await commit(id, passphrase, direction, choices);} finally {await finishSession();}
         }),
         cancel: () => exclusive(finishSession),
+        cancelTab: (tabId: number) => exclusive(async () => {
+            const state = readState(await ports.readState());
+            if (state.prepared?.tabId === tabId) await finishSession();
+        }),
     };
 }
