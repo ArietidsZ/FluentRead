@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { withBase } from 'vitepress'
+import brandTaglines from '../../../src/core/i18n/messages/brand-taglines.json'
 const chrome =
   'https://chromewebstore.google.com/detail/djnlaiohfaaifbibleebjggkghlmcpcj'
 </script>
@@ -19,6 +20,7 @@ const chrome =
       <h1 id="product-title">
         FluentRead <span class="product-name-local">流畅阅读</span>
       </h1>
+      <p class="product-tagline">{{ brandTaglines['zh-CN'] }}</p>
       <p class="product-intro">
         支持网页双语对照、划词翻译、AI 阅读辅助，以及图片、文档和视频字幕翻译。
       </p>

@@ -184,7 +184,7 @@
       data-popup-module="footer"
       :data-popup-module-last="lastVisiblePopupModule === 'footer'"
     >
-      <span>已完成 {{ config.count }} 次翻译</span>
+      <span class="popup-translation-count" data-i18n-ignore>{{ t('popup.translationCount', {count: config.count}) }}</span>
       <a
         class="opensource-link"
         href="https://github.com/Bistutu/FluentRead"

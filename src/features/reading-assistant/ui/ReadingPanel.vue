@@ -1,7 +1,7 @@
 <!--
  * @file src/features/reading-assistant/ui/ReadingPanel.vue
  * 文件职责：在划词卡内以内容为主呈现学习回答，提供紧凑动作栏、按需原文与连续追问。
- * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；把原文朗读、句子收藏和 30 天问答记录收进次级操作，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
+ * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；把原文朗读、句子收藏和 30 天问答记录收进次级操作，让多语言动作标签按空间换行，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
  * 模块边界：不持有模型密钥、不扫描页面、不直接请求供应商；记录由后台会话仓库保存，父划词组件负责选区、位置和 Shadow UI 生命周期。
  -->
 <template>
@@ -463,8 +463,8 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading button:focus-visible, .fr-reading input:focus-visible { outline: 2px solid #cd527f; outline-offset: 2px; }
 .fr-reading button:disabled { opacity: .5; cursor: default; }
 .fr-reading-toolbar { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-bottom: 8px; }
-.fr-reading-actions { display: flex; flex: 1; min-width: 0; gap: 4px; border-bottom: 1px solid var(--fr-reading-line); }
-.fr-reading-actions button { flex: 1 1 auto; min-width: 0; min-height: 32px; padding: 4px 6px; border-radius: 0; border-bottom: 2px solid transparent; color: var(--fr-reading-muted); font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.fr-reading-actions { display: flex; flex-wrap: wrap; flex: 1; min-width: 0; gap: 4px; border-bottom: 1px solid var(--fr-reading-line); }
+.fr-reading-actions button { flex: 1 1 auto; min-width: 0; max-width: 100%; min-height: 32px; padding: 4px 6px; border-radius: 0; border-bottom: 2px solid transparent; color: var(--fr-reading-muted); font-size: 12px; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
 .fr-reading-actions button[aria-pressed='true'] { border-bottom-color: #b85579; color: #9d3e61; font-weight: 600; }
 .fr-reading-actions button:hover, .fr-reading-tools summary:hover { background: var(--fr-reading-soft); }
 .fr-reading-tools { position: relative; flex: 0 0 auto; }
