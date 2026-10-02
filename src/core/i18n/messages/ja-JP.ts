@@ -1506,6 +1506,7 @@ export const jaJPMessages = {
     "document.layoutPreview": "{format} 閲覧レイアウトのプレビュー",
     "document.segmentTranslation": "第 {number} 段落の訳文",
     "reading.priorTurns": "以前の問答（{count} 往復）",
+    "reading.viewSource": "原文を表示",
     "reading.historyTurns": "{count} 件の問答",
     "reading.generatingAction": "{action}中…",
     "reading.memoryReferences": "{count} 件のメモリーを参照",

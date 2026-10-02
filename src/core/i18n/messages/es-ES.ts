@@ -1506,6 +1506,7 @@ export const esESMessages = {
     "document.layoutPreview": "Vista previa de lectura {format}",
     "document.segmentTranslation": "Traducción del segmento {number}",
     "reading.priorTurns": "Conversación anterior ({count} turnos)",
+    "reading.viewSource": "Ver original",
     "reading.historyTurns": "{count} conversaciones",
     "reading.generatingAction": "{action}…",
     "reading.memoryReferences": "Usando {count} memorias",

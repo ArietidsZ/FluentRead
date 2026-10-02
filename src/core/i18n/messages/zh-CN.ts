@@ -1508,6 +1508,7 @@ export const zhCNMessages = {
     "document.layoutPreview": "{format} 排版阅读预览",
     "document.segmentTranslation": "第 {number} 段译文",
     "reading.priorTurns": "前面的问答（{count} 轮）",
+    "reading.viewSource": "查看原文",
     "reading.historyTurns": "{count} 次问答",
     "reading.generatingAction": "正在{action}…",
     "reading.memoryReferences": "参考 {count} 条记忆",
