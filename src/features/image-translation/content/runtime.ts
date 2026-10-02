@@ -2,7 +2,7 @@
  * @file src/features/image-translation/content/runtime.ts
  * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和原图/译图切换，保持宿主图片与响应式图片资源不变。
  * 主要内容：在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新并复核待显示图片的指针位置，限制像素读取和结果缓存，按图片独立服务及模型变化失效缓存，换图、取消与卸载时停止旧请求并释放资源。
- * 模块边界：本运行时只读取页面允许访问的 Canvas 像素并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
+ * 模块边界：本运行时先读取页面允许访问的 Canvas/CORS 像素，失败时授权后台读取当前任务图片并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
 import { config, subscribeConfig } from '@/src/services/config/store';
 import {watchEffect} from 'vue';
@@ -14,7 +14,8 @@ import {
     translateImageInExtension,
 } from '@/src/features/image-translation/services/client';
 import type { OcrLine } from '@/src/features/image-translation/core';
-import {imageBufferToDataUrl, MAX_REMOTE_IMAGE_BYTES, normalizeRemoteImageMimeType} from '@/src/features/image-translation/services/remoteImage';
+import {fetchPageImageForOcr} from '@/src/features/image-translation/services/remoteImage';
+import {withImageSourceAuthorization} from './sourceAuthorization';
 import {resolveImagePresentation, surfaceStyleToBitmap, presentationMatchesSource, type ImagePresentation} from './presentation';
 import {createImageControls, IMAGE_CONTROLS_CSS, type ImageControlPhase} from './controls';
 import {isImageHoverEligible} from './hoverEligibility';
@@ -473,43 +474,9 @@ function hideImageButton(image: HTMLImageElement): void {
     setStateHovered(state, false);
 }
 
-/** 以网页自己的 CORS 权限重读未设置 crossOrigin 的图片，不赋予任意站点扩展网络权限。 */
-export async function readPageImageInCors(source: string, signal?: AbortSignal): Promise<string> {
-    if (signal?.aborted) throw createImageAbortError();
-    const response = await fetch(source, {mode: 'cors', credentials: 'omit', signal});
-    const discard = () => { void response.body?.cancel().catch(() => undefined); };
-    if (!response.ok) { discard(); throw new Error(`图片服务器返回 ${response.status}`); }
-    const contentType = response.headers.get('content-type') || '';
-    try {
-        normalizeRemoteImageMimeType(contentType);
-        if (Number(response.headers.get('content-length')) > MAX_REMOTE_IMAGE_BYTES) throw new Error('图片文件过大');
-    } catch (error) {
-        discard();
-        throw error;
-    }
-    if (!response.body) return imageBufferToDataUrl(await response.arrayBuffer(), contentType);
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let length = 0;
-    try {
-        while (true) {
-            if (signal?.aborted) throw createImageAbortError();
-            const {done, value} = await reader.read();
-            if (done) break;
-            length += value.byteLength;
-            if (length > MAX_REMOTE_IMAGE_BYTES) throw new Error('图片文件过大');
-            chunks.push(value);
-        }
-    } catch (error) {
-        void reader.cancel(error).catch(() => undefined);
-        throw error;
-    } finally {
-        reader.releaseLock();
-    }
-    const buffer = new Uint8Array(length);
-    let offset = 0;
-    for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.byteLength; }
-    return imageBufferToDataUrl(buffer.buffer, contentType);
+/** 先使用网页自己的 CORS 权限读取，整个网络与响应体阶段都可取消且有时限。 */
+export function readPageImageInCors(source: string, signal?: AbortSignal, timeoutMs = IMAGE_READ_TIMEOUT_MS): Promise<string> {
+    return fetchPageImageForOcr(source, signal, timeoutMs);
 }
 
 export async function getImageData(
@@ -537,17 +504,25 @@ export async function getImageData(
         context.drawImage(image, 0, 0, width, height);
         context.getImageData(0, 0, 1, 1);
         return canvas.toDataURL('image/png');
-    } catch {
+    } catch (error) {
+        if (!(error instanceof Error) || error.name !== 'SecurityError') throw error;
         canvas.width = 0;
         canvas.height = 0;
         const source = image.currentSrc || image.src;
         if (!source) throw new Error('图片地址不可用');
+        const budget = typeof options.timeoutMs === 'number' && Number.isFinite(options.timeoutMs)
+            ? Math.max(1, Math.min(options.timeoutMs, IMAGE_READ_TIMEOUT_MS)) : IMAGE_READ_TIMEOUT_MS;
+        const deadline = Date.now() + budget;
         try {
-            return await readPageImageInCors(source, options.signal);
-        } catch {
+            return await readPageImageInCors(source, options.signal, budget);
+        } catch (readError) {
             if (options.signal?.aborted) throw createImageAbortError();
-            // 网页 CORS 不允许读取时，继续只交给现有 Offscreen 白名单。
-            return fetchImageInExtension(source, options);
+            // 只有未取得响应的网络/CORS 失败可以改走扩展权限，保留状态、超限、解码和流错误。
+            if (!(readError instanceof TypeError)) throw readError;
+            const remaining = deadline - Date.now();
+            if (remaining <= 0) throw new Error('图片读取超时');
+            return withImageSourceAuthorization(image, source, options.signal, requestId =>
+                fetchImageInExtension(source, {...options, requestId, timeoutMs: remaining}));
         }
     } finally {
         canvas.width = 0;

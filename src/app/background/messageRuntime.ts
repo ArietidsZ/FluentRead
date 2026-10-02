@@ -35,7 +35,7 @@ import {isBrowserTabId, type TabTranslationStateStore} from './tabTranslationSta
 import {createBrowserVocabularyBookChangedBroadcaster, createVocabularyBackgroundHandlers, type VocabularyBackgroundContext} from './handlers/vocabulary';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {supportsTranslationBatch} from '@/src/services/translation/capabilities';
-import {imageTranslationOffscreenAdapter, imageTranslationProgressTransport} from '@/src/features/image-translation/background/offscreenAdapter';
+import {imageTranslationOffscreenAdapter, imageTranslationProgressTransport, imageTranslationSourceTransport} from '@/src/features/image-translation/background/offscreenAdapter';
 import {selectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
 import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionTtsTransport} from './capabilityRegistry';
 import {createConfigBackgroundHandlers} from './configMessageHandlers';
@@ -131,7 +131,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             areaTranslation: () => createAreaTranslationRuntime(imageOcrLanguageRepository.assertDownloaded),
             imageTranslation: () => createImageTranslationBackgroundHandlers({
                 assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded, getDownloadedLanguages: imageOcrLanguageRepository.getDownloaded,
-                ...imageTranslationOffscreenAdapter,
+                ...imageTranslationOffscreenAdapter, ...imageTranslationSourceTransport,
                 translateTexts: translateWithCache,
                 getTranslationService: () => config.imageTranslationService || config.service,
                 supportsBatchTranslation: supportsTranslationBatch,

@@ -12,12 +12,13 @@ function canvasFixture(width = 400, height = 200, readable = true) {
         return {};
     })};
     const canvas = {width: 0, height: 0, getContext: vi.fn(() => context), toDataURL: vi.fn(() => 'data:image/png;base64,local')};
-    const image = {naturalWidth: width, naturalHeight: height, currentSrc: 'https://images.example.test/photo.png', src: 'https://images.example.test/photo.png'} as HTMLImageElement;
-    vi.stubGlobal('document', {createElement: vi.fn(() => canvas)});
+    const image = {isConnected: true, getAttribute: () => null, naturalWidth: width, naturalHeight: height, currentSrc: 'https://images.example.test/photo.png', src: 'https://images.example.test/photo.png'} as unknown as HTMLImageElement;
+    vi.stubGlobal('document', {URL: 'https://page.example.com/', createElement: vi.fn(() => canvas)});
+    vi.stubGlobal('browser', {runtime: {id: 'test-id', onMessage: {addListener: vi.fn(), removeListener: vi.fn()}}});
     return {canvas, context, image};
 }
 
-afterEach(() => {remote.mockReset(); vi.unstubAllGlobals();});
+afterEach(() => {remote.mockReset(); vi.unstubAllGlobals(); vi.useRealTimers();});
 
 describe('图片像素读取与网页 CORS 权限', () => {
     it('大图先按 16MP / 8192 边长缩放再分配读取区域，处理后释放 Canvas', async () => {
@@ -45,20 +46,52 @@ describe('图片像素读取与网页 CORS 权限', () => {
         vi.stubGlobal('fetch', fetch);
         const env = canvasFixture(400, 200, false); const controller = new AbortController();
         await expect(getImageData(env.image, {signal: controller.signal})).resolves.toBe('data:image/png;base64,AQI=');
-        expect(fetch).toHaveBeenCalledWith(env.image.src, {mode: 'cors', credentials: 'omit', signal: controller.signal});
+        expect(fetch).toHaveBeenCalledWith(env.image.src, {mode: 'cors', credentials: 'omit', redirect: 'follow', signal: expect.any(AbortSignal)});
         expect(remote).not.toHaveBeenCalled();
     });
 
-    it('页面 CORS 被拒绝才交给现有后台白名单，取消后不能触发该回退', async () => {
+    it('页面 CORS 被拒绝才授权当前图片交给后台，取消后不能触发该回退', async () => {
         const fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch')); vi.stubGlobal('fetch', fetch);
         remote.mockResolvedValue('data:image/png;base64,remote');
         const env = canvasFixture(400, 200, false);
         await expect(getImageData(env.image)).resolves.toBe('data:image/png;base64,remote');
-        expect(remote).toHaveBeenCalledWith(env.image.src, {});
+        expect(remote).toHaveBeenCalledWith(env.image.src, {requestId: expect.stringMatching(/^image-source-/), timeoutMs: expect.any(Number)});
+        expect(browser.runtime.onMessage.removeListener).toHaveBeenCalledOnce();
         remote.mockClear(); const controller = new AbortController();
         fetch.mockImplementationOnce(async () => {controller.abort(); throw new Error('aborted');});
         await expect(getImageData(env.image, {signal: controller.signal})).rejects.toMatchObject({name: 'AbortError'});
         expect(remote).not.toHaveBeenCalled();
+    });
+
+    it('响应状态、类型、大小和流错误不会被跨域兜底覆盖，Canvas 编码失败也保留原错误', async () => {
+        for (const [status, headers, message] of [
+            [403, {'content-type': 'image/png'}, '403'],
+            [200, {'content-type': 'text/html'}, '不是图片'],
+            [200, {'content-type': 'image/png', 'content-length': String(MAX_REMOTE_IMAGE_BYTES + 1)}, '过大'],
+        ] as const) {
+            const env = canvasFixture(400, 200, false);
+            vi.stubGlobal('fetch', vi.fn(async () => new Response('', {status, headers})));
+            await expect(getImageData(env.image)).rejects.toThrow(message);
+            expect(remote).not.toHaveBeenCalled();
+        }
+        const env = canvasFixture();
+        env.canvas.toDataURL.mockImplementationOnce(() => {throw new Error('encode failed');});
+        await expect(getImageData(env.image)).rejects.toThrow('encode failed');
+        expect(remote).not.toHaveBeenCalled();
+        const tainted = canvasFixture(400, 200, false);
+        vi.stubGlobal('fetch', vi.fn(async () => ({ok: true, headers: new Headers({'content-type': 'image/png'}), body: null,
+            arrayBuffer: async () => {throw new TypeError('body disconnected');}})));
+        await expect(getImageData(tainted.image)).rejects.toThrow('body disconnected');
+        expect(remote).not.toHaveBeenCalled();
+    });
+
+    it('CORS 请求悬挂时主动终止请求并保留超时，不再启动后台抓图', async () => {
+        vi.useFakeTimers(); const env = canvasFixture(400, 200, false); let signal!: AbortSignal;
+        vi.stubGlobal('fetch', vi.fn((_url, init) => {signal = init.signal; return new Promise(() => {});}));
+        const pending = getImageData(env.image, {timeoutMs: 100});
+        const failed = expect(pending).rejects.toMatchObject({name: 'TimeoutError', message: '图片读取超时'});
+        await vi.advanceTimersByTimeAsync(100); await failed;
+        expect(signal.aborted).toBe(true); expect(remote).not.toHaveBeenCalled(); vi.useRealTimers();
     });
 
     it('拒绝错误状态、非图片 MIME 和超限 Content-Length，并取消响应体', async () => {
