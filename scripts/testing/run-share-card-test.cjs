@@ -77,6 +77,7 @@ async function toggle() {const box=await page.locator('#target').boundingBox(); 
   await noPageEntry('hover paragraph translation',true); await page.screenshot({path:path.join(output,'page-without-card-entry.png')});
   await selectText(); await page.screenshot({path:path.join(output,'selection-with-card-entry.png')});
   await openCard(); assert.equal(await page.evaluate(()=>document.querySelector('#fluent-read-share-card-container').shadowRoot),null);
+  assert(!find(await tree(),n=>attr(n,'data-action')==='share'), 'card has no share image button');
   if (process.argv.includes('--multilingual-only')) {
     await clickNode(n=>n.nodeName==='SUMMARY' && all(n,x=>x.nodeName==='#text').some(x=>x.nodeValue.includes('更多设置')));
     const locales = ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'];
@@ -147,13 +148,9 @@ async function toggle() {const box=await page.locator('#target').boundingBox(); 
   await clickNode(n=>attr(n,'data-action')==='copy'); feedback=await nodeBy(n=>cls(n,'fr-card-feedback')&&cls(n,'is-error')); assert((await call(feedback,'function(){return this.textContent}')).includes('未能复制'));
   await page.screenshot({path:path.join(output,'copy-error.png')});
   report.checks.push('trusted clicks with isolated clipboard success/rejection stubs show semantic banners; system clipboard untouched');
-  await mockExport(`Object.defineProperty(navigator,'share',{configurable:true,value:()=>Promise.resolve()})`);
-  await clickNode(n=>attr(n,'data-action')==='share'); feedback=await nodeBy(n=>cls(n,'fr-card-feedback')&&cls(n,'is-success')); assert((await call(feedback,'function(){return this.textContent}')).includes('已交给系统分享'));
-  await mockExport(`Object.defineProperty(navigator,'share',{configurable:true,value:()=>Promise.reject(new DOMException('Denied','NotAllowedError'))})`);
-  await clickNode(n=>attr(n,'data-action')==='share'); await nodeBy(n=>cls(n,'fr-card-feedback')&&cls(n,'is-error'));
-  await mockExport(`Object.defineProperty(navigator,'share',{configurable:true,value:()=>Promise.reject(new DOMException('Cancelled','AbortError'))})`);
-  await clickNode(n=>attr(n,'data-action')==='share'); await wait(async()=>!find(await tree(),n=>cls(n,'fr-card-feedback')), 'sharing cancelled without false success');
-  report.checks.push('isolated system-share success/rejection/cancellation stubs show correct feedback; no system share invoked');
+  await mockExport(`Object.defineProperty(navigator,'share',{configurable:true,value:()=>Promise.resolve()}); Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true})`);
+  assert(!find(await tree(),n=>attr(n,'data-action')==='share'), 'no share image button even when system sharing is supported');
+  report.checks.push('share image button absent, including with file-sharing support; copy and save remain available');
   for (const key of ['translationFirst','showSource','showBrand']) {
     await clickNode(n=>attr(n,'data-setting')===key); await ready(); const field=await nodeBy(n=>attr(n,'data-setting')===key);
     const checked=await call(field,'function(){return this.checked}'); await wait(async()=>(await config()).shareCard[key]===checked, 'switch persisted '+key);
