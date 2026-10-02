@@ -309,7 +309,8 @@
       "tests/googleDriveConfig.test.ts",
       "tests/googleDriveAuth.test.ts",
       "tests/googleDriveApi.test.ts",
-      "tests/googleDriveSyncClient.test.ts"
+      "tests/googleDriveSyncClient.test.ts",
+      "tests/googleDrivePreview.test.ts"
     ],
     "functional": [
       "tests/translationCenterComponent.test.ts",
