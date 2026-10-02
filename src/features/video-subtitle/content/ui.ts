@@ -10,6 +10,7 @@ import {getVideoSubtitleAppearanceCssVars, normalizeVideoSubtitleAppearance} fro
 import {config} from '@/src/services/config/store';
 import {type VideoSubtitleDisplayMode} from '@/src/core/config/model';
 import {cuesToSrt, sanitizeSubtitleFilename, type VideoSubtitleCue} from './youtubeSubtitleData';
+import {getCaptionPlatform} from './platforms';
 
 import {
     normalizeUiLanguage,
@@ -128,6 +129,15 @@ export function normalizeVideoSubtitleDisplayMode(value: unknown): VideoSubtitle
   return 'bilingual';
 }
 
+/** 人工轨到达时原文与译文一起更新；网站字幕节点及原始时间轴保持不变。 */
+export function renderHumanVideoCaption(player: HTMLElement, container: HTMLElement, source: string, translation: string): void {
+  getOrCreateNormalizedCaptionOverlay(player).textContent = source;
+  player.querySelector(`#${VIDEO_TRANSLATION_LAYER_ID}`)?.classList.add(VIDEO_NORMALIZED_CAPTION_ACTIVE_CLASS);
+  container.classList.add(VIDEO_NORMALIZED_CAPTION_CLASS);
+  getOrCreateTranslationOverlay(player).textContent = translation;
+  syncTranslationOverlayPosition(container);
+}
+
 
 export function getTimedTextCacheKey(url: string): string {
   try {
@@ -182,7 +192,7 @@ export function isXHostPage(locationLike: Pick<Location, 'hostname'> = window.lo
 }
 
 export function isSupportedVideoPage(locationLike: Pick<Location, 'hostname' | 'pathname'> = window.location): boolean {
-  return isYouTubeVideoPage(locationLike) || isXVideoPage(locationLike);
+  return isYouTubeVideoPage(locationLike) || isXVideoPage(locationLike) || getCaptionPlatform(locationLike) !== null;
 }
 
 /** 读取当前播放器可见的原生字幕，不读取插件自己的译文节点。 */

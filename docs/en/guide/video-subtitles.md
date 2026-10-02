@@ -1,5 +1,16 @@
 # Video subtitles
 
+FluentRead also reads captions in Udemy and Disney+ videos and in Teams, Zoom and Google Meet web meetings.
+
+Under **Video translation settings → General**, two options are enabled by default and saved automatically:
+
+- **Automatically enable bilingual meeting captions** attempts to enable available platform captions. You can disable this option and enable native captions yourself. Turning off video translation or hiding FluentRead captions restores the native display.
+- **Prefer human subtitles** uses readable human subtitle tracks in the target language on YouTube, Udemy and Disney+. Missing tracks, inaccessible tracks and gaps fall back to translating the original captions. The source track is preserved.
+
+Meeting support applies to browser web clients, including Zoom's `/wc/` client. The platform, host or account must permit captions. FluentRead does not enable recording or transcription and cannot provide speech captions when the platform supplies none. Teams caption activation follows its meeting More actions and Language and speech menus when available; enable captions manually if controls have changed.
+
+Udemy and Disney+ support uses displayed captions and available subtitle tracks. Their caption panel supports bilingual, translation only, original only, off and translation retry, including fullscreen. Track availability can depend on the player, account, region and content restrictions. This feature does not bypass access restrictions or generate audio captions for videos without subtitles.
+
 Read original subtitles and translations together on YouTube and X, or show just one language.
 
 The open subtitle menu stays available when X hides its playback controls. Switches, display modes, and AI subtitle status update as you use them. Click outside, use the close button, or press Esc to close it. Arrow keys move focus inside the menu without seeking the video.
@@ -12,7 +23,7 @@ The compact X menu puts display modes first. **Subtitle options** contains timin
 2. Open a YouTube or X video and find the FluentRead icon just before the fullscreen button. On X, it stays between picture-in-picture and fullscreen when controls reappear or fullscreen changes.
 3. Choose bilingual, translation-only, or original-only display.
 
-FluentRead uses subtitle tracks or subtitle text provided by the page. It cannot guarantee translations where no subtitles are available. The subtitle translation service is independent of the webpage service.
+FluentRead uses subtitle tracks or subtitle text provided by the page. It cannot guarantee translations where no subtitles are available. The subtitle translation service follows the webpage service by default; you can select a separate service in video translation settings.
 
 The subtitle menu also works in YouTube fullscreen. Bilingual subtitles share one panel. Previous translations clear when captions change, disappear, or you seek. If a translation is still loading, the original appears first; the translation is added only while its caption is still current.
 

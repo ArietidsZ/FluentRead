@@ -689,5 +689,34 @@
     ],
     "protect": ["pre", "code", "kbd", "samp", "input", "textarea", "button", "select"],
     "exclude": [".code_cell", ".input_prompt", ".output_prompt", ".output"]
+  },
+  {
+    "id": "video-native-captions",
+    "name": "视频与会议原生字幕",
+    "allScopes": true,
+    "match": {
+      "hosts": [
+        "meet.google.com",
+        "teams.microsoft.com",
+        "teams.live.com",
+        "teams.cloud.microsoft",
+        "*.zoom.us",
+        "*.zoom.com",
+        "*.udemy.com",
+        "*.disneyplus.com"
+      ]
+    },
+    "priority": 385,
+    "mode": "augment",
+    "exclude": [
+      ".ygicle.VbkSUe",
+      "[data-caption-text]",
+      "[data-tid=\"closed-caption-text\"]",
+      ".live-transcription-subtitle__item",
+      "[data-purpose=\"captions-cue-text\"]",
+      ".dss-hls-subtitle-overlay",
+      ".hive-subtitle-renderer",
+      ".shaka-text-container"
+    ]
   }
 ]

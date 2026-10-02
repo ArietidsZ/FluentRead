@@ -355,6 +355,8 @@ export class Config {
     documentModel: IMapping; // 文档翻译按服务保存的独立模型选择
     documentCustomModel: IMapping; // 文档翻译按服务保存的独立自定义模型
     videoTranslationEnabled: boolean; // 是否启用视频字幕翻译 Beta
+    videoMeetingAutoEnabled: boolean; // 自动开启会议平台的本地字幕显示
+    videoPreferHumanSubtitles: boolean; // 优先使用目标语言人工字幕
     videoService: string; // 字幕服务，空值跟随网页默认
     videoLocalModel: VideoLocalTranscriptionModel; // X 无原生字幕时使用的本地 Whisper 模型
     videoSourceLanguage: string; // 视频原语言，auto 表示自动识别；独立于网页翻译 from
@@ -538,6 +540,8 @@ export class Config {
         );
         this.documentCustomModel = {};
         this.videoTranslationEnabled = true; // 默认开启视频字幕翻译
+        this.videoMeetingAutoEnabled = true;
+        this.videoPreferHumanSubtitles = true;
         this.videoService = ''; // 默认跟随网页服务
         this.videoLocalModel = 'tiny';
         this.videoSourceLanguage = 'auto';
@@ -1174,6 +1178,8 @@ export function normalizeConfig(value: unknown): Config {
     if (typeof normalized.videoTranslationEnabled !== 'boolean') {
         normalized.videoTranslationEnabled = true;
     }
+    normalized.videoMeetingAutoEnabled = typeof source.videoMeetingAutoEnabled === 'boolean' ? source.videoMeetingAutoEnabled : true;
+    normalized.videoPreferHumanSubtitles = typeof source.videoPreferHumanSubtitles === 'boolean' ? source.videoPreferHumanSubtitles : true;
     if (normalized.videoLocalModel !== 'tiny' && normalized.videoLocalModel !== 'base') {
         normalized.videoLocalModel = 'tiny';
     }
