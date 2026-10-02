@@ -15,6 +15,19 @@ import {
 } from '@/src/features/input-translation/background/handler';
 
 describe('输入框翻译后台配置绑定', () => {
+    it('继承当前默认服务，已建立的请求保持快照，独立选择不随默认变更', () => {
+        const config = new Config();
+        config.service = services.google;
+        const first = createInputBoxTranslationRequest(config, 'hello', 'zh');
+        expect(first.serviceOverride).toBe(services.google);
+        config.service = services.deepseek;
+        const next = createInputBoxTranslationRequest(config, 'hello', 'zh');
+        expect(next.serviceOverride).toBe(services.deepseek);
+        expect(getTranslationProviderConfig(first, config as never).service).toBe(services.google);
+        config.inputBoxTranslationService = services.microsoft;
+        expect(createInputBoxTranslationRequest(config, 'hello', 'zh').serviceOverride).toBe(services.microsoft);
+    });
+
     it('冻结独立 AI service/model/prompt，并忽略网页消息中的伪造字段', async () => {
         const config = new Config();
         config.service = services.microsoft;

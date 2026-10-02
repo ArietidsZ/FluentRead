@@ -115,8 +115,9 @@
           </label>
           <label class="service-control">
             <span>翻译服务</span>
-            <ElSelect class="document-select"  append-to=".document-app" v-model="config.documentService" :disabled="queueBusy" aria-label="文档翻译服务" filterable>
-              <ElOption v-if="documentServiceUnavailableMessage" :value="config.documentService" disabled :label="translateLegacy('Chrome内置AI翻译（当前浏览器不可用）')" />
+            <ElSelect class="document-select"  append-to=".document-app" v-model="config.documentService" :empty-values="[null, undefined]" :disabled="queueBusy" aria-label="文档翻译服务" filterable>
+              <ElOption :label="t('featureServices.followDefault')" value="" />
+              <ElOption v-if="config.documentService && documentServiceUnavailableMessage" :value="config.documentService" disabled :label="translateLegacy('Chrome内置AI翻译（当前浏览器不可用）')" />
               <ElOption v-for="item in serviceOptions" :key="item.value" :value="item.value" :label="translateLegacy(item.label)" />
             </ElSelect>
           </label>
@@ -132,7 +133,7 @@
           v-model="config.documentGlossaryIds"
           :libraries="config.glossaryLibraries"
           :enabled="config.glossaryEnabled"
-          :unsupported="!supportsTranslationGlossary(config.documentService, selectedDocumentModel)"
+          :unsupported="!supportsTranslationGlossary(effectiveDocumentService, selectedDocumentModel)"
           :disabled="queueBusy"
         >
           <template #mode-control="{mode, changeMode}">
@@ -699,35 +700,39 @@ const serviceOptions = computed(() => filterAvailableTranslationServices(withCus
   label: translateLegacy(item.label),
   description: item.description ? translateLegacy(item.description) : item.description,
 })));
-const documentServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.documentService));
+const effectiveDocumentService = computed(() => config.documentService || config.service);
+const activeDocumentModels = computed(() => config.documentService ? config.documentModel : config.model);
+const activeDocumentCustomModels = computed(() => config.documentService ? config.documentCustomModel : config.customModel);
+const documentServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(effectiveDocumentService.value));
 const selectedCustomOpenAIProvider = computed(() => getCustomOpenAIProvider(
   config.customOpenAIProviders,
-  config.documentService,
+  effectiveDocumentService.value,
 ));
 const documentIsCustomOpenAIProvider = computed(() => Boolean(selectedCustomOpenAIProvider.value));
 const documentUsesModel = computed(() => documentIsCustomOpenAIProvider.value
-  || servicesType.isUseModel(config.documentService));
-const builtInDocumentModels = computed(() => (models.get(config.documentService) || [])
+  || servicesType.isUseModel(effectiveDocumentService.value));
+const builtInDocumentModels = computed(() => (models.get(effectiveDocumentService.value) || [])
   .filter((model) => model !== customModelString));
 const documentModelOptions = computed(() => {
   if (selectedCustomOpenAIProvider.value) return selectedCustomOpenAIProvider.value.models;
   return Array.from(new Set([
     ...builtInDocumentModels.value,
-    ...(config.customModels[config.documentService] || []),
-    config.documentModel[config.documentService] === customModelString
-      ? config.documentCustomModel[config.documentService] || ''
+    ...(config.customModels[effectiveDocumentService.value] || []),
+    activeDocumentModels.value[effectiveDocumentService.value] === customModelString
+      ? activeDocumentCustomModels.value[effectiveDocumentService.value] || ''
       : '',
   ].filter(Boolean)));
 });
 const selectedDocumentModel = computed({
   get: () => documentIsCustomOpenAIProvider.value
-    ? config.documentModel[config.documentService] || documentModelOptions.value[0] || ''
+    ? activeDocumentModels.value[effectiveDocumentService.value] || documentModelOptions.value[0] || ''
     : resolveConfiguredModel(
-      config.documentModel[config.documentService],
-      config.documentCustomModel[config.documentService],
+      activeDocumentModels.value[effectiveDocumentService.value],
+      activeDocumentCustomModels.value[effectiveDocumentService.value],
     ) || documentModelOptions.value[0] || '',
   set: (value: string) => {
-    const service = config.documentService;
+    const service = effectiveDocumentService.value;
+    config.documentService = service;
     if (documentIsCustomOpenAIProvider.value || builtInDocumentModels.value.includes(value)) {
       config.documentModel[service] = value;
       return;
@@ -749,10 +754,10 @@ const credentialWarning = computed(() => {
 
   const credentialConfig = {
     ...config,
-    model: {...config.model, [config.documentService]: config.documentModel[config.documentService]},
-    customModel: {...config.customModel, [config.documentService]: config.documentCustomModel[config.documentService]},
+    model: {...config.model, [effectiveDocumentService.value]: activeDocumentModels.value[effectiveDocumentService.value]},
+    customModel: {...config.customModel, [effectiveDocumentService.value]: activeDocumentCustomModels.value[effectiveDocumentService.value]},
   };
-  return getMissingCredentialMessage(config.documentService, credentialConfig);
+  return getMissingCredentialMessage(effectiveDocumentService.value, credentialConfig);
 });
 const rowForSegment = (segment: ParsedDocument['segments'][number]) => ({
   ...segment, index: segment.id, translation: translatedSegments.value[segment.id] || '',
@@ -765,7 +770,7 @@ const translationComplete = computed(() => Boolean(parsedDocument.value && compl
 const progress = computed(() => parsedDocument.value ? Math.floor(completedSegments.value / parsedDocument.value.segments.length * 100) : 0);
 const effectivePreviewMode = computed(() => hasTranslation.value ? previewMode.value : 'source');
 const currentFingerprint = computed(() => JSON.stringify({
-  from: config.from, to: config.to, service: config.documentService, model: selectedDocumentModel.value,
+  from: config.from, to: config.to, service: effectiveDocumentService.value, model: selectedDocumentModel.value,
   glossaryIds: config.documentGlossaryIds, glossaryRevision: buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
 }));
 const settingsChanged = computed(() => Boolean(taskFingerprint.value && taskFingerprint.value !== currentFingerprint.value));
@@ -1129,7 +1134,7 @@ async function startTranslation(restart = false): Promise<void> {
   try {
     await translateDocumentSegments(document.segments, {
       fileName: document.fileName,
-      serviceOverride: config.documentService,
+      serviceOverride: effectiveDocumentService.value,
       modelOverride: documentUsesModel.value ? documentModelValue.value : undefined,
       sourceLanguage: config.from, targetLanguage: config.to,
       glossaryIds, glossaryRevision,

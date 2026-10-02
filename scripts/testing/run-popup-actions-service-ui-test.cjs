@@ -128,7 +128,7 @@ async function drawer(id = 'services') {
   await popup.locator(id === 'services' ? '[data-testid="popup-feature-services"]' : `[data-popup-quick-feature="${id}"]`).click();
   await popup.locator('.drawer-surface').waitFor(); await wait(300);
 }
-async function closeDrawer() {await popup.locator('.drawer-header > button').click(); await popup.locator('.drawer-surface').waitFor({state: 'hidden'});}
+async function closeDrawer() {await popup.locator('.drawer-surface button[aria-label="关闭"]').click(); await popup.locator('.drawer-surface').waitFor({state: 'hidden'});}
 async function closeTestPage(page) {
   // CDP Page.close 关闭当前页偶尔会激活 macOS 窗口；先在隔离窗口切回控制页，再用扩展 API 移除准确页签。
   const tabId = await page.evaluate(async () => (await chrome.tabs.getCurrent()).id);
@@ -460,7 +460,8 @@ async function main() {
     report.persistenceCases.push({name: 'site-rules-reopen-and-quick-close', passed: true});
     currentCase = 'service-chooser';
     await drawer(); assert.equal(await popup.locator('.service-assignment').count(), 10); await shot(popup, 'services-overview');
-    await popup.locator('.provider-drawer-actions').scrollIntoViewIfNeeded(); await shot(popup, 'services-overview-bottom');
+    assert.equal(await popup.locator('.provider-drawer-actions, [data-testid="ai-context-help"]').count(), 0);
+    await popup.locator('.popup-service-overview').evaluate(node => { node.closest('.el-drawer__body').scrollTop = node.closest('.el-drawer__body').scrollHeight; }); await shot(popup, 'services-overview-bottom');
     // 逐项选择当前浏览器允许的服务，验证选项不是只展示、不响应的装饰。
     await popup.locator('[data-feature-service="default"]').click();
     if (await popup.locator('.service-picker-more').getAttribute('aria-expanded') !== 'true') await popup.locator('.service-picker-more').click();
