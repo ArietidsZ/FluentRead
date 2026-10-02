@@ -4,6 +4,8 @@
  * 主要内容：包含按功能分组的标题、副标题、图标、关键词和 section ID，以及同页分组、服务分配与模型用量深链接；旧圈选地址解析为图片页；通用页文案对应日常翻译、网页辅助与基本偏好的阅读顺序，从同一注册表派生导航列表与后台合法分区 ID，导出 resolveNavigationItem、resolveRequestedSection 与 filterNavigationItems。
  * 模块边界：该模块只描述导航元数据，不切换 DOM、不写 location.hash 也不保存配置；Options 页面负责路由同步，SettingsSections.vue 负责各分区实际内容。
  */
+import brandTaglines from '@/src/core/i18n/messages/brand-taglines.json';
+
 export type NavigationItem = {
   id: string
   icon: string
@@ -168,7 +170,7 @@ export const navigationGroups = [
       {
         id: 'settings-about', icon: 'i', label: '关于流畅阅读', description: '版本与项目', group: '系统与数据',
         heading: '关于流畅阅读', summary: '了解插件版本、核心体验与项目入口。',
-        kicker: '关于项目', title: '关于流畅阅读', detail: '一个让双语阅读更自然的开源浏览器翻译插件。',
+        kicker: '关于项目', title: '关于流畅阅读', detail: brandTaglines['zh-CN'],
         searchDescription: '版本、开源项目、使用文档与问题反馈',
       },
     ],

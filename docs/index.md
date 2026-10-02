@@ -1,7 +1,7 @@
 ---
 layout: home
 markdownStyles: false
-title: 开源浏览器双语翻译插件
+title: 让语言更近，让世界更大。
 ---
 
 <ProductHome />

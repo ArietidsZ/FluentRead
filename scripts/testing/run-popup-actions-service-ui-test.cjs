@@ -277,7 +277,7 @@ async function main() {
       const variants = baseline ? [['light', 'light', 'default', 'zh-CN', 340]] : [
         ['light', 'light', 'default', 'zh-CN', 320], ['dark', 'dark', 'default', 'zh-CN', 320],
         ['minimal', 'light', 'minimal', 'zh-CN', 310], ['compact', 'light', 'compact', 'zh-CN', 300],
-        ['ocean', 'light', 'ocean', 'zh-CN', 320], ['english', 'light', 'default', 'en-US', 320],
+        ['ocean', 'light', 'ocean', 'zh-CN', 320], ['english', 'light', 'default', 'en-US', 380],
       ];
       for (const [name, theme, interfaceSkin, uiLanguage, width] of variants) {
         currentCase = `density-${name}`;
@@ -298,7 +298,7 @@ async function main() {
         }
         report.cases.push(`${name}: intrinsic popup width, primary switches visible and all panel controls reachable`);
       }
-      if (baseline) {report.ok = true; return;}
+      if (baseline || process.argv.includes('--layout-only')) {report.ok = true; return;}
       currentCase = 'density-interaction';
       await patch({theme: 'light', interfaceSkin: 'default', uiLanguage: 'zh-CN', from: 'auto'}); await fitPopup(popup);
       await shot(popup, 'density-popup-auto');

@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupServices.vue
  文件职责：在 Popup 翻译服务抽屉中展示功能分配概览，以独立选择面板替代层叠下拉菜单，让窄弹窗里的服务选择更直观。
- 主要内容：突出网页默认服务，以紧凑列表展示各功能的独立服务或继承状态，以统一状态标签呈现服务，保留本地图标、模型和配置提醒；选择面板合并功能标题、返回与关闭操作，将主要空间用于常用/更多服务、模型搜索及键盘导航，保留不可用的旧选择。
+ 主要内容：突出网页默认服务，以紧凑列表展示各功能的独立服务或继承状态，以统一状态标签呈现服务并让多语言名称完整换行，保留本地图标、模型和配置提醒；选择面板合并功能标题、返回与关闭操作，将主要空间用于常用/更多服务、模型搜索及键盘导航，保留不可用的旧选择。
  模块边界：复用功能服务映射、模型解析及供应商能力，只修改父级配置草稿；保存由 PopupApp 负责，不请求翻译或处理连接密钥。
 -->
 <template>
@@ -183,7 +183,7 @@ function warning(feature?: FeatureServiceDefinition) {
 .default-assignment .assignment-heading strong { font-weight: 650; }
 .assignment-details { display: grid; grid-template-columns: auto minmax(0, auto); align-items: center; justify-content: end; justify-items: end; gap: 2px 5px; min-width: 0; }
 .assignment-value { grid-column: 2; min-height: 26px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); display: flex; align-items: center; justify-content: flex-end; gap: 6px; max-width: 100%; min-width: 0; font-size: 10px; line-height: 1.4; }
-.assignment-value > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assignment-value > span { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
 .assignment-inherited { border-color: transparent; color: var(--muted); background: var(--surface-soft); }
 .assignment-details > small { grid-column: 2; max-width: 100%; overflow: hidden; color: var(--muted); font-size: 9px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .assignment-warning { grid-column: 1; grid-row: 1; display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-strong); font-size: 10px; font-weight: 600; }

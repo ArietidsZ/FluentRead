@@ -1,3 +1,5 @@
+让语言更近，让世界更大。
+
 FluentRead-流畅阅读是一款开源的浏览器双语翻译插件，采用 GPL-3.0 许可证，并提供 AI 阅读辅助。
 
 开源与 DeepSeek Harness

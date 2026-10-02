@@ -105,6 +105,7 @@
 .product-name-local {
   margin-left: 0.15em;
 }
+.product-tagline { margin: 0 auto 16px; max-width: 800px; color: var(--vp-c-text-1); font-size: clamp(20px, 4vw, 30px); font-weight: 650; line-height: 1.4; text-wrap: balance; }
 .product-intro {
   font-size: 19px;
   line-height: 1.9;

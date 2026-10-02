@@ -1,5 +1,7 @@
 # FluentRead 宣传与商店素材
 
+品牌宣传语与七种语言的可复制文案见 [品牌文案](./brand.md)。
+
 中文和英文的文案、界面截图及宣传图分别制作。两版均重点介绍 GPL-3.0 开源与 DeepSeek Harness 会话内核的浏览器适配。
 
 这一目录独立于 README 和官网，供 Chrome 商店填写、社区发布及产品介绍使用。中英文版本分别放置，上传时选择对应语言。
@@ -38,7 +40,7 @@
 
 在本 worktree 构建扩展后，运行 `scripts/capture-product-assets.cjs`，用 `--runtime` 指定含 Playwright 的 Node 包目录，用 `--helper` 指定 focus-safe-browser.cjs。默认采集中文；英文另加 `--locale en --output marketing/source/screenshots-en`。脚本只创建临时浏览器配置，采集后关闭本次实例。
 
-随后运行 `scripts/build-product-assets.cjs --runtime <Node 包目录>` 生成官网与商店图片。`scripts/verify-product-site.cjs` 检查站点语言、链接、图片、桌面与窄屏表现。运行 `node scripts/package-product-kit.cjs --output <输出目录>` 可生成独立的中英文 ZIP，各自附带商店资料、宣传图、社区文案、2x 原图和示例来源。所有中间产物和截图原图都有明确来源，便于以后更新。
+随后运行 `scripts/build-product-assets.cjs --runtime <Node 包目录>` 生成官网与商店图片。仅更新宣传语时可加 `--promo-only`，保留现有产品截图与图标。`scripts/verify-product-site.cjs` 检查站点语言、链接、图片、桌面与窄屏表现。运行 `node scripts/package-product-kit.cjs --output <输出目录>` 可生成独立的中英文 ZIP，各自附带商店资料、宣传图、社区文案、2x 原图和示例来源。所有中间产物和截图原图都有明确来源，便于以后更新。
 
 ## 商店规格依据
 
