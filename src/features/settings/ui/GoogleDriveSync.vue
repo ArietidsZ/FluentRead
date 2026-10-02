@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/GoogleDriveSync.vue
 文件职责：提供 Google Drive 完整配置同步入口和用户确认预览。
-主要内容：连接账号、自动加密、选择方向、逐项处理隐藏内容的冲突与失败提示。
+主要内容：从统一同步按钮连接账号并预览、自动加密、选择方向、处理隐藏内容的冲突与失败提示。
 模块边界：页面不获取完整同步快照或令牌；固定应用口令由后台使用；页面不提供用户口令输入。
 -->
 <template>
@@ -11,19 +11,12 @@
       <span class="drive-badge">本机加密</span>
     </header>
     <p class="drive-boundary">包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。</p>
-    <p class="drive-boundary">使用固定应用口令自动加密，无需输入。此口令随源码公开；云端文件的访问保护依赖 Google 账号和授权。</p>
     <p class="drive-status" role="status">{{ statusText }}</p>
     <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="drive-error" />
     <div v-if="status?.available" class="drive-actions">
-      <el-button v-if="!status.account" type="primary" :loading="busy" data-testid="google-drive-connect" @click="connect">连接 Google 账号</el-button>
-      <template v-else>
-        <div class="drive-buttons">
-          <el-button type="primary" :loading="busy" :disabled="busy" data-testid="google-drive-preview" @click="prepare">预览同步</el-button>
-          <el-button :disabled="busy" @click="disconnect">断开连接</el-button>
-        </div>
-      </template>
+      <el-button type="primary" :loading="busy" :disabled="busy" data-testid="google-drive-sync-now" @click="prepare">立即与Google Drive同步</el-button>
+      <el-button v-if="status.account" :disabled="busy" @click="disconnect">断开连接</el-button>
     </div>
-    <p class="drive-footnote">文件保存在 Google Drive 的隐藏应用数据区。断开连接会清除扩展授权缓存，并保留本机设置与云端文件。</p>
     <el-dialog v-model="previewVisible" title="确认 Google Drive 同步" width="min(900px, calc(100vw - 24px))" :close-on-click-modal="!busy" :close-on-press-escape="!busy" :show-close="!busy" destroy-on-close @closed="clearPreview">
       <template v-if="preview">
         <p class="drive-preview-account">{{ t('settings.drive.account', {email: preview.account.email}) }}</p>
@@ -96,10 +89,14 @@ async function perform(operation: () => Promise<void>) {
   try {await operation();} catch (failure) {if (alive) error.value = failure instanceof Error ? failure.message : '同步未完成，请重试。';}
   finally {if (alive) busy.value = false;}
 }
-async function connect() {await perform(async () => {status.value = await client.connect();});}
 async function disconnect() {await perform(async () => {await client.disconnect(); status.value = await client.status();});}
 async function prepare() {
   await perform(async () => {
+    if (!status.value?.account) {
+      const connected = await client.connect();
+      if (!alive) return;
+      status.value = connected;
+    }
     const result = await client.prepare();
     if (!alive) {await client.cancel(); return;}
     preview.value = result;
@@ -135,13 +132,12 @@ onUnmounted(() => {alive = false; clearPreview();});
 .drive-sync {padding: 24px; margin-bottom: 24px; border: 1px solid var(--el-border-color); border-radius: 16px; background: var(--el-bg-color); color: var(--el-text-color-primary);}
 .drive-heading {display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;}
 .drive-heading h2 {margin: 0; font-size: 19px;}
-.drive-heading p, .drive-boundary, .drive-footnote, .drive-direction p {color: var(--el-text-color-secondary); font-size: 13px; line-height: 1.7;}
+.drive-heading p, .drive-boundary, .drive-direction p {color: var(--el-text-color-secondary); font-size: 13px; line-height: 1.7;}
 .drive-badge {white-space: nowrap; border-radius: 20px; padding: 4px 10px; font-size: 12px; color: var(--el-color-primary); background: var(--el-color-primary-light-9);}
 .drive-status, .drive-preview-account {overflow-wrap: anywhere; font-size: 14px;}
 .drive-error, .drive-actions {margin-top: 16px;}
-.drive-buttons {display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px;}
-.drive-buttons :deep(.el-button) {margin-left: 0;}
-.drive-footnote {margin-bottom: 0;}
+.drive-actions {display: flex; flex-wrap: wrap; gap: 12px;}
+.drive-actions :deep(.el-button) {margin-left: 0;}
 .drive-direction {display: grid; gap: 12px; margin-top: 20px;}
 .drive-differences {max-height: 42vh; overflow-y: auto; border: 1px solid var(--el-border-color); border-radius: 10px; margin-bottom: 12px;}
 .drive-change {padding: 14px; border-bottom: 1px solid var(--el-border-color-lighter);}
