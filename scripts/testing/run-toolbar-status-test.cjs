@@ -6,7 +6,7 @@ const {chromium}=require(path.join(argument('playwright-root','/Users/thinkstu/.
 const helper=require(argument('focus-safe-helper','/Users/thinkstu/.codex/skills/fluentread-extension-ui-test/scripts/focus-safe-browser.cjs'));
 const out=path.resolve(argument('artifacts-dir','/private/tmp/fluentread-toolbar-status')),ext=path.resolve(argument('extension-dir','.output/chrome-mv3'));fs.mkdirSync(out,{recursive:true});
 const windowQuery=argument('window-query',null);
-const profile=fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-pr523-'));
+const profile=fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-edge-profile-toolbar-'));
 const id=crypto.createHash('sha256').update(ext).digest('hex').slice(0,32).replace(/[0-9a-f]/g,x=>String.fromCharCode(97+parseInt(x,16)));
 fs.mkdirSync(path.join(profile,'Default'));
 fs.writeFileSync(path.join(profile,'Default','Preferences'),JSON.stringify({translate:{enabled:false},extensions:{toolbar:[id],pinned_extensions:[id]},browser:{has_seen_welcome_page:true}}));
@@ -30,6 +30,14 @@ async function main(){
  await context.route('https://badge-review.example/**',r=>r.fulfill({status:200,contentType:'text/html',body:html}));
  const page=await helper.newPageWithoutForeground(context);await page.goto('https://badge-review.example/article');await page.waitForSelector('#fluent-read-page-styles',{state:'attached'});await helper.activateExtensionTabWithoutForeground(context,page);
  const tabId=await worker.evaluate(async()=>{const ts=await chrome.tabs.query({});return ts.find(t=>t.url==='https://badge-review.example/article').id});
+ // 记录真实 action 调用，避免只在最终采样时漏掉中途清空角标的闪烁。
+ await worker.evaluate(()=>{
+   globalThis.reviewBadgeWrites=[];
+   for(const method of ['setBadgeText','setIcon']) {
+     const original=chrome.action[method].bind(chrome.action);
+     chrome.action[method]=(...args)=>{globalThis.reviewBadgeWrites.push({method,details:args[0]});return original(...args)};
+   }
+ });
  async function snap(name){await sleep(700);const badge=await worker.evaluate(async(tabId)=>({text:await chrome.action.getBadgeText({tabId}),background:await chrome.action.getBadgeBackgroundColor({tabId}),foreground:typeof chrome.action.getBadgeTextColor==='function'?await chrome.action.getBadgeTextColor({tabId}):null,state:await chrome.tabs.sendMessage(tabId,{type:'getFullPageTranslationState'}),requests:globalThis.reviewRequests}),tabId);const dom=await page.evaluate(()=>({translated:document.querySelectorAll('.fluent-read-bilingual-content').length,loading:document.querySelectorAll('.fluent-read-loading').length,failures:document.querySelectorAll('[data-fr-translation-failed="true"]').length}));report.cases.push({name,...badge,...dom});await page.screenshot({path:path.join(out,name+'-page.png')});
  if(windowQuery)try{const windows=JSON.parse(execFileSync(windowQuery,[],{encoding:'utf8'}));if(windows.length!==1)throw Error('Expected one matching isolated window, found '+windows.length);execFileSync('/usr/sbin/screencapture',['-x','-o','-l',String(windows[0].kCGWindowNumber),path.join(out,name+'-window.png')]);}catch(e){report.errors.push('native screenshot: '+e.message)}
  fs.writeFileSync(path.join(out,'browser-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report.cases.at(-1)));
@@ -40,8 +48,30 @@ async function main(){
  report.messageTypes='contextMenuTranslate fullPage/restore';
  async function action(action){await helper.activateExtensionTabWithoutForeground(context,page);return worker.evaluate(({tabId,action})=>chrome.tabs.sendMessage(tabId,{type:'contextMenuTranslate',action}),{tabId,action})}
  assert.equal((await snap('01-original')).text,'');
+ await worker.evaluate(()=>{globalThis.reviewBadgeWrites=[]});
  await worker.evaluate(()=>globalThis.reviewMode='pending');await action('fullPage');await sleep(700);const pending=await snap('02-pending');assert.equal(pending.translated,0);assert.equal(pending.state.toolbarStatus,'translating');
  await worker.evaluate(()=>{globalThis.reviewMode='success';globalThis.reviewPending.splice(0).forEach(r=>r())});await page.waitForSelector('.fluent-read-bilingual-content');assert.equal((await snap('03-translated')).state.toolbarStatus,'translated');
+ const completedWrites=await worker.evaluate(tabId=>globalThis.reviewBadgeWrites.filter(w=>w.details.tabId===tabId),tabId);
+ report.completedTransitionWrites=completedWrites;
+ assert.ok(completedWrites.some(w=>w.method==='setBadgeText'&&w.details.text==='✓'),'action instrumentation captured completion');
+ assert.equal(completedWrites.filter(w=>w.method==='setBadgeText'&&w.details.text==='').length,0,'translation updates never clear the badge');
+ assert.equal(completedWrites.filter(w=>w.method==='setIcon').length,0,'translation updates reuse the initialized brand icon');
+ await worker.evaluate(()=>{globalThis.reviewBadgeWrites=[]});
+ const stableRequests=await worker.evaluate(()=>globalThis.reviewRequests);
+ // 原文骨架的同源样式变化会触发重扫；已经完成的结果应保持稳定。
+ for(let i=0;i<6;i++) {await page.evaluate(i=>document.querySelector('article').style.setProperty('--fixture-tick',String(i)),i);await sleep(100);}
+ await sleep(800);
+ report.completedStability=await worker.evaluate(tabId=>({writes:globalThis.reviewBadgeWrites.filter(w=>w.details.tabId===tabId),text:null,requests:globalThis.reviewRequests}),tabId);
+ report.completedStability.text=await worker.evaluate(tabId=>chrome.action.getBadgeText({tabId}),tabId);
+ assert.equal(report.completedStability.text,'✓');assert.equal(report.completedStability.requests,stableRequests);assert.deepEqual(report.completedStability.writes,[]);
+ // 实际动态新增内容完成快速补译，也不能先清空标识或重新加载底图。
+ await page.evaluate(()=>{const p=document.createElement('p');p.id='dynamic-paragraph';p.textContent='New content can be translated without flashing the toolbar icon.';document.querySelector('article').append(p)});
+ await page.waitForSelector('#dynamic-paragraph .fluent-read-bilingual-content');await sleep(500);
+ report.dynamicSupplement=await worker.evaluate(tabId=>({writes:globalThis.reviewBadgeWrites.filter(w=>w.details.tabId===tabId),requests:globalThis.reviewRequests}),tabId);
+ assert.ok(report.dynamicSupplement.requests>stableRequests,'new content receives a translation');
+ assert.equal(report.dynamicSupplement.writes.filter(w=>w.method==='setBadgeText'&&w.details.text==='').length,0);
+ assert.equal(report.dynamicSupplement.writes.filter(w=>w.method==='setIcon').length,0);
+ await page.evaluate(()=>document.querySelector('#dynamic-paragraph').remove());
  await action('restore');assert.equal((await snap('04-restored')).text,'');
  await worker.evaluate(()=>globalThis.reviewMode='failure');await action('fullPage');await sleep(9000);const failed=await snap('05-service-failure');assert.equal(failed.translated,0);assert.equal(failed.state.toolbarStatus,'error');
  await worker.evaluate(()=>globalThis.reviewMode='pending');while(await page.getByText('重试',{exact:true}).count())await page.getByText('重试',{exact:true}).first().click();
@@ -53,6 +83,6 @@ async function main(){
  report.workerRestart={verified:false,scope:'activation recovery covered; forced worker restart not exercised by this suite'};
  await page.reload();await page.waitForSelector('#fluent-read-page-styles',{state:'attached'});assert.equal((await snap('07-reloaded')).text,'');
  report.completed=true;
- }finally{fs.writeFileSync(path.join(out,'browser-report.json'),JSON.stringify(report,null,2));if(session)await session.close();}
+ }finally{fs.writeFileSync(path.join(out,'browser-report.json'),JSON.stringify(report,null,2));if(session)await session.close();fs.rmSync(profile,{recursive:true,force:true});}
 }
 main().catch(e=>{report.fatal=e.stack;fs.writeFileSync(path.join(out,'browser-report.json'),JSON.stringify(report,null,2));console.error(e);process.exitCode=1});

@@ -2,7 +2,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {installBackgroundBadge} from '@/src/app/background/badgeRuntime';
 import {TabTranslationStateStore} from '@/src/app/background/tabTranslationState';
 const previous = (globalThis as any).browser;
-afterEach(() => { (globalThis as any).browser = previous; vi.restoreAllMocks(); });
+afterEach(() => { (globalThis as any).browser = previous; vi.useRealTimers(); vi.restoreAllMocks(); });
 const event = () => { const listeners: Function[] = []; return {addListener: (fn: Function) => listeners.push(fn), emit: (...args: unknown[]) => listeners.forEach(fn => fn(...args))}; };
 function setup(namespace = 'action', sendMessage = vi.fn(async () => ({status:'success',isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'}))) {
     const action = {setBadgeBackgroundColor: vi.fn(async (_details: {tabId:number;color:string}) => {}), setBadgeTextColor: vi.fn(async (_details: {tabId:number;color:string}) => {}), setBadgeText: vi.fn(async (_details: {tabId:number;text:string}) => {}), setIcon: vi.fn(async (_details: {tabId:number;path:Record<number,string>}) => {})};
@@ -13,6 +13,83 @@ function setup(namespace = 'action', sendMessage = vi.fn(async () => ({status:'s
 }
 const settle = async () => { for (let i=0;i<40;i++) await Promise.resolve(); };
 describe('工具栏原生三态角标', () => {
+    it('完成后的状态切换直接更新角标，不清空标识或重复加载底图', async () => {
+        const {store,badge,action}=setup();
+        store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});
+        await badge.update(1);
+        action.setBadgeText.mockClear();action.setIcon.mockClear();
+        store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'error'});
+        await badge.update(1);
+        store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});
+        await badge.update(1);
+        expect(action.setBadgeText.mock.calls.map(([details])=>details.text)).toEqual(['!','✓']);
+        expect(action.setIcon).not.toHaveBeenCalled();
+    });
+    it('相同状态在慢 API 写入期间重复到达，合并为同一次完整写入', async () => {
+        const {store,badge,action}=setup();let release!:()=>void;
+        action.setIcon.mockImplementationOnce(()=>new Promise<void>(resolve=>{release=resolve}));
+        store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});
+        const first=badge.update(1);await settle();
+        const duplicate=badge.update(1);release();await Promise.all([first,duplicate]);
+        expect(action.setIcon).toHaveBeenCalledTimes(1);
+        expect(action.setBadgeText.mock.calls.map(([details])=>details.text)).toEqual(['✓']);
+    });
+    it('完成后反复快速补译保留对勾，下一次持续等待仍正常显示省略号', async () => {
+        vi.useFakeTimers();
+        const {store,badge,action}=setup();
+        store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});await badge.update(1);
+        action.setBadgeText.mockClear();action.setIcon.mockClear();
+        for(let i=0;i<5;i++) {
+            store.setTranslated(1,true,'translating');const pending=badge.update(1);
+            await vi.advanceTimersByTimeAsync(90);
+            store.setTranslated(1,true,'translated');await badge.update(1);await pending;
+            await vi.advanceTimersByTimeAsync(200);
+        }
+        expect(action.setBadgeText).not.toHaveBeenCalled();expect(action.setIcon).not.toHaveBeenCalled();
+        store.setTranslated(1,true,'translating');const pending=badge.update(1);
+        await vi.advanceTimersByTimeAsync(90);const duplicate=badge.update(1);
+        await vi.advanceTimersByTimeAsync(90);await Promise.all([pending,duplicate]);
+        expect(action.setBadgeText.mock.calls.map(([details])=>details.text)).toEqual(['…']);
+        store.setTranslated(1,true,'translated');await badge.update(1);
+        expect(action.setBadgeText.mock.calls.map(([details])=>details.text)).toEqual(['…','✓']);
+    });
+    it.each(['restore','disable','navigate','close'] as const)('%s 取消迟到的补译等待标识', async mode => {
+        vi.useFakeTimers();
+        const {store,badge,action,tabs}=setup();
+        store.setTranslated(1,true,'translated');await badge.update(1);
+        action.setBadgeText.mockClear();store.setTranslated(1,true,'translating');const pending=badge.update(1);
+        if(mode==='restore') {store.reset(1);await badge.update(1);}
+        if(mode==='disable') {store.setSiteDisabled(1,true);await badge.update(1);}
+        if(mode==='navigate') {tabs.onUpdated.emit(1,{status:'loading'});await settle();}
+        if(mode==='close') tabs.onRemoved.emit(1);
+        await vi.advanceTimersByTimeAsync(500);await pending;
+        expect(action.setBadgeText.mock.calls.map(([details])=>details.text)).toEqual(mode==='close'?[]:['']);
+    });
+    it('候选扫描与入队之间的短空档保留等待标识，真正空闲仍能清空', async () => {
+        vi.useFakeTimers();const {store,badge,action}=setup();
+        store.setTranslated(1,true,'translating');await badge.update(1);action.setBadgeText.mockClear();
+        store.setTranslated(1,true,'idle');const gap=badge.update(1);
+        await vi.advanceTimersByTimeAsync(90);
+        store.setTranslated(1,true,'translating');await badge.update(1);await gap;
+        await vi.advanceTimersByTimeAsync(200);expect(action.setBadgeText).not.toHaveBeenCalled();
+        store.setTranslated(1,true,'idle');const idle=badge.update(1);
+        await vi.advanceTimersByTimeAsync(180);await idle;
+        expect(action.setBadgeText.mock.calls.map(([details])=>details.text)).toEqual(['']);
+    });
+    it('短暂空闲改为补译、完成和失败时，只保留最后所需的标识', async () => {
+        vi.useFakeTimers();const {store,badge,action}=setup();
+        store.setTranslated(1,true,'translated');await badge.update(1);action.setBadgeText.mockClear();
+        store.setTranslated(1,true,'idle');const idle=badge.update(1);await vi.advanceTimersByTimeAsync(60);
+        store.setTranslated(1,true,'translating');const busy=badge.update(1);await idle;
+        await vi.advanceTimersByTimeAsync(60);store.setTranslated(1,true,'error');await badge.update(1);await busy;
+        await vi.advanceTimersByTimeAsync(300);
+        expect(action.setBadgeText.mock.calls.map(([details])=>details.text)).toEqual(['!']);
+        store.setTranslated(1,true,'translated');await badge.update(1);
+        store.setTranslated(1,true,'idle');const gap=badge.update(1);await vi.advanceTimersByTimeAsync(90);
+        store.setTranslated(1,true,'translated');await badge.update(1);await gap;
+        await vi.advanceTimersByTimeAsync(300);
+        expect(action.setBadgeText.mock.calls.map(([details])=>details.text)).toEqual(['!','✓']);
+    });
     it.each(['translated','translating','error'] as const)('按真实 %s 结果显示原生角标并恢复原图', async status => {
         const {store,badge,action}=setup(); store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:status}); await badge.update(1);
         expect(action.setBadgeText).toHaveBeenLastCalledWith({tabId:1,text:{translated:'✓',translating:'…',error:'!'}[status]});
@@ -70,15 +147,16 @@ describe('工具栏原生三态角标', () => {
         expect(action.setBadgeText).not.toHaveBeenCalledWith({tabId:1,text:'✓'});
         expect(action.setBadgeText).toHaveBeenLastCalledWith({tabId:1,text:''});
     });
-    it.each(['setBadgeText','setIcon','setBadgeBackgroundColor','setBadgeTextColor'] as const)(
+    it.each(['setBadgeText','setBadgeBackgroundColor','setBadgeTextColor'] as const)(
         '%s 写入中回到已显示过的完成状态，仍会重画完成角标', async method => {
+            vi.useFakeTimers();
             const {store,badge,action}=setup();
             store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});
             await badge.update(1);
             let release!:()=>void;
             action[method].mockImplementationOnce(()=>new Promise<void>(resolve=>{release=resolve}));
             store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translating'});
-            const pending=badge.update(1);await settle();
+            const pending=badge.update(1);await vi.advanceTimersByTimeAsync(180);await settle();
             expect(release).toBeTypeOf('function');
             store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});
             const completed=badge.update(1);release();await Promise.all([pending,completed]);
@@ -89,8 +167,7 @@ describe('工具栏原生三态角标', () => {
     it('已显示原文时，迟到的完成文字写入不能覆盖再次恢复原文', async () => {
         const {store,badge,action}=setup();await badge.update(1);
         let release!:()=>void;
-        action.setBadgeText.mockResolvedValueOnce(undefined)
-            .mockImplementationOnce(()=>new Promise<void>(resolve=>{release=resolve}));
+        action.setBadgeText.mockImplementationOnce(()=>new Promise<void>(resolve=>{release=resolve}));
         store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});
         const completed=badge.update(1);await settle();
         expect(release).toBeTypeOf('function');
