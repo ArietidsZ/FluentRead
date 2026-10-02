@@ -10,7 +10,7 @@
 
 An open-source browser extension for bilingual translation.
 
-[Install](#installation) · [Website](https://fluent.thinkstu.com/en/) · [User guide](https://fluent.thinkstu.com/en/guide/) · [简体中文](./misc/README_ZH.md) · [LINUX DO Community](https://linux.do) · [GPL-3.0](./LICENSE)
+[Install](#installation) · [Website](https://read.thinkstu.com/en/) · [User guide](https://read.thinkstu.com/en/guide/) · [Privacy policy](https://read.thinkstu.com/en/guide/privacy) · [简体中文](./misc/README_ZH.md) · [LINUX DO Community](https://linux.do) · [GPL-3.0](./LICENSE)
 
 </div>
 
@@ -30,7 +30,7 @@ FluentRead displays translations alongside the original webpage and provides sel
 | Video subtitles | Bilingual subtitles on YouTube and X; supported X videos can also use local AI transcription. |
 | Services and settings | Free translation services, DeepL, AI providers, and local Ollama models, with glossaries, translation styles, shortcuts, and menu layout settings. |
 
-See the [user guide](https://fluent.thinkstu.com/en/guide/) for instructions and supported formats. AI explanations require a configured AI service. Third-party pricing and availability depend on the provider.
+See the [user guide](https://read.thinkstu.com/en/guide/) for instructions and supported formats. AI explanations require a configured AI service. Third-party pricing and availability depend on the provider.
 
 ## DeepSeek Harness
 
@@ -38,7 +38,7 @@ The reading card adapts the conversation-event and message organization componen
 
 The adaptation is used for selection-based reading assistance. Full-page, hover, and regular selection translation use their respective translation pipelines. See the [integration map](./docs/reports/harness-embedding-map-20260905.md) for scope and upstream references, and the [third-party notice](./public/third-party-notices/deepseek-harness-MIT.txt) for its MIT license.
 
-[Reading card guide](https://fluent.thinkstu.com/en/guide/deepseek-harness)
+[Reading card guide](https://read.thinkstu.com/en/guide/deepseek-harness)
 
 ## Installation
 
@@ -48,7 +48,7 @@ The adaptation is used for selection-based reading assistance. Full-page, hover,
 2. Open FluentRead and select a target language. The source language defaults to automatic detection and can also be selected manually.
 3. Choose “Translate page.” Enable selection translation and other tools in settings as needed.
 
-Store updates may arrive at different times. The userscript provides core webpage translation features. See the [installation guide](https://fluent.thinkstu.com/en/guide/getting-started) for browser and feature availability.
+Store updates may arrive at different times. The userscript provides core webpage translation features. See the [installation guide](https://read.thinkstu.com/en/guide/getting-started) for browser and feature availability.
 
 ## Local development
 
@@ -105,4 +105,4 @@ Thank you to everyone who has contributed to FluentRead, including the many we c
 
 FluentRead is released under [GPL-3.0](./LICENSE). See [third-party notices](./public/third-party-notices/) for component attribution and licenses.
 
-Cloud translation sends relevant text to the selected provider. See [data and privacy](https://fluent.thinkstu.com/en/guide/privacy) for file parsing, image recognition, and local model behavior.
+Settings and learning records stay local by default; cloud translation uses your selected provider. Optional Google Drive configuration sync (Chrome testing feature) backs up complete settings, including service credentials, to your own Drive, excluding wordbooks, conversations, and usage statistics. See the [privacy policy](https://read.thinkstu.com/en/guide/privacy) for permissions, encryption, and deletion details.

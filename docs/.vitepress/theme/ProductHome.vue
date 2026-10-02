@@ -45,6 +45,9 @@ const chrome =
         <a :href="withBase('/guide/deepseek-harness')"
           >接入 DeepSeek Harness 会话内核 <span aria-hidden="true">→</span></a
         >
+        <a :href="withBase('/guide/privacy')"
+          >隐私政策 <span aria-hidden="true">→</span></a
+        >
       </p>
       <figure class="product-main-shot">
         <a
@@ -187,7 +190,7 @@ const chrome =
         <p class="product-subnote">
           第三方服务可能需要账号、密钥或额度。云端翻译会将待译内容发送给所选服务。<a
             :href="withBase('/guide/privacy')"
-            >了解数据与隐私</a
+            >阅读隐私政策</a
           >
         </p>
       </div>
@@ -206,6 +209,32 @@ const chrome =
             alt="FluentRead 扩展菜单：目标语言、翻译服务与常用功能入口"
         /></a>
       </figure>
+    </section>
+
+    <section class="product-story product-data" aria-labelledby="data-title">
+      <div class="product-story-copy">
+        <p class="product-eyebrow">数据与隐私</p>
+        <h2 id="data-title">按你的选择处理数据</h2>
+        <p>
+          设置与学习记录保存在浏览器中。使用云端翻译时，待译内容发送给你选择的服务；本地识别和模型下载的范围也有明确说明。
+        </p>
+        <a class="product-text-link" :href="withBase('/guide/privacy')"
+          >阅读隐私政策 <span aria-hidden="true">→</span></a
+        >
+      </div>
+      <div class="product-sync-summary">
+        <span class="product-preview-label">Chrome 测试功能</span>
+        <h3>Google Drive 配置同步</h3>
+        <p>
+          主动同步一次，把完整配置保存到自己的 Google 云盘，在其他设备恢复。
+        </p>
+        <p>
+          包含密钥等服务凭据，不包含单词本、聊天记录和用量统计。同步前请阅读配置范围、加密方式与删除说明。
+        </p>
+        <a class="product-text-link" :href="withBase('/guide/privacy#google-drive-配置同步')"
+          >了解同步数据 <span aria-hidden="true">→</span></a
+        >
+      </div>
     </section>
 
     <section class="product-open" aria-labelledby="open-title">
