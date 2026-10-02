@@ -22,6 +22,21 @@ function reject(value: unknown, expectedPath?: string) {
 }
 
 describe('site adaptation JSON boundary', () => {
+    it('视频与会议原生字幕始终留给字幕功能，页面正文仍可翻译', () => {
+        const adapters = compileSiteRulePack(builtinSiteRulePack);
+        for (const [href, attributes] of [
+            ['https://meet.google.com/abc-defg-hij', 'class="ygicle VbkSUe"'],
+            ['https://teams.cloud.microsoft/v2/', 'data-tid="closed-caption-text"'],
+            ['https://us02web.zoom.us/wc/123', 'class="live-transcription-subtitle__item"'],
+            ['https://www.udemy.com/course/demo/learn/', 'data-purpose="captions-cue-text"'],
+            ['https://www.disneyplus.com/video/demo', 'class="dss-hls-subtitle-overlay"'],
+        ]) {
+            const {document} = parseHTML(`<html><body><p id="caption" ${attributes}>This is a native caption owned by the website player.</p><p id="prose">This is a regular paragraph outside the video player.</p></body></html>`);
+            const core = new TranslationCandidateCore({url: new URL(href!), adapters});
+            const ids = core.discover(document).map(candidate => candidate.element.id);
+            expect(ids, href).not.toContain('caption'); expect(ids, href).toContain('prose');
+        }
+    });
     it('creates independent normalized data without touching browser globals', () => {
         const input = pack([rule({
             id: 'docs:example', name: ' Example ', priority: -10,

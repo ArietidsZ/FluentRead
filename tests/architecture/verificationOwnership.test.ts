@@ -230,6 +230,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/features/full-page-translation/content/runtime.ts',
     // 视频字幕内容脚本 runtime 绑定 YouTube 播放器 DOM、浏览器消息与字幕下载流程；YouTube 数据逻辑已单独纳入 strict coverage。
     'src/features/video-subtitle/content/runtime.ts',
+    // 平台字幕适配器绑定真实 DOM、TextTrack 与 Shadow DOM；专属生命周期单测及生产扩展浏览器夹具验证。
+    'src/features/video-subtitle/content/platformRuntime.ts',
     // MAIN world adapter 只把 window Fetch/XHR 注入严格覆盖的 timedtext bridge core。
     'src/features/video-subtitle/content/youtubeTimedTextBridge.ts',
     // X 浏览器适配器接入 Fetch/AudioContext；URL、读取预算、取消策略和字幕解析由严格覆盖模块负责。

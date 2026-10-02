@@ -474,7 +474,7 @@ describe('统一配置存储', () => {
     });
 
     it('保留用户关闭视频、图片和圈选的选择，保存后重新加载仍关闭', async () => {
-        const disabled = {videoTranslationEnabled: false, selectionAreaEnabled: false, disableImageTranslator: true};
+        const disabled = {videoTranslationEnabled: false, videoMeetingAutoEnabled: false, videoPreferHumanSubtitles: false, selectionAreaEnabled: false, disableImageTranslator: true};
         const store = await loadConfigModule({...storedConfig, ...disabled});
         await store.configReady;
         expect(store.config).toMatchObject(disabled);
