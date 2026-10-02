@@ -3,6 +3,29 @@ import {VideoTranslationScheduler} from '@/src/features/video-subtitle/content/t
 
 const tick = () => new Promise<void>(r => setTimeout(r, 0));
 describe('VideoTranslationScheduler', () => {
+  it('跳转后删除旧的未启动预取，保留在途、当前优先请求和新窗口', async () => {
+    const calls: string[] = [];
+    const releases = new Map<string, (text: string) => void>();
+    const scheduler = new VideoTranslationScheduler(source => new Promise(resolve => {calls.push(source); releases.set(source, resolve);}));
+    const jobs = [scheduler.request('active-a', true), scheduler.request('active-b', true), scheduler.request('obsolete', true), scheduler.request('promoted', true), scheduler.request('upcoming', true)];
+    const settled = Promise.allSettled(jobs);
+    const promoted = scheduler.request('promoted');
+    await tick();
+    expect(calls).toEqual(['active-a', 'active-b', 'promoted']);
+    expect(scheduler.retainPrefetches(new Set(['upcoming']))).toEqual(['obsolete']);
+    releases.get('active-a')!('A'); releases.get('active-b')!('B'); releases.get('promoted')!('P');
+    await tick();
+    expect(calls).toEqual(['active-a', 'active-b', 'promoted', 'upcoming']);
+    releases.get('upcoming')!('U');
+    expect(await settled).toEqual([
+      {status: 'fulfilled', value: 'A'}, {status: 'fulfilled', value: 'B'},
+      {status: 'rejected', reason: expect.objectContaining({name: 'AbortError'})},
+      {status: 'fulfilled', value: 'P'}, {status: 'fulfilled', value: 'U'},
+    ]);
+    await expect(promoted).resolves.toBe('P');
+    expect(scheduler.retainPrefetches(new Set())).toEqual([]);
+  });
+
   it('合并重复请求并提升 current lane 优先级', async () => {
     const calls: string[] = [];
     const scheduler = new VideoTranslationScheduler(async source => { calls.push(source); return source.toUpperCase(); });

@@ -1,10 +1,12 @@
 /**
  * @file src/features/video-subtitle/content/translationCache.ts
  * 文件职责：管理一个视频轨道的译文缓存、请求合并和失败重试退避。
- * 主要内容：限制缓存条数，按当前字幕优先级调度请求，并以版本隔离清理前的迟到结果。
+ * 主要内容：同步读取已完成译文，使双语在同一次更新中显示；限制缓存条数，按播放窗口清理未启动预取，并以版本隔离清理前的迟到结果。
  * 模块边界：只调用注入的翻译函数，不读取配置、网络或播放器；轨道和配置变化由 runtime 显式 clear。
  */
 import {VideoTranslationScheduler} from './translationScheduler';
+import {selectVideoSubtitlePretranslationCues} from './subtitleLogic';
+import type {VideoSubtitleCue} from './youtubeSubtitleData';
 export class VideoTranslationCache {
   private readonly translatedVideoCache = new Map<string, string>();
   private readonly inFlightVideoTranslations = new Map<string, Promise<string>>();
@@ -31,6 +33,21 @@ export class VideoTranslationCache {
   }
   hasFailure(source: string): boolean {
     return this.videoTranslationFailures.has(source.replace(/[\s\u3000]+/g, ' ').trim());
+  }
+  peek(source: string): string | undefined {
+    return this.translatedVideoCache.get(source.replace(/[\s\u3000]+/g, ' ').trim());
+  }
+  retainPrefetches(sources: readonly string[]): void {
+    const keys = new Set(sources.map(source => source.replace(/[\s\u3000]+/g, ' ').trim()));
+    for (const source of this.translationScheduler.retainPrefetches(keys)) {
+      this.inFlightVideoTranslations.delete(source);
+    }
+  }
+  primeUpcoming(cues: readonly VideoSubtitleCue[], currentMs: number, windowMs: number, playbackRate: number,
+    request: (source: string, prefetch: boolean, cue: VideoSubtitleCue) => Promise<string>): void {
+    const selected = selectVideoSubtitlePretranslationCues(cues, currentMs, windowMs, playbackRate);
+    this.retainPrefetches(selected.map(cue => cue.text));
+    for (const cue of selected) void request(cue.text, cue.startMs > currentMs, cue).catch(() => undefined);
   }
   request(source: string, prefetch = false): Promise<string> {
     const key = source.replace(/[\s\u3000]+/g, ' ').trim();
@@ -70,7 +87,7 @@ export class VideoTranslationCache {
         return result;
       })
       .catch((error) => {
-        if (requestVersion === this.pretranslationCacheVersion) {
+        if (requestVersion === this.pretranslationCacheVersion && (error as Error)?.name !== 'AbortError') {
           const previousAttempts = this.videoTranslationFailures.get(key)?.attempts || 0;
           const attempts = Math.min(previousAttempts + 1, 4);
           const retryDelays = [2_000, 5_000, 15_000, 30_000];

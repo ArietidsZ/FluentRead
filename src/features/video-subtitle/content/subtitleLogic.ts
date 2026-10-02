@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/subtitleLogic.ts
  * 文件职责：提供字幕批量翻译、配置指纹和渐进文本展示的纯逻辑。
- * 主要内容：合成双语导出文本、去重并限制批译并发，生成服务配置键，按原文进度截取译文与按时间选择渐进字幕；播放时先筛选当前区间再匹配文本，仅无匹配时扫描全轴识别过期字幕，并以手动偏移计算有效字幕区间。
+ * 主要内容：合成双语导出文本、去重并限制批译并发，生成服务配置键，按原文进度截取译文与按时间选择渐进字幕；按播放速度选取当前句和八条不同的后续原文，排除过期字幕，并以手动偏移计算有效字幕区间。
  * 模块边界：只处理输入数据和注入翻译函数，不读取 DOM、全局配置或浏览器接口。
  */
 import {buildGlossaryRevision} from '@/src/core/glossary';
@@ -83,6 +83,33 @@ export function selectVideoSubtitleCueAtOffset(cues: readonly VideoSubtitleCue[]
     if (!active || cue.startMs > active.startMs) active = cue;
   }
   return active;
+}
+
+/** 当前句独占首位；滚动字幕的重复条目和已结束字幕不占后续八句的预取名额。 */
+export function selectVideoSubtitlePretranslationCues(
+  cues: readonly VideoSubtitleCue[], currentMs: number, windowMs: number, playbackRate = 1,
+): VideoSubtitleCue[] {
+  if (!Number.isFinite(currentMs) || !Number.isFinite(windowMs) || windowMs <= 0) return [];
+  const rate = Number.isFinite(playbackRate) && playbackRate > 0 ? Math.max(1, playbackRate) : 1;
+  const active = selectVideoSubtitleCueAtOffset(cues, currentMs, 0);
+  const upcoming = cues.filter(cue => cue.durationMs > 0 && cue.startMs > currentMs && cue.startMs <= currentMs + windowMs * rate)
+    .sort((left, right) => left.startMs - right.startMs);
+  const selected: VideoSubtitleCue[] = [];
+  const sources = new Set<string>();
+  const append = (cue: VideoSubtitleCue): boolean => {
+    const source = normalizeVideoCaptionText(cue.text);
+    if (!source || sources.has(source)) return false;
+    sources.add(source);
+    selected.push(cue);
+    return true;
+  };
+  if (active) append(active);
+  let count = 0;
+  for (const cue of upcoming) {
+    if (append(cue)) count += 1;
+    if (count === 8) break;
+  }
+  return selected;
 }
 
 /** 滚动字幕会保留上一句；仅把末尾完整词组成的前缀用于匹配正在出现的新句。 */
