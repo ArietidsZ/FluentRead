@@ -31,7 +31,7 @@ async function main() {
         const worker = context.serviceWorkers().find(worker => worker.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker', {timeout: 30_000, predicate: worker => worker.url().startsWith('chrome-extension://')});
         const extensionId = new URL(worker.url()).host;
         check(extensionId === 'djnlaiohfaaifbibleebjggkghlmcpcj', 'public key keeps official extension ID');
-        check(manifest.permissions.includes('identity') && manifest.oauth2.scopes.length === 2, 'Chrome manifest has minimal OAuth permissions');
+        check(manifest.permissions.includes('identity') && JSON.stringify(manifest.oauth2.scopes) === JSON.stringify(['https://www.googleapis.com/auth/drive.appdata']), 'Chrome manifest requests only the single Drive application-data scope');
         const page = await newPageWithoutForeground(context, 30_000);
         page.on('pageerror', error => report.consoleErrors.push(error.message));
         page.on('console', message => {if (message.type() === 'error') report.consoleErrors.push(message.text());});
@@ -47,7 +47,11 @@ async function main() {
         await worker.evaluate(() => {
             Object.defineProperty(navigator, 'userAgent', {get: () => 'Chrome/142.0.0.0 fixture'});
             globalThis.__driveFixture = {content: null, version: 0, authorizations: 0, clears: 0, requests: 0, uploads: 0, networkFailure: false};
-            chrome.identity.getAuthToken = async ({interactive, scopes}) => {if (interactive) globalThis.__driveFixture.authorizations++; return {token: 'fixture-identity-token', grantedScopes: globalThis.__driveFixture.scopes ?? scopes};};
+            chrome.identity.getAuthToken = async ({interactive, scopes}) => {
+                if (JSON.stringify(scopes) !== JSON.stringify(['https://www.googleapis.com/auth/drive.appdata'])) throw new Error('fixture rejected extra OAuth scopes');
+                if (interactive) globalThis.__driveFixture.authorizations++;
+                return {token: 'fixture-identity-token', grantedScopes: globalThis.__driveFixture.scopes ?? scopes};
+            };
             chrome.identity.removeCachedAuthToken = async () => undefined;
             chrome.identity.clearAllCachedAuthTokens = async () => {globalThis.__driveFixture.clears++;};
             const original = globalThis.fetch.bind(globalThis);
@@ -59,7 +63,7 @@ async function main() {
                 if (url.hostname !== 'www.googleapis.com') return original(input, init);
                 state.requests++;
                 if (state.networkFailure) return new Response('fixture upstream failure', {status: 503});
-                if (url.pathname === '/oauth2/v2/userinfo') return json({id: 'fixture-account', email: 'tester@fixture.invalid'});
+                if (url.pathname === '/drive/v3/about' && url.searchParams.get('fields') === 'user(permissionId,emailAddress)') return json({user: {permissionId: 'fixture-account', ...(state.omitEmail ? {} : {emailAddress: 'tester@fixture.invalid'})}});
                 if (url.pathname.startsWith('/upload/drive/v3/files')) {
                     const body = String(init.body);
                     const marker = 'Content-Type: application/json\r\n\r\n';
@@ -87,8 +91,8 @@ async function main() {
         const initialClears = await worker.evaluate(() => globalThis.__driveFixture.clears);
         await worker.evaluate(() => {globalThis.__driveFixture.scopes = ['email'];});
         await page.locator('[data-testid="google-drive-sync-now"]').click();
-        await card.getByText('勾选配置数据访问权限', {exact: false}).waitFor();
-        check(await worker.evaluate(() => globalThis.__driveFixture.uploads === 0 && globalThis.__driveFixture.requests === 0), 'unchecked Drive permission blocks all Google data requests and writes');
+        await card.getByText('允许访问配置数据', {exact: false}).waitFor();
+        check(await worker.evaluate(() => globalThis.__driveFixture.uploads === 0 && globalThis.__driveFixture.requests === 0), 'missing Drive permission blocks all Google data requests and writes');
         check(await worker.evaluate(initial => globalThis.__driveFixture.clears === initial + 1, initialClears), 'partial authorization failure clears the identity cache');
         await worker.evaluate(() => {delete globalThis.__driveFixture.scopes;});
         await page.locator('[data-testid="google-drive-sync-now"]').click();
@@ -106,6 +110,14 @@ async function main() {
         check(await worker.evaluate(initial => globalThis.__driveFixture.clears === initial + 2, initialClears), 'successful sync automatically clears authorization');
         check(await card.getByRole('button', {name: '断开连接', exact: true}).count() === 0 && !(await card.innerText()).includes('tester@fixture.invalid'), 'completed card shows sync history without a connected account');
 
+        await worker.evaluate(() => {globalThis.__driveFixture.omitEmail = true;});
+        await page.locator('[data-testid="google-drive-sync-now"]').click();
+        await page.locator('.el-dialog').waitFor();
+        check(await page.locator('.drive-preview-account').innerText() === '本次同步使用您在 Google 中选择的账号。', 'Drive-only authorization still supports preview when Google omits email');
+        await page.locator('.el-dialog').getByRole('button', {name: '取消', exact: true}).click();
+        await page.locator('.el-dialog').waitFor({state: 'hidden'});
+        await worker.evaluate(() => {delete globalThis.__driveFixture.omitEmail;});
+
         // 使用现有可信配置保存端口修改虚构凭据与语言，验证真实配置存储恢复。
         async function savePatch(patch, sequence) {
             const response = await page.evaluate(async ({patch, sequence}) => {
@@ -119,7 +131,7 @@ async function main() {
         await savePatch({to: 'fr', token: {openai: 'fixture-private-api-key'}, apiKeys: {openai: ['fixture-private-api-key']}, customBody: {openai: '{"auth":"fixture-private-body"}'}, proxy: {openai: 'https://fixture.invalid/?key=fixture-private-url'}}, 1);
         await page.locator('[data-testid="google-drive-sync-now"]').click();
         await page.locator('.drive-change').first().waitFor();
-        check(await worker.evaluate(() => globalThis.__driveFixture.authorizations === 3), 'each new sync transaction gets one authorization');
+        check(await worker.evaluate(() => globalThis.__driveFixture.authorizations === 4), 'each new sync transaction gets one authorization');
         const dialog = page.locator('.el-dialog');
         check(!(await dialog.innerText()).includes('fixture-private'), 'preview masks private keys, bodies and URLs');
         await dialog.getByText('本机 → 云端', {exact: true}).click();
@@ -152,7 +164,7 @@ async function main() {
         await page.locator('[data-testid="google-drive-sync-now"]').click();
         await card.getByText('同步文件无法解密', {exact: false}).waitFor();
         check((await page.evaluate(() => chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}))).value.to === 'de', 'corrupted cloud file leaves local configuration unchanged');
-        check(await worker.evaluate(initial => globalThis.__driveFixture.clears === initial + 4, initialClears), 'failed preview automatically clears authorization');
+        check(await worker.evaluate(initial => globalThis.__driveFixture.clears === initial + 5, initialClears), 'failed preview automatically clears authorization');
         await worker.evaluate(() => {globalThis.__driveFixture.content = globalThis.__driveFixture.originalContent;});
         await page.locator('[data-testid="google-drive-sync-now"]').click();
         await dialog.getByText('云端 → 本机', {exact: true}).click();

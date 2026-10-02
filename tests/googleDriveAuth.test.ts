@@ -7,19 +7,19 @@ function fixture() {
         userAgent: () => 'Chrome/142.0.0.0',
         identity: {getAuthToken: vi.fn(async () => ({token: 'fixture-access', grantedScopes: [...GOOGLE_DRIVE_SCOPES]})), removeCachedAuthToken: vi.fn(async () => undefined), clearAllCachedAuthTokens: vi.fn(async () => undefined)},
         runtime: {id: GOOGLE_DRIVE_EXTENSION_ID, getManifest: () => ({oauth2: {client_id: GOOGLE_DRIVE_DEFAULT_CLIENT_ID, scopes: [...GOOGLE_DRIVE_SCOPES]}})},
-        fetch: vi.fn(async () => new Response(JSON.stringify({id: 'fixture-account', email: 'tester@fixture.invalid'}))),
+        fetch: vi.fn(async () => new Response(JSON.stringify({user: {permissionId: 'fixture-account', emailAddress: 'tester@fixture.invalid'}}))),
     };
     return {ports, auth: createDriveAuth(ports)};
 }
 afterEach(() => vi.useRealTimers());
 describe('Chrome Google 身份边界', () => {
-    it('完整授权建立账号固定会话，令牌只出现在请求头和回调内', async () => {
+    it('只请求一项 Drive 权限并建立账号固定会话，令牌只出现在请求头和回调内', async () => {
         const f = fixture();
         expect(f.auth.availability()).toEqual({available: true, reason: ''});
         const session = await f.auth.open(true);
-        expect(session.account).toEqual({id: 'fixture-account', email: 'tester@fixture.invalid'});
-        expect(f.ports.identity!.getAuthToken).toHaveBeenCalledWith({interactive: true, enableGranularPermissions: true, scopes: GOOGLE_DRIVE_SCOPES});
-        expect(f.ports.fetch).toHaveBeenCalledWith('https://www.googleapis.com/oauth2/v2/userinfo', expect.objectContaining({headers: {Authorization: 'Bearer fixture-access'}, signal: expect.any(AbortSignal)}));
+        expect(session.account).toEqual({id: 'drive:fixture-account', email: 'tester@fixture.invalid'});
+        expect(f.ports.identity!.getAuthToken).toHaveBeenCalledWith({interactive: true, enableGranularPermissions: true, scopes: ['https://www.googleapis.com/auth/drive.appdata']});
+        expect(f.ports.fetch).toHaveBeenCalledWith('https://www.googleapis.com/drive/v3/about?fields=user(permissionId,emailAddress)', expect.objectContaining({headers: {Authorization: 'Bearer fixture-access'}, signal: expect.any(AbortSignal)}));
         expect(await session.request(async token => token)).toBe('fixture-access');
         expect(JSON.stringify(session)).not.toContain('fixture-access');
         await f.auth.disconnect();
@@ -46,22 +46,37 @@ describe('Chrome Google 身份边界', () => {
         const custom = fixture(); custom.ports.runtime.id = 'fixture-custom-id'; custom.ports.runtime.getManifest = () => ({oauth2: {client_id: 'fixture-custom-client', scopes: [...GOOGLE_DRIVE_SCOPES]}});
         expect(custom.auth.availability().available).toBe(true);
     });
-    it('拒绝取消、空 token 和部分范围；兼容 Chrome 未返回 grantedScopes', async () => {
+    it('拒绝取消、空 token 和未授予 Drive 范围；旧邮箱授权不能代替 Drive，兼容 Chrome 未返回 grantedScopes', async () => {
         const f = fixture();
         vi.mocked(f.ports.identity!.getAuthToken).mockRejectedValueOnce(new Error('fixture provider private error'));
         await expect(f.auth.open()).rejects.toThrow('授权未完成');
         vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({});
         await expect(f.auth.open()).rejects.toThrow('有效授权');
+        vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({token: 'fixture-access', grantedScopes: []});
+        await expect(f.auth.open()).rejects.toThrow('配置数据权限');
+        expect(f.ports.fetch).not.toHaveBeenCalled();
+        vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({token: 'fixture-access', grantedScopes: ['https://www.googleapis.com/auth/userinfo.email']});
+        await expect(f.auth.open()).rejects.toThrow('配置数据权限');
         vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({token: 'fixture-access', grantedScopes: [GOOGLE_DRIVE_SCOPES[0]]});
-        await expect(f.auth.open()).rejects.toThrow('邮箱权限');
-        vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({token: 'fixture-access', grantedScopes: [GOOGLE_DRIVE_SCOPES[1]]});
-        await expect(f.auth.open()).rejects.toThrow('勾选配置数据访问权限');
+        expect((await f.auth.open()).account.id).toBe('drive:fixture-account');
         vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({token: 'fixture-access', grantedScopes: [GOOGLE_DRIVE_SCOPES[0], 'email']});
-        expect((await f.auth.open()).account.id).toBe('fixture-account');
+        expect((await f.auth.open()).account.id).toBe('drive:fixture-account');
         vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({token: 'fixture-access', grantedScopes: ['email']});
         await expect(f.auth.open()).rejects.toThrow('配置数据权限');
         vi.mocked(f.ports.identity!.getAuthToken).mockResolvedValueOnce({token: 'fixture-access'});
-        expect((await f.auth.open()).account.id).toBe('fixture-account');
+        expect((await f.auth.open()).account.id).toBe('drive:fixture-account');
+    });
+    it('Drive 不返回邮箱时仍以 permissionId 绑定账号，不追加邮箱权限且邮箱变化不触发换账号', async () => {
+        const f = fixture();
+        for (const user of [{permissionId: 'fixture-account'}, {permissionId: 'fixture-account', emailAddress: 1}, {permissionId: 'fixture-account', emailAddress: ''}]) {
+            vi.mocked(f.ports.fetch).mockResolvedValueOnce(new Response(JSON.stringify({user})));
+            expect((await f.auth.open()).account).toEqual({id: 'drive:fixture-account', email: ''});
+        }
+        const session = await f.auth.open();
+        vi.mocked(f.ports.fetch).mockResolvedValueOnce(new Response(JSON.stringify({user: {permissionId: 'fixture-account', emailAddress: 'changed@fixture.invalid'}})));
+        const operation = vi.fn().mockRejectedValueOnce(new DriveError('expired', 401)).mockResolvedValueOnce('ok');
+        expect(await session.request(operation)).toBe('ok');
+        expect(f.ports.identity!.getAuthToken).toHaveBeenLastCalledWith(expect.objectContaining({scopes: ['https://www.googleapis.com/auth/drive.appdata']}));
     });
     it('401 刷新一次且不弹授权；刷新后账号变化则拒绝继续操作', async () => {
         const f = fixture();
@@ -71,21 +86,21 @@ describe('Chrome Google 身份边界', () => {
         expect(operation).toHaveBeenCalledTimes(2);
         expect(f.ports.identity!.removeCachedAuthToken).toHaveBeenCalledWith({token: 'fixture-access'});
         expect(f.ports.identity!.getAuthToken).toHaveBeenLastCalledWith(expect.objectContaining({interactive: false}));
-        vi.mocked(f.ports.fetch).mockResolvedValueOnce(new Response(JSON.stringify({id: 'fixture-other', email: 'other@fixture.invalid'})));
+        vi.mocked(f.ports.fetch).mockResolvedValueOnce(new Response(JSON.stringify({user: {permissionId: 'fixture-other', emailAddress: 'tester@fixture.invalid'}})));
         await expect(session.request(async () => {throw new DriveError('expired', 401);})).rejects.toThrow('账号已切换');
         await expect(session.request(async () => {throw new Error('ordinary failure');})).rejects.toThrow('ordinary failure');
         await expect(session.request(async () => {throw new DriveError('forbidden', 403);})).rejects.toThrow('forbidden');
     });
-    it('userinfo 401 也仅刷新一次；其他失败不触发循环', async () => {
+    it('Drive 账号信息 401 也仅刷新一次；其他失败不触发循环并拒绝缺少账号 ID 的响应', async () => {
         const f = fixture();
         vi.mocked(f.ports.fetch).mockResolvedValueOnce(new Response('', {status: 401}));
-        expect((await f.auth.open()).account.id).toBe('fixture-account');
+        expect((await f.auth.open()).account.id).toBe('drive:fixture-account');
         expect(f.ports.identity!.removeCachedAuthToken).toHaveBeenCalledOnce();
         vi.mocked(f.ports.fetch).mockResolvedValueOnce(new Response('', {status: 403}));
         await expect(f.auth.open()).rejects.toThrow('403');
         vi.mocked(f.ports.fetch).mockRejectedValueOnce(new Error('fixture network private error'));
         await expect(f.auth.open()).rejects.toThrow('检查网络');
-        for (const data of [null, 1, {}, {id: 1, email: 'a'}, {id: '', email: 'a'}, {id: 'a'}, {id: 'a', email: 1}, {id: 'a', email: ''}]) {
+        for (const data of [null, 1, {}, {id: 'obsolete-oauth-id', email: 'tester@fixture.invalid'}, {user: null}, {user: 1}, {user: {}}, {user: {permissionId: 1}}, {user: {permissionId: ''}}]) {
             vi.mocked(f.ports.fetch).mockResolvedValueOnce(new Response(JSON.stringify(data)));
             await expect(f.auth.open()).rejects.toThrow('响应无效');
         }

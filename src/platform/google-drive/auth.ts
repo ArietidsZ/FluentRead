@@ -1,11 +1,12 @@
 /**
  * @file src/platform/google-drive/auth.ts
  * 文件职责：连接 Chrome 原生身份 API，并将一次同步绑定到同一个 Google 账号。
- * 主要内容：校验客户端和扩展 ID、用户点击授权、短期令牌刷新与账号切换保护。
+ * 主要内容：单项 Drive 授权、Drive 账号识别、短期令牌刷新与账号切换保护。
  * 模块边界：不保存令牌、不读取配置；账号和令牌只在后台请求期间使用。
  */
 import {GOOGLE_DRIVE_DEFAULT_CLIENT_ID, GOOGLE_DRIVE_EXTENSION_ID, GOOGLE_DRIVE_SCOPES} from './constants';
 
+// 邮箱仅用于预览展示；账号绑定始终使用 Drive permissionId，不依赖邮箱或额外身份授权。
 export interface DriveAccount {id: string; email: string}
 export interface DriveSession {
     account: DriveAccount;
@@ -41,21 +42,20 @@ export function createDriveAuth(ports: DriveAuthPorts) {
         try {result = await ports.identity!.getAuthToken({interactive, enableGranularPermissions: true, scopes: [...GOOGLE_DRIVE_SCOPES]});}
         catch {throw new DriveError('Google 授权未完成，请点击同步按钮后重试。');}
         if (!result.token) throw new DriveError('Google 未返回有效授权，请点击同步按钮重试。');
-        if (result.grantedScopes) {
-            if (!result.grantedScopes.includes(GOOGLE_DRIVE_SCOPES[0])) throw new DriveError('未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。');
-            if (!result.grantedScopes.includes(GOOGLE_DRIVE_SCOPES[1]) && !result.grantedScopes.includes('email')) throw new DriveError('未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。');
-        }
+        if (result.grantedScopes && !result.grantedScopes.includes(GOOGLE_DRIVE_SCOPES[0])) throw new DriveError('未允许 Google Drive 配置数据权限，请重新同步并在 Google 授权页面允许访问配置数据。');
         return result.token;
     }
     async function account(accessToken: string): Promise<DriveAccount> {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 30_000);
         const operation = (async () => {
-            const response = await ports.fetch('https://www.googleapis.com/oauth2/v2/userinfo', {headers: {Authorization: `Bearer ${accessToken}`}, signal: controller.signal});
+            const response = await ports.fetch('https://www.googleapis.com/drive/v3/about?fields=user(permissionId,emailAddress)', {headers: {Authorization: `Bearer ${accessToken}`}, signal: controller.signal});
             if (!response.ok) throw new DriveError(`读取 Google 账号失败（HTTP ${response.status}）。`, response.status);
             const data: unknown = await response.json();
-            if (!data || typeof data !== 'object' || !('id' in data) || !('email' in data) || typeof data.id !== 'string' || !data.id || typeof data.email !== 'string' || !data.email) throw new DriveError('Google 账号响应无效，请重新同步。');
-            return {id: data.id, email: data.email};
+            const user = data && typeof data === 'object' && 'user' in data ? data.user : null;
+            if (!user || typeof user !== 'object' || !('permissionId' in user) || typeof user.permissionId !== 'string' || !user.permissionId) throw new DriveError('Google 账号响应无效，请重新同步。');
+            // 与旧 OAuth 身份 ID 分开命名，旧基线回到明确选方向的首次同步，不能按邮箱冒认同一账号。
+            return {id: `drive:${user.permissionId}`, email: 'emailAddress' in user && typeof user.emailAddress === 'string' ? user.emailAddress : ''};
         })();
         return operation.catch(error => {
             if (error instanceof DriveError) throw error;
