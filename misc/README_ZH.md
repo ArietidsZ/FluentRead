@@ -6,8 +6,6 @@
 
 **让语言更近，让世界更大。**
 
-Closer languages. A bigger world.
-
 一款开源的浏览器双语翻译插件。
 
 [安装](#安装) · [官网](https://read.thinkstu.com/) · [使用指南](https://read.thinkstu.com/guide/) · [隐私政策](https://read.thinkstu.com/guide/privacy) · [English](../README.md) · [LINUX DO 社区](https://linux.do) · [GPL-3.0](../LICENSE)

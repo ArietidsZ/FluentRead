@@ -16,13 +16,14 @@ const chrome =
         alt=""
         fetchpriority="high"
       />
-      <p class="product-eyebrow">开源浏览器双语翻译插件</p>
-      <h1 id="product-title">
-        FluentRead <span class="product-name-local">流畅阅读</span>
-      </h1>
+      <p class="product-eyebrow">流畅阅读 · 开源浏览器双语翻译插件</p>
+      <h1 id="product-title">FluentRead</h1>
       <p class="product-tagline">{{ brandTaglines['zh-CN'] }}</p>
       <p class="product-intro">
         支持网页双语对照、划词翻译、AI 阅读辅助，以及图片、文档和视频字幕翻译。
+      </p>
+      <p class="product-subnote">
+        官网与使用指南无需登录。Google 授权仅用于可选的配置同步。
       </p>
       <div class="product-actions">
         <a
@@ -156,7 +157,7 @@ const chrome =
         <a :href="withBase('/guide/image-translation')"
           ><span class="product-case-type">图片与圈选</span>
           <h3>图片与圈选翻译 <span aria-hidden="true">↗</span></h3>
-          <p>识别网页图片或选定区域中的文字，并显示可复制的译文。</p></a
+          <p>识别已有图片或选定区域中的文字，并显示可复制的译文；不生成图片。</p></a
         >
         <a :href="withBase('/guide/document-translation')"
           ><span class="product-case-type">本地文档</span>
@@ -227,6 +228,9 @@ const chrome =
         <h3>Google Drive 配置同步</h3>
         <p>
           主动同步一次，把完整配置保存到自己的 Google 云盘，在其他设备恢复。
+        </p>
+        <p>
+          Google API 只用于核对同步账号，以及读写 FluentRead 自己的配置备份；不会读取其他云盘文件，也不用于 AI 训练或图片生成。
         </p>
         <p>
           包含密钥等服务凭据，不包含单词本、聊天记录和用量统计。同步前请阅读配置范围、加密方式与删除说明。

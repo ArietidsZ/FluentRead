@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Built-site checks: locale preference, manual switching, complete bilingual routes,
+// Built-site checks: fixed public URLs, manual switching, complete bilingual routes,
 // local links/assets, real pixel dimensions, and desktop/mobile screenshot evidence.
 const fs = require('node:fs'),
   path = require('node:path'),
@@ -50,38 +50,28 @@ const report = {
   consoleErrors: [],
 }
 ;(async () => {
-  const { preferredLocale, homeRedirect, localeBootstrap } = await import(
-    '../docs/.vitepress/theme/locale-preference.mjs'
-  )
-  assert.equal(preferredLocale(null, ['fr-FR', 'zh-TW', 'en-US']), 'zh-CN')
-  assert.equal(preferredLocale('zh-CN', ['en-US']), 'zh-CN')
-  assert.equal(preferredLocale('en', ['zh-CN']), 'en')
-  assert.equal(preferredLocale(null, ['ja-JP']), 'en')
-  assert.equal(homeRedirect('/en/', '', '', null, ['zh-CN']), null)
-  assert.equal(homeRedirect('/guide/features', '', '', null, ['en']), null)
-  assert.equal(
-    homeRedirect('/', '?ref=test', '#reading-title', null, ['en']),
-    '/en/?ref=test#reading-title'
-  )
-  const sandbox = {
-    location: {
-      pathname: '/',
-      search: '?q=1',
-      hash: '#x',
-      replace: (v) => (sandbox.result = v),
-    },
-    navigator: { languages: ['en-US'] },
-    localStorage: {
-      getItem: () => {
-        throw Error('blocked')
-      },
-    },
+  for (const prefix of ['', '/en']) {
+    const { document } = parseHTML(
+      fs.readFileSync(resolveFile(prefix + '/'), 'utf8')
+    )
+    assert.equal(document.title, 'FluentRead')
+    assert.equal(document.querySelector('h1').textContent.trim(), 'FluentRead')
+    assert.equal(
+      document.querySelector('.product-tagline').textContent.trim(),
+      prefix ? 'Closer languages. A bigger world.' : '让语言更近，让世界更大。'
+    )
+    assert(document.querySelector(`.product-foundation a[href="${prefix}/guide/privacy"]`))
+    assert(!document.querySelector('input[type="password"]'))
+    const policy = parseHTML(
+      fs.readFileSync(resolveFile(prefix + '/guide/privacy'), 'utf8')
+    ).document.querySelector('.vp-doc').textContent
+    assert(policy.includes('drive.appdata'))
+    assert(policy.includes(prefix ? 'Data category' : '数据类别'))
+    assert(policy.includes(prefix ? 'Storage location' : '保存位置'))
   }
-  require('node:vm').runInNewContext(localeBootstrap, sandbox)
-  assert.equal(sandbox.result, '/en/?q=1#x')
-  report.cases.push(
-    'Language priority, stored override, explicit deep links, query/hash and blocked storage'
-  )
+  assert(!fs.readFileSync(path.join(root, 'README.md'), 'utf8').includes('让语言更近，让世界更大。'))
+  assert(!fs.readFileSync(path.join(root, 'misc/README_ZH.md'), 'utf8').includes('Closer languages. A bigger world.'))
+  report.cases.push('Public server-rendered app identity, single-language slogans, policy links and data disclosures')
   const zh = files(path.join(root, 'docs/guide'))
     .concat(files(path.join(root, 'docs/config')))
     .filter((f) => f.endsWith('.md'))
@@ -93,7 +83,9 @@ const report = {
     )
     assert(fs.existsSync(twin), 'Missing English guide ' + source)
   }
-  for (const file of files(dist).filter((f) => f.endsWith('.html'))) {
+  const oauthPages = new Set(['index.html', 'en/index.html', 'guide/privacy.html', 'en/guide/privacy.html', 'guide/privacy-policy.html', 'en/guide/privacy-policy.html'])
+  const onlyOAuth = process.argv.includes('--oauth-only')
+  for (const file of files(dist).filter((f) => f.endsWith('.html') && (!onlyOAuth || oauthPages.has(path.relative(dist, f))))) {
     const { document } = parseHTML(fs.readFileSync(file, 'utf8'))
     report.pages++
     for (const a of document.querySelectorAll('a[href]')) {
@@ -154,6 +146,13 @@ const report = {
   report.cases.push(
     'Chinese and English guide parity; built local links; anchors; actual 2x source images; Chrome sizes'
   )
+  if (process.argv.includes('--static-only')) {
+    report.ok = true
+    report.scope = `${onlyOAuth ? 'Homepage and privacy-policy' : 'Built'} HTML, links, assets and source image dimensions; browser interaction not executed`
+    fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2))
+    console.log(JSON.stringify({ ok: report.ok, pages: report.pages, links: report.links, assets: report.assets, cases: report.cases, report: path.join(output, 'report.json') }))
+    return
+  }
   const server = http.createServer((req, res) => {
     const file = resolveFile(req.url)
     if (!file) {
@@ -210,8 +209,10 @@ const report = {
       await page.waitForLoadState('networkidle')
       assert.equal(
         new URL(page.url()).pathname,
-        locale === 'zh-CN' ? '/' : '/en/'
+        '/'
       )
+      assert.equal(await page.locator('html').getAttribute('lang'), 'zh-CN')
+      if (locale === 'en-US') await page.goto(base + '/en/')
       assert.equal(
         await page.locator('html').getAttribute('lang'),
         locale === 'zh-CN' ? 'zh-CN' : 'en'
@@ -277,7 +278,7 @@ const report = {
       await ctx.close()
     }
     report.cases.push(
-      'Both locales: automatic home selection, real HiDPI display, desktop/mobile layout, dark theme'
+      'Both browser locales: fixed homepage URL, explicit language routes, real HiDPI display, desktop/mobile layout, dark theme'
     )
     const ctx = await browser.newContext({
       locale: 'zh-CN',
@@ -292,26 +293,15 @@ const report = {
       .filter({ hasText: 'English' })
       .click()
     await page.waitForURL('**/en/')
-    assert.equal(
-      await page.evaluate(() =>
-        localStorage.getItem('fluentread-site-language')
-      ),
-      'en'
-    )
     await page.goto(base + '/')
-    await page.waitForURL('**/en/')
+    assert.equal(new URL(page.url()).pathname, '/')
+    await page.goto(base + '/en/')
     await page.locator('.VPNavBarTranslations button').click()
     await page
       .locator('.VPNavBarTranslations a')
       .filter({ hasText: '简体中文' })
       .click()
     await page.waitForURL(base + '/')
-    assert.equal(
-      await page.evaluate(() =>
-        localStorage.getItem('fluentread-site-language')
-      ),
-      'zh-CN'
-    )
     await page.reload()
     assert.equal(new URL(page.url()).pathname, '/')
     await page.goto(base + '/guide/document-translation')
@@ -337,23 +327,20 @@ const report = {
     await shot(page, 'guide-mobile-language-switch')
     await ctx.close()
     report.cases.push(
-      'Manual desktop/mobile switch, remembered on reload, corresponding document route'
+      'Manual desktop/mobile switching and corresponding document routes'
     )
-    const noStorage = await browser.newContext({ locale: 'en-US' })
-    await noStorage.addInitScript(() => {
-      const get = Storage.prototype.getItem
-      Storage.prototype.getItem = function (key) {
-        if (key === 'fluentread-site-language')
-          throw new DOMException('disabled', 'SecurityError')
-        return get.call(this, key)
-      }
+    const legacyPreference = await browser.newContext({ locale: 'en-US' })
+    await legacyPreference.addInitScript(() => {
+      localStorage.setItem('fluentread-site-language', 'en')
     })
-    const p = await noStorage.newPage()
+    const p = await legacyPreference.newPage()
     attach(p)
     await p.goto(base + '/')
-    await p.waitForURL('**/en/')
-    assert.match(await p.locator('h1').innerText(), /FluentRead/)
-    await noStorage.close()
+    await p.waitForLoadState('networkidle')
+    assert.equal(new URL(p.url()).pathname, '/')
+    assert.equal(await p.locator('.product-tagline').innerText(), '让语言更近，让世界更大。')
+    await legacyPreference.close()
+    report.cases.push('An English browser and a legacy English preference cannot redirect the submitted homepage')
     assert.deepEqual(report.pageErrors, [])
     assert.deepEqual(report.consoleErrors, [])
     report.ok = true

@@ -23,6 +23,10 @@ const chrome =
         A browser extension for bilingual webpages, selection translation, AI
         reading assistance, and image, document, and subtitle translation.
       </p>
+      <p class="product-subnote">
+        The website and guides require no login. Google authorization is only
+        needed for optional configuration sync.
+      </p>
       <div class="product-actions">
         <a
           class="product-button primary"
@@ -167,7 +171,7 @@ const chrome =
           <h3>Image and area translation <span aria-hidden="true">↗</span></h3>
           <p>
             Recognize text in webpage images or selected areas and display
-            translations that can be copied.
+            translations that can be copied. It does not generate images.
           </p></a
         >
         <a :href="withBase('/en/guide/document-translation')"
@@ -251,6 +255,11 @@ const chrome =
         <p>
           Start a sync to save your complete configuration in your own Google
           Drive and restore it on another device.
+        </p>
+        <p>
+          Google APIs only check the sync account and read or write FluentRead's
+          own configuration backup. Other Drive files are not accessed, and
+          Google data is not used for AI training or image generation.
         </p>
         <p>
           Includes service credentials, such as API keys. Wordbooks, conversations,
