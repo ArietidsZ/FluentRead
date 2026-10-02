@@ -227,7 +227,7 @@ export function mergeBilingualVideoSubtitleCues(
 
 /** 与后台翻译 cache key 对齐的配置指纹；配置变化时旧译文不能写回视频。 */
 export function getVideoTranslationConfigFingerprint(value: Config): string {
-  const service = value.videoService;
+  const service = value.videoService || value.service;
   const endpoint = value.proxy[service]
     || (service === 'custom' ? value.custom : '')
     || (service === 'newapi' ? value.newApiUrl : '')
