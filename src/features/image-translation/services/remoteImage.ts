@@ -1,14 +1,15 @@
 /**
  * @file src/features/image-translation/services/remoteImage.ts
- * 文件职责：在 Offscreen 文档中受控读取 X/Twitter 媒体图片，把跨域响应转换为 OCR 可消费的 data URL。
- * 主要内容：限制 HTTPS 媒体域、拒绝重定向与异常 MIME、限制 16 MiB 响应和 15 秒总时限，并支持调用方取消。
+ * 文件职责：为网页 CORS 与 Offscreen 读取图片提供统一的有界响应处理，把图片字节转换为 OCR 可消费的 data URL。
+ * 主要内容：扩展读取仅允许公网 HTTPS 域名、拒绝凭据、端口和重定向；共享 MIME、16 MiB、取消与总时限校验，区分网络失败和不可重试的响应错误。
  * 模块边界：本文件不监听 runtime 消息、不读取页面 DOM；消息路由和 Offscreen 生命周期由 app 层负责，内容脚本只能拿到最终 data URL。
  */
 
 export const MAX_REMOTE_IMAGE_BYTES = 16 * 1024 * 1024;
 export const REMOTE_IMAGE_TIMEOUT_MS = 15_000;
 
-const SUPPORTED_X_MEDIA_HOST = 'twimg.com';
+/** 已收到响应后的状态、内容或读取失败，不能当作 CORS 拒绝再次联网。 */
+export class ImageReadError extends Error {}
 
 export interface RemoteImageResponse {
     readonly ok: boolean;
@@ -26,9 +27,12 @@ export type RemoteImageRequest = (
     init: {credentials: 'omit'; redirect: 'error'; signal: AbortSignal},
 ) => Promise<RemoteImageResponse>;
 
-function isSupportedXMediaHost(hostname: string): boolean {
+function isPublicImageHost(hostname: string): boolean {
     const host = hostname.replace(/\.$/u, '').toLowerCase();
-    return host === SUPPORTED_X_MEDIA_HOST || host.endsWith(`.${SUPPORTED_X_MEDIA_HOST}`);
+    // URL 已把十进制、八进制和十六进制 IPv4 规范化；不接受任何 IP、单标签或保留本地域。
+    return /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z][a-z0-9-]*$/u.test(host)
+        && !/(?:^|\.)(?:localhost|localdomain|local|internal|lan|home|corp|test|invalid|example)$/u.test(host)
+        && !host.endsWith('.home.arpa');
 }
 
 function createRemoteImageAbortError(): Error {
@@ -37,7 +41,7 @@ function createRemoteImageAbortError(): Error {
     return error;
 }
 
-/** 将页面提供的 URL 收窄为 X/Twitter HTTPS 媒体地址，避免建立任意 URL 代抓入口。 */
+/** 公网 HTTPS 图片策略；后台还须核验发起页面中当前图片任务的独立授权。 */
 export function normalizeRemoteImageUrl(source: string): string {
     let url: URL;
     try {
@@ -46,28 +50,29 @@ export function normalizeRemoteImageUrl(source: string): string {
         throw new Error('图片地址无效');
     }
 
-    if (url.protocol !== 'https:') throw new Error('只支持 HTTPS 的 X/Twitter 媒体图片');
+    if (url.protocol !== 'https:') throw new Error('跨域图片读取只支持 HTTPS');
     if (url.username || url.password || url.port) throw new Error('图片地址不能包含凭据或自定义端口');
-    if (!isSupportedXMediaHost(url.hostname)) throw new Error('暂不支持该跨域图片来源');
+    if (!isPublicImageHost(url.hostname)) throw new Error('不支持本地或内网图片地址');
+    url.hash = '';
     return url.href;
 }
 
-/** 即使请求适配器返回了不同的最终地址，也再次执行媒体域和 HTTPS 校验。 */
+/** 在读取响应体前复核最终地址；拒绝由适配器或服务器引入的未授权第二跳。 */
 export function validateRemoteImageResponseUrl(initialUrl: string, responseUrl?: string): string {
     const normalizedInitial = normalizeRemoteImageUrl(initialUrl);
     const normalizedFinal = normalizeRemoteImageUrl(responseUrl || normalizedInitial);
-    if (normalizedInitial !== normalizedFinal) throw new Error('X/Twitter 图片不允许重定向');
+    if (normalizedInitial !== normalizedFinal) throw new ImageReadError('跨域图片不允许重定向');
     return normalizedFinal;
 }
 
 export function normalizeRemoteImageMimeType(contentType: string): string {
     const mimeType = contentType.split(';', 1)[0]?.trim().toLowerCase();
-    if (!mimeType?.startsWith('image/')) throw new Error('远程地址不是图片');
+    if (!mimeType?.startsWith('image/')) throw new ImageReadError('远程地址不是图片');
     return mimeType;
 }
 
 export function imageBufferToDataUrl(buffer: ArrayBuffer, contentType: string): string {
-    if (buffer.byteLength > MAX_REMOTE_IMAGE_BYTES) throw new Error('图片文件过大');
+    if (buffer.byteLength > MAX_REMOTE_IMAGE_BYTES) throw new ImageReadError('图片文件过大');
 
     const mimeType = normalizeRemoteImageMimeType(contentType);
     const bytes = new Uint8Array(buffer);
@@ -98,7 +103,7 @@ async function readResponseBuffer(
             if (done) break;
             if (!value || value.byteLength === 0) continue;
             byteLength += value.byteLength;
-            if (byteLength > MAX_REMOTE_IMAGE_BYTES) throw new Error('图片文件过大');
+            if (byteLength > MAX_REMOTE_IMAGE_BYTES) throw new ImageReadError('图片文件过大');
             chunks.push(value);
         }
     } catch (error) {
@@ -121,17 +126,19 @@ async function readResponseBuffer(
     return bytes.buffer;
 }
 
-/** 在 Offscreen 内读取 X/Twitter 图片；redirect:error 确保不会在校验前访问第二跳。 */
-export async function fetchRemoteImageForOcr(
+/** 两种读取路径共享 deadline，连响应头等待与悬挂 body 都会被主动终止。 */
+async function fetchImageForOcr(
     source: string,
     request: RemoteImageRequest,
     callerSignal?: AbortSignal,
+    timeoutMs = REMOTE_IMAGE_TIMEOUT_MS,
+    validateResponse?: (response: RemoteImageResponse) => void,
 ): Promise<string> {
-    const url = normalizeRemoteImageUrl(source);
     if (callerSignal?.aborted) throw createRemoteImageAbortError();
 
     const controller = new AbortController();
-    const timeoutError = new Error('远程图片读取超时');
+    const timeoutError = new ImageReadError('图片读取超时');
+    timeoutError.name = 'TimeoutError';
     let abortReason: Error | null = null;
     let rejectAbort!: (reason: Error) => void;
     const abortPromise = new Promise<never>((_resolve, reject) => {
@@ -145,10 +152,10 @@ export async function fetchRemoteImageForOcr(
     };
     const onCallerAbort = () => abortWith(createRemoteImageAbortError());
     callerSignal?.addEventListener('abort', onCallerAbort, {once: true});
-    const timer = setTimeout(() => abortWith(timeoutError), REMOTE_IMAGE_TIMEOUT_MS);
+    const timer = setTimeout(() => abortWith(timeoutError), timeoutMs);
 
     try {
-        const responseWork = request(url, {
+        const responseWork = request(source, {
             credentials: 'omit',
             // Fetch 的 manual 模式无法安全检查 Location；error 模式会在第二跳前失败。
             redirect: 'error',
@@ -159,20 +166,20 @@ export async function fetchRemoteImageForOcr(
         }, () => undefined);
         const response = await Promise.race([responseWork, abortPromise]);
         try {
-            validateRemoteImageResponseUrl(url, response.url);
+            validateResponse?.(response);
         } catch (error) {
             discardResponseBody(response, error);
             throw error;
         }
         if (!response.ok) {
-            const error = new Error(`图片服务器返回 ${response.status}`);
+            const error = new ImageReadError(`图片服务器返回 ${response.status}`);
             discardResponseBody(response, error);
             throw error;
         }
 
         const contentLength = Number(response.headers.get('content-length') || 0);
         if (contentLength > MAX_REMOTE_IMAGE_BYTES) {
-            const error = new Error('图片文件过大');
+            const error = new ImageReadError('图片文件过大');
             discardResponseBody(response, error);
             throw error;
         }
@@ -184,12 +191,31 @@ export async function fetchRemoteImageForOcr(
             discardResponseBody(response, error);
             throw error;
         }
-        const buffer = await readResponseBuffer(response, abortPromise);
-        return imageBufferToDataUrl(buffer, mimeType);
+        try {
+            const buffer = await readResponseBuffer(response, abortPromise);
+            if (controller.signal.aborted) throw abortReason!;
+            return imageBufferToDataUrl(buffer, mimeType);
+        } catch (error) {
+            // 有响应后的流错误不是 CORS 拒绝，保留原因且不触发扩展重抓。
+            if (controller.signal.aborted) throw abortReason!;
+            throw error instanceof ImageReadError ? error : new ImageReadError(error instanceof Error ? error.message : '图片数据读取失败');
+        }
     } finally {
         clearTimeout(timer);
         callerSignal?.removeEventListener('abort', onCallerAbort);
     }
+}
+
+/** 网页 CORS 读取使用网页权限；响应验证与超时清理和扩展读取保持一致。 */
+export function fetchPageImageForOcr(source: string, signal?: AbortSignal, timeoutMs = REMOTE_IMAGE_TIMEOUT_MS): Promise<string> {
+    return fetchImageForOcr(source, (url, init) => fetch(url, {...init, mode: 'cors', redirect: 'follow'}), signal, timeoutMs);
+}
+
+/** Offscreen 只读取已授权的公网 HTTPS 图片；error 模式在第二跳前中断。 */
+export async function fetchRemoteImageForOcr(source: string, request: RemoteImageRequest, callerSignal?: AbortSignal): Promise<string> {
+    const url = normalizeRemoteImageUrl(source);
+    return fetchImageForOcr(url, request, callerSignal, REMOTE_IMAGE_TIMEOUT_MS,
+        response => { validateRemoteImageResponseUrl(url, response.url); });
 }
 
 /** Offscreen 的真实网络端口；调用方只接收已校验的 data URL。 */

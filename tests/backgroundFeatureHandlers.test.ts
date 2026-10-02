@@ -615,6 +615,7 @@ describe('后台 feature handlers', () => {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
             translateImage: vi.fn(async () => ({image: 'data:image/png;base64,BB==', lines: []})),
             fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
+            assertImageSource: vi.fn(async () => {}),
             translateTexts: vi.fn(async () => ['你好', '世界']),
             getTranslationService: vi.fn(() => 'microsoft'),
             supportsBatchTranslation: vi.fn(() => true),
