@@ -74,5 +74,5 @@
   "errors": [],
   "profileMode": "temporary-isolated",
   "provider": "deterministic Microsoft translation fixture; no live provider validation",
-  "baseCommit": "c3e705b4a4e3cb3cbd2538791836ad8cbd7fb5c4"
+  "baseCommit": "bff83e318c654af2a7d3ee330f8c68638070e950"
 }

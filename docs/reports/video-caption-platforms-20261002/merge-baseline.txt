@@ -5,21 +5,21 @@
 
  RUN  v2.1.9 /private/tmp/FluentRead-caption-merge-baseline-20261002
 
- ❯ tests/configDiff.test.ts (43 tests | 1 failed) 29ms
-   × 配置差异预览 > 显示界面皮肤和 Popup 栏目可见性，并安全处理异常栏目值 8ms
+ ❯ tests/configDiff.test.ts (43 tests | 1 failed) 31ms
+   × 配置差异预览 > 显示界面皮肤和 Popup 栏目可见性，并安全处理异常栏目值 9ms
      → expected [ Array(5) ] to deeply equal ArrayContaining{…}
- ❯ tests/architecture/verificationOwnership.test.ts (9 tests | 2 failed) 621ms
+ ❯ tests/architecture/verificationOwnership.test.ts (9 tests | 2 failed) 740ms
    × repository verification ownership > 每个产品、构建和测试基础设施文件都有明确验证归属 5ms
      → expected [ { …(2) } ] to deeply equal []
-   × repository verification ownership > src 中每个可执行非组装模块都进入四维 100% 覆盖率边界 423ms
+   × repository verification ownership > src 中每个可执行非组装模块都进入四维 100% 覆盖率边界 527ms
      → expected [ Array(8) ] to deeply equal []
- ❯ tests/architecture/moduleBoundaries.test.ts (13 tests | 2 failed) 2443ms
-   ✓ architecture module boundaries > src 的静态依赖图不存在跨文件循环 838ms
-   ✓ architecture module boundaries > src 只能通过精确登记的 composition/browser/provider 迁移边界读取 entrypoints 649ms
-   ✓ architecture module boundaries > feature 不能跨目录读取另一个 feature 的内部实现 397ms
+ ❯ tests/architecture/moduleBoundaries.test.ts (13 tests | 2 failed) 2425ms
+   ✓ architecture module boundaries > src 的静态依赖图不存在跨文件循环 908ms
+   ✓ architecture module boundaries > src 只能通过精确登记的 composition/browser/provider 迁移边界读取 entrypoints 665ms
+   ✓ architecture module boundaries > feature 不能跨目录读取另一个 feature 的内部实现 333ms
    × architecture module boundaries > 文档 WXT 页面只通过 app public API 进入垂直功能切片 24ms
      → expected [ …(2) ] to deeply equal [ '@/src/app/document-translation' ]
-   ✓ architecture module boundaries > 按需加载的大体积资源不得被扩展运行时代码静态引入 320ms
+   ✓ architecture module boundaries > 按需加载的大体积资源不得被扩展运行时代码静态引入 312ms
    × architecture module boundaries > 历史巨型文件不得继续增长，后续迁移只降低债务上限 3ms
      → expected [ { …(3) } ] to deeply equal []
 
@@ -179,7 +179,7 @@ AssertionError: expected [ Array(8) ] to deeply equal []
 
  Test Files  3 failed (3)
       Tests  5 failed | 60 passed (65)
-   Start at  18:05:38
-   Duration  4.17s (transform 188ms, setup 0ms, collect 665ms, tests 3.09s, environment 0ms, prepare 100ms)
+   Start at  18:12:00
+   Duration  4.34s (transform 198ms, setup 0ms, collect 705ms, tests 3.20s, environment 0ms, prepare 110ms)
 
  ELIFECYCLE  Test failed. See above for more details.
