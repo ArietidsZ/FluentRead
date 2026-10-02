@@ -15,6 +15,7 @@ The feature and service you choose determine which content leaves the browser. F
 | Documents | Files are parsed locally; text to translate goes to the selected service |
 | Video subtitles | Subtitle text goes to the subtitle service. X local AI audio recognition happens on the device |
 | Dictionary and read-aloud | Requested words or text go to the corresponding dictionary or voice service |
+| Google Drive configuration sync (Chrome) | After explicit confirmation, a locally encrypted complete configuration is saved in the user's hidden Drive application data folder, including API keys, OAuth tokens, authentication headers, custom request bodies, and authentication parameters in URLs |
 
 Initial recognition-pack and local-model preparation requires network downloads. Input translation is disabled by default and handles text you deliberately submit from ordinary fields, not password fields.
 
@@ -35,6 +36,10 @@ The optional full English dictionary is held in the browser's CacheStorage. Clea
 Document translation and edits stay in the current page. Download files before leaving.
 
 ## Control and remove data
+
+Drive sync requires connecting a Google account and entering a personal long passphrase. The passphrase is never uploaded or persisted and is cleared when leaving the backup page. Another device needs the same account and passphrase to restore the configuration. Wordbooks, conversations, and usage statistics are excluded. Application access isolation and local encryption reduce exposure; protect your account, device, and passphrase. A forgotten passphrase cannot decrypt the existing file.
+
+Disconnecting clears the extension's identity cache while keeping the cloud file and local configuration. Revoke access through your Google account's third-party connections. To delete hidden data, use Google Drive Settings → Manage apps → FluentRead → Delete hidden app data. Deleting cloud data does not erase settings already downloaded on other devices.
 
 Turn off automatic translation, extra AI context, memories, or saving if you do not need them. Restrict the reading card to the current selection to send less context.
 
