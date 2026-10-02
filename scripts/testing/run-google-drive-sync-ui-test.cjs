@@ -112,6 +112,9 @@ async function main() {
         const dialog = page.locator('.el-dialog');
         check(!(await dialog.innerText()).includes('fixture-private'), 'preview masks private keys, bodies and URLs');
         await dialog.getByText('本机 → 云端', {exact: true}).click();
+        await dialog.locator('.el-radio-button.is-active').filter({hasText: '本机 → 云端'}).waitFor();
+        await page.waitForTimeout(350);
+        check(await dialog.getByRole('radio', {name: '本机 → 云端', exact: true}).isChecked(), 'upload direction has checked radio state');
         const previewShot = path.join(artifactsDir, 'encrypted-sync-preview.png');
         await page.screenshot({path: previewShot}); report.screenshots.push(previewShot);
         await page.locator('[data-testid="google-drive-confirm"]').click();
@@ -126,6 +129,7 @@ async function main() {
         await page.locator('#drive-passphrase').fill(password);
         await page.locator('[data-testid="google-drive-preview"]').click();
         await dialog.getByText('云端 → 本机', {exact: true}).click();
+        check(await dialog.getByRole('radio', {name: '云端 → 本机', exact: true}).isChecked(), 'download direction has checked radio state');
         await page.locator('[data-testid="google-drive-confirm"]').click();
         await page.getByRole('button', {name: '确认替换', exact: true}).click();
         await page.locator('.el-dialog').waitFor({state: 'hidden'});
@@ -149,6 +153,14 @@ async function main() {
         check(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), '390px settings has no horizontal overflow');
         const mobile = path.join(artifactsDir, 'encrypted-sync-mobile.png');
         await page.screenshot({path: mobile}); report.screenshots.push(mobile);
+        await savePatch({uiLanguage: 'en-US', uiLanguageSetupCompleted: true}, 3);
+        await page.reload({waitUntil: 'domcontentloaded'});
+        await card.getByRole('heading', {name: 'Google Drive configuration sync', exact: true}).waitFor();
+        check(await card.getByRole('button', {name: 'Preview sync', exact: true}).isVisible(), 'English sync controls are translated');
+        check(!(await card.innerText()).match(/[\u3400-\u9fff]/u), 'English sync card contains no Chinese source copy');
+        check(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), '390px English settings has no horizontal overflow');
+        const english = path.join(artifactsDir, 'encrypted-sync-english-mobile.png');
+        await page.screenshot({path: english}); report.screenshots.push(english);
         check(report.consoleErrors.length === 0, 'no settings console errors');
         report.ok = true;
     } finally {

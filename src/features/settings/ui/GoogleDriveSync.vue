@@ -30,7 +30,7 @@
     <p class="drive-footnote">文件保存在 Google Drive 的隐藏应用数据区。断开连接会清除扩展授权缓存，并保留本机设置与云端文件。</p>
     <el-dialog v-model="previewVisible" title="确认 Google Drive 同步" width="min(900px, calc(100vw - 24px))" :close-on-click-modal="!busy" :close-on-press-escape="!busy" :show-close="!busy" destroy-on-close @closed="clearPreview">
       <template v-if="preview">
-        <p class="drive-preview-account">当前账号：{{ preview.account.email }}</p>
+        <p class="drive-preview-account">{{ t('settings.drive.account', {email: preview.account.email}) }}</p>
         <el-alert v-if="!preview.hasRemote" title="云端还没有同步文件。本次将创建加密的完整配置快照。" type="info" :closable="false" />
         <el-alert v-else-if="!preview.hasBaseline" title="这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。" type="warning" :closable="false" />
         <div class="drive-direction">
@@ -43,12 +43,12 @@
           <p>{{ directionHint }}</p>
         </div>
         <template v-if="preview.changes.length">
-          <p>{{ preview.changes.length }} 项差异。私密和自定义内容均已隐藏。</p>
+          <p>{{ t('settings.drive.differences', {count: preview.changes.length}) }}</p>
           <div class="drive-differences">
             <article v-for="change in visibleChanges" :key="change.id" class="drive-change">
-              <strong>{{ change.label }} <span v-if="change.conflict">需要选择</span></strong>
-              <div class="drive-values"><p>本机：{{ change.local }}</p><p>云端：{{ change.remote }}</p></div>
-              <el-radio-group v-if="direction === 'merge'" v-model="choices[change.id]" :disabled="busy" :aria-label="`${change.label}，合并选择`">
+              <strong>{{ translateLegacy(change.label) }} <span v-if="change.conflict">需要选择</span></strong>
+              <div class="drive-values"><p>{{ t('settings.drive.local', {value: translateLegacy(change.local)}) }}</p><p>{{ t('settings.drive.remote', {value: translateLegacy(change.remote)}) }}</p></div>
+              <el-radio-group v-if="direction === 'merge'" v-model="choices[change.id]" :disabled="busy" :aria-label="t('settings.drive.choice', {label: translateLegacy(change.label)})">
                 <el-radio value="local">保留本机</el-radio><el-radio value="remote">保留云端</el-radio>
               </el-radio-group>
             </article>
@@ -78,9 +78,11 @@ import 'element-plus/es/components/pagination/style/css';
 import 'element-plus/es/components/radio/style/css';
 import 'element-plus/es/components/radio-button/style/css';
 import 'element-plus/es/components/radio-group/style/css';
+import {useUiI18n} from '@/src/ui/i18n';
 import {googleDriveSyncClient as client} from '@/src/services/config/googleDriveSyncClient';
 import type {DriveSyncDirection, DriveSyncPreview, DriveSyncStatus} from '@/src/services/config/googleDriveSync';
 
+const {t, translateLegacy} = useUiI18n();
 const status = ref<DriveSyncStatus | null>(null);
 const busy = ref(false);
 const error = ref('');
@@ -92,7 +94,7 @@ const direction = ref<DriveSyncDirection | ''>('');
 const choices = ref<Record<string, string>>({});
 const page = ref(1);
 const visibleChanges = computed(() => preview.value?.changes.slice((page.value - 1) * 40, page.value * 40) ?? []);
-const statusText = computed(() => !status.value ? '正在检查同步状态…' : !status.value.available ? status.value.reason : !status.value.account ? '尚未连接 Google 账号' : `${status.value.account.email}${status.value.lastSyncedAt ? ` · 上次同步 ${new Date(status.value.lastSyncedAt).toLocaleString()}` : ' · 尚未同步'}`);
+const statusText = computed(() => !status.value ? '正在检查同步状态…' : !status.value.available ? status.value.reason : !status.value.account ? '尚未连接 Google 账号' : status.value.lastSyncedAt ? t('settings.drive.lastSync', {email: status.value.account.email, time: new Date(status.value.lastSyncedAt).toLocaleString()}) : t('settings.drive.neverSync', {email: status.value.account.email}));
 const directionHint = computed(() => direction.value === 'upload' ? '本机完整配置及凭据将替换云端快照。' : direction.value === 'download' ? '云端完整配置及凭据将替换本机设置。' : direction.value === 'merge' ? '未冲突的修改已自动选择；请确认每项冲突的保留方向。' : '请先选择同步方向。');
 const commitLabel = computed(() => direction.value === 'download' ? '下载并应用' : direction.value === 'merge' ? '合并并同步' : '加密并上传');
 const canCommit = computed(() => Boolean(preview.value && direction.value && (preview.value.hasRemote || confirmation.value === passphrase.value) && (direction.value !== 'merge' || preview.value.changes.every(change => choices.value[change.id] === 'local' || choices.value[change.id] === 'remote'))));
