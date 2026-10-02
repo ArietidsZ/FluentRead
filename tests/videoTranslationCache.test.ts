@@ -2,6 +2,52 @@ import {describe, expect, it, vi} from 'vitest';
 import {VideoTranslationCache} from '@/src/features/video-subtitle/content/translationCache';
 
 describe('VideoTranslationCache', () => {
+  it('按当前播放窗口预取，当前句优先，单句失败不会中断其他预取', async () => {
+    const cache = new VideoTranslationCache(async () => 'ok');
+    const current = {startMs: 0, durationMs: 1000, text: 'Current'};
+    const next = {startMs: 2000, durationMs: 1000, text: 'Next'};
+    const request = vi.fn(async (source: string) => {if (source === 'Current') throw new Error('offline'); return 'ok';});
+    cache.primeUpcoming([next, current], 500, 10_000, 1, request);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(request.mock.calls).toEqual([['Current', false, current], ['Next', true, next]]);
+    cache.primeUpcoming([next], NaN, 10_000, 1, request);
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it('同步读取规范化后的成功译文，不重复请求，并随 clear 清理', async () => {
+    const translate = vi.fn(async () => '同步译文');
+    const cache = new VideoTranslationCache(translate);
+    expect(cache.peek('Hello world')).toBeUndefined();
+    await cache.request(' Hello   world ', true);
+    expect(cache.peek('Hello\nworld')).toBe('同步译文');
+    cache.cancelPending();
+    expect(cache.peek(' Hello world ')).toBe('同步译文');
+    expect(translate).toHaveBeenCalledOnce();
+    cache.clear();
+    expect(cache.peek('Hello world')).toBeUndefined();
+  });
+
+  it('取消过期预取不算失败，同文回到窗口后可以立即重新请求', async () => {
+    const calls: string[] = [];
+    const releases = new Map<string, (value: string) => void>();
+    const cache = new VideoTranslationCache(text => new Promise(resolve => {calls.push(text); releases.set(text, resolve);}));
+    const a = cache.request('active-a', true); const b = cache.request('active-b', true);
+    const obsolete = cache.request('obsolete', true);
+    const obsoleteResult = expect(obsolete).rejects.toMatchObject({name: 'AbortError'});
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    cache.retainPrefetches(['active-a', ' active-b ']);
+    const returned = cache.request(' obsolete ', true);
+    await obsoleteResult;
+    expect(cache.hasFailure('obsolete')).toBe(false);
+    releases.get('active-a')!('A'); releases.get('active-b')!('B');
+    await Promise.all([a, b]);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(calls).toEqual(['active-a', 'active-b', 'obsolete']);
+    releases.get('obsolete')!('O');
+    await expect(returned).resolves.toBe('O');
+    expect(cache.peek('obsolete')).toBe('O');
+  });
+
   it('规范化 key、合并请求、缓存结果且不把空译文当成成功', async () => {
     const translate = vi.fn(async (text: string) => text === 'empty' ? '' : `译-${text}`);
     const cache = new VideoTranslationCache(translate);
