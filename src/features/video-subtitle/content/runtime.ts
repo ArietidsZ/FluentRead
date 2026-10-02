@@ -1,6 +1,6 @@
 /**
  * @file src/features/video-subtitle/content/runtime.ts
- * 文件职责：实现 YouTube 与 X 页面视频字幕翻译运行时，协调原生字幕读取、timedtext 预取、逐条翻译、字幕时间对齐、显示模式、设置菜单和字幕下载。
+ * 文件职责：装配视频及会议字幕运行时，并协调 YouTube/X 原生字幕、目标语言人工轨、逐条翻译、校时、菜单和下载。
  * 主要内容：协调当前视频与全屏宿主、原生轨道、手动字幕校时、委托纯函数选择渐进字幕、流式字幕有界等待、独立识别语言、原生字幕优先与本地缓存恢复、按播放位置预翻译、独立失败重试、菜单来源状态和取消生命周期，并在切换视频或禁用后清理旧状态。
  * 模块边界：本文件只在 content 页面编排，不拦截 fetch/XHR 也不实现翻译 provider；MAIN-world bridge 在独立模块捕获 timedtext，解析算法在 youtubeSubtitleData，翻译经 app client。
  */
@@ -22,10 +22,10 @@ import {
   VIDEO_NORMALIZED_CAPTION_CLASS,
   VIDEO_NORMALIZED_CAPTION_ACTIVE_CLASS,
   X_SUBTITLE_RESOURCE_MESSAGE,
-  VIDEO_SUBTITLE_DOWNLOAD_CONCURRENCY,
   VIDEO_CAPTION_STABILITY_MS,
   VIDEO_CAPTION_MAX_WAIT_MS,
   normalizeVideoSubtitleDisplayMode,
+  renderHumanVideoCaption,
   getTimedTextCacheKey,
   isOriginalTimedTextUrl,
   downloadSubtitleSrt,
@@ -51,7 +51,7 @@ import {XCaptionSource} from './xCaptionSource';
 import {XHlsAudioReader} from './hlsAudioRuntime';
 import {XSubtitleLoader} from './xSubtitleLoader';
 import {VideoTranslationCache} from './translationCache';
-import {createVideoSubtitleAbortError, translateVideoSubtitleCues, mergeBilingualVideoSubtitleCues, getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, findProgressiveVideoCaptionCue} from './subtitleLogic';
+import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, findProgressiveVideoCaptionCue} from './subtitleLogic';
 export {translateVideoSubtitleCues, getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation} from './subtitleLogic';
 export {getVideoSubtitleDownloadErrorMessage} from './ui';
 import { config, requestConfigPatch, subscribeConfig } from '@/src/services/config/store';
@@ -109,6 +109,10 @@ import {createVideoPlayerLocator} from './videoPlayerLocator';
 import {createVideoPlayerBinding, type VideoPlayerBinding} from './videoPlayerBinding';
 import {getVideoTranscriptionCacheRequest, VideoTranscriptionCacheClient} from './transcriptionCacheClient';
 import {buildVideoAiSubtitleVideoKey, type VideoAiSubtitleCacheRequest} from '../transcriptionCache';
+import {getCaptionPlatform} from './platforms';
+import {mountPlatformCaptions} from './platformRuntime';
+import {YoutubeHumanCaptions} from './youtubeHumanCaptions';
+import {createVideoSubtitleDownloads} from './downloads';
 
 // 兼容既有测试与外部调用方；AI 时间轴的实现位于 video-ai 目录。
 export {
@@ -125,6 +129,12 @@ type VideoConfigPatch = Partial<Pick<Config, 'videoTranslationEnabled' | 'videoS
  * 页面内的本地 Whisper 模型和翻译服务；默认不会采集音频，音频不会离开浏览器。
  */
 export function mountVideoSubtitleTranslation(): () => void {
+  if (getCaptionPlatform(window.location)) return mountPlatformCaptions({
+    document, window, config, subscribe: subscribeConfig,
+    translate: translateVideoText,
+    patch: patch => { void requestConfigPatch(patch, browser.runtime.sendMessage.bind(browser.runtime)).catch(() => undefined); },
+    label: text => localizeVideoUiText(text, getVideoUiLanguage(config.uiLanguage)),
+  });
   // X 是 SPA：内容脚本可能先在 /home 加载，之后才无刷新进入 /status。
   // 在 X 域常驻控制器，信息流、个人主页和帖子共用当前视频定位。
   if (!isSupportedVideoPage() && !isXHostPage()) return () => undefined;
@@ -135,6 +145,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   let lastSource = '';
   let lastTranslatedSource = '';
   let lastTranslatedText = '';
+  let humanCaptionKey = '';
   let videoPageKey = getVideoPageKey();
   let uiSyncTimer: number | undefined;
   let captionObserver: MutationObserver | undefined;
@@ -150,6 +161,11 @@ export function mountVideoSubtitleTranslation(): () => void {
   let stableCaptionStartedAt: number | undefined;
   let subtitleOffsetMs = normalizeVideoSubtitleOffsetMs(config.videoSubtitleOffsetMs);
   const capturedSubtitleTracks = new Map<string, { url: string; cues: VideoSubtitleCue[] }>();
+  const humanCaptions = new YoutubeHumanCaptions((input, init) => fetch(input, init), () => {
+    if (destroyed) return;
+    resetTranslationState();
+    scheduleUpdate();
+  });
   // 已是目标语言的字幕直接返回原文：不请求翻译服务，渲染层据此只显示原文一行。
   const videoTranslator = new VideoTranslationCache((text, signal) => isVideoSubtitleInTargetLanguage(text, config.to)
     ? Promise.resolve(text)
@@ -190,7 +206,6 @@ export function mountVideoSubtitleTranslation(): () => void {
   let progressiveTranslation = '';
   let normalizedCaptionCueKey = '';
   let normalizedCaptionActive = false;
-  let subtitleDownloadAbortController: AbortController | undefined;
   let aiCapture: VideoAiCaptureController | null = null;
   let aiFullCapture: VideoAiFullCaptureController | null = null;
   let aiFullPhase: VideoAiFullCapturePhase = 'idle';
@@ -292,6 +307,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     lastSource = '';
     lastTranslatedSource = '';
     lastTranslatedText = '';
+    humanCaptionKey = '';
     pendingTranslationSource = '';
     pendingTranslationOverlay = null;
     clearProgressiveCaption();
@@ -307,13 +323,7 @@ export function mountVideoSubtitleTranslation(): () => void {
 
   const canReadVideo = () => config.on && config.videoTranslationEnabled && config.videoSubtitleVisible !== false;
 
-  const canTranslateVideo = () => {
-    const displayMode = normalizeVideoSubtitleDisplayMode(config.videoSubtitleDisplayMode);
-    return config.on
-      && config.videoTranslationEnabled
-      && config.videoSubtitleVisible !== false
-      && displayMode !== 'original-only';
-  };
+  const canTranslateVideo = () => canReadVideo() && normalizeVideoSubtitleDisplayMode(config.videoSubtitleDisplayMode) !== 'original-only';
 
   const clearPretranslationState = (clearTrack = false, preserveTranslations = false) => {
     if (pretranslationTimer) {
@@ -333,7 +343,16 @@ export function mountVideoSubtitleTranslation(): () => void {
     }
   };
 
-  const getCachedVideoTranslation = (source: string, prefetch = false) => videoTranslator.request(source, prefetch);
+  const getCachedVideoTranslation = (source: string, prefetch = false, cue?: VideoSubtitleCue): Promise<string> => {
+    if (config.videoPreferHumanSubtitles && isYouTubeVideoPage()) {
+      const currentMs = getCurrentVideoTimeMs() - subtitleOffsetMs;
+      const active = cue || findProgressiveVideoCaptionCue(pretranslationCues, source, currentMs);
+      const time = prefetch && active ? active.startMs + active.durationMs / 2 : currentMs;
+      const human = humanCaptions.at(time);
+      if (human) return Promise.resolve(human);
+    }
+    return videoTranslator.request(source, prefetch);
+  };
 
   const getCurrentVideoTimeMs = (): number => {
     const player = playerLocator.getTarget()?.player || (isYouTubeVideoPage() ? findVideoPlayer() : null);
@@ -463,7 +482,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     const requestGeneration = generation;
     const requestCueKey = cueKey;
     const requestTrackVersion = pretranslationCacheVersion;
-    void getCachedVideoTranslation(cue.text).then((translated) => {
+    void getCachedVideoTranslation(cue.text, false, cue).then((translated) => {
       const result = typeof translated === 'string' ? translated.trim() : '';
       if (!result) return;
       if (destroyed || requestTrackVersion !== pretranslationCacheVersion) return;
@@ -498,7 +517,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     for (const cue of pretranslationCues) {
       const endMs = cue.startMs + Math.max(cue.durationMs, 500);
       if (cue.startMs > currentMs + windowMs || endMs < currentMs - 500) continue;
-      void getCachedVideoTranslation(cue.text, true).catch(() => undefined);
+      void getCachedVideoTranslation(cue.text, true, cue).catch(() => undefined);
       queued += 1;
       if (queued >= 8) break;
     }
@@ -574,6 +593,7 @@ export function mountVideoSubtitleTranslation(): () => void {
 
   const ensurePretranslationTrack = () => {
     if (destroyed || !canReadVideo()) return;
+    if (isYouTubeVideoPage()) humanCaptions.sync(document, window.location, config.to, config.videoPreferHumanSubtitles);
 
     // 自动恢复的缓存让位于后来到达的原生字幕；用户主动生成的 AI 时间轴保持稳定。
     const native = isXVideoPage() ? xCaptionSource.readNativeTrack() : null;
@@ -669,7 +689,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       xSubtitleCues = [];
       aiCues = [];
       capturedSubtitleTracks.clear();
-      subtitleDownloadAbortController?.abort();
+      downloads.cancel();
       clearPretranslationState(true);
     }
     if (!observedVideo) return;
@@ -1071,6 +1091,8 @@ export function mountVideoSubtitleTranslation(): () => void {
     if (event.source !== window || event.origin !== window.location.origin) return;
     const validated = validateYoutubeTimedTextMessage(event.data, window.location.href);
     if (!validated) return;
+    // 人工目标轨由独立时间轴消费，不能把它当作播放器的原文轨替换。
+    if (humanCaptions.ownsUrl(validated.url)) return;
     const key = getTimedTextCacheKey(validated.url);
     const entry = validated;
     capturedSubtitleTracks.delete(key);
@@ -1081,45 +1103,14 @@ export function mountVideoSubtitleTranslation(): () => void {
     }
   };
 
-  const resolveDownloadTrack = async (): Promise<{ languageCode: string; cues: VideoSubtitleCue[] }> => {
-    // YouTube 切换视频或字幕语言时可能连续请求多个轨道；优先使用最近捕获的
-    // 原始轨道，避免下载到进入页面时已经失效的旧字幕。
-    const captured = Array.from(capturedSubtitleTracks.values()).reverse();
-    if (isXVideoPage()) {
-      if (isAiCaptureActive() && aiCues.length > 0) return { languageCode: 'ai', cues: aiCues };
-      const nativeTrack = xCaptionSource.readNativeTrack();
-      if (nativeTrack?.cues.length) return nativeTrack;
-      const xTrack = captured.find((entry) => entry.cues.length > 0);
-      if (xTrack) return { languageCode: 'original', cues: xTrack.cues };
-      if (aiCues.length > 0) return { languageCode: 'ai', cues: aiCues };
-      throw new Error('当前 X 视频还没有可下载的字幕，请先打开原生字幕或请求 AI 字幕');
-    }
-    const originalCaptured = captured.find((entry) => isOriginalTimedTextUrl(entry.url));
-    if (originalCaptured) {
-      const url = new URL(originalCaptured.url, window.location.href);
-      return { languageCode: url.searchParams.get('lang') || 'original', cues: originalCaptured.cues };
-    }
-    if (captured[0]) {
-      const url = new URL(captured[0].url, window.location.href);
-      return { languageCode: url.searchParams.get('lang') || 'original', cues: captured[0].cues };
-    }
-
-    const track = chooseYoutubeCaptionTrackForLocation(document, window.location, config.from);
-    if (!track) throw new Error('当前视频没有可用的 YouTube 字幕轨道');
-    const url = buildYoutubeTimedTextUrl(track);
-    const response = await fetch(url, { credentials: 'include' });
-    if (!response.ok) throw new Error(`字幕轨道请求失败（${response.status}）`);
-    const cues = finalizeVideoSubtitleCues(parseYoutubeTimedTextResponse(await response.text()));
-    if (cues.length === 0) {
-      throw new Error('YouTube 未返回完整字幕数据，请先打开原生字幕后重试');
-    }
-    const key = getTimedTextCacheKey(url);
-    const entry = { url, cues };
-    capturedSubtitleTracks.delete(key);
-    capturedSubtitleTracks.set(key, entry);
-    if (canTranslateVideo()) setPretranslationTrack(key, entry);
-    return { languageCode: track.languageCode, cues };
-  };
+  const downloads = createVideoSubtitleDownloads({
+    config, document, location: window.location, request: (input, init) => fetch(input, init), isX: isXVideoPage, isDisposed: () => destroyed,
+    isAiActive: isAiCaptureActive, nativeX: () => xCaptionSource.readNativeTrack(), aiCues: () => aiCues,
+    captured: () => Array.from(capturedSubtitleTracks.values()).reverse(), human: humanCaptions,
+    translate: source => videoTranslator.request(source), ui: videoUi, status: setVideoMenuDownloadStatus, save: downloadSubtitleSrt,
+    remember: entry => { const key = getTimedTextCacheKey(entry.url); capturedSubtitleTracks.delete(key); capturedSubtitleTracks.set(key, entry);
+      if (canTranslateVideo()) setPretranslationTrack(key, entry); },
+  });
 
   const aiModelSetup = createVideoAiModelSetup({
     sendMessage: browser.runtime.sendMessage.bind(browser.runtime),
@@ -1156,45 +1147,6 @@ export function mountVideoSubtitleTranslation(): () => void {
     if (!browserCapabilities.extensionDom) { aiCaptureError = '当前浏览器不支持本地 AI 字幕'; return; }
     await aiModelSetup.request(() => !menu.hidden);
     if (aiModelSetup.choice) menu.querySelector<HTMLButtonElement>('[data-action="model-prompt-confirm"]')?.focus();
-  };
-
-  /** 译文与双语导出共用同一条翻译流程；双语只是在导出前把原文与译文合成两行。 */
-  const downloadTranslatedSubtitles = async (menu: HTMLElement, downloadButton: HTMLButtonElement, bilingual: boolean) => {
-    downloadButton.disabled = true;
-    if (!config.on || !config.videoTranslationEnabled) {
-      setVideoMenuDownloadStatus(menu, videoUi('video.enableFirst'), 2200);
-      window.setTimeout(() => { downloadButton.disabled = false; }, 2200);
-      return;
-    }
-
-    const controller = new AbortController();
-    subtitleDownloadAbortController?.abort();
-    subtitleDownloadAbortController = controller;
-    const targetLanguage = config.to || 'translated';
-    downloadButton.setAttribute('aria-busy', 'true');
-    setVideoMenuDownloadStatus(menu, videoUi('video.fetching'));
-    let feedback = '';
-    try {
-      const result = await resolveDownloadTrack();
-      const translatedCues = await translateVideoSubtitleCues(result.cues, getCachedVideoTranslation, {
-        concurrency: VIDEO_SUBTITLE_DOWNLOAD_CONCURRENCY,
-        signal: controller.signal,
-        onProgress: (completed, total) => setVideoMenuDownloadStatus(menu, videoUi('video.translating', {completed, total})),
-      });
-      if (destroyed || controller.signal.aborted) throw createVideoSubtitleAbortError();
-      const cues = bilingual ? mergeBilingualVideoSubtitleCues(result.cues, translatedCues) : translatedCues;
-      downloadSubtitleSrt(cues, `${targetLanguage}-${bilingual ? 'bilingual' : 'translated'}`);
-      feedback = videoUi('video.downloaded', {count: cues.length});
-    } catch (error) {
-      const aborted = error instanceof Error && error.name === 'AbortError';
-      feedback = aborted ? videoUi('video.cancelled') : videoUi('video.downloadFailed');
-      if (!aborted) console.warn('[FluentRead] 译文字幕下载失败', error);
-    } finally {
-      if (subtitleDownloadAbortController === controller) subtitleDownloadAbortController = undefined;
-      downloadButton.removeAttribute('aria-busy');
-      setVideoMenuDownloadStatus(menu, feedback, 2200);
-      window.setTimeout(() => { downloadButton.disabled = false; }, 2200);
-    }
   };
 
   const selectMenuMode = (mode: VideoMenuMode) => {
@@ -1300,7 +1252,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       let feedback = '';
       let feedbackDelay = 2400;
       try {
-        const result = await resolveDownloadTrack();
+        const result = await downloads.resolve();
         downloadSubtitleSrt(result.cues, result.languageCode);
         feedback = videoUi('video.downloaded', {count: result.cues.length});
       } catch (error) {
@@ -1316,7 +1268,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       return;
     }
     if (target.dataset.action === 'download-translated-subtitles' || target.dataset.action === 'download-bilingual-subtitles') {
-      await downloadTranslatedSubtitles(menu, target as HTMLButtonElement, target.dataset.action === 'download-bilingual-subtitles');
+      await downloads.translated(menu, target as HTMLButtonElement, target.dataset.action === 'download-bilingual-subtitles');
       return;
     }
     if (target.dataset.action === 'open-settings') {
@@ -1578,6 +1530,20 @@ export function mountVideoSubtitleTranslation(): () => void {
       resetTranslationState();
       return;
     }
+    const human = config.videoPreferHumanSubtitles && isYouTubeVideoPage()
+      ? humanCaptions.at(getCurrentVideoTimeMs() - subtitleOffsetMs) : '';
+    if (human) {
+      const key = `${source}:${human}`;
+      if (key !== humanCaptionKey) {
+        resetTranslationState();
+        videoTranslator.cancelPending();
+        humanCaptionKey = key;
+      }
+      normalizedCaptionActive = true;
+      renderHumanVideoCaption(player, container, source, visibleTranslation(human, source));
+      return;
+    }
+    if (humanCaptionKey) resetTranslationState();
     if (updateProgressiveCaption(source, overlay, container)) return;
 
     if (progressiveCueKey) {
@@ -1734,7 +1700,8 @@ export function mountVideoSubtitleTranslation(): () => void {
     const nextPretranslationConfigKey = getVideoTranslationConfigFingerprint(config);
     if (nextPretranslationConfigKey === pretranslationConfigKey) return;
     pretranslationConfigKey = nextPretranslationConfigKey;
-    subtitleDownloadAbortController?.abort();
+    humanCaptions.clear();
+    downloads.cancel();
     clearPretranslationState(false);
   };
 
@@ -1743,7 +1710,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     const nextVideoPageKey = getVideoPageKey();
     if (nextVideoPageKey !== videoPageKey && !isXVideoPage()) {
       videoPageKey = nextVideoPageKey;
-      subtitleDownloadAbortController?.abort();
+      downloads.cancel();
       captionObserver?.disconnect();
       captionObserver = undefined;
       observedContainer = null;
@@ -1759,6 +1726,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     }
     videoPageKey = nextVideoPageKey;
     if (!isSupportedVideoPage() || !config.on) {
+      humanCaptions.clear();
       observeSubtitleLayout(null, null);
       playerBinding?.sync();
       stopCaptionClock();
@@ -1851,7 +1819,8 @@ export function mountVideoSubtitleTranslation(): () => void {
     }
     if (newlyEnabled && isXVideoPage()) void restoreCachedAiSubtitles();
     if (!nextConfig.on || !nextConfig.videoTranslationEnabled || nextConfig.videoSubtitleVisible === false || normalizeVideoSubtitleDisplayMode(nextConfig.videoSubtitleDisplayMode) === 'original-only') {
-      if (!nextConfig.on || !nextConfig.videoTranslationEnabled) subtitleDownloadAbortController?.abort();
+      humanCaptions.clear();
+      if (!nextConfig.on || !nextConfig.videoTranslationEnabled) downloads.cancel();
       if ((!nextConfig.on || !nextConfig.videoTranslationEnabled) && isAiCaptureActive()) {
         if (isAiFullActive()) stopFullAiSubtitleGeneration();
         else stopAiSubtitleCapture(true);
@@ -1868,6 +1837,8 @@ export function mountVideoSubtitleTranslation(): () => void {
 
   return () => {
     destroyed = true;
+    humanCaptions.clear();
+    downloads.destroy();
     cacheEpoch += 1;
     unsubscribePlayer();
     playerBinding?.destroy();
@@ -1878,7 +1849,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     generation += 1;
     pendingTranslationSource = '';
     pendingTranslationOverlay = null;
-    subtitleDownloadAbortController?.abort();
+    downloads.cancel();
     if (mediaMissingTimer) clearTimeout(mediaMissingTimer);
     cancelStableCaption();
     clearPretranslationState(true);
