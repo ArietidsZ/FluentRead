@@ -36,6 +36,7 @@ import {
 export interface InputTranslationContentConfig {
     on?: boolean;
     uiLanguage?: string;
+    service?: string;
     inputBoxTranslationTrigger: string;
     inputBoxTranslationTarget: string;
     inputBoxTranslationInterval?: number;
@@ -84,10 +85,10 @@ function hashConfigValue(value: unknown): string {
     return (hash >>> 0).toString(16);
 }
 
-/** 仅提取选中输入翻译服务会读取的连接/模型配置，避免无关网页翻译设置作废请求。 */
+/** 仅提取输入翻译实际服务（独立或继承）会读取的连接/模型配置，避免无关网页翻译设置作废请求。 */
 function inputBoxTranslationConnectionKey(value: InputTranslationContentConfig): string {
     const source = value as unknown as Record<string, unknown>;
-    const service = value.inputBoxTranslationService ?? 'microsoft';
+    const service = value.inputBoxTranslationService || value.service || translationServices.freeTranslation;
     const serviceValue = (key: string): unknown => {
         const candidate = source[key];
         if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
@@ -152,7 +153,7 @@ export function inputBoxTranslationConfigKey(value: InputTranslationContentConfi
         value.inputBoxTranslationTrigger,
         value.inputBoxTranslationTarget,
         value.inputBoxTranslationInterval ?? 1000,
-        value.inputBoxTranslationService ?? 'microsoft',
+        value.inputBoxTranslationService || value.service || translationServices.freeTranslation,
         value.inputBoxTranslationModel ?? '',
         value.inputBoxTranslationPrompt ?? '',
         value.inputBoxTranslationSystemPrompt ?? '',

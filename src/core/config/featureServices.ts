@@ -10,9 +10,9 @@ import {resolveConfiguredModel} from './catalog';
 export const featureServiceDefinitions = [
     {id: 'hover', field: 'hoverTranslationService', inherit: true, aiOnly: false},
     {id: 'selection', field: 'selectionTranslationService', inherit: true, aiOnly: false},
-    {id: 'input', field: 'inputBoxTranslationService', inherit: false, aiOnly: false},
-    {id: 'video', field: 'videoService', inherit: false, aiOnly: false},
-    {id: 'document', field: 'documentService', inherit: false, aiOnly: false},
+    {id: 'input', field: 'inputBoxTranslationService', inherit: true, aiOnly: false},
+    {id: 'video', field: 'videoService', inherit: true, aiOnly: false},
+    {id: 'document', field: 'documentService', inherit: true, aiOnly: false},
     {id: 'image', field: 'imageTranslationService', inherit: true, aiOnly: false},
     {id: 'area', field: 'areaTranslationService', inherit: true, aiOnly: false},
     {id: 'reading', field: 'harness', inherit: true, aiOnly: true},
@@ -38,7 +38,7 @@ export function setFeatureService(config: Config, feature: FeatureServiceDefinit
 
 export function getFeatureModel(config: Config, feature: FeatureServiceDefinition): string {
     const service = getFeatureService(config, feature) || config.service;
-    if (feature.field === 'documentService') {
+    if (feature.field === 'documentService' && getFeatureService(config, feature)) {
         return resolveConfiguredModel(config.documentModel[service], config.documentCustomModel[service]);
     }
     const model = feature.field === 'harness' || feature.field === 'writing'
