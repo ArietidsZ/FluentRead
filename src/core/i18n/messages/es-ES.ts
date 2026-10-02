@@ -5,6 +5,7 @@
  * 主要内容：以 English 资源作为结构基线，逐项覆盖当前稳定 message key；旧版尚未 key 化的文案由 i18n 迁移层按显式映射处理。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
+import brandTaglines from './brand-taglines.json';
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
@@ -15,6 +16,7 @@ import {translationStatsSpanishMessages} from './translationStats';
 import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
+    "brand.tagline": brandTaglines['es-ES'],
     "translationCenter.endpointMissing": "Primero configura la dirección del servicio personalizado.",
     "translationCenter.modelMissing": "Primero elige o introduce un modelo.",
     "translationCenter.noReady": "Configura al menos un servicio para traducir.",
@@ -822,7 +824,6 @@ export const esESMessages = {
     'options.searchOpen': 'Abrir →',
     'options.navLabel': 'Categorías de ajustes',
     'options.aboutTitle': 'Acerca de FluentRead',
-    'options.aboutHeroTitle': 'Haz que la lectura bilingüe resulte natural',
     'options.aboutHeroDescription': 'FluentRead es una extensión de traducción para navegadores, de código abierto, que te ayuda a entender contenidos en otros idiomas de forma más natural.',
     'options.aboutCoreExperience': 'Experiencia principal',
     'options.aboutBornForReading': 'Diseñado para leer',

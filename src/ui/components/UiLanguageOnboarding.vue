@@ -1,7 +1,7 @@
 <!--
  * @file src/ui/components/UiLanguageOnboarding.vue
  * 文件职责：承载 FluentRead Popup 首次打开时的欢迎与界面语言选择引导。
- * 主要内容：以正常文档流撑开工具栏 Popup，先展示多语言欢迎画面，再进入语言卡片选择；确认后显示成功动效并把控制权交回主界面。
+ * 主要内容：以正常文档流撑开工具栏 Popup，先展示多语言欢迎画面与中英文品牌宣传语，再进入语言卡片选择；确认后显示成功动效并把控制权交回主界面。
  * 模块边界：组件只负责首次引导的呈现与确认，不读取配置、不决定浏览器 locale 映射；配置保存由 src/ui/i18n.ts 负责，语言规则由 src/core/i18n 提供。
 -->
 <template>
@@ -43,6 +43,10 @@
               {{ messageZh('language.onboardingWelcomeEyebrow') }}
               <small class="onboarding-title-secondary">{{ messageEn('language.onboardingWelcomeEyebrow') }}</small>
             </h1>
+            <p class="welcome-tagline" data-testid="welcome-brand-tagline">
+              <span lang="zh-CN">{{ brandTaglines['zh-CN'] }}</span>
+              <span lang="en">{{ brandTaglines['en-US'] }}</span>
+            </p>
           </div>
 
           <button
@@ -127,6 +131,7 @@
 </template>
 
 <script setup lang="ts">
+import brandTaglines from '@/src/core/i18n/messages/brand-taglines.json';
 import {nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import {
   getUiLanguageBilingualLabel,
@@ -357,6 +362,8 @@ onMounted(focusCurrentStep);
   line-height: 1.2;
   letter-spacing: -.025em;
 }
+
+.welcome-tagline { display: grid; gap: 3px; margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 
 .welcome-copy h1 {
   font-size: 25px;
