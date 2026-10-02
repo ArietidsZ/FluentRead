@@ -36,4 +36,8 @@ pnpm docs:preview
 | 英文首页 | `https://read.thinkstu.com/en/` |
 | 英文隐私政策 | `https://read.thinkstu.com/en/guide/privacy` |
 
+OAuth 应用名称与官网的应用名称均使用 `FluentRead`，中文别名“流畅阅读”作为说明。提交的根首页保持固定，不按浏览器语言或旧语言偏好自动跳转；用户通过语言菜单切换中英文。
+
 政策是公开的独立 HTML 页面；首页首屏、导航和页脚都有入口。内容与代码的数据处理范围保持一致，包括 Google 数据的访问、使用、存储、分享、保护、保留与删除。Google 的要求见[应用隐私政策说明](https://support.google.com/cloud/answer/13806988?hl=zh-Hans)；工作流采用 [VitePress](https://vitepress.dev/guide/deploy#github-pages) 与 [GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages) 的发布方式。
+
+重新申请审核前，等待 `main` 发布成功，再以未登录的浏览器核对提交的首页和政策地址，确认实际内容已更新。首页应直接显示应用用途、Google 数据仅用于可选配置同步的说明和政策入口；关闭 JavaScript 时也应能阅读。若当前访问无法复现审核中报告的登录页面，保留公开响应和页面截图，向审核团队说明实际访问结果，不把部署成功当作审核通过。首页要求见 [Google 官方说明](https://support.google.com/cloud/answer/13807376?hl=en)。
