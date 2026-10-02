@@ -10,7 +10,7 @@
       <div><h2 id="drive-sync-title">Google Drive 配置同步</h2><p>把完整配置加密保存到自己的 Google 云盘，在其他设备恢复。</p></div>
       <span class="drive-badge">本机加密</span>
     </header>
-    <p class="drive-boundary">包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。</p>
+    <p class="drive-boundary">包含API Key、OAuth Token、鉴权请求头、自定义请求体及URL中的鉴权参数，不包含单词本、聊天记录和用量统计。</p>
     <p v-if="statusText" class="drive-status" role="status">{{ statusText }}</p>
     <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="drive-error" />
     <div v-if="status?.available" class="drive-actions">
