@@ -63,7 +63,11 @@ sequenceDiagram
 
 打开设置页只读取本机同步记录，不获取令牌或访问 Google。每次点击“立即与Google Drive同步”后才为本次操作取得授权，必要时显示登录与权限窗口，再生成预览；确认预览后才会上传或应用配置。完成、失败、取消预览或离开设置后自动清理扩展身份缓存，不显示持续连接状态或“断开连接”按钮。保留密文基线与上次同步时间，便于下次同步。401 时只刷新一次，账号变化则停止本次操作。[Chrome Identity](https://developer.chrome.com/docs/extensions/reference/api/identity)
 
-Google 授权页面使用它自己的语言设置；若左下角显示 English (United States)，可在该下拉框中选择简体中文。Drive 配置数据权限可能以未勾选的复选框出现，请勾选后再点击 Continue（继续）。没有勾选时，同步会停止并提示缺少哪项权限，不会上传配置。邮箱权限属于账号身份授权，可能已在前一页确认；扩展兼容 `email` 与 `userinfo.email` 的返回形式。[Google 分项权限说明](https://developers.google.com/identity/protocols/oauth2/resources/granular-permissions)
+Google 授权页面使用它自己的语言设置；若左下角显示 English (United States)，可在该下拉框中选择简体中文。当前版本只申请一项 `drive.appdata` 权限，不再同时申请邮箱身份权限。按 Google 的规则，只有一项非登录权限时不使用逐项勾选页面，用户直接确认或拒绝这项授权；扩展不会替用户点击 Google 的授权控件。实际页面仍由 Google 决定；旧版本或已有授权若显示复选框，应允许配置数据访问再点击 Continue（继续）。没有取得 Drive 权限时，同步停止且不会上传配置。[Google 分项权限说明](https://developers.google.com/identity/protocols/oauth2/resources/granular-permissions)
+
+账号识别改用 Drive 的 `about.get`，只读取 `user(permissionId,emailAddress)`。该接口支持 `drive.appdata`，无需再申请 `userinfo.email`。账号切换保护以 Drive 的 `permissionId` 为依据，邮箱仅用于预览展示；Google 未返回邮箱时仍可同步。[Drive about.get](https://developers.google.com/workspace/drive/api/reference/rest/v3/about/get)、[Drive User](https://developers.google.com/workspace/drive/api/reference/rest/v3/User)
+
+升级前的 OAuth 账号 ID 与新的 Drive 账号 ID 不混用。已有云端文件保留，升级后的第一次同步可能需要重新确认方向，以免按同邮箱误用旧共同基线；确认成功后保存新的密文基线。
 
 ## 4 配置存在用户自己的云盘哪里
 
@@ -153,18 +157,17 @@ Chrome 原生扩展客户端主要绑定扩展 ID，这一栏不是填写扩展 
 
 进入 **Google Auth Platform → 数据访问 / Data Access**，点击 **添加或移除范围**。
 
-你截图的右侧“更新所选范围”面板已经是正确位置。列表没有显示 Drive 时，直接滚到下面 **手动添加范围**，粘贴以下两行完整地址：
+你截图的右侧“更新所选范围”面板已经是正确位置。列表没有显示 Drive 时，直接滚到下面 **手动添加范围**，只粘贴以下一行完整地址：
 
 ```text
 https://www.googleapis.com/auth/drive.appdata
-https://www.googleapis.com/auth/userinfo.email
 ```
 
 ![右侧面板中的手动添加范围区域](./google-drive-sync-assets/oauth-scopes-manual-entry.png)
 
 点击 **添加到列表**，再点击侧栏底部的 **更新 / Update**，回到数据访问主页面点击 **保存 / Save**。不要只把文字粘进输入框就离开。
 
-`drive.appdata` 用来管理 FluentRead 自己的隐藏配置；`userinfo.email` 用来展示正在同步的账号，减少用错账号的风险。不需要 BigQuery、Cloud Platform 或读取全部 Drive 文件的范围。
+`drive.appdata` 用来管理 FluentRead 自己的隐藏配置，也支持读取本次同步所用的 Drive 账号标识。不要额外添加 `userinfo.email`、`openid`、`profile`、BigQuery、Cloud Platform 或读取全部 Drive 文件的范围。若此前按旧指南添加了邮箱范围，可从所选范围中移除；运行时和新构建的 manifest 都只请求 `drive.appdata`。
 
 ### 6.6 添加测试用户
 
@@ -214,7 +217,7 @@ pnpm build
 
 打开独立测试 Chrome 的 `chrome://extensions`，开启开发者模式，选择“加载已解压的扩展程序”，加载 `.output/chrome-mv3`。核对页面显示的扩展 ID 与客户端的内容 ID 相同。不要在仍保存唯一完整配置的日常浏览器中卸载扩展来切换测试包。
 
-manifest 由 WXT 回调在加载环境变量后生成，包含 `identity` 权限与两项 `oauth2.scopes`。Firefox/Edge 专用构建不会声明这个 Chrome OAuth 客户端；Chrome 包在 Edge 中也会显示支持范围提示。
+manifest 由 WXT 回调在加载环境变量后生成，包含 `identity` 权限与唯一的 `oauth2.scopes`：`drive.appdata`。Firefox/Edge 专用构建不会声明这个 Chrome OAuth 客户端；Chrome 包在 Edge 中也会显示支持范围提示。
 
 ## 8 用户怎样完成第一次同步
 

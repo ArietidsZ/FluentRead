@@ -18,7 +18,7 @@
     </div>
     <el-dialog v-model="previewVisible" title="确认 Google Drive 同步" width="min(900px, calc(100vw - 24px))" :close-on-click-modal="!busy" :close-on-press-escape="!busy" :show-close="!busy" :before-close="cancelPreview" destroy-on-close @closed="clearPreview">
       <template v-if="preview">
-        <p class="drive-preview-account">{{ t('settings.drive.account', {email: preview.account.email}) }}</p>
+        <p class="drive-preview-account">{{ preview.account.email ? t('settings.drive.account', {email: preview.account.email}) : t('settings.drive.selectedAccount') }}</p>
         <el-alert v-if="!preview.hasRemote" title="云端还没有同步文件。本次将创建加密的完整配置快照。" type="info" :closable="false" />
         <el-alert v-else-if="!preview.hasBaseline" title="这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。" type="warning" :closable="false" />
         <div class="drive-direction">

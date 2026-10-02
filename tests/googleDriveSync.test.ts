@@ -188,6 +188,28 @@ describe('Google Drive 同步事务', () => {
         expect((await f.service.prepare(password)).hasBaseline).toBe(false);
         expect(f.state).toMatchObject({accountId: 'fixture-account-b', baseline: '', lastSyncedAt: null});
     });
+    it('升级为 Drive 账号标识时不能按同邮箱复用旧 OAuth 基线，确认前保留两端配置', async () => {
+        const f = await synced();
+        const remote = structuredClone(f.remote);
+        f.local = {...f.local, to: 'de'};
+        const local = structuredClone(f.local);
+        const writes = vi.mocked(f.ports.api.write).mock.calls.length;
+        f.account = {id: 'drive:fixture-account-a', email: owner.email};
+        const preview = await f.service.prepare(password);
+        expect(preview.hasBaseline).toBe(false);
+        expect(preview.changes.some(change => change.conflict && change.local === '"de"')).toBe(true);
+        expect(f.local).toEqual(local);
+        expect(f.remote).toEqual(remote);
+        expect(f.ports.api.write).toHaveBeenCalledTimes(writes);
+        await expect(f.service.commit(preview.id, password, 'merge', {})).rejects.toThrow('每个冲突选择');
+        expect(f.local).toEqual(local);
+        expect(f.remote).toEqual(remote);
+        const confirmed = await f.service.prepare(password);
+        await f.service.commit(confirmed.id, password, 'download', {});
+        expect(f.state).toMatchObject({accountId: 'drive:fixture-account-a', connected: false});
+        expect((await f.service.prepare(password)).hasBaseline).toBe(true);
+        await f.service.cancel();
+    });
     it('防御未配置浏览器、无效状态、授权失败、已结束事务和不存在的同步方向', async () => {
         const f = fixture();
         for (const state of [[], {}, {version: 2}, {version: 1}, {version: 1, connected: true}, {version: 1, connected: true, accountId: 'a'}, {version: 1, connected: true, accountId: 'a', baseline: ''}, {version: 1, connected: true, accountId: 'a', baseline: '', lastSyncedAt: 'bad'}]) {f.state = state; expect(await f.service.status()).toMatchObject({account: null});}

@@ -8,7 +8,6 @@ export const GOOGLE_DRIVE_DEFAULT_CLIENT_ID = '474699705334-7fua4hnkq1nmfu92cof0
 export const GOOGLE_DRIVE_EXTENSION_ID = 'djnlaiohfaaifbibleebjggkghlmcpcj';
 export const GOOGLE_DRIVE_SCOPES = [
     'https://www.googleapis.com/auth/drive.appdata',
-    'https://www.googleapis.com/auth/userinfo.email',
 ] as const;
 export const GOOGLE_DRIVE_CONFIG_FILE_NAME = 'fluentread-config.encrypted.json';
 export const GOOGLE_DRIVE_SYNC_STATE_KEY = 'local:googleDriveEncryptedSyncState';

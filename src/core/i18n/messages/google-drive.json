@@ -6,7 +6,8 @@
       "settings.drive.local": "本机：{value}",
       "settings.drive.remote": "云端：{value}",
       "settings.drive.choice": "{label}，合并选择",
-      "settings.drive.lastSync": "上次同步 {time}"
+      "settings.drive.lastSync": "上次同步 {time}",
+      "settings.drive.selectedAccount": "本次同步使用您在 Google 中选择的账号。"
     },
     "legacy": {}
   },
@@ -17,7 +18,8 @@
       "settings.drive.local": "Device: {value}",
       "settings.drive.remote": "Cloud: {value}",
       "settings.drive.choice": "Merge choice for {label}",
-      "settings.drive.lastSync": "Last sync {time}"
+      "settings.drive.lastSync": "Last sync {time}",
+      "settings.drive.selectedAccount": "Sync uses the account you selected in Google."
     },
     "legacy": {
       "Google Drive 配置同步": "Google Drive configuration sync",
@@ -61,8 +63,7 @@
       "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "The sync file cannot be decrypted or is damaged. Check the cloud backup; device settings have not changed.",
       "Google 授权未完成，请点击同步按钮后重试。": "Google authorization was not completed. Click the sync button to retry.",
       "Google 未返回有效授权，请点击同步按钮重试。": "Google did not return valid authorization. Click the sync button to retry.",
-      "未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。": "Google Drive configuration data access was not allowed. Sync again, select the configuration data permission on Google’s consent page, then click Continue.",
-      "未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。": "Google account email access was not allowed. Sync again and allow email access.",
+      "未允许 Google Drive 配置数据权限，请重新同步并在 Google 授权页面允许访问配置数据。": "Google Drive configuration access was not allowed. Sync again and allow configuration data access on the Google consent page.",
       "Google 账号响应无效，请重新同步。": "Google returned invalid account information. Sync again.",
       "本次同步授权已结束，请重新生成预览。": "Authorization for this sync has ended. Generate a new preview."
     }
@@ -74,7 +75,8 @@
       "settings.drive.local": "端末：{value}",
       "settings.drive.remote": "クラウド：{value}",
       "settings.drive.choice": "{label} の統合選択",
-      "settings.drive.lastSync": "前回の同期 {time}"
+      "settings.drive.lastSync": "前回の同期 {time}",
+      "settings.drive.selectedAccount": "今回の同期には Google で選択したアカウントを使用します。"
     },
     "legacy": {
       "Google Drive 配置同步": "Google Drive 設定同期",
@@ -118,8 +120,7 @@
       "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "同期ファイルを復号できないか、破損しています。クラウドバックアップを確認してください。端末の設定は変更されていません。",
       "Google 授权未完成，请点击同步按钮后重试。": "Google の認可が完了していません。同期ボタンで再試行してください。",
       "Google 未返回有效授权，请点击同步按钮重试。": "Google から有効な認可が返されませんでした。同期ボタンで再試行してください。",
-      "未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。": "Google Drive の設定データへのアクセスが許可されていません。再度同期し、Google の認可画面で設定データへのアクセスにチェックを入れてから「続行」をクリックしてください。",
-      "未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。": "Google アカウントのメールアドレスへのアクセスが許可されていません。再度同期して許可してください。",
+      "未允许 Google Drive 配置数据权限，请重新同步并在 Google 授权页面允许访问配置数据。": "Google Drive の設定データへのアクセスが許可されていません。再度同期し、Google の認可画面で設定データへのアクセスを許可してください。",
       "Google 账号响应无效，请重新同步。": "Google アカウント情報の応答が無効です。再度同期してください。",
       "本次同步授权已结束，请重新生成预览。": "今回の同期の認可は終了しました。新しいプレビューを作成してください。"
     }
@@ -131,7 +132,8 @@
       "settings.drive.local": "기기: {value}",
       "settings.drive.remote": "클라우드: {value}",
       "settings.drive.choice": "{label} 병합 선택",
-      "settings.drive.lastSync": "마지막 동기화 {time}"
+      "settings.drive.lastSync": "마지막 동기화 {time}",
+      "settings.drive.selectedAccount": "이번 동기화는 Google에서 선택한 계정을 사용합니다."
     },
     "legacy": {
       "Google Drive 配置同步": "Google Drive 설정 동기화",
@@ -175,8 +177,7 @@
       "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "동기화 파일을 복호화할 수 없거나 손상되었습니다. 클라우드 백업을 확인하세요. 기기 설정은 변경되지 않았습니다.",
       "Google 授权未完成，请点击同步按钮后重试。": "Google 권한 부여가 완료되지 않았습니다. 동기화 버튼을 눌러 다시 시도하세요.",
       "Google 未返回有效授权，请点击同步按钮重试。": "Google에서 유효한 권한을 반환하지 않았습니다. 동기화 버튼을 눌러 다시 시도하세요.",
-      "未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。": "Google Drive 설정 데이터 권한이 허용되지 않았습니다. 다시 동기화하고 Google 권한 화면에서 설정 데이터 접근 권한을 선택한 다음 계속을 누르세요.",
-      "未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。": "Google 계정 이메일 권한이 허용되지 않았습니다. 다시 동기화하고 이메일 접근을 허용하세요.",
+      "未允许 Google Drive 配置数据权限，请重新同步并在 Google 授权页面允许访问配置数据。": "Google Drive 설정 데이터 접근이 허용되지 않았습니다. 다시 동기화하고 Google 권한 화면에서 설정 데이터 접근을 허용하세요.",
       "Google 账号响应无效，请重新同步。": "Google 계정 응답이 올바르지 않습니다. 다시 동기화하세요.",
       "本次同步授权已结束，请重新生成预览。": "이번 동기화 권한이 종료되었습니다. 미리 보기를 다시 생성하세요."
     }
@@ -188,7 +189,8 @@
       "settings.drive.local": "Appareil : {value}",
       "settings.drive.remote": "Cloud : {value}",
       "settings.drive.choice": "Choix de fusion pour {label}",
-      "settings.drive.lastSync": "Dernière synchronisation {time}"
+      "settings.drive.lastSync": "Dernière synchronisation {time}",
+      "settings.drive.selectedAccount": "Cette synchronisation utilise le compte que vous avez sélectionné dans Google."
     },
     "legacy": {
       "Google Drive 配置同步": "Synchronisation des réglages Google Drive",
@@ -232,8 +234,7 @@
       "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "Le fichier est indéchiffrable ou endommagé. Vérifiez la sauvegarde du cloud ; les réglages locaux n’ont pas changé.",
       "Google 授权未完成，请点击同步按钮后重试。": "L’autorisation Google n’a pas abouti. Cliquez sur le bouton de synchronisation pour réessayer.",
       "Google 未返回有效授权，请点击同步按钮重试。": "Google n’a pas renvoyé d’autorisation valide. Cliquez sur le bouton de synchronisation pour réessayer.",
-      "未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。": "L’accès aux données de configuration Google Drive n’a pas été autorisé. Relancez la synchronisation, cochez cette autorisation sur la page Google, puis cliquez sur Continuer.",
-      "未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。": "L’accès à l’adresse e-mail du compte Google n’a pas été autorisé. Relancez la synchronisation et autorisez cet accès.",
+      "未允许 Google Drive 配置数据权限，请重新同步并在 Google 授权页面允许访问配置数据。": "L’accès aux données de configuration Google Drive n’a pas été autorisé. Relancez la synchronisation et autorisez cet accès sur la page Google.",
       "Google 账号响应无效，请重新同步。": "Les informations du compte Google sont invalides. Relancez la synchronisation.",
       "本次同步授权已结束，请重新生成预览。": "L’autorisation de cette synchronisation a pris fin. Générez un nouvel aperçu."
     }
@@ -245,7 +246,8 @@
       "settings.drive.local": "Устройство: {value}",
       "settings.drive.remote": "Облако: {value}",
       "settings.drive.choice": "Выбор при объединении: {label}",
-      "settings.drive.lastSync": "Последняя синхронизация {time}"
+      "settings.drive.lastSync": "Последняя синхронизация {time}",
+      "settings.drive.selectedAccount": "Для этой синхронизации используется аккаунт, выбранный вами в Google."
     },
     "legacy": {
       "Google Drive 配置同步": "Синхронизация настроек с Google Drive",
@@ -289,8 +291,7 @@
       "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "Файл синхронизации не расшифровывается или повреждён. Проверьте облачную копию; локальные настройки не изменены.",
       "Google 授权未完成，请点击同步按钮后重试。": "Авторизация Google не завершена. Нажмите кнопку синхронизации, чтобы повторить.",
       "Google 未返回有效授权，请点击同步按钮重试。": "Google не предоставил действующую авторизацию. Нажмите кнопку синхронизации, чтобы повторить.",
-      "未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。": "Доступ к данным конфигурации Google Drive не разрешён. Повторите синхронизацию, отметьте разрешение на странице Google и нажмите «Продолжить».",
-      "未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。": "Доступ к адресу электронной почты Google не разрешён. Повторите синхронизацию и разрешите доступ.",
+      "未允许 Google Drive 配置数据权限，请重新同步并在 Google 授权页面允许访问配置数据。": "Доступ к данным конфигурации Google Drive не разрешён. Повторите синхронизацию и разрешите доступ на странице Google.",
       "Google 账号响应无效，请重新同步。": "Google вернул неверные данные аккаунта. Повторите синхронизацию.",
       "本次同步授权已结束，请重新生成预览。": "Авторизация этой синхронизации завершена. Создайте новый предварительный просмотр."
     }
@@ -302,7 +303,8 @@
       "settings.drive.local": "Dispositivo: {value}",
       "settings.drive.remote": "Nube: {value}",
       "settings.drive.choice": "Elección de combinación para {label}",
-      "settings.drive.lastSync": "Última sincronización {time}"
+      "settings.drive.lastSync": "Última sincronización {time}",
+      "settings.drive.selectedAccount": "Esta sincronización usa la cuenta que seleccionaste en Google."
     },
     "legacy": {
       "Google Drive 配置同步": "Sincronización de ajustes con Google Drive",
@@ -346,8 +348,7 @@
       "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "No se puede descifrar el archivo o está dañado. Revisa la copia del cloud; los ajustes locales no han cambiado.",
       "Google 授权未完成，请点击同步按钮后重试。": "La autorización de Google no se ha completado. Pulsa el botón de sincronización para reintentar.",
       "Google 未返回有效授权，请点击同步按钮重试。": "Google no ha devuelto una autorización válida. Pulsa el botón de sincronización para reintentar.",
-      "未允许 Google Drive 配置数据权限。请重新同步，在 Google 授权页面勾选配置数据访问权限，再点击继续。": "No se ha permitido el acceso a los datos de configuración de Google Drive. Vuelve a sincronizar, marca ese permiso en la página de Google y pulsa Continuar.",
-      "未允许 Google 账号邮箱权限，请重新同步并允许读取邮箱。": "No se ha permitido el acceso al correo de la cuenta de Google. Vuelve a sincronizar y permite ese acceso.",
+      "未允许 Google Drive 配置数据权限，请重新同步并在 Google 授权页面允许访问配置数据。": "No se ha permitido el acceso a los datos de configuración de Google Drive. Vuelve a sincronizar y permite el acceso en la página de Google.",
       "Google 账号响应无效，请重新同步。": "Google ha devuelto información de cuenta no válida. Vuelve a sincronizar.",
       "本次同步授权已结束，请重新生成预览。": "La autorización para esta sincronización ha finalizado. Genera una nueva vista previa."
     }

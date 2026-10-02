@@ -41,6 +41,8 @@ Drive sync requires connecting a Google account and confirming each operation; u
 
 Each sync starts with a user click. Completion, failure, cancellation, or leaving settings automatically clears the extension's identity cache. There is no persistent connected state. Local configuration, the encrypted sync baseline, and the cloud file remain. Revoke permission through your Google account's third-party connections. To delete hidden data, use Google Drive Settings → Manage apps → FluentRead → Delete hidden app data. Deleting cloud data does not erase settings already downloaded on other devices.
 
+Google authorization requests only the hidden application-data scope `drive.appdata`. The extension reads the selected account's identifier through Drive and uses its email, when returned by Google, for the preview. It does not request a separate email identity scope. Sync still works when email is omitted; account switching is checked using the Drive account identifier.
+
 Turn off automatic translation, extra AI context, memories, or saving if you do not need them. Restrict the reading card to the current selection to send less context.
 
 Clearing translation cache does not delete learning collections. Manage collections, reading history, and memories in their own pages. Uninstalling or clearing browser data may remove local records.
