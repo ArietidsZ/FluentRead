@@ -26,6 +26,7 @@ export default defineConfig({
         include: [
             'tests/googleDriveEncryption.test.ts',
             'tests/googleDriveConfig.test.ts',
+            'tests/googleDrivePreview.test.ts',
             'tests/googleDriveAuth.test.ts',
             'tests/googleDriveApi.test.ts',
             'tests/googleDriveSyncClient.test.ts',
@@ -621,6 +622,7 @@ export default defineConfig({
                 'src/features/full-page-translation/progress.ts',
                 'src/features/settings/background/openOptionsHandler.ts',
                 'src/features/settings/model/credentialPreview.ts',
+                'src/features/settings/model/googleDrivePreview.ts',
                 'src/features/settings/model/chromeTranslationPreparation.ts',
                 'src/platform/browser/chromeTranslationPreparationRequest.ts',
                 'src/features/settings/model/dataBackup.ts',
