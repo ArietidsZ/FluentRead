@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupServices.vue
  文件职责：在 Popup 翻译服务抽屉中展示功能分配概览，以独立选择面板替代层叠下拉菜单，让窄弹窗里的服务选择更直观。
- 主要内容：展示网页默认与各功能服务、本地图标、继承和配置提醒；选择面板支持常用/更多、服务及模型搜索、键盘导航和返回，保留不可用的旧选择。
+ 主要内容：展示网页默认与各功能服务、本地图标、继承和配置提醒，并让多语言名称和说明自然换行；选择面板支持常用/更多、服务及模型搜索、键盘导航和返回，保留不可用的旧选择。
  模块边界：复用功能服务映射、模型解析及供应商能力，只修改父级配置草稿；保存由 PopupApp 负责，不请求翻译或处理连接密钥。
 -->
 <template>
@@ -167,8 +167,8 @@ function warning(feature?: FeatureServiceDefinition) {
 .assignment-heading strong { font-weight: 650; }
 .assignment-heading > span { color: var(--muted); font-size: 16px; line-height: 1; }
 .assignment-value { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 11px; }
-.assignment-value > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.service-assignment > small { color: var(--muted); font-size: 9px; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assignment-value > span { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+.service-assignment > small { color: var(--muted); font-size: 9px; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
 .default-assignment > small { white-space: normal; }
 .service-assignment > .assignment-warning { color: var(--brand-strong); }
 .service-picker-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }

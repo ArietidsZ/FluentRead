@@ -1,7 +1,7 @@
 /**
  * @file src/app/popup/popup.css
- * 文件职责：定义宽度随皮肤、高度由内容撑开且最高 560px 的浏览器 Popup 视觉系统与交互状态，包括亮暗主题、服务选择、功能卡、设置抽屉、通知和响应式细节。
- * 主要内容：以白色窄版画布、浅灰控件和品牌色强调网页翻译、局部选择及站点控制；定义版本与赞赏、多语言宣传语、翻译服务汇总、两列入口、完整开源胶囊与开关优先的快捷抽屉，保留操作示意、舒展间距和必要的内部滚动。
+ * 文件职责：定义宽度随皮肤和界面语言、高度由内容撑开且最高 560px 的浏览器 Popup 视觉系统与交互状态，包括亮暗主题、服务选择、功能卡、设置抽屉、通知和响应式细节。
+ * 主要内容：以白色窄版画布、浅灰控件和品牌色强调网页翻译、局部选择及站点控制；定义版本与赞赏、翻译服务汇总、两列入口、完整开源胶囊与开关优先的快捷抽屉，保留操作示意、舒展间距和必要的内部滚动。
  * 模块边界：样式只对应 PopupApp 的 DOM 和受控第三方组件，不决定配置值、能力可用性或消息行为；跨页面 token 在 src/ui/styles，Options/文档页各自维护页面样式。
  */
 @import "../../ui/styles/feedback.css";
@@ -343,7 +343,6 @@ footer button {
 footer { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 6px; margin-top: 8px; padding: 0 3px 1px; color: var(--muted); font-size: 9.5px; }
 footer[data-popup-module-last="false"] { padding: 6px 8px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); }
 footer > span { min-width: 0; }
-footer > .popup-tagline { grid-column: 1 / -1; margin: 0 0 2px; text-align: center; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
 footer > button { justify-self: end; }
 .opensource-link {
   display: inline-flex;
@@ -639,3 +638,56 @@ footer button { font-weight: 500; color: var(--muted); }
 :root .popup-shell[data-interface-skin] .translate-button .translate-label { white-space: nowrap; line-height: 1.4; }
 /* 不显示域名后，两个规则按钮占用整行；覆盖简洁皮肤原先为域名预留的宽度。 */
 :root .popup-shell[data-interface-skin] .site-rule-actions { max-width: 100%; }
+
+/* 拉丁字母与西里尔字母语言保留自然词间换行和操作空间；中文、日文与韩文沿用窄版。 */
+:root:is(:lang(en), :lang(fr), :lang(ru), :lang(es)) {
+  --fluentread-localized-popup-width: max(var(--interface-popup-width, 320px), 380px);
+  width: var(--fluentread-localized-popup-width);
+}
+:root:is(:lang(en), :lang(fr), :lang(ru), :lang(es)) .popup-shell .popup-header {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+:root:is(:lang(en), :lang(fr), :lang(ru), :lang(es)) .popup-shell .brand strong { white-space: nowrap; }
+:root:is(:lang(en), :lang(fr), :lang(ru), :lang(es)) .popup-shell .header-actions { margin-inline-start: auto; }
+:root:is(:lang(en), :lang(fr), :lang(ru), :lang(es)) .popup-shell .header-actions > button {
+  height: auto;
+  min-height: 34px;
+}
+:root:is(:lang(en), :lang(fr), :lang(ru), :lang(es)) .popup-shell .header-actions > button > span {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  line-height: 1.4;
+}
+:root:is(:lang(en), :lang(fr), :lang(ru), :lang(es)) .popup-shell .translate-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+:root:is(:lang(en), :lang(fr), :lang(ru), :lang(es)) .popup-shell[data-interface-skin] .translate-button .translate-label {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+:root:is(:lang(en), :lang(fr), :lang(ru), :lang(es)) .popup-shell .translate-hotkey { max-width: none; }
+:root:not(:lang(zh)) .popup-shell .feature-card small {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  line-height: 1.4;
+}
+:root:is(:lang(en), :lang(fr), :lang(ru), :lang(es)) .popup-shell footer {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+}
+:root:is(:lang(en), :lang(fr), :lang(ru), :lang(es)) .popup-shell .popup-translation-count { white-space: nowrap; }
+
+:root:not(:lang(zh)) .popup-shell[data-interface-skin] .translate-button .translate-label {
+  overflow: visible; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; line-height: 1.4;
+}
+:root:not(:lang(zh)) .popup-shell[data-interface-skin] .translate-button { height: auto; min-height: 40px; padding-block: 7px; }
+
+:root:not(:lang(zh)) .popup-shell .opensource-link { min-width: 0; white-space: normal; text-align: center; line-height: 1.4; }
+:root:not(:lang(zh)) .popup-shell .opensource-link > span:not(.external-mark) { min-width: 0; overflow-wrap: anywhere; }
+.opensource-link svg, .opensource-link .external-mark { flex: none; }

@@ -17,6 +17,7 @@ import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
     "brand.tagline": brandTaglines['es-ES'],
+    "popup.translationCount": "{count} traducciones",
     "translationCenter.endpointMissing": "Primero configura la dirección del servicio personalizado.",
     "translationCenter.modelMissing": "Primero elige o introduce un modelo.",
     "translationCenter.noReady": "Configura al menos un servicio para traducir.",

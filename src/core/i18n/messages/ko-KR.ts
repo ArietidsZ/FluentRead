@@ -17,6 +17,7 @@ import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
     "brand.tagline": brandTaglines['ko-KR'],
+    "popup.translationCount": "번역 {count}회",
     "translationCenter.endpointMissing": "먼저 사용자 지정 서비스 주소를 설정하세요.",
     "translationCenter.modelMissing": "먼저 모델을 선택하거나 입력하세요.",
     "translationCenter.noReady": "번역하려면 하나 이상의 서비스를 설정하세요.",

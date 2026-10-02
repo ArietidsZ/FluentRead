@@ -17,6 +17,7 @@ import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
     "brand.tagline": brandTaglines['ru-RU'],
+    "popup.translationCount": "Переводов: {count}",
     "translationCenter.endpointMissing": "Сначала укажите адрес пользовательского сервиса.",
     "translationCenter.modelMissing": "Сначала выберите или введите модель.",
     "translationCenter.noReady": "Настройте хотя бы один сервис для перевода.",

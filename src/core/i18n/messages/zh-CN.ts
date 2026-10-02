@@ -15,6 +15,7 @@ import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
     "brand.tagline": brandTaglines['zh-CN'],
+    "popup.translationCount": "已完成 {count} 次翻译",
     "translationCenter.endpointMissing": "请先填写自定义服务的接口地址。",
     "translationCenter.modelMissing": "请先选择或填写一个模型。",
     "translationCenter.noReady": "请先配置至少一个服务，再开始翻译。",

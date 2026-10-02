@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/ConfigManagement.vue
 文件职责：提供备份与恢复页面的完整数据备份和设置历史。
-主要内容：按页内分类切换完整备份入口与设置历史，保留最近修改与自动设置快照，在摘要中解析动态自定义服务名称，并在恢复前展示差异。
+主要内容：按页内分类切换完整备份入口与设置历史，保留最近修改与自动设置快照，在可换行的多语言摘要中解析动态自定义服务名称，并在恢复前展示差异。
 模块边界：本组件拥有设置历史的预览与恢复；主动备份和旧文件兼容导入由 LocalDataManagement 统一编排。
 -->
 <template>
@@ -294,7 +294,7 @@ async function applyPreviewTarget() {
 .version-badge { display: grid; place-items: center; min-height: 28px; border-radius: 9px; color: var(--brand-strong); background: var(--brand-soft); font-size: 10px; font-weight: 800; }
 .version-badge.backup { color: #267260; background: #eaf8f4; }
 .version-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
-.version-copy strong { overflow: hidden; color: var(--ink); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.version-copy strong { color: var(--ink); font-size: 11px; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
 .version-copy small { color: var(--muted); font-size: 9.5px; }
 .view-link, .current-mark { color: var(--brand-strong); font-size: 10px; font-weight: 750; }
 .current-mark { padding: 3px 7px; border-radius: 999px; background: var(--brand-soft); }
