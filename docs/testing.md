@@ -42,6 +42,14 @@
 
 生产扩展构建后运行 `node scripts/testing/run-bilingual-attribute-drift-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <浏览器翻译技能>/scripts/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用临时 Edge profile、第二屏后台正常窗口和固定翻译响应，检查悬浮与全文模式的六轮链接悬停、逐帧工件在位、源链接骨架同步、语义属性恢复、零额外请求及翻译—恢复—再次翻译。追加 `--live-wikipedia` 检查真实 Menches 页面；固定响应不代表真实供应商质量，Edge 结果也不代表 Firefox 实机验证。
 
+## Google Drive 完整配置同步
+
+`tests/googleDriveEncryption.test.ts`、`tests/googleDriveConfig.test.ts`、`tests/googleDriveAuth.test.ts`、`tests/googleDriveApi.test.ts`、`tests/googleDriveSync.test.ts`、`tests/googleDriveSyncClient.test.ts` 和 `tests/backgroundGoogleDriveSync.test.ts` 验证完整凭据快照、认证加密、账号隔离、差异隐藏、三方合并、过期与一次性预览、MV3 后台重启恢复和失败回滚。`tests/i18n.test.ts` 还验证同步状态及隐藏内容的多语言展示。
+
+生产扩展构建后执行 `node scripts/testing/run-google-drive-sync-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <扩展界面测试技能>/scripts/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用临时 Edge profile、第二屏后台可见窗口，先验证实际 Edge 的不支持提示，再注入虚构 Chrome Identity 与 Google Drive 响应；检查真实页面的预览、上传与下载方向、加密完整凭据恢复、损坏文件阻断、私有存储边界、无口令输入流程，以及中英文 390px 布局。
+
+该证据覆盖生产扩展页面、后台 Web Crypto 与实际配置存储；Google 登录授权和 Drive HTTP 为受控夹具，不代表真实 Google 账号、两台设备或商店发行版本的联调结果。配置与公开发布步骤见 [Google Drive 同步教程](./maintainers/google-drive-sync-guide.md)。
+
 ## 双语逐句高亮
 
 `tests/bilingualSentenceHighlight.test.ts` 覆盖字符坐标、缩写、小数、中英文标点、无原生分句能力的回退、拆句与合句分组，以及双向悬停、内联结构、动态变化和关闭清理。定向覆盖率命令仅包含 `sentenceAlignment.ts`、`sentenceHighlight.ts` 和 `bilingualSentenceHighlight.ts` 三个模块。

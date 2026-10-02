@@ -1,0 +1,12 @@
+{
+  "messages": {
+    "settings.drive.account": "当前账号：{email}",
+    "settings.drive.differences": "{count} 项差异。私密和自定义内容均已隐藏。",
+    "settings.drive.local": "本机：{value}",
+    "settings.drive.remote": "云端：{value}",
+    "settings.drive.choice": "{label}，合并选择",
+    "settings.drive.lastSync": "上次同步 {time}",
+    "settings.drive.selectedAccount": "本次同步使用您在 Google 中选择的账号。"
+  },
+  "legacy": {}
+}

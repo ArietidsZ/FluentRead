@@ -681,7 +681,7 @@
         <ModelUsageDashboard :active="props.activeSection === 'settings-translation-stats' && props.activePanel === 'usage'" :query-root="props.queryRoot" />
       </SettingsPanel>
     </div>
-    <ConfigManagement v-if="hasVisitedSection('settings-data')" v-show="props.activeSection === 'settings-data'" id="settings-data" :config="config" :active-panel="props.activePanel" />
+    <ConfigManagement v-if="hasVisitedSection('settings-data')" v-show="props.activeSection === 'settings-data'" id="settings-data" :config="config" :active="props.activeSection === 'settings-data'" :active-panel="props.activePanel" />
   </div>
 
   <!-- 自定义快捷键对话框 -->

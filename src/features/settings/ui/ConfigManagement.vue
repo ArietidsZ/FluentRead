@@ -1,12 +1,13 @@
 <!--
 @file src/features/settings/ui/ConfigManagement.vue
-文件职责：提供备份与恢复页面的完整数据备份和设置历史。
+文件职责：提供备份与恢复页面的 Google Drive 配置同步、完整数据备份和设置历史。
 主要内容：按页内分类切换完整备份入口与设置历史，保留最近修改与自动设置快照，在可换行的多语言摘要中解析动态自定义服务名称，并在恢复前展示差异。
-模块边界：本组件拥有设置历史的预览与恢复；主动备份和旧文件兼容导入由 LocalDataManagement 统一编排。
+模块边界：本组件拥有设置历史的预览与恢复；本机备份与导入由 LocalDataManagement 编排，加密云同步由独立 GoogleDriveSync 组件及后台服务负责。
 -->
 <template>
   <section class="config-management">
     <SettingsPanel name="backup" :active="props.activePanel">
+<GoogleDriveSync v-if="props.active && (!props.activePanel || props.activePanel === 'backup')" />
 <LocalDataManagement :config="config" />
 </SettingsPanel>
 
@@ -130,6 +131,7 @@
 
 <script setup lang="ts">
 import {computed, onUnmounted, ref} from 'vue';
+import GoogleDriveSync from './GoogleDriveSync.vue';
 import {ElMessage, ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
 import {getMultilingualTargetLanguageLabel, options} from '@/src/core/config/catalog';
@@ -156,6 +158,7 @@ import SettingsPanel from './components/SettingsPanel.vue';
 import LocalDataManagement from './LocalDataManagement.vue';
 
 const props = defineProps<{
+  active: boolean;
   config: Config
   activePanel?: string
 }>();

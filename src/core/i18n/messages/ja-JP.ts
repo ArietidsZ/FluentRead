@@ -6,6 +6,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
 import brandTaglines from './brand-taglines.json';
+import googleDriveText from './google-drive/ja-JP.json';
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
@@ -16,6 +17,7 @@ import {translationStatsJapaneseMessages} from './translationStats';
 import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
+    ...googleDriveText.messages,
     "brand.tagline": brandTaglines['ja-JP'],
     "popup.translationCount": "翻訳 {count} 回",
     "translationCenter.endpointMissing": "先にカスタムサービスの URL を設定してください。",
@@ -2108,6 +2110,7 @@ const jaJPLegacyTextBase: Readonly<Record<string, string>> = {
 };
 
 export const jaJPLegacyText: Readonly<Record<string, string>> = {
+    ...googleDriveText.legacy,
     "腾讯交互翻译": "Tencent TranSmart",
     "火山翻译": "Volcengine 翻訳",
     "免密钥网页接口，与腾讯云翻译不同": "キー不要のウェブ接口。Tencent Cloud 翻訳とは別です",

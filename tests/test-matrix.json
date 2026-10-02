@@ -304,7 +304,12 @@
       "tests/shareCardExport.test.ts",
       "tests/shareCardStudio.test.ts",
       "tests/videoCaptionPlatforms.test.ts",
-      "tests/videoSubtitleDownloads.test.ts"
+      "tests/videoSubtitleDownloads.test.ts",
+      "tests/googleDriveEncryption.test.ts",
+      "tests/googleDriveConfig.test.ts",
+      "tests/googleDriveAuth.test.ts",
+      "tests/googleDriveApi.test.ts",
+      "tests/googleDriveSyncClient.test.ts"
     ],
     "functional": [
       "tests/translationCenterComponent.test.ts",
@@ -390,7 +395,9 @@
       "tests/sameTargetLanguageClient.test.ts",
       "tests/sameTargetLanguageSlots.test.ts",
       "tests/sectionTranslationPicker.test.ts",
-      "tests/videoCaptionPlatformRuntime.test.ts"
+      "tests/videoCaptionPlatformRuntime.test.ts",
+      "tests/googleDriveSync.test.ts",
+      "tests/backgroundGoogleDriveSync.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",

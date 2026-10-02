@@ -7,6 +7,7 @@ import {wllamaExtensionWorker} from './scripts/testing/wllama-extension-build';
 import {createUiLanguageBundleFiles} from './src/core/i18n/bundles';
 import {UI_LANGUAGE_BUNDLE_DIRECTORY} from './src/core/i18n/language';
 import {packageWasmDiagnostics, packageTesseractWasm} from './scripts/wasm/package-diagnostics';
+import {GOOGLE_DRIVE_DEFAULT_CLIENT_ID, GOOGLE_DRIVE_EXTENSION_PUBLIC_KEY, GOOGLE_DRIVE_SCOPES} from './src/platform/google-drive/constants';
 
 
 const packageJson = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
@@ -97,6 +98,11 @@ export function createExtensionManifest(
     env: Pick<ConfigEnv, 'browser' | 'manifestVersion'>,
 ): UserManifest {
     const capabilities = resolveBrowserCapabilities(env);
+    // manifest 回调在 WXT 加载 .env 后执行；公开 Client ID 可随扩展发布。
+    const googleDriveManifest = env.browser === 'chrome' ? {
+        oauth2: {client_id: process.env.WXT_GOOGLE_CLIENT_ID?.trim() || GOOGLE_DRIVE_DEFAULT_CLIENT_ID, scopes: [...GOOGLE_DRIVE_SCOPES]},
+        key: process.env.WXT_EXTENSION_KEY?.trim() || GOOGLE_DRIVE_EXTENSION_PUBLIC_KEY,
+    } : {};
     const firefoxManifest = env.browser === 'firefox' ? {
         browser_specific_settings: {
             gecko: {
@@ -118,6 +124,7 @@ export function createExtensionManifest(
             'unlimitedStorage',
             'alarms',
             'contextMenus',
+            ...(env.browser === 'chrome' ? ['identity'] : []),
             ...(capabilities.offscreenDocument ? ['offscreen'] : []),
         ],
         content_security_policy: {
@@ -150,6 +157,7 @@ export function createExtensionManifest(
             },
         ],
         ...firefoxManifest,
+        ...googleDriveManifest,
     } as UserManifest;
 }
 
