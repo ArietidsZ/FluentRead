@@ -10,7 +10,7 @@ Closer languages. A bigger world.
 
 一款开源的浏览器双语翻译插件。
 
-[安装](#安装) · [官网](https://fluent.thinkstu.com/) · [使用指南](https://fluent.thinkstu.com/guide/) · [English](../README.md) · [LINUX DO 社区](https://linux.do) · [GPL-3.0](../LICENSE)
+[安装](#安装) · [官网](https://read.thinkstu.com/) · [使用指南](https://read.thinkstu.com/guide/) · [隐私政策](https://read.thinkstu.com/guide/privacy) · [English](../README.md) · [LINUX DO 社区](https://linux.do) · [GPL-3.0](../LICENSE)
 
 </div>
 
@@ -30,7 +30,7 @@ FluentRead 支持在原网页中对照阅读原文与译文，并提供划词翻
 | 视频字幕 | 支持 YouTube 和 X 双语字幕；部分 X 视频可通过本地模型生成 AI 字幕。 |
 | 翻译服务与设置 | 支持免费翻译服务、DeepL、AI 服务和本地 Ollama，可配置术语库、译文样式、快捷键及菜单栏布局。 |
 
-各功能的使用方法与支持范围见[使用指南](https://fluent.thinkstu.com/guide/)。AI 讲解需要配置可用的 AI 服务；第三方服务的费用与可用性由服务商决定。
+各功能的使用方法与支持范围见[使用指南](https://read.thinkstu.com/guide/)。AI 讲解需要配置可用的 AI 服务；第三方服务的费用与可用性由服务商决定。
 
 ## DeepSeek Harness
 
@@ -38,7 +38,7 @@ FluentRead 支持在原网页中对照阅读原文与译文，并提供划词翻
 
 该适配用于选区阅读辅助。全文、悬浮和普通划词翻译使用各自的翻译流程。接入范围和上游来源见[内核集成说明](../docs/reports/harness-embedding-map-20260905.md)，MIT 许可见[第三方声明](../public/third-party-notices/deepseek-harness-MIT.txt)。
 
-[翻译卡片使用指南](https://fluent.thinkstu.com/guide/deepseek-harness)
+[翻译卡片使用指南](https://read.thinkstu.com/guide/deepseek-harness)
 
 ## 安装
 
@@ -48,7 +48,7 @@ FluentRead 支持在原网页中对照阅读原文与译文，并提供划词翻
 2. 打开 FluentRead，选择目标语言。源语言默认为自动检测，也可手动指定。
 3. 点击“翻译页面”。划词翻译及其他功能可在设置中开启。
 
-各浏览器商店的版本更新可能存在时间差。油猴脚本提供核心网页翻译能力；完整支持范围见[安装指南](https://fluent.thinkstu.com/guide/getting-started)。
+各浏览器商店的版本更新可能存在时间差。油猴脚本提供核心网页翻译能力；完整支持范围见[安装指南](https://read.thinkstu.com/guide/getting-started)。
 
 ## 本地开发
 
@@ -105,4 +105,4 @@ FluentRead 的成长离不开开源社区。感谢以下项目及其贡献者的
 
 FluentRead 按 [GPL-3.0](../LICENSE) 开源发布，第三方组件的来源与许可见[第三方声明](../public/third-party-notices/)。
 
-云端翻译会将相关文字发送给所选服务。文件解析、图片识别及本地模型功能的数据范围见[数据与隐私](https://fluent.thinkstu.com/guide/privacy)。
+设置和学习记录默认保存在本机，云端翻译由所选服务处理。Google Drive 配置同步（Chrome 测试功能）可将完整配置（含服务凭据）备份到自己的云盘，不包含单词本、聊天记录和用量统计。权限、加密及删除方式见[隐私政策](https://read.thinkstu.com/guide/privacy)。
