@@ -1,7 +1,7 @@
 <!--
  * @file src/features/reading-assistant/ui/ReadingPanel.vue
- * 文件职责：在划词卡内以内容为主呈现学习回答，提供紧凑动作栏、按需原文与连续追问。
- * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；把原文朗读、句子收藏和 30 天问答记录收进次级操作，让多语言动作标签按空间换行，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
+ * 文件职责：在划词卡内以内容为主呈现学习回答，提供紧凑动作栏、向上滚动可查看的完整原文与连续追问。
+ * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；四类动作的完整原文统一保留在滚动区顶部，进入回答时只滚过原文，关闭局部浏览器滚动锚定以避免流式格式变化移动阅读位置；提供查看原文快捷入口，重复点击当前动作保留位置和待发送追问；把原文朗读、句子收藏和 30 天问答记录收进次级操作，让多语言动作标签按空间换行，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
  * 模块边界：不持有模型密钥、不扫描页面、不直接请求供应商；记录由后台会话仓库保存，父划词组件负责选区、位置和 Shadow UI 生命周期。
  -->
 <template>
@@ -26,11 +26,12 @@
     <template v-else>
     <div class="fr-reading-toolbar">
       <div class="fr-reading-actions" role="group" aria-label="学习方式">
-        <button v-for="action in actions" :key="action.id" type="button" :aria-label="action.label" :title="action.label" :aria-pressed="intent === action.id" @click="startAction(action.id)">{{ action.id === 'grammar' ? '句法' : action.label }}</button>
+        <button v-for="action in actions" :key="action.id" type="button" :aria-label="action.label" :title="action.label" :aria-pressed="intent === action.id" @click="chooseAction(action.id)">{{ action.id === 'grammar' ? '句法' : action.label }}</button>
       </div>
       <details ref="toolsMenu" class="fr-reading-tools" @keydown.esc.stop.prevent="closeTools(true)">
         <summary aria-label="更多操作" title="更多操作"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary>
         <div class="fr-reading-tool-list" @click="closeToolsAfterAction">
+          <button type="button" data-i18n-ignore @click.stop="showSource">{{ t('reading.viewSource') }}</button>
           <button type="button" :disabled="busy" @click="regenerate">重新生成</button>
           <button type="button" :aria-pressed="playingSourceText === activeText" @click="emit('play-source', activeText)">{{ playingSourceText === activeText ? '停止朗读' : '朗读原文' }}</button>
           <button v-if="!historicalText && selection.sentence !== selection.text && !wholeSentence" type="button" @click="expandSentence">理解整句</button>
@@ -41,11 +42,12 @@
         </div>
       </details>
     </div>
-    <div ref="answerScroll" class="fr-reading-scroll fr-reading-result" aria-live="polite" aria-atomic="false">
-      <details v-if="!answerHasSource" class="fr-reading-source">
-        <summary><span>原文</span><span class="fr-reading-source-excerpt" data-i18n-ignore>{{ activeText }}</span></summary>
+    <div ref="answerScroll" class="fr-reading-scroll fr-reading-result" tabindex="-1" :aria-label="translateLegacy(actionLabel)" aria-live="polite" aria-atomic="false" @wheel.passive="cancelReadingPosition" @pointerdown="cancelReadingPosition" @keydown="cancelReadingPosition">
+      <section class="fr-reading-source" :aria-label="translateLegacy('原文')">
+        <span>原文</span>
         <p data-i18n-ignore>{{ activeText }}</p>
-      </details>
+      </section>
+      <div ref="answerBody" class="fr-reading-body">
       <details v-if="priorAnswers.length" class="fr-reading-session-detail">
         <summary data-i18n-ignore>{{ t("reading.priorTurns", {count: priorAnswers.length}) }}</summary>
         <article v-for="turn in priorAnswers" :key="turn.id" class="fr-reading-turn">
@@ -68,6 +70,7 @@
       <button type="button" @click="copyAnswer">{{ copied ? '已复制' : '复制' }}</button>
       <button v-if="preferences.memoryEnabled && !privateContext && !stopped && !error" type="button" :disabled="remembering || remembered" title="将这段原文与回答保存为长期学习记忆" @click="rememberLearning">{{ remembered ? '已记住' : '记住要点' }}</button>
     </footer>
+      </div>
     </div>
     <form class="fr-reading-followup" @submit.prevent="ask">
       <input v-model="question" :disabled="busy" maxlength="1000" aria-label="继续追问" :placeholder="intent === 'practice' ? '写下你的练习答案…' : '继续问这句话…'" @keydown.stop @keyup.stop @input="feedback = ''" />
@@ -86,8 +89,6 @@ import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import browser from 'webextension-polyfill';
 import {HARNESS_ACTIONS, type HarnessActionId, type HarnessPreferences} from '@/src/core/config/harness';
 import ReadingAnswer from './ReadingAnswer.vue';
-import {readingAnswerBlocks} from '../answerFormat';
-import {anchorSentenceAnalysis} from '../sentenceAnalysis';
 import type {ReadingSelection, ReadingTurn} from '../types';
 import {getHarnessSession, listHarnessSessions, streamReading, saveLearningMemory} from '../client';
 import type {HarnessSession, HarnessSessionSummary, HarnessStoredTurnStatus} from '@/src/services/harness/sessionTypes';
@@ -121,8 +122,6 @@ const actionLabel = computed(() => HARNESS_ACTIONS.find(action => action.id === 
 const question = ref('');
 const currentQuestion = ref('');
 const answer = ref('');
-// 句法回答已完整展示可交互原文时，不再重复占用一行；普通或自定义回答仍可展开原文。
-const answerHasSource = computed(() => readingAnswerBlocks(answer.value).some(block => Boolean(anchorSentenceAnalysis(block, activeText.value))));
 const busy = ref(false);
 const stopped = ref(false);
 const error = ref('');
@@ -139,6 +138,42 @@ const showRecords = ref(false);
 const recordsLoading = ref(false);
 const recordsError = ref('');
 const answerScroll = ref<HTMLElement>();
+const answerBody = ref<HTMLElement>();
+let readingPositionFrame: number | undefined;
+let readingPositionRevision = 0;
+function cancelReadingPosition(): void {
+  readingPositionRevision += 1;
+  if (readingPositionFrame !== undefined) cancelAnimationFrame(readingPositionFrame);
+  readingPositionFrame = undefined;
+}
+// 回答区域至少占满一屏，让短回答和生成状态也能刚好滚过原文；只在进入回答时定位，不跟随流式文本滚动。
+function resetReadingPosition(): void {
+  cancelReadingPosition();
+  const revision = readingPositionRevision;
+  const owner = currentTurnKey.value;
+  const scrollToAnswer = () => {
+    const viewport = answerScroll.value;
+    const body = answerBody.value;
+    if (revision !== readingPositionRevision || !props.active || showRecords.value || owner !== currentTurnKey.value || !viewport || !body) return;
+    viewport.scrollTop = body.offsetTop;
+  };
+  void nextTick(() => {
+    if (revision !== readingPositionRevision) return;
+    if (typeof requestAnimationFrame !== 'function') { scrollToAnswer(); return; }
+    // 父划词卡先在一帧中调整位置和尺寸，再由 Vue 更新样式；下一帧才使用最终宽度下的原文高度。
+    readingPositionFrame = requestAnimationFrame(() => {
+      readingPositionFrame = requestAnimationFrame(() => { readingPositionFrame = undefined; scrollToAnswer(); });
+    });
+  });
+}
+function showSource(): void {
+  cancelReadingPosition();
+  closeTools();
+  const viewport = answerScroll.value;
+  if (!viewport) return;
+  viewport.scrollTop = 0;
+  viewport.focus({preventScroll: true});
+}
 const toolsMenu = ref<HTMLDetailsElement>();
 function closeTools(restoreFocus = false): void {
   if (!toolsMenu.value) return;
@@ -196,6 +231,7 @@ let recordsGeneration = 0;
 let restoreEpoch = 0;
 
 function cancelRequest(): void {
+  cancelReadingPosition();
   generation += 1;
   streamHandle?.cancel();
   streamHandle = undefined;
@@ -228,7 +264,7 @@ function restoreAnswer(cached: CachedAnswer): void {
   anchorTurnId = cached.anchorTurnId;
   lastAnchorTurnId = cached.lastAnchorTurnId;
   error.value = ''; stopped.value = false; copied.value = false; feedback.value = '';
-  void nextTick(() => { if (answerScroll.value) answerScroll.value.scrollTop = 0; });
+  resetReadingPosition();
 }
 async function run(prompt: string, turns: ReadingTurn[], retrying = false): Promise<void> {
   const requestAnchor = prompt ? (retrying ? lastAnchorTurnId : anchorTurnId) : '';
@@ -247,7 +283,7 @@ async function run(prompt: string, turns: ReadingTurn[], retrying = false): Prom
   remembered.value = false;
   currentQuestion.value = prompt;
   showRecords.value = false;
-  void nextTick(() => { if (answerScroll.value) answerScroll.value.scrollTop = 0; });
+  resetReadingPosition();
   busy.value = true;
   error.value = '';
   stopped.value = false;
@@ -295,6 +331,10 @@ async function run(prompt: string, turns: ReadingTurn[], retrying = false): Prom
   } catch (failure) {
     if (token === generation) { busy.value = false; pendingId = ''; error.value = failure instanceof Error ? failure.message : '请求失败，请重试。'; }
   }
+}
+function chooseAction(action: HarnessActionId): void {
+  // 已选标签不重置阅读位置或未发送的追问；重新生成仍通过明确的次级操作触发。
+  if (action !== intent.value) startAction(action);
 }
 function startAction(action: HarnessActionId, preserveHistory = true): void {
   if (!props.preferences.actions.includes(action)) return;
@@ -353,7 +393,7 @@ async function restoreSession(id: string): Promise<void> {
   stopped.value = latest?.status === 'stopped' || latest?.status === 'streaming'; saved.value = false;
   feedback.value = '已打开上次的问答，可以继续追问。';
   recordsError.value = ''; showRecords.value = false;
-  void nextTick(() => { if (answerScroll.value) answerScroll.value.scrollTop = 0; });
+  resetReadingPosition();
 }
 function expandSentence(): void { wholeSentence.value = true; sessionId = ''; historicalText.value = ''; saved.value = false; startAction(intent.value, false); }
 function ask(): void {
@@ -426,6 +466,7 @@ async function loadMoreSessions(): Promise<void> {
   finally { if (token === recordsGeneration) recordsLoading.value = false; }
 }
 function openRecords(): void {
+  cancelReadingPosition();
   restoreEpoch += 1;
   showRecords.value = true;
   recordsGeneration += 1;
@@ -433,7 +474,7 @@ function openRecords(): void {
   sessions.value = []; sessionOffset.value = 0; hasMoreSessions.value = false;
   void loadMoreSessions();
 }
-function closeRecords(): void { restoreEpoch += 1; showRecords.value = false; recordsError.value = ''; }
+function closeRecords(): void { restoreEpoch += 1; showRecords.value = false; recordsError.value = ''; resetReadingPosition(); }
 onMounted(() => {
   if (props.historyOnly) openRecords();
   else startAction(intent.value);
@@ -446,6 +487,7 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading-navigation { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; color: var(--fr-reading-muted); font-size: 11px; }
 .fr-reading-navigation button { color: #a64b6e; }
 .fr-reading-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 2px 5px 4px 0; }
+.fr-reading-result { position: relative; overflow-anchor: none; }
 .fr-reading-records .fr-reading-hint { margin-top: 0; }
 .fr-reading-session-list { display: grid; gap: 4px; padding-bottom: 8px; }
 .fr-reading .fr-reading-session { display: grid; gap: 6px; width: 100%; padding: 10px; text-align: left; color: inherit; background: var(--fr-reading-soft); border: 1px solid var(--fr-reading-line); font-size: 12px; }
@@ -477,13 +519,9 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading-tool-list p { border-top: 1px solid var(--fr-reading-line); margin: 4px 0 0; padding: 6px 8px 3px; color: var(--fr-reading-muted); font-size: 10px; overflow-wrap: anywhere; }
 .fr-reading-tool-list p span { display: block; }
 .fr-reading-source { margin: 0 0 10px; color: var(--fr-reading-muted); font-size: 12px; }
-.fr-reading-source summary { display: flex; align-items: baseline; gap: 8px; cursor: pointer; min-height: 24px; }
-.fr-reading-source summary::before { content: '›'; flex: 0 0 auto; }
-.fr-reading-source[open] summary::before { transform: rotate(90deg); }
-.fr-reading-source summary > span:first-of-type { flex-shrink: 0; font-size: 11px; }
-.fr-reading-source-excerpt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fr-reading-source[open] .fr-reading-source-excerpt { visibility: hidden; }
+.fr-reading-source > span { font-size: 11px; }
 .fr-reading-source p { margin: 4px 0 0; padding-inline-start: 12px; border-inline-start: 2px solid var(--fr-reading-line); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.fr-reading-body { min-height: 100%; display: flow-root; }
 .fr-reading-status { display: flex; align-items: center; gap: 8px; color: var(--fr-reading-muted); font-size: 12px; }
 .fr-reading-status button { margin-left: auto; }
 .fr-reading-pulse { width: 6px; height: 6px; border-radius: 50%; background: #c76688; animation: fr-reading-breathe 1.4s ease-in-out infinite; }
