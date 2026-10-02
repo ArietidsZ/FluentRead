@@ -1,22 +1,30 @@
 <!--
  @file src/app/popup/PopupServices.vue
  文件职责：在 Popup 翻译服务抽屉中展示功能分配概览，以独立选择面板替代层叠下拉菜单，让窄弹窗里的服务选择更直观。
- 主要内容：展示网页默认与各功能服务、本地图标、继承和配置提醒；选择面板支持常用/更多、服务及模型搜索、键盘导航和返回，保留不可用的旧选择。
+ 主要内容：突出网页默认服务，以紧凑列表展示各功能的独立服务或继承状态，以统一状态标签呈现服务并让多语言名称完整换行，保留本地图标、模型和配置提醒；选择面板合并功能标题、返回与关闭操作，将主要空间用于常用/更多服务、模型搜索及键盘导航，保留不可用的旧选择。
  模块边界：复用功能服务映射、模型解析及供应商能力，只修改父级配置草稿；保存由 PopupApp 负责，不请求翻译或处理连接密钥。
 -->
 <template>
   <div ref="panel" class="popup-service-panel" data-i18n-ignore @keydown.esc="returnFromPicker">
+    <div v-if="!editing" class="popup-service-toolbar">
+      <button type="button" class="service-panel-close" :aria-label="t('common.close')" @click="$emit('close')">×</button>
+    </div>
     <div v-if="!editing" class="popup-service-overview">
       <button v-for="field in fields" :key="field.id" type="button" class="service-assignment"
         :class="{'default-assignment': !field.feature}" :data-feature-service="field.id"
         :aria-label="`${t(`featureServices.${field.id}`)} · ${selectedLabel(field.feature)}`"
+        :title="warning(field.feature) || (!field.feature ? t('featureServices.defaultHelp') : selectedLabel(field.feature))"
         @click="openPicker(field)">
-        <span class="assignment-heading"><strong>{{ t(`featureServices.${field.id}`) }}</strong><span aria-hidden="true">›</span></span>
-        <span class="assignment-value"><ServiceIcon :service="effective(field.feature)" :label="label(effective(field.feature))" size="small" /><span>{{ label(effective(field.feature)) }}</span></span>
-        <small v-if="warning(field.feature)" class="assignment-warning" :title="warning(field.feature)">{{ t('featureServices.needsSetup') }}</small>
-        <small v-else-if="field.feature?.inherit && !selected(field.feature)">{{ t('featureServices.followDefault') }}</small>
-        <small v-else-if="field.feature && servicesType.isUseModel(effective(field.feature))" :title="getFeatureModel(config, field.feature)">{{ getFeatureModel(config, field.feature) }}</small>
-        <small v-else-if="!field.feature">{{ t('featureServices.defaultHelp') }}</small>
+        <span class="assignment-heading"><strong>{{ t(`featureServices.${field.id}`) }}</strong></span>
+        <span class="assignment-details">
+          <span v-if="warning(field.feature)" class="assignment-warning" role="img" :aria-label="warning(field.feature)" :title="warning(field.feature)">!</span>
+          <span class="assignment-value" :class="{'assignment-inherited': field.feature?.inherit && !selected(field.feature)}">
+            <ServiceIcon v-if="!field.feature?.inherit || selected(field.feature)" :service="effective(field.feature)" :label="label(effective(field.feature))" size="small" />
+            <span>{{ field.feature?.inherit && !selected(field.feature) ? t('featureServices.followDefault') : label(effective(field.feature)) }}</span>
+          </span>
+          <small v-if="!warning(field.feature) && field.feature && selected(field.feature) && servicesType.isUseModel(effective(field.feature))" :title="getFeatureModel(config, field.feature)">{{ getFeatureModel(config, field.feature) }}</small>
+        </span>
+        <span class="assignment-chevron" aria-hidden="true">›</span>
       </button>
     </div>
     <section v-else class="popup-service-picker" :data-service-picker="editing.id">
@@ -24,6 +32,7 @@
         <button type="button" class="service-picker-back" :aria-label="t('featureServices.back')" @click="backToOverview">←</button>
         <strong>{{ t(`featureServices.${editing.id}`) }}</strong>
         <small v-if="editing.feature?.aiOnly">{{ t('featureServices.aiOnly') }}</small>
+        <button type="button" class="service-panel-close" :aria-label="t('common.close')" @click="$emit('close')">×</button>
       </header>
       <label class="service-picker-search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
@@ -72,6 +81,7 @@ import {searchServiceOptions, type ServiceOption} from '@/src/ui/view-model/serv
 import {useUiI18n} from '@/src/ui/i18n';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 type Field = {id: string; feature?: FeatureServiceDefinition};
+defineEmits<{close: []}>();
 const props = defineProps<{config: Config; serviceOptions: ServiceOption[]}>();
 const {t, translateLegacy} = useUiI18n();
 const query = ref('');
@@ -159,18 +169,25 @@ function warning(feature?: FeatureServiceDefinition) {
 }
 </script>
 <style scoped>
-.popup-service-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.service-assignment { display: grid; align-content: start; gap: 7px; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); color: var(--ink); text-align: left; cursor: pointer; }
-.service-assignment:hover { border-color: var(--brand); background: var(--brand-soft); }
-.default-assignment { grid-column: 1 / -1; background: var(--surface); }
-.assignment-heading { display: flex; align-items: center; justify-content: space-between; gap: 5px; font-size: 11px; }
-.assignment-heading strong { font-weight: 650; }
-.assignment-heading > span { color: var(--muted); font-size: 16px; line-height: 1; }
-.assignment-value { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 11px; }
-.assignment-value > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.service-assignment > small { color: var(--muted); font-size: 9px; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.default-assignment > small { white-space: normal; }
-.service-assignment > .assignment-warning { color: var(--brand-strong); }
+.popup-service-toolbar { position: sticky; top: 0; z-index: 1; display: flex; justify-content: flex-end; margin-bottom: 8px; background: var(--surface); }
+.service-panel-close { display: grid; place-items: center; flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; color: var(--muted); background: var(--surface-soft); font-size: 22px; cursor: pointer; }
+.service-panel-close:hover { color: var(--ink); background: var(--brand-soft); }
+.popup-service-overview { display: grid; grid-template-columns: minmax(0, 1fr); }
+.service-assignment { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) 8px; align-items: center; gap: 8px; min-width: 0; min-height: 38px; padding: 6px 8px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.service-assignment:last-child { border-bottom: 0; }
+.service-assignment:hover { border-radius: 8px; background: var(--surface-soft); }
+.default-assignment { min-height: 50px; margin-bottom: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); }
+.default-assignment:hover { border-color: var(--brand); background: var(--brand-soft); }
+.assignment-heading { min-width: 0; font-size: 11px; line-height: 1.4; }
+.assignment-heading strong { font-weight: 600; }
+.default-assignment .assignment-heading strong { font-weight: 650; }
+.assignment-details { display: grid; grid-template-columns: auto minmax(0, auto); align-items: center; justify-content: end; justify-items: end; gap: 2px 5px; min-width: 0; }
+.assignment-value { grid-column: 2; min-height: 26px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); display: flex; align-items: center; justify-content: flex-end; gap: 6px; max-width: 100%; min-width: 0; font-size: 10px; line-height: 1.4; }
+.assignment-value > span { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+.assignment-inherited { border-color: transparent; color: var(--muted); background: var(--surface-soft); }
+.assignment-details > small { grid-column: 2; max-width: 100%; overflow: hidden; color: var(--muted); font-size: 9px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.assignment-warning { grid-column: 1; grid-row: 1; display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-strong); font-size: 10px; font-weight: 600; }
+.assignment-chevron { color: var(--muted); font-size: 16px; line-height: 1; }
 .service-picker-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .service-picker-heading > strong { min-width: 0; flex: 1; font-size: 12px; }
 .service-picker-heading > small { max-width: 100px; color: var(--muted); font-size: 9px; }
@@ -181,7 +198,7 @@ function warning(feature?: FeatureServiceDefinition) {
 .service-picker-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 10px; }
 .service-picker-search input::-webkit-search-cancel-button { display: none; }
 .service-picker-search button { flex: none; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
-.service-picker-list { position: relative; max-height: clamp(140px, calc(100dvh - 300px), 230px); margin-top: 10px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.service-picker-list { position: relative; max-height: clamp(140px, calc(88dvh - 176px), 340px); margin-top: 10px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .service-choice-grid.common { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .service-choice-grid.common .service-choice { min-width: 0; padding: 6px 4px; gap: 6px; }
 .service-choice-grid.common .service-choice-copy strong { font-size: 10px; overflow-wrap: anywhere; }

@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/components/PopupLayoutPreview.vue
 文件职责：在界面设置中用真实 DOM 呈现当前 Popup 模块与快捷功能布局，帮助用户在保存前直接理解排序和显隐结果。
-主要内容：按皮肤与模块规则绘制含网页/局部操作、横向服务图标及开源胶囊的缩放 Popup，提供整块拖动、键盘排序与编辑层级反馈，并即时移除被隐藏区域，保持与实际 Popup 的展示对应。
+主要内容：按皮肤与模块规则绘制含网页/局部操作、横向服务图标及开源胶囊的缩放 Popup，提供整块拖动、键盘排序与编辑层级反馈，并即时移除被隐藏区域，让长语言标签自然换行，保持与实际 Popup 的展示对应。
 模块边界：本组件只消费外部投影后的布局数据，通过排序事件编辑布局，不读写配置或浏览器状态，也不执行 Popup 的业务行为。
 -->
 <template>
@@ -371,11 +371,10 @@ function featureGlyph(id: string): string {
 .layout-preview-languages b,
 .layout-preview-service b,
 .layout-preview-site b {
-  overflow: hidden;
   font-size: 10px;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .layout-preview-languages em,

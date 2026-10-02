@@ -1,6 +1,6 @@
 {
   "name": "FluentRead-流畅阅读",
-  "description": "An open-source browser extension for bilingual translation. 一款开源的浏览器双语翻译插件。",
+  "description": "Closer languages. A bigger world. 让语言更近，让世界更大。",
   "private": true,
   "version": "0.0.35",
   "userscriptVersion": "2.0.1",
@@ -17,6 +17,7 @@
     "build:userscript:standalone": "node scripts/testing/run-resource-safe.mjs -- node scripts/build-userscript-standalone.mjs",
     "build:obsidian": "tsc -p integrations/obsidian/tsconfig.json --noEmit && vite build --config integrations/obsidian/vite.config.ts",
     "generate:userscript-languages": "node scripts/generate-userscript-language-data.mjs",
+    "verify:brand": "node scripts/verify-brand-copy.mjs",
     "build:firefox": "node scripts/testing/run-resource-safe.mjs -- wxt build -b firefox",
     "build:thunderbird": "pnpm build:firefox && node scripts/thunderbird/package.mjs",
     "zip": "node scripts/testing/run-resource-safe.mjs -- wxt zip",

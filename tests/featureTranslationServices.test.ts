@@ -5,6 +5,21 @@ import {featureServiceDefinitions, getFeatureService, getFeatureModel, setFeatur
 
 const feature = (id: string) => featureServiceDefinitions.find(item => item.id === id)!;
 describe('按功能分配翻译服务', () => {
+    it('新配置及缺失字段统一继承，持久化后切换默认服务和模型仍联动', () => {
+        for (const config of [new Config(), normalizeConfig({}), normalizeConfig(JSON.parse(JSON.stringify(new Config())))]) {
+            for (const item of featureServiceDefinitions) {
+                expect(item.inherit).toBe(true);
+                expect(getFeatureService(config, item)).toBe('');
+            }
+            config.service = 'openai';
+            config.model.openai = customModelString;
+            config.customModel.openai = 'shared-model';
+            for (const item of featureServiceDefinitions) expect(getFeatureModel(config, item)).toBe('shared-model');
+            config.service = 'deepseek';
+            for (const item of featureServiceDefinitions) expect(getFeatureModel(config, item)).toBe(config.model.deepseek);
+        }
+    });
+
     it('旧配置继承网页默认，保留已有字幕、输入框、文档和 AI 的独立选择', () => {
         const config = normalizeConfig({service: 'google', inputBoxTranslationService: 'microsoft', videoService: 'deeplx', videoServiceDefaultMigrated: true, documentService: 'openai', writing: {service: 'openai', model: 'saved-writing'} as Config['writing']});
         for (const id of ['hover', 'selection', 'image']) expect(getFeatureService(config, feature(id))).toBe('');

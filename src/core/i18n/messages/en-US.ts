@@ -6,6 +6,7 @@
  * 并保留参数化旧文案的安全回退，支持后续翻译者继续补齐未 key 化区域。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
+import brandTaglines from './brand-taglines.json';
 import type {
 MessageCatalog} from '../types';
 import {legacyTextOverrides} from './legacy-overrides';
@@ -16,6 +17,8 @@ import {translationStatsEnglishMessages} from './translationStats';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
+    "brand.tagline": brandTaglines['en-US'],
+    "popup.translationCount": "{count} translations",
     "translationCenter.endpointMissing": "Set the custom service endpoint first.",
     "translationCenter.modelMissing": "Choose or enter a model first.",
     "translationCenter.noReady": "Configure at least one service to translate.",
@@ -1037,7 +1040,6 @@ export const enUSMessages = {
     'options.searchOpen': 'Open →',
     'options.navLabel': 'Settings categories',
     'options.aboutTitle': 'About FluentRead',
-    'options.aboutHeroTitle': 'Make bilingual reading feel natural',
     'options.aboutHeroDescription': 'FluentRead is an open-source browser translation extension that helps you understand content in other languages more naturally.',
     'options.aboutCoreExperience': 'Core experience',
     'options.aboutBornForReading': 'Built for reading',

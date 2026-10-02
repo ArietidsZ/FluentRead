@@ -1,3 +1,5 @@
+Closer languages. A bigger world.
+
 FluentRead is an open-source browser extension for bilingual translation, released under GPL-3.0. It also supports AI reading assistance.
 
 Open source and DeepSeek Harness

@@ -1,5 +1,11 @@
 # Product descriptions
 
+## Brand tagline
+
+Closer languages. A bigger world.
+
+让语言更近，让世界更大。
+
 ## One-line description
 
 FluentRead is an open-source browser extension for bilingual translation.
