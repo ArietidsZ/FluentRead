@@ -7,6 +7,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
 import brandTaglines from './brand-taglines.json';
+import googleDriveText from './google-drive.json';
 import type {
 MessageCatalog} from '../types';
 import {legacyTextOverrides} from './legacy-overrides';
@@ -17,6 +18,7 @@ import {translationStatsEnglishMessages} from './translationStats';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
+    ...googleDriveText['en-US'].messages,
     "brand.tagline": brandTaglines['en-US'],
     "popup.translationCount": "{count} translations",
     "translationCenter.endpointMissing": "Set the custom service endpoint first.",
@@ -2106,6 +2108,7 @@ const enUSLegacyTextBase: Readonly<Record<string, string>> = {
 };
 
 export const enUSLegacyText: Readonly<Record<string, string>> = {
+    ...googleDriveText['en-US'].legacy,
     "腾讯交互翻译": "Tencent TranSmart",
     "火山翻译": "Volcengine Translate",
     "免密钥网页接口，与腾讯云翻译不同": "Keyless web endpoint, separate from Tencent Cloud Translation",

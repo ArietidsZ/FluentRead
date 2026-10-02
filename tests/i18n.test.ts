@@ -83,6 +83,18 @@ describe('界面 i18n 契约', () => {
     }
   });
 
+  it('Google Drive 同步完整翻译账号状态、差异数量与隐藏凭据预览', () => {
+    for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      expect(translate('settings.drive.account', language, {email: 'tester@fixture.invalid'})).toContain('tester@fixture.invalid');
+      expect(translate('settings.drive.selectedAccount', language)).not.toMatch(/^settings\.drive\./u);
+      expect(translate('settings.drive.differences', language, {count: 23})).toContain('23');
+      expect(translate('settings.drive.lastSync', language, {time: 'fixture-time'})).toContain('fixture-time');
+      for (const source of ['Google Drive 配置同步', '立即与Google Drive同步', '未允许 Google Drive 配置数据权限，请重新同步并在 Google 授权页面允许访问配置数据。', '翻译连接与凭据（整组）', '已设置（内容隐藏）', '本机 → 云端', '云端 → 本机']) {
+        expect(translateLegacyText(source, language)).not.toBe(source);
+      }
+    }
+  });
+
   it('使用操作按钮文案表达西班牙语的停止生成', () => {
     expect(translateLegacyText('停止', 'es-ES')).toBe('Detener');
   });
