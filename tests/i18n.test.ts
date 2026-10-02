@@ -108,6 +108,17 @@ describe('界面 i18n 契约', () => {
     }
   });
 
+  it('Google Drive 操作选择、冲突处理和成功账号记录在七种语言中保留参数', () => {
+    const keys = ['previewTitle', 'switchAccount', 'cancelSync', 'downloadTitle', 'uploadTitle', 'firstMergeDescription', 'keepAllLocal', 'keepAllRemote', 'localSelected', 'remoteSelected', 'needsChoice', 'finishSync', 'chooseAction', 'enabled', 'disabled', 'stepsLabel', 'chooseStep', 'reviewStep', 'mergeQuestion', 'mergeReviewTitle', 'back', 'continue'];
+    for (const {value: language} of UI_LANGUAGE_OPTIONS) {
+      for (const key of keys) expect(translate(`settings.drive.${key}`, language)).not.toMatch(/^settings\.drive\./u);
+      expect(translate('settings.drive.lastAccount', language, {email: 'last@fixture.invalid'})).toContain('last@fixture.invalid');
+      expect(translate('settings.drive.account', language, {email: 'current@fixture.invalid'})).toContain('current@fixture.invalid');
+      for (const key of ['remaining', 'showDetails', 'showAutomatic', 'groupedContent', 'differenceCount']) expect(translate(`settings.drive.${key}`, language, {count: 123})).toContain('123');
+      expect(translate('settings.drive.choice', language, {label: 'Fixture setting'})).toContain('Fixture setting');
+    }
+  });
+
   it('使用操作按钮文案表达西班牙语的停止生成', () => {
     expect(translateLegacyText('停止', 'es-ES')).toBe('Detener');
   });

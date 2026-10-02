@@ -5,7 +5,7 @@
  * 地址、请求头、密钥和未知字段统一隐藏，普通设置展示稳定名称和值；数组整体合并。
  * 模块边界：只处理纯数据；不拥有口令、加密、存储、浏览器消息或 Google API。
  */
-import {servicesType} from './catalog';
+import {options, servicesType} from './catalog';
 import {CONFIG_CREDENTIAL_FIELDS} from './credentials';
 import {isConfiguredCustomOpenAIProvider, isCustomOpenAIProviderId, normalizeCustomOpenAIProviders} from './customOpenAI';
 import {isConfigImportValid, prepareConfigForExport} from './transfer';
@@ -149,7 +149,13 @@ const VISIBLE_FIELDS: Record<string, string> = {
     translationBackoffMaxMs: '退避最大间隔',
     translationProgressPanelEnabled: '翻译进度面板',
     inputBoxTranslationInterval: '输入框翻译触发间隔',
-
+    interfaceSkin: '界面皮肤', interfaceFont: '界面字体', interfaceVisibility: '界面栏目',
+    popupModuleOrder: '菜单栏布局顺序', popupQuickFeatureVisibility: '快捷功能卡片', popupQuickFeatureOrder: '快捷功能顺序',
+    translationAppearance: '译文外观', translationStyleProfiles: '译文样式', activeTranslationStyleProfileId: '译文样式',
+    siteAdaptation: '网站规则', alwaysTranslateDomains: '网站规则', disabledExtensionDomains: '网站规则',
+    excludedLanguages: '跳过翻译的语言', videoSubtitleAppearance: '视频字幕外观',
+    system_role: 'System 提示词', user_role: 'User 提示词', glossaryLibraries: '术语库内容',
+    contextMenuEntries: '右键菜单入口', shareCard: '双语卡片',
 };
 // 端点、路由模型与凭据一起选择，防止自动合并把某端的密钥绑定到另一端的新地址。
 const CONNECTION_FIELDS = new Set<string>([
@@ -159,6 +165,7 @@ const CONNECTION_FIELDS = new Set<string>([
     'newApiUrl', 'azureOpenaiEndpoint', 'deeplApiPlan', 'minimaxBillingPlan', 'minimaxRegion',
     'mimoBillingPlan', 'mimoRegion', 'model', 'customModel', 'documentModel', 'documentCustomModel',
 ]);
+const PRIVATE_FIELDS = new Set(['system_role', 'user_role', 'activeTranslationStyleProfileId']);
 function partition(config: DriveSyncConfig) {
     const connection: DriveSyncConfig = {};
     const settings: DriveSyncConfig = {};
@@ -173,12 +180,20 @@ function previewConnection(value: unknown): string {
     const count = Array.isArray(value.customOpenAIProviders) ? value.customOpenAIProviders.length : 0;
     return `翻译连接：${service}；自定义服务：${count}；凭据和地址已隐藏`;
 }
-function previewValue(value: unknown, sensitive: boolean): string {
+function previewValue(value: unknown, sensitive: boolean, field: string): string {
     if (value === undefined) return '已删除';
     if (value === '' || value === null || (Array.isArray(value) && value.length === 0)
         || (record(value) && Object.keys(value).length === 0)) return '空值';
     if (sensitive) return '已设置（内容隐藏）';
     if (typeof value === 'boolean') return value ? '开启' : '关闭';
+    if (typeof value === 'number') {
+        if (field === 'translationCacheMaxBytes' && Number.isFinite(value)) return `${Number((value / 1024 / 1024).toFixed(2))} MiB`;
+        if (field.endsWith('Ms') || field.endsWith('Delay') || field === 'selectionTranslatorDelay' || field === 'inputBoxTranslationInterval') return `${value} ms`;
+        if (field === 'floatingBallCollapsedOpacity' || field === 'videoSubtitleFontSize') return `${value}%`;
+    }
+    const choices = field === 'theme' ? options.theme : field === 'from' ? options.from : field === 'to' ? options.to : field === 'style' ? options.styles : [];
+    const option = choices.find(option => option.value === value);
+    if (option) return option.label;
     return JSON.stringify(value).slice(0, 160);
 }
 
@@ -187,7 +202,8 @@ export function buildDriveSyncDiff(base: DriveSyncConfig | null, local: DriveSyn
     const changes: DriveSyncChange[] = [];
     const walk = (path: string[], before: unknown, left: unknown, right: unknown, atomic = false): unknown => {
         if (driveValuesEqual(left, right)) return left;
-        if (!atomic && record(left) && record(right)) {
+        // 已知的复合偏好整体比较，避免把一组外观/站点规则拆成许多无法辨认的子字段。
+        if (!atomic && record(left) && record(right) && !(path.length === 1 && Object.hasOwn(VISIBLE_FIELDS, path[0]))) {
             const result: DriveSyncConfig = {};
             const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
             for (const key of keys) {
@@ -199,12 +215,12 @@ export function buildDriveSyncDiff(base: DriveSyncConfig | null, local: DriveSyn
         const recommended = base === null ? null : driveValuesEqual(left, before) ? 'remote'
             : driveValuesEqual(right, before) ? 'local' : null;
         const root = path[0];
-        const sensitive = atomic || path.length !== 1 || !Object.hasOwn(VISIBLE_FIELDS, root) || (typeof left === 'object' && left !== null) || (typeof right === 'object' && right !== null);
+        const sensitive = atomic || PRIVATE_FIELDS.has(root) || path.length !== 1 || !Object.hasOwn(VISIBLE_FIELDS, root) || (typeof left === 'object' && left !== null) || (typeof right === 'object' && right !== null);
         const id = String(fields.length);
         fields.push({path, local: left, remote: right, recommended});
         changes.push({
-            id, label: `${atomic ? '翻译连接与凭据（整组）' : VISIBLE_FIELDS[root] ?? '私密或自定义设置'} · ${fields.length}`,
-            sensitive, local: atomic ? previewConnection(left) : previewValue(left, sensitive), remote: atomic ? previewConnection(right) : previewValue(right, sensitive),
+            id, label: atomic ? '翻译连接与凭据（整组）' : VISIBLE_FIELDS[root] ?? '私密或自定义设置',
+            sensitive, local: atomic ? previewConnection(left) : previewValue(left, sensitive, root), remote: atomic ? previewConnection(right) : previewValue(right, sensitive, root),
             conflict: recommended === null, recommended,
         });
         return recommended === 'remote' ? right : left;

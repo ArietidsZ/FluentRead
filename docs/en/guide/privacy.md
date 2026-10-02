@@ -50,7 +50,7 @@ Only choosing the Google Drive sync action starts authorization for that operati
 
 - **Configuration:** includes API keys, OAuth tokens, authentication headers, custom request bodies, and authentication parameters in URLs. Wordbooks, conversations, and usage statistics are excluded. These OAuth tokens are your configured service credentials; the access token for Google sync is excluded from the backup.
 - **Google permissions:** only `drive.appdata`, which manages FluentRead's own hidden application data. The extension does not request access to your other Drive files, Gmail messages, or contacts. See [Google's application-data documentation](https://developers.google.com/workspace/drive/api/guides/appdata).
-- **Account information:** the selected account's Drive identifier prevents mixing configurations from different accounts. Email, when returned by Google, is used only in the preview. No separate email identity permission is requested, and sync works without an email response.
+- **Account information:** the selected account's Drive identifier prevents mixing configurations from different accounts. Email, when returned by Google, identifies the account in the preview and is saved locally with the time after successful sync, as the last synced account. No separate email identity permission is requested, and sync works without an email response.
 - **Authorization tokens:** Chrome's identity API manages them for Google API requests. Completion, failure, cancellation, or leaving settings clears the extension's identity cache. Clearing that cache does not revoke the permission in your Google account or delete a backup.
 
 The operation handles the following data. Backup access is limited to FluentRead's own hidden application data folder.
@@ -58,7 +58,7 @@ The operation handles the following data. Backup access is limited to FluentRead
 | Data category | Specific content | Purpose |
 | --- | --- | --- |
 | Configuration backup content | Translation providers and models, languages and appearance, shortcuts, website rules, glossaries, custom prompts, and the service credentials and request parameters listed above | Upload to back up settings; download to preview differences, then restore or merge settings in the direction you confirm |
-| Google account information | Drive account identifier and email address when Google returns it | The identifier prevents mixing backups from different accounts; email is only displayed in the current preview |
+| Google account information | Drive account identifier and email address when Google returns it | The identifier prevents mixing backups from different accounts; email identifies the current account and the locally saved record of the last successful sync |
 | FluentRead backup file information | File ID, name, version, modification time, and available version-check information | Locate the configuration file and check for changes during sync to avoid overwriting newer settings from another device |
 | Google access token for this operation | A short-lived authorization token obtained through Chrome's identity API | Authenticate authorized requests to Google; it is not uploaded as configuration or provided to translation services |
 
@@ -66,19 +66,21 @@ Content you enter into prompts, custom request bodies, or URLs is also part of t
 
 ### Storage and protection
 
-The backup is sent over HTTPS directly to your own Google Drive hidden application data folder as `fluentread-config.encrypted.json`. It does not pass through a FluentRead developer configuration server or appear as a regular My Drive file. The account identifier, last-sync time, and an encrypted copy used to compare changes remain in this browser.
+The backup is sent over HTTPS directly to your own Google Drive hidden application data folder as `fluentread-config.encrypted.json`. It does not pass through a FluentRead developer configuration server or appear as a regular My Drive file. The account identifier, last successfully synced account's email when returned by Google, last-sync time, and an encrypted copy used to compare changes remain in this browser.
 
 The configuration is encrypted on the device before upload using a fixed, publicly available application passphrase. You do not enter a password. **Anyone who obtains the encrypted backup can decrypt it using the public passphrase.** Access protection primarily depends on your Google account, application permissions, and device security. Protect your account, browser profile, and exported backups. Do not attach a backup or complete configuration to a public report.
 
 | Storage location | Content and retention |
 | --- | --- |
 | Your Google Drive | The encrypted configuration file remains until you delete hidden application data; successful uploads update that file |
-| This browser's extension storage | Account identifier, last-sync time, and an encrypted configuration copy for comparing changes remain until the relevant browser data is cleared or the extension is uninstalled; changing accounts rebuilds the comparison baseline |
+| This browser's extension storage | Account identifier, last successfully synced account's email when returned by Google, last-sync time, and an encrypted configuration copy for comparing changes remain until the relevant browser data is cleared or the extension is uninstalled; changing accounts rebuilds the comparison baseline, while cancellation or failure preserves the last successful record |
 | Temporary operation state | Account and file information, the confirmation preview, and its encrypted snapshot; previews are valid for 10 minutes, and completion, failure, cancellation, or leaving settings clears pending state and the authorization cache |
 
 ### Stop access and delete data
 
 Each sync requires a deliberate action. Stop initiating sync to stop further operations. To revoke permission, select FluentRead in [your Google account's third-party connections](https://myaccount.google.com/connections) and remove access. Sync then requires authorization again.
+
+Choosing **Change Google account** in the preview cancels that preview, clears the extension's identity cache, and starts account authorization again. **Cancel** ends only the current operation. Neither action signs you out of Google in your browser, deletes the cloud backup, or clears the last successful sync record.
 
 The cloud backup remains until you delete it. In Google Drive on the web, use **Settings → Manage apps → FluentRead → Options → Delete hidden app data**. Revoking access, uninstalling the browser extension, or clearing local records does not by itself delete the Drive backup. Deleting the cloud backup does not erase settings already downloaded on other devices.
 
