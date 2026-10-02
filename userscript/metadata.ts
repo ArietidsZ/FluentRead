@@ -1,3 +1,5 @@
+import brandTaglines from '../src/core/i18n/messages/brand-taglines.json';
+
 export interface UserscriptMetadataOptions {
     version: string;
     iconDataUrl?: string;
@@ -27,8 +29,9 @@ export function createUserscriptMetadata({version, iconDataUrl, requires = []}: 
         '// @name:en      FluentRead',
         '// @namespace    https://fr.unmeta.cn/',
         `// @version      ${version}`,
-        '// @description  An open-source userscript for bilingual translation. 一款开源的双语翻译用户脚本。',
-        '// @description:en An open-source userscript for bilingual translation.',
+        `// @description  ${brandTaglines['en-US']} ${brandTaglines['zh-CN']}`,
+        ...Object.entries(brandTaglines).map(([language, tagline]) =>
+            `// @description:${language === 'zh-CN' ? language : language.split('-')[0]} ${tagline}`),
         '// @author       ThinkStu',
         '// @license      GPL-3.0-only',
         '// @homepageURL  https://github.com/FluentRead/FluentRead',

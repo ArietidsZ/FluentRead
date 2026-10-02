@@ -712,6 +712,19 @@ describe('translation API request lifecycle performance', () => {
     }));
   });
 
+
+  it('video requests inherit the current webpage service and model while preserving an explicit override', async () => {
+    mocks.config.videoService = '';
+    mocks.config.service = 'mock-ai';
+    mocks.sendMessage.mockResolvedValue('字幕译文');
+    await translateVideoText('Inherited subtitle source');
+    expect(mocks.sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({serviceOverride: 'mock-ai', modelOverride: 'mock-ai-model'}));
+    mocks.config.service = 'mock';
+    mocks.config.videoService = 'mock-ai';
+    await translateVideoText('Independent subtitle source');
+    expect(mocks.sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({serviceOverride: 'mock-ai', modelOverride: 'mock-ai-model'}));
+  });
+
   it('uses independent video source language without changing webpage language', async () => {
     mocks.sendMessage.mockResolvedValue('今天是个好日子。');
     await expect(translateVideoText('오늘은 좋은 날입니다.', undefined, 'auto')).resolves.toBe('今天是个好日子。');

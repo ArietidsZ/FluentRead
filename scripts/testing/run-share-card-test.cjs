@@ -77,6 +77,29 @@ async function toggle() {const box=await page.locator('#target').boundingBox(); 
   await noPageEntry('hover paragraph translation',true); await page.screenshot({path:path.join(output,'page-without-card-entry.png')});
   await selectText(); await page.screenshot({path:path.join(output,'selection-with-card-entry.png')});
   await openCard(); assert.equal(await page.evaluate(()=>document.querySelector('#fluent-read-share-card-container').shadowRoot),null);
+  if (process.argv.includes('--multilingual-only')) {
+    await clickNode(n=>n.nodeName==='SUMMARY' && all(n,x=>x.nodeName==='#text').some(x=>x.nodeValue.includes('更多设置')));
+    const locales = ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'];
+    for (const language of locales) {
+      const source = fs.readFileSync(path.resolve('src/core/i18n/messages', language + '.ts'), 'utf8');
+      const title = JSON.parse(source.match(/"shareCard.create": (".*")/)[1].replace(/,$/, ''));
+      await patch({uiLanguage: language});
+      await wait(async () => call(await nodeBy(n => cls(n, 'fr-card-header')), 'function(){return this.querySelector("h2").textContent}') .then(text => text === title), 'localized share title');
+      for (const width of [1280, 390]) {
+        await page.setViewportSize({width, height: 900});
+        const dialog = await nodeBy(n => cls(n, 'fr-card-dialog'));
+        const layout = await call(dialog, `function(){
+          return {overflow:this.scrollWidth>this.clientWidth+1, clipped:[...this.querySelectorAll('h2,button')].filter(el=>el.checkVisibility({visibilityProperty:true})&&el.scrollWidth>el.clientWidth+1).map(el=>el.textContent.trim())};
+        }`);
+        assert.equal(layout.overflow, false, `${language} ${width}px dialog overflow`);
+        assert.deepEqual(layout.clipped, [], `${language} ${width}px share labels`);
+        await page.screenshot({path:path.join(output, `share-${language}-${width}.png`)});
+      }
+      assert.equal(await page.locator('#neighbor').innerText(), 'This neighboring paragraph must remain unchanged.');
+      report.checks.push(`${language}: complete share dialog labels at 1280/390px, host content unchanged`);
+    }
+    assert.deepEqual(report.errors, []); report.status = 'passed'; return;
+  }
   await savePreview('coral'); await page.screenshot({path:path.join(output,'studio-desktop.png')}); report.checks.push('selection entry, closed Shadow DOM, hostile CSS + image CSP, default coral preview');
   await clickNode(n=>n.nodeName==='SUMMARY' && all(n,x=>x.nodeName==='#text').some(x=>x.nodeValue.includes('编辑摘录')));
   let fields=all(await tree(),n=>n.nodeName==='TEXTAREA'); assert.equal(await call(fields[0],'function(){return this.value}'),original); assert.equal(await call(fields[1],'function(){return this.value}'),translation);

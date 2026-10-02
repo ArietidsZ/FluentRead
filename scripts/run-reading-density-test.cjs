@@ -83,6 +83,25 @@ async function main(){
   await select('#sentence');await until(()=>node(cls('fr-study-toolbar')),'learning entry missing');await clickNode(button('词性与句法'));await settled();
   report.initial=await layout();
   if(process.argv.includes('--baseline')){await shot('before');report.ok=true;return;}
+  if (process.argv.includes('--multilingual-only')) {
+    for (const language of ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES']) {
+      await patch({uiLanguage: language});
+      await wait(250);
+      for (const width of [1440, 390]) {
+        await page.setViewportSize({width, height: width === 390 ? 844 : 960}); await wait(100);
+        const clipped = await ui(function() {
+          return [...this.querySelectorAll('.fr-reading-actions button, .fr-reading-footer button, .fr-tooltip-title span')].filter(el => el.scrollWidth > el.clientWidth + 1).map(el => el.textContent.trim());
+        });
+        assert.deepEqual(clipped, [], `${language} ${width}px labels must stay complete`);
+        assert.equal((await layout()).overflow, false);
+        await shot(`reading-${language}-${width}`);
+      }
+      record(`${language}: complete reading actions at desktop and 390px, source remains unchanged`);
+      assert.equal((await layout()).sourceText.trim(), sentence);
+    }
+    assert.equal(await page.evaluate(() => document.documentElement.lang), 'en', 'host language is unchanged');
+    report.ok = true; return;
+  }
   assert.equal(report.initial.sourceCopies,0);assert.equal(report.initial.sourceText.trim(),sentence);assert(report.initial.answerHeight>=365,'too little room for the answer');assert(report.initial.tokensHeight<115,'annotations still occupy too much space');assert(report.initial.detailVisible);assert.equal(report.initial.overflow,false);
   await shot('grammar-after');record('user sentence stays in source order with no repeated original and selected details visible');
   assert.deepEqual(report.initial.labels.map(item=>item.text),['定语 · 形容词','主语 · 短语','谓语 · 动词','定语 · 形容词','宾语 · 短语']);assert(report.initial.labels.every(item=>item.visible&&!item.clipped));record('all fragment roles and word classes are visible before any click');

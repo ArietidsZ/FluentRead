@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-06T13:55:05.327Z",
+  "generatedAt": "2026-10-02T07:46:24.634Z",
   "losslessWebPixelsVerified": true,
   "rawBytes": 3930079,
   "webBytes": 1927706,
@@ -323,7 +323,7 @@
       "height": 280,
       "format": "png",
       "alpha": false,
-      "bytes": 14307
+      "bytes": 13849
     },
     {
       "file": "marketing/chrome-web-store/promo/zh-CN-marquee-1400x560.png",
@@ -333,7 +333,7 @@
       "height": 560,
       "format": "png",
       "alpha": false,
-      "bytes": 74907
+      "bytes": 74233
     },
     {
       "file": "marketing/chrome-web-store/promo/en-small-440x280.png",
@@ -343,7 +343,7 @@
       "height": 280,
       "format": "png",
       "alpha": false,
-      "bytes": 11655
+      "bytes": 13666
     },
     {
       "file": "marketing/chrome-web-store/promo/en-marquee-1400x560.png",
@@ -353,7 +353,7 @@
       "height": 560,
       "format": "png",
       "alpha": false,
-      "bytes": 74602
+      "bytes": 80561
     }
   ]
 }
