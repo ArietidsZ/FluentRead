@@ -157,7 +157,7 @@ function fixture(site, variant = '') {
     };
     assert.equal(initial.writing.referenceLanguage, 'ui');
     await patch({writing: {...initial.writing, referenceLanguage: 'off'}, uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true, disableFloatingBall: true, disableSelectionTranslator: true, disableImageTranslator: true, service: 'microsoft'});
-    await popup.reload(); await popup.getByRole('heading', {name: '网页翻译', exact: true}).waitFor(); assert.equal(await popup.getByText('写作助手', {exact: true}).count(), 0, 'popup has no writing entry'); await shot(popup, 'writing-popup-without-entry');
+    await popup.reload(); await popup.getByTestId('page-translation').waitFor(); assert.equal(await popup.getByText('写作助手', {exact: true}).count(), 0, 'popup has no writing entry'); await shot(popup, 'writing-popup-without-entry');
     let settings = await page(`${origin}/options.html#settings-writing`, 'settings');
     await settings.getByRole('heading', {name: '写作助手', exact: true}).waitFor();
     const assertSettings = async (p, defaults = false) => {
@@ -543,6 +543,13 @@ function fixture(site, variant = '') {
         await shot(p, `writing-i18n-${language}-language`);
         await click('.writing-language-picker .writing-text-button');
         await shot(p, `writing-i18n-${language}-empty`);
+        for (const width of [1440, 390]) {
+          await p.setViewportSize({width, height: width === 390 ? 844 : 1000});
+          const clipped = await panel.locator('.writing-header h2, .writing-language-bar span, .writing-title h3, .writing-preferences button, .writing-button').evaluateAll(elements => elements.filter(el => el.checkVisibility({visibilityProperty: true}) && el.scrollWidth > el.clientWidth + 1).map(el => el.textContent.trim()));
+          assert.deepEqual(clipped, [], `${language} at ${width}px: localized labels remain complete`);
+          if (width === 390) await shot(p, `writing-i18n-${language}-mobile-labels`);
+        }
+        await p.setViewportSize({width: 1440, height: 1000});
         report.cases.push(`${language}: open panel switches language, style and language controls localize, model and input stay unchanged`);
       }
       await patch({uiLanguage: 'es-ES'});
@@ -910,7 +917,7 @@ function fixture(site, variant = '') {
     for (const url of ['https://github.com/fluentread-fixture/project', 'https://github.com/fluentread-fixture/project/discussions/1', 'https://mail.google.com/settings']) { const unsupported = await page(url, 'unsupported-route'); await wait(450); assert.equal(await unsupported.locator('[data-fluent-read-ui="writing-entry"]').count(), 0); await closePage(unsupported); }
     report.cases.push('dark Issue/PR surface, 390px panel and settings without horizontal overflow and unsupported routes absent');
     }
-    await popup.reload(); await popup.getByRole('heading', {name: '网页翻译', exact: true}).waitFor(); assert.equal(await popup.getByText('写作助手', {exact: true}).count(), 0); assertPreferences((await read()).writing); report.cases.push('popup writing entry and retired preferences remain absent');
+    await popup.reload(); await popup.getByTestId('page-translation').waitFor(); assert.equal(await popup.getByText('写作助手', {exact: true}).count(), 0); assertPreferences((await read()).writing); report.cases.push('popup writing entry and retired preferences remain absent');
     report.requests = requests.map(({body, ordinal, outcome}) => ({ordinal, outcome, model: body.model, messages: body.messages, tools: body.tools, stream: body.stream}));
     assert(report.requests.every(body => body.stream === true && !JSON.stringify(body.messages).includes('PRIVATE_'))); assert.equal(responsePlans.length, 0, 'all planned fixture outcomes were consumed'); assert.equal(report.consoleErrors.length, 0, JSON.stringify(report.consoleErrors)); report.ok = true;
   } catch (error) {

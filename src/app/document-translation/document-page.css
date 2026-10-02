@@ -1,7 +1,7 @@
 /**
  * @file src/app/document-translation/document-page.css
  * 文件职责：定义文档翻译独立页面的完整布局与主题表现，使导入区、阅读器、翻译进度、格式预览和导出操作在桌面与窄屏下保持可读。
- * 主要内容：声明页面级颜色变量与暗色覆盖，设置批量文件队列、品牌头部、拖放卡片、工具栏、PDF 连续页、EPUB/DOCX 分区、字幕与 JSON 行、状态徽章、按钮、空态和响应式断点。
+ * 主要内容：声明页面级颜色变量与暗色覆盖，设置批量文件队列、品牌头部、拖放卡片、工具栏、PDF 连续页、EPUB/DOCX 分区、字幕与 JSON 行、状态徽章、可换行的多语言按钮、空态和响应式断点。
  * 模块边界：样式仅服务 DocumentApp 的 class 结构，不解析文档、不控制翻译状态，也不覆盖 content 宿主页面；跨页面基础视觉 token 仍由 src/ui/styles/tokens.css 管理。
  */
 @import "../../ui/styles/feedback.css";
@@ -308,3 +308,23 @@ input { accent-color: var(--brand); }input:focus-visible { outline: 3px solid va
 .is-workspace .document-main { flex-direction: column; }
 .is-workspace .document-batch { flex: none; }
 .batch-output { width: 110px; }
+
+/* 工具栏按可用空间换行，文案长度不再依赖中文的字数。 */
+.document-header, .header-actions { flex-wrap: wrap; }
+.header-actions { min-width: 0; max-width: 100%; margin-inline-start: auto; }
+.privacy-note { white-space: normal; line-height: 1.5; }
+.document-app :is(.ghost-button, .open-file-button, .translate-document-button, .download-button) {
+  height: auto; max-width: 100%; padding-block: 9px; white-space: normal; overflow-wrap: anywhere; line-height: 1.4;
+}
+.document-app .open-file-button { min-height: 44px; padding-inline: 16px; }
+.document-app :is(.translate-document-button, .download-button) { min-height: 40px; }
+.mode-buttons { height: auto; min-height: 38px; max-width: 100%; flex-wrap: wrap; }
+.mode-buttons button { padding-block: 6px; white-space: normal; overflow-wrap: anywhere; }
+.document-steps li { min-width: 0; }
+.document-steps li > span, .format-card b { flex: none; }
+.format-card { min-width: 0; overflow-wrap: anywhere; }
+.document-select .el-select__wrapper { padding-block: 6px; }
+@media (max-width: 760px) {
+  .document-reading-pane .reader-toolbar > .mode-buttons { flex: 1 1 100%; }
+  .document-reading-pane .reader-toolbar > .download-button { width: 100%; }
+}

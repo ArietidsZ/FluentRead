@@ -1,12 +1,12 @@
 <!--
  * @file src/features/share-card/ui/ShareCardStudio.vue
  * 文件职责：提供划词翻译结果的双语卡片编辑预览与图片导出。
- * 主要内容：原生模态对话框、品牌色分段选择与开关、八套图片风格、双语编辑及 PNG 复制、保存；固定底栏提供醒目的成功、错误和忙碌反馈，外观写回共享配置。
+ * 主要内容：让多语言导出操作完整换行，原生模态对话框、品牌色分段选择与开关、八套图片风格、双语编辑及 PNG 复制、保存；固定底栏提供醒目的成功、错误和忙碌反馈，外观写回共享配置。
  * 模块边界：组件位于封闭 Shadow UI，不读取网页正文、不调用翻译服务；渲染与导出委托独立适配器，关闭时释放 Blob URL 并使迟到渲染失效。
  -->
 <template>
   <div class="fr-card-root" @pointerdown.stop @pointerup.stop @click.stop @wheel.stop.passive>
-    <dialog ref="dialog" class="fr-card-dialog" aria-labelledby="fr-card-title" @cancel.prevent="close" @close="cleanup" @keydown.stop @pointerdown.stop @click.stop>
+    <dialog ref="dialog" class="fr-card-dialog" :lang="language" aria-labelledby="fr-card-title" @cancel.prevent="close" @close="cleanup" @keydown.stop @pointerdown.stop @click.stop>
       <template v-if="opened">
         <header class="fr-card-header">
           <div><h2 id="fr-card-title">{{ t('shareCard.create') }}</h2></div>
@@ -254,10 +254,11 @@ input:not([type=checkbox]), textarea { border-radius: 10px; background: #f7f8fb;
 .fr-card-feedback { display: flex; align-items: center; gap: 9px; margin: 0; width: 100%; padding: 10px 12px; border: 1px solid #cddff5; border-radius: 10px; background: #eaf3ff; color: #306ba3; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .fr-card-feedback.is-success { background: #eaf8f4; border-color: #bce5d8; color: #267260; } .fr-card-feedback.is-error { background: #fff0f3; border-color: #f1ccd7; color: #b1435e; }
 .fr-card-feedback svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.fr-card-export-actions { display: flex; gap: 7px; margin-left: auto; } .fr-card-export-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; }
+.fr-card-export-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-left: auto; max-width: 100%; } .fr-card-export-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; }
 .fr-card-primary { background: var(--fr-card-accent); color: #fff; border-color: var(--fr-card-accent); } .fr-card-primary:hover { background: #dc315f; border-color: #dc315f; } .fr-card-local-note { color: #858997; font-size: 10px; } .fr-card-fallback { flex-basis: 100%; margin: 0; font-size: 11px; color: #747b8b; }
 .fr-card-spinner { display: inline-block; width: 14px; height: 14px; flex: none; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: fr-card-spin .8s linear infinite; } @keyframes fr-card-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .fr-card-spinner { animation: none; } input[type=checkbox], input[type=checkbox]::before { transition: none; } }
-@media (max-width: 460px) { .fr-card-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 12px; } .fr-card-header { padding: 12px 16px; } .fr-card-preview { padding: 0 14px 4px; } .fr-card-controls { padding: 12px 14px 6px; } .fr-card-footer { padding: 12px 14px; } .fr-card-local-note { width: 100%; } .fr-card-export-actions { width: 100%; } .fr-card-export-actions button { flex: 1; white-space: nowrap; } }
+@media (max-width: 460px) { .fr-card-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 12px; } .fr-card-header { padding: 12px 16px; } .fr-card-preview { padding: 0 14px 4px; } .fr-card-controls { padding: 12px 14px 6px; } .fr-card-footer { padding: 12px 14px; } .fr-card-local-note { width: 100%; } .fr-card-export-actions { width: 100%; } .fr-card-export-actions button { flex: 1; min-width: 0; min-height: 36px; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; } }
+@media (max-width: 460px) { .fr-card-dialog:not(:lang(zh)) .fr-card-options-row { grid-template-columns: 1fr; } }
 @media (max-width: 380px) { .fr-card-options-row { grid-template-columns: 1fr; } }
 </style>

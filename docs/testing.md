@@ -159,6 +159,12 @@ pnpm test:userscript:manager -- \
 
 生产包构建后运行 `node scripts/testing/run-select-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-select-ui-production`，在临时 Edge profile 的后台可见窗口中检查选择、搜索、键盘操作、关闭菜单、保存重开、多选与禁用状态，以及桌面、窄屏和深色菜单截图。测试只使用临时配置，不调用翻译服务，也不证明真实服务质量。完整扩展 UI 回归仍使用 UI 测试技能的 `run-ui-test.cjs --suite full`，失败时区分控件回归与旧页面断言。
 
+## 多语言界面布局
+
+生产包构建后运行 `node scripts/testing/run-multilingual-layout-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-multilingual-ui`。专项在独立后台 Edge 中检查七种语言的所有设置分类、Popup 与快捷抽屉、文档导入和工作区，在 1280px 与 390px 下检查完整控件文字和横向溢出。等待实际语言资源渲染后才计入检查；用户正文、代码和可滚动区域不作为标签裁切。Popup 底部不展示宣传语。共用选择器的受影响范围使用 `scripts/testing/run-select-ui-test.cjs --controls-only`，覆盖搜索、键盘选择、点击外部关闭、重开保存以及皮肤与窄屏菜单。
+
+阅读面板使用 `scripts/run-reading-density-test.cjs --multilingual-only`，写作助手使用 `scripts/testing/run-writing-assistant-test.cjs --suite i18n,presentation`，参数同上。分享卡片使用 `scripts/testing/run-share-card-test.cjs --multilingual-only` 检查七种语言标题、按钮与宿主内容保持。上述页面内面板使用本地确定性回答，检查七种语言、窄屏及用户输入保持，不代表真实服务质量或 Firefox 运行结果。`scripts/testing/run-popup-actions-service-ui-test.cjs --density-only --layout-only` 只检查皮肤、主题、语言和快捷抽屉布局，避免进入打开完整设置的浏览器窗口操作。
+
 ## 公告优先与关闭后续译
 
 专项 case：`tests/fixtures/modal-first-translation.html` 和 `scripts/testing/run-modal-first-translation-test.cjs`。运行前生成生产扩展，再使用临时 Edge profile、第二屏正常尺寸后台窗口和 focus-safe helper：

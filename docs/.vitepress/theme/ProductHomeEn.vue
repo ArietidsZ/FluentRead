@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { withBase } from 'vitepress'
+import brandTaglines from '../../../src/core/i18n/messages/brand-taglines.json'
 const chrome =
   'https://chromewebstore.google.com/detail/djnlaiohfaaifbibleebjggkghlmcpcj'
 </script>
@@ -17,6 +18,7 @@ const chrome =
       />
       <p class="product-eyebrow">Open-source browser extension</p>
       <h1 id="product-title">FluentRead</h1>
+      <p class="product-tagline">{{ brandTaglines['en-US'] }}</p>
       <p class="product-intro">
         A browser extension for bilingual webpages, selection translation, AI
         reading assistance, and image, document, and subtitle translation.

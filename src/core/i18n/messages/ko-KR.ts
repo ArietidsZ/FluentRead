@@ -5,6 +5,7 @@
  * 主要内容：保持语言名称使用各自原生写法，并为尚未 key 化的旧 UI 提供韩语映射。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
+import brandTaglines from './brand-taglines.json';
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
@@ -15,6 +16,8 @@ import {translationStatsKoreanMessages} from './translationStats';
 import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
+    "brand.tagline": brandTaglines['ko-KR'],
+    "popup.translationCount": "번역 {count}회",
     "translationCenter.endpointMissing": "먼저 사용자 지정 서비스 주소를 설정하세요.",
     "translationCenter.modelMissing": "먼저 모델을 선택하거나 입력하세요.",
     "translationCenter.noReady": "번역하려면 하나 이상의 서비스를 설정하세요.",
@@ -822,7 +825,6 @@ export const koKRMessages = {
     'options.searchOpen': '열기 →',
     'options.navLabel': '설정 카테고리',
     'options.aboutTitle': 'FluentRead 정보',
-    'options.aboutHeroTitle': '이중 언어 읽기를 자연스럽게',
     'options.aboutHeroDescription': 'FluentRead는 다른 언어의 콘텐츠를 더 자연스럽게 이해하도록 돕는 오픈 소스 브라우저 번역 확장 프로그램입니다.',
     'options.aboutCoreExperience': '핵심 경험',
     'options.aboutBornForReading': '읽기를 위해 만들어졌습니다',

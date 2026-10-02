@@ -1,7 +1,7 @@
 ---
 layout: home
 markdownStyles: false
-title: Open-source browser extension for bilingual translation
+title: Closer languages. A bigger world.
 ---
 
 <ProductHomeEn />

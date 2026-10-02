@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/components/SettingsItem.vue
 文件职责：统一单条设置的标签、辅助说明和操作控件布局，使长配置页面保持清晰的阅读节奏与对齐关系。
-主要内容：支持常规双列和 stacked 单列模式、禁用视觉状态、可替换的说明区与控制区插槽，以及窄屏下从横向到纵向的响应式排列。
+主要内容：支持常规双列和 stacked 单列模式、禁用视觉状态、可替换的说明区与控制区插槽、长文案与多控件自然换行，以及窄屏下从横向到纵向的响应式排列。
 模块边界：本组件只处理展示和插槽排版，不拥有字段值、不触发持久化；只有独立开关行将文案区点击转发给原控件，其禁用与键盘行为仍由原控件处理。
 -->
 <template>
@@ -58,6 +58,7 @@ withDefaults(defineProps<{
   min-width: 0;
   flex-direction: column;
   gap: 3px;
+  overflow-wrap: anywhere;
 }
 
 .settings-item-copy :deep(strong) {
@@ -77,6 +78,8 @@ withDefaults(defineProps<{
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
   min-width: 0;
 }
 
