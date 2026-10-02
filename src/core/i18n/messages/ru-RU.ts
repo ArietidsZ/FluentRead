@@ -6,7 +6,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
 import brandTaglines from './brand-taglines.json';
-import googleDriveText from './google-drive.json';
+import googleDriveText from './google-drive/ru-RU.json';
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
@@ -17,7 +17,7 @@ import {translationStatsRussianMessages} from './translationStats';
 import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
-    ...googleDriveText['ru-RU'].messages,
+    ...googleDriveText.messages,
     "brand.tagline": brandTaglines['ru-RU'],
     "popup.translationCount": "Переводов: {count}",
     "translationCenter.endpointMissing": "Сначала укажите адрес пользовательского сервиса.",
@@ -2110,7 +2110,7 @@ const ruRULegacyTextBase: Readonly<Record<string, string>> = {
 };
 
 export const ruRULegacyText: Readonly<Record<string, string>> = {
-    ...googleDriveText['ru-RU'].legacy,
+    ...googleDriveText.legacy,
     "腾讯交互翻译": "Tencent TranSmart",
     "火山翻译": "Перевод Volcengine",
     "免密钥网页接口，与腾讯云翻译不同": "Веб-интерфейс без ключа, отдельно от Tencent Cloud Translation",

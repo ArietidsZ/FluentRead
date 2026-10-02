@@ -7,7 +7,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；翻译服务的源文本、目标文本和用户内容不属于这里。
  */
 import brandTaglines from './brand-taglines.json';
-import googleDriveText from './google-drive.json';
+import googleDriveText from './google-drive/zh-CN.json';
 import type {
 MessageCatalog} from '../types';
 import {localTtsChineseMessages} from './localTts';
@@ -15,7 +15,7 @@ import {translationStatsChineseMessages} from './translationStats';
 import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
-    ...googleDriveText['zh-CN'].messages,
+    ...googleDriveText.messages,
     "brand.tagline": brandTaglines['zh-CN'],
     "popup.translationCount": "已完成 {count} 次翻译",
     "translationCenter.endpointMissing": "请先填写自定义服务的接口地址。",
