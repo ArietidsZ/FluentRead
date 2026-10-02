@@ -1,5 +1,11 @@
 # 产品介绍
 
+## 品牌宣传语
+
+让语言更近，让世界更大。
+
+Closer languages. A bigger world.
+
 ## 一句话介绍
 
 FluentRead-流畅阅读是一款开源的浏览器双语翻译插件。

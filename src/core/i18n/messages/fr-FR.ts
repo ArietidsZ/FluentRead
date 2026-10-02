@@ -5,6 +5,7 @@
  * 主要内容：保持语言名称使用各自原生写法，并为尚未 key 化的旧 UI 提供法语映射。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
+import brandTaglines from './brand-taglines.json';
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
@@ -15,6 +16,8 @@ import {translationStatsFrenchMessages} from './translationStats';
 import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
+    "brand.tagline": brandTaglines['fr-FR'],
+    "popup.translationCount": "{count} traductions",
     "translationCenter.endpointMissing": "Renseignez d’abord l’adresse du service personnalisé.",
     "translationCenter.modelMissing": "Choisissez ou saisissez d’abord un modèle.",
     "translationCenter.noReady": "Configurez au moins un service pour traduire.",
@@ -822,7 +825,6 @@ export const frFRMessages = {
     'options.searchOpen': 'Ouvrir →',
     'options.navLabel': 'Catégories de réglages',
     'options.aboutTitle': 'À propos de FluentRead',
-    'options.aboutHeroTitle': 'La lecture bilingue, naturellement',
     'options.aboutHeroDescription': 'FluentRead est une extension de traduction open source qui vous aide à comprendre plus naturellement les contenus dans d’autres langues.',
     'options.aboutCoreExperience': 'Expérience principale',
     'options.aboutBornForReading': 'Pensé pour la lecture',
