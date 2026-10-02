@@ -5,6 +5,7 @@
  * 主要内容：保持语言名称使用各自原生写法，并为尚未 key 化的旧 UI 提供俄语映射。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
+import brandTaglines from './brand-taglines.json';
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
@@ -15,6 +16,7 @@ import {translationStatsRussianMessages} from './translationStats';
 import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
+    "brand.tagline": brandTaglines['ru-RU'],
     "translationCenter.endpointMissing": "Сначала укажите адрес пользовательского сервиса.",
     "translationCenter.modelMissing": "Сначала выберите или введите модель.",
     "translationCenter.noReady": "Настройте хотя бы один сервис для перевода.",
@@ -822,7 +824,6 @@ export const ruRUMessages = {
     'options.searchOpen': 'Открыть →',
     'options.navLabel': 'Категории настроек',
     'options.aboutTitle': 'О FluentRead',
-    'options.aboutHeroTitle': 'Двуязычное чтение становится естественным',
     'options.aboutHeroDescription': 'FluentRead — браузерное расширение с открытым исходным кодом, которое помогает естественнее понимать контент на других языках.',
     'options.aboutCoreExperience': 'Основные возможности',
     'options.aboutBornForReading': 'Создано для чтения',

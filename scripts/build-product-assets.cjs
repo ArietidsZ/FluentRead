@@ -8,12 +8,16 @@ const arg = (name, fallback) => {
   return i < 0 ? fallback : process.argv[i + 1]
 }
 const root = path.resolve(__dirname, '..')
+const brandTaglines = require('../src/core/i18n/messages/brand-taglines.json')
 const runtime = createRequire(
   path.join(arg('runtime', process.env.PLAYWRIGHT_ROOT), 'product-assets.cjs')
 )
 const sharp = runtime('sharp')
 const { chromium } = runtime('playwright')
-const entries = []
+const promoOnly = process.argv.includes('--promo-only')
+const entries = promoOnly
+  ? JSON.parse(fs.readFileSync(path.join(root, 'marketing/asset-manifest.json'), 'utf8')).entries.filter(entry => entry.kind !== 'chrome-promo')
+  : []
 const record = async (file, source, kind) => {
   const m = await sharp(file).metadata()
   entries.push({
@@ -28,7 +32,7 @@ const record = async (file, source, kind) => {
   })
 }
 const mkdir = (p) => fs.mkdirSync(p, { recursive: true })
-;(async () => {
+async function buildScreenshotAssets() {
   const names = [
     'translation',
     'selection',
@@ -115,13 +119,16 @@ const mkdir = (p) => fs.mkdirSync(p, { recursive: true })
       path.join(root, 'docs/public/screenshots', name + '.webp'),
       path.join(root, 'misc/screenshots', name + '.webp')
     )
-  const logo = path.join(root, 'assets/brand/icon-512.png')
   const icon = path.join(root, 'marketing/chrome-web-store/icon-128.png')
   // The current icon already includes its own transparent surround. Preserve its approved artwork.
   await sharp(path.join(root, 'public/icon/128.png'))
     .png({ compressionLevel: 9 })
     .toFile(icon)
   await record(icon, path.join(root, 'public/icon/128.png'), 'chrome-icon')
+}
+;(async () => {
+  if (!promoOnly) await buildScreenshotAssets()
+  const logo = path.join(root, 'assets/brand/icon-512.png')
   const promo = path.join(root, 'marketing/chrome-web-store/promo')
   mkdir(promo)
   const browser = await chromium.launch({
@@ -158,7 +165,7 @@ const mkdir = (p) => fs.mkdirSync(p, { recursive: true })
         }px;line-height:1.13;letter-spacing:-.04em;margin:${
           kind === 'small' ? '22px 0 0' : '30px 0 20px'
         };font-weight:750}p{font-size:17px;color:#ffe5ef;letter-spacing:.01em;line-height:1.6}.screen{width:auto;max-width:560px;max-height:430px;height:auto;border:6px solid #ffffff35;border-radius:14px;box-shadow:0 20px 55px #520f2840}</style><div class="canvas"><div><div class="brand"><img src="${logoData}" alt="">FluentRead</div><h1>${
-          en ? 'Bilingual<br>translation' : '浏览器<br>双语翻译'
+          brandTaglines[en ? 'en-US' : 'zh-CN'].replace(en ? '. ' : '，', en ? '.<br>' : '，<br>')
         }</h1>${
           kind === 'marquee'
             ? `<p>${

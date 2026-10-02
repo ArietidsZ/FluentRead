@@ -6,6 +6,7 @@
  * 现有中文用户在切换或升级配置后仍看到兼容文案。
  * 模块边界：资源只描述扩展自己的界面文本；翻译服务的源文本、目标文本和用户内容不属于这里。
  */
+import brandTaglines from './brand-taglines.json';
 import type {
 MessageCatalog} from '../types';
 import {localTtsChineseMessages} from './localTts';
@@ -13,6 +14,7 @@ import {translationStatsChineseMessages} from './translationStats';
 import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
+    "brand.tagline": brandTaglines['zh-CN'],
     "translationCenter.endpointMissing": "请先填写自定义服务的接口地址。",
     "translationCenter.modelMissing": "请先选择或填写一个模型。",
     "translationCenter.noReady": "请先配置至少一个服务，再开始翻译。",
@@ -1034,7 +1036,6 @@ export const zhCNMessages = {
     'options.searchOpen': '打开 →',
     'options.navLabel': '设置分类',
     'options.aboutTitle': '关于流畅阅读',
-    'options.aboutHeroTitle': '让双语阅读自然发生',
     'options.aboutHeroDescription': '流畅阅读是一款开源浏览器翻译插件，帮助你在阅读网页时更自然地理解不同语言的内容。',
     'options.aboutCoreExperience': '核心体验',
     'options.aboutBornForReading': '为阅读而生',
