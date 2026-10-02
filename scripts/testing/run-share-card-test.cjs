@@ -32,8 +32,27 @@ async function patch(patch) {const c = await config(); const r = await message({
 async function ready() {return wait(async()=>{const n=find(await tree(),x=>cls(x,'fr-card-primary')); return n && !(await call(n,'function(){return this.disabled}'));},'ready image');}
 async function imageData() {const root=await tree(); const host=find(root,n=>attr(n,'id')==='fluent-read-share-card-container'); const canvas=find(host,n=>n.nodeName==='CANVAS'); assert(canvas); return call(canvas, 'function(){return {data:this.toDataURL(),width:this.width,height:this.height}}');}
 async function savePreview(name) {await ready(); const data=await imageData(); fs.writeFileSync(path.join(output, name+'.png'),Buffer.from(data.data.split(',')[1],'base64')); return data;}
-async function hoverTranslation() {await page.locator('#target .fluent-read-bilingual-content').hover(); await nodeBy(n=>cls(n,'fr-card-launcher'));}
-async function openCard() {await hoverTranslation(); await clickNode(n=>cls(n,'fr-card-launcher')); await ready();}
+async function noPageEntry(label, translated = false) {
+ await page.locator(translated ? '#target .fluent-read-bilingual-content' : '#target').hover();
+ await page.locator('#target').focus();
+ await page.waitForTimeout(350);
+ assert(!find(await tree(),n=>cls(n,'fr-card-launcher')), label+' has no page launcher');
+ assert.equal(await page.locator('#fluent-read-share-card-container').count(),0,label+' does not mount studio');
+ report.checks.push(label+': no page launcher or studio after trusted hover and focus');
+}
+async function selectText() {
+ const positions=await page.locator('#target').evaluate(el=>{const node=el.firstChild;const first=document.createRange();first.setStart(node,0);first.setEnd(node,1);const last=document.createRange();last.setStart(node,node.length-1);last.setEnd(node,node.length);const a=first.getBoundingClientRect(),b=last.getBoundingClientRect();return {x1:a.left,y1:a.top+a.height/2,x2:b.right,y2:b.top+b.height/2};});
+ await page.mouse.move(positions.x1,positions.y1); await page.mouse.down(); await page.mouse.move(positions.x2,positions.y2,{steps:20}); await page.mouse.up();
+ await nodeBy(n=>cls(n,'fr-selection-indicator'));
+ assert(!find(await tree(),n=>cls(n,'fr-share-card-entry')),'selection before translation has no card entry');
+ await clickNode(n=>cls(n,'fr-selection-indicator')); await nodeBy(n=>cls(n,'fr-share-card-entry'));
+ assert(!find(await tree(),n=>cls(n,'fr-card-launcher')),'selection result has no page launcher');
+}
+async function openCard() {
+ if (!find(await tree(),n=>cls(n,'fr-share-card-entry'))) await selectText();
+ await clickNode(n=>cls(n,'fr-share-card-entry')); await ready();
+}
+async function fullToggle() {await page.keyboard.press('Alt+t');}
 async function closeCard() {await clickNode(n=>cls(n,'fr-card-close')); await wait(async()=>!find(await tree(),n=>cls(n,'fr-card-primary')), 'closed');}
 async function toggle() {const box=await page.locator('#target').boundingBox(); await page.mouse.click(box.x+20,box.y+12); await page.keyboard.down('Control'); await page.keyboard.up('Control');}
 (async()=>{
@@ -46,13 +65,19 @@ async function toggle() {const box=await page.locator('#target').boundingBox(); 
   await install(worker); context.on('serviceworker',w=>void install(w));
   const extensionId=worker.url().split('/')[2];
   popup=await focus.newPageWithoutForeground(context); await popup.goto(`chrome-extension://${extensionId}/popup.html`); await popup.locator('.popup-shell[data-config-ready="true"]').waitFor();
-  await patch({uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,on:true,service:'microsoft',useCache:false,display:1,from:'auto',to:'zh-Hans',hotkey:'Control',disableSelectionTranslator:false,selectionTranslatorMode:'bilingual',selectionTranslatorTrigger:'icon',selectionTranslatorDelay:0});
-  await context.route('https://example.com/**',r=>r.fulfill({status:200,contentType:'text/html',headers:{'content-security-policy':"img-src 'none'; object-src 'none'"},body:`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Reading notes</title><style>body{margin:0;background:#f5f5f0;font:22px/1.9 Georgia;color:#26352c} main{max-width:700px;margin:100px auto}h1{font-size:30px}button{font-size:90px!important;background:red!important}dialog{color:red!important}#neighbor{margin-top:100px}</style></head><body><main><h1>A small reading moment</h1><p id="target">${original}</p><p id="neighbor">This neighboring paragraph must remain unchanged.</p></main></body></html>`}));
+  await patch({uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,on:true,service:'microsoft',useCache:false,display:1,from:'auto',to:'zh-Hans',hotkey:'Control',floatingBallHotkey:'Alt+T',disableSelectionTranslator:false,selectionTranslatorMode:'bilingual',selectionTranslatorTrigger:'icon',selectionTranslatorDelay:0});
+  await context.route('https://example.com/**',r=>r.fulfill({status:200,contentType:'text/html',headers:{'content-security-policy':"img-src 'none'; object-src 'none'"},body:`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Reading notes</title><style>body{margin:0;background:#f5f5f0;font:22px/1.9 Georgia;color:#26352c} main{max-width:700px;margin:100px auto}h1{font-size:30px}button{font-size:90px!important;background:red!important}dialog{color:red!important}#neighbor{margin-top:100px}</style></head><body><main><h1>A small reading moment</h1><p id="target" tabindex="0">${original}</p><p id="neighbor">This neighboring paragraph must remain unchanged.</p></main></body></html>`}));
   page=await focus.newPageWithoutForeground(context); page.on('pageerror',e=>report.errors.push(e.message)); await page.goto('https://example.com/private/article?token=secret#note'); await page.locator('#fluent-read-page-styles').waitFor({state:'attached'}); session=await context.newCDPSession(page);
   session.on('Runtime.executionContextCreated', ({context}) => executionContexts.push(context)); await session.send('Runtime.enable');
+  await noPageEntry('ordinary browsing');
+  await fullToggle(); await page.locator('#target .fluent-read-bilingual-content').waitFor(); await page.locator('#neighbor .fluent-read-bilingual-content').waitFor();
+  await noPageEntry('full-page translation',true);
+  await fullToggle(); await wait(()=>page.locator('.fluent-read-bilingual-content').count().then(n=>n===0),'full-page restore');
   await toggle(); await page.locator('#target .fluent-read-bilingual-content').waitFor(); assert.equal(await page.locator('#target .fluent-read-bilingual-content').innerText(),translation); assert.equal(await page.locator('#neighbor .fluent-read-bilingual-content').count(),0);
+  await noPageEntry('hover paragraph translation',true); await page.screenshot({path:path.join(output,'page-without-card-entry.png')});
+  await selectText(); await page.screenshot({path:path.join(output,'selection-with-card-entry.png')});
   await openCard(); assert.equal(await page.evaluate(()=>document.querySelector('#fluent-read-share-card-container').shadowRoot),null);
-  await savePreview('coral'); await page.screenshot({path:path.join(output,'studio-desktop.png')}); report.checks.push('paragraph entry, closed Shadow DOM, hostile CSS + image CSP, default coral preview');
+  await savePreview('coral'); await page.screenshot({path:path.join(output,'studio-desktop.png')}); report.checks.push('selection entry, closed Shadow DOM, hostile CSS + image CSP, default coral preview');
   await clickNode(n=>n.nodeName==='SUMMARY' && all(n,x=>x.nodeName==='#text').some(x=>x.nodeValue.includes('编辑摘录')));
   let fields=all(await tree(),n=>n.nodeName==='TEXTAREA'); assert.equal(await call(fields[0],'function(){return this.value}'),original); assert.equal(await call(fields[1],'function(){return this.value}'),translation);
   await clickNode(n=>n.nodeName==='SUMMARY' && all(n,x=>x.nodeName==='#text').some(x=>x.nodeValue.includes('更多设置')));
@@ -120,9 +145,10 @@ async function toggle() {const box=await page.locator('#target').boundingBox(); 
   await toggle(); await wait(()=>page.locator('#target .fluent-read-bilingual-content').count().then(n=>n===0),'restore'); await toggle(); await page.locator('#target .fluent-read-bilingual-content').waitFor(); assert.equal(await page.locator('#target .fluent-read-bilingual-content').count(),1); report.checks.push('translate / restore / retranslate [1,0,1], no adjacent paragraph change');
   // 通过真实拖选打开划词结果，再验证它复用同一个工作台。
   await toggle(); await wait(()=>page.locator('#target .fluent-read-bilingual-content').count().then(n=>n===0),'restore before selection');
-  const positions=await page.locator('#target').evaluate(el=>{const node=el.firstChild;const first=document.createRange();first.setStart(node,0);first.setEnd(node,1);const last=document.createRange();last.setStart(node,node.length-1);last.setEnd(node,node.length);const a=first.getBoundingClientRect(),b=last.getBoundingClientRect();return {x1:a.left,y1:a.top+a.height/2,x2:b.right,y2:b.top+b.height/2};});
-  await page.mouse.move(positions.x1,positions.y1); await page.mouse.down(); await page.mouse.move(positions.x2,positions.y2,{steps:20}); await page.mouse.up();
-  await clickNode(n=>cls(n,'fr-selection-indicator')); await nodeBy(n=>cls(n,'fr-share-card-entry')); await clickNode(n=>cls(n,'fr-share-card-entry')); await ready(); await closeCard(); assert(find(await tree(),n=>cls(n,'fr-translation-tooltip'))); report.checks.push('selection result entry, close preserves translation result');
+  await selectText(); await openCard(); await closeCard(); assert(find(await tree(),n=>cls(n,'fr-translation-tooltip'))); report.checks.push('selection result entry, close preserves translation result');
+  await patch({selectionTranslatorMode:'translation-only'}); assert.equal((await config()).selectionTranslatorMode,'translation-only');
+  await page.reload(); await page.locator('#fluent-read-page-styles').waitFor({state:'attached'}); await noPageEntry('translation-only mode ordinary browsing'); await selectText(); await openCard(); await closeCard();
+  assert(find(await tree(),n=>cls(n,'fr-translation-tooltip'))); report.checks.push('translation-only selection result also opens studio');
   await patch({on:false}); await page.locator('#fluent-read-share-card-container').waitFor({state:'detached'}); report.checks.push('disable removes UI');
   assert.deepEqual(report.errors,[]); report.status='passed';
  }catch(error){report.status='failed';report.error=String(error.stack||error);if(session){const n=find(await tree(),n=>attr(n,'id')==='fluent-read-share-card-container'); if(n)report.uiText=await call(n,'function(){return this.textContent}').catch(()=>null);const feedback=find(await tree(),n=>cls(n,'fr-card-feedback')); if(feedback)report.feedback=await call(feedback,'function(){return this.textContent}');}if(page)await page.screenshot({path:path.join(output,'failure.png')}).catch(()=>{});process.exitCode=1;}
