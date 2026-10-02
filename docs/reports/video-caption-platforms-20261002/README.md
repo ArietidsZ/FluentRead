@@ -36,13 +36,19 @@ YouTube 从当前视频初始化数据选择人工目标轨并读取 timedtext�
 
 证据见 [配置与覆盖率归属基线日志](./baseline-config-ownership.txt)、[模块边界基线日志](./baseline-module-boundaries.txt)。基线另有视频 runtime 长度超过 1887 行的失败；本次抽出字幕下载后降至 1886 行，该项已通过，未提高限制或改写失败断言。
 
+## 合并前复验
+
+合入主分支 `c3e705b4a4e3cb3cbd2538791836ad8cbd7fb5c4` 后保留最新的视频服务跟随网页默认行为及多语言布局，并重新生成组合后的语言资源。18 个直接相关测试文件共 1300 项通过，4 项失败。新增的第 4 项是主分支 `scripts/verify-brand-copy.mjs` 未登记验证归属；四项失败均在同一主分支独立检出复现。基线还有 runtime 长度失败，本次分支已解决。见 [合并前测试](./merge-targeted-tests.txt) 与 [当前主分支基线](./merge-baseline.txt)。
+
+合并后再次通过类型检查、审计、Chrome / Firefox / userscript / 文档构建及产物验证；三个新增业务模块四维覆盖率仍为 100%。六个平台生产扩展夹具、设置持久化与双语 SRT 导出重新通过，浏览器报告及截图已更新为此次复验结果。未运行全量回归，实际账号与在线供应商证据范围保持不变。
+
 ## 使用限制与证据边界
 
 本次没有登录真实会议、付费课程或 Disney+ 账号；受控夹具通过不能证明所有账号、地区与播放器版本都兼容。平台需先提供可用字幕，人工字幕轨也需允许页面读取。人工轨不可读取时回退到原生字幕文字翻译。Zoom 仅识别 `/wc/` 网页客户端；浏览器扩展不控制会议桌面客户端，也不为这些平台采集音频或生成缺失字幕。
 
-平台字幕的前提条件可参阅 [Google Meet](https://support.google.com/meet/answer/15077804)、[Teams](https://support.microsoft.com/en-us/teams/meetings/use-live-captions-in-microsoft-teams-meetings)、[Zoom](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0059762)。实际服务供应商、Firefox 运行时和远程 userscript 安装未在本次验证中证明。userscript 新语言资源在本地提交 `9bcfe981acab00ea7729533486f9e00d74b55f2b`，需随分支发布后才能从远程地址读取；本次构建使用本地资源校验。
+平台字幕的前提条件可参阅 [Google Meet](https://support.google.com/meet/answer/15077804)、[Teams](https://support.microsoft.com/en-us/teams/meetings/use-live-captions-in-microsoft-teams-meetings)、[Zoom](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0059762)。实际服务供应商、Firefox 运行时和远程 userscript 安装未在本次验证中证明。合并后的 userscript 新语言资源固定到首次包含完整资源的提交 `ab35e56d2a87081d3972aa99aa3cbed29345930f`，构建已完成本地资源校验。
 
-改动保存在分支 `codex/video-caption-platforms-20261002` 的独立 worktree，尚未上传或合并。依赖复用主检出的本地安装，不属于全新依赖安装验证。
+本报告记录分支 `codex/video-caption-platforms-20261002` 的验证，当前合并状态以对应 PR 为准。依赖复用主检出的本地安装，不属于全新依赖安装验证。
 
 ## 截图与导出
 
