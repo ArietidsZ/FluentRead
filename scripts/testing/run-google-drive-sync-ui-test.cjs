@@ -41,7 +41,7 @@ async function main() {
         const card = page.locator('[data-testid="google-drive-sync"]');
         await card.waitFor({state: 'visible'});
         await card.getByText('Google Drive 同步目前支持 Chrome 扩展', {exact: false}).waitFor();
-        check(await page.locator('[data-testid="google-drive-connect"]').count() === 0, 'Edge explicitly shows unsupported native OAuth');
+        check(await page.locator('[data-testid="google-drive-sync-now"]').count() === 0, 'Edge explicitly shows unsupported native OAuth');
 
         // 夹具只修改本次临时 profile 的 worker，不授权或访问任何真实账号。
         await worker.evaluate(() => {
@@ -76,13 +76,17 @@ async function main() {
             };
         });
         await page.reload({waitUntil: 'domcontentloaded'});
-        await page.locator('[data-testid="google-drive-connect"]').waitFor();
+        await page.locator('[data-testid="google-drive-sync-now"]').waitFor();
         check(await worker.evaluate(() => globalThis.__driveFixture.authorizations === 0), 'opening settings never requests interactive authorization');
-        await page.locator('[data-testid="google-drive-connect"]').click();
-        await page.locator('[data-testid="google-drive-preview"]').waitFor();
-        check(await card.locator('input[type="password"]').count() === 0, 'connected account never asks for a passphrase');
-        await page.locator('[data-testid="google-drive-preview"]').click();
+        check(await card.getByRole('button', {name: '立即与Google Drive同步', exact: true}).isVisible(), 'disconnected card has the immediate Google Drive sync action');
+        check(!(await card.innerText()).includes('固定应用口令') && !(await card.innerText()).includes('隐藏应用数据区'), 'card omits the two removed technical paragraphs');
+        const disconnected = path.join(artifactsDir, 'sync-disconnected-desktop.png');
+        await page.screenshot({path: disconnected}); report.screenshots.push(disconnected);
+        await page.locator('[data-testid="google-drive-sync-now"]').click();
         await page.locator('.el-dialog').waitFor();
+        check(await worker.evaluate(() => globalThis.__driveFixture.authorizations === 1), 'one sync click connects and opens preview with one authorization');
+        check(await card.getByRole('button', {name: '立即与Google Drive同步', exact: true}).count() === 1, 'connected card keeps the same immediate sync action');
+        check(await card.locator('input[type="password"]').count() === 0, 'connected account never asks for a passphrase');
         check(await worker.evaluate(() => globalThis.__driveFixture.uploads === 0), 'preview has no cloud write');
         check(await page.locator('.el-dialog input[type="password"]').count() === 0, 'first upload needs no passphrase confirmation');
         check(await page.locator('[data-testid="google-drive-confirm"]').isEnabled(), 'first upload is ready after explicit preview');
@@ -102,8 +106,9 @@ async function main() {
             check(response.success === true, `real background config persistence ${sequence}${response.success ? '' : `: ${response.error}`}`);
         }
         await savePatch({to: 'fr', token: {openai: 'fixture-private-api-key'}, apiKeys: {openai: ['fixture-private-api-key']}, customBody: {openai: '{"auth":"fixture-private-body"}'}, proxy: {openai: 'https://fixture.invalid/?key=fixture-private-url'}}, 1);
-        await page.locator('[data-testid="google-drive-preview"]').click();
+        await page.locator('[data-testid="google-drive-sync-now"]').click();
         await page.locator('.drive-change').first().waitFor();
+        check(await worker.evaluate(() => globalThis.__driveFixture.authorizations === 1), 'connected sync does not repeat interactive authorization');
         const dialog = page.locator('.el-dialog');
         check(!(await dialog.innerText()).includes('fixture-private'), 'preview masks private keys, bodies and URLs');
         await dialog.getByText('本机 → 云端', {exact: true}).click();
@@ -133,11 +138,11 @@ async function main() {
             envelope.ciphertext = (envelope.ciphertext[0] === 'A' ? 'B' : 'A') + envelope.ciphertext.slice(1);
             state.content = JSON.stringify(envelope);
         });
-        await page.locator('[data-testid="google-drive-preview"]').click();
+        await page.locator('[data-testid="google-drive-sync-now"]').click();
         await card.getByText('同步文件无法解密', {exact: false}).waitFor();
         check((await page.evaluate(() => chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}))).value.to === 'de', 'corrupted cloud file leaves local configuration unchanged');
         await worker.evaluate(() => {globalThis.__driveFixture.content = globalThis.__driveFixture.originalContent;});
-        await page.locator('[data-testid="google-drive-preview"]').click();
+        await page.locator('[data-testid="google-drive-sync-now"]').click();
         await dialog.getByText('云端 → 本机', {exact: true}).click();
         check(await dialog.getByRole('radio', {name: '云端 → 本机', exact: true}).isChecked(), 'download direction has checked radio state');
         await page.locator('[data-testid="google-drive-confirm"]').click();
@@ -149,13 +154,13 @@ async function main() {
         const hiddenState = await page.evaluate(() => chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:googleDriveEncryptedSyncState'}));
         check(hiddenState.success === false, 'private sync state is excluded from public storage proxy');
         await page.reload({waitUntil: 'domcontentloaded'});
-        await page.locator('[data-testid="google-drive-preview"]').waitFor();
+        await page.locator('[data-testid="google-drive-sync-now"]').waitFor();
         check(await card.locator('input[type="password"]').count() === 0, 'reopening settings still requires no passphrase');
         const screenshot = path.join(artifactsDir, 'encrypted-sync-desktop.png');
         await page.screenshot({path: screenshot}); report.screenshots.push(screenshot);
         await page.locator('button[data-section="settings-general"]').click();
         await page.locator('button[data-section="settings-data"]').click();
-        await page.locator('[data-testid="google-drive-preview"]').waitFor();
+        await page.locator('[data-testid="google-drive-sync-now"]').waitFor();
         check(await card.locator('input[type="password"]').count() === 0, 'returning to backup panel requires no passphrase');
         await page.setViewportSize({width: 390, height: 900});
         await activateExtensionTabWithoutForeground(context, page);
@@ -165,7 +170,7 @@ async function main() {
         await savePatch({uiLanguage: 'en-US', uiLanguageSetupCompleted: true}, 3);
         await page.reload({waitUntil: 'domcontentloaded'});
         await card.getByRole('heading', {name: 'Google Drive configuration sync', exact: true}).waitFor();
-        check(await card.getByRole('button', {name: 'Preview sync', exact: true}).isVisible(), 'English sync controls are translated');
+        check(await card.getByRole('button', {name: 'Sync with Google Drive now', exact: true}).isVisible(), 'English sync controls are translated');
         check(!(await card.innerText()).match(/[\u3400-\u9fff]/u), 'English sync card contains no Chinese source copy');
         check(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), '390px English settings has no horizontal overflow');
         const english = path.join(artifactsDir, 'encrypted-sync-english-mobile.png');

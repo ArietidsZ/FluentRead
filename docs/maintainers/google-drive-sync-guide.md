@@ -43,13 +43,15 @@ sequenceDiagram
     participant B as 扩展后台
     participant C as Chrome Identity
     participant G as Google Drive
-    U->>S: 点击连接 Google 账号
-    S->>B: 连接请求
-    B->>C: getAuthToken(interactive=true)
-    C-->>U: 登录与权限确认
-    C-->>B: 短期访问令牌
-    U->>S: 请求同步预览
-    S->>B: 预览请求
+    U->>S: 点击立即与Google Drive同步
+    opt 尚未连接 Google 账号
+        S->>B: 连接请求
+        B->>C: getAuthToken(interactive=true)
+        C-->>U: 登录与权限确认
+        C-->>B: 短期访问令牌
+        B-->>S: 连接成功
+    end
+    S->>B: 自动请求同步预览
     B->>B: 自动使用固定应用口令
     B->>G: 读取隐藏应用配置
     B->>B: 读取完整本机配置、解密云端、生成差异
@@ -62,7 +64,7 @@ sequenceDiagram
     B-->>S: 同步完成
 ```
 
-打开设置页只做非交互状态检查。登录与权限窗口由“连接 Google 账号”按钮触发；加密上传还需要单独预览和确认。Google 身份 API 在 Chrome 中管理短期令牌及缓存；401 时清除失效缓存并只重试一次，账号变化则停止本次操作。[Chrome Identity](https://developer.chrome.com/docs/extensions/reference/api/identity)
+打开设置页只做非交互状态检查。点击“立即与Google Drive同步”后，未连接时先显示登录与权限窗口，连接成功后自动生成预览；确认预览后才会上传或应用配置。Google 身份 API 在 Chrome 中管理短期令牌及缓存；401 时清除失效缓存并只重试一次，账号变化则停止本次操作。[Chrome Identity](https://developer.chrome.com/docs/extensions/reference/api/identity)
 
 ## 4 配置存在用户自己的云盘哪里
 
@@ -220,15 +222,15 @@ manifest 由 WXT 回调在加载环境变量后生成，包含 `identity` 权限
 电脑 A：
 
 1. 打开 FluentRead 设置 → **备份与恢复 → 备份与导入**。
-2. 在 Google Drive 配置同步卡片点击 **连接 Google 账号**，完成 Google 的授权。
-3. 确认显示的账号正确，点击 **预览同步**，无需输入口令。
+2. 在 Google Drive 配置同步卡片点击 **立即与Google Drive同步**，首次使用时完成 Google 的授权。
+3. 连接后自动打开同步预览，确认显示的账号正确，无需输入口令。
 4. 云端为空时确认 **本机 → 云端**，检查同步范围。
 5. 点击 **加密并上传**，等待同步完成及上次同步时间更新。
 
 电脑 B：
 
-1. 连接同一个 Google 账号，无需输入口令。
-2. 请求预览，选择 **云端 → 本机**。
+1. 点击 **立即与Google Drive同步**，连接同一个 Google 账号，无需输入口令。
+2. 在自动打开的预览中选择 **云端 → 本机**。
 3. 核对隐藏内容的差异摘要，确认替换本机配置与凭据。
 4. 打开翻译服务页检查已恢复的连接信息，再验证你自己的实际服务请求。
 

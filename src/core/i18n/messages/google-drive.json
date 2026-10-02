@@ -28,10 +28,8 @@
       "包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。": "Includes API keys, OAuth tokens, authentication headers, custom request bodies, and authentication parameters in URLs. Syncs configuration only; excludes wordbooks, conversations, and usage statistics.",
       "正在检查同步状态…": "Checking sync status…",
       "尚未连接 Google 账号": "No Google account connected",
-      "预览同步": "Preview sync",
-      "连接 Google 账号": "Connect Google account",
+      "立即与Google Drive同步": "Sync with Google Drive now",
       "断开连接": "Disconnect",
-      "文件保存在 Google Drive 的隐藏应用数据区。断开连接会清除扩展授权缓存，并保留本机设置与云端文件。": "Files are stored in Drive’s hidden application data folder. Disconnecting clears the extension identity cache and keeps local settings and the cloud file.",
       "确认 Google Drive 同步": "Confirm Google Drive sync",
       "云端还没有同步文件。本次将创建加密的完整配置快照。": "There is no cloud file yet. This will create an encrypted complete configuration snapshot.",
       "这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。": "This device has no sync baseline for this account. Choose a direction. Downloading replaces local configuration and credentials.",
@@ -64,7 +62,6 @@
       "已删除": "Deleted",
       "空值": "Empty",
       "同步未完成，请重试。": "Sync did not complete. Try again.",
-      "使用固定应用口令自动加密，无需输入。此口令随源码公开；云端文件的访问保护依赖 Google 账号和授权。": "Automatically encrypts with a fixed application passphrase; no input needed. This passphrase is public in the source code. Access to the cloud file is protected by your Google account and authorization.",
       "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "The sync file cannot be decrypted or is damaged. Check the cloud backup; device settings have not changed."
     }
   },
@@ -85,10 +82,8 @@
       "包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。": "API キー、OAuth トークン、認証ヘッダー、カスタムリクエスト本文、URL の認証パラメータを含みます。設定のみを同期し、単語帳、会話履歴、利用統計は含みません。",
       "正在检查同步状态…": "同期状態を確認中…",
       "尚未连接 Google 账号": "Google アカウント未接続",
-      "预览同步": "同期をプレビュー",
-      "连接 Google 账号": "Google アカウントを接続",
+      "立即与Google Drive同步": "今すぐGoogle Driveと同期",
       "断开连接": "接続解除",
-      "文件保存在 Google Drive 的隐藏应用数据区。断开连接会清除扩展授权缓存，并保留本机设置与云端文件。": "ファイルは Drive の非表示アプリデータ領域に保存されます。接続解除で拡張機能の認証キャッシュが消去され、端末の設定とクラウドファイルは保持されます。",
       "确认 Google Drive 同步": "Google Drive 同期の確認",
       "云端还没有同步文件。本次将创建加密的完整配置快照。": "クラウドファイルはまだありません。暗号化された設定全体のスナップショットを作成します。",
       "这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。": "この端末でこのアカウントを初めて同期します。方向を選択してください。ダウンロードすると端末の設定と認証情報を置き換えます。",
@@ -121,7 +116,6 @@
       "已删除": "削除済み",
       "空值": "空",
       "同步未完成，请重试。": "同期が完了しませんでした。再試行してください。",
-      "使用固定应用口令自动加密，无需输入。此口令随源码公开；云端文件的访问保护依赖 Google 账号和授权。": "固定アプリパスフレーズで自動暗号化します。入力は不要です。この値はソースコードで公開されています。クラウドファイルへのアクセスは Google アカウントと認可で保護されます。",
       "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "同期ファイルを復号できないか、破損しています。クラウドバックアップを確認してください。端末の設定は変更されていません。"
     }
   },
@@ -142,10 +136,8 @@
       "包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。": "API 키, OAuth 토큰, 인증 헤더, 사용자 지정 요청 본문 및 URL의 인증 매개변수를 포함합니다. 설정만 동기화하며 단어장, 대화 기록, 사용 통계는 제외합니다.",
       "正在检查同步状态…": "동기화 상태 확인 중…",
       "尚未连接 Google 账号": "연결된 Google 계정 없음",
-      "预览同步": "동기화 미리 보기",
-      "连接 Google 账号": "Google 계정 연결",
+      "立即与Google Drive同步": "지금 Google Drive와 동기화",
       "断开连接": "연결 해제",
-      "文件保存在 Google Drive 的隐藏应用数据区。断开连接会清除扩展授权缓存，并保留本机设置与云端文件。": "파일은 Drive의 숨겨진 앱 데이터 영역에 저장됩니다. 연결 해제 시 확장 프로그램의 인증 캐시가 삭제되며 기기 설정과 클라우드 파일은 유지됩니다.",
       "确认 Google Drive 同步": "Google Drive 동기화 확인",
       "云端还没有同步文件。本次将创建加密的完整配置快照。": "아직 클라우드 파일이 없습니다. 전체 설정의 암호화된 스냅샷을 만듭니다.",
       "这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。": "이 기기에서 이 계정을 처음 동기화합니다. 방향을 선택하세요. 다운로드하면 기기 설정과 인증 정보를 교체합니다.",
@@ -178,7 +170,6 @@
       "已删除": "삭제됨",
       "空值": "빈 값",
       "同步未完成，请重试。": "동기화가 완료되지 않았습니다. 다시 시도하세요.",
-      "使用固定应用口令自动加密，无需输入。此口令随源码公开；云端文件的访问保护依赖 Google 账号和授权。": "고정 앱 암호문으로 자동 암호화하며 입력이 필요 없습니다. 이 암호문은 소스 코드에 공개됩니다. 클라우드 파일 접근은 Google 계정과 권한으로 보호됩니다.",
       "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "동기화 파일을 복호화할 수 없거나 손상되었습니다. 클라우드 백업을 확인하세요. 기기 설정은 변경되지 않았습니다."
     }
   },
@@ -199,10 +190,8 @@
       "包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。": "Inclut les clés API, jetons OAuth, en-têtes d’authentification, corps de requête personnalisés et paramètres d’authentification des URL. Synchronise uniquement les réglages, sans carnet de mots, conversations ni statistiques.",
       "正在检查同步状态…": "Vérification de la synchronisation…",
       "尚未连接 Google 账号": "Aucun compte Google connecté",
-      "预览同步": "Aperçu de la synchronisation",
-      "连接 Google 账号": "Connecter un compte Google",
+      "立即与Google Drive同步": "Synchroniser avec Google Drive maintenant",
       "断开连接": "Déconnecter",
-      "文件保存在 Google Drive 的隐藏应用数据区。断开连接会清除扩展授权缓存，并保留本机设置与云端文件。": "Le fichier est stocké dans l’espace de données caché de l’application dans Drive. La déconnexion efface le cache d’autorisation de l’extension et conserve les réglages locaux ainsi que le fichier du cloud.",
       "确认 Google Drive 同步": "Confirmer la synchronisation Google Drive",
       "云端还没有同步文件。本次将创建加密的完整配置快照。": "Aucun fichier dans le cloud. Une copie chiffrée de tous les réglages sera créée.",
       "这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。": "Première synchronisation de ce compte sur cet appareil. Choisissez un sens. Le téléchargement remplace les réglages et identifiants locaux.",
@@ -235,7 +224,6 @@
       "已删除": "Supprimé",
       "空值": "Vide",
       "同步未完成，请重试。": "Synchronisation inachevée. Réessayez.",
-      "使用固定应用口令自动加密，无需输入。此口令随源码公开；云端文件的访问保护依赖 Google 账号和授权。": "Chiffrement automatique avec une phrase secrète fixe, sans saisie. Cette valeur est publique dans le code source. L’accès au fichier du cloud est protégé par votre compte Google et son autorisation.",
       "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "Le fichier est indéchiffrable ou endommagé. Vérifiez la sauvegarde du cloud ; les réglages locaux n’ont pas changé."
     }
   },
@@ -256,10 +244,8 @@
       "包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。": "Включает ключи API, токены OAuth, заголовки авторизации, пользовательские тела запросов и параметры авторизации в URL. Синхронизируются только настройки, без словаря, переписки и статистики.",
       "正在检查同步状态…": "Проверка состояния синхронизации…",
       "尚未连接 Google 账号": "Аккаунт Google не подключён",
-      "预览同步": "Предпросмотр синхронизации",
-      "连接 Google 账号": "Подключить аккаунт Google",
+      "立即与Google Drive同步": "Синхронизировать с Google Drive сейчас",
       "断开连接": "Отключить",
-      "文件保存在 Google Drive 的隐藏应用数据区。断开连接会清除扩展授权缓存，并保留本机设置与云端文件。": "Файл хранится в скрытой области данных приложения в Drive. Отключение очищает кэш авторизации расширения, сохраняя локальные настройки и облачный файл.",
       "确认 Google Drive 同步": "Подтвердить синхронизацию Google Drive",
       "云端还没有同步文件。本次将创建加密的完整配置快照。": "В облаке ещё нет файла. Будет создан зашифрованный снимок всех настроек.",
       "这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。": "Это первая синхронизация данного аккаунта на устройстве. Выберите направление. Загрузка заменит локальные настройки и учётные данные.",
@@ -292,7 +278,6 @@
       "已删除": "Удалено",
       "空值": "Пусто",
       "同步未完成，请重试。": "Синхронизация не завершена. Повторите попытку.",
-      "使用固定应用口令自动加密，无需输入。此口令随源码公开；云端文件的访问保护依赖 Google 账号和授权。": "Автоматическое шифрование с фиксированной фразой приложения, без ввода. Эта фраза открыта в исходном коде. Доступ к облачному файлу защищён аккаунтом Google и разрешениями.",
       "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "Файл синхронизации не расшифровывается или повреждён. Проверьте облачную копию; локальные настройки не изменены."
     }
   },
@@ -313,10 +298,8 @@
       "包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数。仅同步配置，不包含单词本、聊天记录和用量统计。": "Incluye claves API, tokens OAuth, cabeceras de autenticación, cuerpos de solicitud personalizados y parámetros de autenticación en URL. Solo sincroniza ajustes; excluye vocabulario, conversaciones y estadísticas.",
       "正在检查同步状态…": "Comprobando la sincronización…",
       "尚未连接 Google 账号": "Ninguna cuenta de Google conectada",
-      "预览同步": "Vista previa de sincronización",
-      "连接 Google 账号": "Conectar cuenta de Google",
+      "立即与Google Drive同步": "Sincronizar con Google Drive ahora",
       "断开连接": "Desconectar",
-      "文件保存在 Google Drive 的隐藏应用数据区。断开连接会清除扩展授权缓存，并保留本机设置与云端文件。": "El archivo se guarda en el área oculta de datos de la aplicación en Drive. Al desconectar se borra la caché de autorización de la extensión y se conservan los ajustes locales y el archivo del cloud.",
       "确认 Google Drive 同步": "Confirmar sincronización con Google Drive",
       "云端还没有同步文件。本次将创建加密的完整配置快照。": "Todavía no hay archivo en el cloud. Se creará una copia cifrada de todos los ajustes.",
       "这是本机首次同步此账号，请明确选择同步方向。下载会替换本机的配置及凭据。": "Primera sincronización de esta cuenta en este dispositivo. Elige una dirección. La descarga reemplaza los ajustes y credenciales locales.",
@@ -349,7 +332,6 @@
       "已删除": "Eliminado",
       "空值": "Vacío",
       "同步未完成，请重试。": "La sincronización no se completó. Inténtalo de nuevo.",
-      "使用固定应用口令自动加密，无需输入。此口令随源码公开；云端文件的访问保护依赖 Google 账号和授权。": "Cifrado automático con una frase fija de la aplicación, sin introducirla. Esta frase es pública en el código fuente. El acceso al archivo del cloud se protege con tu cuenta de Google y su autorización.",
       "同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。": "No se puede descifrar el archivo o está dañado. Revisa la copia del cloud; los ajustes locales no han cambiado."
     }
   }
