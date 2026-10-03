@@ -13,6 +13,7 @@ import {Config} from '@/src/core/config/model';
 import * as selectionCore from '@/src/features/selection-translation/core';
 import * as harness from '@/src/core/config/harness';
 import * as runtimeMessages from '@/src/platform/browser/runtimeMessages';
+import * as detect from '@/src/core/language/detect';
 import * as wordNormalization from '@/src/features/selection-translation/services/wordNormalization';
 
 vi.mock('webextension-polyfill', () => ({default: {}}));
@@ -68,6 +69,7 @@ function mountSelection() {
         '@/src/features/selection-translation/core': selectionCore,
         '@/src/features/selection-translation/services/wordNormalization': wordNormalization,
         '@/src/core/config/harness': harness,
+        '@/src/core/language/detect': detect,
         '@/src/features/share-card/public': {isShareCardMounted: () => false},
         '@/src/features/selection-translation/content/selectionTtsContentController': {
             createSelectionTtsContentController: () => ({stop: stopTts}),
@@ -203,4 +205,22 @@ describe('SelectionTranslator lifecycle after extension reload', () => {
         expect(fixture.state.wordCardError).toBe('');
         expect(fixture.state.isWordCardSupportLoading).toBe(false);
     });
+});
+
+it('keeps an existing ordinary translation running when opening the learning view', async () => {
+    const fixture = mountSelection();
+    fixture.config.harness.enabled = true;
+    fixture.state.selectionConfigVersion += 1;
+    await Vue.nextTick();
+    const pending = new AbortController();
+    fixture.state.snapshot = {text: 'Practice helps.', range: {}, parts: [{kind: 'text', text: 'Practice helps.'}]};
+    fixture.state.readingSelection = {text: 'Practice helps.', context: '', sentence: 'Practice helps.'};
+    fixture.state.activeContentRequest = {text: 'Practice helps.', generation: 1, sourceLanguage: 'auto', targetLanguage: 'zh-Hans'};
+    fixture.state.translationAbortController = pending;
+    fixture.state.isLoading = true;
+    fixture.state.openReadingCard();
+    expect(fixture.state.readingMode).toBe(true);
+    expect(pending.signal.aborted).toBe(false);
+    fixture.unmount();
+    expect(pending.signal.aborted).toBe(true);
 });

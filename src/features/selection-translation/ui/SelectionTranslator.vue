@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏词书、双语分享卡片、重试和关闭。
- * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果。
+ * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；学习视图保留原文和普通译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -47,7 +47,7 @@
         <button v-else type="button" @click="openSelectionSettings">配置 AI 讲解</button>
       </div>
       <div v-if="readingSelection" v-show="readingMode" class="fr-tooltip-content fr-reading-content">
-        <ReadingPanel ref="reading-panel-ref" :selection="readingSelection" :preferences="readingPreferences" :active="readingMode" :initial-action="readingInitialAction" :history-only="readingHistoryOnly" :source-language="selectionSettings.from" :target-language="selectionSettings.to" :playing-source-text="isPlaying && currentAudioKind === 'source' ? currentAudioText : ''" :model-revision="readingModelRevision" :vocabulary-enabled="config.vocabularyBookEnabled" :private-context="isPrivateContext" :animations="config.animations" @play-source="toggleAudio($event, 'source')" @source-change="stopAudio()" @resize="schedulePositionUpdate" />
+        <ReadingPanel ref="reading-panel-ref" :selection="readingSelection" :source-translation="{source: selectedText, text: translationResult, pending: isLoading, error}" :preferences="readingPreferences" :active="readingMode" :initial-action="readingInitialAction" :history-only="readingHistoryOnly" :source-language="selectionSettings.from" :target-language="selectionSettings.to" :playing-source-text="isPlaying && currentAudioKind === 'source' ? currentAudioText : ''" :model-revision="readingModelRevision" :vocabulary-enabled="config.vocabularyBookEnabled" :private-context="isPrivateContext" :animations="config.animations" @play-source="toggleAudio($event, 'source')" @source-change="stopAudio()" @resize="schedulePositionUpdate" />
       </div>
       <div v-show="!readingMode" class="fr-tooltip-content" aria-live="polite">
         <div v-if="isLoading && !translationResult && !wordCard && !wordCardError && !(cardMode && isWordSelection)" class="fr-loading-state"><span :class="['fr-loading-spinner', { 'fr-static': !config.animations }]" aria-hidden="true" /><span>正在查询…</span></div>
@@ -788,7 +788,7 @@ function openTooltip(forced = false): void {
   showTooltip.value = true;
   readingMode.value = false;
   tooltipStyle.value = {left: tooltipStyle.value.left, top: tooltipStyle.value.top, visibility: wasVisible ? 'visible' : 'hidden'};
-  if (!wasVisible || error.value || !activeContentRequest.value || (!translationResult.value && !isWordCardVisible.value)) void requestSelectionContent(snapshot.value.text);
+  if (!wasVisible || error.value || !activeContentRequest.value || (!translationResult.value && !isLoading.value && !isWordCardVisible.value)) void requestSelectionContent(snapshot.value.text);
   schedulePositionUpdate();
 }
 
@@ -849,7 +849,9 @@ function openReadingCard(): void {
   if (shouldSkipChineseSelection(snapshot.value.text, config.to)) { hideAll(); return; }
   cancelSelectionPresentation();
   cancelSelectionLoss();
-  translationAbortController?.abort();
+  if (!activeContentRequest.value || error.value || (!translationResult.value && !isLoading.value)) {
+    void requestTranslation(beginSelectionContentRequest(snapshot.value.text));
+  }
   stopAudio();
   if (!readingSelection.value) {
     readingSelection.value = captureReadingSelection(snapshot.value.range, snapshot.value.text,

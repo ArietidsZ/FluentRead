@@ -13,18 +13,22 @@ const output = path.resolve(arg('artifacts-dir'));
 const extensionDir = path.resolve(arg('extension-dir'));
 const {chromium} = createRequire(path.join(arg('playwright-root'), 'package.json'))('playwright');
 const helper = require(path.resolve(arg('focus-safe-helper')));
-const source = 'Custom Mode Supports manual grouping of filament.';
+const grammarOnly = process.argv.includes('--grammar-only');
+const source = 'Every language offers a new way to see the world.';
+const translation = '每一种语言，都带来一种看世界的新方式。';
+let translationDelay = 0;
 const grammar = `### 词性与句法
 | Text | POS | Role | Meaning |
 | --- | --- | --- | --- |
-| Custom Mode | noun phrase | subject | 自定义模式 |
-| Supports | verb | predicate | 支持 |
-| manual | adjective | modifier | 手动的 |
-| grouping | noun | object | 分组 |
-| of filament | preposition | modifier | 耗材的 |
+| Every language | noun phrase | subject | 每一种语言 |
+| offers | verb | predicate | 带来 |
+| a new way | noun phrase | object | 一种新方式 |
+| to see the world | infinitive phrase | postmodifier | 看世界的 |
 `;
+const meaning = '### 大意\n每一种语言，都带来一种看世界的新方式。\n\n### 关键点\n语言提供了理解世界的新视角。';
 const report = {ok:false, cases:[], screenshots:[], consoleErrors:[], translationRequests:0,
-  evidence:'Production extension in isolated Edge. Real local dictionary; deterministic online dictionary, translation and AI fixtures. No live provider quality claim.'};
+  scope:grammarOnly?'grammar and bilingual reading source':'word feedback, grammar and bilingual reading source',
+  evidence:grammarOnly?'Production extension in isolated Edge; deterministic translation and AI fixtures. No live provider quality claim.':'Production extension in isolated Edge. Real local dictionary; deterministic online dictionary, translation and AI fixtures. No live provider quality claim.'};
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 let session, context, worker, server, popup, page;
 let browserPid;
@@ -78,10 +82,12 @@ async function main() {
     if(req.url==='/translate') {
       report.translationRequests++;const texts=JSON.parse(body);
       if(texts.some(text=>text.includes('in between')))await wait(1_800);
-      res.writeHead(200,{'content-type':'application/json'}).end(JSON.stringify(texts.map(text=>({translations:[{text:text==='between'?'在……之间':text===source?'自定义模式支持手动分组耗材。':'测试译文',to:'zh-Hans'}]}))));return;
+      if(texts.includes(source)&&translationDelay)await wait(translationDelay);
+      res.writeHead(200,{'content-type':'application/json'}).end(JSON.stringify(texts.map(text=>({translations:[{text:text==='between'?'在……之间':text===source?translation:'测试译文',to:'zh-Hans'}]}))));return;
     }
     res.writeHead(200,{'content-type':'text/event-stream','access-control-allow-origin':'*'});
-    for(const content of grammar.match(/[\s\S]{1,40}/g)) {
+    const answer = body.includes('Text | POS | Role | Meaning') ? grammar : meaning;
+    for(const content of answer.match(/[\s\S]{1,40}/g)) {
       res.write('data: '+JSON.stringify({id:'fixture',choices:[{index:0,delta:{content},finish_reason:null}]})+'\n\n');
       await wait(20);
     }
@@ -130,6 +136,7 @@ async function main() {
     assert(page,'helper initial background tab missing');guardFocus();
     page.on('pageerror',error=>report.consoleErrors.push(error.message));
     await page.goto('https://example.com/');await page.locator('#fluent-read-selection-translator-container').waitFor({state:'attached'});
+    if(!grammarOnly) {
     await select('between');await until(()=>node(cls('fr-word-meaning')),'local dictionary missing');
     assert(await node(cls('fr-word-support-loading')),'raw card was blocked by auxiliary translation');
     assert.equal(await node(cls('fr-word-card-loading')),null);await capture('local-result-before-support');
@@ -157,20 +164,45 @@ async function main() {
     await mode('stall');await select('zzqoldrequest');await select('between');await until(()=>node(cls('fr-word-meaning')),'new selection missing');
     await wait(2_700);assert(support.cdpText(await node(cls('fr-word-heading'))).includes('between'));assert.equal(await node(cls('fr-word-fallback-note')),null);
     await page.keyboard.press('Escape');await wait(100);assert.equal(await node(cls('fr-translation-tooltip')),null);pass('late lookup cannot overwrite new selection or reopen a closed card');
+    }
     await select(source,'#sentence');
-    await until(async()=>{const n=await node(cls('fr-translation-result'));return n&&support.cdpText(n).includes('自定义模式支持');},'sentence translation missing');
+    await until(async()=>{const n=await node(cls('fr-translation-result'));return n&&support.cdpText(n).includes(translation);},'sentence translation missing');
     await wait(150);
     await clickNode(n=>n.nodeName==='BUTTON'&&support.cdpText(n).trim()==='词性与句法');
-    await until(async()=>{const n=await node(cls('fr-sentence-tokens'));return n&&support.cdpText(n).includes('Custom Mode');},'grammar annotations missing');
+    await until(async()=>{const n=await node(cls('fr-sentence-tokens'));return n&&support.cdpText(n).includes('Every language');},'grammar annotations missing');
     const labels=()=>inspect(cls('fr-sentence-tokens'),'function(){return Array.from(this.querySelectorAll("button"),button=>({label:button.querySelector(".fr-sentence-token-meta").textContent,title:button.title}));}');
     assert.equal(await node(cls('fr-reading-error')),null,'fixture AI response did not complete');
-    assert.deepEqual((await labels()).map(item=>item.label),['名词短语','动词','形容词','名词','介词']);
+    assert.deepEqual((await labels()).map(item=>item.label),['主语 · 名词短语','谓语 · 动词','宾语 · 名词短语','后置定语 · 不定式短语']);
     assert((await labels()).every(item=>!/subject|predicate|object|modifier/.test(item.title)));await capture('grammar-chinese');
-    await patch({uiLanguage:'en-US'});await until(async()=>(await labels())[0].label==='noun phrase','English labels missing');
-    assert.deepEqual((await labels()).map(item=>item.label),['noun phrase','verb','adjective','noun','preposition']);await capture('grammar-english');
+
+    const sourceState=()=>inspect(cls('fr-reading-result'),'function(){const body=this.querySelector(".fr-reading-body"),source=this.querySelector(".fr-reading-source"),area=this.getBoundingClientRect();return {original:source.querySelector("p").textContent,translation:source.querySelector(".fr-reading-translation p")?.textContent,scrollTop:this.scrollTop,bodyOffset:body.offsetTop,bodyTop:body.getBoundingClientRect().top-area.top,hostScroll:scrollY};}');
+    const assertAnswerPosition=async()=>{await until(async()=>{const state=await sourceState();return state.scrollTop>0&&Math.abs(state.bodyTop)<4;},'answer not positioned after bilingual source');assert.equal((await sourceState()).hostScroll,0);};
+    const revealSource=async()=>{await clickNode(n=>n.nodeName==='SUMMARY'&&n.attributes?.includes('更多操作'));await clickNode(n=>n.nodeName==='BUTTON'&&support.cdpText(n).trim()==='查看原文');await until(async()=>(await sourceState()).scrollTop===0,'source shortcut did not reveal bilingual content');};
+    await assertAnswerPosition();
+    await clickNode(n=>n.nodeName==='BUTTON'&&support.cdpText(n).trim()==='读懂');
+    await until(async()=>{const n=await node(cls('fr-reading-answer'));return n&&support.cdpText(n).includes('语言提供了理解世界');},'meaning answer missing');
+    await assertAnswerPosition();await revealSource();
+    const bilingual=await sourceState();assert.equal(bilingual.original,source);assert.equal(bilingual.translation,translation);
+    await capture('reading-source-and-translation');pass('meaning starts at the explanation and retains the source and translation above it',{bilingual});
+    await clickNode(n=>n.nodeName==='BUTTON'&&support.cdpText(n).trim()==='句法');await assertAnswerPosition();
+    await patch({uiLanguage:'en-US'});await until(async()=>(await labels())[0].label==='subject · noun phrase','English labels missing');
+    assert.deepEqual((await labels()).map(item=>item.label),['subject · noun phrase','predicate · verb','object · noun phrase','postmodifier · infinitive phrase']);await capture('grammar-english');
     await patch({uiLanguage:'zh-CN',theme:'dark'});await page.setViewportSize({width:390,height:800});await wait(250);
     const fit=await inspect(cls('fr-translation-tooltip'),'function(){const b=this.getBoundingClientRect();return {left:b.left,right:b.right,viewport:innerWidth};}');
-    assert(fit.left>=0&&fit.right<=fit.viewport+1);await capture('grammar-chinese-dark-390');pass('grammar chips show only localized parts of speech in Chinese and English; narrow dark layout fits',{fit});
+    assert(fit.left>=0&&fit.right<=fit.viewport+1);await capture('grammar-chinese-dark-390');pass('grammar groups match the reference with localized role and POS labels; narrow dark layout fits',{fit});
+
+    await patch({theme:'light'});await page.setViewportSize({width:1440,height:960});
+    translationDelay=1_500;
+    await select(source,'#sentence');
+    await clickNode(n=>n.nodeName==='BUTTON'&&support.cdpText(n).trim()==='读懂');
+    await assertAnswerPosition();
+    await until(async()=>(await sourceState()).translation===translation,'ordinary translation was cancelled by learning');
+    await assertAnswerPosition();pass('entering meaning before translation completes keeps translation running and answer aligned');
+    await select(source,'#sentence');
+    await clickNode(n=>n.nodeName==='BUTTON'&&support.cdpText(n).trim()==='读懂');
+    await assertAnswerPosition();await revealSource();
+    await until(async()=>(await sourceState()).translation===translation,'late translation missing in source view');
+    assert.equal((await sourceState()).scrollTop,0);await capture('reading-late-translation');pass('late translation preserves a manual return to the bilingual source');
     assert.equal(await page.locator('#neighbor').innerText(),'The host page stays readable.');assert.equal(report.consoleErrors.length,0);
     report.windowPlacement=session.windowPlacement;assert.equal(report.windowPlacement.browserFrontmost,false);report.ok=true;
   } catch(error) {
