@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/SentenceHighlightStyleSettings.vue
 文件职责：在界面风格页独立选择双语逐句高亮外观，与译文整体样式分开设置。
-主要内容：提供网页交互预览、八种预设、默认折叠的自定义外观控件与 CSS 声明输入，支持命名快照的保存、切换、更新和删除；开关仍由阅读辅助管理。
+主要内容：提供默认跟随界面明暗主题且可手动切换的网页交互预览、八种预设、默认折叠的自定义外观控件与 CSS 声明输入，支持命名快照的保存、切换、更新和删除；开关仍由阅读辅助管理。
 模块边界：只编辑父级 Config 草稿；与网页共用命名和绘制声明，不请求翻译、不修改宿主 DOM。
 -->
 <template>
@@ -104,7 +104,7 @@
   </SettingsGroup>
 </template>
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, onUnmounted, ref, watch} from 'vue'
 import type {Config} from '@/src/core/config/model'
 import {DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE, MAX_SENTENCE_HIGHLIGHT_PROFILES, SENTENCE_HIGHLIGHT_STYLES, SENTENCE_HIGHLIGHT_LINE_STYLES, getSentenceHighlightAppearanceStyle, isDefaultSentenceHighlightAppearance, normalizeSentenceHighlightAppearance, parseSentenceHighlightCustomCss, resolveSentenceHighlightAppearance, type SentenceHighlightStyle, type SentenceHighlightProfile} from '@/src/core/config/sentenceHighlight'
 import {MAX_TRANSLATION_CUSTOM_CSS_LENGTH, TRANSLATION_FILL_COLOR_SWATCHES, TRANSLATION_LINE_COLOR_SWATCHES} from '@/src/core/config/translationAppearance'
@@ -115,6 +115,15 @@ import TranslationColorField from './components/TranslationColorField.vue'
 const props = defineProps<{config: Config}>()
 const {t} = useUiI18n()
 const pageTheme = ref<'light' | 'dark'>('light')
+const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
+const systemDark = ref(systemThemeQuery.matches)
+const updateSystemTheme = () => { systemDark.value = systemThemeQuery.matches }
+systemThemeQuery.addEventListener('change', updateSystemTheme)
+onUnmounted(() => systemThemeQuery.removeEventListener('change', updateSystemTheme))
+// 默认跟随界面主题；手动切换网页配色后，保留选择直到界面的实际明暗主题变化。
+watch(() => props.config.theme === 'dark' || ((props.config.theme || 'auto') === 'auto' && systemDark.value), dark => {
+  pageTheme.value = dark ? 'dark' : 'light'
+}, {immediate: true})
 const customExpanded = ref(false)
 const appearance = computed(() => props.config.bilingualSentenceHighlightAppearance)
 const resolved = computed(() => resolveSentenceHighlightAppearance(props.config.bilingualSentenceHighlightStyle, appearance.value))
