@@ -19,6 +19,7 @@ import {
   type ResolvedOpenAICompatibleEndpoint,
 } from './endpoints';
 import {LlmTransportError, normalizeAiSdkError} from './errors';
+import {createImageInputHttpError} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 import {
   getTranslationProviderConfig,
@@ -223,6 +224,10 @@ function compatibilityFetch(
       outcome: response.status === 408 ? 'timeout' : response.ok ? 'success' : 'error',
       statusCode: response.status,
     });
+    if (!response.ok && getTranslationImageInput(request)) {
+      const error = await createImageInputHttpError(response);
+      if ((error as {imageInputUnsupported?: boolean}).imageInputUnsupported) throw error;
+    }
     return normalized.response;
   };
 }
@@ -328,7 +333,7 @@ async function translateSingle(
     }
     return text;
   } catch (error) {
-    if (error instanceof LlmTransportError) throw error;
+    if (error instanceof LlmTransportError || (error as {imageInputUnsupported?: boolean})?.imageInputUnsupported) throw error;
     throw normalizeAiSdkError(service, error, [apiKey, ...Object.values(customHeaders)], abortContext.abortedByCaller());
   } finally {
     abortContext.cleanup();
