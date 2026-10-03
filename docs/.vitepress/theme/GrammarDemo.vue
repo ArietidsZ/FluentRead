@@ -90,9 +90,9 @@ function next(event: KeyboardEvent, index: number) {
         @click="choose(index * 2 + 1)"
         @keydown="next($event, index)"
       >
-        <span>{{ part.text }}</span
-        ><small>{{ part.role[en ? 1 : 0] }} · {{ part.type[en ? 1 : 0] }}</small></button
-      ><span class="fr-grammar-period" aria-hidden="true">.</span>
+        <span>{{ part.text }}{{ index === parts.length - 1 ? '.' : '' }}</span
+        ><small>{{ part.role[en ? 1 : 0] }} · {{ part.type[en ? 1 : 0] }}</small>
+      </button>
     </div>
     <p class="fr-grammar-translation">
       {{
