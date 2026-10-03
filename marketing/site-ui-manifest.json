@@ -90,5 +90,7 @@
       "pid": 44386,
       "name": "Google Chrome"
     }
-  }
+  },
+  "sourceRevision": "99393c773413c6b384efeccab4704e35019f58a6",
+  "version": "0.0.35"
 }

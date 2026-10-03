@@ -7,13 +7,21 @@ const fs = require('node:fs'),
   http = require('node:http'),
   assert = require('node:assert/strict')
 const { createRequire } = require('node:module')
+const { execFileSync } = require('node:child_process')
 const arg = (name) => process.argv[process.argv.indexOf('--' + name) + 1]
 const runtime = createRequire(path.join(arg('runtime'), 'docs-ui.cjs'))
 const { chromium } = runtime('playwright'),
   sharp = runtime('sharp')
 const helper = require(arg('helper'))
 const root = path.resolve(__dirname, '..')
-const report = { extension: '.output/chrome-mv3', scale: 2, screenshots: [], errors: [] }
+const report = {
+  extension: '.output/chrome-mv3',
+  sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+  version: JSON.parse(fs.readFileSync(path.join(root, '.output/chrome-mv3/manifest.json'), 'utf8')).version,
+  scale: 2,
+  screenshots: [],
+  errors: [],
+}
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-docs-ui-'))
 let launched
 const server = http.createServer((_, res) => {
