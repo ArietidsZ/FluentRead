@@ -1,7 +1,7 @@
 <!--
  * @file src/features/reading-assistant/ui/ReadingPanel.vue
  * 文件职责：在划词卡内以内容为主呈现学习回答，提供紧凑动作栏、向上滚动可查看的完整原文与连续追问。
- * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；四类动作的完整原文统一保留在滚动区顶部，进入回答时只滚过原文，关闭局部浏览器滚动锚定以避免流式格式变化移动阅读位置；提供查看原文快捷入口，重复点击当前动作保留位置和待发送追问；把原文朗读、句子收藏和 30 天问答记录收进次级操作，让多语言动作标签按空间换行，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
+ * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；历史问答按轮次与问题摘要逐条展开，区分当前问答与旧回答，切换回答时收起历史；四类动作的完整原文统一保留在滚动区顶部，进入回答时只滚过原文，关闭局部浏览器滚动锚定以避免流式格式变化移动阅读位置；提供查看原文快捷入口，重复点击当前动作保留位置和待发送追问；把原文朗读、句子收藏和 30 天问答记录收进次级操作，让多语言动作标签按空间换行，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
  * 模块边界：不持有模型密钥、不扫描页面、不直接请求供应商；记录由后台会话仓库保存，父划词组件负责选区、位置和 Shadow UI 生命周期。
  -->
 <template>
@@ -26,7 +26,7 @@
     <template v-else>
     <div class="fr-reading-toolbar">
       <div class="fr-reading-actions" role="group" aria-label="学习方式">
-        <button v-for="action in actions" :key="action.id" type="button" :aria-label="action.label" :title="action.label" :aria-pressed="intent === action.id" @click="chooseAction(action.id)">{{ action.id === 'grammar' ? '句法' : action.label }}</button>
+        <button v-for="action in actions" :key="action.id" type="button" :aria-label="action.label" :title="action.label" :aria-pressed="active && Boolean(currentTurnKey) && intent === action.id" @click="chooseAction(action.id)">{{ action.id === 'grammar' ? '句法' : action.label }}</button>
       </div>
       <details ref="toolsMenu" class="fr-reading-tools" @keydown.esc.stop.prevent="closeTools(true)">
         <summary aria-label="更多操作" title="更多操作"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary>
@@ -48,14 +48,31 @@
         <p data-i18n-ignore>{{ activeText }}</p>
       </section>
       <div ref="answerBody" class="fr-reading-body">
-      <details v-if="priorAnswers.length" class="fr-reading-session-detail">
+      <details v-if="priorAnswers.length" ref="historyDetails" class="fr-reading-session-detail">
         <summary data-i18n-ignore>{{ t("reading.priorTurns", {count: priorAnswers.length}) }}</summary>
-        <article v-for="turn in priorAnswers" :key="turn.id" class="fr-reading-turn">
-          <p class="fr-reading-question"><span data-i18n-ignore>{{ turn.question || translateLegacy(actionLabelFor(turn.intent)) }}</span><small>{{ statusLabel(turn.status) }}</small></p>
-          <ReadingAnswer :text="turn.answer" :source-text="activeText" />
-        </article>
+        <div class="fr-reading-turn-list">
+          <article v-for="(turn, index) in priorAnswers" :key="turn.id" class="fr-reading-turn">
+            <button type="button" class="fr-reading-turn-toggle" :aria-expanded="expandedTurnId === turn.id" :aria-controls="`fr-reading-turn-${turn.id}`" @click="toggleHistoryTurn(turn.id)">
+              <span class="fr-reading-turn-meta">
+                <span data-i18n-ignore>{{ t('reading.turnNumber', {number: index + 1}) }} · {{ translateLegacy(actionLabelFor(turn.intent)) }}</span>
+                <small v-if="turn.status !== 'completed'" class="fr-reading-turn-status">{{ statusLabel(turn.status) }}</small>
+                <svg class="fr-reading-turn-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
+              </span>
+              <span class="fr-reading-turn-title" data-i18n-ignore>{{ turn.question || translateLegacy(actionLabelFor(turn.intent)) }}</span>
+            </button>
+            <div v-show="expandedTurnId === turn.id" :id="`fr-reading-turn-${turn.id}`" class="fr-reading-turn-answer">
+              <span class="fr-reading-role" data-i18n-ignore>{{ t('reading.answerLabel') }}</span>
+              <ReadingAnswer v-if="expandedTurnId === turn.id && turn.answer" :text="turn.answer" :source-text="activeText" />
+              <p v-else class="fr-reading-hint" data-i18n-ignore>{{ t('reading.emptyAnswer') }}</p>
+            </div>
+          </article>
+        </div>
       </details>
-      <p v-if="currentQuestion" class="fr-reading-question" data-i18n-ignore>{{ currentQuestion }}</p>
+      <p v-if="priorAnswers.length" class="fr-reading-current-label" data-i18n-ignore>{{ t('reading.currentTurn') }}</p>
+      <div v-if="currentQuestion" class="fr-reading-question">
+        <span class="fr-reading-role" data-i18n-ignore>{{ t('reading.questionLabel') }}</span>
+        <p data-i18n-ignore>{{ currentQuestion }}</p>
+      </div>
       <p v-if="busy" class="fr-reading-status" role="status"><span class="fr-reading-pulse" :class="{'fr-reading-static': !animations}" aria-hidden="true" /><span data-i18n-ignore>{{ t("reading.generatingAction", {action: translateLegacy(actionLabel)}) }}</span><button type="button" @click="stop">停止</button></p>
       <div v-if="error" class="fr-reading-error" role="alert">
         <p>{{ error }}</p>
@@ -195,6 +212,16 @@ function closeToolsAfterAction(event: MouseEvent): void {
 const previousAnswers = ref<Array<ReadingTurn & {id: string; intent: HarnessActionId; status: HarnessStoredTurnStatus}>>([]);
 const currentTurnKey = ref('');
 const priorAnswers = computed(() => previousAnswers.value.filter(turn => turn.id !== currentTurnKey.value));
+const historyDetails = ref<HTMLDetailsElement>();
+const expandedTurnId = ref('');
+function toggleHistoryTurn(id: string): void {
+  cancelReadingPosition();
+  expandedTurnId.value = expandedTurnId.value === id ? '' : id;
+}
+watch(currentTurnKey, () => {
+  expandedTurnId.value = '';
+  if (historyDetails.value) historyDetails.value.open = false;
+});
 const sessionOffset = ref(0);
 const hasMoreSessions = ref(false);
 const actionLabels: Record<string, string> = {meaning: '读懂', grammar: '词性与句法', usage: '用法', practice: '练习'};
@@ -334,7 +361,7 @@ async function run(prompt: string, turns: ReadingTurn[], retrying = false): Prom
 }
 function chooseAction(action: HarnessActionId): void {
   // 已选标签不重置阅读位置或未发送的追问；重新生成仍通过明确的次级操作触发。
-  if (action !== intent.value) startAction(action);
+  if (action !== intent.value || !currentTurnKey.value) startAction(action);
 }
 function startAction(action: HarnessActionId, preserveHistory = true): void {
   if (!props.preferences.actions.includes(action)) return;
@@ -476,6 +503,7 @@ function openRecords(): void {
 }
 function closeRecords(): void { restoreEpoch += 1; showRecords.value = false; recordsError.value = ''; resetReadingPosition(); }
 onMounted(() => {
+  if (!props.active) return;
   if (props.historyOnly) openRecords();
   else startAction(intent.value);
 });
@@ -495,11 +523,21 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading-session small { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; color: var(--fr-reading-muted); font-size: 10px; }
 .fr-reading-session small span { color: #a64b6e; }
 .fr-reading-empty { padding: 16px 6px; color: var(--fr-reading-muted); font-size: 12px; }
-.fr-reading-session-detail { margin: 0 0 12px; border-bottom: 1px solid var(--fr-reading-line); }
-.fr-reading-session-detail summary { padding: 4px 0 7px; color: var(--fr-reading-muted); cursor: pointer; font-size: 11px; }
-.fr-reading-turn { padding: 10px 0; border-top: 1px solid var(--fr-reading-line); overflow-wrap: anywhere; }
-.fr-reading-turn small { margin-left: 8px; color: var(--fr-reading-muted); font-size: 10px; }
-.fr-reading-turn p { margin: 3px 0; }
+.fr-reading-session-detail { margin: 0 0 14px; border-bottom: 1px solid var(--fr-reading-line); padding-bottom: 8px; }
+.fr-reading-session-detail > summary { padding: 5px 0; color: var(--fr-reading-muted); cursor: pointer; font-size: 11px; }
+.fr-reading-turn-list { display: grid; gap: 8px; margin: 8px 0 4px; }
+.fr-reading-turn { min-width: 0; border: 1px solid var(--fr-reading-line); border-radius: 9px; overflow-wrap: anywhere; }
+.fr-reading .fr-reading-turn-toggle { display: grid; gap: 5px; width: 100%; padding: 9px 10px; border-radius: 8px; text-align: start; color: inherit; background: var(--fr-reading-soft); }
+.fr-reading-turn-toggle:hover { box-shadow: inset 0 0 0 1px var(--fr-reading-line); }
+.fr-reading-turn-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; color: var(--fr-reading-muted); font-size: 10px; }
+.fr-reading-turn-status { padding: 1px 5px; border: 1px solid var(--fr-reading-line); border-radius: 4px; font-size: inherit; }
+.fr-reading-turn-chevron { margin-inline-start: auto; flex-shrink: 0; }
+.fr-reading-turn-toggle[aria-expanded='true'] .fr-reading-turn-chevron { transform: rotate(90deg); }
+.fr-reading-turn-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; font-weight: 500; white-space: pre-wrap; }
+.fr-reading-turn-toggle[aria-expanded='true'] .fr-reading-turn-title { display: block; }
+.fr-reading-turn-answer { padding: 10px; border-top: 1px solid var(--fr-reading-line); user-select: text; }
+.fr-reading-role { display: block; margin-bottom: 4px; color: var(--fr-reading-muted); font-size: 10px; }
+.fr-reading-current-label { margin: 0 0 8px; color: var(--fr-reading-muted); font-size: 11px; font-weight: 600; }
 .fr-reading button, .fr-reading input { font: inherit; }
 .fr-reading button { cursor: pointer; border: 0; background: none; color: var(--fr-reading-button); padding: 3px 6px; border-radius: 6px; }
 .fr-reading button:focus-visible, .fr-reading input:focus-visible { outline: 2px solid #cd527f; outline-offset: 2px; }
@@ -530,7 +568,8 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading-feedback { flex-shrink: 0; margin: 5px 0 0; max-height: 40px; overflow: auto; }
 .fr-reading-error { font-size: 12px; color: #b44753; background: #fff4f4; padding: 8px 10px; border-radius: 9px; }
 .fr-reading-error p { margin: 0 0 4px; }
-.fr-reading-question { margin: 0 0 10px; border-bottom: 1px solid var(--fr-reading-line); padding-bottom: 8px; color: #986077; user-select: text; overflow-wrap: anywhere; }
+.fr-reading-question { margin: 0 0 12px; padding: 8px 10px; border-inline-start: 2px solid #b85579; border-radius: 0 7px 7px 0; background: var(--fr-reading-soft); color: inherit; user-select: text; overflow-wrap: anywhere; }
+.fr-reading-question p { margin: 0; white-space: pre-wrap; }
 .fr-reading-answer { user-select: text; overflow-wrap: anywhere; }
 .fr-reading-footer { display: flex; gap: 5px; align-items: center; margin: 8px 0 0; font-size: 11px; }
 .fr-reading-followup { flex-shrink: 0; display: flex; gap: 6px; margin-top: 6px; padding: 3px 3px 3px 10px; border: 1px solid #eae2e7; border-radius: 11px; }

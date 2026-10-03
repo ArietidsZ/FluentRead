@@ -1,7 +1,7 @@
 /**
  * @file src/app/content/runtime.ts
  * 文件职责：作为内容脚本应用的顶层 composition root，协调配置就绪、站点规则、公共样式、主世界桥、功能注册表、快捷键和消息监听生命周期。
- * 主要内容：先排除原始 XML 文档以保留浏览器原生展示，再安装内联 page.css，构建输入框与页面 feature registry，按 capability 和配置挂载全文周边、局部翻译、悬浮、划词、区域、图片、双语分享卡片、视频与写作助手等能力；订阅配置变化并处理停用、往返缓存暂停恢复与销毁。
+ * 主要内容：先排除原始 XML 文档与失效扩展上下文，再安装内联 page.css，构建输入框与页面 feature registry，按 capability 和配置挂载全文周边、局部翻译、悬浮、划词、区域、图片、双语分享卡片、视频与写作助手等能力；订阅配置变化并处理停用、往返缓存暂停恢复与销毁，消息端口失效不能中断页面清理。
  * 模块边界：本文件只负责依赖装配和页面激活所有权，不实现具体翻译算法、组件内部状态、provider 请求或配置存储；这些职责分别属于 features、services 与 platform。
  */
 import {isWritingPage} from '@/src/core/config/writing';
@@ -55,7 +55,7 @@ import {applyCoreTranslationPreferences, createContentSiteAdaptationRuntime} fro
 import {createOptionalContentFeatureRuntime, type OptionalContentFeatureRuntime} from './optionalFeatures';
 export async function startContentApp(ctx: ContentScriptContext,
     capabilities: BrowserCapabilities = browserCapabilities): Promise<void> {
-    if (isRawXmlContentDocument(document)) return;
+    if (isRawXmlContentDocument(document) || ctx.isInvalid) return;
     const pageEventController = new AbortController();
     let cleanedUp = false;
     let pageAvailability: ContentPageAvailabilityRuntime | null = null;
@@ -75,6 +75,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     let currentPageSiteDisabled = isExtensionDisabledOnSite(currentRouteHref, config.disabledExtensionDomains);
     let unsubscribeContentConfig: (() => void) | null = null;
     let runtimeMessageListener: ContentRuntimeMessageHandler | null = null;
+    const runtimeMessages = browser.runtime.onMessage;
     let featureController: AbortController | null = null;
     let optionalContentFeatures: OptionalContentFeatureRuntime | null = null;
     let activePageFeatureRegistry: ContentFeatureRegistry | null = null;
@@ -235,7 +236,11 @@ export async function startContentApp(ctx: ContentScriptContext,
         cleanedUp = true;
         pageEventController.abort();
         setMainWorldBridgesEnabled(document, false);
-        if (runtimeMessageListener) browser.runtime.onMessage.removeListener(runtimeMessageListener);
+        // 扩展重载后 browser.runtime 可能已被撤销；使用注册时的事件端口，
+        // 即使旧端口拒绝注销，也必须继续恢复宿主页面和释放配置订阅。
+        try {
+            if (runtimeMessageListener) runtimeMessages.removeListener(runtimeMessageListener);
+        } catch { /* 失效上下文的监听由浏览器释放，页面清理仍由本运行时负责。 */ }
         disposePageFeatures();
         unsubscribeContentConfig?.(); unsubscribeContentConfig = null;
     };
@@ -243,7 +248,7 @@ export async function startContentApp(ctx: ContentScriptContext,
         isSiteDisabled: () => currentPageSiteDisabled, updateSiteDisabled: applySiteDisabledState,
         isPageSuspended: pageLifecycle.isSuspended,
     }, capabilities);
-    browser.runtime.onMessage.addListener(runtimeMessageListener);
+    runtimeMessages.addListener(runtimeMessageListener);
     reportSiteDisabledState();
     unsubscribeContentConfig = subscribeConfig((nextConfig) => {
         void ensureUiLanguageBundle(nextConfig.uiLanguage); applyCoreTranslationPreferences(nextConfig);
