@@ -14,6 +14,7 @@ import {
     getDocumentMimeType,
     parseDocument,
     renderDocument,
+    resolveDocumentTranslation,
     type DocxDocumentPart,
     type DocumentFormat,
     type DocumentRenderMode,
@@ -657,11 +658,10 @@ async function renderPdf(
     outputPdf.setProducer('FluentRead document translation');
 
     for (const pageData of binary.pages) {
-        const normalizedTranslations = document.segments.map((segment) => translations[segment.id] ?? segment.source);
         const png = await rasterizer({
             ...pageData,
             sourceBytes: binary.bytes,
-            translations: normalizedTranslations,
+            translations: [...translations],
         });
         const image = await outputPdf.embedPng(png);
         if (mode === 'bilingual') {
@@ -768,19 +768,21 @@ export async function createDocumentDownload(
     mode: DocumentRenderMode,
     options: CreateDocumentDownloadOptions = {},
 ): Promise<DocumentDownload> {
+    // UI 的完成度按非空译文计算；各格式导出必须采用相同规则。
+    const resolved = document.segments.map(segment => resolveDocumentTranslation(segment.source, translations[segment.id]));
     let data: string | Uint8Array;
     if (document.format === 'pdf') {
         if (document.binary?.kind !== 'pdf') throw new Error('PDF 文档状态无效，请重新打开文件');
         if (!options.pdfPageRasterizer) {
             throw new Error('当前环境未提供 PDF 页面渲染器，请在浏览器扩展中下载');
         }
-        data = await renderPdf(document, translations, mode, options.pdfPageRasterizer);
+        data = await renderPdf(document, resolved, mode, options.pdfPageRasterizer);
     } else if (document.format === 'epub') {
-        data = await renderEpub(document, translations, mode);
+        data = await renderEpub(document, resolved, mode);
     } else if (document.format === 'docx') {
-        data = await renderDocx(document, translations, mode);
+        data = await renderDocx(document, resolved, mode);
     } else {
-        data = renderDocument(document, translations, mode);
+        data = renderDocument(document, resolved, mode);
     }
     return {
         data,
