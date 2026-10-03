@@ -245,6 +245,7 @@ async function main() {
     let customOptions = await createPage(`${origin}/options.html#settings-interface`);
     let stylePanel = customOptions.locator('#translation-sentence-highlight-style');
     await stylePanel.waitFor({state: 'visible'});
+    await stylePanel.locator('.sentence-highlight-custom-disclosure').click();
     await freezeFirstSaveAck(customOptions);
     await stylePanel.locator('[data-highlight-style="mint"]').click();
     const colorInput = field => stylePanel.locator(`[data-color-field="sentence-highlight-${field}"] input[type="text"]`);
@@ -266,6 +267,7 @@ async function main() {
     customOptions = await createPage(`${origin}/options.html#settings-interface`);
     stylePanel = customOptions.locator('#translation-sentence-highlight-style');
     await stylePanel.waitFor({state: 'visible'});
+    await stylePanel.locator('.sentence-highlight-custom-disclosure').click();
     assert.equal(await colorInput('background').inputValue(), custom.backgroundColor);
     assert.equal(await colorInput('line').inputValue(), custom.lineColor);
     assert.equal(await stylePanel.getByRole('slider', {name: '底色不透明度', exact: true}).inputValue(), '34');
@@ -343,6 +345,7 @@ async function main() {
     const cssB = 'background-color: rgba(10, 180, 100, 0.2);\ntext-decoration: none;';
     const cssC = cssA.replace('255, 220, 100', '120, 190, 255');
     await profilePanel.waitFor({state: 'visible'});
+    await profilePanel.locator('.sentence-highlight-custom-disclosure').click();
     // 冻结页面的首个保存 ACK，后台仍正常提交；后续 CSS/命名配置只能靠真实关闭交接保存。
     await freezeFirstSaveAck(profileOptions);
     await cssInput().fill(`${cssA}\nmargin: 999px;\nbackground-image: url(https://invalid.test/a.png);`);
@@ -363,6 +366,7 @@ async function main() {
     profileOptions = await createPage(`${origin}/options.html#settings-interface`);
     profilePanel = profileOptions.locator('#translation-sentence-highlight-style');
     await profilePanel.waitFor({state: 'visible'});
+    await profilePanel.locator('.sentence-highlight-custom-disclosure').click();
     assert.equal(await cssInput().inputValue(), cssA);
     assert.equal(await nameInput().inputValue(), 'CSS 高亮');
     assert.equal(await profilePanel.locator(`[data-profile-id="${idA}"]`).getAttribute('aria-checked'), 'true');

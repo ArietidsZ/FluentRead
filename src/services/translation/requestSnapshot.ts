@@ -364,6 +364,7 @@ export function createTranslationProviderConfigSnapshot(
         proxy: frozenStringMap(source.proxy),
         customBody: frozenStringMap(source.customBody),
         customHeaders: frozenStringMap(source.customHeaders),
+        requestHeaderRules: Object.freeze((source.requestHeaderRules ?? []).map(rule => Object.freeze({...rule}))),
         serviceRequestLimits: frozenRequestLimitMap(source.serviceRequestLimits),
         modelRequestLimits: frozenModelRequestLimitMap(source.modelRequestLimits),
         apiKeyRecoveryMs: normalizeApiKeyRecoveryMs(source.apiKeyRecoveryMs),

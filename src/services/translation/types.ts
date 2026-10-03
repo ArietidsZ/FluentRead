@@ -157,6 +157,7 @@ export interface TranslationConfigSnapshot {
     azureOpenaiEndpoint: string;
     customBody: Record<string, string>;
     customHeaders?: Record<string, string>;
+    requestHeaderRules?: import('@/src/core/config/requestHeaders').RequestHeaderRule[];
     system_role: Record<string, string>;
     user_role: Record<string, string>;
     deepseekApiType: string;
