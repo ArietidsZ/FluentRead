@@ -2,7 +2,7 @@
 /**
  * @file scripts/testing/run-popup-first-run-height-test.cjs
  * Verify fresh popup sizing, stable loading frames and complete language cards.
- * Delayed configuration/English resources expose first-paint resize and text flashes;
+ * Delayed configuration exposes first-paint resize; English is bundled with onboarding.
  * a short viewport also checks the previous height feedback loop. Use --baseline
  * only to record the old layout without enforcing the new presentation assertions.
  */
@@ -19,6 +19,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
   if (flag === '--background') continue;
   if (flag === '--baseline') { args.baseline = true; continue; }
+  if (flag === '--fail-main-once') { args.failMainOnce = true; continue; }
   assert.ok(flag.startsWith('--') && process.argv[index + 1], `Invalid argument ${flag}`);
   args[flag.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = process.argv[++index];
 }
@@ -32,7 +33,7 @@ fs.mkdirSync(args.artifactsDir, {recursive: true});
 
 const {chromium} = createRequire(path.join(args.playwrightRoot, 'popup-height.cjs'))('playwright');
 const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(args.focusSafeHelper);
-const report = {scope: 'fresh-popup-height-and-onboarding-layout', baseline: Boolean(args.baseline), profileMode: 'new-temporary-profile', cases: [], errors: []};
+const report = {scope: 'fresh-popup-height-and-onboarding-layout', baseline: Boolean(args.baseline), profileMode: 'new-temporary-profile', cases: [], errors: [], injectedModuleErrors: []};
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-popup-height-'));
 
 async function inspect(page, label, selector, screenshot) {
@@ -50,7 +51,7 @@ async function inspect(page, label, selector, screenshot) {
       scrollHeight: shell.scrollHeight,
       clientHeight: shell.clientHeight,
       horizontalOverflow: document.documentElement.scrollWidth > innerWidth + 1,
-      mainHidden: getComputedStyle(document.querySelector('.popup-content')).display === 'none',
+      mainHidden: !document.querySelector('.popup-content') || getComputedStyle(document.querySelector('.popup-content')).display === 'none',
     };
   }, selector);
   report.cases.push({label, geometry});
@@ -136,12 +137,20 @@ async function main() {
     assert.equal(session.launchMode, 'macos-background-cdp');
     assert.equal(session.focusPolicy, 'launchservices-no-foreground');
     const {context} = session;
+    let abortedMainModules = 0;
+    if (args.failMainOnce) await context.route('**/chunks/PopupApp-*.js', route => {
+      if (abortedMainModules === 0) { abortedMainModules++; return route.abort('failed'); }
+      return route.continue();
+    });
     const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', {timeout: args.timeout});
     const popupUrl = `chrome-extension://${new URL(worker.url()).host}/popup.html`;
     const popup = await newPageWithoutForeground(context, args.timeout);
     popup.on('pageerror', error => report.errors.push(`pageerror: ${error.message}`));
     popup.on('console', message => {
-      if (message.type() === 'error') report.errors.push(`console: ${message.text()}`);
+      if (message.type() === 'error') {
+        if (args.failMainOnce && /\/chunks\/PopupApp-/u.test(message.location().url)) report.injectedModuleErrors.push(message.text());
+        else report.errors.push(`console: ${message.text()}`);
+      }
     });
     await popup.addInitScript(() => {
       const state = {frames: [], configDelays: 0, englishDelays: 0, stopped: false};
@@ -193,7 +202,8 @@ async function main() {
       return globalThis.__onboardingStartup;
     });
     if (!args.baseline) {
-      assert.ok(report.startup.configDelays > 0 && report.startup.englishDelays > 0, 'Slow startup hooks did not run');
+      assert.ok(report.startup.configDelays > 0, 'Slow configuration hook did not run');
+      assert.equal(report.startup.englishDelays, 0, 'Welcome unnecessarily loaded the complete English bundle');
       const frames = report.startup.frames;
       assert.ok(frames.some(frame => frame.phase === 'startup') && frames.some(frame => frame.phase === 'welcome'));
       assert.ok(Math.max(...frames.map(frame => frame.height)) - Math.min(...frames.map(frame => frame.height)) <= 1,
@@ -218,9 +228,17 @@ async function main() {
     await popup.locator('.onboarding-back').click();
     await popup.locator('[data-testid="onboarding-language-next"]').click();
     await popup.locator('[data-language="es-ES"][aria-checked="true"]').waitFor();
-    await popup.locator('[data-language="zh-CN"]').click();
+    const confirmLanguage = args.confirmLanguage || 'zh-CN';
+    await popup.locator(`[data-language="${confirmLanguage}"]`).click();
     await popup.setViewportSize({width: 400, height: 130});
     await popup.locator('.onboarding-form .onboarding-confirm').click();
+    if (args.failMainOnce) {
+      await popup.locator('.onboarding-load-error').waitFor();
+      assert.equal(abortedMainModules, 1);
+      await popup.locator('.onboarding-load-error button').click();
+      await popup.locator('.popup-content:visible').waitFor();
+      report.moduleFailureRetried = true;
+    }
     await popup.locator('[data-testid="ui-language-onboarding"]').waitFor({state: 'detached', timeout: args.timeout});
     await inspect(popup, 'main', '.popup-content', 'main.png');
     await popup.close();
@@ -229,6 +247,8 @@ async function main() {
     await reopened.goto(popupUrl, {waitUntil: 'domcontentloaded', timeout: args.timeout});
     await reopened.locator('.popup-shell[data-config-ready="true"]').waitFor();
     assert.equal(await reopened.locator('[data-testid="ui-language-onboarding"]').count(), 0, 'Confirmation not persisted after reopening');
+    await reopened.waitForFunction(language => document.documentElement.lang === language, confirmLanguage);
+    report.confirmedLanguage = confirmLanguage;
     report.confirmationPersisted = true;
     assert.deepEqual(report.errors, [], `Popup console errors: ${report.errors.join('; ')}`);
     report.passed = true;

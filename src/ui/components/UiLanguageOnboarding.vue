@@ -1,7 +1,7 @@
 <!--
  * @file src/ui/components/UiLanguageOnboarding.vue
  * 文件职责：承载 FluentRead Popup 首次打开时的欢迎与界面语言选择引导。
- * 主要内容：用稳定尺寸展示多语言欢迎画面与中英文品牌宣传语，语言卡片分行显示完整双语名称，奇数末项铺满一行；确认后显示成功动效并把控制权交回主界面。
+ * 主要内容：直接使用轻量中英文资源展示稳定尺寸的欢迎画面和完整语言名称；确认保存后通知上层准备主菜单，成功动效结束后交回控制权。
  * 模块边界：组件只负责首次引导的呈现与确认，不读取配置、不决定浏览器 locale 映射；配置保存由 src/ui/i18n.ts 负责，语言规则由 src/core/i18n 提供。
 -->
 <template>
@@ -142,20 +142,18 @@ import brandTaglines from '@/src/core/i18n/messages/brand-taglines.json';
 import {nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import {
   getUiLanguageBilingualLabel,
-  hasUiLanguageBundle,
   UI_LANGUAGE_OPTIONS,
-  translate,
-  type TranslationParams,
   type UiLanguage,
 } from '@/src/core/i18n';
 import {useUiI18n} from '@/src/ui/i18n';
-import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
+import {onboardingChineseMessages, onboardingEnglishMessages, type OnboardingMessageKey} from '@/src/core/i18n/messages/onboarding';
 
 const props = defineProps<{
   initialLanguage: UiLanguage;
 }>();
 
 const emit = defineEmits<{
+  saved: [language: UiLanguage];
   confirmed: [language: UiLanguage];
 }>();
 
@@ -180,7 +178,6 @@ const languageOptionButtons = ref<HTMLButtonElement[]>([]);
 const confirming = ref(false);
 const celebrating = ref(false);
 const errorMessage = ref('');
-const englishReady = ref(hasUiLanguageBundle('en-US'));
 let transitionTimer: ReturnType<typeof setTimeout> | undefined;
 
 watch(() => props.initialLanguage, value => {
@@ -191,16 +188,16 @@ watch(selectedLanguage, value => {
   document.documentElement.lang = value;
 }, {immediate: true});
 
-function messageZh(key: string, params?: TranslationParams): string {
-  return translate(key, 'zh-CN', params);
+function messageZh(key: OnboardingMessageKey): string {
+  return onboardingChineseMessages[key];
 }
 
-function messageEn(key: string, params?: TranslationParams): string {
-  return englishReady.value ? translate(key, 'en-US', params) : '';
+function messageEn(key: OnboardingMessageKey): string {
+  return onboardingEnglishMessages[key];
 }
 
-function bilingualMessage(key: string, params?: TranslationParams): string {
-  return [messageZh(key, params), messageEn(key, params)].filter(Boolean).join(' / ');
+function bilingualMessage(key: OnboardingMessageKey): string {
+  return [messageZh(key), messageEn(key)].join(' / ');
 }
 
 function focusCurrentStep(): void {
@@ -228,6 +225,7 @@ async function confirm(): Promise<void> {
   errorMessage.value = '';
   try {
     await setLanguage(selectedLanguage.value);
+    emit('saved', selectedLanguage.value);
     celebrating.value = true;
     transitionTimer = setTimeout(() => {
       emit('confirmed', selectedLanguage.value);
@@ -247,7 +245,6 @@ onBeforeUnmount(() => {
 watch(step, focusCurrentStep);
 onMounted(() => {
   focusCurrentStep();
-  void ensureUiLanguageBundle('en-US').then(loaded => { englishReady.value = loaded; });
 });
 </script>
 

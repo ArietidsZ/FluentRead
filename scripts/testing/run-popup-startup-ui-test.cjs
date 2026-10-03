@@ -55,7 +55,7 @@ const {
 const CONFIG_REVISION_FIELD = '__fluentConfigRevision';
 const TEST_CLIENT_ID = `popup-startup-${process.pid}-${Date.now()}`;
 const MODULE_ORDER = ['quickFeatures', 'translation', 'siteRule', 'footer'];
-const QUICK_FEATURE_ORDER = ['document', 'hover', 'selection', 'appearance', 'video', 'image', 'area'];
+const QUICK_FEATURE_ORDER = ['document', 'hover', 'selection', 'appearance', 'image'];
 
 function delay(milliseconds) {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
@@ -898,8 +898,11 @@ async function main() {
         report,
       });
     }
-    report.deferredUi = await runPopupDeferredUiRegression(context, extensionOrigin, manifestEntrypoints.popup);
-    report.contentLifecycle = await runContentLifecycleRegression(context, extensionOrigin, manifestEntrypoints.popup);
+    if (!hasFlag('startup-only')) {
+      report.deferredUi = await runPopupDeferredUiRegression(context, extensionOrigin, manifestEntrypoints.popup);
+      report.contentLifecycle = await runContentLifecycleRegression(context, extensionOrigin, manifestEntrypoints.popup);
+    }
+    report.scope = hasFlag('startup-only') ? 'popup-startup-and-persistence' : 'popup-startup-deferred-ui-and-content';
     report.screenshots = report.startupCases.map(item => item.screenshot);
     // 读回并恢复测试前的公开 UI 配置，避免留下测试状态；凭据始终不参与日志或 patch。
     const restorePatch = {

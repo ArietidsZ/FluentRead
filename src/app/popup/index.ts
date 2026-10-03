@@ -1,39 +1,48 @@
 /**
  * @file src/app/popup/index.ts
- * 文件职责：创建 Popup Vue 应用并注册首屏图标，作为 WXT popup entrypoint 与 PopupApp 之间的 composition root。
- * 主要内容：加载 popup.css 和共享皮肤，并行读取配置与加载主界面，抽屉依赖由首次交互按需加载；配置、界面语言、首启双语资源和已缓存字体就绪后再创建 App，确保首帧尺寸与文案稳定。
- * 模块边界：这里不读取当前标签页、不保存配置，也不处理 Popup 业务事件；所有响应式交互在 PopupApp 中，feature 与 runtime 行为通过公开模块完成。
+ * 文件职责：连接 Popup HTML 的无框架预唤醒与配置就绪后的应用组装入口。
+ * 主要内容：加载尺寸和皮肤样式，利用早期后台提示并行预取候选界面，配置完成后由 mount.ts 挂载实际页面。
+ * 模块边界：提示只用于预取，不缓存、不渲染、不写入；mount.ts 始终通过配置 store 新读数据后决定实际挂载界面。
  */
-import {createApp} from 'vue';
 import './popup.css';
 import 'element-plus/es/components/base/style/css';
 import '@/src/ui/styles/interface-skins.css';
-import {Coffee} from '@element-plus/icons-vue'
-import {createUiI18nPlugin} from '@/src/ui/i18n'
-import {config, configReady} from '@/src/services/config/store'
-import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles'
-import {prepareInterfaceFont} from '@/src/ui/interfaceAppearance'
+import {mountPreparedPopupApp} from './mount';
+type PopupRuntime = {
+  sendMessage(message: unknown, callback?: (response: unknown) => void): Promise<unknown> | void;
+  lastError?: unknown;
+};
 
-const ELEMENT_ICONS = {Coffee} as const
+function prepareRoute(response: unknown): void {
+  const result = response as {success?: boolean; uiLanguageSetupCompleted?: boolean} | null;
+  if (result?.success !== true) return;
+  // 提示过期最多多加载一个模块；配置 store 的新快照仍决定最终路由和页面内容。
+  if (result.uiLanguageSetupCompleted === true) void import('./PopupApp.vue').catch(() => {});
+  else if (result.uiLanguageSetupCompleted === false) void import('./PopupOnboarding.vue').catch(() => {});
+}
 
-/** Popup 的唯一组装入口：配置就绪后才创建界面，避免默认布局先绘制。 */
-export async function mountPopupApp(selector: string): Promise<void> {
-  // 先启动配置 I/O，再与界面组件加载重叠；不让大型控件解析推迟首次存储请求。
-  const [{default: App}] = await Promise.all([
-    import('./PopupApp.vue'),
-    configReady.then(() => Promise.all([
-      ensureUiLanguageBundle(config.uiLanguage),
-      ...(!config.uiLanguageSetupCompleted ? [ensureUiLanguageBundle('en-US')] : []),
-      prepareInterfaceFont(config.interfaceFont),
-    ])),
-  ])
-  const app = createApp(App)
-  app.use(createUiI18nPlugin({documentRoot: document.body, documentTitleKey: 'metadata.popupTitle'}))
-  // 步骤 1：只注册首屏真正使用的图标。
-  for (const [name, component] of Object.entries(ELEMENT_ICONS)) {
-    app.component(name, component)
+function wakePopupWorker(): void {
+  const globals = globalThis as typeof globalThis & {
+    browser?: {runtime?: PopupRuntime};
+    chrome?: {runtime?: PopupRuntime};
+    __fluentReadPopupWarmup?: Promise<unknown>;
+  };
+  const message = {type: 'popupStartup'};
+  try {
+    if (globals.__fluentReadPopupWarmup) {
+      void globals.__fluentReadPopupWarmup.then(prepareRoute).catch(() => {});
+    } else if (globals.browser?.runtime) {
+      void Promise.resolve(globals.browser.runtime.sendMessage(message)).then(prepareRoute).catch(() => {});
+    } else if (globals.chrome?.runtime) {
+      const runtime = globals.chrome.runtime;
+      runtime.sendMessage(message, response => { if (!runtime.lastError) prepareRoute(response); });
+    }
+  } catch {
+    // 正常配置读取负责失败与回退；预唤醒失败不能阻断挂载。
   }
+}
 
-  // 步骤 2：由唯一的 WXT 启动入口提供挂载目标，避免 app 层假定页面结构。
-  app.mount(selector)
+export async function mountPopupApp(selector: string): Promise<void> {
+  wakePopupWorker();
+  await mountPreparedPopupApp(selector);
 }
