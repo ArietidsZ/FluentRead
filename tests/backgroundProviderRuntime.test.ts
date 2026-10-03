@@ -16,6 +16,7 @@ vi.mock('@/src/providers/translation/free-translation', () => ({
     getFreeTranslationWeightSnapshot: mocks.getFreeTranslationWeightSnapshot,
 }));
 vi.mock('@/src/app/translation/runtime', () => ({
+    translateWithCache: vi.fn(async () => 'UNKNOWN'),
     translationRequestScheduler: {
         schedule: vi.fn(async (task: (lease: any) => Promise<unknown>) => task({holdUntil: vi.fn()})),
     },
@@ -24,6 +25,7 @@ vi.mock('@/src/services/translation/broker', () => ({
     resolveTranslationRequestModel: vi.fn(() => 'resolved-model'),
 }));
 vi.mock('@/src/services/config/store', () => ({
+    configReady: Promise.resolve(),
     config: {
         model: {moonshot: 'kimi-k2.6'},
         customModel: {moonshot: ''},

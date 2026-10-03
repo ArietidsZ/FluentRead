@@ -11,7 +11,7 @@ import {method, tongyiTokenPlanUrl, urls} from "@/src/core/config/constants";
 import {tongyiMsgTemplate} from '@/src/services/translation/templates';
 import {config} from "@/src/services/config/store";
 import {appendOptionalBearer} from './auth';
-import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
+import {createHttpStatusError, createImageInputHttpError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 import {
     getTranslationProviderConfig,
@@ -52,7 +52,7 @@ async function tongyi(message: TranslationProviderRequest<string>) {
         if (!resp.ok) {
             reportTranslationModelUsageFailure(message, undefined, startedAt, configuredModel, resp.status);
             attemptReported = true;
-            throw createHttpStatusError(resp, '翻译失败');
+            throw getTranslationImageInput(message) ? await createImageInputHttpError(resp, '翻译失败') : createHttpStatusError(resp, '翻译失败');
         }
         const result = await readJsonResponse<any>(resp, '通义千问返回的不是有效 JSON');
         const actualModel = typeof result?.model === 'string' && result.model.trim()
