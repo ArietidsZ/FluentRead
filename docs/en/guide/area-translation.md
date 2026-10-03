@@ -1,6 +1,6 @@
 # Area translation
 
-Select an area of a webpage to recognize and translate its text. Useful for screenshots, charts, and paused video.
+Select a screenshot, chart or paused video frame on a webpage to recognize and translate the text within it.
 
 <GuideVisual kind="area" en />
 
