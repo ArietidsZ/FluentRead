@@ -1,14 +1,29 @@
 # Bilingual share cards
 
+Turn a sentence you love into a high-resolution image.
 
+<GuideVisual kind="share" en />
 
-Hover over a completed bilingual paragraph and choose **Create card**, or use **Create card** at the bottom of a selection translation result. The default Coral style pairs a red quote area with a cream translation area. Sky uses a centered blue layout; Prism adds luminous text on a dark background; Pearl presents both languages in two columns. Each style has a thumbnail preview.
+## Make a card
 
-Choose a format, text size, and language order. Edit the excerpt without changing the webpage, hide the source or FluentRead credit, and save the preview as a high-resolution PNG. The source defaults to the website domain without the page path or query. Copy image is available where supported; save the PNG to share it elsewhere.
+1. Select text and translate it. Choose **Create card** in the selection result.
+2. Pick a style. Adjust the text in **Edit excerpt** and layout in **More settings**.
+3. Save a PNG or copy the image, then share it yourself.
 
-The exported image matches the preview. Text is never silently cropped: choose Fit to text or shorten excerpts that do not fit a square. Images are generated locally, without additional translation requests or uploads. Only appearance preferences are stored; excerpt text and generated images are not saved in extension settings. Formula and other rich content are laid out as text rather than a screenshot of the webpage.
+Images are generated locally, with no extra translation request or upload. The entry appears only inside selection results.
+
+<details class="guide-details">
+<summary>Styles, formats and copying</summary>
+
+The eight styles are Coral, Sky, Prism, Pearl, Matcha, Book, Sunset, and Blueprint. Choose an adaptive or square format, font size, language order, source, and FluentRead credit. Editing the excerpt does not change your webpage or translation. The source defaults to the domain.
+
+The preview matches the exported image. Choose an adaptive format or shorten text that does not fit a square; text is not silently cropped. Appearance preferences are saved, but excerpt text and generated images are not. Formulas and rich content are rendered as text.
+
+Some pages cannot copy images to the clipboard; save the PNG instead. Status appears in the fixed bottom bar. A save confirmation means a download was started; check your browser downloads.
+
+</details>
 
 ## Next steps
 
-- [Shortcuts & triggers](/en/guide/custom-hotkey)
-- [Provider connections](/en/config/translation-engines)
+- [Selection translation](/en/guide/deepseek-harness)
+- [Learning center](/en/guide/vocabulary-book)

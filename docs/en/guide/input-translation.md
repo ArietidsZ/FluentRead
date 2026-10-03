@@ -2,6 +2,8 @@
 
 Write in one language and translate inside the input field. Replace the original or keep both languages for a bilingual reply.
 
+<GuideVisual kind="input" en />
+
 ## Try the display
 
 <TranslationDemo en variant="input" />
@@ -18,6 +20,9 @@ Write in a regular input or a supported rich-text editor. Use your configured tr
 
 The time between consecutive presses defaults to 1,000 milliseconds and can be adjusted from 200 to 2,000 milliseconds under **Press speed**. Key repeats and input-method composition do not count as triple presses.
 
+<details class="guide-details">
+<summary>Keep both languages</summary>
+
 ## Keep both languages
 
 | Output | Result |
@@ -28,6 +33,8 @@ The time between consecutive presses defaults to 1,000 milliseconds and can be a
 
 Bilingual output needs an input that supports multiple lines. In a single-line input, FluentRead preserves the original and explains the limitation. Existing formatting in supported rich-text editors is preserved through their input flow.
 
+</details>
+
 ## Cancel or restore
 
 Press **Esc** while translating to cancel writing back. If you keep editing, a late result will not overwrite the newer text.
@@ -36,13 +43,17 @@ After translation, use **Restore original** in the success message before making
 
 Password fields and code editors are excluded. Translation does not send your reply.
 
+<details class="guide-details">
+<summary>AI prompts</summary>
+
 ## AI prompts
 
-Choose an AI service and model if you need a particular tone. The optional prompt uses `{{origin}}` for the original input and `{{to}}` for the target language. An empty prompt uses the built-in default. Changing settings does not automatically enable the feature.
+Choose an AI service and model if you need a particular tone. The optional prompt uses <code v-pre>{{origin}}</code> for the original input and <code v-pre>{{to}}</code> for the target language. An empty prompt uses the built-in default. Changing settings does not automatically enable the feature.
+
+</details>
 
 ## Next steps
 
 - [Writing assistant](/en/guide/writing-assistant)
 - [Translation providers](/en/config/translation-engines)
 - [Shortcuts & triggers](/en/guide/custom-hotkey)
-
