@@ -193,6 +193,8 @@
       "tests/translationPrompts.test.ts",
       "tests/translationState.test.ts",
       "tests/translationStability.test.ts",
+      "tests/translationSourceStability.test.ts",
+      "tests/translationSourceStabilityGate.test.ts",
       "tests/userscriptCount.test.ts",
       "tests/userscriptCompression.test.ts",
       "tests/userscriptFullOptions.test.ts",
