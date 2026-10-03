@@ -20,7 +20,7 @@ const words = computed(
   () =>
     ({
       install: [
-        t('固定图标，打开菜单', 'Pin the icon. Open the menu.'),
+        t('固定图标，打开菜单', 'Pin the icon and open the menu'),
         t('点图标看示意', 'Open the example menu'),
       ],
       hover: [
@@ -40,7 +40,7 @@ const words = computed(
         t('查看圈选结果', 'Show selected-area result'),
       ],
       document: [
-        t('导入文件，对照阅读', 'Import a file. Read side by side.'),
+        t('导入文件，对照阅读', 'Import a file to read alongside its translation'),
         t('查看双语结果', 'Show bilingual result'),
       ],
       video: [
@@ -52,7 +52,7 @@ const words = computed(
         t('翻译示例', 'Translate example'),
       ],
       writing: [
-        t('先检查，再插入回复', 'Review it. Then insert your reply.'),
+        t('先检查，再插入回复', 'Review the draft before inserting your reply'),
         t('查看示例草稿', 'Show example draft'),
       ],
       provider: [
@@ -64,7 +64,7 @@ const words = computed(
         t('切换译文样式', 'Change translation style'),
       ],
       backup: [
-        t('备份设置，换机也能继续用', 'Back up settings. Keep them on another device.'),
+        t('备份设置，换机也能继续用', 'Back up settings to use them on another device'),
         t('查看恢复流程', 'Show restore flow'),
       ],
       learning: [
@@ -96,11 +96,11 @@ const words = computed(
         t('查看数据流程', 'Show data flow'),
       ],
       sync: [
-        t('手动备份，按需恢复', 'Back up manually. Restore when needed.'),
+        t('手动备份，按需恢复', 'Save a backup and restore it when needed'),
         t('查看恢复方向', 'Show the restore direction'),
       ],
       compare: [
-        t('同一句，比较不同译法', 'One sentence. Compare translations.'),
+        t('同一句，比较不同译法', 'Compare translations of the same sentence'),
         t('查看对比结果', 'Show comparison'),
       ],
       userscript: [
@@ -112,7 +112,7 @@ const words = computed(
         t('查看双语邮件', 'Show bilingual email'),
       ],
       settings: [
-        t('搜索设置，调整阅读习惯', 'Find a setting. Make it yours.'),
+        t('搜索设置，调整阅读习惯', 'Find and adjust your reading settings'),
         t('查看目标语言设置', 'Show target language setting'),
       ],
     } as Record<string, string[]>)

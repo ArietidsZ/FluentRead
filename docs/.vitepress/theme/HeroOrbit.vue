@@ -44,5 +44,9 @@ onBeforeUnmount(() => {
     <span class="bv-orbit-greeting bv-greeting-es" lang="es">Hola</span>
     <span class="bv-orbit-greeting bv-greeting-ja" lang="ja">こんにちは</span>
     <span class="bv-orbit-greeting bv-greeting-ko" lang="ko">안녕하세요</span>
+    <span class="bv-orbit-greeting bv-greeting-de" lang="de">Hallo</span>
+    <span class="bv-orbit-greeting bv-greeting-pt" lang="pt">Olá</span>
+    <span class="bv-orbit-greeting bv-greeting-ru" lang="ru">Привет</span>
+    <span class="bv-orbit-greeting bv-greeting-ar" lang="ar" dir="rtl">مرحبا</span>
   </div>
 </template>
