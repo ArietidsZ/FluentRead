@@ -63,6 +63,8 @@ sequenceDiagram
 
 打开设置页只读取本机同步记录，不获取令牌或访问 Google。每次点击“立即与Google Drive同步”后才为本次操作取得授权，必要时显示登录与权限窗口，再生成预览；确认预览后才会上传或应用配置。完成、失败、取消预览或离开设置后自动清理扩展身份缓存，不显示持续连接状态或“断开连接”按钮。保留密文基线与上次同步时间，便于下次同步。401 时只刷新一次，账号变化则停止本次操作。[Chrome Identity](https://developer.chrome.com/docs/extensions/reference/api/identity)
 
+设置页把上次同步账号与时间放在“立即与Google Drive同步”按钮右侧，分两行展示，时间使用次要文字颜色；窄屏时移到按钮下方，长邮箱可换行。尚无同步记录时不显示空白账号或时间。
+
 Google 授权页面使用它自己的语言设置；若左下角显示 English (United States)，可在该下拉框中选择简体中文。当前版本只申请一项 `drive.appdata` 权限，不再同时申请邮箱身份权限。按 Google 的规则，只有一项非登录权限时不使用逐项勾选页面，用户直接确认或拒绝这项授权；扩展不会替用户点击 Google 的授权控件。实际页面仍由 Google 决定；旧版本或已有授权若显示复选框，应允许配置数据访问再点击 Continue（继续）。没有取得 Drive 权限时，同步停止且不会上传配置。[Google 分项权限说明](https://developers.google.com/identity/protocols/oauth2/resources/granular-permissions)
 
 账号识别改用 Drive 的 `about.get`，只读取 `user(permissionId,emailAddress)`。该接口支持 `drive.appdata`，无需再申请 `userinfo.email`。账号切换保护以 Drive 的 `permissionId` 为依据，邮箱仅用于预览展示；Google 未返回邮箱时仍可同步。[Drive about.get](https://developers.google.com/workspace/drive/api/reference/rest/v3/about/get)、[Drive User](https://developers.google.com/workspace/drive/api/reference/rest/v3/User)
