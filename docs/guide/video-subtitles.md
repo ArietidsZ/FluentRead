@@ -1,6 +1,6 @@
 # 视频与会议翻译
 
-在 YouTube、X 视频和 Google Meet、Teams、Zoom 网页会议中，看原字幕与译文。视频或会议需要提供可读取的字幕。
+在 YouTube、X 视频或 Google Meet、Teams、Zoom 网页会议中对照阅读原字幕与译文，使用时需开启平台提供的可读取字幕。
 
 <GuideVisual kind="video" />
 

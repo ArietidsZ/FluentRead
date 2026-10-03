@@ -1,6 +1,6 @@
 # Selection translation
 
-Select a word or sentence for its translation. Switch to card mode for dictionary lookup or optional learning.
+Translate a selected word or sentence, then use card mode to look up words, explore sentence structure or continue learning.
 
 <GuideVisual kind="selection" en />
 

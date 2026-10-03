@@ -42,7 +42,7 @@ The entry menu can close it for this session, disable it on the current site, or
 
 ## Data
 
-Generating or revising sends the necessary reference text, draft, and instructions to your selected AI provider. Gmail insertion uses readable plain text. Check names, facts, and tone before sending.
+Generating or revising sends the necessary reference text, draft, and instructions to your selected AI provider. Replies are inserted into Gmail as plain text. Check names, facts, and tone before sending.
 
 <details class="guide-details">
 <summary>Bilingual replies</summary>
@@ -51,7 +51,7 @@ Generating or revising sends the necessary reference text, draft, and instructio
 
 Choose the output language and a different reference language. Review the translated reference below the draft. **Insert reply** inserts the main text; its menu also offers **Insert bilingual reply**, with the main draft followed by its reference translation. Wait for a complete translation matching the current draft before using bilingual insertion.
 
-GitHub insertion keeps Markdown. Gmail insertion uses readable plain text. If the original draft contains complex formatting or the editor changed, copy the reply and paste it yourself.
+Replies keep Markdown formatting in GitHub and use plain text in Gmail. If the original draft contains complex formatting or the editor changed, copy the reply and paste it yourself.
 
 </details>
 

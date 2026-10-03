@@ -5,7 +5,7 @@
  * 模块边界：只编辑传入 Config 的 harness 字段；阅读记录由学习中心统一呈现，不发起模型请求，不拥有网页选区或提示词。
  -->
 <template>
-  <SettingsGroup title="AI 深入讲解" description="卡片中的可选能力。点击读懂、词性与句法、用法或练习后才发送请求。">
+  <SettingsGroup title="AI 深入讲解" description="点击卡片中的“读懂”“词性与句法”“用法”或“练习”时，才会向所选服务发送讲解请求。">
     <FeatureEnableCard v-model="config.harness.enabled" title="启用 AI 讲解" description="使用你配置的 AI 服务，围绕选中的原文继续学习。关闭后仍可翻译和查词。" />
     <div class="harness-provider-row">
       <div class="harness-provider-field">
@@ -26,7 +26,7 @@
         <small class="harness-provider-help">默认沿用服务的模型，也可以选择或输入模型名称。</small>
       </div>
     </div>
-    <SettingsItem label="卡片中的学习动作" description="保留读懂，其余按需要显示。只在打开卡片后出现。" stacked>
+    <SettingsItem label="卡片中的学习动作" description="卡片始终显示“读懂”，其他学习动作可按需显示。" stacked>
       <div class="harness-actions">
         <label v-for="action in HARNESS_ACTIONS" :key="action.id" class="harness-action">
           <input type="checkbox" :checked="config.harness.actions.includes(action.id)" :disabled="action.id === 'meaning'" @change="toggleAction(action.id)" />
@@ -34,7 +34,7 @@
         </label>
       </div>
     </SettingsItem>
-    <SettingsItem label="优先动作" description="开始学习时优先使用的动作；隐藏它时会恢复为读懂。">
+    <SettingsItem label="优先动作" description="选择默认学习动作；若隐藏该动作，默认恢复为“读懂”。">
       <el-select v-model="config.harness.defaultAction" class="harness-select" aria-label="默认动作">
         <el-option v-for="action in visibleActions" :key="action.id" :label="action.label" :value="action.id" />
       </el-select>
