@@ -66,6 +66,10 @@ async function clickEntry(selector) {const point = await entry(`const b=this.que
         report.currentCase = 'manga discovered with ordinary image translation disabled';await wait(async () => await entry('return !!this.querySelector(".fr-manga-entry")'));
         assert.equal(await ball('return this.querySelector(".manga-icon")?.tagName.toLowerCase()'), 'svg');
         assert.equal(await ball('return this.querySelector(".manga-icon")?.textContent.trim()'), '');
+        const mangaButtons = await ball('return [".floating-ball-main", ".floating-ball-manga"].map(s => {const r=this.querySelector(s).getBoundingClientRect();return {left:r.left,right:r.right,width:r.width}})');
+        assert.equal(mangaButtons[0].width, 40);assert.equal(mangaButtons[1].width, 40);
+        assert.ok(mangaButtons.every(r => r.left >= 0 && r.right <= 1280), 'Both manga reader buttons remain fully visible');
+        report.mangaButtons = mangaButtons;
         await shot('entry-initial');report.cases.push(report.currentCase);
         report.currentCase = 'manga entry remains after closing floating ball';await patch({disableFloatingBall: true});
         await wait(async () => !await ball('return true'));assert.ok(await entry('return !!this.querySelector(".fr-manga-entry")'));report.cases.push(report.currentCase);
@@ -129,7 +133,20 @@ async function clickEntry(selector) {const point = await entry(`const b=this.que
             await wait(async()=>await entry(`return this.querySelector(".fr-manga-primary")?.textContent.trim() === ${JSON.stringify(title)}`));
         }
         report.cases.push(report.currentCase);
-        report.currentCase = 'master switch removes manga UI';await patch({on: false});await wait(async () => !await entry('return true'));report.cases.push(report.currentCase);
+        report.currentCase = 'ordinary pages retain edge docking and reveal on hover';
+        await page.setViewportSize({width:1280,height:900});
+        await context.route('https://ordinary.example.test/article', route => route.fulfill({contentType:'text/html',body:'<html><body><p>Ordinary reading page</p></body></html>'}));
+        await page.mouse.move(30,30);await page.goto('https://ordinary.example.test/article');
+        await wait(async () => await ball('return !!this.querySelector(".floating-ball-main")'));
+        assert.equal(await ball('return this.querySelector(".floating-ball-manga") !== null'), false);
+        const docked = await ball('const r=this.querySelector(".floating-ball-main").getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}');
+        assert.ok(docked.right>1280 && docked.left<1280, 'Ordinary brand button rests partially beyond the edge');
+        await page.mouse.move(1278,(docked.top+docked.bottom)/2);
+        await wait(async () => await ball('return this.querySelector(".floating-ball-main").getBoundingClientRect().right <= 1280'));
+        report.ordinaryDocking=docked;report.cases.push(report.currentCase);
+        report.currentCase = 'master switch removes manga UI';
+        await page.goto('https://comic.example.test/reader/1');await wait(async () => await entry('return !!this.querySelector(".fr-manga-entry")'));
+        await patch({on: false});await wait(async () => !await entry('return true'));assert.equal(await ball('return true'),null);report.cases.push(report.currentCase);
     }
     assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.status = 'passed';
 })().catch(async e => {report.status = 'failed';report.failure = e.stack;process.exitCode = 1;if(popup){report.popupText=await popup.locator('body').innerText().catch(()=>null);await popup.screenshot({path:path.join(artifacts,'failed-popup.png')}).catch(()=>{});}if(page)await page.screenshot({path:path.join(artifacts,'failed-reader.png')}).catch(()=>{});}).finally(async () => {
