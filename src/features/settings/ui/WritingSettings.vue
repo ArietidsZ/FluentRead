@@ -2,13 +2,17 @@
  * @file src/features/settings/ui/WritingSettings.vue
  * 文件职责：提供写作助手总开关、默认回复偏好和 AI 服务连接设置。
  * 主要内容：用单层开关、紧凑的服务语言网格与并排风格示例组织设置，提前提示缺失配置，清楚区分默认偏好与真实生成。
- * 模块边界：只编辑设置中心持久化的同一份写作配置；不提供快捷键、重复入口开关或网站列表，不请求模型也不生成真实正文。
+ * 模块边界：只编辑设置中心持久化的同一份写作配置并恢复被禁用的网站；不提供快捷键或重复入口开关，不请求模型也不生成真实正文。
  -->
 <template>
   <div class="writing-settings">
     <FeatureEnableCard v-model="config.writing.enabled" title="启用写作助手" :description="t('writing.experience.enableDescription')" />
     <p v-if="!config.writing.enabled" class="writing-description" role="status">{{ t('writing.experience.disabled') }}</p>
     <p v-else-if="!config.on" class="writing-description" role="status">{{ t('writing.experience.paused') }}</p>
+    <SettingsGroup v-if="config.writing.disabledDomains.length" :title="t('writing.entry.disabledSites')">
+      <p class="writing-site-help">{{ t('writing.entry.siteHelp') }}</p>
+      <div v-for="domain in config.writing.disabledDomains" :key="domain" class="writing-disabled-site" :data-writing-disabled-site="domain"><span>{{ domain }}</span><button type="button" :aria-label="t('writing.entry.restoreSite', {domain})" @click="config.writing.disabledDomains = config.writing.disabledDomains.filter(item => item !== domain)">{{ t('writing.entry.restore') }}</button></div>
+    </SettingsGroup>
     <SettingsGroup title="写作服务">
       <div class="writing-service-grid">
         <SettingsItem label="AI 服务" stacked>
@@ -123,6 +127,7 @@ const referencePreviewLabel = computed(() => {
 .writing-settings{max-width:1040px;margin:0 auto}
 .writing-settings>.feature-enable-card{margin:0 0 18px;padding:16px 18px;box-shadow:none;background:var(--surface)}
 .writing-description{margin:-6px 0 18px;color:var(--muted);font-size:12px;line-height:1.7}
+.writing-site-help{margin:0;padding:12px 18px 0;color:var(--muted);font-size:12px}.writing-disabled-site{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;font-size:13px}.writing-disabled-site button{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--brand);padding:6px 10px;font:inherit;cursor:pointer}.writing-disabled-site button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .writing-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;padding:16px 18px}
 .writing-service-grid :deep(.settings-item){min-width:0;min-height:0;padding:0;gap:8px;border:0!important;background:transparent}
 .writing-service-grid :deep(.settings-item-control){align-self:end}
