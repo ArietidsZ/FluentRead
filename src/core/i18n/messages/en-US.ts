@@ -20,6 +20,16 @@ import {translationStatsEnglishMessages} from './translationStats';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
+    "settings.headers.title": "Remove source request headers",
+    "settings.headers.help": "The list is empty by default. Applies only to FluentRead background requests to the exact domain, shared by all services. Subdomains are separate. Remove an entry or uncheck a header to restore defaults.",
+    "settings.headers.unsupported": "This environment does not support this option. Use a browser extension with declarativeNetRequest support. Userscripts are not supported.",
+    "settings.headers.domain": "Service domain",
+    "settings.headers.add": "Add domain",
+    "settings.headers.invalid": "Enter a domain without a scheme, port, path or wildcard.",
+    "settings.headers.origin": "Remove Origin",
+    "settings.headers.referer": "Remove Referer",
+    "settings.headers.remove": "Delete",
+    "settings.headers.removeDomain": "Delete header rule for {domain}",
     "settings.backup.localTitle": "Local backup",
     "settings.backup.fileTitle": "Backup file",
     "settings.backup.fileDescription": "Backup files include API keys and other private information and are not encrypted. Keep them safe and do not share them publicly.",
