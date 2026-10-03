@@ -56,7 +56,7 @@ const features = [
 ] as const
 const faqs = [
   [
-    t('使用费用与账户要求', 'Pricing and account requirements'),
+    t('免费开源', 'Free and open source'),
     t(
       '流畅阅读是一款免费的开源插件，安装后即可使用，无需注册流畅阅读账户。内置免费翻译服务可直接使用；连接其他服务时，账户、费用与额度以相应服务商的要求为准。',
       'FluentRead is free and open source, and you do not need a FluentRead account. Built-in free translation services are ready to use; other providers may require an account and apply their own fees and usage limits.'
@@ -98,14 +98,21 @@ const faqs = [
     <section class="bv-hero" :class="{ 'bv-hero-en': en }" aria-labelledby="fr-title">
       <HeroOrbit :en="en" />
       <div class="bv-hero-copy">
-        <div class="bv-hero-brand">
-          <img :src="withBase('/brand-icon.webp')" width="72" height="72" alt="" />
-          <h1 id="fr-title" :lang="en ? 'en' : 'zh-CN'">{{ t('流畅阅读', 'FluentRead') }}</h1>
+        <div class="bv-hero-heading">
+          <div class="bv-hero-brand">
+            <h1 id="fr-title" :lang="en ? 'en' : 'zh-CN'">{{ t('流畅阅读', 'FluentRead') }}</h1>
+          </div>
+          <p class="bv-hero-slogan product-tagline">
+            <span class="bv-slogan-line"
+              ><span>{{ t('让语言更近', 'Closer languages') }}</span
+              ><span class="bv-slogan-punctuation">{{ t('，', '. ') }}</span></span
+            >
+            <span class="bv-slogan-line"
+              ><span>{{ t('让世界更大', 'A bigger world') }}</span
+              ><span class="bv-slogan-punctuation">{{ t('。', '.') }}</span></span
+            >
+          </p>
         </div>
-        <p class="bv-hero-slogan product-tagline">
-          <span>{{ t('让语言更近，', 'Closer languages.') }}</span>
-          <span>{{ t('让世界更大。', 'A bigger world.') }}</span>
-        </p>
         <p class="bv-hero-intro">
           <span>{{
             t(
