@@ -1,6 +1,6 @@
 # WebDAV cloud configuration backup
 
-Google Drive and WebDAV share **Settings → Configuration management → Cloud configuration backup**. WebDAV stores your configuration on the cloud drive, NAS, or server you choose. Saving, restoring, and merging are manual operations. Each method keeps its own comparison baseline; selecting WebDAV does not transfer a Google Drive backup.
+Google Drive and WebDAV share **Settings → Backup and restore → Cloud configuration backup**. WebDAV stores your configuration on the cloud drive, NAS, or server you choose. Saving, restoring, and merging are manual operations. Each method keeps its own comparison baseline; selecting WebDAV does not transfer a Google Drive backup.
 
 Backups include API keys, configured OAuth tokens, authentication headers, custom request bodies, and authentication parameters in URLs. Wordbooks, chat history, and usage statistics are excluded. The WebDAV URL, username, and app password stay on this device and are excluded from backups. This feature requires the browser extension background; use local backup files in the userscript.
 
