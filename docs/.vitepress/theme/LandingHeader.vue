@@ -6,10 +6,14 @@ defineProps<{ en?: boolean; languageLink: string }>()
   <a class="bv-home-skip" href="#VPContent">{{ en ? 'Skip to content' : '跳到正文' }}</a>
   <header class="bv-home-header">
     <nav :aria-label="en ? 'Main navigation' : '主导航'">
-      <a class="bv-home-brand" :href="withBase(en ? '/en/' : '/')"
-        ><img :src="withBase('/brand-icon.webp')" width="34" height="34" alt="" /><strong>{{
-          en ? 'FluentRead' : '流畅阅读'
-        }}</strong></a
+      <a
+        class="bv-home-brand"
+        :href="withBase(en ? '/en/' : '/')"
+        :aria-label="en ? 'FluentRead' : '流畅阅读'"
+        ><img :src="withBase('/brand-icon.webp')" width="38" height="38" alt="" />
+        <span class="bv-home-brand-text"
+          ><strong lang="zh-CN">流畅阅读</strong><small lang="en">FluentRead</small></span
+        ></a
       >
       <div class="bv-home-links">
         <a class="bv-home-features" :href="withBase((en ? '/en/' : '/') + '#features')">{{

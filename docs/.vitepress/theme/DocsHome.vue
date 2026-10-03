@@ -31,7 +31,7 @@ const groups = computed(() => [
     ],
   },
   {
-    title: t('学习与表达', 'Learning & expression'),
+    title: t('学习与表达', 'Learning & writing'),
     id: 'learning',
     items: [
       [t('学习中心', 'Learning center'), '/guide/vocabulary-book'],
@@ -60,12 +60,12 @@ const groups = computed(() => [
 <template>
   <div class="fr-docs">
     <div class="fr-docs-intro">
-      <p class="fr-docs-eyebrow">{{ t('流畅阅读 · FluentRead', 'FluentRead') }}</p>
+      <p class="fr-docs-eyebrow">{{ t('流畅阅读', 'FluentRead') }}</p>
       <h1>{{ t('使用文档', 'Documentation') }}</h1>
       <p>
         {{
           t(
-            '安装、翻译与设置，按功能查找操作说明。',
+            '按功能查找安装、翻译和设置的操作说明。',
             'Find instructions for installation, translation and settings.'
           )
         }}
