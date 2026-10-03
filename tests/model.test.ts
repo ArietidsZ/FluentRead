@@ -1083,7 +1083,7 @@ describe('段落翻译加载样式配置', () => {
 });
 
 describe('双语逐句高亮配置', () => {
-    it('旧配置保留开关，新样式单独保存，非法值回到柔和玫瑰', () => {
+    it('旧配置保留开关，新样式单独保存，非法值回到柔光粉', () => {
         expect(new Config().bilingualSentenceHighlightStyle).toBe('rose');
         for (const style of ['rose', 'mint', 'sky', 'underline', 'amber', 'lavender', 'slate', 'dotted']) {
             expect(normalizeConfig({bilingualSentenceHighlightEnabled: false, bilingualSentenceHighlightStyle: style}))

@@ -994,13 +994,13 @@ describe('options UI composition architecture', () => {
     expect(promptEditor).toContain('@mousedown.prevent')
   })
 
-  it('prioritizes daily translation before webpage assistance and basic preferences in General', () => {
+  it('prioritizes basic configuration before webpage assistance and basic preferences in General', () => {
     const settings = source('src/features/settings/ui/SettingsSections.vue')
     const general = activeSectionSource(settings, 'settings-general')
     const services = activeSectionSource(settings, 'settings-services')
     const styles = sourceBody('src/features/settings/ui/settings-sections.css')
 
-    expect(settingsGroupTitles(general)).toEqual(['日常翻译', '网页辅助', '基本偏好'])
+    expect(settingsGroupTitles(general)).toEqual(['基础配置', '网页辅助', '基本偏好'])
     expect(general).not.toContain('class="settings-subgroup-heading"')
     expect(general).not.toContain('id="translated-display-heading"')
     expect(general).toContain('data-testid="open-translation-settings"')
