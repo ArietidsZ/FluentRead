@@ -585,6 +585,11 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     disabledExtensionDomains: {group: 'siteRules', label: '禁用扩展网站'},
     floatingBallDisabledDomains: {group: 'siteRules', label: '禁用悬浮球网站'},
 
+    imageTranslationMangaEnabled: {group: 'imageTranslation', label: '漫画连续翻译入口', format: formatBoolean},
+    imageTranslationMangaPromptEnabled: {group: 'imageTranslation', label: '进入漫画网站时提示', format: formatBoolean},
+    imageTranslationMangaDownloadConfirmed: {group: 'imageTranslation', label: '已了解漫画资源下载', format: formatBoolean},
+    imageTranslationMangaSites: {group: 'imageTranslation', label: '自定义漫画网站'},
+    imageTranslationMangaPrefetchPages: {group: 'imageTranslation', label: '提前翻译后续页面'},
     imageTranslationHoverEnabled: {group: 'imageTranslation', label: '图片悬浮按钮', format: formatBoolean},
     imageTranslationContextMenuEnabled: {group: 'imageTranslation', label: '图片右键菜单', format: formatBoolean},
     disableImageTranslator: {group: 'imageTranslation', label: '图片翻译', format: (value) => formatBoolean(value, true)},

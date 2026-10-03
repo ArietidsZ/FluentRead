@@ -94,6 +94,7 @@ export function layoutImageTranslationText(
     width: number,
     height: number,
     measure: (text: string, fontSize: number) => number,
+    maxFontSize = Infinity,
 ): ImageTranslationTextLayout {
     const normalized = text.replace(/\r\n?/g, '\n').trim();
     if (!normalized || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
@@ -137,7 +138,7 @@ export function layoutImageTranslationText(
     const fits = (layout: ImageTranslationTextLayout) => layout.lines.length * layout.lineHeight <= height
         && layout.lines.every(line => measure(line, layout.fontSize) <= width);
 
-    let high = height / lineSpacing;
+    let high = Math.min(height / lineSpacing, maxFontSize);
     const largest = wrap(high);
     if (fits(largest)) return largest;
     // 根据完整段落在 1px 字号的宽度推导可容纳下限；极长译文可缩小但始终保留全部文字。
@@ -165,6 +166,7 @@ export function drawTranslatedImageText(
     width: number,
     height: number,
     backgroundColor: string,
+    maxFontSize = Infinity,
 ): void {
     const paddingX = Math.min(2, width * 0.03);
     const paddingY = Math.min(1, height * 0.05);
@@ -177,7 +179,7 @@ export function drawTranslatedImageText(
                 measuredFont = fontSize;
             }
             return context.measureText(line).width;
-        });
+        }, maxFontSize);
         if (layout.lines.length === 0) return;
         context.beginPath();
         context.rect(left, top, width, height);

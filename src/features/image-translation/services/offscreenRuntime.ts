@@ -10,6 +10,10 @@ import { areaRectToImageCrop, type AreaTranslationSelection, type AreaRecognitio
 import { inpaintTextRegions } from './inpainting';
 import { recognizeImage } from './ocrRuntime';
 import { getImageTextBackgroundColor, drawTranslatedImageText } from './rendering';
+import {mangaOcrRuntime} from './mangaOcr';
+import {drawMangaTranslations} from './mangaRendering';
+import type {MangaRegion} from './mangaRegions';
+import {mangaInpaintingRuntime} from './mangaInpainting';
 
 export type OffscreenImageTranslationLine = OcrLine & { backgroundColor: string; sourceText?: string };
 
@@ -196,6 +200,8 @@ async function prepareTranslatedImage(
     lines: OcrLine[],
     translations: string[],
     signal?: AbortSignal,
+    manga = false,
+    requestId?: string,
 ): Promise<OffscreenImageTranslationResult> {
     await checkImageCancellation(signal);
     const translatedLines = selectChangedTranslations(lines, translations);
@@ -212,6 +218,18 @@ async function prepareTranslatedImage(
         context.drawImage(source, 0, 0, canvas.width, canvas.height);
         const sourcePixels = context.getImageData(0, 0, canvas.width, canvas.height);
         throwIfImageOperationAborted(signal);
+        if (manga) {
+            const pixels = await mangaInpaintingRuntime.repair(sourcePixels.data,canvas.width,canvas.height,translatedLines as MangaRegion[],signal,
+                percent=>reportProgress(requestId,'preparing',percent),
+                (done,total)=>reportProgress(requestId,'cleaning',Math.floor(done*100/total)));
+            sourcePixels.data.set(pixels);context.putImageData(sourcePixels,0,0);
+            reportProgress(requestId,'rendering');
+            drawMangaTranslations(context, sourcePixels.data, canvas.width, canvas.height, translatedLines as MangaRegion[],true);
+            await checkImageCancellation(signal);
+            const image = canvas.toDataURL('image/png');
+            throwIfImageOperationAborted(signal);
+            return {image, lines: readingLines};
+        }
         const pixels = inpaintTextRegions(sourcePixels.data, canvas.width, canvas.height, translatedLines);
         sourcePixels.data.set(pixels);
         await checkImageCancellation(signal);
@@ -258,25 +276,31 @@ export async function translateImageInOffscreen(
     title: string,
     signal?: AbortSignal,
     requestId?: string,
+    manga = false,
 ): Promise<OffscreenImageTranslationResult> {
     // 提前验证输出预算，避免巨大输入完成 OCR 和付费翻译后才在生成译图时失败。
     const source = await loadImage(image, signal);
     try {
         throwIfImageOperationAborted(signal);
-        reportProgress(requestId, 'recognizing');
-        const lines = await recognizeImage(image, sourceLanguage, signal, {
+        if (!manga) reportProgress(requestId, 'recognizing');
+        const lines = manga ? await mangaOcrRuntime.recognize(image, sourceLanguage, source.naturalWidth || source.width,
+            source.naturalHeight || source.height, signal,
+            (stage, percent) => {if (!signal?.aborted) reportProgress(requestId, stage, percent);}, source) : await recognizeImage(image, sourceLanguage, signal, {
             decodedImage: source,
             onProgress: percent => { if (!signal?.aborted) reportProgress(requestId, 'recognizing', percent); },
         });
         throwIfImageOperationAborted(signal);
-        if (lines.length === 0) throw new Error('没有识别到图片文字');
+        if (lines.length === 0) {
+            if (manga) return {image,lines:[]};
+            throw new Error('没有识别到图片文字');
+        }
         reportProgress(requestId, 'translating');
         const translations = await translateImageTextsInExtension(
             lines.map(line => line.text), title, requestId, signal,
         );
         throwIfImageOperationAborted(signal);
-        reportProgress(requestId, 'rendering');
-        return await prepareTranslatedImage(source, lines, translations, signal);
+        reportProgress(requestId, manga ? 'cleaning' : 'rendering');
+        return await prepareTranslatedImage(source, lines, translations, signal, manga, requestId);
     } finally {
         source.src = '';
     }

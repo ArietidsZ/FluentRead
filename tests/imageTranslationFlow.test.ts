@@ -33,6 +33,16 @@ function mockProgressClient(sendMessage: ReturnType<typeof vi.fn>) {
 }
 
 describe('图片翻译流程优化',()=>{
+    it('专用漫画路径跳过 Tesseract 包预检，模型管理沿用后台消息',async()=>{
+        const getMangaModelStatus=vi.fn(async()=>({ready:true,bytes:123,inpaintingReady:false})),removeMangaModels=vi.fn(async()=>{});
+        const {handler,dependencies}=setup({getMangaModelStatus,removeMangaModels});
+        expect(await handler(IMAGE_TRANSLATE_MESSAGE_TYPE).handle({type:IMAGE_TRANSLATE_MESSAGE_TYPE,image:'data:image/png,x',sourceLanguage:'en',manga:true})).toMatchObject({success:true});
+        expect(dependencies.assertLanguagesDownloaded).not.toHaveBeenCalled();
+        expect(dependencies.translateImage).toHaveBeenCalledWith('data:image/png,x','en','',expect.objectContaining({manga:true}));
+        expect(await handler('fluentReadMangaModelStatus').handle({type:'fluentReadMangaModelStatus'})).toEqual({success:true,ready:true,bytes:123,inpaintingReady:false});
+        expect(await handler('fluentReadMangaModelRemove').handle({type:'fluentReadMangaModelRemove'})).toEqual({success:true});expect(removeMangaModels).toHaveBeenCalledOnce();
+        await expect(handler(IMAGE_TRANSLATE_MESSAGE_TYPE).handle({type:IMAGE_TRANSLATE_MESSAGE_TYPE,image:'data:image/png,x',sourceLanguage:'en',manga:'true'} as never)).rejects.toThrow('漫画翻译模式无效');
+    });
     it('识别进度接受有效百分比，语言刷新保留数值，完成或失败清除百分比', () => {
         for (const invalid of [undefined, null, '50', NaN, Infinity, -1, 101]) expect(normalizeImageProgress(invalid)).toBeUndefined();
         expect(normalizeImageProgress(0)).toBe(0); expect(normalizeImageProgress(100)).toBe(100);
@@ -153,7 +163,7 @@ describe('图片翻译流程优化',()=>{
         wait.resolve({image:'data:image/png,x',lines:[]});await pending;
         await notify.handle(message,{sender:{url:'offscreen'}});expect(sendProgress).toHaveBeenCalledOnce();
         const optional=setup(); await expect(optional.handler(IMAGE_PROGRESS_MESSAGE_TYPE).handle(message)).resolves.toEqual({success:false});
-        expect(['recognizing','translating','rendering'].every(isImageTranslationStage)).toBe(true);
+        expect(['preparing','recognizing','translating','cleaning','rendering'].every(isImageTranslationStage)).toBe(true);
         expect(isImageTranslationStage(null)).toBe(false);
     });
     it('客户端按请求过滤进度并在成功/取消后移除监听，准备使用当前源语言',async()=>{
@@ -203,7 +213,7 @@ describe('图片翻译流程优化',()=>{
         document.body.append(ui.feedback, ui.element);
         ui.update('loading', '正在识别图片文字…', {progress: 10});
         const row = ui.button.parentElement!;
-        const append = vi.spyOn(ui.element, 'append');
+        const append = vi.spyOn(ui.feedback, 'append');
         let focusEvents = 0;
         let blurEvents = 0;
         ui.button.addEventListener('focus', () => { focusEvents += 1; });
@@ -215,9 +225,9 @@ describe('图片翻译流程优化',()=>{
         ui.update('loading', '正在识别图片文字…', {progress: 40});
         ui.update('loading', '正在识别图片文字…', {progress: 70});
 
-        expect(row.parentElement).toBe(ui.element);
+        expect(row.parentElement).toBe(ui.feedback);
         expect(ui.button.parentElement).toBe(row);
-        expect(ui.element.contains(ui.button)).toBe(true);
+        expect(ui.feedback.contains(ui.button)).toBe(true);
         expect(focusEvents).toBe(focusEventsBeforeProgress);
         expect(blurEvents).toBe(blurEventsBeforeProgress);
         expect(append).not.toHaveBeenCalled();

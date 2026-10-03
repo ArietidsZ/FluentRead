@@ -1,6 +1,9 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const mocks = vi.hoisted(() => ({recognize: vi.fn(), inpaint: vi.fn(), background: vi.fn(), draw: vi.fn()}));
+const mocks = vi.hoisted(() => ({recognize: vi.fn(), inpaint: vi.fn(), background: vi.fn(), draw: vi.fn(), mangaRecognize:vi.fn(), repair:vi.fn(), mangaDraw:vi.fn()}));
+vi.mock('@/src/features/image-translation/services/mangaOcr',()=>({mangaOcrRuntime:{recognize:mocks.mangaRecognize}}));
+vi.mock('@/src/features/image-translation/services/mangaInpainting',()=>({mangaInpaintingRuntime:{repair:mocks.repair}}));
+vi.mock('@/src/features/image-translation/services/mangaRendering',()=>({drawMangaTranslations:mocks.mangaDraw}));
 vi.mock('@/src/features/image-translation/services/ocrRuntime', () => ({recognizeImage: mocks.recognize}));
 vi.mock('@/src/features/image-translation/services/inpainting', () => ({inpaintTextRegions: mocks.inpaint}));
 vi.mock('@/src/features/image-translation/services/rendering', () => ({
@@ -101,6 +104,36 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('Offscreen 图片完整操作生命周期', () => {
+    it('漫画整段识别走专用模型与局部修补，保留对照并报告准备阶段',async()=>{
+        const regions=[{...lines[0],fontSize:10,sourceBoxes:[lines[0].bbox]}];
+        mocks.mangaRecognize.mockImplementationOnce(async(_image,_language,_w,_h,_signal,progress)=>{progress('preparing',23);progress('recognizing');return regions;});
+        mocks.repair.mockImplementationOnce(async(pixels,_w,_h,_lines,_signal,onPreparing,onRepair)=>{onPreparing();onRepair(1,2);return pixels;});
+        const result=await translateImageInOffscreen('manga','en','Page',undefined,'manga-page',true);
+        expect(mocks.recognize).not.toHaveBeenCalled();expect(mocks.inpaint).not.toHaveBeenCalled();expect(mocks.draw).not.toHaveBeenCalled();
+        expect(mocks.mangaDraw).toHaveBeenCalledWith(canvases[0].context,expect.any(Uint8ClampedArray),32,16,[expect.objectContaining({text:'你好',sourceBoxes:regions[0].sourceBoxes})],true);
+        expect(result.lines[0]).toMatchObject({text:'你好',sourceText:'Hello'});
+        expect(sendMessage.mock.calls.filter(([m])=>m.type==='fluentReadImageProgress').map(([m])=>m.stage)).toEqual(['preparing','recognizing','translating','cleaning','preparing','cleaning','rendering']);
+        expect(sendMessage).toHaveBeenCalledWith({type:'fluentReadImageProgress',requestId:'manga-page',stage:'cleaning',progress:50},expect.any(Function));
+        expect(images[0].src).toBe('');expect(canvases[0].width).toBe(0);
+    });
+    it('漫画修补完成后取消，不能编码或返回迟到译图',async()=>{
+        const controller=new AbortController();mocks.mangaRecognize.mockResolvedValue([{...lines[0],fontSize:10}]);
+        mocks.repair.mockImplementationOnce(async pixels=>{controller.abort();return pixels;});
+        await expect(translateImageInOffscreen('manga','en','',controller.signal,'cancel-manga',true)).rejects.toThrow('已取消');
+        expect(canvases[0].toDataURL).not.toHaveBeenCalled();expect(images[0].src).toBe('');
+    });
+    it.each([false, true])('漫画进度按请求所有权投递，解码宽高可安全回退，带信号=%s', async withSignal => {
+        imageOptions.push({naturalWidth: 0, naturalHeight: 0});
+        const controller = new AbortController();let notify!: (stage: string, progress?: number) => void;
+        mocks.mangaRecognize.mockImplementationOnce(async (_image, _language, width, height, _signal, progress) => {
+            expect([width, height]).toEqual([32, 16]);notify = progress;notify('recognizing', 37);
+            return [{...lines[0], fontSize: 10}];
+        });
+        mocks.repair.mockImplementationOnce(async pixels => pixels);
+        await translateImageInOffscreen('manga', 'en', '', withSignal ? controller.signal : undefined, 'manga-progress', true);
+        const calls = sendMessage.mock.calls.length;controller.abort();notify('recognizing', 98);
+        expect(sendMessage).toHaveBeenCalledTimes(calls + (withSignal ? 0 : 1));
+    });
     it.each([false, true])('OCR 百分比只在请求仍有效时发出，带取消信号=%s', async withSignal => {
         const controller = new AbortController(); let notify!: (percent: number) => void;
         mocks.recognize.mockImplementationOnce(async (_image, _source, _signal, options) => {
@@ -231,6 +264,12 @@ describe('Offscreen 图片完整操作生命周期', () => {
         expect(images.every(image => image.src === '')).toBe(true);
     });
 
+    it('漫画没有检测到文字时保留原图，不发送翻译请求，也不创建译图或修补', async () => {
+        mocks.mangaRecognize.mockResolvedValueOnce([]);
+        await expect(translateImageInOffscreen('no-text','ja','',undefined,undefined,true)).resolves.toEqual({image:'no-text',lines:[]});
+        expect(sendMessage).not.toHaveBeenCalled();expect(canvases).toHaveLength(0);expect(mocks.repair).not.toHaveBeenCalled();
+        expect(images[0].src).toBe('');
+    });
     it('OCR 返回时已取消，不再发送翻译请求', async () => {
         const controller = new AbortController();
         mocks.recognize.mockImplementation(async () => {controller.abort(); return lines;});

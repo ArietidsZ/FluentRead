@@ -123,7 +123,7 @@ describe('低干扰悬浮 UI', () => {
     const main = cssRule(floatingBall, '.floating-ball-main');
     const tool = cssRule(floatingBall, '.floating-ball-tool');
 
-    expect(numericDeclaration(root, '--fr-ball-size')).toBe(48);
+    expect(numericDeclaration(root, '--fr-ball-size')).toBe(40);
     expect(numericDeclaration(root, '--fr-ball-tool-size')).toBeGreaterThanOrEqual(40);
     expect(numericDeclaration(compact, '--fr-ball-size')).toBeLessThan(48);
     expect(numericDeclaration(compact, '--fr-ball-tool-size'))

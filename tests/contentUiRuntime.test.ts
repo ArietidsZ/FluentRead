@@ -2,6 +2,9 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {parseHTML} from 'linkedom';
 
 const mocks = vi.hoisted(() => ({
+  subscribeMangaTranslation: vi.fn(),
+  openMangaEntry: vi.fn(),
+  unsubscribeMangaTranslation: vi.fn(),
   config: {
     disableFloatingBall: false,
     floatingBallPosition: '' as '' | 'left' | 'right',
@@ -47,6 +50,7 @@ vi.mock('@/src/features/full-page-translation/public', () => ({
   restoreOriginalContent: mocks.restoreOriginalContent,
   subscribeFullPageTranslationProgress: mocks.subscribeFullPageTranslationProgress,
 }));
+vi.mock('@/src/features/image-translation/public', () => ({subscribeMangaTranslation: mocks.subscribeMangaTranslation, openMangaEntry: mocks.openMangaEntry}));
 vi.mock('@/src/features/floating-ball/ui/FloatingBall.vue', () => ({default: {name: 'FloatingBall'}}));
 vi.mock('@/src/features/full-page-translation/ui/TranslationProgressPanel.vue', () => ({
   default: {name: 'TranslationProgressPanel'},
@@ -98,6 +102,9 @@ beforeEach(() => {
     translationProgressPanelEnabled: true,
   });
   for (const mock of [
+    mocks.subscribeMangaTranslation,
+    mocks.openMangaEntry,
+    mocks.unsubscribeMangaTranslation,
     mocks.createVueShadowUi,
     mocks.requestConfigPatch,
     mocks.sendMessage,
@@ -112,6 +119,7 @@ beforeEach(() => {
   mocks.requestConfigPatch.mockImplementation(async (patch: Record<string, unknown>) => {
     Object.assign(mocks.config, patch);
   });
+  mocks.subscribeMangaTranslation.mockImplementation(listener => {listener({available: false, active: false, pending: false, errors: 0}); return mocks.unsubscribeMangaTranslation;});
   mocks.sendMessage.mockResolvedValue({success: true});
   mocks.autoTranslateEnglishPage.mockResolvedValue(undefined);
   mocks.isFullPageTranslationActive.mockReturnValue(false);
@@ -444,3 +452,15 @@ describe('全文翻译进度面板 content runtime', () => {
     expect(mountedUi.remove).toHaveBeenCalledOnce();
   });
 });
+
+ it('漫画入口订阅当前状态、只接收可信点击，卸载清理订阅', async () => {
+    mocks.createVueShadowUi.mockResolvedValue(ui());
+    const runtime = await import('@/src/features/floating-ball/content/runtime');
+    await runtime.mountFloatingBall({} as never);
+    const props = mocks.createVueShadowUi.mock.calls[0][1].props;
+    mocks.subscribeMangaTranslation.mock.calls[0][0]({available: true, active: true, pending: true, errors: 0});
+    expect(props.manga).toEqual({available: true, active: true, pending: true, errors: 0});
+    props.onMangaToggle({isTrusted: false}); expect(mocks.openMangaEntry).not.toHaveBeenCalled();
+    props.onMangaToggle({isTrusted: true}); expect(mocks.openMangaEntry).toHaveBeenCalledOnce();
+    runtime.unmountFloatingBall(); expect(mocks.unsubscribeMangaTranslation).toHaveBeenCalledOnce();
+ });

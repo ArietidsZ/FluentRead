@@ -246,11 +246,13 @@
       </SettingsPanel>
     </section>
     <section v-if="hasVisitedSection('settings-image-translation')" v-show="props.activeSection === 'settings-image-translation'" id="settings-image-translation" class="settings-section image-translation-settings">
-      <SettingsPanel name="entries" :active="props.activePanel">
-<SettingsGroup title="功能状态">
+      <MangaSettings v-if="props.activeSection === 'settings-image-translation'" :settings="config" :available="browserCapabilities.imageTranslation" :service-options="availableServiceOptions">
+      <SettingsGroup>
         <FeatureEnableCard v-model="imageTranslationEnabled" title="网页图片翻译" :description="t('featureEnable.imageDescription')" :disabled="!browserCapabilities.imageTranslation" />
       </SettingsGroup>
-      <SettingsGroup :title="t('image.entries')">
+      <details class="image-settings-details">
+        <summary>{{ t('image.entries') }}</summary>
+      <SettingsGroup>
         <SettingsItem :label="t('image.hover')" :description="t('image.hoverDescription')">
           <el-switch v-model="config.imageTranslationHoverEnabled" class="settings-toggle" :aria-label="t('image.hover')" :disabled="!imageTranslationEnabled || !browserCapabilities.imageTranslation" />
         </SettingsItem>
@@ -258,15 +260,15 @@
           <el-switch v-model="config.imageTranslationContextMenuEnabled" class="settings-toggle" :aria-label="t('image.context')" :disabled="!imageTranslationEnabled || !browserCapabilities.imageTranslation" />
         </SettingsItem>
       </SettingsGroup>
-</SettingsPanel>
-      <SettingsPanel name="area">
+      </details>
         <div id="settings-area-translation">
-          <AreaTranslationSettings :config="config" :service-options="availableServiceOptions" :enabled="selectionAreaTranslationEnabled" :active="props.activeSection === 'settings-image-translation'" :show-ocr="false" @update:enabled="selectionAreaTranslationEnabled = $event" />
+          <AreaTranslationSettings :config="config" :service-options="availableServiceOptions" :enabled="selectionAreaTranslationEnabled" :active="props.activeSection === 'settings-image-translation'" :show-ocr="false" compact @update:enabled="selectionAreaTranslationEnabled = $event" />
         </div>
-      </SettingsPanel>
-      <SettingsPanel name="ocr">
-        <ImageOcrSettings v-if="props.activeSection === 'settings-image-translation'" v-model:source-language="config.from" />
-      </SettingsPanel>
+      <template #resources><details class="image-settings-details image-ocr-details" @toggle="imageOcrExpanded = ($event.target as HTMLDetailsElement).open">
+        <summary>{{ translateLegacy('普通图片识别资源') }}</summary>
+        <ImageOcrSettings v-if="props.activeSection === 'settings-image-translation' && imageOcrExpanded" v-model:source-language="config.from" />
+      </details></template>
+      </MangaSettings>
     </section>
     <section v-if="hasVisitedSection('settings-video')" v-show="props.activeSection === 'settings-video'" id="settings-video" class="settings-section">
       <SettingsPanel name="general" :active="props.activePanel">
@@ -791,6 +793,7 @@ const SiteAdaptationSettings = defineAsyncComponent(() => import('./SiteAdaptati
 const SitePreferencesSettings = defineAsyncComponent(() => import('./SitePreferencesSettings.vue'));
 const SiteRulePreview = defineAsyncComponent(() => import('./SiteRulePreview.vue'));
 const siteRuleInspectId = ref('');
+const imageOcrExpanded = ref(false);
 async function inspectSiteRule(id: string) {
   siteRuleInspectId.value = '';
   await nextTick();
@@ -806,6 +809,7 @@ import {
   isApiKeyRequired,
 } from '@/src/core/config/validation';
 const ImageOcrSettings = defineAsyncComponent(() => import('@/src/features/image-translation/public').then(module => module.ImageOcrSettings));
+const MangaSettings = defineAsyncComponent(() => import('@/src/features/image-translation/public').then(module => module.MangaSettings));
 const VideoLocalModelSettings = defineAsyncComponent(() => import('./VideoLocalModelSettings.vue'));
 const LocalTtsSettings = defineAsyncComponent(() => import('./LocalTtsSettings.vue'));
 const VideoSubtitleAppearanceSettings = defineAsyncComponent(() => import('./VideoSubtitleAppearanceSettings.vue'));
