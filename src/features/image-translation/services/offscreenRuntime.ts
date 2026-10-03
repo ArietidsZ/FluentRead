@@ -265,6 +265,7 @@ export async function translateImageInOffscreen(
         throwIfImageOperationAborted(signal);
         reportProgress(requestId, 'recognizing');
         const lines = await recognizeImage(image, sourceLanguage, signal, {
+            decodedImage: source,
             onProgress: percent => { if (!signal?.aborted) reportProgress(requestId, 'recognizing', percent); },
         });
         throwIfImageOperationAborted(signal);
