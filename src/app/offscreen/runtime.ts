@@ -11,6 +11,9 @@ import {
     translateAreaInOffscreen,
     cropAreaInOffscreen,
     translateImageInOffscreen,
+    mangaOcrModelStatus,
+    removeMangaModels,
+    disposeMangaModels,
 } from './imageTranslation';
 import {createOffscreenMessageListener} from './messageRouter';
 import {createSelectionTtsPlayer} from './ttsPlayback';
@@ -75,6 +78,8 @@ export function startOffscreenApp(): void {
         fetchImage: fetchImageInOffscreen,
         downloadOcrLanguages: downloadImageOcrLanguages,
         removeOcrLanguages: removeImageOcrLanguages,
+        mangaModelStatus:mangaOcrModelStatus,
+        removeMangaModels,
         videoAi: {
             transcribe: (request) => transcribeLocalVideoAudio(request as any),
             prepare: (request) => prepareLocalVideoTranscriptionModel(request.model, {keepWarm: request.keepWarm === true, streamId: request.streamId}),
@@ -108,5 +113,6 @@ export function startOffscreenApp(): void {
         ttsPlayer.dispose();
         disposeLocalTranslationWorker();
         disposeLocalTtsWorker();
+        disposeMangaModels();
     }, {once: true});
 }

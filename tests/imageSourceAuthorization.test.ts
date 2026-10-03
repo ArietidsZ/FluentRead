@@ -1,5 +1,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {withImageSourceAuthorization, IMAGE_SOURCE_VALIDATION_MESSAGE_TYPE} from '@/src/features/image-translation/content/sourceAuthorization';
+import {withPixivImageReferrer} from '@/src/features/image-translation/background/pixivImageReferrer';
 import {createImageSourceVerifier, imageTranslationSourceTransport} from '@/src/features/image-translation/background/offscreenAdapter';
 import {createImageTranslationBackgroundHandlers, IMAGE_FETCH_MESSAGE_TYPE, IMAGE_CANCEL_MESSAGE_TYPE} from '@/src/features/image-translation/background/handlers';
 
@@ -27,6 +28,33 @@ function pageFixture() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('跨域图片读取任务的页面授权', () => {
+    it('Pixiv 临时规则精确绑定图片及扩展发起者，不触碰宿主请求；成功和失败都移除', async () => {
+        const api={updateSessionRules:vi.fn().mockResolvedValue(undefined)},operation=vi.fn().mockResolvedValue('image');
+        const source='https://i.pximg.net/img-original/123_p0.jpg?a=1&b=2';
+        await expect(withPixivImageReferrer(source,'https://www.pixiv.net/artworks/123#1',operation,api,'own-extension')).resolves.toBe('image');
+        const rule=api.updateSessionRules.mock.calls[0][0].addRules[0];
+        expect(rule.condition.initiatorDomains).toEqual(['own-extension']);expect(new RegExp(rule.condition.regexFilter).test(source)).toBe(true);
+        expect(new RegExp(rule.condition.regexFilter).test(source+'extra')).toBe(false);
+        expect(rule.action.requestHeaders).toEqual([{header:'Referer',operation:'set',value:'https://www.pixiv.net/'}]);
+        expect(api.updateSessionRules).toHaveBeenLastCalledWith({removeRuleIds:[rule.id]});
+        operation.mockRejectedValueOnce(new Error('network failed'));
+        await expect(withPixivImageReferrer(source,'https://pixiv.net/en/artworks/123/',operation,api,'own-extension')).rejects.toThrow('network failed');
+        expect(api.updateSessionRules).toHaveBeenCalledTimes(4);
+    });
+    it('没有伪造来源、没有 API 或其他站点时不安装规则；并发请求串行取得临时规则', async () => {
+        const api={updateSessionRules:vi.fn().mockResolvedValue(undefined)},operation=vi.fn().mockResolvedValue('image');
+        const source='https://i.pximg.net/img-original/123_p0.jpg';
+        for(const page of [undefined,'invalid','http://pixiv.net/artworks/123','https://pixiv.net.attacker.test/artworks/123','https://pixiv.net/']) await withPixivImageReferrer(source,page,operation,api,'own');
+        for(const image of ['http://i.pximg.net/a.jpg','https://other.net/a.jpg','https://i.pximg.net:123/a.jpg','https://u@i.pximg.net/a.jpg','https://:p@i.pximg.net/a.jpg']) await withPixivImageReferrer(image,'https://pixiv.net/artworks/123',operation,api,'own');
+        expect(api.updateSessionRules).not.toHaveBeenCalled();
+        vi.stubGlobal('browser',{runtime:{id:'own'},declarativeNetRequest:undefined});await withPixivImageReferrer(source,'https://pixiv.net/artworks/123',operation);
+        vi.stubGlobal('browser',{runtime:{getURL:()=> 'moz-extension://own-uuid/'},declarativeNetRequest:api});const pending=deferred<string>();
+        const first=withPixivImageReferrer(source,'https://pixiv.net/artworks/123',()=>pending.promise);
+        const second=withPixivImageReferrer(source+'?page=2','https://pixiv.net/artworks/123',operation);
+        for(let i=0;i<8;i++)await Promise.resolve();expect(api.updateSessionRules).toHaveBeenCalledTimes(1);
+        pending.resolve('first');await first;await second;expect(api.updateSessionRules).toHaveBeenCalledTimes(4);
+        api.updateSessionRules.mockRejectedValueOnce(new Error('permission'));await expect(withPixivImageReferrer(source,'https://pixiv.net/artworks/123',operation,api,'own')).rejects.toThrow('permission');
+    });
     it('独立 requestId 只匹配本扩展后台，读取结束即清理监听器', async () => {
         const env = pageFixture(); const wait = deferred<string>(); let id = '';
         const pending = withImageSourceAuthorization(env.image, url, undefined, requestId => {id = requestId; return wait.promise;});
@@ -132,8 +160,10 @@ describe('后台跨域图片来源复核', () => {
         const handlers = createImageTranslationBackgroundHandlers(dependencies);
         const request = {type: IMAGE_FETCH_MESSAGE_TYPE, url, requestId: 'task'} as const;
         const handler = handlers.find(item => item.type === IMAGE_FETCH_MESSAGE_TYPE)!;
-        await expect(handler.handle(request, owner)).resolves.toEqual({success: true, image: 'data:image/png,image'});
+        const forged = {...request, documentUrl: 'https://www.pixiv.net/artworks/123'};
+        await expect(handler.handle(forged, owner)).resolves.toEqual({success: true, image: 'data:image/png,image'});
         expect(verify).toHaveBeenCalledWith(url, expect.objectContaining({requestId: 'task'}), owner);
+        expect(fetchImage).toHaveBeenCalledWith(url, expect.objectContaining({documentUrl}));
         fetchImage.mockClear(); verify.mockRejectedValueOnce(new Error('未授权'));
         await expect(handler.handle({...request, requestId: 'denied'}, owner)).rejects.toThrow('未授权');
         expect(fetchImage).not.toHaveBeenCalled();

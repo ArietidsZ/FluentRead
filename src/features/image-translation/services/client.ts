@@ -27,6 +27,7 @@ interface ImageFetchResponse {
 }
 
 export interface ImageExtensionOperationOptions {
+    readonly manga?: boolean;
     readonly requestId?: string;
     readonly signal?: AbortSignal;
     readonly timeoutMs?: number;
@@ -179,6 +180,7 @@ export async function translateImageInExtension(
         image,
         sourceLanguage,
         title,
+        ...(options.manga ? {manga: true} : {}),
     };
     const timeoutMs = normalizeImageTimeout(options.timeoutMs);
     if (options.signal?.aborted) throw createImageClientError('图片 OCR 请求已取消', 'AbortError');

@@ -39,6 +39,7 @@ vi.mock('@/src/app/content/features', () => ({
         'autoTranslateEnglishPage', 'cancelPendingHoverTranslation', 'handleTranslation', 'noteBilingualHostGesture',
         'inputBoxTranslationConfigKey', 'isAreaTranslatorMounted', 'isFullPageTranslationActive',
         'mountAreaTranslator', 'mountFloatingBall', 'mountImageTranslator', 'mountSelectionTranslator',
+        'isImageTranslatorNeeded', 'isMangaReaderPage', 'mountMangaEntry', 'unmountMangaEntry',
         'mountTranslationProgressPanel', 'mountVideoSubtitleTranslation', 'isSupportedVideoPage',
         'mountParagraphCopyContentFeature', 'mountSectionTranslationContentFeature',
         'unmountAreaTranslator', 'unmountFloatingBall',

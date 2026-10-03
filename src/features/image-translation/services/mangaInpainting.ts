@@ -1,0 +1,109 @@
+/**
+ * @file src/features/image-translation/services/mangaInpainting.ts
+ * 文件职责：用按需加载的本地 LaMa 漫画模型修补复杂背景上的原字形，保留气泡之外和蒙版之外的原始像素。
+ * 主要内容：按识别行及其有界描边余量建立局部蒙版，截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；串行推理、取消边界和三分钟空闲释放约束资源。
+ * 模块边界：不读取网页 DOM、不上传图像、不翻译文字；均匀气泡无需加载模型，最后的译文排版由 mangaRendering 处理，模型生成内容始终局限于检测文字蒙版。
+ */
+import {configureOnnxWasmBackend} from '@/src/shared/onnx/wasmBinary';
+import {assertMangaOcrActive, loadMangaInpaintAsset, MANGA_INPAINT_ASSET} from './mangaOcrAssets';
+import {mangaRegionBackground} from './mangaRendering';
+import type {MangaRegion} from './mangaRegions';
+
+export interface MangaPatch {image: Float32Array; mask: Float32Array; width: number; height: number}
+interface PatchMapping {patch: MangaPatch; left: number; top: number; sourceWidth: number; sourceHeight: number}
+interface InpaintPort {run(patch: MangaPatch): Promise<Float32Array>; release(): Promise<void>}
+
+/** 描边常在检测框外，给字形蒙版留出有界余量并夹紧到原图。 */
+function maskBoxes(region:MangaRegion,width:number,height:number) {
+    const margin=Math.max(2,Math.min(14,Math.ceil(region.fontSize*.2)));
+    return (region.sourceBoxes||[region.bbox]).map(box=>({x0:Math.max(0,Math.floor(box.x0)-margin),y0:Math.max(0,Math.floor(box.y0)-margin),
+        x1:Math.min(width,Math.ceil(box.x1)+margin),y1:Math.min(height,Math.ceil(box.y1)+margin)}));
+}
+
+/** 识别框已有字形留白，蒙版按原始行分别构造，避免把整个段落之间的画面也擦除。 */
+export function createMangaPatch(pixels: Uint8ClampedArray, width: number, height: number, region: MangaRegion): PatchMapping {
+    const box = region.bbox, padding = Math.max(24, Math.round(region.fontSize));
+    const left = Math.max(0, Math.floor(box.x0) - padding), top = Math.max(0, Math.floor(box.y0) - padding);
+    const sourceWidth = Math.min(width, Math.ceil(box.x1) + padding) - left;
+    const sourceHeight = Math.min(height, Math.ceil(box.y1) + padding) - top;
+    const scale = Math.min(1, 512 / Math.max(sourceWidth, sourceHeight));
+    const patchWidth = Math.max(64, Math.ceil(sourceWidth * scale / 64) * 64);
+    const patchHeight = Math.max(64, Math.ceil(sourceHeight * scale / 64) * 64);
+    const count = patchWidth * patchHeight;
+    const image = new Float32Array(count * 3), mask = new Float32Array(count);
+    const boxes = maskBoxes(region,width,height);
+    for (let y = 0; y < patchHeight; y += 1) for (let x = 0; x < patchWidth; x += 1) {
+        const sx = left + Math.min(sourceWidth - 1, Math.floor(x * sourceWidth / patchWidth));
+        const sy = top + Math.min(sourceHeight - 1, Math.floor(y * sourceHeight / patchHeight));
+        const input = (sy * width + sx) * 4, output = y * patchWidth + x;
+        for (let channel = 0; channel < 3; channel += 1) image[channel * count + output] = pixels[input + channel] / 255;
+        if (boxes.some(line => sx >= line.x0 && sx < line.x1 && sy >= line.y0 && sy < line.y1)) mask[output] = 1;
+    }
+    return {patch:{image,mask,width:patchWidth,height:patchHeight},left,top,sourceWidth,sourceHeight};
+}
+
+/** 只回写字形及描边蒙版内的像素，蒙版以外始终使用原图。 */
+export function applyMangaPatch(pixels: Uint8ClampedArray, width: number, region: MangaRegion, mapping: PatchMapping, output: Float32Array): void {
+    const {patch,left,top,sourceWidth,sourceHeight} = mapping, count = patch.width * patch.height;
+    if (output.length !== count * 3 || !output.every(Number.isFinite)) throw new Error('漫画背景修补结果无效');
+    for (const box of maskBoxes(region,width,pixels.length/(width*4))) {
+        for (let y = Math.floor(box.y0); y < box.y1; y += 1) for (let x = Math.floor(box.x0); x < box.x1; x += 1) {
+            const px = Math.min(patch.width-1, Math.floor((x-left) * patch.width / sourceWidth));
+            const py = Math.min(patch.height-1, Math.floor((y-top) * patch.height / sourceHeight));
+            const sample = py * patch.width + px, destination = (y * width + x) * 4;
+            for (let channel = 0; channel < 3; channel += 1) pixels[destination+channel] = Math.round(Math.max(0,Math.min(1,output[channel*count+sample]))*255);
+        }
+    }
+}
+
+export function createMangaInpaintingRuntime(create: (signal?: AbortSignal,progress?:(percent:number)=>void) => Promise<InpaintPort>) {
+    let service: InpaintPort | undefined, idle: ReturnType<typeof setTimeout> | undefined;
+    let tail: Promise<void> = Promise.resolve();
+    function queue<T>(operation:()=>Promise<T>) {const result=tail.then(operation);tail=result.then(()=>undefined,()=>undefined);return result;}
+    async function release() {clearTimeout(idle);idle=undefined;const current=service;service=undefined;await current?.release();}
+    return {
+        repair(pixels:Uint8ClampedArray,width:number,height:number,regions:MangaRegion[],signal?:AbortSignal,onPreparing?:(percent?:number)=>void,onRepair?:(done:number,total:number)=>void) {
+            return queue(async()=>{
+                assertMangaOcrActive(signal); clearTimeout(idle);
+                try {
+                    const result = new Uint8ClampedArray(pixels);
+                    const pending = regions.filter(region => !mangaRegionBackground(pixels,width,height,region.bbox).uniform);
+                    let completed = 0;
+                    for (const region of pending) {
+                        assertMangaOcrActive(signal);
+                        if (!service) {onPreparing?.();service=await create(signal,onPreparing);}
+                        assertMangaOcrActive(signal);
+                        onRepair?.(completed,pending.length);
+                        const mapping=createMangaPatch(pixels,width,height,region);
+                        const output=await service.run(mapping.patch);
+                        assertMangaOcrActive(signal);applyMangaPatch(result,width,region,mapping,output);
+                        completed++;onRepair?.(completed,pending.length);
+                    }
+                    return result;
+                } finally {idle=setTimeout(()=>{void queue(release).catch(()=>undefined);},180000);}
+            });
+        },
+        dispose:()=>queue(release),
+    };
+}
+
+export async function createBrowserMangaInpainter(signal?:AbortSignal,progress?:(percent:number)=>void):Promise<InpaintPort> {
+    let lastPercent = -1;
+    const model=await loadMangaInpaintAsset(signal,bytes=>{
+        const percent=Math.min(99,Math.floor(bytes*100/MANGA_INPAINT_ASSET.bytes));
+        if(percent!==lastPercent){lastPercent=percent;progress?.(percent);}
+    });assertMangaOcrActive(signal);
+    const ort=await import('onnxruntime-web');ort.env.wasm.numThreads=1;
+    configureOnnxWasmBackend(ort.env.wasm,{mjs:chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.mjs'),wasm:chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.wasm')});
+    const session=await ort.InferenceSession.create(model,{executionProviders:['wasm'],graphOptimizationLevel:'basic'});
+    try {assertMangaOcrActive(signal);} catch(error) {await session.release();throw error;}
+    return {run:async patch=>{
+        const image=new ort.Tensor('float32',patch.image,[1,3,patch.height,patch.width]);
+        const mask=new ort.Tensor('float32',patch.mask,[1,1,patch.height,patch.width]);
+        let output:Awaited<ReturnType<typeof session.run>>|undefined;
+        try {output=await session.run({image,mask});return new Float32Array(output.inpainted.data as Float32Array);}
+        finally {image.dispose();mask.dispose();Object.values(output||{}).forEach(tensor=>tensor.dispose());}
+    },release:()=>session.release()};
+}
+
+export const mangaInpaintingRuntime=createMangaInpaintingRuntime(createBrowserMangaInpainter);

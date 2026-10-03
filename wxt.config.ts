@@ -124,6 +124,7 @@ export function createExtensionManifest(
             'unlimitedStorage',
             'alarms',
             'contextMenus',
+            'declarativeNetRequestWithHostAccess',
             ...(env.browser === 'chrome' ? ['identity'] : []),
             ...(capabilities.offscreenDocument ? ['offscreen'] : []),
         ],
@@ -222,6 +223,11 @@ export default defineConfig({
             files.push(...createUiLanguageBundleFiles());
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@wllama/wllama/LICENCE'), relativeDest: 'third-party-notices/wllama-MIT.txt'});
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@noble/hashes/LICENSE'), relativeDest: 'third-party-notices/noble-hashes-MIT.txt'});
+            files.push({absoluteSrc: resolve(__dirname, 'node_modules/ppu-paddle-ocr/LICENSE'), relativeDest: 'third-party-notices/ppu-paddle-ocr-MIT.txt'});
+            files.push({absoluteSrc: resolve(fs.realpathSync(resolve(__dirname, 'node_modules/ppu-paddle-ocr')), '../ppu-ocv/LICENSE'), relativeDest: 'third-party-notices/ppu-ocv-MIT.txt'});
+            const mangaOrtDist = resolve(__dirname, 'node_modules/onnxruntime-web/dist');
+            files.push({absoluteSrc: packageWasmDiagnostics(__dirname, resolve(mangaOrtDist, 'ort-wasm-simd-threaded.mjs'), 'manga-ort-wasm-simd-threaded.mjs', 'onnx'), relativeDest: 'fluent-read-manga/ort-wasm-simd-threaded.mjs'});
+            files.push({absoluteSrc: resolve(mangaOrtDist, 'ort-wasm-simd-threaded.wasm'), relativeDest: 'fluent-read-manga/ort-wasm-simd-threaded.wasm'});
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@wllama/wllama/esm/wasm/wllama.wasm'), relativeDest: 'fluent-read-ai/wllama.wasm'});
             const opusOrtDist = resolvePnpmDependencyDist('node_modules/@huggingface/transformers', 'onnxruntime-web');
             files.push({absoluteSrc: packageWasmDiagnostics(__dirname, resolve(opusOrtDist, 'ort-wasm-simd-threaded.jsep.mjs'), 'ort-wasm-simd-threaded.jsep.mjs', 'onnx'), relativeDest: 'fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs'});

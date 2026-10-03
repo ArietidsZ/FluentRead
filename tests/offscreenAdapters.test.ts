@@ -91,6 +91,19 @@ describe('area translation Offscreen adapter', () => {
 
 describe('image translation Offscreen adapter', () => {
     const adapter = createImageTranslationOffscreenAdapter(client);
+    it('校验漫画模型状态和清理结果，并把专用模式传到 Offscreen',async()=>{
+        send.mockResolvedValueOnce({success:true,ready:true,bytes:123,inpaintingReady:false});
+        expect(await adapter.getMangaModelStatus()).toEqual({ready:true,bytes:123,inpaintingReady:false});
+        for(const response of [undefined,{success:true,ready:true,bytes:-1,inpaintingReady:false},{success:true,ready:true,bytes:0.5,inpaintingReady:false},
+            {success:true,ready:true,bytes:0},{success:false,error:'bad cache'}]){
+            send.mockResolvedValueOnce(response);await expect(adapter.getMangaModelStatus()).rejects.toThrow();
+        }
+        send.mockResolvedValueOnce({success:false});await expect(adapter.removeMangaModels()).rejects.toThrow('清除失败');
+        send.mockResolvedValueOnce({success:true});await adapter.removeMangaModels();
+        send.mockResolvedValueOnce({success:true,image:'translated',lines:[]});
+        await adapter.translateImage('data:image/png,x','en','',{manga:true,requestId:'manga',signal:new AbortController().signal,timeoutMs:1000});
+        expect(send).toHaveBeenLastCalledWith(expect.objectContaining({manga:true,type:'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN'}),expect.any(Object));
+    });
 
     it('translates images and validates success, image and line fields independently', async () => {
         send.mockResolvedValueOnce({success: true, image: 'translated', lines: []});

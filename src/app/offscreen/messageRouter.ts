@@ -34,6 +34,7 @@ export interface OffscreenMessageDependencies {
         title: string,
         signal: AbortSignal,
         requestId: string,
+        manga?: boolean,
     ) => Promise<unknown>;
     readonly translateArea: (
         image: string,
@@ -51,6 +52,8 @@ export interface OffscreenMessageDependencies {
     ) => Promise<unknown>;
     readonly removeOcrLanguages?: (languages: ImageOcrLanguageCode[]) => Promise<void>;
     readonly downloadOcrLanguages: (languages: ImageOcrLanguageCode[]) => Promise<void>;
+    readonly mangaModelStatus?: () => Promise<unknown>;
+    readonly removeMangaModels?: () => Promise<void>;
     readonly videoAi?: {
         removeModel?(request: Record<string, unknown>): Promise<void>;
         transcribe(request: Record<string, unknown>): Promise<unknown>;
@@ -121,6 +124,11 @@ function requiredSourceLanguage(value: unknown): string {
 function optionalTitle(value: unknown): string {
     if (value === undefined) return '';
     if (typeof value !== 'string') throw new TypeError('Offscreen title 必须是字符串');
+    return value;
+}
+
+function requiredBoolean(value: unknown, name: string): boolean {
+    if (typeof value !== 'boolean') throw new TypeError(`Offscreen ${name} 必须是布尔值`);
     return value;
 }
 
@@ -500,6 +508,7 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                         optionalTitle(message.title),
                         signal,
                         requestId,
+                        message.manga === undefined ? false : requiredBoolean(message.manga,'manga'),
                     ),
                     (result) => ({...resultRecord(result, '图片翻译'), success: true}),
                 );
@@ -541,6 +550,20 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                     try { await dependencies.removeOcrLanguages(parseOcrLanguages(message.languages)); }
                     finally { removingOcrModels = false; }
                 }, sendResponse, () => ({success: true}));
+                return true;
+            case 'FLUENT_READ_MANGA_MODEL_STATUS_OFFSCREEN':
+                respondWith(async()=>{
+                    if(!dependencies.mangaModelStatus)throw new Error('漫画识别模型管理不可用');
+                    return dependencies.mangaModelStatus();
+                },sendResponse,result=>({...resultRecord(result,'漫画模型状态'),success:true}));
+                return true;
+            case 'FLUENT_READ_MANGA_MODEL_REMOVE_OFFSCREEN':
+                respondWith(async()=>{
+                    if(!dependencies.removeMangaModels)throw new Error('漫画识别模型管理不可用');
+                    if(activeImageOperations.size || removingOcrModels)throw new Error('图片识别正在运行，请完成后再清除语言包');
+                    removingOcrModels=true;
+                    try {await dependencies.removeMangaModels();}finally{removingOcrModels=false;}
+                },sendResponse,()=>({success:true}));
                 return true;
             case 'FLUENT_READ_IMAGE_OCR_DOWNLOAD_OFFSCREEN':
                 respondWith(
