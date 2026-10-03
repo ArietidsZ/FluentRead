@@ -85,6 +85,19 @@ function fixture(html = '<p id="owner" data-row="10">First. Second.<span data-ro
 
 describe('paint-only bilingual hover lifecycle', () => {
     afterEach(() => vi.unstubAllGlobals());
+    it('实时改变高亮外观不重新安装监听器，关闭时清理绘制与外观属性', () => {
+        const f = fixture();
+        syncBilingualSentenceHighlight(f.document, true, 'mint');
+        f.move();
+        expect(f.highlighted()).toEqual(['First.', '一句。']);
+        const paint = f.registry.get(BILINGUAL_HIGHLIGHT_NAME);
+        syncBilingualSentenceHighlight(f.document, true, 'sky');
+        expect(f.document.documentElement.getAttribute('data-fr-bilingual-sentence-highlight-style')).toBe('sky');
+        expect(f.registry.get(BILINGUAL_HIGHLIGHT_NAME)).toBe(paint);
+        syncBilingualSentenceHighlight(f.document, false);
+        expect(f.document.documentElement.hasAttribute('data-fr-bilingual-sentence-highlight-style')).toBe(false);
+        expect(f.highlighted()).toEqual([]);
+    });
     it('moves both directions sentence by sentence without writing host DOM or disturbing other highlights', () => {
         const f = fixture(); const foreign = new Set<Range>(); f.registry.set('host-search', foreign);
         const before = f.document.body.innerHTML;

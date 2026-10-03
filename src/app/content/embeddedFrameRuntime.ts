@@ -105,7 +105,7 @@ export async function startEmbeddedFrameApp(ctx: ContentScriptContext): Promise<
         if (activation) return;
         activation = new AbortController();
         removeStyles = installPageStyles(ctx);
-        syncBilingualSentenceHighlight(document, config.bilingualSentenceHighlightEnabled === true);
+        syncBilingualSentenceHighlight(document, config.bilingualSentenceHighlightEnabled === true, config.bilingualSentenceHighlightStyle);
         const resetHover = mountHoverTranslationContentFeature({
             config, constants, document, window, navigator, getCenterPoint,
             isSiteDisabled: () => !enabled() || !authorized,
@@ -142,7 +142,7 @@ export async function startEmbeddedFrameApp(ctx: ContentScriptContext): Promise<
     const unsubscribe = subscribeConfig(() => {
         applyCoreTranslationPreferences(config);
         siteAdaptation.update(config.siteAdaptation, new URL(window.location.href));
-        syncBilingualSentenceHighlight(document, enabled() && authorized && config.bilingualSentenceHighlightEnabled === true);
+        syncBilingualSentenceHighlight(document, enabled() && authorized && config.bilingualSentenceHighlightEnabled === true, config.bilingualSentenceHighlightStyle);
         if (!enabled()) controller.suspend();
         else void controller.refresh();
     });

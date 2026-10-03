@@ -127,7 +127,7 @@ describe('options navigation view-model', () => {
       expect.objectContaining({ id: 'settings-interface' }),
     ])
     // 译文样式、颜色和逐句高亮都集中在界面风格页，不再同时命中通用设置。
-    for (const keyword of ['译文样式', '下划线颜色', '译文颜色', '标记底色', '双语逐句高亮', '模糊遮罩']) {
+    for (const keyword of ['译文样式', '下划线颜色', '译文颜色', '标记底色', '逐句高亮样式', '模糊遮罩']) {
       expect(filterNavigationItems(keyword)).toEqual([
         expect.objectContaining({ id: 'settings-interface' }),
       ])
@@ -195,9 +195,10 @@ describe('settings control search', () => {
     expect(new Set(settingsSearchTargets.map(item => item.id)).size).toBe(settingsSearchTargets.length)
   })
 
-  it('jumps to the sentence highlight switch and the translation appearance panel in Interface', () => {
+  it('jumps to reading assistance and independent highlight appearance settings', () => {
     expect(filterSettingsSearchTargets('逐句高亮')).toEqual([
-      expect.objectContaining({sectionId: 'settings-interface', targetId: 'translation-sentence-highlight'}),
+      expect.objectContaining({sectionId: 'settings-translation', targetId: 'translation-sentence-highlight'}),
+      expect.objectContaining({sectionId: 'settings-interface', targetId: 'translation-sentence-highlight-style'}),
     ])
     for (const keyword of ['译文外观', '线条颜色', '标记底色', '译文字号']) {
       expect(filterSettingsSearchTargets(keyword)).toEqual([
@@ -233,7 +234,9 @@ describe('settings page categories', () => {
   it('opens the category that owns a deep-linked control', () => {
     expect(resolveSettingsPanel('settings-translation', 'floating-ball-settings')).toBe('tools')
     expect(resolveSettingsPanel('settings-interface', 'translation-appearance-panel')).toBe('translation')
-    expect(resolveSettingsPanel('settings-interface', 'translation-sentence-highlight')).toBe('translation')
+    expect(resolveSettingsPanel('settings-translation', 'translation-sentence-highlight')).toBe('reading')
+    expect(resolveSettingsPanel('settings-interface', 'translation-sentence-highlight-style')).toBe('translation')
+    expect(settingsPagePanels['settings-translation'][0].id).toBe('reading')
     expect(resolveSettingsPanel('settings-interface', 'font')).toBe('font')
   })
   it('falls back safely for old or unknown category links', () => {

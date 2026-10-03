@@ -1,12 +1,12 @@
 /**
  * @file src/services/interfaceFonts.ts
  * 文件职责：在扩展自有页面按需下载、验证并缓存已选择的界面字体。
- * 主要内容：有界流式下载、固定 SHA-256 校验、备用源重试、离线缓存、按字体清理共享资源安全的缓存和切换取消。
+ * 主要内容：有界流式下载、固定 SHA-256 校验、备用源重试、首屏前仅从缓存注册字体、按字体清理共享资源安全的缓存和切换取消。
  * 模块边界：不读取业务配置或凭据，不注入宿主网页；DOM 字体注册由调用方提供。
  */
 import {interfaceFontOptions, type InterfaceFont} from '@/src/core/config/interfaceAppearance'
 import {
-  getInterfaceFontAssets, getInterfaceFontUrl, interfaceFontSources,
+  getClearableInterfaceFontAssets, getInterfaceFontAssets, getInterfaceFontUrl, interfaceFontSources,
   type InterfaceFontAsset, type InterfaceFontSourceId,
 } from '@/src/core/config/interfaceFontAssets'
 
@@ -160,6 +160,29 @@ export function createInterfaceFontLoader(deps: Dependencies) {
   }
 
   return {
+    /** 新页面首屏前注册已下载字体；缺失或损坏时立即返回，不等待网络下载。 */
+    async loadCached(font: InterfaceFont): Promise<boolean> {
+      const assets = getInterfaceFontAssets(font).filter(asset => !installed.has(asset.file))
+      if (!assets.length) return true
+      try {
+        const cache = await deps.openCache()
+        const verified: Array<{asset: InterfaceFontAsset; data: ArrayBuffer}> = []
+        for (const asset of assets) {
+          const response = await cache.match(cacheKey(asset))
+          if (!response) return false
+          const data = await response.arrayBuffer()
+          await verifyInterfaceFont(asset, data, deps.digest)
+          verified.push({asset, data})
+        }
+        for (const {asset, data} of verified) {
+          await deps.install(asset, data)
+          installed.set(asset.file, true)
+        }
+        return true
+      } catch {
+        return false
+      }
+    },
     load(font: InterfaceFont, preferred?: InterfaceFontSourceId, retry = false): Promise<void> {
       if (active?.font === font && !retry) return active.promise
       active?.controller.abort()
@@ -177,14 +200,10 @@ export function createInterfaceFontLoader(deps: Dependencies) {
         await pending
         const cache = await deps.openCache()
         const keys = new Set((await cache.keys()).map(request => request.url))
-        const protectedFiles = new Set(
-          interfaceFontOptions
-            .filter(option => option.value !== 'system' && option.value !== font)
-            .filter(option => getInterfaceFontAssets(option.value).every(asset => keys.has(cacheKey(asset))))
-            .flatMap(option => getInterfaceFontAssets(option.value).map(asset => asset.file)),
-        )
-        for (const asset of getInterfaceFontAssets(font)) {
-          if (protectedFiles.has(asset.file)) continue
+        const cachedFonts = interfaceFontOptions
+          .filter(option => getInterfaceFontAssets(option.value).every(asset => keys.has(cacheKey(asset))))
+          .map(option => option.value)
+        for (const asset of getClearableInterfaceFontAssets(font, cachedFonts)) {
           await cache.delete(cacheKey(asset))
           installed.delete(asset.file)
         }

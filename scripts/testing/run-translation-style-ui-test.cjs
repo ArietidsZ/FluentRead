@@ -134,8 +134,8 @@ async function main() {
     const firstGroup = (await options.locator('#settings-interface .settings-group-heading h2').first().innerText()).trim();
     assert.equal(firstGroup, '译文样式', `界面风格第一组应为译文样式，实际为 ${firstGroup}`);
     report.checks.push('general links to interface; translation style is the first interface group');
-    const preview = options.getByTestId('bilingual-highlight-preview-translation');
     const group = options.locator('.translation-style-group');
+    const preview = group.getByTestId('bilingual-highlight-preview-translation');
     await options.mouse.move(0, 0);
     await shot(group, '01-desktop-light-default');
 
@@ -263,15 +263,17 @@ async function main() {
     await note.getByRole('button').click();
     await untilConfig(config => config.display === 1, 'switch to bilingual');
     await note.waitFor({state: 'detached'});
+    await options.goto(`${origin}/options.html#settings-translation`);
     const highlightSwitch = options.locator('#translation-sentence-highlight .el-switch');
     await highlightSwitch.click();
     await untilConfig(config => config.bilingualSentenceHighlightEnabled === true, 'sentence highlight toggle');
-    await options.locator('[data-testid="bilingual-highlight-preview-source"] span').nth(1).hover();
-    assert.equal(await options.locator('[data-testid="bilingual-highlight-preview"] .is-sentence-highlighted').count(), 2);
+    await options.locator('.reading-assistance-example [data-testid="bilingual-highlight-preview-source"] span').nth(1).hover();
+    assert.equal(await options.locator('.reading-assistance-example [data-testid="bilingual-highlight-preview"] .is-sentence-highlighted').count(), 2);
     await options.mouse.move(0, 0);
     report.checks.push('translation-only notice switches back; sentence highlight toggle and preview work in interface page');
 
     // 5. 重新打开设置页后，样式、外观与卡片分类均保持。
+    await options.goto(`${origin}/options.html#settings-interface`);
     await options.reload({waitUntil: 'domcontentloaded'});
     await root.waitFor({state: 'visible'});
     await options.locator('.translation-appearance-disclosure').click();
@@ -297,6 +299,8 @@ async function main() {
     await search.fill('逐句高亮');
     await options.locator('.search-results button').first().click();
     await options.waitForFunction(() => Boolean(document.activeElement?.closest('#translation-sentence-highlight')));
+    await options.goto(`${origin}/options.html#settings-interface`);
+    await root.waitFor({state: 'visible'});
     await options.mouse.move(0, 0);
     report.checks.push('settings search jumps to the appearance panel and focuses the sentence highlight switch');
 

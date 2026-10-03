@@ -56,7 +56,7 @@ export const localizedLegacyPatterns: readonly LocalizedLegacyPattern[] = [
         'ru-RU': "Достигнут лимит своих сервисов: {1}",
         'es-ES': "Se alcanzó el límite de {1} servicios personalizados",
     }},
-    {pattern: "^已保存 (.+)，启用插件后生效$", localizedCaptures: [], messages: {
+    {pattern: "^已保存 (.+)，启动插件后生效$", localizedCaptures: [], messages: {
         'ja-JP': "{1} を保存しました。拡張を有効にすると適用されます",
         'ko-KR': "{1} 저장됨. 확장을 켜면 적용됩니다",
         'fr-FR': "{1} enregistré ; activez l’extension pour appliquer",
@@ -1003,7 +1003,7 @@ const fallbackLegacyPatterns: Readonly<Record<RegisteredUiLanguage, readonly Leg
         ["^最多只能保存 (\\d+) 个自定义服务$", "You can save up to {1} custom services"],
         ["^自定义服务已达到 (\\d+) 个上限$", "The {1} custom-service limit has been reached"],
         ["^当前：(.+)$", "Current: {1}"],
-        ["^已保存 (.+)，启用插件后生效$", "Saved {1}; enable the extension for it to take effect"],
+        ["^已保存 (.+)，启动插件后生效$", "Saved {1}; start the extension for it to take effect"],
         ["^已保存 (.+)，当前网页请刷新后重试$", "Saved {1}; refresh the current page and try again"],
         ["^已保存 (.+)；(.+)$", "Saved {1}; {2}"],
         ["^已关闭 (.+) 的始终翻译，当前网页保持不变$", "Always-translate was disabled for {1}; the current page is unchanged"],
