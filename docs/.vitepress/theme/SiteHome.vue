@@ -8,6 +8,17 @@ const props = defineProps<{ en?: boolean }>()
 const t = (zh: string, english: string) => (props.en ? english : zh)
 const link = (path: string) => withBase((props.en ? '/en' : '') + path)
 const chrome = 'https://chromewebstore.google.com/detail/djnlaiohfaaifbibleebjggkghlmcpcj'
+const browsers = [
+  { name: 'Chrome', href: chrome },
+  {
+    name: 'Edge',
+    href: 'https://microsoftedge.microsoft.com/addons/detail/kakgmllfpjldjhcnkghpplmlbnmcoflp',
+  },
+  {
+    name: 'Firefox',
+    href: 'https://addons.mozilla.org/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/',
+  },
+]
 const scenes = [
   {
     kind: 'image',
@@ -124,23 +135,48 @@ const faqs = [
           }}<a :href="link('/guide/getting-started')">{{ t('其他浏览器', 'Other browsers') }}</a>
         </p>
       </div>
-      <div class="bv-hero-stage">
-        <div class="bv-stage-label">
-          <span class="bv-live-dot" aria-hidden="true"></span
-          >{{ t('看见翻译，如何发生', 'See translation happen') }}
-        </div>
-        <BrandReader :en="en" autoplay />
-      </div>
     </section>
-    <div class="bv-trust">
-      <span>{{ t('在你熟悉的浏览器里', 'In the browser you know') }}</span
-      ><a :href="chrome">Chrome</a
-      ><a href="https://microsoftedge.microsoft.com/addons/detail/kakgmllfpjldjhcnkghpplmlbnmcoflp"
-        >Edge</a
-      ><a href="https://addons.mozilla.org/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/"
-        >Firefox</a
-      ><a href="https://github.com/FluentRead/FluentRead">{{ t('开源代码 ↗', 'Open source ↗') }}</a>
+    <div class="bv-platforms">
+      <div class="bv-platforms-heading">
+        <span>{{ t('选择你的浏览器', 'Choose your browser') }}</span>
+        <a href="https://github.com/FluentRead/FluentRead">{{
+          t('GitHub 源码 ↗', 'Source on GitHub ↗')
+        }}</a>
+      </div>
+      <div class="bv-browser-links">
+        <a
+          v-for="item in browsers"
+          :key="item.name"
+          :href="item.href"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="3" />
+            <path d="M3 9h18M7 6.5h.1M10 6.5h.1" />
+          </svg>
+          <strong>{{ item.name }}</strong
+          ><span aria-hidden="true">↗</span>
+        </a>
+      </div>
     </div>
+    <section class="bv-section bv-translation-section" aria-labelledby="bv-translation-title">
+      <div class="bv-translation-copy">
+        <span class="bv-section-number">{{ t('网页双语翻译', 'BILINGUAL WEBPAGES') }}</span>
+        <h2 id="bv-translation-title">
+          {{ t('原文保留，译文就在旁边。', 'Keep the original. Read the translation alongside.') }}
+        </h2>
+        <p>
+          {{
+            t(
+              '从点击翻译到双语对照，看一次就明白。',
+              'See the journey from translation to reading in two languages.'
+            )
+          }}
+        </p>
+      </div>
+      <div class="bv-translation-demo"><BrandReader :en="en" autoplay /></div>
+    </section>
     <section id="features" class="bv-section bv-understand">
       <div class="bv-section-copy">
         <span class="bv-section-number"
