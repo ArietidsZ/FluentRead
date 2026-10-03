@@ -106,7 +106,6 @@ async function main() {
   assert.equal(active.headers['x-opencode-session'], 'stable-ui-session');
   report.cases.push('origin-removed-at-network-layer-authentication-preserved');
   const rule = page.locator('[data-header-rule-domain="127.0.0.1"]');
-  report.ruleMarkup = await page.getByTestId('request-header-rules').innerHTML();
   await page.getByTestId('request-header-rules').scrollIntoViewIfNeeded();
   await page.screenshot({path: path.join(artifactsDir, 'before-referer-check.png')});
   await rule.getByRole('checkbox', {name: '移除 Referer'}).check();
