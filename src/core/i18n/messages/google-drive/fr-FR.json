@@ -1,6 +1,11 @@
 {
   "messages": {
     "settings.drive.privacyBadge": "Protection de la vie privée",
+    "settings.drive.privacyTitle": "Comment FluentRead protège votre vie privée",
+    "settings.drive.privacyEncryption": "La configuration est chiffrée sur votre appareil avant son envoi ; le cloud conserve un fichier chiffré.",
+    "settings.drive.privacyStorage": "Seul l’espace de données de l’application dans votre Google Drive est accessible, pas vos fichiers ordinaires.",
+    "settings.drive.privacyAuthorization": "Les caches d’autorisation temporaires sont effacés à la fin ou à l’annulation de la synchronisation.",
+    "settings.drive.privacyExcluded": "Le carnet de mots, l’historique des conversations et les statistiques d’utilisation sont exclus.",
     "settings.drive.description": "Enregistrez votre configuration complète sous forme chiffrée dans votre propre Google Drive pour la restaurer sur d’autres appareils ; cela inclut les clés API, les jetons OAuth, les en-têtes d’authentification, les corps de requête personnalisés et les paramètres d’authentification des URL, mais pas votre carnet de mots, l’historique des conversations ni les statistiques d’utilisation.",
     "settings.drive.account": "Compte de cette synchronisation : {email}",
     "settings.drive.differences": "{count} différences. Le contenu privé et personnalisé est masqué.",
