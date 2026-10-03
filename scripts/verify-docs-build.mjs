@@ -91,17 +91,31 @@ for (const file of files(path.join(root, 'docs/guide'))
 }
 for (const prefix of ['', '/en']) {
   const home = docs.get(resolve(prefix + '/'))
-  assert(home.querySelector('.bv-hero-icon[src="/brand-icon.webp"]'), 'Primary brand icon missing')
-  assert(!home.querySelector('.bv-hero [data-demo]'), 'First screen must focus on the brand')
+  assert(
+    home.querySelector('.bv-home-brand img[src="/brand-icon.webp"]'),
+    'Primary brand icon missing'
+  )
+  assert(!home.querySelector('.bv-hero [data-demo]'), 'Full demonstration belongs below the hero')
+  assert(home.querySelector('.bv-home-header'), 'Homepage must use focused marketing navigation')
+  assert(
+    !home.querySelector('.bv-identity,.bv-platforms'),
+    'Competing brand block and browser row must be removed'
+  )
   assert(
     home.querySelector('.bv-translation-section [data-demo="brand-reader"]'),
     'Translation demo must appear below the hero'
   )
   assert(!home.querySelector('.bv-walkthrough'), 'Numbered walkthrough controls must be removed')
+  assert.equal(home.querySelectorAll('.bv-hero h1').length, 1, 'Hero needs one primary headline')
   assert.equal(
-    home.querySelectorAll('.bv-browser-links a').length,
+    home.querySelectorAll('.bv-hero .bv-install-actions > a').length,
+    1,
+    'Hero needs one primary install action'
+  )
+  assert.equal(
+    home.querySelectorAll('.bv-browser-options a').length,
     3,
-    'Browser installation links missing'
+    'Other browser installation options missing'
   )
   assert(
     [...home.querySelectorAll('[data-visual],[data-demo]')].every(

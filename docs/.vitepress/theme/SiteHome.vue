@@ -1,24 +1,19 @@
 <script setup lang="ts">
 import { withBase } from 'vitepress'
+import { computed } from 'vue'
 import BrandReader from './BrandReader.vue'
 import GrammarDemo from './GrammarDemo.vue'
 import GuideVisual from './GuideVisual.vue'
+import BrowserInstall from './BrowserInstall.vue'
+import HeroOrbit from './HeroOrbit.vue'
 import brandTaglines from '../../../src/core/i18n/messages/brand-taglines.json'
 const props = defineProps<{ en?: boolean }>()
 const t = (zh: string, english: string) => (props.en ? english : zh)
 const link = (path: string) => withBase((props.en ? '/en' : '') + path)
 const chrome = 'https://chromewebstore.google.com/detail/djnlaiohfaaifbibleebjggkghlmcpcj'
-const browsers = [
-  { name: 'Chrome', href: chrome },
-  {
-    name: 'Edge',
-    href: 'https://microsoftedge.microsoft.com/addons/detail/kakgmllfpjldjhcnkghpplmlbnmcoflp',
-  },
-  {
-    name: 'Firefox',
-    href: 'https://addons.mozilla.org/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/',
-  },
-]
+const titleLines = computed(() =>
+  props.en ? brandTaglines['en-US'].split(/(?<=\.) /) : brandTaglines['zh-CN'].split(/(?<=，)/)
+)
 const scenes = [
   {
     kind: 'image',
@@ -98,90 +93,51 @@ const faqs = [
 </script>
 <template>
   <div class="bv-site product-home">
-    <section class="bv-hero" aria-labelledby="fr-title">
+    <section class="bv-hero" :class="{ 'bv-hero-en': en }" aria-labelledby="fr-title">
+      <HeroOrbit :en="en" />
       <div class="bv-hero-copy">
-        <div class="bv-identity">
-          <img
-            class="bv-hero-icon"
-            :src="withBase('/brand-icon.webp')"
-            width="112"
-            height="112"
-            alt="FluentRead 流畅阅读"
-            fetchpriority="high"
-          />
-          <div>
-            <strong>FluentRead</strong
-            ><span>{{ t('流畅阅读 · 开源翻译插件', 'Open-source translation extension') }}</span>
-          </div>
-        </div>
-        <h1 id="fr-title" class="product-tagline">{{ brandTaglines[en ? 'en-US' : 'zh-CN'] }}</h1>
+        <p class="bv-hero-kicker">
+          {{ t('开源双语翻译 · AI 讲解', 'OPEN-SOURCE TRANSLATION · AI EXPLANATIONS') }}
+        </p>
+        <h1 id="fr-title" class="product-tagline">
+          <span v-for="line in titleLines" :key="line">{{ line }}</span>
+        </h1>
         <p class="bv-hero-intro">
           {{
             t(
-              '在原网页里看双语译文。遇到难句，选中它，继续理解。',
-              'Read webpages in two languages. Select a difficult sentence and understand it better.'
+              '保留原文，双语对照。遇到难句，选中就能继续理解。',
+              'Keep the original. Read side by side. Select a difficult sentence to understand it better.'
             )
           }}
         </p>
-        <div class="bv-actions">
-          <a class="bv-button bv-primary" :href="chrome" target="_blank" rel="noopener noreferrer"
-            >{{ t('添加到 Chrome', 'Add to Chrome') }} <span aria-hidden="true">↗</span></a
-          ><a class="bv-button bv-secondary" :href="link('/docs/')"
-            >{{ t('使用指南', 'User guide') }} <span aria-hidden="true">→</span></a
-          >
-        </div>
+        <p class="bv-hero-formats">
+          {{ t('网页 · 图片 · 文档 · 视频字幕', 'Webpages · Images · Documents · Video captions') }}
+        </p>
+        <BrowserInstall :en="en" />
         <p class="bv-install-note">
-          {{ t('开源免费 · 无需注册', 'Free & open source · no sign-up')
-          }}<a :href="link('/guide/getting-started')">{{ t('其他浏览器', 'Other browsers') }}</a>
+          {{ t('开源免费 · 无需注册', 'Free & open source · no sign-up') }}
         </p>
       </div>
     </section>
-    <div class="bv-platforms">
-      <div class="bv-platforms-heading">
-        <span>{{ t('选择你的浏览器', 'Choose your browser') }}</span>
-        <a href="https://github.com/FluentRead/FluentRead">{{
-          t('GitHub 源码 ↗', 'Source on GitHub ↗')
-        }}</a>
-      </div>
-      <div class="bv-browser-links">
-        <a
-          v-for="item in browsers"
-          :key="item.name"
-          :href="item.href"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="16" rx="3" />
-            <path d="M3 9h18M7 6.5h.1M10 6.5h.1" />
-          </svg>
-          <strong>{{ item.name }}</strong
-          ><span aria-hidden="true">↗</span>
-        </a>
-      </div>
-    </div>
     <section class="bv-section bv-translation-section" aria-labelledby="bv-translation-title">
-      <div class="bv-translation-copy">
-        <span class="bv-section-number">{{ t('网页双语翻译', 'BILINGUAL WEBPAGES') }}</span>
-        <h2 id="bv-translation-title">
-          {{ t('原文保留，译文就在旁边。', 'Keep the original. Read the translation alongside.') }}
-        </h2>
-        <p>
-          {{
-            t(
-              '从点击翻译到双语对照，看一次就明白。',
-              'See the journey from translation to reading in two languages.'
-            )
-          }}
-        </p>
-      </div>
+      <h2 id="bv-translation-title" class="bv-visually-hidden">
+        {{ t('原文保留，译文就在旁边。', 'Keep the original. Read the translation alongside.') }}
+      </h2>
       <div class="bv-translation-demo"><BrandReader :en="en" autoplay /></div>
+      <p class="bv-translation-caption">
+        {{
+          t(
+            '网页双语翻译，原文与译文一起看。',
+            'Bilingual webpages. Keep the original alongside the translation.'
+          )
+        }}<a :href="link('/guide/webpage-translation')">{{ t('了解更多', 'Learn more') }} →</a>
+      </p>
     </section>
     <section id="features" class="bv-section bv-understand">
       <div class="bv-section-copy">
-        <span class="bv-section-number"
-          >01 / {{ t('从看懂，到理解', 'GO BEYOND THE TRANSLATION') }}</span
-        >
+        <span class="bv-section-number">{{
+          t('从看懂，到理解', 'GO BEYOND THE TRANSLATION')
+        }}</span>
         <h2>{{ t('难句拆开，意思就清楚了。', 'Break it down. Let the meaning click.') }}</h2>
         <p>
           {{
@@ -215,7 +171,7 @@ const faqs = [
     </section>
     <section class="bv-section bv-scenes">
       <div class="bv-section-heading">
-        <span class="bv-section-number">02 / {{ t('不止网页', 'BEYOND WEBPAGES') }}</span>
+        <span class="bv-section-number">{{ t('不止网页', 'BEYOND WEBPAGES') }}</span>
         <h2>{{ t('想看的内容，都有入口。', 'More ways to make sense of your world.') }}</h2>
       </div>
       <div class="bv-scene-grid">
@@ -230,41 +186,6 @@ const faqs = [
           </div>
         </article>
       </div>
-    </section>
-    <section class="bv-section bv-start">
-      <div class="bv-section-heading">
-        <span class="bv-section-number">03 / {{ t('现在开始', 'GET STARTED') }}</span>
-        <h2>{{ t('三步，读懂下一篇。', 'Three steps. Your next discovery.') }}</h2>
-      </div>
-      <ol class="bv-steps">
-        <li>
-          <span>1</span>
-          <div>
-            <h3>{{ t('安装并固定图标', 'Install & pin the icon') }}</h3>
-            <p>
-              {{ t('从浏览器商店添加到工具栏。', 'Add FluentRead from your browser’s store.') }}
-            </p>
-          </div>
-        </li>
-        <li>
-          <span>2</span>
-          <div>
-            <h3>{{ t('打开文章，选择语言', 'Open an article. Pick a language.') }}</h3>
-            <p>{{ t('免费翻译服务可直接开始。', 'Start with the free translation service.') }}</p>
-          </div>
-        </li>
-        <li>
-          <span>3</span>
-          <div>
-            <h3>{{ t('点击翻译当前网页', 'Translate this page') }}</h3>
-            <p>{{ t('原文与译文对照，随时恢复。', 'Read side by side. Restore at any time.') }}</p>
-          </div>
-        </li>
-      </ol>
-      <a class="bv-text-link" :href="link('/guide/getting-started')"
-        >{{ t('看图完成第一次翻译', 'Follow the visual quick start') }}
-        <span aria-hidden="true">→</span></a
-      >
     </section>
     <section class="bv-section bv-faq">
       <div>
