@@ -1,12 +1,13 @@
 /**
  * @file src/app/background/badgeRuntime.ts
  * 文件职责：按标签页显示浏览器原生的三态翻译状态角标。
- * 主要内容：根据内容脚本真实结果显示蓝色省略号、绿色对勾或橙色感叹号，直接替换角标、复用底图并合并在途同态写入；延迟显示短暂补译和会话内的空队列状态，在导航和关闭时清理。
+ * 主要内容：根据内容脚本真实结果显示蓝色省略号、绿色对勾或橙色感叹号，复用底图并合并在途同态写入；通过平台适配捕获图标错误，在导航和关闭时清理，并忽略过期写入的失败。
  * 模块边界：只读取状态并调用 action/browserAction，不改页面 DOM、用户配置或翻译任务；角标尺寸由浏览器管理，不需要额外权限或后台 Canvas。
  */
 import {TabTranslationStateStore} from './tabTranslationState';
 import {createTabTranslationStateReader} from './tabTranslationQuery';
 import {normalizeTranslationToolbarStatus, type TranslationToolbarStatus} from '@/src/features/full-page-translation/toolbarStatus';
+import {setActionIcon} from '@/src/platform/browser/actionIcon';
 
 interface BadgeActionApi {
     setBadgeText(details: {tabId: number; text: string}): Promise<void> | void;
@@ -59,7 +60,7 @@ export function installBackgroundBadge(tabTranslationStates: TabTranslationState
                 rendered.delete(tabId);
                 // 每个页面只初始化一次品牌底图；状态切换不先清空，避免原生工具栏重绘闪烁。
                 if (!initializedIcons.has(tabId)) {
-                    await action.setIcon({tabId, path: iconPaths});
+                    await setActionIcon(action, {tabId, path: iconPaths});
                     if (versions.get(tabId) !== version) return;
                     initializedIcons.add(tabId);
                 }
@@ -76,7 +77,10 @@ export function installBackgroundBadge(tabTranslationStates: TabTranslationState
                     await action.setBadgeText({tabId, text: ''});
                 }
                 if (versions.get(tabId) === version) rendered.set(tabId, status);
-            } catch (error) { console.error('Failed to update toolbar translation status:', error); }
+            } catch (error) {
+                // 关闭或更新后的任务已失效；仅记录当前版本仍需要处理的真实失败。
+                if (versions.get(tabId) === version) console.error('Failed to update toolbar translation status:', error);
+            }
         }).finally(() => {
             if (queues.get(tabId) === job) queues.delete(tabId);
             if (requested.get(tabId)?.job === job) requested.delete(tabId);
