@@ -1,4 +1,5 @@
 import {describe, expect, it} from 'vitest';
+import {buildConfigHistoryTimeline} from '@/src/features/settings/model/configHistory';
 import {services} from '@/src/core/config/catalog';
 
 import {
@@ -264,7 +265,7 @@ describe('配置 schema 与历史纯状态机', () => {
             nextVersion: 2,
         })).entries[0]?.config.videoService).toBe('deeplx');
         expect(restoreRestorableConfig(deepLxSnapshot, baseConfig).videoService).toBe('deeplx');
-        expect(toRestorableConfig(null)).toMatchObject({videoService: 'microsoft'});
+        expect(toRestorableConfig(null)).toMatchObject({videoService: ''});
     });
 
     it('恢复历史或自动备份时只保留仍绑定同一有效地址的 token', () => {
@@ -376,5 +377,54 @@ describe('配置 schema 与历史纯状态机', () => {
         expect(resolveConfigHistoryTargetIndex(state, 'restore')).toBe(1);
         expect(resolveConfigHistoryTargetIndex(state, 'restore', 1)).toBe(0);
         expect(() => resolveConfigHistoryTargetIndex(state, 'restore', 99)).toThrow('配置历史 v99 不存在');
+    });
+});
+
+
+describe('设置历史的具体修改时间线', () => {
+    it('最新记录比较上一次保存而不是当前配置，按新到旧展示字段旧值和新值', () => {
+        const first = createBaselineConfigHistory(baseConfig, 40, '2026-10-03T04:59:01Z');
+        const changed = appendConfigHistorySnapshot(first, {...baseConfig, to: 'en'}, '2026-10-03T04:59:09Z')!;
+        const timeline = buildConfigHistoryTimeline(changed.entries);
+        expect(timeline.map(item => item.version)).toEqual([41, 40]);
+        expect(timeline[0].previousVersion).toBe(40);
+        expect(timeline[0].diff?.groups[0].changes[0]).toMatchObject({key: 'to', before: '简体中文', after: 'English'});
+        expect(timeline[1].diff).toBeNull();
+        expect(timeline[1].previousVersion).toBeNull();
+    });
+
+    it('版本跳号和撤销游标不影响相邻快照的原始变更方向', () => {
+        const state = history({entries: [entry(2), entry(7, 'en'), entry(9, 'ja')], cursor: 0});
+        const timeline = buildConfigHistoryTimeline(state.entries);
+        expect(timeline.map(item => item.previousVersion)).toEqual([7, 2, null]);
+        expect(timeline[0].diff?.groups[0].changes[0]).toMatchObject({before: 'English', after: '日本語'});
+        expect(state.cursor).toBe(0);
+    });
+
+    it('十条截断后的最早快照和单条基线不编造已丢失的修改', () => {
+        expect(buildConfigHistoryTimeline([])).toEqual([]);
+        const timeline = buildConfigHistoryTimeline([entry(39), entry(40, 'en')]);
+        expect(timeline[1].diff).toBeNull();
+        expect(buildConfigHistoryTimeline([entry(1)])[0].diff).toBeNull();
+    });
+
+    it('统计、迁移标记和凭据不会进入修改摘要，不改变源快照', () => {
+        const before = {...baseConfig, count: 1, token: {openai: 'first-secret'}, customHeaders: {openai: 'Authorization: first-secret'}};
+        const after = {...baseConfig, count: 999, token: {openai: 'second-secret'}, customHeaders: {openai: 'Authorization: second-secret'}};
+        const source = [{...entry(1), config: before as never}, {...entry(2), config: after as never}];
+        const original = JSON.stringify(source);
+        const timeline = buildConfigHistoryTimeline(source);
+        expect(timeline[0].diff?.changeCount).toBe(0);
+        expect(JSON.stringify(timeline)).not.toContain('secret');
+        expect(JSON.stringify(source)).toBe(original);
+    });
+
+    it('多个分组的修改均可查看，重复快照明确返回零修改', () => {
+        const first = createBaselineConfigHistory(baseConfig, 1);
+        const changed = appendConfigHistorySnapshot(first, {...baseConfig, to: 'en', theme: 'dark', alwaysTranslateDomains: ['example.com']})!;
+        const timeline = buildConfigHistoryTimeline(changed.entries);
+        expect(timeline[0].diff?.changeCount).toBe(3);
+        expect(timeline[0].diff?.groups.map(group => group.id)).toEqual(['general', 'siteRules']);
+        expect(buildConfigHistoryTimeline([entry(1), entry(2)])[0].diff?.changeCount).toBe(0);
     });
 });
