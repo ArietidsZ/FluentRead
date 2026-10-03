@@ -336,6 +336,13 @@ export const esESMessages = {
 
     "inputTranslation.title": "Traducción de campos de texto",
     "inputTranslation.description": "Configura el activador, idioma y servicio de los campos de texto.",
+    "inputTranslation.outputMode": "Modo de salida",
+    "inputTranslation.outputReplace": "Reemplazar el original",
+    "inputTranslation.outputAppend": "Original antes de la traducción",
+    "inputTranslation.outputPrepend": "Traducción antes del original",
+    "inputTranslation.appendHelp": "Conserva el original y muestra ambos textos en líneas separadas. Requiere un campo de varias líneas.",
+    "inputTranslation.workflowPrepend": "Escribe el texto y usa {trigger} para insertar una traducción a {language} antes del original, en una línea separada.",
+    "inputTranslation.workflowAppend": "Escribe el texto y usa {trigger} para conservar el original y añadir una traducción a {language} en una nueva línea.",
     "inputTranslation.workflowEnabled": "Escribe el texto y usa {trigger} para sustituirlo por su traducción a {language}.",
     "inputTranslation.workflowDisabled": "Elige un atajo para empezar a traducir en los campos de texto.",
     "inputTranslation.profile": "Configuración de traducción",

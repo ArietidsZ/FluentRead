@@ -337,6 +337,13 @@ export const enUSMessages = {
 
     "inputTranslation.title": "Text field translation",
     "inputTranslation.description": "Set the trigger, target language, and translation service for ordinary text fields.",
+    "inputTranslation.outputMode": "Output",
+    "inputTranslation.outputReplace": "Replace original",
+    "inputTranslation.outputAppend": "Original first, translation second",
+    "inputTranslation.outputPrepend": "Translation first, original second",
+    "inputTranslation.appendHelp": "Keep your original text and show the original and translation on separate lines. Requires a multiline text field.",
+    "inputTranslation.workflowPrepend": "Type your text, then use {trigger} to insert a {language} translation before the original, separated by a new line.",
+    "inputTranslation.workflowAppend": "Type your text, then use {trigger} to keep the original and append a {language} translation on a new line.",
     "inputTranslation.workflowEnabled": "Type your text, then use {trigger} to replace it with a {language} translation.",
     "inputTranslation.workflowDisabled": "Choose a shortcut to start translating in text fields.",
     "inputTranslation.profile": "Translation settings",

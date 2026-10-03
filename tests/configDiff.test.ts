@@ -1049,6 +1049,13 @@ describe('配置差异预览', () => {
         ]));
     });
 
+    it('双语输出顺序在配置历史中显示用户可读名称', () => {
+        expect(group(buildConfigDiff({inputBoxTranslationOutputMode: 'append'}, {inputBoxTranslationOutputMode: 'prepend'}), 'translation')?.changes).toEqual([
+            {key: 'inputBoxTranslationOutputMode', label: '输入框翻译输出方式', before: '原文在前，译文在后', after: '译文在前，原文在后'},
+        ]);
+        expect(group(buildConfigDiff({inputBoxTranslationOutputMode: 'replace'}, {inputBoxTranslationOutputMode: 'append'}), 'translation')?.changes[0].before).toBe('替换原文');
+    });
+
     it('输入框翻译独立配置在历史差异中显示间隔、服务、模型和提示词摘要', () => {
         const result = buildConfigDiff({
             inputBoxTranslationInterval: 1000,

@@ -336,6 +336,13 @@ export const frFRMessages = {
 
     "inputTranslation.title": "Traduction des champs de texte",
     "inputTranslation.description": "Définissez le déclencheur, la langue cible et le service des champs de texte.",
+    "inputTranslation.outputMode": "Mode de sortie",
+    "inputTranslation.outputReplace": "Remplacer le texte original",
+    "inputTranslation.outputAppend": "Original puis traduction",
+    "inputTranslation.outputPrepend": "Traduction puis original",
+    "inputTranslation.appendHelp": "Conserve le texte original et affiche les deux textes sur des lignes séparées. Nécessite un champ multiligne.",
+    "inputTranslation.workflowPrepend": "Saisissez le texte, puis utilisez {trigger} pour insérer sa traduction en {language} avant l’original, sur une ligne séparée.",
+    "inputTranslation.workflowAppend": "Saisissez le texte, puis utilisez {trigger} pour conserver l’original et ajouter sa traduction en {language} sur une nouvelle ligne.",
     "inputTranslation.workflowEnabled": "Saisissez le texte, puis utilisez {trigger} pour le remplacer par sa traduction en {language}.",
     "inputTranslation.workflowDisabled": "Choisissez un raccourci pour traduire dans les champs de texte.",
     "inputTranslation.profile": "Paramètres de traduction",
