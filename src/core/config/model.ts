@@ -102,8 +102,10 @@ import {
     DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL,
     normalizeInputBoxTranslationInterval,
     normalizeInputBoxTranslationModel,
+    normalizeInputBoxTranslationOutputMode,
     normalizeInputBoxTranslationPrompt,
     normalizeInputBoxTranslationService,
+    type InputBoxTranslationOutputMode,
 } from './inputTranslation';
 import {
     DEFAULT_INTERFACE_FONT,
@@ -500,6 +502,7 @@ export class Config {
     translationProgressPanelEnabled: boolean; // 是否显示全文翻译进度面板
     inputBoxTranslationTrigger: string; // 输入框翻译触发方式
     inputBoxTranslationTarget: string; // 输入框翻译目标语言
+    inputBoxTranslationOutputMode: InputBoxTranslationOutputMode; // 替换原文或双语输出顺序
     inputBoxTranslationInterval: number; // 输入框翻译相邻触发的最大间隔（毫秒）
     inputBoxTranslationService: string; // 输入框服务，空值跟随网页默认
     inputBoxTranslationModel: string; // 输入框翻译独立模型，空值跟随服务模型
@@ -688,6 +691,7 @@ export class Config {
         this.translationProgressPanelEnabled = false; // 默认关闭全文翻译进度面板
         this.inputBoxTranslationTrigger = 'disabled'; // 默认关闭输入框翻译
         this.inputBoxTranslationTarget = 'en'; // 默认翻译成英文
+        this.inputBoxTranslationOutputMode = 'replace';
         this.inputBoxTranslationInterval = DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL;
         this.inputBoxTranslationService = '';
         this.inputBoxTranslationModel = '';
@@ -1053,6 +1057,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.excludedLanguages = normalizeExcludedLanguages(source.excludedLanguages);
     normalized.inputBoxTranslationTarget = normalizeConfigLanguage(source.inputBoxTranslationTarget)
         || defaultOption.inputBoxTranslationTarget;
+    normalized.inputBoxTranslationOutputMode = normalizeInputBoxTranslationOutputMode(source.inputBoxTranslationOutputMode);
     normalized.inputBoxTranslationInterval = normalizeInputBoxTranslationInterval(
         source.inputBoxTranslationInterval,
     );

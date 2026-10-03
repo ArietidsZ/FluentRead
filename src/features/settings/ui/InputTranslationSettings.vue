@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/InputTranslationSettings.vue
- * 文件职责：承载输入框翻译的一组独立设置，先说明触发与替换结果，再按需编辑翻译配置与连按速度。
- * 主要内容：编辑三击间隔、输入框翻译服务、AI 模型及独立提示词；机器翻译隐藏不适用的模型与提示词。
+ * 文件职责：承载输入框翻译的一组独立设置，说明触发与输出方式，再按需编辑翻译配置与连按速度。
+ * 主要内容：编辑替换/双语输出顺序模式、三击间隔、输入框翻译服务、AI 模型及独立提示词；机器翻译隐藏不适用的模型与提示词。
  * 模块边界：组件只编排设置页状态并写入父级配置副本，触发方式交由父级处理快捷键冲突，服务能力与持久化仍由外层设置链路负责。
  -->
 <template>
@@ -47,14 +47,15 @@
         </el-select>
       </SettingsItem>
 
-      <SettingsItem :label="t('inputTranslation.service')" :description="t('inputTranslation.serviceDescriptionShort')">
-        <template #copy>
-          <strong>{{ t('inputTranslation.service') }}</strong>
-          <small>{{ t('inputTranslation.serviceDescriptionShort') }}</small>
-          <button type="button" class="input-translation-text-button input-translation-connection-link" @click="configureService">
-            {{ t('inputTranslation.connectionSettings') }}
-          </button>
-        </template>
+      <SettingsItem :label="t('inputTranslation.outputMode')" :description="outputMode !== 'replace' ? t('inputTranslation.appendHelp') : ''">
+        <el-select v-model="outputMode" data-testid="input-translation-output-mode" :aria-label="t('inputTranslation.outputMode')">
+          <el-option value="replace" :label="t('inputTranslation.outputReplace')" />
+          <el-option value="append" :label="t('inputTranslation.outputAppend')" />
+          <el-option value="prepend" :label="t('inputTranslation.outputPrepend')" />
+        </el-select>
+      </SettingsItem>
+
+      <SettingsItem :label="t('inputTranslation.service')">
         <div class="input-translation-service-control" data-testid="input-translation-profile-editor">
           <el-select id="input-translation-service-control" v-model="translationService" :empty-values="[null, undefined]" data-testid="input-translation-service" :aria-label="t('inputTranslation.service')" filterable>
             <el-option v-for="item in serviceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" :disabled="item.disabled">
@@ -143,6 +144,8 @@ import {
   INPUT_BOX_TRANSLATION_INTERVAL_MIN,
   INPUT_BOX_TRANSLATION_INTERVAL_STEP,
   normalizeInputBoxTranslationInterval,
+  normalizeInputBoxTranslationOutputMode,
+  type InputBoxTranslationOutputMode,
   supportsInputBoxTranslationPrompt,
 } from '@/src/core/config/inputTranslation'
 import { useUiI18n } from '@/src/ui/i18n'
@@ -174,7 +177,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'trigger-change': [value: string]
-  'configure-service': [value: string]
 }>()
 
 const { language, t, translateLegacy } = useUiI18n()
@@ -202,6 +204,11 @@ const interval = computed({
 const targetLanguage = computed({
   get: () => inputConfig.value.inputBoxTranslationTarget,
   set: (value: string) => { inputConfig.value.inputBoxTranslationTarget = value },
+})
+
+const outputMode = computed({
+  get: () => normalizeInputBoxTranslationOutputMode(inputConfig.value.inputBoxTranslationOutputMode),
+  set: (value: InputBoxTranslationOutputMode) => { inputConfig.value.inputBoxTranslationOutputMode = value },
 })
 
 const translationService = computed({
@@ -313,12 +320,10 @@ const workflowDescription = computed(() => {
   try {
     target = new Intl.DisplayNames([language.value], {type: 'language'}).of(targetLanguage.value) || target
   } catch { /* 无法识别的语言标识继续显示目录名称。 */ }
-  return t('inputTranslation.workflowEnabled', {trigger: translateLegacy(trigger), language: target})
+  const workflowKey = outputMode.value === 'replace' ? 'inputTranslation.workflowEnabled'
+    : outputMode.value === 'prepend' ? 'inputTranslation.workflowPrepend' : 'inputTranslation.workflowAppend'
+  return t(workflowKey, {trigger: translateLegacy(trigger), language: target})
 })
-
-function configureService(): void {
-  emit('configure-service', effectiveTranslationService.value)
-}
 </script>
 
 <style scoped>
@@ -330,7 +335,6 @@ function configureService(): void {
 .input-translation-text-button:focus-visible,
 .input-translation-prompt-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
-.input-translation-connection-link { margin-top: 4px; }
 .input-translation-service-control { display: grid; gap: 10px; width: 100%; max-width: 360px; min-width: 0; }
 .input-translation-service-option { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .input-translation-service-option > span:last-child { min-width: 0; overflow-wrap: anywhere; }

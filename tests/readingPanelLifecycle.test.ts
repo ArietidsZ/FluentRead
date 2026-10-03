@@ -75,6 +75,34 @@ async function mountPanel(overrides: Record<string, unknown> = {}, sessions: Har
 }
 
 describe('reading action ownership and reuse', () => {
+  it('has no active answer or model request before entering learning, and starts the default action after an empty history view', async () => {
+    const {panel, calls, props, tick} = await mountPanel({active: false});
+    expect(panel.currentTurnKey).toBe(''); expect(calls).toHaveLength(0);
+    Object.assign(props, {historyOnly: true, active: true}); await tick();
+    expect(panel.showRecords).toBe(true); expect(calls).toHaveLength(0);
+    panel.closeRecords(); panel.chooseAction('meaning'); await tick();
+    expect(panel.currentTurnKey).not.toBe(''); expect(calls).toHaveLength(1);
+    expect(calls[0].request.intent).toBe('meaning');
+  });
+
+  it('expands one historical turn without changing the current answer or context, and folds history when the current turn changes', async () => {
+    const {panel, calls, finish, tick} = await mountPanel();
+    finish('First answer'); panel.question = 'Why is it useful?'; panel.ask(); finish('Second answer');
+    panel.question = 'Can you give an example?'; panel.ask(); finish('Current answer'); await tick();
+    const ids = panel.priorAnswers.map((turn: any) => turn.id);
+    const before = calls.length;
+    panel.historyDetails = {open: true};
+    panel.toggleHistoryTurn(ids[0]); expect(panel.expandedTurnId).toBe(ids[0]);
+    panel.toggleHistoryTurn(ids[1]); expect(panel.expandedTurnId).toBe(ids[1]);
+    panel.toggleHistoryTurn(ids[1]); expect(panel.expandedTurnId).toBe('');
+    expect(panel.answer).toBe('Current answer'); expect(panel.currentQuestion).toBe('Can you give an example?'); expect(calls).toHaveLength(before);
+    panel.toggleHistoryTurn(ids[0]); panel.question = 'One more detail'; panel.ask(); await tick();
+    expect(panel.expandedTurnId).toBe(''); expect(panel.historyDetails.open).toBe(false);
+    expect(calls.at(-1)!.request.history).toEqual([
+      {question: '读懂', answer: 'First answer'}, {question: 'Why is it useful?', answer: 'Second answer'}, {question: 'Can you give an example?', answer: 'Current answer'},
+    ]);
+  });
+
   it('keeps the current tab position and unsent follow-up, and offers a focused source shortcut without a request', async () => {
     const {panel, finish, calls, tick} = await mountPanel();
     finish('Current answer'); await tick();

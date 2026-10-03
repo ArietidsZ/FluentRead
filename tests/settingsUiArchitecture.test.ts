@@ -540,7 +540,7 @@ describe('options UI composition architecture', () => {
     expect(configManagement).not.toContain('<SettingsGroup title="凭据安全"')
     expect(configManagement).not.toContain('type="file"')
     expect(configManagement).not.toContain('downloadConfig')
-    expect(localDataManagement).toContain('title="完整备份"')
+    expect(localDataManagement).toContain(":title=\"t('settings.backup.localTitle')\"")
     expect(localDataManagement).not.toContain('分别管理')
     expect(localDataManagement).toContain('createFluentReadDataBackup')
     expect(localDataManagement).toContain('openRestoreSource($event)')

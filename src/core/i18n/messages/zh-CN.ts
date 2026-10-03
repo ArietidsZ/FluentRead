@@ -15,6 +15,10 @@ import {translationStatsChineseMessages} from './translationStats';
 import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
+    "settings.backup.localTitle": "本地备份",
+    "settings.backup.fileTitle": "备份文件",
+    "settings.backup.fileDescription": "备份文件包含 API Key 等私密信息，且未加密，请妥善保存，不要公开分享。",
+    "settings.backup.restoreHint": "选择 FluentRead 备份文件，旧版 JSON 文件也可恢复。",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['zh-CN'],
     "popup.translationCount": "已完成 {count} 次翻译",
@@ -347,6 +351,13 @@ export const zhCNMessages = {
 
     "inputTranslation.title": "输入框翻译",
     "inputTranslation.description": "为普通文本输入框单独设置触发方式、目标语言和翻译服务。",
+    "inputTranslation.outputMode": "输出方式",
+    "inputTranslation.outputReplace": "替换原文",
+    "inputTranslation.outputAppend": "原文在前，译文在后",
+    "inputTranslation.outputPrepend": "译文在前，原文在后",
+    "inputTranslation.appendHelp": "原文保持不变，原文与译文分行显示；适用于支持换行的输入框。",
+    "inputTranslation.workflowPrepend": "输入文字后，{trigger}，即可在原文前插入{language}译文，并换行保留原文。",
+    "inputTranslation.workflowAppend": "输入文字后，{trigger}，即可保留原文并换行追加{language}译文。",
     "inputTranslation.workflowEnabled": "输入文字后，{trigger}，即可替换为{language}。",
     "inputTranslation.workflowDisabled": "选择一个快捷键，开始在输入框中翻译。",
     "inputTranslation.profile": "翻译配置",
@@ -1521,7 +1532,12 @@ export const zhCNMessages = {
     "document.pdfTranslatedPage": "PDF 译文第 {page} 页",
     "document.layoutPreview": "{format} 排版阅读预览",
     "document.segmentTranslation": "第 {number} 段译文",
-    "reading.priorTurns": "前面的问答（{count} 轮）",
+    "reading.priorTurns": "历史问答（{count} 轮）",
+    "reading.turnNumber": "第 {number} 轮",
+    "reading.currentTurn": "当前问答",
+    "reading.answerLabel": "回答",
+    "reading.questionLabel": "提问",
+    "reading.emptyAnswer": "这次提问没有保存回答。",
     "reading.viewSource": "查看原文",
     "reading.historyTurns": "{count} 次问答",
     "reading.generatingAction": "正在{action}…",
