@@ -93,13 +93,13 @@ const siteCatalogData = Object.fromEntries([...siteCatalogFiles]
 const compressedCatalogPrefix = '\0fluentread-userscript-site-catalog:';
 const externalChineseMessagesId = '\0fluentread-userscript-zh-cn.js';
 
-/** 只压缩站点规则 JSON；产品逻辑仍留在可审查的 userscript 主文件中。 */
+/** 只压缩站点规则与中文文案数据；产品逻辑仍留在可审查的 userscript 主文件中。 */
 export function createUserscriptCatalogCompressionPlugin(): Plugin {
     return {
         name: 'compress-userscript-site-catalog',
         enforce: 'pre',
         resolveId(source, importer) {
-            if (greasyForkSource && source === './messages/zh-CN'
+            if (source === './messages/zh-CN'
                 && importer?.split('?')[0] === resolve(root, 'src/core/i18n/index.ts')) return externalChineseMessagesId;
             if (!importer || !source.endsWith('.json')) return null;
             const sourcePath = resolve(dirname(importer.split('?')[0]), source);
@@ -108,7 +108,15 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
         },
         load(id) {
             if (id === externalChineseMessagesId) {
-                return 'export const zhCNMessages = globalThis.__FLUENTREAD_USERSCRIPT_DATA__.zhCNMessages;';
+                if (greasyForkSource) return 'export const zhCNMessages = globalThis.__FLUENTREAD_USERSCRIPT_DATA__.zhCNMessages;';
+                const contents = JSON.stringify(zhCNMessages);
+                const compressed = gzipSync(Buffer.from(contents)).toString('base64');
+                return [
+                    `/* Non-code Chinese UI messages; sha256 ${createHash('sha256').update(contents).digest('hex')}. */`,
+                    "import {inflateWithPako} from '@/userscript/pakoRuntime';",
+                    `const bytes = Uint8Array.from(atob(${JSON.stringify(compressed)}), (character) => character.charCodeAt(0));`,
+                    'export const zhCNMessages = JSON.parse(inflateWithPako(bytes));',
+                ].join('\n');
             }
             if (!id.startsWith(compressedCatalogPrefix)) return null;
             const sourcePath = id.slice(compressedCatalogPrefix.length, -'.js'.length);
