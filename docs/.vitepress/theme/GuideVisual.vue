@@ -2,12 +2,21 @@
 import { computed, ref } from 'vue'
 import { useData, withBase } from 'vitepress'
 import BrandReader from './BrandReader.vue'
+import DemoPointer from './DemoPointer.vue'
+import { useDemoPlayback } from './useDemoPlayback'
 const props = defineProps<{ kind: string; en?: boolean; compact?: boolean }>()
 const { lang } = useData()
 const english = computed(() => props.en ?? lang.value.startsWith('en'))
 const t = (zh: string, en: string) => (english.value ? en : zh)
-const changed = ref(false)
-const style = ref(0)
+const root = ref<HTMLElement | null>(null)
+const { step, playing, running, reduced, choose } = useDemoPlayback(
+  root,
+  6,
+  props.kind !== 'privacy',
+  [650, 600, 450, 850, 1100, 850]
+)
+const changed = computed(() => step.value >= 3)
+const style = computed(() => Math.max(0, step.value - 3) % 3)
 const words = computed(
   () =>
     ({
@@ -110,19 +119,37 @@ const words = computed(
     } as Record<string, string[]>)
 )
 const text = computed(() => words.value[props.kind] || words.value.shortcuts)
-function toggle() {
-  changed.value = !changed.value
-  style.value = (style.value + 1) % 3
-}
 </script>
 <template>
   <BrandReader v-if="kind === 'webpage'" :en="english" />
-  <div v-else class="gv" :class="[`gv-${kind}`, { compact, changed }]" :data-visual="kind">
+  <div
+    ref="root"
+    v-else
+    class="gv"
+    :class="[`gv-${kind}`, { compact, changed }]"
+    :data-visual="kind"
+    :data-step="step"
+    :data-playing="playing"
+    :data-running="running"
+  >
     <div class="gv-heading">
       <span>{{ text[0] }}</span
       ><span class="gv-example">{{ t('操作示意', 'Walkthrough') }}</span>
     </div>
     <div class="gv-stage">
+      <div
+        v-if="kind !== 'privacy' && kind !== 'install'"
+        class="gv-demo-action"
+        data-demo-target
+        :class="{ triggered: step === 2 }"
+      >
+        <img :src="withBase('/brand-icon.webp')" width="24" height="24" alt="" />
+        <span>{{ text[1] }}</span>
+      </div>
+      <DemoPointer
+        v-if="kind !== 'privacy'"
+        :phase="running && (step === 1 || step === 2) ? step : 0"
+      />
       <template v-if="kind === 'compare'"
         ><div class="gv-sentence">
           <span>{{ t('原文', 'Original') }}</span>
@@ -225,7 +252,8 @@ function toggle() {
             type="button"
             :aria-expanded="changed"
             :aria-label="t('打开 FluentRead 示例菜单', 'Open the example FluentRead menu')"
-            @click="changed = !changed"
+            data-demo-target
+            @click="choose(changed ? 0 : 3)"
           >
             <img :src="withBase('/brand-icon.webp')" width="36" height="36" alt="FluentRead" />
           </button>
@@ -441,7 +469,7 @@ function toggle() {
               :key="label"
               type="button"
               :aria-pressed="style === i"
-              @click="style = i"
+              @click="choose(i + 3)"
             >
               {{ label }}
             </button>
@@ -548,10 +576,16 @@ function toggle() {
       >
     </div>
     <div v-if="kind !== 'privacy'" class="gv-controls">
-      <small>{{ t('点击看变化', 'Click to see the change') }}</small
-      ><button type="button" :aria-pressed="changed" @click="toggle">
-        {{ changed ? t('重置示例', 'Reset example') : text[1] }}
-        <span aria-hidden="true">{{ changed ? '↻' : '→' }}</span>
+      <small>{{ t('自动演示 · 示例内容', 'Automatic walkthrough · example content') }}</small
+      ><button
+        v-if="!reduced"
+        type="button"
+        :aria-label="
+          playing ? t('暂停图解演示', 'Pause walkthrough') : t('播放图解演示', 'Play walkthrough')
+        "
+        @click="playing = !playing"
+      >
+        {{ playing ? t('暂停', 'Pause') : t('播放', 'Play') }}
       </button>
     </div>
   </div>

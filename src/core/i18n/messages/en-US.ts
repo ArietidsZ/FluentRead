@@ -7,6 +7,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
 import brandTaglines from './brand-taglines.json';
+import {onboardingEnglishMessages} from './onboarding';
 import googleDriveText from './google-drive/en-US.json';
 import cloudBackupText from './cloud-backup/en-US.json';
 import type {
@@ -944,22 +945,15 @@ export const enUSMessages = {
     'language.settingsLabel': 'App language',
     'language.settingsDescription': 'Choose the language used across FluentRead.',
     'language.help': 'Changes apply immediately.',
-    'language.saveFailed': 'The interface language could not be saved. Reopen settings and try again.',
+    ...onboardingEnglishMessages,
     'language.changed': 'Interface language changed',
-    'language.onboardingWelcomeEyebrow': 'Welcome',
     'language.onboardingWelcomeTitle': 'Welcome to FluentRead',
     'language.onboardingWelcomeDescription': 'A calmer way to read more of the web. Choose your interface language to get started.',
-    'language.onboardingWelcomeNext': 'Set interface language',
-    'language.onboardingBack': 'Back',
     'language.onboardingEyebrow': 'One last step',
-    'language.onboardingTitle': 'Choose interface language',
     'language.onboardingDescription': 'Choose the language used by FluentRead.',
-    'language.onboardingLabel': 'Language',
     'language.onboardingRecommended': 'Recommended',
     'language.onboardingBrowserHint': 'Preselected from your browser language. You can change it later in settings.',
     'language.onboardingConfirmHint': 'Choose one, then confirm',
-    'language.onboardingConfirm': 'Confirm',
-    'language.onboardingSuccessEyebrow': 'You’re all set',
     'language.onboardingSuccessTitle': 'Ready to read',
     'language.onboardingSuccessDescription': 'Opening FluentRead.',
     'select.search': 'Search',
@@ -971,9 +965,7 @@ export const enUSMessages = {
     'common.cancel': 'Cancel',
     'common.confirm': 'Confirm',
     'common.save': 'Save',
-    'common.retry': 'Retry',
     'common.openSettings': 'Open settings',
-    'common.loading': 'Loading…',
     'common.search': 'Search',
     'common.default': 'Default',
     'common.none': 'None',
