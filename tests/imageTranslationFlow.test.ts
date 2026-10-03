@@ -33,6 +33,16 @@ function mockProgressClient(sendMessage: ReturnType<typeof vi.fn>) {
 }
 
 describe('图片翻译流程优化',()=>{
+    it('专用漫画路径跳过 Tesseract 包预检，模型管理沿用后台消息',async()=>{
+        const getMangaModelStatus=vi.fn(async()=>({ready:true,bytes:123,inpaintingReady:false})),removeMangaModels=vi.fn(async()=>{});
+        const {handler,dependencies}=setup({getMangaModelStatus,removeMangaModels});
+        expect(await handler(IMAGE_TRANSLATE_MESSAGE_TYPE).handle({type:IMAGE_TRANSLATE_MESSAGE_TYPE,image:'data:image/png,x',sourceLanguage:'en',manga:true})).toMatchObject({success:true});
+        expect(dependencies.assertLanguagesDownloaded).not.toHaveBeenCalled();
+        expect(dependencies.translateImage).toHaveBeenCalledWith('data:image/png,x','en','',expect.objectContaining({manga:true}));
+        expect(await handler('fluentReadMangaModelStatus').handle({type:'fluentReadMangaModelStatus'})).toEqual({success:true,ready:true,bytes:123,inpaintingReady:false});
+        expect(await handler('fluentReadMangaModelRemove').handle({type:'fluentReadMangaModelRemove'})).toEqual({success:true});expect(removeMangaModels).toHaveBeenCalledOnce();
+        await expect(handler(IMAGE_TRANSLATE_MESSAGE_TYPE).handle({type:IMAGE_TRANSLATE_MESSAGE_TYPE,image:'data:image/png,x',sourceLanguage:'en',manga:'true'} as never)).rejects.toThrow('漫画翻译模式无效');
+    });
     it('识别进度接受有效百分比，语言刷新保留数值，完成或失败清除百分比', () => {
         for (const invalid of [undefined, null, '50', NaN, Infinity, -1, 101]) expect(normalizeImageProgress(invalid)).toBeUndefined();
         expect(normalizeImageProgress(0)).toBe(0); expect(normalizeImageProgress(100)).toBe(100);

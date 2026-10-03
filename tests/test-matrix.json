@@ -401,7 +401,13 @@
       "tests/sectionTranslationPicker.test.ts",
       "tests/videoCaptionPlatformRuntime.test.ts",
       "tests/googleDriveSync.test.ts",
-      "tests/backgroundGoogleDriveSync.test.ts"
+      "tests/backgroundGoogleDriveSync.test.ts",
+      "tests/mangaReader.test.ts",
+      "tests/mangaQuality.test.ts",
+      "tests/mangaOcr.test.ts",
+      "tests/mangaOcrAssets.test.ts",
+      "tests/mangaInpainting.test.ts",
+      "tests/mangaBubbles.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",

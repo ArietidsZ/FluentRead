@@ -1,7 +1,7 @@
 <!--
  * @file src/features/floating-ball/ui/FloatingBall.vue
- * 文件职责：呈现低干扰、可拖拽和按需展开的页面悬浮球，并把全文翻译状态、拖动停靠、打开设置、高级外观参数和键盘关闭整合为可复用 Vue 组件。
- * 主要内容：组件按展示契约控制按钮显示方式、展开延迟、触屏展开、点击行为、紧凑尺寸与收起不透明度；停靠时为滚动条留出间距，收起时移除工具按钮的指针命中区；使用位移阈值区分点击与拖拽，按视口比例恢复纵向位置并限制球体在视口内，通过受控状态同步图标和文案。
+ * 文件职责：呈现低干扰、可拖拽和按需展开的页面悬浮球，并把全文与漫画翻译状态、拖动停靠、打开设置、高级外观参数和键盘关闭整合为可复用 Vue 组件。
+ * 主要内容：漫画阅读器显示常驻的连续翻译按钮和真实任务状态，组件按展示契约控制按钮显示方式、展开延迟、触屏展开、点击行为、紧凑尺寸与收起不透明度；停靠时为滚动条留出间距，收起时移除工具按钮的指针命中区；使用位移阈值区分点击与拖拽，按视口比例恢复纵向位置并限制球体在视口内，通过受控状态同步图标和文案。
  * 模块边界：它只负责视觉与局部交互，不直接调用浏览器消息、保存配置或执行全文翻译；这些副作用由 content/runtime 通过 props、事件和 defineExpose 桥接，外观配置的归一化留在 core/config。
  -->
 <template>
@@ -39,6 +39,27 @@
         <path d="M4 16h16M4 16l2-2M4 16l2 2M20 16l-2-2M20 16l-2 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
       <span v-if="isTranslating" class="check-mark" aria-hidden="true" />
+    </button>
+
+    <button
+      v-if="manga?.available && showTranslateTool"
+      class="floating-ball-tool floating-ball-manga floating-ball-item"
+      :class="{'manga-active': manga.active, 'manga-pending': manga.pending}"
+      type="button"
+      :aria-label="manga.active ? '查看漫画原图并暂停翻译' : '开启漫画连续翻译'"
+      :aria-pressed="manga.active"
+      :aria-busy="manga.pending"
+      :title="mangaTitle"
+      @pointerdown.stop
+      @click.stop="onMangaToggle"
+    >
+      <svg class="translation-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2.5" y="3" width="19" height="18" rx="3" stroke="currentColor" stroke-width="1.7" />
+        <path d="M12 3v18M12 13h9.5M5.5 15l3 3M15.5 17h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+        <path d="M5.5 7h3v3h-1l-1.5 1v-1h-.5V7Zm10 0h3v3h-1l-1.5 1v-1h-.5V7Z" fill="currentColor" />
+      </svg>
+      <span v-if="manga.active" class="manga-check" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none"><path d="m4 8 2.7 2.7L12 5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+      <span v-if="manga.pending" class="manga-progress" aria-hidden="true" />
     </button>
 
     <div
@@ -79,6 +100,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { PropType, CSSProperties } from 'vue';
+import type {MangaTranslationStatus} from '@/src/features/image-translation/public';
 import type { FloatingBallPresentation } from '@/src/features/floating-ball/types';
 import {resolveFloatingBallCenterY, toFloatingBallVerticalPosition} from '@/src/features/floating-ball/position';
 
@@ -131,6 +153,8 @@ const props = defineProps({
     type: Function as PropType<(isTranslating: boolean) => void>,
     default: () => {},
   },
+  manga: {type: Object as PropType<MangaTranslationStatus>, default: undefined},
+  onMangaToggle: {type: Function as PropType<(event: MouseEvent) => void>, default: () => {}},
   initialTranslating: {
     type: Boolean,
     default: false,
@@ -172,6 +196,11 @@ const showTranslateTool = computed(() => props.showMenu && presentation.value.to
 const showSettingsTool = computed(() => showTranslateTool.value && presentation.value.settingsEntryVisible);
 const isMenuExpanded = computed(() => showTranslateTool.value && (isAlwaysExpanded.value || isExpanded.value || touchExpanded.value));
 const isMainActionable = computed(() => presentation.value.clickAction !== 'none');
+const mangaTitle = computed(() => {
+  if (!props.manga?.active) return '开启漫画连续翻译 · 滚动时自动翻译新页面';
+  if (props.manga.errors) return '漫画翻译已开启 · 部分页面失败，可在图片上重试 · 点击看原图';
+  return props.manga.pending ? '正在翻译漫画 · 点击看原图并暂停' : '漫画翻译已开启 · 点击看原图并暂停';
+});
 const mainActionLabel = computed(() => {
   if (presentation.value.clickAction === 'settings') return '打开 FluentRead 设置';
   if (presentation.value.clickAction === 'translate') {
@@ -602,6 +631,30 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   opacity: 1;
   pointer-events: auto;
 }
+
+.fr-floating-ball .floating-ball-manga {
+  opacity: var(--fr-ball-collapsed-opacity, 0.52);
+  pointer-events: auto;
+  transform: translateX(0);
+}
+.fr-floating-ball .floating-ball-manga.manga-active,
+.fr-floating-ball .floating-ball-manga:hover,
+.fr-floating-ball .floating-ball-manga:focus-visible { opacity: 1; color: #ec4d7d; }
+.fr-floating-ball .floating-ball-manga.manga-active {
+  box-shadow: 0 0 0 2px #ec4d7d, 0 3px 10px rgba(0,0,0,.16);
+}
+.manga-check {
+  position: absolute; right: -4px; bottom: -4px; width: 19px; height: 19px;
+  display: grid; place-items: center; border: 2px solid #fff; border-radius: 50%;
+  background: #15803d; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); pointer-events: none;
+}
+.manga-check svg { width: 15px; height: 15px; }
+.manga-progress {
+  position: absolute; inset: -6px; border: 3px solid rgba(236,77,125,.18); pointer-events: none;
+  border-top-color: #ec4d7d; border-right-color: #ec4d7d; border-radius: 50%; animation: fr-manga-spin 1.2s linear infinite;
+}
+@keyframes fr-manga-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .manga-progress { animation: none; border-style: dotted; } }
 
 .floating-ball-settings {
   transition-delay: 0.1s;

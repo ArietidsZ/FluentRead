@@ -570,6 +570,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     disabledExtensionDomains: {group: 'siteRules', label: '禁用扩展网站'},
     floatingBallDisabledDomains: {group: 'siteRules', label: '禁用悬浮球网站'},
 
+    imageTranslationMangaEnabled: {group: 'imageTranslation', label: '漫画连续翻译入口', format: formatBoolean},
     imageTranslationHoverEnabled: {group: 'imageTranslation', label: '图片悬浮按钮', format: formatBoolean},
     imageTranslationContextMenuEnabled: {group: 'imageTranslation', label: '图片右键菜单', format: formatBoolean},
     disableImageTranslator: {group: 'imageTranslation', label: '图片翻译', format: (value) => formatBoolean(value, true)},
