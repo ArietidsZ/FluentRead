@@ -24,7 +24,7 @@ import type {BackgroundMessageHandler} from './messageRouter';
 import {createGoogleDriveSyncRuntime} from './googleDriveSyncRuntime';
 import {createWebDavBackupRuntime} from './webDavBackupRuntime';
 import {createConfigAutoBackupRestoreHandler} from './handlers/configAutoBackup';
-import {createConfigStorageReadHandler} from './handlers/configStorage';
+import {createConfigStorageReadHandler, createPopupStartupHandler} from './handlers/configStorage';
 import {createConfigCountIncrementHandler} from './handlers/configCount';
 import {createConfigHistoryHandler} from './handlers/configHistory';
 import {
@@ -50,6 +50,11 @@ export function createConfigBackgroundHandlers<TContext extends ConfigPersistenc
     return [
         createGoogleDriveSyncRuntime(mutations),
         createWebDavBackupRuntime(mutations),
+        createPopupStartupHandler({
+            ready: configReady,
+            getSetupCompleted: () => config.uiLanguageSetupCompleted,
+            isExtensionUrl: (url) => url.startsWith(browser.runtime.getURL('/')),
+        }),
         createConfigStorageReadHandler({
             ready: configReady,
             read: async key => {
