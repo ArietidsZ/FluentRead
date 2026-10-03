@@ -65,6 +65,29 @@ describe('binary document translation formats', () => {
         expect(parsed.segments.some((segment) => segment.contextLabel === '第 2 页')).toBe(true);
     });
 
+    it.each(['sample.epub', 'sample.docx'])('%s partial export retains blank reviewed segments and translates the rest', async name => {
+        const parsed = await parseBinaryDocument(name, loadBytes(name));
+        const translations = parsed.segments.map(segment => segment.id === 0 ? '  ' : `译文 ${segment.id}`);
+        const download = await createDocumentDownload(parsed, translations, 'translated');
+        const reparsed = await parseBinaryDocument(download.fileName, download.data as Uint8Array);
+        expect(reparsed.segments[0].source).toBe(parsed.segments[0].source);
+        expect(reparsed.segments[1].source).toBe('译文 1');
+    });
+
+    it('PDF partial export uses source for an empty reviewed block', async () => {
+        const parsed = await parseBinaryDocument('sample.pdf', loadBytes('sample.pdf'));
+        const translations = parsed.segments.map(segment => segment.id === 0 ? '' : `译文 ${segment.id}`);
+        const captured: readonly string[][] = [];
+        await createDocumentDownload(parsed, translations, 'translated', {
+            pdfPageRasterizer: async input => {
+                (captured as string[][]).push([...input.translations]);
+                return onePixelPng;
+            },
+        });
+        expect(captured[0][0]).toBe(parsed.segments[0].source);
+        expect(captured[0][1]).toBe('译文 1');
+    });
+
     it('按 ePub spine 章节提取 XHTML，并导出仍可读取的双语 ePub', async () => {
         const parsed = await parseBinaryDocument('sample.epub', loadBytes('sample.epub'));
         expect(parsed.format).toBe('epub');

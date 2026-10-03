@@ -15,6 +15,16 @@ afterEach(() => {
 });
 
 describe('document translation edge contracts', () => {
+    it.each(['', '   ', '\n\t'])('empty reviewed subtitle falls back to source for partial export (%j)', blank => {
+        const source = '1\r\n00:00:01,000 --> 00:00:02,000\r\nHello\r\n\r\n2\r\n00:00:03,000 --> 00:00:04,000\r\nPending\r\n';
+        const document = parseDocument('episode.srt', source);
+        const output = renderDocument(document, ['你好', blank], 'translated');
+        expect(output).toBe(source.replace('Hello', '你好'));
+        expect(parseDocument('episode.srt', output).segments.map(segment => segment.source)).toEqual(['你好', 'Pending']);
+        const json = parseDocument('sample.json', '{"title":"Hello"}');
+        expect(JSON.parse(renderDocument(json, [blank], 'translated'))).toEqual({title: 'Hello'});
+    });
+
     it('覆盖无扩展名、CR 换行、非常规 JSON 路径和无扩展名下载名', () => {
         expect(getDocumentFormat('README')).toBeNull();
         expect(parseDocument('notes.txt', 'One\r\nTwo\nThree\rFour').segments.map(({source}) => source))
@@ -69,7 +79,7 @@ describe('document translation edge contracts', () => {
     it('保留字幕标签、空译文以及非分组 Markdown 的双语结构', () => {
         const subtitle = parseDocument('episode.srt', '00:00:01,000 --> 00:00:02,000\n<i>Hello</i>\n');
         expect(renderDocument(subtitle, ['你好'], 'bilingual')).toContain('<i>你好</i>');
-        expect(renderDocument(subtitle, [''], 'translated')).toContain('\n\n');
+        expect(renderDocument(subtitle, [''], 'translated')).toContain('<i>Hello</i>');
 
         const markdown: ParsedDocument = {
             fileName: 'manual.md',

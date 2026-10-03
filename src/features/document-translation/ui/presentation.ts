@@ -1,10 +1,28 @@
 /**
  * @file src/features/document-translation/ui/presentation.ts
  * 文件职责：提供文档翻译界面使用的纯展示派生规则，把 ParsedDocument 转换成预览统计、空状态提示、色调和格式特定的文本/样式标签。
- * 主要内容：包含字幕与富文本格式判断、页数章节数片段数等元数据、DOCX 部件名称映射、不同格式的阅读器文本清理，以及 source 节点 class 的选择。
+ * 主要内容：包含小型本地范例、基于真实编码的有界导出预览、字幕与富文本格式判断、预览说明、DOCX 部件名称映射、阅读器文本清理及 source 节点 class 的选择。
  * 模块边界：本文件不创建 DOM、不解析文件也不调用翻译；它只消费 core 模型并返回 UI 可直接使用的值，实际预览 HTML 归 core/preview，PDF 位图和导出分别归 pdfPreview 与 binary。
  */
-import type {DocumentFormat, ParsedDocument} from '@/src/features/document-translation/core/document';
+import {renderDocument, resolveDocumentTranslation, type DocumentFormat, type DocumentRenderMode, type ParsedDocument} from '@/src/features/document-translation/core/document';
+
+/** 小型本地范例只走正常导入流程，不预填译文或自动发起翻译。 */
+export const DOCUMENT_QUICK_SAMPLES = [
+    {name: 'reading-sample.md', label: '文章', description: '标题、段落与列表', content: '# A small reading guide\n\nA good book opens a window to another world.\n\n- Read a little every day.\n- Keep the words that matter to you.\n'},
+    {name: 'subtitle-sample.srt', label: '字幕文件', description: '时间轴与多行字幕', content: '1\n00:00:01,000 --> 00:00:03,000\nWelcome to a new story.\n\n2\n00:00:04,000 --> 00:00:07,000\nTake your time.\nEnjoy every moment.\n'},
+    {name: 'language-sample.json', label: '语言文件', description: '字符串与嵌套结构', content: '{\n  "title": "A new beginning",\n  "actions": {"read": "Start reading", "save": "Save for later"},\n  "version": 1,\n  "enabled": true\n}\n'},
+] as const;
+
+/** 文本格式直接使用真实导出编码；二进制格式只提供明确标注的文字摘录。 */
+export function getDocumentExportPreview(document: ParsedDocument, translations: readonly string[], mode: DocumentRenderMode): string {
+    const text = document.binary
+        ? document.segments.slice(0, 3).map(segment => {
+            const translation = resolveDocumentTranslation(segment.source, translations[segment.id]);
+            return mode === 'bilingual' ? `${segment.source}\n${translation}` : translation;
+        }).join('\n\n')
+        : renderDocument(document, translations, mode);
+    return text.length > 1600 ? `${text.slice(0, 1600)}\n…` : text;
+}
 
 export interface DocumentPreviewMeta {
     eyebrow: string;
