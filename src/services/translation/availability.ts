@@ -18,7 +18,7 @@ export class TranslationDisabledError extends Error {
     readonly retryable = false;
     readonly code = 'TRANSLATION_DISABLED';
     constructor() {
-        super('翻译功能已暂停，请在通用设置中启用。');
+        super('插件已关闭，请在通用设置中启动插件。');
         this.name = 'TranslationDisabledError';
     }
 }

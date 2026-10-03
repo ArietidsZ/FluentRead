@@ -49,8 +49,12 @@ export const settingsSearchTargets: readonly SettingsSearchTarget[] = [
     label: '悬浮球进阶设置', description: '翻译设置', searchTerms: '悬浮球配置、悬浮球设置、悬浮球位置',
   },
   {
-    id: 'translation-sentence-highlight', sectionId: 'settings-interface', targetId: 'translation-sentence-highlight',
-    label: '双语逐句高亮', description: '界面风格', searchTerms: '',
+    id: 'translation-sentence-highlight', sectionId: 'settings-translation', targetId: 'translation-sentence-highlight',
+    label: '双语逐句高亮', description: '翻译设置', searchTerms: '阅读辅助、原文译文、句子对应',
+  },
+  {
+    id: 'translation-sentence-highlight-style', sectionId: 'settings-interface', targetId: 'translation-sentence-highlight-style',
+    label: '逐句高亮样式', description: '界面风格', searchTerms: '阅读辅助、高亮颜色、柔和玫瑰、薄荷清风、晴空蓝、细线聚焦、暖光琥珀、雾紫柔光、石墨轻衬、点线引导',
   },
   {
     id: 'translation-appearance', sectionId: 'settings-interface', targetId: 'translation-appearance-panel',
@@ -75,16 +79,16 @@ export const navigationGroups = [
         searchDescription: '机器翻译、云服务厂商、谷歌云、Azure、阿里云、腾讯云、百度、火山引擎、Ollama、模型服务商、聚合平台、OpenAI、DeepSeek、硅基流动、OpenRouter、模型与令牌',
       },
       {
-        id: 'settings-translation', icon: '译', label: '翻译设置', description: '悬浮、输入框与全文', group: '基础配置',
-        heading: '翻译设置', summary: '按使用顺序管理鼠标悬浮、输入框和全文翻译。',
-        kicker: '基础配置', title: '翻译设置', detail: '设置鼠标悬浮、输入框与全文翻译的触发方式。',
-        searchDescription: '不翻译的语言、跳过语言、排除语言、简体中文、繁体中文、鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度',
+        id: 'settings-translation', icon: '译', label: '翻译设置', description: '阅读辅助、悬浮、输入框与全文', group: '基础配置',
+        heading: '翻译设置', summary: '先设置阅读辅助，再管理鼠标悬浮、输入框和全文翻译。',
+        kicker: '基础配置', title: '翻译设置', detail: '设置双语阅读辅助和鼠标悬浮、输入框与全文翻译的触发方式。',
+        searchDescription: '阅读辅助、双语逐句高亮、原文译文对应、不翻译的语言、跳过语言、排除语言、简体中文、繁体中文、鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度',
       },
       {
         id: 'settings-interface', icon: '▦', label: '界面风格', description: '译文样式、界面与弹窗、动画与加载、菜单栏布局', group: '基础配置',
         heading: '界面风格', summary: '调整网页译文的样式与颜色，选择喜欢的界面风格和动画加载效果，并编排菜单栏中的模块和快捷功能。',
         kicker: '基础配置', title: '界面风格', detail: '调整网页译文的样式与颜色，选择喜欢的界面风格和动画加载效果，并编排菜单栏中的模块和快捷功能。',
-        searchDescription: '译文样式、双语样式、译文颜色、字体颜色、下划线颜色、划线颜色、线条颜色、标记底色、译文字号、译文字重、译文字体、不透明度、双语逐句高亮、模糊遮罩、双下划线、侧边色条、界面设置、界面与弹窗、动画与加载效果、界面动画、翻译加载样式、简洁、柔和圆环、跳跃圆点、行星轨道、星光、涟漪扩散、起伏波形、光线扫过、流沙沙漏、小彗星、翻转方块、弹跳小球、打字光标、扫描线、信号柱、弹窗风格、默认风格、简约风格、紧凑风格、高对比、奶酪、海盐、抹茶、樱花、夜幕、纸张护眼、Emoji、菜单栏布局、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏',
+        searchDescription: '译文样式、双语样式、译文颜色、字体颜色、下划线颜色、划线颜色、线条颜色、标记底色、译文字号、译文字重、译文字体、不透明度、逐句高亮样式、高亮颜色、柔和玫瑰、薄荷清风、晴空蓝、细线聚焦、暖光琥珀、雾紫柔光、石墨轻衬、点线引导、模糊遮罩、双下划线、侧边色条、界面设置、界面与弹窗、动画与加载效果、界面动画、翻译加载样式、简洁、柔和圆环、跳跃圆点、行星轨道、星光、涟漪扩散、起伏波形、光线扫过、流沙沙漏、小彗星、翻转方块、弹跳小球、打字光标、扫描线、信号柱、弹窗风格、默认风格、简约风格、紧凑风格、高对比、奶酪、海盐、抹茶、樱花、夜幕、纸张护眼、Emoji、菜单栏布局、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏',
       },
     ],
   },
@@ -251,13 +255,14 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
     {id: 'connections', labelKey: 'featureServices.connections', searchTerms: '连接 服务 密钥 API 模型', targetIds: []},
   ],
   'settings-translation': [
+    {id: 'reading', labelKey: 'options.panel.reading', searchTerms: '阅读辅助 双语逐句高亮 原文译文 句子对应', targetIds: ['translation-sentence-highlight']},
     {"id": "hover", "labelKey": "options.panel.hover", "searchTerms": "鼠标悬浮 快捷键 延迟", "targetIds": []},
     {"id": "input", "labelKey": "options.panel.input", "searchTerms": "输入框 连按 空格", "targetIds": []},
     {"id": "page", "labelKey": "options.panel.page", "searchTerms": "全文 快捷键 多段 范围 右键", "targetIds": []},
     {"id": "tools", "labelKey": "options.panel.tools", "searchTerms": "悬浮球 位置 段落复制 分段 跳过语言 排除语言", "targetIds": ["floating-ball-settings"]},
   ],
   'settings-interface': [
-    {"id": "translation", "labelKey": "options.panel.translation", "searchTerms": "译文 样式 颜色 字号 高亮", "targetIds": ["translation-appearance-panel", "translation-sentence-highlight"]},
+    {"id": "translation", "labelKey": "options.panel.translation", "searchTerms": "译文 样式 颜色 字号 高亮", "targetIds": ["translation-appearance-panel", "translation-sentence-highlight-style"]},
     {"id": "skin", "labelKey": "options.panel.skin", "searchTerms": "弹窗 皮肤 界面风格", "targetIds": []},
     {"id": "layout", "labelKey": "options.panel.layout", "searchTerms": "菜单栏 布局 栏目 排序", "targetIds": []},
     {"id": "motion", "labelKey": "options.panel.motion", "searchTerms": "动画 加载", "targetIds": []},

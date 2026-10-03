@@ -14,6 +14,7 @@ import {
     popupQuickFeatureOptions,
 } from './interfaceAppearance';
 import {translationLoadingStyleOptions} from './translationLoadingStyle';
+import {SENTENCE_HIGHLIGHT_STYLES} from './sentenceHighlight';
 import {LOCAL_TTS_MODE_OPTIONS} from './localTts';
 import {parseApiKeyRequirementKey} from './validation';
 
@@ -487,7 +488,8 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     floatingBallSettingsEntryVisible: {group: 'general', label: '悬浮球设置入口', format: formatBoolean},
     floatingBallCollapsedOpacity: {group: 'general', label: '悬浮球收起不透明度', format: (value) => formatNumber(value, '%')},
     translationProgressPanelEnabled: {group: 'general', label: '翻译进度面板', format: formatBoolean},
-    bilingualSentenceHighlightEnabled: {group: 'general', label: '双语逐句高亮', format: formatBoolean},
+    bilingualSentenceHighlightEnabled: {group: 'translation', label: '双语逐句高亮', format: formatBoolean},
+    bilingualSentenceHighlightStyle: {group: 'translation', label: '逐句高亮样式', format: value => formatEnum(value, labelsFor(SENTENCE_HIGHLIGHT_STYLES))},
 
     service: {group: 'general', label: '默认翻译服务', format: formatService},
     favoriteServices: {group: 'translationServices', label: '常用翻译服务', format: (value) => Array.isArray(value) ? formatArray(value, formatService) : formatValue(value)},

@@ -20,7 +20,7 @@
           <p class="preview-domain" data-i18n-ignore>{{ preferences.url }}</p>
           <div class="preview-states">
             <article><span>{{ tr('扩展功能') }}</span><strong>{{ tr(extensionLabels[preferences.extension]) }}</strong><small v-if="preferences.domain" data-i18n-ignore>{{ preferences.domain }}</small></article>
-            <article><span>{{ tr('网页翻译') }}</span><strong>{{ tr(translationLabels[preferences.translation]) }}</strong><small>{{ tr('禁用扩展优先于自动翻译；暂停时所有偏好仍保留。') }}</small></article>
+            <article><span>{{ tr('网页翻译') }}</span><strong>{{ tr(translationLabels[preferences.translation]) }}</strong><small>{{ tr('禁用扩展优先于自动翻译；关闭插件后所有偏好仍保留。') }}</small></article>
             <article><span>{{ tr('悬浮球') }}</span><strong>{{ tr(ballLabels[preferences.floatingBall]) }}</strong><small>{{ tr('只隐藏悬浮球时，其他功能仍可用。') }}</small></article>
           </div>
           <section class="preview-adaptation"><h4>{{ tr('正文识别结果') }}</h4><p v-if="scope === 'all'" class="rule-hint">{{ tr('当前为全部节点识别，仅显式声明 allScopes 的适配规则参与。') }}</p><p class="rule-notice">{{ tr(preferences.extension !== 'enabled' ? '扩展功能未运行，匹配的正文规则暂不生效。' : !adaptation.enabled ? '正文适配已关闭，将使用通用正文识别。' : !activeRules.length ? '未命中启用的专属规则，将使用通用正文识别。' : focused ? '命中限定范围规则，只翻译规则声明的正文区域；所有命中规则的保护区域共同生效。' : '命中补充规则，在通用正文识别上增加指定区域，并共同保护原文区域。') }}</p>
@@ -49,9 +49,9 @@ const preferences = computed(() => previewSitePreferences(checkedUrl.value, prop
 const matches = computed(() => previewSiteRules(checkedUrl.value, builtinSiteRulePack, props.adaptation, props.scope));
 const activeRules = computed(() => matches.value.ok ? matches.value.rules.filter(item => item.enabled) : []);
 const focused = computed(() => activeRules.value.some(item => resolveSiteRule(item.source === 'custom' ? props.adaptation.custom : builtinSiteRulePack, item.rule).mode === 'focus'));
-const extensionLabels = {paused: '插件已暂停', disabled: '此网站已禁用扩展', enabled: '扩展已启用'};
-const translationLabels = {paused: '插件已暂停', disabled: '此网站已禁用扩展', global: '自动翻译 · 全局开启', site: '自动翻译 · 网站偏好', manual: '按需手动翻译'};
-const ballLabels = {paused: '插件已暂停', disabled: '此网站已禁用扩展', 'hidden-global': '已隐藏 · 全局设置', 'hidden-site': '已隐藏 · 网站偏好', visible: '显示悬浮球'};
+const extensionLabels = {paused: '插件已关闭', disabled: '此网站已禁用扩展', enabled: '扩展已启用'};
+const translationLabels = {paused: '插件已关闭', disabled: '此网站已禁用扩展', global: '自动翻译 · 全局开启', site: '自动翻译 · 网站偏好', manual: '按需手动翻译'};
+const ballLabels = {paused: '插件已关闭', disabled: '此网站已禁用扩展', 'hidden-global': '已隐藏 · 全局设置', 'hidden-site': '已隐藏 · 网站偏好', visible: '显示悬浮球'};
 </script>
 <style scoped>
 @import './site-rule-workspace.css';

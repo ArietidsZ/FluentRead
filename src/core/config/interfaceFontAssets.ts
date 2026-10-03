@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/interfaceFontAssets.ts
  * 文件职责：声明按需界面字体的固定版本、完整性数据与备用下载入口。
- * 主要内容：按字体方案返回必需文件，构造国内优化镜像与海外来源链接。
+ * 主要内容：按字体方案返回必需文件，计算排除共享资源后的可清除文件，构造国内优化镜像与海外来源链接。
  * 模块边界：仅包含纯数据和 URL 规则，不发起请求，不读取配置或操作 DOM。
  */
 import manifest from '../../../assets/interface-fonts/manifest.json'
@@ -51,4 +51,12 @@ export function getInterfaceFontAssets(font: InterfaceFont): InterfaceFontAsset[
 
 export function getInterfaceFontUrl(source: InterfaceFontSourceId, file: string): string {
   return `${interfaceFontSources.find(item => item.id === source)!.base}${encodeURIComponent(file)}`
+}
+
+/** 清除按钮的容量与实际删除使用相同规则，保留其他已下载字体需要的共享文件。 */
+export function getClearableInterfaceFontAssets(font: InterfaceFont, cachedFonts: readonly InterfaceFont[]): InterfaceFontAsset[] {
+  const protectedFiles = new Set(cachedFonts
+    .filter(value => value !== 'system' && value !== font)
+    .flatMap(value => getInterfaceFontAssets(value).map(asset => asset.file)))
+  return getInterfaceFontAssets(font).filter(asset => !protectedFiles.has(asset.file))
 }
