@@ -1,7 +1,7 @@
 <!--
  * @file src/features/floating-ball/ui/FloatingBall.vue
  * 文件职责：呈现低干扰、可拖拽和按需展开的页面悬浮球，并把全文翻译状态、拖动停靠、打开设置、高级外观参数和键盘关闭整合为可复用 Vue 组件。
- * 主要内容：组件按展示契约控制按钮显示方式、展开延迟、触屏展开、点击行为、紧凑尺寸与收起不透明度；停靠时为滚动条留出间距，收起时移除工具按钮的指针命中区；使用位移阈值区分点击与拖拽，按视口比例恢复纵向位置并限制球体在视口内，通过受控状态同步图标和文案。
+ * 主要内容：组件按展示契约控制按钮显示方式、展开延迟、触屏展开、点击行为、紧凑尺寸与收起不透明度；默认将主体半隐藏在页面边缘，展开时为滚动条留出间距，收起时仅主体响应指针，展开时保留到页面边缘的悬停通道；使用位移阈值区分点击与拖拽，按视口比例恢复纵向位置并限制球体在视口内，通过受控状态同步图标和文案。
  * 模块边界：它只负责视觉与局部交互，不直接调用浏览器消息、保存配置或执行全文翻译；这些副作用由 content/runtime 通过 props、事件和 defineExpose 桥接，外观配置的归一化留在 core/config。
  -->
 <template>
@@ -170,7 +170,8 @@ const currentDisplayPosition = computed(() => internalPosition.value || props.po
 const isAlwaysExpanded = computed(() => presentation.value.toolsDisplay === 'always');
 const showTranslateTool = computed(() => props.showMenu && presentation.value.toolsDisplay !== 'hidden');
 const showSettingsTool = computed(() => showTranslateTool.value && presentation.value.settingsEntryVisible);
-const isMenuExpanded = computed(() => showTranslateTool.value && (isAlwaysExpanded.value || isExpanded.value || touchExpanded.value));
+// 隐藏工具按钮不影响主体展开，键盘与触屏仍能完整访问悬浮球。
+const isMenuExpanded = computed(() => isAlwaysExpanded.value || isExpanded.value || touchExpanded.value);
 const isMainActionable = computed(() => presentation.value.clickAction !== 'none');
 const mainActionLabel = computed(() => {
   if (presentation.value.clickAction === 'settings') return '打开 FluentRead 设置';
@@ -252,8 +253,8 @@ function startDrag(event: PointerEvent) {
   if (event.pointerType === 'mouse' && event.button !== 0) return;
 
   event.preventDefault();
-  // 触屏没有稳定的 hover；轻点主体时让默认隐藏的翻译和设置工具保持可触达。
-  if (event.pointerType === 'touch' && presentation.value.toolsDisplay === 'hover' && showTranslateTool.value) {
+  // 触屏没有稳定的 hover；轻点时展开主体和允许显示的工具，直到点击球外或开始拖动。
+  if (event.pointerType === 'touch' && !isAlwaysExpanded.value) {
     touchExpanded.value = true;
   }
   const dockRect = floatingBall.value?.getBoundingClientRect();
@@ -486,7 +487,29 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   transition: transform 0.46s cubic-bezier(0.22, 1, 0.36, 1);
   user-select: none;
   touch-action: none;
+  pointer-events: none;
   will-change: transform;
+}
+
+/* 收起时不让透明容器覆盖网页；展开后连接主体与页面边缘，避免图标移入页面时悬停中断。 */
+.fr-floating-ball.floating-ball-expanded {
+  pointer-events: auto;
+}
+
+.fr-floating-ball.floating-ball-expanded::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--fr-ball-edge-gap);
+  content: '';
+}
+
+.fr-floating-ball.floating-ball-expanded[data-position="right"]::after {
+  right: calc(var(--fr-ball-edge-gap) * -1);
+}
+
+.fr-floating-ball.floating-ball-expanded[data-position="left"]::after {
+  left: calc(var(--fr-ball-edge-gap) * -1);
 }
 
 .fr-floating-ball.is-compact {
@@ -542,18 +565,19 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   border-radius: 12px;
   background: transparent;
   cursor: grab;
+  pointer-events: auto;
   opacity: 1;
   overflow: visible;
 }
 
 .fr-floating-ball:not(.floating-ball-expanded):not(.dragging)[data-position="right"] .floating-ball-main {
   opacity: var(--fr-ball-collapsed-opacity, 0.52);
-  transform: translateX(0);
+  transform: translateX(calc(50% + var(--fr-ball-edge-gap)));
 }
 
 .fr-floating-ball:not(.floating-ball-expanded):not(.dragging)[data-position="left"] .floating-ball-main {
   opacity: var(--fr-ball-collapsed-opacity, 0.52);
-  transform: translateX(0);
+  transform: translateX(calc(-50% - var(--fr-ball-edge-gap)));
 }
 
 .fr-floating-ball.floating-ball-expanded .floating-ball-main {
