@@ -2,7 +2,7 @@
  * @file src/platform/shadow-ui/vue.ts
  *
  * 文件职责：把 Vue 应用挂载到扩展创建的隔离 Shadow DOM，并注入跨 feature 共享的基础样式与事件隔离设置。
- * 主要内容：定义 VueShadowMount 与 VueShadowUiOptions，createVueShadowUi 依据 options 选择 open/closed 模式，创建宿主、shadow root、样式和 app，并返回由 WXT 管理的 mount/unmount 资源句柄。 可核对的公开符号包括 VueShadowMount、VueShadowUiOptions、createVueShadowUi。
+ * 主要内容：定义 VueShadowMount 与 VueShadowUiOptions，依据 options 创建隔离宿主、样式和 app；异步创建前后检查扩展上下文，取消失效挂载并返回由 WXT 管理的资源句柄。
  * 模块边界：本文件属于 platform 基础设施边界，只封装浏览器、网络、存储上下文或 Shadow DOM 机制；不决定翻译业务策略，不直接实现 feature，业务层通过类型化端口消费这里的能力。
  */
 
@@ -93,6 +93,7 @@ export async function createVueShadowUi(
   ctx: ContentScriptContext,
   options: VueShadowUiOptions,
 ): Promise<ShadowRootContentScriptUi<VueShadowMount>> {
+  if (ctx.isInvalid) throw new DOMException('扩展上下文已失效', 'AbortError');
   // `viewport` 是 userscript 对 WXT Shadow UI 契约的扩展字段；扩展构建使用 WXT
   // 类型，userscript alias 使用本地兼容实现，因此在边界处保留运行时字段并收窄类型。
   const shadowUiOptions = {
@@ -122,6 +123,11 @@ export async function createVueShadowUi(
     scopeRoot?: boolean;
   };
   const ui = await createShadowRootUi<VueShadowMount>(ctx, shadowUiOptions);
+  // WXT 创建 Shadow UI 会等待样式资源；期间失效的旧脚本不能重新挂载 Vue。
+  if (ctx.isInvalid) {
+    ui.remove();
+    throw new DOMException('扩展上下文已失效', 'AbortError');
+  }
 
   ui.shadowHost.id = options.hostId;
   ui.shadowHost.setAttribute('data-fluent-read-ui', options.name);
