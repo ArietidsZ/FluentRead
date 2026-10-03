@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/vision.ts
  * 文件职责：定义圈选图片识别的配置常量、传输边界和模型视觉能力解析。
- * 主要内容：仅对已核实的内置模型确认视觉能力；服务或模型未知时返回 unknown，并支持用户按服务和模型保存显式覆盖。
+ * 主要内容：按服务传输边界、已核实的图片或仅文本模型解析识图能力；未确认的 AI 模型返回 unknown，机器翻译返回 unsupported，并支持用户按服务和模型保存显式覆盖。
  * 模块边界：本文件只执行纯配置判断，不发起网络请求、不读取凭据，也不猜测模型名称；实际图片传输由翻译运行时负责。
  */
 
@@ -36,17 +36,27 @@ export function normalizeAreaVisionPrompt(value: unknown): string {
   return value === LEGACY_DEFAULT_AREA_VISION_PROMPT ? DEFAULT_AREA_VISION_PROMPT : value;
 }
 
-// 这些条目只包含已有官方图像输入文档支持、且同时存在于 FluentRead 模型目录的精确编号。
-// 核实日期 2026-09-12；后续模型和兼容接口由用户显式确认，不按名称前缀推断。
+// 这些条目只包含已有官方图像输入文档支持的精确编号，包括仍可调用的兼容别名。
+// 核实日期 2026-10-03；后续模型和兼容接口由用户显式确认，不按名称前缀推断。
 // https://developers.openai.com/api/docs/models/gpt-5.6-luna
+// https://developers.openai.com/api/docs/guides/images-vision
 // https://developers.openai.com/api/docs/models/gpt-5-mini
 // https://developers.openai.com/api/docs/models/gpt-4.1-mini
 // https://ai.google.dev/gemini-api/docs/models
 // https://platform.claude.com/docs/en/models/overview
+// https://api-docs.deepseek.com/zh-cn/guides/vision/
+// https://api-docs.deepseek.com/zh-cn/updates/
 const VERIFIED_VISION_MODELS: Readonly<Record<string, ReadonlySet<string>>> = {
-  openai: new Set(['gpt-5.6-luna', 'gpt-5-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano']),
-  claude: new Set(['claude-opus-5', 'claude-sonnet-5']),
-  gemini: new Set(['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro']),
+  openai: new Set(['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano']),
+  claude: new Set(['claude-fable-5', 'claude-opus-5', 'claude-opus-4-8', 'claude-sonnet-5', 'claude-haiku-4-5']),
+  gemini: new Set(['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro']),
+  deepseek: new Set(['deepseek-flash', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp']),
+};
+
+// V4 Pro 的官方模型能力仍为仅文本；不能把 Flash 的图片能力推广到整个 DeepSeek 服务。
+// https://api-docs.deepseek.com/zh-cn/quick_start/pricing/
+const VERIFIED_TEXT_ONLY_MODELS: Readonly<Record<string, ReadonlySet<string>>> = {
+  deepseek: new Set(['deepseek-v4-pro']),
 };
 
 export function supportsVisionTransport(service: string, _model?: string): boolean {
@@ -56,7 +66,7 @@ export function supportsVisionTransport(service: string, _model?: string): boole
   if (normalized === services.tongyi && model.startsWith('qwen-mt')) return false;
   if (normalized === services.doubao && isDoubaoSeedTranslationModel(model)) return false;
   return servicesType.isAiSdk(normalized)
-    || [services.gemini, services.claude, services.tongyi, services.zhipu].includes(normalized);
+    || [services.deepseek, services.gemini, services.claude, services.tongyi, services.zhipu].includes(normalized);
 }
 
 export function normalizeModelVisionOverrides(value: unknown): ModelVisionOverrides {
@@ -77,10 +87,12 @@ export function resolveModelVisionCapability(
 ): ModelVisionCapability {
   const serviceId = typeof service === 'string' ? service.trim() : '';
   const modelId = typeof model === 'string' ? model.trim() : '';
+  if (servicesType.isMachine(serviceId)) return 'unsupported';
   if (!modelId) return 'unknown';
   if (!supportsVisionTransport(serviceId, modelId)) return 'unsupported';
   const explicit = overrides?.[serviceId]?.[modelId];
   if (typeof explicit === 'boolean') return explicit ? 'supported' : 'unsupported';
+  if (VERIFIED_TEXT_ONLY_MODELS[serviceId]?.has(modelId)) return 'unsupported';
   return VERIFIED_VISION_MODELS[serviceId]?.has(modelId) ? 'supported' : 'unknown';
 }
 

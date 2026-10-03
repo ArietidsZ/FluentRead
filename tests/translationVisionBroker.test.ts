@@ -7,7 +7,7 @@
  */
 import {describe, expect, it, vi} from 'vitest';
 import {createTranslationBroker} from '@/src/services/translation/broker';
-import {attachTranslationImageInput, attachTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
+import {attachTranslationImageInput, attachTranslationRequestControl, getTranslationImageInput} from '@/src/services/translation/requestSnapshot';
 
 const imgA = 'data:image/png;base64,iVBORw0KGgo=';
 const imgB = 'data:image/png;base64,AAAAiVBORw0KGgo=';
@@ -40,10 +40,20 @@ describe('translation vision broker boundaries', () => {
     it('rejects free translation and keeps image absent from serialized message', async () => {
         const {broker} = setup();
         await expect(broker.translateWithCache(message(imgA, 'freeTranslation'))).rejects.toThrow('支持视觉输入');
-        await expect(broker.translateWithCache(message(imgA, 'deepseek'))).rejects.toThrow('支持视觉输入');
         const qwen = message(imgA, 'tongyi');
         qwen.modelOverride = 'qwen-mt-plus';
         await expect(broker.translateWithCache(qwen)).rejects.toThrow('支持视觉输入');
+    });
+
+    it('accepts DeepSeek images without caching and preserves the trusted payload', async () => {
+        const {broker, provider, cache, config} = setup();
+        config.model.deepseek = 'deepseek-flash';
+        await expect(broker.translateWithCache(message(imgA, 'deepseek'))).resolves.toBe('translated:text');
+        const request = provider.mock.calls[0][0];
+        expect(getTranslationImageInput(request)).toBe(imgA);
+        expect(JSON.stringify(request)).not.toContain(imgA);
+        expect(cache.get).not.toHaveBeenCalled();
+        expect(cache.set).not.toHaveBeenCalled();
     });
 
     it('returns empty image batches without provider work and rejects non-empty image batches', async () => {

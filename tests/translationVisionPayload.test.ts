@@ -2,7 +2,7 @@
  * @file tests/translationVisionPayload.test.ts
  *
  * 文件职责：验证受信图片载荷的私有性、边界校验和各原生模板的序列化结构。
- * 主要内容：覆盖 data image 白名单、JSON 隐藏、OpenAI/Gemini/Claude/通义视觉字段以及自定义 body 隔离。
+ * 主要内容：覆盖 data image 白名单、JSON 隐藏、OpenAI/DeepSeek/Gemini/Claude/通义视觉字段、识图 Thinking 默认值以及自定义 body 隔离。
  * 模块边界：本文件只测试纯快照与模板契约，不发起真实网络请求；provider transport 的 mock 请求由集成测试覆盖。
  */
 
@@ -15,6 +15,8 @@ import {
 import {
     claudeMsgTemplate,
     commonMsgTemplate,
+    deepseekMsgTemplate,
+    deepseekResponsesMsgTemplate,
     geminiMsgTemplate,
     tongyiMsgTemplate,
 } from '@/src/services/translation/templates';
@@ -48,6 +50,15 @@ describe('trusted translation image payload', () => {
 
     it('rejects unsupported image formats at the template boundary', () => {
         expect(() => commonMsgTemplate('read this', undefined, undefined, undefined, 'custom', 'zh-Hans', undefined, base, undefined, 'data:image/svg+xml;base64,PHN2Zz4=')).toThrow('图片输入格式无效');
+        expect(() => deepseekResponsesMsgTemplate('read this', undefined, undefined, undefined, 'deepseek', 'zh-Hans', 'deepseek-flash', base, undefined, 'data:image/svg+xml;base64,PHN2Zz4=')).toThrow('图片输入格式无效');
+    });
+
+    it.each([deepseekMsgTemplate, deepseekResponsesMsgTemplate])('keeps thinking disabled for visual transcription unless explicitly enabled', template => {
+        const current = {...base, service: 'deepseek', model: {deepseek: 'deepseek-flash'}};
+        const payload = JSON.parse(template('read this', undefined, undefined, undefined, undefined, 'zh-Hans', undefined, current, undefined, image));
+        expect(payload.model).toBe('deepseek-flash');
+        if (template === deepseekMsgTemplate) expect(payload.thinking).toEqual({type: 'disabled'});
+        else expect(payload.reasoning).toEqual({effort: 'none'});
     });
 
     it('serializes native image parts and ignores custom body replacement', () => {

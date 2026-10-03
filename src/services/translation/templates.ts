@@ -2,7 +2,7 @@
  * @file src/services/translation/templates.ts
  *
  * 文件职责：构造不同大模型协议所需的请求消息和 payload，是翻译语义与 provider transport 之间的模板层。
- * 主要内容：生成 common、DeepSeek chat/responses、Gemini、Claude 和通义请求体，解析当前模型与自定义 body，并转出页面摘要 prompt 构建器。 可核对的公开符号包括 commonMsgTemplate、getCurrentModel、deepseekResponsesMsgTemplate、deepseekMsgTemplate、geminiMsgTemplate、claudeMsgTemplate、tongyiMsgTemplate。
+ * 主要内容：生成 common、DeepSeek chat/responses、Gemini、Claude 和通义的文本或图像请求体，保持受信图片、识图提示词和冻结模型不被自定义 body 替换，解析当前模型并转出页面摘要 prompt 构建器。 可核对的公开符号包括 commonMsgTemplate、getCurrentModel、deepseekResponsesMsgTemplate、deepseekMsgTemplate、geminiMsgTemplate、claudeMsgTemplate、tongyiMsgTemplate。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -20,10 +20,14 @@ import {
 import {applyModelThinkingPreference, type ModelThinkingProtocol} from './modelThinking';
 import {getTranslationGlossaryTerms} from './requestSnapshot';
 
-function imageParts(imageInput: string | undefined, text: string, protocol: 'openai' | 'gemini' | 'claude') {
+function imageParts(imageInput: string | undefined, text: string, protocol: 'openai' | 'responses' | 'gemini' | 'claude') {
     if (!imageInput) return protocol === 'gemini' ? [{text}] : text;
     const match = imageInput.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/u);
     if (!match) throw new TypeError('图片输入格式无效');
+    if (protocol === 'responses') return [
+        {type: 'input_text', text},
+        {type: 'input_image', image_url: imageInput},
+    ];
     if (protocol === 'gemini') return [{text}, {inline_data: {mime_type: match[1], data: match[2]}}];
     if (protocol === 'claude') return [
         {type: 'text', text},
@@ -258,7 +262,7 @@ function deepseekPrompt(
     };
 }
 
-// Responses API 格式供明确支持该协议的端点使用。
+// DeepSeek 官方与代理的 Responses API；图片只能放在 user 输入中。
 export function deepseekResponsesMsgTemplate(
     origin: string,
     context?: string,
@@ -269,6 +273,7 @@ export function deepseekResponsesMsgTemplate(
     modelOverride?: string,
     current: TranslationProviderConfigSnapshot = config,
     thinkingOverride?: boolean,
+    imageInput?: string,
 ) {
     const model = getCurrentModel(serviceOverride, modelOverride, current);
     const legacyThinkingOverride = thinkingOverride ?? (
@@ -280,8 +285,12 @@ export function deepseekResponsesMsgTemplate(
     const payload: Record<string, unknown> = {
         model,
         instructions: system,
-        input: user,
+        input: imageInput ? [{role: 'user', content: imageParts(imageInput, user, 'responses')}] : user,
     };
+
+    if (imageInput) return JSON.stringify(finalizeVisionPayload(
+        payload, current, serviceOverride || current.service, model, 'deepseek-responses', legacyThinkingOverride,
+    ));
 
     return JSON.stringify(finalizeThinkingPayload(
         payload,
@@ -304,6 +313,7 @@ export function deepseekMsgTemplate(
     modelOverride?: string,
     current: TranslationProviderConfigSnapshot = config,
     thinkingOverride?: boolean,
+    imageInput?: string,
 ) {
     const model = getCurrentModel(serviceOverride, modelOverride, current);
     const legacyThinkingOverride = thinkingOverride ?? (
@@ -317,9 +327,13 @@ export function deepseekMsgTemplate(
         model,
         messages: [
             {role: 'system', content: system},
-            {role: 'user', content: user},
+            {role: 'user', content: imageParts(imageInput, user, 'openai')},
         ],
     };
+
+    if (imageInput) return JSON.stringify(finalizeVisionPayload(
+        payload, current, service, model, 'deepseek-chat', legacyThinkingOverride,
+    ));
 
     return JSON.stringify(finalizeThinkingPayload(
         payload, current, service, model, 'deepseek-chat', legacyThinkingOverride,
