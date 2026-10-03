@@ -121,6 +121,8 @@ const VISIBLE_FIELDS: Record<string, string> = {
     bilingualSentenceHighlightEnabled: '双语逐句高亮',
     bilingualSentenceHighlightStyle: '逐句高亮样式',
     bilingualSentenceHighlightAppearance: '逐句高亮自定义外观',
+    bilingualSentenceHighlightProfiles: '已保存的逐句高亮样式',
+    activeSentenceHighlightProfileId: '当前逐句高亮配置',
     contextMenuEnabled: '右键全文翻译',
     pageTitleTranslationEnabled: '翻译页面标题',
     sidebarTranslationEnabled: '侧边栏翻译',

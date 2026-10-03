@@ -4,7 +4,7 @@ import {alignBilingualSentences, sentenceSpans} from '@/src/core/translation/sen
 import {BILINGUAL_HIGHLIGHT_NAME, installBilingualSentenceHighlight} from '@/src/features/full-page-translation/content/sentenceHighlight';
 import {BILINGUAL_SENTENCE_HIGHLIGHT_APPEARANCE_ID, syncBilingualSentenceHighlight} from '@/src/app/content/bilingualSentenceHighlight';
 import {Config, normalizeConfig} from '@/src/core/config/model';
-import {DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE, SENTENCE_HIGHLIGHT_STYLES, buildSentenceHighlightAppearanceCss, getSentenceHighlightAppearanceStyle, normalizeSentenceHighlightAppearance, resolveSentenceHighlightAppearance} from '@/src/core/config/sentenceHighlight';
+import {DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE, MAX_SENTENCE_HIGHLIGHT_PROFILES, SENTENCE_HIGHLIGHT_STYLES, buildSentenceHighlightAppearanceCss, getSentenceHighlightAppearanceStyle, normalizeSentenceHighlightAppearance, normalizeSentenceHighlightProfiles, parseSentenceHighlightCustomCss, resolveSentenceHighlightAppearance} from '@/src/core/config/sentenceHighlight';
 
 describe('sentence highlight custom appearance', () => {
     afterEach(() => vi.unstubAllGlobals());
@@ -19,7 +19,7 @@ describe('sentence highlight custom appearance', () => {
     });
     it('normalizes imported colors and bounds numeric overrides without accepting CSS injection or nonfinite values', () => {
         expect(normalizeSentenceHighlightAppearance({backgroundColor: 'red', lineColor: '#AbC', backgroundOpacity: '33.7', lineOpacity: 200, lineThickness: -1, lineStyle: 'wavy'}))
-            .toEqual({backgroundColor: '#ff0000', backgroundOpacity: 34, lineColor: '#aabbcc', lineOpacity: 100, lineThickness: 1, lineStyle: 'wavy'});
+            .toEqual({backgroundColor: '#ff0000', backgroundOpacity: 34, lineColor: '#aabbcc', lineOpacity: 100, lineThickness: 1, lineStyle: 'wavy', customCss: ''});
         expect(normalizeSentenceHighlightAppearance({backgroundOpacity: -2, lineOpacity: 0, lineThickness: 10})).toMatchObject({backgroundOpacity: 0, lineOpacity: 0, lineThickness: 4});
         for (const value of [true, {}, [], null, undefined, '', ' ', 'bad', NaN, Infinity]) {
             expect(normalizeSentenceHighlightAppearance({backgroundOpacity: value, lineOpacity: value, lineThickness: value}))
@@ -48,7 +48,7 @@ describe('sentence highlight custom appearance', () => {
         expect(getSentenceHighlightAppearanceStyle('rose', {backgroundOpacity: 0})).toMatchObject({'background-color': 'rgba(239, 71, 118, 0)'});
         expect(getSentenceHighlightAppearanceStyle('dotted', {lineOpacity: 50})).toMatchObject({'text-decoration-style': 'dotted', 'text-decoration-thickness': '2px'});
         const saved = normalizeConfig({bilingualSentenceHighlightEnabled: false, bilingualSentenceHighlightAppearance: custom});
-        expect(normalizeConfig(JSON.parse(JSON.stringify(saved))).bilingualSentenceHighlightAppearance).toEqual(custom);
+        expect(normalizeConfig(JSON.parse(JSON.stringify(saved))).bilingualSentenceHighlightAppearance).toEqual({...custom, customCss: ''});
     });
     it('updates one style node without reinstallation or host changes and removes it on reset, disable and re-enable', () => {
         const f = fixture(); const owner = f.document.querySelector('#owner')!; const original = owner.innerHTML;
@@ -73,6 +73,61 @@ describe('sentence highlight custom appearance', () => {
         syncBilingualSentenceHighlight(f.document, true, 'mint', custom); f.move();
         expect(f.highlighted()).toEqual(['First.', '一句。']);
         syncBilingualSentenceHighlight(f.document, false);
+    });
+});
+
+describe('sentence highlight CSS and saved profiles', () => {
+    it('accepts highlight declarations, maps background to its supported longhand, and rejects host selectors and layout properties', () => {
+        expect(parseSentenceHighlightCustomCss('background: rgba(255, 220, 100, .3); color: navy; text-decoration-line: underline; text-decoration: underline wavy red;')).toEqual({
+            declarations: [
+                {property: 'background-color', value: 'rgba(255, 220, 100, .3)'}, {property: 'color', value: 'navy'},
+                {property: 'text-decoration-line', value: 'underline'}, {property: 'text-decoration', value: 'underline wavy red'},
+            ], invalidCount: 0,
+        });
+        const rejected = parseSentenceHighlightCustomCss('color: red; font-size: 18px; padding: 1px; background: url(https://example.com/a); } body { color: blue;');
+        expect(rejected).toEqual({declarations: [{property: 'color', value: 'red'}], invalidCount: 4});
+        expect(parseSentenceHighlightCustomCss(undefined)).toEqual({declarations: [], invalidCount: 0});
+        expect(normalizeSentenceHighlightAppearance({customCss: 'color: red;\u0000'}).customCss).toBe('color: red;');
+        expect(normalizeSentenceHighlightAppearance({customCss: 'a'.repeat(3000)}).customCss).toHaveLength(2000);
+        expect(normalizeSentenceHighlightAppearance({customCss: 42}).customCss).toBe('');
+    });
+    it('preserves shorthand/longhand order and gives CSS precedence over controls in both rendering paths', () => {
+        const appearance = {backgroundColor: '#123456', customCss: 'background: gold; text-decoration: underline wavy red; text-decoration-color: navy;'};
+        const style = getSentenceHighlightAppearanceStyle('mint', appearance);
+        expect(style['background-color']).toBe('gold');
+        expect(Object.keys(style).indexOf('text-decoration-color')).toBeGreaterThan(Object.keys(style).indexOf('text-decoration'));
+        const css = buildSentenceHighlightAppearanceCss('mint', appearance);
+        expect(css.indexOf('text-decoration-color: navy')).toBeGreaterThan(css.indexOf('text-decoration: underline wavy red'));
+        expect(css).toContain('background-color: gold !important;');
+        const reverse = getSentenceHighlightAppearanceStyle('mint', {customCss: 'text-decoration-color: navy; text-decoration: underline wavy red;'});
+        expect(Object.keys(reverse).indexOf('text-decoration-color')).toBeLessThan(Object.keys(reverse).indexOf('text-decoration'));
+    });
+    it('normalizes imported snapshots, rejects duplicate IDs and invalid presets, and preserves each CSS independently', () => {
+        const source = [null, 42, {name: 'Missing id'}, {id: 'night', name: '  夜读\u0000  ', style: 'mint', appearance: {customCss: 'color: navy;', backgroundColor: '#ABC'}},
+            {id: 'night', name: 'Duplicate', style: 'rose'}, {id: 'bad id', name: 'Bad id', style: 'rose'},
+            {id: 'empty', name: ' ', style: 'rose'}, {id: 'nonstring', name: 42, style: 'rose'}, {id: 'invalid', name: 'Invalid', style: 'missing'},
+            {id: 'paper', name: '纸张', style: 'amber'}];
+        const profiles = normalizeSentenceHighlightProfiles(source);
+        expect(profiles).toEqual([
+            {id: 'night', name: '夜读', style: 'mint', appearance: {...DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE, backgroundColor: '#aabbcc', customCss: 'color: navy;'}},
+            {id: 'paper', name: '纸张', style: 'amber', appearance: DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE},
+        ]);
+        profiles[0].appearance.customCss = 'color: red;';
+        expect(profiles[1].appearance.customCss).toBe('');
+        expect(normalizeSentenceHighlightProfiles('broken')).toEqual([]);
+        expect(normalizeSentenceHighlightProfiles([{id: 'long', name: 'x'.repeat(50), style: 'rose'}])[0].name).toHaveLength(30);
+        const config = normalizeConfig({bilingualSentenceHighlightProfiles: source, activeSentenceHighlightProfileId: 'night'});
+        expect(config.activeSentenceHighlightProfileId).toBe('night');
+        expect(normalizeConfig(JSON.parse(JSON.stringify(config))).bilingualSentenceHighlightProfiles).toEqual(config.bilingualSentenceHighlightProfiles);
+        expect(normalizeConfig({...config, activeSentenceHighlightProfileId: 'missing'}).activeSentenceHighlightProfileId).toBe('');
+        expect(normalizeConfig({...config, activeSentenceHighlightProfileId: 42}).activeSentenceHighlightProfileId).toBe('');
+        expect(new Config().bilingualSentenceHighlightProfiles).toEqual([]);
+        expect(new Config().activeSentenceHighlightProfileId).toBe('');
+    });
+    it('bounds imported snapshots and the scan of invalid data while keeping unique IDs', () => {
+        const profiles = Array.from({length: MAX_SENTENCE_HIGHLIGHT_PROFILES + 1}, (_, i) => ({id: `saved-${i}`, name: `Style ${i}`, style: 'rose'}));
+        expect(normalizeSentenceHighlightProfiles(profiles)).toHaveLength(MAX_SENTENCE_HIGHLIGHT_PROFILES);
+        expect(normalizeSentenceHighlightProfiles([...Array(100).fill(null), ...profiles])).toEqual([]);
     });
 });
 

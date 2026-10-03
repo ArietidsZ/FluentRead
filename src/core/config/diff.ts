@@ -494,12 +494,15 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     translationProgressPanelEnabled: {group: 'general', label: '翻译进度面板', format: formatBoolean},
     bilingualSentenceHighlightEnabled: {group: 'translation', label: '双语逐句高亮', format: formatBoolean},
     bilingualSentenceHighlightStyle: {group: 'translation', label: '逐句高亮样式', format: value => formatEnum(value, labelsFor(SENTENCE_HIGHLIGHT_STYLES))},
+    bilingualSentenceHighlightProfiles: {group: 'translation', label: '已保存的逐句高亮样式', format: value => Array.isArray(value) ? formatArray(value.map(profile => isRecord(profile) ? profile.name : profile)) : formatValue(value)},
+    activeSentenceHighlightProfileId: {group: 'translation', label: '当前逐句高亮配置', format: value => value ? '已选择保存的配置' : '未选择'},
     bilingualSentenceHighlightAppearance: {group: 'translation', label: '逐句高亮自定义外观', mapping: {
-        itemLabel: key => ({backgroundColor: '高亮底色', backgroundOpacity: '底色不透明度', lineColor: '下划线颜色', lineOpacity: '下划线不透明度', lineStyle: '下划线形态', lineThickness: '线条粗细'} as Record<string, string>)[key] ?? key,
+        itemLabel: key => ({backgroundColor: '高亮底色', backgroundOpacity: '底色不透明度', lineColor: '下划线颜色', lineOpacity: '下划线不透明度', lineStyle: '下划线形态', lineThickness: '线条粗细', customCss: 'CSS'} as Record<string, string>)[key] ?? key,
         format: formatValue,
         formatItem: (value, key) => {
             if (value === null || value === undefined || value === '' || value === 'default') return '跟随预设';
             if (key === 'lineStyle') return formatEnum(value, new Map([['none', '无下划线'], ['solid', '实线'], ['dotted', '点线'], ['dashed', '虚线'], ['double', '双线'], ['wavy', '波浪线']]));
+            if (key === 'customCss') return formatString(String(value));
             if (key === 'lineThickness') return formatNumber(value, 'px');
             if (key.endsWith('Opacity')) return formatNumber(value, '%');
             return formatValue(value);
@@ -707,7 +710,7 @@ function diffField(field: string, before: unknown, after: unknown): {group: Conf
             key: field,
             label: definition?.label ?? humanizeUnknownKey(field),
             before: formattedBefore,
-            after: field === 'glossaryLibraries' && formattedBefore === formattedAfter
+            after: ['glossaryLibraries', 'bilingualSentenceHighlightProfiles', 'activeSentenceHighlightProfileId'].includes(field) && formattedBefore === formattedAfter
                 ? `${formattedAfter}（内容已更新）` : formattedAfter,
         }],
     };
