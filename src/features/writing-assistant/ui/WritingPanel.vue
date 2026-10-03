@@ -1,11 +1,11 @@
 <!--
  * @file src/features/writing-assistant/ui/WritingPanel.vue
  * 文件职责：承载网页回复的写作流程，在固定卡片中起草、核对引用、调整风格并插回当前编辑器。
- * 主要内容：让多语言标题、语言选择与操作按可用空间换行；统一配置就绪提示、草稿和请求状态，保留失败任务的语义以便准确重试；支持分层返回、键盘提交、未完成版本提示与独立阅读对照。
+ * 主要内容：让多语言标题、语言选择与操作按可用空间换行；统一配置就绪提示、草稿和请求状态，保留失败任务的语义以便准确重试；正文优先布局、输入按需展开，支持分层返回、键盘提交、未完成版本提示与当前完整译文的双语插入。
  * 模块边界：不自行读取网页或发送回复，引用由宿主传入；后台负责模型请求，编辑器快照负责写回，Gmail 仅插入可读纯文本。
  -->
 <template>
-  <WritingPopover :active="active" :anchor="anchor">
+  <WritingPopover :active="active" :anchor="anchor" :width="640">
     <section v-show="active" v-ui-i18n ref="panel" class="writing-panel" :class="{'is-dark': dark}" role="dialog" aria-label="写作助手" tabindex="-1" @keydown="handleKeydown">
       <header class="writing-header">
         <img :src="icon" alt="" class="writing-mark" /><h2>写作助手</h2>
@@ -60,14 +60,22 @@
             <div class="writing-toolbar">
               <div class="writing-preferences"><button type="button" class="writing-style-trigger" :disabled="busy || saving" aria-label="回答风格" :title="styleSummary" @click="view = 'style'"><Operation /><span>回答风格</span><small>{{ styleSummary }}</small><ArrowDown /></button></div>
               <button v-if="hasDraft && !busy" type="button" class="writing-icon" :aria-label="view === 'edit' ? '完成编辑' : '编辑正文'" :title="view === 'edit' ? '完成编辑' : '编辑正文'" @click="view = view === 'edit' ? 'answer' : 'edit'"><Check v-if="view === 'edit'" /><EditPen v-else /></button>
-              <button v-if="hasDraft && !busy" type="button" class="writing-icon" :disabled="!result.trim()" aria-label="复制正文" title="复制正文" @click="copy"><CopyDocument /></button>
+              <button v-if="hasDraft && !busy" type="button" class="writing-icon" :disabled="!result.trim()" aria-label="复制正文" title="复制正文" @click="copy()"><CopyDocument /></button>
               <button v-if="hasDraft && !busy" type="button" class="writing-icon" :disabled="!readiness.ready || saving || !canStart" aria-label="重新生成" title="重新生成" @click="generate()"><RefreshRight /></button>
               <button v-if="busy" type="button" class="writing-button" @click="stop">停止</button>
-              <button v-else-if="hasDraft" type="button" class="writing-button primary" :disabled="!result.trim()" @click="applyDraft ? apply() : copy()">{{ applyDraft ? '插入回复' : '复制回复' }}</button>
+              <div v-else-if="hasDraft" ref="insertActions" class="writing-insert-actions" @focusout="closeInsertOnBlur">
+                <button type="button" class="writing-button primary" :disabled="!result.trim()" @click="applyDraft ? apply() : copy()">{{ applyDraft ? '插入回复' : '复制回复' }}</button>
+                <button type="button" class="writing-button primary writing-insert-toggle" :disabled="!result.trim()" :aria-label="t('writing.entry.insertOptions')" aria-haspopup="menu" :aria-expanded="insertOptionsOpen" @click="toggleInsertOptions" @keydown.down.stop.prevent="toggleInsertOptions(true)"><ArrowDown /></button>
+                <div v-if="insertOptionsOpen" class="writing-insert-menu" role="menu" :aria-label="t('writing.entry.insertOptions')" @keydown.stop="handleInsertKeydown">
+                  <button type="button" role="menuitem" @click="insertOptionsOpen = false; applyDraft ? apply() : copy()">{{ applyDraft ? '插入回复' : '复制回复' }}</button>
+                  <button type="button" role="menuitem" :disabled="!canUseBilingual" @click="insertOptionsOpen = false; applyDraft ? apply(true) : copy(true)">{{ t(applyDraft ? 'writing.entry.insertBilingual' : 'writing.entry.copyBilingual') }}</button>
+                  <small v-if="!canUseBilingual">{{ t(showReferenceTranslation ? 'writing.entry.waitReference' : 'writing.entry.chooseReference') }}</small>
+                </div>
+              </div>
             </div>
           </div>
-          <form v-if="view !== 'reference'" class="writing-composer" @submit.prevent="generate()">
-            <textarea ref="instructionInput" v-model="instruction" :disabled="busy || saving" rows="2" maxlength="2000" aria-label="写作要求" autocomplete="off" data-1p-ignore="true" data-lpignore="true" :placeholder="result ? '告诉我如何改进…' : '写下你想表达的要点…'" />
+          <form v-if="view !== 'reference'" class="writing-composer" :class="{'has-instruction': Boolean(instruction)}" @submit.prevent="generate()">
+            <textarea ref="instructionInput" v-model="instruction" :disabled="busy || saving" rows="1" maxlength="2000" aria-label="写作要求" autocomplete="off" data-1p-ignore="true" data-lpignore="true" :placeholder="result ? '告诉我如何改进…' : '写下你想表达的要点…'" />
             <button type="submit" class="writing-button primary" :disabled="busy || saving || !readiness.ready || !instruction.trim()" :aria-label="result ? '改进草稿' : '生成回复'" :title="submitHint">{{ result ? '改进' : '生成' }}</button>
           </form>
         </template>
@@ -141,6 +149,22 @@ const displayModel = computed(() => showingPending.value ? actualModel.value || 
 const dark = computed(() => config.value.theme === 'dark' || (config.value.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches));
 const visibleText = computed({get: () => busy.value && pending.value ? pending.value : result.value, set: value => { if (!busy.value) result.value = value; }});
 const referenceState = shallowRef<WritingReferenceState>({status: 'idle', text: ''});
+const insertOptionsOpen = ref(false);
+const insertActions = ref<HTMLElement>();
+const canUseBilingual = computed(() => !busy.value && !saving.value && view.value !== 'edit' && showReferenceTranslation.value && referenceState.value.status === 'success' && Boolean(referenceState.value.text.trim()));
+async function toggleInsertOptions(open?: boolean | Event) {
+  insertOptionsOpen.value = open === true || !insertOptionsOpen.value;
+  if (!insertOptionsOpen.value) return;
+  await nextTick(); insertActions.value?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus({preventScroll: true});
+}
+function closeInsertOnBlur(event: FocusEvent) { if (!insertActions.value?.contains(event.relatedTarget as Node | null)) insertOptionsOpen.value = false; }
+function handleInsertKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') { event.preventDefault(); insertOptionsOpen.value = false; insertActions.value?.querySelector<HTMLButtonElement>('.writing-insert-toggle')?.focus({preventScroll: true}); }
+  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+  event.preventDefault(); const items = [...insertActions.value!.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')];
+  const current = (insertActions.value!.getRootNode() as ShadowRoot).activeElement;
+  const index = items.indexOf(current as HTMLButtonElement); items[(index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
+}
 const referenceOwner = ref(0);
 watch(() => JSON.stringify([service.value, configuredModel.value, config.value.proxy, config.value.token, config.value.customOpenAIProviders]), () => { referenceOwner.value++; });
 const referenceController = createWritingReference({
@@ -162,6 +186,7 @@ function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && event.target === instructionInput.value && instruction.value.trim()) { event.preventDefault(); generate(); }
 }
 watch(() => [props.active, props.sessionKey], async () => {
+  insertOptionsOpen.value = false;
   if (session !== props.sessionKey) {
     stop(); session = props.sessionKey; attempted = false; draft.value = props.initialDraft ?? ''; context.value = props.initialContext ?? ''; intent.value = props.initialIntent ?? 'reply';
     instruction.value = ''; result.value = ''; resultService.value = ''; resultModel.value = ''; resultLanguage.value = ''; requestedLanguage.value = ''; actualModel.value = ''; requestedService.value = ''; error.value = ''; notice.value = ''; view.value = 'answer'; versions.value = []; versionIndex.value = 0; lastAttempt.value = undefined;
@@ -248,53 +273,42 @@ function run(request: WritingRequest, clearInstruction: boolean) {
     if (owner === generation && busy.value) cancel = abort; else abort();
   } catch { busy.value = false; pending.value = ''; error.value = '写作助手暂时不可用，请刷新页面后重试。'; }
 }
-async function copy() { if (!result.value.trim()) return; const ownerSession = props.sessionKey; try { await navigator.clipboard.writeText(props.plainTextOutput ? writingPlainText(result.value) : result.value); if (props.active && ownerSession === props.sessionKey) notice.value = '正文已复制。'; } catch { if (props.active && ownerSession === props.sessionKey) error.value = '复制失败，请选中生成正文手动复制。'; } }
-function apply() { if (!result.value.trim()) return; const failure = props.applyDraft?.(props.plainTextOutput ? writingPlainText(result.value) : result.value); if (failure) error.value = failure; }
+function replyText(bilingual = false): string {
+  if (!result.value.trim() || (bilingual && !canUseBilingual.value)) return '';
+  const text = bilingual ? `${result.value.trim()}\n\n${referenceState.value.text.trim()}` : result.value;
+  return props.plainTextOutput ? writingPlainText(text) : text;
+}
+async function copy(bilingual = false) { const text = replyText(bilingual); if (!text) return; const ownerSession = props.sessionKey; try { await navigator.clipboard.writeText(text); if (props.active && ownerSession === props.sessionKey) notice.value = '正文已复制。'; } catch { if (props.active && ownerSession === props.sessionKey) error.value = '复制失败，请选中生成正文手动复制。'; } }
+function apply(bilingual = false) { const text = replyText(bilingual); if (!text) return; const failure = props.applyDraft?.(text); if (failure) error.value = failure; }
 function openSettings() { void browser.runtime.sendMessage({type: 'openOptionsPage', section: 'settings-writing'}).catch(() => { error.value = '请从扩展菜单打开完整设置。'; }); }
 </script>
 <style scoped>
-.writing-panel{--w-bg:#fff;--w-soft:#f7f8fb;--w-ink:#28323f;--w-muted:#7c8799;--w-line:#e9edf3;--w-brand:#ef4776;--w-brand-soft:#fff0f5;--el-border-color-lighter:var(--w-line);--el-fill-color-lighter:var(--w-soft);--el-fill-color-light:var(--w-soft);--el-text-color-regular:var(--w-ink);--el-color-primary:var(--w-brand);--el-color-primary-light-5:var(--w-brand);position:relative;width:100%;height:500px;box-sizing:border-box;max-height:calc(100dvh - 24px);display:flex;flex-direction:column;background:var(--w-bg);color:var(--w-ink);border:1px solid var(--w-line);border-radius:16px;box-shadow:0 12px 48px #152c4122;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:left;color-scheme:light;overflow:hidden;outline:none}
+.writing-panel{--w-bg:#fff;--w-soft:#f7f8fb;--w-ink:#28323f;--w-muted:#7c8799;--w-line:#e9edf3;--w-brand:#ef4776;--w-brand-soft:#fff0f5;--el-border-color-lighter:var(--w-line);--el-fill-color-lighter:var(--w-soft);--el-fill-color-light:var(--w-soft);--el-text-color-regular:var(--w-ink);--el-color-primary:var(--w-brand);--el-color-primary-light-5:var(--w-brand);position:relative;width:100%;height:600px;box-sizing:border-box;max-height:calc(100dvh - 24px);display:flex;flex-direction:column;background:var(--w-bg);color:var(--w-ink);border:1px solid var(--w-line);border-radius:16px;box-shadow:0 12px 48px #152c4122;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:left;color-scheme:light;overflow:hidden;outline:none}
 .writing-panel :deep(.writing-choices button){font-size:12px;line-height:1.4}.writing-panel.is-dark{--w-bg:#24262e;--w-soft:#2c2e38;--w-ink:#edf0f5;--w-muted:#a1a8b5;--w-line:#393c48;--w-brand:#fa83a7;--w-brand-soft:#442c3a;color-scheme:dark}.writing-panel :deep(*){box-sizing:border-box}.writing-panel :deep(button),.writing-panel :deep(textarea),.writing-panel :deep(input){font:inherit;color:inherit}.writing-panel :deep(button){cursor:pointer}.writing-panel :deep(:is(button,input,textarea):focus-visible){outline:2px solid var(--w-brand);outline-offset:2px}.writing-panel :deep(:disabled){opacity:.45;cursor:default}
-.writing-header{display:flex;align-items:center;gap:8px;flex-shrink:0;padding:16px 20px 14px}.writing-mark{width:26px;height:26px;object-fit:contain;flex-shrink:0}.writing-header h2{min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:16px;font-weight:650;line-height:1.4;white-space:nowrap;margin:0 auto 0 2px}.writing-provider{max-width:158px;min-width:0;padding:4px 9px;background:var(--w-soft);border-radius:8px;font-size:11px;line-height:1.5;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.writing-icon,.writing-settings{display:inline-flex;justify-content:center;align-items:center;flex-shrink:0;height:30px;min-width:30px;gap:5px;border:0;border-radius:8px;background:transparent;color:var(--w-muted)!important;padding:6px;line-height:1}.writing-settings{background:var(--w-soft);font-size:11px!important;padding-inline:8px}.writing-icon:hover,.writing-settings:hover{background:var(--w-brand-soft);color:var(--w-brand)!important}.writing-icon svg,.writing-settings svg{width:16px;height:16px}.writing-language-bar{display:flex;gap:12px;padding:0 20px 12px;flex-shrink:0}.writing-language-bar button{display:flex;align-items:center;gap:7px;flex:1;min-width:0;max-width:none;border:1px solid var(--w-line);border-radius:8px;background:var(--w-soft);padding:8px 10px;color:var(--w-ink)!important;font:inherit;font-size:12px;cursor:pointer}.writing-language-bar small{font-size:10px;color:var(--w-muted);flex-shrink:0}.writing-language-bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.writing-language-bar svg{width:12px;height:12px;flex-shrink:0;margin-left:auto}.writing-language-bar button:disabled{opacity:.5;cursor:default}.writing-translation{border-top:1px solid var(--w-line);margin-top:18px;padding-top:14px}.writing-translation h4{font-size:11px;font-weight:500;color:var(--w-muted);margin:0 0 8px}.writing-translation>p{font-size:11px;color:var(--w-muted);margin:8px 0}.writing-translation .writing-text-button{margin-left:8px}.writing-main{min-height:0;flex:1;padding:4px 20px 0;display:flex;flex-direction:column}.writing-title{display:flex;align-items:center;gap:10px;flex-shrink:0;margin-bottom:12px}.writing-title h3{font-size:13px;line-height:1.5;margin:0 auto 0 0;font-weight:600}.writing-panel :deep(.writing-text-button){border:0;background:transparent;padding:0;color:var(--w-muted);font-size:11px;white-space:nowrap}.writing-panel :deep(.writing-text-button:hover){color:var(--w-brand)}.writing-versions{display:flex;align-items:center;gap:2px;font-size:11px;color:var(--w-muted)}.writing-versions .writing-icon{height:24px;min-width:24px;padding:5px}.writing-output,.writing-preview{display:block;width:100%;min-height:0;flex:1;resize:none;border:0;padding:0 3px 0 0;background:transparent;outline:none;font-size:14px!important;line-height:1.9!important;overflow:auto;overscroll-behavior:contain}.writing-preview :deep(.fr-reading-markdown){font-size:14px;line-height:1.85}.writing-loading{font-size:12px;color:var(--w-muted);margin:0}.writing-panel textarea::placeholder{color:var(--w-muted)}.writing-empty,.writing-setup{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:16px;padding:20px;text-align:center;color:var(--w-muted)}.writing-empty p,.writing-setup p{font-size:12px;line-height:1.8;margin:0;max-width:340px}.writing-setup h3{font-size:16px;color:var(--w-ink);margin:0}.writing-panel :deep(.writing-button){display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0;border:1px solid var(--w-line);border-radius:9px;padding:7px 12px;background:var(--w-bg);font-size:12px;line-height:1.5;white-space:nowrap}.writing-panel :deep(.writing-button.primary){background:var(--w-brand);border-color:var(--w-brand);color:var(--w-bg);font-weight:600}.writing-actions{padding:12px 20px;flex-shrink:0}.writing-toolbar{display:flex;align-items:center;gap:4px}.writing-preferences{display:flex;align-items:center;gap:8px;margin-right:auto;min-width:0}.writing-style-trigger,.writing-language-trigger{display:inline-flex;align-items:center;gap:5px;border:0;background:transparent;padding:5px 0;font-size:11px!important;color:var(--w-muted)!important;white-space:nowrap;max-width:155px}.writing-language-trigger{max-width:118px;overflow:hidden;text-overflow:ellipsis}.writing-style-trigger svg,.writing-language-trigger svg{width:11px;height:11px;flex-shrink:0}.writing-style-trigger svg:first-child{color:var(--w-brand);width:16px;height:16px}.writing-composer{flex-shrink:0;display:flex;align-items:center;gap:14px;padding:13px 20px;border-top:1px solid var(--w-line)}.writing-composer textarea{width:100%;min-width:0;resize:none;border:0;padding:0;background:transparent;font-size:12px;line-height:1.6;outline:none}.writing-error,.writing-notice{font-size:11px;line-height:1.5;margin:0 0 8px;max-height:48px;overflow:auto;flex-shrink:0}.writing-error,.writing-status{padding:0 20px}.writing-error{color:#c55b4e}.writing-error button{margin-left:8px;color:inherit!important}.writing-notice{color:var(--w-muted)}.writing-reference{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto;color:var(--w-muted);font-size:11px;padding-bottom:12px}.writing-reference label{display:flex;flex-direction:column;margin-bottom:10px;min-height:80px;flex:1}.writing-reference textarea{color:var(--w-ink);display:block;width:100%;min-height:0;flex:1;border:1px solid var(--w-line);background:var(--w-soft);border-radius:9px;padding:10px;margin-top:5px;font-size:12px;line-height:1.8;resize:none}.writing-reference textarea:focus-visible{outline:none;border-color:var(--w-brand);box-shadow:inset 0 0 0 1px var(--w-brand)}.writing-reference-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;flex-shrink:0}
-@media(max-width:540px){.writing-language-bar{padding-inline:14px;gap:8px}.writing-language-bar button{flex-wrap:wrap;gap:4px;padding:7px 9px}.writing-language-bar small{width:100%;text-align:left}.writing-language-bar span{font-size:11px}.writing-language-bar .writing-language-trigger{max-width:none}.writing-header{padding:14px 14px 10px;gap:6px}.writing-header h2{min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:14px}.writing-provider{max-width:110px}.writing-settings span{display:none}.writing-settings{padding:6px}.writing-main{padding:5px 14px 0}.writing-actions{padding:10px 14px}.writing-composer{padding:12px 14px}.writing-toolbar{flex-wrap:wrap;gap:5px}.writing-preferences{width:100%;gap:16px}.writing-toolbar>.writing-icon:first-of-type{margin-left:auto}.writing-panel :deep(.writing-button){padding:6px 10px}.writing-error,.writing-status{padding-inline:14px}}
-/* 主正文拥有最大的阅读面积，次级设置紧凑排列，状态变化不移动底部操作。 */
-.writing-header{padding:14px 18px 12px;border-bottom:1px solid var(--w-line)}
-.writing-provider{background:transparent;padding:0 4px;font-size:11px;text-align:right}
 
-.writing-language-bar{padding:10px 18px;gap:8px}
-.writing-language-bar button{padding:6px 9px}
-.writing-main{padding:6px 18px 0}
-.writing-title{margin-bottom:10px}
-.writing-actions{padding:10px 18px}
-.writing-style-trigger{max-width:260px;min-width:0;gap:6px}
-.writing-style-trigger small{font-size:10px;color:var(--w-muted);max-width:100px;overflow:hidden;text-overflow:ellipsis}
-.writing-empty{gap:12px;padding:16px}
-
-.writing-suggestions{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
-.writing-suggestions button{border:1px solid var(--w-line);border-radius:8px;background:var(--w-soft);padding:5px 9px;font-size:11px}
-.writing-suggestions button:hover{border-color:var(--w-brand);color:var(--w-brand)}
-.writing-composer{margin:0 18px 10px;padding:9px 10px;border:1px solid var(--w-line);background:var(--w-soft);border-radius:10px;gap:10px}
-.writing-composer:focus-within{border-color:var(--w-brand)}
-.writing-composer textarea{line-height:1.7}
-
-.writing-error,.writing-status{padding:0 18px}
-.writing-error{max-height:64px}
-.writing-title h3{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.writing-preview{overflow-wrap:anywhere}
-@media(max-width:540px){.writing-header{padding:12px 14px}.writing-language-bar{padding:8px 14px}.writing-language-bar button{flex-wrap:nowrap;gap:5px}.writing-language-bar small{width:auto}.writing-main{padding-inline:14px}.writing-actions{padding-inline:14px}.writing-composer{margin-inline:14px}.writing-provider{max-width:100px}.writing-style-trigger{max-width:none}.writing-preferences{width:100%}}
-/* 面板保持原有尺寸，较长界面文案通过换行保留完整含义。 */
-.writing-header h2, .writing-title h3 { overflow: visible; white-space: normal; overflow-wrap: anywhere; }
-.writing-header h2 { flex: 1; }
-.writing-title, .writing-toolbar, .writing-preferences { flex-wrap: wrap; }
-.writing-title { align-items: baseline; }
-.writing-language-bar span { min-width: 0; overflow: visible; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
-.writing-style-trigger, .writing-language-trigger { max-width: 100%; white-space: normal; overflow: visible; overflow-wrap: anywhere; text-align: start; }
-.writing-style-trigger small { max-width: none; overflow: visible; }
-.writing-panel :deep(.writing-button), .writing-panel :deep(.writing-text-button) { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
-@media(max-width:540px) {
-  .writing-language-bar button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 6px; }
-  .writing-language-bar small { grid-column: 1 / -1; white-space: normal; text-align: start; }
-  .writing-language-bar svg { grid-column: 2; grid-row: 2; }
-}
-@media(max-height:520px){.writing-panel{overflow-y:auto}.writing-main{flex:1 0 100px}.writing-style-editor,.writing-language-picker{min-height:120px}}
+/* 固定面板内优先分配阅读空间；语言与操作保持一行，输入需要时展开。 */
+.writing-header{display:flex;align-items:center;gap:7px;flex-shrink:0;padding:8px 14px;border-bottom:1px solid var(--w-line)}
+.writing-mark{width:22px;height:22px;object-fit:contain;flex-shrink:0}.writing-header h2{flex:1;min-width:0;margin:0;font-size:14px;line-height:1.4;font-weight:650;overflow-wrap:anywhere}
+.writing-provider{max-width:120px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;color:var(--w-muted)}
+.writing-icon,.writing-settings{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:28px;height:28px;gap:4px;border:0;border-radius:6px;background:transparent;color:var(--w-muted)!important;padding:5px;line-height:1}.writing-settings span{display:none}.writing-icon svg,.writing-settings svg{width:16px;height:16px}
+.writing-icon:hover,.writing-settings:hover{background:var(--w-brand-soft);color:var(--w-brand)!important}
+.writing-language-bar{display:flex;gap:12px;padding:4px 14px;flex-shrink:0}.writing-language-bar button{display:flex;align-items:center;gap:5px;flex:1;min-width:0;border:0;border-radius:6px;background:transparent;padding:3px 0;color:var(--w-ink)!important;font:inherit;font-size:12px;cursor:pointer;text-align:left}.writing-language-bar button:hover{background:var(--w-soft)}
+.writing-language-bar small{font-size:10px;color:var(--w-muted);flex-shrink:0}.writing-language-bar span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.writing-language-bar svg{width:11px;height:11px;flex-shrink:0}.writing-language-bar button:disabled{opacity:.5;cursor:default}
+.writing-main{min-height:0;flex:1;padding:0 14px;display:flex;flex-direction:column}.writing-title{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-bottom:6px;min-height:22px}.writing-title h3{font-size:12px;line-height:1.5;margin:0 auto 0 0;font-weight:600;overflow-wrap:anywhere}
+.writing-panel :deep(.writing-text-button){border:0;background:transparent;padding:0;color:var(--w-muted);font-size:11px;white-space:normal;cursor:pointer}.writing-panel :deep(.writing-text-button:hover){color:var(--w-brand)}
+.writing-versions{display:flex;align-items:center;gap:2px;font-size:11px;color:var(--w-muted)}.writing-versions .writing-icon{width:22px;height:22px;padding:4px}
+.writing-output,.writing-preview{display:block;width:100%;min-height:0;flex:1;resize:none;border:0;padding:0 4px 0 0;background:transparent;outline:none;font-size:14px!important;line-height:1.8!important;overflow:auto;overscroll-behavior:contain;overflow-wrap:anywhere}.writing-preview :deep(.fr-reading-markdown){font-size:14px;line-height:1.8}
+.writing-translation{border-top:1px solid var(--w-line);margin-top:12px;padding-top:10px}.writing-translation h4{font-size:11px;font-weight:500;color:var(--w-muted);margin:0 0 6px}.writing-translation>p{font-size:11px;color:var(--w-muted);margin:6px 0}.writing-translation .writing-text-button{margin-left:6px}
+.writing-loading{font-size:12px;color:var(--w-muted);margin:0}.writing-panel textarea::placeholder{color:var(--w-muted)}
+.writing-empty,.writing-setup{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;padding:16px;text-align:center;color:var(--w-muted);min-height:0;overflow:auto}.writing-empty p,.writing-setup p{font-size:12px;line-height:1.8;margin:0;max-width:340px}.writing-setup h3{font-size:16px;color:var(--w-ink);margin:0}
+.writing-suggestions{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}.writing-suggestions button{border:1px solid var(--w-line);border-radius:8px;background:var(--w-soft);padding:5px 9px;font-size:11px}.writing-suggestions button:hover{border-color:var(--w-brand);color:var(--w-brand)}
+.writing-panel :deep(.writing-button){display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;border:1px solid var(--w-line);border-radius:7px;padding:5px 10px;background:var(--w-bg);font-size:12px;line-height:1.5;white-space:normal;overflow-wrap:anywhere;cursor:pointer}.writing-panel :deep(.writing-button.primary){background:var(--w-brand);border-color:var(--w-brand);color:#fff;font-weight:600}
+.writing-actions{padding:6px 14px;flex-shrink:0;border-top:1px solid var(--w-line);margin-top:6px}.writing-toolbar{display:flex;align-items:center;gap:3px}.writing-preferences{display:flex;align-items:center;margin-right:auto;min-width:0}.writing-style-trigger{display:flex;align-items:center;gap:5px;min-width:0;border:0;background:transparent;padding:4px 0;font-size:11px!important;color:var(--w-muted)!important;text-align:start}.writing-style-trigger svg{width:11px;height:11px;flex-shrink:0}.writing-style-trigger svg:first-child{color:var(--w-brand);width:15px;height:15px}.writing-style-trigger small{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.writing-style-trigger span{flex-shrink:0}
+.writing-insert-actions{position:relative;display:flex;flex-shrink:0}.writing-insert-actions>.writing-button:first-child{border-radius:7px 0 0 7px}.writing-panel :deep(.writing-insert-toggle){border-radius:0 7px 7px 0;border-left:1px solid #ffffff55;padding:5px;width:24px}.writing-insert-toggle svg{width:12px;height:12px}
+.writing-insert-menu{position:absolute;right:0;bottom:calc(100% + 8px);z-index:2;box-sizing:border-box;width:220px;max-width:calc(100vw - 40px);padding:5px;background:var(--w-bg);border:1px solid var(--w-line);border-radius:9px;box-shadow:0 5px 20px #152c4122}.writing-insert-menu button{display:block;width:100%;border:0;background:transparent;padding:8px;text-align:start;font:inherit;font-size:12px;color:var(--w-ink);border-radius:5px;cursor:pointer}.writing-insert-menu button:hover{background:var(--w-soft)}.writing-insert-menu small{display:block;padding:3px 8px;font-size:11px;color:var(--w-muted);line-height:1.5}
+.writing-composer{flex-shrink:0;display:flex;align-items:center;gap:8px;margin:0 14px 8px;padding:5px 8px;border:1px solid var(--w-line);background:var(--w-soft);border-radius:8px}.writing-composer textarea{width:100%;min-width:0;height:20px;resize:none;border:0;padding:0;background:transparent;font-size:12px;line-height:20px;outline:none;overflow:auto}.writing-composer:focus-within{border-color:var(--w-brand)}.writing-composer:focus-within textarea,.writing-composer.has-instruction textarea{height:60px}
+.writing-error,.writing-notice{font-size:11px;line-height:1.5;margin:0 0 6px;max-height:48px;overflow:auto;flex-shrink:0}.writing-error,.writing-status{padding:0 14px}.writing-error{color:#c55b4e}.writing-error button{margin-left:6px;color:inherit!important}.writing-notice{color:var(--w-muted)}
+.writing-reference{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto;color:var(--w-muted);font-size:11px;padding-bottom:8px}.writing-reference label{display:flex;flex-direction:column;margin-bottom:8px;min-height:80px;flex:1}.writing-reference textarea{color:var(--w-ink);display:block;width:100%;min-height:0;flex:1;border:1px solid var(--w-line);background:var(--w-soft);border-radius:8px;padding:8px;margin-top:4px;font-size:12px;line-height:1.8;resize:none}.writing-reference textarea:focus-visible{outline:none;border-color:var(--w-brand);box-shadow:inset 0 0 0 1px var(--w-brand)}.writing-reference-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;flex-shrink:0}
+@media(max-width:540px){.writing-header{padding:7px 10px;gap:5px}.writing-header h2{font-size:13px}.writing-provider{max-width:85px}.writing-language-bar{padding:5px 10px;gap:8px}.writing-language-bar button{flex-wrap:wrap;gap:2px 4px}.writing-language-bar small{width:100%;text-align:start}.writing-main{padding-inline:10px}.writing-actions{padding-inline:10px}.writing-composer{margin-inline:10px}.writing-style-trigger>span{display:none}.writing-style-trigger small{max-width:78px}.writing-insert-actions>.writing-button:first-child{max-width:115px}.writing-error,.writing-status{padding-inline:10px}}
+@media(max-height:440px){.writing-panel{overflow-y:auto}.writing-main{flex:1 0 100px}.writing-style-editor,.writing-language-picker{min-height:120px}}
 </style>
