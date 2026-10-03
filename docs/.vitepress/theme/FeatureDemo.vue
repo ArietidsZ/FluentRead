@@ -200,7 +200,11 @@ const contexts = {
       </template>
     </div>
     <div class="fd-footer">
-      <small>{{ t('自动演示 · 示例内容', 'Auto demo · sample content') }}</small>
+      <small>{{
+        reduced
+          ? t('示例内容', 'Sample content')
+          : t('自动演示 · 示例内容', 'Auto demo · sample content')
+      }}</small>
       <div>
         <button
           v-if="!reduced"
