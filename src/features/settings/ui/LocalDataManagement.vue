@@ -20,7 +20,6 @@
           <el-button type="primary" :disabled="busy" @click="openRestoreSource($event)"><Upload />从备份恢复</el-button>
         </div>
       </div>
-      <p class="transfer-warning">{{ t('settings.backup.fileWarning') }}</p>
     </SettingsGroup>
 
     <input
@@ -485,11 +484,10 @@ function formatFileSize(size: number): string {
 .transfer-icon { display: grid; flex: none; width: 36px; height: 36px; place-items: center; border-radius: 11px; color: var(--brand-strong); background: var(--brand-soft); font-size: 16px; font-weight: 800; }
 .transfer-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
 .transfer-copy strong { color: var(--ink); font-size: 12.5px; }
-.transfer-copy small, .transfer-warning, .import-boundary { color: var(--muted); font-size: 10.5px; line-height: 1.55; }
+.transfer-copy small, .import-boundary { color: var(--muted); font-size: 10.5px; line-height: 1.55; }
 .transfer-actions { display: flex; flex: none; align-items: center; flex-wrap: wrap; gap: 7px; }
 .transfer-actions :deep(.el-button) { margin-left: 0; }
 .transfer-actions :deep(svg) { width: 14px; margin-right: 5px; }
-.transfer-warning { margin: 0; padding: 0 16px 14px; }
 .restore-file-choice { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-soft); }
 .restore-file-choice > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
 .restore-file-choice strong { color: var(--ink); font-size: 12px; }
