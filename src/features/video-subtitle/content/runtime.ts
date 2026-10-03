@@ -1,10 +1,11 @@
 /**
  * @file src/features/video-subtitle/content/runtime.ts
  * 文件职责：装配视频及会议字幕运行时，并协调 YouTube/X 原生字幕、目标语言人工轨、逐条翻译、校时、菜单和下载。
- * 主要内容：协调当前视频与全屏宿主、原生轨道、手动字幕校时、渐进字幕与流式字幕有界等待；轨道加载后立即预翻译去重后的后续句，缓存命中时同步显示双语，并在跳转、切换视频或禁用后清理旧队列和监听器。
+ * 主要内容：协调当前视频与全屏宿主、原生轨道、手动字幕校时、渐进字幕与流式字幕有界等待；轨道加载后立即预翻译去重后的后续句，缓存命中时同步显示双语，并在跳转、切换视频或禁用后清理旧队列和监听器，失效时的取消消息统一进入异步失败处理。
  * 模块边界：本文件只在 content 页面编排，不拦截 fetch/XHR 也不实现翻译 provider；MAIN-world bridge 在独立模块捕获 timedtext，解析算法在 youtubeSubtitleData，翻译经 app client。
  */
 import browser from 'webextension-polyfill';
+import {sendRuntimeMessage} from '@/src/platform/browser/runtimeMessages';
 import {
   VIDEO_AI_CAPTION_CONTAINER_ID,
   VIDEO_CAPTION_CONTAINER_SELECTOR,
@@ -133,7 +134,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   if (getCaptionPlatform(window.location)) return mountPlatformCaptions({
     document, window, config, subscribe: subscribeConfig,
     translate: translateVideoText,
-    patch: patch => { void requestConfigPatch(patch, browser.runtime.sendMessage.bind(browser.runtime)).catch(() => undefined); },
+    patch: patch => { void requestConfigPatch(patch, sendRuntimeMessage).catch(() => undefined); },
     label: text => localizeVideoUiText(text, getVideoUiLanguage(config.uiLanguage)),
   });
   // X 是 SPA：内容脚本可能先在 /home 加载，之后才无刷新进入 /status。
@@ -238,7 +239,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   let subtitlesPreviouslyVisible = config.on && config.videoTranslationEnabled && config.videoSubtitleVisible !== false;
   let cacheLookup: Promise<boolean> | undefined;
   let activeAiCacheRequest: VideoAiSubtitleCacheRequest | null = null;
-  const transcriptCache = new VideoTranscriptionCacheClient(browser.runtime.sendMessage.bind(browser.runtime));
+  const transcriptCache = new VideoTranscriptionCacheClient(sendRuntimeMessage);
   const currentCacheRequest = () => getVideoTranscriptionCacheRequest(observedVideo, activeAiModel, activeVideoLanguage, window.location.href);
   const stableMediaKey = (video: HTMLVideoElement | null) => {
     const request = getVideoTranscriptionCacheRequest(video, activeAiModel, activeVideoLanguage, window.location.href);
@@ -704,7 +705,7 @@ export function mountVideoSubtitleTranslation(): () => void {
 
   const transcribeAiAudioChunk = async (chunk: VideoAiAudioChunk): Promise<VideoAiTranscriptionResult> => {
     if (destroyed || chunk.pcm.length === 0) return { skipped: true };
-    const response = await browser.runtime.sendMessage({
+    const response = await sendRuntimeMessage({
       type: 'fluentReadTranscribeLocalVideoAudio',
       streamId: aiStreamId,
       generation: chunk.sessionId,
@@ -810,13 +811,13 @@ export function mountVideoSubtitleTranslation(): () => void {
     },
     onProgress: (progress) => {
       setAiFullProgress(progress);
-      if (progress.phase === 'ready') void browser.runtime.sendMessage({
+      if (progress.phase === 'ready') void sendRuntimeMessage({
         type: 'fluentReadCancelLocalVideoTranscription', streamId: aiStreamId,
         generation: aiFullCapture!.getSessionId(), reason: 'complete',
       }).catch(() => undefined);
     },
     onSessionStart: (sessionId) => {
-      void browser.runtime.sendMessage({
+      void sendRuntimeMessage({
         type: 'fluentReadPrepareLocalVideoModel',
         model: activeAiModel,
         keepWarm: true,
@@ -825,7 +826,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       }).catch(() => undefined);
     },
     onInvalidate: (reason, sessionId) => {
-      void browser.runtime.sendMessage({
+      void sendRuntimeMessage({
         type: 'fluentReadCancelLocalVideoTranscription',
         streamId: aiStreamId,
         generation: sessionId,
@@ -859,7 +860,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       // 模型初始化与首个 2.4 秒音频窗口并行；不等待预热结果，首个真实
       // 转写请求仍是最终兜底。stream + generation 让暂停/停止可精确终止
       // 尚未完成的冷启动，避免后台 Worker 在用户停止后继续吃满 CPU。
-      void browser.runtime.sendMessage({
+      void sendRuntimeMessage({
         type: 'fluentReadPrepareLocalVideoModel',
         model: activeAiModel,
         keepWarm: true,
@@ -897,7 +898,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       if (import.meta.env.DEV) console.debug('[FluentRead] X AI 字幕窗口完成', diagnostic);
     },
     onInvalidate: (reason, generation) => {
-      void browser.runtime.sendMessage({
+      void sendRuntimeMessage({
         type: 'fluentReadCancelLocalVideoTranscription',
         streamId: aiStreamId,
         generation,
@@ -1061,7 +1062,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     // 用户刚看到的状态，同时后台只在最新权威配置上合并这几个视频字段。
     void requestConfigPatch(
       patch,
-      browser.runtime.sendMessage.bind(browser.runtime),
+      sendRuntimeMessage,
     ).catch((error) => {
       console.warn('[FluentRead] 视频字幕设置保存失败', error);
     });
@@ -1101,7 +1102,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   });
 
   const aiModelSetup = createVideoAiModelSetup({
-    sendMessage: browser.runtime.sendMessage.bind(browser.runtime),
+    sendMessage: sendRuntimeMessage,
     getConfiguredModel: () => normalizeVideoLocalTranscriptionModel(config.videoLocalModel),
     captureRequest: () => {
       // 读取或下载期间换视频、改源语言或关闭翻译时，旧结果不能启动新一轮识别。
@@ -1261,7 +1262,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     }
     if (target.dataset.action === 'open-settings') {
       closeMenu();
-      void browser.runtime.sendMessage({ type: 'openOptionsPage', section: 'settings-video' }).catch(() => undefined);
+      void sendRuntimeMessage({ type: 'openOptionsPage', section: 'settings-video' }).catch(() => undefined);
     }
   };
 

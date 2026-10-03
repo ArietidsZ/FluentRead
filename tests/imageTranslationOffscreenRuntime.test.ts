@@ -140,7 +140,7 @@ describe('Offscreen 图片完整操作生命周期', () => {
         const result = await translateImageInOffscreen('original-image', 'en', 'Page', controller.signal, 'image-1');
         expect(result).toEqual({image: 'data:image/png;base64,translated', lines: [{...lines[0], text: '你好', sourceText: 'Hello', backgroundColor: 'transparent'}]});
         expect(images).toHaveLength(1);
-        expect(mocks.recognize).toHaveBeenCalledWith('original-image', 'en', controller.signal, {onProgress:expect.any(Function)});
+        expect(mocks.recognize).toHaveBeenCalledWith('original-image', 'en', controller.signal, {decodedImage:images[0], onProgress:expect.any(Function)});
         expect(canvases[0].context.drawImage).toHaveBeenCalledWith(images[0], 0, 0, 32, 16);
         expect(mocks.background).toHaveBeenCalledOnce();
         expect(sendMessage.mock.calls.filter(([message]) => message.type === 'fluentReadImageProgress').map(([message]) => message.stage))

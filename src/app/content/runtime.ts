@@ -1,7 +1,7 @@
 /**
  * @file src/app/content/runtime.ts
  * 文件职责：作为内容脚本应用的顶层 composition root，协调配置就绪、站点规则、公共样式、主世界桥、功能注册表、快捷键和消息监听生命周期。
- * 主要内容：先排除原始 XML 文档与失效扩展上下文，再安装内联 page.css，构建输入框与页面 feature registry，按 capability 和配置挂载全文周边、局部翻译、悬浮、划词、区域、图片、双语分享卡片、视频与写作助手等能力；订阅配置变化并处理停用、往返缓存暂停恢复与销毁，消息端口失效不能中断页面清理。
+ * 主要内容：先排除原始 XML 文档与失效扩展上下文，再安装内联 page.css 并按 capability 和配置挂载页面功能；订阅配置变化并处理停用、往返缓存暂停恢复与销毁，低频检查扩展重载以主动释放旧页面，消息端口失效不能中断清理。
  * 模块边界：本文件只负责依赖装配和页面激活所有权，不实现具体翻译算法、组件内部状态、provider 请求或配置存储；这些职责分别属于 features、services 与 platform。
  */
 import {isWritingPage} from '@/src/core/config/writing';
@@ -65,7 +65,7 @@ export async function startContentApp(ctx: ContentScriptContext,
         suspend: () => { void pageAvailability?.reconcile(); },
         resume: () => { void pageAvailability?.reconcile(); },
         dispose: () => cleanup(),
-    });
+    }, capabilities.browser === 'userscript' ? undefined : ctx);
     // 非中文界面资源是扩展内本地文件，挂载前取得可避免非响应式浮层先以中文回退渲染；中文同步命中。
     await configReady; await ensureUiLanguageBundle(config.uiLanguage);
     if (ctx.isInvalid || cleanedUp || (document.readyState === 'loading' && !await waitForContentDocument(document, pageEventController.signal))) { cleanup(); return; }
@@ -93,13 +93,13 @@ export async function startContentApp(ctx: ContentScriptContext,
         createUi: createShadowRootUi,
         logger: console,
     });
-    const reportSiteDisabledState = (): void => {
-        void browser.runtime.sendMessage({
+    const reportSiteDisabledState = async (): Promise<void> => {
+        try { await browser.runtime.sendMessage({
             type: 'siteExtensionDisabledState',
             isDisabled: currentPageSiteDisabled,
-        }).catch(() => undefined);
+        }); } catch { /* 站点状态广播不能阻断失效后的页面清理。 */ }
     };
-    const isPageRuntimeEnabled = (): boolean => !cleanedUp && !pageLifecycle.isSuspended() && !currentPageSiteDisabled && config.on !== false;
+    const isPageRuntimeEnabled = (): boolean => !cleanedUp && !ctx.isInvalid && !pageLifecycle.isSuspended() && !currentPageSiteDisabled && config.on !== false;
     const mailFullPageToggle = capabilities.browser !== 'userscript'
         ? installQqMailTopFrameBridge(isPageRuntimeEnabled, pageEventController.signal)
             ?? installNeteaseMailTopFrameBridge(isPageRuntimeEnabled, pageEventController.signal)
@@ -119,7 +119,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     const activatePageFeatures = async (): Promise<void> => {
         if (!isPageRuntimeEnabled() || featureController) return;
         removePageStyles = installPageStyles(ctx);
-        syncBilingualSentenceHighlight(document, config.bilingualSentenceHighlightEnabled === true, config.bilingualSentenceHighlightStyle);
+        syncBilingualSentenceHighlight(document, config.bilingualSentenceHighlightEnabled === true, config.bilingualSentenceHighlightStyle, config.bilingualSentenceHighlightAppearance);
         const activationController = new AbortController();
         featureController = activationController;
         const isActivationCurrent = () => isPageRuntimeEnabled() && featureController === activationController
@@ -219,7 +219,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     const applySiteDisabledState = async (disabled: boolean): Promise<void> => {
         if (cleanedUp) return;
         currentPageSiteDisabled = disabled;
-        reportSiteDisabledState();
+        void reportSiteDisabledState();
         await pageAvailability!.reconcile();
     };
     document.addEventListener('fluentread-route-change', () => {
@@ -249,11 +249,11 @@ export async function startContentApp(ctx: ContentScriptContext,
         isPageSuspended: pageLifecycle.isSuspended,
     }, capabilities);
     runtimeMessages.addListener(runtimeMessageListener);
-    reportSiteDisabledState();
+    void reportSiteDisabledState();
     unsubscribeContentConfig = subscribeConfig((nextConfig) => {
         void ensureUiLanguageBundle(nextConfig.uiLanguage); applyCoreTranslationPreferences(nextConfig);
         siteAdaptation.update(nextConfig.siteAdaptation, new URL(window.location.href));
-        syncBilingualSentenceHighlight(document, isPageRuntimeEnabled() && nextConfig.bilingualSentenceHighlightEnabled === true, nextConfig.bilingualSentenceHighlightStyle);
+        syncBilingualSentenceHighlight(document, isPageRuntimeEnabled() && nextConfig.bilingualSentenceHighlightEnabled === true, nextConfig.bilingualSentenceHighlightStyle, nextConfig.bilingualSentenceHighlightAppearance);
         const nextInputBoxConfigKey = inputBoxTranslationConfigKey(nextConfig);
         if (nextInputBoxConfigKey !== previousInputBoxConfigKey) {
             previousInputBoxConfigKey = nextInputBoxConfigKey;
