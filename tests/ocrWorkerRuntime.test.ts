@@ -25,6 +25,98 @@ function createWorker(name: string): OcrWorkerPort<RecognitionResult> {
 }
 
 describe('OCR worker runtime', () => {
+    it('逐包准备和自动语言切换复用一个 Worker，识别参数在重新初始化后重新设置', async () => {
+        const worker = {...createWorker('shared'), reinitialize: vi.fn(async (_languages: string) => undefined)};
+        const factory = vi.fn(async () => worker);
+        const runtime = createOcrWorkerRuntime({createWorker: factory, sparseTextMode: 11});
+        for (const languages of [['chi_sim'], ['chi_tra'], ['eng'], ['jpn', 'jpn_vert']]) await runtime.ensureLanguages(languages);
+        await runtime.recognize('auto', 'chi_sim+chi_tra+eng+jpn+jpn_vert', undefined, 12);
+        await runtime.recognize('english', 'eng');
+        await runtime.recognize('english-again', 'eng');
+        expect(factory).toHaveBeenCalledOnce();
+        expect(worker.reinitialize.mock.calls.map(call => call[0])).toEqual([
+            'chi_tra', 'eng', 'jpn+jpn_vert', 'chi_sim+chi_tra+eng+jpn+jpn_vert', 'eng',
+        ]);
+        expect(worker.setParameters).toHaveBeenCalledTimes(2);
+        expect(worker.terminate).not.toHaveBeenCalled();
+    });
+
+    it('语言重新初始化必须等待当前识别结束，不交叉覆盖任务参数', async () => {
+        const worker = {...createWorker('shared'), reinitialize: vi.fn(async () => undefined)};
+        const gate = deferred<RecognitionResult>();
+        vi.mocked(worker.recognize).mockReturnValueOnce(gate.promise);
+        const runtime = createOcrWorkerRuntime({createWorker: async () => worker, sparseTextMode: 11});
+        const first = runtime.recognize('first', 'eng');
+        await vi.waitFor(() => expect(worker.recognize).toHaveBeenCalledOnce());
+        const next = runtime.recognize('next', 'chi_sim+eng');
+        await Promise.resolve(); expect(worker.reinitialize).not.toHaveBeenCalled();
+        gate.resolve({worker: 'shared', image: 'first'}); await first; await next;
+        expect(worker.reinitialize).toHaveBeenCalledWith('chi_sim+eng');
+        expect(worker.setParameters).toHaveBeenCalledTimes(2);
+    });
+
+    it('累计模型超过五个时重建，避免反复切换语言无限积累模型内存', async () => {
+        const first = {...createWorker('first'), reinitialize: vi.fn(async () => undefined)};
+        const next = {...createWorker('next'), reinitialize: vi.fn(async () => undefined)};
+        const factory = vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(next);
+        const runtime = createOcrWorkerRuntime({createWorker: factory, sparseTextMode: 11});
+        await runtime.ensureLanguages(['chi_sim', 'chi_tra', 'eng', 'jpn', 'jpn_vert']);
+        await runtime.recognize('english', 'eng');
+        await runtime.ensureLanguages(['fra']);
+        expect(first.reinitialize).toHaveBeenCalledOnce();
+        expect(first.terminate).toHaveBeenCalledOnce();
+        expect(factory).toHaveBeenCalledTimes(2);
+        await runtime.ensureLanguages(['fra', 'eng']);
+        expect(next.reinitialize).toHaveBeenCalledWith('fra+eng');
+        await runtime.clearModels(async () => {});
+        expect(next.terminate).toHaveBeenCalledOnce();
+    });
+
+    it('再次准备已加载模型不切换识别语言或重设参数', async () => {
+        const worker = {...createWorker('shared'), reinitialize: vi.fn(async (_languages: string) => undefined)};
+        const runtime = createOcrWorkerRuntime({createWorker: async () => worker, sparseTextMode: 11});
+        await runtime.recognize('first', 'chi_sim+eng');
+        await runtime.ensureLanguages(['eng']);
+        await runtime.ensureLanguages(['chi_sim', 'eng']);
+        await runtime.recognize('next', 'chi_sim+eng');
+        expect(worker.reinitialize).not.toHaveBeenCalled();
+        expect(worker.setParameters).toHaveBeenCalledOnce();
+    });
+
+    it('语言重新初始化失败释放不可用 Worker，下一次调用重新创建并保留真实错误', async () => {
+        const first = {...createWorker('first'), reinitialize: vi.fn(async () => {throw new Error('model failed');})};
+        vi.mocked(first.terminate).mockRejectedValueOnce(new Error('already stopped'));
+        const next = createWorker('next');
+        const factory = vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(next);
+        const runtime = createOcrWorkerRuntime({createWorker: factory, sparseTextMode: 11});
+        await runtime.recognize('first', 'eng');
+        await expect(runtime.ensureLanguages(['jpn'])).rejects.toThrow('model failed');
+        await expect(runtime.recognize('retry', 'jpn')).resolves.toEqual({worker: 'next', image: 'retry'});
+        expect(first.terminate).toHaveBeenCalledOnce();
+        expect(factory).toHaveBeenCalledTimes(2);
+    });
+
+    it.each(['resolve', 'reject'] as const)('取消语言重新初始化后，迟到的 %s 不覆盖或销毁后续 Worker', async outcome => {
+        const gate = deferred<unknown>();
+        const first = {...createWorker('first'), reinitialize: vi.fn(() => gate.promise)};
+        const next = createWorker('next');
+        const factory = vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(next);
+        const runtime = createOcrWorkerRuntime({createWorker: factory, sparseTextMode: 11});
+        await runtime.recognize('first', 'eng');
+        const controller = new AbortController();
+        const switching = runtime.recognize('cancelled', 'jpn', controller.signal);
+        const rejection = expect(switching).rejects.toMatchObject({name: 'AbortError'});
+        await vi.waitFor(() => expect(first.reinitialize).toHaveBeenCalledOnce());
+        controller.abort(); await rejection;
+        await runtime.recognize('next', 'fra');
+        if (outcome === 'resolve') gate.resolve(undefined); else gate.reject(new Error('late model error'));
+        await Promise.resolve(); await Promise.resolve();
+        await runtime.recognize('again', 'fra');
+        expect(factory).toHaveBeenCalledTimes(2);
+        expect(next.terminate).not.toHaveBeenCalled();
+        expect(next.setParameters).toHaveBeenCalledOnce();
+    });
+
     it('真实百分比仅属于当前任务，丢弃非法、重复、倒退和迟到进度，展示错误不影响识别', async () => {
         const worker = createWorker('eng');
         const pending = deferred<RecognitionResult>();
