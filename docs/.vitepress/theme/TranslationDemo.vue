@@ -191,7 +191,7 @@ function changeAction(index: number) {
             {{ label }}
           </button>
         </div>
-        <div class="fr-demo-answer" :key="action">
+        <div class="fr-demo-answer" :key="action" aria-live="polite">
           <strong>{{ actions[action] }}</strong>
           <p>{{ answers[action] }}</p>
           <template v-if="action === 3"

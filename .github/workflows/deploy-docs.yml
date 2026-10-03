@@ -51,6 +51,8 @@ jobs:
         run: pnpm rebuild esbuild
       - name: Build documentation
         run: pnpm docs:build
+      - name: Check website types
+        run: pnpm docs:typecheck
       - name: Check website links and assets
         run: pnpm docs:check
       - name: Upload website

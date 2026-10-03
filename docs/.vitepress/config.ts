@@ -1,9 +1,9 @@
 import brandTaglines from '../../src/core/i18n/messages/brand-taglines.json'
-import { defineConfig } from 'vitepress'
+import { defineConfig, type DefaultTheme } from 'vitepress'
 
 const supportUrl = 'https://github.com/FluentRead/FluentRead#support'
 
-const guide = (en = false) => {
+const guide = (en = false): DefaultTheme.SidebarItem[] => {
   const p = en ? '/en' : ''
   const item = (zh: string, english: string, path: string) => ({
     text: en ? english : zh,
@@ -80,7 +80,7 @@ const guide = (en = false) => {
     },
   ]
 }
-const theme = (en = false) => ({
+const theme = (en = false): DefaultTheme.Config => ({
   nav: [
     { text: en ? 'Features' : '功能', link: en ? '/en/#features' : '/#features' },
     {
