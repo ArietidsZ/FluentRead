@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { useData, withBase } from 'vitepress'
 import BrandReader from './BrandReader.vue'
-import DemoPointer from './DemoPointer.vue'
 import { useDemoPlayback } from './useDemoPlayback'
 const props = defineProps<{ kind: string; en?: boolean; compact?: boolean }>()
 const { lang } = useData()
@@ -13,7 +12,7 @@ const { step, playing, running, reduced, choose } = useDemoPlayback(
   root,
   6,
   props.kind !== 'privacy',
-  [650, 600, 450, 850, 1100, 850]
+  [300, 400, 300, 1500, 1500, 1500]
 )
 const changed = computed(() => step.value >= 3)
 const style = computed(() => Math.max(0, step.value - 3) % 3)
@@ -29,11 +28,11 @@ const words = computed(
         t('模拟按下 Control', 'Simulate Control'),
       ],
       selection: [
-        t('选一句，先看懂', 'Select a sentence. See its meaning.'),
+        t('划词翻译 · 选中句子看译文', 'SELECTION · TRANSLATE A SENTENCE'),
         t('打开示例词卡', 'Open the example card'),
       ],
       image: [
-        t('图片文字，也能读懂', 'Understand text inside images'),
+        t('图片翻译 · 原图与译文', 'IMAGE · ORIGINAL & TRANSLATION'),
         t('查看译图', 'Show translation'),
       ],
       area: [
@@ -45,7 +44,7 @@ const words = computed(
         t('查看双语结果', 'Show bilingual result'),
       ],
       video: [
-        t('一句原话，一句译文', 'Original captions. Translated captions.'),
+        t('视频翻译 · 双语字幕', 'VIDEO · BILINGUAL CAPTIONS'),
         t('显示双语字幕', 'Show bilingual captions'),
       ],
       input: [
@@ -57,8 +56,8 @@ const words = computed(
         t('查看示例草稿', 'Show example draft'),
       ],
       provider: [
-        t('从免费开始，按需连接 AI', 'Start free. Connect AI when needed.'),
-        t('查看 AI 连接示意', 'Show an AI connection'),
+        t('选择适合你的翻译服务', 'Choose your translation provider'),
+        t('查看服务连接示意', 'Show a provider connection'),
       ],
       appearance: [
         t('选一种舒服的阅读方式', 'Find your reading style'),
@@ -137,19 +136,6 @@ const text = computed(() => words.value[props.kind] || words.value.shortcuts)
       ><span class="gv-example">{{ t('操作示意', 'Walkthrough') }}</span>
     </div>
     <div class="gv-stage">
-      <div
-        v-if="kind !== 'privacy' && kind !== 'install'"
-        class="gv-demo-action"
-        data-demo-target
-        :class="{ triggered: step === 2 }"
-      >
-        <img :src="withBase('/brand-icon.webp')" width="24" height="24" alt="" />
-        <span>{{ text[1] }}</span>
-      </div>
-      <DemoPointer
-        v-if="kind !== 'privacy'"
-        :phase="running && (step === 1 || step === 2) ? step : 0"
-      />
       <template v-if="kind === 'compare'"
         ><div class="gv-sentence">
           <span>{{ t('原文', 'Original') }}</span>
@@ -273,31 +259,50 @@ const text = computed(() => words.value[props.kind] || words.value.shortcuts)
           >{{ t('点击右上角图标', 'Click the icon above') }}
         </div></template
       >
-      <template v-else-if="kind === 'image' || kind === 'area'"
-        ><div class="gv-poster">
-          <div class="gv-poster-shape" aria-hidden="true"></div>
-          <div class="gv-crop" :class="{ outlined: kind === 'area' }">
-            <span class="gv-poster-small">FIELD NOTES / 2026</span
-            ><b>{{
-              changed && kind === 'image'
-                ? t('保持好奇', 'Stay curious')
-                : t('Stay curious', '保持好奇')
-            }}</b
-            ><span>{{
-              changed && kind === 'image'
-                ? t('世界，值得探索。', 'The world is yours to explore.')
-                : t('The world is yours to explore.', '世界，值得探索。')
-            }}</span>
+      <template v-else-if="kind === 'image'">
+        <div class="gv-comic">
+          <span class="gv-comic-label">{{ t('漫画气泡翻译示例', 'Comic dialogue example') }}</span>
+          <div class="gv-comic-bubble" :class="{ 'gv-local-result': changed }">
+            {{
+              changed
+                ? t('我发现了一个新故事！', 'I found a new story!')
+                : t('I found a new story!', '我发现了一个新故事！')
+            }}
           </div>
+          <svg viewBox="0 0 340 130" aria-hidden="true">
+            <path d="M18 112h304M240 112V62h47v50M247 72h12m14 0h7m-33 15h12m14 0h7" />
+            <circle cx="92" cy="38" r="20" />
+            <path
+              d="M73 33c4-22 38-24 40 0M86 41h1m12 0h1M87 50q6 5 11-1M81 60q-22 6-27 42m46-42q24 7 26 34M78 70l-7 42m36-42 6 42M59 91l36-3"
+            />
+            <path
+              class="gv-comic-book"
+              d="M101 82q17-8 34 0v32q-17-8-34 0-17-8-34 0V82q17-8 34 0v32"
+            />
+            <path d="M153 106q17-36 31-12t28 7M28 111l7-16 8 16" />
+          </svg>
           <small>{{
-            changed && kind === 'image' ? t('译文', 'Translation') : t('原图文字', 'Original text')
+            changed
+              ? t('原文：I found a new story!', 'Original: 我发现了一个新故事！')
+              : t('英文原图', 'Chinese original')
           }}</small>
         </div>
-        <div v-if="kind === 'area' && changed" class="gv-result">
+      </template>
+      <template v-else-if="kind === 'area'">
+        <div class="gv-poster">
+          <div class="gv-poster-shape" aria-hidden="true"></div>
+          <div class="gv-crop outlined">
+            <span class="gv-poster-small">FIELD NOTES / 2026</span>
+            <b>{{ t('Stay curious', '保持好奇') }}</b>
+            <span>{{ t('The world is yours to explore.', '世界，值得探索。') }}</span>
+          </div>
+          <small>{{ t('圈选区域中的原文', 'Original text inside the selection') }}</small>
+        </div>
+        <div v-if="changed" class="gv-result">
           <strong>{{ t('识别与翻译', 'Recognition & translation') }}</strong>
           <p>Stay curious → {{ t('保持好奇', 'Stay curious') }}</p>
-        </div></template
-      >
+        </div>
+      </template>
       <template v-else-if="kind === 'document'"
         ><div class="gv-file">
           <span class="gv-file-icon" aria-hidden="true">▤</span>
@@ -314,14 +319,14 @@ const text = computed(() => words.value[props.kind] || words.value.shortcuts)
         <div class="gv-document-pages">
           <div>
             <span>01 / ORIGINAL</span>
-            <h4>{{ t('A new perspective', '一种新的视角') }}</h4>
+            <h4>{{ t('The joy of reading', '阅读的乐趣') }}</h4>
             <p>{{ t('Every language opens a new door.', '每一种语言，都打开一扇新的门。') }}</p>
             <i></i><i></i><i></i>
           </div>
           <div class="gv-document-result">
             <span>01 / {{ t('译文', 'TRANSLATION') }}</span
             ><template v-if="changed"
-              ><h4>{{ t('一种新的视角', 'A new perspective') }}</h4>
+              ><h4>{{ t('阅读的乐趣', 'The joy of reading') }}</h4>
               <p>{{ t('每一种语言，都打开一扇新的门。', 'Every language opens a new door.') }}</p>
               <i></i><i></i
             ></template>
@@ -333,13 +338,15 @@ const text = computed(() => words.value[props.kind] || words.value.shortcuts)
       >
       <template v-else-if="kind === 'video'"
         ><div class="gv-video">
-          <span class="gv-video-tag">EXPLORE</span>
+          <span class="gv-video-tag">{{
+            t('视频 / 会议字幕示例', 'Video / meeting caption example')
+          }}</span>
           <div class="gv-video-landscape" aria-hidden="true"></div>
           <span class="gv-video-play" aria-hidden="true">▷</span>
           <div class="gv-caption">
-            <p>{{ t('Every language opens a new door.', '每一种语言，都打开一扇新的门。') }}</p>
-            <p v-if="changed">
-              {{ t('每一种语言，都打开一扇新的门。', 'Every language opens a new door.') }}
+            <p>{{ t('Let’s review the plan together.', '我们一起回顾一下计划。') }}</p>
+            <p v-if="changed" class="gv-local-result">
+              {{ t('我们一起回顾一下计划。', 'Let’s review the plan together.') }}
             </p>
           </div>
           <span class="gv-timeline" aria-hidden="true"></span></div
@@ -396,7 +403,7 @@ const text = computed(() => words.value[props.kind] || words.value.shortcuts)
         ><div class="gv-sentence">
           <span>{{ t('原文', 'Original') }}</span>
           <p>
-            <mark v-if="kind !== 'hover'">{{
+            <mark v-if="kind !== 'hover'" :class="{ 'gv-selected': step >= 1 }">{{
               t('Every language opens a new door.', '每一种语言，都打开一扇新的门。')
             }}</mark
             ><template v-else>{{
@@ -576,7 +583,9 @@ const text = computed(() => words.value[props.kind] || words.value.shortcuts)
       >
     </div>
     <div v-if="kind !== 'privacy'" class="gv-controls">
-      <small>{{ t('自动演示 · 示例内容', 'Automatic walkthrough · example content') }}</small
+      <small
+        >{{ t('自动演示 · ', 'Auto demo · ')
+        }}{{ changed ? t('结果已显示', 'Result shown') : t('正在处理…', 'Processing…') }}</small
       ><button
         v-if="!reduced"
         type="button"

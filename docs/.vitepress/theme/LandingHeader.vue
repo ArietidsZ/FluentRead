@@ -7,9 +7,9 @@ defineProps<{ en?: boolean; languageLink: string }>()
   <header class="bv-home-header">
     <nav :aria-label="en ? 'Main navigation' : '主导航'">
       <a class="bv-home-brand" :href="withBase(en ? '/en/' : '/')"
-        ><img :src="withBase('/brand-icon.webp')" width="34" height="34" alt="" /><strong
-          >FluentRead</strong
-        ></a
+        ><img :src="withBase('/brand-icon.webp')" width="34" height="34" alt="" /><strong>{{
+          en ? 'FluentRead' : '流畅阅读'
+        }}</strong></a
       >
       <div class="bv-home-links">
         <a class="bv-home-features" :href="withBase((en ? '/en/' : '/') + '#features')">{{

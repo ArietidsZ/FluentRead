@@ -1,6 +1,6 @@
-# Video subtitles
+# Video & meeting translation
 
-Read original and translated captions on supported video sites and web meetings. The platform must provide readable captions.
+Read original and translated captions on YouTube, X and Google Meet, Teams or Zoom web meetings. The platform must provide readable captions.
 
 <GuideVisual kind="video" en />
 
