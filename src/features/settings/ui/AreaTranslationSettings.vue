@@ -79,7 +79,7 @@ import {Edit} from '@element-plus/icons-vue';
 import {ElMessage} from 'element-plus';
 import type {Config} from '@/src/core/config/model';
 import {resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
-import {DEFAULT_AREA_VISION_PROMPT, resolveModelVisionCapability} from '@/src/core/config/vision';
+import {DEFAULT_AREA_VISION_PROMPT} from '@/src/core/config/vision';
 import {
     areaTranslationHotkeyDisplayName,
     AREA_TRANSLATION_HOTKEY_OPTIONS,
@@ -94,6 +94,7 @@ import {
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {getTranslationServiceUnavailableMessage} from '@/src/services/translation/capabilities';
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
+import {useVisionProbeStatus} from './services/useVisionProbeStatus';
 import {useUiI18n} from '@/src/ui/i18n';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
@@ -189,7 +190,9 @@ const model = computed(() => resolveConfiguredModel(props.config.model[service.v
 const serviceDescription = computed(() => model.value
   ? `${props.serviceOptions.find(item => item.value === service.value)?.label || service.value} · ${model.value}`
   : t('area.settings.serviceDescription'));
-const capability = computed(() => resolveModelVisionCapability(service.value, model.value, props.config.modelVision));
+const {result: visionStatus} = useVisionProbeStatus(() => props.config, () => service.value,
+    () => model.value);
+const capability = computed(() => visionStatus.value.capability);
 const prefersVision = computed(() => props.config.areaRecognitionMode === 'prefer-vision');
 const promptEditorOpen = ref(false);
 const capabilityMessageKey = computed(() => capability.value === 'supported'

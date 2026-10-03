@@ -2,7 +2,7 @@
  * @file src/providers/translation/deepseek.ts
  *
  * 文件职责：适配 DeepSeek 官方或代理端点，并根据配置选择 Chat Completions 或 Responses 协议进行翻译。
- * 主要内容：从快照解析 thinking/API 模式和 endpoint，分别构造 deepseek 模板，执行 Bearer 请求、HTTP/JSON 校验、上报协议对应的 token 用量并清理模型推理标记；路由改写与 Responses 输出读取复用 responses-api 共享模块。 可核对的公开符号包括 buildDeepSeekEndpoint、default:deepseek。
+ * 主要内容：从快照解析 thinking/API 模式和 endpoint，将受信选区图片传给 Chat/Responses 多模态模板，执行 Bearer 请求、HTTP/JSON 校验、上报协议对应的 token 用量并清理模型推理标记；路由改写与 Responses 输出读取复用 responses-api 共享模块。 可核对的公开符号包括 buildDeepSeekEndpoint、default:deepseek。
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
@@ -15,10 +15,11 @@ import {
 import { config } from "@/src/services/config/store";
 import {stripTranslationReasoning as contentPostHandler} from '@/src/core/translation/prompts';
 import { appendOptionalBearer } from './auth';
-import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
+import {createHttpStatusError, createImageInputHttpError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 import {
     getTranslationProviderConfig,
+    getTranslationImageInput,
     reportTranslationModelUsage,
     reportTranslationModelUsageFailure,
     type TranslationProviderRequest,
@@ -27,8 +28,7 @@ import type {TranslationProviderConfigSnapshot} from '@/src/services/translation
 import {normalizeDeepSeekResponsesUsage, normalizeOpenAICompatibleUsage} from './usage';
 import {buildOpenAIApiEndpoint, readResponsesApiText} from './responses-api';
 
-// 当前官方 V4 文档以 Chat Completion 为主；Responses API 仅在用户明确选择时启用，
-// 便于兼容已经支持该协议的代理或网关。
+// 官方已支持 Chat Completion 和 Responses；保留用户所选协议，auto 继续使用 Chat。
 function useResponsesApi(current: TranslationProviderConfigSnapshot) {
     const apiType = current.deepseekApiType;
     if (apiType === 'responses') return true;
@@ -45,10 +45,11 @@ async function deepseek(message: TranslationProviderRequest<string>) {
     const isResponses = useResponsesApi(current);
     const url = buildDeepSeekEndpoint(endpoint, isResponses);
     const configuredModel = getCurrentModel(service, message.modelOverride, current);
+    const imageInput = getTranslationImageInput(message);
 
     const body = isResponses
-        ? deepseekResponsesMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride)
-        : deepseekMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride);
+        ? deepseekResponsesMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride, imageInput)
+        : deepseekMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride, imageInput);
     const startedAt = Date.now();
     let attemptReported = false;
     try {
@@ -61,7 +62,7 @@ async function deepseek(message: TranslationProviderRequest<string>) {
         if (!resp.ok) {
             reportTranslationModelUsageFailure(message, undefined, startedAt, configuredModel, resp.status);
             attemptReported = true;
-            throw createHttpStatusError(resp, '翻译失败');
+            throw getTranslationImageInput(message) ? await createImageInputHttpError(resp, '翻译失败') : createHttpStatusError(resp, '翻译失败');
         }
 
         const result = await readJsonResponse<any>(resp, 'DeepSeek 返回的不是有效 JSON');
