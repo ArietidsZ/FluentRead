@@ -1,6 +1,11 @@
 {
   "messages": {
     "settings.drive.privacyBadge": "プライバシー保護",
+    "settings.drive.privacyTitle": "FluentRead がプライバシーを保護する方法",
+    "settings.drive.privacyEncryption": "設定は端末上で暗号化してからアップロードし、クラウドには暗号化ファイルを保存します。",
+    "settings.drive.privacyStorage": "Google ドライブのアプリデータ領域だけにアクセスし、通常のファイルは読み取りません。",
+    "settings.drive.privacyAuthorization": "同期の完了またはキャンセル後、一時的な認証キャッシュを削除します。",
+    "settings.drive.privacyExcluded": "単語帳、チャット履歴、使用量統計は設定同期に含まれません。",
     "settings.drive.description": "設定全体を暗号化して自分の Google ドライブに保存し、ほかの端末で復元できます。API キー、OAuth トークン、認証ヘッダー、カスタムリクエスト本文、URL 内の認証パラメーターを含みますが、単語帳、チャット履歴、使用量統計は含みません。",
     "settings.drive.account": "今回の同期アカウント：{email}",
     "settings.drive.differences": "{count} 件の差分。非公開情報とカスタム内容は非表示です。",
