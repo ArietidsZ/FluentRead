@@ -17,6 +17,16 @@ import {translationStatsChineseMessages} from './translationStats';
 import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
+    "settings.headers.title": "移除来源请求头",
+    "settings.headers.help": "名单默认为空。仅对 FluentRead 后台发往所填精确域名的请求生效，所有服务共用，不包含子域名；移除或取消勾选即可恢复。",
+    "settings.headers.unsupported": "当前环境不支持此选项。请使用支持 declarativeNetRequest 的浏览器扩展；油猴版不支持。",
+    "settings.headers.domain": "服务域名",
+    "settings.headers.add": "添加域名",
+    "settings.headers.invalid": "只填写域名，不含协议、端口、路径或通配符。",
+    "settings.headers.origin": "移除 Origin",
+    "settings.headers.referer": "移除 Referer",
+    "settings.headers.remove": "删除",
+    "settings.headers.removeDomain": "删除 {domain} 的请求头规则",
     "settings.backup.localTitle": "本地备份",
     "settings.backup.fileTitle": "备份文件",
     "settings.backup.fileDescription": "备份文件包含 API Key 等私密信息，且未加密，请妥善保存，不要公开分享。",

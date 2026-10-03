@@ -18,6 +18,16 @@ import {translationStatsFrenchMessages} from './translationStats';
 import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
+    "settings.headers.title": "Supprimer les en-têtes de provenance",
+    "settings.headers.help": "La liste est vide par défaut. Elle concerne uniquement les requêtes de FluentRead vers le domaine exact, pour tous les services. Les sous-domaines sont distincts. Supprimez une entrée ou décochez un en-tête pour rétablir le comportement par défaut.",
+    "settings.headers.unsupported": "Cet environnement ne prend pas en charge cette option. Utilisez une extension avec declarativeNetRequest. Les scripts utilisateur ne sont pas pris en charge.",
+    "settings.headers.domain": "Domaine du service",
+    "settings.headers.add": "Ajouter un domaine",
+    "settings.headers.invalid": "Saisissez un domaine sans protocole, port, chemin ni joker.",
+    "settings.headers.origin": "Supprimer Origin",
+    "settings.headers.referer": "Supprimer Referer",
+    "settings.headers.remove": "Supprimer",
+    "settings.headers.removeDomain": "Supprimer la règle pour {domain}",
     "settings.backup.localTitle": "Sauvegarde locale",
     "settings.backup.fileTitle": "Fichier de sauvegarde",
     "settings.backup.fileDescription": "Les fichiers de sauvegarde contiennent des clés API et d’autres informations privées et ne sont pas chiffrés. Conservez-les en lieu sûr et ne les partagez pas publiquement.",
