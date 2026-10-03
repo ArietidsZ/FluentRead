@@ -28,6 +28,8 @@ Settings history excludes vocabulary, model usage, and API credentials. Restorin
 
 ## Google Drive configuration sync
 
+Google Drive is one of the choices under **Settings → Backup and restore → Cloud configuration backup**. Select it before starting the operation.
+
 Availability depends on the installed version's settings page. Sync covers configuration, excluding vocabulary, chat records, and usage statistics.
 
 1. Choose **Sync with Google Drive now** and authorize the current operation.
@@ -38,6 +40,14 @@ Availability depends on the installed version's settings page. Sync covers confi
 Opening settings does not access Drive automatically. The permission covers only FluentRead's hidden app data, not your other files, Gmail, or contacts. Configuration includes provider credentials; read the [full sync privacy explanation](/en/guide/privacy#google-drive-configuration-sync) for backup protection and deletion.
 
 Cancelling a preview ends that operation. Revoking permission or uninstalling does not delete a cloud backup.
+
+## WebDAV configuration backup
+
+To use your own cloud drive, NAS, or server, select **WebDAV** in **Cloud configuration backup**. Configure a directory URL and app password, test and save the connection, then review and confirm the backup operation.
+
+Like Google Drive, this backs up configuration and provider credentials, not wordbooks, chat history, or usage statistics. WebDAV connection credentials stay on the current device. Saving, restoring, and merging are manual operations.
+
+See [the WebDAV guide](/en/guide/webdav) for connection requirements, save and restore steps, file protection, and deletion.
 
 ## Cache is different
 
