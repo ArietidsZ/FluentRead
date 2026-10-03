@@ -20,6 +20,8 @@ https://cloud.example.com/remote.php/dav/files/你的用户名/
 
 可从 Nextcloud 文件设置中复制个人 WebDAV 地址，在个人设置的安全页面创建应用密码。具体入口以 [Nextcloud 官方指南](https://docs.nextcloud.com/server/latest/user_manual/en/files/access_webdav.html) 为准。其他网盘或 NAS 请使用其 WebDAV 设置中提供的目录地址；目录账号必须有读取、创建目录和写入文件权限。
 
+坚果云的入口地址为 `https://dav.jianguoyun.com/dav/`，用户名填写坚果云账号邮箱，密码使用[第三方应用密码](https://help.jianguoyun.com/?p=2064)。无需预先创建 `FluentRead` 文件夹；首次同步会先检查云端是否已有备份，在你确认保存后才创建目录和文件。入口地址检查通过、但备份父目录尚未创建时返回的 409，会按首次备份处理；真正的入口地址或权限错误仍会阻止同步。
+
 ## 第一次保存
 
 1. 进入**配置云备份**，选择 **WebDAV → 设置 WebDAV**。
