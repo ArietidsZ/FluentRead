@@ -122,7 +122,7 @@ describe('reading answer presentation', () => {
     });
 });
 
-import {anchorSentenceAnalysis, summarizeSentenceRole} from '@/src/features/reading-assistant/sentenceAnalysis';
+import {anchorSentenceAnalysis, summarizeSentenceRole, describeSentenceRole} from '@/src/features/reading-assistant/sentenceAnalysis';
 import {describePartOfSpeech} from '@/src/core/language/partOfSpeech';
 
 describe('grounded part-of-speech annotations', () => {
@@ -148,6 +148,7 @@ describe('grounded part-of-speech annotations', () => {
     });
     it('keeps unrecognized POS and hostile text as inert data', () => {
         expect(describePartOfSpeech('art.')).toMatchObject({id:'article', label:'冠词'});
+        expect(describePartOfSpeech('r.')).toMatchObject({id:'adverb', label:'副词'});
         expect(describePartOfSpeech('名词')).toMatchObject({id:'noun'});
         expect(describePartOfSpeech('主语')).toMatchObject({id:'other', label:'主语'});
         expect(describePartOfSpeech(null)).toMatchObject({id:'other',label:'其他'});
@@ -155,14 +156,20 @@ describe('grounded part-of-speech annotations', () => {
         const result = anchorSentenceAnalysis(table([[source,'unknown','<img src=x>','text']]), source);
         expect(result?.[0]).toMatchObject({text:source, role:'<img src=x>',part:{id:'other'}});
     });
+    it.each([
+        ['noun phrase', '名词短语'], ['verb phrase', '动词短语'], ['adjective phrase', '形容词短语'],
+        ['adverb phrase', '副词短语'], ['prepositional phrase', '介词短语'], ['infinitive phrase', '不定式短语'],
+    ])('normalizes phrase label %s without exposing English labels in Chinese UI', (input, label) => {
+        expect(describePartOfSpeech(input).label).toBe(label);
+    });
 });
 
 
-import {sentenceAnalysis} from '@/src/core/config/selectionPreview';
+import {sentenceAnalysis, sentenceSource} from '@/src/core/config/selectionPreview';
 it('renders the offline settings example with the same grounded grammar parser', () => {
     const block = readingAnswerBlocks(sentenceAnalysis)[0];
-    expect(anchorSentenceAnalysis(block, 'The curious reader explores new ideas.')?.map(item => item.part.id))
-        .toEqual(['article', 'adjective', 'noun', 'verb', 'adjective', 'noun']);
+    expect(anchorSentenceAnalysis(block, sentenceSource)?.map(item => item.part.id))
+        .toEqual(['noun', 'verb', 'noun', 'phrase']);
 });
 it('rejects incomplete annotations, overlong fields and prefixes of longer words', () => {
     const headers = ['Text', 'POS', 'Role', 'Meaning'];
@@ -198,4 +205,25 @@ it('keeps sentence role summaries grounded in the existing explanation rather th
     expect(summarizeSentenceRole('Custom role\nMore information')).toBe('Custom role');
     expect(summarizeSentenceRole('，无简短标题')).toBe('，无简短标题');
     expect(summarizeSentenceRole('   ')).toBe('');
+});
+
+it('normalizes explicit role names without guessing from an explanation or negation', () => {
+    for (const [value, id, label] of [
+        ['SUBJECT, identifies the reader', 'subject', '主语'], ['谓语', 'predicate', '谓语'],
+        ['direct object', 'object', '宾语'], ['indirect_object', 'indirect-object', '间接宾语'],
+        ['post-modifier', 'postmodifier', '后置定语'], ['attribute', 'attribute', '定语'],
+        ['adverbial', 'adverbial', '状语'], ['complement', 'complement', '补语'],
+        ['modifier', 'modifier', '修饰语'], ['determiner', 'determiner', '限定语'],
+        ['主語', 'subject', '主语'], ['후치 수식어', 'postmodifier', '后置定语'],
+    ]) expect(describeSentenceRole(value)).toEqual({id, label});
+    for (const value of ['', 'not a subject', '并非主语；需结合上下文', 'describes the object', '<img src=x>', '修饰 reader']) {
+        expect(describeSentenceRole(value)).toEqual({id: 'other', label: '其他'});
+    }
+});
+it('keeps the reference sentence in four ordered units with punctuation outside the annotations', () => {
+    const annotations = anchorSentenceAnalysis(readingAnswerBlocks(sentenceAnalysis)[0], sentenceSource)!;
+    expect(annotations.map(item => `${describeSentenceRole(item.role).label} · ${item.part.label}`))
+        .toEqual(['主语 · 名词短语', '谓语 · 动词', '宾语 · 名词短语', '后置定语 · 不定式短语']);
+    expect(annotations.map(item => item.text)).toEqual(['Every language', 'offers', 'a new way', 'to see the world']);
+    expect(sentenceSource.slice(annotations.at(-1)!.end)).toBe('.');
 });

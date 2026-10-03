@@ -13,6 +13,8 @@ import {Config} from '@/src/core/config/model';
 import * as selectionCore from '@/src/features/selection-translation/core';
 import * as harness from '@/src/core/config/harness';
 import * as runtimeMessages from '@/src/platform/browser/runtimeMessages';
+import * as detect from '@/src/core/language/detect';
+import * as wordNormalization from '@/src/features/selection-translation/services/wordNormalization';
 
 vi.mock('webextension-polyfill', () => ({default: {}}));
 
@@ -65,7 +67,9 @@ function mountSelection() {
         '@/src/platform/browser/runtimeMessages': runtimeMessages,
         '@/src/services/config/store': {config, subscribeConfig: () => unsubscribeConfig},
         '@/src/features/selection-translation/core': selectionCore,
+        '@/src/features/selection-translation/services/wordNormalization': wordNormalization,
         '@/src/core/config/harness': harness,
+        '@/src/core/language/detect': detect,
         '@/src/features/share-card/public': {isShareCardMounted: () => false},
         '@/src/features/selection-translation/content/selectionTtsContentController': {
             createSelectionTtsContentController: () => ({stop: stopTts}),
@@ -115,6 +119,9 @@ describe('SelectionTranslator lifecycle after extension reload', () => {
             state.positionFrame = window.requestAnimationFrame(onTimer);
             const pendingTranslation = new AbortController();
             state.translationAbortController = pendingTranslation;
+            const pendingWordLookup = new AbortController();
+            state.wordLookupAbortController = pendingWordLookup;
+            state.isWordCardSupportLoading = true;
             state.translationResult = '译文';
             state.isLoading = true;
             if (failure === 'runtime removed') Reflect.deleteProperty(browser, 'runtime');
@@ -131,6 +138,8 @@ describe('SelectionTranslator lifecycle after extension reload', () => {
             expect([...listeners.values()].every(set => set.size === 0)).toBe(true);
             expect(window.cancelAnimationFrame).toHaveBeenCalledTimes(2);
             expect(pendingTranslation.signal.aborted).toBe(true);
+            expect(pendingWordLookup.signal.aborted).toBe(true);
+            expect(state.isWordCardSupportLoading).toBe(false);
             expect(fixture.stopTts).toHaveBeenCalledWith(true);
             expect(window.speechSynthesis.cancel).toHaveBeenCalledOnce();
             expect(state.translationResult).toBe('');
@@ -140,4 +149,78 @@ describe('SelectionTranslator lifecycle after extension reload', () => {
             expect(onTimer).not.toHaveBeenCalled();
         },
     );
+
+    const card = (word: string) => ({word, normalizedWord: word, phonetics: [], sources: [],
+        meanings: [{partOfSpeech: '名词', definitions: [{definition: 'an English definition'}]}]});
+    function beginWord(fixture: ReturnType<typeof mountSelection>, word: string) {
+        fixture.state.snapshot = {text: word};
+        fixture.state.selectedText = word;
+        return fixture.state.beginSelectionContentRequest(word);
+    }
+
+    it('shows the first word card while auxiliary translation is pending and cancels that wait on unmount', async () => {
+        const fixture = mountSelection();
+        const {state, browser} = fixture;
+        browser.runtime.sendMessage.mockImplementation((message: any) => message.type !== 'selectionWordLookup'
+            ? Promise.resolve({success: true, zoom: 1})
+            : message.translateFields ? new Promise(() => {}) : Promise.resolve({success: true, data: card(message.word)}));
+        const pending = state.requestWordCard(beginWord(fixture, 'read'));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(state.wordCard.word).toBe('read');
+        expect(state.isWordCardLoading).toBe(false);
+        expect(state.isWordCardSupportLoading).toBe(true);
+        fixture.unmount();
+        await pending;
+        expect(vi.getTimerCount()).toBe(0);
+        expect(state.wordCard).toBeNull();
+    });
+
+    it('ends an unresponsive message after 3.5 seconds while keeping the ordinary translation', async () => {
+        const fixture = mountSelection();
+        fixture.browser.runtime.sendMessage.mockImplementation((message: any) => message.type === 'selectionWordLookup'
+            ? new Promise(() => {}) : Promise.resolve({success: true, zoom: 1}));
+        const request = beginWord(fixture, 'missing');
+        fixture.state.translationResult = '已有译文';
+        const pending = fixture.state.requestWordCard(request);
+        await vi.advanceTimersByTimeAsync(3_500);
+        await pending;
+        expect(fixture.state.isWordCardLoading).toBe(false);
+        expect(fixture.state.wordCardError).toContain('可稍后重查');
+        expect(fixture.state.translationResult).toBe('已有译文');
+    });
+
+    it('ignores an old word response after the user selects a new word', async () => {
+        const fixture = mountSelection();
+        let release!: (response: any) => void;
+        fixture.browser.runtime.sendMessage.mockImplementation((message: any) => message.type !== 'selectionWordLookup'
+            ? Promise.resolve({success: true, zoom: 1}) : message.word === 'old'
+                ? new Promise(resolve => { release = resolve; }) : Promise.resolve({success: true, data: card(message.word)}));
+        const old = fixture.state.requestWordCard(beginWord(fixture, 'old'));
+        const current = fixture.state.requestWordCard(beginWord(fixture, 'new'));
+        await vi.advanceTimersByTimeAsync(0);
+        await current;
+        release({success: true, data: card('old')});
+        await old;
+        expect(fixture.state.wordCard.word).toBe('new');
+        expect(fixture.state.wordCardError).toBe('');
+        expect(fixture.state.isWordCardSupportLoading).toBe(false);
+    });
+});
+
+it('keeps an existing ordinary translation running when opening the learning view', async () => {
+    const fixture = mountSelection();
+    fixture.config.harness.enabled = true;
+    fixture.state.selectionConfigVersion += 1;
+    await Vue.nextTick();
+    const pending = new AbortController();
+    fixture.state.snapshot = {text: 'Practice helps.', range: {}, parts: [{kind: 'text', text: 'Practice helps.'}]};
+    fixture.state.readingSelection = {text: 'Practice helps.', context: '', sentence: 'Practice helps.'};
+    fixture.state.activeContentRequest = {text: 'Practice helps.', generation: 1, sourceLanguage: 'auto', targetLanguage: 'zh-Hans'};
+    fixture.state.translationAbortController = pending;
+    fixture.state.isLoading = true;
+    fixture.state.openReadingCard();
+    expect(fixture.state.readingMode).toBe(true);
+    expect(pending.signal.aborted).toBe(false);
+    fixture.unmount();
+    expect(pending.signal.aborted).toBe(true);
 });
