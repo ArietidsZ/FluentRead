@@ -21,12 +21,12 @@
     "screenIndex": 1,
     "browserFrontmost": false,
     "frontmostBefore": {
-      "pid": 63844,
-      "name": "访达"
+      "pid": 44386,
+      "name": "Google Chrome"
     },
     "frontmostAfter": {
-      "pid": 63844,
-      "name": "访达"
+      "pid": 44386,
+      "name": "Google Chrome"
     }
   },
   "cases": [
@@ -111,5 +111,5 @@
     "webdav-backup-mobile.png",
     "webdav-english-review-mobile.png"
   ],
-  "testedSourceCommit": "49e1efb91a25f658fbba07cad64619fe8bcf576e"
+  "testedSourceCommit": "5aa27ebc71bf86987f67d6797bf6f1d89f32202b"
 }
