@@ -9,6 +9,7 @@ import {ensureContentFeatureMounted} from './featureLifecycle';
 import type {ContentScriptContext} from 'wxt/utils/content-script-context';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
 import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
+import {addRuntimeMessageListener} from '@/src/platform/browser/runtimeMessages';
 import {constants} from '@/src/core/config/constants';
 import {isExtensionDisabledOnSite} from '@/src/features/site-rules/domain';
 import {createFrameSessionController} from '@/src/features/full-page-translation/content/frameSession';
@@ -67,8 +68,8 @@ function installMailTopFrameBridge(kind: MailFrameKind, isEnabled: () => boolean
         respond({...getFullPageTranslationFrameState(), enabled: available()});
         return true;
     };
-    browser.runtime.onMessage.addListener(listener);
-    signal.addEventListener('abort', () => browser.runtime.onMessage.removeListener(listener), {once: true});
+    const removeMessageListener = addRuntimeMessageListener(browser.runtime, listener);
+    signal.addEventListener('abort', removeMessageListener, {once: true});
     document.addEventListener('fluentread-translation-started', notify, {signal});
     document.addEventListener('fluentread-translation-ended', notify, {signal});
     if (kind === 'netease') {
@@ -200,7 +201,7 @@ async function startMailFrameApp(ctx: ContentScriptContext, kind: MailFrameKind)
     document.addEventListener('fluentread-route-change', () => {
         if (siteAdaptation.routeChanged(new URL(siteHref())) && enabled()) void controller.refresh();
     }, {signal: lifetime.signal});
-    browser.runtime.onMessage.addListener(listener);
+    const removeMessageListener = addRuntimeMessageListener(browser.runtime, listener);
     applyCoreTranslationPreferences(config);
     const unsubscribe = subscribeConfig(() => {
         applyCoreTranslationPreferences(config);
@@ -212,7 +213,7 @@ async function startMailFrameApp(ctx: ContentScriptContext, kind: MailFrameKind)
     cleanup = () => {
         if (lifetime.signal.aborted) return;
         disposed = true; lifetime.abort(); controller.dispose(); unsubscribe();
-        browser.runtime.onMessage.removeListener(listener);
+        removeMessageListener();
     };
     if (enabled()) await controller.refresh();
 }

@@ -172,6 +172,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import browser from 'webextension-polyfill';
+import {addRuntimeMessageListener} from '@/src/platform/browser/runtimeMessages';
 import {openShareCard, isShareCardMounted} from '@/src/features/share-card/public';
 import { config, subscribeConfig } from '@/src/services/config/store';
 import { translateText, translateTextBatch } from '@/src/app/translation/client';
@@ -289,6 +290,7 @@ let uiPointerInteraction = false;
 let suppressSelectionUntil = 0;
 let systemThemeMedia: MediaQueryList | null = null;
 let unsubscribeConfig: (() => void) | null = null;
+const runtimeMessageUnsubscribers: Array<() => void> = [];
 let releaseContextMenuHandler: (() => void) | null = null;
 let tooltipResizeObserver: ResizeObserver | null = null;
 const selectionConfigVersion = ref(0);
@@ -1626,9 +1628,11 @@ onMounted(() => {
   updateTheme();
   systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
   systemThemeMedia.addEventListener('change', updateTheme);
-  browser.runtime.onMessage.addListener(handleSelectionSettingsMessage);
-  browser.runtime.onMessage.addListener(handleVocabularyBookChanged);
-  browser.runtime.onMessage.addListener(handlePageZoomChanged);
+  runtimeMessageUnsubscribers.push(
+    addRuntimeMessageListener(browser.runtime, handleSelectionSettingsMessage),
+    addRuntimeMessageListener(browser.runtime, handleVocabularyBookChanged),
+    addRuntimeMessageListener(browser.runtime, handlePageZoomChanged),
+  );
   void requestPageZoom();
   releaseContextMenuHandler = setSelectionContextMenuHandler(translateSelectionFromContextMenu);
   unsubscribeConfig = subscribeConfig(() => { selectionConfigVersion.value += 1; });
@@ -1641,7 +1645,7 @@ onMounted(() => {
   document.addEventListener('keydown', handleKeydown, true);
   document.addEventListener('keyup', handleKeyup, true);
   window.addEventListener('blur', handleWindowBlur);
-  browser.runtime.onMessage.addListener(handleSelectionTtsState);
+  runtimeMessageUnsubscribers.push(addRuntimeMessageListener(browser.runtime, handleSelectionTtsState));
   window.addEventListener('scroll', handleScroll, true);
   window.addEventListener('resize', handleViewportResize);
   watch(tooltipRef, (tooltip) => {
@@ -1731,9 +1735,7 @@ onBeforeUnmount(() => {
   clearCopyFeedback();
   if (noticeTimer !== null) window.clearTimeout(noticeTimer);
   systemThemeMedia?.removeEventListener('change', updateTheme);
-  browser.runtime.onMessage.removeListener(handleSelectionSettingsMessage);
-  browser.runtime.onMessage.removeListener(handleVocabularyBookChanged);
-  browser.runtime.onMessage.removeListener(handlePageZoomChanged);
+  runtimeMessageUnsubscribers.splice(0).forEach(unsubscribe => unsubscribe());
   unsubscribeConfig?.();
   unsubscribeConfig = null;
   tooltipResizeObserver?.disconnect();
@@ -1747,7 +1749,6 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleKeydown, true);
   document.removeEventListener('keyup', handleKeyup, true);
   window.removeEventListener('blur', handleWindowBlur);
-  browser.runtime.onMessage.removeListener(handleSelectionTtsState);
   window.removeEventListener('scroll', handleScroll, true);
   window.removeEventListener('resize', handleViewportResize);
   resetSelectionContentState(true);
