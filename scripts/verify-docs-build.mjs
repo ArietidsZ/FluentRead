@@ -141,7 +141,9 @@ for (const prefix of ['', '/en']) {
     'Homepage demonstrations must start automatically'
   )
   assert(
-    home.querySelector('[data-demo="brand-reader"]') && home.querySelector('[data-demo="grammar"]'),
+    home.querySelector('[data-demo="brand-reader"]') &&
+      home.querySelector('.fd-sentence-card') &&
+      home.querySelector('.fd-word-card'),
     'Homepage must contain readable SSR examples'
   )
   assert(
@@ -164,17 +166,32 @@ for (const prefix of ['', '/en']) {
     'Primary feature needs a visible bilingual translation heading'
   )
   assert(
-    home.querySelector('h1')?.textContent.includes(prefix ? 'Bilingual translation' : '双语翻译'),
-    'Bilingual translation must be the primary promise'
+    home.querySelector('.bv-hero h1')?.textContent.includes('流畅阅读') &&
+      home.querySelector('.bv-hero h1')?.textContent.includes('FluentRead') &&
+      home
+        .querySelector('.bv-hero-slogan')
+        ?.textContent.includes(prefix ? 'Closer languages.' : '让语言更近，'),
+    'The product names and canonical brand slogan must be prominent'
   )
   assert(
     home.querySelector('.bv-home-brand')?.textContent.includes(prefix ? 'FluentRead' : '流畅阅读'),
     'Localized product name missing'
   )
   assert(
-    home.querySelector('.bv-greetings')?.textContent.includes('Hello') &&
-      home.querySelector('.bv-greetings')?.textContent.includes('你好'),
+    home.querySelector('.bv-hero-orbit')?.textContent.includes('Hello') &&
+      home.querySelector('.bv-hero-orbit')?.textContent.includes('你好'),
     'Multilingual greetings missing'
+  )
+  assert.equal(
+    home.querySelectorAll('.bv-feature-row').length,
+    5,
+    'Five consistent feature sections required'
+  )
+  assert(
+    ['page', 'document', 'grammar'].every((kind) =>
+      home.querySelector(`.bv-hero-orbit .bv-orbit-${kind}`)
+    ),
+    'Hero scene decorations must stay present'
   )
   assert(
     !home.querySelector('.bv-pointer,.bv-end'),
