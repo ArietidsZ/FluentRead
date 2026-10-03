@@ -1,7 +1,7 @@
 <!--
  * @file src/ui/components/UiLanguageOnboarding.vue
  * 文件职责：承载 FluentRead Popup 首次打开时的欢迎与界面语言选择引导。
- * 主要内容：以正常文档流撑开工具栏 Popup，先加载英语资源并展示多语言欢迎画面与中英文品牌宣传语，再进入语言卡片选择；确认后显示成功动效并把控制权交回主界面。
+ * 主要内容：用稳定尺寸展示多语言欢迎画面与中英文品牌宣传语，语言卡片分行显示完整双语名称，奇数末项铺满一行；确认后显示成功动效并把控制权交回主界面。
  * 模块边界：组件只负责首次引导的呈现与确认，不读取配置、不决定浏览器 locale 映射；配置保存由 src/ui/i18n.ts 负责，语言规则由 src/core/i18n 提供。
 -->
 <template>
@@ -99,7 +99,14 @@
                 :data-language="option.value"
                 @click="selectedLanguage = option.value"
               >
-                <span class="onboarding-language-name">{{ getUiLanguageBilingualLabel(option.value) }}</span>
+                <span class="onboarding-language-name">
+                  <span
+                    v-for="(label, index) in getUiLanguageBilingualLabel(option.value).split(' / ')"
+                    :key="index"
+                    :lang="index === 0 ? 'zh-CN' : 'en'"
+                    :class="{ 'onboarding-language-secondary': index > 0 }"
+                  >{{ label }}</span>
+                </span>
                 <span class="onboarding-language-check" aria-hidden="true">✓</span>
               </button>
             </div>
@@ -135,6 +142,7 @@ import brandTaglines from '@/src/core/i18n/messages/brand-taglines.json';
 import {nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import {
   getUiLanguageBilingualLabel,
+  hasUiLanguageBundle,
   UI_LANGUAGE_OPTIONS,
   translate,
   type TranslationParams,
@@ -172,7 +180,7 @@ const languageOptionButtons = ref<HTMLButtonElement[]>([]);
 const confirming = ref(false);
 const celebrating = ref(false);
 const errorMessage = ref('');
-const englishReady = ref(false);
+const englishReady = ref(hasUiLanguageBundle('en-US'));
 let transitionTimer: ReturnType<typeof setTimeout> | undefined;
 
 watch(() => props.initialLanguage, value => {
@@ -248,6 +256,7 @@ onMounted(() => {
   position: relative;
   z-index: 20;
   display: grid;
+  min-height: 446px;
   padding: 14px;
   place-items: center;
   overflow: hidden;
@@ -267,12 +276,14 @@ onMounted(() => {
   position: relative;
   z-index: 1;
   width: 100%;
+  min-height: 418px;
+  display: grid;
+  align-content: center;
   padding: 20px 18px 18px;
   border: 1px solid var(--line);
   border-radius: 24px;
   background: var(--surface);
   box-shadow: 0 16px 36px rgba(27, 36, 57, .1);
-  animation: onboarding-card-in 360ms cubic-bezier(.2, .8, .2, 1) both;
 }
 
 .onboarding-brand {
@@ -506,7 +517,7 @@ onMounted(() => {
 .onboarding-language-option {
   position: relative;
   display: flex;
-  min-height: 43px;
+  min-height: 46px;
   align-items: center;
   padding: 8px 29px 8px 11px;
   border: 1px solid var(--line);
@@ -523,6 +534,10 @@ onMounted(() => {
   transform: translateY(-1px);
 }
 
+.onboarding-language-option:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .onboarding-language-option.selected {
   border-color: var(--brand);
   background: var(--brand-soft);
@@ -530,12 +545,19 @@ onMounted(() => {
 }
 
 .onboarding-language-name {
-  overflow: hidden;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
   font-size: 11.5px;
   font-weight: 760;
   line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+
+.onboarding-language-secondary {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .onboarding-language-check {
@@ -659,27 +681,20 @@ onMounted(() => {
 
 .onboarding-content-enter-active,
 .onboarding-content-leave-active {
-  transition: opacity 180ms ease, transform 180ms ease;
+  transition: opacity 180ms ease;
 }
 
 .onboarding-content-enter-from {
   opacity: 0;
-  transform: translateY(8px) scale(.98);
 }
 
 .onboarding-content-leave-to {
   opacity: 0;
-  transform: translateY(-8px) scale(.98);
 }
 
 @keyframes onboarding-backdrop-in {
   from { opacity: 0; }
   to { opacity: 1; }
-}
-
-@keyframes onboarding-card-in {
-  from { opacity: 0; transform: translateY(16px) scale(.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes onboarding-word-float {
