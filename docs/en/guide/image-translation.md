@@ -4,6 +4,28 @@ Image translation recognizes text inside webpage images and overlays the transla
 
 The hover entry skips common avatars, icons, logos, emoji, video previews, and small images where it can identify them. Video previews on sites such as X/Twitter can be skipped before playback starts, using player or thumbnail markers. Enlarging a small image may still leave the entry hidden. If an image you want to translate has no icon, use its context menu or open a clear original and try again.
 
+## Continuous manga translation
+
+The manga reader on [MANGA Plus by SHUEISHA](https://mangaplus.shueisha.co.jp/) is supported. Enable webpage image translation under **Manga/images → Translation entries**, leave the manga button enabled, and enable the floating ball. A manga icon appears beside the floating ball in a chapter.
+
+- Click once to enable translation for the current chapter. Loaded pages entering the viewport are processed one at a time. Scrolling continues the session; local manga models are prepared automatically with progress on first use.
+- Click again to show originals and pause new work. Another click restores translations and resumes. Visible decoded results switch immediately; nearby results use a cache bounded by image count and pixels. Evicted pages may need processing again.
+- Failed pages retain their originals and individual retry controls. Other visible pages can continue. Changing chapters, disabling image translation, or leaving the page cancels old work and restores originals.
+
+This uses your image translation service and language settings. FluentRead adds no membership or image quota; the selected service's own limits and costs still apply. MANGA Plus is the current adapted reader. Other websites can use single-image or area translation; another product's site list does not represent FluentRead support.
+
+Manga uses local PaddleOCR. Closed light speech bubbles are enlarged and recognized individually, nearby lines are grouped into dialogue, and translations use bounded font sizes and wrapping. Local LaMa repairs original lettering on complex backgrounds. Ordinary images and area recognition retain their own OCR language packs. Small or tilted text, decorative fonts, names, and background repair can still be imperfect; use originals or **Text → Compare original** to check.
+
+### Download manga models
+
+Under **Manga/images → Text recognition**, view model status, choose a source, import files, or clear models. Recognition needs about 30 MB. The first complex background also needs an inpainting model of about 197 MB. Settings show the current download source and received bytes; the manga page shows preparation progress.
+
+By default, Hugging Face is tried first, then a backup mirror after connection failure, prolonged inactivity, or integrity failure. You can prefer the mirror instead. Completed verified files are retained, so retrying after cancellation or failure only prepares missing files. An interrupted individual file must restart. Clearing manga models preserves ordinary OCR packs, translation configuration, and source preferences.
+
+For restricted networks, expand **Get offline model files**, obtain the four matching files through an accessible source, and select them together with **Import downloaded models**. File names, complete sizes, and SHA-256 hashes must match; imported files stay local and are never uploaded. Once the models are present, recognition and repair can run offline. Your text translation service still needs its own connection.
+
+The backup mirror is an independent third party. Every source uses the same fixed versions and integrity checks. Multiple sources and offline import accommodate differing networks in China, the United States, and other regions; availability still depends on local networks and services and cannot be guaranteed for every country or carrier at all times.
+
 ## Translate one image
 
 1. Make sure image translation is enabled. Click the icon near the image’s lower-left corner, or use the image’s context menu.

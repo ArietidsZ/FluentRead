@@ -459,6 +459,7 @@ export class Config {
     areaRecognitionMode: AreaRecognitionMode; // 圈选优先使用模型识图，模型不支持时回退本地 OCR
     areaVisionPrompt: string; // 模型识图时发送的图片文字提取指令
     modelVision: ModelVisionOverrides; // 按服务和精确模型保存的视觉能力显式覆盖
+    imageTranslationMangaEnabled: boolean; // 是否在已适配阅读器显示漫画连续翻译入口
     imageTranslationHoverEnabled: boolean; // 是否显示图片悬浮入口
     imageTranslationContextMenuEnabled: boolean; // 是否显示图片右键入口
     disableImageTranslator: boolean; // 是否禁用图片翻译
@@ -648,6 +649,7 @@ export class Config {
         this.areaRecognitionMode = 'prefer-vision';
         this.areaVisionPrompt = DEFAULT_AREA_VISION_PROMPT;
         this.modelVision = {};
+        this.imageTranslationMangaEnabled = true;
         this.imageTranslationHoverEnabled = true;
         this.imageTranslationContextMenuEnabled = true;
         this.disableImageTranslator = true; // 默认关闭图片翻译，由用户按需开启
@@ -1394,6 +1396,7 @@ export function normalizeConfig(value: unknown): Config {
     if (typeof normalized.disableImageTranslator !== 'boolean') {
         normalized.disableImageTranslator = true;
     }
+    normalized.imageTranslationMangaEnabled = typeof normalized.imageTranslationMangaEnabled === 'boolean' ? normalized.imageTranslationMangaEnabled : true;
     normalized.imageTranslationHoverEnabled = typeof normalized.imageTranslationHoverEnabled === 'boolean' ? normalized.imageTranslationHoverEnabled : true;
     normalized.imageTranslationContextMenuEnabled = typeof normalized.imageTranslationContextMenuEnabled === 'boolean' ? normalized.imageTranslationContextMenuEnabled : true;
     if (typeof normalized.contextMenuEnabled !== 'boolean') {

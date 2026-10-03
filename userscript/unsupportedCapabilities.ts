@@ -43,3 +43,10 @@ export {
     VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE,
     VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE,
 } from '@/src/features/video-subtitle/transcriptionCache';
+
+/** 油猴没有扩展 OCR/offscreen 能力，悬浮球漫画入口始终不可用。 */
+export function toggleMangaTranslation(): boolean { return false; }
+export function subscribeMangaTranslation(listener: (status: {available: boolean; active: boolean; pending: boolean; errors: number}) => void): () => void {
+    listener({available: false, active: false, pending: false, errors: 0});
+    return () => undefined;
+}

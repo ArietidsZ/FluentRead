@@ -1,7 +1,7 @@
 /**
  * @file src/features/floating-ball/content/runtime.ts
- * 文件职责：协调悬浮球组件在网页中的创建、恢复位置、显隐、全屏避让、高级外观同步、权威翻译状态同步和卸载，并向组件注入全文翻译切换与打开设置页的动作。
- * 主要内容：维护单例 Shadow UI、迟到挂载 requestId、站点名单守卫、页面全屏显隐监听、响应式展示契约与配置订阅、全文会话订阅，并将拖动后的停靠侧和纵向比例作为同一配置补丁保存，提供 mountFloatingBall、toggleFloatingBallTranslation、unmountFloatingBall 三个生命周期入口。
+ * 文件职责：协调悬浮球组件在网页中的创建、恢复位置、显隐、全屏避让、高级外观同步、权威翻译状态同步和卸载，并向组件注入全文翻译、漫画连续翻译切换与打开设置页的动作。
+ * 主要内容：维护单例 Shadow UI、迟到挂载 requestId、站点名单守卫、页面全屏显隐监听、响应式展示契约与配置订阅、全文与漫画会话订阅，并将拖动后的停靠侧和纵向比例作为同一配置补丁保存，提供 mountFloatingBall、toggleFloatingBallTranslation、unmountFloatingBall 三个生命周期入口。
  * 模块边界：运行时只拥有挂载和桥接职责，不实现拖拽视觉、外观归一化或全文翻译算法；FloatingBall.vue 负责交互，core/config 负责字段归一化，full-page feature 提供翻译动作，配置持久化通过 services/config 完成。
  */
 import FloatingBall from '@/src/features/floating-ball/ui/FloatingBall.vue';
@@ -10,6 +10,7 @@ import {config, requestConfigPatch, subscribeConfig} from '@/src/services/config
 import type {Config} from '@/src/core/config/model';
 import {isFloatingBallDisabledOnSite} from '@/src/core/site-rules/domain';
 import {reactive} from 'vue';
+import {subscribeMangaTranslation, toggleMangaTranslation, type MangaTranslationStatus} from '@/src/features/image-translation/public';
 import browser from 'webextension-polyfill';
 import {
   autoTranslateEnglishPage,
@@ -36,6 +37,7 @@ let unsubscribeFullPageTranslationProgress: (() => void) | null = null;
 let unsubscribePresentationConfig: (() => void) | null = null;
 let floatingBallPresentation: FloatingBallPresentation | null = null;
 let removeFullscreenListener: (() => void) | null = null;
+let unsubscribeMangaTranslation: (() => void) | null = null;
 
 /** 把实时配置折叠为组件需要的展示契约；字段语义与归一化都由 core/config 保证。 */
 function readPresentation(source: Config): FloatingBallPresentation {
@@ -106,6 +108,9 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
   // 展示契约是响应式对象，设置页改动无需重新挂载即可同步到已显示的悬浮球。
   const presentation = reactive(readPresentation(config));
   floatingBallPresentation = presentation;
+  const manga = reactive<MangaTranslationStatus>({available: false, active: false, pending: false, errors: 0});
+  const stopManga = subscribeMangaTranslation(status => Object.assign(manga, status));
+  unsubscribeMangaTranslation = stopManga;
 
   mountingPromise = createVueShadowUi(contentScriptContext, {
     name: 'fluent-read-floating-ball-ui',
@@ -118,6 +123,8 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
       logoUrl: browser.runtime.getURL('/icon/128.png'),
       initialTranslating: isFullPageTranslationActive(),
       presentation,
+      manga,
+      onMangaToggle: (event: MouseEvent) => { if (event.isTrusted) toggleMangaTranslation(); },
       onSettingsClick: () => openOptionsPage(),
       // 两个坐标字段必须一起提交，避免连续拖动或跨页面保存时只留下其中一个。
       onPositionChanged: (newPosition: 'left' | 'right', verticalPosition: number) => {
@@ -169,6 +176,10 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
     console.error('[FluentRead] 悬浮球挂载失败', error);
     return null;
   }).finally(() => {
+    if (!floatingBallUi || requestId !== mountRequestId) {
+      stopManga();
+      if (unsubscribeMangaTranslation === stopManga) unsubscribeMangaTranslation = null;
+    }
     mountingPromise = null;
   });
 
@@ -191,6 +202,8 @@ export function toggleFloatingBallTranslation(): boolean {
 export function unmountFloatingBall() {
   // 先使仍在等待的挂载失效，再释放当前实例，避免迟到的 Promise 重新写回句柄。
   mountRequestId++;
+  unsubscribeMangaTranslation?.();
+  unsubscribeMangaTranslation = null;
   unsubscribeFullPageTranslationProgress?.();
   unsubscribeFullPageTranslationProgress = null;
   unsubscribePresentationConfig?.();

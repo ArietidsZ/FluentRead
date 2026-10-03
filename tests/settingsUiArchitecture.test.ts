@@ -398,7 +398,7 @@ describe('options UI composition architecture', () => {
     expect(paletteSkinStyles).toContain('--el-bg-color: var(--surface)')
     expect(interfaceAppearance).toContain('dataset.interfaceSkinKind = skin.kind')
     expect(interfaceAppearance).toContain("style.setProperty('--interface-popup-width'")
-    expect(settingsSections).toContain('<ImageOcrSettings v-if="props.activeSection === \'settings-image-translation\'" v-model:source-language="config.from" />')
+    expect(settingsSections).toContain('<ImageOcrSettings v-if="props.activeSection === \'settings-image-translation\'" v-model:source-language="config.from" show-manga />')
     expect(settingsSections).toContain("v-if=\"hasVisitedSection('settings-image-translation')\"")
     expect(settingsSections).toContain('<AreaTranslationSettings')
     expect(settingsSections).toContain('id="settings-area-translation"')

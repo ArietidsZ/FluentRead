@@ -134,6 +134,7 @@ const VISIBLE_FIELDS: Record<string, string> = {
     paragraphCopyEnabled: '段落复制',
     sectionTranslationHotkeyEnabled: '局部翻译快捷键',
     selectionAreaEnabled: '圈选翻译',
+    imageTranslationMangaEnabled: '漫画连续翻译入口',
     imageTranslationHoverEnabled: '图片悬浮按钮',
     imageTranslationContextMenuEnabled: '图片右键菜单',
     freeTranslationTimeoutMs: '每路免费翻译超时',

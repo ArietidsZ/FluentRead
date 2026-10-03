@@ -250,6 +250,11 @@
 <SettingsGroup title="功能状态">
         <FeatureEnableCard v-model="imageTranslationEnabled" title="网页图片翻译" :description="t('featureEnable.imageDescription')" :disabled="!browserCapabilities.imageTranslation" />
       </SettingsGroup>
+      <SettingsGroup title="漫画连续翻译">
+        <SettingsItem label="显示漫画翻译按钮" description="目前支持 MANGA Plus 阅读器。开启图片翻译和悬浮球后，点击漫画按钮即可边滚动边翻译；再次点击切回原图并暂停。">
+          <el-switch v-model="config.imageTranslationMangaEnabled" class="settings-toggle" aria-label="显示漫画翻译按钮" :disabled="!imageTranslationEnabled || !browserCapabilities.imageTranslation" />
+        </SettingsItem>
+      </SettingsGroup>
       <SettingsGroup :title="t('image.entries')">
         <SettingsItem :label="t('image.hover')" :description="t('image.hoverDescription')">
           <el-switch v-model="config.imageTranslationHoverEnabled" class="settings-toggle" :aria-label="t('image.hover')" :disabled="!imageTranslationEnabled || !browserCapabilities.imageTranslation" />
@@ -265,7 +270,7 @@
         </div>
       </SettingsPanel>
       <SettingsPanel name="ocr">
-        <ImageOcrSettings v-if="props.activeSection === 'settings-image-translation'" v-model:source-language="config.from" />
+        <ImageOcrSettings v-if="props.activeSection === 'settings-image-translation'" v-model:source-language="config.from" show-manga />
       </SettingsPanel>
     </section>
     <section v-if="hasVisitedSection('settings-video')" v-show="props.activeSection === 'settings-video'" id="settings-video" class="settings-section">

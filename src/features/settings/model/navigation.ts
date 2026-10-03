@@ -102,10 +102,10 @@ export const navigationGroups = [
         searchDescription: '划词翻译、普通翻译、卡片模式、词性、句法、冠词、名词、触发、朗读、翻译卡片、阅读卡、Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关',
       },
       {
-        id: 'settings-image-translation', icon: '图', label: '图片翻译', description: '网页图片、圈选区域与 OCR', group: '专项翻译',
-        heading: '图片翻译', summary: '管理网页图片、圈选区域和共享的本地 OCR 语言包。',
-        kicker: '专项翻译', title: '图片翻译', detail: '悬停网页图片，从图片入口识别和翻译文字。',
-        searchDescription: '图片翻译、圈选翻译、区域翻译、截图、识图、视觉、Shift+Z、OCR、语言包、中文、英文、日文、下载',
+        id: 'settings-image-translation', icon: '图', label: '漫画/图片', description: '漫画连续翻译、网页图片与圈选', group: '专项翻译',
+        heading: '漫画/图片翻译', summary: '边滚动边翻译漫画，也能翻译单张图片与圈选区域；漫画使用专用本地识别和文字清除。',
+        kicker: '专项翻译', title: '漫画/图片翻译', detail: '一次开启漫画翻译，滚动阅读时自动继续，随时切回原图。',
+        searchDescription: '漫画、漫画翻译、MANGA Plus、连续翻译、图片翻译、圈选翻译、区域翻译、截图、识图、视觉、Shift+Z、OCR、语言包、中文、英文、日文、下载',
       },
       {
         id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube/X 边看边译', group: '专项翻译',
@@ -284,7 +284,7 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
     {"id": "cache", "labelKey": "options.panel.cache", "searchTerms": "缓存 容量 条数 存储 清除", "targetIds": []},
   ],
   'settings-image-translation': [
-    {"id": "entries", "labelKey": "options.panel.entries", "searchTerms": "图片 悬停 右键", "targetIds": []},
+    {"id": "entries", "labelKey": "options.panel.entries", "searchTerms": "漫画 MANGA Plus 连续 图片 悬停 右键", "targetIds": []},
     {id: 'area', labelKey: 'area.settings.title', searchTerms: '圈选 区域 截图 识图 视觉 Shift+Z', targetIds: ['settings-area-translation']},
     {"id": "ocr", "labelKey": "options.panel.ocr", "searchTerms": "OCR 语言包 识别 下载", "targetIds": []},
   ],
