@@ -7,6 +7,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；翻译服务的源文本、目标文本和用户内容不属于这里。
  */
 import brandTaglines from './brand-taglines.json';
+import {onboardingChineseMessages} from './onboarding';
 import googleDriveText from './google-drive/zh-CN.json';
 import cloudBackupText from './cloud-backup/zh-CN.json';
 import type {
@@ -941,22 +942,15 @@ export const zhCNMessages = {
     'language.settingsLabel': '软件语言',
     'language.settingsDescription': '选择 FluentRead 所有界面使用的语言。',
     'language.help': '切换后立即生效。',
-    'language.saveFailed': '界面语言保存失败，请重新打开设置页后重试。',
+    ...onboardingChineseMessages,
     'language.changed': '界面语言已切换',
-    'language.onboardingWelcomeEyebrow': '欢迎使用',
     'language.onboardingWelcomeTitle': '欢迎使用 FluentRead',
     'language.onboardingWelcomeDescription': '从现在开始，轻松读懂更多语言的网页。',
-    'language.onboardingWelcomeNext': '设置界面语言',
-    'language.onboardingBack': '返回',
     'language.onboardingEyebrow': '最后一步',
-    'language.onboardingTitle': '选择界面语言',
     'language.onboardingDescription': '选择 FluentRead 使用的界面语言。',
-    'language.onboardingLabel': '语言',
     'language.onboardingRecommended': '推荐',
     'language.onboardingBrowserHint': '已根据浏览器语言预选，你可以随时在设置中更改。',
     'language.onboardingConfirmHint': '选好后，点击确认',
-    'language.onboardingConfirm': '确认',
-    'language.onboardingSuccessEyebrow': '准备好了',
     'language.onboardingSuccessTitle': '开始阅读吧',
     'language.onboardingSuccessDescription': '正在打开 FluentRead。',
     'select.search': '搜索',
@@ -968,9 +962,7 @@ export const zhCNMessages = {
     'common.cancel': '取消',
     'common.confirm': '确认',
     'common.save': '保存',
-    'common.retry': '重试',
     'common.openSettings': '去设置',
-    'common.loading': '加载中…',
     'common.search': '搜索',
     'common.default': '默认',
     'common.none': '无',

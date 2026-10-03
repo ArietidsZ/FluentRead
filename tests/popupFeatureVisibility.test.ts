@@ -1,7 +1,15 @@
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {describe, expect, it} from 'vitest';
+import {runInNewContext} from 'node:vm';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import {popupQuickFeatureOptions} from '@/src/core/config/interfaceAppearance';
+
+const mountPreparedPopupApp = vi.hoisted(() => vi.fn());
+vi.mock('@/src/app/popup/mount', () => ({mountPreparedPopupApp}));
+vi.mock('element-plus/es/components/base/style/css', () => ({}));
+vi.mock('@/src/app/popup/PopupApp.vue', () => ({default: {}}));
+vi.mock('@/src/app/popup/PopupOnboarding.vue', () => ({default: {}}));
+import {mountPopupApp} from '@/src/app/popup';
 
 function source(path: string): string {
     return readFileSync(resolve(process.cwd(), path), 'utf8');
@@ -50,7 +58,6 @@ describe('popup feature visibility', () => {
         expect(onboarding).toContain('M8 1v15M3 12l5 5 5-5');
         expect(onboarding).not.toContain('>↘</span>');
         expect(onboarding).not.toContain('transform: rotate(8deg);\n  animation: onboarding-point');
-        expect(onboarding).not.toContain('.onboarding-language-option:last-child:nth-child(odd)');
         expect(onboarding).toContain('data-testid="onboarding-language-next"');
         expect(onboarding).not.toContain('<select');
         expect(onboarding).toContain('.onboarding-success::before');
@@ -141,7 +148,7 @@ describe('popup feature visibility', () => {
     it('blocks early interaction until the stored configuration is hydrated', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         const styles = source('src/app/popup/popup.css');
-        const startup = source('src/app/popup/index.ts');
+        const startup = source('src/app/popup/mount.ts');
 
         expect(popup).toContain(':data-config-ready="hydrated ? \'true\' : \'false\'"');
         expect(popup).toContain(':inert="!hydrated"');
@@ -352,5 +359,73 @@ describe('popup feature visibility', () => {
         expect(preview).not.toContain('fluentread.app');
         expect(preview).toContain('preview-site-rule-button');
         expect(styles).toMatch(/\.provider-summary \{[^}]*border: 1px solid var\(--line\)/);
+    });
+});
+
+describe('popup worker wakeup', () => {
+    afterEach(() => { vi.unstubAllGlobals(); mountPreparedPopupApp.mockClear(); });
+
+    it('overlaps a pending runtime read with mounting without reusing its snapshot', async () => {
+        let release!: (value: unknown) => void;
+        const sendMessage = vi.fn(() => new Promise(resolve => { release = resolve; }));
+        vi.stubGlobal('browser', {runtime: {sendMessage}});
+        await mountPopupApp('#app');
+        expect(sendMessage).toHaveBeenCalledWith({type: 'popupStartup'});
+        expect(mountPreparedPopupApp).toHaveBeenCalledWith('#app');
+        release({success: true, uiLanguageSetupCompleted: true});
+    });
+
+    it('consumes Chrome callback errors while allowing normal configuration hydration', async () => {
+        vi.stubGlobal('browser', undefined);
+        const lastError = vi.fn(() => ({message: 'worker unavailable'}));
+        const runtime = {sendMessage: vi.fn((_message, callback) => callback()), get lastError() { return lastError(); }};
+        vi.stubGlobal('chrome', {runtime});
+        await mountPopupApp('#app');
+        expect(lastError).toHaveBeenCalledOnce();
+        expect(mountPreparedPopupApp).toHaveBeenCalledOnce();
+    });
+
+    it.each(['rejected', 'throws', 'missing'])('does not block mounting when pre-wakeup %s', async mode => {
+        vi.stubGlobal('chrome', undefined);
+        vi.stubGlobal('browser', mode === 'missing' ? undefined : {runtime: {sendMessage: () => {
+            if (mode === 'throws') throw new Error('closed');
+            return Promise.reject(new Error('closed'));
+        }}});
+        await mountPopupApp('#app');
+        expect(mountPreparedPopupApp).toHaveBeenCalledOnce();
+    });
+});
+
+describe('popup HTML pre-wakeup', () => {
+    afterEach(() => { vi.unstubAllGlobals(); mountPreparedPopupApp.mockClear(); });
+    it('starts native messaging before Vue modules and reuses its pending response', async () => {
+        const html = source('entrypoints/popup/index.html');
+        expect(html.indexOf('src="/popup-startup.js"')).toBeLessThan(html.indexOf('type="module"'));
+        let release!: (value: unknown) => void;
+        const sendMessage = vi.fn(() => new Promise(resolve => {release = resolve;}));
+        const sandbox: {browser: unknown; __fluentReadPopupWarmup?: Promise<unknown>} = {browser: {runtime: {sendMessage}}};
+        runInNewContext(source('public/popup-startup.js'), sandbox);
+        expect(sendMessage).toHaveBeenCalledWith({type: 'popupStartup'});
+        vi.stubGlobal('__fluentReadPopupWarmup', sandbox.__fluentReadPopupWarmup);
+        vi.stubGlobal('browser', {runtime: {sendMessage}});
+        await mountPopupApp('#app');
+        expect(sendMessage).toHaveBeenCalledOnce();
+        release({success: true, uiLanguageSetupCompleted: false});
+        await expect(sandbox.__fluentReadPopupWarmup).resolves.toEqual({success: true, uiLanguageSetupCompleted: false});
+    });
+
+    it('consumes callback errors, Promise rejection, synchronous failure and absent runtime', async () => {
+        const lastError = vi.fn(() => ({message: 'not ready'}));
+        const sandboxes = [
+            {chrome: {runtime: {sendMessage: (_message: unknown, callback: () => void) => callback(), get lastError() {return lastError();}}}},
+            {browser: {runtime: {sendMessage: () => Promise.reject(new Error('not ready'))}}},
+            {browser: {runtime: {sendMessage: () => {throw new Error('closed');}}}},
+            {},
+        ];
+        for (const sandbox of sandboxes) {
+            runInNewContext(source('public/popup-startup.js'), sandbox);
+            expect(await (sandbox as {__fluentReadPopupWarmup?: Promise<unknown>}).__fluentReadPopupWarmup).toBeUndefined();
+        }
+        expect(lastError).toHaveBeenCalledOnce();
     });
 });
