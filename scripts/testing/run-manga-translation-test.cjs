@@ -189,7 +189,6 @@ async function patch(config) {
     modelObserver=await observeModelDownloads(extensionId);
     if(preloadModels){
         await modelSettings.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
-    if(!baseline)await modelSettings.locator('.manga-resources > summary').click();
         if(!baseline)await modelSettings.locator('.manga-resources > summary').click();
         await modelSettings.locator('.manga-model-settings').waitFor();
         if(!baseline)await modelSettings.locator('.manga-download-settings > summary').click();
@@ -315,7 +314,7 @@ async function patch(config) {
     report.modelStatusBefore=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadMangaModelStatus'}));
     assert.equal(report.modelStatusBefore.ready,true);assert.ok(report.modelStatusBefore.bytes>30000000);
     await modelSettings.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
-
+    if(!baseline)await modelSettings.locator('.manga-resources > summary').click();
     if(!baseline)await modelSettings.locator('.manga-download-settings > summary').click();
     await modelSettings.getByRole('button',{name:baseline?'清除漫画模型':'清除已下载资源',exact:true}).waitFor();
     await modelSettings.getByLabel('模型下载来源',{exact:true}).selectOption('mirror');

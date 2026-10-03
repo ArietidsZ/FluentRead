@@ -64,6 +64,8 @@ async function clickEntry(selector) {const point = await entry(`const b=this.que
         await wait(async () => !await ball('return true'));assert.equal(await entry('return true'), null);report.cases.push(report.currentCase);
     } else {
         report.currentCase = 'manga discovered with ordinary image translation disabled';await wait(async () => await entry('return !!this.querySelector(".fr-manga-entry")'));
+        assert.equal(await ball('return this.querySelector(".manga-icon")?.tagName.toLowerCase()'), 'svg');
+        assert.equal(await ball('return this.querySelector(".manga-icon")?.textContent.trim()'), '');
         await shot('entry-initial');report.cases.push(report.currentCase);
         report.currentCase = 'manga entry remains after closing floating ball';await patch({disableFloatingBall: true});
         await wait(async () => !await ball('return true'));assert.ok(await entry('return !!this.querySelector(".fr-manga-entry")'));report.cases.push(report.currentCase);
@@ -113,6 +115,17 @@ async function clickEntry(selector) {const point = await entry(`const b=this.que
         const bounds=await entry('const r=this.querySelector(".fr-manga-entry").getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}');
         assert.ok(bounds.left>=0 && bounds.right<=320 && bounds.top>=0 && bounds.bottom<=550);await shot('entry-first-use-dark-narrow');report.cases.push(report.currentCase);
         await popup.goto(`chrome-extension://${id}/popup.html`);
+        report.currentCase='icon and first-use actions work in English and all UI locales';
+        await patch({uiLanguage:'en-US',disableFloatingBall:false});
+        await wait(async()=>await entry('return this.querySelector(".fr-manga-primary")?.textContent.trim() === "Prepare resources and start"'));
+        await wait(async()=>await ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-label") === "Manga translation"'));
+        assert.equal(await ball('return this.querySelector(".manga-icon")?.textContent.trim()'), '');
+        await shot('entry-first-use-english');
+        for(const [locale,title] of [['ja-JP','リソースを準備して開始'],['ko-KR','리소스 준비 후 시작'],['fr-FR','Préparer et commencer'],['ru-RU','Подготовить и начать'],['es-ES','Preparar y comenzar']]){
+            await patch({uiLanguage:locale});
+            await wait(async()=>await entry(`return this.querySelector(".fr-manga-primary")?.textContent.trim() === ${JSON.stringify(title)}`));
+        }
+        report.cases.push(report.currentCase);
         report.currentCase = 'master switch removes manga UI';await patch({on: false});await wait(async () => !await entry('return true'));report.cases.push(report.currentCase);
     }
     assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.status = 'passed';
