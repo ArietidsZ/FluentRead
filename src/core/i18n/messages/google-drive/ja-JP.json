@@ -1,5 +1,7 @@
 {
   "messages": {
+    "settings.drive.privacyBadge": "プライバシー保護",
+    "settings.drive.description": "設定全体を暗号化して自分の Google ドライブに保存し、ほかの端末で復元できます。API キー、OAuth トークン、認証ヘッダー、カスタムリクエスト本文、URL 内の認証パラメーターを含みますが、単語帳、チャット履歴、使用量統計は含みません。",
     "settings.drive.account": "今回の同期アカウント：{email}",
     "settings.drive.differences": "{count} 件の差分。非公開情報とカスタム内容は非表示です。",
     "settings.drive.local": "端末：{value}",

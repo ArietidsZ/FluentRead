@@ -18,6 +18,10 @@ import {translationStatsEnglishMessages} from './translationStats';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
+    "settings.backup.localTitle": "Local backup",
+    "settings.backup.fileTitle": "Backup file",
+    "settings.backup.fileDescription": "Backup files include API keys and other private information and are not encrypted. Keep them safe and do not share them publicly.",
+    "settings.backup.restoreHint": "Choose a FluentRead backup file. Older JSON files can also be restored.",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['en-US'],
     "popup.translationCount": "{count} translations",
