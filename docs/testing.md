@@ -1,5 +1,11 @@
 # 测试与回归
 
+## Popup 首次打开与语言引导
+
+生产构建后运行 `node scripts/testing/run-popup-first-run-height-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <捆绑Node包目录> --browser-path <Edge可执行文件> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-popup-first-run`。只检查首启相关范围：配置读取延迟 1.2 秒、英文资源延迟 0.8 秒时，等待状态与欢迎页高度一致，首个欢迎帧已有双语文字，卡片没有缩放入场。短视口还检查高度由内容撑开，避免重现 130px 高度锁定。
+
+语言页覆盖 280、320、360、400px 宽度和深色主题，确认七个完整双语名称、末项占满整行、确认按钮可见、无横向溢出及内部裁切；逐项选择、返回欢迎页保留选择、确认和重开后不重复引导。脚本使用独立临时 Edge profile 与第二屏后台窗口，保存启动帧尺寸、布局指标和截图；`--baseline` 仅记录旧布局，不代表新验收通过。此证据不包含系统工具栏点击到 Popup 创建的延迟，也不代表 Firefox 实机或商店版本验证。
+
 ## Popup 操作恢复与翻译服务 UI
 
 `node scripts/testing/run-popup-actions-service-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <捆绑Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-popup-actions-ui` 只运行本次 Popup、服务分配、划词抽屉及界面预览专项，不触发全量回归。

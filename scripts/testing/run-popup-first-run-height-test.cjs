@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
  * @file scripts/testing/run-popup-first-run-height-test.cjs
- * Verify that a fresh toolbar popup sizes itself from onboarding and main content.
- * A short emulated viewport reproduces the previous 130px CSS feedback loop;
- * the browser runs in an isolated, focus-safe profile.
+ * Verify fresh popup sizing, stable loading frames and complete language cards.
+ * Delayed configuration/English resources expose first-paint resize and text flashes;
+ * a short viewport also checks the previous height feedback loop. Use --baseline
+ * only to record the old layout without enforcing the new presentation assertions.
  */
 'use strict';
 
@@ -17,6 +18,7 @@ const args = {timeout: 30000};
 for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
   if (flag === '--background') continue;
+  if (flag === '--baseline') { args.baseline = true; continue; }
   assert.ok(flag.startsWith('--') && process.argv[index + 1], `Invalid argument ${flag}`);
   args[flag.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = process.argv[++index];
 }
@@ -30,7 +32,7 @@ fs.mkdirSync(args.artifactsDir, {recursive: true});
 
 const {chromium} = createRequire(path.join(args.playwrightRoot, 'popup-height.cjs'))('playwright');
 const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(args.focusSafeHelper);
-const report = {scope: 'fresh-popup-height', profileMode: 'new-temporary-profile', cases: [], errors: []};
+const report = {scope: 'fresh-popup-height-and-onboarding-layout', baseline: Boolean(args.baseline), profileMode: 'new-temporary-profile', cases: [], errors: []};
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-popup-height-'));
 
 async function inspect(page, label, selector, screenshot) {
@@ -59,8 +61,52 @@ async function inspect(page, label, selector, screenshot) {
   assert.equal(geometry.horizontalOverflow, false, `${label}: horizontal overflow`);
   assert.equal(geometry.mainHidden, label !== 'main', `${label}: wrong content visibility`);
   await page.setViewportSize({width: 400, height: 560});
-  await page.screenshot({path: path.join(args.artifactsDir, screenshot)});
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.locator('.popup-shell').screenshot({path: path.join(args.artifactsDir, screenshot)});
   await page.setViewportSize({width: 400, height: 130});
+}
+
+async function inspectLanguages(page, width, dark) {
+  await page.setViewportSize({width, height: 560});
+  await page.evaluate(({width, dark}) => {
+    document.documentElement.style.setProperty('--interface-popup-width', `${width}px`);
+    document.documentElement.classList.toggle('dark', dark);
+    scrollTo(0, 0);
+  }, {width, dark});
+  const geometry = await page.evaluate(() => {
+    const grid = document.querySelector('.onboarding-language-options').getBoundingClientRect();
+    const shell = document.querySelector('.popup-shell');
+    const options = [...document.querySelectorAll('.onboarding-language-option')].map(option => {
+      const rect = option.getBoundingClientRect();
+      const labels = [...option.querySelectorAll('.onboarding-language-name, .onboarding-language-name span')];
+      return {
+        language: option.dataset.language,
+        text: option.innerText,
+        left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+        clipped: labels.some(label => label.scrollWidth > label.clientWidth + 1 || label.scrollHeight > label.clientHeight + 1),
+      };
+    });
+    const confirm = document.querySelector('.onboarding-form .onboarding-confirm').getBoundingClientRect();
+    return {
+      grid: {left: grid.left, right: grid.right}, options,
+      shellHeight: shell.getBoundingClientRect().height,
+      internalOverflow: shell.scrollHeight > shell.clientHeight + 1,
+      confirmVisible: confirm.top >= 0 && confirm.bottom <= innerHeight,
+      horizontalOverflow: document.documentElement.scrollWidth > innerWidth + 1,
+    };
+  });
+  report.cases.push({label: `languages-${width}-${dark ? 'dark' : 'light'}`, geometry});
+  if (!args.baseline) {
+    assert.equal(geometry.options.length, 7);
+    assert.equal(geometry.options.some(option => option.clipped), false, `${width}px: language text clipped`);
+    const last = geometry.options.at(-1);
+    assert.ok(Math.abs(last.left - geometry.grid.left) <= 1 && Math.abs(last.right - geometry.grid.right) <= 1,
+      `${width}px: empty cell beside final language`);
+    assert.equal(geometry.internalOverflow, false, `${width}px: internal overflow`);
+    assert.equal(geometry.confirmVisible, true, `${width}px: confirm clipped`);
+    assert.equal(geometry.horizontalOverflow, false, `${width}px: horizontal overflow`);
+  }
+  await page.locator('.popup-shell').screenshot({path: path.join(args.artifactsDir, `languages-${width}-${dark ? 'dark' : 'light'}.png`)});
 }
 
 async function main() {
@@ -91,20 +137,99 @@ async function main() {
     assert.equal(session.focusPolicy, 'launchservices-no-foreground');
     const {context} = session;
     const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', {timeout: args.timeout});
+    const popupUrl = `chrome-extension://${new URL(worker.url()).host}/popup.html`;
     const popup = await newPageWithoutForeground(context, args.timeout);
     popup.on('pageerror', error => report.errors.push(`pageerror: ${error.message}`));
     popup.on('console', message => {
       if (message.type() === 'error') report.errors.push(`console: ${message.text()}`);
     });
-    await popup.setViewportSize({width: 400, height: 130});
-    await popup.goto(`chrome-extension://${new URL(worker.url()).host}/popup.html`, {waitUntil: 'domcontentloaded', timeout: args.timeout});
+    await popup.addInitScript(() => {
+      const state = {frames: [], configDelays: 0, englishDelays: 0, stopped: false};
+      globalThis.__onboardingStartup = state;
+      const send = chrome.runtime.sendMessage.bind(chrome.runtime);
+      chrome.runtime.sendMessage = (...args) => {
+        const message = args.find(arg => arg && typeof arg === 'object' && arg.type === 'configStorageRead');
+        if (message?.key !== 'local:config') return send(...args);
+        state.configDelays++;
+        return new Promise(resolve => setTimeout(() => resolve(send(...args)), 1200));
+      };
+      const originalFetch = fetch.bind(globalThis);
+      globalThis.fetch = (...args) => {
+        if (!String(args[0]).endsWith('/i18n/en-US.json')) return originalFetch(...args);
+        state.englishDelays++;
+        return new Promise(resolve => setTimeout(() => resolve(originalFetch(...args)), 800));
+      };
+      let previous;
+      function sample() {
+        const app = document.querySelector('#app');
+        const card = document.querySelector('.language-onboarding-card');
+        const welcome = document.querySelector('[data-testid="onboarding-welcome"]');
+        const phase = document.querySelector('.popup-startup') ? 'startup' : welcome ? 'welcome' : 'other';
+        if (app && phase !== 'other') {
+          const rect = app.getBoundingClientRect();
+          const frame = {
+            phase, width: rect.width, height: rect.height,
+            cardTransform: card ? getComputedStyle(card).transform : null,
+            englishReady: welcome ? Boolean(welcome.querySelector('.onboarding-title-secondary')?.textContent.trim()) : null,
+            textOnlyBrand: document.body.innerText.trim() === 'FluentRead',
+          };
+          const key = JSON.stringify(frame);
+          if (key !== previous) state.frames.push({...frame, time: performance.now()});
+          previous = key;
+        }
+        if (!state.stopped) requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
+    });
+    await popup.setViewportSize({width: 320, height: 560});
+    await popup.goto(popupUrl, {waitUntil: 'domcontentloaded', timeout: args.timeout});
+    await popup.locator('.popup-startup').waitFor({state: 'visible', timeout: args.timeout});
+    await popup.screenshot({path: path.join(args.artifactsDir, 'startup.png')});
     await popup.locator('.popup-shell[data-config-ready="true"]').waitFor({state: 'visible', timeout: args.timeout});
+    await popup.waitForFunction(() => Boolean(document.querySelector('.welcome-copy .onboarding-title-secondary')?.textContent.trim()));
+    await popup.waitForTimeout(450);
+    report.startup = await popup.evaluate(() => {
+      globalThis.__onboardingStartup.stopped = true;
+      return globalThis.__onboardingStartup;
+    });
+    if (!args.baseline) {
+      assert.ok(report.startup.configDelays > 0 && report.startup.englishDelays > 0, 'Slow startup hooks did not run');
+      const frames = report.startup.frames;
+      assert.ok(frames.some(frame => frame.phase === 'startup') && frames.some(frame => frame.phase === 'welcome'));
+      assert.ok(Math.max(...frames.map(frame => frame.height)) - Math.min(...frames.map(frame => frame.height)) <= 1,
+        `Startup height changed: ${JSON.stringify(frames)}`);
+      assert.equal(frames.some(frame => frame.textOnlyBrand), false, 'Text-only brand flash');
+      const welcomeFrames = frames.filter(frame => frame.phase === 'welcome');
+      assert.ok(welcomeFrames.every(frame => frame.englishReady), 'English text arrived after first welcome frame');
+      assert.ok(welcomeFrames.every(frame => frame.cardTransform === 'none'), 'Welcome card scaled on entry');
+    }
+    await popup.setViewportSize({width: 400, height: 130});
     await inspect(popup, 'welcome', '.language-onboarding-card', 'welcome.png');
     await popup.locator('[data-testid="onboarding-language-next"]').click();
     await inspect(popup, 'language', '.language-onboarding-card', 'language.png');
+    for (const width of [280, 320, 360, 400]) await inspectLanguages(popup, width, false);
+    await inspectLanguages(popup, 320, true);
+    await popup.evaluate(() => document.documentElement.classList.remove('dark'));
+    for (const language of ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES']) {
+      await popup.locator(`[data-language="${language}"]`).click();
+      assert.equal(await popup.locator('[role="radio"][aria-checked="true"]').count(), 1);
+      assert.equal(await popup.locator(`[data-language="${language}"]`).getAttribute('aria-checked'), 'true');
+    }
+    await popup.locator('.onboarding-back').click();
+    await popup.locator('[data-testid="onboarding-language-next"]').click();
+    await popup.locator('[data-language="es-ES"][aria-checked="true"]').waitFor();
+    await popup.locator('[data-language="zh-CN"]').click();
+    await popup.setViewportSize({width: 400, height: 130});
     await popup.locator('.onboarding-form .onboarding-confirm').click();
     await popup.locator('[data-testid="ui-language-onboarding"]').waitFor({state: 'detached', timeout: args.timeout});
     await inspect(popup, 'main', '.popup-content', 'main.png');
+    await popup.close();
+    const reopened = await newPageWithoutForeground(context, args.timeout);
+    await reopened.setViewportSize({width: 400, height: 560});
+    await reopened.goto(popupUrl, {waitUntil: 'domcontentloaded', timeout: args.timeout});
+    await reopened.locator('.popup-shell[data-config-ready="true"]').waitFor();
+    assert.equal(await reopened.locator('[data-testid="ui-language-onboarding"]').count(), 0, 'Confirmation not persisted after reopening');
+    report.confirmationPersisted = true;
     assert.deepEqual(report.errors, [], `Popup console errors: ${report.errors.join('; ')}`);
     report.passed = true;
   } catch (error) {

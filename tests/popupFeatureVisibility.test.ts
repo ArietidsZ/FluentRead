@@ -50,7 +50,6 @@ describe('popup feature visibility', () => {
         expect(onboarding).toContain('M8 1v15M3 12l5 5 5-5');
         expect(onboarding).not.toContain('>↘</span>');
         expect(onboarding).not.toContain('transform: rotate(8deg);\n  animation: onboarding-point');
-        expect(onboarding).not.toContain('.onboarding-language-option:last-child:nth-child(odd)');
         expect(onboarding).toContain('data-testid="onboarding-language-next"');
         expect(onboarding).not.toContain('<select');
         expect(onboarding).toContain('.onboarding-success::before');

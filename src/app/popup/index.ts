@@ -1,7 +1,7 @@
 /**
  * @file src/app/popup/index.ts
  * 文件职责：创建 Popup Vue 应用并注册首屏图标，作为 WXT popup entrypoint 与 PopupApp 之间的 composition root。
- * 主要内容：加载 popup.css 和共享皮肤，并行读取配置与加载主界面，抽屉依赖由首次交互按需加载；配置、界面语言和已缓存字体就绪后再创建 App，确保首帧使用已保存的皮肤、主题、布局、语言和字体。
+ * 主要内容：加载 popup.css 和共享皮肤，并行读取配置与加载主界面，抽屉依赖由首次交互按需加载；配置、界面语言、首启双语资源和已缓存字体就绪后再创建 App，确保首帧尺寸与文案稳定。
  * 模块边界：这里不读取当前标签页、不保存配置，也不处理 Popup 业务事件；所有响应式交互在 PopupApp 中，feature 与 runtime 行为通过公开模块完成。
  */
 import {createApp} from 'vue';
@@ -23,6 +23,7 @@ export async function mountPopupApp(selector: string): Promise<void> {
     import('./PopupApp.vue'),
     configReady.then(() => Promise.all([
       ensureUiLanguageBundle(config.uiLanguage),
+      ...(!config.uiLanguageSetupCompleted ? [ensureUiLanguageBundle('en-US')] : []),
       prepareInterfaceFont(config.interfaceFont),
     ])),
   ])
