@@ -8,10 +8,11 @@ const os = require('node:os');
 const http = require('node:http');
 const arg = (name, fallback) => { const index = process.argv.indexOf(`--${name}`); return index < 0 ? fallback : process.argv[index + 1]; };
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-const retiredPreferences = ['replyButtons', 'hotkey', 'disabledDomains'];
+const retiredPreferences = ['replyButtons', 'hotkey'];
 const assertPreferences = writing => {
   assert.equal(writing.language, 'target');
   assert.equal(writing.length, 'short');
+  assert(Array.isArray(writing.disabledDomains));
   assert.equal(writing.style, 'auto'); assert.equal(writing.tone, 'natural'); assert.equal(writing.role, 'auto');
   for (const key of retiredPreferences) assert(!Object.hasOwn(writing, key), `retired writing preference: ${key}`);
 };
@@ -78,7 +79,7 @@ function fixture(site, variant = '') {
 (async () => {
   const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
   const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-writing-browser'));
-  const suites = {experience: 'Writing readiness, retry intent, empty-state guidance, keyboard flow and responsive settings', harness: 'Harness tool loop, persisted learning memory, language translation and memory mutation cancellation', bilingual: 'Reply and reading language combinations, source-only insertion and translation lifecycle', i18n: 'Issue #490 seven-language writing panel and content boundaries', all: 'All writing regression cases', settings: 'Default writing preferences, custom input stability, persistence and open-card synchronization', github: 'GitHub writing lifecycle and staged preferences', issue646: 'First GitHub issue reply and new issue creation', gmail: 'Gmail writing lifecycle and staged preferences', recovery: 'Model ownership and partial-stream recovery', context: 'Issue #421 context, target-language ownership, staged style, Markdown editing and insertion', compose: 'Empty and subject-only new mail, Gmail conversation isolation and rich signatures', layout: 'Editor resize and preceding-DOM positioning', dynamic: 'Remount, disabled focus, scrolling and global website rule', presentation: 'Fresh-page global website rule, dark PR, mobile layouts and unsupported routes'};
+  const suites = {'entry-menu': 'Three entry-dismissal scopes, site restoration and preserved editing', compact: 'Reading-space allocation and bilingual insertion in GitHub/Gmail', experience: 'Writing readiness, retry intent, empty-state guidance, keyboard flow and responsive settings', harness: 'Harness tool loop, persisted learning memory, language translation and memory mutation cancellation', bilingual: 'Reply and reading language combinations, source-only insertion and translation lifecycle', i18n: 'Issue #490 seven-language writing panel and content boundaries', all: 'All writing regression cases', settings: 'Default writing preferences, custom input stability, persistence and open-card synchronization', github: 'GitHub writing lifecycle and staged preferences', issue646: 'First GitHub issue reply and new issue creation', gmail: 'Gmail writing lifecycle and staged preferences', recovery: 'Model ownership and partial-stream recovery', context: 'Issue #421 context, target-language ownership, staged style, Markdown editing and insertion', compose: 'Empty and subject-only new mail, Gmail conversation isolation and rich signatures', layout: 'Editor resize and preceding-DOM positioning', dynamic: 'Remount, disabled focus, scrolling and global website rule', presentation: 'Fresh-page global website rule, dark PR, mobile layouts and unsupported routes'};
   const suite = arg('suite', 'all'); const selectedSuites = suite.split(',');
   assert(selectedSuites.every(name => Object.hasOwn(suites, name)), `--suite must select from ${Object.keys(suites).join(', ')}`);
   const runs = name => selectedSuites.includes('all') || selectedSuites.includes(name);
@@ -164,7 +165,7 @@ function fixture(site, variant = '') {
       const scope = p.locator('.writing-settings');
       await scope.waitFor(); await scope.getByRole('switch', {name: '启用写作助手', exact: true}).waitFor();
       assert.equal(await scope.getByRole('switch').count(), 1); assert.equal(await scope.getByRole('switch', {name: '启用写作助手', exact: true}).count(), 1);
-      assert(!/使用偏好|禁用网站|写作快捷键|显示回复按钮/.test(await scope.innerText()));
+      assert(!/使用偏好|写作快捷键|显示回复按钮/.test(await scope.innerText()));
       assert.equal(await scope.getByRole('combobox', {name: '输出语言', exact: true}).count(), 1); assert.equal(await scope.getByRole('radiogroup').count(), 4);
       for (const [name, selected] of [['长度', '简短'], ['风格', '自动'], ['语气', '自然'], ['您的角色', '自动']]) {
         assert.equal(await scope.getByRole('combobox', {name, exact: true}).count(), 0, `${name} exposes direct choices, not a dropdown`);
@@ -279,6 +280,65 @@ function fixture(site, variant = '') {
       await dialog(p).waitFor(); await p.locator('.writing-panel').evaluate(async element => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); window.writingSamples = []; window.sampleWriting = true; const sample = () => { if (!window.sampleWriting) return; const rect = element.getBoundingClientRect(); window.writingSamples.push({x: rect.x, y: rect.y, width: rect.width, height: rect.height}); requestAnimationFrame(sample); }; sample(); });
     };
     const endSampling = async (p, site) => { const samples = await p.evaluate(() => { window.sampleWriting = false; return window.writingSamples; }); assert(samples.length >= 5, 'streaming must include multiple visible frames'); const deltas = Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, Math.max(...samples.map(rect => rect[key])) - Math.min(...samples.map(rect => rect[key]))])); assert(Object.values(deltas).every(delta => delta === 0), `zero streaming jitter: ${JSON.stringify(deltas)}`); report.cardStability.push({site, sampleCount: samples.length, deltas}); };
+
+    if (runs('entry-menu')) {
+      const p = await page('https://github.com/fluentread-fixture/project/issues/990?fixture=draft', 'entry-menu');
+      const gmail = await page('https://mail.google.com/mail/u/0/?fixture=multiple', 'entry-menu-gmail');
+      const menu = page => page.getByRole('dialog', {name: '关闭写作助手', exact: true});
+      const openMenu = async page => { await page.getByRole('button', {name: '写作入口设置', exact: true}).first().click(); await menu(page).waitFor(); };
+      const choose = async (page, name) => { await menu(page).getByRole('radio', {name: new RegExp(name)}).check(); await menu(page).getByRole('button', {name: '保存', exact: true}).click(); };
+      await entry(p).waitFor(); const initialWriting = (await read()).writing;
+      await openMenu(p); await shot(p, 'writing-entry-three-dot-settings');
+      await menu(p).getByRole('radio', {name: /当前网站禁用/}).check(); await menu(p).getByRole('button', {name: '取消', exact: true}).last().click();
+      assert.deepEqual((await read()).writing, initialWriting); assert.equal(await p.locator('#editor').inputValue(), 'My original draft');
+      await openMenu(p); await menu(p).press('Escape'); assert.equal(await menu(p).isVisible(), false);
+      await openMenu(p); await choose(p, '本次关闭'); await p.locator('[data-fluent-read-ui="writing-entry"]').waitFor({state: 'detached'});
+      assert.deepEqual((await read()).writing, initialWriting); assert(await entry(gmail).first().isVisible());
+      await patch({on: false}); await patch({on: true}); await wait(300); assert.equal(await entry(p).count(), 0, 'visit dismissal survives feature remount');
+      await p.reload(); await entry(p).waitFor();
+      await openMenu(p); await choose(p, '当前网站禁用'); await p.locator('[data-fluent-read-ui="writing-entry"]').waitFor({state: 'detached'});
+      await until(async () => (await read()).writing.disabledDomains.includes('github.com'));
+      assert.equal((await read()).writing.enabled, true); assert.deepEqual((await read()).disabledExtensionDomains, []); assert(await entry(gmail).first().isVisible());
+      await p.reload(); await wait(300); assert.equal(await entry(p).count(), 0);
+      await settings.reload(); await settings.getByRole('button', {name: '重新启用 github.com', exact: true}).waitFor(); await shot(settings, 'writing-disabled-site-restoration');
+      await settings.getByRole('button', {name: '重新启用 github.com', exact: true}).click(); await entry(p).waitFor();
+      await openMenu(gmail); await choose(gmail, '本次关闭'); await until(async () => await gmail.locator('[data-fluent-read-ui="writing-entry"]').count() === 0, 'all mail editor entries disappear');
+      await gmail.reload(); await until(async () => await entry(gmail).count() === 2); assert.equal(await gmail.locator('#first-editor').innerText(), 'DRAFT_THREAD_ONE');
+      await openMenu(p); await choose(p, '永久禁用'); await until(async () => !(await read()).writing.enabled); await until(async () => await entry(gmail).count() === 0);
+      await settings.reload(); await shot(settings, 'writing-permanent-disabled'); await settings.getByRole('switch', {name: '启用写作助手', exact: true}).click(); await entry(p).waitFor(); await entry(gmail).first().waitFor();
+      assert.equal(await p.evaluate(() => window.sent || 0), 0); assert.equal(await gmail.evaluate(() => window.sent || 0), 0);
+      report.cases.push('entry menu cancel/Escape, visit dismissal across remount and reload, per-writing site persistence/restoration, permanent disable/re-enable, multi-editor dismissal and untouched drafts');
+      await closePage(p); await closePage(gmail);
+    }
+    if (runs('compact')) {
+      const source = '**Project update**\n\n' + Array.from({length: 10}, (_, i) => `Paragraph ${i + 1}: Thank you for the detailed feedback. We are reviewing the reported steps and will share our findings.`).join('\n\n');
+      const translated = '**项目进展**\n\n' + Array.from({length: 10}, (_, i) => `段落 ${i + 1}：感谢详细反馈。我们正在核对复现步骤，之后会分享排查结果。`).join('\n\n');
+      const writing = (await read()).writing;
+      await patch({writing: {...writing, language: 'en', referenceLanguage: 'zh-Hans'}, theme: 'light'});
+      for (const site of ['github', 'gmail']) {
+        const p = await page(site === 'github' ? 'https://github.com/fluentread-fixture/project/issues/992' : 'https://mail.google.com/mail/u/0/?fixture=new', `compact-${site}`);
+        const panel = p.locator('.writing-panel'); responsePlans.push({text: source}, {text: translated, slow: true});
+        await entry(p).click();
+        if (site === 'gmail') { await instruction(p).fill('Review the project progress.'); await panel.getByRole('button', {name: '生成回复', exact: true}).click(); }
+        await panel.getByRole('button', {name: '回复插入选项', exact: true}).waitFor(); await panel.getByRole('button', {name: '回复插入选项', exact: true}).click();
+        const bilingual = panel.getByRole('menuitem', {name: '插入双语回复', exact: true}); assert(await bilingual.isDisabled(), 'streaming reference cannot be inserted');
+        await bilingual.waitFor(); await until(async () => await bilingual.isEnabled()); await panel.getByRole('menu').press('Escape');
+        await panel.focus();
+        for (const width of [1440, 390]) {
+          await p.setViewportSize({width, height: 1000}); await wait(200);
+          const metrics = await panel.evaluate(el => { const size = selector => el.querySelector(selector).getBoundingClientRect().height; return {panel: el.getBoundingClientRect().height, preview: size('.writing-preview'), header: size('.writing-header'), language: size('.writing-language-bar'), composer: size('.writing-composer'), horizontalOverflow: el.scrollWidth > el.clientWidth}; });
+          assert(metrics.preview / metrics.panel >= (width === 390 ? .61 : .65), `reading area gets most of the panel: ${JSON.stringify(metrics)}`); assert.equal(metrics.horizontalOverflow, false);
+          report.readingSpace ||= []; report.readingSpace.push({site, width, ...metrics}); await shot(p, `writing-compact-${site}-${width}`);
+        }
+        await p.setViewportSize({width: 1440, height: 1000}); await patch({theme: 'dark'}); await shot(p, `writing-compact-${site}-dark`); await patch({theme: 'light'});
+        await panel.getByRole('button', {name: '回复插入选项', exact: true}).click(); await shot(p, `writing-bilingual-insert-${site}`); await bilingual.click();
+        const text = site === 'github' ? await p.locator('#editor').inputValue() : await p.locator('#editor').innerText();
+        assert.equal(text, site === 'github' ? `${source}\n\n${translated}` : `${source}\n\n${translated}`.replaceAll('**', ''));
+        assert.equal(await p.evaluate(() => window.sent || 0), 0, 'bilingual insertion never sends');
+        report.cases.push(`${site}: complete bilingual insertion, Markdown/plain text contract, translation-loading guard, desktop/mobile reading area and dark theme`); await closePage(p);
+      }
+      await patch({writing});
+    }
 
     if (runs('experience')) {
       const configured = await read();
@@ -495,7 +555,7 @@ function fixture(site, variant = '') {
       // A Spanish reader can write Chinese while understanding the Spanish translation.
       await patch({uiLanguage: 'es-ES', writing: {...(await read()).writing, language: 'zh-Hans', referenceLanguage: 'ui'}});
       const es = await page('https://github.com/fluentread-fixture/project/issues/491', 'bilingual-spanish-reader');
-      responsePlans.push({text: chinese}, {text: spanish}); await es.locator('[data-fluent-read-ui="writing-entry"] button').click();
+      responsePlans.push({text: chinese}, {text: spanish}); await es.locator('[data-fluent-read-ui="writing-entry"] button:not([data-writing-entry-menu])').click();
       await until(async () => await es.locator('[data-writing-reference] [data-reading-answer]').count() === 1 && await es.locator('[data-writing-reference] [data-reading-answer]').innerText() === spanish);
       assert.match(requests.at(-1).body.messages[0].content, /Español（es）/);
       await shot(es, 'writing-bilingual-chinese-spanish');
@@ -517,12 +577,12 @@ function fixture(site, variant = '') {
       const click = selector => panel.locator(selector).click();
       const content = '写作助手，设置，正在组织语言…';
       await patch({writing: {...(await read()).writing, model: '写作助手'}, to: 'es', theme: 'dark'});
-      await p.locator('[data-fluent-read-ui="writing-entry"] button').click();
+      await p.locator('[data-fluent-read-ui="writing-entry"] button:not([data-writing-entry-menu])').click();
       for (const [language, title] of locales) {
         await patch({uiLanguage: language});
-        await until(async () => await panel.getAttribute('aria-label') === title && await panel.locator('h2').innerText() === title && await p.locator('[data-fluent-read-ui="writing-entry"] button').getAttribute('aria-label') === title, `${language} dialog and entry localization`);
+        await until(async () => await panel.getAttribute('aria-label') === title && await panel.locator('h2').innerText() === title && await p.locator('[data-fluent-read-ui="writing-entry"] button:not([data-writing-entry-menu])').getAttribute('aria-label') === title, `${language} dialog and entry localization`);
         assert.equal(await panel.locator('h2').innerText(), title);
-        assert.equal(await p.locator('[data-fluent-read-ui="writing-entry"] button').getAttribute('aria-label'), title);
+        assert.equal(await p.locator('[data-fluent-read-ui="writing-entry"] button:not([data-writing-entry-menu])').getAttribute('aria-label'), title);
         assert.equal(await panel.locator('.writing-provider').getAttribute('title'), '写作助手', 'model name is user data');
         await panel.locator('.writing-composer textarea').fill(content);
         await click('.writing-style-trigger');
@@ -588,7 +648,7 @@ function fixture(site, variant = '') {
       assert(await panel.evaluate(el => el.scrollWidth <= el.clientWidth), 'localized mobile panel has no horizontal overflow');
       await p.setViewportSize({width: 1440, height: 1000});
       await panel.getByRole('button', {name: 'Cerrar asistente', exact: true}).click();
-      await p.locator('[data-fluent-read-ui="writing-entry"] button').click();
+      await p.locator('[data-fluent-read-ui="writing-entry"] button:not([data-writing-entry-menu])').click();
       await panel.getByRole('heading', {name: 'Asistente de escritura', exact: true}).waitFor();
       assert.equal(await panel.locator('[data-reading-answer]').innerText(), content);
       assert.equal(await p.locator('main h1').innerText(), 'A thoughtful follow-up');

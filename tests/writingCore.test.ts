@@ -39,12 +39,14 @@ describe('Writing config and bounded protocol', () => {
   });
   it('enables missing preferences, preserves explicit opt-out and removes retired page controls', () => {
     expect(normalizeWritingPreferences(null)).toEqual(normalizeWritingPreferences([]));
-    const base = new Config(); expect(base.writing).toEqual({enabled: true, service: '', model: '', language: 'target', referenceLanguage: 'ui', tone: 'natural', length: 'short', style: 'auto', role: 'auto'});
+    const base = new Config(); expect(base.writing).toEqual({enabled: true, disabledDomains: [], service: '', model: '', language: 'target', referenceLanguage: 'ui', tone: 'natural', length: 'short', style: 'auto', role: 'auto'});
     const legacy = {...base} as Partial<Config>; delete legacy.writing;
     expect(normalizeConfig(legacy).writing).toEqual(base.writing);
     const writing = {enabled: false, replyButtons: false, service: 'openai', model: ' draft ', language: 'en', tone: 'professional', length: 'detailed', style: 'formal', role: 'colleague', hotkey: 'alt+shift+w', disabledDomains: ['github.com']};
     const saved = normalizeConfig({...base, writing, disabledExtensionDomains: ['github.com']});
-    expect(saved.writing).toEqual({enabled: false, service: 'openai', model: 'draft', language: 'en', referenceLanguage: 'ui', tone: 'professional', length: 'detailed', style: 'formal', role: 'colleague'});
+    expect(saved.writing).toEqual({enabled: false, disabledDomains: ['github.com'], service: 'openai', model: 'draft', language: 'en', referenceLanguage: 'ui', tone: 'professional', length: 'detailed', style: 'formal', role: 'colleague'});
+    expect(normalizeWritingPreferences({disabledDomains: ['https://mail.google.com/mail/u/0/', 'GOOGLE.COM', 'github.com', 'bad*', null]}).disabledDomains).toEqual(['google.com', 'github.com']);
+    expect(normalizeWritingPreferences({disabledDomains: 'github.com'}).disabledDomains).toEqual([]);
     expect(saved.disabledExtensionDomains).toEqual(['github.com']);
     expect(normalizeConfig(JSON.parse(JSON.stringify(saved))).writing).toEqual(saved.writing);
     expect(normalizeWritingPreferences({service: 'microsoft', model: '自定义模型', language: 'invalid', tone: null, length: 'invalid', style: 'invalid'})).toEqual(base.writing);

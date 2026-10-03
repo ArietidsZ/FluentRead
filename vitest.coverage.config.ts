@@ -417,6 +417,7 @@ export default defineConfig({
                 'src/core/config/writingReadiness.ts',
                 'src/core/config/writingPreview.ts',
                 'src/features/writing-assistant/entryPlacement.ts',
+                'src/features/writing-assistant/entrySession.ts',
                 'src/features/writing-assistant/background.ts',
                 'src/features/writing-assistant/editors.ts',
                 'src/features/writing-assistant/markdown.ts',
