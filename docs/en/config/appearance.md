@@ -2,6 +2,19 @@
 
 Make translations easy to distinguish from the original and comfortable to read.
 
+<GuideVisual kind="appearance" en />
+
+## Adjust the translation style
+
+1. Open **Settings → Interface style → Translation style**.
+2. Choose a style card and compare its preview. Adjust colors and font size if needed.
+3. Appearance controls update existing translations immediately. A different base style applies to the next translation.
+
+Translation-only mode does not use bilingual styles. Switch to bilingual display first.
+
+<details class="guide-details">
+<summary>Translation style</summary>
+
 ## Translation style
 
 Choose how translations look in bilingual mode under **Settings → Interface style → Translation style**. Styles are grouped into **Text**, **Lines**, **Highlights**, and **Cards**, and every card shows the real effect. The preview beside them simulates a web page; switch between **Light page** and **Dark page** to check that translations stay readable on differently colored sites.
@@ -19,6 +32,11 @@ Each color offers curated swatches, a picker, and direct input for a CSS color n
 You can also enter declarations under **Enter CSS directly**, such as `color: rebeccapurple; background: rgb(255, 248, 204); font-size: 117%;`. Leave out the selector. Common appearance properties are supported; URLs, selectors, and positioning properties are ignored. Valid declarations override the matching controls above and appear in the live preview. Saved styles show their own effect on their cards.
 
 **Blur until hover** keeps translations blurred until you point at them, so you can read the original first and then check your understanding.
+
+</details>
+
+<details class="guide-details">
+<summary>Bilingual sentence highlighting</summary>
 
 ## Bilingual sentence highlighting
 
@@ -41,6 +59,8 @@ Enter a name and choose **Save as new style** to keep up to 12 independent sente
 Equal sentence counts are paired in order. Split or merged sentences are grouped using order and relative length. This local approximation cannot verify translation accuracy and may not match heavily rewritten or reordered text. Hovering sends no translation requests and changes neither page text nor layout.
 
 This works in bilingual mode. Restoring the original, disabling the option, leaving the text or selecting text clears the highlight. Browsers without the CSS Custom Highlight API keep normal translation without the highlight.
+
+</details>
 
 ## Next steps
 

@@ -6,6 +6,8 @@ This policy describes how the FluentRead browser extension handles translation c
 
 The feature and service you choose determine which content leaves the browser. FluentRead does not run its own translation server; cloud translation is handled by the selected provider.
 
+<GuideVisual kind="privacy" en />
+
 ## What gets sent?
 
 | Feature | Content and destination |

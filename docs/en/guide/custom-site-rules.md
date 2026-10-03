@@ -4,6 +4,8 @@ Most sites need no custom rule. If a site consistently misses content or transla
 
 Open **System & data → Website rules**. Site preferences, content rules, and an effective preview are separate tasks. Everyday preferences do not require JSON. The visual content-rule editor still requires CSS selectors; you can also report a URL and the area you want adjusted instead of writing a rule.
 
+<GuideVisual kind="rules" en />
+
 ## Start with an existing rule
 
 Search content rules by site name, host, or rule ID. Open the details and customize a built-in rule, or create a new rule. Export a backup first.
@@ -16,6 +18,9 @@ If another page updates saved rules, your draft is retained and stale saves are 
 
 A rule mainly describes the website it applies to, where its content is, and what should stay original. Incorrect rules can translate too much or too little; they do not automatically understand the page’s meaning.
 
+<details class="guide-details">
+<summary>Check after saving</summary>
+
 ## Check after saving
 
 First check a complete HTTP(S) URL in the effective preview. It explains saved site preferences, matched rules, and their priority without visiting the website. It does not validate the site's DOM, permissions, language filters, or translation service. With all-node recognition, only rules explicitly declaring `allScopes` participate.
@@ -25,9 +30,16 @@ First check a complete HTTP(S) URL in the effective preview. It explains saved s
 3. Scroll, expand comments, or change articles to check later content.
 4. If it is wrong, disable the custom rule or restore your backup.
 
+</details>
+
+<details class="guide-details">
+<summary>Detailed examples</summary>
+
 ## Detailed examples
 
 The [repository contribution guide](https://github.com/FluentRead/FluentRead/blob/main/docs/contributing/site-adaptation.md) contains selectors, formats, and validation steps. It also explains how to share a tested rule with the project.
+
+</details>
 
 ## Next steps
 
