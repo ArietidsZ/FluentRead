@@ -27,6 +27,7 @@ function shadowUi() {
     ui: {
       shadowHost: host,
       mount: vi.fn(),
+      remove: vi.fn(),
     },
   };
 }
@@ -37,6 +38,30 @@ beforeEach(() => {
 });
 
 describe('Vue Shadow UI 平台适配器', () => {
+  it('上下文在异步创建期间失效时释放 Shadow UI，不挂载迟到的组件', async () => {
+    const fixture = shadowUi();
+    const context = {isInvalid: false};
+    let finish!: (ui: unknown) => void;
+    mocks.createShadowRootUi.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    const pending = createVueShadowUi(context as never, {
+      name: 'expired-ui', hostId: 'expired-host', component: {name: 'Expired'},
+    });
+    context.isInvalid = true;
+    finish(fixture.ui);
+
+    await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+    expect(fixture.ui.remove).toHaveBeenCalledOnce();
+    expect(fixture.ui.mount).not.toHaveBeenCalled();
+    expect(mocks.createApp).not.toHaveBeenCalled();
+  });
+
+  it('已失效的上下文不创建 Shadow UI', async () => {
+    await expect(createVueShadowUi({isInvalid: true} as never, {
+      name: 'expired-ui', hostId: 'expired-host', component: {},
+    })).rejects.toMatchObject({name: 'AbortError'});
+    expect(mocks.createShadowRootUi).not.toHaveBeenCalled();
+  });
+
   it('使用安全默认值挂载，并在 WXT 移除时卸载 Vue', async () => {
     const fixture = shadowUi();
     const instance = {kind: 'component'};
