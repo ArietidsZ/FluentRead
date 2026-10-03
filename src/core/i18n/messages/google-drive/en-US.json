@@ -1,6 +1,11 @@
 {
   "messages": {
     "settings.drive.privacyBadge": "Privacy protection",
+    "settings.drive.privacyTitle": "How sync protects your privacy",
+    "settings.drive.privacyEncryption": "Configuration is encrypted on your device before upload; the cloud stores an encrypted file.",
+    "settings.drive.privacyStorage": "Only the application-data area of your Google Drive is accessed, not your regular Drive files.",
+    "settings.drive.privacyAuthorization": "Temporary authorization caches are cleared when sync finishes or is canceled.",
+    "settings.drive.privacyExcluded": "Your wordbook, chat history, and usage statistics are excluded from configuration sync.",
     "settings.drive.description": "Save your complete configuration to your own Google Drive in encrypted form and restore it on other devices; includes API keys, OAuth tokens, authentication headers, custom request bodies, and authentication parameters in URLs, but excludes your wordbook, chat history, and usage statistics.",
     "settings.drive.account": "Account for this sync: {email}",
     "settings.drive.differences": "{count} differences. Private and custom content is hidden.",

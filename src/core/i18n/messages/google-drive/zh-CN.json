@@ -1,6 +1,11 @@
 {
   "messages": {
     "settings.drive.privacyBadge": "隐私保护",
+    "settings.drive.privacyTitle": "同步如何保护隐私",
+    "settings.drive.privacyEncryption": "配置在本机加密后上传，云端保存的是加密文件。",
+    "settings.drive.privacyStorage": "只访问你 Google 云盘中的应用数据区，不读取普通云盘文件。",
+    "settings.drive.privacyAuthorization": "同步完成或取消后，清除本次同步的临时授权缓存。",
+    "settings.drive.privacyExcluded": "单词本、聊天记录和用量统计不参与配置同步。",
     "settings.drive.description": "把完整配置加密保存到自己的 Google 云盘，在其他设备恢复；包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数，不包含单词本、聊天记录和用量统计。",
     "settings.drive.account": "本次同步账号：{email}",
     "settings.drive.differences": "{count} 项差异。私密和自定义内容均已隐藏。",
