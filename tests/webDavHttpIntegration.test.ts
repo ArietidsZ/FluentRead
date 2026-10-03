@@ -14,10 +14,13 @@ describe('WebDAV 真实 HTTP 协议夹具',()=>{
             calls.push({method:req.method!,url:req.url!,match:req.headers['if-match'] as string|undefined,none:req.headers['if-none-match'] as string|undefined});
             if(req.headers.authorization!==expected){res.writeHead(401).end('fixture-private-error');return;}
             if(req.url==='/redirect/'){res.writeHead(302,{Location:'/private-other/'}).end();return;}
-            if(req.method==='PROPFIND'&&req.url==='/dav/'){res.writeHead(207,{'Content-Type':'application/xml'}).end('<d:multistatus xmlns:d="DAV:"><d:response><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>');return;}
+            if(req.method==='PROPFIND'&&(req.url==='/dav/'||req.url==='/dav/FluentRead/')){
+                if(req.url==='/dav/FluentRead/'&&!folder){res.writeHead(404).end();return;}
+                res.writeHead(207,{'Content-Type':'application/xml'}).end('<d:multistatus xmlns:d="DAV:"><d:response><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>');return;
+            }
             if(req.method==='MKCOL'&&req.url==='/dav/FluentRead/'){const status=folder?405:201;folder=true;res.writeHead(status).end();return;}
             if(req.url!=='/dav/FluentRead/fluentread-config.encrypted.json'){res.writeHead(404).end();return;}
-            if(req.method==='GET'){if(!content){res.writeHead(404).end();return;}res.writeHead(200,{ETag:`"v${version}"`}).end(content);return;}
+            if(req.method==='GET'){if(!content){res.writeHead(folder?404:409).end();return;}res.writeHead(200,{ETag:`"v${version}"`}).end(content);return;}
             if(req.method==='PUT'){
                 if((req.headers['if-none-match']==='*'&&content)||(req.headers['if-match']&&req.headers['if-match']!==`"v${version}"`)){res.writeHead(412).end();return;}
                 const chunks=[];for await(const chunk of req)chunks.push(Buffer.from(chunk));content=Buffer.concat(chunks).toString();version++;res.writeHead(201).end();return;
@@ -31,6 +34,8 @@ describe('WebDAV 真实 HTTP 协议夹具',()=>{
             const session=createWebDavSession(connection,async()=>connection);const api=createWebDavApi(fetch);
             await api.test(connection);expect(calls.map(c=>c.method)).toEqual(['PROPFIND']);
             expect(await api.read(session)).toBeNull();
+            expect(calls.map(c=>[c.method,c.url])).toEqual([['PROPFIND','/dav/'],['GET','/dav/FluentRead/fluentread-config.encrypted.json'],['PROPFIND','/dav/'],['PROPFIND','/dav/FluentRead/']]);
+            expect(folder).toBe(false);expect(content).toBeNull();
             const encrypted=await encryptDriveConfig({config:{fixture:'not a production key'}},'FluentReadEncryption');
             const first=await api.write(session,encrypted,null);
             expect(calls.find(c=>c.method==='PUT')?.none).toBe('*');expect(content).toBe(encrypted);

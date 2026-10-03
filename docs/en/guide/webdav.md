@@ -20,6 +20,8 @@ https://cloud.example.com/remote.php/dav/files/USERNAME/
 
 Copy the personal WebDAV URL from Files settings and create an app password under your account’s security settings. See the [official Nextcloud guide](https://docs.nextcloud.com/server/latest/user_manual/en/files/access_webdav.html). Other services and NAS devices provide their own directory URLs. Your account needs read, directory-creation, and write permission.
 
+For Nutstore, use `https://dav.jianguoyun.com/dav/`, your account email, and a [dedicated app password](https://help.jianguoyun.com/?p=2064). You do not need to create the `FluentRead` folder in advance. The first sync checks for a backup and only creates the folder and file after you confirm saving. A 409 caused by a missing backup parent directory is treated as a first backup only after the entry directory is verified; invalid entry URLs and permission errors still stop the operation.
+
 ## Save your first backup
 
 1. Select **WebDAV → Set up WebDAV** in cloud configuration backup.
