@@ -39,6 +39,8 @@ describe('WebDAV 配置云备份事务',()=>{
     });
     it('后台重启后恢复一次性预览，完整凭据可在第二设备恢复；连接密码不进入备份',async()=>{
         const f=fixture();
+        const appearance={backgroundColor:'#fce7f3',customCss:'color: #123456;'};
+        f.local=config({...f.local,bilingualSentenceHighlightAppearance:appearance,bilingualSentenceHighlightProfiles:[{id:'fixture-highlight',name:'Fixture highlight',style:'mint',appearance}],activeSentenceHighlightProfileId:'fixture-highlight'});
         await f.service.save(input);
         const preview=await f.service.prepare(password,7,'fixture-page');
         expect(preview).toMatchObject({hasRemote:false,hasBaseline:false,changes:[]});
@@ -56,6 +58,7 @@ describe('WebDAV 配置云备份事务',()=>{
         expect(restore.hasBaseline).toBe(false);
         await second.service.commit(restore.id,password,'download',{},8,'fixture-other');
         expect(second.local).toEqual(f.local);
+        expect(second.local).toMatchObject({bilingualSentenceHighlightAppearance:appearance,bilingualSentenceHighlightProfiles:[{id:'fixture-highlight',style:'mint',appearance}],activeSentenceHighlightProfileId:'fixture-highlight'});
         expect(second.ports.api.write).not.toHaveBeenCalled();
         expect(second.shared.remote).toEqual(cloud);
         await expect(second.service.commit(restore.id,password,'download',{},8,'fixture-other')).rejects.toThrow('失效');
