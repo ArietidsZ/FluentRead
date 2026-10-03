@@ -1,6 +1,6 @@
 # 漫画滚动修复验证记录
 
-对应[漫画滚动稳定性与返页性能报告](../../maintainers/manga-scroll-stability-20261004)。验证基线为主分支 `6b110414` 加 PR #779 的已测试 head `85efb8688b334641b12abbc05f30a7adaba77faa`；仅在隔离 worktree 修改，未修改参考项目。
+对应[漫画滚动稳定性与返页性能报告](../../maintainers/manga-scroll-stability-20261004)。初始验证基线为主分支 `6b110414` 加 PR #779 的已测试 head `85efb8688b334641b12abbc05f30a7adaba77faa`；交付前再整合主分支 `b03c75bb`。三个漫画运行时文件哈希保持一致；仅在隔离 worktree 修改，未修改参考项目。
 
 ## 针对性测试与构建
 
@@ -8,14 +8,15 @@
 | --- | --- |
 | 内容运行时与阅读会话 | `imageTranslationRuntime` 141、`mangaReader` 38、`mangaEntry` 13、`mangaInpainting` 7，共 199 项通过 |
 | 宿主与恢复边界 | `imageTranslationClientRecovery` 11、`imageTranslationPresentation` 10、`imageTranslationSecurityContract` 6，共 27 项通过 |
+| 整合主分支后的针对性回归 | 上述七个文件加图片翻译流程、WASM 日志、语言资源加载与修改到的配置比较/备份标签链路，共 14 个文件、354 项通过 |
 | 严格核心覆盖 | `mangaReader.ts`、`mangaSession.ts` statements / branches / functions / lines 各 100%，38 项通过；不是整个运行时全覆盖 |
 | 测试归类审计 | `pnpm test:audit` 通过；未运行全量回归 |
 | 类型检查 | `pnpm compile` 通过 |
 | 扩展 | Chrome MV3、Firefox MV2 构建通过，manifest verifier 通过；Firefox 未运行真实浏览器测试 |
-| Userscript | 生成合入分支后的五份语言快照并锁定不可变资源提交 `99a949126e6d17b53e0ab37e0d35d431857a5505`；构建及 verifier 通过，产物 1,893,542 字节；不包含漫画本地模型运行能力 |
+| Userscript | 生成合入分支后的五份语言快照并锁定不可变资源提交 `15314b25a58c043232044805a717da88a20d0ddb`；构建及 verifier 通过；不包含漫画本地模型运行能力 |
 | 文档 | 中英文指南与报告构建、链接检查通过 |
 
-初始两个缺陷用例在修复前失败，修复后通过。受影响范围最终为七个文件、226 项本地测试，加 26 项浏览器专项。未降低阈值、屏蔽真实错误或把已有架构检查的历史结果当作本次全绿。
+初始两个缺陷用例在修复前失败，修复后通过。初次为七个文件、226 项本地测试，整合主分支后为 14 个文件、354 项，加 26 项浏览器专项。未降低阈值、屏蔽真实错误或把已有架构检查的历史结果当作本次全绿。
 
 可重复的本地测试入口：
 
