@@ -36,6 +36,8 @@ The selection card includes 3,000 common English dictionary entries, available o
 
 [Open guide](/en/guide/deepseek-harness)
 
+Local definitions appear immediately, with translated definitions added afterward. The regular translation appears independently. Online lookup waits at most 2.5 seconds and shows progress in a compact line. Missing entries prompt you to check the spelling and explain that names or new words may be absent. If the dictionary cannot respond, use **Retry lookup**; the existing translation remains available. The grammar view groups meaningful sentence units and shows their role and word class in the interface language, such as “subject · noun phrase” and “postmodifier · infinitive phrase”. Learning actions keep the source and its ordinary translation above the answer, then scroll to the explanation. Scroll upward to compare them.
+
 ## Translation style
 
 Choose how translations look in bilingual mode under **Settings → Interface style → Translation style**.
