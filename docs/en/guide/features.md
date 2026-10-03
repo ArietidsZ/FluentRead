@@ -48,6 +48,12 @@ In **Advanced settings → Page recognition**, enable the option to recognize al
 
 A wider scope also changes more interface text. Turn it off to return to the usual scope on the next translation. For text drawn inside pictures or charts, use [images](/en/guide/image-translation) or [area translation](/en/guide/area-translation).
 
+### Times, numbers and changing content
+
+Standalone dates, clocks, durations (such as `12:34 PM`, `5 minutes`, and `1h 2m 3s`) and numeric values stay original and are excluded from translation requests. Normal sentences containing these values remain translatable. Time displays marked with `<time>` or `role="timer"` also stay original.
+
+When source text changes, full-page translation waits for about 1.8 seconds of stability before translating the latest content. Short labels whose numbers change repeatedly, such as counters and progress, stay original. New content at the same location can be translated again. Hover translation uses the same rules; trigger it again after changing content has settled.
+
 ### Tune how paragraphs are handled
 
 **Advanced settings** offers a few more controls over webpage translation. Each one applies from the next translation:

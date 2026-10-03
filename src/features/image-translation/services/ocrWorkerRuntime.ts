@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/ocrWorkerRuntime.ts
  * 文件职责：实现与具体 OCR 引擎无关的 Worker 生命周期和串行任务队列，保证识别、参数设置、语言切换及销毁不会在并发请求间交叉污染。
- * 主要内容：定义 OcrWorkerPort、依赖与 runtime 契约，复用同语言 worker，按任务串行切换页面分割参数，提供任务隔离的真实百分比进度、识别和语言预加载；排队取消立即结束调用方等待，执行中取消才释放当前 worker。
+ * 主要内容：定义 OcrWorkerPort、依赖与 runtime 契约，复用 Worker 并串行重新初始化语言与分割参数；累计模型超过五个时重建以限制内存，失败或取消后释放实例，迟到的语言切换不得污染后续任务；提供任务隔离的真实进度、识别和语言预加载。
  * 模块边界：此层不依赖 Tesseract.js 类型、浏览器 storage 或图片翻译 UI；具体 worker 工厂由 ocrRuntime 注入，语言状态记录和 Offscreen 消息编排位于其他模块。
  */
 /**
@@ -13,6 +13,7 @@ export interface OcrWorkerPort<TResult> {
     setParameters(parameters: Record<string, string | number>): Promise<unknown>;
     recognize(image: string, options: Record<string, never>, output: {blocks: true}, jobId?: string): Promise<TResult>;
     terminate(): Promise<unknown>;
+    reinitialize?(languages: string): Promise<unknown>;
 }
 
 export type OcrWorkerRuntimeDependencies<TResult> = {
@@ -52,6 +53,7 @@ export function createOcrWorkerRuntime<TResult>(
 ): OcrWorkerRuntime<TResult> {
     let workerPromise: Promise<OcrWorkerPort<TResult>> | null = null;
     let workerLanguages = '';
+    let loadedLanguages = new Set<string>();
     let configuredWorker: OcrWorkerPort<TResult> | null = null;
     let configuredMode: string | number | undefined;
     let workerOwnershipGeneration = 0;
@@ -72,6 +74,7 @@ export function createOcrWorkerRuntime<TResult>(
         const current = workerPromise;
         workerPromise = null;
         workerLanguages = '';
+        loadedLanguages.clear();
         configuredWorker = null;
         workerOwnershipGeneration += 1;
         // terminate 本身也可能等待底层 Worker；取消请求不能继续阻塞串行尾链。
@@ -131,6 +134,22 @@ export function createOcrWorkerRuntime<TResult>(
             };
             const previousWorker = await previousWorkerPromise.catch(() => null);
             assertTransitionOwnership();
+            const nextLanguages = new Set([...loadedLanguages, ...languages.split('+')]);
+            if (previousWorker?.reinitialize && nextLanguages.size <= 5) {
+                configuredWorker = null;
+                try {
+                    // Tesseract 保留原 OEM 和初始化配置，只加载尚未存在于 Worker 的模型。
+                    await previousWorker.reinitialize(languages);
+                    assertTransitionOwnership();
+                    workerLanguages = languages;
+                    loadedLanguages = nextLanguages;
+                    return previousWorker;
+                } catch (error) {
+                    // 旧操作取消后恢复时，不得销毁下一项已创建的 Worker。
+                    if (workerPromise === previousWorkerPromise) terminateCurrentWorker();
+                    throw error;
+                }
+            }
             await previousWorker?.terminate().catch(() => undefined);
             // 调用方 abort 会立即放行队列中的下一项；旧切换恢复后只能
             // 清理自己当时拥有的 Worker，不得覆盖新请求已安装的实例。
@@ -143,6 +162,7 @@ export function createOcrWorkerRuntime<TResult>(
         const nextWorkerPromise = dependencies.createWorker(languages, reportWorkerProgress);
         workerPromise = nextWorkerPromise;
         workerLanguages = languages;
+        loadedLanguages = new Set(languages.split('+'));
 
         try {
             return await nextWorkerPromise;
@@ -150,6 +170,7 @@ export function createOcrWorkerRuntime<TResult>(
             if (workerPromise === nextWorkerPromise) {
                 workerPromise = null;
                 workerLanguages = '';
+                loadedLanguages.clear();
             }
             throw error;
         }
@@ -161,6 +182,7 @@ export function createOcrWorkerRuntime<TResult>(
                 const current = workerPromise;
                 workerPromise = null;
                 workerLanguages = '';
+                loadedLanguages.clear();
                 configuredWorker = null;
                 workerOwnershipGeneration += 1;
                 await current?.then(worker => worker.terminate());
@@ -197,6 +219,11 @@ export function createOcrWorkerRuntime<TResult>(
             return runExclusive(async () => {
                 if (signal?.aborted) throw createOcrAbortError();
                 const normalized = normalizeLanguages(languages.join('+'));
+                if (workerPromise && normalized.split('+').every(language => loadedLanguages.has(language))) {
+                    // 预下载只保证模型已存在，不改变活跃识别语言，也不重复初始化已准备的包。
+                    await runAbortable(workerPromise, signal);
+                    return;
+                }
                 await runAbortable(getWorker(normalized), signal);
             }, signal);
         },
