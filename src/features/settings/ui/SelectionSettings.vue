@@ -27,11 +27,11 @@
             <button type="button" :aria-pressed="!sentence" @click="sentence = false">单词</button>
             <button type="button" :aria-pressed="sentence" @click="sentence = true">句子</button>
           </div>
-          <div class="selection-preview-source" data-i18n-ignore>{{ sentence ? 'The curious reader explores new ideas.' : 'curious' }}</div>
-          <div class="selection-preview-translation" data-i18n-ignore>{{ sentence ? '这位好奇的读者探索新的想法。' : '好奇的；求知欲强的' }}</div>
+          <div class="selection-preview-source" data-i18n-ignore>{{ sentence ? sentenceSource : 'curious' }}</div>
+          <div class="selection-preview-translation" data-i18n-ignore>{{ sentence ? sentenceTranslation : '好奇的；求知欲强的' }}</div>
           <template v-if="config.selectionTranslatorPresentation === 'card'">
             <div v-if="!sentence" class="selection-preview-word" data-i18n-ignore><span class="selection-pos">形容词 · adj.</span><span data-i18n-ignore>/ˈkjʊəriəs/</span><p data-i18n-ignore>Eager to know or learn something.</p><small>想了解或学习某事；在这里描述读者的求知欲。</small></div>
-            <ReadingAnswer v-else :text="sentenceAnalysis" source-text="The curious reader explores new ideas." />
+            <ReadingAnswer v-else :text="sentenceAnalysis" :source-text="sentenceSource" />
           </template>
           <small class="selection-preview-footnote">{{ config.selectionTranslatorPresentation === 'card' ? '卡片可继续读懂、拆句、学用法和练习。' : '保留复制和朗读，让阅读少一点打断。' }}</small>
         </div>
@@ -53,7 +53,7 @@ import type {Config} from '@/src/core/config/model';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import HarnessSettings from './HarnessSettings.vue';
-import {sentenceAnalysis} from '@/src/core/config/selectionPreview';
+import {sentenceAnalysis, sentenceSource, sentenceTranslation} from '@/src/core/config/selectionPreview';
 import {ReadingAnswer} from '@/src/features/reading-assistant/public';
 const props = defineProps<{config: Config}>();
 const sentence = ref(false);

@@ -1,6 +1,12 @@
+---
+outline: false
+---
+
 # 选择翻译服务
 
 FluentRead 调用所选翻译服务生成译文，并在网页中显示。您可以使用默认服务，也可以配置其他机器翻译、AI 服务或本地模型。
+
+<GuideVisual kind="provider" />
 
 ## 怎么选？
 
@@ -14,6 +20,9 @@ FluentRead 调用所选翻译服务生成译文，并在网页中显示。您可
 
 FluentRead 免费开源，第三方服务可能单独收费。服务商的订阅、接口额度与网页聊天会员可能不同，请确认购买的是可用于接口调用的服务。
 
+<details class="guide-details">
+<summary>使用多个 API Key</summary>
+
 ## 使用多个 API Key
 
 支持 API Key 的服务可以在 API Key 下方的 **密钥管理** 中启用多 Key 轮换，再点击列表底部的“添加 Key”，每行填写一个，无需分隔符。原来保存的单个 Key 会继续保留。所有 Key 共用当前服务的接口地址、模型、区域与自定义请求头；这些设置不同时，请分别创建自定义服务。
@@ -21,6 +30,8 @@ FluentRead 免费开源，第三方服务可能单独收费。服务商的订阅
 开始时，各 Key 均衡分担请求。请求失败后会自动尝试其他 Key，并暂时降低失败 Key 的使用频率；鉴权失败或额度用尽的 Key 可能暂停使用。失败 Key 的默认恢复等待为 1 分钟，可在 **设置 → 高级 → 请求限制** 中调整为 1–60 分钟；服务明确给出限流等待时间时遵循该时间。轮换仍受你设置的请求频率和总超时限制。健康状态是临时状态，扩展后台重新启动后会重置。
 
 点击服务标题栏的“检查连接”会按顺序检测每个已填写且不重复的 Key，结果与汇总显示在同一区域。点击“检查失败”可展开原因，使用行末的检查按钮可以单独重测；检查期间可停止后续检查。一个 Key 失败不会中断其余检查；空白行与重复 Key 不会额外发送请求。检查会发送一小段测试文本，可能消耗少量服务额度。勾选表示这次检查通过，并不代表后续请求始终可用。
+
+</details>
 
 ## 配置并开始使用
 
@@ -33,6 +44,9 @@ FluentRead 免费开源，第三方服务可能单独收费。服务商的订阅
 点击服务目录只是在编辑这项服务，不会立刻更改网页翻译使用的服务。检查连接位于服务详情标题栏右侧；完成配置后，请从通用设置或扩展菜单的 **翻译服务** 抽屉选择默认服务。文档、字幕和翻译卡片请检查各自的服务选择。
 :::
 
+<details class="guide-details">
+<summary>连接详情与高级选项</summary>
+
 内置服务无需添加即可配置，已有配置和自定义接口会保留。选择列表中的服务只打开配置，不会更换默认服务；需要接入其他接口时，点击列表顶部的 **自定义服务**。
 
 详情首先显示模型和连接所需的字段。**密钥管理**紧邻 API Key；下方的 **模型偏好**、**提示词模板**、**请求限制** 和 **接口兼容** 按用途独立展开，分别调整模型思考与识图、服务提示词、并发与频率，以及代理、请求头与 JSON 参数。只显示当前服务支持的选项，修改自动保存，收起不会停用或清空设置。填写过密钥不代表连接检查成功。
@@ -44,6 +58,11 @@ FluentRead 免费开源，第三方服务可能单独收费。服务商的订阅
 免费翻译服务通过多个免费接口生成译文。接口卡片按页面宽度排列，可选择参与调用的接口；实验候选单独展示，已启用项会显示在摘要中。自动均衡会分配请求，优先顺序模式则按编号依次尝试。
 
 <figure class="doc-figure"><a href="/screenshots/ui/zh-CN/settings-services.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/ui/zh-CN/settings-services.webp" width="2560" height="1600" alt="翻译服务目录，可选择服务并查看所需的连接设置" loading="lazy" /></a><figcaption>先配置连接，再选择要用的服务。</figcaption></figure>
+
+</details>
+
+<details class="guide-details">
+<summary>免费翻译如何工作？</summary>
 
 ## 免费翻译如何工作？
 
@@ -59,15 +78,30 @@ FluentRead 免费开源，第三方服务可能单独收费。服务商的订阅
 
 免费服务的可用性与额度会变化，不能保证始终连接成功。公共接口与第三方中转服务也有各自的数据政策。只希望使用其中一家时，请只保留那一家，或直接选择独立服务。
 
+</details>
+
+<details class="guide-details">
+<summary>使用 MyMemory</summary>
+
 ## 使用 MyMemory
 
 选择 **MyMemory** 后即可点击 **检查连接**，联系邮箱可留空。检查使用固定的英文到中文短句，不需要先修改源语言或目标语言；已保存的语言和邮箱设置会保留。
 
 日常翻译仍使用你选择的语言。自动识别无法确定短文本的源语言时，请手动选择源语言后重试。
 
+</details>
+
+<details class="guide-details">
+<summary>使用 DeepL</summary>
+
 ## 使用 DeepL
 
 选择 **DeepL API Free** 或 **API Pro**，填写对应套餐的密钥，再检查连接。DeepL 网页翻译器的订阅与 API 套餐不同，不能直接互换。
+
+</details>
+
+<details class="guide-details">
+<summary>使用 DeepLX</summary>
 
 ## 使用 DeepLX
 
@@ -75,12 +109,17 @@ FluentRead 免费开源，第三方服务可能单独收费。服务商的订阅
 
 无需验证的 DeepLX 接口可以留空 API Key，并直接点击 **检查连接**。需要验证时，API Key 中只填站点提供的 Token 值，不加 `Bearer` 前缀。默认通过请求头发送 Token；如果站点要求在网址中携带 Token，请按站点说明选择：
 
-- 查询参数：`https://deeplx.example.com/translate?token={{apiKey}}`
-- 路径：`https://deeplx.example.com/{{apiKey}}/translate`
+- 查询参数：<code v-pre>https://deeplx.example.com/translate?token={{apiKey}}</code>
+- 路径：<code v-pre>https://deeplx.example.com/{{apiKey}}/translate</code>
 
-保留 `{{apiKey}}` 原样，发送时会自动替换为已填写的 API Key，无需把真实 Token 写进地址。若地址使用占位符且没有可用的免 Key 地址，需要先填写 Key；不会悄悄转到默认公共接口。配置了代理地址时优先使用代理地址，因此也要在那里填写完整路径和站点要求的 Token 格式。完成后点击 **检查连接**。
+保留 <code v-pre>{{apiKey}}</code> 原样，发送时会自动替换为已填写的 API Key，无需把真实 Token 写进地址。若地址使用占位符且没有可用的免 Key 地址，需要先填写 Key；不会悄悄转到默认公共接口。配置了代理地址时优先使用代理地址，因此也要在那里填写完整路径和站点要求的 Token 格式。完成后点击 **检查连接**。
 
 这些设置仅用于单独的 DeepLX 服务；免费翻译服务中的 DeepLX 使用默认公共匿名接口。
+
+</details>
+
+<details class="guide-details">
+<summary>使用云服务厂商</summary>
 
 ## 使用云服务厂商
 
@@ -107,6 +146,11 @@ Azure、阿里云与火山引擎的区域会参与请求签名或决定请求域
 
 两段式密钥（AccessKey Secret、SecretKey 等）与 API Key 一样只保存在当前设备，公开分享的配置和配置历史不包含它们；完整备份会保留。
 
+</details>
+
+<details class="guide-details">
+<summary>本地模型翻译</summary>
+
 ## 本地模型翻译
 
 在 **设置 → 翻译服务 → 本地模型翻译** 选择模型并下载。显示“可离线使用”后，可以先在下方试译，再从扩展菜单切换到这个服务。无需密钥或另外启动本地服务器；翻译文字在当前设备处理。
@@ -124,6 +168,11 @@ Azure、阿里云与火山引擎的区域会参与请求签名或决定请求域
 下载大小不等于运行内存。轻量语言包也可能短暂占用约 1–2 GB 额外内存，载入时 CPU 会升高；模型连续空闲 30 秒后释放。较长文本、浏览器与显卡都会影响实际资源占用。浏览器不兼容混元时，页面会提示更新浏览器或选择轻量包。
 
 本功能需要支持扩展内本地运行的浏览器，油猴版不提供模型下载与运行。不要把本地混元与需要账户和密钥的混元云端服务混淆。具体模型来源与许可可从卡片的信息入口查看。
+
+</details>
+
+<details class="guide-details">
+<summary>使用 AI 服务</summary>
 
 ## 使用 AI 服务
 
@@ -211,6 +260,11 @@ https://myproxy.example/v1beta/models/{model}:generateContent?key={key}
 
 两项默认关闭，可分别开启。改变设置后，对已有译文先恢复原文，再重新翻译。专业词需要保持一致时，可以配合[术语库](/guide/glossary)。
 
+</details>
+
+<details class="guide-details">
+<summary>使用本地模型</summary>
+
 ## 使用本地模型
 
 Ollama 需要先在电脑上安装、启动并下载模型，再将本地服务接入 FluentRead。它的翻译速度取决于模型和电脑性能。
@@ -219,8 +273,15 @@ Ollama 需要先在电脑上安装、启动并下载模型，再将本地服务�
 
 选择本地模型只决定对应翻译请求的去向。朗读、查词和其他独立功能可能仍使用网络服务，详见[数据与隐私](/guide/privacy)。
 
+</details>
+
+<details class="guide-details">
+<summary>连接失败</summary>
+
 ## 连接失败
 
 先检查密钥、地址、模型和账号额度。能翻译短句却无法处理长文章时，可以减少同时请求，或换一个服务。不要把真实密钥放进截图或反馈中。更多排查见[常见问题](/guide/faq)。
 
 有道网页翻译与金山词霸当前支持简体中文和英文方向；Yandex 暂不支持繁体中文目标。不支持的语言方向会交给其他候选处理。免费网页接口可能限流或失效，可以在设置中停用。
+
+</details>

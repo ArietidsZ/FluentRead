@@ -2,6 +2,8 @@
 
 Read a file beside its translation. Edit a passage when needed, then download a copy to keep.
 
+<GuideVisual kind="document" en />
+
 ## Open your file
 
 Choose **Document translation** in the extension menu and drop a file onto the page, or use the file picker.
@@ -9,20 +11,6 @@ Choose **Document translation** in the extension menu and drop a file onto the p
 Supported formats include PDF, ePub, Word DOCX, HTML, TXT, Markdown, JSON, and SRT, VTT, ASS, SSA, and LRC subtitle files. Convert older `.doc` files to `.docx` first.
 
 Expand **No file yet? Try a sample** to open a local article, subtitle, or language-file sample. Importing a sample does not start translation automatically. Confirm settings, then use the same reading, proofreading, and download flow as with your own files.
-
-## Translate in Obsidian
-
-FluentRead also has an [experimental Obsidian desktop plugin](https://github.com/FluentRead/FluentRead/tree/main/integrations/obsidian). Follow the build and install instructions in its directory, then translate Markdown notes or text-based PDFs from the command palette or file context menu. The plugin saves and opens a sibling bilingual Markdown note without overwriting the source. It currently uses Microsoft Translator, which receives the text to translate. PDF output is grouped by page rather than preserving the original PDF layout.
-
-## Batch translation
-
-Select or drop multiple files, or use **Add files** at the top of the page to keep existing files and translations. Collapse the multi-file queue for more reading space. Confirm the languages, service and model, then choose **Translate remaining files** to process unfinished documents in order.
-
-Each file has its own progress. An import or translation failure does not stop other files. **Pause all** preserves completed segments; starting again resumes the remaining work. If settings change, confirm restarting each partially translated file before continuing the batch, so reviewed text is not silently replaced.
-
-When the queue stops, select a file to read, review or download it individually. Choose bilingual or translation-only output and click **Download completed files (ZIP)** to bundle completed documents. Incomplete files are excluded, and files with the same name use separate numbered folders. Switching files preserves your work; removing undownloaded translations asks for confirmation.
-
-Files and translations stay in this page only. Download your results before refreshing or closing it.
 
 ## Translate and read
 
@@ -33,9 +21,6 @@ Files and translations stay in this page only. Download your results before refr
 Pause a long job if needed. Completed passages remain available after a pause or request failure; continuing processes the remainder. Changing languages, services, models, or glossary settings requires a fresh translation, with a prompt first.
 
 Once translation finishes, the workspace focuses on reading, proofreading, and downloading. Open **Adjust settings** to retranslate, configure service connections, or replace files. Confirmation prompts protect results you have not downloaded.
-
-
-<figure class="doc-figure"><a href="/screenshots/en/document.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/en/document.webp" width="2560" height="1600" alt="Document workspace with automatic source detection and complete bilingual paragraphs" loading="lazy" /></a></figure>
 
 ## Edit and download
 
@@ -58,6 +43,30 @@ Translated PDF pages are rendered as images for visual reading. Copying text fro
 ## Does the file leave my computer?
 
 The browser parses the file locally. Text to translate is sent to your selected service. Cloud translation therefore sends the relevant text outside your computer. See [Data & privacy](/en/guide/privacy).
+
+<details class="guide-details">
+<summary>Translate in Obsidian</summary>
+
+## Translate in Obsidian
+
+FluentRead also has an [experimental Obsidian desktop plugin](https://github.com/FluentRead/FluentRead/tree/main/integrations/obsidian). Follow the build and install instructions in its directory, then translate Markdown notes or text-based PDFs from the command palette or file context menu. The plugin saves and opens a sibling bilingual Markdown note without overwriting the source. It currently uses Microsoft Translator, which receives the text to translate. PDF output is grouped by page rather than preserving the original PDF layout.
+
+</details>
+
+<details class="guide-details">
+<summary>Batch translation</summary>
+
+## Batch translation
+
+Select or drop multiple files, or use **Add files** at the top of the page to keep existing files and translations. Collapse the multi-file queue for more reading space. Confirm the languages, service and model, then choose **Translate remaining files** to process unfinished documents in order.
+
+Each file has its own progress. An import or translation failure does not stop other files. **Pause all** preserves completed segments; starting again resumes the remaining work. If settings change, confirm restarting each partially translated file before continuing the batch, so reviewed text is not silently replaced.
+
+When the queue stops, select a file to read, review or download it individually. Choose bilingual or translation-only output and click **Download completed files (ZIP)** to bundle completed documents. Incomplete files are excluded, and files with the same name use separate numbered folders. Switching files preserves your work; removing undownloaded translations asks for confirmation.
+
+Files and translations stay in this page only. Download your results before refreshing or closing it.
+
+</details>
 
 ## Next steps
 

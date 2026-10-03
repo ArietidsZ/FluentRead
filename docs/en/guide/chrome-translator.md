@@ -2,6 +2,8 @@
 
 When your desktop Chrome supports and has prepared the required languages, its built-in model can translate text on your device.
 
+<GuideVisual kind="provider" en />
+
 ## Prepare a language pair
 
 1. Select Chrome’s built-in translation and confirm source and target languages.
@@ -11,6 +13,9 @@ When your desktop Chrome supports and has prepared the required languages, its b
 
 Preparation applies to the current language pair. Another pair may need its own preparation. If automatic source detection fails, specify the source language and retry.
 
+<details class="guide-details">
+<summary>Why is it unavailable?</summary>
+
 ## Why is it unavailable?
 
 Availability depends on Chrome version, device, browser policy, language, and download status. Not every computer supports every language. Check your connection and browser updates; use another service if preparation is unavailable.
@@ -18,6 +23,8 @@ Availability depends on Chrome version, device, browser policy, language, and do
 Initial downloads require a network connection. A language that has not been prepared is not yet ready for offline use.
 
 For deeper diagnosis, see [Chrome’s local model help](https://developer.chrome.com/docs/ai/debug-built-in-model).
+
+</details>
 
 ## Next steps
 
