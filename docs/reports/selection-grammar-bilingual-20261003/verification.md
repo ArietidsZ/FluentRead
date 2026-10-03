@@ -12,3 +12,5 @@
 针对性自动化：阅读展示、学习面板生命周期、提示词配置与运行、i18n、划词生命周期；核心句法锚定、词性与默认提示词四维覆盖率均为 100%。另验证源码注释与 provider 边界、类型检查、测试登记审计、Chrome / Firefox / Userscript 构建、Userscript verifier 与文档构建。未运行全量回归。
 
 依赖通过临时链接复用主检出的 node_modules；交付前移除链接。本报告不代表干净安装验证。原先的单词查询修复保留在同一分支的先前提交中。
+
+Final integration verified b96d912167cad0c5c31272d585fa89e3283545d8 against main 3809af1249642c6dcd768c725c53671bdb2ef976. Refreshed language assets are pinned to 450eb0b86bdc476a1f218d17d673eb6405987cfd. All 291 affected tests and 9 production-extension browser fixtures passed with no page errors. Type checking, Chrome / Firefox / Userscript builds, Userscript verifier, docs build and docs link audit passed (75 pages, 3810 links, 708 anchors, 90 images). This subsequent commit records evidence only and does not change runtime code.

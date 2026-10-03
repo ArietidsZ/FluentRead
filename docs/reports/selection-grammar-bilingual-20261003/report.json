@@ -2,6 +2,26 @@
   "ok": true,
   "cases": [
     {
+      "name": "local definition renders before auxiliary translation without online lookup"
+    },
+    {
+      "name": "slow online lookup ends within budget and keeps ordinary translation",
+      "elapsedMs": 2989,
+      "loading": {
+        "height": 22,
+        "text": "译文已显示，正在补充词典…"
+      }
+    },
+    {
+      "name": "timeout is not cached as a missing word; retry accepts fast source and aborts slow source"
+    },
+    {
+      "name": "missing word gives spelling hint and repeat lookup uses negative cache"
+    },
+    {
+      "name": "late lookup cannot overwrite new selection or reopen a closed card"
+    },
+    {
       "name": "meaning starts at the explanation and retains the source and translation above it",
       "bilingual": {
         "original": "Every language offers a new way to see the world.",
@@ -28,6 +48,10 @@
     }
   ],
   "screenshots": [
+    "local-result-before-support.png",
+    "compact-waiting.png",
+    "dictionary-timeout.png",
+    "word-not-found.png",
     "grammar-chinese.png",
     "reading-source-and-translation.png",
     "grammar-english.png",
@@ -35,8 +59,9 @@
     "reading-late-translation.png"
   ],
   "consoleErrors": [],
-  "translationRequests": 3,
-  "evidence": "Production Chrome extension in isolated Edge; deterministic translation and AI fixtures. No live provider quality claim. Word lookup cases were excluded from this run.",
+  "translationRequests": 11,
+  "scope": "word feedback, grammar and bilingual reading source",
+  "evidence": "Production extension in isolated Edge. Real local dictionary; deterministic online dictionary, translation and AI fixtures. No live provider quality claim.",
   "launchMode": "macos-background-cdp",
   "focusPolicy": "launchservices-no-foreground",
   "windowPlacement": {
@@ -56,18 +81,18 @@
     "screenIndex": 1,
     "browserFrontmost": false,
     "frontmostBefore": {
-      "pid": 76304,
-      "name": "微信"
+      "pid": 44386,
+      "name": "Google Chrome"
     },
     "frontmostAfter": {
-      "pid": 76304,
-      "name": "微信"
+      "pid": 44386,
+      "name": "Google Chrome"
     }
   },
   "extensionDir": "/Users/thinkstu/Desktop/copy/FluentRead-selection-word-feedback-20261003/.output/chrome-mv3",
   "foregroundAfter": {
-    "pid": 1449,
-    "name": "Snipaste"
+    "pid": 44386,
+    "name": "Google Chrome"
   },
-  "scope": "grammar and bilingual reading source"
+  "verifiedHead": "b96d912167cad0c5c31272d585fa89e3283545d8"
 }
