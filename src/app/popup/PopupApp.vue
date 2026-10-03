@@ -386,7 +386,6 @@ import { requestTranslationCacheClear } from './cache';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
 import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
-import UiLanguageOnboarding from '@/src/ui/components/UiLanguageOnboarding.vue';
 import {useUiI18n} from '@/src/ui/i18n';
 import PopupSiteRule from './PopupSiteRule.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
@@ -413,6 +412,7 @@ interface PopupQuickFeatureViewModel {
 import {featureServiceDefinitions, getFeatureService} from '@/src/core/config/featureServices';
 const PopupServices = defineAsyncComponent(() => import('./PopupServices.vue'));
 const ElDrawer = defineAsyncComponent(() => import('./PopupDrawer'));
+const UiLanguageOnboarding = defineAsyncComponent(() => import('@/src/ui/components/UiLanguageOnboarding.vue'));
 const {t, translateLegacy} = useUiI18n();
 const version = browser.runtime.getManifest().version;
 // composition root 已等待配置服务；首次渲染直接使用完整快照，不能先暴露默认布局。

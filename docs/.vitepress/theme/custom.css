@@ -1,29 +1,33 @@
 /* 官网与任务指南：正式品牌、清晰的阅读顺序与可操作的 HTML/CSS 图解。 */
-:root {
+:root,
+.dark {
+  color-scheme: light;
   --vp-c-brand-1: #b92252;
   --vp-c-brand-2: #ca315f;
   --vp-c-brand-3: #bc2854;
-  --vp-c-brand-soft: #d8336210;
+  --vp-c-brand-soft: transparent;
+  --vp-c-bg: #fff;
+  --vp-c-bg-alt: #fff;
+  --vp-c-bg-elv: #fff;
+  --vp-c-bg-soft: #fff;
+  --vp-c-text-1: #26232c;
+  --vp-c-text-2: #62616a;
+  --vp-c-text-3: #77757e;
+  --vp-code-block-bg: #fff;
+  --vp-code-bg: #fff;
+  --vp-custom-block-info-bg: #fff;
+  --vp-custom-block-tip-bg: #fff;
+  --vp-custom-block-warning-bg: #fff;
+  --vp-custom-block-danger-bg: #fff;
+  --vp-custom-block-details-bg: #fff;
   --fr-ink: #26232c;
-  --fr-muted: #716873;
-  --fr-surface: #f7f4f5;
-  --fr-line: #e9e2e6;
+  --fr-muted: #6b6872;
+  --fr-surface: #fff;
+  --fr-line: #e7e7eb;
   --fr-paper: #fff;
-  --bv-warm: #fcf9fa;
+  --bv-warm: #fff;
   --product-muted: var(--fr-muted);
   --product-line: var(--fr-line);
-}
-.dark {
-  --vp-c-brand-1: #ffa4c0;
-  --vp-c-brand-2: #ffc1d3;
-  --vp-c-brand-3: #c13260;
-  --vp-c-brand-soft: #ff97b618;
-  --fr-ink: #f5eff4;
-  --fr-muted: #bfb2be;
-  --fr-surface: #29242e;
-  --fr-line: #403745;
-  --fr-paper: #201c25;
-  --bv-warm: #241e28;
 }
 .VPHome {
   margin-bottom: 0 !important;
@@ -332,44 +336,6 @@
 [data-playing='false'] .bv-scan {
   animation-play-state: paused;
 }
-.bv-walkthrough {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-top: 1px solid var(--fr-line);
-  padding: 16px 12px 12px;
-  gap: 4px;
-  background: var(--bv-warm);
-}
-.bv-walkthrough button {
-  display: flex;
-  gap: 6px;
-  flex-direction: column;
-  align-items: center;
-  font-size: 11px;
-  color: var(--fr-muted);
-  padding: 2px 0;
-  min-width: 0;
-}
-.bv-walkthrough button > span {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--fr-line);
-  border-radius: 50%;
-  background: var(--fr-paper);
-  font-size: 10px;
-  transition: background 0.3s;
-}
-.bv-walkthrough button[aria-pressed='true'] {
-  color: var(--vp-c-brand-1);
-  font-weight: 650;
-}
-.bv-walkthrough button[aria-pressed='true'] > span {
-  background: #bc2854;
-  border-color: #bc2854;
-  color: #fff;
-}
 .bv-playback {
   display: flex;
   justify-content: space-between;
@@ -391,27 +357,6 @@
   padding: 3px 4px;
   color: var(--vp-c-brand-1);
   font-size: 12px;
-}
-.bv-trust {
-  max-width: 1164px;
-  margin: auto;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px 38px;
-  border-top: 1px solid var(--fr-line);
-  border-bottom: 1px solid var(--fr-line);
-  padding: 22px 24px;
-  font-size: 13px;
-  color: var(--fr-muted);
-}
-.bv-trust a {
-  font-weight: 600;
-  color: var(--fr-ink);
-}
-.bv-trust a:last-child {
-  color: var(--vp-c-brand-1);
 }
 .bv-section {
   max-width: 1164px;
@@ -1991,4 +1936,384 @@
 .vp-doc :is(h2, h3, h4)[id],
 .vp-doc .guide-details > summary {
   scroll-margin-top: 100px;
+}
+
+/* 自动演示先给出明确动作，再展示结果；页面统一白底。 */
+.bv-hero {
+  display: block;
+  max-width: 960px;
+  text-align: center;
+  padding: 56px 24px 28px;
+}
+.bv-identity {
+  justify-content: center;
+}
+.bv-hero h1 {
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.bv-hero-intro {
+  max-width: 600px;
+  margin: auto;
+}
+.bv-hero .bv-actions,
+.bv-install-note {
+  justify-content: center;
+}
+.bv-hero-icon {
+  filter: none;
+}
+.bv-platforms {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 24px 32px;
+}
+.bv-platforms-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--fr-muted);
+  margin-bottom: 12px;
+}
+.bv-platforms-heading a {
+  color: var(--fr-muted);
+}
+.bv-browser-links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.bv-browser-links a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--fr-line);
+  border-radius: 10px;
+  color: var(--fr-ink);
+  font-size: 14px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.bv-browser-links a:hover {
+  border-color: var(--vp-c-brand-1);
+  transform: translateY(-2px);
+}
+.bv-browser-links svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  flex-shrink: 0;
+}
+.bv-browser-links a > span {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--fr-muted);
+}
+.bv-translation-section {
+  padding-top: 54px;
+}
+.bv-translation-copy {
+  text-align: center;
+  max-width: 730px;
+  margin: 0 auto 30px;
+}
+.bv-translation-copy p {
+  font-size: 15px;
+  color: var(--fr-muted);
+}
+.bv-translation-demo {
+  max-width: 780px;
+  margin: auto;
+}
+.bv-reader {
+  box-shadow: 0 8px 30px #26232c06;
+}
+.bv-demo-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--fr-line);
+  border-radius: 6px;
+  color: var(--vp-c-brand-1);
+  transition: border-color 0.15s;
+}
+.bv-demo-trigger.triggered,
+.gv-demo-action.triggered {
+  border-color: var(--vp-c-brand-1);
+}
+.bv-scan {
+  animation-duration: 0.55s;
+}
+.gv-selection .gv-stage,
+.gv-hover .gv-stage,
+.gv-learning .gv-stage {
+  min-height: 350px;
+}
+.gv-install .gv-stage {
+  min-height: 365px;
+}
+.gv-area .gv-stage {
+  min-height: 440px;
+}
+.gv-input .gv-editor,
+.gv-writing .gv-editor {
+  min-height: 255px;
+}
+.gv-video {
+  background: white;
+  border: 1px solid var(--fr-line);
+  color: var(--fr-ink);
+}
+.gv-video-landscape {
+  background: linear-gradient(155deg, transparent 45%, #f3f3f4 45%, #eeeef0 55%, transparent 55%),
+    linear-gradient(30deg, #f6f6f7 28%, transparent 28%);
+}
+.gv-video-tag {
+  color: var(--fr-muted);
+}
+.gv-caption {
+  background: white;
+  border: 1px solid var(--fr-line);
+  min-height: 62px;
+}
+.gv-caption p + p {
+  color: var(--vp-c-brand-1);
+}
+.gv-timeline {
+  background: var(--fr-line);
+}
+.gv-stage,
+.fr-grammar {
+  position: relative;
+}
+.gv-stage {
+  min-height: 230px;
+}
+.gv-demo-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0 0 20px auto;
+  padding: 6px 9px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--fr-line);
+  border-radius: 7px;
+  font-size: 11px;
+  color: var(--fr-muted);
+}
+.gv-demo-action img {
+  width: 24px;
+  height: 24px;
+}
+.gv-controls button {
+  background: white;
+  border: 1px solid var(--fr-line);
+  padding: 4px 10px;
+}
+.gv.compact .gv-stage {
+  height: 380px;
+}
+.bv-auto-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--fr-muted);
+}
+.bv-auto-controls button {
+  font-size: 11px;
+  color: var(--vp-c-brand-1);
+  padding: 4px 10px;
+  border: 1px solid var(--fr-line);
+  border-radius: 6px;
+}
+.bv-pointer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  overflow: hidden;
+}
+.bv-pointer-trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+.bv-pointer-trail path {
+  stroke: #b92252;
+  stroke-opacity: 0.22;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 7;
+}
+.bv-pointer-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 28px;
+  opacity: 0;
+  offset-distance: 0%;
+  offset-rotate: 0deg;
+  offset-anchor: 3px 2px;
+  filter: drop-shadow(0 2px 3px #26232c18);
+}
+.bv-pointer-cursor svg {
+  width: 100%;
+  height: 100%;
+  fill: white;
+  stroke: #a81f4a;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.bv-pointer-click {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  margin: -16px;
+  border: 2px solid #b92252;
+  border-radius: 50%;
+  opacity: 0;
+}
+.bv-pointer[data-phase='1'] .bv-pointer-trail {
+  opacity: 1;
+}
+.bv-pointer[data-phase='1'] .bv-pointer-cursor {
+  opacity: 1;
+  animation: bv-pointer-travel 0.6s cubic-bezier(0.25, 0.7, 0.4, 1) both;
+}
+.bv-pointer[data-phase='2'] .bv-pointer-cursor {
+  opacity: 1;
+  offset-distance: 100%;
+}
+.bv-pointer[data-phase='2'] .bv-pointer-click {
+  animation: bv-pointer-press 0.45s ease-out both;
+}
+@keyframes bv-pointer-travel {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+@keyframes bv-pointer-press {
+  from {
+    opacity: 0.8;
+    transform: scale(0.45);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+.vp-doc th,
+.vp-doc tr:nth-child(2n),
+.vp-doc table,
+.VPNavBarSearch button,
+.VPLocalNav,
+.VPSidebar {
+  background: #fff;
+}
+.vp-doc .custom-block {
+  border: 1px solid var(--fr-line);
+}
+.vp-doc .gv-sentence mark {
+  background: transparent;
+}
+.fr-grammar-parts button,
+.fr-docs-mini .mini-chip {
+  background: white;
+}
+.fr-docs-route,
+.fr-docs-bottom {
+  border: 1px solid var(--fr-line);
+}
+.gv-poster {
+  background: #fff;
+  color: var(--fr-ink);
+  border: 1px solid var(--fr-line);
+}
+.gv-poster > small {
+  color: var(--fr-muted);
+}
+.gv-poster-shape,
+.gv-poster-shape:after {
+  background: #fff;
+  border: 1px solid #eee;
+}
+.gv-share-card {
+  background: #fff;
+  color: var(--fr-ink);
+  border: 1px solid var(--fr-line);
+  box-shadow: none;
+}
+.gv-share-card blockquote,
+.vp-doc .gv-share-card blockquote {
+  background: #fff;
+  color: var(--fr-ink);
+  border-left: 3px solid var(--vp-c-brand-1);
+}
+.mini-picture {
+  background: #fff;
+  border: 1px solid var(--fr-line);
+}
+@media (max-width: 760px) {
+  .bv-hero {
+    padding: 40px 24px 20px;
+  }
+  .bv-hero h1 {
+    max-width: 600px;
+  }
+  .bv-translation-section {
+    padding-top: 36px;
+  }
+}
+@media (max-width: 540px) {
+  .bv-hero {
+    padding: 32px 20px 12px;
+  }
+  .bv-identity {
+    gap: 12px;
+  }
+  .bv-hero h1 {
+    font-size: 39px;
+  }
+  .bv-platforms {
+    padding: 20px 20px 30px;
+  }
+  .bv-browser-links {
+    gap: 8px;
+  }
+  .bv-browser-links a {
+    padding: 12px 8px;
+    gap: 6px;
+    font-size: 12px;
+    justify-content: center;
+  }
+  .bv-browser-links svg {
+    display: none;
+  }
+  .bv-browser-links a > span {
+    margin-left: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bv-pointer {
+    display: none;
+  }
+  .bv-browser-links a:hover {
+    transform: none;
+  }
 }

@@ -1,7 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useDemoPlayback } from './useDemoPlayback'
+import DemoPointer from './DemoPointer.vue'
 const props = defineProps<{ en?: boolean }>()
-const active = ref(0)
+const root = ref<HTMLElement | null>(null)
+const { step, playing, running, reduced, choose } = useDemoPlayback(root, 8, true, 1000)
+const target = computed(() => Math.floor(step.value / 2))
+const active = computed(() => Math.floor(Math.max(0, step.value - 1) / 2))
 const t = (zh: string, en: string) => (props.en ? en : zh)
 const parts = [
   {
@@ -52,14 +57,21 @@ const parts = [
 function next(event: KeyboardEvent, index: number) {
   if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
   event.preventDefault()
-  active.value = (index + (event.key === 'ArrowRight' ? 1 : -1) + parts.length) % parts.length
+  choose(((index + (event.key === 'ArrowRight' ? 1 : -1) + parts.length) % parts.length) * 2 + 1)
   const group = (event.currentTarget as HTMLElement).parentElement
   ;(group?.querySelectorAll('button')[active.value] as HTMLElement)?.focus()
 }
 </script>
 
 <template>
-  <div class="fr-grammar" data-demo="grammar">
+  <div
+    ref="root"
+    class="fr-grammar"
+    data-demo="grammar"
+    :data-step="step"
+    :data-playing="playing"
+    :data-running="running"
+  >
     <p class="fr-demo-kicker">
       {{ t('词性与句法 · 看清每一部分的作用', 'GRAMMAR · SEE THE ROLE OF EACH PART') }}
     </p>
@@ -74,12 +86,13 @@ function next(event: KeyboardEvent, index: number) {
         type="button"
         :class="[`fr-grammar-${part.color}`, { active: active === index }]"
         :aria-pressed="active === index"
-        @click="active = index"
+        :data-grammar-index="index"
+        @click="choose(index * 2 + 1)"
         @keydown="next($event, index)"
       >
-        <span>{{ part.text }}</span
-        ><small>{{ part.role[en ? 1 : 0] }} · {{ part.type[en ? 1 : 0] }}</small></button
-      ><span class="fr-grammar-period" aria-hidden="true">.</span>
+        <span>{{ part.text }}{{ index === parts.length - 1 ? '.' : '' }}</span
+        ><small>{{ part.role[en ? 1 : 0] }} · {{ part.type[en ? 1 : 0] }}</small>
+      </button>
     </div>
     <p class="fr-grammar-translation">
       {{
@@ -89,20 +102,31 @@ function next(event: KeyboardEvent, index: number) {
         )
       }}
     </p>
-    <div class="fr-grammar-detail" :key="active" aria-live="polite">
+    <DemoPointer
+      :phase="running ? (step % 2 === 0 ? 1 : 2) : 0"
+      :target="`[data-grammar-index='${target}']`"
+    />
+    <div class="fr-grammar-detail" :key="active" :aria-live="playing ? 'off' : 'polite'">
       <strong
         >{{ parts[active].text }} <span>{{ parts[active].meaning[en ? 1 : 0] }}</span></strong
       >
       <p>{{ parts[active].detail[en ? 1 : 0] }}</p>
     </div>
-    <p class="fr-demo-footnote">
-      {{
-        t(
-          '点击片段查看解释，也可用左右方向键切换。',
-          'Choose a phrase for its explanation, or use the left and right arrow keys.'
-        )
-      }}
-    </p>
+    <div class="bv-auto-controls">
+      <small>{{
+        t('自动拆解句子 · 可点选片段', 'Automatic walkthrough · choose any phrase')
+      }}</small>
+      <button
+        v-if="!reduced"
+        type="button"
+        :aria-label="
+          playing ? t('暂停句法演示', 'Pause grammar demo') : t('播放句法演示', 'Play grammar demo')
+        "
+        @click="playing = !playing"
+      >
+        {{ playing ? t('暂停', 'Pause') : t('播放', 'Play') }}
+      </button>
+    </div>
     <p class="fr-demo-disclosure">
       {{
         t(

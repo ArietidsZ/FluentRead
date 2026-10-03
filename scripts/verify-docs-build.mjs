@@ -92,6 +92,23 @@ for (const file of files(path.join(root, 'docs/guide'))
 for (const prefix of ['', '/en']) {
   const home = docs.get(resolve(prefix + '/'))
   assert(home.querySelector('.bv-hero-icon[src="/brand-icon.webp"]'), 'Primary brand icon missing')
+  assert(!home.querySelector('.bv-hero [data-demo]'), 'First screen must focus on the brand')
+  assert(
+    home.querySelector('.bv-translation-section [data-demo="brand-reader"]'),
+    'Translation demo must appear below the hero'
+  )
+  assert(!home.querySelector('.bv-walkthrough'), 'Numbered walkthrough controls must be removed')
+  assert.equal(
+    home.querySelectorAll('.bv-browser-links a').length,
+    3,
+    'Browser installation links missing'
+  )
+  assert(
+    [...home.querySelectorAll('[data-visual],[data-demo]')].every(
+      (d) => d.getAttribute('data-playing') === 'true'
+    ),
+    'Homepage demonstrations must start automatically'
+  )
   assert(
     home.querySelector('[data-demo="brand-reader"]') && home.querySelector('[data-demo="grammar"]'),
     'Homepage must contain readable SSR examples'
