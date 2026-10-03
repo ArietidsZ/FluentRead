@@ -23,7 +23,7 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
       text: en ? 'Webpage translation' : '网页翻译',
       items: [
         item('全文与局部翻译', 'Page & section translation', '/guide/webpage-translation'),
-        item('划词与 AI 讲解', 'Selection & AI explanations', '/guide/deepseek-harness'),
+        item('划词翻译', 'Selection translation', '/guide/deepseek-harness'),
         item('悬浮段落翻译', 'Hover translation', '/guide/hover-translation'),
         item('输入框翻译', 'Input translation', '/guide/input-translation'),
         item('翻译中心', 'Translation Center', '/guide/translation-center'),
@@ -33,10 +33,10 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
       collapsed: true,
       text: en ? 'Images, documents & video' : '图片、文档与视频',
       items: [
-        item('图片翻译', 'Image translation', '/guide/image-translation'),
+        item('图片与漫画翻译', 'Image & comic translation', '/guide/image-translation'),
         item('圈选翻译', 'Area translation', '/guide/area-translation'),
         item('文档翻译', 'Document translation', '/guide/document-translation'),
-        item('视频与会议字幕', 'Video & meeting captions', '/guide/video-subtitles'),
+        item('视频与会议翻译', 'Video & meeting translation', '/guide/video-subtitles'),
       ],
     },
     {
@@ -86,6 +86,7 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
   ]
 }
 const theme = (en = false): DefaultTheme.Config => ({
+  siteTitle: en ? 'FluentRead' : '流畅阅读',
   nav: [
     { text: en ? 'Features' : '功能', link: en ? '/en/#features' : '/#features' },
     {
