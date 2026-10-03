@@ -67,6 +67,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(239, 71, 118
   backdrop-filter: blur(18px);
 }
 .brand { display: flex; align-items: center; gap: 11px; padding: 0 8px 22px; }
+.settings-app .brand { color: var(--ink); text-decoration: none; border-radius: 12px; }
+.settings-app .brand:hover strong { color: var(--brand-strong); }
+.settings-app .brand:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 3px; }
 .brand img { flex: none; width: 46px; height: 46px; border-radius: 14px; box-shadow: 0 10px 22px rgba(239, 71, 118, .22); }
 .brand div, .sidebar nav button > span:last-child { display: flex; flex-direction: column; min-width: 0; }
 .brand-copy { flex: 1; gap: 2px; }

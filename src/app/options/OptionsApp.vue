@@ -1,19 +1,19 @@
 <!--
  @file src/app/options/OptionsApp.vue
  文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和学习中心入口，并把选中分区交给对应 feature UI。
- 主要内容：侧栏品牌图标右侧纵向展示名称与小字多语言宣传语，关于页复用品牌文案；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示，服务目录使用完整工作区，统计与网站规则按任务保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
+ 主要内容：侧栏品牌图标右侧纵向展示名称与小字多语言宣传语，品牌区域与关于页提供统一官网入口，关于页复用品牌文案；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示，服务目录使用完整工作区，统计与网站规则按任务保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
  模块边界：组件负责页面壳、导航状态和界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
 -->
 <template>
   <div class="settings-app" :class="{'has-overlay-close': Boolean(props.onClose)}">
     <aside class="sidebar">
-      <div class="brand">
+      <a class="brand" :href="websiteUrl" target="_blank" rel="noopener noreferrer" :aria-label="t('options.aboutWebsite')" :title="t('options.aboutWebsite')">
         <img :src="iconUrl" alt="" />
         <div class="brand-copy">
           <strong>流畅阅读</strong>
           <p class="sidebar-tagline" data-testid="brand-tagline" data-i18n-ignore>{{ t('brand.tagline') }}</p>
         </div>
-      </div>
+      </a>
 
           <label class="search-box">
             <UiIcon name="search" :size="16" />
@@ -127,6 +127,7 @@
               <h3>{{ t('options.aboutMakeBetter') }}</h3>
               <p>{{ t('options.aboutLinksDescription') }}</p>
               <div class="about-links">
+                <a :href="websiteUrl" target="_blank" rel="noopener noreferrer">{{ t('options.aboutWebsite') }} <span aria-hidden="true">↗</span></a>
                 <a href="https://github.com/Bistutu/FluentRead" target="_blank" rel="noreferrer">{{ t('options.aboutProject') }} <span>↗</span></a>
                 <a href="https://fluent.thinkstu.com/" target="_blank" rel="noreferrer">{{ t('options.aboutDocs') }} <span>↗</span></a>
                 <a href="https://github.com/Bistutu/FluentRead/issues" target="_blank" rel="noreferrer">{{ t('options.aboutFeedback') }} <span>↗</span></a>
@@ -181,6 +182,7 @@ const props = defineProps<{
   onClose?: () => void
 }>()
 const version = process.env.VUE_APP_VERSION
+const websiteUrl = 'https://read.thinkstu.com'
 const iconUrl = globalThis.__FLUENTREAD_ICON_DATA__ || '/icon/128.png'
 const approveUrl = globalThis.__FLUENTREAD_APPROVE_DATA__ || '/misc/approve.jpg'
 const {t, translateLegacy} = useUiI18n()

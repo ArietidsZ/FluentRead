@@ -14,3 +14,5 @@ FluentRead is an open-source project whose continued development is made possibl
 <SupportOptions en />
 
 To contribute to development, visit [GitHub](https://github.com/FluentRead/FluentRead). For help with the extension, [report an issue](https://github.com/FluentRead/FluentRead/issues).
+
+In the extension settings, open “About FluentRead” and click “Official website” to visit the [FluentRead website](https://read.thinkstu.com) in a new tab. You can also click the brand icon or name in the upper-left corner of the settings page.

@@ -14,3 +14,5 @@ FluentRead 是一个开源项目，其持续开发离不开社区的慷慨支持
 <SupportOptions />
 
 如需参与项目开发，请访问 [GitHub](https://github.com/FluentRead/FluentRead)；使用中遇到问题，可以[提交反馈](https://github.com/FluentRead/FluentRead/issues)。
+
+在扩展设置的“关于流畅阅读”页面，点击“官方网站”即可在新标签页打开 [FluentRead 官网](https://read.thinkstu.com)。点击设置页左上角的品牌图标或名称，也可以打开官网。
