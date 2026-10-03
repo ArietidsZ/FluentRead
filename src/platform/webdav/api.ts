@@ -1,7 +1,7 @@
 /**
  * @file src/platform/webdav/api.ts
  * 文件职责：在用户指定的 WebDAV 目录下读写 FluentRead 配置密文并验证服务器能力。
- * 主要内容：只读 PROPFIND 测试、确认后创建专属目录、ETag 条件 PUT、流式大小限制和超时；
+ * 主要内容：只读 PROPFIND 测试与缺少父目录的首次备份识别、确认后创建专属目录、ETag 条件 PUT、流式大小限制和超时；
  * 禁止跟随重定向、携带浏览器 Cookie 或返回服务器异常正文，防止连接凭据流向其他地址。
  * 模块边界：只消费后台会话与密文，不读取配置或保存密码；冲突合并由云备份服务处理。
  */
@@ -71,18 +71,29 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
     }
     const directory = (session: WebDavSession) => new URL(WEBDAV_BACKUP_DIRECTORY, session.connection.url).href;
     const filename = (session: WebDavSession) => new URL(WEBDAV_BACKUP_FILE, directory(session)).href;
-    async function test(connection: WebDavConnection): Promise<void> {
-        const session = createWebDavSession(connection, async () => connection);
-        await request(session, connection.url, {method: 'PROPFIND', headers: {Depth: '0', 'Content-Type': 'application/xml; charset=utf-8'}, body: '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/></d:prop></d:propfind>'}, async response => {
+    async function checkDirectory(session: WebDavSession, url: string, allowMissing = false): Promise<boolean> {
+        return request(session, url, {method: 'PROPFIND', headers: {Depth: '0', 'Content-Type': 'application/xml; charset=utf-8'}, body: '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/></d:prop></d:propfind>'}, async response => {
+            if (allowMissing && [404, 409].includes(response.status)) return false;
             if (response.status !== 207) throw response.ok ? new WebDavError('invalidDav') : failure(response.status);
             const xml = await consumeText(response, XML_LIMIT);
             // 只检查 Depth:0 的目录能力，不执行 XML、实体展开或任意返回地址。
             if (!isDavCollection(xml)) throw new WebDavError('invalidDav');
+            return true;
         });
+    }
+    async function test(connection: WebDavConnection): Promise<void> {
+        await checkDirectory(createWebDavSession(connection, async () => connection), connection.url);
     }
     async function read(session: WebDavSession): Promise<CloudSyncRemote | null> {
         return request(session, filename(session), {method: 'GET'}, async response => {
             if (response.status === 404) return null;
+            if (response.status === 409) {
+                // 坚果云等服务在备份父目录尚不存在时返回 409。先验证用户入口仍有效，
+                // 再只读检查专属目录；不得将已有目录的未知冲突当成空备份或提前创建目录。
+                await checkDirectory(session, session.connection.url);
+                if (!await checkDirectory(session, directory(session), true)) return null;
+                throw new WebDavError('http', response.status);
+            }
             if (response.status !== 200) throw failure(response.status);
             const content = await consumeText(response, maxBytes);
             const etag = strongEtag(response.headers.get('etag'));
