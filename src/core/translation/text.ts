@@ -1,7 +1,7 @@
 /**
  * @file src/core/translation/text.ts
  *
- * 文件职责：提取和校验候选中的可读文本，拒绝标识符、空白、扩展译文及脚本、表单或敏感区域的节点。
+ * 文件职责：提取和校验候选中的可读文本，拒绝标识符、独立时间与数值、空白、扩展译文及脚本、表单或敏感区域的节点。
  * 主要内容：提供文本规范化、meaningful/identifier 判定、元素与文本节点保护检查、嵌套 tooltip 来源隔离、WeakMap 状态缓存和受预算约束的深度扫描，避免在大型 DOM 上无限遍历。 可核对的公开符号包括 normalizeTranslationText、isIdentifierLikeText、isMeaningfulTranslationText、setMinimumTranslationTextLength、isTranslationTextNodeProtected、TranslationTextProtectionCache、createTranslationTextProtectionCache、isTranslationTextElementProtected、hasMeaningfulTranslationTextInNodes。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期；文本语言与同目标跳过统一由 src/core/language 判断。
  */
@@ -14,6 +14,7 @@ import {
     maxComposedAncestorDepth,
 } from './dom';
 import type {TranslationTextProtectionOptions} from './dom';
+import {isNonTranslatableLiveData} from './liveData';
 import {
     DEFAULT_MIN_TRANSLATION_TEXT_LENGTH,
     normalizeMinTranslationTextLength,
@@ -51,7 +52,7 @@ export function setMinimumTranslationTextLength(value: unknown): number {
 
 export function isMeaningfulTranslationText(value: string): boolean {
     const text = normalizeTranslationText(value);
-    if (!text || isIdentifierLikeText(text)) return false;
+    if (!text || isIdentifierLikeText(text) || isNonTranslatableLiveData(text)) return false;
     // 字符长度按用户设定过滤短碎片；字母数仍保留原有的纯符号与编号防护。
     if (text.length < minimumTranslationTextLength) return false;
     const letters = text.match(/\p{L}/gu)?.length ?? 0;
@@ -66,7 +67,7 @@ export function isTranslationTextNodeProtected(
     protectionCache = createTranslationTextProtectionCache(),
 ): boolean {
     const parent = node.parentElement;
-    if (!parent) return true;
+    if (!parent || isNonTranslatableLiveData(node.nodeValue ?? '')) return true;
     // 同一次同步提取中的文本节点共享祖先；调用方传入缓存时只在相同判定参数下复用。
     return isTranslationTextElementProtected(
         parent,
@@ -246,7 +247,7 @@ export function hasMeaningfulTranslationTextInNodes(
             textNodes += 1;
             const remaining = discoveryCharacterBudget - characters;
             const value = normalizeTranslationText((textNode.nodeValue ?? '').slice(0, remaining));
-            if (!value) continue;
+            if (!value || isNonTranslatableLiveData(value)) continue;
             parts.push(value);
             characters += value.length;
             continue;
