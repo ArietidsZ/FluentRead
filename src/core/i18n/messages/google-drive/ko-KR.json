@@ -37,7 +37,7 @@
     "settings.drive.showDetails": "차이점 {count}개 보기",
     "settings.drive.hideDetails": "차이점 접기",
     "settings.drive.showAutomatic": "자동 선택 {count}개 보기",
-    "settings.drive.hideAutomatic": "선택할 설정으로 돌아가기",
+    "settings.drive.hideAutomatic": "자동으로 유지할 변경 {count}개 접기",
     "settings.drive.privateHint": "키, 주소, 사용자 지정 내용은 숨겨져 있습니다. 관련 설정은 그룹으로 유지됩니다.",
     "settings.drive.otherSettings": "기타 호환성 설정",
     "settings.drive.groupedContent": "설정 {count}개 (내용 숨김)",

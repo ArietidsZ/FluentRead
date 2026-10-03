@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 
-import {buildConfigDiff} from '@/src/core/config/diff';
+import {buildConfigDiff,configDiffFieldLabel} from '@/src/core/config/diff';
 import {getMultilingualTargetLanguageLabel} from '@/src/core/config/catalog';
 import {createApiKeyRequirementKey} from '@/src/core/config/validation';
 
@@ -9,6 +9,17 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('云备份只能获得已知设置名称；词库选择和功能偏好保持可辨认摘要', () => {
+        expect(configDiffFieldLabel('hotkey')).toBe('鼠标悬浮快捷键');
+        expect(configDiffFieldLabel('private-fixture-key')).toBeUndefined();
+        const before={documentGlossaryIds:null,videoGlossaryIds:[],selectionTranslatorPresentation:'card',freeTranslationOrder:['google'],freeTranslationMode:'sequential',freeTranslationTimeoutMs:1000,freeTranslationCooldownMs:5000,bilingualSentenceHighlightProfiles:[{name:'一'},'旧样式'],glossaryLibraries:[{entries:[]},{}]};
+        const after={documentGlossaryIds:['one'],videoGlossaryIds:'legacy',selectionTranslatorPresentation:'plain',freeTranslationOrder:'legacy',freeTranslationMode:'auto',freeTranslationTimeoutMs:3000,freeTranslationCooldownMs:8000,bilingualSentenceHighlightProfiles:'legacy',glossaryLibraries:'legacy'};
+        const result=buildConfigDiff(before,after);
+        expect(result.changeCount).toBe(9);
+        const preview=JSON.stringify(result.groups);
+        expect(preview).toContain('跟随全局词库');expect(preview).toContain('不使用术语库');expect(preview).toContain('指定 1 套词库');
+        for (const glossaryIds of [null,[],['one'],'legacy']) expect(buildConfigDiff({quickTranslationProfiles:[]},{quickTranslationProfiles:[{action:'hover',hotkey:'Alt',glossaryIds}]}).changeCount).toBe(1);
+    });
     it('漫画预译窗口以用户可理解名称显示，零页可以撤销恢复', () => {
         const changes=group(buildConfigDiff({imageTranslationMangaPrefetchPages:3},{imageTranslationMangaPrefetchPages:0}),'imageTranslation')?.changes;
         expect(changes).toEqual([{key:'imageTranslationMangaPrefetchPages',label:'提前翻译后续页面',before:'3',after:'0'}]);

@@ -9,6 +9,7 @@ import {options, servicesType} from './catalog';
 import {CONFIG_CREDENTIAL_FIELDS} from './credentials';
 import {isConfiguredCustomOpenAIProvider, isCustomOpenAIProviderId, normalizeCustomOpenAIProviders} from './customOpenAI';
 import {isConfigImportValid, prepareConfigForExport} from './transfer';
+import {configDiffFieldLabel} from './diff';
 export class DriveConfigError extends Error {}
 
 export type DriveSyncConfig = Record<string, unknown>;
@@ -21,6 +22,7 @@ export interface DriveSyncChange {
     remote: string;
     conflict: boolean;
     recommended: DriveChoice | null;
+    details?: string[];
 }
 export interface DriveSyncField {
     path: string[];
@@ -165,16 +167,32 @@ const VISIBLE_FIELDS: Record<string, string> = {
     excludedLanguages: '跳过翻译的语言', videoSubtitleAppearance: '视频字幕外观',
     system_role: 'System 提示词', user_role: 'User 提示词', glossaryLibraries: '术语库内容',
     contextMenuEntries: '右键菜单入口', shareCard: '双语卡片',
+    contextMenuShowTargetLanguage: '右键菜单显示目标语言', contextMenuShowShortcut: '右键菜单显示快捷键',
+    hoverShortcutBeforeDisable: '已保存的悬浮快捷键', selectionTranslatorModeBeforeDisable: '已保存的划词模式',
+    videoLocalModel: '本地语音识别模型', requestHeaderRules: '移除来源请求头',
 };
 // 端点、路由模型与凭据一起选择，防止自动合并把某端的密钥绑定到另一端的新地址。
 const CONNECTION_FIELDS = new Set<string>([
     ...CONFIG_CREDENTIAL_FIELDS, ...SERVICE_FIELDS, 'translationCenterServices', 'favoriteServices',
     'quickTranslationProfiles', 'writing', 'harness', 'serviceRegion', 'customModels', 'modelThinking',
-    'requireApiKey', 'apiKeyRotationEnabled', 'inputBoxTranslationModel', 'deepseekApiType', 'deepseekThinkingMode', 'proxy', 'deeplx', 'customBody', 'customOpenAIProviders',
+    'requireApiKey', 'apiKeyRotationEnabled', 'inputBoxTranslationModel', 'deepseekApiType', 'deepseekThinkingMode', 'proxy', 'custom', 'deeplx', 'customBody', 'customOpenAIProviders',
     'newApiUrl', 'azureOpenaiEndpoint', 'deeplApiPlan', 'minimaxBillingPlan', 'minimaxRegion',
     'mimoBillingPlan', 'mimoRegion', 'model', 'customModel', 'documentModel', 'documentCustomModel',
 ]);
-const PRIVATE_FIELDS = new Set(['system_role', 'user_role', 'activeTranslationStyleProfileId']);
+const PRIVATE_FIELDS = new Set(['system_role', 'user_role', 'activeTranslationStyleProfileId', 'myMemoryEmail', 'areaVisionPrompt', 'inputBoxTranslationPrompt', 'inputBoxTranslationSystemPrompt']);
+const fieldLabel = (field: string) => Object.hasOwn(VISIBLE_FIELDS, field) ? VISIBLE_FIELDS[field] : configDiffFieldLabel(field);
+const CONNECTION_SUMMARIES: [string, readonly string[]][] = [
+    ['settings.cloud.changed.credentials', CONFIG_CREDENTIAL_FIELDS],
+    ['settings.cloud.changed.requests', ['proxy', 'custom', 'deeplx', 'customBody', 'newApiUrl', 'azureOpenaiEndpoint']],
+    ['settings.cloud.changed.models', ['model', 'customModel', 'customModels', 'modelThinking', 'documentModel', 'documentCustomModel', 'inputBoxTranslationModel']],
+    ['settings.cloud.changed.services', [...SERVICE_FIELDS, 'translationCenterServices', 'favoriteServices', 'quickTranslationProfiles']],
+    ['settings.cloud.changed.customServices', ['customOpenAIProviders']],
+    ['settings.cloud.changed.assistants', ['writing', 'harness']],
+    ['settings.cloud.changed.options', ['serviceRegion', 'requireApiKey', 'apiKeyRotationEnabled', 'deepseekApiType', 'deepseekThinkingMode', 'deeplApiPlan', 'minimaxBillingPlan', 'minimaxRegion', 'mimoBillingPlan', 'mimoRegion']],
+];
+function connectionDetails(local: DriveSyncConfig, remote: DriveSyncConfig): string[] {
+    return CONNECTION_SUMMARIES.filter(([, keys]) => keys.some(key => !driveValuesEqual(local[key], remote[key]))).map(([label]) => label);
+}
 function partition(config: DriveSyncConfig) {
     const connection: DriveSyncConfig = {};
     const settings: DriveSyncConfig = {};
@@ -203,7 +221,7 @@ function previewValue(value: unknown, sensitive: boolean, field: string): string
     const choices = field === 'theme' ? options.theme : field === 'from' ? options.from : field === 'to' ? options.to : field === 'style' ? options.styles : [];
     const option = choices.find(option => option.value === value);
     if (option) return option.label;
-    return JSON.stringify(value).slice(0, 160);
+    return (typeof value === 'string' ? value : JSON.stringify(value)).slice(0, 160);
 }
 
 export function buildDriveSyncDiff(base: DriveSyncConfig | null, local: DriveSyncConfig, remote: DriveSyncConfig): DriveSyncDiff {
@@ -212,7 +230,7 @@ export function buildDriveSyncDiff(base: DriveSyncConfig | null, local: DriveSyn
     const walk = (path: string[], before: unknown, left: unknown, right: unknown, atomic = false): unknown => {
         if (driveValuesEqual(left, right)) return left;
         // 已知的复合偏好整体比较，避免把一组外观/站点规则拆成许多无法辨认的子字段。
-        if (!atomic && record(left) && record(right) && !(path.length === 1 && Object.hasOwn(VISIBLE_FIELDS, path[0]))) {
+        if (!atomic && record(left) && record(right) && !(path.length === 1 && fieldLabel(path[0]))) {
             const result: DriveSyncConfig = {};
             const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
             for (const key of keys) {
@@ -224,13 +242,14 @@ export function buildDriveSyncDiff(base: DriveSyncConfig | null, local: DriveSyn
         const recommended = base === null ? null : driveValuesEqual(left, before) ? 'remote'
             : driveValuesEqual(right, before) ? 'local' : null;
         const root = path[0];
-        const sensitive = atomic || PRIVATE_FIELDS.has(root) || path.length !== 1 || !Object.hasOwn(VISIBLE_FIELDS, root) || (typeof left === 'object' && left !== null) || (typeof right === 'object' && right !== null);
+        const sensitive = atomic || PRIVATE_FIELDS.has(root) || path.length !== 1 || !fieldLabel(root) || (typeof left === 'object' && left !== null) || (typeof right === 'object' && right !== null);
         const id = String(fields.length);
         fields.push({path, local: left, remote: right, recommended});
         changes.push({
-            id, label: atomic ? '翻译连接与凭据（整组）' : VISIBLE_FIELDS[root] ?? '私密或自定义设置',
+            id, label: atomic ? '翻译连接与凭据（整组）' : fieldLabel(root) ?? '私密或自定义设置',
             sensitive, local: atomic ? previewConnection(left) : previewValue(left, sensitive, root), remote: atomic ? previewConnection(right) : previewValue(right, sensitive, root),
             conflict: recommended === null, recommended,
+            ...(atomic ? {details: connectionDetails(left as DriveSyncConfig, right as DriveSyncConfig)} : {}),
         });
         return recommended === 'remote' ? right : left;
     };

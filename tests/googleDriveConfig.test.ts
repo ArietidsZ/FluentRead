@@ -5,6 +5,19 @@ import {buildDriveSyncDiff, driveSyncPayload, driveValuesEqual, parseDriveSyncPa
 
 function complete(patch: Record<string, unknown> = {}) {return toDriveSyncConfig(normalizeConfig({...new Config(), videoServiceDefaultMigrated: true, ...patch}));}
 describe('Google Drive 完整快照和安全合并', () => {
+    it('备份差异复用设置名称，连接整组说明变更类别而不暴露凭据', () => {
+        const diff=buildDriveSyncDiff(null,{translationScope:'content',hotkey:'Alt',inputBoxTranslationPrompt:'fixture-private-prompt',service:'google',token:{},proxy:{}},{translationScope:'all',hotkey:'Shift',inputBoxTranslationPrompt:'other-private-prompt',service:'bing',token:{openai:'fixture-private-key'},proxy:{openai:'https://private.invalid'}});
+        expect(diff.changes.map(change=>change.label)).toEqual(['识别全部节点','鼠标悬浮快捷键','输入框翻译提示词','翻译连接与凭据（整组）']);
+        expect(diff.changes.at(-1)?.details).toEqual(['settings.cloud.changed.credentials','settings.cloud.changed.requests','settings.cloud.changed.services']);
+        expect(JSON.stringify(diff.changes)).not.toMatch(/private|\.invalid/u);
+        const headerRules = buildDriveSyncDiff(null, {requestHeaderRules: []}, {requestHeaderRules: [{domain: 'fixture-private.invalid', removeOrigin: true, removeReferer: false}]});
+        expect(headerRules.changes[0].label).toBe('移除来源请求头');
+        expect(JSON.stringify(headerRules.changes)).not.toContain('fixture-private.invalid');
+        const unknown=buildDriveSyncDiff(null,{future:{secret:'private'},toString:'fixture-private'},{future:{secret:'other'},toString:'other-private'});
+        expect(unknown.changes[0].label).toBe('私密或自定义设置');
+        expect(unknown.changes.every(change=>change.sensitive)).toBe(true);
+        expect(JSON.stringify(unknown.changes)).not.toMatch(/private|toString/u);
+    });
     it('提前翻译零页跨设备保留，差异预览使用设置名称', () => {
         const fixture=complete({imageTranslationMangaPrefetchPages:0});
         expect(parseDriveSyncPayload(driveSyncPayload(fixture)).imageTranslationMangaPrefetchPages).toBe(0);

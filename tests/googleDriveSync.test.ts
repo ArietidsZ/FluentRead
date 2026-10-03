@@ -35,6 +35,20 @@ async function synced() {
     return f;
 }
 describe('Google Drive 同步事务', () => {
+    it('配置一致或合并结果等于云端时只更新基线，不重复写入备份', async () => {
+        const f=await synced();
+        for (const direction of ['upload','merge'] as const) {
+            const preview=await f.service.prepare(password);
+            await f.service.commit(preview.id,password,direction,{});
+            expect(f.ports.api.write).toHaveBeenCalledTimes(1);
+            expect((f.state as DriveSyncState).baseline).toBe(f.remote!.content);
+        }
+        f.local=config({...f.local,to:'de'});
+        const preview=await f.service.prepare(password);
+        await f.service.commit(preview.id,password,'merge',Object.fromEntries(preview.changes.map(change=>[change.id,'remote'])));
+        expect(f.ports.api.write).toHaveBeenCalledTimes(1);
+        expect(f.local.to).not.toBe('de');
+    });
     it('MV3 后台重启后仍可用口令恢复一次性预览，暂存中没有明文凭据', async () => {
         const first = fixture();
         const initial = await first.service.prepare(password);
@@ -155,6 +169,7 @@ describe('Google Drive 同步事务', () => {
         preview = await f.service.prepare(password);
         f.remote = {file: {id: 'new-file', version: '1', modifiedTime: ''}, content: await encryptDriveConfig(driveSyncPayload(local), password)};
         await expect(f.service.commit(preview.id, password, 'upload', {})).rejects.toThrow('云端配置已变化');
+        f.remote = {...f.remote!, content: await encryptDriveConfig(driveSyncPayload(config({...local, to:'de'})), password)};
         preview = await f.service.prepare(password);
         vi.mocked(f.ports.api.write).mockRejectedValueOnce(new Error('fixture upstream secret'));
         await expect(f.service.commit(preview.id, password, 'upload', {})).rejects.toThrow();

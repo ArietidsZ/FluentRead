@@ -1,7 +1,7 @@
 /**
  * @file src/platform/webdav/api.ts
  * 文件职责：在用户指定的 WebDAV 目录下读写 FluentRead 配置密文并验证服务器能力。
- * 主要内容：只读 PROPFIND 测试与缺少父目录的首次备份识别、确认后创建专属目录、ETag 条件 PUT、流式大小限制和超时；
+ * 主要内容：只读 PROPFIND 测试、缺少父目录的首次备份识别、从文件属性补取并核验 ETag、条件 PUT、流式大小限制和超时；
  * 禁止跟随重定向、携带浏览器 Cookie 或返回服务器异常正文，防止连接凭据流向其他地址。
  * 模块边界：只消费后台会话与密文，不读取配置或保存密码；冲突合并由云备份服务处理。
  */
@@ -27,6 +27,27 @@ function isDavCollection(xml: string): boolean {
 }
 function strongEtag(value: string | null): string | undefined {
     return value && value.length <= 512 && /^"[\x21\x23-\x7e\x80-\xff]*"$/u.test(value) ? value : undefined;
+}
+/** 只认固定文件的 DAV:getetag；不跟随返回地址，不展开实体，不接受弱版本。 */
+function propertyEtag(xml: string, url: string): string | undefined {
+    if (/<!DOCTYPE|<!ENTITY/iu.test(xml)) return undefined;
+    const namespaces = [...xml.matchAll(/xmlns(?::([\w-]+))?=["']([^"']+)["']/gu)];
+    const dav = namespaces.filter(match => match[2] === 'DAV:');
+    if (!dav.length || dav.some(binding => namespaces.some(other => other[1] === binding[1] && other[2] !== 'DAV:'))) return undefined;
+    const prefix = `(?:${dav.map(match => match[1] ? `${match[1]}:` : '').join('|')})`;
+    const decode = (text: string) => text.replace(/&(?:quot|apos|amp|lt|gt);/gu, entity => ({'&quot;': '"', '&apos;': "'", '&amp;': '&', '&lt;': '<', '&gt;': '>'}[entity]!));
+    const responses = [...xml.matchAll(new RegExp(`<(${prefix}response)\\s*>[\\s\\S]*?<\\/\\1\\s*>`, 'gu'))];
+    // Depth:0 应只返回一个文件；拒绝有歧义的响应，避免混用另一文件的版本。
+    if (responses.length !== 1 || [...xml.matchAll(new RegExp(`<${prefix}response\\s*>`, 'gu'))].length !== 1) return undefined;
+    const record = responses[0][0];
+    const href = record.match(new RegExp(`<${prefix}href\\s*>([^<]*)<\\/${prefix}href\\s*>`, 'u'))?.[1];
+    if (!href || decode(href.trim()) !== url && decode(href.trim()) !== new URL(url).pathname) return undefined;
+    const values: string[] = [];
+    for (const [propstat] of record.matchAll(new RegExp(`<(${prefix}propstat)\\s*>[\\s\\S]*?<\\/\\1\\s*>`, 'gu'))) {
+        if (!new RegExp(`<${prefix}status\\s*>\\s*HTTP\\/\\d(?:\\.\\d)? 200(?:\\s[^<]*)?<\\/${prefix}status\\s*>`, 'u').test(propstat)) continue;
+        for (const match of propstat.matchAll(new RegExp(`<${prefix}getetag\\s*>([^<]*)<\\/${prefix}getetag\\s*>`, 'gu'))) values.push(decode(match[1].trim()));
+    }
+    return values.length === 1 ? strongEtag(values[0]) : undefined;
 }
 function failure(status: number): WebDavError {
     const codes = {401: 'auth', 403: 'forbidden', 404: 'notFound', 409: 'notFound', 412: 'conflict', 423: 'locked', 507: 'quota'} as const;
@@ -85,7 +106,8 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
         await checkDirectory(createWebDavSession(connection, async () => connection), connection.url);
     }
     async function read(session: WebDavSession): Promise<CloudSyncRemote | null> {
-        return request(session, filename(session), {method: 'GET'}, async response => {
+        const url = filename(session);
+        const remote = await request(session, url, {method: 'GET'}, async response => {
             if (response.status === 404) return null;
             if (response.status === 409) {
                 // 坚果云等服务在备份父目录尚不存在时返回 409。先验证用户入口仍有效，
@@ -101,6 +123,23 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
             const version = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
             return {file: {id: filename(session), version, modifiedTime: response.headers.get('last-modified') ?? '', ...(etag ? {etag} : {})}, content};
         });
+        if (!remote || remote.file.etag) return remote;
+        const etag = await request(session, url, {method: 'PROPFIND', headers: {Depth: '0', 'Content-Type': 'application/xml; charset=utf-8'}, body: '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/></d:prop></d:propfind>'}, async response => {
+            // 不具备属性能力仍可恢复；真正的鉴权、版本或网络错误必须提示用户。
+            if ([405, 501].includes(response.status)) return undefined;
+            if (response.status !== 207) throw failure(response.status);
+            return propertyEtag(await consumeText(response, XML_LIMIT), url);
+        });
+        if (!etag) return remote;
+        // 属性与下载之间可能被另一设备更新。条件重读且逐字核对密文，
+        // 防止把旧内容与新 ETag 配对后覆盖对方的修改。
+        await request(session, url, {method: 'GET', headers: {'If-Match': etag}}, async response => {
+            if (response.status !== 200) throw failure(response.status);
+            const returnedEtag = strongEtag(response.headers.get('etag'));
+            if (returnedEtag && returnedEtag !== etag || await consumeText(response, maxBytes) !== remote.content) throw new WebDavError('conflict');
+        });
+        remote.file.etag = etag;
+        return remote;
     }
     async function write(session: WebDavSession, content: string, previous: CloudSyncFile | null): Promise<CloudSyncFile> {
         let envelope: unknown;
