@@ -56,6 +56,19 @@
     "settings.webdav.error.failure": "操作が完了しませんでした。ネットワークとローカルストレージを確認して再試行してください。",
     "settings.cloud.privacyEncryption": "設定は端末で暗号化してから送信します。アプリの合言葉は公開されているため、主な保護はアカウント、フォルダー権限、端末の安全性によります。",
     "settings.cloud.privacyWebDavStorage": "指定したサーバーのフォルダー内にある FluentRead のバックアップのみアクセスします。",
-    "settings.cloud.privacyWebDavConnection": "接続パスワードはこの端末にのみ保存され、手動操作時にだけサーバーへアクセスします。"
+    "settings.cloud.privacyWebDavConnection": "接続パスワードはこの端末にのみ保存され、手動操作時にだけサーバーへアクセスします。",
+    "settings.cloud.currentAccount": "バックアップアカウント：{email}",
+    "settings.cloud.changed.credentials": "API キー、OAuth トークンと認証情報",
+    "settings.cloud.changed.requests": "サービスのアドレスとリクエスト設定",
+    "settings.cloud.changed.models": "翻訳モデル",
+    "settings.cloud.changed.services": "各機能の翻訳サービス",
+    "settings.cloud.changed.customServices": "カスタム翻訳サービス",
+    "settings.cloud.changed.assistants": "ライティング・読解アシスタント",
+    "settings.cloud.changed.options": "翻訳接続の設定",
+    "settings.cloud.fieldLabel.0": "右クリックメニューに翻訳先言語を表示",
+    "settings.cloud.fieldLabel.1": "右クリックメニューにショートカットを表示",
+    "settings.cloud.fieldLabel.2": "保存済みのホバーショートカット",
+    "settings.cloud.fieldLabel.3": "保存済みの選択翻訳モード",
+    "settings.cloud.fieldLabel.4": "ローカル音声認識モデル"
   }
 }

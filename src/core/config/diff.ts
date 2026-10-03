@@ -653,6 +653,10 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     translationCenterLayout: {group: 'tools', label: '翻译中心结果布局', format: (value) => value === 'grid' ? '并排对比' : '列表阅读'},
     vocabularyBookEnabled: {group: 'tools', label: '单词本', format: formatBoolean},
 };
+/** 云备份复用已知设置的名称；未知字段绝不将原始键当作可见标签。 */
+export function configDiffFieldLabel(field: string): string | undefined {
+    return Object.hasOwn(FIELD_DEFINITIONS, field) ? FIELD_DEFINITIONS[field].label : undefined;
+}
 const FIELD_ORDER = new Map(Object.keys(FIELD_DEFINITIONS).map((field, index) => [field, index]));
 
 function configRecord(value: unknown): ConfigRecord {

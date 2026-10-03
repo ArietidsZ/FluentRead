@@ -56,6 +56,19 @@
     "settings.webdav.error.failure": "The operation did not finish. Check the network and local storage and try again.",
     "settings.cloud.privacyEncryption": "Configuration is encrypted before upload. The app passphrase is public; account, directory, and device security provide the main protection.",
     "settings.cloud.privacyWebDavStorage": "Accesses only the FluentRead backup under your chosen server directory.",
-    "settings.cloud.privacyWebDavConnection": "The connection password stays on this device. Server access requires a manual action."
+    "settings.cloud.privacyWebDavConnection": "The connection password stays on this device. Server access requires a manual action.",
+    "settings.cloud.currentAccount": "Backup account: {email}",
+    "settings.cloud.changed.credentials": "API keys, OAuth tokens and authentication",
+    "settings.cloud.changed.requests": "Service addresses and request parameters",
+    "settings.cloud.changed.models": "Translation models",
+    "settings.cloud.changed.services": "Translation services for each feature",
+    "settings.cloud.changed.customServices": "Custom translation services",
+    "settings.cloud.changed.assistants": "Writing and reading assistants",
+    "settings.cloud.changed.options": "Translation connection options",
+    "settings.cloud.fieldLabel.0": "Show target language in context menu",
+    "settings.cloud.fieldLabel.1": "Show shortcut in context menu",
+    "settings.cloud.fieldLabel.2": "Saved hover shortcut",
+    "settings.cloud.fieldLabel.3": "Saved selection mode",
+    "settings.cloud.fieldLabel.4": "Local speech recognition model"
   }
 }
