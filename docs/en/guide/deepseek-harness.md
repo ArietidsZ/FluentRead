@@ -25,6 +25,14 @@ For fewer interruptions, keep the default **Show icon** and click only when need
 
 Escape or a click elsewhere closes the popup. A dismissed selection does not reopen by itself. Disabling Selection translation stops both views while keeping learning preferences.
 
+## Dictionary and card controls
+
+The card includes 3,000 common English dictionary entries that work without a separate download. For other words, the online dictionary can show a result while FluentRead downloads and verifies the full dictionary for later local lookup. The complete file is about 3.9 MB and is cached after downloading. If the download is unavailable, common local entries and the online dictionary remain usable. The dictionary download URL does not include the word you are looking up.
+
+Drag the card by its top or surrounding blank space to move it. Drag an edge or corner to resize it; long text scrolls inside. The next selection opens a new card at its default size near the selected text.
+
+When the target is Chinese or English, the card's language button can change the direction for this result without changing page translation settings. Selection behavior and language preferences are configured under **Selection translation**.
+
 ## Optional AI explanations
 
 Enable **AI explanations**, expand **Service & learning preferences**, and select a configured AI service and model. Opening a card does not call AI. Choose an action to request an explanation:
@@ -53,3 +61,8 @@ Upgrades preserve services, custom models, actions, context and prompts. Existin
 Learning conversations continue to use the browser adaptation of DeepSeek Harness, without requiring a DeepSeek model. [Source and license](https://github.com/FluentRead/FluentRead/blob/main/public/third-party-notices/deepseek-harness-MIT.txt)
 
 Learning actions let the ordinary translation finish. The source and matching translation stay at the top of the scroll area, with the explanation initially in view. Scroll upward or choose View source to compare them. Changing the source or expanding a sentence never attaches an old selection’s translation to different text.
+
+## Next steps
+
+- [All guides](/en/docs/)
+- [Troubleshooting](/en/guide/faq)

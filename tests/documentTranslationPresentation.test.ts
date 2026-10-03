@@ -1,8 +1,10 @@
 import {describe, expect, it} from 'vitest';
 
-import type {BinaryDocumentData, DocumentFormat, ParsedDocument} from '@/src/features/document-translation/core/document';
+import {parseDocument, type BinaryDocumentData, type DocumentFormat, type ParsedDocument} from '@/src/features/document-translation/core/document';
 import {
     formatDocumentReaderText,
+    DOCUMENT_QUICK_SAMPLES,
+    getDocumentExportPreview,
     getDocumentEmptyReaderHint,
     getDocumentFormatTone,
     getDocumentPreviewMeta,
@@ -24,6 +26,27 @@ function parsed(format: DocumentFormat, binary?: BinaryDocumentData): ParsedDocu
 }
 
 describe('document translation presentation', () => {
+    it('local samples use the normal parser and preserve structure when exported', () => {
+        for (const sample of DOCUMENT_QUICK_SAMPLES) {
+            const document = parseDocument(sample.name, sample.content);
+            expect(document.segments.length).toBeGreaterThan(0);
+            const translations = document.segments.map(segment => `译文 ${segment.id + 1}`);
+            const preview = getDocumentExportPreview(document, translations, 'translated');
+            expect(preview).toContain('译文 1');
+            expect(preview).not.toContain(document.segments[0].source);
+            expect(parseDocument(sample.name, preview).segments).toHaveLength(document.segments.length);
+        }
+    });
+
+    it('export preview is bounded and binary excerpts follow the selected mode', () => {
+        const document = parseDocument('long.txt', 'A'.repeat(1700));
+        expect(getDocumentExportPreview(document, [], 'translated')).toBe(`${'A'.repeat(1600)}\n…`);
+        const pdf = parsed('pdf', {kind: 'pdf', bytes: new Uint8Array(), pages: []});
+        pdf.segments = [{id: 0, source: 'Original'}, {id: 1, source: 'Pending'}];
+        expect(getDocumentExportPreview(pdf, ['译文', ' '], 'translated')).toBe('译文\n\nPending');
+        expect(getDocumentExportPreview(pdf, ['译文'], 'bilingual')).toBe('Original\n译文\n\nPending\nPending');
+    });
+
     it('按文档类型返回稳定的阅读器说明', () => {
         const pdf = parsed('pdf', {kind: 'pdf', bytes: new Uint8Array(), pages: []});
         const epub = parsed('epub', {kind: 'epub', bytes: new Uint8Array(), chapters: []});
