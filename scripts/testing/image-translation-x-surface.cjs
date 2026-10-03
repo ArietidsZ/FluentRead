@@ -140,7 +140,8 @@ async function verifyXSurface({page, popup, worker, ui, wait, click, shot, repor
     report.cases.push('one-click Chinese/English/Japanese language preparation continues to real OCR, translation, and visible X replacement');
     await shot('x-04-translated');
     await click('文字');
-    report.translatedText=await ui("return this.querySelector('.fr-image-details').textContent");
+    await wait(() => ui("return !!this.querySelector('.fr-image-reader-body')"));
+    report.translatedText=await ui("return this.querySelector('.fr-image-reader-body').textContent");
     assert.match(report.translatedText,/[\u4e00-\u9fff]/);
     await shot('x-05-translated-text');
     await click('文字');
