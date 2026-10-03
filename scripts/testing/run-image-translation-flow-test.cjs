@@ -24,6 +24,7 @@ const focusHelper = arg('focus-safe-helper', process.env.FLUENTREAD_FOCUS_SAFE_H
 const xSurface = process.argv.includes('--x-surface');
 const liveTranslation = process.argv.includes('--live-translation');
 const multilingual = process.argv.includes('--multilingual');
+const harFixture = process.argv.includes('--har-fixture');
 if (!playwrightRoot || !focusHelper)
     throw new Error('必须提供 --playwright-root 与 --focus-safe-helper');
 const { chromium } = require(path.join(playwrightRoot, 'playwright'));
@@ -403,7 +404,7 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
     await worker.evaluate(liveTranslation => {
         const originalFetch = globalThis.fetch.bind(globalThis);
         // Keep the real OCR path intact while giving the loading controls enough time to sample.
-        const fixture = globalThis.__imageFixture = {requests: [], operationIds: [], delay: 1800, replayProgress: false, progressTimer: null, progressRequestId: null};
+        const fixture = globalThis.__imageFixture = {requests: [], endpointHosts: [], rejectPrimaryXsrf: false, operationIds: [], delay: 1800, replayProgress: false, progressTimer: null, progressRequestId: null};
         const clearProgress = () => {
             if (fixture.progressTimer !== null) clearInterval(fixture.progressTimer);
             fixture.progressTimer = null;
@@ -450,6 +451,11 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
                 if (typeof origin !== 'string') throw new Error('Unexpected Google batchexecute payload');
                 globalThis.__imageFixture.requests.push(origin);
                 if (liveTranslation) return originalFetch(input, options);
+                const hostname = new URL(url).hostname;
+                fixture.endpointHosts.push(hostname);
+                if (fixture.rejectPrimaryXsrf && hostname === 'translate.google.com') {
+                    return new Response('["xsrf"]', {status: 400});
+                }
                 await new Promise((resolve, reject) => {
                     const signal = options.signal;
                     const onAbort = () => {
@@ -476,6 +482,27 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
             return originalFetch(input, options);
         };
     }, liveTranslation);
+    if (harFixture) {
+        if (liveTranslation) throw new Error('--har-fixture 只用于确定性响应验证');
+        currentCase = 'HAR identifier filtering and Google XSRF cooldown';
+        await worker.evaluate(() => {globalThis.__imageFixture.rejectPrimaryXsrf = true;});
+        const result = await popup.evaluate(async () => chrome.runtime.sendMessage({
+            type: 'fluentReadImageTranslateTexts', requestId: 'har-identifier-fixture',
+            texts: ['Decisions API', 'docs.sglang.io/cookbook', '1', 'SGLang 0.5.21', '—'],
+        }));
+        assert.equal(result.success, true);
+        assert.deepEqual(result.translations.slice(1, 5), ['docs.sglang.io/cookbook', '1', 'SGLang 0.5.21', '—']);
+        const next = await popup.evaluate(async () => chrome.runtime.sendMessage({
+            type: 'fluentReadImageTranslateTexts', requestId: 'har-next-paragraph', texts: ['New models'],
+        }));
+        assert.equal(next.success, true);
+        const requests = await worker.evaluate(() => ({texts: globalThis.__imageFixture.requests, hosts: globalThis.__imageFixture.endpointHosts}));
+        assert.deepEqual(requests.texts, ['Decisions API', 'Decisions API', 'New models']);
+        assert.deepEqual(requests.hosts, ['translate.google.com', 'translate.google.co.uk', 'translate.google.co.uk']);
+        report.harFixture = {scope: 'synthetic recognized text and XSRF response through production runtime', result, requests};
+        report.cases.push('HAR technical identifiers stay unchanged without requests; repeated primary XSRF failures are skipped');
+        await worker.evaluate(() => {globalThis.__imageFixture.requests = []; globalThis.__imageFixture.endpointHosts = []; globalThis.__imageFixture.rejectPrimaryXsrf = false;});
+    }
     page = await newPageWithoutForeground(context, 30000);
     page.on('pageerror', e => report.errors.push(e.message));
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
