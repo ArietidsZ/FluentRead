@@ -121,6 +121,8 @@ async function clickEntry(selector) {const point = await entry(`const b=this.que
         await wait(async()=>await entry('return this.querySelector(".fr-manga-primary")?.textContent.trim() === "Prepare resources and start"'));
         await wait(async()=>await ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-label") === "Manga translation"'));
         assert.equal(await ball('return this.querySelector(".manga-icon")?.textContent.trim()'), '');
+        const unobstructed=await entry('const r=this.querySelector(".fr-manga-entry").getBoundingClientRect();return document.elementFromPoint(r.right-22,r.top+r.height/2)?.id === "fluent-read-manga-entry-container"');
+        assert.equal(unobstructed,true);
         await shot('entry-first-use-english');
         for(const [locale,title] of [['ja-JP','リソースを準備して開始'],['ko-KR','리소스 준비 후 시작'],['fr-FR','Préparer et commencer'],['ru-RU','Подготовить и начать'],['es-ES','Preparar y comenzar']]){
             await patch({uiLanguage:locale});

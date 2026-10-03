@@ -116,6 +116,8 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
     name: 'fluent-read-floating-ball-ui',
     hostId: 'fluent-read-floating-ball-container',
     component: FloatingBall,
+    // 阅读面板和操作弹窗位于工具入口之上，窄屏时按钮不会遮住说明或选项。
+    zIndex: 2_147_483_600,
     props: {
       position: ballPosition,
       verticalPosition: config.floatingBallVerticalPosition,
