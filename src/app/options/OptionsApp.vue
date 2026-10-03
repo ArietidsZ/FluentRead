@@ -75,11 +75,10 @@
           <h2>{{ t('options.userscriptUnavailableTitle') }}</h2>
           <p>{{ t('options.userscriptUnavailableDescription') }}</p>
         </section>
-        <section v-else-if="activeSection === 'settings-about'" id="settings-about" class="about-page" aria-labelledby="about-title">
+        <section v-else-if="activeSection === 'settings-about'" id="settings-about" class="about-page" :aria-label="t('options.aboutTitle')">
           <div class="about-hero">
             <img class="about-logo" :src="iconUrl" alt="流畅阅读图标" />
             <div>
-              <h3 id="about-title">{{ t('options.aboutTitle') }}</h3>
               <p>{{ t('options.aboutHeroDescription') }}</p>
               <span class="about-version">FluentRead · V{{ version }}</span>
             </div>
