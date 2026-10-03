@@ -513,6 +513,75 @@ describe("全文翻译可见性锚点", () => {
         replacedGlobals.clear();
     });
 
+    it.each([0, 1])('模式 %s 的连续计数更新停止重译，邻段稳定且新正文可恢复', async display => {
+        runtime.config.display = display;
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<main><p id="counter">Visitors: 100</p><p id="neighbor">A stable neighboring paragraph.</p></main>';
+        const counter = document.querySelector<HTMLElement>('#counter')!;
+        const neighbor = document.querySelector<HTMLElement>('#neighbor')!;
+        [counter, neighbor].forEach(element => setLayoutBox(element, 600, 60));
+        runtime.candidates = [counter, neighbor].map(element => ({element, kind: 'content', reason: 'dynamic-source-fixture'}));
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const neighborState = getTranslationState(neighbor);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        const observer = TestMutationObserver.instances[0]!;
+        for (let value = 101; value <= 108; value++) {
+            const source = getTranslationState(counter)?.singleTextSlotHosts?.[0]?.source ?? counter.firstChild!;
+            const oldValue = source.nodeValue;
+            source.nodeValue = `Visitors: ${value}`;
+            observer.emit([{type: 'characterData', target: source, oldValue, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            await vi.advanceTimersByTimeAsync(500);
+            expect(getTranslationState(counter)).toBeUndefined();
+            expect(getTranslationState(neighbor)).toBe(neighborState);
+            expect(runtime.requests).toHaveBeenCalledTimes(2);
+        }
+        await finishScheduledWork();
+        expect(getTranslationState(counter)).toBeUndefined();
+        expect(counter.textContent).toBe('Visitors: 108');
+        const source = counter.firstChild!;
+        source.nodeValue = 'A newly published article is ready.';
+        observer.emit([{type: 'characterData', target: source, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+        expect(getTranslationState(counter)?.phase).toBe('translated');
+        restoreOriginalContent();
+        expect(counter.textContent).toBe('A newly published article is ready.');
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(getTranslationState(counter)?.phase).toBe('translated');
+    });
+
+    it('连续正文变化仅翻译最新稳定来源，恢复时取消尚未到期的重译', async () => {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<p id="changing">Processing the first section.</p>';
+        const paragraph = document.querySelector<HTMLElement>('#changing')!;
+        setLayoutBox(paragraph, 600, 60);
+        runtime.candidates = [{element: paragraph, kind: 'content', reason: 'changing-source-fixture'}];
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const observer = TestMutationObserver.instances[0]!;
+        for (let value = 1; value <= 6; value++) {
+            paragraph.firstChild!.nodeValue = `Processing section number ${value}.`;
+            observer.emit([{type: 'characterData', target: paragraph.firstChild!, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            await vi.advanceTimersByTimeAsync(300);
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
+            expect(getTranslationState(paragraph)).toBeUndefined();
+        }
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requests.mock.calls.at(-1)![0]).toEqual(['Processing section number 6.']);
+        paragraph.firstChild!.nodeValue = 'A final pending source.';
+        observer.emit([{type: 'characterData', target: paragraph.firstChild!, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        await vi.advanceTimersByTimeAsync(100);
+        restoreOriginalContent();
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(paragraph.textContent).toBe('A final pending source.');
+        expect(getTranslationState(paragraph)).toBeUndefined();
+    });
+
     it('响应就绪后先处理宿主任务，恢复期间返回的译文不能覆盖新原文', async () => {
         runtime.config.display = 1;
         runtime.config.fullPageTranslationMode = 'all';
@@ -4174,6 +4243,9 @@ describe("全文翻译可见性锚点", () => {
 
         observer.emit(reply, true);
         await finishScheduledWork();
+        // 安静窗口结束后模拟浏览器对重新观察的锚点派发 IO。
+        observer.emit(reply, true);
+        await finishScheduledWork();
         expect(runtime.requests).toHaveBeenCalledTimes(2);
         expect(runtime.requests).toHaveBeenLastCalledWith([changedSource]);
         expect(getTranslationState(reply)).toMatchObject({
@@ -5336,6 +5408,9 @@ describe("全文翻译可见性锚点", () => {
 
         await finishScheduledWork();
 
+        // 安静窗口结束后模拟浏览器对重新观察的锚点派发 IO。
+        observer.emit(owner, true);
+        await finishScheduledWork();
         expect(runtime.requests).toHaveBeenCalledTimes(3);
         expect(runtime.requests).toHaveBeenNthCalledWith(3, [
             "The settled perspective paragraph keeps the inline formula intact.",
@@ -5717,6 +5792,9 @@ describe("全文翻译可见性锚点", () => {
         visibilityObserver.emit(paragraph, true);
         await finishScheduledWork();
 
+        // 安静窗口结束后模拟浏览器对重新观察的锚点派发 IO。
+        visibilityObserver.emit(paragraph, true);
+        await finishScheduledWork();
         expect(runtime.requests).toHaveBeenCalledTimes(2);
         expect(firstWrapper.isConnected).toBe(false);
         expect(paragraph.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
@@ -5806,6 +5884,9 @@ describe("全文翻译可见性锚点", () => {
         expect(firstWrapper.isConnected).toBe(false);
         expect(runtime.requests).toHaveBeenCalledTimes(1);
 
+        visibilityObserver.emit(paragraph, true);
+        await finishScheduledWork();
+        // 安静窗口结束后模拟浏览器对重新观察的锚点派发 IO。
         visibilityObserver.emit(paragraph, true);
         await finishScheduledWork();
         expect(runtime.requests).toHaveBeenCalledTimes(2);
@@ -6042,6 +6123,9 @@ describe("全文翻译可见性锚点", () => {
         visibilityObserver.emit(paragraph, true);
         await finishScheduledWork();
 
+        // 安静窗口结束后模拟浏览器对重新观察的锚点派发 IO。
+        visibilityObserver.emit(paragraph, true);
+        await finishScheduledWork();
         expect(runtime.requests).toHaveBeenCalledTimes(2);
         expect(firstWrapper.isConnected).toBe(false);
         const refreshedWrapper = paragraph.querySelector<HTMLElement>(".fluent-read-bilingual-content")!;
@@ -6120,6 +6204,9 @@ describe("全文翻译可见性锚点", () => {
         observer.emit(paragraph, true);
         await finishScheduledWork();
 
+        // 安静窗口结束后模拟浏览器对重新观察的锚点派发 IO。
+        observer.emit(paragraph, true);
+        await finishScheduledWork();
         expect(runtime.requests).toHaveBeenCalledTimes(4);
         expect(singleTranslationText(paragraph)).toBe("译:Late prose became readable after hydration.");
     });
@@ -6944,6 +7031,9 @@ describe("悬停重挂请求与 synthetic 提交回归", () => {
             TestIntersectionObserver.instances[0]!.emit(owner, true);
             await finishScheduledWork();
             expect(descendant.textContent).toBe('formerly readable suffix.');
+            // 安静窗口结束后模拟浏览器对重新观察的锚点派发 IO。
+            TestIntersectionObserver.instances[0]!.emit(owner, true);
+            await finishScheduledWork();
             expect(owner.querySelector('.fluent-read-bilingual-content')?.textContent)
                 .toBe('译:Readable source ');
         },

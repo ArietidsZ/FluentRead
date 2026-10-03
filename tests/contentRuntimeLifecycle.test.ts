@@ -175,6 +175,31 @@ describe('内容脚本文档类型边界', () => {
 });
 
 describe('content runtime 页面生命周期', () => {
+    it('上下文检查只在失效时销毁一次，并立即停止检查', () => {
+        vi.useFakeTimers();
+        try {
+            const target = new EventTarget(), context = {isInvalid: false};
+            const actions = {suspend: vi.fn(), resume: vi.fn(), dispose: vi.fn()};
+            installContentPageLifecycle(target, new AbortController().signal, actions, context);
+            vi.advanceTimersByTime(1000);
+            expect(actions.dispose).not.toHaveBeenCalled();
+            context.isInvalid = true;
+            vi.advanceTimersByTime(2000);
+            transition(target, 'pagehide');
+            expect(actions.dispose).toHaveBeenCalledOnce();
+            expect(vi.getTimerCount()).toBe(0);
+        } finally { vi.useRealTimers(); }
+    });
+
+    it('已经中止的页面不会安装上下文定时器', () => {
+        vi.useFakeTimers();
+        try {
+            const controller = new AbortController(); controller.abort();
+            installContentPageLifecycle(new EventTarget(), controller.signal,
+                {suspend: vi.fn(), resume: vi.fn(), dispose: vi.fn()}, {isInvalid: true});
+            expect(vi.getTimerCount()).toBe(0);
+        } finally { vi.useRealTimers(); }
+    });
     it('取消离开不卸载，往返缓存暂停后可恢复，真正离开只销毁一次', () => {
         const target = new EventTarget();
         const controller = new AbortController();
@@ -266,6 +291,25 @@ describe('content composition root 冷启动与暂停恢复', () => {
     });
 
     afterEach(() => { invalidated?.(); vi.unstubAllGlobals(); });
+
+    it('空闲页面在扩展失效后主动清理，停止上下文检查且不再次挂载', async () => {
+        vi.useFakeTimers();
+        try {
+            const unsubscribe = vi.fn();
+            mocks.subscribeConfig.mockReturnValue(unsubscribe);
+            const {startContentApp} = await import('@/src/app/content/runtime');
+            const starting = startContentApp(context as never); ready(); await starting;
+            context.isInvalid = true;
+            vi.stubGlobal('browser', {});
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(mocks.removeStyles).toHaveBeenCalledOnce();
+            expect(mocks.restoreOriginal).toHaveBeenCalledOnce();
+            expect(unsubscribe).toHaveBeenCalledOnce();
+            expect(vi.getTimerCount()).toBe(0);
+            transition(page, 'pageshow', true);
+            expect(mocks.installPageStyles).toHaveBeenCalledOnce();
+        } finally { vi.useRealTimers(); }
+    });
 
     it.each(['text/xml', 'application/xml', 'application/rss+xml', 'image/svg+xml'])('%s 文档不等待配置，也不挂载页面功能或桥', async contentType => {
         Object.assign(document, {contentType});
@@ -404,7 +448,7 @@ describe('content composition root 冷启动与暂停恢复', () => {
         transition(page, 'pagehide', true);
         const onConfig = mocks.subscribeConfig.mock.calls[0][0];
         onConfig(mocks.config);
-        expect(mocks.syncHighlight).toHaveBeenLastCalledWith(document, false, undefined);
+        expect(mocks.syncHighlight).toHaveBeenLastCalledWith(document, false, undefined, undefined);
         expect(mocks.removeStyles).toHaveBeenCalledOnce();
         expect(mocks.installPageStyles).toHaveBeenCalledOnce();
     });
@@ -416,7 +460,7 @@ describe('content composition root 冷启动与暂停恢复', () => {
         ready();
         await starting;
         mocks.subscribeConfig.mock.calls[0][0](mocks.config);
-        expect(mocks.syncHighlight).toHaveBeenLastCalledWith(document, false, undefined);
+        expect(mocks.syncHighlight).toHaveBeenLastCalledWith(document, false, undefined, undefined);
         expect(mocks.installPageStyles).not.toHaveBeenCalled();
     });
 

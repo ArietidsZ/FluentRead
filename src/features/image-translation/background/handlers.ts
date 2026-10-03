@@ -1,10 +1,12 @@
 /**
  * @file src/features/image-translation/background/handlers.ts
  * 文件职责：定义跨域图片读取、整图翻译、文本批译、阶段进度、取消和语言包下载后台消息，并对来自页面或扩展 UI 的未知输入执行严格校验。
- * 主要内容：包含消息解析、OCR 语言白名单、阶段与百分比通知和取消预算；逐包下载排队、去重、部分成功保存和跨页状态查询；图片文本去重批量和有界并发翻译同时保留后台恢复的可信页面范围、源语言与术语版本。
+ * 主要内容：包含消息解析、OCR 语言白名单、阶段与百分比通知和取消预算；逐包下载排队、去重、部分成功保存和跨页状态查询；图片文本排除无需翻译的符号与技术标识，去重批量和有界并发翻译同时保留原行映射、后台恢复的可信页面范围、源语言与术语版本。
  * 模块边界：本文件只负责协议入口与用例编排，不直接运行 Tesseract、Canvas、网络 fetch 或 Offscreen；图像读取和运算能力均由 Offscreen adapter 与 services 实现并由 app 注入。
  */
 import {normalizeRemoteImageUrl} from '../services/remoteImage';
+import {hasTranslatableText} from '@/src/core/translation/resultValidation';
+import {resolveGlossaryEntries, type GlossaryLibrary} from '@/src/core/glossary';
 import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, normalizeImageProgress, type ImageTranslationStage} from '../progress';
 import {
     IMAGE_OCR_LANGUAGE_PACKS,
@@ -106,6 +108,8 @@ export interface ImageTranslationBackgroundDependencies {
     readonly assertImageSource?: (url: string, options: ImageOperationOptions, context: ImageProgressContext) => Promise<void>;
     readonly getTranslationService: () => string;
     readonly supportsBatchTranslation: (service: string) => boolean;
+    /** 明确的用户固定译名优先于标识跳过策略；组合根只提供当前配置。 */
+    readonly getGlossaryConfig?: () => {glossaryEnabled: boolean; glossaryLibraries: GlossaryLibrary[]; from: string; to: string};
     readonly translateTexts: (request: ImageTextTranslationRequest) => Promise<string | string[]>;
     readonly removeLanguages?: (languages: ImageOcrLanguageCode[]) => Promise<void>;
     readonly markLanguagesRemoved?: (languages: ImageOcrLanguageCode[]) => Promise<ImageOcrLanguageCode[]>;
@@ -290,11 +294,20 @@ async function translateImageTexts(
     options: ImageOperationOptions,
     message: ImageTranslateTextsMessage,
 ): Promise<string[]> {
-    const uniqueTexts = [...new Set(texts)];
+    if (options.signal.aborted) throw imageAbortError(false);
+    const glossaryContext = getTranslationGlossaryContext(message);
+    const sourceLanguage = glossaryContext ? parseRequiredString(message.sourceLanguage, 'sourceLanguage') : undefined;
+    const glossaryConfig = dependencies.getGlossaryConfig?.();
+    const uniqueTexts = [...new Set(texts)].filter(text => hasTranslatableText(text)
+        || (glossaryConfig?.glossaryEnabled && resolveGlossaryEntries(glossaryConfig.glossaryLibraries, {
+            text, sourceLanguage: sourceLanguage ?? glossaryConfig.from, targetLanguage: glossaryConfig.to,
+            pageUrl: glossaryContext?.pageUrl,
+        }).terms.length > 0));
+    // 不删 OCR 行，阅读面板与图片坐标仍以原行对齐；纯标识整图无需外发请求。
+    if (uniqueTexts.length === 0) return [...texts];
     const service = dependencies.getTranslationService();
     const now = dependencies.now ?? (() => Date.now());
     const deadline = now() + Math.min(options.timeoutMs, IMAGE_TEXT_TRANSLATION_TIMEOUT_MS);
-    const glossaryContext = getTranslationGlossaryContext(message);
     const baseRequest = {
         context: title,
         pageContext: '' as const,
@@ -362,7 +375,7 @@ async function translateImageTexts(
         }
         if (controller.signal.aborted) throw imageAbortError(false);
         const byText = new Map(uniqueTexts.map((text, index) => [text, translations[index]]));
-        return texts.map(text => byText.get(text)!);
+        return texts.map(text => byText.get(text) ?? text);
     } finally {
         options.signal.removeEventListener('abort', abort);
     }

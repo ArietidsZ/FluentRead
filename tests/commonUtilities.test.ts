@@ -162,6 +162,16 @@ describe('语义化公共工具', () => {
             'id, status, user_name, updated_at, created_at, action', 'zh-Hans')).toBe(false);
         expect(isLikelyUntranslatedResponse('a_b, c_d, e_f, g_h, i_j, k_l',
             'a_b, c_d, e_f, g_h, i_j, k_l', 'zh-Hans')).toBe(false);
+        const invalidTags = 'a__, b__, c__, d__, e__, f__, Hello';
+        expect(isLikelyUntranslatedResponse(invalidTags, invalidTags, 'zh-Hans')).toBe(false);
+    });
+
+    it('图片中的裸网址与技术标识原样返回是合法结果，网址旁的正文仍须翻译', () => {
+        for (const text of ['docs.sglang.io/cookbook', 'https://docs.sglang.io/cookbook', 'SGLang 0.5.21', 'DeepSeek-V4.1 Flash', '—', '1']) {
+            expect(isLikelyUntranslatedResponse(text, text, 'zh-Hans')).toBe(false);
+        }
+        const prose = 'Please read the documentation at docs.sglang.io/cookbook';
+        expect(isLikelyUntranslatedResponse(prose, prose, 'zh-Hans')).toBe(true);
     });
 
     it('中文目标拒绝明确的日文段落，但保留短引用和含日文术语的中文译文', () => {

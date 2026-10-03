@@ -73,6 +73,8 @@
       "tests/configRepository.test.ts",
       "tests/commonUtilities.test.ts",
       "tests/browserCapabilities.test.ts",
+      "tests/actionIcon.test.ts",
+      "tests/runtimeMessages.test.ts",
       "tests/thunderbirdMessageRuntime.test.ts",
       "tests/chromeTranslationPreparation.test.ts",
       "tests/chromeTranslationPreparationRequest.test.ts",
@@ -162,6 +164,7 @@
       "tests/requestConfigSnapshot.test.ts",
       "tests/documentTranslationPresentation.test.ts",
       "tests/selectionTranslatorCore.test.ts",
+      "tests/selectionTranslatorLifecycle.test.ts",
       "tests/selectionTtsContentController.test.ts",
       "tests/selectionTtsProtocol.test.ts",
       "tests/serviceCatalog.test.ts",
@@ -190,6 +193,8 @@
       "tests/translationPrompts.test.ts",
       "tests/translationState.test.ts",
       "tests/translationStability.test.ts",
+      "tests/translationSourceStability.test.ts",
+      "tests/translationSourceStabilityGate.test.ts",
       "tests/userscriptCount.test.ts",
       "tests/userscriptCompression.test.ts",
       "tests/userscriptFullOptions.test.ts",
@@ -313,7 +318,11 @@
       "tests/googleDriveSyncClient.test.ts",
       "tests/googleDrivePreview.test.ts",
       "tests/visionProbe.test.ts",
-      "tests/visionProbeStorage.test.ts"
+      "tests/visionProbeStorage.test.ts",
+      "tests/webDavConnection.test.ts",
+      "tests/webDavApi.test.ts",
+      "tests/backgroundWebDavBackup.test.ts",
+      "tests/webDavBackupClient.test.ts"
     ],
     "functional": [
       "tests/translationCenterComponent.test.ts",
@@ -407,7 +416,9 @@
       "tests/mangaOcr.test.ts",
       "tests/mangaOcrAssets.test.ts",
       "tests/mangaInpainting.test.ts",
-      "tests/mangaBubbles.test.ts"
+      "tests/mangaBubbles.test.ts",
+      "tests/webDavBackup.test.ts",
+      "tests/webDavHttpIntegration.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",
