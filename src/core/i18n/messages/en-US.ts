@@ -19,9 +19,9 @@ import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
     "settings.backup.localTitle": "Local backup",
-    "settings.backup.fileTitle": "Back up to a file",
-    "settings.backup.fileDescription": "Save settings, your wordbook, and model usage to restore after switching browsers or reinstalling.",
-    "settings.backup.fileWarning": "Backup files include API keys and other private information and are not encrypted. Keep them safe and do not share them publicly. Translation cache is not backed up.",
+    "settings.backup.fileTitle": "Backup file",
+    "settings.backup.fileDescription": "Backup files include API keys and other private information and are not encrypted. Keep them safe and do not share them publicly.",
+    "settings.backup.fileWarning": "Translation cache is not backed up.",
     "settings.backup.restoreHint": "Choose a FluentRead backup file. Older JSON files can also be restored.",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['en-US'],

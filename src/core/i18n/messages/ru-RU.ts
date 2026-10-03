@@ -18,9 +18,9 @@ import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
     "settings.backup.localTitle": "Локальная резервная копия",
-    "settings.backup.fileTitle": "Сохранить резервную копию в файл",
-    "settings.backup.fileDescription": "Сохраните настройки, словарь и данные об использовании моделей для восстановления после смены браузера или переустановки.",
-    "settings.backup.fileWarning": "Файлы резервных копий содержат ключи API и другие личные данные и не зашифрованы. Храните их в безопасном месте и не публикуйте. Кэш переводов не сохраняется в резервной копии.",
+    "settings.backup.fileTitle": "Файл резервной копии",
+    "settings.backup.fileDescription": "Файлы резервных копий содержат ключи API и другие личные данные и не зашифрованы. Храните их в безопасном месте и не публикуйте.",
+    "settings.backup.fileWarning": "Кэш переводов не сохраняется в резервной копии.",
     "settings.backup.restoreHint": "Выберите файл резервной копии FluentRead. Старые файлы JSON также можно восстановить.",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['ru-RU'],

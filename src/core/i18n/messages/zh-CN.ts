@@ -16,9 +16,9 @@ import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
     "settings.backup.localTitle": "本地备份",
-    "settings.backup.fileTitle": "备份到文件",
-    "settings.backup.fileDescription": "保存设置、单词本和模型用量，换浏览器或重装后可导入恢复。",
-    "settings.backup.fileWarning": "备份文件包含 API Key 等私密信息，且未加密，请妥善保存，不要公开分享。翻译缓存不会备份。",
+    "settings.backup.fileTitle": "备份文件",
+    "settings.backup.fileDescription": "备份文件包含 API Key 等私密信息，且未加密，请妥善保存，不要公开分享。",
+    "settings.backup.fileWarning": "翻译缓存不会备份。",
     "settings.backup.restoreHint": "选择 FluentRead 备份文件，旧版 JSON 文件也可恢复。",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['zh-CN'],
