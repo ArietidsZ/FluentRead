@@ -20,7 +20,7 @@ vi.mock('@/src/services/config/store', async () => {
     }};
 });
 import {config as settings} from '@/src/services/config/store';
-import {mountImageTranslator, unmountImageTranslator, toggleContextMenuImage} from '@/src/features/image-translation/content/runtime';
+import {mountImageTranslator, unmountImageTranslator, toggleContextMenuImage, toggleMangaTranslation, subscribeMangaTranslation} from '@/src/features/image-translation/content/runtime';
 import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
 
 // 本文件断言非中文界面文案；扩展运行时按需加载，测试中一次注册全部语言资源包。
@@ -176,7 +176,7 @@ function addSecondHoverImage(env: ReturnType<typeof setup>, getRect: () => DOMRe
 
 beforeEach(() => {
     vi.useFakeTimers();
-    settings.imageTranslationHoverEnabled = true; settings.imageTranslationContextMenuEnabled = true;
+    settings.imageTranslationMangaEnabled = true; settings.imageTranslationHoverEnabled = true; settings.imageTranslationContextMenuEnabled = true;
     settings.uiLanguage = 'zh-CN';
     settings.on = true; settings.disableImageTranslator = false; settings.to = 'zh-Hans'; settings.useCache = true;
     settings.imageTranslationService = ''; settings.service = 'google'; settings.model = {}; settings.customModel = {}; settings.customBody = {}; settings.proxy = {}; settings.customOpenAIProviders = []; settings.token = {};
@@ -574,7 +574,7 @@ describe('图片翻译前台交互与生命周期', () => {
         unmountImageTranslator(); pending.resolve(result); await flush();
         expect(env.image.ownerDocument.getElementById('fluent-read-image-translation-root')).toBeNull();
         expect(env.observers[0].disconnect).toHaveBeenCalledOnce();
-        expect(env.windowObject.removeEventListener).toHaveBeenCalledTimes(2);
+        expect(env.windowObject.removeEventListener).toHaveBeenCalledTimes(4);
     });
 });
 
@@ -993,3 +993,49 @@ describe('视频预览不自动显示图片翻译', () => {
         expect(env.roots).toHaveLength(0);
     });
 });
+
+ describe('漫画模式复用单图翻译与显示权', () => {
+    function readerPage() {
+        const env = setup();
+        vi.stubGlobal('Element', env.image.ownerDocument.defaultView!.Element);
+        Object.assign(env.windowObject, {location: {href: 'https://mangaplus.shueisha.co.jp/viewer/1024050'}});
+        env.image.className = 'zao-image'; env.parent.className = 'zao-image-container';
+        return env;
+    }
+    it('一次开启、原图暂停、重新开启复用已解码结果，即使持久缓存关闭', async () => {
+        const env = readerPage(); settings.useCache = false;
+        const listener = vi.fn(); const stop = subscribeMangaTranslation(listener);
+        expect(toggleMangaTranslation()).toBe(true); await flush();
+        expect(client.translate).toHaveBeenCalledTimes(1); expect(env.bitmap()).not.toBeNull();
+        expect(env.image.style.opacity).toBe('0');
+        toggleMangaTranslation(); await flush();
+        expect(env.bitmap()).toBeNull(); expect(env.image.style.opacity).not.toBe('0');
+        toggleMangaTranslation(); await flush();
+        expect(env.bitmap()).not.toBeNull(); expect(client.translate).toHaveBeenCalledTimes(1);
+        unmountImageTranslator(); expect(env.image.style.opacity).not.toBe('0');
+        expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({available: false, active: false, pending: false, errors: 0, pageCount: 0}));
+        expect(toggleMangaTranslation()).toBe(false); stop();
+    });
+    it('漫画未检测到文字时保留原图和说明，不创建空译图也不作为会话失败', async () => {
+        const env=readerPage();client.translate.mockResolvedValueOnce({...result,lines:[]});
+        const listener=vi.fn(),stop=subscribeMangaTranslation(listener);toggleMangaTranslation();await flush();
+        expect(env.bitmap()).toBeNull();expect(env.image.style.opacity).not.toBe('0');
+        expect(env.roots[0].querySelector('.fr-image-status')!.textContent).toContain('未检测到文字，已保留原图');
+        expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({errors:0,completed:1,pending:false}));stop();
+    });
+    it('漫画使用独立模型，不准备普通图片语言包，关闭入口后恢复原图', async () => {
+        const env = readerPage();
+        toggleMangaTranslation(); await flush();
+        expect(client.prepare).not.toHaveBeenCalled(); expect(client.translate).toHaveBeenCalledTimes(1);
+        expect(client.translate.mock.calls[0][3]).toMatchObject({manga:true});
+        expect(env.bitmap()).not.toBeNull();
+        settings.imageTranslationMangaEnabled = false; await flush(); env.runFrames(); await flush();
+        expect(env.bitmap()).toBeNull(); expect(env.image.style.opacity).not.toBe('0');
+        expect(toggleMangaTranslation()).toBe(false);
+    });
+    it('关闭时取消未完成任务，晚到译图不能隐藏原图', async () => {
+        const env = readerPage(); const pending = deferred<typeof result>(); client.translate.mockReturnValue(pending.promise);
+        toggleMangaTranslation(); await flush(); toggleMangaTranslation(); pending.resolve(result); await flush();
+        expect(env.bitmap()).toBeNull(); expect(env.image.style.opacity).not.toBe('0');
+    });
+ });

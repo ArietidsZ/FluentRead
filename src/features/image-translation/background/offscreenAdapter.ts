@@ -5,6 +5,8 @@
  * 模块边界：适配器不创建 Offscreen document、不执行 OCR/绘制，也不读取配置；文档生命周期属于 platform/offscreen，实际运算在 services/offscreenRuntime 与 ocrRuntime 中完成。
  */
 import {extensionDomClient} from '@/src/platform/offscreen/extensionClient';
+import {withPixivImageReferrer} from './pixivImageReferrer';
+import type {MangaDownloadState, MangaModelSource} from '../services/mangaOcrAssets';
 import type {ImageProgressContext} from './handlers';
 import {IMAGE_PROGRESS_MESSAGE_TYPE, type ImageTranslationStage} from '../progress';
 import type {ImageOcrLanguageCode} from '@/src/features/image-translation/ocrLanguages';
@@ -22,6 +24,8 @@ interface OffscreenResponse {
 }
 
 export interface ImageOffscreenOperationOptions {
+    readonly documentUrl?: string;
+    readonly manga?: true;
     readonly requestId: string;
     readonly signal: AbortSignal;
     readonly timeoutMs: number;
@@ -62,6 +66,17 @@ function parseImageDataResult(response: OffscreenResponse | undefined, fallback:
 /** 图片 feature 对平台 Offscreen client 的唯一适配器。 */
 export function createImageTranslationOffscreenAdapter(client: OffscreenClient = extensionDomClient) {
     return {
+        async getMangaModelStatus() {
+            const response = await client.send<{success?:boolean;ready?:boolean;bytes?:number;inpaintingReady?:boolean;error?:string;source?:MangaModelSource;download?:MangaDownloadState}>({type:'FLUENT_READ_MANGA_MODEL_STATUS_OFFSCREEN'});
+            if (!response?.success || typeof response.ready !== 'boolean' || typeof response.inpaintingReady !== 'boolean'
+                || typeof response.bytes !== 'number' || !Number.isSafeInteger(response.bytes) || response.bytes < 0) throw new Error(errorMessage(response,'漫画识别模型状态读取失败'));
+            return {ready:response.ready,bytes:response.bytes,inpaintingReady:response.inpaintingReady,
+                ...(response.source ? {source:response.source} : {}),...(response.download ? {download:response.download} : {})};
+        },
+        async removeMangaModels() {
+            const response = await client.send<OffscreenResponse>({type:'FLUENT_READ_MANGA_MODEL_REMOVE_OFFSCREEN'});
+            if (!response?.success) throw new Error(errorMessage(response,'漫画识别模型清除失败'));
+        },
         async translateImage(
             image: string,
             sourceLanguage: string,
@@ -73,6 +88,7 @@ export function createImageTranslationOffscreenAdapter(client: OffscreenClient =
                 image,
                 sourceLanguage,
                 title,
+                ...(options?.manga ? {manga: true} : {}),
                 ...(options ? {requestId: options.requestId} : {}),
             } as const;
             const response = options
@@ -90,10 +106,12 @@ export function createImageTranslationOffscreenAdapter(client: OffscreenClient =
                 url,
                 ...(options ? {requestId: options.requestId} : {}),
             } as const;
-            const response = options
-                ? await client.send<OffscreenResponse>(message, sendOptions(options))
-                : await client.send<OffscreenResponse>(message);
-            return parseImageDataResult(response, '远程图片读取失败');
+            return withPixivImageReferrer(url, options?.documentUrl, async () => {
+                const response = options
+                    ? await client.send<OffscreenResponse>(message, sendOptions(options))
+                    : await client.send<OffscreenResponse>(message);
+                return parseImageDataResult(response, '远程图片读取失败');
+            });
         },
 
         async removeLanguages(languages: ImageOcrLanguageCode[]): Promise<void> {

@@ -29,6 +29,7 @@ export const IMAGE_FETCH_MESSAGE_TYPE = 'fluentReadImageFetch' as const;
 export const IMAGE_OPERATION_TIMEOUT_MS = 180_000;
 
 export interface ImageTranslateMessage {
+    manga?: unknown;
     type: typeof IMAGE_TRANSLATE_MESSAGE_TYPE;
     image?: unknown;
     sourceLanguage?: unknown;
@@ -70,6 +71,7 @@ export interface ImageProgressMessage {type: typeof IMAGE_PROGRESS_MESSAGE_TYPE;
 
 export type ImageTranslationBackgroundMessage =
     | {type: 'fluentReadImageOcrStatus'}
+    | {type: 'fluentReadMangaModelStatus' | 'fluentReadMangaModelRemove'}
     | ImageProgressMessage
     | ImageTranslateMessage
     | ImageTranslateTextsMessage
@@ -93,6 +95,8 @@ type ImageTextTranslationRequest = ImageTextTranslationRequestBase & (
 );
 
 export interface ImageTranslationBackgroundDependencies {
+    readonly getMangaModelStatus?: () => Promise<{ready: boolean; bytes: number; inpaintingReady: boolean}>;
+    readonly removeMangaModels?: () => Promise<void>;
     readonly assertLanguagesDownloaded: (sourceLanguage: string) => Promise<void>;
     readonly translateImage: (
         image: string,
@@ -118,6 +122,9 @@ export interface ImageTranslationBackgroundDependencies {
 }
 
 export interface ImageOperationOptions {
+    /** 仅由已复核的消息 sender 提供，不接受消息体自报来源。 */
+    readonly documentUrl?: string;
+    readonly manga?: true;
     readonly requestId: string;
     readonly signal: AbortSignal;
     readonly timeoutMs: number;
@@ -422,6 +429,20 @@ export function createImageTranslationBackgroundHandlers(
     };
     return [
         {
+            type: 'fluentReadMangaModelStatus',
+            async handle() {
+                if (!dependencies.getMangaModelStatus) throw new Error('漫画识别模型管理不可用');
+                return {success:true, ...await dependencies.getMangaModelStatus()};
+            },
+        },
+        {
+            type: 'fluentReadMangaModelRemove',
+            async handle() {
+                if (!dependencies.removeMangaModels) throw new Error('漫画识别模型管理不可用');
+                await dependencies.removeMangaModels();return {success:true};
+            },
+        },
+        {
             type: 'fluentReadImageOcrStatus',
             async handle() {
                 const languages = await dependencies.getDownloadedLanguages?.() ?? [];
@@ -444,9 +465,10 @@ export function createImageTranslationBackgroundHandlers(
                 const image = parseDataImage(message.image);
                 const sourceLanguage = parseRequiredString(message.sourceLanguage, 'sourceLanguage');
                 const title = parseOptionalTitle(message.title);
+                if (message.manga !== undefined && typeof message.manga !== 'boolean') throw new TypeError('漫画翻译模式无效');
                 const result = parseObjectResult(
                     await operationRegistry.run(message, async (options) => {
-                        await dependencies.assertLanguagesDownloaded(sourceLanguage);
+                        if (!message.manga) await dependencies.assertLanguagesDownloaded(sourceLanguage);
                         if (options.signal.aborted) throw imageAbortError(false);
                         const progressOwner = {context};
                         progressOwners.set(options.requestId, progressOwner);
@@ -455,7 +477,7 @@ export function createImageTranslationBackgroundHandlers(
                         };
                         options.signal.addEventListener('abort', clearProgressOwner, {once: true});
                         try {
-                            return await dependencies.translateImage(image, sourceLanguage, title, options);
+                            return await dependencies.translateImage(image, sourceLanguage, title, message.manga ? {...options, manga: true} : options);
                         } finally {
                             clearProgressOwner();
                             options.signal.removeEventListener('abort', clearProgressOwner);
@@ -475,7 +497,7 @@ export function createImageTranslationBackgroundHandlers(
                     if (!dependencies.assertImageSource) throw new Error('图片来源未授权');
                     await dependencies.assertImageSource(source, options, context);
                     if (options.signal.aborted) throw Object.assign(new Error('图片读取已取消'), {name: 'AbortError'});
-                    return dependencies.fetchImage(url, options);
+                    return dependencies.fetchImage(url, {...options, ...(context.sender?.url ? {documentUrl:context.sender.url} : {})});
                 });
                 if (typeof image !== 'string' || !image.startsWith('data:image/')) {
                     throw new Error('远程图片结果无效');
