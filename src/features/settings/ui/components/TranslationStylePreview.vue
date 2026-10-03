@@ -21,6 +21,7 @@
       class="translation-style-preview-page bilingual-highlight-preview"
       :class="{ 'is-bilingual-highlight-enabled': highlightEnabled }"
       :data-bilingual-highlight-enabled="String(highlightEnabled)"
+      :data-fr-bilingual-sentence-highlight-style="normalizeSentenceHighlightStyle(highlightStyle)"
       data-testid="bilingual-highlight-preview"
       data-i18n-ignore
       @pointerleave="activeSentence = null"
@@ -43,7 +44,7 @@
             :style="appearanceStyle"
             lang="zh-CN"
             data-testid="bilingual-highlight-preview-translation"
-          ><span
+          ><span class="fluent-read-translation-text"><span
             v-for="(sentence, index) in ['阅读应该轻松、自然。', '将光标移到某个句子上，即可找到对应译文。']"
             :key="index"
             :class="{ 'is-sentence-highlighted': highlightEnabled && activeSentence === index }"
@@ -51,7 +52,7 @@
             @pointerenter="activeSentence = index"
             @focus="activeSentence = index"
             @blur="activeSentence = null"
-          >{{ sentence }}</span></span>
+          >{{ sentence }}</span></span></span>
         </template>
       </p>
     </div>
@@ -64,8 +65,10 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from 'vue'
+import {computed, ref, watch} from 'vue'
 import {useUiI18n} from '@/src/ui/i18n'
+import {normalizeSentenceHighlightStyle, type SentenceHighlightStyle} from '@/src/core/config/sentenceHighlight'
+import '@/src/ui/styles/bilingual-sentence-highlight.css'
 import SegmentedControl from './SegmentedControl.vue'
 
 type PreviewPageTheme = 'light' | 'dark'
@@ -74,6 +77,8 @@ const props = defineProps<{
   styleClass: string
   appearanceStyle: Record<string, string>
   highlightEnabled: boolean
+  highlightStyle?: SentenceHighlightStyle
+  initialSentence?: number
   translationBeforeOriginal: boolean
   pageTheme: PreviewPageTheme
   caption: string
@@ -87,6 +92,9 @@ const emit = defineEmits<{
 
 const {t} = useUiI18n()
 const activeSentence = ref<number | null>(null)
+watch(() => [props.highlightEnabled, props.initialSentence] as const, ([enabled, sentence]) => {
+  activeSentence.value = enabled && sentence !== undefined ? sentence : null
+}, {immediate: true})
 // 与网页一致：译文容器插在原文所在的块内，并遵循“译文在原文之前”偏好。
 const blockOrder = computed(() => props.translationBeforeOriginal ? ['translation', 'source'] : ['source', 'translation'])
 const pageThemeOptions = computed(() => [
@@ -156,12 +164,6 @@ function selectPageTheme(value: string | number): void {
   --translation-preview-ink: #e6e8ec;
 }
 .translation-style-preview-paragraph { margin: 0; }
-
-.bilingual-highlight-preview .is-sentence-highlighted {
-  background-color: rgba(239, 71, 118, .22);
-  text-decoration: underline rgba(239, 71, 118, .65);
-  text-decoration-thickness: 1px;
-}
 
 .bilingual-highlight-preview span:focus-visible {
   outline: 1px solid var(--brand);

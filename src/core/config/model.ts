@@ -6,6 +6,7 @@
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
+import {DEFAULT_SENTENCE_HIGHLIGHT_STYLE, normalizeSentenceHighlightStyle, type SentenceHighlightStyle} from './sentenceHighlight';
 import {normalizeShareCardPreferences, type ShareCardPreferences} from '@/src/core/config/shareCard';
 import type {TranslationScope} from '@/src/core/translation/types';
 import {
@@ -414,6 +415,7 @@ export class Config {
     videoGlossaryIds: string[] | null; // 字幕术语选择；null 跟随全局，空数组停用
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
     bilingualSentenceHighlightEnabled: boolean; // 是否在双语翻译中同步高亮原文与译文
+    bilingualSentenceHighlightStyle: SentenceHighlightStyle; // 逐句高亮外观，与译文整体样式独立
     contextMenuEnabled: boolean; // 右键菜单总开关
     contextMenuEntries: ContextMenuEntryPreferences; // 右键菜单各入口的显示偏好；未设置的入口按产品默认值
     contextMenuShowTargetLanguage: boolean; // 右键菜单标题是否标出译入语言
@@ -602,6 +604,7 @@ export class Config {
         this.videoGlossaryIds = null;
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
         this.bilingualSentenceHighlightEnabled = false; // 默认关闭双语逐句高亮，避免改变现有网页视觉
+        this.bilingualSentenceHighlightStyle = DEFAULT_SENTENCE_HIGHLIGHT_STYLE;
         this.contextMenuEnabled = true; // 默认显示右键菜单入口
         this.contextMenuEntries = {}; // 默认全部跟随产品默认值，用户改动才写入偏好
         this.contextMenuShowTargetLanguage = true; // 默认标出译入语言，让菜单说清会翻成什么
@@ -1028,6 +1031,7 @@ export function normalizeConfig(value: unknown): Config {
             : false;
     }
     normalized.bilingualSentenceHighlightEnabled = source.bilingualSentenceHighlightEnabled === true;
+    normalized.bilingualSentenceHighlightStyle = normalizeSentenceHighlightStyle(source.bilingualSentenceHighlightStyle);
     normalized.translationAppearance = normalizeTranslationAppearance(source.translationAppearance);
     normalized.translationStyleProfiles = normalizeTranslationStyleProfiles(source.translationStyleProfiles);
     normalized.activeTranslationStyleProfileId = typeof source.activeTranslationStyleProfileId === 'string'

@@ -1,7 +1,7 @@
 /**
  * @file src/ui/interfaceAppearance.ts
  * 文件职责：把已经归一化的界面皮肤和字体配置应用到扩展页面根节点，为 Popup 和 Options 共享同一套界面切换入口。
- * 主要内容：应用皮肤与字体变量，按当前选择启动字体下载服务并公开下载状态、可用字体与单个字体清理；配置异常时安全回退。
+ * 主要内容：应用皮肤与字体变量，首屏前注册已缓存字体，切换时保留当前字体直到新字体就绪，并公开下载状态、可用字体与单个字体清理；配置异常时安全回退。
  * 模块边界：本文件只负责扩展自身页面的 DOM 属性，不读取或保存配置，不影响网页内容脚本和宿主页面样式。
  */
 
@@ -14,13 +14,16 @@ import {
 } from '@/src/core/config/interfaceAppearance'
 import {readonly, shallowRef} from 'vue'
 import {createInterfaceFontLoader, getCachedInterfaceFonts, type InterfaceFontLoadState} from '@/src/services/interfaceFonts'
-import {getInterfaceFontAssets, type InterfaceFontSourceId} from '@/src/core/config/interfaceFontAssets'
+import {getClearableInterfaceFontAssets, getInterfaceFontAssets, type InterfaceFontSourceId} from '@/src/core/config/interfaceFontAssets'
 
 const fontLoadState = shallowRef<InterfaceFontLoadState>({font: 'system', status: 'system', loaded: 0, total: 0, persistent: true})
 export const interfaceFontLoadState = readonly(fontLoadState)
 const availableFonts = shallowRef<InterfaceFont[]>(['system'])
 export const availableInterfaceFonts = readonly(availableFonts)
+const cachedFonts = shallowRef<InterfaceFont[]>(['system'])
+export const cachedInterfaceFonts = readonly(cachedFonts)
 const installedFiles = new Set<string>()
+const requestedFonts = new WeakMap<HTMLElement, InterfaceFont>()
 const openFontCache = async () => caches.open('fluentread-interface-fonts-v1')
 let availabilityVersion = 0
 let activeInterfaceAppearanceRoot: HTMLElement | null = null
@@ -39,14 +42,11 @@ function resolveInterfaceAppearanceRoot(): HTMLElement | null {
 }
 
 function removeInstalledFontFiles(font: InterfaceFont): void {
-  const protectedFiles = new Set(
-    interfaceFontOptions
-      .filter(option => option.value !== 'system' && option.value !== font)
-      .filter(option => getInterfaceFontAssets(option.value).every(asset => installedFiles.has(asset.file)))
-      .flatMap(option => getInterfaceFontAssets(option.value).map(asset => asset.file)),
-  )
-  for (const asset of getInterfaceFontAssets(font)) {
-    if (!protectedFiles.has(asset.file)) installedFiles.delete(asset.file)
+  const installed = interfaceFontOptions
+    .filter(option => getInterfaceFontAssets(option.value).every(asset => installedFiles.has(asset.file)))
+    .map(option => option.value)
+  for (const asset of getClearableInterfaceFontAssets(font, installed)) {
+    installedFiles.delete(asset.file)
   }
 }
 
@@ -54,6 +54,7 @@ export async function refreshInterfaceFontAvailability(): Promise<void> {
   const version = ++availabilityVersion
   const cached = await getCachedInterfaceFonts(openFontCache)
   if (version !== availabilityVersion) return
+  cachedFonts.value = cached
   const installed = interfaceFontOptions.filter(font => getInterfaceFontAssets(font.value)
     .every(asset => installedFiles.has(asset.file))).map(font => font.value)
   availableFonts.value = [...new Set([...installed, ...cached])]
@@ -90,7 +91,11 @@ export async function clearInterfaceFont(font: InterfaceFont): Promise<void> {
 }
 
 export function retryInterfaceFont(source?: InterfaceFontSourceId): void {
-  void fontLoader.load(fontLoadState.value.font, source, true)
+  const font = fontLoadState.value.font
+  const target = resolveInterfaceAppearanceRoot()
+  void fontLoader.load(font, source, true).then(() => {
+    if (target && requestedFonts.get(target) === font) applyInterfaceFont(font, target)
+  })
 }
 
 export function applyInterfaceSkin(value: unknown, root?: HTMLElement | null): InterfaceSkin {
@@ -108,12 +113,27 @@ export function applyInterfaceFont(value: unknown, root?: HTMLElement | null): I
   const font = getInterfaceFontOption(value)
   const target = root || resolveInterfaceAppearanceRoot()
   if (target) {
-    target.dataset.interfaceFont = font.value
-    target.style.setProperty('--interface-font-family', font.fontFamily)
-    target.style.setProperty('--el-font-family', font.fontFamily)
-    void fontLoader.load(font.value)
+    requestedFonts.set(target, font.value)
+    const apply = () => {
+      if (requestedFonts.get(target) !== font.value) return
+      target.dataset.interfaceFont = font.value
+      target.style.setProperty('--interface-font-family', font.fontFamily)
+      target.style.setProperty('--el-font-family', font.fontFamily)
+    }
+    if (getInterfaceFontAssets(font.value).every(asset => installedFiles.has(asset.file))) apply()
+    void fontLoader.load(font.value).then(() => {
+      const state = fontLoadState.value
+      if (state.font === font.value && (state.status === 'ready' || state.status === 'system')) apply()
+    })
   }
   return font.value
+}
+
+/** 扩展专属页面在挂载前调用；只等待本地缓存，未下载字体仍在后台按需获取。 */
+export async function prepareInterfaceFont(value: unknown, root?: HTMLElement | null): Promise<void> {
+  const font = getInterfaceFontOption(value)
+  await fontLoader.loadCached(font.value)
+  applyInterfaceFont(font.value, root)
 }
 
 export function applyInterfaceTheme(dark: boolean, root?: HTMLElement | null): void {

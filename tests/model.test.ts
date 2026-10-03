@@ -218,8 +218,8 @@ describe('AI 模型编号列表', () => {
         });
 
         expect(normalized.service).toBe(services.freeTranslation);
-        expect(normalized.documentService).toBe(services.freeTranslation);
-        expect(normalized.videoService).toBe(services.microsoft);
+        expect(normalized.documentService).toBe('');
+        expect(normalized.videoService).toBe('');
         expect(normalized.translationCenterServices).toEqual([services.google]);
         expect(normalized.token).toMatchObject({openai: 'keep-token'});
         expect(normalized.requireApiKey).toEqual({'openai:gpt-5.6-luna': false});
@@ -1083,6 +1083,17 @@ describe('段落翻译加载样式配置', () => {
 });
 
 describe('双语逐句高亮配置', () => {
+    it('旧配置保留开关，新样式单独保存，非法值回到柔光粉', () => {
+        expect(new Config().bilingualSentenceHighlightStyle).toBe('rose');
+        for (const style of ['rose', 'mint', 'sky', 'underline', 'amber', 'lavender', 'slate', 'dotted']) {
+            expect(normalizeConfig({bilingualSentenceHighlightEnabled: false, bilingualSentenceHighlightStyle: style}))
+                .toMatchObject({bilingualSentenceHighlightEnabled: false, bilingualSentenceHighlightStyle: style});
+        }
+        for (const style of [undefined, null, false, {}, 'unknown']) {
+            expect(normalizeConfig({bilingualSentenceHighlightEnabled: true, bilingualSentenceHighlightStyle: style}))
+                .toMatchObject({bilingualSentenceHighlightEnabled: true, bilingualSentenceHighlightStyle: 'rose'});
+        }
+    });
     it('默认关闭，并只接受显式布尔值开启', () => {
         expect(new Config().bilingualSentenceHighlightEnabled).toBe(false);
         expect(normalizeConfig({}).bilingualSentenceHighlightEnabled).toBe(false);

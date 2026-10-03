@@ -185,12 +185,17 @@ describe('配置差异预览', () => {
             bilingualSentenceHighlightEnabled: true,
         });
 
-        expect(group(result, 'general')?.changes).toEqual(expect.arrayContaining([expect.objectContaining({
+        expect(group(result, 'translation')?.changes).toEqual(expect.arrayContaining([expect.objectContaining({
             key: 'bilingualSentenceHighlightEnabled',
             label: '双语逐句高亮',
             before: '关闭',
             after: '开启',
         })]));
+    });
+
+    it('逐句高亮外观作为阅读辅助设置参与差异预览', () => {
+        const result = buildConfigDiff({bilingualSentenceHighlightStyle: 'rose'}, {bilingualSentenceHighlightStyle: 'mint'});
+        expect(group(result, 'translation')?.changes).toContainEqual({key: 'bilingualSentenceHighlightStyle', label: '逐句高亮样式', before: '柔光粉', after: '薄荷清风'});
     });
 
     it('逐项预览译文外观微调，默认颜色与百分比使用可读文案', () => {
@@ -328,14 +333,14 @@ describe('配置差异预览', () => {
             {
                 key: 'popupQuickFeatureVisibility',
                 label: '快捷功能卡片',
-                before: '鼠标悬停翻译：显示、划词翻译：显示、译文显示：显示、图片翻译：显示、圈选翻译：显示、视频翻译：显示、文档翻译：显示',
-                after: '鼠标悬停翻译：显示、划词翻译：显示、译文显示：显示、图片翻译：隐藏、圈选翻译：显示、视频翻译：显示、文档翻译：显示',
+                before: '鼠标悬停翻译：显示、划词翻译：显示、译文显示：显示、图片翻译：显示、文档翻译：显示',
+                after: '鼠标悬停翻译：显示、划词翻译：显示、译文显示：显示、图片翻译：隐藏、文档翻译：显示',
             },
             {
                 key: 'popupQuickFeatureOrder',
                 label: '快捷功能顺序',
-                before: '鼠标悬停翻译 → 划词翻译 → 译文显示 → 图片翻译 → 视频翻译 → 文档翻译',
-                after: '文档翻译 → 鼠标悬停翻译 → 划词翻译 → 译文显示 → 图片翻译 → 视频翻译',
+                before: '鼠标悬停翻译 → 划词翻译 → 译文显示 → 图片翻译 → video → 文档翻译',
+                after: '文档翻译 → 鼠标悬停翻译 → 划词翻译 → 译文显示 → 图片翻译 → video',
             },
         ]));
 
