@@ -20,7 +20,6 @@ export const koKRMessages = {
     "settings.backup.localTitle": "로컬 백업",
     "settings.backup.fileTitle": "백업 파일",
     "settings.backup.fileDescription": "백업 파일에는 API 키 등 개인 정보가 포함되며 암호화되지 않습니다. 안전하게 보관하고 공개적으로 공유하지 마세요.",
-    "settings.backup.fileWarning": "번역 캐시는 백업되지 않습니다.",
     "settings.backup.restoreHint": "FluentRead 백업 파일을 선택하세요. 이전 버전의 JSON 파일도 복원할 수 있습니다.",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['ko-KR'],
