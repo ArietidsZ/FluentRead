@@ -858,7 +858,7 @@ async function setCurrentSiteAlwaysTranslated(enabled: boolean) {
   }
 
   if (!config.value.on) {
-    showNotice(`已保存 ${domain}，启用插件后生效`);
+    showNotice(`已保存 ${domain}，启动插件后生效`);
     return;
   }
   if (credentialWarning.value) {

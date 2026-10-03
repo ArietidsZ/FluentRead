@@ -501,6 +501,29 @@ describe('translation truncation layout', () => {
         expect(hasActiveTranslationTruncation(owner)).toBe(false);
     });
 
+    it('逐行标记保留内联译文骨架，恢复时不改变原文节点', async () => {
+        for (const [style, className] of [[10, 'fluent-display-learning-mode'], [11, 'fluent-display-marker']] as const) {
+            const {document, first} = openRouterFixture();
+            const originalText = first.firstChild;
+            const originalHTML = first.innerHTML;
+            options.styles.push({value: style, label: '', class: className} as never);
+            try {
+                await withDocumentRealm(document, async () => {
+                    beginTranslation(first, 'bilingual');
+                    const wrapper = appendBilingualTranslation(first, '一段多行译文。<a href="https://example.com">参考链接</a><strong>重点文字</strong>', {style});
+                    setBilingualContent(first, wrapper);
+                    expect(wrapper.querySelector('.fluent-read-translation-text > a')?.textContent).toBe('参考链接');
+                    expect(wrapper.querySelector('.fluent-read-translation-text > strong')?.textContent).toBe('重点文字');
+                    expect(wrapper.children).toHaveLength(1);
+                    expect(first.firstChild).toBe(originalText);
+                    restoreTranslation(first);
+                    expect(first.innerHTML).toBe(originalHTML);
+                    expect(first.firstChild).toBe(originalText);
+                });
+            } finally { options.styles.pop(); }
+        }
+    });
+
     it('wires OpenRouter ancestor unclamping through the real bilingual renderer', async () => {
         const {document, clamp, first} = openRouterFixture();
         const originalClampStyle = '-webkit-line-clamp: 2 !important; max-height: 40px; color: red;';

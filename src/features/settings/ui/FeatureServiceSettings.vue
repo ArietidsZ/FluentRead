@@ -1,18 +1,16 @@
 <!--
  * @file src/features/settings/ui/FeatureServiceSettings.vue
- * 文件职责：在通用设置中集中分配各功能的翻译服务，沿用日常翻译中的默认服务，显示继承关系和独立选择。
- * 主要内容：使用相同的服务目录与图标展示各功能服务、有效模型和缺失凭据提示；AI 功能仅提供兼容服务，配置连接定位到翻译服务页，默认选择保持独立。
+ * 文件职责：在通用设置中集中分配各功能的翻译服务，沿用基础配置中的默认服务，显示继承关系和独立选择。
+ * 主要内容：把翻译服务选择标题放进统一设置卡片，使用相同的服务目录与图标展示各功能服务、有效模型和缺失凭据提示；AI 功能仅提供兼容服务，配置连接定位到翻译服务页，默认选择保持独立。
  * 模块边界：仅修改父级传入的配置草稿，复用现有字段与自动保存；不保存第二份映射，不发起翻译或测试连接请求。
  -->
 <template>
   <div class="feature-services" data-testid="feature-services" data-i18n-ignore>
-    <div class="feature-services-toolbar"><p class="feature-services-intro">{{ t('featureServices.intro') }}</p></div>
-    <SettingsGroup>
+    <SettingsGroup :title="t('featureServices.assignments')">
       <SettingsItem v-for="feature in featureServiceDefinitions" :key="feature.id" :label="t(`featureServices.${feature.id}`)">
         <template #copy>
           <strong>{{ t(`featureServices.${feature.id}`) }}</strong>
           <small v-if="feature.aiOnly">{{ t('featureServices.aiOnly') }}</small>
-          <small v-else-if="feature.id === 'image'">{{ t('featureServices.imageHelp') }}</small>
           <small v-else-if="feature.id === 'hover'">{{ t('featureServices.profileHelp') }}</small>
           <small v-if="servicesType.isUseModel(effectiveService(feature)) && getFeatureModel(config, feature)" class="feature-service-model">{{ getFeatureModel(config, feature) }}</small>
         </template>
@@ -29,7 +27,6 @@
         </div>
       </SettingsItem>
     </SettingsGroup>
-    <button class="feature-services-center" type="button" @click="emit('open-center')">{{ t('featureServices.center') }} <span aria-hidden="true">→</span></button>
   </div>
 </template>
 <script setup lang="ts">
@@ -44,7 +41,7 @@ import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 type ServiceOption = {value: string; label: string; disabled?: boolean};
 const props = defineProps<{config: Config; serviceOptions: readonly ServiceOption[]}>();
-const emit = defineEmits<{'configure-service': [service: string]; 'open-center': []}>();
+const emit = defineEmits<{'configure-service': [service: string]}>();
 const {t, translateLegacy} = useUiI18n();
 const serviceLabel = (service: string) => props.serviceOptions.find(option => option.value === service)?.label || service;
 const effectiveService = (feature: FeatureServiceDefinition) => getFeatureService(props.config, feature) || props.config.service;
@@ -63,8 +60,6 @@ function warning(feature: FeatureServiceDefinition): string {
 </script>
 <style scoped>
 .feature-services { max-width: 1080px; margin: 0 auto; }
-.feature-services-toolbar { display: flex; align-items: start; justify-content: space-between; gap: 20px; margin-bottom: 16px; }
-.feature-services-intro { margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.7; }
 .feature-service-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-width: 0; }
 .feature-service-control :deep(.el-select) { width: 100%; }
 .feature-service-meta { display: contents; }
@@ -72,7 +67,6 @@ function warning(feature: FeatureServiceDefinition): string {
 .feature-service-connection { justify-self: end; margin-left: auto; border: 0; padding: 3px 0; color: var(--brand-strong); background: transparent; font: inherit; font-size: 11px; cursor: pointer; }
 .feature-service-option { display: flex; align-items: center; gap: 9px; }
 .feature-service-warning { grid-column: 1 / -1; color: var(--muted); font-size: 11px; line-height: 1.5; }
-.feature-services-center { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; padding: 14px 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; text-align: start; cursor: pointer; }
 button:hover { color: var(--brand); }
 button:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 .feature-services :deep(.settings-item) { grid-template-columns: minmax(160px, 1fr) minmax(280px, 440px); min-height: 72px; padding: 14px 18px; }

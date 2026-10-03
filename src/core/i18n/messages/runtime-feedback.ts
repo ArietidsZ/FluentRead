@@ -11,6 +11,9 @@ type RuntimeFeedbackRow = readonly [source: string, enUS: string, jaJP: string, 
 
 /** 翻译调度、服务商适配器与连接测试返回给页面、划词卡片和设置页的反馈。 */
 const translationRows: readonly RuntimeFeedbackRow[] = [
+    ["插件已关闭，请在通用设置中启动插件。", "The extension is off. Start it in General settings.", "拡張機能はオフです。一般設定で起動してください。", "확장 프로그램이 꺼져 있습니다. 일반 설정에서 시작하세요.", "L’extension est désactivée. Démarrez-la dans les réglages généraux.", "Расширение выключено. Запустите его в общих настройках.", "La extensión está desactivada. Iníciala en los ajustes generales."],
+    ['输入框翻译输出方式', 'Text field translation output', '入力欄翻訳の出力方法', '입력란 번역 출력 방식', 'Mode de sortie de la traduction des champs', 'Способ вывода перевода в полях', 'Modo de salida de la traducción de campos'],
+    ['双语追加需要支持换行的输入框', 'Bilingual output requires a multiline text field', '対訳の追加には複数行の入力欄が必要です', '이중 언어 출력에는 여러 줄 입력란이 필요합니다', 'La sortie bilingue nécessite un champ multiligne', 'Для двуязычного вывода требуется многострочное поле', 'La salida bilingüe requiere un campo de varias líneas'],
     ["图片文字", "Image text", "画像内の文字", "이미지 텍스트", "Texte de l’image", "Текст изображения", "Texto de la imagen"],
     ["原文对照", "Compare original", "原文と比較", "원문 비교", "Comparer à l’original", "Сравнить с оригиналом", "Comparar original"],
     ["关闭文字面板", "Close text panel", "文字パネルを閉じる", "텍스트 패널 닫기", "Fermer le panneau de texte", "Закрыть текстовую панель", "Cerrar panel de texto"],
