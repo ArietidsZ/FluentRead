@@ -22,47 +22,55 @@
   position: relative;
   isolation: isolate;
   max-width: 1440px;
-  min-height: 610px;
+  min-height: 560px;
   margin: auto;
-  padding: 65px 24px 90px;
+  padding: 90px 24px 80px;
   text-align: center;
 }
 .bv-hero-copy {
   position: relative;
   z-index: 2;
-  max-width: 640px;
+  max-width: 760px;
   margin: auto;
 }
-/* 图标与本地化名称各占一行，保持中心轴一致。 */
-.bv-hero-brand {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  align-items: center;
-  justify-content: center;
-}
-.bv-hero-brand img {
-  display: block;
-  flex: none;
+/* 产品名与口号共用中心轴，标点悬挂在字面宽度之外以校正视觉偏移。 */
+.bv-hero-heading {
+  text-align: center;
 }
 .bv-hero-brand h1 {
   margin: 0;
   text-align: center;
-  font-size: 50px;
+  white-space: nowrap;
+  font-size: clamp(54px, 5.5vw, 76px);
   font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: -0.045em;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
 }
 .bv-site .bv-hero-slogan {
-  margin: 36px auto 26px;
-  font-size: clamp(44px, 4.5vw, 62px);
+  display: flex;
+  justify-content: center;
+  margin: 22px 0 28px;
+  font-size: clamp(30px, 3.3vw, 46px);
   font-weight: 780;
   color: #202025;
-  line-height: 1.25;
+  line-height: 1.18;
   letter-spacing: -0.055em;
 }
-.bv-hero-slogan > span {
+.bv-hero-slogan > .bv-slogan-line {
   display: block;
+  position: relative;
+  width: max-content;
+  white-space: nowrap;
+}
+.bv-slogan-punctuation {
+  position: static;
+}
+.bv-slogan-line:last-child .bv-slogan-punctuation {
+  position: absolute;
+  left: 100%;
+}
+.bv-hero-en .bv-hero-slogan {
+  gap: 0.2em;
 }
 .bv-hero-intro {
   font-size: 16px;
@@ -80,6 +88,7 @@
   inset: 0;
   z-index: 1;
   pointer-events: none;
+  overflow: hidden;
 }
 .bv-hero-orbit > * {
   position: absolute;
@@ -190,73 +199,69 @@
   margin-top: 16px;
 }
 .bv-orbit-greeting {
-  padding: 9px 18px;
-  border-radius: 28px;
-  border: 1px solid var(--fr-line);
-  color: #86828c;
-  background: white;
-  box-shadow: 0 12px 30px #26232c04;
+  color: #b8b4be;
+  opacity: 0.55;
   font-size: 19px;
-  font-weight: 650;
+  font-weight: 550;
 }
 .bv-greeting-fr {
-  left: 10%;
-  top: 65px;
+  left: 6%;
+  top: 8%;
   --orbit-angle: -5deg;
 }
 .bv-greeting-en {
-  right: 19%;
-  top: 22px;
+  right: 10%;
+  top: 4%;
   --orbit-angle: 5deg;
   animation-delay: -3s;
 }
 .bv-greeting-es {
-  left: 11%;
-  top: 450px;
+  left: 15%;
+  top: 80%;
   --orbit-angle: 5deg;
   animation-delay: -5s;
 }
 .bv-greeting-zh {
-  left: 23%;
-  top: 535px;
+  left: 33%;
+  top: 3%;
   --orbit-angle: -5deg;
   animation-delay: -7s;
 }
 .bv-greeting-ja {
-  right: 7%;
-  top: 550px;
+  right: 3%;
+  top: 82%;
   --orbit-angle: 5deg;
   font-size: 14px;
   animation-delay: -4s;
 }
 .bv-greeting-ko {
-  left: 2%;
-  top: 570px;
+  left: 7%;
+  top: 94%;
   --orbit-angle: -5deg;
   font-size: 14px;
   animation-delay: -6s;
 }
 .bv-greeting-de {
-  left: 24%;
-  top: 22px;
+  left: 12%;
+  top: 25%;
   --orbit-angle: 4deg;
   animation-delay: -1s;
 }
 .bv-greeting-ru {
-  right: 31%;
-  top: 18px;
+  right: 3%;
+  top: 45%;
   --orbit-angle: -4deg;
   animation-delay: -8s;
 }
 .bv-greeting-ar {
-  left: 6%;
-  top: 132px;
+  left: 2%;
+  top: 65%;
   --orbit-angle: 4deg;
   animation-delay: -4s;
 }
 .bv-greeting-pt {
-  right: 6%;
-  top: 22px;
+  right: 25%;
+  top: 95%;
   --orbit-angle: -4deg;
   animation-delay: -2s;
 }
@@ -711,62 +716,59 @@
 }
 @media (max-width: 1100px) {
   .bv-hero {
-    padding: 125px 24px 110px;
+    padding: 54px 24px 64px;
   }
   .bv-hero {
     min-height: 0;
   }
   .bv-orbit-greeting {
-    font-size: 13px;
-    padding: 6px 13px;
+    font-size: 17px;
+    opacity: 0.3;
   }
   .bv-greeting-fr {
-    top: 12px;
+    top: 4%;
     left: 5%;
   }
   .bv-greeting-en {
-    top: 12px;
-    right: 8%;
+    top: 8%;
+    right: 2%;
   }
   .bv-greeting-es {
-    top: auto;
-    bottom: 60px;
-    left: 5%;
+    top: 66%;
+    left: 2%;
   }
   .bv-greeting-zh {
-    top: 10px;
-    left: 46%;
+    top: 83%;
+    left: auto;
+    right: 5%;
   }
   .bv-greeting-ja {
-    top: auto;
-    bottom: 60px;
-    right: 4%;
-    font-size: 11px;
+    top: 48%;
+    right: -24px;
+    font-size: 16px;
   }
   .bv-greeting-ko {
     display: block;
-    top: auto;
-    bottom: 14px;
-    left: 5%;
+    top: 94%;
+    left: -12px;
     right: auto;
-    font-size: 11px;
+    font-size: 14px;
   }
   .bv-greeting-de {
-    top: 65px;
-    left: 5%;
+    top: 27%;
+    left: -15px;
   }
   .bv-greeting-ru {
-    top: 65px;
-    right: 7%;
+    top: 28%;
+    right: -12px;
   }
   .bv-greeting-ar {
-    top: 65px;
-    left: 41%;
+    top: 47%;
+    left: 0;
   }
   .bv-greeting-pt {
-    top: auto;
-    bottom: 14px;
-    right: 18%;
+    top: 94%;
+    right: 17%;
   }
 }
 @media (max-width: 760px) {
@@ -776,14 +778,18 @@
     padding: 44px 24px;
     max-width: 640px;
   }
-  .bv-hero-brand {
-    min-height: 84px;
-  }
   .bv-hero-brand h1 {
-    font-size: 42px;
+    font-size: 54px;
   }
   .bv-site .bv-hero-slogan {
-    font-size: 46px;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    font-size: clamp(40px, 6vw, 48px);
+  }
+  .bv-slogan-punctuation {
+    position: absolute;
+    left: 100%;
   }
 }
 @media (max-width: 640px) {
@@ -818,21 +824,17 @@
     height: 18px;
   }
   .bv-hero {
-    padding: 125px 20px 110px;
-  }
-  .bv-hero-brand img {
-    width: 56px;
-    height: 56px;
-  }
-  .bv-hero-brand {
-    min-height: 76px;
+    padding: 54px 20px 64px;
   }
   .bv-hero-brand h1 {
-    font-size: 36px;
+    font-size: 46px;
   }
   .bv-site .bv-hero-slogan {
-    margin: 30px 0 22px;
-    font-size: clamp(34px, 9.2vw, 46px);
+    margin: 22px 0 26px;
+    font-size: clamp(34px, 9.5vw, 42px);
+  }
+  .bv-site .bv-hero-en .bv-hero-slogan {
+    font-size: clamp(32px, 9vw, 42px);
   }
   .bv-hero-intro {
     font-size: 14px;
