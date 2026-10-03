@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/apiKeyCheckIdentity.ts
  * 文件职责：为按行 API Key 连通性检测生成不泄露密钥的配置指纹，阻止跨窗口检测把结果写到错误配置行。
- * 主要内容：按服务提取 endpoint、代理、模型、请求参数、计费路由、自定义 provider 和原始 key 行，计算稳定 SHA-256 指纹并校验其格式。
+ * 主要内容：按服务提取 endpoint、代理、模型、请求参数、域名来源头规则、计费路由、自定义 provider 和原始 key 行，计算稳定 SHA-256 指纹并校验其格式。
  * 模块边界：本文件只做纯身份计算，不读写配置、不发起网络请求、不保存健康状态；调用方负责在检测开始前执行校验。
  */
 
@@ -12,6 +12,7 @@ export interface ApiKeyCheckIdentitySource extends ApiKeyConfigSource {
     proxy?: unknown;
     customBody?: unknown;
     customHeaders?: unknown;
+    requestHeaderRules?: unknown;
     model?: unknown;
     customModel?: unknown;
     serviceRegion?: unknown;
@@ -65,6 +66,7 @@ export function createApiKeyCheckRevision(source: ApiKeyCheckIdentitySource, ser
         proxy: serviceMapValue(source, 'proxy', service),
         customBody: serviceMapValue(source, 'customBody', service),
         customHeaders: serviceMapValue(source, 'customHeaders', service),
+        requestHeaderRules: source.requestHeaderRules,
         model: serviceMapValue(source, 'model', service),
         customModel: serviceMapValue(source, 'customModel', service),
         serviceRegion: serviceMapValue(source, 'serviceRegion', service),

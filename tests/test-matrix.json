@@ -31,7 +31,8 @@
       "tests/freeTranslationSettings.test.ts",
       "tests/writingBackground.test.ts",
       "tests/requestLimitSettings.test.ts",
-      "tests/backgroundVisionProbe.test.ts"
+      "tests/backgroundVisionProbe.test.ts",
+      "tests/requestHeaderRuntime.test.ts"
     ],
     "unit": [
       "tests/translationCenterSession.test.ts",
@@ -322,7 +323,8 @@
       "tests/webDavConnection.test.ts",
       "tests/webDavApi.test.ts",
       "tests/backgroundWebDavBackup.test.ts",
-      "tests/webDavBackupClient.test.ts"
+      "tests/webDavBackupClient.test.ts",
+      "tests/requestHeaderRules.test.ts"
     ],
     "functional": [
       "tests/translationCenterComponent.test.ts",
