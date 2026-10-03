@@ -62,3 +62,14 @@ describe('writing entry placement', () => {
         expect(host.parentElement).toBeNull();
     });
 });
+
+// 本次关闭必须跨同一文档内的卸载/重新挂载保持，但新文档有独立模块实例。
+it('keeps visit dismissal in document memory and starts fresh in a new document', async () => {
+    const {vi} = await import('vitest');
+    vi.resetModules();
+    const session = await import('@/src/features/writing-assistant/entrySession');
+    expect(session.isWritingDismissedForVisit()).toBe(false);
+    session.dismissWritingForVisit(); expect(session.isWritingDismissedForVisit()).toBe(true);
+    expect((await import('@/src/features/writing-assistant/entrySession')).isWritingDismissedForVisit()).toBe(true);
+    vi.resetModules(); expect((await import('@/src/features/writing-assistant/entrySession')).isWritingDismissedForVisit()).toBe(false);
+});

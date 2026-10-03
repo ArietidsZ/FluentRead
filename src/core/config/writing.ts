@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/writing.ts
  * 文件职责：定义写作助手的持久化偏好、动作目录与配置规范化。
- * 主要内容：默认跟随翻译目标语言并使用简短自然回复，独立选择阅读对照语言，限定风格、身份和自定义语气边界，迁移旧偏好，以 HTTPS 和路径白名单限定 GitHub 新建 Issue 与回复入口。
+ * 主要内容：默认跟随翻译目标语言并使用简短自然回复，独立选择阅读对照语言，限定风格、身份和自定义语气边界，迁移旧偏好并规范化写作专用网站禁用名单，以 HTTPS 和路径白名单限定 GitHub 新建 Issue 与回复入口。
  * 模块边界：仅处理纯数据；不读取编辑框、不调用模型、不保存配置。
  */
 import {isHarnessService} from './harness';
@@ -9,6 +9,7 @@ import type {CustomOpenAIProvider} from './customOpenAI';
 import {options} from './catalog';
 import {normalizeChineseLanguageCode} from '../language/chinese';
 import type {UiLanguage} from '../i18n/types';
+import {normalizeSiteDomains} from '../site-rules/domain';
 
 export const WRITING_ACTIONS = [
     {id: 'draft', label: '起草'}, {id: 'reply', label: '帮我回复'},
@@ -37,7 +38,7 @@ export const WRITING_LENGTHS = [{value: 'short', label: '简短'}, {value: 'stan
 export type WritingLength = typeof WRITING_LENGTHS[number]['value'];
 export type WritingStyle = typeof WRITING_STYLES[number]['value'];
 export interface WritingPreferences {
-    enabled: boolean; service: string; model: string;
+    enabled: boolean; disabledDomains: string[]; service: string; model: string;
     language: string; referenceLanguage: string; tone: string; length: WritingLength; style: WritingStyle; role: string;
 }
 /** 旧自动语言随新默认迁移，中文地区别名统一为书写体系。 */
@@ -79,6 +80,7 @@ export function normalizeWritingPreferences(value: unknown, providers: readonly 
     const source = value && typeof value === 'object' && !Array.isArray(value) ? value as Partial<WritingPreferences> : {};
     return {
         enabled: source.enabled !== false,
+        disabledDomains: normalizeSiteDomains(source.disabledDomains),
         service: isHarnessService(source.service, providers) ? source.service : '',
         model: typeof source.model === 'string' && source.model.trim() !== '自定义模型' ? source.model.trim().slice(0, 128) : '',
         language: normalizeWritingLanguage(source.language),
