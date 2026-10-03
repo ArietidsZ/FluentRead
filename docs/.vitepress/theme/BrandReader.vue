@@ -2,16 +2,16 @@
 import { computed, ref } from 'vue'
 import { withBase } from 'vitepress'
 import { useDemoPlayback } from './useDemoPlayback'
+import DemoPointer from './DemoPointer.vue'
 const props = defineProps<{ en?: boolean; autoplay?: boolean }>()
 const root = ref<HTMLElement | null>(null)
-const { step, playing, reduced, choose, replay } = useDemoPlayback(root, 4, props.autoplay, 2400)
+const { step, playing, running, reduced, replay } = useDemoPlayback(
+  root,
+  4,
+  props.autoplay ?? true,
+  [650, 550, 450, 2300]
+)
 const t = (zh: string, english: string) => (props.en ? english : zh)
-const labels = computed(() => [
-  t('原文', 'Original'),
-  t('开始翻译', 'Translate'),
-  t('译文出现', 'Translation appears'),
-  t('双语对照', 'Read in two languages'),
-])
 const translated = computed(() => step.value >= 2)
 </script>
 <template>
@@ -21,6 +21,7 @@ const translated = computed(() => step.value >= 2)
     data-demo="brand-reader"
     :data-step="step"
     :data-playing="playing"
+    :data-running="running"
   >
     <div class="bv-window">
       <span class="bv-dots" aria-hidden="true"><i></i><i></i><i></i></span
@@ -29,10 +30,9 @@ const translated = computed(() => step.value >= 2)
     </div>
     <div class="bv-reader-toolbar">
       <span>{{ t('英语 → 简体中文', 'Chinese → English') }}</span
-      ><button type="button" @click="choose(translated ? 0 : 3)">
-        {{ translated ? t('恢复原文', 'Restore original') : t('翻译示例', 'Translate example') }}
-        <span aria-hidden="true">↔</span>
-      </button>
+      ><span class="bv-demo-trigger" data-demo-target :class="{ triggered: step === 1 }">
+        {{ t('翻译当前网页', 'Translate this page') }} <span aria-hidden="true">↔</span>
+      </span>
     </div>
     <article class="bv-paper" :class="{ translated, scanning: step === 1 }">
       <span class="bv-paper-label">FIELD NOTES <span>01</span></span>
@@ -52,22 +52,7 @@ const translated = computed(() => step.value >= 2)
       <div class="bv-reading-mark" aria-hidden="true"><span></span><span></span><span></span></div>
       <span v-if="step === 1" class="bv-scan" aria-hidden="true"></span>
     </article>
-    <div
-      class="bv-walkthrough"
-      role="group"
-      :aria-label="t('翻译演示步骤', 'Translation demo steps')"
-    >
-      <button
-        v-for="(label, index) in labels"
-        :key="label"
-        type="button"
-        :aria-pressed="step === index"
-        @click="choose(index)"
-      >
-        <span>{{ index + 1 }}</span
-        >{{ label }}
-      </button>
-    </div>
+    <DemoPointer :phase="running ? (step === 0 ? 1 : step === 1 ? 2 : 0) : 0" />
     <div class="bv-playback">
       <small>{{ t('操作示意 · 示例译文', 'Walkthrough · example translations') }}</small>
       <div>
