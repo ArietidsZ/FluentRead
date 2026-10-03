@@ -286,14 +286,14 @@ describe('Offscreen 消息静态路由', () => {
             image: 'data:image/png,image', sourceLanguage: 'en',
         })).resolves.toEqual({handled: true, response: {success: true, image: 'translated', lines: []}});
         expect(mocks.translateImage).toHaveBeenCalledWith(
-            'data:image/png,image', 'en', '', expect.any(AbortSignal), 'image-translate-1',
+            'data:image/png,image', 'en', '', expect.any(AbortSignal), 'image-translate-1', false,
         );
         await dispatch({
             type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', requestId: 'image-translate-2',
             image: 'data:image/png,image', sourceLanguage: 'en', title: 'Page',
         });
         expect(mocks.translateImage).toHaveBeenLastCalledWith(
-            'data:image/png,image', 'en', 'Page', expect.any(AbortSignal), 'image-translate-2',
+            'data:image/png,image', 'en', 'Page', expect.any(AbortSignal), 'image-translate-2', false,
         );
 
         expect((await dispatch({
@@ -334,6 +334,24 @@ describe('Offscreen 消息静态路由', () => {
             type: 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN',
             url: 'https://pbs.twimg.com/media/demo.png',
         })).resolves.toEqual({handled: true, response: {success: false, error: '远程图片结果无效'}});
+    });
+    it('漫画模式必须为布尔值，专用模型状态可读，清理与图片任务互斥',async()=>{
+        const status=vi.fn(async()=>({ready:true,bytes:123,inpaintingReady:false})),remove=vi.fn(async()=>{});
+        const handler=createOffscreenMessageListener({translate:mocks.translate,ttsPlayer:{play:mocks.play,stop:mocks.stop},fetchImage:mocks.fetchImage,
+            translateImage:mocks.translateImage,translateArea:mocks.translateArea,downloadOcrLanguages:mocks.downloadOcrLanguages,mangaModelStatus:status,removeMangaModels:remove});
+        const image={type:'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN',image:'data:image/png,x',sourceLanguage:'en',manga:true};
+        await dispatch(image,handler);expect(mocks.translateImage).toHaveBeenLastCalledWith('data:image/png,x','en','',expect.any(AbortSignal),expect.stringMatching(/^legacy-image-/),true);
+        expect((await dispatch({...image,manga:'true'},handler)).response).toMatchObject({success:false});
+        expect((await dispatch({type:'FLUENT_READ_MANGA_MODEL_STATUS_OFFSCREEN'},handler)).response).toEqual({success:true,ready:true,bytes:123,inpaintingReady:false});
+        expect((await dispatch({type:'FLUENT_READ_MANGA_MODEL_REMOVE_OFFSCREEN'},listener)).response).toMatchObject({success:false});
+        let finish!:(value:{image:string;lines:[]})=>void;
+        mocks.translateImage.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+        const pending=dispatch({...image,requestId:'model-busy'},handler);await vi.waitFor(()=>expect(finish).toBeTypeOf('function'));
+        expect((await dispatch({type:'FLUENT_READ_MANGA_MODEL_REMOVE_OFFSCREEN'},handler)).response).toMatchObject({success:false});expect(remove).not.toHaveBeenCalled();
+        finish({image:'done',lines:[]});await pending;
+        remove.mockRejectedValueOnce(new Error('clear failed'));
+        expect((await dispatch({type:'FLUENT_READ_MANGA_MODEL_REMOVE_OFFSCREEN'},handler)).response).toEqual({success:false,error:'clear failed'});
+        expect((await dispatch({type:'FLUENT_READ_MANGA_MODEL_REMOVE_OFFSCREEN'},handler)).response).toEqual({success:true});
     });
 
     it('区域翻译验证六个有限坐标和正尺寸', async () => {

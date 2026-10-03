@@ -7,6 +7,7 @@
  */
 
 import {DEFAULT_SENTENCE_HIGHLIGHT_STYLE, DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE, normalizeSentenceHighlightStyle, normalizeSentenceHighlightAppearance, normalizeSentenceHighlightProfiles, type SentenceHighlightStyle, type SentenceHighlightAppearance, type SentenceHighlightProfile} from './sentenceHighlight';
+import {normalizeMangaSiteRules, normalizeMangaPrefetchPages, type MangaSiteRule} from './manga';
 import {normalizeShareCardPreferences, type ShareCardPreferences} from '@/src/core/config/shareCard';
 import type {TranslationScope} from '@/src/core/translation/types';
 import {
@@ -462,6 +463,11 @@ export class Config {
     areaRecognitionMode: AreaRecognitionMode; // 圈选优先使用模型识图，模型不支持时回退本地 OCR
     areaVisionPrompt: string; // 模型识图时发送的图片文字提取指令
     modelVision: ModelVisionOverrides; // 按服务和精确模型保存的视觉能力显式覆盖
+    imageTranslationMangaEnabled: boolean; // 是否在已适配阅读器显示漫画连续翻译入口
+    imageTranslationMangaPromptEnabled: boolean; // 进入漫画阅读页提示，独立于悬浮球显示
+    imageTranslationMangaDownloadConfirmed: boolean; // 已阅读首次下载说明
+    imageTranslationMangaSites: MangaSiteRule[]; // 用户添加的精确阅读页规则
+    imageTranslationMangaPrefetchPages: number; // 当前页之后提前准备的图片数量，0 至 5
     imageTranslationHoverEnabled: boolean; // 是否显示图片悬浮入口
     imageTranslationContextMenuEnabled: boolean; // 是否显示图片右键入口
     disableImageTranslator: boolean; // 是否禁用图片翻译
@@ -654,6 +660,11 @@ export class Config {
         this.areaRecognitionMode = 'prefer-vision';
         this.areaVisionPrompt = DEFAULT_AREA_VISION_PROMPT;
         this.modelVision = {};
+        this.imageTranslationMangaEnabled = true;
+        this.imageTranslationMangaPromptEnabled = true;
+        this.imageTranslationMangaDownloadConfirmed = false;
+        this.imageTranslationMangaSites = [];
+        this.imageTranslationMangaPrefetchPages = 3;
         this.imageTranslationHoverEnabled = true;
         this.imageTranslationContextMenuEnabled = true;
         this.disableImageTranslator = true; // 默认关闭图片翻译，由用户按需开启
@@ -1405,6 +1416,11 @@ export function normalizeConfig(value: unknown): Config {
     if (typeof normalized.disableImageTranslator !== 'boolean') {
         normalized.disableImageTranslator = true;
     }
+    normalized.imageTranslationMangaEnabled = typeof normalized.imageTranslationMangaEnabled === 'boolean' ? normalized.imageTranslationMangaEnabled : true;
+    normalized.imageTranslationMangaPromptEnabled = typeof normalized.imageTranslationMangaPromptEnabled === 'boolean' ? normalized.imageTranslationMangaPromptEnabled : true;
+    normalized.imageTranslationMangaDownloadConfirmed = normalized.imageTranslationMangaDownloadConfirmed === true;
+    normalized.imageTranslationMangaSites = normalizeMangaSiteRules(normalized.imageTranslationMangaSites);
+    normalized.imageTranslationMangaPrefetchPages = normalizeMangaPrefetchPages(normalized.imageTranslationMangaPrefetchPages);
     normalized.imageTranslationHoverEnabled = typeof normalized.imageTranslationHoverEnabled === 'boolean' ? normalized.imageTranslationHoverEnabled : true;
     normalized.imageTranslationContextMenuEnabled = typeof normalized.imageTranslationContextMenuEnabled === 'boolean' ? normalized.imageTranslationContextMenuEnabled : true;
     if (typeof normalized.contextMenuEnabled !== 'boolean') {

@@ -8,6 +8,8 @@
   <SettingsGroup :title="t('area.settings.title')" :description="t('area.settings.intro')">
     <p v-if="!browserCapabilities.areaTranslation" class="area-settings-note" role="status">{{ t('area.settings.unavailable') }}</p>
     <FeatureEnableCard :model-value="props.enabled" :title="t('area.settings.enabled')" :description="t('area.settings.shortcut', {shortcut: hotkeyDisplayName})" :disabled="!browserCapabilities.areaTranslation" @update:model-value="emit('update:enabled', $event)" />
+    <details class="area-translation-details" :open="!props.compact">
+      <summary v-show="props.compact">{{ t('area.settings.title') }}</summary>
     <SettingsItem :label="t('area.settings.hotkey')" :description="t('area.settings.hotkeyDescription')" :disabled="!browserCapabilities.areaTranslation">
       <div class="hotkey-config">
         <el-select :model-value="props.config.selectionAreaHotkey" :aria-label="t('area.settings.hotkey')" :disabled="!browserCapabilities.areaTranslation" @change="handleHotkeyChange">
@@ -48,6 +50,7 @@
       <el-button plain @click="promptEditorOpen = true">{{ t('area.settings.editVisionPrompt') }}</el-button>
     </SettingsItem>
     <p class="area-settings-note area-privacy">{{ t(prefersVision ? 'area.settings.visionPrivacy' : 'area.settings.privacy') }}</p>
+    </details>
   </SettingsGroup>
   <details v-if="props.showOcr !== false" class="area-ocr-details" :open="!prefersVision">
     <summary>{{ t('area.settings.ocrDetails') }}</summary>
@@ -106,6 +109,7 @@ const props = defineProps<{
   enabled: boolean;
   active: boolean;
   showOcr?: boolean;
+  compact?: boolean;
   serviceOptions: readonly {value: string; label: string; disabled?: boolean}[];
 }>();
 const emit = defineEmits<{'update:enabled': [enabled: boolean]}>();

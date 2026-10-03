@@ -16,3 +16,5 @@ export {
     translateAreaInOffscreen,
     translateImageInOffscreen,
 } from '@/src/features/image-translation/services/offscreenRuntime';
+export {mangaOcrModelStatus} from '@/src/features/image-translation/services/mangaOcrAssets';
+export {removeMangaModels,disposeMangaModels} from '@/src/features/image-translation/services/mangaOcr';

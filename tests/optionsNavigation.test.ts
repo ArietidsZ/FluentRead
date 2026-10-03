@@ -10,6 +10,7 @@ import {
   resolveRequestedSection,
   settingsSearchTargets,
   resolveSettingsPanel,
+  SETTINGS_TABBED_SECTION_IDS,
   settingsPagePanels,
 } from '@/src/features/settings/model/navigation'
 
@@ -36,11 +37,11 @@ describe('options navigation view-model', () => {
       },
       {
         label: '工具与学习',
-        items: ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-translation-stats'],
+        items: ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-sites', 'settings-translation-stats'],
       },
       {
         label: '系统与数据',
-        items: ['settings-sites', 'settings-advanced', 'settings-data', 'settings-about'],
+        items: ['settings-advanced', 'settings-data', 'settings-about'],
       },
     ])
     expect(navigationItems.map((item) => item.label)).toEqual([
@@ -49,14 +50,14 @@ describe('options navigation view-model', () => {
       '翻译设置',
       '界面风格',
       '划词翻译',
-      '图片翻译',
+      '图片/漫画翻译',
       '视频字幕翻译',
       '写作助手',
       '翻译中心',
       '学习中心',
       '术语库',
-      '翻译统计',
       '网站规则',
+      '翻译统计',
       '高级选项',
       '备份与恢复',
       '关于流畅阅读',
@@ -88,11 +89,14 @@ describe('options navigation view-model', () => {
     expect(resolveRequestedSection('#settings-learning-center')).toBe('settings-vocabulary')
     expect(resolveNavigationItem('missing').id).toBe(DEFAULT_NAVIGATION_SECTION)
     expect(resolveRequestedSection('#settings-area-translation')).toBe('settings-image-translation')
-    expect(resolveSettingsPanel('settings-area-translation')).toBe('area')
+    expect(resolveSettingsPanel('settings-area-translation')).toBe('')
+    expect(SETTINGS_TABBED_SECTION_IDS.has('settings-image-translation')).toBe(false)
+    expect(resolveSettingsPanel('settings-image-translation')).toBe('')
+    expect(resolveSettingsPanel('settings-image-translation', 'entries')).toBe('')
     expect(filterNavigationItems('圈选')).toEqual([expect.objectContaining({id: 'settings-image-translation'})])
     expect(resolveRequestedSection('#settings-video')).toBe('settings-video')
     expect(resolveRequestedSection('settings-sites')).toBe('settings-sites')
-    expect(resolveNavigationItem('settings-sites').group).toBe('系统与数据')
+    expect(resolveNavigationItem('settings-sites').group).toBe('工具与学习')
     expect(resolveSettingsPanel('settings-sites', 'preview')).toBe('preview')
     expect(settingsPagePanels['settings-sites'].map(panel => panel.id)).toEqual(['rules', 'adaptation', 'preview'])
     expect(resolveRequestedSection('#settings-webpage')).toBe('settings-translation')

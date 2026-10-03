@@ -102,10 +102,10 @@ export const navigationGroups = [
         searchDescription: '划词翻译、普通翻译、卡片模式、词性、句法、冠词、名词、触发、朗读、翻译卡片、阅读卡、Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关',
       },
       {
-        id: 'settings-image-translation', icon: '图', label: '图片翻译', description: '网页图片、圈选区域与 OCR', group: '专项翻译',
-        heading: '图片翻译', summary: '设置网页图片和圈选翻译，并管理文字识别所需的本地语言包。',
-        kicker: '专项翻译', title: '图片翻译', detail: '悬停网页图片，从图片入口识别和翻译文字。',
-        searchDescription: '图片翻译、圈选翻译、区域翻译、截图、识图、视觉、Shift+Z、OCR、语言包、中文、英文、日文、下载',
+        id: 'settings-image-translation', icon: '图', label: '图片/漫画翻译', description: '漫画连续翻译、网页图片与圈选', group: '专项翻译',
+        heading: '图片/漫画翻译', summary: '选择漫画连续阅读、单张图片或圈选翻译，分别调整入口与识别资源。',
+        kicker: '专项翻译', title: '图片/漫画翻译', detail: '一次开启漫画翻译，滚动阅读时自动继续，随时切回原图。',
+        searchDescription: '漫画、漫画翻译、MANGA Plus、连续翻译、图片翻译、圈选翻译、区域翻译、截图、识图、视觉、Shift+Z、OCR、语言包、中文、英文、日文、下载',
       },
       {
         id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube/X 边看边译', group: '专项翻译',
@@ -143,6 +143,12 @@ export const navigationGroups = [
         searchDescription: '术语库、专业术语、固定译名、专有名词、保留原文、glossary、CSV、TSV、导入导出',
       },
       {
+        id: 'settings-sites', icon: '站', label: '网站规则', description: '网站偏好、正文适配与生效预览', group: '工具与学习',
+        heading: '网站规则', summary: '按网站调整翻译与显示偏好，扩展正文适配，并检查规则为何生效。',
+        kicker: '工具与学习', title: '网站规则', detail: '自动翻译与禁用名单按主域名生效；正文适配可进一步指定路径和内容区域。预览仅检查已保存配置，不访问网站。',
+        searchDescription: '网站、域名、网址、主域名、自动翻译、始终翻译、禁用扩展、子域、网站适配、兼容、隐藏悬浮球、生效预览、规则目录、可视化编辑、导入导出、JSON、自定义规则、正文、保护区域',
+      },
+      {
         id: 'settings-translation-stats', icon: '◔', label: '翻译统计', description: '请求规模、耗时与服务表现', group: '工具与学习',
         heading: '翻译统计', summary: '查看每次翻译请求的规模和耗时，比较各翻译服务的响应速度与稳定性。',
         kicker: '本地工具', title: '翻译统计', detail: '查看翻译请求的规模、耗时分布和各服务的表现。',
@@ -153,12 +159,6 @@ export const navigationGroups = [
   {
     label: '系统与数据',
     items: [
-      {
-        id: 'settings-sites', icon: '站', label: '网站规则', description: '网站偏好、正文适配与生效预览', group: '系统与数据',
-        heading: '网站规则', summary: '按网站调整翻译与显示偏好，扩展正文适配，并检查规则为何生效。',
-        kicker: '系统与数据', title: '网站规则', detail: '自动翻译与禁用名单按主域名生效；正文适配可进一步指定路径和内容区域。预览仅检查已保存配置，不访问网站。',
-        searchDescription: '网站、域名、网址、主域名、自动翻译、始终翻译、禁用扩展、子域、网站适配、兼容、隐藏悬浮球、生效预览、规则目录、可视化编辑、导入导出、JSON、自定义规则、正文、保护区域',
-      },
       {
         id: 'settings-advanced', icon: '◇', label: '高级选项', description: '性能与模板', group: '系统与数据',
         heading: '高级选项', summary: '管理缓存、并发、限流和重试等运行策略。',
@@ -283,11 +283,6 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
     {"id": "requests", "labelKey": "options.panel.requests", "searchTerms": "并发 限流 重试 性能 密钥 恢复 退避", "targetIds": []},
     {"id": "cache", "labelKey": "options.panel.cache", "searchTerms": "缓存 容量 条数 存储 清除", "targetIds": []},
   ],
-  'settings-image-translation': [
-    {"id": "entries", "labelKey": "options.panel.entries", "searchTerms": "图片 悬停 右键", "targetIds": []},
-    {id: 'area', labelKey: 'area.settings.title', searchTerms: '圈选 区域 截图 识图 视觉 Shift+Z', targetIds: ['settings-area-translation']},
-    {"id": "ocr", "labelKey": "options.panel.ocr", "searchTerms": "OCR 语言包 识别 下载", "targetIds": []},
-  ],
   'settings-data': [
     {"id": "backup", "labelKey": "options.panel.backup", "searchTerms": "备份 导入 导出 JSON", "targetIds": []},
     {"id": "history", "labelKey": "options.panel.history", "searchTerms": "历史 最近修改 自动快照 撤销 恢复", "targetIds": []},
@@ -298,6 +293,5 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
 export function resolveSettingsPanel(sectionId: string, panelOrTargetId?: string): string {
   const panels = settingsPagePanels[NAVIGATION_SECTION_ALIASES.get(sectionId) ?? sectionId] ?? []
   if (sectionId === 'settings-model-usage') return 'usage'
-  if (sectionId === 'settings-area-translation') return 'area'
   return (panels.find(panel => panel.id === panelOrTargetId || panel.targetIds.includes(panelOrTargetId ?? '')) ?? panels[0])?.id ?? ''
 }
