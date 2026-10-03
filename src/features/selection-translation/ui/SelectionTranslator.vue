@@ -41,7 +41,7 @@
 
       <div v-if="cardMode && !readingMode" class="fr-study-toolbar" role="group" aria-label="深入学习" :title="isWordSelection ? '词典释义 · 按词性分类' : '先看译文，按需深入'">
         <template v-if="readingEnabled">
-          <button v-for="action in readingActions" :key="action.id" type="button" :title="action.description" @click="openReading(action.id)">{{ action.id === 'grammar' ? '词性与句法' : action.label }}</button>
+          <button v-for="action in readingActions" :key="action.id" type="button" :title="action.description" aria-pressed="false" @click="openReading(action.id)">{{ action.id === 'grammar' ? '词性与句法' : action.label }}</button>
           <button v-if="!isPrivateContext" type="button" @click="openReadingHistory">记录</button>
         </template>
         <button v-else type="button" @click="openSelectionSettings">配置 AI 讲解</button>
@@ -219,7 +219,7 @@ const error = ref('');
 const showIndicator = ref(false);
 const showTooltip = ref(false);
 const readingMode = ref(false);
-const readingInitialAction = ref<HarnessActionId>('meaning');
+const readingInitialAction = ref<HarnessActionId>();
 const readingHistoryOnly = ref(false);
 const readingSelection = ref<ReadingSelection | null>(null);
 const copySuccess = ref(false);
