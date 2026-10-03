@@ -1,5 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
+vi.mock('webextension-polyfill', () => ({default: {}}));
+
 const mocks = vi.hoisted(() => ({
     config: {on: true, disabledExtensionDomains: [], bilingualSentenceHighlightEnabled: false,
         selectionTranslatorMode: 'bilingual', disableSelectionTranslator: false},
@@ -270,6 +272,86 @@ describe('QQ legacy frame startup 生命周期', () => {
         await starting;
         expect(mocks.installStyles).not.toHaveBeenCalled();
     });
+
+    it.each(['runtime removed', 'event removed', 'removeListener throws'] as const)(
+        'invalidates an active mail frame after %s without interrupting cleanup', async failure => {
+            const {listeners} = installGlobals('https://mail.qq.com/cgi-bin/readmail?mailid=x');
+            window.top = {} as Window;
+            const {startQqMailFrameApp} = await load();
+            const starting = startQqMailFrameApp(context as never);
+            ready();
+            await starting;
+            const listener = mocks.addRuntimeListener.mock.calls[0][0];
+            const unsubscribe = mocks.subscribeConfig.mock.results[0].value;
+            if (failure === 'runtime removed') Reflect.deleteProperty(browser, 'runtime');
+            else if (failure === 'event removed') Reflect.deleteProperty(browser.runtime, 'onMessage');
+            else mocks.removeRuntimeListener.mockImplementation(() => { throw new Error('Extension context invalidated.'); });
+
+            expect(() => { invalidate(); invalidate(); }).not.toThrow();
+            expect(mocks.removeRuntimeListener).toHaveBeenCalledTimes(1);
+            expect(mocks.removeRuntimeListener).toHaveBeenCalledWith(listener);
+            expect(mocks.removeStyles).toHaveBeenCalledOnce();
+            expect(unsubscribe).toHaveBeenCalledOnce();
+            expect(mocks.syncHighlight).toHaveBeenLastCalledWith(document, false);
+            expect([...listeners.values()].every(set => set.size === 0)).toBe(true);
+        },
+    );
+});
+
+describe('frame bridge cleanup after extension reload', () => {
+    it.each(['qq', 'netease', 'embedded'] as const)(
+        'releases the %s top bridge when runtime is removed or listener removal fails', async kind => {
+            const href = kind === 'qq' ? topUrl : kind === 'netease'
+                ? 'https://mail.163.com/js6/main.jsp?sid=redacted#module=read.ReadModule%7C%7B%7D'
+                : 'https://www.omgubuntu.co.uk/2026/09/era-rust-calendar-gnome-beta';
+            const mail = await load();
+            const {installEmbeddedTopFrameBridge} = await import('@/src/app/content/embeddedFrameRuntime');
+            const install = kind === 'qq' ? mail.installQqMailTopFrameBridge
+                : kind === 'netease' ? mail.installNeteaseMailTopFrameBridge : installEmbeddedTopFrameBridge;
+            for (const failure of ['runtime removed', 'removeListener throws']) {
+                mocks.removeRuntimeListener.mockReset();
+                const {listeners} = installGlobals(href);
+                const abortCallbacks: Array<() => void> = [];
+                const controller = new AbortController();
+                vi.spyOn(controller.signal, 'addEventListener').mockImplementation((_type, callback) => {
+                    abortCallbacks.push(callback as () => void);
+                });
+                install(() => true, controller.signal);
+                const listener = mocks.addRuntimeListener.mock.calls.at(-1)![0];
+                if (failure === 'runtime removed') Reflect.deleteProperty(browser, 'runtime');
+                else mocks.removeRuntimeListener.mockImplementation(() => { throw new Error('Extension context invalidated.'); });
+
+                expect(() => abortCallbacks.forEach(callback => callback())).not.toThrow();
+                expect(mocks.removeRuntimeListener).toHaveBeenCalledTimes(1);
+                expect(mocks.removeRuntimeListener).toHaveBeenCalledWith(listener);
+                expect([...listeners.values()].every(set => set.size === 0)).toBe(true);
+            }
+        },
+    );
+
+    it.each(['runtime removed', 'removeListener throws'] as const)(
+        'disposes an active embedded frame after %s', async failure => {
+            const {listeners, window} = installGlobals('https://www.kaggleusercontent.com/kf/126670518/signed-token/__results__.html');
+            window.top = {};
+            vi.stubGlobal('navigator', {});
+            mocks.sendMessage.mockResolvedValue({enabled: true, revision: 0, sessionId: null});
+            const {startEmbeddedFrameApp} = await import('@/src/app/content/embeddedFrameRuntime');
+            let invalidate!: () => void;
+            await startEmbeddedFrameApp({isInvalid: false, onInvalidated: (callback: () => void) => { invalidate = callback; }} as never);
+            const listener = mocks.addRuntimeListener.mock.calls[0][0];
+            const unsubscribe = mocks.subscribeConfig.mock.results[0].value;
+            if (failure === 'runtime removed') Reflect.deleteProperty(browser, 'runtime');
+            else mocks.removeRuntimeListener.mockImplementation(() => { throw new Error('Extension context invalidated.'); });
+
+            expect(() => { invalidate(); invalidate(); }).not.toThrow();
+            expect(mocks.removeRuntimeListener).toHaveBeenCalledTimes(1);
+            expect(mocks.removeRuntimeListener).toHaveBeenCalledWith(listener);
+            expect(mocks.removeStyles).toHaveBeenCalledOnce();
+            expect(unsubscribe).toHaveBeenCalledOnce();
+            expect(mocks.syncHighlight).toHaveBeenLastCalledWith(document, false);
+            expect([...listeners.values()].every(set => set.size === 0)).toBe(true);
+        },
+    );
 });
 
 describe('QQ legacy top frame bridge', () => {

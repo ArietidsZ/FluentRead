@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/GoogleDriveSync.vue
 文件职责：用清晰的保存、恢复与逐项合并流程完成一次 Google Drive 配置同步。
-主要内容：在同步按钮右侧显示上次同步账号和时间，窄屏改为上下排列；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
+主要内容：将上次同步账号和时间对齐卡片右侧，窄屏改为上下排列；隐私徽标支持悬停及聚焦查看保护措施；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
 先选择操作再确认影响；差异按需展开，合并仅突出待确认项，小屏保留操作区。
 模块边界：只消费后台脱敏预览和同步记录；不获取完整配置、令牌或用户口令。
 -->
@@ -9,7 +9,20 @@
   <section class="drive-sync" data-testid="google-drive-sync" aria-labelledby="drive-sync-title" :aria-busy="busy">
     <header class="drive-heading">
       <h2 id="drive-sync-title">Google Drive 配置同步</h2>
-      <span class="drive-badge"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M12 3 4 6v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-3Z" /><path d="m8.5 11.5 2.5 2.5 4.5-5" /></svg>{{ t('settings.drive.privacyBadge') }}</span>
+      <el-tooltip effect="light" placement="bottom-end" :show-after="150" :trigger="['hover', 'focus']">
+        <template #content>
+          <div class="drive-privacy-help">
+            <strong>{{ t('settings.drive.privacyTitle') }}</strong>
+            <ul>
+              <li>{{ t('settings.drive.privacyEncryption') }}</li>
+              <li>{{ t('settings.drive.privacyStorage') }}</li>
+              <li>{{ t('settings.drive.privacyAuthorization') }}</li>
+              <li>{{ t('settings.drive.privacyExcluded') }}</li>
+            </ul>
+          </div>
+        </template>
+        <button type="button" class="drive-badge" data-testid="google-drive-privacy" :aria-label="t('settings.drive.privacyTitle')"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M12 3 4 6v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-3Z" /><path d="m8.5 11.5 2.5 2.5 4.5-5" /></svg>{{ t('settings.drive.privacyBadge') }}</button>
+      </el-tooltip>
     </header>
     <p class="drive-boundary">{{ t('settings.drive.description') }}</p>
     <el-alert v-if="error && !previewVisible" :title="error" type="error" :closable="false" show-icon class="drive-error" />
@@ -104,10 +117,11 @@
 
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
-import {ElAlert, ElIcon, ElMessage, ElPagination} from 'element-plus';
+import {ElAlert, ElIcon, ElMessage, ElPagination, ElTooltip} from 'element-plus';
 import {ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CircleCheck, Cloudy, Download, Monitor, Switch, Upload, User, Warning} from '@element-plus/icons-vue';
 import 'element-plus/es/components/alert/style/css';
 import 'element-plus/es/components/pagination/style/css';
+import 'element-plus/es/components/tooltip/style/css';
 import {useUiI18n} from '@/src/ui/i18n';
 import {googleDriveSyncClient as client} from '@/src/services/config/googleDriveSyncClient';
 import {chooseDriveRow, driveRowChoice, groupDrivePreviewChanges, initialDriveDirection, unresolvedDriveChanges, type DrivePreviewRow} from '../model/googleDrivePreview';
@@ -207,9 +221,15 @@ onUnmounted(() => {alive = false; endSession(); clearPreview();});
 .drive-heading {display:flex; justify-content:space-between; align-items:flex-start; gap:16px;}
 .drive-heading h2 {margin:0; font-size:19px;}
 .drive-boundary {color:var(--el-text-color-secondary); font-size:13px; line-height:1.7;}
-.drive-badge {display:inline-flex; align-items:center; gap:5px; flex-shrink:0; white-space:nowrap; border-radius:20px; padding:4px 10px; font-size:12px; color:var(--el-text-color-secondary); background:var(--el-fill-color-light);}
+.drive-badge {display:inline-flex; align-items:center; gap:5px; flex-shrink:0; white-space:nowrap; border:0; border-radius:20px; padding:4px 10px; font:inherit; font-size:12px; line-height:1.5; color:var(--el-text-color-secondary); background:var(--el-fill-color-light); cursor:help; transition:color .15s, background-color .15s;}
+.drive-badge:hover,.drive-badge:focus {color:var(--el-color-success); background:var(--el-color-success-light-9);}
+.drive-badge:focus-visible {outline:2px solid var(--el-color-success); outline-offset:3px;}
 .drive-badge svg {width:15px; height:15px; flex-shrink:0; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;}
-.drive-record {display:grid; gap:4px; flex:1 1 240px; min-width:0;}
+.drive-privacy-help {width:min(300px, calc(100vw - 64px)); font-size:13px; line-height:1.7; color:var(--el-text-color-regular);}
+.drive-privacy-help strong {color:var(--el-text-color-primary);}
+.drive-privacy-help ul {margin:8px 0 0; padding-left:18px;}
+.drive-privacy-help li+li {margin-top:6px;}
+.drive-record {display:grid; gap:4px; flex:1 1 240px; min-width:0; margin-inline-start:auto; text-align:right;}
 .drive-record p {margin:0; overflow-wrap:anywhere; font-size:13px; line-height:1.5;}
 .drive-status {color:var(--el-text-color-secondary);}
 .drive-error,.drive-actions {margin-top:16px;}

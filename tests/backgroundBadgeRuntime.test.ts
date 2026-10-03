@@ -2,7 +2,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {installBackgroundBadge} from '@/src/app/background/badgeRuntime';
 import {TabTranslationStateStore} from '@/src/app/background/tabTranslationState';
 const previous = (globalThis as any).browser;
-afterEach(() => { (globalThis as any).browser = previous; vi.useRealTimers(); vi.restoreAllMocks(); });
+afterEach(() => { (globalThis as any).browser = previous; vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 const event = () => { const listeners: Function[] = []; return {addListener: (fn: Function) => listeners.push(fn), emit: (...args: unknown[]) => listeners.forEach(fn => fn(...args))}; };
 function setup(namespace = 'action', sendMessage = vi.fn(async () => ({status:'success',isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'}))) {
     const action = {setBadgeBackgroundColor: vi.fn(async (_details: {tabId:number;color:string}) => {}), setBadgeTextColor: vi.fn(async (_details: {tabId:number;color:string}) => {}), setBadgeText: vi.fn(async (_details: {tabId:number;text:string}) => {}), setIcon: vi.fn(async (_details: {tabId:number;path:Record<number,string>}) => {})};
@@ -131,6 +131,76 @@ describe('工具栏原生三态角标', () => {
     it('图标 API 失败不会拒绝，后续刷新可以重试', async () => {
         const {badge,action}=setup();const error=vi.spyOn(console,'error').mockImplementation(()=>{});action.setIcon.mockRejectedValueOnce(new Error('tab gone'));await badge.update(1);await badge.update(1);expect(error).toHaveBeenCalled();expect(action.setIcon).toHaveBeenCalledTimes(2);
     });
+    it('Edge 关闭标签页后的原生 setIcon 回调错误被读取，且不再写角标或记录错误', async () => {
+        vi.stubEnv('BROWSER', 'edge');
+        const {store,badge,tabs,action}=setup();
+        const error=vi.spyOn(console,'error').mockImplementation(()=>{});
+        const runtime: {id:string;lastError?:{message:string}}={id:'extension-id'};
+        let complete!:()=>void;
+        const setIcon=vi.fn((_details:unknown,callback:()=>void)=>callback());
+        setIcon.mockImplementationOnce((_details,callback)=>{complete=callback;});
+        vi.stubGlobal('chrome',{runtime,action:{setIcon}});
+        store.setTranslated(1,true,'translated');
+        const pending=badge.update(1);await settle();
+        expect(setIcon).toHaveBeenCalledTimes(1);
+        expect(setIcon).toHaveBeenCalledWith({tabId:1,path:{16:'icon/16.png',32:'icon/32.png',48:'icon/48.png',64:'icon/64.png',128:'icon/128.png'}},expect.any(Function));
+        tabs.onRemoved.emit(1);
+        runtime.lastError={message:'No tab with id: 1.'};complete();delete runtime.lastError;
+        await pending;
+        expect(action.setIcon).not.toHaveBeenCalled();
+        expect(action.setBadgeBackgroundColor).not.toHaveBeenCalled();
+        expect(action.setBadgeTextColor).not.toHaveBeenCalled();
+        expect(action.setBadgeText).not.toHaveBeenCalled();
+        expect(error).not.toHaveBeenCalled();
+        store.setTranslated(2,true,'translated');await badge.update(2);
+        expect(action.setBadgeText).toHaveBeenLastCalledWith({tabId:2,text:'✓'});
+    });
+    it('当前原生图标写入失败仍报错，刷新重试成功后复用底图', async () => {
+        vi.stubEnv('BROWSER','chrome');
+        const {store,badge,action}=setup();
+        const error=vi.spyOn(console,'error').mockImplementation(()=>{});
+        const runtime: {id:string;lastError?:{message:string}}={id:'extension-id'};
+        const setIcon=vi.fn((_details:unknown,callback:()=>void)=>callback());
+        setIcon.mockImplementationOnce((_details,callback)=>{
+            runtime.lastError={message:'Invalid icon path'};callback();delete runtime.lastError;
+        });
+        vi.stubGlobal('chrome',{runtime,action:{setIcon}});
+        store.setTranslated(1,true,'translated');await badge.update(1);
+        expect(error).toHaveBeenCalledTimes(1);
+        expect(error).toHaveBeenCalledWith('Failed to update toolbar translation status:',expect.objectContaining({message:'Invalid icon path'}));
+        expect(action.setBadgeText).not.toHaveBeenCalled();
+        await badge.update(1);await badge.update(1);
+        expect(setIcon).toHaveBeenCalledTimes(2);
+        expect(action.setBadgeText).toHaveBeenLastCalledWith({tabId:1,text:'✓'});
+    });
+    it.each(['setIcon','setBadgeBackgroundColor','setBadgeTextColor','setBadgeText'] as const)(
+        '关闭标签页后 %s 的迟到拒绝不再记录错误或继续写入', async method => {
+            const {store,badge,tabs,action}=setup();
+            const error=vi.spyOn(console,'error').mockImplementation(()=>{});
+            let reject!:(error:Error)=>void;
+            action[method].mockImplementationOnce(()=>new Promise<void>((_resolve,fail)=>{reject=fail;}));
+            store.setTranslated(1,true,'translated');const pending=badge.update(1);await settle();
+            expect(reject).toBeTypeOf('function');
+            const calls=Object.values(action).map(mock=>mock.mock.calls.length);
+            tabs.onRemoved.emit(1);reject(new Error('No tab with id: 1.'));await pending;
+            expect(Object.values(action).map(mock=>mock.mock.calls.length)).toEqual(calls);
+            expect(error).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['setIcon','setBadgeBackgroundColor','setBadgeTextColor','setBadgeText'] as const)(
+        '恢复原文后旧 %s 拒绝不误报，新版本仍完成写入', async method => {
+            const {store,badge,action}=setup();
+            const error=vi.spyOn(console,'error').mockImplementation(()=>{});
+            let reject!:(error:Error)=>void;
+            action[method].mockImplementationOnce(()=>new Promise<void>((_resolve,fail)=>{reject=fail;}));
+            store.setTranslated(1,true,'translated');const pending=badge.update(1);await settle();
+            expect(reject).toBeTypeOf('function');
+            store.reset(1);const restored=badge.update(1);
+            reject(new Error('obsolete API failure'));await Promise.all([pending,restored]);
+            expect(error).not.toHaveBeenCalled();
+            expect(action.setBadgeText).toHaveBeenLastCalledWith({tabId:1,text:''});
+        },
+    );
     it('没有文字颜色 API 时仍能显示完成角标', async () => {
         const {store,badge,action}=setup('browserAction');
         delete (action as any).setBadgeTextColor;

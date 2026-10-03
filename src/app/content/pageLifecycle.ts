@@ -1,16 +1,25 @@
 /**
  * @file src/app/content/pageLifecycle.ts
  * 文件职责：绑定文档真正离开与往返缓存生命周期，并等待可挂载的页面基础 DOM，避免过晚建立翻译入口或过早挂载 UI。
- * 主要内容：仅接受浏览器可信的 pagehide/pageshow，在配置等待前记录暂停状态，实际销毁时清理；基础 DOM 等待不依赖 DOMContentLoaded、window.load 或子资源完成。
+ * 主要内容：仅接受浏览器可信的 pagehide/pageshow，在配置等待前记录暂停状态；可选的低频上下文检查主动释放重载后残留的页面，基础 DOM 等待不依赖整页资源完成。
  * 模块边界：只管理页面生命周期和基础 DOM 就绪，不访问配置、不启动翻译，具体暂停、恢复、销毁和功能挂载由组合根注入。
  */
 export function installContentPageLifecycle(
     target: EventTarget,
     signal: AbortSignal,
     actions: {suspend(): void; resume(): void; dispose(): void},
+    context?: {readonly isInvalid: boolean},
 ): {isSuspended(): boolean} {
     let suspended = false;
     let disposed = false;
+    // WXT 0.20 只有读取 isInvalid 才检查 runtime.id；空闲页面也必须发现扩展重载。
+    if (context && !signal.aborted) {
+        const timer = setInterval(() => {
+            if (!context.isInvalid) return;
+            clearInterval(timer); disposed = true; actions.dispose();
+        }, 1000);
+        signal.addEventListener('abort', () => clearInterval(timer), {once: true});
+    }
     target.addEventListener('pagehide', event => {
         if (!event.isTrusted || disposed) return;
         if ((event as PageTransitionEvent).persisted) {

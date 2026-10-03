@@ -168,6 +168,7 @@ export class ContentFeatureRegistry {
             this.mountedFeatureIds.add(feature.id);
             return {id: feature.id, status: 'mounted'};
         } catch (error) {
+            if (runtime.signal.aborted || !runtime.isCurrent()) return {id: feature.id, status: 'skipped'};
             // 步骤 5：一个可选功能失败不能阻断其余功能，统一交给入口记录诊断。
             this.options.onError?.(feature.id, 'mount', error);
             return {id: feature.id, status: 'failed', error};
