@@ -503,7 +503,8 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   --fr-ball-mascot-size: 24px;
   --fr-ball-edge-gap: 20px;
   position: fixed;
-  z-index: 2147483647;
+  /* 工具入口位于独立阅读面板和操作弹窗之下，窄屏时不遮住正文。 */
+  z-index: 2147483599;
   display: flex;
   width: var(--fr-ball-size);
   flex-direction: column;
