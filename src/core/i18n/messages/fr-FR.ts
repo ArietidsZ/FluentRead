@@ -18,9 +18,9 @@ import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
     "settings.backup.localTitle": "Sauvegarde locale",
-    "settings.backup.fileTitle": "Sauvegarder dans un fichier",
-    "settings.backup.fileDescription": "Enregistrez les réglages, le carnet de mots et l’utilisation des modèles pour les restaurer après un changement de navigateur ou une réinstallation.",
-    "settings.backup.fileWarning": "Les fichiers de sauvegarde contiennent des clés API et d’autres informations privées et ne sont pas chiffrés. Conservez-les en lieu sûr et ne les partagez pas publiquement. Le cache de traduction n’est pas sauvegardé.",
+    "settings.backup.fileTitle": "Fichier de sauvegarde",
+    "settings.backup.fileDescription": "Les fichiers de sauvegarde contiennent des clés API et d’autres informations privées et ne sont pas chiffrés. Conservez-les en lieu sûr et ne les partagez pas publiquement.",
+    "settings.backup.fileWarning": "Le cache de traduction n’est pas sauvegardé.",
     "settings.backup.restoreHint": "Choisissez un fichier de sauvegarde FluentRead. Les anciens fichiers JSON peuvent aussi être restaurés.",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['fr-FR'],
