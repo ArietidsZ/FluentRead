@@ -1,0 +1,17 @@
+{
+  "docsBuild": "passed",
+  "docsTypecheck": "passed",
+  "compile": "passed",
+  "buildWithoutWxtPreparation": "passed with existing root tsconfig warning",
+  "staticArtifact": {
+    "pages": 73,
+    "links": 3640,
+    "anchors": 686,
+    "images": 88
+  },
+  "uiImages": {
+    "sourceBytes": 1529902,
+    "webBytes": 544854,
+    "losslessPixels": true
+  }
+}
