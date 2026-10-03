@@ -9,7 +9,7 @@
     <p v-if="!browserCapabilities.areaTranslation" class="area-settings-note" role="status">{{ t('area.settings.unavailable') }}</p>
     <FeatureEnableCard :model-value="props.enabled" :title="t('area.settings.enabled')" :description="t('area.settings.shortcut', {shortcut: hotkeyDisplayName})" :disabled="!browserCapabilities.areaTranslation" @update:model-value="emit('update:enabled', $event)" />
     <details class="area-translation-details" :open="!props.compact">
-      <summary v-if="props.compact">{{ t('area.settings.title') }}</summary>
+      <summary v-show="props.compact">{{ t('area.settings.title') }}</summary>
     <SettingsItem :label="t('area.settings.hotkey')" :description="t('area.settings.hotkeyDescription')" :disabled="!browserCapabilities.areaTranslation">
       <div class="hotkey-config">
         <el-select :model-value="props.config.selectionAreaHotkey" :aria-label="t('area.settings.hotkey')" :disabled="!browserCapabilities.areaTranslation" @change="handleHotkeyChange">
