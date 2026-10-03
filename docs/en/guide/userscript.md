@@ -2,6 +2,8 @@
 
 If you use Tampermonkey, Violentmonkey, Via, or Safari Userscripts, you can install the FluentRead userscript for core webpage translation. Support depends on your browser and script manager version.
 
+<GuideVisual kind="userscript" en />
+
 ## Install
 
 Open the [FluentRead Greasy Fork page](https://greasyfork.org/en/scripts/482986), follow your script manager’s installation prompts, then open a regular webpage. Confirm that the script is enabled.
@@ -20,11 +22,19 @@ The repository’s **standalone build** opens the same full Options center used 
 
 The standalone build exceeds [Greasy Fork’s direct publication size and code rules](https://greasyfork.org/en/help/code-rules). For now, install a locally built file through your script manager; a successful repository build does not mean it has been published on Greasy Fork.
 
+<details class="guide-details">
+<summary>Via setup and troubleshooting</summary>
+
 ## Via setup and troubleshooting
 
 Build the standalone script above, then in Via go to Settings → Scripts → + → Import script and select the generated `.user.js` file. Confirm that it is enabled and reopen a regular HTTP(S) page. **Disable any Greasy Fork or slim copy** to avoid duplicate injection. If the floating button is still missing, report the Via, Android, and script versions and the affected URL.
 
 In an isolated Android 13 emulator running Via 7.3.3, the imported standalone build translated English paragraphs after tapping the floating button, restored the originals, and translated them again. The selected settings theme also survived a refresh. This used a controlled test page and translation response; it is not a physical-device test or proof that public translation services will keep working.
+
+</details>
+
+<details class="guide-details">
+<summary>Safari Userscripts setup and troubleshooting</summary>
 
 ## Safari Userscripts setup and troubleshooting
 
@@ -35,19 +45,36 @@ In an isolated Android 13 emulator running Via 7.3.3, the imported standalone bu
 
 These steps follow the [official Userscripts installation and metadata documentation](https://github.com/quoid/userscripts/tree/release/4.x.x). Runtime behavior on Safari still needs device verification.
 
+</details>
+
+<details class="guide-details">
+<summary>What it can do</summary>
+
 ## What it can do
 
 Translate pages and restore originals; translate selected or hovered text; use supported gestures, input translation, copying, and read-aloud; choose free, cloud, AI, or custom services. Preferences are saved in the script’s own settings; the repository’s standalone build has the full Options center.
 
 For the slim build, the script manager downloads fixed versions of UI libraries from jsDelivr at installation; the standalone build includes them. Chinese and English UI text ships with both. On first use, Japanese, Korean, French, Russian, and Spanish UI text is downloaded from jsDelivr or GitHub and cached in the script manager’s private storage. These resource requests contain no page text or API keys. If you are offline before a language is cached, the UI temporarily falls back to Chinese.
 
+</details>
+
+<details class="guide-details">
+<summary>How it differs from the extension</summary>
+
 ## How it differs from the extension
 
 The script manager and webpage permissions limit available features. Image recognition, area capture, Chrome’s built-in translation, background features, and video subtitles may not be available. Behavior can vary between script managers.
 
+</details>
+
+<details class="guide-details">
+<summary>Data</summary>
+
 ## Data
 
 Configuration stays in the script manager’s private storage. Translation text goes to the service you select. UI libraries and language files come from jsDelivr or GitHub as described above. Keep credentials out of shared screenshots and public feedback; see [Data & privacy](/en/guide/privacy).
+
+</details>
 
 ## Next steps
 

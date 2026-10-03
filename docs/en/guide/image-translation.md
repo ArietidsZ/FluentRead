@@ -1,8 +1,8 @@
 # Image translation
 
-Image translation recognizes text inside webpage images and overlays the translation on the image. It is off by default and can be enabled in settings. Once enabled, hover over an image for about 0.6 seconds to reveal a faint icon in its lower-left corner. The icon becomes clear when you hover over it; click to translate.
+Recognize words in a webpage image and read the translation over it. Enable **Image translation** in settings first.
 
-The hover entry skips common avatars, icons, logos, emoji, video previews, and small images where it can identify them. Video previews on sites such as X/Twitter can be skipped before playback starts, using player or thumbnail markers. Enlarging a small image may still leave the entry hidden. If an image you want to translate has no icon, use its context menu or open a clear original and try again.
+<GuideVisual kind="image" en />
 
 ## Continuous manga translation
 
@@ -35,6 +35,9 @@ The backup mirror is an independent third party. Every source uses the same fixe
 3. Wait for recognition and translation. Choose cancel if you want to stop.
 4. Switch between original and translated image, or open **Text** in a separate reading panel. Compare the recognized original and translation, and copy either the translation or both. Long text remains readable even for small images.
 
+<details class="guide-details">
+<summary>Language packs, cancellation and retry</summary>
+
 Canceling a translation does not remove downloaded language packs. Later images can reuse them. If text stays unchanged, you can still read and copy the recognized result.
 
 Numbers, symbols, URLs, version numbers, and clear model identifiers are kept without separate translation requests. Ordinary prose on the same line is still translated. Images with more text require more segments, and the selected service affects the time needed. If a passage fails to translate, the original image stays available for retry; identifiers that need no translation do not cause the whole image to fail.
@@ -43,11 +46,21 @@ Language settings show the packs needed for your source language, downloaded pac
 
 If the translation connection is interrupted, it retries once automatically and remains cancelable. If it still fails, choose **Retry**. After an extension update or reload, refresh the webpage before trying again.
 
+</details>
+
+<details class="guide-details">
+<summary>Cross-origin images</summary>
+
 ## Cross-origin images
 
 Images on public HTTPS CDNs can also be translated. When the webpage cannot read their pixels, the extension verifies the currently selected image and reads it without login credentials. Canceling, changing the image, or leaving the page invalidates the previous request.
 
 Images that require login credentials, redirect to another address, or use local or intranet sources may be unreadable. Try [area translation](/en/guide/area-translation) for visible text. Files over 16 MiB, access refusals, and non-image responses report their specific cause.
+
+</details>
+
+<details class="guide-details">
+<summary>Choose the source language</summary>
 
 ## Choose the source language
 
@@ -59,6 +72,11 @@ When the source language is automatic or Japanese, the Japanese pack recognizes 
 
 The current translation service and target language are used. Hover and context-menu entries can be turned off separately in image settings.
 
+</details>
+
+<details class="guide-details">
+<summary>Small or blurry text?</summary>
+
 ## Small or blurry text?
 
 Open a clear original if possible. Decorative fonts, complex backgrounds, tables, and vertical text in languages other than Japanese are harder to recognize. Check names, numbers, and units.
@@ -66,6 +84,17 @@ Open a clear original if possible. Decorative fonts, complex backgrounds, tables
 Long translations may appear small inside the picture; use the text view to read them fully. Background repairs may leave marks, and you can always restore the original.
 
 For one small part, try [area translation](/en/guide/area-translation). Unreadable image sources and restricted pages may not work.
+
+</details>
+
+<details class="guide-details">
+<summary>Image entry and ignored small images</summary>
+
+Image translation recognizes text inside webpage images and overlays the translation on the image. It is off by default and can be enabled in settings. Once enabled, hover over an image for about 0.6 seconds to reveal a faint icon in its lower-left corner. The icon becomes clear when you hover over it; click to translate.
+
+The hover entry skips common avatars, icons, logos, emoji, video previews, and small images where it can identify them. Video previews on sites such as X/Twitter can be skipped before playback starts, using player or thumbnail markers. Enlarging a small image may still leave the entry hidden. If an image you want to translate has no icon, use its context menu or open a clear original and try again.
+
+</details>
 
 ## What gets sent?
 

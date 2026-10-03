@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：联动全局启停并保留已完成片段，组织多文件队列、顺序批量翻译、独立任务快照与 ZIP 下载，以及设置、可暂停续译、阅读与全量校订、独立导出流程；维护设置快照、增量译文、未下载保护、异步提交所有权，并复用格式阅读器与配置同步。
+ 主要内容：围绕正文组织紧凑任务栏、按需设置弹窗、折叠文件队列和本地范例；联动全局启停、批量翻译、暂停续译、校订、内容预览与 ZIP 下载，维护设置快照、增量译文、未下载保护及异步提交所有权。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -16,25 +16,25 @@
         </span>
       </div>
       <div class="header-actions">
-        <button class="header-settings" type="button" aria-label="打开翻译设置" @click="openSettings"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 3-1 3-3 1-2 3 2 2-1 3 3 2 2-1 2 3h3l1-3 3-1 2-3-2-2 1-3-3-2-2 1-2-3H9Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="11.5" cy="11" r="3" stroke="currentColor" stroke-width="1.4"/></svg><span>设置</span></button>
+        <button v-if="parsedDocument" class="ghost-button" type="button" :disabled="queueBusy" @click="openFilePicker">添加文件</button>
+        <button v-if="!parsedDocument" class="header-settings" type="button" aria-label="打开翻译设置" @click="openSettings"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 3-1 3-3 1-2 3 2 2-1 3 3 2 2-1 2 3h3l1-3 3-1 2-3-2-2 1-3-3-2-2 1-2-3H9Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="11.5" cy="11" r="3" stroke="currentColor" stroke-width="1.4"/></svg><span>设置</span></button>
       </div>
     </header>
 
     <input ref="fileInput" class="visually-hidden" type="file" multiple :accept="accept" tabindex="-1" @change="handleFileInput" />
     <main class="document-main">
       <p v-if="hydrated && !config.on" class="notice" role="status" data-testid="document-translation-paused">{{ t('popup.heroDisabled') }} · <button type="button" @click="openGeneralSettings">通用设置</button></p>
-      <section v-if="documentQueue.length" class="document-batch" :aria-label="t('document.batch.queue')" :aria-busy="openingFile">
+      <section v-if="documentQueue.length > 1 || documentQueue.some(item => item.error && !item.document)" class="document-batch" :aria-label="t('document.batch.queue')" :aria-busy="openingFile">
         <div class="batch-toolbar">
-          <strong>{{ t('document.batch.queue') }} · {{ documentQueue.length }}</strong>
+          <button class="batch-toggle" type="button" :aria-expanded="queueExpanded" aria-controls="document-queue-files" @click="queueExpanded = !queueExpanded"><strong>{{ t('document.batch.queue') }} · {{ documentQueue.length }}</strong><span aria-hidden="true">{{ queueExpanded ? '−' : '+' }}</span></button>
           <span role="status">{{ batchRunning ? t('document.batch.running') : openingFile ? t('document.batch.importing') : t('document.batch.completed', {count: batchCompletedCount}) }}</span>
-          <button type="button" :disabled="queueBusy" @click="openFilePicker">{{ t('document.batch.add') }}</button>
           <button v-if="batchRunning" type="button" @click="pauseTranslation">{{ t('document.batch.pause') }}</button>
-          <button v-else type="button" :disabled="!config.on || queueBusy || !hydrated || Boolean(credentialWarning) || !batchPendingCount" @click="startBatch">{{ t('document.batch.start') }}</button>
-          <label>{{ t('document.batch.output') }}<ElSelect class="batch-output" v-model="outputMode" :disabled="queueBusy" :aria-label="t('document.batch.output')" append-to=".document-app"><ElOption value="bilingual" :label="translateLegacy('双语')" /><ElOption value="translated" :label="translateLegacy('仅译文')" /></ElSelect></label>
-          <button type="button" :disabled="queueBusy || !batchCompletedCount" @click="downloadBatch">{{ t('document.batch.zip') }}</button>
+          <button v-else-if="batchPendingCount" type="button" :disabled="!config.on || queueBusy || !hydrated || Boolean(credentialWarning)" @click="startBatch">{{ t('document.batch.start') }}</button>
+          <span v-if="!queueExpanded && documentQueue.some(item => !item.document)" class="queue-error">有文件导入失败，请展开查看</span>
+          <label v-if="queueExpanded && batchCompletedCount">{{ t('document.batch.output') }}<ElSelect class="batch-output" v-model="outputMode" :disabled="queueBusy" :aria-label="t('document.batch.output')" append-to=".document-app"><ElOption value="bilingual" :label="translateLegacy('双语')" /><ElOption value="translated" :label="translateLegacy('仅译文')" /></ElSelect></label>
+          <button v-if="queueExpanded && batchCompletedCount" type="button" :disabled="queueBusy" @click="downloadBatch">{{ t('document.batch.zip') }}</button>
         </div>
-        <p class="batch-hint">{{ t('document.batch.hint') }}</p>
-        <ul class="batch-files">
+        <ul v-show="queueExpanded" id="document-queue-files" class="batch-files">
           <li v-for="item in documentQueue" :key="item.id" :class="{ selected: item.id === activeDocumentId }">
             <button class="batch-file" type="button" :disabled="queueBusy || !item.document" :aria-pressed="item.id === activeDocumentId" @click="selectDocument(item)">
               <span data-i18n-ignore>{{ item.name }}</span><small>{{ queueStatus(item) }}</small>
@@ -45,14 +45,8 @@
         </ul>
         <p v-if="batchNotice" class="notice" role="status">{{ batchNotice }}</p>
       </section>
-      <ol v-if="!parsedDocument" class="document-steps" aria-label="文档翻译流程">
-        <li :class="{ current: !parsedDocument, done: parsedDocument }"><span>1</span>导入文档</li>
-        <li :class="{ current: parsedDocument && !translationComplete, done: translationComplete }"><span>2</span>确认并翻译</li>
-        <li :class="{ current: translationComplete }"><span>3</span>阅读与下载</li>
-      </ol>
       <section v-if="!parsedDocument" class="landing-section">
         <div class="landing-copy">
-          <span class="eyebrow">流畅阅读 · 文档翻译</span>
           <h1>文档换一种语言，阅读依然流畅</h1>
           <p>论文、电子书、工作资料与字幕，从打开文件到双语阅读。</p>
         </div>
@@ -79,93 +73,29 @@
           <span v-for="item in formatCards" :key="item.code" class="format-card"><b :class="item.tone">{{ item.code }}</b>{{ item.label }}</span>
         </div>
         <p class="local-processing-note">文件在本地解析，待译文字会发送给你选择的翻译服务。扫描版 PDF 暂不支持文字识别。</p>
+        <details class="document-samples"><summary>没有文件？先用范例试试</summary>
+          <div><p>导入后确认设置，再开始翻译。范例也可以校订和下载。</p></div>
+          <div class="sample-buttons"><button v-for="sample in DOCUMENT_QUICK_SAMPLES" :key="sample.name" type="button" :disabled="queueBusy" @click="loadSample(sample)"><strong>{{ sample.label }}<span aria-hidden="true"> ↗</span></strong><small>{{ sample.description }}</small></button></div>
+        </details>
         <p v-if="errorMessage" class="notice error" role="alert">{{ errorMessage }}</p>
       </section>
 
       <section v-else class="workspace-section">
-        <aside class="document-sidebar" aria-label="文档与翻译任务">
-        <div class="sidebar-label"><span>当前文档</span><button class="sidebar-change-file" type="button" :aria-label="documentQueue.length > 1 ? t('document.batch.clear') : translateLegacy('打开新文件')" :disabled="openingFile || preparingDownload || batchRunning" @click="requestReset">{{ documentQueue.length > 1 ? t('document.batch.clear') : translateLegacy('更换文件') }}</button></div>
-        <div class="workspace-heading">
-          <div class="file-heading">
-            <span class="file-type-badge" :class="formatTone">{{ formatCode }}</span>
-            <div>
-              <h1 data-i18n-ignore>{{ parsedDocument.fileName }}</h1>
-              <p>{{ parsedDocument.label }} · {{ t('document.translatableSegments', {count: parsedDocument.segments.length}) }}</p>
+        <section class="document-taskbar" aria-label="当前文档与翻译任务">
+          <div class="workspace-heading">
+            <div class="file-heading"><span class="task-file-format">{{ formatCode }}</span><div><h1 data-i18n-ignore>{{ parsedDocument.fileName }}</h1><p class="document-status" role="status">{{ statusLabel }}<span v-if="hasTranslation"> · {{ completedSegments }} / {{ parsedDocument.segments.length }}</span></p></div></div>
+          </div>
+          <div class="taskbar-actions">
+            <button class="document-settings-button" type="button" aria-label="调整文档翻译设置" @click="openDocumentSettings"><span data-i18n-ignore>{{ translationSettingsSummary }}</span><small>调整设置</small></button>
+            <div class="translation-actions">
+              <button v-if="translating" class="ghost-button pause-button" type="button" @click="pauseTranslation">暂停翻译</button>
+              <button v-else-if="!translationComplete || settingsChanged" class="translate-document-button" type="button" :disabled="!config.on || !hydrated || queueBusy || Boolean(credentialWarning)" @click="requestTranslation">{{ translationActionLabel }}</button>
             </div>
           </div>
-        </div>
-
-        <p class="sidebar-file-meta">{{ fileSizeLabel }} · {{ sourceCharacterCount.toLocaleString() }} 字符</p>
-        <button class="mobile-settings-toggle" type="button" :aria-expanded="sidebarExpanded" @click="sidebarExpanded = !sidebarExpanded"><span>翻译设置</span><span>{{ sidebarExpanded ? '收起 −' : '展开 +' }}</span></button>
-        <section class="translation-setup sidebar-settings" :class="{ collapsed: !sidebarExpanded }" aria-label="翻译设置">
-        <div class="setup-heading"><h2>翻译设置</h2></div>
-        <div class="control-panel">
-          <label class="language-control">
-            <span>源语言</span>
-            <ElSelect class="document-select"  append-to=".document-app" v-model="config.from" :disabled="queueBusy" aria-label="文档源语言" filterable>
-              <ElOption v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore :label="item.value === 'auto' ? translateLegacy(item.label) : getMultilingualTargetLanguageLabel(item.value, item.label, language)" />
-            </ElSelect>
-          </label>
-          <span class="language-arrow" aria-hidden="true">→</span>
-          <label class="language-control">
-            <span>目标语言</span>
-            <ElSelect class="document-select"  append-to=".document-app" v-model="config.to" :disabled="queueBusy" aria-label="文档目标语言" filterable>
-              <ElOption v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" />
-            </ElSelect>
-          </label>
-          <label class="service-control">
-            <span>翻译服务</span>
-            <ElSelect class="document-select"  append-to=".document-app" v-model="config.documentService" :empty-values="[null, undefined]" :disabled="queueBusy" aria-label="文档翻译服务" filterable>
-              <ElOption :label="t('featureServices.followDefault')" value="" />
-              <ElOption v-if="config.documentService && documentServiceUnavailableMessage" :value="config.documentService" disabled :label="translateLegacy('Chrome内置AI翻译（当前浏览器不可用）')" />
-              <ElOption v-for="item in serviceOptions" :key="item.value" :value="item.value" :label="translateLegacy(item.label)" />
-            </ElSelect>
-          </label>
-          <label v-if="documentUsesModel" class="model-control">
-            <span class="model-control-heading">模型<button v-if="!documentIsCustomOpenAIProvider" type="button" @click.prevent="openSettings">管理模型 ↗</button></span>
-            <ElSelect class="document-select"  append-to=".document-app" v-model="selectedDocumentModel" :disabled="queueBusy" aria-label="文档翻译模型" filterable>
-              <ElOption v-for="model in documentModelOptions" :key="model" :value="model" data-i18n-ignore :label="model" />
-            </ElSelect>
-          </label>
-        </div>
-        <GlossaryLibrarySelect
-          v-if="config.glossaryLibraries.length || config.glossaryEnabled"
-          v-model="config.documentGlossaryIds"
-          :libraries="config.glossaryLibraries"
-          :enabled="config.glossaryEnabled"
-          :unsupported="!supportsTranslationGlossary(effectiveDocumentService, selectedDocumentModel)"
-          :disabled="queueBusy"
-        >
-          <template #mode-control="{mode, changeMode}">
-            <ElSelect class="document-select"  append-to=".document-app" :model-value="mode" :disabled="queueBusy" :aria-label="t('glossary.mode')" @change="changeMode">
-              <ElOption value="inherit" :label="t('glossary.inherit')" />
-              <ElOption value="none" :label="t('glossary.none')" />
-              <ElOption value="selected" :disabled="!config.glossaryLibraries.length" :label="t('glossary.choose')" />
-            </ElSelect>
-          </template>
-        </GlossaryLibrarySelect>
-        <p v-if="credentialWarning" class="notice warning" role="alert">{{ credentialWarning }} <button type="button" @click="openSettings">去配置</button></p>
-        <p v-if="settingsChanged" class="notice warning">设置已更改。现有译文仍保留，按新设置翻译会从头开始。</p>
-        <p class="setup-privacy">文件在本地解析，文字发送至所选服务。</p>
+          <div class="task-progress" :class="{ complete: translationComplete }" role="progressbar" aria-label="文档翻译进度" :aria-valuenow="progress" :aria-valuemin="0" :aria-valuemax="100"><i :style="{width: `${progress}%`}" /></div>
+          <p v-if="errorMessage || credentialWarning || configSaveError" class="notice error task-notice" role="alert">{{ errorMessage || credentialWarning || configSaveError }} <button v-if="credentialWarning || configSaveError" type="button" @click="documentSettingsDialog?.showModal()">调整设置</button></p>
+          <p v-if="settingsChanged" class="notice warning task-notice">设置已更改。现有译文保留，按新设置翻译会从头开始。</p>
         </section>
-        <p v-if="errorMessage" class="notice error" role="alert">{{ errorMessage }}</p>
-
-        <div class="progress-panel" :class="{ complete: translationComplete }" aria-live="polite">
-          <div class="progress-copy"><strong class="document-status" role="status">{{ statusLabel }}</strong><span>{{ progress }}%</span></div>
-          <div class="progress-track" role="progressbar" aria-label="文档翻译进度" :aria-valuenow="progress" :aria-valuemin="0" :aria-valuemax="100"><i :style="{ width: `${progress}%` }" /></div>
-        </div>
-
-        <p class="sidebar-progress-count">{{ t('document.progressSegments', {completed: completedSegments, total: parsedDocument.segments.length}) }}</p>
-        <p class="sidebar-status-hint">{{ statusHint }}</p>
-          <div class="translation-actions">
-            <button v-if="translating" class="ghost-button pause-button" type="button" @click="pauseTranslation">暂停翻译</button>
-            <button v-else class="translate-document-button" :class="{ 'is-secondary': translationComplete }" type="button" :disabled="!config.on || !hydrated || queueBusy || Boolean(credentialWarning)" @click="requestTranslation">
-              {{ translationActionLabel }}<span aria-hidden="true"> →</span>
-            </button>
-          </div>
-
-        <p class="sidebar-save-note" role="status">{{ downloadNotice || '译文仅保留在本页，请下载后再离开。' }}</p>
-        </aside>
         <article class="document-reading-pane" aria-label="文档内容">
         <div class="reader-toolbar">
           <div class="mode-buttons reader-tabs" role="group" aria-label="文档工作区">
@@ -179,7 +109,6 @@
         </div>
         <DocumentSegmentEditor :key="activeDocumentId ?? 0" v-show="readerTab === 'edit'" :document="parsedDocument" :translations="translatedSegments" :disabled="queueBusy" @update="editSegment" />
         <div v-show="readerTab === 'read'" class="reading-content">
-        <div class="preview-heading"><div><span class="eyebrow">{{ previewMeta.eyebrow }}</span><h2>{{ previewMeta.title }}</h2></div><span class="preview-hint">{{ previewMeta.hint }}</span></div>
         <section
           v-if="isPdfDocument"
           class="pdf-layout-viewer"
@@ -310,18 +239,18 @@
         <section
           v-else-if="isSubtitleDocument"
           class="subtitle-document-reader"
+          :class="{single: effectivePreviewMode !== 'bilingual'}"
           data-document-reader="subtitle"
           :data-segment-count="parsedDocument.segments.length"
           aria-label="字幕时间轴翻译表格"
         >
           <div class="subtitle-table-scroll">
             <table>
-              <thead><tr><th>#</th><th>开始时间</th><th>结束时间</th><th v-if="effectivePreviewMode !== 'translated'">原文</th><th v-if="effectivePreviewMode !== 'source'">译文</th></tr></thead>
+              <thead><tr><th>#</th><th>时间范围</th><th v-if="effectivePreviewMode !== 'translated'">原文</th><th v-if="effectivePreviewMode !== 'source'">译文</th></tr></thead>
               <tbody>
                 <tr v-for="row in subtitleRows" :key="row.index">
                   <td class="subtitle-index">{{ row.index + 1 }}</td>
-                  <td><time>{{ row.timeStart || '—' }}</time></td>
-                  <td><time>{{ row.timeEnd || '—' }}</time></td>
+                  <td class="subtitle-timing"><time>{{ row.timeStart || '—' }}</time><span aria-hidden="true"> → </span><time>{{ row.timeEnd || '—' }}</time></td>
                   <td v-if="effectivePreviewMode !== 'translated'"><p class="subtitle-source document-source" data-i18n-ignore>{{ readerText(row.source) }}</p></td>
                   <td v-if="effectivePreviewMode !== 'source'">
                     <p class="subtitle-translation document-translation" data-i18n-ignore>{{ row.translation || translateLegacy('等待翻译…') }}</p>
@@ -361,29 +290,93 @@
         </p>
         <nav v-if="readerPageCount > 1" class="reader-pagination" aria-label="文档阅读分页"><button type="button" :disabled="readerPage === 1" @click="readerPage--">上一页</button><span>第 {{ readerPage }} / {{ readerPageCount }} 页</span><button type="button" :disabled="readerPage === readerPageCount" @click="readerPage++">下一页</button></nav>
         </div>
+        <p v-if="hasTranslation || downloadNotice" class="reader-save-note" role="status">{{ downloadNotice || '译文仅保留在本页，请下载后再离开。' }}</p>
         </article>
       </section>
     </main>
 
+    <dialog ref="documentSettingsDialog" class="document-dialog document-settings-dialog" aria-labelledby="document-settings-heading">
+      <h2 id="document-settings-heading">翻译设置</h2>
+        <!-- 弹窗外壳先挂载；导入后再创建下拉控件，确保 Teleport 目标已存在。 -->
+        <section v-if="parsedDocument" class="translation-setup" aria-label="翻译设置">
+        <div class="control-panel">
+          <label class="language-control">
+            <span>源语言</span>
+            <ElSelect class="document-select" :wrap-label="false" :show-search-icon="false" append-to=".document-settings-dialog" v-model="config.from" :disabled="queueBusy" aria-label="文档源语言" filterable>
+              <ElOption v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore :label="item.value === 'auto' ? translateLegacy(item.label) : getMultilingualTargetLanguageLabel(item.value, item.label, language)" />
+            </ElSelect>
+          </label>
+          <span class="language-arrow" aria-hidden="true">→</span>
+          <label class="language-control">
+            <span>目标语言</span>
+            <ElSelect class="document-select" :wrap-label="false" :show-search-icon="false" append-to=".document-settings-dialog" v-model="config.to" :disabled="queueBusy" aria-label="文档目标语言" filterable>
+              <ElOption v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" />
+            </ElSelect>
+          </label>
+          <label class="service-control">
+            <span>翻译服务</span>
+            <ElSelect class="document-select" :wrap-label="false" :show-search-icon="false" append-to=".document-settings-dialog" v-model="config.documentService" :empty-values="[null, undefined]" :disabled="queueBusy" aria-label="文档翻译服务" filterable>
+              <ElOption :label="t('featureServices.followDefault')" value="" />
+              <ElOption v-if="config.documentService && documentServiceUnavailableMessage" :value="config.documentService" disabled :label="translateLegacy('Chrome内置AI翻译（当前浏览器不可用）')" />
+              <ElOption v-for="item in serviceOptions" :key="item.value" :value="item.value" :label="translateLegacy(item.label)" />
+            </ElSelect>
+          </label>
+          <label v-if="documentUsesModel" class="model-control">
+            <span class="model-control-heading">模型<button v-if="!documentIsCustomOpenAIProvider" type="button" @click.prevent="openSettings">管理模型 ↗</button></span>
+            <ElSelect class="document-select" :wrap-label="false" :show-search-icon="false" append-to=".document-settings-dialog" v-model="selectedDocumentModel" :disabled="queueBusy" aria-label="文档翻译模型" filterable>
+              <ElOption v-for="model in documentModelOptions" :key="model" :value="model" data-i18n-ignore :label="model" />
+            </ElSelect>
+          </label>
+        </div>
+        <GlossaryLibrarySelect
+          v-if="config.glossaryLibraries.length || config.glossaryEnabled"
+          v-model="config.documentGlossaryIds"
+          :libraries="config.glossaryLibraries"
+          :enabled="config.glossaryEnabled"
+          :unsupported="!supportsTranslationGlossary(effectiveDocumentService, selectedDocumentModel)"
+          :disabled="queueBusy"
+        >
+          <template #mode-control="{mode, changeMode}">
+            <ElSelect class="document-select" :wrap-label="false" :show-search-icon="false" append-to=".document-settings-dialog" :model-value="mode" :disabled="queueBusy" :aria-label="t('glossary.mode')" @change="changeMode">
+              <ElOption value="inherit" :label="t('glossary.inherit')" />
+              <ElOption value="none" :label="t('glossary.none')" />
+              <ElOption value="selected" :disabled="!config.glossaryLibraries.length" :label="t('glossary.choose')" />
+            </ElSelect>
+          </template>
+        </GlossaryLibrarySelect>
+        <p v-if="credentialWarning" class="notice warning" role="alert">{{ credentialWarning }} <button type="button" @click="openSettings">去配置</button></p>
+        <p v-if="settingsChanged" class="notice warning">设置已更改。现有译文和下载内容仍使用之前的结果，按新设置翻译会从头开始。</p>
+        <p class="setup-privacy">文件在本地解析，文字发送至所选服务。</p>
+        </section>
+      <p v-if="configSaveError" class="notice error" role="alert">{{ configSaveError }}</p>
+      <div class="document-settings-footer"><button class="sidebar-change-file" type="button" :aria-label="documentQueue.length > 1 ? t('document.batch.clear') : translateLegacy('打开新文件')" :disabled="queueBusy" @click="changeDocument">{{ documentQueue.length > 1 ? t('document.batch.clear') : translateLegacy('更换文件') }}</button><button class="settings-link" type="button" @click="openSettings">服务连接设置 ↗</button></div>
+      <div class="dialog-actions"><button class="ghost-button" type="button" autofocus @click="documentSettingsDialog?.close()">返回文档</button><button class="translate-document-button" type="button" :disabled="!config.on || !hydrated || queueBusy || Boolean(credentialWarning) || !parsedDocument" @click="translateFromSettings">{{ translationActionLabel }}</button></div>
+    </dialog>
     <dialog ref="confirmDialog" class="document-dialog" aria-labelledby="confirm-document-heading" @close="pendingAction = null">
       <h2 id="confirm-document-heading">{{ pendingAction === 'remove' ? t('document.batch.removeTitle') : pendingAction === 'reset' ? (documentQueue.length > 1 ? t('document.batch.clearTitle') : '打开另一份文档？') : '重新翻译这份文档？' }}</h2>
       <p>{{ pendingAction === 'remove' ? t('document.batch.removeWarning') : pendingAction === 'reset' ? (documentQueue.length > 1 ? t('document.batch.clearWarning') : '当前翻译和校订结果只保留在本页，离开后无法恢复。建议先下载需要的结果。') : '重新翻译会替换现有译文和人工校订。你也可以返回并先下载当前结果。' }}</p>
       <div class="dialog-actions"><button class="ghost-button" type="button" autofocus @click="confirmDialog?.close()">返回文档</button><button class="translate-document-button" type="button" @click="confirmAction">{{ pendingAction === 'remove' ? t('document.batch.remove') : pendingAction === 'reset' ? (documentQueue.length > 1 ? t('document.batch.clear') : '打开新文件') : '重新翻译' }}</button></div>
     </dialog>
-    <dialog ref="downloadDialog" class="document-dialog" aria-labelledby="download-document-heading" :aria-busy="preparingDownload" @cancel="preparingDownload && $event.preventDefault()">
-      <h2 id="download-document-heading">下载翻译结果</h2><p>保留原文件格式，选择适合你的阅读方式。</p>
+    <dialog ref="downloadDialog" class="document-dialog download-dialog" aria-labelledby="download-document-heading" :aria-busy="preparingDownload" @close="downloadOpen = false" @cancel="preparingDownload && $event.preventDefault()">
+      <h2 id="download-document-heading">下载翻译结果</h2><p>按原格式另存一份文件。下载内容包含你的校订。</p>
       <div class="export-options" role="group" aria-label="下载内容">
         <button type="button" :disabled="queueBusy" :aria-pressed="outputMode === 'bilingual'" :class="{ selected: outputMode === 'bilingual' }" @click="outputMode = 'bilingual'"><strong>双语对照</strong><span>{{ isPdfDocument ? '原页与译页左右并排' : '同时保留原文和译文' }}</span></button>
         <button type="button" :disabled="queueBusy" :aria-pressed="outputMode === 'translated'" :class="{ selected: outputMode === 'translated' }" @click="outputMode = 'translated'"><strong>仅译文</strong><span>适合直接阅读和分享</span></button>
       </div>
+      <p class="export-file-name" data-i18n-ignore>{{ downloadFileName }}</p>
+      <section v-if="downloadOpen" class="export-preview" aria-label="文件内容预览">
+        <strong>{{ parsedDocument?.binary ? '文字摘录 · 下载时保留原文件格式' : '文件内容预览' }}</strong><pre data-i18n-ignore>{{ downloadPreview }}</pre>
+      </section>
       <p v-if="!translationComplete" class="notice warning">{{ t("document.untranslatedWarning", {count: (parsedDocument?.segments.length || 0) - completedSegments}) }}</p>
       <label v-if="!translationComplete" class="partial-export"><input v-model="partialExportAcknowledged" type="checkbox" :disabled="queueBusy" />我已了解，下载当前结果</label>
+      <p v-if="settingsChanged" class="notice warning">设置已更改，本次下载仍是当前保留的译文。</p>
+      <p v-if="isSubtitleDocument" class="export-note">保留字幕序号和时间轴。仅译文替换字幕文字，双语在同一时间段内保留原文和译文。</p>
       <p v-if="isPdfDocument" class="export-note">PDF 译页以图像呈现，适合保留版面阅读，暂不支持复制译文。</p>
       <p v-if="downloadError" class="notice error" role="alert">{{ downloadError }}</p>
-      <div class="dialog-actions"><button class="ghost-button" type="button" :disabled="queueBusy" @click="downloadDialog?.close()">返回文档</button><button class="translate-document-button" type="button" :disabled="preparingDownload || (!translationComplete && !partialExportAcknowledged)" @click="downloadDocument">{{ preparingDownload ? '正在生成文件…' : `下载${outputMode === 'bilingual' ? '双语' : '译文'}文件` }}</button></div>
+      <div class="dialog-actions"><button class="ghost-button" type="button" :disabled="queueBusy" @click="downloadDialog?.close()">返回文档</button><button class="translate-document-button" type="button" :disabled="queueBusy || !hasTranslation || (!translationComplete && !partialExportAcknowledged)" @click="downloadDocument">{{ preparingDownload ? '正在生成文件…' : `下载${outputMode === 'bilingual' ? '双语' : '译文'}文件` }}</button></div>
     </dialog>
     <footer v-if="!parsedDocument" class="document-footer">
-      <span>流畅阅读文档翻译 · PDF / ePub / HTML / JSON / TXT / DOCX / Markdown / 字幕</span>
+      <span>让语言更近，让世界更大。</span>
       <a href="https://github.com/Bistutu/FluentRead" target="_blank" rel="noreferrer">开源项目 ↗</a>
     </footer>
   </div>
@@ -395,13 +388,15 @@ import {ElOption} from 'element-plus';
 import 'element-plus/es/components/select/style/css';
 import {markRaw, computed, onMounted, onUnmounted, reactive, ref, watch} from 'vue';
 import DocumentSegmentEditor from './DocumentSegmentEditor.vue';
-import {TranslationRequestError} from '@/src/services/translation/errors';
 import browser from 'webextension-polyfill';
 import {
   Config,
+  TranslationRequestError,
   buildGlossaryRevision,
   DOCUMENT_MAX_BYTES,
+  DOCUMENT_QUICK_SAMPLES,
   createDocumentDownload,
+  createDocumentDownloadName,
   createDocumentFileLoadGuard,
   createDocumentPreviewHtml,
   createPdfPagePreview,
@@ -409,9 +404,8 @@ import {
   formatDocumentReaderText,
   getDocumentAcceptAttribute,
   getDocumentEmptyReaderHint,
-  getDocumentFormatTone,
+  getDocumentExportPreview,
   getDocumentFormat,
-  getDocumentPreviewMeta,
   getDocumentReaderSourceClass,
   getDocxPartLabel as docxPartLabel,
   getCustomOpenAIProvider,
@@ -486,13 +480,15 @@ const outputMode = ref<DocumentRenderMode>('bilingual');
 const previewMode = ref<'source' | DocumentRenderMode>('bilingual');
 const readerTab = ref<'read' | 'edit'>('read');
 const readerPage = ref(1);
-const sidebarExpanded = ref(false);
-const fileSize = ref(0);
 const runState = ref<'ready' | 'paused' | 'failed'>('ready');
 const taskFingerprint = ref('');
 const settledTranslations = ref<string[]>([]);
 const confirmDialog = ref<HTMLDialogElement | null>(null);
 const downloadDialog = ref<HTMLDialogElement | null>(null);
+const downloadOpen = ref(false);
+const queueExpanded = ref(false);
+const documentSettingsDialog = ref<HTMLDialogElement | null>(null);
+const configSaveError = ref('');
 const pendingAction = ref<'reset' | 'restart' | 'remove' | null>(null);
 let pendingRemoval: DocumentQueueItem | null = null;
 const partialExportAcknowledged = ref(false);
@@ -520,6 +516,7 @@ const documentFileLoads = createDocumentFileLoadGuard();
 let translationRequestId = 0;
 let lastSerialized = '';
 let applyingExternalConfig = false;
+let configSaveRequest = 0;
 let unsubscribeConfig: (() => void) | undefined;
 let pdfPreviewTimer: ReturnType<typeof setTimeout> | undefined;
 let pdfPreviewRequest = 0;
@@ -528,7 +525,6 @@ interface DocumentQueueItem {
   id: number;
   name: string;
   document: ParsedDocument | null;
-  size: number;
   translations: string[];
   fingerprint: string;
   state: 'ready' | 'paused' | 'failed';
@@ -569,7 +565,6 @@ function selectDocument(item: DocumentQueueItem): void {
   editRevision.value = item.revision;
   downloadedRevision.value = item.downloaded;
   errorMessage.value = item.error;
-  fileSize.value = item.size;
   downloadNotice.value = '';
   readerPage.value = 1;
   readerTab.value = 'read';
@@ -649,11 +644,12 @@ async function downloadBatch(): Promise<void> {
   preparingDownload.value = true;
   batchNotice.value = '';
   const generation = batchGeneration;
+  const mode = outputMode.value;
   try {
     const {default: JSZip} = await import('jszip');
     const zip = new JSZip();
     for (const [index, item] of items.entries()) {
-      const download = await createDocumentDownload(item.document!, item.translations, outputMode.value);
+      const download = await createDocumentDownload(item.document!, item.translations, mode);
       if (generation !== batchGeneration) return;
       // 独立目录避免同名文件覆盖，文件名不能在 ZIP 中创建任意路径。
       const name = download.fileName.replace(/[\\/\x00-\x1f]/g, '_');
@@ -681,6 +677,14 @@ async function downloadBatch(): Promise<void> {
 const accept = getDocumentAcceptAttribute();
 const maxFileSizeLabel = `${Math.round(DOCUMENT_MAX_BYTES / 1024 / 1024)} MB`;
 const sourceLanguageOptions = options.from;
+const translationSettingsSummary = computed(() => {
+  const label = (items: typeof options.from, value: string) => items.find(item => item.value === value)?.label || value;
+  const service = serviceOptions.value.find(item => item.value === effectiveDocumentService.value)?.label || effectiveDocumentService.value;
+  return `${translateLegacy(label(options.from, config.from))} → ${translateLegacy(label(options.to, config.to))} · ${service}`;
+});
+const downloadFileName = computed(() => parsedDocument.value ? createDocumentDownloadName(parsedDocument.value.fileName, outputMode.value) : '');
+const downloadPreview = computed(() => downloadOpen.value && parsedDocument.value
+  ? getDocumentExportPreview(parsedDocument.value, translatedSegments.value, outputMode.value) : '');
 const formatCards = [
   {code: 'PDF', label: '论文 / 资料', tone: 'coral'},
   {code: 'EPUB', label: '电子书', tone: 'teal'},
@@ -765,7 +769,7 @@ const rowForSegment = (segment: ParsedDocument['segments'][number]) => ({
 const pageRows = <T,>(rows: readonly T[]) => rows.slice((readerPage.value - 1) * READER_PAGE_SIZE, readerPage.value * READER_PAGE_SIZE);
 const previewRows = computed(() => pageRows(parsedDocument.value?.segments || []).map(rowForSegment));
 const hasTranslation = computed(() => translatedSegments.value.some((item) => Boolean(item?.trim())));
-const completedSegments = computed(() => translatedSegments.value.filter((item) => Boolean(item?.trim())).length);
+const completedSegments = computed(() => parsedDocument.value?.segments.filter(segment => translatedSegments.value[segment.id]?.trim()).length || 0);
 const translationComplete = computed(() => Boolean(parsedDocument.value && completedSegments.value === parsedDocument.value.segments.length));
 const progress = computed(() => parsedDocument.value ? Math.floor(completedSegments.value / parsedDocument.value.segments.length * 100) : 0);
 const effectivePreviewMode = computed(() => hasTranslation.value ? previewMode.value : 'source');
@@ -776,9 +780,6 @@ const currentFingerprint = computed(() => JSON.stringify({
 const settingsChanged = computed(() => Boolean(taskFingerprint.value && taskFingerprint.value !== currentFingerprint.value));
 const translationActionLabel = computed(() => settingsChanged.value ? '按新设置翻译' : translationComplete.value ? '重新翻译' : hasTranslation.value || runState.value === 'paused' ? '继续翻译' : runState.value === 'failed' ? '重试翻译' : '开始翻译');
 const statusLabel = computed(() => translating.value ? '正在翻译' : translationComplete.value ? '翻译完成' : runState.value === 'paused' ? '已暂停' : runState.value === 'failed' ? '翻译中断' : hasTranslation.value ? '部分完成' : '准备就绪');
-const statusHint = computed(() => translating.value ? '已完成的片段可在「校订译文」中查看，可随时暂停。' : translationComplete.value ? '可阅读、校订并下载结果。' : hasTranslation.value ? '已完成的译文已保留，继续时只翻译剩余内容。' : '先预览原文，确认设置后开始翻译。');
-const fileSizeLabel = computed(() => fileSize.value >= 1024 * 1024 ? `${(fileSize.value / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(fileSize.value / 1024))} KB`);
-const sourceCharacterCount = computed(() => parsedDocument.value?.segments.reduce((sum, segment) => sum + segment.source.length, 0) || 0);
 const hasUnsavedWork = computed(() => translating.value || batchRunning.value || openingFile.value || editRevision.value > downloadedRevision.value
   || documentQueue.value.some(item => item.id !== activeDocumentId.value && item.revision > item.downloaded));
 const isPdfDocument = computed(() => parsedDocument.value?.binary?.kind === 'pdf');
@@ -844,11 +845,9 @@ const currentDocxRows = computed(() => {
 });
 const subtitleRows = computed(() => previewRows.value);
 const jsonRows = computed(() => previewRows.value);
-const previewMeta = computed(() => getDocumentPreviewMeta(parsedDocument.value));
 const emptyReaderHint = computed(() => getDocumentEmptyReaderHint(parsedDocument.value));
 const readerPageCount = computed(() => isPdfDocument.value || isRichDocument.value ? 1 : Math.max(1, Math.ceil((isDocxDocument.value ? currentDocxPart.value?.paragraphSegments.length || 0 : parsedDocument.value?.segments.length || 0) / READER_PAGE_SIZE)));
 const formatCode = computed(() => parsedDocument.value?.format === 'markdown' ? 'MD' : parsedDocument.value?.format.toUpperCase() || 'FILE');
-const formatTone = computed(() => getDocumentFormatTone(parsedDocument.value?.format));
 
 function pngObjectUrl(bytes: Uint8Array): string {
   const buffer = new ArrayBuffer(bytes.byteLength);
@@ -981,8 +980,11 @@ watch(config, (value) => {
     );
   }
   if (Object.keys(patch).length === 0) return;
-  void requestConfigPatch(patch, browser.runtime.sendMessage.bind(browser.runtime)).catch((error) => {
-    console.warn('[FluentRead] 保存文档翻译设置失败', error);
+  const request = ++configSaveRequest;
+  void requestConfigPatch(patch, browser.runtime.sendMessage.bind(browser.runtime)).then(() => {
+    if (request === configSaveRequest) configSaveError.value = '';
+  }).catch(() => {
+    if (request === configSaveRequest) configSaveError.value = '设置未能保存，请重新调整后再试。';
   });
 }, {deep: true, flush: 'post'});
 
@@ -1001,6 +1003,10 @@ function openFilePicker(): void {
   fileInput.value?.click();
 }
 
+async function loadSample(sample: typeof DOCUMENT_QUICK_SAMPLES[number]): Promise<void> {
+  await loadFiles([new File([sample.content], sample.name, {type: 'text/plain;charset=utf-8'})]);
+}
+
 function showError(message: string): void {
   errorMessage.value = message;
 
@@ -1014,7 +1020,7 @@ async function loadFiles(files: File[]): Promise<void> {
   errorMessage.value = '';
   try {
     for (const file of files) {
-      const item: DocumentQueueItem = {id: ++nextDocumentId, name: file.name, document: null, size: file.size,
+      const item: DocumentQueueItem = {id: ++nextDocumentId, name: file.name, document: null,
         translations: [], fingerprint: '', state: 'ready', revision: 0, downloaded: 0, error: ''};
       try {
         if (!getDocumentFormat(file.name)) throw new Error('暂不支持该文件格式，请选择 PDF、ePub、HTML、JSON、TXT、DOCX、Markdown 或字幕文件。');
@@ -1028,6 +1034,7 @@ async function loadFiles(files: File[]): Promise<void> {
         item.error = error instanceof Error ? error.message : String(error);
       }
       documentQueue.value.push(item);
+      if (item.error) queueExpanded.value = true;
       if (item.document && activeDocumentId.value === null) selectDocument(item);
     }
   } finally {
@@ -1047,6 +1054,9 @@ function handleDrop(event: DragEvent): void {
 }
 
 function resetDocument(): void {
+  downloadDialog.value?.close();
+  documentSettingsDialog.value?.close();
+  downloadOpen.value = false;
   batchGeneration += 1;
   batchRunning.value = false;
   documentQueue.value = [];
@@ -1075,6 +1085,20 @@ function resetDocument(): void {
   pdfPreviewRequest += 1;
   if (pdfPreviewTimer) clearTimeout(pdfPreviewTimer);
   clearPdfPreviewUrls();
+}
+
+function changeDocument(): void {
+  documentSettingsDialog.value?.close();
+  requestReset();
+}
+
+function openDocumentSettings(): void {
+  if (parsedDocument.value) documentSettingsDialog.value?.showModal();
+}
+
+function translateFromSettings(): void {
+  documentSettingsDialog.value?.close();
+  requestTranslation();
 }
 
 function requestReset(): void {
@@ -1125,7 +1149,6 @@ async function startTranslation(restart = false): Promise<void> {
   const glossaryRevision = buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled);
   runState.value = 'ready';
   translating.value = true;
-  sidebarExpanded.value = false;
   errorMessage.value = '';
   downloadNotice.value = '';
   const controller = new AbortController();
@@ -1163,21 +1186,26 @@ async function startTranslation(restart = false): Promise<void> {
 }
 
 function editSegment(index: number, value: string): void {
-  if (translating.value || preparingDownload.value) return;
+  if (queueBusy.value || !parsedDocument.value?.segments.some(segment => segment.id === index)) return;
+  if (!taskFingerprint.value) taskFingerprint.value = currentFingerprint.value;
   translatedSegments.value[index] = value;
   editRevision.value += 1;
   downloadNotice.value = '';
 }
 
 function openDownload(): void {
+  if (queueBusy.value || !hasTranslation.value) return;
+  // 从正在阅读的译文/双语模式进入下载时采用同一内容；原文阅读保留上次选择。
+  if (previewMode.value !== 'source') outputMode.value = previewMode.value;
   partialExportAcknowledged.value = false;
   downloadError.value = '';
+  downloadOpen.value = true;
   downloadDialog.value?.showModal();
 }
 
 async function downloadDocument(): Promise<void> {
   const document = parsedDocument.value;
-  if (!document || !hasTranslation.value || translating.value || preparingDownload.value || (!translationComplete.value && !partialExportAcknowledged.value)) return;
+  if (!document || !hasTranslation.value || queueBusy.value || (!translationComplete.value && !partialExportAcknowledged.value)) return;
   preparingDownload.value = true;
   downloadError.value = '';
   const revision = editRevision.value;

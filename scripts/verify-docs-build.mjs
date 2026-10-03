@@ -37,6 +37,15 @@ for (const [file, doc] of docs) {
       '404 must not advertise missing translations'
     )
   } else {
+    const route = path.relative(dist, file)
+    const alternatePath = (route.startsWith('en/') ? route.slice(3) : 'en/' + route)
+      .replace(/index\.html$/, '')
+      .replace(/\.html$/, '')
+    assert.equal(
+      doc.querySelector('.bv-language')?.getAttribute('href'),
+      '/' + alternatePath,
+      `Language switch must preserve the page without a language-specific hash: ${route}`
+    )
     const canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute('href')
     assert(canonical?.startsWith('https://read.thinkstu.com/'), `Missing canonical: ${file}`)
     assert(resolve(canonical), `Missing canonical target: ${canonical}`)
@@ -64,7 +73,7 @@ for (const [file, doc] of docs) {
     const src = img.getAttribute('src')
     if (!src.startsWith('/')) continue
     assert(resolve(src), `Missing image ${src}`)
-    if (img.closest('.vp-doc,.fr-site'))
+    if (img.closest('.vp-doc,.bv-site'))
       assert(
         img.hasAttribute('width') && img.hasAttribute('height'),
         `Image needs dimensions: ${src}`
@@ -82,8 +91,9 @@ for (const file of files(path.join(root, 'docs/guide'))
 }
 for (const prefix of ['', '/en']) {
   const home = docs.get(resolve(prefix + '/'))
+  assert(home.querySelector('.bv-hero-icon[src="/brand-icon.webp"]'), 'Primary brand icon missing')
   assert(
-    home.querySelector('[data-demo="reader"]') && home.querySelector('[data-demo="grammar"]'),
+    home.querySelector('[data-demo="brand-reader"]') && home.querySelector('[data-demo="grammar"]'),
     'Homepage must contain readable SSR examples'
   )
   assert(
@@ -92,9 +102,25 @@ for (const prefix of ['', '/en']) {
   )
   const hub = docs.get(resolve(prefix + '/docs/'))
   assert(
-    hub.querySelectorAll('.fr-docs-grid a').length >= 16,
+    hub.querySelectorAll('.fr-docs-grid a').length === 4 &&
+      hub.querySelectorAll('.fr-docs-links a').length >= 20,
     'Task guides missing from documentation hub'
   )
+  assert(
+    [...hub.querySelectorAll('.guide-details')].every((detail) => !detail.hasAttribute('open')),
+    'Extra documentation topics must start collapsed'
+  )
+  assert(
+    docs
+      .get(resolve(prefix + '/config/translation-engines'))
+      .querySelector('.vp-doc')
+      .textContent.includes('{{apiKey}}'),
+    'Provider placeholders must remain readable literal text'
+  )
+  const input = docs
+    .get(resolve(prefix + '/guide/input-translation'))
+    .querySelector('.vp-doc').textContent
+  assert(input.includes('{{origin}}') && input.includes('{{to}}'), 'Prompt placeholders missing')
 }
 assert(
   !fs.existsSync(path.join(dist, 'maintainers')) && !fs.existsSync(path.join(dist, 'reports')),

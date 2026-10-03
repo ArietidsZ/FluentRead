@@ -40,7 +40,7 @@ async function main() {
   const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
   const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-document-experience'));
   const suite = arg('suite', 'full');
-  assert(['full', 'formats'].includes(suite), 'suite 仅支持 full 或 formats');
+  assert(['full', 'formats', 'experience'].includes(suite), 'suite 仅支持 full、formats 或 experience');
   const formats = arg('formats', 'sample.pdf,sample.epub,sample.docx,sample.html,sample.txt,sample.md,sample.srt,sample.vtt,sample.ass,sample.ssa,sample.lrc,sample.json').split(',');
   const exampleDir = path.resolve(arg('example-dir', 'examples/document-translation'));
   const packages = arg('playwright-root');
@@ -98,36 +98,159 @@ async function main() {
     const shot = async name => { const file = path.join(artifactsDir, `${name}.png`); await page.screenshot({path: file, animations: 'disabled'}); report.screenshots.push(file); };
     const noOverflow = async () => assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, '页面不得横向溢出');
     const select = async (name, label) => {
+      if (name.startsWith('文档') && !await page.getByRole('combobox', {name, exact: true}).isVisible()) {
+        await page.getByRole('button', {name: '调整文档翻译设置', exact: true}).click();
+      }
       await page.locator('.el-select__wrapper').filter({has: page.getByRole('combobox', {name, exact: true})}).click();
       await page.getByRole('option', {name: label, exact: true}).click();
+      if (name.startsWith('文档')) await page.locator('.document-settings-dialog[open]').getByRole('button', {name: '返回文档', exact: true}).click();
     };
     const status = label => page.locator('.document-status').filter({hasText: label}).waitFor();
     const load = async (name, buffer) => {
       await page.locator('input[type=file]').setInputFiles({name, mimeType: 'application/octet-stream', buffer});
       await page.locator('.workspace-heading h1').filter({hasText: name}).waitFor();
+      await page.waitForFunction(() => document.querySelector('.document-app')?.classList.contains('is-workspace'));
       if (await page.locator('.rich-preview-frame').count()) {
         const frame = await (await page.locator('.rich-preview-frame').elementHandle()).contentFrame();
         await frame.waitForFunction(() => Boolean(document.body?.innerText.trim()));
       }
     };
     const newFile = async () => {
+      await page.getByRole('button', {name: '调整文档翻译设置', exact: true}).click();
       await page.locator('.sidebar-change-file').click();
       const dialog = page.locator('dialog[open]').filter({has: page.locator('#confirm-document-heading')});
       if (await dialog.count()) await dialog.locator('.translate-document-button').click();
       await page.locator('.file-drop-zone').waitFor();
+      await page.waitForFunction(() => !document.querySelector('.document-app')?.classList.contains('is-workspace'));
     };
     const download = async (mode = 'bilingual', partial = false) => {
       await page.getByRole('button', {name: '下载文件 ↓', exact: true}).click();
       const dialog = page.locator('dialog[open]').filter({hasText: '下载翻译结果'});
       await dialog.locator('.export-options button').nth(mode === 'bilingual' ? 0 : 1).click();
       if (partial) {
-        assert.equal(await dialog.getByRole('button', {name: '下载双语文件', exact: true}).isDisabled(), true);
+        assert.equal(await dialog.getByRole('button', {name: mode === 'bilingual' ? '下载双语文件' : '下载译文文件', exact: true}).isDisabled(), true);
         await dialog.getByRole('checkbox').check();
       }
       const [file] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', {name: mode === 'bilingual' ? '下载双语文件' : '下载译文文件', exact: true}).click()]);
       const dest = path.join(artifactsDir, file.suggestedFilename()); await file.saveAs(dest); report.downloads.push(dest); return dest;
     };
     assert.equal(await page.locator('.format-card').count(), 8);
+    if (suite === 'experience') {
+      await shot('import-desktop');
+      await page.setViewportSize({width: 390, height: 844}); await noOverflow(); await shot('import-mobile');
+      await page.setViewportSize({width: 1440, height: 960});
+      for (const label of ['文章', '字幕', '语言文件']) {
+        await page.locator('.document-samples summary').click();
+        await page.locator('.sample-buttons button').filter({hasText: label}).click();
+        await status('准备就绪');
+        assert.equal(await page.locator('.document-batch').count(), 0, '单份文件应直接进入阅读区');
+        assert.equal(fixture.state.requests.length, 0, '导入范例不得自动发送翻译请求');
+        await newFile();
+      }
+      report.cases.push('three local samples import through the normal reader without automatic translation');
+      await load('sample.srt', fs.readFileSync(path.join(exampleDir, 'sample.srt')));
+      await page.setViewportSize({width: 390, height: 844});
+      assert.equal(await page.locator('.document-sidebar').count(), 0, '文档内容不应被常驻设置侧栏挤占');
+      assert.equal(await page.locator('.document-settings-button').isVisible(), true);
+      await noOverflow(); await shot('subtitle-ready-mobile');
+      await page.getByRole('button', {name: '调整文档翻译设置', exact: true}).click();
+      assert.equal(await page.getByRole('combobox', {name: '文档目标语言', exact: true}).isVisible(), true);
+      await noOverflow(); await shot('document-settings-mobile');
+      await page.locator('.document-settings-dialog[open]').getByRole('button', {name: '返回文档', exact: true}).click();
+      await page.setViewportSize({width: 1440, height: 960});
+      await page.getByRole('button', {name: '开始翻译', exact: true}).click(); await status('翻译完成');
+      await page.getByRole('button', {name: '校订译文', exact: true}).click();
+      await page.locator('textarea.document-translation').nth(0).fill('你好，欢迎阅读');
+      await page.locator('textarea.document-translation').nth(1).fill('保持时间轴不变。');
+      await page.getByRole('button', {name: '阅读', exact: true}).click();
+      await page.getByRole('button', {name: '译文', exact: true}).click();
+      await page.getByRole('button', {name: '下载文件 ↓', exact: true}).click();
+      const dialog = page.locator('.download-dialog[open]');
+      await page.waitForFunction(() => document.querySelector('.download-dialog[open] .export-options button:nth-child(2)')?.getAttribute('aria-pressed') === 'true');
+      assert.equal(await dialog.locator('.export-options button').nth(1).getAttribute('aria-pressed'), 'true');
+      assert.match(await dialog.locator('.export-file-name').innerText(), /sample.translated.srt/);
+      const preview = await dialog.locator('.export-preview pre').innerText();
+      assert(preview.includes('00:00:01,000 --> 00:00:03,000'));
+      assert(!preview.includes('Hello subtitle') && !preview.includes('Keep the timing intact.'));
+      await shot('subtitle-translated-export');
+      const [translatedFile] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', {name: '下载译文文件', exact: true}).click()]);
+      const translatedPath = path.join(artifactsDir, translatedFile.suggestedFilename()); await translatedFile.saveAs(translatedPath);
+      const translatedText = fs.readFileSync(translatedPath, 'utf8');
+      assert.equal(translatedText.trim(), preview.trim(), '文本下载内容应与预览一致');
+      assert(!translatedText.includes('Hello subtitle') && !translatedText.includes('Keep the timing intact.'));
+      report.downloads.push(translatedPath);
+      report.cases.push('translated reading selects translation-only export; downloaded SRT matches preview and contains no reviewed source text');
+      await page.getByRole('button', {name: '双语', exact: true}).click();
+      await page.getByRole('button', {name: '下载文件 ↓', exact: true}).click();
+      assert.equal(await dialog.locator('.export-options button').first().getAttribute('aria-pressed'), 'true');
+      await dialog.getByRole('button', {name: '返回文档', exact: true}).click();
+      const bilingualPath = await download('bilingual');
+      assert(fs.readFileSync(bilingualPath, 'utf8').includes('Hello subtitle'));
+      assert(fs.readFileSync(bilingualPath, 'utf8').includes('你好，欢迎阅读'));
+      await page.getByRole('button', {name: '校订译文', exact: true}).click();
+      await page.locator('textarea.document-translation').nth(1).fill('');
+      await page.getByRole('button', {name: '阅读', exact: true}).click();
+      await page.getByRole('button', {name: '译文', exact: true}).click();
+      const partialPath = await download('translated', true);
+      const partialText = fs.readFileSync(partialPath, 'utf8');
+      assert(partialText.includes('你好，欢迎阅读') && partialText.includes('Keep the timing intact.'));
+      assert(!partialText.includes('Hello subtitle'));
+      report.cases.push('bilingual SRT retains both texts; clearing a cue requires partial-download acknowledgement and preserves source for that cue');
+      await page.locator('input[type=file]').setInputFiles({name: 'extra.txt', mimeType: 'text/plain', buffer: Buffer.from('Another document.')});
+      await page.locator('.batch-toggle').click();
+      await page.locator('.batch-file').filter({hasText: 'extra.txt'}).waitFor();
+      await page.locator('.batch-file').filter({hasText: 'extra.txt'}).click();
+      await page.getByRole('button', {name: '开始翻译', exact: true}).click(); await status('翻译完成');
+      await page.locator('.batch-file').filter({hasText: 'sample.srt'}).click();
+      await page.getByRole('button', {name: '校订译文', exact: true}).click();
+      assert.equal(await page.locator('textarea.document-translation').first().inputValue(), '你好，欢迎阅读');
+      await page.locator('textarea.document-translation').nth(1).fill('保持时间轴不变。');
+      await page.getByRole('button', {name: '阅读', exact: true}).click();
+      await page.locator('.batch-toggle').click();
+      assert.equal(await page.locator('.batch-files').isVisible(), false);
+      await noOverflow(); await shot('subtitle-workspace-desktop');
+      await page.locator('.batch-toggle').click();
+      await select('打包内容', '仅译文');
+      const [archive] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', {name: '下载已完成文件（ZIP）', exact: true}).click()]);
+      const archivePath = path.join(artifactsDir, archive.suggestedFilename()); await archive.saveAs(archivePath);
+      const zip = await require('jszip').loadAsync(fs.readFileSync(archivePath));
+      assert.equal(await zip.file('1/sample.translated.srt').async('string'), translatedText);
+      assert(zip.file('2/extra.translated.txt'));
+      report.downloads.push(archivePath);
+      await page.locator('.batch-toggle').click();
+      report.cases.push('adding and switching files preserves corrections; collapsed queue supports ZIP with the selected output mode');
+      await select('文档目标语言', '日本語 / Japanese / 日语');
+      await page.getByRole('button', {name: '按新设置翻译', exact: true}).click();
+      await page.locator('dialog[open]').getByRole('button', {name: '返回文档', exact: true}).click();
+      await select('文档目标语言', '简体中文 / Simplified Chinese');
+      assert.match(await page.locator('.subtitle-translation').first().innerText(), /你好，欢迎阅读/);
+      report.cases.push('settings dropdown works inside native dialog; changing target and cancelling restart retains reviewed translations');
+      await page.emulateMedia({colorScheme: 'dark'}); await shot('subtitle-workspace-dark');
+      assert.equal(await page.locator('.document-app.dark').count(), 1);
+      await page.setViewportSize({width: 820, height: 960}); await noOverflow(); await shot('subtitle-tablet-dark');
+      await page.setViewportSize({width: 390, height: 844}); await noOverflow(); await shot('subtitle-mobile-dark');
+      await page.getByRole('button', {name: '下载文件 ↓', exact: true}).click();
+      await noOverflow(); await shot('subtitle-export-mobile-dark');
+      await dialog.getByRole('button', {name: '返回文档', exact: true}).click();
+      await page.emulateMedia({colorScheme: 'light'}); await shot('subtitle-mobile-light');
+      report.cases.push('1440, 820 and 390 px layouts and dark download dialog render without horizontal overflow');
+      await page.setViewportSize({width: 1440, height: 960});
+      const english = await page.evaluate(async () => {
+        const stored = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
+        const current = typeof stored.value === 'string' ? JSON.parse(stored.value) : stored.value;
+        return chrome.runtime.sendMessage({type: 'persistConfig', mode: 'replace', baseRevision: current.__fluentConfigRevision,
+          clientId: `document-language-${crypto.randomUUID()}`, sequence: 1, config: {...current, uiLanguage: 'en-US'}});
+      });
+      assert.equal(english.success, true);
+      await page.waitForFunction(() => document.querySelector('.document-settings-button')?.innerText.includes('Adjust settings'));
+      await noOverflow(); await shot('subtitle-workspace-english');
+      await page.locator('.document-settings-button').click(); await noOverflow(); await shot('document-settings-english');
+      await page.locator('.document-settings-dialog[open] button.ghost-button').click();
+      report.cases.push('English workspace and settings retain localized controls and reviewed subtitle content');
+      assert.equal(report.consoleErrors.length, 0);
+      report.ok = true;
+      return;
+    }
     await shot('01-import-desktop'); await noOverflow();
     await page.setViewportSize({width: 390, height: 844}); await noOverflow(); await shot('02-import-mobile');
     await page.setViewportSize({width: 1440, height: 960});
@@ -141,7 +264,7 @@ async function main() {
       recordScripts(`import:${name}`);
       await page.getByRole('button', {name: '开始翻译', exact: true}).click();
       await status('翻译完成');
-      assert.equal(await page.getByRole('progressbar').getAttribute('aria-valuenow'), '100');
+      assert.equal(await page.getByRole('progressbar', {includeHidden: true}).getAttribute('aria-valuenow'), '100');
       await page.getByRole('button', {name: '校订译文', exact: true}).click();
       assert.match(await page.locator('textarea.document-translation').first().inputValue(), /测试译文/);
       await page.locator('textarea.document-translation').first().fill(`人工校订：${name}`);
@@ -170,6 +293,12 @@ async function main() {
       report.exampleLoads[name] = {translated: true, edited: true, exported: true, bytes: bytes.length};
       if (['sample.pdf', 'sample.epub', 'sample.docx', 'sample.md', 'sample.srt', 'sample.json'].includes(name)) await shot(`reader-${name.replace('.', '-')}`);
       if (suite === 'formats' && name === formats.at(-1)) {
+        if (!await page.locator('.document-batch').count()) {
+          await page.locator('input[type=file]').setInputFiles({name: 'batch-extra.txt', mimeType: 'text/plain', buffer: Buffer.from('An extra document.')});
+          await page.getByRole('button', {name: '翻译剩余文件', exact: true}).click();
+          await page.waitForFunction(() => [...document.querySelectorAll('.batch-file small')].every(element => element.textContent.includes('翻译完成')));
+        }
+        if (await page.locator('.batch-toggle').getAttribute('aria-expanded') === 'false') await page.locator('.batch-toggle').click();
         const [archive] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', {name: '下载已完成文件（ZIP）', exact: true}).click()]);
         const archivePath = path.join(artifactsDir, archive.suggestedFilename());
         await archive.saveAs(archivePath);
@@ -232,6 +361,7 @@ async function main() {
     assert.equal(await page.locator('dialog[open] .export-options button').first().getAttribute('aria-pressed'), 'true');
     await page.locator('dialog[open]').getByRole('button', {name: '返回文档'}).click();
     await page.getByRole('button', {name: '双语', exact: true}).click();
+    await page.getByRole('button', {name: '调整文档翻译设置', exact: true}).click();
     await page.getByRole('button', {name: '打开新文件', exact: true}).click();
     await page.locator('dialog[open]').getByRole('button', {name: '返回文档'}).click();
     assert.match(await page.locator('.workspace-heading h1').innerText(), /long-document/);
@@ -358,6 +488,9 @@ async function main() {
     report.ok = true;
   } catch (error) {
     report.failure = error.stack || String(error);
+    if (page) report.visibleUi = await page.evaluate(() => ({rootClass: document.querySelector('.document-app')?.className,
+      activeDialogs: [...document.querySelectorAll('dialog[open]')].map(element => element.innerText),
+      workspace: document.querySelector('.workspace-section')?.innerText})).catch(() => ({}));
     if (page) await page.screenshot({path: path.join(artifactsDir, 'failure.png')}).catch(() => {});
     throw error;
   } finally {
