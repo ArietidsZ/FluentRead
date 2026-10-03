@@ -9,6 +9,7 @@ import GuideVisual from './GuideVisual.vue'
 import BrandReader from './BrandReader.vue'
 import GuideLayout from './GuideLayout.vue'
 import './custom.css'
+import './homepage.css'
 
 export default {
   extends: DefaultTheme,

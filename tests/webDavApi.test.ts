@@ -9,6 +9,29 @@ const content = JSON.stringify({format: DRIVE_ENCRYPTION_FORMAT, ciphertext: 'fi
 const xml = '<d:multistatus xmlns:d="DAV:"><d:response><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>';
 const response = (body: string | null, status = 200, headers: Record<string, string> = {}) => new Response(body, {status, headers});
 describe('WebDAV 文件协议', () => {
+    it('缺少备份父目录的 409 只在入口有效且专属目录确实不存在时视为首次备份', async () => {
+        for (const status of [404, 409]) {
+            const fetcher = vi.fn().mockResolvedValueOnce(response('private missing-parent response', 409)).mockResolvedValueOnce(response(xml, 207)).mockResolvedValueOnce(response(null, status));
+            expect(await createWebDavApi(fetcher).read(session)).toBeNull();
+            expect(fetcher.mock.calls.map(([url, init]) => [url, init.method])).toEqual([
+                [connection.url + 'FluentRead/fluentread-config.encrypted.json', 'GET'],
+                [connection.url, 'PROPFIND'],
+                [connection.url + 'FluentRead/', 'PROPFIND'],
+            ]);
+            expect(fetcher.mock.calls.slice(1).every(([, init]) => init.headers.Depth === '0')).toBe(true);
+        }
+        for (const [status, code] of [[401, 'auth'], [403, 'forbidden'], [404, 'notFound'], [409, 'notFound'], [500, 'http']] as const) {
+            const fetcher = vi.fn().mockResolvedValueOnce(response(null, 409)).mockResolvedValueOnce(response(null, status));
+            await expect(createWebDavApi(fetcher).read(session)).rejects.toMatchObject({code, status});
+            expect(fetcher).toHaveBeenCalledTimes(2);
+        }
+        for (const denied of [response(null, 403), response('not XML', 207)]) {
+            const fetcher = vi.fn().mockResolvedValueOnce(response(null, 409)).mockResolvedValueOnce(response(xml, 207)).mockResolvedValueOnce(denied);
+            await expect(createWebDavApi(fetcher).read(session)).rejects.toThrow(WebDavError);
+        }
+        const existing = vi.fn().mockResolvedValueOnce(response(null, 409)).mockResolvedValueOnce(response(xml, 207)).mockResolvedValueOnce(response(xml, 207));
+        await expect(createWebDavApi(existing).read(session)).rejects.toMatchObject({code: 'http', status: 409});
+    });
     it('只读测试使用 Depth:0，备份只在专属目录内写入并带新建条件', async () => {
         const fetcher = vi.fn().mockResolvedValueOnce(response(xml, 207)).mockResolvedValueOnce(response(null, 404)).mockResolvedValueOnce(response(null, 201)).mockResolvedValueOnce(response(null, 201)).mockResolvedValueOnce(response(content, 200, {etag: '"one"', 'last-modified': 'fixture-time'}));
         const api = createWebDavApi(fetcher);

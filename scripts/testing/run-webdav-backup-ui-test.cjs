@@ -25,10 +25,13 @@ async function main() {
     const server = createServer(async (req,res) => {
         state.calls.push({method:req.method,url:req.url});
         if (req.headers.authorization !== expected) {res.writeHead(401).end(); return;}
-        if (req.method === 'PROPFIND' && req.url === '/dav/') {res.writeHead(207, {'Content-Type':'application/xml'}).end('<d:multistatus xmlns:d="DAV:"><d:response><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>'); return;}
+        if (req.method === 'PROPFIND' && (req.url === '/dav/' || req.url === '/dav/FluentRead/')) {
+            if (req.url === '/dav/FluentRead/' && !state.folder) {res.writeHead(404).end(); return;}
+            res.writeHead(207, {'Content-Type':'application/xml'}).end('<d:multistatus xmlns:d="DAV:"><d:response><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>'); return;
+        }
         if (req.method === 'MKCOL' && req.url === '/dav/FluentRead/') {res.writeHead(state.folder ? 405 : 201).end(); state.folder=true; return;}
         if (req.url !== '/dav/FluentRead/fluentread-config.encrypted.json') {res.writeHead(404).end(); return;}
-        if (req.method === 'GET') {if (!state.content) res.writeHead(404).end(); else res.writeHead(200, {ETag:`"v${state.version}"`}).end(state.content); return;}
+        if (req.method === 'GET') {if (!state.content) res.writeHead(state.folder ? 404 : 409).end(); else res.writeHead(200, {ETag:`"v${state.version}"`}).end(state.content); return;}
         if (req.method === 'PUT') {
             if (state.failPut || (req.headers['if-none-match'] === '*' && state.content) || (req.headers['if-match'] && req.headers['if-match'] !== `"v${state.version}"`)) {res.writeHead(412).end(); return;}
             const chunks=[]; for await (const chunk of req) chunks.push(Buffer.from(chunk));
@@ -91,6 +94,8 @@ async function main() {
         const dialog=page.locator('.drive-dialog');
         async function chooseIntent(direction) {if (await page.locator('[data-testid="webdav-back"]').count()) await page.locator('[data-testid="webdav-back"]').click(); if (direction==='merge') await page.locator('[data-testid="webdav-direction-merge"]').click(); else {await page.locator(`[data-testid="webdav-direction-${direction}"]`).check();await page.locator('[data-testid="webdav-continue"]').click();}}
         await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
+        check(!state.folder && writes()===0 && state.calls.some(c => c.method==='PROPFIND' && c.url==='/dav/FluentRead/'),'missing-parent 409 reaches first-backup preview without creating a folder or file');
+        await shot('webdav-first-backup-409-preview');
         check((await dialog.innerText()).includes('fixture-user'),'preview identifies the configured account');
         check(!(await dialog.innerText()).includes('fixture-private'),'preview does not expose complete credentials');
         check(await dialog.locator('input[type="password"]').count()===0,'backup has no user encryption passphrase');
