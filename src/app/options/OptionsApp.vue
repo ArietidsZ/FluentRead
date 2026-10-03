@@ -1,7 +1,7 @@
 <!--
  @file src/app/options/OptionsApp.vue
  文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和学习中心入口，并把选中分区交给对应 feature UI。
- 主要内容：侧栏品牌图标右侧纵向展示名称与小字多语言宣传语，品牌区域与关于页提供统一官网入口，关于页复用品牌文案；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示，服务目录使用完整工作区，统计与网站规则按任务保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
+ 主要内容：侧栏品牌图标右侧纵向展示名称与小字多语言宣传语，品牌区域与关于页提供统一官网入口，关于页展示产品简介与版本；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示，服务目录使用完整工作区，统计与网站规则按任务保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
  模块边界：组件负责页面壳、导航状态和界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
 -->
 <template>
@@ -79,7 +79,7 @@
           <div class="about-hero">
             <img class="about-logo" :src="iconUrl" alt="流畅阅读图标" />
             <div>
-              <h3 id="about-title" class="about-tagline" data-testid="about-brand-tagline" data-i18n-ignore>{{ t('brand.tagline') }}</h3>
+              <h3 id="about-title">{{ t('options.aboutTitle') }}</h3>
               <p>{{ t('options.aboutHeroDescription') }}</p>
               <span class="about-version">FluentRead · V{{ version }}</span>
             </div>
