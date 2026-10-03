@@ -120,6 +120,7 @@ const VISIBLE_FIELDS: Record<string, string> = {
     enableAIMultiSegment: 'AI 多段翻译',
     bilingualSentenceHighlightEnabled: '双语逐句高亮',
     bilingualSentenceHighlightStyle: '逐句高亮样式',
+    bilingualSentenceHighlightAppearance: '逐句高亮自定义外观',
     contextMenuEnabled: '右键全文翻译',
     pageTitleTranslationEnabled: '翻译页面标题',
     sidebarTranslationEnabled: '侧边栏翻译',
