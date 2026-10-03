@@ -31,6 +31,7 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue';
 import {ElButton, ElCheckbox, ElInput} from 'element-plus';
+import 'element-plus/es/components/checkbox/style/css';
 import browser from 'webextension-polyfill';
 import type {Config} from '@/src/core/config/model';
 import {MAX_REQUEST_HEADER_RULES, normalizeRequestHeaderDomain} from '@/src/core/config/requestHeaders';
