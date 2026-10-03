@@ -195,7 +195,7 @@ describe('配置差异预览', () => {
 
     it('逐句高亮外观作为阅读辅助设置参与差异预览', () => {
         const result = buildConfigDiff({bilingualSentenceHighlightStyle: 'rose'}, {bilingualSentenceHighlightStyle: 'mint'});
-        expect(group(result, 'translation')?.changes).toContainEqual({key: 'bilingualSentenceHighlightStyle', label: '逐句高亮样式', before: '柔和玫瑰', after: '薄荷清风'});
+        expect(group(result, 'translation')?.changes).toContainEqual({key: 'bilingualSentenceHighlightStyle', label: '逐句高亮样式', before: '柔光粉', after: '薄荷清风'});
     });
 
     it('逐项预览译文外观微调，默认颜色与百分比使用可读文案', () => {
