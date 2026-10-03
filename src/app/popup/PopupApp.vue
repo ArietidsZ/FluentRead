@@ -674,7 +674,7 @@ const drawerTitle = computed(() => ({ services: t('popup.providers.title'), aiCo
 const drawerDescription = computed(() => ({
   services: '',
   aiContext: t('popup.aiContext.intro'),
-  hover: '把鼠标停在文本上，用轻量快捷键获取即时译文。',
+  hover: '将鼠标停在段落上，按快捷键查看译文。',
   selection: '选中网页文字，按你的偏好获取译文。',
   appearance: t('popup.quickSettings.appearanceDescription'),
   image: '把鼠标移到图片上，从图片左下角打开翻译入口。',

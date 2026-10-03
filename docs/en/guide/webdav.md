@@ -8,7 +8,7 @@ Backups include API keys, configured OAuth tokens, authentication headers, custo
 
 ## Prepare a connection
 
-The server must support Basic authentication, `PROPFIND`, `GET`, `MKCOL`, and `PUT`. Safe updates also require strong ETags and support for `If-Match` and `If-None-Match`. Use HTTPS with a valid certificate and a dedicated app password.
+The server must support Basic authentication, `PROPFIND`, `GET`, `MKCOL`, and `PUT`. Safe updates also require strong ETags and support for `If-Match` and `If-None-Match`. An ETag may come from the download response header or the file's [`DAV:getetag` property](https://datatracker.ietf.org/doc/html/rfc4918#section-15.6). Property lookup is followed by a conditional read to verify the version and content. Use HTTPS with a valid certificate and a dedicated app password.
 
 Enter the **WebDAV URL of an existing directory**, not the website homepage, a sharing link, or the backup file URL. Do not put credentials or query parameters in the URL.
 
@@ -45,6 +45,8 @@ Configure the same directory and account on the other device. Read the backup, c
 Restoring replaces this device’s settings and credentials. Saving replaces the cloud configuration. If both sides contain changes you want to keep, use the secondary **Review and merge** action and resolve conflicts. Credentials and custom connections are masked and selected as a group.
 
 Before committing, the extension rechecks both configurations. A change on either side requires a fresh preview. Updates use ETag conditions to reject stale writes. A successful operation records the account and time locally.
+
+The current account, server URL, and last backup time for that connection appear beside the sync button. Use **Edit connection** to change accounts or servers. The confirmation screen lists changed settings and their device and cloud values. Connection changes show categories while keys, addresses, and custom content stay hidden. Merge conflicts appear before automatically retained changes. Identical configuration only updates the local sync record without uploading again.
 
 <details class="guide-details">
 <summary>Change accounts or delete data</summary>

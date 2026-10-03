@@ -1,8 +1,8 @@
 <!--
 @file src/features/settings/ui/RemoteConfigSync.vue
 文件职责：用清晰的保存、恢复与逐项合并流程完成Google Drive 与 WebDAV 共用的配置云备份。
-主要内容：在同步按钮右侧显示上次同步账号和时间，窄屏改为上下排列；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
-先选择操作再确认影响；差异按需展开，合并仅突出待确认项，小屏保留操作区。
+主要内容：通过右侧记录插槽统一显示账号和时间，窄屏改为上下排列；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
+先选择操作再确认影响；默认展示差异与连接变更类别，合并时优先列出冲突，收起自动保留项不隐藏冲突，小屏保留操作区。
 模块边界：只消费后台脱敏预览和同步记录；不获取完整配置、令牌或用户口令，由父级提供存储方式和客户端。
 -->
 <template>
@@ -11,10 +11,12 @@
     <el-alert v-if="error && !previewVisible" :title="error" type="error" :closable="false" show-icon class="drive-error" />
     <div class="drive-actions">
       <el-button v-if="status?.available" type="primary" :loading="busy" :disabled="busy" :data-testid="`${kind}-sync-now`" @click="prepare">{{ t('settings.cloud.syncNow', {provider}) }}</el-button>
+      <slot name="record" :status="status" :status-text="statusText">
       <div v-if="status?.account?.email || statusText" class="drive-record" role="status">
         <p v-if="status?.account?.email" :data-testid="`${kind}-last-account`">{{ t('settings.drive.lastAccount', {email: status.account.email}) }}</p>
         <p v-if="statusText" class="drive-status">{{ statusText }}</p>
       </div>
+      </slot>
     </div>
     <el-dialog class="drive-dialog fluentread-cloud-sync-dialog" v-model="previewVisible" :title="t('settings.drive.previewTitle')" width="min(820px, calc(100vw - 24px))" :close-on-click-modal="!busy" :close-on-press-escape="!busy" :show-close="!busy" :before-close="cancelPreview" destroy-on-close @closed="clearPreview">
       <template v-if="preview">
@@ -75,6 +77,7 @@
                   <div class="drive-change-heading"><strong>{{ row.label === '私密或自定义设置' ? t('settings.drive.otherSettings') : translateLegacy(row.label) }}</strong>
                     <span v-if="direction === 'merge'" :class="{'is-pending': !rowChoice(row)}">{{ t(rowChoice(row) ? (rowChoice(row) === 'local' ? 'settings.drive.localSelected' : 'settings.drive.remoteSelected') : 'settings.drive.needsChoice') }}</span>
                   </div>
+                  <p v-if="row.changes.some(change => change.details?.length)" class="drive-change-details">{{ [...new Set(row.changes.flatMap(change => change.details ?? []))].map(key => t(key)).join(' · ') }}</p>
                   <div class="drive-values" :role="direction === 'merge' ? 'radiogroup' : undefined" :aria-label="direction === 'merge' ? t('settings.drive.choice', {label: row.label === '私密或自定义设置' ? t('settings.drive.otherSettings') : translateLegacy(row.label)}) : undefined">
                     <component :is="direction === 'merge' ? 'label' : 'div'" v-for="source in ['local', 'remote'] as const" :key="source" class="drive-value" :class="{'is-selected': direction === 'merge' ? rowChoice(row) === source : direction === (source === 'local' ? 'upload' : 'download')}">
                       <input v-if="direction === 'merge'" type="radio" :name="`drive-choice-${row.id}`" :checked="rowChoice(row) === source" :disabled="busy" :value="source" @change="chooseRow(row, source)" />
@@ -135,7 +138,7 @@ const rows = computed(() => groupDrivePreviewChanges(preview.value?.changes ?? [
 const conflictRows = computed(() => rows.value.filter(row => !row.recommended));
 const automaticRows = computed(() => rows.value.filter(row => row.recommended));
 const automaticCount = computed(() => automaticRows.value.reduce((count, row) => count + row.changes.length, 0));
-const activeRows = computed(() => direction.value === 'merge' ? (automaticVisible.value ? automaticRows.value : conflictRows.value) : rows.value);
+const activeRows = computed(() => direction.value === 'merge' ? [...conflictRows.value, ...(automaticVisible.value ? automaticRows.value : [])] : rows.value);
 const visibleRows = computed(() => activeRows.value.slice((page.value - 1) * 20, page.value * 20));
 const unresolved = computed(() => preview.value ? unresolvedDriveChanges(preview.value, choices.value) : 0);
 const statusText = computed(() => !status.value ? translateLegacy('正在检查同步状态…') : !status.value.available ? translateLegacy(status.value.reason) : status.value.lastSyncedAt ? t('settings.drive.lastSync', {time: new Date(status.value.lastSyncedAt).toLocaleString(language.value)}) : '');
@@ -143,7 +146,7 @@ const directionHint = computed(() => direction.value === 'merge' && !preview.val
 const summaryTitle = computed(() => t('settings.drive.mergeReady'));
 const commitLabel = computed(() => t(identical.value ? 'settings.drive.finishSync' : direction.value ? `settings.drive.${direction.value}Action` : 'settings.drive.chooseAction'));
 const canCommit = computed(() => Boolean(preview.value && direction.value && (direction.value !== 'merge' || unresolved.value === 0)));
-watch(direction, () => {page.value = 1; detailsVisible.value = false; automaticVisible.value = false;});
+watch(direction, () => {page.value = 1; detailsVisible.value = true; automaticVisible.value = true;});
 function previewValueLabel(value: string) {return value === '开启' ? t('settings.drive.enabled') : value === '关闭' ? t('settings.drive.disabled') : translateLegacy(value);}
 function rowChoice(row: DrivePreviewRow) {return driveRowChoice(row, choices.value);}
 function chooseRow(row: DrivePreviewRow, choice: DriveChoice) {choices.value = chooseDriveRow(row, choice, choices.value);}
@@ -166,7 +169,7 @@ async function requestPreview() {
   choices.value = Object.fromEntries(result.changes.filter(change => change.recommended).map(change => [change.id, change.recommended!]));
   direction.value = initialDriveDirection(result);
   step.value = direction.value ? 'review' : 'choose';
-  page.value = 1; detailsVisible.value = false; automaticVisible.value = false; previewVisible.value = true;
+  page.value = 1; detailsVisible.value = true; automaticVisible.value = true; previewVisible.value = true;
 }
 async function prepare() {await perform(requestPreview);}
 async function switchAccount() {
@@ -217,6 +220,7 @@ onUnmounted(() => {alive = false; endSession(); clearPreview();});
 .drive-record {display:grid; gap:4px; flex:1 1 240px; min-width:0; margin-inline-start:auto; text-align:right;}
 .drive-record p {margin:0; overflow-wrap:anywhere; font-size:13px; line-height:1.5;}
 .drive-status {color:var(--el-text-color-secondary);}
+.drive-change-details {font-size:12px; line-height:1.7; margin:0 0 12px; color:var(--el-text-color-secondary);}
 .drive-error,.drive-actions {margin-top:16px;}
 .drive-actions {display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px;}
 .drive-actions>.el-button {flex-shrink:0; max-width:100%; min-height:32px; height:auto; white-space:normal; line-height:1.5; padding:8px 15px;}

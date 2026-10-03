@@ -37,7 +37,7 @@
     "settings.drive.showDetails": "Voir {count} différences",
     "settings.drive.hideDetails": "Masquer les différences",
     "settings.drive.showAutomatic": "Voir les {count} choix automatiques",
-    "settings.drive.hideAutomatic": "Retour aux choix à faire",
+    "settings.drive.hideAutomatic": "Masquer {count} modifications conservées automatiquement",
     "settings.drive.privateHint": "Clés, adresses et contenus personnalisés sont masqués ; les réglages liés sont conservés ensemble.",
     "settings.drive.otherSettings": "Autres réglages de compatibilité",
     "settings.drive.groupedContent": "{count} réglages (contenu masqué)",

@@ -1,6 +1,6 @@
 # Document translation
 
-Read a file beside its translation. Edit a passage when needed, then download a copy to keep.
+Import a document to read alongside its translation, edit passages as needed and download the result.
 
 <GuideVisual kind="document" en />
 

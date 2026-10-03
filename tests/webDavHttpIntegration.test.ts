@@ -6,7 +6,7 @@ import {createWebDavSession,parseWebDavConnection} from '@/src/platform/webdav/c
 import {encryptDriveConfig} from '@/src/platform/google-drive/encryption';
 
 describe('WebDAV 真实 HTTP 协议夹具',()=>{
-    it('使用真实 fetch 校验鉴权、目录、条件创建和覆盖，并拒绝跳转到其他地址',async()=>{
+    it.each([true,false])('真实 HTTP 完成首次和再次保存、冲突拒绝（GET ETag: %s）',async(headerEtag)=>{
         let content:string|null=null;let version=0;let folder=false;
         const calls:Array<{method:string;url:string;match?:string;none?:string}>=[];
         const expected='Basic '+Buffer.from('fixture-user:fixture-http-password').toString('base64');
@@ -20,7 +20,8 @@ describe('WebDAV 真实 HTTP 协议夹具',()=>{
             }
             if(req.method==='MKCOL'&&req.url==='/dav/FluentRead/'){const status=folder?405:201;folder=true;res.writeHead(status).end();return;}
             if(req.url!=='/dav/FluentRead/fluentread-config.encrypted.json'){res.writeHead(404).end();return;}
-            if(req.method==='GET'){if(!content){res.writeHead(folder?404:409).end();return;}res.writeHead(200,{ETag:`"v${version}"`}).end(content);return;}
+            if(req.method==='PROPFIND') {res.writeHead(207,{'Content-Type':'application/xml'}).end(`<d:multistatus xmlns:d="DAV:"><d:response><d:href>${req.url}</d:href><d:propstat><d:prop><d:getetag>&quot;v${version}&quot;</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>`);return;}
+            if(req.method==='GET'){if(!content){res.writeHead(folder?404:409).end();return;}if(req.headers['if-match']&&req.headers['if-match']!==`"v${version}"`){res.writeHead(412).end();return;}res.writeHead(200,headerEtag?{ETag:`"v${version}"`}:{}).end(content);return;}
             if(req.method==='PUT'){
                 if((req.headers['if-none-match']==='*'&&content)||(req.headers['if-match']&&req.headers['if-match']!==`"v${version}"`)){res.writeHead(412).end();return;}
                 const chunks=[];for await(const chunk of req)chunks.push(Buffer.from(chunk));content=Buffer.concat(chunks).toString();version++;res.writeHead(201).end();return;

@@ -56,6 +56,19 @@
     "settings.webdav.error.failure": "Opération inachevée. Vérifiez le réseau et le stockage local, puis réessayez.",
     "settings.cloud.privacyEncryption": "La configuration est chiffrée avant l’envoi. La phrase secrète de l’application est publique ; la protection repose surtout sur le compte, les droits du dossier et l’appareil.",
     "settings.cloud.privacyWebDavStorage": "Accède uniquement à la sauvegarde FluentRead dans le dossier de votre serveur.",
-    "settings.cloud.privacyWebDavConnection": "Le mot de passe reste sur cet appareil. L’accès au serveur nécessite une action manuelle."
+    "settings.cloud.privacyWebDavConnection": "Le mot de passe reste sur cet appareil. L’accès au serveur nécessite une action manuelle.",
+    "settings.cloud.currentAccount": "Compte de sauvegarde : {email}",
+    "settings.cloud.changed.credentials": "Clés API, jetons OAuth et authentification",
+    "settings.cloud.changed.requests": "Adresses des services et paramètres des requêtes",
+    "settings.cloud.changed.models": "Modèles de traduction",
+    "settings.cloud.changed.services": "Services de traduction par fonctionnalité",
+    "settings.cloud.changed.customServices": "Services de traduction personnalisés",
+    "settings.cloud.changed.assistants": "Assistants de rédaction et de lecture",
+    "settings.cloud.changed.options": "Options de connexion de traduction",
+    "settings.cloud.fieldLabel.0": "Afficher la langue cible dans le menu contextuel",
+    "settings.cloud.fieldLabel.1": "Afficher le raccourci dans le menu contextuel",
+    "settings.cloud.fieldLabel.2": "Raccourci de survol enregistré",
+    "settings.cloud.fieldLabel.3": "Mode de sélection enregistré",
+    "settings.cloud.fieldLabel.4": "Modèle local de reconnaissance vocale"
   }
 }
