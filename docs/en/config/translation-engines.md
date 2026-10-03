@@ -270,4 +270,12 @@ Headers are stored as credentials: public exports and history omit them, while f
 
 [OpenCode Go's documentation](https://opencode.ai/docs/go/#where-can-i-use-it) requires a stable session header and also specifies client and traffic requirements. Configurable headers do not imply certified compatibility with that service.
 
+### Remove Origin / Referer by domain
+
+Some gateways reject the browser's extension origin. Ordinary custom headers cannot reliably override `Origin` or `Referer`. In any AI service, open **API compatibility → Remove source request headers** and add the actual request domain, such as `api.example.com`. If you use a proxy, add the proxy's domain.
+
+The list is empty by default. New entries remove Origin; enable Referer removal separately if needed. The list is shared by all services and matches exact domains, without subdomains. Enter no scheme, port, path or wildcard. Delete an entry or uncheck a header to restore defaults. Settings save automatically and survive browser restarts.
+
+Only requests initiated by FluentRead are affected. The browser applies network rules using the existing `declarativeNetRequestWithHostAccess` permission. Rule installation errors block the request and allow retry. Userscripts and browsers without this API do not support this option. Endpoint, key and model errors still need their own fixes.
+
 </details>

@@ -18,6 +18,16 @@ import {translationStatsJapaneseMessages} from './translationStats';
 import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
+    "settings.headers.title": "送信元リクエストヘッダーを削除",
+    "settings.headers.help": "初期状態ではリストは空です。すべてのサービスで共有され、FluentRead が指定した完全一致のドメインへ送るリクエストだけに適用されます。サブドメインは別途追加してください。項目の削除またはチェックの解除で既定の動作に戻ります。",
+    "settings.headers.unsupported": "この環境は非対応です。declarativeNetRequest 対応のブラウザー拡張機能を使用してください。ユーザースクリプトには対応していません。",
+    "settings.headers.domain": "サービスのドメイン",
+    "settings.headers.add": "ドメインを追加",
+    "settings.headers.invalid": "プロトコル、ポート、パス、ワイルドカードを含まないドメインを入力してください。",
+    "settings.headers.origin": "Origin を削除",
+    "settings.headers.referer": "Referer を削除",
+    "settings.headers.remove": "削除",
+    "settings.headers.removeDomain": "{domain} のルールを削除",
     "settings.backup.localTitle": "ローカルバックアップ",
     "settings.backup.fileTitle": "バックアップファイル",
     "settings.backup.fileDescription": "バックアップファイルには API キーなどの非公開情報が含まれ、暗号化されていません。安全に保管し、公開しないでください。",
