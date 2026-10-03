@@ -143,6 +143,12 @@ export const navigationGroups = [
         searchDescription: '术语库、专业术语、固定译名、专有名词、保留原文、glossary、CSV、TSV、导入导出',
       },
       {
+        id: 'settings-sites', icon: '站', label: '网站规则', description: '网站偏好、正文适配与生效预览', group: '工具与学习',
+        heading: '网站规则', summary: '按网站调整翻译与显示偏好，扩展正文适配，并检查规则为何生效。',
+        kicker: '工具与学习', title: '网站规则', detail: '自动翻译与禁用名单按主域名生效；正文适配可进一步指定路径和内容区域。预览仅检查已保存配置，不访问网站。',
+        searchDescription: '网站、域名、网址、主域名、自动翻译、始终翻译、禁用扩展、子域、网站适配、兼容、隐藏悬浮球、生效预览、规则目录、可视化编辑、导入导出、JSON、自定义规则、正文、保护区域',
+      },
+      {
         id: 'settings-translation-stats', icon: '◔', label: '翻译统计', description: '请求规模、耗时与服务表现', group: '工具与学习',
         heading: '翻译统计', summary: '查看每次翻译请求的规模和耗时，比较各翻译服务的响应速度与稳定性。',
         kicker: '本地工具', title: '翻译统计', detail: '查看翻译请求的规模、耗时分布和各服务的表现。',
@@ -153,12 +159,6 @@ export const navigationGroups = [
   {
     label: '系统与数据',
     items: [
-      {
-        id: 'settings-sites', icon: '站', label: '网站规则', description: '网站偏好、正文适配与生效预览', group: '系统与数据',
-        heading: '网站规则', summary: '按网站调整翻译与显示偏好，扩展正文适配，并检查规则为何生效。',
-        kicker: '系统与数据', title: '网站规则', detail: '自动翻译与禁用名单按主域名生效；正文适配可进一步指定路径和内容区域。预览仅检查已保存配置，不访问网站。',
-        searchDescription: '网站、域名、网址、主域名、自动翻译、始终翻译、禁用扩展、子域、网站适配、兼容、隐藏悬浮球、生效预览、规则目录、可视化编辑、导入导出、JSON、自定义规则、正文、保护区域',
-      },
       {
         id: 'settings-advanced', icon: '◇', label: '高级选项', description: '性能与模板', group: '系统与数据',
         heading: '高级选项', summary: '管理缓存、并发、限流和重试等运行策略。',
