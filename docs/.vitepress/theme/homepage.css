@@ -250,13 +250,13 @@
 }
 .bv-greeting-ar {
   left: 6%;
-  top: 145px;
+  top: 132px;
   --orbit-angle: 4deg;
   animation-delay: -4s;
 }
 .bv-greeting-pt {
-  right: 2%;
-  top: 300px;
+  right: 6%;
+  top: 22px;
   --orbit-angle: -4deg;
   animation-delay: -2s;
 }
@@ -704,54 +704,17 @@
   .bv-orbit-card {
     display: none;
   }
-  .bv-greeting-fr {
-    left: 5%;
-  }
-  .bv-greeting-en {
-    right: 7%;
-  }
-  .bv-greeting-es {
-    left: 6%;
-    top: 390px;
-  }
-  .bv-greeting-ja {
-    right: 5%;
-    top: 410px;
-  }
-  .bv-greeting-zh {
-    left: 18%;
-  }
-  .bv-greeting-ko {
-    left: auto;
-    right: 18%;
-    top: 535px;
-  }
   .bv-site .bv-feature-row {
     gap: 40px;
     grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
   }
 }
-@media (max-width: 760px) {
-  .bv-site .bv-feature-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 28px;
-    padding: 44px 24px;
-    max-width: 640px;
-  }
+@media (max-width: 1100px) {
   .bv-hero {
     padding: 125px 24px 110px;
   }
   .bv-hero {
     min-height: 0;
-  }
-  .bv-hero-brand {
-    min-height: 84px;
-  }
-  .bv-hero-brand h1 {
-    font-size: 42px;
-  }
-  .bv-site .bv-hero-slogan {
-    font-size: 46px;
   }
   .bv-orbit-greeting {
     font-size: 13px;
@@ -762,7 +725,7 @@
     left: 5%;
   }
   .bv-greeting-en {
-    top: 28px;
+    top: 12px;
     right: 8%;
   }
   .bv-greeting-es {
@@ -789,21 +752,38 @@
     font-size: 11px;
   }
   .bv-greeting-de {
-    top: 55px;
+    top: 65px;
     left: 5%;
   }
   .bv-greeting-ru {
-    top: 55px;
+    top: 65px;
     right: 7%;
   }
   .bv-greeting-ar {
-    top: 55px;
+    top: 65px;
     left: 41%;
   }
   .bv-greeting-pt {
     top: auto;
     bottom: 14px;
     right: 18%;
+  }
+}
+@media (max-width: 760px) {
+  .bv-site .bv-feature-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    padding: 44px 24px;
+    max-width: 640px;
+  }
+  .bv-hero-brand {
+    min-height: 84px;
+  }
+  .bv-hero-brand h1 {
+    font-size: 42px;
+  }
+  .bv-site .bv-hero-slogan {
+    font-size: 46px;
   }
 }
 @media (max-width: 640px) {
@@ -910,6 +890,9 @@
   }
   .fd-structure-parts button > span {
     font-size: 14px;
+  }
+  .fd-structure-parts button small {
+    font-size: 9px;
   }
 }
 @media (max-width: 360px) {

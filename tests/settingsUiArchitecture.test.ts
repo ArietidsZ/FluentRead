@@ -597,7 +597,7 @@ describe('options UI composition architecture', () => {
     expect(playerMenu).toContain("!state.available ? 'video.aiUnavailable'")
     const navigation = source('src/features/settings/model/navigation.ts')
     expect(navigation).toContain("description: 'YouTube/X 边看边译'")
-    expect(navigation).toContain('YouTube/X 原生字幕下方显示译文')
+    expect(navigation).toContain('视频与网页会议的双语字幕')
     expect(navigation).toContain('YouTube、X、Twitter、视频字幕、本地 AI、Whisper')
     expect(videoModelSettings).toContain('.capability-warning { margin: 6px 0 0; color: var(--el-color-danger);')
     expect(settingsSections).toContain('VIDEO_SOURCE_LANGUAGE_OPTIONS')
