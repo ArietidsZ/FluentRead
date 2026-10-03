@@ -1,3 +1,5 @@
+import {createVisionProbeHandlers} from '@/src/app/background/handlers/visionProbe';
+import {modelVisionProbe} from '@/src/app/translation/visionProbeRuntime';
 import {runTranslationServiceConnectionTest} from '@/src/providers/translation/connectionTest';
 import {
     applyConfigHistoryAction,
@@ -33,6 +35,8 @@ const UNSUPPORTED_CAPABILITY_MESSAGE = '该功能依赖浏览器扩展权限，u
  * 其余翻译、配置和缓存请求仍复用共享业务实现。
  */
 export function createPlatformMessageHandler(openSettings: () => void) {
+    const visionHandlers = createVisionProbeHandlers({ready: configReady, getConfig: () => config, isSettingsUrl: () => true, resolve: modelVisionProbe.resolve});
+
     const inputBoxTranslationHandler = createInputBoxTranslationHandler({
         ready: configReady,
         getConfig: () => config,
@@ -41,6 +45,11 @@ export function createPlatformMessageHandler(openSettings: () => void) {
 
     return async (message: any): Promise<any> => {
         if (!message || typeof message !== 'object') return UNHANDLED_RUNTIME_MESSAGE;
+        const visionHandler = visionHandlers.find(handler => handler.type === message.type);
+        if (visionHandler) {
+            try { return await visionHandler.handle(message, {}); }
+            catch { return {success: false, error: '识图检测失败，请检查服务配置后重试'}; }
+        }
 
         if (message.type === 'openOptionsPage') {
             openSettings();

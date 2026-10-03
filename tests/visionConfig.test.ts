@@ -52,12 +52,16 @@ describe('vision configuration', () => {
   });
 
   it('accepts supported transports while excluding machine translation', () => {
+    expect(supportsVisionTransport('deepseek', 'deepseek-flash')).toBe(true);
     expect(supportsVisionTransport('openai', 'private-model')).toBe(true);
     expect(supportsVisionTransport('custom:team', 'private-model')).toBe(true);
     expect(supportsVisionTransport('gemini', 'gemini-2.5-flash')).toBe(true);
     expect(supportsVisionTransport('microsoft', 'gpt-4.1')).toBe(false);
     expect(supportsVisionTransport('tongyi', 'qwen3.7-max')).toBe(true);
     expect(supportsVisionTransport('tongyi', 'qwen-mt-plus')).toBe(false);
+    expect(supportsVisionTransport('doubao', 'doubao-seed-translation-250915')).toBe(false);
+    expect(supportsVisionTransport('doubao', 'doubao-seed-1-6-250615')).toBe(true);
+    expect(resolveModelVisionCapability('coze', 'bot-model')).toBe('unsupported');
   });
   it('resolves preferred vision and truthful OCR fallbacks', () => {
     expect(resolveAreaRecognitionRoute({areaRecognitionMode: 'prefer-vision', service: 'openai', model: {openai: 'gpt-4.1'}}).mode).toBe('vision');
@@ -78,7 +82,42 @@ it('preserves intentionally empty prompts and accepts only boolean capability en
   expect(resolveModelVisionCapability(undefined as unknown as string, undefined as unknown as string)).toBe('unknown');
   expect(supportsVisionTransport(undefined as unknown as string)).toBe(false);
   expect(supportsVisionTransport('openai')).toBe(false);
-  expect(supportsVisionTransport('deepseek', 'deepseek-chat')).toBe(false);
+  expect(supportsVisionTransport('deepseek', 'private-model')).toBe(true);
+});
+
+it('automatically routes verified native models to vision and respects explicit text-only settings', () => {
+  const verified = [
+    ['deepseek', 'deepseek-flash'],
+    ['deepseek', 'deepseek-v4-flash'],
+    ['deepseek', 'deepseek-v4-flash-vision-exp'],
+    ['openai', 'gpt-5.4-mini'],
+    ['openai', 'gpt-5.4-nano'],
+    ['openai', 'gpt-6-astra'],
+    ['openai', 'gpt-5.6-sol'],
+    ['openai', 'gpt-5.6-terra'],
+    ['openai', 'gpt-5.5'],
+    ['gemini', 'gemini-3.5-flash-lite'],
+    ['gemini', 'gemini-3.8-flash'],
+    ['claude', 'claude-haiku-4-5'],
+    ['claude', 'claude-fable-5'],
+    ['claude', 'claude-opus-4-8'],
+  ];
+  for (const [service, model] of verified) {
+    expect(resolveModelVisionCapability(service, model)).toBe('supported');
+    expect(resolveAreaRecognitionRoute({service, model: {[service]: model}, areaRecognitionMode: 'prefer-vision'}))
+      .toEqual({service, model, mode: 'vision'});
+    expect(resolveModelVisionCapability(service, model, {[service]: {[model]: false}})).toBe('unsupported');
+  }
+  expect(resolveModelVisionCapability('deepseek', 'deepseek-v4-pro')).toBe('unsupported');
+  expect(resolveModelVisionCapability('freeTranslation', '')).toBe('unsupported');
+  expect(resolveModelVisionCapability('openai', '')).toBe('unknown');
+  expect(resolveModelVisionCapability('deepseek', 'unconfirmed-flash')).toBe('unknown');
+  expect(resolveModelVisionCapability('custom:team', 'deepseek-flash')).toBe('unknown');
+  expect(resolveModelVisionCapability('deepseek', 'private-model', {deepseek: {'private-model': true}})).toBe('supported');
+  expect(resolveModelVisionCapability('deepseek', 'deepseek-v4-pro', {deepseek: {'deepseek-v4-pro': true}})).toBe('supported');
+  expect(resolveAreaRecognitionRoute({service: 'deepseek', areaTranslationService: 'freeTranslation',
+    model: {deepseek: 'deepseek-flash'}, areaRecognitionMode: 'prefer-vision'}))
+    .toMatchObject({service: 'freeTranslation', mode: 'ocr', fallback: 'unsupported'});
 });
 
 it('keeps route selection scoped to the area service and resolves custom model names', () => {

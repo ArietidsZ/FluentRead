@@ -7,6 +7,8 @@
 import {config} from '@/src/services/config/store';
 import {translateWithCache} from '@/src/app/translation/runtime';
 import {resolveAreaRecognitionRoute} from '@/src/core/config/vision';
+import {modelVisionProbe} from '@/src/app/translation/visionProbeRuntime';
+import {prepareModelVisionRoute} from '@/src/services/translation/visionProbe';
 import {createAreaTranslationBackgroundHandlers, createAreaCaptureOwnershipVerifier} from './handlers/areaTranslation';
 import {prepareAreaTextTranslation, prepareAreaVisionRecognition} from '@/src/features/area-translation/services/textTranslation';
 import {areaTranslationOffscreenAdapter} from '@/src/features/area-translation/background/offscreenAdapter';
@@ -20,6 +22,7 @@ export function createAreaTranslationRuntime(assertLanguagesDownloaded: (languag
         assertLanguagesDownloaded,
         translateArea: areaTranslationOffscreenAdapter.translateArea,
         getVisionRoute: () => resolveAreaRecognitionRoute(config),
+        prepareVisionRoute: () => prepareModelVisionRoute(config, modelVisionProbe.resolve),
         prepareVisionTranslation: (language, title) => prepareAreaVisionRecognition(config, language, title,
             areaTranslationOffscreenAdapter.cropArea, translateWithCache),
         prepareTextTranslation: (language, title, context) => prepareAreaTextTranslation(config, language, title,

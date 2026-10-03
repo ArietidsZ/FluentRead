@@ -11,7 +11,7 @@ import {geminiMsgTemplate} from '@/src/services/translation/templates';
 import {customModelString} from "@/src/core/config/catalog";
 import {config} from "@/src/services/config/store";
 import {appendOptionalHeader} from './auth';
-import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
+import {createHttpStatusError, createImageInputHttpError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 import {
     getTranslationProviderConfig,
@@ -58,7 +58,7 @@ async function gemini(message: TranslationProviderRequest<string>) {
         if (!resp.ok) {
             reportTranslationModelUsageFailure(message, undefined, startedAt, model, resp.status);
             attemptReported = true;
-            throw createHttpStatusError(resp, '翻译失败');
+            throw getTranslationImageInput(message) ? await createImageInputHttpError(resp, '翻译失败') : createHttpStatusError(resp, '翻译失败');
         }
         const result = await readJsonResponse<any>(resp, 'Gemini 返回的不是有效 JSON');
         const actualModel = typeof result?.modelVersion === 'string' && result.modelVersion.trim()

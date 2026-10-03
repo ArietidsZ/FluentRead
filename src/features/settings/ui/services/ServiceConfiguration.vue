@@ -365,14 +365,7 @@
               <strong>{{ t('settings.services.visionCapability') }}</strong>
 
             </div>
-            <div class="connection-field-control model-vision-setting">
-              <el-select v-model="visionOverride" data-testid="model-vision-capability" :aria-label="t('settings.services.visionCapability')" :disabled="!supportsVisionTransport(service, effectiveModelLabel)">
-                <el-option value="auto" :label="t('settings.services.visionAuto')" />
-                <el-option value="supported" :label="t('settings.services.visionSupported')" />
-                <el-option value="unsupported" :label="t('settings.services.visionTextOnly')" />
-              </el-select>
-              <small>{{ t(visionCapabilityMessage) }}</small>
-            </div>
+            <ModelVisionSettings :config="config" :service="service" :model="effectiveModelLabel" />
           </div>
 
 
@@ -470,7 +463,7 @@ import FreeTranslationSettings from './FreeTranslationSettings.vue'
 import ApiKeyList from './ApiKeyList.vue'
 import { normalizeApiKeyList, eligibleApiKeyIndexes, summarizeApiKeyChecks, type ApiKeyCheckState, type ApiKeySummary } from './apiKeyTypes'
 import LocalTranslationModelSettings from '../LocalTranslationModelSettings.vue'
-import {resolveModelVisionCapability, supportsVisionTransport} from '@/src/core/config/vision'
+import ModelVisionSettings from './ModelVisionSettings.vue'
 import RequestLimitSettings from './RequestLimitSettings.vue'
 
 const props = defineProps<{
@@ -523,24 +516,6 @@ const effectiveModelLabel = computed(() => resolveConfiguredModel(
   config.value.model[service.value],
   config.value.customModel[service.value],
 ))
-const visionOverride = computed<string>({
-  get: () => typeof config.value.modelVision[service.value]?.[effectiveModelLabel.value] === 'boolean'
-    ? (config.value.modelVision[service.value][effectiveModelLabel.value] ? 'supported' : 'unsupported') : 'auto',
-  set: (value) => {
-    const model = effectiveModelLabel.value
-    if (!model) return
-    const current = {...(config.value.modelVision[service.value] || {})}
-    if (value === 'auto') delete current[model]
-    else current[model] = value === 'supported'
-    if (Object.keys(current).length) config.value.modelVision[service.value] = current
-    else delete config.value.modelVision[service.value]
-  },
-})
-const visionCapabilityMessage = computed(() => {
-  if (!supportsVisionTransport(service.value, effectiveModelLabel.value)) return 'settings.services.visionTransportUnsupported'
-  const capability = resolveModelVisionCapability(service.value, effectiveModelLabel.value, config.value.modelVision)
-  return capability === 'supported' ? 'settings.services.visionConfirmed' : capability === 'unsupported' ? 'settings.services.visionTextOnlyMessage' : 'settings.services.visionUnknown'
-})
 
 const apiKeys = computed(() => {
   const configured = config.value.apiKeys?.[service.value]
