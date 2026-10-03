@@ -169,7 +169,7 @@ const VISIBLE_FIELDS: Record<string, string> = {
     contextMenuEntries: '右键菜单入口', shareCard: '双语卡片',
     contextMenuShowTargetLanguage: '右键菜单显示目标语言', contextMenuShowShortcut: '右键菜单显示快捷键',
     hoverShortcutBeforeDisable: '已保存的悬浮快捷键', selectionTranslatorModeBeforeDisable: '已保存的划词模式',
-    videoLocalModel: '本地语音识别模型',
+    videoLocalModel: '本地语音识别模型', requestHeaderRules: '移除来源请求头',
 };
 // 端点、路由模型与凭据一起选择，防止自动合并把某端的密钥绑定到另一端的新地址。
 const CONNECTION_FIELDS = new Set<string>([

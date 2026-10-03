@@ -10,6 +10,9 @@ describe('Google Drive 完整快照和安全合并', () => {
         expect(diff.changes.map(change=>change.label)).toEqual(['识别全部节点','鼠标悬浮快捷键','输入框翻译提示词','翻译连接与凭据（整组）']);
         expect(diff.changes.at(-1)?.details).toEqual(['settings.cloud.changed.credentials','settings.cloud.changed.requests','settings.cloud.changed.services']);
         expect(JSON.stringify(diff.changes)).not.toMatch(/private|\.invalid/u);
+        const headerRules = buildDriveSyncDiff(null, {requestHeaderRules: []}, {requestHeaderRules: [{domain: 'fixture-private.invalid', removeOrigin: true, removeReferer: false}]});
+        expect(headerRules.changes[0].label).toBe('移除来源请求头');
+        expect(JSON.stringify(headerRules.changes)).not.toContain('fixture-private.invalid');
         const unknown=buildDriveSyncDiff(null,{future:{secret:'private'},toString:'fixture-private'},{future:{secret:'other'},toString:'other-private'});
         expect(unknown.changes[0].label).toBe('私密或自定义设置');
         expect(unknown.changes.every(change=>change.sensitive)).toBe(true);
