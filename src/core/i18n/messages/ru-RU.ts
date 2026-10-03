@@ -18,6 +18,16 @@ import {translationStatsRussianMessages} from './translationStats';
 import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
+    "settings.headers.title": "Удаление заголовков источника",
+    "settings.headers.help": "По умолчанию список пуст. Применяется только к запросам FluentRead к точно указанному домену во всех сервисах. Поддомены добавляются отдельно. Удалите запись или снимите флажок, чтобы восстановить обычное поведение.",
+    "settings.headers.unsupported": "Эта среда не поддерживает эту настройку. Используйте расширение с declarativeNetRequest. Пользовательские скрипты не поддерживаются.",
+    "settings.headers.domain": "Домен сервиса",
+    "settings.headers.add": "Добавить домен",
+    "settings.headers.invalid": "Введите домен без протокола, порта, пути и маски.",
+    "settings.headers.origin": "Удалять Origin",
+    "settings.headers.referer": "Удалять Referer",
+    "settings.headers.remove": "Удалить",
+    "settings.headers.removeDomain": "Удалить правило для {domain}",
     "settings.backup.localTitle": "Локальная резервная копия",
     "settings.backup.fileTitle": "Файл резервной копии",
     "settings.backup.fileDescription": "Файлы резервных копий содержат ключи API и другие личные данные и не зашифрованы. Храните их в безопасном месте и не публикуйте.",

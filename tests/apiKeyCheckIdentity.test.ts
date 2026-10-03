@@ -31,6 +31,7 @@ describe('API key check identity', () => {
 
     it('changes when raw rows or service-bound configuration changes', () => {
         const revision = createApiKeyCheckRevision(source, 'openai');
+        expect(createApiKeyCheckRevision({...source, requestHeaderRules: [{domain: 'api.example.com', removeOrigin: true, removeReferer: false}]}, 'openai')).not.toBe(revision);
         expect(createApiKeyCheckRevision({...source, apiKeys: {openai: ['first', 'second']}}, 'openai')).not.toBe(revision);
         expect(createApiKeyCheckRevision({...source, proxy: {openai: 'https://other.example'}}, 'openai')).not.toBe(revision);
         expect(createApiKeyCheckRevision({...source, customOpenAIProviders: [{id: 'custom:one', name: 'Two', endpoint: 'https://one.example', models: ['m']}]}, 'custom:one'))

@@ -1,6 +1,6 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
- * 文件职责：渲染当前翻译服务的详细连接配置，按常用连接字段、就近的密钥管理和独立折叠的模型偏好、提示词、请求限制、接口兼容显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体和请求头等字段，以及服务和模型的独立请求限制。
+ * 文件职责：渲染当前翻译服务的详细连接配置，按常用连接字段、就近的密钥管理和独立折叠的模型偏好、提示词、请求限制、接口兼容显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体与请求头、按域名移除来源头等字段，以及服务和模型的独立请求限制。
  * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，展示 DeepLX 完整地址与 Token 示例，将成对密钥的 ID 编辑同步到 apiKeys 和兼容 token，管理所有服务可空 Key 发起的连接检查、配置与消息等待超时、Chrome 当前语言对的点击准备及进度，并通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
@@ -397,7 +397,7 @@
 
       </div>
     </details>
-    <details v-if="compute.showDeepseekApiType || (compute.showAI && compute.showProxy) || compute.showCustomBody || Boolean(customProvider)" :key="service + '-custom-request'" id="service-custom-request-settings" class="service-disclosure" data-configuration-group="custom-request">
+    <details v-if="compute.showDeepseekApiType || compute.showAI || compute.showCustomBody || Boolean(customProvider)" :key="service + '-custom-request'" id="service-custom-request-settings" class="service-disclosure" data-configuration-group="custom-request">
       <summary><span class="advanced-summary-copy"><strong>{{ t('settings.organization.compatibility') }}</strong><small>{{ t('settings.organization.compatibilityHelp') }}</small></span><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
       <div class="disclosure-content">
         <div v-if="compute.showDeepseekApiType" class="connection-field"><div class="connection-field-label"><strong>API 格式</strong></div><div class="connection-field-control"><el-select v-model="config.deepseekApiType" aria-label="API 格式" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select><p class="provider-field-help">选择 DeepSeek 接口使用的 API 格式。</p></div></div>
@@ -414,6 +414,8 @@
               <div v-if="!isValidCustomHeaders(config.customHeaders[service])" class="error-text">请输入有效的请求头 JSON 对象，名称和值必须符合 HTTP 格式</div>
             </div>
           </div>
+
+          <RequestHeaderSettings v-if="compute.showAI" :config="config" />
 
           <div v-if="compute.showCustomBody" class="connection-field"><div class="connection-field-label"><strong>自定义请求体</strong></div><div class="connection-field-control"><el-input v-model="config.customBody[service]" type="textarea" :rows="3" aria-label="自定义请求体" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
               <p class="provider-field-help">填写要合并到翻译请求中的 JSON 参数对象。</p><div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div></div></div>
@@ -465,6 +467,7 @@ import { normalizeApiKeyList, eligibleApiKeyIndexes, summarizeApiKeyChecks, type
 import LocalTranslationModelSettings from '../LocalTranslationModelSettings.vue'
 import ModelVisionSettings from './ModelVisionSettings.vue'
 import RequestLimitSettings from './RequestLimitSettings.vue'
+import RequestHeaderSettings from './RequestHeaderSettings.vue'
 
 const props = defineProps<{
   config: Config

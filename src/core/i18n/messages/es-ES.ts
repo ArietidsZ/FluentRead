@@ -18,6 +18,16 @@ import {translationStatsSpanishMessages} from './translationStats';
 import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
+    "settings.headers.title": "Eliminar cabeceras de origen",
+    "settings.headers.help": "La lista está vacía por defecto. Solo se aplica a solicitudes de FluentRead al dominio exacto, en todos los servicios. Los subdominios se añaden por separado. Elimine una entrada o desmarque una cabecera para restaurar el comportamiento predeterminado.",
+    "settings.headers.unsupported": "Este entorno no admite esta opción. Use una extensión con declarativeNetRequest. Los scripts de usuario no son compatibles.",
+    "settings.headers.domain": "Dominio del servicio",
+    "settings.headers.add": "Añadir dominio",
+    "settings.headers.invalid": "Introduzca un dominio sin protocolo, puerto, ruta ni comodines.",
+    "settings.headers.origin": "Eliminar Origin",
+    "settings.headers.referer": "Eliminar Referer",
+    "settings.headers.remove": "Eliminar",
+    "settings.headers.removeDomain": "Eliminar la regla de {domain}",
     "settings.backup.localTitle": "Copia de seguridad local",
     "settings.backup.fileTitle": "Archivo de copia de seguridad",
     "settings.backup.fileDescription": "Los archivos de copia incluyen claves API y otra información privada y no están cifrados. Guárdalos en un lugar seguro y no los compartas públicamente.",

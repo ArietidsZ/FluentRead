@@ -18,6 +18,16 @@ import {translationStatsKoreanMessages} from './translationStats';
 import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
+    "settings.headers.title": "출처 요청 헤더 제거",
+    "settings.headers.help": "기본 목록은 비어 있습니다. 모든 서비스에서 공유되며 FluentRead가 정확히 일치하는 도메인으로 보내는 요청에만 적용됩니다. 하위 도메인은 별도로 추가하세요. 항목을 삭제하거나 체크를 해제하면 기본 동작으로 돌아갑니다.",
+    "settings.headers.unsupported": "이 환경에서는 지원되지 않습니다. declarativeNetRequest를 지원하는 브라우저 확장 프로그램을 사용하세요. 사용자 스크립트는 지원하지 않습니다.",
+    "settings.headers.domain": "서비스 도메인",
+    "settings.headers.add": "도메인 추가",
+    "settings.headers.invalid": "프로토콜, 포트, 경로 또는 와일드카드 없이 도메인을 입력하세요.",
+    "settings.headers.origin": "Origin 제거",
+    "settings.headers.referer": "Referer 제거",
+    "settings.headers.remove": "삭제",
+    "settings.headers.removeDomain": "{domain} 규칙 삭제",
     "settings.backup.localTitle": "로컬 백업",
     "settings.backup.fileTitle": "백업 파일",
     "settings.backup.fileDescription": "백업 파일에는 API 키 등 개인 정보가 포함되며 암호화되지 않습니다. 안전하게 보관하고 공개적으로 공유하지 마세요.",

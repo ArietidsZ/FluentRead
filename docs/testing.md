@@ -753,3 +753,15 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 ## 划词窗口拖动与缩放（issue #525）
 
 `node scripts/run-selection-trigger-test.cjs --geometry-only --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <浏览器测试技能>/scripts/focus-safe-browser.cjs --artifacts-dir /private/tmp/fluentread-selection-geometry` 使用临时 Edge profile 和第二屏后台窗口，检查顶部与内容空白处拖动、八个方向缩放、自动换行、正文选择、复制、滚动后位置保持、最小尺寸和视口边界，以及关闭、禁用、重新划词和迟到译文。截图涵盖放大、窄窗口和深色主题。页面及微软翻译响应为本地夹具，不代表真实供应商质量；窗口手势通过真实 CDP 输入执行。
+
+## 按域名移除来源请求头（issue #763）
+
+```bash
+<bundled-node> scripts/testing/run-request-headers-ui-test.cjs \
+  --extension-dir <task-worktree>/.output/chrome-mv3 \
+  --playwright-root <bundled-node-packages> \
+  --focus-safe-helper <extension-ui-skill>/scripts/focus-safe-browser.cjs \
+  --artifacts-dir /private/tmp/fluentread-763-production-ui
+```
+
+使用临时 Edge profile 与不抢焦点的后台可见窗口。服务器先实际收到扩展 Origin，再验证启用名单后 Origin 消失且鉴权不变，独立 Referer 规则安装、另一域名隔离、网页原有 Origin/Referer 保留、关闭与删除恢复、设置重开与扩展重载后持久化、非法域名阻断和 820px 布局。仅使用本地模拟 OpenAI 服务及虚构凭据，不证明真实网关或 Firefox 运行行为。新配置、DNR 同步和请求等待屏障由 `requestHeaderRules.test.ts` 与 `requestHeaderRuntime.test.ts` 覆盖。
