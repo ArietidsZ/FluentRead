@@ -19,16 +19,17 @@
   </section>
 </template>
 <script setup lang="ts">
-import {ref, watch} from 'vue';
+import {defineAsyncComponent, ref, watch} from 'vue';
 import {ElAlert, ElTooltip} from 'element-plus';
 import 'element-plus/es/components/alert/style/css';
 import 'element-plus/es/components/tooltip/style/css';
 import {Lock} from '@element-plus/icons-vue';
 import {useUiI18n} from '@/src/ui/i18n';
-import GoogleDriveSync from './GoogleDriveSync.vue';
-import WebDavBackup from './WebDavBackup.vue';
 const {t} = useUiI18n();
 const hasExtensionBackground = import.meta.env.BROWSER !== 'userscript';
+// 油猴没有扩展后台，仅保留能力说明，不打包无法使用的云备份事务界面。
+const GoogleDriveSync = hasExtensionBackground ? defineAsyncComponent(() => import('./GoogleDriveSync.vue')) : null;
+const WebDavBackup = hasExtensionBackground ? defineAsyncComponent(() => import('./WebDavBackup.vue')) : null;
 const methods = [{id: 'google-drive', name: 'Google Drive'}, {id: 'webdav', name: 'WebDAV'}] as const;
 const selected = ref<'google-drive' | 'webdav'>('google-drive');
 const busy = ref(false);
