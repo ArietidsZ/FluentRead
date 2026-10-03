@@ -629,6 +629,7 @@ export default defineConfig({
                 'src/features/full-page-translation/progress.ts',
                 'src/features/settings/background/openOptionsHandler.ts',
                 'src/features/settings/model/credentialPreview.ts',
+                'src/features/settings/model/configHistory.ts',
                 'src/features/settings/model/googleDrivePreview.ts',
                 'src/features/settings/model/chromeTranslationPreparation.ts',
                 'src/platform/browser/chromeTranslationPreparationRequest.ts',
