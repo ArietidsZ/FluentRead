@@ -11,7 +11,7 @@ import {method, urls} from "@/src/core/config/constants";
 import {claudeMsgTemplate} from '@/src/services/translation/templates';
 import {config} from "@/src/services/config/store";
 import {appendOptionalHeader} from './auth';
-import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
+import {createHttpStatusError, createImageInputHttpError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 import {
     getTranslationProviderConfig,
@@ -51,7 +51,7 @@ async function claude(message: TranslationProviderRequest<string>) {
         if (!resp.ok) {
             reportTranslationModelUsageFailure(message, undefined, startedAt, configuredModel, resp.status);
             attemptReported = true;
-            throw createHttpStatusError(resp);
+            throw getTranslationImageInput(message) ? await createImageInputHttpError(resp, '请求失败') : createHttpStatusError(resp, '请求失败');
         }
 
         const result = await readJsonResponse<any>(resp, 'Claude 返回的不是有效 JSON');
