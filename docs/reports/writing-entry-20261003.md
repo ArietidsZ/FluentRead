@@ -14,6 +14,7 @@
 - writing.ts、writingRuntime.ts、entrySession.ts 与 entryPlacement.ts 的针对性 V8 statements/branches/functions/lines 覆盖率均为 100%。
 - 类型检查、测试审计、Chrome/Firefox 生产构建、userscript 构建和 verifier、文档构建通过。依赖复用主 checkout 的 node_modules，不是 clean-install 证明。
 - 生产扩展在临时后台 Edge profile 中执行 `entry-menu,compact,bilingual,i18n,presentation` 五个专项：ok=true，16 条组合场景、62 张截图、0 条 pageerror。涵盖快速关闭、跨页同步、最新值保存、三种关闭和恢复、多编辑器、双语插入、译文加载保护、改稿/版本/语言/重试、七种界面语言、深色及 390px 窄屏。
+- 整合 `origin/main` 的 `00973fff` 后，7 文件、107 项针对性测试通过，并重新构建 Chrome/Firefox/userscript。最终生产扩展复跑 `entry-menu,compact` 两个专项通过，证据另存于 `integrated/`；原五专项证据保留。语言资源由合并后的目录重新生成并固定到首次包含这些文件的提交。
 
 | 网站 | 视口宽 | 正文预览高 | 面板高 | 正文比例 |
 | --- | ---: | ---: | ---: | ---: |
