@@ -124,6 +124,7 @@ export function createExtensionManifest(
             'unlimitedStorage',
             'alarms',
             'contextMenus',
+            'declarativeNetRequestWithHostAccess',
             ...(env.browser === 'chrome' ? ['identity'] : []),
             ...(capabilities.offscreenDocument ? ['offscreen'] : []),
         ],

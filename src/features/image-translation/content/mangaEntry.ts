@@ -28,10 +28,10 @@ export function mountMangaEntry(ctx: ContentScriptContext): Promise<void> {
     const request = ++owner;
     const status = reactive<MangaTranslationStatus>({available: false, active: false, pending: false, errors: 0});
     const settings = reactive({promptEnabled: config.imageTranslationMangaPromptEnabled, to: config.to,
-        service: config.imageTranslationService, downloadConfirmed: config.imageTranslationMangaDownloadConfirmed, animations: config.animations});
+        service: config.imageTranslationService, downloadConfirmed: config.imageTranslationMangaDownloadConfirmed, animations: config.animations, prefetchPages: config.imageTranslationMangaPrefetchPages});
     const page = reactive({site: resolveMangaSite(location.href, config.imageTranslationMangaSites)?.name ?? '', route: location.href});
     const sync = () => {Object.assign(settings, {promptEnabled: config.imageTranslationMangaPromptEnabled, to: config.to,
-        service: config.imageTranslationService, downloadConfirmed: config.imageTranslationMangaDownloadConfirmed, animations: config.animations});
+        service: config.imageTranslationService, downloadConfirmed: config.imageTranslationMangaDownloadConfirmed, animations: config.animations, prefetchPages: config.imageTranslationMangaPrefetchPages});
         Object.assign(page, {site: resolveMangaSite(location.href, config.imageTranslationMangaSites)?.name ?? '', route: location.href});};
     const stopStatus = subscribeMangaTranslation(value => Object.assign(status, value));
     const stopConfig = subscribeConfig(sync);
@@ -48,7 +48,10 @@ export function mountMangaEntry(ctx: ContentScriptContext): Promise<void> {
             persist: (patch: Record<string, unknown>) => requestConfigPatch(patch, message => browser.runtime.sendMessage(message)),
             openSettings: () => {void browser.runtime.sendMessage({type: 'openOptionsPage', section: 'settings-image-translation'}).catch(() => undefined);},
         },
-    }).then(value => {if (request !== owner || !config.on || !config.imageTranslationMangaEnabled || !isMangaReaderPage()) {value.remove();remove();return;}ui = value;cleanup = remove;})
+    }).then(value => {if (request !== owner || !config.on || !config.imageTranslationMangaEnabled || !isMangaReaderPage()) {value.remove();remove();return;}
+        // 与译图使用同一根层级，避免被 Pixiv 的 body 堆叠上下文压到译图下方。
+        if (value.shadowHost) document.documentElement.appendChild(value.shadowHost);
+        ui = value;cleanup = remove;})
         .catch(error => {remove();throw error;}).finally(() => {if (request === owner) pending = null;});
     return pending;
 }

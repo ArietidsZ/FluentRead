@@ -1,8 +1,38 @@
 import {describe, expect, it} from 'vitest';
-import {createMangaSiteRule, normalizeMangaSiteRules, resolveMangaSite} from '@/src/core/config/manga';
+import {createMangaSiteRule, normalizeMangaSiteRules, normalizeMangaPrefetchPages, resolveMangaSite} from '@/src/core/config/manga';
+import {isCatalogMangaHost, MANGA_SITE_DOMAINS} from '@/src/core/config/mangaSiteCatalog';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it('提前翻译默认三页，显式零保留，限制窗口并拒绝损坏或旧类型', () => {
+        for (const invalid of [undefined, null, '3', NaN, Infinity, {}, true]) expect(normalizeMangaPrefetchPages(invalid)).toBe(3);
+        for (const [input, output] of [[0,0],[-1,0],[2.9,2],[5,5],[100,5]]) {
+            expect(normalizeMangaPrefetchPages(input)).toBe(output);
+            expect(normalizeConfig({imageTranslationMangaPrefetchPages:input}).imageTranslationMangaPrefetchPages).toBe(output);
+        }
+        expect(normalizeConfig({}).imageTranslationMangaPrefetchPages).toBe(3);
+    });
+    it('网站目录精确匹配含国际化域名；目录表示检测范围，不把首页当成阅读页', () => {
+        expect(new Set(MANGA_SITE_DOMAINS).size).toBe(MANGA_SITE_DOMAINS.length);
+        for (const hostname of MANGA_SITE_DOMAINS) {
+            expect(isCatalogMangaHost(hostname)).toBe(true);
+            expect(isCatalogMangaHost(`reader.${hostname}`)).toBe(true);
+            expect(isCatalogMangaHost(`${hostname}.attacker.test`)).toBe(false);
+            expect(resolveMangaSite(`https://${hostname}/`)).toBeNull();
+            expect(resolveMangaSite(`https://${hostname}/title/123`)).toMatchObject({generic:true});
+        }
+        expect(isCatalogMangaHost('localhost')).toBe(false);
+        expect(isCatalogMangaHost('unrelated.example')).toBe(false);
+    });
+    it('Pixiv 作品 ID 限定正文图，支持语言路径与页码 hash；通用阅读页不需要手动配置', () => {
+        for (const href of ['https://www.pixiv.net/artworks/150354216#1','https://pixiv.net/en/artworks/150354216/']) {
+            const site=resolveMangaSite(href)!;expect(site.name).toBe('Pixiv');
+            expect(site.selector).toContain('/150354216_p');expect(site.selector).not.toContain('img-thumbnail');
+        }
+        for (const href of ['https://pixiv.net/','http://pixiv.net/artworks/1','https://www.pixiv.net/artworks/name','https://pixiv.net.attacker.test/chapter/1']) expect(resolveMangaSite(href)).toBeNull();
+        expect(resolveMangaSite('https://new-manga.example/chapter/123')?.selector).toContain('main img');
+        expect(resolveMangaSite('https://example.com/article/123')).toBeNull();
+    });
     it('旧配置保留普通图片关闭，同时启用漫画提示；永久关闭不会被归一化重开', () => {
         const old = normalizeConfig({});
         expect(old.disableImageTranslator).toBe(true);

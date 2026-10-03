@@ -141,6 +141,7 @@ const VISIBLE_FIELDS: Record<string, string> = {
     imageTranslationMangaPromptEnabled: '进入漫画网站时提示',
     imageTranslationMangaDownloadConfirmed: '已了解漫画资源下载',
     imageTranslationMangaSites: '自定义漫画网站',
+    imageTranslationMangaPrefetchPages: '提前翻译后续页面',
     imageTranslationHoverEnabled: '图片悬浮按钮',
     imageTranslationContextMenuEnabled: '图片右键菜单',
     freeTranslationTimeoutMs: '每路免费翻译超时',

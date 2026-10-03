@@ -1016,6 +1016,13 @@ describe('视频预览不自动显示图片翻译', () => {
         expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({available: false, active: false, pending: false, errors: 0, pageCount: 0}));
         expect(toggleMangaTranslation()).toBe(false); stop();
     });
+    it('漫画未检测到文字时保留原图和说明，不创建空译图也不作为会话失败', async () => {
+        const env=readerPage();client.translate.mockResolvedValueOnce({...result,lines:[]});
+        const listener=vi.fn(),stop=subscribeMangaTranslation(listener);toggleMangaTranslation();await flush();
+        expect(env.bitmap()).toBeNull();expect(env.image.style.opacity).not.toBe('0');
+        expect(env.roots[0].querySelector('.fr-image-status')!.textContent).toContain('未检测到文字，已保留原图');
+        expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({errors:0,completed:1,pending:false}));stop();
+    });
     it('漫画使用独立模型，不准备普通图片语言包，关闭入口后恢复原图', async () => {
         const env = readerPage();
         toggleMangaTranslation(); await flush();

@@ -17,6 +17,15 @@ beforeEach(()=>{vi.useFakeTimers();vi.clearAllMocks();mocks.contexts=[];mocks.ca
 afterEach(()=>{vi.clearAllTimers();vi.useRealTimers();vi.unstubAllGlobals();vi.restoreAllMocks()});
 
 describe('漫画本地神经 OCR 会话',()=>{
+    it('借用已解码图片避免重复获取与解码，推理后只释放自有 Canvas，保留调用方图片',async()=>{
+        const source={naturalWidth:200,naturalHeight:200,src:'data:image/png;base64,source'} as HTMLImageElement;
+        const port=await createBrowserMangaOcr();await port.recognize(source.src,{flatten:true,noCache:true,strategy:'per-box',decodedImage:source});
+        expect(fetch).not.toHaveBeenCalled();expect(createImageBitmap).not.toHaveBeenCalled();expect(mocks.bitmapClose).not.toHaveBeenCalled();
+        expect(mocks.contexts[0].drawImage).toHaveBeenCalledWith(source,0,0);expect(mocks.canvases.every(c=>c.width===0&&c.height===0)).toBe(true);
+        expect(source.src).toBe('data:image/png;base64,source');
+        const runtime=createMangaOcrRuntime(async()=>port);await runtime.recognize(source.src,'en',200,200,undefined,undefined,source);
+        expect(fetch).not.toHaveBeenCalled();await runtime.dispose();
+    });
     it('复用会话串行识别，阅读期间保留会话，空闲三分钟释放，随后重新创建',async()=>{
         const port={recognize:vi.fn(async()=>response),destroy:vi.fn(async()=>{})},create=vi.fn(async()=>port),runtime=createMangaOcrRuntime(create),progress=vi.fn();
         expect(await runtime.recognize('image','en',200,200,undefined,progress)).toHaveLength(1);

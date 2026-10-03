@@ -5,6 +5,11 @@ import {buildDriveSyncDiff, driveSyncPayload, driveValuesEqual, parseDriveSyncPa
 
 function complete(patch: Record<string, unknown> = {}) {return toDriveSyncConfig(normalizeConfig({...new Config(), videoServiceDefaultMigrated: true, ...patch}));}
 describe('Google Drive 完整快照和安全合并', () => {
+    it('提前翻译零页跨设备保留，差异预览使用设置名称', () => {
+        const fixture=complete({imageTranslationMangaPrefetchPages:0});
+        expect(parseDriveSyncPayload(driveSyncPayload(fixture)).imageTranslationMangaPrefetchPages).toBe(0);
+        expect(buildDriveSyncDiff(null,{imageTranslationMangaPrefetchPages:3},fixture).changes).toContainEqual(expect.objectContaining({label:'提前翻译后续页面'}));
+    });
     it('保留全部指定凭据及请求体/URL 鉴权，省略本机统计和迁移状态', () => {
         const fixture = complete({customOpenAIProviders: [{id: 'custom:fixture', name: 'Fixture', endpoint: 'https://fixture.invalid/v1', models: ['fixture-model']}], token: {openai: 'fixture-key'}, customHeaders: {'custom:fixture': '{"Authorization":"fixture-header"}'}, customBody: {openai: '{"auth":"fixture-body"}'}, proxy: {openai: 'https://fixture.invalid/?token=fixture-query'}, extra: {oauth: 'fixture-oauth'}, key: 'fixture-scalar', count: 10});
         expect(fixture).toMatchObject({customOpenAIProviders: [{id: 'custom:fixture', name: 'Fixture', endpoint: 'https://fixture.invalid/v1', models: ['fixture-model']}], token: {openai: 'fixture-key'}, customHeaders: {'custom:fixture': '{"Authorization":"fixture-header"}'}, customBody: {openai: '{"auth":"fixture-body"}'}, proxy: {openai: 'https://fixture.invalid/?token=fixture-query'}, extra: {oauth: 'fixture-oauth'}, key: 'fixture-scalar'});

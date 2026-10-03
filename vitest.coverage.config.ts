@@ -455,6 +455,8 @@ export default defineConfig({
                 'src/features/image-translation/content/mangaReader.ts',
                 'src/features/image-translation/content/mangaEntry.ts',
                 'src/core/config/manga.ts',
+                'src/core/config/mangaSiteCatalog.ts',
+                'src/features/image-translation/background/pixivImageReferrer.ts',
                 'src/core/i18n/messages/manga.ts',
                 'src/features/image-translation/content/mangaSession.ts',
                 'src/features/image-translation/services/mangaRegions.ts',

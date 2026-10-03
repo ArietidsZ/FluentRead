@@ -7,6 +7,11 @@ const item = (text: string, x = 20, y = 20, width = 80, height = 20, confidence 
     ({text, box: {x, y, width, height}, confidence});
 
 describe('漫画整段识别与噪声边界', () => {
+    it('日文页排除绘画上误识别的短拉丁片段，保留日文对白和完整拉丁词', () => {
+        const fragments=[item('A'),item('HU'),item('B ou'),item('Q')];
+        expect(groupMangaText(fragments,'ja',400,400)).toEqual([]);
+        expect(groupMangaText([item('やった'),item('口',220,100,20,20),item('HELLO',100,200)],'jpn',400,400).map(r=>r.text)).toEqual(['やった','口','HELLO']);
+    });
     it('将同一旁白的多行整句合并，旁边和远处的气泡保持独立', () => {
         const result = groupMangaText([item('THIS', 60, 20, 40), item('STORY', 20, 43, 120),
             item('CONTINUES.', 30, 67, 100), item('Another bubble', 180, 44, 100), item('Next panel', 20, 220)], 'en', 400, 500);

@@ -4,7 +4,7 @@ import {parseHTML} from 'linkedom';
 const mocks = vi.hoisted(() => ({
     config: {on: true, disableImageTranslator: true, imageTranslationMangaEnabled: true,
         imageTranslationMangaPromptEnabled: true, imageTranslationMangaDownloadConfirmed: false,
-        imageTranslationMangaSites: [] as unknown[], animations:false, to: 'zh-Hans', imageTranslationService: ''},
+        imageTranslationMangaSites: [] as unknown[], imageTranslationMangaPrefetchPages:3, animations:false, to: 'zh-Hans', imageTranslationService: ''},
     create: vi.fn(), status: vi.fn(), toggle: vi.fn(), subscribe: vi.fn(), persist: vi.fn(), send: vi.fn(),
     stopStatus: vi.fn(), stopConfig: vi.fn(),
 }));
@@ -31,6 +31,11 @@ beforeEach(() => {
 afterEach(() => {unmountMangaEntry();vi.unstubAllGlobals();});
 
 describe('独立漫画入口所有权和配置端口', () => {
+    it('提示与译图在 html 同级，宿主 body 堆叠上下文不遮挡漫画操作', async () => {
+        const shadowHost=document.createElement('div');document.body.append(shadowHost);
+        mocks.create.mockResolvedValueOnce({shadowHost,remove:vi.fn()});await mountMangaEntry({} as never);
+        expect(shadowHost.parentElement).toBe(document.documentElement);
+    });
     it('漫画阅读页不依赖普通图片开关，插件和漫画开关仍然生效', () => {
         expect(isMangaReaderPage()).toBe(true);expect(isImageTranslatorNeeded()).toBe(true);
         mocks.config.imageTranslationMangaEnabled = false;expect(isImageTranslatorNeeded()).toBe(false);
@@ -48,7 +53,8 @@ describe('独立漫画入口所有权和配置端口', () => {
         expect(props().status.pending).toBe(true);expect(props().page.site).toBe('MANGA Plus');
         mocks.config.to = 'en';mocks.config.imageTranslationMangaPromptEnabled = false;
         mocks.config.imageTranslationMangaDownloadConfirmed = true;mocks.config.imageTranslationService = 'google';
-        mocks.subscribe.mock.calls[0][0]();expect(props().settings).toEqual({promptEnabled: false, to: 'en', downloadConfirmed: true, service: 'google', animations:false});
+        mocks.config.imageTranslationMangaPrefetchPages = 0;
+        mocks.subscribe.mock.calls[0][0]();expect(props().settings).toEqual({promptEnabled: false, to: 'en', downloadConfirmed: true, service: 'google', animations:false, prefetchPages:0});
         location.href = 'https://example.com/';document.dispatchEvent(new Event('fluentread-route-change'));
         expect(props().page).toEqual({site: '', route: location.href});
         expect(openMangaEntry()).toBe(true);expect(value.mounted.instance.open).toHaveBeenCalledOnce();

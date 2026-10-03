@@ -766,6 +766,11 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
             },
         });
         if (!requestIsCurrent(state, controller)) return;
+        if (state.manga && result.lines.length === 0 && configurationIdentity(state.manga) === identity) {
+            state.resultIdentity = identity;state.lines = [];
+            setButtonState(state, 'translated', '未检测到文字，已保留原图');
+            return;
+        }
         setButtonState(state, 'loading', '正在生成译图…');
         const translatedImage = await withTimeout(loadImage(result.image, controller.signal), IMAGE_READ_TIMEOUT_MS, '译图加载超时', controller.signal);
         if (!requestIsCurrent(state, controller)) return;
@@ -997,6 +1002,7 @@ export function mountImageTranslator(): void {
     mangaReader = createMangaReader({
         enabled: () => config.on && config.imageTranslationMangaEnabled !== false,
         siteRules: () => config.imageTranslationMangaSites,
+        prefetchPages: () => config.imageTranslationMangaPrefetchPages,
         identity: image => `${sourceIdentity(image)}:${configurationIdentity()}`,
         translate: translateMangaImage,
         restore: restoreMangaImage,

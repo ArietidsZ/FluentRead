@@ -40,11 +40,13 @@ function adjacent(left: MangaRegion, right: MangaRegion): boolean {
 export function groupMangaText(items: MangaOcrItem[], sourceLanguage: string, width: number, height: number): MangaRegion[] {
     if (![width, height].every(value => Number.isSafeInteger(value) && value > 0)) return [];
     const english = /^en(?:-|$)/i.test(sourceLanguage);
+    const japanese = /^(?:ja|jpn)(?:-|$)/i.test(sourceLanguage);
     const lines: MangaRegion[] = items.flatMap(item => {
         const text = item.text.replace(/\s+/gu, ' ').trim();
         const box = item.box;
         if (!Number.isFinite(item.confidence) || item.confidence < 0.65 || !text || !/\p{L}/u.test(text)
             || (english && (!/[a-z]/iu.test(text) || /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/u.test(text)))
+            || (japanese && !/[\u3040-\u30ff\u3400-\u9fff]/u.test(text) && text.replace(/[^a-z]/giu,'').length < 4)
             || ![box.x, box.y, box.width, box.height].every(Number.isFinite) || box.width <= 0 || box.height <= 0) return [];
         const bbox = {x0: Math.max(0, box.x), y0: Math.max(0, box.y),
             x1: Math.min(width, box.x + box.width), y1: Math.min(height, box.y + box.height)};
