@@ -125,6 +125,7 @@ export default defineConfig({
   title: 'FluentRead',
   description: `${brandTaglines['zh-CN']} 一款开源的浏览器双语翻译插件。`,
   lang: 'zh-CN',
+  appearance: false,
   base: '/',
   sitemap: { hostname: 'https://read.thinkstu.com' },
   transformHead({ pageData }) {

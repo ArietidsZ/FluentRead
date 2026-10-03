@@ -4,26 +4,32 @@ import { onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
 export function useDemoPlayback(
   root: Ref<HTMLElement | null>,
   count: number,
-  autoplay = false,
-  delay = 2200
+  autoplay = true,
+  delay: number | readonly number[] = 2200
 ) {
   const step = ref(0)
   const playing = ref(autoplay)
   const reduced = ref(false)
+  const running = ref(false)
   let visible = false
-  let timer: ReturnType<typeof setInterval> | undefined
+  let timer: ReturnType<typeof setTimeout> | undefined
   let observer: IntersectionObserver | undefined
   let preference: MediaQueryList | undefined
   function stopTimer() {
-    if (timer !== undefined) clearInterval(timer)
+    if (timer !== undefined) clearTimeout(timer)
     timer = undefined
   }
   function sync() {
     stopTimer()
-    if (playing.value && !reduced.value && visible && !document.hidden)
-      timer = setInterval(() => {
-        step.value = (step.value + 1) % count
-      }, delay)
+    running.value = playing.value && !reduced.value && visible && !document.hidden
+    if (running.value)
+      timer = setTimeout(
+        () => {
+          step.value = (step.value + 1) % count
+          sync()
+        },
+        typeof delay === 'number' ? delay : delay[step.value]
+      )
   }
   function choose(index: number) {
     playing.value = false
@@ -32,6 +38,7 @@ export function useDemoPlayback(
   function replay() {
     step.value = 0
     playing.value = !reduced.value
+    sync()
   }
   function motion() {
     reduced.value = Boolean(preference?.matches)
@@ -65,5 +72,5 @@ export function useDemoPlayback(
     preference?.removeEventListener('change', motion)
     document.removeEventListener('visibilitychange', sync)
   })
-  return { step, playing, reduced, choose, replay }
+  return { step, playing, running, reduced, choose, replay }
 }
