@@ -384,6 +384,114 @@
       "build": "static",
       "contentWidth": 768,
       "width": 768
+    },
+    {
+      "route": "/",
+      "build": "static-integrated",
+      "width": 768,
+      "contentWidth": 768
+    },
+    {
+      "route": "/guide/document-translation",
+      "build": "static-integrated",
+      "closed": true,
+      "contentWidth": 1280,
+      "visuals": 1,
+      "width": 1280
+    },
+    {
+      "route": "/en/guide/document-translation",
+      "build": "static-integrated",
+      "closed": true,
+      "contentWidth": 1280,
+      "visuals": 1,
+      "width": 1280
+    },
+    {
+      "route": "/guide/deepseek-harness",
+      "build": "static-integrated",
+      "closed": true,
+      "contentWidth": 1280,
+      "visuals": 1,
+      "width": 1280
+    },
+    {
+      "route": "/en/guide/deepseek-harness",
+      "build": "static-integrated",
+      "closed": true,
+      "contentWidth": 1280,
+      "visuals": 1,
+      "width": 1280
+    },
+    {
+      "route": "/guide/features",
+      "build": "static-integrated",
+      "closed": true,
+      "contentWidth": 1280,
+      "visuals": 0,
+      "width": 1280
+    },
+    {
+      "route": "/en/guide/features",
+      "build": "static-integrated",
+      "closed": true,
+      "contentWidth": 1280,
+      "visuals": 0,
+      "width": 1280
+    },
+    {
+      "route": "/",
+      "build": "final",
+      "contentWidth": 320,
+      "width": 320
+    },
+    {
+      "route": "/docs/",
+      "build": "final",
+      "contentWidth": 320,
+      "width": 320
+    },
+    {
+      "route": "/en/",
+      "build": "final",
+      "contentWidth": 320,
+      "width": 320
+    },
+    {
+      "route": "/",
+      "build": "final",
+      "contentWidth": 768,
+      "width": 768
+    },
+    {
+      "route": "/docs/",
+      "build": "final",
+      "contentWidth": 768,
+      "width": 768
+    },
+    {
+      "route": "/en/",
+      "build": "final",
+      "contentWidth": 768,
+      "width": 768
+    },
+    {
+      "route": "/",
+      "build": "final",
+      "contentWidth": 390,
+      "width": 390
+    },
+    {
+      "route": "/docs/",
+      "build": "final",
+      "contentWidth": 390,
+      "width": 390
+    },
+    {
+      "route": "/en/",
+      "build": "final",
+      "contentWidth": 390,
+      "width": 390
     }
   ],
   "interactions": [
@@ -392,7 +500,9 @@
     "Built autoplay observed advancing after resume; pause control stops playback",
     "Built image illustration shows translated poster; legacy deep-link opens folded cross-origin section",
     "Built mobile sidebar opens and closes; local search retrieves image guide and folded-section matches",
-    "Built area walkthrough retains source image and shows recognition + translation below; dark/light theme checked"
+    "Built area walkthrough retains source image and shows recognition + translation below; dark/light theme checked",
+    "Grammar phrase click and ArrowRight change selected phrase and explanation",
+    "Fresh final built page with legacy hash: no console warnings/errors; language link reaches corresponding English guide without invalid Chinese hash"
   ],
   "screenshots": [
     "home-desktop.jpg",
@@ -402,5 +512,25 @@
     "home-english.jpg"
   ],
   "mode": "Codex in-app browser, background tab",
-  "urls": []
+  "urls": [],
+  "notes": [
+    "768px hero glow overflow fixed and rechecked at exact 768px",
+    "Legacy headings now retain 100px scroll margin",
+    "Six overlapping guides integrated with latest main: 08b9498c"
+  ],
+  "consoleErrors": [],
+  "resolvedIssues": [
+    {
+      "issue": "768px glow extended 3px outside viewport",
+      "fixed": "Constrain decorative inset; final 768px content width is 768px"
+    },
+    {
+      "issue": "Legacy heading initially obscured by fixed navigation",
+      "fixed": "100px heading scroll margin"
+    },
+    {
+      "issue": "VitePress locale-link hydration mismatch on direct hash navigation",
+      "fixed": "Custom stable corresponding-page language link; verified fresh-tab logs empty"
+    }
+  ]
 }
