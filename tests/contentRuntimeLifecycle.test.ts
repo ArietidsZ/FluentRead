@@ -1,7 +1,7 @@
 /**
  * @file tests/contentRuntimeLifecycle.test.ts
  * 文件职责：验证内容应用启动、配置等待、页面暂停恢复与离开时的生命周期边界。
- * 主要内容：隔离各 feature 的组合根依赖，确认原始 XML 不会启动运行时，迟到初始化和伪造页面事件不会挂载功能。
+ * 主要内容：隔离各 feature 的组合根依赖，确认原始 XML 与失效上下文不会启动运行时，迟到初始化和伪造页面事件不会挂载功能，扩展端口撤销或拒绝注销也不会中断宿主页面清理。
  * 模块边界：不测试各 feature 的 Vue 组件或真实翻译请求；跨域 frame 的身份与会话另有专门测试。
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
@@ -292,6 +292,52 @@ describe('content composition root 冷启动与暂停恢复', () => {
         const {startContentApp} = await import('@/src/app/content/runtime');
         const starting = startContentApp(context as never); ready(); await starting;
         expect(mocks.installPageStyles).toHaveBeenCalledOnce();
+    });
+
+    it('启动前已经失效的扩展上下文不注册页面生命周期', async () => {
+        context.isInvalid = true;
+        const registerInvalidation = vi.fn();
+        context.onInvalidated = registerInvalidation;
+        const {startContentApp} = await import('@/src/app/content/runtime');
+        ready();
+
+        await startContentApp(context as never);
+
+        expect(registerInvalidation).not.toHaveBeenCalled();
+        expect(mocks.addRuntimeListener).not.toHaveBeenCalled();
+        expect(mocks.installPageStyles).not.toHaveBeenCalled();
+    });
+
+    it('扩展重载移除 runtime 后仍完成监听、页面样式与配置订阅清理', async () => {
+        const unsubscribe = vi.fn();
+        mocks.subscribeConfig.mockReturnValue(unsubscribe);
+        const {startContentApp} = await import('@/src/app/content/runtime');
+        const starting = startContentApp(context as never); ready(); await starting;
+        const listener = mocks.addRuntimeListener.mock.calls[0][0];
+        vi.stubGlobal('browser', {});
+
+        expect(() => invalidated()).not.toThrow();
+
+        expect(mocks.removeRuntimeListener).toHaveBeenCalledWith(listener);
+        expect(mocks.removeStyles).toHaveBeenCalledOnce();
+        expect(mocks.restoreOriginal).toHaveBeenCalledOnce();
+        expect(unsubscribe).toHaveBeenCalledOnce();
+        invalidated();
+        expect(mocks.removeStyles).toHaveBeenCalledOnce();
+    });
+
+    it('失效消息端口拒绝注销时仍清理页面功能和配置订阅', async () => {
+        const unsubscribe = vi.fn();
+        mocks.subscribeConfig.mockReturnValue(unsubscribe);
+        const {startContentApp} = await import('@/src/app/content/runtime');
+        const starting = startContentApp(context as never); ready(); await starting;
+        mocks.removeRuntimeListener.mockImplementationOnce(() => { throw new Error('Extension context invalidated.'); });
+
+        expect(() => invalidated()).not.toThrow();
+
+        expect(mocks.removeStyles).toHaveBeenCalledOnce();
+        expect(mocks.restoreOriginal).toHaveBeenCalledOnce();
+        expect(unsubscribe).toHaveBeenCalledOnce();
     });
 
     it('写作和分享卡片遵循同一启停和 BFCache 恢复生命周期', async () => {
