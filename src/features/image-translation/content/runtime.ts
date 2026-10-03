@@ -4,6 +4,7 @@
  * 主要内容：在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新并复核待显示图片的指针位置，限制像素读取和结果缓存，按图片独立服务及模型变化失效缓存，装配漫画可见页串行调度和原图暂停，换图、取消与卸载时停止旧请求并释放资源。
  * 模块边界：本运行时先读取页面允许访问的 Canvas/CORS 像素，失败时授权后台读取当前任务图片并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
+import type {ImageTranslationStage} from '../progress';
 import { config, subscribeConfig } from '@/src/services/config/store';
 import {watchEffect} from 'vue';
 import {normalizeUiLanguage, translateLegacyText} from '@/src/core/i18n';
@@ -100,8 +101,14 @@ export function toggleMangaTranslation(): boolean {
 }
 
 function publishMangaStatus(status: MangaTranslationStatus): void {
-    mangaStatus = status;
-    mangaListeners.forEach(listener => listener({...status}));
+    mangaStatus = {...status, message: status.pending ? ('message' in status ? status.message : mangaStatus.message) : undefined,
+        progress: status.pending ? ('progress' in status ? status.progress : mangaStatus.progress) : undefined,
+        stage: status.pending ? ('stage' in status ? status.stage : mangaStatus.stage) : undefined};
+    mangaListeners.forEach(listener => listener({...mangaStatus}));
+}
+
+function imageTranslationAllowed(manga: boolean): boolean {
+    return config.on && (manga ? config.imageTranslationMangaEnabled !== false : !config.disableImageTranslator);
 }
 
 /** 原文对照保留当前可见页的已解码结果；离屏和卸载仍由有界缓存/状态释放负责。 */
@@ -398,7 +405,7 @@ function updateOverlayPosition(state: ImageTranslationState): void {
             bottom = Math.min(bottom, clipTop + ancestor.clientHeight * scaleY);
         }
     }
-    const visible = config.on && !config.disableImageTranslator
+    const visible = imageTranslationAllowed(state.manga === true)
         && rect.width >= MIN_IMAGE_WIDTH && rect.height >= MIN_IMAGE_HEIGHT
         && right > left && bottom > top && style.visibility !== 'hidden'
         && style.visibility !== 'collapse' && style.display !== 'none' && opacity > 0;
@@ -451,7 +458,7 @@ function createState(image: HTMLImageElement, hoverEntry = false): ImageTranslat
         translate: (source) => translateLegacyText(source, normalizeUiLanguage(config.uiLanguage)),
         onAction: () => {
             const state = states.get(image);
-            if (!state || !config.on || config.disableImageTranslator) return;
+            if (!state || !imageTranslationAllowed(state.manga === true)) return;
             if (state.phase === 'translated' || state.phase === 'loading') restoreImageTranslation(state);
             else void translateImage(state);
         },
@@ -617,8 +624,9 @@ function loadImage(dataUrl: string, signal: AbortSignal): Promise<HTMLImageEleme
     });
 }
 
-function setButtonState(state: ImageTranslationState, phase: ImageControlPhase, message: string, progress?: number): void {
+function setButtonState(state: ImageTranslationState, phase: ImageControlPhase, message: string, progress?: number, stage?: ImageTranslationStage): void {
     state.phase = phase;
+    if (state.manga && phase === 'loading') publishMangaStatus({...mangaStatus, message, progress, stage});
     state.controls.update(phase, message, {
         prepare: phase === 'error' && state.needsPreparation, animations: config.animations, progress,
     });
@@ -703,7 +711,7 @@ function requestIsCurrent(state: ImageTranslationState, controller: AbortControl
 }
 
 async function translateImage(state: ImageTranslationState, prepareLanguages = false): Promise<void> {
-    if (state.phase === 'loading' || !state.image.isConnected || !config.on || config.disableImageTranslator) return;
+    if (state.phase === 'loading' || !state.image.isConnected || !imageTranslationAllowed(state.manga === true)) return;
     state.hoverEntry = false;
     if (sourceIdentity(state.image) !== state.sourceIdentity || !presentationMatchesSource(state.image, state.presentation)) invalidateSource(state);
     clearHoverTimer(state);
@@ -753,7 +761,8 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
             onProgress: (stage, progress) => {
                 if (!requestIsCurrent(state, controller)) return;
                 setButtonState(state, 'loading', stage === 'preparing' ? '正在准备漫画处理模型…' : stage === 'recognizing' ? '正在识别图片文字…'
-                    : stage === 'translating' ? '正在翻译文字…' : '正在生成译图…', stage === 'recognizing' || stage === 'preparing' ? progress : undefined);
+                    : stage === 'cleaning' ? '正在清除原文…'
+                    : stage === 'translating' ? '正在翻译文字…' : '正在生成译图…', stage === 'recognizing' || stage === 'preparing' || stage === 'cleaning' ? progress : undefined, stage);
             },
         });
         if (!requestIsCurrent(state, controller)) return;
@@ -986,7 +995,8 @@ export function mountImageTranslator(): void {
     mounted = true;
     stopConfigurationWatch = watchTranslationConfiguration();
     mangaReader = createMangaReader({
-        enabled: () => config.on && !config.disableImageTranslator && config.imageTranslationMangaEnabled !== false,
+        enabled: () => config.on && config.imageTranslationMangaEnabled !== false,
+        siteRules: () => config.imageTranslationMangaSites,
         identity: image => `${sourceIdentity(image)}:${configurationIdentity()}`,
         translate: translateMangaImage,
         restore: restoreMangaImage,

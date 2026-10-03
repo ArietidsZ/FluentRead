@@ -17,7 +17,7 @@ export const IMAGE_CONTROLS_CSS = IMAGE_READER_CSS + `
 .fr-image-feedback[hidden],.fr-image-controls [hidden],.fr-image-feedback [hidden] {display:none!important;}
 .fr-image-feedback-title {font-size:14px;line-height:1.4;font-weight:650;}
 .fr-image-status {display:flex;align-items:center;gap:9px;min-width:0;overflow-wrap:anywhere;white-space:normal;}
-.fr-image-spinner {width:12px;height:12px;flex:0 0 auto;box-sizing:border-box;border:1.5px solid #b9aab333;border-top-color:#947985;border-radius:50%;animation:fr-image-spin .75s linear infinite;}
+.fr-image-spinner {width:16px;height:16px;flex:0 0 auto;box-sizing:border-box;border:2px solid #f4c8d5;border-top-color:#dc315f;border-radius:50%;animation:fr-image-spin .75s linear infinite;}
 .fr-image-spinner[data-animated=false] {animation:none;}
 .fr-image-actions {display:flex;align-items:center;flex-wrap:wrap;gap:2px;padding:2px;border:1px solid #ffffff66;border-radius:9px;background:rgba(250,251,253,.62);backdrop-filter:blur(6px);box-shadow:0 1px 5px rgba(27,36,57,.06);}
 .fr-image-controls button,.fr-image-feedback button {all:unset;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:24px;padding:3px 7px;border-radius:6px;cursor:pointer;color:inherit;font:inherit;font-size:11px;font-weight:500;white-space:nowrap;}
@@ -34,7 +34,7 @@ export const IMAGE_CONTROLS_CSS = IMAGE_READER_CSS + `
 .fr-image-controls .fluent-read-image-translation-button::before {content:"";display:block;width:14px;height:14px;flex:0 0 auto;margin-right:5px;background:url("${brandIcon}") center/contain no-repeat;}
 .fr-image-controls[data-phase=idle] .fluent-read-image-translation-button::before {margin-right:0;}
 .fr-image-feedback-title::before {content:"";display:inline-block;width:16px;height:16px;margin-right:6px;vertical-align:-2px;background:url("${brandIcon}") center/contain no-repeat;}
-.fr-image-feedback[data-phase=loading] {padding:6px 9px;border-color:#ffffff66;border-radius:9px;background:rgba(250,251,253,.6);backdrop-filter:blur(5px);box-shadow:0 1px 5px rgba(27,36,57,.06);color:#475569;font-size:11px;opacity:.8;}
+.fr-image-feedback[data-phase=loading] {max-width:calc(100% - 24px);padding:14px 16px;border-color:#e5e8ef;border-radius:12px;background:#fff;box-shadow:0 6px 24px rgba(15,23,42,.22);color:#172033;font-size:14px;opacity:1;pointer-events:auto;}
 .fr-image-feedback[data-phase=loading] .fr-image-status {gap:6px;}
 .fr-image-feedback[data-phase=error] {width:300px;padding:16px;pointer-events:auto;overflow:auto;overscroll-behavior:contain;}
 .fr-image-feedback[data-phase=error] .fr-image-status {color:#536074;}
@@ -154,7 +154,7 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
         element.dataset.animations = String(options.animations !== false);
         prepare.hidden = next !== 'error' || !options.prepare;
         dismiss.hidden = next !== 'error' || options.prepare === true;
-        const feedbackOwnsActions = next === 'error';
+        const feedbackOwnsActions = next === 'error' || next === 'loading';
         const actionsOwner = feedbackOwnsActions ? feedback : element;
         // 进度更新会频繁刷新状态；仅在状态容器变化时移动操作条，避免重挂载打断悬停与焦点。
         if (row.parentElement !== actionsOwner) actionsOwner.append(row);

@@ -42,23 +42,22 @@
     </button>
 
     <button
-      v-if="manga?.available && showTranslateTool"
+      v-if="manga?.available"
       class="floating-ball-tool floating-ball-manga floating-ball-item"
       :class="{'manga-active': manga.active, 'manga-pending': manga.pending}"
       type="button"
-      :aria-label="manga.active ? '查看漫画原图并暂停翻译' : '开启漫画连续翻译'"
+      :aria-label="manga.active ? '查看漫画翻译进度与选项' : '漫画翻译'"
       :aria-pressed="manga.active"
       :aria-busy="manga.pending"
       :title="mangaTitle"
       @pointerdown.stop
       @click.stop="onMangaToggle"
     >
-      <svg class="translation-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="2.5" y="3" width="19" height="18" rx="3" stroke="currentColor" stroke-width="1.7" />
-        <path d="M12 3v18M12 13h9.5M5.5 15l3 3M15.5 17h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-        <path d="M5.5 7h3v3h-1l-1.5 1v-1h-.5V7Zm10 0h3v3h-1l-1.5 1v-1h-.5V7Z" fill="currentColor" />
+      <svg class="manga-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="2.5" stroke="currentColor" stroke-width="1.7" />
+        <path d="M3 14h18m-9 0v7M7 6h10v4h-6l-3 2v-2H7V6Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
-      <span v-if="manga.active && !manga.pending" class="manga-check" :class="{'manga-error': manga.errors > 0}" aria-hidden="true">
+      <span v-if="manga.active && !manga.pending && (manga.errors > 0 || (manga.completed ?? 0) > 0)" class="manga-check" :class="{'manga-error': manga.errors > 0}" aria-hidden="true">
         <svg viewBox="0 0 16 16" fill="none"><path :d="manga.errors ? 'M8 4.5v4.3m0 2.2v.1' : 'm4 8 2.7 2.7L12 5.5'" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
       </span>
       <span v-if="manga.pending" class="manga-progress" aria-hidden="true" />
@@ -107,8 +106,8 @@ import type { FloatingBallPresentation } from '@/src/features/floating-ball/type
 import {resolveFloatingBallCenterY, toFloatingBallVerticalPosition} from '@/src/features/floating-ball/position';
 
 const DRAG_THRESHOLD = 6;
-const BALL_SIZE = 48;
-const COMPACT_BALL_SIZE = 36;
+const BALL_SIZE = 40;
+const COMPACT_BALL_SIZE = 32;
 
 /** 展示契约的保守默认值：与历史外观一致，供未传入配置的挂载方使用。 */
 const DEFAULT_PRESENTATION: FloatingBallPresentation = {
@@ -199,9 +198,7 @@ const showSettingsTool = computed(() => showTranslateTool.value && presentation.
 const isMenuExpanded = computed(() => showTranslateTool.value && (isAlwaysExpanded.value || isExpanded.value || touchExpanded.value));
 const isMainActionable = computed(() => presentation.value.clickAction !== 'none');
 const mangaTitle = computed(() => {
-  if (!props.manga?.active) return '开启漫画连续翻译 · 滚动时自动翻译新页面';
-  if (props.manga.errors) return '漫画翻译已开启 · 部分页面失败，可在图片上重试 · 点击看原图';
-  return props.manga.pending ? '正在翻译漫画 · 点击看原图并暂停' : '漫画翻译已开启 · 点击看原图并暂停';
+  return props.manga?.active ? '查看漫画翻译进度与选项' : '漫画翻译 · 自动翻译新页面';
 });
 const mainActionLabel = computed(() => {
   if (presentation.value.clickAction === 'settings') return '打开 FluentRead 设置';
@@ -500,7 +497,7 @@ watch(() => presentation.value.settingsEntryVisible, () => {
 
 <style scoped>
 .fr-floating-ball {
-  --fr-ball-size: 48px;
+  --fr-ball-size: 40px;
   --fr-ball-tool-size: 40px;
   --fr-ball-icon-size: 18px;
   --fr-ball-mascot-size: 24px;
@@ -521,7 +518,7 @@ watch(() => presentation.value.settingsEntryVisible, () => {
 }
 
 .fr-floating-ball.is-compact {
-  --fr-ball-size: 36px;
+  --fr-ball-size: 32px;
   --fr-ball-tool-size: 32px;
   --fr-ball-icon-size: 15px;
   --fr-ball-mascot-size: 19px;
@@ -569,9 +566,9 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
+  border: 1px solid rgba(217, 222, 231, 0.96);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
   cursor: grab;
   opacity: 1;
   overflow: visible;
@@ -594,8 +591,8 @@ watch(() => presentation.value.settingsEntryVisible, () => {
 .floating-ball-main:hover,
 .floating-ball-main:focus-visible {
   outline: none;
-  border-color: transparent;
-  background: transparent;
+  border-color: rgba(240, 106, 146, 0.7);
+  background: rgba(255, 255, 255, 0.98);
   box-shadow: none;
   filter: drop-shadow(0 8px 12px rgba(240, 106, 146, 0.3));
 }
@@ -653,9 +650,10 @@ watch(() => presentation.value.settingsEntryVisible, () => {
 .manga-check svg { width: 15px; height: 15px; }
 .manga-check.manga-error { background: #b45309; }
 .manga-progress {
-  position: absolute; inset: -6px; border: 3px solid rgba(236,77,125,.18); pointer-events: none;
+  position: absolute; inset: 1px; border: 2px solid rgba(236,77,125,.18); pointer-events: none;
   border-top-color: #ec4d7d; border-right-color: #ec4d7d; border-radius: 50%; animation: fr-manga-spin 1.2s linear infinite;
 }
+.manga-icon {width:22px;height:22px;}
 @keyframes fr-manga-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .manga-progress { animation: none; border-style: dotted; } }
 

@@ -10,6 +10,7 @@ import {
   resolveRequestedSection,
   settingsSearchTargets,
   resolveSettingsPanel,
+  SETTINGS_TABBED_SECTION_IDS,
   settingsPagePanels,
 } from '@/src/features/settings/model/navigation'
 
@@ -49,7 +50,7 @@ describe('options navigation view-model', () => {
       '翻译设置',
       '界面风格',
       '划词翻译',
-      '图片翻译',
+      '图片/漫画翻译',
       '视频字幕翻译',
       '写作助手',
       '翻译中心',
@@ -88,7 +89,10 @@ describe('options navigation view-model', () => {
     expect(resolveRequestedSection('#settings-learning-center')).toBe('settings-vocabulary')
     expect(resolveNavigationItem('missing').id).toBe(DEFAULT_NAVIGATION_SECTION)
     expect(resolveRequestedSection('#settings-area-translation')).toBe('settings-image-translation')
-    expect(resolveSettingsPanel('settings-area-translation')).toBe('area')
+    expect(resolveSettingsPanel('settings-area-translation')).toBe('')
+    expect(SETTINGS_TABBED_SECTION_IDS.has('settings-image-translation')).toBe(false)
+    expect(resolveSettingsPanel('settings-image-translation')).toBe('')
+    expect(resolveSettingsPanel('settings-image-translation', 'entries')).toBe('')
     expect(filterNavigationItems('圈选')).toEqual([expect.objectContaining({id: 'settings-image-translation'})])
     expect(resolveRequestedSection('#settings-video')).toBe('settings-video')
     expect(resolveRequestedSection('settings-sites')).toBe('settings-sites')

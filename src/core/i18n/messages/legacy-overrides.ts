@@ -7,6 +7,7 @@
  * 模块边界：这里只覆盖旧模板的精确源文本；稳定 message key 仍由各 locale 文件维护。
  */
 import type {UiLanguage} from '../types';
+import {mangaLegacyMessages} from './manga';
 
 const providerNames = {
     '微软翻译': 'Microsoft Translator',
@@ -1873,6 +1874,7 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         '信号柱': 'Signal bars',
         '默认关闭；仅在已适配接口生效，无法关闭时使用最低档': 'Off by default. Applies only to supported APIs and uses the lowest level when it cannot be disabled.',
         '当前模型是否启用 Thinking': 'Enable Thinking for the current model',
+        ...mangaLegacyMessages['en-US'],
     },
     'ja-JP': {
         "设置会自动保存，并与写作卡片中的偏好同步。调整这里不会生成正文。": "設定は自動保存され、文章作成カードの設定と同期します。ここで変更しても本文は生成されません。",
@@ -2215,6 +2217,7 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         '流畅阅读文档翻译 · PDF / ePub / HTML / JSON / TXT / DOCX / Markdown / 字幕': 'FluentRead ドキュメント翻訳 · PDF / ePub / HTML / JSON / TXT / DOCX / Markdown / 字幕',
         '默认关闭；仅在已适配接口生效，无法关闭时使用最低档': 'デフォルトではオフです。対応済みの API でのみ有効になり、無効化できない場合は最小レベルを使用します。',
         '当前模型是否启用 Thinking': '現在のモデルで Thinking を有効にする',
+        ...mangaLegacyMessages['ja-JP'],
     },
     'ko-KR': {
         "设置会自动保存，并与写作卡片中的偏好同步。调整这里不会生成正文。": "설정은 자동 저장되어 글쓰기 카드와 동기화됩니다. 여기에서 변경해도 본문은 생성되지 않습니다.",
@@ -2556,6 +2559,7 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         '流畅阅读文档翻译 · PDF / ePub / HTML / JSON / TXT / DOCX / Markdown / 字幕': 'FluentRead 문서 번역 · PDF / ePub / HTML / JSON / TXT / DOCX / Markdown / 자막',
         '默认关闭；仅在已适配接口生效，无法关闭时使用最低档': '기본적으로 꺼져 있습니다. 지원되는 API에서만 적용되며 끌 수 없는 경우 가장 낮은 수준을 사용합니다.',
         '当前模型是否启用 Thinking': '현재 모델에서 Thinking 사용',
+        ...mangaLegacyMessages['ko-KR'],
     },
     'fr-FR': {
         "设置会自动保存，并与写作卡片中的偏好同步。调整这里不会生成正文。": "Les préférences sont enregistrées automatiquement et synchronisées avec la carte de rédaction. Les modifier ici ne génère aucun texte.",
@@ -2902,6 +2906,7 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         '开源项目 ↗': 'Projet open source ↗',
         '默认关闭；仅在已适配接口生效，无法关闭时使用最低档': 'Désactivé par défaut. S’applique uniquement aux API compatibles et utilise le niveau minimal lorsqu’il est impossible de le désactiver.',
         '当前模型是否启用 Thinking': 'Activer Thinking pour le modèle actuel',
+        ...mangaLegacyMessages['fr-FR'],
     },
     'ru-RU': {
         "设置会自动保存，并与写作卡片中的偏好同步。调整这里不会生成正文。": "Настройки сохраняются автоматически и синхронизируются с карточкой письма. Изменения здесь не создают текст.",
@@ -3245,6 +3250,7 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         '开源项目 ↗': 'Проект с открытым исходным кодом ↗',
         '默认关闭；仅在已适配接口生效，无法关闭时使用最低档': 'По умолчанию выключено. Работает только с поддерживаемыми API; если отключение невозможно, используется минимальный уровень.',
         '当前模型是否启用 Thinking': 'Включить Thinking для текущей модели',
+        ...mangaLegacyMessages['ru-RU'],
     },
     'es-ES': {
         "设置会自动保存，并与写作卡片中的偏好同步。调整这里不会生成正文。": "Las preferencias se guardan automáticamente y se sincronizan con la tarjeta de escritura. Los cambios aquí no generan texto.",
@@ -3591,5 +3597,6 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         '开源项目 ↗': 'Proyecto de código abierto ↗',
         '默认关闭；仅在已适配接口生效，无法关闭时使用最低档': 'Desactivado de forma predeterminada. Solo se aplica a las API compatibles y usa el nivel mínimo cuando no se puede desactivar.',
         '当前模型是否启用 Thinking': 'Activar Thinking para el modelo actual',
+        ...mangaLegacyMessages['es-ES'],
     },
 };

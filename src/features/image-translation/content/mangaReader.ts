@@ -1,23 +1,21 @@
 /**
  * @file src/features/image-translation/content/mangaReader.ts
  * 文件职责：把漫画站点的正文图片、可见区域和页面生命周期接入连续翻译会话。
- * 主要内容：精确识别 MANGA Plus 阅读器，观察图片加载、资源替换和视口变化；合并 DOM 扫描，在换章、页面隐藏和卸载时暂停任务并清理监听器。
+ * 主要内容：精确识别 MANGA Plus 和用户添加的阅读页，观察图片加载、资源替换和视口变化；合并 DOM 扫描，在换章、页面隐藏和卸载时暂停任务并清理监听器。
  * 模块边界：只读取站点已展示的 img，不抓取章节、不读取站点私有数据或绕过访问限制；单图翻译、缓存与原图恢复通过注入端口复用既有运行时。
  */
 import {createMangaSession, type MangaTranslationStatus} from './mangaSession';
 import {isImageHoverEligible} from './hoverEligibility';
+import {resolveMangaSite, type MangaSiteRule} from '@/src/core/config/manga';
 
 /** 站点目录只声明已核对的阅读器结构，首页、封面和其他域名不会进入批量翻译。 */
-export function mangaReaderSelector(href: string): string | null {
-    try {
-        const url = new URL(href);
-        return url.protocol === 'https:' && url.hostname === 'mangaplus.shueisha.co.jp'
-            && /^\/viewer\/\d+\/?$/.test(url.pathname) ? '.zao-image-container img.zao-image' : null;
-    } catch { return null; }
+export function mangaReaderSelector(href: string, rules: MangaSiteRule[] = []): string | null {
+    return resolveMangaSite(href, rules)?.selector ?? null;
 }
 
 export function createMangaReader(ports: {
     enabled: () => boolean;
+    siteRules?: () => MangaSiteRule[];
     identity: (image: HTMLImageElement) => string;
     translate: (image: HTMLImageElement) => Promise<void>;
     restore: (image: HTMLImageElement) => void;
@@ -25,10 +23,10 @@ export function createMangaReader(ports: {
     failed: (image: HTMLImageElement) => boolean;
     changed: (status: MangaTranslationStatus) => void;
 }) {
-    const session = createMangaSession(ports);
     let disposed = false;
     let frame: number | null = null;
     const observed = new Set<HTMLImageElement>();
+    const session = createMangaSession({...ports, changed: status => ports.changed({...status, pageCount: observed.size})});
     const intersecting = new Set<HTMLImageElement>();
     let intersection: IntersectionObserver | null = null;
     let mutation: MutationObserver | null = null;
@@ -53,7 +51,7 @@ export function createMangaReader(ports: {
     function refresh(): void {
         if (disposed) return;
         const url = new URL(window.location?.href || 'about:blank');
-        const selector = mangaReaderSelector(url.href);
+        const selector = mangaReaderSelector(url.href, ports.siteRules?.());
         const available = ports.enabled() && selector !== null;
         if (available) observeReader();
         else {
@@ -61,8 +59,12 @@ export function createMangaReader(ports: {
             intersection = null; mutation = null;
             observed.clear(); intersecting.clear();
         }
-        const images = available ? Array.from(document.querySelectorAll<HTMLImageElement>(selector!))
-            .filter(image => !image.closest('[data-fluent-read-ui]')) : [];
+        let images: HTMLImageElement[] = [];
+        if (available) {
+            try { images = Array.from(document.querySelectorAll(selector!))
+                .filter((image): image is HTMLImageElement => image.tagName === 'IMG' && !image.closest('[data-fluent-read-ui]')); }
+            catch { /* 无效用户选择器保持原图，不中断站点或生命周期。 */ }
+        }
         const current = new Set(images);
         observed.forEach(image => {
             if (current.has(image)) return;
@@ -91,7 +93,7 @@ export function createMangaReader(ports: {
 
     function schedule(): void {
         if (disposed || frame !== null) return;
-        if (!session.status().available && !mangaReaderSelector(window.location?.href || 'about:blank')) return;
+        if (!session.status().available && !mangaReaderSelector(window.location?.href || 'about:blank', ports.siteRules?.())) return;
         frame = window.requestAnimationFrame(() => { frame = null; refresh(); });
     }
     document.addEventListener('load', schedule, true);

@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaInpainting.ts
  * 文件职责：用按需加载的本地 LaMa 漫画模型修补复杂背景上的原字形，保留气泡之外和蒙版之外的原始像素。
- * 主要内容：按识别行及其有界描边余量建立局部蒙版，截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；串行推理、取消边界和三十秒空闲释放约束资源。
+ * 主要内容：按识别行及其有界描边余量建立局部蒙版，截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；串行推理、取消边界和三分钟空闲释放约束资源。
  * 模块边界：不读取网页 DOM、不上传图像、不翻译文字；均匀气泡无需加载模型，最后的译文排版由 mangaRendering 处理，模型生成内容始终局限于检测文字蒙版。
  */
 import {configureOnnxWasmBackend} from '@/src/shared/onnx/wasmBinary';
@@ -62,22 +62,25 @@ export function createMangaInpaintingRuntime(create: (signal?: AbortSignal,progr
     function queue<T>(operation:()=>Promise<T>) {const result=tail.then(operation);tail=result.then(()=>undefined,()=>undefined);return result;}
     async function release() {clearTimeout(idle);idle=undefined;const current=service;service=undefined;await current?.release();}
     return {
-        repair(pixels:Uint8ClampedArray,width:number,height:number,regions:MangaRegion[],signal?:AbortSignal,onPreparing?:(percent?:number)=>void) {
+        repair(pixels:Uint8ClampedArray,width:number,height:number,regions:MangaRegion[],signal?:AbortSignal,onPreparing?:(percent?:number)=>void,onRepair?:(done:number,total:number)=>void) {
             return queue(async()=>{
                 assertMangaOcrActive(signal); clearTimeout(idle);
                 try {
                     const result = new Uint8ClampedArray(pixels);
-                    for (const region of regions) {
+                    const pending = regions.filter(region => !mangaRegionBackground(pixels,width,height,region.bbox).uniform);
+                    let completed = 0;
+                    for (const region of pending) {
                         assertMangaOcrActive(signal);
-                        if (mangaRegionBackground(pixels,width,height,region.bbox).uniform) continue;
                         if (!service) {onPreparing?.();service=await create(signal,onPreparing);}
                         assertMangaOcrActive(signal);
+                        onRepair?.(completed,pending.length);
                         const mapping=createMangaPatch(pixels,width,height,region);
                         const output=await service.run(mapping.patch);
                         assertMangaOcrActive(signal);applyMangaPatch(result,width,region,mapping,output);
+                        completed++;onRepair?.(completed,pending.length);
                     }
                     return result;
-                } finally {idle=setTimeout(()=>{void queue(release).catch(()=>undefined);},30000);}
+                } finally {idle=setTimeout(()=>{void queue(release).catch(()=>undefined);},180000);}
             });
         },
         dispose:()=>queue(release),

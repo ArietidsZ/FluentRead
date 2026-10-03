@@ -3,7 +3,7 @@ import {parseHTML} from 'linkedom';
 
 const mocks = vi.hoisted(() => ({
   subscribeMangaTranslation: vi.fn(),
-  toggleMangaTranslation: vi.fn(),
+  openMangaEntry: vi.fn(),
   unsubscribeMangaTranslation: vi.fn(),
   config: {
     disableFloatingBall: false,
@@ -50,7 +50,7 @@ vi.mock('@/src/features/full-page-translation/public', () => ({
   restoreOriginalContent: mocks.restoreOriginalContent,
   subscribeFullPageTranslationProgress: mocks.subscribeFullPageTranslationProgress,
 }));
-vi.mock('@/src/features/image-translation/public', () => ({subscribeMangaTranslation: mocks.subscribeMangaTranslation, toggleMangaTranslation: mocks.toggleMangaTranslation}));
+vi.mock('@/src/features/image-translation/public', () => ({subscribeMangaTranslation: mocks.subscribeMangaTranslation, openMangaEntry: mocks.openMangaEntry}));
 vi.mock('@/src/features/floating-ball/ui/FloatingBall.vue', () => ({default: {name: 'FloatingBall'}}));
 vi.mock('@/src/features/full-page-translation/ui/TranslationProgressPanel.vue', () => ({
   default: {name: 'TranslationProgressPanel'},
@@ -103,7 +103,7 @@ beforeEach(() => {
   });
   for (const mock of [
     mocks.subscribeMangaTranslation,
-    mocks.toggleMangaTranslation,
+    mocks.openMangaEntry,
     mocks.unsubscribeMangaTranslation,
     mocks.createVueShadowUi,
     mocks.requestConfigPatch,
@@ -460,7 +460,7 @@ describe('全文翻译进度面板 content runtime', () => {
     const props = mocks.createVueShadowUi.mock.calls[0][1].props;
     mocks.subscribeMangaTranslation.mock.calls[0][0]({available: true, active: true, pending: true, errors: 0});
     expect(props.manga).toEqual({available: true, active: true, pending: true, errors: 0});
-    props.onMangaToggle({isTrusted: false}); expect(mocks.toggleMangaTranslation).not.toHaveBeenCalled();
-    props.onMangaToggle({isTrusted: true}); expect(mocks.toggleMangaTranslation).toHaveBeenCalledOnce();
+    props.onMangaToggle({isTrusted: false}); expect(mocks.openMangaEntry).not.toHaveBeenCalled();
+    props.onMangaToggle({isTrusted: true}); expect(mocks.openMangaEntry).toHaveBeenCalledOnce();
     runtime.unmountFloatingBall(); expect(mocks.unsubscribeMangaTranslation).toHaveBeenCalledOnce();
  });
