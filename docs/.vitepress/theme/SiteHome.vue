@@ -1,21 +1,37 @@
 <script setup lang="ts">
 import { withBase } from 'vitepress'
-import BrandReader from './BrandReader.vue'
-import GrammarDemo from './GrammarDemo.vue'
-import GuideVisual from './GuideVisual.vue'
+import FeatureDemo from './FeatureDemo.vue'
+import HeroOrbit from './HeroOrbit.vue'
 import BrowserInstall from './BrowserInstall.vue'
-import HelloLanguages from './HelloLanguages.vue'
 import brandTaglines from '../../../src/core/i18n/messages/brand-taglines.json'
 const props = defineProps<{ en?: boolean }>()
 const t = (zh: string, english: string) => (props.en ? english : zh)
 const link = (path: string) => withBase((props.en ? '/en' : '') + path)
-const scenes = [
+const features = [
+  {
+    kind: 'webpage',
+    title: t('网页双语翻译', 'Bilingual webpage translation'),
+    description: t(
+      '保留原文，译文就在下方。文章、资讯和社交动态，对照着读。',
+      'Keep the original with its translation underneath. Read articles, news and social posts side by side.'
+    ),
+    path: '/guide/webpage-translation',
+  },
+  {
+    kind: 'selection',
+    title: t('划词翻译', 'Selection translation'),
+    description: t(
+      '选中一句，看双语卡片；选中一个词，查音标、词性和释义。',
+      'Select a sentence for a bilingual card, or a word for pronunciation, word class and definitions.'
+    ),
+    path: '/guide/deepseek-harness',
+  },
   {
     kind: 'document',
     title: t('文档翻译', 'Document translation'),
     description: t(
-      'PDF、ePub、Word：翻译、校订、下载。',
-      'PDF, ePub, Word: translate, edit, download.'
+      'PDF、ePub、Word，原文译文对照阅读，支持校订与下载。',
+      'Read PDFs, ePub and Word files with parallel translations. Edit and download the result.'
     ),
     path: '/guide/document-translation',
   },
@@ -23,8 +39,8 @@ const scenes = [
     kind: 'image',
     title: t('图片与漫画翻译', 'Image & comic translation'),
     description: t(
-      '识别图片、漫画中的文字，在原图上查看译文。',
-      'Read translated text directly on an image or comic.'
+      '识别图片和漫画里的文字，译文回到原图，接着看下去。',
+      'Recognize text in images and comics, then read the translation on the original image.'
     ),
     path: '/guide/image-translation',
   },
@@ -32,12 +48,12 @@ const scenes = [
     kind: 'video',
     title: t('视频与会议翻译', 'Video & meeting translation'),
     description: t(
-      '观看 YouTube、X 视频，或参加网页会议时，同时看原字幕和译文。',
-      'Read original and translated captions on YouTube, X and web meetings.'
+      '看视频、参加会议，原字幕与译文一起出现。',
+      'Follow videos and meetings with original and translated captions together.'
     ),
     path: '/guide/video-subtitles',
   },
-]
+] as const
 const faqs = [
   [
     t('免费吗？需要注册吗？', 'Is it free? Do I need an account?'),
@@ -80,27 +96,21 @@ const faqs = [
 <template>
   <div class="bv-site product-home">
     <section class="bv-hero" :class="{ 'bv-hero-en': en }" aria-labelledby="fr-title">
+      <HeroOrbit :en="en" />
       <div class="bv-hero-copy">
-        <p class="bv-hero-kicker">
-          {{ t('流畅阅读 · FluentRead', 'FluentRead') }}
+        <div class="bv-hero-brand">
+          <img :src="withBase('/brand-icon.webp')" width="72" height="72" alt="" />
+          <h1 id="fr-title"><span lang="zh-CN">流畅阅读</span><span lang="en">FluentRead</span></h1>
+        </div>
+        <p class="bv-hero-slogan product-tagline">
+          <span>{{ t('让语言更近，', 'Closer languages.') }}</span>
+          <span>{{ t('让世界更大。', 'A bigger world.') }}</span>
         </p>
-        <h1 id="fr-title" class="product-tagline">
-          <span>{{ t('双语翻译，', 'Bilingual translation.') }}</span>
-          <span>{{ t('原文译文一起读。', 'Keep the original.') }}</span>
-        </h1>
         <p class="bv-hero-intro">
           {{
             t(
-              '在原网页同时阅读原文和译文，保留内容与排版。',
-              'Read the original and translation together, right on the webpage.'
-            )
-          }}
-        </p>
-        <p class="bv-hero-formats">
-          {{
-            t(
-              '开源双语翻译 · 支持网页、文档、图片与视频',
-              'Open source · Webpages, documents, images & video'
+              '开源双语翻译插件，读懂你喜欢的内容。',
+              'Open-source bilingual translation for the content you love.'
             )
           }}
         </p>
@@ -108,103 +118,39 @@ const faqs = [
         <p class="bv-install-note">
           {{ t('开源免费 · 无需注册', 'Free & open source · no sign-up') }}
         </p>
-        <HelloLanguages :en="en" />
       </div>
     </section>
     <section
-      id="features"
-      class="bv-section bv-translation-section"
-      aria-labelledby="bv-translation-title"
+      v-for="feature in features"
+      :key="feature.kind"
+      :id="feature.kind === 'webpage' ? 'features' : `feature-${feature.kind}`"
+      class="bv-section bv-feature-row"
+      :class="{ 'bv-translation-section': feature.kind === 'webpage' }"
+      :data-feature="feature.kind"
+      :aria-labelledby="`bv-${feature.kind}-title`"
     >
-      <div class="bv-section-heading">
-        <span class="bv-section-number">{{ t('核心功能', 'CORE FEATURE') }}</span>
-        <h2 id="bv-translation-title">{{ t('网页双语翻译', 'Bilingual webpage translation') }}</h2>
-        <p>
-          {{
-            t(
-              '原文保留，译文紧随其后。无需切换页面，就能对照阅读。',
-              'Keep the original. Read its translation underneath, without leaving the page.'
-            )
-          }}
-        </p>
-      </div>
-      <div class="bv-translation-demo"><BrandReader :en="en" autoplay /></div>
-      <p class="bv-translation-caption">
-        {{
-          t(
-            '网页双语翻译，原文与译文一起看。',
-            'Bilingual webpages. Keep the original alongside the translation.'
-          )
-        }}<a :href="link('/guide/webpage-translation')">{{ t('了解更多', 'Learn more') }} →</a>
-      </p>
-    </section>
-    <section class="bv-section bv-understand" aria-labelledby="bv-selection-title">
-      <div class="bv-section-copy">
-        <span class="bv-section-number">{{ t('遇到不懂的词句', 'WORDS & SENTENCES') }}</span>
-        <h2 id="bv-selection-title">{{ t('划词翻译', 'Selection translation') }}</h2>
-        <p>
-          {{
-            t(
-              '选中词句即可查看译文、查询单词。需要进一步理解时，再查看句子结构与用法。',
-              'Select a word or sentence to translate it or look it up. Explore sentence structure and usage when you need more detail.'
-            )
-          }}
-        </p>
-        <a class="bv-text-link" :href="link('/guide/deepseek-harness')"
-          >{{ t('查看划词翻译指南', 'Read the selection translation guide') }}
-          <span aria-hidden="true">→</span></a
-        ><small>{{
-          t('句子分析需配置模型服务。', 'Sentence analysis requires a configured model provider.')
-        }}</small>
-      </div>
-      <div class="bv-learning-stage">
-        <GuideVisual kind="selection" :en="en" compact />
-        <details class="bv-structure">
-          <summary>
-            {{ t('句子分析：进一步理解结构与用法', 'Sentence structure: explore further') }}
-          </summary>
-          <GrammarDemo :en="en" />
-        </details>
-      </div>
-    </section>
-    <section class="bv-section bv-scenes">
-      <div class="bv-section-heading">
-        <span class="bv-section-number">{{ t('更多功能', 'MORE FEATURES') }}</span>
-        <h2>{{ t('文档、图片与视频翻译', 'Documents, images & video') }}</h2>
-      </div>
-      <div class="bv-scene-grid">
-        <article
-          v-for="scene in scenes"
-          :key="scene.kind"
-          class="bv-scene"
-          :class="{ 'bv-scene-wide': scene.kind === 'video' }"
+      <div class="bv-feature-copy">
+        <h2 :id="`bv-${feature.kind}-title`">{{ feature.title }}</h2>
+        <p>{{ feature.description }}</p>
+        <div
+          v-if="feature.kind === 'video'"
+          class="bv-video-platforms"
+          :aria-label="t('支持的视频与会议平台', 'Supported video and meeting platforms')"
         >
-          <div class="bv-scene-copy">
-            <h3>{{ scene.title }}</h3>
-            <p>{{ scene.description }}</p>
-            <div
-              v-if="scene.kind === 'video'"
-              class="bv-video-platforms"
-              :aria-label="t('支持的视频与会议平台', 'Supported video and meeting platforms')"
-            >
-              <span>YouTube</span><span>X</span><span>Google Meet</span><span>Teams</span
-              ><span>Zoom</span>
-            </div>
-            <small v-if="scene.kind === 'video'" class="bv-video-note">{{
-              t(
-                '会议支持网页版本，需有可读取的字幕。',
-                'Meetings use web clients with readable captions.'
-              )
-            }}</small>
-          </div>
-          <GuideVisual :kind="scene.kind" :en="en" compact />
-          <div class="bv-scene-guide">
-            <a :href="link(scene.path)"
-              >{{ t('查看操作指南', 'Read the guide') }} <span aria-hidden="true">→</span></a
-            >
-          </div>
-        </article>
+          <span>YouTube</span><span>X</span><span>Google Meet</span><span>Teams</span
+          ><span>Zoom</span>
+        </div>
+        <small v-if="feature.kind === 'video'">{{
+          t(
+            '会议支持网页版本，需有可读取的字幕。',
+            'Meetings use web clients with readable captions.'
+          )
+        }}</small>
+        <a class="bv-text-link" :href="link(feature.path)"
+          >{{ t('使用指南', 'Read the guide') }} <span aria-hidden="true">→</span></a
+        >
       </div>
+      <FeatureDemo :kind="feature.kind" :en="en" />
     </section>
     <section class="bv-section bv-faq">
       <div>
