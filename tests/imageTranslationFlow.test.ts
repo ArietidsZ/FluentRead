@@ -6,7 +6,7 @@ import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, normalizeImageProg
 import {createImageControls} from '@/src/features/image-translation/content/controls';
 import {sendCancellableImageOperation, prepareImageOcrLanguages} from '@/src/features/image-translation/services/client';
 import {imageTranslationProgressTransport} from '@/src/features/image-translation/background/offscreenAdapter';
-import {getTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
+import {getTranslationRequestControl, attachTranslationGlossaryContext} from '@/src/services/translation/requestSnapshot';
 import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
 
 // 扩展运行时按需加载界面语言；本文件验证全部语言的文案契约，因此一次注册全部资源包。
@@ -58,6 +58,65 @@ describe('图片翻译流程优化',()=>{
         waits.get('d')!.resolve('丁'); waits.get('b')!.resolve('乙');waits.get('a')!.resolve('甲');
         await expect(pending).resolves.toEqual({success:true,translations:['甲','乙','甲','丙','丁']});
         expect(translateTexts).toHaveBeenCalledTimes(4);
+    });
+    it('图片批译只发送可翻译文字，符号、数字、网址和模型名按原行保留', async () => {
+        const translateTexts = vi.fn(async (request: {origin: string[]}) => request.origin.map(text => `译:${text}`));
+        const {handler} = setup({supportsBatchTranslation: () => true, translateTexts});
+        const texts = ['—', '1', 'docs.sglang.io/cookbook', 'Decisions API', 'SGLang 0.5.21', 'Decisions API', 'Read docs.sglang.io/cookbook'];
+        await expect(handler(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts}))
+            .resolves.toEqual({success: true, translations: ['—', '1', 'docs.sglang.io/cookbook', '译:Decisions API', 'SGLang 0.5.21', '译:Decisions API', '译:Read docs.sglang.io/cookbook']});
+        expect(translateTexts).toHaveBeenCalledOnce();
+        expect(translateTexts.mock.calls[0][0].origin).toEqual(['Decisions API', 'Read docs.sglang.io/cookbook']);
+    });
+    it('只有不可翻译标识时无需请求供应商，重试也保留全部原文', async () => {
+        const {handler, dependencies} = setup();
+        const message = {type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['©', '22%', 'docs.sglang.io/cookbook'], requestId: 'identifiers'};
+        for (let attempt = 0; attempt < 2; attempt++) {
+            await expect(handler(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle(message))
+                .resolves.toEqual({success: true, translations: message.texts});
+        }
+        expect(dependencies.translateTexts).not.toHaveBeenCalled();
+    });
+    it('逐条服务也跳过标识，保留单字、多语正文和重复行的对应位置', async () => {
+        const {handler, dependencies} = setup();
+        const texts = ['©', 'Read docs.sglang.io/cookbook', '1', 'a', '字', 'あ', 'Read docs.sglang.io/cookbook'];
+        await expect(handler(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts}))
+            .resolves.toEqual({success: true, translations: ['©', '译:Read docs.sglang.io/cookbook', '1', '译:a', '译:字', '译:あ', '译:Read docs.sglang.io/cookbook']});
+        expect(dependencies.translateTexts).toHaveBeenCalledTimes(4);
+    });
+    it('明确的固定译名优先于技术标识跳过，其他标识仍保持原文', async () => {
+        const {handler, dependencies} = setup({getGlossaryConfig: () => ({glossaryEnabled: true, from: 'en', to: 'zh-Hans',
+            glossaryLibraries: [{id: 'identifiers', name: '技术标识', enabled: true, sourceLanguage: '', targetLanguage: '', domains: [],
+                entries: [{id: 'url', source: 'docs.sglang.io/cookbook', target: '文档地址', caseSensitive: false}]}],
+        })});
+        const texts = ['docs.sglang.io/cookbook', '22%'];
+        await expect(handler(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts}))
+            .resolves.toEqual({success: true, translations: ['译:docs.sglang.io/cookbook', '22%']});
+        expect(dependencies.translateTexts).toHaveBeenCalledOnce();
+    });
+    it('技术标识的固定译名仍受可信页面和源语言范围限制', async () => {
+        const {handler, dependencies} = setup({getGlossaryConfig: () => ({glossaryEnabled: true, from: 'ja', to: 'zh-Hans',
+            glossaryLibraries: [{id: 'site', name: '文档站', enabled: true, sourceLanguage: 'en', targetLanguage: 'zh-Hans', domains: ['docs.example.com'],
+                entries: [{id: 'url', source: 'docs.sglang.io/cookbook', target: '文档地址', caseSensitive: false}]}],
+        })});
+        const message = {type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['docs.sglang.io/cookbook'], sourceLanguage: 'en', glossaryRevision: 'revision'};
+        await expect(handler(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle(message))
+            .resolves.toEqual({success: true, translations: message.texts});
+        expect(dependencies.translateTexts).not.toHaveBeenCalled();
+        const trusted = attachTranslationGlossaryContext(message, {pageUrl: 'https://docs.example.com/article', context: 'page'});
+        await expect(handler(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle(trusted))
+            .resolves.toEqual({success: true, translations: ['译:docs.sglang.io/cookbook']});
+        expect(dependencies.translateTexts).toHaveBeenCalledOnce();
+    });
+    it('图片读取服务配置时取消同一任务，批量和逐条模式都不得启动翻译', async () => {
+        for (const batch of [true, false]) {
+            let cancel!: () => void;
+            const {handler, dependencies} = setup({supportsBatchTranslation: () => batch, getTranslationService: () => {cancel(); return 'google';}});
+            cancel = () => {void handler(IMAGE_CANCEL_MESSAGE_TYPE).handle({type: IMAGE_CANCEL_MESSAGE_TYPE, requestId: 'config-cancel'});};
+            await expect(handler(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['Hello'], requestId: 'config-cancel'}))
+                .rejects.toMatchObject({name: 'AbortError'});
+            expect(dependencies.translateTexts).not.toHaveBeenCalled();
+        }
     });
     it('失败会取消同批在途请求且不启动余下段落；空白结果也视为失败',async()=>{
         const requests:any[]=[]; const first=deferred<string>();

@@ -67,6 +67,41 @@ afterEach(() => {
 });
 
 describe('谷歌翻译适配器', () => {
+    it('普通参数错误不暂停入口，两个 RPC 均拒绝匿名请求时仍可使用 gtx', async () => {
+        vi.resetModules();
+        const {translateGoogleText: translate} = await import('@/src/providers/translation/google');
+        fetchMock
+            .mockResolvedValueOnce(mockResponse('bad language', {ok: false, status: 400}))
+            .mockResolvedValueOnce(mockResponse(createBatchResponse(['第一段译文'])))
+            .mockResolvedValueOnce(mockResponse(createBatchResponse(['第二段译文'])));
+        await translate('First paragraph', 'en', 'zh-Hans');
+        await translate('Second paragraph', 'en', 'zh-Hans');
+        expect(new URL(String(fetchMock.mock.calls[2][0])).hostname).toBe('translate.google.com');
+        fetchMock.mockReset();
+        fetchMock
+            .mockResolvedValueOnce(mockResponse('["xsrf"]', {ok: false, status: 400}))
+            .mockResolvedValueOnce(mockResponse('["xsrf"]', {ok: false, status: 400}))
+            .mockResolvedValue(mockResponse(createLegacyResponse(['旧版译文'])));
+        await expect(translate('Third paragraph', 'en', 'zh-Hans')).resolves.toBe('旧版译文');
+        await expect(translate('Fourth paragraph', 'en', 'zh-Hans')).resolves.toBe('旧版译文');
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+        expect(new URL(String(fetchMock.mock.calls[3][0])).hostname).toBe('translate.googleapis.com');
+    });
+    it('HTTP 400 的 XSRF 拒绝只冷却该入口，后续段落使用备用入口并在五分钟后恢复探测', async () => {
+        vi.resetModules();
+        vi.useFakeTimers();
+        const {translateGoogleText: translate} = await import('@/src/providers/translation/google');
+        fetchMock
+            .mockResolvedValueOnce(mockResponse(`)]}'\n\n[["er",null,null,null,null,400,null,null,null,3,[{"test":["xsrf","private-token"]}]]]`, {ok: false, status: 400}))
+            .mockResolvedValue(mockResponse(createBatchResponse(['译文'])));
+        await expect(translate('First paragraph', 'en', 'zh-Hans')).resolves.toBe('译文');
+        await expect(translate('Second paragraph', 'en', 'zh-Hans')).resolves.toBe('译文');
+        expect(fetchMock.mock.calls.map(([url]) => new URL(String(url)).hostname))
+            .toEqual(['translate.google.com', 'translate.google.co.uk', 'translate.google.co.uk']);
+        await vi.advanceTimersByTimeAsync(300_000);
+        await expect(translate('Third paragraph', 'en', 'zh-Hans')).resolves.toBe('译文');
+        expect(new URL(String(fetchMock.mock.calls[3][0])).hostname).toBe('translate.google.com');
+    });
     it('优先通过无需 API Key 的主网页 RPC 返回译文', async () => {
         fetchMock.mockResolvedValue(mockResponse(createBatchResponse(['此域名仅用于文档中的示例。'])));
 
