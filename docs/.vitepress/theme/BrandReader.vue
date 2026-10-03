@@ -2,14 +2,13 @@
 import { computed, ref } from 'vue'
 import { withBase } from 'vitepress'
 import { useDemoPlayback } from './useDemoPlayback'
-import DemoPointer from './DemoPointer.vue'
 const props = defineProps<{ en?: boolean; autoplay?: boolean }>()
 const root = ref<HTMLElement | null>(null)
 const { step, playing, running, reduced, replay } = useDemoPlayback(
   root,
   4,
   props.autoplay ?? true,
-  [650, 550, 450, 2300]
+  [350, 350, 550, 3800]
 )
 const t = (zh: string, english: string) => (props.en ? english : zh)
 const translated = computed(() => step.value >= 2)
@@ -25,36 +24,44 @@ const translated = computed(() => step.value >= 2)
   >
     <div class="bv-window">
       <span class="bv-dots" aria-hidden="true"><i></i><i></i><i></i></span
-      ><span>explore / a new perspective</span
+      ><span>{{ t('网页双语翻译 · 示例文章', 'Bilingual webpage · example article') }}</span
       ><img :src="withBase('/brand-icon.webp')" width="28" height="28" alt="FluentRead" />
     </div>
     <div class="bv-reader-toolbar">
       <span>{{ t('英语 → 简体中文', 'Chinese → English') }}</span
-      ><span class="bv-demo-trigger" data-demo-target :class="{ triggered: step === 1 }">
-        {{ t('翻译当前网页', 'Translate this page') }} <span aria-hidden="true">↔</span>
+      ><span class="bv-demo-status" :class="{ complete: step === 3 }">
+        {{
+          step === 0
+            ? t('原文', 'Original')
+            : step === 3
+            ? t('双语对照', 'Bilingual result')
+            : t('正在添加译文…', 'Adding translation…')
+        }}
       </span>
     </div>
     <article class="bv-paper" :class="{ translated, scanning: step === 1 }">
-      <span class="bv-paper-label">FIELD NOTES <span>01</span></span>
-      <h3>{{ t('A new perspective.', '一种新的视角。') }}</h3>
+      <span class="bv-paper-label">{{
+        t('阅读示例 · 原文始终保留', 'Reading example · the original stays')
+      }}</span>
+      <h3>{{ t('The joy of reading.', '阅读的乐趣。') }}</h3>
       <div class="bv-line">
-        <p>{{ t('The world is full of stories.', '世界，充满值得发现的故事。') }}</p>
+        <p>{{ t('Reading opens a window to the world.', '阅读，为我们打开一扇了解世界的窗。') }}</p>
         <p class="bv-line-translation" :aria-hidden="!translated">
-          {{ t('世界，充满值得发现的故事。', 'The world is full of stories.') }}
+          {{ t('阅读，为我们打开一扇了解世界的窗。', 'Reading opens a window to the world.') }}
         </p>
       </div>
       <div class="bv-line">
-        <p>{{ t('Every language opens a new door.', '每一种语言，都打开一扇新的门。') }}</p>
+        <p>{{ t('A good book can take you somewhere new.', '一本好书，能带你发现新的天地。') }}</p>
         <p class="bv-line-translation" :aria-hidden="!translated || step === 2">
-          {{ t('每一种语言，都打开一扇新的门。', 'Every language opens a new door.') }}
+          {{ t('一本好书，能带你发现新的天地。', 'A good book can take you somewhere new.') }}
         </p>
       </div>
       <div class="bv-reading-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-      <span v-if="step === 1" class="bv-scan" aria-hidden="true"></span>
     </article>
-    <DemoPointer :phase="running ? (step === 0 ? 1 : step === 1 ? 2 : 0) : 0" />
     <div class="bv-playback">
-      <small>{{ t('操作示意 · 示例译文', 'Walkthrough · example translations') }}</small>
+      <small>{{
+        t('自动演示 · 译文出现在原文下方', 'Auto demo · translation appears underneath')
+      }}</small>
       <div>
         <button
           v-if="!reduced"
