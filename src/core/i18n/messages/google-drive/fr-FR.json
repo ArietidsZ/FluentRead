@@ -1,5 +1,6 @@
 {
   "messages": {
+    "settings.drive.storageBadge": "Vos réglages dans votre Drive",
     "settings.drive.account": "Compte de cette synchronisation : {email}",
     "settings.drive.differences": "{count} différences. Le contenu privé et personnalisé est masqué.",
     "settings.drive.local": "Appareil : {value}",

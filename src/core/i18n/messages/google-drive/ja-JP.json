@@ -1,5 +1,6 @@
 {
   "messages": {
+    "settings.drive.storageBadge": "設定はあなたのドライブへ",
     "settings.drive.account": "今回の同期アカウント：{email}",
     "settings.drive.differences": "{count} 件の差分。非公開情報とカスタム内容は非表示です。",
     "settings.drive.local": "端末：{value}",
