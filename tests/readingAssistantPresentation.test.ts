@@ -148,12 +148,19 @@ describe('grounded part-of-speech annotations', () => {
     });
     it('keeps unrecognized POS and hostile text as inert data', () => {
         expect(describePartOfSpeech('art.')).toMatchObject({id:'article', label:'冠词'});
+        expect(describePartOfSpeech('r.')).toMatchObject({id:'adverb', label:'副词'});
         expect(describePartOfSpeech('名词')).toMatchObject({id:'noun'});
         expect(describePartOfSpeech('主语')).toMatchObject({id:'other', label:'主语'});
         expect(describePartOfSpeech(null)).toMatchObject({id:'other',label:'其他'});
         const source = '<script>alert(1)</script>';
         const result = anchorSentenceAnalysis(table([[source,'unknown','<img src=x>','text']]), source);
         expect(result?.[0]).toMatchObject({text:source, role:'<img src=x>',part:{id:'other'}});
+    });
+    it.each([
+        ['noun phrase', '名词短语'], ['verb phrase', '动词短语'], ['adjective phrase', '形容词短语'],
+        ['adverb phrase', '副词短语'], ['prepositional phrase', '介词短语'],
+    ])('normalizes phrase label %s without exposing English labels in Chinese UI', (input, label) => {
+        expect(describePartOfSpeech(input).label).toBe(label);
     });
 });
 
