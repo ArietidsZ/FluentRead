@@ -19,8 +19,8 @@
       "pct": 100
     },
     "branches": {
-      "total": 505,
-      "covered": 505,
+      "total": 506,
+      "covered": 506,
       "skipped": 0,
       "pct": 100
     },
@@ -259,8 +259,8 @@
       "pct": 100
     },
     "branches": {
-      "total": 157,
-      "covered": 157,
+      "total": 158,
+      "covered": 158,
       "skipped": 0,
       "pct": 100
     }
