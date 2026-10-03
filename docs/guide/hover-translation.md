@@ -1,6 +1,6 @@
 # 悬浮段落翻译
 
-鼠标停在段落上，按 **Control**。只翻译眼前这一段。
+将鼠标停在段落上，按 **Control** 即可翻译当前段落。
 
 <GuideVisual kind="hover" />
 

@@ -143,6 +143,7 @@ for (const prefix of ['', '/en']) {
   assert(
     home.querySelector('[data-demo="brand-reader"]') &&
       home.querySelector('.fd-sentence-card') &&
+      home.querySelector('.fd-structure-card') &&
       home.querySelector('.fd-word-card'),
     'Homepage must contain readable SSR examples'
   )
@@ -166,12 +167,12 @@ for (const prefix of ['', '/en']) {
     'Primary feature needs a visible bilingual translation heading'
   )
   assert(
-    home.querySelector('.bv-hero h1')?.textContent.includes('流畅阅读') &&
-      home.querySelector('.bv-hero h1')?.textContent.includes('FluentRead') &&
+    home.querySelector('.bv-hero h1')?.textContent.trim() ===
+      (prefix ? 'FluentRead' : '流畅阅读') &&
       home
         .querySelector('.bv-hero-slogan')
         ?.textContent.includes(prefix ? 'Closer languages.' : '让语言更近，'),
-    'The product names and canonical brand slogan must be prominent'
+    'The localized product name and canonical brand slogan must be prominent'
   )
   assert(
     home.querySelector('.bv-home-brand')?.textContent.includes(prefix ? 'FluentRead' : '流畅阅读'),

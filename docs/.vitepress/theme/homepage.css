@@ -1,8 +1,28 @@
 /* 首屏的品牌与口号是主角，背景卡片只是场景提示。动画不改变文档流。 */
+.bv-home-brand img {
+  width: 38px;
+  height: 38px;
+}
+.bv-home-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  line-height: 1.2;
+}
+.bv-home-brand-text strong {
+  font-size: 17px;
+  font-weight: 750;
+}
+.bv-home-brand-text small {
+  font-size: 12px;
+  font-weight: 650;
+}
 .bv-hero {
   position: relative;
   isolation: isolate;
   max-width: 1440px;
+  min-height: 610px;
   margin: auto;
   padding: 65px 24px 90px;
   text-align: center;
@@ -13,35 +33,25 @@
   max-width: 640px;
   margin: auto;
 }
+/* 图标与本地化名称各占一行，保持中心轴一致。 */
 .bv-hero-brand {
   display: flex;
+  flex-direction: column;
+  gap: 16px;
   align-items: center;
   justify-content: center;
-  gap: 22px;
 }
 .bv-hero-brand img {
-  width: 72px;
-  height: 72px;
-  flex-shrink: 0;
+  display: block;
+  flex: none;
 }
 .bv-hero-brand h1 {
   margin: 0;
-  text-align: left;
-  line-height: 1.12;
-  letter-spacing: -0.045em;
-}
-.bv-hero-brand h1 span {
-  display: block;
-}
-.bv-hero-brand h1 [lang='zh-CN'] {
+  text-align: center;
   font-size: 50px;
   font-weight: 800;
-}
-.bv-hero-brand h1 [lang='en'] {
-  font-size: 30px;
-  font-weight: 700;
-  margin-top: 6px;
-  letter-spacing: -0.04em;
+  line-height: 1.15;
+  letter-spacing: -0.045em;
 }
 .bv-site .bv-hero-slogan {
   margin: 36px auto 26px;
@@ -59,11 +69,8 @@
   color: var(--fr-muted);
   line-height: 1.8;
 }
-.bv-hero .bv-install-note {
+.bv-hero-intro > span {
   display: block;
-  margin-top: 16px !important;
-  font-size: 12px;
-  color: var(--fr-muted);
 }
 .bv-hero .bv-install-actions {
   margin-top: 30px;
@@ -228,6 +235,30 @@
   --orbit-angle: -5deg;
   font-size: 14px;
   animation-delay: -6s;
+}
+.bv-greeting-de {
+  left: 24%;
+  top: 22px;
+  --orbit-angle: 4deg;
+  animation-delay: -1s;
+}
+.bv-greeting-ru {
+  right: 31%;
+  top: 18px;
+  --orbit-angle: -4deg;
+  animation-delay: -8s;
+}
+.bv-greeting-ar {
+  left: 6%;
+  top: 132px;
+  --orbit-angle: 4deg;
+  animation-delay: -4s;
+}
+.bv-greeting-pt {
+  right: 6%;
+  top: 22px;
+  --orbit-angle: -4deg;
+  animation-delay: -2s;
 }
 @keyframes bv-orbit-float {
   0%,
@@ -424,6 +455,74 @@
 .fd-card-translation {
   color: var(--vp-c-brand-1);
 }
+.fd-structure-parts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.fd-structure-parts button {
+  min-width: 0;
+  height: 96px;
+  padding: 8px 6px;
+  text-align: left;
+  border: 1px solid transparent;
+  border-bottom: 3px solid var(--part-color);
+  border-radius: 6px 6px 0 0;
+  background: white;
+  color: #29262d;
+  transition: background 0.25s ease, border-color 0.25s ease;
+}
+.fd-part-0 {
+  --part-color: #388b83;
+}
+.fd-part-1 {
+  --part-color: #c64c79;
+}
+.fd-part-2 {
+  --part-color: #5584b8;
+}
+.fd-structure-parts button.fd-part-active {
+  border-color: var(--part-color);
+  background: #f8f8fa;
+}
+.fd-structure-parts button:focus-visible {
+  outline: 2px solid var(--part-color);
+  outline-offset: 3px;
+}
+.fd-structure-parts button > span {
+  display: block;
+  height: 42px;
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 600;
+}
+.fd-structure-parts button small {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.fd-structure-translation {
+  margin-top: 8px !important;
+  font-size: 12px;
+  color: var(--fr-muted);
+}
+.fd-structure-explanation {
+  height: 64px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--fr-line);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.fd-structure-card .fd-card-body {
+  padding: 12px;
+}
+.fd-structure-explanation b {
+  margin-right: 6px;
+}
+.fd-structure-explanation p + p {
+  margin-top: 4px;
+}
 .fd .fd-card-body h3 {
   font-size: 23px;
   line-height: 1.3;
@@ -605,55 +704,17 @@
   .bv-orbit-card {
     display: none;
   }
-  .bv-greeting-fr {
-    left: 5%;
-  }
-  .bv-greeting-en {
-    right: 7%;
-  }
-  .bv-greeting-es {
-    left: 6%;
-    top: 390px;
-  }
-  .bv-greeting-ja {
-    right: 5%;
-    top: 410px;
-  }
-  .bv-greeting-zh {
-    left: 18%;
-  }
-  .bv-greeting-ko {
-    left: auto;
-    right: 18%;
-    top: 535px;
-  }
   .bv-site .bv-feature-row {
     gap: 40px;
     grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
   }
 }
-@media (max-width: 760px) {
-  .bv-site .bv-feature-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 28px;
-    padding: 44px 24px;
-    max-width: 640px;
+@media (max-width: 1100px) {
+  .bv-hero {
+    padding: 125px 24px 110px;
   }
   .bv-hero {
-    padding: 90px 24px 70px;
-  }
-  .bv-hero-brand h1 [lang='zh-CN'] {
-    font-size: 42px;
-  }
-  .bv-hero-brand h1 [lang='en'] {
-    font-size: 27px;
-  }
-  .bv-hero-brand img {
-    width: 64px;
-    height: 64px;
-  }
-  .bv-site .bv-hero-slogan {
-    font-size: 46px;
+    min-height: 0;
   }
   .bv-orbit-greeting {
     font-size: 13px;
@@ -664,12 +725,12 @@
     left: 5%;
   }
   .bv-greeting-en {
-    top: 28px;
+    top: 12px;
     right: 8%;
   }
   .bv-greeting-es {
     top: auto;
-    bottom: 18px;
+    bottom: 60px;
     left: 5%;
   }
   .bv-greeting-zh {
@@ -678,12 +739,51 @@
   }
   .bv-greeting-ja {
     top: auto;
-    bottom: 18px;
+    bottom: 60px;
     right: 4%;
     font-size: 11px;
   }
   .bv-greeting-ko {
-    display: none;
+    display: block;
+    top: auto;
+    bottom: 14px;
+    left: 5%;
+    right: auto;
+    font-size: 11px;
+  }
+  .bv-greeting-de {
+    top: 65px;
+    left: 5%;
+  }
+  .bv-greeting-ru {
+    top: 65px;
+    right: 7%;
+  }
+  .bv-greeting-ar {
+    top: 65px;
+    left: 41%;
+  }
+  .bv-greeting-pt {
+    top: auto;
+    bottom: 14px;
+    right: 18%;
+  }
+}
+@media (max-width: 760px) {
+  .bv-site .bv-feature-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    padding: 44px 24px;
+    max-width: 640px;
+  }
+  .bv-hero-brand {
+    min-height: 84px;
+  }
+  .bv-hero-brand h1 {
+    font-size: 42px;
+  }
+  .bv-site .bv-hero-slogan {
+    font-size: 46px;
   }
 }
 @media (max-width: 640px) {
@@ -697,8 +797,14 @@
     gap: 8px;
   }
   .bv-home-brand img {
-    width: 30px;
-    height: 30px;
+    width: 34px;
+    height: 34px;
+  }
+  .bv-home-brand-text strong {
+    font-size: 14px;
+  }
+  .bv-home-brand-text small {
+    font-size: 10px;
   }
   .bv-home-links {
     gap: 14px;
@@ -712,20 +818,17 @@
     height: 18px;
   }
   .bv-hero {
-    padding: 82px 20px 76px;
-  }
-  .bv-hero-brand {
-    gap: 14px;
+    padding: 125px 20px 110px;
   }
   .bv-hero-brand img {
     width: 56px;
     height: 56px;
   }
-  .bv-hero-brand h1 [lang='zh-CN'] {
-    font-size: 36px;
+  .bv-hero-brand {
+    min-height: 76px;
   }
-  .bv-hero-brand h1 [lang='en'] {
-    font-size: 25px;
+  .bv-hero-brand h1 {
+    font-size: 36px;
   }
   .bv-site .bv-hero-slogan {
     margin: 30px 0 22px;
@@ -784,6 +887,12 @@
   }
   .fd-selection-source {
     font-size: 15px;
+  }
+  .fd-structure-parts button > span {
+    font-size: 14px;
+  }
+  .fd-structure-parts button small {
+    font-size: 9px;
   }
 }
 @media (max-width: 360px) {

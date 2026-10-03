@@ -8,14 +8,44 @@ const props = defineProps<{
 }>()
 const t = (zh: string, english: string) => (props.en ? english : zh)
 const root = ref<HTMLElement | null>(null)
-const { step, playing, running, reduced, replay } = useDemoPlayback(
+const { step, playing, running, reduced, choose, replay } = useDemoPlayback(
   root,
-  6,
+  props.kind === 'selection' ? 9 : 6,
   true,
-  [600, 450, 900, 1600, 1600, 1800]
+  props.kind === 'selection'
+    ? [550, 400, 1400, 1300, 1300, 1300, 650, 1800, 1300]
+    : [600, 450, 900, 1600, 1600, 1800]
 )
 const revealed = computed(() => step.value >= 2)
-const word = computed(() => step.value >= 4)
+const word = computed(() => props.kind === 'selection' && step.value >= 6)
+const structure = computed(() => props.kind === 'selection' && step.value >= 3 && step.value <= 5)
+const activePart = computed(() => Math.min(2, Math.max(0, step.value - 3)))
+const parts = [
+  {
+    text: 'A good book',
+    role: t('主语', 'Subject'),
+    type: t('名词短语', 'Noun phrase'),
+    meaning: t('一本好书', 'a good book'),
+    explanation: t('这句话在说什么？在说“一本好书”。', 'What is the sentence about? A good book.'),
+  },
+  {
+    text: 'opens',
+    role: t('谓语', 'Predicate'),
+    type: t('动词', 'Verb'),
+    meaning: t('打开', 'opens'),
+    explanation: t(
+      '这本书做了什么？为你“打开”新的世界。',
+      'What does the book do? It opens something new.'
+    ),
+  },
+  {
+    text: 'a new world.',
+    role: t('宾语', 'Object'),
+    type: t('名词短语', 'Noun phrase'),
+    meaning: t('一个新世界', 'a new world'),
+    explanation: t('打开什么？“一个新世界”。', 'What does it open? A new world.'),
+  },
+]
 const contexts = {
   webpage: t('阅读一篇英文文章', 'Read an article'),
   selection: t('选中词句，查看卡片', 'Select text, see a card'),
@@ -36,6 +66,7 @@ const contexts = {
     :data-running="running"
     :data-revealed="revealed"
     :data-word="word"
+    :data-structure="structure"
   >
     <div class="fd-header">
       <span class="bv-dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -72,15 +103,14 @@ const contexts = {
       </template>
       <template v-else-if="kind === 'selection'">
         <p class="fd-selection-source">
-          <mark :class="{ selected: step >= 1 && !word }"
-            >Stay <span :class="{ selected: word }">curious</span>. Keep exploring.</mark
-          >
+          <span v-if="word">Stay <mark class="selected">curious</mark>. Keep exploring.</span>
+          <mark v-else :class="{ selected: step >= 1 }">A good book opens a new world.</mark>
         </p>
         <div class="fd-card-stack">
           <section
             class="fd-selection-card fd-sentence-card fd-reveal"
-            :class="{ 'fd-hidden': word }"
-            :aria-hidden="!revealed || word"
+            :class="{ 'fd-hidden': word || structure }"
+            :aria-hidden="!revealed || word || structure"
             :aria-label="t('句子翻译卡片示例', 'Sentence translation card example')"
           >
             <div class="fd-card-bar">
@@ -88,13 +118,51 @@ const contexts = {
               ><span>{{ t('卡片模式', 'Card mode') }}</span>
             </div>
             <div class="fd-study-bar">
-              {{ t('词性与句法 · 用法 · 练习', 'Word classes · Usage · Practice') }}
+              {{ t('词性与句法 · 用法 · 练习', 'Sentence structure · Usage · Practice') }}
             </div>
             <div class="fd-card-body">
               <small>{{ t('原文', 'Original') }}</small>
-              <p>Stay curious. Keep exploring.</p>
+              <p>A good book opens a new world.</p>
               <small>{{ t('译文', 'Translation') }}</small>
-              <p class="fd-card-translation">保持好奇，继续探索。</p>
+              <p class="fd-card-translation">一本好书为你打开一个新世界。</p>
+            </div>
+          </section>
+          <section
+            class="fd-selection-card fd-structure-card"
+            :class="{ 'fd-hidden': !structure }"
+            :aria-hidden="!structure"
+            :aria-label="t('句子结构卡片示例', 'Sentence structure card example')"
+          >
+            <div class="fd-card-bar">
+              <strong>{{ t('词性与句法', 'Sentence structure') }}</strong>
+              <span>{{ t('卡片模式', 'Card mode') }}</span>
+            </div>
+            <div class="fd-card-body">
+              <div
+                class="fd-structure-parts"
+                :aria-label="t('句子的三个部分', 'Three sentence parts')"
+              >
+                <button
+                  v-for="(part, index) in parts"
+                  :key="part.role"
+                  type="button"
+                  :class="[`fd-part-${index}`, { 'fd-part-active': activePart === index }]"
+                  :aria-pressed="activePart === index"
+                  :tabindex="structure ? 0 : -1"
+                  @click="choose(3 + index)"
+                >
+                  <span>{{ part.text }}</span>
+                  <small>{{ part.role }}</small>
+                  <small>{{ part.type }}</small>
+                </button>
+              </div>
+              <p class="fd-structure-translation">一本好书为你打开一个新世界。</p>
+              <div class="fd-structure-explanation" aria-live="polite">
+                <p>
+                  <b>{{ parts[activePart].text }}</b> {{ parts[activePart].meaning }}
+                </p>
+                <p>{{ parts[activePart].explanation }}</p>
+              </div>
             </div>
           </section>
           <section

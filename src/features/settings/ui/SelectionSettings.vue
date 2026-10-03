@@ -7,7 +7,7 @@
 <template>
   <div class="selection-settings">
     <SettingsGroup>
-      <FeatureEnableCard v-model="enabled" title="启用划词翻译" description="选中文字，在原文旁查看译文。需要深入理解时，再切换到卡片。" />
+      <FeatureEnableCard v-model="enabled" title="启用划词翻译" description="选中文字后查看译文，也可切换卡片模式查词或学习句子。" />
       <div class="selection-setup">
         <div class="selection-choices">
           <h2>选择默认呈现</h2>

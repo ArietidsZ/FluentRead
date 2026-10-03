@@ -68,26 +68,26 @@ export const navigationGroups = [
     items: [
       {
         id: 'settings-general', icon: '⌂', label: '通用设置', description: '日常翻译、网页辅助与基本偏好', group: '基础配置',
-        heading: '通用设置', summary: '设置日常翻译的默认服务、目标语言和模式，再调整网页辅助与基本偏好。',
-        kicker: '基础配置', title: '通用设置', detail: '设置日常翻译的默认服务、目标语言和模式，再调整网页辅助与基本偏好。',
+        heading: '通用设置', summary: '设置默认翻译服务、目标语言、显示模式和网页阅读偏好。',
+        kicker: '基础配置', title: '通用设置', detail: '设置默认翻译服务、目标语言、显示模式和网页阅读偏好。',
         searchDescription: '日常翻译、选择翻译服务、默认服务、配置服务、译文显示、译文外观、翻译模式、网页辅助、AI 精翻、AI 智能上下文、默认目标语言、基本偏好、插件状态、界面语言、主题',
       },
       {
         id: 'settings-services', icon: '译', label: '翻译服务', description: '服务与模型', group: '基础配置',
-        heading: '配置翻译服务与模型', summary: '按机器翻译、云服务厂商、模型服务商和聚合平台分类，配置各服务的模型、连接参数与凭据。',
+        heading: '配置翻译服务与模型', summary: '选择翻译服务，配置所需的模型、连接地址和凭据。',
         kicker: '基础配置', title: '翻译服务', detail: '配置可用的翻译服务、模型、连接和凭据。',
         searchDescription: '机器翻译、云服务厂商、谷歌云、Azure、阿里云、腾讯云、百度、火山引擎、Ollama、模型服务商、聚合平台、OpenAI、DeepSeek、硅基流动、OpenRouter、模型与令牌',
       },
       {
         id: 'settings-translation', icon: '译', label: '翻译设置', description: '阅读辅助、悬浮、输入框与全文', group: '基础配置',
-        heading: '翻译设置', summary: '先设置阅读辅助，再管理鼠标悬浮、输入框和全文翻译。',
+        heading: '翻译设置', summary: '设置双语阅读辅助，以及悬浮、输入框和全文翻译的触发方式。',
         kicker: '基础配置', title: '翻译设置', detail: '设置双语阅读辅助和鼠标悬浮、输入框与全文翻译的触发方式。',
         searchDescription: '阅读辅助、双语逐句高亮、原文译文对应、不翻译的语言、跳过语言、排除语言、简体中文、繁体中文、鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度',
       },
       {
         id: 'settings-interface', icon: '▦', label: '界面风格', description: '译文样式、界面与弹窗、动画与加载、菜单栏布局', group: '基础配置',
-        heading: '界面风格', summary: '调整网页译文的样式与颜色，选择喜欢的界面风格和动画加载效果，并编排菜单栏中的模块和快捷功能。',
-        kicker: '基础配置', title: '界面风格', detail: '调整网页译文的样式与颜色，选择喜欢的界面风格和动画加载效果，并编排菜单栏中的模块和快捷功能。',
+        heading: '界面风格', summary: '调整译文样式、界面风格、动画与加载效果，以及插件菜单的布局。',
+        kicker: '基础配置', title: '界面风格', detail: '调整译文样式、界面风格、动画与加载效果，以及插件菜单的布局。',
         searchDescription: '译文样式、双语样式、译文颜色、字体颜色、下划线颜色、划线颜色、线条颜色、标记底色、译文字号、译文字重、译文字体、不透明度、逐句高亮样式、高亮颜色、柔光粉、薄荷清风、晴空蓝、细线聚焦、暖光琥珀、雾紫柔光、石墨轻衬、点线引导、模糊遮罩、双下划线、侧边色条、界面设置、界面与弹窗、动画与加载效果、界面动画、翻译加载样式、简洁、柔和圆环、跳跃圆点、行星轨道、星光、涟漪扩散、起伏波形、光线扫过、流沙沙漏、小彗星、翻转方块、弹跳小球、打字光标、扫描线、信号柱、弹窗风格、默认风格、简约风格、紧凑风格、高对比、奶酪、海盐、抹茶、樱花、夜幕、纸张护眼、Emoji、菜单栏布局、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏',
       },
     ],
@@ -97,7 +97,7 @@ export const navigationGroups = [
     items: [
       {
         id: 'settings-selection', icon: '文', label: '划词翻译', description: '普通翻译与学习卡片', group: '专项翻译',
-        heading: '划词翻译', summary: '选中文字即看译文，也能通过卡片查词、理解词性和句法。',
+        heading: '划词翻译', summary: '选中文字查看译文，用卡片查词或理解句子结构。',
         kicker: '专项翻译', title: '划词翻译', detail: '统一管理划词的触发、呈现与学习偏好。',
         searchDescription: '划词翻译、普通翻译、卡片模式、词性、句法、冠词、名词、触发、朗读、翻译卡片、阅读卡、Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关',
       },
@@ -109,8 +109,8 @@ export const navigationGroups = [
       },
       {
         id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube/X 边看边译', group: '专项翻译',
-        heading: '视频字幕翻译', summary: '在 YouTube/X 原生字幕下方显示译文，X 无字幕时可用本地 AI 生成，并独立选择视频翻译服务。',
-        kicker: '专项翻译', title: '视频字幕翻译', detail: '设置 YouTube/X 字幕翻译服务、显示方式和字号。',
+        heading: '视频字幕翻译', summary: '设置视频与网页会议的双语字幕、翻译服务和显示样式。',
+        kicker: '专项翻译', title: '视频字幕翻译', detail: '选择字幕翻译服务，调整字幕显示方式与字号。',
         searchDescription: 'YouTube、X、Twitter、视频字幕、本地 AI、Whisper、视频翻译服务、显示模式、字幕字号、DeepLX、微软翻译',
       },
     ],
@@ -126,13 +126,13 @@ export const navigationGroups = [
       },
       {
         id: 'settings-translation-center', icon: '译', label: '翻译中心', description: '多服务对比', group: '工具与学习',
-        heading: '比较不同翻译服务', summary: '输入一句话，同时查看多个翻译服务的结果，并支持重复翻译。',
+        heading: '比较不同翻译服务', summary: '输入相同文本，对比不同翻译服务的结果，也可重新翻译。',
         kicker: '翻译工具', title: '翻译中心', detail: '用同一句话比较不同服务的译文表现。',
         searchDescription: '多服务翻译、翻译对比、重复翻译、句子翻译',
       },
       {
         id: 'settings-vocabulary', icon: '★', label: '学习中心', description: '收藏、复习与阅读记录', group: '工具与学习',
-        heading: '学习中心', summary: '从收藏原句理解表达，练习自己的用法，再通过复习巩固。',
+        heading: '学习中心', summary: '结合收藏的原句理解词语和表达，通过练习与复习巩固所学。',
         kicker: '本地学习', title: '学习中心', detail: '收藏内容长期保留，阅读问答保留 30 天；所有学习数据只保存在当前浏览器。',
         searchDescription: '学习中心、单词本、收藏、词汇、句子、学习用法、造句、原句、复习、阅读记录、问答、30 天、Anki、导入导出',
       },
@@ -173,7 +173,7 @@ export const navigationGroups = [
       },
       {
         id: 'settings-about', icon: 'i', label: '关于流畅阅读', description: '版本与项目', group: '系统与数据',
-        heading: '关于流畅阅读', summary: '了解插件版本、核心体验与项目入口。',
+        heading: '关于流畅阅读', summary: '查看插件版本、项目主页和反馈渠道。',
         kicker: '关于项目', title: '关于流畅阅读', detail: brandTaglines['zh-CN'],
         searchDescription: '版本、开源项目、使用文档与问题反馈',
       },
