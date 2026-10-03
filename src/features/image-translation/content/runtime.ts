@@ -228,12 +228,12 @@ function ensureImageOverlayRoot(): HTMLDivElement {
     host.style.cssText = [
         'all: initial !important', 'position: fixed !important', 'inset: 0 !important',
         'width: 100vw !important', 'height: 100vh !important',
-        'pointer-events: none !important', 'z-index: 2147483646 !important',
+        'pointer-events: none !important', 'z-index: 2147483645 !important',
     ].join(';');
     const shadow = host.attachShadow({ mode: 'closed' });
     const style = document.createElement('style');
     style.textContent = `
-      :host { all: initial; position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 2147483646; }
+      :host { all: initial; position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 2147483645; }
       .${IMAGE_TRANSLATION_OVERLAY} { position: fixed !important; overflow: hidden !important; pointer-events: none !important; box-sizing: border-box !important; }
       .fluent-read-image-translation-bitmap { position: absolute !important; inset: 0 !important; display: block !important; box-sizing: border-box !important; width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; pointer-events: none !important; }
       ${IMAGE_CONTROLS_CSS}

@@ -230,7 +230,16 @@ async function patch(config) {
     await toolScreenshot('active');assert.ok(report.buttonStates.active.badge>=19);
     if(!liveSite){assert.ok((await ops())<=2,'Only the visible page and its canceled preparation/retry run');
         assert.equal(await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-overlay').length`),1);}
-    report.firstOperationCount=await ops();await screenshot('01-translated');report.cases.push(report.currentCase);
+    report.firstOperationCount=await ops();report.cases.push(report.currentCase);
+    if(!baseline){
+        report.currentCase='translated bitmap never covers expanded manga progress or options';
+        const spot=await mangaEntry('const r=this.querySelector(".fr-manga-entry").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}');
+        await page.mouse.move(spot.x,spot.y);await wait(async()=>await mangaEntry('return !!this.querySelector("header")'));
+        assert.equal(await mangaEntry('const r=this.querySelector(".fr-manga-entry").getBoundingClientRect();return document.elementFromPoint(r.left+20,r.top+r.height/2)?.id === "fluent-read-manga-entry-container"'),true);
+        await screenshot('reading-panel-above-bitmap');report.cases.push(report.currentCase);
+        await page.mouse.move(30,30);await wait(async()=>await mangaEntry('return !!this.querySelector(".compact")'));
+    }
+    await screenshot('01-translated');
     report.currentCase='original pauses and repeated toggles reuse visible results';
     await toggle();await wait(async()=>(await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`))===0);
     assert.deepEqual(await source.evaluate(i=>({src:i.src,srcset:i.getAttribute('srcset'),sizes:i.getAttribute('sizes'),style:i.getAttribute('style')})),original);
