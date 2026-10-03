@@ -22,12 +22,18 @@ const preloadModels = arg('preload-models-dir',null);
 const baseline = process.argv.includes('--baseline');
 const readingPauseMs=Number(arg('reading-pause-ms','0'));
 const skipFirstCancel=process.argv.includes('--skip-first-cancel');
-const targetUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050';
+const readAheadTest=process.argv.includes('--prefetch-pages');
+const prefetchPages=Number(arg('prefetch-pages','0'));
+const targetUrl = arg('site-url','https://mangaplus.shueisha.co.jp/viewer/1024050');
+const pixiv=targetUrl.includes('pixiv.net/artworks/');
+const readerSelector=pixiv?'img[src*="/img-master/"][src*="/150354216_p"], img[src*="/img-original/"][src*="/150354216_p"]':'.zao-image';
 const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-profile-');
 fs.mkdirSync(artifacts, {recursive: true});
 const report = {site: liveSite ? 'live MANGA Plus' : 'controlled MANGA Plus reader fixture',
     translation: liveTranslation ? 'live Google' : 'deterministic Google text transport',
     ocr: 'real production PaddleOCR', cases: [], screenshots: [], errors: [], consoleErrors: []};
+if(pixiv)report.site='live Pixiv artwork 150354216';
+report.prefetchPages=prefetchPages;
 let launched, page, worker, cdp, popup, modelObserver, browserPid;
 function focusGuard() {
     const current=JSON.parse(execFileSync('/usr/bin/osascript',['-l','JavaScript','-e',"ObjC.import('AppKit');const app=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(app.processIdentifier),name:ObjC.unwrap(app.localizedName)});"],{encoding:'utf8'}));
@@ -82,6 +88,7 @@ window.addPage=(text,id)=>{
  canvas.toBlob(blob=>{image.src=URL.createObjectURL(blob)});
  return image;
 };addPage('Welcome to FluentRead','page-one');addPage('Second manga page','page-two');addPage('Third manga page','page-three');
+${readAheadTest ? "addPage('Fourth manga page','page-four');addPage('Fifth manga page','page-five');addPage('Sixth manga page','page-six');" : ''}
 </script></body></html>`;
 async function ui(hostId, code) {
     const tree = await cdp.send('DOM.getDocument', {depth: -1, pierce: true}); let host;
@@ -139,6 +146,57 @@ async function patch(config) {
         if(!response.success)throw new Error(response.error);
     },config);
 }
+async function verifyReadAhead() {
+    report.currentCase='reader detects real image pages and default upcoming-page option';
+    const images=page.locator(readerSelector);
+    await wait(async()=>await images.evaluateAll(items=>items.some(i=>i.complete&&i.naturalWidth>80&&i.getBoundingClientRect().width>80)),30000);
+    report.readerImages=await images.evaluateAll(items=>items.map(i=>{const r=i.getBoundingClientRect();return {width:i.naturalWidth,height:i.naturalHeight,top:r.top,bottom:r.bottom,displayWidth:r.width,src:i.src}}));
+    const visibleIndex=pixiv?await images.evaluateAll(items=>items.findIndex(i=>i.closest('.gtm-expand-full-size-illust')&&i.getBoundingClientRect().width>=80&&i.getBoundingClientRect().bottom>0&&i.getBoundingClientRect().top<900)):report.readerImages.findIndex(i=>i.displayWidth>=80&&i.bottom>0&&i.top<900);
+    assert.ok(visibleIndex>=0,'At least one loaded reader image is visible');
+    const first=images.nth(visibleIndex);
+    const originals=await images.evaluateAll(items=>items.map(i=>({src:i.src,srcset:i.getAttribute('srcset'),sizes:i.getAttribute('sizes'),style:i.getAttribute('style')})));
+    await screenshot('read-ahead-original');report.cases.push(report.currentCase);
+    report.currentCase='current page is shown before upcoming preparation finishes';
+    const started=Date.now();await toggle();
+    await wait(async()=>await first.evaluate(i=>i.style.opacity==='0'));
+    report.firstPageMs=Date.now()-started;report.cases.push(report.currentCase);
+    await screenshot('read-ahead-first-visible');
+    report.currentCase='bounded upcoming pages prepared with real OCR';
+    await wait(async()=>(await ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-busy")'))==='false');
+    report.prepareWindowMs=Date.now()-started;
+    report.displayedIndices=await images.evaluateAll(items=>items.flatMap((i,index)=>i.style.opacity==='0'?[index]:[]));
+    report.windowOperations=await ops();
+    if(pixiv){assert.ok(report.windowOperations>=3,'All three artwork pages were scanned');assert.ok(report.displayedIndices.includes(visibleIndex));assert.ok(!report.displayedIndices.includes(0),'Behind-reader duplicate cover is untouched');}
+    else assert.ok(report.windowOperations>=2,'Current page and at least one upcoming page processed');
+    if(!liveSite){assert.equal(report.windowOperations,4);assert.equal(await page.locator('#decoy').evaluate(i=>i.style.opacity),'');}
+    await screenshot('read-ahead-window-ready');report.cases.push(report.currentCase);
+    report.currentCase=pixiv?'no-text upcoming page keeps its original artwork':'prepared upcoming translation follows the image into view';
+    const nextIndex=visibleIndex+1;
+    const next=images.nth(nextIndex),startedScroll=Date.now();
+    await next.evaluate(i=>i.scrollIntoView({block:'start',behavior:'instant'}));
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.equal(await next.evaluate(i=>i.style.opacity),pixiv?'':'0');report.preparedPageScrollMs=Date.now()-startedScroll;
+    report.progress=await worker.evaluate(()=>globalThis.__mangaTest.progress);
+    const rectangles=await imageUi('return [...this.querySelectorAll(".fluent-read-image-translation-bitmap")].map(i=>{const r=i.getBoundingClientRect();return {top:r.top,bottom:r.bottom,width:r.width}})');
+    if(!pixiv)assert.ok(rectangles.some(r=>r.width>80&&r.bottom>0&&r.top<900),'Translated bitmap follows the prepared image into the viewport');
+    const spot=await mangaEntry('const r=this.querySelector(".fr-manga-entry").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}');
+    await page.mouse.move(spot.x,spot.y);await wait(async()=>await mangaEntry('return !!this.querySelector("header")'));
+    assert.equal(await mangaEntry('const r=this.querySelector(".fr-manga-entry").getBoundingClientRect();return document.elementFromPoint(r.left+20,r.top+r.height/2)?.id === "fluent-read-manga-entry-container"'),true);
+    await screenshot('read-ahead-next-visible');report.cases.push(report.currentCase);
+    report.currentCase='original pause restores all prepared host images';await toggle();
+    await wait(async()=>await imageUi('return this.querySelectorAll(".fluent-read-image-translation-bitmap").length === 0'));
+    // 阅读器翻页可能追加新的懒加载图片；核对原有节点，另行确认追加节点没有残留透明样式。
+    const restored=await images.evaluateAll(items=>items.map(i=>({src:i.src,srcset:i.getAttribute('srcset'),sizes:i.getAttribute('sizes'),style:i.getAttribute('style')})));
+    assert.deepEqual(restored.slice(0,originals.length),originals);
+    assert.equal(await images.evaluateAll(items=>items.every(i=>i.style.opacity!== '0')),true);
+    report.cases.push(report.currentCase);
+    await popup.goto(`chrome-extension://${new URL(worker.url()).host}/options.html#settings-image-translation`);
+    const select=popup.getByRole('combobox',{name:'提前翻译后续页面',exact:true});assert.equal(await select.inputValue(),String(prefetchPages));
+    await select.selectOption('0');await popup.reload();assert.equal(await select.inputValue(),'0');report.cases.push('upcoming-page setting persists and allows current-page-only mode');
+    report.textBatches=await worker.evaluate(()=>globalThis.__mangaTest.textBatches);
+    if(blockedAll){assert.equal(report.modelRequests.length,0);report.cases.push('no model downloads during prepared local reading');}
+    assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
+}
 (async()=>{
     launched=await launchFocusSafePersistentContext({chromium,profileDir:profile,
         browserPath:arg('browser-path','/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),headless:false,background:true,
@@ -161,7 +219,8 @@ async function patch(config) {
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
     await patch({on:true,uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,disableImageTranslator:false,
         imageTranslationMangaEnabled:true,imageTranslationMangaDownloadConfirmed:true,imageTranslationMangaPromptEnabled:false,imageTranslationHoverEnabled:false,disableFloatingBall:false,
-        service:'google',from:'en',to:'zh-Hans',useCache:true,enableAIContext:false,animations:false});
+        imageTranslationMangaPrefetchPages:prefetchPages,
+        service:'google',from:pixiv?'ja':'en',to:'zh-Hans',useCache:true,enableAIContext:false,animations:false});
     await worker.evaluate(live=>{
         const original=globalThis.fetch.bind(globalThis);
         const test=globalThis.__mangaTest={operations:[],requests:[],cancellations:[],textBatches:[],progress:[]};
@@ -204,8 +263,15 @@ async function patch(config) {
     await page.goto(targetUrl,{waitUntil:'domcontentloaded',timeout:60000});
     cdp=await context.newCDPSession(page);
     if(liveSite){const reject=page.locator('#onetrust-reject-all-handler');await reject.waitFor({timeout:12000}).then(()=>reject.click()).catch(()=>undefined);}
-    await page.locator('.zao-image').first().waitFor();
+    if(pixiv) {
+        await page.locator(readerSelector).first().waitFor();
+        const read=page.getByText('阅读作品',{exact:true});
+        const alreadyOpen=await page.locator(readerSelector).evaluateAll(items=>items.some(i=>!i.closest('main')&&i.getBoundingClientRect().width>80));
+        if(!alreadyOpen&&await read.isVisible().catch(()=>false))await read.click({timeout:5000});
+    }
+    await page.locator(readerSelector).first().waitFor();
     await wait(async()=>!!await ball(`return this.querySelector('.floating-ball-manga')`),30000);
+    if(readAheadTest){await verifyReadAhead();report.status='passed';focusGuard();return;}
     report.currentCase='one click activates and translates only visible pages';
     const source=page.locator('.zao-image').first();
     const original=await source.evaluate(i=>({src:i.src,srcset:i.getAttribute('srcset'),sizes:i.getAttribute('sizes'),style:i.getAttribute('style')}));

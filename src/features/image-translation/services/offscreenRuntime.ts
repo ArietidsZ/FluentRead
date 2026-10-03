@@ -285,12 +285,15 @@ export async function translateImageInOffscreen(
         if (!manga) reportProgress(requestId, 'recognizing');
         const lines = manga ? await mangaOcrRuntime.recognize(image, sourceLanguage, source.naturalWidth || source.width,
             source.naturalHeight || source.height, signal,
-            (stage, percent) => {if (!signal?.aborted) reportProgress(requestId, stage, percent);}) : await recognizeImage(image, sourceLanguage, signal, {
+            (stage, percent) => {if (!signal?.aborted) reportProgress(requestId, stage, percent);}, source) : await recognizeImage(image, sourceLanguage, signal, {
             decodedImage: source,
             onProgress: percent => { if (!signal?.aborted) reportProgress(requestId, 'recognizing', percent); },
         });
         throwIfImageOperationAborted(signal);
-        if (lines.length === 0) throw new Error('没有识别到图片文字');
+        if (lines.length === 0) {
+            if (manga) return {image,lines:[]};
+            throw new Error('没有识别到图片文字');
+        }
         reportProgress(requestId, 'translating');
         const translations = await translateImageTextsInExtension(
             lines.map(line => line.text), title, requestId, signal,

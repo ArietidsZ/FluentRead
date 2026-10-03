@@ -122,6 +122,8 @@ export interface ImageTranslationBackgroundDependencies {
 }
 
 export interface ImageOperationOptions {
+    /** 仅由已复核的消息 sender 提供，不接受消息体自报来源。 */
+    readonly documentUrl?: string;
     readonly manga?: true;
     readonly requestId: string;
     readonly signal: AbortSignal;
@@ -495,7 +497,7 @@ export function createImageTranslationBackgroundHandlers(
                     if (!dependencies.assertImageSource) throw new Error('图片来源未授权');
                     await dependencies.assertImageSource(source, options, context);
                     if (options.signal.aborted) throw Object.assign(new Error('图片读取已取消'), {name: 'AbortError'});
-                    return dependencies.fetchImage(url, options);
+                    return dependencies.fetchImage(url, {...options, ...(context.sender?.url ? {documentUrl:context.sender.url} : {})});
                 });
                 if (typeof image !== 'string' || !image.startsWith('data:image/')) {
                     throw new Error('远程图片结果无效');

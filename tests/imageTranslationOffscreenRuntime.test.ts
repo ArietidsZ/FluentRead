@@ -264,6 +264,12 @@ describe('Offscreen 图片完整操作生命周期', () => {
         expect(images.every(image => image.src === '')).toBe(true);
     });
 
+    it('漫画没有检测到文字时保留原图，不发送翻译请求，也不创建译图或修补', async () => {
+        mocks.mangaRecognize.mockResolvedValueOnce([]);
+        await expect(translateImageInOffscreen('no-text','ja','',undefined,undefined,true)).resolves.toEqual({image:'no-text',lines:[]});
+        expect(sendMessage).not.toHaveBeenCalled();expect(canvases).toHaveLength(0);expect(mocks.repair).not.toHaveBeenCalled();
+        expect(images[0].src).toBe('');
+    });
     it('OCR 返回时已取消，不再发送翻译请求', async () => {
         const controller = new AbortController();
         mocks.recognize.mockImplementation(async () => {controller.abort(); return lines;});

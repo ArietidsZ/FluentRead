@@ -20,6 +20,36 @@ function sessionFixture() {
 afterEach(() => {vi.restoreAllMocks(); vi.unstubAllGlobals();});
 
 describe('漫画会话所有权与可见页调度', () => {
+    it('可见页优先于排队预译页，已经准备好的页进入视口不会再识别', async () => {
+        const f=sessionFixture(),pending=deferred(),three={} as HTMLImageElement;
+        f.snapshot.pages[1].prefetch=true;f.ports.translate.mockReturnValueOnce(pending.promise);
+        f.start();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([f.one]);
+        f.snapshot.pages.push({image:three,identity:'3',visible:true});f.session.refresh(f.snapshot);
+        pending.resolve();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([f.one,three,f.two]);
+        expect(f.session.status()).toMatchObject({ahead:1,completed:3,prefetching:false});
+        f.snapshot.pages[1].visible=true;f.session.refresh(f.snapshot);await flush();
+        expect(f.ports.translate).toHaveBeenCalledTimes(3);expect(f.session.status().ahead).toBe(0);
+        f.session.toggle();expect(f.ports.restore).toHaveBeenCalledTimes(3);
+    });
+    it('滚动离开窗口的在途页不取消、不重做；最终释放，真实移除仍及时取消', async () => {
+        const f=sessionFixture(),pending=deferred();f.ports.translate.mockReturnValueOnce(pending.promise);
+        f.start();await flush();f.snapshot.pages[0].visible=false;f.snapshot.pages[1].visible=true;
+        f.session.refresh(f.snapshot);expect(f.ports.release).not.toHaveBeenCalled();
+        expect(f.session.status().prefetching).toBe(true);pending.resolve();await flush();
+        expect(f.ports.release).toHaveBeenCalledWith(f.one);expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([f.one,f.two]);
+        const again=deferred();f.snapshot.pages[0].visible=true;f.ports.translate.mockReturnValueOnce(again.promise);
+        f.session.refresh(f.snapshot);await flush();f.snapshot.pages.shift();f.session.refresh(f.snapshot);
+        expect(f.ports.release).toHaveBeenCalledTimes(2);again.resolve();await flush();expect(f.session.status().errors).toBe(0);
+    });
+    it('快速返回在途页继续复用；隐藏页完成在途任务后暂停后续，恢复时再继续', async () => {
+        const f=sessionFixture(),pending=deferred();f.snapshot.pages[1].prefetch=true;
+        f.ports.translate.mockReturnValueOnce(pending.promise);f.start();await flush();
+        f.snapshot.pages[0].visible=false;f.session.refresh(f.snapshot);
+        f.snapshot.pages[0].visible=true;f.snapshot.suspended=true;f.session.refresh(f.snapshot);
+        pending.resolve();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(1);expect(f.ports.release).not.toHaveBeenCalled();
+        f.snapshot.suspended=false;f.session.refresh(f.snapshot);await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        f.snapshot.pages[1].prefetch=false;f.session.refresh(f.snapshot);expect(f.ports.release).toHaveBeenCalledWith(f.two);
+    });
     it('旧配置启用入口但保留图片总开关和用户明确关闭的入口', () => {
         expect(normalizeConfig({}).imageTranslationMangaEnabled).toBe(true);
         expect(normalizeConfig({}).disableImageTranslator).toBe(true);
@@ -47,7 +77,7 @@ describe('漫画会话所有权与可见页调度', () => {
         f.session.toggle(); f.session.refresh(f.snapshot); await flush();
         expect(f.ports.translate).toHaveBeenCalledTimes(1);
         pending.resolve(); await flush(); expect(f.ports.translate).toHaveBeenCalledTimes(3);
-        expect(f.session.status()).toEqual({available: true, active: true, pending: false, errors: 0, completed: 2});
+        expect(f.session.status()).toEqual({available: true, active: true, pending: false, errors: 0, completed: 2, prefetching: false, ahead: 0});
     });
     it('尚未执行的旧任务取消后不会发送请求', async () => {
         const f = sessionFixture(); f.start(); f.session.toggle(); await flush();
@@ -77,7 +107,7 @@ describe('漫画会话所有权与可见页调度', () => {
         f.session.toggle(); f.session.refresh(f.snapshot); await flush();
         f.session.dispose(); pending.resolve(); await flush();
         expect(f.session.toggle()).toBe(false); f.session.refresh(f.snapshot);
-        expect(f.session.status()).toEqual({available: false, active: false, pending: false, errors: 0, completed: 0});
+        expect(f.session.status()).toEqual({available: false, active: false, pending: false, errors: 0, completed: 0, prefetching: false, ahead: 0});
     });
     it('页面移除后的拒绝不会计入当前会话', async () => {
         const f = sessionFixture(); let reject!: (error: Error) => void;
@@ -87,7 +117,7 @@ describe('漫画会话所有权与可见页调度', () => {
     });
 });
 
-function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[]) {
+function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number) {
     const {document, window: dom} = parseHTML('<html><body><div class="zao-image-container"><img class="zao-image" src="blob:page-1"></div><img id="logo" src="https://site/logo.png"></body></html>');
     const image = document.querySelector('img')! as HTMLImageElement;
     Object.defineProperties(image, {complete: {writable: true, value: true}, naturalWidth: {writable: true, value: 800}, naturalHeight: {value: 1200}, currentSrc: {get: () => image.src}});
@@ -109,7 +139,7 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         constructor(callback: MutationCallback) {mo.callback = callback;} });
     const ports = {enabled: vi.fn().mockReturnValue(true), identity: (i: HTMLImageElement) => i.src,
         translate: vi.fn().mockResolvedValue(undefined), restore: vi.fn(), release: vi.fn(), failed: vi.fn().mockReturnValue(false), changed: vi.fn()};
-    const reader = createMangaReader({...ports, siteRules});
+    const reader = createMangaReader({...ports, siteRules, prefetchPages});
     const run = () => {const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(c => c(0));};
     const intersect = (yes: boolean) => {io.callback([{target: image, isIntersecting: yes} as unknown as IntersectionObserverEntry], {} as IntersectionObserver); run();};
     return {reader, ports, image, io, mo, window, dom, document, run, intersect,
@@ -117,6 +147,46 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it('默认窗口翻译当前与随后三张，排除更后页；改变窗口不会重识别当前页', async () => {
+        let ahead=3;const f=readerFixture(false,undefined,undefined,()=>ahead),images=[f.image];
+        for(let i=1;i<6;i++){
+            const image=f.document.createElement('img') as HTMLImageElement;image.className='zao-image';image.src=`blob:page-${i+1}`;
+            Object.defineProperties(image,{complete:{value:true},naturalWidth:{value:800},naturalHeight:{value:1200}});
+            image.getBoundingClientRect=()=>({left:0,right:800,top:i*1300,bottom:i*1300+1200,width:800,height:1200}) as DOMRect;
+            f.image.parentElement!.append(image);images.push(image);
+        }
+        f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual(images.slice(0,4));
+        expect(f.reader.status()).toMatchObject({ahead:3,completed:4});
+        ahead=0;f.reader.schedule();f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(4);
+        expect(f.ports.release.mock.calls.map(c=>c[0])).toEqual(images.slice(1,4));f.reader.dispose();
+    });
+    it('未加载的后续页不强制加载；Pixiv 点击正文与 presentation 角色不再被当装饰图', async () => {
+        const f=readerFixture(false,'https://www.pixiv.net/artworks/150354216#1',undefined,()=>3);
+        f.image.src='https://i.pximg.net/img-master/path/150354216_p0_master1200.jpg';f.image.parentElement!.setAttribute('role','presentation');
+        const unloaded=f.document.createElement('img') as HTMLImageElement;unloaded.src='https://i.pximg.net/img-original/path/150354216_p1.jpg';
+        Object.defineProperties(unloaded,{complete:{value:false},naturalWidth:{value:0},naturalHeight:{value:0}});
+        unloaded.getBoundingClientRect=()=>({left:0,right:800,top:1500,bottom:2700,width:800,height:1200}) as DOMRect;f.document.body.append(unloaded);
+        const thumbnail=f.image.cloneNode() as HTMLImageElement;thumbnail.src='https://i.pximg.net/custom-thumb/150354216_p0.jpg';f.document.body.append(thumbnail);
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
+        expect(f.ports.translate).toHaveBeenCalledTimes(1);expect(unloaded.src).toContain('/150354216_p1.jpg');f.reader.dispose();
+    });
+    it('Pixiv 全屏阅读器存在时不处理背后重复封面，关闭后恢复封面候选', async () => {
+        const f=readerFixture(false,'https://www.pixiv.net/artworks/150354216#1');
+        f.image.src='https://i.pximg.net/img-master/150354216_p0.jpg';
+        const container=f.document.createElement('div');container.className='gtm-expand-full-size-illust';
+        const expanded=f.document.createElement('img') as HTMLImageElement;expanded.src=f.image.src;
+        Object.defineProperties(expanded,{complete:{value:true},naturalWidth:{value:800},naturalHeight:{value:1200}});
+        expanded.getBoundingClientRect=f.image.getBoundingClientRect;container.append(expanded);f.document.body.append(container);
+        f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([expanded]);
+        container.remove();f.reader.schedule();f.run();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([expanded,f.image]);f.reader.dispose();
+    });
+    it('通用阅读器先等待正文，不把导航、推荐和小图当漫画；动态加载后出现入口', async () => {
+        const f=readerFixture(false,'https://mangadex.org/title/123');expect(f.reader.status().available).toBe(false);
+        f.image.parentElement!.id='reader';f.image.parentElement!.setAttribute('class','recommendations');f.reader.schedule();f.run();
+        expect(f.reader.status().available).toBe(false);f.image.parentElement!.removeAttribute('class');f.setRect({width:100});f.reader.schedule();f.run();
+        expect(f.reader.status().available).toBe(false);f.setRect({width:800});f.reader.schedule();f.run();
+        expect(f.reader.status().available).toBe(true);f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(1);f.reader.dispose();
+    });
     it('自定义选择器只识别图片，损坏的选择器不中断页面，规则修改后重新扫描', async () => {
         const rules = [{hostname:'example.com',pathPrefix:'/reader/',selector:'.zao-image-container, .zao-image-container img'}];
         const f = readerFixture(false, 'https://example.com/reader/1', () => rules);

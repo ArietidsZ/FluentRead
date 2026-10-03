@@ -7,7 +7,7 @@
 <template>
   <aside v-if="visible" ref="panel" class="fr-manga-entry" :class="{compact}" :data-animated="settings.animations" :aria-label="t('漫画翻译')" @mouseenter="expand" @mouseleave="scheduleCollapse" @focusin="expand" @focusout="scheduleCollapse" @keydown.esc.stop="close">
     <button v-if="compact" type="button" class="fr-manga-compact" :aria-expanded="false" @click="expand">
-      <svg class="fr-manga-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5" stroke="currentColor" stroke-width="1.7" /><path d="M3 14h18m-9 0v7M7 6h10v4h-6l-3 2v-2H7V6Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg><span>{{ t(status.pending ? '正在翻译' : status.errors ? '部分页面未完成' : status.active ? '连续翻译已开启' : '漫画翻译') }}</span>
+      <svg class="fr-manga-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5" stroke="currentColor" stroke-width="1.7" /><path d="M3 14h18m-9 0v7M7 6h10v4h-6l-3 2v-2H7V6Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg><span>{{ t(status.pending ? status.prefetching ? '正在准备后续页面' : '正在翻译' : status.errors ? '部分页面未完成' : status.active ? '连续翻译已开启' : '漫画翻译') }}</span>
       <span v-if="status.pending" class="fr-manga-spinner" aria-hidden="true" /><span v-else-if="status.active && !status.errors && (status.completed ?? 0) > 0" class="fr-manga-done" aria-hidden="true">✓</span>
     </button>
     <template v-else>
@@ -22,11 +22,13 @@
       <template v-else>
         <p v-if="!status.active">{{ t('开启后，滚动阅读时自动翻译新页面。随时切回原图。') }}</p>
         <div v-else class="fr-manga-state" role="status" aria-live="polite"><span v-if="status.pending" class="fr-manga-spinner" aria-hidden="true" />
-          <span>{{ t(status.message || (status.pending ? '正在处理当前漫画页' : status.errors ? '部分页面未完成，可在图片上重试' : (status.completed ?? 0) === 0 ? '等待漫画图片加载' : '当前页面已翻译，滚动后继续')) }}<template v-if="status.pending && status.progress !== undefined"> {{ status.progress }}%</template></span>
+          <span>{{ t(status.prefetching && status.stage !== 'preparing' ? '正在提前翻译后续页面' : status.message || (status.pending ? '正在处理当前漫画页' : status.errors ? '部分页面未完成，可在图片上重试' : (status.completed ?? 0) === 0 ? '等待漫画图片加载' : '当前页面已翻译，滚动后继续')) }}<template v-if="status.pending && status.progress !== undefined"> {{ status.progress }}%</template></span>
         </div>
+        <p v-if="status.active && (status.ahead ?? 0) > 0">{{ t('后续已准备') }}: {{ status.ahead }} {{ t('张图片') }}</p>
         <button type="button" class="fr-manga-primary" :disabled="busy || !status.available" @click="start">{{ t(busy ? '正在检查阅读资源' : status.active ? status.pending ? '暂停并显示原图' : '显示原图并暂停' : '开启连续翻译') }}</button>
         <details class="fr-manga-options" @toggle="optionsOpen = ($event.target as HTMLDetailsElement).open">
           <summary>{{ t('翻译选项') }}<span data-i18n-ignore>{{ targetLabel }}</span></summary>
+          <label>{{ t('提前翻译后续页面') }}<select :aria-label="t('提前翻译后续页面')" :value="settings.prefetchPages" :disabled="busy" @change="save({imageTranslationMangaPrefetchPages: Number(($event.target as HTMLSelectElement).value)})"><option :value="0">{{ t('只翻译当前页面') }}</option><option v-for="count in 5" :key="count" :value="count">{{ count }} {{ t('张图片') }}</option></select></label>
           <label>{{ t('翻译成') }}<select :aria-label="t('漫画目标语言')" :value="settings.to" :disabled="busy || status.pending" @change="save({to: ($event.target as HTMLSelectElement).value})"><option v-for="item in targetLanguages" :key="item.value" :value="item.value" data-i18n-ignore>{{ t(item.label) }}</option></select></label>
           <label>{{ t('翻译服务') }}<select :aria-label="t('漫画翻译服务')" :value="settings.service" :disabled="busy || status.pending" @change="save({imageTranslationService: ($event.target as HTMLSelectElement).value})"><option value="">{{ t('跟随网页翻译服务') }}</option><option v-for="item in availableServices" :key="item.value" :value="item.value" data-i18n-ignore>{{ t(item.label) }}</option></select></label>
         </details>
@@ -45,14 +47,14 @@ import {config} from '@/src/services/config/store';
 import type {MangaTranslationStatus} from '../content/mangaSession';
 const props = defineProps<{
   status: MangaTranslationStatus; page: {site: string; route: string};
-  settings: {promptEnabled: boolean; to: string; service: string; downloadConfirmed: boolean; animations: boolean};
+  settings: {promptEnabled: boolean; to: string; service: string; downloadConfirmed: boolean; animations: boolean; prefetchPages: number};
   targetLanguages: {label: string; value: string}[]; services: {label: string; value: string}[];
   toggle: () => void; inspectResources: () => Promise<boolean>; persist: (patch: Record<string, unknown>) => Promise<unknown>; openSettings: () => void;
 }>();
 const {translateLegacy: t} = useUiI18n();
 const panel = ref<HTMLElement>();
 const dismissed = ref(false), manual = ref(false), compact = ref(false), consent = ref(false), busy = ref(false), error = ref(''), optionsOpen = ref(false);
-const visible = computed(() => manual.value || props.status.active || (props.settings.promptEnabled && !dismissed.value));
+const visible = computed(() => props.status.available && (manual.value || props.status.active || (props.settings.promptEnabled && !dismissed.value)));
 const availableServices = computed(() => filterAvailableTranslationServices(withCustomOpenAIServiceOptions(props.services, config.customOpenAIProviders)));
 const targetLabel = computed(() => t(props.targetLanguages.find(item => item.value === props.settings.to)?.label || props.settings.to));
 let timer: ReturnType<typeof setTimeout> | undefined;

@@ -5,6 +5,16 @@
  * 模块边界：静态界面词典，不翻译漫画内容、不读取配置、不调用服务。
  */
 const english = {
+  "未检测到文字，已保留原图": "No text detected. Original kept.",
+  "正在准备后续页面": "Preparing upcoming pages",
+  "作品阅读页 · 自动识别正文图片": "Artwork reader · Automatic image detection",
+  "其他漫画网站会自动检测图片阅读器。画布、分片或受保护的阅读器需要单独适配。": "Image readers on other manga sites are detected automatically. Canvas, tiled and protected readers need dedicated support.",
+  "提前翻译后续页面": "Translate upcoming pages in advance",
+  "只翻译当前页面": "Current pages only",
+  "张图片": "images",
+  "正在提前翻译后续页面": "Preparing upcoming pages",
+  "后续已准备": "Upcoming pages ready",
+  "当前页优先，后台准备后续页面。只处理网站已加载的图片；更多页面会增加设备资源和翻译服务用量。": "Current pages come first. Upcoming pages are prepared in the background using images already loaded by the site. More pages use more device resources and translation service requests.",
   "查看漫画翻译进度与选项": "View manga translation progress and options",
   "漫画翻译 · 自动翻译新页面": "Manga translation · Translate new pages automatically",
   "漫画阅读资源与下载": "Manga reading resources and downloads",
@@ -83,6 +93,13 @@ const english = {
 export const mangaLegacyMessages = {
   "en-US": english,
   "ja-JP": {...english, ...{
+  "提前翻译后续页面": "次のページを先に翻訳",
+  "只翻译当前页面": "現在のページのみ",
+  "张图片": "枚",
+  "正在提前翻译后续页面": "次のページを準備中",
+  "正在准备后续页面": "次のページを準備中",
+  "后续已准备": "準備済みの次ページ",
+
   "图片/漫画翻译": "画像・漫画翻訳",
   "漫画翻译": "漫画翻訳",
   "漫画设置": "漫画設定",
@@ -106,6 +123,13 @@ export const mangaLegacyMessages = {
   "支持的网站": "対応サイト"
 }},
   "ko-KR": {...english, ...{
+  "提前翻译后续页面": "다음 페이지 미리 번역",
+  "只翻译当前页面": "현재 페이지만",
+  "张图片": "이미지",
+  "正在提前翻译后续页面": "다음 페이지 준비 중",
+  "正在准备后续页面": "다음 페이지 준비 중",
+  "后续已准备": "준비된 다음 페이지",
+
   "图片/漫画翻译": "이미지/만화 번역",
   "漫画翻译": "만화 번역",
   "漫画设置": "만화 설정",
@@ -129,6 +153,13 @@ export const mangaLegacyMessages = {
   "支持的网站": "지원 사이트"
 }},
   "fr-FR": {...english, ...{
+  "提前翻译后续页面": "Traduire les pages suivantes à l’avance",
+  "只翻译当前页面": "Pages actuelles uniquement",
+  "张图片": "images",
+  "正在提前翻译后续页面": "Préparation des pages suivantes",
+  "正在准备后续页面": "Préparation des pages suivantes",
+  "后续已准备": "Pages suivantes prêtes",
+
   "图片/漫画翻译": "Traduction d’images et de mangas",
   "漫画翻译": "Traduction de mangas",
   "漫画设置": "Réglages des mangas",
@@ -152,6 +183,13 @@ export const mangaLegacyMessages = {
   "支持的网站": "Sites pris en charge"
 }},
   "ru-RU": {...english, ...{
+  "提前翻译后续页面": "Заранее переводить следующие страницы",
+  "只翻译当前页面": "Только текущие страницы",
+  "张图片": "изображений",
+  "正在提前翻译后续页面": "Подготовка следующих страниц",
+  "正在准备后续页面": "Подготовка следующих страниц",
+  "后续已准备": "Следующие страницы готовы",
+
   "图片/漫画翻译": "Перевод изображений и манги",
   "漫画翻译": "Перевод манги",
   "漫画设置": "Настройки манги",
@@ -175,6 +213,13 @@ export const mangaLegacyMessages = {
   "支持的网站": "Поддерживаемые сайты"
 }},
   "es-ES": {...english, ...{
+  "提前翻译后续页面": "Traducir las siguientes páginas por adelantado",
+  "只翻译当前页面": "Solo las páginas actuales",
+  "张图片": "imágenes",
+  "正在提前翻译后续页面": "Preparando las siguientes páginas",
+  "正在准备后续页面": "Preparando las siguientes páginas",
+  "后续已准备": "Siguientes páginas preparadas",
+
   "图片/漫画翻译": "Traducción de imágenes y manga",
   "漫画翻译": "Traducción de manga",
   "漫画设置": "Ajustes de manga",

@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/mangaSession.ts
  * 文件职责：管理当前漫画章节的连续翻译会话，保证一次开启、逐页执行、原文暂停与异步任务所有权。
- * 主要内容：接收站点适配器提供的可见图片快照，串行调度尚未尝试的页面，释放离屏页面并在换图、换章和关闭时取消旧任务；失败页只在用户再次开启时重试。
+ * 主要内容：接收可见页和有界提前翻译窗口，当前页优先、串行处理；短暂离屏不取消在途推理，隐藏时停止新任务，换图、换章和关闭仍取消旧任务；失败页只在用户再次开启时重试。
  * 模块边界：只依赖注入的单图翻译与恢复端口，不查询 DOM、保存配置或实现 OCR；位图缓存、宿主样式与语言包由既有图片运行时管理。
  */
 import type {ImageTranslationStage} from '../progress';
@@ -15,18 +15,22 @@ export interface MangaTranslationStatus {
     message?: string;
     progress?: number;
     stage?: ImageTranslationStage;
+    prefetching?: boolean;
+    ahead?: number;
 }
 
 export interface MangaPageSnapshot {
     image: HTMLImageElement;
     identity: string;
     visible: boolean;
+    prefetch?: boolean;
 }
 
 export interface MangaSnapshot {
     route: string;
     available: boolean;
     pages: MangaPageSnapshot[];
+    suspended?: boolean;
 }
 
 export function createMangaSession(ports: {
@@ -41,13 +45,17 @@ export function createMangaSession(ports: {
     let active = false;
     let disposed = false;
     let epoch = 0;
-    let running: object | null = null;
-    const pages = new Map<HTMLImageElement, {identity: string; attempted: boolean; failed: boolean; completed: boolean}>();
+    type Page = {identity: string; attempted: boolean; failed: boolean; completed: boolean; visible: boolean; retained: boolean};
+    let running: {image: HTMLImageElement; page: Page} | null = null;
+    let suspended = false;
+    const pages = new Map<HTMLImageElement, Page>();
 
     const status = (): MangaTranslationStatus => ({
         available, active, pending: active && running !== null,
         errors: Array.from(pages.values()).filter(page => page.failed).length,
         completed: Array.from(pages.values()).filter(page => page.completed && !page.failed).length,
+        prefetching: active && running !== null && !running.page.visible,
+        ahead: Array.from(pages.values()).filter(page => page.retained && !page.visible && page.completed && !page.failed).length,
     });
     const notify = () => ports.changed(status());
 
@@ -60,12 +68,13 @@ export function createMangaSession(ports: {
     }
 
     function pump(): void {
-        if (disposed || !active || running) return;
-        const next = Array.from(pages).find(([, page]) => !page.attempted);
+        if (disposed || !active || suspended || running) return;
+        const candidates = Array.from(pages).filter(([, page]) => page.retained && !page.attempted);
+        const next = candidates.find(([, page]) => page.visible) ?? candidates[0];
         if (!next) return;
         const [image, page] = next;
         page.attempted = true;
-        const task = running = {};
+        const task = running = {image, page};
         const owner = epoch;
         notify();
         // 同步抛错和 Promise 拒绝都归入该页失败；取消后的迟到结果不更新新会话。
@@ -74,7 +83,10 @@ export function createMangaSession(ports: {
             return ports.translate(image);
         }).catch(() => { if (owner === epoch && pages.get(image) === page) page.failed = true; })
             .finally(() => {
-                if (owner === epoch && pages.get(image) === page) {page.failed ||= ports.failed(image);page.completed = true;}
+                if (owner === epoch && pages.get(image) === page) {
+                    if (page.retained) {page.failed ||= ports.failed(image);page.completed = true;}
+                    else {ports.release(image);pages.delete(image);}
+                }
                 if (running === task) running = null;
                 notify();
                 pump();
@@ -88,15 +100,21 @@ export function createMangaSession(ports: {
             route = snapshot.route;
         }
         available = snapshot.available;
+        suspended = snapshot.suspended === true;
         if (!available) reset();
-        const visible = new Map(snapshot.pages.filter(page => page.visible).map(page => [page.image, page]));
+        const current = new Map(snapshot.pages.map(page => [page.image, page]));
+        const selected = new Map(snapshot.pages.filter(page => page.visible || page.prefetch).map(page => [page.image, page]));
         pages.forEach((page, image) => {
-            if (visible.get(image)?.identity === page.identity) return;
+            const next = selected.get(image);
+            if (next?.identity === page.identity) {page.visible = next.visible;page.retained = true;return;}
+            if (active && running?.image === image && current.get(image)?.identity === page.identity) {
+                page.visible = false;page.retained = false;return;
+            }
             ports.release(image);
             pages.delete(image);
         });
-        if (active) visible.forEach((page, image) => {
-            if (!pages.has(image)) pages.set(image, {identity: page.identity, attempted: false, failed: false, completed: false});
+        if (active) selected.forEach((page, image) => {
+            if (!pages.has(image)) pages.set(image, {identity: page.identity, attempted: false, failed: false, completed: false, visible: page.visible, retained: true});
         });
         notify();
         pump();

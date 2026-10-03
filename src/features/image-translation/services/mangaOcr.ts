@@ -11,7 +11,7 @@ import {findMangaBubbles,collectMangaRegions,type MangaOcrPage} from './mangaBub
 import {mangaInpaintingRuntime} from './mangaInpainting';
 
 interface MangaOcrPort {
-    recognize(image: string, options: {flatten: true; noCache: true; strategy: 'per-box';signal?:AbortSignal}): Promise<MangaOcrPage>;
+    recognize(image: string, options: {flatten: true; noCache: true; strategy: 'per-box';signal?:AbortSignal; decodedImage?: HTMLImageElement}): Promise<MangaOcrPage>;
     destroy(): Promise<void>;
 }
 type Progress = (stage: 'preparing' | 'recognizing', percent?: number) => void;
@@ -32,7 +32,7 @@ export function createMangaOcrRuntime(create: (signal?: AbortSignal, progress?: 
         return result;
     }
     return {
-        recognize(image: string, language: string, width: number, height: number, signal?: AbortSignal, progress?: Progress): Promise<MangaRegion[]> {
+        recognize(image: string, language: string, width: number, height: number, signal?: AbortSignal, progress?: Progress, decodedImage?: HTMLImageElement): Promise<MangaRegion[]> {
             const result = queue(async () => {
                 assertMangaOcrActive(signal); clearIdle();
                 try {
@@ -41,7 +41,7 @@ export function createMangaOcrRuntime(create: (signal?: AbortSignal, progress?: 
                         service = await create(signal, progress);
                     }
                     assertMangaOcrActive(signal); progress?.('recognizing');
-                    const response = await service.recognize(image, {flatten: true, noCache: true, strategy: 'per-box',signal});
+                    const response = await service.recognize(image, {flatten: true, noCache: true, strategy: 'per-box',signal, decodedImage});
                     assertMangaOcrActive(signal);
                     return collectMangaRegions(response, language, width, height);
                 } finally {
@@ -81,8 +81,8 @@ export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Pro
         return {
             recognize: async (image, options) => {
                 assertMangaOcrActive(options.signal);
-                const bitmap=await createImageBitmap(new Blob([await (await fetch(image)).arrayBuffer()]));
-                const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;
+                const bitmap=options.decodedImage ?? await createImageBitmap(new Blob([await (await fetch(image)).arrayBuffer()]));
+                const canvas=document.createElement('canvas');canvas.width='naturalWidth' in bitmap ? bitmap.naturalWidth : bitmap.width;canvas.height='naturalHeight' in bitmap ? bitmap.naturalHeight : bitmap.height;
                 try {
                     assertMangaOcrActive(options.signal);
                     const context=canvas.getContext('2d');if(!context)throw new Error('浏览器不支持图片处理');
@@ -117,7 +117,7 @@ export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Pro
                         }finally{crop.width=0;crop.height=0;}
                     }
                     assertMangaOcrActive(options.signal);return {results:page.results,bubbles};
-                }finally{canvas.width=0;canvas.height=0;bitmap.close();}
+                }finally{canvas.width=0;canvas.height=0;if ('close' in bitmap) bitmap.close();}
             },
             destroy: () => service.destroy(),
         };
