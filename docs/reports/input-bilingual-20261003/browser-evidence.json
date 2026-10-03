@@ -1,6 +1,6 @@
 {
   "extensionDir": "/Users/thinkstu/Desktop/copy/FluentRead-input-translation-bilingual-20261003/.output/chrome-mv3",
-  "profileDir": "/var/folders/2v/qd62bpkx51scgbvv2nrclsxm0000gn/T/fluentread-input-translation-KVQHGG",
+  "profileDir": "/var/folders/2v/qd62bpkx51scgbvv2nrclsxm0000gn/T/fluentread-input-translation-QYpSGw",
   "evidence": "Production extension; real browser input; deterministic mock provider, no external provider certification",
   "cases": [
     {
@@ -92,7 +92,7 @@
       "passed": true
     },
     {
-      "name": "translation first persists and prefixes translation to textarea and rich editor while keeping original DOM",
+      "name": "translation first persists and prefixes translation to textarea and rich editor while keeping original text and formatting",
       "passed": true
     },
     {
@@ -120,12 +120,12 @@
     "screenIndex": 1,
     "browserFrontmost": false,
     "frontmostBefore": {
-      "pid": 81256,
-      "name": "ChatGPT"
+      "pid": 3381,
+      "name": "提醒事项"
     },
     "frontmostAfter": {
-      "pid": 81256,
-      "name": "ChatGPT"
+      "pid": 44386,
+      "name": "Google Chrome"
     }
   },
   "quickClose": {
