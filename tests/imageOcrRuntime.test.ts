@@ -1,4 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {createSharedOcrTasks} from '@/src/features/image-translation/services/sharedOcrTasks';
 
 const {recognize, ensureLanguages, clearModels, removeFiles, createRuntime, tesseractCreateWorker} = vi.hoisted(() => ({
     clearModels: vi.fn(async (remove: () => Promise<void>) => remove()), removeFiles: vi.fn(async () => {}), recognize: vi.fn(), ensureLanguages: vi.fn(), createRuntime: vi.fn(), tesseractCreateWorker: vi.fn(),
@@ -90,6 +91,38 @@ describe('图片 OCR 处理与结果缓存', () => {
         expect(sources[0]).toMatchObject({src: '', onload: null, onerror: null});
     });
 
+    it('整图借用预检解码结果，不重复解码或释放调用方仍需绘制的图像', async () => {
+        const decodedImage = {naturalWidth: 100, naturalHeight: 100, src: 'original'} as HTMLImageElement;
+        await recognizeImage('original', 'en', undefined, {decodedImage});
+        expect(sources).toHaveLength(0);
+        expect(decodedImage.src).toBe('original');
+        await expect(recognizeImage('invalid-borrowed', 'en', undefined, {
+            decodedImage: {naturalWidth: 0, naturalHeight: 0} as HTMLImageElement,
+        })).rejects.toThrow('图片尺寸无效');
+    });
+
+    it('同图并发共享一次识别，一方取消不终止另一方，完成结果各自复制', async () => {
+        let complete!: (value: ReturnType<typeof blockResult>) => void;
+        let notify!: (percent: number) => void;
+        let sharedSignal!: AbortSignal;
+        recognize.mockImplementationOnce((_image, _languages, signal, _mode, progress) => {
+            sharedSignal = signal; notify = progress;
+            return new Promise(resolve => {complete = resolve;});
+        });
+        const controller = new AbortController(); const progress = vi.fn();
+        const first = recognizeImage('shared', 'en', controller.signal);
+        const rejected = expect(first).rejects.toMatchObject({name: 'AbortError'});
+        const second = recognizeImage('shared', 'en', undefined, {onProgress: progress});
+        await vi.waitFor(() => expect(recognize).toHaveBeenCalledOnce());
+        notify(42); controller.abort(); await rejected;
+        expect(sharedSignal.aborted).toBe(false);
+        complete(blockResult()); const lines = await second;
+        lines[0].text = 'changed';
+        expect((await recognizeImage('shared', 'en'))[0].text).toBe('hello');
+        expect(progress).toHaveBeenCalledWith(42);
+        expect(sources).toHaveLength(1);
+    });
+
     it('扩展 Worker 使用本地资源目录并复用语言下载边界及取消信号', async () => {
         vi.stubGlobal('chrome', {runtime: {getURL: (path: string) => `chrome-extension://test${path}`}});
         const onProgress = vi.fn();
@@ -112,12 +145,12 @@ describe('图片 OCR 处理与结果缓存', () => {
         await expect(downloadImageOcrLanguages(['eng'])).rejects.toThrow('download failed');
     });
 
-    it('同图并发完成覆盖缓存时回收旧字节计数，后续缓存不被重复计费误淘汰', async () => {
+    it('同图并发只识别一次，后续缓存不被重复计费误淘汰', async () => {
         const shared = 'a'.repeat(3 * 1024 * 1024);
         await Promise.all([recognizeImage(shared, 'en'), recognizeImage(shared, 'en')]);
         await recognizeImage('b'.repeat(2 * 1024 * 1024), 'en');
         await recognizeImage(shared, 'en');
-        expect(recognize).toHaveBeenCalledTimes(3);
+        expect(recognize).toHaveBeenCalledTimes(2);
     });
 
     it('不同 OCR 语言分别缓存，第四张图片淘汰最近最少使用的结果', async () => {
@@ -130,18 +163,18 @@ describe('图片 OCR 处理与结果缓存', () => {
         expect(recognize).toHaveBeenCalledTimes(4);
         await recognizeImage('one', 'ja');
         expect(recognize).toHaveBeenCalledTimes(5);
-        expect(recognize).toHaveBeenLastCalledWith('one', 'jpn+jpn_vert+eng', undefined, 12, undefined);
+        expect(recognize).toHaveBeenLastCalledWith('one', 'jpn+jpn_vert+eng', expect.any(AbortSignal), 12, expect.any(Function));
     });
 
     it('日文与自动源语言加载竖排模型并启用方向检测，其他语言保持稀疏模式 (#654)', async () => {
         await recognizeImage('manga', 'auto');
-        expect(recognize).toHaveBeenLastCalledWith('manga', 'chi_sim+chi_tra+eng+jpn+jpn_vert', undefined, 12, undefined);
+        expect(recognize).toHaveBeenLastCalledWith('manga', 'chi_sim+chi_tra+eng+jpn+jpn_vert', expect.any(AbortSignal), 12, expect.any(Function));
         await recognizeImage('manga', 'zh-CN');
-        expect(recognize).toHaveBeenLastCalledWith('manga', 'chi_sim+eng', undefined, undefined, undefined);
+        expect(recognize).toHaveBeenLastCalledWith('manga', 'chi_sim+eng', expect.any(AbortSignal), undefined, expect.any(Function));
         recognize.mockResolvedValueOnce({data: {blocks: []}});
         await recognizeImage('bubble', 'ja', undefined, {profile: 'area'});
-        expect(recognize).toHaveBeenNthCalledWith(3, 'scaled-image', 'jpn+jpn_vert+eng', undefined, 12, undefined);
-        expect(recognize).toHaveBeenNthCalledWith(4, 'scaled-image', 'jpn+jpn_vert+eng', undefined, 6);
+        expect(recognize).toHaveBeenNthCalledWith(3, 'scaled-image', 'jpn+jpn_vert+eng', expect.any(AbortSignal), 12, expect.any(Function));
+        expect(recognize).toHaveBeenNthCalledWith(4, 'scaled-image', 'jpn+jpn_vert+eng', expect.any(AbortSignal), 6);
         const {removeImageOcrLanguages} = await import('@/src/features/image-translation/services/ocrRuntime');
         await removeImageOcrLanguages(['jpn']);
         expect(removeFiles).toHaveBeenLastCalledWith(['jpn', 'jpn_vert']);
@@ -167,7 +200,7 @@ describe('图片 OCR 处理与结果缓存', () => {
         expect(context.drawImage).toHaveBeenCalledWith(sources[0], 0, 0, 4096, 512);
         expect(context.imageSmoothingEnabled).toBe(true);
         expect(context.imageSmoothingQuality).toBe('high');
-        expect(recognize).toHaveBeenCalledWith('scaled-image', 'eng', undefined, undefined, undefined);
+        expect(recognize).toHaveBeenCalledWith('scaled-image', 'eng', expect.any(AbortSignal), undefined, expect.any(Function));
         expect(lines).toEqual([{text: 'hello', bbox: {x0: 19, y0: 19, x1: 98, y1: 59}}]);
         expect(canvas.width).toBe(0);
         expect(canvas.height).toBe(0);
@@ -194,8 +227,8 @@ describe('图片 OCR 处理与结果缓存', () => {
     it('圈选和小图片空结果重试一次且不缓存空结果，大图仍只识别一次', async () => {
         recognize.mockResolvedValueOnce({data: {blocks: []}});
         await expect(recognizeImage('area', 'en', undefined, {profile: 'area'})).resolves.toHaveLength(1);
-        expect(recognize).toHaveBeenNthCalledWith(1, 'scaled-image', 'eng', undefined, undefined, undefined);
-        expect(recognize).toHaveBeenNthCalledWith(2, 'scaled-image', 'eng', undefined, 6);
+        expect(recognize).toHaveBeenNthCalledWith(1, 'scaled-image', 'eng', expect.any(AbortSignal), undefined, expect.any(Function));
+        expect(recognize).toHaveBeenNthCalledWith(2, 'scaled-image', 'eng', expect.any(AbortSignal), 6);
         recognize.mockResolvedValue({data: {blocks: []}});
         await expect(recognizeImage('blank', 'en', undefined, {profile: 'area'})).resolves.toEqual([]);
         expect(recognize).toHaveBeenCalledTimes(4);
@@ -312,5 +345,71 @@ describe('图片 OCR 处理与结果缓存', () => {
         await expect(recognizeImage('retry', 'en')).rejects.toThrow('engine failed');
         await expect(recognizeImage('retry', 'en')).resolves.toHaveLength(1);
         expect(recognize).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('同图在途识别的订阅和取消', () => {
+    it('完成后迟到的自定义取消回调不重复结算，也不影响下一次同图任务', async () => {
+        const tasks = createSharedOcrTasks<string>(); let cancel!: () => void;
+        const signal = {aborted: false, addEventListener: (_type: string, callback: () => void) => {cancel = callback;}, removeEventListener: vi.fn()} as unknown as AbortSignal;
+        await expect(tasks.run('same', async () => 'done', signal)).resolves.toBe('done');
+        let complete!: (value: string) => void;
+        const next = tasks.run('same', () => new Promise(resolve => {complete = resolve;}));
+        cancel(); complete('next');
+        await expect(next).resolves.toBe('next');
+        expect(signal.removeEventListener).toHaveBeenCalledOnce();
+    });
+    it('共享真实进度，后加入者收到最近进度，展示回调异常不影响其他调用方', async () => {
+        const tasks = createSharedOcrTasks<string>();
+        let complete!: (value: string) => void; let notify!: (value: number) => void;
+        const operation = vi.fn((_signal, progress) => {
+            notify = progress; return new Promise<string>(resolve => {complete = resolve;});
+        });
+        const first = tasks.run('same', operation, undefined, () => {throw new Error('detached');});
+        notify(30); const progress = vi.fn();
+        const second = tasks.run('same', operation, undefined, progress);
+        expect(progress).toHaveBeenCalledWith(30);
+        notify(40); complete('done');
+        expect(await Promise.all([first, second])).toEqual(['done', 'done']);
+        expect(operation).toHaveBeenCalledOnce();
+        expect(progress).toHaveBeenLastCalledWith(40);
+    });
+
+    it('最后一个订阅取消才终止任务，重试不会被旧进度和迟到结果清掉', async () => {
+        const tasks = createSharedOcrTasks<string>();
+        const controllers = [new AbortController(), new AbortController()];
+        let sharedSignal!: AbortSignal; let complete!: (value: string) => void; let notify!: (value: number) => void;
+        const firstOperation = vi.fn((signal, progress) => {
+            sharedSignal = signal; notify = progress; return new Promise<string>(resolve => {complete = resolve;});
+        });
+        const progress = vi.fn();
+        const first = tasks.run('same', firstOperation, controllers[0].signal, progress);
+        const second = tasks.run('same', firstOperation, controllers[1].signal);
+        const firstRejected = expect(first).rejects.toMatchObject({name: 'AbortError'});
+        const secondRejected = expect(second).rejects.toMatchObject({name: 'AbortError'});
+        controllers[0].abort(); await firstRejected; expect(sharedSignal.aborted).toBe(false);
+        controllers[1].abort(); await secondRejected; expect(sharedSignal.aborted).toBe(true);
+        notify(99); expect(progress).not.toHaveBeenCalled();
+        let retryComplete!: (value: string) => void;
+        const retryOperation = vi.fn(() => new Promise<string>(resolve => {retryComplete = resolve;}));
+        const retry = tasks.run('same', retryOperation);
+        complete('stale'); await Promise.resolve(); await Promise.resolve();
+        const joined = tasks.run('same', retryOperation);
+        retryComplete('fresh');
+        expect(await Promise.all([retry, joined])).toEqual(['fresh', 'fresh']);
+        expect(retryOperation).toHaveBeenCalledOnce();
+    });
+
+    it('预取消不执行，失败向所有订阅传播并允许重试，包括 undefined 拒绝原因', async () => {
+        const tasks = createSharedOcrTasks<string>(); const controller = new AbortController(); controller.abort();
+        const operation = vi.fn(async () => 'unexpected');
+        await expect(tasks.run('cancelled', operation, controller.signal)).rejects.toMatchObject({name: 'AbortError'});
+        expect(operation).not.toHaveBeenCalled();
+        const fail = () => Promise.reject(undefined);
+        const first = tasks.run('failed', fail); const second = tasks.run('failed', fail);
+        expect(await Promise.allSettled([first, second])).toEqual([
+            {status: 'rejected', reason: undefined}, {status: 'rejected', reason: undefined},
+        ]);
+        await expect(tasks.run('failed', async () => 'retry')).resolves.toBe('retry');
     });
 });

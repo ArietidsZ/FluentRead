@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/ocrRuntime.ts
  * 文件职责：将 Tesseract.js Worker 适配为图片翻译可调用的 OCR 服务，配置扩展内 worker/core 资源并按源语言串行执行识别或语言包预下载。
- * 主要内容：配置扩展语言资源、转发引擎任务进度与图片/圈选识别策略；语言包附带竖排模型时启用带方向检测的稀疏分割；对图片解码设置超时并释放像素，圈选小图有界放大加边，圈选或小图片仅空结果重试单块分割，不缓存空结果；坐标映回原图并按策略隔离有界缓存。
+ * 主要内容：配置扩展语言资源、转发引擎任务进度与图片/圈选识别策略；保持竖排检测和空结果一次布局重试，坐标映回原图并按策略隔离有界缓存；合并同图在途任务并独立取消，整图借用预检已解码图片，其他路径限时解码并释放自有像素。
  * 模块边界：该文件是 Tesseract 基础设施边界，不保存下载状态、不翻译识别文本也不绘制图片；并发所有权由 ocrWorkerRuntime 管理，持久化由后台 repository 负责。
  */
 import { createWorker, PSM, type Worker } from 'tesseract.js';
@@ -16,6 +16,7 @@ import {
 import { getImageOcrModelLanguages, type ImageOcrLanguageCode } from '@/src/features/image-translation/ocrLanguages';
 import {removeOcrModelFiles} from './ocrModelCache';
 import { createOcrWorkerRuntime, type OcrWorkerPort } from './ocrWorkerRuntime';
+import {createSharedOcrTasks} from './sharedOcrTasks';
 
 function extensionAsset(path: string): string {
     const getRuntimeUrl = chrome.runtime.getURL as (assetPath: string) => string;
@@ -49,7 +50,8 @@ const ocrWorkerRuntime = createOcrWorkerRuntime<TesseractRecognitionResult>({
 const MAX_CACHED_OCR_IMAGES = 3;
 const MAX_CACHED_OCR_BYTES = 12 * 1024 * 1024;
 const OCR_IMAGE_DECODE_TIMEOUT_MS = 15_000;
-export type OcrRecognitionOptions = {profile?: 'image' | 'area'; onProgress?: (percent: number) => void};
+export type OcrRecognitionOptions = {profile?: 'image' | 'area'; onProgress?: (percent: number) => void; decodedImage?: HTMLImageElement};
+const sharedRecognition = createSharedOcrTasks<OcrLine[]>();
 const completedRecognitionCache = new Map<string, {lines: OcrLine[]; bytes: number}>();
 let cachedRecognitionBytes = 0;
 
@@ -66,9 +68,7 @@ function copyOcrLines(lines: OcrLine[]): OcrLine[] {
 function cacheRecognition(key: string, lines: OcrLine[]): void {
     const bytes = key.length * 2 + lines.reduce((total, line) => total + line.text.length * 2 + 64, 0);
     if (bytes > MAX_CACHED_OCR_BYTES) return;
-    const previous = completedRecognitionCache.get(key);
-    if (previous) cachedRecognitionBytes -= previous.bytes;
-    completedRecognitionCache.delete(key);
+    // 同键在途任务已合并，完成缓存命中直接返回，因此这里只会写入新条目。
     completedRecognitionCache.set(key, {lines: copyOcrLines(lines), bytes});
     cachedRecognitionBytes += bytes;
     while (completedRecognitionCache.size > MAX_CACHED_OCR_IMAGES || cachedRecognitionBytes > MAX_CACHED_OCR_BYTES) {
@@ -108,8 +108,8 @@ function loadOcrImage(image: string, signal?: AbortSignal): Promise<HTMLImageEle
     });
 }
 
-async function prepareOcrImage(image: string, profile: 'image' | 'area', signal?: AbortSignal) {
-    const source = await loadOcrImage(image, signal);
+async function prepareOcrImage(image: string, profile: 'image' | 'area', signal?: AbortSignal, decodedImage?: HTMLImageElement) {
+    const source = decodedImage ?? await loadOcrImage(image, signal);
     try {
         if (signal?.aborted) throw abortRecognition();
         const sourceWidth = source.naturalWidth || source.width;
@@ -142,7 +142,7 @@ async function prepareOcrImage(image: string, profile: 'image' | 'area', signal?
         return {recognitionImage, sourceWidth, sourceHeight, size};
     } finally {
         // drawImage 和编码完成后即可释放解码源，不等远端/Worker 识别结束。
-        source.src = '';
+        if (!decodedImage) source.src = '';
     }
 }
 
@@ -168,23 +168,25 @@ export async function recognizeImage(
         return copyOcrLines(cached.lines);
     }
 
-    const {recognitionImage, sourceWidth, sourceHeight, size} = await prepareOcrImage(image, profile, signal);
-    if (signal?.aborted) throw abortRecognition();
-    const result = await ocrWorkerRuntime.recognize(recognitionImage, languages, signal, layoutMode, options.onProgress);
-    if (signal?.aborted) throw abortRecognition();
-    const readLines = (recognition: TesseractRecognitionResult) => restoreOcrLineCoordinates(
-        normalizeOcrLines(recognition.data.blocks), sourceWidth, sourceHeight, size.width, size.height, size.padding,
-    );
-    let lines = readLines(result);
-    if (lines.length === 0 && (profile === 'area' || (sourceWidth <= 1000 && sourceHeight <= 500))) {
-        // 圈选与小图片空结果才尝试单块分割，不给大型整页翻倍耗时，不降低噪声阈值。
-        const fallback = await ocrWorkerRuntime.recognize(recognitionImage, languages, signal, PSM.SINGLE_BLOCK);
+    return copyOcrLines(await sharedRecognition.run(cacheKey, async (signal, onProgress) => {
+        const {recognitionImage, sourceWidth, sourceHeight, size} = await prepareOcrImage(image, profile, signal, options.decodedImage);
         if (signal?.aborted) throw abortRecognition();
-        lines = readLines(fallback);
-    }
-    // 空结果不是稳定成功；用户重试时应重新识别，避免暂时失败被负缓存永久复用。
-    if (lines.length > 0) cacheRecognition(cacheKey, lines);
-    return lines;
+        const result = await ocrWorkerRuntime.recognize(recognitionImage, languages, signal, layoutMode, onProgress);
+        if (signal?.aborted) throw abortRecognition();
+        const readLines = (recognition: TesseractRecognitionResult) => restoreOcrLineCoordinates(
+            normalizeOcrLines(recognition.data.blocks), sourceWidth, sourceHeight, size.width, size.height, size.padding,
+        );
+        let lines = readLines(result);
+        if (lines.length === 0 && (profile === 'area' || (sourceWidth <= 1000 && sourceHeight <= 500))) {
+            // 圈选与小图片空结果才尝试单块分割，不给大型整页翻倍耗时，不降低噪声阈值。
+            const fallback = await ocrWorkerRuntime.recognize(recognitionImage, languages, signal, PSM.SINGLE_BLOCK);
+            if (signal?.aborted) throw abortRecognition();
+            lines = readLines(fallback);
+        }
+        // 空结果不是稳定成功；用户重试时应重新识别，避免暂时失败被负缓存永久复用。
+        if (lines.length > 0) cacheRecognition(cacheKey, lines);
+        return lines;
+    }, signal, options.onProgress));
 }
 
 export async function downloadImageOcrLanguages(

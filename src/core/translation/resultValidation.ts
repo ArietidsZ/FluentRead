@@ -1,12 +1,18 @@
 /**
  * @file src/core/translation/resultValidation.ts
  * 文件职责：识别翻译服务误返原文或明显错语种的响应，避免将其当成成功译文。
- * 主要内容：比较规范化原文与结果，用可信语言识别判断外语正文，补足中文目标下短标签列表和整段日文结果的保守判定。
+ * 主要内容：复用语言识别副本排除纯符号、数字和技术标识，比较规范化原文与结果，用可信语言识别判断外语正文，补足中文目标下短标签列表和整段日文结果的保守判定。
  * 模块边界：仅做保守的纯文本判定；不读取配置或缓存、不请求服务，也不改写原文与译文。
  */
 import {getChineseScript} from '@/src/core/language/chinese';
 import {isLanguageCodeMatch} from '@/src/core/language/codes';
 import {identifyTextLanguage} from '@/src/core/language/identify';
+import {createLanguageDetectionCopy} from '@/src/core/language/technicalTokens';
+
+/** 网址、版本、模型编号和纯符号保持原文；旁边有正文的整行仍参与翻译。 */
+export function hasTranslatableText(text: string): boolean {
+    return /\p{L}/u.test(createLanguageDetectionCopy(text).text);
+}
 
 function comparable(value: string): string {
     // 免费服务有时只把英文标题的冒号换成全角并删去后面的空格。
@@ -47,6 +53,7 @@ function isPossiblyProperName(value: string): boolean {
 /** 拒绝外语正文及英文标题的原文回显；缩写、代码与部分专名保持保守判定。 */
 export function isLikelyUntranslatedResponse(origin: string, result: string, targetLanguage: string): boolean {
     if (!origin.trim() || comparable(origin) !== comparable(result)) return false;
+    if (!hasTranslatableText(origin)) return false;
     if (getChineseScript(targetLanguage) && isPossiblyProperName(origin)) return false;
     const identification = identifyTextLanguage(origin);
     if (identification.status === 'identified') {
@@ -54,7 +61,7 @@ export function isLikelyUntranslatedResponse(origin: string, result: string, tar
     }
     return Boolean(getChineseScript(targetLanguage)) && !/[\u3400-\u9fff]/u.test(result) && (
         isLatinKeywordList(origin) || isLatinShortHeading(origin) ||
-        (origin.match(/\b[a-z]{3,}\b/gu) ?? []).length >= 3
+        (createLanguageDetectionCopy(origin).text.match(/\b[a-z]{3,}\b/gu) ?? []).length >= 3
     );
 }
 
