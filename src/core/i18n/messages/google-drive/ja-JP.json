@@ -37,7 +37,7 @@
     "settings.drive.showDetails": "差異 {count} 件を表示",
     "settings.drive.hideDetails": "差異を折りたたむ",
     "settings.drive.showAutomatic": "自動選択 {count} 件を表示",
-    "settings.drive.hideAutomatic": "確認が必要な設定に戻る",
+    "settings.drive.hideAutomatic": "自動的に保持する {count} 件の変更を閉じる",
     "settings.drive.privateHint": "キー、アドレス、カスタム内容は非表示です。関連する設定はグループ単位で保持します。",
     "settings.drive.otherSettings": "その他の互換設定",
     "settings.drive.groupedContent": "設定 {count} 件（内容は非表示）",

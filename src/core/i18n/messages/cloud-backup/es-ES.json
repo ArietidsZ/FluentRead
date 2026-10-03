@@ -56,6 +56,19 @@
     "settings.webdav.error.failure": "La operación no terminó. Comprueba la red y el almacenamiento local e inténtalo de nuevo.",
     "settings.cloud.privacyEncryption": "La configuración se cifra antes de subirla. La contraseña de la aplicación es pública; la protección depende principalmente de la cuenta, los permisos de la carpeta y el dispositivo.",
     "settings.cloud.privacyWebDavStorage": "Solo accede a la copia de FluentRead en la carpeta del servidor elegida.",
-    "settings.cloud.privacyWebDavConnection": "La contraseña permanece en este dispositivo. El acceso al servidor requiere una acción manual."
+    "settings.cloud.privacyWebDavConnection": "La contraseña permanece en este dispositivo. El acceso al servidor requiere una acción manual.",
+    "settings.cloud.currentAccount": "Cuenta de copia de seguridad: {email}",
+    "settings.cloud.changed.credentials": "Claves API, tokens OAuth y autenticación",
+    "settings.cloud.changed.requests": "Direcciones de servicios y parámetros de solicitudes",
+    "settings.cloud.changed.models": "Modelos de traducción",
+    "settings.cloud.changed.services": "Servicios de traducción por función",
+    "settings.cloud.changed.customServices": "Servicios de traducción personalizados",
+    "settings.cloud.changed.assistants": "Asistentes de escritura y lectura",
+    "settings.cloud.changed.options": "Opciones de conexión de traducción",
+    "settings.cloud.fieldLabel.0": "Mostrar idioma de destino en el menú contextual",
+    "settings.cloud.fieldLabel.1": "Mostrar atajo en el menú contextual",
+    "settings.cloud.fieldLabel.2": "Atajo de traducción al pasar el cursor guardado",
+    "settings.cloud.fieldLabel.3": "Modo de selección guardado",
+    "settings.cloud.fieldLabel.4": "Modelo local de reconocimiento de voz"
   }
 }

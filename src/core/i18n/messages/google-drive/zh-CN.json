@@ -37,7 +37,7 @@
     "settings.drive.showDetails": "查看 {count} 项差异",
     "settings.drive.hideDetails": "收起差异",
     "settings.drive.showAutomatic": "查看 {count} 项自动选择",
-    "settings.drive.hideAutomatic": "返回待确认设置",
+    "settings.drive.hideAutomatic": "收起自动保留的 {count} 项修改",
     "settings.drive.privateHint": "密钥、地址和自定义内容已隐藏；相关设置会作为整组保留。",
     "settings.drive.otherSettings": "其他兼容设置",
     "settings.drive.groupedContent": "{count} 项设置（内容隐藏）",

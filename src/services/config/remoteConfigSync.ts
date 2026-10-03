@@ -147,9 +147,10 @@ export function createRemoteConfigSync<Session extends DriveSession>(ports: Driv
         else throw new CloudSyncError('无效的同步方向，请重新选择。');
         // 必须在任何云端写入之前验证完整配置及服务引用；不能依赖 apply 才发现无效合并。
         next = parseDriveSyncPayload(driveSyncPayload(next));
-        const content = direction === 'download' ? current.remote!.content : await encryptDriveConfig(driveSyncPayload(next), passphrase);
+        const remoteChanged = !current.remoteConfig || !driveValuesEqual(next, current.remoteConfig);
+        const content = !remoteChanged ? current.remote!.content : await encryptDriveConfig(driveSyncPayload(next), passphrase);
         if (!sameRemote(await ports.api.read(session), current.remote)) throw new CloudSyncError('云端配置已变化，请重新生成同步预览。');
-        if (direction !== 'download') await ports.api.write(session, content, current.remote?.file ?? null);
+        if (direction !== 'download' && remoteChanged) await ports.api.write(session, content, current.remote?.file ?? null);
         const localChanged = !driveValuesEqual(next, current.local);
         if (localChanged) {
             try {await ports.apply(next);} catch {
