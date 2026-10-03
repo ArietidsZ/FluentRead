@@ -1,17 +1,13 @@
 <!--
  * @file src/features/settings/ui/InterfaceSettings.vue
- * 文件职责：组织译文样式、界面风格、动画加载效果、菜单栏布局与界面字体及阅读辅助分组，其中网页译文样式排在第一位。
- * 主要内容：连续展示译文样式、皮肤、菜单栏布局、动画及字体预览，通过预览和显隐列表编排区域与快捷入口；字体下载、重试和逐项清除都在对应字体卡片内完成。
+ * 文件职责：组织译文样式、界面风格、动画加载效果、菜单栏布局与界面字体及逐句高亮外观分组，其中网页译文样式排在第一位。
+ * 主要内容：连续展示译文样式、皮肤、菜单栏布局、动画及字体预览，通过预览和显隐列表编排区域与快捷入口；字体下载、重试和逐项清除都在对应字体卡片内完成，清除按钮展示排除共享文件后的可释放容量。
  * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用，译文样式的细节由 TranslationStyleSettings 负责。
 -->
 <template>
   <SettingsPanel name="translation" :active="props.activePanel">
 <TranslationStyleSettings :config="props.config" />
-<SettingsGroup :title="t('settings.interface.readingAssistance')">
-  <SettingsItem id="translation-sentence-highlight" :label="t('settings.general.bilingualSentenceHighlight')" :description="t('settings.general.bilingualSentenceHighlightDescription')">
-    <el-switch v-model="props.config.bilingualSentenceHighlightEnabled" class="settings-toggle" :aria-label="t('settings.general.bilingualSentenceHighlight')" />
-  </SettingsItem>
-</SettingsGroup>
+<SentenceHighlightStyleSettings :config="props.config" />
 </SettingsPanel>
 
   <SettingsPanel name="skin" :active="props.activePanel">
@@ -250,12 +246,12 @@
               type="button"
               class="interface-font-clear"
               :disabled="clearingFont === font.value"
-              :aria-label="t('settings.interface.font.clear', {font: t(font.labelKey)})"
-              :title="t('settings.interface.font.clear', {font: t(font.labelKey)})"
+              :aria-label="`${t('settings.interface.font.clear', {size: clearFontSize(font.value)})} · ${t(font.labelKey)}`"
+              :title="`${t('settings.interface.font.clear', {size: clearFontSize(font.value)})} · ${t(font.labelKey)}`"
               @click.stop.prevent="confirmClearFont(font.value)"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" /></svg>
-              {{ t(clearingFont === font.value ? 'settings.interface.font.clearingCache' : 'settings.interface.font.clear') }}
+              {{ clearingFont === font.value ? t('settings.interface.font.clearingCache') : t('settings.interface.font.clear', {size: clearFontSize(font.value)}) }}
             </button>
           </div>
         </label>
@@ -293,13 +289,15 @@ import {
   type InterfaceFont,
 } from '@/src/core/config/interfaceAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
+import {getClearableInterfaceFontAssets} from '@/src/core/config/interfaceFontAssets'
 import {browserCapabilities} from '@/src/platform/browser/capabilities'
-import {availableInterfaceFonts, clearInterfaceFont, interfaceFontLoadState, refreshInterfaceFontAvailability, retryInterfaceFont} from '@/src/ui/interfaceAppearance'
+import {availableInterfaceFonts, cachedInterfaceFonts, clearInterfaceFont, interfaceFontLoadState, refreshInterfaceFontAvailability, retryInterfaceFont} from '@/src/ui/interfaceAppearance'
 import InterfaceSkinPreview from './components/InterfaceSkinPreview.vue'
 import PopupLayoutPreview from './components/PopupLayoutPreview.vue'
 import PopupLayoutEditor from './PopupLayoutEditor.vue'
 import TranslationLoadingStyleSettings from './TranslationLoadingStyleSettings.vue'
 import TranslationStyleSettings from './TranslationStyleSettings.vue'
+import SentenceHighlightStyleSettings from './SentenceHighlightStyleSettings.vue'
 import SettingsGroup from './components/SettingsGroup.vue'
 import SettingsItem from './components/SettingsItem.vue'
 
@@ -329,9 +327,16 @@ function selectInterfaceFont(font: InterfaceFont) {
   props.config.interfaceFont = font
 }
 const clearingFont = ref<InterfaceFont | null>(null)
+function clearFontSize(font: InterfaceFont): string {
+  const bytes = getClearableInterfaceFontAssets(font, cachedInterfaceFonts.value).reduce((sum, asset) => sum + asset.bytes, 0)
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 function canClearFont(font: InterfaceFont): boolean {
   return font !== 'system'
-    && availableInterfaceFonts.value.includes(font)
+    && cachedInterfaceFonts.value.includes(font)
+    && getClearableInterfaceFontAssets(font, cachedInterfaceFonts.value).length > 0
     && !(interfaceFontLoadState.value.font === font && interfaceFontLoadState.value.status === 'loading')
 }
 async function confirmClearFont(font: InterfaceFont): Promise<void> {

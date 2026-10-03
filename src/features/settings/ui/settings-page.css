@@ -629,9 +629,6 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 
 .settings-card.services-view [data-settings-panel="connections"] { display: flex; flex: 1 1 0%; min-height: 0; flex-direction: column; }
 
-.service-assignments-section { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
-.service-assignments-section > h2 { margin: 0 0 12px; color: var(--ink); font-size: 16px; }
-
 /* 设置中的操作文案与选项允许随语言伸展，保持完整文字和点击范围。 */
 .settings-app .settings-card .el-button { height: auto; min-height: 32px; max-width: 100%; padding-block: 7px; }
 .settings-app .settings-card .el-button > span { white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }

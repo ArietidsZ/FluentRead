@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/TranslationStyleSettings.vue
 文件职责：作为“界面风格”页的第一个分组，集中设置网页双语译文的样式预设、文字与独立背景色、精确字号等外观微调，并提供与网页一致的实时预览。
-主要内容：以紧凑可视卡片比较内置样式和已保存样式的独立外观快照，减少嵌套边框并突出当前选择；当前预览实时反映颜色、字体与安全的自定义 CSS 声明，并能保存、更新或删除多套样式。
+主要内容：左侧实时预览、右侧选择样式，窄屏下按相同顺序纵向排列；以紧凑可视卡片比较内置样式和已保存样式的独立外观快照，减少嵌套边框并突出当前选择；当前预览实时反映颜色、字体与安全的自定义 CSS 声明，并能保存、更新或删除多套样式。
 模块边界：本组件只编辑父级传入的 Config 草稿（style、translationAppearance、translationStyleProfiles 等），不持久化配置、
 不向网页注入样式；预设元数据和外观声明来自 core/config/translationAppearance，网页应用由 content 层负责。
 -->
@@ -18,6 +18,21 @@
       </div>
 
       <div class="translation-style-workbench">
+        <div class="translation-style-stage">
+          <TranslationStylePreview
+            :style-class="selectedPreset.className"
+            :appearance-style="appearanceStyle"
+            :highlight-enabled="config.bilingualSentenceHighlightEnabled"
+            :highlight-style="config.bilingualSentenceHighlightStyle"
+            :translation-before-original="config.translationBeforeOriginal"
+            :page-theme="pageTheme"
+            :caption="t('settings.translationStyle.currentPreset', { name: activeProfile?.name ?? translateLegacy(selectedPreset.label) })"
+            :customized="customized"
+            :hint="selectedPreset.className === 'fluent-display-blur-reveal' ? t('settings.translationStyle.blurRevealHint') : ''"
+            @update:page-theme="pageTheme = $event"
+          />
+        </div>
+
         <section class="translation-style-gallery" aria-labelledby="translation-style-gallery-title">
           <div v-if="config.translationStyleProfiles.length" class="translation-style-saved">
             <strong id="translation-style-saved-title">{{ t('settings.translationStyle.savedTitle') }}</strong>
@@ -35,7 +50,7 @@
                 @click="selectProfile(profile)"
               >
                 <span class="translation-style-card-sample" :data-page-theme="pageTheme" aria-hidden="true" data-i18n-ignore>
-                  <span class="fluent-read-bilingual-content" :class="getTranslationStylePreset(profile.style)?.className" :style="getTranslationAppearanceStyle(profile.appearance)" lang="zh-CN">阅读轻松自然</span>
+                  <span class="fluent-read-bilingual-content" :class="getTranslationStylePreset(profile.style)?.className" :style="getTranslationAppearanceStyle(profile.appearance)" lang="zh-CN"><span class="fluent-read-translation-text">阅读轻松自然</span></span>
                 </span>
                 <span class="translation-style-saved-card-copy">
                   <strong>{{ profile.name }}</strong>
@@ -69,7 +84,7 @@
               @click="selectPreset(preset.value)"
             >
               <span class="translation-style-card-sample" :data-page-theme="pageTheme" aria-hidden="true" data-i18n-ignore>
-                <span class="fluent-read-bilingual-content" :class="preset.className" :style="presetAppearanceStyle" lang="zh-CN">阅读轻松自然</span>
+                <span class="fluent-read-bilingual-content" :class="preset.className" :style="presetAppearanceStyle" lang="zh-CN"><span class="fluent-read-translation-text">阅读轻松自然</span></span>
               </span>
               <span class="translation-style-card-name">{{ translateLegacy(preset.label) }}</span>
               <span class="translation-style-card-check" aria-hidden="true"><i /></span>
@@ -77,21 +92,6 @@
           </div>
           <p class="translation-style-apply-hint">{{ t('settings.translationStyle.applyHint') }}</p>
         </section>
-
-        <div class="translation-style-stage">
-          <TranslationStylePreview
-            :style-class="selectedPreset.className"
-            :appearance-style="appearanceStyle"
-            :highlight-enabled="config.bilingualSentenceHighlightEnabled"
-            :translation-before-original="config.translationBeforeOriginal"
-            :page-theme="pageTheme"
-            :caption="t('settings.translationStyle.currentPreset', { name: activeProfile?.name ?? translateLegacy(selectedPreset.label) })"
-            :customized="customized"
-            :hint="selectedPreset.className === 'fluent-display-blur-reveal' ? t('settings.translationStyle.blurRevealHint') : ''"
-            @update:page-theme="pageTheme = $event"
-          />
-
-        </div>
       </div>
 
       <section id="translation-appearance-panel" class="translation-appearance-panel" aria-labelledby="translation-appearance-title" data-testid="translation-appearance-panel">
@@ -770,7 +770,7 @@ function resetAppearance(): void {
 }
 
 @container (min-width: 700px) {
-  .translation-style-workbench { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .translation-style-workbench { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
 }
 
 @media (max-width: 520px) {

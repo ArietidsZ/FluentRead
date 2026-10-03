@@ -3,7 +3,7 @@ import {resolve} from 'node:path'
 import {webcrypto} from 'node:crypto'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import {interfaceFontOptions} from '@/src/core/config/interfaceAppearance'
-import {getInterfaceFontAssets, getInterfaceFontUrl, interfaceFontSources, INTERFACE_FONT_REVISION} from '@/src/core/config/interfaceFontAssets'
+import {getClearableInterfaceFontAssets, getInterfaceFontAssets, getInterfaceFontUrl, interfaceFontSources, INTERFACE_FONT_REVISION} from '@/src/core/config/interfaceFontAssets'
 import {createInterfaceFontLoader, getCachedInterfaceFonts, verifyInterfaceFont, type InterfaceFontLoadState} from '@/src/services/interfaceFonts'
 
 const digest = (data: ArrayBuffer) => webcrypto.subtle.digest('SHA-256', data)
@@ -226,6 +226,46 @@ describe('字体下载、缓存和切换生命周期', () => {
 
 
 describe('字体缓存维护', () => {
+  it('首屏前离线注册完整缓存，随后正常加载不再次下载或注册字体', async () => {
+    const h = harness()
+    await h.loader.load('inter')
+    const reopened = createInterfaceFontLoader(h.deps)
+    h.deps.fetch.mockClear()
+    h.deps.install.mockClear()
+    expect(await reopened.loadCached('inter')).toBe(true)
+    expect(h.deps.install).toHaveBeenCalledTimes(2)
+    await reopened.load('inter')
+    expect(h.deps.fetch).not.toHaveBeenCalled()
+    expect(h.deps.install).toHaveBeenCalledTimes(2)
+  })
+
+  it('缺失、损坏或不可访问的缓存不会阻塞首屏去等待网络或注册不完整方案', async () => {
+    for (const failure of ['missing', 'corrupt', 'unavailable'] as const) {
+      const h = harness()
+      if (failure === 'corrupt') h.entries.set('https://fluentread.app/__interface_fonts__/' + getInterfaceFontAssets('inter')[0].sha256, new Response('corrupt'))
+      if (failure === 'unavailable') h.deps.openCache.mockRejectedValue(new Error('disabled'))
+      expect(await h.loader.loadCached('inter')).toBe(false)
+      expect(h.deps.fetch).not.toHaveBeenCalled()
+      expect(h.deps.install).not.toHaveBeenCalled()
+    }
+    const h = harness()
+    expect(await h.loader.loadCached('system')).toBe(true)
+    expect(h.deps.openCache).not.toHaveBeenCalled()
+  })
+
+  it('可释放容量与实际清除一致，排除其他方案仍使用的中文文件', async () => {
+    const h = harness()
+    await h.loader.load('inter')
+    const cached = await getCachedInterfaceFonts(h.deps.openCache)
+    const clearable = getClearableInterfaceFontAssets('inter', cached)
+    expect(clearable.map(asset => asset.file)).toEqual(['Inter.woff2'])
+    expect(getClearableInterfaceFontAssets('noto-sans-sc', cached)).toEqual([])
+    expect(getClearableInterfaceFontAssets('system', cached)).toEqual([])
+    await h.loader.clearFont('inter')
+    expect(await getCachedInterfaceFonts(h.deps.openCache)).toEqual(['system', 'noto-sans-sc'])
+    expect(clearable[0].bytes).toBe(bytes('Inter.woff2').byteLength)
+  })
+
   it('等待正在写入的下载完成后再清除该字体，期间的新选择在清除后执行', async () => {
     const h = harness()
     let release!: () => void

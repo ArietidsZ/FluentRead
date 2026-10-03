@@ -33,7 +33,7 @@
       </div>
       <div v-if="!visibleRows.length" class="rule-empty"><UiIcon name="globe" :size="28" /><strong>{{ tr(rows.length ? '没有匹配的网站' : '尚未添加网站偏好') }}</strong><p>{{ tr(rows.length ? '试试其他关键词，或清空搜索。' : settings.autoTranslate ? '全局自动翻译已开启。可以添加网站禁用扩展，或仅隐藏悬浮球。' : '默认按需翻译。可在上方添加，也可从菜单栏为当前网站快速设置。') }}</p></div>
       <div v-if="removed" class="rule-actions"><span class="rule-hint" data-i18n-ignore>{{ removed.domain }}</span><button type="button" :disabled="saving" @click="undoRemove">{{ tr('撤销移除') }}</button></div>
-      <p v-if="!settings.on" class="rule-notice">{{ tr('插件目前已暂停。偏好会保存，重新启用插件后生效。') }}</p>
+      <p v-if="!settings.on" class="rule-notice">{{ tr('插件已关闭。偏好会保存，再次启动插件后生效。') }}</p>
       <p class="rule-hint">{{ tr('隐藏悬浮球不会关闭快捷键、右键菜单或其他翻译功能。取消全部偏好后，该网站会自动从名单移除。') }}</p>
     </section>
   </div>

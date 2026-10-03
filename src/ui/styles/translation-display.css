@@ -33,7 +33,7 @@
 
 .fluent-display-elegant {
     font-family: "Georgia", serif;
-    color: #666;
+    color: inherit;
     line-height: 1.6;
     letter-spacing: 0.3px;
 }
@@ -62,13 +62,17 @@
     }
 }
 
-/* 线条：块级底边保持旧预设外观，新增预设用 text-decoration 让多行译文逐行带线。 */
+/* 下划线按每行文字绘制，不用段落边框代替，避免只出现最后一行和行尾留白。 */
 .fluent-display-solid-underline {
-    border-bottom: 2px solid var(--fluent-read-translation-line, #409eff);
+    text-decoration: underline solid var(--fluent-read-translation-line, #409eff);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
 }
 
 .fluent-display-dot-underline {
-    border-bottom: 2px dotted var(--fluent-read-translation-line, #409eff);
+    text-decoration: underline dotted var(--fluent-read-translation-line, #409eff);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
 }
 
 .fluent-display-wavy {
@@ -88,7 +92,9 @@
 }
 
 .fluent-display-clean {
-    border-bottom: 1px solid var(--fluent-read-translation-line, #e4e7ed);
+    text-decoration: underline solid var(--fluent-read-translation-line, #e4e7ed);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
     padding-bottom: 2px;
     margin-bottom: 2px;
 }
@@ -118,15 +124,27 @@
 
 /* 标记与底色 */
 .fluent-display-learning-mode {
-    background: linear-gradient(transparent 60%, var(--fluent-read-translation-fill-strong, #ffd700) 40%);
+    background: transparent;
 }
 
-/* 马克笔保持行内显示，逐行复制底色。 */
+/* 渐变绘制在每行文字的片段上；外层块仍负责原文与译文之间的换行。 */
+.fluent-display-learning-mode > .fluent-read-translation-text {
+    display: inline !important;
+    background: linear-gradient(transparent 60%, var(--fluent-read-translation-fill-strong, rgba(255, 214, 75, .40)) 0);
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+
+/* 外层保留双语换行，内层荧光底色只覆盖每行文字；透明底色兼容深色网页。 */
 .fluent-display-marker {
-    background: var(--fluent-read-translation-fill-strong, #ffeb3b);
+    background: transparent;
     padding: 0;
     line-height: 1.6;
-    display: inline;
+}
+.fluent-display-marker > .fluent-read-translation-text {
+    display: inline !important;
+    background: var(--fluent-read-translation-fill-strong, rgba(255, 214, 75, .40));
+    -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
 }
 

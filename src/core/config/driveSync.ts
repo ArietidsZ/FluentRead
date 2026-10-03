@@ -119,6 +119,7 @@ const VISIBLE_FIELDS: Record<string, string> = {
     glossaryEnabled: '术语库',
     enableAIMultiSegment: 'AI 多段翻译',
     bilingualSentenceHighlightEnabled: '双语逐句高亮',
+    bilingualSentenceHighlightStyle: '逐句高亮样式',
     contextMenuEnabled: '右键全文翻译',
     pageTitleTranslationEnabled: '翻译页面标题',
     sidebarTranslationEnabled: '侧边栏翻译',

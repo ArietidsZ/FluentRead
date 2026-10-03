@@ -9,6 +9,7 @@ import type {ContentScriptContext} from 'wxt/utils/content-script-context';
 import {config, subscribeConfig} from '@/src/services/config/store';
 import translationDisplayStyles from '@/src/ui/styles/translation-display.css?inline';
 import pageStyles from './page.css?inline';
+import sentenceHighlightStyles from '@/src/ui/styles/bilingual-sentence-highlight.css?inline';
 import {syncTranslationAppearanceStyles} from './translationAppearance';
 
 export function installPageStyles(ctx: ContentScriptContext): () => void {
@@ -16,7 +17,7 @@ export function installPageStyles(ctx: ContentScriptContext): () => void {
     if (existing) return () => undefined;
     const style = document.createElement('style');
     style.id = 'fluent-read-page-styles';
-    style.textContent = `${translationDisplayStyles}\n${pageStyles}`;
+    style.textContent = `${translationDisplayStyles}\n${pageStyles}\n${sentenceHighlightStyles}`;
     (document.head ?? document.documentElement).appendChild(style);
     // 外观与页面样式同生共灭：配置变化时已显示和后续出现的译文一起更新，无需重新翻译。
     syncTranslationAppearanceStyles(document, config.translationAppearance);
