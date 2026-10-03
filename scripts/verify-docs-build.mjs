@@ -37,6 +37,15 @@ for (const [file, doc] of docs) {
       '404 must not advertise missing translations'
     )
   } else {
+    const route = path.relative(dist, file)
+    const alternatePath = (route.startsWith('en/') ? route.slice(3) : 'en/' + route)
+      .replace(/index\.html$/, '')
+      .replace(/\.html$/, '')
+    assert.equal(
+      doc.querySelector('.bv-language')?.getAttribute('href'),
+      '/' + alternatePath,
+      `Language switch must preserve the page without a language-specific hash: ${route}`
+    )
     const canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute('href')
     assert(canonical?.startsWith('https://read.thinkstu.com/'), `Missing canonical: ${file}`)
     assert(resolve(canonical), `Missing canonical target: ${canonical}`)
@@ -102,10 +111,15 @@ for (const prefix of ['', '/en']) {
     'Extra documentation topics must start collapsed'
   )
   assert(
-    docs.get(resolve(prefix + '/config/translation-engines')).querySelector('.vp-doc').textContent.includes('{{apiKey}}'),
+    docs
+      .get(resolve(prefix + '/config/translation-engines'))
+      .querySelector('.vp-doc')
+      .textContent.includes('{{apiKey}}'),
     'Provider placeholders must remain readable literal text'
   )
-  const input = docs.get(resolve(prefix + '/guide/input-translation')).querySelector('.vp-doc').textContent
+  const input = docs
+    .get(resolve(prefix + '/guide/input-translation'))
+    .querySelector('.vp-doc').textContent
   assert(input.includes('{{origin}}') && input.includes('{{to}}'), 'Prompt placeholders missing')
 }
 assert(

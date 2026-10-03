@@ -1,8 +1,19 @@
 <script setup lang="ts">
 import DefaultTheme from 'vitepress/theme'
-import { useRoute } from 'vitepress'
-import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
+import { useData, useRoute, withBase } from 'vitepress'
+import { computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 const route = useRoute()
+const { lang, page } = useData()
+const english = computed(() => lang.value.startsWith('en'))
+// Headings differ between languages. Keep the corresponding page, without carrying its hash.
+const languageLink = computed(() => {
+  if (page.value.isNotFound) return withBase(english.value ? '/' : '/en/')
+  const path = page.value.relativePath
+    .replace(/^en\//, '')
+    .replace(/(^|\/)index\.md$/, '$1')
+    .replace(/\.md$/, '')
+  return withBase((english.value ? '/' : '/en/') + path)
+})
 let revision = 0
 async function revealAnchor() {
   const current = ++revision
@@ -40,4 +51,17 @@ onBeforeUnmount(() => {
   window.removeEventListener('hashchange', revealAnchor)
 })
 </script>
-<template><DefaultTheme.Layout /></template>
+<template>
+  <DefaultTheme.Layout>
+    <template #nav-bar-content-after>
+      <a
+        class="bv-language"
+        :href="languageLink"
+        :aria-label="english ? '切换到简体中文' : 'Switch to English'"
+        :hreflang="english ? 'zh-CN' : 'en'"
+      >
+        {{ english ? '中文' : 'EN' }}
+      </a>
+    </template>
+  </DefaultTheme.Layout>
+</template>

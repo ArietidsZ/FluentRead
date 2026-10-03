@@ -172,14 +172,15 @@ export default defineConfig({
     ['link', { rel: 'icon', href: '/brand-icon.webp' }],
   ],
   locales: {
+    // GuideLayout provides a stable page-level switch; translated headings have different hashes.
     root: {
-      label: '简体中文',
+      label: '',
       lang: 'zh-CN',
       title: 'FluentRead',
       themeConfig: theme(),
     },
     en: {
-      label: 'English',
+      label: '',
       lang: 'en',
       title: 'FluentRead',
       description: `${brandTaglines['en-US']} An open-source browser extension for bilingual translation.`,
