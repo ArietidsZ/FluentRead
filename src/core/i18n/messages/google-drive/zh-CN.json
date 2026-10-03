@@ -1,6 +1,7 @@
 {
   "messages": {
-    "settings.drive.storageBadge": "配置存入你的云盘",
+    "settings.drive.privacyBadge": "隐私保护",
+    "settings.drive.description": "把完整配置加密保存到自己的 Google 云盘，在其他设备恢复；包含 API Key、OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数，不包含单词本、聊天记录和用量统计。",
     "settings.drive.account": "本次同步账号：{email}",
     "settings.drive.differences": "{count} 项差异。私密和自定义内容均已隐藏。",
     "settings.drive.local": "本机：{value}",

@@ -17,6 +17,11 @@ import {translationStatsSpanishMessages} from './translationStats';
 import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
+    "settings.backup.localTitle": "Copia de seguridad local",
+    "settings.backup.fileTitle": "Guardar copia en un archivo",
+    "settings.backup.fileDescription": "Guarda los ajustes, el vocabulario y el uso de modelos para restaurarlos al cambiar de navegador o reinstalar.",
+    "settings.backup.fileWarning": "Los archivos de copia incluyen claves API y otra información privada y no están cifrados. Guárdalos en un lugar seguro y no los compartas públicamente. La caché de traducción no se incluye.",
+    "settings.backup.restoreHint": "Elige un archivo de copia de FluentRead. También puedes restaurar archivos JSON antiguos.",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['es-ES'],
     "popup.translationCount": "{count} traducciones",

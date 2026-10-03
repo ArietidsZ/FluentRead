@@ -1,6 +1,7 @@
 {
   "messages": {
-    "settings.drive.storageBadge": "Ajustes en tu propio Drive",
+    "settings.drive.privacyBadge": "Protección de la privacidad",
+    "settings.drive.description": "Guarda tu configuración completa cifrada en tu propio Google Drive y restáurala en otros dispositivos; incluye claves API, tokens OAuth, cabeceras de autenticación, cuerpos de solicitud personalizados y parámetros de autenticación en las URL, pero no el vocabulario, el historial de chats ni las estadísticas de uso.",
     "settings.drive.account": "Cuenta para esta sincronización: {email}",
     "settings.drive.differences": "{count} diferencias. El contenido privado y personalizado está oculto.",
     "settings.drive.local": "Dispositivo: {value}",
