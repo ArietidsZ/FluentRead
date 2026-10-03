@@ -19,6 +19,7 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
       ],
     },
     {
+      collapsed: true,
       text: en ? 'Webpage translation' : '网页翻译',
       items: [
         item('全文与局部翻译', 'Page & section translation', '/guide/webpage-translation'),
@@ -29,6 +30,7 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
       ],
     },
     {
+      collapsed: true,
       text: en ? 'Images, documents & video' : '图片、文档与视频',
       items: [
         item('图片翻译', 'Image translation', '/guide/image-translation'),
@@ -38,6 +40,7 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
       ],
     },
     {
+      collapsed: true,
       text: en ? 'Learning & expression' : '学习与表达',
       items: [
         item('学习中心', 'Learning center', '/guide/vocabulary-book'),
@@ -48,7 +51,7 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
     },
     {
       text: en ? 'Providers & settings' : '服务与设置',
-      collapsed: false,
+      collapsed: true,
       items: [
         item('设置概览', 'Settings overview', '/config/'),
         item('翻译服务', 'Translation providers', '/config/translation-engines'),
@@ -72,6 +75,7 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
       ],
     },
     {
+      collapsed: true,
       text: en ? 'Help' : '帮助',
       items: [
         item('常见问题', 'Troubleshooting', '/guide/faq'),
@@ -165,7 +169,7 @@ export default defineConfig({
   ],
   head: [
     ['meta', { name: 'theme-color', content: '#b8214e' }],
-    ['link', { rel: 'icon', href: '/logo.webp' }],
+    ['link', { rel: 'icon', href: '/brand-icon.webp' }],
   ],
   locales: {
     root: {
@@ -183,7 +187,7 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    logo: '/logo.webp',
+    logo: '/brand-icon.webp',
     siteTitle: 'FluentRead',
     socialLinks: [{ icon: 'github', link: 'https://github.com/FluentRead/FluentRead' }],
     search: {

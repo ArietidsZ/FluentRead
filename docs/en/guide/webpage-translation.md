@@ -2,7 +2,7 @@
 
 Translate an article or a selected section, compare both languages, and return to the original.
 
-<TranslationDemo en />
+<GuideVisual kind="webpage" en />
 
 ## Page translation
 
@@ -19,7 +19,12 @@ The default translates as you read. If you need the whole page at once, change t
 | Translate one part of the page | Section translation below |
 | Return to the original page | Restore original |
 
+<details class="guide-details">
+<summary>See the actual webpage translation</summary>
+
 <figure class="doc-figure"><a href="/screenshots/en/translation.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/en/translation.webp" width="2560" height="1600" alt="Chinese paragraphs followed by English translations on the same webpage" loading="lazy" /></a><figcaption>Keep the original nearby when a name or detail needs a second look.</figcaption></figure>
+
+</details>
 
 ### Page floating ball
 
@@ -51,9 +56,17 @@ When you only want to read part of a page, such as a GitHub README, an article b
 
 If you use it often, turn on its shortcut in **Settings → Translation → Section translation** (default **Alt+R**, Option+R on a Mac); press it again while picking to exit. Headers, navigation and sidebars usually stay in the original language during page translation, but if you pick one of them yourself, its text is translated too and, like other interface text, replaces the original in place so the layout stays intact. Restoring page translation also restores any translated sections.
 
+<details class="guide-details">
+<summary>Automatic translation and site rules</summary>
+
 ## Automatic translation and site rules
 
 Translate a frequently visited site automatically, or keep a particular site in its original language. For missing article text, start with [website reading area](/en/config/site-adaptation).
+
+</details>
+
+<details class="guide-details">
+<summary>More translation languages</summary>
 
 ## More translation languages
 
@@ -105,8 +118,9 @@ When source text changes, full-page translation waits for about 1.8 seconds of s
 - **Line breaks in long paragraphs**: insert a line break at the end of each sentence in long translated paragraphs.
 - **Translation before original**: in bilingual mode, place the translation above each original paragraph instead of below it.
 
-
 :::
+
+</details>
 
 ## Next steps
 

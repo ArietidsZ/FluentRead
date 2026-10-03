@@ -1,6 +1,15 @@
+---
+outline: false
+---
+
 # Choose your translation service
 
 FluentRead displays translations produced by your selected service. Use the default service or configure another machine translation provider, AI service, or local model.
+
+<GuideVisual kind="provider" en />
+
+<details class="guide-details">
+<summary>Configure a service</summary>
 
 ## Configure a service
 
@@ -9,6 +18,8 @@ The service directory is organized by category and can be searched. Selecting an
 The model and connection fields stay visible. **Key management** sits beside the API Key fields. **Model preferences**, **Prompt templates**, **Request limits**, and **API compatibility** expand independently as needed. Collapsing a section keeps its settings active and saved. Cloud services show a quota summary; expand the setup guide for instructions. Eligibility and overage behavior depend on the provider and plan.
 
 In General settings, **Configure service** beside the default service opens its configuration directly. On narrow screens, the service directory opens with **Switch service to configure** and closes after selection.
+
+</details>
 
 ## Which one fits?
 
@@ -35,6 +46,9 @@ Clicking a service in the directory only opens its configuration. The **Check co
 
 <figure class="doc-figure"><a href="/screenshots/ui/en-US/settings-services.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/ui/en-US/settings-services.webp" width="2560" height="1600" alt="Translation service directory and connection settings" loading="lazy" /></a><figcaption>Configure a connection, then select the service you want to use.</figcaption></figure>
 
+<details class="guide-details">
+<summary>Use several API keys</summary>
+
 ## Use several API keys
 
 For a service with an API Key field, open **Key management** below the API Key fields, enable key rotation, and add one key per row using **Add key** below the list. Existing single keys are kept. All rows use the same service address, model, region, and custom headers; use a separate custom service when those settings differ.
@@ -42,6 +56,11 @@ For a service with an API Key field, open **Key management** below the API Key f
 Requests are shared evenly at first. If a key fails, FluentRead tries another and temporarily reduces how often the failing key is used. Invalid keys and exhausted quotas can be paused. The default recovery wait is 1 minute; adjust it from **Settings → Advanced → Request limits** between 1 and 60 minutes. A rate limit with a server-provided waiting period follows that period instead. Changing keys does not bypass your configured request rate or total timeout. Health is temporary and resets when the extension's background process restarts.
 
 **Check all** above the list tests each distinct, filled row in order, with the summary and individual results shown together. Select a failed status to see its reason, or use the row's check button to test it again. You can stop the remaining checks. A failed row does not stop the rest. Empty rows and duplicates do not make extra requests. Checks send a short translation and may use a small amount of your provider allowance. Results describe that check, rather than guaranteeing future availability.
+
+</details>
+
+<details class="guide-details">
+<summary>The free service</summary>
 
 ## The free service
 
@@ -57,15 +76,30 @@ Rate limits normally pause a provider for minutes, blocked access for hours, and
 
 Free services have changing availability and allowances. Public interfaces and intermediaries have their own data policies. Keep only one entry, or select a standalone service, if you want requests to go to only that provider.
 
+</details>
+
+<details class="guide-details">
+<summary>MyMemory</summary>
+
 ## MyMemory
 
 Select **MyMemory** and click **Check connection**. The contact email is optional. The check translates a fixed short sentence from English to Chinese, so you do not need to change your source or target language first. Your saved language and email settings are preserved.
 
 Regular translation still uses your selected languages. If automatic detection cannot identify the source language of a short text, select it manually and retry.
 
+</details>
+
+<details class="guide-details">
+<summary>DeepL</summary>
+
 ## DeepL
 
 Choose API Free or API Pro and enter the matching key. A DeepL website subscription and a DeepL API plan are different products.
+
+</details>
+
+<details class="guide-details">
+<summary>DeepLX</summary>
 
 ## DeepLX
 
@@ -73,15 +107,19 @@ Enter the full translation endpoint, such as `https://deeplx.example.com/transla
 
 Endpoints that do not require authentication can be used and checked with an empty API Key. If the site requires authentication, enter only its Token value, without a `Bearer` prefix. The Token is sent in the request header by default. If the site requires it in the URL, follow the site's instructions:
 
+- Query parameter: <code v-pre>https://deeplx.example.com/translate?token={{apiKey}}</code>
+- URL path: <code v-pre>https://deeplx.example.com/{{apiKey}}/translate</code>
 
-- Query parameter: `https://deeplx.example.com/translate?token={{apiKey}}`
-- URL path: `https://deeplx.example.com/{{apiKey}}/translate`
+Keep <code v-pre>{{apiKey}}</code> exactly as written. It is replaced with your saved API Key when sending, so you do not need to put the actual Token in the URL. A configured proxy URL takes priority; use the full path and the site's required Token format there too. Then click **Check connection**.
 
-Keep `{{apiKey}}` exactly as written. It is replaced with your saved API Key when sending, so you do not need to put the actual Token in the URL. A configured proxy URL takes priority; use the full path and the site's required Token format there too. Then click **Check connection**.
-
-If several endpoints are configured, an empty Key skips addresses containing `{{apiKey}}` or `{{token}}` and uses any valid anonymous addresses in the effective list. If all effective addresses require a token, enter a Key first. An unresolved token address does not silently switch to the default public endpoint.
+If several endpoints are configured, an empty Key skips addresses containing <code v-pre>{{apiKey}}</code> or <code v-pre>{{token}}</code> and uses any valid anonymous addresses in the effective list. If all effective addresses require a token, enter a Key first. An unresolved token address does not silently switch to the default public endpoint.
 
 These settings apply only to the standalone DeepLX service. DeepLX in the free fallback service uses the default public anonymous endpoint.
+
+</details>
+
+<details class="guide-details">
+<summary>Cloud vendors</summary>
 
 ## Cloud vendors
 
@@ -104,6 +142,11 @@ For Azure, Alibaba Cloud, and Volcengine the region is part of the request signa
 
 Paired secrets (AccessKey Secret, SecretKey, and similar) are stored only on this device, like API keys. Shared configurations and configuration history never include them; full backups keep them.
 
+</details>
+
+<details class="guide-details">
+<summary>Local model translation</summary>
+
 ## Local model translation
 
 Choose a model under **Settings → Translation services → Local model translation** and download it. Once it is available offline, try a short translation, then select this service in the extension menu. No API key or separate server is required; translation text stays on this device.
@@ -121,6 +164,11 @@ Deleting a model requires confirmation and keeps other models and settings. Mode
 Download size is not runtime memory. Even a lightweight pack can briefly add around 1–2 GB of memory use, with CPU spikes while loading. Models are released after 30 seconds of inactivity. Text length, browser and graphics hardware affect actual usage. Unsupported browsers show a warning for Hunyuan. The userscript edition does not download or run these models.
 
 Local Hunyuan is separate from the Hunyuan cloud service. Model sources and licenses are linked from each card's information button.
+
+</details>
+
+<details class="guide-details">
+<summary>AI services</summary>
 
 ## AI services
 
@@ -177,6 +225,11 @@ If an older version reports `Failed to fetch`, enter `https://api.hunyuan.cloud.
 
 See Tencent's [official integration guide](https://cloud.tencent.com/document/product/1729/116755) for endpoint and API key instructions.
 
+</details>
+
+<details class="guide-details">
+<summary>Local models</summary>
+
 ## Local models
 
 Install and run Ollama and download a model before connecting it. Performance depends on the model and computer.
@@ -187,11 +240,21 @@ The aggregation platforms group also includes Mistral AI, Cohere, Cerebras, Toge
 
 Choosing a local model determines where that translation goes. Dictionary, read-aloud, downloads, and other independent tools can still use network services. See [Data & privacy](/en/guide/privacy).
 
+</details>
+
+<details class="guide-details">
+<summary>Connection failed?</summary>
+
 ## Connection failed?
 
 Check the key, address, model, and provider balance. If short sentences work but long pages do not, reduce concurrency or try another service. Never include real credentials in feedback. See [Troubleshooting](/en/guide/faq).
 
 Youdao Web and ICIBA currently support English and Simplified Chinese directions. Yandex does not support Traditional Chinese targets. Unsupported directions fall back to another candidate. Free web endpoints may be rate-limited or unavailable.
+
+</details>
+
+<details class="guide-details">
+<summary>Custom request headers</summary>
 
 ## Custom request headers
 
@@ -206,3 +269,5 @@ Headers apply only to this service and override matching defaults regardless of 
 Headers are stored as credentials: public exports and history omit them, while full backups retain them. Re-enter them after changing the endpoint or proxy.
 
 [OpenCode Go's documentation](https://opencode.ai/docs/go/#where-can-i-use-it) requires a stable session header and also specifies client and traffic requirements. Configurable headers do not imply certified compatibility with that service.
+
+</details>

@@ -2,6 +2,8 @@
 
 The learning center starts with words, phrases, and sentences you save while reading. Understand them in their original context, use them in your own words, and revisit them later.
 
+<GuideVisual kind="learning" en />
+
 ## Save something from a page
 
 1. Open **Learning center → Collection** and enable saving.
@@ -18,17 +20,27 @@ Choose to understand the expression for an AI explanation of meaning, usage, and
 
 Learning uses the reading card’s service, model, and allowed source scope. The reading card must be enabled. Only a deliberate action sends the current expression, your sentence, and allowed context; it does not send the entire collection or source URL.
 
+<details class="guide-details">
+<summary>Revisit it later</summary>
+
 ## Revisit it later
 
 Review brings back due expressions before adding a few new ones. With a useful source sentence, it asks you to recall the missing expression. Otherwise, it shows the expression so you can recall its meaning.
 
 Check your answer against the saved reference, then choose whether you remembered it. Reading an explanation alone does not increase mastery.
 
+</details>
+
+<details class="guide-details">
+<summary>Keep your collection safe</summary>
+
 ## Keep your collection safe
 
 Collections and review records stay in this browser. Turning off saving or clearing the translation cache does not delete them. Private windows do not offer persistent collections.
 
 Use **Backup & restore** to move your data. The learning center also offers Anki export, with a choice about including source sentences and source information.
+
+</details>
 
 ## Next steps
 
