@@ -220,7 +220,8 @@ async function prepareTranslatedImage(
         throwIfImageOperationAborted(signal);
         if (manga) {
             const pixels = await mangaInpaintingRuntime.repair(sourcePixels.data,canvas.width,canvas.height,translatedLines as MangaRegion[],signal,
-                percent=>reportProgress(requestId,'preparing',percent));
+                percent=>reportProgress(requestId,'preparing',percent),
+                (done,total)=>reportProgress(requestId,'cleaning',Math.floor(done*100/total)));
             sourcePixels.data.set(pixels);context.putImageData(sourcePixels,0,0);
             reportProgress(requestId,'rendering');
             drawMangaTranslations(context, sourcePixels.data, canvas.width, canvas.height, translatedLines as MangaRegion[],true);
@@ -295,7 +296,7 @@ export async function translateImageInOffscreen(
             lines.map(line => line.text), title, requestId, signal,
         );
         throwIfImageOperationAborted(signal);
-        reportProgress(requestId, 'rendering');
+        reportProgress(requestId, manga ? 'cleaning' : 'rendering');
         return await prepareTranslatedImage(source, lines, translations, signal, manga, requestId);
     } finally {
         source.src = '';

@@ -14,3 +14,5 @@ export {
 export type {MangaTranslationStatus} from './content/mangaSession';
 export {default as ImageOcrSettings} from './ui/ImageOcrSettings.vue';
 export {prepareImageOcrLanguages} from './services/client';
+export {isImageTranslatorNeeded, isMangaReaderPage, mountMangaEntry, unmountMangaEntry, openMangaEntry} from './content/mangaEntry';
+export {default as MangaSettings} from './ui/MangaSettings.vue';

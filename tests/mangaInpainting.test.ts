@@ -31,8 +31,8 @@ describe('漫画局部神经修补',()=>{
     it('均匀气泡不下载模型，复杂区域才按需初始化并复用会话',async()=>{
         const port={run:vi.fn(async patch=>zero(patch)),release:vi.fn()},create=vi.fn(async()=>port),runtime=createMangaInpaintingRuntime(create),progress=vi.fn();
         mocks.background.mockReturnValueOnce({uniform:true});expect(await runtime.repair(pixels(),128,128,[region])).toEqual(pixels());expect(create).not.toHaveBeenCalled();
-        const result=await runtime.repair(pixels(),128,128,[region],undefined,progress);expect(result[(35*128+35)*4]).toBe(0);expect(progress).toHaveBeenCalledOnce();
-        await runtime.repair(pixels(),128,128,[region]);expect(create).toHaveBeenCalledOnce();await vi.advanceTimersByTimeAsync(30000);expect(port.release).toHaveBeenCalledOnce();
+        const repairing=vi.fn();const result=await runtime.repair(pixels(),128,128,[region],undefined,progress,repairing);expect(repairing.mock.calls).toEqual([[0,1],[1,1]]);expect(result[(35*128+35)*4]).toBe(0);expect(progress).toHaveBeenCalledOnce();
+        await runtime.repair(pixels(),128,128,[region]);expect(create).toHaveBeenCalledOnce();await vi.advanceTimersByTimeAsync(60000);expect(port.release).not.toHaveBeenCalled();await vi.advanceTimersByTimeAsync(120000);expect(port.release).toHaveBeenCalledOnce();
         await runtime.repair(pixels(),128,128,[region]);expect(create).toHaveBeenCalledTimes(2);await runtime.dispose();await runtime.dispose();
     });
     it('预取消、初始化取消和推理取消均不回写迟到结果',async()=>{
@@ -44,9 +44,9 @@ describe('漫画局部神经修补',()=>{
     });
     it('创建和推理失败后队列仍可用，空闲释放异常被吸收',async()=>{
         const port={run:vi.fn().mockRejectedValueOnce(new Error('inference')).mockImplementation(async patch=>zero(patch)),release:vi.fn().mockRejectedValue(new Error('released'))},create=vi.fn().mockRejectedValueOnce(new Error('download')).mockResolvedValue(port),runtime=createMangaInpaintingRuntime(create);
-        await expect(runtime.repair(pixels(),128,128,[region])).rejects.toThrow('download');await vi.advanceTimersByTimeAsync(30000);
+        await expect(runtime.repair(pixels(),128,128,[region])).rejects.toThrow('download');await vi.advanceTimersByTimeAsync(180000);
         await expect(runtime.repair(pixels(),128,128,[region])).rejects.toThrow('inference');expect(await runtime.repair(pixels(),128,128,[region])).toBeInstanceOf(Uint8ClampedArray);
-        await vi.advanceTimersByTimeAsync(30000);expect(await runtime.repair(pixels(),128,128,[region])).toBeInstanceOf(Uint8ClampedArray);
+        await vi.advanceTimersByTimeAsync(180000);expect(await runtime.repair(pixels(),128,128,[region])).toBeInstanceOf(Uint8ClampedArray);
     });
     it('浏览器模型使用本地 WASM，推理完成或失败都释放所有张量',async()=>{
         const progress=vi.fn();mocks.load.mockImplementationOnce(async(_signal,notify)=>{notify(1);notify(1);notify(100000000);return new ArrayBuffer(1);});

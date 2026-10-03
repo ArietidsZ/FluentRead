@@ -16,7 +16,12 @@ const liveSite = process.argv.includes('--live-site');
 const liveTranslation = process.argv.includes('--live-translation');
 const qualityPages = Number(arg('quality-pages','2'));
 const blockedOfficial = process.argv.includes('--blocked-official');
+const blockedAll = process.argv.includes('--blocked-all-model-sources');
 const offlineModels = arg('offline-models-dir',null);
+const preloadModels = arg('preload-models-dir',null);
+const baseline = process.argv.includes('--baseline');
+const readingPauseMs=Number(arg('reading-pause-ms','0'));
+const skipFirstCancel=process.argv.includes('--skip-first-cancel');
 const targetUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050';
 const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-profile-');
 fs.mkdirSync(artifacts, {recursive: true});
@@ -55,8 +60,8 @@ async function observeModelDownloads(extensionId) {
     assert.ok(target,'Own isolated extension Offscreen target exists');
     const {sessionId}=await command('Target.attachToTarget',{targetId:target.targetId,flatten:true});
     await command('Network.enable',{},sessionId);
-    if(blockedOfficial)await command('Network.setBlockedURLs',{urls:['https://huggingface.co/*']},sessionId);
-    return socket;
+    if(blockedOfficial || blockedAll)await command('Network.setBlockedURLs',{urls:blockedAll?['https://huggingface.co/*','https://hf-mirror.net/*']:['https://huggingface.co/*']},sessionId);
+    socket.command=(method,params)=>command(method,params,sessionId);return socket;
 }
 
 const fixture = `<!doctype html><html><head><meta charset="utf-8"><title>Manga reader fixture</title><style>
@@ -97,6 +102,7 @@ async function ui(hostId, code) {
 }
 const ball = code => ui('fluent-read-floating-ball-container', code);
 const imageUi = code => ui('fluent-read-image-translation-root', code);
+const mangaEntry = code => ui('fluent-read-manga-entry-container',code);
 async function wait(test, timeout=180000, allowFailure=false) {
     const deadline=Date.now()+timeout;
     while(Date.now()<deadline) {if(await test())return;
@@ -145,7 +151,7 @@ async function patch(config) {
     assert.equal(report.windowPlacement.browserFrontmost,false);
     const context=launched.context;
     const system=await context.browser().newBrowserCDPSession();browserPid=(await system.send('SystemInfo.getProcessInfo')).processInfo.find(p=>p.type==='browser').id;await system.detach();focusGuard();
-    report.blockedOfficial=blockedOfficial;report.modelRequests=[];
+    report.blockedOfficial=blockedOfficial;report.blockedAllModelSources=blockedAll;report.modelRequests=[];
     context.on('console',message=>{if(message.type()==='error'&&message.text().includes('FluentRead'))report.consoleErrors.push(message.text());});
     worker=context.serviceWorkers().find(w=>w.url().startsWith('chrome-extension://'))||await context.waitForEvent('serviceworker');
     const extensionId=new URL(worker.url()).host;
@@ -154,13 +160,14 @@ async function patch(config) {
     const options=popup,reopened=popup,modelSettings=popup;
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
     await patch({on:true,uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,disableImageTranslator:false,
-        imageTranslationMangaEnabled:true,imageTranslationHoverEnabled:false,disableFloatingBall:false,
+        imageTranslationMangaEnabled:true,imageTranslationMangaDownloadConfirmed:true,imageTranslationMangaPromptEnabled:false,imageTranslationHoverEnabled:false,disableFloatingBall:false,
         service:'google',from:'en',to:'zh-Hans',useCache:true,enableAIContext:false,animations:false});
     await worker.evaluate(live=>{
         const original=globalThis.fetch.bind(globalThis);
-        const test=globalThis.__mangaTest={operations:[],requests:[],cancellations:[],textBatches:[]};
+        const test=globalThis.__mangaTest={operations:[],requests:[],cancellations:[],textBatches:[],progress:[]};
         chrome.runtime.onMessage.addListener(message=>{
             if(message.type==='fluentReadImageTranslate')test.operations.push(message.requestId);
+            if(message.type==='fluentReadImageProgress')test.progress.push({at:Date.now(),requestId:message.requestId,stage:message.stage,progress:message.progress});
             if(message.type==='fluentReadImageCancel')test.cancellations.push(message.requestId);
             if(message.type==='fluentReadImageTranslateTexts')test.textBatches.push(message.texts);
             return false;
@@ -180,6 +187,19 @@ async function patch(config) {
     },liveTranslation);
     await worker.evaluate(async()=>{await chrome.offscreen.createDocument({url:chrome.runtime.getURL('offscreen.html'),reasons:['DOM_PARSER'],justification:'Verify local manga processing in an isolated test profile'});});
     modelObserver=await observeModelDownloads(extensionId);
+    if(preloadModels){
+        await modelSettings.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
+    if(!baseline)await modelSettings.locator('.manga-resources > summary').click();
+        if(!baseline)await modelSettings.locator('.manga-resources > summary').click();
+        await modelSettings.locator('.manga-model-settings').waitFor();
+        if(!baseline)await modelSettings.locator('.manga-download-settings > summary').click();
+        await modelSettings.locator('.manga-model-settings input[type=file]').setInputFiles(['PP-OCRv6_small_det.onnx','PP-OCRv6_small_rec.onnx','ppocrv6_dict.txt','lama-manga-dynamic.onnx'].map(name=>path.join(preloadModels,name)));
+        const until=Date.now()+60000;let prepared=false;while(Date.now()<until){const s=await modelSettings.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadMangaModelStatus'}));if(s.ready&&s.inpaintingReady){prepared=true;break;}await modelSettings.waitForTimeout(150);}assert.ok(prepared,'All four imported resources are ready before leaving settings');
+        const audit=async()=>{const cache=await caches.open('fluent-read-manga-ocr-v1');return Promise.all((await cache.keys()).map(async key=>{const response=await cache.match(key);const bytes=await response.arrayBuffer();return {url:key.url,status:response.status,bytes:bytes.byteLength,sha:Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),n=>n.toString(16).padStart(2,'0')).join('')}}));};
+        report.preloadedCacheOptions=await modelSettings.evaluate(audit);assert.equal(report.preloadedCacheOptions.length,4,'All four validated files exist before navigation');
+        const audited=await modelObserver.command('Runtime.evaluate',{expression:`(${audit.toString()})()`,returnByValue:true,awaitPromise:true});report.preloadedCacheOffscreen=audited.result.value;
+        report.modelsPreloaded=true;await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+    }
     if(!liveSite)await context.route(targetUrl,route=>route.fulfill({status:200,contentType:'text/html',body:fixture}));
     page=await newPageWithoutForeground(context);page.on('pageerror',error=>report.errors.push(error.message));
     await page.goto(targetUrl,{waitUntil:'domcontentloaded',timeout:60000});
@@ -195,12 +215,14 @@ async function patch(config) {
     await toolScreenshot('idle');await toggle();
     await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-busy')`))==='true',10000);
     await toolScreenshot('pending');
-    assert.equal(report.buttonStates.pending.badge,undefined,'Pending shows progress instead of a completion check');
+    if(report.buttonStates.pending.busy==='true')assert.equal(report.buttonStates.pending.badge,undefined,'Pending shows progress instead of a completion check');
+    if(!skipFirstCancel){
     report.currentCase='cancel first preparation restores originals and can resume';
     await toggle();await wait(async()=>(await worker.evaluate(()=>globalThis.__mangaTest.cancellations.length))>0);
     assert.equal(await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`),0);
     assert.deepEqual(await source.evaluate(i=>({src:i.src,srcset:i.getAttribute('srcset'),sizes:i.getAttribute('sizes'),style:i.getAttribute('style')})),original);
     report.cases.push(report.currentCase);await toggle();
+    }
     report.currentCase='one click activates and translates only visible pages';
     await wait(async()=>(await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`))>0);
     await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-busy')`))==='false');
@@ -224,6 +246,7 @@ async function patch(config) {
     report.pageDurationsMs.push({page:2,ms:Date.now()-started,mayIncludeFirstInpaintingPreparation:true});
     await screenshot('02-scrolled-translated');report.cases.push(report.currentCase);
     if(liveSite)for(let index=2;index<qualityPages;index++){
+        if(index===3 && readingPauseMs){report.readingPauseMs=readingPauseMs;await page.waitForTimeout(Math.min(60000,readingPauseMs));if(readingPauseMs>60000)await page.waitForTimeout(readingPauseMs-60000);}
         report.currentCase=`live page ${index+1} translates automatically`;
         const previous=await ops(), image=page.locator('.zao-image').nth(index);started=Date.now();
         await image.scrollIntoViewIfNeeded();await captureSource(image,String(index+1).padStart(2,'0'));
@@ -260,20 +283,32 @@ async function patch(config) {
         await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-pressed')`))==='false');
         assert.equal(await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`),0);report.cases.push(report.currentCase);
     }
+    if(!baseline){
+        report.currentCase='reading status collapses, expands and stays open while adjusting options';
+        await page.mouse.move(30,30);await wait(async()=>await mangaEntry('return !!this.querySelector(".compact")'),5000);
+        const point=await mangaEntry('const r=this.querySelector(".fr-manga-entry").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}');
+        await page.mouse.move(point.x,point.y);await wait(async()=>await mangaEntry('return !!this.querySelector("header")'),5000);
+        const summary=await mangaEntry('const r=this.querySelector("summary").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}');
+        await page.mouse.click(summary.x,summary.y);await page.mouse.move(30,30);await page.waitForTimeout(1200);
+        assert.equal(await mangaEntry('return !!this.querySelector(".compact")'),false);report.cases.push(report.currentCase);
+        report.currentCase='manga button matches brand button size and progress ring stays inside';
+        const metrics=await ball(`const a=this.querySelector('.floating-ball-manga').getBoundingClientRect(),b=this.querySelector('.floating-ball-main').getBoundingClientRect();return {manga:a.width,brand:b.width}`);
+        assert.equal(metrics.manga,metrics.brand);assert.equal(metrics.manga,40);report.buttonSize=metrics;report.cases.push(report.currentCase);
+    }
     report.currentCase='settings switch persists across unmount and reopen';
     await patch({imageTranslationMangaEnabled:false});
     await wait(async()=>!(await ball(`return !!this.querySelector('.floating-ball-manga')`)));
     await options.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
-    await options.getByRole('switch',{name:'显示漫画翻译按钮',exact:true}).waitFor({state:'attached'});
-    assert.equal(await options.getByRole('switch',{name:'显示漫画翻译按钮',exact:true}).getAttribute('aria-checked'),'false');
-    await options.locator('.el-switch').filter({has:options.getByRole('switch',{name:'显示漫画翻译按钮',exact:true})}).click();await options.goto(`chrome-extension://${extensionId}/popup.html`);
+    await options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'启用漫画连续翻译',exact:true}).waitFor({state:'attached'});
+    assert.equal(await options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'启用漫画连续翻译',exact:true}).getAttribute('aria-checked'),'false');
+    await options.locator('.el-switch').filter({has:options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'启用漫画连续翻译',exact:true})}).click();await options.goto(`chrome-extension://${extensionId}/popup.html`);
     await reopened.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
-    await reopened.getByRole('switch',{name:'显示漫画翻译按钮',exact:true}).waitFor({state:'attached'});
-    assert.equal(await reopened.getByRole('switch',{name:'显示漫画翻译按钮',exact:true}).getAttribute('aria-checked'),'true');
+    await reopened.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'启用漫画连续翻译',exact:true}).waitFor({state:'attached'});
+    assert.equal(await reopened.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'启用漫画连续翻译',exact:true}).getAttribute('aria-checked'),'true');
     const settingsShot=path.join(artifacts,'03-settings-reopened.png');await reopened.screenshot({path:settingsShot});report.screenshots.push(settingsShot);
     await reopened.goto(`chrome-extension://${extensionId}/popup.html`);report.cases.push(report.currentCase);
     report.currentCase='master disable removes image UI and restores all source styles';
-    await patch({disableImageTranslator:true});await wait(async()=>(await page.locator('#fluent-read-image-translation-root').count())===0);
+    await patch({on:false});await wait(async()=>(await page.locator('#fluent-read-image-translation-root').count())===0);
     assert.equal(await page.locator('.zao-image').evaluateAll(images=>images.filter(i=>i.style.opacity==='0').length),0);
     report.cases.push(report.currentCase);
     report.currentCase='cached manga model status and clear action';
@@ -281,15 +316,18 @@ async function patch(config) {
     assert.equal(report.modelStatusBefore.ready,true);assert.ok(report.modelStatusBefore.bytes>30000000);
     await modelSettings.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
 
-    await modelSettings.getByRole('button',{name:'清除漫画模型',exact:true}).waitFor();
+    if(!baseline)await modelSettings.locator('.manga-download-settings > summary').click();
+    await modelSettings.getByRole('button',{name:baseline?'清除漫画模型':'清除已下载资源',exact:true}).waitFor();
     await modelSettings.getByLabel('模型下载来源',{exact:true}).selectOption('mirror');
     await modelSettings.reload();
+    if(!baseline)await modelSettings.locator('.manga-resources > summary').click();
     await modelSettings.waitForFunction(()=>document.querySelector('.manga-model-settings select')?.value==='mirror');
+    if(!baseline)await modelSettings.locator('.manga-download-settings > summary').click();
     report.cases.push('model source selection persists on reopen');
     await modelSettings.locator('.manga-model-settings').scrollIntoViewIfNeeded();
     const modelShot=path.join(artifacts,'models-before-clear.png');await modelSettings.screenshot({path:modelShot});report.screenshots.push(modelShot);
-    await modelSettings.getByRole('button',{name:'清除漫画模型',exact:true}).click();
-    await modelSettings.locator('.manga-model-settings small').filter({hasText:'0 MB'}).waitFor();
+    await modelSettings.getByRole('button',{name:baseline?'清除漫画模型':'清除已下载资源',exact:true}).click();
+    await modelSettings.locator('.manga-model-settings small').filter({hasText:/^(?:已占用空间 · )?0 MB$/}).waitFor();
     report.modelStatusAfter=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadMangaModelStatus'}));
     assert.deepEqual(report.modelStatusAfter,{success:true,ready:false,bytes:0,inpaintingReady:false,source:'mirror'});
     if(offlineModels){
@@ -304,10 +342,11 @@ async function patch(config) {
         const bounds=await modelSettings.locator('.manga-model-settings').boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=421);
         const darkShot=path.join(artifacts,'models-dark-mobile.png');await modelSettings.screenshot({path:darkShot});report.screenshots.push(darkShot);
         report.cases.push('model controls fit narrow viewport and dark theme');
-        await modelSettings.getByRole('button',{name:'清除漫画模型',exact:true}).click();
-        await modelSettings.locator('.manga-model-settings small').filter({hasText:'0 MB'}).waitFor();
+        await modelSettings.getByRole('button',{name:baseline?'清除漫画模型':'清除已下载资源',exact:true}).click();
+        await modelSettings.locator('.manga-model-settings small').filter({hasText:/^(?:已占用空间 · )?0 MB$/}).waitFor();
     }
     report.cases.push(report.currentCase);
+    report.progress=await worker.evaluate(()=>globalThis.__mangaTest.progress);
     report.operations=await ops();report.translationRequests=await worker.evaluate(()=>globalThis.__mangaTest.requests.length);
     report.textBatches=await worker.evaluate(()=>globalThis.__mangaTest.textBatches);
     if(liveSite&&qualityPages>=5){
@@ -315,10 +354,11 @@ async function patch(config) {
         for(const phrase of ['IHAVEAFAVORTOASKOFYOUONHISBEHALF','HESHOULDHAVEABOUTTENMILLIONDOLLARSONHIM','THEPOSSESSOROFTHEGOLDENARMS','BUTGOAFTERMYPREY','YOUINSULTME'])assert.ok(all.includes(phrase),`Recognized complete dialogue: ${phrase}`);
         report.cases.push('key complete dialogue recognized on three later pages');
     }
+    if(blockedAll)report.cases.push('real OCR and inpainting execute with both remote model sources blocked');
     if(blockedOfficial){assert.ok(report.modelRequests.some(r=>r.source==='huggingface.co'));assert.ok(report.modelRequests.some(r=>r.source==='hf-mirror.net'));report.cases.push('actual Offscreen official-source block falls back to verified mirror files');}
     assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.status='passed';
     focusGuard();
-})().catch(error=>{report.status='failed';report.failure=error.stack;process.exitCode=1;console.error(error);})
+})().catch(async error=>{report.status='failed';report.failure=error.stack;process.exitCode=1;console.error(error);if(cdp){report.lastImageUi=await imageUi('return [...this.querySelectorAll(".fr-image-feedback .fr-image-status")].map(s=>s.textContent)').catch(()=>null);report.lastProgress=await worker.evaluate(()=>globalThis.__mangaTest.progress).catch(()=>null);}if(page)await page.screenshot({path:path.join(artifacts,'failed-reader.png')}).catch(()=>{});})
 .finally(async()=>{
     if(worker)await worker.evaluate(()=>({operations:globalThis.__mangaTest?.operations.length,textBatches:globalThis.__mangaTest?.textBatches})).then(data=>Object.assign(report,data)).catch(()=>{});
     if(page&&report.status==='failed')await screenshot('failure').catch(()=>{});

@@ -4,11 +4,17 @@
  * 主要内容：接收站点适配器提供的可见图片快照，串行调度尚未尝试的页面，释放离屏页面并在换图、换章和关闭时取消旧任务；失败页只在用户再次开启时重试。
  * 模块边界：只依赖注入的单图翻译与恢复端口，不查询 DOM、保存配置或实现 OCR；位图缓存、宿主样式与语言包由既有图片运行时管理。
  */
+import type {ImageTranslationStage} from '../progress';
 export interface MangaTranslationStatus {
     available: boolean;
     active: boolean;
     pending: boolean;
     errors: number;
+    pageCount?: number;
+    completed?: number;
+    message?: string;
+    progress?: number;
+    stage?: ImageTranslationStage;
 }
 
 export interface MangaPageSnapshot {
@@ -36,11 +42,12 @@ export function createMangaSession(ports: {
     let disposed = false;
     let epoch = 0;
     let running: object | null = null;
-    const pages = new Map<HTMLImageElement, {identity: string; attempted: boolean; failed: boolean}>();
+    const pages = new Map<HTMLImageElement, {identity: string; attempted: boolean; failed: boolean; completed: boolean}>();
 
     const status = (): MangaTranslationStatus => ({
         available, active, pending: active && running !== null,
         errors: Array.from(pages.values()).filter(page => page.failed).length,
+        completed: Array.from(pages.values()).filter(page => page.completed && !page.failed).length,
     });
     const notify = () => ports.changed(status());
 
@@ -67,7 +74,7 @@ export function createMangaSession(ports: {
             return ports.translate(image);
         }).catch(() => { if (owner === epoch && pages.get(image) === page) page.failed = true; })
             .finally(() => {
-                if (owner === epoch && pages.get(image) === page) page.failed ||= ports.failed(image);
+                if (owner === epoch && pages.get(image) === page) {page.failed ||= ports.failed(image);page.completed = true;}
                 if (running === task) running = null;
                 notify();
                 pump();
@@ -89,7 +96,7 @@ export function createMangaSession(ports: {
             pages.delete(image);
         });
         if (active) visible.forEach((page, image) => {
-            if (!pages.has(image)) pages.set(image, {identity: page.identity, attempted: false, failed: false});
+            if (!pages.has(image)) pages.set(image, {identity: page.identity, attempted: false, failed: false, completed: false});
         });
         notify();
         pump();
@@ -101,7 +108,7 @@ export function createMangaSession(ports: {
         active = !active;
         pages.forEach((page, image) => {
             if (!active) ports.restore(image);
-            else { page.attempted = false; page.failed = false; }
+            else { page.attempted = false; page.failed = false;page.completed = false; }
         });
         notify();
         pump();

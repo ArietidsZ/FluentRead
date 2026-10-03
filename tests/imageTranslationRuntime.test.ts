@@ -1013,7 +1013,7 @@ describe('视频预览不自动显示图片翻译', () => {
         toggleMangaTranslation(); await flush();
         expect(env.bitmap()).not.toBeNull(); expect(client.translate).toHaveBeenCalledTimes(1);
         unmountImageTranslator(); expect(env.image.style.opacity).not.toBe('0');
-        expect(listener).toHaveBeenLastCalledWith({available: false, active: false, pending: false, errors: 0});
+        expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({available: false, active: false, pending: false, errors: 0, pageCount: 0}));
         expect(toggleMangaTranslation()).toBe(false); stop();
     });
     it('漫画使用独立模型，不准备普通图片语言包，关闭入口后恢复原图', async () => {

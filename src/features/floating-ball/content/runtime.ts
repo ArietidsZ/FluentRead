@@ -10,7 +10,7 @@ import {config, requestConfigPatch, subscribeConfig} from '@/src/services/config
 import type {Config} from '@/src/core/config/model';
 import {isFloatingBallDisabledOnSite} from '@/src/core/site-rules/domain';
 import {reactive} from 'vue';
-import {subscribeMangaTranslation, toggleMangaTranslation, type MangaTranslationStatus} from '@/src/features/image-translation/public';
+import {subscribeMangaTranslation, openMangaEntry, type MangaTranslationStatus} from '@/src/features/image-translation/public';
 import browser from 'webextension-polyfill';
 import {
   autoTranslateEnglishPage,
@@ -124,7 +124,7 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
       initialTranslating: isFullPageTranslationActive(),
       presentation,
       manga,
-      onMangaToggle: (event: MouseEvent) => { if (event.isTrusted) toggleMangaTranslation(); },
+      onMangaToggle: (event: MouseEvent) => { if (event.isTrusted) openMangaEntry(); },
       onSettingsClick: () => openOptionsPage(),
       // 两个坐标字段必须一起提交，避免连续拖动或跨页面保存时只留下其中一个。
       onPositionChanged: (newPosition: 'left' | 'right', verticalPosition: number) => {
