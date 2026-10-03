@@ -1,8 +1,8 @@
 <!--
 @file src/features/settings/ui/ConfigManagement.vue
-文件职责：提供备份与恢复页面的 配置云备份、完整数据备份和设置历史。
-主要内容：按页内分类切换完整备份入口与设置历史，保留最近修改与自动设置快照，在可换行的多语言摘要中解析动态自定义服务名称，并在恢复前展示差异。
-模块边界：本组件拥有设置历史的预览与恢复；本机备份与导入由 LocalDataManagement 编排，加密云同步由独立 CloudConfigBackup 组件及后台服务负责。
+文件职责：提供备份与恢复页面的配置云备份、完整数据备份和设置历史。
+主要内容：按页内分类切换完整备份入口与设置历史，展示相邻版本的具体修改与自动设置快照，区分当时的修改和恢复时的差异，并保留动态服务名称、多语言与安全恢复。
+模块边界：本组件拥有设置历史的预览与恢复；本机备份与导入由 LocalDataManagement 编排，配置云备份由独立 CloudConfigBackup 组件及后台服务负责。
 -->
 <template>
   <section class="config-management">
@@ -21,7 +21,7 @@
         <header class="version-panel-heading">
           <div>
             <h2 id="recent-config-title">最近修改</h2>
-            <p>有效配置变化会自动记录，最多保留 10 份。</p>
+            <p>{{ t('settings.history.recentHint') }}</p>
           </div>
           <span>{{ historyEntries.length }}/10</span>
         </header>
@@ -32,13 +32,24 @@
             type="button"
             class="version-entry"
             :class="{ current: entry.version === currentHistoryVersion }"
-            :aria-label="`查看最近修改 v${entry.version}，${snapshotSummary(entry.config)}，${formatTime(entry.savedAt)}`"
+            :aria-label="`${historyTitle(entry)}，v${entry.version}，${formatTime(entry.savedAt)}`"
             @click="openHistoryPreview(entry)"
           >
             <span class="version-badge">v{{ entry.version }}</span>
             <span class="version-copy">
-              <strong>{{ snapshotSummary(entry.config) }}</strong>
-              <small>{{ formatTime(entry.savedAt) }}</small>
+              <span class="version-meta">
+                <time :datetime="entry.savedAt">{{ formatTime(entry.savedAt) }}</time>
+                <span v-if="entry.diff?.changeCount">{{ t('settings.history.changeCount', {count: entry.diff.changeCount}) }}</span>
+              </span>
+              <strong>{{ historyTitle(entry) }}</strong>
+              <span v-for="change in entry.diff?.groups.flatMap(group => group.changes).slice(0, 2)" :key="change.key" class="change-values">
+                <span v-if="entry.diff && entry.diff.changeCount > 1" class="change-label">{{ translateLegacy(change.label) }}</span>
+                <span class="change-before">{{ translateLegacy(change.before) }}</span>
+                <span class="change-arrow" aria-hidden="true">→</span>
+                <span class="change-after">{{ translateLegacy(change.after) }}</span>
+              </span>
+              <small v-if="!entry.diff">{{ t('settings.history.noPrevious') }}</small>
+              <small v-if="entry.diff && entry.diff.changeCount > 2">{{ t('settings.history.moreChanges', {count: entry.diff.changeCount - 2}) }}</small>
             </span>
             <span v-if="entry.version === currentHistoryVersion" class="current-mark">当前</span>
             <span v-else class="view-link">查看</span>
@@ -47,11 +58,11 @@
         <div v-else class="version-empty">修改设置后会在这里生成版本。</div>
       </section>
 
-      <section class="version-panel" aria-labelledby="automatic-backup-title">
+      <section class="version-panel backup-panel" aria-labelledby="automatic-backup-title">
         <header class="version-panel-heading">
           <div>
             <h2 id="automatic-backup-title">自动设置快照</h2>
-            <p>后台每 6 小时保存一次设置，最多保留 10 份。</p>
+            <p>{{ t('settings.history.backupHint') }}</p>
           </div>
           <span>{{ backupEntries.length }}/10</span>
         </header>
@@ -67,7 +78,8 @@
             <span class="version-badge backup">b{{ entry.version }}</span>
             <span class="version-copy">
               <strong>{{ snapshotSummary(entry.config) }}</strong>
-              <small>{{ formatTime(entry.savedAt) }}</small>
+              <time :datetime="entry.savedAt">{{ formatTime(entry.savedAt) }}</time>
+              <small>{{ backupComparison(entry) }}</small>
             </span>
             <span class="view-link">查看</span>
           </button>
@@ -91,24 +103,29 @@
             <span>{{ previewSourceLabel }}</span>
             <strong>{{ formatTime(previewTarget.savedAt) }}</strong>
           </div>
-          <b :class="{ empty: previewChangeCount === 0 }">
-            {{ previewChangeCount ? `${previewChangeCount} 项不同` : '与当前相同' }}
+          <b :class="{ empty: displayDiff?.changeCount === 0 }">
+            {{ comparisonBadge }}
           </b>
         </div>
 
-        <div v-if="previewDiff.groups.length" class="diff-groups">
-          <section v-for="group in previewDiff.groups" :key="group.id" class="diff-group">
-            <h3>{{ group.label }}<span>{{ group.changes.length }}</span></h3>
+        <div class="preview-comparison" role="group" :aria-label="t('settings.history.comparisonMode')">
+          <button v-if="previewTarget.kind === 'history'" type="button" :aria-pressed="previewMode === 'changes'" @click="previewMode = 'changes'">{{ t('settings.history.thisChange') }}</button>
+          <button type="button" :aria-pressed="previewMode === 'current'" @click="previewMode = 'current'">{{ t('settings.history.compareCurrent') }}</button>
+        </div>
+        <p class="comparison-hint">{{ comparisonHint }}</p>
+        <div v-if="displayDiff?.groups.length" class="diff-groups">
+          <section v-for="group in displayDiff.groups" :key="group.id" class="diff-group">
+            <h3>{{ translateLegacy(group.label) }}<span>{{ group.changes.length }}</span></h3>
             <div class="diff-list">
               <article v-for="change in group.changes" :key="change.key" class="diff-item">
-                <strong>{{ change.label }}</strong>
-                <div><span>当前</span><p>{{ change.before }}</p></div>
-                <div><span>此版本</span><p>{{ change.after }}</p></div>
+                <strong>{{ translateLegacy(change.label) }}</strong>
+                <div><span>{{ t(previewMode === 'changes' ? 'settings.history.before' : 'settings.history.current') }}</span><p>{{ translateLegacy(change.before) }}</p></div>
+                <div><span>{{ t(previewMode === 'changes' ? 'settings.history.after' : 'settings.history.saved') }}</span><p>{{ translateLegacy(change.after) }}</p></div>
               </article>
             </div>
           </section>
         </div>
-        <div v-else class="diff-empty">这份配置与当前可恢复配置完全相同。</div>
+        <div v-else class="diff-empty">{{ previewMode === 'changes' ? t(displayDiff ? 'settings.history.noVisibleChanges' : 'settings.history.noPrevious') : t('settings.history.sameConfig') }}</div>
 
         <details class="json-details">
           <summary>查看完整配置 JSON</summary>
@@ -136,7 +153,8 @@ import {ElMessage, ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
 import {getMultilingualTargetLanguageLabel, options} from '@/src/core/config/catalog';
 import {getCustomOpenAIProviderLabel} from '@/src/core/config/customOpenAI';
-import {buildConfigDiff} from '@/src/core/config/diff';
+import {buildConfigDiff, type ConfigDiffResult} from '@/src/core/config/diff';
+import {buildConfigHistoryTimeline, type ConfigHistoryTimelineEntry} from '../model/configHistory';
 import type {Config} from '@/src/core/config/model';
 import {
   configAutoBackupsReady,
@@ -162,12 +180,12 @@ const props = defineProps<{
   config: Config
   activePanel?: string
 }>();
-const {language, translateLegacy} = useUiI18n();
+const {language, translateLegacy, t} = useUiI18n();
 const sendRuntimeMessage = browser.runtime.sendMessage.bind(browser.runtime);
 
 const configHistory = ref<ConfigHistoryState>(getConfigHistorySnapshot());
 const configBackups = ref<ConfigAutoBackupState>(getConfigAutoBackupsSnapshot());
-const historyEntries = computed(() => [...configHistory.value.entries].reverse());
+const historyEntries = computed(() => buildConfigHistoryTimeline(configHistory.value.entries));
 const backupEntries = computed(() => [...configBackups.value.entries].reverse());
 const currentHistoryVersion = computed(() => configHistory.value.entries[configHistory.value.cursor]?.version ?? null);
 
@@ -185,7 +203,7 @@ function formatTime(savedAt: string): string {
   if (Number.isNaN(date.getTime())) return translateLegacy('时间未知');
   return new Intl.DateTimeFormat(language.value, {
     year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hour12: false,
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
   }).format(date);
 }
 
@@ -202,6 +220,19 @@ function snapshotSummary(value: ConfigHistoryEntry['config'] | ConfigAutoBackupE
   return `${target} · ${translateLegacy(service)} · ${translateLegacy(`${rules} 条网站规则`)}`;
 }
 
+function historyTitle(entry: ConfigHistoryTimelineEntry): string {
+  if (!entry.diff) return t('settings.history.retainedSnapshot');
+  const changes = entry.diff.groups.flatMap(group => group.changes);
+  return changes.length ? changes.slice(0, 2).map(change => translateLegacy(change.label)).join(' · ')
+    : t('settings.history.noVisibleChanges');
+}
+
+function backupComparison(entry: ConfigAutoBackupEntry): string {
+  const diff = buildConfigDiff(toRestorableConfig(props.config), toRestorableConfig(entry.config));
+  return diff.changeCount ? t('settings.history.backupDifference', {count: diff.changeCount})
+    : translateLegacy('与当前相同');
+}
+
 type PreviewKind = 'history' | 'backup';
 interface PreviewTarget {
   kind: PreviewKind;
@@ -209,17 +240,29 @@ interface PreviewTarget {
   label: string;
   savedAt: string;
   config: unknown;
+  changes?: ConfigDiffResult | null;
+  previousVersion?: number | null;
 }
 
 const previewTarget = ref<PreviewTarget | null>(null);
 const previewVisible = ref(false);
 const applyBusy = ref(false);
+const previewMode = ref<'changes' | 'current'>('changes');
 const resolvedPreviewConfig = computed(() => previewTarget.value?.config);
 const previewDiff = computed(() => buildConfigDiff(
   toRestorableConfig(props.config),
   toRestorableConfig(resolvedPreviewConfig.value),
 ));
 const previewChangeCount = computed(() => previewDiff.value.changeCount);
+const displayDiff = computed(() => previewMode.value === 'changes' ? previewTarget.value?.changes : previewDiff.value);
+const comparisonBadge = computed(() => previewMode.value === 'changes'
+  ? displayDiff.value ? t('settings.history.changeCount', {count: displayDiff.value.changeCount}) : t('settings.history.retainedSnapshot')
+  : previewChangeCount.value ? t('settings.history.differenceCount', {count: previewChangeCount.value}) : translateLegacy('与当前相同'));
+const comparisonHint = computed(() => previewMode.value === 'changes'
+  ? previewTarget.value?.previousVersion != null
+    ? t('settings.history.changeHint', {version: previewTarget.value.previousVersion, target: previewTarget.value.label})
+    : t('settings.history.noPrevious')
+  : t('settings.history.restoreHint'));
 const previewJson = computed(() => JSON.stringify(toRestorableConfig(resolvedPreviewConfig.value), null, 2));
 const previewTitle = '设置版本详情';
 const previewSourceLabel = computed(() => previewTarget.value?.kind === 'history'
@@ -230,11 +273,12 @@ const previewBoundary = 'API 凭据和翻译次数不会随设置版本恢复。
 
 function showPreview(target: PreviewTarget) {
   previewTarget.value = target;
+  previewMode.value = target.kind === 'history' ? 'changes' : 'current';
   previewVisible.value = true;
 }
 
-function openHistoryPreview(entry: ConfigHistoryEntry) {
-  showPreview({kind: 'history', version: entry.version, label: `v${entry.version}`, savedAt: entry.savedAt, config: entry.config});
+function openHistoryPreview(entry: ConfigHistoryTimelineEntry) {
+  showPreview({kind: 'history', version: entry.version, label: `v${entry.version}`, savedAt: entry.savedAt, config: entry.config, changes: entry.diff, previousVersion: entry.previousVersion});
 }
 
 function openBackupPreview(entry: ConfigAutoBackupEntry) {
@@ -283,22 +327,37 @@ async function applyPreviewTarget() {
 .history-heading { width: min(100%, 1080px); margin: 0 auto 10px; padding: 0 4px; }
 .history-heading h2 { margin: 0; color: var(--ink); font-size: 15px; line-height: 1.4; }
 .history-heading p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
-.version-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; width: min(100%, 1080px); margin: 0 auto 22px; }
+.version-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; gap: 16px; width: min(100%, 1080px); margin: 0 auto 22px; }
 .version-panel { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 7px 22px rgba(31, 40, 61, .035); }
 .version-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 16px; border-bottom: 1px solid var(--line); }
 .version-panel-heading h2 { margin: 0; color: var(--ink); font-size: 15px; }
 .version-panel-heading p { margin: 4px 0 0; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
 .version-panel-heading > span { flex: none; padding: 4px 8px; border-radius: 999px; color: var(--brand-strong); background: var(--brand-soft); font-size: 10px; font-weight: 750; }
-.version-list { max-height: 360px; overflow-y: auto; }
-.version-entry { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-height: 58px; padding: 9px 12px; border: 0; border-bottom: 1px solid var(--line); color: inherit; background: transparent; text-align: left; cursor: pointer; }
+.version-list { max-height: 520px; overflow-y: auto; }
+.version-entry { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-height: 78px; padding: 13px 14px; border: 0; border-bottom: 1px solid var(--line); color: inherit; background: transparent; text-align: left; cursor: pointer; }
 .version-entry:last-child { border-bottom: 0; }
 .version-entry:hover { background: var(--surface-soft); }
 .version-entry.current { background: var(--brand-soft); }
+.version-entry:focus-visible { position: relative; outline: 2px solid var(--brand-strong); outline-offset: -3px; }
 .version-badge { display: grid; place-items: center; min-height: 28px; border-radius: 9px; color: var(--brand-strong); background: var(--brand-soft); font-size: 10px; font-weight: 800; }
 .version-badge.backup { color: #267260; background: #eaf8f4; }
 .version-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .version-copy strong { color: var(--ink); font-size: 11px; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
-.version-copy small { color: var(--muted); font-size: 9.5px; }
+.version-copy small, .version-copy time { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.version-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--muted); font-size: 10px; }
+.change-values { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; min-width: 0; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.change-values > span { min-width: 0; }
+.change-label { color: var(--muted); }
+.change-before { color: var(--muted); max-width: 100%; }
+.change-after { color: var(--ink); max-width: 100%; }
+.change-arrow { color: var(--muted); }
+.backup-panel .version-list { max-height: 360px; }
+.backup-panel .version-entry { min-height: 90px; }
+.preview-comparison { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+.preview-comparison button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.preview-comparison button[aria-pressed="true"] { border-color: var(--brand-strong); color: var(--brand-strong); background: var(--brand-soft); }
+.preview-comparison button:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 2px; }
+.comparison-hint { margin: 10px 2px 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .view-link, .current-mark { color: var(--brand-strong); font-size: 10px; font-weight: 750; }
 .current-mark { padding: 3px 7px; border-radius: 999px; background: var(--brand-soft); }
 .version-empty { padding: 28px 16px; color: var(--muted); font-size: 11px; text-align: center; }
