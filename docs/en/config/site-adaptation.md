@@ -6,6 +6,8 @@ GitHub release notes show translations after each explicit source line break for
 
 Discord's server icon rail stays unchanged in both reading-area and all-nodes modes; channel message text remains translatable.
 
+<GuideVisual kind="rules" en />
+
 ## Missing content
 
 1. Refresh pages after installing or updating.
@@ -23,6 +25,9 @@ Disabling the extension takes precedence over automatic translation but retains 
 
 Content rules adjust translation regions by host, path, and CSS selectors. Effective preview checks saved preferences, matching rules, and priority without visiting the site; it does not guarantee that the actual page can translate. Confirm the behavior on the real page after saving.
 
+<details class="guide-details">
+<summary>Still wrong?</summary>
+
 ## Still wrong?
 
 Report the public URL, browser version, and a screenshot with private information removed on [GitHub Issues](https://github.com/FluentRead/FluentRead/issues). Explain which area should translate and which should stay original.
@@ -30,3 +35,5 @@ Report the public URL, browser version, and a screenshot with private informatio
 If you know webpage structure, you can use [custom site rules](/en/guide/custom-site-rules). They are optional; export a backup before editing.
 
 Detailed fields and examples are in the [repository reference](https://github.com/FluentRead/FluentRead/blob/main/docs/maintainers/product-reference/site-adaptation-20260906.md).
+
+</details>

@@ -63,7 +63,7 @@ async function mountPanel(overrides: Record<string, unknown> = {}, sessions: Har
     cloneNode: () => ({}), insertStaticContent: () => [{}, {}],
   });
   const sourceChange = vi.fn();
-  const props = runtime.reactive({selection: {text: 'Practice helps.', sentence: 'Practice helps.', context: 'Practice helps every day.'}, preferences: {...DEFAULT_HARNESS_PREFERENCES, enabled: true}, active: true, targetLanguage: 'zh-CN', sourceLanguage: 'en', vocabularyEnabled: true, privateContext: false, animations: false, onSourceChange: sourceChange, ...overrides});
+  const props = runtime.reactive({selection: {text: 'Practice helps.', sentence: 'Practice helps.', context: 'Practice helps every day.'}, preferences: {...DEFAULT_HARNESS_PREFERENCES, enabled: true}, active: true, targetLanguage: 'zh-CN', sourceLanguage: 'en', vocabularyEnabled: true, privateContext: false, animations: false, sourceTranslation: undefined as {source: string; text: string; pending?: boolean; error?: string} | undefined, onSourceChange: sourceChange, ...overrides});
   let panel: any;
   const app = renderer.createApp({setup: () => () => runtime.h(component, {...props, ref: (instance: any) => { if (instance) panel = instance.$.setupState; }})});
   app.provide(runtime.ssrContextKey, {modules: new Set<string>()});
@@ -272,4 +272,34 @@ describe('reading action ownership and reuse', () => {
     props.privateContext = true; await tick(); await panel.rememberLearning();
     expect(state.saveLearningMemory).toHaveBeenCalledOnce();
   });
+});
+
+it('keeps only the translation matching the displayed source and preserves the active answer', async () => {
+  const {panel, props, finish, calls, tick} = await mountPanel({sourceTranslation: {source: 'Practice  helps.', text: '练习有帮助。'}});
+  finish('Explanation'); await tick();
+  expect(panel.activeTranslation.text).toBe('练习有帮助。');
+  props.sourceTranslation = {source: 'Practice helps.', text: '练习有所帮助。'}; await tick();
+  expect(panel.answer).toBe('Explanation'); expect(calls).toHaveLength(1);
+  panel.historicalText = 'An older source'; await tick();
+  expect(panel.activeTranslation).toBeUndefined();
+  panel.historicalText = ''; props.selection.sentence = 'Practice helps every day.'; await tick();
+  panel.wholeSentence = true; await tick();
+  expect(panel.activeTranslation).toBeUndefined();
+});
+it('preserves the answer offset for late translations and respects manual upward scrolling', async () => {
+  const {panel, props, finish, calls, tick} = await mountPanel({sourceTranslation: {source: 'Practice helps.', text: '', pending: true}});
+  finish('Explanation'); await tick();
+  const viewport = {scrollTop: 120}; const body = {offsetTop: 100};
+  panel.answerScroll = viewport; panel.answerBody = body;
+  props.sourceTranslation = {source: 'Practice helps.', text: '练习有帮助。'};
+  await tick(); body.offsetTop = 160; await tick();
+  expect(viewport.scrollTop).toBe(180); expect(calls).toHaveLength(1);
+  viewport.scrollTop = 0;
+  props.sourceTranslation = {source: 'Practice helps.', text: '更新后的译文。'};
+  await tick(); body.offsetTop = 200; await tick();
+  expect(viewport.scrollTop).toBe(0);
+  viewport.scrollTop = 220;
+  props.sourceTranslation = {source: 'Practice helps.', text: '再更新的译文。'};
+  await tick(); panel.cancelReadingPosition(); body.offsetTop = 240; await tick();
+  expect(viewport.scrollTop).toBe(220);
 });

@@ -2,6 +2,8 @@
 
 Save the settings and learning data you need before changing browsers, moving devices, or uninstalling. Full backups, settings history, and cloud configuration sync serve different purposes.
 
+<GuideVisual kind="backup" en />
+
 ## Choose a method
 
 | What you need | What to use |
@@ -18,6 +20,9 @@ A full backup can contain API keys, provider credentials, and saved original tex
 
 The learning center also offers [Anki export](/en/guide/vocabulary-book#keep-your-collection-safe).
 
+<details class="guide-details">
+<summary>Recent changes and automatic snapshots</summary>
+
 ## Recent changes and automatic snapshots
 
 **Recent changes** lists setting names, before-and-after values, and precise timestamps. A record initially shows changes from the previous saved version. Choose **Compare with current** to inspect the effect of restoring. The oldest retained record has no previous version to compare.
@@ -25,6 +30,11 @@ The learning center also offers [Anki export](/en/guide/vocabulary-book#keep-you
 **Automatic settings snapshots** saves a snapshot every six hours and shows how many settings differ from the current configuration. Each list keeps up to ten records.
 
 Settings history excludes vocabulary, model usage, and API credentials. Restoring requires confirmation.
+
+</details>
+
+<details class="guide-details">
+<summary>Google Drive configuration sync</summary>
 
 ## Google Drive configuration sync
 
@@ -41,6 +51,11 @@ Opening settings does not access Drive automatically. The permission covers only
 
 Cancelling a preview ends that operation. Revoking permission or uninstalling does not delete a cloud backup.
 
+</details>
+
+<details class="guide-details">
+<summary>WebDAV configuration backup</summary>
+
 ## WebDAV configuration backup
 
 To use your own cloud drive, NAS, or server, select **WebDAV** in **Cloud configuration backup**. Configure a directory URL and app password, test and save the connection, then review and confirm the backup operation.
@@ -49,13 +64,19 @@ Like Google Drive, this backs up configuration and provider credentials, not wor
 
 See [the WebDAV guide](/en/guide/webdav) for connection requirements, save and restore steps, file protection, and deletion.
 
+</details>
+
+<details class="guide-details">
+<summary>Cache is different</summary>
+
 ## Cache is different
 
 Translation cache reuses completed translations. Clearing it does not delete vocabulary and does not replace a full backup.
+
+</details>
 
 ## Next steps
 
 - [Learning data](/en/guide/vocabulary-book)
 - [Translation statistics](/en/guide/translation-stats)
 - [Data and privacy](/en/guide/privacy)
-

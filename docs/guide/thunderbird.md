@@ -2,6 +2,8 @@
 
 FluentRead 提供独立的 Thunderbird 安装包。它复用 Firefox 版的翻译服务和设置，但只把内容脚本注入正在显示的邮件正文，不自动注入普通网页或邮件撰写框。
 
+<GuideVisual kind="email" />
+
 ## 构建与安装
 
 在 FluentRead 源码目录运行 `pnpm build:thunderbird`，生成 `.output/fluent-read-<版本>-thunderbird.xpi`。在 Thunderbird 140 或更新版本的「附加组件和主题」中选择「从文件安装附加组件」，选取该 XPI。Thunderbird 版使用独立的附加组件 ID，因此设置与 Firefox 版分别保存。

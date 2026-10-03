@@ -1,12 +1,12 @@
 /**
  * @file src/features/selection-translation/services/wordDictionary.ts
- * 文件职责：实现划词英文词典的多来源聚合、清洗、优先级合并、发音选择、缓存和超时降级，为词卡提供尽可能完整且安全的数据。
- * 主要内容：支持高频 ECDICT 内置词库与按需缓存的完整词库、有道、Free Dictionary、WiktAPI、Wiktionary REST 与 Datamuse，包含各响应解析器、HTML/URL 清洗、释义和音标去重、provider 工厂及 LRU 式 lookup。
+ * 文件职责：实现划词英文词典的本地优先查询、在线限时补充、数据清洗、发音选择和缓存，让已有释义及时返回。
+ * 主要内容：支持 ECDICT 内置及可选词库与五种在线词典，本地释义直接返回，在线来源并发查询并共用截止时间；清理剩余请求，缓存确定结果，区分未命中与网络不可用。
  * 模块边界：本服务只获取和规范化词典数据，不渲染词卡、不翻译释义或加入词书；后台 wordLookupHandler 编排翻译，SelectionTranslator.vue 展示，HTTP 统一经过 platform/runtimeFetch。
  */
 import {describePartOfSpeech} from '@/src/core/language/partOfSpeech';
 import {readJsonResponse} from '@/src/platform/http/errors';
-import {runtimeFetch} from '@/src/platform/http/runtime';
+import {createRuntimeAbortContext, runtimeFetch} from '@/src/platform/http/runtime';
 import {canCacheOptionalEcdict, downloadFullEcdict, readCachedFullEcdict, type EcdictCompactRow} from './ecdictAsset';
 import {normalizeEnglishWord} from './wordNormalization';
 
@@ -117,6 +117,7 @@ interface WiktionaryDefinitionEntry {
 }
 
 const LOOKUP_TIMEOUT_MS = 4_000;
+const LOOKUP_BUDGET_MS = 2_500;
 const CHINA_PROVIDER_TIMEOUT_MS = 1_800;
 const WIKTAPI_TIMEOUT_MS = 1_200;
 const MAX_DEFINITIONS_PER_MEANING = 6;
@@ -341,13 +342,8 @@ function hasUsefulData(card: WordCardData | null): card is WordCardData {
     return Boolean(card && (card.meanings.length > 0 || card.phonetics.length > 0));
 }
 
-function hasEnglishDefinition(card: WordCardData | WordDefinition): boolean {
-    if ('definition' in card) return /[A-Za-z]/u.test(card.definition);
-    return card.meanings.some(meaning => meaning.definitions.some(definition => hasEnglishDefinition(definition)));
-}
-
-function hasNonLocalBackup(card: WordCardData): boolean {
-    return card.sources.some(source => source.id !== 'ecdict-local');
+function hasEnglishDefinition(definition: WordDefinition): boolean {
+    return /[A-Za-z]/u.test(definition.definition);
 }
 
 export function mergeWordCardData(base: WordCardData | null, addition: WordCardData): WordCardData {
@@ -624,25 +620,25 @@ function parseWiktionaryRestEntry(entry: WiktionaryDefinitionEntry, normalizedWo
     return card;
 }
 
-async function fetchJson(url: string, timeoutMs = LOOKUP_TIMEOUT_MS): Promise<unknown> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+async function fetchJson(url: string, timeoutMs = LOOKUP_TIMEOUT_MS, signal?: AbortSignal): Promise<unknown> {
+    const abortContext = createRuntimeAbortContext(timeoutMs, signal);
     try {
         const response = await runtimeFetch(url, {
             credentials: 'omit',
             headers: { Accept: 'application/json' },
-            signal: controller.signal,
+            signal: abortContext.signal,
         });
+        if (response.status === 404) return null;
         if (!response.ok) throw new Error(`dictionary request failed: ${response.status}`);
         return await readJsonResponse(response, 'dictionary response is not valid JSON');
     } finally {
-        clearTimeout(timer);
+        abortContext.cleanup();
     }
 }
 
 export interface WordDictionaryProvider {
     readonly id: WordDictionaryProviderId;
-    readonly lookup: (word: string) => Promise<WordCardData | null>;
+    readonly lookup: (word: string, signal?: AbortSignal) => Promise<WordCardData | null>;
 }
 
 function createEcdictProvider(): WordDictionaryProvider {
@@ -726,8 +722,8 @@ function createEcdictProvider(): WordDictionaryProvider {
     };
 }
 
-async function lookupFreeDictionary(normalizedWord: string): Promise<WordCardData | null> {
-    const payload = await fetchJson(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(normalizedWord)}`);
+async function lookupFreeDictionary(normalizedWord: string, signal?: AbortSignal): Promise<WordCardData | null> {
+    const payload = await fetchJson(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(normalizedWord)}`, LOOKUP_TIMEOUT_MS, signal);
     if (!Array.isArray(payload)) return null;
     return payload.reduce<WordCardData | null>((card, entry) => {
         if (!entry || typeof entry !== 'object') return card;
@@ -735,15 +731,15 @@ async function lookupFreeDictionary(normalizedWord: string): Promise<WordCardDat
     }, null);
 }
 
-async function lookupYoudao(normalizedWord: string): Promise<WordCardData | null> {
+async function lookupYoudao(normalizedWord: string, signal?: AbortSignal): Promise<WordCardData | null> {
     const url = `https://dict.youdao.com/jsonapi_s?doctype=json&jsonversion=4&q=${encodeURIComponent(normalizedWord)}&le=eng`;
-    const payload = await fetchJson(url, CHINA_PROVIDER_TIMEOUT_MS);
+    const payload = await fetchJson(url, CHINA_PROVIDER_TIMEOUT_MS, signal);
     const card = parseYoudaoResponse(payload, normalizedWord);
     return hasUsefulData(card) ? card : null;
 }
 
-async function lookupWiktApi(normalizedWord: string): Promise<WordCardData | null> {
-    const payload = await fetchJson(`https://api.wiktapi.dev/v1/en/word/${encodeURIComponent(normalizedWord)}`, WIKTAPI_TIMEOUT_MS);
+async function lookupWiktApi(normalizedWord: string, signal?: AbortSignal): Promise<WordCardData | null> {
+    const payload = await fetchJson(`https://api.wiktapi.dev/v1/en/word/${encodeURIComponent(normalizedWord)}`, WIKTAPI_TIMEOUT_MS, signal);
     if (!payload || typeof payload !== 'object') return null;
     const rawEntries = (payload as WiktApiResponse).entries;
     const entries: unknown[] = Array.isArray(rawEntries) ? rawEntries : [];
@@ -755,8 +751,8 @@ async function lookupWiktApi(normalizedWord: string): Promise<WordCardData | nul
     }, null);
 }
 
-async function lookupWiktionaryRest(normalizedWord: string): Promise<WordCardData | null> {
-    const payload = await fetchJson(`https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(normalizedWord)}`);
+async function lookupWiktionaryRest(normalizedWord: string, signal?: AbortSignal): Promise<WordCardData | null> {
+    const payload = await fetchJson(`https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(normalizedWord)}`, LOOKUP_TIMEOUT_MS, signal);
     if (!payload || typeof payload !== 'object') return null;
     const rawEnglishEntries = (payload as Record<string, unknown>).en;
     const englishEntries: unknown[] = Array.isArray(rawEnglishEntries) ? rawEnglishEntries : [];
@@ -766,9 +762,9 @@ async function lookupWiktionaryRest(normalizedWord: string): Promise<WordCardDat
     }, null);
 }
 
-async function lookupDatamuse(normalizedWord: string): Promise<WordCardData | null> {
+async function lookupDatamuse(normalizedWord: string, signal?: AbortSignal): Promise<WordCardData | null> {
     const url = `https://api.datamuse.com/words?sp=${encodeURIComponent(normalizedWord)}&md=dpr&ipa=1&max=8`;
-    const payload = await fetchJson(url);
+    const payload = await fetchJson(url, LOOKUP_TIMEOUT_MS, signal);
     if (!Array.isArray(payload)) return null;
     return payload.reduce<WordCardData | null>((card, entry) => {
         if (!entry || typeof entry !== 'object') return card;
@@ -785,7 +781,7 @@ export function createDefaultWordDictionaryProviders(): WordDictionaryProvider[]
         {id: 'free-dictionary', lookup: lookupFreeDictionary},
         {id: 'datamuse', lookup: lookupDatamuse},
         {id: 'wiktionary-rest', lookup: lookupWiktionaryRest},
-        // 最后兜底的 WiktApi 在中国大陆可能不可达，因此保持最短超时。
+        // WiktApi 在中国大陆可能不可达，因此保持最短来源超时。
         {id: 'wiktapi', lookup: lookupWiktApi},
     ];
 }
@@ -811,7 +807,8 @@ const DEFAULT_WORD_LOOKUP_CACHE_SIZE = 80;
 
 /**
  * 创建可注入 provider 的词典查询服务。
- * 结果（包括未命中）会缓存；并发的同词查询共享一个 Promise，避免重复请求公共服务。
+ * 本地释义立即返回，在线来源并发竞争首份释义，整次查询最多等待 2.5 秒。
+ * 确定结果（包括所有来源正常返回的未命中）会缓存；网络失败不写入负缓存，同词查询共享请求。
  */
 export function createWordDictionaryLookup(options: WordDictionaryLookupOptions = {}): WordDictionaryLookup {
     const providers = options.providers ? [...options.providers] : createDefaultWordDictionaryProviders();
@@ -830,25 +827,41 @@ export function createWordDictionaryLookup(options: WordDictionaryLookupOptions 
         return result;
     };
 
-    const performLookup = async (normalizedWord: string): Promise<WordCardData | null> => {
+    const performLookup = (normalizedWord: string): Promise<WordCardData | null> => new Promise((resolve, reject) => {
+        const controller = new AbortController();
         let merged: WordCardData | null = null;
-        for (const provider of providers) {
+        let settled = false;
+        let failed = false;
+        const finish = (unavailable = false): void => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            controller.abort();
+            if (unavailable && !merged) reject(new Error('词典查询暂时不可用'));
+            else resolve(finalizeWordCard(merged));
+        };
+        const timer = setTimeout(() => finish(true), LOOKUP_BUDGET_MS);
+        const query = async (provider: WordDictionaryProvider): Promise<void> => {
             try {
-                const result = await provider.lookup(normalizedWord);
+                const result = await provider.lookup(normalizedWord, controller.signal);
+                if (settled) return;
                 if (hasUsefulData(result)) merged = mergeWordCardData(merged, result);
-                // 释义、音标、英文原释义和非本地备份齐全后即可结束；音频仍可走浏览器 TTS。
-                if (merged
-                    && merged.meanings.length > 0
-                    && merged.phonetics.length > 0
-                    && hasEnglishDefinition(merged)
-                    && hasNonLocalBackup(merged)) break;
+                if (merged?.meanings.length) finish();
             } catch (error) {
-                // 单个公共服务失败不向 UI 泄漏内部错误，继续下一个 provider。
+                if (settled) return;
+                failed = true;
                 warn(`[FluentRead] word provider ${provider.id} unavailable`, error);
             }
-        }
-        return finalizeWordCard(merged);
-    };
+        };
+        void (async () => {
+            for (const provider of providers.filter(item => item.id === 'ecdict-local')) {
+                await query(provider);
+                if (settled) return;
+            }
+            await Promise.all(providers.filter(item => item.id !== 'ecdict-local').map(query));
+            finish(failed);
+        })();
+    });
 
     return {
         async lookup(value) {

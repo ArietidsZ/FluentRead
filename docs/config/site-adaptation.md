@@ -6,6 +6,8 @@ GitHub 发布说明会按原文的显式换行逐段显示译文，方便上下�
 
 Discord 的服务器图标栏在“正文”和“识别全部节点”范围内都保持原样；频道消息正文仍可翻译。
 
+<GuideVisual kind="rules" />
+
 ## 正文漏译
 
 1. 安装或更新后先刷新网页。
@@ -23,6 +25,9 @@ Discord 的服务器图标栏在“正文”和“识别全部节点”范围内
 
 “正文适配”用于按域名、路径和 CSS 选择器调整翻译范围；“生效预览”只检查已保存规则的匹配与优先级，不打开网站，也不保证实际网页可翻译。保存后请在真实页面确认效果。
 
+<details class="guide-details">
+<summary>仍然识别不对</summary>
+
 ## 仍然识别不对
 
 可以到 [GitHub Issues](https://github.com/FluentRead/FluentRead/issues) 提供网址、浏览器版本和经过隐私处理的截图。说明你希望翻译哪个区域、哪个区域保持原文，通常比描述页面结构更有帮助。
@@ -30,3 +35,5 @@ Discord 的服务器图标栏在“正文”和“识别全部节点”范围内
 熟悉网页结构的用户可以使用[自定义网站适配教程](/guide/custom-site-rules)。这不是日常使用的必需步骤，修改前建议先导出规则备份。
 
 完整字段说明与规则维护资料保存在[仓库参考文档](https://github.com/FluentRead/FluentRead/blob/main/docs/maintainers/product-reference/site-adaptation-20260906.md)。
+
+</details>

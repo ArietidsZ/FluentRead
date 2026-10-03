@@ -1,4 +1,13 @@
+---
+outline: false
+---
+
 # 常见问题
+
+先确认扩展已开启、当前是普通网页，再刷新一次。下面按你遇到的现象展开查看。
+
+<details class="guide-details">
+<summary>点击“翻译页面”后没有变化</summary>
 
 ## 点击“翻译页面”后没有变化
 
@@ -7,11 +16,21 @@
 3. 浏览器设置页、扩展商店等受保护页面不能翻译，换一篇普通文章试试。
 4. 到翻译服务设置点击“检查连接”。免费服务忙碌时，可以稍后再试或换服务。
 
+</details>
+
+<details class="guide-details">
+<summary>页面只翻译了一部分</summary>
+
 ## 页面只翻译了一部分
 
 默认会随阅读位置逐步翻译，向下滚动查看后续段落。想一次翻译整页，可以修改全文翻译范围。
 
 如果漏掉的是菜单、按钮或特殊正文区域，参考[网站阅读范围](/config/site-adaptation)。图片和图表里的文字请用图片或圈选翻译。
+
+</details>
+
+<details class="guide-details">
+<summary>为什么中文译文里出现日文？</summary>
 
 ## 为什么中文译文里出现日文？
 
@@ -19,29 +38,64 @@
 
 如果仍遇到混合语言，请确认目标语言，并在恢复原文后重试；反馈时附上所选服务、扩展版本及已去除隐私信息的截图。
 
+</details>
+
+<details class="guide-details">
+<summary>如何恢复原文？</summary>
+
 ## 如何恢复原文？
 
 打开扩展菜单，点击“恢复原文”。想换语言、服务或译文设置时，恢复后重新翻译即可。
+
+</details>
+
+<details class="guide-details">
+<summary>为什么选区翻译可以用，整页翻译却不行？</summary>
 
 ## 为什么选区翻译可以用，整页翻译却不行？
 
 可能是网页正文未被正确识别，或整页请求较多导致服务繁忙。先尝试翻译一个段落，再检查[网站阅读范围](/config/site-adaptation)和服务连接。
 
+</details>
+
+<details class="guide-details">
+<summary>网页邮箱的正文能翻译吗？</summary>
+
 ## 网页邮箱的正文能翻译吗？
 
 QQ 邮箱旧版阅读页，以及网易 163、126、yeah 免费邮箱的 JS6 阅读页有独立的邮件正文 frame 处理。打开具体邮件后尝试全文或划词翻译，必要时刷新邮件页面。写信编辑器不会作为邮件正文翻译。不同版本的邮箱页面结构可能不同；若仍有漏译，请反馈邮箱域名、网页版路径（删去 `sid` 等参数）、浏览器版本与经过隐私处理的截图，不要提交完整邮件或登录信息。
+
+</details>
+
+<details class="guide-details">
+<summary>为什么没有 AI 讲解？</summary>
 
 ## 为什么没有 AI 讲解？
 
 普通划词翻译只提供译文。[翻译卡片](/guide/deepseek-harness)需要单独开启并选择已配置的 AI 服务与模型；选中文字后点击“读懂”等动作，才开始生成。
 
+</details>
+
+<details class="guide-details">
+<summary>图片翻译一直在准备</summary>
+
 ## 图片翻译一直在准备
 
 使用本地 OCR 时需要下载文字识别语言包。检查图片上的提示，按需点击下载并等待完成；确认源语言与图片文字匹配。圈选翻译也可以开启“优先模型识图”：模型支持时直接识别选区图片，无需语言包。图片过于模糊或无法读取时，可以换清晰原图或只圈选一小块。
 
+</details>
+
+<details class="guide-details">
+<summary>字幕没有出现</summary>
+
 ## 字幕没有出现
 
 先确认视频字幕功能已开启，视频本身存在字幕。X 无字幕视频可以尝试本地 AI 识别，但需要先下载模型，且部分视频无法读取。参见[视频字幕](/guide/video-subtitles)。
+
+</details>
+
+<details class="guide-details">
+<summary>API Key 填在哪里？为什么连接失败？</summary>
 
 ## API Key 填在哪里？为什么连接失败？
 
@@ -49,19 +103,36 @@ QQ 邮箱旧版阅读页，以及网易 163、126、yeah 免费邮箱的 JS6 阅
 
 Ollama 连接失败时，确认本地服务正在运行，模型已下载，并允许扩展连接。详见[服务指南](/config/translation-engines)。
 
+</details>
+
+<details class="guide-details">
+<summary>译文重复或排版异常</summary>
+
 ## 译文重复或排版异常
 
 先恢复原文，确认是否同时运行浏览器自带翻译或其他翻译扩展，再只保留一种翻译重试。仍然异常时，记录网址、具体操作和截图。
 
+</details>
+
+<details class="guide-details">
+<summary>与 Font Rendering 字体渲染脚本一起使用时，译文为什么会消失？</summary>
+
 ## 与 Font Rendering 字体渲染脚本一起使用时，译文为什么会消失？
 
 部分旧版 FluentRead 会把字体脚本添加的粗体修正标记误判为译文被改写，反复修复后撤掉译文。兼容修复会保留这些字体标记，同时继续检查真实的内容和结构变化。遇到此问题，请更新到包含该修复的版本并刷新网页；商店版尚未包含修复时，可暂时关闭字体脚本的粗体修正功能。
+
+</details>
+
+<details class="guide-details">
+<summary>旧版备份还能导入吗？</summary>
 
 ## 旧版备份还能导入吗？
 
 支持旧版配置 JSON 和 FluentRead 备份文件，可在设置页的“备份与恢复 → 本地备份”中导入。这里也可将设置、单词本和模型用量导出为文件；备份包含 API Key 等私密信息，且未加密，请妥善保存，不要公开分享。旧备份缺少后来新增的配置项时，会按兼容规则补齐，已有 API Key 也会迁移。
 
 若遇到“完整备份配置的精确凭据快照无效”，请保留原文件。这可能是部分版本对新增密钥字段的校验遗漏了旧备份兼容处理；该问题已修复。如果更新后仍失败，请反馈扩展版本与报错文字，无需公开完整备份。
+
+</details>
 
 ## 仍然无法解决
 

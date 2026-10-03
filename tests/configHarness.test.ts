@@ -205,3 +205,17 @@ describe('unified selection preferences', () => {
     expect(resolveHarnessPrompt('My grammar instructions', 'grammar', 'zh-CN')).toBe('My grammar instructions');
   });
 });
+
+it('groups meaningful phrases in the built-in grammar prompt and upgrades only exact old defaults', () => {
+  const current = getDefaultHarnessPrompt('grammar', 'zh-CN');
+  expect(current).toContain('Group the sentence into meaningful, contiguous syntactic units');
+  expect(current).toContain('infinitive phrase');
+  expect(current).toContain('never invent a full sentence or a subject');
+  const oldFormat = '\n\nFor grammar analysis, after the backbone explanation include one compact Markdown table with exactly these four headers: Text | POS | Role | Meaning. Each Text cell must quote a contiguous fragment from the selection verbatim, in source order. Never add invented words or reuse overlapping fragments. Use common English POS codes (article, noun, verb, adjective, adverb, pronoun, preposition, conjunction, determiner, auxiliary, numeral, phrase); distinguish part of speech from syntactic role such as subject or object. Write Role and Meaning in the requested target language. Include articles and other function words for a short sentence; for long selections use at most 40 meaningful fragments. If uncertain, use unknown rather than inventing a classification. The four fixed headers are a rendering contract; all explanatory content follows the target language. This compact table is allowed even when large tables are discouraged.';
+  for (const {value: locale} of UI_LANGUAGE_OPTIONS) {
+    const next = getDefaultHarnessPrompt('grammar', locale);
+    const body = next.slice(0, next.indexOf('\n\nFor grammar analysis'));
+    expect(resolveHarnessPrompt(body + oldFormat, 'grammar', locale)).toBe(next);
+    expect(resolveHarnessPrompt('My custom instructions' + oldFormat, 'grammar', locale)).toBe('My custom instructions' + oldFormat);
+  }
+});
