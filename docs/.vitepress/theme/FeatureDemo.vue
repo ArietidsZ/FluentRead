@@ -10,16 +10,20 @@ const t = (zh: string, english: string) => (props.en ? english : zh)
 const root = ref<HTMLElement | null>(null)
 const { step, playing, running, reduced, choose, replay } = useDemoPlayback(
   root,
-  props.kind === 'selection' ? 9 : 6,
+  props.kind === 'selection' ? 11 : 6,
   true,
   props.kind === 'selection'
-    ? [550, 400, 1400, 1300, 1300, 1300, 650, 1800, 1300]
+    ? [550, 400, 1400, 1600, 1600, 1300, 1300, 1300, 650, 1800, 1300]
     : [600, 450, 900, 1600, 1600, 1800]
 )
 const revealed = computed(() => step.value >= 2)
-const word = computed(() => props.kind === 'selection' && step.value >= 6)
-const structure = computed(() => props.kind === 'selection' && step.value >= 3 && step.value <= 5)
-const activePart = computed(() => Math.min(2, Math.max(0, step.value - 3)))
+const word = computed(() => props.kind === 'selection' && step.value >= 8)
+const structure = computed(() => props.kind === 'selection' && step.value >= 5 && step.value <= 7)
+const activePart = computed(() => Math.min(2, Math.max(0, step.value - 5)))
+const audioPreview = computed(() => {
+  if (props.kind !== 'selection') return null
+  return step.value === 3 ? 'original' : step.value === 4 ? 'translation' : null
+})
 const parts = [
   {
     text: 'A good book',
@@ -149,7 +153,7 @@ const contexts = {
                   :class="[`fd-part-${index}`, { 'fd-part-active': activePart === index }]"
                   :aria-pressed="activePart === index"
                   :tabindex="structure ? 0 : -1"
-                  @click="choose(3 + index)"
+                  @click="choose(5 + index)"
                 >
                   <span>{{ part.text }}</span>
                   <small>{{ part.role }}</small>
@@ -192,6 +196,33 @@ const contexts = {
             </div>
           </section>
         </div>
+        <div class="fd-audio-actions" :aria-label="t('朗读动作示意', 'Read-aloud preview')">
+          <button
+            v-for="target in (['original', 'translation'] as const)"
+            :key="target"
+            type="button"
+            :class="{ 'fd-audio-active': audioPreview === target }"
+            :aria-pressed="audioPreview === target"
+            :aria-label="
+              target === 'original'
+                ? t('演示朗读原文', 'Preview reading the original')
+                : t('演示朗读译文', 'Preview reading the translation')
+            "
+            @click="choose(target === 'original' ? 3 : 4)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 9v6h4l5 4V5L8 9H4Z" />
+              <path d="M16 9a5 5 0 0 1 0 6M19 6a9 9 0 0 1 0 12" />
+            </svg>
+            {{
+              target === 'original' ? t('朗读原文', 'Read original') : t('朗读译文', 'Read translation')
+            }}
+            <span class="fd-sound-wave" aria-hidden="true"><i></i><i></i><i></i></span>
+          </button>
+        </div>
+        <p class="fd-audio-note">{{
+          t('朗读动作示意，不播放声音', 'Read-aloud preview · no sound')
+        }}</p>
       </template>
       <template v-else-if="kind === 'document'">
         <div class="fd-meta">
