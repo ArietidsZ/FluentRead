@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/components/SettingsGroup.vue
 文件职责：建立设置页面的二级分组容器，用清晰的标题、说明和单层细边框区分相关配置而不重复页面级介绍。
-主要内容：将可选标题、说明与设置项包入无阴影的统一圆角边框，以同底色标题、适度收紧的组间留白及组内细分隔线建立层级，并适配主题与窄屏。
+主要内容：将可选标题、说明与设置项包入无阴影的统一圆角边框，以同底色标题、适度收紧的组间留白及组内细分隔线建立层级，统一处理 SettingsItem 与 Element 行混排时的分隔，并适配主题与窄屏。
 模块边界：本组件是无业务状态的布局壳，不解释配置、不读写 store，也不决定导航分类；具体字段及控件由调用页面和 SettingsItem 提供。
 -->
 <template>
@@ -70,10 +70,6 @@ defineProps<{
   border-top-right-radius: 0;
 }
 
-.settings-group-body :deep(.settings-item + .settings-item) {
-  border-top: 1px solid var(--line);
-}
-
 .settings-group-body :deep(.el-row) {
   min-height: 60px !important;
   margin: 0 !important;
@@ -84,7 +80,7 @@ defineProps<{
   box-shadow: none !important;
 }
 
-.settings-group-body :deep(.el-row + .el-row) {
+.settings-group-body :deep(:is(.settings-item, .el-row) + :is(.settings-item, .el-row)) {
   border-top: 1px solid var(--line) !important;
 }
 

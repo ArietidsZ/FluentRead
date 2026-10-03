@@ -35,6 +35,7 @@ function textBefore(root: Node, endNode: Node, endOffset: number): string {
 class FakeRange {
     root: Node | null = null;
     startContainer: Node | null = null;
+    startOffset = 0;
     endContainer: Node | null = null;
     endOffset = 0;
     ended = false;
@@ -42,7 +43,9 @@ class FakeRange {
     selectNodeContents(node: Node): void {
         this.root = node;
         this.startContainer = node;
+        this.startOffset = 0;
         this.endContainer = node;
+        this.endOffset = node.childNodes.length;
         this.ended = false;
     }
 
@@ -52,8 +55,25 @@ class FakeRange {
         this.ended = true;
     }
 
+    setStart(node: Node, offset: number): void {
+        this.startContainer = node;
+        this.startOffset = offset;
+    }
+
+    collapse(toStart: boolean): void {
+        if (toStart) {
+            this.endContainer = this.startContainer;
+            this.endOffset = this.startOffset;
+        } else {
+            this.startContainer = this.endContainer;
+            this.startOffset = this.endOffset;
+        }
+        this.ended = true;
+    }
+
     toString(): string {
-        return this.ended ? textBefore(this.root!, this.endContainer!, this.endOffset) : this.root!.textContent || '';
+        const end = this.ended ? textBefore(this.root!, this.endContainer!, this.endOffset) : this.root!.textContent || '';
+        return end.slice(textBefore(this.root!, this.startContainer!, this.startOffset).length);
     }
 }
 
@@ -70,6 +90,13 @@ function editorPage(html: string, options: {selectionEvents?: boolean} = {}) {
     const selection = {
         ranges: [] as FakeRange[],
         get rangeCount() { return this.ranges.length; },
+        get isCollapsed() {
+            const range = this.ranges[0];
+            return !!range && range.startContainer === range.endContainer && range.startOffset === range.endOffset;
+        },
+        get focusNode() { return this.ranges[0]?.endContainer; },
+        get focusOffset() { return this.ranges[0]?.endOffset || 0; },
+        toString() { return this.ranges[0]?.toString() || ''; },
         removeAllRanges: vi.fn(() => { selection.ranges = []; }),
         addRange: vi.fn((range: FakeRange) => {
             selection.ranges.push(range);
@@ -169,6 +196,76 @@ describe('编辑宿主光标度量', () => {
 });
 
 describe('编辑宿主原生写回', () => {
+    it.each(['start', 'end'] as const)('双语输出只选中 %s 空范围，保留原文加粗节点和链接', async position => {
+        const page = editorPage('<div contenteditable="true"><b>中文</b><a href="https://example.test">链接</a></div>');
+        const bold = page.element.querySelector('b');
+        const link = page.element.querySelector('a');
+        page.element.addEventListener('paste', event => {
+            expect(page.selection.isCollapsed).toBe(true);
+            expect(page.selection.toString()).toBe('');
+            event.preventDefault();
+            const node = page.document.createTextNode((event as ClipboardEvent).clipboardData!.getData('text/plain'));
+            if (position === 'start') page.element.insertBefore(node, page.element.firstChild);
+            else page.element.appendChild(node);
+        });
+        await expect(settle(replaceEditableText(page.element, position === 'start' ? 'English\n' : '\nEnglish', () => true, position))).resolves.toBe('replaced');
+        expect(page.element.textContent).toBe(position === 'start' ? 'English\n中文链接' : '中文链接\nEnglish');
+        expect(page.element.querySelector('b')).toBe(bold);
+        expect(page.element.querySelector('a')).toBe(link);
+        expect(page.execCommand).not.toHaveBeenCalled();
+    });
+
+    it('追加等待期间光标移到正文时不写入', async () => {
+        const page = editorPage('<div contenteditable="true">中文</div>');
+        page.document.addEventListener('selectionchange', () => {
+            const range = new FakeRange();
+            range.selectNodeContents(page.element);
+            range.setEnd(page.element.firstChild!, 1);
+            range.collapse(false);
+            page.selection.ranges = [range];
+        });
+        await expect(settle(replaceEditableText(page.element, '\nEnglish', () => true, 'end'))).resolves.toBe('stale');
+        expect(page.execCommand).not.toHaveBeenCalled();
+    });
+
+    it.each([['=', '===', '='], [' ', ' \u00a0\u00a0', ' ']])('清理本次光标前的两个触发符 %s，不删除原文已有符号和格式', async (symbol, suffix, retained) => {
+        const page = editorPage(`<div contenteditable="true"><b>原文${suffix}</b></div>`);
+        const text = page.element.querySelector('b')!.firstChild! as Text;
+        const caret = new FakeRange();
+        caret.selectNodeContents(page.element);
+        caret.setEnd(text, text.data.length);
+        caret.collapse(false);
+        page.selection.ranges = [caret];
+        page.element.addEventListener('paste', event => {
+            expect(page.selection.toString()).toBe(suffix.slice(-2));
+            event.preventDefault();
+            text.data = text.data.slice(0, -2);
+        });
+        await expect(settle(replaceEditableText(page.element, '', () => true, 'trigger', symbol))).resolves.toBe('replaced');
+        expect(page.element.innerHTML).toBe(`<b>原文${retained}</b>`);
+        expect(page.execCommand).not.toHaveBeenCalled();
+    });
+
+    it('光标前符号不匹配或为空时不会删除原文', async () => {
+        const page = editorPage('<div contenteditable="true">原文</div>');
+        const caret = new FakeRange();
+        caret.selectNodeContents(page.element);
+        caret.setEnd(page.element.firstChild!, 2);
+        caret.collapse(false);
+        page.selection.ranges = [caret];
+        await expect(replaceEditableText(page.element, '', () => true, 'trigger', '=')).resolves.toBe('unsupported');
+        await expect(replaceEditableText(page.element, '', () => true, 'trigger', '')).resolves.toBe('unsupported');
+        Object.defineProperty(page.element.firstChild!, 'textContent', {value: null});
+        await expect(replaceEditableText(page.element, '', () => true, 'trigger', '=')).resolves.toBe('unsupported');
+        expect(page.execCommand).not.toHaveBeenCalled();
+    });
+
+    it('清理触发符缺少可靠文本光标时保留宿主内容', async () => {
+        const page = editorPage('<div contenteditable="true">原文</div>');
+        await expect(replaceEditableText(page.element, '', () => true, 'trigger', '=')).resolves.toBe('unsupported');
+        expect(page.execCommand).not.toHaveBeenCalled();
+    });
+
     it('编辑器同步接管纯文本粘贴时不再调用 insertText，并先选中全文再等待选区同步', async () => {
         const page = editorPage('<div contenteditable="true"><p>Hello <b>world</b></p></div>');
         const pasted: string[] = [];

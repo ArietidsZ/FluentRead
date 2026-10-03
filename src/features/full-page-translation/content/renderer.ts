@@ -1,6 +1,6 @@
 /**
  * @file src/features/full-page-translation/content/renderer.ts
- * 文件职责：把翻译返回的受限 HTML 或纯文本安全插入原页面，构造 FluentRead 双语与仅译文节点，同时保护链接属性并触发布局截断修复。
+ * 文件职责：把翻译返回的受限 HTML 或纯文本安全插入原页面，构造 FluentRead 双语与仅译文节点，为学习标记保留逐行文字片段，同时保护链接属性并触发布局截断修复。
  * 主要内容：包含复验来源连续顺序的安全候选物化与显式原文行容器、URL 协议白名单、可复制属性集合、递归节点净化、本地公式可视骨架的受限克隆与辅助副本排除、DocumentFragment 创建、不改写宿主 class 的双语 wrapper、跨 CJK 书写体系时前置目标字体族、可选的译文前置与长段落按句换行，以及通过 Shadow DOM 保留宿主原文的仅译文文本槽。
  * 模块边界：本文件只负责安全渲染，不发起翻译或管理请求状态；服务调用归 runtime，节点所有权归 state，配置仅用于展示选项，任意脚本、事件属性和危险链接都不得穿过净化边界。
  */
@@ -280,6 +280,13 @@ function createBilingualTranslationContent(
     // 换行只作用于本次渲染出的译文容器，原文 DOM 不受影响。
     if (renderOptions.longParagraphLineBreak ?? config.longParagraphLineBreakEnabled) {
         applyLongParagraphLineBreaks(content);
+    }
+    if (style?.class === 'fluent-display-learning-mode' || style?.class === 'fluent-display-marker') {
+        // 块容器负责换行，行内副本负责逐行标记；避免渐变覆盖整个段落底部和行尾留白。
+        const markedText = node.ownerDocument.createElement('span');
+        markedText.className = 'fluent-read-translation-text';
+        while (content.firstChild) markedText.appendChild(content.firstChild);
+        content.appendChild(markedText);
     }
     return content;
 }

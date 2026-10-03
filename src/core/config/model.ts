@@ -6,6 +6,7 @@
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
+import {DEFAULT_SENTENCE_HIGHLIGHT_STYLE, normalizeSentenceHighlightStyle, type SentenceHighlightStyle} from './sentenceHighlight';
 import {normalizeShareCardPreferences, type ShareCardPreferences} from '@/src/core/config/shareCard';
 import type {TranslationScope} from '@/src/core/translation/types';
 import {
@@ -101,8 +102,10 @@ import {
     DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL,
     normalizeInputBoxTranslationInterval,
     normalizeInputBoxTranslationModel,
+    normalizeInputBoxTranslationOutputMode,
     normalizeInputBoxTranslationPrompt,
     normalizeInputBoxTranslationService,
+    type InputBoxTranslationOutputMode,
 } from './inputTranslation';
 import {
     DEFAULT_INTERFACE_FONT,
@@ -412,6 +415,7 @@ export class Config {
     videoGlossaryIds: string[] | null; // 字幕术语选择；null 跟随全局，空数组停用
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
     bilingualSentenceHighlightEnabled: boolean; // 是否在双语翻译中同步高亮原文与译文
+    bilingualSentenceHighlightStyle: SentenceHighlightStyle; // 逐句高亮外观，与译文整体样式独立
     contextMenuEnabled: boolean; // 右键菜单总开关
     contextMenuEntries: ContextMenuEntryPreferences; // 右键菜单各入口的显示偏好；未设置的入口按产品默认值
     contextMenuShowTargetLanguage: boolean; // 右键菜单标题是否标出译入语言
@@ -498,6 +502,7 @@ export class Config {
     translationProgressPanelEnabled: boolean; // 是否显示全文翻译进度面板
     inputBoxTranslationTrigger: string; // 输入框翻译触发方式
     inputBoxTranslationTarget: string; // 输入框翻译目标语言
+    inputBoxTranslationOutputMode: InputBoxTranslationOutputMode; // 替换原文或双语输出顺序
     inputBoxTranslationInterval: number; // 输入框翻译相邻触发的最大间隔（毫秒）
     inputBoxTranslationService: string; // 输入框服务，空值跟随网页默认
     inputBoxTranslationModel: string; // 输入框翻译独立模型，空值跟随服务模型
@@ -599,6 +604,7 @@ export class Config {
         this.videoGlossaryIds = null;
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
         this.bilingualSentenceHighlightEnabled = false; // 默认关闭双语逐句高亮，避免改变现有网页视觉
+        this.bilingualSentenceHighlightStyle = DEFAULT_SENTENCE_HIGHLIGHT_STYLE;
         this.contextMenuEnabled = true; // 默认显示右键菜单入口
         this.contextMenuEntries = {}; // 默认全部跟随产品默认值，用户改动才写入偏好
         this.contextMenuShowTargetLanguage = true; // 默认标出译入语言，让菜单说清会翻成什么
@@ -685,6 +691,7 @@ export class Config {
         this.translationProgressPanelEnabled = false; // 默认关闭全文翻译进度面板
         this.inputBoxTranslationTrigger = 'disabled'; // 默认关闭输入框翻译
         this.inputBoxTranslationTarget = 'en'; // 默认翻译成英文
+        this.inputBoxTranslationOutputMode = 'replace';
         this.inputBoxTranslationInterval = DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL;
         this.inputBoxTranslationService = '';
         this.inputBoxTranslationModel = '';
@@ -1024,6 +1031,7 @@ export function normalizeConfig(value: unknown): Config {
             : false;
     }
     normalized.bilingualSentenceHighlightEnabled = source.bilingualSentenceHighlightEnabled === true;
+    normalized.bilingualSentenceHighlightStyle = normalizeSentenceHighlightStyle(source.bilingualSentenceHighlightStyle);
     normalized.translationAppearance = normalizeTranslationAppearance(source.translationAppearance);
     normalized.translationStyleProfiles = normalizeTranslationStyleProfiles(source.translationStyleProfiles);
     normalized.activeTranslationStyleProfileId = typeof source.activeTranslationStyleProfileId === 'string'
@@ -1049,6 +1057,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.excludedLanguages = normalizeExcludedLanguages(source.excludedLanguages);
     normalized.inputBoxTranslationTarget = normalizeConfigLanguage(source.inputBoxTranslationTarget)
         || defaultOption.inputBoxTranslationTarget;
+    normalized.inputBoxTranslationOutputMode = normalizeInputBoxTranslationOutputMode(source.inputBoxTranslationOutputMode);
     normalized.inputBoxTranslationInterval = normalizeInputBoxTranslationInterval(
         source.inputBoxTranslationInterval,
     );

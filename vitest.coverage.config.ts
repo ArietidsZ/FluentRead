@@ -535,6 +535,7 @@ export default defineConfig({
                 'src/core/config/azure.ts',
                 'src/core/config/interfaceAppearance.ts',
                 'src/core/config/interfaceFontAssets.ts',
+                'src/core/config/sentenceHighlight.ts',
                 'src/services/interfaceFonts.ts',
                 'src/features/settings/ui/usePopupLayoutReorder.ts',
                 'src/core/config/model.ts',

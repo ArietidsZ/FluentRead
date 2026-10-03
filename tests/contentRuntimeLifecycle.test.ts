@@ -404,7 +404,7 @@ describe('content composition root 冷启动与暂停恢复', () => {
         transition(page, 'pagehide', true);
         const onConfig = mocks.subscribeConfig.mock.calls[0][0];
         onConfig(mocks.config);
-        expect(mocks.syncHighlight).toHaveBeenLastCalledWith(document, false);
+        expect(mocks.syncHighlight).toHaveBeenLastCalledWith(document, false, undefined);
         expect(mocks.removeStyles).toHaveBeenCalledOnce();
         expect(mocks.installPageStyles).toHaveBeenCalledOnce();
     });
@@ -416,7 +416,7 @@ describe('content composition root 冷启动与暂停恢复', () => {
         ready();
         await starting;
         mocks.subscribeConfig.mock.calls[0][0](mocks.config);
-        expect(mocks.syncHighlight).toHaveBeenLastCalledWith(document, false);
+        expect(mocks.syncHighlight).toHaveBeenLastCalledWith(document, false, undefined);
         expect(mocks.installPageStyles).not.toHaveBeenCalled();
     });
 

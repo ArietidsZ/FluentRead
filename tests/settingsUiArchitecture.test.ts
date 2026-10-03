@@ -178,7 +178,8 @@ describe('options UI composition architecture', () => {
     expect(optionsApp).toContain('defineAsyncComponent(() => import(\'@/src/features/settings/ui/SettingsSections.vue\'))')
     expect(optionsApp).toContain('defineAsyncComponent(() => import(\'@/src/features/settings/ui/LearningCenter.vue\'))')
     expect(optionsEntry).toContain('await configReady')
-    expect(optionsEntry).toContain('await ensureUiLanguageBundle(config.uiLanguage)')
+    expect(optionsEntry).toContain('ensureUiLanguageBundle(config.uiLanguage)')
+    expect(optionsEntry).toContain('prepareInterfaceFont(config.interfaceFont)')
     expect(optionsEntry).not.toContain('element-plus/dist/index.css')
     expect(sections).toContain('const visitedSections = ref(new Set<string>())')
     expect(sections).toContain('const hasVisitedSection = (section: string): boolean => visitedSections.value.has(section)')
@@ -293,7 +294,6 @@ describe('options UI composition architecture', () => {
     expect(activeSectionSource(settingsSections, 'settings-interface')).toContain('<InterfaceSettings :config="config" :active-panel="props.activePanel" />')
     expect(activeSectionSource(settingsSections, 'settings-interface')).toContain('id="settings-interface"')
     expect(settingsGroupTitles(interfaceSettings)).toEqual([
-      "t('settings.interface.readingAssistance')",
       "translateLegacy('界面与弹窗')",
       "t('settings.interface.popupLayout.label')",
       "t('settings.interface.popupLayout.label')",
@@ -540,7 +540,7 @@ describe('options UI composition architecture', () => {
     expect(configManagement).not.toContain('<SettingsGroup title="凭据安全"')
     expect(configManagement).not.toContain('type="file"')
     expect(configManagement).not.toContain('downloadConfig')
-    expect(localDataManagement).toContain('title="完整备份"')
+    expect(localDataManagement).toContain(":title=\"t('settings.backup.localTitle')\"")
     expect(localDataManagement).not.toContain('分别管理')
     expect(localDataManagement).toContain('createFluentReadDataBackup')
     expect(localDataManagement).toContain('openRestoreSource($event)')
@@ -692,7 +692,7 @@ describe('options UI composition architecture', () => {
     const serviceIcon = source('src/ui/components/ServiceIcon.vue')
 
     expect(document).toContain('return selectedCustomOpenAIProvider.value.models')
-    expect(document).toContain('config.customModels[config.documentService]')
+    expect(document).toContain('config.customModels[effectiveDocumentService.value]')
     expect(document).toContain('管理模型 ↗')
     expect(document).not.toContain('aria-label="文档自定义模型名称"')
     expect(document).toContain("'这个自定义服务尚未保存模型，请先前往服务设置添加模型。'")
@@ -994,13 +994,13 @@ describe('options UI composition architecture', () => {
     expect(promptEditor).toContain('@mousedown.prevent')
   })
 
-  it('prioritizes daily translation before webpage assistance and basic preferences in General', () => {
+  it('prioritizes basic configuration before webpage assistance and basic preferences in General', () => {
     const settings = source('src/features/settings/ui/SettingsSections.vue')
     const general = activeSectionSource(settings, 'settings-general')
     const services = activeSectionSource(settings, 'settings-services')
     const styles = sourceBody('src/features/settings/ui/settings-sections.css')
 
-    expect(settingsGroupTitles(general)).toEqual(['日常翻译', '网页辅助', '基本偏好'])
+    expect(settingsGroupTitles(general)).toEqual(['基础配置', '网页辅助', '基本偏好'])
     expect(general).not.toContain('class="settings-subgroup-heading"')
     expect(general).not.toContain('id="translated-display-heading"')
     expect(general).toContain('data-testid="open-translation-settings"')
@@ -1069,23 +1069,23 @@ describe('options UI composition architecture', () => {
     expect(styleSettings).toContain(':class="preset.className"')
     expect(styleSettings).toContain('getTranslationAppearanceStyle(appearance.value)')
     for (const field of ['textColor', 'lineColor', 'fillColor']) expect(styleSettings).toContain(`v-model="appearance.${field}"`)
-    expect(interfaceSettings).toContain('v-model="props.config.bilingualSentenceHighlightEnabled"')
+    expect(source('src/features/settings/ui/ReadingAssistanceSettings.vue')).toContain('v-model="config.bilingualSentenceHighlightEnabled"')
     expect(styleSettings).toContain("t('settings.translationStyle.bilingualOnly')")
     expect(styleSettings).toContain('@click="config.display = 1"')
     expect(styleSettings).toContain('container-type: inline-size')
     // 设置搜索的控件直达目标必须指向真实元素。
-    expect(interfaceSettings).toContain('id="translation-sentence-highlight"')
+    expect(source('src/features/settings/ui/ReadingAssistanceSettings.vue')).toContain('id="translation-sentence-highlight"')
     expect(styleSettings).toContain('id="translation-appearance-panel"')
     for (const testId of ['bilingual-highlight-preview', 'bilingual-highlight-preview-source', 'bilingual-highlight-preview-translation']) {
       expect(preview).toContain(`data-testid="${testId}"`)
     }
     expect(preview).toContain('class="fluent-read-bilingual-content"')
     expect(preview).toContain(':data-bilingual-highlight-enabled="String(highlightEnabled)"')
-    expect(preview).toContain('.bilingual-highlight-preview .is-sentence-highlighted')
+    expect(source('src/ui/styles/bilingual-sentence-highlight.css')).toContain('.is-sentence-highlighted')
     expect(colorField).toContain('role="radiogroup"')
     expect(colorField).toContain('normalizeTranslationColor(value ?? \'\')')
     expect(pageStylesInstaller).toContain("import translationDisplayStyles from '@/src/ui/styles/translation-display.css?inline'")
-    expect(pageStylesInstaller).toContain('`${translationDisplayStyles}\\n${pageStyles}`')
+    expect(pageStylesInstaller).toContain('`${translationDisplayStyles}\\n${pageStyles}\\n${sentenceHighlightStyles}`')
     expect(pageCss).not.toMatch(/\.fluent-display-[a-z-]+\s*\{/u)
     expect(pageCss).not.toContain('.fluent-read-bilingual-content {')
     // 基础规则必须先于预设，否则透明背景会覆盖简约卡片和学习标记的底色。
@@ -1198,7 +1198,7 @@ describe('options UI composition architecture', () => {
   it('keeps bilingual sentence highlighting opt-in and scoped to bilingual wrappers', () => {
     const page = source('src/app/content/page.css')
 
-    expect(page).toContain('::highlight(fluentread-bilingual-sentence)')
+    expect(source('src/ui/styles/bilingual-sentence-highlight.css')).toContain('::highlight(fluentread-bilingual-sentence)')
     expect(page).not.toContain(':hover > .fluent-read-bilingual-content::before')
     expect(page).not.toContain(':has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):hover')
   })
