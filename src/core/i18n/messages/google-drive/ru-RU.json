@@ -37,7 +37,7 @@
     "settings.drive.showDetails": "Показать отличия: {count}",
     "settings.drive.hideDetails": "Скрыть отличия",
     "settings.drive.showAutomatic": "Показать автоматические решения: {count}",
-    "settings.drive.hideAutomatic": "Вернуться к выбору",
+    "settings.drive.hideAutomatic": "Скрыть {count} автоматически сохранённых изменений",
     "settings.drive.privateHint": "Ключи, адреса и пользовательское содержимое скрыты; связанные настройки сохраняются группой.",
     "settings.drive.otherSettings": "Прочие настройки совместимости",
     "settings.drive.groupedContent": "Настроек: {count} (содержимое скрыто)",

@@ -56,6 +56,19 @@
     "settings.webdav.error.failure": "Операция не завершена. Проверьте сеть и локальное хранилище и повторите попытку.",
     "settings.cloud.privacyEncryption": "Настройки шифруются до загрузки. Пароль приложения общедоступен; основную защиту обеспечивают учетная запись, права папки и безопасность устройства.",
     "settings.cloud.privacyWebDavStorage": "Доступ только к резервной копии FluentRead в выбранной папке сервера.",
-    "settings.cloud.privacyWebDavConnection": "Пароль подключения хранится на этом устройстве. Доступ к серверу требует ручного действия."
+    "settings.cloud.privacyWebDavConnection": "Пароль подключения хранится на этом устройстве. Доступ к серверу требует ручного действия.",
+    "settings.cloud.currentAccount": "Аккаунт резервного копирования: {email}",
+    "settings.cloud.changed.credentials": "Ключи API, токены OAuth и авторизация",
+    "settings.cloud.changed.requests": "Адреса сервисов и параметры запросов",
+    "settings.cloud.changed.models": "Модели перевода",
+    "settings.cloud.changed.services": "Сервисы перевода для каждой функции",
+    "settings.cloud.changed.customServices": "Пользовательские сервисы перевода",
+    "settings.cloud.changed.assistants": "Помощники для письма и чтения",
+    "settings.cloud.changed.options": "Параметры подключения перевода",
+    "settings.cloud.fieldLabel.0": "Целевой язык в контекстном меню",
+    "settings.cloud.fieldLabel.1": "Горячая клавиша в контекстном меню",
+    "settings.cloud.fieldLabel.2": "Сохранённая клавиша перевода при наведении",
+    "settings.cloud.fieldLabel.3": "Сохранённый режим перевода выделения",
+    "settings.cloud.fieldLabel.4": "Локальная модель распознавания речи"
   }
 }
