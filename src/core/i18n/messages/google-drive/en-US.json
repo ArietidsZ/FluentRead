@@ -1,5 +1,6 @@
 {
   "messages": {
+    "settings.drive.storageBadge": "Your settings, your Drive",
     "settings.drive.account": "Account for this sync: {email}",
     "settings.drive.differences": "{count} differences. Private and custom content is hidden.",
     "settings.drive.local": "Device: {value}",

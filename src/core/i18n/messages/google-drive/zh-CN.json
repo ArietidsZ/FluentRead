@@ -1,5 +1,6 @@
 {
   "messages": {
+    "settings.drive.storageBadge": "配置存入你的云盘",
     "settings.drive.account": "本次同步账号：{email}",
     "settings.drive.differences": "{count} 项差异。私密和自定义内容均已隐藏。",
     "settings.drive.local": "本机：{value}",

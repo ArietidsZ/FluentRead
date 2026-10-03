@@ -1,5 +1,6 @@
 {
   "messages": {
+    "settings.drive.storageBadge": "설정은 내 드라이브에 저장",
     "settings.drive.account": "이번 동기화 계정: {email}",
     "settings.drive.differences": "차이 {count}개. 비공개 및 사용자 지정 내용은 숨겨집니다.",
     "settings.drive.local": "기기: {value}",
