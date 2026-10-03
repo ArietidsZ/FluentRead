@@ -1,63 +1,65 @@
 <script setup lang="ts">
 import { withBase } from 'vitepress'
-import { computed } from 'vue'
-import BrandReader from './BrandReader.vue'
-import GrammarDemo from './GrammarDemo.vue'
-import GuideVisual from './GuideVisual.vue'
-import BrowserInstall from './BrowserInstall.vue'
+import FeatureDemo from './FeatureDemo.vue'
 import HeroOrbit from './HeroOrbit.vue'
+import BrowserInstall from './BrowserInstall.vue'
 import brandTaglines from '../../../src/core/i18n/messages/brand-taglines.json'
 const props = defineProps<{ en?: boolean }>()
 const t = (zh: string, english: string) => (props.en ? english : zh)
 const link = (path: string) => withBase((props.en ? '/en' : '') + path)
-const chrome = 'https://chromewebstore.google.com/detail/djnlaiohfaaifbibleebjggkghlmcpcj'
-const titleLines = computed(() =>
-  props.en ? brandTaglines['en-US'].split(/(?<=\.) /) : brandTaglines['zh-CN'].split(/(?<=，)/)
-)
-const scenes = [
+const features = [
   {
-    kind: 'image',
-    title: t('图片里的文字，也能读。', 'Read the words inside an image.'),
+    kind: 'webpage',
+    title: t('网页双语翻译', 'Bilingual webpage translation'),
     description: t(
-      '识别文字，在原图上对照译文。',
-      'Recognize text and read the translation over the image.'
+      '保留原文，译文就在下方。文章、资讯和社交动态，对照着读。',
+      'Keep the original with its translation underneath. Read articles, news and social posts side by side.'
     ),
-    path: '/guide/image-translation',
+    path: '/guide/webpage-translation',
+  },
+  {
+    kind: 'selection',
+    title: t('划词翻译', 'Selection translation'),
+    description: t(
+      '选中一句，看双语卡片；选中一个词，查音标、词性和释义。',
+      'Select a sentence for a bilingual card, or a word for pronunciation, word class and definitions.'
+    ),
+    path: '/guide/deepseek-harness',
   },
   {
     kind: 'document',
-    title: t('文件导进来，双语读下去。', 'Bring a document. Keep exploring.'),
+    title: t('文档翻译', 'Document translation'),
     description: t(
-      'PDF、ePub、Word：翻译、校订、下载。',
-      'PDF, ePub, Word: translate, edit, download.'
+      'PDF、ePub、Word，原文译文对照阅读，支持校订与下载。',
+      'Read PDFs, ePub and Word files with parallel translations. Edit and download the result.'
     ),
     path: '/guide/document-translation',
   },
   {
-    kind: 'video',
-    title: t('保留原话，跟上视频。', 'Keep the original. Follow the story.'),
+    kind: 'image',
+    title: t('图片与漫画翻译', 'Image & comic translation'),
     description: t(
-      '在支持的平台，同时看原字幕与译文。',
-      'Read original and translated captions on supported platforms.'
+      '识别图片和漫画里的文字，译文回到原图，接着看下去。',
+      'Recognize text in images and comics, then read the translation on the original image.'
+    ),
+    path: '/guide/image-translation',
+  },
+  {
+    kind: 'video',
+    title: t('视频与会议翻译', 'Video & meeting translation'),
+    description: t(
+      '看视频、参加会议，原字幕与译文一起出现。',
+      'Follow videos and meetings with original and translated captions together.'
     ),
     path: '/guide/video-subtitles',
   },
-  {
-    kind: 'input',
-    title: t('写下想法，自然地表达。', 'Write your thoughts. Find the words.'),
-    description: t(
-      '翻译输入内容，或用写作助手完善回复。',
-      'Translate your input or refine a reply with the writing assistant.'
-    ),
-    path: '/guide/input-translation',
-  },
-]
+] as const
 const faqs = [
   [
     t('免费吗？需要注册吗？', 'Is it free? Do I need an account?'),
     t(
-      'FluentRead 开源免费，无需注册 FluentRead 账号。免费翻译服务可以直接使用；AI 讲解需连接自己的服务，费用和额度由服务商决定。',
-      'FluentRead is free and open source, with no FluentRead account required. Start with free translation. AI explanations need your own provider; its fees and quotas apply.'
+      '流畅阅读开源免费，无需注册。免费翻译服务可以直接使用；其他服务的费用和额度由服务商决定。',
+      'FluentRead is free and open source, with no account required. Start with free translation; other providers have their own fees and quotas.'
     ),
     '/config/translation-engines',
     t('选择翻译服务', 'Choose a provider'),
@@ -72,7 +74,7 @@ const faqs = [
     t('查看安装指南', 'Installation guide'),
   ],
   [
-    t('可以用自己的 AI 或本地模型吗？', 'Can I use my own AI or local model?'),
+    t('可以选择其他翻译服务吗？', 'Can I choose another translation provider?'),
     t(
       '可以连接 DeepSeek、OpenAI、Gemini 等服务，或使用本地 Ollama；不同功能可以独立选择服务。',
       'Connect DeepSeek, OpenAI, Gemini, or local Ollama. Each feature can use its own provider.'
@@ -96,22 +98,21 @@ const faqs = [
     <section class="bv-hero" :class="{ 'bv-hero-en': en }" aria-labelledby="fr-title">
       <HeroOrbit :en="en" />
       <div class="bv-hero-copy">
-        <p class="bv-hero-kicker">
-          {{ t('开源双语翻译 · AI 讲解', 'OPEN-SOURCE TRANSLATION · AI EXPLANATIONS') }}
+        <div class="bv-hero-brand">
+          <img :src="withBase('/brand-icon.webp')" width="72" height="72" alt="" />
+          <h1 id="fr-title"><span lang="zh-CN">流畅阅读</span><span lang="en">FluentRead</span></h1>
+        </div>
+        <p class="bv-hero-slogan product-tagline">
+          <span>{{ t('让语言更近，', 'Closer languages.') }}</span>
+          <span>{{ t('让世界更大。', 'A bigger world.') }}</span>
         </p>
-        <h1 id="fr-title" class="product-tagline">
-          <span v-for="line in titleLines" :key="line">{{ line }}</span>
-        </h1>
         <p class="bv-hero-intro">
           {{
             t(
-              '保留原文，双语对照。遇到难句，选中就能继续理解。',
-              'Keep the original. Read side by side. Select a difficult sentence to understand it better.'
+              '开源双语翻译插件，读懂你喜欢的内容。',
+              'Open-source bilingual translation for the content you love.'
             )
           }}
-        </p>
-        <p class="bv-hero-formats">
-          {{ t('网页 · 图片 · 文档 · 视频字幕', 'Webpages · Images · Documents · Video captions') }}
         </p>
         <BrowserInstall :en="en" />
         <p class="bv-install-note">
@@ -119,73 +120,37 @@ const faqs = [
         </p>
       </div>
     </section>
-    <section class="bv-section bv-translation-section" aria-labelledby="bv-translation-title">
-      <h2 id="bv-translation-title" class="bv-visually-hidden">
-        {{ t('原文保留，译文就在旁边。', 'Keep the original. Read the translation alongside.') }}
-      </h2>
-      <div class="bv-translation-demo"><BrandReader :en="en" autoplay /></div>
-      <p class="bv-translation-caption">
-        {{
+    <section
+      v-for="feature in features"
+      :key="feature.kind"
+      :id="feature.kind === 'webpage' ? 'features' : `feature-${feature.kind}`"
+      class="bv-section bv-feature-row"
+      :class="{ 'bv-translation-section': feature.kind === 'webpage' }"
+      :data-feature="feature.kind"
+      :aria-labelledby="`bv-${feature.kind}-title`"
+    >
+      <div class="bv-feature-copy">
+        <h2 :id="`bv-${feature.kind}-title`">{{ feature.title }}</h2>
+        <p>{{ feature.description }}</p>
+        <div
+          v-if="feature.kind === 'video'"
+          class="bv-video-platforms"
+          :aria-label="t('支持的视频与会议平台', 'Supported video and meeting platforms')"
+        >
+          <span>YouTube</span><span>X</span><span>Google Meet</span><span>Teams</span
+          ><span>Zoom</span>
+        </div>
+        <small v-if="feature.kind === 'video'">{{
           t(
-            '网页双语翻译，原文与译文一起看。',
-            'Bilingual webpages. Keep the original alongside the translation.'
-          )
-        }}<a :href="link('/guide/webpage-translation')">{{ t('了解更多', 'Learn more') }} →</a>
-      </p>
-    </section>
-    <section id="features" class="bv-section bv-understand">
-      <div class="bv-section-copy">
-        <span class="bv-section-number">{{
-          t('从看懂，到理解', 'GO BEYOND THE TRANSLATION')
-        }}</span>
-        <h2>{{ t('难句拆开，意思就清楚了。', 'Break it down. Let the meaning click.') }}</h2>
-        <p>
-          {{
-            t(
-              '选中一句，查看译文；再用 AI 拆解主干、词性和用法。每个片段，都能点开理解。',
-              'Select a sentence for its translation. Use AI to explore structure and usage, one phrase at a time.'
-            )
-          }}
-        </p>
-        <a class="bv-text-link" :href="link('/guide/deepseek-harness')"
-          >{{ t('如何使用划词与 AI 讲解', 'Use selection & AI explanations') }}
-          <span aria-hidden="true">→</span></a
-        ><small>{{
-          t(
-            'AI 讲解需连接自己的服务，按需生成。',
-            'AI explanations use your own provider, on demand.'
+            '会议支持网页版本，需有可读取的字幕。',
+            'Meetings use web clients with readable captions.'
           )
         }}</small>
+        <a class="bv-text-link" :href="link(feature.path)"
+          >{{ t('使用指南', 'Read the guide') }} <span aria-hidden="true">→</span></a
+        >
       </div>
-      <div class="bv-learning-stage">
-        <div class="bv-learning-top">
-          <img
-            :src="withBase('/brand-icon.webp')"
-            width="24"
-            height="24"
-            alt="FluentRead"
-          /><span>{{ t('划词卡片 / 句法', 'Reading card / structure') }}</span>
-        </div>
-        <GrammarDemo :en="en" />
-      </div>
-    </section>
-    <section class="bv-section bv-scenes">
-      <div class="bv-section-heading">
-        <span class="bv-section-number">{{ t('不止网页', 'BEYOND WEBPAGES') }}</span>
-        <h2>{{ t('想看的内容，都有入口。', 'More ways to make sense of your world.') }}</h2>
-      </div>
-      <div class="bv-scene-grid">
-        <article v-for="scene in scenes" :key="scene.kind" class="bv-scene">
-          <GuideVisual :kind="scene.kind" :en="en" compact />
-          <div class="bv-scene-copy">
-            <h3>{{ scene.title }}</h3>
-            <p>{{ scene.description }}</p>
-            <a :href="link(scene.path)"
-              >{{ t('查看操作指南', 'Read the guide') }} <span aria-hidden="true">→</span></a
-            >
-          </div>
-        </article>
-      </div>
+      <FeatureDemo :kind="feature.kind" :en="en" />
     </section>
     <section class="bv-section bv-faq">
       <div>
@@ -202,19 +167,6 @@ const faqs = [
         </details>
       </div>
     </section>
-    <section class="bv-end">
-      <img
-        :src="withBase('/brand-icon.webp')"
-        width="64"
-        height="64"
-        alt="FluentRead"
-        loading="lazy"
-      />
-      <h2>{{ t('下一篇，读得更明白。', 'Make your next discovery a little clearer.') }}</h2>
-      <a class="bv-button bv-primary" :href="chrome" target="_blank" rel="noopener noreferrer"
-        >{{ t('添加到 Chrome', 'Add to Chrome') }} ↗</a
-      >
-    </section>
     <footer class="bv-footer">
       <div class="bv-footer-brand">
         <img
@@ -223,7 +175,7 @@ const faqs = [
           height="32"
           alt=""
           loading="lazy"
-        /><strong>FluentRead</strong>
+        /><strong>{{ t('流畅阅读', 'FluentRead') }}</strong>
       </div>
       <div>
         <a :href="link('/docs/')">{{ t('使用指南', 'User guide') }}</a
@@ -233,7 +185,7 @@ const faqs = [
           t('支持项目', 'Support the project')
         }}</a>
       </div>
-      <small>© FluentRead · GPL-3.0</small>
+      <small>{{ en ? brandTaglines['en-US'] : brandTaglines['zh-CN'] }} · GPL-3.0</small>
     </footer>
   </div>
 </template>

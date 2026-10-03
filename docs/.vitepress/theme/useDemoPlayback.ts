@@ -36,7 +36,7 @@ export function useDemoPlayback(
     step.value = index
   }
   function replay() {
-    step.value = 0
+    step.value = reduced.value ? count - 1 : 0
     playing.value = !reduced.value
     sync()
   }

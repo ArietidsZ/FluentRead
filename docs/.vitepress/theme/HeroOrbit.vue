@@ -38,6 +38,11 @@ onBeforeUnmount(() => {
       <span>offers</span><small>{{ en ? 'Verb · predicate' : '动词 · 谓语' }}</small>
       <p>{{ en ? 'Understand each phrase' : '难句，拆开理解' }}</p>
     </div>
-    <span class="bv-orbit-hello">Bonjour</span><span class="bv-orbit-hola">Hola</span>
+    <span class="bv-orbit-greeting bv-greeting-en" lang="en">Hello</span>
+    <span class="bv-orbit-greeting bv-greeting-zh" lang="zh-CN">你好</span>
+    <span class="bv-orbit-greeting bv-greeting-fr" lang="fr">Bonjour</span>
+    <span class="bv-orbit-greeting bv-greeting-es" lang="es">Hola</span>
+    <span class="bv-orbit-greeting bv-greeting-ja" lang="ja">こんにちは</span>
+    <span class="bv-orbit-greeting bv-greeting-ko" lang="ko">안녕하세요</span>
   </div>
 </template>

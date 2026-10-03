@@ -95,6 +95,23 @@ for (const prefix of ['', '/en']) {
     home.querySelector('.bv-home-brand img[src="/brand-icon.webp"]'),
     'Primary brand icon missing'
   )
+  assert(
+    !home.querySelector('[data-visual="input"]') &&
+      !home.querySelector('a[href$="/guide/input-translation"]'),
+    'Input translation should not be marketed on the homepage'
+  )
+  assert(
+    ['document', 'image', 'video', 'selection'].every((kind) =>
+      home.querySelector(`[data-visual="${kind}"]`)
+    ),
+    'The five primary translation features must be present'
+  )
+  assert(
+    ['YouTube', 'X', 'Google Meet', 'Teams', 'Zoom'].every((name) =>
+      home.querySelector('.bv-video-platforms')?.textContent.includes(name)
+    ),
+    'Video and meeting platforms missing'
+  )
   assert(!home.querySelector('.bv-hero [data-demo]'), 'Full demonstration belongs below the hero')
   assert(home.querySelector('.bv-home-header'), 'Homepage must use focused marketing navigation')
   assert(
@@ -124,7 +141,9 @@ for (const prefix of ['', '/en']) {
     'Homepage demonstrations must start automatically'
   )
   assert(
-    home.querySelector('[data-demo="brand-reader"]') && home.querySelector('[data-demo="grammar"]'),
+    home.querySelector('[data-demo="brand-reader"]') &&
+      home.querySelector('.fd-sentence-card') &&
+      home.querySelector('.fd-word-card'),
     'Homepage must contain readable SSR examples'
   )
   assert(
@@ -133,13 +152,54 @@ for (const prefix of ['', '/en']) {
   )
   const hub = docs.get(resolve(prefix + '/docs/'))
   assert(
-    hub.querySelectorAll('.fr-docs-grid a').length === 4 &&
-      hub.querySelectorAll('.fr-docs-links a').length >= 20,
-    'Task guides missing from documentation hub'
+    hub.querySelector('.fr-docs-start a') && hub.querySelectorAll('.fr-docs-links a').length >= 20,
+    'Quick start and functional documentation directory missing'
   )
   assert(
-    [...hub.querySelectorAll('.guide-details')].every((detail) => !detail.hasAttribute('open')),
-    'Extra documentation topics must start collapsed'
+    !hub.querySelector('.fr-docs-mini,.fr-docs-route'),
+    'Documentation hub must focus on instructions and named guide links'
+  )
+  assert(
+    home
+      .querySelector('.bv-translation-section h2')
+      ?.textContent.includes(prefix ? 'Bilingual' : '双语翻译'),
+    'Primary feature needs a visible bilingual translation heading'
+  )
+  assert(
+    home.querySelector('.bv-hero h1')?.textContent.includes('流畅阅读') &&
+      home.querySelector('.bv-hero h1')?.textContent.includes('FluentRead') &&
+      home
+        .querySelector('.bv-hero-slogan')
+        ?.textContent.includes(prefix ? 'Closer languages.' : '让语言更近，'),
+    'The product names and canonical brand slogan must be prominent'
+  )
+  assert(
+    home.querySelector('.bv-home-brand')?.textContent.includes(prefix ? 'FluentRead' : '流畅阅读'),
+    'Localized product name missing'
+  )
+  assert(
+    home.querySelector('.bv-hero-orbit')?.textContent.includes('Hello') &&
+      home.querySelector('.bv-hero-orbit')?.textContent.includes('你好'),
+    'Multilingual greetings missing'
+  )
+  assert.equal(
+    home.querySelectorAll('.bv-feature-row').length,
+    5,
+    'Five consistent feature sections required'
+  )
+  assert(
+    ['page', 'document', 'grammar'].every((kind) =>
+      home.querySelector(`.bv-hero-orbit .bv-orbit-${kind}`)
+    ),
+    'Hero scene decorations must stay present'
+  )
+  assert(
+    !home.querySelector('.bv-pointer,.bv-end'),
+    'Confusing cursor paths and repeated installation section must be removed'
+  )
+  assert(
+    !home.querySelector('.bv-hero')?.textContent.includes('AI'),
+    'Hero should foreground translation, without AI marketing'
   )
   assert(
     docs
