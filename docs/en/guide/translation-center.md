@@ -1,6 +1,19 @@
 # Translation Center
 
+Compare how different services translate the same sentence.
 
+<GuideVisual kind="compare" en />
+
+## Compare a translation
+
+1. Open **Settings → Tools & learning → Translation Center**.
+2. Enter text, pick the languages, and add providers in **Manage services**.
+3. Choose **Translate**. Compare results in a list or side by side, then copy the result you need.
+
+Text and results stay in this page only. Copy what you need before closing or refreshing. The selected services receive your text.
+
+<details class="guide-details">
+<summary>Managing results and providers</summary>
 
 Open **Settings Center → Tools and learning → Translation Center**, enter text, choose languages and click **Translate** (⌘ + Enter on Mac, Ctrl + Enter elsewhere). First use starts with a small selection of no-key services and a configured default; existing choices and order are preserved.
 
@@ -11,6 +24,8 @@ Switch between **List** and **Side by side**; narrow screens use one column. Dra
 Changing the text, language or model marks previous results, retaining their original language pair. **Copy current results** excludes outdated translations; an individual previous result can still be copied for reference.
 
 Source text and results are not stored in Translation Center settings and clear when the settings page closes or reloads. Translating sends the text to the selected services, subject to the extension's existing request logging and statistics settings.
+
+</details>
 
 ## Next steps
 

@@ -2,6 +2,8 @@
 
 如果你使用 Tampermonkey、Violentmonkey、Via 或 Safari Userscripts，也可以安装 FluentRead 油猴脚本，在网页中使用核心翻译功能。具体支持情况取决于浏览器和脚本管理器版本。
 
+<GuideVisual kind="userscript" />
+
 ## 直接安装
 
 打开 [Greasy Fork 安装流畅阅读油猴脚本](https://greasyfork.org/zh-CN/scripts/482986-%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB)，按照脚本管理器提示完成安装。
@@ -26,11 +28,19 @@ Greasy Fork 上的版本可能晚于 GitHub 源码。排查问题时，请先查
 
 独立版已超过 [Greasy Fork 的脚本体积与代码规则](https://greasyfork.org/zh-CN/help/code-rules)允许的直接发布范围，目前只能从仓库构建后通过脚本管理器安装。仓库中的构建验证不代表该版本已发布到 Greasy Fork。
 
+<details class="guide-details">
+<summary>Via 安装与排查</summary>
+
 ## Via 安装与排查
 
 在仓库中构建上面的独立版，进入 Via 的「设置 → 脚本 → + → 导入脚本」，选择生成的 `.user.js` 文件。确认脚本已启用后，重新打开普通的 HTTP(S) 网页。**不要同时启用 Greasy Fork 版或精简版**，以免重复注入。若悬浮球仍未出现，请附上 Via、Android、脚本版本及网页地址。
 
 在隔离的 Android 13 模拟器中，Via 7.3.3 导入独立版后，已实际点击悬浮球完成英文段落翻译、恢复原文、再次翻译，并验证设置主题在刷新后保留；翻译使用受控测试页面和译文响应。模拟器结果不代表 Android 真机，也不证明公开翻译服务持续可用。
+
+</details>
+
+<details class="guide-details">
+<summary>Safari Userscripts 安装与排查</summary>
 
 ## Safari Userscripts 安装与排查
 
@@ -40,6 +50,11 @@ Greasy Fork 上的版本可能晚于 GitHub 源码。排查问题时，请先查
 4. 如果脚本是直接加入脚本目录或从外部编辑器修改的，至少打开一次 Userscripts 弹出窗口，让它重新读取文件。仍未出现悬浮球时，请检查脚本版本、站点权限、当前页是否匹配，以及管理器是否成功下载依赖；反馈时附上 Safari、系统、Userscripts 版本和出问题的网页地址。
 
 这些步骤依据 [Userscripts 官方安装与元数据说明](https://github.com/quoid/userscripts/tree/release/4.x.x)；Safari 上的实际运行情况仍需设备验证。
+
+</details>
+
+<details class="guide-details">
+<summary>可以做什么？</summary>
 
 ## 可以做什么？
 
@@ -51,13 +66,25 @@ Greasy Fork 上的版本可能晚于 GitHub 源码。排查问题时，请先查
 
 精简版首次安装需要脚本管理器访问 jsDelivr，取得固定版本的界面依赖；独立版已将这些依赖打包。简体中文和英文界面随脚本提供；首次切换到日语、韩语、法语、俄语或西班牙语时，脚本会从 jsDelivr 或 GitHub 下载对应的静态界面语言文件，并缓存在脚本管理器的私有存储中。这些请求不包含正在阅读的网页内容或 API Key。离线环境中，尚未缓存的语言会暂时使用中文界面。
 
+</details>
+
+<details class="guide-details">
+<summary>和浏览器扩展有什么不同？</summary>
+
 ## 和浏览器扩展有什么不同？
 
 油猴脚本受脚本管理器和网页权限限制，不能提供浏览器扩展的全部能力。图片 OCR、圈选截图、Chrome 内置翻译、跨标签页后台功能和 YouTube 字幕功能可能不可用；不同脚本管理器的行为也可能不同。
 
+</details>
+
+<details class="guide-details">
+<summary>数据与隐私</summary>
+
 ## 数据与隐私
 
 脚本配置保存在脚本管理器提供的私有存储中。翻译请求会发送到你当前选择的服务；界面依赖和语言文件按上文所述从 jsDelivr 或 GitHub 获取。使用云端服务前，请确认服务商的数据政策。不要在共享设备上填写 API Key，也不要把密钥放进网页、截图或公开反馈。
+
+</details>
 
 ## 接下来
 

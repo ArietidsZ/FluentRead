@@ -4,6 +4,8 @@ Google Drive and WebDAV share **Settings → Backup and restore → Cloud config
 
 Backups include API keys, configured OAuth tokens, authentication headers, custom request bodies, and authentication parameters in URLs. Wordbooks, chat history, and usage statistics are excluded. The WebDAV URL, username, and app password stay on this device and are excluded from backups. This feature requires the browser extension background; use local backup files in the userscript.
 
+<GuideVisual kind="sync" en />
+
 ## Prepare a connection
 
 The server must support Basic authentication, `PROPFIND`, `GET`, `MKCOL`, and `PUT`. Safe updates also require strong ETags and support for `If-Match` and `If-None-Match`. Use HTTPS with a valid certificate and a dedicated app password.
@@ -42,11 +44,19 @@ Restoring replaces this device’s settings and credentials. Saving replaces the
 
 Before committing, the extension rechecks both configurations. A change on either side requires a fresh preview. Updates use ETag conditions to reject stale writes. A successful operation records the account and time locally.
 
+<details class="guide-details">
+<summary>Change accounts or delete data</summary>
+
 ## Change accounts or delete data
 
 Use **Edit connection** to change the server, account, or password. Changing the URL or username requires entering the password again. Old previews and baselines cannot apply to a new connection. Saved passwords are not returned to the form.
 
 **Clear connection settings** removes this device’s WebDAV connection, app password, and sync record, while keeping device configuration and cloud files. Delete the backup file using your server or drive interface. Revoke an app password with the service to stop its authorization. Uninstalling the extension does not delete server files.
+
+</details>
+
+<details class="guide-details">
+<summary>Protection and troubleshooting</summary>
 
 ## Protection and troubleshooting
 
@@ -62,3 +72,5 @@ Backups use AES-GCM encryption before upload with the same fixed public applicat
 | Storage full or backup too large | Free server space or use a local backup; JSON is limited to 20 MiB and encrypted files to 32 MiB |
 
 See [RFC 4918](https://www.rfc-editor.org/rfc/rfc4918) for the WebDAV protocol. Server permissions, certificates, and conditional-write behavior vary. After connection testing, perform a real save and restore to confirm compatibility with your service.
+
+</details>

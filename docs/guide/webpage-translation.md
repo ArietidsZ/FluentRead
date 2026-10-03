@@ -2,7 +2,7 @@
 
 翻译整篇文章，或只翻译选定区域。原文和译文对照显示，也能随时恢复原文。
 
-<TranslationDemo />
+<GuideVisual kind="webpage" />
 
 ## 页面翻译
 
@@ -19,7 +19,15 @@
 | 只翻译文章或评论区的一部分 | 下方的局部翻译 |
 | 回到原网页 | 恢复当前网页 |
 
+<details class="guide-details">
+<summary>查看真实网页翻译界面</summary>
+
 <figure class="doc-figure"><a href="/screenshots/translation.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/translation.webp" width="2560" height="1600" alt="文章中的英文原文与中文译文逐段对照" loading="lazy" /></a><figcaption>原文留在眼前，方便核对专有名词和细节。点击图片查看原图。</figcaption></figure>
+
+</details>
+
+<details class="guide-details">
+<summary>悬浮球与入口设置</summary>
 
 ### 页面悬浮球
 
@@ -39,6 +47,8 @@
 
 关闭悬浮球不会影响全文翻译快捷键（默认 Alt+T）和右键菜单入口。
 
+</details>
+
 ## 局部翻译
 
 只想读网页中的一部分时，例如 GitHub 项目的 README、文章正文或某个评论区，不必翻译整页。点击扩展菜单里 **翻译当前网页** 旁的 **局部** 按钮，网页进入选择模式：
@@ -51,9 +61,17 @@
 
 经常使用时，可以在 **设置 → 翻译设置 → 局部翻译** 中开启快捷键（默认 **Alt+R**，Mac 为 Option+R），选择模式中再按一次即可退出。页眉、导航和侧栏在全文翻译中通常保持原文；主动选择这类区域时，其中的文字也会翻译，并像按钮、菜单等界面文字一样直接替换原文显示，避免撑乱版面。恢复全文翻译时，局部翻译的内容会一并恢复原文。
 
+<details class="guide-details">
+<summary>自动翻译与网站规则</summary>
+
 ## 自动翻译与网站规则
 
 经常阅读同一个网站，可以让它自动翻译；希望某个网站保持原样，也可以单独关闭。正文漏译时先看[网站阅读范围](/config/site-adaptation)，无需从编写规则开始。
+
+</details>
+
+<details class="guide-details">
+<summary>更多翻译语言</summary>
 
 ## 更多翻译语言
 
@@ -117,8 +135,9 @@ OpenRouter 的模型列表、供应商列表和模型详情页会保留模型名
 - **长段落自动换行**：在长段落译文的每句话结束处插入换行，便于阅读。
 - **译文在原文之前**：双语模式下把译文放在每段原文前面，默认排在原文之后。
 
-
 :::
+
+</details>
 
 ## 接下来
 

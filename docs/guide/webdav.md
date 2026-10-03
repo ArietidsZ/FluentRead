@@ -4,6 +4,8 @@ Google Drive 和 WebDAV 都位于**设置 → 备份与恢复 → 配置云备�
 
 备份包含完整配置，包括 API Key、配置中的 OAuth Token、鉴权请求头、自定义请求体及 URL 中的鉴权参数；不包含单词本、聊天记录和用量统计。WebDAV 连接地址、用户名及应用密码只保存在当前设备，不进入这份备份。此功能需要浏览器扩展后台；油猴脚本请使用本地配置备份。
 
+<GuideVisual kind="sync" />
+
 ## 准备服务器连接
 
 服务器需要支持 Basic 鉴权，以及 `PROPFIND`、`GET`、`MKCOL`、`PUT`。更新已有备份还需要服务器返回强 ETag，并遵守 `If-Match`、`If-None-Match` 条件，避免覆盖其他设备的修改。建议使用有效证书的 HTTPS 和独立应用密码。
@@ -42,11 +44,19 @@ FluentRead/fluentread-config.encrypted.json
 
 确认前会重新检查本机配置和云端版本。期间任何一端发生变化时，需要重新生成预览；已有文件的更新还会使用 ETag 条件写入。成功后显示本次账号与同步时间。
 
+<details class="guide-details">
+<summary>换账号、停止使用和删除</summary>
+
 ## 换账号、停止使用和删除
 
 使用**修改连接**更换服务器、账号或密码。地址或用户名改变时必须重新输入密码；修改连接后，旧预览和比较基线不能用于新连接。连接信息不会在密码框中回显。
 
 **清除连接设置**只移除本机 WebDAV 连接、应用密码与同步记录，保留本机配置和云端文件。要删除云端备份，请在网盘或服务器中删除上述文件；需要停止授权时，可在服务商页面撤销应用密码。卸载扩展也不会自动删除服务器文件。
+
+</details>
+
+<details class="guide-details">
+<summary>文件保护与常见问题</summary>
 
 ## 文件保护与常见问题
 
@@ -62,3 +72,5 @@ FluentRead/fluentread-config.encrypted.json
 | 存储不足或文件过大 | 释放服务器空间，或使用本地备份；配置 JSON 上限 20 MiB，密文文件上限 32 MiB |
 
 协议细节见 [WebDAV 标准 RFC 4918](https://www.rfc-editor.org/rfc/rfc4918)。不同服务的权限、证书和条件写入实现可能不同，连接测试通过后仍应完成一次实际保存与恢复来确认兼容性。
+
+</details>
