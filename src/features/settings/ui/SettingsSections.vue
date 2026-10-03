@@ -163,7 +163,7 @@
     >
       <el-switch v-model="config.selectionTranslatorBidirectional" class="settings-toggle" aria-label="中英双向划词" />
     </SettingsItem>
-    <SettingsItem v-if="config.selectionTranslatorTrigger === 'hover'" label="悬停等待" description="停在划词图标上片刻后打开；移开即取消。">
+    <SettingsItem v-if="config.selectionTranslatorTrigger === 'hover'" label="悬停等待" description="将鼠标停在划词图标上，等待设定时间后打开译文；移开鼠标则取消。">
       <el-input-number v-model="config.harness.hoverDelay" :min="200" :max="3000" :step="100" aria-label="悬停等待时间" />
     </SettingsItem>
     </SettingsGroup>
