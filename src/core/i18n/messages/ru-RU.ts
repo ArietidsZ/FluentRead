@@ -336,6 +336,13 @@ export const ruRUMessages = {
 
     "inputTranslation.title": "Перевод полей ввода",
     "inputTranslation.description": "Настройте запуск, язык и сервис перевода для текстовых полей.",
+    "inputTranslation.outputMode": "Способ вывода",
+    "inputTranslation.outputReplace": "Заменить оригинал",
+    "inputTranslation.outputAppend": "Сначала оригинал, затем перевод",
+    "inputTranslation.outputPrepend": "Сначала перевод, затем оригинал",
+    "inputTranslation.appendHelp": "Оригинал сохраняется, оба текста выводятся на отдельных строках. Требуется многострочное поле.",
+    "inputTranslation.workflowPrepend": "Введите текст и используйте {trigger}, чтобы вставить перевод ({language}) перед оригиналом, разделив их новой строкой.",
+    "inputTranslation.workflowAppend": "Введите текст и используйте {trigger}, чтобы сохранить оригинал и добавить перевод ({language}) с новой строки.",
     "inputTranslation.workflowEnabled": "Введите текст и используйте {trigger}, чтобы заменить его переводом на выбранный язык ({language}).",
     "inputTranslation.workflowDisabled": "Выберите сочетание клавиш, чтобы переводить текст в полях ввода.",
     "inputTranslation.profile": "Настройки перевода",

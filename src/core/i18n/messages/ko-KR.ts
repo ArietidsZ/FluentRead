@@ -336,6 +336,13 @@ export const koKRMessages = {
 
     "inputTranslation.title": "입력란 번역",
     "inputTranslation.description": "텍스트 입력란의 실행 방식, 대상 언어와 번역 서비스를 별도로 설정합니다.",
+    "inputTranslation.outputMode": "출력 방식",
+    "inputTranslation.outputReplace": "원문 바꾸기",
+    "inputTranslation.outputAppend": "원문 먼저, 번역 나중",
+    "inputTranslation.outputPrepend": "번역 먼저, 원문 나중",
+    "inputTranslation.appendHelp": "원문을 유지하고 원문과 번역을 별도의 줄에 표시합니다. 여러 줄 입력란에서 사용할 수 있습니다.",
+    "inputTranslation.workflowPrepend": "텍스트를 입력한 뒤 {trigger} 동작으로 원문 앞에 {language} 번역을 삽입하고 줄을 바꿔 원문을 유지합니다.",
+    "inputTranslation.workflowAppend": "텍스트를 입력한 뒤 {trigger} 동작으로 원문을 유지하고 다음 줄에 {language} 번역을 추가합니다.",
     "inputTranslation.workflowEnabled": "텍스트를 입력한 뒤 {trigger} 동작으로 {language} 번역문으로 바꿀 수 있습니다.",
     "inputTranslation.workflowDisabled": "단축키를 선택해 입력란 번역을 시작하세요.",
     "inputTranslation.profile": "번역 설정",

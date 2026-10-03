@@ -195,6 +195,9 @@ const HOVER_TRIGGER_LABELS = labelsFor(options.keys);
 const SELECTION_TRIGGER_LABELS = labelsFor(options.selectionTranslatorTriggers);
 const FLOATING_HOTKEY_LABELS = labelsFor(options.floatingBallHotkeys);
 const INPUT_TRIGGER_LABELS = labelsFor(options.inputBoxTranslationTrigger);
+const INPUT_OUTPUT_LABELS = new Map<unknown, string>([
+    ['replace', '替换原文'], ['append', '原文在前，译文在后'], ['prepend', '译文在前，原文在后'],
+]);
 const BILLING_PLAN_LABELS = labelsFor(options.minimaxBillingPlan, options.mimoBillingPlan);
 const DEEPL_API_PLAN_LABELS = new Map<unknown, string>([
     ['free', 'API Free（免费）'],
@@ -541,6 +544,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     selectionTtsLocalVoice: {group: 'translation', label: '本地朗读音色'},
     inputBoxTranslationTrigger: {group: 'translation', label: '输入框翻译触发方式', format: (value) => formatEnum(value, INPUT_TRIGGER_LABELS)},
     inputBoxTranslationTarget: {group: 'translation', label: '输入框翻译目标语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
+    inputBoxTranslationOutputMode: {group: 'translation', label: '输入框翻译输出方式', format: (value) => formatEnum(value, INPUT_OUTPUT_LABELS)},
     inputBoxTranslationInterval: {group: 'translation', label: '输入框翻译触发间隔', format: (value) => formatNumber(value, ' ms')},
     inputBoxTranslationService: {group: 'translation', label: '输入框翻译服务', format: formatService},
     inputBoxTranslationModel: {group: 'translation', label: '输入框翻译模型', format: (value) => typeof value === 'string' ? formatString(value) : formatValue(value)},

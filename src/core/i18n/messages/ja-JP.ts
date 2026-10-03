@@ -336,6 +336,13 @@ export const jaJPMessages = {
 
     "inputTranslation.title": "入力欄の翻訳",
     "inputTranslation.description": "入力欄専用の操作、翻訳先言語、翻訳サービスを設定します。",
+    "inputTranslation.outputMode": "出力方法",
+    "inputTranslation.outputReplace": "原文を置き換える",
+    "inputTranslation.outputAppend": "原文、訳文の順",
+    "inputTranslation.outputPrepend": "訳文、原文の順",
+    "inputTranslation.appendHelp": "原文をそのまま残し、原文と訳文を別の行に表示します。複数行の入力欄で利用できます。",
+    "inputTranslation.workflowPrepend": "文字を入力し、{trigger}で原文の前に{language}の訳文を挿入し、改行して原文を残します。",
+    "inputTranslation.workflowAppend": "文字を入力し、{trigger}で原文を残して改行し、{language}の訳文を追加します。",
     "inputTranslation.workflowEnabled": "文字を入力し、{trigger}で{language}の訳文に置き換えます。",
     "inputTranslation.workflowDisabled": "ショートカットを選んで、入力欄の翻訳を始めましょう。",
     "inputTranslation.profile": "翻訳設定",
