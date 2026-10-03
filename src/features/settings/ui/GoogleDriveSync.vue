@@ -8,10 +8,10 @@
 <template>
   <section class="drive-sync" data-testid="google-drive-sync" aria-labelledby="drive-sync-title" :aria-busy="busy">
     <header class="drive-heading">
-      <div><h2 id="drive-sync-title">Google Drive 配置同步</h2><p>把完整配置加密保存到自己的 Google 云盘，在其他设备恢复。</p></div>
-      <span class="drive-badge"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M12 3 4 6v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-3Z" /><path d="m8.5 11.5 2.5 2.5 4.5-5" /></svg>{{ t('settings.drive.storageBadge') }}</span>
+      <h2 id="drive-sync-title">Google Drive 配置同步</h2>
+      <span class="drive-badge"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M12 3 4 6v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-3Z" /><path d="m8.5 11.5 2.5 2.5 4.5-5" /></svg>{{ t('settings.drive.privacyBadge') }}</span>
     </header>
-    <p class="drive-boundary">包含API Key、OAuth Token、鉴权请求头、自定义请求体及URL中的鉴权参数，不包含单词本、聊天记录和用量统计。</p>
+    <p class="drive-boundary">{{ t('settings.drive.description') }}</p>
     <el-alert v-if="error && !previewVisible" :title="error" type="error" :closable="false" show-icon class="drive-error" />
     <div class="drive-actions">
       <el-button v-if="status?.available" type="primary" :loading="busy" :disabled="busy" data-testid="google-drive-sync-now" @click="prepare">立即与Google Drive同步</el-button>
@@ -206,7 +206,7 @@ onUnmounted(() => {alive = false; endSession(); clearPreview();});
 .drive-sync {padding:24px; margin-bottom:24px; border:1px solid var(--el-border-color); border-radius:16px; background:var(--el-bg-color); color:var(--el-text-color-primary);}
 .drive-heading {display:flex; justify-content:space-between; align-items:flex-start; gap:16px;}
 .drive-heading h2 {margin:0; font-size:19px;}
-.drive-heading p,.drive-boundary {color:var(--el-text-color-secondary); font-size:13px; line-height:1.7;}
+.drive-boundary {color:var(--el-text-color-secondary); font-size:13px; line-height:1.7;}
 .drive-badge {display:inline-flex; align-items:center; gap:5px; flex-shrink:0; white-space:nowrap; border-radius:20px; padding:4px 10px; font-size:12px; color:var(--el-text-color-secondary); background:var(--el-fill-color-light);}
 .drive-badge svg {width:15px; height:15px; flex-shrink:0; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;}
 .drive-record {display:grid; gap:4px; flex:1 1 240px; min-width:0;}
