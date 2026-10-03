@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/ui/settings-page.css
  * 文件职责：定义 Options 设置应用的全局页面骨架与 Element Plus 外观覆盖，包括分组侧边栏与搜索、页内分类、滚动工作区、设置卡片和特殊全宽业务视图。
- * 主要内容：样式引入共享 token，将品牌名称与小字宣传语排列在固定尺寸图标右侧，配置桌面与窄屏响应式布局、焦点态、导航分组、数字输入的独立操作区、支持多语言换行的表单与操作控件、服务/翻译中心视图、深色主题及固定标签列和控件列。
+ * 主要内容：样式引入共享 token，将品牌名称与小字宣传语排列在固定尺寸图标右侧；关于页使用适度宽度的简介与官网主入口、带图标的帮助链接和紧凑赞赏卡片；配置桌面与窄屏响应式布局、焦点态、导航分组、数字输入的独立操作区、支持多语言换行的表单与操作控件、服务/翻译中心视图、深色主题及固定标签列和控件列。
  * 模块边界：该文件只作用于扩展设置页面的整体布局，不承载配置逻辑或 feature 内部组件细节；分区专属样式在 settings-sections.css，通用设计变量位于 src/ui/styles/tokens.css。
  */
 @import "../../../ui/styles/tokens.css";
@@ -317,39 +317,48 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .settings-card .el-collapse-item__content { padding: 4px 16px 18px; }
 .settings-card .el-divider__text { color: var(--muted); font-size: 11px; }
 .sidebar-tagline { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
-.about-page { display: grid; gap: 24px; min-height: 100%; }
+.about-page { --settings-content-width: 1040px; display: grid; align-content: start; gap: 18px; width: 100%; max-width: 1040px; min-height: 0; margin: 0 auto; }
 .about-hero {
-  display: flex; align-items: center; gap: 22px; padding: 28px; border: 1px solid #f4ced9; border-radius: 22px;
-  background: linear-gradient(135deg, #fff7f9 0%, #fff 58%, #f8f9ff 100%);
+  display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 24px;
+  border: 1px solid var(--line); border-radius: 16px; background: var(--surface);
 }
-.about-logo { width: 82px; height: 82px; border-radius: 24px; box-shadow: 0 16px 28px rgba(239, 71, 118, .2); }
-.about-hero h3 { margin: 0 0 8px; color: var(--ink); font-size: 25px; letter-spacing: -.03em; }
-.about-hero p { max-width: 650px; margin: 0 0 12px; color: var(--muted); font-size: 14px; line-height: 1.7; }
-.about-version { display: inline-flex; padding: 6px 10px; border-radius: 999px; color: var(--brand-strong); background: var(--brand-soft); font-size: 11px; font-weight: 750; }
-.about-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.about-panel { padding: 24px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface-soft); }
-.about-panel-kicker { display: block; margin-bottom: 8px; color: var(--brand-strong); font-size: 11px; font-weight: 800; letter-spacing: .1em; }
-.about-panel h3 { margin: 0 0 8px; color: var(--ink); font-size: 19px; }
-.about-panel p { min-height: 40px; margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.7; }
-.about-feature-list { display: grid; gap: 10px; }
-.about-feature-list span { display: flex; align-items: center; gap: 10px; color: var(--ink); font-size: 13px; font-weight: 650; }
-.about-feature-list b { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; color: var(--brand-strong); background: var(--brand-soft); font-size: 11px; }
-.about-support-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin: 2px -8px 0; }
-.about-support-option { display: flex; min-width: 0; padding: 18px 8px 0; flex-direction: column; align-items: center; text-align: center; }
-.about-support-option h4 { margin: 0 0 12px; color: var(--ink); font-size: 13px; font-weight: 750; }
+.about-logo { width: 54px; height: 54px; border-radius: 14px; }
+.about-intro { min-width: 0; }
+.about-hero p { margin: 0 0 10px; color: var(--muted); font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.about-version { display: inline-flex; padding: 4px 9px; border-radius: 999px; color: var(--brand-strong); background: var(--brand-soft); font-size: 11px; font-weight: 650; }
+.about-website { display: grid; grid-template-columns: 20px minmax(0, 1fr) 16px; align-items: center; gap: 12px; min-width: 190px; max-width: 240px; padding: 13px 14px; border: 1px solid color-mix(in srgb, var(--brand-strong) 20%, var(--line)); border-radius: 12px; color: var(--brand-strong); background: var(--brand-soft); text-decoration: none; transition: border-color 160ms ease, background 160ms ease; }
+.about-website span { display: grid; gap: 3px; min-width: 0; }
+.about-website strong { font-size: 13px; font-weight: 650; line-height: 1.4; }
+.about-website small { color: var(--muted); font-size: 11px; }
+.about-website:hover { border-color: var(--brand-strong); background: color-mix(in srgb, var(--brand-soft) 75%, var(--surface)); }
+.about-website:focus-visible, .about-links a:focus-visible, .about-support-method:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 3px; }
+.about-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 1fr); gap: 18px; }
+.about-panel { min-width: 0; padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.about-panel h3 { margin: 0 0 6px; color: var(--ink); font-size: 16px; font-weight: 650; line-height: 1.5; }
+.about-panel > p { margin: 0 0 16px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.about-support-options { display: grid; gap: 16px; }
+.about-support-option { min-width: 0; }
+.about-support-wechat-option { display: grid; grid-template-columns: minmax(0, 1fr) 132px; align-items: center; gap: 14px; }
+.about-support-option h4 { margin: 0 0 6px; color: var(--ink); font-size: 13px; font-weight: 650; }
+.about-support-copy p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .about-support-method { color: var(--ink); text-decoration: none; }
-.about-support-wechat { display: block; width: min(100%, 220px); border-radius: 12px; background: #fff; box-shadow: 0 10px 24px rgba(31, 40, 61, .08); transition: transform 160ms ease, box-shadow 160ms ease; }
-.about-support-wechat:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(31, 40, 61, .14); }
-.about-support-qr { display: block; width: 100%; height: auto; aspect-ratio: 1; border-radius: 12px; object-fit: contain; }
-.about-support-kofi-option { justify-content: center; }
-.about-support-kofi-link { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; color: var(--brand-strong); font-size: 16px; font-weight: 750; line-height: 1.4; text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
-.about-support-kofi-link:hover { color: var(--brand); }
-.about-support-account { margin-top: 22px; color: var(--ink); font-size: 17px; letter-spacing: .01em; }
-.about-links { display: grid; gap: 8px; }
-.about-links a { display: flex; align-items: center; justify-content: space-between; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: var(--surface); font-size: 13px; font-weight: 650; text-decoration: none; transition: border-color 160ms ease, color 160ms ease, transform 160ms ease; }
-.about-links a:hover { border-color: #ef9ab1; color: var(--brand-strong); transform: translateX(2px); }
-.about-links a span { color: var(--brand-strong); font-size: 16px; }
-.about-footer { margin: 0; color: var(--muted); font-size: 11px; text-align: center; }
+.about-support-wechat { display: block; width: 132px; border: 1px solid var(--line); border-radius: 10px; background: #fff; transition: border-color 160ms ease; }
+.about-support-wechat:hover { border-color: var(--brand-strong); }
+.about-support-qr { display: block; width: 100%; height: auto; aspect-ratio: 1; border-radius: 9px; object-fit: contain; }
+.about-support-kofi-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); font-size: 13px; line-height: 1.5; transition: border-color 160ms ease, background 160ms ease; }
+.about-support-kofi-link strong { font-weight: 550; }
+.about-support-kofi-link > .fr-ui-icon { color: var(--muted); }
+.about-support-kofi-link:hover { border-color: var(--brand-strong); background: var(--brand-soft); }
+.about-links { display: grid; gap: 4px; }
+.about-links a { display: grid; grid-template-columns: 36px minmax(0, 1fr) 16px; align-items: center; gap: 12px; padding: 12px 10px; border: 1px solid transparent; border-radius: 10px; color: var(--ink); font-size: 13px; text-decoration: none; transition: border-color 160ms ease, background 160ms ease; }
+.about-link-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; color: var(--muted); background: var(--surface-soft); }
+.about-link-copy { display: grid; gap: 3px; min-width: 0; }
+.about-link-copy strong { font-weight: 650; line-height: 1.5; }
+.about-link-copy small { color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.about-links a > .fr-ui-icon { color: var(--muted); }
+.about-links a:hover { border-color: var(--line); background: var(--surface-soft); }
+.about-links a:hover .about-link-icon { color: var(--brand-strong); background: var(--brand-soft); }
+@media (max-width: 1000px) { .about-grid { grid-template-columns: minmax(0, 1fr); } }
 /* 桌面侧栏按可用高度收紧留白；保留字号与全部入口，极矮窗口仍独立滚动。 */
 @media (min-width: 701px) {
   .settings-app .sidebar {
@@ -456,13 +465,12 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
   .settings-card .margin-left-2em { margin-right: 0 !important; margin-left: 0 !important; }
   .settings-card .el-collapse-item__header { padding: 0 14px; }
   .settings-card .el-collapse-item__content { padding: 4px 8px 14px; }
-  .about-hero { align-items: flex-start; padding: 20px; flex-direction: column; }
-  .about-logo { width: 64px; height: 64px; border-radius: 18px; }
-  .about-hero h3 { font-size: 21px; }
-  .about-grid { grid-template-columns: 1fr; }
-  .about-support-options { grid-template-columns: 1fr; }
-  .about-support-option + .about-support-option { margin-top: 18px; padding-top: 18px; }
-  .about-support-kofi-option { min-height: 150px; }
+  .about-page { gap: 14px; }
+  .about-hero { grid-template-columns: 44px minmax(0, 1fr); align-items: start; gap: 14px; padding: 18px; }
+  .about-logo { width: 44px; height: 44px; border-radius: 12px; }
+  .about-hero p { font-size: 13px; }
+  .about-website { grid-column: 1 / -1; width: 100%; max-width: none; min-width: 0; }
+  .about-panel { padding: 18px; }
 }
 
 @media (max-width: 480px) {
@@ -499,10 +507,6 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 :root.dark .settings-card .el-select:not(.fluentread-select) .el-select__wrapper.is-focused,
 :root.dark .settings-card .el-input__wrapper.is-focus,
 :root.dark .settings-card .el-input-number .el-input__wrapper.is-focus { background: var(--surface); }
-:root.dark .about-hero { border-color: rgba(255, 138, 171, .28); background: linear-gradient(135deg, rgba(239, 71, 118, .12), var(--surface) 58%, #222631); }
-:root.dark .about-panel { border-color: var(--line); background: var(--surface-soft); }
-:root.dark .about-links a { border-color: var(--line); background: var(--surface); }
-:root.dark .about-support-wechat { box-shadow: 0 10px 24px rgba(0, 0, 0, .22); }
 :root.dark .disabled-section { border-color: var(--line); color: var(--muted); background: var(--surface-soft); }
 :root.dark .disabled-section strong { color: var(--ink); }
 
@@ -545,10 +549,6 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .settings-app .settings-card .feature-enable-card { margin: 0 0 16px; padding: 0; border-radius: 10px; box-shadow: none; }
 .settings-app .settings-group-body > .feature-enable-card { margin: 0; border: 0; border-radius: 0; }
 .settings-app .settings-group-body > .feature-enable-card + .settings-item { border-top: 1px solid var(--line); }
-.settings-app .about-hero { padding: 24px; border-color: var(--line); border-radius: 12px; background: var(--surface); }
-.settings-app .about-logo { width: 58px; height: 58px; border-radius: 14px; box-shadow: none; }
-.settings-app .about-panel { border-radius: 12px; background: var(--surface); }
-.settings-app .about-page { align-content: start; gap: 18px; }
 @media (max-width: 1100px) and (min-width: 701px) {
   .settings-app .sidebar { flex-basis: 196px; width: 196px; }
   .settings-app .sidebar .brand { padding-inline: 0; }
