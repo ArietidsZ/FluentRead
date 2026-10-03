@@ -334,6 +334,13 @@ export const zhCNMessages = {
 
     "inputTranslation.title": "输入框翻译",
     "inputTranslation.description": "为普通文本输入框单独设置触发方式、目标语言和翻译服务。",
+    "inputTranslation.outputMode": "输出方式",
+    "inputTranslation.outputReplace": "替换原文",
+    "inputTranslation.outputAppend": "原文在前，译文在后",
+    "inputTranslation.outputPrepend": "译文在前，原文在后",
+    "inputTranslation.appendHelp": "原文保持不变，原文与译文分行显示；适用于支持换行的输入框。",
+    "inputTranslation.workflowPrepend": "输入文字后，{trigger}，即可在原文前插入{language}译文，并换行保留原文。",
+    "inputTranslation.workflowAppend": "输入文字后，{trigger}，即可保留原文并换行追加{language}译文。",
     "inputTranslation.workflowEnabled": "输入文字后，{trigger}，即可替换为{language}。",
     "inputTranslation.workflowDisabled": "选择一个快捷键，开始在输入框中翻译。",
     "inputTranslation.profile": "翻译配置",

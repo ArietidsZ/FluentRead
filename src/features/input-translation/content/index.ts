@@ -1,7 +1,7 @@
 /**
  * @file src/features/input-translation/content/index.ts
  * 文件职责：实现网页输入框翻译 feature 的可注入生命周期，根据配置识别三连触发符、冻结请求所有权、调用后台并把译文安全提交回原控件或富文本编辑器。
- * 主要内容：定义配置、依赖和 feature 契约，提供启用判断、配置键，原生控件用原生 setter 与 input/change 事件写回，编辑宿主按光标文本度量推进三连序列并经 editableHost.ts 的原生编辑路径写回；
+ * 主要内容：定义配置、依赖和 feature 契约，提供启用判断、配置键与替换/双语输出顺序写回，原生控件用原生 setter 与 input/change 事件写回，编辑宿主按光标文本度量推进三连序列并经 editableHost.ts 的原生编辑路径保留原文、清理触发符并写回；
  * 创建 closed Shadow tooltip 展示翻译中/成功/失败与恢复原文，并防止元素或配置变化后的迟到提交。
  * 模块边界：本文件拥有内容页事件与临时 UI，不直接调用 provider 或全局 browser API；sendMessage、Shadow UI、站点禁用和 generation 均由 composition root 注入，输入纯算法来自 inputBox.ts，编辑宿主度量与写回来自 editableHost.ts。
  */
@@ -10,6 +10,7 @@ import type { ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shad
 import {services as translationServices} from '@/src/core/config/catalog';
 import {parseApiKeyRequirementKey} from '@/src/core/config/validation';
 import {normalizeUiLanguage, translateLegacyText} from '@/src/core/i18n';
+import {normalizeInputBoxTranslationOutputMode, type InputBoxTranslationOutputMode} from '@/src/core/config/inputTranslation';
 import {
     canCommitInputBoxTranslation,
     getDeepActiveElement,
@@ -39,6 +40,7 @@ export interface InputTranslationContentConfig {
     service?: string;
     inputBoxTranslationTrigger: string;
     inputBoxTranslationTarget: string;
+    inputBoxTranslationOutputMode?: string;
     inputBoxTranslationInterval?: number;
     inputBoxTranslationService?: string;
     inputBoxTranslationModel?: string;
@@ -152,6 +154,7 @@ export function inputBoxTranslationConfigKey(value: InputTranslationContentConfi
         value.on,
         value.inputBoxTranslationTrigger,
         value.inputBoxTranslationTarget,
+        normalizeInputBoxTranslationOutputMode(value.inputBoxTranslationOutputMode),
         value.inputBoxTranslationInterval ?? 1000,
         value.inputBoxTranslationService || value.service || translationServices.freeTranslation,
         value.inputBoxTranslationModel ?? '',
@@ -180,6 +183,7 @@ export async function setInputBoxText(
     element: HTMLElement,
     text: string,
     isCurrent: () => boolean = () => true,
+    outputMode: InputBoxTranslationOutputMode = 'replace',
 ): Promise<boolean> {
     // 写回本身也是安全边界：异步期间页面可能把普通输入框改成 password 或只读，
     // 直接调用者也不能绕过资格判定。
@@ -191,15 +195,20 @@ export async function setInputBoxText(
             Object.getPrototypeOf(element),
             'value',
         )?.set;
-        if (valueSetter) valueSetter.call(element, text);
-        else element.value = text;
+        const value = outputMode === 'append' ? `${element.value}\n${text}`
+            : outputMode === 'prepend' ? `${text}\n${element.value}` : text;
+        if (outputMode !== 'replace' && element.tagName.toLowerCase() === 'input') return false;
+        if (valueSetter) valueSetter.call(element, value);
+        else element.value = value;
         element.dispatchEvent(new Event('input', { bubbles: true }));
         element.dispatchEvent(new Event('change', { bubbles: true }));
         return true;
     }
 
     // 富文本编辑器由自身模型渲染 DOM；直接改写 innerText 会被回滚或删除链接、mention 等结构。
-    return await replaceEditableText(element, text, isCurrent) === 'replaced';
+    const value = outputMode === 'append' ? `\n${text}` : outputMode === 'prepend' ? `${text}\n` : text;
+    const selectionMode = outputMode === 'append' ? 'end' : outputMode === 'prepend' ? 'start' : 'all';
+    return await replaceEditableText(element, value, isCurrent, selectionMode) === 'replaced';
 }
 
 function getTooltipIcon(type: 'translating' | 'success' | 'error'): string {
@@ -240,6 +249,7 @@ export function createInputTranslationContentFeature(
     let internalWriteElement: HTMLElement | null = null;
     const editGenerations = new WeakMap<HTMLElement, number>();
     const observedInputValues = new WeakMap<HTMLElement, string>();
+    const bilingualOutputs = new WeakMap<HTMLElement, string>();
 
     const isEnabled = () => isInputBoxTranslationEnabled(deps.config, deps.isSiteDisabled());
 
@@ -281,10 +291,11 @@ export function createInputTranslationContentFeature(
         element: HTMLElement,
         text: string,
         isCurrent: () => boolean,
+        outputMode: InputBoxTranslationOutputMode = 'replace',
     ): Promise<boolean> => {
         internalWriteElement = element;
         try {
-            return await setInputBoxText(element, text, isCurrent);
+            return await setInputBoxText(element, text, isCurrent, outputMode);
         } finally {
             internalWriteElement = null;
         }
@@ -442,6 +453,10 @@ export function createInputTranslationContentFeature(
         signal: AbortSignal,
         sourceTextOverride?: string,
     ): Promise<void> => {
+        const originalText = sourceTextOverride ?? getInputBoxText(element);
+        const outputMode = normalizeInputBoxTranslationOutputMode(deps.config.inputBoxTranslationOutputMode);
+        const bilingual = outputMode !== 'replace';
+        if (bilingual && bilingualOutputs.get(element) === originalText) return;
         invalidate();
         const requestId = activeInputTranslationRequestId;
         const requestController = new AbortController();
@@ -450,7 +465,6 @@ export function createInputTranslationContentFeature(
         activeInputTranslationElement = element;
         const configGeneration = deps.readConfigGeneration();
         const inputSnapshot = getInputBoxValueSnapshot(element);
-        const originalText = sourceTextOverride ?? getInputBoxText(element);
         const editGeneration = readEditGeneration(element);
         observedInputValues.set(element, inputSnapshot);
         const targetLanguage = deps.config.inputBoxTranslationTarget;
@@ -483,6 +497,11 @@ export function createInputTranslationContentFeature(
             // 步骤 1：固定输入快照和配置 generation；任何用户编辑、关闭或站点禁用都会阻止写回。
             if (!isCurrentAndUnchanged() || !originalText) return;
             if (!originalText.trim()) return;
+            if (bilingual && element.tagName.toLowerCase() === 'input') {
+                await createTranslationTooltip(element, '双语追加需要支持换行的输入框', 'error', requestId, requestSignal);
+                setTimeout(() => removeExistingTooltip(requestId), 8000);
+                return;
+            }
 
             // 步骤 2：只让当前请求拥有输入框动画和 tooltip，旧请求不能清理新提示。
             removeExistingTooltip();
@@ -509,7 +528,11 @@ export function createInputTranslationContentFeature(
 
                 if (translatedText && translatedText !== originalText) {
                     // 步骤 4：编辑宿主写回需要等待编辑器同步选区，期间继续由当前请求持有提示和动画。
-                    const written = await writeOwnedText(element, translatedText, isCurrentAndUnchanged);
+                    // 原生控件一次写入原文和译文；富文本只在首尾插入，保留原文 DOM 与格式。
+                    const output = isFormControl(element) && bilingual
+                        ? outputMode === 'prepend' ? `${translatedText}\n${originalText}` : `${originalText}\n${translatedText}`
+                        : translatedText;
+                    const written = await writeOwnedText(element, output, isCurrentAndUnchanged, isFormControl(element) ? 'replace' : outputMode);
                     if (!written && !isCurrentAndUnchanged()) {
                         clearOwnedVisuals();
                         return;
@@ -523,6 +546,7 @@ export function createInputTranslationContentFeature(
                         return;
                     }
                     const translatedSnapshot = getInputBoxValueSnapshot(element);
+                    if (bilingual) bilingualOutputs.set(element, getInputBoxText(element));
                     observedInputValues.set(element, translatedSnapshot);
                     const translatedEditGeneration = readEditGeneration(element);
                     const canRestore = () => !signal.aborted
@@ -541,6 +565,7 @@ export function createInputTranslationContentFeature(
                         onRestore: async () => {
                             if (!canRestore()) return;
                             if (!await writeOwnedText(element, originalText, canRestore)) return;
+                            bilingualOutputs.delete(element);
                             observedInputValues.set(element, getInputBoxValueSnapshot(element));
                             removeExistingTooltip(requestId);
                         },
@@ -788,6 +813,34 @@ export function createInputTranslationContentFeature(
                     event.preventDefault();
                     event.stopPropagation();
                     resetKeyPresses();
+                    if (normalizeInputBoxTranslationOutputMode(deps.config.inputBoxTranslationOutputMode) !== 'replace') {
+                        invalidate();
+                        if (isFormControl(activeElement)) {
+                            await writeOwnedText(activeElement, sourceText, () => true);
+                            await handleInputBoxTranslation(activeElement, signal, sourceText);
+                            return;
+                        }
+                        const snapshot = getInputBoxValueSnapshot(activeElement);
+                        const generation = deps.readConfigGeneration();
+                        const cleanupRequestId = activeInputTranslationRequestId;
+                        const editGeneration = readEditGeneration(activeElement);
+                        const cleanupController = new AbortController();
+                        activeRequestController = cleanupController;
+                        activeInputTranslationElement = activeElement;
+                        internalWriteElement = activeElement;
+                        try {
+                            const cleaned = await replaceEditableText(activeElement, '', () => !signal.aborted && !cleanupController.signal.aborted
+                                && cleanupRequestId === activeInputTranslationRequestId
+                                && isEnabled() && !deps.isSiteDisabled() && isInputElement(activeElement) && activeElement.isConnected !== false
+                                && readEditGeneration(activeElement) === editGeneration
+                                && deps.readConfigGeneration() === generation
+                                && getInputBoxValueSnapshot(activeElement) === snapshot, 'trigger', symbol);
+                            if (cleaned !== 'replaced') return;
+                        } finally {
+                            internalWriteElement = null;
+                            if (activeRequestController === cleanupController) activeRequestController = null;
+                        }
+                    }
                     await handleInputBoxTranslation(activeElement, signal, sourceText);
                     return;
                 }

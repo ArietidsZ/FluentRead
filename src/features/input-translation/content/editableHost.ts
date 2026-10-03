@@ -1,7 +1,7 @@
 /**
  * @file src/features/input-translation/content/editableHost.ts
  * 文件职责：为输入框翻译提供 contenteditable 编辑宿主（含 Lexical、ProseMirror、Draft.js、Slate、Quill 等富文本编辑器）的光标度量与原生编辑写回。
- * 主要内容：按 textContent 口径读取编辑宿主文本与折叠光标偏移，推算一次触发键插入后的期望状态；写回时先选中宿主全部内容并等待编辑器同步模型选区，
+ * 主要内容：按 textContent 口径读取编辑宿主文本与折叠光标偏移，推算一次触发键插入后的期望状态；写回时按替换、首尾插入或清理触发符选择范围并等待编辑器同步模型选区，
  * 再派发只含纯文本的合成粘贴交给编辑器自身处理，未被接管或被页面拦截时退回浏览器原生 insertText，保留编辑器模型、撤销历史与宿主事件链。
  * 模块边界：不注册长期监听、不发送翻译请求，也不直接改写 innerText/innerHTML；资格判定与文本归一化来自 inputBox.ts，
  * 请求所有权、快照校验和提示 UI 由 content/index.ts 通过 isCurrent 回调提供。
@@ -123,35 +123,63 @@ async function waitForEditableChange(element: HTMLElement, before: string): Prom
 }
 
 /**
- * 用编辑器自己的编辑路径把宿主全文替换为 text。
- * 步骤：聚焦并选中全文 → 等待编辑器同步选区 → 合成纯文本粘贴 → 未被接管时退回原生 insertText。
+ * 用编辑器自己的编辑路径把选定范围替换为 text；首尾的空选区实现双语插入并保留原文结构。
+ * 步骤：聚焦并选定范围 → 等待编辑器同步选区 → 合成纯文本粘贴 → 未被接管时退回原生 insertText。
  * isCurrent 在任何写入前都会重新校验，请求失效或选区被用户改动时返回 stale 且不写入。
  */
 export async function replaceEditableText(
     element: HTMLElement,
     text: string,
     isCurrent: () => boolean,
+    selectionMode: 'all' | 'start' | 'end' | 'trigger' = 'all',
+    triggerSymbol = '',
 ): Promise<EditableReplacementResult> {
     const document = element.ownerDocument;
     const selection = getEditableSelection(element);
     if (!selection) return 'unsupported';
 
-    // 步骤 1：选中全文。先注册等待再改选区，确保捕获本次 selectionchange。
-    element.focus({preventScroll: true});
-    const synced = waitForSelectionSync(document);
     const range = document.createRange();
     range.selectNodeContents(element);
+    if (selectionMode === 'end') range.collapse(false);
+    if (selectionMode === 'start') range.collapse(true);
+    if (selectionMode === 'trigger') {
+        // 连按的前两次已经进入宿主，只删除本次光标前的两个符号，不重写原文格式。
+        const node = selection.focusNode;
+        const offset = selection.focusOffset;
+        if (!selection.isCollapsed || !node || node.nodeType !== 3 || !element.contains(node)
+            || !triggerSymbol || normalizeEditableText((node.textContent || '').slice(offset - 2, offset)) !== triggerSymbol.repeat(2)) {
+            return 'unsupported';
+        }
+        range.setStart(node, offset - 2);
+        range.setEnd(node, offset);
+    }
+    const selectedText = normalizeEditableText(range.toString());
+    const selectionMatches = () => {
+        if (selectionMode === 'all') return selectionCoversEditable(element, selection);
+        if (selectionMode === 'end' || selectionMode === 'start') {
+            const caret = readEditableCaretState(element);
+            return caret !== null && caret.caret === (selectionMode === 'start' ? 0 : caret.text.length);
+        }
+        return selection.rangeCount > 0
+            && element.contains(selection.getRangeAt(0).startContainer)
+            && element.contains(selection.getRangeAt(0).endContainer)
+            && normalizeEditableText(selection.toString()) === selectedText;
+    };
+
+    // 步骤 1：先注册等待再改选区，确保捕获本次 selectionchange。
+    element.focus({preventScroll: true});
+    const synced = waitForSelectionSync(document);
     selection.removeAllRanges();
     selection.addRange(range);
     await synced;
-    if (!isCurrent() || !selectionCoversEditable(element, selection)) return 'stale';
+    if (!isCurrent() || !selectionMatches()) return 'stale';
 
     // 步骤 2：富文本编辑器通常在 paste 中 preventDefault 并按自身模型插入多段文本。
     const before = readEditableText(element);
     if (dispatchPlainTextPaste(element, text)) {
         if (await waitForEditableChange(element, before)) return 'replaced';
         // 页面拦截了粘贴却没有写入：再次确认请求与选区后才走原生插入，避免迟到粘贴重复落地。
-        if (!isCurrent() || !selectionCoversEditable(element, selection)) return 'stale';
+        if (!isCurrent() || !selectionMatches()) return 'stale';
     }
 
     // 步骤 3：普通 contenteditable 不处理合成粘贴，原生 insertText 会触发 beforeinput/input 并进入撤销栈。
