@@ -108,6 +108,16 @@ describe('免费翻译服务', () => {
         expect(myMemoryMock).not.toHaveBeenCalled();
     });
 
+    it('图片裸网址原样返回时不轮询后备服务或报免费线路全部失败', async () => {
+        const url = 'docs.sglang.io/cookbook';
+        microsoftMock.mockResolvedValue([url]);
+        await expect(settle(freeTranslation({origin: [url]}))).resolves.toEqual([url]);
+        expect(microsoftMock).toHaveBeenCalledOnce();
+        expect(deeplxMock).not.toHaveBeenCalled();
+        expect(googleMock).not.toHaveBeenCalled();
+        expect(myMemoryMock).not.toHaveBeenCalled();
+    });
+
     it('中文目标遇到整段日文时换线，后续段落仍可使用原线路', async () => {
         mockConfig.freeTranslationOrder = ['microsoft', 'deeplx'];
         const japanese = 'このファイルの最初の文字にも制限があります。簡単にするために、最初の文字として文字を使用できます。';

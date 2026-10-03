@@ -2,7 +2,7 @@
  * @file src/providers/translation/google.ts
  *
  * 文件职责：适配无需密钥的 Google Translate Web RPC 与 legacy 接口，并在统一截止时间内执行候选端点回退。
- * 主要内容：编码 batchexecute 请求、解析嵌套 RPC 和 legacy 数组响应，映射请求语言，识别 CAPTCHA 提示，并导出 parse 与 translateGoogleText 供免费链复用。 可核对的公开符号包括 parseGoogleBatchResponse、parseGoogleLegacyResponse、translateGoogleText、default:google。
+ * 主要内容：编码 batchexecute 请求、解析嵌套 RPC 和 legacy 数组响应，映射请求语言，识别 CAPTCHA 提示；对明确拒绝匿名请求的 XSRF 入口执行短暂冷却，避免每个 OCR 段落重复失败，并导出 parse 与 translateGoogleText 供免费链复用。 可核对的公开符号包括 parseGoogleBatchResponse、parseGoogleLegacyResponse、translateGoogleText、default:google。
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
@@ -25,9 +25,13 @@ const GOOGLE_TRANSLATE_LEGACY_URL = 'https://translate.googleapis.com/translate_
 const GOOGLE_TRANSLATE_TOTAL_TIMEOUT_MS = 15_000;
 const GOOGLE_TRANSLATE_ATTEMPT_TIMEOUT_MS = 8_000;
 const GOOGLE_CAPTCHA_HINT = '可能触发了 CAPTCHA，请稍后重试';
+const GOOGLE_XSRF_COOLDOWN_MS = 300_000;
+// 只记录固定入口及恢复时间，不保存响应内容、令牌、原文或用户设置。
+const googleXsrfRetryAt = new Map<string, number>();
 
 type GoogleProvider = {
     name: string;
+    endpoint?: string;
     translate: (timeoutMs: number) => Promise<string>;
 };
 
@@ -167,6 +171,9 @@ async function fetchGoogleResponse(
         }
         if (!response.ok) {
             const statusError = createHttpStatusError(response);
+            if (response.status === 400 && /"xsrf"/u.test(responseBody)) {
+                Object.assign(statusError, {googleXsrfRejected: true});
+            }
             if (response.status === 429 || isHtmlResponse(responseBody)) {
                 // CAPTCHA 提示只扩展安全文案，保留标准 HTTP 状态供外层判断冷却。
                 statusError.message = `${statusError.message}（${GOOGLE_CAPTCHA_HINT}）`;
@@ -243,6 +250,7 @@ export async function translateGoogleText(
     const providers: GoogleProvider[] = [
         ...GOOGLE_TRANSLATE_BATCH_URLS.map((endpoint, index) => ({
             name: index === 0 ? '主网页 RPC' : '备用网页 RPC',
+            endpoint,
             translate: (timeoutMs: number) => translateGoogleBatch(
                 endpoint,
                 text,
@@ -269,15 +277,28 @@ export async function translateGoogleText(
 
     for (const provider of providers) {
         if (abortSignal?.aborted) throw abortErrorFromSignal(abortSignal);
+        if (provider.endpoint && (googleXsrfRetryAt.get(provider.endpoint) ?? 0) > Date.now()) {
+            failures.push(`${provider.name}: HTTP 400（匿名入口暂不可用）`);
+            failureStatuses.push(400);
+            continue;
+        }
         const remainingTime = deadline - Date.now();
         if (remainingTime <= 0) {
             break;
         }
 
         try {
-            return await provider.translate(Math.min(GOOGLE_TRANSLATE_ATTEMPT_TIMEOUT_MS, remainingTime));
+            const translation = await provider.translate(Math.min(GOOGLE_TRANSLATE_ATTEMPT_TIMEOUT_MS, remainingTime));
+            // 较早的在途成功不能清掉后来请求发现的 XSRF 拒绝。
+            if (provider.endpoint && (googleXsrfRetryAt.get(provider.endpoint) ?? 0) <= Date.now()) {
+                googleXsrfRetryAt.delete(provider.endpoint);
+            }
+            return translation;
         } catch (error) {
             if (abortSignal?.aborted) throw abortErrorFromSignal(abortSignal);
+            if (provider.endpoint && (error as {googleXsrfRejected?: boolean}).googleXsrfRejected) {
+                googleXsrfRetryAt.set(provider.endpoint, Date.now() + GOOGLE_XSRF_COOLDOWN_MS);
+            }
             failures.push(`${provider.name}: ${getErrorMessage(error)}`);
             failureStatuses.push((error as {statusCode?: number}).statusCode);
         }
