@@ -106,7 +106,9 @@ You can also enter declarations under **Enter CSS directly**, such as `color: re
 
 ## Bilingual sentence highlighting
 
-Enable **Bilingual sentence highlighting** under **Settings → Interface style → Translation style**, then hover over a sentence on either side to highlight its counterpart. No click or shortcut is needed. The translation style preview next to it contains several sentence pairs to try.
+Enable **Bilingual sentence highlighting** under **Settings → Translation settings → Reading assistance**, then hover over a sentence on either side to highlight its counterpart. No click or shortcut is needed. The reading preview next to it contains several sentence pairs to try.
+
+Under **Settings → Interface style → Sentence highlight style**, choose from eight presets or customize the background and underline colors, their opacity, the line style, and thickness. Set background opacity to 0% for lines only, or choose **No underline** for background only. Solid, dotted, dashed, double, and wavy lines are available, with live previews on light and dark pages. Changes are saved automatically and apply to open pages without translating again. **Reset to preset** clears overrides; choosing a preset also restores its appearance. The enabled state is saved separately.
 
 Equal sentence counts are paired in order. Split or merged sentences are grouped using order and relative length. This local approximation cannot verify translation accuracy and may not match heavily rewritten or reordered text. Hovering sends no translation requests and changes neither page text nor layout.
 

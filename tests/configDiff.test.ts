@@ -1108,3 +1108,23 @@ it('previews per-service API key rotation switches', () => {
     expect(group(buildConfigDiff({apiKeyRotationEnabled: {}}, {apiKeyRotationEnabled: {openai: true}}), 'translationServices')?.changes)
         .toEqual([{key: 'apiKeyRotationEnabled', label: '自动轮换', before: '无', after: 'OpenAI：开启'}]);
 });
+
+
+describe('逐句高亮自定义外观差异', () => {
+    it('按字段展示颜色、透明度、线型与粗细，并识别回到预设', () => {
+        const before = {bilingualSentenceHighlightAppearance: {backgroundColor: '', backgroundOpacity: null, lineStyle: 'default', lineThickness: null}};
+        const after = {bilingualSentenceHighlightAppearance: {backgroundColor: '#123456', backgroundOpacity: 34, lineStyle: 'dashed', lineThickness: 3}};
+        expect(group(buildConfigDiff(before, after), 'translation')?.changes).toEqual([
+            {key: 'bilingualSentenceHighlightAppearance.backgroundColor', label: '高亮底色', before: '跟随预设', after: '#123456'},
+            {key: 'bilingualSentenceHighlightAppearance.backgroundOpacity', label: '底色不透明度', before: '跟随预设', after: '34%'},
+            {key: 'bilingualSentenceHighlightAppearance.lineStyle', label: '下划线形态', before: '跟随预设', after: '虚线'},
+            {key: 'bilingualSentenceHighlightAppearance.lineThickness', label: '线条粗细', before: '跟随预设', after: '3px'},
+        ]);
+        expect(group(buildConfigDiff(after, before), 'translation')?.changes.every(item => item.after === '跟随预设')).toBe(true);
+        expect(group(buildConfigDiff({}, {bilingualSentenceHighlightAppearance: {lineColor: '#abcdef', lineOpacity: 0, unknown: true}}), 'translation')?.changes).toEqual([
+            {key: 'bilingualSentenceHighlightAppearance.lineColor', label: '下划线颜色', before: '跟随预设', after: '#abcdef'},
+            {key: 'bilingualSentenceHighlightAppearance.lineOpacity', label: '下划线不透明度', before: '跟随预设', after: '0%'},
+            {key: 'bilingualSentenceHighlightAppearance.unknown', label: 'unknown', before: '跟随预设', after: '开启'},
+        ]);
+    });
+});
