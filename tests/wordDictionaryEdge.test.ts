@@ -312,6 +312,12 @@ describe('word dictionary Unicode and untrusted payload boundaries', () => {
         expect(initial.meanings[0]?.definitions).toHaveLength(6);
     });
 
+    it('attaches a later Chinese gloss to an untranslated English sense', () => {
+        const base = card('pair');
+        const merged = mergeWordCardData(base, card('pair', 'youdao-web', {definition: '中文释义'}));
+        expect(merged.meanings[0].definitions).toEqual([{definition: 'an English definition', translatedDefinition: '中文释义'}]);
+    });
+
     it('selects at most two unlabelled pronunciations and handles a single regional row', () => {
         expect(selectPronunciations([{text: 'a'}, {text: 'b'}, {text: 'c'}])).toEqual([{text: 'a'}, {text: 'b'}]);
         expect(selectPronunciations([
@@ -560,7 +566,7 @@ describe('word dictionary lookup orchestration', () => {
         expect(eagerLookup).toHaveBeenCalledTimes(3);
     });
 
-    it('isolates provider failures and waits for all completeness conditions before stopping', async () => {
+    it('isolates local failures and returns local definitions without waiting for pronunciation or online backups', async () => {
         const warning = vi.fn();
         const neverReached = vi.fn(async () => card('word'));
         const dictionary = createWordDictionaryLookup({
@@ -579,7 +585,7 @@ describe('word dictionary lookup orchestration', () => {
         });
 
         const result = await dictionary.lookup('word');
-        expect(result?.sources.map((source) => source.id)).toEqual(['ecdict-local', 'youdao-web', 'free-dictionary', 'datamuse']);
+        expect(result?.sources.map((source) => source.id)).toEqual(['ecdict-local']);
         expect(warning).toHaveBeenCalledOnce();
         expect(neverReached).not.toHaveBeenCalled();
     });
@@ -591,7 +597,7 @@ describe('word dictionary lookup orchestration', () => {
 
         expect(await dictionary.lookup('two words')).toBeNull();
         expect(providerLookup).not.toHaveBeenCalled();
-        expect(await dictionary.lookup('valid')).toBeNull();
+        await expect(dictionary.lookup('valid')).rejects.toThrow('词典查询暂时不可用');
         expect(warning).toHaveBeenCalledOnce();
     });
 
@@ -600,9 +606,100 @@ describe('word dictionary lookup orchestration', () => {
         vi.stubGlobal('fetch', fetchMock);
         expect(await lookupWord('edgecache')).not.toBeNull();
         expect(await lookupWord('edgecache')).not.toBeNull();
-        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock).toHaveBeenCalledTimes(5);
         clearWordDictionaryCache();
         expect(await lookupWord('edgecache')).not.toBeNull();
-        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(fetchMock).toHaveBeenCalledTimes(10);
+    });
+
+    it('returns a fast online definition and aborts a slower source instead of waiting for it', async () => {
+        let slowSignal: AbortSignal | undefined;
+        const slow = vi.fn((_word: string, signal?: AbortSignal) => {
+            slowSignal = signal;
+            return new Promise<WordCardData | null>((_resolve, reject) => {
+                signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), {once: true});
+            });
+        });
+        const fast = vi.fn(async () => card('uncommon'));
+        const dictionary = createWordDictionaryLookup({providers: [
+            {id: 'youdao-web', lookup: slow}, {id: 'free-dictionary', lookup: fast},
+        ]});
+        expect((await dictionary.lookup('uncommon'))?.meanings).toHaveLength(1);
+        expect(slow).toHaveBeenCalledOnce();
+        expect(fast).toHaveBeenCalledOnce();
+        expect(slowSignal?.aborted).toBe(true);
+    });
+
+    it('bounds a hanging lookup at 2.5 seconds and does not cache the outage as a missing word', async () => {
+        vi.useFakeTimers();
+        const lookup = vi.fn<WordDictionaryProvider['lookup']>()
+            .mockImplementationOnce(() => new Promise(() => {}))
+            .mockResolvedValueOnce(card('recover'));
+        const dictionary = createWordDictionaryLookup({providers: [{id: 'free-dictionary', lookup}]});
+        const pending = dictionary.lookup('recover');
+        const rejected = expect(pending).rejects.toThrow('词典查询暂时不可用');
+        await vi.advanceTimersByTimeAsync(2_499);
+        expect(lookup.mock.calls[0][1]?.aborted).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        await rejected;
+        expect(lookup.mock.calls[0][1]?.aborted).toBe(true);
+        expect(await dictionary.lookup('recover')).not.toBeNull();
+        expect(lookup).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a partial pronunciation if other sources time out and ignores their late response', async () => {
+        vi.useFakeTimers();
+        let release!: (data: WordCardData) => void;
+        const dictionary = createWordDictionaryLookup({providers: [
+            {id: 'youdao-web', lookup: async () => card('partial', 'youdao-web', {definition: ''})},
+            {id: 'free-dictionary', lookup: () => new Promise(resolve => { release = resolve; })},
+        ]});
+        const pending = dictionary.lookup('partial');
+        await vi.advanceTimersByTimeAsync(2_500);
+        const result = await pending;
+        expect(result?.phonetics).toHaveLength(1);
+        expect(result?.meanings).toEqual([]);
+        release(card('partial'));
+        await Promise.resolve();
+        expect(result?.meanings).toEqual([]);
+    });
+
+    it('ends a stuck local lookup without starting online requests after its deadline', async () => {
+        vi.useFakeTimers();
+        let release!: (data: null) => void;
+        const online = vi.fn(async () => card('stuck'));
+        const dictionary = createWordDictionaryLookup({providers: [
+            {id: 'ecdict-local', lookup: () => new Promise(resolve => { release = resolve; })},
+            {id: 'free-dictionary', lookup: online},
+        ]});
+        const rejected = expect(dictionary.lookup('stuck')).rejects.toThrow('词典查询暂时不可用');
+        await vi.advanceTimersByTimeAsync(2_500);
+        await rejected;
+        release(null);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(online).not.toHaveBeenCalled();
+    });
+
+    it('treats dictionary 404s as clean misses, without warnings or repeated requests for the same word', async () => {
+        const warn = vi.fn();
+        const fetchMock = vi.fn(async () => response({}, false, 404));
+        vi.stubGlobal('fetch', fetchMock);
+        const dictionary = createWordDictionaryLookup({warn});
+        expect(await dictionary.lookup('zzqmissing')).toBeNull();
+        expect(await dictionary.lookup('zzqmissing')).toBeNull();
+        expect(fetchMock).toHaveBeenCalledTimes(5);
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('does not retain negative results when any source failed and succeeds after recovery', async () => {
+        const lookup = vi.fn<WordDictionaryProvider['lookup']>()
+            .mockRejectedValueOnce(new Error('offline'))
+            .mockResolvedValueOnce(card('recovered'));
+        const dictionary = createWordDictionaryLookup({warn: vi.fn(), providers: [
+            {id: 'youdao-web', lookup}, {id: 'free-dictionary', lookup: async () => null},
+        ]});
+        await expect(dictionary.lookup('recovered')).rejects.toThrow('词典查询暂时不可用');
+        expect(await dictionary.lookup('recovered')).not.toBeNull();
     });
 });

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/reading-assistant/ui/ReadingPanel.vue
- * 文件职责：在划词卡内以内容为主呈现学习回答，提供紧凑动作栏、向上滚动可查看的完整原文与连续追问。
- * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；历史问答按轮次与问题摘要逐条展开，区分当前问答与旧回答，切换回答时收起历史；四类动作的完整原文统一保留在滚动区顶部，进入回答时只滚过原文，关闭局部浏览器滚动锚定以避免流式格式变化移动阅读位置；提供查看原文快捷入口，重复点击当前动作保留位置和待发送追问；把原文朗读、句子收藏和 30 天问答记录收进次级操作，让多语言动作标签按空间换行，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
+ * 文件职责：在划词卡内以内容为主呈现学习回答，提供紧凑动作栏、向上滚动可对照的原文译文与连续追问。
+ * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；历史问答按轮次与问题摘要逐条展开，区分当前问答与旧回答，切换回答时收起历史；四类动作的原文与匹配译文统一保留在滚动区顶部，进入回答时滚过对照内容，译文晚到时保持回答位置，关闭局部浏览器滚动锚定以避免流式格式变化移动阅读位置；提供查看原文快捷入口，重复点击当前动作保留位置和待发送追问；把原文朗读、句子收藏和 30 天问答记录收进次级操作，让多语言动作标签按空间换行，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
  * 模块边界：不持有模型密钥、不扫描页面、不直接请求供应商；记录由后台会话仓库保存，父划词组件负责选区、位置和 Shadow UI 生命周期。
  -->
 <template>
@@ -46,6 +46,11 @@
       <section class="fr-reading-source" :aria-label="translateLegacy('原文')">
         <span>原文</span>
         <p data-i18n-ignore>{{ activeText }}</p>
+        <div v-if="activeTranslation" class="fr-reading-translation" :aria-label="translateLegacy('译文')">
+          <span>{{ translateLegacy('译文') }}</span>
+          <p v-if="activeTranslation.text" data-i18n-ignore>{{ activeTranslation.text }}</p>
+          <p v-else role="status">{{ translateLegacy(activeTranslation.pending ? '正在翻译…' : activeTranslation.error || '翻译失败，请重试') }}</p>
+        </div>
       </section>
       <div ref="answerBody" class="fr-reading-body">
       <details v-if="priorAnswers.length" ref="historyDetails" class="fr-reading-session-detail">
@@ -126,6 +131,7 @@ const props = defineProps<{
   playingSourceText?: string;
   sourceLanguage?: string;
   modelRevision?: number;
+  sourceTranslation?: {source: string; text: string; pending?: boolean; error?: string};
 }>();
 const emit = defineEmits<{resize: []; 'play-source': [text: string]; 'source-change': [text: string]}>();
 const intent = ref<HarnessActionId>(props.initialAction || props.preferences.defaultAction);
@@ -134,6 +140,9 @@ const historicalText = ref('');
 const historicalContext = ref('');
 const sessionWarning = ref('');
 const activeText = computed(() => historicalText.value || (wholeSentence.value ? props.selection.sentence : props.selection.text));
+const activeTranslation = computed(() => props.sourceTranslation
+  && props.sourceTranslation.source.replace(/\s+/gu, ' ').trim() === activeText.value.replace(/\s+/gu, ' ').trim()
+  ? props.sourceTranslation : undefined);
 const actions = computed(() => HARNESS_ACTIONS.filter(action => props.preferences.actions.includes(action.id)));
 const actionLabel = computed(() => HARNESS_ACTIONS.find(action => action.id === intent.value)?.label ?? '理解');
 const question = ref('');
@@ -191,6 +200,23 @@ function showSource(): void {
   viewport.scrollTop = 0;
   viewport.focus({preventScroll: true});
 }
+// 普通译文晚到只修正上方内容的高度差；用户向上查看或操作后不改变其位置。
+watch(activeTranslation, () => {
+  const viewport = answerScroll.value;
+  const body = answerBody.value;
+  if (!props.active || showRecords.value || !viewport || !body) return;
+  const top = viewport.scrollTop;
+  const offset = top - body.offsetTop;
+  if (offset < 0) return;
+  const revision = readingPositionRevision;
+  const owner = currentTurnKey.value;
+  void nextTick(() => {
+    if (revision === readingPositionRevision && owner === currentTurnKey.value && props.active && !showRecords.value
+      && viewport === answerScroll.value && body === answerBody.value && viewport.scrollTop === top) {
+      viewport.scrollTop = body.offsetTop + offset;
+    }
+  });
+});
 const toolsMenu = ref<HTMLDetailsElement>();
 function closeTools(restoreFocus = false): void {
   if (!toolsMenu.value) return;
@@ -558,6 +584,8 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading-tool-list p span { display: block; }
 .fr-reading-source { margin: 0 0 10px; color: var(--fr-reading-muted); font-size: 12px; }
 .fr-reading-source > span { font-size: 11px; }
+.fr-reading-translation { margin-top: 10px; }
+.fr-reading-translation > span { font-size: 11px; }
 .fr-reading-source p { margin: 4px 0 0; padding-inline-start: 12px; border-inline-start: 2px solid var(--fr-reading-line); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .fr-reading-body { min-height: 100%; display: flow-root; }
 .fr-reading-status { display: flex; align-items: center; gap: 8px; color: var(--fr-reading-muted); font-size: 12px; }

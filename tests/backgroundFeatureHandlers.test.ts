@@ -566,6 +566,7 @@ describe('后台 feature handlers', () => {
             pageContext: '',
             useCache: true,
             targetLanguage: 'zh-Hans',
+            requestTimeoutMs: 2_500,
         });
         expect(result).not.toBe(card);
         expect(result.phonetics[0]).not.toBe(card.phonetics[0]);
@@ -1069,6 +1070,59 @@ describe('后台 feature handlers', () => {
 
 
 describe('繁体词典辅助内容只采用本次成功翻译', () => {
+    it('首阶段立即返回词卡，不等待释义翻译，并隔离非简体目标的旧辅助内容', async () => {
+        const card = wordCard([{definition: 'to move', translatedDefinition: '移动'}]);
+        const translate = vi.fn(async () => new Promise<string[]>(() => {}));
+        const handler = createSelectionWordLookupHandler({lookupWord: async () => card,
+            getDefaultTargetLanguage: () => 'zh-Hans', translate, warn: vi.fn()});
+        expect((await handler.handle({type: SELECTION_WORD_LOOKUP_MESSAGE_TYPE, word: 'run', translateFields: false})).data).toBe(card);
+        const result = await handler.handle({type: SELECTION_WORD_LOOKUP_MESSAGE_TYPE, word: 'run', targetLanguage: 'ja', translateFields: false});
+        expect(result.data?.meanings[0].definitions[0]).toEqual({definition: 'to move'});
+        expect(card.meanings[0].definitions[0].translatedDefinition).toBe('移动');
+        expect(translate).not.toHaveBeenCalled();
+        await expect(handler.handle({type: SELECTION_WORD_LOOKUP_MESSAGE_TYPE, word: 'run', translateFields: 'false'})).rejects.toThrow('translateFields 必须是布尔值');
+    });
+
+    it('已有简体辅助释义无需重复翻译，只补充缺失字段', async () => {
+        const card = wordCard([{definition: 'to move', translatedDefinition: '移动', example: 'Run home.'}]);
+        const translate = vi.fn(async () => ['跑回家。']);
+        const result = await translateVisibleWordCardFields(card, 'zh-Hans', translate, vi.fn());
+        expect(translate).toHaveBeenCalledWith(expect.objectContaining({origin: ['Run home.'], requestTimeoutMs: 2_500}));
+        expect(result.meanings[0].definitions[0]).toMatchObject({translatedDefinition: '移动', translatedExample: '跑回家。'});
+        const complete = vi.fn();
+        expect(await translateVisibleWordCardFields(result, 'zh-Hans', complete, vi.fn())).toBe(result);
+        expect(complete).not.toHaveBeenCalled();
+    });
+
+    it('辅助释义翻译超时后保留词典原文，迟到结果不能改写已返回词卡', async () => {
+        vi.useFakeTimers();
+        try {
+            const card = wordCard([{definition: 'to move'}]);
+            let release!: (data: string[]) => void;
+            const pending = translateVisibleWordCardFields(card, 'zh-Hans', () => new Promise(resolve => { release = resolve; }), vi.fn());
+            await vi.advanceTimersByTimeAsync(2_500);
+            expect(await pending).toBe(card);
+            release(['移动']);
+            await Promise.resolve();
+            expect(card.meanings[0].definitions[0].translatedDefinition).toBeUndefined();
+            expect(vi.getTimerCount()).toBe(0);
+        } finally { vi.useRealTimers(); }
+    });
+    it('同步失败的辅助翻译也保留词卡并清理等待', async () => {
+        const card = wordCard();
+        const warn = vi.fn();
+        expect(await translateVisibleWordCardFields(card, 'zh-Hans', () => { throw new Error('unavailable'); }, warn)).toBe(card);
+        expect(warn).toHaveBeenCalledOnce();
+    });
+    it('辅助翻译错误上报失败也会清理截止时间', async () => {
+        vi.useFakeTimers();
+        try {
+            await expect(translateVisibleWordCardFields(wordCard(), 'zh-Hans', async () => { throw new Error('offline'); }, () => { throw new Error('reporter unavailable'); }))
+                .rejects.toThrow('reporter unavailable');
+            expect(vi.getTimerCount()).toBe(0);
+        } finally { vi.useRealTimers(); }
+    });
+
     const originalCard = () => wordCard([
         {definition: 'to move quickly', example: 'Run home.', translatedDefinition: '快速移动', translatedExample: '跑回家。'},
     ]);
