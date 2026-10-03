@@ -42,3 +42,11 @@ The area service follows webpage translation by default, but you can choose it s
 Area capture currently works in the Chrome / Edge extension. Browser internal pages, restricted videos, and unreadable areas may not be captured. Other browsers and userscripts report their available capabilities.
 
 Local OCR keeps the cropped image on your device and sends only recognized text to the translation service. With model vision, only the cropped selection is uploaded for transcription, followed by text translation through the same service. Image recognition requests are not stored in the translation cache. The result card names the actual recognition method, service, and model. For a translated image with its layout retained, use [image translation](/en/guide/image-translation), which continues to use local OCR for text positioning.
+
+## Testing image recognition
+
+Automatic capability selection uses manual overrides first, then a valid local test result, then verified built-in rules. Unknown models are tested on their first area translation. You can also select **Translation services → Model preferences → Test image recognition** to test the current configuration again.
+
+The test sends a small locally generated PNG containing random characters through the same adapter used for image recognition. It confirms support only when the model reads those characters exactly. HTTP 200 or a successful text connection test alone does not prove image recognition. Testing may incur model usage charges, can be cancelled, and never sends a webpage screenshot or changes a manual capability override.
+
+Results expire after seven days and are tied to the service, model, endpoint, API protocol and a fingerprint of the credential configuration. Only the fingerprint, capability and time are stored locally; images, answers, credentials and error bodies are not saved or included in config exports, history or cloud sync. An explicit rejection of image input records unsupported capability. A mismatched answer leaves capability unknown and uses local OCR. Authentication, quota, network and response errors remain visible errors and do not silently switch to OCR.

@@ -30,6 +30,20 @@ function request(config: Config, service: string, model: string) {
 describe('translation vision provider payloads', () => {
     afterEach(() => setRuntimeFetch());
 
+    it.each(['deepseek-chat', 'deepseek-responses', 'sdk', 'gemini', 'claude', 'tongyi', 'zhipu'])('preserves explicit image rejection through %s transport', async kind => {
+        const config = new Config();
+        const service = kind === 'sdk' ? 'openai' : kind.startsWith('deepseek') ? 'deepseek' : kind;
+        config.token[service] = service === 'zhipu' ? 'id.secret' : 'synthetic-key';
+        config.deepseekApiType = kind === 'deepseek-responses' ? 'responses' : 'chat';
+        const adapter = kind === 'sdk' ? translateWithOpenAICompatibleAiSdk
+            : service === 'deepseek' ? deepseek : service === 'gemini' ? gemini : service === 'claude' ? claude : service === 'tongyi' ? tongyi : zhipu;
+        setRuntimeFetch(async () => new Response(JSON.stringify({error:{message:'This model does not support image input'}}), {status:400}));
+        await expect(adapter(request(config, service, 'test-vision-model').message)).rejects.toMatchObject({statusCode:400,imageInputUnsupported:true});
+        setRuntimeFetch(async () => new Response(JSON.stringify({error:{message:'unsupported image format'}}), {status:400}));
+        try { await adapter(request(config, service, 'test-vision-model').message); throw new Error('expected failure'); }
+        catch(error) { expect((error as {imageInputUnsupported?: boolean}).imageInputUnsupported).toBeUndefined(); }
+    });
+
     it.each(['chat', 'responses'] as const)('sends DeepSeek %s images with frozen prompts, model and thinking', async apiType => {
         const config = new Config();
         config.service = 'deepseek';

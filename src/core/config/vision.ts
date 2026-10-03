@@ -37,7 +37,7 @@ export function normalizeAreaVisionPrompt(value: unknown): string {
 }
 
 // 这些条目只包含已有官方图像输入文档支持的精确编号，包括仍可调用的兼容别名。
-// 核实日期 2026-10-03；后续模型和兼容接口由用户显式确认，不按名称前缀推断。
+// 核实日期 2026-10-03；未知型号交给独立探测服务或用户显式确认，不按名称前缀推断。
 // https://developers.openai.com/api/docs/models/gpt-5.6-luna
 // https://developers.openai.com/api/docs/guides/images-vision
 // https://developers.openai.com/api/docs/models/gpt-5-mini
