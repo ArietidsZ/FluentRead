@@ -92,6 +92,8 @@ If you use it often, turn on its shortcut in **Settings → Translation → Sect
 
 The selection card includes 3,000 common English dictionary entries, available offline without a separate download. Looking up a less common word can use online dictionaries immediately while the extension downloads and verifies the full dictionary in the background for later local lookups. The full data file is about 3.9 MB and is cached by the browser. If the download fails, the common-word dictionary and online sources remain available. The fixed asset URL never contains the word you looked up.
 
+Local definitions appear immediately, with translated definitions added afterward. The regular translation appears independently. Online lookup waits at most 2.5 seconds and shows progress in a compact line. Missing entries prompt you to check the spelling and explain that names or new words may be absent. If the dictionary cannot respond, use **Retry lookup**; the existing translation remains available. In the grammar view, labels beneath source text show only the part of speech in the interface language. Click a fragment to see its role in the sentence.
+
 ## Translation style
 
 Choose how translations look in bilingual mode under **Settings → Interface style → Translation style**. Styles are grouped into **Text**, **Lines**, **Highlights**, and **Cards**, and every card shows the real effect. The preview beside them simulates a web page; switch between **Light page** and **Dark page** to check that translations stay readable on differently colored sites.

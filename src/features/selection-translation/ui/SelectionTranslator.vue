@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏词书、双语分享卡片、重试和关闭。
- * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；以统一入口和普通/卡片呈现按需打开学习面板，按普通划词独立服务协调翻译、词典、词书与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
+ * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -50,11 +50,11 @@
         <ReadingPanel ref="reading-panel-ref" :selection="readingSelection" :preferences="readingPreferences" :active="readingMode" :initial-action="readingInitialAction" :history-only="readingHistoryOnly" :source-language="selectionSettings.from" :target-language="selectionSettings.to" :playing-source-text="isPlaying && currentAudioKind === 'source' ? currentAudioText : ''" :model-revision="readingModelRevision" :vocabulary-enabled="config.vocabularyBookEnabled" :private-context="isPrivateContext" :animations="config.animations" @play-source="toggleAudio($event, 'source')" @source-change="stopAudio()" @resize="schedulePositionUpdate" />
       </div>
       <div v-show="!readingMode" class="fr-tooltip-content" aria-live="polite">
-        <div v-if="isLoading && !translationResult && !wordCard && !wordCardError" class="fr-loading-state"><span :class="['fr-loading-spinner', { 'fr-static': !config.animations }]" aria-hidden="true" /><span>正在查询…</span></div>
+        <div v-if="isLoading && !translationResult && !wordCard && !wordCardError && !(cardMode && isWordSelection)" class="fr-loading-state"><span :class="['fr-loading-spinner', { 'fr-static': !config.animations }]" aria-hidden="true" /><span>正在查询…</span></div>
         <div v-else-if="error && !translationResult && !wordCard" class="fr-error-state"><span>{{ error }}</span><button type="button" @click="retryTranslation">重试</button></div>
         <div v-else class="fr-translation-container">
           <section v-if="cardMode && isWordSelection && (wordCard || isWordCardLoading)" class="fr-word-learning-card" aria-label="单词学习卡">
-            <div v-if="isWordCardLoading && !wordCard" class="fr-word-card-loading"><span :class="['fr-loading-spinner', { 'fr-static': !config.animations }]" aria-hidden="true" /><span>正在查词…</span></div>
+            <div v-if="isWordCardLoading && !wordCard" class="fr-word-card-loading" role="status"><span :class="['fr-loading-spinner', { 'fr-static': !config.animations }]" aria-hidden="true" /><span>{{ translationResult ? '译文已显示，正在补充词典…' : '正在查询词典，译文会先显示…' }}</span></div>
             <template v-else-if="wordCard">
               <div class="fr-word-heading">
                 <div>
@@ -98,9 +98,10 @@
                 <span>英文释义 · 中文辅助</span>
                 <button type="button" @click="showChineseSupport = !showChineseSupport">{{ showChineseSupport ? '隐藏中文辅助' : '显示中文辅助' }}</button>
               </div>
+              <div v-if="isWordCardSupportLoading" class="fr-word-support-loading" role="status">正在补充辅助释义…</div>
               <div v-if="wordCard.meanings.length > 0" class="fr-word-meanings">
                 <div v-for="meaning in wordCard.meanings.slice(0, 4)" :key="meaning.partOfSpeech" class="fr-word-meaning">
-                  <strong class="fr-pos-label" :title="translateLegacy(describePartOfSpeech(meaning.partOfSpeech).description)">{{ translateLegacy(meaning.partOfSpeech) }} <small>{{ describePartOfSpeech(meaning.partOfSpeech).abbreviation }}</small></strong>
+                  <strong class="fr-pos-label" :title="translateLegacy(describePartOfSpeech(meaning.partOfSpeech).description)">{{ translateLegacy(meaning.partOfSpeech) }}</strong>
                   <ol>
                     <li v-for="definition in meaning.definitions.slice(0, 4)" :key="`${meaning.partOfSpeech}-${definition.definition}`">
                       <span class="fr-word-definition-en">{{ definition.definition }}</span>
@@ -120,7 +121,7 @@
               </footer>
             </template>
           </section>
-          <div v-if="cardMode && isWordSelection && wordCardError" class="fr-word-fallback-note">{{ wordCardError }}，已保留普通翻译。</div>
+          <div v-if="cardMode && isWordSelection && wordCardError" class="fr-word-fallback-note" role="status"><span>{{ wordCardError }}</span><button type="button" @click="retryWordCard">重查词典</button></div>
           <div v-if="selectionSettings.mode === 'bilingual' && !isWordCardVisible" class="fr-text-block fr-original-text">
             <div class="fr-text-block-header">
               <span class="fr-text-label">原文</span>
@@ -245,6 +246,7 @@ const currentAudioText = ref('');
 const currentAudioKey = ref('');
 const wordCard = ref<WordCardData | null>(null);
 const isWordCardLoading = ref(false);
+const isWordCardSupportLoading = ref(false);
 const wordCardError = ref('');
 const showChineseSupport = ref(true);
 const noticeMessage = ref('');
@@ -265,6 +267,7 @@ let pendingSelectionPresentation: 'indicator' | 'tooltip' | null = null;
 let translationAbortController: AbortController | null = null;
 let translationRequestId = 0;
 let wordLookupRequestId = 0;
+let wordLookupAbortController: AbortController | null = null;
 let copyTimer: number | null = null;
 const vocabularyLookupGate = new SelectionRequestTokenGate();
 const vocabularySaveGate = new SelectionRequestTokenGate();
@@ -481,6 +484,8 @@ function resetSelectionContentState(clearSelectionText = false): void {
   translationAbortController?.abort();
   translationAbortController = null;
   wordLookupRequestId += 1;
+  wordLookupAbortController?.abort();
+  wordLookupAbortController = null;
   isLoading.value = false;
   activeContentRequest.value = null;
   translationAnswer.value = null;
@@ -490,6 +495,7 @@ function resetSelectionContentState(clearSelectionText = false): void {
   error.value = '';
   wordCard.value = null;
   isWordCardLoading.value = false;
+  isWordCardSupportLoading.value = false;
   wordCardError.value = '';
   showChineseSupport.value = true;
   clearCopyFeedback();
@@ -1035,35 +1041,77 @@ function chooseSelectionTarget(targetLanguage: string): void {
   void requestSelectionContent(snapshot.value.text);
 }
 
+async function sendWordCardRequest(word: string, targetLanguage: string, translateFields: boolean, signal: AbortSignal): Promise<{success?: boolean; data?: WordCardData | null}> {
+  if (signal.aborted) throw new DOMException('Lookup aborted', 'AbortError');
+  let onAbort!: () => void;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const interrupted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => reject(new DOMException('Lookup aborted', 'AbortError'));
+    signal.addEventListener('abort', onAbort, {once: true});
+    timer = setTimeout(() => reject(new Error('Dictionary lookup timed out')), 3_500);
+  });
+  try {
+    return await Promise.race([browser.runtime.sendMessage({type: 'selectionWordLookup', word, targetLanguage, translateFields}), interrupted]) as {success?: boolean; data?: WordCardData | null};
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener('abort', onAbort);
+  }
+}
+
+function retryWordCard(): void {
+  const request = currentContentRequest.value;
+  if (request) void requestWordCard(request);
+}
+
 async function requestWordCard(request: SelectionContentRequest): Promise<void> {
   const text = request.text;
   const word = normalizeEnglishWord(text);
   if (!word) return;
   const requestId = ++wordLookupRequestId;
+  wordLookupAbortController?.abort();
+  const controller = new AbortController();
+  wordLookupAbortController = controller;
   isWordCardLoading.value = true;
+  isWordCardSupportLoading.value = false;
   wordCardError.value = '';
   try {
-    const response = await browser.runtime.sendMessage({ type: 'selectionWordLookup', word, targetLanguage: request.targetLanguage }) as {
-      success?: boolean;
-      data?: WordCardData | null;
-    };
+    const response = await sendWordCardRequest(word, request.targetLanguage, false, controller.signal);
     if (requestId !== wordLookupRequestId || !isContentRequestCurrent(request)) return;
-    if (!response?.success || !response.data) {
+    if (!response?.success) throw new Error('Dictionary response unavailable');
+    if (!response.data) {
       wordCard.value = null;
       dictionaryAnswer.value = null;
-      wordCardError.value = '暂未找到这个单词的词典条目';
+      wordCardError.value = '未查到词典条目，请检查拼写；也可能是名称或新词。';
     } else {
       wordCard.value = response.data;
       dictionaryAnswer.value = {...request, answer: dictionaryDefinitions(response.data, request.targetLanguage)};
+      isWordCardLoading.value = false;
+      schedulePositionUpdate();
+      isWordCardSupportLoading.value = true;
+      try {
+        const enriched = await sendWordCardRequest(word, request.targetLanguage, true, controller.signal);
+        if (requestId !== wordLookupRequestId || !isContentRequestCurrent(request)) return;
+        if (enriched?.success && enriched.data) {
+          wordCard.value = enriched.data;
+          dictionaryAnswer.value = {...request, answer: dictionaryDefinitions(enriched.data, request.targetLanguage)};
+        }
+      } catch {
+        // 辅助释义失败仍保留已经显示的词典原文，不重新进入整卡加载或未命中状态。
+      }
     }
   } catch (cause) {
     if (requestId !== wordLookupRequestId || !isContentRequestCurrent(request)) return;
     console.warn('Selection word lookup unavailable:', cause);
     wordCard.value = null;
     dictionaryAnswer.value = null;
-    wordCardError.value = '词典服务暂时不可用';
+    wordCardError.value = '词典暂时未能返回结果，可稍后重查；普通翻译会继续显示。';
   } finally {
-    if (requestId === wordLookupRequestId) isWordCardLoading.value = false;
+    if (wordLookupAbortController === controller) wordLookupAbortController = null;
+    if (requestId === wordLookupRequestId) {
+      isWordCardLoading.value = false;
+      isWordCardSupportLoading.value = false;
+      schedulePositionUpdate();
+    }
   }
 }
 
@@ -1788,7 +1836,6 @@ onBeforeUnmount(() => {
 .fr-reading-tooltip > .fr-reading-content { flex: 1; min-height: 0; max-height: none; overflow: hidden; padding: 0; }
 .fr-tooltip-header { flex: none; display: flex; align-items: center; justify-content: space-between; gap:6px; padding: 5px 8px; border-bottom: 1px solid rgba(44, 43, 53, .06); font-size: 12px; font-weight: 500; }
 .fr-pos-label { display:flex; gap:6px; align-items:center; }
-.fr-pos-label small { font-weight:400; opacity:.7; }
 .fr-study-toolbar { display:flex; flex-wrap:wrap; gap:3px; padding:4px 8px; border-bottom:1px solid var(--fr-border, #eeedf0); }
 .fr-study-toolbar button { font:inherit; font-size:11px; border:0; background:transparent; color:#62616c; border-radius:5px; padding:5px 8px; cursor:pointer; }
 .fr-study-toolbar button:hover, .fr-study-toolbar button:focus-visible { background:#f4f0f3; color:#8e4867; outline:1px solid #dcc3d0; }
@@ -1823,7 +1870,9 @@ onBeforeUnmount(() => {
 .fr-loading-spinner.fr-static { animation: none; }
 @keyframes fr-spin { to { transform: rotate(360deg); } }
 .fr-word-learning-card { padding: 1px 1px 0; color: #39363d; }
-.fr-word-card-loading { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 74px; color: #77747c; font-size: 13px; }
+.fr-word-card-loading { display: flex; align-items: center; gap: 7px; min-height: 22px; margin-bottom: 8px; color: #77747c; font-size: 11px; line-height: 1.5; }
+.fr-word-card-loading .fr-loading-spinner { flex: 0 0 auto; width: 12px; height: 12px; }
+.fr-word-support-loading { margin: 4px 0; color: #77747c; font-size: 11px; line-height: 1.5; }
 .fr-word-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 0; }
 .fr-word-heading > div:first-child { min-width: 0; }
 .fr-word-heading h3 { margin: 0; color: #292832; font-size: 27px; font-weight: 700; letter-spacing: -.035em; line-height: 1.08; overflow-wrap: anywhere; user-select: text; }
@@ -1861,6 +1910,7 @@ onBeforeUnmount(() => {
 .fr-word-fallback-note, .fr-inline-error { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; color: #a56578; font-size: 11px; }
 .fr-word-fallback-note { padding: 6px 8px; border-radius: 7px; background: #fff8fa; }
 .fr-inline-error button, .fr-word-fallback-note button { border: 1px solid currentColor; border-radius: 6px; padding: 2px 7px; background: transparent; color: inherit; cursor: pointer; font-size: 11px; }
+.fr-word-fallback-note button { flex-shrink: 0; white-space: nowrap; }
 .fr-text-block { display:flow-root; padding: 0; }
 .fr-text-block + .fr-text-block { padding-top: 9px; border-top: 1px solid rgba(127, 127, 140, .12); }
 .fr-original-text { color: #666570; }

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/reading-assistant/ui/SentenceAnalysis.vue
- * 文件职责：在原文片段下并排展示词性与句中成分，让学习者先总览结构，再点击查看含义。
- * 主要内容：保留原文顺序和未标注文字，用紧凑双行片段常驻呈现词性与作用摘要，避免大块留白；完整作用和含义点击可查，通用说明按需展开，支持方向键切换及深浅主题。
+ * 文件职责：在原文片段下展示当前界面语言的词性，让学习者先总览结构，再点击查看含义。
+ * 主要内容：保留原文顺序和未标注文字，紧凑双行片段只呈现本地化词性，不混入模型返回的英文角色；完整作用和含义点击可查，通用说明按需展开，支持方向键切换及深浅主题。
  * 模块边界：只接收已经锚定的标注，不进行词性猜测、不发起请求，不写入宿主网页。
  -->
 <template>
@@ -9,15 +9,15 @@
     <div class="fr-sentence-tokens" role="group" :aria-label="translateLegacy('原文词性标注')" :title="translateLegacy('点击原文片段，查看词性和句中作用')" @keydown="navigateAnnotations">
       <template v-for="(annotation, index) in annotations" :key="`${annotation.start}-${annotation.end}`">
         <span class="fr-sentence-gap">{{ source.slice(index ? annotations[index - 1].end : 0, annotation.start) }}</span>
-        <button type="button" :data-pos="annotation.part.id" :aria-pressed="selected === index" :tabindex="selected === index ? 0 : -1" :aria-label="`${annotation.text} · ${translateLegacy(annotation.part.label)} · ${annotation.role}`" :title="`${translateLegacy(annotation.part.label)} · ${annotation.role}`" @click="selectAnnotation(index)">
+        <button type="button" :data-pos="annotation.part.id" :aria-pressed="selected === index" :tabindex="selected === index ? 0 : -1" :aria-label="`${annotation.text} · ${partLabel(annotation)}`" :title="partLabel(annotation)" @click="selectAnnotation(index)">
           <span class="fr-sentence-token-text">{{ annotation.text }}</span>
-          <span class="fr-sentence-token-meta"><span class="fr-sentence-token-role">{{ summarizeSentenceRole(annotation.role) }}</span><span aria-hidden="true"> · </span><span>{{ translateLegacy(annotation.part.label) }}</span></span>
+          <span class="fr-sentence-token-meta">{{ partLabel(annotation) }}</span>
         </button>
       </template>
       <span>{{ source.slice(annotations[annotations.length - 1]?.end || 0) }}</span>
     </div>
     <div v-if="active" ref="detail" class="fr-sentence-detail" aria-live="polite">
-      <div class="fr-sentence-detail-heading"><strong>{{ active.text }}</strong><span>{{ translateLegacy(active.part.label) }}</span></div>
+      <div class="fr-sentence-detail-heading"><strong>{{ active.text }}</strong><span>{{ partLabel(active) }}</span></div>
       <p class="fr-sentence-meaning">{{ active.meaning }}</p>
       <p class="fr-sentence-role"><span>{{ translateLegacy('句中作用') }}</span>{{ active.role }}</p>
       <details :key="selected" class="fr-sentence-reference">
@@ -31,11 +31,14 @@
 <script setup lang="ts">
 import {computed, nextTick, ref, watch} from 'vue';
 import {useUiI18n} from '@/src/ui/i18n';
-import {summarizeSentenceRole, type SentenceAnnotation} from '../sentenceAnalysis';
+import type {SentenceAnnotation} from '../sentenceAnalysis';
 const props = defineProps<{source: string; annotations: SentenceAnnotation[]}>();
 const {translateLegacy} = useUiI18n();
 const selected = ref(0);
 const detail = ref<HTMLElement>();
+function partLabel(annotation: SentenceAnnotation): string {
+  return translateLegacy(annotation.part.id === 'other' ? '其他' : annotation.part.label);
+}
 async function selectAnnotation(index: number): Promise<void> {
   selected.value = index;
   await nextTick();
@@ -67,7 +70,6 @@ watch(() => props.source, () => { selected.value = 0; });
 .fr-sentence-tokens button { --pos-color: #846242; font: inherit; display: inline-flex; flex-direction: column; align-items: flex-start; vertical-align: top; gap: 1px; max-width: 100%; margin: 3px 0; padding: 4px 6px; border: 0; border-bottom: 2px solid color-mix(in srgb,var(--pos-color) 45%,transparent); border-radius: 4px 4px 0 0; background: color-mix(in srgb,var(--pos-color) 5%,transparent); color: inherit; cursor: pointer; text-align: start; white-space: normal; overflow-wrap: anywhere; }
 .fr-sentence-token-text { max-width: 100%; line-height: 1.5; }
 .fr-sentence-token-meta { max-width: min(100%, 19em); font-size: 10px; line-height: 1.5; color: var(--fr-reading-muted, var(--el-text-color-secondary, #756a74)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none; }
-.fr-sentence-token-role { font-weight: 600; }
 .fr-dark-theme .fr-sentence-token-meta { color: #b6a9b5; }
 .fr-sentence-tokens button[data-pos=noun], .fr-sentence-tokens button[data-pos=pronoun] { --pos-color:#3c7fbb; }
 .fr-sentence-tokens button[data-pos=verb], .fr-sentence-tokens button[data-pos=auxiliary] { --pos-color:#bd5481; }
