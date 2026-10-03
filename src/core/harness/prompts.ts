@@ -1,7 +1,7 @@
 /**
  * @file src/core/harness/prompts.ts
  * 文件职责：定义划词翻译学习模式可编辑的模型输入模板、占位符目录和纯替换规则。
- * 主要内容：提供通用指令与四个学习动作的默认正文、长度上限，以及目标语言、学习程度和回答长度变量，给默认句法动作增加可对应原文的固定表格格式。
+ * 主要内容：提供通用指令与四个学习动作的默认正文、长度上限，以及目标语言、学习程度和回答长度变量，默认句法动作按有意义的短语分组并给出固定表格，识别旧内置格式而保留自定义正文。
  * 模块边界：内置模板按界面语言选择，自定义正文保持原样，模板不参与界面文案自动翻译；本模块不读写配置、不发起请求，也不接收网页正文。
  */
 import {normalizeUiLanguage, UI_LANGUAGE_OPTIONS} from '../i18n/language';
@@ -9,7 +9,9 @@ import {HARNESS_TRANSLATED_PROMPTS, type HarnessPromptKind} from './promptLocale
 export type {HarnessPromptKind} from './promptLocales';
 
 const LEGACY_CHINESE_GRAMMAR_PROMPT = '使用三个短标题“### 主干”“### 成分”“### 关键点”。主干先引用最简主谓结构并说清意思；成分用少量列表逐项对应原文片段与作用；关键点只解释一至两个最有帮助的语法关系，先说作用再给术语。若选中的是单词或短语，直接说明它的结构与词性，不虚构完整句子、主语或从句。';
-const GRAMMAR_CARD_FORMAT = '\n\nFor grammar analysis, after the backbone explanation include one compact Markdown table with exactly these four headers: Text | POS | Role | Meaning. Each Text cell must quote a contiguous fragment from the selection verbatim, in source order. Never add invented words or reuse overlapping fragments. Use common English POS codes (article, noun, verb, adjective, adverb, pronoun, preposition, conjunction, determiner, auxiliary, numeral, phrase); distinguish part of speech from syntactic role such as subject or object. Write Role and Meaning in the requested target language. Include articles and other function words for a short sentence; for long selections use at most 40 meaningful fragments. If uncertain, use unknown rather than inventing a classification. The four fixed headers are a rendering contract; all explanatory content follows the target language. This compact table is allowed even when large tables are discouraged.';
+const LEGACY_GRAMMAR_CARD_FORMAT = '\n\nFor grammar analysis, after the backbone explanation include one compact Markdown table with exactly these four headers: Text | POS | Role | Meaning. Each Text cell must quote a contiguous fragment from the selection verbatim, in source order. Never add invented words or reuse overlapping fragments. Use common English POS codes (article, noun, verb, adjective, adverb, pronoun, preposition, conjunction, determiner, auxiliary, numeral, phrase); distinguish part of speech from syntactic role such as subject or object. Write Role and Meaning in the requested target language. Include articles and other function words for a short sentence; for long selections use at most 40 meaningful fragments. If uncertain, use unknown rather than inventing a classification. The four fixed headers are a rendering contract; all explanatory content follows the target language. This compact table is allowed even when large tables are discouraged.';
+
+const GRAMMAR_CARD_FORMAT = '\n\nFor grammar analysis, after the backbone explanation include one compact Markdown table with exactly these four headers: Text | POS | Role | Meaning. Group the sentence into meaningful, contiguous syntactic units such as subject, predicate, object and modifiers instead of mechanically splitting every word. Each Text cell must quote a fragment from the selection verbatim, in source order. Never invent words or reuse overlapping fragments. Keep function words inside their phrases. Use common English POS codes (article, noun, verb, adjective, adverb, pronoun, preposition, conjunction, determiner, auxiliary, numeral) or precise phrase labels (noun phrase, verb phrase, adjective phrase, adverb phrase, prepositional phrase, infinitive phrase). Distinguish POS from syntactic Role; begin Role with one short, explicit role label such as subject, predicate, object or postmodifier, translated into the requested target language, followed by a comma and an optional explanation. For example, Every language offers a new way to see the world. can be grouped as Every language (noun phrase, subject), offers (verb, predicate), a new way (noun phrase, object), to see the world (infinitive phrase, postmodifier). This is only a format example, never content to reuse for another selection. Use at most 40 units; for a selected word or fragment analyze only what is present and never invent a full sentence or a subject. If uncertain, use unknown rather than guessing. Write Role and Meaning in the requested target language. The four fixed headers are a rendering contract; all explanatory content follows the target language. This compact table is allowed even when large tables are discouraged.';
 
 export const DEFAULT_HARNESS_ACTION_PROMPTS = {
     meaning: '使用两个短标题“### 大意”和“### 关键点”。大意用一句自然的话直接解释原文；关键点用一至三项说明真正影响理解的表达、语气或指代。只解释原文支持的含义，不机械逐词翻译。',
@@ -41,7 +43,8 @@ export function getDefaultHarnessPrompt(kind: HarnessPromptKind, language: unkno
 
 /** 识别旧配置和恢复默认写入的内置正文，不因切换语言改写用户自定义内容。 */
 export function resolveHarnessPrompt(value: string, kind: HarnessPromptKind, language: unknown): string {
-    if (!value.trim() || (kind === 'grammar' && (value === LEGACY_CHINESE_GRAMMAR_PROMPT || Object.values(HARNESS_TRANSLATED_PROMPTS).some(prompts => value === prompts.grammar))) || UI_LANGUAGE_OPTIONS.some(({value: locale}) => value === getDefaultHarnessPrompt(kind, locale))) {
+    const legacyBody = kind === 'grammar' && value.endsWith(LEGACY_GRAMMAR_CARD_FORMAT) ? value.slice(0, -LEGACY_GRAMMAR_CARD_FORMAT.length) : value;
+    if (!value.trim() || (kind === 'grammar' && (legacyBody === LEGACY_CHINESE_GRAMMAR_PROMPT || Object.values(HARNESS_TRANSLATED_PROMPTS).some(prompts => legacyBody === prompts.grammar))) || UI_LANGUAGE_OPTIONS.some(({value: locale}) => value === getDefaultHarnessPrompt(kind, locale))) {
         return getDefaultHarnessPrompt(kind, language);
     }
     return value;

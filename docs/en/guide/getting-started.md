@@ -1,59 +1,74 @@
 # Installation
 
-This guide covers installation, language settings, your first webpage translation, and restoring the original text.
+Install FluentRead and read your first bilingual paragraph. Free translation needs no API key.
+
+<GuideVisual kind="install" en />
 
 ## Install
 
-Choose your browser, add the extension from its store, and follow the browser’s prompts.
+Add FluentRead from your browser’s official store:
 
-| Browser | Install |
+| Browser | Official installation |
 | --- | --- |
 | Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/djnlaiohfaaifbibleebjggkghlmcpcj) |
 | Edge | [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/kakgmllfpjldjhcnkghpplmlbnmcoflp) |
 | Firefox | [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/) |
-| Thunderbird | [Build and install the email translation add-on](/en/guide/thunderbird) |
-| A browser with a script manager | [Userscript guide](/en/guide/userscript) |
 
-Pin FluentRead to your toolbar for easy access. Refresh pages that were already open before installation.
+Pin the icon to the toolbar. Refresh pages that were already open before installation.
 
-On **Edge for Android** versions that offer extensions, find FluentRead through the browser's extension menu and open it from the installed extensions list. Use **Translate page** in its menu. If you enable the on-page floating ball in settings, tapping it toggles page translation and exposes its touch controls by default; tap elsewhere on the page to collapse them. Keyboard shortcuts and right-click menus are desktop controls. Extension availability on Edge for iPhone/iPad needs separate confirmation.
+<details class="guide-details">
+<summary>Mobile, userscripts & Thunderbird</summary>
+
+On **Edge for Android** versions that offer extensions, find FluentRead through the extension menu, then open it from the extensions list and translate the page. Use the menu or an enabled floating ball; desktop shortcuts and context menus do not apply. Edge extension availability on iPhone/iPad needs separate confirmation.
+
+Other installation options: [Userscript](/en/guide/userscript) · [Thunderbird email translation](/en/guide/thunderbird).
+
+</details>
 
 ## Your first translation
 
 ### 1. Open an article
 
-A news story, blog, forum post, or online document is a good starting point. Browser settings and extension store pages do not allow page translation.
+Start with a normal news, blog, or forum webpage. Browser settings and extension stores do not allow extension translation.
 
 ### 2. Pick your language
 
-Open FluentRead from the toolbar. Leave the source language on automatic detection and choose your target language. The extension’s default target is Simplified Chinese; change it to the language you want to read.
+Open FluentRead from the toolbar. Keep the source on **Automatic detection** and choose your target language. The default is **Simplified Chinese**; change it to the language you want. Keep **Free translation service**.
 
-Simplified and Traditional Chinese are separate language options. Text clearly matching the target Chinese script is skipped; a few abbreviations such as AI, CoT, or OpenAI do not trigger translation of a Chinese paragraph. Mixed scripts, complete foreign-language passages, and uncertain script detection are still translated.
-
-Keep **Free translation service** to begin. It needs no API key. If the service is busy or unavailable on your network, retry later or [choose another service](/en/config/translation-engines).
-
-<figure class="doc-figure"><a href="/screenshots/ui/en-US/popup.webp" target="_blank" rel="noopener"><img class="doc-screenshot popup" src="/screenshots/ui/en-US/popup.webp" width="760" height="984" alt="FluentRead menu with source and target language, translation service, and page translation" /></a><figcaption>The everyday controls live in the extension menu. Open the image for full resolution.</figcaption></figure>
+<figure class="doc-figure">
+<a href="/screenshots/ui/en-US/popup.webp" target="_blank" rel="noopener"><img class="doc-screenshot popup" src="/screenshots/ui/en-US/popup.webp" width="760" height="984" alt="Actual FluentRead menu: choose a target language and free translation before translating the page" loading="lazy" /></a>
+<figcaption>The actual extension menu. Open the image for full resolution.</figcaption>
+</figure>
 
 ### 3. Translate the page
 
-Choose the page translation button. Translations appear beside the original paragraphs. By default, FluentRead translates as you move through the page instead of making you wait for the entire article.
+Choose **Translate this page**. Translations appear below the original. Scroll down to continue reading.
+
+<BrandReader en />
 
 ### 4. Go back to the original
 
-Choose **Restore original** in the menu. To try a different language or service, restore the page and translate again.
+Choose **Restore this page**. Restore before translating again with another language or provider.
+
+<details class="guide-details">
+<summary>Chinese scripts and text that stays unchanged</summary>
+
+Simplified and Traditional Chinese are separate targets. Content already matching the chosen Chinese script stays unchanged. A few abbreviations such as AI, CoT, or OpenAI, and file names such as PDF, ePub, DOCX, and Markdown, do not cause a Chinese paragraph to be translated again. Script conversion, mixed scripts, complete foreign-language passages, and uncertain detection still attempt translation.
+
+</details>
 
 ## Just one sentence?
 
-Enable bilingual selection translation in the menu first. Select a sentence and click the nearby FluentRead icon. You can also hover over a paragraph and press the default **Control** key to translate that paragraph.
+Enable **Selection translation**. Select a sentence and click the nearby FluentRead icon. Switch to [card mode](/en/guide/deepseek-harness) for dictionary lookup or sentence explanations.
 
-For sentence breakdowns and explanations, set up the [reading card](/en/guide/deepseek-harness). It has its own AI service settings.
+For one paragraph, hover over it and press **Control**: [Hover translation](/en/guide/hover-translation).
 
 ## Nothing happened?
 
-Check that the extension is on, refresh the page, and retry. Then follow [Troubleshooting](/en/guide/faq).
+Make sure the extension is on, refresh a normal webpage, and retry. If the free service is busy, retry later or [switch providers](/en/config/translation-engines). Then follow [Troubleshooting](/en/guide/faq).
 
 ## Next steps
 
-- [Explore the guides](/en/docs/)
-- [Adjust appearance and triggers](/en/config/)
-- [Connect your own provider](/en/config/translation-engines)
+- [Choose your next task](/en/docs/)
+- [Adjust translation appearance](/en/config/appearance)
+- [Connect your own AI provider](/en/config/translation-engines)

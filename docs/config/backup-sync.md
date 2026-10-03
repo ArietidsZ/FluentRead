@@ -2,6 +2,8 @@
 
 换浏览器、换设备或卸载之前，先保存需要的配置和学习数据。完整备份、设置历史和云端配置同步各自有不同用途。
 
+<GuideVisual kind="backup" />
+
 ## 选择合适的方式
 
 | 你想做什么 | 使用什么 |
@@ -18,6 +20,9 @@
 
 学习中心还可以单独[导出到 Anki](/guide/vocabulary-book#数据与迁移)。
 
+<details class="guide-details">
+<summary>最近修改与自动设置快照</summary>
+
 ## 最近修改与自动设置快照
 
 **设置历史** 的 **最近修改** 展示设置名称、修改前后的值和时间。点击记录，默认查看相对于上一次保存的本次修改；切换到 **与当前比较**，确认恢复会影响哪些当前设置。最早的记录没有前一份快照，只能与当前比较。
@@ -25,6 +30,11 @@
 **自动设置快照** 每 6 小时保留一份设置，列表说明与当前设置有多少项不同。两类记录各保留最多 10 份。
 
 设置历史不包含词书、模型用量或 API 凭据。恢复前会再次确认。
+
+</details>
+
+<details class="guide-details">
+<summary>Google Drive 配置同步</summary>
 
 ## Google Drive 配置同步
 
@@ -41,6 +51,11 @@
 
 取消预览结束本次操作。撤销授权或卸载扩展不会自动删除云端备份。
 
+</details>
+
+<details class="guide-details">
+<summary>WebDAV 配置云备份</summary>
+
 ## WebDAV 配置云备份
 
 希望把配置保存在自己的网盘、NAS 或服务器中，可以在 **配置云备份** 中选择 **WebDAV**。填写目录地址和应用密码，测试并保存连接，再查看预览、确认备份操作。
@@ -49,13 +64,19 @@
 
 连接要求、保存与恢复步骤、文件保护及删除方法见[WebDAV 云备份指南](/guide/webdav)。
 
+</details>
+
+<details class="guide-details">
+<summary>缓存和备份有什么不同</summary>
+
 ## 缓存和备份有什么不同
 
 翻译缓存用于复用已经完成的译文。清理缓存不会删除学习收藏，也不能替代完整备份。
+
+</details>
 
 ## 接下来
 
 - [收藏与学习数据](/guide/vocabulary-book)
 - [查看翻译统计](/guide/translation-stats)
 - [数据与隐私](/guide/privacy)
-

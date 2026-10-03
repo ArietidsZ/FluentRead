@@ -7,6 +7,7 @@
 export * from '@/src/features/document-translation/public';
 export {buildGlossaryRevision} from '@/src/core/glossary';
 export {Config} from '@/src/core/config/model';
+export {TranslationRequestError} from '@/src/services/translation/errors';
 export {getMissingCredentialMessage} from '@/src/core/config/validation';
 export {
     customModelString,

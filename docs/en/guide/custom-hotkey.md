@@ -11,6 +11,8 @@ Keyboard shortcuts and mouse actions can trigger webpage, selection, and hover t
 | Translate one section of a page | Click **Section** in the extension menu, or turn on the **Alt+R** shortcut (Option+R on a Mac) |
 | Translate a selection | Enable selection translation, select text, and click the nearby icon |
 
+<GuideVisual kind="shortcuts" en />
+
 ## Change a trigger
 
 Open hover, selection, or the relevant feature settings in FluentRead. Choose a trigger or use its custom-shortcut field.
@@ -32,6 +34,9 @@ Selection translation can show an icon or a small dot, open directly, wait for a
 
 The browser’s extension shortcut page controls the extension commands listed by the browser. Paragraph and selection triggers are configured inside FluentRead.
 
+<details class="guide-details">
+<summary>A shortcut does nothing</summary>
+
 ## A shortcut does nothing
 
 Check that translation works through the menu first. Avoid keys already used by the browser, input method, or website. Some shortcuts intentionally do not run in input fields.
@@ -39,6 +44,8 @@ Check that translation works through the menu first. Avoid keys already used by 
 Custom combinations match the character your keyboard layout produced when you recorded them, including Dvorak or AZERTY layouts. When Option on a Mac turns a key into a special symbol, the physical key is matched instead.
 
 Try a regular webpage; browser internal pages and extension stores generally cannot be translated.
+
+</details>
 
 ## Next steps
 
