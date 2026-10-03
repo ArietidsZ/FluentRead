@@ -25,8 +25,8 @@
 
 比例在改写输入为空且未聚焦、正文完成时测量；展开改写输入或显示异常提示时，正文会分配部分空间给这些操作。
 
-浏览器 `launchMode=macos-background-cdp`、`focusPolicy=launchservices-no-foreground`、`windowPlacement.mode=background-visible-no-focus`、`browserFrontmost=false`。窗口完整位于第二屏，前台保持用户的 Google Chrome；仅关闭测试创建的实例和临时 profile。
+浏览器 `launchMode=macos-background-cdp`、`focusPolicy=launchservices-no-foreground`、`windowPlacement.mode=background-visible-no-focus`、`browserFrontmost=false`。窗口完整位于第二屏，测试前后前台应用保持不变；仅关闭测试创建的实例和临时 profile。
 
 浏览器证据来自 GitHub/Gmail DOM 夹具与 loopback 模拟流式模型，不代表真实登录账号、真实服务质量、Firefox 运行期或商店版本验证。未发送真实邮件或评论。
 
-证据目录：`/Users/thinkstu/Desktop/copy/writing-ui-review-20261003/`，详细记录见 `report.json`。
+本地证据目录为 `writing-ui-review-20261003/`，详细记录见 `report.json`；截图与报告中的环境信息未加入版本控制。
