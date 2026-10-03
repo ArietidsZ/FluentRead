@@ -567,6 +567,6 @@
   line-height: 1.4;
 }
 
-.image-settings-details { margin: 0 0 16px; padding: 16px 20px; border: 1px solid var(--el-border-color-light); border-radius: 12px; background: var(--el-fill-color-blank); }
+.image-settings-details { margin: 0; }
 .image-settings-details > summary, .area-translation-details > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--el-text-color-primary); }
 .image-settings-details[open] > summary { margin-bottom: 14px; }

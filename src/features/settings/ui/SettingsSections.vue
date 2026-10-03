@@ -246,7 +246,7 @@
       </SettingsPanel>
     </section>
     <section v-if="hasVisitedSection('settings-image-translation')" v-show="props.activeSection === 'settings-image-translation'" id="settings-image-translation" class="settings-section image-translation-settings">
-      <MangaSettings v-if="props.activeSection === 'settings-image-translation'" :settings="config" :available="browserCapabilities.imageTranslation" :service-options="availableServiceOptions" />
+      <MangaSettings v-if="props.activeSection === 'settings-image-translation'" :settings="config" :available="browserCapabilities.imageTranslation" :service-options="availableServiceOptions">
       <SettingsGroup>
         <FeatureEnableCard v-model="imageTranslationEnabled" title="网页图片翻译" :description="t('featureEnable.imageDescription')" :disabled="!browserCapabilities.imageTranslation" />
       </SettingsGroup>
@@ -264,10 +264,11 @@
         <div id="settings-area-translation">
           <AreaTranslationSettings :config="config" :service-options="availableServiceOptions" :enabled="selectionAreaTranslationEnabled" :active="props.activeSection === 'settings-image-translation'" :show-ocr="false" compact @update:enabled="selectionAreaTranslationEnabled = $event" />
         </div>
-      <details class="image-settings-details image-ocr-details" @toggle="imageOcrExpanded = ($event.target as HTMLDetailsElement).open">
+      <template #resources><details class="image-settings-details image-ocr-details" @toggle="imageOcrExpanded = ($event.target as HTMLDetailsElement).open">
         <summary>{{ translateLegacy('普通图片识别资源') }}</summary>
         <ImageOcrSettings v-if="props.activeSection === 'settings-image-translation' && imageOcrExpanded" v-model:source-language="config.from" />
-      </details>
+      </details></template>
+      </MangaSettings>
     </section>
     <section v-if="hasVisitedSection('settings-video')" v-show="props.activeSection === 'settings-video'" id="settings-video" class="settings-section">
       <SettingsPanel name="general" :active="props.activePanel">

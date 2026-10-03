@@ -85,7 +85,8 @@ async function clickEntry(selector) {const point = await entry(`const b=this.que
         await patch({from: 'auto'});await page.waitForTimeout(300);assert.equal(await entry('return !!this.querySelector(".fr-manga-entry")'), false);report.cases.push(report.currentCase);
         report.currentCase = 'settings restore prompt through the actual switch';
         await popup.goto(`chrome-extension://${id}/options.html#settings-image-translation`);
-        const switchPrompt=popup.getByRole('switch',{name:'进入漫画网站时提示',exact:true});await switchPrompt.waitFor();
+        const switchPrompt=popup.getByRole('switch',{name:'进入漫画网站时提示',exact:true});await switchPrompt.waitFor({state:'attached'});
+        await popup.locator('.el-switch').filter({has:switchPrompt}).waitFor();
         assert.equal(await switchPrompt.getAttribute('aria-checked'),'false');
         await popup.locator('.el-switch').filter({has:switchPrompt}).click();
         await wait(async () => await entry('return !!this.querySelector(".fr-manga-entry")'));report.cases.push(report.currentCase);
