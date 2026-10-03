@@ -15,4 +15,4 @@ FluentRead is an open-source project whose continued development is made possibl
 
 To contribute to development, visit [GitHub](https://github.com/FluentRead/FluentRead). For help with the extension, [report an issue](https://github.com/FluentRead/FluentRead/issues).
 
-In the extension settings, “About FluentRead” shows a short introduction, version, and “Official website” link at the top. Click the link to visit the [FluentRead website](https://read.thinkstu.com) in a new tab. Below it, “Learn more” provides documentation, source code, and feedback links; “Support FluentRead” offers a compact WeChat support code and a Ko-fi link. Click the code to view the original image. The brand icon and name in the upper-left corner also open the website.
+In the extension settings, “About FluentRead” uses one card for the introduction, version, website, documentation, source code, feedback, and support links. Click “Official website” or the brand icon or name in the upper-left corner to open the [FluentRead website](https://read.thinkstu.com) in a new tab. Click the WeChat support code to view the original image.
