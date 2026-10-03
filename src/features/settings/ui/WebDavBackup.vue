@@ -1,17 +1,24 @@
 <!--
 @file src/features/settings/ui/WebDavBackup.vue
-文件职责：以简洁的连接摘要和独立设置弹窗接入 WebDAV 配置云备份。
+文件职责：在同步操作右侧统一显示账号、服务器、同步时间和修改连接入口，接入 WebDAV 配置云备份。
 主要内容：应用密码输入、只读测试、测试后保存、清除本机连接与多语言错误；保存密码后不回显。
 模块边界：只向可信后台发送连接参数，不直接请求 WebDAV；共用 RemoteConfigSync 的预览和确认流程。
 -->
 <template>
   <RemoteConfigSync ref="syncUi" :client="client" provider="WebDAV" kind="webdav" @busy="setSyncBusy">
     <template #connection>
-      <div class="webdav-connection">
-        <div><strong>{{ connection ? connection.username : t('settings.webdav.notConfigured') }}</strong><p>{{ connection?.url ?? t('settings.webdav.connectionHint') }}</p></div>
-        <el-button :disabled="busy" data-testid="webdav-setup" @click="openSettings">{{ t(connection ? 'settings.webdav.editConnection' : 'settings.webdav.setup') }}</el-button>
+      <div v-if="!connection" class="webdav-connection">
+        <div><strong>{{ t('settings.webdav.notConfigured') }}</strong><p>{{ t('settings.webdav.connectionHint') }}</p></div>
+        <el-button :disabled="busy" data-testid="webdav-setup" @click="openSettings">{{ t('settings.webdav.setup') }}</el-button>
       </div>
       <el-alert v-if="error && !settingsVisible" :title="error" type="error" :closable="false" show-icon />
+    </template>
+    <template #record="{status, statusText}">
+      <div v-if="connection" class="webdav-record" role="status">
+        <div class="webdav-record-heading"><p data-testid="webdav-account">{{ t('settings.cloud.currentAccount', {email: connection.username}) }}</p><el-button link :disabled="busy" data-testid="webdav-setup" @click="openSettings">{{ t('settings.webdav.editConnection') }}</el-button></div>
+        <p class="webdav-record-secondary" data-testid="webdav-server">{{ connection.url }}</p>
+        <p v-if="status?.account?.id === `webdav:${connection.revision}` && status.lastSyncedAt" class="webdav-record-secondary">{{ statusText }}</p>
+      </div>
     </template>
   </RemoteConfigSync>
   <el-dialog v-model="settingsVisible" :title="t('settings.webdav.connectionTitle')" class="webdav-settings-dialog fluentread-webdav-connection-dialog" width="min(540px, calc(100vw - 24px))" :close-on-click-modal="!settingsBusy" :close-on-press-escape="!settingsBusy" :show-close="!settingsBusy" destroy-on-close @closed="draft.password = ''">
@@ -91,6 +98,11 @@ onMounted(() => {void perform('load', async () => {connection.value = await clie
 .webdav-connection strong {font-size:14px; font-weight:500; overflow-wrap:anywhere;}
 .webdav-connection p {color:var(--el-text-color-secondary); font-size:12px; line-height:1.6; margin:5px 0 0; overflow-wrap:anywhere;}
 .webdav-connection>.el-button {flex-shrink:0;}
+.webdav-record {flex:1 1 280px; min-width:0; margin-inline-start:auto; text-align:right;}
+.webdav-record p {margin:0; font-size:13px; line-height:1.6; overflow-wrap:anywhere;}
+.webdav-record-heading {display:flex; justify-content:flex-end; align-items:center; gap:12px;}
+.webdav-record-heading>.el-button {flex-shrink:0; margin:0; font-size:12px; color:var(--el-text-color-secondary);}
+.webdav-record-secondary {color:var(--el-text-color-secondary);}
 .webdav-form {display:grid; gap:10px;}
 .webdav-form>label {font-size:13px; margin-top:8px; color:var(--el-text-color-primary);}
 .webdav-hint {font-size:12px; line-height:1.6; color:var(--el-text-color-secondary); margin:2px 0 8px;}
@@ -103,5 +115,5 @@ onMounted(() => {void perform('load', async () => {connection.value = await clie
 :global(.fluentread-webdav-connection-dialog) {display:flex; flex-direction:column; max-height:calc(100dvh - 32px); margin:16px auto;}
 :global(.fluentread-webdav-connection-dialog .el-dialog__body) {min-height:0; overflow-y:auto;}
 :global(.fluentread-webdav-connection-dialog .el-dialog__footer) {border-top:1px solid var(--el-border-color-lighter);}
-@media(max-width:600px) {.webdav-connection {align-items:flex-start; flex-direction:column;}.webdav-footer {display:grid; grid-template-columns:1fr 1fr;}.webdav-footer>.el-button:last-child {grid-column:1 / -1;}.webdav-footer .el-button {height:auto; min-height:34px; white-space:normal; line-height:1.5;}}
+@media(max-width:600px) {.webdav-record {flex:none; width:100%; margin-inline-start:0; text-align:left;}.webdav-record-heading {justify-content:space-between; align-items:flex-start;}.webdav-connection {align-items:flex-start; flex-direction:column;}.webdav-footer {display:grid; grid-template-columns:1fr 1fr;}.webdav-footer>.el-button:last-child {grid-column:1 / -1;}.webdav-footer .el-button {height:auto; min-height:34px; white-space:normal; line-height:1.5;}}
 </style>

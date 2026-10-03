@@ -56,6 +56,19 @@
     "settings.webdav.error.failure": "操作未完成，请检查网络和本机存储后重试。",
     "settings.cloud.privacyEncryption": "配置在本机加密后上传。应用口令公开，文件保护主要依赖账号、目录权限和设备安全。",
     "settings.cloud.privacyWebDavStorage": "仅访问你指定服务器下的 FluentRead 备份文件。",
-    "settings.cloud.privacyWebDavConnection": "连接密码只保存在本机；只有主动操作时才访问服务器。"
+    "settings.cloud.privacyWebDavConnection": "连接密码只保存在本机；只有主动操作时才访问服务器。",
+    "settings.cloud.currentAccount": "同步账号：{email}",
+    "settings.cloud.changed.credentials": "API Key、OAuth Token 与鉴权信息",
+    "settings.cloud.changed.requests": "服务地址与请求参数",
+    "settings.cloud.changed.models": "翻译模型",
+    "settings.cloud.changed.services": "各功能翻译服务",
+    "settings.cloud.changed.customServices": "自定义翻译服务",
+    "settings.cloud.changed.assistants": "写作与阅读助手",
+    "settings.cloud.changed.options": "翻译连接选项",
+    "settings.cloud.fieldLabel.0": "右键菜单显示目标语言",
+    "settings.cloud.fieldLabel.1": "右键菜单显示快捷键",
+    "settings.cloud.fieldLabel.2": "已保存的悬浮快捷键",
+    "settings.cloud.fieldLabel.3": "已保存的划词模式",
+    "settings.cloud.fieldLabel.4": "本地语音识别模型"
   }
 }
