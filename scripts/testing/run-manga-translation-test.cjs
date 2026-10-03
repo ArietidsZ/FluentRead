@@ -109,7 +109,7 @@ async function wait(test, timeout=180000, allowFailure=false) {
         const failure=await imageUi(`const e=this.querySelector('.fr-image-feedback[data-phase="error"] .fr-image-status');return e?.textContent`);
         if(failure&&!allowFailure)throw new Error(`Image pipeline failed: ${failure}`);
         await page.waitForTimeout(200);}
-    throw new Error(`Timed out: ${report.currentCase}; image controls: ${await imageUi('return this.textContent')}`);
+    throw new Error(`Timed out: ${report.currentCase}; image controls: ${await imageUi('return Array.from(this.querySelectorAll(".fr-image-status")).map(e=>e.textContent).join(" | ")')}`);
 }
 async function toggle() {
     const point=await ball(`const b=this.querySelector('.floating-ball-manga');if(!b)return null;const r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}`);
@@ -286,12 +286,19 @@ async function patch(config) {
         await wait(async()=>!!await ball(`return this.querySelector('.manga-error')`),60000,true);
         assert.notEqual(await page.locator('#blank-page').evaluate(i=>i.style.opacity),'0');
         await toolScreenshot('partial-error');report.cases.push(report.currentCase);
+        if(!baseline){
+            await page.mouse.move(30,30);await page.waitForTimeout(1200);
+            assert.equal(await mangaEntry('return !!this.querySelector(".compact")'),false);
+            assert.equal(await mangaEntry('return !!this.querySelector("header")'),true);
+            report.cases.push('failed page keeps reading status expanded');
+        }
         report.currentCase='chapter change resets continuous mode and restores originals';
         await page.evaluate(()=>history.pushState({},'', '/viewer/555'));
         await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-pressed')`))==='false');
         assert.equal(await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`),0);report.cases.push(report.currentCase);
     }
     if(!baseline){
+        if(liveSite){
         report.currentCase='reading status collapses, expands and stays open while adjusting options';
         await page.mouse.move(30,30);await wait(async()=>await mangaEntry('return !!this.querySelector(".compact")'),5000);
         const point=await mangaEntry('const r=this.querySelector(".fr-manga-entry").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}');
@@ -299,6 +306,7 @@ async function patch(config) {
         const summary=await mangaEntry('const r=this.querySelector("summary").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}');
         await page.mouse.click(summary.x,summary.y);await page.mouse.move(30,30);await page.waitForTimeout(1200);
         assert.equal(await mangaEntry('return !!this.querySelector(".compact")'),false);report.cases.push(report.currentCase);
+        }
         report.currentCase='manga button matches brand button size and progress ring stays inside';
         const metrics=await ball(`const a=this.querySelector('.floating-ball-manga').getBoundingClientRect(),b=this.querySelector('.floating-ball-main').getBoundingClientRect();return {manga:a.width,brand:b.width}`);
         assert.equal(metrics.manga,metrics.brand);assert.equal(metrics.manga,40);report.buttonSize=metrics;report.cases.push(report.currentCase);
