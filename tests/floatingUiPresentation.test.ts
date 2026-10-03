@@ -63,8 +63,8 @@ describe('低干扰悬浮 UI', () => {
     expect(rightFallback).toBeGreaterThanOrEqual(0.4);
     expect(rightFallback).toBeLessThanOrEqual(0.6);
     expect(variableFallback(leftCollapsed, 'opacity', '--fr-ball-collapsed-opacity')).toBe(rightFallback);
-    expect(rightCollapsed).toContain('transform: translateX(0)');
-    expect(leftCollapsed).toContain('transform: translateX(0)');
+    expect(rightCollapsed).toContain('transform: translateX(calc(50% + var(--fr-ball-edge-gap)))');
+    expect(leftCollapsed).toContain('transform: translateX(calc(-50% - var(--fr-ball-edge-gap)))');
     expect(numericDeclaration(expanded, 'opacity')).toBe(1);
     expect(numericDeclaration(cssRule(floatingBall, '.dragging .floating-ball-main'), 'opacity')).toBe(1);
     expect(cssRule(
