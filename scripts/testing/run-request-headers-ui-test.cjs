@@ -76,6 +76,13 @@ async function main() {
     assert.equal(report.requests.length, before + 1);
     return report.requests.at(-1);
   }
+  async function setHeader(row, name, enabled) {
+    const checkbox = row.getByRole('checkbox', {name});
+    if (await checkbox.isChecked() !== enabled) {
+      await row.locator('label.el-checkbox').filter({hasText: name}).click();
+    }
+    assert.equal(await checkbox.isChecked(), enabled);
+  }
   await open();
   await add('Issue 763 A');
   const input = await select('Issue 763 A');
@@ -108,7 +115,7 @@ async function main() {
   const rule = page.locator('[data-header-rule-domain="127.0.0.1"]');
   await page.getByTestId('request-header-rules').scrollIntoViewIfNeeded();
   await page.screenshot({path: path.join(artifactsDir, 'before-referer-check.png')});
-  await rule.getByRole('checkbox', {name: '移除 Referer'}).check();
+  await setHeader(rule, '移除 Referer', true);
   await check();
   const installed = await worker.evaluate(() => chrome.declarativeNetRequest.getDynamicRules());
   const networkRule = installed.find(item => item.id >= 2763000 && item.id < 2763100);
@@ -120,9 +127,9 @@ async function main() {
     id: 2763200, priority: 1, action: {type: 'modifyHeaders', requestHeaders: [{header: 'Referer', operation: 'set', value: 'https://fixture.example/'}]},
     condition: {regexFilter: '^http://127\\.0\\.0\\.1:', initiatorDomains: [new URL(location.href).hostname], resourceTypes: ['xmlhttprequest']},
   }]}));
-  await rule.getByRole('checkbox', {name: '移除 Referer'}).uncheck();
+  await setHeader(rule, '移除 Referer', false);
   assert.equal((await check()).headers.referer, 'https://fixture.example/');
-  await rule.getByRole('checkbox', {name: '移除 Referer'}).check();
+  await setHeader(rule, '移除 Referer', true);
   assert.equal((await check()).headers.referer, undefined);
   await worker.evaluate(() => chrome.declarativeNetRequest.updateSessionRules({removeRuleIds: [2763200]}));
   report.cases.push('referer-removed-at-network-layer-when-present');
@@ -170,9 +177,9 @@ async function main() {
   const persisted = page.locator('[data-header-rule-domain="127.0.0.1"]');
   await persisted.scrollIntoViewIfNeeded();
   await page.screenshot({path: path.join(artifactsDir, 'request-header-rules.png')});
-  await persisted.getByRole('checkbox', {name: '移除 Origin'}).uncheck();
+  await setHeader(persisted, '移除 Origin', false);
   assert.equal((await check()).headers.origin, originalOrigin);
-  await persisted.getByRole('checkbox', {name: '移除 Origin'}).check();
+  await setHeader(persisted, '移除 Origin', true);
   assert.equal((await check()).headers.origin, undefined);
   await persisted.getByRole('button').click();
   assert.equal((await check()).headers.origin, originalOrigin);
