@@ -17,7 +17,7 @@ const parts = [
   },
   {
     text: 'offers',
-    role: ['谓语', 'Verb'],
+    role: ['谓语', 'Predicate'],
     type: ['动词', 'Verb'],
     meaning: ['提供、带来', 'Provides, gives'],
     detail: [
@@ -89,7 +89,7 @@ function next(event: KeyboardEvent, index: number) {
         )
       }}
     </p>
-    <div class="fr-grammar-detail" :key="active">
+    <div class="fr-grammar-detail" :key="active" aria-live="polite">
       <strong
         >{{ parts[active].text }} <span>{{ parts[active].meaning[en ? 1 : 0] }}</span></strong
       >

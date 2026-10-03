@@ -34,6 +34,9 @@ const resolveFile = (url) => {
 }
 const report = {
   ok: false,
+  launchMode: 'chromium-headless',
+  focusPolicy: 'isolated-contexts-no-foreground',
+  windowPlacement: 'headless-no-visible-window',
   pages: 0,
   links: 0,
   assets: 0,

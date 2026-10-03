@@ -1,4 +1,5 @@
 import DefaultTheme from 'vitepress/theme'
+import type { Theme } from 'vitepress'
 import ProductHome from './ProductHome.vue'
 import ProductHomeEn from './ProductHomeEn.vue'
 import DocsHome from './DocsHome.vue'
@@ -15,4 +16,4 @@ export default {
     app.component('TranslationDemo', TranslationDemo)
     app.component('GrammarDemo', GrammarDemo)
   },
-}
+} satisfies Theme
