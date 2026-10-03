@@ -140,12 +140,12 @@
     "screenIndex": 1,
     "browserFrontmost": false,
     "frontmostBefore": {
-      "pid": 76304,
-      "name": "微信"
+      "pid": 4664,
+      "name": "GoLand"
     },
     "frontmostAfter": {
-      "pid": 76304,
-      "name": "微信"
+      "pid": 44386,
+      "name": "Google Chrome"
     }
   },
   "payloads": [
