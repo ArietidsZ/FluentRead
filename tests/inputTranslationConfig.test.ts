@@ -16,12 +16,22 @@ import {
     INPUT_BOX_TRANSLATION_INTERVAL_MIN,
     normalizeInputBoxTranslationInterval,
     normalizeInputBoxTranslationModel,
+    normalizeInputBoxTranslationOutputMode,
     normalizeInputBoxTranslationPrompt,
     normalizeInputBoxTranslationService,
     supportsInputBoxTranslationPrompt,
 } from '@/src/core/config/inputTranslation';
 
 describe('输入框翻译配置', () => {
+    it('双语追加显式保存，旧配置和非法值继续替换原文', () => {
+        expect(normalizeConfig({inputBoxTranslationOutputMode: 'prepend'}).inputBoxTranslationOutputMode).toBe('prepend');
+        expect(new Config().inputBoxTranslationOutputMode).toBe('replace');
+        expect(normalizeConfig({}).inputBoxTranslationOutputMode).toBe('replace');
+        expect(normalizeConfig({inputBoxTranslationOutputMode: 'append'}).inputBoxTranslationOutputMode).toBe('append');
+        for (const value of [undefined, null, true, 'unknown', 'replace']) {
+            expect(normalizeInputBoxTranslationOutputMode(value)).toBe('replace');
+        }
+    });
     it('保留默认服务、空模型与独立默认提示词，并规范化 interval', () => {
         const config = normalizeConfig({});
         expect(config.inputBoxTranslationInterval).toBe(DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL);

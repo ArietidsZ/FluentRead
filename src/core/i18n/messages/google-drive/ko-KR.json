@@ -1,5 +1,7 @@
 {
   "messages": {
+    "settings.drive.privacyBadge": "개인정보 보호",
+    "settings.drive.description": "전체 설정을 암호화하여 내 Google 드라이브에 저장하고 다른 기기에서 복원할 수 있습니다. API 키, OAuth 토큰, 인증 헤더, 사용자 지정 요청 본문 및 URL의 인증 매개변수가 포함되며, 단어장, 채팅 기록 및 사용량 통계는 포함되지 않습니다.",
     "settings.drive.account": "이번 동기화 계정: {email}",
     "settings.drive.differences": "차이 {count}개. 비공개 및 사용자 지정 내용은 숨겨집니다.",
     "settings.drive.local": "기기: {value}",

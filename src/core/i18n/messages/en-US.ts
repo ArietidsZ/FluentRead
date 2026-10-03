@@ -18,6 +18,10 @@ import {translationStatsEnglishMessages} from './translationStats';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
+    "settings.backup.localTitle": "Local backup",
+    "settings.backup.fileTitle": "Backup file",
+    "settings.backup.fileDescription": "Backup files include API keys and other private information and are not encrypted. Keep them safe and do not share them publicly.",
+    "settings.backup.restoreHint": "Choose a FluentRead backup file. Older JSON files can also be restored.",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['en-US'],
     "popup.translationCount": "{count} translations",
@@ -350,6 +354,13 @@ export const enUSMessages = {
 
     "inputTranslation.title": "Text field translation",
     "inputTranslation.description": "Set the trigger, target language, and translation service for ordinary text fields.",
+    "inputTranslation.outputMode": "Output",
+    "inputTranslation.outputReplace": "Replace original",
+    "inputTranslation.outputAppend": "Original first, translation second",
+    "inputTranslation.outputPrepend": "Translation first, original second",
+    "inputTranslation.appendHelp": "Keep your original text and show the original and translation on separate lines. Requires a multiline text field.",
+    "inputTranslation.workflowPrepend": "Type your text, then use {trigger} to insert a {language} translation before the original, separated by a new line.",
+    "inputTranslation.workflowAppend": "Type your text, then use {trigger} to keep the original and append a {language} translation on a new line.",
     "inputTranslation.workflowEnabled": "Type your text, then use {trigger} to replace it with a {language} translation.",
     "inputTranslation.workflowDisabled": "Choose a shortcut to start translating in text fields.",
     "inputTranslation.profile": "Translation settings",
@@ -1525,6 +1536,11 @@ export const enUSMessages = {
     "document.layoutPreview": "{format} reading layout preview",
     "document.segmentTranslation": "Translation for segment {number}",
     "reading.priorTurns": "Earlier conversation ({count} rounds)",
+    "reading.turnNumber": "Round {number}",
+    "reading.currentTurn": "Current conversation",
+    "reading.answerLabel": "Answer",
+    "reading.questionLabel": "Question",
+    "reading.emptyAnswer": "No answer was saved for this question.",
     "reading.viewSource": "View original",
     "reading.historyTurns": "{count} conversations",
     "reading.generatingAction": "{action}…",

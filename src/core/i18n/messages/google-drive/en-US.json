@@ -1,5 +1,7 @@
 {
   "messages": {
+    "settings.drive.privacyBadge": "Privacy protection",
+    "settings.drive.description": "Save your complete configuration to your own Google Drive in encrypted form and restore it on other devices; includes API keys, OAuth tokens, authentication headers, custom request bodies, and authentication parameters in URLs, but excludes your wordbook, chat history, and usage statistics.",
     "settings.drive.account": "Account for this sync: {email}",
     "settings.drive.differences": "{count} differences. Private and custom content is hidden.",
     "settings.drive.local": "Device: {value}",

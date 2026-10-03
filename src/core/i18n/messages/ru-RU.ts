@@ -17,6 +17,10 @@ import {translationStatsRussianMessages} from './translationStats';
 import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
+    "settings.backup.localTitle": "Локальная резервная копия",
+    "settings.backup.fileTitle": "Файл резервной копии",
+    "settings.backup.fileDescription": "Файлы резервных копий содержат ключи API и другие личные данные и не зашифрованы. Храните их в безопасном месте и не публикуйте.",
+    "settings.backup.restoreHint": "Выберите файл резервной копии FluentRead. Старые файлы JSON также можно восстановить.",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['ru-RU'],
     "popup.translationCount": "Переводов: {count}",
@@ -349,6 +353,13 @@ export const ruRUMessages = {
 
     "inputTranslation.title": "Перевод полей ввода",
     "inputTranslation.description": "Настройте запуск, язык и сервис перевода для текстовых полей.",
+    "inputTranslation.outputMode": "Способ вывода",
+    "inputTranslation.outputReplace": "Заменить оригинал",
+    "inputTranslation.outputAppend": "Сначала оригинал, затем перевод",
+    "inputTranslation.outputPrepend": "Сначала перевод, затем оригинал",
+    "inputTranslation.appendHelp": "Оригинал сохраняется, оба текста выводятся на отдельных строках. Требуется многострочное поле.",
+    "inputTranslation.workflowPrepend": "Введите текст и используйте {trigger}, чтобы вставить перевод ({language}) перед оригиналом, разделив их новой строкой.",
+    "inputTranslation.workflowAppend": "Введите текст и используйте {trigger}, чтобы сохранить оригинал и добавить перевод ({language}) с новой строки.",
     "inputTranslation.workflowEnabled": "Введите текст и используйте {trigger}, чтобы заменить его переводом на выбранный язык ({language}).",
     "inputTranslation.workflowDisabled": "Выберите сочетание клавиш, чтобы переводить текст в полях ввода.",
     "inputTranslation.profile": "Настройки перевода",
@@ -1520,6 +1531,11 @@ export const ruRUMessages = {
     "document.layoutPreview": "Предпросмотр чтения {format}",
     "document.segmentTranslation": "Перевод фрагмента {number}",
     "reading.priorTurns": "Предыдущий диалог ({count} обменов)",
+    "reading.turnNumber": "Обмен {number}",
+    "reading.currentTurn": "Текущий диалог",
+    "reading.answerLabel": "Ответ",
+    "reading.questionLabel": "Вопрос",
+    "reading.emptyAnswer": "Ответ на этот вопрос не сохранён.",
     "reading.viewSource": "Показать оригинал",
     "reading.historyTurns": "Диалогов: {count}",
     "reading.generatingAction": "{action}…",

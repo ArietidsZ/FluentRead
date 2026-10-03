@@ -17,6 +17,10 @@ import {translationStatsJapaneseMessages} from './translationStats';
 import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
+    "settings.backup.localTitle": "ローカルバックアップ",
+    "settings.backup.fileTitle": "バックアップファイル",
+    "settings.backup.fileDescription": "バックアップファイルには API キーなどの非公開情報が含まれ、暗号化されていません。安全に保管し、公開しないでください。",
+    "settings.backup.restoreHint": "FluentRead のバックアップファイルを選択してください。旧バージョンの JSON ファイルも復元できます。",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['ja-JP'],
     "popup.translationCount": "翻訳 {count} 回",
@@ -349,6 +353,13 @@ export const jaJPMessages = {
 
     "inputTranslation.title": "入力欄の翻訳",
     "inputTranslation.description": "入力欄専用の操作、翻訳先言語、翻訳サービスを設定します。",
+    "inputTranslation.outputMode": "出力方法",
+    "inputTranslation.outputReplace": "原文を置き換える",
+    "inputTranslation.outputAppend": "原文、訳文の順",
+    "inputTranslation.outputPrepend": "訳文、原文の順",
+    "inputTranslation.appendHelp": "原文をそのまま残し、原文と訳文を別の行に表示します。複数行の入力欄で利用できます。",
+    "inputTranslation.workflowPrepend": "文字を入力し、{trigger}で原文の前に{language}の訳文を挿入し、改行して原文を残します。",
+    "inputTranslation.workflowAppend": "文字を入力し、{trigger}で原文を残して改行し、{language}の訳文を追加します。",
     "inputTranslation.workflowEnabled": "文字を入力し、{trigger}で{language}の訳文に置き換えます。",
     "inputTranslation.workflowDisabled": "ショートカットを選んで、入力欄の翻訳を始めましょう。",
     "inputTranslation.profile": "翻訳設定",
@@ -1520,6 +1531,11 @@ export const jaJPMessages = {
     "document.layoutPreview": "{format} 閲覧レイアウトのプレビュー",
     "document.segmentTranslation": "第 {number} 段落の訳文",
     "reading.priorTurns": "以前の問答（{count} 往復）",
+    "reading.turnNumber": "{number} 回目",
+    "reading.currentTurn": "現在の問答",
+    "reading.answerLabel": "回答",
+    "reading.questionLabel": "質問",
+    "reading.emptyAnswer": "この質問の回答は保存されていません。",
     "reading.viewSource": "原文を表示",
     "reading.historyTurns": "{count} 件の問答",
     "reading.generatingAction": "{action}中…",

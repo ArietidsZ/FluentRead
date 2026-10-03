@@ -557,7 +557,6 @@
         :config="config"
         :service-options="availableServiceOptions"
         @trigger-change="handleInputBoxTranslationTriggerChange"
-        @configure-service="openInputServiceSettings" @manage-services="openServiceDirectory"
       />
     </SettingsPanel>
 </section>
@@ -783,7 +782,6 @@ const ServiceConfiguration = defineAsyncComponent(() => import('./services/Servi
 const CustomOpenAIProviderDialog = defineAsyncComponent(() => import('./services/CustomOpenAIProviderDialog.vue'));
 const TranslationCenter = defineAsyncComponent(() => import('@/src/features/translation-center/public').then(module => module.TranslationCenter));
 const openInputServiceSettings = (service: string) => { setConfigurationService(service); openSettingsSection('settings-services', 'connections'); };
-const openServiceDirectory = () => openSettingsSection('settings-services', 'connections');
 const openWritingServiceSettings = () => openInputServiceSettings(config.value.writing.service || config.value.service);
 const WritingSettings = defineAsyncComponent(() => import('./WritingSettings.vue'));
 const SelectionSettings = defineAsyncComponent(() => import('./SelectionSettings.vue'));

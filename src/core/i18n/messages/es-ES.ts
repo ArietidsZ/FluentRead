@@ -17,6 +17,10 @@ import {translationStatsSpanishMessages} from './translationStats';
 import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
+    "settings.backup.localTitle": "Copia de seguridad local",
+    "settings.backup.fileTitle": "Archivo de copia de seguridad",
+    "settings.backup.fileDescription": "Los archivos de copia incluyen claves API y otra información privada y no están cifrados. Guárdalos en un lugar seguro y no los compartas públicamente.",
+    "settings.backup.restoreHint": "Elige un archivo de copia de FluentRead. También puedes restaurar archivos JSON antiguos.",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['es-ES'],
     "popup.translationCount": "{count} traducciones",
@@ -349,6 +353,13 @@ export const esESMessages = {
 
     "inputTranslation.title": "Traducción de campos de texto",
     "inputTranslation.description": "Configura el activador, idioma y servicio de los campos de texto.",
+    "inputTranslation.outputMode": "Modo de salida",
+    "inputTranslation.outputReplace": "Reemplazar el original",
+    "inputTranslation.outputAppend": "Original antes de la traducción",
+    "inputTranslation.outputPrepend": "Traducción antes del original",
+    "inputTranslation.appendHelp": "Conserva el original y muestra ambos textos en líneas separadas. Requiere un campo de varias líneas.",
+    "inputTranslation.workflowPrepend": "Escribe el texto y usa {trigger} para insertar una traducción a {language} antes del original, en una línea separada.",
+    "inputTranslation.workflowAppend": "Escribe el texto y usa {trigger} para conservar el original y añadir una traducción a {language} en una nueva línea.",
     "inputTranslation.workflowEnabled": "Escribe el texto y usa {trigger} para sustituirlo por su traducción a {language}.",
     "inputTranslation.workflowDisabled": "Elige un atajo para empezar a traducir en los campos de texto.",
     "inputTranslation.profile": "Configuración de traducción",
@@ -1520,6 +1531,11 @@ export const esESMessages = {
     "document.layoutPreview": "Vista previa de lectura {format}",
     "document.segmentTranslation": "Traducción del segmento {number}",
     "reading.priorTurns": "Conversación anterior ({count} turnos)",
+    "reading.turnNumber": "Turno {number}",
+    "reading.currentTurn": "Conversación actual",
+    "reading.answerLabel": "Respuesta",
+    "reading.questionLabel": "Pregunta",
+    "reading.emptyAnswer": "No se guardó una respuesta para esta pregunta.",
     "reading.viewSource": "Ver original",
     "reading.historyTurns": "{count} conversaciones",
     "reading.generatingAction": "{action}…",

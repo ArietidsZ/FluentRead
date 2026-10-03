@@ -1,24 +1,24 @@
 <!--
 @file src/features/settings/ui/GoogleDriveSync.vue
 文件职责：用清晰的保存、恢复与逐项合并流程完成一次 Google Drive 配置同步。
-主要内容：显示上次同步账号和本次账号，提供更换账号入口；按两步流程说明影响范围，
+主要内容：在同步按钮右侧显示上次同步账号和时间，窄屏改为上下排列；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
 先选择操作再确认影响；差异按需展开，合并仅突出待确认项，小屏保留操作区。
 模块边界：只消费后台脱敏预览和同步记录；不获取完整配置、令牌或用户口令。
 -->
 <template>
   <section class="drive-sync" data-testid="google-drive-sync" aria-labelledby="drive-sync-title" :aria-busy="busy">
     <header class="drive-heading">
-      <div><h2 id="drive-sync-title">Google Drive 配置同步</h2><p>把完整配置加密保存到自己的 Google 云盘，在其他设备恢复。</p></div>
-      <span class="drive-badge">本机加密</span>
+      <h2 id="drive-sync-title">Google Drive 配置同步</h2>
+      <span class="drive-badge"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M12 3 4 6v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-3Z" /><path d="m8.5 11.5 2.5 2.5 4.5-5" /></svg>{{ t('settings.drive.privacyBadge') }}</span>
     </header>
-    <p class="drive-boundary">包含API Key、OAuth Token、鉴权请求头、自定义请求体及URL中的鉴权参数，不包含单词本、聊天记录和用量统计。</p>
-    <div class="drive-record" role="status">
-      <p v-if="status?.account?.email" data-testid="google-drive-last-account">{{ t('settings.drive.lastAccount', {email: status.account.email}) }}</p>
-      <p v-if="statusText" class="drive-status">{{ statusText }}</p>
-    </div>
+    <p class="drive-boundary">{{ t('settings.drive.description') }}</p>
     <el-alert v-if="error && !previewVisible" :title="error" type="error" :closable="false" show-icon class="drive-error" />
-    <div v-if="status?.available" class="drive-actions">
-      <el-button type="primary" :loading="busy" :disabled="busy" data-testid="google-drive-sync-now" @click="prepare">立即与Google Drive同步</el-button>
+    <div class="drive-actions">
+      <el-button v-if="status?.available" type="primary" :loading="busy" :disabled="busy" data-testid="google-drive-sync-now" @click="prepare">立即与Google Drive同步</el-button>
+      <div v-if="status?.account?.email || statusText" class="drive-record" role="status">
+        <p v-if="status?.account?.email" data-testid="google-drive-last-account">{{ t('settings.drive.lastAccount', {email: status.account.email}) }}</p>
+        <p v-if="statusText" class="drive-status">{{ statusText }}</p>
+      </div>
     </div>
     <el-dialog class="drive-dialog" v-model="previewVisible" :title="t('settings.drive.previewTitle')" width="min(820px, calc(100vw - 24px))" :close-on-click-modal="!busy" :close-on-press-escape="!busy" :show-close="!busy" :before-close="cancelPreview" destroy-on-close @closed="clearPreview">
       <template v-if="preview">
@@ -206,11 +206,15 @@ onUnmounted(() => {alive = false; endSession(); clearPreview();});
 .drive-sync {padding:24px; margin-bottom:24px; border:1px solid var(--el-border-color); border-radius:16px; background:var(--el-bg-color); color:var(--el-text-color-primary);}
 .drive-heading {display:flex; justify-content:space-between; align-items:flex-start; gap:16px;}
 .drive-heading h2 {margin:0; font-size:19px;}
-.drive-heading p,.drive-boundary {color:var(--el-text-color-secondary); font-size:13px; line-height:1.7;}
-.drive-badge {white-space:nowrap; border-radius:20px; padding:4px 10px; font-size:12px; color:var(--el-color-primary); background:var(--el-color-primary-light-9);}
-.drive-record p {margin:6px 0; overflow-wrap:anywhere; font-size:13px;}
+.drive-boundary {color:var(--el-text-color-secondary); font-size:13px; line-height:1.7;}
+.drive-badge {display:inline-flex; align-items:center; gap:5px; flex-shrink:0; white-space:nowrap; border-radius:20px; padding:4px 10px; font-size:12px; color:var(--el-text-color-secondary); background:var(--el-fill-color-light);}
+.drive-badge svg {width:15px; height:15px; flex-shrink:0; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;}
+.drive-record {display:grid; gap:4px; flex:1 1 240px; min-width:0;}
+.drive-record p {margin:0; overflow-wrap:anywhere; font-size:13px; line-height:1.5;}
 .drive-status {color:var(--el-text-color-secondary);}
 .drive-error,.drive-actions {margin-top:16px;}
+.drive-actions {display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px;}
+.drive-actions>.el-button {flex-shrink:0; max-width:100%; min-height:32px; height:auto; white-space:normal; line-height:1.5; padding:8px 15px;}
 .drive-account-bar {display:flex; align-items:center; gap:10px; border-radius:8px; background:var(--el-fill-color-light); padding:12px; margin-bottom:24px;}
 .drive-account-icon {font-size:18px; color:var(--el-text-color-secondary); flex-shrink:0;}
 .drive-account-bar p {margin:0; flex:1; font-size:12px; color:var(--el-text-color-regular); overflow-wrap:anywhere;}
@@ -284,6 +288,7 @@ label.drive-value {cursor:pointer;}
 .is-disabled {cursor:wait; opacity:.65;}
 @media (max-width:600px) {
   .drive-sync {padding:16px;}.drive-heading {flex-wrap:wrap;}.drive-values {grid-template-columns:1fr;}
+  .drive-actions {flex-direction:column; align-items:flex-start;}.drive-record {flex:none; width:100%;}
   .drive-operation {padding:16px;}.drive-review-heading {align-items:flex-start; flex-direction:column;}
   .drive-account-bar {align-items:flex-start;}.drive-account-icon {display:none;}.drive-review-title h3 {font-size:18px;}
   .drive-transfer {padding:16px 12px; gap:10px;}.drive-transfer>span {flex-direction:column; text-align:center; gap:6px;}

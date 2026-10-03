@@ -133,10 +133,11 @@ async function main() {
     async function selectTestId(testId, label) {
       await options.getByTestId(testId).click();
       await options.locator('.el-select-dropdown:visible').getByRole('option', {name: label, exact: true}).click();
+      await pause(400); // Settings persist asynchronously through the background page.
     }
     const defaults = await readConfig();
     assert.equal(defaults.inputBoxTranslationInterval, 1000);
-    assert.equal(defaults.inputBoxTranslationService, 'microsoft');
+    assert.equal(defaults.inputBoxTranslationService, '', 'new input profiles follow the configured default service');
     await patch({on: true, uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true, useCache: false,
       inputBoxTranslationTrigger: 'triple_equal', inputBoxTranslationTarget: 'en',
       inputBoxTranslationInterval: 600, inputBoxTranslationService: 'microsoft',
@@ -157,6 +158,28 @@ async function main() {
     }
     await group.waitFor({state: 'visible'});
     await group.scrollIntoViewIfNeeded();
+    assert.equal(await group.locator('.input-translation-connection-link').count(), 0);
+    assert.equal(await group.getByText('选择已配置且当前可用的翻译服务。', {exact: true}).count(), 0);
+    assert.equal(defaults.inputBoxTranslationOutputMode, 'replace');
+    const closingOptions = await helper.newPageWithoutForeground(context);
+    closingOptions.on('pageerror', error => report.consoleErrors.push(error.message));
+    await closingOptions.goto(`chrome-extension://${extensionId}/options.html#settings-translation`);
+    await closingOptions.getByTestId('input-translation-output-mode').click();
+    await closingOptions.locator('.el-select-dropdown:visible').getByRole('option', {name: '原文在前，译文在后', exact: true}).click();
+    await closingOptions.close();
+    await options.reload();
+    await group.waitFor({state: 'visible'});
+    assert.equal((await readConfig()).inputBoxTranslationOutputMode, 'append');
+    assert.ok((await group.textContent()).includes('保留原文并换行追加'));
+    await snap('00-bilingual-output-settings');
+    report.quickClose = {field: 'inputBoxTranslationOutputMode', reopened: 'append', passed: true};
+    await selectTestId('input-translation-output-mode', '替换原文');
+    await selectTestId('input-translation-output-mode', '原文在前，译文在后');
+    await options.reload();
+    assert.equal((await readConfig()).inputBoxTranslationOutputMode, 'append');
+    report.latestWriteWins = {field: 'inputBoxTranslationOutputMode', finalValue: 'append', passed: true};
+    await selectTestId('input-translation-output-mode', '替换原文');
+    report.cases.push({name: 'output mode quick-close persistence and latest write wins; redundant service text removed', passed: true});
     report.initialConfig = Object.fromEntries(Object.entries(await readConfig()).filter(([key]) => key.startsWith('inputBoxTranslation') || key === 'on'));
     await snap('00-initial-settings');
     await options.getByTestId('input-translation-timing-toggle').click();
@@ -170,7 +193,7 @@ async function main() {
     await options.reload();
     await group.scrollIntoViewIfNeeded();
     assert.equal((await readConfig()).inputBoxTranslationInterval, 750);
-    report.quickClose = {interval: 750, persistedAfterReload: true};
+    report.quickClose.interval = {value: 750, persistedAfterReload: true};
     await options.getByTestId('input-translation-timing-toggle').click();
     await options.getByTestId('input-translation-interval-reset').click();
     await pause(350);
@@ -182,8 +205,8 @@ async function main() {
     await snap('01-settings-machine');
 
     const saved = await readConfig();
-    await patch({service: 'microsoft', requireApiKey: {...saved.requireApiKey, 'v2:["openai","input-test-model"]': false, 'v2:["openai","global-model"]': false}, proxy: {...saved.proxy, openai: 'http://127.0.0.1:11434/v1/chat/completions'},
-      model: {...saved.model, openai: 'global-model'},
+    await patch({service: 'microsoft', requireApiKey: {...saved.requireApiKey, 'v2:["openai","gpt-4.1-nano"]': false, 'v2:["openai","gpt-4.1-mini"]': false}, proxy: {...saved.proxy, openai: 'http://127.0.0.1:11434/v1/chat/completions'},
+      model: {...saved.model, openai: 'gpt-4.1-mini'},
       user_role: {...saved.user_role, openai: 'GLOBAL PROMPT {{origin}} {{to}}'},
       system_role: {...saved.system_role, openai: 'GLOBAL SYSTEM'},
       inputBoxTranslationService: 'microsoft', inputBoxTranslationModel: '',
@@ -195,8 +218,8 @@ async function main() {
     assert.ok((await group.textContent()).includes('选择一个快捷键'));
     await openProfile();
     await selectTestId('input-translation-service', 'OpenAI');
-    await selectTestId('input-translation-model', 'global-model');
-    assert.equal((await readConfig()).inputBoxTranslationModel, 'global-model', 'selecting a model updates the independent input translation profile');
+    await selectTestId('input-translation-model', 'gpt-4.1-nano');
+    assert.equal((await readConfig()).inputBoxTranslationModel, 'gpt-4.1-nano', 'selecting a model updates the independent input translation profile');
     await openPrompts();
     await options.getByTestId('input-translation-system-default').click();
     await options.getByTestId('input-translation-user-default').click();
@@ -220,7 +243,7 @@ async function main() {
     await pause(500);
     await options.reload();
     assert.equal((await readConfig()).inputBoxTranslationService, 'openai');
-    assert.equal((await readConfig()).inputBoxTranslationModel, 'global-model');
+    assert.equal((await readConfig()).inputBoxTranslationModel, 'gpt-4.1-nano');
     assert.equal((await readConfig()).inputBoxTranslationSystemPrompt, 'Keep the message polite. Return only translated text.');
     await group.scrollIntoViewIfNeeded();
     assert.equal((await readConfig()).inputBoxTranslationTrigger, 'disabled', 'editing a profile must not enable translation');
@@ -228,7 +251,7 @@ async function main() {
     assert.ok((await group.textContent()).includes('输入文字后，连按三下等号(=)，即可替换为英语'));
     assert.equal(await promptEditor.count(), 0, 'prompt editor is opened on demand');
     const desktopBounds = await group.boundingBox();
-    assert.ok(desktopBounds.height < 420, `common AI settings fit one compact card: ${desktopBounds.height}`);
+    assert.ok(desktopBounds.height < 600, `AI settings including bilingual output order fit one desktop screen: ${desktopBounds.height}`);
     report.settingsLayout = {desktopCardHeight: desktopBounds.height, promptEditorInitiallyClosed: true};
     await group.getByRole('heading', {name: '输入框翻译', exact: true}).click();
     await options.mouse.move(20, 20);
@@ -307,7 +330,7 @@ async function main() {
     await triple();
     await expectValue('Let us meet tomorrow afternoon.');
     const first = (await requests()).at(-1);
-    assert.equal(first.body.model, 'input-test-model');
+    assert.equal(first.body.model, 'gpt-4.1-nano');
     assert.ok(JSON.stringify(first.body).includes('明天下午见面。='));
     assert.ok(JSON.stringify(first.body).includes('Keep the message polite.'));
     assert.ok(!JSON.stringify(first.body).includes('GLOBAL PROMPT'));
@@ -465,13 +488,115 @@ async function main() {
     await textarea.fill('间隔设置立即生效'); await triple('=', 650);
     await expectValue('Let us meet tomorrow afternoon.');
     report.cases.push({name: 'interval change applies without page reload', passed: true});
+    await patch({inputBoxTranslationOutputMode: 'append', animations: false});
+    const bilingualOriginal = '  明天下午见面。\n请确认时间。  ';
+    await textarea.fill(bilingualOriginal); await triple();
+    await expectValue(`${bilingualOriginal}\nLet us meet tomorrow afternoon.`);
+    await snap('07-bilingual-textarea', page);
+    await pause(400);
+    const bilingualRestore = findRestore((await domSession.send('DOM.getDocument', {depth: -1, pierce: true})).root);
+    assert.ok(bilingualRestore);
+    const restoreQuad = (await domSession.send('DOM.getBoxModel', {nodeId: bilingualRestore.nodeId})).model.content;
+    await page.mouse.click((restoreQuad[0] + restoreQuad[4]) / 2, (restoreQuad[1] + restoreQuad[5]) / 2);
+    await expectValue(bilingualOriginal);
+    await textarea.focus(); await page.keyboard.press('End'); await triple();
+    await expectValue(`${bilingualOriginal}\nLet us meet tomorrow afternoon.`);
+    report.cases.push({name: 'bilingual textarea preserves whitespace and paragraphs, restores and translates again', passed: true});
+
+    await mode('pending');
+    await textarea.fill('继续编辑时不要追加'); await triple(); await pause(400);
+    await textarea.fill('新的回复'); await release(); await pause(500);
+    assert.equal(await textarea.inputValue(), '新的回复');
+    await mode('pending');
+    await textarea.fill('取消追加'); await triple(); await pause(400);
+    await page.keyboard.press('Escape'); await release(); await pause(500);
+    assert.equal(await textarea.inputValue(), '取消追加');
+    await mode('failure');
+    await textarea.fill('失败保留原文'); await triple(); await pause(1000);
+    assert.equal(await textarea.inputValue(), '失败保留原文');
+    await mode('success');
+    report.cases.push({name: 'bilingual late edit, Escape and failure preserve the original without trigger symbols', passed: true});
+
+    await page.evaluate(() => {
+      const rich = document.querySelector('#rich');
+      rich.innerHTML = '<p><b>中文原文。</b><a href="https://example.test/keep">链接</a></p><p>第二段</p>';
+      window.originalBold = rich.querySelector('b');
+      window.originalLink = rich.querySelector('a');
+    });
+    const originalRichText = await page.locator('#rich').innerText();
+    await page.locator('#rich').focus(); await triple();
+    await page.waitForFunction(() => document.querySelector('#rich').innerText.includes('Let us meet tomorrow afternoon.'), null, {timeout: 15000});
+    const richEvidence = await page.locator('#rich').evaluate(element => ({text: element.innerText, html: element.innerHTML,
+      sameBold: element.querySelector('b') === window.originalBold,
+      sameLink: element.querySelector('a') === window.originalLink,
+      href: element.querySelector('a')?.getAttribute('href')}));
+    assert.ok(richEvidence.text.startsWith(originalRichText), 'rich original keeps its existing paragraph breaks');
+    assert.match(richEvidence.text.slice(originalRichText.length), /^\n+Let us meet tomorrow afternoon\.$/, 'translation is separated by the native editor paragraph boundary');
+    assert.equal(richEvidence.sameBold, true); assert.equal(richEvidence.sameLink, true);
+    assert.equal(richEvidence.href, 'https://example.test/keep');
+    report.bilingualRich = richEvidence;
+    await snap('08-bilingual-rich-formatting', page);
+    report.cases.push({name: 'bilingual rich text preserves original DOM, paragraphs, bold and link; trigger removed at starting caret', passed: true});
+
+    await page.locator('#model').focus(); await triple();
+    await expectEditor('#model', '模型编辑器原文。\nLet us meet tomorrow afternoon.');
+    report.cases.push({name: 'bilingual model editor removes trigger through model and appends after selection sync', passed: true});
+    before = (await requests()).length;
+    await page.locator('#other').fill('单行保持原文'); await triple(); await pause(500);
+    assert.equal(await page.locator('#other').inputValue(), '单行保持原文');
+    assert.equal((await requests()).length, before);
+    report.cases.push({name: 'single-line input keeps original and avoids flattened bilingual output', passed: true});
+    await options.reload();
+    assert.equal((await readConfig()).inputBoxTranslationOutputMode, 'append');
+    await group.scrollIntoViewIfNeeded();
+    await snap('09-bilingual-settings-reopened');
+    await options.setViewportSize({width: 390, height: 900});
+    await group.scrollIntoViewIfNeeded();
+    assert.equal(await options.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await snap('10-bilingual-settings-390');
+    await selectTestId('input-translation-output-mode', '译文在前，原文在后');
+    await options.reload();
+    assert.equal((await readConfig()).inputBoxTranslationOutputMode, 'prepend');
+    await group.scrollIntoViewIfNeeded();
+    await snap('11-translation-first-settings');
+    await textarea.fill(bilingualOriginal); await triple();
+    await expectValue(`Let us meet tomorrow afternoon.\n${bilingualOriginal}`);
+    await snap('12-translation-first-textarea', page);
+    await page.evaluate(() => {
+      const rich = document.querySelector('#rich');
+      rich.innerHTML = '<b>原文保持格式</b><a href="https://example.test/keep">链接</a>';
+      window.originalBold = rich.querySelector('b');
+      window.originalLink = rich.querySelector('a');
+    });
+    await page.locator('#rich').focus(); await triple();
+    await page.waitForFunction(() => document.querySelector('#rich').innerText === 'Let us meet tomorrow afternoon.\n原文保持格式链接', null, {timeout: 15000});
+    report.translationFirstRich = await page.locator('#rich').evaluate(element => ({text: element.innerText, html: element.innerHTML,
+      boldTexts: [...element.querySelectorAll('b')].map(node => node.textContent),
+      links: [...element.querySelectorAll('a')].map(node => ({text: node.textContent, href: node.getAttribute('href')}))}));
+    assert.ok(report.translationFirstRich.boldTexts.includes('原文保持格式'), 'native prefix editing preserves original bold text even when the browser splits inline nodes');
+    assert.deepEqual(report.translationFirstRich.links, [{text: '链接', href: 'https://example.test/keep'}]);
+    await snap('13-translation-first-rich', page);
+    report.cases.push({name: 'translation first persists and prefixes translation to textarea and rich editor while keeping original text and formatting', passed: true});
+    await patch({inputBoxTranslationTrigger: 'triple_space'});
+    await page.evaluate(() => {
+      const rich = document.querySelector('#rich');
+      rich.innerHTML = '<b>空格回复</b>';
+      window.originalBold = rich.querySelector('b');
+    });
+    await page.locator('#rich').focus(); await triple('Space');
+    await page.waitForFunction(() => document.querySelector('#rich').innerText === 'Let us meet tomorrow afternoon.\n空格回复', null, {timeout: 15000});
+    assert.ok(await page.locator('#rich').evaluate(element => [...element.querySelectorAll('b')].some(node => node.textContent === '空格回复')));
+    report.cases.push({name: 'rich triple-space handles browser non-breaking trigger spaces without altering original formatting', passed: true});
     assert.deepEqual(report.consoleErrors, []);
     report.runtimeRequests = await requests();
     report.persistenceCases = report.cases.filter(item => /config|interval/.test(item.name));
     report.completed = true;
   } finally {
     fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-    if (session) await session.close();
+    if (session) {
+      await session.close();
+      fs.rmSync(profileDir, {recursive: true, force: true});
+    }
   }
 }
 main().catch(error => {

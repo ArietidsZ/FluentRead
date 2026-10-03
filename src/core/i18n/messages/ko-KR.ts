@@ -17,6 +17,10 @@ import {translationStatsKoreanMessages} from './translationStats';
 import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
+    "settings.backup.localTitle": "로컬 백업",
+    "settings.backup.fileTitle": "백업 파일",
+    "settings.backup.fileDescription": "백업 파일에는 API 키 등 개인 정보가 포함되며 암호화되지 않습니다. 안전하게 보관하고 공개적으로 공유하지 마세요.",
+    "settings.backup.restoreHint": "FluentRead 백업 파일을 선택하세요. 이전 버전의 JSON 파일도 복원할 수 있습니다.",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['ko-KR'],
     "popup.translationCount": "번역 {count}회",
@@ -349,6 +353,13 @@ export const koKRMessages = {
 
     "inputTranslation.title": "입력란 번역",
     "inputTranslation.description": "텍스트 입력란의 실행 방식, 대상 언어와 번역 서비스를 별도로 설정합니다.",
+    "inputTranslation.outputMode": "출력 방식",
+    "inputTranslation.outputReplace": "원문 바꾸기",
+    "inputTranslation.outputAppend": "원문 먼저, 번역 나중",
+    "inputTranslation.outputPrepend": "번역 먼저, 원문 나중",
+    "inputTranslation.appendHelp": "원문을 유지하고 원문과 번역을 별도의 줄에 표시합니다. 여러 줄 입력란에서 사용할 수 있습니다.",
+    "inputTranslation.workflowPrepend": "텍스트를 입력한 뒤 {trigger} 동작으로 원문 앞에 {language} 번역을 삽입하고 줄을 바꿔 원문을 유지합니다.",
+    "inputTranslation.workflowAppend": "텍스트를 입력한 뒤 {trigger} 동작으로 원문을 유지하고 다음 줄에 {language} 번역을 추가합니다.",
     "inputTranslation.workflowEnabled": "텍스트를 입력한 뒤 {trigger} 동작으로 {language} 번역문으로 바꿀 수 있습니다.",
     "inputTranslation.workflowDisabled": "단축키를 선택해 입력란 번역을 시작하세요.",
     "inputTranslation.profile": "번역 설정",
@@ -1520,6 +1531,11 @@ export const koKRMessages = {
     "document.layoutPreview": "{format} 읽기 레이아웃 미리보기",
     "document.segmentTranslation": "{number}번째 구간 번역",
     "reading.priorTurns": "이전 대화({count}회)",
+    "reading.turnNumber": "{number}번째 대화",
+    "reading.currentTurn": "현재 대화",
+    "reading.answerLabel": "답변",
+    "reading.questionLabel": "질문",
+    "reading.emptyAnswer": "이 질문에 저장된 답변이 없습니다.",
     "reading.viewSource": "원문 보기",
     "reading.historyTurns": "대화 {count}회",
     "reading.generatingAction": "{action} 중…",
