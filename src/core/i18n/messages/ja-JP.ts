@@ -17,6 +17,10 @@ import {translationStatsJapaneseMessages} from './translationStats';
 import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
+    "settings.backup.localTitle": "ローカルバックアップ",
+    "settings.backup.fileTitle": "バックアップファイル",
+    "settings.backup.fileDescription": "バックアップファイルには API キーなどの非公開情報が含まれ、暗号化されていません。安全に保管し、公開しないでください。",
+    "settings.backup.restoreHint": "FluentRead のバックアップファイルを選択してください。旧バージョンの JSON ファイルも復元できます。",
     ...googleDriveText.messages,
     "brand.tagline": brandTaglines['ja-JP'],
     "popup.translationCount": "翻訳 {count} 回",
