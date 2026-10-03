@@ -97,11 +97,11 @@ async function ui(hostId, code) {
 }
 const ball = code => ui('fluent-read-floating-ball-container', code);
 const imageUi = code => ui('fluent-read-image-translation-root', code);
-async function wait(test, timeout=180000) {
+async function wait(test, timeout=180000, allowFailure=false) {
     const deadline=Date.now()+timeout;
     while(Date.now()<deadline) {if(await test())return;
         const failure=await imageUi(`const e=this.querySelector('.fr-image-feedback[data-phase="error"] .fr-image-status');return e?.textContent`);
-        if(failure)throw new Error(`Image pipeline failed: ${failure}`);
+        if(failure&&!allowFailure)throw new Error(`Image pipeline failed: ${failure}`);
         await page.waitForTimeout(200);}
     throw new Error(`Timed out: ${report.currentCase}; image controls: ${await imageUi('return this.textContent')}`);
 }
@@ -195,6 +195,7 @@ async function patch(config) {
     await toolScreenshot('idle');await toggle();
     await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-busy')`))==='true',10000);
     await toolScreenshot('pending');
+    assert.equal(report.buttonStates.pending.badge,undefined,'Pending shows progress instead of a completion check');
     report.currentCase='cancel first preparation restores originals and can resume';
     await toggle();await wait(async()=>(await worker.evaluate(()=>globalThis.__mangaTest.cancellations.length))>0);
     assert.equal(await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`),0);
@@ -242,6 +243,18 @@ async function patch(config) {
             const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,760,1100);ctx.fillStyle='black';ctx.font='48px Arial';ctx.fillText('Source changed',90,200);canvas.toBlob(b=>{i.src=URL.createObjectURL(b)});});
         await wait(async()=>(await ops())>previous);await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-busy')`))==='false');
         assert.equal(await page.locator('#decoy').evaluate(i=>i.style.opacity),'');report.cases.push(report.currentCase);
+        report.currentCase='unrecognized page retains original and shows an amber status';
+        await page.evaluate(async()=>{
+            const canvas=document.createElement('canvas');canvas.width=760;canvas.height=1100;
+            const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,760,1100);
+            const blob=await new Promise(resolve=>canvas.toBlob(resolve));
+            const wrap=document.createElement('div');wrap.className='zao-image-container';const image=document.createElement('img');
+            image.className='zao-image';image.id='blank-page';image.src=URL.createObjectURL(blob);wrap.append(image);document.querySelector('#reader').append(wrap);
+        });
+        await page.locator('#blank-page').scrollIntoViewIfNeeded();
+        await wait(async()=>!!await ball(`return this.querySelector('.manga-error')`),60000,true);
+        assert.notEqual(await page.locator('#blank-page').evaluate(i=>i.style.opacity),'0');
+        await toolScreenshot('partial-error');report.cases.push(report.currentCase);
         report.currentCase='chapter change resets continuous mode and restores originals';
         await page.evaluate(()=>history.pushState({},'', '/viewer/555'));
         await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-pressed')`))==='false');
@@ -267,7 +280,7 @@ async function patch(config) {
     report.modelStatusBefore=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadMangaModelStatus'}));
     assert.equal(report.modelStatusBefore.ready,true);assert.ok(report.modelStatusBefore.bytes>30000000);
     await modelSettings.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
-    
+
     await modelSettings.getByRole('button',{name:'清除漫画模型',exact:true}).waitFor();
     await modelSettings.getByLabel('模型下载来源',{exact:true}).selectOption('mirror');
     await modelSettings.reload();

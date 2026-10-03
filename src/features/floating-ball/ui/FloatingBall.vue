@@ -58,7 +58,9 @@
         <path d="M12 3v18M12 13h9.5M5.5 15l3 3M15.5 17h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
         <path d="M5.5 7h3v3h-1l-1.5 1v-1h-.5V7Zm10 0h3v3h-1l-1.5 1v-1h-.5V7Z" fill="currentColor" />
       </svg>
-      <span v-if="manga.active" class="manga-check" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none"><path d="m4 8 2.7 2.7L12 5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+      <span v-if="manga.active && !manga.pending" class="manga-check" :class="{'manga-error': manga.errors > 0}" aria-hidden="true">
+        <svg viewBox="0 0 16 16" fill="none"><path :d="manga.errors ? 'M8 4.5v4.3m0 2.2v.1' : 'm4 8 2.7 2.7L12 5.5'" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </span>
       <span v-if="manga.pending" class="manga-progress" aria-hidden="true" />
     </button>
 
@@ -649,6 +651,7 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   background: #15803d; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); pointer-events: none;
 }
 .manga-check svg { width: 15px; height: 15px; }
+.manga-check.manga-error { background: #b45309; }
 .manga-progress {
   position: absolute; inset: -6px; border: 3px solid rgba(236,77,125,.18); pointer-events: none;
   border-top-color: #ec4d7d; border-right-color: #ec4d7d; border-radius: 50%; animation: fr-manga-spin 1.2s linear infinite;
