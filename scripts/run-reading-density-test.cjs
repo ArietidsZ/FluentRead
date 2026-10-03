@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 学习面板专项：在隔离生产扩展中检查四个动作的原句滚动、首屏、点词、键盘、次级操作和追问。
+// 学习面板专项：在隔离生产扩展中检查四个动作的原句滚动、历史逐轮展开、选中状态、点词、键盘和追问。
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -75,6 +75,60 @@ async function revealSource(expected=sentence) {
  const state=await sourceLayout();assert.equal(state.text,expected);assert(state.sourceTop>=0);assert(state.sourceBottom>0);assert.equal(state.hostScroll,0);
  return state;
 }
+async function verifyHistory() {
+ const translationState = () => ui(function() {
+  return {pressed:[...this.querySelectorAll('.fr-study-toolbar button[aria-pressed]')].map(button=>button.getAttribute('aria-pressed')),
+   visible:this.querySelector('.fr-study-toolbar')?.getBoundingClientRect().height>0,
+   hiddenActive:[...this.querySelectorAll('.fr-reading-actions button[aria-pressed="true"]')].length};
+ });
+ await until(()=>ui(function(){return this.textContent.includes('不同的打印顺序会带来不同的耗材切换顺序。')}),'translation did not finish');
+ assert.deepEqual((await translationState()).pressed,['false','false','false','false']);
+ assert.equal(report.aiRequests,0);await shot('translation-no-active-learning');record('ordinary translation has no selected learning action and makes no AI request');
+ nextAnswer='### 读懂\n打印顺序会影响耗材切换顺序。';await clickNode(button('读懂'));await settled();
+ assert.equal(await ui(function(){return this.querySelector('.fr-reading-actions button[aria-pressed="true"]').textContent}),'读懂');
+ record('one click enters the actual meaning answer and selects its action');
+ nextAnswer='### 主干\n主语是 printing sequences，谓语是 have。';await clickNode(button('句法'));await settled();
+ const ask = async (question, answer) => {
+  nextAnswer=answer;await clickNode(n=>n.nodeName==='INPUT'&&support.cdpAttribute(n,'aria-label')==='继续追问');await page.keyboard.type(question);await page.keyboard.press('Enter');await settled();
+ };
+ await ask('这里的 switching 是什么词性？为什么它能放在 sequences 前面？请结合原文说明它是动名词、现在分词还是名词修饰语，并比较 filament switching sequences 与 reading habits 的结构，解释这种用法与表示正在进行的动作有什么区别。','### 修饰关系\n`switching` 修饰 sequences，说明切换的顺序。');
+ await ask('给我一个类似的例子。','### 类似表达\n**reading habits** 表示阅读习惯。');
+ const inspect = () => ui(function() {
+  const details=this.querySelector('.fr-reading-session-detail');
+  return {open:details.open,turns:[...details.querySelectorAll('.fr-reading-turn-toggle')].map(button=>({expanded:button.getAttribute('aria-expanded'),meta:button.querySelector('.fr-reading-turn-meta').textContent,title:button.querySelector('.fr-reading-turn-title').textContent})),
+   renderedAnswers:details.querySelectorAll('.fr-reading-markdown').length,current:this.querySelector('.fr-reading-answer').textContent,question:this.querySelector('.fr-reading-question p').textContent,
+   currentLabel:this.querySelector('.fr-reading-current-label').textContent,overflow:this.scrollWidth>this.clientWidth+1,hostScroll:scrollY};
+ });
+ const before=report.aiRequests;const current=await inspect();assert.equal(current.open,false);assert.equal(current.turns.length,3);assert.equal(current.renderedAnswers,0);
+ await shot('history-collapsed-current-question');record('history starts folded and clearly labels the current question');
+ await clickNode(n=>n.nodeName==='SUMMARY'&&support.cdpText(n).includes('历史问答'));await wait(100);
+ let state=await inspect();assert.equal(state.open,true);assert(state.turns.every(turn=>turn.expanded==='false'));assert.equal(state.renderedAnswers,0);
+ assert(state.turns.every((turn,index)=>turn.meta.includes(`第 ${index+1} 轮`)));await shot('history-question-list');record('opening history reveals numbered question summaries without expanding old answers');
+ const clickTurn = async index => {
+  const point=await ui(function(index){const button=this.querySelectorAll('.fr-reading-turn-toggle')[index];button.scrollIntoView({block:'nearest'});const r=button.getBoundingClientRect();return{x:r.x+15,y:r.y+15};},index);
+  await page.mouse.click(point.x,point.y);await wait(80);
+ };
+ await clickTurn(0);state=await inspect();assert.equal(state.renderedAnswers,1);assert.equal(state.turns[0].expanded,'true');await shot('history-one-answer');
+ await clickTurn(1);state=await inspect();assert.equal(state.turns[0].expanded,'false');assert.equal(state.turns[1].expanded,'true');assert.equal(state.renderedAnswers,1);
+ await page.keyboard.press('Enter');await wait(80);assert.equal((await inspect()).renderedAnswers,0);
+ assert.equal(report.aiRequests,before);assert.equal((await inspect()).current,current.current);assert.equal((await inspect()).question,current.question);
+ record('mouse and keyboard expand one old answer at a time without requests or changes to the current conversation');
+ await clickTurn(2);assert.equal((await inspect()).turns[2].expanded,'true');await shot('history-full-long-question');
+ await ui(function(){this.querySelector('.fr-reading-session-detail > summary').scrollIntoView({block:'start'});});
+ await page.setViewportSize({width:390,height:844});await patch({theme:'dark'});await wait(200);
+ state=await inspect();assert.equal(state.overflow,false);assert.equal(state.hostScroll,0);await shot('history-dark-390');
+ assert(await ui(function(){const title=this.querySelector('.fr-reading-turn-toggle[aria-expanded="true"] .fr-reading-turn-title');return title.scrollWidth<=title.clientWidth+1;}));
+ record('long questions wrap in 390px dark mode without horizontal or host-page scrolling');
+ await patch({theme:'light'});await page.setViewportSize({width:1440,height:960});
+ await clickNode(button('返回译文'));await wait(100);state=await translationState();assert.equal(state.visible,true);assert(state.pressed.every(value=>value==='false'));assert.equal(state.hiddenActive,0);assert.equal(report.aiRequests,before);
+ await shot('translation-after-learning');record('returning to translation clears the learning selection, including the hidden panel');
+ await clickNode(button('读懂'));await settled();assert.equal(report.aiRequests,before);
+ assert.equal(await ui(function(){return this.querySelector('.fr-reading-actions button[aria-pressed="true"]').textContent}),'读懂');
+ assert.equal(await ui(function(){return this.querySelector('.fr-reading-session-detail').open;}),false);record('reentering meaning selects its cached answer and folds history without another request');
+ await menu();await clickNode(button('阅读记录'));await until(()=>node(cls('fr-reading-session')),'saved conversation missing');
+ await clickNode(cls('fr-reading-session'));await settled();assert.equal(report.aiRequests,before);await shot('history-restored');record('restoring a saved conversation keeps history folded without a model request');
+ assert.equal(report.consoleErrors.length,0);report.ok=true;
+}
 async function main(){
  fs.mkdirSync(output,{recursive:true});const profileDir=fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-reading-density-'));
  server=http.createServer(async(req,res)=>{
@@ -98,7 +152,9 @@ async function main(){
 
   await context.route('https://example.com/**',route=>route.fulfill({contentType:'text/html',body:`<!doctype html><html lang="en"><head><style>body{margin:50px;font:20px/1.8 system-ui;color:#253248}p{max-width:730px}button{font-size:32px!important}section{padding:50px!important}</style></head><body><p><span id="sentence">${sentence}</span>.</p><p>Keep reading without losing your place.</p><div style="height:2400px"></div></body></html>`}));
   page=await newPage();await page.goto('https://example.com/');await page.locator('#fluent-read-selection-translator-container').waitFor({state:'attached'});
-  await select('#sentence');await until(()=>node(cls('fr-study-toolbar')),'learning entry missing');await clickNode(button('词性与句法'));await settled();
+  await select('#sentence');await until(()=>node(cls('fr-study-toolbar')),'learning entry missing');
+  if(process.argv.includes('--history-only')){await verifyHistory();return;}
+  await clickNode(button('词性与句法'));await settled();
   report.initial=await layout();
   if(process.argv.includes('--baseline')){await shot('before');report.ok=true;return;}
   await assertSourceSkipped();
