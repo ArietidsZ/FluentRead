@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/inputTranslation.ts
  * 文件职责：定义输入框翻译的独立配置常量、提示词默认值与纯规范化规则，供配置模型、设置界面和输入翻译后台共同使用。
- * 主要内容：声明服务继承、模型与提示词默认值及相邻触发间隔的语义，限制 interval 为 200 至 2000 毫秒整数，并判断服务是否支持通用提示词。
+ * 主要内容：声明替换/双语输出顺序模式、服务继承、模型与提示词默认值及相邻触发间隔的语义，限制 interval 为 200 至 2000 毫秒整数，并判断服务是否支持通用提示词。
  * 模块边界：本文件属于 core 配置领域层，只读取翻译服务目录和自定义服务元数据；不读取浏览器存储、不接收网页消息、不访问凭据或发起网络请求。
  */
 
@@ -12,6 +12,13 @@ export const DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL = 1000;
 export const INPUT_BOX_TRANSLATION_INTERVAL_MIN = 200;
 export const INPUT_BOX_TRANSLATION_INTERVAL_MAX = 2000;
 export const INPUT_BOX_TRANSLATION_INTERVAL_STEP = 1;
+
+export type InputBoxTranslationOutputMode = 'replace' | 'append' | 'prepend';
+
+/** 旧配置继续替换原文；只有显式选择双语模式时才保留原文。 */
+export function normalizeInputBoxTranslationOutputMode(value: unknown): InputBoxTranslationOutputMode {
+    return value === 'append' || value === 'prepend' ? value : 'replace';
+}
 
 export const DEFAULT_INPUT_BOX_TRANSLATION_SYSTEM_PROMPT =
     'You are a professional translation assistant. Translate only the user text. Return only the translation, with no explanation, notes, or quotation marks.';
