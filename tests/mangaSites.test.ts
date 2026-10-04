@@ -12,6 +12,10 @@ describe('漫画阅读规则与持久偏好', () => {
         }
         expect(normalizeConfig({}).imageTranslationMangaPrefetchPages).toBe(3);
     });
+    it('快速容量默认十二张且导入配置按一至二十四规范化',()=>{
+        expect(normalizeConfig({}).imageTranslationMangaCachePages).toBe(12);
+        for(const [input,output] of [[0,1],[3.9,3],[24,24],[999,24]])expect(normalizeConfig({imageTranslationMangaCachePages:input}).imageTranslationMangaCachePages).toBe(output);
+    });
     it('网站目录精确匹配含国际化域名；目录表示检测范围，不把首页当成阅读页', () => {
         expect(new Set(MANGA_SITE_DOMAINS).size).toBe(MANGA_SITE_DOMAINS.length);
         for (const hostname of MANGA_SITE_DOMAINS) {

@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/runtime.ts
  * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和单图及漫画连续模式的原图/译图切换，保持宿主图片与响应式图片资源不变。
- * 主要内容：在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，按张数和像素限制共享位图缓存，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画上下左右返页同步复用结果，不等待其他页推理；漫画原图暂停与处理中不遮挡画面，换图、取消与卸载时释放资源。
+ * 主要内容：在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画上下左右返页同步复用结果，不等待其他页推理；漫画原图暂停与处理中不遮挡画面，换图、取消与卸载时释放资源。
  * 模块边界：本运行时先读取页面允许访问的 Canvas/CORS 像素，失败时授权后台读取当前任务图片并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
 import type {ImageTranslationStage} from '../progress';
@@ -23,6 +23,9 @@ import {isImageHoverEligible} from './hoverEligibility';
 import {createMangaReader} from './mangaReader';
 import type {MangaTranslationStatus} from './mangaSession';
 import {imageLoadTracker} from './imageLoads';
+import {normalizeMangaCachePages, mangaCachePixelBudget} from '@/src/core/config/manga';
+import {compressMangaPage, createMangaLightCache, type MangaCompressedPage} from '../mangaPatchResult';
+import {composeMangaPage} from './mangaCompositor';
 
 const IMAGE_TRANSLATION_OVERLAY = 'fluent-read-image-translation-overlay';
 const IMAGE_TRANSLATION_ROOT = 'fluent-read-image-translation-root';
@@ -34,6 +37,13 @@ const MAX_IMAGE_READ_PIXELS = 16_000_000;
 const MAX_IMAGE_READ_EDGE = 8192;
 const MAX_CACHED_IMAGES = 6;
 const MAX_CACHED_PIXELS = 8_000_000;
+
+type TranslatedSurface = HTMLImageElement | HTMLCanvasElement;
+
+function surfacePixels(surface: TranslatedSurface): number {
+    return surface.tagName === 'CANVAS' ? (surface as HTMLCanvasElement).width * (surface as HTMLCanvasElement).height
+        : (surface as HTMLImageElement).naturalWidth * (surface as HTMLImageElement).naturalHeight;
+}
 
 type ImageTranslationLine = OcrLine & {backgroundColor: string; sourceText?: string};
 type ImageControls = ReturnType<typeof createImageControls>;
@@ -55,7 +65,7 @@ interface ImageTranslationState {
     sourceIdentity: string;
     waitingForImage: boolean;
     lines: ImageTranslationLine[];
-    translatedImage: HTMLImageElement | null;
+    translatedImage: TranslatedSurface | null;
     resultIdentity: string | null;
     sourceStyleLease: {
         opacity: {value: string; priority: string};
@@ -68,9 +78,10 @@ interface ImageTranslationState {
 interface CachedImageTranslation {
     sourceIdentity: string;
     configurationIdentity: string;
-    translatedImage: HTMLImageElement | null;
+    translatedImage: TranslatedSurface | null;
     lines: ImageTranslationLine[];
     pixels: number;
+    manga: boolean;
     invalidate: (event: Event) => void;
 }
 
@@ -87,6 +98,85 @@ const states = new WeakMap<HTMLImageElement, ImageTranslationState>();
 const activeStates = new Set<ImageTranslationState>();
 // Map 有明确数量/像素上限；缓存监听原图 load，悬浮状态卸载期间同 URL 重载也不能复用旧位图。
 const resultCache = new Map<HTMLImageElement, CachedImageTranslation>();
+const lightCache = createMangaLightCache();
+let lightKeys = new WeakMap<HTMLImageElement, {key: string; source: string; identity: string}>();
+let lightSequence = 0;
+const warming = new Map<HTMLImageElement, {controller: AbortController; promise: Promise<void>}>();
+let warmTail: Promise<void> = Promise.resolve();
+
+function clearWarmTasks(): void {warming.forEach(task => task.controller.abort()); warming.clear();}
+function clearMangaCache(): void {
+    clearWarmTasks(); lightCache.clear(); lightKeys = new WeakMap();
+    Array.from(resultCache.keys()).forEach(deleteCachedResult);
+}
+function forgetLightResult(image: HTMLImageElement): void {
+    const key = lightKeys.get(image); if (key) lightCache.remove(key.key);
+    lightKeys.delete(image); warming.get(image)?.controller.abort();
+}
+function lightResult(image: HTMLImageElement): MangaCompressedPage | undefined {
+    if (!config.useCache) return;
+    const key = lightKeys.get(image);
+    if (!key || key.source !== sourceIdentity(image) || key.identity !== configurationIdentity(true)) return;
+    return lightCache.get(key.key);
+}
+function releaseSurface(state: ImageTranslationState): void {
+    const surface = state.translatedImage; surface?.remove(); state.translatedImage = null;
+    if (surface?.tagName === 'CANVAS' && resultCache.get(state.image)?.translatedImage !== surface) {
+        (surface as HTMLCanvasElement).width = 0; (surface as HTMLCanvasElement).height = 0;
+    }
+}
+function saveLightResult(state: ImageTranslationState, page: MangaCompressedPage, identity: string): void {
+    forgetLightResult(state.image);
+    const key = String(++lightSequence);
+    if (lightCache.put(key, page)) lightKeys.set(state.image, {key, source: state.sourceIdentity, identity});
+}
+/** 独立的单任务合成队列只复用成品，不占用或绕过 OCR 队列。 */
+function warmMangaPage(image: HTMLImageElement): Promise<void> {
+    const existing = warming.get(image); if (existing) return existing.promise;
+    const page = lightResult(image); if (!page) return Promise.resolve();
+    const source = sourceIdentity(image), identity = configurationIdentity(true);
+    const controller = new AbortController();
+    const task = {controller, promise: Promise.resolve()};
+    task.promise = warmTail.catch(() => undefined).then(async () => {
+        if (controller.signal.aborted) return;
+        let surface: HTMLCanvasElement | undefined;
+        try {
+            surface = page.patches.length ? await composeMangaPage(image, page, controller.signal) : undefined;
+            if (!mounted || controller.signal.aborted || !image.isConnected || !imageTranslationAllowed(true)
+                || !mangaStatus.active || document.hidden || !config.useCache || sourceIdentity(image) !== source
+                || configurationIdentity(true) !== identity) {
+                if (surface) {surface.width = 0; surface.height = 0;} return;
+            }
+            const current = states.get(image) || createState(image); current.manga = true;
+            releaseSurface(current);
+            current.translatedImage = surface || null; current.lines = page.lines; current.resultIdentity = identity;
+            cacheResult(current, identity);
+            // 隐藏页只进入快速缓存；真正可见时由同一会话完成显示交接。
+            if (current.phase === 'loading') showTranslatedImage(current);
+            else removeState(current);
+            mangaReader?.schedule();
+        } catch (error) {
+            if (!controller.signal.aborted) {
+                forgetLightResult(image);
+                const current = states.get(image);
+                if (current) setButtonState(current, 'error', `图片翻译失败：${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+    }).finally(() => {if (warming.get(image) === task) warming.delete(image);});
+    warming.set(image, task); warmTail = task.promise;
+    return task.promise;
+}
+function prepareMangaCachedImages(images: HTMLImageElement[]): void {
+    if (!mangaStatus.active || document.hidden || !config.useCache) {clearWarmTasks();return;}
+    const nearby = new Set(images);
+    warming.forEach((task, image) => {if (!nearby.has(image)) task.controller.abort();});
+    for (const image of images) {
+        const page = lightResult(image);
+        if (!resultCache.has(image) && states.get(image)?.phase !== 'loading' && page
+            && page.width * page.height <= mangaCachePixelBudget(config.imageTranslationMangaCachePages)) void warmMangaPage(image);
+    }
+}
+
 let mangaReader: ReturnType<typeof createMangaReader> | null = null;
 let mangaStatus: MangaTranslationStatus = {available: false, active: false, pending: false, errors: 0};
 const mangaListeners = new Set<(status: MangaTranslationStatus) => void>();
@@ -102,6 +192,7 @@ export function toggleMangaTranslation(): boolean {
 }
 
 function publishMangaStatus(status: MangaTranslationStatus): void {
+    if (!status.active || !status.available) clearWarmTasks();
     mangaStatus = {...status, message: status.pending ? ('message' in status ? status.message : mangaStatus.message) : undefined,
         progress: status.pending ? ('progress' in status ? status.progress : mangaStatus.progress) : undefined,
         stage: status.pending ? ('stage' in status ? status.stage : mangaStatus.stage) : undefined};
@@ -209,7 +300,7 @@ function watchTranslationConfiguration(): () => void {
         void config.mimoBillingPlan;
         void config.mimoRegion;
         configurationRevision += 1;
-        Array.from(resultCache.keys()).forEach(deleteCachedResult);
+        clearMangaCache();
         mangaReader?.schedule();
     }, {flush: 'sync'});
 }
@@ -219,17 +310,32 @@ function deleteCachedResult(image: HTMLImageElement): void {
     if (!cached) return;
     image.removeEventListener('load', cached.invalidate);
     resultCache.delete(image);
+    const surface = cached.translatedImage;
+    if (surface?.tagName === 'CANVAS' && !Array.from(activeStates).some(state => state.translatedImage === surface)) {
+        (surface as HTMLCanvasElement).width = 0; (surface as HTMLCanvasElement).height = 0;
+    }
+}
+
+function trimFastCache(): void {
+    const manga = Array.from(resultCache.values()).some(cached => cached.manga);
+    const capacity = manga ? normalizeMangaCachePages(config.imageTranslationMangaCachePages) : MAX_CACHED_IMAGES;
+    const budget = manga ? mangaCachePixelBudget(config.imageTranslationMangaCachePages) : MAX_CACHED_PIXELS;
+    let pixels = Array.from(resultCache.values()).reduce((sum, cached) => sum + cached.pixels, 0);
+    while (resultCache.size > capacity || pixels > budget) {
+        const oldest = resultCache.keys().next().value!; pixels -= resultCache.get(oldest)!.pixels; deleteCachedResult(oldest);
+    }
 }
 
 function cacheResult(state: ImageTranslationState, identity: string): void {
     deleteCachedResult(state.image);
     const translatedImage = state.translatedImage;
-    const pixels = translatedImage ? translatedImage.naturalWidth * translatedImage.naturalHeight : 0;
-    if (!config.useCache || pixels > MAX_CACHED_PIXELS) return;
+    const pixels = translatedImage ? surfacePixels(translatedImage) : 0;
+    const budget = state.manga ? mangaCachePixelBudget(config.imageTranslationMangaCachePages) : MAX_CACHED_PIXELS;
+    if (!config.useCache || pixels > budget) return;
     const cachedSourceIdentity = state.sourceIdentity;
     const invalidate = (event: Event) => {
         imageLoadTracker.loaded(event);
-        if (sourceIdentity(state.image) !== cachedSourceIdentity) deleteCachedResult(state.image);
+        if (sourceIdentity(state.image) !== cachedSourceIdentity) {deleteCachedResult(state.image); forgetLightResult(state.image);}
     };
     resultCache.set(state.image, {
         sourceIdentity: state.sourceIdentity,
@@ -237,15 +343,11 @@ function cacheResult(state: ImageTranslationState, identity: string): void {
         translatedImage,
         lines: state.lines,
         pixels,
+        manga: state.manga === true,
         invalidate,
     });
     state.image.addEventListener('load', invalidate);
-    let totalPixels = Array.from(resultCache.values()).reduce((sum, cached) => sum + cached.pixels, 0);
-    while (resultCache.size > MAX_CACHED_IMAGES || totalPixels > MAX_CACHED_PIXELS) {
-        const oldestImage = resultCache.keys().next().value!;
-        totalPixels -= resultCache.get(oldestImage)!.pixels;
-        deleteCachedResult(oldestImage);
-    }
+    trimFastCache();
 }
 
 function ensureImageOverlayRoot(): HTMLDivElement {
@@ -346,7 +448,12 @@ function removeState(state: ImageTranslationState): void {
     activeStates.delete(state);
     syncLayoutObservation();
     if (states.get(state.image) === state) states.delete(state.image);
-    if (!state.image.isConnected) deleteCachedResult(state.image);
+    if (!state.image.isConnected) {deleteCachedResult(state.image); forgetLightResult(state.image);}
+    const surface = state.translatedImage;
+    state.translatedImage = null;
+    if (surface?.tagName === 'CANVAS' && resultCache.get(state.image)?.translatedImage !== surface) {
+        (surface as HTMLCanvasElement).width = 0; (surface as HTMLCanvasElement).height = 0;
+    }
 }
 
 function setPresentation(state: ImageTranslationState, presentation: ImagePresentation): void {
@@ -359,15 +466,16 @@ function setPresentation(state: ImageTranslationState, presentation: ImagePresen
 }
 
 function invalidateSource(state: ImageTranslationState): void {
+    forgetLightResult(state.image);
     deleteCachedResult(state.image);
     state.sourceIdentity = sourceIdentity(state.image);
+    warming.get(state.image)?.controller.abort();
     state.abortController?.abort();
     state.abortController = null;
     state.waitingForImage = false;
     restoreOriginalImage(state);
     if (!state.sourceStyleLease) setPresentation(state, resolveImagePresentation(state.image));
-    state.translatedImage?.remove();
-    state.translatedImage = null;
+    releaseSurface(state);
     state.lines = [];
     state.resultIdentity = null;
     state.controls.setLines([]);
@@ -712,23 +820,23 @@ function showTranslatedImage(state: ImageTranslationState): void {
     const image = state.translatedImage;
     if (image) {
         image.className = 'fluent-read-image-translation-bitmap';
-        image.alt = '';
+        if (image.tagName === 'IMG') (image as HTMLImageElement).alt = '';
         image.setAttribute('aria-hidden', 'true');
         state.overlay.prepend(image);
     }
     state.controls.setLines(state.lines);
-    setButtonState(state, 'translated', image ? '已翻译 · 点击恢复原图' : '未检测到文字，已保留原图');
+    setButtonState(state, 'translated', image || state.lines.length ? '已翻译 · 点击恢复原图' : '未检测到文字，已保留原图');
     updateOverlayPosition(state);
 }
 
 function restoreImageTranslation(state: ImageTranslationState): void {
     state.resultIdentity = null;
+    warming.get(state.image)?.controller.abort();
     state.abortController?.abort();
     state.abortController = null;
     state.waitingForImage = false;
     restoreOriginalImage(state);
-    state.translatedImage?.remove();
-    state.translatedImage = null;
+    releaseSurface(state);
     state.lines = [];
     state.controls.setLines([]);
     state.needsPreparation = false;
@@ -762,6 +870,11 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
         state.translatedImage = cached.translatedImage;
         state.lines = cached.lines;
         showTranslatedImage(state);
+        return;
+    }
+    if (!prepareLanguages && state.manga && lightResult(state.image)) {
+        setButtonState(state, 'loading', '正在生成译图…');
+        await warmMangaPage(state.image);
         return;
     }
     deleteCachedResult(state.image);
@@ -804,20 +917,28 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
             restoreOriginalImage(state);
             state.translatedImage?.remove();state.translatedImage = null;
             state.resultIdentity = identity;state.lines = [];
+            if (config.useCache) saveLightResult(state, {width: 1, height: 1, patches: [], lines: []}, identity);
             cacheResult(state, identity);
             showTranslatedImage(state);
             return;
         }
         setButtonState(state, 'loading', '正在生成译图…');
-        const translatedImage = await withTimeout(loadImage(result.image, controller.signal), IMAGE_READ_TIMEOUT_MS, '译图加载超时', controller.signal);
-        if (!requestIsCurrent(state, controller)) return;
+        const page = state.manga && result.mangaPatches ? compressMangaPage(result.mangaPatches, result.lines) : undefined;
+        const translatedImage = page ? (page.patches.length ? await composeMangaPage(state.image, page, controller.signal) : null)
+            : await withTimeout(loadImage(result.image, controller.signal), IMAGE_READ_TIMEOUT_MS, '译图加载超时', controller.signal);
+        if (!requestIsCurrent(state, controller)) {
+            if (translatedImage?.tagName === 'CANVAS') {(translatedImage as HTMLCanvasElement).width = 0; (translatedImage as HTMLCanvasElement).height = 0;}
+            return;
+        }
         // 设置在途中变化时不能将旧请求当成新配置的结果；保留原图并让用户直接重试。
         if (configurationIdentity(state.manga) !== identity) {
+            if (translatedImage?.tagName === 'CANVAS') {(translatedImage as HTMLCanvasElement).width = 0; (translatedImage as HTMLCanvasElement).height = 0;}
             throw new Error('翻译设置已更改，请重试');
         }
         state.resultIdentity = identity;
         state.translatedImage = translatedImage;
         state.lines = result.lines;
+        if (page && config.useCache) saveLightResult(state, page, identity);
         cacheResult(state, identity);
         showTranslatedImage(state);
     } catch (error) {
@@ -1040,9 +1161,12 @@ export function mountImageTranslator(): void {
         enabled: () => config.on && config.imageTranslationMangaEnabled !== false,
         siteRules: () => config.imageTranslationMangaSites,
         prefetchPages: () => config.imageTranslationMangaPrefetchPages,
+        cachePages: () => config.imageTranslationMangaCachePages,
         identity: image => `${sourceIdentity(image)}:${configurationIdentity()}`,
         translate: translateMangaImage,
         reuse: reuseMangaImage,
+        warm: prepareMangaCachedImages,
+        resetCache: clearMangaCache,
         restore: restoreMangaImage,
         release: image => { const state = states.get(image); if (state) removeState(state); },
         failed: image => states.get(image)?.phase === 'error',
@@ -1055,8 +1179,10 @@ export function mountImageTranslator(): void {
         pointerImage = null;
         activeStates.forEach(state => { if (state.phase === 'idle' && state.hoverEntry) removeState(state); });
     });
+    let currentCachePages = config.imageTranslationMangaCachePages;
     let currentUiLanguage = config.uiLanguage;
     const stopLanguageWatch = subscribeConfig(next => {
+        if (next.imageTranslationMangaCachePages !== currentCachePages) {currentCachePages = next.imageTranslationMangaCachePages; trimFastCache();}
         mangaReader?.schedule();
         scheduleOverlayPositionUpdate();
         if (next.uiLanguage === currentUiLanguage) return;
@@ -1105,7 +1231,7 @@ export function unmountImageTranslator(): void {
     removeListeners?.();
     removeListeners = null;
     Array.from(activeStates).forEach(removeState);
-    Array.from(resultCache.keys()).forEach(deleteCachedResult);
+    clearMangaCache();
     removeImageOverlayRoot();
     imageLoadTracker.reset();
 }

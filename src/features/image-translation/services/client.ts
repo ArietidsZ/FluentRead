@@ -4,6 +4,7 @@
  * 主要内容：提供 fetchImageInExtension 与 translateImageInExtension，生成跨页面安全请求标识，传播取消和超时信号，订阅当前任务的真实阶段和识别百分比、清理监听，并在图片翻译消息断线时按共享截止时间恢复一次。
  * 模块边界：客户端不读取图片像素、不直接访问网络或 Offscreen；跨域 URL 只作为受控消息交给 background，再由 Offscreen 校验和读取，页面 UI 由 content/runtime 决定。
  */
+import {parseMangaPatchPacket, type MangaPatchPacket} from '../mangaPatchResult';
 import {getRequiredImageOcrLanguages} from '../ocrLanguages';
 import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, normalizeImageProgress, type ImageTranslationStage} from '../progress';
 import type { OcrLine } from '@/src/features/image-translation/core';
@@ -16,6 +17,7 @@ interface ImageTranslationLine extends OcrLine {
 interface ImageTranslationResponse {
     success: boolean;
     image?: string;
+    mangaPatches?: unknown;
     lines?: ImageTranslationLine[];
     error?: string;
 }
@@ -174,7 +176,7 @@ export async function translateImageInExtension(
     sourceLanguage: string,
     title: string,
     options: ImageExtensionOperationOptions = {},
-): Promise<{ image: string; lines: ImageTranslationLine[] }> {
+): Promise<{ image: string; lines: ImageTranslationLine[]; mangaPatches?: MangaPatchPacket }> {
     const message = {
         type: 'fluentReadImageTranslate',
         image,
@@ -194,10 +196,11 @@ export async function translateImageInExtension(
             const response = await sendCancellableImageOperation<ImageTranslationResponse>(
                 message, {...options, requestId, timeoutMs: remainingMs}, '图片翻译超时',
             );
-            if (!response?.success || !response.image || !Array.isArray(response.lines)) {
+            if (!response?.success || (!response.image && !(options.manga && response.mangaPatches !== undefined)) || !Array.isArray(response.lines)) {
                 throw new Error(response?.error || '图片翻译服务不可用');
             }
-            return {image: response.image, lines: response.lines};
+            return {image: response.image || '', lines: response.lines,
+                ...(options.manga && response.mangaPatches !== undefined ? {mangaPatches: parseMangaPatchPacket(response.mangaPatches)} : {})};
         } catch (error) {
             if (isContextInvalidatedError(error)) throw normalizeTranslationTransportError(error);
             if (!isDisconnectedError(error)) throw error;

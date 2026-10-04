@@ -590,6 +590,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     imageTranslationMangaDownloadConfirmed: {group: 'imageTranslation', label: '已了解漫画资源下载', format: formatBoolean},
     imageTranslationMangaSites: {group: 'imageTranslation', label: '自定义漫画网站'},
     imageTranslationMangaPrefetchPages: {group: 'imageTranslation', label: '提前翻译后续页面'},
+    imageTranslationMangaCachePages: {group: 'imageTranslation', label: '快速缓存图片数量'},
     imageTranslationHoverEnabled: {group: 'imageTranslation', label: '图片悬浮按钮', format: formatBoolean},
     imageTranslationContextMenuEnabled: {group: 'imageTranslation', label: '图片右键菜单', format: formatBoolean},
     disableImageTranslator: {group: 'imageTranslation', label: '图片翻译', format: (value) => formatBoolean(value, true)},
