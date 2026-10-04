@@ -247,6 +247,7 @@ export default defineConfig({
             'tests/mangaSites.test.ts',
             'tests/mangaEntry.test.ts',
             'tests/mangaQuality.test.ts',
+            'tests/mangaTypography.test.ts',
             'tests/mangaOcr.test.ts',
             'tests/mangaOcrAssets.test.ts',
             'tests/mangaInpainting.test.ts',
