@@ -9,6 +9,30 @@ const session = {account: {id: 'fixture-account', email: 'tester@fixture.invalid
 function json(value: unknown, etag?: string) {return new Response(JSON.stringify(value), {headers: etag ? {etag} : {}});}
 afterEach(() => vi.useRealTimers());
 describe('Google Drive appDataFolder HTTP 边界', () => {
+    it('上传后逐字核验密文和文件身份，不把空文件、旧文件或上传期间的改动报为成功', async()=>{
+        const content=await encryptDriveConfig({},'fixture secure passphrase');
+        for (const result of [null,{id:metadata.id,content:'old'},{id:'another-file',content}]) {
+            const info={...metadata,id:result?.id ?? metadata.id};
+            const fetcher=vi.fn(async(input,init)=> init?.method==='PATCH' ? json(metadata,'"written"') : String(input).includes('spaces=') ? json({files:result?[info]:[]}) : String(input).includes('alt=media') ? new Response(result?.content) : json(info,'"read"'));
+            await expect(createDriveApi(fetcher).write(session,content,{...metadata,etag:'"before"'})).rejects.toThrow('校验');
+            expect(fetcher.mock.calls.every(([,init])=>init?.method!=='DELETE')).toBe(true);
+        }
+    });
+    it('首次创建竞态只条件撤回自己的新文件，撤回冲突不掩盖备份竞态',async()=>{
+        const content=await encryptDriveConfig({},'fixture secure passphrase');
+        for (const [etag,status] of [['"created"',204],['"created"',412],[undefined,204]] as const) {
+            const fetcher=vi.fn(async(_input,init)=> init?.method==='POST' ? json(metadata,etag) : init?.method==='DELETE' ? new Response(null,{status}) : json({files:[metadata,{...metadata,id:'other-device-file'}]}));
+            await expect(createDriveApi(fetcher).write(session,content,null)).rejects.toMatchObject({status:409});
+            const deletes=fetcher.mock.calls.filter(([,init])=>init?.method==='DELETE');
+            expect(deletes).toHaveLength(etag ? 1 : 0);
+            if(etag) expect(deletes[0]).toMatchObject([expect.stringContaining('fixture%2Ffile'),{headers:{'If-Match':etag}}]);
+        }
+    });
+    it('缺少强 ETag 时拒绝覆盖，不能退回无条件 PATCH', async () => {
+        const fetcher=vi.fn(); const content=await encryptDriveConfig({},'fixture secure passphrase');
+        for (const etag of [undefined,'W/"weak"','unquoted']) await expect(createDriveApi(fetcher).write(session,content,{...metadata,etag})).rejects.toThrow('版本');
+        expect(fetcher).not.toHaveBeenCalled();
+    });
     it('限定应用空间和文件名；空云盘不下载', async () => {
         const fetcher = vi.fn<typeof fetch>(async () => json({files: []}));
         expect(await createDriveApi(fetcher).read(session)).toBeNull();
@@ -37,16 +61,16 @@ describe('Google Drive appDataFolder HTTP 边界', () => {
     });
     it('只上传加密配置，创建和更新使用不同方法，支持条件写入', async () => {
         const content = await encryptDriveConfig({private: 'fixture-content-secret'}, 'fixture secure passphrase');
-        const fetcher = vi.fn<typeof fetch>(async () => json(metadata, '"new-etag"'));
+        const fetcher = vi.fn<typeof fetch>(async input => String(input).includes('alt=media') ? new Response(content) : String(input).includes('spaces=') ? json({files:[metadata]}) : json(metadata, '"new-etag"'));
         const api = createDriveApi(fetcher);
         await api.write(session, content, null);
         expect(fetcher.mock.calls[0][1]).toMatchObject({method: 'POST', body: expect.stringContaining('appDataFolder')});
         expect(String(fetcher.mock.calls[0][1]?.body)).not.toContain('fixture-content-secret');
         await api.write(session, content, {...metadata, etag: '"previous-etag"'});
-        expect(fetcher.mock.calls[1][1]).toMatchObject({method: 'PATCH', headers: {'If-Match': '"previous-etag"'}});
-        expect(String(fetcher.mock.calls[1][0])).toContain('fixture%2Ffile');
-        await api.write(session, content, metadata);
-        expect(fetcher.mock.calls[2][1]?.headers).not.toHaveProperty('If-Match');
+        expect(fetcher.mock.calls[5][1]).toMatchObject({method: 'PATCH', headers: {'If-Match': '"previous-etag"'}});
+        expect(String(fetcher.mock.calls[5][0])).toContain('fixture%2Ffile');
+        await expect(api.write(session, content, metadata)).rejects.toThrow('版本');
+        expect(fetcher).toHaveBeenCalledTimes(10);
         for (const invalid of ['broken', 'null', '{}', JSON.stringify({format: 'wrong'}), 'x'.repeat(GOOGLE_DRIVE_MAX_BYTES + 1)]) await expect(api.write(session, invalid, null)).rejects.toThrow('加密');
     });
     it('错误和超时不反射上游私密响应，不进行额外重试', async () => {
