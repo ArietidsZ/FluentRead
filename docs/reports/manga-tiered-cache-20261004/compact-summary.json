@@ -2,7 +2,7 @@
   {
     "name": "02-original.png",
     "round": 0,
-    "totalMs": 8427,
+    "totalMs": 8102,
     "patchCount": 1,
     "patchBytes": 164960,
     "fullPngBytes": 1395457,
@@ -16,14 +16,14 @@
         "architecture": "metal-3"
       }
     },
-    "maxChannelDifference": 0,
     "differentPixels": 0,
+    "maxChannelDifference": 0,
     "ocrLines": 1
   },
   {
     "name": "02-original.png",
     "round": 1,
-    "totalMs": 2121,
+    "totalMs": 1989,
     "patchCount": 1,
     "patchBytes": 164960,
     "fullPngBytes": 1395457,
@@ -37,14 +37,14 @@
         "architecture": "metal-3"
       }
     },
-    "maxChannelDifference": 0,
     "differentPixels": 0,
+    "maxChannelDifference": 0,
     "ocrLines": 1
   },
   {
     "name": "03-original.png",
     "round": 0,
-    "totalMs": 6380,
+    "totalMs": 6455,
     "patchCount": 10,
     "patchBytes": 42693,
     "fullPngBytes": 1000392,
@@ -58,14 +58,14 @@
         "architecture": "metal-3"
       }
     },
-    "maxChannelDifference": 0,
     "differentPixels": 0,
+    "maxChannelDifference": 0,
     "ocrLines": 10
   },
   {
     "name": "03-original.png",
     "round": 1,
-    "totalMs": 5187,
+    "totalMs": 5036,
     "patchCount": 10,
     "patchBytes": 42693,
     "fullPngBytes": 1000392,
@@ -79,8 +79,8 @@
         "architecture": "metal-3"
       }
     },
-    "maxChannelDifference": 0,
     "differentPixels": 0,
+    "maxChannelDifference": 0,
     "ocrLines": 10
   }
 ]
