@@ -185,6 +185,9 @@
   font-size: 16px;
   font-weight: 450;
 }
+.bv-greeting-ribbon {
+  display: none;
+}
 .bv-greeting-fr {
   left: 5%;
   top: 12%;
@@ -814,6 +817,41 @@
   }
 }
 @media (max-width: 760px) {
+  /* 窄屏将问候语集中在独立的语言带中，避免散布在标题、正文和按钮背后。 */
+  .bv-hero-orbit::before,
+  .bv-hero-orbit > .bv-orbit-greeting {
+    display: none;
+  }
+  .bv-greeting-ribbon {
+    display: block;
+    inset-inline: 20px;
+    top: 18px;
+    max-width: 360px;
+    margin-inline: auto;
+    height: 30px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #f8f5f7;
+    color: #786772;
+  }
+  .bv-greeting-ribbon-group {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    height: 30px;
+    opacity: 0;
+    animation: bv-greeting-ribbon-fade 18s ease-in-out infinite;
+    animation-delay: calc(var(--bv-greeting-group) * 6s - 1s);
+  }
+  .bv-greeting-ribbon-group > span {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
   .bv-hero {
     padding-top: 72px;
   }
@@ -831,6 +869,25 @@
   }
   .bv-site .bv-hero-slogan {
     font-size: clamp(40px, 7vw, 54px);
+  }
+}
+@keyframes bv-greeting-ribbon-fade {
+  0%,
+  33.333%,
+  100% {
+    opacity: 0;
+  }
+  3%,
+  29% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bv-greeting-ribbon-group {
+    animation: none;
+  }
+  .bv-greeting-ribbon-group:first-child {
+    opacity: 1;
   }
 }
 @media (max-width: 640px) {

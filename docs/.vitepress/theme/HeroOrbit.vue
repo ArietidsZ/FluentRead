@@ -1,5 +1,19 @@
 <script setup lang="ts">
 defineProps<{ en?: boolean }>()
+
+const greetings = [
+  { code: 'en', lang: 'en', text: 'Hello' },
+  { code: 'zh', lang: 'zh-CN', text: '你好' },
+  { code: 'fr', lang: 'fr', text: 'Bonjour' },
+  { code: 'es', lang: 'es', text: 'Hola' },
+  { code: 'ja', lang: 'ja', text: 'こんにちは' },
+  { code: 'ko', lang: 'ko', text: '안녕하세요' },
+  { code: 'de', lang: 'de', text: 'Hallo' },
+  { code: 'pt', lang: 'pt', text: 'Olá' },
+  { code: 'ru', lang: 'ru', text: 'Привет' },
+  { code: 'ar', lang: 'ar', text: 'مرحبا' },
+]
+const greetingGroups = [greetings.slice(0, 4), greetings.slice(4, 6), greetings.slice(6)]
 </script>
 <template>
   <div class="bv-hero-orbit" aria-hidden="true">
@@ -18,15 +32,30 @@ defineProps<{ en?: boolean }>()
       <span>offers</span><small>{{ en ? 'Verb · predicate' : '动词 · 谓语' }}</small>
       <p>{{ en ? 'Understand each phrase' : '难句，拆开理解' }}</p>
     </div>
-    <span class="bv-orbit-greeting bv-greeting-en" lang="en">Hello</span>
-    <span class="bv-orbit-greeting bv-greeting-zh" lang="zh-CN">你好</span>
-    <span class="bv-orbit-greeting bv-greeting-fr" lang="fr">Bonjour</span>
-    <span class="bv-orbit-greeting bv-greeting-es" lang="es">Hola</span>
-    <span class="bv-orbit-greeting bv-greeting-ja" lang="ja">こんにちは</span>
-    <span class="bv-orbit-greeting bv-greeting-ko" lang="ko">안녕하세요</span>
-    <span class="bv-orbit-greeting bv-greeting-de" lang="de">Hallo</span>
-    <span class="bv-orbit-greeting bv-greeting-pt" lang="pt">Olá</span>
-    <span class="bv-orbit-greeting bv-greeting-ru" lang="ru">Привет</span>
-    <span class="bv-orbit-greeting bv-greeting-ar" lang="ar" dir="rtl">مرحبا</span>
+    <span
+      v-for="greeting in greetings"
+      :key="greeting.code"
+      class="bv-orbit-greeting"
+      :class="`bv-greeting-${greeting.code}`"
+      :lang="greeting.lang"
+      :dir="greeting.code === 'ar' ? 'rtl' : undefined"
+      >{{ greeting.text }}</span
+    >
+    <div class="bv-greeting-ribbon">
+      <div
+        v-for="(group, index) in greetingGroups"
+        :key="index"
+        class="bv-greeting-ribbon-group"
+        :style="{ '--bv-greeting-group': index }"
+      >
+        <span
+          v-for="greeting in group"
+          :key="greeting.code"
+          :lang="greeting.lang"
+          :dir="greeting.code === 'ar' ? 'rtl' : undefined"
+          >{{ greeting.text }}</span
+        >
+      </div>
+    </div>
   </div>
 </template>
