@@ -5,6 +5,9 @@
  * 模块边界：静态界面词典，不翻译漫画内容、不读取配置、不调用服务。
  */
 const english = {
+  "漫画译图数据无效": "The translated image data is invalid",
+  "快速缓存图片数量": "Images kept ready to display",
+  "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "Recent pages display immediately. Earlier pages use a compact cache and are restored when you return. Large images may reduce the number kept ready to fit the memory budget.",
   "未检测到文字，已保留原图": "No text detected. Original kept.",
   "正在准备后续页面": "Preparing upcoming pages",
   "作品阅读页 · 自动识别正文图片": "Artwork reader · Automatic image detection",
@@ -93,6 +96,8 @@ const english = {
 export const mangaLegacyMessages = {
   "en-US": english,
   "ja-JP": {...english, ...{
+  "快速缓存图片数量": "すぐに表示できる画像数",
+  "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "最近のページはすぐに表示されます。以前のページは軽量キャッシュから復元します。大きな画像ではメモリ上限に合わせて保持数を減らします。",
   "提前翻译后续页面": "次のページを先に翻訳",
   "只翻译当前页面": "現在のページのみ",
   "张图片": "枚",
@@ -123,6 +128,8 @@ export const mangaLegacyMessages = {
   "支持的网站": "対応サイト"
 }},
   "ko-KR": {...english, ...{
+  "快速缓存图片数量": "바로 표시할 이미지 수",
+  "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "최근 페이지는 바로 표시합니다. 이전 페이지는 경량 캐시에서 복원하며, 큰 이미지는 메모리 한도에 맞춰 보관 수가 줄어듭니다.",
   "提前翻译后续页面": "다음 페이지 미리 번역",
   "只翻译当前页面": "현재 페이지만",
   "张图片": "이미지",
@@ -153,6 +160,8 @@ export const mangaLegacyMessages = {
   "支持的网站": "지원 사이트"
 }},
   "fr-FR": {...english, ...{
+  "快速缓存图片数量": "Images prêtes à afficher",
+  "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "Les pages récentes s’affichent immédiatement. Les pages précédentes sont restaurées depuis un cache compact. Les grandes images peuvent réduire le nombre conservé selon la limite de mémoire.",
   "提前翻译后续页面": "Traduire les pages suivantes à l’avance",
   "只翻译当前页面": "Pages actuelles uniquement",
   "张图片": "images",
@@ -183,6 +192,8 @@ export const mangaLegacyMessages = {
   "支持的网站": "Sites pris en charge"
 }},
   "ru-RU": {...english, ...{
+  "快速缓存图片数量": "Изображения, готовые к показу",
+  "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "Недавние страницы отображаются сразу. Предыдущие восстанавливаются из компактного кэша. Для больших изображений количество страниц уменьшается с учётом лимита памяти.",
   "提前翻译后续页面": "Заранее переводить следующие страницы",
   "只翻译当前页面": "Только текущие страницы",
   "张图片": "изображений",
@@ -213,6 +224,8 @@ export const mangaLegacyMessages = {
   "支持的网站": "Поддерживаемые сайты"
 }},
   "es-ES": {...english, ...{
+  "快速缓存图片数量": "Imágenes listas para mostrar",
+  "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "Las páginas recientes se muestran al instante. Las anteriores se restauran desde una caché compacta. Las imágenes grandes pueden reducir la cantidad guardada para ajustarse al límite de memoria.",
   "提前翻译后续页面": "Traducir las siguientes páginas por adelantado",
   "只翻译当前页面": "Solo las páginas actuales",
   "张图片": "imágenes",
