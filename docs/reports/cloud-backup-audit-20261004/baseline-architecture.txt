@@ -1,5 +1,4 @@
-
- RUN  v2.1.9 /Users/thinkstu/Desktop/copy/FluentRead-cloud-audit-baseline-check-20261004
+RUN  v2.1.9 /Users/thinkstu/Desktop/copy/FluentRead-cloud-audit-baseline-check-20261004
 
  ❯ tests/architecture/moduleBoundaries.test.ts (13 tests | 1 failed) 2790ms
    ✓ architecture module boundaries > src 的静态依赖图不存在跨文件循环 1054ms
@@ -28,7 +27,7 @@ AssertionError: expected [ { …(3) } ] to deeply equal []
 
  ❯ tests/architecture/moduleBoundaries.test.ts:430:24
     428|             .filter(({lines, ceiling}) => lines > ceiling);
-    429| 
+    429|
     430|         expect(growth).toEqual([]);
        |                        ^
     431|     });
@@ -40,4 +39,3 @@ AssertionError: expected [ { …(3) } ] to deeply equal []
       Tests  1 failed | 12 passed (13)
    Start at  08:16:04
    Duration  3.25s (transform 41ms, setup 0ms, collect 290ms, tests 2.79s, environment 0ms, prepare 34ms)
-

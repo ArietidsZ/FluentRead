@@ -1,4 +1,3 @@
-
 > FluentRead-流畅阅读@0.0.35 test /Users/thinkstu/Desktop/copy/FluentRead-cloud-backup-audit-20261004
 > node scripts/testing/run-resource-safe.mjs -- vitest run "tests/settingsUiArchitecture.test.ts" "tests/i18n.test.ts" "tests/sourceFileHeaders.test.ts" "tests/providerBoundaries.test.ts"
 
@@ -16,4 +15,3 @@
       Tests  89 passed (89)
    Start at  08:26:47
    Duration  4.61s (transform 978ms, setup 0ms, collect 1.50s, tests 2.77s, environment 0ms, prepare 76ms)
-
