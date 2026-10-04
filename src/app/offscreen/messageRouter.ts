@@ -1,7 +1,7 @@
 /**
  * @file src/app/offscreen/messageRouter.ts
  * 文件职责：解析并分派发送到扩展自有 DOM 页面的可信运行时消息，为 Chrome 翻译、本地模型、TTS、远程图片读取、OCR 语言包、整图和区域翻译提供统一响应纪律。
- * 主要内容：提供 ready 握手，校验文本、语言码、图片与 OCR 语言包请求并分派依赖；以共用的可取消请求表管理取消与单次回复，保留 Chrome 待准备语言对、模型不可用和本地 TTS 错误码。
+ * 主要内容：校验并传递单图本地识别方式；提供 ready 握手，校验文本、语言码、图片与 OCR 语言包请求并分派依赖；以共用的可取消请求表管理取消与单次回复，保留 Chrome 待准备语言对、模型不可用和本地 TTS 错误码。
  * 模块边界：路由器不创建 Audio/Worker、不调用 browser.offscreen，也不实现翻译算法；资源实例由 offscreen runtime 构造，具体能力来自 translation、ttsPlayback 和 feature services。
  */
 import type {AreaTranslationSelection} from '@/src/features/area-translation/protocol';
@@ -35,6 +35,7 @@ export interface OffscreenMessageDependencies {
         signal: AbortSignal,
         requestId: string,
         manga?: boolean,
+        ocrEngine?: 'tesseract' | 'paddle',
     ) => Promise<unknown>;
     readonly translateArea: (
         image: string,
@@ -502,14 +503,18 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                 startImageOperation(
                     message,
                     sendResponse,
-                    (signal, requestId) => dependencies.translateImage(
-                        requiredImage(message.image),
-                        requiredSourceLanguage(message.sourceLanguage),
-                        optionalTitle(message.title),
-                        signal,
-                        requestId,
-                        message.manga === undefined ? false : requiredBoolean(message.manga,'manga'),
-                    ),
+                    (signal, requestId) => {
+                        if (message.ocrEngine !== undefined && message.ocrEngine !== 'tesseract' && message.ocrEngine !== 'paddle') throw new Error('图片识别方式无效');
+                        return dependencies.translateImage(
+                            requiredImage(message.image),
+                            requiredSourceLanguage(message.sourceLanguage),
+                            optionalTitle(message.title),
+                            signal,
+                            requestId,
+                            message.manga === undefined ? false : requiredBoolean(message.manga,'manga'),
+                            message.ocrEngine === 'paddle' ? 'paddle' : 'tesseract',
+                        );
+                    },
                     (result) => ({...resultRecord(result, '图片翻译'), success: true}),
                 );
                 return true;

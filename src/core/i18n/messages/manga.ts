@@ -1,10 +1,21 @@
 /**
  * @file src/core/i18n/messages/manga.ts
- * 文件职责：提供漫画入口、首次资源说明与独立设置的产品文案，避免新增界面在非中文语言下显示中文。
- * 主要内容：英文完整回退目录与各语言设置及核心操作文案；下载用途、实际状态和持久关闭使用相同源文本。
+ * 文件职责：提供漫画入口、首次资源说明和图片共享识别设置的产品文案，避免新增界面在非中文语言下显示中文。
+ * 主要内容：英文完整回退目录与各语言核心操作文案；下载用途、实际状态和持久关闭使用相同源文本。
  * 模块边界：静态界面词典，不翻译漫画内容、不读取配置、不调用服务。
  */
 const english = {
+  "图片识别方式": "Image text recognition",
+  "通用文字 · Tesseract": "General text · Tesseract",
+  "漫画文字 · PaddleOCR": "Comic text · PaddleOCR",
+  "适合截图、图表与清晰排版文字。按原文语言准备语言包。": "For screenshots, charts and clearly printed text. Prepare language packs for the source language.",
+  "适合漫画与气泡文字。首次翻译下载约 30 MB，与漫画共用，已下载无需重复下载。": "For comics and speech bubbles. About 30 MB is downloaded on first translation and shared with manga. Existing models are reused.",
+  "使用 PaddleOCR，当前页优先，只提前处理已加载的图片。": "Uses PaddleOCR. Current pages come first; only loaded images are prepared in advance.",
+  "入口与缓存": "Controls and cache",
+  "识别资源与下载": "Recognition resources and downloads",
+  "正在准备图片识别模型…": "Preparing image recognition models…",
+  "PaddleOCR 文字识别": "PaddleOCR text recognition",
+  "悬停图片或右键翻译，随时对照原图。": "Hover over an image or right-click to translate. Compare with the original anytime.",
   "漫画译图数据无效": "The translated image data is invalid",
   "快速缓存图片数量": "Images kept ready to display",
   "最近页面可直接显示，较早页面保留轻量缓存并在返回时恢复；图片较大时会根据可用内存减少快速缓存数量": "Recent pages display immediately. Earlier pages use a compact cache and are restored when you return. Large images may reduce the number kept ready to fit the memory budget.",
@@ -96,6 +107,17 @@ const english = {
 export const mangaLegacyMessages = {
   "en-US": english,
   "ja-JP": {...english, ...{
+  "图片识别方式": "画像の文字認識",
+  "通用文字 · Tesseract": "一般的な文字 · Tesseract",
+  "漫画文字 · PaddleOCR": "漫画の文字 · PaddleOCR",
+  "适合截图、图表与清晰排版文字。按原文语言准备语言包。": "スクリーンショットや図表、整った文字に適しています。原文の言語に合わせて言語パックを準備します。",
+  "适合漫画与气泡文字。首次翻译下载约 30 MB，与漫画共用，已下载无需重复下载。": "漫画や吹き出しに適しています。初回の翻訳で約 30 MB をダウンロードし、漫画と共有します。既存のモデルは再利用します。",
+  "使用 PaddleOCR，当前页优先，只提前处理已加载的图片。": "PaddleOCR を使用します。表示中のページを優先し、読み込み済みの画像だけを先に処理します。",
+  "入口与缓存": "操作とキャッシュ",
+  "识别资源与下载": "認識リソースとダウンロード",
+  "正在准备图片识别模型…": "画像認識モデルを準備中…",
+  "PaddleOCR 文字识别": "PaddleOCR 文字認識",
+  "悬停图片或右键翻译，随时对照原图。": "画像にカーソルを合わせるか右クリックで翻訳できます。いつでも原画像と比較できます。",
   "首次使用时自动准备": "初回使用時に自動準備",
   "资源下载后可重复使用，图片在当前浏览器中处理": "一度ダウンロードすれば再利用できます。画像はこのブラウザー内で処理します。",
   "识别对白与旁白": "会話とナレーションを認識",
@@ -165,6 +187,17 @@ export const mangaLegacyMessages = {
   "支持的网站": "対応サイト"
 }},
   "ko-KR": {...english, ...{
+  "图片识别方式": "이미지 문자 인식",
+  "通用文字 · Tesseract": "일반 문자 · Tesseract",
+  "漫画文字 · PaddleOCR": "만화 문자 · PaddleOCR",
+  "适合截图、图表与清晰排版文字。按原文语言准备语言包。": "스크린샷, 차트, 선명하게 배치된 문자에 적합합니다. 원문 언어의 언어 팩을 준비합니다.",
+  "适合漫画与气泡文字。首次翻译下载约 30 MB，与漫画共用，已下载无需重复下载。": "만화와 말풍선에 적합합니다. 첫 번역 시 약 30 MB를 다운로드하며 만화와 공유합니다. 기존 모델은 재사용합니다.",
+  "使用 PaddleOCR，当前页优先，只提前处理已加载的图片。": "PaddleOCR를 사용합니다. 현재 페이지를 우선 처리하고 로드된 이미지만 미리 준비합니다.",
+  "入口与缓存": "실행 방법과 캐시",
+  "识别资源与下载": "인식 리소스 및 다운로드",
+  "正在准备图片识别模型…": "이미지 인식 모델 준비 중…",
+  "PaddleOCR 文字识别": "PaddleOCR 문자 인식",
+  "悬停图片或右键翻译，随时对照原图。": "이미지 위에 마우스를 올리거나 오른쪽 클릭으로 번역하세요. 언제든 원본과 비교할 수 있습니다.",
   "首次使用时自动准备": "처음 사용할 때 자동 준비",
   "资源下载后可重复使用，图片在当前浏览器中处理": "다운로드한 리소스는 다시 사용할 수 있으며 이미지는 현재 브라우저에서 처리합니다.",
   "识别对白与旁白": "대사와 내레이션 인식",
@@ -234,6 +267,17 @@ export const mangaLegacyMessages = {
   "支持的网站": "지원 사이트"
 }},
   "fr-FR": {...english, ...{
+  "图片识别方式": "Reconnaissance du texte",
+  "通用文字 · Tesseract": "Texte courant · Tesseract",
+  "漫画文字 · PaddleOCR": "Texte de BD · PaddleOCR",
+  "适合截图、图表与清晰排版文字。按原文语言准备语言包。": "Pour les captures, graphiques et textes clairement imprimés. Préparez les packs de la langue source.",
+  "适合漫画与气泡文字。首次翻译下载约 30 MB，与漫画共用，已下载无需重复下载。": "Pour les BD et les bulles. Environ 30 MB sont téléchargés à la première traduction et partagés avec le manga. Les modèles existants sont réutilisés.",
+  "使用 PaddleOCR，当前页优先，只提前处理已加载的图片。": "Utilise PaddleOCR. Les pages visibles sont prioritaires ; seules les images chargées sont préparées à l’avance.",
+  "入口与缓存": "Commandes et cache",
+  "识别资源与下载": "Ressources de reconnaissance",
+  "正在准备图片识别模型…": "Préparation des modèles de reconnaissance…",
+  "PaddleOCR 文字识别": "Reconnaissance avec PaddleOCR",
+  "悬停图片或右键翻译，随时对照原图。": "Survolez une image ou faites un clic droit pour traduire. Comparez avec l’original à tout moment.",
   "首次使用时自动准备": "Préparation automatique à la première utilisation",
   "资源下载后可重复使用，图片在当前浏览器中处理": "Les ressources téléchargées sont réutilisables. Les images sont traitées dans ce navigateur.",
   "识别对白与旁白": "Reconnaître les dialogues et la narration",
@@ -303,6 +347,17 @@ export const mangaLegacyMessages = {
   "支持的网站": "Sites pris en charge"
 }},
   "ru-RU": {...english, ...{
+  "图片识别方式": "Распознавание текста на изображениях",
+  "通用文字 · Tesseract": "Обычный текст · Tesseract",
+  "漫画文字 · PaddleOCR": "Текст комиксов · PaddleOCR",
+  "适合截图、图表与清晰排版文字。按原文语言准备语言包。": "Для снимков экрана, диаграмм и чёткого печатного текста. Подготовьте языковые пакеты для языка оригинала.",
+  "适合漫画与气泡文字。首次翻译下载约 30 MB，与漫画共用，已下载无需重复下载。": "Для комиксов и реплик. При первом переводе загружается около 30 MB; модели общие с мангой. Уже загруженные модели используются повторно.",
+  "使用 PaddleOCR，当前页优先，只提前处理已加载的图片。": "Используется PaddleOCR. Приоритет у текущих страниц; заранее обрабатываются только загруженные изображения.",
+  "入口与缓存": "Управление и кэш",
+  "识别资源与下载": "Ресурсы распознавания",
+  "正在准备图片识别模型…": "Подготовка моделей распознавания…",
+  "PaddleOCR 文字识别": "Распознавание с PaddleOCR",
+  "悬停图片或右键翻译，随时对照原图。": "Наведите указатель на изображение или нажмите правой кнопкой для перевода. Оригинал доступен для сравнения.",
   "首次使用时自动准备": "Автоматическая подготовка при первом использовании",
   "资源下载后可重复使用，图片在当前浏览器中处理": "Загруженные ресурсы можно использовать повторно. Изображения обрабатываются в этом браузере.",
   "识别对白与旁白": "Распознавание диалогов и повествования",
@@ -372,6 +427,17 @@ export const mangaLegacyMessages = {
   "支持的网站": "Поддерживаемые сайты"
 }},
   "es-ES": {...english, ...{
+  "图片识别方式": "Reconocimiento de texto",
+  "通用文字 · Tesseract": "Texto general · Tesseract",
+  "漫画文字 · PaddleOCR": "Texto de cómics · PaddleOCR",
+  "适合截图、图表与清晰排版文字。按原文语言准备语言包。": "Para capturas, gráficos y texto impreso con claridad. Prepara los paquetes del idioma original.",
+  "适合漫画与气泡文字。首次翻译下载约 30 MB，与漫画共用，已下载无需重复下载。": "Para cómics y bocadillos. La primera traducción descarga unos 30 MB compartidos con manga. Se reutilizan los modelos existentes.",
+  "使用 PaddleOCR，当前页优先，只提前处理已加载的图片。": "Usa PaddleOCR. Las páginas visibles tienen prioridad; solo se preparan las imágenes ya cargadas.",
+  "入口与缓存": "Controles y caché",
+  "识别资源与下载": "Recursos de reconocimiento",
+  "正在准备图片识别模型…": "Preparando los modelos de reconocimiento…",
+  "PaddleOCR 文字识别": "Reconocimiento con PaddleOCR",
+  "悬停图片或右键翻译，随时对照原图。": "Pasa el cursor sobre una imagen o haz clic derecho para traducir. Compara con el original cuando quieras.",
   "首次使用时自动准备": "Preparación automática en el primer uso",
   "资源下载后可重复使用，图片在当前浏览器中处理": "Los recursos descargados se pueden reutilizar. Las imágenes se procesan en este navegador.",
   "识别对白与旁白": "Reconocer diálogos y narración",

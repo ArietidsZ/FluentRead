@@ -57,18 +57,23 @@ describe('图片翻译流程优化',()=>{
         ui.dispose();
     });
 
-    it('漫画处理不显示卡片或取消工具条，失败仅保留轻量重试，普通图片仍有明确反馈', () => {
+    it('漫画仅显示所属图片的阶段与真实进度，所有阶段隐藏原图和文字操作条', () => {
         const {document} = parseHTML('<html><body></body></html>');vi.stubGlobal('document', document);
         const ui = createImageControls({onAction(){},onPrepare(){}});
         ui.update('loading', '正在识别图片文字…', {quiet:true, progress:42});
-        expect(ui.feedback.hidden).toBe(true);expect(ui.element.hidden).toBe(true);
+        expect(ui.feedback.hidden).toBe(false);expect(ui.element.hidden).toBe(true);
         expect(ui.element.getAttribute('aria-busy')).toBe('true');expect(ui.status.textContent).toContain('42%');
+        const bar=ui.feedback.querySelector<HTMLElement>('[role=progressbar]')!;
+        expect(bar.hidden).toBe(false);expect(bar.getAttribute('aria-valuenow')).toBe('42');
+        ui.update('loading','正在翻译文字…',{quiet:true});expect(ui.feedback.hidden).toBe(false);
+        expect(bar.hidden).toBe(true);expect(bar.getAttribute('aria-valuenow')).toBeNull();expect(ui.status.textContent).not.toContain('%');
         ui.update('error', '翻译失败', {quiet:true});
-        expect(ui.feedback.hidden).toBe(true);expect(ui.element.hidden).toBe(false);
+        expect(ui.feedback.hidden).toBe(true);expect(ui.element.hidden).toBe(true);
         expect(ui.button.parentElement!.parentElement).toBe(ui.element);expect(ui.button.textContent).toBe('重试');
-        ui.update('translated', '查看译图', {quiet:true});expect(ui.element.hidden).toBe(false);
+        ui.setLines([{text:'译文'}]);ui.update('translated', '查看译图', {quiet:true});expect(ui.element.hidden).toBe(true);
+        ui.update('idle','查看译图',{quiet:true});expect(ui.feedback.hidden).toBe(true);expect(ui.element.hidden).toBe(true);
         ui.update('loading', '正在读取图片…');expect(ui.feedback.hidden).toBe(false);expect(ui.element.hidden).toBe(false);
-        expect(ui.button.parentElement!.parentElement).toBe(ui.feedback);ui.dispose();
+        expect(ui.button.parentElement!.parentElement).toBe(ui.element);expect(ui.feedback.querySelector('button')).toBeNull();ui.dispose();
     });
 
     it('有限并发乱序完成后仍按原顺序返回，重复文字只请求一次',async()=>{
@@ -239,9 +244,9 @@ describe('图片翻译流程优化',()=>{
         ui.update('loading', '正在识别图片文字…', {progress: 40});
         ui.update('loading', '正在识别图片文字…', {progress: 70});
 
-        expect(row.parentElement).toBe(ui.feedback);
+        expect(row.parentElement).toBe(ui.element);
         expect(ui.button.parentElement).toBe(row);
-        expect(ui.feedback.contains(ui.button)).toBe(true);
+        expect(ui.feedback.contains(ui.button)).toBe(false);
         expect(focusEvents).toBe(focusEventsBeforeProgress);
         expect(blurEvents).toBe(blurEventsBeforeProgress);
         expect(append).not.toHaveBeenCalled();

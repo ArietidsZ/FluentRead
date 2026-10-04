@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/controls.ts
  * 文件职责：创建图片翻译的轻量操作条，支持单图反馈和不遮挡阅读的漫画模式，支持取消、重试和首次语言准备。
- * 主要内容：提供低透明度灰度入口、隔离样式、可信手势按钮、识别百分比与可选全文详情；长译文在独立视口面板内可核对原文和一键复制，减少只能看位图的阅读障碍。
+ * 主要内容：单图提供隔离操作条、可信手势按钮与全文详情；漫画隐藏所有操作条，仅在对应图片中心延迟显示无交互的小型状态提示，展示实际阶段和可用百分比，完成或切回原图后撤下。
  * 模块边界：仅操作所属 Shadow DOM，不读取配置、不访问网络、不持有图片请求；业务动作及生命周期由 content/runtime 注入。
  */
 import {createImageTextReader, IMAGE_READER_CSS, type ImageReaderLine} from './textReader';
@@ -17,7 +17,7 @@ export const IMAGE_CONTROLS_CSS = IMAGE_READER_CSS + `
 .fr-image-controls[hidden],.fr-image-feedback[hidden],.fr-image-controls [hidden],.fr-image-feedback [hidden] {display:none!important;}
 .fr-image-feedback-title {font-size:14px;line-height:1.4;font-weight:650;}
 .fr-image-status {display:flex;align-items:center;gap:9px;min-width:0;overflow-wrap:anywhere;white-space:normal;}
-.fr-image-spinner {width:16px;height:16px;flex:0 0 auto;box-sizing:border-box;border:2px solid #f4c8d5;border-top-color:#dc315f;border-radius:50%;animation:fr-image-spin .75s linear infinite;}
+.fr-image-spinner {width:12px;height:12px;flex:0 0 auto;box-sizing:border-box;border:1.5px solid #b9aab333;border-top-color:#947985;border-radius:50%;animation:fr-image-spin .75s linear infinite;}
 .fr-image-spinner[data-animated=false] {animation:none;}
 .fr-image-actions {display:flex;align-items:center;flex-wrap:wrap;gap:2px;padding:2px;border:1px solid #ffffff66;border-radius:9px;background:rgba(250,251,253,.62);backdrop-filter:blur(6px);box-shadow:0 1px 5px rgba(27,36,57,.06);}
 .fr-image-controls button,.fr-image-feedback button {all:unset;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:24px;padding:3px 7px;border-radius:6px;cursor:pointer;color:inherit;font:inherit;font-size:11px;font-weight:500;white-space:nowrap;}
@@ -34,7 +34,7 @@ export const IMAGE_CONTROLS_CSS = IMAGE_READER_CSS + `
 .fr-image-controls .fluent-read-image-translation-button::before {content:"";display:block;width:14px;height:14px;flex:0 0 auto;margin-right:5px;background:url("${brandIcon}") center/contain no-repeat;}
 .fr-image-controls[data-phase=idle] .fluent-read-image-translation-button::before {margin-right:0;}
 .fr-image-feedback-title::before {content:"";display:inline-block;width:16px;height:16px;margin-right:6px;vertical-align:-2px;background:url("${brandIcon}") center/contain no-repeat;}
-.fr-image-feedback[data-phase=loading] {max-width:calc(100% - 24px);padding:14px 16px;border-color:#e5e8ef;border-radius:12px;background:#fff;box-shadow:0 6px 24px rgba(15,23,42,.22);color:#172033;font-size:14px;opacity:1;pointer-events:auto;}
+.fr-image-feedback[data-phase=loading] {padding:6px 9px;border-color:#ffffff66;border-radius:9px;background:rgba(250,251,253,.6);backdrop-filter:blur(5px);box-shadow:0 1px 5px rgba(27,36,57,.06);color:#475569;font-size:11px;opacity:.8;}
 .fr-image-feedback[data-phase=loading] .fr-image-status {gap:6px;}
 .fr-image-feedback[data-phase=error] {width:300px;padding:16px;pointer-events:auto;overflow:auto;overscroll-behavior:contain;}
 .fr-image-feedback[data-phase=error] .fr-image-status {color:#536074;}
@@ -43,8 +43,16 @@ export const IMAGE_CONTROLS_CSS = IMAGE_READER_CSS + `
 .fr-image-feedback .fr-image-prepare,.fr-image-feedback[data-preparation=false] .fluent-read-image-translation-button {order:-1;background:var(--fr-image-brand);color:#fff;font-weight:650;}
 .fr-image-feedback .fr-image-prepare:hover,.fr-image-feedback[data-preparation=false] .fluent-read-image-translation-button:hover {background:#c62752;color:#fff;}
 .fr-image-feedback .fr-image-dismiss,.fr-image-feedback[data-preparation=true] .fluent-read-image-translation-button {color:var(--fr-image-muted);}
+.fr-image-feedback[data-manga=true][data-phase=loading] {width:max-content;min-width:92px;padding:12px 14px;border:1px solid #ffffff26;border-radius:12px;background:rgba(30,34,42,.78);color:#fff;box-shadow:0 2px 10px #0002;font-size:12px;pointer-events:none;animation:fr-manga-feedback .12s ease .15s both;}
+.fr-image-feedback[data-manga=true] .fr-image-status {flex-direction:column;gap:8px;text-align:center;}
+.fr-image-feedback[data-manga=true] .fr-image-spinner {width:24px;height:24px;border-color:#ffffff40;border-top-color:#fff;}
+.fr-image-progress {height:3px;width:100px;max-width:100%;border-radius:2px;background:#ffffff30;overflow:hidden;align-self:center;}
+.fr-image-progress>span {display:block;height:100%;background:#fff;border-radius:inherit;}
+@keyframes fr-manga-feedback {from {opacity:0;} to {opacity:1;}}
 @keyframes fr-image-spin {to {transform:rotate(360deg);}}
 @media (prefers-reduced-motion: reduce) {.fr-image-spinner {animation:none;}.fr-image-controls .fr-image-actions {transition:none;}}
+@media (prefers-reduced-motion: reduce) {.fr-image-feedback[data-manga=true][data-phase=loading] {animation-duration:0s;}}
+.fr-image-feedback[data-manga=true][data-phase=loading][data-animations=false] {animation-duration:0s;}
 `;
 
 export function createImageControls(actions: {onAction(): void; onPrepare(): void; onDismiss?(): void; onInspect?(): void; translate?(source: string): string}) {
@@ -64,6 +72,13 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
     spinner.setAttribute('aria-hidden', 'true');
     const statusText = document.createElement('span');
     status.append(spinner, statusText);
+    const progressBar = document.createElement('div');
+    progressBar.className = 'fr-image-progress';
+    progressBar.setAttribute('role', 'progressbar');
+    progressBar.setAttribute('aria-valuemin', '0');
+    progressBar.setAttribute('aria-valuemax', '100');
+    const progressFill = document.createElement('span');
+    progressBar.append(progressFill);
     const row = document.createElement('div');
     row.className = 'fr-image-actions';
     const button = document.createElement('button');
@@ -105,6 +120,10 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
         button.title = `FluentRead · ${button.title}`;
         button.setAttribute('aria-label', button.title);
         statusText.textContent = localize(sourceMessage) + (progress === undefined ? '' : ` ${progress}%`);
+        progressBar.setAttribute('aria-label', localize(sourceMessage));
+        if (progress !== undefined) progressBar.setAttribute('aria-valuenow', String(progress));
+        else progressBar.removeAttribute('aria-valuenow');
+        progressFill.style.width = `${progress ?? 0}%`;
         // 百分比只更新文字，保留转圈节点，避免每次进度通知重新启动动画。
         spinner.hidden = phase !== 'loading';
     };
@@ -134,13 +153,14 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
         row.addEventListener(event, isolate);
     }
     row.append(button, prepare, inspect, dismiss);
-    feedback.append(heading, status);
+    feedback.append(heading, status, progressBar);
     element.append(details, row);
     const update = (next: ImageControlPhase, message: string, options: {prepare?: boolean; animations?: boolean; progress?: number; quiet?: boolean} = {}) => {
         phase = next;
         element.dataset.phase = next;
         button.dataset.phase = next;
         feedback.dataset.phase = next;
+        feedback.dataset.manga = String(options.quiet === true);
         heading.hidden = next !== 'error';
         feedback.dataset.preparation = String(next === 'error' && options.prepare === true);
         element.dataset.preparation = feedback.dataset.preparation;
@@ -149,13 +169,15 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
         progress = next === 'loading' ? normalizeImageProgress(options.progress) : undefined;
         refreshLanguage();
         status.hidden = next === 'idle' || next === 'translated';
-        feedback.hidden = options.quiet === true || status.hidden;
-        element.hidden = options.quiet === true && next === 'loading';
+        feedback.hidden = options.quiet === true ? next !== 'loading' : status.hidden;
+        progressBar.hidden = options.quiet !== true || progress === undefined;
+        element.hidden = options.quiet === true;
         element.setAttribute('aria-busy', String(next === 'loading'));
         element.dataset.animations = String(options.animations !== false);
+        feedback.dataset.animations = element.dataset.animations;
         prepare.hidden = next !== 'error' || !options.prepare;
         dismiss.hidden = next !== 'error' || options.prepare === true;
-        const feedbackOwnsActions = options.quiet !== true && (next === 'error' || next === 'loading');
+        const feedbackOwnsActions = options.quiet !== true && next === 'error';
         const actionsOwner = feedbackOwnsActions ? feedback : element;
         // 进度更新会频繁刷新状态；仅在状态容器变化时移动操作条，避免重挂载打断悬停与焦点。
         if (row.parentElement !== actionsOwner) actionsOwner.append(row);

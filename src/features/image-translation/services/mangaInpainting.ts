@@ -1,14 +1,14 @@
 /**
  * @file src/features/image-translation/services/mangaInpainting.ts
  * 文件职责：用按需加载的本地 LaMa 漫画模型修补复杂背景上的原字形，保留气泡之外和蒙版之外的原始像素。
- * 主要内容：按识别行及其有界描边余量建立局部蒙版，截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；融合 ONNX 执行图，兼容的硬件 GPU 加速修补、设备失效有界切换 CPU；串行推理、取消边界和三分钟空闲释放约束资源。
+ * 主要内容：共享本次原图背景分类，按识别行及其有界描边余量建立局部蒙版，截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；融合 ONNX 执行图，兼容的硬件 GPU 加速修补、设备失效有界切换 CPU；串行推理、取消边界和三分钟空闲释放约束资源。
  * 模块边界：不读取网页 DOM、不上传图像、不翻译文字；均匀气泡无需加载模型，最后的译文排版由 mangaRendering 处理，模型生成内容始终局限于检测文字蒙版。
  */
 import {probeMangaGpu} from './mangaGpu';
 import {protectMangaSession} from './mangaSessionFallback';
 import {configureOnnxWasmBackend} from '@/src/shared/onnx/wasmBinary';
 import {assertMangaOcrActive, loadMangaInpaintAsset, MANGA_INPAINT_ASSET} from './mangaOcrAssets';
-import {mangaRegionBackground} from './mangaRendering';
+import {mangaRegionBackground, type MangaBackground} from './mangaRendering';
 import type {MangaRegion} from './mangaRegions';
 import {mangaMaskBoxes as maskBoxes} from '../mangaPatchResult';
 
@@ -58,13 +58,13 @@ export function createMangaInpaintingRuntime(create: (signal?: AbortSignal,progr
     function queue<T>(operation:()=>Promise<T>) {const result=tail.then(operation);tail=result.then(()=>undefined,()=>undefined);return result;}
     async function release() {clearTimeout(idle);idle=undefined;const current=service;service=undefined;await current?.release();}
     return {
-        repair(pixels:Uint8ClampedArray,width:number,height:number,regions:MangaRegion[],signal?:AbortSignal,onPreparing?:(percent?:number)=>void,onRepair?:(done:number,total:number)=>void) {
+        repair(pixels:Uint8ClampedArray,width:number,height:number,regions:MangaRegion[],signal?:AbortSignal,onPreparing?:(percent?:number)=>void,onRepair?:(done:number,total:number)=>void,backgrounds?:MangaBackground[]) {
             return queue(async()=>{
                 assertMangaOcrActive(signal); clearTimeout(idle);
                 try {
                     return await (async () => {
                         const result = new Uint8ClampedArray(pixels);
-                        const pending = regions.filter(region => !mangaRegionBackground(pixels,width,height,region.bbox).uniform);
+                        const pending = regions.filter((region,index) => !(backgrounds?.[index] ?? mangaRegionBackground(pixels,width,height,region.bbox)).uniform);
                         let completed = 0;
                         for (const region of pending) {
                             assertMangaOcrActive(signal);

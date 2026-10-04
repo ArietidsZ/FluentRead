@@ -2,7 +2,7 @@
  * @file src/features/image-translation/services/mangaOcr.ts
  * 文件职责：在扩展 Offscreen 文档中按需运行 PaddleOCR 漫画识别，并隔离排队、取消、失败和空闲释放。
  * 主要内容：延迟导入浏览器 OCR 和本地 ONNX WASM，读取已校验模型并融合 ONNX 执行图，硬件可用时加速识别，GPU 故障有界切换 CPU；气泡外旁白与放大的独立气泡识别后整段分组，避免重复推理；取消立即结束调用方等待，底层推理完成后丢弃迟到结果，空闲三分钟释放会话，统一清理 OCR 与修补会话。
- * 模块边界：不访问宿主 DOM、不翻译文本、不处理译图；普通图片和圈选继续由 Tesseract 负责，不给这些路径加载漫画模型。
+ * 模块边界：不访问宿主 DOM、不翻译文本、不处理译图；仅漫画及显式选择 PaddleOCR 的单张图片使用本模型；通用识别与圈选继续由 Tesseract 负责。
  */
 import {probeMangaGpu} from './mangaGpu';
 import {protectMangaSession} from './mangaSessionFallback';

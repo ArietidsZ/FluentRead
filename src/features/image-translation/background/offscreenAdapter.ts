@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/background/offscreenAdapter.ts
  * 文件职责：把跨域图片读取、图片识别、整图翻译和 OCR 语言包下载请求适配为平台 Offscreen 消息，并校验隔离文档返回的结构后交还后台 handlers。
- * 主要内容：回查原页面当前图片任务的短期授权；包含 OffscreenResponse 解析、data:image 与 lines 数组验证、译图 image/lines 结果收窄，以及 createImageTranslationOffscreenAdapter 和默认 extensionDomClient 实例。
+ * 主要内容：回查原页面当前图片任务的短期授权；透传单图本地识别方式，包含 OffscreenResponse 解析、data:image 与 lines 数组验证、译图 image/lines 结果收窄，以及 createImageTranslationOffscreenAdapter 和默认 extensionDomClient 实例。
  * 模块边界：适配器不创建 Offscreen document、不执行 OCR/绘制，也不读取配置；文档生命周期属于 platform/offscreen，实际运算在 services/offscreenRuntime 与 ocrRuntime 中完成。
  */
 import {extensionDomClient} from '@/src/platform/offscreen/extensionClient';
@@ -27,6 +27,7 @@ interface OffscreenResponse {
 }
 
 export interface ImageOffscreenOperationOptions {
+    readonly ocrEngine?: 'paddle';
     readonly documentUrl?: string;
     readonly manga?: true;
     readonly requestId: string;
@@ -93,6 +94,7 @@ export function createImageTranslationOffscreenAdapter(client: OffscreenClient =
                 sourceLanguage,
                 title,
                 ...(options?.manga ? {manga: true} : {}),
+                ...(options?.ocrEngine ? {ocrEngine: options.ocrEngine} : {}),
                 ...(options ? {requestId: options.requestId} : {}),
             } as const;
             const response = options
