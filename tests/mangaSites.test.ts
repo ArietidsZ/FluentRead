@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {createMangaSiteRule, normalizeMangaSiteRules, normalizeMangaPrefetchPages, resolveMangaSite} from '@/src/core/config/manga';
 import {isCatalogMangaHost, MANGA_SITE_DOMAINS, MANGA_SITE_CATALOG} from '@/src/core/config/mangaSiteCatalog';
+import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
@@ -36,8 +37,37 @@ describe('漫画阅读规则与持久偏好', () => {
         ['https://championcross.jp/episodes/0a8f0118f1839', ':not(*)'],
         ['https://comic-ryu.jp/episodes/877cb803dd415', ':not(*)'],
         ['https://comic-growl.com/episodes/59451af9ac2bf', ':not(*)'],
+        ['https://ichicomi.com/episode/2551460909671541131', '.page-area img.page-image, .page-area img.js-page-image'],
+        ['https://asurascans.com/comics/copying-skills-with-affinity-3ec3b16f/chapter/8', '.select-none [data-page] > img'],
+        ['https://asuracomic.net/comics/copying-skills-with-affinity-3ec3b16f/chapter/8/', '.select-none [data-page] > img'],
+        ['https://arenascan.com/like-a-fiery-flame-chapter-98/', 'article #readerarea img'],
+        ['https://kingofshojo.com/ill-save-a-decent-family-chapter-199/', 'article #readerarea img'],
+        ['https://violetmanga.com/a-portrait-of-pride-chapter-12/', 'article #readerarea img'],
+        ['https://violetscans.org/a-portrait-of-pride-chapter-12/', 'article #readerarea img'],
+        ['https://www.mangaread.org/manga/title/chapter-17/', '.reading-content .page-break > img'],
+        ['https://mangaforfree.net/manga/the-hero-is-the-secretary/chapter-14-raw/', '.reading-content .page-break > img'],
+        ['https://manhwabuddy.com/manhwa/title/chapter-157/', '.reading-chapter .reading-content img'],
+        ['https://vortexscans.org/series/got-a-gallery-in-the-wild/chapter-7', '.comic-images-wrapper > .image-container img'],
+        ['https://rookie.shonenjump.com/series/TWpXKpYkRIE/TWpXKpYkRIM', '.page-area img.js-page-image'],
+        ['https://www.webtoons.com/en/romance/chocolate-snow/s2-episode-58/viewer?title_no=6022&episode_no=58', '#_imageList > img._images'],
+        ['https://www.mgeko.cc/reader/en/3qcf-title-chapter-1-eng-li/', '#chapter-reader > img'],
+        ['https://roliascan.com/read/one-day-i-became-a-hatchling/ch28-327187/', '#chapter-images-container .comic-image-container img.comic-image'],
+        ['https://mangadex.org/chapter/80da5ab1-b615-4564-9a19-0f1502dbde05', '.md--reader-pages .md--page img'],
+        ['https://twicomi.com/manga/ngnchiikawa/2077704742067904960', '.tweet-images .image img'],
     ])('新增公开样本限定正文选择器 %s', (href, selector) => {
         expect(resolveMangaSite(href)).toMatchObject({selector,custom:false,requireContent:true});
+    });
+    it.each([
+        ['asurascans.com','/comics/title'], ['asurascans.com','/comics/title/chapter/8/extra'],
+        ['arenascan.com','/series/title'], ['kingofshojo.com','/title-chapter-1/extra'],
+        ['mangaread.org','/manga/title'], ['mangaforfree.net','/manga/title/chapter-1/extra'],
+        ['manhwabuddy.com','/manhwa/title'], ['vortexscans.org','/series/title'], ['ichicomi.com','/episode/123/extra'],
+        ['asurascans.com.attacker.test','/comics/title/chapter/8'],
+        ['rookie.shonenjump.com','/series/TWpXKpYkRIE'], ['webtoons.com','/en/romance/chocolate-snow/list'],
+        ['mgeko.cc','/manga/title/'], ['roliascan.com','/read/title/ch28/extra'],
+        ['mangadex.org','/chapter/name'], ['twicomi.com','/manga/author'],
+    ])('正文规则不将目录、相似域名和额外路径识别成章节 %s%s', (host,path) => {
+        expect(resolveMangaReaderProfile(host,path)).toBeNull();
     });
     it('提前翻译默认三页，显式零保留，限制窗口并拒绝损坏或旧类型', () => {
         for (const invalid of [undefined, null, '3', NaN, Infinity, {}, true]) expect(normalizeMangaPrefetchPages(invalid)).toBe(3);

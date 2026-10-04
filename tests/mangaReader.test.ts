@@ -234,7 +234,7 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
         f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);f.reader.dispose();
     });
-    it.each(['https://comic-days.com/episode/10834108156634732370', 'https://comic-zenon.com/episode/12207421983509986288'])('画布正文只发布圈选入口，推荐图不进入队列，离屏和关闭后入口消失 %s', async href => {
+    it.each(['https://comic-days.com/episode/10834108156634732370', 'https://comic-zenon.com/episode/12207421983509986288', 'https://ichicomi.com/episode/2551460909671541131'])('画布正文只发布圈选入口，推荐图不进入队列，离屏和关闭后入口消失 %s', async href => {
         const f=readerFixture(false,href);
         f.image.parentElement!.className='link-page-content';
         const page=f.document.createElement('div');page.className='page-area';
@@ -260,6 +260,32 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(call=>call[0])).toEqual([f.image]);
         f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);
         f.window.location.href='https://mangadna.com/manga/omniscient-readers-viewpoint/chapter-312';f.reader.schedule();f.run();expect(resetCache).toHaveBeenCalledTimes(2);
+        f.image.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
+    it.each([
+        ['https://asurascans.com/comics/title/chapter/8', '<div class="select-none"><div data-page="0"></div></div>', '[data-page]'],
+        ['https://arenascan.com/like-a-fiery-flame-chapter-98/', '<article><div id="readerarea"></div></article>', '#readerarea'],
+        ['https://kingofshojo.com/ill-save-a-decent-family-chapter-199/', '<article><div id="readerarea"><p></p></div></article>', '#readerarea p'],
+        ['https://violetmanga.com/a-portrait-of-pride-chapter-12/', '<article><div id="readerarea"></div></article>', '#readerarea'],
+        ['https://www.mangaread.org/manga/title/chapter-17/', '<div class="reading-content"><div class="page-break"></div></div>', '.page-break'],
+        ['https://mangaforfree.net/manga/title/chapter-14-raw/', '<div class="reading-content"><div class="page-break"></div></div>', '.page-break'],
+        ['https://manhwabuddy.com/manhwa/title/chapter-157/', '<div class="reading-chapter"><div class="reading-content"><p></p></div></div>', '.reading-content p'],
+        ['https://vortexscans.org/series/title/chapter-7', '<div class="comic-images-wrapper"><figure class="image-container"></figure></div>', 'figure'],
+        ['https://rookie.shonenjump.com/series/TWpXKpYkRIE/TWpXKpYkRIM', '<div class="page-area"></div>', '.page-area'],
+        ['https://www.webtoons.com/en/romance/title/episode-1/viewer?title_no=1&episode_no=1', '<div id="_imageList"></div>', '#_imageList'],
+        ['https://mgeko.cc/reader/en/title-chapter-1-eng-li/', '<div id="chapter-reader"></div>', '#chapter-reader'],
+        ['https://roliascan.com/read/title/ch28-123/', '<div id="chapter-images-container"><a class="comic-image-container"></a></div>', '.comic-image-container'],
+        ['https://mangadex.org/chapter/80da5ab1-b615-4564-9a19-0f1502dbde05', '<div class="md--reader-pages"><div class="md--page"></div></div>', '.md--page'],
+        ['https://twicomi.com/manga/author/2077704742067904960', '<div class="tweet-images"><div class="image"></div></div>', '.image'],
+    ])('公开章节只调度正文而不选择正文容器外的封面 %s', async (href, markup, mount) => {
+        const f=readerFixture(false,href);
+        f.image.className='js-page-image _images comic-image';
+        const wrapper=f.document.createElement('div');wrapper.innerHTML=markup;f.document.body.append(wrapper);
+        const cover=f.image.cloneNode() as HTMLImageElement;cover.src='blob:cover';wrapper.append(cover);
+        wrapper.querySelector(mount)!.append(f.image);
+        f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:true,pageCount:1});
+        f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(call=>call[0])).toEqual([f.image]);
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);
         f.image.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
     });
     it('预合成按可见优先与几何距离排序，左右一屏和容量都有边界',()=>{

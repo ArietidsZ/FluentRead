@@ -97,7 +97,7 @@
           "hostname": "mangadex.org"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "MangaDNA",
@@ -317,7 +317,7 @@
           "hostname": "twicomi.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "MangaZ",
@@ -409,7 +409,8 @@
     {
       "name": "Asura Scans",
       "hosts": [
-        "asuracomic.net"
+        "asuracomic.net",
+        "asurascans.com"
       ],
       "accessChecks": [
         {
@@ -423,7 +424,7 @@
           "hostname": "asuracomic.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "All Manga",
@@ -1152,7 +1153,7 @@
           "hostname": "webtoons.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "Lezhin Comics",
@@ -1903,7 +1904,7 @@
           "hostname": "mgeko.cc"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "greentoon.net",
@@ -2055,7 +2056,7 @@
           "hostname": "vortexscans.org"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "freeonlinehd.site",
@@ -2161,7 +2162,7 @@
           "hostname": "mangaread.org"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "mangaforfree.net",
@@ -2180,7 +2181,7 @@
           "hostname": "mangaforfree.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "bakamh.com",
@@ -2204,7 +2205,8 @@
     {
       "name": "yakshascans.com",
       "hosts": [
-        "yakshascans.com"
+        "yakshascans.com",
+        "ravenscans.org"
       ],
       "accessChecks": [
         {
@@ -2320,7 +2322,7 @@
           "hostname": "manhwabuddy.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "wto.to",
@@ -2676,7 +2678,7 @@
           "hostname": "roliascan.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "novelpia.com",
@@ -2752,7 +2754,7 @@
           "hostname": "kingofshojo.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "weebcentral.com",
@@ -3150,7 +3152,8 @@
     {
       "name": "violetscans.org",
       "hosts": [
-        "violetscans.org"
+        "violetscans.org",
+        "violetmanga.com"
       ],
       "accessChecks": [
         {
@@ -3164,7 +3167,7 @@
           "hostname": "violetscans.org"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "publicdiplomacymagazine.com",
@@ -3532,7 +3535,7 @@
           "hostname": "ichicomi.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "area"
     },
     {
       "name": "rookie.shonenjump.com",
@@ -3551,7 +3554,7 @@
           "hostname": "rookie.shonenjump.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "manhwa-raw.com",
@@ -3937,7 +3940,7 @@
           "hostname": "arenascan.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "luvyaa.my.id",
@@ -4455,6 +4458,169 @@
       "restrictions": false,
       "canvasReadable": true,
       "scope": "Public chapter DOM research without extension; not OCR/translation verification"
+    },
+    {
+      "url": "https://arenascan.com/like-a-fiery-flame-chapter-98/",
+      "status": 200,
+      "imageCount": 23,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://asurascans.com/comics/copying-skills-with-affinity-3ec3b16f/chapter/8",
+      "status": 200,
+      "imageCount": 64,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://ichicomi.com/episode/2551460909671541131",
+      "status": 200,
+      "imageCount": 18,
+      "canvasCount": 4,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "canvasReadable": false,
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://kingofshojo.com/ill-save-a-decent-family-chapter-199/",
+      "status": 200,
+      "imageCount": 23,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://manga-shinchan.com/new-shinchan-saimaru/episode/069-new-shinchan-saimaru",
+      "status": 200,
+      "imageCount": 43,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Marketing images and account/offer frame only; chapter body not confirmed"
+    },
+    {
+      "url": "https://mangaforfree.net/manga/the-hero-is-the-secretary/chapter-14-raw/",
+      "status": 200,
+      "imageCount": 7,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://mangaoi.net/read-manga/pick-me-up-infinite-gacha/chapter-221",
+      "status": 200,
+      "imageCount": 0,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "HTTP 200 but page displays 404; no chapter body"
+    },
+    {
+      "url": "https://www.mangaread.org/manga/i-am-the-worlds-strongest-because-i-can-read-manga/chapter-17/",
+      "status": 200,
+      "imageCount": 20,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://manhwabuddy.com/manhwa/the-great-mage-of-the-heros-party-reincarnates/chapter-157/",
+      "status": 200,
+      "imageCount": 8,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://violetmanga.com/a-portrait-of-pride-chapter-12/",
+      "status": 200,
+      "imageCount": 29,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://vortexscans.org/series/got-a-gallery-in-the-wild/chapter-7",
+      "status": 200,
+      "imageCount": 28,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://ravenscans.org/we-are-animals-chapter-15/",
+      "status": 200,
+      "imageCount": 20,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "No displayed chapter body confirmed; large images are not sufficient proof"
+    },
+    {
+      "url": "https://rookie.shonenjump.com/series/TWpXKpYkRIE/TWpXKpYkRIM",
+      "status": 200,
+      "imageCount": 55,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://www.webtoons.com/en/romance/chocolate-snow/s2-episode-58/viewer?title_no=6022&episode_no=58",
+      "status": 200,
+      "imageCount": 120,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://www.mgeko.cc/reader/en/3qcf-the-butler-of-the-swordmaster-family-was-the-hero-emperor-chapter-1-eng-li/",
+      "status": 200,
+      "imageCount": 23,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://roliascan.com/read/one-day-i-became-a-hatchling/ch28-327187/",
+      "status": 200,
+      "imageCount": 6,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://mangadex.org/chapter/80da5ab1-b615-4564-9a19-0f1502dbde05",
+      "status": 200,
+      "imageCount": 7,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://twicomi.com/manga/ngnchiikawa/2077704742067904960",
+      "status": 200,
+      "imageCount": 2,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
     }
   ],
   "verification": {
@@ -4692,6 +4858,145 @@
       "scope": "Observed initial and subsequent visible canvas pages only; partial OCR and translation, no guarantee for other chapters or devices.",
       "screenCaptureCaveat": "One post-pointer screenshot was a black frame. A later matching probe showed intact translated pixels, geometry and page-surface screenshots; persistent product failure was not reproduced. Alternative window-based CDP capture was unavailable and that diagnostic report is not counted as a passing test.",
       "artifacts": "/private/tmp/fluentread-brand-manga-sites-20261005/canvas-live-sampled"
+    },
+    "chapterProfilesUnit": {
+      "passed": true,
+      "files": 2,
+      "cases": 143,
+      "coverage": {
+        "module": "src/core/config/mangaReaderProfiles.ts",
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "scope": "Dedicated body discovery, cover exclusion, original restoration and host/path boundaries; no live OCR in unit tests"
+    },
+    "chapterProfilesEntries": {
+      "passed": true,
+      "cases": 31,
+      "liveReaders": [
+        {
+          "url": "https://arenascan.com/like-a-fiery-flame-chapter-98/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://asurascans.com/comics/copying-skills-with-affinity-3ec3b16f/chapter/8",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://ichicomi.com/episode/2551460909671541131",
+          "status": 200,
+          "mode": "area",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://kingofshojo.com/ill-save-a-decent-family-chapter-199/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://mangaforfree.net/manga/the-hero-is-the-secretary/chapter-14-raw/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://www.mangaread.org/manga/i-am-the-worlds-strongest-because-i-can-read-manga/chapter-17/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://manhwabuddy.com/manhwa/the-great-mage-of-the-heros-party-reincarnates/chapter-157/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://violetmanga.com/a-portrait-of-pride-chapter-12/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://vortexscans.org/series/got-a-gallery-in-the-wild/chapter-7",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://rookie.shonenjump.com/series/TWpXKpYkRIE/TWpXKpYkRIM",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://www.webtoons.com/en/romance/chocolate-snow/s2-episode-58/viewer?title_no=6022&episode_no=58",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://www.mgeko.cc/reader/en/3qcf-the-butler-of-the-swordmaster-family-was-the-hero-emperor-chapter-1-eng-li/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://roliascan.com/read/one-day-i-became-a-hatchling/ch28-327187/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://mangadex.org/chapter/80da5ab1-b615-4564-9a19-0f1502dbde05",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://twicomi.com/manga/ngnchiikawa/2077704742067904960",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 4,
+      "hostErrorScope": "The same four host-script errors reproduced in no-extension DOM research; kept separate from extension errors",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "browserFrontmost": false,
+      "profileRemoved": true,
+      "scope": "Body discovery and entry checks only; no OCR or live translation on these fifteen chapters"
+    },
+    "chapterProfilesBuilds": {
+      "compile": true,
+      "chrome": true,
+      "firefox": true,
+      "userscript": true,
+      "extensionManifests": true,
+      "userscriptVerifier": true,
+      "userscriptBytes": 1916823,
+      "docs": true,
+      "testAudit": {
+        "files": 466,
+        "cases": 6014
+      },
+      "architectureChecks": {
+        "files": 2,
+        "cases": 807,
+        "scope": "moduleBoundaries and sourceFileHeaders only; not full architecture regression"
+      },
+      "runtimeScope": "Chrome production artifact loaded in isolated Edge; Firefox and userscript are build-only validation"
     }
   }
 }

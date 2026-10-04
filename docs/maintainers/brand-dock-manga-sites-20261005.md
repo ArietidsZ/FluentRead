@@ -6,6 +6,8 @@
 
 WeebCentral 使用 `#chapter-images img`，Dynasty 使用 `#reader #image img`，避免复数章节路径和缩略图容器导致正文被漏掉。Rawkuma、Uzaki、Kaiji 等按实页结构限制正文选择器。MangaDNA 使用 `.read-manga .read-content > img`，排除章节导航外的封面。GigaViewer 系列仅匹配正文页，不翻译推荐封面；Comic Zenon 加入同一正文规则。
 
+后续公开章节调查补齐 Asura Scans、Arenascans、Kingofshojo、Violet Scans、MangaRead、MangaForFree、ManhwaBuddy、Vortex Scans、Jump Rookie、Webtoons、Mgeko、Rolia Scan、MangaDex 和 Twitter Comic 的正文规则；Asura 和 Violet 的当前首页重定向别名一并登记。正文容器外的推广封面不进入连续队列。Ichicomi 的公开章节采用 GigaViewer 受跨域限制画布，加入同一圈选规则。Yaksha 的重定向别名登记为 Ravenscans，但本次没有确认其正文，不能据此宣布实章可译。
+
 Champion Cross、Comic Ryu 和 Comic Growl 的公开可读画布接入现有串行漫画会话，使用独立快照识别与合成，原画布及翻页样式保持不变。画布重绘、翻页、配置变化和卸载取消旧结果；译图跟随正文几何及祖先裁切，透明翻页层继续接收原有交互。压缩图块缓存沿用有界轻量缓存。GigaViewer 的受污染画布，以及 YanMaga 和 Televi-Kun 的分片阅读器仍提供圈选入口，沿用已有圈选翻译和权限开关。
 
 适配根据用户清单、公开 Issue 链接和阅读页 DOM 独立实现；没有使用 read-frog 或 kiss-translator 的代码，也未修改这些参考项目。模型、译图算法、翻译服务和版本号沿用现有实现。
@@ -32,6 +34,13 @@ Champion Cross、Comic Ryu 和 Comic Growl 的公开可读画布接入现有串�
 Champion Cross `/episodes/0a8f0118f1839` 使用生产 PaddleOCR 和在线 Google：四个场景通过，核对首组译图、暂停复用、正常翻页及总开关清理；原画布像素与样式保持一致。整数网格抽样修正后，原页不再出现重复 OCR；首组约 42.5 秒，仅为本机样本。截图显示初始页和后续页的部分中文译文，注音和艺术字仍有漏识别及原文残留。六次图片操作包含空白和翻页取消等情况，不等同于六页成功译完。隔离浏览器始终未处于前台，扩展与页面异常均为零，profile 已删除。
 
 一次鼠标移开后的截图出现黑帧；后续相同条件补查确认译图像素、几何和页面 surface 截图正常，未复现持续产品问题。窗口级 CDP 截图方式不可用，该补充诊断报告因此失败，不计入四个通过场景；仍保留黑帧和诊断证据，不把单次截图结果外推为全部设备显示保证。
+
+后续正文规则验证：
+
+- 两个相关测试文件共 143 用例通过，覆盖正文发现、推广封面排除、暂停恢复与域名/路径边界；站点规则模块四维覆盖率均为 100%。
+- 新增 18 个公开章节 DOM 调查样本，累计 42 个；另外七个目录/作品页仅用于发现公开链接，不计入章节样本。Mangaoi 的章节链接返回 HTTP 200 但页面显示 404；Shinchan 的样本只呈现宣传图和账户/offer 框架；Ravenscans 未确认显示正文。这三个样本均保留未验证状态。
+- 第二屏隔离 Edge 的 31 个入口场景通过，包含原有 16 个纯图标场景和明确指定的 15 个新实页入口，全部 HTTP 200。14 页显示漫画入口，Ichicomi 显示圈选入口。无扩展或扩展控制台异常，临时 profile 已删除；宿主的四个脚本异常在无扩展对照中复现并单独记录。
+- 此轮没有执行新增站点的 OCR 或在线翻译。正文规则、DOM 调查与入口通过不代表长条漫画识别、完整章节翻译或质量通过。
 
 全部 235 项逐站实章、登录和付费阅读器、Firefox/油猴运行时，以及漫画全文识别和翻译质量仍未完成。日文注音、艺术字与背景修补有漏识别、错识别和原文残留，不能把结构适配和链路通过当作质量保证。
 

@@ -1,11 +1,11 @@
 /**
  * @file src/core/config/mangaReaderProfiles.ts
  * 文件职责：保存经公开阅读页结构核对的正文规则，避免通用图片过滤漏掉正文或误选推荐封面。
- * 主要内容：WeebCentral、Dynasty、MangaDNA、Rawkuma 与单作品站正文图片规则，GigaViewer 和 Comici 正文画布规则、不可读画布和分片的圈选入口；路径与域名均保留边界。
+ * 主要内容：WeebCentral、Dynasty、MangaDNA、Rawkuma、Asura、Vortex 与已核对章节站的正文图片规则，GigaViewer 和 Comici 正文画布规则、不可读画布和分片的圈选入口；路径与域名均保留边界。
  * 模块边界：纯匹配，不执行站点脚本、不读取私有接口、不截图；可访问的图片由 content 阅读器检测。
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
-    'kuragebunch.com', 'shonenjumpplus.com', 'tonarinoyj.jp', 'comic-zenon.com']);
+    'kuragebunch.com', 'shonenjumpplus.com', 'tonarinoyj.jp', 'comic-zenon.com', 'ichicomi.com']);
 export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-super-hero-comics.com'];
 export const MANGA_CANVAS_READER_HOSTS = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com'];
 export function resolveMangaReaderProfile(hostname: string, pathname: string): {name: string; selector: string; canvasSelector?: string; canvasInteractionSelector?: string; areaSelector?: string} | null {
@@ -28,6 +28,40 @@ export function resolveMangaReaderProfile(hostname: string, pathname: string): {
     };
     if (host === 'mangadna.com' && /^\/manga\/[^/]+\/chapter-[^/]+\/?$/.test(pathname)) return {
         name: 'MangaDNA', selector: '.read-manga .read-content > img',
+    };
+    if (['asuracomic.net', 'asurascans.com'].includes(host) && /^\/comics\/[^/]+\/chapter\/\d+\/?$/.test(pathname)) return {
+        name: 'Asura Scans', selector: '.select-none [data-page] > img',
+    };
+    if (['arenascan.com', 'kingofshojo.com', 'violetscans.org', 'violetmanga.com'].includes(host)
+        && /^\/[^/]+-chapter-[^/]+\/?$/.test(pathname)) return {
+        name: host, selector: 'article #readerarea img',
+    };
+    if (['mangaread.org', 'mangaforfree.net'].includes(host) && /^\/manga\/[^/]+\/chapter-[^/]+\/?$/.test(pathname)) return {
+        name: host, selector: '.reading-content .page-break > img',
+    };
+    if (host === 'manhwabuddy.com' && /^\/manhwa\/[^/]+\/chapter-[^/]+\/?$/.test(pathname)) return {
+        name: 'ManhwaBuddy', selector: '.reading-chapter .reading-content img',
+    };
+    if (host === 'vortexscans.org' && /^\/series\/[^/]+\/chapter-[^/]+\/?$/.test(pathname)) return {
+        name: 'Vortex Scans', selector: '.comic-images-wrapper > .image-container img',
+    };
+    if (host === 'rookie.shonenjump.com' && /^\/series\/[\w-]+\/[\w-]+\/?$/.test(pathname)) return {
+        name: 'Jump Rookie', selector: '.page-area img.js-page-image',
+    };
+    if (host === 'webtoons.com' && /^\/[^/]+\/[^/]+\/[^/]+\/[^/]+\/viewer\/?$/.test(pathname)) return {
+        name: 'Webtoons', selector: '#_imageList > img._images',
+    };
+    if (host === 'mgeko.cc' && /^\/reader\/[a-z]{2}\/[^/]+-chapter-[^/]+\/?$/.test(pathname)) return {
+        name: 'Mgeko', selector: '#chapter-reader > img',
+    };
+    if (host === 'roliascan.com' && /^\/read\/[^/]+\/[^/]+\/?$/.test(pathname)) return {
+        name: 'Rolia Scan', selector: '#chapter-images-container .comic-image-container img.comic-image',
+    };
+    if (host === 'mangadex.org' && /^\/chapter\/[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}\/?$/.test(pathname)) return {
+        name: 'MangaDex', selector: '.md--reader-pages .md--page img',
+    };
+    if (host === 'twicomi.com' && /^\/manga\/[^/]+\/\d+\/?$/.test(pathname)) return {
+        name: 'Twitter Comic', selector: '.tweet-images .image img',
     };
     if (host === 'yanmaga.jp' && /^\/viewer\/comics\//.test(pathname)) return {
         name: 'YanMaga', selector: ':not(*)', areaSelector: '.pt-img img',
