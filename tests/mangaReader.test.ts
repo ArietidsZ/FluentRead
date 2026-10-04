@@ -159,7 +159,7 @@ describe('漫画会话所有权与可见页调度', () => {
     });
 });
 
-function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number, warm?: (images:HTMLImageElement[])=>void) {
+function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number, warm?: (images:HTMLImageElement[])=>void, canvas?: Parameters<typeof createMangaReader>[0]['canvas'], cachePorts?: Pick<Parameters<typeof createMangaReader>[0], 'resetCache' | 'cachePages' | 'reuse'>) {
     const {document, window: dom} = parseHTML('<html><body><div class="zao-image-container"><img class="zao-image" src="blob:page-1"></div><img id="logo" src="https://site/logo.png"></body></html>');
     const image = document.querySelector('img')! as HTMLImageElement;
     Object.defineProperties(image, {complete: {writable: true, value: true}, naturalWidth: {writable: true, value: 800}, naturalHeight: {value: 1200}, currentSrc: {get: () => image.src}});
@@ -181,7 +181,7 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         constructor(callback: MutationCallback) {mo.callback = callback;} });
     const ports = {enabled: vi.fn().mockReturnValue(true), identity: (i: HTMLImageElement) => i.src,
         translate: vi.fn().mockResolvedValue(undefined), restore: vi.fn(), release: vi.fn(), failed: vi.fn().mockReturnValue(false), changed: vi.fn()};
-    const reader = createMangaReader({...ports, siteRules, prefetchPages, warm});
+    const reader = createMangaReader({...ports, siteRules, prefetchPages, warm, canvas, ...cachePorts});
     const run = () => {const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(c => c(0));};
     const intersect = (yes: boolean) => {io.callback([{target: image, isIntersecting: yes} as unknown as IntersectionObserverEntry], {} as IntersectionObserver); run();};
     return {reader, ports, image, io, mo, window, dom, document, run, intersect,
@@ -189,6 +189,40 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it('另页正在识别时同步复用可见缓存页，不把其显示排在识别队列之后', async () => {
+        let cached:HTMLImageElement;
+        const reuse=vi.fn((image:HTMLImageElement)=>image===cached),pending=deferred();
+        const f=readerFixture(false,undefined,undefined,undefined,undefined,undefined,{reuse});
+        cached=f.image.cloneNode() as HTMLImageElement;cached.src='blob:cached';
+        Object.defineProperties(cached,{complete:{value:true},naturalWidth:{value:800},naturalHeight:{value:1200}});
+        cached.getBoundingClientRect=()=>({left:800,right:1600,top:0,bottom:1200,width:800,height:1200}) as DOMRect;
+        f.image.parentElement!.append(cached);f.ports.translate.mockReturnValueOnce(pending.promise);
+        f.reader.schedule();f.run();f.reader.toggle();await flush();
+        expect(reuse).toHaveBeenCalledWith(cached);expect(f.ports.translate).toHaveBeenCalledOnce();
+        expect(f.reader.status()).toMatchObject({pending:true,completed:1});
+        pending.resolve();await flush();expect(f.reader.status()).toMatchObject({pending:false,completed:2});f.reader.dispose();
+    });
+    it('可读画布与正文图片共用串行队列，重绘失效、暂停恢复和不可读降级不选推广图', async () => {
+        const pending=deferred(), canvasPorts={identity:vi.fn().mockReturnValue('canvas-1'),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn()};
+        const warm=vi.fn(),f=readerFixture(false,'https://comic-zenon.com/episode/12207421983509986288',undefined,undefined,warm,canvasPorts,{cachePages:()=>2});
+        f.image.className='page-image';f.image.parentElement!.className='page-area';
+        const canvas=f.document.createElement('canvas') as HTMLCanvasElement;canvas.className='js-page-image';canvas.width=400;canvas.height=300;
+        canvas.getBoundingClientRect=()=>({left:800,right:1200,top:0,bottom:300,width:400,height:300}) as DOMRect;f.image.parentElement!.append(canvas);
+        f.ports.translate.mockReturnValueOnce(pending.promise);f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:true,pageCount:2,areaFallback:false});
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledOnce();expect(canvasPorts.translate).not.toHaveBeenCalled();
+        pending.resolve();await flush();expect(canvasPorts.translate).toHaveBeenCalledWith(canvas);expect(canvasPorts.failed).toHaveBeenCalledWith(canvas);expect(warm).toHaveBeenLastCalledWith([f.image]);
+        f.reader.toggle();expect(canvasPorts.restore).toHaveBeenCalledWith(canvas);expect(f.ports.restore).toHaveBeenCalledWith(f.image);
+        canvasPorts.reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledOnce();
+        canvasPorts.failed.mockReturnValue(true);expect(f.reader.retry(canvas)).toBe(true);await flush();expect(f.reader.status().errors).toBe(1);
+        canvasPorts.identity.mockReturnValue('canvas-2');f.reader.schedule();f.run();await flush();expect(canvasPorts.release).toHaveBeenCalledWith(canvas);
+        f.image.remove();canvasPorts.identity.mockReturnValue(null);f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:true,areaFallback:true,pageCount:0});
+        expect(f.reader.toggle()).toBe(false);
+        canvasPorts.identity.mockReturnValue('canvas-3');canvasPorts.reuse.mockReturnValue(false);
+        let canvasQueries=0;const read=f.document.querySelectorAll.bind(f.document);const blocked=vi.spyOn(f.document,'querySelectorAll').mockImplementation(((selector:string)=>{if(selector.includes('canvas') && ++canvasQueries===2)throw new Error('host DOM query unavailable');return read(selector);}) as typeof f.document.querySelectorAll);
+        // 像素不可读时，圈选回退的独立 DOM 查询异常也不能中断网页。
+        canvasPorts.identity.mockReturnValue(null);f.reader.schedule();expect(()=>f.run()).not.toThrow();expect(f.reader.status().areaFallback).toBe(false);blocked.mockRestore();
+        f.reader.dispose();expect(canvasPorts.update).toHaveBeenCalled();
+    });
     it.each([
         ['https://dynasty-scans.com/chapters/the_nth_encore', 'reader', 'image', 'thumbnail'],
         ['https://weebcentral.com/chapters/01M43Q7CFX4XXN7WBVZH1MTEFS', 'chapter-images', '', ''],
@@ -200,8 +234,8 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
         f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);f.reader.dispose();
     });
-    it('画布正文只发布圈选入口，推荐图不进入队列，离屏和关闭后入口消失', async () => {
-        const f=readerFixture(false,'https://comic-days.com/episode/10834108156634732370');
+    it.each(['https://comic-days.com/episode/10834108156634732370', 'https://comic-zenon.com/episode/12207421983509986288'])('画布正文只发布圈选入口，推荐图不进入队列，离屏和关闭后入口消失 %s', async href => {
+        const f=readerFixture(false,href);
         f.image.parentElement!.className='link-page-content';
         const page=f.document.createElement('div');page.className='page-area';
         const canvas=f.document.createElement('canvas');canvas.className='js-page-image';page.append(canvas);f.document.body.append(page);
@@ -211,8 +245,22 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         expect(f.ports.changed).toHaveBeenLastCalledWith(expect.objectContaining({areaFallback:true}));
         expect(f.reader.toggle()).toBe(false);await flush();expect(f.ports.translate).not.toHaveBeenCalled();expect(pixels).not.toHaveBeenCalled();
         top=1500;f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,areaFallback:false});
-        top=0;f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+        top=0;page.setAttribute('data-fluent-read-ui','owned');f.reader.schedule();f.run();expect(f.reader.status().areaFallback).toBe(false);
+        page.removeAttribute('data-fluent-read-ui');f.reader.schedule();f.run();expect(f.reader.status().areaFallback).toBe(true);
+        f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
         expect(f.reader.status().areaFallback).toBe(false);
+    });
+    it('MangaDNA 动态正文进入连续队列，正文外的封面不翻译，暂停恢复原图', async () => {
+        const resetCache=vi.fn(),f=readerFixture(false,'https://mangadna.com/manga/omniscient-readers-viewpoint/chapter-311',undefined,undefined,undefined,undefined,{resetCache});
+        expect(f.reader.status().available).toBe(false);
+        f.image.parentElement!.className='read-content';
+        const reader=f.document.createElement('div');reader.className='read-manga';reader.append(f.image.parentElement!);f.document.body.append(reader);
+        const cover=f.image.cloneNode() as HTMLImageElement;cover.className='cover';cover.src='blob:cover';f.document.body.append(cover);
+        f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:true,pageCount:1});
+        f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(call=>call[0])).toEqual([f.image]);
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);
+        f.window.location.href='https://mangadna.com/manga/omniscient-readers-viewpoint/chapter-312';f.reader.schedule();f.run();expect(resetCache).toHaveBeenCalledTimes(2);
+        f.image.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
     });
     it('预合成按可见优先与几何距离排序，左右一屏和容量都有边界',()=>{
         const warm=vi.fn(),f=readerFixture(true,undefined,undefined,undefined,warm);
@@ -245,6 +293,8 @@ describe('漫画站点适配与 DOM 生命周期', () => {
             scroll();resize();f.run();await flush();
         }
         expect(query).not.toHaveBeenCalled();
+        f.setRect({left:1400,right:2200});f.mo.callback([{target:f.image.parentElement,attributeName:'style',type:'attributes'} as unknown as MutationRecord],{} as MutationObserver);f.run();await flush();
+        expect(query).not.toHaveBeenCalled();expect(f.ports.release).toHaveBeenCalledWith(f.image);
         f.mo.callback([{target:f.image} as unknown as MutationRecord],{} as MutationObserver);f.run();
         expect(query).toHaveBeenCalledTimes(1);
         f.reader.schedule();f.run();expect(query).toHaveBeenCalledTimes(2);f.reader.dispose();

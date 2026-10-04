@@ -228,10 +228,13 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
             for(const sample of JSON.parse(fs.readFileSync(liveReadersFile,'utf8'))){
                 report.currentCase=`live reader discovery: ${sample.url}`;
                 const response=await page.goto(sample.url,{waitUntil:'domcontentloaded',timeout:30000});await page.waitForTimeout(3000);focusGuard();
+                if(sample.openSelector)await page.locator(sample.openSelector).click({timeout:10000});
+                if(sample.pageKey)for(let turn=0;turn<(sample.pageKeyTurns||1);turn++)await page.keyboard.press(sample.pageKey);
                 const result={url:sample.url,status:response?.status(),mode:sample.mode};
                 (report.liveReaders??=[]).push(result);
                 if(response?.status()!==200){result.result='access-restricted';continue;}
                 await wait(async()=>await ball(`return this.querySelector(".floating-ball-manga")?.getAttribute("aria-label") === ${JSON.stringify(sample.mode==='area'?'圈选漫画翻译':'漫画翻译')}`));
+                if(sample.mode==='canvas')assert.ok(await page.locator('#comici-viewer .-cv-page-canvas canvas').count());
                 result.result='reader-entry-confirmed';report.cases.push(report.currentCase);
             }
         }

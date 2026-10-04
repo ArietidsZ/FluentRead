@@ -116,7 +116,7 @@
           "hostname": "mangadna.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "Yamibo",
@@ -1133,7 +1133,7 @@
           "hostname": "comic-zenon.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "area"
     },
     {
       "name": "Webtoons",
@@ -1469,7 +1469,7 @@
           "hostname": "comic-growl.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "readable-canvas"
     },
     {
       "name": "Jumptoon",
@@ -2585,7 +2585,7 @@
           "hostname": "comic-ryu.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "readable-canvas"
     },
     {
       "name": "ctccomic.com",
@@ -3475,7 +3475,7 @@
           "hostname": "championcross.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "readable-canvas"
     },
     {
       "name": "mechacomic.jp",
@@ -4410,6 +4410,51 @@
       "canvasCount": 0,
       "restrictions": false,
       "canvasReadable": false
+    },
+    {
+      "url": "https://comic-zenon.com/episode/12207421983509986288",
+      "status": 200,
+      "imageCount": 8,
+      "canvasCount": 5,
+      "restrictions": false,
+      "canvasReadable": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification"
+    },
+    {
+      "url": "https://mangadna.com/manga/omniscient-readers-viewpoint/chapter-311",
+      "status": 200,
+      "imageCount": 18,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification"
+    },
+    {
+      "url": "https://championcross.jp/episodes/0a8f0118f1839",
+      "status": 200,
+      "imageCount": 21,
+      "canvasCount": 1,
+      "restrictions": false,
+      "canvasReadable": true,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification"
+    },
+    {
+      "url": "https://comic-ryu.jp/episodes/877cb803dd415",
+      "status": 200,
+      "imageCount": 10,
+      "canvasCount": 1,
+      "restrictions": false,
+      "canvasReadable": true,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification"
+    },
+    {
+      "url": "https://comic-growl.com/episodes/59451af9ac2bf",
+      "status": 200,
+      "imageCount": 12,
+      "canvasCount": 1,
+      "restrictions": false,
+      "canvasReadable": true,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification"
     }
   ],
   "verification": {
@@ -4522,6 +4567,131 @@
       "browserFrontmost": false,
       "profileRemoved": true,
       "artifacts": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-icon-confirmed"
+    },
+    "canvasAdaptationUnit": {
+      "files": 4,
+      "assertions": 131,
+      "passed": true,
+      "modules": [
+        "mangaCanvas",
+        "mangaReader",
+        "mangaSites",
+        "mangaCompositor"
+      ],
+      "coverageModules": [
+        "mangaCanvas",
+        "mangaReader",
+        "mangaSession",
+        "mangaCompositor",
+        "mangaReaderProfiles"
+      ],
+      "coverage": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      }
+    },
+    "canvasIntegration": {
+      "files": 5,
+      "assertions": 869,
+      "passed": true,
+      "scope": "Module boundaries, source headers, image translation, manga entry, compressed patches; not full architecture regression."
+    },
+    "canvasReaderEntries": {
+      "passed": true,
+      "cases": 21,
+      "liveReaders": [
+        {
+          "url": "https://championcross.jp/episodes/0a8f0118f1839",
+          "status": 200,
+          "mode": "canvas",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://comic-zenon.com/episode/12207421983509986288",
+          "status": 200,
+          "mode": "area",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://comic-ryu.jp/episodes/877cb803dd415",
+          "status": 200,
+          "mode": "canvas",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://comic-growl.com/episodes/59451af9ac2bf",
+          "status": 200,
+          "mode": "canvas",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://mangadna.com/manga/omniscient-readers-viewpoint/chapter-311",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 0,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "browserFrontmost": false,
+      "profileRemoved": true,
+      "scope": "Entry and DOM checks only; no OCR in this run."
+    },
+    "canvasSamplingResearch": {
+      "purpose": "Public chapter canvas sampling research without extension",
+      "reads": 12,
+      "fullSourceHashes": [
+        1789162458
+      ],
+      "scaledSmoothHashes": [
+        1640891598,
+        4100232292
+      ],
+      "scaledNearestHashes": [
+        486015483,
+        3587336135
+      ],
+      "integerPixelGridHashes": [
+        572495192
+      ],
+      "scope": "One public chapter canvas; no extension or translation. Integer pixel sampling was stable while whole-page resizing was not."
+    },
+    "readableCanvasTranslation": {
+      "url": "https://championcross.jp/episodes/0a8f0118f1839",
+      "passed": true,
+      "cases": [
+        "public readable canvas runs real manga OCR and translated overlay without changing the source",
+        "pause restores the original canvas and repeated activation reuses the translated page",
+        "normal chapter turn translates new canvas pages through the same serial queue",
+        "master switch restores the chapter and removes canvas translation UI"
+      ],
+      "ocr": "real production PaddleOCR",
+      "translation": "live Google",
+      "firstVisibleGroupMs": 42499,
+      "originalCanvasPixelsAndStylesPreserved": true,
+      "stableIdentityWithoutRepeatedOcr": true,
+      "pauseReusesResultWithoutExtraOperations": true,
+      "normalChapterTurnsChecked": true,
+      "masterSwitchCleanupChecked": true,
+      "operations": 6,
+      "distinctTranslatedPagesNotInferredFromOperationCount": true,
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 0,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "browserFrontmost": false,
+      "profileRemoved": true,
+      "scope": "Observed initial and subsequent visible canvas pages only; partial OCR and translation, no guarantee for other chapters or devices.",
+      "screenCaptureCaveat": "One post-pointer screenshot was a black frame. A later matching probe showed intact translated pixels, geometry and page-surface screenshots; persistent product failure was not reproduced. Alternative window-based CDP capture was unavailable and that diagnostic report is not counted as a passing test.",
+      "artifacts": "/private/tmp/fluentread-brand-manga-sites-20261005/canvas-live-sampled"
     }
   }
 }

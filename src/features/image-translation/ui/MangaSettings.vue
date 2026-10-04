@@ -53,7 +53,7 @@
       <label class="manga-site-search">{{ t('搜索网站名称或域名') }}<input v-model="siteSearch" type="search" :aria-label="t('搜索网站名称或域名')" /></label>
       <small data-i18n-ignore>{{ filteredSites.length }} / {{ MANGA_SITE_CATALOG.length }}</small>
       <div class="manga-site-list">
-        <div v-for="site in filteredSites" :key="site.name" class="manga-site"><span><strong data-i18n-ignore>{{ site.name }}</strong><small data-i18n-ignore>{{ site.hosts.join(' · ') || t('域名待确认') }}</small></span><span class="manga-site-badge">{{ t(site.hosts.length === 0 ? '域名待确认' : site.hosts.some(host => MANGA_AREA_READER_HOSTS.includes(host)) ? '画布或分片 · 圈选翻译' : ['Pixiv', 'MANGA Plus by SHUEISHA'].includes(site.name) ? '内置适配' : '已登记图片阅读器') }}</span></div>
+        <div v-for="site in filteredSites" :key="site.name" class="manga-site"><span><strong data-i18n-ignore>{{ site.name }}</strong><small data-i18n-ignore>{{ site.hosts.join(' · ') || t('域名待确认') }}</small></span><span class="manga-site-badge">{{ t(site.hosts.length === 0 ? '域名待确认' : site.hosts.some(host => MANGA_AREA_READER_HOSTS.includes(host)) ? '画布或分片 · 圈选翻译' : site.hosts.some(host => MANGA_CANVAS_READER_HOSTS.includes(host)) || ['Pixiv', 'MANGA Plus by SHUEISHA'].includes(site.name) ? '内置适配' : '已登记图片阅读器') }}</span></div>
         <p v-if="filteredSites.length === 0">{{ t('没有匹配的网站') }}</p>
       </div>
       <p>{{ t('进入阅读页即可识别，无需先开启普通图片翻译或悬浮球') }}</p>
@@ -72,7 +72,8 @@
 import {computed, ref} from 'vue';
 import type {Config} from '@/src/core/config/model';
 import {createMangaSiteRule, normalizeMangaSiteRules} from '@/src/core/config/manga';
-import {MANGA_SITE_CATALOG, MANGA_AREA_READER_HOSTS} from '@/src/core/config/mangaSiteCatalog';
+import {MANGA_SITE_CATALOG} from '@/src/core/config/mangaSiteCatalog';
+import {MANGA_AREA_READER_HOSTS, MANGA_CANVAS_READER_HOSTS} from '@/src/core/config/mangaReaderProfiles';
 import {options} from '@/src/core/config/catalog';
 import {useUiI18n} from '@/src/ui/i18n';
 import UiSelect from '@/src/ui/components/UiSelect.vue';

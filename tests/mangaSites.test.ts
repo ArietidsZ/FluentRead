@@ -31,6 +31,11 @@ describe('漫画阅读规则与持久偏好', () => {
         ['https://w9.smokingbehindthesupermarket.com/manga/title-chapter-1/', 'article .entry-content img'],
         ['https://rawkuma.net/manga/bad-boys/chapter-13.413433/', 'section.mx-auto > section > img'],
         ['https://rawkuma.com/manga/bad-boys/chapter-1/', 'section.mx-auto > section > img'],
+        ['https://mangadna.com/manga/omniscient-readers-viewpoint/chapter-311', '.read-manga .read-content > img'],
+        ['https://comic-zenon.com/episode/12207421983509986288', '.page-area img.page-image, .page-area img.js-page-image'],
+        ['https://championcross.jp/episodes/0a8f0118f1839', ':not(*)'],
+        ['https://comic-ryu.jp/episodes/877cb803dd415', ':not(*)'],
+        ['https://comic-growl.com/episodes/59451af9ac2bf', ':not(*)'],
     ])('新增公开样本限定正文选择器 %s', (href, selector) => {
         expect(resolveMangaSite(href)).toMatchObject({selector,custom:false,requireContent:true});
     });

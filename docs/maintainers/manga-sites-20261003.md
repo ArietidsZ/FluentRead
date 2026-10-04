@@ -1,6 +1,6 @@
 # 漫画网站清单与访问核对
 
-2026-10-05 核对，保留用户要求的 **235 个去重名称**。已登记的域名会自动检测正文图片；Pixiv、MANGA Plus、WeebCentral、Dynasty、Rawkuma 与单作品站使用专用正文规则。GigaViewer 和已核对的分片站提供圈选入口。网站停服、验证、登录与付费条件不会因登记而消失。
+2026-10-05 核对，保留用户要求的 **235 个去重名称**。已登记的域名会自动检测正文图片；Pixiv、MANGA Plus、WeebCentral、Dynasty、MangaDNA、Rawkuma 与单作品站使用专用正文规则。Champion Cross、Comic Ryu 和 Comic Growl 的公开可读画布接入连续翻译；不可读画布和已核对的分片站提供圈选入口。网站停服、验证、登录与付费条件不会因登记而消失。
 
 域名来源包括[用户指定 Issue](https://github.com/immersive-translate/immersive-translate/issues/1809)、其中[历史清单](https://github.com/immersive-translate/immersive-translate/issues/1809#issuecomment-3047801980)、[小学馆官网](https://televikun-super-hero-comics.com/rensai/ultramanblazar/)及公开站点名称核对。`comemh8` 对应旧清单 Omemh8；JinMangas 仍缺少可确认的现用阅读链接。Syosetu 与 KLMANGA 已纠正为旧清单中的漫画域名，首页重定向确认的 Syosetu 新域名一并登记。
 
@@ -14,7 +14,7 @@
 | 4 | MANGA Million by SHUEISHA | mangamillion.shueisha.co.jp | 通用正文图片检测 | 首页 HTML 可访问 |
 | 5 | COMIC FUZ | comic-fuz.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 6 | MangaDex | mangadex.org | 通用正文图片检测 | 首页 HTML 可访问 |
-| 7 | MangaDNA | mangadna.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 7 | MangaDNA | mangadna.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 8 | Yamibo | yamibo.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 9 | ShonenJumpPlus | shonenjumpplus.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 10 | Rimacomiplus | rimacomiplus.jp | 通用正文图片检测 | 首页 HTML 可访问 |
@@ -68,7 +68,7 @@
 | 58 | uzakichanmanga | uzakichanmanga.com | 专用正文图片 | 连接失败 |
 | 59 | Shonenmagazine | shonenmagazine.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 60 | ComicNaver | comic.naver.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 61 | comic-zenon | comic-zenon.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 61 | comic-zenon | comic-zenon.com | 不可读画布：圈选入口 | 公开章节结构已核对；画布受污染 |
 | 62 | Webtoons | webtoons.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 63 | Lezhin Comics | lezhin.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 64 | BeLTOON | beltoon.jp | 通用正文图片检测 | 首页 HTML 可访问 |
@@ -87,7 +87,7 @@
 | 77 | Manhuaus | manhuaus.com / manhuaus.org | 通用正文图片检测 | 访问受限 |
 | 78 | HMTTMH | hmttmh.com | 通用正文图片检测 | 连接失败 |
 | 79 | Smoking Behind the Supermarket | smokingbehindthesupermarket.com | 专用正文图片 | 首页 HTML 可访问 |
-| 80 | Comic Growl | comic-growl.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 80 | Comic Growl | comic-growl.com | 可读画布连续翻译 | 公开章节画布已核对 |
 | 81 | Jumptoon | jumptoon.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 82 | Fenoxo | fenoxo.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 83 | MangaFreak | mangafreak.net / mangafreak.me | 通用正文图片检测 | 首页 HTML 可访问 |
@@ -148,7 +148,7 @@
 | 138 | ranfren.neocities.org | ranfren.neocities.org | 通用正文图片检测 | 连接失败 |
 | 139 | utoon.net | utoon.net | 通用正文图片检测 | 首页 HTML 可访问 |
 | 140 | manhuapica.com | manhuapica.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 141 | comic-ryu.jp | comic-ryu.jp | 通用正文图片检测 | 首页 HTML 可访问 |
+| 141 | comic-ryu.jp | comic-ryu.jp | 可读画布连续翻译 | 公开章节画布已核对 |
 | 142 | ctccomic.com | ctccomic.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 143 | nyaa.fan | nyaa.fan | 通用正文图片检测 | 连接失败 |
 | 144 | mangago.me | mangago.me | 通用正文图片检测 | 访问受限 |
@@ -198,7 +198,7 @@
 | 188 | bomtoon.com | bomtoon.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 189 | copymanga.site | copymanga.site | 通用正文图片检测 | 首页 HTML 可访问 |
 | 190 | readcomiconline.li | readcomiconline.li | 通用正文图片检测 | 连接失败 |
-| 191 | championcross.jp | championcross.jp | 通用正文图片检测 | 首页 HTML 可访问 |
+| 191 | championcross.jp | championcross.jp | 可读画布连续翻译 | 公开章节画布已核对 |
 | 192 | mechacomic.jp | mechacomic.jp | 通用正文图片检测 | 首页 HTML 可访问 |
 | 193 | kuragebunch.com | kuragebunch.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 194 | ichicomi.com | ichicomi.com | 通用正文图片检测 | 首页 HTML 可访问 |

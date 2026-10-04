@@ -1,11 +1,11 @@
 /**
  * @file src/features/image-translation/content/mangaCompositor.ts
- * 文件职责：将历史漫画的局部无损图块直接合成到原图画布，省去整页 PNG 编码与再解码。
+ * 文件职责：将漫画的局部无损图块直接合成到原始图片或已捕获的可读画布，省去整页 PNG 编码与再解码。
  * 主要内容：逐块解码、核对尺寸、及时关闭位图；取消、超时或解码失败释放画布，迟到的位图仍关闭；完成前保留宿主原图可读。
  * 模块边界：只操作调用方图片和压缩结果，不访问模型、翻译服务、缓存或宿主样式。
  */
 import type {MangaCompressedPage} from '../mangaPatchResult';
-export async function composeMangaPage(source: HTMLImageElement, page: MangaCompressedPage, signal: AbortSignal): Promise<HTMLCanvasElement> {
+export async function composeMangaPage(source: HTMLImageElement | HTMLCanvasElement, page: MangaCompressedPage, signal: AbortSignal): Promise<HTMLCanvasElement> {
     const canvas = document.createElement('canvas');
     const check = () => {if (signal.aborted) throw new DOMException('图片翻译已取消', 'AbortError');};
     try {

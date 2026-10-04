@@ -422,6 +422,7 @@
       "tests/videoCaptionPlatformRuntime.test.ts",
       "tests/googleDriveSync.test.ts",
       "tests/backgroundGoogleDriveSync.test.ts",
+      "tests/mangaCanvas.test.ts",
       "tests/mangaReader.test.ts",
       "tests/mangaSites.test.ts",
       "tests/mangaEntry.test.ts",

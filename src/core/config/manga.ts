@@ -7,7 +7,7 @@
 import {isCatalogMangaHost, MANGA_READER_SELECTORS} from './mangaSiteCatalog';
 import {resolveMangaReaderProfile} from './mangaReaderProfiles';
 export interface MangaSiteRule {hostname: string; pathPrefix: string; selector: string}
-export interface MangaSite {name: string; selector: string; custom: boolean; generic?: boolean; requireContent?: boolean; areaSelector?: string}
+export interface MangaSite {name: string; selector: string; custom: boolean; generic?: boolean; requireContent?: boolean; canvasSelector?: string; canvasInteractionSelector?: string; areaSelector?: string}
 
 /** 旧配置默认提前三页；限制窗口，避免整章推理、内存和服务请求失控。 */
 export function normalizeMangaPrefetchPages(value: unknown): number {

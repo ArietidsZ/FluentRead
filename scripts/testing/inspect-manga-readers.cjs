@@ -40,7 +40,22 @@ function focusGuard() {
       page.on('pageerror',error=>result.pageErrors.push({message:error.message,stack:error.stack||''}));
       try {
         const response = await page.goto(href,{waitUntil:'domcontentloaded',timeout:25000});
-        await page.waitForTimeout(3500); focusGuard();
+        await page.waitForTimeout(3500);
+        const clickSelector=process.argv.includes('--before-inspect-click')?arg('before-inspect-click'):null;
+        if(clickSelector){await page.locator(clickSelector).click({timeout:10000});result.readerAction={selector:clickSelector};}
+        const pageKey=process.argv.includes('--before-inspect-key')?arg('before-inspect-key'):null;
+        if(pageKey){
+          const count=Math.min(4,Math.max(1,Number(process.argv.includes('--reader-key-count')?arg('reader-key-count'):1)));
+          for(let n=0;n<count;n++)await page.keyboard.press(pageKey);
+          result.readerKey=pageKey;result.readerKeyCount=count;
+        }
+        const readySelector=process.argv.includes('--ready-selector')?arg('ready-selector'):null;
+        if(readySelector){
+          result.readySelector=readySelector;
+          result.readerReady=await page.waitForSelector(readySelector,{state:'visible',timeout:20000}).then(()=>true).catch(()=>false);
+        }
+        if(pageKey)await page.waitForTimeout(900);
+        focusGuard();
         Object.assign(result, await page.evaluate(() => {
           const ancestors = element => {
             const values = [];
@@ -52,10 +67,13 @@ function focusGuard() {
             rect: {x:img.getBoundingClientRect().x,y:img.getBoundingClientRect().y,width:img.getBoundingClientRect().width,height:img.getBoundingClientRect().height}, ancestors:ancestors(img)}));
           return {url:location.href,title:document.title,images:images.slice(0,30),imageCount:images.length,
             canvases:Array.from(document.querySelectorAll('canvas')).map(c=>{
+              const rect=c.getBoundingClientRect(),hit=document.elementFromPoint(Math.max(0,Math.min(innerWidth-1,rect.left+rect.width/2)),Math.max(0,Math.min(innerHeight-1,rect.top+rect.height/2)));
               let readable=false, nonblank=false, pixelError='';
               try {const ctx=c.getContext('2d');if(ctx && c.width && c.height){const pixels=ctx.getImageData(0,0,Math.min(32,c.width),Math.min(32,c.height)).data;readable=true;nonblank=pixels.some(v=>v>0);}}
               catch(error){pixelError=error.name;}
-              return {width:c.width,height:c.height,readable,nonblank,pixelError,ancestors:ancestors(c)};
+              return {width:c.width,height:c.height,readable,nonblank,pixelError,ancestors:ancestors(c),
+                rect:rect.toJSON(),centerHit:hit?{tag:hit.tagName,id:hit.id,className:hit.className,containsCanvas:hit.contains(c)}:null,
+                parentPosition:c.parentElement?getComputedStyle(c.parentElement).position:null};
             }),
             frames:Array.from(document.querySelectorAll('iframe')).map(f=>({src:f.src,id:f.id})),
             controls:Array.from(document.querySelectorAll('button,a')).filter(e=>/読む|読ん|続きを読む|read|viewer/i.test(e.textContent)).slice(0,8).map(e=>({tag:e.tagName,text:e.textContent.trim().slice(0,100),href:e.getAttribute('href')})),
