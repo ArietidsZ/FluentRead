@@ -29,7 +29,7 @@
         <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="drive-error" />
         <el-alert v-if="preview.canUpload === false" :title="t('settings.cloud.restoreOnly')" type="warning" :closable="false" show-icon class="drive-error" :data-testid="`${kind}-restore-only`" />
 
-        <ol v-if="preview.hasRemote && !identical" class="drive-steps" :aria-label="t('settings.drive.stepsLabel')">
+        <ol v-if="preview.hasRemote && !identical && preview.canUpload !== false" class="drive-steps" :aria-label="t('settings.drive.stepsLabel')">
           <li :class="{'is-current': step === 'choose'}" :aria-current="step === 'choose' ? 'step' : undefined"><span>1</span>{{ t('settings.drive.chooseStep') }}</li>
           <li :class="{'is-current': step === 'review'}" :aria-current="step === 'review' ? 'step' : undefined"><span>2</span>{{ t('settings.drive.reviewStep') }}</li>
         </ol>
@@ -39,7 +39,7 @@
           <div><h3>{{ t(identical ? 'settings.drive.identicalTitle' : 'settings.drive.firstTitle') }}</h3><p>{{ t(identical ? 'settings.drive.identicalDescription' : 'settings.drive.firstDescription') }}</p></div>
         </div>
         <template v-else-if="step === 'choose'">
-          <div class="drive-intent-heading"><h3>{{ t('settings.drive.chooseTitle') }}</h3><p>{{ t(preview.hasBaseline ? 'settings.drive.returningDescription' : 'settings.drive.firstRestoreDescription') }}</p></div>
+          <div class="drive-intent-heading"><h3>{{ t('settings.drive.chooseTitle') }}</h3><p>{{ t(preview.canUpload === false ? 'settings.drive.downloadDescription' : preview.hasBaseline ? 'settings.drive.returningDescription' : 'settings.drive.firstRestoreDescription') }}</p></div>
           <div class="drive-operation-list" role="radiogroup" :aria-label="t('settings.drive.chooseStep')">
             <label v-for="operation in ['download', 'upload'] as const" :key="operation" class="drive-operation" :class="{'is-selected': direction === operation, 'is-disabled': busy || operation === 'upload' && preview.canUpload === false}">
               <input v-model="direction" type="radio" name="drive-operation" :value="operation" :disabled="busy || operation === 'upload' && preview.canUpload === false" :data-testid="`${kind}-direction-${operation}`" />
@@ -95,7 +95,7 @@
       <template #footer>
         <p v-if="step === 'review' && direction === 'merge' && unresolved" class="drive-footer-hint" role="status">{{ t('settings.drive.remaining', {count: unresolved}) }}</p>
         <div class="drive-footer-row">
-          <el-button v-if="step === 'review' && preview?.hasRemote && !identical" link :disabled="busy" :data-testid="`${kind}-back`" @click="backToChoose"><el-icon><ArrowLeft /></el-icon>{{ t('settings.drive.back') }}</el-button>
+          <el-button v-if="step === 'review' && preview?.hasRemote && !identical && preview.canUpload !== false" link :disabled="busy" :data-testid="`${kind}-back`" @click="backToChoose"><el-icon><ArrowLeft /></el-icon>{{ t('settings.drive.back') }}</el-button>
           <div class="drive-footer-actions"><el-button :disabled="busy" @click="cancelPreview">{{ t('settings.drive.cancelSync') }}</el-button><el-button v-if="step === 'choose'" type="primary" :disabled="busy || !direction" :data-testid="`${kind}-continue`" @click="step = 'review'">{{ t('settings.drive.continue') }}</el-button><el-button v-else type="primary" :loading="busy && !switchingAccount" :disabled="busy || !canCommit" :data-testid="`${kind}-confirm`" @click="commit">{{ commitLabel }}</el-button></div>
         </div>
       </template>

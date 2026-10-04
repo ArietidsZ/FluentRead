@@ -274,7 +274,7 @@ flowchart TD
 
 v3 元数据响应头缺少强 ETag 时，补取同一文件的 [v2 File 元数据](https://developers.google.com/workspace/drive/api/reference/rest/v2/files)中的 `etag`。只有文件 ID 与 `version` 同时匹配刚读取的 v3 版本，才允许把这个标识用于条件更新；否则重新预览。来自 v2 的 ETag 用于 [v2 files.update](https://developers.google.com/workspace/drive/api/reference/rest/v2/files/update) 的条件 `PUT`，不混用到 v3 `PATCH`。权限仍为 `drive.appdata`，无需增加读取全部云盘的范围。
 
-若兼容元数据也没有强 ETag，预览会展示差异并明确提示仅可恢复，禁用保存、隐藏合并入口。服务端同样拒绝伪造的保存请求，不能通过界面外的调用绕过；没有变化时仍可完成同步记录。
+若兼容元数据也没有强 ETag，预览会展示差异并明确提示仅可恢复，直接进入确认页，不显示保存、合并和多余的操作选择步骤。服务端同样拒绝伪造的保存请求，不能通过界面外的调用绕过；没有变化时仍可完成同步记录。
 
 **并发边界：**条件更新及冲突拒绝经过协议夹具验证，尚未证明真实 Google 账号在多设备并发下的行为。已有文件不允许退回无条件覆盖；两台设备同时首次创建仍可能产生同名文件，检测后会停止，不猜测该覆盖哪一个。预检查不等于跨设备事务锁。
 
