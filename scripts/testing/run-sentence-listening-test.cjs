@@ -46,7 +46,7 @@ async function main() {
   fs.mkdirSync(artifactsDir,{recursive:true});
   const local = await fixture();
   const report = {ok:false,extensionDir,artifactsDir,checks:[],consoleErrors:[],screenshots:[],evidenceBoundary:'Real production extension and storage; local deterministic translation/explanation; synthetic browser voice validates text and stop lifecycle, not audible voice quality or Firefox runtime.'};
-  let launched; let page;
+  let launched; let page; let options;
   try {
     launched = await launchFocusSafePersistentContext({chromium,profileDir,background:true,headless:false,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',viewport:{width:1440,height:960},timeout:30000,
       browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--no-first-run','--no-default-browser-check']});
@@ -56,7 +56,7 @@ async function main() {
     const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker',{timeout:30000});
     const origin = /^chrome-extension:\/\/[^/]+/u.exec(worker.url())[0];
     const createPage = async url => {const p = await newPageWithoutForeground(context,30000);p.on('pageerror',e=>report.consoleErrors.push(e.message));await p.goto(url,{waitUntil:'domcontentloaded'});return p;};
-    const options = await createPage(`${origin}/options.html#settings-vocabulary`);
+    options = await createPage(`${origin}/options.html#settings-vocabulary`);
     const readConfig = () => options.evaluate(async()=>{const result=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});return typeof result.value==='string'?JSON.parse(result.value):result.value;});
     let config; for(let i=0;i<150;i++){config=await readConfig();if(config?.to)break;await wait(100);} assert(config?.to);
     const service = 'custom:sentence-listening-fixture';
@@ -105,13 +105,15 @@ async function main() {
     await toolbar.getByRole('button',{name:'收藏列表 ↗',exact:true}).click();
     await options.reload();await options.locator('.word-row').waitFor();
     await options.getByRole('button',{name:'句子',exact:true}).click();assert.equal(await options.locator('.word-row').count(),1);
+    await options.getByLabel('更多收藏操作',{exact:true}).click();
     await options.getByRole('button',{name:'添加简短解释',exact:true}).click();
     await options.getByRole('textbox',{name:'收藏的简短解释',exact:true}).fill('deserve attention：值得关注。');
     await options.getByRole('button',{name:'保存解释',exact:true}).click();
-    await options.locator('.saved-note').waitFor();
-    await options.reload();await options.locator('.saved-note').waitFor();assert.equal(await options.locator('.saved-note').innerText(),'deserve attention：值得关注。');
+    await options.locator('.entry-note').waitFor();
+    await options.reload();await options.locator('.entry-note').waitFor();assert.equal(await options.locator('.entry-note').innerText(),'deserve attention：值得关注。');
     report.checks.push('sentence list, manual explanation and reopening persistence');
     await context.grantPermissions(['clipboard-read','clipboard-write']);
+    await options.getByLabel('更多收藏操作',{exact:true}).click();
     await options.getByRole('button',{name:'复制原文',exact:true}).click();assert.equal(await options.evaluate(()=>navigator.clipboard.readText()),source);
     await options.getByRole('button',{name:'复制双语',exact:true}).click();assert.equal(await options.evaluate(()=>navigator.clipboard.readText()),`${source}\n${translated}`);
     report.checks.push('quick copy original and bilingual');
@@ -127,7 +129,7 @@ async function main() {
     await options.getByRole('button',{name:'停止朗读',exact:true}).click();
     assert((await options.evaluate(()=>window.__sentenceSpeech)).some(item=>item.stopped));
     report.checks.push('existing TTS backend failure routes to browser speech with exact original; stop releases ownership');
-    await options.getByRole('button',{name:'学习用法',exact:true}).click();
+    await options.locator('.entry-open').click();
     await options.getByRole('button',{name:'生成简短解释',exact:true}).click();
     await options.getByRole('button',{name:'保存这段解释',exact:true}).waitFor();
     await options.getByRole('button',{name:'保存这段解释',exact:true}).click();
@@ -136,7 +138,7 @@ async function main() {
     await shot(options,'sentence-listening-study');
     await options.getByRole('button',{name:'‹ 返回收藏',exact:true}).click();
     report.checks.push('on-demand short explanation uses grounded sentence prompt and saves separately from translation');
-    const downloadPromise=options.waitForEvent('download');await options.getByRole('button',{name:'导出当前列表',exact:true}).click();const download=await downloadPromise;
+    const downloadPromise=options.waitForEvent('download');await options.getByLabel('更多收藏管理',{exact:true}).click();await options.getByRole('button',{name:'导出当前列表',exact:true}).click();const download=await downloadPromise;
     const file=path.join(artifactsDir,'exported-collection.json');await download.saveAs(file);const data=JSON.parse(fs.readFileSync(file,'utf8'));
     assert.equal(data.entries[0].note,explanation);assert.equal(data.entries[0].translations['zh-hans'].text,translated);assert.equal(data.includesPrivateContext,false);assert(!data.entries[0].contexts.some(item=>item.sourceUrl));
     await request({type:'fluentReadVocabularyBook',action:'clear'});await options.reload();await options.getByRole('heading',{name:'还没有学习收藏',exact:true}).waitFor();
@@ -154,8 +156,56 @@ async function main() {
     await page.mouse.move(1300,500);await toolbar.waitFor({state:'hidden'});
     await hover(false);await page.locator('#primary').hover();await page.keyboard.press('Control');await page.locator('#primary > .fluent-read-bilingual-content').waitFor({state:'detached'});await toolbar.waitFor({state:'hidden'});
     report.checks.push('pointer exit and restore remove sentence actions; narrow layout stays within viewport');
+    if (process.argv.includes('--collection-layout')) {
+      for (const input of [
+        {term:'Instead of trying to remember every word you encounter, make room for the ideas that stay with you after reading, listen to the original sentence, connect its meaning with your own experience, notice how one expression works in context, and return another day to explain the whole idea in your own words without relying on a word-for-word translation.',translation:'与其试图记住阅读时遇到的每一个单词，不如把空间留给那些在读完之后依然留在心中的想法：听一遍原句，把句意与你自己的经历联系起来，留意一个有用表达在上下文中的实际用法，然后隔一天再回来，试试看能否用自己的话讲清这个想法，同时把重点放在整个句子真正表达的意思上，而不是机械地逐词对应。',kind:'sentence',note:'make room for：为……留出空间。这里强调把注意力留给值得记住的内容。'},
+        {term:'make room for',translation:'为……留出空间；给……腾出位置。',kind:'expression',note:'We should make room for new ideas. 我们应该为新想法留出空间。'},
+      ]) {const result=await request({type:'fluentReadVocabularyBook',action:'upsert',input:{sourceLanguage:'en',targetLanguage:'zh-hans',...input,context:{text:'Make room for useful ideas and keep the original context.',sourceUrl:local.url,pageTitle:'Reading notes'}}});assert(result.success);}
+      await options.reload();await options.locator('.word-row').nth(2).waitFor();
+      const rows=options.locator('.word-row');const first=rows.first();
+      assert.equal(await first.locator('.entry-actions > button').count(),2);
+      assert.equal(await first.getByRole('button',{name:'删除收藏',exact:true}).isVisible(),false);
+      assert.equal(await first.getByRole('button',{name:'编辑解释',exact:true}).isVisible(),false);
+      const more=first.getByLabel('更多收藏操作',{exact:true});await more.focus();await more.press('Enter');
+      assert.equal(await first.getByRole('button',{name:'编辑解释',exact:true}).isVisible(),true);
+      await more.press('Escape');assert.equal(await first.locator('.entry-more').evaluate(el=>el.open),false);
+      await more.click();await first.getByRole('button',{name:'编辑解释',exact:true}).click();
+      await first.getByRole('textbox',{name:'收藏的简短解释',exact:true}).waitFor();
+      assert(await first.getByRole('textbox',{name:'收藏的简短解释',exact:true}).evaluate(el=>el===document.activeElement));
+      await first.getByRole('button',{name:'取消',exact:true}).click();assert.equal(await first.locator('textarea').count(),0);
+      report.checks.push('rows show only content, play, copy and more; keyboard Escape closes menu and note editor mounts only on demand');
+      await more.click();await first.getByRole('button',{name:'标记掌握',exact:true}).click();await first.getByText('已掌握',{exact:true}).waitFor();
+      await more.click();await first.getByRole('button',{name:'重新学习',exact:true}).click();await first.getByText('学习中',{exact:true}).waitFor();
+      await options.locator('.book-filter > summary').click();await options.locator('.filter-panel .el-select__wrapper').first().click();
+      await options.getByRole('option',{name:'已掌握',exact:true}).click();assert.equal(await rows.count(),0);
+      await options.locator('.filter-panel .el-select__wrapper').first().click();await options.getByRole('option',{name:'全部状态',exact:true}).click();await rows.nth(2).waitFor();
+      await options.locator('.book-filter > summary').press('Escape');
+      report.checks.push('mastery and relearn remain available in row menu; status filter changes actual list and resets');
+      await more.click();await first.getByRole('button',{name:'删除收藏',exact:true}).click();await options.locator('.el-message-box').getByRole('button',{name:'删除',exact:true}).click();await options.waitForFunction(()=>document.querySelectorAll('.word-row').length===2);
+      await options.getByRole('button',{name:'撤销',exact:true}).click();await rows.nth(2).waitFor();
+      report.checks.push('delete from compact row menu and toast undo preserve the saved content');
+      await options.getByRole('switch',{name:'学习收藏',exact:true}).click();
+      await options.waitForFunction(async()=>{const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.vocabularyBookEnabled===false;});
+      await options.reload();await rows.nth(2).waitFor();assert.equal(await options.getByRole('switch',{name:'学习收藏',exact:true}).getAttribute('aria-checked'),'false');
+      await options.getByRole('switch',{name:'学习收藏',exact:true}).click();
+      await options.waitForFunction(async()=>{const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.vocabularyBookEnabled===true;});
+      await options.locator('.book-toast').waitFor({state:'hidden'});
+      report.checks.push('compact saving switch persists on reload and disabling preserves existing collection');
+      report.layout=[];
+      for (const width of [1440,820,390]) {
+        await options.setViewportSize({width,height:960});await options.evaluate(()=>window.scrollTo(0,0));await wait(150);
+        assert(await options.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+        const geometry=await options.evaluate(()=>{const row=document.querySelector('.word-row');const translation=row.querySelector('.entry-translation');const book=document.querySelector('.vocabulary-book');const sentence=[...document.querySelectorAll('.word-row')].find(el=>el.querySelector('.entry-open').textContent.startsWith('Instead'));return{rowWidth:row.getBoundingClientRect().width,sourceWidth:row.querySelector('.entry-open').getBoundingClientRect().width,translationWidth:translation.getBoundingClientRect().width,firstContentOffset:row.getBoundingClientRect().top-book.getBoundingClientRect().top,longTranslationCharacters:sentence.querySelector('.entry-translation').textContent.length};});
+        assert(geometry.translationWidth/geometry.rowWidth>.88);assert(geometry.firstContentOffset<250);assert(geometry.longTranslationCharacters>120);
+        if(width===390)assert(geometry.sourceWidth/geometry.rowWidth>.88);
+        report.layout.push({width,...geometry});await shot(options,`collection-layout-${width}`);
+      }
+      const live=await readConfig();await options.evaluate(config=>chrome.runtime.sendMessage({type:'persistConfig',mode:'replace',config:{...config,theme:'dark'},baseRevision:config.__fluentConfigRevision,clientId:`layout-${crypto.randomUUID()}`,sequence:1}),live);
+      await wait(180);await shot(options,'collection-layout-dark');
+      report.checks.push('1440, 820 and 390px layouts retain full sentence translation, allocate full width to content and avoid overflow; dark layout captured');
+    }
     assert.equal(report.consoleErrors.length,0);report.requests=local.requests;report.ok=true;
-  } catch(error){report.error=error.stack||String(error);if(page)try{await page.screenshot({path:path.join(artifactsDir,'failure.png')});}catch{}throw error;}
+  } catch(error){report.error=error.stack||String(error);if(options||page)try{await (options||page).screenshot({path:path.join(artifactsDir,'failure.png')});}catch{}throw error;}
   finally{fs.writeFileSync(path.join(artifactsDir,'report.json'),JSON.stringify(report,null,2));if(launched)await launched.close();fs.rmSync(profileDir,{recursive:true,force:true});await local.close();}
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
 }

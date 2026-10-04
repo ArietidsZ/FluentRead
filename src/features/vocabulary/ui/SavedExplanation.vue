@@ -10,7 +10,7 @@
     <button v-if="!editing" type="button" @click="edit">{{ entry.note ? '编辑解释' : '添加简短解释' }}</button>
     <form v-else @submit.prevent="save">
       <label>简短解释<textarea v-model="draft" rows="3" maxlength="2000" aria-label="收藏的简短解释" placeholder="记下句意、一个表达的用法，或自己理解时的提示…" :disabled="busy" @keydown.stop /></label>
-      <div><button type="submit" :disabled="busy">{{ busy ? '保存中…' : '保存解释' }}</button><button type="button" :disabled="busy" @click="editing = false">取消</button></div>
+      <div><button type="submit" :disabled="busy">{{ busy ? '保存中…' : '保存解释' }}</button><button type="button" :disabled="busy" @click="editing = false; emit('cancel')">取消</button></div>
     </form>
     <p v-if="error" role="alert">{{ error }}</p>
   </div>
@@ -19,10 +19,10 @@
 import {onBeforeUnmount, ref} from 'vue';
 import browser from 'webextension-polyfill';
 import {VOCABULARY_BOOK_MESSAGE, type VocabularyBookResponse, type VocabularyEntry} from '../learningModel';
-const props = defineProps<{entry: VocabularyEntry}>();
-const emit = defineEmits<{updated: [entry: VocabularyEntry]}>();
-const editing = ref(false);
-const draft = ref('');
+const props = defineProps<{entry: VocabularyEntry; initialEditing?: boolean}>();
+const emit = defineEmits<{updated: [entry: VocabularyEntry]; cancel: []}>();
+const editing = ref(props.initialEditing === true);
+const draft = ref(props.initialEditing ? props.entry.note || '' : '');
 const busy = ref(false);
 const error = ref('');
 let active = true;
