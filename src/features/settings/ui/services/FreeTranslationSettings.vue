@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/FreeTranslationSettings.vue
  * 文件职责：编辑免费翻译服务的启停、选择策略、邮箱与等待时间。
- * 主要内容：普通态用自然语言说明自动选择和服务启停，异常状态就近展示；分流比例默认折叠在运行情况中，高级态显示等待上限。
+ * 主要内容：普通态说明自动选择和服务启停，在已开启服务的开关左侧展示逐项检查或运行异常状态；分流比例默认折叠在运行情况中，高级态显示等待上限。
  * 模块边界：只修改传入的配置，由设置页统一持久化；只读取不含凭据的后台权重快照，不请求翻译。
  -->
 <template>
@@ -21,10 +21,10 @@
               <span v-if="isSequential" class="provider-position" aria-hidden="true">{{ isEnabled(provider.id) ? order.indexOf(provider.id) + 1 : '—' }}</span>
               <ServiceIcon :service="provider.id" :label="translateLegacy(provider.label)" size="small" />
               <div class="provider-copy"><strong>{{ translateLegacy(provider.label) }}</strong></div>
-              <span v-if="weightStatus(provider.id) === 'cooling' || weightStatus(provider.id) === 'recovering'" class="provider-state" :data-provider-state="provider.id">{{ t(`settings.services.freeWeights.state.${weightStatus(provider.id)}`) }}</span>
               <div class="provider-actions">
                 <button v-if="isSequential" type="button" :disabled="!isEnabled(provider.id) || order.indexOf(provider.id) === 0" :aria-label="`${translateLegacy('上移')} ${translateLegacy(provider.label)}`" :title="translateLegacy('上移')" @click="move(provider.id, -1)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 9 4-4 4 4" /></svg></button>
                 <button v-if="isSequential" type="button" :disabled="!isEnabled(provider.id) || order.indexOf(provider.id) === order.length - 1" :aria-label="`${translateLegacy('下移')} ${translateLegacy(provider.label)}`" :title="translateLegacy('下移')" @click="move(provider.id, 1)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 7 4 4 4-4" /></svg></button>
+                <span v-if="isEnabled(provider.id)" class="provider-state" :class="`is-${providerState(provider.id)}`" :data-provider-state="provider.id" :data-provider-check-status="providerState(provider.id)" :title="providerStateTitle(provider.id)" role="status">{{ providerStateLabel(provider.id) }}</span>
                 <el-switch :model-value="isEnabled(provider.id)" :disabled="toggleDisabled(provider.id)" :aria-label="`${translateLegacy('启用')} ${translateLegacy(provider.label)}`" @update:model-value="toggle(provider.id, Boolean($event))" />
               </div>
             </div>
@@ -47,10 +47,10 @@
               <span v-if="isSequential" class="provider-position" aria-hidden="true">{{ isEnabled(provider.id) ? order.indexOf(provider.id) + 1 : '—' }}</span>
               <ServiceIcon :service="provider.id" :label="translateLegacy(provider.label)" size="small" />
               <div class="provider-copy"><strong>{{ translateLegacy(provider.label) }}</strong></div>
-              <span v-if="weightStatus(provider.id) === 'cooling' || weightStatus(provider.id) === 'recovering'" class="provider-state" :data-provider-state="provider.id">{{ t(`settings.services.freeWeights.state.${weightStatus(provider.id)}`) }}</span>
               <div class="provider-actions">
                 <button v-if="isSequential" type="button" :disabled="!isEnabled(provider.id) || order.indexOf(provider.id) === 0" :aria-label="`${translateLegacy('上移')} ${translateLegacy(provider.label)}`" :title="translateLegacy('上移')" @click="move(provider.id, -1)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 9 4-4 4 4" /></svg></button>
                 <button v-if="isSequential" type="button" :disabled="!isEnabled(provider.id) || order.indexOf(provider.id) === order.length - 1" :aria-label="`${translateLegacy('下移')} ${translateLegacy(provider.label)}`" :title="translateLegacy('下移')" @click="move(provider.id, 1)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 7 4 4 4-4" /></svg></button>
+                <span v-if="isEnabled(provider.id)" class="provider-state" :class="`is-${providerState(provider.id)}`" :data-provider-state="provider.id" :data-provider-check-status="providerState(provider.id)" :title="providerStateTitle(provider.id)" role="status">{{ providerStateLabel(provider.id) }}</span>
                 <el-switch :model-value="isEnabled(provider.id)" :disabled="toggleDisabled(provider.id)" :aria-label="`${translateLegacy('启用')} ${translateLegacy(provider.label)}`" @update:model-value="toggle(provider.id, Boolean($event))" />
               </div>
             </div>
@@ -94,7 +94,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
 import browser from 'webextension-polyfill'
 import type { Config } from '@/src/core/config/model'
-import { FREE_TRANSLATION_PROVIDERS, normalizeFreeTranslationMode, normalizeFreeTranslationOrder, normalizeMyMemoryEmail } from '@/src/core/config/freeTranslation'
+import { FREE_TRANSLATION_PROVIDERS, normalizeFreeTranslationMode, normalizeFreeTranslationOrder, normalizeMyMemoryEmail, type FreeTranslationProviderId } from '@/src/core/config/freeTranslation'
 import {
   calculateFreeTranslationWeightSnapshot,
   FREE_TRANSLATION_WEIGHT_REFRESH_INTERVAL_MS,
@@ -104,10 +104,11 @@ import {
 } from '@/src/services/translation/freeWeights'
 import { useUiI18n } from '@/src/ui/i18n'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
+import type { FreeTranslationChecks } from './freeTranslationChecks'
 
 type FreeTranslationMode = 'balanced' | 'sequential'
 type FreeTranslationConfig = Config & {freeTranslationMode: FreeTranslationMode}
-const props = defineProps<{config: Config; advanced?: boolean}>()
+const props = defineProps<{config: Config; advanced?: boolean; checks?: FreeTranslationChecks}>()
 const advanced = computed(() => props.advanced === true)
 const config = toRef(props, 'config')
 const freeConfig = computed(() => config.value as FreeTranslationConfig)
@@ -144,6 +145,24 @@ function weightStatus(providerId: string): string {
   if (!isEnabled(providerId)) return 'disabled'
   const status = weightByProvider.value.get(providerId)?.status
   return status && status !== 'disabled' ? status : 'ready'
+}
+function providerState(providerId: FreeTranslationProviderId): string {
+  const check = props.checks?.[providerId]
+  if (check && check.status !== 'idle') return check.status
+  const health = weightStatus(providerId)
+  return health === 'cooling' || health === 'recovering' ? health : 'idle'
+}
+function providerStateLabel(providerId: FreeTranslationProviderId): string {
+  const state = providerState(providerId)
+  if (state === 'success') return translateLegacy('连接正常')
+  if (state === 'error') return translateLegacy('连接失败')
+  if (state === 'cooling' || state === 'recovering') return t(`settings.services.freeWeights.state.${state}`)
+  return t(`settings.services.keys.${state === 'idle' ? 'unchecked' : state}`)
+}
+function providerStateTitle(providerId: FreeTranslationProviderId): string {
+  const check = props.checks?.[providerId]
+  const pair = providerId === 'apertiumFree' ? 'en → es' : 'en → zh-Hans'
+  return check?.error || (check?.status === 'success' ? `${pair} · ${check.durationMs ?? 0} ms` : providerStateLabel(providerId))
 }
 function weightAriaLabel(providerId: string): string {
   return t('settings.services.freeWeights.aria', {
@@ -204,7 +223,11 @@ onBeforeUnmount(() => {
 .routing-status-list { margin: 5px 0 0; padding: 0; list-style: none; }
 .routing-status-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 7px 0; border-top: 1px solid var(--el-border-color-lighter); font-size: 11px; }
 .routing-state { color: var(--el-text-color-secondary); }
-.provider-state { flex-shrink: 0; padding: 2px 5px; border-radius: 4px; color: var(--el-color-warning-dark-2); background: var(--el-color-warning-light-9); font-size: 10px; }
+.provider-state { flex-shrink: 0; padding: 2px 5px; border-radius: 4px; color: var(--el-text-color-secondary); background: var(--el-fill-color-light); font-size: 10px; white-space: nowrap; }
+.provider-state.is-success { color: var(--el-color-success-dark-2); background: var(--el-color-success-light-9); }
+.provider-state.is-error { color: var(--el-color-danger-dark-2); background: var(--el-color-danger-light-9); }
+.provider-state.is-checking { color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
+.provider-state.is-cooling, .provider-state.is-recovering { color: var(--el-color-warning-dark-2); background: var(--el-color-warning-light-9); }
 .service-unavailable { color: var(--el-color-warning-dark-2); font-size: 12px; line-height: 1.6; }
 .weight-summary-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .weight-summary-heading strong { font-size: 12px; font-weight: 650; }
@@ -217,8 +240,8 @@ onBeforeUnmount(() => {
 .section-heading { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
 .section-heading h3 { margin: 0; font-size: 13px; font-weight: 600; }
 .section-heading p, .section-help { margin: 0; color: var(--el-text-color-secondary); font-size: 11px; line-height: 1.45; }
-.fallback-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
-.fallback-list.is-sequential { grid-template-columns: repeat(2, minmax(220px, 1fr)); }
+.fallback-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.fallback-list.is-sequential { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .fallback-list > li { min-width: 0; padding: 7px 8px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-blank); }
 .fallback-list > li.is-disabled { background: var(--el-fill-color-extra-light); }
 .experimental-section { margin-top: 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-blank); }
@@ -275,6 +298,6 @@ details[open] > summary > .details-chevron { transform: rotate(180deg); }
 }
 .mode-option:focus-within, .provider-actions button:focus-visible, .experimental-section summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .experimental-section summary small { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.6; }
-@container (min-width: 720px) { .fallback-list:not(.is-sequential) { grid-template-columns: repeat(3, minmax(220px, 1fr)); } }
-@container (max-width: 500px) { .fallback-list.is-sequential { grid-template-columns: 1fr; } }
+@container (min-width: 840px) { .fallback-list:not(.is-sequential) { grid-template-columns: repeat(3, minmax(270px, 1fr)); } }
+@container (max-width: 580px) { .fallback-list.is-sequential { grid-template-columns: 1fr; } }
 </style>

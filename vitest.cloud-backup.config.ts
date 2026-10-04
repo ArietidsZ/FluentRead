@@ -8,6 +8,7 @@ export default {
         // 多次真实 PBKDF2 派生在限流或并行构建时可能超过默认 5 秒。
         testTimeout: 30_000,
         include: [
+            'tests/googleDrivePreview.test.ts',
             'tests/webDavBackup.test.ts',
             'tests/webDavHttpIntegration.test.ts',
             'tests/webDavConnection.test.ts',
@@ -26,6 +27,7 @@ export default {
             ...base.test?.coverage,
             reportsDirectory: 'coverage/cloud-backup',
             include: [
+                'src/features/settings/model/googleDrivePreview.ts',
                 'src/core/config/cloudSync.ts',
                 'src/platform/webdav/connection.ts',
                 'src/platform/webdav/api.ts',

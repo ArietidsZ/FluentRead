@@ -72,6 +72,7 @@
     "settings.cloud.fieldLabel.4": "本地语音识别模型",
     "settings.cloud.cleanupPending": "配置已同步，但本次授权缓存暂未清理；重新打开设置时会重试",
     "settings.cloud.versionMissing": "云端备份缺少安全覆盖所需的版本信息；仍可恢复，请重新读取后重试",
-    "settings.cloud.verifyFailed": "云端保存后校验未通过，请重新读取备份后重试；本机配置未修改"
+    "settings.cloud.verifyFailed": "云端保存后校验未通过，请重新读取备份后重试；本机配置未修改",
+    "settings.cloud.restoreOnly": "云端备份可恢复到本机，但缺少安全覆盖所需的版本信息；本次暂不能保存或合并"
   }
 }
