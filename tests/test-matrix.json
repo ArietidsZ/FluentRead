@@ -324,7 +324,8 @@
       "tests/webDavApi.test.ts",
       "tests/backgroundWebDavBackup.test.ts",
       "tests/webDavBackupClient.test.ts",
-      "tests/requestHeaderRules.test.ts"
+      "tests/requestHeaderRules.test.ts",
+      "tests/vocabularyReencounter.test.ts"
     ],
     "functional": [
       "tests/translationCenterComponent.test.ts",
@@ -455,7 +456,8 @@
       "tests/userscriptDexieIsolation.test.ts",
       "tests/vocabularyBookComponentLifecycle.test.ts",
       "tests/allNodesTranslationCore.test.ts",
-      "tests/sameTargetLanguageRegression.test.ts"
+      "tests/sameTargetLanguageRegression.test.ts",
+      "tests/vocabularyReencounterLifecycle.test.ts"
     ]
   }
 }

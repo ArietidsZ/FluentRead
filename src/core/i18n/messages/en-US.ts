@@ -6,6 +6,7 @@
  * 并保留参数化旧文案的安全回退，支持后续翻译者继续补齐未 key 化区域。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
+import reencounterText from './reencounter/en-US.json';
 import brandTaglines from './brand-taglines.json';
 import {onboardingEnglishMessages} from './onboarding';
 import googleDriveText from './google-drive/en-US.json';
@@ -20,6 +21,7 @@ import {translationStatsEnglishMessages} from './translationStats';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
+    ...reencounterText,
     "settings.headers.title": "Remove source request headers",
     "settings.headers.help": "The list is empty by default. Applies only to FluentRead background requests to the exact domain, shared by all services. Subdomains are separate. Remove an entry or uncheck a header to restore defaults.",
     "settings.headers.unsupported": "This environment does not support this option. Use a browser extension with declarativeNetRequest support. Userscripts are not supported.",

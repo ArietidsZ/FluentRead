@@ -5,6 +5,7 @@
  * 主要内容：保持语言名称使用各自原生写法，并为尚未 key 化的旧 UI 提供日语映射。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
+import reencounterText from './reencounter/ja-JP.json';
 import brandTaglines from './brand-taglines.json';
 import googleDriveText from './google-drive/ja-JP.json';
 import cloudBackupText from './cloud-backup/ja-JP.json';
@@ -18,6 +19,7 @@ import {translationStatsJapaneseMessages} from './translationStats';
 import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
+    ...reencounterText,
     "settings.headers.title": "送信元リクエストヘッダーを削除",
     "settings.headers.help": "初期状態ではリストは空です。すべてのサービスで共有され、FluentRead が指定した完全一致のドメインへ送るリクエストだけに適用されます。サブドメインは別途追加してください。項目の削除またはチェックの解除で既定の動作に戻ります。",
     "settings.headers.unsupported": "この環境は非対応です。declarativeNetRequest 対応のブラウザー拡張機能を使用してください。ユーザースクリプトには対応していません。",

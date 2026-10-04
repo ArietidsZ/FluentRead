@@ -10,6 +10,18 @@ The learning center starts with words, phrases, and sentences you save while rea
 2. Save an expression from a selection or reading card. Words, phrases, and sentences in multiple languages are supported.
 3. The expression keeps available reading context. Saving it again can add context to the existing entry.
 
+## Meet saved expressions on a new page
+
+Enable **Meet saved expressions again** in the collection page. This independent option is off by default. Saved expressions in nearby reading text receive a subtle dotted underline. Click an expression or the bottom-right **Saved expressions** button to compare its current sentence with the sentence you saved. The card can browse nearby matches, and its controls support keyboard access.
+
+Words match at word boundaries; phrases can span inline emphasis. Case, whitespace, curly apostrophes, and common hyphen differences are handled. Marks update with scrolling and changing text. Links, controls, editors, code, formulas, hidden content, and FluentRead translations are excluded. Original text, selections, and page interactions remain intact.
+
+Opening a card reads only that saved entry and does not call AI. **Explain this usage** uses the reading card’s service, model, context scope, and permitted learning-memory settings. It sends the expression and current sentence, without the old saved reference or source URL. Enable sentence context before requesting an explanation. A saved definition is never presented as the meaning of the new sentence. Retry failures or stop while retaining generated text.
+
+Use **Marking options** to pause this page visit or turn off marks on all pages. Re-enable them in the learning center. A visit pause lasts until reload or the feature is enabled again. Seeing an expression or reading its explanation does not change saving counts, mastery, or review schedules.
+
+This browser-extension feature supports ordinary pages and open Shadow DOM. It is unavailable in private windows and userscripts. Older browsers without text-range painting can still use the nearby-expression button. Pausing FluentRead or disabling it on the current site removes both marks and cards.
+
 ## Learn its usage
 
 Open an entry’s learning action, or jump to your most recent saved expression. Opening the page does not call AI.
