@@ -26,8 +26,8 @@
           <p>{{ preview.account.email ? t('settings.drive.account', {email: preview.account.email}) : t('settings.drive.selectedAccount') }}</p>
           <el-button v-if="kind === 'google-drive'" link :loading="switchingAccount" :disabled="busy" :data-testid="`${kind}-switch-account`" @click="switchAccount">{{ t('settings.drive.switchAccount') }}</el-button>
         </div>
-        <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="drive-error" />
-        <el-alert v-if="preview.canUpload === false" :title="t('settings.cloud.restoreOnly')" type="warning" :closable="false" show-icon class="drive-error" :data-testid="`${kind}-restore-only`" />
+        <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="drive-error drive-preview-notice" />
+        <el-alert v-if="preview.canUpload === false" :title="t('settings.cloud.restoreOnly')" type="warning" :closable="false" show-icon class="drive-error drive-preview-notice" :data-testid="`${kind}-restore-only`" />
 
         <ol v-if="preview.hasRemote && !identical && preview.canUpload !== false" class="drive-steps" :aria-label="t('settings.drive.stepsLabel')">
           <li :class="{'is-current': step === 'choose'}" :aria-current="step === 'choose' ? 'step' : undefined"><span>1</span>{{ t('settings.drive.chooseStep') }}</li>
@@ -224,6 +224,10 @@ onUnmounted(() => {alive = false; endSession(); clearPreview();});
 .drive-status {color:var(--el-text-color-secondary);}
 .drive-change-details {font-size:12px; line-height:1.7; margin:0 0 12px; color:var(--el-text-color-secondary);}
 .drive-error,.drive-actions {margin-top:16px;}
+.drive-preview-notice {margin:0 0 24px; align-items:flex-start;}
+.drive-preview-notice :deep(.el-alert__content) {min-width:0;}
+.drive-preview-notice :deep(.el-alert__title) {display:block; line-height:1.7; overflow-wrap:anywhere;}
+.drive-preview-notice :deep(.el-alert__icon) {margin-top:2px; flex-shrink:0;}
 .drive-actions {display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px;}
 .drive-actions>.el-button {flex-shrink:0; max-width:100%; min-height:32px; height:auto; white-space:normal; line-height:1.5; padding:8px 15px;}
 .drive-account-bar {display:flex; align-items:center; gap:10px; border-radius:8px; background:var(--el-fill-color-light); padding:12px; margin-bottom:24px;}
