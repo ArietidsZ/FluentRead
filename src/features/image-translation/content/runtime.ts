@@ -130,6 +130,12 @@ async function translateMangaImage(image: HTMLImageElement): Promise<void> {
     await translateImage(state);
 }
 
+/** 漫画中的显式单页操作也由会话排队，重试进度、错误和暂停保持同一所有权。 */
+function requestImageTranslation(state: ImageTranslationState): void {
+    if (state.manga && mangaReader?.status().active) {mangaReader.retry(state.image);return;}
+    void translateImage(state);
+}
+
 /** 同步交接已完成的漫画结果；不能因其他页在推理而让用户等待或重新识别。 */
 function reuseMangaImage(image: HTMLImageElement): boolean {
     const state=states.get(image);
@@ -485,7 +491,7 @@ function createState(image: HTMLImageElement, hoverEntry = false): ImageTranslat
             const state = states.get(image);
             if (!state || !imageTranslationAllowed(state.manga === true)) return;
             if (state.phase === 'translated' || state.phase === 'loading') restoreImageTranslation(state);
-            else void translateImage(state);
+            else requestImageTranslation(state);
         },
         onDismiss: () => { const state = states.get(image); if (state) removeState(state); },
         onInspect: () => {
@@ -971,7 +977,7 @@ export function toggleContextMenuImage(srcUrl?: unknown): boolean {
     if (typeof srcUrl === 'string' && srcUrl !== image.currentSrc && srcUrl !== image.src) return false;
     const state = states.get(image) || createState(image);
     if (state.phase === 'translated') restoreImageTranslation(state);
-    else void translateImage(state);
+    else requestImageTranslation(state);
     return true;
 }
 

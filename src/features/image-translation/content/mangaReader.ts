@@ -170,6 +170,7 @@ export function createMangaReader(ports: {
     return {
         status: session.status,
         schedule,
+        retry(image: HTMLImageElement) { refresh();return session.retry(image); },
         toggle() { discoveryDirty = true; refresh(); const toggled = session.toggle(); refresh(); return toggled; },
         dispose() {
             disposed = true;

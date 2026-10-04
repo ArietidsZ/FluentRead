@@ -257,6 +257,16 @@ async function verifyScrollStability() {
     assert.equal(prefetchPages,0,'Scroll overlap test processes visible pages only');
     const images=page.locator(readerSelector);
     await page.setViewportSize({width:1280,height:700});
+    // Pixiv 的站点 resize 回调可能晚于 CDP viewport 返回；原图快照必须取自本次布局，而不是上次高度。
+    let previousLayout='',stableSince=0;
+    report.layoutBeforeTranslation=[];
+    await wait(async()=>{
+        const layout=await images.evaluateAll(items=>items.map(i=>({src:i.src,style:i.getAttribute('style')})));
+        const signature=JSON.stringify(layout);
+        if(signature!==previousLayout){previousLayout=signature;stableSince=Date.now();report.layoutBeforeTranslation.push({at:stableSince,layout});}
+        return Date.now()-stableSince>=300;
+    },10000);
+    assert.equal(await ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-pressed")'),'false');
     await wait(async()=>await images.evaluateAll((items,isPixiv)=>items.some(i=>
         (!isPixiv||i.closest('.gtm-expand-full-size-illust'))&&i.complete&&i.naturalWidth>80&&i.getBoundingClientRect().width>80&&i.getBoundingClientRect().bottom>0&&i.getBoundingClientRect().top<700),pixiv),30000);
     const index=await images.evaluateAll((items,isPixiv)=>items.findIndex(i=>

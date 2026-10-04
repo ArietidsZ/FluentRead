@@ -20,6 +20,39 @@ function sessionFixture(extra: {reuse?: (image: HTMLImageElement) => boolean} = 
 afterEach(() => {vi.restoreAllMocks(); vi.unstubAllGlobals();});
 
 describe('漫画会话所有权与可见页调度', () => {
+    it('失败不自动循环请求，显式单页重试发布进度并在成功后清除会话错误',async()=>{
+        const reuse=vi.fn().mockReturnValue(false),f=sessionFixture({reuse});f.ports.failed.mockReturnValue(true);
+        f.start();await flush();expect(f.session.status().errors).toBe(1);
+        reuse.mockReturnValue(true);f.session.refresh(f.snapshot);expect(f.session.status().errors).toBe(1);
+        expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        const pending=deferred();f.ports.translate.mockReturnValueOnce(pending.promise);f.ports.failed.mockReturnValue(false);
+        expect(f.session.retry(f.one)).toBe(true);await flush();
+        expect(f.session.status()).toMatchObject({errors:0,completed:0,pending:true});
+        expect(f.session.retry(f.one)).toBe(false);expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        pending.resolve();await flush();
+        expect(f.session.status()).toMatchObject({errors:0,completed:1,pending:false});f.session.dispose();
+    });
+    it('重试排在已经运行的另一页之后，不并发抢占；暂停后不会复活迟到结果',async()=>{
+        const f=sessionFixture();f.ports.failed.mockReturnValue(true);f.start();await flush();
+        const other=deferred();f.ports.translate.mockReturnValueOnce(other.promise);f.ports.failed.mockReturnValue(false);
+        f.snapshot.pages[0].retain=true;f.snapshot.pages[0].visible=false;f.snapshot.pages[1].visible=true;
+        f.session.refresh(f.snapshot);await flush();
+        f.snapshot.pages[0].visible=true;f.session.refresh(f.snapshot);
+        expect(f.session.retry(f.one)).toBe(true);await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        const retry=deferred();f.ports.translate.mockReturnValueOnce(retry.promise);
+        other.resolve();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([f.one,f.two,f.one]);
+        expect(f.session.status()).toMatchObject({pending:true,errors:0});f.session.toggle();retry.resolve();await flush();
+        expect(f.session.status()).toMatchObject({active:false,pending:false,completed:1});f.session.dispose();
+    });
+    it('未开启、隐藏、仅附近保留、已离开窗口和卸载的页面不能绕过会话重试',async()=>{
+        const f=sessionFixture();expect(f.session.retry(f.one)).toBe(false);
+        f.snapshot.pages[1].retain=true;const pending=deferred();f.ports.translate.mockReturnValueOnce(pending.promise);f.start();await flush();
+        expect(f.session.retry({} as HTMLImageElement)).toBe(false);expect(f.session.retry(f.two)).toBe(false);
+        f.snapshot.suspended=true;f.session.refresh(f.snapshot);expect(f.session.retry(f.one)).toBe(false);
+        f.snapshot.suspended=false;f.snapshot.pages[0].visible=false;f.session.refresh(f.snapshot);
+        expect(f.session.retry(f.one)).toBe(false);f.session.dispose();expect(f.session.retry(f.one)).toBe(false);
+        pending.resolve();await flush();
+    });
     it('上一张已完成译图立即复用，不等待另一张识别结束', async () => {
         const reuse=vi.fn().mockReturnValue(false),f=sessionFixture({reuse}),pending=deferred();
         f.start();await flush();f.ports.translate.mockReturnValueOnce(pending.promise);
