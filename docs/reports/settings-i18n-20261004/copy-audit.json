@@ -11783,5 +11783,13 @@
     "stableMessagesChanged 仅计算现有稳定 key 的值变化；新增 key 单列为 addedKeys。",
     "rewrittenStaticSourcePhrases 是设置源文案改写表，另外补齐了学习收藏与阅读记录资源；完整实际改动以 Git diff 为准。",
     "英文与其他语言同形的品牌、接口字段及自然词汇不视为漏翻，例如 API Key、法语 Total、Cache 与西班牙语 Experimental。"
-  ]
+  ],
+  "integration": {
+    "mainBase": "eac8e7de",
+    "resourceCommit": "775e6a648a112cd522427943f0b71b4abab49ccb",
+    "additionalCopy": {
+      "settings.cloud.restoreOnly": "云端备份可恢复到本机，但缺少安全覆盖所需的版本信息；本次暂不能保存或合并"
+    },
+    "originalAuditRetained": true
+  }
 }
