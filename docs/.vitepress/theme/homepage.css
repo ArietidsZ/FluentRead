@@ -814,6 +814,87 @@
   }
 }
 @media (max-width: 760px) {
+  /* 保留散落的问候语，集中在图标周围和首屏下方留白，避开正文与按钮。 */
+  .bv-hero-orbit::before {
+    display: none;
+  }
+  .bv-orbit-greeting {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+    opacity: 0.6;
+    white-space: nowrap;
+  }
+  .bv-greeting-fr {
+    left: 7%;
+    top: 30px;
+    font-size: 15px;
+    color: #9a7e91;
+    transform: rotate(-8deg);
+  }
+  .bv-greeting-en {
+    right: 7%;
+    top: 42px;
+    font-size: 14px;
+    color: #78928d;
+    transform: rotate(6deg);
+  }
+  .bv-greeting-zh {
+    left: 41%;
+    right: auto;
+    top: 12px;
+    font-size: 13px;
+    color: #8983a0;
+    transform: rotate(-4deg);
+  }
+  .bv-greeting-ko {
+    left: 4%;
+    top: 69px;
+    font-size: 11px;
+    color: #81968b;
+    transform: rotate(-5deg);
+  }
+  .bv-greeting-ja {
+    right: 5%;
+    top: 84px;
+    font-size: 11px;
+    color: #8e83a6;
+    transform: rotate(5deg);
+  }
+  .bv-greeting-de {
+    left: 5%;
+    top: 104px;
+    color: #84919b;
+    transform: rotate(-6deg);
+  }
+  .bv-greeting-ru {
+    right: 8%;
+    top: 112px;
+    color: #9b8b73;
+    transform: rotate(7deg);
+  }
+  .bv-greeting-ar {
+    left: 9%;
+    top: 127px;
+    color: #a18490;
+    transform: rotate(4deg);
+  }
+  .bv-greeting-es {
+    left: 11%;
+    top: auto;
+    bottom: 31px;
+    font-size: 14px;
+    color: #9d896f;
+    transform: rotate(-7deg);
+  }
+  .bv-greeting-pt {
+    right: 13%;
+    top: auto;
+    bottom: 14px;
+    color: #7f909e;
+    transform: rotate(6deg);
+  }
   .bv-hero {
     padding-top: 72px;
   }
