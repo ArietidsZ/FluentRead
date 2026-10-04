@@ -201,10 +201,10 @@ for (const prefix of ['', '/en']) {
   )
   assert(
     home.querySelector('.fd-selection button[aria-label="' +
-      (prefix ? 'Preview reading the original' : '演示朗读原文') + '"]') &&
+      (prefix ? 'Read original' : '朗读原文') + '"]') &&
       home.querySelector('.fd-selection button[aria-label="' +
-        (prefix ? 'Preview reading the translation' : '演示朗读译文') + '"]'),
-    'Selection card needs original and translation read-aloud previews'
+        (prefix ? 'Read translation' : '朗读译文') + '"]'),
+    'Selection card needs original and translation read-aloud controls'
   )
   assert(
     !home.querySelector('.bv-pointer,.bv-end'),
