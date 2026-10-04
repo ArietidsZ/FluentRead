@@ -1127,13 +1127,18 @@ describe('视频预览不自动显示图片翻译', () => {
         toggleMangaTranslation();pending.resolve(result);await flush();
         expect(env.bitmap()).toBeNull();expect(feedback.hidden).toBe(true);expect(env.image.style.opacity).not.toBe('0');stop();
     });
-    it('漫画失败不弹出卡片，原图可读，图片重试仍恢复翻译', async () => {
+    it.each(['button','contextmenu'] as const)('漫画失败保持原图可读，%s 重试进入会话并清除错误', async action => {
         const env=readerPage();client.translate.mockRejectedValueOnce(new Error('翻译服务暂时不可用'));
         const listener=vi.fn(),stop=subscribeMangaTranslation(listener);toggleMangaTranslation();await flush();
         expect((env.roots[0].querySelector('.fr-image-feedback') as HTMLElement).hidden).toBe(true);
         expect(env.image.style.opacity).not.toBe('0');expect(env.button().textContent).toBe('重试');
         expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({errors:1,pending:false}));
-        env.click();await flush();expect(env.bitmap()).not.toBeNull();stop();
+        const pending=deferred<typeof result>();client.translate.mockReturnValueOnce(pending.promise);
+        if(action==='button') env.click();
+        else {env.dispatch(env.image,'contextmenu');expect(toggleContextMenuImage(env.image.src)).toBe(true);}
+        await flush();expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({errors:0,pending:true}));
+        pending.resolve(result);await flush();env.runFrames();await flush();expect(env.bitmap()).not.toBeNull();
+        expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({errors:0,pending:false}));stop();
     });
     it('一次开启、原图暂停、重新开启复用已解码结果，即使持久缓存关闭', async () => {
         const env = readerPage(); settings.useCache = false;
