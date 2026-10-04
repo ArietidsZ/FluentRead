@@ -1,4 +1,4 @@
-/* 首屏采用阅读页与页边注释的排版，口号为主标题，装饰不占据文档流。 */
+/* 首屏以居中图标和两行口号为主，两侧悬浮卡片只用变换动画，不占据文档流。 */
 .bv-home-brand img {
   width: 38px;
   height: 38px;
@@ -79,6 +79,20 @@
   color: #4e4954;
   font-size: 18px;
 }
+.bv-hero-name {
+  position: relative;
+  isolation: isolate;
+  white-space: nowrap;
+}
+.bv-hero-name::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 48% -0.12em 0.03em;
+  border-radius: 0.2em 0.1em 0.18em 0.08em;
+  background: #f4d8787a;
+  transform: skewX(-8deg) rotate(-1deg);
+}
 .bv-hero-capabilities > span {
   display: inline-block;
   white-space: nowrap;
@@ -97,49 +111,69 @@
   pointer-events: none;
   overflow: hidden;
 }
-.bv-hero-orbit::before {
-  content: '';
-  position: absolute;
-  inset: 28px 48px 36px;
-  border-block: 1px solid #eeebf0;
-}
 .bv-hero-orbit > * {
   position: absolute;
+  animation: bv-orbit-float 9s ease-in-out infinite;
+  animation-play-state: paused;
+  transform: rotate(var(--orbit-angle, 0deg));
+}
+.bv-hero-orbit[data-active='true'] > * {
+  animation-play-state: running;
 }
 .bv-orbit-card {
-  padding: 0 0 0 16px;
+  padding: 20px;
   text-align: left;
-  border-left: 1px solid #e3dce5;
-  color: #76717c;
+  background: white;
+  border: 1px solid var(--fr-line);
+  border-radius: 20px;
+  box-shadow: 0 15px 35px #26232c06;
+  color: #48454e;
 }
 .bv-orbit-card small {
   display: block;
   color: #87838d;
   font-size: 10px;
 }
+.bv-orbit-window {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 18px;
+}
+.bv-orbit-window i {
+  height: 5px;
+  width: 5px;
+  border-radius: 50%;
+  background: #dfdce2;
+}
 .bv-orbit-page {
-  left: 5%;
-  top: 240px;
-  width: 160px;
+  left: 4%;
+  top: 205px;
+  width: 198px;
+  --orbit-angle: -7deg;
+  animation-delay: -2s;
 }
 .bv-orbit-page p {
   font-size: 16px;
-  margin-top: 12px;
 }
 .bv-orbit-page .bv-orbit-translation {
-  color: #bb607d;
-  margin-top: 4px;
+  color: #c34870;
+  margin-top: 12px;
+  margin-bottom: 18px;
+  border-left: 2px solid #d67b99;
+  padding-left: 10px;
 }
 .bv-orbit-document {
   right: 5%;
-  top: 150px;
-  width: 160px;
+  top: 125px;
+  width: 176px;
+  --orbit-angle: 7deg;
+  animation-delay: -4s;
 }
 .bv-orbit-document > div {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-block: 12px 16px;
+  margin-bottom: 22px;
 }
 .bv-orbit-document > div span {
   border: 1px solid #eed7e0;
@@ -165,18 +199,20 @@
   margin-top: 20px;
 }
 .bv-orbit-grammar {
-  right: 5%;
-  top: 370px;
-  width: 160px;
+  right: 4%;
+  top: 360px;
+  width: 180px;
+  --orbit-angle: -5deg;
+  animation-delay: -6s;
 }
 .bv-orbit-grammar > span {
   display: block;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
 }
 .bv-orbit-grammar small {
   padding-bottom: 10px;
-  border-bottom: 1px solid #ead7df;
+  border-bottom: 2px solid #d66e94;
 }
 .bv-orbit-grammar p {
   font-size: 10px;
@@ -205,9 +241,10 @@
   left: 25%;
   top: 7%;
 }
+/* 桌面问候语放在卡片上方的留白区，避开旋转边界和浮动动画范围。 */
 .bv-greeting-ja {
-  right: 3%;
-  top: 82%;
+  right: 5%;
+  top: 7%;
   font-size: 14px;
 }
 .bv-greeting-ko {
@@ -217,11 +254,11 @@
 }
 .bv-greeting-de {
   left: 5%;
-  top: 28%;
+  top: 20%;
 }
 .bv-greeting-ru {
-  right: 5%;
-  top: 86%;
+  right: 15%;
+  top: 7%;
 }
 .bv-greeting-ar {
   left: 5%;
@@ -230,6 +267,16 @@
 .bv-greeting-pt {
   right: 22%;
   top: 83%;
+}
+
+@keyframes bv-orbit-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--orbit-angle, 0deg));
+  }
+  50% {
+    transform: translateY(-6px) rotate(var(--orbit-angle, 0deg));
+  }
 }
 
 /* 五项功能使用同一阅读顺序、列宽与演示外壳。 */
@@ -448,9 +495,6 @@
 }
 .fd[data-running='false'] .fd-sound-wave i {
   animation-play-state: paused;
-}
-.fd[data-speech-state='speaking'] .fd-audio-active .fd-sound-wave i {
-  animation-play-state: running;
 }
 @keyframes fd-audio-wave {
   to {
@@ -750,6 +794,16 @@
   outline-offset: 2px;
 }
 
+/* 较窄的桌面屏幕为中间的中英文简介留出完整间距。 */
+@media (min-width: 1101px) and (max-width: 1279px) {
+  .bv-orbit-page {
+    left: 2%;
+  }
+  .bv-orbit-document,
+  .bv-orbit-grammar {
+    right: 2%;
+  }
+}
 @media (max-width: 1100px) {
   .bv-orbit-card {
     display: none;
@@ -763,9 +817,6 @@
   .bv-hero {
     padding: 54px 24px 64px;
     min-height: 0;
-  }
-  .bv-hero-orbit::before {
-    inset-inline: 24px;
   }
   .bv-orbit-greeting {
     font-size: 17px;
@@ -1005,6 +1056,9 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .bv-hero-orbit > * {
+    animation: none;
+  }
   .fd-sound-wave i {
     animation: none;
   }
