@@ -1,7 +1,7 @@
 <!--
  * @file src/features/full-page-translation/ui/TranslationProgressPanel.vue
  * 文件职责：以半透明工作面板和低存在感状态勾选展示全文翻译进度，并允许用户临时收起，同时跟随扩展主题与系统深浅色偏好。
- * 主要内容：组件订阅 progress 内存状态和配置更新；弹窗翻译阶段显示正在翻译弹窗，弹窗阻塞阶段保留等待提示但停止动画和完成勾；仅剩离屏候选且悬浮球关闭时退化为淡勾选。
+ * 主要内容：组件订阅实时进度和配置更新，通过展示控制器延迟短任务的展开并等待连续空闲后收起；弹窗等待时保留静态提示，仅剩离屏候选且悬浮球关闭时退化为淡勾选。
  * 模块边界：组件不启动、取消或重试翻译，也不保存业务进度；数据只来自 progress.ts，是否创建 Shadow UI 由 content/progressPanel.ts 决定，样式局限于组件作用域。
  -->
 <template>
@@ -71,15 +71,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   getFullPageTranslationProgress,
-  hasActiveFullPageTranslationWork,
-  shouldShowCompactFullPageTranslationStatus,
   subscribeFullPageTranslationProgress,
 } from '@/src/features/full-page-translation/progress';
 import {config, subscribeConfig} from '@/src/services/config/store';
 import {useUiI18n} from '@/src/ui/i18n';
+import {createProgressPanelVisibility, type ProgressPanelDisplayMode} from './progressPanelVisibility';
 
 const progress = ref(getFullPageTranslationProgress());
 const dismissedSessionId = ref<number | null>(null);
@@ -97,17 +96,17 @@ const isDark = computed(() => configuredTheme.value === 'dark' || (
   configuredTheme.value === 'auto' && prefersDark.value
 ));
 
-const hasActiveWork = computed(() => hasActiveFullPageTranslationWork(progress.value));
+const displayMode = ref<ProgressPanelDisplayMode>('hidden');
+const visibility = createProgressPanelVisibility((mode) => { displayMode.value = mode; });
+watch([progress, floatingBallEnabled, dismissedSessionId], () => {
+  visibility.update(progress.value, floatingBallEnabled.value, progress.value.sessionId === dismissedSessionId.value);
+}, {immediate: true, flush: 'sync'});
 const isModalWaiting = computed(() => progress.value.modalPhase === 'waiting');
 const panelTitle = computed(() => progress.value.modalPhase === 'translating'
   ? t('fullPage.progress.modalTranslating')
   : t('fullPage.progress.title'));
-const isCompact = computed(() => shouldShowCompactFullPageTranslationStatus(
-  progress.value,
-  floatingBallEnabled.value,
-));
-const isVisible = computed(() => progress.value.sessionId !== dismissedSessionId.value &&
-  (hasActiveWork.value || isCompact.value));
+const isCompact = computed(() => displayMode.value === 'compact');
+const isVisible = computed(() => displayMode.value !== 'hidden');
 
 const compactStatusLabel = computed(() => progress.value.offscreen > 0
   ? t('fullPage.progress.compactOffscreen', {count: progress.value.offscreen})
@@ -143,6 +142,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  visibility.dispose();
   darkModeMediaQuery.removeEventListener('change', updatePreferredTheme);
   unsubscribeProgress?.();
   unsubscribeProgress = null;
