@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url'
 import { parseHTML } from 'linkedom'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dist = path.join(root, 'docs/.vitepress/dist')
+const brandTaglines = JSON.parse(
+  fs.readFileSync(path.join(root, 'src/core/i18n/messages/brand-taglines.json'), 'utf8')
+)
 const files = (dir) =>
   fs
     .readdirSync(dir, { withFileTypes: true })
@@ -167,12 +170,14 @@ for (const prefix of ['', '/en']) {
     'Primary feature needs a visible bilingual translation heading'
   )
   assert(
-    home.querySelector('.bv-hero h1')?.textContent.trim() ===
-      (prefix ? 'FluentRead' : '流畅阅读') &&
+    home.querySelector('.bv-hero-intro > span')?.textContent.trim() ===
+      (prefix
+        ? 'FluentRead is an open-source browser extension for bilingual translation.'
+        : '流畅阅读，一款开源的浏览器双语翻译插件') &&
       home
-        .querySelector('.bv-hero-slogan')
-        ?.textContent.includes(prefix ? 'Closer languages.' : '让语言更近，'),
-    'The localized product name and canonical brand slogan must be prominent'
+        .querySelector('.bv-hero h1.bv-hero-slogan')
+        ?.textContent.trim() === (prefix ? brandTaglines['en-US'] : brandTaglines['zh-CN']),
+    'Canonical slogan must be the headline, with the product name in the localized introduction'
   )
   assert(
     home.querySelector('.bv-home-brand')?.textContent.includes(prefix ? 'FluentRead' : '流畅阅读'),
@@ -193,6 +198,13 @@ for (const prefix of ['', '/en']) {
       home.querySelector(`.bv-hero-orbit .bv-orbit-${kind}`)
     ),
     'Hero scene decorations must stay present'
+  )
+  assert(
+    home.querySelector('.fd-selection button[aria-label="' +
+      (prefix ? 'Read original' : '朗读原文') + '"]') &&
+      home.querySelector('.fd-selection button[aria-label="' +
+        (prefix ? 'Read translation' : '朗读译文') + '"]'),
+    'Selection card needs original and translation read-aloud controls'
   )
   assert(
     !home.querySelector('.bv-pointer,.bv-end'),
