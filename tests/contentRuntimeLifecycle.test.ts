@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
         on: true, disabledExtensionDomains: [] as string[], bilingualSentenceHighlightEnabled: true,
         disableFloatingBall: true, disableSelectionTranslator: true, disableImageTranslator: true,
         selectionAreaEnabled: false, translationProgressPanelEnabled: false,
-        writing: {enabled: false}, inputBoxTranslationTrigger: 'disabled', paragraphCopyEnabled: false,
+        writing: {enabled: false}, inputBoxTranslationTrigger: 'disabled', paragraphCopyEnabled: false, vocabularyReencounterEnabled: false,
     },
     configReady: Promise.resolve(), subscribeConfig: vi.fn(),
     installPageStyles: vi.fn(), removeStyles: vi.fn(), syncHighlight: vi.fn(), mountParagraphCopyContentFeature: vi.fn(),
@@ -22,12 +22,18 @@ const mocks = vi.hoisted(() => ({
     addRuntimeListener: vi.fn(), removeRuntimeListener: vi.fn(), createMessageHandler: vi.fn(),
     setBridges: vi.fn(),
     mountWriting: vi.fn(), unmountWriting: vi.fn(), writingMounted: false,
-    floatingBallAllowed: true, shareCardMounted: false, mountShareCard: vi.fn(),
+    floatingBallAllowed: true, shareCardMounted: false, mountShareCard: vi.fn(), mountReencounter: vi.fn(), unmountReencounter: vi.fn(),
+    sentenceActionsMounted: false,
 }));
 vi.mock('@/src/features/writing-assistant/public', () => ({
     mountWritingAssistant: () => {mocks.writingMounted = true; mocks.mountWriting();},
     unmountWritingAssistant: () => {mocks.writingMounted = false; mocks.unmountWriting();},
     isWritingAssistantMounted: () => mocks.writingMounted,
+}));
+vi.mock('@/src/features/vocabulary/content/public', () => ({
+    mountSentenceActions: () => {mocks.sentenceActionsMounted = true;},
+    unmountSentenceActions: () => {mocks.sentenceActionsMounted = false;},
+    isSentenceActionsMounted: () => mocks.sentenceActionsMounted,
 }));
 
 vi.mock('@/src/services/config/store', () => ({
@@ -46,6 +52,8 @@ vi.mock('@/src/app/content/features', () => ({
         'unmountImageTranslator', 'unmountSelectionTranslator', 'unmountTranslationProgressPanel',
     ].map(name => [name, vi.fn()])),
     mountParagraphCopyContentFeature: mocks.mountParagraphCopyContentFeature,
+    mountVocabularyReencounter: mocks.mountReencounter,
+    unmountVocabularyReencounter: mocks.unmountReencounter,
     mountShareCard: () => { mocks.shareCardMounted = true; mocks.mountShareCard(); },
     unmountShareCard: () => { mocks.shareCardMounted = false; },
     isShareCardMounted: () => mocks.shareCardMounted,
@@ -275,6 +283,7 @@ describe('content composition root 冷启动与暂停恢复', () => {
         mocks.shareCardMounted = false;
         mocks.config.disabledExtensionDomains = [];
         mocks.config.bilingualSentenceHighlightEnabled = true;
+        mocks.config.vocabularyReencounterEnabled = false;
         mocks.configReady = new Promise<void>(resolve => { ready = resolve; });
         mocks.installPageStyles.mockReturnValue(mocks.removeStyles);
         mocks.subscribeConfig.mockReturnValue(vi.fn());
@@ -285,7 +294,7 @@ describe('content composition root 冷启动与暂停恢复', () => {
         vi.stubGlobal('window', page);
         vi.stubGlobal('document', Object.assign(new EventTarget(), {contentType: 'text/html', getElementById: () => null}));
         vi.stubGlobal('navigator', {});
-        vi.stubGlobal('browser', {runtime: {
+        vi.stubGlobal('browser', {extension: {inIncognitoContext: false}, runtime: {
             sendMessage: vi.fn().mockResolvedValue(undefined),
             onMessage: {addListener: mocks.addRuntimeListener, removeListener: mocks.removeRuntimeListener},
         }});
@@ -487,6 +496,28 @@ describe('content composition root 冷启动与暂停恢复', () => {
         expect(mocks.invalidateInput).toHaveBeenCalled();
 
         invalidated();
+    });
+
+    it('再次遇见独立开关遵循配置、页面暂停恢复和失效取消', async () => {
+        const {startContentApp} = await import('@/src/app/content/runtime');
+        const starting = startContentApp(context as never); ready(); await starting;
+        expect(mocks.mountReencounter).not.toHaveBeenCalled();
+        const onConfig = mocks.subscribeConfig.mock.calls[0][0];
+        mocks.config.vocabularyReencounterEnabled = true;
+        onConfig(mocks.config);
+        expect(mocks.mountReencounter).toHaveBeenCalledOnce();
+        const signal = mocks.mountReencounter.mock.calls[0][1] as AbortSignal;
+        transition(page, 'pagehide', true);
+        expect(signal.aborted).toBe(true);
+        transition(page, 'pageshow', true);
+        await vi.waitFor(() => expect(mocks.mountReencounter).toHaveBeenCalledTimes(2));
+        const unmounts = mocks.unmountReencounter.mock.calls.length;
+        mocks.config.vocabularyReencounterEnabled = false;
+        onConfig(mocks.config);
+        expect(mocks.unmountReencounter).toHaveBeenCalledTimes(unmounts + 1);
+        invalidated();
+        expect((mocks.mountReencounter.mock.calls[1][1] as AbortSignal).aborted).toBe(true);
+        expect(mocks.mountReencounter).toHaveBeenCalledTimes(2);
     });
 
     it('宿主伪造相同 URL 的路由通知不能反复失效正在执行的翻译', async () => {

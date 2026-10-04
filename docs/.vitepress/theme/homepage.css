@@ -33,8 +33,12 @@
   max-width: 780px;
   margin: auto;
 }
-.bv-hero-mobile-icon {
-  display: none;
+/* 品牌图标在各屏宽下都独立居中，显式尺寸避免载入时推动口号。 */
+.bv-hero-icon {
+  display: block;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 24px;
 }
 /* 两行口号以字面宽度居中，行末标点悬挂以校正视觉偏移。 */
 .bv-site .bv-hero-slogan {
@@ -816,12 +820,6 @@
 @media (max-width: 760px) {
   .bv-hero {
     padding-top: 72px;
-  }
-  .bv-hero-mobile-icon {
-    display: block;
-    width: 64px;
-    height: 64px;
-    margin: 0 auto 24px;
   }
   .bv-site .bv-feature-row {
     grid-template-columns: minmax(0, 1fr);

@@ -5,6 +5,7 @@
  * 主要内容：保持语言名称使用各自原生写法，并为尚未 key 化的旧 UI 提供法语映射。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
+import reencounterText from './reencounter/fr-FR.json';
 import brandTaglines from './brand-taglines.json';
 import googleDriveText from './google-drive/fr-FR.json';
 import cloudBackupText from './cloud-backup/fr-FR.json';
@@ -18,6 +19,7 @@ import {translationStatsFrenchMessages} from './translationStats';
 import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
+    ...reencounterText,
     "settings.headers.title": "Supprimer les en-têtes de provenance",
     "settings.headers.help": "La liste est vide par défaut. Elle concerne uniquement les requêtes de FluentRead vers le domaine exact, pour tous les services. Les sous-domaines sont distincts. Supprimez une entrée ou décochez un en-tête pour rétablir le comportement par défaut.",
     "settings.headers.unsupported": "Cet environnement ne prend pas en charge cette option. Utilisez une extension avec declarativeNetRequest. Les scripts utilisateur ne sont pas pris en charge.",

@@ -5,6 +5,7 @@
  * 主要内容：保持语言名称使用各自原生写法，并为尚未 key 化的旧 UI 提供俄语映射。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
+import reencounterText from './reencounter/ru-RU.json';
 import brandTaglines from './brand-taglines.json';
 import googleDriveText from './google-drive/ru-RU.json';
 import cloudBackupText from './cloud-backup/ru-RU.json';
@@ -18,6 +19,7 @@ import {translationStatsRussianMessages} from './translationStats';
 import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
+    ...reencounterText,
     "settings.headers.title": "Удаление заголовков источника",
     "settings.headers.help": "По умолчанию список пуст. Применяется только к запросам FluentRead к точно указанному домену во всех сервисах. Поддомены добавляются отдельно. Удалите запись или снимите флажок, чтобы восстановить обычное поведение.",
     "settings.headers.unsupported": "Эта среда не поддерживает эту настройку. Используйте расширение с declarativeNetRequest. Пользовательские скрипты не поддерживаются.",
