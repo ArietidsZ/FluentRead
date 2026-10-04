@@ -1,6 +1,6 @@
 /**
  * @file src/features/vocabulary/background/handler.ts
- * 文件职责：实现本地单词本的后台消息处理器，对查询、收藏、复习、撤销删除、列表、导入导出和清空等动作进行严格输入校验与统一错误映射。
+ * 文件职责：实现本地学习收藏的后台消息处理器，对查询、收藏、解释更新、复习、撤销删除、列表、导入导出和清空进行严格输入校验与统一错误映射。
  * 主要内容：定义仓库和广播依赖，构造词书变更消息及浏览器广播适配器，创建变更 ACK、主业务 handler 和组合 handlers，并在成功写操作后通知相关标签页。
  * 模块边界：本文件不直接操作 Dexie 表或 Vue UI；持久化由 repository contract 注入，消息形状来自 protocol，browser.tabs 广播通过适配器隔离，失败不会泄露内部数据。
  */
@@ -43,6 +43,7 @@ export interface VocabularyBookRepositoryContract {
     get(entryId: string): Promise<unknown>;
     getByTerm(sourceLanguage: string, term: string): Promise<unknown>;
     upsert(input: VocabularyUpsertInput): Promise<{id: string}>;
+    updateNote(entryId: string, note: string): Promise<unknown>;
     review(entryId: string, rating: VocabularyScheduledReviewRating): Promise<unknown>;
     setMastery(entryId: string): Promise<unknown>;
     relearn(entryId: string): Promise<unknown>;
@@ -234,6 +235,14 @@ export function createVocabularyBookHandler(
                         if (context.sender?.tab?.incognito === true) throw new VocabularyBookHandlerError('invalid-input', '无痕窗口不保存单词本数据');
                         const entry = await dependencies.vocabularyBook.upsert(validateUpsertInput(message.input));
                         notifyVocabularyBookChanged(dependencies, 'upsert', entry.id);
+                        return {success: true, data: entry};
+                    }
+                    case 'updateNote': {
+                        if (context.sender?.tab?.incognito === true) throw new VocabularyBookHandlerError('invalid-input', '无痕窗口不修改学习收藏');
+                        if (typeof message.note !== 'string') throw new VocabularyBookHandlerError('invalid-input', '解释内容无效');
+                        const entryId = vocabularyEntryId(message.entryId);
+                        const entry = await dependencies.vocabularyBook.updateNote(entryId, message.note);
+                        notifyVocabularyBookChanged(dependencies, 'note', entryId);
                         return {success: true, data: entry};
                     }
                     case 'review': {

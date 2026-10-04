@@ -1,12 +1,12 @@
 <!--
  * @file src/features/vocabulary/ui/VocabularyBook.vue
  * 文件职责：实现学习中心本地单词与句子收藏及主动复习界面，覆盖原句学习、自主造句反馈、整卡可操作的收藏开关、原文朗读、筛选分页、记忆卡、删除撤销和数据操作。
- * 主要内容：组件通过 runtime 消息读取和修改词条，使用字段级配置补丁保存收藏开关，协调稳定复习队列、页面生命周期、键盘评分、主题、时间刷新与跨页面变更通知，并在轻量“更多”菜单中提供隐私安全的 Anki 导出和清空操作。
- * 模块边界：UI 不直接访问 Dexie 或上传学习数据；完整备份与旧文件导入统一进入备份与恢复页，数据库操作集中在后台 repository/handler，导出的上下文和来源只有用户明确选择时才包含。
+ * 主要内容：组件通过 runtime 消息读取和修改词条，使用字段级配置补丁保存收藏开关，协调复习队列、朗读、句子筛选、快捷复制、解释编辑、JSON 导入导出与跨页面变更，并在“更多”菜单中提供 Anki 导出和清空。
+ * 模块边界：UI 不直接访问 Dexie 或上传学习数据；完整备份进入备份与恢复页，收藏文件只包含本领域数据，数据库操作集中在后台 repository/handler，上下文和来源只有用户明确选择时才导出。
  -->
 <template>
   <div class="vocabulary-book">
-    <VocabularyStudy v-if="studyEntry" :key="studyEntry.id" :entry="studyEntry" :reference="entryTranslation(studyEntry)" @close="selectedEntryId = ''" @speak="toggleEntrySpeech(studyEntry)" @navigate="emit('navigate', $event)" />
+    <VocabularyStudy v-if="studyEntry" :key="studyEntry.id" :entry="studyEntry" :reference="entryTranslation(studyEntry)" :playing="playingEntryId === studyEntry.id" @updated="replaceEntry" @close="selectedEntryId = ''" @speak="toggleEntrySpeech(studyEntry)" @navigate="emit('navigate', $event)" />
     <template v-else>
     <FeatureEnableCard
       v-if="!reviewActive"
@@ -23,7 +23,7 @@
       :model-value="reencounterEnabled" :disabled="configBusy || !reencounterSupported" @update:model-value="setReencounterEnabled" />
 
     <div v-if="!reviewActive && betaEnabled && !selectionTranslatorEnabled" class="selection-reminder" role="note">
-      <span>收藏入口位于网页学习卡中；当前划词翻译和阅读助手都未开启。</span>
+      <span>可从高亮句子旁直接收藏，或开启划词翻译在学习卡中收藏。</span>
       <button type="button" @click="emit('navigate', 'settings-selection')">前往开启</button>
     </div>
 
@@ -82,6 +82,16 @@
       </section>
 
       <template v-else>
+        <section class="collection-tools" aria-label="收藏类型与文件操作">
+          <div class="collection-kinds" role="group" aria-label="收藏类型">
+            <button v-for="filter in collectionKinds" :key="filter.value" type="button" :aria-pressed="kindFilter === filter.value" @click="kindFilter = filter.value">{{ filter.label }}</button>
+          </div>
+          <div class="collection-files">
+            <button type="button" :disabled="actionBusy || loading" @click="importInput?.click()">导入收藏</button>
+            <button type="button" :disabled="actionBusy || loading || !filteredEntries.length" @click="exportCollection">导出当前列表</button>
+            <input ref="importInput" type="file" accept=".json,application/json" hidden aria-label="导入收藏文件" @change="importCollection" />
+          </div>
+        </section>
         <section v-if="entries.length" class="primary-actions">
           <button class="start-learning" type="button" :disabled="loading || !latestSavedEntry" @click="latestSavedEntry && openStudy(latestSavedEntry)">
             <strong>学习最近收藏</strong>
@@ -129,7 +139,9 @@
           <article v-for="entry in pagedEntries" :key="entry.id" class="word-row">
             <div class="word-main">
               <div class="word-heading"><h3 data-i18n-ignore>{{ entry.term }}</h3><button class="vocabulary-speak" type="button" :aria-label="playingEntryId === entry.id ? '停止朗读' : '朗读原文'" :title="playingEntryId === entry.id ? '停止朗读' : '朗读原文'" @click="toggleEntrySpeech(entry)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h4l4-3v12l-4-3H3z" /><path :d="playingEntryId === entry.id ? 'M14 7v6m3-6v6' : 'M14 7a4 4 0 0 1 0 6m2-9a8 8 0 0 1 0 12'" /></svg></button><span v-if="entry.phonetic">{{ entry.phonetic }}</span></div>
-              <p>{{ vocabularyReferencePreview(entryTranslation(entry)) || '从原句开始，理解这个表达的含义与用法' }}</p>
+              <div class="quick-copy"><button type="button" @click="copyEntry(entry, false)">复制原文</button><button type="button" :disabled="!entryTranslation(entry)" @click="copyEntry(entry, true)">复制双语</button></div>
+              <p data-i18n-ignore>{{ vocabularyReferencePreview(entryTranslation(entry)) || translateControlLabel('从原句开始，理解这个表达的含义与用法') }}</p>
+              <SavedExplanation :entry="entry" @updated="replaceEntry" />
               <small v-if="contextPreview(entry)" class="context-preview" data-i18n-ignore>{{ contextPreview(entry) }}</small>
               <div class="word-meta">
                 <span v-if="entry.partOfSpeech">{{ entry.partOfSpeech }}</span>
@@ -183,6 +195,7 @@ function translateControlLabel(value: string): string { return translateLegacyTe
 
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import VocabularyStudy from './VocabularyStudy.vue';
+import SavedExplanation from './SavedExplanation.vue';
 import {ReadingAnswer} from '@/src/features/reading-assistant/public';
 import {ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
@@ -198,6 +211,8 @@ import {
 import {
   vocabularyReviewCloze,
   vocabularyReferencePreview,
+  isVocabularySentence,
+  vocabularyImportNeedsConfirmation,
   buildAnkiTsv,
   normalizeLearningSourceText,
   advanceVocabularyReviewSession,
@@ -241,8 +256,11 @@ const loading = ref(false);
 const actionBusy = ref(false);
 const loadError = ref('');
 const query = ref('');
+const kindFilter = ref<'all' | 'sentence' | 'expression'>('all');
+const collectionKinds = [{value:'all' as const, label:'全部收藏'}, {value:'sentence' as const, label:'句子'}, {value:'expression' as const, label:'单词与短语'}];
+const importInput = ref<HTMLInputElement>();
 const statusFilter = ref<'all' | 'due' | VocabularyStatus>('all');
-const sortOrder = ref<'due' | 'recent' | 'term'>('due');
+const sortOrder = ref<'due' | 'recent' | 'term'>('recent');
 const page = ref(1);
 const pageSize = 50;
 const reviewBatchSize = 20;
@@ -294,12 +312,15 @@ const statusCounts = computed(() => entries.value.reduce((counts, entry) => {
 const filteredEntries = computed(() => {
   const keyword = query.value.toLocaleLowerCase();
   const filtered = entries.value.filter(entry => {
+    if (kindFilter.value === 'sentence' && !isVocabularySentence(entry)) return false;
+    if (kindFilter.value === 'expression' && isVocabularySentence(entry)) return false;
     if (statusFilter.value === 'due' && !(entry.nextReviewAt !== null && entry.nextReviewAt <= currentTime.value)) return false;
     if (statusFilter.value !== 'all' && statusFilter.value !== 'due' && entry.status !== statusFilter.value) return false;
     if (!keyword) return true;
     const searchable = [
       entry.term,
       entry.normalizedTerm,
+      entry.note || '',
       ...Object.values(entry.translations).map(item => item.text),
       ...entry.contexts.map(context => `${context.text} ${context.pageTitle || ''}`),
     ].join(' ').toLocaleLowerCase();
@@ -323,9 +344,9 @@ function openStudy(entry: VocabularyEntry): void {
 }
 
 
-watch([query, statusFilter, sortOrder], () => { page.value = 1; });
+watch([query, statusFilter, sortOrder, kindFilter], () => { page.value = 1; });
 watch(pageCount, count => { if (page.value > count) page.value = count; });
-watch([query, statusFilter, sortOrder, page, reviewStarted], () => stopEntrySpeech());
+watch([query, statusFilter, sortOrder, kindFilter, page, reviewStarted], () => stopEntrySpeech());
 watch(entries, items => { if (playingEntryId.value && !items.some(entry => entry.id === playingEntryId.value)) stopEntrySpeech(); });
 
 function releaseEntryAudio(): void {
@@ -667,12 +688,13 @@ async function exportAnki(): Promise<void> {
       return [
         entry.term,
         entryTranslation(entry),
+        entry.note || '',
         context?.text || '',
         context?.sourceUrl || '',
         `fluentread ${entry.status}`,
       ];
     });
-    const body = buildAnkiTsv(['Term', 'Meaning', 'Context', 'Source', 'Tags'], rows);
+    const body = buildAnkiTsv(['Term', 'Meaning', 'Explanation', 'Context', 'Source', 'Tags'], rows);
     downloadFile(
       `fluentread-anki-${new Date().toISOString().slice(0, 10)}.tsv`,
       `\uFEFF${body}`,
@@ -684,6 +706,47 @@ async function exportAnki(): Promise<void> {
   } finally {
     actionBusy.value = false;
   }
+}
+
+async function copyEntry(entry: VocabularyEntry, bilingual: boolean): Promise<void> {
+  const text = bilingual ? `${entry.term}\n${entryTranslation(entry)}` : entry.term;
+  try {await navigator.clipboard.writeText(text); if (lifecycle.isActive()) showToast(bilingual ? '已复制原文与译文' : '已复制原文');}
+  catch {if (lifecycle.isActive()) showToast('复制失败，可以选中原文后复制。');}
+}
+
+async function exportCollection(): Promise<void> {
+  if (actionBusy.value) return;
+  const ids = new Set(filteredEntries.value.map(entry => entry.id));
+  actionBusy.value = true;
+  try {
+    const data = await requestVocabulary<VocabularyBookExport>({type:VOCABULARY_BOOK_MESSAGE, action:'exportData', options:{includePrivateContext:false}});
+    if (!lifecycle.isActive()) return;
+    data.entries = data.entries.filter(entry => ids.has(entry.id));
+    data.reviewLogs = data.reviewLogs.filter(log => ids.has(log.entryId));
+    downloadFile(`fluentread-collection-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data, null, 2), 'application/json;charset=utf-8');
+    showToast(`已导出 ${data.entries.length} 条收藏，包含译文、解释和复习记录`);
+  } catch (cause) {if (lifecycle.isActive()) showToast(cause instanceof Error ? cause.message : '收藏导出失败');}
+  finally {if (lifecycle.isActive()) actionBusy.value = false;}
+}
+
+async function importCollection(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0]; input.value = '';
+  if (!file || actionBusy.value) return;
+  if (vocabularyImportNeedsConfirmation(file.size)) {
+    try {await ElMessageBox.confirm('这个收藏文件较大，读取可能需要一些时间。继续导入吗？', '导入收藏', {confirmButtonText:'继续导入', cancelButtonText:'取消'});} catch {return;}
+  }
+  if (!lifecycle.isActive() || actionBusy.value) return;
+  actionBusy.value = true;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!lifecycle.isActive()) return;
+    const result = await requestVocabulary<VocabularyImportResult>({type:VOCABULARY_BOOK_MESSAGE, action:'importData', data});
+    if (!lifecycle.isActive()) return;
+    await loadEntries();
+    showToast(`已导入：新增 ${result.inserted} 条，更新 ${result.updated} 条，跳过 ${result.skipped} 条`);
+  } catch (cause) {if (lifecycle.isActive()) showToast(cause instanceof SyntaxError ? '无法读取文件，请选择 FluentRead 导出的收藏 JSON 文件。' : cause instanceof Error ? cause.message : '收藏导入失败');}
+  finally {if (lifecycle.isActive()) actionBusy.value = false;}
 }
 
 async function clearVocabulary(): Promise<void> {
@@ -826,6 +889,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.collection-tools,.collection-kinds,.collection-files,.quick-copy {display:flex; align-items:center; flex-wrap:wrap; gap:8px;}
+.collection-tools {justify-content:space-between; margin:16px 0;}
+.collection-tools button,.quick-copy button {padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--muted); font:inherit; font-size:12px; cursor:pointer;}
+.collection-tools button[aria-pressed="true"] {color:var(--brand); border-color:var(--brand); background:var(--surface-soft);}
+.collection-tools button:disabled,.quick-copy button:disabled {opacity:.45; cursor:default;}
+.quick-copy {margin:6px 0;}
+.collection-tools button:focus-visible,.quick-copy button:focus-visible {outline:2px solid var(--brand); outline-offset:2px;}
 .recall-draft { display:block; width:100%; box-sizing:border-box; padding:12px; margin:16px 0; border:1px solid var(--line); border-radius:10px; color:var(--ink); background:var(--surface-soft); font:inherit; resize:vertical; }
 .recall-attempt { border-left:2px solid var(--brand); padding-left:12px; white-space:pre-wrap; }
 .answer-reference-label { color:var(--muted); font-size:12px; }
