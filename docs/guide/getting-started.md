@@ -14,6 +14,8 @@
 | Edge | [Edge 加载项](https://microsoftedge.microsoft.com/addons/detail/kakgmllfpjldjhcnkghpplmlbnmcoflp) |
 | Firefox | [Firefox 附加组件](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/) |
 
+Chrome 商店打不开时，可以使用 [CRX搜搜（国内可用）](https://www.crxsoso.com/webstore/detail/djnlaiohfaaifbibleebjggkghlmcpcj)，或前往 [离线下载与安装](/guide/offline-install) 下载官方 ZIP 包。CRX搜搜是第三方分发网站，版本同步时间可能与官方商店不同。
+
 安装后将图标固定到工具栏。安装前已经打开的网页，刷新一次。
 
 第一次打开菜单时，先点击欢迎页的 **设置界面语言 / Set interface language**。语言卡片会完整显示中文与英文名称；选择后点击 **确认 / Confirm** 进入主菜单，以后打开会直接显示主菜单。界面语言只影响扩展按钮与设置文字，网页翻译的目标语言在主菜单中单独选择。
