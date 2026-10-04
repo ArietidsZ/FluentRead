@@ -27,6 +27,18 @@ Pixiv 首次暂停断言失败时，窗口由 900 高改为 700 高，宿主 res
 
 本机日志：`/private/tmp/manga-cache-delivery-{targeted,wasm,compile,chrome,firefox,manifests,userscript,userscript-verifier,audit,architecture,native}-20261004.log`。先前失败复现另存 `manga-cache-{reproduce,budget-reproduce,pause-reproduce,source-reproduce,retry-status-reproduce}-20261004.log`，不把探索运行计入最终通过数。
 
+### 最后主分支集成
+
+更新 PR 时同步主分支 `41b4678a36bf01eafb0bbfe4b72ba7e2368a70ba`，保留词书/句子学习与官网改动。只有 userscript 语言资源固定提交发生冲突；重新生成联合五语资源，合并快照为 `7f5aaccf6ead1fcaeb2aafd9b8fd49d206cde9bb`，最终 pin 提交为 `2b18d0e3dd92526848d2234961b1a34e9badc637`。`package.json`、锁文件、漫画运行时代码与 ONNX 构建实现相对 `0d8d0aa0` 均无变化。
+
+集成后重查漫画运行时、阅读会话、UI/userscript 语言包与 userscript 能力：5 文件、218 项通过（包含已执行漫画用例，不能作为额外不重叠的测试总数相加）。类型检查、Chrome/Firefox、双 manifest 和 userscript/verifier 全部通过；扩展未压缩总大小为 107.29 MB，userscript 1,897,384 字节，增量来自主分支集成内容，不归因于新增漫画模型。审计更新为 459 文件、5863 登记用例。
+
+最新五文件架构检查 815 项中 813 通过、2 失败：三个既有文档工具缺验证归属、18 个其他模块缺严格覆盖率登记。主分支已改善旧入口行数问题；本任务没有放宽检查。对 `41b4678a` 原始主分支的独立临时代码快照运行所有权专项，9 项中同样 2 失败、7 通过，报错路径集合完全一致；新漫画模块没有加入该缺项集合。快照只写临时目录，不修改主工作树或来源 worktree。
+
+最后集成的真实 Chrome GPU 冒烟 `cache-integration-gpu-smoke` 两轮通过：同一原图、真实 OCR/修补与受控文字传输，实际 GPU 提交 1090 / 314 次；完整处理分别 8.380 / 2.062 秒。这里只核对集成产物，不替换前面公平对照表或增加基准样本。两个处理请求、模型下载为 0、扩展/控制台/未知错误为空，原图恢复正常、临时 profile 已清理。最终文档构建与校验通过：75 页、3758 链接、722 锚点、112 图片。
+
+集成日志：`/private/tmp/manga-cache-integration-{targeted,audit,architecture,baseline-architecture,compile,chrome,firefox,manifests,userscript,userscript-verifier}-20261004.log`。本节为最终集成结果，上文 107.22 MB / 802 项和三项失败保留为之前阶段记录。
+
 ## GPU 优化阶段与集成记录
 
 来源 PR #783 精确 head：`22aa69496490a05d5f7907930992ec6c3fca82c8`；基础 `origin/main`：`5ed16bc6c081587622c86563b4a75fc452c697fb`。本任务在独立分支本地合入来源历史，新 PR 包含其静默阅读及滚动交接改动，不更新、关闭或合并来源 PR。没有直接推送 main。
