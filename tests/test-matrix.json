@@ -322,6 +322,7 @@
       "tests/visionProbeStorage.test.ts",
       "tests/webDavConnection.test.ts",
       "tests/webDavApi.test.ts",
+      "tests/webDavProperties.test.ts",
       "tests/backgroundWebDavBackup.test.ts",
       "tests/webDavBackupClient.test.ts",
       "tests/requestHeaderRules.test.ts"
