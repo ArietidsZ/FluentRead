@@ -420,6 +420,10 @@
       "tests/mangaOcr.test.ts",
       "tests/mangaOcrAssets.test.ts",
       "tests/mangaInpainting.test.ts",
+      "tests/mangaEncoding.test.ts",
+      "tests/mangaGpu.test.ts",
+      "tests/mangaSessionFallback.test.ts",
+      "tests/mangaOnnxBuild.test.ts",
       "tests/mangaBubbles.test.ts",
       "tests/webDavBackup.test.ts",
       "tests/webDavHttpIntegration.test.ts"
