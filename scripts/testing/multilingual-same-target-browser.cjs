@@ -6,6 +6,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const modelPost = require('../../tests/fixtures/chinese-language-model-post.json');
+const technicalParagraphs = require('../../tests/fixtures/chinese-technical-paragraphs.json');
+const technicalChinese = process.argv.includes('--technical-chinese');
+const filterIndex = process.argv.indexOf('--same-target-language');
+const targetFilter = filterIndex < 0 ? null : process.argv[filterIndex + 1];
+if (filterIndex >= 0) assert(targetFilter && !targetFilter.startsWith('--'), '--same-target-language 需要语言代码');
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const commitUrl = 'https://github.com/solidSpoon/DashPlayer/commit/84522b3ff33401f87da8d5d7c4510ea5453e40ef';
@@ -45,8 +50,10 @@ const targetCases = [
     'GPT-6 Sol 모델의 새로운 기능을 소개합니다.',
     '이 단락은 확장 프로그램이 원문을 유지하면서 바로 아래에 번역을 표시하는 방법을 설명합니다.',
   ], foreign: englishForeign},
-  {target: 'zh-Hans', title: modelPost[0], same: [...modelPost], github: true, foreign: englishForeign},
+  {target: 'zh-Hans', title: modelPost[0], same: technicalChinese ? [...technicalParagraphs] : [...modelPost], github: true, foreign: englishForeign, technical: technicalChinese},
 ];
+const selectedTargets = targetFilter ? targetCases.filter(item => item.target === targetFilter) : targetCases;
+assert(selectedTargets.length > 0, `未知目标语言：${targetFilter}`);
 
 function escapeHtml(value) {
   return value.replace(/[&<>"]/gu, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[character]);
@@ -56,7 +63,11 @@ function escapeHtml(value) {
 function renderMultilingualPage(target) {
   const item = targetCases.find(entry => entry.target === target);
   if (!item) return undefined;
-  const same = item.same.map((text, index) => `<p data-same="${index}">${escapeHtml(text)}</p>`).join('');
+  const same = item.same.map((text, index) => {
+    const content = escapeHtml(text).replace('microsoft/onnxruntime#27399',
+      '<a data-technical-reference href="https://github.com/microsoft/onnxruntime/pull/27399">microsoft/onnxruntime#27399</a>');
+    return `<p data-same="${index}">${content}</p>`;
+  }).join('');
   const github = item.github
     ? `<ul><li data-same="github">${releaseNote} (<a href="${commitUrl}">84522b3</a>)</li></ul>`
     : '';
@@ -76,13 +87,14 @@ function multilingualFixtureTranslation(source, targetName) {
 
 async function runMultilingualSameTargetCases({context, createPage, patchConfig, activateExtensionTabWithoutForeground, shot, report, fixture, artifactsDir}) {
   report.multilingual = {cases: [], evidenceBoundary: 'Pages and chat-completion responses come from the local loopback fixture; request counts prove the extension decision chain, not external provider quality.'};
+  report.scope = `Same-target languages: ${selectedTargets.map(item => item.target).join(', ')}; ${technicalChinese ? 'PR #779 technical Chinese' : 'multilingual'} paragraphs, hover/full-page zero requests, titles, links, dynamic redetection, target switch and excluded-language parity`;
   const sameTexts = item => [...item.same, ...(item.github ? [`${releaseNote} (84522b3)`, releaseNote] : []), item.title];
   const assertNoSameTargetRequest = (item, start) => {
     const leaked = fixture.requests.slice(start).filter(request => sameTexts(item).some(text => request.source.includes(text)));
     assert.deepEqual(leaked.map(request => request.source), [], `${item.target} 同目标文本不得进入请求`);
   };
 
-  for (const item of targetCases) {
+  for (const item of selectedTargets) {
     await patchConfig({from: 'auto', to: item.target, useCache: false, excludedLanguages: [], pageTitleTranslationEnabled: true});
     const page = await createPage(`${fixture.url}/article?source=multilingual&target=${encodeURIComponent(item.target)}`, `multilingual-${item.target}`);
     const caseReport = {target: item.target, sameTargetElements: item.same.length + (item.github ? 1 : 0), status: 'running'};
@@ -109,6 +121,7 @@ async function runMultilingualSameTargetCases({context, createPage, patchConfig,
           assert.equal(await page.locator(selector).innerText(), originals[index]);
         }
         if (item.github) assert.equal(await page.locator('[data-same="github"] a').getAttribute('href'), commitUrl);
+        if (item.technical) assert.equal(await page.locator('[data-technical-reference]').getAttribute('href'), 'https://github.com/microsoft/onnxruntime/pull/27399');
         assert.equal(await page.locator('.fluent-read-bilingual-content .fluent-read-bilingual-content').count(), 0);
         assertNoSameTargetRequest(item, start);
       };
@@ -174,10 +187,10 @@ async function runMultilingualSameTargetCases({context, createPage, patchConfig,
     report.multilingual.cases.push(caseReport);
   }
 
-  // 同一页面切换目标语言：德文目标零德文请求；切到英文后德文正文需要翻译，英文正文反而保留。
-  await patchConfig({to: 'de', excludedLanguages: []});
-  const german = targetCases[0];
-  const page = await createPage(`${fixture.url}/article?source=multilingual&target=de`, 'multilingual-target-switch');
+  // 同一页面切换目标语言：所选非英文正文原先跳过，切到英文后需要翻译，英文正文反而保留。
+  const source = selectedTargets.find(item => item.target !== 'en') ?? targetCases[0];
+  await patchConfig({to: source.target, excludedLanguages: []});
+  const page = await createPage(`${fixture.url}/article?source=multilingual&target=${source.target}`, 'multilingual-target-switch');
   try {
     await page.locator('#fluent-read-page-styles').waitFor({state: 'attached'});
     const toggle = async () => {
@@ -190,7 +203,7 @@ async function runMultilingualSameTargetCases({context, createPage, patchConfig,
     await page.locator('#foreign .fluent-read-bilingual-content').waitFor({state: 'visible'});
     await wait(500);
     assert.equal(await page.locator('[data-same="0"] .fluent-read-bilingual-content').count(), 0);
-    assertNoSameTargetRequestFor(fixture, start, german.same);
+    assertNoSameTargetRequestFor(fixture, start, source.same);
     await toggle();
     await page.waitForFunction(() => document.querySelectorAll('.fluent-read-bilingual-content').length === 0);
     await patchConfig({to: 'en'});
@@ -200,18 +213,19 @@ async function runMultilingualSameTargetCases({context, createPage, patchConfig,
     await page.locator('[data-same="0"] .fluent-read-bilingual-content').waitFor({state: 'visible'});
     await wait(500);
     assert.equal(await page.locator('#foreign .fluent-read-bilingual-content').count(), 0, '切到英文目标后英文段落应保留');
-    assert(fixture.requests.slice(start).some(request => request.source.includes(german.same[0])), '切到英文目标后德文正文必须请求');
+    assert(fixture.requests.slice(start).some(request => request.source.includes(source.same[0])), '切到英文目标后原目标正文必须请求');
     assert(!fixture.requests.slice(start).some(request => request.source.includes(englishForeign)), '英文目标不得请求英文段落');
     await shot(page, 'multilingual-target-switch');
     fs.writeFileSync(path.join(artifactsDir, 'multilingual-target-switch.html'), await page.content());
-    report.multilingual.targetSwitch = {status: 'passed', from: 'de', to: 'en'};
+    report.multilingual.targetSwitch = {status: 'passed', from: source.target, to: 'en'};
   } finally {
     await page.close();
   }
 
-  // 排除语言与目标语言使用同一判断：目标为简体中文、排除德文时德文段落零请求，英文仍翻译。
-  await patchConfig({to: 'zh-Hans', excludedLanguages: ['de']});
-  const excluded = await createPage(`${fixture.url}/article?source=multilingual&target=de`, 'multilingual-excluded-german');
+  // 排除语言与目标语言使用同一判断，选择其他目标并排除原目标语言时正文仍然零请求。
+  const exclusionTarget = source.target === 'zh-Hans' ? 'ja' : 'zh-Hans';
+  await patchConfig({to: exclusionTarget, excludedLanguages: [source.target]});
+  const excluded = await createPage(`${fixture.url}/article?source=multilingual&target=${source.target}`, 'multilingual-excluded-language');
   try {
     await excluded.locator('#fluent-read-page-styles').waitFor({state: 'attached'});
     const start = fixture.requests.length;
@@ -220,12 +234,12 @@ async function runMultilingualSameTargetCases({context, createPage, patchConfig,
     await excluded.keyboard.down('Alt'); await excluded.keyboard.press('t'); await excluded.keyboard.up('Alt');
     await excluded.locator('#foreign .fluent-read-bilingual-content').waitFor({state: 'visible'});
     await wait(500);
-    for (const index of german.same.keys()) {
+    for (const index of source.same.keys()) {
       assert.equal(await excluded.locator(`[data-same="${index}"] .fluent-read-bilingual-content`).count(), 0);
     }
-    assertNoSameTargetRequestFor(fixture, start, [...german.same, german.title]);
-    await shot(excluded, 'multilingual-excluded-german');
-    report.multilingual.excludedGerman = {status: 'passed', target: 'zh-Hans', excludedLanguages: ['de']};
+    assertNoSameTargetRequestFor(fixture, start, [...source.same, source.title]);
+    await shot(excluded, 'multilingual-excluded-language');
+    report.multilingual.excludedLanguage = {status: 'passed', target: exclusionTarget, excludedLanguages: [source.target]};
   } finally {
     await excluded.close();
   }

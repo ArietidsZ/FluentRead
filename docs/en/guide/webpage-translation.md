@@ -12,6 +12,8 @@ Translate an article or a selected section, compare both languages, and return t
 
 The default translates as you read. If you need the whole page at once, change the translation range in settings. After restoring, you can translate again with another language or service.
 
+Paragraphs already in the target language keep their original text. A clearly Chinese paragraph can include browser names, build terms, parameters, units or repository links without triggering another translation. Foreign sentences, words explicitly marked for translation and uncertain mixed content still remain eligible, as does conversion between Simplified and Traditional Chinese.
+
 | What you want | What to use |
 | --- | --- |
 | Compare the translation with the original | Bilingual display |

@@ -43,6 +43,7 @@
       "tests/modalDialogHost.test.ts",
       "tests/selectionPageZoom.test.ts",
       "tests/chineseLanguage.test.ts",
+      "tests/chineseTechnicalParagraphs.test.ts",
       "tests/aiContextPresentation.test.ts",
       "tests/aiSdkEndpoints.test.ts",
       "tests/aiSdkErrors.test.ts",
