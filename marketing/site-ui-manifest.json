@@ -1,7 +1,16 @@
 {
   "extension": ".output/chrome-mv3",
-  "sourceRevision": "6228388e2d1ffdfacda131a473187b65ed40047b",
+  "sourceRevision": "63e99f4b9d0ab10614031e9ec52b71e4b2fddf56",
   "version": "0.0.35",
+  "sourceDirty": false,
+  "sourceFiles": {
+    "src/features/translation-center/ui/TranslationCenter.vue": "3a6908239ea0b2f054a28bafbb19d3037eba094f94860277dff8b522a93a2842",
+    "src/ui/components/UiLanguageOnboarding.vue": "899e886451f9780d8e31e5124195c1adade4b449e8103e136524575828c6083a",
+    "src/app/popup/PopupApp.vue": "bc057a5b8876023ec705aa9a7e8559ef003d206a21821d020c5af8effd7febaf",
+    "src/features/settings/ui/SettingsSections.vue": "dfe0f134961543634aac9c3e9b22f0f0fd5450e99defbbc89a76678cb9e4b7c2",
+    "src/features/settings/ui/services/ServiceConfiguration.vue": "8c79e378ffe3b1052b6b2a2ad275cb1ceaed765a96c53e8ef97659cf79f43993",
+    "src/features/settings/ui/services/ServiceCatalog.vue": "01d4195cf039ab7911cab7ab1cab20f626cac8bd362112b460c27de83b05244d"
+  },
   "scale": 2,
   "screenshots": [
     {
@@ -12,7 +21,7 @@
       "web": "docs/public/screenshots/ui/zh-CN/popup-welcome.webp",
       "width": 640,
       "height": 1004,
-      "bytes": 132808,
+      "bytes": 132224,
       "losslessPixels": true
     },
     {
@@ -23,7 +32,7 @@
       "web": "docs/public/screenshots/ui/zh-CN/popup-language.webp",
       "width": 640,
       "height": 920,
-      "bytes": 23682,
+      "bytes": 23430,
       "losslessPixels": true
     },
     {
@@ -34,7 +43,7 @@
       "web": "docs/public/screenshots/ui/zh-CN/popup.webp",
       "width": 640,
       "height": 874,
-      "bytes": 67122,
+      "bytes": 67588,
       "losslessPixels": true
     },
     {
@@ -45,7 +54,7 @@
       "web": "docs/public/screenshots/ui/zh-CN/settings-general.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 91176,
+      "bytes": 86754,
       "losslessPixels": true
     },
     {
@@ -56,7 +65,7 @@
       "web": "docs/public/screenshots/ui/zh-CN/settings-services.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 105310,
+      "bytes": 106584,
       "losslessPixels": true
     },
     {
@@ -80,7 +89,7 @@
       "web": "docs/public/screenshots/ui/zh-CN/settings-general.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 91176,
+      "bytes": 86754,
       "losslessPixels": true
     },
     {
@@ -104,7 +113,7 @@
       "web": "docs/public/screenshots/ui/zh-CN/settings-interface.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 132990,
+      "bytes": 131674,
       "losslessPixels": true
     },
     {
@@ -152,7 +161,7 @@
       "web": "docs/public/screenshots/ui/zh-CN/settings-data.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 113110,
+      "bytes": 112776,
       "losslessPixels": true
     },
     {
@@ -176,7 +185,7 @@
       "web": "docs/public/screenshots/ui/zh-CN/settings-glossary.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 79598,
+      "bytes": 76858,
       "losslessPixels": true
     },
     {
@@ -200,7 +209,7 @@
       "web": "docs/public/screenshots/ui/zh-CN/settings-sites.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 80104,
+      "bytes": 80516,
       "losslessPixels": true
     },
     {
@@ -224,7 +233,7 @@
       "web": "docs/public/screenshots/ui/zh-CN/settings-translation-stats.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 69332,
+      "bytes": 69320,
       "losslessPixels": true
     },
     {
@@ -248,7 +257,7 @@
       "web": "docs/public/screenshots/ui/zh-CN/settings-vocabulary.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 63998,
+      "bytes": 63978,
       "losslessPixels": true
     },
     {
@@ -283,7 +292,7 @@
       "web": "docs/public/screenshots/ui/en-US/popup-welcome.webp",
       "width": 760,
       "height": 1004,
-      "bytes": 150160,
+      "bytes": 150022,
       "losslessPixels": true
     },
     {
@@ -294,7 +303,7 @@
       "web": "docs/public/screenshots/ui/en-US/popup-language.webp",
       "width": 760,
       "height": 920,
-      "bytes": 24140,
+      "bytes": 24330,
       "losslessPixels": true
     },
     {
@@ -305,7 +314,7 @@
       "web": "docs/public/screenshots/ui/en-US/popup.webp",
       "width": 760,
       "height": 984,
-      "bytes": 72644,
+      "bytes": 72692,
       "losslessPixels": true
     },
     {
@@ -316,7 +325,7 @@
       "web": "docs/public/screenshots/ui/en-US/settings-general.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 95362,
+      "bytes": 89086,
       "losslessPixels": true
     },
     {
@@ -327,7 +336,7 @@
       "web": "docs/public/screenshots/ui/en-US/settings-services.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 117536,
+      "bytes": 117142,
       "losslessPixels": true
     },
     {
@@ -338,11 +347,11 @@
         },
         {
           "x": 83.203125,
-          "y": 45.224609375
+          "y": 42.8251953125
         },
         {
           "x": 83.203125,
-          "y": 35.248046875
+          "y": 32.8486328125
         }
       ],
       "locale": "en-US",
@@ -351,7 +360,7 @@
       "web": "docs/public/screenshots/ui/en-US/settings-general.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 95362,
+      "bytes": 89086,
       "losslessPixels": true
     },
     {
@@ -375,7 +384,7 @@
       "web": "docs/public/screenshots/ui/en-US/settings-interface.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 122476,
+      "bytes": 123554,
       "losslessPixels": true
     },
     {
@@ -423,7 +432,7 @@
       "web": "docs/public/screenshots/ui/en-US/settings-data.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 127816,
+      "bytes": 127350,
       "losslessPixels": true
     },
     {
@@ -495,7 +504,7 @@
       "web": "docs/public/screenshots/ui/en-US/settings-translation-stats.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 78712,
+      "bytes": 78800,
       "losslessPixels": true
     },
     {
@@ -519,7 +528,7 @@
       "web": "docs/public/screenshots/ui/en-US/settings-vocabulary.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 74194,
+      "bytes": 73740,
       "losslessPixels": true
     },
     {
@@ -567,21 +576,12 @@
     "screenIndex": 1,
     "browserFrontmost": false,
     "frontmostBefore": {
-      "pid": 55990,
-      "name": "Claude"
+      "pid": 76304,
+      "name": "微信"
     },
     "frontmostAfter": {
       "pid": 55990,
       "name": "Claude"
     }
-  },
-  "sourceFiles": {
-    "src/features/translation-center/ui/TranslationCenter.vue": "476a03460f751d6a7c744f2d554453e49d5811ec04337b6fa638b075da8706de",
-    "src/ui/components/UiLanguageOnboarding.vue": "899e886451f9780d8e31e5124195c1adade4b449e8103e136524575828c6083a",
-    "src/app/popup/PopupApp.vue": "bc057a5b8876023ec705aa9a7e8559ef003d206a21821d020c5af8effd7febaf",
-    "src/features/settings/ui/SettingsSections.vue": "741e9dcc64b24a2bf84936c2f660bb8035404581727d105c22db3cdb637a7761",
-    "src/features/settings/ui/services/ServiceConfiguration.vue": "0072132b179f69fce2c5349ac1a53f85a386ec5f4850bedf7246d42c2363908a",
-    "src/features/settings/ui/services/ServiceCatalog.vue": "cb585eb795bec90ca8a2b238aba7297ebc1c6781d0affbea2e11646d20bca14a"
-  },
-  "sourceDirty": true
+  }
 }
