@@ -5,6 +5,8 @@
  * 模块边界：本文件不直接操作 Dexie 表或 Vue UI；持久化由 repository contract 注入，消息形状来自 protocol，browser.tabs 广播通过适配器隔离，失败不会泄露内部数据。
  */
 import type {BackgroundMessageHandler} from '@/src/app/background/messageRouter';
+import {reencounterSnapshot, reencounterTerm} from '../domain/reencounter';
+import type {VocabularyEntry} from '../learningModel';
 import {
     VOCABULARY_BOOK_CHANGED_MESSAGE,
     VOCABULARY_BOOK_MESSAGE,
@@ -55,6 +57,7 @@ export interface VocabularyBookRepositoryContract {
 export interface VocabularyBookBackgroundDependencies {
     readonly configReady: Promise<void>;
     readonly isVocabularyBookEnabled: () => boolean;
+    readonly isReencounterEnabled?: () => boolean;
     readonly vocabularyBook: VocabularyBookRepositoryContract;
     readonly broadcastChanged: VocabularyBookChangedBroadcaster;
     readonly logOperationFailure: (error: unknown) => void;
@@ -203,6 +206,20 @@ export function createVocabularyBookHandler(
             try {
                 // 步骤 1：先在后台信任边界收窄 action 与必要参数。
                 switch (message.action) {
+                    case 'reencounterList':
+                    case 'reencounterGet': {
+                        await dependencies.configReady;
+                        if (context.sender?.tab?.incognito === true || dependencies.isReencounterEnabled?.() !== true) {
+                            throw new VocabularyBookHandlerError('invalid-input', '再次遇见尚未开启，或当前为无痕窗口');
+                        }
+                        if (message.action === 'reencounterList') {
+                            const entries = await dependencies.vocabularyBook.list({order: 'recent'}) as VocabularyEntry[];
+                            return {success: true, data: entries.map(reencounterTerm)};
+                        }
+                        const entry = await dependencies.vocabularyBook.get(vocabularyEntryId(message.entryId)) as VocabularyEntry | null;
+                        if (!entry) throw new VocabularyBookHandlerError('not-found', '这条表达已从收藏中删除');
+                        return {success: true, data: reencounterSnapshot(entry)};
+                    }
                     case 'list':
                         return {success: true, data: await dependencies.vocabularyBook.list(validateListOptions(message.options))};
                     case 'get':

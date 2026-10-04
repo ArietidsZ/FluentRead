@@ -146,7 +146,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         }),
         ...createVocabularyBackgroundHandlers({
             configReady,
-            isVocabularyBookEnabled: () => config.vocabularyBookEnabled === true,
+            isVocabularyBookEnabled: () => config.vocabularyBookEnabled === true, isReencounterEnabled: () => config.on && config.vocabularyReencounterEnabled === true && !browser.extension.inIncognitoContext,
             vocabularyBook,
             broadcastChanged: createBrowserVocabularyBookChangedBroadcaster({
                 sendRuntimeMessage: (message) => browser.runtime.sendMessage(message),

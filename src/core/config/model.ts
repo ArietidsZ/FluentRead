@@ -493,6 +493,7 @@ export class Config {
     selectionTtsMode: LocalTtsMode; // 朗读在线/本地合成策略
     selectionTtsLocalVoice: LocalTtsVoiceId; // 本地 Kokoro 音色，auto 表示按语言选择
     vocabularyBookEnabled: boolean; // 是否启用本地单词本 Beta
+    vocabularyReencounterEnabled: boolean; // 阅读时轻量标记已收藏表达，独立于收藏入口
     newApiUrl: string; // NewAPI地址
     maxConcurrentTranslations: number; // 最大并发翻译数量
     translationRequestsPerSecond: number; // 每秒最多启动的翻译请求数，0 表示不限速
@@ -691,6 +692,7 @@ export class Config {
         this.selectionTtsMode = DEFAULT_LOCAL_TTS_MODE;
         this.selectionTtsLocalVoice = DEFAULT_LOCAL_TTS_VOICE;
         this.vocabularyBookEnabled = false; // Beta 默认关闭，由用户在单词本页面主动开启
+        this.vocabularyReencounterEnabled = false; // 主动开启后才在网页中匹配收藏
         this.newApiUrl = DEFAULT_NEW_API_URL; // NewAPI 默认地址
         this.maxConcurrentTranslations = DEFAULT_MAX_CONCURRENT_TRANSLATIONS; // 默认最大并发数为10
         this.translationRequestsPerSecond = DEFAULT_TRANSLATION_REQUESTS_PER_SECOND;
@@ -1389,6 +1391,7 @@ export function normalizeConfig(value: unknown): Config {
     if (typeof normalized.vocabularyBookEnabled !== 'boolean') {
         normalized.vocabularyBookEnabled = false;
     }
+    if (typeof normalized.vocabularyReencounterEnabled !== 'boolean') normalized.vocabularyReencounterEnabled = false;
     if (typeof normalized.selectionAreaEnabled !== 'boolean') {
         normalized.selectionAreaEnabled = true;
     }
