@@ -241,9 +241,10 @@
   left: 25%;
   top: 7%;
 }
+/* 桌面问候语放在卡片上方的留白区，避开旋转边界和浮动动画范围。 */
 .bv-greeting-ja {
-  right: 3%;
-  top: 82%;
+  right: 5%;
+  top: 7%;
   font-size: 14px;
 }
 .bv-greeting-ko {
@@ -253,11 +254,11 @@
 }
 .bv-greeting-de {
   left: 5%;
-  top: 28%;
+  top: 20%;
 }
 .bv-greeting-ru {
-  right: 5%;
-  top: 86%;
+  right: 15%;
+  top: 7%;
 }
 .bv-greeting-ar {
   left: 5%;
