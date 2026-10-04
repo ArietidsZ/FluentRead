@@ -32,9 +32,9 @@ const props = defineProps<{modelValue: TranslationRequestLimits}>();
 const emit = defineEmits<{'update:model-value': [value: TranslationRequestLimits]}>();
 const {translateLegacy, t} = useUiI18n();
 const fields = [
-  {key: 'maxConcurrentTranslations', label: '翻译并发数', min: 1, max: 100, help: '控制同时进行的最大翻译任务数，数值越高翻译速度越快，但可能占用更多系统资源'},
-  {key: 'translationRequestsPerSecond', label: '每秒最多请求数', min: 0, max: 1000, help: '设为 0 表示不限速。'},
-  {key: 'translationRequestsPerMinute', label: '每分钟最多请求数', min: 0, max: 10000, help: '设为 0 表示不限速。'},
+  {key: 'maxConcurrentTranslations', label: '翻译并发数', min: 1, max: 100, help: '设置同时执行的翻译任务上限；增加并发可能加快翻译，也会增加资源占用，并受服务限流约束'},
+  {key: 'translationRequestsPerSecond', label: '每秒最多请求数', min: 0, max: 1000, help: '设为 0 表示不限速'},
+  {key: 'translationRequestsPerMinute', label: '每分钟最多请求数', min: 0, max: 10000, help: '设为 0 表示不限速'},
 ] as const;
 
 function update(key: keyof TranslationRequestLimits, value: number | undefined): void {

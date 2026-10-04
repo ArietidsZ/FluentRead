@@ -5,10 +5,10 @@
  * 模块边界：只编辑传入 Config 草稿；保存由 SettingsSections 统一处理，播放器实际应用由 content 层负责。
  -->
 <template>
-  <SettingsGroup title="视频字幕外观" description="外观只影响 FluentRead 字幕，不改变 YouTube/X 原生字幕。">
+  <SettingsGroup title="视频字幕外观" description="外观只影响 FluentRead 字幕，不改变 YouTube/X 原生字幕">
     <div class="video-subtitle-appearance-panel" data-video-subtitle-appearance>
       <div class="appearance-panel-heading">
-        <div><strong>字幕皮肤</strong><p>选择一个起点，再按需要微调。</p></div>
+        <div><strong>字幕皮肤</strong><p>选择一个起点，再按需要微调</p></div>
         <button type="button" class="appearance-reset-button" @click="resetAppearance">恢复默认</button>
       </div>
       <div class="subtitle-skin-grid" role="radiogroup" aria-label="视频字幕皮肤">
@@ -38,7 +38,7 @@
 
       <details class="subtitle-appearance-advanced">
         <summary>微调字幕外观</summary>
-        <p class="subtitle-appearance-hint">大多数视频使用默认值即可；只有位置或可读性不合适时再调整。</p>
+        <p class="subtitle-appearance-hint">大多数视频使用默认值即可；只有位置或可读性不合适时再调整</p>
         <div class="subtitle-appearance-controls">
           <div class="subtitle-appearance-control-group">
             <strong>字号与位置</strong>

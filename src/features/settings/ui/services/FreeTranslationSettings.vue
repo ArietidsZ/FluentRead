@@ -11,7 +11,7 @@
         <label class="mode-option" :class="{ 'is-selected': mode === 'balanced' }"><input type="radio" name="free-translation-mode" value="balanced" :checked="mode === 'balanced'" :aria-label="t('settings.services.freeWeights.mode')" @change="setMode('balanced')" /><span>{{ t('settings.services.freeWeights.mode') }}</span></label>
         <label class="mode-option" :class="{ 'is-selected': mode === 'sequential' }"><input type="radio" name="free-translation-mode" value="sequential" :checked="mode === 'sequential'" :aria-label="translateLegacy('优先顺序')" @change="setMode('sequential')" /><span>{{ translateLegacy('优先顺序') }}</span></label>
       </div>
-      <p class="mode-help">{{ mode === 'balanced' ? t('settings.services.freeWeights.strategy') : translateLegacy('依次调用启用的免费接口；可使用上下按钮调整顺序。') }}</p>
+      <p class="mode-help">{{ mode === 'balanced' ? t('settings.services.freeWeights.strategy') : translateLegacy('依次调用启用的免费接口；可使用上下按钮调整顺序') }}</p>
       <p v-if="!isSequential && displayedWeightSnapshot.total === 0" class="service-unavailable" role="status">{{ t('settings.services.freeWeights.unavailable') }}</p>
       <section class="provider-section" :aria-label="translateLegacy(mode === 'sequential' ? '免费翻译优先顺序' : '常用候选')">
         <div class="section-heading"><h3>{{ isSequential ? translateLegacy('服务优先顺序') : t('settings.services.freeWeights.services') }}</h3><p>{{ t('settings.services.freeWeights.enabledCount', {count: order.length}) }}</p></div>
@@ -32,15 +32,15 @@
             <details v-if="provider.id === 'myMemory'" class="provider-settings">
               <summary><span>{{ translateLegacy('连接设置') }}</span><small v-if="config.myMemoryEmail">{{ translateLegacy('邮箱已配置') }}</small><svg class="details-chevron" aria-hidden="true" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4" /></svg></summary>
               <label class="compact-field"><span>{{ t('settings.services.library.memoryEmail') }}</span><el-input v-model="myMemoryEmailDraft" type="email" :placeholder="translateLegacy('不填写也可以使用')" aria-label="MyMemory 联系邮箱" :aria-invalid="myMemoryEmailInvalid" @change="commitMyMemoryEmail" /></label>
-              <p v-if="myMemoryEmailInvalid" class="provider-note" role="status">{{ translateLegacy('请输入有效邮箱，或留空。') }}</p>
-              <p>{{ translateLegacy('提供邮箱后可提升额度；邮箱会随请求发送给 MyMemory。') }} <a href="https://mymemory.translated.net/doc/usagelimits.php" target="_blank" rel="noreferrer">{{ translateLegacy('官方额度说明') }}</a></p>
+              <p v-if="myMemoryEmailInvalid" class="provider-note" role="status">{{ translateLegacy('请输入有效邮箱，或留空') }}</p>
+              <p>{{ translateLegacy('提供邮箱后可提升额度；邮箱会随请求发送给 MyMemory') }} <a href="https://mymemory.translated.net/doc/usagelimits.php" target="_blank" rel="noreferrer">{{ translateLegacy('官方额度说明') }}</a></p>
             </details>
           </li>
         </ol>
       </section>
       <details v-if="mode === 'balanced'" class="experimental-section">
         <summary><span>{{ t('settings.services.freeWeights.moreServices') }}</span><small>{{ experimentalSummary }}</small><svg class="details-chevron" aria-hidden="true" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4" /></svg></summary>
-        <p class="section-help">{{ translateLegacy('可能受访问验证、公共实例稳定性或语言范围影响；启用后会参与当前策略。') }}</p>
+        <p class="section-help">{{ translateLegacy('可能受访问验证、公共实例稳定性或语言范围影响；启用后会参与当前策略') }}</p>
         <ol class="fallback-list" :class="{ 'is-sequential': isSequential }" :aria-label="translateLegacy('实验候选服务')">
           <li v-for="provider in experimentalProviders" :key="provider.id" :data-fallback-provider="provider.id" :title="translateLegacy(provider.description)" :class="{'is-disabled': !isEnabled(provider.id)}">
             <div class="provider-row">
@@ -85,7 +85,7 @@
     <template v-if="advanced">
       <label class="compact-field"><span>{{ translateLegacy('每个服务最多等待（秒）') }}</span><el-input-number :model-value="config.freeTranslationTimeoutMs / 1000" :min="1" :max="15" :step="1" :aria-label="translateLegacy('每个服务最多等待（秒）')" @update:model-value="setDuration($event)" /></label>
       <p class="recovery-copy">{{ t('settings.services.freeWeights.budget') }}</p>
-      <p class="recovery-copy">{{ translateLegacy('网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复。') }}</p>
+      <p class="recovery-copy">{{ translateLegacy('网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复') }}</p>
     </template>
   </div>
 </template>

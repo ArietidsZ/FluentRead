@@ -7,11 +7,11 @@
 <template>
   <div class="selection-settings">
     <SettingsGroup>
-      <FeatureEnableCard v-model="enabled" title="启用划词翻译" description="选中文字后查看译文，也可切换卡片模式查词或学习句子。" />
+      <FeatureEnableCard v-model="enabled" title="启用划词翻译" description="选中文字后查看译文，也可切换卡片模式查词或学习句子" />
       <div class="selection-setup">
         <div class="selection-choices">
           <h2>选择默认呈现</h2>
-          <p>网页中随时切换，只影响当前选区。</p>
+          <p>网页中随时切换，只影响当前选区</p>
           <div role="group" aria-label="划词默认呈现" class="selection-mode-list">
             <button v-for="mode in modes" :key="mode.value" type="button" :aria-pressed="config.selectionTranslatorPresentation === mode.value" :class="{selected: config.selectionTranslatorPresentation === mode.value}" @click="config.selectionTranslatorPresentation = mode.value">
               <span class="selection-mode-icon" aria-hidden="true">{{ mode.icon }}</span>
@@ -33,7 +33,7 @@
             <div v-if="!sentence" class="selection-preview-word" data-i18n-ignore><span class="selection-pos">形容词 · adj.</span><span data-i18n-ignore>/ˈkjʊəriəs/</span><p data-i18n-ignore>Eager to know or learn something.</p><small>想了解或学习某事；在这里描述读者的求知欲。</small></div>
             <ReadingAnswer v-else :text="sentenceAnalysis" :source-text="sentenceSource" />
           </template>
-          <small class="selection-preview-footnote">{{ config.selectionTranslatorPresentation === 'card' ? '卡片可继续读懂、拆句、学用法和练习。' : '保留复制和朗读，让阅读少一点打断。' }}</small>
+          <small class="selection-preview-footnote">{{ config.selectionTranslatorPresentation === 'card' ? '卡片可继续读懂、拆句、学用法和练习' : '保留复制和朗读，让阅读少一点打断' }}</small>
         </div>
       </div>
     </SettingsGroup>
@@ -64,8 +64,8 @@ const enabled = computed({get: () => props.config.selectionTranslatorMode !== 'd
   props.config.disableSelectionTranslator = !value;
 }});
 const modes = [
-  {value: 'simple' as const, icon: '译', title: '普通翻译', description: '先看懂意思，简洁呈现原文与译文。'},
-  {value: 'card' as const, icon: 'Aa', title: '卡片模式', description: '单词看音标和词性，句子按需深入学习。'},
+  {value: 'simple' as const, icon: '译', title: '普通翻译', description: '先看懂意思，简洁呈现原文与译文'},
+  {value: 'card' as const, icon: 'Aa', title: '卡片模式', description: '单词看音标和词性，句子按需深入学习'},
 ];
 
 </script>
