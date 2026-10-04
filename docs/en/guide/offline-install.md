@@ -5,7 +5,7 @@ description: Install FluentRead through CRXSOso or the official ZIP package when
 
 # Offline download & installation
 
-If the Chrome Web Store does not open, try **[CRXSOso](https://www.crxsoso.com/webstore/detail/djnlaiohfaaifbibleebjggkghlmcpcj)**, or download the official ZIP package and install it manually in desktop Chrome / Edge.
+If the Chrome Web Store does not open, download the latest stable ZIP package from the **[official GitHub release page](https://github.com/FluentRead/FluentRead/releases/latest)** and install it manually in desktop Chrome / Edge. You can also try **[CRXSOso](https://www.crxsoso.com/webstore/detail/djnlaiohfaaifbibleebjggkghlmcpcj)**.
 
 ## Get FluentRead through CRXSOso
 
@@ -15,12 +15,11 @@ CRXSOso is a third-party distribution website. Its version may differ from the o
 
 ## Download the official offline package
 
-| File | Download |
-| --- | --- |
-| Chrome / Edge extension ZIP · v0.0.34 | [Download the offline package](https://github.com/FluentRead/FluentRead/releases/download/v0.0.34/fluent-read-0.0.34-chrome.zip) |
-| SHA-256 checksums | [Download SHA256SUMS.txt](https://github.com/FluentRead/FluentRead/releases/download/v0.0.34/SHA256SUMS.txt) |
+Open the [official GitHub release page](https://github.com/FluentRead/FluentRead/releases/latest). This address takes you to the latest stable release. Use that page for current packages and version information.
 
-These files come from the official GitHub Release v0.0.34, published on September 13, 2026. See the [official release page](https://github.com/FluentRead/FluentRead/releases/latest) for other versions. Choose the extension package ending in **`-chrome.zip`**. The `-sources.zip` file and GitHub’s automatic Source code downloads contain source code and cannot be installed directly.
+Expand **Assets** below the release notes and choose the Chrome / Edge extension package ending in **`-chrome.zip`**. For checksums, download **`SHA256SUMS.txt`** from the same release’s Assets.
+
+The **`-sources.zip`** file and GitHub’s automatic **Source code** downloads contain source code and cannot be installed directly.
 
 GitHub downloads still depend on your network. Try CRXSOso above if the download is unavailable. Offline installation means you can install the downloaded package without accessing the Chrome Web Store; online translation still needs a connection to your chosen provider.
 
@@ -38,6 +37,6 @@ Copy browser internal addresses into the address bar; normal websites cannot lin
 
 An unpacked extension does not receive store updates automatically. Before updating, export your configuration from **Backup & sync** in FluentRead’s settings.
 
-Download the new Chrome ZIP and extract it over the original installation folder, then select FluentRead’s **Reload** button on the extensions page. Refresh webpages you want to translate. Reuse the same folder to avoid duplicate installations and keep a backup of the previous folder before replacing files.
+Download the new Chrome ZIP from the [official GitHub release page](https://github.com/FluentRead/FluentRead/releases/latest) and extract it over the original installation folder, then select FluentRead’s **Reload** button on the extensions page. Refresh webpages you want to translate. Reuse the same folder to avoid duplicate installations and keep a backup of the previous folder before replacing files.
 
 After installation, follow [Quick start](/en/guide/getting-started) to pin FluentRead and translate a webpage.
