@@ -47,7 +47,7 @@
           <el-option v-for="item in options.to" :key="item.value" data-i18n-ignore class="select-left" :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
         </el-select>
       </SettingsItem>
-      <SettingsItem label="翻译模式" description="双语对照保留原文，仅译文模式会替换原文显示。">
+      <SettingsItem label="翻译模式" description="双语对照保留原文，仅译文模式会替换原文显示">
         <SegmentedControl v-model="config.display" :options="options.display" label="翻译模式" />
       </SettingsItem>
       <SettingsItem :label="t('settings.translationStyle.title')" :description="t('settings.translationStyle.description')">
@@ -89,8 +89,8 @@
   </section>
   <section v-if="hasVisitedSection('settings-selection')" v-show="props.activeSection === 'settings-selection'" id="settings-selection" class="settings-section">
     <SelectionSettings :config="config">
-    <SettingsGroup v-if="config.selectionTranslatorMode !== 'disabled'" title="触发与显示" description="推荐点击图标：选中后不直接翻译。快捷键和仅右键菜单不显示浮动入口。">
-    <SettingsItem v-if="config.selectionTranslatorMode !== 'disabled'" label="显示内容" description="两种呈现均可保留原文或只显示译文。">
+    <SettingsGroup v-if="config.selectionTranslatorMode !== 'disabled'" title="触发与显示" description="推荐选择“点击图标”，选中文字后点击入口再翻译；选择快捷键或仅右键菜单时不显示浮动入口">
+    <SettingsItem v-if="config.selectionTranslatorMode !== 'disabled'" label="显示内容" description="两种呈现均可保留原文或只显示译文">
       <SegmentedControl v-model="config.selectionTranslatorMode" :options="selectionTranslatorModeOptions.filter(item => item.value !== 'disabled')" label="划词显示内容" />
     </SettingsItem>
     <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row" :class="{ 'custom-hotkey-row': config.selectionTranslatorTrigger === 'custom' }">
@@ -107,7 +107,7 @@
           <el-select :model-value="config.selectionTranslatorTrigger" aria-label="划词翻译触发方式" placeholder="选择触发方式" size="small" style="width: 100%" @change="handleSelectionTriggerChange">
             <el-option v-for="item in options.selectionTranslatorTriggers" :key="item.value" :label="item.value === 'contextMenu' ? t('selectionTrigger.contextMenu') : item.label" :value="item.value" />
           </el-select>
-          <small v-if="config.selectionTranslatorTrigger === 'direct'" class="selection-context-menu-hint">直接弹出会在每次划词后打开译文，容易打断阅读。</small>
+          <small v-if="config.selectionTranslatorTrigger === 'direct'" class="selection-context-menu-hint">直接弹出会在每次划词后打开译文，容易打断阅读</small>
           <small v-if="config.selectionTranslatorTrigger === 'contextMenu'" class="selection-context-menu-hint" :class="{ 'is-unavailable': config.contextMenuEnabled === false || config.contextMenuEntries?.translateSelection === false }">
             {{ t(config.contextMenuEnabled === false || config.contextMenuEntries?.translateSelection === false ? 'selectionTrigger.contextMenuUnavailable' : 'selectionTrigger.contextMenuHint') }}
           </small>
@@ -132,12 +132,12 @@
         </div>
       </el-col>
     </el-row>
-    <SettingsItem v-if="config.selectionTranslatorMode !== 'disabled'" label="继续阅读时自动收起" description="滚动页面或复制原文时收起；鼠标远离后隐藏未点击的入口。卡片内的滚动和复制不受影响。">
+    <SettingsItem v-if="config.selectionTranslatorMode !== 'disabled'" label="继续阅读时自动收起" description="滚动页面或复制原文时自动收起，鼠标移开后隐藏未点击的入口；卡片内的滚动和复制不受影响">
       <el-switch v-model="config.selectionTranslatorAutoDismiss" class="settings-toggle" aria-label="继续阅读时自动收起" />
     </SettingsItem>
     <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="从选区稳定后开始计时，再显示图标、小点或翻译面板；快捷键在等待结束后按下会立即显示。" placement="top-start" :show-after="500">
+        <el-tooltip class="box-item" effect="dark" content="从选区稳定后开始计时，再显示图标、小点或翻译面板；快捷键在等待结束后按下会立即显示" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
             划词显示延迟
             <el-icon class="icon-margin"><InfoFilled /></el-icon>
@@ -159,20 +159,20 @@
     <SettingsItem
       v-if="config.selectionTranslatorMode !== 'disabled' && ['en', 'zh-Hans', 'zh-Hant'].includes(config.to)"
       label="中英双向划词"
-      description="开启后，选中与目标语言相同的中文或英文也会显示划词入口，并自动译成另一种语言。卡片内可临时切换译文语言，不会修改默认设置。"
+      description="选中中文或英文时，即使与目标语言相同也会显示划词入口，并自动译成另一种语言；卡片内可临时切换语言，默认设置保持不变"
     >
       <el-switch v-model="config.selectionTranslatorBidirectional" class="settings-toggle" aria-label="中英双向划词" />
     </SettingsItem>
-    <SettingsItem v-if="config.selectionTranslatorTrigger === 'hover'" label="悬停等待" description="将鼠标停在划词图标上，等待设定时间后打开译文；移开鼠标则取消。">
+    <SettingsItem v-if="config.selectionTranslatorTrigger === 'hover'" label="悬停等待" description="将鼠标停在划词图标上，等待设定时间后打开译文；移开鼠标则取消">
       <el-input-number v-model="config.harness.hoverDelay" :min="200" :max="3000" :step="100" aria-label="悬停等待时间" />
     </SettingsItem>
     </SettingsGroup>
     <template #advanced><SettingsGroup title="朗读声音">
     <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="朗读失败时按这里的顺序依次尝试；留空则根据当前语言自动选择。" placement="top-start" :show-after="500">
+        <el-tooltip class="box-item" effect="dark" content="朗读失败时按这里的顺序依次尝试；留空则根据当前语言自动选择" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
-            语音回退顺序
+            备用音色顺序
             <el-icon class="icon-margin"><InfoFilled /></el-icon>
           </span>
         </el-tooltip>
@@ -185,13 +185,13 @@
             filterable
             collapse-tags
             collapse-tags-tooltip
-            aria-label="划词翻译语音回退顺序"
+            aria-label="划词翻译备用音色顺序"
             placeholder="自动按语言选择"
             no-data-text="没有可用音色"
           >
             <el-option v-for="item in selectionTtsVoiceOptions" :key="item.value" :label="`${item.label} · ${item.locale}`" :value="item.value" />
           </el-select>
-          <small>留空时按当前语言自动尝试多个免费 Edge 音色；选中多个后按此顺序回退，不需要 API Key。</small>
+          <small>留空时根据语言自动尝试免费 Edge 音色；选择多个音色后，朗读失败时按此顺序尝试，无需 API Key</small>
         </div>
       </el-col>
     </el-row>
@@ -273,14 +273,14 @@
     <section v-if="hasVisitedSection('settings-video')" v-show="props.activeSection === 'settings-video'" id="settings-video" class="settings-section">
       <SettingsPanel name="general" :active="props.activePanel">
       <SettingsGroup>
-        <FeatureEnableCard v-model="config.videoTranslationEnabled" title="视频字幕翻译" description="翻译 YouTube、X、Udemy、Disney+ 视频和 Teams、Zoom、Google Meet 网页会议中的字幕，不上传音频或视频内容。"  />
-        <SettingsItem label="会议平台自动开启双语字幕" description="在 Teams、Zoom、Google Meet 网页会议中自动开启可用字幕；平台或主持人需允许字幕。" :disabled="!config.videoTranslationEnabled">
+        <FeatureEnableCard v-model="config.videoTranslationEnabled" title="视频字幕翻译" description="翻译 YouTube、X、Udemy、Disney+ 视频和 Teams、Zoom、Google Meet 网页会议中的字幕，不上传音频或视频内容"  />
+        <SettingsItem label="会议平台自动开启双语字幕" description="在 Teams、Zoom、Google Meet 网页会议中自动开启可用字幕；平台或主持人需允许字幕" :disabled="!config.videoTranslationEnabled">
           <el-switch v-model="config.videoMeetingAutoEnabled" class="settings-toggle" aria-label="会议平台自动开启双语字幕" :disabled="!config.videoTranslationEnabled" />
         </SettingsItem>
-        <SettingsItem label="优先使用人工字幕" description="YouTube、Udemy、Disney+ 有目标语言人工字幕时优先使用；不可用时继续翻译原字幕。" :disabled="!config.videoTranslationEnabled">
+        <SettingsItem label="优先使用人工字幕" description="YouTube、Udemy、Disney+ 有目标语言人工字幕时优先使用；不可用时继续翻译原字幕" :disabled="!config.videoTranslationEnabled">
           <el-switch v-model="config.videoPreferHumanSubtitles" class="settings-toggle" aria-label="优先使用人工字幕" :disabled="!config.videoTranslationEnabled" />
         </SettingsItem>
-        <SettingsItem label="视频翻译服务" description="默认跟随网页翻译服务，也可单独选择；AI 服务会提前预取字幕。" :disabled="!config.videoTranslationEnabled">
+        <SettingsItem label="视频翻译服务" description="默认跟随网页翻译服务，也可单独选择；AI 服务会提前预取字幕" :disabled="!config.videoTranslationEnabled">
           <el-select v-model="config.videoService" :empty-values="[null, undefined]" aria-label="视频字幕翻译服务" :disabled="!config.videoTranslationEnabled" placeholder="请选择服务" filterable>
             <el-option :label="t('featureServices.followDefault')" value="" />
             <el-option v-if="config.videoService && selectedVideoServiceUnavailableMessage" label="Chrome内置AI翻译（当前浏览器不可用）" :value="config.videoService" disabled />
@@ -315,10 +315,10 @@
             </template>
           </GlossaryLibrarySelect>
         </SettingsItem>
-        <SettingsItem label="显示 FluentRead 字幕" description="临时隐藏扩展字幕时保留当前翻译设置。" :disabled="!config.videoTranslationEnabled">
+        <SettingsItem label="显示 FluentRead 字幕" description="临时隐藏扩展字幕时保留当前翻译设置" :disabled="!config.videoTranslationEnabled">
           <el-switch v-model="config.videoSubtitleVisible" class="settings-toggle" aria-label="显示 FluentRead 视频字幕" :disabled="!config.videoTranslationEnabled" />
         </SettingsItem>
-        <SettingsItem label="字幕显示模式" description="选择同时显示原文和译文，或只显示其中一种。" :disabled="!config.videoTranslationEnabled || !config.videoSubtitleVisible">
+        <SettingsItem label="字幕显示模式" description="选择同时显示原文和译文，或只显示其中一种" :disabled="!config.videoTranslationEnabled || !config.videoSubtitleVisible">
           <SegmentedControl
             v-model="config.videoSubtitleDisplayMode"
             :options="videoSubtitleDisplayModeOptions"
@@ -332,8 +332,8 @@
 <VideoSubtitleAppearanceSettings :config="config" />
 </SettingsPanel>
       <SettingsPanel name="local" :active="props.activePanel">
-<SettingsGroup title="X 本地 AI 字幕" description="仅 X 无原生字幕时使用；模型和音频留在当前浏览器，下载后可离线识别。">
-        <SettingsItem label="视频原语言" description="仅用于 X 没有原生字幕时的本地识别；自动检测适合大多数视频。" :disabled="!config.videoTranslationEnabled || !browserCapabilities.extensionDom">
+<SettingsGroup title="X 本地 AI 字幕" description="仅 X 无原生字幕时使用；模型和音频留在当前浏览器，下载后可离线识别">
+        <SettingsItem label="视频原语言" description="仅用于 X 没有原生字幕时的本地识别；自动检测适合大多数视频" :disabled="!config.videoTranslationEnabled || !browserCapabilities.extensionDom">
           <el-select v-model="config.videoSourceLanguage" aria-label="视频原语言" :disabled="!config.videoTranslationEnabled || !browserCapabilities.extensionDom" placeholder="请选择视频原语言">
             <el-option v-for="item in VIDEO_SOURCE_LANGUAGE_OPTIONS" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
@@ -343,7 +343,7 @@
 </SettingsPanel>
       <details class="feature-help">
         <summary>使用说明</summary>
-        <p>打开 YouTube 原生字幕后，FluentRead 会在播放器中显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；播放器菜单可分别下载原文或译文 SRT。</p>
+        <p>开启 YouTube 原生字幕后显示译文，机器翻译约提前 10 秒、AI 服务约提前 30 秒准备；可从播放器菜单下载原文或译文 SRT</p>
       </details>
     </section>
     <!-- 鼠标悬浮快捷键 -->
@@ -352,7 +352,7 @@
   <ReadingAssistanceSettings :config="config" @configure-style="openSettingsSection('settings-interface', 'translation-sentence-highlight-style')" />
 </SettingsPanel>
 <SettingsPanel name="hover" :active="props.activePanel">
-    <SettingsGroup title="鼠标悬浮翻译" description="按住快捷键并把鼠标移到文本上，等待设定时间后开始翻译。">
+    <SettingsGroup title="鼠标悬浮翻译" description="按住快捷键并把鼠标移到文本上，等待设定时间后开始翻译">
     <el-row class="settings-control-row" :class="{ 'custom-hotkey-row': config.hotkey === 'custom' }">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="按住指定快捷键并悬停在文本上进行翻译" placement="top-start" :show-after="500">
@@ -402,7 +402,7 @@
 
     <el-row class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="按住鼠标悬浮快捷键并移动鼠标后，等待指定时间再翻译；调高可以减少 Ctrl+C 等组合键带来的误触。松开快捷键触发的单次翻译不受影响。" placement="top-start" :show-after="500">
+        <el-tooltip class="box-item" effect="dark" content="按住悬浮快捷键并移动鼠标后，等待设定时间再翻译；增加延迟可减少 Ctrl+C 等组合键的误触，松开快捷键触发的单次翻译不受影响" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
             悬浮翻译延迟
             <el-icon class="icon-margin"><InfoFilled /></el-icon>
@@ -476,7 +476,7 @@
                   <InfoFilled />
                 </el-icon></span>
             </el-tooltip>
-            <small class="settings-control-hint">可提前开启；仅在支持的 AI 服务下采集网页语境并生效，其他服务会保留此偏好但不会发送上下文。</small>
+            <small class="settings-control-hint">可提前开启；仅在支持的 AI 服务下采集网页语境并生效，其他服务会保留此偏好但不会发送上下文</small>
           </el-col>
 
           <el-col :span="4" class="settings-control-field flex-end">
@@ -487,7 +487,7 @@
         <!-- 悬浮球开关 -->
       <el-row id="floating-ball-toggle" class="settings-control-row">
         <el-col :span="20" class="settings-control-label floating-ball-control-label lightblue rounded-corner">
-          <el-tooltip class="box-item" effect="dark" content="控制是否显示屏幕边缘的即时翻译悬浮球，用于对整个网页进行翻译" placement="top-start" :show-after="500">
+          <el-tooltip class="box-item" effect="dark" content="在屏幕边缘显示悬浮球，点击即可翻译整个网页" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
             全文翻译悬浮球
             <el-icon class="icon-margin">
@@ -513,7 +513,7 @@
             <el-tooltip
               class="box-item"
               effect="dark"
-              content="全文翻译时，在网页右下角显示正在翻译和等待中的任务数量；任务结束后自动隐藏。"
+              content="全文翻译时，在网页右下角显示正在翻译和等待中的任务数量；任务结束后自动隐藏"
               placement="top-start"
               :show-after="500"
             >
@@ -543,7 +543,7 @@
           </template>
           <UiLanguageSelector compact />
         </SettingsItem>
-        <SettingsItem label="界面主题" description="只影响扩展界面，不会改变网页本身的配色。">
+        <SettingsItem label="界面主题" description="只影响扩展界面，不会改变网页本身的配色">
           <SegmentedControl v-model="config.theme" :options="options.theme" label="界面主题" />
         </SettingsItem>
       </SettingsGroup>
@@ -565,10 +565,10 @@
 
     <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
 <SettingsPanel name="page" :active="props.activePanel">
-      <SettingsGroup title="全文翻译" description="设置启动全文翻译的方式、处理范围和网页内入口。">
+      <SettingsGroup title="全文翻译" description="设置启动全文翻译的方式、处理范围和网页内入口">
         <el-row class="settings-control-row" :class="{ 'custom-hotkey-row': config.floatingBallHotkey === 'custom' }">
           <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark" content="设置快捷键以便快速切换全文翻译状态，无需鼠标点击悬浮球" placement="top-start" :show-after="500">
+            <el-tooltip class="box-item" effect="dark" content="设置快捷键，用于在全文翻译和原文之间切换" placement="top-start" :show-after="500">
               <span class="popup-text popup-vertical-left">{{ t('quickTranslation.commonFullPageShortcut') }}<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
             </el-tooltip>
           </el-col>
@@ -589,7 +589,7 @@
         </el-row>
         <el-row class="settings-control-row">
           <el-col :span="20" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark" content="开启后，使用支持通用提示词的 AI 服务进行全文翻译时，会把相邻短段合并为一次请求；机器翻译、悬浮、划词和输入框翻译不受影响。" placement="top-start" :show-after="500">
+            <el-tooltip class="box-item" effect="dark" content="开启后，使用支持通用提示词的 AI 服务进行全文翻译时，会把相邻短段合并为一次请求；机器翻译、悬浮、划词和输入框翻译不受影响" placement="top-start" :show-after="500">
               <span class="popup-text popup-vertical-left">AI 多段翻译<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
             </el-tooltip>
           </el-col>
@@ -600,7 +600,7 @@
 
         <el-row class="settings-control-row">
           <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark" content="按阅读进度会预翻译视口附近内容；立即翻译到网页底部会处理当前已加载的整页内容，并持续翻译之后新增的内容。它不会自动滚动页面，但在无限滚动页面可能产生较多翻译请求和服务费用。设置会在下次启动全文翻译时生效。" placement="top-start" :show-after="500">
+            <el-tooltip class="box-item" effect="dark" content="“按阅读进度”预翻译可视区域附近的内容；“立即翻译到网页底部”处理已加载的整页及后续新增内容，无需自动滚动，可能增加无限滚动页面的请求量和费用；下次启动全文翻译时生效" placement="top-start" :show-after="500">
               <span class="popup-text popup-vertical-left">全文翻译范围<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
             </el-tooltip>
           </el-col>
@@ -663,11 +663,11 @@
           </SettingsItem>
           <details class="request-retry-settings" data-testid="translation-retry-settings">
             <summary>{{ t('settings.requestLimits.retryIntervals') }}</summary>
-            <SettingsItem label="退避初始间隔">
-              <div class="request-default-number"><el-input-number :model-value="config.translationBackoffBaseMs" aria-label="退避初始间隔" :min="MIN_TRANSLATION_BACKOFF_BASE_MS" :max="MAX_TRANSLATION_BACKOFF_BASE_MS" :step="100" :controls="false" @change="handleTranslationBackoffBaseChange" /><span>ms</span></div>
+            <SettingsItem :label="t('settings.requestLimits.initialRetryWait')">
+              <div class="request-default-number"><el-input-number :model-value="config.translationBackoffBaseMs" :aria-label="t('settings.requestLimits.initialRetryWait')" :min="MIN_TRANSLATION_BACKOFF_BASE_MS" :max="MAX_TRANSLATION_BACKOFF_BASE_MS" :step="100" :controls="false" @change="handleTranslationBackoffBaseChange" /><span>ms</span></div>
             </SettingsItem>
-            <SettingsItem label="退避最大间隔">
-              <div class="request-default-number"><el-input-number :model-value="config.translationBackoffMaxMs" aria-label="退避最大间隔" :min="Math.max(MIN_TRANSLATION_BACKOFF_MAX_MS, config.translationBackoffBaseMs)" :max="MAX_TRANSLATION_BACKOFF_MAX_MS" :step="1000" :controls="false" @change="handleTranslationBackoffMaxChange" /><span>ms</span></div>
+            <SettingsItem :label="t('settings.requestLimits.maximumRetryWait')">
+              <div class="request-default-number"><el-input-number :model-value="config.translationBackoffMaxMs" :aria-label="t('settings.requestLimits.maximumRetryWait')" :min="Math.max(MIN_TRANSLATION_BACKOFF_MAX_MS, config.translationBackoffBaseMs)" :max="MAX_TRANSLATION_BACKOFF_MAX_MS" :step="1000" :controls="false" @change="handleTranslationBackoffMaxChange" /><span>ms</span></div>
             </SettingsItem>
           </details>
         </div>

@@ -8,6 +8,7 @@ import {compileScript, compileTemplate, parse} from 'vue/compiler-sfc';
 import ts from 'typescript';
 import {Config} from '@/src/core/config/model';
 import {FREE_TRANSLATION_PROVIDERS} from '@/src/core/config/freeTranslation';
+import {checkAllFreeTranslationProviders, type FreeTranslationChecks} from '@/src/features/settings/ui/services/freeTranslationChecks';
 
 const runtime = createRequire(import.meta.url)('vue') as typeof import('vue');
 const componentPath = 'src/features/settings/ui/services/FreeTranslationSettings.vue';
@@ -19,6 +20,7 @@ let elements: Node[];
 let state: Record<string, any>;
 let renderer: import('vue').Renderer<Node>;
 let component: any;
+let checks: FreeTranslationChecks;
 
 beforeAll(async () => {
   server = await createServer({appType: 'custom', configFile: false, logLevel: 'silent', root: process.cwd(),
@@ -44,7 +46,7 @@ async function mountComponent(advanced: boolean): Promise<void> {
   component.render = new Function('Vue', ts.transpileModule(template.code, {compilerOptions: {target: ts.ScriptTarget.ES2022}}).outputText)(runtime);
   elements = [];
   renderer = runtime.createRenderer<Node, Node>({patchProp: (node, key, _previous, value) => {node.props[key] = value;}, insert: () => undefined, remove: () => undefined, createElement: tag => {const node = {tag, props: {}}; elements.push(node); return node;}, createText: () => ({tag: '#text', props: {}}), createComment: () => ({tag: '#comment', props: {}}), setText: () => undefined, setElementText: (node, value) => {node.text = value;}, parentNode: () => null, nextSibling: () => null, querySelector: () => null, setScopeId: () => undefined, cloneNode: node => ({...node}), insertStaticContent: () => [{tag: '#static', props: {}}, {tag: '#static', props: {}}]});
-  app = renderer.createApp(component, {config, advanced});
+  app = renderer.createApp(component, {config, advanced, checks});
   app.provide(runtime.ssrContextKey, {modules: new Set<string>()});
   app.config.warnHandler = () => undefined;
   const vm = app.mount({tag: '#root', props: {}});
@@ -54,6 +56,7 @@ async function mountComponent(advanced: boolean): Promise<void> {
 
 beforeEach(async () => {
   config = runtime.reactive(new Config());
+  checks = runtime.reactive({});
   await mountComponent(false);
 });
 afterEach(() => app?.unmount());
@@ -61,6 +64,70 @@ afterAll(async () => server?.close());
 function control(ariaLabel: string): Node { const element = [...elements].reverse().find(node => node.props['aria-label'] === ariaLabel); expect(element, ariaLabel).toBeDefined(); return element!; }
 
 describe('free translation settings compiled component', () => {
+  it('已开启服务的开关旁展示未检查、逐项结果与失败原因，停用服务隐藏状态', async () => {
+    const badges = elements.filter(element => element.props['data-provider-state']);
+    expect(badges.map(node => node.props['data-provider-state'])).toEqual(config.freeTranslationOrder);
+    expect(badges.every(node => node.text === 'settings.services.keys.unchecked')).toBe(true);
+    checks.microsoft = {status: 'success', durationMs: 35};
+    checks.transmart = {status: 'error', error: '服务限流'};
+    checks.google = {status: 'checking'};
+    await runtime.nextTick();
+    expect(state.providerStateLabel('microsoft')).toBe('连接正常');
+    expect(state.providerStateTitle('microsoft')).toBe('en → zh-Hans · 35 ms');
+    expect(state.providerStateLabel('transmart')).toBe('连接失败');
+    expect(state.providerStateTitle('transmart')).toBe('服务限流');
+    expect(state.providerStateLabel('google')).toBe('settings.services.keys.checking');
+    state.setMode('sequential');
+    await runtime.nextTick();
+    expect(state.providerState('microsoft')).toBe('success');
+    checks.apertiumFree = {status: 'success', durationMs: 40};
+    state.toggle('apertiumFree', true);
+    await runtime.nextTick();
+    expect(state.providerStateTitle('apertiumFree')).toBe('en → es · 40 ms');
+  });
+
+  it('完整目录检查包含停用与折叠服务，独立失败仍继续检查其余服务', async () => {
+    const called: string[] = [];
+    let active = 0, peak = 0;
+    await checkAllFreeTranslationProviders({
+      check: async id => {
+        called.push(id); active += 1; peak = Math.max(peak, active);
+        await Promise.resolve(); active -= 1;
+        if (id === 'microsoft') throw new Error('网络不可用');
+        if (id === 'transmart') return {success: false, error: '服务限流'};
+        if (id === 'google') return undefined;
+        if (id === 'youdaoFree') throw '连接中断';
+        return {success: true, durationMs: 10};
+      },
+      update: (id, state) => { checks[id] = state; }, isCurrent: () => true, failureMessage: '检查失败',
+    });
+    expect(called).toEqual(FREE_TRANSLATION_PROVIDERS.map(provider => provider.id));
+    expect(peak).toBe(3);
+    expect(checks.microsoft).toEqual({status: 'error', error: '网络不可用'});
+    expect(checks.transmart).toEqual({status: 'error', error: '服务限流'});
+    expect(checks.google).toEqual({status: 'error', error: '检查失败'});
+    expect(checks.youdaoFree).toEqual({status: 'error', error: '连接中断'});
+    expect(checks.apertiumFree).toEqual({status: 'success', durationMs: 10});
+    expect(config.freeTranslationOrder).not.toContain('apertiumFree');
+  });
+
+  it('切换服务后不发起后续检查，迟到响应不能覆盖新状态', async () => {
+    let current = true;
+    const pending: Array<{resolve: (value: {success: boolean}) => void; reject: (error: Error) => void}> = [];
+    const run = checkAllFreeTranslationProviders({
+      check: () => new Promise((resolve, reject) => { pending.push({resolve, reject}); }),
+      update: (id, state) => { checks[id] = state; }, isCurrent: () => current, failureMessage: '检查失败',
+    });
+    expect(pending).toHaveLength(3);
+    current = false;
+    checks.microsoft = {status: 'idle'};
+    pending[0].reject(new Error('迟到的网络错误'));
+    pending.slice(1).forEach(({resolve}) => resolve({success: true}));
+    await run;
+    expect(pending).toHaveLength(3);
+    expect(checks.microsoft).toEqual({status: 'idle'});
+    expect(checks.google).toEqual({status: 'queued'});
+  });
   async function mountAdvanced(): Promise<void> {
     app.unmount();
     await mountComponent(true);

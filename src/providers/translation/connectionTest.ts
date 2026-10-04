@@ -2,7 +2,7 @@
  * @file src/providers/translation/connectionTest.ts
  *
  * 文件职责：通过真实 provider registry 执行最小翻译连接测试，覆盖服务鉴权、端点、模型配置和响应解析。
- * 主要内容：使用固定英文测试文本调用指定适配器，为 MyMemory 显式指定测试语言对，验证非空结果并返回耗时；formatConnectionTestError 将失败转换为带服务名的可读消息。 可核对的公开符号包括 CONNECTION_TEST_ORIGIN、runTranslationServiceConnectionTest、formatConnectionTestError。
+ * 主要内容：使用固定英文测试文本调用指定适配器，为 MyMemory 和免费池单服务指定测试语言对，逐服务检查使用匿名适配器与配置等待上限，验证非空结果并返回耗时；formatConnectionTestError 将失败转换为可读消息。
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
@@ -26,6 +26,8 @@ import {waitForBoundedPersistence} from '@/src/services/translation/persistenceB
 import {runWithApiKeyRotation, withServiceApiKey} from '@/src/services/translation/apiKeyRotation';
 import {getServiceApiKeyRows} from '@/src/core/config/apiKeys';
 import {matchesApiKeyCheckRevision} from '@/src/core/config/apiKeyCheckIdentity';
+import {isFreeTranslationProviderId, normalizeFreeTranslationTimeoutMs} from '@/src/core/config/freeTranslation';
+import {translateFreeTranslationProvider} from './free-translation';
 
 export const CONNECTION_TEST_ORIGIN = 'Hello from FluentRead.';
 export const CONNECTION_TEST_TIMEOUT_MS = 30_000;
@@ -43,6 +45,7 @@ export interface ConnectionTestUsageOptions {
     config?: TranslationProviderConfigSnapshot;
     effectiveModel?: string;
     countRate?: boolean;
+    freeProviderId?: unknown;
 }
 
 function isNonEmptyText(value: unknown): value is string {
@@ -54,7 +57,13 @@ export async function runTranslationServiceConnectionTest(
     service: string,
     usageOptions: ConnectionTestUsageOptions = {},
 ): Promise<{durationMs: number}> {
-    const adapter = translationProviderRegistry[service]
+    const freeProviderId = usageOptions.freeProviderId;
+    if (freeProviderId !== undefined && (service !== services.freeTranslation || !isFreeTranslationProviderId(freeProviderId))) {
+        throw new Error('无效的免费翻译服务');
+    }
+    const adapter = typeof freeProviderId === 'string'
+        ? (message: Parameters<typeof translateFreeTranslationProvider>[1]) => translateFreeTranslationProvider(freeProviderId, message)
+        : translationProviderRegistry[service]
         || (isCustomOpenAIProviderId(service)
             ? translationProviderRegistry[LEGACY_CUSTOM_OPENAI_PROVIDER_ID]
             : undefined);
@@ -69,6 +78,9 @@ export async function runTranslationServiceConnectionTest(
     const configuredModel = usageOptions.configuredModel?.trim() || 'unknown';
     const effectiveModel = usageOptions.effectiveModel?.trim() || configuredModel;
     const controller = new AbortController();
+    const snapshot = usageOptions.config ?? usageOptions.configSnapshot;
+    const timeoutMs = freeProviderId === undefined ? CONNECTION_TEST_TIMEOUT_MS
+        : normalizeFreeTranslationTimeoutMs(snapshot?.freeTranslationTimeoutMs);
     let timedOut = false;
     let timer: ReturnType<typeof setTimeout>;
     const timeout = new Promise<never>((_resolve, reject) => {
@@ -76,24 +88,24 @@ export async function runTranslationServiceConnectionTest(
             timedOut = true;
             controller.abort();
             reject(new Error('翻译请求超时'));
-        }, CONNECTION_TEST_TIMEOUT_MS);
+        }, timeoutMs);
     });
 
     try {
         const observedRequest = attachTranslationModelUsageObserver({
             origin: CONNECTION_TEST_ORIGIN,
             // 短英文不足以可靠检测语言；固定测试语言对也避免用户选择英文目标时变成同语种请求。
-            ...(service === services.myMemory ? {sourceLanguage: 'en', targetLanguage: 'zh-Hans'} : {}),
+            ...(service === services.myMemory || freeProviderId !== undefined
+                ? {sourceLanguage: 'en', targetLanguage: freeProviderId === 'apertiumFree' ? 'es' : 'zh-Hans'} : {}),
             context: '',
             pageContext: '',
             summaryPrompt: '',
             summarySystemPrompt: '',
             serviceOverride: service,
             useCache: false,
-            requestTimeoutMs: CONNECTION_TEST_TIMEOUT_MS,
+            requestTimeoutMs: timeoutMs,
             abortSignal: controller.signal,
         }, (observation) => observations.push({...observation}));
-        const snapshot = usageOptions.config ?? usageOptions.configSnapshot;
         if (usageOptions.keyIndex !== undefined && (!Number.isSafeInteger(usageOptions.keyIndex) || usageOptions.keyIndex < 0)) {
             throw new Error('连接测试 Key 序号无效');
         }
@@ -119,13 +131,16 @@ export async function runTranslationServiceConnectionTest(
                     return operation;
                 }, {
                     signal: controller.signal,
-                    deadlineAt: startedAt + CONNECTION_TEST_TIMEOUT_MS,
+                    deadlineAt: startedAt + timeoutMs,
                     identity: {service, model: effectiveModel},
                     countRate: usageOptions.countRate !== false,
                 })
                 : Promise.resolve().then(() => adapter(scheduledRequest));
             const response = await Promise.race([transport, timeout]);
             if (!isNonEmptyText(response)) throw new Error('服务已响应，但没有返回有效译文');
+            if (freeProviderId !== undefined && response.trim() === CONNECTION_TEST_ORIGIN) {
+                throw new Error('服务已响应，但未翻译测试文本');
+            }
             return response;
         };
         const keyIndex = usageOptions.keyIndex ?? (snapshot
@@ -135,7 +150,7 @@ export async function runTranslationServiceConnectionTest(
             ? runWithApiKeyRotation(snapshot, service, runAdapter, {
                 keyIndex: selectedKeyIndex,
                 signal: controller.signal,
-                deadlineAt: startedAt + CONNECTION_TEST_TIMEOUT_MS,
+                deadlineAt: startedAt + timeoutMs,
                 now,
                 model: usageOptions.configuredModel,
             })

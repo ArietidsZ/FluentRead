@@ -7,7 +7,7 @@
 <template>
   <section class="translation-center" :aria-label="translateLegacy('翻译中心')">
     <div class="translation-center-intro"><p>{{ ct('intro') }}</p><span v-if="saveState === 'saved'" class="save-status">{{ ct('saved') }}</span><button v-if="saveState === 'error'" class="text-button" type="button" @click="retrySave">{{ ct('saveError') }}</button></div>
-    <p v-if="hiddenUnavailableServices.length" class="translation-capability-warning" role="status">{{ translateLegacy('当前浏览器暂不支持 Chrome 内置翻译；该对比项已暂时隐藏，原配置会保留。') }}</p>
+    <p v-if="hiddenUnavailableServices.length" class="translation-capability-warning" role="status">{{ translateLegacy('当前浏览器暂不支持 Chrome 内置翻译；该对比项已暂时隐藏，原配置会保留') }}</p>
     <div class="translation-center-layout">
       <section class="translation-input-panel" aria-labelledby="translation-input-title">
         <div class="translation-panel-heading"><h3 id="translation-input-title">{{ ct('input') }}</h3><button v-if="sourceText" class="text-button" type="button" @click="clearSource">{{ ct('clear') }}</button></div>

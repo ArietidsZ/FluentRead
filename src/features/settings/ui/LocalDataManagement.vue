@@ -49,7 +49,7 @@
       </div>
       <details class="legacy-paste">
         <summary>粘贴旧版配置 JSON</summary>
-        <p>如果你以前使用“导出配置”复制了 JSON，可以直接粘贴在这里。</p>
+        <p>如果你以前使用“导出配置”复制了 JSON，可以直接粘贴在这里</p>
         <el-input
           v-model="pastedJson"
           type="textarea"
@@ -127,7 +127,7 @@
               </article>
             </section>
           </div>
-          <p v-else class="config-same">普通设置和凭据与当前状态相同。</p>
+          <p v-else class="config-same">普通设置和凭据与当前状态相同</p>
         </section>
 
         <p class="import-boundary">
@@ -214,10 +214,10 @@ const importKindLabel = computed(() => ({
   config: '旧版配置文件',
 })[pendingImport.value?.kind || 'complete']);
 const importBoundary = computed(() => {
-  if (pendingImport.value?.kind === 'vocabulary') return '只恢复单词本，当前设置和模型用量保持不变。';
-  if (pendingImport.value?.kind === 'model-usage') return '只恢复模型用量，当前设置和单词本保持不变。';
-  if (pendingImport.value?.kind === 'config') return '只恢复设置，单词本和模型用量保持不变。';
-  return '设置将更新；单词本和用量记录会合并，已有记录不会重复。若有内容未恢复，会明确提示。';
+  if (pendingImport.value?.kind === 'vocabulary') return '只恢复单词本，当前设置和模型用量保持不变';
+  if (pendingImport.value?.kind === 'model-usage') return '只恢复模型用量，当前设置和单词本保持不变';
+  if (pendingImport.value?.kind === 'config') return '只恢复设置，单词本和模型用量保持不变';
+  return '导入会更新设置、合并单词本和用量记录，已有记录不会重复；未恢复的内容会另行提示';
 });
 
 async function requestVocabulary<T>(request: VocabularyBookRequest): Promise<T> {
@@ -280,7 +280,7 @@ async function exportCompleteBackup(event?: MouseEvent): Promise<void> {
 async function chooseBackupContext(): Promise<boolean | null> {
   try {
     await ElMessageBox.confirm(
-      '备份默认不包含单词收藏的网页片段、页面标题和来源网址。这些内容可能包含浏览隐私。',
+      '网页片段、页面标题和来源网址可能包含浏览隐私，默认不纳入单词收藏的备份',
       '是否包含单词上下文？',
       {
         confirmButtonText: '不包含并导出',

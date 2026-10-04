@@ -95,7 +95,7 @@
             <svg class="credential-guide-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
           </summary>
           <div class="credential-guide-body">
-            <small>免费额度与超额处理以厂商控制台和当前套餐为准。</small>
+            <small>免费额度与超额处理以厂商控制台和当前套餐为准</small>
             <ol class="credential-guide-steps">
               <li v-for="(step, index) in credentialGuide.steps" :key="index">{{ step }}</li>
             </ol>

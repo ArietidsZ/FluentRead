@@ -22,7 +22,6 @@
 :root[data-interface-skin="compact"] .popup-shell .brand img {
   width: 32px;
   height: 32px;
-  border-radius: 9px;
   box-shadow: none;
 }
 

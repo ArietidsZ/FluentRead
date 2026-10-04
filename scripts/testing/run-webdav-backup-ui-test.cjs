@@ -2,7 +2,7 @@
 /**
  * @file scripts/testing/run-webdav-backup-ui-test.cjs
  * 文件职责：在不抢焦点的临时 Edge 中验证生产扩展的 WebDAV 配置云备份。
- * 主要内容：真实本机 HTTP 夹具、连接测试、预览取消、密文保存、凭据恢复、并发失败、七语言与窄屏。
+ * 主要内容：真实本机 HTTP 夹具、连接测试、预览取消、密文保存、HEAD 版本补取、只读恢复、七语言与窄屏。
  * 模块边界：不操作日常 profile 或真实账号；服务器与凭据均为本次测试创建，报告不包含配置正文。
  */
 const fs = require('node:fs');
@@ -20,7 +20,7 @@ const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExten
 async function main() {
     fs.mkdirSync(artifactsDir, {recursive:true});
     const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-webdav-profile-'));
-    const state = {content:null, version:0, folder:false, failPut:false, calls:[]};
+    const state = {content:null, version:0, folder:false, failPut:false, etagMode:'prop', calls:[]};
     const expected = 'Basic '+Buffer.from('fixture-user:fixture-app-password').toString('base64');
     const server = createServer(async (req,res) => {
         state.calls.push({method:req.method,url:req.url,match:req.headers['if-match']});
@@ -31,7 +31,8 @@ async function main() {
         }
         if (req.method === 'MKCOL' && req.url === '/dav/FluentRead/') {res.writeHead(state.folder ? 405 : 201).end(); state.folder=true; return;}
         if (req.url !== '/dav/FluentRead/fluentread-config.encrypted.json') {res.writeHead(404).end(); return;}
-        if (req.method === 'PROPFIND') {res.writeHead(207, {'Content-Type':'application/xml'}).end(`<multistatus xmlns="DAV:"><response xmlns:p = "DAV:"><p:href>${req.url}</p:href><p:propstat><p:prop><p:getetag>&#34;v${state.version}&#x22;</p:getetag></p:prop><p:status><![CDATA[HTTP/1.1 200 OK]]></p:status></p:propstat></response></multistatus>`);return;}
+        if (req.method === 'PROPFIND') {res.writeHead(207, {'Content-Type':'application/xml'}).end(`<multistatus xmlns="DAV:"><response xmlns:p = "DAV:"><p:href>${req.url}</p:href><p:propstat><p:prop>${state.etagMode==='prop'?`<p:getetag>&#34;v${state.version}&#x22;</p:getetag>`:''}</p:prop><p:status><![CDATA[HTTP/1.1 200 OK]]></p:status></p:propstat></response></multistatus>`);return;}
+        if (req.method === 'HEAD') {res.writeHead(200,state.etagMode==='head'?{ETag:`"v${state.version}"`}:{}).end();return;}
         if (req.method === 'GET') {if (!state.content) res.writeHead(state.folder ? 404 : 409).end(); else if (req.headers['if-match'] && req.headers['if-match'] !== `"v${state.version}"`) res.writeHead(412).end(); else res.writeHead(200).end(state.content); return;}
         if (req.method === 'PUT') {
             if (state.failPut || (req.headers['if-none-match'] === '*' && state.content) || (req.headers['if-match'] && req.headers['if-match'] !== `"v${state.version}"`)) {res.writeHead(412).end(); return;}
@@ -174,6 +175,24 @@ async function main() {
         check((await dialog.innerText()).includes('配置已一致'),'repeated sync recognizes identical settings');
         await page.locator('[data-testid="webdav-confirm"]').click();await dialog.waitFor({state:'hidden'});
         check(state.version===2 && state.content===updated,'identical configuration does not rewrite the backup');
+        state.etagMode='head';
+        await savePatch({to:'es'});await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await chooseIntent('merge');
+        await page.locator('[data-testid="webdav-confirm"]').click();await dialog.waitFor({state:'hidden'});
+        check(state.version===3 && state.calls.some(call=>call.method==='HEAD') && state.calls.some(call=>call.method==='PUT'&&call.match==='"v2"'),'HEAD-only ETag permits a second safe modified backup');
+        const headBackup=state.content;const readOnlyWrites=writes();
+        state.etagMode='none';await savePatch({to:'de'});
+        await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
+        check(await dialog.locator('[data-testid="webdav-restore-only"]').isVisible(),'missing version presents a restore-only preview instead of a failed sync');
+        check(await dialog.evaluate(el=>el.querySelector('.drive-review-title').getBoundingClientRect().top-el.querySelector('.drive-preview-notice').getBoundingClientRect().bottom>=20),'restore notice has a clear gap before review content');
+        check(await page.locator('[data-testid="webdav-confirm"]').isEnabled(),'restore remains available without any server ETag');
+        check(await page.locator('[data-testid="webdav-back"]').count()===0 && await page.locator('[data-testid="webdav-direction-upload"]').count()===0 && await page.locator('[data-testid="webdav-direction-merge"]').count()===0,'restore-only preview skips unavailable operation choices');
+        await shot('webdav-restore-only-desktop');
+        await dialog.locator('.drive-footer-actions .el-button').first().click();await dialog.waitFor({state:'hidden'});
+        check(writes()===readOnlyWrites && state.content===headBackup,'cancelling a read-only preview never changes the cloud backup');
+        await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await page.locator('[data-testid="webdav-confirm"]').click();await dialog.waitFor({state:'hidden'});
+        const readOnlyRestored=await page.evaluate(()=>chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'}));
+        check(readOnlyRestored.value.to==='es' && writes()===readOnlyWrites,'confirming restore without ETag restores settings and never writes');
+        state.etagMode='prop';await savePatch({to:'de'});
         await page.setViewportSize({width:390,height:900});await activateExtensionTabWithoutForeground(context,page);
         check(await page.evaluate(() => document.documentElement.scrollWidth<=document.documentElement.clientWidth),'390px backup has no horizontal overflow');await shot('webdav-backup-mobile');
         await page.locator('[data-testid="webdav-setup"]').click();await setup.waitFor();await shot('webdav-connection-mobile');
@@ -186,14 +205,22 @@ async function main() {
             await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await chooseIntent('merge');
             check(!(await dialog.innerText()).includes('settings.cloud.'),'preview resolves message keys: '+language);
             check(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth),'localized review fits narrow screen: '+language);
-            if (language==='en-US') {check(!/[\u3400-\u9fff]/u.test(await card.innerText()),'English cloud card has no Chinese source text');check(!/[\u3400-\u9fff]/u.test(await dialog.innerText()),'English change preview has no Chinese source text');await shot('webdav-english-review-mobile');}
+            if (language==='en-US') {const text=await card.innerText();check(!/[\u3400-\u9fff]/u.test(text),'English cloud card has no Chinese source text'+(/[\u3400-\u9fff]/u.test(text)?': '+text:''));check(!/[\u3400-\u9fff]/u.test(await dialog.innerText()),'English change preview has no Chinese source text');await shot('webdav-english-review-mobile');}
             await dialog.locator('.drive-footer-actions .el-button').first().click();await dialog.waitFor({state:'hidden'});
+            state.etagMode='none';await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
+            const restoreOnly=dialog.locator('[data-testid="webdav-restore-only"]');
+            const expectedWarning=JSON.parse(fs.readFileSync(path.join(__dirname,'../../src/core/i18n/messages/cloud-backup',language+'.json'),'utf8')).messages['settings.cloud.restoreOnly'];
+            check(await restoreOnly.isVisible() && (await restoreOnly.innerText()).trim()===expectedWarning,'restore-only warning is localized: '+language);
+            check(await dialog.evaluate(el=>{const title=el.querySelector('.el-alert__title');return title.scrollWidth<=title.clientWidth && el.querySelector('.drive-review-title').getBoundingClientRect().top-el.querySelector('.drive-preview-notice').getBoundingClientRect().bottom>=20;}),'localized notice wraps without touching review content: '+language);
+            check(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth),'restore-only preview fits narrow screen: '+language);
+            if(language==='en-US') await shot('webdav-restore-only-english-mobile');
+            await dialog.locator('.drive-footer-actions .el-button').first().click();await dialog.waitFor({state:'hidden'});state.etagMode='prop';
         }
         await savePatch({uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,theme:'dark'});await page.reload({waitUntil:'domcontentloaded'});await navigate();await page.locator('[data-testid="webdav-sync-now"]').waitFor();await page.setViewportSize({width:1440,height:1000});await shot('webdav-dark-desktop');
         await page.locator('[data-testid="webdav-setup"]').click();await setup.waitFor();await page.locator('#webdav-username').fill('fixture-other');await page.locator('#webdav-password').fill('fixture-app-password');await page.locator('[data-testid="webdav-save"]').click();await setup.waitFor({state:'hidden'});
         check((await card.innerText()).includes('fixture-other') && !(await card.innerText()).includes('fixture-user') && !(await card.innerText()).includes('上次同步'),'changing connection shows current account without the old account or timestamp');
         await page.locator('[data-testid="webdav-setup"]').click();await setup.waitFor();await page.locator('[data-testid="webdav-clear"]').click();await page.locator('.el-message-box').getByRole('button',{name:'清除连接设置',exact:true}).click();await setup.waitFor({state:'hidden'});
-        check(await page.locator('[data-testid="webdav-sync-now"]').count()===0 && state.content===updated,'clearing connection keeps cloud file and disables backup until configured');
+        check(await page.locator('[data-testid="webdav-sync-now"]').count()===0 && state.content===headBackup,'clearing connection keeps cloud file and disables backup until configured');
         const final=await page.evaluate(() => chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'}));check(final.value.to==='de','clearing connection preserves device settings');
         check(report.consoleErrors.length===0,'no unhandled options page errors');report.ok=true;
     } catch (error) {report.failure=error.message;throw error;}

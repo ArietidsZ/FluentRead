@@ -7,11 +7,11 @@
 <template>
   <div class="manga-settings" data-testid="manga-settings">
     <section class="manga-settings-card">
-      <header><div><h2>{{ t('漫画连续翻译') }}</h2><p>{{ t('一次开启，滚动阅读时自动继续。随时切回原图。') }}</p></div><el-switch v-model="settings.imageTranslationMangaEnabled" :disabled="!available" :aria-label="t('启用漫画连续翻译')" /></header>
-      <div class="manga-setting-row"><div><strong>{{ t('独立漫画按钮') }}</strong><p>{{ t('关闭悬浮球时显示小漫画按钮。阅读和翻译时不自动弹出面板。') }}</p></div><el-switch v-model="settings.imageTranslationMangaPromptEnabled" :disabled="!available || !settings.imageTranslationMangaEnabled" :aria-label="t('独立漫画按钮')" /></div>
+      <header><div><h2>{{ t('漫画连续翻译') }}</h2><p>{{ t('开启后随滚动自动翻译新页面，可随时切回原图') }}</p></div><el-switch v-model="settings.imageTranslationMangaEnabled" :disabled="!available" :aria-label="t('启用漫画连续翻译')" /></header>
+      <div class="manga-setting-row"><div><strong>{{ t('独立漫画按钮') }}</strong><p>{{ t('隐藏悬浮球时显示独立漫画按钮，阅读和翻译过程中不会自动弹出面板') }}</p></div><el-switch v-model="settings.imageTranslationMangaPromptEnabled" :disabled="!available || !settings.imageTranslationMangaEnabled" :aria-label="t('独立漫画按钮')" /></div>
       <div class="manga-setting-fields">
-        <label class="manga-prefetch-setting">{{ t('提前翻译后续页面') }}<UiSelect v-model="settings.imageTranslationMangaPrefetchPages" :disabled="!available || !settings.imageTranslationMangaEnabled" :aria-label="t('提前翻译后续页面')"><el-option :value="0" :label="t('只翻译当前页面')">{{ t('只翻译当前页面') }}</el-option><el-option v-for="count in 5" :key="count" :value="count" :label="`${count} ${t('张图片')}`">{{ count }} {{ t('张图片') }}</el-option></UiSelect><small>{{ t('当前页优先，后台准备后续页面。只处理网站已加载的图片；更多页面会增加设备资源和翻译服务用量。') }}</small></label>
-        <label class="manga-cache-setting">{{ t('快速缓存图片数量') }}<UiSelect v-model="settings.imageTranslationMangaCachePages" :disabled="!available || !settings.imageTranslationMangaEnabled || !settings.useCache" :aria-label="t('快速缓存图片数量')"><el-option v-for="count in 24" :key="count" :value="count" :label="`${count} ${t('张图片')}`" /></UiSelect><small>{{ t('最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。') }}</small></label>
+        <label class="manga-prefetch-setting">{{ t('提前翻译后续页面') }}<UiSelect v-model="settings.imageTranslationMangaPrefetchPages" :disabled="!available || !settings.imageTranslationMangaEnabled" :aria-label="t('提前翻译后续页面')"><el-option :value="0" :label="t('只翻译当前页面')">{{ t('只翻译当前页面') }}</el-option><el-option v-for="count in 5" :key="count" :value="count" :label="`${count} ${t('张图片')}`">{{ count }} {{ t('张图片') }}</el-option></UiSelect><small>{{ t('优先翻译当前页，并在后台准备后续已加载的图片；增加预翻译页数会提高设备资源和翻译服务用量') }}</small></label>
+        <label class="manga-cache-setting">{{ t('快速缓存图片数量') }}<UiSelect v-model="settings.imageTranslationMangaCachePages" :disabled="!available || !settings.imageTranslationMangaEnabled || !settings.useCache" :aria-label="t('快速缓存图片数量')"><el-option v-for="count in 24" :key="count" :value="count" :label="`${count} ${t('张图片')}`" /></UiSelect><small>{{ t('最近页面可直接显示，较早页面保留轻量缓存并在返回时恢复；图片较大时会根据可用内存减少快速缓存数量') }}</small></label>
         <label>{{ t('翻译成') }}<UiSelect v-model="settings.to" :aria-label="t('漫画目标语言')"><el-option v-for="item in targetLanguages" :key="item.value" :value="item.value" :label="t(item.label)" data-i18n-ignore>{{ t(item.label) }}</el-option></UiSelect><small>{{ t('与网页默认目标语言同步') }}</small></label>
         <label>{{ t('翻译服务') }}<UiSelect v-model="settings.imageTranslationService" :empty-values="[null, undefined]" :placeholder="t('跟随网页翻译服务')" :aria-label="t('漫画翻译服务')"><el-option value="" :label="t('跟随网页翻译服务')">{{ t('跟随网页翻译服务') }}</el-option><el-option v-for="item in serviceOptions" :key="item.value" :value="item.value" :disabled="item.disabled" :label="t(item.label)" data-i18n-ignore>{{ t(item.label) }}</el-option></UiSelect><small>{{ t('识别和文字清除在本地，译文质量取决于所选服务') }}</small></label>
       </div>
@@ -26,9 +26,9 @@
       <summary>{{ t('支持的网站') }}</summary>
       <div class="manga-site"><span><strong data-i18n-ignore>MANGA Plus</strong><small>{{ t('阅读器页面 · 滚动自动翻译') }}</small></span><span class="manga-site-badge">{{ t('内置适配') }}</span></div>
       <div class="manga-site"><span><strong data-i18n-ignore>Pixiv</strong><small>{{ t('作品阅读页 · 自动识别正文图片') }}</small></span><span class="manga-site-badge">{{ t('内置适配') }}</span></div>
-      <p>{{ t('其他漫画网站会自动检测图片阅读器。画布、分片或受保护的阅读器需要单独适配。') }}</p>
-      <p>{{ t('进入阅读页即可识别，无需先开启普通图片翻译或悬浮球。') }}</p>
-      <details><summary>{{ t('添加其他漫画网站') }}</summary><p>{{ t('仅处理阅读页里可访问的图片。可按网站结构调整图片选择器，不绕过登录或付费限制。') }}</p>
+      <p>{{ t('其他漫画网站会自动检测图片阅读器，画布、分片或受保护的阅读器需单独适配') }}</p>
+      <p>{{ t('进入阅读页即可识别，无需先开启普通图片翻译或悬浮球') }}</p>
+      <details><summary>{{ t('添加其他漫画网站') }}</summary><p>{{ t('仅翻译阅读页中可访问的图片，可按网站结构调整图片选择器，不会绕过登录或付费限制') }}</p>
         <div v-for="(rule, index) in settings.imageTranslationMangaSites" :key="`${rule.hostname}${rule.pathPrefix}`" class="manga-custom-site"><span data-i18n-ignore>{{ rule.hostname }}{{ rule.pathPrefix }}<small>{{ rule.selector }}</small></span><button type="button" :aria-label="`${t('删除网站')} ${rule.hostname}`" @click="settings.imageTranslationMangaSites.splice(index, 1)">{{ t('删除') }}</button></div>
         <form @submit.prevent="addSite">
           <label>{{ t('阅读页或阅读路径') }}<input v-model="url" type="url" required placeholder="https://example.com/chapter/" :aria-label="t('阅读页或阅读路径')" /></label>

@@ -74,15 +74,24 @@ async function main() {
     await page.locator('#primary').hover(); await page.keyboard.press('Control');
     await page.locator('#primary > .fluent-read-bilingual-content').waitFor();
     const before = await page.locator('#primary').evaluate(el=>({html:el.innerHTML,rect:JSON.stringify(el.getBoundingClientRect())}));
-    const hover = async translatedSide => {
+    const hover = async (translatedSide, offset=0) => {
       const point = await page.evaluate(({source,translated,translatedSide})=>{
         const root=document.querySelector(translatedSide?'#primary .fluent-read-bilingual-content':'#primary');const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
         while(walker.nextNode()){const node=walker.currentNode;const index=node.textContent.indexOf(translatedSide?translated:source);if(index<0)continue;const range=document.createRange();range.setStart(node,index);range.setEnd(node,index+2);const rect=range.getClientRects()[0];return{x:rect.left+rect.width/2,y:rect.top+rect.height/2};}throw new Error('sentence missing');
-      },{source,translated,translatedSide});await page.mouse.move(point.x,point.y);await wait(100);
+      },{source,translated,translatedSide});await page.mouse.move(point.x+offset,point.y);await wait(100);
     };
     const shot = async (p,name)=>{const file=path.join(artifactsDir,`${name}.png`);await p.screenshot({path:file});report.screenshots.push(file);};
+    const entry = page.locator('#fluent-read-sentence-actions').getByRole('button',{name:'句子操作',exact:true});
     await hover(true);
     const toolbar = page.locator('#fluent-read-sentence-actions').getByRole('toolbar');
+    assert.equal(await entry.count(),0);assert.equal(await toolbar.count(),0);
+    await page.mouse.move(1300,500);await wait(900);assert.equal(await entry.count(),0);
+    report.checks.push('brief passes and pointer exit cancel the delayed entry without displaying the toolbar');
+    await hover(true);
+    // 重新定位真实文字，连续移动必须重置停留计时。
+    for(let i=0;i<4;i++){await hover(true,i%2?1:-1);await wait(200);assert.equal(await entry.count(),0);}
+    await entry.waitFor();assert.equal(await toolbar.count(),0);await shot(page,'sentence-entry');
+    await entry.click();
     await toolbar.waitFor(); await toolbar.getByRole('button',{name:'收藏句子',exact:true}).click();
     await toolbar.getByRole('button',{name:'已收藏',exact:true}).waitFor();
     await shot(page,'highlight-save');
@@ -91,17 +100,45 @@ async function main() {
     const contentWorld=worlds.find(world=>world.origin===origin && world.auxData?.isDefault===false);assert(contentWorld,'extension isolated world exists');
     await session.send('Runtime.evaluate',{contextId:contentWorld.id,expression:`globalThis.__sentenceSpeech=[];globalThis.SpeechSynthesisUtterance=class{constructor(text){this.text=text}};Object.defineProperty(window,'speechSynthesis',{configurable:true,value:{speak:u=>globalThis.__sentenceSpeech.push({text:u.text,language:u.lang}),cancel:()=>globalThis.__sentenceSpeech.push({stopped:true})}});`});
     const contentSpeech=async()=>JSON.parse((await session.send('Runtime.evaluate',{contextId:contentWorld.id,expression:'JSON.stringify(globalThis.__sentenceSpeech)',returnByValue:true})).result.value);
-    await toolbar.getByRole('button',{name:'播放',exact:true}).click();
+    await toolbar.getByRole('button',{name:'播放译文',exact:true}).click();
     for(let i=0;i<200;i++){if((await contentSpeech()).some(item=>item.text))break;await wait(50);}
-    assert.equal((await contentSpeech()).find(item=>item.text)?.text,source);
+    assert.deepEqual((await contentSpeech()).find(item=>item.text),{text:translated,language:'zh-CN'});
     await toolbar.getByRole('button',{name:'停止',exact:true}).click();assert((await contentSpeech()).some(item=>item.stopped));
-    report.checks.push('highlight toolbar plays original source from the translation side and stops its browser fallback');
+    await context.grantPermissions(['clipboard-read','clipboard-write']);
+    await toolbar.getByRole('button',{name:'复制',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),translated);
+    await hover(false);assert.equal(await toolbar.count(),0);await entry.waitFor();await entry.click();await toolbar.waitFor();
+    await toolbar.getByRole('button',{name:'播放原文',exact:true}).click();
+    for(let i=0;i<200;i++){if((await contentSpeech()).some(item=>item.text===source))break;await wait(50);}
+    assert.deepEqual((await contentSpeech()).find(item=>item.text===source),{text:source,language:'en-US'});
+    await toolbar.getByRole('button',{name:'停止',exact:true}).click();
+    await toolbar.getByRole('button',{name:'复制',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),source);
+    report.checks.push('same-pair side switching waits again; each side plays and copies its own text with the correct speech language');
     const request = async message => options.evaluate(message=>chrome.runtime.sendMessage(message),message);
     const list = async()=>{const result=await request({type:'fluentReadVocabularyBook',action:'list'});assert(result.success);return result.data;};
     let entries=await list();assert.equal(entries.length,1);assert.equal(entries[0].term,source);assert.equal(entries[0].translations['zh-hans'].text,translated);assert.equal(entries[0].kind,'sentence');
     assert.equal((await readConfig()).vocabularyBookEnabled,true);
     assert.deepEqual(await page.locator('#primary').evaluate(el=>({html:el.innerHTML,rect:JSON.stringify(el.getBoundingClientRect())})),before);
     report.checks.push('translation-side hover saves the exact original and translation, enables saving, preserves host DOM and geometry');
+    if(process.argv.includes('--toolbar-only')) {
+      await toolbar.getByRole('button',{name:'播放原文',exact:true}).focus();await page.keyboard.press('Escape');await toolbar.waitFor({state:'hidden'});
+      await hover(true);await page.mouse.wheel(0,120);await wait(900);assert.equal(await entry.count(),0);
+      await page.evaluate(()=>window.scrollTo(0,0));await wait(100);
+      await hover(true);await entry.waitFor();await entry.click();await toolbar.waitFor();await page.mouse.wheel(0,120);await toolbar.waitFor({state:'hidden'});
+      await page.evaluate(()=>window.scrollTo(0,0));await wait(100);
+      report.checks.push('Escape dismisses controls and scrolling cancels both pending and expanded controls');
+      await page.setViewportSize({width:390,height:844});await wait(100);await hover(true);await entry.waitFor();
+      const compact=await entry.boundingBox();assert(compact.width<=32);assert(compact.x>=8 && compact.x+compact.width<=382);
+      await shot(page,'sentence-entry-mobile');await entry.click();await toolbar.waitFor();
+      const expanded=await toolbar.boundingBox();assert(expanded.x>=8 && expanded.x+expanded.width<=382);
+      assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));await shot(page,'sentence-actions-mobile');
+      await page.setViewportSize({width:1440,height:960});await wait(100);
+      await hover(false);await entry.waitFor();await entry.click();await toolbar.waitFor();
+      await page.locator('#primary').hover();await page.keyboard.press('Control');await page.locator('#primary > .fluent-read-bilingual-content').waitFor({state:'detached'});await toolbar.waitFor({state:'hidden'});assert.equal(await entry.count(),0);
+      report.checks.push('390px entry and expanded controls stay in viewport; restoring removes highlight actions');
+      assert.equal(report.consoleErrors.length,0);report.requests=local.requests;report.ok=true;
+      process.stdout.write(JSON.stringify(report,null,2)+'\n');
+      return;
+    }
     await toolbar.getByRole('button',{name:'收藏列表 ↗',exact:true}).click();
     await options.reload();await options.locator('.word-row').waitFor();
     await options.getByRole('button',{name:'句子',exact:true}).click();assert.equal(await options.locator('.word-row').count(),1);

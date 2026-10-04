@@ -10,6 +10,22 @@ const xml = '<d:multistatus xmlns:d="DAV:"><d:response><d:href>/base/</d:href><d
 const response = (body: string | null, status = 200, headers: Record<string, string> = {}) => new Response(body, {status, headers});
 const metadata = (etag = '&quot;one&quot;', href = '/base/FluentRead/fluentread-config.encrypted.json') => `<d:multistatus xmlns:d="DAV:"><d:response><d:href>${href}</d:href><d:propstat><d:prop><d:getetag>${etag}</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>`;
 describe('WebDAV 文件协议', () => {
+    it('GET 和属性均未返回 ETag 时补查 HEAD，核对原密文后才可条件覆盖', async () => {
+        const fetcher=vi.fn().mockResolvedValueOnce(response(content)).mockResolvedValueOnce(response(metadata('W/&quot;weak&quot;'),207)).mockResolvedValueOnce(response(null,200,{etag:'"head"'})).mockResolvedValueOnce(response(content));
+        const remote=await createWebDavApi(fetcher).read(session);
+        expect(remote?.file.etag).toBe('"head"');
+        expect(remote?.file.readOnly).toBeUndefined();
+        expect(fetcher.mock.calls[2]).toMatchObject([connection.url+'FluentRead/fluentread-config.encrypted.json',{method:'HEAD'}]);
+        expect(fetcher.mock.calls[3][1]).toMatchObject({method:'GET',headers:{'If-Match':'"head"'}});
+        for (const status of [401,403,404,412,500]) {
+            const denied=vi.fn().mockResolvedValueOnce(response(content)).mockResolvedValueOnce(response(null,405)).mockResolvedValueOnce(response(null,status));
+            await expect(createWebDavApi(denied).read(session)).rejects.toThrow(WebDavError);
+        }
+        for (const header of [undefined,'W/"head"','unquoted']) {
+            const missing=vi.fn().mockResolvedValueOnce(response(content)).mockResolvedValueOnce(response(null,501)).mockResolvedValueOnce(response(null,200,header?{etag:header}:{}));
+            expect(await createWebDavApi(missing).read(session)).toMatchObject({file:{readOnly:true},content});
+        }
+    });
     it('接受属性响应中的局部命名空间、等号空白、数值实体和 CDATA', async () => {
         const body = '<multistatus xmlns="DAV:"><response xmlns:p = "DAV:"><p:href>/base/FluentRead/fluentread-config.encrypted.json</p:href><p:propstat><p:prop><p:getetag>&#34;one&#x22;</p:getetag></p:prop><p:status><![CDATA[HTTP/1.1 200 OK]]></p:status></p:propstat></response></multistatus>';
         const fetcher=vi.fn().mockResolvedValueOnce(response(content)).mockResolvedValueOnce(response(body,207)).mockResolvedValueOnce(response(content));
@@ -32,9 +48,9 @@ describe('WebDAV 文件协议', () => {
     it('属性不支持、缺少强版本或非目标文件仍可只读恢复，不信任异常 XML', async () => {
         const badXml = [metadata('W/&quot;one&quot;'),metadata('unquoted'),metadata('"'+'x'.repeat(513)+'"'),metadata().replace('DAV:','urn:other'),metadata().replace('xmlns:d="DAV:"','xmlns:d="DAV:" xmlns:d="urn:other"'), '<!DOCTYPE x>'+metadata(), '<!ENTITY x "private">'+metadata(), metadata().replace('/base/FluentRead/fluentread-config.encrypted.json','https://other.invalid/file'),metadata().replace('<d:href>','<wrong:href>'),metadata().replace('<d:response>','<d:response><d:response>'), metadata().replace('</d:multistatus>',metadata()+'</d:multistatus>'), metadata().replace('200 OK','404 Not Found'), metadata().replace('<d:getetag>', '<wrong:getetag>'), metadata().replace('</d:prop>','<d:getetag>"two"</d:getetag></d:prop>'),metadata().replace('<d:href>/base/FluentRead/fluentread-config.encrypted.json</d:href>','<d:href></d:href>')];
         for (const body of badXml) {
-            const fetcher = vi.fn().mockResolvedValueOnce(response(content)).mockResolvedValueOnce(response(body,207));
+            const fetcher = vi.fn().mockResolvedValueOnce(response(content)).mockResolvedValueOnce(response(body,207)).mockResolvedValueOnce(response(null,405));
             expect((await createWebDavApi(fetcher).read(session))?.file.etag).toBeUndefined();
-            expect(fetcher).toHaveBeenCalledTimes(2);
+            expect(fetcher).toHaveBeenCalledTimes(3);
         }
         for (const status of [401,403,404,500]) {
             const fetcher = vi.fn().mockResolvedValueOnce(response(content)).mockResolvedValueOnce(response('private response',status));
@@ -78,17 +94,17 @@ describe('WebDAV 文件协议', () => {
         expect(fetcher.mock.calls.every(([url]) => url.startsWith(connection.url))).toBe(true);
     });
     it('已有目录可新建，已存在备份只使用强 ETag 条件覆盖；没有 ETag 仍可读取', async () => {
-        const fetcher = vi.fn().mockResolvedValueOnce(response(null, 405)).mockResolvedValueOnce(response(null, 204)).mockResolvedValueOnce(response(content, 200)).mockResolvedValueOnce(response(null, 405));
+        const fetcher = vi.fn().mockResolvedValueOnce(response(null, 405)).mockResolvedValueOnce(response(null, 204)).mockResolvedValueOnce(response(content, 200)).mockResolvedValueOnce(response(null, 405)).mockResolvedValueOnce(response(null,501));
         const api = createWebDavApi(fetcher);
         const first = await api.write(session, content, null);
         expect(first.etag).toBeUndefined();
-        for (const etag of [undefined, 'W/"weak"', 'bad', '"'+ 'x'.repeat(513)+'"']) await expect(api.write(session, content, {...first, etag})).rejects.toMatchObject({code: 'etag'});
+        for (const etag of [undefined, 'W/"weak"', 'bad', '"'+ 'x'.repeat(513)+'"']) await expect(api.write(session, content, {...first, readOnly:undefined, etag})).rejects.toMatchObject({code: 'etag'});
         await expect(api.write(session, content, {...first, id: 'https://other.fixture.invalid', etag: '"one"'})).rejects.toMatchObject({code: 'etag'});
         fetcher.mockResolvedValueOnce(response(null, 204)).mockResolvedValueOnce(response(content, 200, {etag: '"two"'}));
-        expect(await api.write(session, content, {...first, etag: '"one"'})).toMatchObject({etag: '"two"'});
+        expect(await api.write(session, content, {...first, readOnly:undefined, etag: '"one"'})).toMatchObject({etag: '"two"'});
         expect(fetcher.mock.calls.at(-2)?.[1]).toMatchObject({method: 'PUT', headers: {'If-Match': '"one"'}});
         for (const etag of ['W/"weak"', 'bad']) {
-            fetcher.mockResolvedValueOnce(response(content, 200, {etag})).mockResolvedValueOnce(response(null, 501));
+            fetcher.mockResolvedValueOnce(response(content, 200, {etag})).mockResolvedValueOnce(response(null, 501)).mockResolvedValueOnce(response(null,405));
             expect((await api.read(session))?.file.etag).toBeUndefined();
         }
     });

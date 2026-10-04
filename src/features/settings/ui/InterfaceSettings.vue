@@ -13,12 +13,12 @@
   <SettingsPanel name="skin" :active="props.activePanel">
 <SettingsGroup
     :title="translateLegacy('界面与弹窗')"
-    :description="translateLegacy('从效率布局、趣味配色到夜间和护眼方案，选择适合自己的界面；也可以只留下常用栏目。')"
+    :description="translateLegacy('从效率布局、趣味配色到夜间和护眼方案，选择适合自己的界面；也可以只留下常用栏目')"
   >
     <SettingsItem
       class="interface-appearance-settings"
       :label="translateLegacy('弹窗风格')"
-      :description="translateLegacy('风格只改变扩展界面的呈现，不影响网页翻译效果。')"
+      :description="translateLegacy('风格只改变扩展界面的呈现，不影响网页翻译效果')"
     >
       <template #copy>
         <InterfaceSkinPreview

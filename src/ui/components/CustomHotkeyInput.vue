@@ -27,7 +27,7 @@
         <header class="dialog-header">
           <div class="dialog-heading">
             <h2 id="custom-hotkey-title">自定义快捷键</h2>
-            <p id="custom-hotkey-description">为当前功能设置一个顺手、易记且不容易冲突的按键组合。</p>
+            <p id="custom-hotkey-description">为当前功能设置一个顺手、易记且不容易冲突的按键组合</p>
           </div>
           <button class="dialog-close" type="button" aria-label="关闭自定义快捷键" @click="handleCancel">
             <UiIcon name="close" />
@@ -72,7 +72,7 @@
               </span>
             </button>
 
-            <p class="field-hint">支持 Ctrl、Alt、Shift 与字母或功能键组合；不支持使用 CMD/Meta 键。</p>
+            <p class="field-hint">支持 Ctrl、Alt、Shift 与字母或功能键组合；不支持使用 CMD/Meta 键</p>
           </section>
 
           <div
