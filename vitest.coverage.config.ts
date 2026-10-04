@@ -73,6 +73,7 @@ export default defineConfig({
             'tests/microsoftTransport.test.ts',
             'tests/optionalContentFeatures.test.ts',
             'tests/chineseLanguage.test.ts',
+            'tests/chineseTechnicalParagraphs.test.ts',
             'tests/languageCodes.test.ts',
             'tests/languageTechnicalTokens.test.ts',
             'tests/languageScripts.test.ts',
