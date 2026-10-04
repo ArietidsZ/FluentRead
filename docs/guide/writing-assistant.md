@@ -66,7 +66,7 @@
 
 </details>
 
-## 接下来
+## 相关文档
 
 - [只需要换一种语言：输入框翻译](/guide/input-translation)
 - [配置 AI 服务](/config/translation-engines)

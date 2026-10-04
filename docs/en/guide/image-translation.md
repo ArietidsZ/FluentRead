@@ -104,7 +104,7 @@ The hover entry skips common avatars, icons, logos, emoji, video previews, and s
 
 Recognition happens locally. Recognized text goes to the selected translation service; image pixels are not uploaded as part of text translation. Initial language-pack downloads require a network connection. See [Data & privacy](/en/guide/privacy).
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

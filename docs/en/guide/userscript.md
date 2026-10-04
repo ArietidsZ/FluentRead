@@ -76,7 +76,7 @@ Configuration stays in the script manager’s private storage. Translation text 
 
 </details>
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

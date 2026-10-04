@@ -1,80 +1,77 @@
-# 安装与第一次翻译
+# 快速开始
 
-从安装到看到第一段译文，按下面三步完成。免费翻译服务无需填写密钥。
-
-<GuideVisual kind="install" />
+本页介绍流畅阅读的安装方法和基本用法。
 
 ## 安装
 
-选择你正在使用的浏览器，进入官方商店添加 FluentRead：
+通过当前浏览器的官方扩展商店安装流畅阅读。
 
-| 浏览器 | 官方安装入口 |
-| --- | --- |
-| Chrome | [Chrome 应用商店](https://chromewebstore.google.com/detail/djnlaiohfaaifbibleebjggkghlmcpcj) |
-| Edge | [Edge 加载项](https://microsoftedge.microsoft.com/addons/detail/kakgmllfpjldjhcnkghpplmlbnmcoflp) |
-| Firefox | [Firefox 附加组件](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/) |
+<BrowserInstall />
 
 Chrome 商店打不开时，可以使用 [CRX搜搜（国内可用）](https://www.crxsoso.com/webstore/detail/djnlaiohfaaifbibleebjggkghlmcpcj)，或前往 [离线下载与安装](/guide/offline-install) 下载官方 ZIP 包。CRX搜搜是第三方分发网站，版本同步时间可能与官方商店不同。
 
-安装后将图标固定到工具栏。安装前已经打开的网页，刷新一次。
+下面演示在 Chrome 中的安装过程。点击 **添加至 Chrome** 后，核对浏览器列出的权限并点击 **添加扩展程序**。
 
-第一次打开菜单时，先点击欢迎页的 **设置界面语言 / Set interface language**。语言卡片会完整显示中文与英文名称；选择后点击 **确认 / Confirm** 进入主菜单，以后打开会直接显示主菜单。界面语言只影响扩展按钮与设置文字，网页翻译的目标语言在主菜单中单独选择。
-
-欢迎页只加载引导所需内容，双语提示随扩展提供。确认语言后才准备主菜单与所选界面的完整文案，等待和欢迎页保持稳定尺寸。
+<GuideVisual kind="install" />
 
 <details class="guide-details">
 <summary>手机、油猴脚本与 Thunderbird</summary>
 
-支持扩展的 **安卓 Edge** 可从扩展入口搜索 FluentRead，在扩展列表打开菜单，再点击网页翻译。手机使用菜单或已开启的悬浮球，不使用桌面快捷键和右键菜单。iPhone/iPad 上的 Edge 扩展可用性仍需另行确认。
+支持扩展的 **安卓 Edge** 可从扩展入口搜索 FluentRead。安装后在扩展列表中打开流畅阅读菜单，再点击网页翻译。手机可通过菜单或悬浮球操作。iPhone/iPad 上的 Edge 是否支持扩展，请以浏览器提供的功能为准。
 
 其他安装方式：[油猴脚本](/guide/userscript) · [Thunderbird 邮件翻译](/guide/thunderbird)。
 
 </details>
 
-## 第一次翻译
+## 固定扩展图标
 
-### 1. 打开文章
+将流畅阅读图标固定到工具栏后即可随时打开扩展菜单。
 
-用新闻、博客或论坛中的普通网页开始。浏览器设置页和扩展商店不允许扩展翻译。
+在 Chrome 中：
 
-### 2. 确认目标语言
+1. 点击地址栏右侧的 **扩展程序** 图标，形状像一块拼图。
+2. 在列表中找到 **流畅阅读**，点击右侧的固定图标。
+3. 工具栏中出现流畅阅读图标后，点击它即可打开扩展菜单。
 
-点击工具栏里的 FluentRead 图标。源语言保留 **自动检测**，目标语言选择你想读的语言；默认是 **简体中文**。服务保留 **免费翻译服务**。
+其他浏览器的工具栏菜单可能使用不同的名称。安装前已经打开的网页需要刷新后才能使用扩展。
 
-<figure class="doc-figure">
-<a href="/screenshots/ui/zh-CN/popup.webp" target="_blank" rel="noopener"><img class="doc-screenshot popup" src="/screenshots/ui/zh-CN/popup.webp" width="640" height="874" alt="实际扩展菜单：先确认目标语言和免费翻译服务，再点击网页翻译按钮" loading="lazy" /></a>
-<figcaption>真实扩展菜单。点击图片查看高清原图。</figcaption>
-</figure>
+<GuideVisual kind="pin" />
 
-### 3. 点击“翻译页面”
+## 翻译网页
 
-点击菜单中的 **翻译当前网页**。原文下方出现译文；向下滚动，继续阅读后面的段落。
+1. 打开一篇外语文章，例如新闻或博客。浏览器设置页和扩展商店不支持翻译。
+2. 点击工具栏中的流畅阅读图标。首次使用时，点击 **设置界面语言 / Set interface language**，选择语言并点击 **确认 / Confirm**。
+3. 在主菜单中确认目标语言。源语言可保留 **自动检测**，翻译服务可保留默认的 **免费翻译服务**。
+4. 点击 **翻译当前网页**，译文会显示在原文下方。向下滚动即可继续阅读。
 
-<BrandReader />
+免费翻译服务可以直接使用。界面语言用于显示按钮和设置名称，目标语言用于翻译网页内容，两者可以分别选择。
 
-### 4. 随时回到原文
+<GuideVisual kind="first-translation" />
 
-打开菜单，点击 **恢复当前网页**。想换语言或服务时，先恢复，再重新翻译。
+需要回到原文时，打开扩展菜单并点击 **恢复当前网页**。更换目标语言或服务后，请先恢复原文再重新翻译。
 
-<details class="guide-details">
-<summary>简繁转换与不需要翻译的文字</summary>
+## 划词翻译
 
-简体中文和繁体中文可以单独选择。已经属于目标中文书写体系的内容会保留原文；少量 AI、CoT、OpenAI 等缩写，以及 PDF、ePub、DOCX、Markdown 等格式名称不会让整段中文重复翻译。简繁转换、混合书写体系、完整外语段落或无法确认语言的内容仍会尝试翻译。
+点击扩展菜单中的 **划词翻译** 卡片并在弹出的设置面板中开启开关。然后用鼠标选中一个单词或句子。点击选中文字旁的流畅阅读图标，即可查看译文。
 
-</details>
+<GuideVisual kind="selection" />
 
-## 只想查一句话
+查词、朗读和句子讲解的详细用法见[划词翻译](/guide/deepseek-harness)。
 
-在菜单中开启 **划词翻译**。选中一句，点击附近的 FluentRead 图标看译文；需要查词或拆句时，切换[卡片模式](/guide/deepseek-harness)。
+## 悬浮段落翻译
 
-只查一个段落，可以把鼠标放在段落上，按 **Control**：[悬浮段落翻译](/guide/hover-translation)。
+点击扩展菜单中的 **鼠标悬停翻译** 卡片并确认 **默认悬浮快捷键** 已开启。将鼠标停在需要翻译的段落上并按下 **Control**，译文就会显示在这一段下方。再次按下 **Control** 可以恢复原文。
 
-## 点击后没有变化
+<GuideVisual kind="hover" />
 
-确认扩展已开启，刷新普通网页再试。免费服务繁忙时稍后重试，或[切换服务](/config/translation-engines)。仍无结果，按[常见问题](/guide/faq)排查。
+触发方式和快捷键可以修改，详见[悬浮段落翻译](/guide/hover-translation)。
 
-## 接下来
+## 常见问题
 
-- [选择下一项任务](/docs/)
-- [调整译文外观](/config/appearance)
-- [连接自己的 AI 服务](/config/translation-engines)
+如果点击翻译后没有变化，请确认扩展已开启，并刷新普通网页后重试。免费服务繁忙时可以稍后再试，或[切换翻译服务](/config/translation-engines)。其他问题见[常见问题](/guide/faq)。
+
+## 相关文档
+
+- [网页翻译](/guide/webpage-translation)
+- [译文外观与阅读辅助](/config/appearance)
+- [翻译服务](/config/translation-engines)

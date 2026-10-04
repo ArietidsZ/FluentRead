@@ -23,7 +23,7 @@ Some pages cannot copy images to the clipboard; save the PNG instead. Status app
 
 </details>
 
-## Next steps
+## Related guides
 
 - [Selection translation](/en/guide/deepseek-harness)
 - [Learning center](/en/guide/vocabulary-book)

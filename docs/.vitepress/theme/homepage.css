@@ -360,6 +360,7 @@
   font-weight: 550;
 }
 .fd {
+  container-type: inline-size;
   min-width: 0;
   border: 1px solid var(--fr-line);
   border-radius: 16px;
@@ -681,43 +682,9 @@
   font-size: 12px;
   color: var(--fr-muted);
 }
-.fd-document-pages {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  height: 270px;
-  margin-top: 14px;
-}
-.fd-document-pages article {
-  min-width: 0;
-  border: 1px solid var(--fr-line);
-  border-radius: 8px;
-  padding: 16px;
-}
-.fd-document-pages small {
-  font-size: 10px;
-  color: var(--fr-muted);
-}
-.fd .fd-document-pages h3 {
-  font: 600 22px/1.35 Georgia, 'Noto Serif SC', serif;
-  margin: 24px 0 16px;
-  text-align: left;
-}
-.fd-document-pages p {
-  font-size: 13px;
-}
-.fd-lines {
-  margin-top: 18px;
-}
-.fd-lines i {
-  display: block;
-  height: 4px;
-  background: #e9e7eb;
-  border-radius: 3px;
-  margin: 7px 0;
-}
-.fd-lines i:last-child {
-  width: 65%;
+.fd-document .fd-stage {
+  height: auto;
+  padding: 0;
 }
 .fd-comic {
   height: 270px;
@@ -972,6 +939,7 @@
     flex-wrap: wrap;
   }
   .bv-install-actions .bv-button {
+    height: 48px;
     min-height: 48px;
     padding: 11px 16px;
     font-size: 14px;
@@ -1000,17 +968,6 @@
   }
   .fd .fd-article h3 {
     font-size: 26px;
-  }
-  .fd-document-pages {
-    gap: 10px;
-    height: 272px;
-  }
-  .fd-document-pages article {
-    padding: 12px;
-  }
-  .fd .fd-document-pages h3 {
-    font-size: 20px;
-    margin-top: 20px;
   }
   .fd-comic,
   .fd-player {
@@ -1065,15 +1022,6 @@
   .fd-meta {
     font-size: 10px;
     gap: 6px;
-  }
-  .fd-document-pages article {
-    padding: 10px;
-  }
-  .fd .fd-document-pages h3 {
-    font-size: 18px;
-  }
-  .fd-document-pages p {
-    font-size: 12px;
   }
   .fd-card-body {
     padding: 12px;

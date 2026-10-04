@@ -116,19 +116,34 @@ const faqs = [
           >
         </h1>
         <p class="bv-hero-intro">
-          <span><span class="bv-hero-name">{{ t('流畅阅读', 'FluentRead') }}</span>{{
-            t(
-              '，一款开源的浏览器双语翻译插件',
-              ' is an open-source browser extension for bilingual translation.'
-            )
-          }}</span>
-          <span v-if="!en" class="bv-hero-capabilities"><span
-            v-for="(capability, index) in ['双语翻译', '划词翻译', '文档翻译', '图片/漫画翻译', '视频翻译']"
-            :key="capability"
-          >{{ index === 0 ? '支持' : '' }}{{ capability }}{{ index === 4 ? '。' : '、' }}</span></span>
-          <span v-else>Translate webpages, selected text, documents, images and comics, and video captions.</span>
+          <span
+            ><span class="bv-hero-name">{{ t('流畅阅读', 'FluentRead') }}</span
+            >{{
+              t(
+                '，一款开源的浏览器双语翻译插件',
+                ' is an open-source browser extension for bilingual translation.'
+              )
+            }}</span
+          >
+          <span v-if="!en" class="bv-hero-capabilities"
+            ><span
+              v-for="(capability, index) in [
+                '双语翻译',
+                '划词翻译',
+                '文档翻译',
+                '图片/漫画翻译',
+                '视频翻译',
+              ]"
+              :key="capability"
+              >{{ index === 0 ? '支持' : '' }}{{ capability }}{{ index === 4 ? '。' : '、' }}</span
+            ></span
+          >
+          <span v-else
+            >Translate webpages, selected text, documents, images and comics, and video
+            captions.</span
+          >
         </p>
-        <BrowserInstall :en="en" />
+        <BrowserInstall :en="en" show-docs />
       </div>
     </section>
     <section

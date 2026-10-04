@@ -14,7 +14,7 @@ Open a message and click “Translate / Restore current message” in its toolba
 
 Choose a translation service, languages, and display mode in settings before first use. If global automatic translation is enabled, newly opened messages are translated automatically. Translating a message sends its text to the selected translation service according to that service's behavior; choose a suitable service for private mail. Image OCR, area translation, and local speech playback are not available in the Thunderbird package yet.
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

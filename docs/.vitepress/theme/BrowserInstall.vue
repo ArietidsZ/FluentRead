@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { withBase } from 'vitepress'
 import BrowserGlyph from './BrowserGlyph.vue'
-defineProps<{ en?: boolean }>()
+defineProps<{ en?: boolean; showDocs?: boolean }>()
 const menu = ref<HTMLDetailsElement | null>(null)
 function outside(event: MouseEvent) {
   if (event.target instanceof Node && !menu.value?.contains(event.target) && menu.value)
@@ -65,6 +65,12 @@ onBeforeUnmount(() => {
           >
         </div>
       </details>
+      <a
+        v-if="showDocs"
+        class="bv-button bv-secondary bv-docs-link"
+        :href="withBase((en ? '/en' : '') + '/docs/')"
+        >{{ en ? 'Documentation' : '使用文档' }}</a
+      >
     </div>
     <div class="bv-install-fallbacks">
       <span>{{ en ? 'Can’t open the Chrome Web Store?' : 'Chrome 商店打不开？' }}</span>

@@ -55,7 +55,7 @@ Editing, matching, and target restoration happen locally. Translation sends prot
 
 </details>
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

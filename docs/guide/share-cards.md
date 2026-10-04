@@ -1,6 +1,6 @@
 # 双语分享卡片
 
-把读到的好句子，排成一张可分享的高清图片。
+将原文与译文排成一张高清图片，保存后即可分享。
 
 <GuideVisual kind="share" />
 
@@ -30,7 +30,7 @@
 
 </details>
 
-## 接下来
+## 相关文档
 
 - [划词翻译](/guide/deepseek-harness)
 - [学习中心](/guide/vocabulary-book)

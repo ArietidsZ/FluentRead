@@ -4,7 +4,7 @@ outline: false
 
 # Feature overview
 
-Find the guide for what you want to do. New to FluentRead? Start with [installation](/en/guide/getting-started).
+Explore FluentRead’s main features and how to use them. If you are new to FluentRead, start with [Quick start](/en/guide/getting-started).
 
 <GuideVisual kind="webpage" en />
 

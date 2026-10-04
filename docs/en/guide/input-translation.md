@@ -52,7 +52,7 @@ Choose an AI service and model if you need a particular tone. The optional promp
 
 </details>
 
-## Next steps
+## Related guides
 
 - [Writing assistant](/en/guide/writing-assistant)
 - [Translation providers](/en/config/translation-engines)

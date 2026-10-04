@@ -40,4 +40,4 @@ An unpacked extension does not receive store updates automatically. Before updat
 
 Download the new Chrome ZIP and extract it over the original installation folder, then select FluentRead’s **Reload** button on the extensions page. Refresh webpages you want to translate. Reuse the same folder to avoid duplicate installations and keep a backup of the previous folder before replacing files.
 
-Continue with [Installation & first translation](/en/guide/getting-started).
+After installation, follow [Quick start](/en/guide/getting-started) to pin FluentRead and translate a webpage.
