@@ -1,6 +1,33 @@
-# 漫画 GPU 性能专项验证
+# 漫画 GPU 与导航缓存专项验证
 
 任务分支：`codex/manga-pipeline-performance-20261004`。任务 worktree：`/Users/thinkstu/Desktop/copy/FluentRead-manga-pipeline-performance-20261004`。
+
+## 缓存与重试补充验收
+
+缓存实现 `85eb99c89b5a137fa0e71b0a41d3447e8047a666`；显式单页重试和实页布局采样修复 `0d8d0aa06a27588758bd4ae56fd8a440fc139a34`。这次补充不更换模型或推理算法，下文 GPU 对照保留其同环境测量，不能把缓存命中时间当成首次处理时间。
+
+- 最后重试改动后的受影响业务专项：16 文件、357 用例通过；WASM 诊断另 12 项通过，总计 17 文件、369 用例。`mangaReader`、`mangaSession`、`imageLoads`、`mangaOcr`、`mangaInpainting`、`mangaEncoding`、`mangaGpu`、`mangaSessionFallback`、`offscreenRuntime`、`shared/onnx/webgpu` 共 10 模块四维覆盖率均为 100%，没有忽略；未运行全量回归。
+- 补充用例覆盖译图数量/像素淘汰、大图不进入 LRU、空白结果零像素、上下左右返页、关闭缓存、源/目标语言失效、同地址重载和迟到首次加载、跨模式暂停、来源与 DOM 生命周期。重试先复现“成功后仍有错误”，再验证图片按钮和右键菜单都进入会话，等待另一页、发布进度、清除错误，重复点击/隐藏/暂停/卸载不能绕过队列或复活迟到结果。
+- 已知站点八轮几何移动不再重复查询正文列表（8 次→0 次）；宿主节点、正文标记、响应式源和自定义任意属性/伪状态选择器仍更新。提前页与附近页共用 800 万原图像素，优先准备最近下页；该计数不是整站帧率测量。
+- 最终重试实现重新通过类型检查、Chrome MV3 / Firefox MV2 生产构建、manifest、userscript/verifier；两种扩展未压缩 107.22 MB，userscript 1,894,682 字节。文档生产构建与校验通过（75 页、3754 链接、718 锚点、112 图片）。测试审计 455 文件、5824 个登记用例通过，这个总数是登记审计，不是本次全量执行数。
+- 同样五个架构文件最新 802 项中 799 通过、3 失败，与修改前快照及前一阶段一致：文档工具归属、其他模块覆盖率登记和内容组装入口行数上限。新增 `imageLoads` 已登记到唯一测试矩阵与严格覆盖率。没有放宽检查或新增失败。
+
+缓存阶段在实际 Chrome 154 中通过 24 项行为检查，全部使用本地经大小/hash 校验的四个模型资源，远端模型请求为 0；前两行使用受控文字传输，后两行使用在线 Google：
+
+| 证据目录 | 检查 | 返显结果与边界 |
+| --- | --- | --- |
+| `cache-navigation-final` | 六张夹具、竖向/横向远距往返、同地址原生重载、空白标记、暂停/重开、语言失效，7 项 | 14 次 2.9–17.7 毫秒；总共 5 个处理请求，有效返页不新增 OCR |
+| `cache-budget-prefetch-final` | 默认后三张、第五/六张不提前处理、准备页返显、暂停与设置持久化，7 项 | 初次当前加后三张共 4 次；当前页模式保存成功 |
+| `cache-live-mangaplus-final` | 用户提供章节 `1024050`、在途返页、往返不额外识别、严格暂停恢复与重开，5 项 | 8 次 0.2–25.9 毫秒；总共 3 次请求，包括专项源失效；扩展及未知错误为空 |
+| `cache-live-pixiv-layout-stable` | 用户提供作品 `150354216#1`、在途返页、严格暂停恢复与重开，5 项 | 8 次 6.9–67.5 毫秒；总共 2 次请求；保留两条广告宿主错误，扩展及未知错误为空 |
+
+上述 24 项是导航缓存阶段证明；最终单页重试另由确定性错误注入验证，不声称在真实供应商制造故障。最终重试构建还重跑受控导航专项 `cache-navigation-delivery`，7 项全部通过，14 次返显中位数 12.4 毫秒、范围 4.4–65.2 毫秒；没有新增缓存页 OCR，总共仍为 5 次处理、模型请求及扩展错误为空，临时配置已清理。数字来自最终构建，不以较早较小范围代替这次波动；结果见[缓存摘要](./navigation-cache.json)。所有隔离浏览器均在第二屏正常可见但未抢焦点，临时 profile 已删除；没有访问用户日常配置。
+
+Pixiv 首次暂停断言失败时，窗口由 900 高改为 700 高，宿主 resize 回调晚于原图采样，抓到了旧尺寸。脚本现在等宿主来源/样式稳定 300 毫秒再采样，且确认漫画尚未开启；严格对照 `style` 的断言不变。生产代码只接管原图 opacity/transition，没有写宽高。诊断记录 `cache-live-pixiv-final` 与成功记录都保留；没有把网站错误删除或归入扩展错误。不同网站/设备仍可能有渲染波动，上述小样本不构成 SLA。
+
+本机日志：`/private/tmp/manga-cache-delivery-{targeted,wasm,compile,chrome,firefox,manifests,userscript,userscript-verifier,audit,architecture,native}-20261004.log`。先前失败复现另存 `manga-cache-{reproduce,budget-reproduce,pause-reproduce,source-reproduce,retry-status-reproduce}-20261004.log`，不把探索运行计入最终通过数。
+
+## GPU 优化阶段与集成记录
 
 来源 PR #783 精确 head：`22aa69496490a05d5f7907930992ec6c3fca82c8`；基础 `origin/main`：`5ed16bc6c081587622c86563b4a75fc452c697fb`。本任务在独立分支本地合入来源历史，新 PR 包含其静默阅读及滚动交接改动，不更新、关闭或合并来源 PR。没有直接推送 main。
 
