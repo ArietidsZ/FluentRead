@@ -13,7 +13,7 @@ const { lang } = useData()
 const english = computed(() => props.en ?? lang.value.startsWith('en'))
 const t = (zh: string, en: string) => (english.value ? en : zh)
 const root = ref<HTMLElement | null>(null)
-const { step, playing, running, reduced, choose, replay } = useDemoPlayback(
+const { step, playing, running, reduced, choose, select, replay } = useDemoPlayback(
   root,
   6,
   true,
@@ -271,7 +271,15 @@ const activeStage = computed(() => (step.value === 0 ? 0 : step.value < 3 ? 1 : 
       <span>{{ text[0] }}</span>
       <span class="gv-example">{{ t('操作示意', 'Walkthrough') }}</span>
     </div>
-    <DemoSteps :labels="workflow" :active="activeStage" :label="t('操作流程', 'Workflow')" />
+    <DemoSteps
+      :labels="workflow"
+      :active="activeStage"
+      :label="t('操作流程', 'Workflow')"
+      :playing="playing"
+      :reduced="reduced"
+      :en="english"
+      @select="select($event, [0, 1, 3])"
+    />
     <div class="gv-stage">
       <template v-if="kind === 'sync'">
         <TransferFlow kind="sync" :en="english" :running="running" />

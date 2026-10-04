@@ -58,6 +58,13 @@ for (const [file, doc] of docs) {
   }
   for (const demo of doc.querySelectorAll('[data-visual],[data-demo]')) {
     assert(demo.querySelector('.ds'), `Animated walkthrough needs numbered workflow steps: ${file}`)
+    const stages = demo.querySelectorAll('.ds li')
+    const stageButtons = demo.querySelectorAll('.ds li > button')
+    assert.equal(stageButtons.length, stages.length, `Every workflow stage must be clickable: ${file}`)
+    for (const button of stageButtons) {
+      assert.equal(button.getAttribute('type'), 'button')
+      assert(button.getAttribute('aria-label'), `Step button needs an accessible action: ${file}`)
+    }
     assert.equal(
       demo.querySelectorAll('.ds-current').length,
       1,

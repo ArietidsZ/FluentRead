@@ -1,5 +1,19 @@
 <script setup lang="ts">
-defineProps<{ labels: string[]; active: number; label: string }>()
+const props = defineProps<{
+  labels: string[]
+  active: number
+  label: string
+  playing: boolean
+  reduced?: boolean
+  en?: boolean
+}>()
+defineEmits<{ select: [index: number] }>()
+function action(index: number) {
+  if (props.reduced) return props.en ? 'View this step' : '查看此步骤'
+  if (index !== props.active) return props.en ? 'Go to this step and pause' : '跳转到此步骤并暂停'
+  if (props.playing) return props.en ? 'Pause at this step' : '暂停在此步骤'
+  return props.en ? 'Resume autoplay' : '继续自动播放'
+}
 </script>
 <template>
   <ol class="ds" :aria-label="label">
@@ -9,8 +23,15 @@ defineProps<{ labels: string[]; active: number; label: string }>()
       :class="{ 'ds-current': index === active, 'ds-done': index < active }"
       :aria-current="index === active ? 'step' : undefined"
     >
-      <span aria-hidden="true">{{ index < active ? '✓' : index + 1 }}</span>
-      {{ text }}
+      <button
+        type="button"
+        :title="action(index)"
+        :aria-label="`${text}${en ? ': ' : '，'}${action(index)}`"
+        @click="$emit('select', index)"
+      >
+        <span aria-hidden="true">{{ index < active ? '✓' : index + 1 }}</span>
+        {{ text }}
+      </button>
     </li>
   </ol>
 </template>
@@ -28,13 +49,32 @@ defineProps<{ labels: string[]; active: number; label: string }>()
   line-height: 1.5;
 }
 .ds li {
+  min-width: 0;
+  margin: 0;
+}
+.ds button {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  min-height: 28px;
   margin: 0;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
-.ds li > span {
+.ds button:hover {
+  color: var(--vp-c-brand-1);
+}
+.ds button:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 3px;
+}
+.ds button > span {
   display: grid;
   place-items: center;
   flex: none;
@@ -48,11 +88,11 @@ defineProps<{ labels: string[]; active: number; label: string }>()
   color: var(--vp-c-brand-1);
   font-weight: 650;
 }
-.ds-current > span {
+.ds-current button > span {
   border-color: #ecc2cf !important;
   background: #fff4f7;
 }
-.ds-done > span {
+.ds-done button > span {
   color: #39796c;
 }
 @container (max-width: 470px) {
@@ -67,7 +107,7 @@ defineProps<{ labels: string[]; active: number; label: string }>()
     gap: 8px;
     font-size: 9px;
   }
-  .ds li {
+  .ds button {
     gap: 4px;
   }
 }
