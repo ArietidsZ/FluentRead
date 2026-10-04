@@ -31,7 +31,6 @@
 :root[data-interface-skin="minimal"] .popup-shell .brand img {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
   opacity: .78;
   box-shadow: none;
 }
