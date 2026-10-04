@@ -78,7 +78,7 @@
           "hostname": "comic-fuz.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "MangaDex",
@@ -173,12 +173,13 @@
           "hostname": "rimacomiplus.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "canvas"
     },
     {
       "name": "Heros Web",
       "hosts": [
-        "viewer.heros-web.com"
+        "viewer.heros-web.com",
+        "heros-web.com"
       ],
       "accessChecks": [
         {
@@ -192,7 +193,7 @@
           "hostname": "viewer.heros-web.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "canvas"
     },
     {
       "name": "Comic Days",
@@ -481,7 +482,7 @@
           "hostname": "corocoro.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "tonarinoyj",
@@ -652,7 +653,7 @@
           "hostname": "ac.qq.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "Sololevelingmangafree",
@@ -757,7 +758,7 @@
           "hostname": "younganimal.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "canvas"
     },
     {
       "name": "Piccoma",
@@ -1489,7 +1490,7 @@
           "hostname": "jumptoon.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "area"
     },
     {
       "name": "Fenoxo",
@@ -2413,7 +2414,7 @@
           "hostname": "manga-one.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "book.dmm.com",
@@ -2909,7 +2910,7 @@
           "hostname": "comic.mf-fleur.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "komiic.com",
@@ -4621,6 +4622,121 @@
       "restrictions": false,
       "scope": "Public chapter DOM research without extension; not OCR/translation verification",
       "readerFinding": "Dedicated chapter body selector inspected; runtime entry verification recorded separately"
+    },
+    {
+      "url": "https://rimacomiplus.jp/digitalmargaret/episodes/4a895d1d5884a",
+      "status": 200,
+      "imageCount": 22,
+      "canvasCount": 5,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "canvasReadable": true,
+      "readerFinding": "Dedicated body structure verified; runtime entry checks recorded separately"
+    },
+    {
+      "url": "https://heros-web.com/episodes/a806742880560",
+      "status": 200,
+      "imageCount": 21,
+      "canvasCount": 5,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "canvasReadable": true,
+      "readerFinding": "Dedicated body structure verified; runtime entry checks recorded separately"
+    },
+    {
+      "url": "https://younganimal.com/episodes/ff98f6eba590d",
+      "status": 200,
+      "imageCount": 11,
+      "canvasCount": 5,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "canvasReadable": true,
+      "readerFinding": "Dedicated body structure verified; runtime entry checks recorded separately"
+    },
+    {
+      "url": "https://comic-fuz.com/manga/4018",
+      "status": 200,
+      "imageCount": 20,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated body structure verified; runtime entry checks recorded separately"
+    },
+    {
+      "url": "https://manga-one.com/manga/28579/chapter/360007",
+      "status": 200,
+      "imageCount": 31,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated body structure verified; runtime entry checks recorded separately"
+    },
+    {
+      "url": "https://manga.bilibili.com/mc30124/595886?from=manga_homepage_card",
+      "status": 200,
+      "imageCount": 143,
+      "canvasCount": 4,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "canvasReadable": true,
+      "readerFinding": "Canvas structure inspected; sampled corner pixels are transparent and body readability/entry not yet verified"
+    },
+    {
+      "url": "https://comic.mf-fleur.jp/manga/cb245_01.html",
+      "status": 200,
+      "imageCount": 39,
+      "canvasCount": 1,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "canvasReadable": true,
+      "readerFinding": "Dedicated body structure verified; runtime entry checks recorded separately"
+    },
+    {
+      "url": "https://ac.qq.com/ComicView/index/id/656723/cid/105748",
+      "status": 200,
+      "imageCount": 1,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated body structure verified; runtime entry checks recorded separately"
+    },
+    {
+      "url": "https://pash-up.jp/viewer/viewer.html",
+      "status": 200,
+      "imageCount": 0,
+      "canvasCount": 5,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "canvasReadable": true,
+      "readerFinding": "Reader reports content currently unavailable; all canvases are empty 300x150 placeholders; source link found on public work page and opaque query omitted"
+    },
+    {
+      "url": "https://jumptoon.com/series/JT00064/episodes/14436/",
+      "status": 200,
+      "imageCount": 1,
+      "canvasCount": 88,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "canvasReadable": true,
+      "readerFinding": "Public chapter has tainted canvases; area fallback uses displayed page canvases and excludes cover"
+    },
+    {
+      "url": "https://www.corocoro.jp/chapter/10580/viewer",
+      "status": 200,
+      "imageCount": 18,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Dedicated body structure verified; runtime entry checks recorded separately"
+    },
+    {
+      "url": "https://globalcomix.com/read/c3ed08cb-4788-4dd8-8a14-035325562315",
+      "status": 200,
+      "imageCount": 0,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public chapter DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Public preview route opened but no chapter body rendered in observation window; not verified"
     }
   ],
   "verification": {
@@ -4997,6 +5113,149 @@
         "scope": "moduleBoundaries and sourceFileHeaders only; not full architecture regression"
       },
       "runtimeScope": "Chrome production artifact loaded in isolated Edge; Firefox and userscript are build-only validation"
+    },
+    "officialChapterProfilesUnit": {
+      "passed": true,
+      "files": 4,
+      "cases": 206,
+      "coverage": {
+        "modules": [
+          "src/core/config/mangaReaderProfiles.ts",
+          "src/features/image-translation/content/mangaSession.ts"
+        ],
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "scope": "New chapter selectors, single-visible-page synchronous cache reuse, canvas session/restore and body exclusion; live OCR checks separate"
+    },
+    "officialChapterEntries": {
+      "passed": true,
+      "cases": 25,
+      "liveReaders": [
+        {
+          "url": "https://rimacomiplus.jp/digitalmargaret/episodes/4a895d1d5884a",
+          "status": 200,
+          "mode": "canvas",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://heros-web.com/episodes/a806742880560",
+          "status": 200,
+          "mode": "canvas",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://younganimal.com/episodes/ff98f6eba590d",
+          "status": 200,
+          "mode": "canvas",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://comic-fuz.com/manga/4018",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://manga-one.com/manga/28579/chapter/360007",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://comic.mf-fleur.jp/manga/cb245_01.html",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://ac.qq.com/ComicView/index/id/656723/cid/105748",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://jumptoon.com/series/JT00064/episodes/14436/",
+          "status": 200,
+          "mode": "area",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://www.corocoro.jp/chapter/10580/viewer",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 3,
+      "hostErrorScope": "Jumptoon advertising scripts; host HTTP stack sources, kept separate from extension errors",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "browserFrontmost": false,
+      "profileRemoved": true,
+      "scope": "Nine actual reading-page entries; OCR and live translation recorded separately"
+    },
+    "officialChapterBuilds": {
+      "compile": true,
+      "chrome": true,
+      "firefox": true,
+      "userscript": true,
+      "extensionManifests": true,
+      "userscriptVerifier": true,
+      "userscriptBytes": 1916807,
+      "testAudit": {
+        "files": 466,
+        "cases": 6015
+      },
+      "integrationChecks": {
+        "files": 4,
+        "cases": 824,
+        "scope": "moduleBoundaries, sourceFileHeaders, mangaSessionFallback, mangaEntry; not full architecture regression"
+      },
+      "runtimeScope": "Chrome artifact loaded in isolated Edge; Firefox and userscript build-only validation",
+      "docs": true
+    },
+    "rimaReadableCanvasTranslation": {
+      "passed": true,
+      "url": "https://rimacomiplus.jp/digitalmargaret/episodes/4a895d1d5884a",
+      "cases": 4,
+      "caseNames": [
+        "public readable canvas runs real manga OCR and translated overlay without changing the source",
+        "pause restores the original canvas and repeated activation reuses the translated page",
+        "normal chapter turn translates new canvas pages through the same serial queue",
+        "master switch restores the chapter and removes canvas translation UI"
+      ],
+      "ocr": "real production PaddleOCR",
+      "translation": "live Google",
+      "firstVisibleGroupMs": 70700,
+      "sourcePreserved": true,
+      "stableAfterPointerExit": true,
+      "pauseReuseWithoutAnotherOcr": true,
+      "normalChapterTurn": true,
+      "masterSwitchCleanup": true,
+      "operations": 6,
+      "operationsScope": "Image operations may include no-text pages or page-turn cancellation; not a count of successfully translated pages",
+      "modelsPreloaded": true,
+      "modelRequests": 0,
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "pageErrors": 0,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "browserFrontmost": false,
+      "profileRemoved": true,
+      "screenshotsVisuallyInspected": [
+        "canvas-translated.png",
+        "canvas-stable-after-pointer.png",
+        "canvas-next-pages.png"
+      ],
+      "qualityScope": "Partial Chinese output confirmed; vertical lettering and ruby missed, original remnants and incorrect translations remain; not full chapter quality acceptance"
     }
   }
 }

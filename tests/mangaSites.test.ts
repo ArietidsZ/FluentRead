@@ -54,6 +54,16 @@ describe('漫画阅读规则与持久偏好', () => {
         ['https://roliascan.com/read/one-day-i-became-a-hatchling/ch28-327187/', '#chapter-images-container .comic-image-container img.comic-image'],
         ['https://mangadex.org/chapter/80da5ab1-b615-4564-9a19-0f1502dbde05', '.md--reader-pages .md--page img'],
         ['https://twicomi.com/manga/ngnchiikawa/2077704742067904960', '.tweet-images .image img'],
+        ['https://rimacomiplus.jp/digitalmargaret/episodes/4a895d1d5884a', ':not(*)'],
+        ['https://rimacomiplus.jp/episodes/fb291b54b795b', ':not(*)'],
+        ['https://heros-web.com/episodes/a806742880560', ':not(*)'],
+        ['https://younganimal.com/episodes/ff98f6eba590d', ':not(*)'],
+        ['https://comic-fuz.com/manga/4018', '[data-testid="placeholder"] > img[alt^="page_"]'],
+        ['https://manga-one.com/manga/28579/chapter/360007', '[data-testid="placeholder"] > img[alt^="page_"]'],
+        ['https://comic.mf-fleur.jp/manga/cb245_01.html', '.manga-content .manga-content__image img'],
+        ['https://ac.qq.com/ComicView/index/id/656723/cid/105748', '#comicContain > li > img'],
+        ['https://jumptoon.com/series/JT00064/episodes/14436/', ':not(*)'],
+        ['https://www.corocoro.jp/chapter/10580/viewer', '[data-testid="placeholder"] > img[alt^="page_"]'],
     ])('新增公开样本限定正文选择器 %s', (href, selector) => {
         expect(resolveMangaSite(href)).toMatchObject({selector,custom:false,requireContent:true});
     });
@@ -66,6 +76,11 @@ describe('漫画阅读规则与持久偏好', () => {
         ['rookie.shonenjump.com','/series/TWpXKpYkRIE'], ['webtoons.com','/en/romance/chocolate-snow/list'],
         ['mgeko.cc','/manga/title/'], ['roliascan.com','/read/title/ch28/extra'],
         ['mangadex.org','/chapter/name'], ['twicomi.com','/manga/author'],
+        ['rimacomiplus.jp','/digitalmargaret/episodes/abc/extra'], ['younganimal.com','/magazine/episodes/abc'],
+        ['comic-fuz.com','/manga/4018/extra'], ['manga-one.com','/manga/28579'],
+        ['comic.mf-fleur.jp','/lineup_comic/'], ['ac.qq.com','/Comic/ComicInfo/id/656723'],
+        ['jumptoon.com','/series/JT00064/'],
+        ['corocoro.jp','/title/62'],
     ])('正文规则不将目录、相似域名和额外路径识别成章节 %s%s', (host,path) => {
         expect(resolveMangaReaderProfile(host,path)).toBeNull();
     });

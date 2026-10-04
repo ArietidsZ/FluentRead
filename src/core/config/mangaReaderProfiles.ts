@@ -6,8 +6,9 @@
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
     'kuragebunch.com', 'shonenjumpplus.com', 'tonarinoyj.jp', 'comic-zenon.com', 'ichicomi.com']);
-export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-super-hero-comics.com'];
-export const MANGA_CANVAS_READER_HOSTS = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com'];
+export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-super-hero-comics.com', 'jumptoon.com'];
+export const MANGA_CANVAS_READER_HOSTS = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
+    'rimacomiplus.jp', 'heros-web.com', 'younganimal.com'];
 export function resolveMangaReaderProfile(hostname: string, pathname: string): {name: string; selector: string; canvasSelector?: string; canvasInteractionSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
     if (gigaHosts.has(host) && /^\/episode\/\d+\/?$/.test(pathname)) return {
@@ -15,7 +16,8 @@ export function resolveMangaReaderProfile(hostname: string, pathname: string): {
         canvasSelector: '.page-area canvas.page-image, .page-area canvas.js-page-image',
         areaSelector: '.page-area canvas.page-image, .page-area canvas.js-page-image',
     };
-    if (MANGA_CANVAS_READER_HOSTS.includes(host) && /^\/episodes\/[a-z0-9]+\/?$/.test(pathname)) return {
+    if (MANGA_CANVAS_READER_HOSTS.includes(host) && (/^\/episodes\/[a-z0-9]+\/?$/.test(pathname)
+        || host === 'rimacomiplus.jp' && /^\/[^/]+\/episodes\/[a-z0-9]+\/?$/.test(pathname))) return {
         name: host, selector: ':not(*)', canvasSelector: '#comici-viewer .-cv-page-canvas canvas',
         canvasInteractionSelector: '#comici-viewer #xCVLeftNav, #comici-viewer #xCVRightNav, #comici-viewer #xCVNavCenter',
         areaSelector: '#comici-viewer .-cv-page-canvas canvas',
@@ -62,6 +64,20 @@ export function resolveMangaReaderProfile(hostname: string, pathname: string): {
     };
     if (host === 'twicomi.com' && /^\/manga\/[^/]+\/\d+\/?$/.test(pathname)) return {
         name: 'Twitter Comic', selector: '.tweet-images .image img',
+    };
+    if (host === 'comic-fuz.com' && /^\/manga\/\d+\/?$/.test(pathname)
+        || host === 'manga-one.com' && /^\/manga\/\d+\/chapter\/\d+\/?$/.test(pathname)
+        || host === 'corocoro.jp' && /^\/chapter\/\d+\/viewer\/?$/.test(pathname)) return {
+        name: host, selector: '[data-testid="placeholder"] > img[alt^="page_"]',
+    };
+    if (host === 'comic.mf-fleur.jp' && /^\/manga\/[^/]+\.html$/.test(pathname)) return {
+        name: 'COMIC Fleur', selector: '.manga-content .manga-content__image img',
+    };
+    if (host === 'ac.qq.com' && /^\/ComicView\/index\/id\/\d+\/cid\/\d+\/?$/.test(pathname)) return {
+        name: '腾讯动漫', selector: '#comicContain > li > img',
+    };
+    if (host === 'jumptoon.com' && /^\/series\/[A-Z\d]+\/episodes\/\d+\/?$/.test(pathname)) return {
+        name: 'Jumptoon', selector: ':not(*)', areaSelector: 'div[id] > canvas',
     };
     if (host === 'yanmaga.jp' && /^\/viewer\/comics\//.test(pathname)) return {
         name: 'YanMaga', selector: ':not(*)', areaSelector: '.pt-img img',

@@ -189,6 +189,25 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it.each([
+        'https://rimacomiplus.jp/digitalmargaret/episodes/4a895d1d5884a',
+        'https://heros-web.com/episodes/a806742880560',
+        'https://younganimal.com/episodes/ff98f6eba590d',
+    ])('新增 Comici 实页等待正文画布，复用暂停结果且不调度宣传封面 %s', async href => {
+        const canvasPorts={identity:vi.fn().mockReturnValue('page-1'),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn()};
+        const f=readerFixture(false,href,undefined,undefined,undefined,canvasPorts);
+        expect(f.reader.status().available).toBe(false);
+        const container=f.document.createElement('div');container.id='comici-viewer';container.innerHTML='<div class="-cv-page-canvas"></div>';f.document.body.append(container);
+        const canvas=f.document.createElement('canvas') as HTMLCanvasElement;canvas.width=844;canvas.height=1200;
+        canvas.getBoundingClientRect=()=>({left:0,right:563,top:0,bottom:800,width:563,height:800}) as DOMRect;
+        container.firstElementChild!.append(canvas);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available:true,pageCount:1,areaFallback:false});f.reader.toggle();await flush();
+        expect(canvasPorts.translate).toHaveBeenCalledWith(canvas);expect(f.ports.translate).not.toHaveBeenCalled();
+        f.reader.toggle();expect(canvasPorts.restore).toHaveBeenCalledWith(canvas);
+        canvasPorts.reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledOnce();
+        canvasPorts.identity.mockReturnValue(null);f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({areaFallback:true,pageCount:0});
+        canvas.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
     it('另页正在识别时同步复用可见缓存页，不把其显示排在识别队列之后', async () => {
         let cached:HTMLImageElement;
         const reuse=vi.fn((image:HTMLImageElement)=>image===cached),pending=deferred();
@@ -234,10 +253,11 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
         f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);f.reader.dispose();
     });
-    it.each(['https://comic-days.com/episode/10834108156634732370', 'https://comic-zenon.com/episode/12207421983509986288', 'https://ichicomi.com/episode/2551460909671541131'])('画布正文只发布圈选入口，推荐图不进入队列，离屏和关闭后入口消失 %s', async href => {
+    it.each(['https://comic-days.com/episode/10834108156634732370', 'https://comic-zenon.com/episode/12207421983509986288', 'https://ichicomi.com/episode/2551460909671541131', 'https://jumptoon.com/series/JT00064/episodes/14436/'])('画布正文只发布圈选入口，推荐图不进入队列，离屏和关闭后入口消失 %s', async href => {
         const f=readerFixture(false,href);
         f.image.parentElement!.className='link-page-content';
         const page=f.document.createElement('div');page.className='page-area';
+        if(href.includes('jumptoon.com'))page.id='1';
         const canvas=f.document.createElement('canvas');canvas.className='js-page-image';page.append(canvas);f.document.body.append(page);
         let top=0;canvas.getBoundingClientRect=()=>({left:0,right:688,top,bottom:top+1024,width:688,height:1024}) as DOMRect;
         const pixels=vi.fn();canvas.getContext=pixels;
@@ -277,9 +297,15 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         ['https://roliascan.com/read/title/ch28-123/', '<div id="chapter-images-container"><a class="comic-image-container"></a></div>', '.comic-image-container'],
         ['https://mangadex.org/chapter/80da5ab1-b615-4564-9a19-0f1502dbde05', '<div class="md--reader-pages"><div class="md--page"></div></div>', '.md--page'],
         ['https://twicomi.com/manga/author/2077704742067904960', '<div class="tweet-images"><div class="image"></div></div>', '.image'],
+        ['https://comic-fuz.com/manga/4018', '<div data-testid="placeholder"></div>', '[data-testid]'],
+        ['https://manga-one.com/manga/28579/chapter/360007', '<div data-testid="placeholder"></div>', '[data-testid]'],
+        ['https://comic.mf-fleur.jp/manga/cb245_01.html', '<div class="manga-content"><div class="manga-content__image"></div></div>', '.manga-content__image'],
+        ['https://ac.qq.com/ComicView/index/id/656723/cid/105748', '<ul id="comicContain"><li></li></ul>', 'li'],
+        ['https://www.corocoro.jp/chapter/10580/viewer', '<div data-testid="placeholder"></div>', '[data-testid]'],
     ])('公开章节只调度正文而不选择正文容器外的封面 %s', async (href, markup, mount) => {
         const f=readerFixture(false,href);
         f.image.className='js-page-image _images comic-image';
+        f.image.alt='page_0';
         const wrapper=f.document.createElement('div');wrapper.innerHTML=markup;f.document.body.append(wrapper);
         const cover=f.image.cloneNode() as HTMLImageElement;cover.src='blob:cover';wrapper.append(cover);
         wrapper.querySelector(mount)!.append(f.image);

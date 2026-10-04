@@ -135,7 +135,10 @@ export function createMangaSession<T = HTMLImageElement>(ports: {
         active = !active;
         pages.forEach((page, image) => {
             if (!active) ports.restore(image);
-            else { page.attempted = false; page.failed = false;page.completed = false; }
+            else {
+                const reused = !suspended && page.visible && ports.reuse?.(image) === true;
+                page.attempted = reused;page.failed = false;page.completed = reused;
+            }
         });
         notify();
         pump();
