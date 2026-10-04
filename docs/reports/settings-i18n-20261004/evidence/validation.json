@@ -41,5 +41,24 @@
     "remote userscript CDN resource download",
     "external native-language review"
   ],
-  "publication": "local commits only; not pushed, merged, or released"
+  "publicationAtInitialDelivery": "local commits only; not pushed, merged, or released",
+  "integration": {
+    "mainBase": "eac8e7de",
+    "languageResourceCommit": "775e6a648a112cd522427943f0b71b4abab49ccb",
+    "testFiles": 7,
+    "tests": 111,
+    "compile": "passed",
+    "chromeBuild": "passed",
+    "firefoxBuild": "passed",
+    "userscriptBuildAndVerifier": "passed",
+    "browser": {
+      "views": 294,
+      "checks": 15,
+      "findings": 0,
+      "errors": 0
+    },
+    "docsBuild": "passed",
+    "docsTypecheck": "passed",
+    "docsCheck": "passed"
+  }
 }
