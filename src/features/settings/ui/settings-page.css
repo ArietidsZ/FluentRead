@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/ui/settings-page.css
  * 文件职责：定义 Options 设置应用的全局页面骨架与 Element Plus 外观覆盖，包括分组侧边栏与搜索、页内分类、滚动工作区、设置卡片和特殊全宽业务视图。
- * 主要内容：样式引入共享 token，将品牌名称与小字宣传语排列在固定尺寸图标右侧；关于页以一张整体卡片展示简短简介与版本，下方并排展示紧凑项目链接和赞赏方式；配置桌面与窄屏响应式布局、焦点态、导航分组、数字输入的独立操作区、支持多语言换行的表单与操作控件、服务/翻译中心视图、深色主题及固定标签列和控件列。
+ * 主要内容：样式引入共享 token，将品牌名称与小字宣传语排列在固定尺寸图标右侧；关于页使用宽幅品牌介绍与体验入口，下方以项目链接卡片和独立赞赏区利用内容空间；配置桌面与窄屏响应式布局、焦点态、导航分组、数字输入的独立操作区、支持多语言换行的表单与操作控件、服务/翻译中心视图、深色主题及固定标签列和控件列。
  * 模块边界：该文件只作用于扩展设置页面的整体布局，不承载配置逻辑或 feature 内部组件细节；分区专属样式在 settings-sections.css，通用设计变量位于 src/ui/styles/tokens.css。
  */
 @import "../../../ui/styles/tokens.css";
@@ -317,39 +317,76 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .settings-card .el-collapse-item__content { padding: 4px 16px 18px; }
 .settings-card .el-divider__text { color: var(--muted); font-size: 11px; }
 .sidebar-tagline { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
-.about-page { --settings-content-width: 840px; width: 100%; min-height: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-.about-overview { min-width: 0; }
-.about-hero { display: flex; align-items: center; gap: 12px; padding: 20px 20px 0; }
-.about-logo { flex: none; width: 40px; height: 40px; border-radius: 10px; }
+/* 关于页保持宽幅内容布局；使用真实项目信息与快捷入口建立层次，不依赖固定视口高度。 */
+.about-page { --settings-content-width: 1320px; display: grid; gap: 24px; width: 100%; min-width: 0; }
+.about-hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); align-items: center; gap: 48px; padding: clamp(28px, 3vw, 48px); border: 1px solid var(--line); border-radius: 24px; background: radial-gradient(ellipse at top left, var(--brand-soft), transparent 70%), var(--surface); }
 .about-intro { min-width: 0; }
-.about-hero p { margin: 0 0 4px; color: var(--ink); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
-.about-version { color: var(--muted); font-size: 12px; line-height: 1.5; }
-.about-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .8fr); }
-.about-panel { min-width: 0; padding: 20px; }
-.about-panel h3 { margin: 0 0 12px; color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.5; }
-.about-support-panel { border-left: 1px solid var(--line); }
-.about-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; max-width: 400px; align-content: start; }
-.about-links a { display: flex; align-items: center; gap: 8px; min-width: 0; width: fit-content; max-width: 100%; min-height: 36px; padding: 6px 8px; border-radius: 6px; color: var(--ink); font-size: 13px; line-height: 1.5; text-decoration: none; }
-.about-links a > span { min-width: 0; overflow-wrap: anywhere; }
-.about-links .fr-ui-icon { color: var(--muted); }
-.about-links a:hover { color: var(--brand-strong); background: var(--surface-soft); }
-.about-links a:hover .fr-ui-icon { color: var(--brand-strong); }
-.about-links a:focus-visible, .about-support-method:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 2px; }
-.about-support-options { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
-.about-support-method { max-width: 100%; color: var(--ink); font-size: 13px; line-height: 1.5; text-decoration: none; }
-.about-support-wechat { display: grid; flex: none; justify-items: center; gap: 6px; width: 144px; border-radius: 8px; }
-.about-support-qr { display: block; width: 100%; height: auto; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 8px; background: #fff; object-fit: contain; }
+.about-identity { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+.about-logo { flex: none; width: 64px; height: 64px; border-radius: 18px; }
+.about-identity > div { display: grid; min-width: 0; gap: 6px; }
+.about-identity strong { font-size: 24px; font-weight: 700; letter-spacing: -.03em; }
+.about-version { color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.about-intro h2 { max-width: 15em; margin: 0; color: var(--ink); font-size: clamp(28px, 2.6vw, 42px); font-weight: 700; line-height: 1.4; letter-spacing: -.035em; text-wrap: balance; overflow-wrap: anywhere; }
+.about-experience { min-width: 0; padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.about-experience h3 { margin: 0 0 8px; color: var(--ink); font-size: 18px; font-weight: 650; line-height: 1.5; }
+.about-experience > p { margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.about-features { display: grid; gap: 6px; }
+.about-features button { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 12px; border: 0; border-radius: 10px; color: var(--ink); background: var(--surface-soft); text-align: left; cursor: pointer; }
+.about-features button > span { flex: 1; min-width: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.about-features button > .fr-ui-icon:first-child { color: var(--brand-strong); }
+.about-features button > .fr-ui-icon:last-child { color: var(--muted); }
+.about-features button:hover { color: var(--brand-strong); background: var(--brand-soft); }
+.about-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(340px, 1fr); gap: 24px; align-items: stretch; }
+.about-panel { min-width: 0; padding: 28px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+.about-panel h3 { margin: 0 0 10px; color: var(--ink); font-size: 20px; font-weight: 650; line-height: 1.5; }
+.about-panel-description { margin: 0 0 24px; color: var(--muted); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.about-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.about-links a { display: grid; grid-template-columns: 40px minmax(0, 1fr) 16px; align-items: center; gap: 12px; min-width: 0; min-height: 104px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; color: var(--ink); background: var(--surface); text-decoration: none; transition: border-color 160ms ease, background 160ms ease; }
+.about-link-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: var(--brand-strong); background: var(--brand-soft); }
+.about-link-copy { display: grid; min-width: 0; gap: 6px; overflow-wrap: anywhere; }
+.about-link-copy strong { font-size: 14px; font-weight: 600; line-height: 1.5; }
+.about-link-copy small { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.about-links a > .fr-ui-icon { color: var(--muted); }
+.about-links a:hover { border-color: var(--brand); background: var(--surface-soft); }
+.about-links a:hover strong, .about-links a:hover > .fr-ui-icon { color: var(--brand-strong); }
+.about-features button:focus-visible, .about-links a:focus-visible, .about-support-method:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 3px; }
+.about-support-options { display: flex; align-items: center; justify-content: center; gap: 24px; }
+.about-support-method { max-width: 100%; color: var(--ink); font-size: 13px; line-height: 1.6; text-decoration: none; }
+.about-support-wechat { display: grid; flex: 0 0 176px; justify-items: center; gap: 10px; width: 176px; border-radius: 12px; }
+.about-support-qr { display: block; width: 100%; height: auto; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 12px; background: #fff; object-fit: contain; }
 .about-support-wechat:hover { color: var(--brand-strong); }
-.about-support-wechat:hover .about-support-qr { border-color: var(--brand-strong); }
-.about-support-kofi-link { display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 6px 0; color: var(--brand-strong); }
+.about-support-wechat:hover .about-support-qr { border-color: var(--brand); }
+.about-support-copy { display: grid; min-width: 0; gap: 16px; }
+.about-support-kofi-link { display: flex; align-items: center; justify-content: center; gap: 10px; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--brand-strong); background: var(--surface-soft); }
 .about-support-kofi-link span { min-width: 0; overflow-wrap: anywhere; }
-.about-support-kofi-link:hover span { text-decoration: underline; text-underline-offset: 3px; }
-@media (max-width: 1000px) and (min-width: 701px) {
-  .about-grid { grid-template-columns: minmax(0, 1fr) minmax(250px, .9fr); }
-  .about-links { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.about-support-kofi-link:hover { border-color: var(--brand); background: var(--brand-soft); }
+@media (max-width: 1200px) and (min-width: 701px) {
+  .about-hero { grid-template-columns: minmax(0, 1fr) minmax(260px, .9fr); gap: 24px; padding: 28px; }
+  .about-grid { grid-template-columns: minmax(0, 1fr); }
+  .about-panel { padding: 24px; }
+  .about-support-options { align-items: center; }
+  .about-support-copy { max-width: 280px; }
 }
-@media (max-width: 380px) {
-  .about-links { grid-template-columns: minmax(0, 1fr); gap: 0; }
+@media (max-width: 900px) {
+  .about-hero { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .about-intro h2 { max-width: none; }
+}
+@media (max-width: 700px) {
+  .about-page { gap: 16px; }
+  .about-hero { gap: 24px; padding: 24px; border-radius: 18px; }
+  .about-identity { margin-bottom: 22px; }
+  .about-logo { width: 52px; height: 52px; border-radius: 14px; }
+  .about-identity strong { font-size: 22px; }
+  .about-experience { padding: 20px; }
+  .about-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .about-panel { padding: 24px; border-radius: 18px; }
+}
+@media (max-width: 480px) {
+  .about-links { grid-template-columns: minmax(0, 1fr); }
+  .about-links a { min-height: 88px; }
+  .about-support-options { flex-direction: column; align-items: center; gap: 20px; }
+  .about-support-wechat { flex-basis: auto; width: 192px; align-self: center; }
+  .about-support-copy { justify-items: center; text-align: center; }
 }
 /* 桌面侧栏按可用高度收紧留白；保留字号与全部入口，极矮窗口仍独立滚动。 */
 @media (min-width: 701px) {
@@ -457,11 +494,6 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
   .settings-card .margin-left-2em { margin-right: 0 !important; margin-left: 0 !important; }
   .settings-card .el-collapse-item__header { padding: 0 14px; }
   .settings-card .el-collapse-item__content { padding: 4px 8px 14px; }
-  .about-hero { padding: 16px 16px 0; }
-  .about-hero p { font-size: 13px; }
-  .about-grid { grid-template-columns: minmax(0, 1fr); }
-  .about-panel { padding: 16px; }
-  .about-support-panel { border-top: 1px solid var(--line); border-left: 0; }
 }
 
 @media (max-width: 480px) {
