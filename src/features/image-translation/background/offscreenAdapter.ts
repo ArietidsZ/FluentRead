@@ -16,7 +16,10 @@ import {
     type OffscreenClient,
 } from '@/src/platform/offscreen/client';
 
+import {parseMangaPatchPacket} from '../mangaPatchResult';
+
 interface OffscreenResponse {
+    readonly mangaPatches?: unknown;
     readonly success?: boolean;
     readonly error?: string;
     readonly image?: unknown;
@@ -50,10 +53,11 @@ function parseTranslationResult(
     response: OffscreenResponse | undefined,
     fallback: string,
 ): OffscreenImageTranslationResult {
-    if (!response?.success || typeof response.image !== 'string' || !Array.isArray(response.lines)) {
+    if (!response?.success || (typeof response.image !== 'string' && response.mangaPatches === undefined) || !Array.isArray(response.lines)) {
         throw new Error(errorMessage(response, fallback));
     }
-    return {image: response.image, lines: response.lines as OffscreenImageTranslationResult['lines']};
+    return {image: typeof response.image === 'string' ? response.image : '', lines: response.lines as OffscreenImageTranslationResult['lines'],
+        ...(response.mangaPatches === undefined ? {} : {mangaPatches: parseMangaPatchPacket(response.mangaPatches)})};
 }
 
 function parseImageDataResult(response: OffscreenResponse | undefined, fallback: string): string {

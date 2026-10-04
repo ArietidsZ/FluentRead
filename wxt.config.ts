@@ -1,3 +1,4 @@
+import {mangaOnnxBuildPlugin} from './scripts/wasm/manga-onnx-build';
 import {defineConfig, type ConfigEnv, type UserManifest, type Entrypoint, type EntrypointGroup} from 'wxt';
 import vue from '@vitejs/plugin-vue';
 import {resolve} from 'path';
@@ -197,7 +198,7 @@ export default defineConfig({
     vite: (env) => {
         const isProductionBuild = env.command === 'build' && env.mode === 'production';
         return {
-            plugins: [vue(), wllamaExtensionWorker(), escapeExtensionNoncharacters()],
+            plugins: [vue(),mangaOnnxBuildPlugin(), wllamaExtensionWorker(), escapeExtensionNoncharacters()],
             define: {
                 'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.version),
             },
@@ -226,8 +227,8 @@ export default defineConfig({
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/ppu-paddle-ocr/LICENSE'), relativeDest: 'third-party-notices/ppu-paddle-ocr-MIT.txt'});
             files.push({absoluteSrc: resolve(fs.realpathSync(resolve(__dirname, 'node_modules/ppu-paddle-ocr')), '../ppu-ocv/LICENSE'), relativeDest: 'third-party-notices/ppu-ocv-MIT.txt'});
             const mangaOrtDist = resolve(__dirname, 'node_modules/onnxruntime-web/dist');
-            files.push({absoluteSrc: packageWasmDiagnostics(__dirname, resolve(mangaOrtDist, 'ort-wasm-simd-threaded.mjs'), 'manga-ort-wasm-simd-threaded.mjs', 'onnx'), relativeDest: 'fluent-read-manga/ort-wasm-simd-threaded.mjs'});
-            files.push({absoluteSrc: resolve(mangaOrtDist, 'ort-wasm-simd-threaded.wasm'), relativeDest: 'fluent-read-manga/ort-wasm-simd-threaded.wasm'});
+            files.push({absoluteSrc: packageWasmDiagnostics(__dirname, resolve(mangaOrtDist, 'ort-wasm-simd-threaded.asyncify.mjs'), 'manga-ort-wasm-simd-threaded.asyncify.mjs', 'onnx'), relativeDest: 'fluent-read-manga/ort-wasm-simd-threaded.asyncify.mjs'});
+            files.push({absoluteSrc: resolve(mangaOrtDist, 'ort-wasm-simd-threaded.asyncify.wasm'), relativeDest: 'fluent-read-manga/ort-wasm-simd-threaded.asyncify.wasm'});
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@wllama/wllama/esm/wasm/wllama.wasm'), relativeDest: 'fluent-read-ai/wllama.wasm'});
             const opusOrtDist = resolvePnpmDependencyDist('node_modules/@huggingface/transformers', 'onnxruntime-web');
             files.push({absoluteSrc: packageWasmDiagnostics(__dirname, resolve(opusOrtDist, 'ort-wasm-simd-threaded.jsep.mjs'), 'ort-wasm-simd-threaded.jsep.mjs', 'onnx'), relativeDest: 'fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs'});

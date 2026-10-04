@@ -61,3 +61,11 @@ export function resolveMangaSite(href: string, rules: MangaSiteRule[] = []): Man
         return null;
     } catch { return null; }
 }
+
+/** 正常页快速复用的容量；总像素预算另行约束超长、超大图片。 */
+export function normalizeMangaCachePages(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value) ? Math.max(1, Math.min(24, Math.floor(value))) : 12;
+}
+export function mangaCachePixelBudget(value: unknown): number {
+    return normalizeMangaCachePages(value) * 2_000_000;
+}

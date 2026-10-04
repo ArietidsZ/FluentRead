@@ -5,6 +5,9 @@
  * 模块边界：静态界面词典，不翻译漫画内容、不读取配置、不调用服务。
  */
 const english = {
+  "漫画译图数据无效": "The translated image data is invalid",
+  "快速缓存图片数量": "Images kept ready to display",
+  "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "Recent pages display immediately. Earlier pages use a compact cache and are restored when you return. Large images may reduce the number kept ready to fit the memory budget.",
   "未检测到文字，已保留原图": "No text detected. Original kept.",
   "正在准备后续页面": "Preparing upcoming pages",
   "作品阅读页 · 自动识别正文图片": "Artwork reader · Automatic image detection",
@@ -53,8 +56,8 @@ const english = {
   "以后不再提示": "Do not show this again",
   "一次开启，滚动阅读时自动继续。随时切回原图。": "Start once, then continue as you scroll. Return to the original anytime.",
   "启用漫画连续翻译": "Enable continuous manga translation",
-  "进入漫画网站时提示": "Show a prompt on manga sites",
-  "关闭悬浮球后仍可看到漫画入口。选择“以后不再提示”后，可在这里重新开启。": "The manga entry remains available with the floating button hidden. Re-enable prompts here after choosing not to show them.",
+  "独立漫画按钮": "Standalone manga button",
+  "关闭悬浮球时显示小漫画按钮。阅读和翻译时不自动弹出面板。": "Show a small manga button when the floating button is hidden. Reading and translation never open a panel automatically.",
   "与网页默认目标语言同步": "Shared with the default webpage target language",
   "识别和文字清除在本地，译文质量取决于所选服务": "Recognition and text removal run locally. Translation quality depends on the selected service.",
   "支持的网站": "Supported sites",
@@ -93,6 +96,8 @@ const english = {
 export const mangaLegacyMessages = {
   "en-US": english,
   "ja-JP": {...english, ...{
+  "快速缓存图片数量": "すぐに表示できる画像数",
+  "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "最近のページはすぐに表示されます。以前のページは軽量キャッシュから復元します。大きな画像ではメモリ上限に合わせて保持数を減らします。",
   "提前翻译后续页面": "次のページを先に翻訳",
   "只翻译当前页面": "現在のページのみ",
   "张图片": "枚",
@@ -103,7 +108,7 @@ export const mangaLegacyMessages = {
   "图片/漫画翻译": "画像・漫画翻訳",
   "漫画翻译": "漫画翻訳",
   "漫画设置": "漫画設定",
-  "进入漫画网站时提示": "漫画サイトで案内を表示",
+  "独立漫画按钮": "独立した漫画ボタン",
   "以后不再提示": "今後表示しない",
   "首次使用，先准备阅读资源": "初回は読書用リソースを準備",
   "准备资源并开始": "リソースを準備して開始",
@@ -123,6 +128,8 @@ export const mangaLegacyMessages = {
   "支持的网站": "対応サイト"
 }},
   "ko-KR": {...english, ...{
+  "快速缓存图片数量": "바로 표시할 이미지 수",
+  "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "최근 페이지는 바로 표시합니다. 이전 페이지는 경량 캐시에서 복원하며, 큰 이미지는 메모리 한도에 맞춰 보관 수가 줄어듭니다.",
   "提前翻译后续页面": "다음 페이지 미리 번역",
   "只翻译当前页面": "현재 페이지만",
   "张图片": "이미지",
@@ -133,7 +140,7 @@ export const mangaLegacyMessages = {
   "图片/漫画翻译": "이미지/만화 번역",
   "漫画翻译": "만화 번역",
   "漫画设置": "만화 설정",
-  "进入漫画网站时提示": "만화 사이트에서 안내 표시",
+  "独立漫画按钮": "독립 만화 버튼",
   "以后不再提示": "다시 표시하지 않기",
   "首次使用，先准备阅读资源": "처음에는 읽기 리소스를 준비하세요",
   "准备资源并开始": "리소스 준비 후 시작",
@@ -153,6 +160,8 @@ export const mangaLegacyMessages = {
   "支持的网站": "지원 사이트"
 }},
   "fr-FR": {...english, ...{
+  "快速缓存图片数量": "Images prêtes à afficher",
+  "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "Les pages récentes s’affichent immédiatement. Les pages précédentes sont restaurées depuis un cache compact. Les grandes images peuvent réduire le nombre conservé selon la limite de mémoire.",
   "提前翻译后续页面": "Traduire les pages suivantes à l’avance",
   "只翻译当前页面": "Pages actuelles uniquement",
   "张图片": "images",
@@ -163,7 +172,7 @@ export const mangaLegacyMessages = {
   "图片/漫画翻译": "Traduction d’images et de mangas",
   "漫画翻译": "Traduction de mangas",
   "漫画设置": "Réglages des mangas",
-  "进入漫画网站时提示": "Afficher une invite sur les sites de mangas",
+  "独立漫画按钮": "Bouton manga indépendant",
   "以后不再提示": "Ne plus afficher",
   "首次使用，先准备阅读资源": "Préparer les ressources pour la première lecture",
   "准备资源并开始": "Préparer et commencer",
@@ -183,6 +192,8 @@ export const mangaLegacyMessages = {
   "支持的网站": "Sites pris en charge"
 }},
   "ru-RU": {...english, ...{
+  "快速缓存图片数量": "Изображения, готовые к показу",
+  "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "Недавние страницы отображаются сразу. Предыдущие восстанавливаются из компактного кэша. Для больших изображений количество страниц уменьшается с учётом лимита памяти.",
   "提前翻译后续页面": "Заранее переводить следующие страницы",
   "只翻译当前页面": "Только текущие страницы",
   "张图片": "изображений",
@@ -193,7 +204,7 @@ export const mangaLegacyMessages = {
   "图片/漫画翻译": "Перевод изображений и манги",
   "漫画翻译": "Перевод манги",
   "漫画设置": "Настройки манги",
-  "进入漫画网站时提示": "Показывать подсказку на сайтах манги",
+  "独立漫画按钮": "Отдельная кнопка манги",
   "以后不再提示": "Больше не показывать",
   "首次使用，先准备阅读资源": "Подготовьте ресурсы для первого чтения",
   "准备资源并开始": "Подготовить и начать",
@@ -213,6 +224,8 @@ export const mangaLegacyMessages = {
   "支持的网站": "Поддерживаемые сайты"
 }},
   "es-ES": {...english, ...{
+  "快速缓存图片数量": "Imágenes listas para mostrar",
+  "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "Las páginas recientes se muestran al instante. Las anteriores se restauran desde una caché compacta. Las imágenes grandes pueden reducir la cantidad guardada para ajustarse al límite de memoria.",
   "提前翻译后续页面": "Traducir las siguientes páginas por adelantado",
   "只翻译当前页面": "Solo las páginas actuales",
   "张图片": "imágenes",
@@ -223,7 +236,7 @@ export const mangaLegacyMessages = {
   "图片/漫画翻译": "Traducción de imágenes y manga",
   "漫画翻译": "Traducción de manga",
   "漫画设置": "Ajustes de manga",
-  "进入漫画网站时提示": "Mostrar aviso en sitios de manga",
+  "独立漫画按钮": "Botón independiente de manga",
   "以后不再提示": "No volver a mostrar",
   "首次使用，先准备阅读资源": "Preparar recursos para la primera lectura",
   "准备资源并开始": "Preparar y comenzar",

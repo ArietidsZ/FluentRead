@@ -1,6 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const mocks = vi.hoisted(() => ({recognize: vi.fn(), inpaint: vi.fn(), background: vi.fn(), draw: vi.fn(), mangaRecognize:vi.fn(), repair:vi.fn(), mangaDraw:vi.fn()}));
+const mocks = vi.hoisted(() => ({recognize: vi.fn(), inpaint: vi.fn(), background: vi.fn(), draw: vi.fn(), mangaRecognize:vi.fn(), repair:vi.fn(), mangaDraw:vi.fn(), encode:vi.fn()}));
+vi.mock('@/src/features/image-translation/services/mangaEncoding',()=>({encodeMangaCanvas:mocks.encode}));
 vi.mock('@/src/features/image-translation/services/mangaOcr',()=>({mangaOcrRuntime:{recognize:mocks.mangaRecognize}}));
 vi.mock('@/src/features/image-translation/services/mangaInpainting',()=>({mangaInpaintingRuntime:{repair:mocks.repair}}));
 vi.mock('@/src/features/image-translation/services/mangaRendering',()=>({drawMangaTranslations:mocks.mangaDraw}));
@@ -85,6 +86,7 @@ async function flushMicrotasks() { for (let index = 0; index < 8; index += 1) aw
 
 beforeEach(() => {
     vi.resetAllMocks();
+    mocks.encode.mockResolvedValue('data:image/png;base64,translated');
     imageOptions.length = 0;
     images.length = 0;
     canvases.length = 0;
@@ -112,6 +114,9 @@ describe('Offscreen 图片完整操作生命周期', () => {
         expect(mocks.recognize).not.toHaveBeenCalled();expect(mocks.inpaint).not.toHaveBeenCalled();expect(mocks.draw).not.toHaveBeenCalled();
         expect(mocks.mangaDraw).toHaveBeenCalledWith(canvases[0].context,expect.any(Uint8ClampedArray),32,16,[expect.objectContaining({text:'你好',sourceBoxes:regions[0].sourceBoxes})],true);
         expect(result.lines[0]).toMatchObject({text:'你好',sourceText:'Hello'});
+        expect(mocks.encode).toHaveBeenCalledWith(canvases[1],undefined);
+        expect(result.image).toBe(''); expect(result.mangaPatches).toMatchObject({width:32,height:16,patches:[{x:1,y:1,width:30,height:14}]});
+        expect(canvases[1].context.drawImage).toHaveBeenCalledWith(canvases[0],1,1,30,14,0,0,30,14);expect(canvases[0].toDataURL).not.toHaveBeenCalled();
         expect(sendMessage.mock.calls.filter(([m])=>m.type==='fluentReadImageProgress').map(([m])=>m.stage)).toEqual(['preparing','recognizing','translating','cleaning','preparing','cleaning','rendering']);
         expect(sendMessage).toHaveBeenCalledWith({type:'fluentReadImageProgress',requestId:'manga-page',stage:'cleaning',progress:50},expect.any(Function));
         expect(images[0].src).toBe('');expect(canvases[0].width).toBe(0);

@@ -19,8 +19,9 @@ describe('Google Drive 完整快照和安全合并', () => {
         expect(JSON.stringify(unknown.changes)).not.toMatch(/private|toString/u);
     });
     it('提前翻译零页跨设备保留，差异预览使用设置名称', () => {
-        const fixture=complete({imageTranslationMangaPrefetchPages:0});
+        const fixture=complete({imageTranslationMangaPrefetchPages:0,imageTranslationMangaCachePages:18});
         expect(parseDriveSyncPayload(driveSyncPayload(fixture)).imageTranslationMangaPrefetchPages).toBe(0);
+        expect(parseDriveSyncPayload(driveSyncPayload(fixture)).imageTranslationMangaCachePages).toBe(18);
         expect(buildDriveSyncDiff(null,{imageTranslationMangaPrefetchPages:3},fixture).changes).toContainEqual(expect.objectContaining({label:'提前翻译后续页面'}));
     });
     it('保留全部指定凭据及请求体/URL 鉴权，省略本机统计和迁移状态', () => {

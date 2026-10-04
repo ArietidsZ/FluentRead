@@ -390,6 +390,7 @@
       "tests/imageTranslationClientRecovery.test.ts",
       "tests/imageTranslationRuntime.test.ts",
       "tests/imageTranslationPageRead.test.ts",
+      "tests/imageLoads.test.ts",
       "tests/imageSourceAuthorization.test.ts",
       "tests/imageTranslationOffscreenRuntime.test.ts",
       "tests/siteAdaptationRuntime.test.ts",
@@ -423,9 +424,15 @@
       "tests/mangaOcr.test.ts",
       "tests/mangaOcrAssets.test.ts",
       "tests/mangaInpainting.test.ts",
+      "tests/mangaEncoding.test.ts",
+      "tests/mangaGpu.test.ts",
+      "tests/mangaSessionFallback.test.ts",
+      "tests/mangaOnnxBuild.test.ts",
       "tests/mangaBubbles.test.ts",
       "tests/webDavBackup.test.ts",
-      "tests/webDavHttpIntegration.test.ts"
+      "tests/webDavHttpIntegration.test.ts",
+      "tests/mangaPatchResult.test.ts",
+      "tests/mangaCompositor.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",

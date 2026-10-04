@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/offscreenRuntime.ts
  * 文件职责：在隔离 Offscreen 文档中编排图片重绘翻译，并为圈选文本翻译提供仅裁剪和本地 OCR 的独立入口。
- * 主要内容：图片解码时前置尺寸校验和取消/超时清理，复用解码位图完成真实阶段通知、OCR 与完整译文绘制，独立保留全部识别原文与译文供核对；导出图片和圈选入口，在完成或失败后释放临时图像与画布。
+ * 主要内容：图片解码时前置尺寸校验和取消/超时清理，复用解码位图完成真实阶段通知、OCR 与完整译文绘制，独立保留全部识别原文与译文供核对；漫画只异步编码最终局部图块，避免整页压缩；导出图片和圈选入口，在完成或失败后释放临时图像与画布。
  * 模块边界：该运行时只在具备 Canvas/DOM 的 Offscreen 环境执行，不直接接收 browser.runtime 事件；消息入口由 app/offscreen 组装，翻译函数由依赖注入，几何算法来自 area feature。
  */
 import {IMAGE_PROGRESS_MESSAGE_TYPE, type ImageTranslationStage} from '../progress';
@@ -14,11 +14,14 @@ import {mangaOcrRuntime} from './mangaOcr';
 import {drawMangaTranslations} from './mangaRendering';
 import type {MangaRegion} from './mangaRegions';
 import {mangaInpaintingRuntime} from './mangaInpainting';
+import {encodeMangaCanvas} from './mangaEncoding';
+import {mangaPatchRects, type MangaPatchPacket} from '../mangaPatchResult';
 
 export type OffscreenImageTranslationLine = OcrLine & { backgroundColor: string; sourceText?: string };
 
 export interface OffscreenImageTranslationResult {
     image: string;
+    mangaPatches?: MangaPatchPacket;
     lines: OffscreenImageTranslationLine[];
 }
 
@@ -207,7 +210,7 @@ async function prepareTranslatedImage(
     const translatedLines = selectChangedTranslations(lines, translations);
     const readingLines = lines.map((line, index) => ({...line, sourceText: line.text, text: translations[index]?.trim() || line.text, backgroundColor: 'transparent'}));
     // 品牌名或已经是目标语言的文字仍可阅读/复制，不应把识别成功显示为错误。
-    if (translatedLines.length === 0) return {image: source.src, lines: readingLines};
+    if (translatedLines.length === 0) return manga ? {image: '', mangaPatches: {width: source.naturalWidth || source.width, height: source.naturalHeight || source.height, patches: []}, lines: readingLines} : {image: source.src, lines: readingLines};
     const canvas = document.createElement('canvas');
     try {
         canvas.width = source.naturalWidth || source.width;
@@ -226,9 +229,19 @@ async function prepareTranslatedImage(
             reportProgress(requestId,'rendering');
             drawMangaTranslations(context, sourcePixels.data, canvas.width, canvas.height, translatedLines as MangaRegion[],true);
             await checkImageCancellation(signal);
-            const image = canvas.toDataURL('image/png');
-            throwIfImageOperationAborted(signal);
-            return {image, lines: readingLines};
+            const patches: MangaPatchPacket['patches'] = [];
+            for (const rect of mangaPatchRects(translatedLines as MangaRegion[], canvas.width, canvas.height)) {
+                const patchCanvas = document.createElement('canvas');
+                try {
+                    patchCanvas.width = rect.width; patchCanvas.height = rect.height;
+                    const patchContext = patchCanvas.getContext('2d');
+                    if (!patchContext) throw new Error('浏览器不支持图片处理');
+                    patchContext.drawImage(canvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+                    patches.push({...rect, image: await encodeMangaCanvas(patchCanvas, signal)});
+                    throwIfImageOperationAborted(signal);
+                } finally {patchCanvas.width = 0; patchCanvas.height = 0;}
+            }
+            return {image: '', mangaPatches: {width: canvas.width, height: canvas.height, patches}, lines: readingLines};
         }
         const pixels = inpaintTextRegions(sourcePixels.data, canvas.width, canvas.height, translatedLines);
         sourcePixels.data.set(pixels);
