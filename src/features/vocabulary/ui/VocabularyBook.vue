@@ -18,6 +18,10 @@
       @update:model-value="setBetaEnabled"
     />
 
+    <FeatureEnableCard v-if="!reviewActive" class="vocabulary-reencounter-control"
+      :title="t('reencounter.setting')" :description="t(reencounterSupported ? 'reencounter.settingHelp' : 'reencounter.unsupported')"
+      :model-value="reencounterEnabled" :disabled="configBusy || !reencounterSupported" @update:model-value="setReencounterEnabled" />
+
     <div v-if="!reviewActive && betaEnabled && !selectionTranslatorEnabled" class="selection-reminder" role="note">
       <span>收藏入口位于网页学习卡中；当前划词翻译和阅读助手都未开启。</span>
       <button type="button" @click="emit('navigate', 'settings-selection')">前往开启</button>
@@ -183,6 +187,7 @@ import {ReadingAnswer} from '@/src/features/reading-assistant/public';
 import {ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
 import {normalizeUiLanguage, translate, translateLegacyText} from '@/src/core/i18n';
+import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {createSelectionTtsClientRequestId, createSelectionTtsContentController, normalizeSpeechLanguage} from '@/src/features/selection-translation/speech/public';
 import {
   config as runtimeConfig,
@@ -219,7 +224,11 @@ import {
 } from '@/src/features/vocabulary/learningModel';
 
 const emit = defineEmits<{ navigate: [section: string] }>();
+const uiLanguage = ref(normalizeUiLanguage(runtimeConfig.uiLanguage));
+const t = (key: string): string => translate(key, uiLanguage.value);
+const reencounterSupported = browserCapabilities.browser !== 'userscript';
 const betaEnabled = ref(false);
+const reencounterEnabled = ref(false);
 const selectionTranslatorEnabled = ref(false);
 const targetLanguageKey = ref('');
 const configBusy = ref(false);
@@ -477,6 +486,17 @@ async function setBetaEnabled(enabled: boolean): Promise<void> {
   } finally {
     configBusy.value = false;
   }
+}
+
+async function setReencounterEnabled(enabled: boolean): Promise<void> {
+  if (configBusy.value) return;
+  configBusy.value = true; reencounterEnabled.value = enabled;
+  try {
+    await requestConfigPatch({vocabularyReencounterEnabled: enabled}, browser.runtime.sendMessage.bind(browser.runtime));
+  } catch (cause) {
+    reencounterEnabled.value = runtimeConfig.vocabularyReencounterEnabled === true;
+    showToast(cause instanceof Error ? cause.message : t('reencounter.settingFailed'));
+  } finally { configBusy.value = false; }
 }
 
 function replaceEntry(next: VocabularyEntry): void {
@@ -769,12 +789,16 @@ onMounted(async () => {
   darkMedia = window.matchMedia('(prefers-color-scheme: dark)');
   darkMedia.addEventListener('change', applyTheme);
   await lifecycle.runAfterReady(configReady, async () => {
+    uiLanguage.value = normalizeUiLanguage(runtimeConfig.uiLanguage);
     betaEnabled.value = runtimeConfig.vocabularyBookEnabled;
+    reencounterEnabled.value = runtimeConfig.vocabularyReencounterEnabled;
     selectionTranslatorEnabled.value = runtimeConfig.selectionTranslatorMode !== 'disabled' || runtimeConfig.harness?.enabled === true;
     targetLanguageKey.value = normalizeLanguageKey(runtimeConfig.to);
     applyTheme();
     unsubscribeConfig = subscribeConfig(next => {
+      uiLanguage.value = normalizeUiLanguage(next.uiLanguage);
       betaEnabled.value = next.vocabularyBookEnabled;
+      reencounterEnabled.value = next.vocabularyReencounterEnabled;
       selectionTranslatorEnabled.value = next.selectionTranslatorMode !== 'disabled' || next.harness?.enabled === true;
       targetLanguageKey.value = normalizeLanguageKey(next.to);
       applyTheme();

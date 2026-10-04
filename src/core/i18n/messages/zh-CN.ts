@@ -6,6 +6,7 @@
  * 现有中文用户在切换或升级配置后仍看到兼容文案。
  * 模块边界：资源只描述扩展自己的界面文本；翻译服务的源文本、目标文本和用户内容不属于这里。
  */
+import reencounterText from './reencounter/zh-CN.json';
 import brandTaglines from './brand-taglines.json';
 import {onboardingChineseMessages} from './onboarding';
 import googleDriveText from './google-drive/zh-CN.json';
@@ -17,6 +18,7 @@ import {translationStatsChineseMessages} from './translationStats';
 import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
+    ...reencounterText,
     "settings.headers.title": "移除来源请求头",
     "settings.headers.help": "名单默认为空。仅对 FluentRead 后台发往所填精确域名的请求生效，所有服务共用，不包含子域名；移除或取消勾选即可恢复。",
     "settings.headers.unsupported": "当前环境不支持此选项。请使用支持 declarativeNetRequest 的浏览器扩展；油猴版不支持。",

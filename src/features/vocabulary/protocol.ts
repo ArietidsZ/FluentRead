@@ -54,6 +54,8 @@ export type VocabularyBookErrorCode =
     | 'storage-error';
 
 export type VocabularyBookAction =
+    | 'reencounterList'
+    | 'reencounterGet'
     | 'list'
     | 'get'
     | 'getByTerm'

@@ -51,6 +51,7 @@ const assertions = [
   [!source.includes('fluent-read-image-translation-root'), 'image translator must be excluded from userscript'],
   [!source.includes('fluent-read-video-subtitle-style'), 'video subtitle runtime must be excluded from userscript'],
   [!source.includes('fluent-read-writing-assistant'), 'writing assistant runtime must be excluded from userscript'],
+  [!source.includes('fluent-read-vocabulary-reencounter'), 'vocabulary reencounter runtime must be excluded from userscript'],
   [!source.includes('fluent:prefill'), 'page-driven New API config bridge must be excluded from userscript'],
   [!source.includes('CHROME_TRANSLATE_OFFSCREEN'), 'Chrome offscreen translator must be excluded from userscript'],
 ];
