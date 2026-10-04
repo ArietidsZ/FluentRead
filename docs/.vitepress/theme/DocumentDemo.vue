@@ -1,6 +1,7 @@
 <!-- 官网文档翻译示意：用本地示例文件、逐段译文与带页码的报告版式呈现导入和双语阅读，不调用翻译服务。 -->
 <script setup lang="ts">
 import { computed } from 'vue'
+import DemoSteps from './DemoSteps.vue'
 
 const props = defineProps<{ step: number; en?: boolean }>()
 const t = (zh: string, english: string) => (props.en ? english : zh)
@@ -46,24 +47,18 @@ const pages = computed(() =>
       </div>
       <span class="dd-language">{{ t('英语 → 简体中文', 'Chinese → English') }}</span>
     </div>
-    <ol class="dd-steps" :aria-label="t('文档翻译流程', 'Document translation workflow')">
-      <li
-        v-for="(stage, index) in stages"
-        :key="stage"
-        :class="{ 'dd-current': index === activeStage, 'dd-done': index < activeStage }"
-        :aria-current="index === activeStage ? 'step' : undefined"
-      >
-        <span aria-hidden="true">{{ index < activeStage ? '✓' : index + 1 }}</span>
-        {{ stage }}
-      </li>
-    </ol>
+    <DemoSteps
+      :labels="stages"
+      :active="activeStage"
+      :label="t('文档翻译流程', 'Document translation workflow')"
+    />
 
     <div class="dd-workspace">
       <div v-if="step === 0" class="dd-import">
         <svg viewBox="0 0 48 56" aria-hidden="true">
           <path d="M7 2h22l12 12v38H7Z M29 2v12h12 M15 26h18 M15 33h18 M15 40h11" />
         </svg>
-        <strong>{{ t('把文档拖进来，开始翻译', 'Drop a document to translate') }}</strong>
+        <strong>{{ t('把文件拖到这里', 'Drop files here') }}</strong>
         <span class="dd-import-file">
           <span class="dd-file-icon" aria-hidden="true">PDF</span>
           energy-report.pdf
@@ -71,17 +66,6 @@ const pages = computed(() =>
         <small>{{ t('支持 PDF、Word、ePub 等格式', 'PDF, Word, ePub and more') }}</small>
       </div>
       <template v-else>
-        <div class="dd-thumbnails" aria-hidden="true">
-          <div v-for="page in 3" :key="page" :class="{ 'dd-thumbnail-active': page === 1 }">
-            <span class="dd-mini-page">
-              <i></i>
-              <i></i>
-              <i></i>
-              <b></b>
-            </span>
-            <small>{{ page }}</small>
-          </div>
-        </div>
         <div
           class="dd-spread"
           :aria-label="t('报告原文与译文对照示例', 'Original and translated report example')"
@@ -217,41 +201,6 @@ const pages = computed(() =>
 }
 .dd-language {
   white-space: nowrap;
-}
-.dd-steps {
-  display: flex;
-  justify-content: center;
-  gap: 24px;
-  margin: 0;
-  padding: 0 20px 14px;
-  list-style: none;
-  color: var(--fr-muted);
-}
-.dd-steps li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-.dd-steps li > span {
-  display: grid;
-  place-items: center;
-  width: 17px;
-  height: 17px;
-  border: 1px solid var(--fr-line);
-  border-radius: 50%;
-  font-size: 9px;
-}
-.dd-steps .dd-current {
-  color: var(--vp-c-brand-1);
-  font-weight: 650;
-}
-.dd-current > span {
-  border-color: #ecc2cf !important;
-  background: #fff4f7;
-}
-.dd-done > span {
-  color: #39796c;
 }
 .dd-workspace {
   display: flex;
@@ -516,11 +465,6 @@ const pages = computed(() =>
     width: 100%;
     padding-left: 40px;
   }
-  .dd-steps {
-    gap: 14px;
-    padding-inline: 10px;
-    font-size: 10px;
-  }
   .dd-workspace {
     gap: 0;
     height: 400px;
@@ -549,10 +493,6 @@ const pages = computed(() =>
   }
 }
 @container (max-width: 320px) {
-  .dd-steps {
-    gap: 10px;
-    font-size: 9px;
-  }
   .dd-workspace {
     height: 440px;
     padding-inline: 8px;

@@ -5,6 +5,8 @@ import BrandReader from './BrandReader.vue'
 import BrowserGuide from './BrowserGuide.vue'
 import FeatureDemo from './FeatureDemo.vue'
 import TransferFlow from './TransferFlow.vue'
+import DemoSteps from './DemoSteps.vue'
+import SettingsGuide from './SettingsGuide.vue'
 import { useDemoPlayback } from './useDemoPlayback'
 const props = defineProps<{ kind: string; en?: boolean; compact?: boolean }>()
 const { lang } = useData()
@@ -15,7 +17,7 @@ const { step, playing, running, reduced, choose, replay } = useDemoPlayback(
   root,
   6,
   true,
-  [300, 400, 300, 1500, 1500, 1500]
+  [1800, 1200, 1200, 1800, 1800, 1800]
 )
 const changed = computed(() => step.value >= 3)
 const style = computed(() => Math.max(0, step.value - 3) % 3)
@@ -121,6 +123,106 @@ const words = computed(
     } as Record<string, string[]>)
 )
 const text = computed(() => words.value[props.kind] || words.value.shortcuts)
+const workflows = computed<Record<string, string[]>>(() => ({
+  compare: [
+    t('输入原文', 'Enter text'),
+    t('选择服务并翻译', 'Compare providers'),
+    t('对照结果', 'Read the results'),
+  ],
+  sync: [
+    t('连接云存储', 'Connect storage'),
+    t('保存配置', 'Save settings'),
+    t('恢复或合并', 'Restore or merge'),
+  ],
+  settings: [
+    t('搜索设置', 'Find a setting'),
+    t('修改选项', 'Change an option'),
+    t('自动保存', 'Saved automatically'),
+  ],
+  userscript: [
+    t('安装脚本管理器', 'Install a manager'),
+    t('安装流畅阅读', 'Install FluentRead'),
+    t('启用脚本', 'Enable the script'),
+  ],
+  email: [t('打开邮件', 'Open an email'), t('翻译正文', 'Translate'), t('对照阅读', 'Read both')],
+  image: [
+    t('悬停图片', 'Hover an image'),
+    t('点击翻译', 'Click translate'),
+    t('查看译图', 'Read the result'),
+  ],
+  area: [
+    t('按下圈选快捷键', 'Use the shortcut'),
+    t('拖动选择区域', 'Select an area'),
+    t('查看译文', 'Read translation'),
+  ],
+  video: [
+    t('播放视频', 'Play a video'),
+    t('开启双语字幕', 'Enable captions'),
+    t('双语观看', 'Watch both'),
+  ],
+  input: [
+    t('输入文字', 'Enter text'),
+    t('连按空格键', 'Press Space repeatedly'),
+    t('使用译文', 'Use the translation'),
+  ],
+  writing: [
+    t('打开写作助手', 'Open the assistant'),
+    t('生成回复草稿', 'Create a draft'),
+    t('检查后插入', 'Review & insert'),
+  ],
+  share: [
+    t('查看划词结果', 'Translate a selection'),
+    t('制作分享卡', 'Create a card'),
+    t('保存图片', 'Save image'),
+  ],
+  learning: [
+    t('选中文字', 'Select text'),
+    t('收藏词句', 'Save a word or sentence'),
+    t('学习中心复习', 'Review saved items'),
+  ],
+  provider: [
+    t('选择翻译服务', 'Choose a provider'),
+    t('配置服务连接', 'Configure connection'),
+    t('按功能分配服务', 'Assign providers'),
+  ],
+  appearance: [
+    t('打开界面风格', 'Open Appearance'),
+    t('选择译文样式', 'Choose a style'),
+    t('预览译文', 'Preview the result'),
+  ],
+  backup: [
+    t('打开备份与恢复', 'Open Backup & restore'),
+    t('导出备份', 'Export backup'),
+    t('从备份恢复', 'Restore from backup'),
+  ],
+  privacy: [
+    t('选择待译文字', 'Select text'),
+    t('发送到所选服务', 'Send to the provider'),
+    t('接收译文', 'Receive translation'),
+  ],
+  glossary: [
+    t('添加术语', 'Add a term'),
+    t('指定译法与范围', 'Set translation & scope'),
+    t('检查命中结果', 'Preview matches'),
+  ],
+  rules: [
+    t('打开网站规则', 'Open site rules'),
+    t('添加网站偏好', 'Add a preference'),
+    t('检查生效规则', 'Preview applied rules'),
+  ],
+  stats: [
+    t('打开翻译统计', 'Open statistics'),
+    t('选择查看范围', 'Choose a view'),
+    t('查看请求与耗时', 'Review requests & timing'),
+  ],
+  shortcuts: [
+    t('打开网页', 'Open a page'),
+    t('按下快捷键', 'Press the shortcut'),
+    t('翻译或恢复', 'Translate or restore'),
+  ],
+}))
+const workflow = computed(() => workflows.value[props.kind] ?? workflows.value.shortcuts)
+const activeStage = computed(() => (step.value === 0 ? 0 : step.value < 3 ? 1 : 2))
 </script>
 <template>
   <BrowserGuide
@@ -138,6 +240,23 @@ const text = computed(() => words.value[props.kind] || words.value.shortcuts)
   />
   <BrandReader v-else-if="kind === 'webpage'" :en="english" />
   <FeatureDemo v-else-if="kind === 'document'" kind="document" :en="english" />
+  <SettingsGuide
+    v-else-if="
+      [
+        'settings',
+        'provider',
+        'appearance',
+        'compare',
+        'backup',
+        'glossary',
+        'rules',
+        'stats',
+        'learning',
+      ].includes(kind)
+    "
+    :kind="kind"
+    :en="english"
+  />
   <div
     ref="root"
     v-else
@@ -152,28 +271,9 @@ const text = computed(() => words.value[props.kind] || words.value.shortcuts)
       <span>{{ text[0] }}</span>
       <span class="gv-example">{{ t('操作示意', 'Walkthrough') }}</span>
     </div>
+    <DemoSteps :labels="workflow" :active="activeStage" :label="t('操作流程', 'Workflow')" />
     <div class="gv-stage">
-      <template v-if="kind === 'compare'">
-        <div class="gv-sentence">
-          <span>{{ t('原文', 'Original') }}</span>
-          <p>Every language opens a new door.</p>
-          <div class="gv-compare">
-            <div>
-              <b>{{ t('服务 A · 示例', 'Provider A · example') }}</b>
-              <p>
-                {{ changed ? '每一种语言都打开一扇新的门。' : t('等待翻译', 'Ready to translate') }}
-              </p>
-            </div>
-            <div>
-              <b>{{ t('服务 B · 示例', 'Provider B · example') }}</b>
-              <p>
-                {{ changed ? '每一门语言，都带来新的可能。' : t('等待翻译', 'Ready to translate') }}
-              </p>
-            </div>
-          </div>
-        </div>
-      </template>
-      <template v-else-if="kind === 'sync'">
+      <template v-if="kind === 'sync'">
         <TransferFlow kind="sync" :en="english" :running="running" />
         <p class="gv-flow-note">
           {{
@@ -243,7 +343,9 @@ const text = computed(() => words.value[props.kind] || words.value.shortcuts)
             {{ t('谢谢你的帮助。我们明天再聊。', 'Thanks for your help. Let’s talk tomorrow.') }}
           </p>
           <span class="gv-key">
-            {{ t('阅读邮件 → 翻译 → 对照核对', 'Open email → translate → compare') }}
+            {{
+              t('① 打开邮件 → ② 翻译正文 → ③ 对照阅读', '① Open email → ② Translate → ③ Compare')
+            }}
           </span>
         </div>
       </template>
@@ -355,7 +457,12 @@ const text = computed(() => words.value[props.kind] || words.value.shortcuts)
           <span>{{ t('你选中的好句子', 'Your selected sentence') }}</span>
           <p>{{ t('Every language opens a new door.', '每一种语言都打开一扇新的门。') }}</p>
           <span class="gv-key">
-            {{ t('划词结果 → 制作卡片 → 保存图片', 'Selection result → Create card → Save image') }}
+            {{
+              t(
+                '① 查看划词结果 → ② 制作卡片 → ③ 保存图片',
+                '① Translate a selection → ② Create a card → ③ Save image'
+              )
+            }}
           </span>
         </div>
       </template>
@@ -381,67 +488,6 @@ const text = computed(() => words.value[props.kind] || words.value.shortcuts)
           </span>
         </div>
       </template>
-      <template v-else-if="kind === 'provider'">
-        <div class="gv-provider">
-          <div>
-            <span class="gv-service-icon">↔</span>
-            <b>{{ changed ? 'AI' : t('免费翻译服务', 'Free translation') }}</b>
-            <small>
-              {{
-                changed
-                  ? t('已配置的服务与模型', 'Your configured provider and model')
-                  : t('可直接使用', 'Ready to use')
-              }}
-            </small>
-          </div>
-          <div class="gv-connection">
-            <span>{{ t('服务', 'Provider') }}</span>
-            <b>
-              {{
-                changed
-                  ? t('选择已配置的 AI 服务', 'Choose your configured AI provider')
-                  : t('免费翻译服务', 'Free translation')
-              }}
-            </b>
-            <span>
-              {{
-                changed
-                  ? t('密钥 · 保存在浏览器中', 'API key · stored in your browser')
-                  : t('目标语言 · 简体中文', 'Target language · English')
-              }}
-            </span>
-            <strong>{{ changed ? '••••••••' : t('直接翻译', 'Start translating') }}</strong>
-          </div>
-        </div>
-      </template>
-      <template v-else-if="kind === 'appearance'">
-        <div class="gv-sentence">
-          <span>{{ t('原文与译文', 'Original & translation') }}</span>
-          <p>Every language opens a new door.</p>
-          <p class="gv-styled" :class="`gv-style-${style}`">
-            {{ t('每一种语言都打开一扇新的门。', 'Every language opens a new door.') }}
-          </p>
-          <div
-            class="gv-swatches"
-            role="group"
-            :aria-label="t('示例译文样式', 'Example translation styles')"
-          >
-            <button
-              v-for="(label, i) in [
-                t('引用', 'Quote'),
-                t('荧光', 'Highlight'),
-                t('下划线', 'Underline'),
-              ]"
-              :key="label"
-              type="button"
-              :aria-pressed="style === i"
-              @click="choose(i + 3)"
-            >
-              {{ label }}
-            </button>
-          </div>
-        </div>
-      </template>
       <template v-else-if="['backup', 'privacy'].includes(kind)">
         <TransferFlow
           :kind="kind === 'backup' ? 'backup' : 'privacy'"
@@ -452,49 +498,17 @@ const text = computed(() => words.value[props.kind] || words.value.shortcuts)
           {{
             kind === 'backup'
               ? changed
-                ? t('选择备份文件 → 预览 → 导入', 'Choose backup → preview → import')
-                : t('选择需要备份的内容 → 导出', 'Choose data to back up → export')
+                ? t(
+                    '① 选择备份文件 → ② 预览内容 → ③ 确认导入',
+                    '① Choose backup → ② Preview → ③ Confirm import'
+                  )
+                : t('① 选择备份内容 → ② 导出文件', '① Choose data → ② Export file')
               : t(
                   '使用云端翻译时，待译文字发送给所选服务。',
                   'Cloud translation sends the selected text to your chosen provider.'
                 )
           }}
         </p>
-      </template>
-      <template v-else-if="kind === 'glossary'">
-        <div class="gv-sentence">
-          <span>{{ t('术语示例', 'Example term') }}</span>
-          <p>FluentRead opens a new door.</p>
-          <div class="gv-term">
-            <b>FluentRead</b>
-            <span aria-hidden="true">→</span>
-            <b>{{ t('流畅阅读', 'FluentRead') }}</b>
-          </div>
-          <p class="gv-output">
-            {{
-              changed
-                ? t('流畅阅读打开一扇新的门。', 'FluentRead opens a new door.')
-                : t('添加术语后，翻译会参考指定译法。', 'Add a term to guide the translation.')
-            }}
-          </p>
-        </div>
-      </template>
-      <template v-else-if="kind === 'rules'">
-        <div class="gv-connection">
-          <span>{{ t('网站规则', 'Site rule') }}</span>
-          <b>example.com</b>
-          <div class="gv-rule-row">
-            <span>{{ t('自动翻译', 'Automatic translation') }}</span>
-            <span class="gv-toggle" :class="{ enabled: changed }" aria-hidden="true"></span>
-          </div>
-          <p>
-            {{
-              changed
-                ? t('再次打开这个网站时自动翻译', 'Translate automatically when you return')
-                : t('为这个网站设置是否自动翻译', 'Set a rule for the sites you read')
-            }}
-          </p>
-        </div>
       </template>
       <template v-else-if="kind === 'stats'">
         <div class="gv-chart" :aria-label="t('示例用量图', 'Example activity chart')">

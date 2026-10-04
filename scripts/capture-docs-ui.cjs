@@ -8,6 +8,7 @@ const fs = require('node:fs'),
   assert = require('node:assert/strict')
 const { createRequire } = require('node:module')
 const { execFileSync } = require('node:child_process')
+const { createHash } = require('node:crypto')
 const arg = (name) => process.argv[process.argv.indexOf('--' + name) + 1]
 const runtime = createRequire(path.join(arg('runtime'), 'docs-ui.cjs'))
 const { chromium } = runtime('playwright'),
@@ -16,8 +17,30 @@ const helper = require(arg('helper'))
 const root = path.resolve(__dirname, '..')
 const report = {
   extension: '.output/chrome-mv3',
-  sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
-  version: JSON.parse(fs.readFileSync(path.join(root, '.output/chrome-mv3/manifest.json'), 'utf8')).version,
+  sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim(),
+  version: JSON.parse(fs.readFileSync(path.join(root, '.output/chrome-mv3/manifest.json'), 'utf8'))
+    .version,
+  sourceDirty: Boolean(
+    execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim()
+  ),
+  sourceFiles: Object.fromEntries(
+    [
+      'src/features/translation-center/ui/TranslationCenter.vue',
+      'src/ui/components/UiLanguageOnboarding.vue',
+      'src/app/popup/PopupApp.vue',
+      'src/features/settings/ui/SettingsSections.vue',
+      'src/features/settings/ui/services/ServiceConfiguration.vue',
+      'src/features/settings/ui/services/ServiceCatalog.vue',
+    ].map((file) => [
+      file,
+      createHash('sha256')
+        .update(fs.readFileSync(path.join(root, file)))
+        .digest('hex'),
+    ])
+  ),
   scale: 2,
   screenshots: [],
   errors: [],
@@ -83,7 +106,7 @@ const server = http.createServer((_, res) => {
         config: {
           ...old,
           uiLanguage: locale,
-          uiLanguageSetupCompleted: true,
+          uiLanguageSetupCompleted: false,
           service: 'freeTranslation',
           from: 'auto',
           to: locale === 'en-US' ? 'en' : 'zh-Hans',
@@ -98,8 +121,8 @@ const server = http.createServer((_, res) => {
     const webDir = path.join(root, 'docs/public/screenshots/ui', locale)
     fs.mkdirSync(sourceDir, { recursive: true })
     fs.mkdirSync(webDir, { recursive: true })
-    async function capture(page, name, selector) {
-      const w = name === 'popup' ? 360 : 1280,
+    async function capture(page, name, selector, targets = []) {
+      const w = name.startsWith('popup') ? 360 : 1280,
         h = name === 'popup' ? 800 : 800
       await page.setViewportSize({ width: w, height: h })
       await page.evaluate(() => document.fonts.ready)
@@ -140,7 +163,24 @@ const server = http.createServer((_, res) => {
           await sharp(web).ensureAlpha().raw().toBuffer()
         )
       )
+      const points = []
+      for (const target of targets) {
+        const box = await page
+          .locator(target + ':visible')
+          .first()
+          .boundingBox()
+        assert(box, 'Missing visible target: ' + target)
+        assert(
+          box.x + box.width / 2 >= 0 && box.y + box.height / 2 >= 0 && box.y + box.height / 2 <= h,
+          'Target outside screenshot: ' + target
+        )
+        points.push({
+          x: ((box.x + box.width / 2 - rect.x) / rect.width) * 100,
+          y: ((box.y + box.height / 2 - rect.y) / rect.height) * 100,
+        })
+      }
       report.screenshots.push({
+        points,
         locale,
         name,
         source: path.relative(root, source),
@@ -152,6 +192,13 @@ const server = http.createServer((_, res) => {
       })
       await cdp.detach()
     }
+    await popup.locator('[data-testid="onboarding-welcome"]').waitFor()
+    await capture(popup, 'popup-welcome', '.popup-shell')
+    await popup.locator('[data-testid="onboarding-language-next"]').click()
+    await popup.locator('[data-language="' + locale + '"]').click()
+    await capture(popup, 'popup-language', '.popup-shell')
+    await popup.locator('.onboarding-confirm').last().click()
+    await popup.locator('.feature-card').first().waitFor()
     await capture(popup, 'popup', '.popup-shell')
     const settings = await create()
     await settings.goto(origin + '/options.html#settings-general')
@@ -160,9 +207,87 @@ const server = http.createServer((_, res) => {
     await settings.locator('.sidebar [data-section="settings-services"]').click()
     await settings.locator('.service-catalog').waitFor()
     await capture(settings, 'settings-services')
+    const sections = {
+      'settings-general': [
+        '.sidebar [data-section="settings-general"]',
+        '[data-testid="translation-language-setting"] .fluentread-select',
+        '[data-testid="default-translation-service-card"]',
+      ],
+      'settings-interface': [
+        '.sidebar [data-section="settings-interface"]',
+        '.translation-style-gallery button',
+        '.translation-style-stage',
+      ],
+      'settings-translation-center': [
+        '.translation-editor',
+        '.add-service-button',
+        '.translate-primary-button',
+      ],
+      'settings-data': [
+        '.sidebar [data-section="settings-data"]',
+        '.transfer-actions button:nth-child(1)',
+        '.transfer-actions button:nth-child(2)',
+      ],
+      'settings-glossary': [
+        '.sidebar [data-section="settings-glossary"]',
+        '.glossary-start .primary',
+        '.glossary-builtins-page button',
+      ],
+      'settings-sites': [
+        '.sidebar [data-section="settings-sites"]',
+        '.preference-add',
+        '.settings-page-tabs button:last-child',
+      ],
+      'settings-translation-stats': [
+        '.sidebar [data-section="settings-translation-stats"]',
+        '.stats-range',
+        '.stats-summary',
+      ],
+      'settings-vocabulary': [
+        '.sidebar [data-section="settings-vocabulary"]',
+        '.collection-overview',
+        '.vocabulary-book',
+      ],
+    }
+    for (const [name, targets] of Object.entries(sections)) {
+      await settings.locator('.sidebar [data-section="' + name + '"]').click()
+      await settings.waitForTimeout(250)
+      if (name === 'settings-translation-center') await settings.locator('.example-button').click()
+      await capture(settings, name, undefined, targets)
+    }
+    await settings.locator('.sidebar [data-section="settings-services"]').click()
+    await settings.locator('[data-service-value="openai"]').click()
+    await settings.waitForTimeout(250)
+    await capture(settings, 'settings-provider', undefined, [
+      '[data-service-value="openai"]',
+      '.api-key-entry input',
+      '.sidebar [data-section="settings-general"]',
+    ])
     await settings.close()
   }
   assert.deepEqual(report.errors, [])
+  const guides = Object.fromEntries(
+    ['zh-CN', 'en-US'].map((locale) => [
+      locale,
+      Object.fromEntries(
+        report.screenshots
+          .filter((item) => item.locale === locale && item.points.length)
+          .map((item) => [
+            item.name,
+            {
+              src: '/' + item.web.replace('docs/public/', ''),
+              width: item.width,
+              height: item.height,
+              points: item.points,
+            },
+          ])
+      ),
+    ])
+  )
+  fs.writeFileSync(
+    path.join(root, 'docs/.vitepress/theme/guide-ui.json'),
+    JSON.stringify(guides, null, 2) + '\n'
+  )
   fs.writeFileSync(
     path.join(root, 'marketing/site-ui-manifest.json'),
     JSON.stringify(report, null, 2) + '\n'

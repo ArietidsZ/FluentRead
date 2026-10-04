@@ -59,6 +59,11 @@ onBeforeUnmount(() => {
     <main id="VPContent"><Content /></main>
   </div>
   <DefaultTheme.Layout v-else>
+    <template #nav-bar-title-after>
+      <span class="bv-home-brand-text">
+        <strong lang="zh-CN">流畅阅读</strong><small lang="en">FluentRead</small>
+      </span>
+    </template>
     <template #nav-bar-content-after>
       <a
         class="bv-language"

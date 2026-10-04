@@ -50,7 +50,7 @@ To return to the original, open FluentRead and choose **Restore this page**. Res
 
 ## Translate selected text
 
-Enable **Selection translation** in the extension menu, then select a word or sentence. Click the FluentRead icon beside your selection to see the translation.
+Open the **Selection translation** card in the extension menu and enable its switch. Select a word or sentence. Click the FluentRead icon beside your selection to see the translation.
 
 <GuideVisual kind="selection" en />
 
@@ -58,7 +58,7 @@ See [Selection translation](/en/guide/deepseek-harness) for dictionary lookup, r
 
 ## Translate a paragraph
 
-Enable **Hover translation** in the extension menu. Move your pointer over a paragraph and press **Control**. Its translation appears underneath. Press **Control** again to restore the original paragraph.
+Open the **Hover translation** card and check that the default hover shortcut is enabled. Move your pointer over a paragraph and press **Control**. Its translation appears underneath. Press **Control** again to restore the original paragraph.
 
 <GuideVisual kind="hover" en />
 
