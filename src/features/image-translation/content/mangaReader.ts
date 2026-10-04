@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/mangaReader.ts
  * 文件职责：把漫画站点的正文图片、可见区域和页面生命周期接入连续翻译会话。
- * 主要内容：适配 MANGA Plus、Pixiv 和通用图片阅读器，排除推荐/头像；按当前几何判断可见页，避免迟到 IO 释放译图；合并扫描、当前页优先的有界提前翻译和两张历史页保留，在换章、隐藏和卸载时暂停新任务并清理监听器。
+ * 主要内容：适配 MANGA Plus、Pixiv 和通用图片阅读器，排除推荐/头像；按当前几何判断可见页，避免迟到 IO 释放译图；合并扫描、当前页优先的有界提前翻译和前后各两张附近页保留，共享像素预算；换章、隐藏和卸载时暂停新任务并清理监听器。
  * 模块边界：只读取站点已展示的 img，不抓取章节、不读取站点私有数据或绕过访问限制；单图翻译、缓存与原图恢复通过注入端口复用既有运行时。
  */
 import {createMangaSession, type MangaTranslationStatus} from './mangaSession';
@@ -110,17 +110,20 @@ export function createMangaReader(ports: {
         const anchor = candidates.reduce((last, page, index) => page.visible ? index : last, -1);
         const ahead = ports.prefetchPages ? normalizeMangaPrefetchPages(ports.prefetchPages()) : 0;
         const firstVisible=candidates.findIndex(page=>page.visible);
-        const history=new Set<HTMLImageElement>();let retainedPixels=0;
-        // 只保留最近两张已加载的原节点，不为历史页启动 OCR；像素预算避免长条漫画无限占用位图。
-        for (let index=firstVisible-1;index>=0 && index>=firstVisible-2;index--) {
+        const nearby=new Set<HTMLImageElement>();let retainedPixels=0;
+        // 关闭预译也保留附近已完成结果：GPU 较快时，下页可能在返页期间完成，不能立刻释放并重复识别。
+        // 前后各两张共享像素预算；仅保留不调度，未处理的附近页不会启动 OCR。
+        const retain=(index:number)=>{
             const page=candidates[index],pixels=page.image.naturalWidth*page.image.naturalHeight;
-            if (page.ready && retainedPixels+pixels<=8_000_000) {history.add(page.image);retainedPixels+=pixels;}
-        }
+            if (page.ready && retainedPixels+pixels<=8_000_000) {nearby.add(page.image);retainedPixels+=pixels;}
+        };
+        for (let index=firstVisible-1;index>=0 && index>=firstVisible-2;index--) retain(index);
+        if(anchor>=0)for(let index=anchor+1;index<candidates.length && index<=anchor+2;index++)retain(index);
         session.refresh({
             route: `${url.origin}${url.pathname}${url.search}`, available: available && (!site?.generic || images.length > 0),
             suspended: document.hidden,
             pages: candidates.map((page, index) => ({image: page.image, identity: page.identity,
-                visible: page.visible && !document.hidden, retain: history.has(page.image),
+                visible: page.visible && !document.hidden, retain: nearby.has(page.image),
                 prefetch: page.ready && anchor >= 0 && ((index > anchor && index <= anchor + ahead) || (document.hidden && page.visible))})),
         });
     }

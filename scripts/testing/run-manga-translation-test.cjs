@@ -1,5 +1,5 @@
 'use strict';
-/** 漫画生产扩展专项：临时 profile、关闭 Shadow DOM 可信点击、真实 OCR；区分在线站点、提前页和滚动返页稳定性；仅夹具可控地挂起文字服务。 */
+/** 漫画生产扩展专项：临时 profile、关闭 Shadow DOM 可信点击、真实 OCR；区分在线站点、提前页和滚动返页稳定性；仅夹具可控地挂起文字服务；性能模式复用同一原图和真实模型，记录冷启动、逐次推理和编码。 */
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
@@ -25,6 +25,13 @@ const skipFirstCancel=process.argv.includes('--skip-first-cancel');
 const readAheadTest=process.argv.includes('--prefetch-pages');
 const scrollStabilityTest=process.argv.includes('--scroll-stability');
 const prefetchPages=Number(arg('prefetch-pages','0'));
+const pipelineInputs=arg('pipeline-inputs',null)?.split(',').map(file=>path.resolve(file));
+const pipelineRounds=Number(arg('pipeline-rounds','3'));
+const graphOverride=arg('pipeline-graph',null);
+const gpuDiagnosis=process.argv.includes('--gpu-diagnosis');
+const forceCpu=process.argv.includes('--pipeline-cpu');
+const extensionDebugging=process.argv.includes('--extension-debugging');
+const traceReader=process.argv.includes('--trace-reader');
 const targetUrl = arg('site-url','https://mangaplus.shueisha.co.jp/viewer/1024050');
 const pixiv=targetUrl.includes('pixiv.net/artworks/');
 const readerSelector=pixiv?'img[src*="/img-master/"][src*="/150354216_p"], img[src*="/img-original/"][src*="/150354216_p"]':'.zao-image';
@@ -32,10 +39,10 @@ const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-profile-');
 fs.mkdirSync(artifacts, {recursive: true});
 const report = {site: liveSite ? 'live MANGA Plus' : 'controlled MANGA Plus reader fixture',
     translation: liveTranslation ? 'live Google' : 'deterministic Google text transport',
-    ocr: 'real production PaddleOCR', cases: [], screenshots: [], errors: [], consoleErrors: []};
+    ocr: 'real production PaddleOCR', cases: [], screenshots: [], errors: [], hostErrors: [], pageErrors: [], consoleErrors: []};
 if(pixiv)report.site='live Pixiv artwork 150354216';
 report.prefetchPages=prefetchPages;
-let launched, page, worker, cdp, popup, modelObserver, browserPid;
+let launched, page, worker, cdp, popup, modelObserver, browserPid,loadedExtensionId;
 function focusGuard() {
     const current=JSON.parse(execFileSync('/usr/bin/osascript',['-l','JavaScript','-e',"ObjC.import('AppKit');const app=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(app.processIdentifier),name:ObjC.unwrap(app.localizedName)});"],{encoding:'utf8'}));
     assert.notEqual(current.pid,browserPid,'Isolated test browser must stay behind the user app');
@@ -159,6 +166,92 @@ async function assertQuietReading() {
     assert.equal(await imageUi('return [...this.querySelectorAll(".fr-image-controls[data-phase=loading]")].some(e=>!e.hidden && getComputedStyle(e).display!=="none")'),false,'No per-image cancel popup while reading');
 }
 
+function auditPageErrors() {
+    // 匿名广告脚本没有文件 URL；只有 CDP 能证明其默认网页上下文时才归入宿主，未知错误仍使测试失败。
+    report.errors=report.pageErrors.filter(error=>{
+        if(report.hostErrors.some(host=>host.stack===error.stack))return false;
+        const exception=report.scriptExceptions?.find(event=>event.details.exception?.description===error.stack);
+        if(liveSite&&!error.stack.includes('chrome-extension://')&&exception?.context?.auxData?.isDefault===true) {
+            report.hostErrors.push({...error,context:exception.context});return false;
+        }
+        return true;
+    }).map(error=>error.message);
+}
+
+async function verifyPipelinePerformance(extensionId) {
+    assert.ok(pipelineRounds>=2 && pipelineRounds<=5,'Measure first use separately from bounded warm runs');
+    const chunks=fs.readdirSync(path.join(extensionDir,'chunks'));
+    const ortFiles=chunks.filter(name=>/^ort\.(?:webgpu\.)?bundle\.min-/.test(name));
+    assert.ok(ortFiles.length,'Production ORT namespace is exported');
+    // 只在自有临时扩展 Offscreen 中测量；不改变宿主页或普通生产代码。
+    await modelObserver.command('Runtime.evaluate',{expression:`(async()=>{
+        if(${forceCpu})Object.defineProperty(navigator,'gpu',{value:undefined,configurable:true});
+        const samples=globalThis.__pipelineSamples={sessions:[],runs:[],encodes:[],gpuSubmissions:0,adapters:[],userAgent:navigator.userAgent};
+        if(globalThis.GPUQueue){const submit=GPUQueue.prototype.submit;GPUQueue.prototype.submit=function(...args){samples.gpuSubmissions++;return submit.apply(this,args);};}
+        if(navigator.gpu){const request=navigator.gpu.requestAdapter.bind(navigator.gpu);navigator.gpu.requestAdapter=async(...args)=>{const start=performance.now();const adapter=await request(...args);samples.adapters.push({ms:performance.now()-start,available:!!adapter,fallback:adapter?.isFallbackAdapter,info:adapter?.info&&{vendor:adapter.info.vendor,architecture:adapter.info.architecture,device:adapter.info.device,description:adapter.info.description}});return adapter;};}
+        const constructors=new Set();
+        for(const file of ${JSON.stringify(ortFiles)}) {
+            const module=await import(chrome.runtime.getURL('chunks/'+file));
+            const ort=Object.values(module).find(value=>value?.InferenceSession);
+            if(!ort || constructors.has(ort.InferenceSession))continue;constructors.add(ort.InferenceSession);
+            const create=ort.InferenceSession.create.bind(ort.InferenceSession);
+            if(${gpuDiagnosis} && file.includes('webgpu')) {
+                try {
+                    ort.env.wasm.numThreads=1;ort.env.wasm.proxy=false;ort.env.wasm.wasmPaths={mjs:chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.asyncify.mjs'),wasm:chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.asyncify.wasm')};
+                    const cache=await caches.open('fluent-read-manga-ocr-v1'),keys=await cache.keys();
+                    const key=keys.find(key=>key.url.includes('small_det'));
+                    const model=await(await cache.match(key)).arrayBuffer();
+                    const session=await create(model,{executionProviders:['webgpu']});await session.release();samples.gpuDiagnosis='success';
+                } catch(error){samples.gpuDiagnosis=String(error);}
+            }
+            ort.InferenceSession.create=async(model,options)=>{
+                const start=performance.now();const session=await create(model,{...options,${graphOverride?`graphOptimizationLevel:${JSON.stringify(graphOverride)}`:''}});
+                const kind=session.inputNames.includes('mask')?'inpaint':'ocr';
+                samples.sessions.push({kind,ms:performance.now()-start,providers:options?.executionProviders});
+                const run=session.run.bind(session);
+                session.run=async(...args)=>{const start=performance.now();const result=await run(...args);samples.runs.push({kind,ms:performance.now()-start,inputs:Object.fromEntries(Object.entries(args[0]).map(([name,tensor])=>[name,tensor.dims]))});return result;};
+                return session;
+            };
+        }
+        const encode=HTMLCanvasElement.prototype.toDataURL;
+        HTMLCanvasElement.prototype.toDataURL=function(...args){const start=performance.now();const value=encode.apply(this,args);samples.encodes.push({width:this.width,height:this.height,ms:performance.now()-start,bytes:value.length,method:'toDataURL'});return value;};
+        const toBlob=HTMLCanvasElement.prototype.toBlob;
+        HTMLCanvasElement.prototype.toBlob=function(callback,...args){const start=performance.now(),width=this.width,height=this.height;return toBlob.call(this,blob=>{samples.encodes.push({width,height,ms:performance.now()-start,bytes:blob?.size,method:'toBlob'});callback(blob);},...args);};
+        samples.gpu=navigator.gpu?await navigator.gpu.requestAdapter({powerPreference:'high-performance'}).then(adapter=>({available:!!adapter,info:adapter?.info&&{vendor:adapter.info.vendor,architecture:adapter.info.architecture}})):null;
+    })()`,awaitPromise:true,returnByValue:true});
+    report.pipeline=[];report.graphOverride=graphOverride;
+    for(const input of pipelineInputs) for(let round=0;round<pipelineRounds;round++) {
+        report.currentCase=`pipeline ${path.basename(input)} round ${round+1}`;
+        await page.goto(targetUrl,{waitUntil:'domcontentloaded'});
+        const data='data:image/png;base64,'+fs.readFileSync(input).toString('base64');
+        await page.evaluate(async data=>{
+            const images=[...document.querySelectorAll('.zao-image')];images.slice(1).forEach(image=>image.parentElement.remove());
+            const image=images[0];image.src=data;await image.decode();window.scrollTo(0,0);
+        },data);
+        await wait(async()=>!!await ball(`return this.querySelector('.floating-ball-manga')`),30000);
+        const before=await ops();const start=Date.now();
+        await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__pipelineSamples.runs=[];globalThis.__pipelineSamples.encodes=[];globalThis.__pipelineSamples.sessions=[];globalThis.__pipelineSamples.gpuSubmissions=0'});
+        await toggle();
+        await wait(async()=>await page.locator('.zao-image').first().evaluate(i=>i.style.opacity==='0'),180000);
+        assert.equal(await page.locator('.zao-image').first().evaluate(i=>i.src),data,'Source stays the exact benchmark image');
+        const end=Date.now();
+        const requestId=await worker.evaluate(index=>globalThis.__mangaTest.operations[index],before);
+        const progress=await worker.evaluate(id=>globalThis.__mangaTest.progress.filter(p=>p.requestId===id),requestId);
+        const texts=await worker.evaluate(()=>globalThis.__mangaTest.textBatches.at(-1));
+        const sampled=await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__pipelineSamples',returnByValue:true});
+        const translated=await imageUi(`return this.querySelector('.fluent-read-image-translation-bitmap')?.src`);
+        assert.ok(translated?.startsWith('data:image/png;base64,'),'Lossless translated output exists');
+        const output=path.join(artifacts,`${path.basename(input,'.png')}-round-${round+1}-translated.png`);
+        fs.writeFileSync(output,Buffer.from(translated.split(',')[1],'base64'));
+        report.pipeline.push({input,round,cold:report.pipeline.length===0,totalMs:end-start,requestId,progress,texts,...sampled.result.value,output});
+        assert.ok(texts.length>0,'Actual text recognition ran');await assertQuietReading();
+        await toggle();await wait(async()=>await page.locator('.zao-image').first().evaluate(i=>i.style.opacity!=='0'));
+        focusGuard();console.log(JSON.stringify({input:path.basename(input),round,totalMs:end-start,runs:sampled.result.value.runs.length}));
+    }
+    report.cases.push('same-source uncached pipeline runs with real production OCR and inpainting');
+    auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
+}
+
 async function verifyScrollStability() {
     assert.equal(prefetchPages,0,'Scroll overlap test processes visible pages only');
     const images=page.locator(readerSelector);
@@ -272,7 +365,7 @@ async function verifyScrollStability() {
     report.cancellations=await worker.evaluate(()=>globalThis.__mangaTest.cancellations);
     if(blockedAll)assert.equal(report.modelRequests.length,0);
     assert.ok(!(report.offscreenDiagnostics||[]).some(d=>['warning','error'].includes(d.level)&&d.text.includes('Unknown CPU vendor')));
-    assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
+    auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
 }
 
 async function verifyReadAhead() {
@@ -328,12 +421,12 @@ async function verifyReadAhead() {
     report.textBatches=await worker.evaluate(()=>globalThis.__mangaTest.textBatches);
     assert.ok(!(report.offscreenDiagnostics || []).some(d=>['warning','error'].includes(d.level)&&d.text.includes('Unknown CPU vendor')),'Known WASM CPU diagnostic is not a warning or error');
     if(blockedAll){assert.equal(report.modelRequests.length,0);report.cases.push('no model downloads during prepared local reading');}
-    assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
+    auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
 }
 (async()=>{
     launched=await launchFocusSafePersistentContext({chromium,profileDir:profile,
         browserPath:arg('browser-path','/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),headless:false,background:true,
-        browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--no-first-run','--no-default-browser-check'],
+        browserArgs:[...(extensionDebugging?['--enable-unsafe-extension-debugging']:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`]),'--no-first-run','--no-default-browser-check'],
         viewport:{width:1280,height:900},timeout:30000});
     Object.assign(report,{launchMode:launched.launchMode,focusPolicy:launched.focusPolicy,windowPlacement:launched.windowPlacement});
     assert.equal(report.launchMode,'macos-background-cdp');
@@ -341,10 +434,12 @@ async function verifyReadAhead() {
     assert.equal(report.windowPlacement.mode,'background-visible-no-focus');
     assert.equal(report.windowPlacement.browserFrontmost,false);
     const context=launched.context;
-    const system=await context.browser().newBrowserCDPSession();browserPid=(await system.send('SystemInfo.getProcessInfo')).processInfo.find(p=>p.type==='browser').id;await system.detach();focusGuard();
+    const system=await context.browser().newBrowserCDPSession();browserPid=(await system.send('SystemInfo.getProcessInfo')).processInfo.find(p=>p.type==='browser').id;if(extensionDebugging){report.extensionLoad=await system.send('Extensions.loadUnpacked',{path:extensionDir});loadedExtensionId=report.extensionLoad.id;}await system.detach();focusGuard();
     report.blockedOfficial=blockedOfficial;report.blockedAllModelSources=blockedAll;report.modelRequests=[];
     context.on('console',message=>{if(message.type()==='error'&&message.text().includes('FluentRead'))report.consoleErrors.push(message.text());});
-    worker=context.serviceWorkers().find(w=>w.url().startsWith('chrome-extension://'))||await context.waitForEvent('serviceworker');
+    if(loadedExtensionId)await context.pages()[0].goto(`chrome-extension://${loadedExtensionId}/popup.html`);
+    const ownWorker=w=>w.url().startsWith(loadedExtensionId?`chrome-extension://${loadedExtensionId}/`:'chrome-extension://');
+    worker=context.serviceWorkers().find(ownWorker)||await context.waitForEvent('serviceworker',{predicate:ownWorker,timeout:30000});
     const extensionId=new URL(worker.url()).host;
 
     popup=context.pages()[0];
@@ -354,11 +449,17 @@ async function verifyReadAhead() {
         imageTranslationMangaEnabled:true,imageTranslationMangaDownloadConfirmed:true,imageTranslationMangaPromptEnabled:false,imageTranslationHoverEnabled:false,disableFloatingBall:false,
         imageTranslationMangaPrefetchPages:prefetchPages,
         service:'google',from:pixiv?'ja':'en',to:'zh-Hans',useCache:true,enableAIContext:false,animations:false});
-    await worker.evaluate(live=>{
+    await worker.evaluate(({live,trace})=>{
         const original=globalThis.fetch.bind(globalThis);
-        const test=globalThis.__mangaTest={operations:[],requests:[],cancellations:[],textBatches:[],progress:[]};
+        const test=globalThis.__mangaTest={operations:[],inputs:[],requests:[],cancellations:[],textBatches:[],progress:[]};
         chrome.runtime.onMessage.addListener(message=>{
-            if(message.type==='fluentReadImageTranslate')test.operations.push(message.requestId);
+            if(message.type==='fluentReadImageTranslate') {
+                test.operations.push(message.requestId);
+                if(trace) {
+                    let hash=2166136261;for(const char of message.image)hash=Math.imul(hash^char.charCodeAt(0),16777619);
+                    test.inputs.push({at:Date.now(),requestId:message.requestId,bytes:message.image.length,hash:hash>>>0});
+                }
+            }
             if(message.type==='fluentReadImageProgress')test.progress.push({at:Date.now(),requestId:message.requestId,stage:message.stage,progress:message.progress});
             if(message.type==='fluentReadImageCancel')test.cancellations.push(message.requestId);
             if(message.type==='fluentReadImageTranslateTexts')test.textBatches.push(message.texts);
@@ -377,7 +478,7 @@ async function verifyReadAhead() {
             }
             return original(input,options);
         };
-    },liveTranslation);
+    },{live:liveTranslation,trace:traceReader});
     await worker.evaluate(async()=>{await chrome.offscreen.createDocument({url:chrome.runtime.getURL('offscreen.html'),reasons:['DOM_PARSER'],justification:'Verify local manga processing in an isolated test profile'});});
     modelObserver=await observeModelDownloads(extensionId);
     if(preloadModels){
@@ -392,10 +493,22 @@ async function verifyReadAhead() {
         const audited=await modelObserver.command('Runtime.evaluate',{expression:`(${audit.toString()})()`,returnByValue:true,awaitPromise:true});report.preloadedCacheOffscreen=audited.result.value;
         report.modelsPreloaded=true;await popup.goto(`chrome-extension://${extensionId}/popup.html`);
     }
-    if(!liveSite)await context.route(targetUrl,route=>route.fulfill({status:200,contentType:'text/html',body:fixture}));
-    page=await newPageWithoutForeground(context);page.on('pageerror',error=>report.errors.push(error.message));
+    if(!liveSite)await context.route(targetUrl,route=>route.fulfill({status:200,contentType:'text/html',body:pipelineInputs?fixture.replace("canvas.toBlob(blob=>{image.src=URL.createObjectURL(blob)})","image.src=canvas.toDataURL('image/png')"):fixture}));
+    page=await newPageWithoutForeground(context);page.on('pageerror',error=>{
+        const stack=error.stack||'';
+        report.pageErrors.push({message:error.message,stack});
+        if(liveSite&&!stack.includes('chrome-extension://')&&/https?:\/\//.test(stack))report.hostErrors.push({message:error.message,stack});
+        else report.errors.push(error.message);
+    });
     await page.goto(targetUrl,{waitUntil:'domcontentloaded',timeout:60000});
     cdp=await context.newCDPSession(page);
+    if(liveSite||traceReader) {
+        const scripts=new Map(),contexts=new Map();report.scriptExceptions=[];
+        cdp.on('Runtime.executionContextCreated',event=>contexts.set(event.context.id,event.context));
+        if(traceReader)cdp.on('Debugger.scriptParsed',script=>scripts.set(script.scriptId,{url:script.url,sourceMapURL:script.sourceMapURL}));
+        cdp.on('Runtime.exceptionThrown',event=>report.scriptExceptions.push({details:event.exceptionDetails,context:contexts.get(event.exceptionDetails.executionContextId),scripts:(event.exceptionDetails.stackTrace?.callFrames||[]).map(frame=>scripts.get(frame.scriptId))}));
+        if(traceReader)await cdp.send('Debugger.enable');await cdp.send('Runtime.enable');
+    }
     if(liveSite){const reject=page.locator('#onetrust-reject-all-handler');await reject.waitFor({timeout:12000}).then(()=>reject.click()).catch(()=>undefined);}
     if(pixiv) {
         await page.locator(readerSelector).first().waitFor();
@@ -404,7 +517,17 @@ async function verifyReadAhead() {
         if(!alreadyOpen&&await read.isVisible().catch(()=>false))await read.click({timeout:5000});
     }
     await page.locator(readerSelector).first().waitFor();
+    if(traceReader)await page.evaluate(selector=>{
+        const ids=new WeakMap();let next=0;const traces=globalThis.__readerTrace=[];
+        const capture=reason=>traces.push({at:Date.now(),reason,images:[...document.querySelectorAll(selector)].map(i=>{
+            if(!ids.has(i))ids.set(i,++next);const rect=i.getBoundingClientRect();
+            return {id:ids.get(i),src:i.currentSrc,raw:i.getAttribute('src'),srcset:i.getAttribute('srcset'),sizes:i.getAttribute('sizes'),complete:i.complete,width:i.naturalWidth,height:i.naturalHeight,top:rect.top,bottom:rect.bottom,expanded:!!i.closest('.gtm-expand-full-size-illust')};
+        })});
+        capture('initial');new MutationObserver(records=>{if(records.some(r=>r.type==='childList'||r.target.matches?.(selector)))capture('mutation');}).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['src','srcset','sizes']});
+        addEventListener('scroll',()=>capture('scroll'),true);
+    },readerSelector);
     await wait(async()=>!!await ball(`return this.querySelector('.floating-ball-manga')`),30000);
+    if(pipelineInputs){await verifyPipelinePerformance(extensionId);report.status='passed';return;}
     if(scrollStabilityTest){await verifyScrollStability();report.status='passed';focusGuard();return;}
     if(readAheadTest){await verifyReadAhead();report.status='passed';focusGuard();return;}
     report.currentCase='one click activates and translates only visible pages';
@@ -554,12 +677,14 @@ async function verifyReadAhead() {
     }
     if(blockedAll)report.cases.push('real OCR and inpainting execute with both remote model sources blocked');
     if(blockedOfficial){assert.ok(report.modelRequests.some(r=>r.source==='huggingface.co'));assert.ok(report.modelRequests.some(r=>r.source==='hf-mirror.net'));report.cases.push('actual Offscreen official-source block falls back to verified mirror files');}
-    assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.status='passed';
+    auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.status='passed';
     focusGuard();
 })().catch(async error=>{report.status='failed';report.failure=error.stack;process.exitCode=1;console.error(error);if(cdp){report.lastImageUi=await imageUi('return [...this.querySelectorAll(".fr-image-feedback .fr-image-status")].map(s=>s.textContent)').catch(()=>null);report.lastProgress=await worker.evaluate(()=>globalThis.__mangaTest.progress).catch(()=>null);}if(page)await page.screenshot({path:path.join(artifacts,'failed-reader.png')}).catch(()=>{});})
 .finally(async()=>{
-    if(worker)await worker.evaluate(()=>({operations:globalThis.__mangaTest?.operations.length,textBatches:globalThis.__mangaTest?.textBatches})).then(data=>Object.assign(report,data)).catch(()=>{});
+    if(worker)await worker.evaluate(()=>({operations:globalThis.__mangaTest?.operations.length,inputs:globalThis.__mangaTest?.inputs,textBatches:globalThis.__mangaTest?.textBatches})).then(data=>Object.assign(report,data)).catch(()=>{});
+    if(page&&traceReader)report.readerTrace=await page.evaluate(()=>globalThis.__readerTrace).catch(()=>null);
     if(page&&report.status==='failed')await screenshot('failure').catch(()=>{});
+    if(modelObserver && pipelineInputs)report.pipelineLast=(await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__pipelineSamples',returnByValue:true}).catch(()=>({result:{value:null}}))).result.value;
     modelObserver?.close();
     if(launched)await launched.close();
     fs.rmSync(profile,{recursive:true,force:true});report.profileRemoved=!fs.existsSync(profile);

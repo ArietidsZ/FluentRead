@@ -1,8 +1,8 @@
 /**
  * @file src/shared/onnx/webgpu.ts
- * 文件职责：为本地音频模型探测可用的硬件 WebGPU，避免软件适配器与卡住的探测阻塞 CPU 回退。
+ * 文件职责：为本地音频及漫画模型探测可用的硬件 WebGPU，避免软件适配器与卡住的探测阻塞 CPU 回退。
  * 主要内容：有界请求高性能适配器、过滤软件渲染器并返回诊断名称。
- * 模块边界：不创建 GPU device 或模型，不读取配置；失败后的设备选择和会话释放由各 Worker 管理。
+ * 模块边界：不创建 GPU device 或模型，不读取配置；失败后的设备选择和会话释放由各运行时管理。
  */
 
 export interface WebGpuProbeResult {
@@ -25,7 +25,7 @@ interface ProbeNavigator {
     } | null>};
 }
 
-/** 探测不分配显存；驱动无响应超过两秒时，本次 Worker 直接使用 CPU。 */
+/** 探测不分配显存；驱动无响应超过两秒时，本次处理直接使用 CPU。 */
 export async function probeWebGpu(): Promise<WebGpuProbeResult> {
     const unavailable = {available: false, info: ''};
     const runtimeNavigator = globalThis.navigator as ProbeNavigator | undefined;

@@ -156,6 +156,22 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it('下页在返回前页期间完成仍保留，关闭预译也不重复识别或启动第三页',async()=>{
+        const f=readerFixture(false,undefined,undefined,()=>0),images=[f.image];let anchor=0;
+        for(let index=1;index<=2;index++) {
+            const image=f.document.createElement('img') as HTMLImageElement;image.className='zao-image';image.src=`blob:page-${index}`;
+            Object.defineProperties(image,{complete:{value:true},naturalWidth:{value:800},naturalHeight:{value:1200}});
+            image.getBoundingClientRect=()=>({left:0,right:800,top:(index-anchor)*1300,bottom:(index-anchor)*1300+1200,width:800,height:1200}) as DOMRect;
+            f.image.parentElement!.append(image);images.push(image);
+        }
+        f.image.getBoundingClientRect=()=>({left:0,right:800,top:-anchor*1300,bottom:-anchor*1300+1200,width:800,height:1200}) as DOMRect;
+        f.reader.toggle();await flush();const pending=deferred();f.ports.translate.mockReturnValueOnce(pending.promise);
+        anchor=1;f.reader.schedule();f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        anchor=0;f.reader.schedule();f.run();pending.resolve();await flush();
+        expect(f.ports.release).not.toHaveBeenCalled();
+        for(let i=0;i<3;i++){anchor=1;f.reader.schedule();f.run();await flush();anchor=0;f.reader.schedule();f.run();await flush();}
+        expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual(images.slice(0,2));expect(f.reader.status().ahead).toBe(0);f.reader.dispose();
+    });
     it('过期可见性通知不能释放屏幕里已完成的译图', async () => {
         const f=readerFixture();f.intersect(true);f.reader.toggle();await flush();
         f.intersect(false);await flush();
@@ -204,7 +220,8 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual(images.slice(0,4));
         expect(f.reader.status()).toMatchObject({ahead:3,completed:4});
         ahead=0;f.reader.schedule();f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(4);
-        expect(f.ports.release.mock.calls.map(c=>c[0])).toEqual(images.slice(1,4));f.reader.dispose();
+        // 0 只停止准备新页；附近两张已完成结果仍可供返页复用，第三张超出保留窗口才释放。
+        expect(f.ports.release.mock.calls.map(c=>c[0])).toEqual(images.slice(3,4));f.reader.dispose();
     });
     it('未加载的后续页不强制加载；Pixiv 点击正文与 presentation 角色不再被当装饰图', async () => {
         const f=readerFixture(false,'https://www.pixiv.net/artworks/150354216#1',undefined,()=>3);
