@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { withBase } from 'vitepress'
 import { useDemoPlayback } from './useDemoPlayback'
-import { createDemoSpeech, type DemoSpeechState, type DemoSpeechTarget } from './demoSpeech'
 const props = defineProps<{
   kind: 'webpage' | 'selection' | 'document' | 'image' | 'video'
   en?: boolean
@@ -24,49 +23,6 @@ const activePart = computed(() => Math.min(2, Math.max(0, step.value - 5)))
 const audioPreview = computed(() => {
   if (props.kind !== 'selection') return null
   return step.value === 3 ? 'original' : step.value === 4 ? 'translation' : null
-})
-const sentenceOriginal = 'A good book opens a new world.'
-const sentenceTranslation = '一本好书为你打开一个新世界。'
-const speech = ref<DemoSpeechState>({ target: null, status: 'idle' })
-const reader = createDemoSpeech((state) => { speech.value = state })
-const highlightedAudio = computed(() => speech.value.target ?? audioPreview.value)
-const speechNote = computed(() => {
-  if (speech.value.status === 'error')
-    return speech.value.error === 'unsupported'
-      ? t('当前浏览器不支持朗读，请使用其他浏览器。', 'Read-aloud is unavailable in this browser.')
-      : t('暂时无法朗读，请点击重试。', 'Audio could not play. Click to try again.')
-  if (speech.value.status === 'loading')
-    return t('正在准备朗读，点击按钮可停止。', 'Preparing audio. Click again to stop.')
-  if (speech.value.status === 'speaking')
-    return speech.value.target === 'original'
-      ? t('正在朗读原文，点击按钮可停止。', 'Reading the original. Click again to stop.')
-      : t('正在朗读译文，点击按钮可停止。', 'Reading the translation. Click again to stop.')
-  return t('点击按钮，收听原文或译文。', 'Click to listen to either language.')
-})
-function readAloud(target: DemoSpeechTarget) {
-  choose(target === 'original' ? 3 : 4)
-  reader.toggle(
-    target,
-    target === 'original' ? sentenceOriginal : sentenceTranslation,
-    target === 'original' ? 'en-US' : 'zh-CN'
-  )
-}
-function visibility() {
-  if (document.hidden) reader.stop()
-}
-watch([step, playing], () => {
-  const target = speech.value.target
-  if (target && (playing.value || step.value !== (target === 'original' ? 3 : 4))) reader.stop()
-})
-onMounted(() => {
-  if (props.kind !== 'selection') return
-  document.addEventListener('visibilitychange', visibility)
-  window.addEventListener('pagehide', reader.stop)
-})
-onBeforeUnmount(() => {
-  reader.stop()
-  document.removeEventListener('visibilitychange', visibility)
-  window.removeEventListener('pagehide', reader.stop)
 })
 const parts = [
   {
@@ -115,8 +71,6 @@ const contexts = {
     :data-revealed="revealed"
     :data-word="word"
     :data-structure="structure"
-    :data-speech-state="kind === 'selection' ? speech.status : undefined"
-    :data-speaking="speech.target ?? undefined"
   >
     <div class="fd-header">
       <span class="bv-dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -154,7 +108,7 @@ const contexts = {
       <template v-else-if="kind === 'selection'">
         <p class="fd-selection-source">
           <span v-if="word">Stay <mark class="selected">curious</mark>. Keep exploring.</span>
-          <mark v-else :class="{ selected: step >= 1 }">{{ sentenceOriginal }}</mark>
+          <mark v-else :class="{ selected: step >= 1 }">A good book opens a new world.</mark>
         </p>
         <div class="fd-card-stack">
           <section
@@ -172,9 +126,9 @@ const contexts = {
             </div>
             <div class="fd-card-body">
               <small>{{ t('原文', 'Original') }}</small>
-              <p>{{ sentenceOriginal }}</p>
+              <p>A good book opens a new world.</p>
               <small>{{ t('译文', 'Translation') }}</small>
-              <p class="fd-card-translation">{{ sentenceTranslation }}</p>
+              <p class="fd-card-translation">一本好书为你打开一个新世界。</p>
             </div>
           </section>
           <section
@@ -242,19 +196,19 @@ const contexts = {
             </div>
           </section>
         </div>
-        <div class="fd-audio-actions" :aria-label="t('朗读原文与译文', 'Listen to both languages')">
+        <div class="fd-audio-actions" :aria-label="t('朗读动作示意', 'Read-aloud preview')">
           <button
             v-for="target in (['original', 'translation'] as const)"
             :key="target"
             type="button"
-            :class="{ 'fd-audio-active': highlightedAudio === target }"
-            :aria-pressed="speech.target === target"
+            :class="{ 'fd-audio-active': audioPreview === target }"
+            :aria-pressed="audioPreview === target"
             :aria-label="
-              speech.target === target
-                ? (target === 'original' ? t('停止朗读原文', 'Stop reading the original') : t('停止朗读译文', 'Stop reading the translation'))
-                : (target === 'original' ? t('朗读原文', 'Read original') : t('朗读译文', 'Read translation'))
+              target === 'original'
+                ? t('演示朗读原文', 'Preview reading the original')
+                : t('演示朗读译文', 'Preview reading the translation')
             "
-            @click="readAloud(target)"
+            @click="choose(target === 'original' ? 3 : 4)"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 9v6h4l5 4V5L8 9H4Z" />
@@ -266,7 +220,9 @@ const contexts = {
             <span class="fd-sound-wave" aria-hidden="true"><i></i><i></i><i></i></span>
           </button>
         </div>
-        <p class="fd-audio-note" role="status" aria-live="polite">{{ speechNote }}</p>
+        <p class="fd-audio-note">{{
+          t('朗读动作示意，不播放声音', 'Read-aloud preview · no sound')
+        }}</p>
       </template>
       <template v-else-if="kind === 'document'">
         <div class="fd-meta">
