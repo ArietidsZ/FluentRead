@@ -24,7 +24,7 @@
 <details class="guide-details">
 <summary>查看真实网页翻译界面</summary>
 
-<figure class="doc-figure"><a href="/screenshots/translation.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/translation.webp" width="2560" height="1600" alt="文章中的英文原文与中文译文逐段对照" loading="lazy" /></a><figcaption>原文留在眼前，方便核对专有名词和细节。点击图片查看原图。</figcaption></figure>
+<figure class="doc-figure"><a href="/screenshots/translation.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/translation.webp" width="2560" height="1600" alt="文章中的英文原文与中文译文逐段对照" loading="lazy" /></a><figcaption>网页中的原文与译文逐段显示。点击图片可查看高清原图。</figcaption></figure>
 
 </details>
 
@@ -68,7 +68,7 @@
 
 ## 自动翻译与网站规则
 
-经常阅读同一个网站，可以让它自动翻译；希望某个网站保持原样，也可以单独关闭。正文漏译时先看[网站阅读范围](/config/site-adaptation)，无需从编写规则开始。
+经常阅读同一个网站，可以让它自动翻译；希望某个网站保持原样，也可以单独关闭。正文漏译时请参阅[网站阅读范围](/config/site-adaptation)。
 
 </details>
 
@@ -143,7 +143,7 @@ OpenRouter 的模型列表、供应商列表和模型详情页会保留模型名
 
 </details>
 
-## 接下来
+## 相关文档
 
 - [译文外观](/config/appearance)
 - [快捷键](/guide/custom-hotkey)

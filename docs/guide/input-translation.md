@@ -50,7 +50,7 @@
 
 </details>
 
-## 接下来
+## 相关文档
 
 - [起草和完善回复：写作助手](/guide/writing-assistant)
 - [配置翻译服务](/config/translation-engines)

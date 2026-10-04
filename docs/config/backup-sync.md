@@ -75,7 +75,7 @@
 
 </details>
 
-## 接下来
+## 相关文档
 
 - [收藏与学习数据](/guide/vocabulary-book)
 - [查看翻译统计](/guide/translation-stats)

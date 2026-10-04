@@ -73,7 +73,7 @@ AI 服务的 Token 用量见[模型用量](/guide/model-usage)。
 
 </details>
 
-## 接下来
+## 相关文档
 
-- [返回完整文档](/docs/)
+- [文档首页](/docs/)
 - [遇到问题](/guide/faq)

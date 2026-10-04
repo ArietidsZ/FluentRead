@@ -36,8 +36,8 @@
   display: none;
 }
 .VPNavBarTitle .logo {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
 }
 .bv-language {
   display: inline-flex;
@@ -129,6 +129,7 @@
 }
 
 .bv-reader {
+  container-type: inline-size;
   position: relative;
   background: var(--fr-paper);
   color: var(--fr-ink);
@@ -369,6 +370,7 @@
 }
 /* 文档和官网共用图解。正文由真实文本和矢量几何组成，缩放后仍保持清晰。 */
 .gv {
+  container-type: inline-size;
   border: 1px solid var(--fr-line);
   border-radius: 14px;
   overflow: hidden;
@@ -944,6 +946,7 @@
 }
 /* 句法图解：保留原句、常驻双行标注和按需解释。 */
 .fr-grammar {
+  container-type: inline-size;
   background: var(--fr-paper);
   border: 1px solid var(--fr-line);
   border-radius: 14px;
@@ -1633,12 +1636,21 @@
   margin-top: 24px;
 }
 .bv-install-actions .bv-button {
+  height: 54px;
   min-height: 54px;
+  box-sizing: border-box;
   border-radius: 28px;
   font-size: 16px;
   padding: 13px 24px;
   gap: 10px;
   cursor: pointer;
+  line-height: 1.5;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.vp-doc .bv-install-actions .bv-button {
+  margin: 0;
+  text-decoration: none;
 }
 .bv-browser-glyph {
   width: 24px;

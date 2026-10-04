@@ -66,7 +66,7 @@ Stop generation, close the card, or leave the page to cancel the current request
 
 </details>
 
-## Next steps
+## Related guides
 
 - [Input translation](/en/guide/input-translation)
 - [AI provider setup](/en/config/translation-engines)

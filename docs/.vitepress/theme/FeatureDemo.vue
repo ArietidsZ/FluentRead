@@ -2,21 +2,62 @@
 import { computed, ref } from 'vue'
 import { withBase } from 'vitepress'
 import { useDemoPlayback } from './useDemoPlayback'
+import DocumentDemo from './DocumentDemo.vue'
+import DemoSteps from './DemoSteps.vue'
 const props = defineProps<{
   kind: 'webpage' | 'selection' | 'document' | 'image' | 'video'
   en?: boolean
 }>()
 const t = (zh: string, english: string) => (props.en ? english : zh)
 const root = ref<HTMLElement | null>(null)
-const { step, playing, running, reduced, choose, replay } = useDemoPlayback(
+const { step, playing, running, reduced, choose, select, replay } = useDemoPlayback(
   root,
   props.kind === 'selection' ? 11 : 6,
   true,
   props.kind === 'selection'
     ? [550, 400, 1400, 1600, 1600, 1300, 1300, 1300, 650, 1800, 1300]
+    : props.kind === 'document'
+    ? [1400, 1000, 1100, 1100, 2200, 2600]
     : [600, 450, 900, 1600, 1600, 1800]
 )
 const revealed = computed(() => step.value >= 2)
+const workflow = computed(
+  () =>
+    ({
+      webpage: [
+        t('打开网页', 'Open a page'),
+        t('翻译网页', 'Translate'),
+        t('双语阅读', 'Read both'),
+      ],
+      selection: [
+        t('选中文字', 'Select text'),
+        t('查看译文', 'See translation'),
+        t('查词与朗读', 'Look up & listen'),
+      ],
+      document: [],
+      image: [
+        t('打开图片', 'Open an image'),
+        t('识别并翻译', 'Read & translate'),
+        t('查看译图', 'See the result'),
+      ],
+      video: [
+        t('播放视频', 'Play a video'),
+        t('翻译字幕', 'Translate captions'),
+        t('双语观看', 'Watch both'),
+      ],
+    }[props.kind])
+)
+const activeStage = computed(() => {
+  if (props.kind === 'selection') return step.value < 2 ? 0 : step.value === 2 ? 1 : 2
+  if (props.kind === 'webpage') return step.value === 0 ? 0 : step.value < 3 ? 1 : 2
+  return Math.min(step.value, 2)
+})
+const stageStarts = computed(() => {
+  if (props.kind === 'selection') return [0, 2, 3]
+  if (props.kind === 'webpage') return [0, 1, 3]
+  if (props.kind === 'document') return [0, 1, 4]
+  return [0, 1, 2]
+})
 const word = computed(() => props.kind === 'selection' && step.value >= 8)
 const structure = computed(() => props.kind === 'selection' && step.value >= 5 && step.value <= 7)
 const activePart = computed(() => Math.min(2, Math.max(0, step.value - 5)))
@@ -53,7 +94,10 @@ const parts = [
 const contexts = {
   webpage: t('阅读一篇英文文章', 'Read an article'),
   selection: t('选中词句，查看卡片', 'Select text, see a card'),
-  document: t('导入文件，对照阅读', 'Import a file, read side by side'),
+  document: t(
+    '文档翻译 · 从文件到双语阅读',
+    'Document translation · from file to bilingual reading'
+  ),
   image: t('翻译漫画中的气泡', 'Translate a comic bubble'),
   video: t('视频字幕，双语呈现', 'Bilingual video captions'),
 }
@@ -73,41 +117,59 @@ const contexts = {
     :data-structure="structure"
   >
     <div class="fd-header">
-      <span class="bv-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="bv-dots" aria-hidden="true">
+        <i></i>
+        <i></i>
+        <i></i>
+      </span>
       <span>{{ contexts[kind] }}</span>
       <img :src="withBase('/brand-icon.webp')" width="24" height="24" alt="" />
     </div>
+    <DemoSteps
+      v-if="kind !== 'document'"
+      :labels="workflow"
+      :active="activeStage"
+      :label="t('操作流程', 'Workflow')"
+      :playing="playing"
+      :reduced="reduced"
+      :en="en"
+      @select="select($event, stageStarts)"
+    />
     <div class="fd-stage">
       <template v-if="kind === 'webpage'">
         <div class="fd-meta">
-          <span>{{ t('英语 → 简体中文', 'Chinese → English') }}</span
-          ><span>{{
-            revealed ? t('双语对照', 'Bilingual result') : t('正在翻译…', 'Translating…')
-          }}</span>
+          <span>{{ t('英语 → 简体中文', 'Chinese → English') }}</span>
+          <span>
+            {{ revealed ? t('双语对照', 'Bilingual result') : t('正在翻译…', 'Translating…') }}
+          </span>
         </div>
         <article class="fd-article">
           <h3>{{ t('The joy of reading.', '阅读的乐趣。') }}</h3>
           <div class="fd-paragraph">
             <p>
-              {{ t('Reading opens a window to the world.', '阅读，为我们打开一扇了解世界的窗。') }}
+              {{ t('Reading opens a window to the world.', '阅读为我们打开一扇了解世界的窗。') }}
             </p>
             <p class="fd-translation fd-reveal" :aria-hidden="!revealed">
-              {{ t('阅读，为我们打开一扇了解世界的窗。', 'Reading opens a window to the world.') }}
+              {{ t('阅读为我们打开一扇了解世界的窗。', 'Reading opens a window to the world.') }}
             </p>
           </div>
           <div class="fd-paragraph">
             <p>
-              {{ t('A good book can take you somewhere new.', '一本好书，能带你发现新的天地。') }}
+              {{ t('A good book can take you somewhere new.', '一本好书能带你发现新的天地。') }}
             </p>
             <p class="fd-translation fd-reveal fd-second" :aria-hidden="step < 3">
-              {{ t('一本好书，能带你发现新的天地。', 'A good book can take you somewhere new.') }}
+              {{ t('一本好书能带你发现新的天地。', 'A good book can take you somewhere new.') }}
             </p>
           </div>
         </article>
       </template>
       <template v-else-if="kind === 'selection'">
         <p class="fd-selection-source">
-          <span v-if="word">Stay <mark class="selected">curious</mark>. Keep exploring.</span>
+          <span v-if="word">
+            Stay
+            <mark class="selected">curious</mark>
+            . Keep exploring.
+          </span>
           <mark v-else :class="{ selected: step >= 1 }">A good book opens a new world.</mark>
         </p>
         <div class="fd-card-stack">
@@ -118,8 +180,8 @@ const contexts = {
             :aria-label="t('句子翻译卡片示例', 'Sentence translation card example')"
           >
             <div class="fd-card-bar">
-              <strong>{{ t('简体中文', 'Simplified Chinese') }}</strong
-              ><span>{{ t('卡片模式', 'Card mode') }}</span>
+              <strong>{{ t('简体中文', 'Simplified Chinese') }}</strong>
+              <span>{{ t('卡片模式', 'Card mode') }}</span>
             </div>
             <div class="fd-study-bar">
               {{ t('词性与句法 · 用法 · 练习', 'Sentence structure · Usage · Practice') }}
@@ -163,7 +225,8 @@ const contexts = {
               <p class="fd-structure-translation">一本好书为你打开一个新世界。</p>
               <div class="fd-structure-explanation" aria-live="polite">
                 <p>
-                  <b>{{ parts[activePart].text }}</b> {{ parts[activePart].meaning }}
+                  <b>{{ parts[activePart].text }}</b>
+                  {{ parts[activePart].meaning }}
                 </p>
                 <p>{{ parts[activePart].explanation }}</p>
               </div>
@@ -176,8 +239,8 @@ const contexts = {
             :aria-label="t('单词学习卡片示例', 'Word learning card example')"
           >
             <div class="fd-card-bar">
-              <strong>{{ t('简体中文', 'Simplified Chinese') }}</strong
-              ><span>{{ t('卡片模式', 'Card mode') }}</span>
+              <strong>{{ t('简体中文', 'Simplified Chinese') }}</strong>
+              <span>{{ t('卡片模式', 'Card mode') }}</span>
             </div>
             <div class="fd-card-body">
               <h3>curious</h3>
@@ -188,7 +251,10 @@ const contexts = {
                   <path d="M16 9.5a4.5 4.5 0 0 1 0 5" />
                 </svg>
               </div>
-              <p class="fd-word-meaning"><b>adj.</b> 好奇的；求知欲强的</p>
+              <p class="fd-word-meaning">
+                <b>adj.</b>
+                好奇的；求知欲强的
+              </p>
               <p class="fd-definition">Eager to know or learn.</p>
               <small>{{ t('例句', 'Example') }}</small>
               <p>Stay curious about the world.</p>
@@ -215,53 +281,46 @@ const contexts = {
               <path d="M16 9a5 5 0 0 1 0 6M19 6a9 9 0 0 1 0 12" />
             </svg>
             {{
-              target === 'original' ? t('朗读原文', 'Read original') : t('朗读译文', 'Read translation')
+              target === 'original'
+                ? t('朗读原文', 'Read original')
+                : t('朗读译文', 'Read translation')
             }}
-            <span class="fd-sound-wave" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="fd-sound-wave" aria-hidden="true">
+              <i></i>
+              <i></i>
+              <i></i>
+            </span>
           </button>
         </div>
-        <p class="fd-audio-note">{{
-          t('朗读动作示意，不播放声音', 'Read-aloud preview · no sound')
-        }}</p>
+        <p class="fd-audio-note">
+          {{ t('朗读动作示意，不播放声音', 'Read-aloud preview · no sound') }}
+        </p>
       </template>
-      <template v-else-if="kind === 'document'">
-        <div class="fd-meta">
-          <strong>explore.pdf</strong
-          ><span>{{
-            revealed ? t('翻译完成', 'Translated') : t('正在翻译…', 'Translating…')
-          }}</span>
-        </div>
-        <div class="fd-document-pages">
-          <article>
-            <small>{{ t('原文', 'Original') }}</small>
-            <h3>A new view.</h3>
-            <p>Every language opens a new door.</p>
-            <div class="fd-lines" aria-hidden="true"><i></i><i></i><i></i></div>
-          </article>
-          <article>
-            <small>{{ t('译文', 'Translation') }}</small>
-            <div class="fd-reveal" :aria-hidden="!revealed">
-              <h3>新的视角。</h3>
-              <p>每一种语言，都打开一扇新的门。</p>
-              <div class="fd-lines" aria-hidden="true"><i></i><i></i><i></i></div>
-            </div>
-          </article>
-        </div>
-      </template>
+      <DocumentDemo
+        v-else-if="kind === 'document'"
+        :step="step"
+        :en="en"
+        :playing="playing"
+        :reduced="reduced"
+        @select="select($event, stageStarts)"
+      />
       <template v-else-if="kind === 'image'">
         <div class="fd-meta">
-          <span>{{ t('漫画原图', 'Comic image') }}</span
-          ><span>{{
-            revealed
-              ? t('译文回到原图', 'Translation on the image')
-              : t('识别文字…', 'Reading the text…')
-          }}</span>
+          <span>{{ t('漫画原图', 'Comic image') }}</span>
+          <span>
+            {{
+              revealed
+                ? t('译文回到原图', 'Translation on the image')
+                : t('识别文字…', 'Reading the text…')
+            }}
+          </span>
         </div>
         <div class="fd-comic">
           <div class="fd-bubble">
-            <span class="fd-layer" :class="{ 'fd-hidden': revealed }" :aria-hidden="revealed"
-              >Let's explore the world!</span
-            ><span class="fd-layer fd-reveal" :aria-hidden="!revealed">一起探索世界吧！</span>
+            <span class="fd-layer" :class="{ 'fd-hidden': revealed }" :aria-hidden="revealed">
+              Let's explore the world!
+            </span>
+            <span class="fd-layer fd-reveal" :aria-hidden="!revealed">一起探索世界吧！</span>
           </div>
           <svg
             viewBox="0 0 380 160"
@@ -279,10 +338,12 @@ const contexts = {
       </template>
       <template v-else>
         <div class="fd-meta">
-          <span>YouTube · X · {{ t('网页会议', 'Web meetings') }}</span
-          ><span>{{
-            revealed ? t('双语字幕', 'Bilingual captions') : t('读取字幕…', 'Reading captions…')
-          }}</span>
+          <span>YouTube · X · {{ t('网页会议', 'Web meetings') }}</span>
+          <span>
+            {{
+              revealed ? t('双语字幕', 'Bilingual captions') : t('读取字幕…', 'Reading captions…')
+            }}
+          </span>
         </div>
         <div class="fd-player">
           <svg viewBox="0 0 500 260" aria-hidden="true">
@@ -299,11 +360,13 @@ const contexts = {
       </template>
     </div>
     <div class="fd-footer">
-      <small>{{
-        reduced
-          ? t('示例内容', 'Sample content')
-          : t('自动演示 · 示例内容', 'Auto demo · sample content')
-      }}</small>
+      <small>
+        {{
+          reduced
+            ? t('示例内容', 'Sample content')
+            : t('自动演示 · 示例内容', 'Auto demo · sample content')
+        }}
+      </small>
       <div>
         <button
           v-if="!reduced"
@@ -315,8 +378,11 @@ const contexts = {
               : t('播放自动演示', 'Play automatic demo')
           "
         >
-          {{ playing ? t('Ⅱ 暂停', 'Ⅱ Pause') : t('▷ 播放', '▷ Play') }}</button
-        ><button type="button" @click="replay">{{ t('↻ 重播', '↻ Replay') }}</button>
+          {{ playing ? t('Ⅱ 暂停', 'Ⅱ Pause') : t('▷ 播放', '▷ Play') }}
+        </button>
+        <button type="button" @click="replay">
+          {{ t('↻ 重播', '↻ Replay') }}
+        </button>
       </div>
     </div>
   </div>

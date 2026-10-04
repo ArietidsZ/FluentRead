@@ -12,9 +12,9 @@
       <section class="translation-input-panel" aria-labelledby="translation-input-title">
         <div class="translation-panel-heading"><h3 id="translation-input-title">{{ ct('input') }}</h3><button v-if="sourceText" class="text-button" type="button" @click="clearSource">{{ ct('clear') }}</button></div>
         <div class="translation-center-toolbar">
-          <div class="language-picker-group"><label for="translation-center-source">{{ ct('source') }}</label><UiSelect id="translation-center-source" v-model="sourceLanguage" :aria-label="ct('source')" filterable @change="persistTranslationCenterConfig('source')"><ElOption v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore :label="languageLabel(item.value)" /></UiSelect></div>
+          <div class="language-picker-group"><label for="translation-center-source">{{ ct('source') }}</label><UiSelect id="translation-center-source" v-model="sourceLanguage" :aria-label="ct('source')" :title="languageLabel(sourceLanguage)" :wrap-label="false" :show-search-icon="false" filterable @visible-change="sourceMenuOpen = $event" @change="persistTranslationCenterConfig('source')"><template #label><span data-i18n-ignore>{{ sourceMenuOpen ? t('select.search') : languageLabel(sourceLanguage).split(' / ')[0] }}</span></template><ElOption v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore :label="languageLabel(item.value)" /></UiSelect></div>
           <button class="language-swap-button icon-button" type="button" :aria-label="ct('swap')" :title="ct(sourceLanguage === 'auto' ? 'swapAuto' : 'swap')" :disabled="sourceLanguage === 'auto'" @click="swapLanguages"><UiIcon name="swap" /></button>
-          <div class="language-picker-group"><label for="translation-center-target">{{ ct('target') }}</label><UiSelect id="translation-center-target" v-model="targetLanguage" :aria-label="ct('target')" filterable @change="persistTranslationCenterConfig('target')"><ElOption v-for="item in targetLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" /></UiSelect></div>
+          <div class="language-picker-group"><label for="translation-center-target">{{ ct('target') }}</label><UiSelect id="translation-center-target" v-model="targetLanguage" :aria-label="ct('target')" :title="languageLabel(targetLanguage)" :wrap-label="false" :show-search-icon="false" filterable @visible-change="targetMenuOpen = $event" @change="persistTranslationCenterConfig('target')"><template #label><span data-i18n-ignore>{{ targetMenuOpen ? t('select.search') : languageLabel(targetLanguage).split(' / ')[0] }}</span></template><ElOption v-for="item in targetLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" /></UiSelect></div>
         </div>
         <div class="translation-editor"><textarea ref="sourceEditor" v-model="sourceText" data-i18n-ignore :maxlength="MAX_TEXT_LENGTH" :placeholder="ct('placeholder')" :aria-label="ct('input')" aria-describedby="translation-input-help" @keydown="handleEditorKeydown" /><button v-if="!sourceText" class="example-button" type="button" @click="useExample"><UiIcon name="pen" :size="15" />{{ ct('example') }}</button></div>
         <div class="translation-input-meta"><span>{{ sourceText.length.toLocaleString() }} / 5,000</span><span v-if="isRunning" role="status">{{ ct('progress', {done: settledCount, total: requestedCount}) }}</span></div>
@@ -81,6 +81,8 @@ const MAX_TEXT_LENGTH = MAX_COMPARISON_TEXT_LENGTH;
 const sourceText = ref('');
 const sourceLanguage = ref('auto');
 const targetLanguage = ref('zh-Hans');
+const sourceMenuOpen = ref(false);
+const targetMenuOpen = ref(false);
 const resultLayout = ref<'list' | 'grid'>('list');
 const sourceEditor = ref<HTMLTextAreaElement | null>(null);
 const state = reactive<ComparisonState>({cards: [], run: 0});

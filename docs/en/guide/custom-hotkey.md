@@ -47,7 +47,7 @@ Try a regular webpage; browser internal pages and extension stores generally can
 
 </details>
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

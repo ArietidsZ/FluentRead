@@ -2,12 +2,13 @@
 import { computed, ref } from 'vue'
 import { withBase } from 'vitepress'
 import { useDemoPlayback } from './useDemoPlayback'
-const props = defineProps<{ en?: boolean; autoplay?: boolean }>()
+import DemoSteps from './DemoSteps.vue'
+const props = withDefaults(defineProps<{ en?: boolean; autoplay?: boolean }>(), { autoplay: true })
 const root = ref<HTMLElement | null>(null)
-const { step, playing, running, reduced, replay } = useDemoPlayback(
+const { step, playing, running, reduced, select, replay } = useDemoPlayback(
   root,
   4,
-  props.autoplay ?? true,
+  props.autoplay,
   [350, 350, 550, 3800]
 )
 const t = (zh: string, english: string) => (props.en ? english : zh)
@@ -39,21 +40,38 @@ const translated = computed(() => step.value >= 2)
         }}
       </span>
     </div>
+    <DemoSteps
+      :labels="[
+        t('打开网页', 'Open a page'),
+        t('翻译网页', 'Translate'),
+        t('双语阅读', 'Read both'),
+      ]"
+      :active="step === 0 ? 0 : step < 3 ? 1 : 2"
+      :label="t('网页翻译流程', 'Webpage translation workflow')"
+      :playing="playing"
+      :reduced="reduced"
+      :en="en"
+      @select="select($event, [0, 1, 3])"
+    />
     <article class="bv-paper" :class="{ translated, scanning: step === 1 }">
       <span class="bv-paper-label">{{
         t('阅读示例 · 原文始终保留', 'Reading example · the original stays')
       }}</span>
       <h3>{{ t('The joy of reading.', '阅读的乐趣。') }}</h3>
       <div class="bv-line">
-        <p>{{ t('Reading opens a window to the world.', '阅读，为我们打开一扇了解世界的窗。') }}</p>
+        <p>
+          {{ t('Reading opens a window to the world.', '阅读为我们打开一扇了解世界的窗。') }}
+        </p>
         <p class="bv-line-translation" :aria-hidden="!translated">
-          {{ t('阅读，为我们打开一扇了解世界的窗。', 'Reading opens a window to the world.') }}
+          {{ t('阅读为我们打开一扇了解世界的窗。', 'Reading opens a window to the world.') }}
         </p>
       </div>
       <div class="bv-line">
-        <p>{{ t('A good book can take you somewhere new.', '一本好书，能带你发现新的天地。') }}</p>
+        <p>
+          {{ t('A good book can take you somewhere new.', '一本好书能带你发现新的天地。') }}
+        </p>
         <p class="bv-line-translation" :aria-hidden="!translated || step === 2">
-          {{ t('一本好书，能带你发现新的天地。', 'A good book can take you somewhere new.') }}
+          {{ t('一本好书能带你发现新的天地。', 'A good book can take you somewhere new.') }}
         </p>
       </div>
       <div class="bv-reading-mark" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -74,7 +92,9 @@ const translated = computed(() => step.value >= 2)
           @click="playing = !playing"
         >
           {{ playing ? t('Ⅱ 暂停', 'Ⅱ Pause') : t('▷ 播放', '▷ Play') }}</button
-        ><button type="button" @click="replay">{{ t('↻ 重播', '↻ Replay') }}</button>
+        ><button type="button" @click="replay">
+          {{ t('↻ 重播', '↻ Replay') }}
+        </button>
       </div>
     </div>
   </div>

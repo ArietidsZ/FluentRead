@@ -73,7 +73,7 @@ Results expire after seven days and are tied to the service, model, endpoint, AP
 
 </details>
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

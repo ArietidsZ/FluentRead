@@ -73,7 +73,7 @@ For AI token usage, see [AI usage](/en/guide/model-usage).
 
 </details>
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

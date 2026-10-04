@@ -124,7 +124,7 @@ When source text changes, full-page translation waits for about 1.8 seconds of s
 
 </details>
 
-## Next steps
+## Related guides
 
 - [Appearance](/en/config/appearance)
 - [Shortcuts](/en/guide/custom-hotkey)

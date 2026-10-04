@@ -86,7 +86,7 @@ The compact X menu puts display modes first. **Subtitle options** contains timin
 
 </details>
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

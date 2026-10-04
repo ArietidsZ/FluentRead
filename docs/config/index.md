@@ -1,6 +1,6 @@
 # 设置
 
-点击扩展菜单中的齿轮进入完整设置。不知道某项在哪里时，可以直接搜索，例如“目标语言”“快捷键”“菜单栏布局”。修改通常会自动保存。侧边栏各组默认展开，普通设置在同页分组显示；翻译统计保留“翻译概览 / 模型用量”视图切换。
+点击扩展菜单中的齿轮进入完整设置。可以通过搜索查找设置，例如“目标语言”“快捷键”“菜单栏布局”。修改通常会自动保存。侧边栏各组默认展开，普通设置在同页分组显示；翻译统计保留“翻译概览 / 模型用量”视图切换。
 
 扩展菜单里的快捷面板用于开关功能和切换显示方式。快捷键、朗读声音、译文样式和视频模型等偏好，点击面板底部的对应设置入口调整；已有选择会继续保留。
 
@@ -16,7 +16,7 @@
 | 悬浮和划词触发方式 | 想减少误触，或让查词更快 |
 | 自动翻译与网站规则 | 某些网站总要翻译，另一些希望保持原样 |
 
-<figure class="doc-figure"><a href="/screenshots/ui/zh-CN/settings-general.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/ui/zh-CN/settings-general.webp" width="2560" height="1600" alt="FluentRead 设置页面中的语言、翻译模式与译文样式" loading="lazy" /></a><figcaption>先调整阅读习惯，再按需要开启更多功能。</figcaption></figure>
+<figure class="doc-figure"><a href="/screenshots/ui/zh-CN/settings-general.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/ui/zh-CN/settings-general.webp" width="2560" height="1600" alt="FluentRead 设置页面中的语言、翻译模式与译文样式" loading="lazy" /></a><figcaption>设置页中的语言、翻译模式与译文样式。</figcaption></figure>
 
 <details class="guide-details">
 <summary>不翻译的语言</summary>
@@ -107,7 +107,7 @@
 
 </details>
 
-## 接下来
+## 相关文档
 
 - [翻译服务与连接](/config/translation-engines)
 - [译文外观与阅读辅助](/config/appearance)

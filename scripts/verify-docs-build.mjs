@@ -56,6 +56,21 @@ for (const [file, doc] of docs) {
       assert(resolve(alternate.getAttribute('href')), `Missing translated URL: ${file}`)
     }
   }
+  for (const demo of doc.querySelectorAll('[data-visual],[data-demo]')) {
+    assert(demo.querySelector('.ds'), `Animated walkthrough needs numbered workflow steps: ${file}`)
+    const stages = demo.querySelectorAll('.ds li')
+    const stageButtons = demo.querySelectorAll('.ds li > button')
+    assert.equal(stageButtons.length, stages.length, `Every workflow stage must be clickable: ${file}`)
+    for (const button of stageButtons) {
+      assert.equal(button.getAttribute('type'), 'button')
+      assert(button.getAttribute('aria-label'), `Step button needs an accessible action: ${file}`)
+    }
+    assert.equal(
+      demo.querySelectorAll('.ds-current').length,
+      1,
+      `Walkthrough needs one current stage: ${file}`
+    )
+  }
   for (const a of doc.querySelectorAll('a[href]')) {
     const href = a.getAttribute('href')
     if (!href.startsWith('/') && !href.startsWith('#')) continue
@@ -128,9 +143,26 @@ for (const prefix of ['', '/en']) {
   assert(!home.querySelector('.bv-walkthrough'), 'Numbered walkthrough controls must be removed')
   assert.equal(home.querySelectorAll('.bv-hero h1').length, 1, 'Hero needs one primary headline')
   assert.equal(
-    home.querySelectorAll('.bv-hero .bv-install-actions > a').length,
+    home.querySelectorAll('.bv-hero .bv-install-actions > a.bv-primary').length,
     1,
     'Hero needs one primary install action'
+  )
+  const docsAction = home.querySelector('.bv-hero .bv-docs-link')
+  assert.equal(docsAction?.getAttribute('href'), `${prefix}/docs/`)
+  assert.equal(docsAction?.textContent.trim(), prefix ? 'Documentation' : '使用文档')
+  const workflows = [...home.querySelectorAll('.bv-feature-row .ds')]
+  assert.equal(workflows.length, 5, 'Each feature demo needs a workflow')
+  assert(
+    workflows.every(
+      (flow) =>
+        flow.querySelectorAll('li').length === 3 &&
+        flow.querySelectorAll('[aria-current="step"]').length === 1
+    ),
+    'Feature workflows need three stages and one current stage'
+  )
+  const docsBrand = docs.get(resolve(prefix + '/docs/')).querySelector('.VPNavBarTitle .title')
+  assert(
+    docsBrand?.textContent.includes('流畅阅读') && docsBrand.textContent.includes('FluentRead')
   )
   assert.equal(
     home.querySelectorAll('.bv-browser-options a').length,
@@ -174,9 +206,8 @@ for (const prefix of ['', '/en']) {
       (prefix
         ? 'FluentRead is an open-source browser extension for bilingual translation.'
         : '流畅阅读，一款开源的浏览器双语翻译插件') &&
-      home
-        .querySelector('.bv-hero h1.bv-hero-slogan')
-        ?.textContent.trim() === (prefix ? brandTaglines['en-US'] : brandTaglines['zh-CN']),
+      home.querySelector('.bv-hero h1.bv-hero-slogan')?.textContent.trim() ===
+        (prefix ? brandTaglines['en-US'] : brandTaglines['zh-CN']),
     'Canonical slogan must be the headline, with the product name in the localized introduction'
   )
   assert(
@@ -200,10 +231,16 @@ for (const prefix of ['', '/en']) {
     'Hero scene decorations must stay present'
   )
   assert(
-    home.querySelector('.fd-selection button[aria-label="' +
-      (prefix ? 'Preview reading the original' : '演示朗读原文') + '"]') &&
-      home.querySelector('.fd-selection button[aria-label="' +
-        (prefix ? 'Preview reading the translation' : '演示朗读译文') + '"]'),
+    home.querySelector(
+      '.fd-selection button[aria-label="' +
+        (prefix ? 'Preview reading the original' : '演示朗读原文') +
+        '"]'
+    ) &&
+      home.querySelector(
+        '.fd-selection button[aria-label="' +
+          (prefix ? 'Preview reading the translation' : '演示朗读译文') +
+          '"]'
+      ),
     'Selection card needs original and translation read-aloud previews'
   )
   assert(
