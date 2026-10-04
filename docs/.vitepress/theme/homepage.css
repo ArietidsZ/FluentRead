@@ -33,8 +33,12 @@
   max-width: 780px;
   margin: auto;
 }
-.bv-hero-mobile-icon {
-  display: none;
+/* 品牌图标在各屏宽下都独立居中，显式尺寸避免载入时推动口号。 */
+.bv-hero-icon {
+  display: block;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 24px;
 }
 /* 两行口号以字面宽度居中，行末标点悬挂以校正视觉偏移。 */
 .bv-site .bv-hero-slogan {
@@ -814,95 +818,8 @@
   }
 }
 @media (max-width: 760px) {
-  /* 保留散落的问候语，集中在图标周围和首屏下方留白，避开正文与按钮。 */
-  .bv-hero-orbit::before {
-    display: none;
-  }
-  .bv-orbit-greeting {
-    display: block;
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 1.4;
-    opacity: 0.6;
-    white-space: nowrap;
-  }
-  .bv-greeting-fr {
-    left: 7%;
-    top: 30px;
-    font-size: 15px;
-    color: #9a7e91;
-    transform: rotate(-8deg);
-  }
-  .bv-greeting-en {
-    right: 7%;
-    top: 42px;
-    font-size: 14px;
-    color: #78928d;
-    transform: rotate(6deg);
-  }
-  .bv-greeting-zh {
-    left: 41%;
-    right: auto;
-    top: 12px;
-    font-size: 13px;
-    color: #8983a0;
-    transform: rotate(-4deg);
-  }
-  .bv-greeting-ko {
-    left: 4%;
-    top: 69px;
-    font-size: 11px;
-    color: #81968b;
-    transform: rotate(-5deg);
-  }
-  .bv-greeting-ja {
-    right: 5%;
-    top: 84px;
-    font-size: 11px;
-    color: #8e83a6;
-    transform: rotate(5deg);
-  }
-  .bv-greeting-de {
-    left: 5%;
-    top: 104px;
-    color: #84919b;
-    transform: rotate(-6deg);
-  }
-  .bv-greeting-ru {
-    right: 8%;
-    top: 112px;
-    color: #9b8b73;
-    transform: rotate(7deg);
-  }
-  .bv-greeting-ar {
-    left: 9%;
-    top: 127px;
-    color: #a18490;
-    transform: rotate(4deg);
-  }
-  .bv-greeting-es {
-    left: 11%;
-    top: auto;
-    bottom: 31px;
-    font-size: 14px;
-    color: #9d896f;
-    transform: rotate(-7deg);
-  }
-  .bv-greeting-pt {
-    right: 13%;
-    top: auto;
-    bottom: 14px;
-    color: #7f909e;
-    transform: rotate(6deg);
-  }
   .bv-hero {
     padding-top: 72px;
-  }
-  .bv-hero-mobile-icon {
-    display: block;
-    width: 64px;
-    height: 64px;
-    margin: 0 auto 24px;
   }
   .bv-site .bv-feature-row {
     grid-template-columns: minmax(0, 1fr);
