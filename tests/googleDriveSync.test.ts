@@ -35,6 +35,23 @@ async function synced() {
     return f;
 }
 describe('Google Drive 同步事务', () => {
+    it('只读备份仍展示差异并可在后台重启后恢复，伪造保存请求也不能写入云端', async () => {
+        const f=await synced();
+        const originalTarget=f.local.to;
+        f.remote={...f.remote!,file:{...f.remote!.file,readOnly:true}};
+        f.local=config({...f.local,to:'de'});
+        const original=f.remote.content;
+        let preview=await f.service.prepare(password);
+        expect(preview).toMatchObject({canUpload:false,hasRemote:true});
+        expect(preview.changes.some(change=>change.label==='目标语言')).toBe(true);
+        await expect(f.service.commit(preview.id,password,'upload',{})).rejects.toThrow('安全覆盖');
+        expect(f.ports.api.write).toHaveBeenCalledTimes(1);
+        preview=await f.service.prepare(password);
+        await createGoogleDriveSync(f.ports).commit(preview.id,password,'download',{});
+        expect(f.local.to).toBe(originalTarget);
+        expect(f.remote.content).toBe(original);
+        expect(f.ports.api.write).toHaveBeenCalledTimes(1);
+    });
     it('成功同步后清理授权失败不会被误报为同步失败，状态检查会重试清理', async () => {
         const f=fixture(); const preview=await f.service.prepare(password);
         vi.mocked(f.ports.auth.disconnect).mockRejectedValueOnce(new Error('fixture cache failure'));

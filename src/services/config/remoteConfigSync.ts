@@ -2,7 +2,7 @@
  * @file src/services/config/remoteConfigSync.ts
  * 文件职责：编排 Google Drive 与 WebDAV 共用的完整配置云备份和用户确认事务。
  * 主要内容：单次授权、账号绑定、上次成功同步的账号记录、密文基线、三方合并、
- * 掩码预览、过期检查与授权缓存清理；清理失败独立提示并重试，不掩盖同步结果或原错误。
+ * 掩码预览、只读恢复能力、过期检查与授权缓存清理；清理失败独立提示，不掩盖同步结果或原错误。
  * 模块边界：通过端口读写配置与云端存储；不持久化口令，不向设置页面传递完整配置。
  */
 import {buildDriveSyncDiff, driveSyncPayload, driveValuesEqual, parseDriveSyncPayload, resolveDriveSyncDiff, toDriveSyncConfig, type DriveSyncConfig, type DriveSyncDiff} from '@/src/core/config/driveSync';
@@ -26,6 +26,7 @@ export interface DriveSyncPreview {
     account: DriveAccount;
     hasRemote: boolean;
     hasBaseline: boolean;
+    canUpload?: false;
     changes: DriveSyncDiff['changes'];
     expiresAt: number;
 }
@@ -125,7 +126,7 @@ export function createRemoteConfigSync<Session extends DriveSession>(ports: Driv
             try {baseline = parseDriveSyncPayload(await decryptDriveConfig(state.baseline, passphrase));} catch {baseline = null;}
         }
         const diff = remoteConfig ? buildDriveSyncDiff(baseline, local, remoteConfig) : null;
-        const preview: DriveSyncPreview = {id: crypto.randomUUID(), account: session.account, hasRemote: Boolean(remote), hasBaseline: Boolean(baseline), changes: diff?.changes ?? [], expiresAt: ports.now() + 10 * 60_000};
+        const preview: DriveSyncPreview = {id: crypto.randomUUID(), account: session.account, hasRemote: Boolean(remote), hasBaseline: Boolean(baseline), ...(remote?.file.readOnly ? {canUpload: false as const} : {}), changes: diff?.changes ?? [], expiresAt: ports.now() + 10 * 60_000};
         pending = {preview, local, remote, remoteConfig, diff, proof: await proof(preview.id, passphrase)};
         // MV3 worker 可能在用户阅读预览时休眠；待确认快照仅以口令密文保存。
         // 本机快照只封装一次；云端已经是密文，基线已经存在状态中，避免再次加密放大三倍。
@@ -168,7 +169,10 @@ export function createRemoteConfigSync<Session extends DriveSession>(ports: Driv
         const remoteChanged = !current.remoteConfig || !driveValuesEqual(next, current.remoteConfig);
         const content = !remoteChanged ? current.remote!.content : await encryptDriveConfig(driveSyncPayload(next), passphrase);
         if (!sameRemote(await ports.api.read(session), current.remote)) throw new CloudSyncError('云端配置已变化，请重新生成同步预览。');
-        if (direction !== 'download' && remoteChanged) await ports.api.write(session, content, current.remote?.file ?? null);
+        if (direction !== 'download' && remoteChanged) {
+            if (current.remote?.file.readOnly) throw new CloudSyncError('云端备份缺少安全覆盖所需的版本信息；仍可恢复，请重新读取后重试。');
+            await ports.api.write(session, content, current.remote?.file ?? null);
+        }
         const localChanged = !driveValuesEqual(next, current.local);
         if (localChanged) {
             try {await ports.apply(next);} catch {

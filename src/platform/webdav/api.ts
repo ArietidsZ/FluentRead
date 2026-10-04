@@ -1,7 +1,7 @@
 /**
  * @file src/platform/webdav/api.ts
  * 文件职责：在用户指定的 WebDAV 目录下读写 FluentRead 配置密文并验证服务器能力。
- * 主要内容：只读 PROPFIND 测试、缺少父目录的首次备份识别、从文件属性补取并核验 ETag、条件 PUT、流式大小限制和超时；
+ * 主要内容：只读 PROPFIND 测试、首次备份识别、从文件属性或 HEAD 补取并核验 ETag、缺少写入能力的只读恢复、条件 PUT 与大小限制；
  * 禁止跟随重定向、携带浏览器 Cookie 或返回服务器异常正文，防止连接凭据流向其他地址。
  * 模块边界：只消费后台会话与密文，不读取配置或保存密码；冲突合并由云备份服务处理。
  */
@@ -89,13 +89,20 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
             return {file: {id: filename(session), version, modifiedTime: response.headers.get('last-modified') ?? '', ...(etag ? {etag} : {})}, content};
         });
         if (!remote || remote.file.etag) return remote;
-        const etag = await request(session, url, {method: 'PROPFIND', headers: {Depth: '0', 'Content-Type': 'application/xml; charset=utf-8'}, body: '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/></d:prop></d:propfind>'}, async response => {
+        let etag = await request(session, url, {method: 'PROPFIND', headers: {Depth: '0', 'Content-Type': 'application/xml; charset=utf-8'}, body: '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/></d:prop></d:propfind>'}, async response => {
             // 不具备属性能力仍可恢复；真正的鉴权、版本或网络错误必须提示用户。
             if ([405, 501].includes(response.status)) return undefined;
             if (response.status !== 207) throw failure(response.status);
             return parseWebDavProperties(await consumeText(response, XML_LIMIT), url)?.etag;
         });
-        if (!etag) return remote;
+        // 部分服务仅在 HEAD 中返回文件 ETag。它与属性值一样，必须经过条件
+        // GET 和密文核对，不能仅凭时间戳、自己计算的 hash 或弱 ETag 来覆盖。
+        if (!etag) etag = await request(session, url, {method: 'HEAD'}, async response => {
+            if ([405, 501].includes(response.status)) return undefined;
+            if (response.status !== 200) throw failure(response.status);
+            return strongCloudEtag(response.headers.get('etag'));
+        });
+        if (!etag) return {...remote, file: {...remote.file, readOnly: true}};
         // 属性与下载之间可能被另一设备更新。条件重读且逐字核对密文，
         // 防止把旧内容与新 ETag 配对后覆盖对方的修改。
         await request(session, url, {method: 'GET', headers: {'If-Match': etag}}, async response => {
@@ -110,7 +117,7 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
         let envelope: unknown;
         try {envelope = JSON.parse(content);} catch {throw new WebDavError('encryptedOnly');}
         if (!envelope || typeof envelope !== 'object' || !('format' in envelope) || envelope.format !== DRIVE_ENCRYPTION_FORMAT || !('ciphertext' in envelope) || typeof envelope.ciphertext !== 'string' || !envelope.ciphertext || new TextEncoder().encode(content).length > maxBytes) throw new WebDavError('encryptedOnly');
-        if (previous && (!strongCloudEtag(previous.etag ?? null) || previous.id !== filename(session))) throw new WebDavError('etag');
+        if (previous && (previous.readOnly || !strongCloudEtag(previous.etag ?? null) || previous.id !== filename(session))) throw new WebDavError('etag');
         if (!previous) {
             await request(session, directory(session), {method: 'MKCOL'}, async response => {
                 if (![201, 405].includes(response.status)) throw failure(response.status);

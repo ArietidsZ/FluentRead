@@ -2,7 +2,7 @@
 @file src/features/settings/ui/RemoteConfigSync.vue
 文件职责：用清晰的保存、恢复与逐项合并流程完成Google Drive 与 WebDAV 共用的配置云备份。
 主要内容：通过右侧记录插槽统一显示账号和时间，窄屏改为上下排列；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
-先选择操作再确认影响；默认展示差异与连接变更类别，合并时优先列出冲突，收起自动保留项不隐藏冲突，小屏保留操作区。
+先选择操作再确认影响；缺少安全覆盖版本时明确提示只读恢复；默认展示差异与连接变更类别，小屏保留操作区。
 模块边界：只消费后台脱敏预览和同步记录；不获取完整配置、令牌或用户口令，由父级提供存储方式和客户端。
 -->
 <template>
@@ -27,6 +27,7 @@
           <el-button v-if="kind === 'google-drive'" link :loading="switchingAccount" :disabled="busy" :data-testid="`${kind}-switch-account`" @click="switchAccount">{{ t('settings.drive.switchAccount') }}</el-button>
         </div>
         <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="drive-error" />
+        <el-alert v-if="preview.canUpload === false" :title="t('settings.cloud.restoreOnly')" type="warning" :closable="false" show-icon class="drive-error" :data-testid="`${kind}-restore-only`" />
 
         <ol v-if="preview.hasRemote && !identical" class="drive-steps" :aria-label="t('settings.drive.stepsLabel')">
           <li :class="{'is-current': step === 'choose'}" :aria-current="step === 'choose' ? 'step' : undefined"><span>1</span>{{ t('settings.drive.chooseStep') }}</li>
@@ -40,12 +41,12 @@
         <template v-else-if="step === 'choose'">
           <div class="drive-intent-heading"><h3>{{ t('settings.drive.chooseTitle') }}</h3><p>{{ t(preview.hasBaseline ? 'settings.drive.returningDescription' : 'settings.drive.firstRestoreDescription') }}</p></div>
           <div class="drive-operation-list" role="radiogroup" :aria-label="t('settings.drive.chooseStep')">
-            <label v-for="operation in ['download', 'upload'] as const" :key="operation" class="drive-operation" :class="{'is-selected': direction === operation, 'is-disabled': busy}">
-              <input v-model="direction" type="radio" name="drive-operation" :value="operation" :disabled="busy" :data-testid="`${kind}-direction-${operation}`" />
+            <label v-for="operation in ['download', 'upload'] as const" :key="operation" class="drive-operation" :class="{'is-selected': direction === operation, 'is-disabled': busy || operation === 'upload' && preview.canUpload === false}">
+              <input v-model="direction" type="radio" name="drive-operation" :value="operation" :disabled="busy || operation === 'upload' && preview.canUpload === false" :data-testid="`${kind}-direction-${operation}`" />
               <span><strong>{{ t(`settings.drive.${operation}Title`) }}</strong><span>{{ t(`settings.drive.${operation}Description`) }}</span></span>
             </label>
           </div>
-          <div class="drive-advanced">
+          <div v-if="preview.canUpload !== false" class="drive-advanced">
             <p>{{ t('settings.drive.mergeQuestion') }}</p>
             <el-button link :disabled="busy" :data-testid="`${kind}-direction-merge`" @click="selectMerge"><el-icon><Switch /></el-icon>{{ t('settings.drive.mergeReviewTitle') }}<el-icon><ArrowRight /></el-icon></el-button>
           </div>
@@ -146,7 +147,7 @@ const statusText = computed(() => !status.value ? translateLegacy('正在检查�
 const directionHint = computed(() => direction.value === 'merge' && !preview.value?.hasBaseline ? t('settings.drive.firstMergeDescription') : direction.value ? t(`settings.drive.${direction.value}Description`) : '');
 const summaryTitle = computed(() => t('settings.drive.mergeReady'));
 const commitLabel = computed(() => t(identical.value ? 'settings.drive.finishSync' : direction.value ? `settings.drive.${direction.value}Action` : 'settings.drive.chooseAction'));
-const canCommit = computed(() => Boolean(preview.value && direction.value && (direction.value !== 'merge' || unresolved.value === 0)));
+const canCommit = computed(() => Boolean(preview.value && direction.value && (preview.value.canUpload !== false || direction.value === 'download') && (direction.value !== 'merge' || unresolved.value === 0)));
 watch(direction, () => {page.value = 1; detailsVisible.value = true; automaticVisible.value = true;});
 function previewValueLabel(value: string) {return value === '开启' ? t('settings.drive.enabled') : value === '关闭' ? t('settings.drive.disabled') : translateLegacy(value);}
 function rowChoice(row: DrivePreviewRow) {return driveRowChoice(row, choices.value);}
