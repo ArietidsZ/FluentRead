@@ -684,6 +684,7 @@ export default defineConfig({
                 'src/features/full-page-translation/content/translationRequest.ts',
                 'src/features/full-page-translation/content/viewportStability.ts',
                 'src/features/full-page-translation/progress.ts',
+                'src/features/full-page-translation/ui/progressPanelVisibility.ts',
                 'src/features/settings/background/openOptionsHandler.ts',
                 'src/features/settings/model/credentialPreview.ts',
                 'src/features/settings/model/configHistory.ts',
