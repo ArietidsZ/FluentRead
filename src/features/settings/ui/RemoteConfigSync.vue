@@ -111,7 +111,7 @@ import 'element-plus/es/components/alert/style/css';
 import 'element-plus/es/components/pagination/style/css';
 import {useUiI18n} from '@/src/ui/i18n';
 import {CloudBackupRequestError, type createCloudBackupClient} from '@/src/services/config/cloudBackupClient';
-import {chooseDriveRow, driveRowChoice, groupDrivePreviewChanges, initialDriveDirection, unresolvedDriveChanges, type DrivePreviewRow} from '../model/googleDrivePreview';
+import {chooseDriveRow, driveRowChoice, groupDrivePreviewChanges, initialDriveDirection, localizeDrivePreviewLanguage, unresolvedDriveChanges, type DrivePreviewRow} from '../model/googleDrivePreview';
 import type {DriveChoice} from '@/src/core/config/driveSync';
 import type {DriveSyncDirection, DriveSyncPreview, DriveSyncStatus} from '@/src/services/config/googleDriveSync';
 
@@ -149,7 +149,7 @@ const summaryTitle = computed(() => t('settings.drive.mergeReady'));
 const commitLabel = computed(() => t(identical.value ? 'settings.drive.finishSync' : direction.value ? `settings.drive.${direction.value}Action` : 'settings.drive.chooseAction'));
 const canCommit = computed(() => Boolean(preview.value && direction.value && (preview.value.canUpload !== false || direction.value === 'download') && (direction.value !== 'merge' || unresolved.value === 0)));
 watch(direction, () => {page.value = 1; detailsVisible.value = true; automaticVisible.value = true;});
-function previewValueLabel(value: string) {return value === '开启' ? t('settings.drive.enabled') : value === '关闭' ? t('settings.drive.disabled') : translateLegacy(value);}
+function previewValueLabel(value: string) {return value === '开启' ? t('settings.drive.enabled') : value === '关闭' ? t('settings.drive.disabled') : translateLegacy(localizeDrivePreviewLanguage(value, language.value));}
 function rowChoice(row: DrivePreviewRow) {return driveRowChoice(row, choices.value);}
 function chooseRow(row: DrivePreviewRow, choice: DriveChoice) {choices.value = chooseDriveRow(row, choice, choices.value);}
 function chooseAll(choice: DriveChoice) {for (const row of conflictRows.value) chooseRow(row, choice);}
