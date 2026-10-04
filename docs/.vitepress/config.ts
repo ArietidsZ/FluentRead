@@ -15,6 +15,7 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
       items: [
         item('文档首页', 'Documentation', '/docs/'),
         item('安装与第一次翻译', 'Installation & first translation', '/guide/getting-started'),
+        item('离线下载与安装', 'Offline download & installation', '/guide/offline-install'),
         item('功能概览', 'Feature overview', '/guide/features'),
       ],
     },
