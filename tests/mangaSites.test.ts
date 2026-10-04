@@ -29,7 +29,7 @@ describe('漫画阅读规则与持久偏好', () => {
         ['https://televikun-super-hero-comics.com/rensai/gokumonnadeshiko/episode-001', ':not(*)'],
         ['https://ww2.uzakichanmanga.com/manga/uzaki-chan-wa-asobitai-chapter-1/', 'article .entry-content img'],
         ['https://w9.kaijimanga.com/manga/kaiji-chapter-461/', 'article .entry-content img'],
-        ['https://w9.smokingbehindthesupermarket.com/manga/title-chapter-1/', 'article .entry-content img'],
+        ['https://w9.smokingbehindthesupermarket.com/manga/title-chapter-1/', 'article #content .separator > img'],
         ['https://rawkuma.net/manga/bad-boys/chapter-13.413433/', 'section.mx-auto > section > img'],
         ['https://rawkuma.com/manga/bad-boys/chapter-1/', 'section.mx-auto > section > img'],
         ['https://mangadna.com/manga/omniscient-readers-viewpoint/chapter-311', '.read-manga .read-content > img'],
@@ -64,6 +64,17 @@ describe('漫画阅读规则与持久偏好', () => {
         ['https://ac.qq.com/ComicView/index/id/656723/cid/105748', '#comicContain > li > img'],
         ['https://jumptoon.com/series/JT00064/episodes/14436/', ':not(*)'],
         ['https://www.corocoro.jp/chapter/10580/viewer', '[data-testid="placeholder"] > img[alt^="page_"]'],
+        ['https://youngchampion.jp/episodes/c35433f99f53d', ':not(*)'],
+        ['https://www.antbyw.com/plugin.php?id=jameson_manhua&a=read&kuid=189309&zjid=1435867', '#img_list > div > img[id^="img_"]'],
+        ['https://ww3.mangafreak.me/Read1_One_Piece_1', '.slideshow-container .mySlides img'],
+        ['https://mangafreak.net/Read2_One_Piece_1/', '.slideshow-container .mySlides img'],
+        ['https://mn4u.net/2360/296144/', '.chapter-content #list-imga > img.chapter-img'],
+        ['https://mgread.io/manga/revenge-of-the-iron-blooded-sword-hound/chapter-1/', '#init-manga-single-chapter #chapter-content > img'],
+        ['https://yymanhua.com/m7261/', '#showimage #cp_img > img#cp_image'],
+        ['https://mangarawjp.me/manga/blue-lock/363-wa', '#TopPage.ImageGallery img.img-fluid'],
+        ['https://mangarawjp.me/manga/blue-lock/346-5-wa/', '#TopPage.ImageGallery img.img-fluid'],
+        ['https://speed-manga.net/the-mirror-legacy-0/', 'article #readerarea img.ts-main-image'],
+        ['https://speed-manga.com/the-mirror-legacy-0-5/', 'article #readerarea img.ts-main-image'],
     ])('新增公开样本限定正文选择器 %s', (href, selector) => {
         expect(resolveMangaSite(href)).toMatchObject({selector,custom:false,requireContent:true});
     });
@@ -81,8 +92,26 @@ describe('漫画阅读规则与持久偏好', () => {
         ['comic.mf-fleur.jp','/lineup_comic/'], ['ac.qq.com','/Comic/ComicInfo/id/656723'],
         ['jumptoon.com','/series/JT00064/'],
         ['corocoro.jp','/title/62'],
+        ['youngchampion.jp','/episodes/c35433f99f53d/extra'],
+        ['antbyw.com','/plugin.php'], ['antbyw.com','/other.php'],
+        ['mangafreak.me','/Manga/One_Piece'], ['mangafreak.me.attacker.test','/Read1_One_Piece_1'],
+        ['mn4u.net','/2360/'], ['mn4u.net','/2360/296144/extra'],
+        ['mgread.io','/manga/title/'], ['yymanhua.com','/38yy/'], ['yymanhua.com','/m7261/extra'],
+        ['mangarawjp.me','/manga/blue-lock'], ['mangarawjp.me','/manga/blue-lock/363-wa/extra'],
+        ['speed-manga.net','/manga/the-mirror-legacy/'], ['speed-manga.net.attacker.test','/the-mirror-legacy-0/'],
+        ['smokingbehindthesupermarket.com','/manga/title/'],
     ])('正文规则不将目录、相似域名和额外路径识别成章节 %s%s', (host,path) => {
         expect(resolveMangaReaderProfile(host,path)).toBeNull();
+    });
+    it('Antbyw 仅将指定漫画插件的数字章节查询识别成阅读页，参数次序和额外分页不影响匹配', () => {
+        const query='?zjid=1435867&kuid=189309&a=read&id=jameson_manhua&page=2';
+        expect(resolveMangaReaderProfile('antbyw.com','/plugin.php',query)?.name).toBe('Antbyw');
+        for(const search of ['?id=other&a=read&kuid=1&zjid=2','?id=jameson_manhua&a=bofang&kuid=1&zjid=2',
+            '?id=jameson_manhua&a=read&zjid=2','?id=jameson_manhua&a=read&kuid=1',
+            '?id=jameson_manhua&a=read&kuid=title&zjid=2','?id=jameson_manhua&a=read&kuid=1&zjid=2/extra']) {
+            expect(resolveMangaReaderProfile('antbyw.com','/plugin.php',search)).toBeNull();
+        }
+        expect(resolveMangaReaderProfile('antbyw.com.attacker.test','/plugin.php',query)).toBeNull();
     });
     it('提前翻译默认三页，显式零保留，限制窗口并拒绝损坏或旧类型', () => {
         for (const invalid of [undefined, null, '3', NaN, Infinity, {}, true]) expect(normalizeMangaPrefetchPages(invalid)).toBe(3);

@@ -1,15 +1,15 @@
 /**
  * @file src/core/config/mangaReaderProfiles.ts
  * 文件职责：保存经公开阅读页结构核对的正文规则，避免通用图片过滤漏掉正文或误选推荐封面。
- * 主要内容：WeebCentral、Dynasty、MangaDNA、Rawkuma、Asura、Vortex 与已核对章节站的正文图片规则，GigaViewer 和 Comici 正文画布规则、不可读画布和分片的圈选入口；路径与域名均保留边界。
+ * 主要内容：已核对章节站的正文图片规则，Antbyw 查询参数章节边界，GigaViewer 和 Comici 正文画布规则、不可读画布和分片的圈选入口；路径与域名均保留边界。
  * 模块边界：纯匹配，不执行站点脚本、不读取私有接口、不截图；可访问的图片由 content 阅读器检测。
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
     'kuragebunch.com', 'shonenjumpplus.com', 'tonarinoyj.jp', 'comic-zenon.com', 'ichicomi.com']);
 export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-super-hero-comics.com', 'jumptoon.com'];
 export const MANGA_CANVAS_READER_HOSTS = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
-    'rimacomiplus.jp', 'heros-web.com', 'younganimal.com'];
-export function resolveMangaReaderProfile(hostname: string, pathname: string): {name: string; selector: string; canvasSelector?: string; canvasInteractionSelector?: string; areaSelector?: string} | null {
+    'rimacomiplus.jp', 'heros-web.com', 'younganimal.com', 'youngchampion.jp'];
+export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; canvasSelector?: string; canvasInteractionSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
     if (gigaHosts.has(host) && /^\/episode\/\d+\/?$/.test(pathname)) return {
         name: host, selector: '.page-area img.page-image, .page-area img.js-page-image',
@@ -76,6 +76,31 @@ export function resolveMangaReaderProfile(hostname: string, pathname: string): {
     if (host === 'ac.qq.com' && /^\/ComicView\/index\/id\/\d+\/cid\/\d+\/?$/.test(pathname)) return {
         name: '腾讯动漫', selector: '#comicContain > li > img',
     };
+    if (host === 'antbyw.com' && pathname === '/plugin.php') {
+        const query = new URLSearchParams(search);
+        if (query.get('id') === 'jameson_manhua' && query.get('a') === 'read'
+            && /^\d+$/.test(query.get('kuid') ?? '') && /^\d+$/.test(query.get('zjid') ?? '')) return {
+            name: 'Antbyw', selector: '#img_list > div > img[id^="img_"]',
+        };
+    }
+    if (/(?:^|\.)mangafreak\.(?:net|me)$/.test(host) && /^\/Read\d+_[\w-]+_\d+\/?$/.test(pathname)) return {
+        name: 'MangaFreak', selector: '.slideshow-container .mySlides img',
+    };
+    if (host === 'mn4u.net' && /^\/\d+\/\d+\/?$/.test(pathname)) return {
+        name: 'Manga4u', selector: '.chapter-content #list-imga > img.chapter-img',
+    };
+    if (host === 'mgread.io' && /^\/manga\/[^/]+\/chapter-[^/]+\/?$/.test(pathname)) return {
+        name: 'MG Read', selector: '#init-manga-single-chapter #chapter-content > img',
+    };
+    if (host === 'yymanhua.com' && /^\/m\d+\/?$/.test(pathname)) return {
+        name: 'Yymanhua', selector: '#showimage #cp_img > img#cp_image',
+    };
+    if (host === 'mangarawjp.me' && /^\/manga\/[^/]+\/\d+(?:-\d+)?-wa\/?$/.test(pathname)) return {
+        name: 'Mangaraw', selector: '#TopPage.ImageGallery img.img-fluid',
+    };
+    if (['speed-manga.com', 'speed-manga.net'].includes(host) && /^\/[^/]+-\d+(?:-\d+)?\/?$/.test(pathname)) return {
+        name: 'Speed Manga', selector: 'article #readerarea img.ts-main-image',
+    };
     if (host === 'jumptoon.com' && /^\/series\/[A-Z\d]+\/episodes\/\d+\/?$/.test(pathname)) return {
         name: 'Jumptoon', selector: ':not(*)', areaSelector: 'div[id] > canvas',
     };
@@ -85,7 +110,10 @@ export function resolveMangaReaderProfile(hostname: string, pathname: string): {
     if (host === 'televikun-super-hero-comics.com' && /^\/rensai\/[^/]+\/episode-\d+\/?$/.test(pathname)) return {
         name: 'Televi-Kun Super Hero Comics', selector: ':not(*)', areaSelector: '.pt-img img',
     };
-    if (/(?:^|\.)(?:uzakichanmanga|kaijimanga|smokingbehindthesupermarket)\.com$/.test(host)
+    if (/(?:^|\.)smokingbehindthesupermarket\.com$/.test(host) && /^\/manga\/[^/]*chapter-[^/]+\/?$/.test(pathname)) return {
+        name: 'Smoking Behind the Supermarket', selector: 'article #content .separator > img',
+    };
+    if (/(?:^|\.)(?:uzakichanmanga|kaijimanga)\.com$/.test(host)
         && /^\/manga\/[^/]*chapter-[^/]+\/?$/.test(pathname)) return {
         name: host, selector: 'article .entry-content img',
     };

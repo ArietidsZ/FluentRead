@@ -56,7 +56,7 @@ export function resolveMangaSite(href: string, rules: MangaSiteRule[] = []): Man
             return url.protocol === 'https:' && id ? {name:'Pixiv',custom:false,
                 selector:`img[src*="/img-master/"][src*="/${id}_p"], img[src*="/img-original/"][src*="/${id}_p"]`} : null;
         }
-        const profile = resolveMangaReaderProfile(url.hostname, url.pathname);
+        const profile = resolveMangaReaderProfile(url.hostname, url.pathname, url.search);
         if (profile) return {...profile, custom: false, requireContent: true};
         const readingPath = /(?:^|[\/-])(?:read(?:er)?|viewer|chapters?|episodes?|comics?)(?:[\/-]|\d)/i.test(url.pathname);
         if (url.pathname !== '/' && (isCatalogMangaHost(url.hostname) || readingPath)) return {name:url.hostname,custom:false,generic:true,

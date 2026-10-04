@@ -284,7 +284,7 @@
           "hostname": "antbyw.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "Jmanga",
@@ -520,7 +520,7 @@
           "hostname": "yymanhua.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "Manhwatop",
@@ -889,7 +889,7 @@
           "hostname": "mangarawjp.me"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "Bilibili-Manga",
@@ -961,7 +961,7 @@
           "hostname": "mn4u.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "Animatebookstore",
@@ -1529,7 +1529,7 @@
           "hostname": "mangafreak.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "ComicGardo",
@@ -1814,7 +1814,7 @@
           "hostname": "mgread.io"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "뉴토끼대피소.com",
@@ -2395,7 +2395,7 @@
           "hostname": "youngchampion.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "readable-canvas"
     },
     {
       "name": "manga-one.com",
@@ -3798,7 +3798,8 @@
     {
       "name": "speed-manga.com",
       "hosts": [
-        "speed-manga.com"
+        "speed-manga.com",
+        "speed-manga.net"
       ],
       "accessChecks": [
         {
@@ -3812,7 +3813,7 @@
           "hostname": "speed-manga.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "yomonga.com",
@@ -4708,7 +4709,7 @@
       "restrictions": false,
       "scope": "Public chapter DOM research without extension; not OCR/translation verification",
       "canvasReadable": true,
-      "readerFinding": "Reader reports content currently unavailable; all canvases are empty 300x150 placeholders; source link found on public work page and opaque query omitted"
+      "readerFinding": "Content currently unavailable with empty 300x150 placeholders. Rechecked through the normal free reading link in the same anonymous context; identical unavailable result. Opaque query omitted."
     },
     {
       "url": "https://jumptoon.com/series/JT00064/episodes/14436/",
@@ -4737,6 +4738,107 @@
       "restrictions": false,
       "scope": "Public chapter DOM research without extension; not OCR/translation verification",
       "readerFinding": "Public preview route opened but no chapter body rendered in observation window; not verified"
+    },
+    {
+      "url": "https://ww3.mangafreak.me/Read1_One_Piece_1",
+      "status": 200,
+      "imageCount": 59,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Chapter slideshow body verified; preload cache images are excluded"
+    },
+    {
+      "url": "https://mangarawjp.me/manga/blue-lock/363-wa",
+      "status": 200,
+      "imageCount": 22,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Chapter ImageGallery body verified; series cover is excluded"
+    },
+    {
+      "url": "https://www.antbyw.com/plugin.php?id=jameson_manhua&a=read&kuid=189309&zjid=1435867",
+      "status": 200,
+      "imageCount": 5,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Numeric plugin chapter query and img_list body verified; work catalogue uses a different action"
+    },
+    {
+      "url": "https://mn4u.net/2360/296144/",
+      "status": 200,
+      "imageCount": 15,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Numeric chapter route and chapter-content body verified"
+    },
+    {
+      "url": "https://speed-manga.net/the-mirror-legacy-0/",
+      "status": 200,
+      "imageCount": 61,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Current .net redirect and readerarea body verified; chapter body starts below first viewport"
+    },
+    {
+      "url": "https://mgread.io/manga/revenge-of-the-iron-blooded-sword-hound/chapter-1/",
+      "status": 200,
+      "imageCount": 14,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Chapter body verified; contains very long images whose complete OCR and rendering quality is not accepted"
+    },
+    {
+      "url": "https://yymanhua.com/m7261/",
+      "status": 200,
+      "imageCount": 2,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Single-image chapter viewer body verified; page changes update cp_image source"
+    },
+    {
+      "url": "https://youngchampion.jp/episodes/c35433f99f53d",
+      "status": 200,
+      "imageCount": 21,
+      "canvasCount": 5,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Public Comici canvas body verified after instruction dismissal and two normal page turns",
+      "canvasReadable": true
+    },
+    {
+      "url": "https://w9.smokingbehindthesupermarket.com/manga/smoking-behind-the-supermarket-with-you-chapter-1/",
+      "status": 200,
+      "imageCount": 20,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Current post-single-content separator images verified; prior entry-content rule missed this reader"
+    },
+    {
+      "url": "https://www.manhuazhan.com/chapter/234408-59319.html",
+      "status": 200,
+      "imageCount": 43,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Reader route rendered, but observed images remained lazy placeholders or unloaded; not verified"
+    },
+    {
+      "url": "https://ynjn.jp/title/14827",
+      "status": 200,
+      "imageCount": 9,
+      "canvasCount": 27,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Embedded public chapter reader rendered loading state; visible canvases had empty corners and 8x8 integer samples; screenshot showed loading indicator; not verified",
+      "canvasReadable": true
     }
   ],
   "verification": {
@@ -5256,6 +5358,179 @@
         "canvas-next-pages.png"
       ],
       "qualityScope": "Partial Chinese output confirmed; vertical lettering and ruby missed, original remnants and incorrect translations remain; not full chapter quality acceptance"
+    },
+    "additionalChapterEntries": {
+      "passed": true,
+      "cases": 25,
+      "liveReaders": [
+        {
+          "url": "https://ww3.mangafreak.me/Read1_One_Piece_1",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://mangarawjp.me/manga/blue-lock/363-wa",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://www.antbyw.com/plugin.php?id=jameson_manhua&a=read&kuid=189309&zjid=1435867",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://mn4u.net/2360/296144/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://speed-manga.net/the-mirror-legacy-0/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://mgread.io/manga/revenge-of-the-iron-blooded-sword-hound/chapter-1/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://yymanhua.com/m7261/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://youngchampion.jp/episodes/c35433f99f53d",
+          "status": 200,
+          "mode": "canvas",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://w9.smokingbehindthesupermarket.com/manga/smoking-behind-the-supermarket-with-you-chapter-1/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 16,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "browserFrontmost": false,
+      "profileRemoved": true,
+      "scope": "Entry and DOM only; does not prove complete chapter OCR or translation quality."
+    },
+    "additionalChapterProfilesUnit": {
+      "files": 3,
+      "assertions": 243,
+      "passed": true,
+      "modules": [
+        "mangaReaderProfiles",
+        "mangaSiteCatalog",
+        "manga"
+      ],
+      "coverage": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "integrationFiles": 4,
+      "integrationAssertions": 824,
+      "integrationScope": "Module boundaries, source headers, session fallback and entry; not full architecture regression."
+    },
+    "publicReaderRechecks": {
+      "pashUp": {
+        "workUrl": "https://pash-up.jp/content/00000001",
+        "method": "normal public free link click in same isolated anonymous context",
+        "result": "current content unavailable; not accepted"
+      },
+      "allManga": {
+        "workUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+        "method": "public Start Reading button",
+        "result": "no chapter route or body observed; not accepted"
+      }
+    },
+    "additionalChapterBuilds": {
+      "compile": true,
+      "chrome": true,
+      "firefox": true,
+      "userscript": true,
+      "userscriptBytes": 1916839,
+      "manifestVerification": true,
+      "userscriptVerification": true,
+      "firefoxRuntime": false,
+      "userscriptRuntime": false,
+      "testAudit": {
+        "files": 466,
+        "cases": 6016,
+        "passed": true
+      },
+      "docs": true
+    },
+    "sourceCaptureToolFailure": {
+      "url": "https://w9.smokingbehindthesupermarket.com/manga/smoking-behind-the-supermarket-with-you-chapter-1/",
+      "result": "Initial test failed before OCR because host canvas export was tainted; zero image operations. Browser screenshot fallback added to evidence capture tool; production source access unchanged.",
+      "passed": false,
+      "artifacts": "/private/tmp/fluentread-brand-manga-sites-20261005/smoking-source-capture-failure"
+    },
+    "smokingImageTranslation": {
+      "url": "https://w9.smokingbehindthesupermarket.com/manga/smoking-behind-the-supermarket-with-you-chapter-1/",
+      "passed": true,
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "scroll automatically translates a new visible page",
+        "live page 3 translates automatically",
+        "live page 4 translates automatically",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the resident brand icon"
+      ],
+      "checkedPages": 4,
+      "imageOperations": 4,
+      "ocr": "real production PaddleOCR",
+      "translation": "live Google",
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 19725,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 2026,
+          "mayIncludeFirstInpaintingPreparation": true
+        },
+        {
+          "page": 3,
+          "ms": 5418
+        },
+        {
+          "page": 4,
+          "ms": 12582
+        }
+      ],
+      "modelsPreloaded": true,
+      "modelRequests": 0,
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 8,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "browserFrontmost": false,
+      "profileRemoved": true,
+      "sourceCaptureMethod": "Displayed element screenshot because host image canvas export is cross-origin tainted; production image source access unchanged.",
+      "scope": "Two cover pages, contents and first dialogue page. Actual Chinese output, pause source/style restoration and cache reuse verified. Screenshot inspection found missed text, untranslated remnants, OCR errors and incorrect translations. Does not accept full chapter or translation quality."
     }
   }
 }

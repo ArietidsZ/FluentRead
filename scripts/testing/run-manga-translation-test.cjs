@@ -39,7 +39,9 @@ const extensionDebugging=process.argv.includes('--extension-debugging');
 const traceReader=process.argv.includes('--trace-reader');
 const targetUrl = arg('site-url','https://mangaplus.shueisha.co.jp/viewer/1024050');
 const pixiv=targetUrl.includes('pixiv.net/artworks/');
-const readerSelector=canvasReaderTest?'#comici-viewer .-cv-page-canvas canvas':pixiv?'img[src*="/img-master/"][src*="/150354216_p"], img[src*="/img-original/"][src*="/150354216_p"]':'.zao-image';
+const explicitReaderSelector=arg('reader-selector',null);
+if(explicitReaderSelector)assert.ok(readerSmoke && liveSite && !pixiv && !canvasReaderTest,'Explicit image selectors are limited to live reader smoke checks');
+const readerSelector=explicitReaderSelector || (canvasReaderTest?'#comici-viewer .-cv-page-canvas canvas':pixiv?'img[src*="/img-master/"][src*="/150354216_p"], img[src*="/img-original/"][src*="/150354216_p"]':'.zao-image');
 const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-profile-');
 fs.mkdirSync(artifacts, {recursive: true});
 const report = {site: liveSite ? 'live MANGA Plus' : 'controlled MANGA Plus reader fixture',
@@ -47,6 +49,7 @@ const report = {site: liveSite ? 'live MANGA Plus' : 'controlled MANGA Plus read
     ocr: 'real production PaddleOCR', cases: [], screenshots: [], errors: [], hostErrors: [], pageErrors: [], consoleErrors: []};
 if(pixiv)report.site='live Pixiv artwork 150354216';
 if(canvasReaderTest)report.site=`live readable canvas chapter: ${targetUrl}`;
+if(explicitReaderSelector){report.site=`live image chapter: ${targetUrl}`;report.readerSelector=explicitReaderSelector;}
 report.prefetchPages=prefetchPages;
 let launched, page, worker, cdp, popup, modelObserver, browserPid,loadedExtensionId;
 function focusGuard() {
@@ -200,8 +203,15 @@ async function toolScreenshot(name){
 }
 async function captureSource(image, name) {
     await image.evaluate(i=>i.complete && i.naturalWidth ? undefined : new Promise((resolve,reject)=>{i.addEventListener('load',resolve,{once:true});i.addEventListener('error',reject,{once:true});}));
-    const data = await image.evaluate(i=>{const c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext('2d').drawImage(i,0,0);return c.toDataURL('image/png').split(',')[1];});
-    fs.writeFileSync(path.join(artifacts,`${name}-original.png`),Buffer.from(data,'base64'));
+    const source = await image.evaluate(i=>{
+        const c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext('2d').drawImage(i,0,0);
+        try {return {data:c.toDataURL('image/png').split(',')[1]};}
+        catch(error){if(error.name!=='SecurityError')throw error;return {pixelError:error.name};}
+    });
+    const file=path.join(artifacts,`${name}-original.png`);
+    if(source.data)fs.writeFileSync(file,Buffer.from(source.data,'base64'));
+    else {focusGuard();await image.screenshot({path:file});}
+    (report.sourceCaptures??=[]).push({name,file,method:source.data?'natural image pixels':'displayed element screenshot',pixelError:source.pixelError});
 }
 async function patch(config) {
     return popup.evaluate(async config=>{
@@ -850,7 +860,8 @@ async function verifyReadAhead() {
     if(scrollStabilityTest){await verifyScrollStability();report.status='passed';focusGuard();return;}
     if(readAheadTest){await verifyReadAhead();report.status='passed';focusGuard();return;}
     report.currentCase='one click activates and translates only visible pages';
-    const source=page.locator('.zao-image').first();
+    const source=page.locator(readerSelector).first();
+    await wait(async()=>await source.evaluate(i=>i.complete && i.naturalWidth>=80),30000);
     const original=await source.evaluate(i=>({src:i.src,srcset:i.getAttribute('srcset'),sizes:i.getAttribute('sizes'),style:i.getAttribute('style')}));
     await captureSource(source,'01');
     let started=Date.now();report.pageDurationsMs=[];
@@ -869,6 +880,7 @@ async function verifyReadAhead() {
     report.currentCase='one click activates and translates only visible pages';
     await wait(async()=>(await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`))>0);
     await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-busy')`))==='false');
+    assert.equal(await source.evaluate(i=>i.style.opacity),'0','The observed source has its translated bitmap displayed');
     assert.equal(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-pressed')`),'true');
     report.pageDurationsMs.push({page:1,ms:Date.now()-started,includesFirstModelPreparation:true});
     await toolScreenshot('active');assert.ok(report.buttonStates.active.badge>=19);
@@ -883,17 +895,18 @@ async function verifyReadAhead() {
     const before=await ops();await toggle();await wait(async()=>(await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`))>0);
     assert.equal(await ops(),before);report.cases.push(report.currentCase);
     report.currentCase='scroll automatically translates a new visible page';
-    const second=page.locator('.zao-image').nth(1);started=Date.now();await second.scrollIntoViewIfNeeded();
+    const second=page.locator(readerSelector).nth(1);started=Date.now();await second.scrollIntoViewIfNeeded();
     await captureSource(second,'02');
     await wait(async()=>(await ops())>before);
     await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-busy')`))==='false');
     assert.ok((await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`))>0);
+    assert.equal(await second.evaluate(i=>i.style.opacity),'0','The new observed page displays its own translated result');
     report.pageDurationsMs.push({page:2,ms:Date.now()-started,mayIncludeFirstInpaintingPreparation:true});
     await screenshot('02-scrolled-translated');report.cases.push(report.currentCase);
     if(liveSite)for(let index=2;index<qualityPages;index++){
         if(index===3 && readingPauseMs){report.readingPauseMs=readingPauseMs;await page.waitForTimeout(Math.min(60000,readingPauseMs));if(readingPauseMs>60000)await page.waitForTimeout(readingPauseMs-60000);}
         report.currentCase=`live page ${index+1} translates automatically`;
-        const previous=await ops(), image=page.locator('.zao-image').nth(index);started=Date.now();
+        const previous=await ops(), image=page.locator(readerSelector).nth(index);started=Date.now();
         await image.scrollIntoViewIfNeeded();await captureSource(image,String(index+1).padStart(2,'0'));
         await wait(async()=>(await ops())>previous);
         await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-busy')`))==='false');

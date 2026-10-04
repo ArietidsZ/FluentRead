@@ -193,6 +193,7 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         'https://rimacomiplus.jp/digitalmargaret/episodes/4a895d1d5884a',
         'https://heros-web.com/episodes/a806742880560',
         'https://younganimal.com/episodes/ff98f6eba590d',
+        'https://youngchampion.jp/episodes/c35433f99f53d',
     ])('新增 Comici 实页等待正文画布，复用暂停结果且不调度宣传封面 %s', async href => {
         const canvasPorts={identity:vi.fn().mockReturnValue('page-1'),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn()};
         const f=readerFixture(false,href,undefined,undefined,undefined,canvasPorts);
@@ -302,10 +303,20 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         ['https://comic.mf-fleur.jp/manga/cb245_01.html', '<div class="manga-content"><div class="manga-content__image"></div></div>', '.manga-content__image'],
         ['https://ac.qq.com/ComicView/index/id/656723/cid/105748', '<ul id="comicContain"><li></li></ul>', 'li'],
         ['https://www.corocoro.jp/chapter/10580/viewer', '<div data-testid="placeholder"></div>', '[data-testid]'],
+        ['https://ww3.mangafreak.me/Read1_One_Piece_1', '<div class="slideshow-container"><div class="mySlides"></div></div>', '.mySlides'],
+        ['https://mn4u.net/2360/296144/', '<div class="chapter-content"><div id="list-imga"></div></div>', '#list-imga'],
+        ['https://mgread.io/manga/title/chapter-1/', '<main id="init-manga-single-chapter"><div id="chapter-content"></div></main>', '#chapter-content'],
+        ['https://yymanhua.com/m7261/', '<div id="showimage"><div id="cp_img"></div></div>', '#cp_img'],
+        ['https://mangarawjp.me/manga/blue-lock/363-wa', '<div id="TopPage" class="ImageGallery"></div>', '#TopPage'],
+        ['https://www.antbyw.com/plugin.php?id=jameson_manhua&a=read&kuid=189309&zjid=1435867', '<div id="img_list"><div></div></div>', '#img_list > div'],
+        ['https://speed-manga.net/the-mirror-legacy-0/', '<article><div id="readerarea"></div></article>', '#readerarea'],
+        ['https://w9.smokingbehindthesupermarket.com/manga/title-chapter-1/', '<article><div id="content"><div class="separator"></div></div></article>', '.separator'],
     ])('公开章节只调度正文而不选择正文容器外的封面 %s', async (href, markup, mount) => {
         const f=readerFixture(false,href);
-        f.image.className='js-page-image _images comic-image';
+        f.image.className='js-page-image _images comic-image chapter-img img-fluid ts-main-image';
         f.image.alt='page_0';
+        if(href.includes('yymanhua.com'))f.image.id='cp_image';
+        if(href.includes('antbyw.com'))f.image.id='img_0';
         const wrapper=f.document.createElement('div');wrapper.innerHTML=markup;f.document.body.append(wrapper);
         const cover=f.image.cloneNode() as HTMLImageElement;cover.src='blob:cover';wrapper.append(cover);
         wrapper.querySelector(mount)!.append(f.image);

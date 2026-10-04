@@ -10,6 +10,8 @@ WeebCentral 使用 `#chapter-images img`，Dynasty 使用 `#reader #image img`�
 
 Rimacomiplus、Heros Web 和 YoungAnimal 的公开可读正文画布复用同一会话与合成器；Rima 保留杂志前缀和无前缀章节路径，Heros 当前公开主站域名补入目录。COMIC FUZ、MangaOne 和 CoroCoro 的图片阅读器按公开的 placeholder 标记与 page_ 图片说明限定正文，避开构建产生的散列类名。COMIC Fleur 和腾讯动漫也使用实页确认的正文容器，排除封面和页脚动画。Jumptoon 的正文画布受跨域限制，仅提供可见页圈选入口。
 
+MangaFreak、Manga4u、MG Read、Yymanhua、Mangaraw、Antbyw 和 Speed Manga 补入公开章节确认的图片正文规则；Speed Manga 当前重定向的 `.net` 域名一并登记。Antbyw 仅匹配漫画插件的 `a=read` 与数字作品、章节查询，不把作品目录当成章节。MangaFreak 排除预加载图片容器；Yymanhua 跟随单张正文图片的地址变化。YoungChampion 的 Comici 可读画布加入同一连续会话。Smoking Behind the Supermarket 当前正文在 `#content .separator`，此前的 `.entry-content` 规则漏掉了真实正文，现按实页修正并排除页头宣传图。
+
 重新开启只有一个可见页的会话时，也先同步复用已完成结果，再决定是否进入翻译队列。此前会先调用翻译端口，客户端缓存虽能避免再次 OCR，但会话未先执行其缓存恢复端口。恢复时仍遵守可见性与隐藏页面暂停条件，图片和画布继续共用串行队列。
 
 Champion Cross、Comic Ryu 和 Comic Growl 的公开可读画布接入现有串行漫画会话，使用独立快照识别与合成，原画布及翻页样式保持不变。画布重绘、翻页、配置变化和卸载取消旧结果；译图跟随正文几何及祖先裁切，透明翻页层继续接收原有交互。压缩图块缓存沿用有界轻量缓存。GigaViewer 的受污染画布，以及 YanMaga 和 Televi-Kun 的分片阅读器仍提供圈选入口，沿用已有圈选翻译和权限开关。
@@ -54,6 +56,17 @@ Champion Cross `/episodes/0a8f0118f1839` 使用生产 PaddleOCR 和在线 Google
 
 Rima `/digitalmargaret/episodes/4a895d1d5884a` 使用生产 PaddleOCR 和在线 Google 验证四个场景：实际译图、暂停复用、正常翻页续译和总开关清理。首组约 70.7 秒；原画布完整像素哈希和样式保持一致，鼠标移开后译图持续可见且不重复 OCR。实际检查初始页、移开鼠标和下一组页面截图，均有部分中文译文；竖排文字、注音和艺术字仍有漏识别，出现原文残留、混入拉丁字母与错误译文，不能视为整章质量验收。隔离浏览器未处于前台，扩展、页面和控制台异常均为零；本地模型经校验导入，没有模型下载请求，profile 已删除。
 
+补充章节规则验证：
+
+- 三个相关测试文件共 243 用例通过；阅读规则、网站目录与漫画配置三个本轮修改模块的四维覆盖率均为 100%。模块边界、源文件头、会话回退与入口另有四文件 824 用例通过，未执行全量架构回归。测试审计通过。
+- 新增 11 个阅读页调查样本，累计 65 个。九个有已确认的图片或可读画布正文；漫画站的样本图片仍未确认加载，YoungJump 的可见画布角落与整数网格为空且截图显示加载动画，两者均未验证。MG Read 样本包含很长的图片，不能据此宣布完整长条 OCR 或译图质量通过。目录和作品页只用于寻找阅读入口。
+- PASH UP 通过公开作品页的正常免费阅读按钮进入同一匿名上下文后，仍显示“当前无法阅览”及空白占位画布。All Manga 的公开 Start Reading 按钮未呈现章节正文，保持未验证；不把这些结果推断为永久停服。
+- 第二屏隔离 Edge 的 25 个入口场景通过，包含九个实页入口：八个图片、一个画布，均 HTTP 200。无扩展和扩展控制台异常，临时 profile 已删除；16 个宿主脚本异常按页面脚本来源单独记录。此轮入口检测不执行 OCR。
+
+Smoking 的真实生产 PaddleOCR 与在线 Google 翻译检查四页，八个链路场景通过：两页封面、目录页和首个对白页，分别约 19.7、2.0、5.4 和 12.6 秒，共四次图片操作。原图暂停后恢复地址与样式，再次开启复用结果；滚动自动处理新页，阅读时没有自动面板。实际检查四页截图，均有部分中文译文，但艺术字漏识别、目录原文残留、对白错译仍明显，不能视为质量或整章验收。八个宿主广告脚本异常按来源单独记录，无扩展或扩展控制台异常；模型从本地校验导入，没有模型下载请求，专属浏览器未进入前台，profile 已删除。首次检查在测试脚本保存跨域自然像素时失败，尚未执行 OCR；改用显示元素截图后通过，失败证据仍保留。
+
+本轮 Chrome、Firefox、油猴和文档构建通过，manifest 与油猴产物校验通过；油猴产物为 1,916,839 字节。Firefox 和油猴仍只有构建证据。
+
 全部 235 项逐站实章、登录和付费阅读器、Firefox/油猴运行时，以及漫画全文识别和翻译质量仍未完成。日文注音、艺术字与背景修补有漏识别、错识别和原文残留，不能把结构适配和链路通过当作质量保证。
 
 原始临时证据位于 `/private/tmp/fluentread-brand-manga-sites-20261005`。仓库保留的状态摘要位于 `scripts/testing/evidence/manga-site-checks-20261005.json`，不包含章节图片或原始网页 HTML。
@@ -65,5 +78,7 @@ Rima `/digitalmargaret/episodes/4a895d1d5884a` 使用生产 PaddleOCR 和在线 
 `run-manga-entry-ui-test.cjs` 用 `--site-url` 指定主实页，用 `--reader-sites` 的 JSON 数组明确限定额外阅读页，例如 `{ "url": "https://dynasty-scans.com/chapters/the_nth_encore", "mode": "images" }`；不可读画布站的 mode 为 `area`；公开可读画布站为 `canvas`，可同时提供 `openSelector`、`pageKey` 和 `pageKeyTurns`，只执行已核对的阅读器操作。不传该文件不额外扫描网站。
 
 `run-manga-translation-test.cjs` 的 `--reader-smoke --live-site --live-translation --quality-pages 2` 只验阅读链路；需 Node 22 以上的内置 WebSocket、Playwright、focus-safe helper、已构建扩展及可访问的模型文件。运行时模型检查仍验证本地导入文件的尺寸和哈希。Comici 画布用 `--canvas-reader --live-site --live-translation --site-url <公开章节>`，检查原画布像素及样式、译图、暂停复用、正常翻页与总开关清理。
+
+其他已核对图片站的链路检查可额外提供 `--reader-selector <正文图片选择器>`，仅允许用于显式实页 smoke 模式。跨域原图不能从宿主页导出自然像素时，测试脚本保存显示元素截图并记录证据方式；不改变生产图片读取方式。DOM 调查脚本的 `--capture-page` 保存页面截图，画布调查同时记录角落和整数网格是否为空，避免用透明页角推断整页。
 
 可用 `--host-baseline` 提供不加载扩展的 DOM 调查报告，以核对没有栈信息的站点异常；脚本要求报告 purpose 明确为无扩展调查，并按精确页面地址与错误匹配，不忽略扩展栈。

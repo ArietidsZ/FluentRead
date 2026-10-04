@@ -68,10 +68,17 @@ function focusGuard() {
           return {url:location.href,title:document.title,images:images.slice(0,30),imageCount:images.length,
             canvases:Array.from(document.querySelectorAll('canvas')).map(c=>{
               const rect=c.getBoundingClientRect(),hit=document.elementFromPoint(Math.max(0,Math.min(innerWidth-1,rect.left+rect.width/2)),Math.max(0,Math.min(innerHeight-1,rect.top+rect.height/2)));
-              let readable=false, nonblank=false, pixelError='';
-              try {const ctx=c.getContext('2d');if(ctx && c.width && c.height){const pixels=ctx.getImageData(0,0,Math.min(32,c.width),Math.min(32,c.height)).data;readable=true;nonblank=pixels.some(v=>v>0);}}
+              let readable=false, nonblank=false, gridNonblank=false, pixelError='';
+              try {const ctx=c.getContext('2d');if(ctx && c.width && c.height){
+                const pixels=ctx.getImageData(0,0,Math.min(32,c.width),Math.min(32,c.height)).data;readable=true;nonblank=pixels.some(v=>v>0);
+                // 透明页角不能证明整页为空；用与正文控制器一致的整数网格补充公开像素观察。
+                for(let y=0;y<8;y++)for(let x=0;x<8;x++) {
+                  const point=ctx.getImageData(Math.floor((x+.5)*c.width/8),Math.floor((y+.5)*c.height/8),1,1).data;
+                  if(point.some(v=>v>0))gridNonblank=true;
+                }
+              }}
               catch(error){pixelError=error.name;}
-              return {width:c.width,height:c.height,readable,nonblank,pixelError,ancestors:ancestors(c),
+              return {width:c.width,height:c.height,readable,nonblank,gridNonblank,pixelError,ancestors:ancestors(c),
                 rect:rect.toJSON(),centerHit:hit?{tag:hit.tagName,id:hit.id,className:hit.className,containsCanvas:hit.contains(c)}:null,
                 parentPosition:c.parentElement?getComputedStyle(c.parentElement).position:null};
             }),
@@ -81,6 +88,10 @@ function focusGuard() {
         }));
         result.status=response?.status();
         fs.writeFileSync(path.join(artifacts,`${report.pages.length}.html`),await page.content());
+        if(process.argv.includes('--capture-page')) {
+          result.screenshot=path.join(artifacts,`${report.pages.length}.png`);
+          focusGuard();await page.screenshot({path:result.screenshot});
+        }
       } catch(error) {result.error=error.message;}
       report.pages.push(result);
       fs.writeFileSync(path.join(artifacts,'reader-inspection.json'),JSON.stringify(report,null,2));
