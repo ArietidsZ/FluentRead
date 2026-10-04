@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
  * 文件职责：渲染当前翻译服务的详细连接配置，按常用连接字段、就近的密钥管理和独立折叠的模型偏好、提示词、请求限制、接口兼容显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体与请求头、按域名移除来源头等字段，以及服务和模型的独立请求限制。
- * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，展示 DeepLX 完整地址与 Token 示例，将成对密钥的 ID 编辑同步到 apiKeys 和兼容 token，管理所有服务可空 Key 发起的连接检查、配置与消息等待超时、Chrome 当前语言对的点击准备及进度，并通过配置 store 提交修改。
+ * 主要内容：组件派生字段可见性与连接示例，将成对密钥 ID 同步到 apiKeys 和兼容 token，管理可空 Key 的连接检查与等待超时；免费翻译检查完整目录并逐服务展示结果，Chrome 在点击时准备当前语言对，通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
@@ -11,7 +11,7 @@
     :data-custom-service-configuration="compute.showCustomOpenAI ? 'true' : 'false'"
     :data-ai-advanced-settings="compute.showAI ? 'true' : 'false'"
   >
-    <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="false" />
+    <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="false" :checks="freeProviderChecks" />
 
     <LocalTranslationModelSettings v-if="service === services.localTranslation" :config="config" :service="service" />
 
@@ -468,6 +468,7 @@ import LocalTranslationModelSettings from '../LocalTranslationModelSettings.vue'
 import ModelVisionSettings from './ModelVisionSettings.vue'
 import RequestLimitSettings from './RequestLimitSettings.vue'
 import RequestHeaderSettings from './RequestHeaderSettings.vue'
+import { checkAllFreeTranslationProviders, type FreeTranslationChecks } from './freeTranslationChecks'
 
 const props = defineProps<{
   config: Config
@@ -662,6 +663,7 @@ const CHROME_PREPARATION_ERROR_KEYS: Readonly<Record<ChromeTranslationPreparatio
   'model-unavailable': 'settings.services.chromePreparation.error.modelUnavailable',
 }
 const connectionTestBusy = ref(false)
+const freeProviderChecks = ref<FreeTranslationChecks>({})
 const connectionTestState = ref<ConnectionTestState>('idle')
 const connectionTestMessageState = ref<LocalizedConnectionTestMessage | string | null>(null)
 const connectionTestMessage = computed(() => {
@@ -726,6 +728,14 @@ function cancelConnectionWaits(): void {
   activeConnectionWaits.clear()
 }
 const connectionTestTitle = computed(() => {
+  if (service.value === services.freeTranslation && Object.keys(freeProviderChecks.value).length) {
+    const checks = Object.values(freeProviderChecks.value)
+    const passed = checks.filter(check => check.status === 'success').length
+    const failed = checks.filter(check => check.status === 'error').length
+    return connectionTestBusy.value
+      ? t('settings.services.keys.progress', {done: passed + failed, total: checks.length})
+      : t('settings.services.keys.summary', {passed, failed})
+  }
   if (isChromeConnectionTest.value) {
     return connectionTestState.value === 'testing'
       ? t('settings.services.chromePreparation.titlePreparing')
@@ -739,6 +749,7 @@ const connectionTestTitle = computed(() => {
 })
 
 function resetConnectionTest(): void {
+  freeProviderChecks.value = {}
   displayedChromePreparationPair.value = null
   connectionTestState.value = 'idle'
   connectionTestMessageState.value = null
@@ -866,6 +877,7 @@ async function testConnection(): Promise<void> {
   apiKeyCheckMode.value = 'all'
 
   const testedService = service.value
+  if (testedService === services.freeTranslation) freeProviderChecks.value = {}
   const generation = ++connectionTestGeneration
   const chromeController = testedService === services.chromeTranslator ? new AbortController() : undefined
   if (chromeController) activeChromePreparation = chromeController
@@ -925,6 +937,23 @@ async function testConnection(): Promise<void> {
           targetLanguage: outcome.result.targetLanguage,
         },
       )
+    } else if (testedService === services.freeTranslation) {
+      await checkAllFreeTranslationProviders({
+        check: freeProviderId => waitForConnectionStep(browser.runtime.sendMessage({
+          type: CONNECTION_TEST_MESSAGE,
+          service: testedService,
+          freeProviderId,
+        }), CONNECTION_RESPONSE_WAIT_TIMEOUT_MS, 'settings.services.keys.responseTimeout'),
+        update: (providerId, state) => { freeProviderChecks.value = {...freeProviderChecks.value, [providerId]: state} },
+        isCurrent,
+        failureMessage: t('settings.services.keys.failed'),
+      })
+      if (!isCurrent()) return
+      connectionTestState.value = Object.values(freeProviderChecks.value).every(check => check.status === 'success') ? 'success' : 'error'
+      connectionTestMessageState.value = t('settings.services.keys.summary', {
+        passed: Object.values(freeProviderChecks.value).filter(check => check.status === 'success').length,
+        failed: Object.values(freeProviderChecks.value).filter(check => check.status === 'error').length,
+      })
     } else if (compute.value.showToken && !compute.value.showServiceSecret && apiKeyIndexes.value.length > 0) {
       const checks = [...apiKeyIndexes.value]
       apiKeyChecks.value = Object.fromEntries(checks.map(index => [index, {status: 'queued' as const}]))
@@ -1007,6 +1036,7 @@ watch(() => JSON.stringify({
   appid: config.value.appid,
   key: config.value.key,
   secret: config.value.secret?.[service.value],
+  freeConnection: service.value === services.freeTranslation ? [config.value.myMemoryEmail, config.value.freeTranslationTimeoutMs] : undefined,
 }), invalidateConnectionTest)
 onBeforeUnmount(() => {
   chromePreparationMounted = false
