@@ -2,7 +2,7 @@
 @file src/features/settings/ui/RemoteConfigSync.vue
 文件职责：用清晰的保存、恢复与逐项合并流程完成Google Drive 与 WebDAV 共用的配置云备份。
 主要内容：通过右侧记录插槽统一显示账号和时间，窄屏改为上下排列；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
-先选择操作再确认影响；默认展示差异与连接变更类别，合并时优先列出冲突，收起自动保留项不隐藏冲突，小屏保留操作区。
+先选择操作再确认影响；缺少安全覆盖版本时明确提示只读恢复；默认展示差异与连接变更类别，小屏保留操作区。
 模块边界：只消费后台脱敏预览和同步记录；不获取完整配置、令牌或用户口令，由父级提供存储方式和客户端。
 -->
 <template>
@@ -26,9 +26,10 @@
           <p>{{ preview.account.email ? t('settings.drive.account', {email: preview.account.email}) : t('settings.drive.selectedAccount') }}</p>
           <el-button v-if="kind === 'google-drive'" link :loading="switchingAccount" :disabled="busy" :data-testid="`${kind}-switch-account`" @click="switchAccount">{{ t('settings.drive.switchAccount') }}</el-button>
         </div>
-        <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="drive-error" />
+        <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="drive-error drive-preview-notice" />
+        <el-alert v-if="preview.canUpload === false" :title="t('settings.cloud.restoreOnly')" type="warning" :closable="false" show-icon class="drive-error drive-preview-notice" :data-testid="`${kind}-restore-only`" />
 
-        <ol v-if="preview.hasRemote && !identical" class="drive-steps" :aria-label="t('settings.drive.stepsLabel')">
+        <ol v-if="preview.hasRemote && !identical && preview.canUpload !== false" class="drive-steps" :aria-label="t('settings.drive.stepsLabel')">
           <li :class="{'is-current': step === 'choose'}" :aria-current="step === 'choose' ? 'step' : undefined"><span>1</span>{{ t('settings.drive.chooseStep') }}</li>
           <li :class="{'is-current': step === 'review'}" :aria-current="step === 'review' ? 'step' : undefined"><span>2</span>{{ t('settings.drive.reviewStep') }}</li>
         </ol>
@@ -38,14 +39,14 @@
           <div><h3>{{ t(identical ? 'settings.drive.identicalTitle' : 'settings.drive.firstTitle') }}</h3><p>{{ t(identical ? 'settings.drive.identicalDescription' : 'settings.drive.firstDescription') }}</p></div>
         </div>
         <template v-else-if="step === 'choose'">
-          <div class="drive-intent-heading"><h3>{{ t('settings.drive.chooseTitle') }}</h3><p>{{ t(preview.hasBaseline ? 'settings.drive.returningDescription' : 'settings.drive.firstRestoreDescription') }}</p></div>
+          <div class="drive-intent-heading"><h3>{{ t('settings.drive.chooseTitle') }}</h3><p>{{ t(preview.canUpload === false ? 'settings.drive.downloadDescription' : preview.hasBaseline ? 'settings.drive.returningDescription' : 'settings.drive.firstRestoreDescription') }}</p></div>
           <div class="drive-operation-list" role="radiogroup" :aria-label="t('settings.drive.chooseStep')">
-            <label v-for="operation in ['download', 'upload'] as const" :key="operation" class="drive-operation" :class="{'is-selected': direction === operation, 'is-disabled': busy}">
-              <input v-model="direction" type="radio" name="drive-operation" :value="operation" :disabled="busy" :data-testid="`${kind}-direction-${operation}`" />
+            <label v-for="operation in ['download', 'upload'] as const" :key="operation" class="drive-operation" :class="{'is-selected': direction === operation, 'is-disabled': busy || operation === 'upload' && preview.canUpload === false}">
+              <input v-model="direction" type="radio" name="drive-operation" :value="operation" :disabled="busy || operation === 'upload' && preview.canUpload === false" :data-testid="`${kind}-direction-${operation}`" />
               <span><strong>{{ t(`settings.drive.${operation}Title`) }}</strong><span>{{ t(`settings.drive.${operation}Description`) }}</span></span>
             </label>
           </div>
-          <div class="drive-advanced">
+          <div v-if="preview.canUpload !== false" class="drive-advanced">
             <p>{{ t('settings.drive.mergeQuestion') }}</p>
             <el-button link :disabled="busy" :data-testid="`${kind}-direction-merge`" @click="selectMerge"><el-icon><Switch /></el-icon>{{ t('settings.drive.mergeReviewTitle') }}<el-icon><ArrowRight /></el-icon></el-button>
           </div>
@@ -94,7 +95,7 @@
       <template #footer>
         <p v-if="step === 'review' && direction === 'merge' && unresolved" class="drive-footer-hint" role="status">{{ t('settings.drive.remaining', {count: unresolved}) }}</p>
         <div class="drive-footer-row">
-          <el-button v-if="step === 'review' && preview?.hasRemote && !identical" link :disabled="busy" :data-testid="`${kind}-back`" @click="backToChoose"><el-icon><ArrowLeft /></el-icon>{{ t('settings.drive.back') }}</el-button>
+          <el-button v-if="step === 'review' && preview?.hasRemote && !identical && preview.canUpload !== false" link :disabled="busy" :data-testid="`${kind}-back`" @click="backToChoose"><el-icon><ArrowLeft /></el-icon>{{ t('settings.drive.back') }}</el-button>
           <div class="drive-footer-actions"><el-button :disabled="busy" @click="cancelPreview">{{ t('settings.drive.cancelSync') }}</el-button><el-button v-if="step === 'choose'" type="primary" :disabled="busy || !direction" :data-testid="`${kind}-continue`" @click="step = 'review'">{{ t('settings.drive.continue') }}</el-button><el-button v-else type="primary" :loading="busy && !switchingAccount" :disabled="busy || !canCommit" :data-testid="`${kind}-confirm`" @click="commit">{{ commitLabel }}</el-button></div>
         </div>
       </template>
@@ -110,7 +111,7 @@ import 'element-plus/es/components/alert/style/css';
 import 'element-plus/es/components/pagination/style/css';
 import {useUiI18n} from '@/src/ui/i18n';
 import {CloudBackupRequestError, type createCloudBackupClient} from '@/src/services/config/cloudBackupClient';
-import {chooseDriveRow, driveRowChoice, groupDrivePreviewChanges, initialDriveDirection, unresolvedDriveChanges, type DrivePreviewRow} from '../model/googleDrivePreview';
+import {chooseDriveRow, driveRowChoice, groupDrivePreviewChanges, initialDriveDirection, localizeDrivePreviewLanguage, unresolvedDriveChanges, type DrivePreviewRow} from '../model/googleDrivePreview';
 import type {DriveChoice} from '@/src/core/config/driveSync';
 import type {DriveSyncDirection, DriveSyncPreview, DriveSyncStatus} from '@/src/services/config/googleDriveSync';
 
@@ -146,9 +147,9 @@ const statusText = computed(() => !status.value ? translateLegacy('正在检查�
 const directionHint = computed(() => direction.value === 'merge' && !preview.value?.hasBaseline ? t('settings.drive.firstMergeDescription') : direction.value ? t(`settings.drive.${direction.value}Description`) : '');
 const summaryTitle = computed(() => t('settings.drive.mergeReady'));
 const commitLabel = computed(() => t(identical.value ? 'settings.drive.finishSync' : direction.value ? `settings.drive.${direction.value}Action` : 'settings.drive.chooseAction'));
-const canCommit = computed(() => Boolean(preview.value && direction.value && (direction.value !== 'merge' || unresolved.value === 0)));
+const canCommit = computed(() => Boolean(preview.value && direction.value && (preview.value.canUpload !== false || direction.value === 'download') && (direction.value !== 'merge' || unresolved.value === 0)));
 watch(direction, () => {page.value = 1; detailsVisible.value = true; automaticVisible.value = true;});
-function previewValueLabel(value: string) {return value === '开启' ? t('settings.drive.enabled') : value === '关闭' ? t('settings.drive.disabled') : translateLegacy(value);}
+function previewValueLabel(value: string) {return value === '开启' ? t('settings.drive.enabled') : value === '关闭' ? t('settings.drive.disabled') : translateLegacy(localizeDrivePreviewLanguage(value, language.value));}
 function rowChoice(row: DrivePreviewRow) {return driveRowChoice(row, choices.value);}
 function chooseRow(row: DrivePreviewRow, choice: DriveChoice) {choices.value = chooseDriveRow(row, choice, choices.value);}
 function chooseAll(choice: DriveChoice) {for (const row of conflictRows.value) chooseRow(row, choice);}
@@ -223,6 +224,10 @@ onUnmounted(() => {alive = false; endSession(); clearPreview();});
 .drive-status {color:var(--el-text-color-secondary);}
 .drive-change-details {font-size:12px; line-height:1.7; margin:0 0 12px; color:var(--el-text-color-secondary);}
 .drive-error,.drive-actions {margin-top:16px;}
+.drive-preview-notice {margin:0 0 24px; align-items:flex-start;}
+.drive-preview-notice :deep(.el-alert__content) {min-width:0;}
+.drive-preview-notice :deep(.el-alert__title) {display:block; line-height:1.7; overflow-wrap:anywhere;}
+.drive-preview-notice :deep(.el-alert__icon) {margin-top:2px; flex-shrink:0;}
 .drive-actions {display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px;}
 .drive-actions>.el-button {flex-shrink:0; max-width:100%; min-height:32px; height:auto; white-space:normal; line-height:1.5; padding:8px 15px;}
 .drive-account-bar {display:flex; align-items:center; gap:10px; border-radius:8px; background:var(--el-fill-color-light); padding:12px; margin-bottom:24px;}
