@@ -3,12 +3,12 @@ import { computed, ref } from 'vue'
 import { withBase } from 'vitepress'
 import { useDemoPlayback } from './useDemoPlayback'
 import DemoSteps from './DemoSteps.vue'
-const props = defineProps<{ en?: boolean; autoplay?: boolean }>()
+const props = withDefaults(defineProps<{ en?: boolean; autoplay?: boolean }>(), { autoplay: true })
 const root = ref<HTMLElement | null>(null)
-const { step, playing, running, reduced, replay } = useDemoPlayback(
+const { step, playing, running, reduced, select, replay } = useDemoPlayback(
   root,
   4,
-  props.autoplay ?? true,
+  props.autoplay,
   [350, 350, 550, 3800]
 )
 const t = (zh: string, english: string) => (props.en ? english : zh)
@@ -48,6 +48,10 @@ const translated = computed(() => step.value >= 2)
       ]"
       :active="step === 0 ? 0 : step < 3 ? 1 : 2"
       :label="t('网页翻译流程', 'Webpage translation workflow')"
+      :playing="playing"
+      :reduced="reduced"
+      :en="en"
+      @select="select($event, [0, 1, 3])"
     />
     <article class="bv-paper" :class="{ translated, scanning: step === 1 }">
       <span class="bv-paper-label">{{

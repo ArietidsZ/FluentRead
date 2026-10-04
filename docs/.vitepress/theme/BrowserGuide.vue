@@ -73,7 +73,7 @@ const instructions = computed(
       ],
     }[props.kind])
 )
-const { step, playing, running, reduced, replay } = useDemoPlayback(
+const { step, playing, running, reduced, select, replay } = useDemoPlayback(
   root,
   instructions.value.length,
   true,
@@ -133,6 +133,13 @@ const activeStage = computed(() => {
   if (props.kind === 'hover') return step.value < 2 ? 0 : step.value < 4 ? 1 : 2
   return step.value === 0 ? 0 : step.value < 3 ? 1 : 2
 })
+const stageStarts = computed(() => {
+  if (props.kind === 'first-translation') return [0, 4, 6]
+  if (props.kind === 'chrome-local') return [0, 1, 4]
+  if (props.kind === 'selection') return [0, 2, 3]
+  if (props.kind === 'hover') return [0, 2, 4]
+  return [0, 1, 3]
+})
 const pinned = computed(() => props.kind !== 'install' && (props.kind !== 'pin' || step.value >= 2))
 const menuVisible = computed(
   () =>
@@ -168,7 +175,15 @@ const translation = computed(() =>
       <strong>{{ title }}</strong>
       <small>{{ t('以 Chrome 为例', 'Chrome example') }}</small>
     </div>
-    <DemoSteps :labels="workflow" :active="activeStage" :label="t('操作流程', 'Workflow')" />
+    <DemoSteps
+      :labels="workflow"
+      :active="activeStage"
+      :label="t('操作流程', 'Workflow')"
+      :playing="playing"
+      :reduced="reduced"
+      :en="en"
+      @select="select($event, stageStarts)"
+    />
     <div class="bg-instruction" :aria-live="playing ? 'off' : 'polite'">
       <span>{{ step + 1 }} / {{ instructions.length }}</span>
       {{ instructions[step] }}

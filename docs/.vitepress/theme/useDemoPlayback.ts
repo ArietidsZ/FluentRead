@@ -1,6 +1,6 @@
 import { onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
 
-// A visible, local walkthrough. Manual choices stay selected; inactive pages use no timer.
+// 可见时播放本地示例；选择其他步骤会暂停，再次选择当前步骤会从原位置继续。
 export function useDemoPlayback(
   root: Ref<HTMLElement | null>,
   count: number,
@@ -34,6 +34,18 @@ export function useDemoPlayback(
   function choose(index: number) {
     playing.value = false
     step.value = index
+  }
+  function select(index: number, stages?: readonly number[]) {
+    const start = stages ? stages[index] : index
+    if (start === undefined || start < 0 || start >= count) return
+    // 流程中的一个阶段可能包含多个动画帧。点击当前阶段时保留细分动作的位置。
+    const end = stages ? stages[index + 1] ?? count : start + 1
+    if (step.value >= start && step.value < end) {
+      playing.value = !playing.value && !reduced.value
+    } else {
+      choose(start)
+    }
+    sync()
   }
   function replay() {
     step.value = reduced.value ? count - 1 : 0
@@ -72,5 +84,5 @@ export function useDemoPlayback(
     preference?.removeEventListener('change', motion)
     document.removeEventListener('visibilitychange', sync)
   })
-  return { step, playing, running, reduced, choose, replay }
+  return { step, playing, running, reduced, choose, select, replay }
 }

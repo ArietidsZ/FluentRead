@@ -4,7 +4,7 @@ import { useDemoPlayback } from './useDemoPlayback'
 import DemoSteps from './DemoSteps.vue'
 const props = defineProps<{ en?: boolean }>()
 const root = ref<HTMLElement | null>(null)
-const { step, playing, running, reduced, choose } = useDemoPlayback(root, 4, true, 2800)
+const { step, playing, running, reduced, choose, select } = useDemoPlayback(root, 4, true, 2800)
 const active = computed(() => step.value)
 const t = (zh: string, en: string) => (props.en ? en : zh)
 const parts = [
@@ -78,6 +78,10 @@ function next(event: KeyboardEvent, index: number) {
       :labels="parts.map((part) => part.role[en ? 1 : 0])"
       :active="active"
       :label="t('句子拆解步骤', 'Sentence walkthrough')"
+      :playing="playing"
+      :reduced="reduced"
+      :en="en"
+      @select="select"
     />
     <div
       class="fr-grammar-parts"

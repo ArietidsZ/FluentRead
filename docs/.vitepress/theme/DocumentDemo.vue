@@ -3,7 +3,8 @@
 import { computed } from 'vue'
 import DemoSteps from './DemoSteps.vue'
 
-const props = defineProps<{ step: number; en?: boolean }>()
+const props = defineProps<{ step: number; en?: boolean; playing: boolean; reduced?: boolean }>()
+defineEmits<{ select: [index: number] }>()
 const t = (zh: string, english: string) => (props.en ? english : zh)
 const complete = computed(() => props.step >= 4)
 const progress = computed(() => [0, 18, 46, 78, 100, 100][props.step] ?? 0)
@@ -51,6 +52,10 @@ const pages = computed(() =>
       :labels="stages"
       :active="activeStage"
       :label="t('文档翻译流程', 'Document translation workflow')"
+      :playing="playing"
+      :reduced="reduced"
+      :en="en"
+      @select="$emit('select', $event)"
     />
 
     <div class="dd-workspace">

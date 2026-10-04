@@ -8,7 +8,7 @@ import { useDemoPlayback } from './useDemoPlayback'
 const props = defineProps<{ kind: string; en?: boolean }>()
 const t = (zh: string, en: string) => (props.en ? en : zh)
 const root = ref<HTMLElement | null>(null)
-const { step, playing, running, reduced, replay } = useDemoPlayback(root, 3, true, 3000)
+const { step, playing, running, reduced, select, replay } = useDemoPlayback(root, 3, true, 3000)
 const plans = computed<
   Record<string, { image: string; title: string; steps: string[]; descriptions: string[] }>
 >(() => ({
@@ -159,7 +159,15 @@ const numbers = ['①', '②', '③']
       <strong>{{ plan.title }}</strong
       ><small>{{ t('操作演示', 'Walkthrough') }}</small>
     </div>
-    <DemoSteps :labels="plan.steps" :active="step" :label="t('操作流程', 'Workflow')" />
+    <DemoSteps
+      :labels="plan.steps"
+      :active="step"
+      :label="t('操作流程', 'Workflow')"
+      :playing="playing"
+      :reduced="reduced"
+      :en="en"
+      @select="select"
+    />
     <div class="sg-frame">
       <a
         :href="withBase(capture.src)"

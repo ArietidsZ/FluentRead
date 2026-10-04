@@ -10,7 +10,7 @@ const props = defineProps<{
 }>()
 const t = (zh: string, english: string) => (props.en ? english : zh)
 const root = ref<HTMLElement | null>(null)
-const { step, playing, running, reduced, choose, replay } = useDemoPlayback(
+const { step, playing, running, reduced, choose, select, replay } = useDemoPlayback(
   root,
   props.kind === 'selection' ? 11 : 6,
   true,
@@ -51,6 +51,12 @@ const activeStage = computed(() => {
   if (props.kind === 'selection') return step.value < 2 ? 0 : step.value === 2 ? 1 : 2
   if (props.kind === 'webpage') return step.value === 0 ? 0 : step.value < 3 ? 1 : 2
   return Math.min(step.value, 2)
+})
+const stageStarts = computed(() => {
+  if (props.kind === 'selection') return [0, 2, 3]
+  if (props.kind === 'webpage') return [0, 1, 3]
+  if (props.kind === 'document') return [0, 1, 4]
+  return [0, 1, 2]
 })
 const word = computed(() => props.kind === 'selection' && step.value >= 8)
 const structure = computed(() => props.kind === 'selection' && step.value >= 5 && step.value <= 7)
@@ -124,6 +130,10 @@ const contexts = {
       :labels="workflow"
       :active="activeStage"
       :label="t('操作流程', 'Workflow')"
+      :playing="playing"
+      :reduced="reduced"
+      :en="en"
+      @select="select($event, stageStarts)"
     />
     <div class="fd-stage">
       <template v-if="kind === 'webpage'">
@@ -286,7 +296,14 @@ const contexts = {
           {{ t('朗读动作示意，不播放声音', 'Read-aloud preview · no sound') }}
         </p>
       </template>
-      <DocumentDemo v-else-if="kind === 'document'" :step="step" :en="en" />
+      <DocumentDemo
+        v-else-if="kind === 'document'"
+        :step="step"
+        :en="en"
+        :playing="playing"
+        :reduced="reduced"
+        @select="select($event, stageStarts)"
+      />
       <template v-else-if="kind === 'image'">
         <div class="fd-meta">
           <span>{{ t('漫画原图', 'Comic image') }}</span>
