@@ -14,6 +14,8 @@ import {
   vocabularyImportNeedsConfirmation,
   vocabularyReviewSessionProgress,
   normalizeLearningSourceText,
+  isVocabularySentence,
+  mergeVocabularyNotes,
   type VocabularyEntry,
 } from '@/src/features/vocabulary/learningModel'
 
@@ -46,6 +48,21 @@ function entry(id: string, overrides: Partial<VocabularyEntry> = {}): Vocabulary
 }
 
 describe('vocabulary learning model edge cases', () => {
+  it('finds explicit and legacy sentences without classifying words or explicit expressions as sentences', () => {
+    expect(isVocabularySentence(entry('sentence', {kind:'sentence'}))).toBe(true);
+    expect(isVocabularySentence(entry('A full sentence.', {kind:'expression'}))).toBe(false);
+    for (const term of ['This is worth remembering.', '这是一个句子。', 'Do you agree?', '“Read this!”']) expect(isVocabularySentence(entry(term))).toBe(true);
+    for (const term of ['word', 'Dr.', 'on time']) expect(isVocabularySentence(entry(term))).toBe(false);
+    expect(vocabularyStudyPrompt('sentence')).toContain('最多三句');
+  });
+  it('merges explanations using their own timestamps and preserves deliberate clears', () => {
+    expect(mergeVocabularyNotes(entry('a'), entry('b'))).toEqual({});
+    const older = entry('a', {note:'old', noteUpdatedAt:10});
+    const newer = entry('b', {note:'', noteUpdatedAt:20});
+    expect(mergeVocabularyNotes(older, newer)).toEqual({note:'', noteUpdatedAt:20});
+    expect(mergeVocabularyNotes(newer, older)).toEqual({note:'', noteUpdatedAt:20});
+    expect(mergeVocabularyNotes(entry('a', {noteUpdatedAt:20}), entry('b'))).toEqual({note:'', noteUpdatedAt:20});
+  });
   it('validates multilingual learning text without truncating long selections', () => {
     expect(normalizeLearningSourceText(null)).toBe('');
     expect(normalizeLearningSourceText('  Café\n 是一个词。\u0000 ')).toBe('Café 是一个词。');

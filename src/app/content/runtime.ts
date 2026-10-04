@@ -4,8 +4,7 @@
  * 主要内容：先排除原始 XML 文档与失效扩展上下文，再安装内联 page.css 并按 capability 和配置挂载页面功能；订阅配置变化并处理停用、往返缓存暂停恢复与销毁，低频检查扩展重载以主动释放旧页面，消息端口失效不能中断清理。
  * 模块边界：本文件只负责依赖装配和页面激活所有权，不实现具体翻译算法、组件内部状态、provider 请求或配置存储；这些职责分别属于 features、services 与 platform。
  */
-import {isWritingPage} from '@/src/core/config/writing';
-import {mountWritingAssistant, unmountWritingAssistant, isWritingAssistantMounted} from '@/src/features/writing-assistant/public';
+import {createLearningContentFeatures} from './learningFeatures';
 import type {ContentScriptContext} from 'wxt/utils/content-script-context';
 import {createShadowRootUi} from 'wxt/utils/content-script-ui/shadow-root';
 import {constants} from '@/src/core/config/constants';
@@ -150,12 +149,8 @@ export async function startContentApp(ctx: ContentScriptContext,
             () => { resetHoverKeyboardGesture(); resetFullPageKeyboardGesture(); }, mailFullPageToggle);
         const pageFeatureRegistry = createContentFeatureRegistry([
             {id: 'vocabulary-reencounter', isEnabled: () => capabilities.browser !== 'userscript' && config.vocabularyReencounterEnabled === true && !browser.extension.inIncognitoContext, mount: runtime => mountVocabularyReencounter(runtime.ctx, runtime.signal), unmount: unmountVocabularyReencounter},
+            ...createLearningContentFeatures(ctx, config, capabilities),
             {id: 'share-card', isEnabled: () => config.on, mount: () => mountShareCard(ctx), unmount: unmountShareCard, isMounted: isShareCardMounted},
-            {
-                id: 'writing-assistant', mount: () => mountWritingAssistant(ctx),
-                isEnabled: () => capabilities.browser !== 'userscript' && config.on && config.writing.enabled && isWritingPage(window.location.href),
-                unmount: unmountWritingAssistant, isMounted: isWritingAssistantMounted,
-            },
             {
                 id: 'floating-ball',
                 isEnabled: () => config.on && config.disableFloatingBall !== true && isFloatingBallAllowedOnPage(),

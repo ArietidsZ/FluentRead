@@ -17,6 +17,11 @@ export function unmountImageTranslator(): void {}
 export function mountVocabularyReencounter(): void {}
 export function unmountVocabularyReencounter(): void {}
 
+/** 高亮句子工具条只在扩展中挂载，油猴沿用学习卡收藏入口。 */
+export function mountSentenceActions(): void {}
+export function unmountSentenceActions(): void {}
+export function isSentenceActionsMounted(): boolean { return false; }
+
 export function mountVideoSubtitleTranslation(): () => void {
     return () => undefined;
 }

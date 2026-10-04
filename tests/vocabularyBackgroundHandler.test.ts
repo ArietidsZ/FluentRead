@@ -24,6 +24,7 @@ function createRepository() {
         get: vi.fn(async (entryId: string) => ({method: 'get', entryId})),
         getByTerm: vi.fn(async (sourceLanguage: string, term: string) => ({method: 'getByTerm', sourceLanguage, term})),
         upsert: vi.fn(async () => ({id: 'entry-upsert', method: 'upsert'})),
+        updateNote: vi.fn(async (entryId: string, note: string) => ({id:entryId, note})),
         review: vi.fn(async (entryId: string, rating: string) => ({method: 'review', entryId, rating})),
         setMastery: vi.fn(async (entryId: string) => ({method: 'setMastery', entryId})),
         relearn: vi.fn(async (entryId: string) => ({method: 'relearn', entryId})),
@@ -72,6 +73,16 @@ describe('vocabulary background message handlers', () => {
             expect(await createVocabularyBookHandler(enabled.dependencies).handle({type: VOCABULARY_BOOK_MESSAGE, action, entryId: 'art'}, {sender: {tab: {incognito: true}}})).toMatchObject({success: false});
             expect(enabled.repository.list).not.toHaveBeenCalled(); expect(enabled.repository.get).not.toHaveBeenCalled();
         }
+    });
+    it('修改解释不依赖收藏入口开关，校验解释并阻止无痕修改', async () => {
+        const {dependencies, repository} = createDependencies({isVocabularyBookEnabled: () => false});
+        const handler = createVocabularyBookHandler(dependencies);
+        const request = {type:VOCABULARY_BOOK_MESSAGE, action:'updateNote', entryId:'sentence', note:'一句简单解释'};
+        expect(await handler.handle(request, {})).toEqual({success:true, data:{id:'sentence', note:'一句简单解释'}});
+        expect(repository.updateNote).toHaveBeenCalledWith('sentence', '一句简单解释');
+        expect(dependencies.broadcastChanged).toHaveBeenCalledWith('note', 'sentence');
+        expect(await handler.handle({...request, note:42}, {})).toMatchObject({success:false, error:{code:'invalid-input'}});
+        expect(await handler.handle(request, {sender:{tab:{incognito:true}}})).toMatchObject({success:false, error:{code:'invalid-input'}});
     });
     it('允许保存没有AI释义的多语种原文', async () => {
         const {dependencies, repository} = createDependencies();
