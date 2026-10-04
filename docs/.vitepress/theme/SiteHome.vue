@@ -21,8 +21,8 @@ const features = [
     kind: 'selection',
     title: t('划词翻译', 'Selection translation'),
     description: t(
-      '选中文字即可查看译文，也可用卡片查单词的音标和释义，或分块理解句子结构。',
-      'Translate selected text, look up a word’s pronunciation and meaning, or explore how a sentence fits together in a card.'
+      '选中文字即可查看译文并朗读原文或译文，还可通过卡片查音标、释义，理解句子结构。',
+      'Translate selected text and listen to both languages, with cards for word definitions, pronunciation and sentence structure.'
     ),
     path: '/guide/deepseek-harness',
   },
@@ -98,34 +98,35 @@ const faqs = [
     <section class="bv-hero" :class="{ 'bv-hero-en': en }" aria-labelledby="fr-title">
       <HeroOrbit :en="en" />
       <div class="bv-hero-copy">
-        <div class="bv-hero-heading">
-          <div class="bv-hero-brand">
-            <h1 id="fr-title" :lang="en ? 'en' : 'zh-CN'">{{ t('流畅阅读', 'FluentRead') }}</h1>
-          </div>
-          <p class="bv-hero-slogan product-tagline">
-            <span class="bv-slogan-line"
-              ><span>{{ t('让语言更近', 'Closer languages') }}</span
-              ><span class="bv-slogan-punctuation">{{ t('，', '. ') }}</span></span
-            >
-            <span class="bv-slogan-line"
-              ><span>{{ t('让世界更大', 'A bigger world') }}</span
-              ><span class="bv-slogan-punctuation">{{ t('。', '.') }}</span></span
-            >
-          </p>
-        </div>
+        <img
+          class="bv-hero-mobile-icon"
+          :src="withBase('/brand-icon.webp')"
+          width="64"
+          height="64"
+          alt=""
+        />
+        <h1 id="fr-title" class="bv-hero-slogan product-tagline" :lang="en ? 'en' : 'zh-CN'">
+          <span class="bv-slogan-line"
+            ><span>{{ t('让语言更近', 'Closer languages') }}</span
+            ><span class="bv-slogan-punctuation">{{ t('，', '. ') }}</span></span
+          >
+          <span class="bv-slogan-line"
+            ><span>{{ t('让世界更大', 'A bigger world') }}</span
+            ><span class="bv-slogan-punctuation">{{ t('。', '.') }}</span></span
+          >
+        </h1>
         <p class="bv-hero-intro">
           <span>{{
             t(
-              '一款开源的浏览器双语翻译插件，',
-              'An open-source browser extension for bilingual translation.'
+              '流畅阅读，一款开源的浏览器双语翻译插件',
+              'FluentRead is an open-source browser extension for bilingual translation.'
             )
           }}</span>
-          <span>{{
-            t(
-              '支持双语翻译、划词翻译、文档翻译、图片/漫画翻译、视频翻译。',
-              'Translate webpages, selected text, documents, images and comics, and video captions.'
-            )
-          }}</span>
+          <span v-if="!en" class="bv-hero-capabilities"><span
+            v-for="(capability, index) in ['双语翻译', '划词翻译', '文档翻译', '图片/漫画翻译', '视频翻译']"
+            :key="capability"
+          >{{ index === 0 ? '支持' : '' }}{{ capability }}{{ index === 4 ? '。' : '、' }}</span></span>
+          <span v-else>Translate webpages, selected text, documents, images and comics, and video captions.</span>
         </p>
         <BrowserInstall :en="en" />
       </div>

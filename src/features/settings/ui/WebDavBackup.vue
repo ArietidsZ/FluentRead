@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/WebDavBackup.vue
 文件职责：在同步操作右侧统一显示账号、服务器、同步时间和修改连接入口，接入 WebDAV 配置云备份。
-主要内容：应用密码输入、只读测试、测试后保存、清除本机连接与多语言错误；保存密码后不回显。
+主要内容：应用密码输入、只读测试、测试后保存、多语言错误；同步时刷新跨页面连接摘要，密码不回显。
 模块边界：只向可信后台发送连接参数，不直接请求 WebDAV；共用 RemoteConfigSync 的预览和确认流程。
 -->
 <template>
@@ -36,11 +36,11 @@
   </el-dialog>
 </template>
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, reactive, ref, watch} from 'vue';
+import {computed, onUnmounted, reactive, ref, watch} from 'vue';
 import {ElAlert, ElMessage, ElMessageBox} from 'element-plus';
 import 'element-plus/es/components/alert/style/css';
 import {useUiI18n} from '@/src/ui/i18n';
-import {webDavBackupClient as client} from '@/src/services/config/webDavBackupClient';
+import {webDavBackupClient as connectionClient} from '@/src/services/config/webDavBackupClient';
 import {CloudBackupRequestError} from '@/src/services/config/cloudBackupClient';
 import type {WebDavConnectionSummary} from '@/src/platform/webdav/connection';
 import RemoteConfigSync from './RemoteConfigSync.vue';
@@ -58,6 +58,31 @@ const tested = ref(false);
 const action = ref('');
 let alive = true;
 onUnmounted(() => {alive = false; draft.password = '';});
+async function refreshConnection() {
+  const saved = await connectionClient.settings();
+  if (alive) connection.value = saved;
+  return saved;
+}
+const client = {
+  ...connectionClient,
+  async status() {
+    const result = await connectionClient.status();
+    await refreshConnection();
+    return result;
+  },
+  async prepare() {
+    await refreshConnection();
+    const result = await connectionClient.prepare();
+    try {
+      const saved = await refreshConnection();
+      if (!saved || result.account.id !== `webdav:${saved.revision}`) throw new CloudBackupRequestError('同步连接已变化，请重新生成预览。', 'settings.cloud.connectionChanged');
+      return result;
+    } catch (failure) {
+      await connectionClient.cancel(result.id).catch(() => undefined);
+      throw failure;
+    }
+  },
+};
 const draft = reactive({url: '', username: '', password: '', allowInsecure: false, revision: null as string | null});
 const insecure = computed(() => /^http:\/\//iu.test(draft.url.trim()));
 const canKeepPassword = computed(() => Boolean(connection.value?.hasPassword && draft.url.trim().replace(/\/+$/u, '') === connection.value.url.replace(/\/+$/u, '') && draft.username.trim() === connection.value.username));
@@ -90,7 +115,6 @@ async function clearConnection() {
   try {await ElMessageBox.confirm(t('settings.webdav.clearDescription'), t('settings.webdav.clear'), {confirmButtonText: t('settings.webdav.clear'), cancelButtonText: t('settings.drive.cancelSync'), type: 'warning'});} catch {return;}
   await perform('clear', async () => {await client.clear(connection.value?.revision ?? null); connection.value = null; draft.password = ''; settingsVisible.value = false; await syncUi.value?.refreshStatus(); if (alive) ElMessage.success(t('settings.webdav.cleared'));});
 }
-onMounted(() => {void perform('load', async () => {connection.value = await client.settings();});});
 </script>
 <style scoped>
 .webdav-connection {display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:16px;}
