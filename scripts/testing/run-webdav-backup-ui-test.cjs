@@ -183,6 +183,7 @@ async function main() {
         state.etagMode='none';await savePatch({to:'de'});
         await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
         check(await dialog.locator('[data-testid="webdav-restore-only"]').isVisible(),'missing version presents a restore-only preview instead of a failed sync');
+        check(await dialog.evaluate(el=>el.querySelector('.drive-review-title').getBoundingClientRect().top-el.querySelector('.drive-preview-notice').getBoundingClientRect().bottom>=20),'restore notice has a clear gap before review content');
         check(await page.locator('[data-testid="webdav-confirm"]').isEnabled(),'restore remains available without any server ETag');
         check(await page.locator('[data-testid="webdav-back"]').count()===0 && await page.locator('[data-testid="webdav-direction-upload"]').count()===0 && await page.locator('[data-testid="webdav-direction-merge"]').count()===0,'restore-only preview skips unavailable operation choices');
         await shot('webdav-restore-only-desktop');
@@ -210,6 +211,7 @@ async function main() {
             const restoreOnly=dialog.locator('[data-testid="webdav-restore-only"]');
             const expectedWarning=JSON.parse(fs.readFileSync(path.join(__dirname,'../../src/core/i18n/messages/cloud-backup',language+'.json'),'utf8')).messages['settings.cloud.restoreOnly'];
             check(await restoreOnly.isVisible() && (await restoreOnly.innerText()).trim()===expectedWarning,'restore-only warning is localized: '+language);
+            check(await dialog.evaluate(el=>{const title=el.querySelector('.el-alert__title');return title.scrollWidth<=title.clientWidth && el.querySelector('.drive-review-title').getBoundingClientRect().top-el.querySelector('.drive-preview-notice').getBoundingClientRect().bottom>=20;}),'localized notice wraps without touching review content: '+language);
             check(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth),'restore-only preview fits narrow screen: '+language);
             if(language==='en-US') await shot('webdav-restore-only-english-mobile');
             await dialog.locator('.drive-footer-actions .el-button').first().click();await dialog.waitFor({state:'hidden'});state.etagMode='prop';

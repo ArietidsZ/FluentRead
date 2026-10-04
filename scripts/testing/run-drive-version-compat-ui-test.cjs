@@ -91,6 +91,7 @@ async function main() {
         await card.locator('.el-alert--error').waitFor();check(await worker.evaluate(()=>__versionFixture.uploads===2 && __versionFixture.version===2),'412 conflict preserves the existing backup');
         await worker.evaluate(()=>{__versionFixture.rejectPut=false;__versionFixture.etag=false;});await sync();await dialog.waitFor();
         check(await page.locator('[data-testid="google-drive-restore-only"]').isVisible(),'missing ETag opens an explicit restore-only preview');
+        check(await dialog.evaluate(el=>el.querySelector('.drive-review-title').getBoundingClientRect().top-el.querySelector('.drive-preview-notice').getBoundingClientRect().bottom>=20),'restore notice has a clear gap before review content');
         check((await dialog.innerText()).includes('目标语言') && await page.locator('[data-testid="google-drive-confirm"]').isEnabled(),'differences and restore action remain available');
         check(await page.locator('[data-testid="google-drive-back"]').count()===0 && await page.locator('[data-testid="google-drive-direction-upload"]').count()===0 && await page.locator('[data-testid="google-drive-direction-merge"]').count()===0,'restore-only preview skips unavailable operation choices');await shot('drive-restore-only-desktop');
         await cancel();check((await page.evaluate(()=>chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'}))).value.to==='es','cancel keeps device changes');
