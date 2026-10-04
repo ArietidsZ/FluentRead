@@ -1,33 +1,36 @@
 <!--
  * @file src/features/vocabulary/ui/VocabularyStudy.vue
- * 文件职责：围绕一个主动收藏的表达提供原句阅读、定向讲解和自主造句反馈。
- * 主要内容：展示真实来源和收藏参考，复用 Harness 流式客户端按需分析，区分理解与造句结果，并在切换词条、配置变化或卸载时取消旧请求。
+ * 文件职责：围绕收藏的句子或表达提供听读、独立解释保存和定向学习。
+ * 主要内容：展示原文、译文、解释与真实来源，复用 Harness 按需讲解或反馈造句；解释编辑保留当前阅读，来源变化和卸载取消旧请求。
  * 模块边界：不挑选随机词、不自动请求模型或改变掌握度；不访问数据库和服务密钥，问答沿用后台会话保存与模型配置。
  -->
 <template>
   <section class="word-study" aria-label="表达学习">
     <header class="study-header">
       <button type="button" @click="emit('close')">‹ 返回收藏</button>
-      <span>理解原句 → 学会用法 → 自己表达</span>
+      <span>{{ sentenceEntry ? '听原句 · 看译文 · 留下解释' : '理解原句 → 学会用法 → 自己表达' }}</span>
     </header>
     <div class="study-source">
-      <div class="study-title"><h3 data-i18n-ignore>{{ entry.term }}</h3><button type="button" @click="emit('speak')">朗读原文</button></div>
+      <div class="study-title"><h3 data-i18n-ignore>{{ entry.term }}</h3><button type="button" @click="emit('speak')">{{ playing ? '停止朗读' : '朗读原文' }}</button></div>
+      <p v-if="entry.kind === 'sentence' && reference" class="sentence-translation" data-i18n-ignore>{{ reference }}</p>
+      <SavedExplanation :entry="entry" @updated="emit('updated', $event)" />
       <template v-if="context">
         <h4>你收藏时的原句</h4>
         <blockquote data-i18n-ignore>{{ context.text }}</blockquote>
         <a v-if="context.sourceUrl" :href="context.sourceUrl" target="_blank" rel="noopener noreferrer"><span data-i18n-ignore>{{ context.pageTitle || translateLegacy('查看原文来源') }}</span> ↗</a>
       </template>
-      <p v-else class="study-hint">这条收藏没有可用的原句。可以先了解常见用法；下次连同原句收藏，更容易判断具体含义。</p>
-      <details v-if="reference" class="study-reference"><summary>收藏时的参考内容</summary><ReadingAnswer :text="reference" /></details>
+      <p v-else-if="!sentenceEntry" class="study-hint">这条收藏没有可用的原句。可以先了解常见用法；下次连同原句收藏，更容易判断具体含义。</p>
+      <details v-if="reference && entry.kind !== 'sentence'" class="study-reference"><summary>收藏时的参考内容</summary><ReadingAnswer :text="reference" /></details>
     </div>
     <div class="study-workspace">
       <section class="study-step">
-        <h4>1 · 读懂与会用</h4>
-        <p class="study-hint">围绕这个表达，理解含义、常用搭配和一个可迁移的例句。</p>
-        <button type="button" class="study-primary" :disabled="busy" @click="run('understand')">{{ explanation ? '重新讲解' : '理解这个表达' }}</button>
+        <h4>{{ sentenceEntry ? '理解这个句子' : '1 · 读懂与会用' }}</h4>
+        <p class="study-hint">{{ sentenceEntry ? '用几句话解释句意，以及一个值得留意的表达或句式。' : '围绕这个表达，理解含义、常用搭配和一个可迁移的例句。' }}</p>
+        <button type="button" class="study-primary" :disabled="busy" @click="run('understand')">{{ explanation ? '重新讲解' : sentenceEntry ? '生成简短解释' : '理解这个表达' }}</button>
         <ReadingAnswer v-if="explanation" :text="explanation" />
+        <button v-if="completedExplanation" type="button" :disabled="savingExplanation || busy" @click="saveExplanation">{{ savingExplanation ? '保存中…' : '保存这段解释' }}</button>
       </section>
-      <section class="study-step">
+      <section v-if="!sentenceEntry" class="study-step">
         <h4>2 · 用自己的话说一句</h4>
         <p class="study-hint"><span data-i18n-ignore>{{ t("learning.writeSentenceHint", {term: entry.term}) }}</span></p>
         <form @submit.prevent="run('use')">
@@ -51,14 +54,19 @@ const {t, translateLegacy} = useUiI18n();
 import {computed, onBeforeUnmount, ref, watch} from 'vue';
 import {ReadingAnswer, streamReading} from '@/src/features/reading-assistant/public';
 import {config, subscribeConfig} from '@/src/services/config/store';
-import {vocabularyStudyContext, type VocabularyEntry} from '../learningModel';
+import browser from 'webextension-polyfill';
+import SavedExplanation from './SavedExplanation.vue';
+import {vocabularyStudyContext, isVocabularySentence, VOCABULARY_BOOK_MESSAGE, type VocabularyBookResponse, type VocabularyEntry} from '../learningModel';
 
-const props = defineProps<{entry: VocabularyEntry; reference: string}>();
-const emit = defineEmits<{close: []; speak: []; navigate: [section: string]}>();
+const props = defineProps<{entry: VocabularyEntry; reference: string; playing?: boolean}>();
+const emit = defineEmits<{close: []; speak: []; navigate: [section: string]; updated: [entry: VocabularyEntry]}>();
+const sentenceEntry = computed(() => isVocabularySentence(props.entry));
 const context = computed(() => vocabularyStudyContext(props.entry));
 const enabled = ref(config.on && config.harness.enabled);
 const contextAllowed = ref(config.harness.contextMode === 'paragraph');
 const explanation = ref('');
+const completedExplanation = ref(false);
+const savingExplanation = ref(false);
 const feedback = ref('');
 const draft = ref('');
 const submittedDraft = ref('');
@@ -78,7 +86,17 @@ function stop(): void {
   busy.value = false;
 }
 function reset(): void {
-  stop(); explanation.value = ''; feedback.value = ''; draft.value = ''; submittedDraft.value = ''; error.value = ''; notice.value = ''; model.value = '';
+  stop(); explanation.value = ''; completedExplanation.value = false; feedback.value = ''; draft.value = ''; submittedDraft.value = ''; error.value = ''; notice.value = ''; model.value = '';
+}
+async function saveExplanation(): Promise<void> {
+  if (!completedExplanation.value || busy.value || savingExplanation.value) return;
+  const owner = generation; savingExplanation.value = true;
+  try {
+    const response = await browser.runtime.sendMessage({type:VOCABULARY_BOOK_MESSAGE, action:'updateNote', entryId:props.entry.id, note:explanation.value}) as VocabularyBookResponse<VocabularyEntry>;
+    if (!response.success) throw new Error(response.error.message);
+    if (active && generation === owner) {emit('updated', response.data); notice.value = '解释已保存，下次打开仍可查看。'; completedExplanation.value = false;}
+  } catch (cause) {if (active && generation === owner) notice.value = cause instanceof Error ? cause.message : '解释保存失败，请重试。';}
+  finally {if (active) savingExplanation.value = false;}
 }
 function run(nextMode: 'understand' | 'use'): void {
   if (busy.value || (nextMode === 'use' && !draft.value.trim())) return;
@@ -88,13 +106,14 @@ function run(nextMode: 'understand' | 'use'): void {
   const owner = generation;
   const owns = () => active && owner === generation;
   error.value = ''; notice.value = ''; busy.value = true;
+  completedExplanation.value = false;
   if (nextMode === 'understand') explanation.value = '';
   else { feedback.value = ''; submittedDraft.value = draft.value.trim(); }
   const setAnswer = (text: string) => { if (nextMode === 'understand') explanation.value = text; else feedback.value = text; };
   try {
     pending = streamReading({type:'fluentReadHarness', action:'run', requestId:crypto.randomUUID(), intent: nextMode === 'use' ? 'practice' : 'usage',
       selection: {text:props.entry.term, context:contextAllowed.value ? context.value?.text || '' : '', sentence:''},
-      studyMode:nextMode, question:nextMode === 'understand' ? '理解这个表达的含义与用法' : submittedDraft.value,
+      studyMode:nextMode === 'understand' && sentenceEntry.value ? 'sentence' : nextMode, question:nextMode === 'understand' ? (sentenceEntry.value ? '简短解释这个句子的含义与一个关键表达' : '理解这个表达的含义与用法') : submittedDraft.value,
     }, {
       progress(progress) {
         if (!owns()) return;
@@ -105,14 +124,14 @@ function run(nextMode: 'understand' | 'use'): void {
       result(response) {
         if (!owns()) return;
         busy.value = false; pending = undefined;
-        if (response.success) { setAnswer(response.text); model.value = response.model; notice.value = response.persistenceWarning || ''; }
+        if (response.success) { setAnswer(response.text); completedExplanation.value = nextMode === 'understand' && Boolean(response.text.trim()); model.value = response.model; notice.value = response.persistenceWarning || ''; }
         else error.value = response.error;
       },
       error(failure) { if (owns()) { busy.value = false; pending = undefined; error.value = failure.message; } },
     });
   } catch (failure) { if (owns()) { busy.value = false; error.value = failure instanceof Error ? failure.message : '讲解暂时不可用，请重试。'; } }
 }
-watch(() => [props.entry.id, props.entry.updatedAt], reset);
+watch([() => props.entry.id, () => props.entry.term, () => props.entry.kind, () => JSON.stringify(props.entry.contexts), () => JSON.stringify(props.entry.translations)], reset);
 // 配置快照变化时使旧模型响应失效；下一次明确操作才重新发起请求。
 let revision = JSON.stringify(config);
 const unsubscribe = subscribeConfig(next => {
@@ -138,6 +157,8 @@ onBeforeUnmount(() => { active = false; stop(); unsubscribe(); });
 .study-reference { margin-top:18px; color:var(--muted); font-size:12px; }
 .study-reference summary { cursor:pointer; margin-bottom:12px; }
 .study-workspace { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.study-step:only-child {grid-column:1 / -1;}
+.sentence-translation {line-height:1.8; white-space:pre-wrap; color:var(--muted);}
 .study-step :deep(.fr-reading-markdown) { margin-top:18px; }
 .word-study textarea { box-sizing:border-box; width:100%; min-height:110px; resize:vertical; padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--surface-soft); color:var(--ink); font:inherit; line-height:1.6; margin:0 0 12px; }
 .word-study .study-primary { background:var(--el-color-primary-dark-2,#cf315e); color:#fff; border-color:var(--brand); }

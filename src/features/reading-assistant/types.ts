@@ -24,7 +24,7 @@ export interface ReadingRequest {
     selection: ReadingSelection;
     intent: HarnessActionId;
     /** 学习中心的定向任务，提示词在后台组装；question 仅保存用户可读的问题或造句。 */
-    studyMode?: 'understand' | 'use';
+    studyMode?: 'understand' | 'use' | 'sentence';
     question: string;
     history?: ReadingTurn[];
     sessionId?: string;

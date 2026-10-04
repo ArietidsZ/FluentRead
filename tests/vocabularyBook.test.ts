@@ -64,6 +64,41 @@ function alphabeticIndex(value: number): string {
 }
 
 describe('Anki export', () => {
+  it('round trips sentence identity, translation and independently saved explanations without changing review state', async () => {
+    const first = await repository.upsert(baseInput({term:'Good ideas deserve attention.', kind:'sentence', translation:'好想法值得关注。', note:'deserve 表示值得。'}), NOW);
+    expect(first).toMatchObject({kind:'sentence', note:'deserve 表示值得。', noteUpdatedAt:NOW});
+    const explained = await repository.updateNote(first.id, '值得留意的表达：deserve attention。', NOW + 1);
+    expect(explained.encounterCount).toBe(1);
+    expect(explained.nextReviewAt).toBe(first.nextReviewAt);
+    expect(explained.translations).toEqual(first.translations);
+    const exported = await repository.exportData();
+    await repository.clear();
+    await repository.importData(exported, NOW + 2);
+    expect(await repository.get(first.id)).toMatchObject({kind:'sentence', note:explained.note, noteUpdatedAt:NOW+1});
+    await repository.updateNote(first.id, '', NOW + 3);
+    await repository.importData(exported, NOW + 4);
+    expect((await repository.get(first.id))?.note).toBe('');
+    await repository.remove(first.id);
+    await expect(repository.updateNote(first.id, 'late', NOW + 5)).rejects.toThrow('收藏已不存在');
+    await expect(repository.updateNote(first.id, 'x'.repeat(2001))).rejects.toThrow('2000');
+    await expect(repository.updateNote(first.id, null as unknown as string)).rejects.toThrow('2000');
+  });
+  it('preserves explanations on repeated saves and safely merges legacy and duplicate imported sentences', async () => {
+    const first = await repository.upsert(baseInput({term:'A sentence worth keeping.', kind:'sentence', note:'初次解释'}), NOW);
+    const updated = await repository.upsert(baseInput({term:first.term, kind:'sentence', note:'第二次解释'}), NOW+1);
+    expect(updated.note).toBe('第二次解释');
+    expect((await repository.upsert(baseInput({term:first.term}), NOW+2)).note).toBe('第二次解释');
+    const exported = await repository.exportData();
+    exported.entries.push({...exported.entries[0], note:'最新解释', noteUpdatedAt:NOW+4, updatedAt:NOW+4});
+    delete exported.entries[1].kind;
+    await repository.importData(exported, NOW+5);
+    expect((await repository.get(first.id))?.note).toBe('最新解释');
+    const legacy = await repository.exportData();
+    delete legacy.entries[0].kind;
+    legacy.entries[0].updatedAt = NOW + 6;
+    await repository.importData(legacy, NOW+7);
+    expect((await repository.get(first.id))?.kind).toBe('sentence');
+  });
   it('declares column names as metadata instead of emitting a fake header card', () => {
     const output = buildAnkiTsv(
       ['Term', 'Meaning', 'Context', 'Source', 'Tags'],

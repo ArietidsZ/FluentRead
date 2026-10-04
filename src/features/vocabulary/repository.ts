@@ -1,7 +1,7 @@
 /**
  * @file src/features/vocabulary/repository.ts
  * 文件职责：实现 FluentRead 本地单词与句子收藏的 Dexie 持久化仓库，负责多语种记录清洗、兼容旧词条的唯一身份、上下文合并、复习调度、删除撤销以及安全导入导出。
- * 主要内容：定义数据库 schema、VocabularyBookError、语言和 URL 规范化、掌握状态/间隔算法，提供 VocabularyBookRepository 的增删查改、review、JSON merge、review log 和 clear 操作。
+ * 主要内容：定义数据库 schema、语言和 URL 规范化、掌握状态/间隔算法，提供收藏增删查改、独立解释更新、review、按解释时间合并的 JSON 导入和导出。
  * 模块边界：仓库只拥有本地 IndexedDB 数据与领域不变量，不处理 runtime 消息或渲染界面；后台 handler 负责权限和广播，learningModel 提供纯会话模型，敏感上下文默认不导出。
  */
 import Dexie, { type Table } from 'dexie';
@@ -14,6 +14,7 @@ import {
   VOCABULARY_REVIEW_LOG_MAX_PER_ENTRY,
   VOCABULARY_SOURCE_TEXT_MAX,
   normalizeLearningSourceText,
+  mergeVocabularyNotes,
   type VocabularyBookErrorCode,
   type VocabularyBookExport,
   type VocabularyContext,
@@ -341,6 +342,8 @@ function prepareUpsert(input: VocabularyUpsertInput, now: number) {
     term,
     normalizedTerm,
     translation,
+    ...(input.kind === 'sentence' || input.kind === 'expression' ? {kind: input.kind} : {}),
+    ...(typeof input.note === 'string' ? {note: sanitizeText(input.note, 2_000), noteUpdatedAt: now} : {}),
     identityKey,
     phonetic: sanitizeText(input.phonetic, MAX_PHONETIC_LENGTH),
     partOfSpeech,
@@ -449,6 +452,8 @@ export class VocabularyBookRepository {
           identityKey: prepared.identityKey,
           sourceLanguage: prepared.sourceLanguage,
           term: prepared.term,
+          ...(prepared.kind ? {kind: prepared.kind} : {}),
+          ...(prepared.noteUpdatedAt === undefined ? {} : {note: prepared.note, noteUpdatedAt: prepared.noteUpdatedAt}),
           normalizedTerm: prepared.normalizedTerm,
           translations: prepared.translation ? {
             [prepared.targetLanguage]: { text: prepared.translation, updatedAt: now },
@@ -476,6 +481,8 @@ export class VocabularyBookRepository {
       const updated: VocabularyEntry = {
         ...existing,
         term: prepared.term,
+        ...(prepared.kind ? {kind: prepared.kind} : {}),
+        ...(prepared.noteUpdatedAt === undefined ? {} : {note: prepared.note, noteUpdatedAt: updatedAt}),
         normalizedTerm: prepared.normalizedTerm,
         translations: mergeTranslations(existing.translations, prepared.translation ? {
           [prepared.targetLanguage]: { text: prepared.translation, updatedAt },
@@ -488,6 +495,19 @@ export class VocabularyBookRepository {
         encounterCount: Math.min(Number.MAX_SAFE_INTEGER, existing.encounterCount + 1),
         schemaVersion: VOCABULARY_ENTRY_SCHEMA_VERSION,
       };
+      await this.db.entries.put(updated);
+      return cloneEntry(updated);
+    });
+  }
+
+  /** 仅修改既有收藏的解释，不增加收藏次数，不重新创建被删除的句子。 */
+  async updateNote(entryId: string, note: string, now = Date.now()): Promise<VocabularyEntry> {
+    if (typeof note !== 'string' || note.length > 2_000) throw new VocabularyBookError('invalid-input', '解释最多保存 2000 个字符。');
+    return this.db.transaction('rw', this.db.entries, async () => {
+      const entry = await this.db.entries.get(entryId);
+      if (!entry) throw new VocabularyBookError('not-found', '收藏已不存在，请刷新列表。');
+      const updatedAt = Math.max(entry.updatedAt + 1, now);
+      const updated = {...entry, note: sanitizeText(note, 2_000), noteUpdatedAt: updatedAt, updatedAt};
       await this.db.entries.put(updated);
       return cloneEntry(updated);
     });
@@ -846,6 +866,8 @@ function sanitizeImportEntry(value: unknown, now: number): SanitizedImportEntry 
       term,
       normalizedTerm,
       translations,
+      ...(value.kind === 'sentence' || value.kind === 'expression' ? {kind: value.kind} : {}),
+      ...(typeof value.note === 'string' ? {note: sanitizeText(value.note, 2_000), noteUpdatedAt: sanitizeTimestamp(value.noteUpdatedAt, initialUpdatedAt)} : {}),
       phonetic: sanitizeText(value.phonetic, MAX_PHONETIC_LENGTH),
       partOfSpeech: sanitizeText(value.partOfSpeech, MAX_PART_OF_SPEECH_LENGTH),
       contexts: mergeVocabularyContexts([], contexts),
@@ -876,6 +898,8 @@ function mergeImportCandidates(
     sourceIds: [...new Set([...left.sourceIds, ...right.sourceIds])],
     entry: {
       ...cloneEntry(newer),
+      ...mergeVocabularyNotes(newer, older),
+      ...(newer.kind || older.kind ? {kind: newer.kind || older.kind} : {}),
       createdAt: Math.min(left.entry.createdAt, right.entry.createdAt),
       updatedAt: Math.max(left.entry.updatedAt, right.entry.updatedAt),
       lastSeenAt: Math.max(left.entry.lastSeenAt, right.entry.lastSeenAt),
@@ -910,6 +934,8 @@ function mergeImportedEntry(local: VocabularyEntry, incoming: VocabularyEntry): 
   const learning = newerLearningState(local, incoming);
   const merged: VocabularyEntry = {
     ...cloneEntry(primary),
+    ...mergeVocabularyNotes(primary, secondary),
+    ...(primary.kind || secondary.kind ? {kind: primary.kind || secondary.kind} : {}),
     id: local.id,
     identityKey: local.identityKey,
     sourceLanguage: local.sourceLanguage,
