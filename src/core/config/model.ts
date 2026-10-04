@@ -2,7 +2,7 @@
  * @file src/core/config/model.ts
  *
  * 文件职责：定义 FluentRead 完整配置模型、默认值及各项设置的合法范围，是配置读取、保存、迁移和 UI 绑定共同依赖的领域契约。
- * 主要内容：包含正文/全部节点识别范围，保留各功能独立服务，并将所有功能服务的空值解释为继承网页默认；统一中文简繁标识及历史配置别名，并保存常用服务顺序，保存默认空的 Origin/Referer 域名移除名单，包含 Config 接口、defaultConfig、字幕和翻译模式类型、延迟与字号范围、默认 API 地址及多项功能开关，使新增配置项在一个位置获得类型和初始语义；归一化时把仍停留在历史默认值的翻译提示词升级为当前默认提示词。 可核对的公开符号包括 DeepSeekApiType、DeepSeekThinkingMode、VideoSubtitleDisplayMode、FullPageTranslationMode、DEFAULT_VIDEO_SUBTITLE_FONT_SIZE、DEFAULT_NEW_API_URL、DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY。
+ * 主要内容：支持单图选择本地识别引擎，包含正文/全部节点识别范围，保留各功能独立服务，并将所有功能服务的空值解释为继承网页默认；统一中文简繁标识及历史配置别名，并保存常用服务顺序，保存默认空的 Origin/Referer 域名移除名单，包含 Config 接口、defaultConfig、字幕和翻译模式类型、延迟与字号范围、默认 API 地址及多项功能开关，使新增配置项在一个位置获得类型和初始语义；归一化时把仍停留在历史默认值的翻译提示词升级为当前默认提示词。 可核对的公开符号包括 DeepSeekApiType、DeepSeekThinkingMode、VideoSubtitleDisplayMode、FullPageTranslationMode、DEFAULT_VIDEO_SUBTITLE_FONT_SIZE、DEFAULT_NEW_API_URL、DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
@@ -356,6 +356,7 @@ export class Config {
     hoverTranslationService: string; // 悬浮翻译服务，空值跟随默认网页服务
     selectionTranslationService: string; // 普通划词翻译服务，空值跟随默认网页服务
     imageTranslationService: string; // 图片 OCR 后的文字翻译服务，空值跟随默认网页服务
+    imageTranslationOcrEngine: 'tesseract' | 'paddle'; // 单张图片的本地识别方式；漫画连续阅读固定使用 PaddleOCR
     documentService: string; // 文档服务，空值跟随网页默认
     documentModel: IMapping; // 文档翻译按服务保存的独立模型选择
     documentCustomModel: IMapping; // 文档翻译按服务保存的独立自定义模型
@@ -552,6 +553,7 @@ export class Config {
         this.hoverTranslationService = '';
         this.selectionTranslationService = '';
         this.imageTranslationService = '';
+        this.imageTranslationOcrEngine = 'tesseract';
         this.documentService = '';
         this.documentModel = Object.fromEntries(
             [...defaultModels].filter(([service]) => service !== LEGACY_CUSTOM_OPENAI_PROVIDER_ID),
@@ -1426,6 +1428,7 @@ export function normalizeConfig(value: unknown): Config {
         normalized.disableImageTranslator = true;
     }
     normalized.imageTranslationMangaEnabled = typeof normalized.imageTranslationMangaEnabled === 'boolean' ? normalized.imageTranslationMangaEnabled : true;
+    normalized.imageTranslationOcrEngine = normalized.imageTranslationOcrEngine === 'paddle' ? 'paddle' : 'tesseract';
     normalized.imageTranslationMangaPromptEnabled = typeof normalized.imageTranslationMangaPromptEnabled === 'boolean' ? normalized.imageTranslationMangaPromptEnabled : true;
     normalized.imageTranslationMangaDownloadConfirmed = normalized.imageTranslationMangaDownloadConfirmed === true;
     normalized.imageTranslationMangaSites = normalizeMangaSiteRules(normalized.imageTranslationMangaSites);

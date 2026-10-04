@@ -26,6 +26,7 @@ const readAheadTest=process.argv.includes('--prefetch-pages');
 const scrollStabilityTest=process.argv.includes('--scroll-stability');
 const cacheNavigationTest=process.argv.includes('--cache-navigation');
 const tieredCacheTest=process.argv.includes('--tiered-cache');
+const pageFeedbackTest=process.argv.includes('--page-feedback');
 const prefetchPages=Number(arg('prefetch-pages','0'));
 const pipelineInputs=arg('pipeline-inputs',null)?.split(',').map(file=>path.resolve(file));
 const pipelineRounds=Number(arg('pipeline-rounds','3'));
@@ -104,7 +105,7 @@ window.addPage=(text,id)=>{
  canvas.toBlob(blob=>{image.src=URL.createObjectURL(blob)});
  return image;
 };addPage('Welcome to FluentRead','page-one');addPage('Second manga page','page-two');addPage('Third manga page','page-three');
-${readAheadTest || scrollStabilityTest || cacheNavigationTest || tieredCacheTest ? "addPage('Fourth manga page','page-four');addPage('Fifth manga page','page-five');addPage('Sixth manga page','page-six');" : ''}
+${readAheadTest || scrollStabilityTest || cacheNavigationTest || tieredCacheTest || pageFeedbackTest ? "addPage('Fourth manga page','page-four');addPage('Fifth manga page','page-five');addPage('Sixth manga page','page-six');" : ''}
 </script></body></html>`;
 async function ui(hostId, code) {
     const tree = await cdp.send('DOM.getDocument', {depth: -1, pierce: true}); let host;
@@ -135,8 +136,13 @@ async function wait(test, timeout=180000, allowFailure=false) {
     throw new Error(`Timed out: ${report.currentCase}; image controls: ${await imageUi('return Array.from(this.querySelectorAll(".fr-image-status")).map(e=>e.textContent).join(" | ")')}`);
 }
 async function toggle() {
-    const point=await ball(`const b=this.querySelector('.floating-ball-manga');if(!b)return null;const r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}`);
-    assert.ok(point,'Manga button exists'); await page.mouse.click(point.x,point.y);
+    const point=await ball(`const b=this.querySelector('.floating-ball-manga');if(!b)return null;const r=b.getBoundingClientRect(),clipped=getComputedStyle(b).clipPath!=='none',left=this.querySelector('.fr-floating-ball').dataset.position==='left';return {x:r.x+r.width*(clipped?(left ? .75 : .25):.5),y:r.y+r.height/2}`);
+    assert.ok(point,'Manga button exists');await page.mouse.move(point.x,point.y);
+    await wait(async()=>await ball('return this.querySelector(".fr-floating-ball").classList.contains("floating-ball-expanded")'),3000);
+    await page.waitForTimeout(500);
+    const expanded=await ball(`const r=this.querySelector('.floating-ball-manga').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}`);
+    await page.mouse.move(expanded.x,expanded.y);await page.waitForTimeout(150);
+    await page.mouse.click(expanded.x,expanded.y);
 }
 async function ops() {return worker.evaluate(()=>globalThis.__mangaTest.operations.length);}
 async function screenshot(name) {focusGuard();await page.mouse.move(30,30);await page.waitForTimeout(300);const file=path.join(artifacts,`${name}.png`);await page.screenshot({path:file});report.screenshots.push(file);}
@@ -164,8 +170,121 @@ async function patch(config) {
 }
 async function assertQuietReading() {
     assert.equal(await mangaEntry('return !!this.querySelector(".fr-manga-entry")'),false,'No automatic reader panel');
-    assert.equal(await imageUi('return [...this.querySelectorAll(".fr-image-feedback")].some(e=>!e.hidden && getComputedStyle(e).display!=="none")'),false,'No per-image progress or error cards');
-    assert.equal(await imageUi('return [...this.querySelectorAll(".fr-image-controls[data-phase=loading]")].some(e=>!e.hidden && getComputedStyle(e).display!=="none")'),false,'No per-image cancel popup while reading');
+    assert.equal(await imageUi('return [...this.querySelectorAll(".fr-image-feedback")].some(e=>!e.hidden && (e.dataset.manga!=="true" || e.dataset.phase!=="loading" || !!e.querySelector("button")))'),false,'Only noninteractive per-page manga status may appear');
+    assert.equal(await imageUi('return [...this.querySelectorAll(".fr-image-controls")].some(e=>!e.hidden && getComputedStyle(e).display!=="none")'),false,'No per-image original, text or cancel controls while reading');
+}
+
+async function verifyPageFeedback() {
+    const first=page.locator('#page-one'),second=page.locator('#page-two');
+    const scroll=async image=>{await image.evaluate(i=>scrollTo({top:i.getBoundingClientRect().top+scrollY-40,behavior:'instant'}));await page.waitForTimeout(100);};
+    const point=()=>ball(`const r=this.querySelector('.floating-ball-manga').getBoundingClientRect();return {x:r.x+r.width/4,y:r.y+r.height/2}`);
+    report.currentCase='compact comic reading icon retracts to the edge and expands on hover';
+    const initial=await ball(`const b=this.querySelector('.floating-ball-manga'),r=b.getBoundingClientRect();return {width:r.width,visible:r.width/2,inset:innerWidth-r.right+r.width/2,icon:b.querySelector('svg').innerHTML}`);
+    assert.equal(initial.width,32);assert.ok(initial.visible>8&&initial.visible<=18);assert.ok(initial.inset>=16);assert.ok(!initial.icon.includes('<rect'));
+    let p=await point();await page.mouse.move(p.x,p.y);await page.waitForTimeout(600);
+    assert.equal(await ball('return this.querySelector(".fr-floating-ball").classList.contains("floating-ball-expanded")'),true);
+    await page.waitForTimeout(2800);assert.equal(await ball('return this.querySelector(".fr-floating-ball").classList.contains("floating-ball-expanded")'),false);
+    report.cases.push(report.currentCase);await screenshot('manga-entry-retracted');
+    report.currentCase='processing feedback belongs to the current image and shows stage without a cancel popup';
+    await worker.evaluate(()=>{globalThis.__mangaTest.holdNext=true;});await toggle();
+    await wait(async()=>await worker.evaluate(()=>!!globalThis.__mangaTest.releaseHeld),90000);
+    const metrics=await imageUi(`const f=[...this.querySelectorAll('.fr-image-feedback')].find(e=>!e.hidden),r=f.getBoundingClientRect();return {text:f.textContent,width:r.width,height:r.height,x:r.x+r.width/2,y:r.y+r.height/2,pointerEvents:getComputedStyle(f).pointerEvents,buttons:f.querySelectorAll('button').length}`);
+    const bounds=await first.boundingBox();assert.ok(metrics.width<230&&metrics.height<125);assert.equal(metrics.pointerEvents,'none');assert.equal(metrics.buttons,0);
+    assert.ok(metrics.x>bounds.x&&metrics.x<bounds.x+bounds.width&&metrics.y>bounds.y&&metrics.y<bounds.y+bounds.height);assert.match(metrics.text,/翻译文字/);
+    report.feedbackMetrics=metrics;await assertQuietReading();report.cases.push(report.currentCase);await screenshot('manga-stage-feedback');
+    report.currentCase='owned stage progress displays a true value supplied by transport, no estimated overall percent';
+    const requestId=await worker.evaluate(()=>globalThis.__mangaTest.operations.at(-1));
+    await modelObserver.command('Runtime.evaluate',{expression:`chrome.runtime.sendMessage({type:'fluentReadImageProgress',requestId:${JSON.stringify(requestId)},stage:'recognizing',progress:45})`,awaitPromise:true});
+    await wait(async()=>await imageUi(`return this.querySelector('.fr-image-feedback:not([hidden]) [role=progressbar]')?.getAttribute('aria-valuenow')==='45'`),10000);
+    report.progressFixture={stage:'recognizing',progress:45,source:'controlled owned Offscreen message; display contract, not an OCR benchmark'};
+    await screenshot('manga-recognition-progress');report.cases.push(report.currentCase);
+    report.currentCase='changing interface language preserves the real progress value and localizes its stage';
+    await patch({uiLanguage:'en-US'});await wait(async()=>await imageUi(`return /Recogniz/i.test(this.querySelector('.fr-image-feedback:not([hidden]) .fr-image-status')?.textContent || '')`),10000);
+    assert.equal(await imageUi(`return this.querySelector('.fr-image-feedback:not([hidden]) [role=progressbar]')?.getAttribute('aria-valuenow')`),'45');await screenshot('manga-progress-english');
+    await patch({uiLanguage:'zh-CN'});report.cases.push(report.currentCase);
+    await worker.evaluate(()=>{globalThis.__mangaTest.releaseHeld();});await wait(async()=>await first.evaluate(i=>i.style.opacity==='0'));
+    report.currentCase='finished page has neither processing feedback nor lower-left controls';
+    assert.equal(await imageUi(`return [...this.querySelectorAll('.fr-image-feedback')].some(e=>!e.hidden)`),false);await assertQuietReading();report.cases.push(report.currentCase);
+    report.currentCase='returning to the first translated image while the next page processes preserves its display';
+    await worker.evaluate(()=>{globalThis.__mangaTest.holdNext=true;});await scroll(second);
+    await wait(async()=>await worker.evaluate(()=>!!globalThis.__mangaTest.releaseHeld),90000);const before=await ops();await scroll(first);
+    await wait(async()=>await first.evaluate(i=>i.style.opacity==='0'),10000);
+    const reversions=await first.evaluate(async i=>{const bad=[];for(let n=0;n<45;n++){await new Promise(requestAnimationFrame);if(i.style.opacity!=='0')bad.push(n);}return bad;});
+    assert.deepEqual(reversions,[]);assert.equal(await ops(),before);report.cases.push(report.currentCase);
+    report.currentCase='repeated original and translation switches restore immediately without recognizing the first page again';
+    for(let n=0;n<3;n++){await toggle();await wait(async()=>await first.evaluate(i=>i.style.opacity!=='0'),10000);await toggle();await wait(async()=>await first.evaluate(i=>i.style.opacity==='0'),10000);}
+    assert.equal(await ops(),before,'Original/translation comparisons do not send more recognition requests');
+    await assertQuietReading();report.cases.push(report.currentCase);await screenshot('manga-return-preserved');
+    await toggle();await worker.evaluate(()=>{globalThis.__mangaTest.releaseHeld?.();});await page.waitForTimeout(500);
+    report.currentCase='keyboard focus keeps controls expanded until Escape';
+    await page.mouse.click(30,30);await page.keyboard.press('Tab');await page.waitForTimeout(3000);
+    assert.equal(await ball('return this.querySelector(".fr-floating-ball").classList.contains("floating-ball-expanded")'),true);
+    await page.keyboard.press('Escape');await wait(async()=>await ball('return !this.querySelector(".fr-floating-ball").classList.contains("floating-ball-expanded")'),10000);report.cases.push(report.currentCase);
+    report.currentCase='prefetch evicts the first fast-cache slot without removing its active translated surface';
+    await patch({imageTranslationMangaPrefetchPages:3,imageTranslationMangaCachePages:1});await page.reload({waitUntil:'domcontentloaded'});
+    await wait(async()=>!!await ball('return this.querySelector(".floating-ball-manga")'),10000);await scroll(first);
+    await worker.evaluate(()=>{globalThis.__mangaTest.holdNext=true;});await toggle();await wait(async()=>await worker.evaluate(()=>!!globalThis.__mangaTest.releaseHeld),90000);
+    await worker.evaluate(()=>{globalThis.__mangaTest.holdNext=true;globalThis.__mangaTest.releaseHeld();});
+    await wait(async()=>await first.evaluate(i=>i.style.opacity==='0')&&await worker.evaluate(()=>!!globalThis.__mangaTest.releaseHeld),90000);
+    await worker.evaluate(()=>{globalThis.__mangaTest.holdNext=true;globalThis.__mangaTest.releaseHeld();});
+    await wait(async()=>await worker.evaluate(()=>!!globalThis.__mangaTest.releaseHeld),90000);
+    const afterPrefetch=await first.evaluate(async i=>{const bad=[];for(let n=0;n<60;n++){await new Promise(requestAnimationFrame);if(i.style.opacity!=='0')bad.push(n);}return bad;});
+    assert.deepEqual(afterPrefetch,[]);await assertQuietReading();report.cases.push(report.currentCase);await screenshot('manga-prefetch-keeps-current');
+    await toggle();await worker.evaluate(()=>{globalThis.__mangaTest.releaseHeld?.();});await page.waitForTimeout(300);
+    report.currentCase='standalone entry uses the same compact icon and idle retraction';
+    await patch({disableFloatingBall:true,imageTranslationMangaPromptEnabled:true});await wait(async()=>!!await mangaEntry('return this.querySelector(".fr-manga-launcher")'),10000);
+    let standalone=await mangaEntry('const r=this.querySelector(".fr-manga-launcher").getBoundingClientRect();return {width:r.width,visible:r.width/2,x:r.x+r.width/4,y:r.y+r.height/2}');
+    assert.equal(standalone.width,32);assert.ok(standalone.visible<=18);await page.mouse.move(standalone.x,standalone.y);await page.waitForTimeout(500);
+    assert.equal(await mangaEntry('return this.querySelector(".fr-manga-launcher").classList.contains("is-expanded")'),true);
+    await page.waitForTimeout(2800);assert.equal(await mangaEntry('return this.querySelector(".fr-manga-launcher").classList.contains("is-expanded")'),false);
+    report.cases.push(report.currentCase);await screenshot('manga-standalone-retracted');
+    report.currentCase='standalone keyboard focus remains available and Escape retracts within closed Shadow DOM';
+    await page.mouse.click(30,30);await page.keyboard.press('Tab');await page.waitForTimeout(2800);
+    assert.equal(await mangaEntry('return this.querySelector(".fr-manga-launcher").matches(":focus-visible")'),true);
+    await page.keyboard.press('Escape');await wait(async()=>await mangaEntry('return !this.querySelector(".fr-manga-launcher").classList.contains("is-expanded")'),10000);report.cases.push(report.currentCase);
+    report.currentCase='ordinary image uses the selected PaddleOCR with shared models and its lightweight controls';
+    await patch({imageTranslationMangaEnabled:false,imageTranslationOcrEngine:'paddle',imageTranslationHoverEnabled:true,disableFloatingBall:true,useCache:false});
+    await page.reload({waitUntil:'domcontentloaded'});await scroll(first);
+    await first.evaluate(i=>{i.style.width='500px';i.style.height='auto';i.parentElement.style.width='500px';});
+    const languageStatus=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadImageOcrStatus'}));
+    assert.deepEqual(languageStatus.languages,[],'No Tesseract language pack exists in this isolated profile');
+    const ordinaryBefore=await ops(),originalBounds=await first.boundingBox();
+    await page.mouse.move(originalBounds.x+originalBounds.width/2,originalBounds.y+100);
+    await wait(async()=>await imageUi(`return [...this.querySelectorAll('.fr-image-controls:not([hidden]) button')].some(b=>b.getBoundingClientRect().width>0)`),10000);
+    const ordinaryButton=await imageUi(`const b=this.querySelector('.fr-image-controls:not([hidden]) button'),r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}`);
+    await worker.evaluate(()=>{globalThis.__mangaTest.holdNext=true;});await page.mouse.click(ordinaryButton.x,ordinaryButton.y);
+    await wait(async()=>await worker.evaluate(()=>!!globalThis.__mangaTest.releaseHeld),90000);
+    const ordinaryFeedback=await imageUi(`const f=this.querySelector('.fr-image-feedback:not([hidden])'),s=getComputedStyle(f);return {manga:f.dataset.manga,font:s.fontSize,height:f.getBoundingClientRect().height,buttons:f.querySelectorAll('button').length}`);
+    assert.notEqual(ordinaryFeedback.manga,'true');assert.equal(ordinaryFeedback.font,'11px');assert.ok(ordinaryFeedback.height<40);assert.equal(ordinaryFeedback.buttons,0);
+    await worker.evaluate(()=>globalThis.__mangaTest.releaseHeld());await wait(async()=>await first.evaluate(i=>i.style.opacity==='0'),90000);
+    assert.equal(await ops(),ordinaryBefore+1);assert.equal(await imageUi(`return [...this.querySelectorAll('.fr-image-controls:not([hidden])')].some(e=>getComputedStyle(e).display!=='none')`),true);
+    assert.deepEqual((await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadImageOcrStatus'}))).languages,[]);
+    report.ordinaryPaddle={...ordinaryFeedback,tesseractPacks:0,source:'real shared PaddleOCR models; deterministic text translation transport'};
+    report.cases.push(report.currentCase);await screenshot('ordinary-image-paddle');
+    const preview=arg('controls-preview-bundle',null);
+    if(preview){
+        report.currentCase='ordinary image UI restores the lightweight historical status, with cancel outside the central indicator';
+        await page.addScriptTag({path:path.resolve(preview)});
+        const common=await page.evaluate(()=>{
+            document.querySelector('#reader').replaceChildren();
+            const host=document.createElement('div');host.style.cssText='position:fixed;left:260px;top:220px;width:760px;height:400px;background:#e9f0f7;';
+            const shadow=host.attachShadow({mode:'closed'}),style=document.createElement('style');style.textContent=FluentReadControlsPreview.IMAGE_CONTROLS_CSS;
+            const chart=document.createElement('canvas');chart.width=760;chart.height=400;chart.style.width='100%';
+            const c=chart.getContext('2d');c.fillStyle='#e9f0f7';c.fillRect(0,0,760,400);c.strokeStyle='#2861bb';c.lineWidth=3;c.beginPath();c.moveTo(20,310);c.lineTo(180,230);c.lineTo(390,170);c.lineTo(560,135);c.lineTo(720,105);c.stroke();c.fillStyle='#1d8582';c.font='bold 24px Arial';c.fillText('2.67×',280,100);c.fillText('2.85×',560,220);c.fillStyle='#263244';c.font='18px Arial';c.fillText('Read the image while processing',230,340);
+            let controls;controls=FluentReadControlsPreview.createImageControls({onAction(){controls.update('idle','翻译图片');},onPrepare(){}});
+            controls.update('loading','正在识别图片文字…',{progress:45});shadow.append(style,chart,controls.feedback,controls.element);document.body.append(host);
+            globalThis.__controlsPreview={host,controls};
+            const r=controls.feedback.getBoundingClientRect(),s=getComputedStyle(controls.feedback);
+            return {height:r.height,width:r.width,font:s.fontSize,padding:s.padding,background:s.backgroundColor,pointerEvents:s.pointerEvents,centralButtons:controls.feedback.querySelectorAll('button').length,cancelOwner:controls.button.parentElement.parentElement.className};
+        });
+        assert.ok(common.height<40);assert.equal(common.font,'11px');assert.equal(common.centralButtons,0);assert.equal(common.cancelOwner,'fr-image-controls');assert.equal(common.pointerEvents,'none');
+        report.ordinaryImagePreview={...common,source:'current production controls module, controlled UI state; actual image runtime covered by unit tests'};
+        await screenshot('ordinary-image-ui-restored');
+        const cancelPoint=await page.evaluate(()=>{const r=globalThis.__controlsPreview.controls.button.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};});await page.mouse.click(cancelPoint.x,cancelPoint.y);
+        assert.equal(await page.evaluate(()=>globalThis.__controlsPreview.controls.feedback.hidden),true);
+        report.cases.push(report.currentCase);await page.evaluate(()=>{globalThis.__controlsPreview.controls.dispose();globalThis.__controlsPreview.host.remove();delete globalThis.__controlsPreview;});
+    }
+    auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
 }
 
 function auditPageErrors() {
@@ -652,6 +771,7 @@ async function verifyReadAhead() {
     },readerSelector);
     await wait(async()=>!!await ball(`return this.querySelector('.floating-ball-manga')`),30000);
     if(pipelineInputs){await verifyPipelinePerformance(extensionId);report.status='passed';return;}
+    if(pageFeedbackTest){await verifyPageFeedback();report.status='passed';focusGuard();return;}
     if(tieredCacheTest){await verifyTieredCache(extensionId);report.status='passed';focusGuard();return;}
     if(cacheNavigationTest){await verifyCacheNavigation();report.status='passed';focusGuard();return;}
     if(scrollStabilityTest){await verifyScrollStability();report.status='passed';focusGuard();return;}
@@ -740,7 +860,7 @@ async function verifyReadAhead() {
         if(liveSite){await assertQuietReading();report.cases.push('scroll and hover never open a reading panel');}
         report.currentCase='manga button matches brand button size and progress ring stays inside';
         const metrics=await ball(`const a=this.querySelector('.floating-ball-manga').getBoundingClientRect(),b=this.querySelector('.floating-ball-main').getBoundingClientRect();return {manga:a.width,brand:b.width}`);
-        assert.equal(metrics.manga,metrics.brand);assert.equal(metrics.manga,40);report.buttonSize=metrics;report.cases.push(report.currentCase);
+        assert.equal(metrics.manga,metrics.brand);assert.equal(metrics.manga,32);report.buttonSize=metrics;report.cases.push(report.currentCase);
     }
     report.currentCase='settings switch persists across unmount and reopen';
     await patch({imageTranslationMangaEnabled:false});

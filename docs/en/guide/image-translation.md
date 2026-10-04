@@ -2,29 +2,35 @@
 
 Recognize words in a webpage image and read the translation over it. Enable **Image translation** in settings first.
 
+Under **Image/manga translation**, choose the source language, target language and translation service at the top. Image, manga and area translation then have separate controls. **Controls and cache**, **Recognition resources and downloads**, and **Supported websites** stay collapsed until needed.
+
+For single images, choose **General text · Tesseract** for screenshots, charts and clearly printed text, or **Comic text · PaddleOCR** for comics and speech bubbles. Tesseract uses source-language packs. PaddleOCR prepares about 30 MB on the first translation and shares existing manga models. Selecting an engine alone starts no download and keeps the ordinary image interface. Changing the engine invalidates older translated-image results. Recognition quality varies by image; compare originals to choose what works for your content.
+
 <GuideVisual kind="image" en />
 
 ## Continuous manga translation
 
 The manga reader on [MANGA Plus by SHUEISHA](https://mangaplus.shueisha.co.jp/) and artwork pages on [Pixiv](https://www.pixiv.net/) have dedicated adapters. Click the manga button to start. No reading panel opens automatically. On first use with missing resources, a confirmation explains about 30 MB for recognition and an optional 197 MB for text removal. Confirming closes it and starts preparation. Choosing **Later** or closing it starts no download.
 
-With the ordinary floating button hidden, an optional 40 px standalone manga button remains available. Control it under **Image/manga translation → Standalone manga button**. Previously disabled prompt preferences remain disabled. The master and manga switches control availability. Processing, completion and errors stay on the manga button; click it to pause and show originals. No per-image progress or error cards appear during manga reading. Retry controls and text details remain available on the image.
+The manga reading icon is 32 pixels wide and retracts to the edge after about 2.5 seconds of inactivity. Hover, touch or keyboard focus expands it. Keyboard focus keeps it expanded; Escape collapses the floating tools. The always-visible preference still applies. With the ordinary floating button hidden, an optional standalone manga button remains available under **Image/manga translation → Standalone manga button**. Previously disabled prompt preferences remain disabled. The master and manga switches control availability.
+
+The image currently being processed shows a small stage indicator. It disappears on completion or when you switch to originals. Actual download, recognition or cleanup percentages appear when available; waiting for translation shows the stage without estimating an overall percentage. The indicator does not intercept clicks or scrolling. Manga mode hides the lower-left Original/Text toolbar and cancel popup. Preparing a cached result never removes a translation you are reading. Ordinary images retain their previous lightweight loading indicator, with Cancel in the image toolbar rather than a central card.
 
 - Click once to enable translation for the current chapter. Visible pages take priority, with the next **3 images** prepared by default. Select **0–5 images** in settings; 0 processes visible pages only. Only images already loaded by the website are prepared, without fetching entire or subsequent chapters. More upcoming images use additional device resources and service requests.
 - The current result appears as soon as it is ready. Upcoming results appear when their images enter view. Unloaded images and rapid scrolling can still require waiting. Scrolling alone does not cancel an in-flight task for the same image. Switching away from the tab pauses the start of new page tasks.
 - Results for up to two loaded preceding images are retained within a pixel budget, without starting extra recognition. Returning to these images displays their results even while another page is processing. More distant pages can restore instantly when their cached results remain available; disabling caching or evicting results can require processing again. Changed sources, languages or services invalidate older results.
 - Click again to show originals and pause new work. Another click restores translations and resumes. Visible decoded results switch immediately; nearby results use a cache bounded by image count and pixels. Evicted pages may need processing again.
-- Failed pages retain their originals and individual retry controls. Pages with no detected text keep their artwork, and the session continues. Changing chapters, disabling manga translation or the extension, or leaving the page cancels old work and restores originals.
+- Failed pages retain their originals. Switch to originals and back with the manga button to retry. Pages with no detected text keep their artwork, and the session continues. Changing chapters, disabling manga translation or the extension, or leaving the page cancels old work and restores originals.
 
 This uses your image translation service and language settings. FluentRead adds no membership or image quota; the selected service's own limits and costs still apply. Other catalogued sites and common reading paths are checked for image readers, with a generic entry shown only when reader images are found. A catalog entry does not mean every site has passed live chapter tests. Canvas, tiled, authenticated or protected readers may require dedicated adapters. Advanced users can add exact domains, reader paths and image selectors under supported sites. Custom rules are not verified site support. Single-image and area translation remain available on other sites.
 
 Pixiv uses images from the current artwork, prioritizing its expanded reader to avoid processing the cover behind it twice. After verifying the current webpage image, the extension temporarily adds Pixiv's referrer only to its own request for that exact CDN image. It does not send login cookies or change the website's own requests. This requires the added `declarativeNetRequestWithHostAccess` extension permission. Local manga models remain an extension capability; userscript capabilities are limited.
 
-Manga uses local PaddleOCR. Closed light speech bubbles are enlarged and recognized individually, nearby lines are grouped into dialogue, and translations use bounded font sizes and wrapping. Local LaMa repairs original lettering on complex backgrounds. Ordinary images and area recognition retain their own OCR language packs. Small or tilted text, decorative fonts, names, and background repair can still be imperfect; use originals or **Text → Compare original** to check.
+Manga uses local PaddleOCR. Closed light speech bubbles are enlarged and recognized individually, nearby lines are grouped into dialogue, and translations use bounded font sizes and wrapping. Local LaMa repairs original lettering on complex backgrounds. Single-image translation can use Tesseract or PaddleOCR and keeps its lightweight controls and full-image result. Area recognition remains independent. LaMa repairs backgrounds; it is not an OCR engine and is not loaded when choosing PaddleOCR for single images. Small or tilted text, decorative fonts, names, and background repair can still be imperfect; switch to originals with the manga button to check. Ordinary images retain **Text → Compare original**.
 
 ### Download manga models
 
-Expand **Manga reading resources and downloads** under **Image/manga translation** to view resources grouped by purpose. Expand **Download settings and offline import** to choose a source, import files or clear resources. Ordinary image recognition packs have their own section. Recognition needs about 30 MB. The first complex background also needs an inpainting model of about 197 MB. Settings show the current download source and received bytes; the manga button shows preparation status without covering the artwork.
+Expand **Recognition resources and downloads** under **Image/manga translation** to view resources grouped by purpose. Expand **Download settings and offline import** to choose a source, import files or clear resources. Tesseract language packs are managed separately in the same area. PaddleOCR needs about 30 MB. Manga's first complex background also needs an inpainting model of about 197 MB. The repair resource is hidden when only single-image PaddleOCR is enabled. Settings show the current download source and received bytes; the manga button shows preparation status without covering the artwork.
 
 By default, Hugging Face is tried first, then a backup mirror after connection failure, prolonged inactivity, or integrity failure. You can prefer the mirror instead. Completed verified files are retained, so retrying after cancellation or failure only prepares missing files. An interrupted individual file must restart. Clearing manga models preserves ordinary OCR packs, translation configuration, and source preferences.
 
@@ -35,7 +41,7 @@ The backup mirror is an independent third party. Every source uses the same fixe
 ## Translate one image
 
 1. Make sure image translation is enabled. Click the icon near the image’s lower-left corner, or use the image’s context menu.
-2. For a new source language, follow the prompt to download its recognition pack and translate.
+2. With Tesseract, follow the prompt to download a new source language's recognition pack. With PaddleOCR, the first translation prepares shared recognition models; existing resources are reused.
 3. Wait for recognition and translation. Choose cancel if you want to stop.
 4. Switch between original and translated image, or open **Text** in a separate reading panel. Compare the recognized original and translation, and copy either the translation or both. Long text remains readable even for small images.
 
@@ -68,7 +74,7 @@ Images that require login credentials, redirect to another address, or use local
 
 ## Choose the source language
 
-Choose the recognition source language in the language-pack manager. This setting is shared with webpage and area translation. The recognition pack must match the image’s language. Automatic detection prepares Simplified Chinese, Traditional Chinese, English, and Japanese by default. Other supported languages require selecting the source language and downloading its pack.
+Choose the recognition source language at the top of **Image/manga translation**. This setting is shared with webpage and area translation. Tesseract's recognition pack must match the image’s language. Automatic detection prepares Simplified Chinese, Traditional Chinese, English, and Japanese by default. Other supported languages require selecting the source language and downloading its pack.
 
 For an English-only image, choosing **English** can reduce recognition time. Keep **Automatic detection** for mixed languages. Completed recognition results are reused, and simultaneous requests for the same image share recognition. Canceling one request does not interrupt the others. Initial language-pack downloads still depend on network speed.
 

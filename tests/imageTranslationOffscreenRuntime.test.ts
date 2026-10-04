@@ -106,6 +106,14 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('Offscreen 图片完整操作生命周期', () => {
+    it('单图选择 PaddleOCR 只替换识别引擎，仍返回完整译图与文本，不启动漫画修补', async () => {
+        mocks.mangaRecognize.mockResolvedValue(lines);
+        const result=await translateImageInOffscreen('image','en','Page',undefined,'single-paddle',false,'paddle');
+        expect(mocks.recognize).not.toHaveBeenCalled();expect(mocks.mangaRecognize).toHaveBeenCalled();
+        expect(result.image).toBe('data:image/png;base64,translated');expect(result.mangaPatches).toBeUndefined();
+        expect(result.lines[0].sourceText).toBe('Hello');expect(mocks.repair).not.toHaveBeenCalled();
+    });
+
     it('漫画整段识别走专用模型与局部修补，保留对照并报告准备阶段',async()=>{
         const regions=[{...lines[0],fontSize:10,sourceBoxes:[lines[0].bbox]}];
         mocks.mangaRecognize.mockImplementationOnce(async(_image,_language,_w,_h,_signal,progress)=>{progress('preparing',23);progress('recognizing');return regions;});
@@ -274,6 +282,23 @@ describe('Offscreen 图片完整操作生命周期', () => {
         await expect(translateImageInOffscreen('no-text','ja','',undefined,undefined,true)).resolves.toEqual({image:'no-text',lines:[]});
         expect(sendMessage).not.toHaveBeenCalled();expect(canvases).toHaveLength(0);expect(mocks.repair).not.toHaveBeenCalled();
         expect(images[0].src).toBe('');
+    });
+    it.each([false, true])('漫画已识别但译文无需变化时只返回轻量结果，尺寸回退=%s', async fallback => {
+        if (fallback) imageOptions.push({naturalWidth: 0, naturalHeight: 0});
+        mocks.mangaRecognize.mockResolvedValueOnce(lines);
+        sendMessage.mockImplementation((message, callback) => callback(message.type === 'fluentReadImageTranslateTexts' ? {success: true, translations: ['Hello']} : undefined));
+        const result = await translateImageInOffscreen('same-text', 'en', '', undefined, 'unchanged', true);
+        expect(result).toMatchObject({image: '', mangaPatches: {width: 32, height: 16, patches: []}, lines: [{sourceText: 'Hello', text: 'Hello'}]});
+        expect(canvases).toHaveLength(0);expect(mocks.repair).not.toHaveBeenCalled();expect(images[0].src).toBe('');
+    });
+    it('漫画局部画布无法创建上下文时不返回半成品并释放所有图像', async () => {
+        mocks.mangaRecognize.mockResolvedValueOnce(lines);mocks.repair.mockImplementationOnce(async pixels => pixels);
+        vi.stubGlobal('document', {createElement: () => {
+            const canvas = makeCanvas();if (canvases.length === 2) canvas.getContext.mockReturnValue(null);return canvas;
+        }});
+        await expect(translateImageInOffscreen('patch-failed', 'en', '', undefined, 'patch-failed', true)).rejects.toThrow('浏览器不支持图片处理');
+        expect(canvases).toHaveLength(2);expect(canvases.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true);
+        expect(images[0].src).toBe('');expect(mocks.encode).not.toHaveBeenCalled();
     });
     it('OCR 返回时已取消，不再发送翻译请求', async () => {
         const controller = new AbortController();

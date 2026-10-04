@@ -91,6 +91,11 @@ describe('area translation Offscreen adapter', () => {
 
 describe('image translation Offscreen adapter', () => {
     const adapter = createImageTranslationOffscreenAdapter(client);
+    it('单图识别选择透传到 Offscreen，不把普通图片变成漫画模式', async () => {
+        send.mockResolvedValueOnce({success:true,image:'translated',lines:[]});
+        await adapter.translateImage('source','ja','Page',{ocrEngine:'paddle',requestId:'single-paddle',signal:new AbortController().signal,timeoutMs:5000});
+        expect(send).toHaveBeenCalledWith({type:'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN',image:'source',sourceLanguage:'ja',title:'Page',ocrEngine:'paddle',requestId:'single-paddle'},expect.any(Object));
+    });
     it('验证并透传漫画局部结果，拒绝非法图块',async()=>{
         const mangaPatches={width:100,height:100,patches:[{x:0,y:0,width:20,height:20,image:'data:image/png;base64,AQID'}]};
         for(const image of ['',undefined]){send.mockResolvedValueOnce({success:true,image,lines:[],mangaPatches});await expect(adapter.translateImage('source','en','Page')).resolves.toEqual({image:'',lines:[],mangaPatches});}
@@ -99,6 +104,9 @@ describe('image translation Offscreen adapter', () => {
     it('校验漫画模型状态和清理结果，并把专用模式传到 Offscreen',async()=>{
         send.mockResolvedValueOnce({success:true,ready:true,bytes:123,inpaintingReady:false});
         expect(await adapter.getMangaModelStatus()).toEqual({ready:true,bytes:123,inpaintingReady:false});
+        const download={assetId:'detector',receivedBytes:40,totalBytes:100};
+        send.mockResolvedValueOnce({success:true,ready:false,bytes:0,inpaintingReady:false,source:'mirror',download});
+        expect(await adapter.getMangaModelStatus()).toEqual({ready:false,bytes:0,inpaintingReady:false,source:'mirror',download});
         for(const response of [undefined,{success:true,ready:true,bytes:-1,inpaintingReady:false},{success:true,ready:true,bytes:0.5,inpaintingReady:false},
             {success:true,ready:true,bytes:0},{success:false,error:'bad cache'}]){
             send.mockResolvedValueOnce(response);await expect(adapter.getMangaModelStatus()).rejects.toThrow();
