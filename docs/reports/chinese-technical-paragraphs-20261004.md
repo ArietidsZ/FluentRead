@@ -1,6 +1,6 @@
 # 中文技术段落重复翻译修复（2026-10-04）
 
-目标为简体中文时，用户在 [PR #779](https://github.com/FluentRead/FluentRead/pull/779) 的中文说明中仍看到中文译文。按截图保存的 5 段原文，在修复前有 4 段不能跳过同语言请求，修复后 5 段全部跳过。#779 的漫画界面改动没有并入本修复；它只作为复现页面。
+目标为简体中文时，用户在 [PR #779](https://github.com/FluentRead/FluentRead/pull/779) 的中文说明中仍看到中文译文。按截图保存的 5 段原文，在修复前有 4 段不能跳过同语言请求，修复后 5 段全部跳过。#779 是本问题的复现页面，修复改动集中在共享语言判断和请求入口。最终分支已同步到包含 #779 的 `main` 提交 `1c9faa26`。
 
 ## 根因与改动
 
@@ -25,7 +25,7 @@
 ## 验证
 
 - 新增中文专项 439 项：5 段截图原文、普通/制表符/不换行空格/换行形式、21 种单位、参数与引用、13 段繁体说明、100 个真实外语插入组合及歧义/引文边界；目标语言与排除语言逐项比较。共享客户端和全文槽另增加批次过滤、强制请求、重试、取消及索引回填用例。
-- 15 个相关文件、2,565 项通过：语言核心与三个历史语料集、同目标入口、客户端性能/异常、文档 API、模块边界和源码头检查。没有运行全量回归。
+- 同步最新 `main` 后，15 个相关文件、2,571 项通过：语言核心与三个历史语料集、同目标入口、客户端性能/异常、文档 API、模块边界和源码头检查。没有运行全量回归。
 - `identify.ts` 与 `technicalTokens.ts` 的 statements / branches / functions / lines 均为 100%。类型检查、测试归类审计、Chrome / Firefox / userscript 生产构建及 userscript / manifest verifier 通过。
 - 额外运行的 `verificationOwnership.test.ts` 有 2 项失败；在同一基础提交 `1d6e36bd` 的未修改 `main` 上也出现完全相同的失败：3 个脚本尚无验证归属、18 个其他模块未纳入严格覆盖率。没有将这些基线缺口归因于本次改动或绕过检查。
 - 隔离后台 Edge 中，5 段截图原文和提交链接均零译文、零请求；相邻英文悬浮 `[1,0,1,0]`、全文 `[1,0,1]`，原标题和链接保持，动态中文改成英文后重新翻译，恢复原文及切换到英文目标通过；目标为日语并排除中文时仍零中文请求。console error 为 0。[浏览器证据](./chinese-technical-paragraphs-20261004/browser-summary.json)
@@ -45,4 +45,4 @@ node scripts/testing/run-chinese-translation-test.cjs --multilingual-same-target
   --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir <证据目录>
 ```
 
-完整命令输出、DOM 与截图留在本机 `/private/tmp/fluentread-chinese-technical-20261004/`，日志位于 `/private/tmp/fluentread-language-*.log`。
+同步最新主分支后的 DOM 与截图留在本机 `/private/tmp/fluentread-chinese-technical-20261004-integrated/`，初次复现证据位于 `/private/tmp/fluentread-chinese-technical-20261004/`，命令日志位于 `/private/tmp/fluentread-language-*.log`。
