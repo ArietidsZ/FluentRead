@@ -1,7 +1,7 @@
 <!--
  * @file src/features/image-translation/ui/ImageOcrSettings.vue
  * 文件职责：提供图片与圈选共用的紧凑语言包管理界面，突出当前源语言需要的资源和可继续使用的状态。
- * 主要内容：用单层列表展示逐包排队、下载、就绪和错误，按当前识别语言准备缺失包；重开页面读取后台任务快照，完成时更新共享状态，保留单包重试和移除；漫画设置额外挂载专用模型的来源、进度、导入和清理组件。
+ * 主要内容：紧凑模式复用页首语言选择，避免重复控件；用单层列表展示逐包排队、下载、就绪和错误，按当前识别语言准备缺失包；重开页面读取后台任务快照，完成时更新共享状态，保留单包重试和移除；漫画设置额外挂载专用模型的来源、进度、导入和清理组件。
  * 模块边界：组件只通过既有后台消息管理语言包，不创建 Worker、不写缓存、不持有下载任务；关闭页面只停止状态订阅，后台仍负责去重、串行下载和部分成功持久化。
  -->
 <template>
@@ -13,8 +13,8 @@
     <template v-else>
       <MangaModelSettings v-if="props.showManga" />
       <header class="image-ocr-heading">
-        <div><h2 :id="`${props.idPrefix}-ocr-pack-title`">{{ t('ocr.packs.title') }}</h2><p>{{ t('ocr.packs.description') }}</p></div>
-        <div class="image-ocr-source">
+        <div><h2 :id="`${props.idPrefix}-ocr-pack-title`">{{ props.compact ? translateLegacy('通用文字 · Tesseract') : t('ocr.packs.title') }}</h2><p v-if="!props.compact">{{ t('ocr.packs.description') }}</p></div>
+        <div v-if="!props.compact" class="image-ocr-source">
           <label :for="`${props.idPrefix}-ocr-source`">{{ t('area.settings.sourceLanguage') }}</label>
           <select :id="`${props.idPrefix}-ocr-source`" :title="t('area.settings.sourceLanguageDescription')" :value="props.sourceLanguage" @change="emit('update:sourceLanguage', ($event.target as HTMLSelectElement).value)">
             <option v-if="!IMAGE_OCR_SOURCE_LANGUAGES.some(item => item.value === props.sourceLanguage)" :value="props.sourceLanguage" disabled>{{ props.sourceLanguage }}</option>
@@ -76,7 +76,7 @@ import {
   normalizeImageOcrLanguageCodes, type ImageOcrLanguageCode, type ImageOcrDownloadState, type ImageOcrStatusResponse,
 } from '../ocrLanguages';
 
-const props = withDefaults(defineProps<{idPrefix?: string; sourceLanguage?: string; showManga?: boolean}>(), {idPrefix: 'image', sourceLanguage: 'auto', showManga: false});
+const props = withDefaults(defineProps<{idPrefix?: string; sourceLanguage?: string; showManga?: boolean; compact?: boolean}>(), {idPrefix: 'image', sourceLanguage: 'auto', showManga: false, compact: false});
 const emit = defineEmits<{'update:sourceLanguage': [language: string]}>();
 const {t, translateLegacy} = useUiI18n();
 const languagePacks = computed(() => IMAGE_OCR_LANGUAGE_PACKS.map(pack => ({...pack, label: translateLegacy(pack.label), size: translateLegacy(pack.size)})));

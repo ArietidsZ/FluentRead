@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/offscreenRuntime.ts
  * 文件职责：在隔离 Offscreen 文档中编排图片重绘翻译，并为圈选文本翻译提供仅裁剪和本地 OCR 的独立入口。
- * 主要内容：图片解码时前置尺寸校验和取消/超时清理，复用解码位图完成真实阶段通知、OCR 与完整译文绘制，独立保留全部识别原文与译文供核对；漫画只异步编码最终局部图块，避免整页压缩；导出图片和圈选入口，在完成或失败后释放临时图像与画布。
+ * 主要内容：单图可选与漫画共用的 PaddleOCR，保留单图完整译图与文本，不自动加载漫画修补模型；图片解码时前置尺寸校验和取消/超时清理，复用解码位图完成真实阶段通知、OCR 与完整译文绘制，独立保留全部识别原文与译文供核对；漫画只异步编码最终局部图块，避免整页压缩；导出图片和圈选入口，在完成或失败后释放临时图像与画布。
  * 模块边界：该运行时只在具备 Canvas/DOM 的 Offscreen 环境执行，不直接接收 browser.runtime 事件；消息入口由 app/offscreen 组装，翻译函数由依赖注入，几何算法来自 area feature。
  */
 import {IMAGE_PROGRESS_MESSAGE_TYPE, type ImageTranslationStage} from '../progress';
@@ -290,13 +290,15 @@ export async function translateImageInOffscreen(
     signal?: AbortSignal,
     requestId?: string,
     manga = false,
+    ocrEngine: 'tesseract' | 'paddle' = 'tesseract',
 ): Promise<OffscreenImageTranslationResult> {
     // 提前验证输出预算，避免巨大输入完成 OCR 和付费翻译后才在生成译图时失败。
     const source = await loadImage(image, signal);
     try {
         throwIfImageOperationAborted(signal);
-        if (!manga) reportProgress(requestId, 'recognizing');
-        const lines = manga ? await mangaOcrRuntime.recognize(image, sourceLanguage, source.naturalWidth || source.width,
+        const usePaddle = manga || ocrEngine === 'paddle';
+        if (!usePaddle) reportProgress(requestId, 'recognizing');
+        const lines = usePaddle ? await mangaOcrRuntime.recognize(image, sourceLanguage, source.naturalWidth || source.width,
             source.naturalHeight || source.height, signal,
             (stage, percent) => {if (!signal?.aborted) reportProgress(requestId, stage, percent);}, source) : await recognizeImage(image, sourceLanguage, signal, {
             decodedImage: source,

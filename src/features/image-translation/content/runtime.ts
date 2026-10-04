@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/runtime.ts
  * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和单图及漫画连续模式的原图/译图切换，保持宿主图片与响应式图片资源不变。
- * 主要内容：在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画上下左右返页同步复用结果，不等待其他页推理；漫画原图暂停与处理中不遮挡画面，换图、取消与卸载时释放资源。
+ * 主要内容：单图识别方式纳入缓存身份，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
  * 模块边界：本运行时先读取页面允许访问的 Canvas/CORS 像素，失败时授权后台读取当前任务图片并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
 import type {ImageTranslationStage} from '../progress';
@@ -139,12 +139,18 @@ function warmMangaPage(image: HTMLImageElement): Promise<void> {
     const task = {controller, promise: Promise.resolve()};
     task.promise = warmTail.catch(() => undefined).then(async () => {
         if (controller.signal.aborted) return;
+        // 快速缓存淘汰不代表显示层失效；当前页的显示所有权独立于缓存槽。
+        if (states.get(image)?.resultIdentity === identity) return;
         let surface: HTMLCanvasElement | undefined;
         try {
             surface = page.patches.length ? await composeMangaPage(image, page, controller.signal) : undefined;
             if (!mounted || controller.signal.aborted || !image.isConnected || !imageTranslationAllowed(true)
                 || !mangaStatus.active || document.hidden || !config.useCache || sourceIdentity(image) !== source
                 || configurationIdentity(true) !== identity) {
+                if (surface) {surface.width = 0; surface.height = 0;} return;
+            }
+            // 排队期间也可能已由同步返页接管；丢弃重复合成，不能撤下仍在阅读的译图。
+            if (states.get(image)?.resultIdentity === identity) {
                 if (surface) {surface.width = 0; surface.height = 0;} return;
             }
             const current = states.get(image) || createState(image); current.manga = true;
@@ -172,7 +178,8 @@ function prepareMangaCachedImages(images: HTMLImageElement[]): void {
     warming.forEach((task, image) => {if (!nearby.has(image)) task.controller.abort();});
     for (const image of images) {
         const page = lightResult(image);
-        if (!resultCache.has(image) && states.get(image)?.phase !== 'loading' && page
+        if (!resultCache.has(image) && states.get(image)?.phase !== 'loading'
+            && states.get(image)?.resultIdentity !== configurationIdentity(true) && page
             && page.width * page.height <= mangaCachePixelBudget(config.imageTranslationMangaCachePages)) void warmMangaPage(image);
     }
 }
@@ -269,6 +276,7 @@ function configurationIdentity(manga = false): string {
         config.minimaxBillingPlan, config.minimaxRegion, config.mimoBillingPlan, config.mimoRegion,
         document.title,
         manga,
+        manga ? 'paddle' : config.imageTranslationOcrEngine,
     ]);
 }
 
@@ -279,6 +287,7 @@ function watchTranslationConfiguration(): () => void {
         const customModel = config.customModel?.[service];
         // 只建立响应式依赖，不序列化、不保留原始参数副本；结果仅保存单调递增修订号。
         void config.from;
+        void config.imageTranslationOcrEngine;
         void config.to;
         void config.useCache;
         void config.system_role?.[service];
@@ -853,6 +862,8 @@ function requestIsCurrent(state: ImageTranslationState, controller: AbortControl
 }
 
 async function translateImage(state: ImageTranslationState, prepareLanguages = false): Promise<void> {
+    // 识别方式改变后，不继续下载旧方式的语言包；新方式在用户的翻译任务内准备自己的资源。
+    if (config.imageTranslationOcrEngine === 'paddle') prepareLanguages = false;
     if (state.phase === 'loading' || !state.image.isConnected || !imageTranslationAllowed(state.manga === true)) return;
     state.hoverEntry = false;
     if (sourceIdentity(state.image) !== state.sourceIdentity || !presentationMatchesSource(state.image, state.presentation)) invalidateSource(state);
@@ -907,7 +918,7 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
             timeoutMs: state.manga ? 300_000 : IMAGE_TRANSLATION_TIMEOUT_MS,
             onProgress: (stage, progress) => {
                 if (!requestIsCurrent(state, controller)) return;
-                setButtonState(state, 'loading', stage === 'preparing' ? '正在准备漫画处理模型…' : stage === 'recognizing' ? '正在识别图片文字…'
+                setButtonState(state, 'loading', stage === 'preparing' ? (state.manga ? '正在准备漫画处理模型…' : '正在准备图片识别模型…') : stage === 'recognizing' ? '正在识别图片文字…'
                     : stage === 'cleaning' ? '正在清除原文…'
                     : stage === 'translating' ? '正在翻译文字…' : '正在生成译图…', stage === 'recognizing' || stage === 'preparing' || stage === 'cleaning' ? progress : undefined, stage);
             },

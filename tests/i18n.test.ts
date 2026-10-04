@@ -1109,6 +1109,15 @@ describe('旧界面译文人工校正', () => {
   });
 });
 
+it('共享图片识别选择与下载提示在六种非中文界面有本地化文案', () => {
+  const sources = ['图片识别方式', '通用文字 · Tesseract', '漫画文字 · PaddleOCR', '入口与缓存', '识别资源与下载', '正在准备图片识别模型…', 'PaddleOCR 文字识别', '悬停图片或右键翻译，随时对照原图。', '适合截图、图表与清晰排版文字。按原文语言准备语言包。', '适合漫画与气泡文字。首次翻译下载约 30 MB，与漫画共用，已下载无需重复下载。', '使用 PaddleOCR，当前页优先，只提前处理已加载的图片。'];
+  for (const locale of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+    for (const source of sources) expect(translateLegacyText(source, locale), `${locale} ${source}`).not.toBe(source);
+    expect(translateLegacyText(sources[9], locale)).toContain('30 MB');
+    expect(translateLegacyText(sources[2], locale)).toContain('PaddleOCR');
+  }
+});
+
 import {describePartOfSpeech} from '@/src/core/language/partOfSpeech';
 it('localizes word-class labels and learning explanations from the shared registry', () => {
     for (const id of ['noun','verb','adjective','adverb','article','determiner','pronoun','preposition','conjunction','auxiliary','interjection','numeral','phrase','']) {

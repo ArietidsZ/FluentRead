@@ -4,6 +4,15 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import * as ts from 'typescript';
 import { normalizeConfig, type Config } from '@/src/core/config/model';
+describe('单图本地识别方式配置', () => {
+    it('旧配置与非法值保留通用方式，显式 PaddleOCR 选择可往返且不改变漫画开关', () => {
+        for(const value of [undefined,null,'unknown',{},true,'tesseract'])expect(normalizeConfig({imageTranslationOcrEngine:value} as never).imageTranslationOcrEngine).toBe('tesseract');
+        const original={imageTranslationOcrEngine:'paddle',imageTranslationMangaEnabled:false};
+        const value=normalizeConfig(original);expect(value.imageTranslationOcrEngine).toBe('paddle');
+        expect(normalizeConfig(JSON.parse(JSON.stringify(value))).imageTranslationOcrEngine).toBe('paddle');
+        expect(value.imageTranslationMangaEnabled).toBe(false);expect(original).toEqual({imageTranslationOcrEngine:'paddle',imageTranslationMangaEnabled:false});
+    });
+});
 import { sanitizeConfigCredentials } from '@/src/core/config/credentials';
 import { customModelString, services } from '@/src/core/config/catalog';
 

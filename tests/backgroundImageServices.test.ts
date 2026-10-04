@@ -5,6 +5,28 @@ import {createImageOcrLanguageRepository} from '@/src/features/image-translation
 import {IMAGE_OCR_LANGUAGE_STATE_KEY} from '@/src/features/image-translation/ocrLanguages';
 
 describe('图片后台服务', () => {
+    it('共享识别资源管理在能力缺失时明确失败，存在时返回状态并完成清理', async () => {
+        const dependencies={assertLanguagesDownloaded:vi.fn(),translateImage:vi.fn(),fetchImage:vi.fn(),translateTexts:vi.fn(),getTranslationService:()=> 'google',supportsBatchTranslation:()=>false,downloadLanguages:vi.fn(),markLanguagesDownloaded:vi.fn()};
+        const call=(extra: object,type: 'fluentReadMangaModelStatus'|'fluentReadMangaModelRemove')=>createImageTranslationBackgroundHandlers({...dependencies,...extra}).find(h=>h.type===type)!.handle({type});
+        await expect(call({},'fluentReadMangaModelStatus')).rejects.toThrow('管理不可用');
+        await expect(call({},'fluentReadMangaModelRemove')).rejects.toThrow('管理不可用');
+        await expect(call({getMangaModelStatus:async()=>({ready:true,bytes:30,inpaintingReady:false})},'fluentReadMangaModelStatus')).resolves.toEqual({success:true,ready:true,bytes:30,inpaintingReady:false});
+        const removeMangaModels=vi.fn(async()=>{});await expect(call({removeMangaModels},'fluentReadMangaModelRemove')).resolves.toEqual({success:true});expect(removeMangaModels).toHaveBeenCalledOnce();
+    });
+    it('普通图片按已保存引擎选择语言资源，漫画保持独立专用链路', async () => {
+        let engine: 'paddle' | 'tesseract'='paddle';
+        const translated = vi.fn(async (_image: string, _language: string, _title: string, _options: object) => ({image:'data:image/png,x',lines:[]}));
+        const dependencies={getImageOcrEngine:()=>engine,assertLanguagesDownloaded:vi.fn(async()=>{}),translateImage:translated,fetchImage:vi.fn(),translateTexts:vi.fn(),getTranslationService:()=> 'google',supportsBatchTranslation:()=>false,downloadLanguages:vi.fn(),markLanguagesDownloaded:vi.fn()};
+        const handler=createImageTranslationBackgroundHandlers(dependencies).find(h=>h.type==='fluentReadImageTranslate')!;
+        const message={type:'fluentReadImageTranslate' as const,image:'data:image/png,x',sourceLanguage:'ja'};
+        await handler.handle(message);expect(dependencies.assertLanguagesDownloaded).not.toHaveBeenCalled();
+        expect(translated).toHaveBeenLastCalledWith(message.image,'ja','',expect.objectContaining({ocrEngine:'paddle'}));
+        expect(translated.mock.calls.at(-1)?.[3]).not.toHaveProperty('manga');
+        engine='tesseract';await handler.handle(message);expect(dependencies.assertLanguagesDownloaded).toHaveBeenCalledWith('ja');
+        expect(translated.mock.calls.at(-1)?.[3]).not.toHaveProperty('ocrEngine');
+        dependencies.assertLanguagesDownloaded.mockClear();await handler.handle({...message,manga:true});
+        expect(dependencies.assertLanguagesDownloaded).not.toHaveBeenCalled();expect(translated).toHaveBeenLastCalledWith(message.image,'ja','',expect.objectContaining({manga:true}));
+    });
     it('OCR 语言仓库归一化读取并合并持久化下载状态', async () => {
         const get = vi.fn(async () => ({
             [IMAGE_OCR_LANGUAGE_STATE_KEY]: ['eng', 'bad', 'eng'],
