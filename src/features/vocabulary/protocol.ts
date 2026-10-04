@@ -23,6 +23,8 @@ export interface VocabularyUpsertInput {
     targetLanguage: string;
     term: string;
     translation: string;
+    kind?: 'sentence' | 'expression';
+    note?: string;
     phonetic?: string;
     partOfSpeech?: string | string[];
     context?: VocabularyContextInput;
@@ -54,10 +56,13 @@ export type VocabularyBookErrorCode =
     | 'storage-error';
 
 export type VocabularyBookAction =
+    | 'reencounterList'
+    | 'reencounterGet'
     | 'list'
     | 'get'
     | 'getByTerm'
     | 'upsert'
+    | 'updateNote'
     | 'review'
     | 'setMastery'
     | 'relearn'
@@ -79,6 +84,7 @@ export interface VocabularyBookRuntimeMessage {
     input?: unknown;
     options?: unknown;
     data?: unknown;
+    note?: unknown;
 }
 
 export type VocabularyBookResponse<T = unknown> =
@@ -95,6 +101,7 @@ export interface VocabularyBookChangedMessage {
     type: typeof VOCABULARY_BOOK_CHANGED_MESSAGE;
     reason:
         | 'upsert'
+        | 'note'
         | 'review'
         | 'manual-mastered'
         | 'relearn'

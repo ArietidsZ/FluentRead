@@ -5,6 +5,7 @@
  * 主要内容：以 English 资源作为结构基线，逐项覆盖当前稳定 message key；旧版尚未 key 化的文案由 i18n 迁移层按显式映射处理。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
+import reencounterText from './reencounter/es-ES.json';
 import brandTaglines from './brand-taglines.json';
 import googleDriveText from './google-drive/es-ES.json';
 import cloudBackupText from './cloud-backup/es-ES.json';
@@ -18,6 +19,7 @@ import {translationStatsSpanishMessages} from './translationStats';
 import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
+    ...reencounterText,
     "settings.headers.title": "Eliminar cabeceras de origen",
     "settings.headers.help": "La lista está vacía por defecto. Solo se aplica a solicitudes de FluentRead al dominio exacto, en todos los servicios. Los subdominios se añaden por separado. Elimine una entrada o desmarque una cabecera para restaurar el comportamiento predeterminado.",
     "settings.headers.unsupported": "Este entorno no admite esta opción. Use una extensión con declarativeNetRequest. Los scripts de usuario no son compatibles.",

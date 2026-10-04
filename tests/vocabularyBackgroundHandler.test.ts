@@ -24,6 +24,7 @@ function createRepository() {
         get: vi.fn(async (entryId: string) => ({method: 'get', entryId})),
         getByTerm: vi.fn(async (sourceLanguage: string, term: string) => ({method: 'getByTerm', sourceLanguage, term})),
         upsert: vi.fn(async () => ({id: 'entry-upsert', method: 'upsert'})),
+        updateNote: vi.fn(async (entryId: string, note: string) => ({id:entryId, note})),
         review: vi.fn(async (entryId: string, rating: string) => ({method: 'review', entryId, rating})),
         setMastery: vi.fn(async (entryId: string) => ({method: 'setMastery', entryId})),
         relearn: vi.fn(async (entryId: string) => ({method: 'relearn', entryId})),
@@ -50,6 +51,39 @@ function createDependencies(overrides: Partial<VocabularyBookBackgroundDependenc
 }
 
 describe('vocabulary background message handlers', () => {
+    it('再次遇见只返回最小表达列表，并在主动打开后才返回对应收藏原句', async () => {
+        const {dependencies, repository} = createDependencies({isReencounterEnabled: () => true});
+        const entry = {id: 'art', term: 'art', sourceLanguage: 'en', contexts: [{text: 'Art matters.', capturedAt: 1}], translations: {zh: {text: '艺术', updatedAt: 1}}, reviewCount: 7};
+        repository.list.mockResolvedValue([entry] as never); repository.get.mockResolvedValue(entry as never);
+        const handler = createVocabularyBookHandler(dependencies);
+        const result = await handler.handle({type: VOCABULARY_BOOK_MESSAGE, action: 'reencounterList'}, {});
+        expect(result).toEqual({success: true, data: [{id: 'art', term: 'art', sourceLanguage: 'en', reference: '', savedSentence: '', savedTitle: ''}]});
+        expect(repository.get).not.toHaveBeenCalled();
+        expect(await handler.handle({type: VOCABULARY_BOOK_MESSAGE, action: 'reencounterGet', entryId: 'art'}, {})).toMatchObject({success: true, data: {savedSentence: 'Art matters.', reference: '艺术'}});
+        expect(repository.review).not.toHaveBeenCalled(); expect(dependencies.broadcastChanged).not.toHaveBeenCalled(); expect(entry.reviewCount).toBe(7);
+        repository.get.mockResolvedValueOnce(null as never);
+        expect(await handler.handle({type: VOCABULARY_BOOK_MESSAGE, action: 'reencounterGet', entryId: 'missing'}, {})).toMatchObject({success: false, error: {code: 'not-found'}});
+    });
+    it('再次遇见在后台强制遵守关闭与无痕边界', async () => {
+        for (const action of ['reencounterList', 'reencounterGet']) {
+            const disabled = createDependencies();
+            expect(await createVocabularyBookHandler(disabled.dependencies).handle({type: VOCABULARY_BOOK_MESSAGE, action, entryId: 'art'}, {})).toMatchObject({success: false, error: {code: 'invalid-input'}});
+            expect(disabled.repository.list).not.toHaveBeenCalled(); expect(disabled.repository.get).not.toHaveBeenCalled();
+            const enabled = createDependencies({isReencounterEnabled: () => true});
+            expect(await createVocabularyBookHandler(enabled.dependencies).handle({type: VOCABULARY_BOOK_MESSAGE, action, entryId: 'art'}, {sender: {tab: {incognito: true}}})).toMatchObject({success: false});
+            expect(enabled.repository.list).not.toHaveBeenCalled(); expect(enabled.repository.get).not.toHaveBeenCalled();
+        }
+    });
+    it('修改解释不依赖收藏入口开关，校验解释并阻止无痕修改', async () => {
+        const {dependencies, repository} = createDependencies({isVocabularyBookEnabled: () => false});
+        const handler = createVocabularyBookHandler(dependencies);
+        const request = {type:VOCABULARY_BOOK_MESSAGE, action:'updateNote', entryId:'sentence', note:'一句简单解释'};
+        expect(await handler.handle(request, {})).toEqual({success:true, data:{id:'sentence', note:'一句简单解释'}});
+        expect(repository.updateNote).toHaveBeenCalledWith('sentence', '一句简单解释');
+        expect(dependencies.broadcastChanged).toHaveBeenCalledWith('note', 'sentence');
+        expect(await handler.handle({...request, note:42}, {})).toMatchObject({success:false, error:{code:'invalid-input'}});
+        expect(await handler.handle(request, {sender:{tab:{incognito:true}}})).toMatchObject({success:false, error:{code:'invalid-input'}});
+    });
     it('允许保存没有AI释义的多语种原文', async () => {
         const {dependencies, repository} = createDependencies();
         const handler = createVocabularyBookHandler(dependencies);
