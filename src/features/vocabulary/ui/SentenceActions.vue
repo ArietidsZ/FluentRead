@@ -61,13 +61,13 @@ function close(): void {revision++; clearReveal(); stop(); sentence.value = null
 function fallback(current: {text: string; language: string}): void {
   stop(false);
   if (!active || !sentence.value) return;
-  if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {notice.value = '朗读暂时不可用，请重试。'; return;}
+  if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {notice.value = '朗读暂时不可用，请重试'; return;}
   const next = new SpeechSynthesisUtterance(current.text);
   next.lang = current.language;
   next.onend = () => {if (utterance === next) stop(false);};
   next.onerror = () => {if (utterance === next) {stop(false); notice.value = '朗读未完成，请重试。';}};
   utterance = next; playing.value = true;
-  try {window.speechSynthesis.speak(next);} catch {stop(false); notice.value = '朗读暂时不可用，请重试。';}
+  try {window.speechSynthesis.speak(next);} catch {stop(false); notice.value = '朗读暂时不可用，请重试';}
 }
 async function play(): Promise<void> {
   const current = sentence.value;
@@ -107,7 +107,7 @@ async function save(): Promise<void> {
       context:{text:current.context, sourceUrl:window.location.href, pageTitle:document.title},
     }}) as VocabularyBookResponse<VocabularyEntry>;
     if (!response.success) throw new Error(response.error.message);
-    if (active && revision === owner) {savedId.value = response.data.id; notice.value = '已保存原句与译文，可在收藏列表补充解释。';}
+    if (active && revision === owner) {savedId.value = response.data.id; notice.value = '已保存原句与译文，可在收藏列表补充解释';}
   } catch (error) {if (active && revision === owner) notice.value = error instanceof Error ? error.message : '收藏失败，请重试。';}
   finally {saving.value = false;}
 }
@@ -115,11 +115,11 @@ async function copy(): Promise<void> {
   const current = sentence.value; const owner = revision;
   if (!current) return;
   try {await navigator.clipboard.writeText(selectedText(current)); if (active && revision === owner) notice.value = current.side === 'translation' ? '已复制译文' : '已复制原句';}
-  catch {if (active && revision === owner) notice.value = '复制失败，可选中文字后复制。';}
+  catch {if (active && revision === owner) notice.value = '复制失败，可选中文字后复制';}
 }
 async function openBook(): Promise<void> {
   try {await sendMessage({type:'openOptionsPage', section:'settings-vocabulary'});}
-  catch {notice.value = '列表暂时无法打开，请从设置进入学习中心。';}
+  catch {notice.value = '列表暂时无法打开，请从设置进入学习中心';}
 }
 function expand(): void {
     const current = sentence.value;
