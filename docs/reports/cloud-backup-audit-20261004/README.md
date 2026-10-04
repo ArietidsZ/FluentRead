@@ -36,7 +36,7 @@
 - 中文文件职责注释及供应商边界：775 项通过；测试唯一归类审计通过。[架构专项](./source-boundaries-tests.txt) · [测试审计](./test-audit.txt)
 - 生产 Chrome MV3 扩展加载到隔离可见 Edge，通过真实 fetch 请求本机 WebDAV HTTP 夹具：80 项断言通过，页面错误为 0，10 张截图人工复核通过。[逐项结果](./browser-report.json)
 - 类型检查、Chrome MV3、Firefox MV2、manifest、userscript 构建与验证通过。最终 userscript 为 1,894,553 字节。[类型检查](./compile.txt) · [Chrome](./chrome.txt) · [Firefox](./firefox.txt) · [userscript 验证](./userscript-verify.txt)
-- 文档构建与链接检查通过：75 页、3754 个链接、718 个锚点、110 张图片。
+- 文档构建与链接检查通过；整合最新官网后为 75 页、3754 个链接、718 个锚点、112 张图片。
 - 内容脚本模块行数检查有既有失败：`src/app/content/runtime.ts` 为 281 行，债务上限为 277。本轮未修改该模块或上限；独立检出旧基线 `5ed16bc6c081587622c86563b4a75fc452c697fb` 后复现相同失败，13 项中其余 12 项通过。[基线证据](./baseline-architecture.txt)
 
 浏览器采用 `launchMode=macos-background-cdp`、`focusPolicy=launchservices-no-foreground`；正常可见窗口完整位于第二块显示器，`browserFrontmost=false`。没有连接日常浏览器 profile；本次临时 profile 和浏览器已由脚本关闭清理。
