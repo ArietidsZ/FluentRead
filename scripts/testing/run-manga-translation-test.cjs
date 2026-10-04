@@ -24,6 +24,7 @@ const readingPauseMs=Number(arg('reading-pause-ms','0'));
 const skipFirstCancel=process.argv.includes('--skip-first-cancel');
 const readAheadTest=process.argv.includes('--prefetch-pages');
 const scrollStabilityTest=process.argv.includes('--scroll-stability');
+const cacheNavigationTest=process.argv.includes('--cache-navigation');
 const prefetchPages=Number(arg('prefetch-pages','0'));
 const pipelineInputs=arg('pipeline-inputs',null)?.split(',').map(file=>path.resolve(file));
 const pipelineRounds=Number(arg('pipeline-rounds','3'));
@@ -102,7 +103,7 @@ window.addPage=(text,id)=>{
  canvas.toBlob(blob=>{image.src=URL.createObjectURL(blob)});
  return image;
 };addPage('Welcome to FluentRead','page-one');addPage('Second manga page','page-two');addPage('Third manga page','page-three');
-${readAheadTest || scrollStabilityTest ? "addPage('Fourth manga page','page-four');addPage('Fifth manga page','page-five');addPage('Sixth manga page','page-six');" : ''}
+${readAheadTest || scrollStabilityTest || cacheNavigationTest ? "addPage('Fourth manga page','page-four');addPage('Fifth manga page','page-five');addPage('Sixth manga page','page-six');" : ''}
 </script></body></html>`;
 async function ui(hostId, code) {
     const tree = await cdp.send('DOM.getDocument', {depth: -1, pierce: true}); let host;
@@ -368,6 +369,64 @@ async function verifyScrollStability() {
     auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
 }
 
+async function verifyCacheNavigation() {
+    assert.equal(liveSite,false,'Cache mutation checks belong only to the owned fixture');
+    assert.equal(prefetchPages,0,'Navigation checks must not translate unrelated upcoming pages');
+    await page.setViewportSize({width:800,height:700});
+    const first=page.locator('#page-one'),far=page.locator('#page-five');
+    const settle=()=>wait(async()=>await ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-busy")')==='false');
+    const visit=async image=>{
+        const ms=await image.evaluate(async i=>{
+            const start=performance.now();i.scrollIntoView({block:'start',inline:'start',behavior:'instant'});
+            for(let frame=0;frame<90;frame++) {await new Promise(resolve=>requestAnimationFrame(resolve));if(i.style.opacity==='0')return performance.now()-start;}
+            throw new Error('Cached translated image did not return within 90 frames');
+        });
+        const rect=await image.evaluate(i=>{const r=i.getBoundingClientRect();return {left:r.left,top:r.top}});
+        assert.equal(await imageUi(`return [...this.querySelectorAll('.fluent-read-image-translation-bitmap')].some(i=>{const r=i.getBoundingClientRect();return getComputedStyle(i.parentElement).display!=='none'&&Math.abs(r.left-${rect.left})<2&&Math.abs(r.top-${rect.top})<2})`),true);
+        report.cacheReturnDurationsMs.push(ms);
+    };
+    report.cacheReturnDurationsMs=[];
+    await first.evaluate(i=>i.scrollIntoView({block:'start',behavior:'instant'}));const before=await ops();await toggle();
+    await wait(async()=>await first.evaluate(i=>i.style.opacity==='0'));await settle();assert.equal(await ops(),before+1);
+    await far.evaluate(i=>i.scrollIntoView({block:'start',behavior:'instant'}));
+    await wait(async()=>await far.evaluate(i=>i.style.opacity==='0'));await settle();assert.equal(await ops(),before+2);
+    report.currentCase='vertical navigation beyond nearby retention reuses cached bitmaps without another OCR request';
+    for(let i=0;i<3;i++){await visit(first);await visit(far);}assert.equal(await ops(),before+2);report.cases.push(report.currentCase);
+    await page.evaluate(()=>{
+        const reader=document.querySelector('#reader');reader.style.display='flex';reader.style.width='max-content';
+        for(const wrap of reader.children){wrap.style.flexShrink='0';wrap.style.margin='0 50px 0 0';}
+        window.dispatchEvent(new Event('resize'));
+    });
+    report.currentCase='horizontal left/right navigation reuses the same cached bitmaps with correct overlay geometry';
+    for(let i=0;i<3;i++){await visit(first);await visit(far);}assert.equal(await ops(),before+2);await assertQuietReading();
+    report.cases.push(report.currentCase);await screenshot('cache-horizontal-translated');await visit(first);
+    report.currentCase='native same-URL image load invalidates completion and performs exactly one fresh recognition';
+    const oldSource=await first.getAttribute('src'),beforeReload=await ops();
+    await first.evaluate(i=>new Promise((resolve,reject)=>{i.addEventListener('load',resolve,{once:true});i.addEventListener('error',reject,{once:true});i.src=i.src;}));
+    await wait(async()=>await ops()===beforeReload+1&&await first.evaluate(i=>i.style.opacity==='0'));await settle();
+    assert.equal(await first.getAttribute('src'),oldSource);assert.equal(await ops(),beforeReload+1);report.cases.push(report.currentCase);
+    report.currentCase='real OCR of a blank page stores a lightweight completion marker and leaves the original visible';
+    const beforeBlank=await ops();await first.evaluate(i=>{
+        const canvas=document.createElement('canvas');canvas.width=760;canvas.height=1100;
+        const context=canvas.getContext('2d');context.fillStyle='#fff';context.fillRect(0,0,760,1100);i.src=canvas.toDataURL('image/png');
+    });
+    await wait(async()=>await ops()>=beforeBlank+1);await settle();assert.equal(await ops(),beforeBlank+1);assert.equal(await first.evaluate(i=>i.style.opacity),'');
+    report.cases.push(report.currentCase);
+    report.currentCase='original pause and resume reuse blank-page completion without rerunning OCR';
+    await toggle();await toggle();await settle();assert.equal(await ops(),beforeBlank+1);report.cases.push(report.currentCase);
+    report.currentCase='blank-page completion survives navigation beyond the nearby window without a bitmap or extra OCR';
+    await visit(far);
+    await first.evaluate(i=>i.scrollIntoView({block:'start',inline:'start',behavior:'instant'}));
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await settle();
+    assert.equal(await ops(),beforeBlank+1);assert.equal(await first.evaluate(i=>i.style.opacity),'');await assertQuietReading();report.cases.push(report.currentCase);
+    report.currentCase='target-language changes invalidate even the lightweight blank-page result';
+    await patch({to:'en'});await wait(async()=>await ops()===beforeBlank+2);await settle();assert.equal(await ops(),beforeBlank+2);
+    report.cases.push(report.currentCase);await screenshot('cache-blank-original');await toggle();
+    assert.equal(await page.locator('.zao-image').evaluateAll(items=>items.every(i=>i.style.opacity!=='0')),true);
+    if(blockedAll)assert.equal(report.modelRequests.length,0);
+    auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
+}
+
 async function verifyReadAhead() {
     report.currentCase='reader detects real image pages and default upcoming-page option';
     const images=page.locator(readerSelector);
@@ -525,9 +584,11 @@ async function verifyReadAhead() {
         })});
         capture('initial');new MutationObserver(records=>{if(records.some(r=>r.type==='childList'||r.target.matches?.(selector)))capture('mutation');}).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['src','srcset','sizes']});
         addEventListener('scroll',()=>capture('scroll'),true);
+        document.addEventListener('load',event=>{if(event.target.matches?.(selector))capture('load:'+event.target.id);},true);
     },readerSelector);
     await wait(async()=>!!await ball(`return this.querySelector('.floating-ball-manga')`),30000);
     if(pipelineInputs){await verifyPipelinePerformance(extensionId);report.status='passed';return;}
+    if(cacheNavigationTest){await verifyCacheNavigation();report.status='passed';focusGuard();return;}
     if(scrollStabilityTest){await verifyScrollStability();report.status='passed';focusGuard();return;}
     if(readAheadTest){await verifyReadAhead();report.status='passed';focusGuard();return;}
     report.currentCase='one click activates and translates only visible pages';

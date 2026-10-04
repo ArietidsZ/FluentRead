@@ -389,6 +389,7 @@
       "tests/imageTranslationClientRecovery.test.ts",
       "tests/imageTranslationRuntime.test.ts",
       "tests/imageTranslationPageRead.test.ts",
+      "tests/imageLoads.test.ts",
       "tests/imageSourceAuthorization.test.ts",
       "tests/imageTranslationOffscreenRuntime.test.ts",
       "tests/siteAdaptationRuntime.test.ts",

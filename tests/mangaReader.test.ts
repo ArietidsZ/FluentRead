@@ -156,6 +156,49 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it('同地址原图重新加载也重新识别，其他图片加载不能失效当前译图', async () => {
+        const f=readerFixture();f.reader.toggle();await flush();
+        f.document.querySelector('#logo')!.dispatchEvent(new f.dom.Event('load',{bubbles:true}));f.run();await flush();
+        expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        f.image.dispatchEvent(new f.dom.Event('load',{bubbles:true}));f.run();await flush();
+        expect(f.ports.release).toHaveBeenCalledWith(f.image);
+        expect(f.ports.translate).toHaveBeenCalledTimes(2);f.reader.dispose();
+    });
+    it('新地址已就绪先处理后收到 load 不重复识别，再次同地址重载仍失效',async()=>{
+        const f=readerFixture();f.reader.toggle();await flush();
+        f.image.src='blob:new-source';f.reader.schedule();f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        f.image.dispatchEvent(new f.dom.Event('load',{bubbles:true}));f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        f.image.dispatchEvent(new f.dom.Event('load',{bubbles:true}));f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(3);
+        f.reader.dispose();
+    });
+    it('上下左右移动只更新几何，宿主正文变化和显式配置刷新才重新发现图片', async () => {
+        const f=readerFixture(false),query=vi.spyOn(f.document,'querySelectorAll');
+        f.reader.toggle();await flush();query.mockClear();
+        const scroll=f.window.addEventListener.mock.calls.find(([name])=>name==='scroll')![1];
+        const resize=f.window.addEventListener.mock.calls.find(([name])=>name==='resize')![1];
+        for(let i=0;i<8;i++) {
+            f.setRect(i%2 ? {left:0,right:800,top:0,bottom:1200} : {left:1400,right:2200,top:-1300,bottom:-100});
+            scroll();resize();f.run();await flush();
+        }
+        expect(query).not.toHaveBeenCalled();
+        f.mo.callback([{target:f.image} as unknown as MutationRecord],{} as MutationObserver);f.run();
+        expect(query).toHaveBeenCalledTimes(1);
+        f.reader.schedule();f.run();expect(query).toHaveBeenCalledTimes(2);f.reader.dispose();
+    });
+    it('通用站点的正文 id 与 data 标记变化仍重新发现，自定义状态选择器保留动态查询',async()=>{
+        const f=readerFixture(false,'https://example.com/reader/chapter'),parent=f.image.parentElement!;
+        expect(f.reader.status().available).toBe(false);
+        const options=f.mo.observe.mock.calls[0][1];expect(options.attributeFilter).toEqual(expect.arrayContaining(['id','data-manga-reader']));
+        parent.id='reader';f.mo.callback([{target:parent,attributeName:'id'} as unknown as MutationRecord],{} as MutationObserver);f.run();
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        parent.removeAttribute('id');parent.setAttribute('data-manga-reader','');f.mo.callback([{target:parent} as unknown as MutationRecord],{} as MutationObserver);f.run();
+        expect(f.reader.status().available).toBe(true);parent.removeAttribute('data-manga-reader');f.mo.callback([{target:parent} as unknown as MutationRecord],{} as MutationObserver);f.run();
+        expect(f.reader.status().available).toBe(false);f.reader.dispose();
+        const custom=readerFixture(false,'https://example.com/custom/',()=>[{hostname:'example.com',pathPrefix:'/custom/',selector:'img[data-page="shown"]'}]);
+        expect(custom.ports.changed).toHaveBeenLastCalledWith(expect.objectContaining({pageCount:0}));custom.image.setAttribute('data-page','shown');
+        custom.window.addEventListener.mock.calls.find(([name])=>name==='scroll')![1]();custom.run();custom.reader.toggle();await flush();
+        expect(custom.ports.translate).toHaveBeenCalledTimes(1);custom.reader.dispose();
+    });
     it('下页在返回前页期间完成仍保留，关闭预译也不重复识别或启动第三页',async()=>{
         const f=readerFixture(false,undefined,undefined,()=>0),images=[f.image];let anchor=0;
         for(let index=1;index<=2;index++) {
@@ -204,6 +247,33 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         anchor=2.5;const styles=vi.fn((_e:Element)=>({display:'block',visibility:'visible',overflowX:'visible',overflowY:'visible'}));vi.stubGlobal('getComputedStyle',styles);
         f.reader.schedule();f.run();await flush();expect(styles.mock.calls.filter(([e])=>e===parents)).toHaveLength(1);
         f.reader.dispose();
+    });
+    it('提前页与附近历史页共用八百万像素预算，超预算页进入视口仍正常翻译',async()=>{
+        const f=readerFixture(false,undefined,undefined,()=>5),images=[f.image];let anchor=0;
+        for(let i=1;i<6;i++) {
+            const image=f.document.createElement('img') as HTMLImageElement;image.className='zao-image';image.src=`blob:budget-${i}`;
+            Object.defineProperties(image,{complete:{value:true},naturalWidth:{value:2000},naturalHeight:{value:1500}});
+            image.getBoundingClientRect=()=>({left:0,right:800,top:(i-anchor)*1300,bottom:(i-anchor)*1300+1200,width:800,height:1200}) as DOMRect;
+            f.image.parentElement!.append(image);images.push(image);
+        }
+        f.image.getBoundingClientRect=()=>({left:0,right:800,top:-anchor*1300,bottom:-anchor*1300+1200,width:800,height:1200}) as DOMRect;
+        f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual(images.slice(0,3));
+        expect(f.reader.status().ahead).toBe(2);
+        anchor=3;f.reader.schedule();f.run();await flush();
+        expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual(images);expect(f.ports.release).toHaveBeenCalledWith(images[1]);
+        f.reader.dispose();
+    });
+    it('后续窗口中的未加载页不阻塞其他已加载页，完成加载后仍只识别一次',async()=>{
+        const f=readerFixture(false,undefined,undefined,()=>3),images=[f.image];
+        for(let i=1;i<4;i++) {
+            const image=f.document.createElement('img') as HTMLImageElement;image.className='zao-image';image.src=`blob:loading-${i}`;
+            Object.defineProperties(image,{complete:{value:i!==1,writable:true},naturalWidth:{value:800},naturalHeight:{value:1200}});
+            image.getBoundingClientRect=()=>({left:0,right:800,top:i*1300,bottom:i*1300+1200,width:800,height:1200}) as DOMRect;
+            f.image.parentElement!.append(image);images.push(image);
+        }
+        f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([images[0],images[2],images[3]]);
+        Object.defineProperty(images[1],'complete',{value:true});images[1].dispatchEvent(new f.dom.Event('load',{bubbles:true}));f.run();await flush();
+        expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([images[0],images[2],images[3],images[1]]);f.reader.dispose();
     });
     it('仅历史保留项不启动识别，也不计入后续页准备数量', async () => {
         const f=sessionFixture();f.snapshot.pages[1].retain=true;f.start();await flush();

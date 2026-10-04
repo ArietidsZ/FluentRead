@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/runtime.ts
  * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和单图及漫画连续模式的原图/译图切换，保持宿主图片与响应式图片资源不变。
- * 主要内容：在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新并复核待显示图片的指针位置，限制像素读取和结果缓存，按图片独立服务及模型变化失效缓存，装配漫画可见页串行调度和原图暂停，返回已有译图时同步复用、不等待其他页推理；漫画任务使用不遮挡画面的轻量控件，换图、取消与卸载时停止旧请求并释放资源。
+ * 主要内容：在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，按张数和像素限制共享位图缓存，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画上下左右返页同步复用结果，不等待其他页推理；漫画原图暂停与处理中不遮挡画面，换图、取消与卸载时释放资源。
  * 模块边界：本运行时先读取页面允许访问的 Canvas/CORS 像素，失败时授权后台读取当前任务图片并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
 import type {ImageTranslationStage} from '../progress';
@@ -22,6 +22,7 @@ import {createImageControls, IMAGE_CONTROLS_CSS, type ImageControlPhase} from '.
 import {isImageHoverEligible} from './hoverEligibility';
 import {createMangaReader} from './mangaReader';
 import type {MangaTranslationStatus} from './mangaSession';
+import {imageLoadTracker} from './imageLoads';
 
 const IMAGE_TRANSLATION_OVERLAY = 'fluent-read-image-translation-overlay';
 const IMAGE_TRANSLATION_ROOT = 'fluent-read-image-translation-root';
@@ -50,7 +51,7 @@ interface ImageTranslationState {
     hoverEntry: boolean;
     hoverTimer: number | null;
     resizeObserver: ResizeObserver | null;
-    imageLoadHandler: (() => void) | null;
+    imageLoadHandler: ((event: Event) => void) | null;
     sourceIdentity: string;
     waitingForImage: boolean;
     lines: ImageTranslationLine[];
@@ -67,10 +68,10 @@ interface ImageTranslationState {
 interface CachedImageTranslation {
     sourceIdentity: string;
     configurationIdentity: string;
-    translatedImage: HTMLImageElement;
+    translatedImage: HTMLImageElement | null;
     lines: ImageTranslationLine[];
     pixels: number;
-    invalidate: () => void;
+    invalidate: (event: Event) => void;
 }
 
 let mounted = false;
@@ -115,9 +116,9 @@ function imageTranslationAllowed(manga: boolean): boolean {
 function restoreMangaImage(image: HTMLImageElement): void {
     const state = states.get(image);
     if (!state) return;
-    if (!state.translatedImage) { restoreImageTranslation(state); return; }
+    if (state.phase === 'loading' || state.resultIdentity === null) { restoreImageTranslation(state); return; }
     restoreOriginalImage(state);
-    state.translatedImage.remove();
+    state.translatedImage?.remove();
     state.controls.hideReader();
     setButtonState(state, 'idle', '查看译图');
     updateOverlayPosition(state);
@@ -136,7 +137,7 @@ function reuseMangaImage(image: HTMLImageElement): boolean {
     if (state && (sourceIdentity(image)!==state.sourceIdentity || !presentationMatchesSource(image,state.presentation))) return false;
     const identity=configurationIdentity(true);
     if (state && sourceIdentity(image)===state.sourceIdentity && presentationMatchesSource(image,state.presentation) && state.resultIdentity===identity) {
-        if (state.translatedImage) showTranslatedImage(state);
+        showTranslatedImage(state);
         return true;
     }
     const cached=resultCache.get(image);
@@ -156,6 +157,7 @@ function sourceIdentity(image: HTMLImageElement): string {
             source.getAttribute('srcset'), source.getAttribute('sizes'),
             source.getAttribute('media'), source.getAttribute('type'),
         ]),
+        imageLoadTracker.revision(image),
     ]);
 }
 
@@ -215,10 +217,14 @@ function deleteCachedResult(image: HTMLImageElement): void {
 
 function cacheResult(state: ImageTranslationState, identity: string): void {
     deleteCachedResult(state.image);
-    const translatedImage = state.translatedImage!;
-    const pixels = translatedImage.naturalWidth * translatedImage.naturalHeight;
+    const translatedImage = state.translatedImage;
+    const pixels = translatedImage ? translatedImage.naturalWidth * translatedImage.naturalHeight : 0;
     if (!config.useCache || pixels > MAX_CACHED_PIXELS) return;
-    const invalidate = () => deleteCachedResult(state.image);
+    const cachedSourceIdentity = state.sourceIdentity;
+    const invalidate = (event: Event) => {
+        imageLoadTracker.loaded(event);
+        if (sourceIdentity(state.image) !== cachedSourceIdentity) deleteCachedResult(state.image);
+    };
     resultCache.set(state.image, {
         sourceIdentity: state.sourceIdentity,
         configurationIdentity: identity,
@@ -227,7 +233,7 @@ function cacheResult(state: ImageTranslationState, identity: string): void {
         pixels,
         invalidate,
     });
-    state.image.addEventListener('load', invalidate, {once: true});
+    state.image.addEventListener('load', invalidate);
     let totalPixels = Array.from(resultCache.values()).reduce((sum, cached) => sum + cached.pixels, 0);
     while (resultCache.size > MAX_CACHED_IMAGES || totalPixels > MAX_CACHED_PIXELS) {
         const oldestImage = resultCache.keys().next().value!;
@@ -499,10 +505,11 @@ function createState(image: HTMLImageElement, hoverEntry = false): ImageTranslat
         sourceIdentity: sourceIdentity(image), waitingForImage: false,
         lines: [], translatedImage: null, resultIdentity: null, sourceStyleLease: null,
     };
-    state.imageLoadHandler = () => {
-        // 第一次等待图片加载属于本次请求；其余 load（含同 URL 重载）一律视作新像素版本。
+    state.imageLoadHandler = (event: Event) => {
+        imageLoadTracker.loaded(event);
+        // 新源的首次 load 可能晚于 ready 和处理；共享版本只让真正重载或来源变化撤下结果。
         if (state.waitingForImage) state.sourceIdentity = sourceIdentity(image);
-        else invalidateSource(state);
+        else if (state.sourceIdentity !== sourceIdentity(image)) invalidateSource(state);
         scheduleViewportChange();
     };
     state.resizeObserver = typeof ResizeObserver === 'undefined'
@@ -696,13 +703,15 @@ function restoreOriginalImage(state: ImageTranslationState): void {
 }
 
 function showTranslatedImage(state: ImageTranslationState): void {
-    const image = state.translatedImage!;
-    image.className = 'fluent-read-image-translation-bitmap';
-    image.alt = '';
-    image.setAttribute('aria-hidden', 'true');
-    state.overlay.prepend(image);
+    const image = state.translatedImage;
+    if (image) {
+        image.className = 'fluent-read-image-translation-bitmap';
+        image.alt = '';
+        image.setAttribute('aria-hidden', 'true');
+        state.overlay.prepend(image);
+    }
     state.controls.setLines(state.lines);
-    setButtonState(state, 'translated', '已翻译 · 点击恢复原图');
+    setButtonState(state, 'translated', image ? '已翻译 · 点击恢复原图' : '未检测到文字，已保留原图');
     updateOverlayPosition(state);
 }
 
@@ -735,7 +744,7 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
     if (sourceIdentity(state.image) !== state.sourceIdentity || !presentationMatchesSource(state.image, state.presentation)) invalidateSource(state);
     clearHoverTimer(state);
     const identity = configurationIdentity(state.manga);
-    if (!prepareLanguages && state.translatedImage && state.resultIdentity === identity) {
+    if (!prepareLanguages && state.resultIdentity === identity && (state.translatedImage || state.manga)) {
         showTranslatedImage(state);
         return;
     }
@@ -786,8 +795,11 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
         });
         if (!requestIsCurrent(state, controller)) return;
         if (state.manga && result.lines.length === 0 && configurationIdentity(state.manga) === identity) {
+            restoreOriginalImage(state);
+            state.translatedImage?.remove();state.translatedImage = null;
             state.resultIdentity = identity;state.lines = [];
-            setButtonState(state, 'translated', '未检测到文字，已保留原图');
+            cacheResult(state, identity);
+            showTranslatedImage(state);
             return;
         }
         setButtonState(state, 'loading', '正在生成译图…');
@@ -1048,6 +1060,7 @@ export function mountImageTranslator(): void {
         });
     });
     document.addEventListener('contextmenu', handleImageContextMenu, true);
+    document.addEventListener('load', imageLoadTracker.loaded, true);
     document.addEventListener('pointermove', handlePointerMove, true);
     document.addEventListener('pointerover', handlePointerOver, true);
     document.addEventListener('pointerout', handlePointerOut, true);
@@ -1060,6 +1073,7 @@ export function mountImageTranslator(): void {
         stopConfigurationWatch = null;
         cancelPointerMoveFrame();
         document.removeEventListener('contextmenu', handleImageContextMenu, true);
+        document.removeEventListener('load', imageLoadTracker.loaded, true);
         document.removeEventListener('pointermove', handlePointerMove, true);
         document.removeEventListener('pointerover', handlePointerOver, true);
         document.removeEventListener('pointerout', handlePointerOut, true);
@@ -1087,4 +1101,5 @@ export function unmountImageTranslator(): void {
     Array.from(activeStates).forEach(removeState);
     Array.from(resultCache.keys()).forEach(deleteCachedResult);
     removeImageOverlayRoot();
+    imageLoadTracker.reset();
 }
