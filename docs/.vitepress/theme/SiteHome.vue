@@ -146,6 +146,28 @@ const faqs = [
         <BrowserInstall :en="en" show-docs />
       </div>
     </section>
+    <section class="bv-section bv-promo" aria-labelledby="bv-promo-title">
+      <span class="bv-section-number">{{ t('56 秒介绍', 'A 56-SECOND TOUR') }}</span>
+      <h2 id="bv-promo-title">{{ t('先看一遍，再往下读', 'Watch first, then read on') }}</h2>
+      <video
+        class="bv-promo-video"
+        controls
+        playsinline
+        preload="none"
+        width="1920"
+        height="1080"
+        :poster="withBase(`/videos/fluentread-promo-${en ? 'en' : 'zh'}-poster.webp`)"
+        :aria-label="t('流畅阅读 56 秒介绍视频', 'FluentRead 56-second introduction video')"
+      >
+        <source
+          :src="withBase(`/videos/fluentread-promo-${en ? 'en' : 'zh'}.mp4`)"
+          type="video/mp4"
+        />
+        <a :href="withBase(`/videos/fluentread-promo-${en ? 'en' : 'zh'}.mp4`)">{{
+          t('下载介绍视频', 'Download the introduction video')
+        }}</a>
+      </video>
+    </section>
     <section
       v-for="feature in features"
       :key="feature.kind"

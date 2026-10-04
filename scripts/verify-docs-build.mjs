@@ -243,6 +243,24 @@ for (const prefix of ['', '/en']) {
       ),
     'Selection card needs original and translation read-aloud previews'
   )
+  const promo = home.querySelector('.bv-promo video')
+  assert(promo, 'Homepage introduction video missing')
+  assert.equal(home.querySelectorAll('video').length, 1, 'Homepage carries one introduction video')
+  assert(!home.querySelector('.bv-hero video'), 'Introduction video belongs below the hero')
+  assert(
+    promo.hasAttribute('controls') &&
+      !promo.hasAttribute('autoplay') &&
+      promo.getAttribute('preload') === 'none',
+    'Introduction video must stay visitor-controlled and load only on play'
+  )
+  for (const src of [
+    promo.getAttribute('poster'),
+    promo.querySelector('source')?.getAttribute('src'),
+  ])
+    assert(
+      src?.includes(`fluentread-promo-${prefix ? 'en' : 'zh'}`) && resolve(src),
+      `Missing introduction video asset ${src}`
+    )
   assert(
     !home.querySelector('.bv-pointer,.bv-end'),
     'Confusing cursor paths and repeated installation section must be removed'
