@@ -1,0 +1,98 @@
+[
+  {
+    "label": "zh-320",
+    "color": "rgb(185, 34, 82)",
+    "fontSize": "15px",
+    "fontWeight": "700",
+    "intro": "流畅阅读，一款开源的浏览器双语翻译插件",
+    "nameHeight": 18,
+    "nameWidth": 60,
+    "overflow": 0,
+    "text": "流畅阅读",
+    "width": 320
+  },
+  {
+    "label": "zh-390",
+    "color": "rgb(185, 34, 82)",
+    "fontSize": "15px",
+    "fontWeight": "700",
+    "intro": "流畅阅读，一款开源的浏览器双语翻译插件",
+    "nameHeight": 18,
+    "nameWidth": 60,
+    "overflow": 0,
+    "text": "流畅阅读",
+    "width": 390
+  },
+  {
+    "label": "zh-1101",
+    "color": "rgb(185, 34, 82)",
+    "fontSize": "18px",
+    "fontWeight": "700",
+    "intro": "流畅阅读，一款开源的浏览器双语翻译插件",
+    "nameHeight": 22,
+    "nameWidth": 72,
+    "overflow": 0,
+    "text": "流畅阅读",
+    "width": 1101
+  },
+  {
+    "label": "zh-1280",
+    "color": "rgb(185, 34, 82)",
+    "fontSize": "18px",
+    "fontWeight": "700",
+    "intro": "流畅阅读，一款开源的浏览器双语翻译插件",
+    "nameHeight": 22,
+    "nameWidth": 72,
+    "overflow": 0,
+    "text": "流畅阅读",
+    "width": 1280
+  },
+  {
+    "label": "en-320",
+    "color": "rgb(185, 34, 82)",
+    "fontSize": "15px",
+    "fontWeight": "700",
+    "intro": "FluentRead is an open-source browser extension for bilingual translation.",
+    "nameHeight": 18,
+    "nameWidth": 82.71875,
+    "overflow": 0,
+    "text": "FluentRead",
+    "width": 320
+  },
+  {
+    "label": "en-390",
+    "color": "rgb(185, 34, 82)",
+    "fontSize": "15px",
+    "fontWeight": "700",
+    "intro": "FluentRead is an open-source browser extension for bilingual translation.",
+    "nameHeight": 18,
+    "nameWidth": 82.71875,
+    "overflow": 0,
+    "text": "FluentRead",
+    "width": 390
+  },
+  {
+    "label": "en-1101",
+    "color": "rgb(185, 34, 82)",
+    "fontSize": "18px",
+    "fontWeight": "700",
+    "intro": "FluentRead is an open-source browser extension for bilingual translation.",
+    "nameHeight": 22,
+    "nameWidth": 98.5,
+    "overflow": 0,
+    "text": "FluentRead",
+    "width": 1101
+  },
+  {
+    "label": "en-1280",
+    "color": "rgb(185, 34, 82)",
+    "fontSize": "18px",
+    "fontWeight": "700",
+    "intro": "FluentRead is an open-source browser extension for bilingual translation.",
+    "nameHeight": 22,
+    "nameWidth": 98.5,
+    "overflow": 0,
+    "text": "FluentRead",
+    "width": 1280
+  }
+]

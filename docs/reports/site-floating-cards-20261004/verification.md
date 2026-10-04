@@ -1,6 +1,6 @@
-# Restore floating hero cards and silent read-aloud previews
+# Highlight the product name and restore floating cards and silent read-aloud previews
 
-The user requested the original tilted floating cards instead of margin notes, and requested that clicking the homepage read-aloud demonstration not play sound. The centered hero icon and two-line slogan from PR #794 are retained.
+The user requested the original tilted floating cards instead of margin notes, and requested that clicking the homepage read-aloud demonstration not play sound. They also requested more emphasis on the product name in the introduction. The centered hero icon and two-line slogan from PR #794 are retained.
 
 ## Changes
 
@@ -9,6 +9,7 @@ The user requested the original tilted floating cards instead of margin notes, a
 - Central hero geometry, localized wording and ten greeting placements remain unchanged; cards stay hidden at widths up to 1100px as before.
 - Restored FeatureDemo to its silent version from `c36f7f89`. Clicking original/translation selects the appropriate visual demonstration and pauses autoplay; labels and the note explicitly identify a silent preview.
 - Removed the website-only speech helper, its tests and test-matrix entry, and restored the documentation verifier's preview-control contract. Extension read-aloud code was not changed.
+- Highlighted the inline product name (流畅阅读 / FluentRead) with the existing brand color and 700 font weight, keeping the introduction wording and font size. The product name stays together on narrow screens.
 
 ## Verification
 
@@ -17,10 +18,11 @@ The user requested the original tilted floating cards instead of margin notes, a
 - Test registration audit: passed; 453 files and 5804 cases. This was the registration audit, not execution of the full test suite.
 - The compiled website JavaScript contains no `speechSynthesis`, `SpeechSynthesisUtterance` or `createDemoSpeech` reference.
 - Chinese and English viewports: 320, 390, 760, 1100, 1101, 1280 and 1440px. No horizontal overflow; cards are visible on desktop and hidden below their original breakpoint; the 64px hero icon and ten greetings remain.
-- At 1280px, repeated hero samples show moving cards with identical central geometry; the icon, slogan, introduction and installation controls match the previous production layout exactly.
+- Before the additional inline brand emphasis, repeated 1280px hero samples showed moving cards with identical central geometry matching the previous production layout. The final change retains the hero structure and dimensions and adjusts only the product name's inline color and weight.
 - Original/translation preview clicks in both languages select steps 3/4, update pressed/highlight state, pause autoplay, keep the demo frame at the same size and show the silent-preview note. No speech state is present.
 - Moving to the selection section pauses all three hero-card animations. Reduced-motion CSS disables the restored animation.
 - Final browser warning/error logs were empty. Verification used a background in-app browser and responsive viewport overrides, not a physical phone test.
 - The local preview server was restarted after a subsequent build so the final checks used the final asset set; intermediate unstyled samples are excluded from the report.
+- After the additional product-name change, docs typecheck, production build, link/asset checks and diff checks passed again. Chinese and English at 320, 390, 1101 and 1280px show the localized name in rgb(185, 34, 82), 700 weight, unchanged 15/18px font size and zero horizontal overflow. Updated hero screenshots use this final build.
 
-Screenshots: [Desktop](desktop.png), [Mobile](mobile.png), [Silent selection preview](selection.png), [Narrow English desktop](en-1101.png). [Measurements](measurements.json).
+Screenshots: [Desktop](desktop.png), [Mobile](mobile.png), [Silent selection preview](selection.png), [Narrow English desktop](en-1101.png). [Restoration measurements](measurements.json). [Final brand measurements](brand-measurements.json).

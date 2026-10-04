@@ -79,6 +79,11 @@
   color: #4e4954;
   font-size: 18px;
 }
+.bv-hero-name {
+  color: var(--vp-c-brand-1);
+  font-weight: 700;
+  white-space: nowrap;
+}
 .bv-hero-capabilities > span {
   display: inline-block;
   white-space: nowrap;
