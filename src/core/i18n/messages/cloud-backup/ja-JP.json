@@ -69,6 +69,9 @@
     "settings.cloud.fieldLabel.1": "右クリックメニューにショートカットを表示",
     "settings.cloud.fieldLabel.2": "保存済みのホバーショートカット",
     "settings.cloud.fieldLabel.3": "保存済みの選択翻訳モード",
-    "settings.cloud.fieldLabel.4": "ローカル音声認識モデル"
+    "settings.cloud.fieldLabel.4": "ローカル音声認識モデル",
+    "settings.cloud.cleanupPending": "設定は同期済みですが、認証キャッシュの削除は未完了です。設定を開き直すと再試行します。",
+    "settings.cloud.versionMissing": "安全な上書きに必要なバージョン情報がありません。復元は可能です。再読み込みしてからお試しください。",
+    "settings.cloud.verifyFailed": "クラウド保存後の確認に失敗しました。バックアップを再読み込みしてからお試しください。この端末の設定は変更されていません。"
   }
 }

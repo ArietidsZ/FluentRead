@@ -27,11 +27,11 @@ async function main() {
         if (![expected,'Basic '+Buffer.from('fixture-other:fixture-app-password').toString('base64')].includes(req.headers.authorization)) {res.writeHead(401).end(); return;}
         if (req.method === 'PROPFIND' && (req.url === '/dav/' || req.url === '/dav/FluentRead/')) {
             if (req.url === '/dav/FluentRead/' && !state.folder) {res.writeHead(404).end(); return;}
-            res.writeHead(207, {'Content-Type':'application/xml'}).end('<d:multistatus xmlns:d="DAV:"><d:response><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>'); return;
+            res.writeHead(207, {'Content-Type':'application/xml'}).end(`<d:multistatus xmlns:d = "DAV:"><d:response xmlns:p="DAV:"><p:href>${req.url}</p:href><p:propstat><p:prop><p:resourcetype><p:collection/></p:resourcetype></p:prop><p:status><![CDATA[HTTP/1.1 200 OK]]></p:status></p:propstat></d:response></d:multistatus>`); return;
         }
         if (req.method === 'MKCOL' && req.url === '/dav/FluentRead/') {res.writeHead(state.folder ? 405 : 201).end(); state.folder=true; return;}
         if (req.url !== '/dav/FluentRead/fluentread-config.encrypted.json') {res.writeHead(404).end(); return;}
-        if (req.method === 'PROPFIND') {res.writeHead(207, {'Content-Type':'application/xml'}).end(`<d:multistatus xmlns:d="DAV:"><d:response><d:href>${req.url}</d:href><d:propstat><d:prop><d:getetag>&quot;v${state.version}&quot;</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>`);return;}
+        if (req.method === 'PROPFIND') {res.writeHead(207, {'Content-Type':'application/xml'}).end(`<multistatus xmlns="DAV:"><response xmlns:p = "DAV:"><p:href>${req.url}</p:href><p:propstat><p:prop><p:getetag>&#34;v${state.version}&#x22;</p:getetag></p:prop><p:status><![CDATA[HTTP/1.1 200 OK]]></p:status></p:propstat></response></multistatus>`);return;}
         if (req.method === 'GET') {if (!state.content) res.writeHead(state.folder ? 404 : 409).end(); else if (req.headers['if-match'] && req.headers['if-match'] !== `"v${state.version}"`) res.writeHead(412).end(); else res.writeHead(200).end(state.content); return;}
         if (req.method === 'PUT') {
             if (state.failPut || (req.headers['if-none-match'] === '*' && state.content) || (req.headers['if-match'] && req.headers['if-match'] !== `"v${state.version}"`)) {res.writeHead(412).end(); return;}
@@ -101,6 +101,39 @@ async function main() {
         check(!(await dialog.innerText()).includes('fixture-private'),'preview does not expose complete credentials');
         check(await dialog.locator('input[type="password"]').count()===0,'backup has no user encryption passphrase');
         await dialog.getByRole('button',{name:'取消',exact:true}).click();await dialog.waitFor({state:'hidden'});check(writes()===0,'cancelling first preview leaves cloud unchanged');
+        await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
+        await page.reload({waitUntil:'domcontentloaded'});await navigate();
+        await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor({timeout:6000});
+        check(writes()===0,'reloading an unconfirmed preview releases its owner and permits a fresh preview');
+        await dialog.getByRole('button',{name:'取消',exact:true}).click();await dialog.waitFor({state:'hidden'});
+        const otherPage=await newPageWithoutForeground(context,30000);
+        await otherPage.goto(settingsUrl,{waitUntil:'domcontentloaded'});
+        await otherPage.locator('[data-testid="webdav-sync-now"]').waitFor();
+        await otherPage.locator('[data-testid="webdav-sync-now"]').click();await otherPage.locator('.drive-dialog').waitFor();
+        await page.locator('[data-testid="webdav-sync-now"]').click();await card.getByText('另一个设置页面正在确认同步',{exact:false}).waitFor();
+        check(writes()===0,'a second settings page cannot replace another page’s unconfirmed preview');
+        await otherPage.close();
+        await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor({timeout:6000});
+        check(writes()===0,'closing the owning settings tab releases its preview without cloud writes');
+        await dialog.getByRole('button',{name:'取消',exact:true}).click();await dialog.waitFor({state:'hidden'});
+        const changer=await newPageWithoutForeground(context,30000);
+        await changer.goto(settingsUrl,{waitUntil:'domcontentloaded'});
+        const changedConnection=await changer.evaluate(async url=>{
+            const saved=await chrome.runtime.sendMessage({type:'webDavConfigBackup',action:'settings',clientId:'fixture-change-account'});
+            return chrome.runtime.sendMessage({type:'webDavConfigBackup',action:'save',clientId:'fixture-change-account',connection:{url,username:'fixture-other',password:'fixture-app-password',allowInsecure:true,revision:saved.data.revision}});
+        },url);
+        check(changedConnection.success===true,'another trusted settings page can change the connection after preview cancellation');
+        await changer.close();
+        await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
+        check((await dialog.innerText()).includes('fixture-other'),'new preview identifies the account changed in another page');
+        check((await card.locator('[data-testid="webdav-account"]').innerText()).includes('fixture-other'),'the account beside sync refreshes to the connection used by the preview');
+        await dialog.getByRole('button',{name:'取消',exact:true}).click();await dialog.waitFor({state:'hidden'});
+        const restoredConnection=await page.evaluate(async url=>{
+            const saved=await chrome.runtime.sendMessage({type:'webDavConfigBackup',action:'settings',clientId:'fixture-restore-account'});
+            return chrome.runtime.sendMessage({type:'webDavConfigBackup',action:'save',clientId:'fixture-restore-account',connection:{url,username:'fixture-user',password:'fixture-app-password',allowInsecure:true,revision:saved.data.revision}});
+        },url);
+        check(restoredConnection.success===true && writes()===0,'changing accounts and cancelling their previews never writes a cloud backup');
+        await page.reload({waitUntil:'domcontentloaded'});await navigate();
         await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await page.locator('[data-testid="webdav-confirm"]').click();await dialog.waitFor({state:'hidden'});
         check(state.version===1 && state.content && !state.content.includes('fixture-private') && !state.content.includes('fixture-app-password'),'confirmed first backup uploads only a ciphertext envelope');
         await page.locator('[data-testid="webdav-account"]').waitFor();

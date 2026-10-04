@@ -77,6 +77,7 @@
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "4.10.38",
     "ppu-paddle-ocr": "6.6.0",
+    "saxes": "6.0.0",
     "tesseract.js": "^6.0.1",
     "tldts": "^7.4.10",
     "webextension-polyfill": "^0.12.0",

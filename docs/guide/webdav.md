@@ -8,7 +8,7 @@ Google Drive 和 WebDAV 都位于**设置 → 备份与恢复 → 配置云备�
 
 ## 准备服务器连接
 
-服务器需要支持 Basic 鉴权，以及 `PROPFIND`、`GET`、`MKCOL`、`PUT`。更新已有备份还需要强 ETag，并遵守 `If-Match`、`If-None-Match` 条件，避免覆盖其他设备的修改。ETag 可以来自下载响应头，或文件的 [`DAV:getetag` 属性](https://datatracker.ietf.org/doc/html/rfc4918#section-15.6)；属性读取后会再次核对文件版本与内容。建议使用有效证书的 HTTPS 和独立应用密码。
+服务器需要支持 Basic 鉴权，以及 `PROPFIND`、`GET`、`MKCOL`、`PUT`。更新已有备份还需要强 ETag，并遵守 `If-Match`、`If-None-Match` 条件，避免覆盖其他设备的修改。ETag 可以来自下载响应头，或文件的 [`DAV:getetag` 属性](https://datatracker.ietf.org/doc/html/rfc4918#section-15.6)；属性读取后会再次核对文件版本与内容。建议使用有效证书的 HTTPS 和独立应用密码。 属性响应按 XML 命名空间和指定目录解析，支持默认或局部前缀、CDATA 和字符引用；不会把其他文件或错误属性的版本用于覆盖。
 
 填写的是**已存在目录的 WebDAV 地址**，不是网站首页、分享链接或备份文件地址。地址中不要放用户名、密码或查询参数。
 
