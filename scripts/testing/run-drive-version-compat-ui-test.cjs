@@ -92,7 +92,7 @@ async function main() {
         await worker.evaluate(()=>{__versionFixture.rejectPut=false;__versionFixture.etag=false;});await sync();await dialog.waitFor();
         check(await page.locator('[data-testid="google-drive-restore-only"]').isVisible(),'missing ETag opens an explicit restore-only preview');
         check((await dialog.innerText()).includes('目标语言') && await page.locator('[data-testid="google-drive-confirm"]').isEnabled(),'differences and restore action remain available');
-        await page.locator('[data-testid="google-drive-back"]').click();check(await page.locator('[data-testid="google-drive-direction-upload"]').isDisabled() && await page.locator('[data-testid="google-drive-direction-merge"]').count()===0,'unsupported saving and merging cannot be chosen');await shot('drive-restore-only-desktop');
+        check(await page.locator('[data-testid="google-drive-back"]').count()===0 && await page.locator('[data-testid="google-drive-direction-upload"]').count()===0 && await page.locator('[data-testid="google-drive-direction-merge"]').count()===0,'restore-only preview skips unavailable operation choices');await shot('drive-restore-only-desktop');
         await cancel();check((await page.evaluate(()=>chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'}))).value.to==='es','cancel keeps device changes');
         await sync();await dialog.waitFor();await confirm();check((await page.evaluate(()=>chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'}))).value.to==='de','restore without ETag applies cloud configuration');
         check(await worker.evaluate(()=>__versionFixture.uploads===2),'read-only cancellation and restoration never write');

@@ -184,8 +184,7 @@ async function main() {
         await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
         check(await dialog.locator('[data-testid="webdav-restore-only"]').isVisible(),'missing version presents a restore-only preview instead of a failed sync');
         check(await page.locator('[data-testid="webdav-confirm"]').isEnabled(),'restore remains available without any server ETag');
-        await page.locator('[data-testid="webdav-back"]').click();
-        check(await page.locator('[data-testid="webdav-direction-upload"]').isDisabled() && await page.locator('[data-testid="webdav-direction-merge"]').count()===0,'unsupported save and merge cannot be chosen');
+        check(await page.locator('[data-testid="webdav-back"]').count()===0 && await page.locator('[data-testid="webdav-direction-upload"]').count()===0 && await page.locator('[data-testid="webdav-direction-merge"]').count()===0,'restore-only preview skips unavailable operation choices');
         await shot('webdav-restore-only-desktop');
         await dialog.locator('.drive-footer-actions .el-button').first().click();await dialog.waitFor({state:'hidden'});
         check(writes()===readOnlyWrites && state.content===headBackup,'cancelling a read-only preview never changes the cloud backup');
@@ -209,7 +208,8 @@ async function main() {
             await dialog.locator('.drive-footer-actions .el-button').first().click();await dialog.waitFor({state:'hidden'});
             state.etagMode='none';await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
             const restoreOnly=dialog.locator('[data-testid="webdav-restore-only"]');
-            check(await restoreOnly.isVisible() && !/[\u3400-\u9fff]/u.test(await restoreOnly.innerText()) && !(await restoreOnly.innerText()).includes('settings.cloud.'),'restore-only warning is localized: '+language);
+            const expectedWarning=JSON.parse(fs.readFileSync(path.join(__dirname,'../../src/core/i18n/messages/cloud-backup',language+'.json'),'utf8'))['settings.cloud.restoreOnly'];
+            check(await restoreOnly.isVisible() && (await restoreOnly.innerText()).trim()===expectedWarning,'restore-only warning is localized: '+language);
             check(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth),'restore-only preview fits narrow screen: '+language);
             if(language==='en-US') await shot('webdav-restore-only-english-mobile');
             await dialog.locator('.drive-footer-actions .el-button').first().click();await dialog.waitFor({state:'hidden'});state.etagMode='prop';

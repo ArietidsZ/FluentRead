@@ -48,7 +48,7 @@ Before committing, the extension rechecks both configurations. A change on eithe
 
 The current account, server URL, and last backup time for that connection appear beside the sync button. Use **Edit connection** to change accounts or servers. The confirmation screen lists changed settings and their device and cloud values. Connection changes show categories while keys, addresses, and custom content stay hidden. Merge conflicts appear before automatically retained changes. Identical configuration only updates the local sync record without uploading again.
 
-If none of these methods provides a strong ETag, the preview still shows differences and lets you **Restore cloud configuration**. A notice explains that saving and merging are unavailable; saving is disabled and the merge action is hidden before confirmation. Restoration still rechecks cloud content and never bypasses authentication, corrupt-file checks, or version conflicts.
+If none of these methods provides a strong ETag, the preview still shows differences and lets you **Restore cloud configuration**. A notice explains that saving and merging are unavailable. You go directly to review and confirmation, without unavailable save or merge actions or an extra operation-selection step. Restoration still rechecks cloud content and never bypasses authentication, corrupt-file checks, or version conflicts.
 
 <details class="guide-details">
 <summary>Change accounts or delete data</summary>
