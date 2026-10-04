@@ -6,6 +6,10 @@
       "status": "passed"
     },
     {
+      "id": "setting-label-follows-cross-page-interface-language",
+      "status": "passed"
+    },
+    {
       "id": "inline-matching-protected-content-original-text-and-geometry",
       "status": "passed"
     },

@@ -89,6 +89,12 @@ async function main() {
     assert.deepEqual(await marks(), []); assert.equal(await ui.count(), 0); record('default-off-with-existing-saved-entries');
     await page.evaluate(() => {window.nativeText=document.querySelector('#river').firstChild;window.markup=document.querySelector('main').innerHTML;window.originalBoxes=['river','phrase'].map(id=>{const r=document.getElementById(id).getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};});});
     await options.locator('.vocabulary-reencounter-control').click();
+    await persist(options,{uiLanguage:'en-US'});
+    const englishSetting=JSON.parse(fs.readFileSync(path.join(process.cwd(),'src/core/i18n/messages/reencounter/en-US.json'),'utf8'))['reencounter.setting'];
+    await until(async()=>(await options.locator('.vocabulary-reencounter-control').innerText()).includes(englishSetting),'Setting did not follow UI language');
+    await persist(options,{uiLanguage:'zh-CN'});
+    await until(async()=>(await options.locator('.vocabulary-reencounter-control').innerText()).includes('再次遇见收藏表达'),'Setting did not return to Chinese');
+    record('setting-label-follows-cross-page-interface-language');
     await until(async () => (await marks()).includes('bank'), 'No saved-expression marking after enabling');
     assert((await marks()).includes('take for')); assert((await marks()).includes(' granted'));
     assert.equal(requests.length, 0); assert(await page.evaluate(()=>window.nativeText===document.querySelector('#river').firstChild && window.markup===document.querySelector('main').innerHTML));
@@ -166,7 +172,7 @@ async function main() {
     await page.reload(); await wait(400); assert.deepEqual(await marks(),[]); assert.equal(await ui.count(),0); record('permanent-disable-persists-across-reload');
     assert.equal(report.consoleErrors.length,0); report.ok=true;
   } catch(error) {report.error=error.stack; if(page){report.uiDiagnostics=await page.evaluate(()=>{const host=document.getElementById('fluent-read-vocabulary-reencounter');const panel=host?.shadowRoot?.querySelector('.reencounter-ui');return {host:host?.outerHTML,content:panel?.outerHTML,roots:host?.shadowRoot?.innerHTML.slice(-5000),paint:[...(CSS.highlights.get('fluentread-vocabulary-reencounter')||[])].map(r=>r.toString())};}).catch(()=>null);await page.screenshot({path:path.join(artifacts,'failure.png')}).catch(()=>{});}throw error;}
-  finally {fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));if(session)await session.context.close().catch(()=>{});await new Promise(resolve=>server.close(resolve));fs.rmSync(profile,{recursive:true,force:true});}
+  finally {fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));if(session)await session.close().catch(()=>{});server.closeAllConnections();await new Promise(resolve=>server.close(resolve));fs.rmSync(profile,{recursive:true,force:true});}
   console.log(JSON.stringify(report,null,2));
 }
 main().catch(error=>{console.error(error.stack||error);process.exitCode=1;});
