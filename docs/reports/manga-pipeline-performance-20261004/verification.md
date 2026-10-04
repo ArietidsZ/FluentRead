@@ -6,14 +6,16 @@
 
 交付前同步主分支 `d1bc548c56cee44fea71fc2a29c5bf5611b09f7f`，保留本轮期间合入的官网阅读布局、朗读功能和移动端图标；自动合并测试目录。主分支更新只涉及官网、验证脚本及测试，没有改变已测的漫画生产运行时代码；合入后再次编译、审计及构建文档通过，官网朗读专项 8 项通过。性能实现提交：`d74ff61883f5351d14b2c4ff6f94453a3144c1de`。
 
+PR 创建后主分支进一步更新到云备份集成 `bbd36d91`，仅语言资源固定提交发生冲突。保留两边功能、生成合并后的五语快照并固定到 `978bb69e207e025d419818d23397285e136d781f`；按新锁文件安装本任务独立依赖，避免改动其他 worktree 的共享依赖。重新通过 334 项相关测试及四维 100% 覆盖率、类型检查、Chrome/Firefox、manifest、userscript/verifier、测试审计和文档构建/校验。新增错误提示复用已有多语言文案，编码专项 11 项再次通过。模型、运行时版本及图像处理算法保持一致；新依赖环境的真实 GPU 两轮冒烟通过，分别记录 1090 / 314 次提交，原图与译图恢复正常，模型下载为 0，临时 profile 已清理。
+
 ## 确定性验证
 
 - 15 个受影响测试文件、334 个用例通过：OCR、修补、GPU 探测、GPU 故障回退、异步编码、Offscreen、图片读取/恢复/运行时、模型导入、无损画面及漫画会话。
 - WASM 诊断专项另 12 个用例通过；合计 16 文件、346 用例。只运行本任务直接影响范围，没有运行全量回归。
 - 严格覆盖率包含 `mangaReader`、`mangaSession`、`mangaOcr`、`mangaInpainting`、`mangaEncoding`、`mangaGpu`、`mangaSessionFallback`、`offscreenRuntime` 和 `shared/onnx/webgpu`；statements / branches / functions / lines 全部 100%，没有新增忽略。
-- `pnpm test:audit`、`pnpm compile`、Chrome MV3 与 Firefox MV2 生产构建、双浏览器 manifest 验证通过；两种构建未压缩总大小均为 107.18 MB。模型不随本轮增加。
+- `pnpm test:audit`、`pnpm compile`、Chrome MV3 与 Firefox MV2 生产构建、双浏览器 manifest 验证通过；性能测量阶段两种构建未压缩总大小为 107.18 MB，集成最新云备份主分支后为 107.22 MB。模型不随本轮增加。
 - userscript 构建与 verifier、文档构建与链接校验通过。首次 userscript 构建发现合并后语言资源缺失，补齐五个生成文件，并将资源固定到 `abaa7c86b49dd8f2b8425437e3c980c8947c17f8` 后通过；没有更改模型或升级依赖。
-- 架构专项五文件 800 项检查中 797 项通过、3 项失败。修改前集成提交 `6d4b798d6ae045daad8151f615d17c3ce416248e` 的独立代码快照复现了同样三项：三个既有文档工具未登记验证归属，10 个既有 popup/share-card/i18n 等模块未进入严格覆盖率清单，以及 `src/app/content/runtime.ts` 已有 281 行超过 277 行上限。本轮没有放宽这些检查，也没有增加失败项；新增漫画模块已登记并严格覆盖。基线在临时快照执行 WXT prepare 后运行同样检查，不修改来源 worktree。
+- 架构专项初次五文件 800 项检查中 797 项通过、3 项失败，最新主分支集成后 801 项中 798 项通过、仍为同样 3 项失败。修改前集成提交 `6d4b798d6ae045daad8151f615d17c3ce416248e` 的独立代码快照复现了同样三项：三个既有文档工具未登记验证归属，10 个既有 popup/share-card/i18n 等模块未进入严格覆盖率清单，以及 `src/app/content/runtime.ts` 已有 281 行超过 277 行上限。本轮没有放宽这些检查，也没有增加失败项；新增漫画模块已登记并严格覆盖。基线在临时快照执行 WXT prepare 后运行同样检查，不修改来源 worktree。
 
 ## 性能复现
 
