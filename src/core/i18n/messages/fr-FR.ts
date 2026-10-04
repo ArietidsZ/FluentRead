@@ -925,7 +925,7 @@ export const frFRMessages = {
     'options.searchOpen': 'Ouvrir →',
     'options.navLabel': 'Catégories de réglages',
     'options.aboutTitle': 'À propos de FluentRead',
-    'options.aboutHeroDescription': 'Une extension de navigateur open source pour la lecture bilingue.',
+    'options.aboutHeroDescription': 'Une extension de navigateur gratuite et open source pour la lecture bilingue',
     'options.aboutCoreExperience': 'Expérience principale',
     'options.aboutBornForReading': 'Pensé pour la lecture',
     'options.aboutCoreDescription': 'Traduction de pages, sélection, survol et raccourcis : les actions courantes restent à portée de main.',

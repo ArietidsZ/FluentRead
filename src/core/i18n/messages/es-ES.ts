@@ -925,7 +925,7 @@ export const esESMessages = {
     'options.searchOpen': 'Abrir →',
     'options.navLabel': 'Categorías de ajustes',
     'options.aboutTitle': 'Acerca de FluentRead',
-    'options.aboutHeroDescription': 'Una extensión de navegador de código abierto para lectura bilingüe.',
+    'options.aboutHeroDescription': 'Una extensión de navegador gratuita y de código abierto para la lectura bilingüe',
     'options.aboutCoreExperience': 'Experiencia principal',
     'options.aboutBornForReading': 'Diseñado para leer',
     'options.aboutCoreDescription': 'Desde la traducción de páginas hasta la selección de texto, la traducción al pasar el ratón y los atajos, las acciones habituales están siempre a mano.',

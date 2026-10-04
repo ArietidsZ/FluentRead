@@ -326,8 +326,7 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .about-identity > div { display: grid; min-width: 0; gap: 6px; }
 .about-identity strong { font-size: 24px; font-weight: 700; letter-spacing: -.03em; }
 .about-version { color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
-.about-intro h2 { max-width: 15em; margin: 0 0 18px; color: var(--ink); font-size: clamp(28px, 2.6vw, 42px); font-weight: 700; line-height: 1.4; letter-spacing: -.035em; text-wrap: balance; overflow-wrap: anywhere; }
-.about-description { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.8; overflow-wrap: anywhere; }
+.about-intro h2 { max-width: 15em; margin: 0; color: var(--ink); font-size: clamp(28px, 2.6vw, 42px); font-weight: 700; line-height: 1.4; letter-spacing: -.035em; text-wrap: balance; overflow-wrap: anywhere; }
 .about-experience { min-width: 0; padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
 .about-experience h3 { margin: 0 0 8px; color: var(--ink); font-size: 18px; font-weight: 650; line-height: 1.5; }
 .about-experience > p { margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
@@ -351,7 +350,7 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .about-links a:hover { border-color: var(--brand); background: var(--surface-soft); }
 .about-links a:hover strong, .about-links a:hover > .fr-ui-icon { color: var(--brand-strong); }
 .about-features button:focus-visible, .about-links a:focus-visible, .about-support-method:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 3px; }
-.about-support-options { display: flex; align-items: center; gap: 24px; }
+.about-support-options { display: flex; align-items: center; justify-content: center; gap: 24px; }
 .about-support-method { max-width: 100%; color: var(--ink); font-size: 13px; line-height: 1.6; text-decoration: none; }
 .about-support-wechat { display: grid; flex: 0 0 176px; justify-items: center; gap: 10px; width: 176px; border-radius: 12px; }
 .about-support-qr { display: block; width: 100%; height: auto; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 12px; background: #fff; object-fit: contain; }
@@ -378,7 +377,6 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
   .about-identity { margin-bottom: 22px; }
   .about-logo { width: 52px; height: 52px; border-radius: 14px; }
   .about-identity strong { font-size: 22px; }
-  .about-description { font-size: 14px; }
   .about-experience { padding: 20px; }
   .about-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .about-panel { padding: 24px; border-radius: 18px; }
@@ -386,9 +384,9 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 @media (max-width: 480px) {
   .about-links { grid-template-columns: minmax(0, 1fr); }
   .about-links a { min-height: 88px; }
-  .about-support-options { flex-direction: column; align-items: stretch; gap: 20px; }
+  .about-support-options { flex-direction: column; align-items: center; gap: 20px; }
   .about-support-wechat { flex-basis: auto; width: 192px; align-self: center; }
-  .about-support-copy { justify-items: stretch; text-align: center; }
+  .about-support-copy { justify-items: center; text-align: center; }
 }
 /* 桌面侧栏按可用高度收紧留白；保留字号与全部入口，极矮窗口仍独立滚动。 */
 @media (min-width: 701px) {
