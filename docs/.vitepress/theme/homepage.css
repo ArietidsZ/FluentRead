@@ -318,6 +318,34 @@
   }
 }
 
+/* 首屏下方的介绍视频：点击播放后才加载文件，宽度不超过功能区，始终保持 16:9。 */
+.bv-site .bv-promo {
+  max-width: 1180px;
+  padding: 64px 32px;
+  text-align: center;
+}
+.bv-promo-video {
+  display: block;
+  width: 100%;
+  max-width: 1040px;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  margin: 12px auto 0;
+  border-radius: 20px;
+  background: var(--vp-c-bg-soft);
+  box-shadow:
+    0 30px 80px rgba(120, 40, 80, 0.14),
+    0 6px 18px rgba(120, 40, 80, 0.06);
+}
+@media (max-width: 760px) {
+  .bv-site .bv-promo {
+    padding: 48px 20px;
+  }
+  .bv-promo-video {
+    border-radius: 14px;
+  }
+}
+
 /* 五项功能使用同一阅读顺序、列宽与演示外壳。 */
 .bv-site .bv-feature-row {
   display: grid;

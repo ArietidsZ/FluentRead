@@ -14,6 +14,14 @@
 
 FluentRead 支持在原网页中对照阅读原文与译文，并提供划词翻译、AI 阅读辅助、图片翻译、文档翻译和视频双语字幕。翻译卡片接入了 **DeepSeek Harness 会话内核的浏览器适配**，支持结合上下文解释选中文字并连续追问。
 
+<div align="center">
+
+[![流畅阅读介绍视频](../docs/public/videos/fluentread-promo-zh-poster.webp)](https://read.thinkstu.com/videos/fluentread-promo-zh.mp4)
+
+[▶ 观看 56 秒介绍视频](https://read.thinkstu.com/videos/fluentread-promo-zh.mp4) · [English](https://read.thinkstu.com/videos/fluentread-promo-en.mp4)
+
+</div>
+
 [![FluentRead 网页双语对照效果](../docs/public/screenshots/translation.webp)](../docs/public/screenshots/translation.webp)
 
 ## 主要功能
