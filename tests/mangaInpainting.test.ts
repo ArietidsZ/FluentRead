@@ -60,6 +60,11 @@ describe('漫画局部神经修补',()=>{
         await runtime.repair(pixels(),128,128,[region]);expect(create).toHaveBeenCalledOnce();await vi.advanceTimersByTimeAsync(60000);expect(port.release).not.toHaveBeenCalled();await vi.advanceTimersByTimeAsync(120000);expect(port.release).toHaveBeenCalledOnce();
         await runtime.repair(pixels(),128,128,[region]);expect(create).toHaveBeenCalledTimes(2);await runtime.dispose();await runtime.dispose();
     });
+    it('原图背景分类与绘字共享，不重复采样修补后的背景',async()=>{
+        const port={run:vi.fn(async patch=>zero(patch)),release:vi.fn()},create=vi.fn(async()=>port),runtime=createMangaInpaintingRuntime(create);
+        await runtime.repair(pixels(),128,128,[region],undefined,undefined,undefined,[{color:'rgb(255,255,255)',uniform:true}]);
+        expect(mocks.background).not.toHaveBeenCalled();expect(create).not.toHaveBeenCalled();await runtime.dispose();
+    });
     it('预取消、初始化取消和推理取消均不回写迟到结果',async()=>{
         const abort=new AbortController();abort.abort();const port={run:vi.fn(async patch=>zero(patch)),release:vi.fn()},create=vi.fn(async()=>port),runtime=createMangaInpaintingRuntime(create);
         await expect(runtime.repair(pixels(),128,128,[region],abort.signal)).rejects.toMatchObject({name:'AbortError'});expect(create).not.toHaveBeenCalled();

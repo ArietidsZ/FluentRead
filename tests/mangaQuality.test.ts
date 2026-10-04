@@ -69,12 +69,12 @@ describe('漫画字号和安全绘制', () => {
         const context = {save: vi.fn(), restore: vi.fn(), fillRect: vi.fn(), fillStyle: '', font: '',
             beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(), measureText: vi.fn(() => ({width: 1})), strokeText: vi.fn(), fillText: vi.fn()};
         drawMangaTranslations(context as any, pixels, width, height, [{text:'译文',fontSize:20,bbox:{x0:20,y0:20,x1:80,y1:60}}]);
-        expect(context.fillRect).toHaveBeenCalledWith(20,20,60,40); expect(context.fillStyle).toBe('#111827');
+        expect(context.fillRect).toHaveBeenCalledWith(20,20,60,40); expect(context.fillStyle).toBe('#111111');
         for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
             const offset = (y * width + x) * 4; pixels[offset] = (x+y)%2 ? 0 : 255;
         }
         drawMangaTranslations(context as any, pixels, width, height, [{text:'译文',fontSize:20,bbox:{x0:20,y0:20,x1:80,y1:60}}]);
-        expect(context.save).toHaveBeenCalledTimes(4); expect(context.restore).toHaveBeenCalledTimes(4);
+        expect(context.save).toHaveBeenCalledTimes(2); expect(context.restore).toHaveBeenCalledTimes(2);
         expect(context.fillRect).toHaveBeenCalledTimes(2);
         drawMangaTranslations(context as any,pixels,width,height,[{text:'译文',fontSize:20,bbox:{x0:20,y0:20,x1:80,y1:60}}],true);
         expect(context.fillRect).toHaveBeenCalledTimes(2); // 已修补画面不再铺白底。

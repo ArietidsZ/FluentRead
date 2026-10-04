@@ -1,10 +1,10 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const mocks = vi.hoisted(() => ({recognize: vi.fn(), inpaint: vi.fn(), background: vi.fn(), draw: vi.fn(), mangaRecognize:vi.fn(), repair:vi.fn(), mangaDraw:vi.fn(), encode:vi.fn()}));
+const mocks = vi.hoisted(() => ({recognize: vi.fn(), inpaint: vi.fn(), background: vi.fn(), draw: vi.fn(), mangaRecognize:vi.fn(), repair:vi.fn(), mangaDraw:vi.fn(), sampleManga:vi.fn(), encode:vi.fn()}));
 vi.mock('@/src/features/image-translation/services/mangaEncoding',()=>({encodeMangaCanvas:mocks.encode}));
 vi.mock('@/src/features/image-translation/services/mangaOcr',()=>({mangaOcrRuntime:{recognize:mocks.mangaRecognize}}));
 vi.mock('@/src/features/image-translation/services/mangaInpainting',()=>({mangaInpaintingRuntime:{repair:mocks.repair}}));
-vi.mock('@/src/features/image-translation/services/mangaRendering',()=>({drawMangaTranslations:mocks.mangaDraw}));
+vi.mock('@/src/features/image-translation/services/mangaRendering',()=>({drawMangaTranslations:mocks.mangaDraw,sampleMangaBackgrounds:mocks.sampleManga}));
 vi.mock('@/src/features/image-translation/services/ocrRuntime', () => ({recognizeImage: mocks.recognize}));
 vi.mock('@/src/features/image-translation/services/inpainting', () => ({inpaintTextRegions: mocks.inpaint}));
 vi.mock('@/src/features/image-translation/services/rendering', () => ({
@@ -87,6 +87,7 @@ async function flushMicrotasks() { for (let index = 0; index < 8; index += 1) aw
 beforeEach(() => {
     vi.resetAllMocks();
     mocks.encode.mockResolvedValue('data:image/png;base64,translated');
+    mocks.sampleManga.mockReturnValue([{color:'rgb(255,255,255)',uniform:false}]);
     imageOptions.length = 0;
     images.length = 0;
     canvases.length = 0;
@@ -106,13 +107,23 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('Offscreen 图片完整操作生命周期', () => {
+    it('单图选择 PaddleOCR 只替换识别引擎，仍返回完整译图与文本，不启动漫画修补', async () => {
+        mocks.mangaRecognize.mockResolvedValue(lines);
+        const result=await translateImageInOffscreen('image','en','Page',undefined,'single-paddle',false,'paddle');
+        expect(mocks.recognize).not.toHaveBeenCalled();expect(mocks.mangaRecognize).toHaveBeenCalled();
+        expect(result.image).toBe('data:image/png;base64,translated');expect(result.mangaPatches).toBeUndefined();
+        expect(result.lines[0].sourceText).toBe('Hello');expect(mocks.repair).not.toHaveBeenCalled();
+    });
+
     it('漫画整段识别走专用模型与局部修补，保留对照并报告准备阶段',async()=>{
         const regions=[{...lines[0],fontSize:10,sourceBoxes:[lines[0].bbox]}];
         mocks.mangaRecognize.mockImplementationOnce(async(_image,_language,_w,_h,_signal,progress)=>{progress('preparing',23);progress('recognizing');return regions;});
         mocks.repair.mockImplementationOnce(async(pixels,_w,_h,_lines,_signal,onPreparing,onRepair)=>{onPreparing();onRepair(1,2);return pixels;});
         const result=await translateImageInOffscreen('manga','en','Page',undefined,'manga-page',true);
         expect(mocks.recognize).not.toHaveBeenCalled();expect(mocks.inpaint).not.toHaveBeenCalled();expect(mocks.draw).not.toHaveBeenCalled();
-        expect(mocks.mangaDraw).toHaveBeenCalledWith(canvases[0].context,expect.any(Uint8ClampedArray),32,16,[expect.objectContaining({text:'你好',sourceBoxes:regions[0].sourceBoxes})],true);
+        expect(mocks.mangaDraw).toHaveBeenCalledWith(canvases[0].context,expect.any(Uint8ClampedArray),32,16,[expect.objectContaining({text:'你好',sourceBoxes:regions[0].sourceBoxes})],true,[{color:'rgb(255,255,255)',uniform:false}]);
+        expect(mocks.sampleManga.mock.invocationCallOrder[0]).toBeLessThan(mocks.repair.mock.invocationCallOrder[0]);
+        expect(mocks.repair.mock.calls[0][7]).toBe(mocks.mangaDraw.mock.calls[0][6]);
         expect(result.lines[0]).toMatchObject({text:'你好',sourceText:'Hello'});
         expect(mocks.encode).toHaveBeenCalledWith(canvases[1],undefined);
         expect(result.image).toBe(''); expect(result.mangaPatches).toMatchObject({width:32,height:16,patches:[{x:1,y:1,width:30,height:14}]});
@@ -274,6 +285,23 @@ describe('Offscreen 图片完整操作生命周期', () => {
         await expect(translateImageInOffscreen('no-text','ja','',undefined,undefined,true)).resolves.toEqual({image:'no-text',lines:[]});
         expect(sendMessage).not.toHaveBeenCalled();expect(canvases).toHaveLength(0);expect(mocks.repair).not.toHaveBeenCalled();
         expect(images[0].src).toBe('');
+    });
+    it.each([false, true])('漫画已识别但译文无需变化时只返回轻量结果，尺寸回退=%s', async fallback => {
+        if (fallback) imageOptions.push({naturalWidth: 0, naturalHeight: 0});
+        mocks.mangaRecognize.mockResolvedValueOnce(lines);
+        sendMessage.mockImplementation((message, callback) => callback(message.type === 'fluentReadImageTranslateTexts' ? {success: true, translations: ['Hello']} : undefined));
+        const result = await translateImageInOffscreen('same-text', 'en', '', undefined, 'unchanged', true);
+        expect(result).toMatchObject({image: '', mangaPatches: {width: 32, height: 16, patches: []}, lines: [{sourceText: 'Hello', text: 'Hello'}]});
+        expect(canvases).toHaveLength(0);expect(mocks.repair).not.toHaveBeenCalled();expect(images[0].src).toBe('');
+    });
+    it('漫画局部画布无法创建上下文时不返回半成品并释放所有图像', async () => {
+        mocks.mangaRecognize.mockResolvedValueOnce(lines);mocks.repair.mockImplementationOnce(async pixels => pixels);
+        vi.stubGlobal('document', {createElement: () => {
+            const canvas = makeCanvas();if (canvases.length === 2) canvas.getContext.mockReturnValue(null);return canvas;
+        }});
+        await expect(translateImageInOffscreen('patch-failed', 'en', '', undefined, 'patch-failed', true)).rejects.toThrow('浏览器不支持图片处理');
+        expect(canvases).toHaveLength(2);expect(canvases.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true);
+        expect(images[0].src).toBe('');expect(mocks.encode).not.toHaveBeenCalled();
     });
     it('OCR 返回时已取消，不再发送翻译请求', async () => {
         const controller = new AbortController();

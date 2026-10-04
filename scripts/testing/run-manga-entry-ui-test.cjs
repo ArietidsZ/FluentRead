@@ -36,7 +36,7 @@ async function patch(config) {await popup.evaluate(async config => {
     if (!response.success) throw new Error(response.error);
 }, config);}
 async function shot(name) {focusGuard();const file = path.join(artifacts, `${name}.png`);await page.screenshot({path: file});report.screenshots.push(file);}
-async function clickEntry(selector) {const point = await entry(`const b=this.querySelector(${JSON.stringify(selector)});if(!b)return null;const r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}`);assert.ok(point);await page.mouse.click(point.x, point.y);}
+async function clickEntry(selector) {let point = await entry(`const b=this.querySelector(${JSON.stringify(selector)});if(!b)return null;const r=b.getBoundingClientRect();return {x:r.x+r.width*(getComputedStyle(b).clipPath!=='none'?.25:.5),y:r.y+r.height/2}`);assert.ok(point);await page.mouse.move(point.x,point.y);await page.waitForTimeout(550);point=await entry(`const r=this.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}`);await page.mouse.click(point.x, point.y);}
 (async () => {
     launched = await launchFocusSafePersistentContext({chromium, profileDir: profile, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', headless: false, background: true,
         browserArgs: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`, '--no-first-run', '--no-default-browser-check'], viewport: {width: 1280, height: 900}, timeout: 30000});
@@ -68,8 +68,8 @@ async function clickEntry(selector) {const point = await entry(`const b=this.que
         assert.equal(await ball('return this.querySelector(".manga-icon")?.tagName.toLowerCase()'), 'svg');
         assert.equal(await ball('return this.querySelector(".manga-icon")?.textContent.trim()'), '');
         const mangaButtons = await ball('return [".floating-ball-main", ".floating-ball-manga"].map(s => {const r=this.querySelector(s).getBoundingClientRect();return {left:r.left,right:r.right,width:r.width}})');
-        assert.equal(mangaButtons[0].width, 40);assert.equal(mangaButtons[1].width, 40);
-        assert.ok(mangaButtons.every(r => r.left >= 0 && r.right <= 1280), 'Both manga reader buttons remain fully visible');
+        assert.equal(mangaButtons[0].width, 32);assert.equal(mangaButtons[1].width, 32);
+        assert.ok(mangaButtons.every(r => r.left >= 0 && r.left < 1280 && r.right <= 1298), 'Compact manga buttons retain an accessible edge handle');
         report.mangaButtons = mangaButtons;
         await shot('entry-initial');report.cases.push(report.currentCase);
         report.currentCase = 'manga entry remains after closing floating ball';await patch({disableFloatingBall: true});

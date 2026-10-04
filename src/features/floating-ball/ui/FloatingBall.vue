@@ -1,7 +1,7 @@
 <!--
  * @file src/features/floating-ball/ui/FloatingBall.vue
  * 文件职责：呈现低干扰、可拖拽和按需展开的页面悬浮球，并把全文与漫画翻译状态、拖动停靠、打开设置、高级外观参数和键盘关闭整合为可复用 Vue 组件。
- * 主要内容：漫画阅读器显示同尺寸的常驻按钮和真实任务状态；普通页面主体默认半隐藏于边缘，展开时留出滚动条间距与悬停通道；按展示契约控制展开延迟、触屏、紧凑尺寸与不透明度，使用位移阈值区分点击与拖拽，按视口比例恢复并限制位置。
+ * 主要内容：漫画阅读器采用紧凑阅读图标和真实任务状态，闲置后收回边缘，鼠标与触摸访问后延时收起，键盘聚焦时保持可操作；按展示契约控制展开延迟、触屏与不透明度，使用位移阈值区分点击与拖拽，按视口比例恢复并限制位置。
  * 模块边界：它只负责视觉与局部交互，不直接调用浏览器消息、保存配置或执行全文翻译；这些副作用由 content/runtime 通过 props、事件和 defineExpose 桥接，外观配置的归一化留在 core/config。
  -->
 <template>
@@ -21,8 +21,10 @@
     :style="rootStyle"
     @mouseenter="expandBall"
     @mouseleave="collapseBall"
+    @pointermove="keepMangaToolsVisible"
     @focusin="expandBallImmediately"
     @focusout="collapseBall"
+    @keydown.esc.stop="handleDocumentKeydown"
   >
     <button
       v-if="showTranslateTool"
@@ -52,11 +54,11 @@
       :aria-busy="manga.pending"
       :title="mangaTitle"
       @pointerdown.stop
-      @click.stop="onMangaToggle"
+      @click.stop="handleMangaClick"
     >
       <svg class="manga-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="3" y="3" width="18" height="18" rx="2.5" stroke="currentColor" stroke-width="1.7" />
-        <path d="M3 14h18m-9 0v7M7 6h10v4h-6l-3 2v-2H7V6Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1m0-14c3-2 6-2 9-1v14c-3-1-6-1-9 1V6Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M5.5 8.5h4v4h-2l-1.5 1v-1h-.5v-4Zm9.5.5h3m-3 3h3m-3 3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
       <span v-if="manga.active && !manga.pending && (manga.errors > 0 || (manga.completed ?? 0) > 0)" class="manga-check" :class="{'manga-error': manga.errors > 0}" aria-hidden="true">
         <svg viewBox="0 0 16 16" fill="none"><path :d="manga.errors ? 'M8 4.5v4.3m0 2.2v.1' : 'm4 8 2.7 2.7L12 5.5'" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
@@ -189,6 +191,7 @@ const floatingBallMain = ref<HTMLElement | null>(null);
 const dragState = ref<PointerDragState | null>(null);
 const touchExpanded = ref(false);
 let expandTimer: ReturnType<typeof setTimeout> | null = null;
+let mangaIdleTimer: ReturnType<typeof setTimeout> | null = null;
 
 // 缺失字段按默认值补齐，避免旧配置或部分更新让模板读到 undefined。
 const presentation = computed<FloatingBallPresentation>(() => ({
@@ -205,7 +208,7 @@ const isMainActionable = computed(() => presentation.value.clickAction !== 'none
 const mangaTitle = computed(() => {
   const manga = props.manga;
   if (!manga?.active) return t('漫画翻译 · 自动翻译新页面');
-  const message = manga.pending ? manga.message || '正在处理当前漫画页' : manga.errors ? '部分页面未完成，可在图片上重试' : '连续翻译已开启';
+  const message = manga.pending ? manga.message || '正在处理当前漫画页' : manga.errors ? '部分页面未完成' : '连续翻译已开启';
   return `${t(message)} · ${t('暂停并显示原图')}`;
 });
 const mainActionLabel = computed(() => {
@@ -233,18 +236,49 @@ function clearExpandTimer() {
   expandTimer = null;
 }
 
+function clearMangaIdleTimer() {
+  if (mangaIdleTimer !== null) clearTimeout(mangaIdleTimer);
+  mangaIdleTimer = null;
+}
+
+/** 单页反馈承担进度，工具入口不因后台推理常驻；键盘用户操作时不自动收起。 */
+function scheduleMangaCollapse() {
+  clearMangaIdleTimer();
+  if (!props.manga?.available || isAlwaysExpanded.value || isDragging.value || floatingBall.value?.querySelector(':focus-visible')) return;
+  mangaIdleTimer = setTimeout(() => {
+    mangaIdleTimer = null;
+    if (isDragging.value || floatingBall.value?.querySelector(':focus-visible')) return;
+    isExpanded.value = false;
+    touchExpanded.value = false;
+  }, 2500);
+}
+
+function keepMangaToolsVisible(event: PointerEvent) {
+  if (!props.manga?.available || event.pointerType !== 'mouse' || isDragging.value) return;
+  if (!isMenuExpanded.value) expandBall();
+  else scheduleMangaCollapse();
+}
+
+function handleMangaClick(event: MouseEvent) {
+  props.onMangaToggle(event);
+  // 鼠标点击留下的 focus 不应把工具锁在屏幕上，键盘点击则保留焦点。
+  if (event.detail > 0) (event.currentTarget as HTMLElement)?.blur();
+  scheduleMangaCollapse();
+}
+
 function expandBall() {
   if (isDragging.value || isAlwaysExpanded.value) return;
   const delay = Math.max(0, presentation.value.hoverDelay);
   clearExpandTimer();
   if (delay === 0) {
     isExpanded.value = true;
+    scheduleMangaCollapse();
     return;
   }
   // 悬停延迟只推迟展开，不改变已展开状态；越过页面边缘时不再误触工具按钮。
   expandTimer = setTimeout(() => {
     expandTimer = null;
-    if (!isDragging.value) isExpanded.value = true;
+    if (!isDragging.value) {isExpanded.value = true; scheduleMangaCollapse();}
   }, delay);
 }
 
@@ -253,11 +287,18 @@ function expandBallImmediately() {
   if (isDragging.value || isAlwaysExpanded.value) return;
   clearExpandTimer();
   isExpanded.value = true;
+  scheduleMangaCollapse();
 }
 
 function collapseBall() {
   clearExpandTimer();
+  // 鼠标仍在工具内时，点击后 blur 只释放焦点，不移动下一次点击的目标。
+  if (props.manga?.available && (floatingBall.value?.matches(':hover') || floatingBall.value?.querySelector(':focus-visible'))) {
+    scheduleMangaCollapse();
+    return;
+  }
   if (!isDragging.value && !floatingBall.value?.matches(':focus-within')) isExpanded.value = false;
+  scheduleMangaCollapse();
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -281,7 +322,7 @@ function updatePositionStyle() {
 }
 
 function fallbackBallSize() {
-  return presentation.value.compact ? COMPACT_BALL_SIZE : BALL_SIZE;
+  return presentation.value.compact || props.manga?.available ? COMPACT_BALL_SIZE : BALL_SIZE;
 }
 
 function startDrag(event: PointerEvent) {
@@ -461,6 +502,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearExpandTimer();
+  clearMangaIdleTimer();
   removePointerListeners();
   window.removeEventListener('resize', updatePositionStyle);
   document.removeEventListener('keydown', handleDocumentKeydown);
@@ -483,11 +525,12 @@ watch(() => props.initialTranslating, (nextState) => {
 });
 
 // 尺寸切换会改变停靠高度，必须重新计算纵向居中，避免紧凑模式下出现偏移。
-watch(() => presentation.value.compact, () => {
+watch(() => [presentation.value.compact, props.manga?.available], () => {
   nextTick(updatePositionStyle);
 });
 
 watch(() => presentation.value.toolsDisplay, (display) => {
+  clearMangaIdleTimer();
   if (display !== 'hover') clearExpandTimer();
   if (display === 'hidden') isExpanded.value = false;
   if (display !== 'hover') touchExpanded.value = false;
@@ -555,6 +598,9 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   --fr-ball-mascot-size: 19px;
   gap: 6px;
 }
+.fr-floating-ball.manga-reader {
+  --fr-ball-size:32px;--fr-ball-tool-size:32px;--fr-ball-icon-size:15px;--fr-ball-mascot-size:19px;--fr-ball-reader-inset:16px;gap:6px;
+}
 
 .fr-floating-ball[data-position="left"] {
   left: var(--fr-ball-edge-gap);
@@ -616,11 +662,6 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   transform: translateX(calc(-50% - var(--fr-ball-edge-gap)));
 }
 
-/* 漫画阅读时两个常驻入口完整显示，保持同尺寸并让状态勾始终可见。 */
-.fr-floating-ball.manga-reader:not(.floating-ball-expanded):not(.dragging) .floating-ball-main {
-  transform: translateX(0);
-}
-
 .fr-floating-ball.floating-ball-expanded .floating-ball-main {
   filter: drop-shadow(0 8px 10px rgba(15, 23, 42, 0.16));
 }
@@ -671,13 +712,15 @@ watch(() => presentation.value.settingsEntryVisible, () => {
 .fr-floating-ball .floating-ball-manga {
   opacity: var(--fr-ball-collapsed-opacity, 0.52);
   pointer-events: auto;
-  transform: translateX(0);
 }
+/* 半圆把手留在滚动条内侧；macOS 滚动时出现的原生滚动条不能吞掉全部命中区域。 */
+.fr-floating-ball.manga-reader:not(.floating-ball-expanded):not(.dragging)[data-position="right"] :is(.floating-ball-manga,.floating-ball-main) {transform:translateX(calc(50% + var(--fr-ball-edge-gap) - var(--fr-ball-reader-inset)));clip-path:inset(-6px 50% -6px -6px);opacity:var(--fr-ball-collapsed-opacity,.52);}
+.fr-floating-ball.manga-reader:not(.floating-ball-expanded):not(.dragging)[data-position="left"] :is(.floating-ball-manga,.floating-ball-main) {transform:translateX(calc(-50% - var(--fr-ball-edge-gap) + var(--fr-ball-reader-inset)));clip-path:inset(-6px -6px -6px 50%);opacity:var(--fr-ball-collapsed-opacity,.52);}
 .fr-floating-ball .floating-ball-manga.manga-active,
 .fr-floating-ball .floating-ball-manga:hover,
 .fr-floating-ball .floating-ball-manga:focus-visible { opacity: 1; color: #ec4d7d; }
 .fr-floating-ball .floating-ball-manga.manga-active {
-  box-shadow: 0 0 0 2px #ec4d7d, 0 3px 10px rgba(0,0,0,.16);
+  border-color:#ec4d7d;background:#fff7fa;
 }
 .manga-check {
   position: absolute; right: -4px; bottom: -4px; width: 19px; height: 19px;
@@ -690,7 +733,7 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   position: absolute; inset: 1px; border: 2px solid rgba(236,77,125,.18); pointer-events: none;
   border-top-color: #ec4d7d; border-right-color: #ec4d7d; border-radius: 50%; animation: fr-manga-spin 1.2s linear infinite;
 }
-.manga-icon {width:22px;height:22px;}
+.manga-icon {width:18px;height:18px;}
 @keyframes fr-manga-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .manga-progress { animation: none; border-style: dotted; } }
 

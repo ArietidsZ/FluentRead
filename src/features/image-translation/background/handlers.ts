@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/background/handlers.ts
  * 文件职责：定义跨域图片读取、整图翻译、文本批译、阶段进度、取消和语言包下载后台消息，并对来自页面或扩展 UI 的未知输入执行严格校验。
- * 主要内容：包含消息解析、OCR 语言白名单、阶段与百分比通知和取消预算；逐包下载排队、去重、部分成功保存和跨页状态查询；图片文本排除无需翻译的符号与技术标识，去重批量和有界并发翻译同时保留原行映射、后台恢复的可信页面范围、源语言与术语版本。
+ * 主要内容：按已保存设置选择单图 OCR，PaddleOCR 不要求 Tesseract 语言包；包含消息解析、OCR 语言白名单、阶段与百分比通知和取消预算；逐包下载排队、去重、部分成功保存和跨页状态查询；图片文本排除无需翻译的符号与技术标识，去重批量和有界并发翻译同时保留原行映射、后台恢复的可信页面范围、源语言与术语版本。
  * 模块边界：本文件只负责协议入口与用例编排，不直接运行 Tesseract、Canvas、网络 fetch 或 Offscreen；图像读取和运算能力均由 Offscreen adapter 与 services 实现并由 app 注入。
  */
 import {normalizeRemoteImageUrl} from '../services/remoteImage';
@@ -95,6 +95,7 @@ type ImageTextTranslationRequest = ImageTextTranslationRequestBase & (
 );
 
 export interface ImageTranslationBackgroundDependencies {
+    readonly getImageOcrEngine?: () => 'tesseract' | 'paddle';
     readonly getMangaModelStatus?: () => Promise<{ready: boolean; bytes: number; inpaintingReady: boolean}>;
     readonly removeMangaModels?: () => Promise<void>;
     readonly assertLanguagesDownloaded: (sourceLanguage: string) => Promise<void>;
@@ -122,6 +123,7 @@ export interface ImageTranslationBackgroundDependencies {
 }
 
 export interface ImageOperationOptions {
+    readonly ocrEngine?: 'paddle';
     /** 仅由已复核的消息 sender 提供，不接受消息体自报来源。 */
     readonly documentUrl?: string;
     readonly manga?: true;
@@ -468,7 +470,8 @@ export function createImageTranslationBackgroundHandlers(
                 if (message.manga !== undefined && typeof message.manga !== 'boolean') throw new TypeError('漫画翻译模式无效');
                 const result = parseObjectResult(
                     await operationRegistry.run(message, async (options) => {
-                        if (!message.manga) await dependencies.assertLanguagesDownloaded(sourceLanguage);
+                        const paddle = !message.manga && dependencies.getImageOcrEngine?.() === 'paddle';
+                        if (!message.manga && !paddle) await dependencies.assertLanguagesDownloaded(sourceLanguage);
                         if (options.signal.aborted) throw imageAbortError(false);
                         const progressOwner = {context};
                         progressOwners.set(options.requestId, progressOwner);
@@ -477,7 +480,7 @@ export function createImageTranslationBackgroundHandlers(
                         };
                         options.signal.addEventListener('abort', clearProgressOwner, {once: true});
                         try {
-                            return await dependencies.translateImage(image, sourceLanguage, title, message.manga ? {...options, manga: true} : options);
+                            return await dependencies.translateImage(image, sourceLanguage, title, message.manga ? {...options, manga: true} : paddle ? {...options, ocrEngine: 'paddle'} : options);
                         } finally {
                             clearProgressOwner();
                             options.signal.removeEventListener('abort', clearProgressOwner);
