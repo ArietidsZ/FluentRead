@@ -14,6 +14,14 @@ An open-source browser extension for bilingual translation.
 
 FluentRead displays translations alongside the original webpage and provides selection translation, AI reading assistance, image and document translation, and bilingual video subtitles. Its reading card integrates a **browser adaptation of the DeepSeek Harness session core** for contextual explanations and follow-up questions.
 
+<div align="center">
+
+[![FluentRead introduction video](./docs/public/videos/fluentread-promo-en-poster.webp)](https://read.thinkstu.com/videos/fluentread-promo-en.mp4)
+
+[▶ Watch the 56-second introduction](https://read.thinkstu.com/videos/fluentread-promo-en.mp4) · [中文版](https://read.thinkstu.com/videos/fluentread-promo-zh.mp4)
+
+</div>
+
 [![FluentRead bilingual webpage translation](./docs/public/screenshots/en/translation.webp)](./docs/public/screenshots/en/translation.webp)
 
 ## Features
