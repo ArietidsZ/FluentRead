@@ -16,7 +16,7 @@ describe('WebDAV 真实 HTTP 协议夹具',()=>{
             if(req.url==='/redirect/'){res.writeHead(302,{Location:'/private-other/'}).end();return;}
             if(req.method==='PROPFIND'&&(req.url==='/dav/'||req.url==='/dav/FluentRead/')){
                 if(req.url==='/dav/FluentRead/'&&!folder){res.writeHead(404).end();return;}
-                res.writeHead(207,{'Content-Type':'application/xml'}).end('<d:multistatus xmlns:d="DAV:"><d:response><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>');return;
+                res.writeHead(207,{'Content-Type':'application/xml'}).end(`<d:multistatus xmlns:d="DAV:"><d:response><d:href>${req.url}</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>`);return;
             }
             if(req.method==='MKCOL'&&req.url==='/dav/FluentRead/'){const status=folder?405:201;folder=true;res.writeHead(status).end();return;}
             if(req.url!=='/dav/FluentRead/fluentread-config.encrypted.json'){res.writeHead(404).end();return;}

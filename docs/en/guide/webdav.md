@@ -8,7 +8,7 @@ Backups include API keys, configured OAuth tokens, authentication headers, custo
 
 ## Prepare a connection
 
-The server must support Basic authentication, `PROPFIND`, `GET`, `MKCOL`, and `PUT`. Safe updates also require strong ETags and support for `If-Match` and `If-None-Match`. An ETag may come from the download response header or the file's [`DAV:getetag` property](https://datatracker.ietf.org/doc/html/rfc4918#section-15.6). Property lookup is followed by a conditional read to verify the version and content. Use HTTPS with a valid certificate and a dedicated app password.
+The server must support Basic authentication, `PROPFIND`, `GET`, `MKCOL`, and `PUT`. Safe updates also require strong ETags and support for `If-Match` and `If-None-Match`. An ETag may come from the download response header or the file's [`DAV:getetag` property](https://datatracker.ietf.org/doc/html/rfc4918#section-15.6). Property lookup is followed by a conditional read to verify the version and content. Use HTTPS with a valid certificate and a dedicated app password. Property responses are parsed using XML namespaces and the requested resource, including local prefixes, CDATA and character references. Versions from other files or failed properties are never used for replacement.
 
 Enter the **WebDAV URL of an existing directory**, not the website homepage, a sharing link, or the backup file URL. Do not put credentials or query parameters in the URL.
 

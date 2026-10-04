@@ -69,6 +69,9 @@
     "settings.cloud.fieldLabel.1": "Mostrar atajo en el menú contextual",
     "settings.cloud.fieldLabel.2": "Atajo de traducción al pasar el cursor guardado",
     "settings.cloud.fieldLabel.3": "Modo de selección guardado",
-    "settings.cloud.fieldLabel.4": "Modelo local de reconocimiento de voz"
+    "settings.cloud.fieldLabel.4": "Modelo local de reconocimiento de voz",
+    "settings.cloud.cleanupPending": "Configuración sincronizada, pero la limpieza de la caché de autorización sigue pendiente. Reabre los ajustes para reintentarlo.",
+    "settings.cloud.versionMissing": "La copia no tiene un identificador de versión para reemplazarla de forma segura. Puedes restaurarla; vuelve a leerla antes de reintentarlo.",
+    "settings.cloud.verifyFailed": "La verificación de la copia ha fallado. Vuelve a leerla antes de reintentarlo; la configuración de este dispositivo no ha cambiado."
   }
 }
