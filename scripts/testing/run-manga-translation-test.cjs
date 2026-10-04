@@ -875,9 +875,9 @@ async function verifyReadAhead() {
     }
     if(!baseline){
         if(liveSite){await assertQuietReading();report.cases.push('scroll and hover never open a reading panel');}
-        report.currentCase='manga control stays compact beneath the readable brand';
+        report.currentCase='manga control stays compact beneath the resident brand icon';
         const metrics=await ball(`const a=this.querySelector('.floating-ball-manga').getBoundingClientRect(),b=this.querySelector('.floating-ball-main').getBoundingClientRect();return {manga:a.width,brand:b.width}`);
-        assert.equal(metrics.brand,104);assert.equal(metrics.manga,32);report.buttonSize=metrics;report.cases.push(report.currentCase);
+        assert.equal(metrics.brand,32);assert.equal(metrics.manga,32);report.buttonSize=metrics;report.cases.push(report.currentCase);
     }
     if(readerSmoke){auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.status='passed';focusGuard();return;}
     report.currentCase='settings switch persists across unmount and reopen';

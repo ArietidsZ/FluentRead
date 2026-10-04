@@ -1,7 +1,7 @@
 <!--
  * @file src/features/floating-ball/ui/FloatingBall.vue
  * 文件职责：呈现默认常驻、可辨认流畅阅读品牌的页面悬浮工具，将全文翻译、品牌手柄和漫画入口按顺序组织，并保留拖动停靠与自选悬停模式。
- * 主要内容：品牌主体显示本地图标与名称，全文按钮在上、漫画按钮在下；默认不因闲置、移出或 Escape 缩回边缘，显式悬停模式仍按展示契约处理延迟、触屏与不透明度。
+ * 主要内容：品牌主体只显示圆形本地图标，全文按钮在上、漫画按钮在下；默认不因闲置、移出或 Escape 缩回边缘，显式悬停模式仍按展示契约处理延迟、触屏与不透明度。
  * 模块边界：它只负责视觉与局部交互，不直接调用浏览器消息、保存配置或执行全文翻译；这些副作用由 content/runtime 通过 props、事件和 defineExpose 桥接，外观配置的归一化留在 core/config。
  -->
 <template>
@@ -60,7 +60,6 @@
         <image v-if="logoUrl" :href="logoUrl" x="0" y="0" width="32" height="32" preserveAspectRatio="none" image-rendering="auto" />
         <path v-else d="M16 8c-4-3-8-3-12-1v19c4-2 8-2 12 1m0-19c4-3 8-3 12-1v19c-4-2-8-2-12 1V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
       </svg>
-      <span class="floating-ball-brand" data-i18n-ignore><strong>流畅阅读</strong><small>FluentRead</small></span>
       <span v-if="isTranslating" class="check-mark" aria-hidden="true" />
     </div>
 
@@ -657,26 +656,9 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   color: #ec4d7d;
 }
 
-/* 默认常驻时用完整品牌胶囊；用户选择悬停模式后，收起仍只保留图标。 */
-.fr-floating-ball.floating-ball-expanded .floating-ball-main {
-  width: 112px;
-  border-radius: 999px;
-  gap: 7px;
-  padding: 0 10px;
-  box-sizing: border-box;
-}
-.floating-ball-brand {display:none;line-height:1.2;text-align:left;white-space:nowrap;pointer-events:none;}
-.floating-ball-expanded .floating-ball-brand {display:flex;flex-direction:column;gap:2px;}
-.floating-ball-brand strong {font-size:12px;font-weight:650;letter-spacing:.3px;}
-.floating-ball-brand small {font-size:9px;color:#64748b;letter-spacing:.1px;}
 .floating-ball-translate {order:0;}
 .floating-ball-manga {order:2;}
 .floating-ball-settings {order:3;}
-.fr-floating-ball.floating-ball-expanded {width:112px;}
-.fr-floating-ball.is-compact.floating-ball-expanded .floating-ball-main,
-.fr-floating-ball.manga-reader.floating-ball-expanded .floating-ball-main {width:104px;gap:6px;padding:0 8px;}
-.fr-floating-ball.is-compact.floating-ball-expanded,
-.fr-floating-ball.manga-reader.floating-ball-expanded {width:104px;}
 
 .fr-floating-ball:not(.floating-ball-expanded):not(.dragging)[data-position="right"] .floating-ball-main {
   opacity: var(--fr-ball-collapsed-opacity, 0.52);

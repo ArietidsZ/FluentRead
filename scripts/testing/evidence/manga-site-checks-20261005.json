@@ -4500,6 +4500,28 @@
       ],
       "profileRemoved": true,
       "scope": "Two observed pages; does not guarantee all chapters or OCR/translation quality."
+    },
+    "iconOnlyCorrection": {
+      "passed": true,
+      "cases": 16,
+      "caption": "none",
+      "brandShape": {
+        "width": 32,
+        "height": 32,
+        "radius": "50%"
+      },
+      "mangaSize": 32,
+      "ordinarySize": 40,
+      "residentAfterMouseLeaveIdleAndEscape": true,
+      "dragBothEdgesAndNarrowViewport": true,
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "browserFrontmost": false,
+      "profileRemoved": true,
+      "artifacts": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-icon-confirmed"
     }
   }
 }
