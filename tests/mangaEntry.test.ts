@@ -31,6 +31,17 @@ beforeEach(() => {
 afterEach(() => {unmountMangaEntry();vi.unstubAllGlobals();});
 
 describe('独立漫画入口所有权和配置端口', () => {
+    it('圈选端口只在启用漫画且确实检测到画布/分片时调用，不触发连续翻译', async () => {
+        const startAreaTranslation=vi.fn().mockResolvedValue(true);
+        await mountMangaEntry({} as never,{startAreaTranslation});
+        expect(await props().startAreaTranslation()).toBe(false);
+        mocks.status.mock.calls[0][0]({available:true,active:false,pending:false,errors:0,areaFallback:true});
+        expect(await props().startAreaTranslation()).toBe(true);expect(startAreaTranslation).toHaveBeenCalledOnce();
+        mocks.status.mock.calls[0][0]({available:false,active:false,pending:false,errors:0,areaFallback:true});
+        expect(await props().startAreaTranslation()).toBe(false);expect(startAreaTranslation).toHaveBeenCalledOnce();
+        mocks.config.on=false;expect(await props().startAreaTranslation()).toBe(false);
+        expect(mocks.toggle).not.toHaveBeenCalled();
+    });
     it('备用按钮依据普通悬浮球和站点名单显隐，不重复显示入口', async () => {
         await mountMangaEntry({} as never);
         expect(props().settings.floatingBallVisible).toBe(false);
@@ -66,7 +77,7 @@ describe('独立漫画入口所有权和配置端口', () => {
         mocks.config.to = 'en';mocks.config.imageTranslationMangaPromptEnabled = false;
         mocks.config.imageTranslationMangaDownloadConfirmed = true;mocks.config.imageTranslationService = 'google';
         mocks.config.imageTranslationMangaPrefetchPages = 0;
-        mocks.subscribe.mock.calls[0][0]();expect(props().settings).toEqual({promptEnabled: false, floatingBallVisible: false, to: 'en', downloadConfirmed: true, service: 'google', animations:false, prefetchPages:0});
+        mocks.subscribe.mock.calls[0][0]();expect(props().settings).toEqual({promptEnabled: false, floatingBallVisible: false, to: 'en', downloadConfirmed: true, service: 'google', animations:false, toolsDisplay:'always', prefetchPages:0});
         location.href = 'https://example.com/';document.dispatchEvent(new Event('fluentread-route-change'));
         expect(props().page).toEqual({site: '', route: location.href});
         expect(openMangaEntry()).toBe(true);expect(value.mounted.instance.open).toHaveBeenCalledOnce();

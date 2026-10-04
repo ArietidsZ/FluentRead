@@ -23,15 +23,15 @@ let cleanup: (() => void) | undefined;
 export function isMangaReaderPage(href = typeof location === 'undefined' ? '' : location.href): boolean {return !!resolveMangaSite(href, config.imageTranslationMangaSites);}
 export function isImageTranslatorNeeded(): boolean {return config.on && (!config.disableImageTranslator || (config.imageTranslationMangaEnabled && isMangaReaderPage()));}
 
-export function mountMangaEntry(ctx: ContentScriptContext): Promise<void> {
+export function mountMangaEntry(ctx: ContentScriptContext, ports: {startAreaTranslation?: () => boolean | Promise<boolean>} = {}): Promise<void> {
     if (ui || pending) return pending ?? Promise.resolve();
     const request = ++owner;
     const status = reactive<MangaTranslationStatus>({available: false, active: false, pending: false, errors: 0});
     const settings = reactive({promptEnabled: config.imageTranslationMangaPromptEnabled, floatingBallVisible: !config.disableFloatingBall && !isFloatingBallDisabledOnSite(location.href, config.floatingBallDisabledDomains), to: config.to,
-        service: config.imageTranslationService, downloadConfirmed: config.imageTranslationMangaDownloadConfirmed, animations: config.animations, prefetchPages: config.imageTranslationMangaPrefetchPages});
+        service: config.imageTranslationService, downloadConfirmed: config.imageTranslationMangaDownloadConfirmed, animations: config.animations, toolsDisplay: config.floatingBallToolsDisplay ?? 'always', prefetchPages: config.imageTranslationMangaPrefetchPages});
     const page = reactive({site: resolveMangaSite(location.href, config.imageTranslationMangaSites)?.name ?? '', route: location.href});
     const sync = () => {Object.assign(settings, {promptEnabled: config.imageTranslationMangaPromptEnabled, floatingBallVisible: !config.disableFloatingBall && !isFloatingBallDisabledOnSite(location.href, config.floatingBallDisabledDomains), to: config.to,
-        service: config.imageTranslationService, downloadConfirmed: config.imageTranslationMangaDownloadConfirmed, animations: config.animations, prefetchPages: config.imageTranslationMangaPrefetchPages});
+        service: config.imageTranslationService, downloadConfirmed: config.imageTranslationMangaDownloadConfirmed, animations: config.animations, toolsDisplay: config.floatingBallToolsDisplay ?? 'always', prefetchPages: config.imageTranslationMangaPrefetchPages});
         Object.assign(page, {site: resolveMangaSite(location.href, config.imageTranslationMangaSites)?.name ?? '', route: location.href});};
     const stopStatus = subscribeMangaTranslation(value => Object.assign(status, value));
     const stopConfig = subscribeConfig(sync);
@@ -39,6 +39,8 @@ export function mountMangaEntry(ctx: ContentScriptContext): Promise<void> {
     const remove = () => {stopStatus();stopConfig();document.removeEventListener('fluentread-route-change', sync);};
     pending = createVueShadowUi(ctx, {name: 'fluent-read-manga-entry', hostId: 'fluent-read-manga-entry-container', component: MangaEntry, mode: 'closed',
         props: {status, settings, page,
+            startAreaTranslation: async () => config.on && config.imageTranslationMangaEnabled && status.available && status.areaFallback === true
+                && await (ports.startAreaTranslation?.() ?? false),
             toggle: () => {if (config.on && config.imageTranslationMangaEnabled) toggleMangaTranslation();},
             inspectResources: async () => {
                 const result = await browser.runtime.sendMessage({type: 'fluentReadMangaModelStatus'}) as {success?: boolean; ready?: boolean; inpaintingReady?: boolean; error?: string};

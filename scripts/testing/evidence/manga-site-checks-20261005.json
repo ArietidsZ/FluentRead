@@ -1,0 +1,4505 @@
+{
+  "checkedOn": "2026-10-05 Asia/Shanghai",
+  "scope": "Public HTML availability and selected chapter DOM inspection. Neither proves all chapters or live OCR/translation.",
+  "sources": [
+    "https://github.com/immersive-translate/immersive-translate/issues/1809",
+    "https://github.com/immersive-translate/immersive-translate/issues/1809#issuecomment-3047801980",
+    "https://televikun-super-hero-comics.com/rensai/ultramanblazar/"
+  ],
+  "sites": [
+    {
+      "name": "Pixiv",
+      "hosts": [
+        "pixiv.net"
+      ],
+      "accessChecks": [],
+      "adapter": "images"
+    },
+    {
+      "name": "MANGA Plus by SHUEISHA",
+      "hosts": [
+        "mangaplus.shueisha.co.jp"
+      ],
+      "accessChecks": [],
+      "adapter": "images"
+    },
+    {
+      "name": "Zebrack by SHUEISHA",
+      "hosts": [
+        "zebrack-comic.shueisha.co.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://zebrack-comic.shueisha.co.jp/",
+          "checkedAt": "2026-10-04T16:26:44Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://zebrack-comic.shueisha.co.jp/",
+          "title": "ゼブラック｜総合電子書店",
+          "htmlSha256": "9a56515e86dabb23dec52c850ee579b30c6cdb8afe48315064f426df254d0b01",
+          "hostname": "zebrack-comic.shueisha.co.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "MANGA Million by SHUEISHA",
+      "hosts": [
+        "mangamillion.shueisha.co.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangamillion.shueisha.co.jp/",
+          "checkedAt": "2026-10-04T16:25:52Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangamillion.shueisha.co.jp/en",
+          "title": "MANGA MILLION | 1 million pages translation",
+          "htmlSha256": "3504c389b4d2cb5010aac733984c6cb7aabdff479944cdad56471e039d861835",
+          "hostname": "mangamillion.shueisha.co.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "COMIC FUZ",
+      "hosts": [
+        "comic-fuz.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic-fuz.com/",
+          "checkedAt": "2026-10-04T16:25:18Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic-fuz.com/",
+          "title": "COMIC FUZ",
+          "htmlSha256": "a712d321a954a30a4b38968b559faa590cfdf285c391659a2a2fd69bdc42019d",
+          "hostname": "comic-fuz.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "MangaDex",
+      "hosts": [
+        "mangadex.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangadex.org/",
+          "checkedAt": "2026-10-04T16:25:48Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangadex.org/",
+          "title": "MangaDex",
+          "htmlSha256": "3893fb4e257d1ba62bf799444490db501dfb17150e7825403f88e14c09fc4ca5",
+          "hostname": "mangadex.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "MangaDNA",
+      "hosts": [
+        "mangadna.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangadna.com/",
+          "checkedAt": "2026-10-04T16:25:48Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangadna.com/",
+          "title": "MangaDNA - Read Manga Online in English for Free",
+          "htmlSha256": "e373f47eb13808b5e82d781ebac120a46f278701abe3b588588cf366b27c7a82",
+          "hostname": "mangadna.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Yamibo",
+      "hosts": [
+        "yamibo.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://yamibo.com/",
+          "checkedAt": "2026-10-04T16:26:40Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.yamibo.com/site/novel",
+          "title": "小说 - 百合会",
+          "htmlSha256": "e9bca51ced109a44e7a1afcbc4f7ae25e5583fa66ec8a997b7551de756d71053",
+          "hostname": "yamibo.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "ShonenJumpPlus",
+      "hosts": [
+        "shonenjumpplus.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://shonenjumpplus.com/",
+          "checkedAt": "2026-10-04T16:26:25Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://shonenjumpplus.com/",
+          "title": "少年ジャンプ＋｜人気オリジナル連載が全話無料！の最強WEBマンガ誌",
+          "htmlSha256": "a341a38ab8fd7a26d98c007857cbbe66138e320e1c1dc8442bdd0be97519aaf9",
+          "hostname": "shonenjumpplus.com"
+        }
+      ],
+      "adapter": "area"
+    },
+    {
+      "name": "Rimacomiplus",
+      "hosts": [
+        "rimacomiplus.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://rimacomiplus.jp/",
+          "checkedAt": "2026-10-04T16:26:23Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://rimacomiplus.jp/",
+          "title": "リマコミ＋ | 無料で集英社の少女・女性マンガが読める",
+          "htmlSha256": "7e11924317805dc6fcf7ab20c67c79169260ea14b03c16c0f2e6fd30792770de",
+          "hostname": "rimacomiplus.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Heros Web",
+      "hosts": [
+        "viewer.heros-web.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://viewer.heros-web.com/",
+          "checkedAt": "2026-10-04T16:26:34Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://heros-web.com/",
+          "title": "HERO'S Web（ヒーローズウェブ）公式サイト | 毎日更新のマンガサイト！多彩な作品が無料で読める",
+          "htmlSha256": "37819faf5237084a1a5adb7d1f6a20426ea681463dcdf1236f8c3df0d3551cc8",
+          "hostname": "viewer.heros-web.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Comic Days",
+      "hosts": [
+        "comic-days.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic-days.com/",
+          "checkedAt": "2026-10-04T16:25:18Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic-days.com/",
+          "title": "コミックDAYS",
+          "htmlSha256": "8824461dd3b155a232b3731be5d6f6d4836d236f4fa09b05fbae9bd99cf83015",
+          "hostname": "comic-days.com"
+        }
+      ],
+      "adapter": "area"
+    },
+    {
+      "name": "Comic Top",
+      "hosts": [
+        "comic-top.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic-top.com/",
+          "checkedAt": "2026-10-04T16:25:20Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic-top.com/",
+          "title": "Redirecting...",
+          "htmlSha256": "eecbe016f828641309c27ee7a1ca150505967a507dfa30d7bde8d15d9d7a8f13",
+          "hostname": "comic-top.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "ComicWalker",
+      "hosts": [
+        "comic-walker.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic-walker.com/",
+          "checkedAt": "2026-10-04T16:25:20Z",
+          "state": "unreachable",
+          "hostname": "comic-walker.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Web Ace",
+      "hosts": [
+        "web-ace.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://web-ace.jp/",
+          "checkedAt": "2026-10-04T16:26:36Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://web-ace.jp/",
+          "title": "WEBエース",
+          "htmlSha256": "1a42b408b84d62327b6f9a922d7d975d0d8e47236b4d1359bede3563302dfbc5",
+          "hostname": "web-ace.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Antbyw",
+      "hosts": [
+        "antbyw.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://antbyw.com/",
+          "checkedAt": "2026-10-04T16:25:10Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.antbyw.com/plugin.php?id=jameson_manhua",
+          "title": "全部漫画-漫画中心 -  tapmanga,ant搬运网,蚂蚁搬运网,全网最新最全的在线日本生肉漫画,单机游戏,游戏工具,游戏Mod,学习资源,同人誌,雜誌單篇,單行本 - ant搬运网",
+          "htmlSha256": "57bdbabba7bb290b80acd94af83f028c8b0de1a130e129271106766f41468d25",
+          "hostname": "antbyw.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Jmanga",
+      "hosts": [
+        "jmanga.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://jmanga.org/",
+          "checkedAt": "2026-10-04T16:25:38Z",
+          "state": "unreachable",
+          "hostname": "jmanga.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Twitter Comic",
+      "hosts": [
+        "twicomi.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://twicomi.com/",
+          "checkedAt": "2026-10-04T16:26:32Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://twicomi.com/",
+          "title": "ツイコミ(仮) - ツイッターの漫画を集めました",
+          "htmlSha256": "15beb4921cb3c2a4d98e4a502e9e36a53d8d2a18d7463c4119b59f29d1ce1093",
+          "hostname": "twicomi.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "MangaZ",
+      "hosts": [
+        "mangaz.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangaz.com/",
+          "checkedAt": "2026-10-04T16:25:56Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.mangaz.com/",
+          "title": "全巻無料で漫画読み放題！ - マンガ図書館Z",
+          "htmlSha256": "9f7dc8da271b335a40fa0a4805af4bf19cd781345c40de06b9dd124e35e88d0c",
+          "hostname": "mangaz.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "PASH UP",
+      "hosts": [
+        "pash-up.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://pash-up.jp/",
+          "checkedAt": "2026-10-04T16:26:11Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://pash-up.jp/",
+          "title": "PASH UP!｜無料たっぷり！最速公開！マンガもラノベもアニメ誌も",
+          "htmlSha256": "ce49f7b709b2afbe36d82e23bfa6fa7d705088ac57b8b03878848b9b08225b3d",
+          "hostname": "pash-up.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "BOOK☆WALKER",
+      "hosts": [
+        "bookwalker.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://bookwalker.jp/",
+          "checkedAt": "2026-10-04T16:25:14Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://bookwalker.jp/",
+          "title": "無料試し読みなら電子書籍ストア - ブックウォーカー ( BOOK WALKER )",
+          "htmlSha256": "df12b2ffe1fa2c272d5a796d5dc4f3f4c82fbc68c156dc6a0c8f652a88c4290c",
+          "hostname": "bookwalker.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "COLAMANGA",
+      "hosts": [
+        "colamanga.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://colamanga.com/",
+          "checkedAt": "2026-10-04T16:25:17Z",
+          "state": "unreachable",
+          "hostname": "colamanga.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "GANGAN ONLINE",
+      "hosts": [
+        "ganganonline.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://ganganonline.com/",
+          "checkedAt": "2026-10-04T16:25:31Z",
+          "state": "unreachable",
+          "hostname": "ganganonline.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Asura Scans",
+      "hosts": [
+        "asuracomic.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://asuracomic.net/",
+          "checkedAt": "2026-10-04T16:25:10Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://asurascans.com/",
+          "title": "Asura Scans - Read Manga, Manhwa & Manhua Online",
+          "htmlSha256": "fd2bfb00aeac5d678d0ad27bb2a2865d579d292aefbdf075cef9887034ed4829",
+          "hostname": "asuracomic.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "All Manga",
+      "hosts": [
+        "allmanga.to"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://allmanga.to/",
+          "checkedAt": "2026-10-04T16:25:10Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://allmanga.to/",
+          "title": "All Manga",
+          "htmlSha256": "4bbca796ad0d959308a2d5b67b54bfce25f726bf71597959e7ecb5dead90ee1c",
+          "hostname": "allmanga.to"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Manhwaclan",
+      "hosts": [
+        "manhwaclan.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwaclan.com/",
+          "checkedAt": "2026-10-04T16:26:01Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://manhwaclan.com/",
+          "title": "Just a moment...",
+          "htmlSha256": "2bbb9d7ef50587942e898834d9ee99d04d54404ae97716d2afc6f9fe54c939a2",
+          "hostname": "manhwaclan.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "CoroCoro",
+      "hosts": [
+        "corocoro.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://corocoro.jp/",
+          "checkedAt": "2026-10-04T16:25:26Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.corocoro.jp/",
+          "title": "週刊コロコロコミック",
+          "htmlSha256": "a83e6034464e457d99d2466f351c401a128107f4279024e4b7e00b6a59745740",
+          "hostname": "corocoro.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "tonarinoyj",
+      "hosts": [
+        "tonarinoyj.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://tonarinoyj.jp/",
+          "checkedAt": "2026-10-04T16:26:31Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://tonarinoyj.jp/",
+          "title": "となりのヤングジャンプ",
+          "htmlSha256": "8ddcaa86fe8e621831359fc50f6e40af3c00f90ab4ee1d2ac63c52e3e4509a9d",
+          "hostname": "tonarinoyj.jp"
+        }
+      ],
+      "adapter": "area"
+    },
+    {
+      "name": "Yymanhua",
+      "hosts": [
+        "yymanhua.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://yymanhua.com/",
+          "checkedAt": "2026-10-04T16:26:44Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://yymanhua.com/",
+          "title": "日本漫畫_在線漫畫閱讀第一站_yymanhua",
+          "htmlSha256": "cdc89f332b4e4f1be6f2517c9d00a0d1de72ddf3159a1c160387737a77209737",
+          "hostname": "yymanhua.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Manhwatop",
+      "hosts": [
+        "manhwatop.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwatop.com/",
+          "checkedAt": "2026-10-04T16:26:03Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://manhwatop.com/",
+          "title": "Just a moment...",
+          "htmlSha256": "e8f79c96c442c25af6470e584f6a372563481b624acfd57ef22f3cec894310ce",
+          "hostname": "manhwatop.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Palcy",
+      "hosts": [
+        "palcy.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://palcy.jp/",
+          "checkedAt": "2026-10-04T16:26:11Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://palcy.jp/",
+          "title": "Palcy (パルシィ) - 講談社とピクシブ発の少女・女性マンガアプリ",
+          "htmlSha256": "6de2f6ed2d8fa0c760d8fe89787d57652c8700b06ac0c439ba39ab99d8037a60",
+          "hostname": "palcy.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Comic-Trail",
+      "hosts": [
+        "comic-trail.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic-trail.com/",
+          "checkedAt": "2026-10-04T16:25:20Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic-trail.com/",
+          "title": "コミックトレイル｜漫画とつながるフェス空間！",
+          "htmlSha256": "dc974ee4d61efdf584e104df234ee4933741ec1bd78a356a922c9b2962f2fc8b",
+          "hostname": "comic-trail.com"
+        }
+      ],
+      "adapter": "area"
+    },
+    {
+      "name": "Templetoons",
+      "hosts": [
+        "templetoons.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://templetoons.com/",
+          "checkedAt": "2026-10-04T16:26:30Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://templetoons.com/challenge?redirect=%2F",
+          "title": "Temple Scan",
+          "htmlSha256": "8e4e70d0e623da421c4dd78e91b22b8d262280392f2de9fcff0cbcfffad37056",
+          "hostname": "templetoons.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Batocomic",
+      "hosts": [
+        "batocomic.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://batocomic.net/",
+          "checkedAt": "2026-10-04T16:25:12Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://batocomic.net/",
+          "title": "Redirecting...",
+          "htmlSha256": "108be5252c6a256285b0847436c2a073c7850f3510450cdb791c28f57a392c11",
+          "hostname": "batocomic.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Comic-action",
+      "hosts": [
+        "comic-action.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic-action.com/",
+          "checkedAt": "2026-10-04T16:25:17Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic-action.com/",
+          "title": "webアクション｜双葉社発のマンガサイト",
+          "htmlSha256": "193cc73031128419437e0e0028d36b07cdffa5a4f951ccafcf2a26f181026dd3",
+          "hostname": "comic-action.com"
+        }
+      ],
+      "adapter": "area"
+    },
+    {
+      "name": "腾讯动漫",
+      "hosts": [
+        "ac.qq.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://ac.qq.com/",
+          "checkedAt": "2026-10-04T16:25:10Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://ac.qq.com/",
+          "title": "腾讯动漫官网_漫画在线阅读_免费下拉式看漫画平台",
+          "htmlSha256": "9a68ba3573d7a7413facc8956a04c9cf658c324915cbd3e5317f5a060a20d1fe",
+          "hostname": "ac.qq.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Sololevelingmangafree",
+      "hosts": [
+        "sololevelingmangafree.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://sololevelingmangafree.com/",
+          "checkedAt": "2026-10-04T16:26:27Z",
+          "state": "unreachable",
+          "hostname": "sololevelingmangafree.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Syosetu",
+      "hosts": [
+        "syosetu.si",
+        "syosetu.cheap"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://syosetu.si/",
+          "checkedAt": "2026-10-04T16:49:34Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://syosetu.cheap/",
+          "title": "Syosetu - 漫画 raw, 漫画raw, 漫画bank, 漫画ろう, Manga raw, 無料漫画, 漫画バンク, まんがらう, 漫画ロー, マンガバンク, マンガ1001",
+          "htmlSha256": "9e78dbd3ecf6ea7ac6a296f794d0c8d144c2953b44844a7ae7b8cf0b8abc4298",
+          "hostname": "syosetu.si"
+        },
+        {
+          "requestedUrl": "https://syosetu.si/",
+          "checkedAt": "2026-10-04T16:49:34Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://syosetu.cheap/",
+          "title": "Syosetu - 漫画 raw, 漫画raw, 漫画bank, 漫画ろう, Manga raw, 無料漫画, 漫画バンク, まんがらう, 漫画ロー, マンガバンク, マンガ1001",
+          "htmlSha256": "9e78dbd3ecf6ea7ac6a296f794d0c8d144c2953b44844a7ae7b8cf0b8abc4298",
+          "hostname": "syosetu.cheap"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Comick",
+      "hosts": [
+        "comick.io",
+        "comick.dev",
+        "comick.fun"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comick.io/",
+          "checkedAt": "2026-10-04T16:25:23Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://comick.dev/",
+          "title": "Just a moment...",
+          "htmlSha256": "7d58c5b5626817d831d21f81c8d215483ad9a47d4d9ae27d3027d7b5ef3ea15b",
+          "hostname": "comick.io"
+        },
+        {
+          "requestedUrl": "https://comick.dev/",
+          "checkedAt": "2026-10-04T16:25:23Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://comick.dev/",
+          "title": "Just a moment...",
+          "htmlSha256": "7bb97a51fef84ace63d28c72636695c53fa5ad5116825b2f3b9931a046c09f38",
+          "hostname": "comick.dev"
+        },
+        {
+          "requestedUrl": "https://comick.fun/",
+          "checkedAt": "2026-10-04T16:25:23Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comick.fun/",
+          "title": "",
+          "htmlSha256": "6e5798ddcc4089a4f26d8bc10424496115e48eae6d4e6233ae8227eaa7e8e261",
+          "hostname": "comick.fun"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "YoungAnimal",
+      "hosts": [
+        "younganimal.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://younganimal.com/",
+          "checkedAt": "2026-10-04T16:26:42Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://younganimal.com/",
+          "title": "ヤングアニマルWeb | 基本無料でマンガもグラビアも楽しめる！",
+          "htmlSha256": "3ed36a0e42f454ebe43685438a6573662e8d5cb7736b1d3000197579e28ea7ee",
+          "hostname": "younganimal.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Piccoma",
+      "hosts": [
+        "piccoma.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://piccoma.com/",
+          "checkedAt": "2026-10-04T16:26:12Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://piccoma.com/web/",
+          "title": "ピッコマ｜無料漫画・小説、新作コミックが毎日楽しめる！",
+          "htmlSha256": "ba8665489fb94a40a2a9372f38e947a52c5fc5235408f582a128f9367e650cb0",
+          "hostname": "piccoma.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Hentaizap",
+      "hosts": [
+        "hentaizap.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://hentaizap.com/",
+          "checkedAt": "2026-10-04T16:25:36Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://hentaizap.com/",
+          "title": "HentaiZap - Free Doujin, Hentai Manga & Comic Porn",
+          "htmlSha256": "036f4ffcdad6d666fa1ab891cc14e7344d4422a7b0661f13896317f729db59bb",
+          "hostname": "hentaizap.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Hanime1",
+      "hosts": [
+        "hanime1.me"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://hanime1.me/",
+          "checkedAt": "2026-10-04T16:49:28Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://hanime1.me/",
+          "title": "Attention Required! | Cloudflare",
+          "htmlSha256": "392141b94ea83370286c0dad24c5813b68a7fbfd8e7d16d31af18e4a842a1ee8",
+          "hostname": "hanime1.me"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Globalcomix",
+      "hosts": [
+        "globalcomix.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://globalcomix.com/",
+          "checkedAt": "2026-10-04T16:25:32Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://globalcomix.com/",
+          "title": "GlobalComix - Read & Publish Comics & Manga Online Free",
+          "htmlSha256": "7809176317d899e463719d76995c7cd65b336d089bb132dae688cb991ee07a5a",
+          "hostname": "globalcomix.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "KL",
+      "hosts": [
+        "klz9.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://klz9.com/",
+          "checkedAt": "2026-10-04T16:25:40Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://klz9.com/",
+          "title": "KL - Read Manga Raw Online Free",
+          "htmlSha256": "d81d3897e2ab149a51a323325c3f6e79bb215028db5ba548825480148e64cc7b",
+          "hostname": "klz9.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "comemh8",
+      "hosts": [
+        "omemh8.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://omemh8.com/",
+          "checkedAt": "2026-10-04T16:49:30Z",
+          "state": "unreachable",
+          "hostname": "omemh8.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Mangaraw",
+      "hosts": [
+        "mangarawjp.me",
+        "mangaraw.ac",
+        "mangaraw.best"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangarawjp.me/",
+          "checkedAt": "2026-10-04T16:49:28Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangarawjp.me/",
+          "title": "mangarawjp.me - 漫画 raw, mangaraw, manga raw, manga1001, manga1000, Mangarawjp",
+          "htmlSha256": "afc1c7b0e0af53b4d212d463a5213ebe46155ba77d33533a5176b38e337ee112",
+          "hostname": "mangarawjp.me"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Bilibili-Manga",
+      "hosts": [
+        "manga.bilibili.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manga.bilibili.com/",
+          "checkedAt": "2026-10-04T16:25:47Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manga.bilibili.com/",
+          "title": "哔哩哔哩漫画 - bilibili 正版漫画平台",
+          "htmlSha256": "58ad2592e3ed3ee08b0ec02f93909c934381a484a1c3c309101225f0efbd2701",
+          "hostname": "manga.bilibili.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Kaijimanga",
+      "hosts": [
+        "kaijimanga.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://w9.kaijimanga.com/",
+          "checkedAt": "2026-10-04T16:49:36Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://w9.kaijimanga.com/",
+          "title": "Kaiji Manga Online",
+          "htmlSha256": "45a0b1f77f8aa6820e3d5e482e1319bbc4e733e669d4f7bce1b1749762afa223",
+          "hostname": "kaijimanga.com"
+        }
+      ],
+      "adapter": "images"
+    },
+    {
+      "name": "Idmzj",
+      "hosts": [
+        "idmzj.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://idmzj.com/",
+          "checkedAt": "2026-10-04T16:25:37Z",
+          "state": "unreachable",
+          "hostname": "idmzj.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Manga4u",
+      "hosts": [
+        "mn4u.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mn4u.net/",
+          "checkedAt": "2026-10-04T16:49:29Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mn4u.net/",
+          "title": "Manga4U - Read Manga Online - The chapter latest - Manga Online",
+          "htmlSha256": "ec4464e7abb16dd9298059b2e142f37aa769ab129309b04ff32ddfaad8a01b3e",
+          "hostname": "mn4u.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Animatebookstore",
+      "hosts": [
+        "animatebookstore.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://animatebookstore.com/",
+          "checkedAt": "2026-10-04T16:25:10Z",
+          "state": "unreachable",
+          "hostname": "animatebookstore.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "GANMA",
+      "hosts": [
+        "ganma.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://ganma.jp/",
+          "checkedAt": "2026-10-04T16:25:31Z",
+          "state": "unreachable",
+          "hostname": "ganma.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Mangafire",
+      "hosts": [
+        "mangafire.to"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangafire.to/",
+          "checkedAt": "2026-10-04T16:25:48Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangafire.to/",
+          "title": "MangaFire - Read Manga Online Free",
+          "htmlSha256": "4c22dfaee8f0ac8628f35f2950e167f68b57893e1d8f4d8046f386a5c4432d4a",
+          "hostname": "mangafire.to"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Reaperscans",
+      "hosts": [
+        "reaperscans.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://reaperscans.com/",
+          "checkedAt": "2026-10-04T16:26:22Z",
+          "state": "unreachable",
+          "hostname": "reaperscans.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Manhuatop",
+      "hosts": [
+        "manhuatop.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhuatop.com/",
+          "checkedAt": "2026-10-04T16:25:59Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manhuatop.com/",
+          "title": "Loading...",
+          "htmlSha256": "4261e5f32eff1ee78d952d3bdb06f12f18bb2109ce2f3520352aba3c81597134",
+          "hostname": "manhuatop.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Dlsite",
+      "hosts": [
+        "dlsite.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://dlsite.com/",
+          "checkedAt": "2026-10-04T16:25:27Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.dlsite.com/index.html",
+          "title": "DLsite：同人誌、同人ゲームからPCソフト、コミックまで二次元総合ダウンロードショップ | DLsite 総合トップページ",
+          "htmlSha256": "82dc765af222f6ebf83aab3888be20cc01ef12dda03e31d92f8f17248cdcb424",
+          "hostname": "dlsite.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "uzakichanmanga",
+      "hosts": [
+        "uzakichanmanga.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://uzakichanmanga.com/",
+          "checkedAt": "2026-10-04T16:27:15Z",
+          "state": "unreachable",
+          "hostname": "uzakichanmanga.com"
+        }
+      ],
+      "adapter": "images"
+    },
+    {
+      "name": "Shonenmagazine",
+      "hosts": [
+        "shonenmagazine.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://shonenmagazine.com/",
+          "checkedAt": "2026-10-04T16:26:26Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://shonenmagazine.com/",
+          "title": "週刊少年マガジン公式サイト",
+          "htmlSha256": "958cd6126836179c8884a8a241d2a04e2072d77cd6803a2a11faaadd7797ff3b",
+          "hostname": "shonenmagazine.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "ComicNaver",
+      "hosts": [
+        "comic.naver.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic.naver.com/",
+          "checkedAt": "2026-10-04T16:25:22Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic.naver.com/index",
+          "title": "네이버 웹툰",
+          "htmlSha256": "7838737d96e58e533bd3d42c451dd2d5b6dfd86ccbfd55ea19f6366d0a4b6ae2",
+          "hostname": "comic.naver.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "comic-zenon",
+      "hosts": [
+        "comic-zenon.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic-zenon.com/",
+          "checkedAt": "2026-10-04T16:25:21Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic-zenon.com/",
+          "title": "ゼノンプラス｜コアミックスの公式WEBマンガサイト",
+          "htmlSha256": "9e72e1de2d856bac3ea9d4dcb87d9695ba55afc95d43ec6145782931d21409f9",
+          "hostname": "comic-zenon.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Webtoons",
+      "hosts": [
+        "webtoons.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://webtoons.com/",
+          "checkedAt": "2026-10-04T16:26:37Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.webtoons.com/en/",
+          "title": "WEBTOON - Read Comics, Manga & Manhwa",
+          "htmlSha256": "bce15664d90a4f45e8b625a7e4996b7e2b2f78392e06b7a63347b8a354587642",
+          "hostname": "webtoons.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Lezhin Comics",
+      "hosts": [
+        "lezhin.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://lezhin.com/",
+          "checkedAt": "2026-10-04T16:25:43Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.lezhin.com:443/ko",
+          "title": "레진코믹스 - 솔직한 재미 대폭발",
+          "htmlSha256": "089f569ee3e0ebd08b2ce594fe0f75c50e8c441d707eee346daed3e63d2062cc",
+          "hostname": "lezhin.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "BeLTOON",
+      "hosts": [
+        "beltoon.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://beltoon.jp/",
+          "checkedAt": "2026-10-04T16:25:12Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.beltoon.jp:443/",
+          "title": "",
+          "htmlSha256": "21bff9b039e15addfc070dab1bc51de04f154b0410f4ccd21f1cda46b08cb32b",
+          "hostname": "beltoon.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "ManhwaClub",
+      "hosts": [
+        "manhwaclub.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwaclub.net/",
+          "checkedAt": "2026-10-04T16:49:28Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manhwaclub.net/",
+          "title": "Manhwaclub",
+          "htmlSha256": "7eb6a139ad2052672c322b4854666a7295a86762ee20356a527965d8f7300b09",
+          "hostname": "manhwaclub.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "JinMangas",
+      "hosts": [],
+      "accessChecks": [],
+      "adapter": "unconfirmed"
+    },
+    {
+      "name": "Atsumaru",
+      "hosts": [
+        "atsu.moe"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://atsu.moe/",
+          "checkedAt": "2026-10-04T16:49:28Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://atsu.moe/",
+          "title": "Atsumaru",
+          "htmlSha256": "3ec2a21563591c49aa2cc4ed2416c283c23b331ef0fe3358fe7737cfb1fbcb79",
+          "hostname": "atsu.moe"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Comic CMOA",
+      "hosts": [
+        "cmoa.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://cmoa.jp/",
+          "checkedAt": "2026-10-04T16:25:16Z",
+          "state": "unreachable",
+          "hostname": "cmoa.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Televi-Kun Super Hero Comics",
+      "hosts": [
+        "televikun-super-hero-comics.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://televikun-super-hero-comics.com/",
+          "checkedAt": "2026-10-04T16:49:34Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://televikun-super-hero-comics.com/",
+          "title": "小学館スーパーヒーローコミックス！漫画ファン特撮ファン集まれ！！",
+          "htmlSha256": "1b539f2c036f9dbd6927aaff667a5c35d0943a55ca4e1e0bf01f3c12764085f6",
+          "hostname": "televikun-super-hero-comics.com"
+        }
+      ],
+      "adapter": "area"
+    },
+    {
+      "name": "KLMANGA",
+      "hosts": [
+        "klmanga.my"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://klmanga.my/",
+          "checkedAt": "2026-10-04T16:49:28Z",
+          "state": "unreachable",
+          "hostname": "klmanga.my"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "SoloLevelingFree",
+      "hosts": [
+        "sololevelingfree.vip"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://sololevelingfree.vip/",
+          "checkedAt": "2026-10-04T16:49:33Z",
+          "state": "unreachable",
+          "hostname": "sololevelingfree.vip"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Rawkuma",
+      "hosts": [
+        "rawkuma.net",
+        "rawkuma.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://rawkuma.net/",
+          "checkedAt": "2026-10-04T16:49:31Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://rawkuma.net/",
+          "title": "Rawkuma – Read Raw Manga Online Hiqh Quality",
+          "htmlSha256": "c4bffad319478135fa6259c9b1701570031cff649f70bba301923281231ad0c0",
+          "hostname": "rawkuma.net"
+        },
+        {
+          "requestedUrl": "https://rawkuma.com/",
+          "checkedAt": "2026-10-04T16:27:13Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://rawkuma.com/",
+          "title": "Rawkuma | Discover Raw Manga & Japanese Manga",
+          "htmlSha256": "70ff47a44d97e0d01c355ea3b51f82a2ad569f715b239f244f0e02e7d34b4171",
+          "hostname": "rawkuma.com"
+        }
+      ],
+      "adapter": "images"
+    },
+    {
+      "name": "Kakao",
+      "hosts": [
+        "page.kakao.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://page.kakao.com/",
+          "checkedAt": "2026-10-04T16:26:11Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://page.kakao.com/",
+          "title": "추천 | 카카오페이지",
+          "htmlSha256": "2758b5f2b8985cae00dc66182d5ebdc2b66263c019defde5e9cec1b0ea16875a",
+          "hostname": "page.kakao.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "TopReadManga",
+      "hosts": [
+        "topreadmanga.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://topreadmanga.com/",
+          "checkedAt": "2026-10-04T16:49:35Z",
+          "state": "unreachable",
+          "hostname": "topreadmanga.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Revenge of the Iron Blooded Swordhound",
+      "hosts": [
+        "revengeoftheiron-bloodedswordhound.one"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://revengeoftheiron-bloodedswordhound.one/",
+          "checkedAt": "2026-10-04T16:49:31Z",
+          "state": "unreachable",
+          "hostname": "revengeoftheiron-bloodedswordhound.one"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Poipiku",
+      "hosts": [
+        "poipiku.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://poipiku.com/",
+          "checkedAt": "2026-10-04T16:26:13Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://poipiku.com/",
+          "title": "イラストとか箱「ポイピク」",
+          "htmlSha256": "c443c0a8f235ea687ab241665a92ab605dba375298a073b213e6281896a82b03",
+          "hostname": "poipiku.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Manhuaus",
+      "hosts": [
+        "manhuaus.com",
+        "manhuaus.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhuaus.com/",
+          "checkedAt": "2026-10-04T16:49:28Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://manhuaus.com/",
+          "title": "Just a moment...",
+          "htmlSha256": "a9f90abdab137643f21a320e719c1045230363d9452a7262dcf8126cfd8a653b",
+          "hostname": "manhuaus.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "HMTTMH",
+      "hosts": [
+        "hmttmh.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://hmttmh.com/",
+          "checkedAt": "2026-10-04T16:27:10Z",
+          "state": "unreachable",
+          "hostname": "hmttmh.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Smoking Behind the Supermarket",
+      "hosts": [
+        "smokingbehindthesupermarket.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://smokingbehindthesupermarket.com/",
+          "checkedAt": "2026-10-04T16:49:33Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://w9.smokingbehindthesupermarket.com/",
+          "title": "Smoking Behind the Supermarket with You Manga Online",
+          "htmlSha256": "908e317879e1216bf139ca1f2877b0ff6e2eca8fce7b7f3cde0f890a1496fae7",
+          "hostname": "smokingbehindthesupermarket.com"
+        }
+      ],
+      "adapter": "images"
+    },
+    {
+      "name": "Comic Growl",
+      "hosts": [
+        "comic-growl.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic-growl.com/",
+          "checkedAt": "2026-10-04T16:25:19Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic-growl.com/",
+          "title": "コミックグロウル | 毎日更新！無料で読めるWEBマンガサイト",
+          "htmlSha256": "5db25e5d6c3811960a873675ed76d3659b7d971c78c90a61a32520a85eac838c",
+          "hostname": "comic-growl.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Jumptoon",
+      "hosts": [
+        "jumptoon.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://jumptoon.com/",
+          "checkedAt": "2026-10-04T16:25:38Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://jumptoon.com/",
+          "title": "ジャンプTOON | オリジナル連載作品が初回全話無料で読める！",
+          "htmlSha256": "5796f832c6e350109a3a3137eab51206acbf0cf14a65e3c1084a2ddb3016f38d",
+          "hostname": "jumptoon.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Fenoxo",
+      "hosts": [
+        "fenoxo.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://fenoxo.com/",
+          "checkedAt": "2026-10-04T16:49:28Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.fenoxo.com/",
+          "title": "Fenoxo's Blog – Home of NSFW Ramblings",
+          "htmlSha256": "c3ebe1b837613942b8c445649cf5da5d624193eea72fb44dff7a738e233bc737",
+          "hostname": "fenoxo.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "MangaFreak",
+      "hosts": [
+        "mangafreak.net",
+        "mangafreak.me"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangafreak.net/",
+          "checkedAt": "2026-10-04T16:49:28Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://ww3.mangafreak.me/",
+          "title": "Read Free Manga Online - MangaFreak",
+          "htmlSha256": "045cba8739fc9365b79c08ac38081905be5acdb47c97849876baa5159bf713fa",
+          "hostname": "mangafreak.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "ComicGardo",
+      "hosts": [
+        "comic-gardo.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic-gardo.com/",
+          "checkedAt": "2026-10-04T16:25:18Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic-gardo.com/",
+          "title": "コミックガルド",
+          "htmlSha256": "4c075cde41c9deb27a7552ea2df0dbe16eb89d8aaf3e06c576dd2b1519dd9298",
+          "hostname": "comic-gardo.com"
+        }
+      ],
+      "adapter": "area"
+    },
+    {
+      "name": "Booklive",
+      "hosts": [
+        "booklive.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://booklive.jp/",
+          "checkedAt": "2026-10-04T16:25:14Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://booklive.jp/",
+          "title": "電子書籍・無料漫画ならブックライブ",
+          "htmlSha256": "582d1908ef27f42c0785b0f0fee2f6d013576c0387dcfa0cd9881d0840606bec",
+          "hostname": "booklive.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "MrBlue",
+      "hosts": [
+        "mrblue.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mrblue.com/",
+          "checkedAt": "2026-10-04T16:26:07Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.mrblue.com/",
+          "title": "미스터블루 - 웹툰, 만화, 소설",
+          "htmlSha256": "4eeeedf70e5122c9a4275b3379f2fe42d16862356bc4eab077eb7f1509be3df5",
+          "hostname": "mrblue.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "MangaLove",
+      "hosts": [
+        "mangalove.me"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangalove.me/",
+          "checkedAt": "2026-10-04T16:49:28Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangalove.me/",
+          "title": "マンガLOVE｜漫画全巻無料・登録不要でコミックが読み放題！",
+          "htmlSha256": "95a382f63353c8d8fae7754224aa80059d68f0476d74e2033f9febfcfa9d9fc8",
+          "hostname": "mangalove.me"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "rawdevart.art",
+      "hosts": [
+        "rawdevart.art"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://rawdevart.art/",
+          "checkedAt": "2026-10-04T16:26:18Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://rawdevart.art/",
+          "title": "Japanese Manga Raw - Rawdevart",
+          "htmlSha256": "219e565cd7f03394cf02e753f7306dedb98eab2a9690b3895ba2a593f93673f2",
+          "hostname": "rawdevart.art"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manga-shinchan.com",
+      "hosts": [
+        "manga-shinchan.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manga-shinchan.com/",
+          "checkedAt": "2026-10-04T16:25:46Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manga-shinchan.com/",
+          "title": "毎日更新！「クレヨンしんちゃん」の漫画公式サイトだゾ | まんがクレヨンしんちゃん.com【公式】",
+          "htmlSha256": "b51e24cb9915c54adf8524fe6fb5e44434966fec6b559376813f2ef16c228be3",
+          "hostname": "manga-shinchan.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "yaoimangaonline.com",
+      "hosts": [
+        "yaoimangaonline.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://yaoimangaonline.com/",
+          "checkedAt": "2026-10-04T16:26:42Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://yaoimangaonline.com/",
+          "title": "Yaoi Manga Online - Read yaoi doujinshi, bara manga, yaoi oneshots, furry, uncensored yaoi manga for free.",
+          "htmlSha256": "967ecee6e661a9c44ce3c93b7ca60d3a3680e8ae543faffbd7f8fbd739a24f2a",
+          "hostname": "yaoimangaonline.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "nhentaiyaoi",
+      "hosts": [
+        "nhentaiyaoi.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://nhentaiyaoi.net/",
+          "checkedAt": "2026-10-04T16:49:30Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://nhentaiyaoi.net/",
+          "title": "NHentai Yaoi | Hentai Yaoi, Doujinshi, HQ and Unreleased Mangas!",
+          "htmlSha256": "402fd2fbdca9c38ccfe481813a0da9cacdfea7c907b46254a188ff5737811715",
+          "hostname": "nhentaiyaoi.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "orchisasia",
+      "hosts": [
+        "orchisasia.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://orchisasia.org/",
+          "checkedAt": "2026-10-04T16:49:31Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.orchisasia.org/",
+          "title": "Read Hottest Smut Yaoi BL Manhwa & Manga for Free - Orchisasia",
+          "htmlSha256": "b906cecb10efd6ec2cbcf9c552f3cc9a01eda2d92b4dc9195d1208460f6f7bf7",
+          "hostname": "orchisasia.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangalib",
+      "hosts": [
+        "mangalib.me"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangalib.me/",
+          "checkedAt": "2026-10-04T16:25:52Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangalib.me/",
+          "title": "Читать мангу онлайн на русском. Манга онлайн. Манхва онлайн. Маньхуа онлайн – MangaLIB",
+          "htmlSha256": "563310193273f9be7324863d07b94356975567a2d68c4fae517229e43765d794",
+          "hostname": "mangalib.me"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "novelcrow",
+      "hosts": [
+        "novelcrow.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://novelcrow.com/",
+          "checkedAt": "2026-10-04T16:26:08Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://novelcrow.com/",
+          "title": "Just a moment...",
+          "htmlSha256": "fbdeb825499859a9381361ea92ba3d2cfb8a19b28dde56d244ca6e2e20a2b044",
+          "hostname": "novelcrow.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "cn.twbzmg.com",
+      "hosts": [
+        "cn.twbzmg.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://cn.twbzmg.com/",
+          "checkedAt": "2026-10-04T16:25:16Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://cn.twbzmg.com/",
+          "title": "🌈️包子漫画",
+          "htmlSha256": "e4709b2926b0da5e1d7d6085b4db271a410d30452dd0188a526cd3cbcf84228a",
+          "hostname": "cn.twbzmg.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Nyx Scans",
+      "hosts": [
+        "nyxscans.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://nyxscans.com/",
+          "checkedAt": "2026-10-04T16:49:30Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://nyxscans.com/",
+          "title": "Nyx Scans - Immerse Yourself in Comics, Manga, Manhua, and Manhwa — Nyx: Where Stories Come to Life.",
+          "htmlSha256": "7a28ad8cc8a35b9de5794bd8de9689e7b3ee32b1e1737657fef17cf6512c2872",
+          "hostname": "nyxscans.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "Qi Manga",
+      "hosts": [
+        "qimanga.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://qimanga.com/",
+          "checkedAt": "2026-10-04T16:49:31Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://qimanga.com/",
+          "title": "Qi Manga",
+          "htmlSha256": "8303bb6f384c4eaf544efe7cea5b14e409ee10ff5dbffd553ac14de701146cc4",
+          "hostname": "qimanga.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "MG Read",
+      "hosts": [
+        "mgread.io"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mgread.io/",
+          "checkedAt": "2026-10-04T16:49:28Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mgread.io/",
+          "title": "Mgread.io – Read Free Manga – Manhwa – Manhua – Anime Online",
+          "htmlSha256": "85bcbac540a58e89014dd6dab21fcbf97993bbecd005c635bfacb8610899cf7d",
+          "hostname": "mgread.io"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "뉴토끼대피소.com",
+      "hosts": [
+        "뉴토끼대피소.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://xn--h10b90bbmq49b63sq4e.com/",
+          "checkedAt": "2026-10-04T16:26:45Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://xn--h10b90bbmq49b63sq4e.com/",
+          "title": "Redirecting...",
+          "htmlSha256": "1ca8b029460a403f3b0a7d11afd83603c8ad2238fa4d9a00e366b09003b4955b",
+          "hostname": "뉴토끼대피소.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "블랙툰.co",
+      "hosts": [
+        "블랙툰.co"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://xn--ij2bx6jk1s.co/",
+          "checkedAt": "2026-10-04T16:26:45Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://xn--ij2bx6jk1s.co/",
+          "title": "Redirecting...",
+          "htmlSha256": "2b0df60648f203c6b98b50f1eec24ec6f4ac419600093428cb701148ad927b15",
+          "hostname": "블랙툰.co"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "happytoon01.com",
+      "hosts": [
+        "happytoon01.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://happytoon01.com/",
+          "checkedAt": "2026-10-04T16:25:35Z",
+          "state": "unreachable",
+          "hostname": "happytoon01.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "twmanga.com",
+      "hosts": [
+        "twmanga.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://twmanga.com/",
+          "checkedAt": "2026-10-04T16:26:33Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.twmanga.com/",
+          "title": "🌈️包子漫畫",
+          "htmlSha256": "aee670e4450ded19c158f29aa1951c4c47054e7a87b6e837984aa3db2636bc3f",
+          "hostname": "twmanga.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mgeko.cc",
+      "hosts": [
+        "mgeko.cc"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mgeko.cc/",
+          "checkedAt": "2026-10-04T16:26:06Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.mgeko.cc/",
+          "title": "www.mgeko.cc - Enjoy reading",
+          "htmlSha256": "78820d9a0885e638da20e3fb56bcb60de728a08934847bf0328880ef035431e9",
+          "hostname": "mgeko.cc"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "greentoon.net",
+      "hosts": [
+        "greentoon.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://greentoon.net/",
+          "checkedAt": "2026-10-04T16:25:34Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://greentoon.net/",
+          "title": "Loading...",
+          "htmlSha256": "344adf29763269fe6d48a97ff7a3cab38d13f38a24adb4fdffdc81747beba2be",
+          "hostname": "greentoon.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "dynasty-scans.com",
+      "hosts": [
+        "dynasty-scans.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://dynasty-scans.com/",
+          "checkedAt": "2026-10-04T16:25:28Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://dynasty-scans.com/",
+          "title": "Dynasty Reader » Recently Released",
+          "htmlSha256": "be910bca1d4e1069bd98c06eaa06b026e03e969390d4f39b08811455b04d1cdf",
+          "hostname": "dynasty-scans.com"
+        }
+      ],
+      "adapter": "images"
+    },
+    {
+      "name": "mangaoi.net",
+      "hosts": [
+        "mangaoi.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangaoi.net/",
+          "checkedAt": "2026-10-04T16:25:53Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangaoi.net/",
+          "title": "MANGAOI - Read Manhwa, Manhua, Manga in English Online For Free",
+          "htmlSha256": "85e6e0ffc88d5323262fe4ea80c0a857ea777e5eb98f6f213f68851a9d7316f3",
+          "hostname": "mangaoi.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "rawlazy.io",
+      "hosts": [
+        "rawlazy.io"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://rawlazy.io/",
+          "checkedAt": "2026-10-04T16:26:19Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://rawlazy.io/",
+          "title": "Manga Raw, 漫画 raw, 漫画、無料で読め, 無料漫画(マンガ)読む",
+          "htmlSha256": "95c2e54d03f0f44f0d9a5c2c6acdbcf3002d8838292b45459499eaf25f0d141f",
+          "hostname": "rawlazy.io"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "toptoon.com",
+      "hosts": [
+        "toptoon.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://toptoon.com/",
+          "checkedAt": "2026-10-04T16:26:32Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://toptoon.com/",
+          "title": "탑툰",
+          "htmlSha256": "c9c274f5ff1101183b01e4edd49a4f7f88d84e5152fd8fb2f2cbad0f5fd7bcb6",
+          "hostname": "toptoon.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "acgmhh.com",
+      "hosts": [
+        "acgmhh.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://acgmhh.com/",
+          "checkedAt": "2026-10-04T16:25:10Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://acgmhn.com/",
+          "title": "里番|全彩工口漫画|同人H漫画大全 - ACG漫画网 【第1页】",
+          "htmlSha256": "9b8a8b40d2fc8c6560fee17d18bd162468c45c290f1da1bddcfea3580fa84b25",
+          "hostname": "acgmhh.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "readcomicsonline.ru",
+      "hosts": [
+        "readcomicsonline.ru"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://readcomicsonline.ru/",
+          "checkedAt": "2026-10-04T16:26:22Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://readcomicsonline.ru/",
+          "title": "Just a moment...",
+          "htmlSha256": "598d8e1795adfc19dd2890700ebc94eb0d52cd29aad010d6161ed7f530865c84",
+          "hostname": "readcomicsonline.ru"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "vortexscans.org",
+      "hosts": [
+        "vortexscans.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://vortexscans.org/",
+          "checkedAt": "2026-10-04T16:26:35Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://vortexscans.org/",
+          "title": "Vortex Scans - Read Comics, manga, manhua, manhwa, translated swiftly: Vortex, your ultimate library.",
+          "htmlSha256": "66c2252549acb20c48407f00af844ade09790db8eb4d95118a6fcf63ce4d87c9",
+          "hostname": "vortexscans.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "freeonlinehd.site",
+      "hosts": [
+        "freeonlinehd.site"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://freeonlinehd.site/",
+          "checkedAt": "2026-10-04T16:25:30Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://freeonlinehd.site/",
+          "title": "",
+          "htmlSha256": "25dc4c6b932fbc3c41871a135920c9b4ef2f7973a6a7214a1779f71d890ba19a",
+          "hostname": "freeonlinehd.site"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "weebrook.com",
+      "hosts": [
+        "weebrook.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://weebrook.com/",
+          "checkedAt": "2026-10-04T16:26:39Z",
+          "state": "unreachable",
+          "hostname": "weebrook.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "toonily.com",
+      "hosts": [
+        "toonily.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://toonily.com/",
+          "checkedAt": "2026-10-04T16:26:32Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://toonily.com/",
+          "title": "Just a moment...",
+          "htmlSha256": "515493e4d2a3664d1843083fbbdf8ca6db2dc3debd48475b26fd35ac8da0f87e",
+          "hostname": "toonily.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangadistrict2.com",
+      "hosts": [
+        "mangadistrict2.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangadistrict2.com/",
+          "checkedAt": "2026-10-04T16:25:48Z",
+          "state": "unreachable",
+          "hostname": "mangadistrict2.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhuaread.com",
+      "hosts": [
+        "manhuaread.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhuaread.com/",
+          "checkedAt": "2026-10-04T16:25:58Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manhuaread.com/",
+          "title": "PLAYBOOK88 : Link Situs Slot88 Gacor Malam Ini Deposit Pulsa 5k Tanpa Potongan",
+          "htmlSha256": "1ca295c45b54a094e3f01609294b41822a8ffe520723c166cd3eead9b6ad3a9d",
+          "hostname": "manhuaread.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangaread.org",
+      "hosts": [
+        "mangaread.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangaread.org/",
+          "checkedAt": "2026-10-04T16:25:54Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.mangaread.org/",
+          "title": "Read online - manga, manhwa, manhua catalog №1",
+          "htmlSha256": "77083b57ee76833b93daca282b4b17f3c0f39f60e39152f1aa69aed1e487c1ea",
+          "hostname": "mangaread.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangaforfree.net",
+      "hosts": [
+        "mangaforfree.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangaforfree.net/",
+          "checkedAt": "2026-10-04T16:25:50Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangaforfree.net/",
+          "title": "mangaforfree – Read Manga Online FREE",
+          "htmlSha256": "a484d72b484ace6e0d3ac4db6608e958e1f6c776ced6ebca2bc51086658a4b75",
+          "hostname": "mangaforfree.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "bakamh.com",
+      "hosts": [
+        "bakamh.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://bakamh.com/",
+          "checkedAt": "2026-10-04T16:25:11Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://bakamh.com/",
+          "title": "Just a moment...",
+          "htmlSha256": "fa0cd4280bea1422a28c4be7f05479316badfd8bedf4c80f6abbba2c3a9832a9",
+          "hostname": "bakamh.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "yakshascans.com",
+      "hosts": [
+        "yakshascans.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://yakshascans.com/",
+          "checkedAt": "2026-10-04T16:26:40Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://ravenscans.org/",
+          "title": "Raven Scans – The Fastest Manga Updates",
+          "htmlSha256": "4b0eb4c4430f856c79249a77d98d8d23add8c9b18d35af38d154391e2f746819",
+          "hostname": "yakshascans.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "toonclash.com",
+      "hosts": [
+        "toonclash.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://toonclash.com/",
+          "checkedAt": "2026-10-04T16:26:32Z",
+          "state": "unreachable",
+          "hostname": "toonclash.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "rawdex.net",
+      "hosts": [
+        "rawdex.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://rawdex.net/",
+          "checkedAt": "2026-10-04T16:26:19Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://rawdex.net/",
+          "title": "Read Manga, Manhwa & Webtoon Raw Online | RawDEX",
+          "htmlSha256": "3c47b38346fb6b69018a30590e163779e58db47c65e8962e6db5134651049865",
+          "hostname": "rawdex.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "reset-scans.org",
+      "hosts": [
+        "reset-scans.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://reset-scans.org/",
+          "checkedAt": "2026-10-04T16:26:22Z",
+          "state": "unreachable",
+          "hostname": "reset-scans.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "cultivationmanhua.com",
+      "hosts": [
+        "cultivationmanhua.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://cultivationmanhua.com/",
+          "checkedAt": "2026-10-04T16:25:27Z",
+          "state": "http-error",
+          "status": 404,
+          "finalUrl": "https://cultivationmanhua.com/",
+          "title": "",
+          "htmlSha256": "b16e15764b8bc06c5c3f9f19bc8b99fa48e7894aa5a6ccdad65da49bbf564793",
+          "hostname": "cultivationmanhua.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhwaread.com",
+      "hosts": [
+        "manhwaread.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwaread.com/",
+          "checkedAt": "2026-10-04T16:26:02Z",
+          "state": "unreachable",
+          "hostname": "manhwaread.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhwabuddy.com",
+      "hosts": [
+        "manhwabuddy.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwabuddy.com/",
+          "checkedAt": "2026-10-04T16:26:01Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manhwabuddy.com/",
+          "title": "ManhwaBuddy - Best Webtoon (Korean Manhwa) Online Reader",
+          "htmlSha256": "be004e660831e44798042fdf601f5c725a34090d21ed749a98461bc058e7bd62",
+          "hostname": "manhwabuddy.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "wto.to",
+      "hosts": [
+        "wto.to"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://wto.to/",
+          "checkedAt": "2026-10-04T16:26:39Z",
+          "state": "closed-or-parked",
+          "status": 200,
+          "finalUrl": "https://coda-cj.jp/closed.html?from=wto.to",
+          "title": "THIS WEBSITE HAS BEEN CLOSED",
+          "htmlSha256": "276b02467d4e87277763e6af65befdbe37ad0cb787941904405c3edefa085171",
+          "hostname": "wto.to"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "sukima.me",
+      "hosts": [
+        "sukima.me"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://sukima.me/",
+          "checkedAt": "2026-10-04T16:26:28Z",
+          "state": "unreachable",
+          "hostname": "sukima.me"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "comix.to",
+      "hosts": [
+        "comix.to"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comix.to/",
+          "checkedAt": "2026-10-04T16:25:24Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://comix.to/",
+          "title": "Just a moment...",
+          "htmlSha256": "be67dbe246f31b4497bbd9589d67fe17de61ca6272701560250f81a02b124fa9",
+          "hostname": "comix.to"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "youngchampion.jp",
+      "hosts": [
+        "youngchampion.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://youngchampion.jp/",
+          "checkedAt": "2026-10-04T16:26:43Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://youngchampion.jp/",
+          "title": "ヤンチャンWeb（ヤングチャンピオン） | 人気マンガやグラビアが毎日無料！アナタの日常を満たすオールジャンルエンタメサイト。",
+          "htmlSha256": "48e23ca1f713775d53f578de8a5e01194c754b721475c1efcb93b41350a65e96",
+          "hostname": "youngchampion.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manga-one.com",
+      "hosts": [
+        "manga-one.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manga-one.com/",
+          "checkedAt": "2026-10-04T16:25:46Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manga-one.com/",
+          "title": "マンガワン",
+          "htmlSha256": "955cb1c648ec3971541824d8d8e2e21c24763c1eb41162304afef3e86e0c5ea8",
+          "hostname": "manga-one.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "book.dmm.com",
+      "hosts": [
+        "book.dmm.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://book.dmm.com/",
+          "checkedAt": "2026-10-04T16:25:13Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://accounts.dmm.com/service/login/password?path=https%3A%2F%2Fbook.dmm.com%2F",
+          "title": "ログイン - DMM.com",
+          "htmlSha256": "5b2659c99cd4545552622385c514c4af4a8de55303a2780b224b0d0dc3d06b6c",
+          "hostname": "book.dmm.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "newmanhwa.com",
+      "hosts": [
+        "newmanhwa.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://newmanhwa.com/",
+          "checkedAt": "2026-10-04T16:26:08Z",
+          "state": "unreachable",
+          "hostname": "newmanhwa.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "fxfx302.com",
+      "hosts": [
+        "fxfx302.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://fxfx302.com/",
+          "checkedAt": "2026-10-04T16:25:30Z",
+          "state": "unreachable",
+          "hostname": "fxfx302.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "comic-meteor.jp",
+      "hosts": [
+        "comic-meteor.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic-meteor.jp/",
+          "checkedAt": "2026-10-04T16:25:19Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://kirapo.jp/meteor",
+          "title": "COMICメテオ - きら星ポータル きらポ",
+          "htmlSha256": "0d68d3bf016b7425da0ce8fb4b4ee05c0de7a33bf5cbde83569266531954b243",
+          "hostname": "comic-meteor.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "omegascans.org",
+      "hosts": [
+        "omegascans.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://omegascans.org/",
+          "checkedAt": "2026-10-04T16:26:11Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://omegascans.org/",
+          "title": "Omega Scans - High Quality Comics and Novels",
+          "htmlSha256": "1b785150d326e30875a2cc69fc9d4b8d8845a4cdd8509f83da662906e1084f34",
+          "hostname": "omegascans.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "readallcomics.com",
+      "hosts": [
+        "readallcomics.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://readallcomics.com/",
+          "checkedAt": "2026-10-04T16:26:20Z",
+          "state": "unreachable",
+          "hostname": "readallcomics.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "ranfren.neocities.org",
+      "hosts": [
+        "ranfren.neocities.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://ranfren.neocities.org/",
+          "checkedAt": "2026-10-04T16:26:13Z",
+          "state": "unreachable",
+          "hostname": "ranfren.neocities.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "utoon.net",
+      "hosts": [
+        "utoon.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://utoon.net/",
+          "checkedAt": "2026-10-04T16:26:34Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://utoon.net/",
+          "title": "UTOON — Free Browser Games Online",
+          "htmlSha256": "77d33fc148c8fc5e6774ef21e3b951dddb0d3f32f68d8bca5356ba2c7f90d153",
+          "hostname": "utoon.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhuapica.com",
+      "hosts": [
+        "manhuapica.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhuapica.com/",
+          "checkedAt": "2026-10-04T16:25:58Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manhuapica.com/",
+          "title": "PicaWeb - 哔咔漫画网页版",
+          "htmlSha256": "03b47c720b7c793f33f23252204d616e9794135ffac9ceda7f79460593ff984c",
+          "hostname": "manhuapica.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "comic-ryu.jp",
+      "hosts": [
+        "comic-ryu.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic-ryu.jp/",
+          "checkedAt": "2026-10-04T16:25:20Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic-ryu.jp/",
+          "title": "COMICリュウライブ | 徳間書店の人気マンガが無料で読める！",
+          "htmlSha256": "1d58db28eba651caf905bb8aa894cc1b4c55226105c9c935bc762fd9bc2fcb29",
+          "hostname": "comic-ryu.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "ctccomic.com",
+      "hosts": [
+        "ctccomic.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://ctccomic.com/",
+          "checkedAt": "2026-10-04T16:25:26Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://ctccomic.com/",
+          "title": "Countdown to Countdown - 742",
+          "htmlSha256": "0feda40f1ea3671fb152ebb620a8d7c954a00865b8d107eb83f1924745ca38c6",
+          "hostname": "ctccomic.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "nyaa.fan",
+      "hosts": [
+        "nyaa.fan"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://nyaa.fan/",
+          "checkedAt": "2026-10-04T16:26:10Z",
+          "state": "unreachable",
+          "hostname": "nyaa.fan"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangago.me",
+      "hosts": [
+        "mangago.me"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangago.me/",
+          "checkedAt": "2026-10-04T16:25:51Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://mangago.me/",
+          "title": "Just a moment...",
+          "htmlSha256": "6cedc82fb5e71e0f9180242e5fe5ff3552a055fff45be53ac40ba3fbdca4dc95",
+          "hostname": "mangago.me"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "rinkocomics.com",
+      "hosts": [
+        "rinkocomics.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://rinkocomics.com/",
+          "checkedAt": "2026-10-04T16:26:23Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://rinkocomics.com/",
+          "title": "Rinko Comics – Immerse Yourself in Manhwa, Comics, Manga, and Manhua.",
+          "htmlSha256": "e67bc704833e36285e75e1bf680f8ec3280946b21f9a253b4ff0128f88d6ac7e",
+          "hostname": "rinkocomics.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "roliascan.com",
+      "hosts": [
+        "roliascan.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://roliascan.com/",
+          "checkedAt": "2026-10-04T16:26:23Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://roliascan.com/",
+          "title": "roliascan.com | Read Manga Online Free",
+          "htmlSha256": "8da8ccda4b3a0fe86cc8a025b119039f5a6e67675f7c473e5a19d41a7d2e768f",
+          "hostname": "roliascan.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "novelpia.com",
+      "hosts": [
+        "novelpia.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://novelpia.com/",
+          "checkedAt": "2026-10-04T16:26:08Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://novelpia.com/",
+          "title": "노벨피아 - 웹소설로 꿈꾸는 세상!",
+          "htmlSha256": "be1fd0c31210be4780ff01a0a3feff8e4d66db2436e12374c2c8358dfc6e212d",
+          "hostname": "novelpia.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "zerobywai.com",
+      "hosts": [
+        "zerobywai.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://zerobywai.com/",
+          "checkedAt": "2026-10-04T16:26:44Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.zerobywai.com/",
+          "title": "404 Not Found",
+          "htmlSha256": "a9f6c0ebe33b6f66f78b95e06cf44325f3bd52647d9b4ed4b328464d29c1ac11",
+          "hostname": "zerobywai.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "toongod.cc",
+      "hosts": [
+        "toongod.cc"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://toongod.cc/",
+          "checkedAt": "2026-10-04T16:26:32Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://toongod.cc/",
+          "title": "ToonGod.CC - Read Webtoon (Korean Manhwa) in English Online Free!",
+          "htmlSha256": "21808281e38c3d61454ce73cf42f50a36a79e096fd453424775b491bd2722f67",
+          "hostname": "toongod.cc"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "kingofshojo.com",
+      "hosts": [
+        "kingofshojo.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://kingofshojo.com/",
+          "checkedAt": "2026-10-04T16:25:39Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://kingofshojo.com/",
+          "title": "Kingofshojo | The Best Platform For Reading Shoujo And Romance For Free!",
+          "htmlSha256": "7d05a5f4cb06edf848200879f1d95eb26d151b6057ff08eb6b281d97f1007aaa",
+          "hostname": "kingofshojo.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "weebcentral.com",
+      "hosts": [
+        "weebcentral.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://weebcentral.com/",
+          "checkedAt": "2026-10-04T16:26:38Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://weebcentral.com/",
+          "title": "Weeb Central",
+          "htmlSha256": "f0607c55d15c0b2d8983668c3aa76e9209555790c832aeee001acfe121d9961f",
+          "hostname": "weebcentral.com"
+        }
+      ],
+      "adapter": "images"
+    },
+    {
+      "name": "lrr.tvc-16.science",
+      "hosts": [
+        "lrr.tvc-16.science"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://lrr.tvc-16.science/",
+          "checkedAt": "2026-10-04T16:25:44Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://lrr.tvc-16.science/",
+          "title": "LANraragi Demo",
+          "htmlSha256": "558e2c42ec63fdd8b431b14e82c5bdb0ae3b80f1c741703f0dde175131411251",
+          "hostname": "lrr.tvc-16.science"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangarawad.org",
+      "hosts": [
+        "mangarawad.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangarawad.org/",
+          "checkedAt": "2026-10-04T16:25:53Z",
+          "state": "unreachable",
+          "hostname": "mangarawad.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manga-park.com",
+      "hosts": [
+        "manga-park.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manga-park.com/",
+          "checkedAt": "2026-10-04T16:25:46Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manga-park.com/",
+          "title": "マンガPark（マンガパーク） | 人気のマンガが毎日読み放題！",
+          "htmlSha256": "ed3df604198e66225c3ced7396b3de2acedfd3489a72ca0dd6404618e9218392",
+          "hostname": "manga-park.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangaflame.org",
+      "hosts": [
+        "mangaflame.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangaflame.org/",
+          "checkedAt": "2026-10-04T16:25:49Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangaflame.org/",
+          "title": "Loading...",
+          "htmlSha256": "7af22ca9bb9c63a144d21005841c6665dcdc55b84daeff0b1e2a6bda2b30f606",
+          "hostname": "mangaflame.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhwa404.com",
+      "hosts": [
+        "manhwa404.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwa404.com/",
+          "checkedAt": "2026-10-04T16:26:00Z",
+          "state": "unreachable",
+          "hostname": "manhwa404.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "xmanga.org",
+      "hosts": [
+        "xmanga.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://xmanga.org/",
+          "checkedAt": "2026-10-04T16:26:39Z",
+          "state": "unreachable",
+          "hostname": "xmanga.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "florascans.net",
+      "hosts": [
+        "florascans.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://florascans.net/",
+          "checkedAt": "2026-10-04T16:25:30Z",
+          "state": "unreachable",
+          "hostname": "florascans.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "comic.mf-fleur.jp",
+      "hosts": [
+        "comic.mf-fleur.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic.mf-fleur.jp/",
+          "checkedAt": "2026-10-04T16:25:21Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic.mf-fleur.jp/",
+          "title": "COMICフルール",
+          "htmlSha256": "7ddbb2931a8c68f854ebea766b313b84f9b61efadbdfa3d5489b3d1c3114638d",
+          "hostname": "comic.mf-fleur.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "komiic.com",
+      "hosts": [
+        "komiic.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://komiic.com/",
+          "checkedAt": "2026-10-04T16:25:41Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://komiic.com/",
+          "title": "Komiic",
+          "htmlSha256": "732e83b74ab1c1487e85fb0efed5e3e80ffc5ddab65f18775da316a06421d484",
+          "hostname": "komiic.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhwaus.org",
+      "hosts": [
+        "manhwaus.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwaus.org/",
+          "checkedAt": "2026-10-04T16:26:04Z",
+          "state": "unreachable",
+          "hostname": "manhwaus.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "tichct.org",
+      "hosts": [
+        "tichct.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://tichct.org/",
+          "checkedAt": "2026-10-04T16:26:30Z",
+          "state": "unreachable",
+          "hostname": "tichct.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhuaplus.org",
+      "hosts": [
+        "manhuaplus.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhuaplus.org/",
+          "checkedAt": "2026-10-04T16:25:58Z",
+          "state": "unreachable",
+          "hostname": "manhuaplus.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhuazhan.com",
+      "hosts": [
+        "manhuazhan.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhuazhan.com/",
+          "checkedAt": "2026-10-04T16:26:00Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.manhuazhan.com/",
+          "title": "漫画站_在线漫画_漫画大全_免费漫画",
+          "htmlSha256": "3549ca700e07fe45e46070f8b370616eeb25f69ec39793c50309074d2e96fa0c",
+          "hostname": "manhuazhan.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "blossommanga.com",
+      "hosts": [
+        "blossommanga.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://blossommanga.com/",
+          "checkedAt": "2026-10-04T16:25:12Z",
+          "state": "unreachable",
+          "hostname": "blossommanga.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "w226.npdn.top",
+      "hosts": [
+        "w226.npdn.top"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://w226.npdn.top/",
+          "checkedAt": "2026-10-04T16:26:36Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://202608.urldance.com/7d/?npdn.top#others",
+          "title": "welcome",
+          "htmlSha256": "9bc292ae79d68cfa097de85c200abd274b21eb4cf238146ff2c9764b7b266c1a",
+          "hostname": "w226.npdn.top"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "komiku.com",
+      "hosts": [
+        "komiku.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://komiku.com/",
+          "checkedAt": "2026-10-04T16:25:42Z",
+          "state": "unreachable",
+          "hostname": "komiku.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "webtoonraw.com",
+      "hosts": [
+        "webtoonraw.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://webtoonraw.com/",
+          "checkedAt": "2026-10-04T16:26:37Z",
+          "state": "unreachable",
+          "hostname": "webtoonraw.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "kissmanga.in",
+      "hosts": [
+        "kissmanga.in"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://kissmanga.in/",
+          "checkedAt": "2026-10-04T16:25:39Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://kissmanga.in/",
+          "title": "Just a moment...",
+          "htmlSha256": "f28a5e19839321b14b6c5071fbba5e9b6f493b994f81733aeacd8172e9063cb3",
+          "hostname": "kissmanga.in"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "02.ikiru.wtf",
+      "hosts": [
+        "02.ikiru.wtf"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://02.ikiru.wtf/",
+          "checkedAt": "2026-10-04T16:25:10Z",
+          "state": "unreachable",
+          "hostname": "02.ikiru.wtf"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangahub.ru",
+      "hosts": [
+        "mangahub.ru"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangahub.ru/",
+          "checkedAt": "2026-10-04T16:25:51Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangahub.ru/",
+          "title": "Манга. Читать мангу онлайн. Mangahub.ru - открой свою мангу",
+          "htmlSha256": "654f10dd74952813ec8fc4fd8c69140ad3f9b79c8e2a28461007a52787a96256",
+          "hostname": "mangahub.ru"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "ezmanga.org",
+      "hosts": [
+        "ezmanga.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://ezmanga.org/",
+          "checkedAt": "2026-10-04T16:25:29Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://ezmanga.org/",
+          "title": "Attention Required! | Cloudflare",
+          "htmlSha256": "f54b812c9dd8f81cc907555d72e1f835f3c9acd2357ccd7445912d532869e0c1",
+          "hostname": "ezmanga.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "magustoon.org",
+      "hosts": [
+        "magustoon.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://magustoon.org/",
+          "checkedAt": "2026-10-04T16:25:46Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://magustoon.org/",
+          "title": "Just a moment...",
+          "htmlSha256": "5ca8ab8d06796fada73d2a553e26169d6e112dc47a7afb7daaafe61672039ec6",
+          "hostname": "magustoon.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "violetscans.org",
+      "hosts": [
+        "violetscans.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://violetscans.org/",
+          "checkedAt": "2026-10-04T16:26:35Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://violetmanga.com/",
+          "title": "Violet Scans | Read Romance Manga, Manhwa & Comics Online",
+          "htmlSha256": "178cba2dda399174bf2241f1236b3adece35fb145a9cdf3f6a01dbf2324aec8f",
+          "hostname": "violetscans.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "publicdiplomacymagazine.com",
+      "hosts": [
+        "publicdiplomacymagazine.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://publicdiplomacymagazine.com/",
+          "checkedAt": "2026-10-04T16:26:13Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://publicdiplomacymagazine.com/",
+          "title": "Just a moment...",
+          "htmlSha256": "b134af5350cf7dcf6ece1ba3645275f69dd5264b77a29691714e40b20ef6da41",
+          "hostname": "publicdiplomacymagazine.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "raw1001.net",
+      "hosts": [
+        "raw1001.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://raw1001.net/",
+          "checkedAt": "2026-10-04T16:26:15Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://raw1001.net/home",
+          "title": "無料漫画（漫画）- raw1001 - 漫画ロウ, mangaraw, manga raw, manga1001, manga1000, 漫画raw, 漫画ばんく, 無料 漫画, 漫画 無料, 漫画ロウ |",
+          "htmlSha256": "6763be9233b831d384261dbdddabc964225f328a0b1144f5528f00a254b88243",
+          "hostname": "raw1001.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mkissa.to",
+      "hosts": [
+        "mkissa.to"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mkissa.to/",
+          "checkedAt": "2026-10-04T16:26:07Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mkissa.to/",
+          "title": "MKissa — M.Kissa",
+          "htmlSha256": "c206448bf00268efbb3ec344196f93c944d19d4e464ab4785eb1f56a510261d6",
+          "hostname": "mkissa.to"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "iqiyi.com",
+      "hosts": [
+        "iqiyi.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://iqiyi.com/",
+          "checkedAt": "2026-10-04T16:25:38Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.iqiyi.com/",
+          "title": "爱奇艺 iQIYI-热门独播剧集在线观看",
+          "htmlSha256": "091a15a95a7c95665b0979278884afa95068013f59aa984f429b9a450b5ab49d",
+          "hostname": "iqiyi.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "jcomic.net",
+      "hosts": [
+        "jcomic.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://jcomic.net/",
+          "checkedAt": "2026-10-04T16:25:38Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://jcomic.net/",
+          "title": "JComic",
+          "htmlSha256": "757f4f347468d4bd945bf8ed18078f245c6133c32278af5db72b76dc11a9bdfa",
+          "hostname": "jcomic.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "tapas.io",
+      "hosts": [
+        "tapas.io"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://tapas.io/",
+          "checkedAt": "2026-10-04T16:26:29Z",
+          "state": "http-error",
+          "status": 500,
+          "finalUrl": "https://tapas.io/error",
+          "title": "Tapas: Stories You Crave",
+          "htmlSha256": "ef8648e73f059f9c18bf1e114a004d11eee81a8f61091d2b67a646ffc872ac1a",
+          "hostname": "tapas.io"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "kagane.to",
+      "hosts": [
+        "kagane.to"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://kagane.to/",
+          "checkedAt": "2026-10-04T16:25:39Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://kagane.to/",
+          "title": "Just a moment...",
+          "htmlSha256": "70cb9d5580866cfac2879eca49ccd729827cdf79aa12bb39351c108c97c9019d",
+          "hostname": "kagane.to"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "soraraw.com",
+      "hosts": [
+        "soraraw.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://soraraw.com/",
+          "checkedAt": "2026-10-04T16:26:27Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://soraraw.com/",
+          "title": "Soraraw｜漫画 raw・manga raw | 漫画 無料・漫画raw・raw 漫画 | 漫画free",
+          "htmlSha256": "433f615036f7a5473371df769500b92f32eecf0dd2c61fd38d8fa35f069ba873",
+          "hostname": "soraraw.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "gomuraw.biz",
+      "hosts": [
+        "gomuraw.biz"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://gomuraw.biz/",
+          "checkedAt": "2026-10-04T16:25:33Z",
+          "state": "unreachable",
+          "hostname": "gomuraw.biz"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "webtoonscan.com",
+      "hosts": [
+        "webtoonscan.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://webtoonscan.com/",
+          "checkedAt": "2026-10-04T16:26:38Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://webtoonscan.com/",
+          "title": "Attention Required! | Cloudflare",
+          "htmlSha256": "3ff7afa953f11f29b29c61fa32e4952f321ef13f660a1e5fe89913c795f03f90",
+          "hostname": "webtoonscan.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "zipcomic.com",
+      "hosts": [
+        "zipcomic.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://zipcomic.com/",
+          "checkedAt": "2026-10-04T16:26:45Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://zipcomic.com/",
+          "title": "Just a moment...",
+          "htmlSha256": "2025b519a5d883cc463d0de59c20a89955ecd24e605d79962d5f53840f23e20e",
+          "hostname": "zipcomic.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "zerobywzz.com",
+      "hosts": [
+        "zerobywzz.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://zerobywzz.com/",
+          "checkedAt": "2026-10-04T16:26:45Z",
+          "state": "unreachable",
+          "hostname": "zerobywzz.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "dokusho-ojikan.jp",
+      "hosts": [
+        "dokusho-ojikan.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://dokusho-ojikan.jp/",
+          "checkedAt": "2026-10-04T16:25:28Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://dokusho-ojikan.jp/",
+          "title": "人気漫画を無料で試し読み・全巻お得に読むならAmebaマンガ",
+          "htmlSha256": "b0365040e80b3777e6b8d111a509e0ad094654f7dc5ef2f4d06ee95787940e4e",
+          "hostname": "dokusho-ojikan.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "bomtoon.com",
+      "hosts": [
+        "bomtoon.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://bomtoon.com/",
+          "checkedAt": "2026-10-04T16:25:13Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.bomtoon.com:443/",
+          "title": "봄툰 - 순정, 로맨스, BL 장르가 가득한 여성 독자를 위한 프리미엄 웹툰",
+          "htmlSha256": "6df12af83b87da2f9f0b4b904444c7d6eebd3730dd2a75e308f36f336b411b1a",
+          "hostname": "bomtoon.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "copymanga.site",
+      "hosts": [
+        "copymanga.site"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://copymanga.site/",
+          "checkedAt": "2026-10-04T16:25:25Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://copymanga.site/",
+          "title": "Redirecting...",
+          "htmlSha256": "4cda33726844adcc394fa3b7784c858e7c99088a8c5fce40d3e1552ef54f6ffa",
+          "hostname": "copymanga.site"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "readcomiconline.li",
+      "hosts": [
+        "readcomiconline.li"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://readcomiconline.li/",
+          "checkedAt": "2026-10-04T16:26:21Z",
+          "state": "unreachable",
+          "hostname": "readcomiconline.li"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "championcross.jp",
+      "hosts": [
+        "championcross.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://championcross.jp/",
+          "checkedAt": "2026-10-04T16:25:14Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://championcross.jp/",
+          "title": "チャンピオンクロス | 秋田書店の新作マンガが無料で読める！",
+          "htmlSha256": "9c29b3a090a9bef4a7b71a2190e1f806f71bea71176d8733008052f617cf5f57",
+          "hostname": "championcross.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mechacomic.jp",
+      "hosts": [
+        "mechacomic.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mechacomic.jp/",
+          "checkedAt": "2026-10-04T16:26:06Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mechacomic.jp/",
+          "title": "漫画なら、めちゃコミック（めちゃコミ）",
+          "htmlSha256": "844b3d75b4a90ad576c09f34dd80e2b5a62498f7dfebb380fb31f46b864dda4f",
+          "hostname": "mechacomic.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "kuragebunch.com",
+      "hosts": [
+        "kuragebunch.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://kuragebunch.com/",
+          "checkedAt": "2026-10-04T16:25:42Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://kuragebunch.com/",
+          "title": "くらげバンチ",
+          "htmlSha256": "909c2ac2c295800b64f7d7ae9c52fc8c3356c22defe6bbe525ddbeefdb41f0d2",
+          "hostname": "kuragebunch.com"
+        }
+      ],
+      "adapter": "area"
+    },
+    {
+      "name": "ichicomi.com",
+      "hosts": [
+        "ichicomi.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://ichicomi.com/",
+          "checkedAt": "2026-10-04T16:25:36Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://ichicomi.com/",
+          "title": "一迅プラス",
+          "htmlSha256": "21970292c9056bc59ebc703b3a4ebaf512620d12dafabf28e4bc1c889c1c158d",
+          "hostname": "ichicomi.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "rookie.shonenjump.com",
+      "hosts": [
+        "rookie.shonenjump.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://rookie.shonenjump.com/",
+          "checkedAt": "2026-10-04T16:26:23Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://rookie.shonenjump.com/",
+          "title": "ジャンプルーキー！ | 誰でもジャンプでデビューできる、マンガ投稿サービス",
+          "htmlSha256": "6d19903bcaa76d5e2e8d2405aa7008f5a050c1e9adb1db749b55b102f8a6e85b",
+          "hostname": "rookie.shonenjump.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhwa-raw.com",
+      "hosts": [
+        "manhwa-raw.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwa-raw.com/",
+          "checkedAt": "2026-10-04T16:26:00Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://manhwa-raw.com/",
+          "title": "Just a moment...",
+          "htmlSha256": "8f28954ca571e60ebf900dde5bbc60068c1f69b82d42d34bf2b20b394c35372c",
+          "hostname": "manhwa-raw.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "s1.managall.com",
+      "hosts": [
+        "s1.managall.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://s1.managall.com/",
+          "checkedAt": "2026-10-04T16:26:24Z",
+          "state": "unreachable",
+          "hostname": "s1.managall.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhwato.com",
+      "hosts": [
+        "manhwato.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwato.com/",
+          "checkedAt": "2026-10-04T16:26:03Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manhwato.com/",
+          "title": "Manhwato - Read Manhwa, Manga, Manhua Online Free - Page 3",
+          "htmlSha256": "fbc0f6351e72e02ca927c6de0539882d596a888469bf11b06aa26552d65bcc00",
+          "hostname": "manhwato.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "kuaikanmanhua.com",
+      "hosts": [
+        "kuaikanmanhua.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://kuaikanmanhua.com/",
+          "checkedAt": "2026-10-04T16:25:42Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.kuaikanmanhua.com/",
+          "title": "快看漫画_官方漫画_漫画大全免费在线观看",
+          "htmlSha256": "7bb50dbe36b689bbcd396e0bf653613f177b2802e2571bc5424aeb2e26795bfe",
+          "hostname": "kuaikanmanhua.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangapark.net",
+      "hosts": [
+        "mangapark.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangapark.net/",
+          "checkedAt": "2026-10-04T16:25:53Z",
+          "state": "unreachable",
+          "hostname": "mangapark.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangasuika.com",
+      "hosts": [
+        "mangasuika.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangasuika.com/",
+          "checkedAt": "2026-10-04T16:25:55Z",
+          "state": "unreachable",
+          "hostname": "mangasuika.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "firemanga.com",
+      "hosts": [
+        "firemanga.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://firemanga.com/",
+          "checkedAt": "2026-10-04T16:25:30Z",
+          "state": "unreachable",
+          "hostname": "firemanga.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "lmanga.com",
+      "hosts": [
+        "lmanga.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://lmanga.com/",
+          "checkedAt": "2026-10-04T16:25:43Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://lmanga.com/",
+          "title": "",
+          "htmlSha256": "6dc9c7fc93bb488bb0520a6c780a8d3c0fb5486a4711aca49b4c53fac7393023",
+          "hostname": "lmanga.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhwahub.net",
+      "hosts": [
+        "manhwahub.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwahub.net/",
+          "checkedAt": "2026-10-04T16:26:02Z",
+          "state": "unreachable",
+          "hostname": "manhwahub.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhuatop.org",
+      "hosts": [
+        "manhuatop.org"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhuatop.org/",
+          "checkedAt": "2026-10-04T16:25:59Z",
+          "state": "access-restricted",
+          "status": 403,
+          "finalUrl": "https://manhuatop.org/",
+          "title": "Just a moment...",
+          "htmlSha256": "403a73d4dd631d34c189e69f7bcc8f0fcad907fae565e477ecf47e3f92f38cf9",
+          "hostname": "manhuatop.org"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "aedexnox.vxviral.xyz",
+      "hosts": [
+        "aedexnox.vxviral.xyz"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://aedexnox.vxviral.xyz/",
+          "checkedAt": "2026-10-04T16:25:10Z",
+          "state": "unreachable",
+          "hostname": "aedexnox.vxviral.xyz"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhuabika.com",
+      "hosts": [
+        "manhuabika.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhuabika.com/",
+          "checkedAt": "2026-10-04T16:25:57Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manhuabika.com/",
+          "title": "PicaWeb - 哔咔漫画网页版",
+          "htmlSha256": "7056d35584ce9e161f40bcbf1deccb6d82e156d90be44d02edada327a0e2157f",
+          "hostname": "manhuabika.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "rawotaku.com",
+      "hosts": [
+        "rawotaku.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://rawotaku.com/",
+          "checkedAt": "2026-10-04T16:26:19Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://rawotaku.com/",
+          "title": "Raw Otaku - Raw Manga, Manga raw, 漫画raw, 無料で読め, 無料漫画(マンガ)読む, 漫画スキャン王",
+          "htmlSha256": "a084c692439a7a01f020e2bef3437f2a7c2eb17329826c0e201b5f6114ef1fa5",
+          "hostname": "rawotaku.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "pixiv.app",
+      "hosts": [
+        "pixiv.app"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://pixiv.app/",
+          "checkedAt": "2026-10-04T16:26:12Z",
+          "state": "unreachable",
+          "hostname": "pixiv.app"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "speed-manga.com",
+      "hosts": [
+        "speed-manga.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://speed-manga.com/",
+          "checkedAt": "2026-10-04T16:26:28Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://speed-manga.net/",
+          "title": "อ่านมังงะออนไลน์ มังงะแปลไทย อัปเดตล่าสุด | Speed Manga",
+          "htmlSha256": "4d31acb452997632f153953a8c73433f7c8748842cd5868662f04d0da2aef121",
+          "hostname": "speed-manga.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "yomonga.com",
+      "hosts": [
+        "yomonga.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://yomonga.com/",
+          "checkedAt": "2026-10-04T16:26:42Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.yomonga.com:443/",
+          "title": "ぶんか社の無料マンガサイト | 復讐サスペンス、話題の実写ドラマ化作品、異世界ファンタジーまで、株式会社ぶんか社＆海王社の幅広いラインナップが読める無料マンガサイト「マンガよもんが」。毎週火曜・金曜の12時更新！ | マンガよもんが",
+          "htmlSha256": "193d7fb36d9e211110fb7a6397bc65c33b4a647da6be014bfa81b2a980d7d389",
+          "hostname": "yomonga.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "global.manga-up.com",
+      "hosts": [
+        "global.manga-up.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://global.manga-up.com/",
+          "checkedAt": "2026-10-04T16:25:31Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://global.manga-up.com/",
+          "title": "Manga UP!",
+          "htmlSha256": "aa18b902452d0ae7d7216da64655888a487eb8638ea4d4cd481d1193383ce7c7",
+          "hostname": "global.manga-up.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangaball.net",
+      "hosts": [
+        "mangaball.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangaball.net/",
+          "checkedAt": "2026-10-04T16:25:47Z",
+          "state": "unreachable",
+          "hostname": "mangaball.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "yanmaga.jp",
+      "hosts": [
+        "yanmaga.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://yanmaga.jp/",
+          "checkedAt": "2026-10-04T16:26:40Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://yanmaga.jp/",
+          "title": "ヤンマガWeb - マンガ・グラビアが毎日無料！",
+          "htmlSha256": "a5a4570aa8d25f675e7123acbf34aaa3ade98728bda833f66f5e7e41286d09d8",
+          "hostname": "yanmaga.jp"
+        }
+      ],
+      "adapter": "area"
+    },
+    {
+      "name": "viewer.bookhodai.jp",
+      "hosts": [
+        "viewer.bookhodai.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://viewer.bookhodai.jp/",
+          "checkedAt": "2026-10-04T16:26:34Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://bookhodai.jp/",
+          "title": "漫画無料読み放題ならブック放題 | 漫画65,000冊・雑誌800誌・旅行ガイド600冊 コスパ最強の漫画・雑誌サブスク",
+          "htmlSha256": "b2d4c154bbda436c31058aedccfdb33787c5d0ff1f3896e68428f34c6d59ae1c",
+          "hostname": "viewer.bookhodai.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "play.comipo.app",
+      "hosts": [
+        "play.comipo.app"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://play.comipo.app/",
+          "checkedAt": "2026-10-04T16:26:13Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://play.comipo.app/",
+          "title": "comipo Play",
+          "htmlSha256": "0fde641494d44b7f1cc822e24bc24f6140925754a44f0542f3ee681e27b2f9e9",
+          "hostname": "play.comipo.app"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "arenascan.com",
+      "hosts": [
+        "arenascan.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://arenascan.com/",
+          "checkedAt": "2026-10-04T16:25:10Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://arenascan.com/",
+          "title": "Arenascans - Arena Scans - Read Manhwa free online and update daily",
+          "htmlSha256": "7172d1fcc89ef57cc7da112193f9ea6ce7ab91105bc117e206b7ad023a4da999",
+          "hostname": "arenascan.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "luvyaa.my.id",
+      "hosts": [
+        "luvyaa.my.id"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://luvyaa.my.id/",
+          "checkedAt": "2026-10-04T16:25:45Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://luvyaa.my.id/",
+          "title": "Luvyaa ID - Baca Komik Bahasa Indonesia",
+          "htmlSha256": "4730e2dbca9ee4be5dca5f4c96954e3b4ef55e4475b6ee77e358d5cfb89b45d7",
+          "hostname": "luvyaa.my.id"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "toondex.co",
+      "hosts": [
+        "toondex.co"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://toondex.co/",
+          "checkedAt": "2026-10-04T16:26:32Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://toondex.co/",
+          "title": "ToonDex - Free Manhwa, Manga and Webtoons Reader Online in English",
+          "htmlSha256": "81ddd6ce732b3c94cc5601a7bac3bf3a87925335d0e8ad1a06dd827100d8578a",
+          "hostname": "toondex.co"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manwadd.cc",
+      "hosts": [
+        "manwadd.cc"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manwadd.cc/",
+          "checkedAt": "2026-10-04T16:26:05Z",
+          "state": "unreachable",
+          "hostname": "manwadd.cc"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "saucemanhwa.com",
+      "hosts": [
+        "saucemanhwa.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://saucemanhwa.com/",
+          "checkedAt": "2026-10-04T16:26:24Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://saucemanhwa.com/",
+          "title": "Loading...",
+          "htmlSha256": "9aceda3f7aca623900dd3ff7fcaf26d549a39dd8a0e5f890600edba511058867",
+          "hostname": "saucemanhwa.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangakoinu.com",
+      "hosts": [
+        "mangakoinu.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangakoinu.com/",
+          "checkedAt": "2026-10-04T16:25:52Z",
+          "state": "unreachable",
+          "hostname": "mangakoinu.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "comicmanga.cc",
+      "hosts": [
+        "comicmanga.cc"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comicmanga.cc/",
+          "checkedAt": "2026-10-04T16:25:24Z",
+          "state": "unreachable",
+          "hostname": "comicmanga.cc"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangajikan.com",
+      "hosts": [
+        "mangajikan.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangajikan.com/",
+          "checkedAt": "2026-10-04T16:25:51Z",
+          "state": "unreachable",
+          "hostname": "mangajikan.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhwaden.com",
+      "hosts": [
+        "manhwaden.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwaden.com/",
+          "checkedAt": "2026-10-04T16:26:01Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.manhwaden.com/",
+          "title": "Our free library features hundreds of Manhwa - ManhwaDen",
+          "htmlSha256": "70e8c65f93243eff1e384b3d34488dd1002e090c94a02da983a3d11958c849ff",
+          "hostname": "manhwaden.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "dvamh-vzwp7.top",
+      "hosts": [
+        "dvamh-vzwp7.top"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://dvamh-vzwp7.top/",
+          "checkedAt": "2026-10-04T16:25:28Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://dvamh-vzwp7.top/",
+          "title": "Loading...",
+          "htmlSha256": "073b392d4ed770d05c6a8bdee338a0e83ded83de2593bf1d106444c4595d5e61",
+          "hostname": "dvamh-vzwp7.top"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "comic.pixiv.net",
+      "hosts": [
+        "comic.pixiv.net"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comic.pixiv.net/",
+          "checkedAt": "2026-10-04T16:25:22Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic.pixiv.net/",
+          "title": "",
+          "htmlSha256": "f89b29d49d3fd136a2d9b294c58b8caa850ab6aaef2989122a3e5da3e488af17",
+          "hostname": "comic.pixiv.net"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "comico.jp",
+      "hosts": [
+        "comico.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://comico.jp/",
+          "checkedAt": "2026-10-04T16:25:24Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.comico.jp/",
+          "title": "comico (コミコ) | タテカラー漫画が毎日無料、毎日更新！",
+          "htmlSha256": "cb61f2b831ad91948d4d976a35401cc0bd78beb3c652ce9b39ac0cf2fe01b715",
+          "hostname": "comico.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhwas.men",
+      "hosts": [
+        "manhwas.men"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwas.men/",
+          "checkedAt": "2026-10-04T16:26:03Z",
+          "state": "unreachable",
+          "hostname": "manhwas.men"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "ridibooks.com",
+      "hosts": [
+        "ridibooks.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://ridibooks.com/",
+          "checkedAt": "2026-10-04T16:26:22Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://ridibooks.com/comics/ebook",
+          "title": "만화 웹툰 웹소설 도서는 리디",
+          "htmlSha256": "98046835826d3c5a38486dd229c48665e4547b3e23362c99c207775e92ae4842",
+          "hostname": "ridibooks.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "sunday-webry.com",
+      "hosts": [
+        "sunday-webry.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://sunday-webry.com/",
+          "checkedAt": "2026-10-04T16:26:28Z",
+          "state": "unreachable",
+          "hostname": "sunday-webry.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "ynjn.jp",
+      "hosts": [
+        "ynjn.jp"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://ynjn.jp/",
+          "checkedAt": "2026-10-04T16:26:42Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://ynjn.jp/",
+          "title": "ヤンジャン＋｜集英社・ジャンプ系青年マンガ公式",
+          "htmlSha256": "9369d7b4cb6e5f5ececf8b78919ea4e77ee8a835c6189ccd2a8d1c0d970aaf87",
+          "hostname": "ynjn.jp"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "mangayun.com",
+      "hosts": [
+        "mangayun.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://mangayun.com/",
+          "checkedAt": "2026-10-04T16:25:56Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangayun.com/",
+          "title": "云漫 - 实现你的漫画自由 | 免费在线全网漫画阅读器",
+          "htmlSha256": "9b6e1f720bf1169210a5610e80bee54df28dd5c6e5aea226732c2f5d8dd53c5a",
+          "hostname": "mangayun.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "manhwaweb.com",
+      "hosts": [
+        "manhwaweb.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://manhwaweb.com/",
+          "checkedAt": "2026-10-04T16:26:05Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manhwaweb.com/",
+          "title": "ManhwaWeb - Manhwa Web",
+          "htmlSha256": "35205857413616649bb62695ba7bf0b47ae5fff4b12cb129223b6428b46a009f",
+          "hostname": "manhwaweb.com"
+        }
+      ],
+      "adapter": "detect"
+    },
+    {
+      "name": "a-i-manga.com",
+      "hosts": [
+        "a-i-manga.com"
+      ],
+      "accessChecks": [
+        {
+          "requestedUrl": "https://a-i-manga.com/",
+          "checkedAt": "2026-10-04T16:25:10Z",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://a-i-manga.com/",
+          "title": "AI漫画を無料で読む・投稿するなら｜アイマンガ（AIMANGA）",
+          "htmlSha256": "527a657e1830a76268dc02d4daedc1ec168a2cbb71faa2011bf3e7c89282551e",
+          "hostname": "a-i-manga.com"
+        }
+      ],
+      "adapter": "detect"
+    }
+  ],
+  "readerSamples": [
+    {
+      "url": "https://comic-action.com/episode/13933686331606211422",
+      "status": 200,
+      "imageCount": 3,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://comic-days.com/episode/10834108156634732370",
+      "status": 200,
+      "imageCount": 13,
+      "canvasCount": 5,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://comic-gardo.com/episode/3269754496561191598",
+      "status": 200,
+      "imageCount": 9,
+      "canvasCount": 5,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://comic-trail.com/episode/12207421984031179197",
+      "status": 200,
+      "imageCount": 6,
+      "canvasCount": 5,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://kuragebunch.com/episode/3270296674399717436",
+      "status": 200,
+      "imageCount": 25,
+      "canvasCount": 5,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://rawdevart.art/read/ne859000/chapter-15.2",
+      "status": 200,
+      "imageCount": 4,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://shonenjumpplus.com/episode/4855956445109234830",
+      "status": 200,
+      "imageCount": 35,
+      "canvasCount": 3,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://tonarinoyj.jp/episode/12207421984093802437",
+      "status": 200,
+      "imageCount": 5,
+      "canvasCount": 5,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://weebcentral.com/chapters/01M43Q7CFX4XXN7WBVZH1MTEFS",
+      "status": 403,
+      "imageCount": 0,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://dynasty-scans.com/chapters/the_nth_encore",
+      "status": 200,
+      "imageCount": 2,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://yanmaga.jp/viewer/comics/%E6%96%B0%E5%A9%A6%E3%81%AE%E3%81%94%E5%8F%8B%E4%BA%BA/be247c5b6d176a8edc402d3a59f30d1f?cid=06Z1100000000906FREE",
+      "status": 200,
+      "imageCount": 15,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://www.kuaikanmanhua.com/web/comic/851143",
+      "status": 200,
+      "imageCount": 2,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+      "status": 200,
+      "imageCount": 4,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://ww2.uzakichanmanga.com/manga/uzaki-chan-wa-asobitai-chapter-1/",
+      "status": 200,
+      "imageCount": 21,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://w9.kaijimanga.com/manga/kaiji-chapter-461/",
+      "status": 200,
+      "imageCount": 26,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://rawkuma.net/manga/bad-boys/chapter-13.413433/",
+      "status": 200,
+      "imageCount": 32,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://qimanga.com/series/ive-ushered-in-the-era-of-mythical-pet-beasts/chapter-57",
+      "status": 403,
+      "imageCount": 0,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://nyxscans.com/series/press-play-sami/chapter-99",
+      "status": 200,
+      "imageCount": 3,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    },
+    {
+      "url": "https://televikun-super-hero-comics.com/rensai/gokumonnadeshiko/episode-001",
+      "status": 200,
+      "imageCount": 3,
+      "canvasCount": 0,
+      "restrictions": false,
+      "canvasReadable": false
+    }
+  ],
+  "verification": {
+    "unit": {
+      "files": 10,
+      "assertions": 1121,
+      "passed": true
+    },
+    "newReaderProfilesCoverage": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "extensionUi": {
+      "passed": true,
+      "cases": 22,
+      "liveReaders": [
+        {
+          "url": "https://dynasty-scans.com/chapters/the_nth_encore",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://rawkuma.net/manga/bad-boys/chapter-13.413433/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://ww2.uzakichanmanga.com/manga/uzaki-chan-wa-asobitai-chapter-1/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://w9.kaijimanga.com/manga/kaiji-chapter-461/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://comic-gardo.com/episode/3269754496561191598",
+          "status": 200,
+          "mode": "area",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://televikun-super-hero-comics.com/rensai/gokumonnadeshiko/episode-001",
+          "status": 200,
+          "mode": "area",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "extensionErrors": 0,
+      "hostErrors": 3,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "profileRemoved": true
+    },
+    "mangaReader": {
+      "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+      "passed": true,
+      "checkedPages": 2,
+      "ocr": "real production PaddleOCR",
+      "translation": "live Google",
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "scroll automatically translates a new visible page",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the readable brand"
+      ],
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 19120,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 83952,
+          "mayIncludeFirstInpaintingPreparation": true
+        }
+      ],
+      "profileRemoved": true,
+      "scope": "Two observed pages; does not guarantee all chapters or OCR/translation quality."
+    }
+  }
+}

@@ -1,11 +1,11 @@
 <!--
  * @file src/features/image-translation/ui/MangaEntry.vue
  * 文件职责：提供安静的漫画入口，仅在用户主动启动且缺少资源时说明首次下载。
- * 主要内容：普通悬浮球不可见时显示紧凑漫画阅读按钮，闲置时半收回边缘，悬停、触摸和键盘聚焦时展开；点击开始或切换原文，下载确认关闭后不开始、不重新弹出，路由变化与卸载清理迟到检查和闲置计时器。
+ * 主要内容：普通悬浮球不可见时显示紧凑漫画阅读按钮，默认常驻，显式选择悬停模式才闲置半收回；画布与分片通过圈选入口处理；点击开始或切换原文，下载确认关闭后不开始、不重新弹出，路由变化与卸载清理迟到检查和闲置计时器。
  * 模块边界：不自动展开阅读面板，不下载资源、不扫描图片；单页进度属于图片运行时，动作通过注入端口执行，界面只属于 closed Shadow UI。
  -->
 <template>
-  <button v-if="standalone" ref="launcher" class="fr-manga-launcher" :class="{'is-expanded': expanded}" type="button" :data-animated="settings.animations" :aria-label="actionLabel" :title="buttonTitle" :aria-pressed="status.active" :aria-busy="busy || status.pending" @mouseenter="reveal" @pointermove="pointerReveal" @mouseleave="retract" @focusin="reveal" @focusout="retract" @keydown.esc.stop="collapseLauncher" @click="activate" @contextmenu.prevent="openSettings">
+  <button v-if="standalone" ref="launcher" class="fr-manga-launcher" :class="{'is-expanded': expanded || alwaysExpanded}" type="button" :data-animated="settings.animations" :aria-label="actionLabel" :title="buttonTitle" :aria-pressed="status.active" :aria-busy="busy || status.pending" @mouseenter="reveal" @pointermove="pointerReveal" @mouseleave="retract" @focusin="reveal" @focusout="retract" @keydown.esc.stop="collapseLauncher" @click="activate" @contextmenu.prevent="openSettings">
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1m0-14c3-2 6-2 9-1v14c-3-1-6-1-9 1V6Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /><path d="M5.5 8.5h4v4h-2l-1.5 1v-1h-.5v-4Zm9.5.5h3m-3 3h3m-3 3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
     <span v-if="busy || status.pending" class="fr-manga-spinner" aria-hidden="true" />
     <span v-else-if="status.errors" class="fr-manga-badge fr-manga-error-badge" aria-hidden="true">!</span>
@@ -34,14 +34,16 @@ import {useUiI18n} from '@/src/ui/i18n';
 import type {MangaTranslationStatus} from '../content/mangaSession';
 const props = defineProps<{
   status: MangaTranslationStatus; page: {site: string; route: string};
-  settings: {promptEnabled: boolean; floatingBallVisible: boolean; downloadConfirmed: boolean; animations: boolean};
+  settings: {promptEnabled: boolean; floatingBallVisible: boolean; downloadConfirmed: boolean; animations: boolean; toolsDisplay?: string};
   toggle: () => void; inspectResources: () => Promise<boolean>; persist: (patch: Record<string, unknown>) => Promise<unknown>; openSettings: () => void;
+  startAreaTranslation: () => Promise<boolean>;
 }>();
 const {translateLegacy: t} = useUiI18n();
 const consent = ref(false), busy = ref(false), error = ref('');
 const standalone = computed(() => props.status.available && !props.settings.floatingBallVisible && props.settings.promptEnabled);
+const alwaysExpanded = computed(() => props.settings.toolsDisplay !== 'hover');
 const visible = computed(() => props.status.available && (consent.value || !!error.value));
-const actionLabel = computed(() => t(props.status.active ? '暂停并显示原图' : '开启连续翻译'));
+const actionLabel = computed(() => t(props.status.areaFallback ? '圈选漫画翻译' : props.status.active ? '暂停并显示原图' : '开启连续翻译'));
 const buttonTitle = computed(() => {
   const message = busy.value ? '正在检查阅读资源' : props.status.pending ? props.status.message || '正在处理当前漫画页' : props.status.errors ? '部分页面未完成' : '';
   return [t('漫画翻译'), message && t(message), actionLabel.value].filter(Boolean).join(' · ');
@@ -52,6 +54,7 @@ let idleTimer: ReturnType<typeof setTimeout> | null = null;
 function clearIdle() {if (idleTimer !== null) clearTimeout(idleTimer);idleTimer = null;}
 function reveal() {
   expanded.value = true;clearIdle();
+  if (alwaysExpanded.value) return;
   if (launcher.value?.matches(':focus-visible')) return;
   idleTimer = setTimeout(() => {idleTimer = null;if (!launcher.value?.matches(':focus-visible')) expanded.value = false;}, 2500);
 }
@@ -62,6 +65,13 @@ function activate(event: MouseEvent) {void start();if (event.detail > 0) launche
 function close() {request++;busy.value = false;consent.value = false;error.value = '';}
 async function start() {
   if (busy.value || !props.status.available) return;
+  if (props.status.areaFallback) {
+    const owner = ++request;busy.value = true;consent.value = false;error.value = '';
+    try {const started = await props.startAreaTranslation();
+      if (!disposed && owner === request) {if (started) close();else error.value = t('请在图片/漫画设置中启用圈选翻译，再拖选漫画区域。');}
+    } catch (cause) {if (!disposed && owner === request) error.value = t(cause instanceof Error ? cause.message : String(cause));}
+    finally {if (!disposed && owner === request) busy.value = false;}return;
+  }
   if (props.status.active || props.settings.downloadConfirmed) {close();props.toggle();return;}
   const owner = ++request; busy.value = true; error.value = '';
   try {
@@ -82,6 +92,7 @@ async function confirm() {
   finally {if (!disposed && owner === request) busy.value = false;}
 }
 watch(() => props.page.route, close);
+watch(() => props.status.areaFallback, close);
 watch(() => props.status.available, available => {if (!available) close();});
 watch(standalone, () => {clearIdle();expanded.value = false;});
 onBeforeUnmount(() => {disposed = true;clearIdle();close();});

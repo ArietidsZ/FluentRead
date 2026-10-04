@@ -14,6 +14,7 @@ const {chromium} = require(path.join(packages, 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(helper);
 const liveSite = process.argv.includes('--live-site');
 const liveTranslation = process.argv.includes('--live-translation');
+const readerSmoke = process.argv.includes('--reader-smoke');
 const qualityPages = Number(arg('quality-pages','2'));
 const blockedOfficial = process.argv.includes('--blocked-official');
 const blockedAll = process.argv.includes('--blocked-all-model-sources');
@@ -178,7 +179,8 @@ async function verifyPageFeedback() {
     const first=page.locator('#page-one'),second=page.locator('#page-two');
     const scroll=async image=>{await image.evaluate(i=>scrollTo({top:i.getBoundingClientRect().top+scrollY-40,behavior:'instant'}));await page.waitForTimeout(100);};
     const point=()=>ball(`const r=this.querySelector('.floating-ball-manga').getBoundingClientRect();return {x:r.x+r.width/4,y:r.y+r.height/2}`);
-    report.currentCase='compact comic reading icon retracts to the edge and expands on hover';
+    await patch({floatingBallToolsDisplay:'hover'});
+    report.currentCase='explicit hover preference retracts compact comic controls and expands on hover';
     const initial=await ball(`const b=this.querySelector('.floating-ball-manga'),r=b.getBoundingClientRect();return {width:r.width,visible:r.width/2,inset:innerWidth-r.right+r.width/2,icon:b.querySelector('svg').innerHTML}`);
     assert.equal(initial.width,32);assert.ok(initial.visible>8&&initial.visible<=18);assert.ok(initial.inset>=16);assert.ok(!initial.icon.includes('<rect'));
     let p=await point();await page.mouse.move(p.x,p.y);await page.waitForTimeout(600);
@@ -684,7 +686,7 @@ async function verifyReadAhead() {
     launched=await launchFocusSafePersistentContext({chromium,profileDir:profile,
         browserPath:arg('browser-path','/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),headless:false,background:true,
         browserArgs:[...(extensionDebugging?['--enable-unsafe-extension-debugging']:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`]),'--no-first-run','--no-default-browser-check'],
-        viewport:{width:1280,height:900},timeout:30000});
+        viewport:{width:1280,height:900},displayTarget:"secondary",timeout:30000});
     Object.assign(report,{launchMode:launched.launchMode,focusPolicy:launched.focusPolicy,windowPlacement:launched.windowPlacement});
     assert.equal(report.launchMode,'macos-background-cdp');
     assert.equal(report.focusPolicy,'launchservices-no-foreground');
@@ -873,10 +875,11 @@ async function verifyReadAhead() {
     }
     if(!baseline){
         if(liveSite){await assertQuietReading();report.cases.push('scroll and hover never open a reading panel');}
-        report.currentCase='manga button matches brand button size and progress ring stays inside';
+        report.currentCase='manga control stays compact beneath the readable brand';
         const metrics=await ball(`const a=this.querySelector('.floating-ball-manga').getBoundingClientRect(),b=this.querySelector('.floating-ball-main').getBoundingClientRect();return {manga:a.width,brand:b.width}`);
-        assert.equal(metrics.manga,metrics.brand);assert.equal(metrics.manga,32);report.buttonSize=metrics;report.cases.push(report.currentCase);
+        assert.equal(metrics.brand,104);assert.equal(metrics.manga,32);report.buttonSize=metrics;report.cases.push(report.currentCase);
     }
+    if(readerSmoke){auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.status='passed';focusGuard();return;}
     report.currentCase='settings switch persists across unmount and reopen';
     await patch({imageTranslationMangaEnabled:false});
     await wait(async()=>!(await ball(`return !!this.querySelector('.floating-ball-manga')`)));

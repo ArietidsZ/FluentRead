@@ -11,6 +11,7 @@ export interface MangaTranslationStatus {
     pending: boolean;
     errors: number;
     pageCount?: number;
+    areaFallback?: boolean;
     completed?: number;
     message?: string;
     progress?: number;

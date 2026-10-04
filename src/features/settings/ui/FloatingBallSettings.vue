@@ -11,7 +11,7 @@
   >
     <SettingsItem
       label="按钮显示方式"
-      description="悬浮球上的翻译与设置按钮可以悬停时展开、始终显示，或完全隐藏只保留悬浮球本体"
+      description="默认常驻显示品牌和工具；也可选择悬停时展开，或只保留品牌按钮"
       :disabled="!enabled"
     >
       <SegmentedControl
@@ -84,6 +84,7 @@
     </SettingsItem>
 
     <SettingsItem
+      v-if="props.config.floatingBallToolsDisplay !== 'always'"
       label="收起时不透明度"
       description="数值越小越透明、越不遮挡网页；鼠标悬停、展开和拖动时始终完全清晰"
       :disabled="!enabled"

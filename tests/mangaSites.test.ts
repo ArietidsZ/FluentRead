@@ -1,9 +1,39 @@
 import {describe, expect, it} from 'vitest';
 import {createMangaSiteRule, normalizeMangaSiteRules, normalizeMangaPrefetchPages, resolveMangaSite} from '@/src/core/config/manga';
-import {isCatalogMangaHost, MANGA_SITE_DOMAINS} from '@/src/core/config/mangaSiteCatalog';
+import {isCatalogMangaHost, MANGA_SITE_DOMAINS, MANGA_SITE_CATALOG} from '@/src/core/config/mangaSiteCatalog';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it('完整清单保留全部名称，已确认的别名进入域名匹配，未确认名称不虚构地址', () => {
+        expect(MANGA_SITE_CATALOG).toHaveLength(235);
+        expect(new Set(MANGA_SITE_CATALOG.map(site => site.name)).size).toBe(235);
+        for (const site of MANGA_SITE_CATALOG) for (const host of site.hosts) {
+            if (['pixiv.net','mangaplus.shueisha.co.jp'].includes(host)) continue;
+            expect(isCatalogMangaHost(new URL(`https://${host}`).hostname)).toBe(true);
+        }
+        expect(MANGA_SITE_CATALOG.find(site => site.name === 'JinMangas')?.hosts).toEqual([]);
+        expect(MANGA_SITE_CATALOG.find(site => site.name === 'KLMANGA')?.hosts).toContain('klmanga.my');
+        expect(MANGA_SITE_CATALOG.find(site => site.name === 'Manga4u')?.hosts).toContain('mn4u.net');
+    });
+    it('核对后的图片和画布结构使用正文规则，复数章节路径也可自动检测', () => {
+        expect(resolveMangaSite('https://weebcentral.com/chapters/01M43Q7CFX4XXN7WBVZH1MTEFS')).toMatchObject({selector:'#chapter-images img', requireContent:true});
+        expect(resolveMangaSite('https://dynasty-scans.com/chapters/the_nth_encore')).toMatchObject({selector:'#reader #image img', requireContent:true});
+        expect(resolveMangaSite('https://comic-days.com/episode/10834108156634732370')?.areaSelector).toContain('canvas.js-page-image');
+        expect(resolveMangaSite('https://yanmaga.jp/viewer/comics/title')?.selector).toBe(':not(*)');
+        expect(resolveMangaSite('https://unknown.example/chapters/2')?.selector).toContain('main img');
+        expect(resolveMangaSite('https://comic-days.com.attacker.test/episode/2')?.areaSelector).not.toContain('.page-area');
+    });
+    it.each([
+        ['https://www.comic-days.com/episode/10834108156634732370/', '.page-area img.page-image, .page-area img.js-page-image'],
+        ['https://televikun-super-hero-comics.com/rensai/gokumonnadeshiko/episode-001', ':not(*)'],
+        ['https://ww2.uzakichanmanga.com/manga/uzaki-chan-wa-asobitai-chapter-1/', 'article .entry-content img'],
+        ['https://w9.kaijimanga.com/manga/kaiji-chapter-461/', 'article .entry-content img'],
+        ['https://w9.smokingbehindthesupermarket.com/manga/title-chapter-1/', 'article .entry-content img'],
+        ['https://rawkuma.net/manga/bad-boys/chapter-13.413433/', 'section.mx-auto > section > img'],
+        ['https://rawkuma.com/manga/bad-boys/chapter-1/', 'section.mx-auto > section > img'],
+    ])('新增公开样本限定正文选择器 %s', (href, selector) => {
+        expect(resolveMangaSite(href)).toMatchObject({selector,custom:false,requireContent:true});
+    });
     it('提前翻译默认三页，显式零保留，限制窗口并拒绝损坏或旧类型', () => {
         for (const invalid of [undefined, null, '3', NaN, Infinity, {}, true]) expect(normalizeMangaPrefetchPages(invalid)).toBe(3);
         for (const [input, output] of [[0,0],[-1,0],[2.9,2],[5,5],[100,5]]) {

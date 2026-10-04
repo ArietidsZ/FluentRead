@@ -189,6 +189,31 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it.each([
+        ['https://dynasty-scans.com/chapters/the_nth_encore', 'reader', 'image', 'thumbnail'],
+        ['https://weebcentral.com/chapters/01M43Q7CFX4XXN7WBVZH1MTEFS', 'chapter-images', '', ''],
+    ])('正文专用规则接受 %s，翻译后仍可暂停恢复', async (href, parentId, imageId, imageClass) => {
+        const f=readerFixture(false, href), parent=f.image.parentElement!;
+        parent.id=parentId;
+        if (imageId) {const wrapper=f.document.createElement('div');wrapper.id=imageId;wrapper.className=imageClass;parent.append(wrapper);wrapper.append(f.image);}
+        f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:true,pageCount:1,areaFallback:false});
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);f.reader.dispose();
+    });
+    it('画布正文只发布圈选入口，推荐图不进入队列，离屏和关闭后入口消失', async () => {
+        const f=readerFixture(false,'https://comic-days.com/episode/10834108156634732370');
+        f.image.parentElement!.className='link-page-content';
+        const page=f.document.createElement('div');page.className='page-area';
+        const canvas=f.document.createElement('canvas');canvas.className='js-page-image';page.append(canvas);f.document.body.append(page);
+        let top=0;canvas.getBoundingClientRect=()=>({left:0,right:688,top,bottom:top+1024,width:688,height:1024}) as DOMRect;
+        const pixels=vi.fn();canvas.getContext=pixels;
+        f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:true,areaFallback:true,pageCount:0});
+        expect(f.ports.changed).toHaveBeenLastCalledWith(expect.objectContaining({areaFallback:true}));
+        expect(f.reader.toggle()).toBe(false);await flush();expect(f.ports.translate).not.toHaveBeenCalled();expect(pixels).not.toHaveBeenCalled();
+        top=1500;f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,areaFallback:false});
+        top=0;f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+        expect(f.reader.status().areaFallback).toBe(false);
+    });
     it('预合成按可见优先与几何距离排序，左右一屏和容量都有边界',()=>{
         const warm=vi.fn(),f=readerFixture(true,undefined,undefined,undefined,warm);
         const near=f.document.createElement('img'),far=f.document.createElement('img');

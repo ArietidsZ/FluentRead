@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/mangaReader.ts
  * 文件职责：把漫画站点的正文图片、可见区域和页面生命周期接入连续翻译会话。
- * 主要内容：适配 MANGA Plus、Pixiv 和通用图片阅读器，排除推荐/头像；正文发现与上下左右的几何更新分开，按当前位置判断可见页；同地址重载也更新像素版本，避免误复用；当前页优先的有界提前翻译和前后各两张附近页保留共享像素预算，换章、隐藏和卸载时清理监听器。
+ * 主要内容：按站点规则发现正文图片，画布与分片只发布圈选入口并排除推荐封面；发现与几何更新分开，按位置判断可见页；同地址重载也更新像素版本；当前页优先的有界提前翻译和附近页共享像素预算，换章、隐藏和卸载时清理监听器。
  * 模块边界：只读取站点已展示的 img，不抓取章节、不读取站点私有数据或绕过访问限制；单图翻译、缓存与原图恢复通过注入端口复用既有运行时。
  */
 import {createMangaSession, type MangaTranslationStatus} from './mangaSession';
@@ -35,7 +35,9 @@ export function createMangaReader(ports: {
     let discovered: HTMLImageElement[] = [];
     let discoveryDirty = true;
     let discoverySelector: string | null = null;
-    const session = createMangaSession({...ports, changed: status => ports.changed({...status, pageCount: observed.size})});
+    let areaFallback = false;
+    const decorate = (status: MangaTranslationStatus): MangaTranslationStatus => ({...status, pageCount: observed.size, areaFallback});
+    const session = createMangaSession({...ports, changed: status => ports.changed(decorate(status))});
     let intersection: IntersectionObserver | null = null;
     let mutation: MutationObserver | null = null;
 
@@ -46,7 +48,7 @@ export function createMangaReader(ports: {
             if (records.some(record => !(record.target instanceof Element && record.target.closest('[data-fluent-read-ui]')))) schedule();
         });
         mutation.observe(document.documentElement, {subtree: true, childList: true, attributes: true,
-            attributeFilter: ['src', 'srcset', 'sizes', 'media', 'type', 'class', 'id', 'data-manga-reader', 'hidden', 'aria-hidden']});
+            attributeFilter: ['src', 'srcset', 'sizes', 'media', 'type', 'class', 'id', 'data-manga-reader', 'hidden', 'aria-hidden', 'width', 'height']});
     }
 
     function refresh(): void {
@@ -100,7 +102,7 @@ export function createMangaReader(ports: {
         });
         // 同一帧共享祖先样式，避免连续图片在滚动时重复读取阅读器容器。
         const ancestorStyles = new Map<Element, CSSStyleDeclaration>();
-        const inViewport = (image: HTMLImageElement, rect: DOMRect) => {
+        const inViewport = (image: Element, rect: DOMRect) => {
             let left=Math.max(0,rect.left),right=Math.min(window.innerWidth,rect.right);
             let top=Math.max(0,rect.top),bottom=Math.min(window.innerHeight,rect.bottom);
             if (right<=left || bottom<=top) return false;
@@ -117,6 +119,16 @@ export function createMangaReader(ports: {
             }
             return right>left && bottom>top;
         };
+        // 画布和分片只提供可见区域圈选，不将推荐封面送进连续翻译，不读取受污染的画布像素。
+        areaFallback = false;
+        if (available && images.length === 0 && site?.areaSelector) {
+            try {areaFallback = Array.from(document.querySelectorAll(site.areaSelector)).some(element => {
+                if (element.closest('[data-fluent-read-ui]')) return false;
+                const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
+                return rect.width >= 240 && rect.height >= 80 && rect.bottom > 0 && rect.top < window.innerHeight
+                    && rect.right > 0 && rect.left < window.innerWidth && style.display !== 'none' && style.visibility !== 'hidden' && inViewport(element, rect);
+            });} catch { /* 无效选择器不影响宿主页面。 */ }
+        }
         const candidates = images.map(image => {
             const rect = image.getBoundingClientRect();
             const style = getComputedStyle(image);
@@ -148,7 +160,7 @@ export function createMangaReader(ports: {
         for (let index=firstVisible-1;index>=0 && index>=firstVisible-2;index--) retain(index);
         if(anchor>=0)for(let index=anchor+1;index<candidates.length && index<=anchor+2;index++)retain(index);
         session.refresh({
-            route: `${url.origin}${url.pathname}${url.search}`, available: available && (!site?.generic || images.length > 0),
+            route: `${url.origin}${url.pathname}${url.search}`, available: available && (!(site?.generic || site?.requireContent) || images.length > 0 || areaFallback),
             suspended: document.hidden,
             pages: candidates.map(page => ({image: page.image, identity: page.identity,
                 visible: page.visible && !document.hidden, retain: nearby.has(page.image),
@@ -180,10 +192,10 @@ export function createMangaReader(ports: {
     window.addEventListener('resize', scheduleLayout);
     refresh();
     return {
-        status: session.status,
+        status: () => decorate(session.status()),
         schedule,
         retry(image: HTMLImageElement) { refresh();return session.retry(image); },
-        toggle() { discoveryDirty = true; refresh(); const toggled = session.toggle(); refresh(); return toggled; },
+        toggle() { discoveryDirty = true; refresh(); if (areaFallback) return false; const toggled = session.toggle(); refresh(); return toggled; },
         dispose() {
             disposed = true;
             if (frame !== null) window.cancelAnimationFrame(frame);
@@ -196,6 +208,7 @@ export function createMangaReader(ports: {
             document.removeEventListener('fluentread-route-change', schedule);
             window.removeEventListener('scroll', scheduleLayout, true);
             window.removeEventListener('resize', scheduleLayout);
+            areaFallback = false;
             session.dispose();
         },
     };

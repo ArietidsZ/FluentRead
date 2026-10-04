@@ -11,7 +11,11 @@ const {chromium} = require(path.join(arg('playwright-root'), 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper'));
 const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-entry-');
 fs.mkdirSync(artifacts, {recursive: true});
-const report = {suite: baseline ? 'baseline live discovery' : 'manga entry UI', cases: [], screenshots: [], consoleErrors: [], errors: []};
+const report = {suite: baseline ? 'baseline live discovery' : 'manga entry UI', cases: [], screenshots: [], consoleErrors: [], errors: [], hostErrors: []};
+const hostBaselineFile=arg('host-baseline',null);
+const hostBaseline=hostBaselineFile?JSON.parse(fs.readFileSync(hostBaselineFile,'utf8')):null;
+if(hostBaseline)assert.equal(hostBaseline.purpose,'read-only DOM research without extension; not extension runtime validation');
+report.hostBaselineFile=hostBaselineFile;
 let launched, popup, page, worker, cdp, browserPid;
 function focusGuard() {
     const app = JSON.parse(execFileSync('/usr/bin/osascript', ['-l', 'JavaScript', '-e', "ObjC.import('AppKit');const a=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(a.processIdentifier),name:ObjC.unwrap(a.localizedName)});"], {encoding: 'utf8'}));
@@ -39,7 +43,7 @@ async function shot(name) {focusGuard();const file = path.join(artifacts, `${nam
 async function clickEntry(selector) {let point = await entry(`const b=this.querySelector(${JSON.stringify(selector)});if(!b)return null;const r=b.getBoundingClientRect();return {x:r.x+r.width*(getComputedStyle(b).clipPath!=='none'?.25:.5),y:r.y+r.height/2}`);assert.ok(point);await page.mouse.move(point.x,point.y);await page.waitForTimeout(550);point=await entry(`const r=this.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}`);await page.mouse.click(point.x, point.y);}
 (async () => {
     launched = await launchFocusSafePersistentContext({chromium, profileDir: profile, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', headless: false, background: true,
-        browserArgs: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`, '--no-first-run', '--no-default-browser-check'], viewport: {width: 1280, height: 900}, timeout: 30000});
+        browserArgs: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`, '--no-first-run', '--no-default-browser-check'], viewport: {width: 1280, height: 900}, displayTarget: 'secondary', timeout: 30000});
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     assert.equal(report.windowPlacement.browserFrontmost, false);
     const context = launched.context, system = await context.browser().newBrowserCDPSession();
@@ -49,10 +53,23 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
     popup = context.pages()[0];popup.on('pageerror',e=>report.errors.push(e.message));popup.on('console',m=>{if(m.type()==='error')report.consoleErrors.push(m.text());});await popup.goto(`chrome-extension://${id}/popup.html`);
     await patch({on: true, uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true, disableImageTranslator: true, disableFloatingBall: false,
         imageTranslationMangaEnabled: true, imageTranslationMangaPromptEnabled: true, imageTranslationMangaDownloadConfirmed: false, animations: false, service: 'google', from: 'en', to: 'zh-Hans'});
-    page = await newPageWithoutForeground(context);page.on('pageerror', e => report.errors.push(e.message));page.on('console', m => {if(m.type()==='error' && m.location().url.startsWith('chrome-extension://'))report.consoleErrors.push(m.text());});
+    page = await newPageWithoutForeground(context);page.on('pageerror', e => {
+        const stack=e.stack||'';
+        const reproducedWithoutExtension=hostBaseline?.pages.some(sample=>sample.requestedUrl===page.url()
+            && sample.pageErrors?.some(error=>error.message===e.message));
+        if(!stack.includes('chrome-extension://') && (/https?:\/\//.test(stack) || reproducedWithoutExtension))report.hostErrors.push({url:page.url(),message:e.message,stack,reproducedWithoutExtension:!!reproducedWithoutExtension});
+        else report.errors.push(e.message);
+    });page.on('console', m => {if(m.type()==='error' && m.location().url.startsWith('chrome-extension://'))report.consoleErrors.push(m.text());});
     cdp = await context.newCDPSession(page);
-    await page.goto('https://mangaplus.shueisha.co.jp/viewer/1024050', {waitUntil: 'domcontentloaded', timeout: 60000});
+    const executionContexts=new Map();
+    cdp.on('Runtime.executionContextCreated',event=>executionContexts.set(event.context.id,event.context));
+    cdp.on('Runtime.exceptionThrown',event=>{
+        (report.scriptExceptions??=[]).push({url:page.url(),details:event.exceptionDetails,context:executionContexts.get(event.exceptionDetails.executionContextId)});
+    });
+    await cdp.send('Runtime.enable');
+    await page.goto(arg('site-url', 'https://mangaplus.shueisha.co.jp/viewer/1028732'), {waitUntil: 'domcontentloaded', timeout: 60000});
     await page.waitForSelector('.zao-image-container img.zao-image', {timeout: 45000});
+    const reject=page.locator('#onetrust-reject-all-handler');await reject.waitFor({timeout:7000}).then(()=>reject.click()).catch(()=>undefined);
     report.readerImages = await page.locator('.zao-image-container img.zao-image').count();
     if (baseline) {
         report.currentCase = 'ordinary images disabled hides the manga entry';
@@ -68,9 +85,15 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
         assert.equal(await ball('return this.querySelector(".manga-icon")?.tagName.toLowerCase()'), 'svg');
         assert.equal(await ball('return this.querySelector(".manga-icon")?.textContent.trim()'), '');
         const mangaButtons = await ball('return [".floating-ball-main", ".floating-ball-manga"].map(s => {const r=this.querySelector(s).getBoundingClientRect();return {left:r.left,right:r.right,width:r.width}})');
-        assert.equal(mangaButtons[0].width, 32);assert.equal(mangaButtons[1].width, 32);
-        assert.ok(mangaButtons.every(r => r.left >= 0 && r.left < 1280 && r.right <= 1298), 'Compact manga buttons retain an accessible edge handle');
+        assert.equal(mangaButtons[0].width, 104);assert.equal(mangaButtons[1].width, 32);
+        assert.ok(mangaButtons.every(r => r.left >= 0 && r.left < 1280 && r.right <= 1280), 'Resident manga controls stay inside the viewport');
         report.mangaButtons = mangaButtons;
+        const order=await ball('return [...this.querySelectorAll(".floating-ball-item")].map(e=>e.className)');
+        assert.ok(order[0].includes('floating-ball-translate') && order[1].includes('floating-ball-main') && order[2].includes('floating-ball-manga'));
+        assert.equal(await ball('return this.querySelector(".floating-ball-brand").textContent'), '流畅阅读FluentRead');
+        await page.mouse.move(30,30);await page.waitForTimeout(2800);await page.keyboard.press('Escape');
+        assert.equal(await ball('return this.querySelector(".fr-floating-ball").classList.contains("floating-ball-expanded")'),true);
+        const brandShot=path.join(artifacts,'brand-resident.png');focusGuard();await page.screenshot({path:brandShot,clip:{x:1120,y:250,width:160,height:350}});report.screenshots.push(brandShot);
         await shot('entry-initial');report.cases.push(report.currentCase);
         report.currentCase = 'manga entry remains after closing floating ball';await patch({disableFloatingBall: true});
         await wait(async () => !await ball('return true'));await wait(async()=>await entry('return !!this.querySelector(".fr-manga-launcher")'));
@@ -92,6 +115,7 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
         await patch({from: 'auto'});await page.waitForTimeout(300);assert.equal(await entry('return !!this.querySelector(".fr-manga-launcher")'), false);report.cases.push(report.currentCase);
         report.currentCase = 'settings restore prompt through the actual switch';
         await popup.goto(`chrome-extension://${id}/options.html#settings-image-translation`);
+        await popup.locator('.manga-advanced > summary').click();
         const switchPrompt=popup.getByRole('switch',{name:'独立漫画按钮',exact:true});await switchPrompt.waitFor({state:'attached'});
         await popup.locator('.el-switch').filter({has:switchPrompt}).waitFor();
         assert.equal(await switchPrompt.getAttribute('aria-checked'),'false');
@@ -106,7 +130,12 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
         assert.equal(await popup.locator('[data-testid=ocr-language-manager]:visible').count(),1);
         const settingsShot=path.join(artifacts,'settings-manga.png');focusGuard();await popup.screenshot({path:settingsShot});report.screenshots.push(settingsShot);report.cases.push(report.currentCase);
         report.currentCase='custom site rule validates selector and persists on reopen';
-        await popup.getByText('添加其他漫画网站',{exact:true}).click();
+        const search=popup.getByRole('searchbox',{name:'搜索网站名称或域名',exact:true});
+        assert.equal(await popup.locator('.manga-site-list .manga-site').count(),235);
+        await search.fill('Uzaki');assert.equal(await popup.locator('.manga-site-list .manga-site').count(),1);
+        assert.ok((await popup.locator('.manga-site-list').innerText()).includes('uzakichanmanga.com'));
+        await search.fill('comic-days');assert.ok((await popup.locator('.manga-site-list').innerText()).includes('圈选翻译'));
+        await search.fill('');await popup.getByText('添加其他漫画网站',{exact:true}).click();
         await popup.getByLabel('阅读页或阅读路径',{exact:true}).fill('https://comic.example.test/reader/');
         await popup.getByLabel('漫画图片选择器',{exact:true}).fill('[');await popup.getByRole('button',{name:'添加网站',exact:true}).click();
         await popup.getByRole('alert').filter({hasText:'图片选择器无效'}).waitFor();
@@ -136,17 +165,36 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
             await wait(async()=>await entry(`return this.querySelector(".fr-manga-primary")?.textContent.trim() === ${JSON.stringify(title)}`));
         }
         report.cases.push(report.currentCase);
-        report.currentCase = 'ordinary pages retain edge docking and reveal on hover';
+        report.currentCase = 'ordinary pages keep resident brand and translation controls; explicit hover remains available';
         await page.setViewportSize({width:1280,height:900});
         await context.route('https://ordinary.example.test/article', route => route.fulfill({contentType:'text/html',body:'<html><body><p>Ordinary reading page</p></body></html>'}));
         await page.mouse.move(30,30);await page.goto('https://ordinary.example.test/article');
         await wait(async () => await ball('return !!this.querySelector(".floating-ball-main")'));
         assert.equal(await ball('return this.querySelector(".floating-ball-manga") !== null'), false);
         const docked = await ball('const r=this.querySelector(".floating-ball-main").getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}');
-        assert.ok(docked.right>1280 && docked.left<1280, 'Ordinary brand button rests partially beyond the edge');
-        await page.mouse.move(1278,(docked.top+docked.bottom)/2);
+        assert.ok(docked.right<=1280 && docked.left>=0, 'Default brand stays fully visible');
+        await page.mouse.move(30,30);await page.waitForTimeout(2800);await page.keyboard.press('Escape');
+        assert.equal(await ball('return this.querySelector(".fr-floating-ball").classList.contains("floating-ball-expanded")'),true);
+        await shot('brand-resident-ordinary');
+        await patch({floatingBallToolsDisplay:'hover'});
+        await wait(async()=>await ball('return !this.querySelector(".fr-floating-ball").classList.contains("floating-ball-expanded")'));
+        const hidden=await ball('const r=this.querySelector(".floating-ball-main").getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}');
+        assert.ok(hidden.right>1280 && hidden.left<1280, 'Opt-in hover preserves docking');
+        await page.mouse.move(1278,(hidden.top+hidden.bottom)/2);
         await wait(async () => await ball('return this.querySelector(".floating-ball-main").getBoundingClientRect().right <= 1280'));
-        report.ordinaryDocking=docked;report.cases.push(report.currentCase);
+        await patch({floatingBallToolsDisplay:'always'});report.ordinaryDocking={resident:docked,hover:hidden};report.cases.push(report.currentCase);
+        report.currentCase = 'resident brand can be dragged to either edge and stays inside narrow screens';
+        let mainPoint=await ball('const r=this.querySelector(".floating-ball-main").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}');
+        await page.mouse.move(mainPoint.x,mainPoint.y);await page.mouse.down();await page.mouse.move(50,250,{steps:8});await page.mouse.up();
+        await wait(async()=>await ball('return this.querySelector(".fr-floating-ball").dataset.position === "left"'));
+        let dragBounds=await ball('const r=this.querySelector(".floating-ball-main").getBoundingClientRect();return {left:r.left,right:r.right,top:r.top}');assert.ok(dragBounds.left>=0 && dragBounds.right<=1280);
+        mainPoint=await ball('const r=this.querySelector(".floating-ball-main").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}');
+        await page.mouse.move(mainPoint.x,mainPoint.y);await page.mouse.down();await page.mouse.move(1230,450,{steps:8});await page.mouse.up();
+        await wait(async()=>await ball('return this.querySelector(".fr-floating-ball").dataset.position === "right"'));
+        await page.setViewportSize({width:320,height:550});await page.waitForTimeout(400);
+        dragBounds=await ball('const r=this.querySelector(".floating-ball-main").getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}');
+        assert.ok(dragBounds.left>=0 && dragBounds.right<=320 && dragBounds.top>=0 && dragBounds.bottom<=550);await shot('brand-narrow-dragged');
+        await page.setViewportSize({width:1280,height:900});report.cases.push(report.currentCase);
         report.currentCase = 'confirm closes immediately and continuous mode can pause without a dialog';
         await patch({uiLanguage:'zh-CN'});await page.goto('https://comic.example.test/reader/1');
         await wait(async () => await ball('return !!this.querySelector(".floating-ball-manga")'));
@@ -159,6 +207,29 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
         assert.equal(acknowledged,true);await clickBall();
         await wait(async()=>await ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-pressed") === "false"'));
         assert.equal(await entry('return !!this.querySelector(".fr-manga-entry")'),false);report.cases.push(report.currentCase);
+        report.currentCase = 'canvas reader offers area translation without downloading continuous manga models';
+        await context.route('https://comic-days.com/episode/10834108156634732370',route=>route.fulfill({contentType:'text/html',body:'<html><body><div class="page-area"><canvas class="js-page-image" width="688" height="1024" style="width:600px;height:850px"></canvas></div><div class="link-page-content"><img width="600" height="850"></div></body></html>'}));
+        await patch({selectionAreaEnabled:false});await page.goto('https://comic-days.com/episode/10834108156634732370');
+        await wait(async()=>await ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-label") === "圈选漫画翻译"'));
+        const areaClick=async()=>{const p=await ball('const r=this.querySelector(".floating-ball-manga").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}');await page.mouse.click(p.x,p.y);};
+        await areaClick();await wait(async()=>await entry('return this.textContent.includes("请在图片/漫画设置中启用圈选翻译")'));
+        assert.equal(await entry('return this.textContent.includes("首次使用，先准备阅读资源")'),false);
+        await clickEntry('.fr-manga-close');await patch({selectionAreaEnabled:true});
+        await page.waitForTimeout(700);await areaClick();
+        await wait(async()=>await shadow('fluent-read-area-translator-container','return !!this.querySelector(".fr-area-selecting")'));
+        await shot('canvas-area-selection');await page.keyboard.press('Escape');report.cases.push(report.currentCase);
+        const liveReadersFile=arg('reader-sites',null);
+        if(liveReadersFile){
+            for(const sample of JSON.parse(fs.readFileSync(liveReadersFile,'utf8'))){
+                report.currentCase=`live reader discovery: ${sample.url}`;
+                const response=await page.goto(sample.url,{waitUntil:'domcontentloaded',timeout:30000});await page.waitForTimeout(3000);focusGuard();
+                const result={url:sample.url,status:response?.status(),mode:sample.mode};
+                (report.liveReaders??=[]).push(result);
+                if(response?.status()!==200){result.result='access-restricted';continue;}
+                await wait(async()=>await ball(`return this.querySelector(".floating-ball-manga")?.getAttribute("aria-label") === ${JSON.stringify(sample.mode==='area'?'圈选漫画翻译':'漫画翻译')}`));
+                result.result='reader-entry-confirmed';report.cases.push(report.currentCase);
+            }
+        }
         report.currentCase = 'master switch removes manga UI';
         await patch({on: false});await wait(async () => !await entry('return true'));assert.equal(await ball('return true'),null);report.cases.push(report.currentCase);
     }

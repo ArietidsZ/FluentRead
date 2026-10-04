@@ -1,0 +1,77 @@
+/** 公开章节 DOM 核对：显式 URL 子集、隔离后台 Edge，只记录页面已呈现的图片/画布与阅读结构。 */
+const fs = require('node:fs');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const {execFileSync} = require('node:child_process');
+const arg = name => process.argv[process.argv.indexOf(`--${name}`) + 1];
+for (const name of ['urls-file', 'artifacts-dir', 'playwright-root', 'focus-safe-helper']) {
+  if (!process.argv.includes(`--${name}`)) throw new Error(`Provide --${name}; no implicit full-site scan`);
+}
+const urls = JSON.parse(fs.readFileSync(arg('urls-file'), 'utf8'));
+const artifacts = path.resolve(arg('artifacts-dir'));
+const {chromium} = require(path.join(arg('playwright-root'), 'playwright'));
+const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper'));
+const profile = fs.mkdtempSync('/private/tmp/fluentread-reader-inspection-');
+const headlessResearch = process.argv.includes('--headless-research');
+fs.mkdirSync(artifacts, {recursive:true});
+const report = {scope: urls, pages: [], errors: []};
+let launched, browserPid;
+function focusGuard() {
+  if (headlessResearch) return;
+  const current = JSON.parse(execFileSync('/usr/bin/osascript', ['-l','JavaScript','-e', "ObjC.import('AppKit');const a=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(a.processIdentifier),name:ObjC.unwrap(a.localizedName)});"], {encoding:'utf8'}));
+  assert.ok(browserPid, 'Own isolated browser process is known');
+  assert.notEqual(current.pid, browserPid, 'Isolated Edge must stay behind the user application');
+  (report.focusChecks ??= []).push(current);
+}
+(async () => {
+  try {
+    launched = await launchFocusSafePersistentContext({chromium,profileDir:profile,
+      browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',headless:headlessResearch,background:true,
+      browserArgs:['--no-first-run','--no-default-browser-check'],viewport:{width:1280,height:900}});
+    report.launchMode = launched.launchMode; report.focusPolicy = launched.focusPolicy; report.windowPlacement = launched.windowPlacement;
+    if (!headlessResearch) assert.equal(report.windowPlacement.browserFrontmost, false);
+    report.purpose = headlessResearch ? 'read-only DOM research without extension; not extension runtime validation' : 'read-only visible DOM research without extension';
+    const system = await launched.context.browser().newBrowserCDPSession();
+    browserPid = (await system.send('SystemInfo.getProcessInfo')).processInfo.find(p=>p.type==='browser').id;
+    await system.detach();focusGuard();
+    for (const href of urls) {
+      const page = await newPageWithoutForeground(launched.context);
+      const result = {requestedUrl:href,pageErrors:[]};
+      page.on('pageerror',error=>result.pageErrors.push({message:error.message,stack:error.stack||''}));
+      try {
+        const response = await page.goto(href,{waitUntil:'domcontentloaded',timeout:25000});
+        await page.waitForTimeout(3500); focusGuard();
+        Object.assign(result, await page.evaluate(() => {
+          const ancestors = element => {
+            const values = [];
+            for (let parent=element;parent && values.length<5;parent=parent.parentElement) values.push({tag:parent.tagName,id:parent.id,className:typeof parent.className==='string'?parent.className:'',dataPage:parent.getAttribute('data-page')});
+            return values;
+          };
+          const images = Array.from(document.images).filter(img=>img.width>=200 || img.naturalWidth>=300).map(img=>({
+            source:img.currentSrc || img.src, width:img.width,height:img.height,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,
+            rect: {x:img.getBoundingClientRect().x,y:img.getBoundingClientRect().y,width:img.getBoundingClientRect().width,height:img.getBoundingClientRect().height}, ancestors:ancestors(img)}));
+          return {url:location.href,title:document.title,images:images.slice(0,30),imageCount:images.length,
+            canvases:Array.from(document.querySelectorAll('canvas')).map(c=>{
+              let readable=false, nonblank=false, pixelError='';
+              try {const ctx=c.getContext('2d');if(ctx && c.width && c.height){const pixels=ctx.getImageData(0,0,Math.min(32,c.width),Math.min(32,c.height)).data;readable=true;nonblank=pixels.some(v=>v>0);}}
+              catch(error){pixelError=error.name;}
+              return {width:c.width,height:c.height,readable,nonblank,pixelError,ancestors:ancestors(c)};
+            }),
+            frames:Array.from(document.querySelectorAll('iframe')).map(f=>({src:f.src,id:f.id})),
+            controls:Array.from(document.querySelectorAll('button,a')).filter(e=>/読む|読ん|続きを読む|read|viewer/i.test(e.textContent)).slice(0,8).map(e=>({tag:e.tagName,text:e.textContent.trim().slice(0,100),href:e.getAttribute('href')})),
+            detectedRestriction:/Just a moment|Access Denied|Verify you are human/i.test(document.title)};
+        }));
+        result.status=response?.status();
+        fs.writeFileSync(path.join(artifacts,`${report.pages.length}.html`),await page.content());
+      } catch(error) {result.error=error.message;}
+      report.pages.push(result);
+      fs.writeFileSync(path.join(artifacts,'reader-inspection.json'),JSON.stringify(report,null,2));
+      console.log(JSON.stringify({url:href,status:result.status,images:result.imageCount,canvases:result.canvases?.length,error:result.error}));
+      await page.close();
+    }
+  } catch(error) {report.errors.push(error.stack);process.exitCode=1;}
+  finally {
+    fs.writeFileSync(path.join(artifacts,'reader-inspection.json'),JSON.stringify(report,null,2));
+    await launched?.close();fs.rmSync(profile,{recursive:true,force:true});
+  }
+})();
