@@ -224,7 +224,8 @@ import {
 } from '@/src/features/vocabulary/learningModel';
 
 const emit = defineEmits<{ navigate: [section: string] }>();
-const t = (key: string): string => translate(key, normalizeUiLanguage(runtimeConfig.uiLanguage));
+const uiLanguage = ref(normalizeUiLanguage(runtimeConfig.uiLanguage));
+const t = (key: string): string => translate(key, uiLanguage.value);
 const reencounterSupported = browserCapabilities.browser !== 'userscript';
 const betaEnabled = ref(false);
 const reencounterEnabled = ref(false);
@@ -788,12 +789,14 @@ onMounted(async () => {
   darkMedia = window.matchMedia('(prefers-color-scheme: dark)');
   darkMedia.addEventListener('change', applyTheme);
   await lifecycle.runAfterReady(configReady, async () => {
+    uiLanguage.value = normalizeUiLanguage(runtimeConfig.uiLanguage);
     betaEnabled.value = runtimeConfig.vocabularyBookEnabled;
     reencounterEnabled.value = runtimeConfig.vocabularyReencounterEnabled;
     selectionTranslatorEnabled.value = runtimeConfig.selectionTranslatorMode !== 'disabled' || runtimeConfig.harness?.enabled === true;
     targetLanguageKey.value = normalizeLanguageKey(runtimeConfig.to);
     applyTheme();
     unsubscribeConfig = subscribeConfig(next => {
+      uiLanguage.value = normalizeUiLanguage(next.uiLanguage);
       betaEnabled.value = next.vocabularyBookEnabled;
       reencounterEnabled.value = next.vocabularyReencounterEnabled;
       selectionTranslatorEnabled.value = next.selectionTranslatorMode !== 'disabled' || next.harness?.enabled === true;
