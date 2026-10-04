@@ -72,6 +72,7 @@
     "settings.cloud.fieldLabel.4": "Modelo local de reconocimiento de voz",
     "settings.cloud.cleanupPending": "Configuración sincronizada, pero la limpieza de la caché de autorización sigue pendiente. Reabre los ajustes para reintentarlo.",
     "settings.cloud.versionMissing": "La copia no tiene un identificador de versión para reemplazarla de forma segura. Puedes restaurarla; vuelve a leerla antes de reintentarlo.",
-    "settings.cloud.verifyFailed": "La verificación de la copia ha fallado. Vuelve a leerla antes de reintentarlo; la configuración de este dispositivo no ha cambiado."
+    "settings.cloud.verifyFailed": "La verificación de la copia ha fallado. Vuelve a leerla antes de reintentarlo; la configuración de este dispositivo no ha cambiado.",
+    "settings.cloud.restoreOnly": "Puedes restaurar esta copia, pero el servicio no ha proporcionado un identificador de versión para reemplazarla de forma segura. Por ahora no se puede guardar ni combinar."
   }
 }

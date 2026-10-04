@@ -89,7 +89,6 @@
 
 :root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .popup-shell .brand img {
   box-shadow: 0 0 0 2px var(--surface), 2px 3px 0 2px var(--line);
-  border-radius: 11px 11px 11px 5px;
 }
 
 /* 两种 DOM 预览按缩放尺寸呈现与实际菜单栏一致的表情贴纸，避免小字形和普通灰底误导选择。 */

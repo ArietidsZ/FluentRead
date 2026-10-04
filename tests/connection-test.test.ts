@@ -1,8 +1,10 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-const {adapter} = vi.hoisted(() => ({
+const {adapter, freeAdapter} = vi.hoisted(() => ({
     adapter: vi.fn(),
+    freeAdapter: vi.fn(),
 }));
+vi.mock('@/src/providers/translation/free-translation', () => ({translateFreeTranslationProvider: freeAdapter}));
 
 vi.mock('@/src/providers/translation/registry', () => ({
     translationProviderRegistry: {
@@ -36,6 +38,38 @@ function deferred<T>() {
 }
 
 describe('翻译服务连接测试', () => {
+    it.each(['transmart', 'apertiumFree'])('免费池 %s 直接调用匿名适配器，使用支持的固定语言对', async freeProviderId => {
+        freeAdapter.mockResolvedValue('有效译文');
+        const source = Object.assign(new Config(), {from: 'auto', to: 'en'});
+        await expect(runTranslationServiceConnectionTest('freeTranslation', {
+            freeProviderId, configSnapshot: createTranslationProviderConfigSnapshot(source),
+        })).resolves.toEqual({durationMs: expect.any(Number)});
+        expect(freeAdapter).toHaveBeenLastCalledWith(freeProviderId, expect.objectContaining({
+            origin: CONNECTION_TEST_ORIGIN, sourceLanguage: 'en',
+            targetLanguage: freeProviderId === 'apertiumFree' ? 'es' : 'zh-Hans',
+            requestTimeoutMs: source.freeTranslationTimeoutMs, useCache: false,
+        }));
+        expect(source.to).toBe('en');
+    });
+
+    it('免费池单服务失败不被其他适配器成功掩盖，超时取消对应请求', async () => {
+        vi.useFakeTimers();
+        const source = Object.assign(new Config(), {freeTranslationTimeoutMs: 1000});
+        freeAdapter.mockImplementationOnce(() => new Promise(() => undefined));
+        const pending = runTranslationServiceConnectionTest('freeTranslation', {
+            freeProviderId: 'deeplx', config: createTranslationProviderConfigSnapshot(source),
+        });
+        const outcome = expect(pending).rejects.toThrow('翻译请求超时');
+        await vi.advanceTimersByTimeAsync(1000);
+        await outcome;
+        expect(freeAdapter.mock.calls.at(-1)![1].abortSignal.aborted).toBe(true);
+        freeAdapter.mockRejectedValueOnce(new Error('服务限流'));
+        await expect(runTranslationServiceConnectionTest('freeTranslation', {freeProviderId: 'deeplx'})).rejects.toThrow('服务限流');
+        freeAdapter.mockResolvedValueOnce(CONNECTION_TEST_ORIGIN);
+        await expect(runTranslationServiceConnectionTest('freeTranslation', {freeProviderId: 'deeplx'})).rejects.toThrow('未翻译测试文本');
+        await expect(runTranslationServiceConnectionTest('google', {freeProviderId: 'deeplx'})).rejects.toThrow('无效的免费翻译服务');
+        await expect(runTranslationServiceConnectionTest('freeTranslation', {freeProviderId: 'unknown'})).rejects.toThrow('无效的免费翻译服务');
+    });
     it('指定 Key 的逐项检查仍共享请求调度，不会绕过频率限制', async () => {
         vi.useFakeTimers();
         const scheduler = createTranslationRequestScheduler(() => ({
