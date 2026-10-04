@@ -159,7 +159,7 @@ describe('漫画会话所有权与可见页调度', () => {
     });
 });
 
-function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number) {
+function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number, warm?: (images:HTMLImageElement[])=>void) {
     const {document, window: dom} = parseHTML('<html><body><div class="zao-image-container"><img class="zao-image" src="blob:page-1"></div><img id="logo" src="https://site/logo.png"></body></html>');
     const image = document.querySelector('img')! as HTMLImageElement;
     Object.defineProperties(image, {complete: {writable: true, value: true}, naturalWidth: {writable: true, value: 800}, naturalHeight: {value: 1200}, currentSrc: {get: () => image.src}});
@@ -181,7 +181,7 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         constructor(callback: MutationCallback) {mo.callback = callback;} });
     const ports = {enabled: vi.fn().mockReturnValue(true), identity: (i: HTMLImageElement) => i.src,
         translate: vi.fn().mockResolvedValue(undefined), restore: vi.fn(), release: vi.fn(), failed: vi.fn().mockReturnValue(false), changed: vi.fn()};
-    const reader = createMangaReader({...ports, siteRules, prefetchPages});
+    const reader = createMangaReader({...ports, siteRules, prefetchPages, warm});
     const run = () => {const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(c => c(0));};
     const intersect = (yes: boolean) => {io.callback([{target: image, isIntersecting: yes} as unknown as IntersectionObserverEntry], {} as IntersectionObserver); run();};
     return {reader, ports, image, io, mo, window, dom, document, run, intersect,
@@ -189,6 +189,12 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it('预合成按可见优先与几何距离排序，左右一屏和容量都有边界',()=>{
+        const warm=vi.fn(),f=readerFixture(true,undefined,undefined,undefined,warm);
+        const near=f.document.createElement('img'),far=f.document.createElement('img');
+        for(const [image,top] of [[far,1700],[near,1200]] as const){image.className='zao-image';image.src=`blob:${top}`;Object.defineProperties(image,{complete:{value:true},naturalWidth:{value:800},naturalHeight:{value:1200}});image.getBoundingClientRect=()=>({left:0,right:800,top,bottom:top+1200,width:800,height:1200}) as DOMRect;f.image.parentElement!.append(image);}
+        f.reader.schedule();f.run();expect(warm).toHaveBeenLastCalledWith([f.image,near,far]);f.reader.dispose();
+    });
     it('同地址原图重新加载也重新识别，其他图片加载不能失效当前译图', async () => {
         const f=readerFixture();f.reader.toggle();await flush();
         f.document.querySelector('#logo')!.dispatchEvent(new f.dom.Event('load',{bubbles:true}));f.run();await flush();

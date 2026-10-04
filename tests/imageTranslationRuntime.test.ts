@@ -177,6 +177,7 @@ function addSecondHoverImage(env: ReturnType<typeof setup>, getRect: () => DOMRe
 beforeEach(() => {
     vi.useFakeTimers();
     settings.imageTranslationMangaEnabled = true; settings.imageTranslationHoverEnabled = true; settings.imageTranslationContextMenuEnabled = true;
+    settings.imageTranslationMangaCachePages = 12;
     settings.uiLanguage = 'zh-CN';
     settings.on = true; settings.disableImageTranslator = false; settings.to = 'zh-Hans'; settings.useCache = true;
     settings.imageTranslationService = ''; settings.service = 'google'; settings.model = {}; settings.customModel = {}; settings.customBody = {}; settings.proxy = {}; settings.customOpenAIProviders = []; settings.token = {};
@@ -1016,6 +1017,56 @@ describe('视频预览不自动显示图片翻译', () => {
         env.image.className = 'zao-image'; env.parent.className = 'zao-image-container';
         return env;
     }
+    function cacheChapter(env: ReturnType<typeof readerPage>, count: number) {
+        let current = 0, nearby = -1;
+        const rect = (index: number) => ({left:20,right:420,top:current===index?40:nearby===index?900:5000,
+            bottom:current===index?240:nearby===index?1100:5200,width:400,height:200}) as DOMRect;
+        env.image.getBoundingClientRect=()=>rect(0);
+        const pages=[env.image];
+        for(let i=1;i<count;i++){const image=addSecondHoverImage(env,()=>rect(i));image.src+=`?${i}`;image.className='zao-image';pages.push(image);}
+        const scroll=()=>{for(const [name,callback] of env.windowObject.addEventListener.mock.calls)if(name==='scroll')(callback as EventListener)(new Event('scroll'));env.runFrames();};
+        return {pages, visit:async(index:number,near=-1)=>{current=index;nearby=near;scroll();await flush();env.runFrames();await flush();}, near:(index:number)=>{nearby=index;scroll();}};
+    }
+    it('漫画默认快速缓存可保留十二张正常页，第十三张才淘汰最早结果',async()=>{
+        const env=readerPage();settings.imageTranslationMangaPrefetchPages=0;const chapter=cacheChapter(env,13);
+        toggleMangaTranslation();await flush();
+        for(let i=1;i<13;i++)await chapter.visit(i);
+        expect(client.translate).toHaveBeenCalledTimes(13);await chapter.visit(1);expect(client.translate).toHaveBeenCalledTimes(13);
+        await chapter.visit(0);expect(client.translate).toHaveBeenCalledTimes(14);
+    });
+    it('局部结果直接显示画布，越过快速缓存后重建只解码图块，不重做 OCR 或翻译',async()=>{
+        const env=readerPage();settings.imageTranslationMangaPrefetchPages=0;settings.imageTranslationMangaCachePages=1;
+        const chapter=cacheChapter(env,7),decode=vi.fn().mockImplementation(async()=>({width:10,height:20,close:vi.fn()}));vi.stubGlobal('createImageBitmap',decode);
+        client.translate.mockResolvedValue({...result,image:'',mangaPatches:{width:400,height:200,patches:[{x:0,y:0,width:10,height:20,image:'data:image/png;base64,AQID'}]}});
+        toggleMangaTranslation();await flush();expect(env.bitmap()?.tagName).toBe('CANVAS');expect(env.decoded).toHaveLength(0);
+        await chapter.visit(3);await chapter.visit(6);expect(client.translate).toHaveBeenCalledTimes(3);
+        const before=decode.mock.calls.length;await chapter.visit(0);expect(decode).toHaveBeenCalledTimes(before+1);expect(client.translate).toHaveBeenCalledTimes(3);
+        expect(env.bitmap()?.tagName).toBe('CANVAS');expect(chapter.pages[0].style.opacity).toBe('0');
+        unmountImageTranslator();expect(env.canvases.every(canvas=>canvas.width===0&&canvas.height===0)).toBe(true);
+    });
+    it('接近视口时预合成历史页，即使关闭预译也不会额外调用翻译服务',async()=>{
+        const env=readerPage();settings.imageTranslationMangaPrefetchPages=0;settings.imageTranslationMangaCachePages=2;
+        const chapter=cacheChapter(env,10),decode=vi.fn().mockImplementation(async()=>({width:10,height:20,close:vi.fn()}));vi.stubGlobal('createImageBitmap',decode);
+        client.translate.mockResolvedValue({...result,image:'',mangaPatches:{width:400,height:200,patches:[{x:0,y:0,width:10,height:20,image:'data:image/png;base64,AQID'}]}});
+        toggleMangaTranslation();await flush();await chapter.visit(3);await chapter.visit(6);await chapter.visit(9);
+        const before=decode.mock.calls.length;await chapter.visit(9,0);expect(decode).toHaveBeenCalledTimes(before+1);expect(chapter.pages[0].style.opacity).not.toBe('0');
+        await chapter.visit(0);expect(decode).toHaveBeenCalledTimes(before+1);expect(client.translate).toHaveBeenCalledTimes(4);expect(chapter.pages[0].style.opacity).toBe('0');
+    });
+    it.each(['pause','source','language','route','unmount'] as const)('预合成期间 %s，迟到结果不能复活且位图释放',async change=>{
+        const env=readerPage();settings.imageTranslationMangaPrefetchPages=0;settings.imageTranslationMangaCachePages=2;
+        const chapter=cacheChapter(env,10),decode=vi.fn().mockImplementation(async()=>({width:10,height:20,close:vi.fn()}));vi.stubGlobal('createImageBitmap',decode);
+        client.translate.mockResolvedValue({...result,image:'',mangaPatches:{width:400,height:200,patches:[{x:0,y:0,width:10,height:20,image:'data:image/png;base64,AQID'}]}});
+        toggleMangaTranslation();await flush();await chapter.visit(3);await chapter.visit(6);await chapter.visit(9);
+        const pending=deferred<{width:number;height:number;close:ReturnType<typeof vi.fn>}>();decode.mockReturnValueOnce(pending.promise);
+        chapter.near(0);await flush();
+        if(change==='pause')toggleMangaTranslation();
+        if(change==='source'){chapter.pages[0].src+='?new';env.scroll();env.runFrames();}
+        if(change==='language')settings.to='en';
+        if(change==='route'){(env.windowObject as typeof env.windowObject & {location:{href:string}}).location.href='https://mangaplus.shueisha.co.jp/viewer/1024051';document.dispatchEvent(new document.defaultView!.Event('fluentread-route-change'));env.runFrames();}
+        if(change==='unmount')unmountImageTranslator();
+        const bitmap={width:10,height:20,close:vi.fn()};pending.resolve(bitmap);await flush();expect(bitmap.close).toHaveBeenCalledOnce();
+        expect(chapter.pages[0].style.opacity).not.toBe('0');unmountImageTranslator();expect(env.canvases.every(c=>c.width===0&&c.height===0)).toBe(true);
+    });
     it('同地址重载撤下旧译图并重新识别，不能停在已完成状态',async()=>{
         const env=readerPage();settings.imageTranslationMangaPrefetchPages=0;
         toggleMangaTranslation();await flush();expect(env.bitmap()).not.toBeNull();

@@ -38,6 +38,15 @@ describe('图片翻译客户端断线恢复', () => {
         vi.unstubAllGlobals();
     });
 
+    it('漫画局部结果通过既有消息通道，普通图片不能误接受仅图块响应',async()=>{
+        const mangaPatches={width:100,height:100,patches:[{x:0,y:0,width:20,height:20,image:'data:image/png;base64,AQID'}]};
+        sendMessage.mockResolvedValue({success:true,image:'',lines:[],mangaPatches});
+        await expect(translateImageInExtension('source','en','Page',{manga:true})).resolves.toEqual({image:'',lines:[],mangaPatches});
+        await expect(translateImageInExtension('source','en','Page')).rejects.toThrow('不可用');
+        expect(listeners.size).toBe(0);
+        sendMessage.mockResolvedValue({success:true,image:'',lines:[],mangaPatches:{...mangaPatches,width:0}});
+        await expect(translateImageInExtension('source','en','Page',{manga:true})).rejects.toThrow('无效');expect(listeners.size).toBe(0);
+    });
     it('嵌套 Offscreen 断线响应只重试一次，保留首个 ID 并为重试生成新 ID', async () => {
         sendMessage
             .mockResolvedValueOnce({success: false, error: 'The message port closed before a response was received.'})

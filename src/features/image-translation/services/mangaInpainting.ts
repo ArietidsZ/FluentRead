@@ -10,17 +10,11 @@ import {configureOnnxWasmBackend} from '@/src/shared/onnx/wasmBinary';
 import {assertMangaOcrActive, loadMangaInpaintAsset, MANGA_INPAINT_ASSET} from './mangaOcrAssets';
 import {mangaRegionBackground} from './mangaRendering';
 import type {MangaRegion} from './mangaRegions';
+import {mangaMaskBoxes as maskBoxes} from '../mangaPatchResult';
 
 export interface MangaPatch {image: Float32Array; mask: Float32Array; width: number; height: number}
 interface PatchMapping {patch: MangaPatch; left: number; top: number; sourceWidth: number; sourceHeight: number}
 interface InpaintPort {run(patch: MangaPatch, signal?:AbortSignal): Promise<Float32Array>; release(): Promise<void>}
-
-/** 描边常在检测框外，给字形蒙版留出有界余量并夹紧到原图。 */
-function maskBoxes(region:MangaRegion,width:number,height:number) {
-    const margin=Math.max(2,Math.min(14,Math.ceil(region.fontSize*.2)));
-    return (region.sourceBoxes||[region.bbox]).map(box=>({x0:Math.max(0,Math.floor(box.x0)-margin),y0:Math.max(0,Math.floor(box.y0)-margin),
-        x1:Math.min(width,Math.ceil(box.x1)+margin),y1:Math.min(height,Math.ceil(box.y1)+margin)}));
-}
 
 /** 识别框已有字形留白，蒙版按原始行分别构造，避免把整个段落之间的画面也擦除。 */
 export function createMangaPatch(pixels: Uint8ClampedArray, width: number, height: number, region: MangaRegion): PatchMapping {

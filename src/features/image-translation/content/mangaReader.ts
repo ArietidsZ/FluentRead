@@ -5,7 +5,7 @@
  * 模块边界：只读取站点已展示的 img，不抓取章节、不读取站点私有数据或绕过访问限制；单图翻译、缓存与原图恢复通过注入端口复用既有运行时。
  */
 import {createMangaSession, type MangaTranslationStatus} from './mangaSession';
-import {normalizeMangaPrefetchPages, resolveMangaSite, type MangaSiteRule} from '@/src/core/config/manga';
+import {normalizeMangaPrefetchPages, normalizeMangaCachePages, resolveMangaSite, type MangaSiteRule} from '@/src/core/config/manga';
 import {imageLoadTracker} from './imageLoads';
 
 /** 精确站点与通用阅读器都需要 DOM 候选检查；网站目录不等同于逐站实测通过。 */
@@ -17,15 +17,19 @@ export function createMangaReader(ports: {
     enabled: () => boolean;
     siteRules?: () => MangaSiteRule[];
     prefetchPages?: () => number;
+    cachePages?: () => number;
     identity: (image: HTMLImageElement) => string;
     translate: (image: HTMLImageElement) => Promise<void>;
     reuse?: (image: HTMLImageElement) => boolean;
+    warm?: (images: HTMLImageElement[]) => void;
+    resetCache?: () => void;
     restore: (image: HTMLImageElement) => void;
     release: (image: HTMLImageElement) => void;
     failed: (image: HTMLImageElement) => boolean;
     changed: (status: MangaTranslationStatus) => void;
 }) {
     let disposed = false;
+    let cacheRoute = '';
     let frame: number | null = null;
     const observed = new Set<HTMLImageElement>();
     let discovered: HTMLImageElement[] = [];
@@ -48,6 +52,8 @@ export function createMangaReader(ports: {
     function refresh(): void {
         if (disposed) return;
         const url = new URL(window.location?.href || 'about:blank');
+        const route = `${url.origin}${url.pathname}${url.search}`;
+        if (route !== cacheRoute) {ports.resetCache?.(); cacheRoute = route;}
         const site = resolveMangaSite(url.href, ports.siteRules?.());
         const selector = site?.selector ?? null;
         const custom = site?.custom === true;
@@ -148,6 +154,12 @@ export function createMangaReader(ports: {
                 visible: page.visible && !document.hidden, retain: nearby.has(page.image),
                 prefetch: upcoming.has(page.image) || (document.hidden && page.visible)})),
         });
+        // 仅重建已完成页面，前后一屏内按可见页优先；不因轻量容量扩大付费预译窗口。
+        ports.warm?.(candidates.filter(page => {
+            const rect = page.image.getBoundingClientRect();
+            return page.ready && rect.right > -window.innerWidth && rect.left < 2 * window.innerWidth
+                && rect.bottom > -window.innerHeight && rect.top < 2 * window.innerHeight;
+        }).sort((a, b) => Number(b.visible) - Number(a.visible) || Math.abs(a.image.getBoundingClientRect().top) - Math.abs(b.image.getBoundingClientRect().top)).slice(0, normalizeMangaCachePages(ports.cachePages?.())).map(page => page.image));
     }
 
     function scheduleLayout(): void {

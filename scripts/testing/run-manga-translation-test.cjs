@@ -25,6 +25,7 @@ const skipFirstCancel=process.argv.includes('--skip-first-cancel');
 const readAheadTest=process.argv.includes('--prefetch-pages');
 const scrollStabilityTest=process.argv.includes('--scroll-stability');
 const cacheNavigationTest=process.argv.includes('--cache-navigation');
+const tieredCacheTest=process.argv.includes('--tiered-cache');
 const prefetchPages=Number(arg('prefetch-pages','0'));
 const pipelineInputs=arg('pipeline-inputs',null)?.split(',').map(file=>path.resolve(file));
 const pipelineRounds=Number(arg('pipeline-rounds','3'));
@@ -103,7 +104,7 @@ window.addPage=(text,id)=>{
  canvas.toBlob(blob=>{image.src=URL.createObjectURL(blob)});
  return image;
 };addPage('Welcome to FluentRead','page-one');addPage('Second manga page','page-two');addPage('Third manga page','page-three');
-${readAheadTest || scrollStabilityTest || cacheNavigationTest ? "addPage('Fourth manga page','page-four');addPage('Fifth manga page','page-five');addPage('Sixth manga page','page-six');" : ''}
+${readAheadTest || scrollStabilityTest || cacheNavigationTest || tieredCacheTest ? "addPage('Fourth manga page','page-four');addPage('Fifth manga page','page-five');addPage('Sixth manga page','page-six');" : ''}
 </script></body></html>`;
 async function ui(hostId, code) {
     const tree = await cdp.send('DOM.getDocument', {depth: -1, pierce: true}); let host;
@@ -240,7 +241,7 @@ async function verifyPipelinePerformance(extensionId) {
         const progress=await worker.evaluate(id=>globalThis.__mangaTest.progress.filter(p=>p.requestId===id),requestId);
         const texts=await worker.evaluate(()=>globalThis.__mangaTest.textBatches.at(-1));
         const sampled=await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__pipelineSamples',returnByValue:true});
-        const translated=await imageUi(`return this.querySelector('.fluent-read-image-translation-bitmap')?.src`);
+        const translated=await imageUi(`const surface=this.querySelector('.fluent-read-image-translation-bitmap');return surface?.tagName==='CANVAS'?surface.toDataURL('image/png'):surface?.src`);
         assert.ok(translated?.startsWith('data:image/png;base64,'),'Lossless translated output exists');
         const output=path.join(artifacts,`${path.basename(input,'.png')}-round-${round+1}-translated.png`);
         fs.writeFileSync(output,Buffer.from(translated.split(',')[1],'base64'));
@@ -379,6 +380,60 @@ async function verifyScrollStability() {
     auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
 }
 
+async function verifyTieredCache(extensionId) {
+    assert.equal(liveSite,false);assert.equal(prefetchPages,0);
+    report.currentCase='brand manga selects support keyboard, theme, narrow screens and persisted cache capacity';
+    await popup.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
+    const root=popup.locator('[data-testid=manga-settings]');await root.waitFor();
+    assert.equal(await root.locator('select').count(),0,'Manga fields use branded custom controls');
+    assert.match(await popup.getByRole('combobox',{name:'漫画翻译服务',exact:true}).locator('xpath=ancestor::div[contains(concat(" ",normalize-space(@class)," ")," el-select ")][1]').textContent(),/跟随网页翻译服务/);
+    const cache=popup.getByRole('combobox',{name:'快速缓存图片数量',exact:true});
+    const selected=()=>cache.locator('xpath=ancestor::div[contains(concat(" ",normalize-space(@class)," ")," el-select ")][1]').textContent();
+    assert.match(await selected(),/12/,'Default fast cache holds twelve normal pages');
+    await cache.press('Enter');await popup.locator('.el-popper.fluentread-select-popper:visible').waitFor();
+    await popup.waitForTimeout(300);await popup.screenshot({path:path.join(artifacts,'manga-select-light.png')});report.screenshots.push(path.join(artifacts,'manga-select-light.png'));
+    await cache.press('ArrowDown');await cache.press('Enter');
+    await popup.waitForTimeout(250);
+    // Read through the production configuration message, with no assumption about storage serialization.
+    const read=()=>popup.evaluate(async()=>{const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});return typeof r.value==='string'?JSON.parse(r.value):r.value;});
+    assert.equal((await read()).imageTranslationMangaCachePages,13,'Keyboard selection is persisted');
+    await cache.press('Enter');await popup.getByRole('option',{name:'2 张图片',exact:true}).click();
+    await popup.close();popup=await newPageWithoutForeground(launched.context);await popup.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
+    await popup.locator('[data-testid=manga-settings]').waitFor();assert.equal((await read()).imageTranslationMangaCachePages,2,'Fast close preserves the latest configuration');
+    report.persistenceCases=[{field:'imageTranslationMangaCachePages',default:12,keyboard:13,reopened:2,quickClose:true}];
+    await patch({theme:'dark'});await popup.reload();await popup.getByRole('combobox',{name:'提前翻译后续页面',exact:true}).press('Enter');
+    await popup.locator('.el-popper.fluentread-select-popper:visible').waitFor();await popup.waitForTimeout(300);await popup.screenshot({path:path.join(artifacts,'manga-select-dark.png')});report.screenshots.push(path.join(artifacts,'manga-select-dark.png'));
+    await popup.getByRole('combobox',{name:'提前翻译后续页面',exact:true}).press('Escape');await popup.locator('.el-popper.fluentread-select-popper:visible').waitFor({state:'hidden'});
+    await popup.setViewportSize({width:390,height:850});await popup.reload();const narrow=popup.getByRole('combobox',{name:'快速缓存图片数量',exact:true});await narrow.scrollIntoViewIfNeeded();await narrow.press('Enter');
+    const menu=popup.locator('.el-popper.fluentread-select-popper:visible');await menu.waitFor();const bounds=await menu.boundingBox();assert.ok(bounds.x>=-1&&bounds.x+bounds.width<=391,'Dropdown fits narrow viewport');
+    await popup.waitForTimeout(300);await popup.screenshot({path:path.join(artifacts,'manga-select-narrow.png')});report.screenshots.push(path.join(artifacts,'manga-select-narrow.png'));await narrow.press('Escape');
+    report.cases.push(report.currentCase);await patch({theme:'light'});await popup.close();popup=await newPageWithoutForeground(launched.context);await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+    await page.setViewportSize({width:800,height:700});
+    const pages=['#page-one','#page-four','#page-six'].map(id=>page.locator(id));
+    await pages[0].evaluate(i=>i.scrollIntoView({block:'start',behavior:'instant'}));const start=await ops();await toggle();
+    const settle=()=>wait(async()=>await ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-busy")')==='false');
+    for(let i=0;i<pages.length;i++){
+        await pages[i].evaluate(i=>i.scrollIntoView({block:'start',behavior:'instant'}));await wait(async()=>await pages[i].evaluate(i=>i.style.opacity==='0'));await settle();
+        assert.equal(await imageUi('return [...this.querySelectorAll(".fluent-read-image-translation-bitmap")].filter(i=>getComputedStyle(i.parentElement).display!=="none").every(i=>i.tagName==="CANVAS")'),true);
+    }
+    assert.equal(await ops(),start+3);report.cases.push('new manga outputs display composed canvases directly');
+    report.currentCase='return from compact cache reconstructs without any extra OCR, translation or full-page PNG encoding';
+    report.tieredReturnDurationsMs=[];
+    for(let round=0;round<3;round++)for(const image of [pages[0],pages[2]]){
+        const ms=await image.evaluate(async i=>{const start=performance.now();i.scrollIntoView({block:'start',behavior:'instant'});for(let frame=0;frame<120;frame++){await new Promise(resolve=>requestAnimationFrame(resolve));if(i.style.opacity==='0')return performance.now()-start;}throw new Error('Compact cache did not restore image');});
+        report.tieredReturnDurationsMs.push(ms);await settle();assert.equal(await ops(),start+3);await assertQuietReading();
+    }
+    await screenshot('tiered-cache-return');report.cases.push(report.currentCase);
+    report.currentCase='horizontal navigation reconstructs cached pages with host-safe geometry';
+    await page.evaluate(()=>{const reader=document.querySelector('#reader');reader.style.display='flex';reader.style.width='max-content';for(const wrap of reader.children){wrap.style.flexShrink='0';wrap.style.margin='0 50px 0 0';}window.dispatchEvent(new Event('resize'));});
+    for(const image of [pages[0],pages[2],pages[0]]){await image.evaluate(i=>i.scrollIntoView({block:'start',inline:'start',behavior:'instant'}));await wait(async()=>await image.evaluate(i=>i.style.opacity==='0'));await settle();assert.equal(await ops(),start+3);}
+    await screenshot('tiered-cache-horizontal');report.cases.push(report.currentCase);
+    await toggle();assert.equal(await page.locator('.zao-image').evaluateAll(images=>images.every(i=>i.style.opacity!=='0')),true);
+    report.cases.push('pause restores every original without reading popovers');
+    report.textBatches=await worker.evaluate(()=>globalThis.__mangaTest.textBatches);if(blockedAll)assert.equal(report.modelRequests.length,0);
+    auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
+}
+
 async function verifyCacheNavigation() {
     assert.equal(liveSite,false,'Cache mutation checks belong only to the owned fixture');
     assert.equal(prefetchPages,0,'Navigation checks must not translate unrelated upcoming pages');
@@ -485,8 +540,7 @@ async function verifyReadAhead() {
     assert.equal(await images.evaluateAll(items=>items.every(i=>i.style.opacity!== '0')),true);
     report.cases.push(report.currentCase);
     await popup.goto(`chrome-extension://${new URL(worker.url()).host}/options.html#settings-image-translation`);
-    const select=popup.getByRole('combobox',{name:'提前翻译后续页面',exact:true});assert.equal(await select.inputValue(),String(prefetchPages));
-    await select.selectOption('0');await popup.reload();assert.equal(await select.inputValue(),'0');report.cases.push('upcoming-page setting persists and allows current-page-only mode');
+    const select=popup.getByRole('combobox',{name:'提前翻译后续页面',exact:true});await select.press('Enter');await popup.getByRole('option',{name:'只翻译当前页面',exact:true}).click();await popup.reload();assert.match(await select.locator('xpath=ancestor::div[contains(@class,"el-select")][1]').textContent(),/只翻译当前页面/);report.cases.push('upcoming-page setting persists and allows current-page-only mode');
     report.textBatches=await worker.evaluate(()=>globalThis.__mangaTest.textBatches);
     assert.ok(!(report.offscreenDiagnostics || []).some(d=>['warning','error'].includes(d.level)&&d.text.includes('Unknown CPU vendor')),'Known WASM CPU diagnostic is not a warning or error');
     if(blockedAll){assert.equal(report.modelRequests.length,0);report.cases.push('no model downloads during prepared local reading');}
@@ -598,6 +652,7 @@ async function verifyReadAhead() {
     },readerSelector);
     await wait(async()=>!!await ball(`return this.querySelector('.floating-ball-manga')`),30000);
     if(pipelineInputs){await verifyPipelinePerformance(extensionId);report.status='passed';return;}
+    if(tieredCacheTest){await verifyTieredCache(extensionId);report.status='passed';focusGuard();return;}
     if(cacheNavigationTest){await verifyCacheNavigation();report.status='passed';focusGuard();return;}
     if(scrollStabilityTest){await verifyScrollStability();report.status='passed';focusGuard();return;}
     if(readAheadTest){await verifyReadAhead();report.status='passed';focusGuard();return;}
