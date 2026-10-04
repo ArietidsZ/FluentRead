@@ -234,7 +234,7 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
                 (report.liveReaders??=[]).push(result);
                 if(response?.status()!==200){result.result='access-restricted';continue;}
                 await wait(async()=>await ball(`return this.querySelector(".floating-ball-manga")?.getAttribute("aria-label") === ${JSON.stringify(sample.mode==='area'?'圈选漫画翻译':'漫画翻译')}`));
-                if(sample.mode==='canvas')assert.ok(await page.locator('#comici-viewer .-cv-page-canvas canvas').count());
+                if(sample.mode==='canvas')assert.ok(await page.locator(sample.canvasSelector || '#comici-viewer .-cv-page-canvas canvas').count());
                 result.result='reader-entry-confirmed';report.cases.push(report.currentCase);
             }
         }

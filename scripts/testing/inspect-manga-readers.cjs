@@ -42,7 +42,7 @@ function focusGuard() {
         const response = await page.goto(href,{waitUntil:'domcontentloaded',timeout:25000});
         await page.waitForTimeout(3500);
         const clickSelector=process.argv.includes('--before-inspect-click')?arg('before-inspect-click'):null;
-        if(clickSelector){await page.locator(clickSelector).click({timeout:10000});result.readerAction={selector:clickSelector};}
+        if(clickSelector){await page.locator(clickSelector).click({timeout:10000});result.readerAction={selector:clickSelector};await page.waitForTimeout(3500);}
         const pageKey=process.argv.includes('--before-inspect-key')?arg('before-inspect-key'):null;
         if(pageKey){
           const count=Math.min(4,Math.max(1,Number(process.argv.includes('--reader-key-count')?arg('reader-key-count'):1)));

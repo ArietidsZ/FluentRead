@@ -41,14 +41,25 @@ const targetUrl = arg('site-url','https://mangaplus.shueisha.co.jp/viewer/102405
 const pixiv=targetUrl.includes('pixiv.net/artworks/');
 const explicitReaderSelector=arg('reader-selector',null);
 if(explicitReaderSelector)assert.ok(readerSmoke && liveSite && !pixiv && !canvasReaderTest,'Explicit image selectors are limited to live reader smoke checks');
-const readerSelector=explicitReaderSelector || (canvasReaderTest?'#comici-viewer .-cv-page-canvas canvas':pixiv?'img[src*="/img-master/"][src*="/150354216_p"], img[src*="/img-original/"][src*="/150354216_p"]':'.zao-image');
+const explicitCanvasSelector=arg('canvas-selector',null);
+const canvasOpenSelector=arg('canvas-open-selector',explicitCanvasSelector?null:'a.-cv-inst-btn.x-cv-inst-ok');
+const canvasInitialTurns=Number(arg('canvas-initial-turns',explicitCanvasSelector?'0':'2'));
+const canvasTurnKey=arg('canvas-turn-key','ArrowLeft');
+const canvasTurnCount=Number(arg('canvas-turn-count','2'));
+if(explicitCanvasSelector)assert.ok(canvasReaderTest && liveSite,'Explicit canvas selectors are limited to live public canvas chapters');
+if(canvasReaderTest){
+    assert.ok(Number.isInteger(canvasInitialTurns)&&canvasInitialTurns>=0&&canvasInitialTurns<=4,'Initial canvas turns must be 0–4');
+    assert.ok(Number.isInteger(canvasTurnCount)&&canvasTurnCount>=1&&canvasTurnCount<=4,'Canvas turns must be 1–4');
+    assert.ok(['ArrowLeft','ArrowRight'].includes(canvasTurnKey),'Canvas chapter turns use a normal horizontal arrow key');
+}
+const readerSelector=explicitReaderSelector || (canvasReaderTest?explicitCanvasSelector || '#comici-viewer .-cv-page-canvas canvas':pixiv?'img[src*="/img-master/"][src*="/150354216_p"], img[src*="/img-original/"][src*="/150354216_p"]':'.zao-image');
 const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-profile-');
 fs.mkdirSync(artifacts, {recursive: true});
 const report = {site: liveSite ? 'live MANGA Plus' : 'controlled MANGA Plus reader fixture',
     translation: liveTranslation ? 'live Google' : 'deterministic Google text transport',
     ocr: 'real production PaddleOCR', cases: [], screenshots: [], errors: [], hostErrors: [], pageErrors: [], consoleErrors: []};
 if(pixiv)report.site='live Pixiv artwork 150354216';
-if(canvasReaderTest)report.site=`live readable canvas chapter: ${targetUrl}`;
+if(canvasReaderTest){report.site=`live readable canvas chapter: ${targetUrl}`;report.canvasReader={selector:readerSelector,openSelector:canvasOpenSelector,initialTurns:canvasInitialTurns,turnKey:canvasTurnKey,turnCount:canvasTurnCount};}
 if(explicitReaderSelector){report.site=`live image chapter: ${targetUrl}`;report.readerSelector=explicitReaderSelector;}
 report.prefetchPages=prefetchPages;
 let launched, page, worker, cdp, popup, modelObserver, browserPid,loadedExtensionId;
@@ -176,7 +187,7 @@ async function verifyCanvasReader() {
     await toggle();await wait(async()=>(await visibleSurfaces())===0);assert.deepEqual(await snapshot(),original);
     await toggle();await wait(async()=>(await visibleSurfaces())>0);assert.equal(await ops(),operations);report.cases.push(report.currentCase);
     report.currentCase='normal chapter turn translates new canvas pages through the same serial queue';
-    await page.keyboard.press('ArrowLeft');await page.keyboard.press('ArrowLeft');
+    for(let turn=0;turn<canvasTurnCount;turn++)await page.keyboard.press(canvasTurnKey);
     await wait(async()=>(await ops())>operations && await ball('return this.querySelector(".floating-ball-manga").getAttribute("aria-busy") === "false"'),300000);
     assert.ok((await visibleSurfaces())>0);await screenshot('canvas-next-pages');report.cases.push(report.currentCase);
     report.currentCase='master switch restores the chapter and removes canvas translation UI';
@@ -830,8 +841,16 @@ async function verifyReadAhead() {
     }
     if(liveSite&&!canvasReaderTest){const reject=page.locator('#onetrust-reject-all-handler');await reject.waitFor({timeout:12000}).then(()=>reject.click()).catch(()=>undefined);}
     if(canvasReaderTest){
-        await page.locator('a.-cv-inst-btn.x-cv-inst-ok').click();
-        await page.keyboard.press('ArrowLeft');await page.keyboard.press('ArrowLeft');
+        if(canvasOpenSelector)await page.locator(canvasOpenSelector).click();
+        if(explicitCanvasSelector){
+            // 等到正文已经绘制再发送按键；服务端 DOM 先到时阅读器尚未绑定翻页事件。
+            await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(c=>{
+                const r=c.getBoundingClientRect();if(!c.width||!c.height||r.width<=80||r.height<=40||r.left>=innerWidth||r.right<=0||r.top>=innerHeight||r.bottom<=0)return false;
+                try{return c.getContext('2d').getImageData(Math.floor(c.width/2),Math.floor(c.height/2),1,1).data[3]>0;}catch{return false;}
+            }),readerSelector);
+            await page.waitForTimeout(900);
+        }
+        for(let turn=0;turn<canvasInitialTurns;turn++){await page.keyboard.press(canvasTurnKey);await page.waitForTimeout(900);}
     }
     if(pixiv) {
         await page.locator(readerSelector).first().waitFor();
@@ -839,7 +858,8 @@ async function verifyReadAhead() {
         const alreadyOpen=await page.locator(readerSelector).evaluateAll(items=>items.some(i=>!i.closest('main')&&i.getBoundingClientRect().width>80));
         if(!alreadyOpen&&await read.isVisible().catch(()=>false))await read.click({timeout:5000});
     }
-    await page.locator(readerSelector).first().waitFor();
+    if(canvasReaderTest)await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(c=>{const r=c.getBoundingClientRect();return r.width>80&&r.height>40&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0;}),readerSelector);
+    else await page.locator(readerSelector).first().waitFor();
     if(canvasReaderTest)await page.waitForTimeout(900);
     if(traceReader)await page.evaluate(selector=>{
         const ids=new WeakMap();let next=0;const traces=globalThis.__readerTrace=[];

@@ -21,12 +21,12 @@
 | 11 | Heros Web | viewer.heros-web.com、heros-web.com | 可读画布连续翻译 | 公开章节画布已核对 |
 | 12 | Comic Days | comic-days.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 13 | Comic Top | comic-top.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 14 | ComicWalker | comic-walker.com | 通用正文图片检测 | 连接失败 |
-| 15 | Web Ace | web-ace.jp | 通用正文图片检测 | 首页 HTML 可访问 |
+| 14 | ComicWalker | comic-walker.com | 正文可读画布 · 连续翻译 | 公开章节 HTTP 200；两种正文标记已核对 |
+| 15 | Web Ace | web-ace.jp | 通用正文图片检测 | 作品页可访问；未确认正文 |
 | 16 | Antbyw | antbyw.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 17 | Jmanga | jmanga.org | 通用正文图片检测 | 连接失败 |
 | 18 | Twitter Comic | twicomi.com | 专用正文图片 | 公开章节正文结构已核对 |
-| 19 | MangaZ | mangaz.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 19 | MangaZ | mangaz.com | 专用正文图片检测 | 公开 vw 阅读器 HTTP 200；翻页后正文已显示 |
 | 20 | PASH UP | pash-up.jp | 通用正文图片检测 | 正常免费阅读入口仍显示当前无法阅览 |
 | 21 | BOOK☆WALKER | bookwalker.jp | 通用正文图片检测 | 首页 HTML 可访问 |
 | 22 | COLAMANGA | colamanga.com | 通用正文图片检测 | 连接失败 |
@@ -61,13 +61,13 @@
 | 51 | Manga4u | mn4u.net | 专用正文图片 | 公开章节正文结构已核对 |
 | 52 | Animatebookstore | animatebookstore.com | 通用正文图片检测 | 连接失败 |
 | 53 | GANMA | ganma.jp | 通用正文图片检测 | 连接失败 |
-| 54 | Mangafire | mangafire.to | 通用正文图片检测 | 首页 HTML 可访问 |
+| 54 | Mangafire | mangafire.to | 专用正文图片检测 | 公开章节 HTTP 200；首张正文已加载，后续懒加载 |
 | 55 | Reaperscans | reaperscans.com | 通用正文图片检测 | 连接失败 |
 | 56 | Manhuatop | manhuatop.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 57 | Dlsite | dlsite.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 58 | uzakichanmanga | uzakichanmanga.com | 专用正文图片 | 连接失败 |
 | 59 | Shonenmagazine | shonenmagazine.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 60 | ComicNaver | comic.naver.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 60 | ComicNaver | comic.naver.com | 专用正文图片检测 | 公开章节 HTTP 200；数字作品及章节查询 |
 | 61 | comic-zenon | comic-zenon.com | 不可读画布：圈选入口 | 公开章节结构已核对；画布受污染 |
 | 62 | Webtoons | webtoons.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 63 | Lezhin Comics | lezhin.com | 通用正文图片检测 | 首页 HTML 可访问 |
@@ -92,7 +92,7 @@
 | 82 | Fenoxo | fenoxo.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 83 | MangaFreak | mangafreak.net / mangafreak.me | 专用正文图片 | 公开章节正文结构已核对 |
 | 84 | ComicGardo | comic-gardo.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
-| 85 | Booklive | booklive.jp | 通用正文图片检测 | 首页 HTML 可访问 |
+| 85 | Booklive | booklive.jp | 通用正文图片检测 | 公开连载片段正文未加载；未验证 |
 | 86 | MrBlue | mrblue.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 87 | MangaLove | mangalove.me | 通用正文图片检测 | 首页 HTML 可访问 |
 | 88 | rawdevart.art | rawdevart.art | 通用正文图片检测 | 首页 HTML 可访问 |
@@ -142,7 +142,7 @@
 | 132 | book.dmm.com | book.dmm.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 133 | newmanhwa.com | newmanhwa.com | 通用正文图片检测 | 连接失败 |
 | 134 | fxfx302.com | fxfx302.com | 通用正文图片检测 | 连接失败 |
-| 135 | comic-meteor.jp | comic-meteor.jp | 通用正文图片检测 | 首页 HTML 可访问 |
+| 135 | comic-meteor.jp | comic-meteor.jp · kirapo.jp | 分片阅读器 · 圈选翻译 | 公开章节 HTTP 200；旧站重定向 Kirapo |
 | 136 | omegascans.org | omegascans.org | 通用正文图片检测 | 首页 HTML 可访问 |
 | 137 | readallcomics.com | readallcomics.com | 通用正文图片检测 | 连接失败 |
 | 138 | ranfren.neocities.org | ranfren.neocities.org | 通用正文图片检测 | 连接失败 |
@@ -161,7 +161,7 @@
 | 151 | weebcentral.com | weebcentral.com | 专用正文图片 | 首页 HTML 可访问 |
 | 152 | lrr.tvc-16.science | lrr.tvc-16.science | 通用正文图片检测 | 首页 HTML 可访问 |
 | 153 | mangarawad.org | mangarawad.org | 通用正文图片检测 | 连接失败 |
-| 154 | manga-park.com | manga-park.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 154 | manga-park.com | manga-park.com | 专用正文图片检测 | 作品页免费按钮已显示正文；直接章节地址 HTTP 404 |
 | 155 | mangaflame.org | mangaflame.org | 通用正文图片检测 | 首页 HTML 可访问 |
 | 156 | manhwa404.com | manhwa404.com | 通用正文图片检测 | 连接失败 |
 | 157 | xmanga.org | xmanga.org | 通用正文图片检测 | 连接失败 |
@@ -194,7 +194,7 @@
 | 184 | webtoonscan.com | webtoonscan.com | 通用正文图片检测 | 访问受限 |
 | 185 | zipcomic.com | zipcomic.com | 通用正文图片检测 | 访问受限 |
 | 186 | zerobywzz.com | zerobywzz.com | 通用正文图片检测 | 连接失败 |
-| 187 | dokusho-ojikan.jp | dokusho-ojikan.jp | 通用正文图片检测 | 首页 HTML 可访问 |
+| 187 | dokusho-ojikan.jp | dokusho-ojikan.jp | 通用正文图片检测 | 公开试读报处理失败；未验证 |
 | 188 | bomtoon.com | bomtoon.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 189 | copymanga.site | copymanga.site | 通用正文图片检测 | 首页 HTML 可访问 |
 | 190 | readcomiconline.li | readcomiconline.li | 通用正文图片检测 | 连接失败 |
@@ -218,7 +218,7 @@
 | 208 | rawotaku.com | rawotaku.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 209 | pixiv.app | pixiv.app | 通用正文图片检测 | 连接失败 |
 | 210 | speed-manga.com | speed-manga.com / speed-manga.net | 专用正文图片 | 公开章节正文结构已核对 |
-| 211 | yomonga.com | yomonga.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 211 | yomonga.com | yomonga.com | 通用正文图片检测 | 当前维护页 HTTP 503；未验证 |
 | 212 | global.manga-up.com | global.manga-up.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 213 | mangaball.net | mangaball.net | 通用正文图片检测 | 连接失败 |
 | 214 | yanmaga.jp | yanmaga.jp | 画布/分片：圈选入口 | 首页 HTML 可访问 |
@@ -235,11 +235,11 @@
 | 225 | manhwaden.com | manhwaden.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 226 | dvamh-vzwp7.top | dvamh-vzwp7.top | 通用正文图片检测 | 首页 HTML 可访问 |
 | 227 | comic.pixiv.net | comic.pixiv.net | 通用正文图片检测 | 首页 HTML 可访问 |
-| 228 | comico.jp | comico.jp | 通用正文图片检测 | 首页 HTML 可访问 |
+| 228 | comico.jp | comico.jp | 通用正文图片检测 | 公开销售与租阅已结束；已购书架需账户，未验证 |
 | 229 | manhwas.men | manhwas.men | 通用正文图片检测 | 连接失败 |
 | 230 | ridibooks.com | ridibooks.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 231 | sunday-webry.com | sunday-webry.com | 通用正文图片检测 | 连接失败 |
 | 232 | ynjn.jp | ynjn.jp | 通用正文图片检测 | 公开阅读器停在加载状态，未验证正文 |
 | 233 | mangayun.com | mangayun.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 234 | manhwaweb.com | manhwaweb.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 235 | a-i-manga.com | a-i-manga.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 235 | a-i-manga.com | a-i-manga.com | 专用正文图片检测 | 公开作品阅读页 HTTP 200；24 张编号正文图片 |

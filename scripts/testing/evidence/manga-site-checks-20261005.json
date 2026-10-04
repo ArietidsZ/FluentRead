@@ -244,9 +244,18 @@
           "checkedAt": "2026-10-04T16:25:20Z",
           "state": "unreachable",
           "hostname": "comic-walker.com"
+        },
+        {
+          "requestedUrl": "https://comic-walker.com/",
+          "checkedAt": "2026-10-04T21:39:03+00:00",
+          "method": "isolated browser homepage DOM without extension",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic-walker.com/",
+          "title": "カドコミ (コミックウォーカー)｜KADOKAWAの無料漫画が読める！"
         }
       ],
-      "adapter": "detect"
+      "adapter": "readable-canvas"
     },
     {
       "name": "Web Ace",
@@ -263,6 +272,15 @@
           "title": "WEBエース",
           "htmlSha256": "1a42b408b84d62327b6f9a922d7d975d0d8e47236b4d1359bede3563302dfbc5",
           "hostname": "web-ace.jp"
+        },
+        {
+          "requestedUrl": "https://web-ace.jp/",
+          "checkedAt": "2026-10-04T21:39:03+00:00",
+          "method": "isolated browser homepage DOM without extension",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://web-ace.jp/",
+          "title": "WEBエース"
         }
       ],
       "adapter": "detect"
@@ -335,9 +353,18 @@
           "title": "全巻無料で漫画読み放題！ - マンガ図書館Z",
           "htmlSha256": "9f7dc8da271b335a40fa0a4805af4bf19cd781345c40de06b9dd124e35e88d0c",
           "hostname": "mangaz.com"
+        },
+        {
+          "requestedUrl": "https://www.mangaz.com/",
+          "checkedAt": "2026-10-04T21:39:03+00:00",
+          "method": "isolated browser homepage DOM without extension",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.mangaz.com/",
+          "title": "全巻無料で漫画読み放題！ - マンガ図書館Z"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "PASH UP",
@@ -1008,9 +1035,18 @@
           "title": "MangaFire - Read Manga Online Free",
           "htmlSha256": "4c22dfaee8f0ac8628f35f2950e167f68b57893e1d8f4d8046f386a5c4432d4a",
           "hostname": "mangafire.to"
+        },
+        {
+          "requestedUrl": "https://mangafire.to/",
+          "checkedAt": "2026-10-04T21:39:03+00:00",
+          "method": "isolated browser homepage DOM without extension",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://mangafire.to/",
+          "title": "MangaFire - Read Manga Online Free"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "Reaperscans",
@@ -1114,9 +1150,18 @@
           "title": "네이버 웹툰",
           "htmlSha256": "7838737d96e58e533bd3d42c451dd2d5b6dfd86ccbfd55ea19f6366d0a4b6ae2",
           "hostname": "comic.naver.com"
+        },
+        {
+          "requestedUrl": "https://comic.naver.com/index",
+          "checkedAt": "2026-10-04T21:39:03+00:00",
+          "method": "isolated browser homepage DOM without extension",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://comic.naver.com/index",
+          "title": "네이버 웹툰"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "comic-zenon",
@@ -1565,6 +1610,15 @@
           "title": "電子書籍・無料漫画ならブックライブ",
           "htmlSha256": "582d1908ef27f42c0785b0f0fee2f6d013576c0387dcfa0cd9881d0840606bec",
           "hostname": "booklive.jp"
+        },
+        {
+          "requestedUrl": "https://booklive.jp/",
+          "checkedAt": "2026-10-04T21:39:03+00:00",
+          "method": "isolated browser homepage DOM without extension",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://booklive.jp/",
+          "title": "電子書籍・無料漫画ならブックライブ"
         }
       ],
       "adapter": "detect"
@@ -2468,7 +2522,8 @@
     {
       "name": "comic-meteor.jp",
       "hosts": [
-        "comic-meteor.jp"
+        "comic-meteor.jp",
+        "kirapo.jp"
       ],
       "accessChecks": [
         {
@@ -2480,9 +2535,18 @@
           "title": "COMICメテオ - きら星ポータル きらポ",
           "htmlSha256": "0d68d3bf016b7425da0ce8fb4b4ee05c0de7a33bf5cbde83569266531954b243",
           "hostname": "comic-meteor.jp"
+        },
+        {
+          "requestedUrl": "https://kirapo.jp/meteor",
+          "checkedAt": "2026-10-04T21:39:03+00:00",
+          "method": "isolated browser homepage DOM without extension",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://kirapo.jp/meteor",
+          "title": "COMICメテオ - きら星ポータル きらポ"
         }
       ],
-      "adapter": "detect"
+      "adapter": "area"
     },
     {
       "name": "omegascans.org",
@@ -2825,9 +2889,18 @@
           "title": "マンガPark（マンガパーク） | 人気のマンガが毎日読み放題！",
           "htmlSha256": "ed3df604198e66225c3ced7396b3de2acedfd3489a72ca0dd6404618e9218392",
           "hostname": "manga-park.com"
+        },
+        {
+          "requestedUrl": "https://manga-park.com/",
+          "checkedAt": "2026-10-04T21:39:03+00:00",
+          "method": "isolated browser homepage DOM without extension",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://manga-park.com/",
+          "title": "マンガPark（マンガパーク） | 人気のマンガが毎日読み放題！"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "mangaflame.org",
@@ -3405,6 +3478,15 @@
           "title": "人気漫画を無料で試し読み・全巻お得に読むならAmebaマンガ",
           "htmlSha256": "b0365040e80b3777e6b8d111a509e0ad094654f7dc5ef2f4d06ee95787940e4e",
           "hostname": "dokusho-ojikan.jp"
+        },
+        {
+          "requestedUrl": "https://dokusho-ojikan.jp/",
+          "checkedAt": "2026-10-04T21:39:03+00:00",
+          "method": "isolated browser homepage DOM without extension",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://dokusho-ojikan.jp/",
+          "title": "人気漫画を無料で試し読み・全巻お得に読むならAmebaマンガ"
         }
       ],
       "adapter": "detect"
@@ -3830,6 +3912,15 @@
           "title": "ぶんか社の無料マンガサイト | 復讐サスペンス、話題の実写ドラマ化作品、異世界ファンタジーまで、株式会社ぶんか社＆海王社の幅広いラインナップが読める無料マンガサイト「マンガよもんが」。毎週火曜・金曜の12時更新！ | マンガよもんが",
           "htmlSha256": "193d7fb36d9e211110fb7a6397bc65c33b4a647da6be014bfa81b2a980d7d389",
           "hostname": "yomonga.com"
+        },
+        {
+          "requestedUrl": "https://www.yomonga.com/",
+          "checkedAt": "2026-10-04T21:39:03+00:00",
+          "method": "isolated browser homepage DOM without extension",
+          "state": "maintenance",
+          "status": 503,
+          "finalUrl": "https://www.yomonga.com/",
+          "title": "メンテナンス情報 | マンガよもんが"
         }
       ],
       "adapter": "detect"
@@ -4133,6 +4224,15 @@
           "title": "comico (コミコ) | タテカラー漫画が毎日無料、毎日更新！",
           "htmlSha256": "cb61f2b831ad91948d4d976a35401cc0bd78beb3c652ce9b39ac0cf2fe01b715",
           "hostname": "comico.jp"
+        },
+        {
+          "requestedUrl": "https://www.comico.jp/",
+          "checkedAt": "2026-10-04T21:39:03+00:00",
+          "method": "isolated browser homepage DOM without extension",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.comico.jp/",
+          "title": "comico (コミコ) | タテカラー漫画が毎日無料、毎日更新！"
         }
       ],
       "adapter": "detect"
@@ -4258,9 +4358,18 @@
           "title": "AI漫画を無料で読む・投稿するなら｜アイマンガ（AIMANGA）",
           "htmlSha256": "527a657e1830a76268dc02d4daedc1ec168a2cbb71faa2011bf3e7c89282551e",
           "hostname": "a-i-manga.com"
+        },
+        {
+          "requestedUrl": "https://a-i-manga.com/",
+          "checkedAt": "2026-10-04T21:39:03+00:00",
+          "method": "isolated browser homepage DOM without extension",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://a-i-manga.com/",
+          "title": "AI漫画を無料で読む・投稿するなら｜アイマンガ（AIMANGA）"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     }
   ],
   "readerSamples": [
@@ -4839,6 +4948,137 @@
       "scope": "Public reader DOM research without extension; not OCR/translation verification",
       "readerFinding": "Embedded public chapter reader rendered loading state; visible canvases had empty corners and 8x8 integer samples; screenshot showed loading indicator; not verified",
       "canvasReadable": true
+    },
+    {
+      "url": "https://comic-walker.com/detail/KC_020020_S/episodes/KC_0200200000200011_E?episodeType=first",
+      "requestedUrl": "https://comic-walker.com/detail/KC_020020_S/episodes/KC_0200200000200011_E?episodeType=first",
+      "status": 200,
+      "imageCount": 39,
+      "canvasCount": 30,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Public readable ComicWalker chapter; 30 contents canvases include first-page canvas marker and later parent markers. Two normal ArrowLeft turns show two readable body canvases behind sibling page covers; images are end promotions, not body.",
+      "canvasReadable": true,
+      "readerAction": {
+        "key": "ArrowLeft",
+        "count": 2
+      }
+    },
+    {
+      "url": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon",
+      "requestedUrl": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon",
+      "status": 200,
+      "imageCount": 85,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Public Naver chapter images in #sectionContWide with content_image_ IDs; age advisory and navigation banners excluded."
+    },
+    {
+      "url": "https://a-i-manga.com/work/45WoWxwi",
+      "requestedUrl": "https://a-i-manga.com/work/45WoWxwi",
+      "status": 200,
+      "imageCount": 31,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "AIManga work reader displays 24 numbered Page images from images.a-i-manga.com/comics; other recommendation images excluded."
+    },
+    {
+      "url": "https://mangafire.to/title/ro8ro-all-class-awakening-god-slayer/chapter/9468411",
+      "requestedUrl": "https://mangafire.to/title/ro8ro-all-class-awakening-god-slayer/chapter/9468411",
+      "status": 200,
+      "imageCount": 6,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "MangaFire public chapter displays .reader__strip .reader__page img.reader-img; initially only first lazy body image loaded. No full long-strip OCR acceptance."
+    },
+    {
+      "url": "https://vw.mangaz.com/virgo/view/135831/i:2",
+      "requestedUrl": "https://vw.mangaz.com/virgo/view/135831/i:0",
+      "status": 200,
+      "imageCount": 5,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "MangaZ public viewer after normal ArrowLeft turns displays two blob-backed img.image inside page_unit.page_image; loading-back covers excluded.",
+      "readerAction": {
+        "key": "ArrowLeft",
+        "count": 2
+      }
+    },
+    {
+      "url": "https://kirapo.jp/pt/meteor/currylevel/2022519/viewer",
+      "requestedUrl": "https://kirapo.jp/pt/meteor/currylevel/2022519/viewer",
+      "status": 200,
+      "imageCount": 27,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Meteor redirected to Kirapo; public chapter after normal ArrowLeft turns displays .pt-img image fragments. Area-selection entry only, no automatic fragment OCR.",
+      "readerAction": {
+        "key": "ArrowLeft",
+        "count": 2
+      }
+    },
+    {
+      "url": "https://dokusho-ojikan.jp/reader/index.html?cid=1543110&ref=fresh_module_top_guest",
+      "requestedUrl": "https://dokusho-ojikan.jp/reader/index.html?cid=1543110&ref=fresh_module_top_guest",
+      "status": 200,
+      "imageCount": 0,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Ameba public trial reader returned processing failure and displayed no images or canvases; not verified."
+    },
+    {
+      "url": "https://manga-park.com/chapter/494311",
+      "requestedUrl": "https://manga-park.com/chapter/494311",
+      "status": 404,
+      "imageCount": 6,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "MangaPark chapter route from work page data-url returned HTTP 404 with error illustration; not verified.",
+      "readerAction": {
+        "key": "ArrowLeft",
+        "count": 2
+      }
+    },
+    {
+      "url": "https://booklive.jp/bkmr/ojikawa_01_1",
+      "requestedUrl": "https://booklive.jp/bkmr/ojikawa_01_1",
+      "status": 200,
+      "imageCount": 22,
+      "canvasCount": 0,
+      "restrictions": false,
+      "scope": "Public reader DOM research without extension; not OCR/translation verification",
+      "readerFinding": "Booklive serialized excerpt loaded its page but body images remained one-pixel lazy placeholders. Host jQuery plugin error observed without extension; not verified.",
+      "hostErrors": [
+        {
+          "message": "t(...).on is not a function",
+          "stack": "TypeError: t(...).on is not a function\n    at HTMLDocument.<anonymous> (https://booklive.jp/bkmr/wp-content/plugins/table-of-contents-plus/assets/front.min.js?ver=202609.1:7:4107)\n    at Object.resolveWith (https://ajax.googleapis.com/ajax/libs/jquery/1.5.0/jquery.min.js:16:12509)\n    at Function.ready (https://ajax.googleapis.com/ajax/libs/jquery/1.5.0/jquery.min.js:16:8628)\n    at HTMLDocument.A (https://ajax.googleapis.com/ajax/libs/jquery/1.5.0/jquery.min.js:16:14342)"
+        }
+      ]
+    },
+    {
+      "url": "https://manga-park.com/title/53371",
+      "status": 200,
+      "imageCount": 255,
+      "chapterImageCount": 4,
+      "canvasCount": 0,
+      "scope": "Public chapter opened via work-page free button in isolated anonymous browser without extension; not OCR/translation verification",
+      "readerFinding": "Free first chapter opens inside work page as blob-backed img.manga-image in .viewer #minobi .manga-page-image. Two active page images shown in screenshot; chapter thumbnail and chiramise preview excluded. Direct /chapter/494311 route returned 404 in earlier sample.",
+      "readerAction": {
+        "selector": "li[data-chapter-id=\"494311\"] .chapter-container"
+      },
+      "hostErrors": [
+        {
+          "message": "Cannot read properties of null (reading 'textContent')",
+          "stack": "TypeError: Cannot read properties of null (reading 'textContent')\n    at HTMLLIElement.<anonymous> (https://manga-park.com/assets/js/pages/title.js:1:153519)\n    at Function.each (https://code.jquery.com/jquery-1.11.0.min.js:2:2969)\n    at e.fn.init.each (https://code.jquery.com/jquery-1.11.0.min.js:2:845)\n    at HTMLDocument.<anonymous> (https://manga-park.com/assets/js/pages/title.js:1:153461)\n    at j (https://code.jquery.com/jquery-1.11.0.min.js:2:27136)\n    at Object.fireWith [as resolveWith] (https://code.jquery.com/jquery-1.11.0.min.js:2:27949)\n    at Function.ready (https://code.jquery.com/jquery-1.11.0.min.js:2:29783)\n    at HTMLDocument.K (https://code.jquery.com/jquery-1.11.0.min.js:2:30128)"
+        }
+      ]
     }
   ],
   "verification": {
@@ -5457,6 +5697,11 @@
         "workUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
         "method": "public Start Reading button",
         "result": "no chapter route or body observed; not accepted"
+      },
+      "mangaPark": {
+        "workUrl": "https://manga-park.com/title/53371",
+        "method": "normal public free chapter click in same anonymous context; wait for reader load",
+        "result": "Public body images displayed. Initial immediate capture showed gray loading layer; later capture shows actual pages. Direct chapter URL returned 404; separate scope."
       }
     },
     "additionalChapterBuilds": {
@@ -5531,6 +5776,223 @@
       "profileRemoved": true,
       "sourceCaptureMethod": "Displayed element screenshot because host image canvas export is cross-origin tainted; production image source access unchanged.",
       "scope": "Two cover pages, contents and first dialogue page. Actual Chinese output, pause source/style restoration and cache reuse verified. Screenshot inspection found missed text, untranslated remnants, OCR errors and incorrect translations. Does not accept full chapter or translation quality."
+    },
+    "officialReaderServiceRechecks": {
+      "comico": {
+        "noticeUrl": "https://www.comico.jp/document/notice/detail?detail=/document/notice/service/serviceclose/2026-08-17",
+        "noticePublishedOn": "2026-08-17",
+        "noticeUpdatedOn": "2026-09-15",
+        "serviceEndsAt": "2027-01-06 23:59 Japan time",
+        "publicSalesAndRentalsEndedAt": "2026-09-28 23:59 Japan time",
+        "result": "Homepage now offers notice and already-unlocked library. Cannot confirm public chapter without purchased library account; not permanently shut yet."
+      },
+      "yomonga": {
+        "url": "https://www.yomonga.com/",
+        "status": 503,
+        "result": "Current maintenance page; no chapter accepted, no permanent shutdown inference."
+      },
+      "webAce": {
+        "url": "https://web-ace.jp/youngaceup/comic/1000294/",
+        "status": 200,
+        "result": "Book catalogue only; ComicWalker root link exists but no specific delegated chapter confirmed."
+      }
+    },
+    "publicOfficialChapterEntries": {
+      "passed": true,
+      "cases": 22,
+      "liveReaders": [
+        {
+          "url": "https://comic-walker.com/detail/KC_020020_S/episodes/KC_0200200000200011_E?episodeType=first",
+          "status": 200,
+          "mode": "canvas",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://a-i-manga.com/work/45WoWxwi",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://mangafire.to/title/ro8ro-all-class-awakening-god-slayer/chapter/9468411",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://vw.mangaz.com/virgo/view/135831/i:0",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://kirapo.jp/pt/meteor/currylevel/2022519/viewer",
+          "status": 200,
+          "mode": "area",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 0,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "browserFrontmost": false,
+      "profileRemoved": true,
+      "scope": "Six actual reader entries plus 16 pure-icon UI cases. Four image readers, one readable canvas reader and one fragmented area reader. Does not prove full chapter OCR or translation quality."
+    },
+    "publicOfficialChapterProfilesUnit": {
+      "files": 3,
+      "assertions": 275,
+      "passed": true,
+      "modules": [
+        "mangaReaderProfiles",
+        "mangaSiteCatalog",
+        "manga"
+      ],
+      "coverage": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "integrationFiles": 4,
+      "integrationAssertions": 824,
+      "integrationScope": "Module boundaries, source headers, session fallback and entry; not full architecture regression."
+    },
+    "publicOfficialChapterBuilds": {
+      "compile": true,
+      "chrome": true,
+      "firefox": true,
+      "userscript": true,
+      "userscriptBytes": 1916859,
+      "manifestVerification": true,
+      "userscriptVerification": true,
+      "firefoxRuntime": false,
+      "userscriptRuntime": false,
+      "testAudit": {
+        "files": 466,
+        "cases": 6020,
+        "passed": true
+      },
+      "docs": true
+    },
+    "comicWalkerFirstPageTranslation": {
+      "passed": true,
+      "url": "https://comic-walker.com/detail/KC_020020_S/episodes/KC_0200200000200011_E?episodeType=first",
+      "cases": 4,
+      "caseNames": [
+        "public readable canvas runs real manga OCR and translated overlay without changing the source",
+        "pause restores the original canvas and repeated activation reuses the translated page",
+        "normal chapter turn translates new canvas pages through the same serial queue",
+        "master switch restores the chapter and removes canvas translation UI"
+      ],
+      "ocr": "real production PaddleOCR",
+      "translation": "live Google",
+      "firstVisibleGroupMs": 32968,
+      "visibleSourceCanvases": 1,
+      "sourcePreserved": true,
+      "stableAfterPointerExit": true,
+      "pauseReuseWithoutAnotherOcr": true,
+      "normalChapterTurn": true,
+      "masterSwitchCleanup": true,
+      "operations": 4,
+      "operationsScope": "Image operations can include cancellation or blank pages; not a count of successfully translated pages.",
+      "modelsPreloaded": true,
+      "modelRequests": 0,
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "pageErrors": 0,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "browserFrontmost": false,
+      "profileRemoved": true,
+      "screenshotsVisuallyInspected": [
+        "canvas-translated.png",
+        "canvas-stable-after-pointer.png",
+        "canvas-next-pages.png"
+      ],
+      "initialNavigationVerified": false,
+      "initialNavigationLimitation": "Initial keys were sent before reader hydration. Translation started from the first page, not the intended later spread. Tool now waits for visible readable artwork before initial navigation; follow-up evidence recorded separately.",
+      "qualityScope": "Partial Chinese output on first page and later spread. Ruby, vertical text, original remnants and incorrect translations remain; not full chapter quality acceptance."
+    },
+    "comicWalkerReadableCanvasTranslation": {
+      "passed": true,
+      "url": "https://comic-walker.com/detail/KC_020020_S/episodes/KC_0200200000200011_E?episodeType=first",
+      "cases": 4,
+      "caseNames": [
+        "public readable canvas runs real manga OCR and translated overlay without changing the source",
+        "pause restores the original canvas and repeated activation reuses the translated page",
+        "normal chapter turn translates new canvas pages through the same serial queue",
+        "master switch restores the chapter and removes canvas translation UI"
+      ],
+      "ocr": "real production PaddleOCR",
+      "translation": "live Google",
+      "firstVisibleGroupMs": 49421,
+      "visibleSourceCanvases": 2,
+      "sourcePreserved": true,
+      "stableAfterPointerExit": true,
+      "pauseReuseWithoutAnotherOcr": true,
+      "normalChapterTurn": true,
+      "masterSwitchCleanup": true,
+      "operations": 5,
+      "operationsScope": "Image operations can include cancellation or blank pages; not a count of successfully translated pages.",
+      "modelsPreloaded": true,
+      "modelRequests": 0,
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "pageErrors": 0,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "browserFrontmost": false,
+      "profileRemoved": true,
+      "screenshotsVisuallyInspected": [
+        "canvas-translated.png",
+        "canvas-stable-after-pointer.png",
+        "canvas-next-pages.png"
+      ],
+      "qualityScope": "Two later body canvases and next spread show partial Chinese output. Missed vertical text and ruby, untranslated remnants, misplaced lettering and incorrect translations remain; not full chapter quality acceptance.",
+      "readerNavigation": {
+        "selector": "[data-viewer-full-screen-helper] canvas[data-type=\"contents\"], [data-viewer-full-screen-helper] [data-type=\"contents\"] > canvas",
+        "openSelector": null,
+        "initialTurns": 2,
+        "turnKey": "ArrowLeft",
+        "turnCount": 2
+      },
+      "initialNavigationVerified": true
+    },
+    "mangaParkChapterEntry": {
+      "passed": true,
+      "cases": 17,
+      "liveReaders": [
+        {
+          "url": "https://manga-park.com/title/53371",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "readerAction": {
+        "selector": "li[data-chapter-id=\"494311\"] .chapter-container"
+      },
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 1,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "displayTarget": "secondary",
+      "browserFrontmost": false,
+      "profileRemoved": true,
+      "scope": "16 pure-icon UI cases plus MangaPark chapter entry opened by the normal public free button. Entry only; not OCR/translation verification."
     }
   }
 }

@@ -1,4 +1,5 @@
 import {describe, expect, it} from 'vitest';
+import {parseHTML} from 'linkedom';
 import {createMangaSiteRule, normalizeMangaSiteRules, normalizeMangaPrefetchPages, resolveMangaSite} from '@/src/core/config/manga';
 import {isCatalogMangaHost, MANGA_SITE_DOMAINS, MANGA_SITE_CATALOG} from '@/src/core/config/mangaSiteCatalog';
 import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
@@ -75,6 +76,14 @@ describe('漫画阅读规则与持久偏好', () => {
         ['https://mangarawjp.me/manga/blue-lock/346-5-wa/', '#TopPage.ImageGallery img.img-fluid'],
         ['https://speed-manga.net/the-mirror-legacy-0/', 'article #readerarea img.ts-main-image'],
         ['https://speed-manga.com/the-mirror-legacy-0-5/', 'article #readerarea img.ts-main-image'],
+        ['https://comic-walker.com/detail/KC_020020_S/episodes/KC_0200200000200011_E?episodeType=first', ':not(*)'],
+        ['https://www.comic-walker.com/detail/KC_020020_S/episodes/KC_0200200000200011_E/', ':not(*)'],
+        ['https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon', '#sectionContWide > img[id^="content_image_"]'],
+        ['https://a-i-manga.com/work/45WoWxwi/', 'main img[alt^="Page "][src^="https://images.a-i-manga.com/comics/"]'],
+        ['https://mangafire.to/title/ro8ro-all-class-awakening-god-slayer/chapter/9468411/', '.reader__strip > .reader__page > img.reader-img'],
+        ['https://kirapo.jp/pt/meteor/currylevel/2022519/viewer/', ':not(*)'],
+        ['https://vw.mangaz.com/virgo/view/135831/i:2', '#viewer #book .page_unit.page_image > img.image'],
+        ['https://manga-park.com/title/53371/', '.viewer #minobi .manga-page-image > img.manga-image'],
     ])('新增公开样本限定正文选择器 %s', (href, selector) => {
         expect(resolveMangaSite(href)).toMatchObject({selector,custom:false,requireContent:true});
     });
@@ -100,6 +109,16 @@ describe('漫画阅读规则与持久偏好', () => {
         ['mangarawjp.me','/manga/blue-lock'], ['mangarawjp.me','/manga/blue-lock/363-wa/extra'],
         ['speed-manga.net','/manga/the-mirror-legacy/'], ['speed-manga.net.attacker.test','/the-mirror-legacy-0/'],
         ['smokingbehindthesupermarket.com','/manga/title/'],
+        ['comic-walker.com','/detail/KC_020020_S/'], ['comic-walker.com','/detail/KC_020020_S/episodes/KC_0200200000200011_E/extra'],
+        ['comic-walker.com','/episodes/abc'], ['comic-walker.com.attacker.test','/detail/KC_020020_S/episodes/KC_0200200000200011_E'],
+        ['comic.naver.com','/webtoon/list'], ['comic.naver.com','/webtoon/detail/extra'],
+        ['a-i-manga.com','/work/'], ['a-i-manga.com','/work/45WoWxwi/extra'],
+        ['mangafire.to','/title/slug'], ['mangafire.to','/title/slug/chapter/name'],
+        ['kirapo.jp','/meteor/titles/currylevel'], ['kirapo.jp','/pt/other/currylevel/2022519/viewer'],
+        ['kirapo.jp','/pt/meteor/currylevel/2022519/viewer/extra'],
+        ['vw.mangaz.com','/navi/135831/i:0'], ['vw.mangaz.com','/virgo/view/135831/i:2/extra'],
+        ['vw.mangaz.com','/virgo/view/135831/i:page'], ['mangaz.com','/virgo/view/135831/i:2'],
+        ['manga-park.com','/title/53371/extra'], ['manga-park.com','/chapter/494311'], ['manga-park.com','/title/name'],
     ])('正文规则不将目录、相似域名和额外路径识别成章节 %s%s', (host,path) => {
         expect(resolveMangaReaderProfile(host,path)).toBeNull();
     });
@@ -112,6 +131,36 @@ describe('漫画阅读规则与持久偏好', () => {
             expect(resolveMangaReaderProfile('antbyw.com','/plugin.php',search)).toBeNull();
         }
         expect(resolveMangaReaderProfile('antbyw.com.attacker.test','/plugin.php',query)).toBeNull();
+    });
+    it('Naver 必须有数字作品和章节查询，不将缺参、目录或相似域名识别成正文', () => {
+        expect(resolveMangaReaderProfile('comic.naver.com','/webtoon/detail','?no=1&week=mon&titleId=855297')?.name).toBe('ComicNaver');
+        for (const query of ['', '?no=1', '?titleId=855297', '?titleId=story&no=1', '?titleId=855297&no=1/extra']) {
+            expect(resolveMangaReaderProfile('comic.naver.com','/webtoon/detail',query)).toBeNull();
+        }
+        expect(resolveMangaReaderProfile('comic.naver.com.attacker.test','/webtoon/detail','?titleId=855297&no=1')).toBeNull();
+    });
+    it('ComicWalker 保留首张和后续页两种正文标记，排除结束推荐图、站外画布和非翻页遮罩', () => {
+        const site=resolveMangaSite('https://comic-walker.com/detail/KC_020020_S/episodes/KC_0200200000200011_E')!;
+        const {document}=parseHTML('<main><canvas id="decoy"></canvas><div data-viewer-full-screen-helper="true"><canvas id="first" data-type="contents"></canvas><div id="first-cover" class="_cover_bx4cr_11"></div><div data-type="contents"><canvas id="second"></canvas><div id="second-cover" class="_cover_bx4cr_11"></div></div><div class="_cover_unrelated"></div><div data-type="end"><canvas id="end"></canvas><img id="promo"></div></div></main>');
+        expect([...document.querySelectorAll(site.canvasSelector!)].map(c=>c.id)).toEqual(['first','second']);
+        expect([...document.querySelectorAll(site.canvasInteractionSelector!)].map(c=>c.id)).toEqual(['first-cover','second-cover']);
+        expect(document.querySelectorAll(site.selector)).toHaveLength(0);
+        expect(site.areaSelector).toBe(site.canvasSelector);
+    });
+    it('新图片正文规则排除年龄提示、导航封面与未标明正文的同源图片', () => {
+        const {document}=parseHTML('<div id="sectionContWide"><img id="age"><img id="content_image_0"></div><aside><img id="content_image_1"></aside><main><img id="ai" alt="Page 1" src="https://images.a-i-manga.com/comics/story/000.webp"><img id="cover" alt="Cover" src="https://images.a-i-manga.com/comics/story/cover.webp"><img id="outside" alt="Page 2" src="https://example.com/page.webp"></main><div class="reader__strip"><div class="reader__page"><img id="fire" class="reader-img"></div></div><aside><img class="reader-img"></aside><div id="viewer"><div id="book"><img class="loading-back"><div class="page_unit page_image"><img id="mangaz" class="image protect" src="blob:https://vw.mangaz.com/page"></div></div></div>');
+        for (const [url,ids] of [
+            ['https://comic.naver.com/webtoon/detail?titleId=855297&no=1',['content_image_0']],
+            ['https://a-i-manga.com/work/45WoWxwi',['ai']],
+            ['https://mangafire.to/title/story/chapter/123',['fire']],
+            ['https://vw.mangaz.com/virgo/view/135831/i:2',['mangaz']],
+        ] as const) expect([...document.querySelectorAll(resolveMangaSite(url)!.selector)].map(i=>i.id)).toEqual(ids);
+    });
+    it('MangaPark 在作品页打开阅读器后仅处理 minobi 正文，不处理试阅片段和作品目录', () => {
+        const {document}=parseHTML('<main><div id="chiramiseDiv"><img id="preview"></div><img class="chapterThumb"><div class="viewer"><div id="minobi"><div class="manga-face"><div class="manga-page manga-page-image"><img id="page" class="manga-image" src="blob:https://manga-park.com/page"></div></div></div><img id="promo" class="manga-image"></div></main>');
+        const site=resolveMangaSite('https://manga-park.com/title/53371')!;
+        expect([...document.querySelectorAll(site.selector)].map(i=>i.id)).toEqual(['page']);
+        document.querySelector('.viewer')!.remove();expect(document.querySelectorAll(site.selector)).toHaveLength(0);
     });
     it('提前翻译默认三页，显式零保留，限制窗口并拒绝损坏或旧类型', () => {
         for (const invalid of [undefined, null, '3', NaN, Infinity, {}, true]) expect(normalizeMangaPrefetchPages(invalid)).toBe(3);
@@ -132,7 +181,7 @@ describe('漫画阅读规则与持久偏好', () => {
             expect(isCatalogMangaHost(`reader.${hostname}`)).toBe(true);
             expect(isCatalogMangaHost(`${hostname}.attacker.test`)).toBe(false);
             expect(resolveMangaSite(`https://${hostname}/`)).toBeNull();
-            expect(resolveMangaSite(`https://${hostname}/title/123`)).toMatchObject({generic:true});
+            expect(resolveMangaSite(`https://${hostname}/catalogue/123`)).toMatchObject({generic:true});
         }
         expect(isCatalogMangaHost('localhost')).toBe(false);
         expect(isCatalogMangaHost('unrelated.example')).toBe(false);
