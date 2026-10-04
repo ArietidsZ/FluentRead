@@ -442,6 +442,9 @@
 .fd[data-running='false'] .fd-sound-wave i {
   animation-play-state: paused;
 }
+.fd[data-speech-state='speaking'] .fd-audio-active .fd-sound-wave i {
+  animation-play-state: running;
+}
 @keyframes fd-audio-wave {
   to {
     transform: scaleY(1);
