@@ -7,9 +7,9 @@
 <template>
   <section class="manga-model-settings" data-testid="manga-model-manager">
     <header><h2>{{ translateLegacy('阅读资源') }}</h2><span>{{ translateLegacy('首次使用时自动准备') }}</span></header>
-    <p>{{ translateLegacy('下载一次后可复用。图片在浏览器本地处理。') }}</p>
+    <p>{{ translateLegacy('资源下载后可重复使用，图片在当前浏览器中处理') }}</p>
     <div class="manga-resource-list">
-      <div class="manga-resource"><div><strong>{{ translateLegacy('漫画文字识别') }}</strong><small>{{ translateLegacy('读出对白与旁白') }} · {{ translateLegacy('约 30 MB') }}</small></div><span :class="{ready: status?.ready}">{{ translateLegacy(!status ? '正在检查' : status.ready ? '已就绪' : '首次使用时下载') }}</span></div>
+      <div class="manga-resource"><div><strong>{{ translateLegacy('漫画文字识别') }}</strong><small>{{ translateLegacy('识别对白与旁白') }} · {{ translateLegacy('约 30 MB') }}</small></div><span :class="{ready: status?.ready}">{{ translateLegacy(!status ? '正在检查' : status.ready ? '已就绪' : '首次使用时下载') }}</span></div>
       <div class="manga-resource"><div><strong>{{ translateLegacy('背景文字清除') }}</strong><small>{{ translateLegacy('清除复杂画面中的原文字') }} · {{ translateLegacy('约 197 MB') }}</small></div><span :class="{ready: status?.inpaintingReady}">{{ translateLegacy(!status ? '正在检查' : status.inpaintingReady ? '已就绪' : '需要时下载') }}</span></div>
     </div>
     <div v-if="status?.download" class="manga-model-progress" role="status" data-i18n-ignore>
@@ -22,8 +22,8 @@
       <div class="manga-model-controls"><label>{{ translateLegacy('下载来源') }}
         <select :aria-label="translateLegacy('模型下载来源')" :value="source" :disabled="busy || downloading" @change="changeSource(($event.target as HTMLSelectElement).value)"><option value="auto">{{ translateLegacy('自动选择') }}</option><option value="official">{{ translateLegacy('官方源优先') }}</option><option value="mirror">{{ translateLegacy('备用镜像优先') }}</option></select>
       </label><button type="button" :disabled="busy || downloading" @click="input?.click()">{{ translateLegacy('导入已下载文件') }}</button><input ref="input" hidden type="file" multiple accept=".onnx,.txt" @change="importFiles" /></div>
-      <p>{{ translateLegacy('连接失败会自动尝试备用来源，已完成的文件会保留。网络不方便时，可以导入离线文件。') }}</p>
-      <details><summary>{{ translateLegacy('获取离线文件') }}</summary><p>{{ translateLegacy('下载以下文件后，可一次选择多个文件导入；只接受完整且经过校验的配套模型。') }}</p><ul><li v-for="asset in offlineAssets" :key="asset.name"><a :href="source === 'mirror' ? asset.url.replace('huggingface.co','hf-mirror.net') : asset.url" target="_blank" rel="noopener noreferrer" data-i18n-ignore>{{ asset.name }}</a></li></ul></details>
+      <p>{{ translateLegacy('下载失败时自动尝试备用来源并保留已完成的文件，也可导入离线文件') }}</p>
+      <details><summary>{{ translateLegacy('获取离线文件') }}</summary><p>{{ translateLegacy('下载以下文件后，可一次选择多个文件导入；只接受完整且经过校验的配套模型') }}</p><ul><li v-for="asset in offlineAssets" :key="asset.name"><a :href="source === 'mirror' ? asset.url.replace('huggingface.co','hf-mirror.net') : asset.url" target="_blank" rel="noopener noreferrer" data-i18n-ignore>{{ asset.name }}</a></li></ul></details>
       <div class="manga-model-storage"><small>{{ translateLegacy('已占用空间') }} · {{ Math.round((status?.bytes || 0) / 1048576) }} MB</small><button type="button" :disabled="busy || downloading || !status?.bytes" @click="remove">{{ translateLegacy('清除已下载资源') }}</button></div>
     </details>
   </section>

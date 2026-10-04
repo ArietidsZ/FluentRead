@@ -19,6 +19,7 @@ import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository'
 import {translationRequestScheduler} from '@/src/app/translation/runtime';
 import {createTranslationProviderConfigSnapshot} from '@/src/services/translation/requestSnapshot';
 import {resolveTranslationRequestModel} from '@/src/services/translation/broker';
+import type {FreeTranslationProviderId} from '@/src/core/config/freeTranslation';
 
 export {formatConnectionTestError, getFreeTranslationWeightSnapshot};
 
@@ -30,7 +31,7 @@ export function createProviderTestRuntimeHandlers() {
             resolve: modelVisionProbe.resolve})];
 }
 
-export function runTranslationServiceConnectionTestWithUsage(service: string, keyIndex?: number, keyRevision?: string) {
+export function runTranslationServiceConnectionTestWithUsage(service: string, keyIndex?: number, keyRevision?: string, freeProviderId?: FreeTranslationProviderId) {
     const usageGeneration = modelUsageRepository.captureGeneration();
     const snapshot = createTranslationProviderConfigSnapshot(config);
     return runTranslationServiceConnectionTest(service, {
@@ -38,6 +39,7 @@ export function runTranslationServiceConnectionTestWithUsage(service: string, ke
         effectiveModel: resolveTranslationRequestModel(snapshot, service, undefined, servicesType.isAiSdk, servicesType.isAI),
         keyIndex,
         keyRevision,
+        freeProviderId,
         recordModelUsage: async (events) => {
             await modelUsageRepository.recordMany(events, usageGeneration);
         },

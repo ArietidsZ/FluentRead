@@ -5,13 +5,13 @@
  * 模块边界：仅编辑传入的 HarnessPreferences，保存沿用设置页配置流程；不调用模型，不翻译或执行用户提示词内容。
  -->
 <template>
-  <SettingsGroup title="提示词" description="自定义通用指令和各个学习动作，调整划词翻译的回答方式。">
+  <SettingsGroup title="提示词" description="自定义通用指令和各个学习动作，调整划词翻译的回答方式">
     <details class="harness-prompts">
       <summary>编辑提示词</summary>
       <div class="harness-prompt-body">
         <SegmentedControl v-model="selected" :options="promptOptions" label="选择提示词" />
         <div class="harness-prompt-toolbar">
-          <small>选中文本和追问会自动提供，无需写入提示词。留空使用默认内容。</small>
+          <small>选中文字和追问内容会自动提供，无需写入提示词；留空使用默认提示词</small>
           <button type="button" @click="restore">恢复默认</button>
         </div>
         <textarea ref="editor" v-model="prompt" data-i18n-ignore :maxlength="HARNESS_PROMPT_MAX_LENGTH"

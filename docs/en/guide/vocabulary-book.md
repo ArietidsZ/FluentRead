@@ -22,6 +22,12 @@ Use **Marking options** to pause this page visit or turn off marks on all pages.
 
 This browser-extension feature supports ordinary pages and open Shadow DOM. It is unavailable in private windows and userscripts. Older browsers without text-range painting can still use the nearby-expression button. Pausing FluentRead or disabling it on the current site removes both marks and cards.
 
+## Listen to and save a highlighted sentence
+
+Enable **Bilingual sentence highlighting** in the desktop extension. Hover over either the original or its translation. Highlighting appears immediately; after the pointer rests for about **0.8 seconds**, a small **⋯ Sentence actions** button appears. Click it to expand playback, saving, copying, and the collection link. Brief passes do not display the controls.
+
+Playback and copying follow the hovered side: original text uses its source language, and translated text uses the target language. Saving always keeps both texts and available context. Moving into the controls retains the current side. Leaving, scrolling, restoring the original, disabling highlighting, or pressing **Esc** dismisses them. Saved status is only queried when you open the controls. No speech or AI request starts automatically. Private windows do not save sentences; this entry is unavailable in userscripts and embedded pages.
+
 ## Learn its usage
 
 Open an entry’s learning action, or jump to your most recent saved expression. Opening the page does not call AI.

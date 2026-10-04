@@ -8,6 +8,8 @@ Install FluentRead from your browser’s official extension store.
 
 <BrowserInstall en />
 
+If the Chrome Web Store does not open, try [CRXSOso](https://www.crxsoso.com/webstore/detail/djnlaiohfaaifbibleebjggkghlmcpcj), or get the official ZIP package from [Offline download & installation](/en/guide/offline-install). CRXSOso is a third-party distribution website; its version may differ from the official store.
+
 The walkthrough below uses Chrome. Click **Add to Chrome**, review the requested permissions, then choose **Add extension**.
 
 <GuideVisual kind="install" en />

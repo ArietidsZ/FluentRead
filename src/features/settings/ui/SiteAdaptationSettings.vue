@@ -8,11 +8,11 @@
   <div class="rule-workspace" data-setting="site-adaptation">
     <section class="rule-card">
       <header class="rule-heading">
-        <div><h3>{{ tr('正文适配') }}</h3><p>{{ tr('调整哪些区域翻译、哪些保留原文。内置规则开箱即用，自定义规则可按域名与路径精细设置。') }}</p></div>
+        <div><h3>{{ tr('正文适配') }}</h3><p>{{ tr('设置要翻译或保留原文的区域，可直接使用内置规则，也可按域名和路径自定义') }}</p></div>
         <el-switch :model-value="modelValue.enabled" :disabled="saving" :aria-label="tr('启用网站适配')" @update:model-value="setEnabled(Boolean($event))" />
       </header>
-      <p v-if="!modelValue.enabled" class="rule-notice">{{ tr('正文适配已关闭，规则仍保留；网页使用通用正文识别。') }}</p>
-      <div v-if="isDirty || saving" ref="saveBar" class="draft-bar" role="status"><span>{{ tr(saving ? '正在保存，等待后台确认。' : '草稿未保存，网页仍使用已保存规则。') }}</span><button type="button" class="rule-primary" :disabled="saving || !!form || draftConflict" :aria-busy="saving" @click="saveDraft">{{ tr(saving ? '正在保存' : '保存并应用') }}</button></div>
+      <p v-if="!modelValue.enabled" class="rule-notice">{{ tr('正文适配已关闭，规则仍保留；网页使用通用正文识别') }}</p>
+      <div v-if="isDirty || saving" ref="saveBar" class="draft-bar" role="status"><span>{{ tr(saving ? '正在保存，等待后台确认' : '草稿未保存，网页仍使用已保存规则') }}</span><button type="button" class="rule-primary" :disabled="saving || !!form || draftConflict" :aria-busy="saving" @click="saveDraft">{{ tr(saving ? '正在保存' : '保存并应用') }}</button></div>
       <p v-if="draftConflict" class="rule-error" role="alert">{{ tr('已保存规则在其他页面发生变化。草稿已保留，请先导出或复制草稿，再恢复最新配置并重新合并。') }}</p>
       <div class="catalog-toolbar">
         <label class="rule-field"><span class="sr-only">{{ tr('搜索网站规则') }}</span><input v-model="search" type="search" :aria-label="tr('搜索网站规则')" :placeholder="tr('输入网站名称、域名或规则标识')" @input="visibleLimit = 30" /></label>
@@ -21,18 +21,18 @@
       <div class="catalog-filters" role="group" :aria-label="tr('筛选网站规则')">
         <button v-for="option in filters" :key="option.id" type="button" :aria-pressed="filter === option.id" :class="{'is-active': filter === option.id}" @click="filter = option.id; visibleLimit = 30">{{ tr(option.label) }} <span>{{ option.count }}</span></button>
       </div>
-      <p class="rule-hint">{{ tr('同 ID 的自定义规则完整替换内置规则；移除自定义版本后恢复内置版本。') }}</p>
+      <p class="rule-hint">{{ tr('同 ID 的自定义规则完整替换内置规则；移除自定义版本后恢复内置版本') }}</p>
       <div v-if="form" ref="formArea" class="visual-editor" data-rule-form>
-        <header class="rule-heading"><div><h3>{{ tr(editingId ? '编辑规则' : '新建规则') }}</h3><p>{{ tr('每行填写一项。暂存后可继续检查，点击保存规则才会影响网页。') }}</p></div><button type="button" :disabled="saving" @click="cancelForm">{{ tr('取消编辑') }}</button></header>
-        <p v-if="formConflict" class="rule-error" role="alert">{{ tr('规则已从其他页面更新，请关闭编辑器后重新打开，避免覆盖新配置。') }}</p>
+        <header class="rule-heading"><div><h3>{{ tr(editingId ? '编辑规则' : '新建规则') }}</h3><p>{{ tr('每行填写一项，暂存后可继续检查；点击“保存规则”后才会应用到网页') }}</p></div><button type="button" :disabled="saving" @click="cancelForm">{{ tr('取消编辑') }}</button></header>
+        <p v-if="formConflict" class="rule-error" role="alert">{{ tr('规则已从其他页面更新，请关闭编辑器后重新打开，避免覆盖新配置') }}</p>
         <div class="rule-columns">
           <label class="rule-field"><span>{{ tr('规则名称') }}</span><input v-model="form.name" data-i18n-ignore :aria-label="tr('规则名称')" maxlength="160" :placeholder="tr('例如：我的技术博客')" /></label>
-          <label class="rule-field"><span>{{ tr('规则标识') }}</span><input v-model="form.id" data-i18n-ignore :aria-label="tr('规则标识')" :disabled="!!editingId" maxlength="96" placeholder="my-article-site" /><small class="rule-hint">{{ tr('用于覆盖与识别；创建后保持稳定。') }}</small></label>
-          <label class="rule-field"><span>{{ tr('匹配域名') }}</span><textarea v-model="form.hosts" data-i18n-ignore rows="3" :aria-label="tr('匹配域名')" placeholder="example.com&#10;*.example.com" /><small class="rule-hint">{{ tr('不含协议或路径；*.example.com 包含主域和子域。') }}</small></label>
+          <label class="rule-field"><span>{{ tr('规则标识') }}</span><input v-model="form.id" data-i18n-ignore :aria-label="tr('规则标识')" :disabled="!!editingId" maxlength="96" placeholder="my-article-site" /><small class="rule-hint">{{ tr('用于覆盖与识别；创建后保持稳定') }}</small></label>
+          <label class="rule-field"><span>{{ tr('匹配域名') }}</span><textarea v-model="form.hosts" data-i18n-ignore rows="3" :aria-label="tr('匹配域名')" placeholder="example.com&#10;*.example.com" /><small class="rule-hint">{{ tr('不含协议或路径；*.example.com 包含主域和子域') }}</small></label>
           <div><label class="rule-field"><span>{{ tr('匹配路径（可选）') }}</span><textarea v-model="form.paths" data-i18n-ignore rows="2" :aria-label="tr('匹配路径（可选）')" placeholder="/articles/*" /></label><label class="rule-field"><span>{{ tr('排除路径（可选）') }}</span><textarea v-model="form.excludePaths" data-i18n-ignore rows="2" :aria-label="tr('排除路径（可选）')" placeholder="/account/*" /></label></div>
         </div>
         <label class="rule-field"><span>{{ tr('识别模式') }}</span><select v-model="form.mode" :aria-label="tr('识别模式')"><option value="augment">{{ tr('补充识别：在通用正文上增加指定区域') }}</option><option value="focus">{{ tr('限定范围：只翻译指定的正文区域') }}</option></select></label>
-        <section class="content-editor"><h4>{{ tr('正文区域') }}</h4><p class="rule-hint">{{ tr('推荐精确到标题、段落或列表项，如 article h1、article p。限定范围模式至少需要一个区域。') }}</p>
+        <section class="content-editor"><h4>{{ tr('正文区域') }}</h4><p class="rule-hint">{{ tr('建议指定标题、段落或列表项，如 article h1、article p；限定范围模式至少需填写一个区域') }}</p>
           <div v-for="(content, index) in form.content" :key="index" class="content-row">
             <label class="rule-field"><span>{{ tr('CSS 选择器') }} {{ index + 1 }}</span><textarea v-model="content.css" data-i18n-ignore rows="3" :aria-label="tr('正文 CSS 选择器') + ' ' + (index + 1)" placeholder="article h1&#10;article p&#10;article li" /></label>
             <div class="rule-actions"><label><input v-model="content.atomic" type="checkbox" /> {{ tr('将选中节点作为整体翻译') }}</label><button type="button" :aria-label="tr('移除正文区域') + ' ' + (index + 1)" @click="form.content.splice(index, 1)">{{ tr('移除') }}</button></div>
@@ -41,9 +41,9 @@
           <button type="button" :disabled="form.content.length >= SITE_RULE_LIMITS.content" @click="form.content.push({css: '', atomic: true, resolve: 'self', splitOnBr: false})">{{ tr('添加正文区域') }}</button>
         </section>
         <div class="rule-columns"><label class="rule-field"><span>{{ tr('保留原文区域（可选）') }}</span><textarea v-model="form.protect" data-i18n-ignore rows="3" :aria-label="tr('保留原文区域（可选）')" placeholder="code&#10;pre&#10;button" /></label><label class="rule-field"><span>{{ tr('排除扫描区域（可选）') }}</span><textarea v-model="form.exclude" data-i18n-ignore rows="3" :aria-label="tr('排除扫描区域（可选）')" placeholder="nav&#10;.advertisement" /></label></div>
-        <details><summary>{{ tr('更多匹配选项') }}</summary><div class="rule-columns"><label class="rule-field"><span>{{ tr('优先级') }}</span><input v-model.number="form.priority" type="number" min="-10000" max="10000" step="1" :aria-label="tr('优先级')" /><small class="rule-hint">{{ tr('数字越大，正文候选越优先；保护区域仍共同生效。') }}</small></label><label class="rule-field"><span>{{ tr('忽略动态变化区域（可选）') }}</span><textarea v-model="form.watchIgnore" data-i18n-ignore rows="3" :aria-label="tr('忽略动态变化区域（可选）')" /><small class="rule-hint">{{ tr('仅用于时钟、计数器等非正文。') }}</small></label></div><p v-if="originalRule" class="rule-hint">{{ tr('未展示的高级字段会完整保留；需要修改时请使用高级 JSON 编辑。') }}</p></details>
+        <details><summary>{{ tr('更多匹配选项') }}</summary><div class="rule-columns"><label class="rule-field"><span>{{ tr('优先级') }}</span><input v-model.number="form.priority" type="number" min="-10000" max="10000" step="1" :aria-label="tr('优先级')" /><small class="rule-hint">{{ tr('数字越大，正文候选越优先；保护区域仍共同生效') }}</small></label><label class="rule-field"><span>{{ tr('忽略动态变化区域（可选）') }}</span><textarea v-model="form.watchIgnore" data-i18n-ignore rows="3" :aria-label="tr('忽略动态变化区域（可选）')" /><small class="rule-hint">{{ tr('仅用于时钟、计数器等非正文') }}</small></label></div><p v-if="originalRule" class="rule-hint">{{ tr('未展示的高级字段会完整保留；需要修改时请使用高级 JSON 编辑') }}</p></details>
         <ul v-if="issues.length" class="rule-error" role="alert"><li v-for="(issue, index) in issues" :key="index"><code data-i18n-ignore>{{ issue.path }}</code> {{ tr(issue.message) }}</li></ul>
-        <div class="rule-actions"><button type="button" class="rule-primary" :disabled="formConflict" @click="stageForm">{{ tr('暂存规则') }}</button><span class="rule-hint">{{ tr('暂存不会立即应用到网页。') }}</span></div>
+        <div class="rule-actions"><button type="button" class="rule-primary" :disabled="formConflict" @click="stageForm">{{ tr('暂存规则') }}</button><span class="rule-hint">{{ tr('暂存不会立即应用到网页') }}</span></div>
       </div>
       <div class="catalog-list" role="list" :aria-label="tr('网站规则目录')">
         <article v-for="item in visibleRules" :key="item.rule.id" class="catalog-rule" role="listitem" :data-adaptation-rule="item.rule.id">
@@ -53,7 +53,7 @@
           <el-switch :model-value="item.enabled" :disabled="saving || isDirty || !!form" :aria-label="tr('启用规则') + ' ' + item.rule.name" @update:model-value="toggleRule(item.rule.id, Boolean($event))" />
         </article>
       </div>
-      <div v-if="!matchingRules.length" class="rule-empty"><strong>{{ tr('没有匹配的网站规则。') }}</strong><p>{{ tr('试试其他关键词，或切换规则来源。') }}</p></div>
+      <div v-if="!matchingRules.length" class="rule-empty"><strong>{{ tr('没有匹配的网站规则') }}</strong><p>{{ tr('试试其他关键词，或切换规则来源') }}</p></div>
       <button v-if="visibleRules.length < matchingRules.length" type="button" class="catalog-more" @click="visibleLimit += 30">{{ tr('显示更多') }} ({{ visibleRules.length }}/{{ matchingRules.length }})</button>
       <section v-if="selected && selectedResolved" class="rule-detail" data-rule-detail>
         <header class="rule-heading"><div><h3 data-i18n-ignore>{{ selected.rule.name }}</h3><p data-i18n-ignore>{{ selected.rule.id }}</p></div><button type="button" @click="selectedId = ''">{{ tr('关闭详情') }}</button></header>
@@ -63,12 +63,12 @@
       </section>
     </section>
     <section class="rule-card" aria-labelledby="adaptation-custom-heading">
-      <header class="rule-heading"><div><h3 id="adaptation-custom-heading">{{ tr('自定义规则与备份') }}</h3><p>{{ tr('可视化编辑和 JSON 使用同一份草稿。保存前先检查，导入默认合并而不是清空现有规则。') }}</p></div><span v-if="isDirty" class="rule-badge">{{ tr('未保存') }}</span></header>
+      <header class="rule-heading"><div><h3 id="adaptation-custom-heading">{{ tr('自定义规则与备份') }}</h3><p>{{ tr('可视化编辑与 JSON 编辑共用一份草稿，请检查后保存；导入默认合并，现有规则会保留') }}</p></div><span v-if="isDirty" class="rule-badge">{{ tr('未保存') }}</span></header>
       <div class="rule-actions import-actions"><button type="button" :disabled="saving || !!form" @click="insertExample">{{ tr('插入示例') }}</button><label class="import-mode">{{ tr('导入方式') }} <select v-model="importMode" :disabled="saving"><option value="merge">{{ tr('合并（同 ID 替换）') }}</option><option value="replace">{{ tr('替换整个草稿') }}</option></select></label><button type="button" :disabled="saving || !!form" @click="fileInput?.click()">{{ tr('导入 JSON') }}</button><button type="button" @click="downloadPack(modelValue.custom, 'fluentread-custom-sites.json')">{{ tr('导出已保存规则') }}</button><button v-if="isDirty && parsedDraft.ok" type="button" @click="downloadPack(workingPack, 'fluentread-draft-sites.json')">{{ tr('导出草稿') }}</button><button type="button" @click="downloadPack(builtinSiteRulePack, 'fluentread-builtin-sites.json')">{{ tr('导出内置规则') }}</button><input ref="fileInput" hidden type="file" accept=".json,application/json" @change="importFile" /></div>
-      <details :open="jsonOpen" class="json-editor" @toggle="jsonOpen = ($event.target as HTMLDetailsElement).open"><summary>{{ tr('高级 JSON 编辑') }}</summary><p class="rule-hint">{{ tr('支持模板、多个内容区域及全部高级字段；每次保存都会校验格式、域名、路径与 CSS 选择器。') }}</p><label class="rule-field"><span>{{ tr('JSON 编辑草稿') }}</span><textarea v-model="draft" data-i18n-ignore rows="16" spellcheck="false" autocomplete="off" :disabled="saving || !!form" :aria-label="tr('JSON 编辑草稿')" :aria-invalid="issues.length > 0" aria-describedby="adaptation-editor-feedback" @input="markDraftEdited" /></label><div class="rule-actions"><button type="button" :disabled="saving || !!form" @click="validateDraft">{{ tr('校验草稿') }}</button><button type="button" :disabled="saving || !!form" @click="clearCustom">{{ tr('清空自定义草稿') }}</button></div></details>
+      <details :open="jsonOpen" class="json-editor" @toggle="jsonOpen = ($event.target as HTMLDetailsElement).open"><summary>{{ tr('高级 JSON 编辑') }}</summary><p class="rule-hint">{{ tr('支持模板、多个内容区域及全部高级字段；每次保存都会校验格式、域名、路径与 CSS 选择器') }}</p><label class="rule-field"><span>{{ tr('JSON 编辑草稿') }}</span><textarea v-model="draft" data-i18n-ignore rows="16" spellcheck="false" autocomplete="off" :disabled="saving || !!form" :aria-label="tr('JSON 编辑草稿')" :aria-invalid="issues.length > 0" aria-describedby="adaptation-editor-feedback" @input="markDraftEdited" /></label><div class="rule-actions"><button type="button" :disabled="saving || !!form" @click="validateDraft">{{ tr('校验草稿') }}</button><button type="button" :disabled="saving || !!form" @click="clearCustom">{{ tr('清空自定义草稿') }}</button></div></details>
       <div id="adaptation-editor-feedback" aria-live="polite"><ul v-if="issues.length" class="rule-error" role="alert"><li v-for="(issue, index) in issues" :key="index"><code data-i18n-ignore>{{ issue.path }}</code> {{ tr(issue.message) }}</li></ul><p v-else-if="status" class="rule-hint" role="status">{{ tr(status) }}</p></div>
-      <div class="rule-actions save-actions"><button type="button" class="rule-primary" :disabled="!isDirty || saving || !!form || draftConflict" :aria-busy="saving" @click="saveDraft">{{ tr(saving ? '正在保存' : '保存规则') }}</button><button type="button" :disabled="!isDirty || saving || !!form" @click="restoreSaved">{{ tr('恢复已保存草稿') }}</button><button v-if="undoDraft !== null" type="button" :disabled="saving || !!form" @click="undoReplacement">{{ tr('撤销草稿替换') }}</button><span class="rule-hint">{{ tr(saving ? '正在保存，等待后台确认。' : isDirty ? '目录显示草稿；网页仍使用已保存规则。' : '当前规则已保存。') }}</span></div>
-      <details class="rule-guide"><summary>{{ tr('如何编写规则') }}</summary><p class="rule-hint">{{ tr('补充识别会保留通用正文；限定范围只使用命中的正文区域。所有命中规则的保护区域共同生效，任一限定范围规则会限制通用识别。') }}</p><p class="rule-hint">{{ tr('修改规则会恢复正在翻译的页面，请重新触发翻译；网址预览不验证网站当前 DOM。') }}</p><a href="https://fluent.thinkstu.com/guide/custom-site-rules" target="_blank" rel="noopener noreferrer">{{ tr('查看完整自定义教程') }}</a></details>
+      <div class="rule-actions save-actions"><button type="button" class="rule-primary" :disabled="!isDirty || saving || !!form || draftConflict" :aria-busy="saving" @click="saveDraft">{{ tr(saving ? '正在保存' : '保存规则') }}</button><button type="button" :disabled="!isDirty || saving || !!form" @click="restoreSaved">{{ tr('恢复已保存草稿') }}</button><button v-if="undoDraft !== null" type="button" :disabled="saving || !!form" @click="undoReplacement">{{ tr('撤销草稿替换') }}</button><span class="rule-hint">{{ tr(saving ? '正在保存，等待后台确认' : isDirty ? '目录显示草稿；网页仍使用已保存规则' : '当前规则已保存') }}</span></div>
+      <details class="rule-guide"><summary>{{ tr('如何编写规则') }}</summary><p class="rule-hint">{{ tr('“补充识别”在通用正文中增加指定区域，“限定范围”仅翻译匹配的正文区域；所有匹配规则的保护区域共同生效，存在限定范围规则时会限制通用识别') }}</p><p class="rule-hint">{{ tr('修改规则会恢复正在翻译的页面，请重新触发翻译；网址预览不验证网站当前 DOM') }}</p><a href="https://fluent.thinkstu.com/guide/custom-site-rules" target="_blank" rel="noopener noreferrer">{{ tr('查看完整自定义教程') }}</a></details>
     </section>
   </div>
 </template>
@@ -132,12 +132,12 @@ async function commitSettings(value: SiteAdaptationSettings): Promise<boolean> {
   if (saving.value) return false;
   clearFeedback(); saving.value = true;
   const result = await committer.commit(value); saving.value = false;
-  if (result !== 'saved') { issues.value = [{path: '$', message: '保存失败，草稿仍保留；请重试。'}]; return false; }
+  if (result !== 'saved') { issues.value = [{path: '$', message: '保存失败，草稿仍保留；请重试'}]; return false; }
   return true;
 }
-async function setEnabled(enabled: boolean) { if (await commitSettings({...props.modelValue, enabled})) status.value = '网站适配设置已保存。'; }
-async function toggleRule(id: string, enabled: boolean) { if (await commitSettings(setSiteRuleEnabled(props.modelValue, id, enabled))) status.value = '规则开关已保存。'; }
-function validateDraft() { clearFeedback(); const result = parsedDraft.value; if (!result.ok) issues.value = result.issues; else status.value = '草稿校验通过，点击保存规则后生效。'; }
+async function setEnabled(enabled: boolean) { if (await commitSettings({...props.modelValue, enabled})) status.value = '网站适配设置已保存'; }
+async function toggleRule(id: string, enabled: boolean) { if (await commitSettings(setSiteRuleEnabled(props.modelValue, id, enabled))) status.value = '规则开关已保存'; }
+function validateDraft() { clearFeedback(); const result = parsedDraft.value; if (!result.ok) issues.value = result.issues; else status.value = '草稿校验通过，点击保存规则后生效'; }
 async function saveDraft() {
   if (saving.value || form.value || draftConflict.value) return;
   clearFeedback(); const submitted = draft.value; const result = parsedDraft.value;
@@ -147,7 +147,7 @@ async function saveDraft() {
   const completed = completeSiteRuleDraftSave(draft.value, submitted, result.pack);
   draft.value = completed.draft;
   if (completed.clearUndo) { undoDraft.value = null; draftOwned.value = false; draftBase.value = formatSiteRulePack(result.pack); }
-  status.value = completed.clearUndo ? '规则已应用；正在翻译的页面会恢复原文，请重新触发翻译。' : '已保存提交的规则，新的草稿修改尚未保存。';
+  status.value = completed.clearUndo ? '规则已应用；正在翻译的页面会恢复原文，请重新触发翻译' : '已保存提交的规则，新的草稿修改尚未保存';
 }
 function startForm(item?: SiteRuleCatalogItem) {
   if (!parsedDraft.value.ok) { issues.value = parsedDraft.value.issues; jsonOpen.value = true; return; }
@@ -166,32 +166,32 @@ function stageForm() {
   if (!form.value || formConflict.value) return;
   clearFeedback();
   if (!editingId.value && builtinSiteRulePack.rules.some(rule => rule.id === form.value!.id.trim())) {
-    issues.value = [{path: '$.id', message: '该标识属于内置规则，请从目录选择“基于此规则自定义”。'}]; return;
+    issues.value = [{path: '$.id', message: '该标识属于内置规则，请从目录选择“基于此规则自定义”'}]; return;
   }
   const result = upsertSiteRuleDraft(draft.value, buildSiteRuleFromForm(form.value, originalRule.value), editingId.value, document);
   if (!result.ok) { issues.value = result.issues; return; }
   const id = form.value.id.trim(); replaceDraft(result.draft); form.value = null; originalRule.value = undefined;
   filter.value = 'custom'; search.value = ''; selectedId.value = id; visibleLimit.value = 30;
-  status.value = '规则已暂存，检查后点击保存规则。';
+  status.value = '规则已暂存，检查后点击保存规则';
   void nextTick(() => saveBar.value?.scrollIntoView({block: 'nearest'}));
 }
 function removeCustom(id: string) {
   const parsed = parsedDraft.value; if (!parsed.ok) { issues.value = parsed.issues; jsonOpen.value = true; return; }
   replaceDraft(formatSiteRulePack({...parsed.pack, rules: parsed.pack.rules.filter(rule => rule.id !== id)}));
-  status.value = '已从草稿移除；保存后生效，同 ID 内置规则将恢复。';
+  status.value = '已从草稿移除；保存后生效，同 ID 内置规则将恢复';
 }
 function restoreSaved() { replaceDraft(formatSiteRulePack(props.modelValue.custom)); draftBase.value = draft.value; draftOwned.value = false; }
-function clearCustom() { replaceDraft(formatSiteRulePack({version: 1, rules: []})); status.value = '已清空草稿，点击保存后生效。'; }
+function clearCustom() { replaceDraft(formatSiteRulePack({version: 1, rules: []})); status.value = '已清空草稿，点击保存后生效'; }
 function undoReplacement() { if (undoDraft.value === null) return; draft.value = undoDraft.value; undoDraft.value = null; markDraftEdited(); }
 function insertExample() {
   const example = SITE_ADAPTATION_EXAMPLE.rules[0]!; const parsed = parsedDraft.value;
   if (parsed.ok && parsed.pack.rules.some(rule => rule.id === example.id)) {
-    status.value = '示例已存在，现有修改已保留。'; filter.value = 'custom'; search.value = example.id; return;
+    status.value = '示例已存在，现有修改已保留'; filter.value = 'custom'; search.value = example.id; return;
   }
   const result = copySiteRuleToDraft(draft.value, SITE_ADAPTATION_EXAMPLE, example, document);
   if (!result.ok) { issues.value = result.issues; jsonOpen.value = true; return; }
   replaceDraft(result.draft); filter.value = 'custom'; selectedId.value = example.id; search.value = '';
-  status.value = '示例已加入草稿，编辑后点击保存规则。';
+  status.value = '示例已加入草稿，编辑后点击保存规则';
 }
 async function importFile(event: Event) {
   const input = event.target as HTMLInputElement; const file = input.files?.[0]; input.value = '';
@@ -201,13 +201,13 @@ async function importFile(event: Event) {
   try {
     const text = await file.text(); const state = importGuard.check(ticket, draft.value);
     if (state === 'superseded') return;
-    if (state === 'edited' || saving.value || form.value) { status.value = '读取文件期间草稿已更改，请重新导入以替换当前草稿。'; return; }
+    if (state === 'edited' || saving.value || form.value) { status.value = '读取文件期间草稿已更改，请重新导入以替换当前草稿'; return; }
     const parsed = parseSiteAdaptationDraft(text, document);
     if (!parsed.ok) { issues.value = parsed.issues; return; }
     const result = mode === 'merge' ? mergeSiteRuleDraft(draft.value, parsed.pack, document) : {ok: true as const, draft: formatSiteRulePack(parsed.pack)};
     if (!result.ok) { issues.value = result.issues; return; }
-    replaceDraft(result.draft); filter.value = 'custom'; search.value = ''; status.value = '已导入草稿，检查后点击保存。';
-  } catch { if (importGuard.check(ticket, draft.value) === 'current') issues.value = [{path: '$', message: '无法读取文件，请重新选择本地 JSON 文件。'}]; }
+    replaceDraft(result.draft); filter.value = 'custom'; search.value = ''; status.value = '已导入草稿，检查后点击保存';
+  } catch { if (importGuard.check(ticket, draft.value) === 'current') issues.value = [{path: '$', message: '无法读取文件，请重新选择本地 JSON 文件'}]; }
 }
 function downloadPack(pack: SiteRulePack, filename: string) {
   const url = URL.createObjectURL(new Blob([formatSiteRulePack(pack)], {type: 'application/json;charset=utf-8'}));

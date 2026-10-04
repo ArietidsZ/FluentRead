@@ -14,7 +14,7 @@
 <SettingsPanel name="history" :active="props.activePanel">
     <header class="history-heading">
       <h2>设置历史</h2>
-      <p>用于找回误改的设置；不包含单词本、模型用量或 API 凭据。</p>
+      <p>用于找回误改的设置；不包含单词本、模型用量或 API 凭据</p>
     </header>
     <div class="version-grid">
       <section class="version-panel" aria-labelledby="recent-config-title">
@@ -55,7 +55,7 @@
             <span v-else class="view-link">查看</span>
           </button>
         </div>
-        <div v-else class="version-empty">修改设置后会在这里生成版本。</div>
+        <div v-else class="version-empty">修改设置后会在这里生成版本</div>
       </section>
 
       <section class="version-panel backup-panel" aria-labelledby="automatic-backup-title">
@@ -84,7 +84,7 @@
             <span class="view-link">查看</span>
           </button>
         </div>
-        <div v-else class="version-empty">首次启动后台后会建立一份基线备份。</div>
+        <div v-else class="version-empty">首次启动后台后会建立一份基线备份</div>
       </section>
     </div>
 
@@ -269,7 +269,7 @@ const previewSourceLabel = computed(() => previewTarget.value?.kind === 'history
   ? `最近修改 ${previewTarget.value.label}`
   : `自动设置快照 ${previewTarget.value?.label || ''}`);
 const previewActionLabel = '恢复此版本';
-const previewBoundary = 'API 凭据和翻译次数不会随设置版本恢复。';
+const previewBoundary = 'API 凭据和翻译次数不会随设置版本恢复';
 
 function showPreview(target: PreviewTarget) {
   previewTarget.value = target;

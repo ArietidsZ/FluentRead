@@ -9,6 +9,47 @@ const session = {account: {id: 'fixture-account', email: 'tester@fixture.invalid
 function json(value: unknown, etag?: string) {return new Response(JSON.stringify(value), {headers: etag ? {etag} : {}});}
 afterEach(() => vi.useRealTimers());
 describe('Google Drive appDataFolder HTTP 边界', () => {
+    it('v3 不返回 ETag 时从相同文件版本的 v2 元数据补取，并在 v2 上条件更新及回读', async () => {
+        let version = '1';
+        let saved = await encryptDriveConfig({to:'fr'}, 'fixture secure passphrase');
+        const fetcher = vi.fn<typeof fetch>(async (input, init) => {
+            const url = new URL(String(input));
+            const current = {...metadata, version};
+            if (url.pathname.startsWith('/upload/drive/v2/')) {
+                expect(init).toMatchObject({method:'PUT', headers:{'If-Match':'"v2-1"'}});
+                expect(String(init?.body)).toContain('"title":');
+                expect(String(init?.body)).not.toContain('"name":');
+                saved = String(init?.body).split('Content-Type: application/json\r\n\r\n')[1].split('\r\n--')[0];
+                version = '2';
+                return json({...current, version, modifiedDate:'fixture-time', etag:'"v2-2"'});
+            }
+            if (url.pathname.startsWith('/drive/v2/')) return json({...current, modifiedDate:'fixture-time', etag:`"v2-${version}"`});
+            if (url.searchParams.has('spaces')) return json({files:[current]});
+            return url.searchParams.get('alt') === 'media' ? new Response(saved) : json(current);
+        });
+        const api = createDriveApi(fetcher);
+        const remote = await api.read(session);
+        expect(remote?.file).toMatchObject({etag:'"v2-1"', conditionalApi:'v2', version:'1'});
+        const next = await encryptDriveConfig({to:'de'}, 'fixture secure passphrase');
+        expect(await api.write(session, next, remote!.file)).toMatchObject({etag:'"v2-2"', conditionalApi:'v2', version:'2'});
+        expect((await api.read(session))?.content).toBe(next);
+    });
+    it('v2 元数据属于其他文件或版本时拒绝配对；弱或缺失 ETag 仍可读取恢复', async () => {
+        for (const compatible of [{...metadata,id:'other',modifiedDate:'fixture-time',etag:'"v2"'},{...metadata,version:'2',modifiedDate:'fixture-time',etag:'"v2"'}]) {
+            const fetcher=vi.fn().mockResolvedValueOnce(json({files:[metadata]})).mockResolvedValueOnce(json(metadata)).mockResolvedValueOnce(new Response('ciphertext')).mockResolvedValueOnce(json(metadata)).mockResolvedValueOnce(json(compatible));
+            await expect(createDriveApi(fetcher).read(session)).rejects.toThrow('读取期间');
+            expect(fetcher.mock.calls.every(([,init])=>!['POST','PATCH','PUT','DELETE'].includes(init?.method))).toBe(true);
+        }
+        for (const etag of [undefined,'W/"weak"',1,'unquoted']) {
+            const fetcher=vi.fn().mockResolvedValueOnce(json({files:[metadata]})).mockResolvedValueOnce(json(metadata)).mockResolvedValueOnce(new Response('ciphertext')).mockResolvedValueOnce(json(metadata)).mockResolvedValueOnce(json({...metadata,modifiedDate:'fixture-time',etag}));
+            expect(await createDriveApi(fetcher).read(session)).toMatchObject({file:{readOnly:true},content:'ciphertext'});
+        }
+        const malformed=vi.fn().mockResolvedValueOnce(json({files:[metadata]})).mockResolvedValueOnce(json(metadata)).mockResolvedValueOnce(new Response('ciphertext')).mockResolvedValueOnce(json(metadata)).mockResolvedValueOnce(json(null));
+        await expect(createDriveApi(malformed).read(session)).rejects.toThrow('文件信息无效');
+        const content=await encryptDriveConfig({},'fixture secure passphrase');
+        const stale=vi.fn(async()=>new Response(null,{status:412}));
+        await expect(createDriveApi(stale).write(session,content,{...metadata,etag:'"v2"',conditionalApi:'v2'})).rejects.toMatchObject({status:412});
+    });
     it('上传后逐字核验密文和文件身份，不把空文件、旧文件或上传期间的改动报为成功', async()=>{
         const content=await encryptDriveConfig({},'fixture secure passphrase');
         for (const result of [null,{id:metadata.id,content:'old'},{id:'another-file',content}]) {

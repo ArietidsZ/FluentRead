@@ -1,7 +1,7 @@
 /**
  * @file src/providers/translation/free-translation.ts
  * 文件职责：按冻结的用户设置编排免费翻译，并接入有界请求、取消和跨段冷却。
- * 主要内容：装配免密钥服务、冻结匿名请求配置与批量预算，生成匿名连接身份；识别明显未翻译的原文回显并尝试下一条线路，把每次线路尝试的结果与耗时上报给调用方观察器。
+ * 主要内容：装配免密钥服务、冻结匿名请求配置与批量预算，生成匿名连接身份；为连接检查提供不换线的单服务调用，统一拒绝原文回显和错语种，把翻译线路的结果与耗时上报给调用方观察器。
  * 模块边界：只装配已有 provider；健康状态与并发调度由 freeFallback 服务持有。
  */
 import {sha256Hex} from '@/src/shared/function/sha256';
@@ -18,6 +18,7 @@ import {DEFAULT_DEEPLX_ENDPOINT} from '@/src/core/config/deeplx';
 import {
     FREE_TRANSLATION_PROVIDERS,
     FREE_TRANSLATION_TOTAL_TIMEOUT_MS,
+    isFreeTranslationProviderId,
     normalizeFreeTranslationOrder,
     normalizeFreeTranslationTimeoutMs,
     normalizeFreeTranslationCooldownMs,
@@ -63,6 +64,23 @@ const providerTranslators: Record<FreeProviderId, (request: TranslationProviderR
     lingvaFree: request => translateExtraFreeWebText('lingvaFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
     apertiumFree: request => translateExtraFreeWebText('apertiumFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
 };
+
+async function translateProviderText(id: FreeProviderId, message: TranslationProviderRequest<string>): Promise<unknown> {
+    const result = await providerTranslators[id]({...message, serviceOverride: id});
+    if (typeof result === 'string' && isLikelyUntranslatedResponse(message.origin, result, message.targetLanguage!)) {
+        throw new UntranslatedFreeResultError();
+    }
+    if (typeof result === 'string' && isClearlyWrongLanguageResponse(message.origin, result, message.targetLanguage!)) {
+        throw new WrongLanguageFreeResultError();
+    }
+    return result;
+}
+
+/** 逐服务检查复用免费池的匿名配置和结果验证，不受启用列表、冷却或自动换线影响。 */
+export async function translateFreeTranslationProvider(providerId: string, message: TranslationProviderRequest<string>): Promise<unknown> {
+    if (!isFreeTranslationProviderId(providerId)) throw new Error('无效的免费翻译服务');
+    return translateProviderText(providerId, {...prepareRequest(message), origin: message.origin});
+}
 
 function prepareRequest(message: FreeTranslationRequest): PreparedRequest {
     // provider 直调也在第一次 await 之前冻结；批量中的所有文本共享该副本与截止时间。
@@ -135,18 +153,7 @@ function candidatesFor(text: string, message: PreparedRequest): {
             weight: provider.defaultWeight,
             maxConcurrency: id === 'microsoft' ? 2 : 1,
             minIntervalMs: id === 'microsoft' ? 100 : id === 'myMemory' || id === 'deeplx' ? 1000 : 300,
-            translate: async (signal: AbortSignal) => {
-                const result = await providerTranslators[provider.id]({
-                    ...message, origin: text, serviceOverride: id, abortSignal: signal,
-                });
-                if (typeof result === 'string' && isLikelyUntranslatedResponse(text, result, message.targetLanguage!)) {
-                    throw new UntranslatedFreeResultError();
-                }
-                if (typeof result === 'string' && isClearlyWrongLanguageResponse(text, result, message.targetLanguage!)) {
-                    throw new WrongLanguageFreeResultError();
-                }
-                return result;
-            },
+            translate: (signal: AbortSignal) => translateProviderText(provider.id, {...message, origin: text, abortSignal: signal}),
         };
     });
     return {candidates, routeByIdentity};

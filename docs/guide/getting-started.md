@@ -8,6 +8,8 @@
 
 <BrowserInstall />
 
+Chrome 商店打不开时，可以使用 [CRX搜搜（国内可用）](https://www.crxsoso.com/webstore/detail/djnlaiohfaaifbibleebjggkghlmcpcj)，或前往 [离线下载与安装](/guide/offline-install) 下载官方 ZIP 包。CRX搜搜是第三方分发网站，版本同步时间可能与官方商店不同。
+
 下面演示在 Chrome 中的安装过程。点击 **添加至 Chrome** 后，核对浏览器列出的权限并点击 **添加扩展程序**。
 
 <GuideVisual kind="install" />

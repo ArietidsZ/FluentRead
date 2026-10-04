@@ -72,6 +72,7 @@
     "settings.cloud.fieldLabel.4": "로컬 음성 인식 모델",
     "settings.cloud.cleanupPending": "설정은 동기화되었지만 인증 캐시 정리가 대기 중입니다. 설정을 다시 열면 재시도합니다.",
     "settings.cloud.versionMissing": "안전하게 덮어쓰는 데 필요한 버전 정보가 없습니다. 복원은 가능합니다. 다시 읽은 후 재시도하세요.",
-    "settings.cloud.verifyFailed": "클라우드 저장 후 검증에 실패했습니다. 백업을 다시 읽은 후 재시도하세요. 이 기기의 설정은 변경되지 않았습니다."
+    "settings.cloud.verifyFailed": "클라우드 저장 후 검증에 실패했습니다. 백업을 다시 읽은 후 재시도하세요. 이 기기의 설정은 변경되지 않았습니다.",
+    "settings.cloud.restoreOnly": "이 백업은 복원할 수 있지만 서비스가 안전한 덮어쓰기에 필요한 버전 정보를 제공하지 않았습니다. 현재 저장과 병합은 사용할 수 없습니다."
   }
 }

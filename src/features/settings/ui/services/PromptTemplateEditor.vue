@@ -127,12 +127,12 @@ const promptTokens = computed<PromptToken[]>(() => props.tokens || (props.role =
 const definition = computed(() => props.role === 'system'
   ? {
       title: props.title || '系统提示词',
-      description: props.description || '定义翻译角色、语气与输出规则。',
+      description: props.description || '定义翻译角色、语气与输出规则',
       placeholder: props.placeholder || '例如：You are a professional translator.',
     }
   : {
       title: props.title || '用户提示词',
-      description: props.description || '描述翻译任务，可引用原文和目标语言。',
+      description: props.description || '描述翻译任务，可引用原文和目标语言',
       placeholder: props.placeholder || '例如：Translate {{origin}} into {{to}}.',
     })
 

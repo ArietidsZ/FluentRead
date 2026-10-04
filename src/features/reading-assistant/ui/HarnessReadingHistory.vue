@@ -7,7 +7,7 @@
 <template>
   <section class="harness-history" aria-label="阅读记录">
     <div class="harness-history-heading">
-      <div><h2>阅读记录</h2><p>找回读过的句子和回答。本机保存 30 天，查看不调用模型。</p></div>
+      <div><h2>阅读记录</h2><p>查看本机保存的句子和回答，记录保留 30 天，查看时不会调用模型</p></div>
       <button type="button" class="harness-secondary-button" :disabled="historyLoading || historyMutating" @click="reloadHistory">
         刷新记录
       </button>
@@ -38,7 +38,7 @@
         <p v-if="historyLoading && !historySessions.length" class="harness-history-feedback" role="status">正在读取记录…</p>
         <div v-else-if="!historySessions.length && !historyError" class="harness-history-empty">
           <strong>还没有阅读记录</strong>
-          <p>在网页选中一句话，点“读懂”或“拆句”。回答会自动保存在这里，方便以后回看。</p>
+          <p>在网页中选中文字后点击“读懂”或“拆句”，回答会自动保存在这里，方便回看</p>
         </div>
         <div v-if="historySessions.length" class="harness-history-list" aria-label="阅读记录列表">
           <div v-for="item in historySessions" :key="item.id" class="harness-history-row">
