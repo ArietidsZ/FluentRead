@@ -99,7 +99,7 @@ const faqs = [
       <HeroOrbit :en="en" />
       <div class="bv-hero-copy">
         <img
-          class="bv-hero-mobile-icon"
+          class="bv-hero-icon"
           :src="withBase('/brand-icon.webp')"
           width="64"
           height="64"
