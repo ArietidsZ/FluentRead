@@ -307,7 +307,15 @@ async function verifyPipelinePerformance(extensionId) {
     // 只在自有临时扩展 Offscreen 中测量；不改变宿主页或普通生产代码。
     await modelObserver.command('Runtime.evaluate',{expression:`(async()=>{
         if(${forceCpu})Object.defineProperty(navigator,'gpu',{value:undefined,configurable:true});
-        const samples=globalThis.__pipelineSamples={sessions:[],runs:[],encodes:[],gpuSubmissions:0,adapters:[],userAgent:navigator.userAgent};
+        const samples=globalThis.__pipelineSamples={sessions:[],runs:[],encodes:[],reads:[],canvasCalls:{},yields:[],gpuSubmissions:0,adapters:[],userAgent:navigator.userAgent};
+        const read=FileReader.prototype.readAsDataURL;
+        FileReader.prototype.readAsDataURL=function(blob){const start=Date.now();this.addEventListener('loadend',()=>samples.reads.push({start,end:Date.now(),bytes:blob.size}),{once:true});return read.call(this,blob);};
+        const schedule=globalThis.setTimeout;
+        globalThis.setTimeout=function(callback,delay,...args){if(delay!==0)return schedule(callback,delay,...args);const start=performance.now();return schedule(()=>{samples.yields.push(performance.now()-start);callback(...args);},delay);};
+        for(const name of ['measureText','getImageData','putImageData','drawImage','fillText','strokeText']) {
+            const original=CanvasRenderingContext2D.prototype[name];
+            CanvasRenderingContext2D.prototype[name]=function(...args){const start=performance.now();try{return original.apply(this,args);}finally{const entry=samples.canvasCalls[name]??={count:0,ms:0};entry.count++;entry.ms+=performance.now()-start;}};
+        }
         if(globalThis.GPUQueue){const submit=GPUQueue.prototype.submit;GPUQueue.prototype.submit=function(...args){samples.gpuSubmissions++;return submit.apply(this,args);};}
         if(navigator.gpu){const request=navigator.gpu.requestAdapter.bind(navigator.gpu);navigator.gpu.requestAdapter=async(...args)=>{const start=performance.now();const adapter=await request(...args);samples.adapters.push({ms:performance.now()-start,available:!!adapter,fallback:adapter?.isFallbackAdapter,info:adapter?.info&&{vendor:adapter.info.vendor,architecture:adapter.info.architecture,device:adapter.info.device,description:adapter.info.description}});return adapter;};}
         const constructors=new Set();
@@ -349,13 +357,19 @@ async function verifyPipelinePerformance(extensionId) {
             const images=[...document.querySelectorAll('.zao-image')];images.slice(1).forEach(image=>image.parentElement.remove());
             const image=images[0];image.src=data;await image.decode();window.scrollTo(0,0);
         },data);
+        await page.evaluate(()=>{
+            globalThis.__pipelineDisplay={changes:[]};
+            const image=document.querySelector('.zao-image');
+            new MutationObserver(()=>{const change={at:Date.now(),opacity:image.style.opacity};globalThis.__pipelineDisplay.changes.push(change);if(change.opacity==='0')requestAnimationFrame(()=>change.presentedAt=Date.now());}).observe(image,{attributes:true,attributeFilter:['style']});
+        });
         await wait(async()=>!!await ball(`return this.querySelector('.floating-ball-manga')`),30000);
         const before=await ops();const start=Date.now();
-        await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__pipelineSamples.runs=[];globalThis.__pipelineSamples.encodes=[];globalThis.__pipelineSamples.sessions=[];globalThis.__pipelineSamples.gpuSubmissions=0'});
+        await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__pipelineSamples.runs=[];globalThis.__pipelineSamples.encodes=[];globalThis.__pipelineSamples.reads=[];globalThis.__pipelineSamples.sessions=[];globalThis.__pipelineSamples.canvasCalls={};globalThis.__pipelineSamples.yields=[];globalThis.__pipelineSamples.gpuSubmissions=0'});
         await toggle();
         await wait(async()=>await page.locator('.zao-image').first().evaluate(i=>i.style.opacity==='0'),180000);
         assert.equal(await page.locator('.zao-image').first().evaluate(i=>i.src),data,'Source stays the exact benchmark image');
         const end=Date.now();
+        await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(resolve)));
         const requestId=await worker.evaluate(index=>globalThis.__mangaTest.operations[index],before);
         const progress=await worker.evaluate(id=>globalThis.__mangaTest.progress.filter(p=>p.requestId===id),requestId);
         const texts=await worker.evaluate(()=>globalThis.__mangaTest.textBatches.at(-1));
@@ -364,7 +378,8 @@ async function verifyPipelinePerformance(extensionId) {
         assert.ok(translated?.startsWith('data:image/png;base64,'),'Lossless translated output exists');
         const output=path.join(artifacts,`${path.basename(input,'.png')}-round-${round+1}-translated.png`);
         fs.writeFileSync(output,Buffer.from(translated.split(',')[1],'base64'));
-        report.pipeline.push({input,round,cold:report.pipeline.length===0,totalMs:end-start,requestId,progress,texts,...sampled.result.value,output});
+        const display=await page.evaluate(()=>globalThis.__pipelineDisplay);
+        report.pipeline.push({input,round,cold:report.pipeline.length===0,totalMs:end-start,start,display,requestId,progress,texts,...sampled.result.value,output});
         assert.ok(texts.length>0,'Actual text recognition ran');await assertQuietReading();
         await toggle();await wait(async()=>await page.locator('.zao-image').first().evaluate(i=>i.style.opacity!=='0'));
         focusGuard();console.log(JSON.stringify({input:path.basename(input),round,totalMs:end-start,runs:sampled.result.value.runs.length}));
