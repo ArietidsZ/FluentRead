@@ -99,5 +99,15 @@
     "Controlled text fixtures do not prove translation quality",
     "Artistic title omissions and original-lettering remnants remain in real Google sample",
     "System fonts may differ between operating systems"
-  ]
+  ],
+  "finalSmoke": {
+    "codeCommit": "cb8935f59b1ade0497f078f73dc0996f714d76da",
+    "status": "passed",
+    "translation": "live Google",
+    "rounds": 2,
+    "profileRemoved": true,
+    "errors": [],
+    "consoleErrors": [],
+    "modelDownloadRequests": 0
+  }
 }
