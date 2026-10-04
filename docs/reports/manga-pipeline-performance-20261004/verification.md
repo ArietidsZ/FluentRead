@@ -4,7 +4,7 @@
 
 来源 PR #783 精确 head：`22aa69496490a05d5f7907930992ec6c3fca82c8`；基础 `origin/main`：`5ed16bc6c081587622c86563b4a75fc452c697fb`。本任务在独立分支本地合入来源历史，新 PR 包含其静默阅读及滚动交接改动，不更新、关闭或合并来源 PR。没有直接推送 main。
 
-交付前同步主分支 `219439e89de9463cfbaf6f008061bcd37c64653d`，保留本轮期间合入的官网阅读布局与朗读功能；自动合并测试目录。该次主分支更新只涉及官网、验证脚本及测试，没有改变已测的漫画生产运行时代码。性能实现提交：`d74ff61883f5351d14b2c4ff6f94453a3144c1de`。
+交付前同步主分支 `d1bc548c56cee44fea71fc2a29c5bf5611b09f7f`，保留本轮期间合入的官网阅读布局、朗读功能和移动端图标；自动合并测试目录。主分支更新只涉及官网、验证脚本及测试，没有改变已测的漫画生产运行时代码；合入后再次编译、审计及构建文档通过，官网朗读专项 8 项通过。性能实现提交：`d74ff61883f5351d14b2c4ff6f94453a3144c1de`。
 
 ## 确定性验证
 
@@ -20,6 +20,8 @@
 脚本：`scripts/testing/run-manga-translation-test.cjs`。显式性能参数 `--pipeline-inputs <两张原图路径，逗号分隔> --pipeline-rounds 3 --prefetch-pages 0`；Chrome 154 使用 `--extension-debugging` 加载本任务生产扩展。每轮当前图是相同原始 data URL，确认未被夹具的异步 Blob 回调替换；实际点击开启、等待译图接管、核对原图仍是同一资源，然后恢复。
 
 模型准备：`--preload-models-dir /private/tmp/fluentread-manga-ocr-probe/models --blocked-all-model-sources`。设置页导入四个真实文件，CacheStorage 中核对字节数和 SHA-256，两个远端来源都阻断，模型下载请求为 0。ORT 公共会话包装记录每次初始化及推理时间、输入形状、GPUQueue 提交与 Canvas 编码方式；插桩只作用于自有临时扩展 Offscreen，不进入产品代码。
+
+性能插桩先导入 ORT 命名空间，首次样本不覆盖其首次模块加载解析或模型下载；它覆盖首次模型会话、WASM 与着色器初始化和点击到译图显示。普通实页专项不使用该性能插桩，但其结果还包含网站及在线服务波动，两种时间分别记录。
 
 相同浏览器与硬件基线目录：`artifacts/manga-pipeline-performance-20261004/chrome-baseline`。最终性能及逐像素比较摘要：`artifacts/manga-pipeline-performance-20261004/delivery-summary.json`。两个样本每版各三轮；连续两轮取中位数。识别与修补都真实运行，受控文字服务首次请求延迟 250 毫秒并返回固定译文，缓存设置一致，不能把此结果当作真实供应商速度或译文质量证据。
 
