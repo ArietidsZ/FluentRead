@@ -89,7 +89,7 @@
     <div v-if="loading && !snapshot" class="usage-state-card" aria-live="polite">
       <span class="usage-loader" aria-hidden="true"></span>
       <strong>正在读取本机统计</strong>
-      <p>不会向模型服务商额外发送请求。</p>
+      <p>不会向模型服务商额外发送请求</p>
     </div>
 
     <div v-else-if="errorMessage && !snapshot" class="usage-state-card usage-error-state" role="alert">
@@ -153,14 +153,14 @@
 
       <div v-if="hasIncompleteCoverage" class="usage-coverage-note" role="status">
         <strong><span>Token 上报率</span> {{ coverageLabel }}</strong>
-        <span>{{ health.unreportedRequests }} <span>次调用未提供 Token；总量仅包含已上报部分。</span></span>
+        <span>{{ health.unreportedRequests }} <span>次调用未提供 Token；总量仅包含已上报部分</span></span>
       </div>
 
       <div v-if="!hasSelectedUsage" class="usage-state-card usage-empty-state">
         <span aria-hidden="true"><UiIcon name="chart" :size="24" /></span>
         <strong>{{ hasActiveFilter ? '当前筛选还没有调用记录' : '还没有模型调用记录' }}</strong>
         <p>
-          {{ hasActiveFilter ? '可以切回全部服务、全部模型或更长的时间范围。' : '从下一次使用 AI 翻译开始，这里会在本机记录请求和 Token。' }}
+          {{ hasActiveFilter ? '可以切回全部服务、全部模型或更长的时间范围' : '从下一次使用 AI 翻译开始，这里会在本机记录请求和 Token' }}
         </p>
         <button v-if="hasActiveFilter" type="button" @click="clearFilters">查看全部用量</button>
       </div>
@@ -218,7 +218,7 @@
               <dd><strong class="usage-composition-value" :title="tokenExactTitle(segment.tokens)">{{ formatToken(segment.tokens) }}</strong><small>{{ formatUsageRate(segment.share) }}</small></dd>
             </div>
           </dl>
-          <p class="usage-composition-note">缓存读取属于输入，已单独拆出。<span v-if="composition.differenceTokens < 0">上报总计小于组成合计，占比按组成计算。</span></p>
+          <p class="usage-composition-note">缓存读取属于输入，已单独拆出<span v-if="composition.differenceTokens < 0">上报总计小于组成合计，占比按组成计算</span></p>
         <details class="usage-average-card">
           <summary>查看每次请求的平均构成</summary>
           <div class="usage-metric-heading">
@@ -361,7 +361,7 @@
         </header>
 
         <p class="usage-request-privacy">
-          仅记录时间、服务与模型、调用场景、状态、耗时及服务商返回的 Token；不保存原文、译文、提示词、网页地址、API Key、请求体或响应正文。
+          仅记录时间、服务与模型、调用场景、状态、耗时及服务商返回的 Token；不保存原文、译文、提示词、网页地址、API Key、请求体或响应正文
         </p>
 
         <div v-if="requestLogError" class="usage-request-log-error" role="alert">
@@ -372,7 +372,7 @@
           正在读取请求记录…
         </div>
         <div v-else-if="!requestLogItems.length && !requestLogError" class="usage-request-log-empty">
-          当前记录筛选下没有请求。
+          当前记录筛选下没有请求
         </div>
         <div v-else class="usage-request-table-wrap">
           <table class="usage-request-table">
@@ -1011,7 +1011,7 @@ async function resetUsage(): Promise<void> {
     if (response?.success !== true) throw new Error(response?.error || '后台没有确认清除结果')
     resetDialogOpen.value = false
     setSettingsBackgroundInert(false)
-    resetMessage.value = '模型用量请求记录及汇总已清除。'
+    resetMessage.value = '模型用量请求记录及汇总已清除'
     await loadSnapshot()
     await nextTick()
     resetButton.value?.focus()

@@ -54,12 +54,12 @@
         <div class="connection-field-label"><strong>联系邮箱（可选）</strong><small>不填写也可以使用</small></div>
         <div class="connection-field-control">
           <el-input v-model="myMemoryEmailDraft" type="email" aria-label="MyMemory 联系邮箱" placeholder="不填写也可以使用" :aria-invalid="myMemoryEmailInvalid" @change="commitMyMemoryEmail" />
-          <small v-if="myMemoryEmailInvalid" class="field-warning" role="status">请输入有效邮箱，或留空。</small>
+          <small v-if="myMemoryEmailInvalid" class="field-warning" role="status">请输入有效邮箱，或留空</small>
         </div>
       </div>
       <div class="official-translation-help" data-mymemory-help>
-        <p>匿名每天 5,000 字符；提供有效邮箱后每天 50,000 字符。邮箱会随请求发送给 MyMemory。</p>
-        <p>自动识别来源语言时使用本地检测；无法可靠识别时，请手动选择来源语言。</p>
+        <p>匿名使用每天限 5,000 字符，提供有效邮箱后每天限 50,000 字符；邮箱会随请求发送给 MyMemory</p>
+        <p>自动识别来源语言时使用本地检测；无法可靠识别时，请手动选择来源语言</p>
         <a href="https://mymemory.translated.net/doc/usagelimits.php" target="_blank" rel="noreferrer">官方额度说明</a>
       </div>
     </template>
@@ -109,7 +109,7 @@
             :maxlength="MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH"
             @update:model-value="updateCustomProvider('endpoint', String($event))"
           />
-          <p class="provider-field-help">支持完整 Chat Completions 地址或以 /v1 结尾的 Base URL；模型须支持 Chat Completions。</p>
+          <p class="provider-field-help">支持完整 Chat Completions 地址或以 /v1 结尾的 Base URL；模型须支持 Chat Completions</p>
         </div>
       </div>
     </template>
@@ -140,9 +140,9 @@
       </div>
       <div class="connection-field-control">
         <el-input v-model="config.proxy[service]" aria-label="Ollama 服务地址" :placeholder="DEFAULT_OLLAMA_ENDPOINT" />
-        <p class="provider-field-help">留空时使用本机默认地址；局域网主机请填写完整的 Chat Completions 地址。</p>
+        <p class="provider-field-help">留空时使用本机默认地址；局域网主机请填写完整的 Chat Completions 地址</p>
         <p class="provider-field-help"><code>{{ DEFAULT_OLLAMA_ENDPOINT }}</code></p>
-        <p class="provider-field-help">浏览器扩展访问 Ollama 前，需要在启动 Ollama 时设置环境变量 OLLAMA_ORIGINS=*，否则会被跨域拒绝。</p>
+        <p class="provider-field-help">浏览器扩展访问 Ollama 前，需要在启动 Ollama 时设置环境变量 OLLAMA_ORIGINS=*，否则会被跨域拒绝</p>
       </div>
     </div>
 
@@ -206,7 +206,7 @@
           <span>当前接口地址</span><br /><code>{{ getAliyunTranslationEndpoint(config.serviceRegion[service]) }}</code>
         </p>
         <p v-else-if="service === services.azureTranslator" class="provider-field-help">
-          选择全球区域时不发送区域请求头；其余区域会通过 Ocp-Apim-Subscription-Region 请求头一并发送。
+          选择全球区域时不发送区域请求头；其余区域会通过 Ocp-Apim-Subscription-Region 请求头一并发送
         </p>
       </div>
     </div>
@@ -215,11 +215,11 @@
     </p>
 
     <div v-if="compute.showMiniMaxRegion" class="provider-account-fields">
-    <div v-if="compute.showMiniMaxRegion" class="connection-field"><div class="connection-field-label"><strong>MiniMax 计费方式</strong><el-tooltip content="按量付费和 Token Plan 使用不同的账户权益；请按控制台中 Key 的来源选择。" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="按量付费和 Token Plan 使用不同的账户权益；请按控制台中 Key 的来源选择。"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.minimaxBillingPlan" aria-label="MiniMax 计费方式" placeholder="请选择 MiniMax 计费方式">
+    <div v-if="compute.showMiniMaxRegion" class="connection-field"><div class="connection-field-label"><strong>MiniMax 计费方式</strong><el-tooltip content="按量付费和 Token Plan 使用不同的账户权益；请按控制台中 Key 的来源选择" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="按量付费和 Token Plan 使用不同的账户权益；请按控制台中 Key 的来源选择"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.minimaxBillingPlan" aria-label="MiniMax 计费方式" placeholder="请选择 MiniMax 计费方式">
           <el-option class="select-left" v-for="item in options.minimaxBillingPlan" :key="item.value" :label="item.label" :value="item.value" />
         </el-select></div></div>
 
-    <div v-if="compute.showMiniMaxRegion" class="connection-field"><div class="connection-field-label"><strong>MiniMax 区域</strong><el-tooltip content="选择与 MiniMax Key 来源一致的 API 区域。Token Plan Key（sk-cp-）和按量付费 Key 不能互换。" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="选择与 MiniMax Key 来源一致的 API 区域。Token Plan Key（sk-cp-）和按量付费 Key 不能互换。"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.minimaxRegion" aria-label="MiniMax API 区域" placeholder="请选择 MiniMax API 区域">
+    <div v-if="compute.showMiniMaxRegion" class="connection-field"><div class="connection-field-label"><strong>MiniMax 区域</strong><el-tooltip content="选择与 MiniMax Key 来源一致的 API 区域，Token Plan Key（sk-cp-）与按量付费 Key 不能互换" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="选择与 MiniMax Key 来源一致的 API 区域，Token Plan Key（sk-cp-）与按量付费 Key 不能互换"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.minimaxRegion" aria-label="MiniMax API 区域" placeholder="请选择 MiniMax API 区域">
           <el-option class="select-left" v-for="item in options.minimaxRegion" :key="item.value" :label="item.label" :value="item.value" />
         </el-select></div></div>
     </div>
@@ -231,11 +231,11 @@
     </p>
 
     <div v-if="compute.showMiMoRegion" class="provider-account-fields">
-    <div v-if="compute.showMiMoRegion" class="connection-field"><div class="connection-field-label"><strong>小米 MiMo 计费方式</strong><el-tooltip content="按量付费和 Token Plan 使用不同的账户权益；请按小米 MiMo 控制台中 Key 的来源选择。" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="按量付费和 Token Plan 使用不同的账户权益；请按小米 MiMo 控制台中 Key 的来源选择。"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.mimoBillingPlan" aria-label="小米 MiMo 计费方式" placeholder="请选择小米 MiMo 计费方式">
+    <div v-if="compute.showMiMoRegion" class="connection-field"><div class="connection-field-label"><strong>小米 MiMo 计费方式</strong><el-tooltip content="按量付费和 Token Plan 使用不同的账户权益；请按小米 MiMo 控制台中 Key 的来源选择" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="按量付费和 Token Plan 使用不同的账户权益；请按小米 MiMo 控制台中 Key 的来源选择"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.mimoBillingPlan" aria-label="小米 MiMo 计费方式" placeholder="请选择小米 MiMo 计费方式">
           <el-option class="select-left" v-for="item in options.mimoBillingPlan" :key="item.value" :label="item.label" :value="item.value" />
         </el-select></div></div>
 
-    <div v-if="compute.showMiMoRegion" class="connection-field"><div class="connection-field-label"><strong>MiMo API 集群</strong><el-tooltip content="Token Plan 必须使用购买页面提供的集群地址；中国、新加坡和欧洲集群的 tp- Key 不能混用。按量付费统一使用 api.xiaomimimo.com。" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="Token Plan 必须使用购买页面提供的集群地址；中国、新加坡和欧洲集群的 tp- Key 不能混用。按量付费统一使用 api.xiaomimimo.com。"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.mimoRegion" aria-label="小米 MiMo API 集群" placeholder="请选择小米 MiMo API 集群">
+    <div v-if="compute.showMiMoRegion" class="connection-field"><div class="connection-field-label"><strong>MiMo API 集群</strong><el-tooltip content="Token Plan 使用购买页面提供的集群地址，中国、新加坡和欧洲集群的 tp- Key 不能混用；按量付费统一使用 api.xiaomimimo.com" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="Token Plan 使用购买页面提供的集群地址，中国、新加坡和欧洲集群的 tp- Key 不能混用；按量付费统一使用 api.xiaomimimo.com"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.mimoRegion" aria-label="小米 MiMo API 集群" placeholder="请选择小米 MiMo API 集群">
           <el-option class="select-left" v-for="item in options.mimoRegion" :key="item.value" :label="item.label" :value="item.value" />
         </el-select></div></div>
     </div>
@@ -260,7 +260,7 @@
         <el-input v-model="config.deeplx" :aria-label="t('settings.services.deeplx.endpoint')" :placeholder="DEFAULT_DEEPLX_ENDPOINT" aria-describedby="deeplx-endpoint-help" />
         <div id="deeplx-endpoint-help">
           <p class="provider-field-help">{{ t('settings.services.deeplx.endpointHelp') }}</p>
-          <p class="provider-field-help">无需密钥的接口可留空；需要验证时填写 Token。</p>
+          <p class="provider-field-help">无需密钥的接口可留空；需要验证时填写 Token</p>
           <details class="endpoint-token-help"><summary>Token 使用方式</summary>
           <p class="provider-field-help">{{ t('settings.services.deeplx.tokenHelp') }}</p>
           <p class="provider-field-help">{{ t('settings.services.deeplx.queryToken') }} <code v-pre>https://deeplx.example.com/translate?token={{apiKey}}</code></p>
@@ -272,16 +272,16 @@
       </div>
     </div>
 
-    <div v-if="compute.showAkSk" class="connection-field"><div class="connection-field-label"><strong>API Key</strong></div><div class="connection-field-control"><el-input v-model="config.ak" aria-label="API Key" placeholder="请输入Access Key" /><p class="provider-field-help">服务商提供的访问密钥。</p></div></div>
-    <div v-if="compute.showAkSk" class="connection-field"><div class="connection-field-label"><strong>Secret Key</strong></div><div class="connection-field-control"><el-input v-model="config.sk" aria-label="Secret Key" type="password" placeholder="请输入Secret Key" /><p class="provider-field-help">服务商提供的私密密钥，请妥善保管。</p></div></div>
+    <div v-if="compute.showAkSk" class="connection-field"><div class="connection-field-label"><strong>API Key</strong></div><div class="connection-field-control"><el-input v-model="config.ak" aria-label="API Key" placeholder="请输入Access Key" /><p class="provider-field-help">服务商提供的访问密钥</p></div></div>
+    <div v-if="compute.showAkSk" class="connection-field"><div class="connection-field-label"><strong>Secret Key</strong></div><div class="connection-field-control"><el-input v-model="config.sk" aria-label="Secret Key" type="password" placeholder="请输入Secret Key" /><p class="provider-field-help">服务商提供的私密密钥，请妥善保管</p></div></div>
 
-    <div v-if="compute.showYoudao" class="connection-field"><div class="connection-field-label"><strong>App Key</strong></div><div class="connection-field-control"><el-input v-model="config.youdaoAppKey" aria-label="App Key" placeholder="有道 AppKey" /><p class="provider-field-help">有道翻译服务提供的 App Key。</p></div></div>
-    <div v-if="compute.showYoudao" class="connection-field"><div class="connection-field-label"><strong>App Secret</strong></div><div class="connection-field-control"><el-input v-model="config.youdaoAppSecret" aria-label="App Secret" type="password" show-password placeholder="有道 AppSecret" /><p class="provider-field-help">有道翻译服务提供的 App Secret。</p></div></div>
+    <div v-if="compute.showYoudao" class="connection-field"><div class="connection-field-label"><strong>App Key</strong></div><div class="connection-field-control"><el-input v-model="config.youdaoAppKey" aria-label="App Key" placeholder="有道 AppKey" /><p class="provider-field-help">有道翻译服务提供的 App Key</p></div></div>
+    <div v-if="compute.showYoudao" class="connection-field"><div class="connection-field-label"><strong>App Secret</strong></div><div class="connection-field-control"><el-input v-model="config.youdaoAppSecret" aria-label="App Secret" type="password" show-password placeholder="有道 AppSecret" /><p class="provider-field-help">有道翻译服务提供的 App Secret</p></div></div>
 
-    <div v-if="compute.showTencent" class="connection-field"><div class="connection-field-label"><strong>Secret ID</strong></div><div class="connection-field-control"><el-input v-model="config.tencentSecretId" aria-label="Secret ID" placeholder="腾讯云 SecretId" /><p class="provider-field-help">腾讯云翻译服务提供的 SecretId。</p></div></div>
-    <div v-if="compute.showTencent" class="connection-field"><div class="connection-field-label"><strong>Secret Key</strong></div><div class="connection-field-control"><el-input v-model="config.tencentSecretKey" aria-label="Secret Key" type="password" show-password placeholder="腾讯云 SecretKey" /><p class="provider-field-help">腾讯云翻译服务提供的 SecretKey。</p></div></div>
+    <div v-if="compute.showTencent" class="connection-field"><div class="connection-field-label"><strong>Secret ID</strong></div><div class="connection-field-control"><el-input v-model="config.tencentSecretId" aria-label="Secret ID" placeholder="腾讯云 SecretId" /><p class="provider-field-help">腾讯云翻译服务提供的 SecretId</p></div></div>
+    <div v-if="compute.showTencent" class="connection-field"><div class="connection-field-label"><strong>Secret Key</strong></div><div class="connection-field-control"><el-input v-model="config.tencentSecretKey" aria-label="Secret Key" type="password" show-password placeholder="腾讯云 SecretKey" /><p class="provider-field-help">腾讯云翻译服务提供的 SecretKey</p></div></div>
 
-    <div v-if="compute.showNewAPI" class="connection-field"><div class="connection-field-label"><strong>NewAPI接口</strong></div><div class="connection-field-control"><el-input v-model="config.newApiUrl" aria-label="接口地址" placeholder="请输入您的New API接口地址" /><p class="provider-field-help">填写 New API 服务的接口地址。</p></div></div>
+    <div v-if="compute.showNewAPI" class="connection-field"><div class="connection-field-label"><strong>NewAPI接口</strong></div><div class="connection-field-control"><el-input v-model="config.newApiUrl" aria-label="接口地址" placeholder="请输入 New API 接口地址" /><p class="provider-field-help">填写 New API 服务的接口地址</p></div></div>
 
     <ApiKeyList
       v-if="compute.showToken && !compute.showServiceSecret"
@@ -377,7 +377,7 @@
           <div class="custom-template-heading">
             <div>
               <strong>请求模板</strong>
-              <small>修改会自动保存到当前 AI 服务；可用变量可以一键插入。</small>
+              <small>修改会自动保存到当前 AI 服务；可用变量可以一键插入</small>
             </div>
             <el-button type="primary" link size="small" @click="resetCustomTemplate">恢复默认模板</el-button>
           </div>
@@ -400,9 +400,9 @@
     <details v-if="compute.showDeepseekApiType || compute.showAI || compute.showCustomBody || Boolean(customProvider)" :key="service + '-custom-request'" id="service-custom-request-settings" class="service-disclosure" data-configuration-group="custom-request">
       <summary><span class="advanced-summary-copy"><strong>{{ t('settings.organization.compatibility') }}</strong><small>{{ t('settings.organization.compatibilityHelp') }}</small></span><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
       <div class="disclosure-content">
-        <div v-if="compute.showDeepseekApiType" class="connection-field"><div class="connection-field-label"><strong>API 格式</strong></div><div class="connection-field-control"><el-select v-model="config.deepseekApiType" aria-label="API 格式" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select><p class="provider-field-help">选择 DeepSeek 接口使用的 API 格式。</p></div></div>
+        <div v-if="compute.showDeepseekApiType" class="connection-field"><div class="connection-field-label"><strong>API 格式</strong></div><div class="connection-field-control"><el-select v-model="config.deepseekApiType" aria-label="API 格式" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select><p class="provider-field-help">选择 DeepSeek 接口使用的 API 格式</p></div></div>
 
-          <div v-if="compute.showAI && compute.showProxy" class="connection-field"><div class="connection-field-label"><strong>代理地址</strong></div><div class="connection-field-control"><el-input v-model="config.proxy[service]" aria-label="代理地址" placeholder="默认直连自定义接口" /><p class="provider-field-help">可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里。</p></div></div>
+          <div v-if="compute.showAI && compute.showProxy" class="connection-field"><div class="connection-field-label"><strong>代理地址</strong></div><div class="connection-field-control"><el-input v-model="config.proxy[service]" aria-label="代理地址" placeholder="默认直连自定义接口" /><p class="provider-field-help">可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里</p></div></div>
 
           <div v-if="customProvider" class="connection-field custom-headers-field" data-testid="custom-service-headers">
             <div class="connection-field-label"><strong>自定义请求头</strong></div>
@@ -410,7 +410,7 @@
               <el-input v-model="config.customHeaders[service]" type="textarea" :rows="3"
                 aria-label="自定义请求头" :spellcheck="false" :class="{ 'input-error': !isValidCustomHeaders(config.customHeaders[service]) }"
                 placeholder='{"x-opencode-session": "your-stable-session-id"}' />
-              <small class="custom-headers-help">填写字符串值组成的 JSON 对象，仅发送给当前自定义服务；同名请求头会覆盖默认值。留空不启用。</small>
+              <small class="custom-headers-help">填写值为字符串的 JSON 对象，仅用于当前自定义服务，同名请求头会覆盖默认值；留空则不启用</small>
               <div v-if="!isValidCustomHeaders(config.customHeaders[service])" class="error-text">请输入有效的请求头 JSON 对象，名称和值必须符合 HTTP 格式</div>
             </div>
           </div>
@@ -418,7 +418,7 @@
           <RequestHeaderSettings v-if="compute.showAI" :config="config" />
 
           <div v-if="compute.showCustomBody" class="connection-field"><div class="connection-field-label"><strong>自定义请求体</strong></div><div class="connection-field-control"><el-input v-model="config.customBody[service]" type="textarea" :rows="3" aria-label="自定义请求体" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
-              <p class="provider-field-help">填写要合并到翻译请求中的 JSON 参数对象。</p><div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div></div></div>
+              <p class="provider-field-help">填写要合并到翻译请求中的 JSON 参数对象</p><div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div></div></div>
 
 
       </div>
@@ -503,7 +503,7 @@ function commitMyMemoryEmail(): void {
   config.value.myMemoryEmail = normalizeMyMemoryEmail(myMemoryEmailDraft.value)
 }
 
-const deepLXTokenHelp = computed(() => translateLegacy('DeepLX 地址包含 {{apiKey}} 或 {{token}} 占位符，请填写 API Key；无 Key 地址请移除占位符。'))
+const deepLXTokenHelp = computed(() => translateLegacy('DeepLX 地址包含 {{apiKey}} 或 {{token}} 占位符，请填写 API Key；无 Key 地址请移除占位符'))
 const deepLXRequiresToken = computed(() => requiresDeepLXToken(config.value.deeplx, config.value.proxy[services.deeplx]))
 const deeplEndpoint = computed(() => config.value.proxy[service.value]?.trim() || getDeepLEndpoint(config.value.deeplApiPlan))
 const pendingChromePreparation = ref<Awaited<ReturnType<typeof chromeTranslationPreparationStore.get>>>(null)
@@ -596,13 +596,13 @@ const minimaxKeyKind = computed(() => {
 const minimaxKeyMismatch = computed(() => {
   if (minimaxKeyKind.value === 'empty') return ''
   if (config.value.minimaxBillingPlan === 'token-plan' && minimaxKeyKind.value !== 'token-plan') {
-    return '当前选择的是 Token Plan，但 Key 不是 sk-cp- 开头；请确认 Key 来源，Token Plan 订阅必须有效。'
+    return '当前选择的是 Token Plan，但 Key 不是 sk-cp- 开头；请确认 Key 来源，Token Plan 订阅必须有效'
   }
   if (config.value.minimaxBillingPlan === 'payg' && minimaxKeyKind.value === 'token-plan') {
-    return '当前选择的是按量付费，但检测到 sk-cp- Token Plan Key；两类 Key 不能互换，请切换计费方式或更换 Key。'
+    return '当前选择的是按量付费，但检测到 sk-cp- Token Plan Key；两类 Key 不能互换，请切换计费方式或更换 Key'
   }
   return config.value.minimaxBillingPlan === 'token-plan'
-    ? '当前使用 Token Plan Key；请确认 Token Plan 订阅有效。'
+    ? '当前使用 Token Plan Key；请确认 Token Plan 订阅有效'
     : ''
 })
 
@@ -622,16 +622,16 @@ const mimoKeyKind = computed(() => {
 const mimoKeyMismatch = computed(() => {
   if (mimoKeyKind.value === 'empty') return ''
   if (config.value.mimoBillingPlan === 'token-plan' && mimoKeyKind.value !== 'token-plan') {
-    return '当前选择的是 MiMo Token Plan，但 Key 不是 tp- 开头；请确认 Key 来源和订阅状态。'
+    return '当前选择的是 MiMo Token Plan，但 Key 不是 tp- 开头；请确认 Key 来源和订阅状态'
   }
   if (config.value.mimoBillingPlan === 'payg' && mimoKeyKind.value === 'token-plan') {
-    return '当前选择的是 MiMo 按量付费，但检测到 tp- Token Plan Key；两类 Key 不能互换，请切换计费方式或更换 Key。'
+    return '当前选择的是 MiMo 按量付费，但检测到 tp- Token Plan Key；两类 Key 不能互换，请切换计费方式或更换 Key'
   }
   if (config.value.mimoBillingPlan === 'payg' && mimoKeyKind.value === 'other') {
-    return 'MiMo 按量付费 Key 通常以 sk- 开头；请确认 Key 来自 API Keys 页面。'
+    return 'MiMo 按量付费 Key 通常以 sk- 开头；请确认 Key 来自 API Keys 页面'
   }
   return config.value.mimoBillingPlan === 'token-plan'
-    ? '当前使用 MiMo Token Plan Key；请确认订阅仍在有效期内。'
+    ? '当前使用 MiMo Token Plan Key；请确认订阅仍在有效期内'
     : ''
 })
 

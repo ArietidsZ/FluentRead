@@ -7,17 +7,17 @@
 <template>
   <div class="site-preferences rule-workspace" data-setting="site-preferences">
     <section class="rule-card preference-global">
-      <div><h3>{{ tr('所有网站自动翻译') }}</h3><p>{{ tr('开启后，未禁用扩展的网站都会自动翻译。下面的始终翻译名单仍会保留。') }}</p></div>
+      <div><h3>{{ tr('所有网站自动翻译') }}</h3><p>{{ tr('开启后自动翻译所有未禁用扩展的网站，并保留下方的“始终翻译”名单') }}</p></div>
       <el-switch :model-value="settings.autoTranslate" :disabled="saving" :aria-label="tr('所有网站自动翻译')" @update:model-value="commit({autoTranslate: Boolean($event)})" />
     </section>
     <section class="rule-card">
-      <header class="rule-heading"><div><h3>{{ tr('网站偏好') }}</h3><p>{{ tr('同一网站的偏好集中在一行。禁用扩展优先，重新启用后会恢复其他偏好。') }}</p></div><span class="rule-badge">{{ rows.length }}</span></header>
+      <header class="rule-heading"><div><h3>{{ tr('网站偏好') }}</h3><p>{{ tr('同一网站的偏好集中显示，禁用扩展时暂停其他功能，重新启用后恢复原有偏好') }}</p></div><span class="rule-badge">{{ rows.length }}</span></header>
       <form class="preference-add" @submit.prevent="addSite">
         <label class="rule-field"><span>{{ tr('域名或完整网址') }}</span><input v-model="input" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://docs.example.com/article" :aria-invalid="Boolean(error)" aria-describedby="site-preference-feedback" @input="error = ''" /></label>
         <label class="rule-field"><span>{{ tr('初始偏好') }}</span><select v-model="initialPreference"><option value="always">{{ tr('始终翻译') }}</option><option value="disabled">{{ tr('禁用扩展') }}</option><option value="hidden">{{ tr('隐藏悬浮球') }}</option></select></label>
         <button type="submit" class="rule-primary" :disabled="saving">{{ tr('添加网站') }}</button>
       </form>
-      <p class="rule-hint" data-domain-preview><template v-if="normalized"><span>{{ tr('将保存为') }} </span><strong data-i18n-ignore>{{ normalized }}</strong><span> · {{ tr('包含主域及所有子域；路径、参数和端口不进入偏好。') }}</span></template><template v-else>{{ tr('可粘贴网址；只针对某个路径的翻译范围请在正文适配中设置。') }}</template></p>
+      <p class="rule-hint" data-domain-preview><template v-if="normalized"><span>{{ tr('将保存为') }} </span><strong data-i18n-ignore>{{ normalized }}</strong><span> · {{ tr('包含主域及所有子域；路径、参数和端口不进入偏好') }}</span></template><template v-else>{{ tr('可粘贴网址；只针对某个路径的翻译范围请在正文适配中设置') }}</template></p>
       <div id="site-preference-feedback" aria-live="polite"><p v-if="error" class="rule-error" role="alert">{{ tr(error) }}</p><p v-else-if="status" class="rule-hint" role="status">{{ tr(status) }}</p></div>
       <label v-if="rows.length" class="rule-field preference-search"><span class="sr-only">{{ tr('搜索网站偏好') }}</span><input v-model="search" type="search" :aria-label="tr('搜索网站偏好')" :placeholder="tr('搜索域名')" /></label>
       <div class="preference-list" role="list" :aria-label="tr('网站偏好')">
@@ -31,10 +31,10 @@
           </div>
         </article>
       </div>
-      <div v-if="!visibleRows.length" class="rule-empty"><UiIcon name="globe" :size="28" /><strong>{{ tr(rows.length ? '没有匹配的网站' : '尚未添加网站偏好') }}</strong><p>{{ tr(rows.length ? '试试其他关键词，或清空搜索。' : settings.autoTranslate ? '全局自动翻译已开启。可以添加网站禁用扩展，或仅隐藏悬浮球。' : '默认按需翻译。可在上方添加，也可从菜单栏为当前网站快速设置。') }}</p></div>
+      <div v-if="!visibleRows.length" class="rule-empty"><UiIcon name="globe" :size="28" /><strong>{{ tr(rows.length ? '没有匹配的网站' : '尚未添加网站偏好') }}</strong><p>{{ tr(rows.length ? '试试其他关键词，或清空搜索' : settings.autoTranslate ? '全局自动翻译已开启，可按网站禁用扩展或隐藏悬浮球' : '默认按需翻译，可在上方添加网站偏好，也可从扩展菜单为当前网站快速设置') }}</p></div>
       <div v-if="removed" class="rule-actions"><span class="rule-hint" data-i18n-ignore>{{ removed.domain }}</span><button type="button" :disabled="saving" @click="undoRemove">{{ tr('撤销移除') }}</button></div>
-      <p v-if="!settings.on" class="rule-notice">{{ tr('插件已关闭。偏好会保存，再次启动插件后生效。') }}</p>
-      <p class="rule-hint">{{ tr('隐藏悬浮球不会关闭快捷键、右键菜单或其他翻译功能。取消全部偏好后，该网站会自动从名单移除。') }}</p>
+      <p v-if="!settings.on" class="rule-notice">{{ tr('插件已关闭，网站偏好仍会保存，重新开启插件后生效') }}</p>
+      <p class="rule-hint">{{ tr('隐藏悬浮球后仍可使用快捷键、右键菜单和其他翻译功能；取消全部偏好后自动移除此网站') }}</p>
     </section>
   </div>
 </template>
@@ -59,16 +59,16 @@ const normalized = computed(() => getSiteBaseDomain(input.value));
 async function commit(patch: Partial<SitePreferenceLists> & {autoTranslate?: boolean}): Promise<boolean> {
   if (saving.value) return false;
   saving.value = true; error.value = ''; status.value = '';
-  try { await props.savePreferences(patch); status.value = '网站偏好已保存。'; return true; }
-  catch { error.value = '保存失败，请重试；已有偏好未被清空。'; return false; }
+  try { await props.savePreferences(patch); status.value = '网站偏好已保存'; return true; }
+  catch { error.value = '保存失败，请重试；已有偏好未被清空'; return false; }
   finally { saving.value = false; }
 }
 async function addSite() {
   const domain = normalized.value;
-  if (!domain) { error.value = '请输入有效的域名或 HTTP(S) 网址。'; return; }
+  if (!domain) { error.value = '请输入有效的域名或 HTTP(S) 网址'; return; }
   const existing = rows.value.find(row => row.domain === domain);
   const field = initialPreference.value === 'disabled' ? 'extensionDisabled' : initialPreference.value === 'hidden' ? 'floatingBallHidden' : 'alwaysTranslate';
-  if (existing?.[field]) { error.value = '该网站已有此偏好，可在下方直接调整。'; search.value = domain; return; }
+  if (existing?.[field]) { error.value = '该网站已有此偏好，可在下方直接调整'; search.value = domain; return; }
   const row = {...existing, alwaysTranslate: existing?.alwaysTranslate ?? false, extensionDisabled: existing?.extensionDisabled ?? false, floatingBallHidden: existing?.floatingBallHidden ?? false, [field]: true};
   const patch = updateSitePreference(props.settings, domain, row)!;
   if (await commit(patch)) { input.value = ''; search.value = ''; }

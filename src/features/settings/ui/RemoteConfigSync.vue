@@ -161,7 +161,7 @@ let alive = true;
 async function perform(operation: () => Promise<void>) {
   if (busy.value) return;
   busy.value = true; error.value = '';
-  try {await operation();} catch (failure) {if (alive) error.value = failure instanceof CloudBackupRequestError && failure.errorKey ? t(failure.errorKey, failure.params) : failure instanceof Error ? translateLegacy(failure.message) : translateLegacy('同步未完成，请重试。');}
+  try {await operation();} catch (failure) {if (alive) error.value = failure instanceof CloudBackupRequestError && failure.errorKey ? t(failure.errorKey, failure.params) : failure instanceof Error ? translateLegacy(failure.message) : translateLegacy('同步未完成，请重试');}
   finally {if (alive) busy.value = false;}
 }
 async function requestPreview() {
