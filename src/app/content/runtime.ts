@@ -32,7 +32,7 @@ import {
     mountHoverTranslationContentFeature, mountImageTranslator, mountParagraphCopyContentFeature, mountSectionTranslationContentFeature,
     isImageTranslatorNeeded, isMangaReaderPage, mountMangaEntry, unmountMangaEntry,
     mountSelectionTranslator, mountTranslationProgressPanel, mountShareCard, unmountShareCard, isShareCardMounted,
-    mountVideoSubtitleTranslation,
+    mountVideoSubtitleTranslation, mountVocabularyReencounter, unmountVocabularyReencounter,
     isSupportedVideoPage,
     restoreOriginalContent, resetFullPageTranslationRouteState,
     unmountAreaTranslator, unmountFloatingBall, unmountImageTranslator,
@@ -125,7 +125,6 @@ export async function startContentApp(ctx: ContentScriptContext,
         featureController = activationController;
         const isActivationCurrent = () => isPageRuntimeEnabled() && featureController === activationController
             && !activationController.signal.aborted;
-
         optionalContentFeatures = createOptionalContentFeatureRuntime({
             activationSignal: activationController.signal,
             config,
@@ -150,6 +149,7 @@ export async function startContentApp(ctx: ContentScriptContext,
         mountConfiguredQuickTranslation(config, hotkeys, () => currentPageSiteDisabled, activationController.signal,
             () => { resetHoverKeyboardGesture(); resetFullPageKeyboardGesture(); }, mailFullPageToggle);
         const pageFeatureRegistry = createContentFeatureRegistry([
+            {id: 'vocabulary-reencounter', isEnabled: () => capabilities.browser !== 'userscript' && config.vocabularyReencounterEnabled === true && !browser.extension.inIncognitoContext, mount: runtime => mountVocabularyReencounter(runtime.ctx, runtime.signal), unmount: unmountVocabularyReencounter},
             {id: 'share-card', isEnabled: () => config.on, mount: () => mountShareCard(ctx), unmount: unmountShareCard, isMounted: isShareCardMounted},
             {
                 id: 'writing-assistant', mount: () => mountWritingAssistant(ctx),
@@ -190,8 +190,7 @@ export async function startContentApp(ctx: ContentScriptContext,
                 unmount: unmountTranslationProgressPanel,
                 isMounted: () => Boolean(document.getElementById('fluent-read-translation-status-container')),
             },
-        ], {
-            capabilities,
+        ], {capabilities,
             onError: (featureId, phase, error) => {
                 console.error(`[FluentRead] 内容功能 ${featureId} ${phase} 失败:`, error);
             },
@@ -268,7 +267,6 @@ export async function startContentApp(ctx: ContentScriptContext,
             void applySiteDisabledState(nextSiteDisabled);
             return;
         }
-
         // 总开关是 content 生命周期的权威边界；配置历史/导入/其他上下文同步
         // 不依赖 popup/options 的易丢广播，也必须完整恢复 DOM 和释放所有 feature。
         if (pageAvailability!.needsLifecycleReconcile()) {
@@ -277,11 +275,9 @@ export async function startContentApp(ctx: ContentScriptContext,
         }
         if (!isPageRuntimeEnabled()) return;
         void activePageFeatureRegistry?.reconcileEnabled();
-
         // 关闭“始终翻译”不撤销当前会话；只处理 false -> true，避免 storage.watch 同值回声。
         pageAvailability!.refreshAutoTranslation();
     });
-
     // 先订阅再跨越首次 activation，避免初始化期间的总开关或站点规则写入永久漏同步。
     await pageAvailability.reconcile();
 }

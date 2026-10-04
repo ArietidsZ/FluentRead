@@ -13,6 +13,10 @@ export function mountImageTranslator(): void {}
 
 export function unmountImageTranslator(): void {}
 
+/** 再次遇见只在扩展中挂载，油猴构建不包含扫描器和浮层。 */
+export function mountVocabularyReencounter(): void {}
+export function unmountVocabularyReencounter(): void {}
+
 export function mountVideoSubtitleTranslation(): () => void {
     return () => undefined;
 }
