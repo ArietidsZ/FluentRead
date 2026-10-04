@@ -116,6 +116,24 @@ async function main() {
         await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor({timeout:6000});
         check(writes()===0,'closing the owning settings tab releases its preview without cloud writes');
         await dialog.getByRole('button',{name:'取消',exact:true}).click();await dialog.waitFor({state:'hidden'});
+        const changer=await newPageWithoutForeground(context,30000);
+        await changer.goto(settingsUrl,{waitUntil:'domcontentloaded'});
+        const changedConnection=await changer.evaluate(async url=>{
+            const saved=await chrome.runtime.sendMessage({type:'webDavConfigBackup',action:'settings',clientId:'fixture-change-account'});
+            return chrome.runtime.sendMessage({type:'webDavConfigBackup',action:'save',clientId:'fixture-change-account',connection:{url,username:'fixture-other',password:'fixture-app-password',allowInsecure:true,revision:saved.data.revision}});
+        },url);
+        check(changedConnection.success===true,'another trusted settings page can change the connection after preview cancellation');
+        await changer.close();
+        await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
+        check((await dialog.innerText()).includes('fixture-other'),'new preview identifies the account changed in another page');
+        check((await card.locator('[data-testid="webdav-account"]').innerText()).includes('fixture-other'),'the account beside sync refreshes to the connection used by the preview');
+        await dialog.getByRole('button',{name:'取消',exact:true}).click();await dialog.waitFor({state:'hidden'});
+        const restoredConnection=await page.evaluate(async url=>{
+            const saved=await chrome.runtime.sendMessage({type:'webDavConfigBackup',action:'settings',clientId:'fixture-restore-account'});
+            return chrome.runtime.sendMessage({type:'webDavConfigBackup',action:'save',clientId:'fixture-restore-account',connection:{url,username:'fixture-user',password:'fixture-app-password',allowInsecure:true,revision:saved.data.revision}});
+        },url);
+        check(restoredConnection.success===true && writes()===0,'changing accounts and cancelling their previews never writes a cloud backup');
+        await page.reload({waitUntil:'domcontentloaded'});await navigate();
         await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await page.locator('[data-testid="webdav-confirm"]').click();await dialog.waitFor({state:'hidden'});
         check(state.version===1 && state.content && !state.content.includes('fixture-private') && !state.content.includes('fixture-app-password'),'confirmed first backup uploads only a ciphertext envelope');
         await page.locator('[data-testid="webdav-account"]').waitFor();
