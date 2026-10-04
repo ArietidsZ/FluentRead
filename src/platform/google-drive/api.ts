@@ -1,10 +1,11 @@
 /**
  * @file src/platform/google-drive/api.ts
  * 文件职责：在 Google Drive 的 appDataFolder 中读取与写入唯一的加密配置文件。
- * 主要内容：固定 Google 请求地址、超时和大小限制、重复文件检测、版本与条件写入。
+ * 主要内容：固定 Google 请求地址、超时和大小限制、重复文件检测、版本与条件写入、保存后回读校验及首次创建竞态的条件撤回。
  * 模块边界：只接受加密封装，账号会话由 auth 管理，配置合并由同步服务管理。
  */
 import {DriveError, type DriveSession} from './auth';
+import {strongCloudEtag} from '@/src/core/config/cloudSync';
 import {GOOGLE_DRIVE_CONFIG_FILE_NAME, GOOGLE_DRIVE_MAX_BYTES} from './constants';
 import {DRIVE_ENCRYPTION_FORMAT} from './encryption';
 
@@ -15,7 +16,7 @@ const BASE = 'https://www.googleapis.com/drive/v3/files';
 
 function file(value: unknown, etag: string | null): DriveFile {
     if (!value || typeof value !== 'object' || !('id' in value) || !('version' in value) || !('modifiedTime' in value) || typeof value.id !== 'string' || !value.id || typeof value.version !== 'string' || typeof value.modifiedTime !== 'string') throw new DriveError('Google Drive 文件信息无效。');
-    return {id: value.id, version: value.version, modifiedTime: value.modifiedTime, ...(etag ? {etag} : {})};
+    return {id: value.id, version: value.version, modifiedTime: value.modifiedTime, ...(strongCloudEtag(etag) ? {etag: etag!} : {})};
 }
 export function createDriveApi(fetcher: typeof fetch) {
     async function request<T>(session: DriveSession, url: string, init: RequestInit, consume: (response: Response) => Promise<T>): Promise<T> {
@@ -23,7 +24,7 @@ export function createDriveApi(fetcher: typeof fetch) {
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), 30_000);
             const operation = (async () => {
-                const response = await fetcher(url, {...init, headers: {...init.headers, Authorization: `Bearer ${token}`}, signal: controller.signal});
+                const response = await fetcher(url, {...init, headers: {...init.headers, Authorization: `Bearer ${token}`}, signal: controller.signal, redirect: 'error', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer'});
                 if (!response.ok) {
                     if (response.status === 412) throw new DriveError('云端配置已变化，请重新生成预览。', 412);
                     if (response.status === 403) throw new DriveError('Google Drive 拒绝访问，请检查授权范围、测试用户及 API 配额。', 403);
@@ -43,7 +44,7 @@ export function createDriveApi(fetcher: typeof fetch) {
         const metadata = await request(session, url.href, {}, async response => {
             const data: unknown = await response.json();
             if (!data || typeof data !== 'object' || !('files' in data) || !Array.isArray(data.files)) throw new DriveError('Google Drive 文件列表无效。');
-            if (data.files.length > 1 || ('nextPageToken' in data && data.nextPageToken)) throw new DriveError('发现多个同名同步文件，请先在 Google Drive 应用管理中清理重复数据。');
+            if (data.files.length > 1 || ('nextPageToken' in data && data.nextPageToken)) throw new DriveError('发现多个同名同步文件，请先在 Google Drive 应用管理中清理重复数据。', 409);
             return data.files.length ? file(data.files[0], null) : null;
         });
         if (!metadata) return null;
@@ -71,18 +72,31 @@ export function createDriveApi(fetcher: typeof fetch) {
             return new TextDecoder('utf-8', {fatal: true}).decode(bytes);
         });
         const after = await request(session, `${BASE}/${encoded}?fields=${FIELDS}`, {}, async response => file(await response.json(), response.headers.get('etag')));
-        if (before.version !== after.version) throw new DriveError('读取期间云端配置已变化，请重试。');
+        if (before.id !== metadata.id || after.id !== metadata.id || before.version !== after.version) throw new DriveError('读取期间云端配置已变化，请重试。');
         return {file: after, content};
     }
     async function write(session: DriveSession, content: string, previous: DriveFile | null): Promise<DriveFile> {
         let envelope: unknown;
         try {envelope = JSON.parse(content);} catch {throw new DriveError('只允许上传本地加密后的配置。');}
         if (!envelope || typeof envelope !== 'object' || !('format' in envelope) || envelope.format !== DRIVE_ENCRYPTION_FORMAT || new TextEncoder().encode(content).length > GOOGLE_DRIVE_MAX_BYTES) throw new DriveError('只允许上传大小有效的加密配置。');
+        if (previous && !strongCloudEtag(previous.etag)) throw new DriveError('云端备份缺少安全覆盖所需的版本信息；仍可恢复，请重新读取后重试。');
         const boundary = `fluentread-${crypto.randomUUID()}`;
         const metadata = {name: GOOGLE_DRIVE_CONFIG_FILE_NAME, mimeType: 'application/json', ...(!previous ? {parents: ['appDataFolder']} : {})};
         const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${boundary}--\r\n`;
         const endpoint = `https://www.googleapis.com/upload/drive/v3/files${previous ? `/${encodeURIComponent(previous.id)}` : ''}?uploadType=multipart&fields=${FIELDS}`;
-        return request(session, endpoint, {method: previous ? 'PATCH' : 'POST', headers: {'Content-Type': `multipart/related; boundary=${boundary}`, ...(previous?.etag ? {'If-Match': previous.etag} : {})}, body}, async response => file(await response.json(), response.headers.get('etag')));
+        const written = await request(session, endpoint, {method: previous ? 'PATCH' : 'POST', headers: {'Content-Type': `multipart/related; boundary=${boundary}`, ...(previous?.etag ? {'If-Match': previous.etag} : {})}, body}, async response => file(await response.json(), response.headers.get('etag')));
+        try {
+            const verified = await read(session);
+            if (!verified || verified.file.id !== written.id || verified.content !== content) throw new DriveError('云端保存后校验未通过，请重新读取备份后重试；本机配置未修改。');
+            return verified.file;
+        } catch (error) {
+            // Drive 不提供文件名唯一约束。两台设备同时首次创建时，只撤回本次
+            // 创建且版本仍未变化的文件；绝不删除对方或已有备份，也不无条件删除。
+            if (!previous && error instanceof DriveError && error.status === 409 && strongCloudEtag(written.etag)) {
+                await request(session, `${BASE}/${encodeURIComponent(written.id)}`, {method: 'DELETE', headers: {'If-Match': written.etag!}}, async () => undefined).catch(() => undefined);
+            }
+            throw error;
+        }
     }
     return {read, write};
 }
