@@ -10,8 +10,8 @@
 | --- | --- | --- | --- | --- |
 | 1 | Pixiv | pixiv.net | 专用正文图片 | 未做首页探测；见章节验证 |
 | 2 | MANGA Plus by SHUEISHA | mangaplus.shueisha.co.jp | 专用正文图片 | 未做首页探测；见章节验证 |
-| 3 | Zebrack by SHUEISHA | zebrack-comic.shueisha.co.jp | 通用正文图片检测 | 首页 HTML 可访问 |
-| 4 | MANGA Million by SHUEISHA | mangamillion.shueisha.co.jp | 通用正文图片检测 | 首页 HTML 可访问 |
+| 3 | Zebrack by SHUEISHA | zebrack-comic.shueisha.co.jp | 专用正文图片规则 | 公开章节正文已核对 |
+| 4 | MANGA Million by SHUEISHA | mangamillion.shueisha.co.jp | 通用正文图片检测 | 当前返回站点错误页，正文未确认 |
 | 5 | COMIC FUZ | comic-fuz.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 6 | MangaDex | mangadex.org | 专用正文图片 | 公开章节正文结构已核对 |
 | 7 | MangaDNA | mangadna.com | 专用正文图片 | 公开章节正文结构已核对 |
@@ -20,7 +20,7 @@
 | 10 | Rimacomiplus | rimacomiplus.jp | 可读画布连续翻译 | 公开章节画布已核对 |
 | 11 | Heros Web | viewer.heros-web.com、heros-web.com | 可读画布连续翻译 | 公开章节画布已核对 |
 | 12 | Comic Days | comic-days.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
-| 13 | Comic Top | comic-top.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 13 | Comic Top | comic-top.com | 通用正文图片检测 | 域名停放页，正文未确认 |
 | 14 | ComicWalker | comic-walker.com | 正文可读画布 · 连续翻译 | 公开章节 HTTP 200；两种正文标记已核对 |
 | 15 | Web Ace | web-ace.jp | 通用正文图片检测 | 作品页可访问；未确认正文 |
 | 16 | Antbyw | antbyw.com | 专用正文图片 | 公开章节正文结构已核对 |
@@ -30,7 +30,7 @@
 | 20 | PASH UP | pash-up.jp | 通用正文图片检测 | 正常免费阅读入口仍显示当前无法阅览 |
 | 21 | BOOK☆WALKER | bookwalker.jp | 通用正文图片检测 | 首页 HTML 可访问 |
 | 22 | COLAMANGA | colamanga.com | 通用正文图片检测 | 连接失败 |
-| 23 | GANGAN ONLINE | ganganonline.com | 通用正文图片检测 | 连接失败 |
+| 23 | GANGAN ONLINE | ganganonline.com | 专用正文图片规则 | 公开章节正文已核对 |
 | 24 | Asura Scans | asuracomic.net、asurascans.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 25 | All Manga | allmanga.to | 通用正文图片检测 | 首页 HTML 可访问 |
 | 26 | Manhwaclan | manhwaclan.com | 通用正文图片检测 | 访问受限 |
@@ -38,7 +38,7 @@
 | 28 | tonarinoyj | tonarinoyj.jp | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 29 | Yymanhua | yymanhua.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 30 | Manhwatop | manhwatop.com | 通用正文图片检测 | 访问受限 |
-| 31 | Palcy | palcy.jp | 通用正文图片检测 | 首页 HTML 可访问 |
+| 31 | Palcy | palcy.jp | 公开背景正文 · 连续翻译 | 同源背景完整页可读 |
 | 32 | Comic-Trail | comic-trail.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 33 | Templetoons | templetoons.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 34 | Batocomic | batocomic.net | 通用正文图片检测 | 首页 HTML 可访问 |
@@ -66,7 +66,7 @@
 | 56 | Manhuatop | manhuatop.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 57 | Dlsite | dlsite.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 58 | uzakichanmanga | uzakichanmanga.com | 专用正文图片 | 连接失败 |
-| 59 | Shonenmagazine | shonenmagazine.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 59 | Shonenmagazine | shonenmagazine.com · pocket.shonenmagazine.com | 正文画布 · 圈选翻译 | 公开章节画布不可直接读取 |
 | 60 | ComicNaver | comic.naver.com | 专用正文图片检测 | 公开章节 HTTP 200；数字作品及章节查询 |
 | 61 | comic-zenon | comic-zenon.com | 不可读画布：圈选入口 | 公开章节结构已核对；画布受污染 |
 | 62 | Webtoons | webtoons.com | 专用正文图片 | 公开章节正文结构已核对 |
@@ -234,11 +234,11 @@
 | 224 | mangajikan.com | mangajikan.com | 通用正文图片检测 | 连接失败 |
 | 225 | manhwaden.com | manhwaden.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 226 | dvamh-vzwp7.top | dvamh-vzwp7.top | 通用正文图片检测 | 首页 HTML 可访问 |
-| 227 | comic.pixiv.net | comic.pixiv.net | 通用正文图片检测 | 首页 HTML 可访问 |
+| 227 | comic.pixiv.net | comic.pixiv.net | 公开背景正文 · 连续翻译 | 同源背景完整页可读 |
 | 228 | comico.jp | comico.jp | 通用正文图片检测 | 公开销售与租阅已结束；已购书架需账户，未验证 |
 | 229 | manhwas.men | manhwas.men | 通用正文图片检测 | 连接失败 |
 | 230 | ridibooks.com | ridibooks.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 231 | sunday-webry.com | sunday-webry.com | 通用正文图片检测 | 连接失败 |
+| 231 | sunday-webry.com | sunday-webry.com | 正文画布 · 圈选翻译 | 公开章节画布不可直接读取 |
 | 232 | ynjn.jp | ynjn.jp | 通用正文图片检测 | 公开阅读器停在加载状态，未验证正文 |
 | 233 | mangayun.com | mangayun.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 234 | manhwaweb.com | manhwaweb.com | 通用正文图片检测 | 首页 HTML 可访问 |

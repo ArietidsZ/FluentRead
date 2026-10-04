@@ -6,6 +6,24 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it.each([
+        ['https://www.ganganonline.com/title/2322/chapter/132575','img[src^="blob:https://www.ganganonline.com/"]'],
+        ['https://zebrack-comic.shueisha.co.jp/title/5554/chapter/75530/viewer', 'img[src^="blob:https://zebrack-comic.shueisha.co.jp/"]'],
+        ['https://palcy.jp/comics/554', ':not(*)'],['https://comic.pixiv.net/viewer/stories/249534', ':not(*)'],
+        ['https://pocket.shonenmagazine.com/title/01915/episode/360275', ':not(*)'],
+        ['https://www.sunday-webry.com/episode/3269754496551508487','.page-area img.page-image, .page-area img.js-page-image'],
+    ])('新核对阅读页保持正文范围与路径边界 %s',(href,selector)=>{
+        expect(resolveMangaSite(href)).toMatchObject({selector,requireContent:true});
+        const url=new URL(href);url.pathname+='/unrelated';expect(resolveMangaReaderProfile(url.hostname,url.pathname)).toBeNull();
+        expect(resolveMangaReaderProfile('attacker.test',new URL(href).pathname)).toBeNull();
+    });
+    it('背景正文和受污染画布排除空白广告、封面及应用推广图',()=>{
+        const {document}=parseHTML('<div id="page-0" style="background-image:url(blank.png)"></div><div id="page-1" style="background-image:url(blob:one)"></div><img id="app-icon"><div class="c-viewer__comic-item-image"><canvas id="body"></canvas><img id="ad"></div>');
+        const background=resolveMangaSite('https://comic.pixiv.net/viewer/stories/249534')!;
+        expect([...document.querySelectorAll(background.backgroundSelector!)].map(e=>e.id)).toEqual(['page-1']);expect(background.selector).toBe(':not(*)');
+        const pocket=resolveMangaSite('https://pocket.shonenmagazine.com/title/01915/episode/360275')!;
+        expect([...document.querySelectorAll(pocket.areaSelector!)].map(e=>e.id)).toEqual(['body']);expect(pocket.selector).toBe(':not(*)');
+    });
     it('完整清单保留全部名称，已确认的别名进入域名匹配，未确认名称不虚构地址', () => {
         expect(MANGA_SITE_CATALOG).toHaveLength(235);
         expect(new Set(MANGA_SITE_CATALOG.map(site => site.name)).size).toBe(235);

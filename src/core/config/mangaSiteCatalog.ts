@@ -81,7 +81,7 @@ Reaperscans|reaperscans.com
 Manhuatop|manhuatop.com
 Dlsite|dlsite.com
 uzakichanmanga|uzakichanmanga.com
-Shonenmagazine|shonenmagazine.com
+Shonenmagazine|shonenmagazine.com pocket.shonenmagazine.com
 ComicNaver|comic.naver.com
 comic-zenon|comic-zenon.com
 Webtoons|webtoons.com

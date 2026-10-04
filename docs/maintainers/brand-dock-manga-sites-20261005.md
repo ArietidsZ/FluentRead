@@ -14,6 +14,12 @@ MangaFreak、Manga4u、MG Read、Yymanhua、Mangaraw、Antbyw 和 Speed Manga �
 
 ComicWalker 的公开章节正文是可读画布，首张在画布自身、后续页在父容器上标记 `data-type="contents"`；两种结构都进入同一会话，排除结束推荐图片。透明翻页遮罩仅接受正文画布的相邻 `_cover_` 元素。Naver 按数字作品和章节查询及 `content_image_` 标记排除年龄提示；AIManga 按编号正文说明与正文图片域名，MangaFire 按 `reader__page`，MangaZ 按公开 vw 阅读器的 `page_unit.page_image` 限定正文。MangaPark 需从作品页免费按钮打开站内 minobi 阅读器，再检测其正文图片；作品缩略图和 `chiramiseDiv` 片段不进入队列。Meteor 旧站转至 Kirapo，分片正文仅提供圈选入口，当前域名补入同一清单名称。
 
+Palcy 与 Comic Pixiv 的公开正文采用 CSS 背景图，现把其完整同源 blob 页面接入同一串行会话、图片客户端和压缩图块合成器。仅处理单层 contain、no-repeat、无边框内距的正文，在附近页串行探测尺寸和可读性后立即释放解码图；尺寸元数据弱引用宿主节点，完整快照和译图沿用原有像素预算。背景位置和留白决定译图真实范围，宿主 CSS、原图像素及翻页交互保持不变；来源更换、暂停、关闭与卸载取消旧任务。空白页广告、封面及应用推荐图排除。无法读取或不能精确定位的背景正文保留圈选入口。
+
+Zebrack 从作品页的免费首读按钮进入 `/title/5554/chapter/75530/viewer`，GANGAN ONLINE 从公开首页进入 `/title/2322/chapter/132575`；两者按完整同源 blob 正文图片限定章节，避免依赖散列类名。少年 Magazine 官网的公开试读链接指向 MangaPoke，正文画布受跨域限制；其广告图片排除，仅提供圈选。Sunday Webry 的 www 地址可正常访问并显示 GigaViewer 章节，加入同一不可读画布圈选规则。裸域名证书或连接失败保留为历史，不等同于 www 地址不可用。
+
+Comic Top 当前已登记地址呈现域名停放分类链接，没有确认漫画阅读器；MANGA Million 在正常拒绝非必要 Cookie 后显示站点错误页，没有确认章节。保留当前限制，不把首页 HTTP 200 视为可译正文。
+
 重新开启只有一个可见页的会话时，也先同步复用已完成结果，再决定是否进入翻译队列。此前会先调用翻译端口，客户端缓存虽能避免再次 OCR，但会话未先执行其缓存恢复端口。恢复时仍遵守可见性与隐藏页面暂停条件，图片和画布继续共用串行队列。
 
 Champion Cross、Comic Ryu 和 Comic Growl 的公开可读画布接入现有串行漫画会话，使用独立快照识别与合成，原画布及翻页样式保持不变。画布重绘、翻页、配置变化和卸载取消旧结果；译图跟随正文几何及祖先裁切，透明翻页层继续接收原有交互。压缩图块缓存沿用有界轻量缓存。GigaViewer 的受污染画布，以及 YanMaga 和 Televi-Kun 的分片阅读器仍提供圈选入口，沿用已有圈选翻译和权限开关。
@@ -83,6 +89,22 @@ ComicWalker `/detail/KC_020020_S/episodes/KC_0200200000200011_E` 使用生产 Pa
 
 首轮四个场景也通过，约 33.0 秒处理首张，再正常翻页到正文；但测试脚本在阅读器就绪前发送初始按键，按键未生效。该轮按实际首张范围单独保留。脚本改为等待正文绘制后再初始翻页，补验确认两个后续正文画布；DOM 调查和入口结果未被用来代替这次实际 OCR 核对。
 
+公开背景正文适配的确定性验证：
+
+- 五个相关文件 348 用例通过；漫画配置、目录、站点规则、阅读器、画布控制器和背景正文适配六个模块的 statements、branches、functions、lines 均为 100%。探测取消、CSS 来源更换、真实绘制几何、原文保留、缓存复用、失败和资源释放均有断言。
+- 图片运行时、图片流程、漫画入口、模块边界和源文件头共五文件 1009 用例通过；测试审计通过：467 文件、6033 项声明。未执行全量架构或全部测试。
+- 六个新增实章调查样本使累计样本达到 81 个；两个完整图片站、两个公开背景站、两个不可读画布站。DOM 调查不加载扩展，背景可读性通过已展示图片的加载和公开像素回读核对；不调用站点私有接口。
+
+Comic Pixiv `/viewer/stories/249534` 的背景正文使用生产 PaddleOCR 与在线 Google 核对四个场景：两张 713×1024 原页的首组约 44.2 秒，实际译图、鼠标离开后的持续显示、暂停复用、正常翻页续译和总开关清理通过。原图完整像素哈希、背景 CSS 和类名保持一致，译图按 contain 的真实留白范围定位；五次图片操作不等同于五页全部成功译完。检查首组与下一组截图，出现部分中文，但竖排、注音漏识别、原文残留、错位和错误翻译仍明显，不能视为整章质量验收。无扩展、宿主或控制台异常，本地模型由现有导入器校验，没有模型下载请求；专属第二屏浏览器始终未进入前台，profile 已删除。
+
+首轮实页入口检查确认 GANGAN ONLINE、Zebrack、Palcy 和 Comic Pixiv；随后 MangaPoke 在后台窗口主动隐藏正文，显示普通点击恢复提示，圈选入口随正文隐藏而消失，广告没有误入队列。该轮失败报告保留，单独复核其公开恢复正文操作和 Sunday Webry，不能把已隐藏的正文写作成功验收。
+
+随后复核 18 个入口场景通过：16 个纯图标/入口基础场景，MangaPoke 与 Sunday Webry 两个实章圈选入口。MangaPoke 使用正常 OneTrust 拒绝非必要 Cookie 和可见的公开“重新显示正文”提示点击，保持后台窗口，无私有接口或前台切换。两个实页均 HTTP 200；无扩展、宿主或控制台异常，profile 已删除。结合首轮前四个已经确认的实页入口，六站分别完成结构与入口检查；首轮整体失败状态仍保留，没有改写为通过。
+
+本轮 Chrome、Firefox、油猴生产构建、manifest 和油猴产物校验通过，类型检查通过；油猴产物 1,916,904 字节。Firefox 与油猴仍只有构建证据。
+
+Palcy `/comics/554` 的背景正文也使用生产 PaddleOCR 和在线 Google：初始正常向左两次后核对 `page-4`、`page-5` 两张 1042×1600 正文，首组约 74.6 秒。四个场景通过，译图按真实背景范围显示，原像素、背景 CSS 与类名保持一致；鼠标移开稳定、暂停复用、下一组续译和总开关清理通过。五次图片操作不等同于五页全部译完。首组及下一组截图均有部分中文，仍有竖排/艺术字漏识别、原文残留、排版和翻译错误，不视为整章质量验收。无扩展、宿主或控制台异常，本地模型导入并校验，没有下载请求；专属第二屏浏览器未进入前台，profile 已删除。
+
 全部 235 项逐站实章、登录和付费阅读器、Firefox/油猴运行时，以及漫画全文识别和翻译质量仍未完成。日文注音、艺术字与背景修补有漏识别、错识别和原文残留，不能把结构适配和链路通过当作质量保证。
 
 原始临时证据位于 `/private/tmp/fluentread-brand-manga-sites-20261005`。仓库保留的状态摘要位于 `scripts/testing/evidence/manga-site-checks-20261005.json`，不包含章节图片或原始网页 HTML。
@@ -94,6 +116,8 @@ ComicWalker `/detail/KC_020020_S/episodes/KC_0200200000200011_E` 使用生产 Pa
 `run-manga-entry-ui-test.cjs` 用 `--site-url` 指定主实页，用 `--reader-sites` 的 JSON 数组明确限定额外阅读页，例如 `{ "url": "https://dynasty-scans.com/chapters/the_nth_encore", "mode": "images" }`；不可读画布站的 mode 为 `area`；公开可读画布站为 `canvas`，可同时提供 `canvasSelector`、`openSelector`、`pageKey` 和 `pageKeyTurns`，只执行已核对的阅读器操作。不传该文件不额外扫描网站。
 
 `run-manga-translation-test.cjs` 的 `--reader-smoke --live-site --live-translation --quality-pages 2` 只验阅读链路；需 Node 22 以上的内置 WebSocket、Playwright、focus-safe helper、已构建扩展及可访问的模型文件。运行时模型检查仍验证本地导入文件的尺寸和哈希。Comici 画布用 `--canvas-reader --live-site --live-translation --site-url <公开章节>`，检查原画布像素及样式、译图、暂停复用、正常翻页与总开关清理。其他已核对可读画布可以显式提供 `--canvas-selector`、`--canvas-initial-turns`、`--canvas-turn-key` 和 `--canvas-turn-count`；仅用于公开实页模式，翻页限定左右方向键和一至四次。`--canvas-open-selector` 可指定已核对的阅读器打开按钮。ComicWalker 使用两种正文标记选择器、初始向左两次和后续向左两次，不使用 Comici 的说明弹层操作。
+
+CSS 背景实页可用 `--background-reader --live-site --live-translation --canvas-selector 'div[id^="page-"][style*="blob:"]'`，其他起始翻页参数沿用画布检查。此模式记录完整原像素哈希、背景样式和译图几何，验证暂停复用、正常翻页与总开关清理；只在显式公开背景页执行，不能用 DOM 发现代替翻译验收。
 
 其他已核对图片站的链路检查可额外提供 `--reader-selector <正文图片选择器>`，仅允许用于显式实页 smoke 模式。跨域原图不能从宿主页导出自然像素时，测试脚本保存显示元素截图并记录证据方式；不改变生产图片读取方式。DOM 调查脚本的 `--capture-page` 保存页面截图，画布调查同时记录角落和整数网格是否为空，避免用透明页角推断整页。
 

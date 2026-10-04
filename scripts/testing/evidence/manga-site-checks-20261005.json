@@ -40,7 +40,7 @@
           "hostname": "zebrack-comic.shueisha.co.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "MANGA Million by SHUEISHA",
@@ -57,6 +57,14 @@
           "title": "MANGA MILLION | 1 million pages translation",
           "htmlSha256": "3504c389b4d2cb5010aac733984c6cb7aabdff479944cdad56471e039d861835",
           "hostname": "mangamillion.shueisha.co.jp"
+        },
+        {
+          "requestedUrl": "https://mangamillion.shueisha.co.jp/zh-CN",
+          "checkedAt": "2026-10-04T22:34:35.475224+00:00",
+          "state": "service-error-page",
+          "status": 200,
+          "finalUrl": "https://mangamillion.shueisha.co.jp/zh-CN",
+          "note": "After normal reject-all cookie action, public homepage displays server-error artwork; no chapter verified"
         }
       ],
       "adapter": "detect"
@@ -229,6 +237,14 @@
           "title": "Redirecting...",
           "htmlSha256": "eecbe016f828641309c27ee7a1ca150505967a507dfa30d7bde8d15d9d7a8f13",
           "hostname": "comic-top.com"
+        },
+        {
+          "requestedUrl": "https://comic-top.com/",
+          "checkedAt": "2026-10-04T22:34:35.475224+00:00",
+          "state": "parked-domain",
+          "status": 200,
+          "finalUrl": "https://comic-top.com/",
+          "note": "Parked category-search links, no comic directory or chapter observed"
         }
       ],
       "adapter": "detect"
@@ -430,9 +446,17 @@
           "checkedAt": "2026-10-04T16:25:31Z",
           "state": "unreachable",
           "hostname": "ganganonline.com"
+        },
+        {
+          "requestedUrl": "https://www.ganganonline.com/",
+          "checkedAt": "2026-10-04T22:34:35.475224+00:00",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.ganganonline.com/",
+          "note": "canonical www homepage and public chapter loaded; bare domain failed earlier"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "Asura Scans",
@@ -585,7 +609,7 @@
           "hostname": "palcy.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "background"
     },
     {
       "name": "Comic-Trail",
@@ -1119,7 +1143,8 @@
     {
       "name": "Shonenmagazine",
       "hosts": [
-        "shonenmagazine.com"
+        "shonenmagazine.com",
+        "pocket.shonenmagazine.com"
       ],
       "accessChecks": [
         {
@@ -1133,7 +1158,7 @@
           "hostname": "shonenmagazine.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "area"
     },
     {
       "name": "ComicNaver",
@@ -4207,7 +4232,7 @@
           "hostname": "comic.pixiv.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "background"
     },
     {
       "name": "comico.jp",
@@ -4282,9 +4307,17 @@
           "checkedAt": "2026-10-04T16:26:28Z",
           "state": "unreachable",
           "hostname": "sunday-webry.com"
+        },
+        {
+          "requestedUrl": "https://www.sunday-webry.com/",
+          "checkedAt": "2026-10-04T22:34:35.475224+00:00",
+          "state": "html-accessible",
+          "status": 200,
+          "finalUrl": "https://www.sunday-webry.com/",
+          "note": "www homepage and public GigaViewer chapter loaded; bare domain certificate mismatch earlier"
         }
       ],
-      "adapter": "detect"
+      "adapter": "area"
     },
     {
       "name": "ynjn.jp",
@@ -5079,6 +5112,243 @@
           "stack": "TypeError: Cannot read properties of null (reading 'textContent')\n    at HTMLLIElement.<anonymous> (https://manga-park.com/assets/js/pages/title.js:1:153519)\n    at Function.each (https://code.jquery.com/jquery-1.11.0.min.js:2:2969)\n    at e.fn.init.each (https://code.jquery.com/jquery-1.11.0.min.js:2:845)\n    at HTMLDocument.<anonymous> (https://manga-park.com/assets/js/pages/title.js:1:153461)\n    at j (https://code.jquery.com/jquery-1.11.0.min.js:2:27136)\n    at Object.fireWith [as resolveWith] (https://code.jquery.com/jquery-1.11.0.min.js:2:27949)\n    at Function.ready (https://code.jquery.com/jquery-1.11.0.min.js:2:29783)\n    at HTMLDocument.K (https://code.jquery.com/jquery-1.11.0.min.js:2:30128)"
         }
       ]
+    },
+    {
+      "url": "https://www.ganganonline.com/title/2322/chapter/132575",
+      "status": 200,
+      "imageCount": 3,
+      "canvasCount": 0,
+      "backgroundCount": 0,
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Three complete same-origin blob page images inside the public chapter; generated classes are excluded from the rule."
+    },
+    {
+      "url": "https://www.sunday-webry.com/episode/3269754496551508487",
+      "status": 200,
+      "imageCount": 5,
+      "canvasCount": 5,
+      "backgroundCount": 0,
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "GigaViewer body canvases have SecurityError on public pixel readback; offers area entry, not automatic canvas OCR."
+    },
+    {
+      "url": "https://comic.pixiv.net/viewer/stories/249534",
+      "status": 200,
+      "imageCount": 8,
+      "canvasCount": 0,
+      "backgroundCount": 11,
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Full body pages are contain/no-repeat backgrounds in page-N divs. Same-origin blobs decode and allow public canvas readback; blank page-0 and advertising images are excluded.",
+      "backgroundReadability": [
+        {
+          "id": "page-1",
+          "naturalWidth": 713,
+          "naturalHeight": 1024,
+          "backgroundSize": "contain",
+          "backgroundPosition": "100% 50%",
+          "readable": true
+        },
+        {
+          "id": "page-2",
+          "naturalWidth": 713,
+          "naturalHeight": 1024,
+          "backgroundSize": "contain",
+          "backgroundPosition": "0px 50%",
+          "readable": true
+        },
+        {
+          "id": "page-3",
+          "naturalWidth": 713,
+          "naturalHeight": 1024,
+          "backgroundSize": "contain",
+          "backgroundPosition": "100% 50%",
+          "readable": true
+        },
+        {
+          "id": "page-4",
+          "naturalWidth": 713,
+          "naturalHeight": 1024,
+          "backgroundSize": "contain",
+          "backgroundPosition": "0px 50%",
+          "readable": true
+        },
+        {
+          "id": "page-5",
+          "naturalWidth": 713,
+          "naturalHeight": 1024,
+          "backgroundSize": "contain",
+          "backgroundPosition": "100% 50%",
+          "readable": true
+        },
+        {
+          "id": "page-6",
+          "naturalWidth": 713,
+          "naturalHeight": 1024,
+          "backgroundSize": "contain",
+          "backgroundPosition": "0px 50%",
+          "readable": true
+        },
+        {
+          "id": "page-7",
+          "naturalWidth": 713,
+          "naturalHeight": 1024,
+          "backgroundSize": "contain",
+          "backgroundPosition": "100% 50%",
+          "readable": true
+        },
+        {
+          "id": "page-8",
+          "naturalWidth": 713,
+          "naturalHeight": 1024,
+          "backgroundSize": "contain",
+          "backgroundPosition": "0px 50%",
+          "readable": true
+        },
+        {
+          "id": "page-9",
+          "naturalWidth": 713,
+          "naturalHeight": 1024,
+          "backgroundSize": "contain",
+          "backgroundPosition": "100% 50%",
+          "readable": true
+        },
+        {
+          "id": "page-10",
+          "naturalWidth": 713,
+          "naturalHeight": 1024,
+          "backgroundSize": "contain",
+          "backgroundPosition": "0px 50%",
+          "readable": true
+        },
+        {
+          "id": "page-11",
+          "naturalWidth": 713,
+          "naturalHeight": 1024,
+          "backgroundSize": "contain",
+          "backgroundPosition": "100% 50%",
+          "readable": true
+        }
+      ]
+    },
+    {
+      "url": "https://pocket.shonenmagazine.com/title/01915/episode/360275",
+      "status": 200,
+      "imageCount": 38,
+      "canvasCount": 8,
+      "backgroundCount": 0,
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Public free chapter linked from official magazine homepage; body canvases load after longer settling and have SecurityError. Advertisement images are excluded; area entry only."
+    },
+    {
+      "url": "https://palcy.jp/comics/554",
+      "status": 200,
+      "imageCount": 26,
+      "canvasCount": 0,
+      "backgroundCount": 11,
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Public first episode opens within work URL. Full page-N same-origin blob backgrounds are publicly readable. App icons, covers and footer recommendations are excluded.",
+      "backgroundReadability": [
+        {
+          "id": "page-1",
+          "naturalWidth": 1042,
+          "naturalHeight": 1600,
+          "backgroundSize": "contain",
+          "backgroundPosition": "100% 50%",
+          "readable": true
+        },
+        {
+          "id": "page-2",
+          "naturalWidth": 1042,
+          "naturalHeight": 1600,
+          "backgroundSize": "contain",
+          "backgroundPosition": "0px 50%",
+          "readable": true
+        },
+        {
+          "id": "page-3",
+          "naturalWidth": 1042,
+          "naturalHeight": 1600,
+          "backgroundSize": "contain",
+          "backgroundPosition": "100% 50%",
+          "readable": true
+        },
+        {
+          "id": "page-4",
+          "naturalWidth": 1042,
+          "naturalHeight": 1600,
+          "backgroundSize": "contain",
+          "backgroundPosition": "0px 50%",
+          "readable": true
+        },
+        {
+          "id": "page-5",
+          "naturalWidth": 1042,
+          "naturalHeight": 1600,
+          "backgroundSize": "contain",
+          "backgroundPosition": "100% 50%",
+          "readable": true
+        },
+        {
+          "id": "page-6",
+          "naturalWidth": 1042,
+          "naturalHeight": 1600,
+          "backgroundSize": "contain",
+          "backgroundPosition": "0px 50%",
+          "readable": true
+        },
+        {
+          "id": "page-7",
+          "naturalWidth": 1042,
+          "naturalHeight": 1600,
+          "backgroundSize": "contain",
+          "backgroundPosition": "100% 50%",
+          "readable": true
+        },
+        {
+          "id": "page-8",
+          "naturalWidth": 1042,
+          "naturalHeight": 1600,
+          "backgroundSize": "contain",
+          "backgroundPosition": "0px 50%",
+          "readable": true
+        },
+        {
+          "id": "page-9",
+          "naturalWidth": 1042,
+          "naturalHeight": 1600,
+          "backgroundSize": "contain",
+          "backgroundPosition": "100% 50%",
+          "readable": true
+        },
+        {
+          "id": "page-10",
+          "naturalWidth": 1042,
+          "naturalHeight": 1600,
+          "backgroundSize": "contain",
+          "backgroundPosition": "0px 50%",
+          "readable": true
+        },
+        {
+          "id": "page-11",
+          "naturalWidth": 1042,
+          "naturalHeight": 1600,
+          "backgroundSize": "contain",
+          "backgroundPosition": "100% 50%",
+          "readable": true
+        }
+      ]
+    },
+    {
+      "url": "https://zebrack-comic.shueisha.co.jp/title/5554/chapter/75530/viewer",
+      "status": 200,
+      "imageCount": 12,
+      "canvasCount": 0,
+      "backgroundCount": 0,
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Opened using the public work-page first-read button. Complete body pages are same-origin blob images; exact chapter path excludes covers.",
+      "readerAction": {
+        "selector": "button:has-text(\"最初から読む\")"
+      }
     }
   ],
   "verification": {
@@ -5993,6 +6263,263 @@
       "browserFrontmost": false,
       "profileRemoved": true,
       "scope": "16 pure-icon UI cases plus MangaPark chapter entry opened by the normal public free button. Entry only; not OCR/translation verification."
+    },
+    "backgroundChapterProfilesUnit": {
+      "cases": 348,
+      "files": 5,
+      "fourDimensionCoverage": 100,
+      "modules": [
+        "manga",
+        "mangaReaderProfiles",
+        "mangaSiteCatalog",
+        "mangaCanvas",
+        "mangaReader",
+        "mangaBackground"
+      ],
+      "integrationCases": 1009,
+      "integrationFiles": 5,
+      "auditFiles": 467,
+      "auditDeclarations": 6033,
+      "scope": "Relevant unit coverage and runtime/flow/entry/source-header/module-boundary checks; not full regression"
+    },
+    "backgroundChapterEntryInitialAttempt": {
+      "status": "failed",
+      "cases": 19,
+      "confirmedEntries": [
+        {
+          "url": "https://www.ganganonline.com/title/2322/chapter/132575",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://zebrack-comic.shueisha.co.jp/title/5554/chapter/75530/viewer",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://palcy.jp/comics/554",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://comic.pixiv.net/viewer/stories/249534",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "stoppedAt": "live reader discovery: https://pocket.shonenmagazine.com/title/01915/episode/360275",
+      "limitation": "MangaPoke in a background browser hides body and offers a public click-to-redisplay message; no manga entry while body is unavailable. Promotion artwork is not selected. Retry uses only normal cookie rejection and the public redisplay click.",
+      "extensionErrors": [],
+      "consoleErrors": [],
+      "profileRemoved": true
+    },
+    "pixivBackgroundTranslation": {
+      "status": "passed",
+      "cases": [
+        "public readable background runs real manga OCR and translated overlay without changing the source",
+        "pause restores the original canvas and repeated activation reuses the translated page",
+        "normal chapter turn translates new canvas pages through the same serial queue",
+        "master switch restores the chapter and removes canvas translation UI"
+      ],
+      "canvasFirstPageMs": 44151,
+      "canvasStableAfterPointerExit": true,
+      "sourceType": "CSS background",
+      "operations": 5,
+      "errors": [],
+      "hostErrors": [],
+      "consoleErrors": [],
+      "modelRequests": [],
+      "profileRemoved": true,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "sourcePixels": [
+        {
+          "width": 713,
+          "height": 1024,
+          "hash": 4055420148
+        },
+        {
+          "width": 713,
+          "height": 1024,
+          "hash": 2318486459
+        }
+      ],
+      "sourcePixelsAndCssUnchanged": true,
+      "source": "production PaddleOCR and live Google; model files imported and hash-validated by existing extension importer",
+      "qualityAccepted": false,
+      "qualityNotes": "Initial translated spread and next spread contain partial Chinese, but vertical Japanese/ruby remains, with OCR errors, overlap and inaccurate translations. Linkage and source preservation are accepted; chapter quality is not accepted."
+    },
+    "backgroundChapterBuilds": {
+      "chrome": "passed",
+      "firefox": "passed",
+      "userscript": "passed",
+      "manifests": "passed",
+      "userscriptVerifier": "passed",
+      "compile": "passed",
+      "scope": "Production builds and generated manifest/artifact checks; not Firefox or userscript live runtime",
+      "userscriptBytes": 1916904
+    },
+    "backgroundChapterAreaEntryRecheck": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://pocket.shonenmagazine.com/title/01915/episode/360275",
+        "live reader discovery: https://www.sunday-webry.com/episode/3269754496551508487",
+        "master switch removes manga UI"
+      ],
+      "liveReaders": [
+        {
+          "url": "https://pocket.shonenmagazine.com/title/01915/episode/360275",
+          "status": 200,
+          "mode": "area",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://www.sunday-webry.com/episode/3269754496551508487",
+          "status": 200,
+          "mode": "area",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "errors": [],
+      "hostErrors": [],
+      "consoleErrors": [],
+      "profileRemoved": true,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "readerAction": "MangaPoke: normal OneTrust reject-all and click of displayed public redisplay message, when present; no foreground focus or private access"
+    },
+    "palcyBackgroundTranslation": {
+      "status": "passed",
+      "cases": [
+        "public readable background runs real manga OCR and translated overlay without changing the source",
+        "pause restores the original canvas and repeated activation reuses the translated page",
+        "normal chapter turn translates new canvas pages through the same serial queue",
+        "master switch restores the chapter and removes canvas translation UI"
+      ],
+      "canvasFirstPageMs": 74640,
+      "canvasStableAfterPointerExit": true,
+      "sourceType": "CSS background",
+      "operations": 5,
+      "errors": [],
+      "hostErrors": [],
+      "consoleErrors": [],
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "profileRemoved": true,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "sourcePages": [
+        {
+          "id": "page-4",
+          "width": 1042,
+          "height": 1600,
+          "hash": 3210423723
+        },
+        {
+          "id": "page-5",
+          "width": 1042,
+          "height": 1600,
+          "hash": 2873430002
+        }
+      ],
+      "sourcePixelsAndCssUnchanged": true,
+      "source": "production PaddleOCR and live Google; local model files imported and hash-validated by existing extension importer",
+      "qualityAccepted": false,
+      "qualityNotes": "Both first translated spread and normal next spread show partial Chinese, but Japanese vertical text remains, artwork lettering is missed, and OCR/typesetting/translation mistakes remain. This verifies the reader integration, not whole-chapter quality."
     }
   }
 }

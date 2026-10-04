@@ -51,6 +51,12 @@ function fixture() {
 afterEach(() => {vi.restoreAllMocks();vi.resetAllMocks();vi.unstubAllGlobals();});
 
 describe('公开可读漫画画布的任务与显示所有权', () => {
+    it('异步快照即使忽略取消，完成后也不能发送已暂停任务的 OCR',async()=>{
+        const f=fixture(),capture=deferred<void>();
+        const runtime=createMangaCanvas({...f.ports,source:{identity:()=> 'public-source',bounds:()=>f.bounds as DOMRect,capture:()=>capture.promise}});
+        const task=runtime.translate(f.canvas);runtime.restore(f.canvas);capture.resolve();await task;
+        expect(f.ports.translate).not.toHaveBeenCalled();runtime.dispose();f.runtime.dispose();
+    });
     it('识别重绘和配置变化，受污染或空画布不阻止后一张正常正文', () => {
         const f = fixture(), first = f.runtime.identity(f.canvas);
         expect(first).not.toBeNull();expect(f.runtime.identity(f.canvas)).toBe(first);
@@ -118,7 +124,7 @@ describe('公开可读漫画画布的任务与显示所有权', () => {
         const second = fixture();second.ports.translate.mockResolvedValue({lines: result.lines});await expect(second.runtime.translate(second.canvas)).rejects.toThrow('数据无效');second.runtime.dispose();
     });
     it('缺少采样上下文时不宣布画布可读，也不启动翻译', async () => {
-        const f = fixture();vi.mocked(f.snapshots[1].getContext).mockReturnValue(null);
+        const f = fixture();f.runtime.identity(f.canvas);vi.mocked(f.snapshots[1].getContext).mockReturnValue(null);
         expect(f.runtime.identity(f.canvas)).toBeNull();await f.runtime.translate(f.canvas);expect(f.ports.translate).not.toHaveBeenCalled();f.runtime.dispose();
     });
     it('禁用或离开 DOM 时不读取完整像素、不启动翻译', async () => {

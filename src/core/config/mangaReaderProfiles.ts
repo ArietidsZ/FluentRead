@@ -1,17 +1,32 @@
 /**
  * @file src/core/config/mangaReaderProfiles.ts
  * 文件职责：保存经公开阅读页结构核对的正文规则，避免通用图片过滤漏掉正文或误选推荐封面。
- * 主要内容：已核对章节站的正文图片规则，Antbyw 和 Naver 查询参数章节边界，GigaViewer、Comici 和 ComicWalker 正文画布规则、不可读画布和分片的圈选入口；路径与域名均保留边界。
+ * 主要内容：已核对章节站的正文图片与 Palcy、Comic Pixiv 背景正文规则，Antbyw 和 Naver 查询参数章节边界，GigaViewer、Comici 和 ComicWalker 正文画布规则、不可读画布和分片的圈选入口；路径与域名均保留边界。
  * 模块边界：纯匹配，不执行站点脚本、不读取私有接口、不截图；可访问的图片由 content 阅读器检测。
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
-    'kuragebunch.com', 'shonenjumpplus.com', 'tonarinoyj.jp', 'comic-zenon.com', 'ichicomi.com']);
-export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-super-hero-comics.com', 'jumptoon.com', 'comic-meteor.jp', 'kirapo.jp'];
+    'kuragebunch.com', 'shonenjumpplus.com', 'tonarinoyj.jp', 'comic-zenon.com', 'ichicomi.com', 'sunday-webry.com']);
+export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-super-hero-comics.com', 'jumptoon.com', 'comic-meteor.jp', 'kirapo.jp', 'pocket.shonenmagazine.com'];
+export const MANGA_BACKGROUND_READER_HOSTS = ['palcy.jp', 'comic.pixiv.net'];
 const comiciHosts = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
     'rimacomiplus.jp', 'heros-web.com', 'younganimal.com', 'youngchampion.jp'];
 export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com'];
-export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; canvasSelector?: string; canvasInteractionSelector?: string; areaSelector?: string} | null {
+export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; canvasSelector?: string; canvasInteractionSelector?: string; backgroundSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
+    if (host === 'palcy.jp' && /^\/comics\/\d+\/?$/.test(pathname)
+        || host === 'comic.pixiv.net' && /^\/viewer\/stories\/\d+\/?$/.test(pathname)) return {
+        name: host, selector: ':not(*)',
+        backgroundSelector: 'div[id^="page-"][style*="blob:"]', areaSelector: 'div[id^="page-"][style*="blob:"]',
+    };
+    if (host === 'pocket.shonenmagazine.com' && /^\/title\/\d+\/episode\/\d+\/?$/.test(pathname)) return {
+        name: 'MangaPoke', selector: ':not(*)', areaSelector: '.c-viewer__comic-item-image > canvas',
+    };
+    if (host === 'ganganonline.com' && /^\/title\/\d+\/chapter\/\d+\/?$/.test(pathname)) return {
+        name: 'GANGAN ONLINE', selector: 'img[src^="blob:https://www.ganganonline.com/"]',
+    };
+    if (host === 'zebrack-comic.shueisha.co.jp' && /^\/title\/\d+\/chapter\/\d+\/viewer\/?$/.test(pathname)) return {
+        name: 'Zebrack', selector: 'img[src^="blob:https://zebrack-comic.shueisha.co.jp/"]',
+    };
     if (gigaHosts.has(host) && /^\/episode\/\d+\/?$/.test(pathname)) return {
         name: host, selector: '.page-area img.page-image, .page-area img.js-page-image',
         canvasSelector: '.page-area canvas.page-image, .page-area canvas.js-page-image',

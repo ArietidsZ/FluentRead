@@ -159,7 +159,7 @@ describe('漫画会话所有权与可见页调度', () => {
     });
 });
 
-function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number, warm?: (images:HTMLImageElement[])=>void, canvas?: Parameters<typeof createMangaReader>[0]['canvas'], cachePorts?: Pick<Parameters<typeof createMangaReader>[0], 'resetCache' | 'cachePages' | 'reuse'>) {
+function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number, warm?: (images:HTMLImageElement[])=>void, canvas?: Parameters<typeof createMangaReader>[0]['canvas'], cachePorts?: Pick<Parameters<typeof createMangaReader>[0], 'resetCache' | 'cachePages' | 'reuse' | 'background'>) {
     const {document, window: dom} = parseHTML('<html><body><div class="zao-image-container"><img class="zao-image" src="blob:page-1"></div><img id="logo" src="https://site/logo.png"></body></html>');
     const image = document.querySelector('img')! as HTMLImageElement;
     Object.defineProperties(image, {complete: {writable: true, value: true}, naturalWidth: {writable: true, value: 800}, naturalHeight: {value: 1200}, currentSrc: {get: () => image.src}});
@@ -189,6 +189,31 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it('背景正文加入同一串行会话，CSS 换页、暂停复用、失败重试和关闭都清理所有权',async()=>{
+        const background={identity:vi.fn().mockReturnValue('bg-1'),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn(),prepare:vi.fn(),pixels:vi.fn(()=>713*1024),bounds:vi.fn((element:HTMLElement)=>element.getBoundingClientRect())};
+        const warm=vi.fn(),f=readerFixture(true,'https://palcy.jp/comics/554',undefined,()=>0,warm,undefined,{background});
+        const page=f.document.createElement('div') as HTMLElement;page.id='page-1';page.style.backgroundImage='url(blob:https://palcy.jp/one)';
+        page.getBoundingClientRect=()=>({left:14,top:0,right:640,bottom:900,width:626,height:900}) as DOMRect;f.document.body.append(page);
+        const own=page.cloneNode() as HTMLElement;own.setAttribute('data-fluent-read-ui','probe');f.document.body.append(own);
+        f.reader.schedule();f.run();expect(background.prepare).toHaveBeenLastCalledWith([page]);expect(f.reader.status()).toMatchObject({pageCount:1,areaFallback:false});
+        f.reader.toggle();await flush();expect(background.translate).toHaveBeenCalledWith(page);expect(f.ports.translate).not.toHaveBeenCalled();expect(warm).toHaveBeenLastCalledWith([]);
+        f.reader.toggle();expect(background.restore).toHaveBeenCalledWith(page);background.reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(background.translate).toHaveBeenCalledOnce();
+        background.failed.mockReturnValue(true);f.reader.retry(page);await flush();expect(f.reader.status().errors).toBe(1);background.failed.mockReturnValue(false);
+        background.identity.mockReturnValue('bg-2');page.style.backgroundImage='url(blob:https://palcy.jp/two)';
+        f.mo.callback([{type:'attributes',attributeName:'style',target:page} as unknown as MutationRecord],{} as MutationObserver);f.run();await flush();expect(background.release).toHaveBeenCalledWith(page);
+        background.identity.mockReturnValue(null);f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({pageCount:0,areaFallback:true});
+        page.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);
+        f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(background.prepare).toHaveBeenLastCalledWith([]);f.reader.dispose();expect(background.prepare).toHaveBeenLastCalledWith([]);
+    });
+    it.each([{display:'none'},{visibility:'hidden'},{visibility:'collapse'},{}])('背景正文就绪判断尊重 CSS 可见性 %j',style=>{
+        const background={identity:vi.fn(()=> 'bg'),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn(()=>false),restore:vi.fn(),release:vi.fn(),failed:vi.fn(()=>false),update:vi.fn(),prepare:vi.fn(),pixels:vi.fn(()=>1),bounds:vi.fn(()=>({left:0,top:0,right:640,bottom:900,width:640,height:900}) as DOMRect)};
+        const f=readerFixture(false,'https://comic.pixiv.net/viewer/stories/249534',undefined,undefined,undefined,undefined,{background});
+        const page=f.document.createElement('div');page.id='page-2';page.style.backgroundImage='url(blob:page)';f.document.body.append(page);f.setStyle(style);f.reader.schedule();f.run();f.reader.toggle();f.reader.dispose();
+    });
+    it('无背景处理端口时仅提供正文圈选，尺寸不足不启动正文翻译',()=>{
+        const f=readerFixture(false,'https://palcy.jp/comics/554');const page=f.document.createElement('div');page.id='page-1';page.style.backgroundImage='url(blob:page)';
+        page.getBoundingClientRect=()=>({left:0,top:0,right:640,bottom:900,width:640,height:900}) as DOMRect;f.document.body.append(page);f.reader.schedule();f.run();expect(f.reader.status().areaFallback).toBe(true);f.reader.dispose();
+    });
     it.each([
         'https://rimacomiplus.jp/digitalmargaret/episodes/4a895d1d5884a',
         'https://heros-web.com/episodes/a806742880560',

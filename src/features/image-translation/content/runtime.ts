@@ -1,6 +1,6 @@
 /**
  * @file src/features/image-translation/content/runtime.ts
- * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和单图及可读画布漫画连续模式的原图/译图切换，保持宿主图片与响应式图片资源不变。
+ * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和图片、可读画布及公开背景图的漫画连续模式，保持宿主资源与翻页交互不变。
  * 主要内容：单图失败提供模型与服务导航，译图操作条随指针隐藏并保留键盘入口；单图识别方式纳入缓存身份，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
  * 模块边界：本运行时先读取页面允许访问的 Canvas/CORS 像素，失败时授权后台读取当前任务图片并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
@@ -29,6 +29,7 @@ import {normalizeMangaCachePages, mangaCachePixelBudget, resolveMangaSite} from 
 import {compressMangaPage, createMangaLightCache, type MangaCompressedPage} from '../mangaPatchResult';
 import {composeMangaPage} from './mangaCompositor';
 import {createMangaCanvas} from './mangaCanvas';
+import {createMangaBackground} from './mangaBackground';
 
 const IMAGE_TRANSLATION_OVERLAY = 'fluent-read-image-translation-overlay';
 const IMAGE_TRANSLATION_ROOT = 'fluent-read-image-translation-root';
@@ -114,6 +115,7 @@ function clearMangaCache(): void {
     clearWarmTasks(); lightCache.clear(); lightKeys = new WeakMap();
     Array.from(resultCache.keys()).forEach(deleteCachedResult);
     mangaCanvas?.resetCache();
+    mangaBackground?.resetCache();
 }
 function forgetLightResult(image: HTMLImageElement): void {
     const key = lightKeys.get(image); if (key) lightCache.remove(key.key);
@@ -192,6 +194,7 @@ function prepareMangaCachedImages(images: HTMLImageElement[]): void {
 
 let mangaReader: ReturnType<typeof createMangaReader> | null = null;
 let mangaCanvas: ReturnType<typeof createMangaCanvas> | null = null;
+let mangaBackground: ReturnType<typeof createMangaBackground> | null = null;
 let mangaStatus: MangaTranslationStatus = {available: false, active: false, pending: false, errors: 0};
 const mangaListeners = new Set<(status: MangaTranslationStatus) => void>();
 
@@ -1205,6 +1208,14 @@ export function mountImageTranslator(): void {
     if (mounted) return;
     mounted = true;
     stopConfigurationWatch = watchTranslationConfiguration();
+    const translateSnapshot = (image: string, signal: AbortSignal) => {
+        const identity = configurationIdentity(true);
+        return translateImageInExtension(image, config.from, document.title, {manga: true, signal, timeoutMs: 300_000,
+            onProgress: (stage, progress) => {
+                if (signal.aborted || identity !== configurationIdentity(true) || !mangaStatus.active) return;
+                publishMangaStatus({...mangaStatus, stage, progress});
+            }});
+    };
     mangaCanvas = createMangaCanvas({
         enabled: () => mounted && imageTranslationAllowed(true),
         configurationIdentity: () => configurationIdentity(true),
@@ -1213,14 +1224,14 @@ export function mountImageTranslator(): void {
             const selector = resolveMangaSite(window.location.href, config.imageTranslationMangaSites)?.canvasInteractionSelector;
             return !!selector && hit.matches(selector);
         },
-        translate: (image, signal) => {
-            const identity = configurationIdentity(true);
-            return translateImageInExtension(image, config.from, document.title, {manga: true, signal, timeoutMs: 300_000,
-                onProgress: (stage, progress) => {
-                    if (signal.aborted || identity !== configurationIdentity(true) || !mangaStatus.active) return;
-                    publishMangaStatus({...mangaStatus, stage, progress});
-                }});
-        },
+        translate: translateSnapshot,
+    });
+    mangaBackground = createMangaBackground({
+        enabled: () => mounted && imageTranslationAllowed(true),
+        configurationIdentity: () => configurationIdentity(true),
+        cacheEnabled: () => config.useCache,
+        ready: () => mangaReader?.schedule(),
+        translate: translateSnapshot,
     });
     mangaReader = createMangaReader({
         enabled: () => config.on && config.imageTranslationMangaEnabled !== false,
@@ -1237,6 +1248,7 @@ export function mountImageTranslator(): void {
         failed: image => states.get(image)?.phase === 'error',
         changed: publishMangaStatus,
         canvas: mangaCanvas,
+        background: mangaBackground,
     });
     const stopHoverWatch = subscribeConfig(next => {
         if (next.imageTranslationHoverEnabled !== false && !next.disableImageTranslator && next.on) return;
@@ -1293,6 +1305,8 @@ export function unmountImageTranslator(): void {
     mangaReader = null;
     mangaCanvas?.dispose();
     mangaCanvas = null;
+    mangaBackground?.dispose();
+    mangaBackground = null;
     clearPointerRevealTimer();
     contextImage = null;
     pointerImage = null;

@@ -1,8 +1,8 @@
 /**
  * @file src/features/image-translation/content/mangaCanvas.ts
- * 文件职责：把站点允许读取的正文画布接入既有漫画识别与局部译图合成，保留宿主画布及翻页交互。
- * 主要内容：小尺寸像素指纹识别画布重绘，任务使用独立原图快照；会话端口负责串行调度，暂停、来源变化和卸载取消旧结果；译图在隔离层跟随正文与祖先裁切，缓存只保留有界压缩图块。
- * 模块边界：只读取公开 DOM 画布，不访问站点接口、不读取受污染像素、不更改原画布或宿主样式；识别和翻译由注入的现有图片客户端完成。
+ * 文件职责：把可读正文画布及注入的背景图片快照接入既有漫画识别与局部译图合成，保留宿主正文及翻页交互。
+ * 主要内容：小尺寸像素指纹识别画布重绘，任务使用独立原图快照，背景正文通过注入端口提供快照和真实绘制范围；会话端口负责串行调度，暂停、来源变化和卸载取消旧结果；译图在隔离层跟随正文与祖先裁切，缓存只保留有界压缩图块。
+ * 模块边界：只读取公开 DOM 画布或注入的已展示背景快照，不访问站点接口、不读取受污染像素、不更改原画布或宿主样式；识别和翻译由注入的现有图片客户端完成。
  */
 import {compressMangaPage, createMangaLightCache, type MangaCompressedPage, type MangaPatchPacket} from '../mangaPatchResult';
 import {composeMangaPage} from './mangaCompositor';
@@ -16,25 +16,39 @@ interface CanvasState {
     showing: boolean;
 }
 
-export function createMangaCanvas(ports: {
+export function createMangaCanvas<T extends HTMLElement = HTMLCanvasElement>(ports: {
     enabled: () => boolean;
     configurationIdentity: () => string;
     cacheEnabled: () => boolean;
-    acceptsInteractionLayer?: (canvas: HTMLCanvasElement, hit: Element) => boolean;
+    acceptsInteractionLayer?: (canvas: T, hit: Element) => boolean;
+    source?: {
+        identity: (element: T) => string | null;
+        capture: (element: T, target: HTMLCanvasElement, signal: AbortSignal) => Promise<void>;
+        bounds: (element: T) => DOMRect;
+    };
     translate: (image: string, signal: AbortSignal) => Promise<{mangaPatches?: MangaPatchPacket; lines: MangaCompressedPage['lines']}>;
 }) {
-    const states = new Map<HTMLCanvasElement, CanvasState>();
-    const ids = new WeakMap<HTMLCanvasElement, number>();
+    const states = new Map<T, CanvasState>();
+    const ids = new WeakMap<T, number>();
     const lightCache = createMangaLightCache();
     let sequence = 0;
-    const sample = document.createElement('canvas');
+    let sample: HTMLCanvasElement | null = null;
     let host: HTMLDivElement | null = null, root: ShadowRoot | null = null;
     let disposed = false;
 
-    function identity(canvas: HTMLCanvasElement): string | null {
-        if (disposed || canvas.width < 80 || canvas.height < 40 || canvas.width > 8192 || canvas.height > 8192
+    function identity(element: T): string | null {
+        if (disposed) return null;
+        if (ports.source) {
+            const fingerprint = ports.source.identity(element);
+            if (!fingerprint) return null;
+            if (!ids.has(element)) ids.set(element, ++sequence);
+            return `${ids.get(element)}:${fingerprint}:${ports.configurationIdentity()}`;
+        }
+        const canvas = element as unknown as HTMLCanvasElement;
+        if (canvas.width < 80 || canvas.height < 40 || canvas.width > 8192 || canvas.height > 8192
             || canvas.width * canvas.height > 16_000_000) return null;
         try {
+            sample ??= document.createElement('canvas');
             // 重设尺寸同时清除前一张受污染画布的状态，不让它阻止其他可读正文。
             sample.width = sample.height = 8;
             const context = sample.getContext('2d', {willReadFrequently: true});
@@ -48,12 +62,12 @@ export function createMangaCanvas(ports: {
             if (!data.some(value => value !== 0)) return null;
             let hash = 2166136261;
             for (const value of data) hash = Math.imul(hash ^ value, 16777619);
-            if (!ids.has(canvas)) ids.set(canvas, ++sequence);
-            return `${ids.get(canvas)}:${canvas.width}:${canvas.height}:${hash >>> 0}:${ports.configurationIdentity()}`;
+            if (!ids.has(element)) ids.set(element, ++sequence);
+            return `${ids.get(element)}:${canvas.width}:${canvas.height}:${hash >>> 0}:${ports.configurationIdentity()}`;
         } catch { return null; }
     }
 
-    function release(canvas: HTMLCanvasElement): void {
+    function release(canvas: T): void {
         const state = states.get(canvas);
         if (!state) return;
         state.controller?.abort();
@@ -67,7 +81,7 @@ export function createMangaCanvas(ports: {
             if (!canvas.isConnected || identity(canvas) !== state.identity) {release(canvas);continue;}
             const surface = state.surface;
             if (!surface) continue;
-            const rect = canvas.getBoundingClientRect();
+            const rect = ports.source ? ports.source.bounds(canvas) : canvas.getBoundingClientRect();
             let left = Math.max(0, rect.left), right = Math.min(window.innerWidth, rect.right);
             let top = Math.max(0, rect.top), bottom = Math.min(window.innerHeight, rect.bottom);
             let visible = state.showing && ports.enabled() && !document.hidden && rect.width > 0 && rect.height > 0;
@@ -92,7 +106,7 @@ export function createMangaCanvas(ports: {
         state.showing = true;
         if (state.surface) {
             if (!host) {
-                host = document.createElement('div');host.id = 'fluent-read-manga-canvas-container';
+                host = document.createElement('div');host.id = ports.source ? 'fluent-read-manga-background-container' : 'fluent-read-manga-canvas-container';
                 host.setAttribute('data-fluent-read-ui', 'manga-canvas');
                 host.style.cssText = 'all:initial;position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:2147483644;';
                 root = host.attachShadow({mode: 'closed'});document.documentElement.append(host);
@@ -102,13 +116,13 @@ export function createMangaCanvas(ports: {
         update();
     }
 
-    function reuse(canvas: HTMLCanvasElement): boolean {
+    function reuse(canvas: T): boolean {
         const state = states.get(canvas);
         if (!state?.completed || state.failed || state.identity !== identity(canvas) || !ports.enabled()) return false;
         show(state);return true;
     }
 
-    async function translate(canvas: HTMLCanvasElement): Promise<void> {
+    async function translate(canvas: T): Promise<void> {
         if (reuse(canvas)) return;
         const owner = identity(canvas);
         if (!owner || !ports.enabled() || !canvas.isConnected) return;
@@ -120,10 +134,16 @@ export function createMangaCanvas(ports: {
         const current = () => !disposed && !controller.signal.aborted && states.get(canvas) === state
             && canvas.isConnected && ports.enabled() && identity(canvas) === owner;
         try {
-            original.width = canvas.width;original.height = canvas.height;
-            const context = original.getContext('2d');
-            if (!context) throw new Error('浏览器不支持图片处理');
-            context.drawImage(canvas, 0, 0);
+            if (ports.source) {
+                await ports.source.capture(canvas, original, controller.signal);
+                if (!current()) return;
+            } else {
+                const source = canvas as unknown as HTMLCanvasElement;
+                original.width = source.width;original.height = source.height;
+                const context = original.getContext('2d');
+                if (!context) throw new Error('浏览器不支持图片处理');
+                context.drawImage(source, 0, 0);
+            }
             let page = ports.cacheEnabled() ? lightCache.get(owner) : undefined;
             if (!page) {
                 const result = await ports.translate(original.toDataURL('image/png'), controller.signal);
@@ -149,12 +169,12 @@ export function createMangaCanvas(ports: {
     const clear = () => {Array.from(states.keys()).forEach(release);lightCache.clear();};
     return {
         identity, translate, reuse, release, update,
-        failed: (canvas: HTMLCanvasElement) => states.get(canvas)?.failed === true,
-        restore(canvas: HTMLCanvasElement) {
+        failed: (canvas: T) => states.get(canvas)?.failed === true,
+        restore(canvas: T) {
             const state = states.get(canvas);
             if (state) {state.controller?.abort();state.showing = false;state.surface?.remove();}
         },
         resetCache: clear,
-        dispose() {disposed = true;clear();sample.width = sample.height = 0;host?.remove();host = null;root = null;},
+        dispose() {disposed = true;clear();if (sample) sample.width = sample.height = 0;host?.remove();host = null;root = null;},
     };
 }

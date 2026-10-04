@@ -228,7 +228,8 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
             for(const sample of JSON.parse(fs.readFileSync(liveReadersFile,'utf8'))){
                 report.currentCase=`live reader discovery: ${sample.url}`;
                 const response=await page.goto(sample.url,{waitUntil:'domcontentloaded',timeout:30000});await page.waitForTimeout(3000);focusGuard();
-                if(sample.openSelector)await page.locator(sample.openSelector).click({timeout:10000});
+                if(sample.rejectCookies) {const reject=page.locator('#onetrust-reject-all-handler');await reject.waitFor({timeout:8000}).then(()=>reject.click()).catch(()=>undefined);}
+                if(sample.openSelector && (!sample.openIfVisible || await page.locator(sample.openSelector).isVisible()))await page.locator(sample.openSelector).click({timeout:10000});
                 if(sample.pageKey)for(let turn=0;turn<(sample.pageKeyTurns||1);turn++)await page.keyboard.press(sample.pageKey);
                 const result={url:sample.url,status:response?.status(),mode:sample.mode};
                 (report.liveReaders??=[]).push(result);

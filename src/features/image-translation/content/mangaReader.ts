@@ -1,14 +1,24 @@
 /**
  * @file src/features/image-translation/content/mangaReader.ts
- * 文件职责：把漫画站点的正文图片、可读画布和页面生命周期接入同一连续翻译会话。
- * 主要内容：按站点规则发现正文并排除推广封面，不可读画布和分片发布圈选入口；发现与几何更新分开，按位置判断可见页；同地址重载及画布重绘更新像素身份；当前页优先的有界提前翻译和附近页共享像素预算，换章、隐藏和卸载清理监听器。
+ * 文件职责：把漫画站点的正文图片、可读画布、公开背景图和页面生命周期接入同一连续翻译会话。
+ * 主要内容：按站点规则发现正文并排除推广封面，不可读画布和分片发布圈选入口；发现与几何更新分开，按位置判断可见页；同地址重载、画布重绘及背景来源变化更新像素身份；当前页优先的有界提前翻译和附近页共享像素预算，换章、隐藏和卸载清理监听器。
  * 模块边界：只检查已展示正文，不抓取章节、不读取站点私有数据或绕过访问限制；图片与画布的读取、翻译、缓存和原图恢复通过注入端口复用图片运行时。
  */
 import {createMangaSession, type MangaTranslationStatus} from './mangaSession';
 import {normalizeMangaPrefetchPages, normalizeMangaCachePages, resolveMangaSite, type MangaSiteRule} from '@/src/core/config/manga';
 import {imageLoadTracker} from './imageLoads';
-type MangaSurface = HTMLImageElement | HTMLCanvasElement;
+type MangaSurface = HTMLElement;
 const isCanvas = (surface: MangaSurface): surface is HTMLCanvasElement => surface.tagName === 'CANVAS';
+const isImage = (surface: MangaSurface): surface is HTMLImageElement => surface.tagName === 'IMG';
+interface SurfacePorts<T extends HTMLElement> {
+    identity: (surface: T) => string | null;
+    translate: (surface: T) => Promise<void>;
+    reuse: (surface: T) => boolean;
+    restore: (surface: T) => void;
+    release: (surface: T) => void;
+    failed: (surface: T) => boolean;
+    update: () => void;
+}
 
 /** 精确站点与通用阅读器都需要 DOM 候选检查；网站目录不等同于逐站实测通过。 */
 export function mangaReaderSelector(href: string, rules: MangaSiteRule[] = []): string | null {
@@ -29,14 +39,11 @@ export function createMangaReader(ports: {
     release: (image: HTMLImageElement) => void;
     failed: (image: HTMLImageElement) => boolean;
     changed: (status: MangaTranslationStatus) => void;
-    canvas?: {
-        identity: (canvas: HTMLCanvasElement) => string | null;
-        translate: (canvas: HTMLCanvasElement) => Promise<void>;
-        reuse: (canvas: HTMLCanvasElement) => boolean;
-        restore: (canvas: HTMLCanvasElement) => void;
-        release: (canvas: HTMLCanvasElement) => void;
-        failed: (canvas: HTMLCanvasElement) => boolean;
-        update: () => void;
+    canvas?: SurfacePorts<HTMLCanvasElement>;
+    background?: SurfacePorts<HTMLElement> & {
+        prepare: (elements: HTMLElement[]) => void;
+        pixels: (element: HTMLElement) => number;
+        bounds: (element: HTMLElement) => DOMRect;
     };
 }) {
     let disposed = false;
@@ -45,16 +52,18 @@ export function createMangaReader(ports: {
     const observed = new Set<MangaSurface>();
     let discovered: HTMLImageElement[] = [];
     let discoveredCanvases: HTMLCanvasElement[] = [];
+    let discoveredBackgrounds: HTMLElement[] = [];
+    let backgroundReader = false;
     let discoveryDirty = true;
     let discoverySelector: string | null = null;
     let areaFallback = false;
     const decorate = (status: MangaTranslationStatus): MangaTranslationStatus => ({...status, pageCount: observed.size, areaFallback});
     const session = createMangaSession<MangaSurface>({
-        translate: surface => isCanvas(surface) ? ports.canvas!.translate(surface) : ports.translate(surface),
-        reuse: surface => isCanvas(surface) ? ports.canvas!.reuse(surface) : ports.reuse?.(surface) === true,
-        restore: surface => isCanvas(surface) ? ports.canvas!.restore(surface) : ports.restore(surface),
-        release: surface => isCanvas(surface) ? ports.canvas!.release(surface) : ports.release(surface),
-        failed: surface => isCanvas(surface) ? ports.canvas!.failed(surface) : ports.failed(surface),
+        translate: surface => isImage(surface) ? ports.translate(surface) : isCanvas(surface) ? ports.canvas!.translate(surface) : ports.background!.translate(surface),
+        reuse: surface => isImage(surface) ? ports.reuse?.(surface) === true : isCanvas(surface) ? ports.canvas!.reuse(surface) : ports.background!.reuse(surface),
+        restore: surface => isImage(surface) ? ports.restore(surface) : isCanvas(surface) ? ports.canvas!.restore(surface) : ports.background!.restore(surface),
+        release: surface => isImage(surface) ? ports.release(surface) : isCanvas(surface) ? ports.canvas!.release(surface) : ports.background!.release(surface),
+        failed: surface => isImage(surface) ? ports.failed(surface) : isCanvas(surface) ? ports.canvas!.failed(surface) : ports.background!.failed(surface),
         changed: status => ports.changed(decorate(status)),
     });
     let intersection: IntersectionObserver | null = null;
@@ -65,7 +74,7 @@ export function createMangaReader(ports: {
         intersection = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver(scheduleLayout);
         mutation = new MutationObserver(records => {
             const content = records.filter(record => !(record.target instanceof Element && record.target.closest('[data-fluent-read-ui]')));
-            if (content.some(record => record.type === 'childList' || record.attributeName !== 'style')) schedule();
+            if (content.some(record => record.type === 'childList' || record.attributeName !== 'style' || backgroundReader)) schedule();
             else if (content.length) scheduleLayout();
         });
         mutation.observe(document.documentElement, {subtree: true, childList: true, attributes: true,
@@ -78,6 +87,7 @@ export function createMangaReader(ports: {
         const route = `${url.origin}${url.pathname}${url.search}`;
         if (route !== cacheRoute) {ports.resetCache?.(); cacheRoute = route;discoveryDirty = true;}
         const site = resolveMangaSite(url.href, ports.siteRules?.());
+        backgroundReader = !!site?.backgroundSelector;
         const selector = site?.selector ?? null;
         const custom = site?.custom === true;
         const available = ports.enabled() && selector !== null;
@@ -88,10 +98,11 @@ export function createMangaReader(ports: {
             observed.clear();
             discovered = [];
             discoveredCanvases = [];
+            discoveredBackgrounds = [];
             discoveryDirty = true;
         }
         let images: HTMLImageElement[] = [];
-        const selectorKey = `${selector}:${site?.canvasSelector ?? ''}`;
+        const selectorKey = `${selector}:${site?.canvasSelector ?? ''}:${site?.backgroundSelector ?? ''}`;
         if (available) {
             // 自定义 CSS 选择器可能依赖任意属性或状态，保留动态查询；已知站点复用正文发现结果。
             if (custom || discoveryDirty || discoverySelector !== selectorKey) {
@@ -99,12 +110,17 @@ export function createMangaReader(ports: {
                 discoverySelector = selectorKey;
                 discovered = [];
                 discoveredCanvases = [];
+                discoveredBackgrounds = [];
                 try { discovered = Array.from(document.querySelectorAll(selector!))
                     .filter((image): image is HTMLImageElement => image.tagName === 'IMG' && !image.closest('[data-fluent-read-ui]')); }
                 catch { /* 无效用户选择器保持原图，不中断站点或生命周期。 */ }
                 if (site?.canvasSelector && ports.canvas) {
                     discoveredCanvases = Array.from(document.querySelectorAll(site.canvasSelector))
                         .filter((element): element is HTMLCanvasElement => element.tagName === 'CANVAS' && !element.closest('[data-fluent-read-ui]'));
+                }
+                if (site?.backgroundSelector && ports.background) {
+                    discoveredBackgrounds = Array.from(document.querySelectorAll<HTMLElement>(site.backgroundSelector))
+                        .filter(element => !element.closest('[data-fluent-read-ui]'));
                 }
             }
             images = discovered;
@@ -118,7 +134,9 @@ export function createMangaReader(ports: {
             if (expanded.length) images = expanded;
         }
         const canvases = discoveredCanvases.map(canvas => ({canvas, identity: ports.canvas!.identity(canvas)})).filter(page => page.identity !== null);
-        const current = new Set<MangaSurface>([...images, ...canvases.map(page => page.canvas)]);
+        ports.background?.prepare(discoveredBackgrounds);
+        const backgrounds = discoveredBackgrounds.map(element => ({element, identity: ports.background!.identity(element)})).filter(page => page.identity !== null);
+        const current = new Set<MangaSurface>([...images, ...canvases.map(page => page.canvas), ...backgrounds.map(page => page.element)]);
         observed.forEach(image => {
             if (current.has(image)) return;
             intersection?.unobserve(image);
@@ -150,7 +168,7 @@ export function createMangaReader(ports: {
         };
         // 无法直接读取的正文提供可见区域圈选，推广封面不进入连续翻译。
         areaFallback = false;
-        if (available && images.length === 0 && canvases.length === 0 && site?.areaSelector) {
+        if (available && images.length === 0 && canvases.length === 0 && backgrounds.length === 0 && site?.areaSelector) {
             try {areaFallback = Array.from(document.querySelectorAll(site.areaSelector)).some(element => {
                 if (element.closest('[data-fluent-read-ui]')) return false;
                 const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
@@ -172,6 +190,11 @@ export function createMangaReader(ports: {
             const ready = rect.width >= 80 && rect.height >= 40 && style.display !== 'none'
                 && style.visibility !== 'hidden' && style.visibility !== 'collapse';
             return {image: canvas, identity: identity!, ready, visible: ready && inViewport(canvas, rect), pixels: canvas.width * canvas.height};
+        }), ...backgrounds.map(({element, identity}) => {
+            const rect = ports.background!.bounds(element), style = getComputedStyle(element);
+            const ready = rect.width >= 80 && rect.height >= 40 && style.display !== 'none'
+                && style.visibility !== 'hidden' && style.visibility !== 'collapse';
+            return {image: element, identity: identity!, ready, visible: ready && inViewport(element, rect), pixels: ports.background!.pixels(element)};
         })];
         const anchor = candidates.reduce((last, page, index) => page.visible ? index : last, -1);
         const ahead = ports.prefetchPages ? normalizeMangaPrefetchPages(ports.prefetchPages()) : 0;
@@ -205,8 +228,9 @@ export function createMangaReader(ports: {
             const rect = page.image.getBoundingClientRect();
             return page.ready && rect.right > -window.innerWidth && rect.left < 2 * window.innerWidth
                 && rect.bottom > -window.innerHeight && rect.top < 2 * window.innerHeight;
-        }).sort((a, b) => Number(b.visible) - Number(a.visible) || Math.abs(a.image.getBoundingClientRect().top) - Math.abs(b.image.getBoundingClientRect().top)).slice(0, normalizeMangaCachePages(ports.cachePages?.())).map(page => page.image).filter((surface): surface is HTMLImageElement => !isCanvas(surface)));
+        }).sort((a, b) => Number(b.visible) - Number(a.visible) || Math.abs(a.image.getBoundingClientRect().top) - Math.abs(b.image.getBoundingClientRect().top)).slice(0, normalizeMangaCachePages(ports.cachePages?.())).map(page => page.image).filter(isImage));
         ports.canvas?.update();
+        ports.background?.update();
     }
 
     function scheduleLayout(): void {
@@ -239,6 +263,8 @@ export function createMangaReader(ports: {
             observed.clear();
             discovered = [];
             discoveredCanvases = [];
+            discoveredBackgrounds = [];
+            ports.background?.prepare([]);
             document.removeEventListener('load', loaded, true);
             document.removeEventListener('visibilitychange', scheduleLayout);
             document.removeEventListener('fluentread-route-change', schedule);
