@@ -8,7 +8,7 @@ Backups include API keys, configured OAuth tokens, authentication headers, custo
 
 ## Prepare a connection
 
-The server must support Basic authentication, `PROPFIND`, `GET`, `MKCOL`, and `PUT`. Safe updates also require strong ETags and support for `If-Match` and `If-None-Match`. An ETag may come from the download response header or the file's [`DAV:getetag` property](https://datatracker.ietf.org/doc/html/rfc4918#section-15.6). Property lookup is followed by a conditional read to verify the version and content. Use HTTPS with a valid certificate and a dedicated app password. Property responses are parsed using XML namespaces and the requested resource, including local prefixes, CDATA and character references. Versions from other files or failed properties are never used for replacement.
+The server must support Basic authentication, `PROPFIND`, `GET`, `MKCOL`, and `PUT`. Safe updates also require strong ETags and support for `If-Match` and `If-None-Match`. The extension checks the download response header, the file's [`DAV:getetag` property](https://datatracker.ietf.org/doc/html/rfc4918#section-15.6), then the `HEAD` response header. Property and HEAD lookup are followed by a conditional read and an exact ciphertext check to avoid pairing old content with a new version. Use HTTPS with a valid certificate and a dedicated app password. Property responses are parsed using XML namespaces and the requested resource, including local prefixes, CDATA and character references. Versions from other files or failed properties are never used for replacement.
 
 Enter the **WebDAV URL of an existing directory**, not the website homepage, a sharing link, or the backup file URL. Do not put credentials or query parameters in the URL.
 
@@ -48,6 +48,8 @@ Before committing, the extension rechecks both configurations. A change on eithe
 
 The current account, server URL, and last backup time for that connection appear beside the sync button. Use **Edit connection** to change accounts or servers. The confirmation screen lists changed settings and their device and cloud values. Connection changes show categories while keys, addresses, and custom content stay hidden. Merge conflicts appear before automatically retained changes. Identical configuration only updates the local sync record without uploading again.
 
+If none of these methods provides a strong ETag, the preview still shows differences and lets you **Restore cloud configuration**. A notice explains that saving and merging are unavailable. You go directly to review and confirmation, without unavailable save or merge actions or an extra operation-selection step. Restoration still rechecks cloud content and never bypasses authentication, corrupt-file checks, or version conflicts.
+
 <details class="guide-details">
 <summary>Change accounts or delete data</summary>
 
@@ -71,7 +73,7 @@ Backups use AES-GCM encryption before upload with the same fixed public applicat
 | Incorrect username or password | Account, app password, and Basic authentication support |
 | Missing or invalid WebDAV directory | The full directory URL and whether WebDAV is enabled |
 | Cannot connect | Network, certificate, and final URL; credentials are never forwarded through redirects |
-| Missing ETag for safe updates | Existing backups can still be restored; saving needs strong ETags and conditional writes |
+| Backup can be restored but lacks a version for safe replacement | Review differences and restore in the preview; saving and merging are unavailable until the server provides strong ETags and conditional writes |
 | Cloud backup changed | Generate a new preview and check other devices’ changes |
 | Storage full or backup too large | Free server space or use a local backup; JSON is limited to 20 MiB and encrypted files to 32 MiB |
 
