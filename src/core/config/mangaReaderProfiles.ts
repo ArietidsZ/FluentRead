@@ -1,18 +1,44 @@
 /**
  * @file src/core/config/mangaReaderProfiles.ts
  * 文件职责：保存经公开阅读页结构核对的正文规则，避免通用图片过滤漏掉正文或误选推荐封面。
- * 主要内容：已核对章节站的正文图片与 Palcy、Comic Pixiv 背景正文规则，Antbyw 和 Naver 查询参数章节边界，GigaViewer、Comici 和 ComicWalker 正文画布规则、不可读画布和分片的圈选入口；路径与域名均保留边界。
+ * 主要内容：已核对章节站的正文图片与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界，GigaViewer、Comici、ComicWalker 与 Animate 正文画布规则、不可读画布和 CMOA 等分片的圈选入口；路径与域名均保留边界。
  * 模块边界：纯匹配，不执行站点脚本、不读取私有接口、不截图；可访问的图片由 content 阅读器检测。
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
     'kuragebunch.com', 'shonenjumpplus.com', 'tonarinoyj.jp', 'comic-zenon.com', 'ichicomi.com', 'sunday-webry.com']);
-export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-super-hero-comics.com', 'jumptoon.com', 'comic-meteor.jp', 'kirapo.jp', 'pocket.shonenmagazine.com'];
+export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-super-hero-comics.com', 'jumptoon.com', 'comic-meteor.jp', 'kirapo.jp', 'pocket.shonenmagazine.com', 'cmoa.jp'];
 export const MANGA_BACKGROUND_READER_HOSTS = ['palcy.jp', 'comic.pixiv.net'];
 const comiciHosts = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
     'rimacomiplus.jp', 'heros-web.com', 'younganimal.com', 'youngchampion.jp'];
-export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com'];
+export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com', 'animatebookstore.com'];
 export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; canvasSelector?: string; canvasInteractionSelector?: string; backgroundSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
+    if (host === 'animatebookstore.com' && /^\/viewer\/?$/.test(pathname)
+        && /^\d+$/.test(new URLSearchParams(search).get('product_id') ?? '')) return {
+        name: 'Animatebookstore', selector: ':not(*)',
+        canvasSelector: '.view-sheet-container .view-sheet .content.zoomable > canvas',
+        canvasInteractionSelector: '.view-sheet-container .view-sheet .content.zoomable > img.blank-img',
+        areaSelector: '.view-sheet-container .view-sheet .content.zoomable > canvas',
+    };
+    if (host === 'cmoa.jp' && /^\/bib\/speedreader\/?$/.test(pathname)
+        && /^\d+_jp_\d+$/.test(new URLSearchParams(search).get('cid') ?? '')) return {
+        name: 'Comic CMOA', selector: ':not(*)', areaSelector: '#content .pt-img img',
+    };
+    if (host === 'tapas.io' && (/^\/episode\/\d+\/?$/.test(pathname) || /^\/series\/[^/]+\/?$/.test(pathname))) return {
+        name: 'Tapas', selector: '[id^="episode-"].episode-unit .viewer__body img.content__img',
+    };
+    if (host === 'page.kakao.com' && /^\/content\/\d+\/viewer\/\d+\/?$/.test(pathname)) return {
+        name: 'Kakao', selector: '.image-container > img[src^="https://page-edge.kakao.com/sdownload/resource?"]',
+    };
+    if (host === 'manhwaclub.net' && /^\/manga\/[^/]+\/chapter-[^/]+\/?$/.test(pathname)) return {
+        name: 'ManhwaClub', selector: '.reading-content .page-break > img.wp-manga-chapter-img',
+    };
+    if (['twmanga.com', 'twbzmg.com', 'cn.twbzmg.com'].includes(host) && /^\/comic\/chapter\/[^/]+\/\d+_\d+\.html$/.test(pathname)) return {
+        name: '包子漫画', selector: '.chapter-main .comic-contain amp-img[id^="chapter-img-"] > img',
+    };
+    if (host === 'global.manga-up.com' && /^\/manga\/\d+\/\d+\/?$/.test(pathname)) return {
+        name: 'Manga UP', selector: '[data-testid="placeholder"] > img[alt^="page_"]',
+    };
     if (host === 'palcy.jp' && /^\/comics\/\d+\/?$/.test(pathname)
         || host === 'comic.pixiv.net' && /^\/viewer\/stories\/\d+\/?$/.test(pathname)) return {
         name: host, selector: ':not(*)',

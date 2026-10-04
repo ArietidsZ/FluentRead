@@ -1,5 +1,5 @@
 {
-  "checkedOn": "2026-10-05 Asia/Shanghai",
+  "checkedOn": "2026-10-05",
   "scope": "Public HTML availability and selected chapter DOM inspection. Neither proves all chapters or live OCR/translation.",
   "sources": [
     "https://github.com/immersive-translate/immersive-translate/issues/1809",
@@ -416,6 +416,16 @@
           "title": "無料試し読みなら電子書籍ストア - ブックウォーカー ( BOOK WALKER )",
           "htmlSha256": "df12b2ffe1fa2c272d5a796d5dc4f3f4c82fbc68c156dc6a0c8f652a88c4290c",
           "hostname": "bookwalker.jp"
+        },
+        {
+          "requestedUrl": "https://bookwalker.jp/",
+          "status": 200,
+          "title": "無料試し読みなら電子書籍ストア - ブックウォーカー ( BOOK WALKER )",
+          "finalUrl": "https://bookwalker.jp/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "6d1568806cdc403d7945a7e88c5069fe632b519f09b95e3edda2a99685f1950a"
         }
       ],
       "adapter": "detect"
@@ -826,6 +836,25 @@
           "title": "ピッコマ｜無料漫画・小説、新作コミックが毎日楽しめる！",
           "htmlSha256": "ba8665489fb94a40a2a9372f38e947a52c5fc5235408f582a128f9367e650cb0",
           "hostname": "piccoma.com"
+        },
+        {
+          "requestedUrl": "https://piccoma.com/web/",
+          "status": 200,
+          "title": "ピッコマ｜無料漫画・小説、新作コミックが毎日楽しめる！",
+          "finalUrl": "https://piccoma.com/web/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "02d7f7858fbe02bc44531885a45b7532b6dd77e6d26c20953d711fb67ede31ae"
+        },
+        {
+          "requestedUrl": "https://piccoma.com/web/product/70072?etype=episode",
+          "finalUrl": "https://piccoma.com/web/product/70072?etype=episode",
+          "status": 200,
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "region-restricted",
+          "scope": "Public product/episode-list access check; not a chapter sample",
+          "finding": "Public page states viewing is limited to Japan; no body or bypass."
         }
       ],
       "adapter": "detect"
@@ -1025,9 +1054,19 @@
           "checkedAt": "2026-10-04T16:25:10Z",
           "state": "unreachable",
           "hostname": "animatebookstore.com"
+        },
+        {
+          "requestedUrl": "https://www.animatebookstore.com/",
+          "status": 200,
+          "title": "アニメイトブックストア | 漫画・コミックの電子書籍ストア",
+          "finalUrl": "https://www.animatebookstore.com/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "bb3c080bf96ac54f9fdf75209699888f47cb22eedccb1e4984047a4f97de1a32"
         }
       ],
-      "adapter": "detect"
+      "adapter": "readable-canvas"
     },
     {
       "name": "GANMA",
@@ -1229,7 +1268,8 @@
     {
       "name": "Lezhin Comics",
       "hosts": [
-        "lezhin.com"
+        "lezhin.com",
+        "lezhinus.com"
       ],
       "accessChecks": [
         {
@@ -1241,6 +1281,16 @@
           "title": "레진코믹스 - 솔직한 재미 대폭발",
           "htmlSha256": "089f569ee3e0ebd08b2ce594fe0f75c50e8c441d707eee346daed3e63d2062cc",
           "hostname": "lezhin.com"
+        },
+        {
+          "requestedUrl": "https://www.lezhin.com/en",
+          "status": 200,
+          "title": "Lezhin Comics - Your Fantasy, Our Content",
+          "finalUrl": "https://www.lezhinus.com/en",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "ecb23772a360ed64db504f1123aa395b699f3624d331617145beaeb86982b79d"
         }
       ],
       "adapter": "detect"
@@ -1279,9 +1329,19 @@
           "title": "Manhwaclub",
           "htmlSha256": "7eb6a139ad2052672c322b4854666a7295a86762ee20356a527965d8f7300b09",
           "hostname": "manhwaclub.net"
+        },
+        {
+          "requestedUrl": "https://manhwaclub.net/",
+          "status": 200,
+          "title": "Manhwaclub",
+          "finalUrl": "https://manhwaclub.net/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "c9b81e0a6ad49bff22c523513ba942549de9957fc317c2dee304d5e06e7db438"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "JinMangas",
@@ -1304,6 +1364,16 @@
           "title": "Atsumaru",
           "htmlSha256": "3ec2a21563591c49aa2cc4ed2416c283c23b331ef0fe3358fe7737cfb1fbcb79",
           "hostname": "atsu.moe"
+        },
+        {
+          "requestedUrl": "https://atsu.moe/",
+          "status": 200,
+          "title": "Atsumaru",
+          "finalUrl": "https://atsu.moe/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "d56095c16e2f8f89f7bed339b1ecbf2666703cc3ff1d38464ebdc7b49f48443a"
         }
       ],
       "adapter": "detect"
@@ -1319,9 +1389,19 @@
           "checkedAt": "2026-10-04T16:25:16Z",
           "state": "unreachable",
           "hostname": "cmoa.jp"
+        },
+        {
+          "requestedUrl": "https://www.cmoa.jp/",
+          "status": 200,
+          "title": "漫画多すぎ！業界最大級のコミックシーモア｜無料で楽しめる！",
+          "finalUrl": "https://www.cmoa.jp/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "48f4d336ce3005f99087ffeac51185fcb1ee2810fde5d5dc8aa628df41c77b0e"
         }
       ],
-      "adapter": "detect"
+      "adapter": "area"
     },
     {
       "name": "Televi-Kun Super Hero Comics",
@@ -1417,9 +1497,19 @@
           "title": "추천 | 카카오페이지",
           "htmlSha256": "2758b5f2b8985cae00dc66182d5ebdc2b66263c019defde5e9cec1b0ea16875a",
           "hostname": "page.kakao.com"
+        },
+        {
+          "requestedUrl": "https://page.kakao.com/",
+          "status": 200,
+          "title": "추천 - 지금핫한 | 카카오페이지",
+          "finalUrl": "https://page.kakao.com/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "566546441508e0aaf0113a949ae3ac6a1810f8a3b96166072617740ab1dd3035"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "TopReadManga",
@@ -1836,7 +1926,7 @@
           "hostname": "cn.twbzmg.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "Nyx Scans",
@@ -1951,7 +2041,8 @@
     {
       "name": "twmanga.com",
       "hosts": [
-        "twmanga.com"
+        "twmanga.com",
+        "twbzmg.com"
       ],
       "accessChecks": [
         {
@@ -1963,9 +2054,19 @@
           "title": "🌈️包子漫畫",
           "htmlSha256": "aee670e4450ded19c158f29aa1951c4c47054e7a87b6e837984aa3db2636bc3f",
           "hostname": "twmanga.com"
+        },
+        {
+          "requestedUrl": "https://www.twmanga.com/",
+          "status": 200,
+          "title": "🌈️包子漫畫",
+          "finalUrl": "https://www.twmanga.com/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "8fea7aae5afdaa94641f23bf0daca6b863388ae057d68f0396b03e53beccbab6"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "mgeko.cc",
@@ -2453,6 +2554,16 @@
           "title": "Just a moment...",
           "htmlSha256": "be67dbe246f31b4497bbd9589d67fe17de61ca6272701560250f81a02b124fa9",
           "hostname": "comix.to"
+        },
+        {
+          "requestedUrl": "https://comix.to/",
+          "status": 403,
+          "title": "请稍候…",
+          "finalUrl": "https://comix.to/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "access-challenge",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "7938a21a91c289f935e29f47115a19eb3859a1dd69e6a5f6679e45244df406bc"
         }
       ],
       "adapter": "detect"
@@ -2588,6 +2699,16 @@
           "title": "Omega Scans - High Quality Comics and Novels",
           "htmlSha256": "1b785150d326e30875a2cc69fc9d4b8d8845a4cdd8509f83da662906e1084f34",
           "hostname": "omegascans.org"
+        },
+        {
+          "requestedUrl": "https://omegascans.org/",
+          "status": 200,
+          "title": "Omega Scans - High Quality Comics and Novels",
+          "finalUrl": "https://omegascans.org/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "7c5559116d59cd405e8d2d3294387984aa4ed4d1ed451d8cf0b5c6f4adae074d"
         }
       ],
       "adapter": "detect"
@@ -2637,6 +2758,17 @@
           "title": "UTOON — Free Browser Games Online",
           "htmlSha256": "77d33fc148c8fc5e6774ef21e3b951dddb0d3f32f68d8bca5356ba2c7f90d153",
           "hostname": "utoon.net"
+        },
+        {
+          "requestedUrl": "https://utoon.net/",
+          "status": 200,
+          "title": "UTOON — Free Browser Games Online",
+          "finalUrl": "https://utoon.net/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "changed-content",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "38958a2287e96ab2d7ff1f6c55fd3d40b9d7ea3303c9fb37720300d42e50655c",
+          "finding": "Current public home presents browser games; no manga reader confirmed."
         }
       ],
       "adapter": "detect"
@@ -2823,6 +2955,16 @@
           "title": "ToonGod.CC - Read Webtoon (Korean Manhwa) in English Online Free!",
           "htmlSha256": "21808281e38c3d61454ce73cf42f50a36a79e096fd453424775b491bd2722f67",
           "hostname": "toongod.cc"
+        },
+        {
+          "requestedUrl": "https://toongod.cc/",
+          "status": 200,
+          "title": "ToonGod.CC - Read Webtoon (Korean Manhwa) in English Online Free!",
+          "finalUrl": "https://toongod.cc/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "e6d5e14bb3da4585a93415d902181735ab1c6f6117657fa99d0ef9fd4cc2373c"
         }
       ],
       "adapter": "detect"
@@ -3378,9 +3520,19 @@
           "title": "Tapas: Stories You Crave",
           "htmlSha256": "ef8648e73f059f9c18bf1e114a004d11eee81a8f61091d2b67a646ffc872ac1a",
           "hostname": "tapas.io"
+        },
+        {
+          "requestedUrl": "https://tapas.io/",
+          "status": 200,
+          "title": "Home | Spotlight",
+          "finalUrl": "https://tapas.io/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "c6dc2a1cf14ac5c3134b3b9852e226b079a456d53a43787b8657fcb94d27c23f"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "kagane.to",
@@ -3965,9 +4117,19 @@
           "title": "Manga UP!",
           "htmlSha256": "aa18b902452d0ae7d7216da64655888a487eb8638ea4d4cd481d1193383ce7c7",
           "hostname": "global.manga-up.com"
+        },
+        {
+          "requestedUrl": "https://global.manga-up.com/",
+          "status": 200,
+          "title": "Manga UP!",
+          "finalUrl": "https://global.manga-up.com/",
+          "checkedAt": "2026-10-04T23:18:57Z",
+          "state": "html-accessible",
+          "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
+          "htmlSha256": "42178749d37f9783e1d087787f023c228e97876e6f6432f0dc70f8f98c7f78c1"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "mangaball.net",
@@ -5349,6 +5511,121 @@
       "readerAction": {
         "selector": "button:has-text(\"最初から読む\")"
       }
+    },
+    {
+      "url": "https://manhwaclub.net/manga/i-want-to-work-quietly-02/chapter-42-raw/",
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Complete body images under .reading-content .page-break > img.wp-manga-chapter-img. The raw chapter has not undergone OCR acceptance.",
+      "status": 200,
+      "imageCount": 53,
+      "canvasCount": 0,
+      "backgroundCount": 0
+    },
+    {
+      "url": "https://toongod.cc/webtoon/chronicles-of-the-demon-faction/chapter-191/",
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Complete body strips under .reading-chapter .reading-img .reading-content > p > img. Strips of 900x16006 and 900x16056 exceed bounded image processing dimensions; long-strip translation remains unverified.",
+      "status": 200,
+      "imageCount": 24,
+      "canvasCount": 0,
+      "backgroundCount": 0
+    },
+    {
+      "url": "https://atsu.moe/read/9x6iM/KAXiwn",
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Complete body strips under #reader-scroll-inner > div > img. Strips of 800x15744 and 800x16544 need bounded segment processing; no full-strip translation acceptance.",
+      "status": 200,
+      "imageCount": 15,
+      "canvasCount": 0,
+      "backgroundCount": 0
+    },
+    {
+      "url": "https://global.manga-up.com/manga/164/14826",
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Complete same-origin blob body pages with data-testid=placeholder and page_ alt; hashed CSS classes excluded from profile. Normal Cookiebot reject control observed.",
+      "status": 200,
+      "imageCount": 4,
+      "canvasCount": 0,
+      "backgroundCount": 0
+    },
+    {
+      "url": "https://www.lezhinus.com/en/login?redirect=https%3A%2F%2Fwww.lezhinus.com%2Fen%2Fcomic%2Fphantomthief%2F01",
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Publicly marked Free episode redirects to Lezhinus login. No login or access restriction bypass; body not confirmed.",
+      "requestedUrl": "https://www.lezhinus.com/en/comic/phantomthief/01",
+      "status": 200,
+      "imageCount": 0,
+      "canvasCount": 0,
+      "backgroundCount": 0
+    },
+    {
+      "url": "https://www.cmoa.jp/bib/speedreader/?cid=0000068502_jp_0001&u0=1&rurl=https%3A%2F%2Fwww.cmoa.jp%2F",
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Public free sample redirects to /bib/speedreader/ with numeric jp cid. Body composed of .pt-img fragments; area only, not individual-fragment OCR. Initial operation-guide iframe still present in DOM research, later normally dismissed during extension entry recheck.",
+      "requestedUrl": "https://www.cmoa.jp/reader/sample/?title_id=68502&content_id=100000685020001",
+      "status": 200,
+      "readerKey": "ArrowLeft",
+      "readerKeyCount": 2,
+      "imageCount": 16,
+      "canvasCount": 0,
+      "backgroundCount": 0
+    },
+    {
+      "url": "https://page.kakao.com/content/56566288/viewer/56605697/",
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Public free Korean chapter contains complete body images in .image-container from page-edge.kakao.com; exact path/source scope excludes unrelated artwork. No Korean OCR quality acceptance.",
+      "status": 200,
+      "imageCount": 117,
+      "canvasCount": 0,
+      "backgroundCount": 0
+    },
+    {
+      "url": "https://www.animatebookstore.com/viewer/?product_id=2108124",
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Public free preview body canvas readable under .view-sheet-container .view-sheet .content.zoomable. Normal modal click and two ArrowLeft turns reveal actual body; transparent blank-img is the public interaction layer.",
+      "status": 200,
+      "readerKey": "ArrowLeft",
+      "readerKeyCount": 2,
+      "readerAction": {
+        "selector": ".view-modal[data-cy=\"view-modal\"]"
+      },
+      "imageCount": 5,
+      "canvasCount": 9,
+      "backgroundCount": 0
+    },
+    {
+      "url": "https://www.twbzmg.com/comic/chapter/dingjiqiyunqiaoqiaoxiulianqiannian-yuewenmanhua/0_271.html",
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Observed twmanga public reading link redirects to www.twbzmg.com AMP chapter body. Exact chapter-img amp-img container excludes recommendations; no OCR acceptance for this Chinese chapter.",
+      "requestedUrl": "https://www.twmanga.com/user/page_direct?comic_id=dingjiqiyunqiaoqiaoxiulianqiannian-yuewenmanhua&section_slot=0&chapter_slot=271",
+      "status": 200,
+      "imageCount": 7,
+      "canvasCount": 0,
+      "backgroundCount": 0
+    },
+    {
+      "url": "https://tapas.io/episode/3958118",
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Public Tapas episode has complete body images in episode-unit viewer__body. One-pixel lazy placeholders and recommendations are excluded. Anonymous signed image query strings omitted from repository.",
+      "status": 200,
+      "imageCount": 144,
+      "canvasCount": 0,
+      "backgroundCount": 0
+    },
+    {
+      "url": "https://utoon.net/manga/page/26/",
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Historical public manga archive URL returns 404. Current homepage presents browser games; no current manga reader confirmed, not proof of permanent site closure.",
+      "status": 404,
+      "imageCount": 0,
+      "canvasCount": 0,
+      "backgroundCount": 0
+    },
+    {
+      "url": "https://bookwalker.jp/de5c93ad79-007d-4975-b94e-9d20c92e1cc4/?sample=2",
+      "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
+      "readerFinding": "Public home-page free-preview link fails to reach DOMContentLoaded within 25s when opened directly. Separate normal-popup attempt later had a busy renderer; no body acceptance.",
+      "error": "page.goto: Timeout 25000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"https://bookwalker.jp/de5c93ad79-007d-4975-b94e-9d20c92e1cc4/?sample=2\", waiting until \"domcontentloaded\"\u001b[22m\n"
     }
   ],
   "verification": {
@@ -6520,6 +6797,159 @@
       "source": "production PaddleOCR and live Google; local model files imported and hash-validated by existing extension importer",
       "qualityAccepted": false,
       "qualityNotes": "Both first translated spread and normal next spread show partial Chinese, but Japanese vertical text remains, artwork lettering is missed, and OCR/typesetting/translation mistakes remain. This verifies the reader integration, not whole-chapter quality."
+    },
+    "publicPreviewProfilesUnit": {
+      "cases": 373,
+      "files": 5,
+      "coverage": "statements/branches/functions/lines 100% for manga config, profiles, catalog, reader, canvas, background",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave11.log"
+    },
+    "publicPreviewEntriesInitialAttempt": {
+      "status": "failed",
+      "casesReached": 23,
+      "readerEntriesConfirmed": 7,
+      "cause": "Two no-stack SyntaxErrors failed strict unknown-error audit. Both reproduced on the same URLs without extension; initial report retained.",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-wave11/report.json"
+    },
+    "publicPreviewEntries": {
+      "status": "passed",
+      "cases": 23,
+      "realReaders": 7,
+      "scope": "16 icon/entry scenarios, five image readers, one readable canvas and one area reader",
+      "hostErrors": 3,
+      "hostSyntaxErrorsReproducedWithoutExtension": true,
+      "normalCmoaGuideDismissal": "frame #menu_tips_frame image button #img_button",
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "focus": "secondary display, normal background browser never foreground",
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-wave11-recheck/report.json"
+    },
+    "tapasFirstCancelAttempt": {
+      "status": "failed",
+      "cause": "Test canceled during image reading before an OCR message was sent; cancellation counter stayed zero and the test timed out. No OCR operation or text batch ran; failure retained.",
+      "operations": 0,
+      "extensionErrors": 0,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/tapas-live-translation-wave11/report.json"
+    },
+    "tapasOpeningTranslation": {
+      "status": "passed",
+      "cases": 6,
+      "pages": 2,
+      "pageDurationsMs": [
+        27608,
+        14924
+      ],
+      "operations": 2,
+      "scope": "Content notice and scene opening; not dialogue or whole-chapter acceptance",
+      "firstCancellationCheckSkipped": true,
+      "originalSourceAndStyleRestored": true,
+      "pauseReusesWithoutOcr": true,
+      "modelsPreloadedAndVerified": true,
+      "modelRequests": 0,
+      "extensionErrors": 0,
+      "hostErrors": 1,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/tapas-live-translation-wave11-recheck/report.json"
+    },
+    "bookWalkerPopupAttempt": {
+      "status": "unverified",
+      "scope": "Read-only public home free-preview popup without extension",
+      "cause": "DOM inspection blocked by busy public renderer; own isolated Edge terminated after six minutes. Target closed failure retained; profile removed.",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/bookwalker-popup-wave11-recheck/reader-inspection.json"
+    },
+    "publicPreviewBuilds": {
+      "chrome": "passed",
+      "firefox": "passed, build only",
+      "userscript": "passed, build only",
+      "manifestVerifier": "passed",
+      "userscriptVerifier": "passed",
+      "userscriptBytes": 1916952,
+      "typeCheck": "passed",
+      "testAudit": {
+        "files": 467,
+        "declarations": 6036
+      },
+      "runtimeIntegrationCases": 201,
+      "reportsRoot": "/private/tmp/fluentread-brand-manga-sites-20261005",
+      "architectureCases": 808,
+      "architectureScope": "module boundaries and source headers only; full architecture not run",
+      "docs": "passed"
+    },
+    "animateReadableCanvasTranslation": {
+      "status": "passed",
+      "cases": 4,
+      "canvasFirstPageMs": 142002,
+      "naturalPages": [
+        {
+          "width": 1304,
+          "height": 2048
+        },
+        {
+          "width": 1304,
+          "height": 2048
+        }
+      ],
+      "sourcePixelsAndStyleUnchanged": true,
+      "sourceInteractionLayer": "public transparent blank-img only",
+      "canvasStableAfterPointerExit": true,
+      "pauseReusesWithoutOcr": true,
+      "normalChapterTurn": true,
+      "masterSwitchCleanup": true,
+      "operations": 5,
+      "modelsPreloadedAndVerified": true,
+      "modelRequests": 0,
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 0,
+      "profileRemoved": true,
+      "quality": "Partial Chinese visible in first and next groups; vertical/ruby text missed, source remnants, wrong translations and overlapping text; not whole-chapter quality acceptance",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/animate-live-translation-wave11/report.json"
+    },
+    "tapasNoTextSceneAttempt": {
+      "status": "failed test assertion",
+      "cause": "Third image OCR completed with no text, preserving original. The test required a bitmap and timed out. This scene is not dialogue; not counted as a successful text translation or as a confirmed production regression.",
+      "operations": 1,
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 1,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/tapas-body-translation-wave11/report.json"
+    },
+    "tapasDialogueTranslation": {
+      "status": "passed",
+      "cases": 6,
+      "sourcePageRange": [
+        8,
+        9
+      ],
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 17855,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 4200,
+          "mayIncludeFirstInpaintingPreparation": true
+        }
+      ],
+      "operations": 2,
+      "sourceAndStyleRestored": true,
+      "pauseReusesWithoutOcr": true,
+      "normalLazyLoadScrolling": true,
+      "firstCancellationCheckSkipped": true,
+      "quietReading": true,
+      "sourceCaptureMethod": "displayed element screenshots; production source reading unchanged",
+      "modelsPreloadedAndVerified": true,
+      "modelRequests": 0,
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 1,
+      "profileRemoved": true,
+      "quality": "Chinese dialogue visible on both selected pages; rectangular cleanup patches and mixed Chinese script remain visible; not whole-chapter quality acceptance",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/tapas-dialogue-translation-wave11/report.json"
     }
   }
 }

@@ -18,6 +18,11 @@ const headlessResearch = process.argv.includes('--headless-research');
 fs.mkdirSync(artifacts, {recursive:true});
 const report = {scope: urls, pages: [], errors: []};
 let launched, browserPid;
+async function boundedPageRead(operation) {
+  let timeout;
+  try {return await Promise.race([operation,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('Public DOM inspection timed out after 30 seconds')),30000);})]);}
+  finally {clearTimeout(timeout);}
+}
 function focusGuard() {
   if (headlessResearch) return;
   const current = JSON.parse(execFileSync('/usr/bin/osascript', ['-l','JavaScript','-e', "ObjC.import('AppKit');const a=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(a.processIdentifier),name:ObjC.unwrap(a.localizedName)});"], {encoding:'utf8'}));
@@ -35,16 +40,28 @@ function focusGuard() {
     report.purpose = headlessResearch ? 'read-only DOM research without extension; not extension runtime validation' : 'read-only visible DOM research without extension';
     const system = await launched.context.browser().newBrowserCDPSession();
     browserPid = (await system.send('SystemInfo.getProcessInfo')).processInfo.find(p=>p.type==='browser').id;
+    report.browserPid=browserPid;report.profileDir=profile;
+    fs.writeFileSync(path.join(artifacts,'reader-inspection.json'),JSON.stringify(report,null,2));
     await system.detach();focusGuard();
     for (const href of urls) {
-      const page = await newPageWithoutForeground(launched.context);
+      let page = await newPageWithoutForeground(launched.context);
+      const parentPage = page, navigationResponses=[];
+      const recordResponse=response=>{if(response.request().isNavigationRequest())navigationResponses.push({url:response.url(),status:response.status()});};
+      launched.context.on('response',recordResponse);
       const result = {requestedUrl:href,pageErrors:[]};
       page.on('pageerror',error=>result.pageErrors.push({message:error.message,stack:error.stack||''}));
       try {
         const response = await page.goto(href,{waitUntil:'domcontentloaded',timeout:25000});
         await page.waitForTimeout(settleMs);result.settleMs=settleMs;
         const clickSelector=process.argv.includes('--before-inspect-click')?arg('before-inspect-click'):null;
-        if(clickSelector){await page.locator(clickSelector).click({timeout:10000});result.readerAction={selector:clickSelector};await page.waitForTimeout(settleMs);}
+        if(clickSelector){
+          const popup=process.argv.includes('--inspect-popup')?launched.context.waitForEvent('page',{timeout:15000}).then(value=>({page:value}),error=>({error})):null;
+          await page.locator(clickSelector).click({timeout:10000});result.readerAction={selector:clickSelector};
+          if(popup){const opened=await popup;if(opened.error)throw opened.error;page=opened.page;await page.waitForLoadState('domcontentloaded',{timeout:20000}).catch(error=>{result.popupNavigationError=error.message;});}
+          await page.waitForTimeout(settleMs);
+        }
+        const scrollSelector=process.argv.includes('--before-inspect-scroll')?arg('before-inspect-scroll'):null;
+        if(scrollSelector){await page.locator(scrollSelector).scrollIntoViewIfNeeded({timeout:15000});result.readerScroll=scrollSelector;await page.waitForTimeout(settleMs);}
         const pageKey=process.argv.includes('--before-inspect-key')?arg('before-inspect-key'):null;
         if(pageKey){
           const count=Math.min(4,Math.max(1,Number(process.argv.includes('--reader-key-count')?arg('reader-key-count'):1)));
@@ -58,14 +75,20 @@ function focusGuard() {
         }
         if(pageKey)await page.waitForTimeout(900);
         focusGuard();
-        Object.assign(result, await page.evaluate(async () => {
+        result.url=page.url();
+        Object.assign(result, await boundedPageRead(page.evaluate(async () => {
+          const publicSource = value => {
+            if(value.startsWith('data:'))return `[inline image: ${value.length} characters]`;
+            try {const url=new URL(value);if(url.protocol==='https:' || url.protocol==='http:'){url.search='';url.hash='';return url.href;}}catch{}
+            return value;
+          };
           const ancestors = element => {
             const values = [];
             for (let parent=element;parent && values.length<5;parent=parent.parentElement) values.push({tag:parent.tagName,id:parent.id,className:typeof parent.className==='string'?parent.className:'',dataPage:parent.getAttribute('data-page')});
             return values;
           };
           const images = Array.from(document.images).filter(img=>img.width>=200 || img.naturalWidth>=300).map(img=>({
-            source:img.currentSrc || img.src, width:img.width,height:img.height,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,
+            source:publicSource(img.currentSrc || img.src), width:img.width,height:img.height,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,
             rect: {x:img.getBoundingClientRect().x,y:img.getBoundingClientRect().y,width:img.getBoundingClientRect().width,height:img.getBoundingClientRect().height}, ancestors:ancestors(img)}));
           const backgrounds=[];
           for(const element of Array.from(document.querySelectorAll('div[id^="page-"]')).slice(0,12)) {
@@ -102,21 +125,44 @@ function focusGuard() {
                 rect:rect.toJSON(),centerHit:hit?{tag:hit.tagName,id:hit.id,className:hit.className,containsCanvas:hit.contains(c)}:null,
                 parentPosition:c.parentElement?getComputedStyle(c.parentElement).position:null};
             }),
-            frames:Array.from(document.querySelectorAll('iframe')).map(f=>({src:f.src,id:f.id})),
+            frames:Array.from(document.querySelectorAll('iframe')).map(f=>({src:publicSource(f.src),id:f.id})),
             controls:Array.from(document.querySelectorAll('button,a')).filter(e=>/読む|読ん|続きを読む|read|viewer/i.test(e.textContent)).slice(0,8).map(e=>({tag:e.tagName,text:e.textContent.trim().slice(0,100),href:e.getAttribute('href')})),
+            readerLinks:Array.from(document.querySelectorAll('a[href]')).filter(e=>/^https?:/.test(e.href) && new URL(e.href).origin===location.origin
+              && (/chapter|episode|viewer|\/read\/|\/title\/|\/work|\/manga|\/comic|\/series|\/product|\/de[a-f\d]/i.test(e.href)
+                || /試し?読み|試読|無料|読む|Read/i.test(e.textContent))).slice(0,50).map(e=>({url:e.href,text:e.textContent.trim().slice(0,120)})),
             detectedRestriction:/Just a moment|Access Denied|Verify you are human/i.test(document.title)};
+        })));
+        result.status=page===parentPage?response?.status():navigationResponses.findLast(record=>record.url===page.url())?.status;
+        result.navigationResponses=navigationResponses.filter(record=>[href,page.url()].includes(record.url));
+        const publicHtml=await boundedPageRead(page.evaluate(()=>{
+          const copy=document.documentElement.cloneNode(true);
+          copy.querySelectorAll('script').forEach(script=>script.remove());
+          copy.querySelectorAll('*').forEach(element=>{
+            for(const attribute of [...element.attributes]) {
+              if(attribute.name.startsWith('on'))element.removeAttribute(attribute.name);
+              if(['src','href','srcset','data-src','data-srcset'].includes(attribute.name)) {
+                if(attribute.value.startsWith('data:'))element.setAttribute(attribute.name,'[inline image omitted]');
+                else element.setAttribute(attribute.name,attribute.value.replace(/\?[^\s"']*/g,''));
+              }
+            }
+          });
+          return '<!doctype html>'+copy.outerHTML;
         }));
-        result.status=response?.status();
-        fs.writeFileSync(path.join(artifacts,`${report.pages.length}.html`),await page.content());
+        fs.writeFileSync(path.join(artifacts,`${report.pages.length}.html`),publicHtml);
         if(process.argv.includes('--capture-page')) {
           result.screenshot=path.join(artifacts,`${report.pages.length}.png`);
           focusGuard();await page.screenshot({path:result.screenshot});
+        }
+        if(process.argv.includes('--capture-element') && scrollSelector) {
+          result.elementScreenshot=path.join(artifacts,`${report.pages.length}-element.png`);
+          focusGuard();await page.locator(scrollSelector).screenshot({path:result.elementScreenshot,timeout:15000});
         }
       } catch(error) {result.error=error.message;}
       report.pages.push(result);
       fs.writeFileSync(path.join(artifacts,'reader-inspection.json'),JSON.stringify(report,null,2));
       console.log(JSON.stringify({url:href,status:result.status,images:result.imageCount,canvases:result.canvases?.length,error:result.error}));
-      await page.close();
+      launched.context.off('response',recordResponse);
+      await page.close();if(page!==parentPage)await parentPage.close();
     }
   } catch(error) {report.errors.push(error.stack);process.exitCode=1;}
   finally {

@@ -872,7 +872,10 @@ async function verifyReadAhead() {
         if(!alreadyOpen&&await read.isVisible().catch(()=>false))await read.click({timeout:5000});
     }
     if(surfaceReaderTest)await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(c=>{const r=c.getBoundingClientRect();return r.width>80&&r.height>40&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0;}),readerSelector);
-    else await page.locator(readerSelector).first().waitFor();
+    else {
+        await page.locator(readerSelector).first().waitFor();
+        if(explicitReaderSelector)await page.locator(readerSelector).first().scrollIntoViewIfNeeded();
+    }
     if(surfaceReaderTest)await page.waitForTimeout(900);
     if(traceReader)await page.evaluate(selector=>{
         const ids=new WeakMap();let next=0;const traces=globalThis.__readerTrace=[];

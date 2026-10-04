@@ -229,13 +229,24 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
                 report.currentCase=`live reader discovery: ${sample.url}`;
                 const response=await page.goto(sample.url,{waitUntil:'domcontentloaded',timeout:30000});await page.waitForTimeout(3000);focusGuard();
                 if(sample.rejectCookies) {const reject=page.locator('#onetrust-reject-all-handler');await reject.waitFor({timeout:8000}).then(()=>reject.click()).catch(()=>undefined);}
-                if(sample.openSelector && (!sample.openIfVisible || await page.locator(sample.openSelector).isVisible()))await page.locator(sample.openSelector).click({timeout:10000});
+                if(sample.openSelector) {
+                    const opener=sample.openFrameSelector?page.frameLocator(sample.openFrameSelector).locator(sample.openSelector):page.locator(sample.openSelector);
+                    if(!sample.openIfVisible || await opener.isVisible())await opener.click({timeout:10000});
+                }
                 if(sample.pageKey)for(let turn=0;turn<(sample.pageKeyTurns||1);turn++)await page.keyboard.press(sample.pageKey);
-                const result={url:sample.url,status:response?.status(),mode:sample.mode};
+                const result={url:sample.url,finalUrl:page.url(),status:response?.status(),mode:sample.mode};
                 (report.liveReaders??=[]).push(result);
                 if(response?.status()!==200){result.result='access-restricted';continue;}
                 await wait(async()=>await ball(`return this.querySelector(".floating-ball-manga")?.getAttribute("aria-label") === ${JSON.stringify(sample.mode==='area'?'圈选漫画翻译':'漫画翻译')}`));
                 if(sample.mode==='canvas')assert.ok(await page.locator(sample.canvasSelector || '#comici-viewer .-cv-page-canvas canvas').count());
+                if(sample.readerSelector) {
+                    result.readerPages=await page.locator(sample.readerSelector).evaluateAll(elements=>elements.map(e=>{
+                        const rect=e.getBoundingClientRect();return {tag:e.tagName,naturalWidth:e.naturalWidth,naturalHeight:e.naturalHeight,width:e.width,height:e.height,
+                            visible:rect.width>0&&rect.height>0&&rect.left<innerWidth&&rect.right>0&&rect.top<innerHeight&&rect.bottom>0};
+                    }));
+                    assert.ok(result.readerPages.length,'Exact body container is present');
+                }
+                await shot(`live-reader-${report.liveReaders.length}`);
                 result.result='reader-entry-confirmed';report.cases.push(report.currentCase);
             }
         }

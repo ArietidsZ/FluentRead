@@ -7,6 +7,58 @@ import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
     it.each([
+        ['https://www.animatebookstore.com/viewer/?product_id=2108124', ':not(*)'],
+        ['https://www.cmoa.jp/bib/speedreader/?cid=0000068502_jp_0001&u0=1', ':not(*)'],
+        ['https://tapas.io/episode/3958118', '[id^="episode-"].episode-unit .viewer__body img.content__img'],
+        ['https://tapas.io/series/the-little-spy-who-kidnapped-the-villain/', '[id^="episode-"].episode-unit .viewer__body img.content__img'],
+        ['https://page.kakao.com/content/56566288/viewer/56605697/', '.image-container > img[src^="https://page-edge.kakao.com/sdownload/resource?"]'],
+        ['https://manhwaclub.net/manga/i-want-to-work-quietly-02/chapter-42-raw/', '.reading-content .page-break > img.wp-manga-chapter-img'],
+        ['https://www.twbzmg.com/comic/chapter/title/0_271.html', '.chapter-main .comic-contain amp-img[id^="chapter-img-"] > img'],
+        ['https://www.twmanga.com/comic/chapter/title/0_271.html', '.chapter-main .comic-contain amp-img[id^="chapter-img-"] > img'],
+        ['https://cn.twbzmg.com/comic/chapter/title/0_271.html', '.chapter-main .comic-contain amp-img[id^="chapter-img-"] > img'],
+        ['https://global.manga-up.com/manga/164/14826/', '[data-testid="placeholder"] > img[alt^="page_"]'],
+    ])('公开试读和章节匹配正文而非商品封面 %s', (href, selector) => {
+        expect(resolveMangaSite(href)).toMatchObject({selector, requireContent:true});
+        const url=new URL(href);
+        expect(resolveMangaReaderProfile(`${url.hostname}.attacker.test`,url.pathname,url.search)).toBeNull();
+        expect(resolveMangaReaderProfile(url.hostname,`${url.pathname}/extra`,url.search)).toBeNull();
+    });
+    it.each([
+        ['animatebookstore.com','/viewer/',''], ['animatebookstore.com','/viewer/','?product_id=sample'],
+        ['animatebookstore.com','/products/detail.php','?product_id=2108124'],
+        ['cmoa.jp','/bib/speedreader/',''], ['cmoa.jp','/bib/speedreader/','?cid=0001_jp_title'],
+        ['cmoa.jp','/title/68502/','?cid=0000068502_jp_0001'],
+        ['tapas.io','/episode/title',''], ['tapas.io','/series/title/info',''],
+        ['page.kakao.com','/content/56566288/',''], ['page.kakao.com','/content/56566288/viewer/trailer/',''],
+        ['manhwaclub.net','/manga/title/',''], ['twmanga.com','/comic/title/',''],
+        ['twbzmg.com','/comic/chapter/title/0_name.html',''], ['global.manga-up.com','/manga/164/',''],
+    ])('不匹配试读缺参、目录及相似章节路径 %s%s%s', (host,path,search) => {
+        expect(resolveMangaReaderProfile(host,path,search)).toBeNull();
+    });
+    it('公开正文选择器排除试读透明占位、推荐封面、广告和无关下载图片', () => {
+        const {document}=parseHTML(`<img id="logo"><img class="blank-img" id="placeholder">
+          <div class="view-sheet-container"><div class="view-sheet"><div class="content zoomable"><canvas id="animate-body"></canvas><img class="blank-img" id="animate-interaction"></div></div><canvas id="outside-canvas"></canvas></div>
+          <div id="content"><div class="pt-img"><img id="fragment"></div></div><div class="pt-img"><img id="ad-fragment"></div>
+          <div id="episode-1" class="episode-unit"><article class="viewer__body"><img class="content__img" id="tapas-body"></article><img class="content__img" id="tapas-cover"></div>
+          <div class="image-container"><img id="kakao-body" src="https://page-edge.kakao.com/sdownload/resource?filename=public.jpeg"><img id="kakao-ad" src="https://advert.example/promotion.jpeg"></div>
+          <div class="reading-content"><div class="page-break"><img id="manhwa-body" class="wp-manga-chapter-img"><img id="manhwa-ad"></div></div>
+          <div class="chapter-main"><div class="comic-contain"><amp-img id="chapter-img-0-0"><img id="baozi-body"></amp-img><amp-img id="recommend"><img id="baozi-cover"></amp-img></div></div>
+          <div data-testid="placeholder"><img id="manga-up-body" alt="page_0"><img id="manga-up-ad" alt="App promotion"></div>`);
+        const matched=(href:string,key:'selector'|'canvasSelector'|'areaSelector'='selector') => [...document.querySelectorAll(resolveMangaSite(href)![key]!)].map(e=>e.id);
+        expect(matched('https://www.animatebookstore.com/viewer/?product_id=2108124','canvasSelector')).toEqual(['animate-body']);
+        expect([...document.querySelectorAll(resolveMangaSite('https://www.animatebookstore.com/viewer/?product_id=2108124')!.canvasInteractionSelector!)].map(e=>e.id)).toEqual(['animate-interaction']);
+        expect(matched('https://www.animatebookstore.com/viewer/?product_id=2108124')).toEqual([]);
+        expect(matched('https://www.cmoa.jp/bib/speedreader/?cid=0000068502_jp_0001','areaSelector')).toEqual(['fragment']);
+        expect(matched('https://www.cmoa.jp/bib/speedreader/?cid=0000068502_jp_0001')).toEqual([]);
+        expect(matched('https://tapas.io/episode/3958118')).toEqual(['tapas-body']);
+        expect(matched('https://page.kakao.com/content/56566288/viewer/56605697/')).toEqual(['kakao-body']);
+        expect(matched('https://manhwaclub.net/manga/title/chapter-1/')).toEqual(['manhwa-body']);
+        expect(matched('https://www.twbzmg.com/comic/chapter/title/0_271.html')).toEqual(['baozi-body']);
+        expect(matched('https://global.manga-up.com/manga/164/14826')).toEqual(['manga-up-body']);
+        expect(MANGA_SITE_CATALOG.find(site=>site.name==='Lezhin Comics')?.hosts).toContain('lezhinus.com');
+        expect(isCatalogMangaHost('www.twbzmg.com')).toBe(true);
+    });
+    it.each([
         ['https://www.ganganonline.com/title/2322/chapter/132575','img[src^="blob:https://www.ganganonline.com/"]'],
         ['https://zebrack-comic.shueisha.co.jp/title/5554/chapter/75530/viewer', 'img[src^="blob:https://zebrack-comic.shueisha.co.jp/"]'],
         ['https://palcy.jp/comics/554', ':not(*)'],['https://comic.pixiv.net/viewer/stories/249534', ':not(*)'],
