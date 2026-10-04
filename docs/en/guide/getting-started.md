@@ -14,6 +14,8 @@ Add FluentRead from your browser’s official store:
 | Edge | [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/kakgmllfpjldjhcnkghpplmlbnmcoflp) |
 | Firefox | [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/) |
 
+If the Chrome Web Store does not open, try [CRXSOso](https://www.crxsoso.com/webstore/detail/djnlaiohfaaifbibleebjggkghlmcpcj), or get the official ZIP package from [Offline download & installation](/en/guide/offline-install). CRXSOso is a third-party distribution website; its version may differ from the official store.
+
 Pin the icon to the toolbar. Refresh pages that were already open before installation.
 
 <details class="guide-details">
