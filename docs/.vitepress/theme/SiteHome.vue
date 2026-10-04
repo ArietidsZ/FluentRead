@@ -116,10 +116,10 @@ const faqs = [
           >
         </h1>
         <p class="bv-hero-intro">
-          <span>{{
+          <span><span class="bv-hero-name">{{ t('流畅阅读', 'FluentRead') }}</span>{{
             t(
-              '流畅阅读，一款开源的浏览器双语翻译插件',
-              'FluentRead is an open-source browser extension for bilingual translation.'
+              '，一款开源的浏览器双语翻译插件',
+              ' is an open-source browser extension for bilingual translation.'
             )
           }}</span>
           <span v-if="!en" class="bv-hero-capabilities"><span
