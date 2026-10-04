@@ -93,7 +93,7 @@ Retry count and intervals are configured globally in advanced settings.
 
 </details>
 
-## Next steps
+## Related guides
 
 - [Providers and connections](/en/config/translation-engines)
 - [Appearance and reading aids](/en/config/appearance)

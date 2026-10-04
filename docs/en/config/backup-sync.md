@@ -75,7 +75,7 @@ Translation cache reuses completed translations. Clearing it does not delete voc
 
 </details>
 
-## Next steps
+## Related guides
 
 - [Learning data](/en/guide/vocabulary-book)
 - [Translation statistics](/en/guide/translation-stats)

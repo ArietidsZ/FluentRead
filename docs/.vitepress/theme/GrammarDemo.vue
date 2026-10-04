@@ -95,7 +95,7 @@ function next(event: KeyboardEvent, index: number) {
     <p class="fr-grammar-translation">
       {{
         t(
-          '每一种语言，都带来一种看世界的新方式。',
+          '每一种语言都带来一种看世界的新方式。',
           'Every language offers a new way to see the world.'
         )
       }}

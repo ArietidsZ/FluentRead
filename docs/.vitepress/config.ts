@@ -14,7 +14,7 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
       text: en ? 'Start here' : '快速开始',
       items: [
         item('文档首页', 'Documentation', '/docs/'),
-        item('安装与第一次翻译', 'Installation & first translation', '/guide/getting-started'),
+        item('快速开始', 'Quick start', '/guide/getting-started'),
         item('功能概览', 'Feature overview', '/guide/features'),
       ],
     },
@@ -105,7 +105,7 @@ const theme = (en = false): DefaultTheme.Config => ({
     : { '/docs/': guide(), '/guide/': guide(), '/config/': guide() },
   outline: {
     level: [2, 3] as [number, number],
-    label: en ? 'On this page' : '这一页',
+    label: en ? 'On this page' : '本页目录',
   },
   docFooter: { prev: en ? 'Previous' : '上一篇', next: en ? 'Next' : '下一篇' },
   sidebarMenuLabel: en ? 'Menu' : '目录',

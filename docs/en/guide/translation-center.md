@@ -27,7 +27,7 @@ Source text and results are not stored in Translation Center settings and clear 
 
 </details>
 
-## Next steps
+## Related guides
 
 - [Shortcuts & triggers](/en/guide/custom-hotkey)
 - [Provider connections](/en/config/translation-engines)

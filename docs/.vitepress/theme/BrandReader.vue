@@ -45,15 +45,15 @@ const translated = computed(() => step.value >= 2)
       }}</span>
       <h3>{{ t('The joy of reading.', '阅读的乐趣。') }}</h3>
       <div class="bv-line">
-        <p>{{ t('Reading opens a window to the world.', '阅读，为我们打开一扇了解世界的窗。') }}</p>
+        <p>{{ t('Reading opens a window to the world.', '阅读为我们打开一扇了解世界的窗。') }}</p>
         <p class="bv-line-translation" :aria-hidden="!translated">
-          {{ t('阅读，为我们打开一扇了解世界的窗。', 'Reading opens a window to the world.') }}
+          {{ t('阅读为我们打开一扇了解世界的窗。', 'Reading opens a window to the world.') }}
         </p>
       </div>
       <div class="bv-line">
-        <p>{{ t('A good book can take you somewhere new.', '一本好书，能带你发现新的天地。') }}</p>
+        <p>{{ t('A good book can take you somewhere new.', '一本好书能带你发现新的天地。') }}</p>
         <p class="bv-line-translation" :aria-hidden="!translated || step === 2">
-          {{ t('一本好书，能带你发现新的天地。', 'A good book can take you somewhere new.') }}
+          {{ t('一本好书能带你发现新的天地。', 'A good book can take you somewhere new.') }}
         </p>
       </div>
       <div class="bv-reading-mark" aria-hidden="true"><span></span><span></span><span></span></div>

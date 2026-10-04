@@ -65,7 +65,7 @@ const groups = computed(() => [
       <p>
         {{
           t(
-            '按功能查找安装、翻译和设置的操作说明。',
+            '这里介绍流畅阅读的安装方法、翻译功能和设置选项。',
             'Find instructions for installation, translation and settings.'
           )
         }}
@@ -76,13 +76,13 @@ const groups = computed(() => [
       <p>
         {{
           t(
-            '安装插件，选择目标语言，打开网页开始双语翻译。',
+            '了解如何安装插件、固定图标和翻译网页。',
             'Install the extension, choose a target language and translate your first webpage.'
           )
         }}
       </p>
       <a class="bv-button bv-primary" :href="link('/guide/getting-started')"
-        >{{ t('安装与第一次翻译', 'Install & translate your first page') }} →</a
+        >{{ t('查看快速开始', 'Open the quick start guide') }} →</a
       >
     </section>
     <h2>{{ t('功能指南', 'Feature guides') }}</h2>

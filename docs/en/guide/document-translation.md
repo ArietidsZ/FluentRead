@@ -68,7 +68,7 @@ Files and translations stay in this page only. Download your results before refr
 
 </details>
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

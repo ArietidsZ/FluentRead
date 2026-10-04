@@ -1,6 +1,6 @@
 # 译文外观与阅读辅助
 
-让原文与译文容易区分，也让每次阅读更舒适。
+通过颜色、字号和显示样式区分原文与译文，也可以开启逐句高亮辅助阅读。
 
 <GuideVisual kind="appearance" />
 
@@ -62,7 +62,7 @@ text-decoration-thickness: 2px;
 
 </details>
 
-## 接下来
+## 相关文档
 
 - [界面主题与菜单布局](/config/)
 - [网页翻译](/guide/webpage-translation)

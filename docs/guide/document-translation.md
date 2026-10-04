@@ -68,7 +68,7 @@ FluentRead 提供[实验性 Obsidian 桌面插件](https://github.com/FluentRead
 
 </details>
 
-## 接下来
+## 相关文档
 
-- [返回完整文档](/docs/)
+- [文档首页](/docs/)
 - [遇到问题](/guide/faq)

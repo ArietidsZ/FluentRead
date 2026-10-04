@@ -1,6 +1,6 @@
 # 翻译中心
 
-同一句话，用多个服务对比译法。
+翻译中心可以用多个服务翻译同一段文字，方便比较结果。
 
 <GuideVisual kind="compare" />
 
@@ -27,7 +27,7 @@
 
 </details>
 
-## 接下来
+## 相关文档
 
 - [快捷键与触发方式](/guide/custom-hotkey)
 - [翻译服务](/config/translation-engines)

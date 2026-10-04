@@ -1,13 +1,13 @@
 # Use Chrome’s local translation
 
-When your desktop Chrome supports and has prepared the required languages, its built-in model can translate text on your device.
+Chrome’s built-in translation uses an on-device model. Check that your browser supports the language pair and prepare its model before translating.
 
-<GuideVisual kind="provider" en />
+<GuideVisual kind="chrome-local" en />
 
 ## Prepare a language pair
 
-1. Select Chrome’s built-in translation and confirm source and target languages.
-2. Click the preparation button in settings.
+1. Open **Settings → General → Translation providers** and choose **Chrome built-in translation** for webpages. Confirm your source and target languages.
+2. Open its **Configure connection** page and choose **Prepare Chrome translation**.
 3. Keep settings open while the model downloads.
 4. Return to the webpage and retry translation.
 
@@ -26,7 +26,7 @@ For deeper diagnosis, see [Chrome’s local model help](https://developer.chrome
 
 </details>
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

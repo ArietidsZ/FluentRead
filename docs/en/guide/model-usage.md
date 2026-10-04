@@ -43,7 +43,7 @@ Request records are expanded by default and each row shows output speed (token/s
 
 </details>
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)
