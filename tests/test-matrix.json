@@ -35,6 +35,7 @@
       "tests/requestHeaderRuntime.test.ts"
     ],
     "unit": [
+      "tests/siteDemoSpeech.test.ts",
       "tests/translationCenterSession.test.ts",
       "tests/featureTranslationServices.test.ts",
       "tests/sha256.test.ts",
