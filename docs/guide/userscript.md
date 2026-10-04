@@ -86,7 +86,7 @@ Greasy Fork 上的版本可能晚于 GitHub 源码。排查问题时，请先查
 
 </details>
 
-## 接下来
+## 相关文档
 
-- [返回完整文档](/docs/)
+- [文档首页](/docs/)
 - [遇到问题](/guide/faq)

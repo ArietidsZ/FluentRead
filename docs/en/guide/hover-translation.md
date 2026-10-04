@@ -19,7 +19,7 @@ The same paragraph can also be taken as text: press **Alt+C** to copy the paragr
 
 </details>
 
-## Next steps
+## Related guides
 
 - [Shortcuts & triggers](/en/guide/custom-hotkey)
 - [Provider connections](/en/config/translation-engines)

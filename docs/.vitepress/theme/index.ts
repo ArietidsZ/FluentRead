@@ -8,6 +8,7 @@ import GrammarDemo from './GrammarDemo.vue'
 import GuideVisual from './GuideVisual.vue'
 import BrandReader from './BrandReader.vue'
 import GuideLayout from './GuideLayout.vue'
+import BrowserInstall from './BrowserInstall.vue'
 import './custom.css'
 import './homepage.css'
 
@@ -22,5 +23,6 @@ export default {
     app.component('GrammarDemo', GrammarDemo)
     app.component('GuideVisual', GuideVisual)
     app.component('BrandReader', BrandReader)
+    app.component('BrowserInstall', BrowserInstall)
   },
 } satisfies Theme

@@ -54,7 +54,7 @@ Use **Backup & restore** to move your data. The learning center also offers Anki
 
 </details>
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

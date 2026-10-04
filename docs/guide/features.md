@@ -4,7 +4,7 @@ outline: false
 
 # 功能概览
 
-按你正在做的事找操作指南。第一次使用，请先看[安装与第一次翻译](/guide/getting-started)。
+本页介绍流畅阅读的主要功能及使用方法。首次使用请阅读[快速开始](/guide/getting-started)。
 
 <GuideVisual kind="webpage" />
 

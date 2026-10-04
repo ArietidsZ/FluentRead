@@ -89,7 +89,7 @@ Learning conversations continue to use the browser adaptation of DeepSeek Harnes
 
 </details>
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

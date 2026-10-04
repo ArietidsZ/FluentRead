@@ -41,7 +41,7 @@ The [repository contribution guide](https://github.com/FluentRead/FluentRead/blo
 
 </details>
 
-## Next steps
+## Related guides
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)

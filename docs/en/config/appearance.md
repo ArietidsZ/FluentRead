@@ -62,7 +62,7 @@ This works in bilingual mode. Restoring the original, disabling the option, leav
 
 </details>
 
-## Next steps
+## Related guides
 
 - [Settings overview](/en/config/)
 - [Page translation](/en/guide/webpage-translation)
