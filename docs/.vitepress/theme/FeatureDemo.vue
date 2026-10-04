@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { withBase } from 'vitepress'
 import { useDemoPlayback } from './useDemoPlayback'
 import DocumentDemo from './DocumentDemo.vue'
+import DemoSteps from './DemoSteps.vue'
 const props = defineProps<{
   kind: 'webpage' | 'selection' | 'document' | 'image' | 'video'
   en?: boolean
@@ -20,6 +21,37 @@ const { step, playing, running, reduced, choose, replay } = useDemoPlayback(
     : [600, 450, 900, 1600, 1600, 1800]
 )
 const revealed = computed(() => step.value >= 2)
+const workflow = computed(
+  () =>
+    ({
+      webpage: [
+        t('打开网页', 'Open a page'),
+        t('翻译网页', 'Translate'),
+        t('双语阅读', 'Read both'),
+      ],
+      selection: [
+        t('选中文字', 'Select text'),
+        t('查看译文', 'See translation'),
+        t('查词与朗读', 'Look up & listen'),
+      ],
+      document: [],
+      image: [
+        t('打开图片', 'Open an image'),
+        t('识别并翻译', 'Read & translate'),
+        t('查看译图', 'See the result'),
+      ],
+      video: [
+        t('播放视频', 'Play a video'),
+        t('翻译字幕', 'Translate captions'),
+        t('双语观看', 'Watch both'),
+      ],
+    }[props.kind])
+)
+const activeStage = computed(() => {
+  if (props.kind === 'selection') return step.value < 2 ? 0 : step.value === 2 ? 1 : 2
+  if (props.kind === 'webpage') return step.value === 0 ? 0 : step.value < 3 ? 1 : 2
+  return Math.min(step.value, 2)
+})
 const word = computed(() => props.kind === 'selection' && step.value >= 8)
 const structure = computed(() => props.kind === 'selection' && step.value >= 5 && step.value <= 7)
 const activePart = computed(() => Math.min(2, Math.max(0, step.value - 5)))
@@ -87,6 +119,12 @@ const contexts = {
       <span>{{ contexts[kind] }}</span>
       <img :src="withBase('/brand-icon.webp')" width="24" height="24" alt="" />
     </div>
+    <DemoSteps
+      v-if="kind !== 'document'"
+      :labels="workflow"
+      :active="activeStage"
+      :label="t('操作流程', 'Workflow')"
+    />
     <div class="fd-stage">
       <template v-if="kind === 'webpage'">
         <div class="fd-meta">
@@ -325,7 +363,9 @@ const contexts = {
         >
           {{ playing ? t('Ⅱ 暂停', 'Ⅱ Pause') : t('▷ 播放', '▷ Play') }}
         </button>
-        <button type="button" @click="replay">{{ t('↻ 重播', '↻ Replay') }}</button>
+        <button type="button" @click="replay">
+          {{ t('↻ 重播', '↻ Replay') }}
+        </button>
       </div>
     </div>
   </div>

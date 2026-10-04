@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useDemoPlayback } from './useDemoPlayback'
+import DemoSteps from './DemoSteps.vue'
 const props = defineProps<{ en?: boolean }>()
 const root = ref<HTMLElement | null>(null)
 const { step, playing, running, reduced, choose } = useDemoPlayback(root, 4, true, 2800)
@@ -73,6 +74,11 @@ function next(event: KeyboardEvent, index: number) {
     <p class="fr-demo-kicker">
       {{ t('原句拆解 · 自动高亮并解释一个片段', 'SENTENCE STRUCTURE · ONE PHRASE AT A TIME') }}
     </p>
+    <DemoSteps
+      :labels="parts.map((part) => part.role[en ? 1 : 0])"
+      :active="active"
+      :label="t('句子拆解步骤', 'Sentence walkthrough')"
+    />
     <div
       class="fr-grammar-parts"
       role="group"

@@ -3,6 +3,9 @@
 import { computed, ref } from 'vue'
 import { withBase } from 'vitepress'
 import { useDemoPlayback } from './useDemoPlayback'
+import StepCallout from './StepCallout.vue'
+import DemoSteps from './DemoSteps.vue'
+import ExtensionMenuPreview from './ExtensionMenuPreview.vue'
 
 const props = defineProps<{
   kind: 'install' | 'pin' | 'first-translation' | 'hover' | 'selection' | 'chrome-local'
@@ -30,7 +33,8 @@ const instructions = computed(
       ],
       'first-translation': [
         t('打开外语文章并点击流畅阅读图标', 'Open an article and click FluentRead'),
-        t('首次使用时选择界面语言并确认', 'Choose your interface language on first use'),
+        t('首次使用时点击“设置界面语言”', 'Click “Set interface language” on first use'),
+        t('选择界面语言并点击“确认”', 'Choose your language and click “Confirm”'),
         t('确认目标语言和翻译服务', 'Check your target language and translation provider'),
         t('点击“翻译当前网页”', 'Click “Translate this page”'),
         t('译文会显示在每段原文下方', 'Read the translation below each original paragraph'),
@@ -41,25 +45,27 @@ const instructions = computed(
         t('网页已恢复为原文', 'The original webpage is restored'),
       ],
       hover: [
-        t('在扩展菜单中开启“悬浮翻译”', 'Enable hover translation in the extension menu'),
+        t('点击扩展菜单中的“鼠标悬停翻译”卡片', 'Open the Hover translation card'),
+        t('确认“默认悬浮快捷键”已开启', 'Check that the default hover shortcut is enabled'),
         t('将鼠标停在段落上并按下 Control', 'Move the pointer over a paragraph and press Control'),
         t('只有鼠标所指的段落会显示译文', 'Only the paragraph under the pointer is translated'),
         t('再次按下 Control 即可恢复这一段的原文', 'Press Control again to restore that paragraph'),
       ],
       selection: [
-        t('在扩展菜单中开启“划词翻译”', 'Enable selection translation in the extension menu'),
+        t('点击扩展菜单中的“划词翻译”卡片', 'Open the Selection translation card'),
+        t('在划词翻译设置中开启开关', 'Enable selection translation in its settings'),
         t('拖动鼠标选中需要翻译的文字', 'Drag to select the text you want to translate'),
         t('点击选中文字旁的流畅阅读图标', 'Click FluentRead beside the selected text'),
         t('在弹窗中查看译文或朗读结果', 'Read the translation or use the read-aloud controls'),
       ],
       'chrome-local': [
         t(
-          '在设置的翻译服务选择中选用“Chrome 内置翻译”',
-          'Choose Chrome’s built-in translation in your provider settings'
+          '在通用设置中将默认网页翻译服务设为“Chrome内置AI翻译”',
+          'Choose Chrome built-in AI as the default webpage provider'
         ),
         t(
-          '打开对应的服务配置并点击“准备 Chrome 本地翻译”',
-          'Open its provider configuration and prepare Chrome translation'
+          '点击“配置服务”并在连接设置中点击“检查连接”',
+          'Open Configure provider, then click Check connection'
         ),
         t('首次使用需要联网下载相应的语言模型', 'Download the language model before first use'),
         t('等待当前语言组合准备完成', 'Wait until the selected language pair is ready'),
@@ -85,17 +91,59 @@ const title = computed(
     }[props.kind])
 )
 const isLocalSettings = computed(() => props.kind === 'chrome-local' && step.value < 4)
+const workflow = computed(
+  () =>
+    ({
+      install: [
+        t('打开应用商店', 'Open the store'),
+        t('添加扩展', 'Add extension'),
+        t('安装完成', 'Installed'),
+      ],
+      pin: [
+        t('打开扩展菜单', 'Open extensions'),
+        t('固定图标', 'Pin the icon'),
+        t('打开流畅阅读', 'Open FluentRead'),
+      ],
+      'first-translation': [
+        t('打开扩展菜单', 'Open FluentRead'),
+        t('翻译网页', 'Translate'),
+        t('恢复原文', 'Restore'),
+      ],
+      hover: [
+        t('开启悬停翻译', 'Enable hover'),
+        t('悬停并翻译', 'Hover & translate'),
+        t('恢复原文', 'Restore'),
+      ],
+      selection: [
+        t('开启划词翻译', 'Enable selection'),
+        t('选中文字', 'Select text'),
+        t('查看译文', 'Read translation'),
+      ],
+      'chrome-local': [
+        t('选择本地翻译', 'Choose Chrome'),
+        t('准备语言模型', 'Prepare models'),
+        t('翻译网页', 'Translate'),
+      ],
+    }[props.kind])
+)
+const activeStage = computed(() => {
+  if (props.kind === 'first-translation') return step.value < 4 ? 0 : step.value < 6 ? 1 : 2
+  if (props.kind === 'chrome-local') return step.value === 0 ? 0 : step.value < 4 ? 1 : 2
+  if (props.kind === 'selection') return step.value < 2 ? 0 : step.value === 2 ? 1 : 2
+  if (props.kind === 'hover') return step.value < 2 ? 0 : step.value < 4 ? 1 : 2
+  return step.value === 0 ? 0 : step.value < 3 ? 1 : 2
+})
 const pinned = computed(() => props.kind !== 'install' && (props.kind !== 'pin' || step.value >= 2))
 const menuVisible = computed(
   () =>
     (props.kind === 'pin' && step.value === 3) ||
-    (props.kind === 'first-translation' && [2, 3, 5].includes(step.value)) ||
-    (['hover', 'selection'].includes(props.kind) && step.value === 0)
+    (props.kind === 'first-translation' && [3, 4, 6].includes(step.value)) ||
+    (['hover', 'selection'].includes(props.kind) && step.value < 2)
 )
 const translated = computed(
   () =>
-    (props.kind === 'first-translation' && [4, 5].includes(step.value)) ||
-    (props.kind === 'hover' && step.value === 2) ||
+    (props.kind === 'first-translation' && [5, 6].includes(step.value)) ||
+    (props.kind === 'hover' && step.value === 3) ||
     (props.kind === 'chrome-local' && step.value === 4)
 )
 const original = computed(() =>
@@ -120,6 +168,7 @@ const translation = computed(() =>
       <strong>{{ title }}</strong>
       <small>{{ t('以 Chrome 为例', 'Chrome example') }}</small>
     </div>
+    <DemoSteps :labels="workflow" :active="activeStage" :label="t('操作流程', 'Workflow')" />
     <div class="bg-instruction" :aria-live="playing ? 'off' : 'polite'">
       <span>{{ step + 1 }} / {{ instructions.length }}</span>
       {{ instructions[step] }}
@@ -155,26 +204,42 @@ const translation = computed(() =>
               : 'example.com/article'
           }}
         </span>
-        <span
-          class="bg-tool"
-          :class="{ 'bg-target': kind === 'pin' && step === 0 }"
-          aria-hidden="true"
-        >
-          <svg viewBox="0 0 24 24">
+        <span class="bg-tool" :class="{ 'bg-target': kind === 'pin' && step === 0 }">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
             <path
               d="M9 4v3H5v5H3a2 2 0 0 0 0 4h2v5h5v-2a2 2 0 0 1 4 0v2h5v-5h-2a2 2 0 0 1 0-4h2V7h-5V4a2.5 2.5 0 0 0-5 0Z"
             />
           </svg>
+          <StepCallout
+            v-if="kind === 'pin' && step === 0"
+            :number="1"
+            :text="t('点击扩展程序', 'Open extensions')"
+          />
         </span>
         <span
           v-if="pinned"
           class="bg-tool"
           :class="{
             'bg-target':
-              (kind === 'pin' && step === 2) || (kind === 'first-translation' && step === 0),
+              (kind === 'pin' && [2, 3].includes(step)) ||
+              (kind === 'first-translation' && step === 0),
           }"
         >
           <img :src="withBase('/brand-icon.webp')" width="22" height="22" alt="FluentRead" />
+          <StepCallout
+            v-if="kind === 'pin' && [2, 3].includes(step)"
+            :number="step + 1"
+            :text="
+              step === 2
+                ? t('图标已固定', 'Icon pinned')
+                : t('点击图标打开菜单', 'Click to open the menu')
+            "
+          />
+          <StepCallout
+            v-if="kind === 'first-translation' && step === 0"
+            :number="1"
+            :text="t('点击流畅阅读图标', 'Click FluentRead')"
+          />
         </span>
         <span aria-hidden="true">⋮</span>
       </div>
@@ -187,7 +252,9 @@ const translation = computed(() =>
               <img :src="withBase('/brand-icon.webp')" width="56" height="56" alt="" />
               <div>
                 <h3>{{ t('流畅阅读', 'FluentRead') }}</h3>
-                <p>{{ t('网页双语翻译扩展', 'Bilingual translation for your browser') }}</p>
+                <p>
+                  {{ t('网页双语翻译扩展', 'Bilingual translation for your browser') }}
+                </p>
               </div>
             </div>
             <span class="bg-store-button" :class="{ 'bg-target': step === 1 }">
@@ -196,6 +263,12 @@ const translation = computed(() =>
                   ? t('已添加至 Chrome', 'Added to Chrome')
                   : t('添加至 Chrome', 'Add to Chrome')
               }}
+              <StepCallout
+                v-if="step === 1"
+                :number="2"
+                :text="t('点击添加至 Chrome', 'Click Add to Chrome')"
+                align="start"
+              />
             </span>
             <div class="bg-store-description">
               <b>{{ t('轻松阅读外语网页', 'Read across languages') }}</b>
@@ -220,7 +293,10 @@ const translation = computed(() =>
             </p>
             <div>
               <span>{{ t('取消', 'Cancel') }}</span>
-              <span class="bg-target bg-action">{{ t('添加扩展程序', 'Add extension') }}</span>
+              <span class="bg-target bg-action">
+                {{ t('添加扩展程序', 'Add extension') }}
+                <StepCallout :number="3" :text="t('确认安装扩展', 'Confirm installation')" />
+              </span>
             </div>
           </div>
           <div v-if="step === 3" class="bg-install-success">
@@ -240,20 +316,26 @@ const translation = computed(() =>
               <h3>
                 {{
                   step === 0
-                    ? t('翻译服务选择', 'Translation providers')
-                    : t('Chrome 内置翻译', 'Chrome built-in translation')
+                    ? t('基础配置', 'Basic settings')
+                    : t('Chrome内置AI翻译', 'Chrome built-in AI translation')
                 }}
               </h3>
               <template v-if="step === 0">
-                <p>{{ t('为网页翻译选择服务', 'Choose a provider for webpage translation') }}</p>
+                <p>
+                  {{ t('为网页翻译选择服务', 'Choose a provider for webpage translation') }}
+                </p>
                 <div class="bg-setting-row">
-                  <span>{{ t('网页翻译', 'Webpage translation') }}</span>
-                  <b>{{ t('Chrome 内置翻译', 'Chrome built-in translation') }}⌄</b>
+                  <span>{{ t('默认网页翻译服务', 'Default webpage provider') }}</span>
+                  <b>{{ t('Chrome内置AI翻译', 'Chrome built-in AI translation') }}⌄</b>
                 </div>
                 <div class="bg-provider-list">
                   <span>{{ t('免费翻译服务', 'Free translation') }}</span>
                   <span class="bg-target bg-provider-selected">
-                    ✓ {{ t('Chrome 内置翻译', 'Chrome built-in translation') }}
+                    ✓ {{ t('Chrome内置AI翻译', 'Chrome built-in AI translation') }}
+                    <StepCallout
+                      :number="1"
+                      :text="t('选择 Chrome 内置翻译', 'Choose Chrome translation')"
+                    />
                   </span>
                 </div>
               </template>
@@ -266,15 +348,17 @@ const translation = computed(() =>
                   <b>{{ t('英语 → 简体中文', 'Chinese → English') }}</b>
                 </div>
                 <span class="bg-action bg-prepare" :class="{ 'bg-target': step === 1 }">
-                  {{
-                    step === 2
-                      ? t('准备中…', 'Preparing…')
-                      : t('准备 Chrome 本地翻译', 'Prepare Chrome translation')
-                  }}
+                  {{ step === 2 ? t('准备中…', 'Preparing…') : t('检查连接', 'Check connection') }}
+                  <StepCallout
+                    v-if="step === 1"
+                    :number="2"
+                    :text="t('点击检查连接', 'Check the connection')"
+                    align="start"
+                  />
                 </span>
                 <div v-if="step === 2" class="bg-download">
                   <span>
-                    {{ t('正在下载翻译语言包（62%）', 'Downloading the language model (62%)') }}
+                    {{ t('正在准备当前语言组合…', 'Preparing the language pair…') }}
                   </span>
                   <i><b></b></i>
                 </div>
@@ -297,18 +381,36 @@ const translation = computed(() =>
           <article class="bg-article">
             <small>EXAMPLE JOURNAL</small>
             <h3>{{ t('The joy of reading', '阅读的乐趣') }}</h3>
-            <div class="bg-paragraph" :class="{ 'bg-hovered': kind === 'hover' && step > 0 }">
+            <div class="bg-paragraph" :class="{ 'bg-hovered': kind === 'hover' && step > 1 }">
               <p>
-                <mark :class="{ 'bg-selected': kind === 'selection' && step > 0 }">
+                <mark :class="{ 'bg-selected': kind === 'selection' && step > 1 }">
                   {{ original }}
+                  <StepCallout
+                    v-if="kind === 'selection' && step === 2"
+                    :number="3"
+                    :text="t('拖动选中文字', 'Drag to select text')"
+                  />
                 </mark>
               </p>
               <p v-if="translated" class="bg-translation">{{ translation }}</p>
-              <span v-if="kind === 'hover' && step > 0" class="bg-pointer" aria-hidden="true">
-                ↖
+              <span v-if="kind === 'hover' && step > 1" class="bg-pointer">
+                <StepCallout
+                  :number="step + 1"
+                  :text="
+                    step === 2
+                      ? t('悬停后按 Control', 'Hover and press Control')
+                      : step === 3
+                      ? t('查看这一段的译文', 'Read this translation')
+                      : t('再按 Control 恢复', 'Press Control to restore')
+                  "
+                />
               </span>
-              <span v-if="kind === 'selection' && step === 2" class="bg-selection-icon bg-target">
+              <span v-if="kind === 'selection' && step === 3" class="bg-selection-icon bg-target">
                 <img :src="withBase('/brand-icon.webp')" width="24" height="24" alt="FluentRead" />
+                <StepCallout
+                  :number="4"
+                  :text="t('点击图标查看译文', 'Click to see the translation')"
+                />
               </span>
             </div>
             <div class="bg-paragraph">
@@ -319,12 +421,12 @@ const translation = computed(() =>
                 {{ t('一本好书能带你发现新的天地。', 'A good book can take you somewhere new.') }}
               </p>
             </div>
-            <span v-if="kind === 'hover' && step > 0" class="bg-keypress">
+            <span v-if="kind === 'hover' && step > 1" class="bg-keypress">
               <kbd>Control</kbd>
               {{
-                step === 1
+                step === 2
                   ? t('按下快捷键', 'Press the key')
-                  : step === 2
+                  : step === 3
                   ? t('显示译文', 'Translation shown')
                   : t('再次按下以恢复原文', 'Press again to restore')
               }}
@@ -338,58 +440,47 @@ const translation = computed(() =>
             <div>
               <img :src="withBase('/brand-icon.webp')" width="26" height="26" alt="" />
               <b>{{ t('流畅阅读', 'FluentRead') }}</b>
-              <span class="bg-pin-icon bg-target" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="m8 3 8 0-1 7 3 4v2H6v-2l3-4ZM12 16v6" /></svg>
+              <span class="bg-pin-icon bg-target">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m8 3 8 0-1 7 3 4v2H6v-2l3-4ZM12 16v6" />
+                </svg>
+                <StepCallout :number="2" :text="t('点击固定图标', 'Click the pin icon')" />
               </span>
             </div>
           </div>
-          <div v-if="kind === 'first-translation' && step === 1" class="bg-popup bg-welcome">
-            <img :src="withBase('/brand-icon.webp')" width="32" height="32" alt="" />
-            <strong>{{ t('设置界面语言', 'Set interface language') }}</strong>
-            <span class="bg-language-choice">
-              {{ t('✓ 简体中文 / Simplified Chinese', '✓ English / 英语') }}
-            </span>
-            <span class="bg-action bg-target">{{ t('确认', 'Confirm') }}</span>
-          </div>
-          <div v-if="menuVisible" class="bg-popup">
-            <strong>{{ t('流畅阅读', 'FluentRead') }}</strong>
-            <div class="bg-popup-languages">
-              <span>
-                {{ t('源语言', 'Source') }}
-                <b>{{ t('自动检测', 'Auto detect') }}</b>
-              </span>
-              <i>→</i>
-              <span>
-                {{ t('目标语言', 'Target') }}
-                <b>{{ t('简体中文', 'English') }}</b>
-              </span>
-            </div>
-            <div class="bg-popup-service">
-              <span>{{ t('翻译服务', 'Provider') }}</span>
-              <b>{{ t('免费翻译服务', 'Free translation') }}</b>
-            </div>
-            <span
-              class="bg-action"
-              :class="{ 'bg-target': kind === 'first-translation' && [3, 5].includes(step) }"
-            >
-              {{
-                step === 5
-                  ? t('恢复当前网页', 'Restore this page')
-                  : t('翻译当前网页', 'Translate this page')
-              }}
-            </span>
-            <div v-if="['hover', 'selection'].includes(kind)" class="bg-feature-switch bg-target">
-              <b>
-                {{
-                  kind === 'hover'
-                    ? t('悬浮翻译', 'Hover translation')
-                    : t('划词翻译', 'Selection translation')
-                }}
-              </b>
-              <span aria-hidden="true"></span>
-            </div>
-          </div>
-          <div v-if="kind === 'selection' && step === 3" class="bg-selection-result">
+          <ExtensionMenuPreview
+            v-if="kind === 'first-translation' && [1, 2].includes(step)"
+            :en="en"
+            :mode="step === 1 ? 'welcome' : 'language'"
+            :number="step + 1"
+          />
+          <ExtensionMenuPreview
+            v-if="menuVisible"
+            :en="en"
+            :mode="
+              ['hover', 'selection'].includes(kind) && step === 1
+                ? kind === 'hover'
+                  ? 'hover'
+                  : 'selection'
+                : 'main'
+            "
+            :target="
+              kind === 'first-translation'
+                ? step === 3
+                  ? 'language'
+                  : 'translate'
+                : step === 1
+                ? undefined
+                : kind === 'hover'
+                ? 'hover'
+                : kind === 'selection'
+                ? 'selection'
+                : undefined
+            "
+            :number="step + 1"
+            :restore="kind === 'first-translation' && step === 6"
+          />
+          <div v-if="kind === 'selection' && step === 4" class="bg-selection-result">
             <small>{{ t('译文', 'Translation') }}</small>
             <p>{{ translation }}</p>
             <span>{{ t('朗读原文 · 朗读译文', 'Read original · Read translation') }}</span>
@@ -412,7 +503,9 @@ const translation = computed(() =>
         >
           {{ playing ? t('Ⅱ 暂停', 'Ⅱ Pause') : t('▷ 播放', '▷ Play') }}
         </button>
-        <button type="button" @click="replay">{{ t('↻ 重播', '↻ Replay') }}</button>
+        <button type="button" @click="replay">
+          {{ t('↻ 重播', '↻ Replay') }}
+        </button>
       </div>
     </div>
   </div>
@@ -537,26 +630,28 @@ const translation = computed(() =>
 }
 .bg-viewport {
   position: relative;
-  height: 326px;
+  height: 380px;
   overflow: hidden;
   background: white;
 }
+.bg-first-translation .bg-viewport {
+  height: 500px;
+}
+.bg-hover .bg-viewport,
+.bg-selection .bg-viewport {
+  height: 440px;
+}
 .bg-target {
   position: relative;
+  z-index: 2;
   outline: 2px solid #b92252;
   outline-offset: 4px;
 }
-.bg-target::after {
-  content: '↖';
-  position: absolute;
-  z-index: 3;
-  right: -14px;
-  bottom: -24px;
-  color: #26232c;
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1;
-  text-shadow: 1px 1px white, -1px -1px white;
+.bg-action :deep(.sc-end),
+.bg-feature-switch :deep(.sc-end),
+.bg-provider-selected :deep(.sc-end),
+.bg-selected :deep(.sc-end) {
+  right: 8px;
 }
 .bg .bg-store {
   padding: 22px 30px;
@@ -599,7 +694,7 @@ const translation = computed(() =>
   font-size: 11px;
 }
 .bg-store-description {
-  margin-top: 24px;
+  margin-top: 62px;
 }
 .bg-store-description > b {
   font-size: 13px;
@@ -627,7 +722,7 @@ const translation = computed(() =>
   top: 12px;
   right: 14px;
   width: min(300px, calc(100% - 28px));
-  padding: 18px;
+  padding: 18px 18px 64px;
   border: 1px solid #dedde4;
   border-radius: 10px;
   background: white;
@@ -688,12 +783,20 @@ const translation = computed(() =>
   font-size: 13px;
 }
 .bg-paragraph mark {
+  position: relative;
   padding: 2px 0;
   background: none;
   color: inherit;
 }
 .bg-paragraph mark.bg-selected {
+  display: inline-block;
   background: #dbe6ff;
+}
+.bg-hover .bg-paragraph:first-of-type {
+  margin-bottom: 60px;
+}
+.bg-selection .bg-paragraph:first-of-type {
+  margin-bottom: 96px;
 }
 .bg-paragraph p.bg-translation {
   padding-left: 10px;
@@ -711,8 +814,9 @@ const translation = computed(() =>
 .bg-pointer {
   position: absolute;
   right: 20px;
-  bottom: -4px;
-  font-size: 26px;
+  bottom: 2px;
+  width: 2px;
+  height: 2px;
 }
 .bg-keypress {
   display: flex;
@@ -747,7 +851,7 @@ const translation = computed(() =>
   align-items: center;
   gap: 10px;
   margin-top: 18px;
-  padding-bottom: 12px;
+  padding-bottom: 54px;
 }
 .bg-extension-menu b {
   flex: 1;
@@ -769,7 +873,7 @@ const translation = computed(() =>
   gap: 14px;
   width: 252px;
   max-width: calc(100% - 20px);
-  padding: 16px;
+  padding: 16px 16px 64px;
   border: 1px solid #dedde4;
   border-radius: 0 0 9px 9px;
   background: white;
@@ -823,14 +927,14 @@ const translation = computed(() =>
 .bg-feature-switch b {
   font-size: 11px;
 }
-.bg-feature-switch > span {
+.bg-switch-knob {
   position: relative;
   width: 28px;
   height: 16px;
   border-radius: 20px;
   background: var(--vp-c-brand-1);
 }
-.bg-feature-switch > span::before {
+.bg-switch-knob::before {
   content: '';
   position: absolute;
   top: 2px;
@@ -842,7 +946,7 @@ const translation = computed(() =>
 }
 .bg-welcome {
   align-items: center;
-  padding-block: 22px;
+  padding-block: 22px 64px;
 }
 .bg-language-choice {
   width: 100%;
@@ -951,7 +1055,7 @@ const translation = computed(() =>
   padding: 8px;
   font-size: 11px;
 }
-.bg-provider-list span {
+.bg-provider-list > span {
   padding: 5px 8px;
   border-radius: 3px;
 }
@@ -967,6 +1071,9 @@ const translation = computed(() =>
 .bg-prepare {
   display: inline-block;
   margin-top: 18px;
+}
+.bg-prepare.bg-target {
+  margin-bottom: 60px;
 }
 .bg-download {
   margin-top: 18px;
@@ -1015,6 +1122,9 @@ const translation = computed(() =>
   outline-offset: 3px;
 }
 @container (max-width: 480px) {
+  .bg-viewport {
+    height: 420px;
+  }
   .bg-heading,
   .bg-instruction {
     padding-inline: 14px;
@@ -1070,6 +1180,13 @@ const translation = computed(() =>
     flex-direction: column;
     align-items: start;
     gap: 6px;
+  }
+  .bg-selection-icon {
+    left: 65%;
+  }
+  .bg-prepare :deep(.sc-start) {
+    left: 0;
+    max-width: 100%;
   }
   .bg-provider-list {
     font-size: 10px;

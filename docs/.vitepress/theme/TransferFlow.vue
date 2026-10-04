@@ -2,7 +2,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { withBase } from 'vitepress'
-const props = defineProps<{ kind: 'sync' | 'backup' | 'privacy'; en?: boolean; running: boolean }>()
+const props = defineProps<{
+  kind: 'sync' | 'backup' | 'privacy'
+  en?: boolean
+  running: boolean
+}>()
 const t = (zh: string, english: string) => (props.en ? english : zh)
 const privacy = computed(() => props.kind === 'privacy')
 const destination = computed(() =>
@@ -37,7 +41,9 @@ const destination = computed(() =>
       "
     >
       <div class="tf-direction tf-outgoing">
-        <span>{{ privacy ? t('发送待译文字', 'Send text') : t('保存配置', 'Save settings') }}</span>
+        <span
+          >② {{ privacy ? t('发送待译文字', 'Send text') : t('保存配置', 'Save settings') }}</span
+        >
         <div class="tf-track" aria-hidden="true">
           <i></i>
           <i></i>
@@ -50,7 +56,9 @@ const destination = computed(() =>
         </div>
         <span>
           {{
-            privacy ? t('返回译文', 'Return translation') : t('恢复或合并配置', 'Restore or merge')
+            privacy
+              ? t('③ 返回译文', '③ Return translation')
+              : t('③ 恢复或合并配置', '③ Restore or merge')
           }}
         </span>
       </div>

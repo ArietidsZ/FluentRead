@@ -86,7 +86,7 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
   ]
 }
 const theme = (en = false): DefaultTheme.Config => ({
-  siteTitle: en ? 'FluentRead' : '流畅阅读',
+  siteTitle: false,
   nav: [
     { text: en ? 'Features' : '功能', link: en ? '/en/#features' : '/#features' },
     {

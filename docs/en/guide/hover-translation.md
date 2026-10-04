@@ -6,7 +6,7 @@ Hover over a paragraph and press **Control** to translate just that paragraph.
 
 ## Translate one paragraph
 
-1. Enable **Hover translation** in the menu or settings.
+1. Open the **Hover translation** card and check that the default hover shortcut is enabled.
 2. Hover over the paragraph and press **Control**.
 3. Read the translation below it. Press again to restore. Editable areas do not trigger hover translation.
 

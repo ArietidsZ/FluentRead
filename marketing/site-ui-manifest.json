@@ -1,65 +1,549 @@
 {
   "extension": ".output/chrome-mv3",
+  "sourceRevision": "6228388e2d1ffdfacda131a473187b65ed40047b",
+  "version": "0.0.35",
   "scale": 2,
   "screenshots": [
     {
+      "points": [],
+      "locale": "zh-CN",
+      "name": "popup-welcome",
+      "source": "marketing/source/site-ui/zh-CN/popup-welcome.png",
+      "web": "docs/public/screenshots/ui/zh-CN/popup-welcome.webp",
+      "width": 640,
+      "height": 1004,
+      "bytes": 132808,
+      "losslessPixels": true
+    },
+    {
+      "points": [],
+      "locale": "zh-CN",
+      "name": "popup-language",
+      "source": "marketing/source/site-ui/zh-CN/popup-language.png",
+      "web": "docs/public/screenshots/ui/zh-CN/popup-language.webp",
+      "width": 640,
+      "height": 920,
+      "bytes": 23682,
+      "losslessPixels": true
+    },
+    {
+      "points": [],
       "locale": "zh-CN",
       "name": "popup",
       "source": "marketing/source/site-ui/zh-CN/popup.png",
       "web": "docs/public/screenshots/ui/zh-CN/popup.webp",
       "width": 640,
       "height": 874,
-      "bytes": 67118,
+      "bytes": 67122,
       "losslessPixels": true
     },
     {
+      "points": [],
       "locale": "zh-CN",
       "name": "settings-general",
       "source": "marketing/source/site-ui/zh-CN/settings-general.png",
       "web": "docs/public/screenshots/ui/zh-CN/settings-general.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 89354,
+      "bytes": 91176,
       "losslessPixels": true
     },
     {
+      "points": [],
       "locale": "zh-CN",
       "name": "settings-services",
       "source": "marketing/source/site-ui/zh-CN/settings-services.png",
       "web": "docs/public/screenshots/ui/zh-CN/settings-services.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 104066,
+      "bytes": 105310,
       "losslessPixels": true
     },
     {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 23.5625
+        },
+        {
+          "x": 83.203125,
+          "y": 41.2314453125
+        },
+        {
+          "x": 83.203125,
+          "y": 32.0517578125
+        }
+      ],
+      "locale": "zh-CN",
+      "name": "settings-general",
+      "source": "marketing/source/site-ui/zh-CN/settings-general.png",
+      "web": "docs/public/screenshots/ui/zh-CN/settings-general.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 91176,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 39.3125
+        },
+        {
+          "x": 76.58203125,
+          "y": 17.32421875
+        },
+        {
+          "x": 37.847900390625,
+          "y": 26.88720703125
+        }
+      ],
+      "locale": "zh-CN",
+      "name": "settings-interface",
+      "source": "marketing/source/site-ui/zh-CN/settings-interface.png",
+      "web": "docs/public/screenshots/ui/zh-CN/settings-interface.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 132990,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 34.16015625,
+          "y": 52.98779296875
+        },
+        {
+          "x": 92.734375,
+          "y": 15.25
+        },
+        {
+          "x": 34.16015625,
+          "y": 85.7880859375
+        }
+      ],
+      "locale": "zh-CN",
+      "name": "settings-translation-center",
+      "source": "marketing/source/site-ui/zh-CN/settings-translation-center.png",
+      "web": "docs/public/screenshots/ui/zh-CN/settings-translation-center.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 79286,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 90.25
+        },
+        {
+          "x": 81.8359375,
+          "y": 48.6650390625
+        },
+        {
+          "x": 91.2890625,
+          "y": 48.6650390625
+        }
+      ],
+      "locale": "zh-CN",
+      "name": "settings-data",
+      "source": "marketing/source/site-ui/zh-CN/settings-data.png",
+      "web": "docs/public/screenshots/ui/zh-CN/settings-data.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 113110,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 63.625
+        },
+        {
+          "x": 25.859375,
+          "y": 39.9619140625
+        },
+        {
+          "x": 48.125,
+          "y": 88.5244140625
+        }
+      ],
+      "locale": "zh-CN",
+      "name": "settings-glossary",
+      "source": "marketing/source/site-ui/zh-CN/settings-glossary.png",
+      "web": "docs/public/screenshots/ui/zh-CN/settings-glossary.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 79598,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 68.875
+        },
+        {
+          "x": 58.59375,
+          "y": 41.5927734375
+        },
+        {
+          "x": 33.75,
+          "y": 6.13720703125
+        }
+      ],
+      "locale": "zh-CN",
+      "name": "settings-sites",
+      "source": "marketing/source/site-ui/zh-CN/settings-sites.png",
+      "web": "docs/public/screenshots/ui/zh-CN/settings-sites.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 80104,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 74.125
+        },
+        {
+          "x": 45.3125,
+          "y": 16.5869140625
+        },
+        {
+          "x": 58.59375,
+          "y": 34.5048828125
+        }
+      ],
+      "locale": "zh-CN",
+      "name": "settings-translation-stats",
+      "source": "marketing/source/site-ui/zh-CN/settings-translation-stats.png",
+      "web": "docs/public/screenshots/ui/zh-CN/settings-translation-stats.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 69332,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 58.375
+        },
+        {
+          "x": 58.59375,
+          "y": 13.125
+        },
+        {
+          "x": 58.59375,
+          "y": 33.59375
+        }
+      ],
+      "locale": "zh-CN",
+      "name": "settings-vocabulary",
+      "source": "marketing/source/site-ui/zh-CN/settings-vocabulary.png",
+      "web": "docs/public/screenshots/ui/zh-CN/settings-vocabulary.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 63998,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 26.3671875,
+          "y": 56.375
+        },
+        {
+          "x": 73.90625,
+          "y": 37.9375
+        },
+        {
+          "x": 8.5546875,
+          "y": 23.5625
+        }
+      ],
+      "locale": "zh-CN",
+      "name": "settings-provider",
+      "source": "marketing/source/site-ui/zh-CN/settings-provider.png",
+      "web": "docs/public/screenshots/ui/zh-CN/settings-provider.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 93018,
+      "losslessPixels": true
+    },
+    {
+      "points": [],
+      "locale": "en-US",
+      "name": "popup-welcome",
+      "source": "marketing/source/site-ui/en-US/popup-welcome.png",
+      "web": "docs/public/screenshots/ui/en-US/popup-welcome.webp",
+      "width": 760,
+      "height": 1004,
+      "bytes": 150160,
+      "losslessPixels": true
+    },
+    {
+      "points": [],
+      "locale": "en-US",
+      "name": "popup-language",
+      "source": "marketing/source/site-ui/en-US/popup-language.png",
+      "web": "docs/public/screenshots/ui/en-US/popup-language.webp",
+      "width": 760,
+      "height": 920,
+      "bytes": 24140,
+      "losslessPixels": true
+    },
+    {
+      "points": [],
       "locale": "en-US",
       "name": "popup",
       "source": "marketing/source/site-ui/en-US/popup.png",
       "web": "docs/public/screenshots/ui/en-US/popup.webp",
       "width": 760,
       "height": 984,
-      "bytes": 72656,
+      "bytes": 72644,
       "losslessPixels": true
     },
     {
+      "points": [],
       "locale": "en-US",
       "name": "settings-general",
       "source": "marketing/source/site-ui/en-US/settings-general.png",
       "web": "docs/public/screenshots/ui/en-US/settings-general.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 95346,
+      "bytes": 95362,
       "losslessPixels": true
     },
     {
+      "points": [],
       "locale": "en-US",
       "name": "settings-services",
       "source": "marketing/source/site-ui/en-US/settings-services.png",
       "web": "docs/public/screenshots/ui/en-US/settings-services.webp",
       "width": 2560,
       "height": 1600,
-      "bytes": 116314,
+      "bytes": 117536,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 25
+        },
+        {
+          "x": 83.203125,
+          "y": 45.224609375
+        },
+        {
+          "x": 83.203125,
+          "y": 35.248046875
+        }
+      ],
+      "locale": "en-US",
+      "name": "settings-general",
+      "source": "marketing/source/site-ui/en-US/settings-general.png",
+      "web": "docs/public/screenshots/ui/en-US/settings-general.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 95362,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 40.75
+        },
+        {
+          "x": 76.58203125,
+          "y": 18.2490234375
+        },
+        {
+          "x": 37.847900390625,
+          "y": 26.88720703125
+        }
+      ],
+      "locale": "en-US",
+      "name": "settings-interface",
+      "source": "marketing/source/site-ui/en-US/settings-interface.png",
+      "web": "docs/public/screenshots/ui/en-US/settings-interface.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 122476,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 34.16015625,
+          "y": 51.6943359375
+        },
+        {
+          "x": 90.88409423828125,
+          "y": 15.25
+        },
+        {
+          "x": 34.16015625,
+          "y": 83.451171875
+        }
+      ],
+      "locale": "en-US",
+      "name": "settings-translation-center",
+      "source": "marketing/source/site-ui/en-US/settings-translation-center.png",
+      "web": "docs/public/screenshots/ui/en-US/settings-translation-center.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 81418,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 90.25
+        },
+        {
+          "x": 74.9835205078125,
+          "y": 48.9638671875
+        },
+        {
+          "x": 88.63861083984375,
+          "y": 48.9638671875
+        }
+      ],
+      "locale": "en-US",
+      "name": "settings-data",
+      "source": "marketing/source/site-ui/en-US/settings-data.png",
+      "web": "docs/public/screenshots/ui/en-US/settings-data.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 127816,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 63.625
+        },
+        {
+          "x": 26.13800048828125,
+          "y": 39.9619140625
+        },
+        {
+          "x": 45.19683837890625,
+          "y": 88.5244140625
+        }
+      ],
+      "locale": "en-US",
+      "name": "settings-glossary",
+      "source": "marketing/source/site-ui/en-US/settings-glossary.png",
+      "web": "docs/public/screenshots/ui/en-US/settings-glossary.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 83844,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 68.875
+        },
+        {
+          "x": 58.59375,
+          "y": 40.5615234375
+        },
+        {
+          "x": 42.68951416015625,
+          "y": 6.13720703125
+        }
+      ],
+      "locale": "en-US",
+      "name": "settings-sites",
+      "source": "marketing/source/site-ui/en-US/settings-sites.png",
+      "web": "docs/public/screenshots/ui/en-US/settings-sites.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 79412,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 74.125
+        },
+        {
+          "x": 46.54296875,
+          "y": 16.2744140625
+        },
+        {
+          "x": 58.59375,
+          "y": 34.0361328125
+        }
+      ],
+      "locale": "en-US",
+      "name": "settings-translation-stats",
+      "source": "marketing/source/site-ui/en-US/settings-translation-stats.png",
+      "web": "docs/public/screenshots/ui/en-US/settings-translation-stats.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 78712,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 8.5546875,
+          "y": 58.375
+        },
+        {
+          "x": 58.59375,
+          "y": 14.224609375
+        },
+        {
+          "x": 58.59375,
+          "y": 34.568359375
+        }
+      ],
+      "locale": "en-US",
+      "name": "settings-vocabulary",
+      "source": "marketing/source/site-ui/en-US/settings-vocabulary.png",
+      "web": "docs/public/screenshots/ui/en-US/settings-vocabulary.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 74194,
+      "losslessPixels": true
+    },
+    {
+      "points": [
+        {
+          "x": 26.3671875,
+          "y": 56.375
+        },
+        {
+          "x": 73.90625,
+          "y": 37.625
+        },
+        {
+          "x": 8.5546875,
+          "y": 25
+        }
+      ],
+      "locale": "en-US",
+      "name": "settings-provider",
+      "source": "marketing/source/site-ui/en-US/settings-provider.png",
+      "web": "docs/public/screenshots/ui/en-US/settings-provider.webp",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 101308,
       "losslessPixels": true
     }
   ],
@@ -83,14 +567,21 @@
     "screenIndex": 1,
     "browserFrontmost": false,
     "frontmostBefore": {
-      "pid": 44386,
-      "name": "Google Chrome"
+      "pid": 55990,
+      "name": "Claude"
     },
     "frontmostAfter": {
-      "pid": 44386,
-      "name": "Google Chrome"
+      "pid": 55990,
+      "name": "Claude"
     }
   },
-  "sourceRevision": "99393c773413c6b384efeccab4704e35019f58a6",
-  "version": "0.0.35"
+  "sourceFiles": {
+    "src/features/translation-center/ui/TranslationCenter.vue": "476a03460f751d6a7c744f2d554453e49d5811ec04337b6fa638b075da8706de",
+    "src/ui/components/UiLanguageOnboarding.vue": "899e886451f9780d8e31e5124195c1adade4b449e8103e136524575828c6083a",
+    "src/app/popup/PopupApp.vue": "bc057a5b8876023ec705aa9a7e8559ef003d206a21821d020c5af8effd7febaf",
+    "src/features/settings/ui/SettingsSections.vue": "741e9dcc64b24a2bf84936c2f660bb8035404581727d105c22db3cdb637a7761",
+    "src/features/settings/ui/services/ServiceConfiguration.vue": "0072132b179f69fce2c5349ac1a53f85a386ec5f4850bedf7246d42c2363908a",
+    "src/features/settings/ui/services/ServiceCatalog.vue": "cb585eb795bec90ca8a2b238aba7297ebc1c6781d0affbea2e11646d20bca14a"
+  },
+  "sourceDirty": true
 }
