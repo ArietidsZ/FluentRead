@@ -9,6 +9,7 @@
   <section class="drive-sync" :data-testid="`${kind}-sync`" :aria-busy="busy">
     <slot name="connection" :busy="busy" />
     <el-alert v-if="error && !previewVisible" :title="error" type="error" :closable="false" show-icon class="drive-error" />
+    <el-alert v-if="status?.cleanupPending && !previewVisible" :title="t('settings.cloud.cleanupPending')" type="warning" :closable="false" show-icon class="drive-error" />
     <div class="drive-actions">
       <el-button v-if="status?.available" type="primary" :loading="busy" :disabled="busy" :data-testid="`${kind}-sync-now`" @click="prepare">{{ t('settings.cloud.syncNow', {provider}) }}</el-button>
       <slot name="record" :status="status" :status-text="statusText">

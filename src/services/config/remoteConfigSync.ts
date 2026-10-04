@@ -2,7 +2,7 @@
  * @file src/services/config/remoteConfigSync.ts
  * 文件职责：编排 Google Drive 与 WebDAV 共用的完整配置云备份和用户确认事务。
  * 主要内容：单次授权、账号绑定、上次成功同步的账号记录、密文基线、三方合并、
- * 掩码预览、过期检查与自动清理授权缓存；换号失败不改动成功记录。
+ * 掩码预览、过期检查与授权缓存清理；清理失败独立提示并重试，不掩盖同步结果或原错误。
  * 模块边界：通过端口读写配置与云端存储；不持久化口令，不向设置页面传递完整配置。
  */
 import {buildDriveSyncDiff, driveSyncPayload, driveValuesEqual, parseDriveSyncPayload, resolveDriveSyncDiff, toDriveSyncConfig, type DriveSyncConfig, type DriveSyncDiff} from '@/src/core/config/driveSync';
@@ -17,9 +17,10 @@ export interface DriveSyncState {
     baseline: string;
     lastSyncedAt: number | null;
     lastSyncedAccount?: DriveAccount;
+    cleanupPending?: true;
     prepared?: {id: string; expiresAt: number; content: string; tabId?: number; clientId?: string; format?: 2; remote?: DriveRemote | null};
 }
-export interface DriveSyncStatus {available: boolean; reason: string; account: DriveAccount | null; lastSyncedAt: number | null}
+export interface DriveSyncStatus {available: boolean; reason: string; account: DriveAccount | null; lastSyncedAt: number | null; cleanupPending?: true}
 export interface DriveSyncPreview {
     id: string;
     account: DriveAccount;
@@ -54,6 +55,7 @@ function readState(value: unknown): DriveSyncState {
     const lastAccount = 'lastSyncedAccount' in value ? value.lastSyncedAccount as Partial<DriveAccount> | null : null;
     return {version: 1, connected: value.connected, accountId: value.accountId, baseline: value.baseline, lastSyncedAt: value.lastSyncedAt,
         ...(lastAccount && typeof lastAccount.id === 'string' && typeof lastAccount.email === 'string' ? {lastSyncedAccount: {id: lastAccount.id, email: lastAccount.email}} : {}),
+        ...('cleanupPending' in value && value.cleanupPending === true ? {cleanupPending: true as const} : {}),
         ...(prepared && typeof prepared.id === 'string' && typeof prepared.expiresAt === 'number' && typeof prepared.content === 'string' ? {prepared} : {}),
     };
 }
@@ -77,18 +79,34 @@ export function createRemoteConfigSync<Session extends DriveSession>(ports: Driv
     }
     async function finishSession(): Promise<void> {
         pending = null;
+        let state: DriveSyncState | undefined;
         try {
-            const state = readState(await ports.readState());
+            state = readState(await ports.readState());
+            const changed = state.connected || Boolean(state.prepared);
             delete state.prepared;
-            await ports.writeState({...state, connected: false});
-        } finally {await ports.auth.disconnect();}
+            state.connected = false;
+            if (changed) await ports.writeState(state);
+        } finally {
+            try {await ports.auth.disconnect();}
+            catch (error) {
+                if (state) await ports.writeState({...state, cleanupPending: true});
+                throw error;
+            }
+        }
+        if (state.cleanupPending) {
+            delete state.cleanupPending;
+            await ports.writeState(state);
+        }
     }
     async function status(): Promise<DriveSyncStatus> {
         const availability = ports.auth.availability();
         const state = readState(await ports.readState());
         // 打开设置不获取令牌；顺便清理旧实现留下的连接或已经过期的事务。
-        if (state.connected && (!state.prepared || state.prepared.expiresAt <= ports.now())) await finishSession();
-        return {...availability, account: state.lastSyncedAccount ?? null, lastSyncedAt: state.lastSyncedAt};
+        let cleanupPending = state.cleanupPending;
+        if (cleanupPending || state.connected && (!state.prepared || state.prepared.expiresAt <= ports.now())) {
+            try {await finishSession(); cleanupPending = undefined;} catch {cleanupPending = true;}
+        }
+        return {...availability, account: state.lastSyncedAccount ?? null, lastSyncedAt: state.lastSyncedAt, ...(cleanupPending ? {cleanupPending} : {})};
     }
     async function prepare(passphrase: string, tabId?: number, clientId?: string): Promise<DriveSyncPreview> {
         validateDrivePassphrase(passphrase);
@@ -168,7 +186,7 @@ export function createRemoteConfigSync<Session extends DriveSession>(ports: Driv
             if (state.prepared && state.prepared.expiresAt > ports.now() && !owns(state, tabId, clientId)) {
                 throw new CloudSyncError('另一个设置页面正在确认同步，请先完成或取消该页面的预览。');
             }
-            try {return await prepare(passphrase, tabId, clientId);} catch (error) {await finishSession(); throw error;}
+            try {return await prepare(passphrase, tabId, clientId);} catch (error) {await finishSession().catch(() => undefined); throw error;}
         }),
         commit: (id: string, passphrase: string, direction: DriveSyncDirection, choices: Record<string, unknown>, tabId?: number, clientId?: string) => exclusive(async () => {
             const state = readState(await ports.readState());
@@ -176,7 +194,11 @@ export function createRemoteConfigSync<Session extends DriveSession>(ports: Driv
             if (state.prepared && (!owns(state, tabId, clientId) || state.prepared.id !== id)) {
                 throw new CloudSyncError('同步预览属于其他页面或已失效，请在原设置页面继续。');
             }
-            try {return await commit(id, passphrase, direction, choices);} finally {await finishSession();}
+            let result: DriveSyncStatus;
+            try {result = await commit(id, passphrase, direction, choices);}
+            catch (error) {await finishSession().catch(() => undefined); throw error;}
+            try {await finishSession();} catch {return {...result, cleanupPending: true};}
+            return result;
         }),
         cancel: (id?: string, tabId?: number, clientId?: string) => exclusive(async () => {
             if (id === undefined && tabId === undefined && clientId === undefined) return finishSession();

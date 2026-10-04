@@ -6,10 +6,15 @@ import {DRIVE_ENCRYPTION_FORMAT} from '@/src/platform/google-drive/encryption';
 const connection = parseWebDavConnection({url: 'https://dav.fixture.invalid/base/', username: 'fixture', password: 'fixture-only', revision: null}, null);
 const session = createWebDavSession(connection, async () => connection);
 const content = JSON.stringify({format: DRIVE_ENCRYPTION_FORMAT, ciphertext: 'fixture-encrypted-content'});
-const xml = '<d:multistatus xmlns:d="DAV:"><d:response><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>';
+const xml = '<d:multistatus xmlns:d="DAV:"><d:response><d:href>/base/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>';
 const response = (body: string | null, status = 200, headers: Record<string, string> = {}) => new Response(body, {status, headers});
 const metadata = (etag = '&quot;one&quot;', href = '/base/FluentRead/fluentread-config.encrypted.json') => `<d:multistatus xmlns:d="DAV:"><d:response><d:href>${href}</d:href><d:propstat><d:prop><d:getetag>${etag}</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>`;
 describe('WebDAV 文件协议', () => {
+    it('接受属性响应中的局部命名空间、等号空白、数值实体和 CDATA', async () => {
+        const body = '<multistatus xmlns="DAV:"><response xmlns:p = "DAV:"><p:href>/base/FluentRead/fluentread-config.encrypted.json</p:href><p:propstat><p:prop><p:getetag>&#34;one&#x22;</p:getetag></p:prop><p:status><![CDATA[HTTP/1.1 200 OK]]></p:status></p:propstat></response></multistatus>';
+        const fetcher=vi.fn().mockResolvedValueOnce(response(content)).mockResolvedValueOnce(response(body,207)).mockResolvedValueOnce(response(content));
+        expect((await createWebDavApi(fetcher).read(session))?.file.etag).toBe('"one"');
+    });
     it('下载未返回 ETag 时从固定文件属性补取，条件重读后才能安全覆盖', async () => {
         for (const xml of [metadata(), metadata('"one"', connection.url+'FluentRead/fluentread-config.encrypted.json').replaceAll('d:', '').replace('xmlns:d', 'xmlns'), metadata('&quot;one&amp;&lt;&gt;&apos;&quot;')]) {
             const fetcher = vi.fn().mockResolvedValueOnce(response(content)).mockResolvedValueOnce(response(xml, 207)).mockResolvedValueOnce(response(content));
@@ -56,7 +61,7 @@ describe('WebDAV 文件协议', () => {
             const fetcher = vi.fn().mockResolvedValueOnce(response(null, 409)).mockResolvedValueOnce(response(xml, 207)).mockResolvedValueOnce(denied);
             await expect(createWebDavApi(fetcher).read(session)).rejects.toThrow(WebDavError);
         }
-        const existing = vi.fn().mockResolvedValueOnce(response(null, 409)).mockResolvedValueOnce(response(xml, 207)).mockResolvedValueOnce(response(xml, 207));
+        const existing = vi.fn().mockResolvedValueOnce(response(null, 409)).mockResolvedValueOnce(response(xml, 207)).mockResolvedValueOnce(response(xml.replace("/base/", "/base/FluentRead/"), 207));
         await expect(createWebDavApi(existing).read(session)).rejects.toMatchObject({code: 'http', status: 409});
     });
     it('只读测试使用 Depth:0，备份只在专属目录内写入并带新建条件', async () => {

@@ -5,7 +5,8 @@
  * 禁止跟随重定向、携带浏览器 Cookie 或返回服务器异常正文，防止连接凭据流向其他地址。
  * 模块边界：只消费后台会话与密文，不读取配置或保存密码；冲突合并由云备份服务处理。
  */
-import type {CloudSyncFile, CloudSyncRemote} from '@/src/core/config/cloudSync';
+import {strongCloudEtag, type CloudSyncFile, type CloudSyncRemote} from '@/src/core/config/cloudSync';
+import {parseWebDavProperties} from './properties';
 import {GOOGLE_DRIVE_MAX_BYTES} from '@/src/platform/google-drive/constants';
 import {DRIVE_ENCRYPTION_FORMAT} from '@/src/platform/google-drive/encryption';
 import {createWebDavSession, WebDavError, type WebDavConnection, type WebDavSession} from './connection';
@@ -13,42 +14,6 @@ import {createWebDavSession, WebDavError, type WebDavConnection, type WebDavSess
 export const WEBDAV_BACKUP_DIRECTORY = 'FluentRead/';
 export const WEBDAV_BACKUP_FILE = 'fluentread-config.encrypted.json';
 const XML_LIMIT = 128 * 1024;
-function isDavCollection(xml: string): boolean {
-    if (/<!DOCTYPE|<!ENTITY/iu.test(xml)) return false;
-    const namespaces = [...xml.matchAll(/xmlns(?::([\w-]+))?=["']([^"']+)["']/gu)];
-    const dav = namespaces.filter(match => match[2] === 'DAV:');
-    if (!dav.length) return false;
-    // 不接受前缀被重新绑定；目录与 200 状态必须在同一个 DAV propstat 中。
-    if (dav.some(binding => namespaces.some(other => other[1] === binding[1] && other[2] !== 'DAV:'))) return false;
-    const prefix = `(?:${dav.map(match => match[1] ? `${match[1]}:` : '').join('|')})`;
-    const records = xml.matchAll(new RegExp(`<(${prefix}propstat)\\s*>[\\s\\S]*?<\\/\\1\\s*>`, 'gu'));
-    return [...records].some(([record]) => new RegExp(`<${prefix}resourcetype\\s*>\\s*<${prefix}collection\\s*(?:\\/\\s*>|>\\s*<\\/${prefix}collection\\s*>)\\s*<\\/${prefix}resourcetype\\s*>`, 'u').test(record)
-        && new RegExp(`<${prefix}status\\s*>\\s*HTTP\\/\\d(?:\\.\\d)? 200(?:\\s[^<]*)?<\\/${prefix}status\\s*>`, 'u').test(record));
-}
-function strongEtag(value: string | null): string | undefined {
-    return value && value.length <= 512 && /^"[\x21\x23-\x7e\x80-\xff]*"$/u.test(value) ? value : undefined;
-}
-/** 只认固定文件的 DAV:getetag；不跟随返回地址，不展开实体，不接受弱版本。 */
-function propertyEtag(xml: string, url: string): string | undefined {
-    if (/<!DOCTYPE|<!ENTITY/iu.test(xml)) return undefined;
-    const namespaces = [...xml.matchAll(/xmlns(?::([\w-]+))?=["']([^"']+)["']/gu)];
-    const dav = namespaces.filter(match => match[2] === 'DAV:');
-    if (!dav.length || dav.some(binding => namespaces.some(other => other[1] === binding[1] && other[2] !== 'DAV:'))) return undefined;
-    const prefix = `(?:${dav.map(match => match[1] ? `${match[1]}:` : '').join('|')})`;
-    const decode = (text: string) => text.replace(/&(?:quot|apos|amp|lt|gt);/gu, entity => ({'&quot;': '"', '&apos;': "'", '&amp;': '&', '&lt;': '<', '&gt;': '>'}[entity]!));
-    const responses = [...xml.matchAll(new RegExp(`<(${prefix}response)\\s*>[\\s\\S]*?<\\/\\1\\s*>`, 'gu'))];
-    // Depth:0 应只返回一个文件；拒绝有歧义的响应，避免混用另一文件的版本。
-    if (responses.length !== 1 || [...xml.matchAll(new RegExp(`<${prefix}response\\s*>`, 'gu'))].length !== 1) return undefined;
-    const record = responses[0][0];
-    const href = record.match(new RegExp(`<${prefix}href\\s*>([^<]*)<\\/${prefix}href\\s*>`, 'u'))?.[1];
-    if (!href || decode(href.trim()) !== url && decode(href.trim()) !== new URL(url).pathname) return undefined;
-    const values: string[] = [];
-    for (const [propstat] of record.matchAll(new RegExp(`<(${prefix}propstat)\\s*>[\\s\\S]*?<\\/\\1\\s*>`, 'gu'))) {
-        if (!new RegExp(`<${prefix}status\\s*>\\s*HTTP\\/\\d(?:\\.\\d)? 200(?:\\s[^<]*)?<\\/${prefix}status\\s*>`, 'u').test(propstat)) continue;
-        for (const match of propstat.matchAll(new RegExp(`<${prefix}getetag\\s*>([^<]*)<\\/${prefix}getetag\\s*>`, 'gu'))) values.push(decode(match[1].trim()));
-    }
-    return values.length === 1 ? strongEtag(values[0]) : undefined;
-}
 function failure(status: number): WebDavError {
     const codes = {401: 'auth', 403: 'forbidden', 404: 'notFound', 409: 'notFound', 412: 'conflict', 423: 'locked', 507: 'quota'} as const;
     return new WebDavError(codes[status as keyof typeof codes] ?? 'http', status);
@@ -98,7 +63,7 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
             if (response.status !== 207) throw response.ok ? new WebDavError('invalidDav') : failure(response.status);
             const xml = await consumeText(response, XML_LIMIT);
             // 只检查 Depth:0 的目录能力，不执行 XML、实体展开或任意返回地址。
-            if (!isDavCollection(xml)) throw new WebDavError('invalidDav');
+            if (!parseWebDavProperties(xml, url)?.collection) throw new WebDavError('invalidDav');
             return true;
         });
     }
@@ -118,7 +83,7 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
             }
             if (response.status !== 200) throw failure(response.status);
             const content = await consumeText(response, maxBytes);
-            const etag = strongEtag(response.headers.get('etag'));
+            const etag = strongCloudEtag(response.headers.get('etag'));
             const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content));
             const version = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
             return {file: {id: filename(session), version, modifiedTime: response.headers.get('last-modified') ?? '', ...(etag ? {etag} : {})}, content};
@@ -128,14 +93,14 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
             // 不具备属性能力仍可恢复；真正的鉴权、版本或网络错误必须提示用户。
             if ([405, 501].includes(response.status)) return undefined;
             if (response.status !== 207) throw failure(response.status);
-            return propertyEtag(await consumeText(response, XML_LIMIT), url);
+            return parseWebDavProperties(await consumeText(response, XML_LIMIT), url)?.etag;
         });
         if (!etag) return remote;
         // 属性与下载之间可能被另一设备更新。条件重读且逐字核对密文，
         // 防止把旧内容与新 ETag 配对后覆盖对方的修改。
         await request(session, url, {method: 'GET', headers: {'If-Match': etag}}, async response => {
             if (response.status !== 200) throw failure(response.status);
-            const returnedEtag = strongEtag(response.headers.get('etag'));
+            const returnedEtag = strongCloudEtag(response.headers.get('etag'));
             if (returnedEtag && returnedEtag !== etag || await consumeText(response, maxBytes) !== remote.content) throw new WebDavError('conflict');
         });
         remote.file.etag = etag;
@@ -145,7 +110,7 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
         let envelope: unknown;
         try {envelope = JSON.parse(content);} catch {throw new WebDavError('encryptedOnly');}
         if (!envelope || typeof envelope !== 'object' || !('format' in envelope) || envelope.format !== DRIVE_ENCRYPTION_FORMAT || !('ciphertext' in envelope) || typeof envelope.ciphertext !== 'string' || !envelope.ciphertext || new TextEncoder().encode(content).length > maxBytes) throw new WebDavError('encryptedOnly');
-        if (previous && (!strongEtag(previous.etag ?? null) || previous.id !== filename(session))) throw new WebDavError('etag');
+        if (previous && (!strongCloudEtag(previous.etag ?? null) || previous.id !== filename(session))) throw new WebDavError('etag');
         if (!previous) {
             await request(session, directory(session), {method: 'MKCOL'}, async response => {
                 if (![201, 405].includes(response.status)) throw failure(response.status);

@@ -35,6 +35,22 @@ async function synced() {
     return f;
 }
 describe('Google Drive 同步事务', () => {
+    it('成功同步后清理授权失败不会被误报为同步失败，状态检查会重试清理', async () => {
+        const f=fixture(); const preview=await f.service.prepare(password);
+        vi.mocked(f.ports.auth.disconnect).mockRejectedValueOnce(new Error('fixture cache failure'));
+        await expect(f.service.commit(preview.id,password,'upload',{})).resolves.toMatchObject({lastSyncedAt:1000,cleanupPending:true});
+        expect(f.ports.api.write).toHaveBeenCalledOnce();
+        vi.mocked(f.ports.auth.disconnect).mockRejectedValueOnce(new Error('fixture repeated cache failure'));
+        expect(await f.service.status()).toMatchObject({lastSyncedAt:1000,cleanupPending:true});
+        expect(await f.service.status()).not.toHaveProperty('cleanupPending');
+        expect(f.ports.auth.disconnect).toHaveBeenCalledTimes(3);
+    });
+    it('清理同时失败时保留读取或写入失败的原始原因', async () => {
+        const f=fixture();
+        vi.mocked(f.ports.api.read).mockRejectedValueOnce(new Error('fixture read failure'));
+        vi.mocked(f.ports.auth.disconnect).mockRejectedValueOnce(new Error('fixture cleanup failure'));
+        await expect(f.service.prepare(password)).rejects.toThrow('fixture read failure');
+    });
     it('配置一致或合并结果等于云端时只更新基线，不重复写入备份', async () => {
         const f=await synced();
         for (const direction of ['upload','merge'] as const) {
@@ -269,6 +285,7 @@ describe('Google Drive 同步事务', () => {
         vi.mocked(f.ports.readState).mockRejectedValueOnce(new Error('fixture state read failed'));
         await expect(f.service.cancel()).rejects.toThrow('fixture state read failed');
         expect(f.ports.auth.disconnect).toHaveBeenCalledTimes(3);
+        f.state = {...f.state as DriveSyncState, connected:true};
         vi.mocked(f.ports.writeState).mockRejectedValueOnce(new Error('fixture state write failed'));
         await expect(f.service.cancel()).rejects.toThrow('fixture state write failed');
         expect(f.ports.auth.disconnect).toHaveBeenCalledTimes(4);
