@@ -35,7 +35,7 @@ const deferred = <T>() => {
 };
 const flush = async () => { for (let turn = 0; turn < 20; turn++) await Promise.resolve(); };
 
-function setup() {
+function setup(bitmapSize = {width:400,height:200}) {
     const {document, window: domWindow} = parseHTML('<html><head><title>Image fixture</title></head><body><div id="clip"><img src="https://example.test/source.png" srcset="https://example.test/source.png 1x" /></div></body></html>');
     const originalCreate = document.createElement.bind(document);
     const image = document.querySelector('img') as HTMLImageElement;
@@ -98,7 +98,7 @@ function setup() {
     vi.stubGlobal('Image', function () {
         const bitmap = originalCreate('img') as HTMLImageElement;
         Object.defineProperties(bitmap, {
-            naturalWidth: {value: 400}, naturalHeight: {value: 200},
+            naturalWidth: {value: bitmapSize.width}, naturalHeight: {value: bitmapSize.height},
             src: {configurable: true, get: () => bitmap.getAttribute('src') || '', set: value => {
                 bitmap.setAttribute('src', value);
                 if (value && autoDecode) void Promise.resolve().then(() => bitmap.onload?.(new domWindow.Event('load')));
@@ -177,6 +177,7 @@ function addSecondHoverImage(env: ReturnType<typeof setup>, getRect: () => DOMRe
 beforeEach(() => {
     vi.useFakeTimers();
     settings.imageTranslationMangaEnabled = true; settings.imageTranslationHoverEnabled = true; settings.imageTranslationContextMenuEnabled = true;
+    settings.imageTranslationMangaCachePages = 12;
     settings.uiLanguage = 'zh-CN';
     settings.on = true; settings.disableImageTranslator = false; settings.to = 'zh-Hans'; settings.useCache = true;
     settings.imageTranslationService = ''; settings.service = 'google'; settings.model = {}; settings.customModel = {}; settings.customBody = {}; settings.proxy = {}; settings.customOpenAIProviders = []; settings.token = {};
@@ -327,6 +328,7 @@ describe('图片翻译前台交互与生命周期', () => {
         expect(env.image.style.opacity).toBe('0');
         env.image.src = 'https://example.test/replaced.png'; env.notify();
         expect(env.image.hasAttribute('style')).toBe(false);
+        env.dispatch(env.image, 'load'); // 替换图先完成首次加载，下面的 load 才是同地址重载。
         env.click(); await flush(); expect(env.image.style.opacity).toBe('0');
         env.dispatch(env.image, 'load'); expect(env.image.hasAttribute('style')).toBe(false);
         env.click(); await flush(); unmountImageTranslator();
@@ -486,6 +488,19 @@ describe('图片翻译前台交互与生命周期', () => {
         }
         expect(client.translate).toHaveBeenCalledTimes(7);
         env.hover(); env.click(); await flush(); expect(client.translate).toHaveBeenCalledTimes(8);
+    });
+    it('不足六张也按八百万译图像素淘汰；超预算单图只在当前显示、不留额外缓存',async()=>{
+        const env=setup({width:2000,height:1500});env.hover();env.click();await flush();env.click();
+        for(let i=0;i<2;i++) {
+            const image=addSecondHoverImage(env,env.image.getBoundingClientRect);image.src+=`?${i}`;
+            env.dispatch(image,'pointerover');vi.advanceTimersByTime(600);env.click();await flush();env.click();
+        }
+        expect(client.translate).toHaveBeenCalledTimes(3);
+        env.hover();env.click();await flush();expect(client.translate).toHaveBeenCalledTimes(4);
+        unmountImageTranslator();
+        const oversized=setup({width:3000,height:3000});oversized.hover();oversized.click();await flush();
+        expect(oversized.bitmap()).not.toBeNull();oversized.click();oversized.click();await flush();
+        expect(client.translate).toHaveBeenCalledTimes(6);
     });
 
     it('解码期间取消和解码超时清理监听，迟到的 decode 不复活结果', async () => {
@@ -1002,6 +1017,180 @@ describe('视频预览不自动显示图片翻译', () => {
         env.image.className = 'zao-image'; env.parent.className = 'zao-image-container';
         return env;
     }
+    function cacheChapter(env: ReturnType<typeof readerPage>, count: number) {
+        let current = 0, nearby = -1;
+        const rect = (index: number) => ({left:20,right:420,top:current===index?40:nearby===index?900:5000,
+            bottom:current===index?240:nearby===index?1100:5200,width:400,height:200}) as DOMRect;
+        env.image.getBoundingClientRect=()=>rect(0);
+        const pages=[env.image];
+        for(let i=1;i<count;i++){const image=addSecondHoverImage(env,()=>rect(i));image.src+=`?${i}`;image.className='zao-image';pages.push(image);}
+        const scroll=()=>{for(const [name,callback] of env.windowObject.addEventListener.mock.calls)if(name==='scroll')(callback as EventListener)(new Event('scroll'));env.runFrames();};
+        return {pages, visit:async(index:number,near=-1)=>{current=index;nearby=near;scroll();await flush();env.runFrames();await flush();}, near:(index:number)=>{nearby=index;scroll();}};
+    }
+    it('漫画默认快速缓存可保留十二张正常页，第十三张才淘汰最早结果',async()=>{
+        const env=readerPage();settings.imageTranslationMangaPrefetchPages=0;const chapter=cacheChapter(env,13);
+        toggleMangaTranslation();await flush();
+        for(let i=1;i<13;i++)await chapter.visit(i);
+        expect(client.translate).toHaveBeenCalledTimes(13);await chapter.visit(1);expect(client.translate).toHaveBeenCalledTimes(13);
+        await chapter.visit(0);expect(client.translate).toHaveBeenCalledTimes(14);
+    });
+    it('局部结果直接显示画布，越过快速缓存后重建只解码图块，不重做 OCR 或翻译',async()=>{
+        const env=readerPage();settings.imageTranslationMangaPrefetchPages=0;settings.imageTranslationMangaCachePages=1;
+        const chapter=cacheChapter(env,7),decode=vi.fn().mockImplementation(async()=>({width:10,height:20,close:vi.fn()}));vi.stubGlobal('createImageBitmap',decode);
+        client.translate.mockResolvedValue({...result,image:'',mangaPatches:{width:400,height:200,patches:[{x:0,y:0,width:10,height:20,image:'data:image/png;base64,AQID'}]}});
+        toggleMangaTranslation();await flush();expect(env.bitmap()?.tagName).toBe('CANVAS');expect(env.decoded).toHaveLength(0);
+        await chapter.visit(3);await chapter.visit(6);expect(client.translate).toHaveBeenCalledTimes(3);
+        const before=decode.mock.calls.length;await chapter.visit(0);expect(decode).toHaveBeenCalledTimes(before+1);expect(client.translate).toHaveBeenCalledTimes(3);
+        expect(env.bitmap()?.tagName).toBe('CANVAS');expect(chapter.pages[0].style.opacity).toBe('0');
+        unmountImageTranslator();expect(env.canvases.every(canvas=>canvas.width===0&&canvas.height===0)).toBe(true);
+    });
+    it('接近视口时预合成历史页，即使关闭预译也不会额外调用翻译服务',async()=>{
+        const env=readerPage();settings.imageTranslationMangaPrefetchPages=0;settings.imageTranslationMangaCachePages=2;
+        const chapter=cacheChapter(env,10),decode=vi.fn().mockImplementation(async()=>({width:10,height:20,close:vi.fn()}));vi.stubGlobal('createImageBitmap',decode);
+        client.translate.mockResolvedValue({...result,image:'',mangaPatches:{width:400,height:200,patches:[{x:0,y:0,width:10,height:20,image:'data:image/png;base64,AQID'}]}});
+        toggleMangaTranslation();await flush();await chapter.visit(3);await chapter.visit(6);await chapter.visit(9);
+        const before=decode.mock.calls.length;await chapter.visit(9,0);expect(decode).toHaveBeenCalledTimes(before+1);expect(chapter.pages[0].style.opacity).not.toBe('0');
+        await chapter.visit(0);expect(decode).toHaveBeenCalledTimes(before+1);expect(client.translate).toHaveBeenCalledTimes(4);expect(chapter.pages[0].style.opacity).toBe('0');
+    });
+    it.each(['pause','source','language','route','unmount'] as const)('预合成期间 %s，迟到结果不能复活且位图释放',async change=>{
+        const env=readerPage();settings.imageTranslationMangaPrefetchPages=0;settings.imageTranslationMangaCachePages=2;
+        const chapter=cacheChapter(env,10),decode=vi.fn().mockImplementation(async()=>({width:10,height:20,close:vi.fn()}));vi.stubGlobal('createImageBitmap',decode);
+        client.translate.mockResolvedValue({...result,image:'',mangaPatches:{width:400,height:200,patches:[{x:0,y:0,width:10,height:20,image:'data:image/png;base64,AQID'}]}});
+        toggleMangaTranslation();await flush();await chapter.visit(3);await chapter.visit(6);await chapter.visit(9);
+        const pending=deferred<{width:number;height:number;close:ReturnType<typeof vi.fn>}>();decode.mockReturnValueOnce(pending.promise);
+        chapter.near(0);await flush();
+        if(change==='pause')toggleMangaTranslation();
+        if(change==='source'){chapter.pages[0].src+='?new';env.scroll();env.runFrames();}
+        if(change==='language')settings.to='en';
+        if(change==='route'){(env.windowObject as typeof env.windowObject & {location:{href:string}}).location.href='https://mangaplus.shueisha.co.jp/viewer/1024051';document.dispatchEvent(new document.defaultView!.Event('fluentread-route-change'));env.runFrames();}
+        if(change==='unmount')unmountImageTranslator();
+        const bitmap={width:10,height:20,close:vi.fn()};pending.resolve(bitmap);await flush();expect(bitmap.close).toHaveBeenCalledOnce();
+        expect(chapter.pages[0].style.opacity).not.toBe('0');unmountImageTranslator();expect(env.canvases.every(c=>c.width===0&&c.height===0)).toBe(true);
+    });
+    it('同地址重载撤下旧译图并重新识别，不能停在已完成状态',async()=>{
+        const env=readerPage();settings.imageTranslationMangaPrefetchPages=0;
+        toggleMangaTranslation();await flush();expect(env.bitmap()).not.toBeNull();
+        env.image.dispatchEvent(new env.image.ownerDocument.defaultView!.Event('load',{bubbles:true}));
+        env.runFrames();await flush();
+        expect(client.translate).toHaveBeenCalledTimes(2);expect(env.bitmap()).not.toBeNull();
+    });
+    it('新源已经处理后到达首次 load 保留译图与缓存，后续同地址 load 才重新识别',async()=>{
+        const env=readerPage();settings.useCache=true;settings.imageTranslationMangaPrefetchPages=0;
+        toggleMangaTranslation();await flush();env.image.src='https://example.test/new-loaded.png';env.notify();env.runFrames();await flush();
+        expect(client.translate).toHaveBeenCalledTimes(2);const translated=env.bitmap();expect(translated).not.toBeNull();
+        env.image.dispatchEvent(new env.image.ownerDocument.defaultView!.Event('load',{bubbles:true}));env.runFrames();await flush();
+        expect(client.translate).toHaveBeenCalledTimes(2);expect(env.bitmap()).toBe(translated);
+        env.image.dispatchEvent(new env.image.ownerDocument.defaultView!.Event('load',{bubbles:true}));env.runFrames();await flush();
+        expect(client.translate).toHaveBeenCalledTimes(3);
+    });
+    it('无文字页离开附近窗口后上下左右返回可复用零位图结果',async()=>{
+        const env=readerPage();settings.useCache=true;settings.imageTranslationMangaPrefetchPages=0;
+        client.translate.mockResolvedValueOnce({...result,lines:[]});
+        for(let i=0;i<3;i++){const p=document.createElement('img');p.className='zao-image';env.parent.append(p);}
+        let secondLeft=1400;const second=addSecondHoverImage(env,()=>({left:secondLeft,right:secondLeft+400,top:40,bottom:240,width:400,height:200}) as DOMRect);second.className='zao-image';
+        const scroll=()=>{for(const [name,callback] of env.windowObject.addEventListener.mock.calls)if(name==='scroll')(callback as EventListener)(new Event('scroll'));env.runFrames();};
+        toggleMangaTranslation();await flush();expect(env.bitmap()).toBeNull();
+        env.setRect({left:-600,right:-200,top:40,bottom:240,width:400,height:200});secondLeft=20;scroll();await flush();
+        env.setRect({left:20,right:420,top:40,bottom:240,width:400,height:200});secondLeft=1400;scroll();await flush();
+        expect(client.translate).toHaveBeenCalledTimes(2);expect(env.bitmap()).toBeNull();
+        expect(env.image.style.opacity).not.toBe('0');
+    });
+    it.each([true,false])('无文字页暂停后重开保留已完成结果，缓存=%s',async useCache=>{
+        const env=readerPage();settings.useCache=useCache;settings.imageTranslationMangaPrefetchPages=0;
+        client.translate.mockResolvedValue({...result,lines:[]});toggleMangaTranslation();await flush();
+        toggleMangaTranslation();toggleMangaTranslation();await flush();
+        expect(client.translate).toHaveBeenCalledTimes(1);expect(env.bitmap()).toBeNull();
+    });
+    it('无文字完成标记在目标语言变化和同地址重载后失效',async()=>{
+        const env=readerPage();settings.useCache=true;settings.imageTranslationMangaPrefetchPages=0;
+        client.translate.mockResolvedValue({...result,lines:[]});toggleMangaTranslation();await flush();
+        settings.to='en';await flush();env.runFrames();await flush();
+        expect(client.translate).toHaveBeenCalledTimes(2);
+        env.image.dispatchEvent(new env.image.ownerDocument.defaultView!.Event('load',{bubbles:true}));env.runFrames();await flush();
+        expect(client.translate).toHaveBeenCalledTimes(3);expect(env.bitmap()).toBeNull();
+    });
+    it('已有单图译图切到漫画处理后暂停，仍取消新请求并禁止迟到结果复活',async()=>{
+        const env=readerPage();settings.imageTranslationMangaPrefetchPages=0;
+        env.hover();env.click();await flush();expect(env.bitmap()).not.toBeNull();
+        const pending=deferred<typeof result>();client.translate.mockReturnValueOnce(pending.promise);
+        toggleMangaTranslation();await flush();expect(client.translate).toHaveBeenCalledTimes(2);
+        toggleMangaTranslation();expect(client.translate.mock.calls[1][3].signal.aborted).toBe(true);
+        pending.resolve(result);await flush();expect(env.bitmap()).toBeNull();expect(env.image.style.opacity).not.toBe('0');
+    });
+    it.each([true,false])('另一张处理时快速往返，最近已翻译页面保持稳定且不重做，缓存=%s', async useCache => {
+        const env=readerPage();settings.useCache=useCache;settings.imageTranslationMangaPrefetchPages=0;
+        let secondTop=1000;
+        const second=addSecondHoverImage(env,()=>({left:20,right:420,top:secondTop,bottom:secondTop+200,width:400,height:200}) as DOMRect);second.className='zao-image';
+        const scroll=()=>{for(const [name,callback] of env.windowObject.addEventListener.mock.calls) if(name==='scroll') (callback as EventListener)(new Event('scroll'));env.runFrames();};
+        toggleMangaTranslation();await flush();expect(env.image.style.opacity).toBe('0');
+        const pending=deferred<typeof result>();client.translate.mockReturnValueOnce(pending.promise);
+        env.setRect({left:20,right:420,top:-300,bottom:-100,width:400,height:200});secondTop=40;scroll();await flush();
+        expect(client.translate).toHaveBeenCalledTimes(2);
+        for(const stage of ['preparing','recognizing','translating','cleaning','rendering'] as const) {
+            env.setRect({left:20,right:420,top:40,bottom:240,width:400,height:200});secondTop=1000;scroll();await flush();
+            client.translate.mock.calls[1][3].onProgress(stage,50);scroll();await flush();
+            expect(env.image.style.opacity).toBe('0');expect(env.bitmap()).not.toBeNull();expect(client.translate).toHaveBeenCalledTimes(2);
+            env.setRect({left:20,right:420,top:-300,bottom:-100,width:400,height:200});secondTop=40;scroll();await flush();
+        }
+        pending.resolve(result);await flush();env.runFrames();toggleMangaTranslation();await flush();
+        expect(env.image.style.opacity).not.toBe('0');expect(second.style.opacity).not.toBe('0');
+    });
+    it('超过最近两张保留窗口后返回缓存页，立即显示，不等待正在识别的另一张', async () => {
+        const env=readerPage();settings.useCache=true;settings.imageTranslationMangaPrefetchPages=0;
+        for(let i=0;i<3;i++) {const placeholder=document.createElement('img');placeholder.className='zao-image';env.parent.append(placeholder);}
+        let secondTop=1000;const second=addSecondHoverImage(env,()=>({left:20,right:420,top:secondTop,bottom:secondTop+200,width:400,height:200}) as DOMRect);second.className='zao-image';
+        const scroll=()=>{for(const [name,callback] of env.windowObject.addEventListener.mock.calls) if(name==='scroll') (callback as EventListener)(new Event('scroll'));env.runFrames();};
+        toggleMangaTranslation();await flush();const bitmap=env.bitmap();
+        const pending=deferred<typeof result>();client.translate.mockReturnValueOnce(pending.promise);
+        env.setRect({left:20,right:420,top:-300,bottom:-100,width:400,height:200});secondTop=40;scroll();await flush();
+        expect(client.translate).toHaveBeenCalledTimes(2);
+        env.setRect({left:20,right:420,top:40,bottom:240,width:400,height:200});secondTop=1000;scroll();await flush();
+        expect(env.image.style.opacity).toBe('0');expect(env.bitmap()).toBe(bitmap);expect(client.translate).toHaveBeenCalledTimes(2);
+        pending.resolve(result);await flush();unmountImageTranslator();expect(env.image.style.opacity).not.toBe('0');
+    });
+    it.each(['source','language','cache','remove'] as const)('另一张尚在处理时，失效的返页结果不会被同步复用：%s', async change => {
+        const env=readerPage();settings.useCache=true;settings.imageTranslationMangaPrefetchPages=0;
+        for(let i=0;i<3;i++) {const placeholder=document.createElement('img');placeholder.className='zao-image';env.parent.append(placeholder);}
+        let secondTop=1000;const second=addSecondHoverImage(env,()=>({left:20,right:420,top:secondTop,bottom:secondTop+200,width:400,height:200}) as DOMRect);second.className='zao-image';
+        const scroll=()=>{for(const [name,callback] of env.windowObject.addEventListener.mock.calls) if(name==='scroll') (callback as EventListener)(new Event('scroll'));env.runFrames();};
+        toggleMangaTranslation();await flush();
+        const pending=deferred<typeof result>(),fresh=deferred<typeof result>();client.translate.mockReturnValueOnce(pending.promise).mockReturnValue(fresh.promise);
+        env.setRect({left:20,right:420,top:-300,bottom:-100,width:400,height:200});secondTop=40;scroll();await flush();
+        if(change==='source')env.image.src+='?new-source';
+        if(change==='language')settings.to='en';
+        if(change==='cache')settings.useCache=false;
+        if(change==='remove')env.image.remove();
+        env.setRect({left:20,right:420,top:40,bottom:240,width:400,height:200});secondTop=1000;scroll();await flush();
+        expect(env.image.style.opacity).not.toBe('0');expect(env.bitmap()).toBeNull();
+        unmountImageTranslator();pending.resolve(result);fresh.resolve(result);await flush();expect(env.bitmap()).toBeNull();
+    });
+    it('漫画每个处理阶段都保持原图可见且无逐图弹窗，会话仍发布进度并支持暂停', async () => {
+        const env = readerPage();const pending = deferred<typeof result>();client.translate.mockReturnValueOnce(pending.promise);
+        const listener=vi.fn(),stop=subscribeMangaTranslation(listener);
+        toggleMangaTranslation();await flush();
+        const feedback=env.roots[0].querySelector('.fr-image-feedback') as HTMLElement;
+        const controls=env.roots[0].querySelector('.fr-image-controls') as HTMLElement;
+        for (const stage of ['preparing','recognizing','translating','cleaning','rendering'] as const) {
+            client.translate.mock.calls[0][3].onProgress(stage,42);await flush();
+            expect(feedback.hidden).toBe(true);expect(controls.hidden).toBe(true);expect(env.image.style.opacity).not.toBe('0');
+            expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({pending:true,stage}));
+        }
+        toggleMangaTranslation();pending.resolve(result);await flush();
+        expect(env.bitmap()).toBeNull();expect(feedback.hidden).toBe(true);expect(env.image.style.opacity).not.toBe('0');stop();
+    });
+    it.each(['button','contextmenu'] as const)('漫画失败保持原图可读，%s 重试进入会话并清除错误', async action => {
+        const env=readerPage();client.translate.mockRejectedValueOnce(new Error('翻译服务暂时不可用'));
+        const listener=vi.fn(),stop=subscribeMangaTranslation(listener);toggleMangaTranslation();await flush();
+        expect((env.roots[0].querySelector('.fr-image-feedback') as HTMLElement).hidden).toBe(true);
+        expect(env.image.style.opacity).not.toBe('0');expect(env.button().textContent).toBe('重试');
+        expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({errors:1,pending:false}));
+        const pending=deferred<typeof result>();client.translate.mockReturnValueOnce(pending.promise);
+        if(action==='button') env.click();
+        else {env.dispatch(env.image,'contextmenu');expect(toggleContextMenuImage(env.image.src)).toBe(true);}
+        await flush();expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({errors:0,pending:true}));
+        pending.resolve(result);await flush();env.runFrames();await flush();expect(env.bitmap()).not.toBeNull();
+        expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({errors:0,pending:false}));stop();
+    });
     it('一次开启、原图暂停、重新开启复用已解码结果，即使持久缓存关闭', async () => {
         const env = readerPage(); settings.useCache = false;
         const listener = vi.fn(); const stop = subscribeMangaTranslation(listener);

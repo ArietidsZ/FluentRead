@@ -91,6 +91,11 @@ describe('area translation Offscreen adapter', () => {
 
 describe('image translation Offscreen adapter', () => {
     const adapter = createImageTranslationOffscreenAdapter(client);
+    it('验证并透传漫画局部结果，拒绝非法图块',async()=>{
+        const mangaPatches={width:100,height:100,patches:[{x:0,y:0,width:20,height:20,image:'data:image/png;base64,AQID'}]};
+        for(const image of ['',undefined]){send.mockResolvedValueOnce({success:true,image,lines:[],mangaPatches});await expect(adapter.translateImage('source','en','Page')).resolves.toEqual({image:'',lines:[],mangaPatches});}
+        send.mockResolvedValueOnce({success:true,lines:[],mangaPatches:null});await expect(adapter.translateImage('source','en','Page')).rejects.toThrow('无效');
+    });
     it('校验漫画模型状态和清理结果，并把专用模式传到 Offscreen',async()=>{
         send.mockResolvedValueOnce({success:true,ready:true,bytes:123,inpaintingReady:false});
         expect(await adapter.getMangaModelStatus()).toEqual({ready:true,bytes:123,inpaintingReady:false});

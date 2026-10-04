@@ -1,15 +1,40 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
-const mocks=vi.hoisted(()=>({load:vi.fn(),background:vi.fn(),create:vi.fn(),run:vi.fn(),release:vi.fn(),tensor:vi.fn(),tensorDispose:vi.fn(),outputDispose:vi.fn(),wasm:{numThreads:0,wasmPaths:undefined as unknown,proxy:true}}));
+const mocks=vi.hoisted(()=>({gpu:vi.fn(),load:vi.fn(),background:vi.fn(),create:vi.fn(),run:vi.fn(),release:vi.fn(),tensor:vi.fn(),tensorDispose:vi.fn(),outputDispose:vi.fn(),wasm:{numThreads:0,wasmPaths:undefined as unknown,proxy:true}}));
 vi.mock('@/src/features/image-translation/services/mangaOcrAssets',async original=>({...await original<any>(),loadMangaInpaintAsset:mocks.load}));
+vi.mock('@/src/features/image-translation/services/mangaGpu',()=>({probeMangaGpu:mocks.gpu}));
 vi.mock('@/src/features/image-translation/services/mangaRendering',()=>({mangaRegionBackground:mocks.background}));
-vi.mock('onnxruntime-web',()=>({env:{wasm:mocks.wasm},InferenceSession:{create:mocks.create},Tensor:class{constructor(...args:unknown[]){mocks.tensor(...args)}dispose=mocks.tensorDispose;}}));
+vi.mock('onnxruntime-web/webgpu',()=>({env:{wasm:mocks.wasm},InferenceSession:{create:mocks.create},Tensor:class{constructor(...args:unknown[]){mocks.tensor(...args)}dispose=mocks.tensorDispose;}}));
 import {applyMangaPatch,createBrowserMangaInpainter,createMangaInpaintingRuntime,createMangaPatch} from '@/src/features/image-translation/services/mangaInpainting';
 const region={text:'Hello world',fontSize:20,bbox:{x0:30,y0:30,x1:90,y1:70}};
 const pixels=()=>new Uint8ClampedArray(128*128*4).fill(255);
 const zero=(patch:{width:number;height:number})=>new Float32Array(patch.width*patch.height*3);
-beforeEach(()=>{vi.useFakeTimers();vi.clearAllMocks();mocks.load.mockResolvedValue(new ArrayBuffer(1));mocks.background.mockReturnValue({uniform:false,color:'rgb(255,255,255)'});mocks.release.mockResolvedValue(undefined);mocks.create.mockResolvedValue({run:mocks.run,release:mocks.release});mocks.run.mockResolvedValue({inpainted:{data:new Float32Array([0.25]),dispose:mocks.outputDispose}});vi.stubGlobal('chrome',{runtime:{getURL:(p:string)=>'chrome-extension://test'+p}});});
+beforeEach(()=>{vi.useFakeTimers();vi.clearAllMocks();mocks.gpu.mockResolvedValue({available:false,info:''});mocks.load.mockResolvedValue(new ArrayBuffer(1));mocks.background.mockReturnValue({uniform:false,color:'rgb(255,255,255)'});mocks.release.mockResolvedValue(undefined);mocks.create.mockResolvedValue({run:mocks.run,release:mocks.release});mocks.run.mockResolvedValue({inpainted:{data:new Float32Array([0.25]),dispose:mocks.outputDispose}});vi.stubGlobal('chrome',{runtime:{getURL:(p:string)=>'chrome-extension://test'+p}});});
 afterEach(()=>{vi.clearAllTimers();vi.useRealTimers();vi.unstubAllGlobals()});
 describe('漫画局部神经修补',()=>{
+    it('GPU 初始化失败改用 CPU，CPU 初始化失败和取消不继续重试',async()=>{
+        mocks.gpu.mockResolvedValue({available:true,info:'hardware'});
+        mocks.create.mockRejectedValueOnce(new Error('GPU init'));
+        const port=await createBrowserMangaInpainter();
+        expect(mocks.create.mock.calls.map(call=>call[1].executionProviders)).toEqual([['webgpu','wasm'],['wasm']]);
+        await port.release();
+        mocks.gpu.mockResolvedValue({available:false,info:''});mocks.create.mockRejectedValueOnce(new Error('CPU init'));
+        await expect(createBrowserMangaInpainter()).rejects.toThrow('CPU init');expect(mocks.create).toHaveBeenCalledTimes(3);
+        mocks.gpu.mockResolvedValue({available:true,info:'hardware'});const abort=new AbortController();
+        mocks.create.mockImplementationOnce(async()=>{abort.abort();throw new Error('GPU init');});
+        await expect(createBrowserMangaInpainter(abort.signal)).rejects.toMatchObject({name:'AbortError'});expect(mocks.create).toHaveBeenCalledTimes(4);
+    });
+    it('GPU 故障时沿用当前补丁及信号回退 CPU，初始化期间取消释放替代会话',async()=>{
+        mocks.gpu.mockResolvedValue({available:true,info:'hardware'});
+        const gpu={run:vi.fn().mockRejectedValue(new Error('GPU')),release:vi.fn(async()=>{})};
+        const cpu={run:mocks.run,release:vi.fn(async()=>{})};mocks.create.mockResolvedValueOnce(gpu).mockResolvedValueOnce(cpu);
+        const port=await createBrowserMangaInpainter(),patch={image:new Float32Array(3),mask:new Float32Array(1),width:1,height:1};
+        expect(await port.run(patch)).toEqual(new Float32Array([.25]));expect(mocks.create.mock.calls[0][1].executionProviders).toEqual(['webgpu','wasm']);await port.release();expect(cpu.release).toHaveBeenCalledOnce();
+        const aborted=new AbortController(),second={run:vi.fn().mockRejectedValue(new Error('GPU')),release:vi.fn(async()=>{})};
+        mocks.create.mockResolvedValueOnce(second).mockImplementationOnce(async()=>{aborted.abort();return cpu;});
+        const retry=await createBrowserMangaInpainter();await expect(retry.run(patch,aborted.signal)).rejects.toMatchObject({name:'AbortError'});expect(cpu.release).toHaveBeenCalledTimes(2);
+        const third={run:vi.fn().mockRejectedValue(new Error('GPU')),release:vi.fn(async()=>{})},pending=new AbortController();mocks.create.mockResolvedValueOnce(third);
+        const last=await createBrowserMangaInpainter();mocks.load.mockImplementationOnce(async()=>{pending.abort();return new ArrayBuffer(1);});await expect(last.run(patch,pending.signal)).rejects.toMatchObject({name:'AbortError'});
+    });
     it('有界补丁归一化像素和逐行蒙版，长页不将整张图送入模型',()=>{
         const mapping=createMangaPatch(pixels(),128,128,{...region,sourceBoxes:[{x0:30,y0:30,x1:60,y1:50},{x0:30,y0:60,x1:90,y1:70}]});
         expect(mapping.patch.width%64).toBe(0);expect(mapping.patch.image[0]).toBe(1);expect(mapping.patch.mask).toContain(1);expect(mapping.patch.mask).toContain(0);
@@ -55,7 +80,7 @@ describe('漫画局部神经修补',()=>{
         expect(await port.run(patch)).toEqual(new Float32Array([0.25]));expect(mocks.tensor.mock.calls.map(c=>c[2])).toEqual([[1,3,1,1],[1,1,1,1]]);
         expect(mocks.outputDispose).toHaveBeenCalledOnce();expect(mocks.tensorDispose).toHaveBeenCalledTimes(2);
         mocks.run.mockRejectedValueOnce(new Error('run'));await expect(port.run(patch)).rejects.toThrow('run');expect(mocks.tensorDispose).toHaveBeenCalledTimes(4);
-        await port.release();expect(mocks.release).toHaveBeenCalledOnce();expect(mocks.wasm.numThreads).toBe(1);
+        await port.release();expect(mocks.release).toHaveBeenCalledOnce();expect(mocks.wasm.numThreads).toBe(1);expect(mocks.create).toHaveBeenCalledWith(expect.any(ArrayBuffer),{executionProviders:['wasm'],graphOptimizationLevel:'all'});
     });
     it('创建模型后取消会释放会话，下载后预取消不创建 ONNX 会话',async()=>{
         const abort=new AbortController();mocks.create.mockImplementationOnce(async()=>{abort.abort();return {release:mocks.release}});

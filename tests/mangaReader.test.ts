@@ -6,9 +6,9 @@ import {normalizeConfig} from '@/src/core/config/model';
 
 const flush = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); };
 function deferred() { let resolve!: () => void; const promise = new Promise<void>(yes => {resolve = yes;}); return {promise, resolve}; }
-function sessionFixture() {
+function sessionFixture(extra: {reuse?: (image: HTMLImageElement) => boolean} = {}) {
     const one = {} as HTMLImageElement, two = {} as HTMLImageElement;
-    const ports = {translate: vi.fn().mockResolvedValue(undefined), restore: vi.fn(), release: vi.fn(), failed: vi.fn().mockReturnValue(false), changed: vi.fn()};
+    const ports = {translate: vi.fn().mockResolvedValue(undefined), restore: vi.fn(), release: vi.fn(), failed: vi.fn().mockReturnValue(false), changed: vi.fn(), ...extra};
     const session = createMangaSession(ports);
     const snapshot: MangaSnapshot = {route: 'chapter-1', available: true, pages: [
         {image: one, identity: '1', visible: true}, {image: two, identity: '2', visible: false},
@@ -20,6 +20,48 @@ function sessionFixture() {
 afterEach(() => {vi.restoreAllMocks(); vi.unstubAllGlobals();});
 
 describe('漫画会话所有权与可见页调度', () => {
+    it('失败不自动循环请求，显式单页重试发布进度并在成功后清除会话错误',async()=>{
+        const reuse=vi.fn().mockReturnValue(false),f=sessionFixture({reuse});f.ports.failed.mockReturnValue(true);
+        f.start();await flush();expect(f.session.status().errors).toBe(1);
+        reuse.mockReturnValue(true);f.session.refresh(f.snapshot);expect(f.session.status().errors).toBe(1);
+        expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        const pending=deferred();f.ports.translate.mockReturnValueOnce(pending.promise);f.ports.failed.mockReturnValue(false);
+        expect(f.session.retry(f.one)).toBe(true);await flush();
+        expect(f.session.status()).toMatchObject({errors:0,completed:0,pending:true});
+        expect(f.session.retry(f.one)).toBe(false);expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        pending.resolve();await flush();
+        expect(f.session.status()).toMatchObject({errors:0,completed:1,pending:false});f.session.dispose();
+    });
+    it('重试排在已经运行的另一页之后，不并发抢占；暂停后不会复活迟到结果',async()=>{
+        const f=sessionFixture();f.ports.failed.mockReturnValue(true);f.start();await flush();
+        const other=deferred();f.ports.translate.mockReturnValueOnce(other.promise);f.ports.failed.mockReturnValue(false);
+        f.snapshot.pages[0].retain=true;f.snapshot.pages[0].visible=false;f.snapshot.pages[1].visible=true;
+        f.session.refresh(f.snapshot);await flush();
+        f.snapshot.pages[0].visible=true;f.session.refresh(f.snapshot);
+        expect(f.session.retry(f.one)).toBe(true);await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        const retry=deferred();f.ports.translate.mockReturnValueOnce(retry.promise);
+        other.resolve();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([f.one,f.two,f.one]);
+        expect(f.session.status()).toMatchObject({pending:true,errors:0});f.session.toggle();retry.resolve();await flush();
+        expect(f.session.status()).toMatchObject({active:false,pending:false,completed:1});f.session.dispose();
+    });
+    it('未开启、隐藏、仅附近保留、已离开窗口和卸载的页面不能绕过会话重试',async()=>{
+        const f=sessionFixture();expect(f.session.retry(f.one)).toBe(false);
+        f.snapshot.pages[1].retain=true;const pending=deferred();f.ports.translate.mockReturnValueOnce(pending.promise);f.start();await flush();
+        expect(f.session.retry({} as HTMLImageElement)).toBe(false);expect(f.session.retry(f.two)).toBe(false);
+        f.snapshot.suspended=true;f.session.refresh(f.snapshot);expect(f.session.retry(f.one)).toBe(false);
+        f.snapshot.suspended=false;f.snapshot.pages[0].visible=false;f.session.refresh(f.snapshot);
+        expect(f.session.retry(f.one)).toBe(false);f.session.dispose();expect(f.session.retry(f.one)).toBe(false);
+        pending.resolve();await flush();
+    });
+    it('上一张已完成译图立即复用，不等待另一张识别结束', async () => {
+        const reuse=vi.fn().mockReturnValue(false),f=sessionFixture({reuse}),pending=deferred();
+        f.start();await flush();f.ports.translate.mockReturnValueOnce(pending.promise);
+        f.snapshot.pages[0].visible=false;f.snapshot.pages[1].visible=true;f.session.refresh(f.snapshot);await flush();
+        reuse.mockImplementation(image=>image===f.one);
+        f.snapshot.pages[0].visible=true;f.session.refresh(f.snapshot);
+        expect(reuse).toHaveBeenCalledWith(f.one);expect(f.session.status()).toMatchObject({completed:1,pending:true});
+        expect(f.ports.translate).toHaveBeenCalledTimes(2);pending.resolve();await flush();f.session.dispose();
+    });
     it('可见页优先于排队预译页，已经准备好的页进入视口不会再识别', async () => {
         const f=sessionFixture(),pending=deferred(),three={} as HTMLImageElement;
         f.snapshot.pages[1].prefetch=true;f.ports.translate.mockReturnValueOnce(pending.promise);
@@ -117,7 +159,7 @@ describe('漫画会话所有权与可见页调度', () => {
     });
 });
 
-function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number) {
+function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number, warm?: (images:HTMLImageElement[])=>void) {
     const {document, window: dom} = parseHTML('<html><body><div class="zao-image-container"><img class="zao-image" src="blob:page-1"></div><img id="logo" src="https://site/logo.png"></body></html>');
     const image = document.querySelector('img')! as HTMLImageElement;
     Object.defineProperties(image, {complete: {writable: true, value: true}, naturalWidth: {writable: true, value: 800}, naturalHeight: {value: 1200}, currentSrc: {get: () => image.src}});
@@ -139,7 +181,7 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         constructor(callback: MutationCallback) {mo.callback = callback;} });
     const ports = {enabled: vi.fn().mockReturnValue(true), identity: (i: HTMLImageElement) => i.src,
         translate: vi.fn().mockResolvedValue(undefined), restore: vi.fn(), release: vi.fn(), failed: vi.fn().mockReturnValue(false), changed: vi.fn()};
-    const reader = createMangaReader({...ports, siteRules, prefetchPages});
+    const reader = createMangaReader({...ports, siteRules, prefetchPages, warm});
     const run = () => {const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(c => c(0));};
     const intersect = (yes: boolean) => {io.callback([{target: image, isIntersecting: yes} as unknown as IntersectionObserverEntry], {} as IntersectionObserver); run();};
     return {reader, ports, image, io, mo, window, dom, document, run, intersect,
@@ -147,6 +189,135 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it('预合成按可见优先与几何距离排序，左右一屏和容量都有边界',()=>{
+        const warm=vi.fn(),f=readerFixture(true,undefined,undefined,undefined,warm);
+        const near=f.document.createElement('img'),far=f.document.createElement('img');
+        for(const [image,top] of [[far,1700],[near,1200]] as const){image.className='zao-image';image.src=`blob:${top}`;Object.defineProperties(image,{complete:{value:true},naturalWidth:{value:800},naturalHeight:{value:1200}});image.getBoundingClientRect=()=>({left:0,right:800,top,bottom:top+1200,width:800,height:1200}) as DOMRect;f.image.parentElement!.append(image);}
+        f.reader.schedule();f.run();expect(warm).toHaveBeenLastCalledWith([f.image,near,far]);f.reader.dispose();
+    });
+    it('同地址原图重新加载也重新识别，其他图片加载不能失效当前译图', async () => {
+        const f=readerFixture();f.reader.toggle();await flush();
+        f.document.querySelector('#logo')!.dispatchEvent(new f.dom.Event('load',{bubbles:true}));f.run();await flush();
+        expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        f.image.dispatchEvent(new f.dom.Event('load',{bubbles:true}));f.run();await flush();
+        expect(f.ports.release).toHaveBeenCalledWith(f.image);
+        expect(f.ports.translate).toHaveBeenCalledTimes(2);f.reader.dispose();
+    });
+    it('新地址已就绪先处理后收到 load 不重复识别，再次同地址重载仍失效',async()=>{
+        const f=readerFixture();f.reader.toggle();await flush();
+        f.image.src='blob:new-source';f.reader.schedule();f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        f.image.dispatchEvent(new f.dom.Event('load',{bubbles:true}));f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        f.image.dispatchEvent(new f.dom.Event('load',{bubbles:true}));f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(3);
+        f.reader.dispose();
+    });
+    it('上下左右移动只更新几何，宿主正文变化和显式配置刷新才重新发现图片', async () => {
+        const f=readerFixture(false),query=vi.spyOn(f.document,'querySelectorAll');
+        f.reader.toggle();await flush();query.mockClear();
+        const scroll=f.window.addEventListener.mock.calls.find(([name])=>name==='scroll')![1];
+        const resize=f.window.addEventListener.mock.calls.find(([name])=>name==='resize')![1];
+        for(let i=0;i<8;i++) {
+            f.setRect(i%2 ? {left:0,right:800,top:0,bottom:1200} : {left:1400,right:2200,top:-1300,bottom:-100});
+            scroll();resize();f.run();await flush();
+        }
+        expect(query).not.toHaveBeenCalled();
+        f.mo.callback([{target:f.image} as unknown as MutationRecord],{} as MutationObserver);f.run();
+        expect(query).toHaveBeenCalledTimes(1);
+        f.reader.schedule();f.run();expect(query).toHaveBeenCalledTimes(2);f.reader.dispose();
+    });
+    it('通用站点的正文 id 与 data 标记变化仍重新发现，自定义状态选择器保留动态查询',async()=>{
+        const f=readerFixture(false,'https://example.com/reader/chapter'),parent=f.image.parentElement!;
+        expect(f.reader.status().available).toBe(false);
+        const options=f.mo.observe.mock.calls[0][1];expect(options.attributeFilter).toEqual(expect.arrayContaining(['id','data-manga-reader']));
+        parent.id='reader';f.mo.callback([{target:parent,attributeName:'id'} as unknown as MutationRecord],{} as MutationObserver);f.run();
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        parent.removeAttribute('id');parent.setAttribute('data-manga-reader','');f.mo.callback([{target:parent} as unknown as MutationRecord],{} as MutationObserver);f.run();
+        expect(f.reader.status().available).toBe(true);parent.removeAttribute('data-manga-reader');f.mo.callback([{target:parent} as unknown as MutationRecord],{} as MutationObserver);f.run();
+        expect(f.reader.status().available).toBe(false);f.reader.dispose();
+        const custom=readerFixture(false,'https://example.com/custom/',()=>[{hostname:'example.com',pathPrefix:'/custom/',selector:'img[data-page="shown"]'}]);
+        expect(custom.ports.changed).toHaveBeenLastCalledWith(expect.objectContaining({pageCount:0}));custom.image.setAttribute('data-page','shown');
+        custom.window.addEventListener.mock.calls.find(([name])=>name==='scroll')![1]();custom.run();custom.reader.toggle();await flush();
+        expect(custom.ports.translate).toHaveBeenCalledTimes(1);custom.reader.dispose();
+    });
+    it('下页在返回前页期间完成仍保留，关闭预译也不重复识别或启动第三页',async()=>{
+        const f=readerFixture(false,undefined,undefined,()=>0),images=[f.image];let anchor=0;
+        for(let index=1;index<=2;index++) {
+            const image=f.document.createElement('img') as HTMLImageElement;image.className='zao-image';image.src=`blob:page-${index}`;
+            Object.defineProperties(image,{complete:{value:true},naturalWidth:{value:800},naturalHeight:{value:1200}});
+            image.getBoundingClientRect=()=>({left:0,right:800,top:(index-anchor)*1300,bottom:(index-anchor)*1300+1200,width:800,height:1200}) as DOMRect;
+            f.image.parentElement!.append(image);images.push(image);
+        }
+        f.image.getBoundingClientRect=()=>({left:0,right:800,top:-anchor*1300,bottom:-anchor*1300+1200,width:800,height:1200}) as DOMRect;
+        f.reader.toggle();await flush();const pending=deferred();f.ports.translate.mockReturnValueOnce(pending.promise);
+        anchor=1;f.reader.schedule();f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        anchor=0;f.reader.schedule();f.run();pending.resolve();await flush();
+        expect(f.ports.release).not.toHaveBeenCalled();
+        for(let i=0;i<3;i++){anchor=1;f.reader.schedule();f.run();await flush();anchor=0;f.reader.schedule();f.run();await flush();}
+        expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual(images.slice(0,2));expect(f.reader.status().ahead).toBe(0);f.reader.dispose();
+    });
+    it('过期可见性通知不能释放屏幕里已完成的译图', async () => {
+        const f=readerFixture();f.intersect(true);f.reader.toggle();await flush();
+        f.intersect(false);await flush();
+        expect(f.ports.release).not.toHaveBeenCalled();expect(f.ports.translate).toHaveBeenCalledTimes(1);f.reader.dispose();
+    });
+    it.each(['display','visibility','collapse','opacity','clipX','clipY','both'])('祖先隐藏或裁切时不处理不可见正文 %s', async kind => {
+        const f=readerFixture(false),parent=f.image.parentElement!,normal={display:'block',visibility:'visible',opacity:'1',overflowX:'visible',overflowY:'visible'};
+        const changed={...normal};
+        if (kind==='display') changed.display='none';
+        if (kind==='visibility') changed.visibility='hidden';
+        if (kind==='collapse') changed.visibility='collapse';
+        if (kind==='opacity') changed.opacity='0';
+        if (kind==='clipX' || kind==='both') changed.overflowX='hidden';
+        if (kind==='clipY' || kind==='both') changed.overflowY='clip';
+        parent.getBoundingClientRect=()=>({left:1600,right:2000,top:1600,bottom:2000}) as DOMRect;
+        vi.stubGlobal('getComputedStyle',(e:Element)=>e===parent?changed:normal);
+        f.reader.toggle();await flush();expect(f.ports.translate).not.toHaveBeenCalled();f.reader.dispose();
+    });
+    it('历史页只保留不主动识别；像素预算限制长条页，前后视口共享祖先样式', async () => {
+        const f=readerFixture(false),parents=f.image.parentElement!,images=[f.image];let anchor=3;
+        f.image.getBoundingClientRect=()=>({left:0,right:800,top:-3900,bottom:-2700,width:800,height:1200}) as DOMRect;
+        for(let index=1;index<=3;index++) {
+            const image=f.document.createElement('img') as HTMLImageElement;image.className='zao-image';image.src=`blob:p${index}`;
+            Object.defineProperties(image,{complete:{value:true,writable:true},naturalWidth:{value:index===1?10000:800,writable:true},naturalHeight:{value:1200}});
+            image.getBoundingClientRect=()=>({left:0,right:800,top:(index-anchor)*1300,bottom:(index-anchor)*1300+1200,width:800,height:1200}) as DOMRect;
+            parents.append(image);images.push(image);
+        }
+        f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([images[3]]);
+        // 同时可见两张时，父容器样式只读取一次；IO 通知不决定是否保留译图。
+        anchor=2.5;const styles=vi.fn((_e:Element)=>({display:'block',visibility:'visible',overflowX:'visible',overflowY:'visible'}));vi.stubGlobal('getComputedStyle',styles);
+        f.reader.schedule();f.run();await flush();expect(styles.mock.calls.filter(([e])=>e===parents)).toHaveLength(1);
+        f.reader.dispose();
+    });
+    it('提前页与附近历史页共用八百万像素预算，超预算页进入视口仍正常翻译',async()=>{
+        const f=readerFixture(false,undefined,undefined,()=>5),images=[f.image];let anchor=0;
+        for(let i=1;i<6;i++) {
+            const image=f.document.createElement('img') as HTMLImageElement;image.className='zao-image';image.src=`blob:budget-${i}`;
+            Object.defineProperties(image,{complete:{value:true},naturalWidth:{value:2000},naturalHeight:{value:1500}});
+            image.getBoundingClientRect=()=>({left:0,right:800,top:(i-anchor)*1300,bottom:(i-anchor)*1300+1200,width:800,height:1200}) as DOMRect;
+            f.image.parentElement!.append(image);images.push(image);
+        }
+        f.image.getBoundingClientRect=()=>({left:0,right:800,top:-anchor*1300,bottom:-anchor*1300+1200,width:800,height:1200}) as DOMRect;
+        f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual(images.slice(0,3));
+        expect(f.reader.status().ahead).toBe(2);
+        anchor=3;f.reader.schedule();f.run();await flush();
+        expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual(images);expect(f.ports.release).toHaveBeenCalledWith(images[1]);
+        f.reader.dispose();
+    });
+    it('后续窗口中的未加载页不阻塞其他已加载页，完成加载后仍只识别一次',async()=>{
+        const f=readerFixture(false,undefined,undefined,()=>3),images=[f.image];
+        for(let i=1;i<4;i++) {
+            const image=f.document.createElement('img') as HTMLImageElement;image.className='zao-image';image.src=`blob:loading-${i}`;
+            Object.defineProperties(image,{complete:{value:i!==1,writable:true},naturalWidth:{value:800},naturalHeight:{value:1200}});
+            image.getBoundingClientRect=()=>({left:0,right:800,top:i*1300,bottom:i*1300+1200,width:800,height:1200}) as DOMRect;
+            f.image.parentElement!.append(image);images.push(image);
+        }
+        f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([images[0],images[2],images[3]]);
+        Object.defineProperty(images[1],'complete',{value:true});images[1].dispatchEvent(new f.dom.Event('load',{bubbles:true}));f.run();await flush();
+        expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([images[0],images[2],images[3],images[1]]);f.reader.dispose();
+    });
+    it('仅历史保留项不启动识别，也不计入后续页准备数量', async () => {
+        const f=sessionFixture();f.snapshot.pages[1].retain=true;f.start();await flush();
+        expect(f.ports.translate).toHaveBeenCalledTimes(1);expect(f.session.status().ahead).toBe(0);f.session.dispose();
+    });
     it('默认窗口翻译当前与随后三张，排除更后页；改变窗口不会重识别当前页', async () => {
         let ahead=3;const f=readerFixture(false,undefined,undefined,()=>ahead),images=[f.image];
         for(let i=1;i<6;i++){
@@ -158,7 +329,8 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual(images.slice(0,4));
         expect(f.reader.status()).toMatchObject({ahead:3,completed:4});
         ahead=0;f.reader.schedule();f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(4);
-        expect(f.ports.release.mock.calls.map(c=>c[0])).toEqual(images.slice(1,4));f.reader.dispose();
+        // 0 只停止准备新页；附近两张已完成结果仍可供返页复用，第三张超出保留窗口才释放。
+        expect(f.ports.release.mock.calls.map(c=>c[0])).toEqual(images.slice(3,4));f.reader.dispose();
     });
     it('未加载的后续页不强制加载；Pixiv 点击正文与 presentation 角色不再被当装饰图', async () => {
         const f=readerFixture(false,'https://www.pixiv.net/artworks/150354216#1',undefined,()=>3);
@@ -204,10 +376,10 @@ describe('漫画站点适配与 DOM 生命周期', () => {
     });
     it('观察可见正文、不处理 logo，关闭后释放观察器与事件', async () => {
         const f = readerFixture(); expect(f.io.observe).toHaveBeenCalledWith(f.image);
-        f.reader.toggle(); await flush(); expect(f.ports.translate).not.toHaveBeenCalled();
+        f.reader.toggle(); await flush(); expect(f.ports.translate).toHaveBeenCalledTimes(1);
         f.intersect(true); await flush(); expect(f.ports.translate).toHaveBeenCalledWith(f.image);
-        f.intersect(false); expect(f.ports.release).toHaveBeenCalledWith(f.image);
-        f.intersect(true); await flush(); expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        f.setRect({top:-1200,bottom:0});f.intersect(false); expect(f.ports.release).toHaveBeenCalledWith(f.image);
+        f.setRect({top:0,bottom:1200});f.intersect(true); await flush(); expect(f.ports.translate).toHaveBeenCalledTimes(2);
         f.reader.schedule(); f.reader.schedule(); f.reader.dispose(); f.run(); f.reader.schedule();
         expect(f.window.cancelAnimationFrame).toHaveBeenCalled(); expect(f.io.disconnect).toHaveBeenCalled();
         expect(f.mo.disconnect).toHaveBeenCalled(); expect(f.window.removeEventListener).toHaveBeenCalledTimes(2);
