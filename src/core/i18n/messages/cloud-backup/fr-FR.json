@@ -72,6 +72,7 @@
     "settings.cloud.fieldLabel.4": "Modèle local de reconnaissance vocale",
     "settings.cloud.cleanupPending": "Configuration synchronisée, mais le nettoyage du cache d’autorisation reste à effectuer. Rouvrez les paramètres pour réessayer.",
     "settings.cloud.versionMissing": "La sauvegarde ne fournit pas de version permettant un remplacement sûr. Vous pouvez la restaurer ; relisez-la avant de réessayer.",
-    "settings.cloud.verifyFailed": "La vérification de la sauvegarde a échoué. Relisez-la avant de réessayer ; la configuration de cet appareil n’a pas changé."
+    "settings.cloud.verifyFailed": "La vérification de la sauvegarde a échoué. Relisez-la avant de réessayer ; la configuration de cet appareil n’a pas changé.",
+    "settings.cloud.restoreOnly": "Vous pouvez restaurer cette sauvegarde, mais le service ne fournit pas d’identifiant de version pour la remplacer en toute sécurité. L’enregistrement et la fusion sont actuellement indisponibles."
   }
 }

@@ -1,8 +1,8 @@
 <!--
  @file src/app/options/OptionsApp.vue
  文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和学习中心入口，并把选中分区交给对应 feature UI。
- 主要内容：侧栏品牌图标右侧纵向展示名称与小字多语言宣传语，品牌区域与关于页提供统一官网入口，关于页以一张整体卡片展示简短介绍与版本、并排项目链接和赞赏方式；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示，服务目录使用完整工作区，统计与网站规则按任务保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
- 模块边界：组件负责页面壳、导航状态和界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
+ 主要内容：侧栏展示品牌与多语言宣传语；关于页以宽幅品牌介绍、核心体验快捷入口、项目链接卡片和独立赞赏区组织内容；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示，服务目录使用完整工作区，统计与网站规则按任务保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
+ 模块边界：组件负责页面壳、导航状态和主题、界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
 -->
 <template>
   <div class="settings-app" :class="{'has-overlay-close': Boolean(props.onClose)}">
@@ -76,44 +76,44 @@
           <p>{{ t('options.userscriptUnavailableDescription') }}</p>
         </section>
         <section v-else-if="activeSection === 'settings-about'" id="settings-about" class="about-page" :aria-label="t('options.aboutTitle')">
-          <div class="about-grid">
-            <div class="about-overview">
-              <div class="about-hero">
+          <header class="about-hero">
+            <div class="about-intro">
+              <div class="about-identity">
                 <img class="about-logo" :src="iconUrl" alt="流畅阅读图标" />
-                <div class="about-intro">
-                  <p>{{ t('options.aboutHeroDescription') }}</p>
-                  <span class="about-version">FluentRead · V{{ version }}</span>
+                <div>
+                  <strong>FluentRead</strong>
+                  <span class="about-version">V{{ version }} · {{ t('options.aboutHeroDescription') }}</span>
                 </div>
               </div>
-              <article class="about-panel about-links-panel">
-                <h3>{{ t('options.aboutLearnMore') }}</h3>
-                <div class="about-links">
-                  <a class="about-website" :href="websiteUrl" target="_blank" rel="noopener noreferrer">
-                    <UiIcon name="globe" :size="18" />
-                    <span>{{ t('options.aboutWebsite') }}</span>
-                    <UiIcon name="external" :size="14" />
-                  </a>
-                  <a href="https://fluent.thinkstu.com/" target="_blank" rel="noopener noreferrer">
-                    <UiIcon name="book" :size="18" />
-                    <span>{{ t('options.aboutDocs') }}</span>
-                    <UiIcon name="external" :size="14" />
-                  </a>
-                  <a href="https://github.com/Bistutu/FluentRead" target="_blank" rel="noopener noreferrer">
-                    <UiIcon name="card" :size="18" />
-                    <span>{{ t('options.aboutProject') }}</span>
-                    <UiIcon name="external" :size="14" />
-                  </a>
-                  <a href="https://github.com/Bistutu/FluentRead/issues" target="_blank" rel="noopener noreferrer">
-                    <UiIcon name="info" :size="18" />
-                    <span>{{ t('options.aboutFeedback') }}</span>
-                    <UiIcon name="external" :size="14" />
-                  </a>
-                </div>
-              </article>
+              <h2 data-i18n-ignore>{{ t('brand.tagline') }}</h2>
             </div>
-
+            <section class="about-experience" :aria-label="t('options.aboutCoreExperience')">
+              <h3>{{ t('options.aboutBornForReading') }}</h3>
+              <p>{{ t('options.aboutCoreDescription') }}</p>
+              <div class="about-features">
+                <button v-for="feature in aboutFeatures" :key="feature.section" type="button" :data-about-section="feature.section" @click="selectSection(feature.section)">
+                  <UiIcon :name="feature.icon" :size="21" />
+                  <span>{{ t(feature.label) }}</span>
+                  <UiIcon name="arrow-right" :size="17" />
+                </button>
+              </div>
+            </section>
+          </header>
+          <div class="about-grid">
+            <section class="about-panel about-links-panel" :aria-label="t('options.aboutLearnMore')">
+              <h3>{{ t('options.aboutLearnMore') }}</h3>
+              <p class="about-panel-description">{{ t('options.aboutLinksDescription') }}</p>
+              <div class="about-links">
+                <a v-for="link in aboutLinks" :key="link.label" :class="{ 'about-website': link.href === websiteUrl }" :href="link.href" target="_blank" rel="noopener noreferrer">
+                  <span class="about-link-icon"><UiIcon :name="link.icon" :size="23" /></span>
+                  <span class="about-link-copy"><strong>{{ t(link.label) }}</strong><small>{{ t(link.description) }}</small></span>
+                  <UiIcon name="external" :size="16" />
+                </a>
+              </div>
+            </section>
             <article class="about-panel about-support-panel">
               <h3>{{ t('popup.donationTitle') }}</h3>
+              <p class="about-panel-description">{{ t('options.aboutThanks') }}</p>
               <div class="about-support-options">
                 <a
                   class="about-support-method about-support-wechat"
@@ -128,16 +128,12 @@
                   <img class="about-support-qr" :src="approveUrl" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
                   <span>{{ t('popup.donationWechat') }}</span>
                 </a>
-                <a
-                  class="about-support-method about-support-kofi-link"
-                  data-support-method="kofi"
-                  href="https://ko-fi.com/thinkstu"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <span>{{ t('popup.donationKofi') }}</span>
-                  <UiIcon name="external" :size="14" />
-                </a>
+                <div class="about-support-copy">
+                  <a class="about-support-method about-support-kofi-link" data-support-method="kofi" href="https://ko-fi.com/thinkstu" target="_blank" rel="noopener noreferrer">
+                    <span>{{ t('popup.donationKofi') }}</span>
+                    <UiIcon name="external" :size="16" />
+                  </a>
+                </div>
               </div>
             </article>
           </div>
@@ -177,7 +173,7 @@ import {
   configReady,
   subscribeConfig,
 } from '@/src/services/config/store'
-import {applyInterfaceFont, applyInterfaceSkin, setInterfaceAppearanceRoot} from '@/src/ui/interfaceAppearance'
+import {applyInterfaceFont, applyInterfaceSkin, applyInterfaceTheme, setInterfaceAppearanceRoot} from '@/src/ui/interfaceAppearance'
 import {browserCapabilities} from '@/src/platform/browser/capabilities'
 
 const props = defineProps<{
@@ -192,6 +188,17 @@ const version = process.env.VUE_APP_VERSION
 const websiteUrl = 'https://read.thinkstu.com'
 const iconUrl = globalThis.__FLUENTREAD_ICON_DATA__ || '/icon/128.png'
 const approveUrl = globalThis.__FLUENTREAD_APPROVE_DATA__ || '/misc/approve.jpg'
+const aboutFeatures = [
+  {section: 'settings-general', icon: 'translate', label: 'options.aboutWebReading'},
+  {section: 'settings-selection', icon: 'book', label: 'options.aboutReadingTools'},
+  {section: 'settings-services', icon: 'plug', label: 'options.aboutFlexibleServices'},
+]
+const aboutLinks = [
+  {href: websiteUrl, icon: 'globe', label: 'options.aboutWebsite', description: 'options.aboutWebsiteDescription'},
+  {href: 'https://fluent.thinkstu.com/', icon: 'book', label: 'options.aboutDocs', description: 'options.aboutDocsDescription'},
+  {href: 'https://github.com/Bistutu/FluentRead', icon: 'card', label: 'options.aboutProject', description: 'options.aboutProjectDescription'},
+  {href: 'https://github.com/Bistutu/FluentRead/issues', icon: 'info', label: 'options.aboutFeedback', description: 'options.aboutFeedbackDescription'},
+]
 const {t, translateLegacy} = useUiI18n()
 const query = ref('')
 const interfaceSkin = ref(getInterfaceSkinOption(runtimeConfig.interfaceSkin))
@@ -236,6 +243,13 @@ const userscriptUnavailableSection = computed(() => browserCapabilities.browser 
 const navigationElement = ref<HTMLElement | null>(null)
 const settingsContentElement = ref<HTMLElement | null>(null)
 const mobileNavigationMedia = window.matchMedia('(max-width: 700px)')
+const systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)')
+function syncInterfaceTheme(theme: string | undefined): void {
+  applyInterfaceTheme(theme === 'dark' || ((!theme || theme === 'auto') && systemThemeMedia.matches), props.appearanceRoot)
+}
+function handleSystemThemeChange(): void {
+  syncInterfaceTheme(runtimeConfig.theme)
+}
 let searchRevealGeneration = 0
 let cancelPendingSearchReveal: (() => void) | null = null
 
@@ -279,6 +293,7 @@ const localizedSearchTargets = computed(() => settingsSearchTargets.map((target)
 const activeItem = computed(() => localizedNavigationItems.value.find((item) => item.id === resolveNavigationItem(activeSection.value).id)
   || localizedNavigationItems.value[0])
 const unsubscribeInterfaceConfig = subscribeConfig((nextConfig) => {
+  syncInterfaceTheme(nextConfig.theme)
   interfaceSkin.value = getInterfaceSkinOption(nextConfig.interfaceSkin)
   applyInterfaceSkin(nextConfig.interfaceSkin, props.appearanceRoot)
   applyInterfaceFont(nextConfig.interfaceFont, props.appearanceRoot)
@@ -286,11 +301,13 @@ const unsubscribeInterfaceConfig = subscribeConfig((nextConfig) => {
 
 void configReady
   .then(() => {
+    syncInterfaceTheme(runtimeConfig.theme)
     interfaceSkin.value = getInterfaceSkinOption(runtimeConfig.interfaceSkin)
     applyInterfaceSkin(runtimeConfig.interfaceSkin, props.appearanceRoot)
     applyInterfaceFont(runtimeConfig.interfaceFont, props.appearanceRoot)
   })
   .catch(() => {
+    syncInterfaceTheme('auto')
     applyInterfaceSkin('default', props.appearanceRoot)
     applyInterfaceFont('system', props.appearanceRoot)
   })
@@ -432,6 +449,7 @@ onMounted(() => {
     window.addEventListener('hashchange', syncSectionFromHash)
   }
   mobileNavigationMedia.addEventListener('change', handleMobileNavigationChange)
+  systemThemeMedia.addEventListener('change', handleSystemThemeChange)
   void revealActiveNavigation()
 })
 
@@ -441,5 +459,6 @@ onBeforeUnmount(() => {
   unsubscribeInterfaceConfig()
   window.removeEventListener('hashchange', syncSectionFromHash)
   mobileNavigationMedia.removeEventListener('change', handleMobileNavigationChange)
+  systemThemeMedia.removeEventListener('change', handleSystemThemeChange)
 })
 </script>

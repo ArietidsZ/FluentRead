@@ -34,7 +34,7 @@ async function save(): Promise<void> {
     const response = await browser.runtime.sendMessage({type:VOCABULARY_BOOK_MESSAGE, action:'updateNote', entryId:props.entry.id, note:draft.value}) as VocabularyBookResponse<VocabularyEntry>;
     if (!response.success) throw new Error(response.error.message);
     if (active) {emit('updated', response.data); editing.value = false;}
-  } catch (cause) {if (active) error.value = cause instanceof Error ? cause.message : '解释保存失败，请重试。';}
+  } catch (cause) {if (active) error.value = cause instanceof Error ? cause.message : '解释保存失败，请重试';}
   finally {if (active) busy.value = false;}
 }
 onBeforeUnmount(() => {active = false;});

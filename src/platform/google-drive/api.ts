@@ -1,7 +1,7 @@
 /**
  * @file src/platform/google-drive/api.ts
  * 文件职责：在 Google Drive 的 appDataFolder 中读取与写入唯一的加密配置文件。
- * 主要内容：固定 Google 请求地址、超时和大小限制、重复文件检测、版本与条件写入、保存后回读校验及首次创建竞态的条件撤回。
+ * 主要内容：固定 Google 请求地址、超时和大小限制、重复文件检测、v3 缺少 ETag 时按相同版本补取 v2 元数据及条件更新、保存后回读校验。
  * 模块边界：只接受加密封装，账号会话由 auth 管理，配置合并由同步服务管理。
  */
 import {DriveError, type DriveSession} from './auth';
@@ -9,14 +9,21 @@ import {strongCloudEtag} from '@/src/core/config/cloudSync';
 import {GOOGLE_DRIVE_CONFIG_FILE_NAME, GOOGLE_DRIVE_MAX_BYTES} from './constants';
 import {DRIVE_ENCRYPTION_FORMAT} from './encryption';
 
-export interface DriveFile {id: string; version: string; modifiedTime: string; etag?: string}
+export interface DriveFile {id: string; version: string; modifiedTime: string; etag?: string; readOnly?: true; conditionalApi?: 'v2'}
 export interface DriveRemote {file: DriveFile; content: string}
 const FIELDS = 'id,name,version,modifiedTime';
 const BASE = 'https://www.googleapis.com/drive/v3/files';
+const V2_BASE = 'https://www.googleapis.com/drive/v2/files';
+const V2_FIELDS = 'id,version,modifiedDate,etag';
 
 function file(value: unknown, etag: string | null): DriveFile {
     if (!value || typeof value !== 'object' || !('id' in value) || !('version' in value) || !('modifiedTime' in value) || typeof value.id !== 'string' || !value.id || typeof value.version !== 'string' || typeof value.modifiedTime !== 'string') throw new DriveError('Google Drive 文件信息无效。');
     return {id: value.id, version: value.version, modifiedTime: value.modifiedTime, ...(strongCloudEtag(etag) ? {etag: etag!} : {})};
+}
+function v2File(value: unknown): DriveFile {
+    if (!value || typeof value !== 'object' || !('modifiedDate' in value)) throw new DriveError('Google Drive 文件信息无效。');
+    const etag = 'etag' in value && typeof value.etag === 'string' ? strongCloudEtag(value.etag) : undefined;
+    return {...file({...value, modifiedTime: value.modifiedDate}, etag ?? null), ...(etag ? {conditionalApi: 'v2' as const} : {readOnly: true as const})};
 }
 export function createDriveApi(fetcher: typeof fetch) {
     async function request<T>(session: DriveSession, url: string, init: RequestInit, consume: (response: Response) => Promise<T>): Promise<T> {
@@ -73,18 +80,24 @@ export function createDriveApi(fetcher: typeof fetch) {
         });
         const after = await request(session, `${BASE}/${encoded}?fields=${FIELDS}`, {}, async response => file(await response.json(), response.headers.get('etag')));
         if (before.id !== metadata.id || after.id !== metadata.id || before.version !== after.version) throw new DriveError('读取期间云端配置已变化，请重试。');
-        return {file: after, content};
+        if (after.etag) return {file: after, content};
+        // v3 File 没有 etag 字段，响应头也可能不提供。v2 的资源 ETag
+        // 只在文件 ID 与单调版本均相同的情况下使用，不能把另一个版本配给已下载的密文。
+        const compatible = await request(session, `${V2_BASE}/${encoded}?fields=${V2_FIELDS}`, {}, async response => v2File(await response.json()));
+        if (compatible.id !== after.id || compatible.version !== after.version) throw new DriveError('读取期间云端配置已变化，请重试。');
+        return {file: {...after, ...compatible}, content};
     }
     async function write(session: DriveSession, content: string, previous: DriveFile | null): Promise<DriveFile> {
         let envelope: unknown;
         try {envelope = JSON.parse(content);} catch {throw new DriveError('只允许上传本地加密后的配置。');}
         if (!envelope || typeof envelope !== 'object' || !('format' in envelope) || envelope.format !== DRIVE_ENCRYPTION_FORMAT || new TextEncoder().encode(content).length > GOOGLE_DRIVE_MAX_BYTES) throw new DriveError('只允许上传大小有效的加密配置。');
-        if (previous && !strongCloudEtag(previous.etag)) throw new DriveError('云端备份缺少安全覆盖所需的版本信息；仍可恢复，请重新读取后重试。');
+        if (previous && (previous.readOnly || !strongCloudEtag(previous.etag))) throw new DriveError('云端备份缺少安全覆盖所需的版本信息；仍可恢复，请重新读取后重试。');
+        const v2 = previous?.conditionalApi === 'v2';
         const boundary = `fluentread-${crypto.randomUUID()}`;
-        const metadata = {name: GOOGLE_DRIVE_CONFIG_FILE_NAME, mimeType: 'application/json', ...(!previous ? {parents: ['appDataFolder']} : {})};
+        const metadata = {...(v2 ? {title: GOOGLE_DRIVE_CONFIG_FILE_NAME} : {name: GOOGLE_DRIVE_CONFIG_FILE_NAME}), mimeType: 'application/json', ...(!previous ? {parents: ['appDataFolder']} : {})};
         const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${boundary}--\r\n`;
-        const endpoint = `https://www.googleapis.com/upload/drive/v3/files${previous ? `/${encodeURIComponent(previous.id)}` : ''}?uploadType=multipart&fields=${FIELDS}`;
-        const written = await request(session, endpoint, {method: previous ? 'PATCH' : 'POST', headers: {'Content-Type': `multipart/related; boundary=${boundary}`, ...(previous?.etag ? {'If-Match': previous.etag} : {})}, body}, async response => file(await response.json(), response.headers.get('etag')));
+        const endpoint = `https://www.googleapis.com/upload/drive/${v2 ? 'v2' : 'v3'}/files${previous ? `/${encodeURIComponent(previous.id)}` : ''}?uploadType=multipart&fields=${v2 ? V2_FIELDS : FIELDS}`;
+        const written = await request(session, endpoint, {method: v2 ? 'PUT' : previous ? 'PATCH' : 'POST', headers: {'Content-Type': `multipart/related; boundary=${boundary}`, ...(previous?.etag ? {'If-Match': previous.etag} : {})}, body}, async response => v2 ? v2File(await response.json()) : file(await response.json(), response.headers.get('etag')));
         try {
             const verified = await read(session);
             if (!verified || verified.file.id !== written.id || verified.content !== content) throw new DriveError('云端保存后校验未通过，请重新读取备份后重试；本机配置未修改。');

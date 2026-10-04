@@ -21,6 +21,12 @@ export const FREE_TRANSLATION_PROVIDERS = [
     {id: 'apertiumFree', label: 'Apertium', description: '开放翻译服务，仅支持已提供的语言对，暂无中译', official: true, defaultWeight: 1},
 ] as const;
 
+export type FreeTranslationProviderId = typeof FREE_TRANSLATION_PROVIDERS[number]['id'];
+
+export function isFreeTranslationProviderId(value: unknown): value is FreeTranslationProviderId {
+    return typeof value === 'string' && FREE_TRANSLATION_PROVIDERS.some(provider => provider.id === value);
+}
+
 export type FreeTranslationMode = 'balanced' | 'sequential';
 export const DEFAULT_FREE_TRANSLATION_MODE: FreeTranslationMode = 'balanced';
 export const DEFAULT_FREE_TRANSLATION_ORDER = [

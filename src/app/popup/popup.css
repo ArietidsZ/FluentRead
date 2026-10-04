@@ -55,7 +55,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid rgba(239, 71, 11
 .popup-shell.config-loading { pointer-events: none; }
 /* HTML 先预留首启高度；配置慢读时居中显示图形状态，避免一行占位撑成整张卡片。 */
 .popup-startup { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 20px; color: #737c8f; font-size: 12px; }
-.popup-startup img { border-radius: 7px; }
+.popup-startup img { border-radius: 0; }
 .popup-startup i { width: 12px; height: 12px; border: 1.5px solid #d4d8e1; border-top-color: #737c8f; border-radius: 50%; }
 /* 工具栏 popup 的 viewport 也由页面撑开；用 100dvh 限高会把首次打开锁在启动占位的矮高度。 */
 .popup-shell { max-height: 560px; overflow-y: auto; scrollbar-width: thin; }
@@ -72,7 +72,8 @@ button:focus-visible, select:focus-visible { outline: 3px solid rgba(239, 71, 11
 .popup-header { margin-bottom: 8px; }
 .brand { gap: 9px; }
 .header-actions { gap: 6px; }
-.brand img { width: 32px; height: 32px; border-radius: 12px; box-shadow: 0 8px 18px rgba(239, 71, 118, .2); }
+/* Logo 的圆角由图片透明轮廓提供；缩放或切换皮肤时不再额外裁剪四角。 */
+.brand img { width: 32px; height: 32px; border-radius: 0; box-shadow: 0 8px 18px rgba(239, 71, 118, .2); }
 .brand div { display: flex; flex-direction: column; }
 .brand strong { font-size: 15px; line-height: 1.25; font-weight: 760; }
 .brand small { margin-top: 2px; color: var(--muted); font-size: 10px; }

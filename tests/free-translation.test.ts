@@ -23,10 +23,12 @@ vi.mock('@/src/providers/translation/free-extra-web', () => ({translateExtraFree
 
 import type {TranslationConfigSource} from '@/src/services/translation/types';
 import {DEFAULT_DEEPLX_ENDPOINT} from '@/src/core/config/deeplx';
+import {FREE_TRANSLATION_PROVIDERS} from '@/src/core/config/freeTranslation';
 
 let freeTranslation: typeof import('@/src/providers/translation/free-translation').default;
 let FREE_TRANSLATION_BATCH_CONCURRENCY: number;
 let getFreeTranslationWeightSnapshot: typeof import('@/src/providers/translation/free-translation').getFreeTranslationWeightSnapshot;
+let translateFreeTranslationProvider: typeof import('@/src/providers/translation/free-translation').translateFreeTranslationProvider;
 let attachTranslationProviderConfig: typeof import('@/src/services/translation/requestSnapshot').attachTranslationProviderConfig;
 let createTranslationProviderConfigSnapshot: typeof import('@/src/services/translation/requestSnapshot').createTranslationProviderConfigSnapshot;
 let getTranslationProviderConfig: typeof import('@/src/services/translation/requestSnapshot').getTranslationProviderConfig;
@@ -63,7 +65,7 @@ beforeEach(async () => {
     for (const mock of [microsoftMock, deeplxMock, googleMock, myMemoryMock, chineseMock, extraMock]) {
         mock.mockRejectedValue(httpFailure());
     }
-    ({default: freeTranslation, FREE_TRANSLATION_BATCH_CONCURRENCY, getFreeTranslationWeightSnapshot}
+    ({default: freeTranslation, FREE_TRANSLATION_BATCH_CONCURRENCY, getFreeTranslationWeightSnapshot, translateFreeTranslationProvider}
         = await import('@/src/providers/translation/free-translation'));
     ({attachTranslationProviderConfig, createTranslationProviderConfigSnapshot, getTranslationProviderConfig}
         = await import('@/src/services/translation/requestSnapshot'));
@@ -71,6 +73,38 @@ beforeEach(async () => {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('免费翻译服务', () => {
+    it.each(FREE_TRANSLATION_PROVIDERS)('单服务检查直接使用 $id 匿名适配器，即使没有开启', async ({id}) => {
+        mockConfig.freeTranslationOrder = ['microsoft'];
+        microsoftMock.mockResolvedValue(['有效译文']);
+        for (const mock of [deeplxMock, googleMock, myMemoryMock, webMock, chineseMock, extraMock]) mock.mockResolvedValue('有效译文');
+        await expect(translateFreeTranslationProvider(id, {origin: 'Hello from FluentRead.', sourceLanguage: 'en', targetLanguage: 'zh-Hans'})).resolves.toBe('有效译文');
+        const calls = [microsoftMock, deeplxMock, googleMock, myMemoryMock, webMock, chineseMock, extraMock].reduce((total, mock) => total + mock.mock.calls.length, 0);
+        expect(calls).toBe(1);
+        const families = {transmart: webMock, yandexFree: webMock, volcengineFree: webMock, youdaoFree: chineseMock, icibaFree: chineseMock,
+            sogouFree: extraMock, reversoFree: extraMock, lingvaFree: extraMock, apertiumFree: extraMock};
+        if (id in families) expect(families[id as keyof typeof families]).toHaveBeenCalledWith(id, 'Hello from FluentRead.', 'en', 'zh-Hans', undefined);
+        expect(mockConfig.freeTranslationOrder).toEqual(['microsoft']);
+    });
+
+    it('单服务检查保留匿名边界和结果验证，失败或原文回显不会自动换线', async () => {
+        mockConfig.token = {deeplx: 'saved-private-key'};
+        mockConfig.proxy = {deeplx: 'https://private.example'};
+        mockConfig.deeplx = 'https://private.example/translate';
+        deeplxMock.mockResolvedValueOnce('有效译文');
+        await translateFreeTranslationProvider('deeplx', {origin: 'Hello from FluentRead.', sourceLanguage: 'en', targetLanguage: 'zh-Hans'});
+        const snapshot = getTranslationProviderConfig(deeplxMock.mock.calls[0][2], mockConfig as any);
+        expect(snapshot.token).toEqual({});
+        expect(snapshot.proxy).toEqual({});
+        expect(snapshot.deeplx).toBe(DEFAULT_DEEPLX_ENDPOINT);
+        microsoftMock.mockResolvedValue(['备用译文']);
+        deeplxMock.mockRejectedValueOnce(new Error('服务不可用'));
+        await expect(translateFreeTranslationProvider('deeplx', {origin: 'Hello', targetLanguage: 'zh-Hans'})).rejects.toThrow('服务不可用');
+        const echoed = 'The software translates this paragraph with a fast backup when the first service is slow.';
+        deeplxMock.mockResolvedValueOnce(echoed);
+        await expect(translateFreeTranslationProvider('deeplx', {origin: echoed, targetLanguage: 'zh-Hans'})).rejects.toThrow();
+        await expect(translateFreeTranslationProvider('unknown', {origin: 'Hello'})).rejects.toThrow('无效的免费翻译服务');
+        expect(microsoftMock).not.toHaveBeenCalled();
+    });
     it('保留微软、DeepLX、谷歌优先顺序并新增 MyMemory 官方后备', async () => {
         mockConfig.freeTranslationOrder = ['microsoft', 'deeplx', 'google', 'myMemory'];
         const calls: string[] = [];
