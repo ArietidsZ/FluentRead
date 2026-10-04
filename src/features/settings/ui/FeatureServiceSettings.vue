@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/FeatureServiceSettings.vue
  * 文件职责：在通用设置中集中分配各功能的翻译服务，沿用基础配置中的默认服务，显示继承关系和独立选择。
- * 主要内容：把翻译服务选择标题放进统一设置卡片，使用相同的服务目录与图标展示各功能服务、有效模型和缺失凭据提示；AI 功能仅提供兼容服务，配置连接定位到翻译服务页，默认选择保持独立。
+ * 主要内容：把翻译服务选择标题放进统一设置卡片，标题同行显示 AI 服务限制，下一行展示有效模型，使用相同的服务目录与图标展示各功能服务和缺失凭据提示；AI 功能仅提供兼容服务，配置连接定位到翻译服务页，默认选择保持独立。
  * 模块边界：仅修改父级传入的配置草稿，复用现有字段与自动保存；不保存第二份映射，不发起翻译或测试连接请求。
  -->
 <template>
@@ -9,9 +9,10 @@
     <SettingsGroup :title="t('featureServices.assignments')">
       <SettingsItem v-for="feature in featureServiceDefinitions" :key="feature.id" :label="t(`featureServices.${feature.id}`)">
         <template #copy>
-          <strong>{{ t(`featureServices.${feature.id}`) }}</strong>
-          <small v-if="feature.aiOnly">{{ t('featureServices.aiOnly') }}</small>
-          <small v-else-if="feature.id === 'hover'">{{ t('featureServices.profileHelp') }}</small>
+          <div class="feature-service-heading">
+            <strong>{{ t(`featureServices.${feature.id}`) }}</strong>
+            <small v-if="feature.aiOnly" class="feature-service-ai-only">{{ t('featureServices.aiOnly') }}</small>
+          </div>
           <small v-if="servicesType.isUseModel(effectiveService(feature)) && getFeatureModel(config, feature)" class="feature-service-model">{{ getFeatureModel(config, feature) }}</small>
         </template>
         <div class="feature-service-control" :data-feature-service="feature.id">
@@ -70,6 +71,8 @@ function warning(feature: FeatureServiceDefinition): string {
 button:hover { color: var(--brand); }
 button:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 .feature-services :deep(.settings-item) { grid-template-columns: minmax(160px, 1fr) minmax(280px, 440px); min-height: 72px; padding: 14px 18px; }
+.feature-service-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.feature-service-ai-only { white-space: nowrap; }
 .feature-service-model { overflow-wrap: anywhere; }
 @media (max-width: 700px) { .feature-services :deep(.settings-item) { grid-template-columns: minmax(0, 1fr); gap: 10px; } }
 </style>
