@@ -71,7 +71,7 @@ flowchart TD
 
 类型检查及 Chrome、Firefox、userscript 生产构建按相关范围验证；新增非中文识别文案覆盖英、日、韩、法、俄、西语，userscript 配套语言资源重新生成。
 
-针对性回归分两组：图片处理与消息链路 432 项；配置、设置结构、悬浮交互、文案及源码边界 1094 项。以下七个模块的 statements、branches、functions、lines 均为 100%：`controls`、`mangaReader`、`mangaSession`、图片后台 `handlers`、`offscreenAdapter`、`offscreenRuntime`、Offscreen `messageRouter`。未运行全量回归。
+同步主分支 `91ca7d07` 后，针对性回归分两组：图片处理与消息链路 432 项；配置、设置结构、悬浮交互、文案及源码边界 1096 项。以下七个模块的 statements、branches、functions、lines 均为 100%：`controls`、`mangaReader`、`mangaSession`、图片后台 `handlers`、`offscreenAdapter`、`offscreenRuntime`、Offscreen `messageRouter`。未运行全量回归。
 
 干净基线 `bff3fe5242a0afd5073fcddbb653e6f62431b5bf` 中已复现六项原有失败，专项运行通过名称筛选排除，并保留基线日志：
 
