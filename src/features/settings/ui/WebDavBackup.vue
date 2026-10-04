@@ -75,7 +75,7 @@ const client = {
     const result = await connectionClient.prepare();
     try {
       const saved = await refreshConnection();
-      if (!saved || result.account.id !== `webdav:${saved.revision}`) throw new CloudBackupRequestError('同步连接已变化，请重新生成预览。', 'settings.cloud.connectionChanged');
+      if (!saved || result.account.id !== `webdav:${saved.revision}`) throw new CloudBackupRequestError('同步连接已变化，请重新生成预览', 'settings.cloud.connectionChanged');
       return result;
     } catch (failure) {
       await connectionClient.cancel(result.id).catch(() => undefined);

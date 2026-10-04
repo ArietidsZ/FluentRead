@@ -1,7 +1,7 @@
 <!--
  * @file src/features/vocabulary/ui/VocabularyBook.vue
  * 文件职责：组织内容优先的学习收藏列表与主动复习，协调句子听读、解释保存、筛选与文件操作。
- * 主要内容：紧凑顶部保留收藏开关、类型、搜索和复习，将文件与管理动作集中到更多菜单；收藏行独立展示内容，配置、数据和朗读仍沿用已有消息协议。
+ * 主要内容：紧凑顶部保留收藏开关、类型、搜索和复习，将文件与管理动作集中到更多菜单；收藏数量使用完整的国际化参数文案，收藏行独立展示内容，配置、数据和朗读仍沿用已有消息协议。
  * 模块边界：UI 不直接访问 Dexie 或上传学习数据；完整备份进入备份与恢复页，收藏文件只包含本领域数据，数据库操作集中在后台 repository/handler，上下文和来源只有用户明确选择时才导出。
  -->
 <template>
@@ -9,7 +9,7 @@
     <VocabularyStudy v-if="studyEntry" :key="studyEntry.id" :entry="studyEntry" :reference="entryTranslation(studyEntry)" :playing="playingEntryId === studyEntry.id" @updated="replaceEntry" @close="selectedEntryId = ''" @speak="toggleEntrySpeech(studyEntry)" @navigate="emit('navigate', $event)" />
     <template v-else>
     <div v-if="!reviewActive" class="collection-overview">
-      <span>{{ entries.length }} 条收藏<span v-if="dueEntries.length"> · {{ dueEntries.length }} 条待复习</span></span>
+      <span>{{ t('learning.collection.count', {count: entries.length}) }}<span v-if="dueEntries.length"> · {{ t('learning.collection.dueCount', {count: dueEntries.length}) }}</span></span>
       <div class="collection-switches">
       <FeatureEnableCard
       class="vocabulary-saving-control"
@@ -25,7 +25,7 @@
     </div>
 
     <div v-if="!reviewActive && !entries.length && betaEnabled && !selectionTranslatorEnabled" class="selection-reminder" role="note">
-      <span>可从高亮句子旁直接收藏，或开启划词翻译在学习卡中收藏。</span>
+      <span>可从高亮句子旁直接收藏，或开启划词翻译在学习卡中收藏</span>
       <button type="button" @click="emit('navigate', 'settings-selection')">前往开启</button>
     </div>
 
@@ -170,7 +170,7 @@ import CollectionEntry from './CollectionEntry.vue';
 import {ReadingAnswer} from '@/src/features/reading-assistant/public';
 import {ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
-import {normalizeUiLanguage, translate, translateLegacyText} from '@/src/core/i18n';
+import {normalizeUiLanguage, translate, translateLegacyText, type TranslationParams} from '@/src/core/i18n';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {createSelectionTtsClientRequestId, createSelectionTtsContentController, normalizeSpeechLanguage} from '@/src/features/selection-translation/speech/public';
 import {
@@ -209,7 +209,7 @@ import {
 
 const emit = defineEmits<{ navigate: [section: string] }>();
 const uiLanguage = ref(normalizeUiLanguage(runtimeConfig.uiLanguage));
-const t = (key: string): string => translate(key, uiLanguage.value);
+const t = (key: string, params?: TranslationParams): string => translate(key, uiLanguage.value, params);
 const reencounterSupported = browserCapabilities.browser !== 'userscript';
 const betaEnabled = ref(false);
 const reencounterEnabled = ref(false);
@@ -680,7 +680,7 @@ async function exportAnki(): Promise<void> {
 async function copyEntry(entry: VocabularyEntry, bilingual: boolean): Promise<void> {
   const text = bilingual ? `${entry.term}\n${entryTranslation(entry)}` : entry.term;
   try {await navigator.clipboard.writeText(text); if (lifecycle.isActive()) showToast(bilingual ? '已复制原文与译文' : '已复制原文');}
-  catch {if (lifecycle.isActive()) showToast('复制失败，可以选中原文后复制。');}
+  catch {if (lifecycle.isActive()) showToast('复制失败，可以选中原文后复制');}
 }
 
 async function exportCollection(): Promise<void> {
@@ -714,7 +714,7 @@ async function importCollection(event: Event): Promise<void> {
     if (!lifecycle.isActive()) return;
     await loadEntries();
     showToast(`已导入：新增 ${result.inserted} 条，更新 ${result.updated} 条，跳过 ${result.skipped} 条`);
-  } catch (cause) {if (lifecycle.isActive()) showToast(cause instanceof SyntaxError ? '无法读取文件，请选择 FluentRead 导出的收藏 JSON 文件。' : cause instanceof Error ? cause.message : '收藏导入失败');}
+  } catch (cause) {if (lifecycle.isActive()) showToast(cause instanceof SyntaxError ? '无法读取文件，请选择 FluentRead 导出的收藏 JSON 文件' : cause instanceof Error ? cause.message : '收藏导入失败');}
   finally {if (lifecycle.isActive()) actionBusy.value = false;}
 }
 

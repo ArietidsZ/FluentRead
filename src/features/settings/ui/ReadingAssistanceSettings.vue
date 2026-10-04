@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/ReadingAssistanceSettings.vue
 文件职责：作为翻译设置的首项，提供双语逐句高亮开关和可立即体验的阅读示例。
-主要内容：开启后先示范第一组句子的同步高亮，允许指针与键盘逐句体验；仅译文模式提供切回双语的入口，高亮外观直达界面风格。
+主要内容：用简短说明介绍句子对应高亮，句子划分差异另行说明；开启后先示范第一组句子的同步高亮，允许指针与键盘逐句体验；仅译文模式提供切回双语的入口，高亮外观直达界面风格。
 模块边界：只编辑父级 Config 草稿和发出导航事件；示例不发起翻译，不向宿主网页写入节点或样式。
 -->
 <template>
@@ -10,6 +10,7 @@
       <el-switch v-model="config.bilingualSentenceHighlightEnabled" class="settings-toggle" :aria-label="t('settings.general.bilingualSentenceHighlight')" />
     </SettingsItem>
     <div class="reading-assistance-example">
+      <p class="reading-assistance-grouping-note" data-testid="sentence-highlight-grouping-hint">{{ t('settings.general.bilingualSentenceHighlightGroupingHint') }}</p>
       <p v-if="config.display !== 1" class="reading-assistance-note">
         {{ t('settings.translationStyle.bilingualOnly') }}
         <button type="button" @click="config.display = 1">{{ t('settings.translationStyle.switchToBilingual') }}</button>
@@ -46,6 +47,7 @@ const pageTheme = ref<'light' | 'dark'>('light')
 </script>
 <style scoped>
 .reading-assistance-example { display: grid; gap: 12px; padding: 0 16px 16px; }
+.reading-assistance-grouping-note { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .reading-assistance-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; color: var(--muted); font-size: 12px; }
 .reading-assistance-note button, .reading-assistance-style-link { justify-self: start; border: 0; border-radius: 8px; padding: 8px 10px; color: var(--brand-strong); background: var(--brand-soft); cursor: pointer; font: inherit; font-size: 12px; }
 .reading-assistance-style-link:focus-visible, .reading-assistance-note button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
