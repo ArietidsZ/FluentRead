@@ -205,7 +205,7 @@ async function main() {
             await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await chooseIntent('merge');
             check(!(await dialog.innerText()).includes('settings.cloud.'),'preview resolves message keys: '+language);
             check(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth),'localized review fits narrow screen: '+language);
-            if (language==='en-US') {check(!/[\u3400-\u9fff]/u.test(await card.innerText()),'English cloud card has no Chinese source text');check(!/[\u3400-\u9fff]/u.test(await dialog.innerText()),'English change preview has no Chinese source text');await shot('webdav-english-review-mobile');}
+            if (language==='en-US') {const text=await card.innerText();check(!/[\u3400-\u9fff]/u.test(text),'English cloud card has no Chinese source text'+(/[\u3400-\u9fff]/u.test(text)?': '+text:''));check(!/[\u3400-\u9fff]/u.test(await dialog.innerText()),'English change preview has no Chinese source text');await shot('webdav-english-review-mobile');}
             await dialog.locator('.drive-footer-actions .el-button').first().click();await dialog.waitFor({state:'hidden'});
             state.etagMode='none';await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
             const restoreOnly=dialog.locator('[data-testid="webdav-restore-only"]');
