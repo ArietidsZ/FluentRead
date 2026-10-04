@@ -1,7 +1,7 @@
 {
   "ok": true,
   "extensionDir": "/Users/thinkstu/Desktop/copy/FluentRead-sentence-listening-20261004/.output/chrome-mv3",
-  "artifactsDir": "/private/tmp/fluentread-collection-layout",
+  "artifactsDir": "/private/tmp/fluentread-sentence-merge-browser",
   "checks": [
     "highlight toolbar plays original source from the translation side and stops its browser fallback",
     "translation-side hover saves the exact original and translation, enables saving, preserves host DOM and geometry",
@@ -20,14 +20,14 @@
   ],
   "consoleErrors": [],
   "screenshots": [
-    "/private/tmp/fluentread-collection-layout/highlight-save.png",
-    "/private/tmp/fluentread-collection-layout/sentence-listening-study.png",
-    "/private/tmp/fluentread-collection-layout/saved-sentences.png",
-    "/private/tmp/fluentread-collection-layout/saved-sentences-mobile.png",
-    "/private/tmp/fluentread-collection-layout/collection-layout-1440.png",
-    "/private/tmp/fluentread-collection-layout/collection-layout-820.png",
-    "/private/tmp/fluentread-collection-layout/collection-layout-390.png",
-    "/private/tmp/fluentread-collection-layout/collection-layout-dark.png"
+    "/private/tmp/fluentread-sentence-merge-browser/highlight-save.png",
+    "/private/tmp/fluentread-sentence-merge-browser/sentence-listening-study.png",
+    "/private/tmp/fluentread-sentence-merge-browser/saved-sentences.png",
+    "/private/tmp/fluentread-sentence-merge-browser/saved-sentences-mobile.png",
+    "/private/tmp/fluentread-sentence-merge-browser/collection-layout-1440.png",
+    "/private/tmp/fluentread-sentence-merge-browser/collection-layout-820.png",
+    "/private/tmp/fluentread-sentence-merge-browser/collection-layout-390.png",
+    "/private/tmp/fluentread-sentence-merge-browser/collection-layout-dark.png"
   ],
   "evidenceBoundary": "Real production extension and storage; local deterministic translation/explanation; synthetic browser voice validates text and stop lifecycle, not audible voice quality or Firefox runtime.",
   "launchMode": "macos-background-cdp",
@@ -79,7 +79,7 @@
       "rowWidth": 360,
       "sourceWidth": 332,
       "translationWidth": 332,
-      "firstContentOffset": 175.5,
+      "firstContentOffset": 200,
       "longTranslationCharacters": 139
     }
   ],
