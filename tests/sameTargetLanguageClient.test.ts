@@ -6,6 +6,7 @@
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import modelPost from './fixtures/chinese-language-model-post.json';
+import technicalParagraphs from './fixtures/chinese-technical-paragraphs.json';
 
 const mocks = vi.hoisted(() => ({
     sendMessage: vi.fn(),
@@ -51,6 +52,7 @@ const sameTarget = [
     ['zh-Hans', '云端模型清单允许清空，且不再连带拒掉无关偏好的保存 (84522b3)'],
     ['he', 'הפסקה הזו מסבירה איך התוסף שומר על הטקסט המקורי ומציג את התרגום ממש מתחתיו.'],
     ['hi', 'हमारी वेबसाइट पर आपका स्वागत है।'],
+    ...technicalParagraphs.map(text => ['zh-Hans', text] as const),
 ] as const;
 
 beforeEach(() => {
@@ -69,6 +71,51 @@ afterEach(() => {
 });
 
 describe('共享翻译客户端', () => {
+    it.each(sameTarget)('%s 批量文本同目标零请求，跨目标仍请求', async (language, text) => {
+        await expect(translateTextBatch([text], 'Context', {targetLanguage: language})).resolves.toEqual([text]);
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        const other = language === 'en' ? 'zh-Hans' : 'en';
+        await expect(translateTextBatch([text], 'Context', {targetLanguage: other})).resolves.toEqual([`T:${text}`]);
+        expect(mocks.sendMessage).toHaveBeenCalledOnce();
+    });
+
+    it('部分批次重试只发送外语，响应长度按实际请求校验，原文输入保持完整', async () => {
+        const foreign = 'Please translate this English paragraph for the reader.';
+        const texts = [technicalParagraphs[0]!, foreign, technicalParagraphs[1]!];
+        const original = [...texts];
+        mocks.sendMessage.mockRejectedValueOnce(new Error('temporary provider failure'));
+        await expect(translateTextBatch(texts, 'Context', {maxRetries: 1}))
+            .resolves.toEqual([texts[0], `T:${foreign}`, texts[2]]);
+        expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+        for (const [message] of mocks.sendMessage.mock.calls) expect(message.origin).toEqual([foreign]);
+        expect(texts).toEqual(original);
+
+        mocks.sendMessage.mockResolvedValueOnce(['too', 'many']);
+        await expect(translateTextBatch(texts, 'Context', {maxRetries: 0})).rejects.toThrow('批量翻译返回格式异常');
+    });
+
+    it('全跳过的批次仍响应取消，数字和空白无需提交；强制请求包含每个原始槽', async () => {
+        const controller = new AbortController();
+        controller.abort();
+        await expect(translateTextBatch(technicalParagraphs, 'Context', {signal: controller.signal}))
+            .rejects.toMatchObject({name: 'AbortError'});
+        await expect(translateTextBatch(['', ' ', '2026-10-04', ...technicalParagraphs]))
+            .resolves.toEqual(['', ' ', '2026-10-04', ...technicalParagraphs]);
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        await expect(translateTextBatch(technicalParagraphs, 'Context', {skipLanguageDetection: true}))
+            .resolves.toEqual(technicalParagraphs.map(text => `T:${text}`));
+        expect(mocks.sendMessage.mock.calls[0]![0].origin).toEqual(technicalParagraphs);
+    });
+
+    it('截图中文批量输入零后台请求，插入外语后只提交外语且保留原索引', async () => {
+        await expect(translateTextBatch(technicalParagraphs)).resolves.toEqual(technicalParagraphs);
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        const foreign = 'Please translate this English paragraph for the reader.';
+        const texts = [technicalParagraphs[0]!, foreign, ...technicalParagraphs.slice(1)];
+        await expect(translateTextBatch(texts)).resolves.toEqual([technicalParagraphs[0], `T:${foreign}`, ...technicalParagraphs.slice(1)]);
+        expect(mocks.sendMessage).toHaveBeenCalledOnce();
+        expect(mocks.sendMessage.mock.calls[0]![0].origin).toEqual([foreign]);
+    });
     it.each(sameTarget)('%s 同目标文本直接返回原文且不发送后台消息', async (language, text) => {
         await expect(translateText(text, 'Context', {targetLanguage: language})).resolves.toBe(text);
         expect(mocks.sendMessage).not.toHaveBeenCalled();
@@ -103,7 +150,9 @@ describe('共享翻译客户端', () => {
     it('富文本包使用 skipLanguageDetection 时仍然发送，由调用方负责逐槽过滤', async () => {
         const [, german] = sameTarget[0];
         await expect(translateText(german, 'Context', {targetLanguage: 'de', skipLanguageDetection: true})).resolves.toBe(`T:${german}`);
-        await expect(translateTextBatch([german], 'Context', {targetLanguage: 'de'})).resolves.toEqual([`T:${german}`]);
+        await expect(translateTextBatch([german], 'Context', {targetLanguage: 'de'})).resolves.toEqual([german]);
+        expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+        await expect(translateTextBatch([german], 'Context', {targetLanguage: 'de', skipLanguageDetection: true})).resolves.toEqual([`T:${german}`]);
         expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
     });
 

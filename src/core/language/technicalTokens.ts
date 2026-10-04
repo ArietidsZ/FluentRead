@@ -2,7 +2,7 @@
  * @file src/core/language/technicalTokens.ts
  *
  * 文件职责：统一识别文本中的技术标识符和名称类 Latin 词，只生成供语言识别使用的副本，避免把模型名、版本号、哈希、URL、路径和文件名当成外语正文。
- * 主要内容：按从结构最强到最弱的顺序遮蔽 URL、邮箱、@提及、行内代码、路径、文件名、UUID、提交哈希、版本号、带版本的产品或模型名称（可带一个首字母大写后缀及规模/变体词）、代码标识符和字母数字混合编号；把连续三个以上全大写词还原为普通词以免外语句子伪装成缩写；为非 Latin 正文中的 Latin 词给出缩写、内部大写名称、格式名、常见技术词、单字母或普通正文的角色与权重。可核对的公开符号包括 createLanguageDetectionCopy、classifyEmbeddedLatinWord、isAcronymWord、isMixedCaseName、LanguageDetectionCopy、EmbeddedLatinWordRole。
+ * 主要内容：按从结构最强到最弱的顺序遮蔽 URL、邮箱、@提及、行内代码、带编号的仓库引用、参数赋值、带单位数值、路径、文件名、UUID、提交哈希、版本号、带版本的产品或模型名称（可带一个首字母大写后缀及规模/变体词）、代码标识符和字母数字混合编号；把连续三个以上全大写词还原为普通词以免外语句子伪装成缩写；为非 Latin 正文中的 Latin 词给出缩写、内部大写名称、格式名、常见技术词、单字母或普通正文的角色与权重。可核对的公开符号包括 createLanguageDetectionCopy、classifyEmbeddedLatinWord、isAcronymWord、isMixedCaseName、LanguageDetectionCopy、EmbeddedLatinWordRole。
  * 模块边界：本文件属于 core 纯算法，只读字符串并返回新的识别副本，绝不修改原文、链接、代码或宿主 DOM；不判断文本属于哪种语言，也不访问配置、浏览器或检测库。
  */
 
@@ -40,6 +40,10 @@ const EMAIL_PATTERN = /[A-Za-z\d._%+-]+@[A-Za-z\d-]+(?:\.[A-Za-z\d-]+)+/gu;
 const DOMAIN_PATTERN = new RegExp(`${BEFORE}(?:[a-z\\d](?:[a-z\\d-]*[a-z\\d])?\\.)+(?:${TOP_LEVEL_DOMAINS})(?:\\/[^\\s<>"'\`，。、；：！？（）]*)?${AFTER}`, 'giu');
 const MENTION_PATTERN = new RegExp(`${BEFORE}@[A-Za-z\\d_](?:[A-Za-z\\d_.-]*[A-Za-z\\d_])?`, 'gu');
 const INLINE_CODE_PATTERN = /`[^`\n]{1,200}`/gu;
+// owner/repository#123 是引用，单独的 and/or 仍是正文；赋值和单位必须有明确结构，不能遮蔽普通词。
+const REPOSITORY_REFERENCE_PATTERN = new RegExp(`${BEFORE}[\\w.-]+\\/[\\w.-]+#\\d+${AFTER}`, 'gu');
+const PARAMETER_ASSIGNMENT_PATTERN = new RegExp(`${BEFORE}[A-Za-z_][\\w.-]*[ \\t]*=[ \\t]*(?:-?\\d+(?:\\.\\d+)?|true|false|null)${AFTER}`, 'gu');
+const MEASUREMENT_PATTERN = new RegExp(`${BEFORE}\\d+(?:\\.\\d+)?[ \\t]*(?:px|rem|em|vw|vh|vmin|vmax|ms|s|Hz|kHz|MHz|GHz|KB|MB|GB|TB|KiB|MiB|GiB|TiB)${AFTER}`, 'gu');
 const PATH_PATTERN = new RegExp(`${BEFORE}(?:[A-Za-z]:)?(?:~|\\.{1,2})?[\\/\\\\]?[\\w.@+-]+(?:[\\/\\\\][\\w.@+-]+)+[\\/\\\\]?${AFTER}`, 'gu');
 const FILE_EXTENSION_SUFFIX_PATTERN = new RegExp(`\\.(?:${FILE_EXTENSIONS})[\\\\/]?$`, 'iu');
 const FILE_NAME_PATTERN = new RegExp(`${BEFORE}\\.?[\\w-]+(?:\\.[\\w-]+)*\\.(?:${FILE_EXTENSIONS})${AFTER}`, 'giu');
@@ -65,6 +69,11 @@ const VARIANT_WORDS = new Set([
 ]);
 const MAX_VERSIONED_NAME_LENGTH = 48;
 
+/** 产品/模型名称中的通用变体词，仅由名称语境调用；单独的 Plus/Chat 仍可属于外语正文。 */
+export function isNameVariantWord(word: string): boolean {
+    return VARIANT_WORDS.has(word.toLowerCase());
+}
+
 const FORMAT_WORDS = new Set([
     'pdf', 'epub', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'html', 'htm', 'txt', 'markdown', 'md', 'srt',
     'vtt', 'ass', 'ssa', 'lrc', 'json', 'csv', 'tsv', 'xml', 'yaml', 'yml', 'rtf', 'odt', 'mobi', 'azw3', 'png',
@@ -89,7 +98,7 @@ function extendVersionedName(text: string, start: number, end: number): number {
         const next = text[cursor + match[0].length];
         if (next !== undefined && LATIN_WORD_CHARACTER_PATTERN.test(next)) break;
         const isSize = /^\d+(?:\.\d+)?[BKMTbkmt]$/u.test(token);
-        const isVariant = VARIANT_WORDS.has(token.toLowerCase());
+        const isVariant = isNameVariantWord(token);
         const isCapitalized = /^[A-Z][a-z]{1,15}$/u.test(token);
         if (!isSize && !isVariant && !(isCapitalized && capitalizedSuffixes === 0)) break;
         if (isCapitalized && !isVariant) capitalizedSuffixes += 1;
@@ -135,9 +144,13 @@ export function createLanguageDetectionCopy(value: string): LanguageDetectionCop
     text = mask(text, MENTION_PATTERN);
     text = mask(text, INLINE_CODE_PATTERN);
     text = mask(text, PLACEHOLDER_PATTERN);
+    text = mask(text, REPOSITORY_REFERENCE_PATTERN);
+    text = mask(text, PARAMETER_ASSIGNMENT_PATTERN);
+    text = mask(text, MEASUREMENT_PATTERN);
     // 单个分隔符的 ASS/SSA、and/or 仍按词处理；至少两级、以根/相对路径开头或末段带扩展名才是路径。
     text = mask(text, PATH_PATTERN, (token) => /[\\/].*[\\/]/u.test(token)
         || /^(?:[A-Za-z]:|~|\.{1,2})?[\\/]/u.test(token)
+        || /\d/u.test(token)
         || FILE_EXTENSION_SUFFIX_PATTERN.test(token));
     text = mask(text, FILE_NAME_PATTERN);
     text = mask(text, UUID_PATTERN);
