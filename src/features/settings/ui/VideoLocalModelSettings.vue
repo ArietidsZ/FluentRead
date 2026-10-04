@@ -9,11 +9,11 @@
     <div class="video-model-download-heading">
       <div>
         <h3 id="video-model-management-title">本地 AI 字幕模型</h3>
-        <p class="video-model-status" role="status">{{ !modelStateLoaded ? '正在读取模型状态…' : downloaded.includes(config.videoLocalModel) ? '当前模型已下载，可直接生成。' : '一般选择 Tiny；语音不清楚时可换 Base。' }}</p>
+        <p class="video-model-status" role="status">{{ !modelStateLoaded ? '正在读取模型状态…' : downloaded.includes(config.videoLocalModel) ? '当前模型已下载，可直接生成' : '一般选择 Tiny；语音不清楚时可换 Base' }}</p>
       </div>
       <span class="video-model-local-badge"><Cpu aria-hidden="true" />本地运行</span>
     </div>
-    <p v-if="!browserCapabilities.extensionDom" class="capability-warning" role="status">当前浏览器不支持本地 AI 字幕，无法下载或运行本地模型。</p>
+    <p v-if="!browserCapabilities.extensionDom" class="capability-warning" role="status">当前浏览器不支持本地 AI 字幕，无法下载或运行本地模型</p>
     <div class="video-model-list" role="radiogroup" aria-label="本地 AI 字幕模型">
       <article v-for="item in modelOptions" :key="item.value" class="video-model-card" :class="{ selected: item.value === config.videoLocalModel, disabled: !config.videoTranslationEnabled || !browserCapabilities.extensionDom }" @click="selectModel(item.value)">
         <label class="video-model-choice">
@@ -40,7 +40,7 @@
         </div>
       </article>
     </div>
-    <p class="video-model-guidance">首次下载需要联网；识别速度取决于 CPU 和内存。支持桌面 Chrome、Edge 和 Firefox。</p>
+    <p class="video-model-guidance">支持桌面版 Chrome、Edge 和 Firefox，首次下载需联网，识别速度取决于 CPU 和内存</p>
     <p v-if="downloadError" class="video-model-error" role="alert">{{ downloadError }}</p>
   </section>
   <section class="video-ai-cache-panel" data-video-ai-cache aria-labelledby="video-ai-cache-title">
@@ -50,7 +50,7 @@
         <h3 id="video-ai-cache-title">已识别视频缓存</h3>
         <span class="video-ai-cache-status" role="status">{{ cacheStats ? t('video.cacheCount', {count: cacheStats.entries}) : cacheError ? '读取失败' : '读取中…' }}</span>
       </div>
-      <p>最多保留 32 个视频、7 天；只保存字幕文字和时间，不保存音频。</p>
+      <p>最多保留 32 个视频、7 天；只保存字幕文字和时间，不保存音频</p>
       <p v-if="cacheError" class="video-model-error" role="alert">{{ cacheError }}</p>
     </div>
     <button type="button" class="video-model-download-button video-ai-cache-clear" :disabled="clearingCache || !cacheStats || cacheStats.entries === 0" @click="clearVideoAiCache">
@@ -105,7 +105,7 @@ async function refresh(): Promise<void> {
 
 async function download(model: VideoLocalTranscriptionModel): Promise<void> {
   if (!browserCapabilities.extensionDom) {
-    downloadError.value = '当前浏览器不支持本地 AI 字幕。';
+    downloadError.value = '当前浏览器不支持本地 AI 字幕';
     return;
   }
   if (downloaded.value.includes(model) || downloading.value.includes(model)) return;
@@ -116,7 +116,7 @@ async function download(model: VideoLocalTranscriptionModel): Promise<void> {
     if (!response?.success) throw new Error(response?.error || '模型下载失败');
     downloaded.value = normalizeVideoLocalTranscriptionModels(response.models);
   } catch (error) {
-    downloadError.value = error instanceof Error ? t('video.modelDownloadError', {error: translateLegacy(error.message)}) : '模型下载失败，请检查网络后重试。';
+    downloadError.value = error instanceof Error ? t('video.modelDownloadError', {error: translateLegacy(error.message)}) : '模型下载失败，请检查网络后重试';
   } finally {
     downloading.value = downloading.value.filter(item => item !== model);
   }
@@ -136,7 +136,7 @@ async function removeModel(model: VideoLocalTranscriptionModel): Promise<void> {
 
 async function refreshCacheStats(): Promise<void> {
   const response = await browser.runtime.sendMessage({type: VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE}) as {success?: boolean; stats?: typeof cacheStats.value} | undefined;
-  if (!response?.success || !response.stats) throw new Error('无法读取已识别字幕缓存，请重试。');
+  if (!response?.success || !response.stats) throw new Error('无法读取已识别字幕缓存，请重试');
   cacheStats.value = response.stats;
   cacheError.value = '';
 }
@@ -147,28 +147,28 @@ async function clearVideoAiCache(): Promise<void> {
   cacheError.value = '';
   try {
     const response = await browser.runtime.sendMessage({type: VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE}) as {success?: boolean; error?: string} | undefined;
-    if (!response?.success) throw new Error(response?.error || '清除已识别字幕失败。');
+    if (!response?.success) throw new Error(response?.error || '清除已识别字幕失败');
     await refreshCacheStats();
   } catch (error) {
-    cacheError.value = error instanceof Error ? error.message : '清除已识别字幕失败，请重试。';
+    cacheError.value = error instanceof Error ? error.message : '清除已识别字幕失败，请重试';
   } finally {
     clearingCache.value = false;
   }
 }
 
 function handleStorageChange(changes: Record<string, browser.Storage.StorageChange>, areaName: string): void {
-  if (areaName === 'local' && changes[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]) void refresh().catch(() => { downloadError.value = '无法读取模型缓存，请重试。'; });
+  if (areaName === 'local' && changes[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]) void refresh().catch(() => { downloadError.value = '无法读取模型缓存，请重试'; });
 }
 
 // 从播放页返回设置时重新读取 IndexedDB 统计，避免一直显示首次挂载时的零条。
 function refreshVisibleCacheStats(): void {
   if (document.visibilityState === 'hidden') return;
-  void refreshCacheStats().catch(error => { cacheError.value = error instanceof Error ? error.message : '无法读取已识别字幕缓存，请重试。'; });
+  void refreshCacheStats().catch(error => { cacheError.value = error instanceof Error ? error.message : '无法读取已识别字幕缓存，请重试'; });
 }
 
 onMounted(() => {
-  void refresh().catch(() => { modelStateLoaded.value = true; downloadError.value = '无法读取模型缓存，请重试。'; });
-  void refreshCacheStats().catch((error) => { cacheError.value = error instanceof Error ? error.message : '无法读取已识别字幕缓存，请重试。'; });
+  void refresh().catch(() => { modelStateLoaded.value = true; downloadError.value = '无法读取模型缓存，请重试'; });
+  void refreshCacheStats().catch((error) => { cacheError.value = error instanceof Error ? error.message : '无法读取已识别字幕缓存，请重试'; });
   browser.storage.onChanged.addListener(handleStorageChange);
   document.addEventListener('visibilitychange', refreshVisibleCacheStats);
   window.addEventListener('focus', refreshVisibleCacheStats);

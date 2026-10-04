@@ -104,6 +104,7 @@ export function createPlatformMessageHandler(openSettings: () => void) {
                     configSnapshot: createTranslationProviderConfigSnapshot(config),
                     keyIndex: message.keyIndex,
                     keyRevision: message.keyRevision,
+                    freeProviderId: message.freeProviderId,
                 });
                 return {success: true, ...result};
             } catch (error) {

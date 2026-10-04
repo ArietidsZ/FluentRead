@@ -42,7 +42,7 @@
       <template v-if="errorMessage">{{ errorMessage }}</template>
       <template v-else-if="statusMessage">{{ statusMessage }}</template>
       <template v-else-if="normalizedPreview">将保存为 <strong>{{ normalizedPreview }}</strong>，并包含所有子域。</template>
-      <template v-else>支持粘贴完整 URL；端口、路径和参数不会进入规则。</template>
+      <template v-else>支持粘贴完整 URL；端口、路径和参数不会进入规则</template>
     </p>
 
     <div v-if="domains.length" class="site-rules-list" role="list" :aria-label="labels.listLabel">
@@ -125,7 +125,7 @@ const VARIANT_LABELS: Record<SiteRulesVariant, SiteRulesLabels> = {
     titleId: 'disabled-extension-sites-title',
     feedbackId: 'disabled-extension-sites-feedback',
     title: '禁用扩展网站',
-    description: '输入任意域名或网址，保存时统一归并到主域名；该网站及其所有子域都不会运行扩展功能。',
+    description: '输入任意域名或网址，保存时统一归并到主域名；该网站及其所有子域都不会运行扩展功能',
     countLabel: '禁用扩展网站数量',
     inputLabel: '添加禁用扩展网站',
     placeholder: '例如：https://docs.example.com/article',
@@ -134,7 +134,7 @@ const VARIANT_LABELS: Record<SiteRulesVariant, SiteRulesLabels> = {
     iconName: 'shield',
     itemDescription: '该主域名及其所有子域不会运行扩展功能',
     emptyTitle: '还没有禁用扩展的网站',
-    emptyDescription: '可从上方手动添加，也可在扩展弹窗中为当前网站快速禁用。',
+    emptyDescription: '可从上方手动添加，也可在扩展弹窗中为当前网站快速禁用',
     duplicateMessage: (domain: string) => `${domain} 已在禁用扩展名单中。`,
     addedMessage: (domain: string) => `已添加 ${domain}。`,
     removedMessage: (domain: string) => `已删除 ${domain}。`,
@@ -144,7 +144,7 @@ const VARIANT_LABELS: Record<SiteRulesVariant, SiteRulesLabels> = {
     titleId: 'disabled-floating-ball-sites-title',
     feedbackId: 'disabled-floating-ball-sites-feedback',
     title: '不显示悬浮球的网站',
-    description: '输入任意域名或网址，保存时统一归并到主域名；该网站及其所有子域不显示悬浮球，快捷键、右键菜单和其他功能仍然可用。',
+    description: '输入任意域名或网址，保存时统一归并到主域名；该网站及其所有子域不显示悬浮球，快捷键、右键菜单和其他功能仍然可用',
     countLabel: '不显示悬浮球的网站数量',
     inputLabel: '添加不显示悬浮球的网站',
     placeholder: '例如：https://mail.example.com/inbox',
@@ -153,7 +153,7 @@ const VARIANT_LABELS: Record<SiteRulesVariant, SiteRulesLabels> = {
     iconName: 'close',
     itemDescription: '该主域名及其所有子域不显示悬浮球',
     emptyTitle: '所有网站都会显示悬浮球',
-    emptyDescription: '在阅读工具、邮箱或编辑器等界面密集的网站上，可以只隐藏悬浮球而保留其他功能。',
+    emptyDescription: '在阅读工具、邮箱或编辑器等界面密集的网站上，可以只隐藏悬浮球而保留其他功能',
     duplicateMessage: (domain: string) => `${domain} 已在不显示悬浮球名单中。`,
     addedMessage: (domain: string) => `已添加 ${domain}。`,
     removedMessage: (domain: string) => `已删除 ${domain}。`,
@@ -163,7 +163,7 @@ const VARIANT_LABELS: Record<SiteRulesVariant, SiteRulesLabels> = {
     titleId: 'always-translate-sites-title',
     feedbackId: 'always-translate-sites-feedback',
     title: '始终翻译网站',
-    description: '输入任意域名或网址，保存时统一归并到主域名，并对它的所有子域生效。',
+    description: '输入任意域名或网址，保存时统一归并到主域名，并对它的所有子域生效',
     countLabel: '始终翻译网站数量',
     inputLabel: '添加始终翻译网站',
     placeholder: '例如：https://docs.example.com/article',
@@ -172,7 +172,7 @@ const VARIANT_LABELS: Record<SiteRulesVariant, SiteRulesLabels> = {
     iconName: 'globe',
     itemDescription: '该主域名及其所有子域会自动翻译',
     emptyTitle: '还没有始终翻译的网站',
-    emptyDescription: '可从上方手动添加，也可在扩展弹窗中为当前网站快速开启。',
+    emptyDescription: '可从上方手动添加，也可在扩展弹窗中为当前网站快速开启',
     duplicateMessage: (domain: string) => `${domain} 已在始终翻译名单中。`,
     addedMessage: (domain: string) => `已添加 ${domain}。`,
     removedMessage: (domain: string) => `已删除 ${domain}。`,
@@ -190,13 +190,13 @@ function clearFeedback() {
 function addDomain() {
   const input = inputValue.value.trim();
   if (!input) {
-    errorMessage.value = '请输入域名或网址。';
+    errorMessage.value = '请输入域名或网址';
     return;
   }
 
   const domain = getSiteBaseDomain(input);
   if (!domain) {
-    errorMessage.value = '无法识别有效的网站主域名，请检查输入内容。';
+    errorMessage.value = '无法识别有效的网站主域名，请检查输入内容';
     return;
   }
   if (domains.value.includes(domain)) {

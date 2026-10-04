@@ -7,11 +7,11 @@
 <template>
   <SettingsGroup
     title="悬浮球进阶设置"
-    description="控制悬浮球的按钮显示方式、点击行为、尺寸与生效网站。关闭悬浮球后这些设置保留但不生效。"
+    description="设置悬浮球的按钮、点击动作、尺寸和适用网站；关闭悬浮球后保留这些偏好，重新开启时生效"
   >
     <SettingsItem
       label="按钮显示方式"
-      description="悬浮球上的翻译与设置按钮可以悬停时展开、始终显示，或完全隐藏只保留悬浮球本体。"
+      description="悬浮球上的翻译与设置按钮可以悬停时展开、始终显示，或完全隐藏只保留悬浮球本体"
       :disabled="!enabled"
     >
       <SegmentedControl
@@ -26,7 +26,7 @@
     <SettingsItem
       v-if="props.config.floatingBallToolsDisplay === 'hover'"
       label="展开延迟"
-      description="鼠标停留多久后展开按钮；0 毫秒表示立即展开，调大可避免划过页面边缘时误展开。键盘聚焦始终立即展开。"
+      description="鼠标停留达到设定时间后展开按钮，0 毫秒表示立即展开；增加延迟可减少误触，键盘聚焦时始终立即展开"
       :disabled="!enabled"
     >
       <div class="floating-ball-number-field">
@@ -45,7 +45,7 @@
 
     <SettingsItem
       label="点击行为"
-      description="点击悬浮球本体时执行的动作；无论选择哪一项，按住悬浮球都可以拖动调整位置。"
+      description="点击悬浮球本体时执行的动作；无论选择哪一项，按住悬浮球都可以拖动调整位置"
       :disabled="!enabled"
     >
       <SegmentedControl
@@ -59,7 +59,7 @@
 
     <SettingsItem
       label="缩小悬浮球"
-      description="以更小的尺寸显示悬浮球，减少对网页内容的遮挡。"
+      description="以更小的尺寸显示悬浮球，减少对网页内容的遮挡"
       :disabled="!enabled"
     >
       <el-switch
@@ -72,7 +72,7 @@
 
     <SettingsItem
       label="显示设置入口"
-      description="关闭后悬浮球不再显示打开设置页的按钮，仍可从扩展图标进入设置。"
+      description="关闭后悬浮球不再显示打开设置页的按钮，仍可从扩展图标进入设置"
       :disabled="!enabled || props.config.floatingBallToolsDisplay === 'hidden'"
     >
       <el-switch
@@ -85,7 +85,7 @@
 
     <SettingsItem
       label="收起时不透明度"
-      description="数值越小越透明、越不遮挡网页；鼠标悬停、展开和拖动时始终完全清晰。"
+      description="数值越小越透明、越不遮挡网页；鼠标悬停、展开和拖动时始终完全清晰"
       :disabled="!enabled"
     >
       <div class="floating-ball-number-field">

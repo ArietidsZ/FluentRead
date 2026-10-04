@@ -2,7 +2,7 @@
  * @file src/core/i18n/language.ts
  *
  * 文件职责：提供不依赖具体文案资源的界面语言领域规则。
- * 主要内容：声明默认语言、可选语言列表、存储值归一化和按需资源包路径，让配置模型与运行时
+ * 主要内容：声明默认语言、可选语言列表及多语言显示名称、存储值归一化和按需资源包路径，让配置模型与运行时
  * 加载器可以复用语言契约而不把整套 UI 文案打进后台或纯配置 bundle。
  * 模块边界：这里只处理语言标识；资源查找和文本翻译由 i18n/index.ts 负责。
  */
@@ -41,13 +41,13 @@ const multilingualUiLanguageLabels: Readonly<Record<UiLanguage, string>> = {
 };
 
 const englishUiLanguageLabels: Readonly<Record<UiLanguage, string>> = {
-    'zh-CN': 'Chinese',
-    'en-US': 'English',
-    'ja-JP': 'Japanese',
-    'ko-KR': 'Korean',
-    'fr-FR': 'French',
-    'ru-RU': 'Russian',
-    'es-ES': 'Spanish',
+    'zh-CN': 'Chinese / 中文',
+    'en-US': 'English / 英语',
+    'ja-JP': 'Japanese / 日本語',
+    'ko-KR': 'Korean / 한국어',
+    'fr-FR': 'French / Français',
+    'ru-RU': 'Russian / Русский',
+    'es-ES': 'Spanish / Español',
 };
 
 const bilingualUiLanguageLabels: Readonly<Record<UiLanguage, string>> = {

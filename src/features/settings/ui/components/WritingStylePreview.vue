@@ -40,9 +40,9 @@ const paragraphs = computed(() => writingPreviewParagraphs({length: props.length
 const fallbackNote = computed(() => {
   const fallbacks = writingPreviewFallbacks({tone: props.tone, role: props.role});
   if (!fallbacks.length) return '';
-  return translateLegacy(fallbacks.length === 2 ? '自定义语气和角色会在真实生成时生效，示例先用默认表达。'
-    : fallbacks[0] === 'tone' ? '自定义语气会在真实生成时生效，示例先用默认表达。'
-      : '自定义角色会在真实生成时生效，示例先用默认表达。');
+  return translateLegacy(fallbacks.length === 2 ? '自定义语气和角色会在真实生成时生效，示例先用默认表达'
+    : fallbacks[0] === 'tone' ? '自定义语气会在真实生成时生效，示例先用默认表达'
+      : '自定义角色会在真实生成时生效，示例先用默认表达');
 });
 </script>
 

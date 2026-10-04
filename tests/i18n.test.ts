@@ -343,7 +343,13 @@ describe('界面 i18n 契约', () => {
       'Español / Spanish / 西班牙语',
     ]);
     expect(UI_LANGUAGE_OPTIONS.map((item) => getUiLanguageDisplayLabel(item.value, 'en-US'))).toEqual([
-      'Chinese', 'English', 'Japanese', 'Korean', 'French', 'Russian', 'Spanish',
+      'Chinese / 中文',
+      'English / 英语',
+      'Japanese / 日本語',
+      'Korean / 한국어',
+      'French / Français',
+      'Russian / Русский',
+      'Spanish / Español',
     ]);
     expect(UI_LANGUAGE_OPTIONS.map((item) => getUiLanguageBilingualLabel(item.value))).toEqual([
       '中文 / Chinese',

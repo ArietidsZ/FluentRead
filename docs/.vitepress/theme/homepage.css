@@ -104,6 +104,45 @@
 .bv-hero .bv-install-actions {
   margin-top: 30px;
 }
+.bv-install-fallbacks,
+.bv-install-fallback-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bv-install-fallbacks {
+  margin-top: 14px;
+  color: var(--fr-muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.bv-install-fallback-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  color: var(--vp-c-brand-1);
+}
+.bv-install-fallback-links a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.bv-install-fallback-links a:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.bv-domestic-badge {
+  border-radius: 5px;
+  padding: 1px 6px;
+  background: #edf6f0;
+  color: #35654b;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.8;
+}
 .bv-hero-orbit {
   position: absolute;
   inset: 0;

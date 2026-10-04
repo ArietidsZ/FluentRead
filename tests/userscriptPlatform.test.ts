@@ -53,6 +53,13 @@ import {createPlatformMessageHandler} from '@/userscript/platform';
 import {getTranslationGlossaryContext} from '@/src/services/translation/requestSnapshot';
 
 describe('userscript 平台消息适配', () => {
+    it('免费池逐服务检查保留候选 ID，避免脚本端退回自动换线', async () => {
+        mocks.runTranslationServiceConnectionTest.mockResolvedValue({durationMs: 12});
+        const handler = createPlatformMessageHandler(vi.fn());
+        await expect(handler({type: 'testTranslationServiceConnection', service: 'freeTranslation', freeProviderId: 'transmart'}))
+            .resolves.toEqual({success: true, durationMs: 12});
+        expect(mocks.runTranslationServiceConnectionTest).toHaveBeenCalledWith('freeTranslation', expect.objectContaining({freeProviderId: 'transmart'}));
+    });
     it('术语网站范围取当前页面而不是公开payload，视频仍使用独立入口', async () => {
         vi.stubGlobal('location', {href: 'https://docs.example.com/article'});
         mocks.translateWithCache.mockResolvedValue('译文');

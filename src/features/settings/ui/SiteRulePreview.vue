@@ -7,27 +7,27 @@
 <template>
   <div class="rule-workspace" data-setting="site-rule-preview">
     <section class="rule-card">
-      <header class="rule-heading"><div><h3>{{ tr('生效预览') }}</h3><p>{{ tr('输入完整网址，了解已保存的偏好和正文规则会如何配合。不会打开或请求这个网站。') }}</p></div></header>
+      <header class="rule-heading"><div><h3>{{ tr('生效预览') }}</h3><p>{{ tr('输入完整网址，查看已保存的网站偏好和正文规则是否生效；检查时不会访问该网站') }}</p></div></header>
       <form class="preview-form" @submit.prevent="checkedUrl = input">
         <label class="rule-field"><span>{{ tr('输入完整网址') }}</span><input v-model="input" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/articles/hello" :aria-invalid="Boolean(checkedUrl && !preferences)" aria-describedby="site-rule-preview-result" /></label>
         <button type="submit" class="rule-primary">{{ tr('检查已保存配置') }}</button>
       </form>
-      <p class="rule-hint">{{ tr('网址匹配不代表网页一定能翻译；实际结果还受网页结构、权限、语言过滤和翻译服务影响。未保存草稿不参与此预览。') }}</p>
+      <p class="rule-hint">{{ tr('预览仅检查已保存规则，网址匹配后能否翻译仍取决于网页结构、权限、语言过滤和翻译服务') }}</p>
       <div id="site-rule-preview-result" aria-live="polite">
-        <p v-if="checkedUrl && !preferences" class="rule-error" role="alert">{{ tr('请输入以 http:// 或 https:// 开头的完整网址。') }}</p>
+        <p v-if="checkedUrl && !preferences" class="rule-error" role="alert">{{ tr('请输入以 http:// 或 https:// 开头的完整网址') }}</p>
         <template v-else-if="preferences">
-          <p v-if="input !== checkedUrl" class="rule-notice">{{ tr('网址已修改，请重新检查。下方仍显示上一次结果。') }}</p>
+          <p v-if="input !== checkedUrl" class="rule-notice">{{ tr('网址已修改，请重新检查；下方暂时显示上一次的结果') }}</p>
           <p class="preview-domain" data-i18n-ignore>{{ preferences.url }}</p>
           <div class="preview-states">
             <article><span>{{ tr('扩展功能') }}</span><strong>{{ tr(extensionLabels[preferences.extension]) }}</strong><small v-if="preferences.domain" data-i18n-ignore>{{ preferences.domain }}</small></article>
-            <article><span>{{ tr('网页翻译') }}</span><strong>{{ tr(translationLabels[preferences.translation]) }}</strong><small>{{ tr('禁用扩展优先于自动翻译；关闭插件后所有偏好仍保留。') }}</small></article>
-            <article><span>{{ tr('悬浮球') }}</span><strong>{{ tr(ballLabels[preferences.floatingBall]) }}</strong><small>{{ tr('只隐藏悬浮球时，其他功能仍可用。') }}</small></article>
+            <article><span>{{ tr('网页翻译') }}</span><strong>{{ tr(translationLabels[preferences.translation]) }}</strong><small>{{ tr('禁用扩展优先于自动翻译；关闭插件后所有偏好仍保留') }}</small></article>
+            <article><span>{{ tr('悬浮球') }}</span><strong>{{ tr(ballLabels[preferences.floatingBall]) }}</strong><small>{{ tr('只隐藏悬浮球时，其他功能仍可用') }}</small></article>
           </div>
-          <section class="preview-adaptation"><h4>{{ tr('正文识别结果') }}</h4><p v-if="scope === 'all'" class="rule-hint">{{ tr('当前为全部节点识别，仅显式声明 allScopes 的适配规则参与。') }}</p><p class="rule-notice">{{ tr(preferences.extension !== 'enabled' ? '扩展功能未运行，匹配的正文规则暂不生效。' : !adaptation.enabled ? '正文适配已关闭，将使用通用正文识别。' : !activeRules.length ? '未命中启用的专属规则，将使用通用正文识别。' : focused ? '命中限定范围规则，只翻译规则声明的正文区域；所有命中规则的保护区域共同生效。' : '命中补充规则，在通用正文识别上增加指定区域，并共同保护原文区域。') }}</p>
+          <section class="preview-adaptation"><h4>{{ tr('正文识别结果') }}</h4><p v-if="scope === 'all'" class="rule-hint">{{ tr('当前为全部节点识别，仅显式声明 allScopes 的适配规则参与') }}</p><p class="rule-notice">{{ tr(preferences.extension !== 'enabled' ? '扩展功能未运行，匹配的正文规则暂不生效' : !adaptation.enabled ? '正文适配已关闭，将使用通用正文识别' : !activeRules.length ? '未命中启用的专属规则，将使用通用正文识别' : focused ? '命中限定范围规则，只翻译规则声明的正文区域；所有命中规则的保护区域共同生效' : '命中补充规则，在通用正文识别上增加指定区域，并共同保护原文区域') }}</p>
             <ol v-if="matches.ok && matches.rules.length" class="preview-matches"><li v-for="item in matches.rules" :key="item.rule.id" :data-preview-rule="item.rule.id"><div><strong data-i18n-ignore>{{ item.rule.name }}</strong><small>{{ tr(item.source === 'custom' ? '自定义' : '内置') }} · {{ tr(!item.applicable ? '不适用于全部节点' : !adaptation.enabled ? '适配已关闭' : !item.enabled ? '已停用' : preferences.extension !== 'enabled' ? '暂不生效' : '已启用') }} · {{ tr('优先级') }} {{ item.rule.priority ?? 0 }}</small></div><button type="button" @click="emit('inspect-rule', item.rule.id)">{{ tr('查看规则') }}</button></li></ol>
           </section>
         </template>
-        <div v-else-if="!checkedUrl" class="rule-empty"><UiIcon name="globe" :size="28" /><strong>{{ tr('先检查，再调整') }}</strong><p>{{ tr('遇到未自动翻译、按钮被翻译或正文遗漏时，可先检查名单和命中规则。') }}</p></div>
+        <div v-else-if="!checkedUrl" class="rule-empty"><UiIcon name="globe" :size="28" /><strong>{{ tr('先检查，再调整') }}</strong><p>{{ tr('遇到未自动翻译、按钮被翻译或正文遗漏时，可先检查名单和命中规则') }}</p></div>
       </div>
     </section>
   </div>

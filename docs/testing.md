@@ -68,6 +68,8 @@
 
 页面与翻译响应为本地确定性夹具，不能代表真实服务的语义对齐质量或 Firefox 实机行为。参考 [duo-translator](https://github.com/linuxscreen/duo-translator/tree/f3abdd18a0e20687222ab338b367edf5476cf746/main/dom) 的文字范围绘制与相邻句分组设计；FluentRead 独立实现，未复制其 GPL-3.0 源码。
 
+句子操作入口的定向回归使用 `tests/sentenceActionsInteraction.test.ts`、`tests/sentenceActionsMount.test.ts` 和 `tests/selectionTtsContentController.test.ts`，覆盖稳定停留、扫过取消、按需展开与查询、同句切换原译文、正确语音语言、Offscreen 失败回退、迟到响应和卸载。生产浏览器专项运行 `node scripts/testing/run-sentence-listening-test.cjs --toolbar-only --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-sentence-toolbar`，仅验证小入口与工具栏、原译文播放和复制、双语收藏、Esc、滚动取消、390px 布局和恢复清理。浏览器语音为受控替身，验证文本、语言与停止生命周期，不代表实际音质或 Firefox 实机朗读。
+
 译文样式由 `tests/translationAppearance.test.ts` 与 `tests/translationAppearanceStyles.test.ts` 覆盖预设注册表、旧版选项顺序、外观归一化、颜色换算与网页样式节点的安装、原位更新和移除；`tests/pageStyles.test.ts` 验证外观样式随公共页面样式一起安装、订阅配置更新，并在移除或 context 失效时一起清理。生产扩展构建后执行 `node scripts/testing/run-translation-style-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-translation-style`：在临时 Edge 与第二屏后台窗口中验证界面风格页第一组为译文样式、四类 29 张样式卡片逐一写入配置并同步预览、色板与方向键、滑块、分段控件和自定义取色器、仅译文提示、逐句高亮开关、重新打开后的保存结果、设置搜索直达外观面板与逐句高亮开关、深色界面与 1024/820/390 宽度；再用本地确定性夹具真实悬浮翻译，确认外观调整无需新请求即可更新已有译文，停用插件或恢复默认时移除外观样式节点，并检查简约卡片底色在网页上生效。
 
 ## 不翻译的语言（issue #627）

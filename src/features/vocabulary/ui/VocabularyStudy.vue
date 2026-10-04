@@ -25,7 +25,7 @@
     <div class="study-workspace">
       <section class="study-step">
         <h4>{{ sentenceEntry ? '理解这个句子' : '1 · 读懂与会用' }}</h4>
-        <p class="study-hint">{{ sentenceEntry ? '用几句话解释句意，以及一个值得留意的表达或句式。' : '围绕这个表达，理解含义、常用搭配和一个可迁移的例句。' }}</p>
+        <p class="study-hint">{{ sentenceEntry ? '用几句话解释句意，以及一个值得留意的表达或句式' : '围绕这个表达，理解含义、常用搭配和一个可迁移的例句。' }}</p>
         <button type="button" class="study-primary" :disabled="busy" @click="run('understand')">{{ explanation ? '重新讲解' : sentenceEntry ? '生成简短解释' : '理解这个表达' }}</button>
         <ReadingAnswer v-if="explanation" :text="explanation" />
         <button v-if="completedExplanation" type="button" :disabled="savingExplanation || busy" @click="saveExplanation">{{ savingExplanation ? '保存中…' : '保存这段解释' }}</button>
@@ -94,8 +94,8 @@ async function saveExplanation(): Promise<void> {
   try {
     const response = await browser.runtime.sendMessage({type:VOCABULARY_BOOK_MESSAGE, action:'updateNote', entryId:props.entry.id, note:explanation.value}) as VocabularyBookResponse<VocabularyEntry>;
     if (!response.success) throw new Error(response.error.message);
-    if (active && generation === owner) {emit('updated', response.data); notice.value = '解释已保存，下次打开仍可查看。'; completedExplanation.value = false;}
-  } catch (cause) {if (active && generation === owner) notice.value = cause instanceof Error ? cause.message : '解释保存失败，请重试。';}
+    if (active && generation === owner) {emit('updated', response.data); notice.value = '解释已保存，下次打开仍可查看'; completedExplanation.value = false;}
+  } catch (cause) {if (active && generation === owner) notice.value = cause instanceof Error ? cause.message : '解释保存失败，请重试';}
   finally {if (active) savingExplanation.value = false;}
 }
 function run(nextMode: 'understand' | 'use'): void {
