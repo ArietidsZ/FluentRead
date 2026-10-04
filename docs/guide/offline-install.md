@@ -5,7 +5,7 @@ description: Chrome 商店无法访问时，通过 CRX搜搜或官方 ZIP 包安
 
 # 离线下载与安装
 
-Chrome 商店打不开时，可以使用 **[CRX搜搜（国内可用）](https://www.crxsoso.com/webstore/detail/djnlaiohfaaifbibleebjggkghlmcpcj)**，或下载官方 ZIP 包后在桌面 Chrome / Edge 中手动安装。
+Chrome 商店打不开时，可以从 **[GitHub 官方发布页](https://github.com/FluentRead/FluentRead/releases/latest)** 下载最新正式版的 ZIP 包，在桌面 Chrome / Edge 中手动安装。也可以使用 **[CRX搜搜（国内可用）](https://www.crxsoso.com/webstore/detail/djnlaiohfaaifbibleebjggkghlmcpcj)**。
 
 ## 通过 CRX搜搜获取
 
@@ -15,12 +15,11 @@ CRX搜搜是第三方分发网站，版本同步时间可能与官方商店不�
 
 ## 下载官方离线包
 
-| 文件 | 下载 |
-| --- | --- |
-| Chrome / Edge 扩展 ZIP · v0.0.34 | [下载离线包](https://github.com/FluentRead/FluentRead/releases/download/v0.0.34/fluent-read-0.0.34-chrome.zip) |
-| SHA-256 校验文件 | [下载 SHA256SUMS.txt](https://github.com/FluentRead/FluentRead/releases/download/v0.0.34/SHA256SUMS.txt) |
+打开 [GitHub 官方发布页](https://github.com/FluentRead/FluentRead/releases/latest)，这个地址会跳转到最新正式版。安装包和版本信息以发布页为准。
 
-上面的包来自官方 GitHub Release v0.0.34，发布于 2026 年 9 月 13 日。其他版本见 [官方发布页](https://github.com/FluentRead/FluentRead/releases/latest)。选择文件名以 **`-chrome.zip`** 结尾的扩展包；`-sources.zip` 和 GitHub 自动生成的 Source code 是源码包，不能直接安装。
+在发布说明下方展开 **Assets**，选择文件名以 **`-chrome.zip`** 结尾的 Chrome / Edge 扩展包。如需校验文件，也可以在同一版本的 Assets 中下载 **`SHA256SUMS.txt`**。
+
+**`-sources.zip`** 和 GitHub 自动生成的 **Source code** 是源码包，不能直接安装。
 
 GitHub 下载仍受网络环境影响；无法下载时，可以尝试上面的 CRX搜搜入口。离线安装指下载后不需要访问 Chrome 商店即可安装，在线翻译仍需要连接所选服务。
 
@@ -38,6 +37,6 @@ GitHub 下载仍受网络环境影响；无法下载时，可以尝试上面的 
 
 离线安装的扩展不会随商店版本自动更新。更新前，先在 FluentRead 设置的 **备份与同步** 中导出配置。
 
-下载新版 Chrome ZIP 包，将内容解压覆盖到原安装目录，再回到扩展管理页点击 FluentRead 的 **重新加载**。刷新需要翻译的网页。使用同一目录更新，避免另装一份而出现重复翻译；操作前保留原目录的备份。
+从 [GitHub 官方发布页](https://github.com/FluentRead/FluentRead/releases/latest) 下载新版 Chrome ZIP 包，将内容解压覆盖到原安装目录，再回到扩展管理页点击 FluentRead 的 **重新加载**。刷新需要翻译的网页。使用同一目录更新，避免另装一份而出现重复翻译；操作前保留原目录的备份。
 
 安装完成后，请参照[快速开始](/guide/getting-started)固定图标并翻译网页。

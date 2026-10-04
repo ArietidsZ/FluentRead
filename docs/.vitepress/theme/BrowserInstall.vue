@@ -84,7 +84,11 @@ onBeforeUnmount(() => {
           <span v-if="!en" class="bv-domestic-badge">国内可用</span>
         </a>
         <span aria-hidden="true">·</span>
-        <a :href="withBase((en ? '/en' : '') + '/guide/offline-install')">
+        <a
+          href="https://github.com/FluentRead/FluentRead/releases/latest"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           {{ en ? 'Offline download' : '离线下载' }}
         </a>
       </div>
