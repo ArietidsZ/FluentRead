@@ -925,7 +925,7 @@ export const jaJPMessages = {
     'options.searchOpen': '開く →',
     'options.navLabel': '設定カテゴリ',
     'options.aboutTitle': 'FluentRead について',
-    'options.aboutHeroDescription': '対訳で読めるオープンソースのブラウザー拡張機能。',
+    'options.aboutHeroDescription': '無料で使えるオープンソースのブラウザー二言語翻訳拡張機能',
     'options.aboutCoreExperience': '主な体験',
     'options.aboutBornForReading': '読書のために設計',
     'options.aboutCoreDescription': 'ページ翻訳、選択翻訳、ホバー翻訳、ショートカットなど、よく使う操作を必要な場所にまとめています。',

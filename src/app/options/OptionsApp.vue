@@ -82,11 +82,10 @@
                 <img class="about-logo" :src="iconUrl" alt="流畅阅读图标" />
                 <div>
                   <strong>FluentRead</strong>
-                  <span class="about-version">V{{ version }} · {{ t('popup.donationEyebrow') }}</span>
+                  <span class="about-version">V{{ version }} · {{ t('options.aboutHeroDescription') }}</span>
                 </div>
               </div>
               <h2 data-i18n-ignore>{{ t('brand.tagline') }}</h2>
-              <p class="about-description">{{ t('options.aboutHeroDescription') }}</p>
             </div>
             <section class="about-experience" :aria-label="t('options.aboutCoreExperience')">
               <h3>{{ t('options.aboutBornForReading') }}</h3>

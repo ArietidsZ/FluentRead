@@ -1141,7 +1141,7 @@ export const enUSMessages = {
     'options.searchOpen': 'Open →',
     'options.navLabel': 'Settings categories',
     'options.aboutTitle': 'About FluentRead',
-    'options.aboutHeroDescription': 'An open-source browser extension for bilingual reading.',
+    'options.aboutHeroDescription': 'A free, open-source browser extension for bilingual reading',
     'options.aboutCoreExperience': 'Core experience',
     'options.aboutBornForReading': 'Built for reading',
     'options.aboutCoreDescription': 'From page translation to selection tools, hover translation, and shortcuts, common actions stay close to where you need them.',

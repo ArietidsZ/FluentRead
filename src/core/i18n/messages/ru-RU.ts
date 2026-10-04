@@ -925,7 +925,7 @@ export const ruRUMessages = {
     'options.searchOpen': 'Открыть →',
     'options.navLabel': 'Категории настроек',
     'options.aboutTitle': 'О FluentRead',
-    'options.aboutHeroDescription': 'Расширение с открытым исходным кодом для двуязычного чтения.',
+    'options.aboutHeroDescription': 'Бесплатное расширение с открытым исходным кодом для двуязычного чтения в браузере',
     'options.aboutCoreExperience': 'Основные возможности',
     'options.aboutBornForReading': 'Создано для чтения',
     'options.aboutCoreDescription': 'Перевод страниц, выделений, наведением и сочетаниями клавиш — нужные действия всегда рядом.',

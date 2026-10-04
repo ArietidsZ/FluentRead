@@ -925,7 +925,7 @@ export const koKRMessages = {
     'options.searchOpen': '열기 →',
     'options.navLabel': '설정 카테고리',
     'options.aboutTitle': 'FluentRead 정보',
-    'options.aboutHeroDescription': '이중 언어 읽기를 위한 오픈 소스 브라우저 확장 프로그램.',
+    'options.aboutHeroDescription': '무료 오픈 소스 브라우저 이중 언어 번역 확장 프로그램',
     'options.aboutCoreExperience': '핵심 경험',
     'options.aboutBornForReading': '읽기를 위해 만들어졌습니다',
     'options.aboutCoreDescription': '페이지 번역, 선택 번역, 마우스 오버 번역, 단축키 등 자주 쓰는 작업을 필요한 곳 가까이에 둡니다.',

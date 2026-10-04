@@ -1138,7 +1138,7 @@ export const zhCNMessages = {
     'options.searchOpen': '打开 →',
     'options.navLabel': '设置分类',
     'options.aboutTitle': '关于流畅阅读',
-    'options.aboutHeroDescription': '开源的浏览器双语翻译扩展。',
+    'options.aboutHeroDescription': '开源免费的浏览器双语翻译扩展',
     'options.aboutCoreExperience': '核心体验',
     'options.aboutBornForReading': '为阅读而生',
     'options.aboutCoreDescription': '从网页翻译到划词、悬浮与快捷键，把常用能力放在真正需要的位置。',
