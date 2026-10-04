@@ -80,9 +80,18 @@
   font-size: 18px;
 }
 .bv-hero-name {
-  color: var(--vp-c-brand-1);
-  font-weight: 700;
+  position: relative;
+  isolation: isolate;
   white-space: nowrap;
+}
+.bv-hero-name::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 48% -0.12em 0.03em;
+  border-radius: 0.2em 0.1em 0.18em 0.08em;
+  background: #f4d8787a;
+  transform: skewX(-8deg) rotate(-1deg);
 }
 .bv-hero-capabilities > span {
   display: inline-block;
