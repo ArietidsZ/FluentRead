@@ -98,6 +98,13 @@ const faqs = [
     <section class="bv-hero" :class="{ 'bv-hero-en': en }" aria-labelledby="fr-title">
       <HeroOrbit :en="en" />
       <div class="bv-hero-copy">
+        <img
+          class="bv-hero-mobile-icon"
+          :src="withBase('/brand-icon.webp')"
+          width="64"
+          height="64"
+          alt=""
+        />
         <h1 id="fr-title" class="bv-hero-slogan product-tagline" :lang="en ? 'en' : 'zh-CN'">
           <span class="bv-slogan-line"
             ><span>{{ t('让语言更近', 'Closer languages') }}</span
