@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/model/googleDrivePreview.ts
  * 文件职责：把安全同步差异整理为用户可以理解和选择的预览行。
- * 主要内容：识别首次保存、首次恢复和一致状态；按名称及推荐方向收拢重复摘要，
+ * 主要内容：识别首次保存、首次恢复、只读恢复和一致状态；按名称及推荐方向收拢重复摘要，
  * 统计实际待选择项并展开整组选择，保留所有后台差异 ID 与自动推荐。
  * 模块边界：只处理已经脱敏的预览；不读取配置、凭据、账号缓存或执行网络请求。
  */
@@ -16,6 +16,7 @@ export interface DrivePreviewRow {
 }
 export function initialDriveDirection(preview: DriveSyncPreview): DriveSyncDirection | '' {
     if (!preview.hasRemote) return 'upload';
+    if (preview.canUpload === false) return 'download';
     if (!preview.changes.length) return 'download';
     return preview.hasBaseline ? 'merge' : '';
 }

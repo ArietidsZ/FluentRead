@@ -72,6 +72,7 @@
     "settings.cloud.fieldLabel.4": "Local speech recognition model",
     "settings.cloud.cleanupPending": "Configuration synced, but authorization cache cleanup is pending. Reopen settings to retry.",
     "settings.cloud.versionMissing": "The backup lacks a version identifier for safe replacement. You can still restore it; read it again before retrying.",
-    "settings.cloud.verifyFailed": "Cloud backup verification failed. Read the backup again before retrying; this device’s configuration was not changed."
+    "settings.cloud.verifyFailed": "Cloud backup verification failed. Read the backup again before retrying; this device’s configuration was not changed.",
+    "settings.cloud.restoreOnly": "You can restore this backup, but the service has not provided a version identifier for safe replacement. Saving and merging are currently unavailable."
   }
 }

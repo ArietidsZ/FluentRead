@@ -10,6 +10,7 @@ describe('Google Drive 操作和预览模型', () => {
         expect(initialDriveDirection(preview())).toBe('');
         expect(initialDriveDirection(preview({hasBaseline: true}))).toBe('merge');
         expect(initialDriveDirection(preview({changes: []}))).toBe('download');
+        expect(initialDriveDirection(preview({hasBaseline:true,canUpload:false}))).toBe('download');
     });
     it('收拢同名兼容字段，但保留不同推荐方向和真实差异 ID', () => {
         const rows = groupDrivePreviewChanges([change('0', 'other'), change('1', 'other'), change('2', 'other', 'local'), change('3', 'other', 'remote'), change('4', 'theme')]);
