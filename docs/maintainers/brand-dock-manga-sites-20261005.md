@@ -591,3 +591,14 @@ Chrome 最终生产入口专项 26 项通过：21 个交互/语言夹具、两�
 新基础上的 Chrome（28.2 秒）、Firefox（31.9 秒）、userscript（4.94 秒，1,941,656 字节）构建，以及 manifest、userscript、七语言品牌校验通过；五个生成语言资源随 main 再更新。文档构建 4.78 秒、网站类型检查及链接校验通过，77 页、3968 链接、754 锚点、154 图片。Firefox/油猴只有构建和产物证明；18 个无关严格覆盖率登记缺口继续保留，未新增全量回归。235 项与 402 个调查尝试不变，本轮没有新站点调查。
 
 PR850 原始 `3565d9f5` 的远程作业等待约 15 分钟后失败，build 的结论为 cancelled、steps 为空，注释明确为 hosted runner 多次尝试后仍未分配到。该次没有执行代码检查，不能算作检查通过。[GitHub 官方事件](https://www.githubstatus.com/incidents/3q1yb5m7ltvb)同时报告 Actions 分配 runner 延迟。保留 `pr-850-initial-check-result.json` 与 `pr-850-initial-check-annotations.json`；更新后的分支须取得新检查成功才合并。最终新基础证据为 `ui-settings-main-refresh/report.json`、`translation-settings-main-refresh/report.json` 及对应 settings-main-refresh 构建与校验日志，均在私有证据目录。
+
+
+## 完成审计补充：Pixiv 主站（2026-10-06）
+
+原始目标文件去重后的 235 个名称与当前清单、证据逐项一致；实际编译的清单中所有域名绑定与证据一致，未绑定名称为零。审计发现 Pixiv 主站记录不能由 Comic Pixiv 子站代替，因此补充主站首页及 `/artworks/150354216` 的正常后台、选中标签访问，均为 HTTP 200。作品页显示一张 960×1200 正文图；未使用其作者标题或公开章节像素作为仓库材料。首页没有大图，不能作章节验收。MANGA Plus 的独立章节样本、JinMangas 的正常跳转与 403 重查记录分属已有 readerSamples 与 browserRechecks，不能仅因 accessChecks 为空认定未调查。
+
+Chrome 当前生产产物 22 项入口用例通过，包含 21 个既有交互与夹具和一个 Pixiv 主站实页。实页要求至少 600×800 的已加载自然尺寸，实际一张 960×1200 正文可见，另两张 250×250 缩略图未计作完整正文；现有 Pixiv 内置规则正确显示漫画入口。本轮没有增加图片规则、域名别名或语言推断，没有启动实页 OCR/翻译，也没有公开章节截图/导出。31 个原生可见快照、34 次生产 UI 焦点检查与 13 次独立 DOM 调查焦点检查通过；扩展、控制台和宿主异常为零，两个 profile 实际不存在。
+
+新增两个调查尝试，累计 404 个，历史 402 个完整保留；235 项和 91 图片、23 圈选、10 可读画布、2 背景、3 其他画布、106 通用检测的数量不变。全站全章、登录后阅读、OCR/翻译质量和所有设备仍不在已验证范围。新增材料只补充维护报告和证据，不改变产品源码、已验证产物、权限、依赖、版本或参考项目。私有结果为 `pixiv-main-audit/reader-inspection.json` 和 `ui-pixiv-main-audit/report.json`。
+
+第二个远程作业 `37369801239` 在 `ebd0394f` 上同样等待约 15 分钟后以 cancelled 结束，steps 为空，明确注明 hosted runner 多次尝试仍未分配。`pr-850-rebased-check-job.json` 与 `pr-850-rebased-check-failure.json` 保留；不能把它解释成执行了代码检查，也不能据此绕过合并检查。

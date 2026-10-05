@@ -13,8 +13,87 @@
       "hosts": [
         "pixiv.net"
       ],
-      "accessChecks": [],
-      "adapter": "images"
+      "accessChecks": [
+        {
+          "url": "https://www.pixiv.net/",
+          "status": 200,
+          "researchWave": "pixiv-main-completion-audit-20261006",
+          "scope": "Read-only normal active-tab DOM inspection with FluentRead disabled; no OCR or chapter screenshot/export.",
+          "imageCount": 0,
+          "loadedImages": 0,
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/pixiv-main-audit/reader-inspection.json",
+          "readerFinding": "Public portal HTTP200, no large body image. Not a chapter acceptance."
+        },
+        {
+          "url": "https://www.pixiv.net/artworks/150354216",
+          "status": 200,
+          "researchWave": "pixiv-main-completion-audit-20261006",
+          "scope": "Read-only normal active-tab DOM inspection with FluentRead disabled; no OCR or chapter screenshot/export.",
+          "imageCount": 1,
+          "loadedImages": 6,
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 6
+          },
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/pixiv-main-audit/reader-inspection.json",
+          "readerFinding": "One displayed 960x1200 page at artwork150354216. Artwork page scope only; not entire Pixiv, every page, OCR or translation quality.",
+          "bodyNaturalSize": {
+            "width": 960,
+            "height": 1200
+          }
+        }
+      ],
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://www.pixiv.net/",
+          "status": 200,
+          "researchWave": "pixiv-main-completion-audit-20261006",
+          "scope": "Read-only normal active-tab DOM inspection with FluentRead disabled; no OCR or chapter screenshot/export.",
+          "imageCount": 0,
+          "loadedImages": 0,
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/pixiv-main-audit/reader-inspection.json",
+          "readerFinding": "Public portal HTTP200, no large body image. Not a chapter acceptance."
+        },
+        {
+          "url": "https://www.pixiv.net/artworks/150354216",
+          "status": 200,
+          "researchWave": "pixiv-main-completion-audit-20261006",
+          "scope": "Read-only normal active-tab DOM inspection with FluentRead disabled; no OCR or chapter screenshot/export.",
+          "imageCount": 1,
+          "loadedImages": 6,
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 6
+          },
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/pixiv-main-audit/reader-inspection.json",
+          "readerFinding": "One displayed 960x1200 page at artwork150354216. Artwork page scope only; not entire Pixiv, every page, OCR or translation quality.",
+          "bodyNaturalSize": {
+            "width": 960,
+            "height": 1200
+          }
+        }
+      ]
     },
     {
       "name": "MANGA Plus by SHUEISHA",
@@ -20617,6 +20696,44 @@
       ],
       "bodySelector": "[data-viewer-full-screen-helper] canvas[data-type=\"contents\"], [data-viewer-full-screen-helper] [data-type=\"contents\"] > canvas",
       "linkedFrom": "https://web-ace.jp/youngaceup/lineup/"
+    },
+    {
+      "url": "https://www.pixiv.net/",
+      "status": 200,
+      "researchWave": "pixiv-main-completion-audit-20261006",
+      "scope": "Read-only normal active-tab DOM inspection with FluentRead disabled; no OCR or chapter screenshot/export.",
+      "imageCount": 0,
+      "loadedImages": 0,
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/pixiv-main-audit/reader-inspection.json",
+      "readerFinding": "Public portal HTTP200, no large body image. Not a chapter acceptance."
+    },
+    {
+      "url": "https://www.pixiv.net/artworks/150354216",
+      "status": 200,
+      "researchWave": "pixiv-main-completion-audit-20261006",
+      "scope": "Read-only normal active-tab DOM inspection with FluentRead disabled; no OCR or chapter screenshot/export.",
+      "imageCount": 1,
+      "loadedImages": 6,
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 6
+      },
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/pixiv-main-audit/reader-inspection.json",
+      "readerFinding": "One displayed 960x1200 page at artwork150354216. Artwork page scope only; not entire Pixiv, every page, OCR or translation quality.",
+      "bodyNaturalSize": {
+        "width": 960,
+        "height": 1200
+      }
     }
   ],
   "verification": {
@@ -34173,6 +34290,76 @@
       "annotations": "/private/tmp/fluentread-brand-manga-sites-20261005/pr-850-initial-check-annotations.json",
       "officialStatus": "https://www.githubstatus.com/incidents/3q1yb5m7ltvb",
       "scope": "Runner acquisition failure, not execution of code checks. Never counted as CI success; latest rebased head requires fresh checks before merge."
+    },
+    "pixivMainCompletionAudit": {
+      "status": "public-reader-confirmed",
+      "reports": [
+        "/private/tmp/fluentread-brand-manga-sites-20261005/pixiv-main-audit/reader-inspection.json",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/ui-pixiv-main-audit/report.json"
+      ],
+      "researchAttempts": 2,
+      "retainedResearchAttempts": 404,
+      "researchFocusChecks": 13,
+      "scope": "Pixiv main www.pixiv.net distinct from comic.pixiv.net. Actual current main-site public artwork body and production entry, without OCR/translation or media export. No new body profile or host alias."
+    },
+    "pixivMainProductionEntry": {
+      "status": "passed",
+      "cases": 22,
+      "fixtureCases": 21,
+      "publicReaderCases": 1,
+      "nativeVisibleSnapshots": 31,
+      "focusChecks": 34,
+      "extensionErrors": 0,
+      "consoleErrors": 0,
+      "hostErrors": 0,
+      "profileRemoved": true,
+      "publicReader": {
+        "url": "https://www.pixiv.net/artworks/150354216",
+        "finalUrl": "https://www.pixiv.net/artworks/150354216",
+        "status": 200,
+        "mode": "images",
+        "readerPages": [
+          {
+            "tag": "IMG",
+            "naturalWidth": 960,
+            "naturalHeight": 1200,
+            "width": 704,
+            "height": 880,
+            "visible": true
+          },
+          {
+            "tag": "IMG",
+            "naturalWidth": 250,
+            "naturalHeight": 250,
+            "width": 136,
+            "height": 136,
+            "visible": false
+          },
+          {
+            "tag": "IMG",
+            "naturalWidth": 250,
+            "naturalHeight": 250,
+            "width": 90,
+            "height": 90,
+            "visible": true
+          }
+        ],
+        "result": "reader-entry-confirmed"
+      },
+      "acceptedBodyPages": 1,
+      "smallImagesExcludedFromBodyCount": 2,
+      "screenshotScope": "Settings and synthetic fixtures only; no public chapter pixels exported.",
+      "scope": "Native production entry/discovery only; not OCR/provider or all-Pixiv quality acceptance."
+    },
+    "pr850RebasedRunnerFailure": {
+      "headCommit": "ebd0394fbee3c1f7098ecaed419148ed049ab43a",
+      "workflowRun": 37369801239,
+      "buildConclusion": "cancelled",
+      "executedSteps": 0,
+      "annotation": "The job was not acquired by Runner of type hosted even after multiple attempts",
+      "jobReport": "/private/tmp/fluentread-brand-manga-sites-20261005/pr-850-rebased-check-job.json",
+      "annotationReport": "/private/tmp/fluentread-brand-manga-sites-20261005/pr-850-rebased-check-failure.json",
+      "scope": "Second confirmed hosted-runner acquisition failure. No code check ran; never counted as successful CI or used to bypass the merge gate."
     }
   },
   "lastSupplementOn": "2026-10-06"

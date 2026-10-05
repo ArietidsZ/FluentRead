@@ -8,7 +8,7 @@
 
 | 编号 | 名称 | 域名 | 阅读器方式 | 本次访问核对 |
 | --- | --- | --- | --- | --- |
-| 1 | Pixiv | pixiv.net | 专用正文图片 | 未做首页探测；见章节验证 |
+| 1 | Pixiv | pixiv.net | 专用正文图片 | 主站首页与 artworks/150354216 均 HTTP 200；960×1200 正文与生产入口确认，未作整站或 OCR 质量验收 |
 | 2 | MANGA Plus by SHUEISHA | mangaplus.shueisha.co.jp | 专用正文图片 | 未做首页探测；见章节验证 |
 | 3 | Zebrack by SHUEISHA | zebrack-comic.shueisha.co.jp | 专用正文图片规则 | 公开章节正文已核对 |
 | 4 | MANGA Million by SHUEISHA | mangamillion.shueisha.co.jp | 专用编号正文图片检测 | 公开免费首话 66193 显示 3 张 694×1080 正文；指南图片排除，实页入口通过 |
