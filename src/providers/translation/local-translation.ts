@@ -2,7 +2,7 @@
  * @file src/providers/translation/local-translation.ts
  *
  * 文件职责：把统一翻译请求适配到浏览器内本地模型翻译服务。
- * 主要内容：解析当前模型和语言对，通过 Offscreen Worker 执行本地翻译；不把本地模型请求发送到云端。
+ * 主要内容：解析当前模型和语言对，通过 Offscreen Worker 执行本地翻译并保留稳定失败原因供图片恢复入口使用；不把本地模型请求发送到云端。
  * 模块边界：只负责 provider 输入转换，模型缓存、Worker 生命周期和取消由 local-translation feature 管理。
  */
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
@@ -17,7 +17,7 @@ import {localTranslationOffscreenAdapter} from '@/src/platform/offscreen/localTr
 
 async function localTranslation(message: TranslationProviderRequest<string>): Promise<string> {
     if (!browserCapabilities.extensionDom) {
-        throw new Error('当前浏览器不支持本地模型翻译，请切换到其他翻译服务');
+        throw Object.assign(new Error('当前浏览器不支持本地模型翻译，请切换到其他翻译服务'), {localTranslationErrorKey: 'settings.localTranslation.error.browser'});
     }
 
     const current = getTranslationProviderConfig(message, config);
@@ -45,7 +45,8 @@ async function localTranslation(message: TranslationProviderRequest<string>): Pr
         if (error instanceof Error && error.name === 'AbortError') throw error;
         const language = normalizeUiLanguage(config.uiLanguage);
         await ensureUiLanguageBundle(language);
-        throw new Error(translate(localTranslationErrorKey(error), language));
+        const errorKey = localTranslationErrorKey(error);
+        throw Object.assign(new Error(translate(errorKey, language)), {localTranslationErrorKey: errorKey});
     });
 }
 

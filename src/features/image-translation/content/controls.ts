@@ -1,6 +1,6 @@
 /**
  * @file src/features/image-translation/content/controls.ts
- * 文件职责：创建图片翻译的轻量操作条，支持单图反馈和不遮挡阅读的漫画模式，支持取消、重试和首次语言准备。
+ * 文件职责：创建图片翻译的轻量操作条，支持单图反馈和不遮挡阅读的漫画模式，支持取消、重试和首次语言准备与模型/服务设置导航。
  * 主要内容：单图提供隔离操作条、可信手势按钮与全文详情；漫画隐藏所有操作条，仅在对应图片中心延迟显示无交互的小型状态提示，展示实际阶段和可用百分比，完成或切回原图后撤下。
  * 模块边界：仅操作所属 Shadow DOM，不读取配置、不访问网络、不持有图片请求；业务动作及生命周期由 content/runtime 注入。
  */
@@ -36,12 +36,16 @@ export const IMAGE_CONTROLS_CSS = IMAGE_READER_CSS + `
 .fr-image-feedback-title::before {content:"";display:inline-block;width:16px;height:16px;margin-right:6px;vertical-align:-2px;background:url("${brandIcon}") center/contain no-repeat;}
 .fr-image-feedback[data-phase=loading] {padding:6px 9px;border-color:#ffffff66;border-radius:9px;background:rgba(250,251,253,.6);backdrop-filter:blur(5px);box-shadow:0 1px 5px rgba(27,36,57,.06);color:#475569;font-size:11px;opacity:.8;}
 .fr-image-feedback[data-phase=loading] .fr-image-status {gap:6px;}
-.fr-image-feedback[data-phase=error] {width:300px;padding:16px;pointer-events:auto;overflow:auto;overscroll-behavior:contain;}
+.fr-image-feedback[data-phase=error] {width:340px;padding:16px;pointer-events:auto;overflow:auto;overscroll-behavior:contain;}
 .fr-image-feedback[data-phase=error] .fr-image-status {color:#536074;}
+.fr-image-feedback .fr-image-service-settings {order:-1;}
+.fr-image-error-details {font-size:11px;color:var(--fr-image-muted);overflow-wrap:anywhere;}
+.fr-image-error-details summary {cursor:pointer;}
+.fr-image-error-details p {margin:6px 0 0;}
 .fr-image-feedback .fr-image-actions {padding:4px 0 0;border:0;border-radius:0;box-shadow:none;gap:8px;background:transparent;}
 .fr-image-feedback button {min-height:32px;max-width:100%;padding:6px 12px;white-space:normal;text-align:center;overflow-wrap:anywhere;}
-.fr-image-feedback .fr-image-prepare,.fr-image-feedback[data-preparation=false] .fluent-read-image-translation-button {order:-1;background:var(--fr-image-brand);color:#fff;font-weight:650;}
-.fr-image-feedback .fr-image-prepare:hover,.fr-image-feedback[data-preparation=false] .fluent-read-image-translation-button:hover {background:#c62752;color:#fff;}
+.fr-image-feedback .fr-image-prepare,.fr-image-feedback .fr-image-model-settings,.fr-image-feedback[data-preparation=false][data-recovery=false] .fluent-read-image-translation-button {order:-1;background:var(--fr-image-brand);color:#fff;font-weight:650;}
+.fr-image-feedback .fr-image-prepare:hover,.fr-image-feedback .fr-image-model-settings:hover,.fr-image-feedback[data-preparation=false][data-recovery=false] .fluent-read-image-translation-button:hover {background:#c62752;color:#fff;}
 .fr-image-feedback .fr-image-dismiss,.fr-image-feedback[data-preparation=true] .fluent-read-image-translation-button {color:var(--fr-image-muted);}
 .fr-image-feedback[data-manga=true][data-phase=loading] {width:max-content;min-width:92px;padding:12px 14px;border:1px solid #ffffff26;border-radius:12px;background:rgba(30,34,42,.78);color:#fff;box-shadow:0 2px 10px #0002;font-size:12px;pointer-events:none;animation:fr-manga-feedback .12s ease .15s both;}
 .fr-image-feedback[data-manga=true] .fr-image-status {flex-direction:column;gap:8px;text-align:center;}
@@ -55,7 +59,9 @@ export const IMAGE_CONTROLS_CSS = IMAGE_READER_CSS + `
 .fr-image-feedback[data-manga=true][data-phase=loading][data-animations=false] {animation-duration:0s;}
 `;
 
-export function createImageControls(actions: {onAction(): void; onPrepare(): void; onDismiss?(): void; onInspect?(): void; translate?(source: string): string}) {
+export type ImageSettingsSection = 'settings-services' | 'settings-image-translation';
+
+export function createImageControls(actions: {onAction(): void; onPrepare(): void; onDismiss?(): void; onInspect?(): void; onSettings?(section: ImageSettingsSection): void; translate?(source: string): string}) {
     const localize = (source: string) => actions.translate?.(source) ?? source;
     const element = document.createElement('div');
     element.className = 'fr-image-controls';
@@ -88,6 +94,17 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
     prepare.type = 'button';
     prepare.className = 'fr-image-prepare';
     prepare.textContent = '下载语言包并翻译';
+    const modelSettings = document.createElement('button');
+    modelSettings.type = 'button';
+    modelSettings.className = 'fr-image-model-settings';
+    const serviceSettings = document.createElement('button');
+    serviceSettings.type = 'button';
+    serviceSettings.className = 'fr-image-service-settings';
+    const errorDetails = document.createElement('details');
+    errorDetails.className = 'fr-image-error-details';
+    const errorSummary = document.createElement('summary');
+    const errorText = document.createElement('p');
+    errorDetails.append(errorSummary, errorText);
     const inspect = document.createElement('button');
     inspect.type = 'button';
     inspect.textContent = '文字';
@@ -100,8 +117,14 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
     const reader = createImageTextReader(localize, () => {
         inspect.setAttribute('aria-expanded', 'false');
         if (!disposed && !inspect.hidden) inspect.focus({preventScroll: true});
+        if (!disposed) refreshVisibility();
     });
     const details = reader.element;
+    let hovered = true;
+    let focused = false;
+    function refreshVisibility() {
+        element.hidden = feedback.dataset.manga === 'true' || (phase === 'translated' && !hovered && !focused && details.hidden);
+    }
     let hasLines = false;
     let phase: ImageControlPhase = 'idle';
     let sourceMessage = '翻译图片';
@@ -109,6 +132,9 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
     const refreshLanguage = () => {
         heading.textContent = `FluentRead · ${localize('图片翻译')}`;
         prepare.textContent = localize('下载语言包并翻译');
+        modelSettings.textContent = localize('调整本地模型');
+        serviceSettings.textContent = localize('切换图片翻译服务');
+        errorSummary.textContent = localize('查看错误详情');
         inspect.textContent = localize('文字');
         inspect.setAttribute('aria-label', localize('查看完整译文'));
         reader.refreshLanguage();
@@ -137,13 +163,30 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
             else actions.onAction();
         }
         if (target === prepare) actions.onPrepare();
+        if (target === modelSettings) actions.onSettings?.('settings-services');
+        if (target === serviceSettings) actions.onSettings?.('settings-image-translation');
         if (target === dismiss) actions.onDismiss?.();
         if (target === inspect) {
             if (details.hidden) reader.open(); else reader.close();
             inspect.setAttribute('aria-expanded', String(!details.hidden));
             actions.onInspect?.();
+            refreshVisibility();
         }
     };
+    const focusIn = (event: FocusEvent) => {
+        // 鼠标点击也会产生焦点；只有键盘可见焦点才在离开图片后保留入口。
+        focused = (event.target as Element).matches(':focus-visible');
+        refreshVisibility();
+    };
+    const focusOut = (event: FocusEvent) => {
+        const target = event.relatedTarget as Node | null;
+        focused = Boolean(target && (element.contains(target) || details.contains(target)) && (target as Element).matches(':focus-visible'));
+        refreshVisibility();
+    };
+    element.addEventListener('focusin', focusIn);
+    element.addEventListener('focusout', focusOut);
+    details.addEventListener('focusin', focusIn);
+    details.addEventListener('focusout', focusOut);
     const isolate = (event: Event) => event.stopPropagation();
     // 只隔离本操作条的输入，绝不在 document 注册会影响宿主快捷键/滚轮的监听器。
     element.addEventListener('click', handleClick);
@@ -152,10 +195,10 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
         element.addEventListener(event, isolate);
         row.addEventListener(event, isolate);
     }
-    row.append(button, prepare, inspect, dismiss);
-    feedback.append(heading, status, progressBar);
+    row.append(button, prepare, inspect, dismiss, modelSettings, serviceSettings);
+    feedback.append(heading, status, progressBar, errorDetails);
     element.append(details, row);
-    const update = (next: ImageControlPhase, message: string, options: {prepare?: boolean; animations?: boolean; progress?: number; quiet?: boolean} = {}) => {
+    const update = (next: ImageControlPhase, message: string, options: {prepare?: boolean; animations?: boolean; progress?: number; quiet?: boolean; modelSettings?: boolean; serviceSettings?: boolean; errorDetails?: string} = {}) => {
         phase = next;
         element.dataset.phase = next;
         button.dataset.phase = next;
@@ -171,7 +214,13 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
         status.hidden = next === 'idle' || next === 'translated';
         feedback.hidden = options.quiet === true ? next !== 'loading' : status.hidden;
         progressBar.hidden = options.quiet !== true || progress === undefined;
-        element.hidden = options.quiet === true;
+        refreshVisibility();
+        modelSettings.hidden = next !== 'error' || options.modelSettings !== true;
+        serviceSettings.hidden = next !== 'error' || options.serviceSettings !== true;
+        feedback.dataset.recovery = String(!modelSettings.hidden);
+        errorDetails.hidden = next !== 'error' || !options.errorDetails;
+        errorDetails.open = false;
+        errorText.textContent = options.errorDetails || '';
         element.setAttribute('aria-busy', String(next === 'loading'));
         element.dataset.animations = String(options.animations !== false);
         feedback.dataset.animations = element.dataset.animations;
@@ -190,7 +239,8 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
     update('idle', '翻译图片');
     return {
         element, feedback, button, status, spinner, dismiss, update, refreshLanguage, reader: details,
-        hideReader() {details.hidden = true; inspect.setAttribute('aria-expanded', 'false');},
+        setHovered(value: boolean) {hovered = value; refreshVisibility();},
+        hideReader() {details.hidden = true; inspect.setAttribute('aria-expanded', 'false'); refreshVisibility();},
         setLines(lines: ImageReaderLine[]) {
             hasLines = lines.length > 0;
             reader.setLines(lines);
@@ -199,6 +249,10 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
         dispose() {
             disposed = true;
             reader.dispose();
+            element.removeEventListener('focusin', focusIn);
+            element.removeEventListener('focusout', focusOut);
+            details.removeEventListener('focusin', focusIn);
+            details.removeEventListener('focusout', focusOut);
             element.removeEventListener('click', handleClick);
             row.removeEventListener('click', handleClick);
             for (const event of ['pointerdown', 'keydown', 'keyup', 'wheel']) {

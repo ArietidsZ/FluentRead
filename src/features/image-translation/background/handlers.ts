@@ -5,6 +5,9 @@
  * 模块边界：本文件只负责协议入口与用例编排，不直接运行 Tesseract、Canvas、网络 fetch 或 Offscreen；图像读取和运算能力均由 Offscreen adapter 与 services 实现并由 app 注入。
  */
 import {normalizeRemoteImageUrl} from '../services/remoteImage';
+import {createImageTranslationFailure, imageTranslationFailureCode, imageTranslationFailureResponse} from '../failure';
+import {identifyTextLanguage} from '@/src/core/language/identify';
+import {segmentScriptWords} from '@/src/core/language/scripts';
 import {hasTranslatableText} from '@/src/core/translation/resultValidation';
 import {resolveGlossaryEntries, type GlossaryLibrary} from '@/src/core/glossary';
 import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, normalizeImageProgress, type ImageTranslationStage} from '../progress';
@@ -85,6 +88,7 @@ type ImageTextTranslationRequestBase = {
     useCache: true;
     serviceOverride: string;
     requestTimeoutMs: number;
+    sourceLanguageDetectionText?: string;
     glossaryRevision?: string;
     sourceLanguage?: string;
 };
@@ -310,6 +314,11 @@ async function translateImageTexts(
     // 不删 OCR 行，阅读面板与图片坐标仍以原行对齐；纯标识整图无需外发请求。
     if (uniqueTexts.length === 0) return [...texts];
     const service = dependencies.getTranslationService();
+    const imageDetectionText = uniqueTexts.join('\n');
+    // 只借用可靠、单一文字体系的同图上下文；混合语种不能把短外语词误判成目标语言而漏译。
+    const useImageDetectionText = service === 'localTranslation'
+        && identifyTextLanguage(imageDetectionText).status === 'identified'
+        && new Set(segmentScriptWords(imageDetectionText).map(word => word.script)).size === 1;
     const now = dependencies.now ?? (() => Date.now());
     const deadline = now() + Math.min(options.timeoutMs, IMAGE_TEXT_TRANSLATION_TIMEOUT_MS);
     const baseRequest = {
@@ -351,7 +360,7 @@ async function translateImageTexts(
                 }
                 translations = result;
             } catch (error) {
-                throw new Error(`图片文字批量翻译失败：${getErrorMessage(error)}`);
+                throw createImageTranslationFailure(`图片文字批量翻译失败：${getErrorMessage(error)}`, error);
             }
         } else {
             translations = new Array<string>(uniqueTexts.length);
@@ -364,6 +373,8 @@ async function translateImageTexts(
                     try {
                         const translation = await dependencies.translateTexts(controlledRequest({
                             ...baseRequest, origin: uniqueTexts[index], requestTimeoutMs: remainingBudget(),
+                            ...(useImageDetectionText && identifyTextLanguage(uniqueTexts[index]).status === 'unknown'
+                                ? {sourceLanguageDetectionText: imageDetectionText} : {}),
                         }));
                         if (typeof translation !== 'string') throw new Error('provider 未返回字符串译文');
                         if (!translation.trim()) throw new Error('provider 返回空白译文');
@@ -371,7 +382,7 @@ async function translateImageTexts(
                     } catch (error) {
                         failed = true;
                         controller.abort();
-                        throw new Error(`图片第 ${texts.indexOf(uniqueTexts[index]) + 1} 段文字翻译失败：${getErrorMessage(error)}`);
+                        throw createImageTranslationFailure(`图片第 ${texts.indexOf(uniqueTexts[index]) + 1} 段文字翻译失败：${getErrorMessage(error)}`, error);
                     }
                 }
             };
@@ -468,27 +479,32 @@ export function createImageTranslationBackgroundHandlers(
                 const sourceLanguage = parseRequiredString(message.sourceLanguage, 'sourceLanguage');
                 const title = parseOptionalTitle(message.title);
                 if (message.manga !== undefined && typeof message.manga !== 'boolean') throw new TypeError('漫画翻译模式无效');
-                const result = parseObjectResult(
-                    await operationRegistry.run(message, async (options) => {
-                        const paddle = !message.manga && dependencies.getImageOcrEngine?.() === 'paddle';
-                        if (!message.manga && !paddle) await dependencies.assertLanguagesDownloaded(sourceLanguage);
-                        if (options.signal.aborted) throw imageAbortError(false);
-                        const progressOwner = {context};
-                        progressOwners.set(options.requestId, progressOwner);
-                        const clearProgressOwner = () => {
-                            if (progressOwners.get(options.requestId) === progressOwner) progressOwners.delete(options.requestId);
-                        };
-                        options.signal.addEventListener('abort', clearProgressOwner, {once: true});
-                        try {
-                            return await dependencies.translateImage(image, sourceLanguage, title, message.manga ? {...options, manga: true} : paddle ? {...options, ocrEngine: 'paddle'} : options);
-                        } finally {
-                            clearProgressOwner();
-                            options.signal.removeEventListener('abort', clearProgressOwner);
-                        }
-                    }),
-                    '图片翻译',
-                );
-                return {success: true, ...result};
+                try {
+                    const result = parseObjectResult(
+                        await operationRegistry.run(message, async (options) => {
+                            const paddle = !message.manga && dependencies.getImageOcrEngine?.() === 'paddle';
+                            if (!message.manga && !paddle) await dependencies.assertLanguagesDownloaded(sourceLanguage);
+                            if (options.signal.aborted) throw imageAbortError(false);
+                            const progressOwner = {context};
+                            progressOwners.set(options.requestId, progressOwner);
+                            const clearProgressOwner = () => {
+                                if (progressOwners.get(options.requestId) === progressOwner) progressOwners.delete(options.requestId);
+                            };
+                            options.signal.addEventListener('abort', clearProgressOwner, {once: true});
+                            try {
+                                return await dependencies.translateImage(image, sourceLanguage, title, message.manga ? {...options, manga: true} : paddle ? {...options, ocrEngine: 'paddle'} : options);
+                            } finally {
+                                clearProgressOwner();
+                                options.signal.removeEventListener('abort', clearProgressOwner);
+                            }
+                        }),
+                        '图片翻译',
+                    );
+                    return {success: true, ...result};
+                } catch (error) {
+                    if (!imageTranslationFailureCode(error)) throw error;
+                    return imageTranslationFailureResponse(error);
+                }
             },
         },
         {
@@ -520,10 +536,15 @@ export function createImageTranslationBackgroundHandlers(
             type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
             async handle(message: ImageTranslateTextsMessage) {
                 const texts = parseTexts(message.texts);
-                const translations = await textOperationRegistry.run(message, options => translateImageTexts(
-                    texts, parseOptionalTitle(message.title), dependencies, options, message,
-                ));
-                return {success: true, translations};
+                try {
+                    const translations = await textOperationRegistry.run(message, options => translateImageTexts(
+                        texts, parseOptionalTitle(message.title), dependencies, options, message,
+                    ));
+                    return {success: true, translations};
+                } catch (error) {
+                    if (!imageTranslationFailureCode(error)) throw error;
+                    return imageTranslationFailureResponse(error);
+                }
             },
         },
         {
