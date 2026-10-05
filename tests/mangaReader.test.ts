@@ -159,7 +159,7 @@ describe('漫画会话所有权与可见页调度', () => {
     });
 });
 
-function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number, warm?: (images:HTMLImageElement[])=>void, canvas?: Parameters<typeof createMangaReader>[0]['canvas'], cachePorts?: Pick<Parameters<typeof createMangaReader>[0], 'resetCache' | 'cachePages' | 'reuse' | 'background'>) {
+function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number, warm?: (images:HTMLImageElement[])=>void, canvas?: Parameters<typeof createMangaReader>[0]['canvas'], cachePorts?: Pick<Parameters<typeof createMangaReader>[0], 'resetCache' | 'cachePages' | 'reuse' | 'background' | 'segments'>) {
     const {document, window: dom} = parseHTML('<html><body><div class="zao-image-container"><img class="zao-image" src="blob:page-1"></div><img id="logo" src="https://site/logo.png"></body></html>');
     const image = document.querySelector('img')! as HTMLImageElement;
     Object.defineProperties(image, {complete: {writable: true, value: true}, naturalWidth: {writable: true, value: 800}, naturalHeight: {value: 1200}, currentSrc: {get: () => image.src}});
@@ -189,6 +189,22 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it('长图分段与普通图片共用可见优先串行队列，暂停、失败重试和清理不走整图 OCR',async()=>{
+        const values=new Map<HTMLImageElement,import('@/src/features/image-translation/content/mangaImageSegments').MangaImageSegment[]>(),warm=vi.fn();
+        const segments={identity:vi.fn(s=>s.source),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn(()=>false),restore:vi.fn(),release:vi.fn(),failed:vi.fn(()=>false),update:vi.fn(),prepare:vi.fn(()=>values),pixels:vi.fn(()=>1_800_000),bounds:vi.fn(s=>({left:0,top:s.top,right:800,bottom:s.top+600,width:800,height:600}) as DOMRect)};
+        let ahead=1;const f=readerFixture(true,undefined,undefined,()=>ahead,warm,undefined,{segments});
+        const first={image:f.image,top:0,height:600,width:800,contextTop:0,contextHeight:600,source:'one'},second={...first,top:1200,source:'two'};
+        values.set(f.image,[first,second]);f.reader.schedule();f.run();
+        const pending=deferred();segments.translate.mockReturnValueOnce(pending.promise);f.reader.toggle();await flush();
+        expect(segments.translate.mock.calls.map(c=>c[0])).toEqual([first]);expect(f.ports.translate).not.toHaveBeenCalled();expect(warm).toHaveBeenLastCalledWith([]);
+        pending.resolve();await flush();expect(segments.translate.mock.calls.map(c=>c[0])).toEqual([first,second]);
+        ahead=0;f.reader.toggle();expect(segments.restore).toHaveBeenCalledWith(first);segments.reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(segments.translate).toHaveBeenCalledTimes(2);
+        segments.failed.mockReturnValue(true);f.reader.retry(first);await flush();expect(f.reader.status().errors).toBe(1);
+        segments.identity.mockReturnValue(null);f.reader.schedule();f.run();expect(segments.release).toHaveBeenCalledWith(first);
+        values.clear();f.reader.schedule();f.run();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
+        f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(segments.prepare).toHaveBeenLastCalledWith([]);
+        f.reader.dispose();expect(segments.prepare).toHaveBeenLastCalledWith([]);expect(segments.update).toHaveBeenCalled();
+    });
     it('背景正文加入同一串行会话，CSS 换页、暂停复用、失败重试和关闭都清理所有权',async()=>{
         const background={identity:vi.fn().mockReturnValue('bg-1'),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn(),prepare:vi.fn(),pixels:vi.fn(()=>713*1024),bounds:vi.fn((element:HTMLElement)=>element.getBoundingClientRect())};
         const warm=vi.fn(),f=readerFixture(true,'https://palcy.jp/comics/554',undefined,()=>0,warm,undefined,{background});

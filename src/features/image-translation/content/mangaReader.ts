@@ -1,16 +1,19 @@
 /**
  * @file src/features/image-translation/content/mangaReader.ts
- * 文件职责：把漫画站点的正文图片、可读画布、公开背景图和页面生命周期接入同一连续翻译会话。
+ * 文件职责：把漫画站点的正文图片、超长图分段、可读画布、公开背景图和页面生命周期接入同一连续翻译会话。
  * 主要内容：按站点规则发现正文并排除推广封面，不可读画布和分片发布圈选入口；发现与几何更新分开，按位置判断可见页；同地址重载、画布重绘及背景来源变化更新像素身份；当前页优先的有界提前翻译和附近页共享像素预算，换章、隐藏和卸载清理监听器。
  * 模块边界：只检查已展示正文，不抓取章节、不读取站点私有数据或绕过访问限制；图片与画布的读取、翻译、缓存和原图恢复通过注入端口复用图片运行时。
  */
 import {createMangaSession, type MangaTranslationStatus} from './mangaSession';
 import {normalizeMangaPrefetchPages, normalizeMangaCachePages, resolveMangaSite, type MangaSiteRule} from '@/src/core/config/manga';
 import {imageLoadTracker} from './imageLoads';
-type MangaSurface = HTMLElement;
-const isCanvas = (surface: MangaSurface): surface is HTMLCanvasElement => surface.tagName === 'CANVAS';
-const isImage = (surface: MangaSurface): surface is HTMLImageElement => surface.tagName === 'IMG';
-interface SurfacePorts<T extends HTMLElement> {
+import type {MangaImageSegment} from './mangaImageSegments';
+type MangaSurface = HTMLElement | MangaImageSegment;
+type MangaCandidate = {image: MangaSurface; identity: string; ready: boolean; visible: boolean; pixels: number};
+const isSegment = (surface: MangaSurface): surface is MangaImageSegment => 'image' in surface;
+const isCanvas = (surface: MangaSurface): surface is HTMLCanvasElement => !isSegment(surface) && surface.tagName === 'CANVAS';
+const isImage = (surface: MangaSurface): surface is HTMLImageElement => !isSegment(surface) && surface.tagName === 'IMG';
+interface SurfacePorts<T> {
     identity: (surface: T) => string | null;
     translate: (surface: T) => Promise<void>;
     reuse: (surface: T) => boolean;
@@ -40,6 +43,11 @@ export function createMangaReader(ports: {
     failed: (image: HTMLImageElement) => boolean;
     changed: (status: MangaTranslationStatus) => void;
     canvas?: SurfacePorts<HTMLCanvasElement>;
+    segments?: SurfacePorts<MangaImageSegment> & {
+        prepare: (images: HTMLImageElement[]) => ReadonlyMap<HTMLImageElement, MangaImageSegment[]>;
+        pixels: (segment: MangaImageSegment) => number;
+        bounds: (segment: MangaImageSegment) => DOMRect;
+    };
     background?: SurfacePorts<HTMLElement> & {
         prepare: (elements: HTMLElement[]) => void;
         pixels: (element: HTMLElement) => number;
@@ -49,7 +57,7 @@ export function createMangaReader(ports: {
     let disposed = false;
     let cacheRoute = '';
     let frame: number | null = null;
-    const observed = new Set<MangaSurface>();
+    const observed = new Set<HTMLElement>();
     let discovered: HTMLImageElement[] = [];
     let discoveredCanvases: HTMLCanvasElement[] = [];
     let discoveredBackgrounds: HTMLElement[] = [];
@@ -59,11 +67,11 @@ export function createMangaReader(ports: {
     let areaFallback = false;
     const decorate = (status: MangaTranslationStatus): MangaTranslationStatus => ({...status, pageCount: observed.size, areaFallback});
     const session = createMangaSession<MangaSurface>({
-        translate: surface => isImage(surface) ? ports.translate(surface) : isCanvas(surface) ? ports.canvas!.translate(surface) : ports.background!.translate(surface),
-        reuse: surface => isImage(surface) ? ports.reuse?.(surface) === true : isCanvas(surface) ? ports.canvas!.reuse(surface) : ports.background!.reuse(surface),
-        restore: surface => isImage(surface) ? ports.restore(surface) : isCanvas(surface) ? ports.canvas!.restore(surface) : ports.background!.restore(surface),
-        release: surface => isImage(surface) ? ports.release(surface) : isCanvas(surface) ? ports.canvas!.release(surface) : ports.background!.release(surface),
-        failed: surface => isImage(surface) ? ports.failed(surface) : isCanvas(surface) ? ports.canvas!.failed(surface) : ports.background!.failed(surface),
+        translate: surface => isSegment(surface) ? ports.segments!.translate(surface) : isImage(surface) ? ports.translate(surface) : isCanvas(surface) ? ports.canvas!.translate(surface) : ports.background!.translate(surface),
+        reuse: surface => isSegment(surface) ? ports.segments!.reuse(surface) : isImage(surface) ? ports.reuse?.(surface) === true : isCanvas(surface) ? ports.canvas!.reuse(surface) : ports.background!.reuse(surface),
+        restore: surface => isSegment(surface) ? ports.segments!.restore(surface) : isImage(surface) ? ports.restore(surface) : isCanvas(surface) ? ports.canvas!.restore(surface) : ports.background!.restore(surface),
+        release: surface => isSegment(surface) ? ports.segments!.release(surface) : isImage(surface) ? ports.release(surface) : isCanvas(surface) ? ports.canvas!.release(surface) : ports.background!.release(surface),
+        failed: surface => isSegment(surface) ? ports.segments!.failed(surface) : isImage(surface) ? ports.failed(surface) : isCanvas(surface) ? ports.canvas!.failed(surface) : ports.background!.failed(surface),
         changed: status => ports.changed(decorate(status)),
     });
     let intersection: IntersectionObserver | null = null;
@@ -136,7 +144,8 @@ export function createMangaReader(ports: {
         const canvases = discoveredCanvases.map(canvas => ({canvas, identity: ports.canvas!.identity(canvas)})).filter(page => page.identity !== null);
         ports.background?.prepare(discoveredBackgrounds);
         const backgrounds = discoveredBackgrounds.map(element => ({element, identity: ports.background!.identity(element)})).filter(page => page.identity !== null);
-        const current = new Set<MangaSurface>([...images, ...canvases.map(page => page.canvas), ...backgrounds.map(page => page.element)]);
+        const segmented = ports.segments?.prepare(images);
+        const current = new Set<HTMLElement>([...images, ...canvases.map(page => page.canvas), ...backgrounds.map(page => page.element)]);
         observed.forEach(image => {
             if (current.has(image)) return;
             intersection?.unobserve(image);
@@ -176,15 +185,20 @@ export function createMangaReader(ports: {
                     && rect.right > 0 && rect.left < window.innerWidth && style.display !== 'none' && style.visibility !== 'hidden' && inViewport(element, rect);
             });} catch { /* 无效选择器不影响宿主页面。 */ }
         }
-        const candidates = [...images.map(image => {
+        const candidates: MangaCandidate[] = [...images.flatMap<MangaCandidate>(image => {
             const rect = image.getBoundingClientRect();
             const style = getComputedStyle(image);
             // 明确阅读器内的正文允许可点击图片和 presentation 角色，不能复用普通悬浮图标的装饰图排除。
             const ready = image.complete && image.naturalWidth >= 80 && image.naturalHeight >= 40
                 && rect.width >= 80 && rect.height >= 40 && style.visibility !== 'hidden'
                 && style.visibility !== 'collapse' && style.display !== 'none';
-            return {image, identity: `${ports.identity(image)}:${imageLoadTracker.revision(image)}`, ready, visible: ready
-                && inViewport(image,rect), pixels: image.naturalWidth * image.naturalHeight};
+            const segments = segmented?.get(image);
+            if (segments) return segments.flatMap(segment => {
+                const identity = ports.segments!.identity(segment);
+                return identity ? [{image: segment, identity, ready, visible: ready && inViewport(image, ports.segments!.bounds(segment)), pixels: ports.segments!.pixels(segment)}] : [];
+            });
+            return [{image, identity: `${ports.identity(image)}:${imageLoadTracker.revision(image)}`, ready, visible: ready
+                && inViewport(image,rect), pixels: image.naturalWidth * image.naturalHeight}];
         }), ...canvases.map(({canvas, identity}) => {
             const rect = canvas.getBoundingClientRect(), style = getComputedStyle(canvas);
             const ready = rect.width >= 80 && rect.height >= 40 && style.display !== 'none'
@@ -224,13 +238,15 @@ export function createMangaReader(ports: {
                 prefetch: upcoming.has(page.image) || (document.hidden && page.visible)})),
         });
         // 仅重建已完成页面，前后一屏内按可见页优先；不因轻量容量扩大付费预译窗口。
-        ports.warm?.(candidates.filter(page => {
+        const warmPages = candidates.flatMap(page => isImage(page.image) ? [{...page, image: page.image}] : []);
+        ports.warm?.(warmPages.filter(page => {
             const rect = page.image.getBoundingClientRect();
             return page.ready && rect.right > -window.innerWidth && rect.left < 2 * window.innerWidth
                 && rect.bottom > -window.innerHeight && rect.top < 2 * window.innerHeight;
-        }).sort((a, b) => Number(b.visible) - Number(a.visible) || Math.abs(a.image.getBoundingClientRect().top) - Math.abs(b.image.getBoundingClientRect().top)).slice(0, normalizeMangaCachePages(ports.cachePages?.())).map(page => page.image).filter(isImage));
+        }).sort((a, b) => Number(b.visible) - Number(a.visible) || Math.abs(a.image.getBoundingClientRect().top) - Math.abs(b.image.getBoundingClientRect().top)).slice(0, normalizeMangaCachePages(ports.cachePages?.())).map(page => page.image));
         ports.canvas?.update();
         ports.background?.update();
+        ports.segments?.update();
     }
 
     function scheduleLayout(): void {
@@ -265,6 +281,7 @@ export function createMangaReader(ports: {
             discoveredCanvases = [];
             discoveredBackgrounds = [];
             ports.background?.prepare([]);
+            ports.segments?.prepare([]);
             document.removeEventListener('load', loaded, true);
             document.removeEventListener('visibilitychange', scheduleLayout);
             document.removeEventListener('fluentread-route-change', schedule);

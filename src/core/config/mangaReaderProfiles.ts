@@ -13,6 +13,12 @@ const comiciHosts = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
 export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com', 'animatebookstore.com'];
 export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; canvasSelector?: string; canvasInteractionSelector?: string; backgroundSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
+    if (host === 'atsu.moe' && /^\/read\/[A-Za-z0-9]+\/[A-Za-z0-9]+\/?$/.test(pathname)) return {
+        name: 'Atsumaru', selector: '#reader-scroll-inner > div > img',
+    };
+    if (host === 'toongod.cc' && /^\/webtoon\/[^/]+\/chapter-[^/]+\/?$/.test(pathname)) return {
+        name: 'ToonGod', selector: '.reading-chapter .reading-img .reading-content > p > img',
+    };
     if (host === 'animatebookstore.com' && /^\/viewer\/?$/.test(pathname)
         && /^\d+$/.test(new URLSearchParams(search).get('product_id') ?? '')) return {
         name: 'Animatebookstore', selector: ':not(*)',

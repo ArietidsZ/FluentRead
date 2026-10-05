@@ -424,6 +424,7 @@
       "tests/backgroundGoogleDriveSync.test.ts",
       "tests/mangaCanvas.test.ts",
       "tests/mangaBackground.test.ts",
+      "tests/mangaImageSegments.test.ts",
       "tests/mangaReader.test.ts",
       "tests/mangaSites.test.ts",
       "tests/mangaEntry.test.ts",

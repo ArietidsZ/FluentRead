@@ -51,6 +51,21 @@ function fixture() {
 afterEach(() => {vi.restoreAllMocks();vi.resetAllMocks();vi.unstubAllGlobals();});
 
 describe('公开可读漫画画布的任务与显示所有权', () => {
+    it.each(['context','draw'])('分段输出裁切失败释放上下文和合成画布，并保留原文 %s',async mode=>{
+        const f=fixture();
+        const runtime=createMangaCanvas({...f.ports,source:{identity:()=> 'crop',bounds:()=>f.bounds as DOMRect,capture:async(_element,target)=>{target.width=400;target.height=300;},viewport:()=>({x:0,y:50,width:400,height:200})}});
+        compose.mockImplementation(async()=>{
+            const output=f.document.createElement('canvas') as HTMLCanvasElement;output.width=400;output.height=300;f.outputs.push(output);
+            if(mode==='context')f.missingContext();
+            else {
+                const create=f.document.createElement.bind(f.document);
+                vi.spyOn(f.document,'createElement').mockImplementation(((tag:string)=>{const value=create(tag);if(tag==='canvas')(value as HTMLCanvasElement).getContext=(()=>({drawImage:()=>{throw new Error('crop failed');}})) as unknown as typeof output.getContext;return value;}) as typeof f.document.createElement);
+            }
+            return output;
+        });
+        await expect(runtime.translate(f.canvas)).rejects.toThrow();expect(runtime.failed(f.canvas)).toBe(true);expect(f.outputs[0].width).toBe(0);
+        runtime.dispose();f.runtime.dispose();
+    });
     it('异步快照即使忽略取消，完成后也不能发送已暂停任务的 OCR',async()=>{
         const f=fixture(),capture=deferred<void>();
         const runtime=createMangaCanvas({...f.ports,source:{identity:()=> 'public-source',bounds:()=>f.bounds as DOMRect,capture:()=>capture.promise}});

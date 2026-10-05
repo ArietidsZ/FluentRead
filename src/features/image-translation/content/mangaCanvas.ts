@@ -1,8 +1,8 @@
 /**
  * @file src/features/image-translation/content/mangaCanvas.ts
- * 文件职责：把可读正文画布及注入的背景图片快照接入既有漫画识别与局部译图合成，保留宿主正文及翻页交互。
- * 主要内容：小尺寸像素指纹识别画布重绘，任务使用独立原图快照，背景正文通过注入端口提供快照和真实绘制范围；会话端口负责串行调度，暂停、来源变化和卸载取消旧结果；译图在隔离层跟随正文与祖先裁切，缓存只保留有界压缩图块。
- * 模块边界：只读取公开 DOM 画布或注入的已展示背景快照，不访问站点接口、不读取受污染像素、不更改原画布或宿主样式；识别和翻译由注入的现有图片客户端完成。
+ * 文件职责：把可读正文画布、背景图片和长图分段快照接入既有漫画识别与局部译图合成，保留宿主正文及翻页交互。
+ * 主要内容：小尺寸像素指纹识别画布重绘，任务使用独立快照；注入正文锚点、绘制范围及核心裁切支持背景与分段；会话端口负责串行调度，暂停、来源变化和卸载取消旧结果；隔离译图跟随原正文与祖先裁切，缓存只保留有界压缩图块。
+ * 模块边界：只读取公开 DOM 画布或注入的已展示正文快照，不访问站点接口、不读取受污染像素、不更改原画布或宿主样式；识别和翻译由注入的现有图片客户端完成。
  */
 import {compressMangaPage, createMangaLightCache, type MangaCompressedPage, type MangaPatchPacket} from '../mangaPatchResult';
 import {composeMangaPage} from './mangaCompositor';
@@ -16,16 +16,19 @@ interface CanvasState {
     showing: boolean;
 }
 
-export function createMangaCanvas<T extends HTMLElement = HTMLCanvasElement>(ports: {
+export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
     enabled: () => boolean;
     configurationIdentity: () => string;
     cacheEnabled: () => boolean;
     acceptsInteractionLayer?: (canvas: T, hit: Element) => boolean;
     source?: {
+        anchor?: (element: T) => HTMLElement;
         identity: (element: T) => string | null;
         capture: (element: T, target: HTMLCanvasElement, signal: AbortSignal) => Promise<void>;
         bounds: (element: T) => DOMRect;
+        viewport?: (element: T) => {x: number; y: number; width: number; height: number};
     };
+    hostId?: string;
     translate: (image: string, signal: AbortSignal) => Promise<{mangaPatches?: MangaPatchPacket; lines: MangaCompressedPage['lines']}>;
 }) {
     const states = new Map<T, CanvasState>();
@@ -35,6 +38,7 @@ export function createMangaCanvas<T extends HTMLElement = HTMLCanvasElement>(por
     let sample: HTMLCanvasElement | null = null;
     let host: HTMLDivElement | null = null, root: ShadowRoot | null = null;
     let disposed = false;
+    const anchor = (element: T) => ports.source?.anchor ? ports.source.anchor(element) : element as unknown as HTMLElement;
 
     function identity(element: T): string | null {
         if (disposed) return null;
@@ -78,14 +82,15 @@ export function createMangaCanvas<T extends HTMLElement = HTMLCanvasElement>(por
 
     function update(): void {
         for (const [canvas, state] of states) {
-            if (!canvas.isConnected || identity(canvas) !== state.identity) {release(canvas);continue;}
+            const element = anchor(canvas);
+            if (!element.isConnected || identity(canvas) !== state.identity) {release(canvas);continue;}
             const surface = state.surface;
             if (!surface) continue;
-            const rect = ports.source ? ports.source.bounds(canvas) : canvas.getBoundingClientRect();
+            const rect = ports.source ? ports.source.bounds(canvas) : element.getBoundingClientRect();
             let left = Math.max(0, rect.left), right = Math.min(window.innerWidth, rect.right);
             let top = Math.max(0, rect.top), bottom = Math.min(window.innerHeight, rect.bottom);
             let visible = state.showing && ports.enabled() && !document.hidden && rect.width > 0 && rect.height > 0;
-            for (let parent: Element | null = canvas; parent; parent = parent.parentElement) {
+            for (let parent: Element | null = element; parent; parent = parent.parentElement) {
                 const style = getComputedStyle(parent);
                 if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || style.opacity === '0') visible = false;
                 if (parent === document.documentElement || parent === document.scrollingElement) continue;
@@ -96,7 +101,7 @@ export function createMangaCanvas<T extends HTMLElement = HTMLCanvasElement>(por
             visible &&= right > left && bottom > top;
             if (visible) {
                 const hit = document.elementFromPoint((left + right) / 2, (top + bottom) / 2);
-                visible = !!hit && (hit === canvas || hit.contains(canvas) || ports.acceptsInteractionLayer?.(canvas, hit) === true);
+                visible = !!hit && (hit === element || hit.contains(element) || ports.acceptsInteractionLayer?.(canvas, hit) === true);
             }
             surface.style.cssText = `position:fixed;pointer-events:none;display:${visible ? 'block' : 'none'};left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;clip-path:inset(${Math.max(0, top - rect.top)}px ${Math.max(0, rect.right - right)}px ${Math.max(0, rect.bottom - bottom)}px ${Math.max(0, left - rect.left)}px);`;
         }
@@ -106,7 +111,7 @@ export function createMangaCanvas<T extends HTMLElement = HTMLCanvasElement>(por
         state.showing = true;
         if (state.surface) {
             if (!host) {
-                host = document.createElement('div');host.id = ports.source ? 'fluent-read-manga-background-container' : 'fluent-read-manga-canvas-container';
+                host = document.createElement('div');host.id = ports.hostId ?? (ports.source ? 'fluent-read-manga-background-container' : 'fluent-read-manga-canvas-container');
                 host.setAttribute('data-fluent-read-ui', 'manga-canvas');
                 host.style.cssText = 'all:initial;position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:2147483644;';
                 root = host.attachShadow({mode: 'closed'});document.documentElement.append(host);
@@ -125,14 +130,14 @@ export function createMangaCanvas<T extends HTMLElement = HTMLCanvasElement>(por
     async function translate(canvas: T): Promise<void> {
         if (reuse(canvas)) return;
         const owner = identity(canvas);
-        if (!owner || !ports.enabled() || !canvas.isConnected) return;
+        if (!owner || !ports.enabled() || !anchor(canvas).isConnected) return;
         release(canvas);
         const controller = new AbortController();
         const state: CanvasState = {identity: owner, controller, surface: null, completed: false, failed: false, showing: true};
         states.set(canvas, state);
         const original = document.createElement('canvas');
         const current = () => !disposed && !controller.signal.aborted && states.get(canvas) === state
-            && canvas.isConnected && ports.enabled() && identity(canvas) === owner;
+            && anchor(canvas).isConnected && ports.enabled() && identity(canvas) === owner;
         try {
             if (ports.source) {
                 await ports.source.capture(canvas, original, controller.signal);
@@ -155,8 +160,20 @@ export function createMangaCanvas<T extends HTMLElement = HTMLCanvasElement>(por
                 }
                 if (ports.cacheEnabled()) lightCache.put(owner, page);
             }
-            const surface = page.patches.length ? await composeMangaPage(original, page, controller.signal) : null;
+            let surface = page.patches.length ? await composeMangaPage(original, page, controller.signal) : null;
             if (!current()) {if (surface) surface.width = surface.height = 0;return;}
+            if (surface && ports.source?.viewport) {
+                const viewport = ports.source.viewport(canvas);
+                const cropped = document.createElement('canvas');
+                cropped.width = viewport.width;cropped.height = viewport.height;
+                try {
+                    const context = cropped.getContext('2d');
+                    if (!context) throw new Error('浏览器不支持图片处理');
+                    context.drawImage(surface, viewport.x, viewport.y, viewport.width, viewport.height, 0, 0, viewport.width, viewport.height);
+                } catch (error) {cropped.width = cropped.height = 0;throw error;}
+                finally {surface.width = surface.height = 0;}
+                surface = cropped;
+            }
             state.surface = surface;state.completed = true;show(state);
         } catch (error) {
             if (current()) {state.failed = true;throw error;}

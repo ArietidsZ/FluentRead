@@ -74,7 +74,7 @@
 | 64 | BeLTOON | beltoon.jp | 通用正文图片检测 | 首页 HTML 可访问 |
 | 65 | ManhwaClub | manhwaclub.net | 专用正文图片 | 公开章节正文已核对；未验 OCR |
 | 66 | JinMangas | 待确认 | 待确认 | 缺少可确认地址 |
-| 67 | Atsumaru | atsu.moe | 通用正文图片检测 | 公开正文含 800×16544 超长条；整条翻译未验 |
+| 67 | Atsumaru | atsu.moe | 专用正文图片，长图分段 | 800×15744 原图的两段翻译链路通过；整条未验 |
 | 68 | Comic CMOA | cmoa.jp | 分片正文：圈选入口 | www 免费试读 HTTP 200；正常关闭操作提示，分片已核对 |
 | 69 | Televi-Kun Super Hero Comics | televikun-super-hero-comics.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 70 | KLMANGA | klmanga.my | 通用正文图片检测 | 连接失败 |
@@ -156,7 +156,7 @@
 | 146 | roliascan.com | roliascan.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 147 | novelpia.com | novelpia.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 148 | zerobywai.com | zerobywai.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 149 | toongod.cc | toongod.cc | 通用正文图片检测 | 公开正文含 900×16056 超长条；整条翻译未验 |
+| 149 | toongod.cc | toongod.cc | 专用正文图片，长图分段 | 900×16006 原图的两段翻译链路通过；整条未验 |
 | 150 | kingofshojo.com | kingofshojo.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 151 | weebcentral.com | weebcentral.com | 专用正文图片 | 首页 HTML 可访问 |
 | 152 | lrr.tvc-16.science | lrr.tvc-16.science | 通用正文图片检测 | 首页 HTML 可访问 |

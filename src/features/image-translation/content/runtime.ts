@@ -1,6 +1,6 @@
 /**
  * @file src/features/image-translation/content/runtime.ts
- * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和图片、可读画布及公开背景图的漫画连续模式，保持宿主资源与翻页交互不变。
+ * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和图片、长图分段、可读画布及公开背景图的漫画连续模式，保持宿主资源与翻页交互不变。
  * 主要内容：单图失败提供模型与服务导航，译图操作条随指针隐藏并保留键盘入口；单图识别方式纳入缓存身份，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
  * 模块边界：本运行时先读取页面允许访问的 Canvas/CORS 像素，失败时授权后台读取当前任务图片并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
@@ -30,6 +30,7 @@ import {compressMangaPage, createMangaLightCache, type MangaCompressedPage} from
 import {composeMangaPage} from './mangaCompositor';
 import {createMangaCanvas} from './mangaCanvas';
 import {createMangaBackground} from './mangaBackground';
+import {createMangaImageSegments} from './mangaImageSegments';
 
 const IMAGE_TRANSLATION_OVERLAY = 'fluent-read-image-translation-overlay';
 const IMAGE_TRANSLATION_ROOT = 'fluent-read-image-translation-root';
@@ -116,6 +117,7 @@ function clearMangaCache(): void {
     Array.from(resultCache.keys()).forEach(deleteCachedResult);
     mangaCanvas?.resetCache();
     mangaBackground?.resetCache();
+    mangaSegments?.resetCache();
 }
 function forgetLightResult(image: HTMLImageElement): void {
     const key = lightKeys.get(image); if (key) lightCache.remove(key.key);
@@ -195,6 +197,7 @@ function prepareMangaCachedImages(images: HTMLImageElement[]): void {
 let mangaReader: ReturnType<typeof createMangaReader> | null = null;
 let mangaCanvas: ReturnType<typeof createMangaCanvas> | null = null;
 let mangaBackground: ReturnType<typeof createMangaBackground> | null = null;
+let mangaSegments: ReturnType<typeof createMangaImageSegments> | null = null;
 let mangaStatus: MangaTranslationStatus = {available: false, active: false, pending: false, errors: 0};
 const mangaListeners = new Set<(status: MangaTranslationStatus) => void>();
 
@@ -699,6 +702,24 @@ export function readPageImageInCors(source: string, signal?: AbortSignal, timeou
     return fetchPageImageForOcr(source, signal, timeoutMs);
 }
 
+async function readAuthorizedImage(image: HTMLImageElement, options: {readonly signal?: AbortSignal; readonly timeoutMs?: number}): Promise<string> {
+    const source = image.currentSrc || image.src;
+    if (!source) throw new Error('图片地址不可用');
+    const budget = typeof options.timeoutMs === 'number' && Number.isFinite(options.timeoutMs)
+        ? Math.max(1, Math.min(options.timeoutMs, IMAGE_READ_TIMEOUT_MS)) : IMAGE_READ_TIMEOUT_MS;
+    const deadline = Date.now() + budget;
+    try {return await readPageImageInCors(source, options.signal, budget);}
+    catch (readError) {
+        if (options.signal?.aborted) throw createImageAbortError();
+        // 只有未取得响应的网络/CORS 失败可以改走扩展权限，保留状态、超限、解码和流错误。
+        if (!(readError instanceof TypeError)) throw readError;
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) throw new Error('图片读取超时');
+        return withImageSourceAuthorization(image, source, options.signal, requestId =>
+            fetchImageInExtension(source, {...options, requestId, timeoutMs: remaining}));
+    }
+}
+
 export async function getImageData(
     image: HTMLImageElement,
     options: {readonly signal?: AbortSignal; readonly timeoutMs?: number} = {},
@@ -728,22 +749,7 @@ export async function getImageData(
         if (!(error instanceof Error) || error.name !== 'SecurityError') throw error;
         canvas.width = 0;
         canvas.height = 0;
-        const source = image.currentSrc || image.src;
-        if (!source) throw new Error('图片地址不可用');
-        const budget = typeof options.timeoutMs === 'number' && Number.isFinite(options.timeoutMs)
-            ? Math.max(1, Math.min(options.timeoutMs, IMAGE_READ_TIMEOUT_MS)) : IMAGE_READ_TIMEOUT_MS;
-        const deadline = Date.now() + budget;
-        try {
-            return await readPageImageInCors(source, options.signal, budget);
-        } catch (readError) {
-            if (options.signal?.aborted) throw createImageAbortError();
-            // 只有未取得响应的网络/CORS 失败可以改走扩展权限，保留状态、超限、解码和流错误。
-            if (!(readError instanceof TypeError)) throw readError;
-            const remaining = deadline - Date.now();
-            if (remaining <= 0) throw new Error('图片读取超时');
-            return withImageSourceAuthorization(image, source, options.signal, requestId =>
-                fetchImageInExtension(source, {...options, requestId, timeoutMs: remaining}));
-        }
+        return await readAuthorizedImage(image, options);
     } finally {
         canvas.width = 0;
         canvas.height = 0;
@@ -1233,6 +1239,14 @@ export function mountImageTranslator(): void {
         ready: () => mangaReader?.schedule(),
         translate: translateSnapshot,
     });
+    mangaSegments = createMangaImageSegments({
+        enabled: () => mounted && imageTranslationAllowed(true),
+        configurationIdentity: () => configurationIdentity(true),
+        cacheEnabled: () => config.useCache,
+        imageIdentity: sourceIdentity,
+        readSource: (image, signal) => readAuthorizedImage(image, {signal}),
+        translate: translateSnapshot,
+    });
     mangaReader = createMangaReader({
         enabled: () => config.on && config.imageTranslationMangaEnabled !== false,
         siteRules: () => config.imageTranslationMangaSites,
@@ -1249,6 +1263,7 @@ export function mountImageTranslator(): void {
         changed: publishMangaStatus,
         canvas: mangaCanvas,
         background: mangaBackground,
+        segments: mangaSegments,
     });
     const stopHoverWatch = subscribeConfig(next => {
         if (next.imageTranslationHoverEnabled !== false && !next.disableImageTranslator && next.on) return;
@@ -1307,6 +1322,8 @@ export function unmountImageTranslator(): void {
     mangaCanvas = null;
     mangaBackground?.dispose();
     mangaBackground = null;
+    mangaSegments?.dispose();
+    mangaSegments = null;
     clearPointerRevealTimer();
     contextImage = null;
     pointerImage = null;

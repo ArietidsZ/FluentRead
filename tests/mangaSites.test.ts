@@ -6,7 +6,14 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it('两种长条正文规则排除阅读器外的封面与同容器广告链接',()=>{
+        const {document}=parseHTML('<img id="cover"><div id="reader-scroll-inner"><div><img id="atsu-page"><a><img id="atsu-ad"></a></div></div><div class="reading-chapter"><div class="reading-img"><div class="reading-content"><p><img id="toon-page"><a><img id="toon-ad"></a></p></div></div></div><div class="reading-content"><p><img id="outside"></p></div>');
+        expect([...document.querySelectorAll(resolveMangaSite('https://atsu.moe/read/9x6iM/KAXiwn')!.selector)].map(e=>e.id)).toEqual(['atsu-page']);
+        expect([...document.querySelectorAll(resolveMangaSite('https://toongod.cc/webtoon/title/chapter-1/')!.selector)].map(e=>e.id)).toEqual(['toon-page']);
+    });
     it.each([
+        ['https://atsu.moe/read/9x6iM/KAXiwn', '#reader-scroll-inner > div > img'],
+        ['https://toongod.cc/webtoon/chronicles-of-the-demon-faction/chapter-191/', '.reading-chapter .reading-img .reading-content > p > img'],
         ['https://www.animatebookstore.com/viewer/?product_id=2108124', ':not(*)'],
         ['https://www.cmoa.jp/bib/speedreader/?cid=0000068502_jp_0001&u0=1', ':not(*)'],
         ['https://tapas.io/episode/3958118', '[id^="episode-"].episode-unit .viewer__body img.content__img'],
@@ -24,6 +31,8 @@ describe('漫画阅读规则与持久偏好', () => {
         expect(resolveMangaReaderProfile(url.hostname,`${url.pathname}/extra`,url.search)).toBeNull();
     });
     it.each([
+        ['atsu.moe','/manga/9x6iM',''], ['atsu.moe','/read/name/',''],
+        ['toongod.cc','/webtoon/title/',''], ['toongod.cc','/webtoon/title/trailer/',''],
         ['animatebookstore.com','/viewer/',''], ['animatebookstore.com','/viewer/','?product_id=sample'],
         ['animatebookstore.com','/products/detail.php','?product_id=2108124'],
         ['cmoa.jp','/bib/speedreader/',''], ['cmoa.jp','/bib/speedreader/','?cid=0001_jp_title'],

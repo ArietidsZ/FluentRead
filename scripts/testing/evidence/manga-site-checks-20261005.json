@@ -1376,7 +1376,7 @@
           "htmlSha256": "d56095c16e2f8f89f7bed339b1ecbf2666703cc3ff1d38464ebdc7b49f48443a"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "Comic CMOA",
@@ -2967,7 +2967,7 @@
           "htmlSha256": "e6d5e14bb3da4585a93415d902181735ab1c6f6117657fa99d0ef9fd4cc2373c"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images"
     },
     {
       "name": "kingofshojo.com",
@@ -5524,7 +5524,7 @@
     {
       "url": "https://toongod.cc/webtoon/chronicles-of-the-demon-faction/chapter-191/",
       "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
-      "readerFinding": "Complete body strips under .reading-chapter .reading-img .reading-content > p > img. Strips of 900x16006 and 900x16056 exceed bounded image processing dimensions; long-strip translation remains unverified.",
+      "readerFinding": "Complete body strips under .reading-chapter .reading-img .reading-content > p > img. Natural sizes 900x16006 and 900x16056 require bounded segments. This DOM research is not OCR or whole-strip acceptance; later selected-segment runtime evidence is recorded separately.",
       "status": 200,
       "imageCount": 24,
       "canvasCount": 0,
@@ -5533,7 +5533,7 @@
     {
       "url": "https://atsu.moe/read/9x6iM/KAXiwn",
       "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
-      "readerFinding": "Complete body strips under #reader-scroll-inner > div > img. Strips of 800x15744 and 800x16544 need bounded segment processing; no full-strip translation acceptance.",
+      "readerFinding": "Complete body strips under #reader-scroll-inner > div > img. Natural sizes 800x15744 and 800x16544 require bounded segments. This DOM research is not OCR or whole-strip acceptance; later selected-segment runtime evidence is recorded separately.",
       "status": 200,
       "imageCount": 15,
       "canvasCount": 0,
@@ -6950,6 +6950,174 @@
       "profileRemoved": true,
       "quality": "Chinese dialogue visible on both selected pages; rectangular cleanup patches and mixed Chinese script remain visible; not whole-chapter quality acceptance",
       "report": "/private/tmp/fluentread-brand-manga-sites-20261005/tapas-dialogue-translation-wave11/report.json"
+    },
+    "longStripUnit": {
+      "files": 6,
+      "cases": 412,
+      "passed": true,
+      "coverageModules": [
+        "manga.ts",
+        "mangaSiteCatalog.ts",
+        "mangaReaderProfiles.ts",
+        "mangaReader.ts",
+        "mangaCanvas.ts",
+        "mangaBackground.ts",
+        "mangaImageSegments.ts"
+      ],
+      "coverage": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "integrationFiles": 5,
+      "integrationCases": 1010,
+      "auditFiles": 468,
+      "auditDeclarations": 6048,
+      "scope": "Focused suites and two architecture files only; not all repository tests."
+    },
+    "longStripEntries": {
+      "status": "passed",
+      "cases": 18,
+      "liveReaders": [
+        {
+          "url": "https://atsu.moe/read/9x6iM/KAXiwn",
+          "finalUrl": "https://atsu.moe/read/9x6iM/KAXiwn",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed",
+          "bodyImageCount": 15,
+          "largestLoadedHeight": 17391
+        },
+        {
+          "url": "https://toongod.cc/webtoon/chronicles-of-the-demon-faction/chapter-191/",
+          "finalUrl": "https://toongod.cc/webtoon/chronicles-of-the-demon-faction/chapter-191/",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed",
+          "bodyImageCount": 24,
+          "largestLoadedHeight": 16346
+        }
+      ],
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 0,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-wave12/report.json",
+      "scope": "16 pure icon and entry checks plus two explicit public long-strip chapter entries; this suite does not run OCR."
+    },
+    "atsumaruLongStripTranslation": {
+      "url": "https://atsu.moe/read/9x6iM/KAXiwn",
+      "status": "passed",
+      "cases": 5,
+      "source": {
+        "width": 800,
+        "height": 15744,
+        "sourceHash": 362640295,
+        "style": null,
+        "className": "w-full pointer-events-auto h-full object-contain select-none",
+        "step": 2048,
+        "start": 3
+      },
+      "firstSegmentMs": 7378,
+      "nextSegmentMs": 12524,
+      "outputs": [
+        {
+          "width": 800,
+          "height": 2048
+        },
+        {
+          "width": 800,
+          "height": 2048
+        }
+      ],
+      "operations": 2,
+      "sourceAndStyleUnchanged": true,
+      "pauseAndReturnWithoutOcr": true,
+      "normalScrollContinuation": true,
+      "masterSwitchCleanup": true,
+      "modelsPreloadedAndVerified": true,
+      "modelRequests": 0,
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 0,
+      "profileRemoved": true,
+      "quality": "Selected parts 3 and 4 of one 800x15744 strip. A Chinese title label is visible in the next viewport; Korean artistic sound effects remain. Not full-strip or chapter acceptance.",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/atsu-segments-wave12/report.json"
+    },
+    "toonGodLongStripTranslation": {
+      "url": "https://toongod.cc/webtoon/chronicles-of-the-demon-faction/chapter-191/",
+      "status": "passed",
+      "cases": 5,
+      "source": {
+        "width": 900,
+        "height": 16006,
+        "sourceHash": 1786056833,
+        "style": null,
+        "className": "",
+        "step": 2048,
+        "start": 1
+      },
+      "firstSegmentMs": 12373,
+      "nextSegmentMs": 12865,
+      "outputs": [
+        {
+          "width": 900,
+          "height": 2048
+        },
+        {
+          "width": 900,
+          "height": 2048
+        }
+      ],
+      "operations": 2,
+      "sourceAndStyleUnchanged": true,
+      "pauseAndReturnWithoutOcr": true,
+      "normalScrollContinuation": true,
+      "masterSwitchCleanup": true,
+      "modelsPreloadedAndVerified": true,
+      "modelRequests": 0,
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 0,
+      "profileRemoved": true,
+      "quality": "Two core outputs show Chinese dialogue, including a wrong military-prowess translation and a translated site watermark. Not full-strip or chapter quality acceptance.",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/toongod-segments-wave12/report.json"
+    },
+    "longStripBuilds": {
+      "chrome": true,
+      "firefox": true,
+      "userscript": true,
+      "manifestVerifier": true,
+      "userscriptVerifier": true,
+      "userscriptBytes": 1916996,
+      "typeCheck": true,
+      "scope": "Firefox and userscript builds only; no live runtime validation on those targets."
+    },
+    "atsumaruLongStripOutputsRecheck": {
+      "status": "passed",
+      "cases": 5,
+      "firstSegmentMs": 6557,
+      "nextSegmentMs": 11803,
+      "operations": 2,
+      "coreOutputSizes": [
+        [
+          800,
+          2048
+        ],
+        [
+          800,
+          2048
+        ]
+      ],
+      "quality": "Complete core output shows Chinese dialogue and title text, but a fight challenge is mistranslated as working together; small original remnants and Korean artistic effects remain. Not full-strip quality acceptance.",
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostErrors": 0,
+      "modelsPreloadedAndVerified": true,
+      "modelRequests": 0,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/atsu-segments-wave12-outputs/report.json"
     }
   }
 }

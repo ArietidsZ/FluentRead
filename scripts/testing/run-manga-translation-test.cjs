@@ -17,7 +17,10 @@ const liveTranslation = process.argv.includes('--live-translation');
 const readerSmoke = process.argv.includes('--reader-smoke');
 const canvasReaderTest = process.argv.includes('--canvas-reader');
 const backgroundReaderTest = process.argv.includes('--background-reader');
-assert.ok(!(canvasReaderTest && backgroundReaderTest),'Choose one public surface type');
+const segmentReaderTest = process.argv.includes('--segment-reader');
+const segmentStart=Number(arg('segment-start','0'));
+assert.ok([canvasReaderTest,backgroundReaderTest,segmentReaderTest].filter(Boolean).length<=1,'Choose one public surface type');
+if(segmentReaderTest)assert.ok(liveSite&&readerSmoke&&Number.isInteger(segmentStart)&&segmentStart>=0&&segmentStart<=40,'Segments require a live reader smoke with a bounded start index');
 const surfaceReaderTest = canvasReaderTest || backgroundReaderTest;
 const qualityPages = Number(arg('quality-pages','2'));
 const blockedOfficial = process.argv.includes('--blocked-official');
@@ -147,7 +150,7 @@ async function ui(hostId, code) {
 const ball = code => ui('fluent-read-floating-ball-container', code);
 const imageUi = code => ui('fluent-read-image-translation-root', code);
 const mangaEntry = code => ui('fluent-read-manga-entry-container',code);
-const surfaceHost=backgroundReaderTest?'fluent-read-manga-background-container':'fluent-read-manga-canvas-container';
+const surfaceHost=segmentReaderTest?'fluent-read-manga-segment-container':backgroundReaderTest?'fluent-read-manga-background-container':'fluent-read-manga-canvas-container';
 const canvasUi = code => ui(surfaceHost,code);
 async function wait(test, timeout=180000, allowFailure=false) {
     const deadline=Date.now()+timeout;
@@ -204,6 +207,53 @@ async function verifyCanvasReader() {
     assert.ok((await visibleSurfaces())>0);await screenshot('canvas-next-pages');report.cases.push(report.currentCase);
     report.currentCase='master switch restores the chapter and removes canvas translation UI';
     await patch({on:false});await wait(async()=>await page.locator('#'+surfaceHost).count()===0);
+    auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.cases.push(report.currentCase);focusGuard();
+}
+async function verifySegmentReader() {
+    const source=page.locator(readerSelector).first();
+    await source.evaluate(i=>i.scrollIntoView({block:'start',behavior:'instant'}));
+    await wait(async()=>await source.evaluate(i=>i.complete&&i.naturalWidth>=80&&i.naturalHeight>4096),30000);
+    const snapshot=()=>source.evaluate(i=>{
+        let hash=2166136261;for(const char of [i.currentSrc,i.src,i.getAttribute('srcset'),i.getAttribute('sizes')].join('|'))hash=Math.imul(hash^char.charCodeAt(0),16777619);
+        return {width:i.naturalWidth,height:i.naturalHeight,sourceHash:hash>>>0,style:i.getAttribute('style'),className:i.className};
+    });
+    const original=await snapshot(),step=Math.min(2048,Math.floor(6_000_000/original.width)-512);
+    assert.ok(original.height>(segmentStart+2)*step,'The selected public strip contains two requested reading segments');report.segmentSource={...original,step,start:segmentStart};
+    const scroll=async index=>{
+        await source.evaluate((i,{index,step})=>{
+            let parent=i.parentElement;
+            while(parent&&!(parent.scrollHeight>parent.clientHeight&&/^(auto|scroll)$/.test(getComputedStyle(parent).overflowY)))parent=parent.parentElement;
+            const rect=i.getBoundingClientRect(),top=parent?Math.max(0,parent.getBoundingClientRect().top):0;
+            const delta=rect.top+index*step*rect.height/i.naturalHeight-top+1;
+            (parent||window).scrollBy({top:delta,behavior:'instant'});
+        },{index,step});
+        await page.waitForTimeout(400);
+    };
+    const visible=()=>canvasUi('return [...this.querySelectorAll("canvas")].filter(c=>c.style.display==="block").map(c=>({width:c.width,height:c.height,top:c.getBoundingClientRect().top,style:c.style.cssText}))');
+    const saveOutputs=async name=>{
+        const outputs=await canvasUi('return [...this.querySelectorAll("canvas")].filter(c=>c.style.display==="block").map(c=>c.toDataURL("image/png"))');
+        report.segmentOutputs??=[];
+        for(let index=0;index<outputs.length;index++){const file=path.join(artifacts,`${name}-output-${index}.png`);fs.writeFileSync(file,Buffer.from(outputs[index].split(',')[1],'base64'));report.segmentOutputs.push(file);}
+    };
+    const idle=()=>ball('return this.querySelector(".floating-ball-manga").getAttribute("aria-busy")==="false"');
+    await scroll(segmentStart);await screenshot('segment-original');
+    report.currentCase='long public strip keeps natural width and translates the current reading segment';
+    const started=Date.now(),before=await ops();await toggle();
+    await wait(async()=>(await ops())>before&&await idle(),300000);
+    const first=await visible();assert.ok(first?.length,'The selected public reading segment contains translated text');
+    assert.ok(first.every(c=>c.width===original.width&&c.height<=step),'Displayed segments preserve source width and bounded height');
+    report.segmentFirst={durationMs:Date.now()-started,outputs:first,operations:await ops()};assert.deepEqual(await snapshot(),original);await assertQuietReading();await saveOutputs('segment-first');await screenshot('segment-translated');report.cases.push(report.currentCase);
+    report.currentCase='pause restores the original strip and resume immediately reuses the translated segment';
+    const completed=await ops();await toggle();await wait(async()=>!(await visible())?.length);assert.deepEqual(await snapshot(),original);
+    await toggle();await wait(async()=>(await visible())?.length>0,10000);assert.equal(await ops(),completed);report.cases.push(report.currentCase);
+    report.currentCase='scrolling to the following part of the same image uses the existing serial queue';
+    const nextStarted=Date.now();await scroll(segmentStart+1);await wait(async()=>(await ops())>completed&&await idle(),300000);
+    const next=await visible();assert.ok(next?.length);assert.ok(next.every(c=>c.width===original.width&&c.height<=step));
+    report.segmentNext={durationMs:Date.now()-nextStarted,outputs:next,operations:await ops()};assert.deepEqual(await snapshot(),original);await assertQuietReading();await saveOutputs('segment-next');await screenshot('segment-next');report.cases.push(report.currentCase);
+    report.currentCase='returning to a completed segment restores its overlay without repeating recognition';
+    const afterNext=await ops();await scroll(segmentStart);await wait(async()=>(await visible())?.length>0,10000);assert.equal(await ops(),afterNext);assert.deepEqual(await snapshot(),original);await screenshot('segment-return');report.cases.push(report.currentCase);
+    report.currentCase='the master switch removes segmented overlays and leaves the host image unchanged';
+    await patch({on:false});await wait(async()=>await page.locator('#'+surfaceHost).count()===0);assert.deepEqual(await snapshot(),original);
     auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.cases.push(report.currentCase);focusGuard();
 }
 async function toggle() {
@@ -874,7 +924,7 @@ async function verifyReadAhead() {
     if(surfaceReaderTest)await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(c=>{const r=c.getBoundingClientRect();return r.width>80&&r.height>40&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0;}),readerSelector);
     else {
         await page.locator(readerSelector).first().waitFor();
-        if(explicitReaderSelector)await page.locator(readerSelector).first().scrollIntoViewIfNeeded();
+        if(explicitReaderSelector&&!segmentReaderTest)await page.locator(readerSelector).first().scrollIntoViewIfNeeded();
     }
     if(surfaceReaderTest)await page.waitForTimeout(900);
     if(traceReader)await page.evaluate(selector=>{
@@ -888,6 +938,7 @@ async function verifyReadAhead() {
         document.addEventListener('load',event=>{if(event.target.matches?.(selector))capture('load:'+event.target.id);},true);
     },readerSelector);
     await wait(async()=>!!await ball(`return this.querySelector('.floating-ball-manga')`),30000);
+    if(segmentReaderTest){await verifySegmentReader();report.status='passed';return;}
     if(surfaceReaderTest){await verifyCanvasReader();report.status='passed';return;}
     if(pipelineInputs){await verifyPipelinePerformance(extensionId);report.status='passed';return;}
     if(pageFeedbackTest){await verifyPageFeedback();report.status='passed';focusGuard();return;}
