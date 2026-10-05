@@ -33808,6 +33808,247 @@
           "scope": "Local VitePress parser only; maintainer files remain excluded from public build/publishing."
         }
       }
+    },
+    "latestMainIntegrationReview": {
+      "date": "2026-10-06",
+      "baseCommit": "2d5bcd00b06a8fa6115f1a70c9d51e757b341df0",
+      "reviewedHeadBeforeFinalContractCommit": "bd72eb2df8d35e6f1538cfaaa53c59968c36125c",
+      "historyMigration": "35 task commits transplanted onto rewritten main, then refreshed to the latest main. Original history retained on codex/brand-dock-manga-sites-before-rebase-20261006.",
+      "reviewScope": [
+        "content composition and cleanup",
+        "resident brand and explicit preferences",
+        "reader URL/DOM/host boundaries",
+        "current source ownership and sender validation",
+        "SPA chapter identity",
+        "queue, pause, late replies, cache and prefetch",
+        "readable canvas and background paint isolation",
+        "long-image CORS fallback and bounded segments",
+        "background/offscreen cancellation and structured local failures",
+        "effective source language and OCR engine identity",
+        "ordinary-image grouping and manga bubble rendering",
+        "settings public contract and generated language assets"
+      ],
+      "repairs": [
+        "Host CSS could hide/relocate the closed-shadow canvas outer host: important ownership reset with original preservation and native before/after proof.",
+        "New main settings imports crossed a feature private boundary: expose only three pure display components through settings/public.ts.",
+        "Manga failure helper added to strict coverage selection; existing flow tests provide four-dimensional 100%.",
+        "Browser harness updated for main transport, master switch, direct outer layout, native visible-tab activation and bounded startup."
+      ],
+      "withdrawnStyleRequest": "User withdrew the multiple-folding style request. No resource-card style change was made.",
+      "permissionsDependenciesVersionsReferenceProjects": "No task changes",
+      "siteNames": 235,
+      "retainedResearchAttempts": 402,
+      "newSiteResearchAttempts": 0
+    },
+    "latestMainResidentEntryUI": {
+      "status": "passed",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-delivery-final/report.json",
+      "cases": 26,
+      "nativeVisibleSnapshots": 35,
+      "focusChecks": 42,
+      "extensionErrors": 0,
+      "consoleErrors": 0,
+      "profileRemoved": true,
+      "scope": "Production Chrome extension: 21 interactions/fixtures, two actual ComicWalker reader discoveries and three actual HTTP-200 login/paywall negative pages. No live chapter OCR/translation or public chapter screenshots.",
+      "brandShape": {
+        "width": 32,
+        "height": 32,
+        "radius": "50%"
+      },
+      "hostErrors": {
+        "count": 1,
+        "origin": "ComicWalker Amazon ad script Unauthorized",
+        "matchingBaseline": "The wave37 disabled-extension baseline observed the same error; the final run did not perform another baseline and its exact-URL marker remains false."
+      }
+    },
+    "latestMainScrollLifecycle": {
+      "status": "passed",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/translation-main-integration-wake/report.json",
+      "cases": 9,
+      "nativeVisibleSnapshots": 14,
+      "focusChecks": 30,
+      "extensionErrors": 0,
+      "consoleErrors": 0,
+      "profileRemoved": true,
+      "scope": "Production Chrome extension in a synthetic reader. Real preloaded local PaddleOCR/inpainting; deterministic text translation. Not live provider/site quality proof.",
+      "operations": 6,
+      "transportRequests": [
+        {
+          "endpoint": "translateHtml",
+          "items": 2,
+          "live": false
+        },
+        {
+          "endpoint": "translateHtml",
+          "items": 2,
+          "live": false
+        },
+        {
+          "endpoint": "translate_a/t",
+          "items": 2,
+          "live": false
+        },
+        {
+          "endpoint": "translate_a/t",
+          "items": 2,
+          "live": false
+        },
+        {
+          "endpoint": "batchexecute",
+          "items": 2,
+          "live": false
+        },
+        {
+          "endpoint": "batchexecute",
+          "items": 1,
+          "live": false
+        }
+      ],
+      "modelNetworkRequests": 0
+    },
+    "latestMainResourceLifecycle": {
+      "status": "passed",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/translation-main-integration-acceptance/report.json",
+      "cases": 16,
+      "nativeVisibleSnapshots": 17,
+      "focusChecks": 36,
+      "extensionErrors": 0,
+      "consoleErrors": 0,
+      "profileRemoved": true,
+      "scope": "Production Chrome extension in a synthetic reader. Real preloaded local PaddleOCR/inpainting, validated offline import and deterministic text translation. Not live provider/site quality proof.",
+      "operations": 6,
+      "logicalTranslationRequests": 5,
+      "transportRequests": [
+        {
+          "endpoint": "translateHtml",
+          "items": 2,
+          "live": false
+        },
+        {
+          "endpoint": "translateHtml",
+          "items": 1,
+          "live": false
+        },
+        {
+          "endpoint": "translateHtml",
+          "items": 1,
+          "live": false
+        },
+        {
+          "endpoint": "translateHtml",
+          "items": 1,
+          "live": false
+        }
+      ],
+      "modelNetworkRequests": 0
+    },
+    "latestMainCanvasHostIsolation": {
+      "status": "passed",
+      "beforeReport": "/private/tmp/fluentread-brand-manga-sites-20261005/canvas-isolation-before.json",
+      "afterReport": "/private/tmp/fluentread-brand-manga-sites-20261005/canvas-isolation-after.json",
+      "before": "Host display:none, opacity:0, position:relative; overlay bounds zero.",
+      "after": "Host display:block, opacity:1, position:fixed; overlay 400x300; closed shadow, original unchanged, disposed, profile removed.",
+      "scope": "Actual compiled mangaCanvas module in a synthetic hostile-CSS fixture. Production extension disabled except native tab activation; not whole extension/OCR/provider proof."
+    },
+    "latestMainTargetedValidation": {
+      "status": "passed-scoped",
+      "tests": {
+        "files": 20,
+        "cases": 1980,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/tests-delivery-final.log"
+      },
+      "coverage": {
+        "files": 15,
+        "cases": 767,
+        "modules": 12,
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-main-integration-complete.log"
+      },
+      "audit": {
+        "files": 469,
+        "declarations": 6259,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-delivery-final.log"
+      },
+      "typecheck": {
+        "status": "passed",
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/compile-public-contract-final.log"
+      },
+      "baseline": {
+        "remaining": "verificationOwnership strict registry failure lists 18 unrelated preexisting modules. No blanket exemptions or full-green claim.",
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-main-integration-repair.log",
+        "mainOwnershipReport": "/private/tmp/fluentread-brand-manga-sites-20261005/main-baseline-verification-ownership.log",
+        "mainPrivateImportReport": "/private/tmp/fluentread-brand-manga-sites-20261005/main-baseline-module-boundaries.log",
+        "taskFixes": "Three manga private settings imports are repaired; manga failure and typography have strict coverage."
+      },
+      "fullRegression": "Not run; affected suites only.",
+      "browserHarnessContracts": {
+        "status": "passed",
+        "cases": 105,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/browser-focus-delivery-sealed.log"
+      }
+    },
+    "latestMainBuildArtifacts": {
+      "status": "passed",
+      "chromeSeconds": 26.3,
+      "firefoxSeconds": 28.3,
+      "userscriptSeconds": 4.22,
+      "userscriptBytes": 1940860,
+      "chromeReport": "/private/tmp/fluentread-brand-manga-sites-20261005/build-chrome-public-contract-final.log",
+      "firefoxReport": "/private/tmp/fluentread-brand-manga-sites-20261005/build-firefox-public-contract-final.log",
+      "userscriptReport": "/private/tmp/fluentread-brand-manga-sites-20261005/build-userscript-main-integration-final.log",
+      "manifestReport": "/private/tmp/fluentread-brand-manga-sites-20261005/manifests-main-integration.log",
+      "userscriptVerification": "/private/tmp/fluentread-brand-manga-sites-20261005/userscript-verify-main-integration.log",
+      "brandReport": "/private/tmp/fluentread-brand-manga-sites-20261005/brand-main-integration.log",
+      "generatedLanguageReport": "/private/tmp/fluentread-brand-manga-sites-20261005/languages-main-integration.log",
+      "FirefoxAndUserscriptRuntime": "Build/artifact checks only; no new live runtime proof.",
+      "docs": {
+        "status": "passed",
+        "buildSeconds": 3.72,
+        "pages": 77,
+        "links": 3968,
+        "anchors": 754,
+        "images": 154,
+        "buildReport": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-build-main-integration.log",
+        "checkReport": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-main-integration.log",
+        "maintainerScope": "maintainers/** excluded from public build; repository-only local Markdown parsing.",
+        "maintainerMarkdown": {
+          "status": "passed-local-parser",
+          "tableRows": 235,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/maintainer-markdown-delivery-final.json"
+        }
+      }
+    },
+    "latestMainHarnessDiagnostics": {
+      "scope": "Preserved failed attempts, not feature acceptance. Successful scoped reports above supersede them.",
+      "attempts": [
+        {
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/translation-main-integration/report.json",
+          "finding": "Old mock missed new Google translateHtml/translate_a/t paths. Despite its deterministic metadata, this diagnostic attempt allowed real text fetches and cannot be called deterministic fixture acceptance."
+        },
+        {
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/translation-main-integration-corrected/report.json",
+          "finding": "Native popup URL synchronization race; exact extension tab ID and bounded public URL retry added."
+        },
+        {
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/translation-main-integration-native/report.json",
+          "finding": "Worker startup timeout; verified extension ID popup wake added."
+        },
+        {
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/translation-main-integration-debug-load/report.json",
+          "finding": "Edge Extensions.loadUnpacked capability unavailable; retained startup-flag loading."
+        },
+        {
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/translation-main-integration-lifecycle/report.json",
+          "finding": "Stale blank-page amber-error expectation. Actual expected result preserves original with completion/no error/no automatic panel."
+        },
+        {
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/translation-main-integration-lifecycle-final/report.json",
+          "finding": "Stale main-switch target. Native FeatureEnableCard button click now verifies persistence."
+        }
+      ]
     }
   },
   "lastSupplementOn": "2026-10-06"

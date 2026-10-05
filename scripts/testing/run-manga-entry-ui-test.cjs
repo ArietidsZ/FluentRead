@@ -9,6 +9,8 @@ const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-man
 const extension = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const {chromium} = require(path.join(arg('playwright-root'), 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper'));
+const startupExtensionId=arg('extension-id',null);
+if(startupExtensionId)assert.match(startupExtensionId,/^[a-p]{32}$/,'Use a verified unpacked extension ID');
 const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-entry-');
 fs.mkdirSync(artifacts, {recursive: true});
 const report = {suite: baseline ? 'baseline live discovery' : 'manga entry UI', profileDir:profile, cases: [], screenshots: [], consoleErrors: [], errors: [], hostErrors: []};
@@ -64,6 +66,7 @@ async function clickEntry(selector) {await activateVisible(page);let point = awa
     assert.equal(report.windowPlacement.browserFrontmost, false);
     const context = launched.context, system = await context.browser().newBrowserCDPSession();
     browserPid = (await system.send('SystemInfo.getProcessInfo')).processInfo.find(p => p.type === 'browser').id;report.browserPid=browserPid;await system.detach();focusGuard();
+    if(startupExtensionId)await context.pages()[0].goto(`chrome-extension://${startupExtensionId}/popup.html`);
     worker = context.serviceWorkers().find(w => w.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker');
     const id = new URL(worker.url()).host;
     popup = context.pages()[0];popup.on('pageerror',e=>report.errors.push(e.message));popup.on('console',m=>{if(m.type()==='error')report.consoleErrors.push(m.text());});await gotoVisible(popup,`chrome-extension://${id}/popup.html`);

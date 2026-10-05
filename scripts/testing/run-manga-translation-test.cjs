@@ -11,7 +11,7 @@ const packages = arg('playwright-root', process.env.PLAYWRIGHT_ROOT);
 const helper = arg('focus-safe-helper', process.env.FLUENTREAD_FOCUS_SAFE_HELPER);
 if (!packages || !helper) throw new Error('Provide --playwright-root and --focus-safe-helper');
 const {chromium} = require(path.join(packages, 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(helper);
+const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(helper);
 const liveSite = process.argv.includes('--live-site');
 const liveTranslation = process.argv.includes('--live-translation');
 const readerSmoke = process.argv.includes('--reader-smoke');
@@ -43,6 +43,8 @@ const graphOverride=arg('pipeline-graph',null);
 const gpuDiagnosis=process.argv.includes('--gpu-diagnosis');
 const forceCpu=process.argv.includes('--pipeline-cpu');
 const extensionDebugging=process.argv.includes('--extension-debugging');
+const startupExtensionId=arg('extension-id',null);
+if(startupExtensionId)assert.match(startupExtensionId,/^[a-p]{32}$/,'Use a verified unpacked extension ID');
 const traceReader=process.argv.includes('--trace-reader');
 const traceLayout=process.argv.includes('--trace-layout');
 const targetUrl = arg('site-url','https://mangaplus.shueisha.co.jp/viewer/1024050');
@@ -115,6 +117,7 @@ report.readerStartIndex=readerStartIndex;
 report.readerNextSelector=readerNextSelector;
 if(imageTurnKey)report.pagedImages={turnKey:imageTurnKey,initialTurns:imageInitialTurns,urlPolicy:imageStableUrl?'stable':'changes'};
 let launched, page, worker, cdp, popup, modelObserver, browserPid,loadedExtensionId,contentPixelContext;
+loadedExtensionId=startupExtensionId;
 function focusGuard() {
     const current=JSON.parse(execFileSync('/usr/bin/osascript',['-l','JavaScript','-e',"ObjC.import('AppKit');const app=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(app.processIdentifier),name:ObjC.unwrap(app.localizedName)});"],{encoding:'utf8'}));
     assert.notEqual(current.pid,browserPid,'Isolated test browser must stay behind the user app');
@@ -348,6 +351,7 @@ async function verifySegmentReader() {
     auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.cases.push(report.currentCase);focusGuard();
 }
 async function toggle() {
+    await activateVisible(page);
     const point=await ball(`const b=this.querySelector('.floating-ball-manga');if(!b)return null;const r=b.getBoundingClientRect(),clipped=getComputedStyle(b).clipPath!=='none',left=this.querySelector('.fr-floating-ball').dataset.position==='left';return {x:r.x+r.width*(clipped?(left ? .75 : .25):.5),y:r.y+r.height/2}`);
     assert.ok(point,'Manga button exists');await page.mouse.move(point.x,point.y);
     await wait(async()=>await ball('return this.querySelector(".fr-floating-ball").classList.contains("floating-ball-expanded")'),3000);
@@ -451,7 +455,22 @@ async function verifyPagedImageReader() {
     assert.equal(await source().evaluate(i=>i.style.opacity),'');auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
     report.cases.push(report.currentCase);focusGuard();
 }
-async function screenshot(name,beforeCapture) {focusGuard();await page.mouse.move(30,30);await page.waitForTimeout(300);if(beforeCapture)await beforeCapture();const file=path.join(artifacts,`${name}.png`);await page.screenshot({path:file});report.screenshots.push(file);}
+async function activateVisible(target) {
+    focusGuard();await activateExtensionTabWithoutForeground(launched.context,target);focusGuard();
+    const tabId=target.url().startsWith('chrome-extension://')?await target.evaluate(async()=>{const tab=await chrome.tabs.getCurrent();if(!tab?.id)throw new Error('Owned extension test tab is missing');return tab.id;}):null;
+    const deadline=Date.now()+10000;let state,url;
+    do {
+        url=target.url();
+        state=await worker.evaluate(async({url,tabId})=>{const tab=tabId?await chrome.tabs.get(tabId):(await chrome.tabs.query({})).find(tab=>tab.url===url);if(!tab)return null;const window=await chrome.windows.get(tab.windowId);return {active:tab.active,windowState:window.state,windowFocused:window.focused};},{url,tabId});
+        if(state)break;await target.waitForTimeout(100);
+    } while(Date.now()<deadline);
+    assert.ok(state,'Owned browser tab must be found within ten seconds');
+    state.documentVisibility=await target.evaluate(()=>document.visibilityState);
+    assert.deepEqual(state,{active:true,windowState:'normal',windowFocused:false,documentVisibility:'visible'},'Reading checks require an actual selected and visible background tab');
+    (report.tabVisibility??=[]).push({url,...state});
+}
+async function gotoVisible(target,url,options) {const response=await target.goto(url,options);await activateVisible(target);return response;}
+async function screenshot(name,beforeCapture) {await activateVisible(page);await page.mouse.move(30,30);await page.waitForTimeout(300);if(beforeCapture)await beforeCapture();const file=path.join(artifacts,`${name}.png`);await page.screenshot({path:file});report.screenshots.push(file);}
 async function toolScreenshot(name){
     await page.mouse.move(30,30);
     const box=await ball(`const r=this.querySelector('.floating-ball-manga').getBoundingClientRect();return {x:r.x-8,y:r.y-8,width:r.width+16,height:r.height+16}`);
@@ -672,7 +691,7 @@ async function verifyPipelinePerformance(extensionId) {
     report.pipeline=[];report.graphOverride=graphOverride;
     for(const input of pipelineInputs) for(let round=0;round<pipelineRounds;round++) {
         report.currentCase=`pipeline ${path.basename(input)} round ${round+1}`;
-        await page.goto(targetUrl,{waitUntil:'domcontentloaded'});
+        await gotoVisible(page,targetUrl,{waitUntil:'domcontentloaded'});
         const data='data:image/png;base64,'+fs.readFileSync(input).toString('base64');
         await page.evaluate(async data=>{
             const images=[...document.querySelectorAll('.zao-image')];images.slice(1).forEach(image=>image.parentElement.remove());
@@ -838,7 +857,7 @@ async function verifyScrollStability() {
 async function verifyTieredCache(extensionId) {
     assert.equal(liveSite,false);assert.equal(prefetchPages,0);
     report.currentCase='brand manga selects support keyboard, theme, narrow screens and persisted cache capacity';
-    await popup.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
+    await gotoVisible(popup,`chrome-extension://${extensionId}/options.html#settings-image-translation`);
     const root=popup.locator('[data-testid=manga-settings]');await root.waitFor();
     assert.equal(await root.locator('select').count(),0,'Manga fields use branded custom controls');
     assert.match(await popup.getByRole('combobox',{name:'漫画翻译服务',exact:true}).locator('xpath=ancestor::div[contains(concat(" ",normalize-space(@class)," ")," el-select ")][1]').textContent(),/跟随网页翻译服务/);
@@ -853,7 +872,7 @@ async function verifyTieredCache(extensionId) {
     const read=()=>popup.evaluate(async()=>{const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});return typeof r.value==='string'?JSON.parse(r.value):r.value;});
     assert.equal((await read()).imageTranslationMangaCachePages,13,'Keyboard selection is persisted');
     await cache.press('Enter');await popup.getByRole('option',{name:'2 张图片',exact:true}).click();
-    await popup.close();popup=await newPageWithoutForeground(launched.context);await popup.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
+    await popup.close();popup=await newPageWithoutForeground(launched.context);await gotoVisible(popup,`chrome-extension://${extensionId}/options.html#settings-image-translation`);
     await popup.locator('[data-testid=manga-settings]').waitFor();assert.equal((await read()).imageTranslationMangaCachePages,2,'Fast close preserves the latest configuration');
     report.persistenceCases=[{field:'imageTranslationMangaCachePages',default:12,keyboard:13,reopened:2,quickClose:true}];
     await patch({theme:'dark'});await popup.reload();await popup.getByRole('combobox',{name:'提前翻译后续页面',exact:true}).press('Enter');
@@ -862,7 +881,7 @@ async function verifyTieredCache(extensionId) {
     await popup.setViewportSize({width:390,height:850});await popup.reload();const narrow=popup.getByRole('combobox',{name:'快速缓存图片数量',exact:true});await narrow.scrollIntoViewIfNeeded();await narrow.press('Enter');
     const menu=popup.locator('.el-popper.fluentread-select-popper:visible');await menu.waitFor();const bounds=await menu.boundingBox();assert.ok(bounds.x>=-1&&bounds.x+bounds.width<=391,'Dropdown fits narrow viewport');
     await popup.waitForTimeout(300);await popup.screenshot({path:path.join(artifacts,'manga-select-narrow.png')});report.screenshots.push(path.join(artifacts,'manga-select-narrow.png'));await narrow.press('Escape');
-    report.cases.push(report.currentCase);await patch({theme:'light'});await popup.close();popup=await newPageWithoutForeground(launched.context);await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+    report.cases.push(report.currentCase);await patch({theme:'light'});await popup.close();popup=await newPageWithoutForeground(launched.context);await gotoVisible(popup,`chrome-extension://${extensionId}/popup.html`);
     await page.setViewportSize({width:800,height:700});
     const pages=['#page-one','#page-four','#page-six'].map(id=>page.locator(id));
     await pages[0].evaluate(i=>i.scrollIntoView({block:'start',behavior:'instant'}));const start=await ops();await toggle();
@@ -994,7 +1013,7 @@ async function verifyReadAhead() {
     assert.deepEqual(restored.slice(0,originals.length).map(i=>i.style),originals.map(i=>i.style));
     assert.equal(await images.evaluateAll(items=>items.every(i=>i.style.opacity!== '0')),true);
     report.cases.push(report.currentCase);
-    await popup.goto(`chrome-extension://${new URL(worker.url()).host}/options.html#settings-image-translation`);
+    await gotoVisible(popup,`chrome-extension://${new URL(worker.url()).host}/options.html#settings-image-translation`);
     const select=popup.getByRole('combobox',{name:'提前翻译后续页面',exact:true});await select.press('Enter');await popup.getByRole('option',{name:'只翻译当前页面',exact:true}).click();await popup.reload();assert.match(await select.locator('xpath=ancestor::div[contains(@class,"el-select")][1]').textContent(),/只翻译当前页面/);report.cases.push('upcoming-page setting persists and allows current-page-only mode');
     report.textBatches=await worker.evaluate(()=>globalThis.__mangaTest.textBatches);
     assert.ok(!(report.offscreenDiagnostics || []).some(d=>['warning','error'].includes(d.level)&&d.text.includes('Unknown CPU vendor')),'Known WASM CPU diagnostic is not a warning or error');
@@ -1022,14 +1041,14 @@ async function verifyReadAhead() {
 
     popup=context.pages()[0];
     const options=popup,reopened=popup,modelSettings=popup;
-    await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+    await gotoVisible(popup,`chrome-extension://${extensionId}/popup.html`);
     await patch({on:true,uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,disableImageTranslator:false,
         imageTranslationMangaEnabled:true,imageTranslationMangaDownloadConfirmed:true,imageTranslationMangaPromptEnabled:false,imageTranslationHoverEnabled:false,disableFloatingBall:false,
         imageTranslationMangaPrefetchPages:prefetchPages,
         service:'google',from:sourceLanguage,to:targetLanguage,useCache:true,enableAIContext:false,animations:false});
     await worker.evaluate(({live,trace,traceLayout})=>{
         const original=globalThis.fetch.bind(globalThis);
-        const test=globalThis.__mangaTest={operations:[],inputs:[],requests:[],cancellations:[],textBatches:[],progress:[],sourceRequests:[]};
+        const test=globalThis.__mangaTest={operations:[],inputs:[],requests:[],transportRequests:[],cancellations:[],textBatches:[],progress:[],sourceRequests:[]};
         if(traceLayout){
             test.layoutResults=[];
             const send=chrome.runtime.sendMessage.bind(chrome.runtime);
@@ -1063,22 +1082,31 @@ async function verifyReadAhead() {
         });
         globalThis.fetch=async(input,options)=>{
             const url=String(typeof input==='string'?input:input.url||input);
-            if(url.includes('/_/TranslateWebserverUi/data/batchexecute')){
-                const rpc=JSON.parse(new URLSearchParams(options.body).get('f.req'))[0][0];
-                const source=JSON.parse(rpc[1])[0][0];test.requests.push(source);
+            const endpoint=new URL(url);
+            const html=endpoint.hostname==='translate-pa.googleapis.com'&&endpoint.pathname==='/v1/translateHtml';
+            const list=endpoint.hostname==='translate.googleapis.com'&&endpoint.pathname==='/translate_a/t';
+            const rpc=['translate.google.com','translate.google.co.uk'].includes(endpoint.hostname)&&endpoint.pathname==='/_/TranslateWebserverUi/data/batchexecute';
+            if(html||list||rpc){
+                const entries=rpc?JSON.parse(new URLSearchParams(options.body).get('f.req'))[0]:null;
+                const texts=html?JSON.parse(options.body)[0][0]:list?new URLSearchParams(options.body).getAll('q'):entries.map(entry=>JSON.parse(entry[1])[0][0]);
+                test.requests.push(...texts);test.transportRequests.push({endpoint:html?'translateHtml':list?'translate_a/t':'batchexecute',items:texts.length,live});
                 if(live)return original(input,options);
                 if(test.holdNext) {test.holdNext=false;await new Promise(resolve=>{test.releaseHeld=()=>{delete test.releaseHeld;resolve();};});}
                 await new Promise(resolve=>setTimeout(resolve,250));
+                const translations=texts.map(()=> '流畅阅读：看懂每一页漫画');
+                if(html)return new Response(JSON.stringify([translations.map(text=>`<pre>${text}</pre>`)]),{status:200});
+                if(list)return new Response(JSON.stringify(translations),{status:200});
                 const entry=[null,null,null,null,null,[['流畅阅读：看懂每一页漫画']]];
-                return new Response(JSON.stringify([['wrb.fr','MkEWBc',JSON.stringify([null,[[entry]]])]]),{status:200});
+                return new Response(JSON.stringify(entries.map(request=>['wrb.fr','MkEWBc',JSON.stringify([null,[[entry]]]),null,null,null,request[3]])),{status:200});
             }
+            if(!live&&/^(?:translate(?:-pa)?\.googleapis\.com|translate\.google\.(?:com|co\.uk))$/.test(endpoint.hostname))throw new Error('Unexpected Google fixture transport');
             return original(input,options);
         };
     },{live:liveTranslation,trace:traceReader,traceLayout});
     await worker.evaluate(async()=>{await chrome.offscreen.createDocument({url:chrome.runtime.getURL('offscreen.html'),reasons:['DOM_PARSER'],justification:'Verify local manga processing in an isolated test profile'});});
     modelObserver=await observeModelDownloads(extensionId);
     if(preloadModels){
-        await modelSettings.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
+        await gotoVisible(modelSettings,`chrome-extension://${extensionId}/options.html#settings-image-translation`);
 
         await modelSettings.locator('.manga-model-settings').waitFor();
         if(!baseline)await modelSettings.locator('.manga-download-settings > summary').click();
@@ -1087,7 +1115,7 @@ async function verifyReadAhead() {
         const audit=async()=>{const cache=await caches.open('fluent-read-manga-ocr-v1');return Promise.all((await cache.keys()).map(async key=>{const response=await cache.match(key);const bytes=await response.arrayBuffer();return {url:key.url,status:response.status,bytes:bytes.byteLength,sha:Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),n=>n.toString(16).padStart(2,'0')).join('')}}));};
         report.preloadedCacheOptions=await modelSettings.evaluate(audit);assert.equal(report.preloadedCacheOptions.length,4,'All four validated files exist before navigation');
         const audited=await modelObserver.command('Runtime.evaluate',{expression:`(${audit.toString()})()`,returnByValue:true,awaitPromise:true});report.preloadedCacheOffscreen=audited.result.value;
-        report.modelsPreloaded=true;await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+        report.modelsPreloaded=true;await gotoVisible(popup,`chrome-extension://${extensionId}/popup.html`);
     }
     if(traceLayout)await modelObserver.command('Runtime.evaluate',{expression:`(()=>{
         const samples=globalThis.__mangaLayoutTrace=[];
@@ -1105,7 +1133,7 @@ async function verifyReadAhead() {
         if(liveSite&&!stack.includes('chrome-extension://')&&/https?:\/\//.test(stack))report.hostErrors.push({message:error.message,stack});
         else report.errors.push(error.message);
     });
-    await page.goto(targetUrl,{waitUntil:'domcontentloaded',timeout:60000});
+    await gotoVisible(page,targetUrl,{waitUntil:'domcontentloaded',timeout:60000});
     if(readerOpenSelector)await page.locator(readerOpenSelector).click({timeout:15000});
     cdp=await context.newCDPSession(page);
     if(canvasContentPixels)cdp.on('Runtime.executionContextCreated',event=>{if(event.context.origin===`chrome-extension://${extensionId}`&&event.context.auxData?.type==='isolated')contentPixelContext=event.context.id;});
@@ -1252,7 +1280,7 @@ async function verifyReadAhead() {
             const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,760,1100);ctx.fillStyle='black';ctx.font='48px Arial';ctx.fillText('Source changed',90,200);canvas.toBlob(b=>{i.src=URL.createObjectURL(b)});});
         await wait(async()=>(await ops())>previous);await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-busy')`))==='false');
         assert.equal(await page.locator('#decoy').evaluate(i=>i.style.opacity),'');report.cases.push(report.currentCase);
-        report.currentCase='unrecognized page retains original and shows an amber status';
+        report.currentCase='text-free page retains original and completes without an error';
         await page.evaluate(async()=>{
             const canvas=document.createElement('canvas');canvas.width=760;canvas.height=1100;
             const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,760,1100);
@@ -1261,10 +1289,12 @@ async function verifyReadAhead() {
             image.className='zao-image';image.id='blank-page';image.src=URL.createObjectURL(blob);wrap.append(image);document.querySelector('#reader').append(wrap);
         });
         await page.locator('#blank-page').scrollIntoViewIfNeeded();
-        await wait(async()=>!!await ball(`return this.querySelector('.manga-error')`),60000,true);
+        await wait(async()=>await imageUi('return [...this.querySelectorAll(".fr-image-status")].some(status=>status.textContent.includes("未检测到文字，已保留原图"))'),60000);
+        await wait(async()=>await ball('return this.querySelector(".floating-ball-manga").getAttribute("aria-busy")')==='false',10000);
+        assert.equal(await ball('return !!this.querySelector(".manga-error")'),false);
         assert.notEqual(await page.locator('#blank-page').evaluate(i=>i.style.opacity),'0');
-        await toolScreenshot('partial-error');report.cases.push(report.currentCase);
-        if(!baseline){await assertQuietReading();report.cases.push('failed page never opens a reading panel');}
+        await toolScreenshot('text-free-page');report.cases.push(report.currentCase);
+        if(!baseline){await assertQuietReading();report.cases.push('text-free page never opens a reading panel');}
         report.currentCase='chapter change resets continuous mode and restores originals';
         await page.evaluate(()=>history.pushState({},'', '/viewer/555'));
         await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-pressed')`))==='false');
@@ -1280,15 +1310,17 @@ async function verifyReadAhead() {
     report.currentCase='settings switch persists across unmount and reopen';
     await patch({imageTranslationMangaEnabled:false});
     await wait(async()=>!(await ball(`return !!this.querySelector('.floating-ball-manga')`)));
-    await options.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
+    await gotoVisible(options,`chrome-extension://${extensionId}/options.html#settings-image-translation`);
     await options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'漫画连续翻译',exact:true}).waitFor({state:'attached'});
     assert.equal(await options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'漫画连续翻译',exact:true}).getAttribute('aria-checked'),'false');
-    await options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'漫画连续翻译',exact:true}).evaluate(element => (element.closest('.el-switch') || element).click());await options.goto(`chrome-extension://${extensionId}/popup.html`);
-    await reopened.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
+    const mangaSwitch=options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'漫画连续翻译',exact:true});
+    if(baseline)await options.locator('.el-switch').filter({has:mangaSwitch}).click();else await mangaSwitch.click();
+    await gotoVisible(options,`chrome-extension://${extensionId}/popup.html`);
+    await gotoVisible(reopened,`chrome-extension://${extensionId}/options.html#settings-image-translation`);
     await reopened.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'漫画连续翻译',exact:true}).waitFor({state:'attached'});
     assert.equal(await reopened.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'漫画连续翻译',exact:true}).getAttribute('aria-checked'),'true');
     const settingsShot=path.join(artifacts,'03-settings-reopened.png');await reopened.screenshot({path:settingsShot});report.screenshots.push(settingsShot);
-    await reopened.goto(`chrome-extension://${extensionId}/popup.html`);report.cases.push(report.currentCase);
+    await gotoVisible(reopened,`chrome-extension://${extensionId}/popup.html`);report.cases.push(report.currentCase);
     report.currentCase='master disable removes image UI and restores all source styles';
     await patch({on:false});await wait(async()=>(await page.locator('#fluent-read-image-translation-root').count())===0);
     assert.equal(await page.locator('.zao-image').evaluateAll(images=>images.filter(i=>i.style.opacity==='0').length),0);
@@ -1296,7 +1328,7 @@ async function verifyReadAhead() {
     report.currentCase='cached manga model status and clear action';
     report.modelStatusBefore=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadMangaModelStatus'}));
     assert.equal(report.modelStatusBefore.ready,true);assert.ok(report.modelStatusBefore.bytes>30000000);
-    await modelSettings.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
+    await gotoVisible(modelSettings,`chrome-extension://${extensionId}/options.html#settings-image-translation`);
 
     if(!baseline)await modelSettings.locator('.manga-download-settings > summary').click();
     await modelSettings.getByRole('button',{name:baseline?'清除漫画模型':'清除已下载资源',exact:true}).waitFor();
@@ -1342,7 +1374,7 @@ async function verifyReadAhead() {
     focusGuard();
 })().catch(async error=>{report.status='failed';report.failure=error.stack;process.exitCode=1;console.error(error);if(cdp){report.lastImageUi=await imageUi('return [...this.querySelectorAll(".fr-image-feedback .fr-image-status")].map(s=>s.textContent)').catch(()=>null);report.lastCanvasUi=await canvasUi('return [...this.querySelectorAll("canvas")].map(c=>({width:c.width,height:c.height,style:c.style.cssText}))').catch(()=>null);report.lastProgress=await worker.evaluate(()=>globalThis.__mangaTest.progress).catch(()=>null);}if(page)await page.screenshot({path:path.join(artifacts,'failed-reader.png')}).catch(()=>{});})
 .finally(async()=>{
-    if(worker)await worker.evaluate(()=>({operations:globalThis.__mangaTest?.operations.length,inputs:globalThis.__mangaTest?.inputs,textBatches:globalThis.__mangaTest?.textBatches,sourceRequests:globalThis.__mangaTest?.sourceRequests})).then(data=>Object.assign(report,data)).catch(()=>{});
+    if(worker)await worker.evaluate(()=>({operations:globalThis.__mangaTest?.operations.length,inputs:globalThis.__mangaTest?.inputs,textBatches:globalThis.__mangaTest?.textBatches,sourceRequests:globalThis.__mangaTest?.sourceRequests,transportRequests:globalThis.__mangaTest?.transportRequests})).then(data=>Object.assign(report,data)).catch(()=>{});
     if(popup&&['ru','ko'].includes(sourceLanguage))report.ocrLanguageStatus=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadImageOcrStatus'})).catch(()=>null);
     if(page&&traceReader)report.readerTrace=await page.evaluate(()=>globalThis.__readerTrace).catch(()=>null);
     if(page&&report.status==='failed')await screenshot('failure').catch(()=>{});

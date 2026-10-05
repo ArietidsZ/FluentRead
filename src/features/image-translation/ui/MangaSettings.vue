@@ -77,9 +77,7 @@ import {MANGA_AREA_READER_HOSTS, MANGA_CANVAS_READER_HOSTS, MANGA_BACKGROUND_REA
 import {options} from '@/src/core/config/catalog';
 import {useUiI18n} from '@/src/ui/i18n';
 import UiSelect from '@/src/ui/components/UiSelect.vue';
-import SettingsGroup from '@/src/features/settings/ui/components/SettingsGroup.vue';
-import SettingsItem from '@/src/features/settings/ui/components/SettingsItem.vue';
-import SettingsPreviewLayout from '@/src/features/settings/ui/components/SettingsPreviewLayout.vue';
+import {SettingsGroup, SettingsItem, SettingsPreviewLayout} from '@/src/features/settings/public';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 import ImageTranslationSettingsPreview from './ImageTranslationSettingsPreview.vue';
 import MangaModelSettings from './MangaModelSettings.vue';
