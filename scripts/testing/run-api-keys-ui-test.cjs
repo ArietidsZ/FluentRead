@@ -74,8 +74,6 @@ async function main() {
   }
   async function keys() { return page.locator('[data-api-key-list] [data-api-key-index]'); }
   async function enableKeyRotation() {
-    const settings = page.locator('[data-configuration-group="connection"] > details.service-disclosure[data-configuration-group="keys"]');
-    if (!(await settings.evaluate(node => node.hasAttribute('open')))) await settings.locator(':scope > summary').click();
     const control = page.locator('[data-api-key-rotation-setting] .el-switch');
     if (await control.getAttribute('aria-checked') !== 'true') await control.click();
   }
@@ -255,8 +253,6 @@ async function main() {
   await page.locator('[data-service-value]').filter({hasText: 'API Key Fixture'}).click();
   assert.equal(await (await keys()).count(), 11);
   report.cases.push('reopen-persistence');
-  const keySettings = page.locator('[data-configuration-group="connection"] > details.service-disclosure[data-configuration-group="keys"]');
-  if (!(await keySettings.evaluate(node => node.hasAttribute('open')))) await keySettings.locator(':scope > summary').click();
   assert.equal(await page.locator('[data-api-key-auth-policy]').count(), 1);
   assert.equal(await page.getByTestId('custom-service-delete').count(), 1);
   assert.equal(await page.locator('.detail-hero [data-testid="custom-service-delete"]').count(), 0);
@@ -281,9 +277,14 @@ async function main() {
   assert.equal(report.requests.length, anonymousBefore + 1);
   assert.equal(report.requests.at(-1).key, '');
   await authControl.click();
-  assert.equal(await anonymousButton.isDisabled(), true);
+  assert.equal(await anonymousButton.isDisabled(), false);
+  const requiredBefore = report.requests.length;
+  await anonymousButton.click();
+  await page.locator('[data-api-key-list] .api-key-state.is-error').waitFor();
+  await page.locator('[data-api-key-list][data-api-key-busy="false"]').waitFor();
+  assert.equal(report.requests.length, requiredBefore, 'Missing required credentials must fail before calling the provider');
   report.cases.push('advanced-anonymous-key-policy-remains-editable');
-  report.cases.push('empty-key-list-disables-check-and-delete-is-advanced-only');
+  report.cases.push('empty-required-key-reports-error-without-request-and-delete-stays-outside-header');
   await page.goto(`${origin}/options.html#settings-advanced`);
   const recoverySetting = page.getByTestId('api-key-recovery-setting');
   await recoverySetting.waitFor();
@@ -317,7 +318,7 @@ async function main() {
   assert.equal(await page.locator('[data-cloud-credential="token"][data-api-key-list]').count(), 1);
   assert.equal(await page.locator('[data-cloud-credential="secret"]').count(), 0);
   assert.match(await page.locator('.api-key-heading-title strong').innerText(), /密钥/u);
-  await page.locator('[data-api-key-list] input').first().fill('fixture-azure-first');
+  await page.locator('[data-api-key-list] .api-key-entry input').first().fill('fixture-azure-first');
   await enableKeyRotation();
   await page.locator('[data-api-key-add]').click();
   await (await keys()).nth(1).waitFor({state: 'visible'});

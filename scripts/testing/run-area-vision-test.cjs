@@ -176,8 +176,8 @@ async function sourceText() {return ui("return this.querySelector('.fr-area-sour
     const directoryToggle=settings.locator('.mobile-directory-toggle');
     if(await directoryToggle.isVisible() && await directoryToggle.getAttribute('aria-expanded')!=='true') await directoryToggle.click();
     await settings.locator('[data-service-value="openai"]').click();
-    const translationGroup=settings.locator('details.service-disclosure[data-configuration-group="translation"]');
-    if(await translationGroup.getAttribute('open')===null) await translationGroup.locator(':scope > summary').click();
+    await settings.locator('[id$="tab-translation"]').click();
+    const translationGroup=settings.locator('[data-configuration-group="translation"]');
     await translationGroup.getByTestId('model-vision-capability').waitFor();
   }
   await openModelSettings();

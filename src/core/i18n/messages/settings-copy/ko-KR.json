@@ -65,7 +65,16 @@
     "settings.services.freeWeights.testDuration": "이번 테스트 소요 시간 {duration} ms",
     "settings.services.freeWeights.share": "배분",
     "settings.services.freeWeights.noChinese": "중국어 미지원",
-    "settings.services.library.freeUnofficial": "무료 · 비공식"
+    "settings.services.library.freeUnofficial": "무료 · 비공식",
+    "settings.requestLimits.scope": "적용 범위",
+    "settings.requestLimits.currentModel": "현재 모델",
+    "settings.requestLimits.entireService": "서비스 전체",
+    "settings.requestLimits.mode": "제한 방식",
+    "settings.requestLimits.custom": "직접 설정",
+    "settings.services.hunyuanModel": "Tencent Hunyuan 모델",
+    "settings.services.customEndpointHelp": "OpenAI Chat Completions 호환 엔드포인트입니다. 전체 Chat Completions URL 또는 /v1로 끝나는 기본 URL을 입력하세요. 모델이 Chat Completions를 지원해야 합니다.",
+    "settings.services.waitTimeout": "최대 대기 시간(초)",
+    "settings.services.reasoning": "추론"
   },
   "legacy": {
     "同步连接已变化，请重新生成预览。": "동기화 연결이 변경되었습니다. 미리보기를 다시 생성하세요.",

@@ -65,7 +65,16 @@
     "settings.services.freeWeights.testDuration": "This test took {duration} ms",
     "settings.services.freeWeights.share": "Share",
     "settings.services.freeWeights.noChinese": "No Chinese support",
-    "settings.services.library.freeUnofficial": "Free · Unofficial"
+    "settings.services.library.freeUnofficial": "Free · Unofficial",
+    "settings.requestLimits.scope": "Apply to",
+    "settings.requestLimits.currentModel": "Current model",
+    "settings.requestLimits.entireService": "Entire service",
+    "settings.requestLimits.mode": "Limits",
+    "settings.requestLimits.custom": "Custom",
+    "settings.services.hunyuanModel": "Tencent Hunyuan Models",
+    "settings.services.customEndpointHelp": "Use an OpenAI Chat Completions compatible endpoint: enter a full Chat Completions URL or a Base URL ending in /v1. The model must support Chat Completions.",
+    "settings.services.waitTimeout": "Timeout (seconds)",
+    "settings.services.reasoning": "Reasoning"
   },
   "legacy": {
     "同步连接已变化，请重新生成预览。": "The sync connection changed. Generate a new preview.",

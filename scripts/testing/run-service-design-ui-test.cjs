@@ -164,7 +164,7 @@ async function main() {
         input: box('[data-api-key-list] .api-key-entry .el-input__wrapper'),
         testButton: box('.detail-hero [data-connection-test-button]'),
         result: box('[data-api-key-list] .api-key-state.is-checking, [data-api-key-list] .api-key-state.is-success, [data-api-key-list] .api-key-state.is-error'),
-        nextGroup: box('[data-configuration-group="connection"] > details.service-disclosure[data-configuration-group="keys"]'),
+        nextGroup: box('[data-service-settings-tabs]'),
       };
     });
     const assertStable = (before, after, label) => {

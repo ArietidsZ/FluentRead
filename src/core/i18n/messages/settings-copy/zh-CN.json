@@ -65,7 +65,16 @@
     "settings.services.freeWeights.testDuration": "本次测试耗时 {duration} ms",
     "settings.services.freeWeights.share": "分流",
     "settings.services.freeWeights.noChinese": "不支持中文",
-    "settings.services.library.freeUnofficial": "免费 · 非官方"
+    "settings.services.library.freeUnofficial": "免费 · 非官方",
+    "settings.requestLimits.scope": "作用范围",
+    "settings.requestLimits.currentModel": "当前模型",
+    "settings.requestLimits.entireService": "整个服务",
+    "settings.requestLimits.mode": "限制方式",
+    "settings.requestLimits.custom": "自定义",
+    "settings.services.hunyuanModel": "腾讯混元模型",
+    "settings.services.customEndpointHelp": "兼容 OpenAI Chat Completions 的接口；可填写完整的 Chat Completions 地址或以 /v1 结尾的 Base URL，模型需支持 Chat Completions。",
+    "settings.services.waitTimeout": "等待上限（秒）",
+    "settings.services.reasoning": "深度思考"
   },
   "legacy": {}
 }

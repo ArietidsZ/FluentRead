@@ -79,7 +79,7 @@
           <div ref="connectionActionTarget" class="hero-connection-action" />
         </div>
 
-        <p v-if="selectedService?.description && !credentialGuide && service !== 'freeTranslation'" class="service-description">{{ selectedService.description }}</p>
+        <p v-if="selectedService?.description && !credentialGuide && service !== 'freeTranslation' && !isCustomOpenAIProviderId(service)" class="service-description">{{ selectedService.description }}</p>
 
         <details
           v-if="credentialGuide"

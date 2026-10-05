@@ -2,7 +2,7 @@
  * @file src/features/settings/ui/LocalTranslationModelSettings.vue
  *
  * 文件职责：呈现本地翻译模型选择、持续下载进度、删除确认和短文本试译。
- * 主要内容：订阅后台持久快照，展示模型用途和资源估算；页面离开只撤销订阅与试译，不中止下载。
+ * 主要内容：订阅后台持久快照，通过悬停或焦点提示展示模型用途和许可，主卡片保留语言与资源估算；页面离开只撤销订阅与试译，不中止下载。
  * 模块边界：通过 runtime 消息操作下载任务，配置交给既有设置持久化；不获取模型文件、不创建推理引擎。
  -->
 <template>
@@ -23,17 +23,20 @@
           </label>
           <span v-if="item.value === defaultModel" class="local-model-tag">{{ t('settings.localTranslation.recommended') }}</span>
           <span v-else-if="item.engine === 'hunyuan'" class="local-model-tag quality">{{ t('settings.localTranslation.quality') }}</span>
-          <button type="button" class="local-model-info" :aria-label="`${modelName(item)}: ${t('settings.localTranslation.license')}`" :title="t('settings.localTranslation.license')" :aria-expanded="expandedModel === item.value" @click="expandedModel = expandedModel === item.value ? '' : item.value"><InfoFilled aria-hidden="true" /></button>
+          <FieldHelp button-class="local-model-info" :content="t(item.descriptionKey)" :label="`${modelName(item)}: ${t('settings.localTranslation.license')}`">
+            <template #content>
+              <div class="local-model-description">
+                <p>{{ t(item.descriptionKey) }}</p>
+                <p>{{ t('settings.localTranslation.resourcesNote') }}</p>
+                <a :href="`https://huggingface.co/${item.repositories[0]}`" target="_blank" rel="noopener noreferrer">{{ t('settings.localTranslation.license') }}<TopRight aria-hidden="true" /></a>
+              </div>
+            </template>
+          </FieldHelp>
         </div>
         <p class="local-model-languages">{{ t(item.languagesKey) }}</p>
-        <p class="local-model-summary">{{ t(item.descriptionKey) }}</p>
         <div class="local-model-resources">
           <span><Download aria-hidden="true" />{{ t('settings.localTranslation.downloadSize', {size: formatBytes(state(item.value).totalBytes)}) }}</span>
           <span><Cpu aria-hidden="true" />{{ t('settings.localTranslation.memory', {size: memoryRange(item)}) }}</span>
-        </div>
-        <div v-if="expandedModel === item.value" class="local-model-description">
-          <p>{{ t('settings.localTranslation.resourcesNote') }}</p>
-          <a :href="`https://huggingface.co/${item.repositories[0]}`" target="_blank" rel="noopener noreferrer">{{ t('settings.localTranslation.license') }}<TopRight aria-hidden="true" /></a>
         </div>
         <div v-if="showProgress(item.value) || state(item.value).error || item.engine === 'hunyuan' && !hunyuanSupported" class="local-model-progress">
           <progress v-if="showProgress(item.value)" :value="state(item.value).downloadedBytes" :max="state(item.value).totalBytes || 1" :aria-label="modelName(item)" />
@@ -84,7 +87,7 @@
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import browser from 'webextension-polyfill'
 import {ElMessageBox} from 'element-plus'
-import {Check, Close, Cpu, Delete, Download, InfoFilled, Promotion, Refresh, TopRight, VideoPause} from '@element-plus/icons-vue'
+import {Check, Close, Cpu, Delete, Download, Promotion, Refresh, TopRight, VideoPause} from '@element-plus/icons-vue'
 import type {Config} from '@/src/core/config/model'
 import {
   DEFAULT_LOCAL_TRANSLATION_MODEL, LOCAL_TRANSLATION_DOWNLOAD_STATE_KEY, LOCAL_TRANSLATION_MODELS,
@@ -94,6 +97,7 @@ import {
 import {browserCapabilities} from '@/src/platform/browser/capabilities'
 import {supportsHunyuanTranslation} from '@/src/platform/browser/localTranslationSupport'
 import {useUiI18n} from '@/src/ui/i18n'
+import FieldHelp from './components/FieldHelp.vue'
 
 const props = defineProps<{config: Config; service: string}>()
 const {t} = useUiI18n()
@@ -106,7 +110,6 @@ const loaded = ref(false)
 const loadError = ref(false)
 const operationError = ref('')
 const busy = ref(new Set<string>())
-const expandedModel = ref('')
 let disposed = false
 const selectedModel = computed({
   get: () => normalizeLocalTranslationModel(props.config.model[props.service]),
@@ -232,13 +235,13 @@ onUnmounted(() => {
 .local-model-choice strong { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .local-model-tag { font-size: 10px; padding: 2px 6px; color: var(--brand-strong); background: var(--brand-soft); border-radius: 4px; }
 .local-model-tag.quality { color: #19755a; background: #e9f6ef; }
-.local-model-info { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex: none; padding: 4px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
-.local-model-info:hover, .local-model-info[aria-expanded="true"] { color: var(--brand-strong); background: var(--brand-soft); }
+.local-model-info { margin-left: auto; }
 .local-model-languages { margin: 0; font-size: 12px; color: var(--ink); line-height: 1.6; }
 .local-model-summary { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.7; overflow-wrap: anywhere; }
-.local-model-description { grid-column: 1 / -1; margin: 0; padding-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.75; }
+.local-model-description { grid-column: 1 / -1; margin: 0; padding-top: 4px; color: inherit; font-size: 12px; line-height: 1.75; }
 .local-model-description p { margin: 0 0 4px; }
-.local-model-description a { display: inline-flex; align-items: center; gap: 4px; color: var(--brand-strong); font-size: 11px; }
+.local-model-description a { display: inline-flex; align-items: center; gap: 4px; color: inherit; text-decoration: underline; font-size: 12px; }
+.local-model-description svg { width: 13px; height: 13px; }
 .local-model-resources { display: grid; gap: 3px; color: var(--muted); font-size: 11px; }
 .local-model-resources span { display: flex; align-items: center; gap: 7px; line-height: 1.6; }
 .local-model-progress { grid-column: 1 / -1; display: grid; gap: 5px; padding-top: 4px; }
