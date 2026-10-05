@@ -1,11 +1,12 @@
 /**
  * @file src/platform/webdav/api.ts
  * 文件职责：在用户指定的 WebDAV 目录下读写、条件删除 FluentRead 配置密文并验证服务器能力。
- * 主要内容：只读 PROPFIND 测试、首次备份识别、从文件属性或 HEAD 补取并核验 ETag、只读恢复、条件 PUT/DELETE 与大小限制；
+ * 主要内容：只读连接测试、首次备份识别、补取并核验强 ETag；缺少强版本时在 PUT/DELETE 前重新核对密文摘要，上传后读回验证。
+ * 内容核验无法原子阻止其他设备并发写入，由预览明确提示避免同时同步；不将弱 ETag 或内容摘要当作服务器版本。
  * 禁止跟随重定向、携带浏览器 Cookie 或返回服务器异常正文，防止连接凭据流向其他地址。
  * 模块边界：只消费后台会话与密文，不读取配置或保存密码；冲突合并由云备份服务处理。
  */
-import {strongCloudEtag, type CloudSyncFile, type CloudSyncRemote} from '@/src/core/config/cloudSync';
+import {canMutateCloudFile, strongCloudEtag, type CloudSyncFile, type CloudSyncRemote} from '@/src/core/config/cloudSync';
 import {parseWebDavProperties} from './properties';
 import {GOOGLE_DRIVE_MAX_BYTES} from '@/src/platform/google-drive/constants';
 import {DRIVE_ENCRYPTION_FORMAT} from '@/src/platform/google-drive/encryption';
@@ -102,7 +103,7 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
             if (response.status !== 200) throw failure(response.status);
             return strongCloudEtag(response.headers.get('etag'));
         });
-        if (!etag) return {...remote, file: {...remote.file, readOnly: true}};
+        if (!etag) return {...remote, file: {...remote.file, contentGuard: true}};
         // 属性与下载之间可能被另一设备更新。条件重读且逐字核对密文，
         // 防止把旧内容与新 ETag 配对后覆盖对方的修改。
         await request(session, url, {method: 'GET', headers: {'If-Match': etag}}, async response => {
@@ -113,17 +114,29 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
         remote.file.etag = etag;
         return remote;
     }
+    async function mutationHeaders(session: WebDavSession, previous: CloudSyncFile): Promise<Record<string, string> | null> {
+        if (previous.id !== filename(session) || !canMutateCloudFile(previous)) throw new WebDavError('etag');
+        const etag = strongCloudEtag(previous.etag);
+        if (etag) return {'If-Match': etag};
+        // 确认后的最后一次内容核验必须位于实际写入/删除边界，不能只依赖 UI 预览。
+        const current = await read(session);
+        if (!current) return null;
+        if (current.file.version !== previous.version) throw new WebDavError('conflict');
+        // 若服务器恢复强版本能力立即使用它；否则 * 仅保护资源仍存在，不冒充版本条件。
+        return {'If-Match': current.file.etag ?? '*'};
+    }
     async function write(session: WebDavSession, content: string, previous: CloudSyncFile | null): Promise<CloudSyncFile> {
         let envelope: unknown;
         try {envelope = JSON.parse(content);} catch {throw new WebDavError('encryptedOnly');}
         if (!envelope || typeof envelope !== 'object' || !('format' in envelope) || envelope.format !== DRIVE_ENCRYPTION_FORMAT || !('ciphertext' in envelope) || typeof envelope.ciphertext !== 'string' || !envelope.ciphertext || new TextEncoder().encode(content).length > maxBytes) throw new WebDavError('encryptedOnly');
-        if (previous && (previous.readOnly || !strongCloudEtag(previous.etag ?? null) || previous.id !== filename(session))) throw new WebDavError('etag');
+        const headers = previous ? await mutationHeaders(session, previous) : {'If-None-Match': '*'};
+        if (!headers) throw new WebDavError('conflict');
         if (!previous) {
             await request(session, directory(session), {method: 'MKCOL'}, async response => {
                 if (![201, 405].includes(response.status)) throw failure(response.status);
             });
         }
-        await request(session, filename(session), {method: 'PUT', headers: {'Content-Type': 'application/json; charset=utf-8', ...(previous ? {'If-Match': previous.etag!} : {'If-None-Match': '*'})}, body: content}, async response => {
+        await request(session, filename(session), {method: 'PUT', headers: {'Content-Type': 'application/json; charset=utf-8', ...headers}, body: content}, async response => {
             if (![200, 201, 204].includes(response.status)) throw failure(response.status);
         });
         const verified = await read(session);
@@ -131,9 +144,10 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
         return verified.file;
     }
     async function remove(session: WebDavSession, previous: CloudSyncFile): Promise<void> {
-        if (previous.readOnly || !strongCloudEtag(previous.etag) || previous.id !== filename(session)) throw new WebDavError('etag');
-        // 只删除固定备份文件；保留目录和其中的其他文件。缺失视为幂等成功，412 保留新版本。
-        await request(session, filename(session), {method: 'DELETE', headers: {'If-Match': previous.etag!}}, async response => {
+        const headers = await mutationHeaders(session, previous);
+        if (!headers) return;
+        // 只删除固定备份文件；保留目录和其他文件。缺失视为幂等成功，412 不降级重试。
+        await request(session, filename(session), {method: 'DELETE', headers}, async response => {
             if (![200, 204, 404].includes(response.status)) throw failure(response.status);
         });
     }

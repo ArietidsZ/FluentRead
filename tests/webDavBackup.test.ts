@@ -21,6 +21,33 @@ function fixture(shared={remote:null as CloudSyncRemote|null}) {
     return {service,ports,records,connections,shared,get state(){return state as DriveSyncState;},get local(){return local;},set local(value){local=value;}};
 }
 describe('WebDAV 配置云备份事务',()=>{
+    it.each(['upload','merge'] as const)('无 ETag 兼容预览允许 %s，worker 重启后仍可提交且保护本机密钥',async direction=>{
+        const f=fixture();await f.service.save(input);
+        const initial=await f.service.prepare(password);await f.service.commit(initial.id,password,'upload',{});
+        f.shared.remote!.file={...f.shared.remote!.file,version:'a'.repeat(64),contentGuard:true};
+        f.local=config({...f.local,to:'fr',from:'en'});
+        const preview=await f.service.prepare(password,7,'fixture-page');
+        expect(preview).toMatchObject({hasRemote:true,requiresExclusiveAccess:true});expect(preview.canUpload).toBeUndefined();
+        const choices=Object.fromEntries(preview.changes.map(change=>[change.id,'local']));
+        const local=structuredClone(f.local);
+        await createWebDavBackup(f.ports).commit(preview.id,password,direction,choices,7,'fixture-page');
+        expect(f.ports.api.write).toHaveBeenCalledTimes(2);
+        expect(f.local.token).toEqual(local.token);
+        expect(await decryptDriveConfig(f.shared.remote!.content,password)).toMatchObject({config:{to:'fr',from:'en'}});
+    });
+    it('无 ETag 备份允许确认删除，预览后内容变更仍阻止删除',async()=>{
+        const f=fixture();await f.service.save(input);
+        f.shared.remote={file:{id:'fixture-file',version:'a'.repeat(64),modifiedTime:'',contentGuard:true},content:'opaque broken backup'};
+        let preview=await f.service.prepareDelete(7,'fixture-page');
+        expect(preview).toMatchObject({canDelete:true,requiresExclusiveAccess:true});
+        f.shared.remote={...f.shared.remote,content:'other device backup',file:{...f.shared.remote.file,version:'b'.repeat(64)}};
+        await expect(f.service.commitDelete(preview.id,7,'fixture-page')).rejects.toThrow('已变化');
+        expect(f.ports.api.remove).not.toHaveBeenCalled();
+        preview=await f.service.prepareDelete(7,'fixture-page');
+        const local=structuredClone(f.local);const connection=await f.service.settings();
+        await createWebDavBackup(f.ports).commitDelete(preview.id,7,'fixture-page');
+        expect(f.shared.remote).toBeNull();expect(f.local).toEqual(local);expect(await f.service.settings()).toEqual(connection);
+    });
     it('WebDAV 删除确认跨 worker 重启保留版本和连接，实际删除后可重新创建备份',async()=>{
         const f=fixture();await f.service.save(input);
         const initial=await f.service.prepare(password);await f.service.commit(initial.id,password,'upload',{});

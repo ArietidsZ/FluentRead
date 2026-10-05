@@ -2,7 +2,7 @@
 /**
  * @file scripts/testing/run-webdav-backup-ui-test.cjs
  * 文件职责：在不抢焦点的临时 Edge 中验证生产扩展的 WebDAV 配置云备份。
- * 主要内容：真实本机 HTTP 夹具、固定选中的基础配置与可选敏感配置、密文保存、删除加载反馈、条件删除、版本保护、七语言与窄屏。
+ * 主要内容：真实本机 HTTP 夹具、同步范围、密文保存、版本保护、删除加载反馈、无 ETag 同步与删除兼容专项、七语言与窄屏。
  * 模块边界：不操作日常 profile 或真实账号；服务器与凭据均为本次测试创建，报告不包含配置正文。
  */
 const fs = require('node:fs');
@@ -39,11 +39,11 @@ async function main() {
         if (req.method === 'DELETE') {
             if (state.deleteDelay) await new Promise(resolve=>setTimeout(resolve,state.deleteDelay));
             if (!state.content) {res.writeHead(404).end();return;}
-            if (state.failDelete || req.headers['if-match'] !== `"v${state.version}"`) {res.writeHead(412).end();return;}
+            if (state.failDelete || req.headers['if-match'] !== '*' && req.headers['if-match'] !== `"v${state.version}"`) {res.writeHead(412).end();return;}
             state.content=null;res.writeHead(204).end();return;
         }
         if (req.method === 'PUT') {
-            if (state.failPut || (req.headers['if-none-match'] === '*' && state.content) || (req.headers['if-match'] && req.headers['if-match'] !== `"v${state.version}"`)) {res.writeHead(412).end(); return;}
+            if (state.failPut || (req.headers['if-none-match'] === '*' && state.content) || (req.headers['if-match'] === '*' && !state.content) || (req.headers['if-match'] && req.headers['if-match'] !== '*' && req.headers['if-match'] !== `"v${state.version}"`)) {res.writeHead(412).end(); return;}
             const chunks=[]; for await (const chunk of req) chunks.push(Buffer.from(chunk));
             state.content=Buffer.concat(chunks).toString(); state.version++; res.writeHead(201).end(); return;
         }
@@ -132,6 +132,51 @@ async function main() {
             check(state.content===null&&state.calls.filter(call=>call.method==='DELETE').length===1,'one confirmed request removes the fixture backup');check(JSON.stringify(before)===JSON.stringify(after),'deletion preserves local settings and credentials');
             check(report.consoleErrors.length===0,'delete loading feedback has no console errors');report.ok=true;return;
         }
+        if (process.argv.includes('--compatibility-only')) {
+            report.suite='webdav-no-etag-sync-delete';state.etagMode='none';
+            async function previewSync() {await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();}
+            async function confirmSync() {await page.locator('[data-testid="webdav-confirm"]').click();await dialog.waitFor({state:'hidden'});}
+            async function cancelSync() {await dialog.locator('.drive-footer-actions .el-button').first().click();await dialog.waitFor({state:'hidden'});}
+            async function readLocal() {return page.evaluate(async()=>({config:(await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'})).value,credentials:(await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:credentials'})).value}));}
+            await previewSync();await confirmSync();check(state.version===1&&state.content,'first backup works without ETag');
+            const initialCloud=state.content;const initialLocal=await readLocal();
+            await savePatch({to:'de'});await previewSync();
+            check(await dialog.locator('[data-testid="webdav-sync-compatibility"]').isVisible(),'missing ETag explains concurrent access without limiting sync to restore');
+            if(await page.locator('[data-testid="webdav-back"]').count()) await page.locator('[data-testid="webdav-back"]').click();
+            check(await page.locator('[data-testid="webdav-direction-upload"]').isEnabled()&&await page.locator('[data-testid="webdav-direction-download"]').isEnabled()&&await page.locator('[data-testid="webdav-direction-merge"]').isEnabled(),'upload, restore and merge all remain available');
+            await shot('webdav-compatibility-choose-desktop');await cancelSync();check(state.content===initialCloud&&state.version===1,'cancel leaves cloud backup intact');
+            await previewSync();await chooseIntent('upload');await confirmSync();
+            check(state.version===2&&state.content!==initialCloud&&state.calls.some(call=>call.method==='PUT'&&call.match==='*'),'modified local settings upload after content verification');
+            await page.reload({waitUntil:'domcontentloaded'});await navigate();check((await readLocal()).config.to==='de','uploaded local setting survives reopening settings');
+            await savePatch({to:'es'});await previewSync();await chooseIntent('download');await confirmSync();check((await readLocal()).config.to==='de'&&state.version===2,'cloud settings restore without writing cloud');
+            await savePatch({from:'en'});await previewSync();await chooseIntent('merge');await confirmSync();check(state.version===3&&(await readLocal()).config.from==='en','merge writes local-only changes without ETag');
+            await savePatch({to:'it'});await previewSync();await chooseIntent('upload');
+            const cloud=state.content;const putCount=state.calls.filter(call=>call.method==='PUT').length;
+            state.content=cloud+' ';await confirmSync();await card.getByText('云端配置已变化',{exact:false}).waitFor();check(state.content===cloud+' '&&state.calls.filter(call=>call.method==='PUT').length===putCount,'remote change after preview stops upload');state.content=cloud;
+            const deletion=page.locator('.cloud-delete-dialog');const verification=deletion.locator('[data-testid="cloud-delete-verification"] input');
+            async function openDelete() {await page.locator('[data-testid="webdav-delete-backup"]').click();await deletion.waitFor();}
+            async function cancelDelete() {await page.locator('[data-testid="cloud-delete-cancel"]').click();await deletion.waitFor({state:'hidden'});}
+            async function confirmDelete() {await verification.fill('确定删除');await page.locator('[data-testid="cloud-delete-confirm"]').click();await deletion.waitFor({state:'hidden'});}
+            await openDelete();check(await deletion.locator('[data-testid="webdav-delete-compatibility"]').isVisible()&&await verification.isVisible(),'missing ETag permits deletion with warning and typed confirmation');
+            check(!(await page.locator('[data-testid="cloud-delete-confirm"]').isEnabled()),'deletion requires exact confirmation');await verification.fill('确定删除');check(await page.locator('[data-testid="cloud-delete-confirm"]').isEnabled(),'exact confirmation enables deletion without ETag');
+            await shot('webdav-compatibility-delete-desktop');await cancelDelete();check(state.content===cloud,'cancel deletion keeps cloud file');
+            await openDelete();state.content=cloud+' ';await confirmDelete();await card.getByText('云端备份已变化',{exact:false}).waitFor();check(state.content===cloud+' '&&state.calls.filter(call=>call.method==='DELETE').length===0,'remote change after deletion preview stops deletion');state.content=cloud;
+            state.failDelete=true;await openDelete();await confirmDelete();await card.getByText('云端备份已变化',{exact:false}).waitFor();check(state.content===cloud&&state.calls.filter(call=>call.method==='DELETE').length===1,'conditional deletion failure is not retried unconditionally');state.failDelete=false;
+            for(const lang of ['zh-CN','en-US']) {
+                await savePatch({uiLanguage:lang,theme:lang==='zh-CN'?'dark':'light'});await page.reload({waitUntil:'domcontentloaded'});await navigate();await page.setViewportSize({width:390,height:900});
+                const warning=JSON.parse(fs.readFileSync(path.join(__dirname,'../../src/core/i18n/messages/cloud-backup',lang+'.json'),'utf8')).messages['settings.webdav.concurrentWarning'];
+                await previewSync();await chooseIntent('upload');check((await dialog.locator('[data-testid="webdav-sync-compatibility"]').innerText()).trim()===warning,'sync warning is localized: '+lang);
+                check(await dialog.evaluate(el=>{const r=el.getBoundingClientRect();return el.scrollWidth<=el.clientWidth&&r.top>=0&&r.bottom<=innerHeight;}),'sync dialog fits mobile viewport: '+lang);await shot('webdav-compatibility-sync-mobile-'+lang);await cancelSync();
+                await openDelete();check((await deletion.locator('[data-testid="webdav-delete-compatibility"]').innerText()).trim()===warning,'deletion warning is localized: '+lang);
+                await shot('webdav-compatibility-delete-mobile-'+lang);
+                report.mobileDeletion=await deletion.evaluate(el=>{const r=el.getBoundingClientRect();return {width:el.scrollWidth,clientWidth:el.clientWidth,top:r.top,bottom:r.bottom,viewport:innerHeight};});
+                check(await deletion.evaluate(el=>{const r=el.getBoundingClientRect();return el.scrollWidth<=el.clientWidth&&r.top>=0&&r.bottom<=innerHeight;}),'deletion dialog fits mobile viewport: '+lang);await cancelDelete();
+            }
+            await savePatch({uiLanguage:'zh-CN',theme:'light'});await page.reload({waitUntil:'domcontentloaded'});await navigate();await openDelete();await confirmDelete();check(state.content===null&&state.folder,'confirmed deletion removes only backup and keeps directory');
+            const after=await readLocal();check(after.config.to==='it'&&JSON.stringify(after.credentials)===JSON.stringify(initialLocal.credentials),'deletion preserves device settings and credentials');
+            check(state.calls.filter(call=>call.method==='DELETE').every(call=>call.url==='/dav/FluentRead/fluentread-config.encrypted.json'&&call.match==='*'),'compatibility deletion targets only backup file');
+            await previewSync();await confirmSync();check(state.content&&state.version===4,'manual sync recreates backup after deletion');check(report.consoleErrors.length===0,'no unhandled options errors');report.ok=true;return;
+        }
         if (process.argv.includes('--delete-only')) {
             const deletion=page.locator('.cloud-delete-dialog');
             const verification=deletion.locator('[data-testid="cloud-delete-verification"] input');
@@ -171,7 +216,7 @@ async function main() {
             await openDelete();check(await verification.inputValue()===''&&!(await deleteButton.isEnabled()),'reopening deletion clears its typed confirmation');await deletion.press('Escape');await deletion.waitFor({state:'hidden'});check(state.content===cloud,'Escape cancels deletion');
             await openDelete();await page.reload({waitUntil:'domcontentloaded'});await navigate();await openDelete();await cancelDelete();
             check(deletionCount()===0&&state.content===cloud,'reopening settings releases a pending deletion without deleting');
-            state.etagMode='none';await openDelete();check(await page.locator('[data-testid="cloud-delete-unsupported"]').isVisible()&&!(await page.locator('[data-testid="cloud-delete-confirm"]').isEnabled()),'missing version blocks deletion and explains manual cleanup');await cancelDelete();state.etagMode='prop';
+            state.etagMode='none';await openDelete();check(await page.locator('[data-testid="webdav-delete-compatibility"]').isVisible()&&await verification.isVisible(),'missing ETag allows deletion after content verification and typed confirmation');await cancelDelete();state.etagMode='prop';
             await openDelete();state.version++;await confirmDelete();await card.getByText('云端备份已变化',{exact:false}).waitFor();
             check(deletionCount()===0&&state.content===cloud,'changed remote version requires a fresh confirmation');
             state.failDelete=true;await openDelete();await confirmDelete();await card.getByText('云端备份已变化',{exact:false}).waitFor();
@@ -425,14 +470,14 @@ async function main() {
         const headBackup=state.content;const readOnlyWrites=writes();
         state.etagMode='none';await savePatch({to:'de'});
         await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
-        check(await dialog.locator('[data-testid="webdav-restore-only"]').isVisible(),'missing version presents a restore-only preview instead of a failed sync');
+        check(await dialog.locator('[data-testid="webdav-sync-compatibility"]').isVisible(),'missing version permits all sync choices with a concurrency notice');await chooseIntent('download');
         check(await dialog.evaluate(el=>el.querySelector('.drive-review-title').getBoundingClientRect().top-el.querySelector('.drive-preview-notice').getBoundingClientRect().bottom>=20),'restore notice has a clear gap before review content');
         check(await page.locator('[data-testid="webdav-confirm"]').isEnabled(),'restore remains available without any server ETag');
-        check(await page.locator('[data-testid="webdav-back"]').count()===0 && await page.locator('[data-testid="webdav-direction-upload"]').count()===0 && await page.locator('[data-testid="webdav-direction-merge"]').count()===0,'restore-only preview skips unavailable operation choices');
+        check(await page.locator('[data-testid="webdav-back"]').count()===1,'compatibility preview allows returning to upload and merge choices');
         await shot('webdav-restore-only-desktop');
         await dialog.locator('.drive-footer-actions .el-button').first().click();await dialog.waitFor({state:'hidden'});
         check(writes()===readOnlyWrites && state.content===headBackup,'cancelling a read-only preview never changes the cloud backup');
-        await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await page.locator('[data-testid="webdav-confirm"]').click();await dialog.waitFor({state:'hidden'});
+        await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await chooseIntent('download');await page.locator('[data-testid="webdav-confirm"]').click();await dialog.waitFor({state:'hidden'});
         const readOnlyRestored=await page.evaluate(()=>chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'}));
         check(readOnlyRestored.value.to==='es' && writes()===readOnlyWrites,'confirming restore without ETag restores settings and never writes');
         state.etagMode='prop';await savePatch({to:'de'});
@@ -451,11 +496,11 @@ async function main() {
             if (language==='en-US') {const text=await card.innerText();check(!/[\u3400-\u9fff]/u.test(text),'English cloud card has no Chinese source text'+(/[\u3400-\u9fff]/u.test(text)?': '+text:''));check(!/[\u3400-\u9fff]/u.test(await dialog.innerText()),'English change preview has no Chinese source text');await shot('webdav-english-review-mobile');}
             await dialog.locator('.drive-footer-actions .el-button').first().click();await dialog.waitFor({state:'hidden'});
             state.etagMode='none';await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
-            const restoreOnly=dialog.locator('[data-testid="webdav-restore-only"]');
-            const expectedWarning=JSON.parse(fs.readFileSync(path.join(__dirname,'../../src/core/i18n/messages/cloud-backup',language+'.json'),'utf8')).messages['settings.cloud.restoreOnly'];
-            check(await restoreOnly.isVisible() && (await restoreOnly.innerText()).trim()===expectedWarning,'restore-only warning is localized: '+language);
+            await chooseIntent('download');const restoreOnly=dialog.locator('[data-testid="webdav-sync-compatibility"]');
+            const expectedWarning=JSON.parse(fs.readFileSync(path.join(__dirname,'../../src/core/i18n/messages/cloud-backup',language+'.json'),'utf8')).messages['settings.webdav.concurrentWarning'];
+            check(await restoreOnly.isVisible() && (await restoreOnly.innerText()).trim()===expectedWarning,'compatibility warning is localized: '+language);
             check(await dialog.evaluate(el=>{const title=el.querySelector('.el-alert__title');return title.scrollWidth<=title.clientWidth && el.querySelector('.drive-review-title').getBoundingClientRect().top-el.querySelector('.drive-preview-notice').getBoundingClientRect().bottom>=20;}),'localized notice wraps without touching review content: '+language);
-            check(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth),'restore-only preview fits narrow screen: '+language);
+            check(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth),'compatibility preview fits narrow screen: '+language);
             if(language==='en-US') await shot('webdav-restore-only-english-mobile');
             await dialog.locator('.drive-footer-actions .el-button').first().click();await dialog.waitFor({state:'hidden'});state.etagMode='prop';
         }

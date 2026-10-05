@@ -36,7 +36,7 @@ describe('WebDAV 文件协议', () => {
         }
         for (const header of [undefined,'W/"head"','unquoted']) {
             const missing=vi.fn().mockResolvedValueOnce(response(content)).mockResolvedValueOnce(response(null,501)).mockResolvedValueOnce(response(null,200,header?{etag:header}:{}));
-            expect(await createWebDavApi(missing).read(session)).toMatchObject({file:{readOnly:true},content});
+            expect(await createWebDavApi(missing).read(session)).toMatchObject({file:{contentGuard:true},content});
         }
     });
     it('接受属性响应中的局部命名空间、等号空白、数值实体和 CDATA', async () => {
@@ -111,7 +111,7 @@ describe('WebDAV 文件协议', () => {
         const api = createWebDavApi(fetcher);
         const first = await api.write(session, content, null);
         expect(first.etag).toBeUndefined();
-        for (const etag of [undefined, 'W/"weak"', 'bad', '"'+ 'x'.repeat(513)+'"']) await expect(api.write(session, content, {...first, readOnly:undefined, etag})).rejects.toMatchObject({code: 'etag'});
+        for (const etag of [undefined, 'W/"weak"', 'bad', '"'+ 'x'.repeat(513)+'"']) await expect(api.write(session, content, {...first, contentGuard:undefined, readOnly:undefined, etag})).rejects.toMatchObject({code: 'etag'});
         await expect(api.write(session, content, {...first, id: 'https://other.fixture.invalid', etag: '"one"'})).rejects.toMatchObject({code: 'etag'});
         fetcher.mockResolvedValueOnce(response(null, 204)).mockResolvedValueOnce(response(content, 200, {etag: '"two"'}));
         expect(await api.write(session, content, {...first, readOnly:undefined, etag: '"one"'})).toMatchObject({etag: '"two"'});
@@ -151,5 +151,49 @@ describe('WebDAV 文件协议', () => {
         await expect(createWebDavApi(vi.fn(async () => {throw new Error('fixture-private');})).read(session)).rejects.toMatchObject({code: 'network'});
         const fetcher = vi.fn(async (_url, init) => new Promise<Response>((_resolve, reject) => init.signal.addEventListener('abort', () => reject(new Error('abort')))));
         await expect(createWebDavApi(fetcher, {timeoutMs: 1}).read(session)).rejects.toMatchObject({code: 'timeout'});
+    });
+    it('缺少 ETag 时在实际 PUT/DELETE 前核对内容，变更或消失不能上传，删除消失幂等', async () => {
+        let current: string | null = content;
+        let upgraded = false;
+        const fetcher = vi.fn<typeof fetch>(async (_url, init) => {
+            if (init?.method === 'GET') return response(current, current === null ? 404 : 200, upgraded ? {etag:'"upgraded"'} : {});
+            if (init?.method === 'PROPFIND' || init?.method === 'HEAD') return response(null, 405);
+            if (init?.method === 'PUT') {current = init.body as string; return response(null, 204);}
+            if (init?.method === 'DELETE') {current = null; return response(null, 204);}
+            throw new Error('unexpected request');
+        });
+        const api = createWebDavApi(fetcher);
+        const first = (await api.read(session))!.file;
+        expect(first).toMatchObject({contentGuard:true});
+        expect(first.readOnly).toBeUndefined();
+        const next = JSON.stringify({format:DRIVE_ENCRYPTION_FORMAT,ciphertext:'changed ciphertext'});
+        const second = await api.write(session, next, first);
+        expect(current).toBe(next);
+        expect(fetcher.mock.calls.find(([,init]) => init?.method === 'PUT')?.[1]?.headers).toMatchObject({'If-Match':'*'});
+        for (const operation of [() => api.write(session, content, first), () => api.remove(session, first)]) {
+            const before = fetcher.mock.calls.filter(([,init]) => ['PUT','DELETE'].includes(init!.method!)).length;
+            await expect(operation()).rejects.toMatchObject({code:'conflict'});
+            expect(fetcher.mock.calls.filter(([,init]) => ['PUT','DELETE'].includes(init!.method!))).toHaveLength(before);
+        }
+        upgraded = true;
+        await api.remove(session, second);
+        expect(fetcher.mock.calls.find(([,init]) => init?.method === 'DELETE')?.[1]?.headers).toMatchObject({'If-Match':'"upgraded"'});
+        expect(current).toBeNull();
+        await api.remove(session, second);
+        await expect(api.write(session, content, second)).rejects.toMatchObject({code:'conflict'});
+    });
+    it('内容兼容写入遇到条件失败仍中止，不进行无条件重试', async () => {
+        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content));
+        const file = {id:connection.url+'FluentRead/fluentread-config.encrypted.json', version:Array.from(new Uint8Array(digest), byte=>byte.toString(16).padStart(2,'0')).join(''), modifiedTime:'',contentGuard:true as const};
+        for (const method of ['write','remove'] as const) {
+            const fetcher = vi.fn<typeof fetch>(async (_url, init) => {
+                if (init?.method === 'GET') return response(content);
+                if (init?.method === 'PROPFIND' || init?.method === 'HEAD') return response(null, 405);
+                return response(null, 412);
+            });
+            const api = createWebDavApi(fetcher);
+            await expect(method === 'write' ? api.write(session,content,file) : api.remove(session,file)).rejects.toMatchObject({code:'conflict'});
+            expect(fetcher.mock.calls.filter(([,init])=>['PUT','DELETE'].includes(init!.method!))).toHaveLength(1);
+        }
     });
 });

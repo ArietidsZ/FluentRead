@@ -111,7 +111,9 @@
     "settings.cloud.deleteVerification": "“{phrase}” 입력",
     "settings.cloud.sensitiveSaveFailed": "민감한 설정 선택을 저장하지 못했습니다. 다시 시도해 주세요.",
     "settings.cloud.deleteCloudEffect": "확인하면 {provider}에서 현재 클라우드 백업을 삭제합니다.",
-    "settings.cloud.deleteVerificationPrompt": "삭제를 확인하려면 “{phrase}”를 입력하세요."
+    "settings.cloud.deleteVerificationPrompt": "삭제를 확인하려면 “{phrase}”를 입력하세요.",
+    "settings.webdav.concurrentWarning": "이 서비스는 동시 쓰기를 방지할 수 없습니다. 저장, 병합 또는 삭제 전에 클라우드 백업을 다시 확인합니다. 다른 기기에서 동시에 동기화하지 마세요.",
+    "settings.cloud.uploadUnverified": "설정이 Google Drive에 업로드되었지만 검증을 완료하지 못했습니다. 클라우드 백업을 다시 읽어 확인하세요. 기기 설정은 변경되지 않았습니다."
   },
   "legacy": {
     "普通云备份包含不属于此范围的字段，请重新生成备份。": "일반 설정 클라우드 백업에 해당 범위에 속하지 않는 필드가 포함되어 있습니다. 백업을 다시 생성하세요.",

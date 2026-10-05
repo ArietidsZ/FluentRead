@@ -111,7 +111,9 @@
     "settings.cloud.deleteVerification": "Type “{phrase}”",
     "settings.cloud.sensitiveSaveFailed": "Could not save the sensitive settings preference. Please try again.",
     "settings.cloud.deleteCloudEffect": "Confirmation deletes the current cloud backup from {provider}.",
-    "settings.cloud.deleteVerificationPrompt": "Type “{phrase}” to confirm deletion."
+    "settings.cloud.deleteVerificationPrompt": "Type “{phrase}” to confirm deletion.",
+    "settings.webdav.concurrentWarning": "This provider cannot prevent concurrent writes. The cloud backup is checked again before saving, merging, or deleting. Avoid syncing from other devices at the same time.",
+    "settings.cloud.uploadUnverified": "Configuration was uploaded to Google Drive, but verification could not be completed. Read the cloud backup again to confirm. Device settings were not changed."
   },
   "legacy": {
     "普通云备份包含不属于此范围的字段，请重新生成备份。": "The general-settings cloud backup contains fields outside its scope. Generate a new backup.",

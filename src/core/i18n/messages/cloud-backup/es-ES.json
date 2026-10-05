@@ -111,7 +111,9 @@
     "settings.cloud.deleteVerification": "Escribe «{phrase}»",
     "settings.cloud.sensitiveSaveFailed": "No se pudo guardar la selección de ajustes sensibles. Inténtalo de nuevo.",
     "settings.cloud.deleteCloudEffect": "Al confirmar, se elimina la copia actual en la nube de {provider}.",
-    "settings.cloud.deleteVerificationPrompt": "Escribe «{phrase}» para confirmar la eliminación."
+    "settings.cloud.deleteVerificationPrompt": "Escribe «{phrase}» para confirmar la eliminación.",
+    "settings.webdav.concurrentWarning": "Este proveedor no puede evitar escrituras simultáneas. La copia se vuelve a comprobar antes de guardar, combinar o eliminar. Evita sincronizar otros dispositivos al mismo tiempo.",
+    "settings.cloud.uploadUnverified": "La configuración se subió a Google Drive, pero no se pudo completar la verificación. Vuelve a leer la copia para confirmar. Los ajustes del dispositivo no cambiaron."
   },
   "legacy": {
     "普通云备份包含不属于此范围的字段，请重新生成备份。": "La copia en la nube de ajustes generales contiene campos fuera de su alcance. Genera una nueva copia.",

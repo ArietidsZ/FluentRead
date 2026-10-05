@@ -2,6 +2,7 @@ import {describe, expect, it, vi} from 'vitest';
 import {createGoogleDriveSyncHandler, isGoogleDriveSettingsSender, GOOGLE_DRIVE_SYNC_MESSAGE_TYPE as type} from '@/src/app/background/handlers/googleDriveSync';
 import {GOOGLE_DRIVE_APPLICATION_PASSPHRASE} from '@/src/platform/google-drive/constants';
 import {DriveError} from '@/src/platform/google-drive/auth';
+import {DriveUploadVerificationError} from '@/src/platform/google-drive/api';
 import {DriveEncryptionError} from '@/src/platform/google-drive/encryption';
 import {DriveConfigError} from '@/src/core/config/driveSync';
 import type {createGoogleDriveSync} from '@/src/services/config/googleDriveSync';
@@ -11,6 +12,10 @@ function fixture(trusted = true) {
     return {service, handler: createGoogleDriveSyncHandler(service, () => trusted)};
 }
 describe('Google Drive 可信消息协议', () => {
+    it('已上传但待核验返回可本地化提示，不将后续校验失败描述为未上传',async()=>{
+        const f=fixture();vi.mocked(f.service.commit).mockRejectedValueOnce(new DriveUploadVerificationError());
+        expect(await f.handler.handle({type,clientId:'fixture-client',action:'commit',id:'preview-id',direction:'upload',choices:{}},{})).toMatchObject({success:false,errorKey:'settings.cloud.uploadUnverified',error:expect.stringContaining('已上传')});
+    });
     it('Google Drive 删除动作绑定设置页身份和非空确认 ID，不接受任意文件地址', async () => {
         const denied=fixture(false); await denied.handler.handle({type,clientId:'delete-page',action:'prepareDelete'},{});expect(denied.service.prepareDelete).not.toHaveBeenCalled();
         const f=fixture();await f.handler.handle({type,clientId:'delete-page',action:'prepareDelete'},{sender:{tab:{id:7}}});
