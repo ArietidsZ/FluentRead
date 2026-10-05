@@ -1727,7 +1727,6 @@ export const ruRUMessages = {
     "settings.experience.aiServiceHelp": "Используйте ИИ и ключи из раздела «Сервисы перевода».",
     "settings.experience.aiModelHelp": "Оставьте пустым для модели сервиса или выберите либо введите имя модели.",
     "settings.experience.aiActionsHelp": "«Смысл» всегда отображается. Выберите другие действия — пример обновится.",
-    "settings.experience.aiDefaultHelp": "Используется при изучении предложения через «Другие действия». Если скрыть, будет выбран «Смысл».",
     "settings.experience.alwaysShown": "Всегда видно",
     "settings.experience.aiOffHelp": "Объяснения ИИ отключены. Настройте предпочтения заранее; они применятся после включения.",
     "settings.experience.contextTitle": "Контекст оригинала",

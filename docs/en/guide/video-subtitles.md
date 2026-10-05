@@ -93,4 +93,4 @@ The compact X menu puts display modes first. **Subtitle options** contains timin
 
 ## Settings preview
 
-Video appearance settings show a live sample on the left, with visibility, bilingual or single-language display, skins, size and position on the right. Fine-tuning controls are directly visible. Hiding subtitles preserves your appearance and translation preferences. The example reads no video and sends no translation requests. X local recognition and model downloads remain in their own section.
+Video appearance settings show a live sample on the left, with visibility, bilingual or single-language display, skins, size and position on the right. Both columns have equal width and height on desktop, and the subtitle scene fills the preview panel. Narrow screens show the preview above the settings. Fine-tuning controls are directly visible. Hiding subtitles preserves your appearance and translation preferences. The example reads no video and sends no translation requests. X local recognition and model downloads remain in their own section.

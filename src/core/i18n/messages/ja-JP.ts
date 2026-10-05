@@ -1727,7 +1727,6 @@ export const jaJPMessages = {
     "settings.experience.aiServiceHelp": "「翻訳サービス」で設定した AI サービスとキーを使用します。",
     "settings.experience.aiModelHelp": "空欄ならサービスのモデルを使用します。モデル名の選択・入力もできます。",
     "settings.experience.aiActionsHelp": "「意味」は常に表示されます。他のアクションを選ぶとプレビューにも反映されます。",
-    "settings.experience.aiDefaultHelp": "「その他の操作」から文を学ぶ際に使用します。非表示にすると「意味」に戻ります。",
     "settings.experience.alwaysShown": "常に表示",
     "settings.experience.aiOffHelp": "AI 解説は無効です。設定は事前に変更でき、有効にすると回答に反映されます。",
     "settings.experience.contextTitle": "参照する原文",

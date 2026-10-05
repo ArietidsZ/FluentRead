@@ -1727,7 +1727,6 @@ export const esESMessages = {
     "settings.experience.aiServiceHelp": "Usa los servicios de IA y claves configurados en Servicios de traducción.",
     "settings.experience.aiModelHelp": "Déjalo vacío para usar el modelo del servicio o selecciona o escribe un nombre.",
     "settings.experience.aiActionsHelp": "Significado siempre se muestra. Elige otras acciones; la vista previa se actualiza.",
-    "settings.experience.aiDefaultHelp": "Se usa al aprender una frase desde Más acciones. Si se oculta, vuelve a Significado.",
     "settings.experience.alwaysShown": "Siempre visible",
     "settings.experience.aiOffHelp": "Las explicaciones de IA están desactivadas. Puedes ajustar preferencias que se aplicarán al activarlas.",
     "settings.experience.contextTitle": "Contexto original",

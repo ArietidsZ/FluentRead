@@ -43,7 +43,7 @@
             </label>
           </div>
         </SettingsItem>
-        <SettingsItem label="默认学习动作" description="从更多操作进入整句学习时使用；隐藏该动作后恢复为“读懂”">
+        <SettingsItem class="harness-default-action" label="默认学习动作">
           <el-select v-model="config.harness.defaultAction" class="harness-select" aria-label="默认动作"><el-option v-for="action in visibleActions" :key="action.id" :label="action.label" :value="action.id" /></el-select>
         </SettingsItem>
         <SettingsItem label="回答长度" description="先给出重点，需要更多解释时可以继续追问">
@@ -132,6 +132,7 @@ function toggleAction(id: HarnessActionId) {
 .harness-select { width:100%; }
 .harness-preferences :deep(.settings-item) { grid-template-columns:minmax(0,1fr); gap:10px; padding:16px 0; border-top:1px solid var(--line); }
 .harness-preferences :deep(.settings-item-control) { width:100%; }
+.harness-preferences :deep(.settings-item.harness-default-action) { grid-template-columns:minmax(0,1fr) minmax(120px,60%); align-items:center; }
 .harness-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:100%; }
 .harness-action { display:flex; gap:8px; align-items:flex-start; padding:12px; border:1px solid var(--line); border-radius:9px; cursor:pointer; }
 .harness-action.selected { border-color:color-mix(in srgb,var(--brand) 45%,var(--line)); background:color-mix(in srgb,var(--brand) 4%,var(--surface)); }

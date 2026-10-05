@@ -1722,7 +1722,6 @@ export const enUSMessages = {
     "settings.experience.aiServiceHelp": "Use AI services and keys configured under Translation services.",
     "settings.experience.aiModelHelp": "Leave empty to use the service model, or select or enter a model name.",
     "settings.experience.aiActionsHelp": "Meaning is always shown. Choose other actions as needed; the preview updates accordingly.",
-    "settings.experience.aiDefaultHelp": "Used when entering sentence learning from More actions. Hiding this action resets it to Meaning.",
     "settings.experience.alwaysShown": "Always shown",
     "settings.experience.aiOffHelp": "AI explanations are off. You can set preferences now; they apply when enabled.",
     "settings.experience.contextTitle": "Source context",

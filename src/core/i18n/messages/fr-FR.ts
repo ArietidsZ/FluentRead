@@ -1727,7 +1727,6 @@ export const frFRMessages = {
     "settings.experience.aiServiceHelp": "Utilisez les services IA et clés configurés dans Services de traduction.",
     "settings.experience.aiModelHelp": "Laissez vide pour utiliser le modèle du service, ou choisissez ou saisissez un nom.",
     "settings.experience.aiActionsHelp": "Sens reste toujours visible. Choisissez les autres actions ; l’aperçu se met à jour.",
-    "settings.experience.aiDefaultHelp": "Utilisée pour apprendre une phrase via Autres actions. Si masquée, elle revient à Sens.",
     "settings.experience.alwaysShown": "Toujours visible",
     "settings.experience.aiOffHelp": "Les explications IA sont désactivées. Réglez vos préférences ; elles s’appliqueront après activation.",
     "settings.experience.contextTitle": "Contexte source",

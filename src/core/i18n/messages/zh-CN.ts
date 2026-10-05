@@ -1719,7 +1719,6 @@ export const zhCNMessages = {
     "settings.experience.aiServiceHelp": "使用“翻译服务”中已配置的 AI 服务和密钥",
     "settings.experience.aiModelHelp": "留空沿用服务模型，也可以选择或输入模型名称",
     "settings.experience.aiActionsHelp": "“读懂”始终显示，其他动作按需显示；左侧示例同步更新",
-    "settings.experience.aiDefaultHelp": "从更多操作进入整句学习时使用；隐藏该动作后恢复为“读懂”",
     "settings.experience.alwaysShown": "固定显示",
     "settings.experience.aiOffHelp": "AI 讲解已关闭；可预先调整偏好，开启后应用于学习回答",
     "settings.experience.contextTitle": "参考原文",

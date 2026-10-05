@@ -1727,7 +1727,6 @@ export const koKRMessages = {
     "settings.experience.aiServiceHelp": "번역 서비스에서 설정한 AI 서비스와 키를 사용합니다.",
     "settings.experience.aiModelHelp": "비워 두면 서비스 모델을 사용합니다. 모델 이름을 선택하거나 입력할 수도 있습니다.",
     "settings.experience.aiActionsHelp": "의미는 항상 표시됩니다. 다른 작업을 선택하면 미리보기도 갱신됩니다.",
-    "settings.experience.aiDefaultHelp": "추가 작업에서 문장 학습을 열 때 사용합니다. 숨기면 의미로 돌아갑니다.",
     "settings.experience.alwaysShown": "항상 표시",
     "settings.experience.aiOffHelp": "AI 설명이 꺼져 있습니다. 미리 설정하면 켰을 때 적용됩니다.",
     "settings.experience.contextTitle": "참조 원문",

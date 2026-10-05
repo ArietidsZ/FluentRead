@@ -45,7 +45,7 @@ When the target is Chinese or English, the card's language button can change the
 
 ## Optional AI explanations
 
-Enable **AI explanations**, expand **Service & learning preferences**, and select a configured AI service and model. Opening a card does not call AI. Choose an action to request an explanation:
+Enable **AI explanations** and select a configured AI service and model on the right. Switch between learning actions in the preview on the left. Both columns have equal width and height on desktop; narrow screens show the preview above the settings. Opening a card does not call AI. Choose an action to request an explanation:
 
 - **Understand** explains meaning, tone and references.
 - **Parts of speech & syntax** explains the sentence structure and labels source fragments.
