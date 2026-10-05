@@ -205,6 +205,15 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         expect(f.reader.status().active).toBe(false);expect(resetCache).toHaveBeenCalledOnce();
         root.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
     });
+    it('Novelpia 已展示的受限图片只提供圈选，不请求识别，移除与关闭清理', () => {
+        const f = readerFixture(false, 'https://novelpia.com/comic_viewer/18735');
+        expect(f.reader.status().available).toBe(false);
+        const root = f.document.createElement('div');root.id = 'viewer_wrap';root.innerHTML = '<div class="viewer_content"><div><div class="viewer_content_box"><div class="comic-content"></div></div></div></div>';
+        root.querySelector('.comic-content')!.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available: true, areaFallback: true, pageCount: 0});expect(f.reader.toggle()).toBe(false);
+        expect(f.ports.translate).not.toHaveBeenCalled();f.image.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);
+        root.querySelector('.comic-content')!.append(f.image);f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
     it.each(['image', 'canvas'])('TOPTOON 可见 %s 正文只发布圈选，移除和关闭清理，不读取像素', kind => {
         const f = readerFixture(false, 'https://toptoon.com/comic/ep_view/Legendary_Hunter/1/rent');
         expect(f.reader.status().available).toBe(false);

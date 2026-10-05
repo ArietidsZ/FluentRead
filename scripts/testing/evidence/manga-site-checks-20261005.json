@@ -818,7 +818,26 @@
           "hostname": "colamanga.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://colamanga.com/",
+          "finalUrl": "https://colamanga.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+          "attempt": "homes-wave24",
+          "status": null,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal browser root navigation exceeds25s before DOMContentLoaded; no body or permanent-closure claim.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "error": "page.goto: Timeout 25000ms exceeded.",
+          "requestedUrl": "https://colamanga.com/",
+          "checkedAt": "2026-10-05T10:30:42.534868+00:00"
+        }
+      ]
     },
     {
       "name": "GANGAN ONLINE",
@@ -1010,7 +1029,25 @@
           "hostname": "manhwaclan.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://manhwaclan.com/",
+          "finalUrl": "https://manhwaclan.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+          "attempt": "homes-wave24",
+          "status": 403,
+          "title": "请稍候…",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal browser root returns403 please-wait verification; no bypass or chapter-body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://manhwaclan.com/",
+          "checkedAt": "2026-10-05T10:30:42.534868+00:00"
+        }
+      ]
     },
     {
       "name": "CoroCoro",
@@ -1086,7 +1123,25 @@
           "hostname": "manhwatop.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://manhwatop.com/",
+          "finalUrl": "https://manhwatop.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+          "attempt": "homes-wave24",
+          "status": 403,
+          "title": "请稍候…",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal browser root returns403 please-wait verification; no bypass or chapter-body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://manhwatop.com/",
+          "checkedAt": "2026-10-05T10:30:42.534868+00:00"
+        }
+      ]
     },
     {
       "name": "Palcy",
@@ -3566,7 +3621,57 @@
           "hostname": "mangaoi.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://mangaoi.net/",
+          "finalUrl": "https://mangaoi.net/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+          "attempt": "homes-wave24",
+          "status": 200,
+          "title": "MANGAOI - Read Manhwa, Manhua, Manga in English Online For Free",
+          "imageCount": 24,
+          "canvasCount": 0,
+          "readerFinding": "Public directory exposes normal chapter links; covers alone are not chapter acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://mangaoi.net/",
+          "checkedAt": "2026-10-05T10:30:42.534868+00:00"
+        },
+        {
+          "url": "https://mangaoi.net/read-manga/pick-me-up-infinite-gacha/chapter-221",
+          "finalUrl": "https://mangaoi.net/read-manga/pick-me-up-infinite-gacha/chapter-221",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+          "attempt": "readers-wave24",
+          "status": 200,
+          "title": "404 - Page Not Found",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Public catalogue reachable, but observed chapter221 returns HTTP200 with404 Page Not Found and no body, both direct and normal home-link click.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://mangaoi.net/read-manga/pick-me-up-infinite-gacha/chapter-221",
+          "checkedAt": "2026-10-05T10:30:42.534868+00:00"
+        },
+        {
+          "url": "https://mangaoi.net/",
+          "finalUrl": "https://mangaoi.net/read-manga/pick-me-up-infinite-gacha/chapter-221",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+          "attempt": "mangaoi-click-wave24",
+          "status": 200,
+          "title": "404 - Page Not Found",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Public catalogue reachable, but observed chapter221 returns HTTP200 with404 Page Not Found and no body, both direct and normal home-link click.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://mangaoi.net/",
+          "checkedAt": "2026-10-05T10:30:42.534868+00:00"
+        }
+      ]
     },
     {
       "name": "rawlazy.io",
@@ -4624,7 +4729,25 @@
           "hostname": "weebrook.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://weebrook.com/",
+          "finalUrl": "https://weebrook.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+          "attempt": "homes-wave24",
+          "status": 522,
+          "title": "weebrook.com | 522: Connection timed out",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Public root returns522 origin connection timeout page. No body or permanent closure claim.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://weebrook.com/",
+          "checkedAt": "2026-10-05T10:30:42.534868+00:00"
+        }
+      ]
     },
     {
       "name": "toonily.com",
@@ -4792,7 +4915,41 @@
           "hostname": "yakshascans.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://yakshascans.com/",
+          "finalUrl": "https://ravenscans.org/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+          "attempt": "homes-wave24",
+          "status": 200,
+          "title": "Raven Scans – The Fastest Manga Updates",
+          "imageCount": 43,
+          "canvasCount": 0,
+          "readerFinding": "Yaksha normally redirects to existing catalog alias ravenscans.org with observed actual chapter links. Homepage covers not body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 4,
+          "requestedUrl": "https://yakshascans.com/",
+          "checkedAt": "2026-10-05T10:30:42.534868+00:00"
+        },
+        {
+          "url": "https://ravenscans.org/the-counts-youngest-son-is-a-player-chapter-178/",
+          "finalUrl": "https://ravenscans.org/the-counts-youngest-son-is-a-player-chapter-178/",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+          "attempt": "readers-wave24",
+          "status": 200,
+          "title": "The Count’s Youngest Son Is a Player Chapter 178 – Raven Scans",
+          "imageCount": 20,
+          "canvasCount": 0,
+          "readerFinding": "Normal Yaksha homepage redirect confirms existing Raven alias. Public chapter178 body is direct article readerarea IMG ts-main-image, first720x12077 long strip, no reader canvas; uses existing segmented queue without private API.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 7,
+          "requestedUrl": "https://ravenscans.org/the-counts-youngest-son-is-a-player-chapter-178/",
+          "checkedAt": "2026-10-05T10:30:42.534868+00:00"
+        }
+      ]
     },
     {
       "name": "toonclash.com",
@@ -5873,7 +6030,7 @@
           "hostname": "novelpia.com"
         }
       ],
-      "adapter": "images",
+      "adapter": "area",
       "browserRechecks": [
         {
           "url": "https://novelpia.com/",
@@ -7218,7 +7375,25 @@
           "hostname": "bomtoon.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://bomtoon.com/",
+          "finalUrl": "https://www.bomtoon.com/bom/comic/main",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+          "attempt": "homes-wave24",
+          "status": 200,
+          "title": "홈 - 웹툰 - 봄툰",
+          "imageCount": 32,
+          "canvasCount": 0,
+          "readerFinding": "Public root normally redirects to bom/comic/main catalogue. Rendered covers but no normal chapter link/body confirmed; no guessed private navigation/API.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 22,
+          "requestedUrl": "https://bomtoon.com/",
+          "checkedAt": "2026-10-05T10:30:42.534868+00:00"
+        }
+      ]
     },
     {
       "name": "copymanga.site",
@@ -12750,6 +12925,147 @@
       "pageErrorCount": 0,
       "networkFailureCount": 0,
       "error": "page.goto: Timeout 25000ms exceeded."
+    },
+    {
+      "url": "https://mangaoi.net/",
+      "finalUrl": "https://mangaoi.net/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+      "attempt": "homes-wave24",
+      "status": 200,
+      "title": "MANGAOI - Read Manhwa, Manhua, Manga in English Online For Free",
+      "imageCount": 24,
+      "canvasCount": 0,
+      "readerFinding": "Public directory exposes normal chapter links; covers alone are not chapter acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://yakshascans.com/",
+      "finalUrl": "https://ravenscans.org/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+      "attempt": "homes-wave24",
+      "status": 200,
+      "title": "Raven Scans – The Fastest Manga Updates",
+      "imageCount": 43,
+      "canvasCount": 0,
+      "readerFinding": "Yaksha normally redirects to existing catalog alias ravenscans.org with observed actual chapter links. Homepage covers not body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 4
+    },
+    {
+      "url": "https://colamanga.com/",
+      "finalUrl": "https://colamanga.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+      "attempt": "homes-wave24",
+      "status": null,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal browser root navigation exceeds25s before DOMContentLoaded; no body or permanent-closure claim.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "error": "page.goto: Timeout 25000ms exceeded."
+    },
+    {
+      "url": "https://manhwaclan.com/",
+      "finalUrl": "https://manhwaclan.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+      "attempt": "homes-wave24",
+      "status": 403,
+      "title": "请稍候…",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal browser root returns403 please-wait verification; no bypass or chapter-body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://manhwatop.com/",
+      "finalUrl": "https://manhwatop.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+      "attempt": "homes-wave24",
+      "status": 403,
+      "title": "请稍候…",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal browser root returns403 please-wait verification; no bypass or chapter-body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://bomtoon.com/",
+      "finalUrl": "https://www.bomtoon.com/bom/comic/main",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+      "attempt": "homes-wave24",
+      "status": 200,
+      "title": "홈 - 웹툰 - 봄툰",
+      "imageCount": 32,
+      "canvasCount": 0,
+      "readerFinding": "Public root normally redirects to bom/comic/main catalogue. Rendered covers but no normal chapter link/body confirmed; no guessed private navigation/API.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 22
+    },
+    {
+      "url": "https://weebrook.com/",
+      "finalUrl": "https://weebrook.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+      "attempt": "homes-wave24",
+      "status": 522,
+      "title": "weebrook.com | 522: Connection timed out",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Public root returns522 origin connection timeout page. No body or permanent closure claim.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://mangaoi.net/read-manga/pick-me-up-infinite-gacha/chapter-221",
+      "finalUrl": "https://mangaoi.net/read-manga/pick-me-up-infinite-gacha/chapter-221",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+      "attempt": "readers-wave24",
+      "status": 200,
+      "title": "404 - Page Not Found",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Public catalogue reachable, but observed chapter221 returns HTTP200 with404 Page Not Found and no body, both direct and normal home-link click.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://ravenscans.org/the-counts-youngest-son-is-a-player-chapter-178/",
+      "finalUrl": "https://ravenscans.org/the-counts-youngest-son-is-a-player-chapter-178/",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+      "attempt": "readers-wave24",
+      "status": 200,
+      "title": "The Count’s Youngest Son Is a Player Chapter 178 – Raven Scans",
+      "imageCount": 20,
+      "canvasCount": 0,
+      "readerFinding": "Normal Yaksha homepage redirect confirms existing Raven alias. Public chapter178 body is direct article readerarea IMG ts-main-image, first720x12077 long strip, no reader canvas; uses existing segmented queue without private API.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 7
+    },
+    {
+      "url": "https://mangaoi.net/",
+      "finalUrl": "https://mangaoi.net/read-manga/pick-me-up-infinite-gacha/chapter-221",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-source-restriction-raven-long-strip-and-public-rechecks-wave24",
+      "attempt": "mangaoi-click-wave24",
+      "status": 200,
+      "title": "404 - Page Not Found",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Public catalogue reachable, but observed chapter221 returns HTTP200 with404 Page Not Found and no body, both direct and normal home-link click.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
     }
   ],
   "verification": {
@@ -20286,6 +20602,870 @@
       "profileRemoved": true,
       "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-lezhin-body-probe-wave23/report.json",
       "finding": "19 cases pass in separate temporary diagnostic copy. Bounded metadata for actual scroll-view direct images shows two1280x2560 blob pages, both match built-in hierarchy/source rules, first visible. No production change or source data recorded; profile removed."
+    },
+    "novelpiaAreaRavenUnit": {
+      "status": "passed",
+      "cases": 519,
+      "files": 7,
+      "fourDimensionCoverage": "100% for all eight manga configuration/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave24.log",
+      "scope": "Restricted Novelpia image publishes area entry without OCR, cleanup on removal/master close; Raven long-strip domain/path/body/ad boundaries. No permission, image-server access or OCR engine change."
+    },
+    "novelpiaPublicTranslationSourceRestricted": {
+      "status": "failed",
+      "cases": [],
+      "failure": "Error: Image pipeline failed: 图片翻译失败：图片服务器返回 403\n    at wait (/Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:210:41)\n    at async /Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:1189:5",
+      "sourceLanguage": "ko",
+      "targetLanguage": "zh-Hans",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "pageDurationsMs": [],
+      "sourceCaptures": [
+        {
+          "name": "01",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-novelpia-wave24/01-original.png",
+          "width": 750,
+          "height": 1000,
+          "method": "displayed element screenshot",
+          "pixelError": "SecurityError"
+        }
+      ],
+      "operations": 0,
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-novelpia-wave24/report.json",
+      "finding": "Explicit Korean first visible image is750x1000, ordinary native pixel read SecurityError; source fetch returnsHTTP403 before OCR, zero image operations and no passed reading cases. Failure retained; no retry with forged headers or source-access bypass. New current adapter offers area selection only, superseding wave23 image-entry-only status."
+    },
+    "novelpiaAreaRavenEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://novelpia.com/comic_viewer/18735",
+        "live reader discovery: https://ravenscans.org/the-counts-youngest-son-is-a-player-chapter-178/",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 76304,
+          "name": "微信"
+        },
+        "frontmostAfter": {
+          "pid": 76304,
+          "name": "微信"
+        }
+      },
+      "liveReaders": [
+        {
+          "url": "https://novelpia.com/comic_viewer/18735",
+          "finalUrl": "https://novelpia.com/comic_viewer/18735",
+          "status": 200,
+          "mode": "area",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 253,
+              "width": 720,
+              "height": 243,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 572,
+              "width": 720,
+              "height": 549,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 548,
+              "width": 720,
+              "height": 526,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 398,
+              "width": 720,
+              "height": 382,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 75,
+              "width": 720,
+              "height": 72,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://ravenscans.org/the-counts-youngest-son-is-a-player-chapter-178/",
+          "finalUrl": "https://ravenscans.org/the-counts-youngest-son-is-a-player-chapter-178/",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 200,
+              "naturalHeight": 200,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 200,
+              "naturalHeight": 200,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 200,
+              "naturalHeight": 200,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 200,
+              "naturalHeight": 200,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 200,
+              "naturalHeight": 200,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 200,
+              "naturalHeight": 200,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 200,
+              "naturalHeight": 200,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 200,
+              "naturalHeight": 200,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 200,
+              "naturalHeight": 200,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 200,
+              "naturalHeight": 200,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 200,
+              "naturalHeight": 200,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 200,
+              "naturalHeight": 200,
+              "width": 200,
+              "height": 200,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-readers-wave24/report.json",
+      "finding": "20 cases pass,18 base plus2 HTTP200 live entries. Novelpia58/58 body images loaded, one visible, area mode confirmed. Raven13 body images,12 loaded; geometry report had no visible body at initial top, and native promotion covers screen. Not unobstructed-body or OCR acceptance. No extension/host/console errors; profile removed."
+    },
+    "ravenPublicStripTranslation": {
+      "status": "passed",
+      "cases": [
+        "long public strip keeps natural width and translates the current reading segment",
+        "pause restores the original strip and resume immediately reuses the translated segment",
+        "scrolling to the following part of the same image uses the existing serial queue",
+        "returning to a completed segment restores its overlay without repeating recognition",
+        "the master switch removes segmented overlays and leaves the host image unchanged"
+      ],
+      "sourceLanguage": "en",
+      "targetLanguage": "zh-Hans",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 76304,
+          "name": "微信"
+        },
+        "frontmostAfter": {
+          "pid": 76304,
+          "name": "微信"
+        }
+      },
+      "operations": 2,
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "segmentSource": {
+        "width": 720,
+        "height": 12077,
+        "sourceHash": 1005266735,
+        "style": null,
+        "className": "ts-main-image lazy loaded curdown",
+        "step": 2048,
+        "start": 3
+      },
+      "segmentFirst": {
+        "durationMs": 28534,
+        "outputs": [
+          {
+            "width": 720,
+            "height": 2048,
+            "top": -1,
+            "style": "position: fixed; pointer-events: none; display: block; left: 276px; top: -1px; width: 720px; height: 2048px; clip-path: inset(1px 0px 1231px);"
+          }
+        ],
+        "operations": 1
+      },
+      "segmentNext": {
+        "durationMs": 6226,
+        "outputs": [
+          {
+            "width": 720,
+            "height": 2048,
+            "top": -1,
+            "style": "position: fixed; pointer-events: none; display: block; left: 276px; top: -1px; width: 720px; height: 2048px; clip-path: inset(1px 0px 1231px);"
+          }
+        ],
+        "operations": 2
+      },
+      "segmentOutputs": [
+        "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-raven-visible-wave24/segment-first-output-0.png",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-raven-visible-wave24/segment-next-output-0.png"
+      ],
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-raven-visible-wave24/report.json",
+      "finding": "Normal click on observed popup-close before public strip reading. Five segment-reader cases pass: original natural source720x12077 maintained, two720x2048 segments, pause/cache reuse, normal next part and return without OCR, master cleanup. Two operations,28.534s and6.226s. Existing SHA-verified importer, no model requests or extension/host/console errors; profile removed.",
+      "outputsViewed": [
+        "segment-first-output-0.png",
+        "segment-next-output-0.png"
+      ],
+      "qualityFinding": "First sampled segment contains title/credits and one short speech bubble: Player becomes a ball player, credits contain repeated generic staff labels, tiny text and residual original letters. Next segment has readable Chinese exit-blocking dialogue with generally preserved speech borders; not whole strip/chapter or title/credits/handwriting quality acceptance."
+    },
+    "ravenPublicStripTranslationInitialAdBlocked": {
+      "status": "failed",
+      "cases": [],
+      "failure": "AssertionError [ERR_ASSERTION]: The selected public reading segment contains translated text\n    at verifySegmentReader (/Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:332:40)\n    at async /Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:1160:27",
+      "sourceLanguage": "en",
+      "targetLanguage": "zh-Hans",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 76304,
+          "name": "微信"
+        },
+        "frontmostAfter": {
+          "pid": 76304,
+          "name": "微信"
+        }
+      },
+      "operations": 1,
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "segmentSource": {
+        "width": 720,
+        "height": 12077,
+        "sourceHash": 1005266735,
+        "style": null,
+        "className": "ts-main-image lazy loaded",
+        "step": 2048,
+        "start": 1
+      },
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-raven-wave24/report.json",
+      "finding": "One operation recognizes donation text, but native promotion overlay covers reading; no visible result canvas, assertion fails before any reading case. Original screenshot viewed, no success claim. Normal observed close is separately tested; no ad-script disabling or new-home navigation."
+    },
+    "novelpiaAreaRavenBuilds": {
+      "status": "passed",
+      "typecheck": true,
+      "chromeSeconds": 27.7,
+      "firefoxSeconds": 30.7,
+      "userscriptSeconds": 4.83,
+      "userscriptBytes": 1917250,
+      "manifestVerifier": true,
+      "userscriptVerifier": true,
+      "architectureCases": 809,
+      "auditFiles": 468,
+      "auditDeclarations": 6104,
+      "scope": "Build/manifest verification, not Firefox/userscript runtime or full-suite-green claim."
     }
   }
 }

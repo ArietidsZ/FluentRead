@@ -7,6 +7,7 @@ import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
     it.each([
+        ['ravenscans.org', '/the-counts-youngest-son-is-a-player-chapter-178', '<article><div id="readerarea"><img id="body" class="ts-main-image lazy loaded"><img id="ad"><aside><img id="nested" class="ts-main-image"></aside></div></article><img id="outside" class="ts-main-image">', ['/', '/manga/story', '/story-chapter-one', '/story-chapter-1/extra']],
         ['novelpia.com', '/comic_viewer/18735', '<div id="viewer_wrap"><div class="viewer_content"><div><div class="viewer_content_box"><div class="comic-content"><img id="body"></div><img id="ad"></div></div></div></div><div id="tab-preview"><img id="preview"></div>', ['/', '/comic_episode/1024', '/comic_viewer/0', '/comic_viewer/18735/extra']],
         ['manga-shinchan.com', '/new-shinchan-saimaru/episode/070-new-shinchan-saimaru', '<article id="ep_blog"><div class="item__list-lists"><figure><img id="body" src="/book_data/article_data/chapter/01.jpg"><img id="cover" src="/asset_data/episode_thumbnail/cover.jpg"></figure><div class="box"><img id="promo" src="/book_data/article_data/promo.jpg"></div></div></article><figure><img id="outside" src="/book_data/article_data/chapter/02.jpg"></figure>', ['/', '/new-shinchan-saimaru', '/new-shinchan/episode/', '/new-shinchan/episode/one/extra']],
         ['lezhinus.com', '/en/comic/poison_taster/1', '<div class="scroll-view"><div class="mx-auto overflow-hidden max-w-720 w-full"><img id="body" class="w-full h-full select-none pointer-events-none" src="blob:https://www.lezhinus.com/page"><img id="cover" class="w-full h-full select-none pointer-events-none" src="https://www.lezhinus.com/cover.jpg"><img id="foreign" class="w-full h-full select-none pointer-events-none" src="blob:https://other.example/page"><aside><img id="nested" class="w-full h-full select-none pointer-events-none" src="blob:https://www.lezhinus.com/page2"></aside></div></div>', ['/en', '/en/comic/poison_taster', '/en/comic/poison_taster/comments', '/en/comic/poison_taster/0', '/ko/comic/poison_taster/1', '/en/comic/poison_taster/1/extra']],
@@ -14,7 +15,8 @@ describe('漫画阅读规则与持久偏好', () => {
         const site = resolveMangaSite(`https://www.${host}${path}/`)!;
         expect(site).toMatchObject({custom: false, requireContent: true});
         const {document} = parseHTML(html as string);
-        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['body']);
+        expect([...document.querySelectorAll(site.areaSelector ?? site.selector)].map(image => image.id)).toEqual(['body']);
+        if (host === 'novelpia.com') expect(document.querySelectorAll(site.selector)).toHaveLength(0);
         for (const invalid of invalidPaths as string[]) expect(resolveMangaReaderProfile(host as string, invalid)).toBeNull();
         expect(resolveMangaReaderProfile(`${host}.attacker.test`, path as string)).toBeNull();
     });
