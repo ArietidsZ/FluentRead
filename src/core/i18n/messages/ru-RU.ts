@@ -934,6 +934,7 @@ export const ruRUMessages = {
     'options.aboutWebReading': 'Двуязычное чтение веб-страниц',
     'options.aboutReadingTools': 'Удобные инструменты чтения',
     'options.aboutFlexibleServices': 'Гибкие сервисы перевода',
+    'options.aboutEnlargeCode': 'Увеличить код поддержки WeChat',
     'options.aboutLearnMore': 'Ссылки проекта',
     'options.aboutMakeBetter': 'Помочь улучшить проект',
     'options.aboutLinksDescription': 'Просмотрите исходный код и документацию или поделитесь впечатлениями о чтении.',

@@ -1150,6 +1150,7 @@ export const enUSMessages = {
     'options.aboutWebReading': 'Bilingual web reading',
     'options.aboutReadingTools': 'Handy reading tools',
     'options.aboutFlexibleServices': 'Flexible translation services',
+    'options.aboutEnlargeCode': 'Enlarge the WeChat support code',
     'options.aboutLearnMore': 'Project links',
     'options.aboutMakeBetter': 'Help make it better',
     'options.aboutLinksDescription': 'Browse the source code and documentation, or share feedback about your reading experience.',

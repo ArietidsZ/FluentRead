@@ -934,6 +934,7 @@ export const jaJPMessages = {
     'options.aboutWebReading': '二言語ウェブ読書',
     'options.aboutReadingTools': '便利な読書ツール',
     'options.aboutFlexibleServices': '柔軟な翻訳サービス',
+    'options.aboutEnlargeCode': 'WeChat 支援コードを拡大',
     'options.aboutLearnMore': '関連リンク',
     'options.aboutMakeBetter': '改善に協力する',
     'options.aboutLinksDescription': 'ソースコードとドキュメントを確認したり、読書体験についてフィードバックを送ったりできます。',

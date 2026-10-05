@@ -934,6 +934,7 @@ export const koKRMessages = {
     'options.aboutWebReading': '이중 언어 웹 읽기',
     'options.aboutReadingTools': '편리한 읽기 도구',
     'options.aboutFlexibleServices': '유연한 번역 서비스',
+    'options.aboutEnlargeCode': 'WeChat 후원 코드 확대',
     'options.aboutLearnMore': '프로젝트 링크',
     'options.aboutMakeBetter': '더 나은 서비스 만들기',
     'options.aboutLinksDescription': '소스 코드와 문서를 확인하거나 읽기 경험에 대한 의견을 남겨 주세요.',
