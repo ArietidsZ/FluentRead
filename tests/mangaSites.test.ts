@@ -6,6 +6,44 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it.each([
+        ['https://rawotaku.com/read/%E3%83%96%E3%83%AB%E3%83%BC%E3%83%AD%E3%83%83%E3%82%AF/ja/chapter-1-raw/', '#vertical-content .iv-card > img.image-vertical'],
+        ['https://www.manhwaden.com/manga/portrait-of-pride/chapter-15/', '.reading-content .text-left > p > img'],
+        ['https://manhwato.com/manhwa/i-want-to-work-quietly-raw/chapter-42-ch282329', '.chapter-content .page-chapter > img'],
+        ['https://toondex.co/comics/stop-smoking-frgsok/chapter-1/', '.max-w-5xl > .my-6 > img[id^="row-"]'],
+        ['https://mechacomic.jp/viewer/index.html?ver=1&viewer=vertical', '[class*="VerticalViewerstyles__PageList-"] [class*="PageContainer__ImageOrigin-"] > img[class*="PageContainer__Image-"]'],
+    ])('新增章节规则在已确认路径限定正文，仍拒绝冒充域名和额外路径 %s',(href,selector)=>{
+        expect(resolveMangaSite(href)).toMatchObject({selector,requireContent:true,custom:false});
+        const url=new URL(href);
+        expect(resolveMangaReaderProfile(`${url.hostname}.attacker.test`,url.pathname,url.search)).toBeNull();
+        expect(resolveMangaReaderProfile(url.hostname,`${url.pathname}/extra`,url.search)).toBeNull();
+    });
+    it.each([
+        ['rawotaku.com','/read/title/',''], ['rawotaku.com','/read/title/ja/',''],
+        ['rawotaku.com','/read/title/japanese/chapter-1-raw/',''],
+        ['manhwaden.com','/manga/title/',''], ['manhwato.com','/manhwa/title/',''],
+        ['toondex.co','/comics/title/',''], ['toondex.co','/comics/title/trailer/',''],
+        ['mechacomic.jp','/books/245496','?viewer=vertical'],
+        ['mechacomic.jp','/viewer/index.html',''], ['mechacomic.jp','/viewer/index.html','?viewer=raster'],
+        ['mechacomic.jp','/viewer/','?viewer=vertical'],
+    ])('章节目录、其他阅读模式和缺参不套用新正文规则 %s%s%s',(host,path,search)=>{
+        expect(resolveMangaReaderProfile(host,path,search)).toBeNull();
+    });
+    it('新增正文容器排除封面、同容器广告链接、透明交互图和阅读器外的图片',()=>{
+        const {document}=parseHTML(`<img id="cover">
+            <div id="vertical-content"><div class="iv-card"><img id="raw" class="image-vertical"><a><img id="raw-ad" class="image-vertical"></a></div></div><img class="image-vertical" id="outside-raw">
+            <div class="reading-content"><div class="text-left"><p><img id="den"><a><img id="den-ad"></a></p></div><img id="den-cover"></div>
+            <div class="chapter-content"><div class="page-chapter"><img id="to"><a><img id="to-ad"></a></div><img id="to-cover"></div>
+            <div class="max-w-5xl"><div class="my-6"><img id="row-1"><img id="dex-ad"><a><img id="row-ad"></a></div></div><img id="row-outside">
+            <div class="VerticalViewerstyles__PageList-sc-list"><div class="PageContainer__ImageOrigin-sc-origin"><img id="mecha" class="PageContainer__Image-sc-body"><img id="dummy" class="DummyImage__StyledDummyImage-sc-overlay"><a><img id="mecha-ad" class="PageContainer__Image-sc-body"></a></div></div><div class="PageContainer__ImageOrigin-sc-origin"><img id="outside-mecha" class="PageContainer__Image-sc-body"></div>`);
+        for(const [href,ids] of [
+            ['https://rawotaku.com/read/title/ja/chapter-1-raw/',['raw']],
+            ['https://manhwaden.com/manga/title/chapter-1/',['den']],
+            ['https://manhwato.com/manhwa/title/chapter-1/',['to']],
+            ['https://toondex.co/comics/title/chapter-1/',['row-1']],
+            ['https://mechacomic.jp/viewer/index.html?viewer=vertical',['mecha']],
+        ] as const)expect([...document.querySelectorAll(resolveMangaSite(href)!.selector)].map(e=>e.id)).toEqual(ids);
+    });
     it('两种长条正文规则排除阅读器外的封面与同容器广告链接',()=>{
         const {document}=parseHTML('<img id="cover"><div id="reader-scroll-inner"><div><img id="atsu-page"><a><img id="atsu-ad"></a></div></div><div class="reading-chapter"><div class="reading-img"><div class="reading-content"><p><img id="toon-page"><a><img id="toon-ad"></a></p></div></div></div><div class="reading-content"><p><img id="outside"></p></div>');
         expect([...document.querySelectorAll(resolveMangaSite('https://atsu.moe/read/9x6iM/KAXiwn')!.selector)].map(e=>e.id)).toEqual(['atsu-page']);

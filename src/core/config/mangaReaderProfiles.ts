@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/mangaReaderProfiles.ts
  * 文件职责：保存经公开阅读页结构核对的正文规则，避免通用图片过滤漏掉正文或误选推荐封面。
- * 主要内容：已核对章节站的正文图片与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界，GigaViewer、Comici、ComicWalker 与 Animate 正文画布规则、不可读画布和 CMOA 等分片的圈选入口；路径与域名均保留边界。
+ * 主要内容：已核对章节站、MechaComic 纵向完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界，GigaViewer、Comici、ComicWalker 与 Animate 正文画布规则、不可读画布和 CMOA 等分片的圈选入口；路径与域名均保留边界。
  * 模块边界：纯匹配，不执行站点脚本、不读取私有接口、不截图；可访问的图片由 content 阅读器检测。
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
@@ -13,6 +13,22 @@ const comiciHosts = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
 export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com', 'animatebookstore.com'];
 export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; canvasSelector?: string; canvasInteractionSelector?: string; backgroundSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
+    if (host === 'rawotaku.com' && /^\/read\/[^/]+\/[a-z]{2}\/chapter-[^/]+\/?$/.test(pathname)) return {
+        name: 'RawOtaku', selector: '#vertical-content .iv-card > img.image-vertical',
+    };
+    if (host === 'manhwaden.com' && /^\/manga\/[^/]+\/chapter-[^/]+\/?$/.test(pathname)) return {
+        name: 'ManhwaDen', selector: '.reading-content .text-left > p > img',
+    };
+    if (host === 'manhwato.com' && /^\/manhwa\/[^/]+\/chapter-[^/]+\/?$/.test(pathname)) return {
+        name: 'Manhwato', selector: '.chapter-content .page-chapter > img',
+    };
+    if (host === 'toondex.co' && /^\/comics\/[^/]+\/chapter-[^/]+\/?$/.test(pathname)) return {
+        name: 'ToonDex', selector: '.max-w-5xl > .my-6 > img[id^="row-"]',
+    };
+    if (host === 'mechacomic.jp' && pathname === '/viewer/index.html'
+        && new URLSearchParams(search).get('viewer') === 'vertical') return {
+        name: 'MechaComic', selector: '[class*="VerticalViewerstyles__PageList-"] [class*="PageContainer__ImageOrigin-"] > img[class*="PageContainer__Image-"]',
+    };
     if (host === 'atsu.moe' && /^\/read\/[A-Za-z0-9]+\/[A-Za-z0-9]+\/?$/.test(pathname)) return {
         name: 'Atsumaru', selector: '#reader-scroll-inner > div > img',
     };

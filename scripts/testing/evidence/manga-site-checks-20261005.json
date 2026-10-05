@@ -143,7 +143,39 @@
           "hostname": "yamibo.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://www.yamibo.com/",
+          "finalUrl": "https://www.yamibo.com/site/novel",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal Start Reading link reaches chapter 1002; visible page explicitly requires paid subscription and shows no body images. No subscription or body acceptance.",
+          "imageCount": 15,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        },
+        {
+          "requestedUrl": "https://www.yamibo.com/site/manga",
+          "finalUrl": "https://www.yamibo.com/site/manga",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal Start Reading link reaches chapter 1002; visible page explicitly requires paid subscription and shows no body images. No subscription or body acceptance.",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        },
+        {
+          "requestedUrl": "https://www.yamibo.com/manga/208",
+          "finalUrl": "https://www.yamibo.com/manga/208",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal Start Reading link reaches chapter 1002; visible page explicitly requires paid subscription and shows no body images. No subscription or body acceptance.",
+          "imageCount": 30,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        }
+      ]
     },
     {
       "name": "ShonenJumpPlus",
@@ -1143,7 +1175,19 @@
           "hostname": "manhuatop.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://manhuatop.com/",
+          "finalUrl": "http://ww547.manhuatop.com/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Current normal homepage navigation redirects to a domain parking page; no public reader links. Parked subdomain not registered as manga alias.",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        }
+      ]
     },
     {
       "name": "Dlsite",
@@ -2324,7 +2368,19 @@
           "hostname": "manhuaread.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://manhuaread.com/",
+          "finalUrl": "https://manhuaread.com/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Current homepage displays PLAYBOOK88 gambling branding, not a confirmed manga reader. HTTP200 is not chapter acceptance.",
+          "imageCount": 9,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        }
+      ]
     },
     {
       "name": "mangaread.org",
@@ -2790,7 +2846,19 @@
           "hostname": "manhuapica.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://manhuapica.com/",
+          "finalUrl": "https://manhuapica.com/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public PicaWeb home is accessible, but no chapter was confirmed in this pass.",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        }
+      ]
     },
     {
       "name": "comic-ryu.jp",
@@ -3465,7 +3533,29 @@
           "hostname": "mkissa.to"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://mkissa.to/",
+          "finalUrl": "https://mkissa.to/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal public work Chapters tab exposes role=link data-href chapter-140-sub. Both headless and normal visible direct chapter requests return HTTP403 verification page; no body acceptance.",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        },
+        {
+          "requestedUrl": "https://mkissa.to/manga",
+          "finalUrl": "https://mkissa.to/manga",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal public work Chapters tab exposes role=link data-href chapter-140-sub. Both headless and normal visible direct chapter requests return HTTP403 verification page; no body acceptance.",
+          "imageCount": 76,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        }
+      ]
     },
     {
       "name": "iqiyi.com",
@@ -3570,7 +3660,29 @@
           "hostname": "soraraw.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://soraraw.com/",
+          "finalUrl": "https://soraraw.com/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Headless chapter initializes nonzero canvas with SecurityError. Normal visible browser shows restore-100-percent-zoom instruction over reader; normal Meta+0 and reload leaves instruction visible. No visible artwork or extension runtime acceptance.",
+          "imageCount": 14,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        },
+        {
+          "requestedUrl": "https://soraraw.com/manga/yowamushi-pedaru-276/ch-882",
+          "finalUrl": "https://soraraw.com/manga/yowamushi-pedaru-276/ch-882",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Headless chapter initializes nonzero canvas with SecurityError. Normal visible browser shows restore-100-percent-zoom instruction over reader; normal Meta+0 and reload leaves instruction visible. No visible artwork or extension runtime acceptance.",
+          "imageCount": 1,
+          "canvasCount": 7,
+          "networkFailureCount": 0
+        }
+      ]
     },
     {
       "name": "gomuraw.biz",
@@ -3757,7 +3869,30 @@
           "hostname": "mechacomic.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://mechacomic.jp/",
+          "finalUrl": "https://mechacomic.jp/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal public free-reading button opens vertical viewer with complete displayed blob frame images and transparent 1x1 dummy interaction images. Match only body Image component under VerticalViewer PageList; omit dummy sources. Do not reuse anonymous manifest URLs.",
+          "imageCount": 114,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        },
+        {
+          "requestedUrl": "https://mechacomic.jp/books/245496",
+          "finalUrl": "https://mechacomic.jp/books/245496",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal public free-reading button opens vertical viewer with complete displayed blob frame images and transparent 1x1 dummy interaction images. Match only body Image component under VerticalViewer PageList; omit dummy sources. Do not reuse anonymous manifest URLs.",
+          "imageCount": 57,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        }
+      ],
+      "readerFinding": "Normal public free-reading button opens vertical viewer with complete displayed blob frame images and transparent 1x1 dummy interaction images. Match only body Image component under VerticalViewer PageList; omit dummy sources. Do not reuse anonymous manifest URLs."
     },
     {
       "name": "kuragebunch.com",
@@ -3867,7 +4002,30 @@
           "hostname": "manhwato.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://manhwato.com/",
+          "finalUrl": "https://manhwato.com/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public chapter body uses .chapter-content .page-chapter > img, including 720x2800 pages; cover/header images excluded. Entry only, no OCR acceptance.",
+          "imageCount": 10,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        },
+        {
+          "requestedUrl": "https://manhwato.com/manhwa-genre/manga",
+          "finalUrl": "https://manhwato.com/manhwa-genre/manga",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public chapter body uses .chapter-content .page-chapter > img, including 720x2800 pages; cover/header images excluded. Entry only, no OCR acceptance.",
+          "imageCount": 9,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        }
+      ],
+      "readerFinding": "Public chapter body uses .chapter-content .page-chapter > img, including 720x2800 pages; cover/header images excluded. Entry only, no OCR acceptance."
     },
     {
       "name": "kuaikanmanhua.com",
@@ -4037,7 +4195,30 @@
           "hostname": "rawotaku.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://rawotaku.com/",
+          "finalUrl": "https://rawotaku.com/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public Blue Lock chapter shows intact 750x1080 pages in #vertical-content .iv-card > img.image-vertical; the shuffled wrapper class alone does not imply scrambled artwork. Visible no-extension screenshot and extension entry confirmed.",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        },
+        {
+          "requestedUrl": "https://rawotaku.com/home/",
+          "finalUrl": "https://rawotaku.com/home/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public Blue Lock chapter shows intact 750x1080 pages in #vertical-content .iv-card > img.image-vertical; the shuffled wrapper class alone does not imply scrambled artwork. Visible no-extension screenshot and extension entry confirmed.",
+          "imageCount": 14,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        }
+      ],
+      "readerFinding": "Public Blue Lock chapter shows intact 750x1080 pages in #vertical-content .iv-card > img.image-vertical; the shuffled wrapper class alone does not imply scrambled artwork. Visible no-extension screenshot and extension entry confirmed."
     },
     {
       "name": "pixiv.app",
@@ -4258,7 +4439,30 @@
           "hostname": "toondex.co"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://toondex.co/",
+          "finalUrl": "https://toondex.co/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public chapter uses numbered row- images directly inside .max-w-5xl > .my-6; recommended covers and linked advertising excluded. Entry only, no OCR acceptance.",
+          "imageCount": 57,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        },
+        {
+          "requestedUrl": "https://toondex.co/comics/stop-smoking-frgsok/",
+          "finalUrl": "https://toondex.co/comics/stop-smoking-frgsok/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public chapter uses numbered row- images directly inside .max-w-5xl > .my-6; recommended covers and linked advertising excluded. Entry only, no OCR acceptance.",
+          "imageCount": 19,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        }
+      ],
+      "readerFinding": "Public chapter uses numbered row- images directly inside .max-w-5xl > .my-6; recommended covers and linked advertising excluded. Entry only, no OCR acceptance."
     },
     {
       "name": "manwadd.cc",
@@ -4292,7 +4496,19 @@
           "hostname": "saucemanhwa.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://saucemanhwa.com/",
+          "finalUrl": "http://ww19.saucemanhwa.com/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Current normal homepage navigation redirects to a domain parking page; no public reader links. Parked subdomain not registered as manga alias.",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        }
+      ]
     },
     {
       "name": "mangakoinu.com",
@@ -4356,7 +4572,30 @@
           "hostname": "manhwaden.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://www.manhwaden.com/",
+          "finalUrl": "https://www.manhwaden.com/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public chapter displays complete 800x11608 and taller strip images in .reading-content .text-left > p > img; shared bounded segmentation applies. Entry checked; no new OCR quality acceptance for this site.",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        },
+        {
+          "requestedUrl": "https://www.manhwaden.com/manga-genre/action/",
+          "finalUrl": "https://www.manhwaden.com/manga-genre/action/",
+          "status": 200,
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public chapter displays complete 800x11608 and taller strip images in .reading-content .text-left > p > img; shared bounded segmentation applies. Entry checked; no new OCR quality acceptance for this site.",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "networkFailureCount": 0
+        }
+      ],
+      "readerFinding": "Public chapter displays complete 800x11608 and taller strip images in .reading-content .text-left > p > img; shared bounded segmentation applies. Entry checked; no new OCR quality acceptance for this site."
     },
     {
       "name": "dvamh-vzwp7.top",
@@ -5626,6 +5865,139 @@
       "scope": "Read-only public reader DOM research without extension; not OCR or runtime acceptance",
       "readerFinding": "Public home-page free-preview link fails to reach DOMContentLoaded within 25s when opened directly. Separate normal-popup attempt later had a busy renderer; no body acceptance.",
       "error": "page.goto: Timeout 25000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"https://bookwalker.jp/de5c93ad79-007d-4975-b94e-9d20c92e1cc4/?sample=2\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    },
+    {
+      "url": "https://www.yamibo.com/work/read?id=208&type=3",
+      "finalUrl": "https://www.yamibo.com/manga/view-chapter?id=1002",
+      "status": 200,
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Normal Start Reading link reaches chapter 1002; visible page explicitly requires paid subscription and shows no body images. No subscription or body acceptance.",
+      "imageCount": 0,
+      "canvases": [],
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://rawotaku.com/read/%E3%83%96%E3%83%AB%E3%83%BC%E3%83%AD%E3%83%83%E3%82%AF-raw/",
+      "finalUrl": "https://rawotaku.com/read/%E3%83%96%E3%83%AB%E3%83%BC%E3%83%AD%E3%83%83%E3%82%AF/ja/chapter-1-raw/",
+      "status": 200,
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Public Blue Lock chapter shows intact 750x1080 pages in #vertical-content .iv-card > img.image-vertical; the shuffled wrapper class alone does not imply scrambled artwork. Visible no-extension screenshot and extension entry confirmed.",
+      "imageCount": 8,
+      "canvases": [],
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://soraraw.com/manga/yowamushi-pedaru-276/ch-882",
+      "finalUrl": "https://soraraw.com/manga/yowamushi-pedaru-276/ch-882",
+      "status": 200,
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Headless chapter initializes nonzero canvas with SecurityError. Normal visible browser shows restore-100-percent-zoom instruction over reader; normal Meta+0 and reload leaves instruction visible. No visible artwork or extension runtime acceptance.",
+      "imageCount": 1,
+      "canvases": [
+        {
+          "width": 627,
+          "height": 900,
+          "readable": false,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 627,
+          "height": 900,
+          "readable": false,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 627,
+          "height": 900,
+          "readable": false,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 627,
+          "height": 900,
+          "readable": false,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 627,
+          "height": 900,
+          "readable": false,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 300,
+          "height": 150,
+          "readable": true,
+          "pixelError": ""
+        },
+        {
+          "width": 300,
+          "height": 150,
+          "readable": true,
+          "pixelError": ""
+        }
+      ],
+      "networkFailureCount": 22
+    },
+    {
+      "url": "https://mkissa.to/manga/nDmcnFNhnfhj52TsW",
+      "finalUrl": "https://mkissa.to/manga/nDmcnFNhnfhj52TsW",
+      "status": 200,
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Normal public work Chapters tab exposes role=link data-href chapter-140-sub. Both headless and normal visible direct chapter requests return HTTP403 verification page; no body acceptance.",
+      "imageCount": 36,
+      "canvases": [],
+      "networkFailureCount": 15
+    },
+    {
+      "url": "https://www.manhwaden.com/manga/portrait-of-pride/chapter-15/",
+      "finalUrl": "https://www.manhwaden.com/manga/portrait-of-pride/chapter-15/",
+      "status": 200,
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Public chapter displays complete 800x11608 and taller strip images in .reading-content .text-left > p > img; shared bounded segmentation applies. Entry checked; no new OCR quality acceptance for this site.",
+      "imageCount": 11,
+      "canvases": [],
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://toondex.co/comics/stop-smoking-frgsok/chapter-1/",
+      "finalUrl": "https://toondex.co/comics/stop-smoking-frgsok/chapter-1/",
+      "status": 200,
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Public chapter uses numbered row- images directly inside .max-w-5xl > .my-6; recommended covers and linked advertising excluded. Entry only, no OCR acceptance.",
+      "imageCount": 344,
+      "canvases": [],
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://manhwato.com/manhwa/i-want-to-work-quietly-raw/chapter-42-ch282329",
+      "finalUrl": "https://manhwato.com/manhwa/i-want-to-work-quietly-raw/chapter-42-ch282329",
+      "status": 200,
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Public chapter body uses .chapter-content .page-chapter > img, including 720x2800 pages; cover/header images excluded. Entry only, no OCR acceptance.",
+      "imageCount": 54,
+      "canvases": [],
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://mechacomic.jp/books/245496",
+      "finalUrl": "https://mechacomic.jp/viewer/index.html?viewer=vertical",
+      "status": 200,
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal public free-reading button opens vertical viewer with complete displayed blob frame images and transparent 1x1 dummy interaction images. Match only body Image component under VerticalViewer PageList; omit dummy sources. Do not reuse anonymous manifest URLs.",
+      "imageCount": 45,
+      "canvases": [],
+      "networkFailureCount": 86
+    },
+    {
+      "url": "https://mkissa.to/manga/nDmcnFNhnfhj52TsW/chapter-140-sub",
+      "finalUrl": "https://mkissa.to/manga/nDmcnFNhnfhj52TsW/chapter-140-sub",
+      "status": 403,
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal public work Chapters tab exposes role=link data-href chapter-140-sub. Both headless and normal visible direct chapter requests return HTTP403 verification page; no body acceptance.",
+      "imageCount": 0,
+      "canvases": [],
+      "networkFailureCount": 1
     }
   ],
   "verification": {
@@ -7118,6 +7490,320 @@
       "modelRequests": 0,
       "profileRemoved": true,
       "report": "/private/tmp/fluentread-brand-manga-sites-20261005/atsu-segments-wave12-outputs/report.json"
+    },
+    "additionalReaderUnit": {
+      "files": 6,
+      "cases": 429,
+      "result": "passed",
+      "fourDimensionalCoverage": "100% for seven manga config/reader/surface modules",
+      "scope": "Complete body boundaries, directory rejection, Mecha vertical-only query, dummy/ad exclusion; not site quality acceptance"
+    },
+    "additionalReaderEntries": {
+      "result": "passed",
+      "cases": 21,
+      "baseCases": 16,
+      "publicReaders": [
+        {
+          "requestedUrl": "https://rawotaku.com/read/%E3%83%96%E3%83%AB%E3%83%BC%E3%83%AD%E3%83%83%E3%82%AF/ja/chapter-1-raw/",
+          "finalUrl": "https://rawotaku.com/read/%E3%83%96%E3%83%AB%E3%83%BC%E3%83%AD%E3%83%83%E3%82%AF/ja/chapter-1-raw/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 78,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://www.manhwaden.com/manga/portrait-of-pride/chapter-15/",
+          "finalUrl": "https://www.manhwaden.com/manga/portrait-of-pride/chapter-15/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 17,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://manhwato.com/manhwa/i-want-to-work-quietly-raw/chapter-42-ch282329",
+          "finalUrl": "https://manhwato.com/manhwa/i-want-to-work-quietly-raw/chapter-42-ch282329",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 51,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://toondex.co/comics/stop-smoking-frgsok/chapter-1/",
+          "finalUrl": "https://toondex.co/comics/stop-smoking-frgsok/chapter-1/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 344,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://mechacomic.jp/books/245496",
+          "finalUrl": "https://mechacomic.jp/viewer/index.html?viewer=vertical",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 38,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "errors": [],
+      "hostErrorCount": 0,
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "profileRemoved": true,
+      "scope": "Pure icon and actual extension entries; no OCR in this suite"
+    },
+    "rawotakuTranslation": {
+      "result": "passed",
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "scroll automatically translates a new visible page",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the resident brand icon"
+      ],
+      "sourceLanguage": "ja",
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 39240,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 41187,
+          "mayIncludeFirstInpaintingPreparation": true
+        }
+      ],
+      "firstOperationCount": 1,
+      "sourceDimensions": "750x1080 each",
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "errors": [],
+      "hostErrorCount": 0,
+      "consoleErrors": [],
+      "profileRemoved": true,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "scope": "Two public pages; first-cancel check skipped. Normal pause restores source URL/srcset/sizes/style; reactivation uses cache; next scroll translates. Japanese OCR remains incomplete.",
+      "qualityFinding": "Visible Chinese text, but 2018 becomes 2010, vertical best-16-elimination text is badly mistranslated, furigana and Japanese body text remain, some translated blocks overlap/remnants. Not whole-chapter or quality acceptance."
+    },
+    "sorarawNormalZoomRecheck": {
+      "scope": "read-only visible DOM research without extension",
+      "action": {
+        "key": "Meta+0",
+        "reload": true
+      },
+      "finding": "Headless chapter initializes nonzero canvas with SecurityError. Normal visible browser shows restore-100-percent-zoom instruction over reader; normal Meta+0 and reload leaves instruction visible. No visible artwork or extension runtime acceptance.",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "profileRemoved": true
+    },
+    "mechacomicNoTextSceneAttempt": {
+      "result": "failed",
+      "currentCase": "scroll automatically translates a new visible page",
+      "passedCases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results"
+      ],
+      "failure": "The next displayed source has no text and remains visible; smoke expected opacity 0 from a translated bitmap. Original failed report retained, not reclassified as passed.",
+      "lastImageUi": [
+        "已翻译 · 点击恢复原图",
+        "未检测到文字，已保留原图"
+      ],
+      "sourceLanguage": "ja",
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 33384,
+          "includesFirstModelPreparation": true
+        }
+      ],
+      "operations": 2,
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "errors": [],
+      "hostErrors": [],
+      "consoleErrors": [],
+      "profileRemoved": true,
+      "scope": "Public free cover translated, pause restores source and reactivation reuses result. Next 730x360 decoration panel has no words; no whole-chapter or continuation acceptance from this attempt."
+    },
+    "additionalReaderBuilds": {
+      "chrome": "passed (22.8s)",
+      "firefox": "passed (23.3s)",
+      "userscript": "passed",
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed (1916996 bytes)",
+      "compile": "passed",
+      "testAudit": "468 files / 6051 declarations",
+      "entryAndHeaders": "2 files / 810 cases passed",
+      "moduleBoundaries": "1 file / 13 cases passed",
+      "scope": "Production builds and selected contracts; Firefox/userscript runtime and full architecture suite not run in this pass.",
+      "docsBuild": "passed"
+    },
+    "mechacomicLazyPreScrollAttempt": {
+      "result": "failed",
+      "cases": [],
+      "operations": 0,
+      "failure": "Selected eighth image is initially hidden until its container scrolls into view; previous harness waited for visible image before scrolling and timed out. No OCR sent, product reader not treated as failed. Original report retained.",
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "errors": [],
+      "hostErrors": [],
+      "consoleErrors": [],
+      "profileRemoved": true
+    },
+    "mechacomicDialogueTranslation": {
+      "result": "passed",
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "scroll automatically translates a new visible page",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the resident brand icon"
+      ],
+      "publicWorkUrl": "https://mechacomic.jp/books/245496",
+      "openedByNormalFreeButton": true,
+      "sourceLanguage": "ja",
+      "selectedBodyFrames": [
+        8,
+        9
+      ],
+      "sourceDimensions": [
+        {
+          "width": 364,
+          "height": 874
+        },
+        {
+          "width": 480,
+          "height": 378
+        }
+      ],
+      "readerScrollSelector": "[class*=\"VerticalViewerstyles__PageList-\"] > [class*=\"PageContainer__WidthBox-\"]:nth-child(n+8):nth-child(-n+9)",
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 25440,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 19328,
+          "mayIncludeFirstInpaintingPreparation": true
+        }
+      ],
+      "firstOperationCount": 1,
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "errors": [],
+      "hostErrorCount": 0,
+      "consoleErrors": [],
+      "profileRemoved": true,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "scope": "Two selected public dialogue frame images; first-cancel check skipped. Normal scroll triggers lazy source loading; pause restores original URL/srcset/sizes/style; reactivation reuses cached result; next scroll translates without popup. No full-chapter acceptance.",
+      "qualityFinding": "Visible Chinese dialogue and three-years work text. Greeting falsely adds a name; multiple vertical Japanese body blocks and furigana remain. Small text and mistranslation still limit readability. Earlier no-text and lazy pre-scroll failed reports retained."
     }
   }
 }

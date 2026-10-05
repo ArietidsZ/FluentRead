@@ -59,6 +59,12 @@ if(surfaceReaderTest){
     assert.ok(['ArrowLeft','ArrowRight'].includes(canvasTurnKey),'Canvas chapter turns use a normal horizontal arrow key');
 }
 const readerSelector=explicitReaderSelector || (surfaceReaderTest?explicitCanvasSelector || (backgroundReaderTest?'div[id^="page-"][style*="blob:"]':'#comici-viewer .-cv-page-canvas canvas'):pixiv?'img[src*="/img-master/"][src*="/150354216_p"], img[src*="/img-original/"][src*="/150354216_p"]':'.zao-image');
+const sourceLanguage=arg('source-language',pixiv||surfaceReaderTest?'ja':'en');
+assert.ok(['en','ja','ko','auto'].includes(sourceLanguage),'Use a supported sample source language');
+const readerOpenSelector=arg('reader-open-selector',null);
+if(readerOpenSelector)assert.ok(readerSmoke&&liveSite&&!surfaceReaderTest,'Image reader opening requires an explicit live smoke check');
+const readerScrollSelector=arg('reader-scroll-selector',null);
+if(readerScrollSelector)assert.ok(explicitReaderSelector&&liveSite&&readerSmoke&&!segmentReaderTest,'Lazy image scroll anchors require an explicit public image smoke check');
 const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-profile-');
 fs.mkdirSync(artifacts, {recursive: true});
 const report = {site: liveSite ? 'live MANGA Plus' : 'controlled MANGA Plus reader fixture',
@@ -68,6 +74,7 @@ if(pixiv)report.site='live Pixiv artwork 150354216';
 if(surfaceReaderTest){report.site=`live readable ${backgroundReaderTest?'background':'canvas'} chapter: ${targetUrl}`;report.canvasReader={selector:readerSelector,openSelector:canvasOpenSelector,initialTurns:canvasInitialTurns,turnKey:canvasTurnKey,turnCount:canvasTurnCount};}
 if(explicitReaderSelector){report.site=`live image chapter: ${targetUrl}`;report.readerSelector=explicitReaderSelector;}
 report.prefetchPages=prefetchPages;
+report.sourceLanguage=sourceLanguage;report.readerOpenSelector=readerOpenSelector;report.readerScrollSelector=readerScrollSelector;
 let launched, page, worker, cdp, popup, modelObserver, browserPid,loadedExtensionId;
 function focusGuard() {
     const current=JSON.parse(execFileSync('/usr/bin/osascript',['-l','JavaScript','-e',"ObjC.import('AppKit');const app=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(app.processIdentifier),name:ObjC.unwrap(app.localizedName)});"],{encoding:'utf8'}));
@@ -266,6 +273,14 @@ async function toggle() {
     await page.mouse.click(expanded.x,expanded.y);
 }
 async function ops() {return worker.evaluate(()=>globalThis.__mangaTest.operations.length);}
+async function scrollReaderImage(index) {
+    const image=page.locator(readerSelector).nth(index);
+    const anchor=page.locator(readerScrollSelector||readerSelector).nth(index);
+    await anchor.waitFor({state:'attached'});
+    await anchor.scrollIntoViewIfNeeded();
+    await image.waitFor({state:'visible'});
+    await wait(async()=>await image.evaluate(i=>i.complete&&i.naturalWidth>=80),30000);
+}
 async function screenshot(name) {focusGuard();await page.mouse.move(30,30);await page.waitForTimeout(300);const file=path.join(artifacts,`${name}.png`);await page.screenshot({path:file});report.screenshots.push(file);}
 async function toolScreenshot(name){
     await page.mouse.move(30,30);
@@ -840,7 +855,7 @@ async function verifyReadAhead() {
     await patch({on:true,uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,disableImageTranslator:false,
         imageTranslationMangaEnabled:true,imageTranslationMangaDownloadConfirmed:true,imageTranslationMangaPromptEnabled:false,imageTranslationHoverEnabled:false,disableFloatingBall:false,
         imageTranslationMangaPrefetchPages:prefetchPages,
-        service:'google',from:pixiv||surfaceReaderTest?'ja':'en',to:'zh-Hans',useCache:true,enableAIContext:false,animations:false});
+        service:'google',from:sourceLanguage,to:'zh-Hans',useCache:true,enableAIContext:false,animations:false});
     await worker.evaluate(({live,trace})=>{
         const original=globalThis.fetch.bind(globalThis);
         const test=globalThis.__mangaTest={operations:[],inputs:[],requests:[],cancellations:[],textBatches:[],progress:[]};
@@ -893,6 +908,7 @@ async function verifyReadAhead() {
         else report.errors.push(error.message);
     });
     await page.goto(targetUrl,{waitUntil:'domcontentloaded',timeout:60000});
+    if(readerOpenSelector)await page.locator(readerOpenSelector).click({timeout:15000});
     cdp=await context.newCDPSession(page);
     if(liveSite||traceReader) {
         const scripts=new Map(),contexts=new Map();report.scriptExceptions=[];
@@ -923,8 +939,8 @@ async function verifyReadAhead() {
     }
     if(surfaceReaderTest)await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(c=>{const r=c.getBoundingClientRect();return r.width>80&&r.height>40&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0;}),readerSelector);
     else {
-        await page.locator(readerSelector).first().waitFor();
-        if(explicitReaderSelector&&!segmentReaderTest)await page.locator(readerSelector).first().scrollIntoViewIfNeeded();
+        if(explicitReaderSelector&&!segmentReaderTest)await scrollReaderImage(0);
+        else await page.locator(readerSelector).first().waitFor();
     }
     if(surfaceReaderTest)await page.waitForTimeout(900);
     if(traceReader)await page.evaluate(selector=>{
@@ -982,7 +998,7 @@ async function verifyReadAhead() {
     const before=await ops();await toggle();await wait(async()=>(await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`))>0);
     assert.equal(await ops(),before);report.cases.push(report.currentCase);
     report.currentCase='scroll automatically translates a new visible page';
-    const second=page.locator(readerSelector).nth(1);started=Date.now();await second.scrollIntoViewIfNeeded();
+    const second=page.locator(readerSelector).nth(1);started=Date.now();await scrollReaderImage(1);
     await captureSource(second,'02');
     await wait(async()=>(await ops())>before);
     await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-busy')`))==='false');
@@ -994,7 +1010,7 @@ async function verifyReadAhead() {
         if(index===3 && readingPauseMs){report.readingPauseMs=readingPauseMs;await page.waitForTimeout(Math.min(60000,readingPauseMs));if(readingPauseMs>60000)await page.waitForTimeout(readingPauseMs-60000);}
         report.currentCase=`live page ${index+1} translates automatically`;
         const previous=await ops(), image=page.locator(readerSelector).nth(index);started=Date.now();
-        await image.scrollIntoViewIfNeeded();await captureSource(image,String(index+1).padStart(2,'0'));
+        await scrollReaderImage(index);await captureSource(image,String(index+1).padStart(2,'0'));
         await wait(async()=>(await ops())>previous);
         await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-busy')`))==='false');
         assert.ok((await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`))>0);

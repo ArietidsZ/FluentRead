@@ -15,6 +15,8 @@ const {chromium} = require(path.join(arg('playwright-root'), 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper'));
 const profile = fs.mkdtempSync('/private/tmp/fluentread-reader-inspection-');
 const headlessResearch = process.argv.includes('--headless-research');
+const resetZoom = process.argv.includes('--reset-zoom');
+assert.ok(!resetZoom || !headlessResearch, 'Zoom reset requires a normal visible browser');
 fs.mkdirSync(artifacts, {recursive:true});
 const report = {scope: urls, pages: [], errors: []};
 let launched, browserPid;
@@ -48,11 +50,15 @@ function focusGuard() {
       const parentPage = page, navigationResponses=[];
       const recordResponse=response=>{if(response.request().isNavigationRequest())navigationResponses.push({url:response.url(),status:response.status()});};
       launched.context.on('response',recordResponse);
-      const result = {requestedUrl:href,pageErrors:[]};
+      const result = {requestedUrl:href,pageErrors:[],networkFailures:[]};
       page.on('pageerror',error=>result.pageErrors.push({message:error.message,stack:error.stack||''}));
+      const publicRequest=request=>{const url=new URL(request.url());url.username='';url.password='';url.search='';url.hash='';return {url:['http:','https:'].includes(url.protocol)?url.href:`${url.protocol}[non-network source omitted]`,type:request.resourceType()};};
+      page.on('requestfailed',request=>{if(result.networkFailures.length<100)result.networkFailures.push({...publicRequest(request),error:request.failure()?.errorText});});
+      page.on('response',response=>{if(response.status()>=400&&['image','xhr','fetch'].includes(response.request().resourceType())&&result.networkFailures.length<100)result.networkFailures.push({...publicRequest(response.request()),status:response.status()});});
       try {
         const response = await page.goto(href,{waitUntil:'domcontentloaded',timeout:25000});
         await page.waitForTimeout(settleMs);result.settleMs=settleMs;
+        if(resetZoom){await page.keyboard.press('Meta+0');await page.reload({waitUntil:'domcontentloaded',timeout:25000});await page.waitForTimeout(settleMs);result.zoomReset={key:'Meta+0',reload:true};}
         const clickSelector=process.argv.includes('--before-inspect-click')?arg('before-inspect-click'):null;
         if(clickSelector){
           const popup=process.argv.includes('--inspect-popup')?launched.context.waitForEvent('page',{timeout:15000}).then(value=>({page:value}),error=>({error})):null;
