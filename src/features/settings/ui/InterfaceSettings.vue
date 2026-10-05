@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/InterfaceSettings.vue
  * 文件职责：组织译文样式、界面风格、动画加载效果、菜单栏布局与界面字体及逐句高亮外观分组，其中网页译文样式排在第一位。
- * 主要内容：连续展示译文样式、皮肤、菜单栏布局、动画及字体预览，通过预览和显隐列表编排区域与快捷入口；字体下载、重试和逐项清除都在对应字体卡片内完成，清除按钮展示排除共享文件后的可释放容量。
+ * 主要内容：连续展示译文样式、完整弹窗皮肤预览、菜单栏布局、动画及紧凑字体卡片，通过预览和显隐列表编排区域与快捷入口；字体下载、重试和逐项清除都在对应字体卡片内完成，清除按钮展示排除共享文件后的可释放容量。
  * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用，译文样式的细节由 TranslationStyleSettings 负责。
 -->
 <template>
@@ -251,7 +251,7 @@
               @click.stop.prevent="confirmClearFont(font.value)"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" /></svg>
-              {{ clearingFont === font.value ? t('settings.interface.font.clearingCache') : t('settings.interface.font.clear', {size: clearFontSize(font.value)}) }}
+              {{ clearingFont === font.value ? t('settings.interface.font.clearingCache') : clearFontSize(font.value) }}
             </button>
           </div>
         </label>
@@ -438,12 +438,12 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 .interface-appearance-settings:hover { background: transparent; }
 .interface-appearance-settings :deep(.settings-item-copy) { position: sticky; top: 0; }
 
-.interface-font-settings { padding: 16px; }
+.interface-font-settings { padding: 12px 16px; }
 
 .interface-font-picker {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
   width: 100%;
 }
 
@@ -452,8 +452,8 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
   min-width: 0;
   grid-template-columns: 16px minmax(0, 1fr);
   align-items: start;
-  gap: 10px;
-  padding: 14px;
+  gap: 6px 8px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 12px;
   color: var(--ink);
@@ -468,14 +468,14 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 .interface-font-option:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
 .interface-font-option input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--brand); cursor: pointer; }
 
-.interface-font-copy { display: flex; min-width: 0; flex-direction: column; gap: 5px; cursor: pointer; }
-.interface-font-action-area { grid-column: 2; display: flex; min-width: 0; min-height: 30px; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 3px; }
-.interface-font-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: fit-content; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; font-size: 11px; line-height: 1.5; background: var(--surface); color: var(--brand); cursor: pointer; }
+.interface-font-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; cursor: pointer; }
+.interface-font-action-area { grid-column: 2; display: flex; min-width: 0; align-items: center; align-self: end; flex-wrap: wrap; gap: 4px 8px; }
+.interface-font-action { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: fit-content; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 10px; line-height: 1.4; background: var(--surface); color: var(--brand); cursor: pointer; }
 .interface-font-action.is-download { background: var(--brand-soft); border-color: transparent; }
 .interface-font-option:hover .interface-font-action:not(.is-active) { border-color: var(--brand); }
 .interface-font-action.is-active { cursor: default; color: var(--muted); background: transparent; border-color: transparent; }
-.interface-font-action svg { width: 17px; height: 17px; flex-shrink: 0; }
-.interface-font-clear { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; color: var(--muted); background: var(--surface); cursor: pointer; font-size: 10.5px; line-height: 1.5; }
+.interface-font-action svg { width: 14px; height: 14px; flex-shrink: 0; }
+.interface-font-clear { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; border: 0; border-radius: 6px; padding: 3px 4px; color: var(--muted); background: transparent; cursor: pointer; font-size: 10px; line-height: 1.4; }
 .interface-font-clear:hover:not(:disabled) { border-color: #e69bad; color: var(--brand-strong); background: var(--brand-soft); }
 .interface-font-clear:disabled { opacity: .55; cursor: wait; }
 .interface-font-clear svg { width: 15px; height: 15px; flex: 0 0 15px; }
@@ -485,8 +485,8 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 .interface-font-card-status.is-error { color: var(--brand-strong); }
 .interface-font-card-status button { width: fit-content; border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px; color: var(--brand-strong); background: var(--surface); cursor: pointer; font-size: 10.5px; }
 .interface-font-card-status button:hover { border-color: var(--brand); background: var(--brand-soft); }
-.interface-font-copy strong { overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; }
-.interface-font-copy small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.interface-font-copy strong { overflow-wrap: anywhere; font-size: 12px; line-height: 1.35; }
+.interface-font-copy small { color: var(--muted); font-size: 10.5px; line-height: 1.4; }
 
 .interface-font-preview {
   grid-column: 1 / -1;
@@ -495,16 +495,16 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px 20px;
-  padding: 18px;
-  border-radius: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
   color: var(--ink);
   background: var(--surface-soft);
   overflow-wrap: anywhere;
-  font-size: 20px;
+  font-size: 17px;
   line-height: 1.6;
 }
 
-.interface-font-preview small { color: var(--muted); font-size: 16px; }
+.interface-font-preview small { color: var(--muted); font-size: 13px; }
 .interface-font-note { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 
 .interface-skin-picker {
