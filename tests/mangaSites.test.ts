@@ -6,6 +6,19 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it.each(['', '-2', '-9999'])('ACG 当前站编号页 %s 只选正文，保留作品身份与域名边界', page => {
+        const site = resolveMangaSite(`https://acgmhn.com/h/886372${page}.html`)!;
+        expect(site).toMatchObject({name: 'ACG 漫画网', requireContent: true, chapterPath: '/h/886372.html'});
+        const {document} = parseHTML('<div class="content"><div class="acg-manga"><div class="manga-page"><p class="manga-picture"><img id="body"><a><img id="nested"></a></p><aside><img id="ad"></aside></div></div><dl class="other"><dd><a><img id="recommendation"></a></dd></dl></div><div class="acg-manga"><div class="manga-page"><p class="manga-picture"><img id="outside"></p></div></div>');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['body']);
+        expect(MANGA_SITE_CATALOG.find(s => s.name === 'acgmhh.com')?.hosts).toEqual(['acgmhh.com', 'acgmhn.com']);
+        expect(isCatalogMangaHost('www.acgmhn.com')).toBe(true);
+        for (const path of ['/', '/tags/full-color.html', '/language/english.html', '/h/0.html', '/h/01.html', '/h/word.html', '/h/1-0.html', '/h/1-01.html', '/h/1-10000.html', '/h/1.html/extra']) expect(resolveMangaReaderProfile('acgmhn.com', path)).toBeNull();
+        for (const host of ['fakeacgmhn.com', 'acgmhn.com.attacker.test']) {
+            expect(resolveMangaReaderProfile(host, '/h/1.html')).toBeNull();
+            expect(isCatalogMangaHost(host)).toBe(false);
+        }
+    });
     it.each(['', '&page=1', '&page=2'])('Yamibo 正文主图及同章分页 %s 排除头像、推荐与异常参数', paging => {
         const site = resolveMangaSite(`https://www.yamibo.com/manga/view-chapter?id=1751${paging}`)!;
         expect(site).toMatchObject({name: 'Yamibo', requireContent: true, pageQueryParameter: 'page'});

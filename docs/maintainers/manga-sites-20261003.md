@@ -45,7 +45,7 @@
 | 35 | Comic-action | comic-action.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 36 | 腾讯动漫 | ac.qq.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 37 | Sololevelingmangafree | sololevelingmangafree.com | 通用正文图片检测 | 连接失败 |
-| 38 | Syosetu | syosetu.si / syosetu.cheap | 通用正文图片检测 | 公开章节与正常查看章节菜单可访问；没有显示正文图片，未计为实章通过 |
+| 38 | Syosetu | syosetu.si / syosetu.cheap | 通用正文图片检测 | 另一部公开作品 686 话在正常窗口等待 20 秒后只有 logo、加载图及摘要占位图，无正文；此前章节菜单失败保留，未计为实章通过 |
 | 39 | Comick | comick.io / comick.dev / comick.fun | 通用正文图片检测 | 当前官方公告称已改为追踪与社区、停止漫画阅读；新域名实测 403 |
 | 40 | YoungAnimal | younganimal.com | 可读画布连续翻译 | 公开章节画布已核对 |
 | 41 | Piccoma | piccoma.com | 通用正文图片检测 | 官方首页可见免费作品；当前免费作品页明确只供日本境内使用，无正文，未绕过地区限制 |
@@ -116,7 +116,7 @@
 | 106 | mangaoi.net | mangaoi.net | 通用正文图片检测 | 目录可访问；章节直开及正常点击均返回 HTTP 200 的 404 页面 |
 | 107 | rawlazy.io | rawlazy.io | 通用正文图片检测 | 公开实章仍显示图片加载提示；正文未确认 |
 | 108 | toptoon.com | toptoon.com | 首图/不可读画布：圈选入口 | 正常点击免费首话显示 720 像素宽正文；画布原生像素读取返回 SecurityError，首图和下一画布入口通过 |
-| 109 | acgmhh.com | acgmhh.com | 通用正文图片检测 | 正常转至 acgmhn.com 目录；正文未确认，未登记别名 |
+| 109 | acgmhh.com | acgmhh.com / acgmhn.com | 专用编号页正文图片 | 原站 301 转至当前目录；经用户授权确认年龄提示后正常下一页显示 1000×1398 主图，推荐封面排除，实页入口通过；未验 OCR 或跨文档续译 |
 | 110 | readcomicsonline.ru | readcomicsonline.ru | 通用正文图片检测 | 本轮公开首页 HTTP 403 验证页，无正文 |
 | 111 | vortexscans.org | vortexscans.org | 专用正文图片 | 公开章节正文结构已核对 |
 | 112 | freeonlinehd.site | freeonlinehd.site | 通用正文图片检测 | 当前为域名出售及联系页面，无漫画正文 |

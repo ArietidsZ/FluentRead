@@ -1469,6 +1469,57 @@
           "status": 200,
           "title": "Syosetu - 漫画 raw, 漫画raw, 漫画bank, 漫画ろう, Manga raw, 無料漫画, 漫画バンク, まんがらう, 漫画ロー, マンガバンク, マンガ1001",
           "imageCount": 25
+        },
+        {
+          "url": "https://syosetu.cheap/",
+          "finalUrl": "https://syosetu.cheap/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+          "attempt": "homes-wave30",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 25,
+          "canvasCount": 0,
+          "readerFinding": "Public catalogue200 with actual work links; no reader acceptance from homepage.",
+          "profileRemoved": true,
+          "pageErrorCount": 1,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://syosetu.cheap/",
+          "checkedAt": "2026-10-05T14:13:34.189Z"
+        },
+        {
+          "url": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/",
+          "finalUrl": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+          "attempt": "works-wave30",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 6,
+          "canvasCount": 0,
+          "readerFinding": "Actual alternate public work opens and provides native chapter686 link; body not yet confirmed.",
+          "profileRemoved": true,
+          "pageErrorCount": 1,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/",
+          "checkedAt": "2026-10-05T14:13:34.190Z"
+        },
+        {
+          "url": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/chapter-686/",
+          "finalUrl": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/chapter-686/",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+          "attempt": "syosetu-chapter-wave30",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 3,
+          "canvasCount": 0,
+          "readerFinding": "Normal visible background window waits20s at alternate public chapter686; only logo, loading image and601x400 theme summary placeholder. No chapter body IMG/canvas/background; no chapter acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 1,
+          "networkFailureCount": 2,
+          "requestedUrl": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/chapter-686/",
+          "checkedAt": "2026-10-05T14:13:34.191Z"
         }
       ]
     },
@@ -5131,7 +5182,8 @@
     {
       "name": "acgmhh.com",
       "hosts": [
-        "acgmhh.com"
+        "acgmhh.com",
+        "acgmhn.com"
       ],
       "accessChecks": [
         {
@@ -5153,9 +5205,20 @@
           "method": "isolated browser public DOM without extension",
           "attempt": "homes-wave23",
           "note": "Normal public root redirects to acgmhn.com catalogue; no chapter body confirmed and no hostname alias inferred."
+        },
+        {
+          "requestedUrl": "https://acgmhh.com/",
+          "finalUrl": "https://acgmhn.com/",
+          "checkedAt": "2026-10-05T14:13:34.192Z",
+          "state": "redirect-and-body-confirmed",
+          "status": 200,
+          "method": "isolated public DOM; native age confirmation explicitly authorized by human",
+          "attempt": "homes-wave30",
+          "redirectStatus": 301,
+          "note": "Public301 original-to-current catalogue, actual chapter and normal native pagination confirmed; hosts map one catalogue item. No OCR/quality acceptance."
         }
       ],
-      "adapter": "detect",
+      "adapter": "images",
       "browserRechecks": [
         {
           "url": "https://acgmhh.com/",
@@ -5172,6 +5235,92 @@
           "networkFailureCount": 5,
           "requestedUrl": "https://acgmhh.com/",
           "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://acgmhh.com/",
+          "finalUrl": "https://acgmhn.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+          "attempt": "homes-wave30",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 30,
+          "canvasCount": 0,
+          "readerFinding": "Public original root returns301 to current acgmhn.com catalogue, followed by200. Catalogue alone is not body acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 4,
+          "requestedUrl": "https://acgmhh.com/",
+          "checkedAt": "2026-10-05T14:13:34.188Z"
+        },
+        {
+          "url": "https://acgmhn.com/tags/full-color.html",
+          "finalUrl": "https://acgmhn.com/tags/full-color.html",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+          "attempt": "works-wave30",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 30,
+          "canvasCount": 0,
+          "readerFinding": "Initial selected HTML link is a tag catalogue, not a work; diagnostic retained and later corrected to actual native work link.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "requestedUrl": "https://acgmhn.com/tags/full-color.html",
+          "checkedAt": "2026-10-05T14:13:34.189Z"
+        },
+        {
+          "url": "https://acgmhn.com/h/886372.html",
+          "finalUrl": "https://acgmhn.com/h/886372.html",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+          "attempt": "acg-work-wave30",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 29,
+          "canvasCount": 0,
+          "readerFinding": "Actual catalogue-linked numbered work has one1000x1398 primary IMG directly under p.manga-picture; recommendations use other ancestors. Headless DOM structure only, age prompt not yet confirmed.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "requestedUrl": "https://acgmhn.com/h/886372.html",
+          "checkedAt": "2026-10-05T14:13:34.190Z"
+        },
+        {
+          "url": "https://acgmhn.com/h/886372.html",
+          "finalUrl": "https://acgmhn.com/h/886372.html",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+          "attempt": "acg-next-wave30",
+          "status": null,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal Next Page click timed out because native age disclaimer intercepts pointer. No force click or prompt removal; retained initial failure pending human consent.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "error": "Native Next Page click timed out because age disclaimer intercepted pointer; no force click.",
+          "requestedUrl": "https://acgmhn.com/h/886372.html",
+          "checkedAt": "2026-10-05T14:13:34.191Z"
+        },
+        {
+          "url": "https://acgmhn.com/h/886372.html",
+          "finalUrl": "https://acgmhn.com/h/886372-2.html",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+          "attempt": "acg-consent-next-wave30",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 28,
+          "canvasCount": 0,
+          "readerFinding": "Human explicitly affirmed adult age and authorized native confirmation. Normal confirmation and Next Page load new numbered document with one visible1000x1398 direct body IMG. No OCR, screenshot, image export or cross-document auto-resume claim.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 4,
+          "requestedUrl": "https://acgmhn.com/h/886372.html",
+          "checkedAt": "2026-10-05T14:13:34.192Z"
         }
       ]
     },
@@ -14740,6 +14889,127 @@
       "profileRemoved": true,
       "pageErrorCount": 0,
       "networkFailureCount": 0
+    },
+    {
+      "url": "https://acgmhh.com/",
+      "finalUrl": "https://acgmhn.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+      "attempt": "homes-wave30",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 30,
+      "canvasCount": 0,
+      "readerFinding": "Public original root returns301 to current acgmhn.com catalogue, followed by200. Catalogue alone is not body acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 4
+    },
+    {
+      "url": "https://syosetu.cheap/",
+      "finalUrl": "https://syosetu.cheap/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+      "attempt": "homes-wave30",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 25,
+      "canvasCount": 0,
+      "readerFinding": "Public catalogue200 with actual work links; no reader acceptance from homepage.",
+      "profileRemoved": true,
+      "pageErrorCount": 1,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://acgmhn.com/tags/full-color.html",
+      "finalUrl": "https://acgmhn.com/tags/full-color.html",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+      "attempt": "works-wave30",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 30,
+      "canvasCount": 0,
+      "readerFinding": "Initial selected HTML link is a tag catalogue, not a work; diagnostic retained and later corrected to actual native work link.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/",
+      "finalUrl": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+      "attempt": "works-wave30",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 6,
+      "canvasCount": 0,
+      "readerFinding": "Actual alternate public work opens and provides native chapter686 link; body not yet confirmed.",
+      "profileRemoved": true,
+      "pageErrorCount": 1,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://acgmhn.com/h/886372.html",
+      "finalUrl": "https://acgmhn.com/h/886372.html",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+      "attempt": "acg-work-wave30",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 29,
+      "canvasCount": 0,
+      "readerFinding": "Actual catalogue-linked numbered work has one1000x1398 primary IMG directly under p.manga-picture; recommendations use other ancestors. Headless DOM structure only, age prompt not yet confirmed.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/chapter-686/",
+      "finalUrl": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/chapter-686/",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+      "attempt": "syosetu-chapter-wave30",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 3,
+      "canvasCount": 0,
+      "readerFinding": "Normal visible background window waits20s at alternate public chapter686; only logo, loading image and601x400 theme summary placeholder. No chapter body IMG/canvas/background; no chapter acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 1,
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://acgmhn.com/h/886372.html",
+      "finalUrl": "https://acgmhn.com/h/886372.html",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+      "attempt": "acg-next-wave30",
+      "status": null,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal Next Page click timed out because native age disclaimer intercepts pointer. No force click or prompt removal; retained initial failure pending human consent.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "error": "Native Next Page click timed out because age disclaimer intercepted pointer; no force click."
+    },
+    {
+      "url": "https://acgmhn.com/h/886372.html",
+      "finalUrl": "https://acgmhn.com/h/886372-2.html",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "acg-current-host-numbered-body-and-syosetu-alternate-work-wave30",
+      "attempt": "acg-consent-next-wave30",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 28,
+      "canvasCount": 0,
+      "readerFinding": "Human explicitly affirmed adult age and authorized native confirmation. Normal confirmation and Next Page load new numbered document with one visible1000x1398 direct body IMG. No OCR, screenshot, image export or cross-document auto-resume claim.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 4
     }
   ],
   "verification": {
@@ -23319,7 +23589,7 @@
     "publicPostReaderBuilds": {
       "status": "passed",
       "typecheck": "passed",
-      "chromeSeconds": 27.0,
+      "chromeSeconds": 27,
       "firefoxSeconds": 29.6,
       "userscriptSeconds": 3.83,
       "userscriptBytes": 1917294,
@@ -23499,7 +23769,7 @@
     "comipoJcomicReaderBuilds": {
       "status": "passed",
       "typecheck": "passed",
-      "chromeSeconds": 29.0,
+      "chromeSeconds": 29,
       "firefoxSeconds": 28.5,
       "userscriptSeconds": 3.94,
       "userscriptBytes": 1917250,
@@ -24206,7 +24476,7 @@
       "status": "passed",
       "typecheck": "passed",
       "chromeSeconds": 30.2,
-      "firefoxSeconds": 45.0,
+      "firefoxSeconds": 45,
       "userscriptSeconds": 3.87,
       "userscriptBytes": 1917250,
       "extensionManifestVerifier": "passed",
@@ -24371,6 +24641,117 @@
         "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave29.log"
       },
       "scope": "Chrome public reader entry runtime only; Firefox/userscript builds/verifiers only. No actual Yamibo OCR/image-source access/quality or cross-document active-session persistence acceptance. Existing full architecture-group and all-suite failures retained; no full-suite rerun. No engine, source authorization, permissions, dependencies, version or reference-repo changes."
+    },
+    "acgReaderUnit": {
+      "status": "passed",
+      "cases": 539,
+      "files": 7,
+      "fourDimensionCoverage": "100% for all eight manga configuration/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave30.log",
+      "scope": "Exact current-host numbered body direct ancestors and gallery identity, page1..9999 bounds, catalogue/ad/recommendation/nested image and spoofed-host exclusions; no cross-document session persistence added."
+    },
+    "acgReaderEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://acgmhn.com/h/886372.html",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "windowState": "normal",
+        "displayTarget": "secondary",
+        "browserFrontmost": false
+      },
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "profileRemoved": true,
+      "liveReaders": [
+        {
+          "url": "https://acgmhn.com/h/886372.html",
+          "finalUrl": "https://acgmhn.com/h/886372-2.html",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1000,
+              "naturalHeight": 1398,
+              "width": 928,
+              "height": 1297,
+              "visible": true
+            }
+          ],
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "brandShape": {
+        "width": 32,
+        "height": 32,
+        "radius": "50%"
+      },
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-wave30-terminal/report.json",
+      "scope": "19 Chrome entry cases;18 base fixtures plus normal authorized native confirmation and Next Page for actual ACG work. Loaded visible1000x1398 direct body, pure32x32 icon and cleanup. No chapter screenshot/OCR/export or full translation/quality/cross-document persistence acceptance."
+    },
+    "acgReaderUiLaunchInitialAttempt": {
+      "status": "diagnostic-failed",
+      "cases": 0,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-wave30/report.json",
+      "finding": "Restricted LaunchServices launch failed with kLSNoExecutableErr; no runtime cases. Authorized isolated background launch outside restriction subsequently passed. No auto-review rejection."
+    },
+    "acgReaderBuilds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "typecheckReport": "/private/tmp/fluentread-brand-manga-sites-20261005/compile-wave30-terminal.log",
+      "chromeSeconds": 51,
+      "firefoxSeconds": 63,
+      "userscriptSeconds": 7.09,
+      "userscriptBytes": 1917272,
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave30.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6115,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-wave30.log"
+      },
+      "scope": "Chrome entry runtime only; Firefox/userscript build/verifier evidence. No actual ACG OCR/source access/quality or cross-document persistence acceptance. Existing architecture-group/all-suite failures retained; no full rerun. No engine, source authorization, permissions, dependencies, version or reference-repository changes.",
+      "docs": {
+        "build": "passed",
+        "check": "passed",
+        "pages": 77,
+        "links": 3955,
+        "anchors": 741,
+        "images": 154,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave30.log"
+      }
     }
   }
 }
