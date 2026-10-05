@@ -479,10 +479,22 @@ node scripts/testing/run-reddit-translation-test.cjs \
 pnpm exec vitest run tests/glossary.test.ts tests/builtinGlossaries.test.ts tests/glossaryConfig.test.ts tests/glossarySettingsComponent.test.ts tests/translationGlossaryIntegration.test.ts tests/imageGlossaryContext.test.ts
 ```
 
-生产 Chrome 产物另由以下隔离浏览器回归验证真实设置与翻译交互；`--browser` 一键计划也会自动包含此脚本：
+仅修改术语库管理界面时，使用 `--suite ui` 运行专项，不进入网页或文档翻译链路：
 
 ```bash
-node scripts/run-glossary-test.cjs \
+node scripts/run-glossary-test.cjs --suite ui \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <path> \
+  --focus-safe-helper <path> \
+  --artifacts-dir /private/tmp/fluentread-glossary-ui
+```
+
+专项验证直达的新建、导入与匹配预览入口，空词库及已有词条的设置展开、键盘操作、重复切换和逐帧宽高稳定性，多词库草稿、排序、导入导出、取消删除、重载及快速关闭持久化，以及四种屏宽、深色主题和英文布局。使用临时 Edge profile 与第二块屏幕上的后台可见窗口，不抢占用户焦点；报告包含布局、展开状态采样、控制台错误与截图。
+
+需要验证真实设置与翻译链路时运行以下术语库全链路专项；`--browser` 一键计划也会自动包含此脚本：
+
+```bash
+node scripts/run-glossary-test.cjs --suite full \
   --extension-dir .output/chrome-mv3 \
   --playwright-root <path> \
   --browser-path <path> \
