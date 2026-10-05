@@ -3,6 +3,8 @@ import {parseHTML} from 'linkedom';
 import {translateLegacyText, type UiLanguage} from '@/src/core/i18n';
 import {createImageTranslationBackgroundHandlers, IMAGE_TRANSLATE_MESSAGE_TYPE, IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, IMAGE_CANCEL_MESSAGE_TYPE} from '@/src/features/image-translation/background/handlers';
 import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, normalizeImageProgress} from '@/src/features/image-translation/progress';
+import {createOpenOptionsPageHandler} from '@/src/features/settings/background';
+import {IMAGE_LOCAL_FAILURES, imageLocalFailureMessage, imageTranslationFailureCode, imageTranslationFailureResponse, createImageTranslationFailure} from '@/src/features/image-translation/failure';
 import {createImageControls} from '@/src/features/image-translation/content/controls';
 import {sendCancellableImageOperation, prepareImageOcrLanguages} from '@/src/features/image-translation/services/client';
 import {imageTranslationProgressTransport} from '@/src/features/image-translation/background/offscreenAdapter';
@@ -31,6 +33,74 @@ function mockProgressClient(sendMessage: ReturnType<typeof vi.fn>) {
     vi.stubGlobal('browser', {runtime: {sendMessage, onMessage: {addListener, removeListener}}});
     return {listeners, addListener, removeListener};
 }
+
+describe('图片失败恢复和控件可见性', () => {
+    it('模型入口定位到本地服务编辑区，拒绝无效服务与错误分区', async () => {
+        const openSection=vi.fn(async()=>{}),openDefaultPage=vi.fn(async()=>{});
+        const handler=createOpenOptionsPageHandler({openSection,openDefaultPage});
+        await handler.handle({type:'openOptionsPage',section:'settings-services',service:'localTranslation'});
+        expect(openSection).toHaveBeenCalledWith('settings-services','localTranslation');expect(openDefaultPage).not.toHaveBeenCalled();
+        for (const request of [{section:'settings-services',service:'invalid'},{section:'settings-services',service:2},{section:'settings-image-translation',service:'localTranslation'}]) {
+            await expect(handler.handle({type:'openOptionsPage',...request})).rejects.toThrow('无效');
+        }
+    });
+
+    it('本地错误通过文本后台、Offscreen 和整图后台保留原因，未知错误不冒充模型问题', async () => {
+        for (const code of IMAGE_LOCAL_FAILURES) {
+            const key = code === 'failed' ? 'settings.localTranslation.trialError' : `settings.localTranslation.error.${code}`;
+            const {handler} = setup({translateTexts: vi.fn(async () => {throw Object.assign(new Error('localized provider error'), {localTranslationErrorKey: key});})});
+            const response = await handler(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['Hello']});
+            expect(response).toMatchObject({success: false, errorCode: code});
+            const offscreenError = createImageTranslationFailure('wrapped error', response);
+            const whole = setup({translateImage: vi.fn(async () => {throw offscreenError;})});
+            expect(await whole.handler(IMAGE_TRANSLATE_MESSAGE_TYPE).handle({type: IMAGE_TRANSLATE_MESSAGE_TYPE, image: 'data:image/png,x', sourceLanguage: 'en'}))
+                .toEqual(imageTranslationFailureResponse(offscreenError));
+            expect(imageTranslationFailureCode(offscreenError)).toBe(code);
+            for (const language of ['en-US','ja-JP','ko-KR','fr-FR','ru-RU','es-ES'] as UiLanguage[]) {
+                expect(translateLegacyText(imageLocalFailureMessage(code), language)).not.toBe(imageLocalFailureMessage(code));
+            }
+        }
+        for (const value of [null, 'language', {}, {errorCode: 'unexpected'}, {localTranslationErrorKey: 'other.language'}, {localTranslationErrorKey: 'settings.localTranslation.error.invalid'}]) {
+            expect(imageTranslationFailureCode(value)).toBeUndefined();
+            expect(createImageTranslationFailure('unknown', value)).not.toHaveProperty('errorCode');
+        }
+        expect(imageTranslationFailureResponse('offline')).toEqual({success:false,error:'offline'});
+    });
+
+    it('短词借助同图文字，明确语言的正文和非本地服务不使用这段判断上下文', async () => {
+        const texts = ['Hype', 'Quality', 'This is a long enough English sentence for reliable language detection.'];
+        const local = setup({getTranslationService: () => 'localTranslation'});
+        await local.handler(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts, title: '页面标题不属于图片'});
+        const requests = local.dependencies.translateTexts.mock.calls.map(call => call[0] as any);
+        expect(requests.find(request => request.origin === 'Quality').sourceLanguageDetectionText).toBe(texts.join('\n'));
+        expect(requests.find(request => request.origin === texts[2])).not.toHaveProperty('sourceLanguageDetectionText');
+        const mixed = setup({getTranslationService: () => 'localTranslation'});
+        await mixed.handler(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['Quality','这是图片里的中文介绍，需要保留其中的英文短词。']});
+        for (const call of mixed.dependencies.translateTexts.mock.calls) expect(call[0]).not.toHaveProperty('sourceLanguageDetectionText');
+        const remote = setup();
+        await remote.handler(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts});
+        for (const call of remote.dependencies.translateTexts.mock.calls) expect(call[0]).not.toHaveProperty('sourceLanguageDetectionText');
+    });
+
+    it('模型/服务导航拒绝合成点击，离开译图隐藏并保留键盘焦点和文字面板', () => {
+        const {document,window} = parseHTML('<html><body></body></html>');vi.stubGlobal('document',document);
+        const onSettings = vi.fn();
+        const ui = createImageControls({onAction(){},onPrepare(){},onSettings});document.body.append(ui.element,ui.feedback);
+        const click = (target: Element, trusted = true) => {const event = new window.Event('click',{bubbles:true});Object.defineProperty(event,'isTrusted',{value:trusted});target.dispatchEvent(event);};
+        ui.update('error',imageLocalFailureMessage('language'),{modelSettings:true,serviceSettings:true,errorDetails:'original failure'});
+        const model = ui.feedback.querySelector<HTMLButtonElement>('.fr-image-model-settings')!;
+        const service = ui.feedback.querySelector<HTMLButtonElement>('.fr-image-service-settings')!;
+        click(model,false);expect(onSettings).not.toHaveBeenCalled();click(model);click(service);
+        expect(onSettings.mock.calls).toEqual([['settings-services'],['settings-image-translation']]);
+        ui.setLines([{text:'译文',sourceText:'Source'}]);ui.update('translated','完成');ui.setHovered(false);
+        expect(ui.element.hidden).toBe(true);ui.setHovered(true);expect(ui.element.hidden).toBe(false);
+        vi.spyOn(ui.button,'matches').mockImplementation(selector => selector === ':focus-visible');
+        ui.button.dispatchEvent(new window.Event('focusin',{bubbles:true}));ui.setHovered(false);expect(ui.element.hidden).toBe(false);
+        ui.button.dispatchEvent(new window.Event('focusout',{bubbles:true}));expect(ui.element.hidden).toBe(true);
+        ui.setHovered(true);click(ui.element.querySelector<HTMLButtonElement>('[aria-expanded]')!);ui.setHovered(false);expect(ui.element.hidden).toBe(false);
+        ui.hideReader();expect(ui.element.hidden).toBe(true);ui.dispose();click(model);expect(onSettings).toHaveBeenCalledTimes(2);
+    });
+});
 
 describe('图片翻译流程优化',()=>{
     it('专用漫画路径跳过 Tesseract 包预检，模型管理沿用后台消息',async()=>{
@@ -209,7 +279,7 @@ describe('图片翻译流程优化',()=>{
         expect(ui.spinner.getAttribute('aria-hidden')).toBe('true');
         ui.update('loading','正在识别文字',{animations:false});expect(ui.spinner.dataset.animated).toBe('false');
         click(ui.button,false);expect(onAction).not.toHaveBeenCalled();click(ui.button,true);expect(onAction).toHaveBeenCalledOnce();
-        ui.update('error','首次使用需准备识别语言包，下载后自动继续',{prepare:true});const buttons=ui.feedback.querySelectorAll('button');expect(buttons).toHaveLength(4);expect(buttons[1].hidden).toBe(false);expect(buttons[1].textContent).toBe('下载语言包并翻译');expect(buttons[1].className).toBe('fr-image-prepare');expect(buttons[0].textContent).toBe('关闭');expect(ui.element.dataset.preparation).toBe('true');expect(ui.feedback.querySelector('.fr-image-actions')).not.toBeNull();click(buttons[1],true);expect(onPrepare).toHaveBeenCalledOnce();click(buttons[0],true);expect(onDismiss).toHaveBeenCalledOnce();
+        ui.update('error','首次使用需准备识别语言包，下载后自动继续',{prepare:true});const buttons=ui.feedback.querySelectorAll('button');expect(buttons).toHaveLength(6);expect(buttons[1].hidden).toBe(false);expect(buttons[1].textContent).toBe('下载语言包并翻译');expect(buttons[1].className).toBe('fr-image-prepare');expect(buttons[0].textContent).toBe('关闭');expect(ui.element.dataset.preparation).toBe('true');expect(ui.feedback.querySelector('.fr-image-actions')).not.toBeNull();click(buttons[1],true);expect(onPrepare).toHaveBeenCalledOnce();click(buttons[0],true);expect(onDismiss).toHaveBeenCalledOnce();
         expect(ui.feedback.hidden).toBe(false);
         ui.update('error','图片翻译失败：网络错误');expect(ui.dismiss.hidden).toBe(false);click(ui.dismiss,true);expect(onDismiss).toHaveBeenCalledTimes(2);
         ui.setLines([{text:'完整译文 <script>不执行</script>'}]);ui.update('translated','已翻译');expect(ui.status.hidden).toBe(true);click(buttons[2],true);expect(buttons[2].getAttribute('aria-expanded')).toBe('true');expect(ui.element.querySelector('script')).toBeNull();expect(onInspect).toHaveBeenCalledOnce();

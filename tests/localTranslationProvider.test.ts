@@ -26,6 +26,15 @@ beforeEach(() => {
 });
 
 describe('local translation provider', () => {
+  it('retains a stable reason while showing localized model errors', async () => {
+    translate.mockRejectedValueOnce(new Error('LOCAL_TRANSLATION_LANGUAGE_UNSUPPORTED'));
+    await expect(localTranslation({origin:'Quality',sourceLanguage:'auto',targetLanguage:'zh-Hans'} as any))
+      .rejects.toMatchObject({localTranslationErrorKey:'settings.localTranslation.error.language'});
+    translate.mockRejectedValueOnce(Object.assign(new Error('cancelled'),{name:'AbortError'}));
+    await expect(localTranslation({origin:'Hello',sourceLanguage:'en',targetLanguage:'zh-Hans'} as any))
+      .rejects.toMatchObject({name:'AbortError',message:'cancelled'});
+  });
+
   it('keeps the translation request local and forwards model, language and budget', async () => {
     const controller = new AbortController();
     await expect(localTranslation({
