@@ -591,7 +591,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     imageTranslationMangaSites: {group: 'imageTranslation', label: '自定义漫画网站'},
     imageTranslationMangaPrefetchPages: {group: 'imageTranslation', label: '提前翻译后续页面'},
     imageTranslationMangaCachePages: {group: 'imageTranslation', label: '快速缓存图片数量'},
-    imageTranslationOcrEngine: {group: 'imageTranslation', label: '图片识别方式', format: value => formatEnum(value, new Map([['tesseract', '通用文字 · Tesseract'], ['paddle', '漫画文字 · PaddleOCR']]))},
+    imageTranslationOcrEngine: {group: 'imageTranslation', label: '图片识别方式', format: value => formatEnum(value, new Map([['tesseract', 'Tesseract（轻量模型）'], ['paddle', 'PaddleOCR（标准模型）']]))},
     imageTranslationHoverEnabled: {group: 'imageTranslation', label: '图片悬浮按钮', format: formatBoolean},
     imageTranslationContextMenuEnabled: {group: 'imageTranslation', label: '图片右键菜单', format: formatBoolean},
     disableImageTranslator: {group: 'imageTranslation', label: '图片翻译', format: (value) => formatBoolean(value, true)},

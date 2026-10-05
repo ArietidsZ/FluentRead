@@ -4,7 +4,7 @@ Recognize words in a webpage image and read the translation over it. Enable **Im
 
 Under **Image/manga translation**, choose the source language, target language and translation service at the top. Image, manga and area translation then have separate controls. **Controls and cache**, **Recognition resources and downloads**, and **Supported websites** stay collapsed until needed.
 
-For single images, choose **General text · Tesseract** for screenshots, charts and clearly printed text, or **Comic text · PaddleOCR** for comics and speech bubbles. Tesseract uses source-language packs. PaddleOCR prepares about 30 MB on the first translation and shares existing manga models. Selecting an engine alone starts no download and keeps the ordinary image interface. Changing the engine invalidates older translated-image results. Recognition quality varies by image; compare originals to choose what works for your content.
+Single images use **PaddleOCR (standard model)** by default for ordinary images, screenshots and comic text. You can switch to **Tesseract (lightweight model)**, which uses source-language packs. New installations and configurations with a missing or invalid engine use PaddleOCR; saved engine choices are preserved. PaddleOCR prepares about 30 MB on the first translation and shares existing manga models. Selecting an engine alone starts no download and keeps the ordinary image interface. Changing the engine invalidates older translated-image results. Recognition quality varies by image; compare originals to choose what works for your content.
 
 <GuideVisual kind="image" en />
 
@@ -82,7 +82,7 @@ Images that require login credentials, redirect to another address, or use local
 
 Choose the recognition source language at the top of **Image/manga translation**. This setting is shared with webpage and area translation. Tesseract's recognition pack must match the image’s language. Automatic detection prepares Simplified Chinese, Traditional Chinese, English, and Japanese by default. Other supported languages require selecting the source language and downloading its pack.
 
-For an English-only image, choosing **English** can reduce recognition time. Keep **Automatic detection** for mixed languages. Completed recognition results are reused, and simultaneous requests for the same image share recognition. Canceling one request does not interrupt the others. Initial language-pack downloads still depend on network speed.
+When using Tesseract, choosing **English** for an English-only image can reduce recognition time. Keep **Automatic detection** for mixed languages. Completed recognition results are reused, and simultaneous requests for the same image share recognition. Canceling one request does not interrupt the others. Initial language-pack downloads still depend on network speed.
 
 When the source language is automatic or Japanese, the Japanese pack recognizes both horizontal and vertical text. Vertical columns in a manga speech bubble are joined right to left into one passage before translation.
 
