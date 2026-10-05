@@ -1,19 +1,25 @@
 <!--
  * @file src/features/settings/ui/LearningCenter.vue
  * 文件职责：把单词与句子、最近 30 天的阅读记录和长期学习笔记组织成统一的学习中心。
- * 主要内容：明确各栏目的保存入口与保留期限，支持从保存结果直达对应列表，并保留已有分区标识和子组件导航事件。
+ * 主要内容：以轻量导航切换三个内容分区，集中展示本地保存说明和备份入口，支持从保存结果直达对应列表。
  * 模块边界：只组合 vocabulary 和 reading-assistant 的公开 UI；各 feature 继续拥有数据、请求、复习和删除生命周期。
  -->
 <template>
   <div id="settings-vocabulary" class="fr-learning-center">
     <header class="fr-learning-center-header">
       <SegmentedControl v-model="activeTab" :options="tabs" :label="t('learning.content')" />
-      <p>{{ t('learning.retention') }}</p>
     </header>
-    <p class="fr-learning-center-purpose">{{ t(`learning.${activeTab}Description`) }}</p>
+    <p v-if="activeTab === 'saved'" class="fr-learning-center-purpose">{{ t(`learning.${activeTab}Description`) }}</p>
     <VocabularyBook v-if="activeTab === 'saved'" @navigate="emit('navigate', $event)" />
     <HarnessReadingHistory v-else-if="activeTab === 'history'" />
     <LearningMemoryManager v-else :enabled="memoryEnabled" @navigate="emit('navigate', $event)" />
+    <footer class="fr-learning-local">
+      <details class="fr-learning-storage" @keydown.esc.stop.prevent="($event.currentTarget as HTMLDetailsElement).open = false">
+        <summary><UiIcon name="shield" :size="14" />{{ t('learning.localStorage') }}<UiIcon name="chevron-down" :size="12" /></summary>
+        <p>{{ t('learning.retention') }}<br>{{ t('learning.localStorageHelp') }}</p>
+      </details>
+      <button type="button" @click="emit('navigate', 'settings-data')">{{ t('learning.backup') }}</button>
+    </footer>
   </div>
 </template>
 <script setup lang="ts">
@@ -22,6 +28,7 @@ import {VocabularyBook} from '@/src/features/vocabulary/ui/public'
 import {HarnessReadingHistory} from '@/src/features/reading-assistant/public'
 import {useUiI18n} from '@/src/ui/i18n'
 import SegmentedControl from './components/SegmentedControl.vue'
+import UiIcon from '@/src/ui/components/UiIcon.vue'
 import LearningMemoryManager from './LearningMemoryManager.vue'
 import {config, configReady, subscribeConfig} from '@/src/services/config/store'
 
@@ -43,12 +50,21 @@ const tabs = computed(() => [
 </script>
 <style scoped>
 .fr-learning-center { width:min(100%,1080px); margin-inline:auto; color:var(--ink); }
-.fr-learning-center-header { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:10px; }
-.fr-learning-center-header :deep(.segmented-control) { width:440px; max-width:100%; }
-.fr-learning-center-header p { margin:0; color:var(--muted); font-size:11px; line-height:1.6; }
+.fr-learning-center-header { margin-bottom:18px; border-bottom:1px solid var(--line); }
+.fr-learning-center-header :deep(.segmented-control) { width:fit-content; max-width:100%; padding:0; border:0; border-radius:0; background:transparent; gap:26px; }
+.fr-learning-center-header :deep(.segmented-control button) { min-height:44px; padding:8px 1px 12px; border-radius:0; border-bottom:2px solid transparent; font-size:13px; font-weight:500; }
+.fr-learning-center-header :deep(.segmented-control button.active) { border-bottom-color:var(--brand); background:transparent; box-shadow:none; font-weight:650; }
 .fr-learning-center-purpose { margin:0 0 20px; color:var(--muted); font-size:12px; line-height:1.7; }
+.fr-learning-local { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-top:24px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; }
+.fr-learning-local button { flex:none; padding:3px 0; border:0; background:transparent; color:var(--muted); font:inherit; cursor:pointer; }
+.fr-learning-local button:hover { color:var(--brand-strong); }
+.fr-learning-center .fr-learning-local .fr-learning-storage > summary { display:flex; align-items:center; gap:6px; min-height:22px; margin:0; padding:0; border:0; border-radius:0; color:var(--muted); background:transparent; font:inherit; font-weight:400; cursor:pointer; list-style:none; }
+.fr-learning-center .fr-learning-local .fr-learning-storage > summary::after { display:none; content:none; }
+.fr-learning-storage summary::-webkit-details-marker { display:none; }
+.fr-learning-storage p { margin:8px 0 0; font-size:11px; line-height:1.8; }
+.fr-learning-local button:focus-visible,.fr-learning-storage summary:focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
 @media (max-width:600px) {
-  .fr-learning-center-header { flex-direction:column; align-items:stretch; gap:9px; }
-  .fr-learning-center-header :deep(.segmented-control) { width:100%; }
+  .fr-learning-center-header :deep(.segmented-control) { width:100%; gap:14px; }
+  .fr-learning-center-header :deep(.segmented-control button) { font-size:12px; }
 }
 </style>

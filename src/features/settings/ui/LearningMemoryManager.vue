@@ -7,10 +7,15 @@
 <template>
   <section class="fr-learning-memory" :aria-label="t('learning.memory')">
     <header class="fr-memory-heading">
-      <div><h2>{{ t('learning.memory') }}</h2><p>{{ enabled ? t('learning.memoryEnabled') : t('learning.memoryDisabled') }} <button type="button" class="fr-memory-link" @click="emit('navigate', 'settings-selection')">{{ t('learning.memorySettings') }}</button></p></div>
+      <div><h2>{{ t('learning.memory') }}</h2><p>{{ t('learning.memoryDescription') }}</p></div>
       <button v-if="!editor" type="button" class="fr-memory-button fr-memory-primary" :disabled="loading || mutating || memories.length >= 200" @click="createMemory">{{ t('learning.memoryAdd') }}</button>
     </header>
-    <p class="fr-memory-retention">{{ t('learning.memoryRetention') }}</p>
+    <details class="fr-memory-options" @keydown.esc.stop.prevent="($event.currentTarget as HTMLDetailsElement).open = false">
+      <summary>{{ t('learning.memorySettings') }}</summary>
+      <p>{{ enabled ? t('learning.memoryEnabled') : t('learning.memoryDisabled') }}</p>
+      <p>{{ t('learning.memoryRetention') }}</p>
+      <button type="button" class="fr-memory-link" @click="emit('navigate', 'settings-selection')">{{ t('learning.memorySettingsOpen') }}</button>
+    </details>
     <p v-if="error" class="fr-memory-feedback is-error" role="alert">{{ error }} <button v-if="!mutating && !editor" type="button" class="fr-memory-link" @click="loadMemories">{{ translateLegacy('重试') }}</button></p>
     <p v-if="feedback" class="fr-memory-feedback" role="status">{{ feedback }}</p>
 
@@ -171,15 +176,14 @@ onBeforeUnmount(() => { active = false; generation += 1 })
 .fr-memory-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; }
 .fr-memory-heading h2 { margin:0 0 6px; font-size:14px; line-height:1.5; }
 .fr-memory-heading p, .fr-memory-retention { margin:0; color:var(--muted); font-size:11px; line-height:1.7; }
-.fr-memory-retention { margin-top:8px; }
 .fr-learning-memory button { font:inherit; font-size:12px; cursor:pointer; }
 .fr-learning-memory button:disabled { opacity:.5; cursor:default; }
-.fr-learning-memory button:focus-visible, .fr-learning-memory input:focus-visible, .fr-learning-memory select:focus-visible, .fr-learning-memory textarea:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.fr-learning-memory button:focus-visible, .fr-learning-memory input:focus-visible, .fr-learning-memory select:focus-visible, .fr-learning-memory textarea:focus-visible { outline:2px solid var(--brand-strong); outline-offset:2px; }
 .fr-memory-button { flex-shrink:0; border:1px solid var(--line); border-radius:8px; padding:8px 12px; color:var(--ink); background:var(--surface); }
-.fr-memory-primary { color:var(--accent); border-color:color-mix(in srgb,var(--accent) 35%,var(--line)); background:color-mix(in srgb,var(--accent) 7%,var(--surface)); }
+.fr-memory-primary { color:var(--brand-strong); border-color:color-mix(in srgb,var(--brand-strong) 35%,var(--line)); background:color-mix(in srgb,var(--brand-strong) 7%,var(--surface)); }
 .fr-memory-link { border:0; padding:3px 0; background:transparent; color:var(--muted); }
-.fr-memory-link:hover { color:var(--accent); }
-.fr-memory-heading .fr-memory-link { margin-left:5px; color:var(--accent); font-size:11px; }
+.fr-memory-link:hover { color:var(--brand-strong); }
+.fr-memory-heading .fr-memory-link { margin-left:5px; color:var(--brand-strong); font-size:11px; }
 .fr-memory-toolbar { display:flex; align-items:center; gap:12px; margin:16px 0 12px; }
 .fr-memory-toolbar input { width:100%; min-width:0; flex:1; border:1px solid var(--line); border-radius:8px; padding:9px 11px; color:var(--ink); background:var(--surface); font:inherit; font-size:12px; }
 .fr-memory-toolbar > span { flex-shrink:0; color:var(--muted); font-size:11px; }
@@ -205,6 +209,9 @@ onBeforeUnmount(() => { active = false; generation += 1 })
 .fr-memory-feedback.is-error { color:var(--warning,#b26a00); }
 .fr-memory-bottom { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:14px; }
 .fr-memory-bottom small { color:var(--muted); font-size:11px; }
+.fr-learning-memory > details.fr-memory-options[class] > summary { width:fit-content; min-height:0; margin:8px 0 0; padding:0; border:0; border-radius:0; color:var(--muted); background:transparent; font:inherit; font-size:11px; font-weight:400; cursor:pointer; }
+.fr-learning-memory > details.fr-memory-options[class] > summary::after { display:none; content:none; }
+.fr-memory-options p { margin:8px 0; color:var(--muted); font-size:11px; line-height:1.7; }
 @media (max-width:480px) {
   .fr-memory-heading { align-items:flex-start; }
   .fr-memory-heading > div { min-width:0; }

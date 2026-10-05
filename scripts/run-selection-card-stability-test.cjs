@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 统一卡片与稳定位置专项：使用生产扩展、独立 profile 与焦点安全 helper。AI/译文由本地确定性夹具返回。
+// 统一卡片、稳定位置与学习中心专项：使用生产扩展、独立 profile 与焦点安全 helper。AI/译文由本地确定性夹具返回。
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -87,9 +87,11 @@ async function main(){
   assert.deepEqual(await learningPage.locator('.fr-learning-center .segmented-control button').allTextContents(),['单词与句子','阅读记录','学习笔记']);
   assert((await learningPage.locator('.fr-learning-center-purpose').innerText()).includes('单词、短语和句子'));
   await learningPage.getByRole('button',{name:'开启收藏入口',exact:true}).click();
+  await learningPage.locator('.book-more > summary').click();
   await learningPage.getByRole('switch',{name:'收藏入口',exact:true}).waitFor();assert.equal(await learningPage.getByRole('switch',{name:'收藏入口',exact:true}).getAttribute('aria-checked'),'true');
   assert.equal((await support.readStoredConfig(popup)).vocabularyBookEnabled,true);assert.equal((await support.readStoredConfig(popup)).harness.memoryEnabled,false);
-  await learningPage.setViewportSize({width:390,height:800});await wait(200);assert(await learningPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await screenshot(learningPage,'learning-empty-guidance');
+  await learningPage.locator('.book-more > summary').press('Escape');
+  await learningPage.setViewportSize({width:390,height:800});await wait(200);assert(await learningPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await learningPage.locator('.collection-overview h2').click();await screenshot(learningPage,'learning-empty-guidance');
   record('learning tabs explain destinations and the empty list enables saving without AI reference');
   await popup.reload();await popup.locator('.popup-shell[data-config-ready="true"]').waitFor();
   await popup.locator('[data-popup-quick-feature="selection"]').click();assert.equal(await popup.getByRole('group',{name:'划词默认呈现'}).count(),0);record('settings and popup use one card presentation');
@@ -109,16 +111,67 @@ async function main(){
   await worker.evaluate(targetId=>{globalThis.__learningOpen=[];chrome.tabs.create=(properties,callback)=>{globalThis.__learningOpen.push(properties);const promise=chrome.tabs.update(targetId,{url:properties.url,active:false});if(callback)promise.then(callback);return promise}},memoryTabId);
   await helper.activateExtensionTabWithoutForeground(context,page);await clickNode(button('查看学习笔记'));await wait(250);report.memoryClicked=await worker.evaluate(()=>globalThis.__learningOpen);await memoryPage.waitForURL(/learningTab=memory/);await memoryPage.locator('.fr-memory-item').waitFor();
   assert((await memoryPage.locator('.fr-memory-item').innerText()).includes(sentence));assert((await memoryPage.locator('.fr-memory-item').innerText()).includes('学习要点'));assert.equal(await memoryPage.locator('.fr-learning-center .segmented-control button[aria-checked="true"]').innerText(),'学习笔记');
-  assert((await memoryPage.locator('.fr-memory-heading').innerText()).includes('回答时暂不参考笔记'));
+  assert.equal(await memoryPage.locator('.fr-memory-options').getAttribute('open'),null);
+  await memoryPage.locator('.fr-memory-options > summary').click();
+  assert((await memoryPage.locator('.fr-memory-options').innerText()).includes('回答时暂不参考笔记'));
+  await memoryPage.locator('.fr-memory-options > summary').press('Escape');
   assert.equal((await support.readStoredConfig(popup)).harness.memoryEnabled,false);
   assert.equal(await memoryPage.locator('.fr-memory-item').count(),1);
   await learningPage.reload();await learningPage.locator('.empty-state').waitFor();assert.equal(await learningPage.locator('.word-list').count(),0);
   record('study notes save while AI reference is off and do not populate saved words');
-  await screenshot(memoryPage,'learning-memory-destination');report.memoryNavigation={requests:await worker.evaluate(()=>globalThis.__learningOpen),adapter:'precreated background tab, native tabs.update(active:false); runtime validation and options UI are real',nativeTabCreation:false};record('saved key points appear in Study notes and view opens that tab directly');
+  await memoryPage.locator('.fr-memory-heading h2').click();await screenshot(memoryPage,'learning-memory-destination');report.memoryNavigation={requests:await worker.evaluate(()=>globalThis.__learningOpen),adapter:'precreated background tab, native tabs.update(active:false); runtime validation and options UI are real',nativeTabCreation:false};record('saved key points appear in Study notes and view opens that tab directly');
   await helper.activateExtensionTabWithoutForeground(context,page);await clickNode(button('收藏原文'));await until(()=>node(button('查看单词与句子')),'source was not saved');
   await clickNode(button('查看单词与句子'));await memoryPage.waitForURL(/learningTab=saved/);await memoryPage.locator('.word-list').waitFor();
   assert((await memoryPage.locator('.word-list').innerText()).includes(sentence));assert((await memoryPage.locator('.word-list').innerText()).includes('这位好奇的读者探索新的想法。'));assert(!(await memoryPage.locator('.word-list').innerText()).includes('学习要点'));assert.equal(await memoryPage.locator('.fr-learning-center .segmented-control button[aria-checked="true"]').innerText(),'单词与句子');
   await screenshot(memoryPage,'learning-words-destination');record('saved original opens Words and sentences separately from study notes');
+  // 收藏页专项：所有数据经真实后台消息保存，学习/筛选/复习均操作生产 UI。
+  const sendBook = message => memoryPage.evaluate(message => chrome.runtime.sendMessage(message),message);
+  for(const [term,translation,text] of [['curious','好奇的；求知欲强的',sentence],['on time','准时','We arrived on time.']]) {
+    const savedEntry=await sendBook({type:'fluentReadVocabularyBook',action:'upsert',input:{term,translation,sourceLanguage:'en',targetLanguage:'zh-Hans',context:{text,sourceUrl:'https://example.com/article',pageTitle:'Reading fixture'}}});
+    assert(savedEntry.success);
+  }
+  await memoryPage.reload();await memoryPage.locator('.word-row').nth(2).waitFor();
+  assert.equal(await memoryPage.getByRole('switch',{name:'收藏入口',exact:true}).isVisible(),false);
+  assert.equal(await memoryPage.locator('.entry-study').count(),3);
+  const aiBeforeLearning=report.aiRequests;
+  await memoryPage.getByRole('button',{name:'听读与理解',exact:true}).click();await memoryPage.locator('.word-study').waitFor();
+  assert((await memoryPage.locator('.study-title').innerText()).includes(sentence));assert.equal(await memoryPage.locator('.sentence-translation').innerText(),'这位好奇的读者探索新的想法。');assert.equal(await memoryPage.locator('.study-reference').count(),0);assert.equal(report.aiRequests,aiBeforeLearning);
+  await screenshot(memoryPage,'learning-sentence-study');
+  await memoryPage.getByRole('button',{name:/返回收藏/}).click();await memoryPage.locator('.word-list').waitFor();
+  await memoryPage.locator('.word-row').filter({has:memoryPage.getByRole('heading',{name:'curious',exact:true})}).getByRole('button',{name:'学习用法',exact:true}).click();await memoryPage.locator('.word-study').waitFor();
+  assert.equal(report.aiRequests,aiBeforeLearning);await memoryPage.getByRole('button',{name:/返回收藏/}).click();
+  record('visible sentence and expression learning actions open the matching study page without requesting AI');
+  const choose = async(label,text) => {await memoryPage.locator('.el-select').filter({has:memoryPage.getByRole('combobox',{name:label,exact:true})}).locator('.el-select__wrapper').click();await memoryPage.getByRole('option',{name:text,exact:true}).click();await wait(100)};
+  await choose('收藏类型','句子');assert.equal(await memoryPage.locator('.word-row').count(),1);
+  await memoryPage.getByRole('searchbox',{name:'搜索收藏',exact:true}).fill('no-match-fixture');await memoryPage.locator('.empty-state').waitFor();
+  assert((await memoryPage.locator('.collection-results').innerText()).includes('0'));
+  await memoryPage.locator('.empty-state').getByRole('button',{name:'清除筛选',exact:true}).click();await memoryPage.locator('.word-row').nth(2).waitFor();
+  await memoryPage.getByRole('searchbox',{name:'搜索收藏',exact:true}).fill('准时');assert.equal(await memoryPage.locator('.word-row').count(),1);
+  await memoryPage.locator('.collection-results').getByRole('button',{name:'清除筛选',exact:true}).click();
+  await memoryPage.locator('.book-filter > summary').click();await choose('掌握状态','已掌握');assert.equal(await memoryPage.locator('.word-row').count(),0);
+  await memoryPage.locator('.filter-panel').getByRole('button',{name:'清除筛选',exact:true}).click();await memoryPage.locator('.book-filter > summary').press('Escape');await memoryPage.locator('.word-row').nth(2).waitFor();
+  record('type, translation search and mastery filters work and empty results have a reset action');
+  const centerFile=path.join(output,'learning-library-desktop.png');await memoryPage.locator('.fr-learning-center').screenshot({path:centerFile});report.screenshots.push(centerFile);
+  for(const width of [1024,390]) {await memoryPage.setViewportSize({width,height:900});await wait(180);assert(await memoryPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await screenshot(memoryPage,`learning-library-${width}`);}
+  await memoryPage.locator('.book-more > summary').click();
+  const switchControl=memoryPage.getByRole('switch',{name:'收藏入口',exact:true});await switchControl.click();
+  await until(async()=>!(await support.readStoredConfig(popup)).vocabularyBookEnabled,'saving setting was not persisted');
+  await memoryPage.reload();await memoryPage.locator('.word-row').nth(2).waitFor();await memoryPage.locator('.book-more > summary').click();
+  assert.equal(await switchControl.getAttribute('aria-checked'),'false');assert.equal(await memoryPage.locator('.word-row').count(),3);
+  const reencounter=memoryPage.getByRole('switch',{name:'再次遇见收藏表达',exact:true});await reencounter.click();
+  await until(async()=>(await support.readStoredConfig(popup)).vocabularyReencounterEnabled,'reencounter setting was not persisted');
+  await screenshot(memoryPage,'learning-library-management-mobile');await memoryPage.locator('.book-more > summary').press('Escape');
+  await memoryPage.reload();await memoryPage.locator('.word-row').nth(2).waitFor();await memoryPage.locator('.book-more > summary').click();assert.equal(await reencounter.getAttribute('aria-checked'),'true');await switchControl.click();await memoryPage.locator('.book-more > summary').press('Escape');
+  report.persistenceCases.push({name:'collection settings in management menu',reopenVerified:true,savedEntriesRetained:3});
+  record('management toggles persist after reopening and disabling the saving entry keeps the collection');
+  await memoryPage.setViewportSize({width:1440,height:960});await patch({theme:'dark'});await wait(200);await screenshot(memoryPage,'learning-library-dark');await patch({theme:'light'});
+  const beforeReview=(await sendBook({type:'fluentReadVocabularyBook',action:'list'})).data.reduce((sum,entry)=>sum+entry.reviewCount,0);
+  assert.equal(beforeReview,0);await memoryPage.locator('.start-review').click();await memoryPage.locator('.review-card').waitFor();assert.equal(await memoryPage.locator('.review-actions').count(),0);
+  await memoryPage.getByRole('textbox',{name:'我的回忆',exact:true}).fill('I remember this expression.');await memoryPage.getByRole('button',{name:/显示答案/}).click();await memoryPage.locator('.review-actions').waitFor();await screenshot(memoryPage,'learning-library-review');
+  await memoryPage.locator('.review-actions .good').click();await until(async()=>(await sendBook({type:'fluentReadVocabularyBook',action:'list'})).data.reduce((sum,entry)=>sum+entry.reviewCount,0)===1,'review rating was not persisted');
+  await memoryPage.getByRole('button',{name:'退出本轮',exact:true}).click();assert.equal(report.aiRequests,aiBeforeLearning);
+  record('review asks for recall before reveal and only an explicit rating updates the persisted schedule');
+
   await helper.activateExtensionTabWithoutForeground(context,page);const requests=report.aiRequests;await trackCard();await clickNode(button('翻译'));await wait(250);await assertStable('return to translation preserves the anchor',initial);await clickNode(button('词性与句法'));await wait(350);assert.equal(report.aiRequests,requests);record('completed grammar is reused without a second AI request');await clickNode(button('翻译'));
   for(const label of ['播放原文','播放译文']) {
    const before=await geometry();await trackCard();await clickNode(n=>n.nodeName==='BUTTON'&&support.cdpAttribute(n,'aria-label')===label);await until(()=>node(button('停止')),'speech did not begin');await wait(300);await clickNode(n=>support.cdpAttribute(n,'aria-label')==='停止播放');await wait(250);await assertStable(`${label} start and stop keep position and height`,before,true);
@@ -128,6 +181,14 @@ async function main(){
   await page.keyboard.press('Escape');await wait(150);assert.equal(await node(cls('fr-translation-tooltip')),null);await page.setViewportSize({width:1440,height:960});await select('#sentence');await until(()=>node(cls('fr-translation-result')),'reopened translation missing');assert.equal((await inspectCard(`function(){return this.querySelector('.fr-study-toolbar button').getAttribute('aria-pressed')}`)),'true');record('close and reselect restore the translation tab and fresh geometry');
   await patch({uiLanguage:'en-US'});await memoryPage.reload();await memoryPage.locator('.fr-learning-center').waitFor();await memoryPage.setViewportSize({width:390,height:800});await wait(200);
   assert.deepEqual(await memoryPage.locator('.fr-learning-center .segmented-control button').allTextContents(),['Words & sentences','Reading history','Study notes']);assert(await memoryPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  for(const language of ['en-US','ja-JP','ko-KR','fr-FR','ru-RU','es-ES','zh-CN']) {
+    await patch({uiLanguage:language});await memoryPage.reload();await memoryPage.locator('.word-row').nth(2).waitFor();
+    assert(await memoryPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    assert(await memoryPage.locator('.collection-management').evaluate(element=>[...element.querySelectorAll('.start-review,.book-more > summary')].every(control=>{const b=control.getBoundingClientRect();return b.left>=0&&b.right<=innerWidth})),`${language} collection actions extend past the viewport`);
+    if(language==='en-US')await screenshot(memoryPage,'learning-library-english-narrow');
+  }
+  record('collection actions and learning buttons fit the narrow viewport in all seven interface languages');
+  await patch({uiLanguage:'en-US'});await memoryPage.reload();await memoryPage.locator('.fr-learning-center').waitFor();
   await memoryPage.getByRole('radio',{name:'Study notes',exact:true}).click();await memoryPage.locator('.fr-memory-item').waitFor();assert.equal(await memoryPage.locator('.fr-memory-item').count(),1);await screenshot(memoryPage,'learning-notes-english-narrow');
   record('English learning tabs and notes remain usable in a narrow viewport');
   assert.equal(report.consoleErrors.length,0);assert(report.audio.requests>=3);report.ok=true;

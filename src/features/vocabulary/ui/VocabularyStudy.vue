@@ -1,7 +1,7 @@
 <!--
  * @file src/features/vocabulary/ui/VocabularyStudy.vue
  * 文件职责：围绕收藏的句子或表达提供听读、独立解释保存和定向学习。
- * 主要内容：展示原文、译文、解释与真实来源，复用 Harness 按需讲解或反馈造句；解释编辑保留当前阅读，来源变化和卸载取消旧请求。
+ * 主要内容：句子与旧收藏统一使用领域识别规则，完整译文直接可见；展示原文、译文、解释与真实来源，复用 Harness 按需讲解或反馈造句；解释编辑保留当前阅读，来源变化和卸载取消旧请求。
  * 模块边界：不挑选随机词、不自动请求模型或改变掌握度；不访问数据库和服务密钥，问答沿用后台会话保存与模型配置。
  -->
 <template>
@@ -12,7 +12,7 @@
     </header>
     <div class="study-source">
       <div class="study-title"><h3 data-i18n-ignore>{{ entry.term }}</h3><button type="button" @click="emit('speak')">{{ playing ? '停止朗读' : '朗读原文' }}</button></div>
-      <p v-if="entry.kind === 'sentence' && reference" class="sentence-translation" data-i18n-ignore>{{ reference }}</p>
+      <p v-if="sentenceEntry && reference" class="sentence-translation" data-i18n-ignore>{{ reference }}</p>
       <SavedExplanation :entry="entry" @updated="emit('updated', $event)" />
       <template v-if="context">
         <h4>你收藏时的原句</h4>
@@ -20,7 +20,7 @@
         <a v-if="context.sourceUrl" :href="context.sourceUrl" target="_blank" rel="noopener noreferrer"><span data-i18n-ignore>{{ context.pageTitle || translateLegacy('查看原文来源') }}</span> ↗</a>
       </template>
       <p v-else-if="!sentenceEntry" class="study-hint">这条收藏没有可用的原句。可以先了解常见用法；下次连同原句收藏，更容易判断具体含义。</p>
-      <details v-if="reference && entry.kind !== 'sentence'" class="study-reference"><summary>收藏时的参考内容</summary><ReadingAnswer :text="reference" /></details>
+      <details v-if="reference && !sentenceEntry" class="study-reference"><summary>收藏时的参考内容</summary><ReadingAnswer :text="reference" /></details>
     </div>
     <div class="study-workspace">
       <section class="study-step">
