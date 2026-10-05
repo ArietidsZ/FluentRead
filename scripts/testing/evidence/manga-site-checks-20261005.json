@@ -209,7 +209,7 @@
           "hostname": "yamibo.com"
         }
       ],
-      "adapter": "detect",
+      "adapter": "images",
       "browserRechecks": [
         {
           "requestedUrl": "https://www.yamibo.com/",
@@ -240,6 +240,142 @@
           "imageCount": 30,
           "canvasCount": 0,
           "networkFailureCount": 0
+        },
+        {
+          "url": "https://www.yamibo.com/",
+          "finalUrl": "https://www.yamibo.com/site/novel",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "public-work-wave29",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 15,
+          "canvasCount": 0,
+          "readerFinding": "Normal Yamibo root redirects to novel catalogue; observed native Manga navigation leads to site/manga, not body acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://www.yamibo.com/",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        },
+        {
+          "url": "https://www.yamibo.com/site/manga",
+          "finalUrl": "https://www.yamibo.com/site/manga",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "yamibo-manga-wave29",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Native Manga catalogue HTTP200 exposes original and other work links; selected actual public works171/335 to investigate alternate body availability, not covers accepted as body.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://www.yamibo.com/site/manga",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        },
+        {
+          "url": "https://www.yamibo.com/manga/171",
+          "finalUrl": "https://www.yamibo.com/manga/171",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "yamibo-works-wave29",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 19,
+          "canvasCount": 0,
+          "readerFinding": "Actual catalogue work page exposes native Start Reading and public numbered chapter links; no subscription clicked. Detail covers/comments excluded from body acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://www.yamibo.com/manga/171",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        },
+        {
+          "url": "https://www.yamibo.com/manga/335",
+          "finalUrl": "https://www.yamibo.com/manga/335",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "yamibo-works-wave29",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 5,
+          "canvasCount": 0,
+          "readerFinding": "Actual catalogue work page exposes native Start Reading and public numbered chapter links; no subscription clicked. Detail covers/comments excluded from body acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://www.yamibo.com/manga/335",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        },
+        {
+          "url": "https://www.yamibo.com/manga/171",
+          "finalUrl": "https://www.yamibo.com/manga/view-chapter?id=781",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "yamibo-free-wave29",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 7,
+          "canvasCount": 0,
+          "readerFinding": "Normal native Start Reading enters public manga/view-chapter with one imgPic under section/row/col-md-12/thumbnail; chapter781 initial768x537 and1751 initial800x1131. Other media are comment avatars. Technical DOM only, no OCR or chapter image export; earlier208 subscription restriction remains specific to that work.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://www.yamibo.com/manga/171",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        },
+        {
+          "url": "https://www.yamibo.com/manga/335",
+          "finalUrl": "https://www.yamibo.com/manga/view-chapter?id=1751",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "yamibo-free-wave29",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Normal native Start Reading enters public manga/view-chapter with one imgPic under section/row/col-md-12/thumbnail; chapter781 initial768x537 and1751 initial800x1131. Other media are comment avatars. Technical DOM only, no OCR or chapter image export; earlier208 subscription restriction remains specific to that work.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://www.yamibo.com/manga/335",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        },
+        {
+          "url": "https://www.yamibo.com/manga/view-chapter?id=781",
+          "finalUrl": "https://www.yamibo.com/manga/view-chapter?id=781&page=2",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "yamibo-next-wave29",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 7,
+          "canvasCount": 0,
+          "readerFinding": "Normal visible background native first Next Page adds page=2 while retaining chapter id; current imgPic is550x3900 for781 and800x1131 for1751. Navigation loads a new document. Exact direct body excludes comments/recommendations; no OCR, image export or claim of cross-document auto-resume.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://www.yamibo.com/manga/view-chapter?id=781",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        },
+        {
+          "url": "https://www.yamibo.com/manga/view-chapter?id=1751",
+          "finalUrl": "https://www.yamibo.com/manga/view-chapter?id=1751&page=2",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "yamibo-next-wave29",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Normal visible background native first Next Page adds page=2 while retaining chapter id; current imgPic is550x3900 for781 and800x1131 for1751. Navigation loads a new document. Exact direct body excludes comments/recommendations; no OCR, image export or claim of cross-document auto-resume.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://www.yamibo.com/manga/view-chapter?id=1751",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
         }
       ]
     },
@@ -1482,7 +1618,43 @@
           "finding": "Public page states viewing is limited to Japan; no body or bypass."
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://piccoma.com/",
+          "finalUrl": "https://piccoma.com/web/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "official-and-catalog-wave29",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 56,
+          "canvasCount": 0,
+          "readerFinding": "Official home HTTP200 renders public catalogue and free-work links, including25-free-episode product141347; cover images not counted as body.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 34,
+          "requestedUrl": "https://piccoma.com/",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        },
+        {
+          "url": "https://piccoma.com/web/product/141347",
+          "finalUrl": "https://piccoma.com/web/product/141347",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "public-work-wave29",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Observed25-free-episode product141347, HTTP200, explicitly says service only usable in Japan. One brand image, no chapter body; no region bypass. Confirms another work-level restriction, not home outage.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 37,
+          "requestedUrl": "https://piccoma.com/web/product/141347",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        }
+      ]
     },
     {
       "name": "Hentaizap",
@@ -2824,6 +2996,23 @@
           "networkFailureCount": 1,
           "requestedUrl": "https://manhuaus.com/",
           "checkedAt": "2026-10-05T12:21:49.370875+00:00"
+        },
+        {
+          "url": "https://manhuaus.org/",
+          "finalUrl": "https://manhuaus.org/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "homes-wave29",
+          "status": 403,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Manhuaus.org public root also returns HTTP403 verification page and no body; .com separately failed in wave28. No bypass or alternate domain inferred.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://manhuaus.org/",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
         }
       ]
     },
@@ -5155,7 +5344,27 @@
           "hostname": "mangadistrict2.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://mangadistrict2.com/",
+          "finalUrl": "https://mangadistrict2.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "homes-wave29",
+          "status": null,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Public root connection closes before DOMContentLoaded, no directory/body or permanent-shutdown inference.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://mangadistrict2.com/",
+          "requestedUrl": "https://mangadistrict2.com/",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        }
+      ]
     },
     {
       "name": "manhuaread.com",
@@ -5490,7 +5699,26 @@
           "hostname": "wto.to"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://wto.to/",
+          "finalUrl": "https://coda-cj.jp/closed.html",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "official-and-catalog-wave29",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "readerFinding": "Normal root redirects to CODA closed-website notice, HTTP200. Notice links educational comics, which are not original Wto manga chapters or a reader migration; CODA hostname not registered as alias.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://wto.to/",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        }
+      ]
     },
     {
       "name": "sukima.me",
@@ -5653,7 +5881,26 @@
           "hostname": "newmanhwa.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://newmanhwa.com/",
+          "finalUrl": "https://newmanhwa.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "homes-wave29",
+          "status": 522,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "NewManhwa public root currently returns HTTP522 connection-timeout page with no manga body; supersedes older generic connection-failure wording, not proof of permanent closure.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://newmanhwa.com/",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        }
+      ]
     },
     {
       "name": "fxfx302.com",
@@ -8344,7 +8591,27 @@
           "hostname": "manhwahub.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://manhwahub.net/",
+          "finalUrl": "https://manhwahub.net/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+          "attempt": "homes-wave29",
+          "status": null,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Public root connection closes before DOMContentLoaded, no directory/body or permanent-shutdown inference.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://manhwahub.net/",
+          "requestedUrl": "https://manhwahub.net/",
+          "checkedAt": "2026-10-05T12:42:18.289596+00:00"
+        }
+      ]
     },
     {
       "name": "manhuatop.org",
@@ -14246,6 +14513,233 @@
       "pageErrorCount": 0,
       "networkFailureCount": 1,
       "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://mangasuika.com/"
+    },
+    {
+      "url": "https://manhuaus.org/",
+      "finalUrl": "https://manhuaus.org/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "homes-wave29",
+      "status": 403,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Manhuaus.org public root also returns HTTP403 verification page and no body; .com separately failed in wave28. No bypass or alternate domain inferred.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://mangadistrict2.com/",
+      "finalUrl": "https://mangadistrict2.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "homes-wave29",
+      "status": null,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Public root connection closes before DOMContentLoaded, no directory/body or permanent-shutdown inference.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://mangadistrict2.com/"
+    },
+    {
+      "url": "https://manhwahub.net/",
+      "finalUrl": "https://manhwahub.net/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "homes-wave29",
+      "status": null,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Public root connection closes before DOMContentLoaded, no directory/body or permanent-shutdown inference.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://manhwahub.net/"
+    },
+    {
+      "url": "https://newmanhwa.com/",
+      "finalUrl": "https://newmanhwa.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "homes-wave29",
+      "status": 522,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "NewManhwa public root currently returns HTTP522 connection-timeout page with no manga body; supersedes older generic connection-failure wording, not proof of permanent closure.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://piccoma.com/",
+      "finalUrl": "https://piccoma.com/web/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "official-and-catalog-wave29",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 56,
+      "canvasCount": 0,
+      "readerFinding": "Official home HTTP200 renders public catalogue and free-work links, including25-free-episode product141347; cover images not counted as body.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 34
+    },
+    {
+      "url": "https://wto.to/",
+      "finalUrl": "https://coda-cj.jp/closed.html",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "official-and-catalog-wave29",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "readerFinding": "Normal root redirects to CODA closed-website notice, HTTP200. Notice links educational comics, which are not original Wto manga chapters or a reader migration; CODA hostname not registered as alias.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://piccoma.com/web/product/141347",
+      "finalUrl": "https://piccoma.com/web/product/141347",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "public-work-wave29",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Observed25-free-episode product141347, HTTP200, explicitly says service only usable in Japan. One brand image, no chapter body; no region bypass. Confirms another work-level restriction, not home outage.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 37
+    },
+    {
+      "url": "https://www.yamibo.com/",
+      "finalUrl": "https://www.yamibo.com/site/novel",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "public-work-wave29",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 15,
+      "canvasCount": 0,
+      "readerFinding": "Normal Yamibo root redirects to novel catalogue; observed native Manga navigation leads to site/manga, not body acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.yamibo.com/site/manga",
+      "finalUrl": "https://www.yamibo.com/site/manga",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "yamibo-manga-wave29",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Native Manga catalogue HTTP200 exposes original and other work links; selected actual public works171/335 to investigate alternate body availability, not covers accepted as body.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.yamibo.com/manga/171",
+      "finalUrl": "https://www.yamibo.com/manga/171",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "yamibo-works-wave29",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 19,
+      "canvasCount": 0,
+      "readerFinding": "Actual catalogue work page exposes native Start Reading and public numbered chapter links; no subscription clicked. Detail covers/comments excluded from body acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.yamibo.com/manga/335",
+      "finalUrl": "https://www.yamibo.com/manga/335",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "yamibo-works-wave29",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 5,
+      "canvasCount": 0,
+      "readerFinding": "Actual catalogue work page exposes native Start Reading and public numbered chapter links; no subscription clicked. Detail covers/comments excluded from body acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.yamibo.com/manga/171",
+      "finalUrl": "https://www.yamibo.com/manga/view-chapter?id=781",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "yamibo-free-wave29",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 7,
+      "canvasCount": 0,
+      "readerFinding": "Normal native Start Reading enters public manga/view-chapter with one imgPic under section/row/col-md-12/thumbnail; chapter781 initial768x537 and1751 initial800x1131. Other media are comment avatars. Technical DOM only, no OCR or chapter image export; earlier208 subscription restriction remains specific to that work.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.yamibo.com/manga/335",
+      "finalUrl": "https://www.yamibo.com/manga/view-chapter?id=1751",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "yamibo-free-wave29",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Normal native Start Reading enters public manga/view-chapter with one imgPic under section/row/col-md-12/thumbnail; chapter781 initial768x537 and1751 initial800x1131. Other media are comment avatars. Technical DOM only, no OCR or chapter image export; earlier208 subscription restriction remains specific to that work.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.yamibo.com/manga/view-chapter?id=781",
+      "finalUrl": "https://www.yamibo.com/manga/view-chapter?id=781&page=2",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "yamibo-next-wave29",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 7,
+      "canvasCount": 0,
+      "readerFinding": "Normal visible background native first Next Page adds page=2 while retaining chapter id; current imgPic is550x3900 for781 and800x1131 for1751. Navigation loads a new document. Exact direct body excludes comments/recommendations; no OCR, image export or claim of cross-document auto-resume.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.yamibo.com/manga/view-chapter?id=1751",
+      "finalUrl": "https://www.yamibo.com/manga/view-chapter?id=1751&page=2",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "yamibo-alternate-public-work-and-native-pagination-wave29",
+      "attempt": "yamibo-next-wave29",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Normal visible background native first Next Page adds page=2 while retaining chapter id; current imgPic is550x3900 for781 and800x1131 for1751. Navigation loads a new document. Exact direct body excludes comments/recommendations; no OCR, image export or claim of cross-document auto-resume.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
     }
   ],
   "verification": {
@@ -23743,6 +24237,140 @@
       "cases": 0,
       "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave28.log",
       "finding": "Initial filter omitted architecture/ directory and matched no files, exit1; corrected exact paths and both target files809 cases passed. No code failure or full-suite claim."
+    },
+    "yamiboReaderUnit": {
+      "status": "passed",
+      "cases": 536,
+      "files": 7,
+      "fourDimensionCoverage": "100% for all eight manga configuration/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave29.log",
+      "scope": "Exact public Yamibo view-chapter route, single positive id, optional single page1..9999, body imgPic direct ancestor chain; avatar, recommendation, nested/outside media, catalogue/novel route, invalid or duplicate ids/pages and spoofed hosts excluded. Existing page-query identity reused; no cross-document active-state persistence implemented or claimed."
+    },
+    "yamiboReaderEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://www.yamibo.com/manga/171",
+        "live reader discovery: https://www.yamibo.com/manga/335",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 76304,
+          "name": "微信"
+        },
+        "frontmostAfter": {
+          "pid": 76304,
+          "name": "微信"
+        }
+      },
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "profileRemoved": true,
+      "liveReaders": [
+        {
+          "url": "https://www.yamibo.com/manga/171",
+          "finalUrl": "https://www.yamibo.com/manga/view-chapter?id=781&page=2",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 550,
+              "naturalHeight": 3900,
+              "width": 550,
+              "height": 3900,
+              "visible": true
+            }
+          ],
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://www.yamibo.com/manga/335",
+          "finalUrl": "https://www.yamibo.com/manga/view-chapter?id=1751&page=2",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 800,
+              "naturalHeight": 1131,
+              "width": 800,
+              "height": 1131,
+              "visible": true
+            }
+          ],
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-yamibo-wave29/report.json",
+      "scope": "20 actual Chrome entry cases,18 base/fixture cases plus two live alternate public Yamibo works. Normal Start Reading and first Next Page discover one loaded visible main image per work (550x3900 and800x1131), avatar/recommendation excluded. DOM/entry metadata only, no chapter screenshot/OCR/export or cross-document automatic translation acceptance."
+    },
+    "yamiboReaderBuilds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "chromeSeconds": 32.6,
+      "firefoxSeconds": 28.9,
+      "userscriptSeconds": 3.88,
+      "userscriptBytes": 1917294,
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave29.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6114,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-wave29.log"
+      },
+      "docs": {
+        "build": "passed",
+        "check": "passed",
+        "pages": 77,
+        "links": 3955,
+        "anchors": 741,
+        "images": 154,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave29.log"
+      },
+      "scope": "Chrome public reader entry runtime only; Firefox/userscript builds/verifiers only. No actual Yamibo OCR/image-source access/quality or cross-document active-session persistence acceptance. Existing full architecture-group and all-suite failures retained; no full-suite rerun. No engine, source authorization, permissions, dependencies, version or reference-repo changes."
     }
   }
 }

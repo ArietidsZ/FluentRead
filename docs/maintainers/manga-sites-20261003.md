@@ -15,7 +15,7 @@
 | 5 | COMIC FUZ | comic-fuz.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 6 | MangaDex | mangadex.org | 专用正文图片 | 公开章节正文结构已核对 |
 | 7 | MangaDNA | mangadna.com | 专用正文图片 | 公开章节正文结构已核对 |
-| 8 | Yamibo | yamibo.com | 通用正文图片检测 | 样本明确要求付费订阅，正文未显示 |
+| 8 | Yamibo | yamibo.com | 专用单章主图 | 两部公开作品正常开始阅读与下一页显示正文；长图 550×3900、普通页 800×1131；另一作品要求订阅，未验 OCR 或跨文档续译 |
 | 9 | ShonenJumpPlus | shonenjumpplus.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 10 | Rimacomiplus | rimacomiplus.jp | 可读画布连续翻译 | 公开章节画布已核对 |
 | 11 | Heros Web | viewer.heros-web.com、heros-web.com | 可读画布连续翻译 | 公开章节画布已核对 |
@@ -48,7 +48,7 @@
 | 38 | Syosetu | syosetu.si / syosetu.cheap | 通用正文图片检测 | 公开章节与正常查看章节菜单可访问；没有显示正文图片，未计为实章通过 |
 | 39 | Comick | comick.io / comick.dev / comick.fun | 通用正文图片检测 | 当前官方公告称已改为追踪与社区、停止漫画阅读；新域名实测 403 |
 | 40 | YoungAnimal | younganimal.com | 可读画布连续翻译 | 公开章节画布已核对 |
-| 41 | Piccoma | piccoma.com | 通用正文图片检测 | 公开作品/章节列表显示仅限日本；未验正文 |
+| 41 | Piccoma | piccoma.com | 通用正文图片检测 | 官方首页可见免费作品；当前免费作品页明确只供日本境内使用，无正文，未绕过地区限制 |
 | 42 | Hentaizap | hentaizap.com | 专用逐页正文图片 | 公开编号阅读页 1280×1811 主图与扩展入口已核对；同作品路径翻页保留阅读状态，未验 OCR |
 | 43 | Hanime1 | hanime1.me | 通用正文图片检测 | 访问受限 |
 | 44 | Globalcomix | globalcomix.com | 正文圈选入口 | 免费正文已显示；扩展抓图 HTTP 401，保留圈选 |
@@ -84,7 +84,7 @@
 | 74 | TopReadManga | topreadmanga.com | 通用正文图片检测 | 连接失败 |
 | 75 | Revenge of the Iron Blooded Swordhound | revengeoftheiron-bloodedswordhound.one | 通用正文图片检测 | 连接失败 |
 | 76 | Poipiku | poipiku.com | 公开单帖主图片 | 官方公开帖 800×579 主图与实页入口通过；推荐、头像排除，未验证私密帖或漫画质量 |
-| 77 | Manhuaus | manhuaus.com / manhuaus.org | 通用正文图片检测 | 本轮 .com 公开首页 HTTP 403 验证页，无正文；其他登记域名不作成功推断 |
+| 77 | Manhuaus | manhuaus.com / manhuaus.org | 通用正文图片检测 | 本轮 .com 与 .org 公开首页均为 HTTP 403 验证页，无正文 |
 | 78 | HMTTMH | hmttmh.com | 通用正文图片检测 | 连接失败 |
 | 79 | Smoking Behind the Supermarket | smokingbehindthesupermarket.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 80 | Comic Growl | comic-growl.com | 可读画布连续翻译 | 公开章节画布已核对 |
@@ -122,7 +122,7 @@
 | 112 | freeonlinehd.site | freeonlinehd.site | 通用正文图片检测 | 当前为域名出售及联系页面，无漫画正文 |
 | 113 | weebrook.com | weebrook.com | 通用正文图片检测 | 当前返回 522 原站连接超时，无正文 |
 | 114 | toonily.com | toonily.com | 通用正文图片检测 | 访问受限 |
-| 115 | mangadistrict2.com | mangadistrict2.com | 通用正文图片检测 | 连接失败 |
+| 115 | mangadistrict2.com | mangadistrict2.com | 通用正文图片检测 | 本轮公开首页连接被关闭，未取得正文；不推断永久停服 |
 | 116 | manhuaread.com | manhuaread.com | 通用正文图片检测 | 当前首页为 PLAYBOOK88 博彩品牌，正文未确认 |
 | 117 | mangaread.org | mangaread.org | 专用正文图片 | 公开章节正文结构已核对 |
 | 118 | mangaforfree.net | mangaforfree.net | 专用正文图片 | 公开章节正文结构已核对 |
@@ -134,13 +134,13 @@
 | 124 | cultivationmanhua.com | cultivationmanhua.com | 通用正文图片检测 | HTTP 错误 |
 | 125 | manhwaread.com | manhwaread.com | 通用正文图片检测 | 连接失败 |
 | 126 | manhwabuddy.com | manhwabuddy.com | 专用正文图片 | 公开章节正文结构已核对 |
-| 127 | wto.to | wto.to | 通用正文图片检测 | 停服或域名停放 |
+| 127 | wto.to | wto.to | 通用正文图片检测 | 正常跳转 CODA 网站关闭通知；通知中的教育漫画不是原站章节或域名迁移 |
 | 128 | sukima.me | sukima.me | 通用正文图片检测 | 本轮浏览器 TLS 版本/密码套件错误，未取得正文 |
 | 129 | comix.to | comix.to | 通用正文图片检测 | 访问受限 |
 | 130 | youngchampion.jp | youngchampion.jp | 可读画布连续翻译 | 公开章节画布已核对 |
 | 131 | manga-one.com | manga-one.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 132 | book.dmm.com | book.dmm.com | 通用正文图片检测 | 正常访问跳到明确的地区限制页，正文未显示 |
-| 133 | newmanhwa.com | newmanhwa.com | 通用正文图片检测 | 连接失败 |
+| 133 | newmanhwa.com | newmanhwa.com | 通用正文图片检测 | 本轮公开首页 HTTP 522 连接超时，无正文；不推断永久停服 |
 | 134 | fxfx302.com | fxfx302.com | 通用正文图片检测 | 连接失败 |
 | 135 | comic-meteor.jp | comic-meteor.jp · kirapo.jp | 分片阅读器 · 圈选翻译 | 公开章节 HTTP 200；旧站重定向 Kirapo |
 | 136 | omegascans.org | omegascans.org | 专用长条正文图片 | 公开章节与入口已核对；排除上方横幅和外部推荐 |
@@ -211,7 +211,7 @@
 | 201 | mangasuika.com | mangasuika.com | 通用正文图片检测 | 本轮公开首页连接被关闭，未取得正文；不推断永久停服 |
 | 202 | firemanga.com | firemanga.com | 通用正文图片检测 | 连接失败 |
 | 203 | lmanga.com | lmanga.com | 通用正文图片检测 | 当前跳转 /lander；正文未确认 |
-| 204 | manhwahub.net | manhwahub.net | 通用正文图片检测 | 连接失败 |
+| 204 | manhwahub.net | manhwahub.net | 通用正文图片检测 | 本轮公开首页连接被关闭，未取得正文；不推断永久停服 |
 | 205 | manhuatop.org | manhuatop.org | 通用正文图片检测 | 访问受限 |
 | 206 | aedexnox.vxviral.xyz | aedexnox.vxviral.xyz | 通用正文图片检测 | 连接失败 |
 | 207 | manhuabika.com | manhuabika.com | 通用正文图片检测 | PicaWeb 首页可访问；未找到可确认的公开章节正文 |

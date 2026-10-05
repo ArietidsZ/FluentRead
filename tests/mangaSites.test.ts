@@ -6,6 +6,15 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it.each(['', '&page=1', '&page=2'])('Yamibo 正文主图及同章分页 %s 排除头像、推荐与异常参数', paging => {
+        const site = resolveMangaSite(`https://www.yamibo.com/manga/view-chapter?id=1751${paging}`)!;
+        expect(site).toMatchObject({name: 'Yamibo', requireContent: true, pageQueryParameter: 'page'});
+        const {document} = parseHTML('<section><div class="row"><div class="col-md-12"><div class="thumbnail"><img id="imgPic" class="img-responsive"><aside><img id="ad" class="img-responsive"></aside></div><img id="cover" class="img-responsive"></div></div><div class="post"><img id="avatar" class="cmt-avatar"></div></section><div class="row"><div class="col-md-12"><div class="thumbnail"><img id="outside" class="img-responsive"></div></div></div>');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['imgPic']);
+        for (const query of ['', '?id=', '?id=0', '?id=01', '?id=word', '?id=1&id=2', '?id=1&page=', '?id=1&page=0', '?id=1&page=01', '?id=1&page=word', '?id=1&page=10000', '?id=1&page=2&page=3']) expect(resolveMangaReaderProfile('yamibo.com', '/manga/view-chapter', query)).toBeNull();
+        for (const path of ['/', '/site/manga', '/manga/335', '/novel/view-chapter', '/manga/view-chapter/extra']) expect(resolveMangaReaderProfile('yamibo.com', path, '?id=1751')).toBeNull();
+        expect(resolveMangaReaderProfile('yamibo.com.attacker.test', '/manga/view-chapter', '?id=1751')).toBeNull();
+    });
     it.each(['p0', 'p1'])('Bomtoon 正文画布 %s 排除版权图片、封面、推广和目录', episode => {
         const site = resolveMangaSite(`https://www.bomtoon.com/viewer/PAYBACK/${episode}`)!;
         expect(site).toMatchObject({name: 'Bomtoon', requireContent: true});
