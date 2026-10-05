@@ -277,14 +277,10 @@ async function main() {
   assert.equal(report.requests.length, anonymousBefore + 1);
   assert.equal(report.requests.at(-1).key, '');
   await authControl.click();
-  assert.equal(await anonymousButton.isDisabled(), false);
-  const requiredBefore = report.requests.length;
-  await anonymousButton.click();
-  await page.locator('[data-api-key-list] .api-key-state.is-error').waitFor();
-  await page.locator('[data-api-key-list][data-api-key-busy="false"]').waitFor();
-  assert.equal(report.requests.length, requiredBefore, 'Missing required credentials must fail before calling the provider');
+  await page.waitForFunction(() => document.querySelector('[data-connection-test-button]')?.disabled === true);
+  assert.equal(await anonymousButton.isDisabled(), true);
   report.cases.push('advanced-anonymous-key-policy-remains-editable');
-  report.cases.push('empty-required-key-reports-error-without-request-and-delete-stays-outside-header');
+  report.cases.push('empty-required-key-disables-check-and-delete-stays-outside-header');
   await page.goto(`${origin}/options.html#settings-advanced`);
   const recoverySetting = page.getByTestId('api-key-recovery-setting');
   await recoverySetting.waitFor();

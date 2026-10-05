@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
  * 文件职责：渲染当前翻译服务的详细连接配置，按对齐的连接字段、就近的密钥开关和紧凑页签中的模型偏好、提示词、请求限制、接口兼容显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体与请求头、按域名移除来源头等字段，以及服务和模型的独立请求限制。
- * 主要内容：组件派生字段可见性与连接示例，将成对密钥 ID 同步到 apiKeys 和兼容 token，管理可空 Key 的连接检查与等待超时；免费翻译检查完整目录并逐服务展示结果，Chrome 在点击时准备当前语言对，通过配置 store 提交修改。
+ * 主要内容：组件派生字段可见性与连接示例，将成对密钥 ID 同步到 apiKeys 和兼容 token，区分缺少必填 Key 与允许匿名的连接检查并管理等待超时；免费翻译检查完整目录并逐服务展示结果，Chrome 在点击时准备当前语言对，通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
@@ -23,7 +23,7 @@
           type="button"
           class="connection-test-button"
           data-connection-test-button
-          :disabled="connectionTestBusy && !usesApiKeyList"
+          :disabled="connectionTestDisabled"
           @click="connectionTestBusy ? stopApiKeyChecks() : testConnection()"
         >
           <svg v-if="connectionTestBusy && usesApiKeyList" class="connection-action-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1" /></svg>
@@ -646,6 +646,10 @@ const CHROME_PREPARATION_ERROR_KEYS: Readonly<Record<ChromeTranslationPreparatio
   'model-unavailable': 'settings.services.chromePreparation.error.modelUnavailable',
 }
 const connectionTestBusy = ref(false)
+const connectionTestDisabled = computed(() => connectionTestBusy.value
+  ? !usesApiKeyList.value
+  : usesApiKeyList.value && apiKeyIndexes.value.length === 0
+    && (service.value === services.deeplx ? deepLXRequiresToken.value : compute.value.requireApiKey))
 const freeProviderChecks = ref<FreeTranslationChecks>({})
 const connectionTestState = ref<ConnectionTestState>('idle')
 const connectionTestMessageState = ref<LocalizedConnectionTestMessage | string | null>(null)

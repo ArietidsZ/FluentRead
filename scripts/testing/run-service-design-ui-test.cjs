@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * @file scripts/testing/run-service-design-ui-test.cjs
- * 文件职责：在 production MV3 扩展和隔离 Edge 中验证翻译服务配置页的分组布局、DeepLX 本地连接状态与免费额度指引折叠行为。
+ * 文件职责：在 production MV3 扩展和隔离 Edge 中验证翻译服务配置页的分组布局、DeepLX 本地连接状态与免费服务的紧凑邮箱字段。
  * 主要内容：启动带 CORS 的本地 DeepLX fixture，覆盖空 Key、成功、失败重试、停止、过期结果、占位符提示、响应式尺寸、深色主题和云服务指引。
  * 模块边界：仅使用合成配置、临时 profile 与 focus-safe helper；fixture 不记录 API Key，也不连接任何真实或付费翻译服务。
  */
@@ -239,13 +239,11 @@ async function main() {
 
     await page.locator('[data-deeplx-endpoint] input').fill(`${fixture('placeholder')}/{{apiKey}}`);
     await page.locator('[data-deeplx-endpoint] input').press('Tab');
-    assert.equal(await checkButton.isDisabled(), false, 'empty Key must not disable the connection check');
-    await checkButton.click();
-    await keyList.locator('.api-key-state.is-error').waitFor({state: 'visible'});
-    await waitIdle();
+    await page.locator('[data-deeplx-key-required]').waitFor({state: 'visible'});
+    assert.equal(await checkButton.isDisabled(), true, 'placeholder endpoints require a Key before checking');
     const placeholderText = await page.locator('.service-detail').innerText();
     assert(/占位符|apiKey|token/i.test(placeholderText), 'empty Key placeholder endpoint needs a clear message');
-    report.cases.push({id: 'deeplx-placeholder-empty-key', disabled: false});
+    report.cases.push({id: 'deeplx-placeholder-empty-key', disabled: true});
 
     await page.locator('[data-deeplx-endpoint] input').fill(fixture('success'));
     for (const service of ['minimax', 'openai', 'tencent', 'volcTranslation', 'deeplx', 'freeTranslation']) {
@@ -266,8 +264,7 @@ async function main() {
     assert(await measureFreeColumns() >= 2, 'priority order should keep the compact multi-column layout');
     await shot('service-design-freeTranslation-priority-1440');
     await page.locator('input[value="balanced"]').check();
-    const myMemorySettings = page.locator('[data-fallback-provider="myMemory"] .provider-settings');
-    assert.equal(await myMemorySettings.getAttribute('open'), null);
+    assert.equal(await page.locator('[data-free-translation-settings] .provider-settings input[type="email"]').isVisible(), true);
     for (const service of ['minimax', 'freeTranslation']) {
       await selectService(service);
       for (const width of [820, 390]) {
@@ -278,7 +275,7 @@ async function main() {
       }
       await page.setViewportSize({width: 1440, height: 1000});
     }
-    report.cases.push('free-endpoints-multi-column-priority-order-and-optional-email-collapsed');
+    report.cases.push('free-endpoints-multi-column-priority-order-and-optional-email-visible');
     await selectService('deeplx');
     for (const width of [390, 820]) {
       await page.setViewportSize({width, height: 1000});

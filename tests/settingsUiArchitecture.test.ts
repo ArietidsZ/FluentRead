@@ -955,7 +955,7 @@ describe('options UI composition architecture', () => {
     expect(serviceConfiguration).toContain('<Teleport v-if="connectionActionTarget" :to="connectionActionTarget">')
     expect(catalog).toContain('class="hero-connection-action"')
     expect(apiKeyList).not.toContain('data-connection-test-button')
-    expect(serviceConfiguration).toContain(':disabled="connectionTestBusy && !usesApiKeyList"')
+    expect(serviceConfiguration).toContain(':disabled="connectionTestDisabled"')
     expect(serviceConfiguration).not.toContain('class="service-disclosure"')
     expect(serviceConfiguration.match(/<el-tab-pane\b/gu) || []).toHaveLength(4)
     expect(serviceConfiguration).toContain('data-api-key-rotation-setting')

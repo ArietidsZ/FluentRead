@@ -137,7 +137,7 @@ const save = () => fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.st
     const timeoutInput = freeRequests.locator('input[aria-label*="等待"], input[aria-label*="timeout" i]').first();
     assert.equal(await timeoutInput.count(), 1, '免费翻译请求设置缺少超时控件');
     await timeoutInput.fill('7'); await timeoutInput.press('Enter');
-    const freeEmail = page.locator('input[aria-label="MyMemory 联系邮箱"]');
+    const freeEmail = page.locator('[data-free-translation-settings] .provider-settings input[type="email"]');
     await freeEmail.fill('settings-fixture@example.test'); await freeEmail.press('Tab');
     const disabledProvider = await page.locator('[data-fallback-provider]:not(.is-disabled)').last().getAttribute('data-fallback-provider');
     await page.locator(`[data-fallback-provider="${disabledProvider}"] .el-switch`).click();
@@ -147,7 +147,7 @@ const save = () => fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.st
     assert.equal(await page.locator('[id$="tab-requests"]').getAttribute('aria-selected'), 'true');
     const reopenedMode = await page.locator('input[type="radio"][value="sequential"]').isChecked();
     assert.equal(reopenedMode, true);
-    assert.equal(await page.locator('input[aria-label="MyMemory 联系邮箱"]').inputValue(), 'settings-fixture@example.test');
+    assert.equal(await page.locator('[data-free-translation-settings] .provider-settings input[type="email"]').inputValue(), 'settings-fixture@example.test');
     assert.match(await page.locator(`[data-fallback-provider="${disabledProvider}"]`).getAttribute('class'), /is-disabled/);
     assert.equal(await reopenedFreeRequests.locator('input[aria-label*="等待"], input[aria-label*="timeout" i]').first().inputValue(), '7');
     await shot('service-library-free-advanced');
