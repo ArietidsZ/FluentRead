@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import {validateGpuObservationBinding} from './browser-acceptance-gpu.mjs';
+import {checkFocusSnapshot} from './browser-focus-guard.mjs';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const nonempty = value => typeof value === 'string' && value.trim().length > 0;
@@ -71,6 +73,14 @@ export async function validatePassEvidence(report, artifacts, root) {
   const roleFiles=role=>[...artifacts.values()].filter(file=>file.role===role);
   const hasRole=(item,role)=>assert(item.evidence.some(name=>artifacts.get(name)?.role===role),`${item.id}: missing ${role} evidence`);
   const env=report.environment, provenance=report.provenance;
+  const guard=json(env.focusGuardEvidence,'focus-guard');
+  assert(guard.status==='stopped'&&guard.mode==='continuous'&&Number.isSafeInteger(guard.browserPid)&&guard.browserPid===env.browserPid&&guard.profilePathSha256===env.profilePathSha256,'Pass requires a completed continuous focus guard bound to the actual browser/profile');
+  const focusEvents=guard.events?.filter(event=>event.event==='focus-window-observation');
+  assert(focusEvents?.length>=2&&!guard.events.some(event=>event.event==='guard-violation'),'Pass requires repeated successful focus/window observations');
+  for(const event of focusEvents){assert(Number.isFinite(Date.parse(event.at)),'Missing focus observation time');for(const frontmostPid of [event.frontmostPidBefore,event.frontmostPidAfter])checkFocusSnapshot({browserPid:guard.browserPid,frontmostPid,windows:event.windows,displays:event.displays});}
+  const focusStart=Date.parse(focusEvents[0].at),focusEnd=Date.parse(focusEvents.at(-1).at);
+  assert(focusEnd>focusStart&&focusEvents.every((event,index)=>index===0||Date.parse(event.at)>=Date.parse(focusEvents[index-1].at)),'Guard observations must span a monotonic interval');
+  for(const item of passed)for(const name of item.evidence.filter(name=>artifacts.get(name)?.role==='browser-log'))for(const event of json(name,'browser-log').events||[])assert(Date.parse(event.at)>=focusStart&&Date.parse(event.at)<=focusEnd,`${item.id}: browser evidence lies outside observed guard interval`);
   for(const field of ['os','browser','browserVersion','browserosVersion','launchMode','profileMarker','focusPolicy','windowPlacement','extensionId','extensionName','extensionVersion','nodeVersion','pnpmVersion']) assert(nonempty(env[field]),`Pass requires environment.${field}`);
   assert(/^v?22\./u.test(env.nodeVersion) && /^9\.12\.1$/u.test(env.pnpmVersion),'Pass requires Node22 / pnpm9.12.1');
   assert(env.launchArguments.length>0 && env.capabilityEvidence.length>0,'Pass requires launch arguments and capability evidence');
@@ -112,19 +122,20 @@ export async function validatePassEvidence(report, artifacts, root) {
   }
   const requireGpu=()=>{
     const h=report.hardware;
-    assert(h.status==='physical' && h.isFallbackAdapter===false && nonempty(h.osGpuDescription) && nonempty(h.adapterDescription),'Physical GPU observation required');
+    assert(h.status==='physical' && h.isFallbackAdapter===false && nonempty(h.osGpuDescription),'Physical GPU observation required');
     // An observed empty optional-feature set is valid for Qwen q4 and OPUS FP32.
     // Profile-specific requirements below still reject missing shader-f16 for FP16/Index.
     assert(Array.isArray(h.features) && Object.keys(h.limits).length>0,'Missing raw GPU features/limits');
     for(const limit of ['maxBufferSize','maxStorageBufferBindingSize'])assert(h.limits[limit]>0,`Missing GPU limit ${limit}`);
-    assert(h.evidence.some(name=>{try {const d=json(name,'gpu-log');return d.osGpuDescription===h.osGpuDescription && d.adapter?.description===h.adapterDescription && d.adapter?.isFallbackAdapter===false && JSON.stringify(d.adapter.features)===JSON.stringify(h.features) && JSON.stringify(d.adapter.limits)===JSON.stringify(h.limits);}catch{return false;}}),'GPU evidence must retain matching OS and raw adapter observations');
+    validateGpuObservationBinding(h,artifacts);
   };
   for(const item of passed) {
     hasRole(item,'screenshot');hasRole(item,'browser-log');
     if(item.id==='ENV-01') {
       const h=report.hardware;
       assert(h.status!=='unverified'&&nonempty(h.osGpuDescription)&&h.evidence.length>0,'ENV-01 requires completed OS/browser GPU discovery');
-      assert(h.evidence.some(name=>{try {const d=json(name,'gpu-log');return d.osGpuDescription===h.osGpuDescription&&(h.status==='none'?d.adapter===null:d.adapter?.description===h.adapterDescription&&d.adapter?.isFallbackAdapter===h.isFallbackAdapter&&JSON.stringify(d.adapter?.features)===JSON.stringify(h.features)&&JSON.stringify(d.adapter?.limits)===JSON.stringify(h.limits));}catch{return false;}}),'ENV-01 requires actual GPU discovery evidence');
+      if(h.status==='none')assert(h.evidence.some(name=>{try {const d=json(name,'gpu-log');return d.osGpuDescription===h.osGpuDescription&&d.adapter===null;}catch{return false;}}),'ENV-01 requires actual absent-GPU evidence');
+      else validateGpuObservationBinding(h,artifacts);
     }
     for(const role of rolesByCase[item.id] || [])hasRole(item,role);
     const real=item.kind==='real-model'||item.kind==='real-site-model';

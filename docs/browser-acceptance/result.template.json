@@ -336,7 +336,7 @@
   "artifacts": [],
   "limitations": [
     "Template only. No browser, hardware GPU or real-model acceptance has been performed.",
-    "Real-model cases are opt-in. Unselected or unobservable cases remain blocked.",
+    "Real-model cases require actual observations. Unexecuted or unobservable cases remain blocked with the exact reason.",
     "Generated locales exist in the published source commit; configured userscript remote pin is unchanged and its URLs/runtime remain unverified."
   ]
 }

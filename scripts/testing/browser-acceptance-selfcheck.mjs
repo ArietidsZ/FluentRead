@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
+import {normalizeGpuHardware,validateGpuObservationBinding} from './browser-acceptance-gpu.mjs';
 import {loadAcceptanceCatalog, validateFileManifest, collectInlineChineseSources} from './browser-acceptance-evidence.mjs';
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const at='2026-10-05T00:00:00.000Z';
@@ -49,6 +50,8 @@ export async function runEvidenceRegressions(validateReport,root) {
     await add('screen.png','screenshot',Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jf1sAAAAASUVORK5CYII=','base64'),'image/png');
     await add('browser.json','browser-log',{events:[event('observed')]});
     Object.assign(report.environment,{os:'Synthetic OS',browser:'Synthetic Chromium',browserVersion:'1',browserosVersion:'1',launchMode:'isolated test',profileMarker:'owned synthetic',focusPolicy:'background no focus',windowPlacement:'secondary normal size',extensionId:'synthetic-id',extensionName:'FluentRead synthetic fixture',extensionVersion:'0.0.35',nodeVersion:'22.23.3',pnpmVersion:'9.12.1',browserExecutableSha256:hash('synthetic browser'),profileKind:'dedicated-temporary',launchArguments:['--synthetic-validator-example'],capabilityEvidence:['capabilities.json']});
+    Object.assign(report.environment,{browserPid:20,profilePathSha256:hash('synthetic profile'),focusGuardEvidence:'focus-guard.json'});
+    await add('focus-guard.json','focus-guard',{status:'stopped',mode:'continuous',browserPid:20,profilePathSha256:report.environment.profilePathSha256,events:['2026-10-04T23:59:59.000Z','2026-10-05T00:00:01.000Z'].map(at=>event('focus-window-observation',{at,frontmostPidBefore:30,frontmostPidAfter:30,windows:[{left:2500,top:0,width:1200,height:900,windowState:'normal'}],displays:[{left:0,top:0,width:1920,height:1080}]}))});
     await add('capabilities.json','capabilities',{browserosVersion:'1',tools:['synthetic'],operations:['inspect']});
     const runtimeNames=['background.js','options.html','popup.html','offscreen.html','localTranslationWorker.js','localTtsWorker.js','qwenAsrWorker.js','runtime.wasm'];
     const manifestText=JSON.stringify({manifest_version:3,name:report.environment.extensionName,version:report.environment.extensionVersion});
@@ -59,13 +62,19 @@ export async function runEvidenceRegressions(validateReport,root) {
     Object.assign(report.provenance,{publishedSourceCommit:'c68a53af300b33109375665197951331e45ae18a',checkoutCommit:'c68a53af300b33109375665197951331e45ae18a',observedSourceTree:report.expectedSourceTree,worktreeCleanBeforeLocaleGeneration:true,lockfileSha256:hash('synthetic lock'),buildManifest:'build.json',generatedLocalesManifest:'locales.json',commands:['pnpm generate:userscript-languages','pnpm build']});
     await add('source.json','source',report.provenance);
     const h={status:'physical',osGpuDescription:'SYNTHETIC validator GPU',adapterDescription:'SYNTHETIC validator adapter',isFallbackAdapter:false,features:['shader-f16'],limits:{maxBufferSize:1073741824,maxStorageBufferBindingSize:1073741824},evidence:['gpu.json']};report.hardware=h;
-    const gpuEvents=[event('adapter')];
-    const saveGpu=async()=>{const data={osGpuDescription:h.osGpuDescription,adapter:{description:h.adapterDescription,isFallbackAdapter:false,features:h.features,limits:h.limits},events:gpuEvents};const bytes=Buffer.from(JSON.stringify(data));await fs.writeFile(path.join(scratch,'gpu.json'),bytes);const existing=report.artifacts.find(a=>a.path==='gpu.json');if(existing)existing.sha256=hash(bytes);else report.artifacts.push({path:'gpu.json',role:'gpu-log',sha256:hash(bytes),mediaType:'application/json'});};
+    const gpuEvents=[event('webgpu-adapter-request',{adapter:{vendor:'synthetic',architecture:'',device:'',description:h.adapterDescription,isFallbackAdapter:false},features:h.features,limits:h.limits})];
+    const saveGpu=async()=>{const data={osGpuDescription:h.osGpuDescription,adapter:{description:h.adapterDescription,isFallbackAdapter:false,features:h.features,limits:h.limits},events:gpuEvents};const bytes=Buffer.from(JSON.stringify(data));Object.assign(h,normalizeGpuHardware(h,'gpu.json',bytes,0));await fs.writeFile(path.join(scratch,'gpu.json'),bytes);const existing=report.artifacts.find(a=>a.path==='gpu.json');if(existing)existing.sha256=hash(bytes);else report.artifacts.push({path:'gpu.json',role:'gpu-log',sha256:hash(bytes),mediaType:'application/json'});};
     await saveGpu();
     const prepare=id=>{const item=report.cases.find(c=>c.id===id);Object.assign(item,{status:'pass',reason:'Synthetic validator positive example only',observations:['Synthetic contract validation; not a browser result'],evidence:['screen.png','browser.json'],backend:'none'});return item;};
     prepare('ENV-01');await validateReport(report,scratch);
     let negativeRegressions=nativeLocales.negativeRegressions;
     const rejects=async(label,mutate)=>{const copy=structuredClone(report);mutate(copy);await assert.rejects(()=>validateReport(copy,scratch),undefined,label);negativeRegressions++;};
+    const validGuard=JSON.parse(await fs.readFile(path.join(scratch,'focus-guard.json')));
+    await add('focus-once.json','focus-guard',{...validGuard,mode:'once'});
+    await rejects('A single preflight cannot certify browser cases',r=>{r.environment.focusGuardEvidence='focus-once.json';});
+    await add('focus-late.json','focus-guard',{...validGuard,events:validGuard.events.map(e=>({...e,at:new Date(Date.parse(e.at)+10000).toISOString()}))});
+    await rejects('A later guard cannot certify earlier browser actions',r=>{r.environment.focusGuardEvidence='focus-late.json';});
+    await rejects('Browser pass needs an actual guard artifact',r=>{delete r.environment.focusGuardEvidence;r.environment.focusPolicy='helper missing';r.environment.windowPlacement='primary-display';});
     for(const field of ['os','extensionName','extensionVersion'])await rejects(`ENV missing ${field}`,r=>{r.environment[field]=null;});
     for(const field of ['launchArguments','capabilityEvidence'])await rejects(`ENV missing ${field}`,r=>{r.environment[field]=[];});
     await rejects('ENV no GPU discovery',r=>{r.hardware.status='unverified';r.hardware.evidence=[];});
@@ -118,16 +127,30 @@ export async function runEvidenceRegressions(validateReport,root) {
     const q4=catalog.profiles.find(p=>p.id==='qwen3-asr-0.6b'&&p.variant==='q4');addModel(q4);
     const q4Input=hash('Synthetic q4 input');
     const q4Output=await add('q4-output.json','inference-output',{model:q4.id,variant:q4.variant,direction:'audio>text',inputSha256:q4Input,completed:true,text:'Synthetic transcription.'});
-    await add('gpu-empty-features.json','gpu-log',{osGpuDescription:h.osGpuDescription,adapter:{description:h.adapterDescription,isFallbackAdapter:false,features:[],limits:h.limits},events:[event('dispatch',{model:q4.id,variant:q4.variant,count:1})]});
-    const emptyFeatures=structuredClone(report);emptyFeatures.hardware.features=[];emptyFeatures.hardware.evidence=['gpu-empty-features.json'];
+    await add('gpu-empty-features.json','gpu-log',{osGpuDescription:h.osGpuDescription,adapter:{description:h.adapterDescription,isFallbackAdapter:false,features:[],limits:h.limits},events:[event('webgpu-adapter-request',{adapter:{vendor:'synthetic',architecture:'',device:'',description:h.adapterDescription,isFallbackAdapter:false},features:[],limits:h.limits}),event('dispatch',{model:q4.id,variant:q4.variant,count:1})]});
+    const emptyFeatures=structuredClone(report);emptyFeatures.hardware=normalizeGpuHardware(emptyFeatures.hardware,'gpu-empty-features.json',await fs.readFile(path.join(scratch,'gpu-empty-features.json')),0);
     for(const c of emptyFeatures.cases)if(c.id!=='ENV-01')c.status='blocked';
     const q4Case=emptyFeatures.cases.find(c=>c.id==='YT-02');
     Object.assign(q4Case,{status:'pass',reason:'Synthetic native q4 empty optional-feature contract',observations:['An observed empty optional-feature set is permitted'],backend:'hardware-webgpu',models:[q4.id],evidence:['screen.png','browser.json',q4Output,'gpu-empty-features.json'],runs:[{model:q4.id,variant:q4.variant,direction:'audio>text',inputSha256:q4Input,outputArtifact:q4Output,outputBytes:(await fs.readFile(path.join(scratch,q4Output))).length,gpuEvidence:'gpu-empty-features.json',outputSummary:'Synthetic completed q4 output',completed:true,backend:'hardware-webgpu'}]});
     await validateReport(emptyFeatures,scratch);
     const missingFeatures=structuredClone(emptyFeatures);delete missingFeatures.hardware.features;
     await assert.rejects(()=>validateReport(missingFeatures,scratch),/missing features/u);negativeRegressions++;
-    const missingF16=structuredClone(report);missingF16.hardware.features=[];missingF16.hardware.evidence=['gpu-empty-features.json'];
+    const missingF16=structuredClone(report);missingF16.hardware=normalizeGpuHardware(missingF16.hardware,'gpu-empty-features.json',await fs.readFile(path.join(scratch,'gpu-empty-features.json')),0);
     await assert.rejects(()=>validateReport(missingF16,scratch),/Missing actual GPU feature shader-f16/u);negativeRegressions++;
+    const rawGpu=await fs.readFile(path.join(root,'docs/browser-acceptance/fixtures/gpu-empty-description.json'));
+    const rawName='gpu-user-raw.json';
+    const rawArtifact={role:'gpu-log',sha256:hash(rawGpu),bytes:rawGpu};
+    const normalized=normalizeGpuHardware({status:'physical',adapterDescription:'Existing human label',evidence:[]},rawName,rawGpu,2);
+    validateGpuObservationBinding(normalized,new Map([[rawName,rawArtifact]]));
+    assert.equal(normalized.adapterDescription,'');assert.equal(normalized.adapterLabel,'Existing human label');assert.equal(normalized.adapterInfo.vendor,'apple');
+    const allEmpty=JSON.parse(rawGpu);for(const field of ['vendor','architecture','device','description'])allEmpty.events[2].adapter[field]='';
+    const emptyBytes=Buffer.from(JSON.stringify(allEmpty));
+    validateGpuObservationBinding(normalizeGpuHardware(normalized,rawName,emptyBytes,2),new Map([[rawName,{role:'gpu-log',sha256:hash(emptyBytes),bytes:emptyBytes}]]));
+    for(const index of [3,4]){assert.throws(()=>normalizeGpuHardware(normalized,rawName,rawGpu,index));negativeRegressions++;}
+    for(const mutate of [h=>{delete h.adapterInfo.vendor;},h=>{h.adapterDescription='Fabricated label';},h=>{h.rawAdapterObservation.context='extension-worker';},h=>{h.rawAdapterObservation.sha256='0'.repeat(64);},h=>{delete h.rawAdapterObservation;}]){const wrong=structuredClone(normalized);mutate(wrong);assert.throws(()=>validateGpuObservationBinding(wrong,new Map([[rawName,rawArtifact]])));negativeRegressions++;}
+    const blocked=JSON.parse(await fs.readFile(path.join(root,'docs/browser-acceptance/result.template.json'),'utf8'));
+    await fs.writeFile(path.join(scratch,rawName),rawGpu);blocked.artifacts=[{path:rawName,role:'gpu-log',sha256:hash(rawGpu),mediaType:'application/json'}];blocked.hardware=normalized;
+    const originalStatuses=blocked.cases.map(c=>c.status);await validateReport(blocked,scratch);assert.deepEqual(blocked.cases.map(c=>c.status),originalStatuses);assert.equal(blocked.overall,'blocked');
     console.log(JSON.stringify({evidenceContracts:true,positiveSyntheticCases:['ENV-01','MT-01','TTS-05','Qwen-q4-observed-empty-features'],nativeLocaleFiles:nativeLocales.manifest.files.map(file=>file.path),negativeRegressions,browserRun:false,modelRun:false}));
   } finally {await fs.rm(scratch,{recursive:true,force:true});}
 }

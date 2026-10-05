@@ -2,6 +2,8 @@
 
 已验证的本地产品 HEAD 为 **`7212af1f9da08324963e38973c7f477aabfffb0b`**，其 Git tree 固定为 **`50e12ecc7f4c72448f03e714a585814eb9476622`**。GitHub 发布的 source commit 可能因提交元数据/历史不同而具有不同 SHA，必须验证 tree 相同，不能假定本地 HEAD 可从远程获取。本目录及配套脚本只交接测试，不修改产品。此前云端真实浏览器验收被阻断；本目录不是浏览器、硬件 GPU 或真实模型通过报告。
 
+已完成构建字节核对后，使用 [继续验收](./resume.md) 恢复新的结果目录；不重建扩展，不覆盖原始 blocked 快照。
+
 ## 给本地 Agent 的任务
 
 在自己的本地环境读取本文件、[验收矩阵](./cases.md)、仓库根目录 `AGENTS.md` 和 [测试说明](../testing.md)。先检查实际安装的 BrowserOS Neo 版本、可用工具及其说明，再选择支持的操作；本交接不假定任何 Neo API、工具名称或产品选择器。定位控件时检查当前页面和可访问性树，必要时对照固定源码。
@@ -10,7 +12,7 @@
 
 遵守仓库已有 focus-safe 条件：正常尺寸、第二屏或屏幕外的后台窗口，不最小化、不抢焦点、不调用 `bringToFront()`。现有脚本的可信 helper、运行时、操作系统前提必须真实存在。缺少任何条件就把相关用例写成 `blocked`，给出准确原因；不要伪造 helper、关闭保护、发明启动参数或换路线绕过拒绝。前台测试需要另一次明确授权并如实记录，不能默认打开 `--headed`。
 
-先完成无需下载模型的本地夹具。真实模型用例显式选择后执行，下载前说明模型、固定版本、总量与来源，并遵守本地用户授权和资源限制。有受支持的物理 GPU 时必须使用它。没有时报告 `blocked`，不能把 SwiftShader、llvmpipe、Node Dawn、修改后的 adapter feature/limit 或 CPU 结果算作硬件 GPU 通过。故障注入只能独立标注，不能混入正常推理证据。
+先完成无需下载模型的本地夹具，再按本次完整 GPU 验收授权执行固定模型项目。先检查磁盘空间，记录模型固定版本、总量与来源，通过已有验证路径逐个下载；必要模型不要求重复授权，只有额外权限、收费或空间不足等新决策才需询问。有受支持的物理 GPU 时必须使用它。没有时报告 `blocked`，不能把 SwiftShader、llvmpipe、Node Dawn、修改后的 adapter feature/limit 或 CPU 结果算作硬件 GPU 通过。故障注入只能独立标注，不能混入正常推理证据。
 
 按矩阵逐项填入 `result.template.json` 的副本，记录实际观测和证据。完成后验证结果，交付简短摘要、结果 JSON 和脱敏证据。只完成部分项目时保持整体 `blocked`；任何实际断言失败使整体为 `fail`。
 
@@ -99,7 +101,7 @@ node scripts/testing/browser-acceptance.mjs self-check
 
 证据必须在 `artifacts` 登记真实 SHA-256、媒体类型和 `role`。每个通过项至少引用实际 PNG `screenshot` 与结构化 `browser-log`；能力、源码、构建和语言清单不能用 README 代替。`capabilities` JSON 记录 `browserosVersion`、实际工具名 `tools` 和已观察能力 `operations`。`source` JSON 与 `provenance` 中的两个提交、tree、锁文件哈希和生成前清洁状态一致。构建/语言清单使用上面的带 kind 的 fingerprint 命令，构建清单保留实际 manifest 文本并校验名称、版本和摘要，userscript 生成清单覆盖实际生成的五种语言 es-ES、fr-FR、ja-JP、ko-KR、ru-RU。中文通过内联模块使用，英文保留在离线 userscript 中，因此不会生成 zh-CN/en-US JSON。generated-locales fingerprint 会同时记录固定源码中的 zh-CN.ts 与 i18n/index.ts 路径和 SHA-256，作为中文内联证据；旧清单只需重新 fingerprint，无需重建扩展。
 
-所有日志角色使用 `{ "events": [{ "event": "实际事件", "at": "ISO 时间", "context": "实际执行上下文" }] }`，在事件中保留相关测量字段。GPU 日志还包含 `osGpuDescription` 和原始 `adapter`（`description`、`isFallbackAdapter`、`features`、`limits`），与报告一致；执行事件使用实际 `dispatch` + `count`，或 Index 的 `offload` + `loadedLayers`、`totalLayers`、`gpuModelBufferBytes`，并标明 `model`、`variant`。隐私和离线项目另需 network/storage，时序项目另需 timing 角色，要求以验证器错误和矩阵为准。
+所有日志角色使用 `{ "events": [{ "event": "实际事件", "at": "ISO 时间", "context": "实际执行上下文" }] }`，在事件中保留相关测量字段。GPU 原始日志保留 `osGpuDescription` 和按事件记录的 adapter/features/limits。`hardware.adapterInfo` 保留四个原始字符串（允许全空），`adapterDescription` 保持原始值，可选 `adapterLabel` 仅供说明；`rawAdapterObservation` 将 artifact/SHA-256/eventIndex/context/at 绑定到同一成功事件。不可跨上下文拼接能力，也不能把 worker timeout 算成成功；执行事件使用实际 `dispatch` + `count`，或 Index 的 `offload` + `loadedLayers`、`totalLayers`、`gpuModelBufferBytes`，并标明 `model`、`variant`。隐私和离线项目另需 network/storage，时序项目另需 timing 角色，要求以验证器错误和矩阵为准。
 
 `model-catalog.json` 从固定源码提取，并记录来源文件哈希；本次仅接受其中的模型 ID、变体、全部必要仓库文件、不可变 revision、尺寸和 SHA-256。`models.files` 每个文件均填写 `repo`、`revision`、`path` 及预期/实测尺寸和哈希；`runtimeFiles` 必须匹配实际构建清单中的执行入口及 JS/MJS/WASM。OPUS 中英 FP16 两个方向、日→英 FP32 以及 Index 中英两个方向分别记录；MT-03 至少有两个不同模型的真实运行。未准备完整模型资产就保持 blocked。
 

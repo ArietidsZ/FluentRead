@@ -221,6 +221,18 @@
               "type": "null"
             }
           ]
+        },
+        "browserPid": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "profilePathSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "focusGuardEvidence": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "required": [
@@ -368,8 +380,7 @@
         "adapterDescription": {
           "anyOf": [
             {
-              "type": "string",
-              "minLength": 1
+              "type": "string"
             },
             {
               "type": "null"
@@ -406,6 +417,73 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "adapterInfo": {
+          "type": "object",
+          "properties": {
+            "vendor": {
+              "type": "string"
+            },
+            "architecture": {
+              "type": "string"
+            },
+            "device": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "vendor",
+            "architecture",
+            "device",
+            "description"
+          ],
+          "additionalProperties": false
+        },
+        "adapterLabel": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rawAdapterObservation": {
+          "type": "object",
+          "properties": {
+            "artifact": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "eventIndex": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "context": {
+              "type": "string",
+              "minLength": 1
+            },
+            "at": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "artifact",
+            "sha256",
+            "eventIndex",
+            "context",
+            "at"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -826,7 +904,8 @@
               "timing",
               "network",
               "storage",
-              "inference-payload"
+              "inference-payload",
+              "focus-guard"
             ]
           }
         },

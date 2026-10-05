@@ -9,6 +9,7 @@ import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
 import {validatePassEvidence, collectInlineChineseSources} from './browser-acceptance-evidence.mjs';
 import {runEvidenceRegressions} from './browser-acceptance-selfcheck.mjs';
+import {normalizeGpuHardware} from './browser-acceptance-gpu.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const docs = path.join(root, 'docs/browser-acceptance');
@@ -244,13 +245,24 @@ async function selfCheck() {
   console.log(JSON.stringify({ok:true,checks:['strict template','unsupported status/keys/duplicate rejection','artifact digest and path checks','evidenced failure','unproven pass rejection','existing fixture routes','path allowlist','fixed provider','explicit failure','invalid request rejection','no request-body logging','file fingerprints'],browserRun:false,modelRun:false}));
 }
 
-const [command,argument,manifestKind] = process.argv.slice(2);
+const [command,argument,manifestKind,eventIndex] = process.argv.slice(2);
 try {
   if (command==='serve') {
     const {server,url} = await startFixtureServer();console.log(JSON.stringify({url,scope:'loopback-only',synthetic:true}));
     for(const signal of ['SIGINT','SIGTERM']) process.once(signal,()=>{server.close();server.closeAllConnections();});
   } else if (command==='fingerprint' && argument) console.log(JSON.stringify(await fingerprint(path.resolve(argument),manifestKind),null,2));
+  else if(command==='normalize-gpu'&&argument&&manifestKind&&eventIndex!==undefined) {
+    const report=await readJson(argument),base=path.dirname(path.resolve(argument));
+    assert(!path.isAbsolute(manifestKind)&&!manifestKind.includes('\\')&&!manifestKind.split('/').includes('..'),'Use an evidence path relative to the report');
+    const actual=await fs.realpath(path.join(base,manifestKind));assert(actual.startsWith((await fs.realpath(base))+path.sep),'GPU evidence escaped report directory');
+    const bytes=await fs.readFile(actual),artifact={path:manifestKind,role:'gpu-log',sha256:sha256(bytes),mediaType:'application/json'};
+    const existing=report.artifacts.find(item=>item.path===manifestKind);
+    if(existing)assert(existing.sha256===artifact.sha256&&existing.role===artifact.role,'Existing raw GPU artifact registration differs');
+    else report.artifacts.push(artifact);
+    report.hardware=normalizeGpuHardware(report.hardware,manifestKind,bytes,Number(eventIndex));
+    console.log(JSON.stringify(report,null,2));
+  }
   else if (command==='validate' && argument) console.log(JSON.stringify(await validateReport(await readJson(argument),path.dirname(path.resolve(argument)))));
   else if (command==='self-check') await selfCheck();
-  else throw new Error('Usage: browser-acceptance.mjs serve | fingerprint DIRECTORY [extension-build|generated-locales] | validate RESULT.json | self-check');
+  else throw new Error('Usage: browser-acceptance.mjs serve | fingerprint DIRECTORY [extension-build|generated-locales] | normalize-gpu RESULT.json RELATIVE_RAW_GPU.json EVENT_INDEX | validate RESULT.json | self-check');
 } catch(error) {console.error(error.message);process.exitCode=1;}
