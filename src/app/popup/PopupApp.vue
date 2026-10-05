@@ -285,13 +285,7 @@
               <button v-for="item in selectionModes" :key="item.value" type="button" :class="{ selected: (config.selectionTranslatorMode === 'disabled' ? config.selectionTranslatorModeBeforeDisable : config.selectionTranslatorMode) === item.value }" :aria-pressed="(config.selectionTranslatorMode === 'disabled' ? config.selectionTranslatorModeBeforeDisable : config.selectionTranslatorMode) === item.value" :disabled="config.selectionTranslatorMode === 'disabled'" @click="setSelectionMode(item.value)">{{ item.label }}</button>
             </div>
           </div>
-          <div class="choice-block">
-            <label>默认呈现</label>
-            <div class="chips two" role="group" aria-label="划词默认呈现">
-              <button type="button" :class="{selected: config.selectionTranslatorPresentation === 'simple'}" :aria-pressed="config.selectionTranslatorPresentation === 'simple'" @click="config.selectionTranslatorPresentation = 'simple'">普通翻译</button>
-              <button type="button" :class="{selected: config.selectionTranslatorPresentation === 'card'}" :aria-pressed="config.selectionTranslatorPresentation === 'card'" @click="config.selectionTranslatorPresentation = 'card'">卡片模式</button>
-            </div>
-          </div>
+
         </div>
 
       </div>

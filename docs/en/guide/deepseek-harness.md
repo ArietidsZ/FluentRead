@@ -1,32 +1,27 @@
 # Selection translation
 
-Translate a selected word or sentence, then use card mode to look up words, explore sentence structure or continue learning.
+Select a word or sentence to open its translation card, look up words, explore sentence structure or continue learning.
 
 <GuideVisual kind="selection" en />
 
-## Choose a default view
+## Translation card
 
-Open **Settings → Selection translation** and enable the feature.
+Open **Settings → Selection translation** and enable the feature. Every selection uses one card, opening the first **Translate** tab. Choose **Understand, Grammar, Usage, Practice or History** when needed. Switching tabs reuses the translation. The settings preview uses fixed examples and sends no requests.
 
-- **Simple translation** shows the source and translation with copy and speech controls.
-- **Card mode** adds dictionary pronunciations and word classes, with optional AI learning actions.
-
-Switch views inside a popup at any time, reusing its translation. This changes only the current selection; the next selection uses your saved default. The settings preview uses fixed examples and sends no requests.
-
-Simple translation uses the default translation service. English dictionary lookup does not require AI. Dictionary meanings are grouped by word class; these describe possible uses, not necessarily the word’s role in the current sentence. If lookup fails, the translation remains available.
+English dictionary lookup does not require AI. Dictionary meanings are grouped by word class; these describe possible uses, not necessarily the word’s role in the current sentence. If lookup fails, the translation remains available.
 
 <details class="guide-details">
 <summary>Activation and display</summary>
 
 ## Activation and display
 
-Both views share the icon, dot, direct popup, hover-over-icon, shortcut and context-menu activation settings. Hovering opens the popup after the configured wait; moving away cancels it. Shortcuts and context-menu mode do not show an extra toolbar.
+The card supports icon, dot, direct popup, hover-over-icon, shortcut and context-menu activation settings. Hovering opens the popup after the configured wait; moving away cancels it. Shortcuts and context-menu mode do not show an extra toolbar.
 
 For fewer interruptions, keep the default **Show icon** and click only when needed. A custom shortcut or context-menu mode hides floating entries entirely. Direct popup is suited to repeated lookups; it can interrupt people who select text while reading. Upgrades preserve your chosen activation method.
 
 **Dismiss when continuing to read** is on by default. Scrolling the page or copying the original dismisses the popup, and moving away from an unopened entry hides it after a short grace period. Native selection and copying remain intact. Scrolling or copying within the card keeps it open. Turn this preference off to compare a translation while scrolling the page.
 
-Escape or a click elsewhere closes the popup. A dismissed selection does not reopen by itself. Disabling Selection translation stops both views while keeping learning preferences.
+Escape or a click elsewhere closes the popup. A dismissed selection does not reopen by itself. Disabling Selection translation stops the card while keeping learning preferences.
 
 </details>
 
@@ -37,7 +32,7 @@ Escape or a click elsewhere closes the popup. A dismissed selection does not reo
 
 The card includes 3,000 common English dictionary entries that work without a separate download. For other words, the online dictionary can show a result while FluentRead downloads and verifies the full dictionary for later local lookup. The complete file is about 3.9 MB and is cached after downloading. If the download is unavailable, common local entries and the online dictionary remain usable. The dictionary download URL does not include the word you are looking up.
 
-Drag the card by its top or surrounding blank space to move it. Drag an edge or corner to resize it; long text scrolls inside. The next selection opens a new card at its default size near the selected text.
+The card keeps its position when switching learning tabs, streaming answers, or starting and stopping speech. Long content scrolls within the available space. Drag the card by its top or surrounding blank space to move it. Drag an edge or corner to resize it; long text scrolls inside. The next selection opens a new card at its default size near the selected text.
 
 When the target is Chinese or English, the card's language button can change the direction for this result without changing page translation settings. Selection behavior and language preferences are configured under **Selection translation**.
 
@@ -72,9 +67,9 @@ Completed answers are reused when switching learning actions within the current 
 
 ## Context and records
 
-**Source context**, **Learning memory** and **Custom instructions** are separate visible sections. Choose the selection alone or allow its paragraph with a length limit; the whole page is not read. Learning memory is off by default and may supply saved insights to AI explanations and writing. Disabling it preserves your saved content. Manage it in the Learning center. The instruction editor applies only to AI explanations, leaving ordinary translation and dictionary lookup unchanged. Custom prompts are preserved.
+**Source context**, **Study notes** and **Custom instructions** have their own visible sections. Choose the selection alone or allow its paragraph with a length limit; the whole page is not read. You can save and manage notes at any time. **Use study notes in answers** is off by default and, when enabled, supplies relevant notes to AI explanations and writing. Turning it off preserves your notes. The instruction editor applies only to AI explanations, leaving translation and dictionary lookup unchanged. Custom prompts are preserved.
 
-Save expressions to the [Learning center](/en/guide/vocabulary-book). Reading conversations stay on this device for 30 days. Viewing records sends no model request. Private windows do not read or save history. See [Data and privacy](/en/guide/privacy).
+**Save original** adds expressions to **Words & sentences** in the [Learning center](/en/guide/vocabulary-book). **Save study note** stores the source and explanation in **Study notes**. After saving, **View study notes** opens that tab directly; entries are kept until you edit or delete them. Reading conversations stay on this device for 30 days. Viewing records sends no model request. Private windows do not read or save history. See [Data and privacy](/en/guide/privacy).
 
 </details>
 

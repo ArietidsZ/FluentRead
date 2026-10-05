@@ -734,12 +734,13 @@ describe('界面 i18n 契约', () => {
       for (const source of [item.label, item.description, item.summary, item.detail, item.searchDescription]) {
         expect(translateLegacyText(source, language), `${language}: ${source}`).not.toBe(source);
       }
-      for (const key of ['learning.saved', 'learning.history', 'learning.content', 'learning.retention', 'learning.memory', 'learning.memoryAdd', 'learning.memoryDisabled', 'learning.memoryClearConfirm', 'settings.memoryEnabled', 'settings.memoryDescription']) {
+      for (const key of ['learning.saved', 'learning.history', 'learning.content', 'learning.retention', 'learning.savedDescription', 'learning.historyDescription', 'learning.memoryDescription', 'learning.memory', 'learning.memoryAdd', 'learning.memoryDisabled', 'learning.memoryClearConfirm', 'settings.memoryEnabled', 'settings.memoryDescription', 'settings.learningContext', 'learning.localStorage', 'learning.localStorageHelp', 'learning.backup', 'learning.collection.actions', 'learning.collection.reviewHelp', 'learning.collection.upToDate', 'learning.collection.review', 'learning.collection.reviewDone', 'learning.collection.manage', 'learning.collection.settingHelp', 'learning.collection.type', 'learning.collection.filter', 'learning.collection.reset', 'learning.collection.matches', 'learning.collection.noMatchesHelp', 'learning.collection.sentence', 'learning.collection.expression', 'learning.collection.listenLearn', 'learning.collection.learnUsage', 'learning.memorySettingsOpen', 'learning.collection.setting', 'learning.collection.enable', 'learning.collection.offEmptyTitle', 'learning.collection.emptyTitle', 'learning.collection.emptyHint', 'learning.collection.enableHelp', 'reading.saveNote', 'reading.noteSavedButton', 'reading.saveNoteTitle', 'reading.viewNotes', 'reading.noteSaved', 'reading.openNotesFailed', 'reading.noteSaveFailed', 'reading.saveSourceTitle', 'reading.viewSaved', 'reading.sourceSaved', 'reading.openSavedFailed', 'reading.savingSource']) {
         expect(translate(key, language)).not.toBe(translate(key, 'zh-CN'));
         expect(translate(key, language)).not.toBe(key);
       }
     }
-    expect(translate('learning.saved', 'zh-CN')).toBe('收藏');
+    expect(translate('learning.saved', 'zh-CN')).toBe('单词与句子');
+    expect(translate('learning.memory', 'zh-CN')).toBe('学习笔记');
     expect(translate('learning.history', 'en-US')).toBe('Reading history');
   });
 

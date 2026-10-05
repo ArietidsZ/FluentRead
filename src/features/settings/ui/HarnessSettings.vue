@@ -1,6 +1,6 @@
 <!--
  * @file src/features/settings/ui/HarnessSettings.vue
- * 文件职责：作为划词翻译的学习子设置，用示例说明 AI 讲解，并明确原文范围、学习记忆和自定义指令的用途。
+ * 文件职责：作为划词翻译的学习子设置，用示例说明 AI 讲解，并明确原文范围、学习笔记和自定义指令的用途。
  * 主要内容：左侧用真实回答组件预览学习动作，右侧配置服务、模型、动作与回答偏好；独立展示上下文和记忆分区，提供学习中心入口；关闭讲解保留偏好，示例不发送请求。
  * 模块边界：只编辑传入 Config 的 harness 字段；记录由学习中心管理，不发起模型请求、不拥有网页选区。
  -->
@@ -56,7 +56,7 @@
       <p v-if="!config.harness.enabled" class="harness-preview-note" role="status">AI 讲解已关闭；可预先调整偏好，开启后应用于学习回答</p>
     </SettingsPreviewLayout>
   </SettingsGroup>
-  <SettingsGroup title="参考原文" description="决定 AI 讲解时可参考哪些原文，与学习记忆分开设置" data-settings-anchor="context" data-settings-anchor-label="参考原文">
+  <SettingsGroup title="参考原文" :description="t('settings.sourceContextDescription')" data-settings-anchor="context" data-settings-anchor-label="参考原文">
     <SettingsItem label="结合哪些原文" :description="config.harness.contextMode === 'paragraph' ? '需要理解指代时参考所选文字所在的段落，不读取整页' : '只发送选中的文字，不补充周围段落'">
       <SegmentedControl v-model="config.harness.contextMode" :options="contextModeOptions" label="上下文范围" />
     </SettingsItem>
@@ -64,8 +64,8 @@
       <div class="harness-context-limit"><el-input-number v-model="config.harness.maxContextChars" :min="500" :max="4000" :step="100" aria-label="上下文上限" /><span>字符</span></div>
     </SettingsItem>
   </SettingsGroup>
-  <SettingsGroup class="harness-memory-settings" :title="t('learning.memory')" description="供 AI 讲解和写作参考的长期要点，与临时段落上下文分开管理" data-settings-anchor="memory" :data-settings-anchor-label="t('learning.memory')">
-    <SettingsItem :label="t('settings.memoryEnabled')" description="启用后参考相关已保存要点；关闭后保留内容，但不再用于回答">
+  <SettingsGroup class="harness-memory-settings" :title="t('learning.memory')" :description="t('learning.memoryDescription')" data-settings-anchor="memory" :data-settings-anchor-label="t('learning.memory')">
+    <SettingsItem :label="t('settings.memoryEnabled')" :description="t('settings.memoryDescription')">
       <el-switch v-model="config.harness.memoryEnabled" :aria-label="t('settings.memoryEnabled')" />
     </SettingsItem>
     <div class="harness-memory-footer"><p>只使用你主动保存的内容，可在学习中心查看、编辑或删除</p><button type="button" @click="emit('navigate', 'settings-vocabulary')">打开学习中心 →</button></div>

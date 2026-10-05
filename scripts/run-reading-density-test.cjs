@@ -82,10 +82,10 @@ async function verifyHistory() {
    hiddenActive:[...this.querySelectorAll('.fr-reading-actions button[aria-pressed="true"]')].length};
  });
  await until(()=>ui(function(){return this.textContent.includes('不同的打印顺序会带来不同的耗材切换顺序。')}),'translation did not finish');
- assert.deepEqual((await translationState()).pressed,['false','false','false','false']);
+ assert.deepEqual((await translationState()).pressed,['true','false','false','false','false','false']);
  assert.equal(report.aiRequests,0);await shot('translation-no-active-learning');record('ordinary translation has no selected learning action and makes no AI request');
  nextAnswer='### 读懂\n打印顺序会影响耗材切换顺序。';await clickNode(button('读懂'));await settled();
- assert.equal(await ui(function(){return this.querySelector('.fr-reading-actions button[aria-pressed="true"]').textContent}),'读懂');
+ assert.equal(await ui(function(){return this.querySelector('.fr-study-toolbar button[aria-pressed="true"]').textContent}),'读懂');
  record('one click enters the actual meaning answer and selects its action');
  nextAnswer='### 主干\n主语是 printing sequences，谓语是 have。';await clickNode(button('句法'));await settled();
  const ask = async (question, answer) => {
@@ -120,10 +120,10 @@ async function verifyHistory() {
  assert(await ui(function(){const title=this.querySelector('.fr-reading-turn-toggle[aria-expanded="true"] .fr-reading-turn-title');return title.scrollWidth<=title.clientWidth+1;}));
  record('long questions wrap in 390px dark mode without horizontal or host-page scrolling');
  await patch({theme:'light'});await page.setViewportSize({width:1440,height:960});
- await clickNode(button('返回译文'));await wait(100);state=await translationState();assert.equal(state.visible,true);assert(state.pressed.every(value=>value==='false'));assert.equal(state.hiddenActive,0);assert.equal(report.aiRequests,before);
+ await clickNode(button('翻译'));await wait(100);state=await translationState();assert.equal(state.visible,true);assert.deepEqual(state.pressed,['true','false','false','false','false','false']);assert.equal(state.hiddenActive,0);assert.equal(report.aiRequests,before);
  await shot('translation-after-learning');record('returning to translation clears the learning selection, including the hidden panel');
  await clickNode(button('读懂'));await settled();assert.equal(report.aiRequests,before);
- assert.equal(await ui(function(){return this.querySelector('.fr-reading-actions button[aria-pressed="true"]').textContent}),'读懂');
+ assert.equal(await ui(function(){return this.querySelector('.fr-study-toolbar button[aria-pressed="true"]').textContent}),'读懂');
  assert.equal(await ui(function(){return this.querySelector('.fr-reading-session-detail').open;}),false);record('reentering meaning selects its cached answer and folds history without another request');
  await menu();await clickNode(button('阅读记录'));await until(()=>node(cls('fr-reading-session')),'saved conversation missing');
  await clickNode(cls('fr-reading-session'));await settled();assert.equal(report.aiRequests,before);await shot('history-restored');record('restoring a saved conversation keeps history folded without a model request');
@@ -198,7 +198,7 @@ async function main(){
       for (const width of [1440, 390]) {
         await page.setViewportSize({width, height: width === 390 ? 844 : 960}); await wait(100);
         const clipped = await ui(function() {
-          return [...this.querySelectorAll('.fr-reading-actions button, .fr-reading-footer button, .fr-tooltip-title span')].filter(el => el.scrollWidth > el.clientWidth + 1).map(el => el.textContent.trim());
+          return [...this.querySelectorAll('.fr-study-toolbar button, .fr-reading-footer button, .fr-tooltip-title span')].filter(el => el.scrollWidth > el.clientWidth + 1).map(el => el.textContent.trim());
         });
         assert.deepEqual(clipped, [], `${language} ${width}px labels must stay complete`);
         assert.equal((await layout()).overflow, false);
@@ -232,12 +232,12 @@ async function main(){
   await assertSourceSkipped();await revealSource();
   record('follow-up sends once and upward scrolling reveals the full source');
   nextAnswer=grammar;await menu();await clickNode(button('重新生成'));await settled();assert.equal(report.aiRequests,count+2);await assertSourceSkipped();record('regenerate is available on demand and restores compact annotations');
-  await clickNode(button('返回译文'));await clickNode(button('词性与句法'));await settled();assert.equal(report.aiRequests,count+2);record('returning from translation reuses the current explanation');
+  await clickNode(button('翻译'));await clickNode(button('词性与句法'));await settled();assert.equal(report.aiRequests,count+2);record('returning from translation reuses the current explanation');
   await page.setViewportSize({width:390,height:800});await wait(200);report.narrow=await layout();assert.equal(report.narrow.overflow,false);assert(report.narrow.detailVisible);assert(report.narrow.labels.every(item=>item.visible&&!item.clipped));await shot('grammar-390');
   await patch({theme:'dark'});await shot('grammar-dark');await patch({uiLanguage:'en-US'});await wait(150);
   await clickNode(n=>n.nodeName==='SUMMARY'&&support.cdpAttribute(n,'aria-label')==='More actions');await clickNode(button('Regenerate'));await settled();
-  assert(await ui(function(){return [...this.querySelectorAll('.fr-reading-actions button')].every(button=>button.scrollWidth<=button.clientWidth+1)}),'English action labels are clipped');
-  assert.equal(await ui(function(){return this.querySelector('.fr-reading-actions button[aria-pressed=true]').textContent}),'Grammar');
+  assert(await ui(function(){return [...this.querySelectorAll('.fr-study-toolbar button')].every(button=>button.scrollWidth<=button.clientWidth+1)}),'English action labels are clipped');
+  assert.equal(await ui(function(){return this.querySelector('.fr-study-toolbar button[aria-pressed=true]').textContent}),'Parts of speech & syntax');
   assert((await ui(function(){return this.querySelector('.fr-sentence-detail').textContent})).includes('adjective'));await shot('grammar-english-dark');record('390px, dark theme and English remain compact and localized');
   await patch({theme:'light',uiLanguage:'zh-CN'});await page.setViewportSize({width:1440,height:960});
   await menu();await clickNode(button('理解整句'));await settled();assert.equal(await ui(function(){return [...this.querySelector('.fr-sentence-tokens').children].map(element=>element.matches('button') ? element.querySelector('.fr-sentence-token-text').textContent : element.textContent).join('').trim()}),sentence+'.');record('sentence expansion remains available without a permanent toolbar row');

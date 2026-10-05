@@ -1256,3 +1256,17 @@ describe('圈选视觉识别路由', () => {
         expect(vision).toHaveBeenCalledOnce();
     });
 });
+
+
+it('opens a validated learning-memory tab without accepting arbitrary navigation data', async () => {
+    const openDefaultPage = vi.fn(async () => undefined);
+    const openSection = vi.fn(async () => undefined);
+    const handler = createOpenOptionsPageHandler({openDefaultPage, openSection});
+    await handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 'settings-vocabulary', learningTab: 'memory'});
+    expect(openSection).toHaveBeenLastCalledWith('settings-vocabulary', 'memory');
+    for (const learningTab of ['unknown', {}, null, 'memory&redirect=other']) {
+        await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 'settings-vocabulary', learningTab})).rejects.toThrow('无效的学习栏目');
+    }
+    await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 'settings-selection', learningTab: 'memory'})).rejects.toThrow('无效的学习栏目');
+    expect(openSection).toHaveBeenCalledOnce(); expect(openDefaultPage).not.toHaveBeenCalled();
+});

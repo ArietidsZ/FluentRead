@@ -1,29 +1,13 @@
 <!--
  * @file src/features/vocabulary/ui/VocabularyBook.vue
  * 文件职责：组织内容优先的学习收藏列表与主动复习，协调句子听读、解释保存、筛选与文件操作。
- * 主要内容：紧凑顶部保留收藏开关、类型、搜索和复习，将文件与管理动作集中到更多菜单；收藏数量使用完整的国际化参数文案，收藏行独立展示内容，配置、数据和朗读仍沿用已有消息协议。
+ * 主要内容：把复习作为列表主操作，收藏开关与文件动作收进管理菜单；搜索与类型筛选合为一行，每条收藏直接提供学习入口，配置、数据和朗读沿用已有消息协议。
  * 模块边界：UI 不直接访问 Dexie 或上传学习数据；完整备份进入备份与恢复页，收藏文件只包含本领域数据，数据库操作集中在后台 repository/handler，上下文和来源只有用户明确选择时才导出。
  -->
 <template>
   <div class="vocabulary-book">
     <VocabularyStudy v-if="studyEntry" :key="studyEntry.id" :entry="studyEntry" :reference="entryTranslation(studyEntry)" :playing="playingEntryId === studyEntry.id" @updated="replaceEntry" @close="selectedEntryId = ''" @speak="toggleEntrySpeech(studyEntry)" @navigate="emit('navigate', $event)" />
     <template v-else>
-    <div v-if="!reviewActive" class="collection-overview">
-      <span>{{ t('learning.collection.count', {count: entries.length}) }}<span v-if="dueEntries.length"> · {{ t('learning.collection.dueCount', {count: dueEntries.length}) }}</span></span>
-      <div class="collection-switches">
-      <FeatureEnableCard
-      class="vocabulary-saving-control"
-      :title="translateControlLabel('学习收藏')"
-      :model-value="betaEnabled"
-      :disabled="configBusy"
-      @update:model-value="setBetaEnabled"
-      />
-      <FeatureEnableCard class="vocabulary-reencounter-control vocabulary-saving-control"
-        :title="t('reencounter.setting')" :description="t(reencounterSupported ? 'reencounter.settingHelp' : 'reencounter.unsupported')"
-        :model-value="reencounterEnabled" :disabled="configBusy || !reencounterSupported" @update:model-value="setReencounterEnabled" />
-      </div>
-    </div>
-
     <div v-if="!reviewActive && !entries.length && betaEnabled && !selectionTranslatorEnabled" class="selection-reminder" role="note">
       <span>可从高亮句子旁直接收藏，或开启划词翻译在学习卡中收藏</span>
       <button type="button" @click="emit('navigate', 'settings-selection')">前往开启</button>
@@ -42,8 +26,8 @@
         </header>
 
         <div v-if="currentReview" class="review-card">
-          <span class="status-pill" :class="`status-${currentReview.status}`">{{ statusLabel(currentReview.status) }}</span>
-          <div class="review-prompt">
+          <span class="status-pill" :class="`status-${currentReview.status}`">{{ currentReview.status === 'new' ? translateControlLabel('新收藏') : statusLabel(currentReview.status) }}</span>
+          <div v-if="!reviewAnswerVisible" class="review-prompt">
             <p v-if="currentClozeContext" class="cloze-context" data-i18n-ignore>{{ currentClozeContext }}</p>
             <h3 v-else data-i18n-ignore>{{ currentReview.term }}</h3>
             <small>{{ currentClozeContext ? '回忆空缺处的表达和含义' : '回忆它的含义，并想想可以怎样使用' }}</small>
@@ -58,8 +42,8 @@
             <span class="answer-reference-label">收藏时的参考内容</span>
             <ReadingAnswer v-if="entryTranslation(currentReview)" :text="entryTranslation(currentReview)" />
             <p v-else class="answer-translation">尚未保存参考内容。可以先进入学习页理解这个表达，再回来复习。</p>
-            <button type="button" class="study-entry-button" @click="openStudy(currentReview)">结合原句学用法</button>
-            <p v-if="latestContext(currentReview)?.text" class="answer-context" data-i18n-ignore>{{ latestContext(currentReview)?.text }}</p>
+            <button type="button" class="study-entry-button" @click="openStudy(currentReview)">{{ t(isVocabularySentence(currentReview) ? 'learning.collection.listenLearn' : 'learning.collection.learnUsage') }}</button>
+            <p v-if="latestContext(currentReview)?.text && latestContext(currentReview)?.text !== currentReview.term" class="answer-context" data-i18n-ignore>{{ latestContext(currentReview)?.text }}</p>
             <a v-if="latestContext(currentReview)?.sourceUrl" :href="latestContext(currentReview)?.sourceUrl" target="_blank" rel="noreferrer">查看收藏来源 ↗</a>
             <div class="review-actions">
               <button type="button" class="again" :disabled="actionBusy" @click="rateReview('again')"><span>1</span><strong>忘了</strong><small>约 10 分钟后</small></button>
@@ -72,26 +56,30 @@
           <span aria-hidden="true">✓</span>
           <h3>本轮复习完成</h3>
           <p>复习 {{ reviewStats.reviewed }} 个 · 记得 {{ reviewStats.good }} 个 · 忘了 {{ reviewStats.again }} 个</p>
-          <button type="button" @click="finishReview">返回单词本</button>
+          <button type="button" @click="finishReview">{{ t('learning.collection.back') }}</button>
         </div>
       </section>
 
       <template v-else>
-        <section class="collection-tools" aria-label="收藏类型与操作">
-          <div class="collection-kinds" role="group" aria-label="收藏类型">
-            <button v-for="filter in collectionKinds" :key="filter.value" type="button" :aria-pressed="kindFilter === filter.value" @click="kindFilter = filter.value">{{ filter.label }}</button>
+        <section class="collection-tools" :aria-label="t('learning.collection.actions')">
+          <div class="collection-overview">
+            <h2>{{ t('learning.collection.count', {count: entries.length}) }}</h2>
+            <span v-if="entries.length">{{ reviewPlan.length ? t('learning.collection.reviewHelp') : t('learning.collection.upToDate') }}</span>
           </div>
           <div class="collection-management">
-            <button v-if="entries.length" class="start-review" type="button" :disabled="loading || actionBusy || reviewPlan.length === 0" @click="startReview">{{ reviewPlan.length ? `开始复习 ${reviewPlan.length} 个` : '暂无待复习' }}</button>
+            <button v-if="entries.length" class="start-review" type="button" :disabled="loading || actionBusy || reviewPlan.length === 0" @click="startReview"><UiIcon name="book" :size="15" />{{ reviewPlan.length ? t('learning.collection.review', {count: reviewPlan.length}) : t('learning.collection.reviewDone') }}</button>
             <details ref="moreMenu" class="book-more" name="fluentread-collection-popover" @keydown.esc.stop.prevent="closeMoreMenuAndFocus">
-              <summary aria-label="更多收藏管理">更多 <UiIcon name="chevron-down" :size="13" /></summary>
+              <summary :aria-label="t('learning.collection.manage')"><UiIcon name="sliders" :size="14" />{{ t('learning.collection.manage') }}</summary>
               <div class="book-more-menu">
+                <div class="collection-switches">
+                  <FeatureEnableCard class="vocabulary-saving-control" :title="t('learning.collection.setting')" :description="t('learning.collection.settingHelp')" :model-value="betaEnabled" :disabled="configBusy" @update:model-value="setBetaEnabled" />
+                  <FeatureEnableCard class="vocabulary-reencounter-control vocabulary-saving-control" :title="t('reencounter.setting')" :description="t(reencounterSupported ? 'reencounter.settingHelp' : 'reencounter.unsupported')" :model-value="reencounterEnabled" :disabled="configBusy || !reencounterSupported" @update:model-value="setReencounterEnabled" />
+                </div>
                 <button type="button" :disabled="actionBusy || loading" @click="closeMoreMenuAndFocus(); importInput?.click()">导入收藏</button>
                 <button type="button" :disabled="actionBusy || loading || !filteredEntries.length" @click="closeMoreMenuAndFocus(); exportCollection()">导出当前列表</button>
                 <button type="button" :disabled="actionBusy || !entries.length" @click="exportAnki">导出到 Anki</button>
                 <button type="button" :disabled="loading" @click="closeMoreMenuAndFocus(); loadEntries()">{{ loading ? '读取中…' : '刷新列表' }}</button>
-                <button type="button" :disabled="!latestSavedEntry" @click="latestSavedEntry && openStudy(latestSavedEntry)">学习最近收藏</button>
-                <button type="button" class="danger" :disabled="actionBusy || entries.length === 0" @click="clearVocabulary">清空单词本</button>
+                <button type="button" class="danger" :disabled="actionBusy || entries.length === 0" @click="clearVocabulary">{{ t('learning.collection.clear') }}</button>
               </div>
             </details>
           </div>
@@ -100,8 +88,11 @@
 
         <section v-if="entries.length" class="toolbar" aria-label="搜索与筛选收藏">
           <label class="search-field"><span aria-hidden="true"><UiIcon name="search" :size="16" /></span><input v-model.trim="query" type="search" aria-label="搜索收藏" placeholder="搜索原文、译文或解释" /></label>
+          <UiSelect v-model="kindFilter" class="collection-type" :aria-label="t('learning.collection.type')">
+            <ElOption v-for="filter in collectionKinds" :key="filter.value" :value="filter.value" :label="translateControlLabel(filter.label)" />
+          </UiSelect>
           <details class="book-filter" name="fluentread-collection-popover" @keydown.esc.stop.prevent="($event.currentTarget as HTMLDetailsElement).open = false">
-            <summary><UiIcon name="sliders" :size="14" />筛选与排序<span v-if="statusFilter !== 'all' || sortOrder !== 'recent'" aria-label="已调整筛选"> ·</span></summary>
+            <summary><UiIcon name="sliders" :size="14" />{{ t('learning.collection.filter') }}<span v-if="statusFilter !== 'all' || sortOrder !== 'recent'" aria-label="已调整筛选"> ·</span></summary>
             <div class="filter-panel">
           <label>掌握状态</label>
           <UiSelect v-model="statusFilter" aria-label="掌握状态">
@@ -118,16 +109,21 @@
             <ElOption value="recent" :label="translateControlLabel('按最近收藏')" />
             <ElOption value="term" :label="translateControlLabel('按字母顺序')" />
           </UiSelect>
+              <button v-if="filtersActive" type="button" class="reset-filters" @click="resetFilters">{{ t('learning.collection.reset') }}</button>
             </div>
           </details>
         </section>
+        <div v-if="entries.length && filtersActive" class="collection-results" role="status"><span>{{ t('learning.collection.matches', {count: filteredEntries.length}) }}</span><button type="button" @click="resetFilters">{{ t('learning.collection.reset') }}</button></div>
 
-        <section v-if="loading && entries.length === 0" class="empty-state"><span class="loading-ring" /><p>正在读取本地单词本…</p></section>
+        <section v-if="loading && entries.length === 0" class="empty-state"><span class="loading-ring" /><p>{{ t('learning.collection.loading') }}</p></section>
         <section v-else-if="entries.length === 0" class="empty-state">
-          <span aria-hidden="true"><UiIcon name="book" :size="28" /></span><h3>还没有学习收藏</h3><p>开启后，在网页学习卡中收藏想记住的单词或句子。</p>
-          <button type="button" @click="emit('navigate', 'settings-data')">从备份恢复</button>
+          <span aria-hidden="true"><UiIcon name="book" :size="28" /></span>
+          <h3>{{ t(betaEnabled ? 'learning.collection.emptyTitle' : 'learning.collection.offEmptyTitle') }}</h3>
+          <p>{{ t(betaEnabled ? 'learning.collection.emptyHint' : 'learning.collection.enableHelp') }}</p>
+          <button v-if="!betaEnabled" type="button" :disabled="configBusy" @click="setBetaEnabled(true)">{{ t('learning.collection.enable') }}</button>
+          <button type="button" class="empty-secondary" @click="emit('navigate', 'settings-data')">从备份恢复</button>
         </section>
-        <section v-else-if="filteredEntries.length === 0" class="empty-state"><span aria-hidden="true"><UiIcon name="search" :size="28" /></span><h3>没有匹配的词条</h3><p>试试清空搜索内容或切换掌握状态。</p></section>
+        <section v-else-if="filteredEntries.length === 0" class="empty-state"><span aria-hidden="true"><UiIcon name="search" :size="28" /></span><h3>没有匹配的词条</h3><p>{{ t('learning.collection.noMatchesHelp') }}</p><button type="button" @click="resetFilters">{{ t('learning.collection.reset') }}</button></section>
 
         <section v-else class="word-list" aria-label="收藏的单词与句子">
           <CollectionEntry v-for="entry in pagedEntries" :key="entry.id" :entry="entry" :translation="entryTranslation(entry)" :playing="playingEntryId === entry.id" :busy="actionBusy" :status="entry.status === 'new' && isVocabularySentence(entry) ? '新收藏' : statusLabel(entry.status)" :review="nextReviewLabel(entry)" @study="openStudy(entry)" @speak="toggleEntrySpeech(entry)" @copy="copyEntry(entry, $event)" @mastery="entry.status === 'mastered' ? relearn(entry) : setMastered(entry)" @remove="removeEntry(entry)" @updated="replaceEntry" />
@@ -141,12 +137,6 @@
 
       </template>
     </template>
-
-    <section v-if="!reviewActive" class="privacy-note" aria-label="本地存储说明">
-      <span aria-hidden="true"><UiIcon name="shield" /></span>
-      <div><strong>学习数据仅保存在当前浏览器</strong><small>不建账号、不上传复习记录；无痕窗口不提供持久收藏。</small></div>
-      <button type="button" @click="emit('navigate', 'settings-data')">备份与恢复</button>
-    </section>
 
     </template>
 
@@ -219,7 +209,6 @@ const configBusy = ref(false);
 const entries = ref<VocabularyEntry[]>([]);
 const selectedEntryId = ref('');
 const studyEntry = computed(() => entries.value.find(entry => entry.id === selectedEntryId.value));
-const latestSavedEntry = computed(() => [...entries.value].sort((a, b) => b.lastSeenAt - a.lastSeenAt || a.id.localeCompare(b.id))[0]);
 const recallDraft = ref('');
 const loading = ref(false);
 const actionBusy = ref(false);
@@ -230,6 +219,8 @@ const collectionKinds = [{value:'all' as const, label:'全部收藏'}, {value:'s
 const importInput = ref<HTMLInputElement>();
 const statusFilter = ref<'all' | 'due' | VocabularyStatus>('all');
 const sortOrder = ref<'due' | 'recent' | 'term'>('recent');
+const filtersActive = computed(() => Boolean(query.value || kindFilter.value !== 'all' || statusFilter.value !== 'all' || sortOrder.value !== 'recent'));
+function resetFilters(): void { query.value = ''; kindFilter.value = 'all'; statusFilter.value = 'all'; sortOrder.value = 'recent'; }
 const page = ref(1);
 const pageSize = 50;
 const reviewBatchSize = 20;
@@ -469,7 +460,7 @@ async function setBetaEnabled(enabled: boolean): Promise<void> {
   betaEnabled.value = enabled;
   try {
     await requestConfigPatch({vocabularyBookEnabled: enabled}, browser.runtime.sendMessage.bind(browser.runtime));
-    showToast(enabled ? '单词本已开启' : '收藏入口已关闭，学习数据仍保留');
+    showToast(enabled ? t('learning.collection.enabled') : '收藏入口已关闭，学习数据仍保留');
   } catch (cause) {
     betaEnabled.value = runtimeConfig.vocabularyBookEnabled === true;
     showToast(cause instanceof Error ? cause.message : '设置保存失败');
@@ -722,8 +713,8 @@ async function clearVocabulary(): Promise<void> {
   if (actionBusy.value || entries.value.length === 0) return;
   try {
     await ElMessageBox.confirm(
-      '将删除全部单词、上下文和复习记录。设置和模型用量不受影响，此操作无法撤销。',
-      '清空单词本？',
+      t('learning.collection.clearHelp'),
+      t('learning.collection.clearTitle'),
       {confirmButtonText: '确认清空', cancelButtonText: '取消', type: 'warning'},
     );
   } catch {
@@ -736,7 +727,7 @@ async function clearVocabulary(): Promise<void> {
     entries.value = [];
     finishReview();
     scheduleTimeRefresh();
-    showToast('单词本已清空');
+    showToast(t('learning.collection.cleared'));
   } catch (cause) {
     showToast(cause instanceof Error ? cause.message : '清空失败');
   } finally {
@@ -850,68 +841,58 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.collection-overview,.collection-switches,.collection-tools,.collection-kinds,.collection-management {display:flex; align-items:center; flex-wrap:wrap; gap:8px;}
-.collection-overview,.collection-tools {justify-content:space-between;}
-.collection-switches {gap:8px 14px;}
-.vocabulary-saving-control :deep(.feature-enable-description) {position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap;}
-.collection-overview {font-size:12px; color:var(--muted);}
-.collection-kinds {gap:3px;}
-.collection-kinds > button {padding:7px 10px; border:0; border-radius:7px; background:transparent; color:var(--muted); font:inherit; font-size:12px; cursor:pointer;}
-.collection-kinds > button[aria-pressed="true"] {color:var(--brand-strong); background:var(--brand-soft); font-weight:600;}
-.collection-tools button:focus-visible,.collection-tools summary:focus-visible,.book-filter summary:focus-visible {outline:2px solid var(--brand); outline-offset:2px;}
-.collection-overview .vocabulary-saving-control {margin:0; border:0; background:transparent;}
-.vocabulary-saving-control :deep(button) {min-height:30px; width:auto; gap:10px; padding:2px 0 2px 8px;}
-.vocabulary-saving-control :deep(.feature-enable-heading) {min-height:0;}
-.vocabulary-saving-control :deep(strong) {font-size:12px; font-weight:400; color:var(--muted);}
-.vocabulary-saving-control :deep(i) {width:32px; height:18px; padding:2px;}
-.vocabulary-saving-control :deep(b) {width:12px; height:12px;}
-.vocabulary-saving-control.enabled :deep(b) {transform:translateX(14px);}
-.book-filter {position:relative; flex:none;}
-.book-filter > summary {display:flex; align-items:center; gap:6px; min-height:36px; padding:0 9px; border-radius:8px; color:var(--muted); font-size:12px; cursor:pointer; list-style:none;}
-.book-filter[open] > summary {color:var(--brand-strong); background:var(--brand-soft);}
-.book-filter summary::-webkit-details-marker {display:none;}
-.filter-panel {position:absolute; z-index:7; top:calc(100% + 5px); right:0; display:grid; gap:8px; width:210px; padding:14px; border:1px solid var(--line); border-radius:10px; background:var(--surface); box-shadow:0 10px 28px #1720331a;}
-.filter-panel > label {font-size:11px; color:var(--muted);}
-.filter-panel > label:not(:first-child) {margin-top:5px;}
+.collection-tools { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.collection-overview { min-width:0; }
+.collection-overview h2 { margin:0; color:var(--ink); font-size:18px; font-weight:650; line-height:1.5; }
+.collection-overview > span { display:block; margin-top:4px; color:var(--muted); font-size:11px; line-height:1.7; }
+.collection-management { display:flex; align-items:center; flex:none; gap:10px; }
+.collection-switches { display:grid; gap:4px; padding:4px 0 10px; margin-bottom:6px; border-bottom:1px solid var(--line); }
+.collection-switches .vocabulary-saving-control { margin:0; border:0; background:transparent; }
+.vocabulary-saving-control :deep(button) { min-height:58px; padding:8px 10px; gap:12px; }
+.vocabulary-saving-control :deep(.feature-enable-heading) { min-height:0; }
+.vocabulary-saving-control :deep(strong) { font-size:12px; font-weight:600; }
+.vocabulary-saving-control :deep(.feature-enable-description) { font-size:11px; line-height:1.5; }
+.vocabulary-saving-control :deep(i) { width:32px; height:18px; padding:2px; }
+.vocabulary-saving-control :deep(b) { width:12px; height:12px; }
+.vocabulary-saving-control.enabled :deep(b) { transform:translateX(14px); }
+.collection-tools button:focus-visible,.collection-tools summary:focus-visible,.book-filter summary:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+.book-filter { position:relative; flex:none; }
+.book-filter[open] > summary { color:var(--brand-strong); background:var(--brand-soft); }
+.book-filter summary::-webkit-details-marker { display:none; }
+.filter-panel { position:absolute; z-index:7; top:calc(100% + 5px); right:0; display:grid; gap:8px; box-sizing:border-box; width:230px; max-width:calc(100vw - 56px); padding:16px; border:1px solid var(--line); border-radius:10px; background:var(--surface); box-shadow:0 10px 28px #1720331a; }
+.filter-panel > label { font-size:11px; color:var(--muted); }
+.filter-panel > label:not(:first-child) { margin-top:5px; }
+.collection-results { display:flex; align-items:center; gap:12px; color:var(--muted); font-size:11px; }
+.collection-results button,.reset-filters { padding:0; border:0; background:transparent; color:var(--brand-strong); font:inherit; font-size:11px; cursor:pointer; }
+.reset-filters { margin-top:6px; text-align:left; }
 .recall-draft { display:block; width:100%; box-sizing:border-box; padding:12px; margin:16px 0; border:1px solid var(--line); border-radius:10px; color:var(--ink); background:var(--surface-soft); font:inherit; resize:vertical; }
 .recall-attempt { border-left:2px solid var(--brand); padding-left:12px; white-space:pre-wrap; }
 .answer-reference-label { color:var(--muted); font-size:12px; }
 .review-answer .study-entry-button { min-height: 32px; margin-top: 10px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; color: var(--brand-strong); background: var(--surface-soft); cursor: pointer; font: inherit; font-size: 11px; }
 .vocabulary-book { position: relative; display: grid; gap: 12px; color: var(--ink); }
-.privacy-note, .selection-reminder, .primary-actions, .toolbar, .review-shell { border: 0; background: transparent; }
-
-.selection-reminder { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
-.selection-reminder button { flex: none; border: 0; padding: 0; color: var(--brand-strong); background: transparent; cursor: pointer; font: inherit; }
-.privacy-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 2px; padding: 12px 0 0; border-top: 1px solid var(--line); color: var(--muted); }
-.privacy-note > span { display: flex; flex: none; padding-top: 1px; }
-.privacy-note div { display: flex; flex-direction: column; }
-.privacy-note strong { font-size: 11px; font-weight: 400; }
-.privacy-note small { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.5; }
-.privacy-note button { flex: none; margin-left: auto; padding: 0; border: 0; color: var(--muted); background: transparent; cursor: pointer; font-size: 11px; white-space: nowrap; }
-.start-review { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--brand-strong); background: var(--surface); cursor: pointer; font-size:12px; }
-.start-review:disabled { color: var(--muted); background: transparent; cursor: not-allowed; opacity: .6; }
-.start-review > span:first-child { display: inline; }
-.start-review > span:last-child { display: inline; }
-.start-review strong { font-size: 12px; font-weight: 500; }
-.start-review small { margin-top: 3px; font-size: 11px; opacity: .85; }
+.selection-reminder { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:0; color:var(--muted); font-size:11px; line-height:1.6; }
+.selection-reminder button { flex:none; border:0; padding:0; color:var(--brand-strong); background:transparent; cursor:pointer; font:inherit; }
+.start-review { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:36px; padding:0 14px; border:0; border-radius:8px; color:white; background:var(--brand); cursor:pointer; font:inherit; font-size:12px; font-weight:600; }
+.start-review:disabled { color:var(--muted); background:var(--surface-soft); cursor:default; }
 .book-more { position: relative; }
-.book-more summary { display:flex; align-items:center; justify-content:center; gap:5px; min-width:48px; min-height:32px; padding:0 6px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; font-size: 11px; list-style: none; }
+.book-more summary { display:flex; align-items:center; justify-content:center; gap:5px; min-width:48px; min-height:36px; padding:0 8px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; font-size: 11px; list-style: none; }
 .book-more summary::-webkit-details-marker { display: none; }
 .book-more[open] summary { border-color: color-mix(in srgb, var(--brand) 32%, var(--line)); color: var(--brand-strong); }
-.book-more-menu { position: absolute; z-index: 5; top: calc(100% + 7px); right: 0; display: grid; min-width: 150px; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 12px 30px rgba(31, 40, 61, .14); }
-.book-more-menu button { min-height: 34px; padding: 0 9px; border: 0; border-radius: 8px; color: var(--ink); background: transparent; cursor: pointer; font-size: 11px; font-weight: 700; text-align: left; }
-.book-more-menu button:hover { color: var(--brand-strong); background: var(--brand-soft); }
-.book-more-menu button.danger { color: var(--fr-danger); }
+.book-more-menu { position: absolute; z-index: 5; top: calc(100% + 7px); right: 0; display: grid; box-sizing:border-box; width:310px; max-width:calc(100vw - 56px); padding:8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 12px 30px rgba(31, 40, 61, .14); }
+.book-more-menu > button { min-height: 34px; padding: 0 9px; border: 0; border-radius: 8px; color: var(--ink); background: transparent; cursor: pointer; font-size:12px; font-weight:400; text-align:left; }
+.book-more-menu > button:hover { color: var(--brand-strong); background: var(--brand-soft); }
+.book-more-menu > button.danger { color: var(--fr-danger); }
 /* 菜单独立于设置页的大型折叠标题，保留紧凑命中区域和自身图标。 */
-.vocabulary-book .collection-tools .collection-management .book-more > summary {min-height:32px; padding:0 6px; margin:0; border:0; background:transparent; font-size:12px; font-weight:400; gap:5px;}
-.vocabulary-book .toolbar details.book-filter[name] > summary {min-height:36px; padding:0 9px; margin:0; border:0; background:transparent; font-size:12px; font-weight:400; gap:6px;}
+.vocabulary-book .collection-tools .collection-management .book-more > summary {min-height:36px; padding:0 8px; margin:0; border:0; background:transparent; font-size:12px; font-weight:400; gap:5px;}
+.vocabulary-book .toolbar details.book-filter[name] > summary {display:flex; align-items:center; list-style:none; cursor:pointer; min-height:36px; padding:0 9px; margin:0; border:0; background:transparent; font-size:12px; font-weight:400; gap:6px;}
 .vocabulary-book .collection-tools .collection-management .book-more > summary::after,.vocabulary-book .toolbar details.book-filter[name] > summary::after {display:none; content:none;}
 .toolbar {display:flex; align-items:center; gap:8px; padding:0; border:0; background:transparent;}
 .search-field { flex:1; min-width:0; display: flex; height: 36px; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .search-field span { color: var(--muted); font-size: 17px; }
-.search-field input { width: 100%; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 11px; }
+.collection-type { width:150px; flex:none; }
+.search-field input { width: 100%; border: 0; outline: 0; color: var(--ink); background:transparent; font:inherit; font-size:12px; }
 .toolbar select { min-width: 0; padding: 0 10px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: var(--surface); font-size: 11px; }
-.word-list { display: grid; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.word-list { display:grid; margin-top:2px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .vocabulary-speak { flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 5px; border: 0; border-radius: 7px; background: var(--brand-soft); color: var(--brand-strong); cursor: pointer; }
 .vocabulary-speak svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .vocabulary-speak:hover, .vocabulary-speak:focus-visible { background: var(--brand-soft); outline: 2px solid color-mix(in srgb, var(--brand) 32%, var(--line)); outline-offset: 1px; }
@@ -927,6 +908,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .pagination span { color: var(--muted); font-size: 11px; }
 .eyebrow { display: block; margin-bottom: 5px; color: var(--brand-strong); font-size: 11px; font-weight: 600; letter-spacing: .1em; }
 .empty-state { display: grid; min-height: 210px; place-items: center; align-content: center; gap: 7px; padding: 30px; border: 1px solid var(--line); border-radius: 14px; color: var(--muted); background: var(--surface-soft); text-align: center; }
+.empty-state .empty-secondary { border:0; background:transparent; color:var(--muted); font-weight:400; }
 .empty-state > span { font-size: 28px; }
 .empty-state h3, .empty-state p { margin: 0; }
 .empty-state h3 { color: var(--ink); font-size: 14px; }
@@ -972,6 +954,16 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .book-toast { position: fixed; z-index: 30; right: 28px; bottom: 24px; display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 11px; color: #fff; background: #252a33; box-shadow: 0 12px 30px rgba(0,0,0,.2); font-size: 11px; }
 .book-toast button { padding: 0; border: 0; color: #ffb8ce; background: transparent; cursor: pointer; font: inherit; font-weight: 600; }
 @media (max-width: 560px) {
+  .collection-tools { align-items:flex-start; gap:12px; }
+  .collection-management { flex:1; min-width:0; max-width:65%; gap:3px; flex-wrap:wrap; justify-content:flex-end; }
+  .collection-management .book-more { max-width:100%; }
+  .collection-overview h2 { font-size:16px; }
+  .collection-overview > span { max-width:160px; }
+  .toolbar { flex-wrap:wrap; }
+  .search-field { flex-basis:100%; }
+  .collection-type { flex:1; width:auto; }
+  .book-filter { margin-left:auto; }
+  .start-review { padding:0 10px; }
   .answer-heading {flex-wrap:wrap;}
   .book-more-menu { right: 0; left: auto; }
   .review-card { padding: 18px 13px; }

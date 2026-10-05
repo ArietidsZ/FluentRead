@@ -1,6 +1,6 @@
 /**
  * @file tests/learningMemoryRepository.test.ts
- * 文件职责：验证长期学习记忆的字段、真实 IndexedDB 事务和迟到写入边界。
+ * 文件职责：验证长期学习笔记的字段、真实 IndexedDB 事务和迟到写入边界。
  * 主要内容：覆盖幂等、编辑、容量、并发、标识冲突、白名单、跨连接持久代次及清空后防复活。
  * 模块边界：使用隔离 fake-indexeddb，不启动模型、浏览器或远程服务。
  */

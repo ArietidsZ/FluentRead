@@ -97,7 +97,7 @@ export function createWritingRuntime(getConfig: () => Config, record?: (event: M
                 return JSON.stringify(entries.slice(0, 3).map(item => ({kind: item.kind, content: item.content.slice(0, 700)})));
             } catch {
                 if (active.aborted) throw new Error('已停止生成');
-                return '学习记忆暂时无法读取，请根据本轮草稿与参考内容继续，不要推测记忆内容。';
+                return '学习笔记暂时无法读取，请根据本轮草稿与参考内容继续，不要推测笔记内容。';
             }
         };
         const save = (event: ModelUsageEvent) => { try { record?.({...event, purpose: 'writing'}); } catch { /* 用量故障不影响写作。 */ } };

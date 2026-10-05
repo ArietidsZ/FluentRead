@@ -256,21 +256,42 @@ describe('reading action ownership and reuse', () => {
     await panel.saveWord();
     expect(sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({action: 'upsert', input: expect.objectContaining({term: 'Practice helps.', sourceLanguage: 'en', translation: ''})}));
     expect(panel.saved).toBe(true); expect(calls).toHaveLength(1);
+    expect(panel.feedback).toContain('单词与句子');
+    await panel.openLearningCollection();
+    expect(sendMessage).toHaveBeenLastCalledWith({type: 'openOptionsPage', section: 'settings-vocabulary', learningTab: 'saved'});
   });
-  it('only remembers completed answers after an explicit click with memory enabled outside private windows', async () => {
-    const {panel, props, state, finish, tick} = await mountPanel();
-    finish('A useful explanation'); await panel.rememberLearning();
-    expect(state.saveLearningMemory).not.toHaveBeenCalled();
-    props.preferences = {...props.preferences, memoryEnabled: true}; await tick();
-    panel.regenerate(); await panel.rememberLearning();
+  it('saves completed notes explicitly while AI reference is off, and refuses incomplete or private answers', async () => {
+    const {panel, props, state, finish, tick, sendMessage} = await mountPanel();
+    expect(props.preferences.memoryEnabled).toBe(false);
+    await panel.rememberLearning();
     expect(state.saveLearningMemory).not.toHaveBeenCalled();
     finish('New useful explanation');
     expect(state.saveLearningMemory).not.toHaveBeenCalled();
     await panel.rememberLearning();
     expect(state.saveLearningMemory).toHaveBeenCalledWith({kind: 'lesson', content: '原文：Practice helps.\n学习要点：New useful explanation'});
     expect(panel.remembered).toBe(true);
-    props.privateContext = true; await tick(); await panel.rememberLearning();
+    expect(panel.feedback).toContain('学习笔记');
+    await panel.rememberLearning();
     expect(state.saveLearningMemory).toHaveBeenCalledOnce();
+    await panel.openLearningMemory();
+    expect(sendMessage).toHaveBeenLastCalledWith({type: 'openOptionsPage', section: 'settings-vocabulary', learningTab: 'memory'});
+    props.privateContext = true; await tick(); panel.regenerate(); finish('A private explanation'); await panel.rememberLearning();
+    expect(state.saveLearningMemory).toHaveBeenCalledOnce();
+  });
+  it('saves the matching translation with the original and keeps the AI explanation in study notes', async () => {
+    const {panel, sendMessage, state, finish} = await mountPanel({sourceTranslation: {source: 'Practice helps.', text: '练习有帮助。'}});
+    finish('This explains the grammar and usage.');
+    await panel.saveWord();
+    expect(sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({action: 'upsert', input: expect.objectContaining({term: 'Practice helps.', translation: '练习有帮助。'})}));
+    await panel.rememberLearning();
+    expect(state.saveLearningMemory).toHaveBeenCalledWith({kind: 'lesson', content: '原文：Practice helps.\n学习要点：This explains the grammar and usage.'});
+  });
+  it('keeps both saved-content destinations explicit when opening the learning center fails', async () => {
+    const {panel, sendMessage} = await mountPanel();
+    sendMessage.mockResolvedValueOnce({success: false}); await panel.openLearningCollection();
+    expect(panel.feedback).toContain('单词与句子');
+    sendMessage.mockResolvedValueOnce({success: false}); await panel.openLearningMemory();
+    expect(panel.feedback).toContain('学习笔记');
   });
 });
 
