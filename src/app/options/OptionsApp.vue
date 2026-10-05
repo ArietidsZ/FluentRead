@@ -1,7 +1,7 @@
 <!--
  @file src/app/options/OptionsApp.vue
  文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和学习中心入口，并把选中分区交给对应 feature UI。
- 主要内容：侧栏展示品牌与多语言宣传语；关于页以宽幅品牌介绍、核心体验快捷入口、项目链接卡片和独立赞赏区组织内容；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示并提供顶部滚动定位导航，服务目录使用完整工作区，统计与网站规则按任务保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
+ 主要内容：侧栏展示品牌与多语言宣传语；关于页以宽幅品牌介绍、静态核心体验介绍、项目链接卡片和独立赞赏区组织内容，赞赏码在当前页弹窗放大；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示并提供顶部滚动定位导航，服务目录使用完整工作区，统计与网站规则按任务保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
  模块边界：组件负责页面壳、导航状态和主题、界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
 -->
 <template>
@@ -99,13 +99,12 @@
             <section class="about-experience" :aria-label="t('options.aboutCoreExperience')">
               <h3>{{ t('options.aboutBornForReading') }}</h3>
               <p>{{ t('options.aboutCoreDescription') }}</p>
-              <div class="about-features">
-                <button v-for="feature in aboutFeatures" :key="feature.section" type="button" :data-about-section="feature.section" @click="selectSection(feature.section)">
+              <ul class="about-features">
+                <li v-for="feature in aboutFeatures" :key="feature.label" class="about-feature">
                   <UiIcon :name="feature.icon" :size="21" />
                   <span>{{ t(feature.label) }}</span>
-                  <UiIcon name="arrow-right" :size="17" />
-                </button>
-              </div>
+                </li>
+              </ul>
             </section>
           </header>
           <div class="about-grid">
@@ -124,19 +123,19 @@
               <h3>{{ t('popup.donationTitle') }}</h3>
               <p class="about-panel-description">{{ t('options.aboutThanks') }}</p>
               <div class="about-support-options">
-                <a
+                <button
+                  ref="approvePreviewTrigger"
                   class="about-support-method about-support-wechat"
                   data-support-method="wechat"
-                  :href="approveUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  :aria-label="t('popup.donationOpenCode')"
-                  :title="t('popup.donationOpenCode')"
+                  type="button"
+                  :aria-label="t('options.aboutEnlargeCode')"
+                  :title="t('options.aboutEnlargeCode')"
+                  @click="approvePreviewVisible = true"
                 >
                   <!-- 绑定表达式让模板编译器保留 public 路径，避免再打包一份带 hash 的同图。 -->
                   <img class="about-support-qr" :src="approveUrl" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
                   <span>{{ t('popup.donationWechat') }}</span>
-                </a>
+                </button>
                 <div class="about-support-copy">
                   <a class="about-support-method about-support-kofi-link" data-support-method="kofi" href="https://ko-fi.com/thinkstu" target="_blank" rel="noopener noreferrer">
                     <span>{{ t('popup.donationKofi') }}</span>
@@ -158,6 +157,19 @@
       </section>
 
     </main>
+    <el-dialog
+      v-model="approvePreviewVisible"
+      class="about-approve-dialog"
+      :title="t('popup.donationWechat')"
+      width="min(560px, calc(100vw - 32px))"
+      align-center
+      :close-on-click-modal="true"
+      :close-on-press-escape="true"
+      destroy-on-close
+      @closed="restoreApprovePreviewFocus"
+    >
+      <img class="about-approve-preview" :src="approveUrl" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
+    </el-dialog>
   </div>
 </template>
 
@@ -198,10 +210,15 @@ const version = process.env.VUE_APP_VERSION
 const websiteUrl = 'https://read.thinkstu.com'
 const iconUrl = globalThis.__FLUENTREAD_ICON_DATA__ || '/icon/128.png'
 const approveUrl = globalThis.__FLUENTREAD_APPROVE_DATA__ || '/misc/approve.jpg'
+const approvePreviewVisible = ref(false)
+const approvePreviewTrigger = ref<HTMLButtonElement | null>(null)
+function restoreApprovePreviewFocus() {
+  if (activeSection.value === 'settings-about') approvePreviewTrigger.value?.focus({preventScroll: true})
+}
 const aboutFeatures = [
-  {section: 'settings-general', icon: 'translate', label: 'options.aboutWebReading'},
-  {section: 'settings-selection', icon: 'book', label: 'options.aboutReadingTools'},
-  {section: 'settings-services', icon: 'plug', label: 'options.aboutFlexibleServices'},
+  {icon: 'translate', label: 'options.aboutWebReading'},
+  {icon: 'book', label: 'options.aboutReadingTools'},
+  {icon: 'plug', label: 'options.aboutFlexibleServices'},
 ]
 const aboutLinks = [
   {href: websiteUrl, icon: 'globe', label: 'options.aboutWebsite', description: 'options.aboutWebsiteDescription'},
@@ -447,6 +464,7 @@ async function revealActiveNavigation() {
 }
 
 watch(activeSection, () => {
+  approvePreviewVisible.value = false
   void revealActiveNavigation()
 })
 

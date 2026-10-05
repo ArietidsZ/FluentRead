@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/WritingSettings.vue
  * 文件职责：提供写作助手总开关、默认回复偏好和 AI 服务连接设置。
- * 主要内容：用单层开关、紧凑的服务语言网格与并排风格示例组织设置，提前提示缺失配置，清楚区分默认偏好与真实生成；服务与风格模块提供同页导航目标。
+ * 主要内容：用单层开关、紧凑的服务语言网格与左侧预览、右侧风格设置组织内容，窄屏按预览、设置依次展示；提前提示缺失配置，清楚区分默认偏好与真实生成，服务与风格模块提供同页导航目标。
  * 模块边界：只编辑设置中心持久化的同一份写作配置并恢复被禁用的网站；不提供快捷键或重复入口开关，不请求模型也不生成真实正文。
  -->
 <template>
@@ -47,6 +47,11 @@
     </SettingsGroup>
     <SettingsGroup title="回答风格" data-settings-anchor="style" data-settings-anchor-label="回答风格">
       <div class="writing-default-style">
+        <WritingStylePreview
+          :length="config.writing.length" :style="config.writing.style"
+          :tone="toneChoice === 'custom' ? customTone || 'custom' : config.writing.tone" :role="roleChoice === 'custom' ? customRole || 'custom' : config.writing.role"
+          :reference-label="referencePreviewLabel" :animated="config.animations"
+        />
         <div class="writing-style-controls">
         <section><h3>长度</h3><WritingChoices v-model="config.writing.length" :options="WRITING_LENGTHS" label="长度" /></section>
         <section><h3>风格</h3><WritingChoices v-model="config.writing.style" :options="WRITING_STYLES" label="风格" /></section>
@@ -57,11 +62,6 @@
           <div v-if="roleChoice === 'custom'" class="writing-custom-preference"><el-input :model-value="customRole" :maxlength="WRITING_ROLE_MAX_LENGTH" aria-label="自定义角色" placeholder="例如：正在排查问题的项目维护者" @update:model-value="updateCustomRole" /><small>留空时不指定回复身份</small></div>
         </section>
         </div>
-        <WritingStylePreview
-          :length="config.writing.length" :style="config.writing.style"
-          :tone="toneChoice === 'custom' ? customTone || 'custom' : config.writing.tone" :role="roleChoice === 'custom' ? customRole || 'custom' : config.writing.role"
-          :reference-label="referencePreviewLabel" :animated="config.animations"
-        />
       </div>
     </SettingsGroup>
   </div>
@@ -138,7 +138,7 @@ const referencePreviewLabel = computed(() => {
 .writing-setup-message{color:var(--ink)}
 .writing-model-label button{flex-shrink:0;border:0;padding:4px 0;background:none;color:var(--brand);font:inherit;font-size:12px;cursor:pointer}
 .writing-model-label button:focus-visible{outline:2px solid var(--brand);outline-offset:4px}
-.writing-default-style{--w-brand:var(--brand);--w-brand-soft:var(--brand-soft);--w-ink:var(--ink);--w-soft:var(--surface-soft);--w-line:var(--line);display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px;padding:16px 18px;align-items:start}
+.writing-default-style{--w-brand:var(--brand);--w-brand-soft:var(--brand-soft);--w-ink:var(--ink);--w-soft:var(--surface-soft);--w-line:var(--line);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:24px;padding:16px 18px;align-items:start}
 .writing-style-controls{display:flex;flex-direction:column;gap:16px;min-width:0}
 .writing-default-style h3{margin:0 0 8px;font-size:12px;line-height:1.5;font-weight:600;color:var(--ink)}
 .writing-default-style :deep(.writing-choices){gap:6px}

@@ -4,6 +4,7 @@
  * 主要内容：回查原页面当前图片任务的短期授权；透传单图本地识别方式，包含 OffscreenResponse 解析、data:image 与 lines 数组验证、译图 image/lines 结果收窄，以及 createImageTranslationOffscreenAdapter 和默认 extensionDomClient 实例。
  * 模块边界：适配器不创建 Offscreen document、不执行 OCR/绘制，也不读取配置；文档生命周期属于 platform/offscreen，实际运算在 services/offscreenRuntime 与 ocrRuntime 中完成。
  */
+import {createImageTranslationFailure} from '../failure';
 import {extensionDomClient} from '@/src/platform/offscreen/extensionClient';
 import {withPixivImageReferrer} from './pixivImageReferrer';
 import type {MangaDownloadState, MangaModelSource} from '../services/mangaOcrAssets';
@@ -22,6 +23,7 @@ interface OffscreenResponse {
     readonly mangaPatches?: unknown;
     readonly success?: boolean;
     readonly error?: string;
+    readonly errorCode?: unknown;
     readonly image?: unknown;
     readonly lines?: unknown;
 }
@@ -55,7 +57,7 @@ function parseTranslationResult(
     fallback: string,
 ): OffscreenImageTranslationResult {
     if (!response?.success || (typeof response.image !== 'string' && response.mangaPatches === undefined) || !Array.isArray(response.lines)) {
-        throw new Error(errorMessage(response, fallback));
+        throw createImageTranslationFailure(errorMessage(response, fallback), response);
     }
     return {image: typeof response.image === 'string' ? response.image : '', lines: response.lines as OffscreenImageTranslationResult['lines'],
         ...(response.mangaPatches === undefined ? {} : {mangaPatches: parseMangaPatchPacket(response.mangaPatches)})};

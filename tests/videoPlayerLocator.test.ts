@@ -44,6 +44,29 @@ afterEach(() => {
 });
 
 describe('video player locator', () => {
+  it('resolves deeply nested media overlays while ignoring equally nested adjacent post text', () => {
+    const nested = (id: string) => '<span>'.repeat(10) + `<span id="${id}">Media</span>` + '</span>'.repeat(10);
+    const {document, window, videos} = setup(`<article><div class="media"><video></video><a href="/proof/status/111/video/1">${nested('media-link')}</a></div><p>${nested('post-text')}</p></article>`);
+    const locator = createVideoPlayerLocator({document, window, isXPage: () => true});
+    const pointer = (id: string) => document.getElementById(id)!.dispatchEvent(new (window as unknown as {Event: typeof Event}).Event('pointerover', {bubbles: true}));
+    pointer('post-text');
+    expect(locator.getTarget()).toBeNull();
+    pointer('media-link');
+    expect(locator.getTarget()?.video).toBe(videos[0]);
+    locator.destroy();
+  });
+
+  it('new video interaction overrides keyboard focus left in the previous video menu', () => {
+    const {document, window, videos} = setup('<article><div data-testid="videoPlayer"><video></video><button id="old-menu">Retry A</button></div></article><article><div data-testid="videoPlayer"><video></video></div></article>');
+    Object.defineProperty(document, 'activeElement', {configurable: true, value: document.getElementById('old-menu')});
+    const locator = createVideoPlayerLocator({document, window, isXPage: () => true});
+    expect(locator.sync()?.video).toBe(videos[0]);
+    videos[1].dispatchEvent(new (window as unknown as {Event: typeof Event}).Event('pointerover', {bubbles: true}));
+    expect(locator.getTarget()?.video).toBe(videos[1]);
+    expect(locator.sync()?.video).toBe(videos[1]);
+    locator.destroy();
+  });
+
   it('keeps the actual YouTube player when the document or an outer wrapper enters fullscreen', () => {
     const {document, window, videos} = setup('<main><div id="movie_player"><video></video><div class="ytp-right-controls"></div></div></main>', 'https://www.youtube.com/watch?v=fixture');
     const locator = createVideoPlayerLocator({document, window});

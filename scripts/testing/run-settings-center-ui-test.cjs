@@ -1441,7 +1441,7 @@ async function main() {
           href: method.getAttribute('href'),
           text: method.textContent?.trim(),
         })));
-        if (supportLinks[0]?.provider !== 'wechat' || supportLinks[0]?.href !== '/misc/approve.jpg'
+        if (supportLinks[0]?.provider !== 'wechat' || supportLinks[0]?.href !== null
           || supportLinks[1]?.provider !== 'kofi' || supportLinks[1]?.href !== 'https://ko-fi.com/thinkstu') {
           throw new Error(`关于页赞赏链接异常：${JSON.stringify(supportLinks)}`);
         }
@@ -1449,15 +1449,21 @@ async function main() {
         if (!qrBounds || qrBounds.width < 200 || qrBounds.height < 200) {
           throw new Error(`关于页没有直接展示足够大的二维码：${JSON.stringify(qrBounds)}`);
         }
-        const [qrPage] = await Promise.all([
-          context.waitForEvent('page', {timeout}),
-          supportPanel.locator('.about-support-wechat').click(),
-        ]);
-        await qrPage.waitForLoadState('domcontentloaded', {timeout});
-        if (!qrPage.url().endsWith('/misc/approve.jpg')) {
-          throw new Error(`点击二维码没有打开原图：${qrPage.url()}`);
+        const pageCount = context.pages().length;
+        const aboutUrl = page.url();
+        await supportPanel.locator('.about-support-wechat').click();
+        const preview = page.locator('.about-approve-dialog');
+        await preview.waitFor({state: 'visible', timeout});
+        await preview.locator('img').evaluate(image => image.decode());
+        if (context.pages().length !== pageCount || page.url() !== aboutUrl) {
+          throw new Error('点击赞赏码离开了关于页或打开了新标签页');
         }
-        await qrPage.close();
+        await page.keyboard.press('Escape');
+        await preview.waitFor({state: 'hidden', timeout});
+        if (await anchor.locator('.about-feature').count() !== 3
+          || await anchor.locator('.about-features button, .about-features a, .about-features [tabindex]').count() !== 0) {
+          throw new Error('关于页核心体验必须是三个静态介绍项');
+        }
         if (await supportPanel.locator('.about-support-original-link').count() !== 0) {
           throw new Error('关于页仍显示多余的原图文字链接');
         }

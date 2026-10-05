@@ -73,6 +73,10 @@ describe('图片翻译客户端断线恢复', () => {
             .rejects.toThrow('图片翻译连接中断，请重试；如果仍然失败，请刷新页面后再试');
         expect(sendMessage).toHaveBeenCalledTimes(3);
 
+        sendMessage.mockReset().mockResolvedValue({success:false,error:'model language failure',errorCode:'language'});
+        await expect(translateImageInExtension('source','en','Page')).rejects.toMatchObject({errorCode:'language'});
+        expect(sendMessage).toHaveBeenCalledOnce();
+
         sendMessage.mockReset().mockResolvedValue({success: false, error: 'provider rejected request'});
         await expect(translateImageInExtension('source', 'en', 'Page')).rejects.toThrow('provider rejected request');
         expect(sendMessage).toHaveBeenCalledOnce();

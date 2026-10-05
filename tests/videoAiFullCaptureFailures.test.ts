@@ -172,6 +172,7 @@ function speechAudio(durationMs = 1_000): Float32Array {
 }
 
 function makeInjectedController(options: {
+  model?: 'tiny' | 'base';
   audio?: Float32Array;
   transcribe?: (chunk: VideoAiAudioChunk) => Promise<Record<string, unknown>>;
   onComplete?: (cues: unknown[], session: number) => Promise<void>;
@@ -184,7 +185,7 @@ function makeInjectedController(options: {
   return new VideoAiFullCaptureController({
     getVideo: () => video as unknown as HTMLVideoElement,
     getAudio: async () => options.audio || speechAudio(),
-    getModel: () => 'tiny',
+    getModel: () => options.model || 'tiny',
     isSupported: () => true,
     transcribe: options.transcribe || (async () => ({
       text: 'Injected complete sentence.',
@@ -216,6 +217,18 @@ afterEach(() => {
 });
 
 describe('完整 AI 字幕失败与取消边界', () => {
+  it('Base 识别空结果提示检查人声和原语言，不推荐已经使用的 Base', async () => {
+    installCustomAudioWindow();
+    const controller = makeInjectedController({model: 'base', transcribe: async () => ({text: '', segments: []})});
+    expect(controller.start()).toBe(true);
+    await tick(50);
+    expect(controller.getPhase()).toBe('error');
+    expect(controller.getError()).toContain('清晰人声');
+    expect(controller.getError()).toContain('视频原语言');
+    expect(controller.getError()).not.toContain('Base');
+    expect(controller.getError()).not.toContain('翻译失败');
+  });
+
   it('没有可复制音源时清理副本，并吞掉 pause/srcObject 清理异常', async () => {
     const sourceVideo = new FakeVideo();
     sourceVideo.currentSrc = '';

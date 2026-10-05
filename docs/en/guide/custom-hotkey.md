@@ -28,7 +28,7 @@ Paragraph copy lives in **Settings → Translation → Paragraph copy**, where y
 
 A notice tells you what was copied and how many characters. The shortcut stays inactive in input fields and editable areas, and **Ctrl+C** keeps copying the selected text.
 
-The section translation shortcut is off by default. Turn it on in **Settings → Translation → Section translation**, where you can pick a preset or record your own combination. While picking, press **↑/↓** to change the section and **Esc** or the shortcut again to exit. See [section translation](/en/guide/features#section-translation).
+The section translation shortcut is off by default. Turn it on in **Settings → Translation → Section translation**, where you can pick a preset or record your own combination. Move the pointer to preview a section, then click to lock the selection. Press **↑/↓** to adjust the range and **Enter** to confirm translation or restoration, either during the preview or after locking. Press **Esc**, right-click, or press the shortcut again to exit. See [section translation](/en/guide/features#section-translation).
 
 Selection translation can show an icon or a small dot, open directly, wait for a key, or use **Context menu only**. The context-menu-only mode shows no selection icon or dot and claims no selection shortcut. Select text, then choose **Translate selected text** in the context menu. Keep both the context menu and its selection entry enabled in **Settings → Context menu**. The reading card controls its own selection hint.
 
@@ -49,7 +49,7 @@ Try a regular webpage; browser internal pages and extension stores generally can
 
 ## Section shortcut profiles
 
-In **Settings → Translation → Section translation**, add independent section shortcuts with their own service, model, target language, and display mode. A shortcut enters container selection; move the pointer to highlight a container, adjust the range with **↑/↓**, then click or press **Enter** to translate only its contents. **Esc** or the same shortcut cancels selection. Picking a translated container with the same profile restores it; another profile translates it with the new settings. Independent profiles work even when the primary section shortcut is off.
+In **Settings → Translation → Section translation**, add independent section shortcuts with their own service, model, target language, and display mode. A shortcut opens the section picker: hover to preview, then click to lock the selection. Once locked, use **Expand selection**, **Shrink selection** or **Reselect**, then click **Translate selected section** to confirm. You can also adjust the range with **↑/↓** and press **Enter** during the preview or after locking to translate only the selected section. Selecting a translated section with the same profile requires **Restore original** or **Enter** to confirm restoration; confirming with another profile translates it with the new settings. Press **Esc**, right-click, press the same shortcut, or use the toolbar’s close button to exit. Independent profiles work even when the primary section shortcut is off.
 
 ## Related guides
 

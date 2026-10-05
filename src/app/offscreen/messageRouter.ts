@@ -5,6 +5,7 @@
  * 模块边界：路由器不创建 Audio/Worker、不调用 browser.offscreen，也不实现翻译算法；资源实例由 offscreen runtime 构造，具体能力来自 translation、ttsPlayback 和 feature services。
  */
 import type {AreaTranslationSelection} from '@/src/features/area-translation/protocol';
+import {imageTranslationFailureResponse} from '@/src/features/image-translation/failure';
 import {isLocalTranslationModel} from '@/src/core/config/localTranslation';
 import {
     IMAGE_OCR_LANGUAGE_PACKS,
@@ -310,7 +311,7 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
         }
 
         runCancellableRequest(activeImageOperations, requestId, sendResponse, '图片 OCR 请求已取消',
-            (signal) => operation(signal, requestId), shape, (error) => ({success: false, error: errorMessage(error)}));
+            (signal) => operation(signal, requestId), shape, imageTranslationFailureResponse);
     };
 
     return (message, _sender, sendResponse) => {

@@ -12,7 +12,7 @@ Specify consistent wording for names, products, and technical terms in machine a
 
 You can also preview and add a **Built-in glossary**. This creates an editable copy and preserves your master switch setting. Restore existing webpage translations before translating again.
 
-Entries are shown directly. Switch between multiple glossaries with the top selector. **More** contains import, new glossary, and priority controls. The active language and website scope remain visible above the entries. Click that summary or **More → Glossary settings** to edit scope, export, or delete. Case sensitivity is an optional entry setting.
+The page toolbar shows **Import glossary** and **New glossary**, plus **Match preview** once entries are saved. Switch between multiple glossaries in the glossary card. The active language and website scope remain visible above the entries. **Glossary settings** stays visible at the bottom of the card; expand it to edit scope, export, or delete, and click again to collapse. With multiple glossaries, **Glossary priority** appears below the card. Case sensitivity is an optional entry setting.
 
 Settings save automatically; entry edits require **Save**. Drafts survive switching glossaries within the same page. Save before closing it.
 
@@ -36,9 +36,9 @@ Placeholders hide some context and can affect surrounding grammar. They work bes
 
 New glossaries default to the current target language. Existing language and website scopes remain unchanged. Empty website scope applies globally; website-scoped glossaries do not apply to local documents without a URL. Documents and videos can select their own glossaries.
 
-Earlier glossaries win when multiple entries define the same source term. Priority is available under **More**. Duplicate entries offer an action to edit the existing term. Distinct case-sensitive spellings can coexist; imported entries are not silently merged.
+Earlier glossaries win when multiple entries define the same source term. Expand **Glossary priority** below the glossary card to reorder them. Duplicate entries offer an action to edit the existing term. Distinct case-sensitive spellings can coexist; imported entries are not silently merged.
 
-Open **More → Match preview** only when needed. The check opens in a dialog; it is not offered for an empty glossary, which guides you to add an entry first. Results show matching terms and preferred translations in two columns, with a match count. The enable switch stays on the main page. Preview defaults to automatic source language and the current target; optional language and website conditions are collapsed. Exclusion reasons are available when nothing matches or definitions conflict. Preview runs locally even with the master switch off, while actual translation respects the switch.
+Open **Match preview** in the page toolbar only when needed. The check opens in a dialog; it is not offered for an empty glossary, which guides you to add an entry first. Results show matching terms and preferred translations in two columns, with a match count. The enable switch stays on the main page. Preview defaults to automatic source language and the current target; optional language and website conditions are collapsed. Exclusion reasons are available when nothing matches or definitions conflict. Preview runs locally even with the master switch off, while actual translation respects the switch.
 
 </details>
 
@@ -47,7 +47,7 @@ Open **More → Match preview** only when needed. The check opens in a dialog; i
 
 ## Import, export, and data
 
-Use **More → Import glossary** for CSV, TSV, or JSON files or pasted content. Check the preview before confirming. Imports create new glossaries without replacing existing ones. File imports detect UTF-8, BOM-marked UTF-16, and common GB18030 encodings.
+Use **Import glossary** in the page toolbar for CSV, TSV, or JSON files or pasted content. Check the preview before confirming. Imports create new glossaries without replacing existing ones. File imports detect UTF-8, BOM-marked UTF-16, and common GB18030 encodings.
 
 Export under **Glossary settings**. JSON preserves all settings; CSV and TSV support spreadsheet editing. Configuration backups also include glossaries.
 
