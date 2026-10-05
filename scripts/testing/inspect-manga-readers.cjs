@@ -183,6 +183,15 @@ function focusGuard() {
         if(process.argv.includes('--capture-page')) {
           result.screenshot=path.join(artifacts,`${report.pages.length}.png`);
           focusGuard();await page.screenshot({path:result.screenshot});
+          // 实际截图可能驱动一次正常绘制；复核同一公开 API，区分尚未绘制和像素确实不可读。
+          result.afterScreenshotCanvases=await boundedPageRead(page.evaluate(()=>Array.from(document.querySelectorAll('canvas')).map(c=>{
+            const rect=c.getBoundingClientRect(),sample={width:c.width,height:c.height,visible:rect.width>80&&rect.height>40,readable:false,gridNonblank:false};
+            try {
+              const context=c.getContext('2d');sample.nativePixelRead=!!context&&/\[native code\]/.test(context.getImageData.toString());
+              if(context&&c.width&&c.height){sample.readable=true;for(let y=0;y<8;y++)for(let x=0;x<8;x++)if(context.getImageData(Math.floor((x+.5)*c.width/8),Math.floor((y+.5)*c.height/8),1,1).data.some(value=>value>0))sample.gridNonblank=true;}
+            } catch(error){sample.readable=false;sample.pixelError=error.name;}
+            return sample;
+          })));
         }
         if(process.argv.includes('--capture-element') && scrollSelector) {
           result.elementScreenshot=path.join(artifacts,`${report.pages.length}-element.png`);

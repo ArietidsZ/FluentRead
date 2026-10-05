@@ -165,7 +165,7 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
     Object.defineProperties(image, {complete: {writable: true, value: true}, naturalWidth: {writable: true, value: 800}, naturalHeight: {value: 1200}, currentSrc: {get: () => image.src}});
     let bounds = {left: 0, top: 0, right: 800, bottom: 1200, width: 800, height: 1200};
     image.getBoundingClientRect = () => bounds as DOMRect;
-    let style = {visibility: 'visible', display: 'block'};
+    let style = {visibility: 'visible', display: 'block', opacity:'1'};
     let hidden = false; Object.defineProperty(document, 'hidden', {get: () => hidden});
     const events = new Map<string, () => void>(), frames = new Map<number, FrameRequestCallback>(); let id = 0;
     const window = {location: {href: initialUrl}, innerWidth: 1280, innerHeight: 900,
@@ -189,6 +189,52 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it.each(['repaint','pause','chapter','removed','zero-width','zero-height','outside','hidden','invisible','transparent','disabled'])('哔哩哔哩同章加载等待 %s：首次加载不发入口，旧页取消，新页仍按用户意图调度',async mode=>{
+        const canvasPorts={identity:vi.fn<() => string | null>().mockReturnValue(null),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn()};
+        const f=readerFixture(false,'https://manga.bilibili.com/mc30124/595886',undefined,undefined,undefined,canvasPorts);
+        const root=f.document.createElement('div');root.className='images-container';root.innerHTML='<div class="view-container"><div class="image-container"><canvas></canvas></div><div class="loading-hinter"></div></div>';
+        const canvas=root.querySelector('canvas')!,loading=root.querySelector('.loading-hinter')!;
+        const bounds={left:90,top:0,right:633,bottom:816,width:543,height:816};canvas.width=1099;canvas.height=1649;canvas.getBoundingClientRect=()=>bounds as DOMRect;loading.getBoundingClientRect=()=>bounds as DOMRect;
+        f.document.body.append(root);f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,active:false});
+        canvasPorts.identity.mockReturnValue('ready-1');f.reader.schedule();f.run();f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledOnce();
+        canvasPorts.identity.mockReturnValue(null);f.reader.schedule();f.run();await flush();expect(f.reader.status()).toMatchObject({available:true,active:true,pageCount:0});expect(canvasPorts.release).toHaveBeenCalledWith(canvas);expect(canvasPorts.translate).toHaveBeenCalledOnce();
+        if(mode==='repaint'){canvasPorts.identity.mockReturnValue('ready-2');f.reader.schedule();f.run();await flush();expect(f.reader.status()).toMatchObject({available:true,active:true,pageCount:1});expect(canvasPorts.translate).toHaveBeenCalledTimes(2);}
+        if(mode==='pause')f.reader.toggle();
+        if(mode==='chapter')f.window.location.href='https://manga.bilibili.com/mc30124/999999';
+        if(mode==='removed')loading.remove();
+        if(mode==='zero-width')bounds.width=0;
+        if(mode==='zero-height')bounds.height=0;
+        if(mode==='outside'){bounds.left=1300;bounds.right=1843;}
+        if(mode==='hidden')f.setStyle({display:'none'});
+        if(mode==='invisible')f.setStyle({visibility:'hidden'});
+        if(mode==='transparent')f.setStyle({opacity:'0'});
+        if(mode==='disabled')f.ports.enabled.mockReturnValue(false);
+        if(mode!=='repaint'){f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,active:false});expect(canvasPorts.translate).toHaveBeenCalledOnce();}
+        root.remove();f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,active:false});f.reader.dispose();
+    });
+    it.each([
+        ['https://ranfren.neocities.org/lucid/lucid2/need1','https://ranfren.neocities.org/lucid/lucid22/lucid22thattimei','<center></center>','center','https://ranfren.neocities.org/lucid/lucid2/lucid2-1.jpg'],
+        ['https://www.manhuazhan.com/chapter/235990-51809.html','https://www.manhuazhan.com/chapter/235990-51810.html','<div id="ChapterContent"><p class="chapterpic"></p></div>','p','blob:body'],
+        ['https://poipiku.com/2/13202427.html','https://poipiku.com/2/13202425.html','<section id="IllustItemList"><div class="IllustItem"><a class="IllustItemThumb"></a></div></section>','a','blob:body'],
+    ])('%s 正文动态加入，暂停复用，换章清理；来源消失后移除入口',async(href,nextHref,html,parent,source)=>{
+        const resetCache=vi.fn(),f=readerFixture(false,href,undefined,undefined,undefined,undefined,{resetCache});expect(f.reader.status().available).toBe(false);
+        const root=f.document.createElement('div');root.innerHTML=html;f.image.className='lazy IllustItemThumbImg';f.image.src=source;root.querySelector(parent)!.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available:true,pageCount:1,areaFallback:false});f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);f.reader.toggle();await flush();
+        f.window.location.href=nextHref;f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({active:false,available:true});expect(resetCache).toHaveBeenCalled();
+        root.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);expect(f.ports.release).toHaveBeenCalledWith(f.image);f.reader.dispose();
+    });
+    it('哔哩哔哩正文动态加入后串行识别，暂停复用，原画布重绘失效后重新处理并清理',async()=>{
+        const canvasPorts={identity:vi.fn().mockReturnValue('spread-1'),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn()};
+        const f=readerFixture(false,'https://manga.bilibili.com/mc30124/595886',undefined,undefined,undefined,canvasPorts);expect(f.reader.status().available).toBe(false);
+        const root=f.document.createElement('div');root.className='images-container';root.innerHTML='<div class="view-container"><div class="image-container"></div></div>';
+        const canvas=f.document.createElement('canvas');canvas.width=1099;canvas.height=1649;
+        canvas.getBoundingClientRect=()=>({left:93,top:0,right:636,bottom:816,width:543,height:816}) as DOMRect;root.querySelector('.image-container')!.append(canvas);f.document.body.append(root);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available:true,areaFallback:false,pageCount:1});f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledWith(canvas);
+        f.reader.toggle();expect(canvasPorts.restore).toHaveBeenCalledWith(canvas);canvasPorts.reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledOnce();
+        canvasPorts.identity.mockReturnValue('spread-2');canvasPorts.reuse.mockReturnValue(false);f.reader.schedule();f.run();await flush();expect(canvasPorts.release).toHaveBeenCalledWith(canvas);expect(canvasPorts.translate).toHaveBeenCalledTimes(2);
+        root.remove();f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,areaFallback:false});expect(canvasPorts.release).toHaveBeenCalledWith(canvas);f.reader.dispose();
+    });
     it('PASH UP 当前屏动态加载后调度画布，暂停恢复和移除清理不处理缓冲屏', async () => {
         const canvasPorts = {identity: vi.fn().mockReturnValue('current-page'), translate: vi.fn().mockResolvedValue(undefined), reuse: vi.fn().mockReturnValue(false), restore: vi.fn(), release: vi.fn(), failed: vi.fn().mockReturnValue(false), update: vi.fn()};
         const f = readerFixture(false, 'https://pash-up.jp/viewer/viewer.html?cid=public-chapter', undefined, undefined, undefined, canvasPorts);

@@ -259,6 +259,7 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
                     assert.ok(Number.isInteger(sample.readerSettleMs)&&sample.readerSettleMs>=0&&sample.readerSettleMs<=30000,'Public reader settling time must be 0–30000ms');
                     await page.waitForTimeout(sample.readerSettleMs);
                 }
+                if(sample.readerScrollSelector)await page.locator(sample.readerScrollSelector).scrollIntoViewIfNeeded({timeout:15000});
                 if(sample.readerReadySelector)await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(i=>i.tagName==='IMG'&&i.complete&&i.naturalWidth>=80&&i.naturalHeight>=40),sample.readerReadySelector,{timeout:20000});
                 const result={url:sample.url,finalUrl:page.url(),status:response?.status(),mode:sample.mode};
                 (report.liveReaders??=[]).push(result);

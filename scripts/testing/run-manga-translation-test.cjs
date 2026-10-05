@@ -77,6 +77,14 @@ if(surfaceReaderTest){
 const readerSelector=explicitReaderSelector || (surfaceReaderTest?explicitCanvasSelector || (backgroundReaderTest?'div[id^="page-"][style*="blob:"]':'#comici-viewer .-cv-page-canvas canvas'):pixiv?'img[src*="/img-master/"][src*="/150354216_p"], img[src*="/img-original/"][src*="/150354216_p"]':'.zao-image');
 const sourceLanguage=arg('source-language',pixiv||surfaceReaderTest?'ja':'en');
 assert.ok(['en','ja','ko','ru','auto'].includes(sourceLanguage),'Use a supported sample source language');
+const targetLanguage=arg('target-language','zh-Hans');
+assert.ok(['zh-Hans','en'].includes(targetLanguage),'Use a bounded sample target language');
+const canvasContentPixels=process.argv.includes('--canvas-content-pixels');
+if(canvasContentPixels)assert.ok(canvasReaderTest&&liveSite&&explicitCanvasSelector,'Content-world pixel diagnostics require an explicit live public canvas reader');
+const canvasFirstSpreadOnly=process.argv.includes('--canvas-first-spread-only');
+const canvasLoadingSelector=arg('canvas-loading-selector',null);
+if(canvasFirstSpreadOnly)assert.ok(canvasReaderTest&&liveSite&&explicitCanvasSelector,'First-spread scope requires an explicit public canvas reader');
+if(canvasLoadingSelector)assert.ok(canvasFirstSpreadOnly&&canvasContentPixels,'Native loading checks require bounded first-spread content-world scope');
 const readerOpenSelector=arg('reader-open-selector',null);
 if(readerOpenSelector)assert.ok(readerSmoke&&liveSite&&!surfaceReaderTest,'Image reader opening requires an explicit live smoke check');
 const readerScrollSelector=arg('reader-scroll-selector',null);
@@ -95,10 +103,12 @@ if(surfaceReaderTest){report.site=`live readable ${backgroundReaderTest?'backgro
 if(explicitReaderSelector){report.site=`live image chapter: ${targetUrl}`;report.readerSelector=explicitReaderSelector;}
 report.prefetchPages=prefetchPages;
 report.sourceLanguage=sourceLanguage;report.readerOpenSelector=readerOpenSelector;report.readerScrollSelector=readerScrollSelector;
+report.targetLanguage=targetLanguage;
+if(canvasContentPixels)report.canvasPixelWorld='own production extension content world; ordinary API, no prototype substitution';
 report.readerStartIndex=readerStartIndex;
 report.readerNextSelector=readerNextSelector;
 if(imageTurnKey)report.pagedImages={turnKey:imageTurnKey,initialTurns:imageInitialTurns};
-let launched, page, worker, cdp, popup, modelObserver, browserPid,loadedExtensionId;
+let launched, page, worker, cdp, popup, modelObserver, browserPid,loadedExtensionId,contentPixelContext;
 function focusGuard() {
     const current=JSON.parse(execFileSync('/usr/bin/osascript',['-l','JavaScript','-e',"ObjC.import('AppKit');const app=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(app.processIdentifier),name:ObjC.unwrap(app.localizedName)});"],{encoding:'utf8'}));
     assert.notEqual(current.pid,browserPid,'Isolated test browser must stay behind the user app');
@@ -169,7 +179,7 @@ async function ui(hostId, code) {
     }
     visit(tree.root); const shadow = host?.shadowRoots?.[0]; if (!shadow) return null;
     let objectId;
-    try {objectId = (await cdp.send('DOM.resolveNode', {nodeId: shadow.nodeId})).object.objectId;}
+    try {objectId = (await cdp.send('DOM.resolveNode', {nodeId: shadow.nodeId,...(canvasContentPixels&&hostId===surfaceHost?{executionContextId:contentPixelContext}:{})})).object.objectId;}
     catch(error){if(error.message.includes('No node with given id'))return null;throw error;}
     try {
         const result=await cdp.send('Runtime.callFunctionOn', {objectId, functionDeclaration:`function(){${code}}`, returnByValue:true});
@@ -182,6 +192,13 @@ const imageUi = code => ui('fluent-read-image-translation-root', code);
 const mangaEntry = code => ui('fluent-read-manga-entry-container',code);
 const surfaceHost=segmentReaderTest?'fluent-read-manga-segment-container':backgroundReaderTest?'fluent-read-manga-background-container':'fluent-read-manga-canvas-container';
 const canvasUi = code => ui(surfaceHost,code);
+async function evaluateReaderElements(operation,value){
+    if(!canvasContentPixels)return page.locator(readerSelector).evaluateAll(operation,value);
+    assert.ok(contentPixelContext,'Own production content context exists before reading pixels');
+    const result=await cdp.send('Runtime.evaluate',{contextId:contentPixelContext,expression:`(${operation.toString()})([...document.querySelectorAll(${JSON.stringify(readerSelector)})],${JSON.stringify(value)??'undefined'})`,returnByValue:true,awaitPromise:true});
+    if(result.exceptionDetails)throw new Error(result.exceptionDetails.exception?.description||result.exceptionDetails.text);
+    return result.result.value;
+}
 async function wait(test, timeout=180000, allowFailure=false) {
     const deadline=Date.now()+timeout;
     while(Date.now()<deadline) {if(await test())return;
@@ -196,7 +213,7 @@ async function verifyCanvasReader() {
     const sources=[];
     for(const canvas of await page.locator(readerSelector).all())if(await canvas.evaluate(c=>{const r=c.getBoundingClientRect();return r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0;}))sources.push(canvas);
     assert.ok(sources.length,'Visible public chapter surfaces are present');
-    const snapshot=()=>Promise.all(sources.map(source=>source.evaluate(async c=>{
+    const mainSnapshot=()=>Promise.all(sources.map(source=>source.evaluate(async c=>{
         let target=c, image;
         try {
             if(c.tagName!=='CANVAS') {
@@ -209,6 +226,10 @@ async function verifyCanvasReader() {
             return {id:c.id,width:target.width,height:target.height,style:c.getAttribute('style'),className:c.className,hash:hash>>>0};
         } finally {if(image){image.src='';target.width=target.height=0;}}
     })));
+    const snapshot=canvasContentPixels?()=>evaluateReaderElements(elements=>elements.filter(c=>{const r=c.getBoundingClientRect();return r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0;}).map(c=>{
+        const pixels=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let hash=2166136261;for(const value of pixels)hash=Math.imul(hash^value,16777619);
+        return {id:c.id,width:c.width,height:c.height,style:c.getAttribute('style'),className:c.className,hash:hash>>>0};
+    })):mainSnapshot;
     const original=await snapshot();report.canvasSource=original;await screenshot('canvas-original');
     report.currentCase=`public readable ${backgroundReaderTest?'background':'canvas'} runs real manga OCR and translated overlay without changing the source`;
     const started=Date.now();await toggle();
@@ -231,12 +252,13 @@ async function verifyCanvasReader() {
     report.currentCase='pause restores the original canvas and repeated activation reuses the translated page';
     await toggle();await wait(async()=>(await visibleSurfaces())===0);assert.deepEqual(await snapshot(),original);
     await toggle();await wait(async()=>(await visibleSurfaces())>0);assert.equal(await ops(),operations);report.cases.push(report.currentCase);
+    if(!canvasFirstSpreadOnly){
     report.currentCase='normal chapter turn translates new canvas pages through the same serial queue';
     // 先把指针移回公开正文，再发送源站翻页键；不把未发生的翻页误报成 OCR 等待。
     const target=await page.locator(readerSelector).first().boundingBox();
     assert.ok(target&&target.width>80&&target.height>40,'Public chapter surface remains available before turning');
     await page.mouse.move(Math.max(1,Math.min(1200,target.x+target.width/2)),Math.max(1,Math.min(700,target.y+target.height/2)));
-    const fingerprint=()=>page.locator(readerSelector).evaluateAll((elements,background)=>elements.flatMap(element=>{
+    const fingerprint=()=>evaluateReaderElements((elements,background)=>elements.flatMap(element=>{
         const rect=element.getBoundingClientRect();if(rect.width<=80||rect.height<=40||rect.left>=innerWidth||rect.right<=0||rect.top>=innerHeight||rect.bottom<=0)return [];
         let hash=2166136261;
         if(background){for(const char of getComputedStyle(element).backgroundImage)hash=Math.imul(hash^char.charCodeAt(0),16777619);}
@@ -250,7 +272,24 @@ async function verifyCanvasReader() {
     }
     await wait(async()=>{const after=await fingerprint();report.canvasTurn.after=after;return after.length>0&&JSON.stringify(after)!==JSON.stringify(beforeTurn);},10000);
     await wait(async()=>(await ops())>operations && await ball('return this.querySelector(".floating-ball-manga").getAttribute("aria-busy") === "false"'),300000);
+    report.canvasTurn.afterCompleted=await fingerprint();
     assert.ok((await visibleSurfaces())>0);await screenshot('canvas-next-pages');report.cases.push(report.currentCase);
+    }else{
+        report.firstSpreadScope='Initial public spread only; no loaded-next-page or whole-chapter translation acceptance.';
+        if(canvasLoadingSelector){
+            report.currentCase='same chapter native loading keeps the activated reader waiting without old overlays';
+            for(let turn=0;turn<canvasTurnCount;turn++)await page.keyboard.press(canvasTurnKey);
+            await wait(async()=>await page.locator(canvasLoadingSelector).evaluateAll(elements=>elements.some(e=>{const r=e.getBoundingClientRect();return r.width>80&&r.height>40;}))
+                && await ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-pressed") === "true"'),15000);
+            await page.waitForTimeout(1200);
+            report.nativeLoading={selector:canvasLoadingSelector,active:await ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-pressed")'),sources:await evaluateReaderElements(elements=>elements.map(c=>{
+                const context=c.getContext('2d');let nonblank=false;for(let y=0;y<8;y++)for(let x=0;x<8;x++)if(context.getImageData(Math.floor((x+.5)*c.width/8),Math.floor((y+.5)*c.height/8),1,1).data.some(value=>value>0))nonblank=true;
+                return {width:c.width,height:c.height,nonblank};
+            }))};
+            assert.equal(report.nativeLoading.active,'true');assert.equal(await visibleSurfaces(),0,'Old translated spread is removed during native loading');
+            await screenshot('canvas-native-loading-wait');report.cases.push(report.currentCase);
+        }
+    }
     report.currentCase='master switch restores the chapter and removes canvas translation UI';
     await patch({on:false});await wait(async()=>await page.locator('#'+surfaceHost).count()===0);
     auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.cases.push(report.currentCase);focusGuard();
@@ -930,7 +969,7 @@ async function verifyReadAhead() {
     await patch({on:true,uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,disableImageTranslator:false,
         imageTranslationMangaEnabled:true,imageTranslationMangaDownloadConfirmed:true,imageTranslationMangaPromptEnabled:false,imageTranslationHoverEnabled:false,disableFloatingBall:false,
         imageTranslationMangaPrefetchPages:prefetchPages,
-        service:'google',from:sourceLanguage,to:'zh-Hans',useCache:true,enableAIContext:false,animations:false});
+        service:'google',from:sourceLanguage,to:targetLanguage,useCache:true,enableAIContext:false,animations:false});
     await worker.evaluate(({live,trace,traceLayout})=>{
         const original=globalThis.fetch.bind(globalThis);
         const test=globalThis.__mangaTest={operations:[],inputs:[],requests:[],cancellations:[],textBatches:[],progress:[],sourceRequests:[]};
@@ -1012,6 +1051,7 @@ async function verifyReadAhead() {
     await page.goto(targetUrl,{waitUntil:'domcontentloaded',timeout:60000});
     if(readerOpenSelector)await page.locator(readerOpenSelector).click({timeout:15000});
     cdp=await context.newCDPSession(page);
+    if(canvasContentPixels)cdp.on('Runtime.executionContextCreated',event=>{if(event.context.origin===`chrome-extension://${extensionId}`&&event.context.auxData?.type==='isolated')contentPixelContext=event.context.id;});
     if(liveSite||traceReader) {
         const scripts=new Map(),contexts=new Map();report.scriptExceptions=[];
         cdp.on('Runtime.executionContextCreated',event=>contexts.set(event.context.id,event.context));
@@ -1024,7 +1064,11 @@ async function verifyReadAhead() {
         if(canvasOpenSelector)await page.locator(canvasOpenSelector).click();
         if(explicitCanvasSelector){
             // 等到正文已经绘制再发送按键；服务端 DOM 先到时阅读器尚未绑定翻页事件。
-            await page.waitForFunction(({selector,background})=>[...document.querySelectorAll(selector)].some(c=>{
+            if(canvasContentPixels)await wait(async()=>evaluateReaderElements(elements=>elements.some(c=>{
+                const r=c.getBoundingClientRect();if(!c.width||!c.height||r.width<=80||r.height<=40||r.left>=innerWidth||r.right<=0||r.top>=innerHeight||r.bottom<=0)return false;
+                try{return c.getContext('2d').getImageData(Math.floor(c.width/2),Math.floor(c.height/2),1,1).data[3]>0;}catch{return false;}
+            })),30000);
+            else await page.waitForFunction(({selector,background})=>[...document.querySelectorAll(selector)].some(c=>{
                 const r=c.getBoundingClientRect();if((!background && (!c.width||!c.height))||r.width<=80||r.height<=40||r.left>=innerWidth||r.right<=0||r.top>=innerHeight||r.bottom<=0)return false;
                 if(background)return getComputedStyle(c).backgroundImage.startsWith('url(\"blob:');
                 try{return c.getContext('2d').getImageData(Math.floor(c.width/2),Math.floor(c.height/2),1,1).data[3]>0;}catch{return false;}

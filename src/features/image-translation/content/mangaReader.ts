@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/mangaReader.ts
  * 文件职责：把漫画站点的正文图片、超长图分段、可读画布、公开背景图和页面生命周期接入同一连续翻译会话。
- * 主要内容：按站点规则发现正文，圈选页发布区域入口；已确认的 Mangahub 正整数页码不视为换章，其他查询参数仍参与章节身份，来源授权保留完整地址；按位置判断可见页，来源重绘更新身份，当前页优先的有界队列与附近页共享像素预算，换章、隐藏和卸载清理监听器。
+ * 主要内容：按站点规则发现正文，圈选页发布区域入口；已确认的 Mangahub 正整数页码不视为换章，其他查询参数仍参与章节身份，来源授权保留完整地址；已开启的同章哔哩哔哩会话在可见的原站加载提示期间保留等待，不识别空像素；按位置判断可见页，来源重绘更新身份，当前页优先的有界队列与附近页共享像素预算，换章、隐藏和卸载清理监听器。
  * 模块边界：只检查已展示正文，不抓取章节、不读取站点私有数据或绕过访问限制；图片与画布的读取、翻译、缓存和原图恢复通过注入端口复用图片运行时。
  */
 import {createMangaSession, type MangaTranslationStatus} from './mangaSession';
@@ -99,6 +99,7 @@ export function createMangaReader(ports: {
             if (pages.length === 1 && /^[1-9]\d{0,3}$/.test(pages[0])) chapterUrl.searchParams.delete(site.pageQueryParameter);
         }
         const route = `${chapterUrl.origin}${chapterUrl.pathname}${chapterUrl.search}`;
+        const sameChapter = route === cacheRoute;
         if (route !== cacheRoute) {ports.resetCache?.(); cacheRoute = route;discoveryDirty = true;}
         backgroundReader = !!site?.backgroundSelector;
         const selector = site?.selector ?? null;
@@ -235,8 +236,15 @@ export function createMangaReader(ports: {
         }
         for (let index=firstVisible-1;index>=0 && index>=firstVisible-2;index--) retain(index);
         if(anchor>=0)for(let index=anchor+1;index<candidates.length && index<=anchor+2;index++)retain(index);
+        // 仅已开启的同章会话等待已核对的可见原站加载提示，首次进入或真正离开正文不发布虚假入口。
+        const waiting = available && sameChapter && session.status().active && current.size === 0 && !!site?.loadingSelector
+            && Array.from(document.querySelectorAll(site.loadingSelector)).some(element => {
+                const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
+                return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility === 'visible'
+                    && style.opacity !== '0' && inViewport(element, rect);
+            });
         session.refresh({
-            route, available: available && (!(site?.generic || site?.requireContent) || current.size > 0 || areaFallback),
+            route, available: available && (!(site?.generic || site?.requireContent) || current.size > 0 || areaFallback || waiting),
             suspended: document.hidden,
             pages: candidates.map(page => ({image: page.image, identity: page.identity,
                 visible: page.visible && !document.hidden, retain: nearby.has(page.image),

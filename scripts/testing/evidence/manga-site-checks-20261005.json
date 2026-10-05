@@ -1,5 +1,5 @@
 {
-  "checkedOn": "2026-10-05T06:28:07.500742+00:00",
+  "checkedOn": "2026-10-05T08:33:49.539466+00:00",
   "scope": "Public HTML availability and selected chapter DOM inspection. Neither proves all chapters or live OCR/translation.",
   "sources": [
     "https://github.com/immersive-translate/immersive-translate/issues/1809",
@@ -1381,7 +1381,109 @@
           "hostname": "manga.bilibili.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "readable-canvas",
+      "browserRechecks": [
+        {
+          "url": "https://manga.bilibili.com/",
+          "finalUrl": "https://manga.bilibili.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "homes-wave21",
+          "status": 200,
+          "title": "哔哩哔哩漫画 - bilibili 正版漫画平台",
+          "imageCount": 75,
+          "canvasCount": 0,
+          "readerFinding": "Public catalogue exposes normal mc30124/595886 chapter link; homepage images are not chapter acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://manga.bilibili.com/",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://manga.bilibili.com/mc30124/595886",
+          "finalUrl": "https://manga.bilibili.com/mc30124/595886",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "works-wave21",
+          "status": 200,
+          "title": "第1话 - 怪兽8号 - 漫画全集在线观看 - 哔哩哔哩漫画",
+          "imageCount": 143,
+          "canvasCount": 4,
+          "readerFinding": "Public Monster8 chapter visibly displays first spread in two image-container canvas elements1099x1649/1726. Page main-world ordinary getImageData returns all-zero bounded samples; subsequent own production content-world check has native nonblank pixels and corrects the preliminary area-only diagnosis. Hidden QR canvas excluded. Source createObjectURL exception also reproduces without extension.",
+          "pageErrorCount": 1,
+          "networkFailureCount": 4,
+          "requestedUrl": "https://manga.bilibili.com/mc30124/595886",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://manga.bilibili.com/mc30124/595886",
+          "finalUrl": "https://manga.bilibili.com/mc30124/595886",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "bilibili-turn-wave21",
+          "status": 200,
+          "title": "第1话 - 怪兽8号 - 漫画全集在线观看 - 哔哩哔哩漫画",
+          "imageCount": 143,
+          "canvasCount": 4,
+          "readerFinding": "Settled first public spread visibly contains actual comic body. Unsupported page-key flags did not send keys; this attempt is not page-turn acceptance. Page main-world ordinary canvas pixels are all-zero; later production content-world diagnostic finds native readable actual pixels. Main-world observation does not establish extension unreadability.",
+          "pageErrorCount": 1,
+          "networkFailureCount": 4,
+          "requestedUrl": "https://manga.bilibili.com/mc30124/595886",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://manga.bilibili.com/mc30124/595886",
+          "finalUrl": "https://manga.bilibili.com/mc30124/595886",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "bilibili-key-and-paint-wave21",
+          "status": 200,
+          "title": "第1话 - 怪兽8号 - 漫画全集在线观看 - 哔哩哔哩漫画",
+          "imageCount": 143,
+          "canvasCount": 4,
+          "readerFinding": "Two normal ArrowLeft keys change native page indicator to5/6, but captured next spread is still loading. Same ordinary public getImageData after screenshot returns all-zero bounded8x8 samples and has non-native function identity. No prototype bypass performed; not readable pixels or loaded-next-page acceptance.",
+          "pageErrorCount": 5,
+          "networkFailureCount": 4,
+          "normalReaderKey": "ArrowLeft",
+          "keyCount": 2,
+          "ordinaryCanvasPixelsAfterScreenshot": [
+            {
+              "width": 1100,
+              "height": 1650,
+              "visible": true,
+              "readable": true,
+              "gridNonblank": false,
+              "nativePixelRead": false
+            },
+            {
+              "width": 1100,
+              "height": 1650,
+              "visible": true,
+              "readable": true,
+              "gridNonblank": false,
+              "nativePixelRead": false
+            },
+            {
+              "width": 200,
+              "height": 200,
+              "visible": false,
+              "readable": true,
+              "gridNonblank": false,
+              "nativePixelRead": false
+            },
+            {
+              "width": 200,
+              "height": 200,
+              "visible": false,
+              "readable": true,
+              "gridNonblank": false,
+              "nativePixelRead": false
+            }
+          ],
+          "requestedUrl": "https://manga.bilibili.com/mc30124/595886",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        }
+      ]
     },
     {
       "name": "Kaijimanga",
@@ -1992,7 +2094,106 @@
           "hostname": "poipiku.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://poipiku.com/",
+          "finalUrl": "https://poipiku.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "homes-wave21",
+          "status": 200,
+          "title": "将插图等放入盒子中 [POIPIKU]",
+          "imageCount": 10,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/operator feed discovers normal official announcement post2/13202427.html. No login, password or private API access.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 5,
+          "requestedUrl": "https://poipiku.com/",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://poipiku.com/comic/",
+          "finalUrl": "https://poipiku.com/comic/",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "works-wave21",
+          "status": 200,
+          "title": "ポイコミ | 読みたいマンガの情報が盛りだくさん",
+          "imageCount": 7,
+          "canvasCount": 0,
+          "readerFinding": "Poicomi directory advertises external free-trial links; standalone comic body not confirmed. No reader profile for this directory.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://poipiku.com/comic/",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://poipiku.com/2/",
+          "finalUrl": "https://poipiku.com/2/",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "works-wave21",
+          "status": 200,
+          "title": "ポイピク公式 的 Poipiku | 将插图等放入盒子中 [POIPIKU]",
+          "imageCount": 7,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/operator feed discovers normal official announcement post2/13202427.html. No login, password or private API access.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 3,
+          "requestedUrl": "https://poipiku.com/2/",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://poipiku.com/2/13202427.html",
+          "finalUrl": "https://poipiku.com/2/13202427.html",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "body-pages-wave21",
+          "status": 200,
+          "title": "[公告] (1 图像) ■ ポイピクリスト（β）の使い - ポイピク公式 的 Poipiku | 将插图等放入盒子中 [POIPIKU]",
+          "imageCount": 6,
+          "canvasCount": 0,
+          "readerFinding": "Public official announcement post has one loaded800x579主图 under IllustItemList/IllustItem/IllustItemThumb/IllustItemThumbImg. Normal click/scroll does not expose larger expanded image; related330px thumbnail, avatar and event artwork excluded. Public single-post image scope only, not manga quality or private/password-post acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://poipiku.com/2/13202427.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://poipiku.com/2/13202427.html",
+          "finalUrl": "https://poipiku.com/2/13202427.html",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "final-readers-wave21",
+          "status": 200,
+          "title": "[公告] (1 图像) ■ ポイピクリスト（β）の使い - ポイピク公式 的 Poipiku | 将插图等放入盒子中 [POIPIKU]",
+          "imageCount": 6,
+          "canvasCount": 0,
+          "readerFinding": "Public official announcement post has one loaded800x579主图 under IllustItemList/IllustItem/IllustItemThumb/IllustItemThumbImg. Normal click/scroll does not expose larger expanded image; related330px thumbnail, avatar and event artwork excluded. Public single-post image scope only, not manga quality or private/password-post acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://poipiku.com/2/13202427.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://poipiku.com/2/13202427.html",
+          "finalUrl": "https://poipiku.com/2/13202427.html",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "poipiku-expanded-wave21",
+          "status": 200,
+          "title": "[公告] (1 图像) ■ ポイピクリスト（β）の使い - ポイピク公式 的 Poipiku | 将插图等放入盒子中 [POIPIKU]",
+          "imageCount": 7,
+          "canvasCount": 0,
+          "readerFinding": "Public official announcement post has one loaded800x579主图 under IllustItemList/IllustItem/IllustItemThumb/IllustItemThumbImg. Normal click/scroll does not expose larger expanded image; related330px thumbnail, avatar and event artwork excluded. Public single-post image scope only, not manga quality or private/password-post acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 3,
+          "ordinaryCanvasPixelsAfterScreenshot": [],
+          "requestedUrl": "https://poipiku.com/2/13202427.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        }
+      ]
     },
     {
       "name": "Manhuaus",
@@ -3560,7 +3761,25 @@
           "hostname": "book.dmm.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://book.dmm.com/",
+          "finalUrl": "https://special.dmm.com/not-available-in-your-region/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "homes-wave21",
+          "status": 200,
+          "title": "DMM.com このページはお住まいの地域からご利用になれません。",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal public navigation redirects to explicit not-available-in-your-region page. No body and no region restriction bypass.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 17,
+          "requestedUrl": "https://book.dmm.com/",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        }
+      ]
     },
     {
       "name": "newmanhwa.com",
@@ -3723,7 +3942,185 @@
           "hostname": "ranfren.neocities.org"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://ranfren.neocities.org/",
+          "finalUrl": "https://ranfren.neocities.org/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "homes-wave21",
+          "status": 200,
+          "title": "world of randal and his friends",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/main/comics or volume directory discovers normal public read links and cover thumbnails. Catalogue and cover alone are not body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ranfren.neocities.org/",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://ranfren.neocities.org/main.html",
+          "finalUrl": "https://ranfren.neocities.org/main",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "works-wave21",
+          "status": 200,
+          "title": "ranfren is randals is friends",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/main/comics or volume directory discovers normal public read links and cover thumbnails. Catalogue and cover alone are not body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ranfren.neocities.org/main.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://ranfren.neocities.org/comics.html",
+          "finalUrl": "https://ranfren.neocities.org/comics",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "body-pages-wave21",
+          "status": 200,
+          "title": "randal's friends",
+          "imageCount": 7,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/main/comics or volume directory discovers normal public read links and cover thumbnails. Catalogue and cover alone are not body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ranfren.neocities.org/comics.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://ranfren.neocities.org/lucid/vol1lucid.html",
+          "finalUrl": "https://ranfren.neocities.org/lucid/vol1lucid",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "ranfren-volumes-wave21",
+          "status": 200,
+          "title": "randal's friends vol 1",
+          "imageCount": 23,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/main/comics or volume directory discovers normal public read links and cover thumbnails. Catalogue and cover alone are not body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ranfren.neocities.org/lucid/vol1lucid.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://ranfren.neocities.org/lucid/vol2lucid.html",
+          "finalUrl": "https://ranfren.neocities.org/lucid/vol2lucid",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "ranfren-volumes-wave21",
+          "status": 200,
+          "title": "randal's friends vol 2",
+          "imageCount": 16,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/main/comics or volume directory discovers normal public read links and cover thumbnails. Catalogue and cover alone are not body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ranfren.neocities.org/lucid/vol2lucid.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://ranfren.neocities.org/lucid/extra/gettingstronger.html",
+          "finalUrl": "https://ranfren.neocities.org/lucid/extra/gettingstronger",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "ranfren-volumes-wave21",
+          "status": 200,
+          "title": "extra: getting stronger",
+          "imageCount": 6,
+          "canvasCount": 0,
+          "readerFinding": "Public DDR extra body contains six600x848 direct CENTER images. No hidden or private source retrieval.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ranfren.neocities.org/lucid/extra/gettingstronger.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://ranfren.neocities.org/lucid/lucid2/need.html",
+          "finalUrl": "https://ranfren.neocities.org/lucid/lucid2/need",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "final-readers-wave21",
+          "status": 200,
+          "title": "I need you",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "readerFinding": "Work landing cover is direct TD image; linked thumbnail and normal read link visible. This is not chapter body; subsequent actual read link inspected separately.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ranfren.neocities.org/lucid/lucid2/need.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://ranfren.neocities.org/lucid/lucid22/lucid22.html",
+          "finalUrl": "https://ranfren.neocities.org/lucid/lucid22/lucid22",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "final-readers-wave21",
+          "status": 200,
+          "title": "LUCID 22 THAT TIME I WAS REINCARNATED AS RANDAL'S HAT IN ONE OF THE TIMES THEY TRY TO GO CAMPING!",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "readerFinding": "Work landing cover is direct TD image; linked thumbnail and normal read link visible. This is not chapter body; subsequent actual read link inspected separately.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ranfren.neocities.org/lucid/lucid22/lucid22.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://ranfren.neocities.org/lucid/lucid2/need1.html",
+          "finalUrl": "https://ranfren.neocities.org/lucid/lucid2/need1",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "ranfren-actual-wave21",
+          "status": 200,
+          "title": "I NEED YOU",
+          "imageCount": 12,
+          "canvasCount": 0,
+          "readerFinding": "Normal click-here-to-read link leads to12 actual600px-wide body images under CENTER > IMG; extensionless redirect. Work cover outside CENTER and linked preview thumbnails excluded.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ranfren.neocities.org/lucid/lucid2/need1.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://ranfren.neocities.org/lucid/lucid22/lucid22thattimei.html",
+          "finalUrl": "https://ranfren.neocities.org/lucid/lucid22/lucid22thattimei",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "ranfren-actual-wave21",
+          "status": 200,
+          "title": "LUCID 22 THAT TIME I WAS REINCARNATED AS RANDAL'S HAT IN ONE OF THE TIMES THEY TRY TO GO CAMPING!!",
+          "imageCount": 35,
+          "canvasCount": 0,
+          "readerFinding": "Normal CLICK HERE TO READ link leads to35 actual800x1130/1131 body pages under BODY > CENTER > IMG; extensionless redirect. Work catalogue/cover is not the body.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ranfren.neocities.org/lucid/lucid22/lucid22thattimei.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://ranfren.neocities.org/lucid/extra/gettingstronger.html",
+          "finalUrl": "https://ranfren.neocities.org/lucid/extra/gettingstronger",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "ranfren-actual-wave21",
+          "status": 200,
+          "title": "extra: getting stronger",
+          "imageCount": 6,
+          "canvasCount": 0,
+          "readerFinding": "Public DDR extra contains six complete600x848 body pages under CENTER > IMG within TD; extensionless redirect. Exact extra path only; unknown extras not verified.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ranfren.neocities.org/lucid/extra/gettingstronger.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        }
+      ]
     },
     {
       "name": "utoon.net",
@@ -4456,7 +4853,73 @@
           "hostname": "manhuazhan.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://manhuazhan.com/",
+          "finalUrl": "https://www.manhuazhan.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "homes-wave21",
+          "status": 200,
+          "title": "漫画站_在线漫画_漫画大全_免费漫画",
+          "imageCount": 20,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/work catalogue discovers normal numeric chapter235990-51809.html. Covers are not body acceptance.",
+          "pageErrorCount": 3,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://manhuazhan.com/",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://www.manhuazhan.com/comic/235990",
+          "finalUrl": "https://www.manhuazhan.com/comic/235990",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "works-wave21",
+          "status": 200,
+          "title": "逆天战神_在线漫画-漫画站",
+          "imageCount": 14,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/work catalogue discovers normal numeric chapter235990-51809.html. Covers are not body acceptance.",
+          "pageErrorCount": 2,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://www.manhuazhan.com/comic/235990",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://www.manhuazhan.com/chapter/235990-51809.html",
+          "finalUrl": "https://www.manhuazhan.com/chapter/235990-51809.html",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "body-pages-wave21",
+          "status": 200,
+          "title": "逆天战神漫画_第1话 战神重生-漫画站",
+          "imageCount": 42,
+          "canvasCount": 0,
+          "readerFinding": "Public first chapter has1000x3080 and1000x1881 loaded body images under #ChapterContent > p.chapterpic > img.lazy. Remaining lazy placeholders initially include1080x600 lazyload.gif, explicitly excluded until src becomes actual body. Normal prev/next numeric chapter links visible; no whole-chapter translation claim.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "requestedUrl": "https://www.manhuazhan.com/chapter/235990-51809.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://www.manhuazhan.com/chapter/235990-51809.html",
+          "finalUrl": "https://www.manhuazhan.com/chapter/235990-51809.html",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "final-readers-wave21",
+          "status": 200,
+          "title": "逆天战神漫画_第1话 战神重生-漫画站",
+          "imageCount": 42,
+          "canvasCount": 0,
+          "readerFinding": "Public first chapter has1000x3080 and1000x1881 loaded body images under #ChapterContent > p.chapterpic > img.lazy. Remaining lazy placeholders initially include1080x600 lazyload.gif, explicitly excluded until src becomes actual body. Normal prev/next numeric chapter links visible; no whole-chapter translation claim.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "requestedUrl": "https://www.manhuazhan.com/chapter/235990-51809.html",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        }
+      ]
     },
     {
       "name": "blossommanga.com",
@@ -4490,7 +4953,25 @@
           "hostname": "w226.npdn.top"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://w226.npdn.top/",
+          "finalUrl": "https://20260203.72.chat/two",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "homes-wave21",
+          "status": 200,
+          "title": "最新@网址",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Redirect to unrelated72.chat address/group locator; no manga body confirmed. Query/hash omitted, redirect is not added as manga alias and outbound group/password links not followed.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://w226.npdn.top/",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        }
+      ]
     },
     {
       "name": "komiku.com",
@@ -5644,7 +6125,25 @@
           "title": "メンテナンス情報 | マンガよもんが"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://www.yomonga.com/",
+          "finalUrl": "https://www.yomonga.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "homes-wave21",
+          "status": 503,
+          "title": "メンテナンス情報 | マンガよもんが",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "HTTP503 maintenance; chapter body unavailable during this attempt.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://www.yomonga.com/",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        }
+      ]
     },
     {
       "name": "global.manga-up.com",
@@ -6180,7 +6679,25 @@
           "hostname": "ynjn.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://ynjn.jp/",
+          "finalUrl": "https://ynjn.jp/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+          "attempt": "homes-wave21",
+          "status": 503,
+          "title": "ヤンジャン＋｜集英社・ジャンプ系青年マンガ公式",
+          "imageCount": 7,
+          "canvasCount": 0,
+          "readerFinding": "HTTP503; chapter body unavailable during this attempt.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ynjn.jp/",
+          "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        }
+      ]
     },
     {
       "name": "mangayun.com",
@@ -8654,6 +9171,449 @@
       "readerFinding": "After actual15s body readiness, two normal ArrowLeft keys display a Japanese dialogue spread with intact readable active viewport canvas. Extension-free screenshot reviewed; no hidden API or arbitrary page navigation.",
       "pageErrorCount": 0,
       "networkFailureCount": 18
+    },
+    {
+      "url": "https://ynjn.jp/",
+      "finalUrl": "https://ynjn.jp/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "homes-wave21",
+      "status": 503,
+      "title": "ヤンジャン＋｜集英社・ジャンプ系青年マンガ公式",
+      "imageCount": 7,
+      "canvasCount": 0,
+      "readerFinding": "HTTP503; chapter body unavailable during this attempt.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.yomonga.com/",
+      "finalUrl": "https://www.yomonga.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "homes-wave21",
+      "status": 503,
+      "title": "メンテナンス情報 | マンガよもんが",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "HTTP503 maintenance; chapter body unavailable during this attempt.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://manga.bilibili.com/",
+      "finalUrl": "https://manga.bilibili.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "homes-wave21",
+      "status": 200,
+      "title": "哔哩哔哩漫画 - bilibili 正版漫画平台",
+      "imageCount": 75,
+      "canvasCount": 0,
+      "readerFinding": "Public catalogue exposes normal mc30124/595886 chapter link; homepage images are not chapter acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://poipiku.com/",
+      "finalUrl": "https://poipiku.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "homes-wave21",
+      "status": 200,
+      "title": "将插图等放入盒子中 [POIPIKU]",
+      "imageCount": 10,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/operator feed discovers normal official announcement post2/13202427.html. No login, password or private API access.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 5
+    },
+    {
+      "url": "https://book.dmm.com/",
+      "finalUrl": "https://special.dmm.com/not-available-in-your-region/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "homes-wave21",
+      "status": 200,
+      "title": "DMM.com このページはお住まいの地域からご利用になれません。",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal public navigation redirects to explicit not-available-in-your-region page. No body and no region restriction bypass.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 17
+    },
+    {
+      "url": "https://ranfren.neocities.org/",
+      "finalUrl": "https://ranfren.neocities.org/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "homes-wave21",
+      "status": 200,
+      "title": "world of randal and his friends",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/main/comics or volume directory discovers normal public read links and cover thumbnails. Catalogue and cover alone are not body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://manhuazhan.com/",
+      "finalUrl": "https://www.manhuazhan.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "homes-wave21",
+      "status": 200,
+      "title": "漫画站_在线漫画_漫画大全_免费漫画",
+      "imageCount": 20,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/work catalogue discovers normal numeric chapter235990-51809.html. Covers are not body acceptance.",
+      "pageErrorCount": 3,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://w226.npdn.top/",
+      "finalUrl": "https://20260203.72.chat/two",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "homes-wave21",
+      "status": 200,
+      "title": "最新@网址",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Redirect to unrelated72.chat address/group locator; no manga body confirmed. Query/hash omitted, redirect is not added as manga alias and outbound group/password links not followed.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://manga.bilibili.com/mc30124/595886",
+      "finalUrl": "https://manga.bilibili.com/mc30124/595886",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "works-wave21",
+      "status": 200,
+      "title": "第1话 - 怪兽8号 - 漫画全集在线观看 - 哔哩哔哩漫画",
+      "imageCount": 143,
+      "canvasCount": 4,
+      "readerFinding": "Public Monster8 chapter visibly displays first spread in two image-container canvas elements1099x1649/1726. Page main-world ordinary getImageData returns all-zero bounded samples; subsequent own production content-world check has native nonblank pixels and corrects the preliminary area-only diagnosis. Hidden QR canvas excluded. Source createObjectURL exception also reproduces without extension.",
+      "pageErrorCount": 1,
+      "networkFailureCount": 4
+    },
+    {
+      "url": "https://ranfren.neocities.org/main.html",
+      "finalUrl": "https://ranfren.neocities.org/main",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "works-wave21",
+      "status": 200,
+      "title": "ranfren is randals is friends",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/main/comics or volume directory discovers normal public read links and cover thumbnails. Catalogue and cover alone are not body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.manhuazhan.com/comic/235990",
+      "finalUrl": "https://www.manhuazhan.com/comic/235990",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "works-wave21",
+      "status": 200,
+      "title": "逆天战神_在线漫画-漫画站",
+      "imageCount": 14,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/work catalogue discovers normal numeric chapter235990-51809.html. Covers are not body acceptance.",
+      "pageErrorCount": 2,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://poipiku.com/comic/",
+      "finalUrl": "https://poipiku.com/comic/",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "works-wave21",
+      "status": 200,
+      "title": "ポイコミ | 読みたいマンガの情報が盛りだくさん",
+      "imageCount": 7,
+      "canvasCount": 0,
+      "readerFinding": "Poicomi directory advertises external free-trial links; standalone comic body not confirmed. No reader profile for this directory.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://poipiku.com/2/",
+      "finalUrl": "https://poipiku.com/2/",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "works-wave21",
+      "status": 200,
+      "title": "ポイピク公式 的 Poipiku | 将插图等放入盒子中 [POIPIKU]",
+      "imageCount": 7,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/operator feed discovers normal official announcement post2/13202427.html. No login, password or private API access.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 3
+    },
+    {
+      "url": "https://ranfren.neocities.org/comics.html",
+      "finalUrl": "https://ranfren.neocities.org/comics",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "body-pages-wave21",
+      "status": 200,
+      "title": "randal's friends",
+      "imageCount": 7,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/main/comics or volume directory discovers normal public read links and cover thumbnails. Catalogue and cover alone are not body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.manhuazhan.com/chapter/235990-51809.html",
+      "finalUrl": "https://www.manhuazhan.com/chapter/235990-51809.html",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "body-pages-wave21",
+      "status": 200,
+      "title": "逆天战神漫画_第1话 战神重生-漫画站",
+      "imageCount": 42,
+      "canvasCount": 0,
+      "readerFinding": "Public first chapter has1000x3080 and1000x1881 loaded body images under #ChapterContent > p.chapterpic > img.lazy. Remaining lazy placeholders initially include1080x600 lazyload.gif, explicitly excluded until src becomes actual body. Normal prev/next numeric chapter links visible; no whole-chapter translation claim.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://poipiku.com/2/13202427.html",
+      "finalUrl": "https://poipiku.com/2/13202427.html",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "body-pages-wave21",
+      "status": 200,
+      "title": "[公告] (1 图像) ■ ポイピクリスト（β）の使い - ポイピク公式 的 Poipiku | 将插图等放入盒子中 [POIPIKU]",
+      "imageCount": 6,
+      "canvasCount": 0,
+      "readerFinding": "Public official announcement post has one loaded800x579主图 under IllustItemList/IllustItem/IllustItemThumb/IllustItemThumbImg. Normal click/scroll does not expose larger expanded image; related330px thumbnail, avatar and event artwork excluded. Public single-post image scope only, not manga quality or private/password-post acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://manga.bilibili.com/mc30124/595886",
+      "finalUrl": "https://manga.bilibili.com/mc30124/595886",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "bilibili-turn-wave21",
+      "status": 200,
+      "title": "第1话 - 怪兽8号 - 漫画全集在线观看 - 哔哩哔哩漫画",
+      "imageCount": 143,
+      "canvasCount": 4,
+      "readerFinding": "Settled first public spread visibly contains actual comic body. Unsupported page-key flags did not send keys; this attempt is not page-turn acceptance. Page main-world ordinary canvas pixels are all-zero; later production content-world diagnostic finds native readable actual pixels. Main-world observation does not establish extension unreadability.",
+      "pageErrorCount": 1,
+      "networkFailureCount": 4
+    },
+    {
+      "url": "https://ranfren.neocities.org/lucid/vol1lucid.html",
+      "finalUrl": "https://ranfren.neocities.org/lucid/vol1lucid",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "ranfren-volumes-wave21",
+      "status": 200,
+      "title": "randal's friends vol 1",
+      "imageCount": 23,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/main/comics or volume directory discovers normal public read links and cover thumbnails. Catalogue and cover alone are not body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://ranfren.neocities.org/lucid/vol2lucid.html",
+      "finalUrl": "https://ranfren.neocities.org/lucid/vol2lucid",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "ranfren-volumes-wave21",
+      "status": 200,
+      "title": "randal's friends vol 2",
+      "imageCount": 16,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/main/comics or volume directory discovers normal public read links and cover thumbnails. Catalogue and cover alone are not body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://ranfren.neocities.org/lucid/extra/gettingstronger.html",
+      "finalUrl": "https://ranfren.neocities.org/lucid/extra/gettingstronger",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "ranfren-volumes-wave21",
+      "status": 200,
+      "title": "extra: getting stronger",
+      "imageCount": 6,
+      "canvasCount": 0,
+      "readerFinding": "Public DDR extra body contains six600x848 direct CENTER images. No hidden or private source retrieval.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://manga.bilibili.com/mc30124/595886",
+      "finalUrl": "https://manga.bilibili.com/mc30124/595886",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "bilibili-key-and-paint-wave21",
+      "status": 200,
+      "title": "第1话 - 怪兽8号 - 漫画全集在线观看 - 哔哩哔哩漫画",
+      "imageCount": 143,
+      "canvasCount": 4,
+      "readerFinding": "Two normal ArrowLeft keys change native page indicator to5/6, but captured next spread is still loading. Same ordinary public getImageData after screenshot returns all-zero bounded8x8 samples and has non-native function identity. No prototype bypass performed; not readable pixels or loaded-next-page acceptance.",
+      "pageErrorCount": 5,
+      "networkFailureCount": 4,
+      "normalReaderKey": "ArrowLeft",
+      "keyCount": 2,
+      "ordinaryCanvasPixelsAfterScreenshot": [
+        {
+          "width": 1100,
+          "height": 1650,
+          "visible": true,
+          "readable": true,
+          "gridNonblank": false,
+          "nativePixelRead": false
+        },
+        {
+          "width": 1100,
+          "height": 1650,
+          "visible": true,
+          "readable": true,
+          "gridNonblank": false,
+          "nativePixelRead": false
+        },
+        {
+          "width": 200,
+          "height": 200,
+          "visible": false,
+          "readable": true,
+          "gridNonblank": false,
+          "nativePixelRead": false
+        },
+        {
+          "width": 200,
+          "height": 200,
+          "visible": false,
+          "readable": true,
+          "gridNonblank": false,
+          "nativePixelRead": false
+        }
+      ]
+    },
+    {
+      "url": "https://ranfren.neocities.org/lucid/lucid2/need.html",
+      "finalUrl": "https://ranfren.neocities.org/lucid/lucid2/need",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "final-readers-wave21",
+      "status": 200,
+      "title": "I need you",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "readerFinding": "Work landing cover is direct TD image; linked thumbnail and normal read link visible. This is not chapter body; subsequent actual read link inspected separately.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://ranfren.neocities.org/lucid/lucid22/lucid22.html",
+      "finalUrl": "https://ranfren.neocities.org/lucid/lucid22/lucid22",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "final-readers-wave21",
+      "status": 200,
+      "title": "LUCID 22 THAT TIME I WAS REINCARNATED AS RANDAL'S HAT IN ONE OF THE TIMES THEY TRY TO GO CAMPING!",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "readerFinding": "Work landing cover is direct TD image; linked thumbnail and normal read link visible. This is not chapter body; subsequent actual read link inspected separately.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.manhuazhan.com/chapter/235990-51809.html",
+      "finalUrl": "https://www.manhuazhan.com/chapter/235990-51809.html",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "final-readers-wave21",
+      "status": 200,
+      "title": "逆天战神漫画_第1话 战神重生-漫画站",
+      "imageCount": 42,
+      "canvasCount": 0,
+      "readerFinding": "Public first chapter has1000x3080 and1000x1881 loaded body images under #ChapterContent > p.chapterpic > img.lazy. Remaining lazy placeholders initially include1080x600 lazyload.gif, explicitly excluded until src becomes actual body. Normal prev/next numeric chapter links visible; no whole-chapter translation claim.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://poipiku.com/2/13202427.html",
+      "finalUrl": "https://poipiku.com/2/13202427.html",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "final-readers-wave21",
+      "status": 200,
+      "title": "[公告] (1 图像) ■ ポイピクリスト（β）の使い - ポイピク公式 的 Poipiku | 将插图等放入盒子中 [POIPIKU]",
+      "imageCount": 6,
+      "canvasCount": 0,
+      "readerFinding": "Public official announcement post has one loaded800x579主图 under IllustItemList/IllustItem/IllustItemThumb/IllustItemThumbImg. Normal click/scroll does not expose larger expanded image; related330px thumbnail, avatar and event artwork excluded. Public single-post image scope only, not manga quality or private/password-post acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://poipiku.com/2/13202427.html",
+      "finalUrl": "https://poipiku.com/2/13202427.html",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "poipiku-expanded-wave21",
+      "status": 200,
+      "title": "[公告] (1 图像) ■ ポイピクリスト（β）の使い - ポイピク公式 的 Poipiku | 将插图等放入盒子中 [POIPIKU]",
+      "imageCount": 7,
+      "canvasCount": 0,
+      "readerFinding": "Public official announcement post has one loaded800x579主图 under IllustItemList/IllustItem/IllustItemThumb/IllustItemThumbImg. Normal click/scroll does not expose larger expanded image; related330px thumbnail, avatar and event artwork excluded. Public single-post image scope only, not manga quality or private/password-post acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 3,
+      "ordinaryCanvasPixelsAfterScreenshot": []
+    },
+    {
+      "url": "https://ranfren.neocities.org/lucid/lucid2/need1.html",
+      "finalUrl": "https://ranfren.neocities.org/lucid/lucid2/need1",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "ranfren-actual-wave21",
+      "status": 200,
+      "title": "I NEED YOU",
+      "imageCount": 12,
+      "canvasCount": 0,
+      "readerFinding": "Normal click-here-to-read link leads to12 actual600px-wide body images under CENTER > IMG; extensionless redirect. Work cover outside CENTER and linked preview thumbnails excluded.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://ranfren.neocities.org/lucid/lucid22/lucid22thattimei.html",
+      "finalUrl": "https://ranfren.neocities.org/lucid/lucid22/lucid22thattimei",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "ranfren-actual-wave21",
+      "status": 200,
+      "title": "LUCID 22 THAT TIME I WAS REINCARNATED AS RANDAL'S HAT IN ONE OF THE TIMES THEY TRY TO GO CAMPING!!",
+      "imageCount": 35,
+      "canvasCount": 0,
+      "readerFinding": "Normal CLICK HERE TO READ link leads to35 actual800x1130/1131 body pages under BODY > CENTER > IMG; extensionless redirect. Work catalogue/cover is not the body.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://ranfren.neocities.org/lucid/extra/gettingstronger.html",
+      "finalUrl": "https://ranfren.neocities.org/lucid/extra/gettingstronger",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-static-lazy-post-and-area-readers-wave21",
+      "attempt": "ranfren-actual-wave21",
+      "status": 200,
+      "title": "extra: getting stronger",
+      "imageCount": 6,
+      "canvasCount": 0,
+      "readerFinding": "Public DDR extra contains six complete600x848 body pages under CENTER > IMG within TD; extensionless redirect. Exact extra path only; unknown extras not verified.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
     }
   ],
   "verification": {
@@ -13069,6 +14029,608 @@
       "outputsViewed": true,
       "qualityFinding": "Reviewed first actual output PNG and next-spread screenshot. Japanese canvas activation, unchanged original, pause/reuse, normal public click continuation and master cleanup pass. Outlined and short Japanese remain, vertical fragments are incomplete or mistranslated, font sizes vary and some bubble/art edges are affected. No full chapter or general Japanese quality acceptance. Existing outlined-opening and arrow-key failures retained.",
       "scope": "Public free first chapter, initial two normal arrow keys and one normal viewer left-side click; same reader surface fingerprints as the wave19 successful click check. No opaque cid, private API or additional reader-profile claim."
+    },
+    "ranfrenPublicTranslation": {
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "scroll automatically translates a new visible page",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the resident brand icon"
+      ],
+      "sourceLanguage": "en",
+      "readerStartIndex": 1,
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 39925,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 13546,
+          "mayIncludeFirstInpaintingPreparation": true
+        }
+      ],
+      "firstOperationCount": 2,
+      "scrollOperationCounts": {
+        "before": 2,
+        "after": 3,
+        "mode": "new-operation"
+      },
+      "operations": 3,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "result": "passed",
+      "scope": "Two inspected public600x848 DDR comic body pages from index1; production PaddleOCR and live Google, normal scroll/pause/restore/resume. Adjacent visible title page also processed; three actual operations total. No whole-chapter or comprehensive quality acceptance.",
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-ranfren-wave21",
+      "hostErrorCount": 0,
+      "qualityFinding": "Two actual translated screenshots and first original source reviewed. Standard dialogue translates into Chinese, but handwritten lines and outlined SFX are missed or remain; BEGINNER is misrecognized and mistranslated, part of long dialogue is missed and a false short translation is added to the next speech bubble. No whole-chapter or translation-quality acceptance.",
+      "outputsViewed": 2
+    },
+    "publicStaticLazyPostAreaBuilds": {
+      "typecheck": "passed",
+      "chromeBuildSeconds": 25.8,
+      "firefoxBuildSeconds": 24.5,
+      "userscriptBuildSeconds": 3.57,
+      "extensionManifests": "passed",
+      "userscriptVerifier": "passed",
+      "userscriptBytes": 1917294,
+      "selectedContracts": "2 files / 809 cases passed",
+      "testAuditFiles": 468,
+      "testAuditCaseDeclarations": 6096,
+      "scope": "Local development builds only; no Firefox/userscript runtime, store, release or deployment acceptance. Previous full-suite baseline failures retained."
+    },
+    "publicStaticLazyPostCanvasUnit": {
+      "result": "passed",
+      "files": 7,
+      "cases": 504,
+      "fourDimensionalCoverage": "100% for eight manga config, source authorization, reader and surface modules",
+      "scope": "Three image profiles and one readable-canvas profile. Exact host/path and direct-body boundaries, lazy src transitions, cover/preview/related/QR exclusion, dynamic DOM, pause/restore/reuse, chapter navigation, canvas redraw invalidation, visible native loading keeps only an already-active same-chapter session, loading removal/hidden/outside/disabled/pause/chapter exit and source removal."
+    },
+    "bilibiliProductionContentPixels": {
+      "scope": "Ordinary bounded canvas pixel API in the own production extension content world; no prototype replacement, hidden API or source download.",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "status": 200,
+      "canvases": [
+        {
+          "width": 1099,
+          "height": 1649,
+          "visible": true,
+          "readable": true,
+          "gridNonblank": true,
+          "nativePixelRead": true
+        },
+        {
+          "width": 1099,
+          "height": 1726,
+          "visible": true,
+          "readable": true,
+          "gridNonblank": true,
+          "nativePixelRead": true
+        }
+      ],
+      "result": "diagnostic-completed",
+      "profileRemoved": true,
+      "finding": "Native ordinary getImageData in the own production extension content world reads nonblank1099x1649/1726 painted body. Corrects preliminary main-world all-zero observation; no original-prototype substitution, host method change or private interface."
+    },
+    "bilibiliPublicTranslation": {
+      "cases": [
+        "public readable canvas runs real manga OCR and translated overlay without changing the source",
+        "pause restores the original canvas and repeated activation reuses the translated page",
+        "same chapter native loading keeps the activated reader waiting without old overlays",
+        "master switch restores the chapter and removes canvas translation UI"
+      ],
+      "sourceLanguage": "auto",
+      "targetLanguage": "en",
+      "canvasPixelWorld": "own production extension content world; ordinary API, no prototype substitution",
+      "canvasFirstPageMs": 85149,
+      "canvasSource": [
+        {
+          "id": "",
+          "width": 1099,
+          "height": 1649,
+          "style": null,
+          "className": "",
+          "hash": 1652061325
+        },
+        {
+          "id": "",
+          "width": 1099,
+          "height": 1726,
+          "style": null,
+          "className": "",
+          "hash": 526077055
+        }
+      ],
+      "translatedCanvasPixels": [
+        {
+          "width": 1099,
+          "height": 1649,
+          "hash": 2994064273
+        },
+        {
+          "width": 1099,
+          "height": 1726,
+          "hash": 322925988
+        }
+      ],
+      "canvasStableAfterPointerExit": true,
+      "canvasReader": {
+        "selector": ".images-container > .view-container > .image-container > canvas",
+        "openSelector": null,
+        "initialTurns": 0,
+        "turnKey": "ArrowLeft",
+        "turnCount": 2,
+        "readySettleMs": 15000,
+        "nextClickSelector": null
+      },
+      "firstSpreadScope": "Initial public spread only; no loaded-next-page or whole-chapter translation acceptance.",
+      "nativeLoading": {
+        "selector": ".images-container > .view-container > .loading-hinter",
+        "active": "true",
+        "sources": [
+          {
+            "width": 1100,
+            "height": 1650,
+            "nonblank": false
+          },
+          {
+            "width": 1100,
+            "height": 1650,
+            "nonblank": false
+          }
+        ]
+      },
+      "operations": 3,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "result": "passed",
+      "scope": "Public Monster8 initial spread Chinese-to-English with production PaddleOCR/live Google; exact ordinary own-content pixel diagnostics. Loading variant inspects same-chapter native waiting only, not translated-next-body. Earlier failed native turn attempts retained. No private API, host prototype replacement or whole-chapter acceptance.",
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-bilibili-loading-wave21",
+      "hostErrorCount": 5,
+      "outputsViewed": 2,
+      "qualityFinding": "Both actual initial-spread translated canvases and native-loading screenshot reviewed. Narration becomes English with some missed Chinese vertical text, residual characters and English word splits. Title repair severely blurs large art areas and watermark OCR mistranslates. Native next spread remains all-zero and waiting; no loaded-next-body, whole-chapter or quality acceptance. Three operations include only two returned initial-spread layout results; transition request is not an accepted translated page."
+    },
+    "bilibiliTransparentInteractionLayer": {
+      "scope": "Ordinary bounded canvas pixel API in the own production extension content world; no prototype replacement, hidden API or source download.",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "status": 200,
+      "canvases": [
+        {
+          "width": 1099,
+          "height": 1649,
+          "visible": true,
+          "readable": true,
+          "gridNonblank": true,
+          "hit": {
+            "tag": "DIV",
+            "id": "",
+            "className": "bullet-container",
+            "parentClass": "bullet-screen p-absolute w-100 h-100",
+            "containsSource": false,
+            "pointerEvents": "auto",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          "nativePixelRead": true
+        },
+        {
+          "width": 1099,
+          "height": 1726,
+          "visible": true,
+          "readable": true,
+          "gridNonblank": true,
+          "hit": {
+            "tag": "DIV",
+            "id": "",
+            "className": "bullet-container",
+            "parentClass": "bullet-screen p-absolute w-100 h-100",
+            "containsSource": false,
+            "pointerEvents": "auto",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          "nativePixelRead": true
+        }
+      ],
+      "result": "diagnostic-completed",
+      "profileRemoved": true,
+      "finding": "Body center hit is transparent pointer-active DIV.bullet-container directly under .bullet-screen and the selected image-container. Completed outputs were display:none in first OCR attempt. Exact site interaction selector added; unrelated matching names and dialogs excluded, source interactions retained."
+    },
+    "publicStaticLazyPostAreaInitialEntries": {
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "result": "passed",
+      "cases": 23,
+      "baseCases": 18,
+      "scope": "Pure icon and five actual public entries across four sites. Visible background temporary Edge. Entry suite does not execute OCR or download models.",
+      "publicReaders": [
+        {
+          "requestedUrl": "https://ranfren.neocities.org/lucid/lucid2/need1",
+          "finalUrl": "https://ranfren.neocities.org/lucid/lucid2/need1",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 12,
+          "loadedBodyImages": 12,
+          "visibleBodyElements": 3,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://ranfren.neocities.org/lucid/extra/gettingstronger",
+          "finalUrl": "https://ranfren.neocities.org/lucid/extra/gettingstronger",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 6,
+          "loadedBodyImages": 6,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://www.manhuazhan.com/chapter/235990-51809.html",
+          "finalUrl": "https://www.manhuazhan.com/chapter/235990-51809.html",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 4,
+          "loadedBodyImages": 4,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://poipiku.com/2/13202427.html",
+          "finalUrl": "https://poipiku.com/2/13202427.html",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 1,
+          "loadedBodyImages": 1,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://manga.bilibili.com/mc30124/595886",
+          "finalUrl": "https://manga.bilibili.com/mc30124/595886",
+          "status": 200,
+          "mode": "area",
+          "bodyElements": 2,
+          "loadedBodyImages": 0,
+          "visibleBodyElements": 2,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "hostErrors": [
+        {
+          "message": "Failed to execute 'createObjectURL' on 'URL': Overload resolution failed.",
+          "sourceHosts": [
+            "s1.hdslb.com"
+          ],
+          "extensionFreeBaseline": "works-wave21; same message and HTTPS reader/vendor stack; body remains displayed"
+        }
+      ]
+    },
+    "publicStaticLazyPostCanvasEntries": {
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "result": "passed",
+      "cases": 23,
+      "baseCases": 18,
+      "scope": "Pure icon and five actual public entries across four sites. Visible background temporary Edge. Entry suite does not execute OCR or download models.",
+      "publicReaders": [
+        {
+          "requestedUrl": "https://ranfren.neocities.org/lucid/lucid2/need1",
+          "finalUrl": "https://ranfren.neocities.org/lucid/lucid2/need1",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 12,
+          "loadedBodyImages": 12,
+          "visibleBodyElements": 3,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://ranfren.neocities.org/lucid/extra/gettingstronger",
+          "finalUrl": "https://ranfren.neocities.org/lucid/extra/gettingstronger",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 6,
+          "loadedBodyImages": 6,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://www.manhuazhan.com/chapter/235990-51809.html",
+          "finalUrl": "https://www.manhuazhan.com/chapter/235990-51809.html",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 4,
+          "loadedBodyImages": 2,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://poipiku.com/2/13202427.html",
+          "finalUrl": "https://poipiku.com/2/13202427.html",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 1,
+          "loadedBodyImages": 1,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://manga.bilibili.com/mc30124/595886",
+          "finalUrl": "https://manga.bilibili.com/mc30124/595886",
+          "status": 200,
+          "mode": "canvas",
+          "bodyElements": 2,
+          "loadedBodyImages": 0,
+          "visibleBodyElements": 2,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "hostErrors": [
+        {
+          "message": "Failed to execute 'createObjectURL' on 'URL': Overload resolution failed.",
+          "sourceHosts": [
+            "s1.hdslb.com"
+          ],
+          "extensionFreeBaseline": "works-wave21; same message and HTTPS reader/vendor stack; body remains displayed"
+        }
+      ]
+    },
+    "bilibiliPublicTranslationInitialHidden": {
+      "cases": [],
+      "sourceLanguage": "auto",
+      "targetLanguage": "en",
+      "canvasPixelWorld": "own production extension content world; ordinary API, no prototype substitution",
+      "canvasSource": [
+        {
+          "id": "",
+          "width": 1099,
+          "height": 1649,
+          "style": null,
+          "className": "",
+          "hash": 1652061325
+        },
+        {
+          "id": "",
+          "width": 1099,
+          "height": 1726,
+          "style": null,
+          "className": "",
+          "hash": 526077055
+        }
+      ],
+      "canvasReader": {
+        "selector": ".images-container > .view-container > .image-container > canvas",
+        "openSelector": null,
+        "initialTurns": 0,
+        "turnKey": "ArrowLeft",
+        "turnCount": 2,
+        "readySettleMs": 15000,
+        "nextClickSelector": null
+      },
+      "operations": 2,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "result": "failed",
+      "scope": "Public Monster8 initial spread Chinese-to-English with production PaddleOCR/live Google; exact ordinary own-content pixel diagnostics. Loading variant inspects same-chapter native waiting only, not translated-next-body. Earlier failed native turn attempts retained. No private API, host prototype replacement or whole-chapter acceptance.",
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-bilibili-wave21",
+      "hostErrorCount": 1,
+      "failure": "Error: Timed out: public readable canvas runs real manga OCR and translated overlay without changing the source; image controls: null"
+    },
+    "bilibiliNativeSourceLoading": {
+      "scope": "Ordinary bounded canvas pixel API in the own production extension content world; no prototype replacement, hidden API or source download.",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "status": 200,
+      "loadingDom": {
+        "classes": [
+          {
+            "tag": "DIV",
+            "classes": "view-container p-relative secondary-image"
+          },
+          {
+            "tag": "DIV",
+            "classes": "image-container p-relative"
+          },
+          {
+            "tag": "DIV",
+            "classes": "loading-hinter w-100 h-100 p-absolute p-zero"
+          },
+          {
+            "tag": "DIV",
+            "classes": "view-container p-relative primary-image"
+          },
+          {
+            "tag": "DIV",
+            "classes": "image-container p-relative"
+          },
+          {
+            "tag": "DIV",
+            "classes": "loading-hinter w-100 h-100 p-absolute p-zero"
+          }
+        ],
+        "canvases": [
+          {
+            "width": 1100,
+            "height": 1650
+          },
+          {
+            "width": 1100,
+            "height": 1650
+          }
+        ],
+        "text": "载入中 (●'◡'●)ﾉ♥0%载入中 ✪ ω ✪0%"
+      },
+      "canvases": [
+        {
+          "width": 1100,
+          "height": 1650,
+          "visible": true,
+          "readable": true,
+          "gridNonblank": false,
+          "hit": {
+            "tag": "DIV",
+            "id": "",
+            "className": "bullet-container",
+            "parentClass": "bullet-screen p-absolute w-100 h-100",
+            "containsSource": false,
+            "pointerEvents": "auto",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          "nativePixelRead": true
+        },
+        {
+          "width": 1100,
+          "height": 1650,
+          "visible": true,
+          "readable": true,
+          "gridNonblank": false,
+          "hit": {
+            "tag": "DIV",
+            "id": "",
+            "className": "bullet-container",
+            "parentClass": "bullet-screen p-absolute w-100 h-100",
+            "containsSource": false,
+            "pointerEvents": "auto",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          "nativePixelRead": true
+        }
+      ],
+      "result": "diagnostic-completed",
+      "profileRemoved": true,
+      "finding": "Without activating translation, normal two ArrowLeft keys keep the same public chapter route. Native .loading-hinter is direct child of .view-container, beside .image-container. Both1100x1650 canvases still have zero sampled pixels after12s; no new loaded-body acceptance. No private-interface or source replacement attempt."
+    },
+    "bilibiliPublicTranslationBeforeLoadingFix": {
+      "cases": [
+        "public readable canvas runs real manga OCR and translated overlay without changing the source",
+        "pause restores the original canvas and repeated activation reuses the translated page"
+      ],
+      "sourceLanguage": "auto",
+      "targetLanguage": "en",
+      "canvasPixelWorld": "own production extension content world; ordinary API, no prototype substitution",
+      "canvasFirstPageMs": 86893,
+      "canvasSource": [
+        {
+          "id": "",
+          "width": 1099,
+          "height": 1649,
+          "style": null,
+          "className": "",
+          "hash": 1652061325
+        },
+        {
+          "id": "",
+          "width": 1099,
+          "height": 1726,
+          "style": null,
+          "className": "",
+          "hash": 526077055
+        }
+      ],
+      "translatedCanvasPixels": [
+        {
+          "width": 1099,
+          "height": 1649,
+          "hash": 2994064273
+        },
+        {
+          "width": 1099,
+          "height": 1726,
+          "hash": 322925988
+        }
+      ],
+      "canvasStableAfterPointerExit": true,
+      "canvasReader": {
+        "selector": ".images-container > .view-container > .image-container > canvas",
+        "openSelector": null,
+        "initialTurns": 0,
+        "turnKey": "ArrowLeft",
+        "turnCount": 2,
+        "readySettleMs": 15000,
+        "nextClickSelector": null
+      },
+      "canvasTurn": {
+        "before": [
+          {
+            "width": 1099,
+            "height": 1649,
+            "hash": 1534504064
+          },
+          {
+            "width": 1099,
+            "height": 1726,
+            "hash": 2934126045
+          }
+        ],
+        "mode": "normal-arrow-key",
+        "activeElement": {
+          "tag": "BODY",
+          "id": ""
+        },
+        "after": [
+          {
+            "width": 1100,
+            "height": 1650,
+            "hash": 3869364677
+          },
+          {
+            "width": 1100,
+            "height": 1650,
+            "hash": 3869364677
+          }
+        ]
+      },
+      "operations": 3,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "result": "failed",
+      "scope": "Public Monster8 initial spread Chinese-to-English with production PaddleOCR/live Google; exact ordinary own-content pixel diagnostics. Loading variant inspects same-chapter native waiting only, not translated-next-body. Earlier failed native turn attempts retained. No private API, host prototype replacement or whole-chapter acceptance.",
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-bilibili-interaction-wave21",
+      "hostErrorCount": 5,
+      "failure": "Error: Uncaught",
+      "qualityFinding": "Actual initial translated spread screenshot reviewed. Chinese narration becomes visible English with stable overlay and unchanged source, but vertical words/locations are missed, Chinese text remains, English wraps within words and title repair damages large art areas. Native page loading then removes control and interrupts the test; no translated-next-body or comprehensive quality acceptance.",
+      "outputsViewed": 1
+    },
+    "publicStaticLazyPostCanvasBuilds": {
+      "typecheck": "passed",
+      "chromeBuildSeconds": 24.9,
+      "firefoxBuildSeconds": 25.9,
+      "userscriptBuildSeconds": 3.65,
+      "extensionManifests": "passed",
+      "userscriptVerifier": "passed",
+      "userscriptBytes": 1917294,
+      "selectedContracts": "2 files / 809 cases passed",
+      "testAuditFiles": 468,
+      "testAuditCaseDeclarations": 6097,
+      "scope": "Final local development builds with native loading-state preservation only; no Firefox/userscript runtime, store, release or deployment acceptance. Previous full-suite baseline failures retained."
     }
   }
 }

@@ -55,7 +55,7 @@
 | 45 | KL | klz9.com | 已核对正文图片 | 普通后台浏览器显示 14 张 1127×1600 正文，实际两页链路通过；竖排错识别、误译和排版仍可见 |
 | 46 | comemh8 | omemh8.com | 通用正文图片检测 | 连接失败 |
 | 47 | Mangaraw | mangarawjp.me / mangaraw.ac / mangaraw.best | 专用正文图片 | 公开章节正文结构已核对 |
-| 48 | Bilibili-Manga | manga.bilibili.com | 通用正文图片检测 | 章节画布结构已核对；正文可读性待验证 |
+| 48 | Bilibili-Manga | manga.bilibili.com | 正文可读画布 · 连续翻译 | 首屏真实翻译、恢复复用与加载等待通过；原站下一屏仍为空，翻页翻译未验收，标题修补有损伤 |
 | 49 | Kaijimanga | kaijimanga.com | 专用正文图片 | 首页 HTML 可访问 |
 | 50 | Idmzj | idmzj.com | 通用正文图片检测 | 连接失败 |
 | 51 | Manga4u | mn4u.net | 专用正文图片 | 公开章节正文结构已核对 |
@@ -83,7 +83,7 @@
 | 73 | Kakao | page.kakao.com | 专用正文图片 | 公开免费章节 HTTP 200；未验韩文 OCR 质量 |
 | 74 | TopReadManga | topreadmanga.com | 通用正文图片检测 | 连接失败 |
 | 75 | Revenge of the Iron Blooded Swordhound | revengeoftheiron-bloodedswordhound.one | 通用正文图片检测 | 连接失败 |
-| 76 | Poipiku | poipiku.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 76 | Poipiku | poipiku.com | 公开单帖主图片 | 官方公开帖 800×579 主图与实页入口通过；推荐、头像排除，未验证私密帖或漫画质量 |
 | 77 | Manhuaus | manhuaus.com / manhuaus.org | 通用正文图片检测 | 访问受限 |
 | 78 | HMTTMH | hmttmh.com | 通用正文图片检测 | 连接失败 |
 | 79 | Smoking Behind the Supermarket | smokingbehindthesupermarket.com | 专用正文图片 | 公开章节正文结构已核对 |
@@ -139,13 +139,13 @@
 | 129 | comix.to | comix.to | 通用正文图片检测 | 访问受限 |
 | 130 | youngchampion.jp | youngchampion.jp | 可读画布连续翻译 | 公开章节画布已核对 |
 | 131 | manga-one.com | manga-one.com | 专用正文图片 | 公开章节正文结构已核对 |
-| 132 | book.dmm.com | book.dmm.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 132 | book.dmm.com | book.dmm.com | 通用正文图片检测 | 正常访问跳到明确的地区限制页，正文未显示 |
 | 133 | newmanhwa.com | newmanhwa.com | 通用正文图片检测 | 连接失败 |
 | 134 | fxfx302.com | fxfx302.com | 通用正文图片检测 | 连接失败 |
 | 135 | comic-meteor.jp | comic-meteor.jp · kirapo.jp | 分片阅读器 · 圈选翻译 | 公开章节 HTTP 200；旧站重定向 Kirapo |
 | 136 | omegascans.org | omegascans.org | 专用长条正文图片 | 公开章节与入口已核对；排除上方横幅和外部推荐 |
 | 137 | readallcomics.com | readallcomics.com | 通用正文图片检测 | 当前 HTTP 522 连接超时 |
-| 138 | ranfren.neocities.org | ranfren.neocities.org | 通用正文图片检测 | 连接失败 |
+| 138 | ranfren.neocities.org | ranfren.neocities.org | 静态正文图片 | 两种章节与 DDR 番外正文已核对；两页真实翻译、恢复与续译通过，手写/描边质量仍有限 |
 | 139 | utoon.net | utoon.net | 通用检测；漫画正文未确认 | 当前首页为浏览器游戏；历史漫画归档返回 404 |
 | 140 | manhuapica.com | manhuapica.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 141 | comic-ryu.jp | comic-ryu.jp | 可读画布连续翻译 | 公开章节画布已核对 |
@@ -171,9 +171,9 @@
 | 161 | manhwaus.org | manhwaus.org | 通用正文图片检测 | 连接失败 |
 | 162 | tichct.org | tichct.org | 通用正文图片检测 | 连接失败 |
 | 163 | manhuaplus.org | manhuaplus.org | 专用正文图片 | 公开章节 20 张完整正文；两张开头场景/SFX 阅读链路通过 |
-| 164 | manhuazhan.com | manhuazhan.com | 通用正文图片检测 | 章节 DOM 存在，正文图片未确认加载 |
+| 164 | manhuazhan.com | manhuazhan.com | 正文懒加载图片 | 公开章节显示 1000 像素宽正文，实页入口通过；排除大尺寸加载占位图 |
 | 165 | blossommanga.com | blossommanga.com | 通用正文图片检测 | 连接失败 |
-| 166 | w226.npdn.top | w226.npdn.top | 通用正文图片检测 | 首页 HTML 可访问 |
+| 166 | w226.npdn.top | w226.npdn.top | 通用正文图片检测 | 跳到群组/网址导航页，漫画正文未确认；不登记该跳转为漫画别名 |
 | 167 | komiku.com | komiku.com | 通用正文图片检测 | 连接失败 |
 | 168 | webtoonraw.com | webtoonraw.com | 通用正文图片检测 | 连接失败 |
 | 169 | kissmanga.in | kissmanga.in | 通用正文图片检测 | 访问受限 |
@@ -239,7 +239,7 @@
 | 229 | manhwas.men | manhwas.men | 通用正文图片检测 | 连接失败 |
 | 230 | ridibooks.com | ridibooks.com | 通用正文图片检测 | 本轮公开漫画目录返回 403，无正文验收 |
 | 231 | sunday-webry.com | sunday-webry.com | 正文画布 · 圈选翻译 | 公开章节画布不可直接读取 |
-| 232 | ynjn.jp | ynjn.jp | 通用正文图片检测 | 公开阅读器停在加载状态，未验证正文 |
+| 232 | ynjn.jp | ynjn.jp | 通用正文图片检测 | 本轮首页 HTTP 503；此前阅读器加载样本也未显示正文 |
 | 233 | mangayun.com | mangayun.com | 专用正文图片 | 如漫画来源首话完整正文和入口通过；第一来源 403 保留 |
 | 234 | manhwaweb.com | manhwaweb.com | 已核对正文图片 | /leer/ 公开章节限定正文直系图片，完整长图复用分段链路；排除音乐按钮图片和封面 |
 | 235 | a-i-manga.com | a-i-manga.com | 专用正文图片检测 | 公开作品阅读页 HTTP 200；24 张编号正文图片 |

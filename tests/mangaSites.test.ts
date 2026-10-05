@@ -6,6 +6,38 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it('哔哩哔哩数字章节只接入内容脚本可读的正文画布，排除二维码与其他容器', () => {
+        const site=resolveMangaSite('https://manga.bilibili.com/mc30124/595886')!;
+        expect(site).toMatchObject({name:'哔哩哔哩漫画',requireContent:true,selector:':not(*)'});expect(site.areaSelector).toBeUndefined();
+        const {document}=parseHTML('<canvas id="qr" class="qr-code"></canvas><div class="images-container double-page"><div class="view-container primary-image"><div class="image-container"><div class="bullet-screen"><div class="bullet-container" id="turn"></div></div><canvas id="body"></canvas><dialog class="bullet-container" id="dialog"></dialog></div><div class="loading-hinter" id="loading"></div></div><div><canvas id="outside"></canvas></div></div><div class="bullet-screen"><div class="bullet-container" id="unrelated"></div></div><div class="loading-hinter" id="unrelated-loading"></div>');
+        expect([...document.querySelectorAll(site.canvasSelector!)].map(canvas=>canvas.id)).toEqual(['body']);
+        expect([...document.querySelectorAll(site.canvasInteractionSelector!)].map(element=>element.id)).toEqual(['turn']);
+        expect([...document.querySelectorAll(site.loadingSelector!)].map(element=>element.id)).toEqual(['loading']);
+        for(const path of ['/','/detail/mc30124','/mcword/595886','/mc30124/word','/mc30124/595886/extra'])expect(resolveMangaReaderProfile('manga.bilibili.com',path)).toBeNull();
+        expect(resolveMangaReaderProfile('bilibili.com','/mc30124/595886')).toBeNull();expect(resolveMangaReaderProfile('manga.bilibili.com.attacker.test','/mc30124/595886')).toBeNull();
+    });
+    it('漫画站编号章节正文排除加载图与推荐，src 改为实际正文后加入选择', () => {
+        const site=resolveMangaSite('https://www.manhuazhan.com/chapter/235990-51809.html')!;
+        const {document}=parseHTML('<img id="banner" class="lazy" src="banner.jpg"><div id="ChapterContent"><p class="chapter chapterpic"><img id="body" class="lazy" src="https://s2.bzcdn.net/scomic/body.jpg"><img id="loading" class="lazy" src="/template/images/lazyload.gif"></p><aside><img id="ad" class="lazy" src="ad.jpg"></aside></div>');
+        expect([...document.querySelectorAll(site.selector)].map(image=>image.id)).toEqual(['body']);document.querySelector('#loading')!.setAttribute('src','body-2.jpg');
+        expect([...document.querySelectorAll(site.selector)].map(image=>image.id)).toEqual(['body','loading']);
+        for(const path of ['/','/comic/235990','/chapter/235990.html','/chapter/word-1.html','/chapter/1-2.html/extra'])expect(resolveMangaReaderProfile('manhuazhan.com',path)).toBeNull();
+        expect(resolveMangaReaderProfile('manhuazhan.com.attacker.test','/chapter/1-2.html')).toBeNull();
+    });
+    it('POIPIKU 数字单帖只接入主图片，推荐、头像和活动图不进入漫画队列', () => {
+        const site=resolveMangaSite('https://poipiku.com/2/13202427.html')!;
+        const {document}=parseHTML('<img id="avatar" class="IllustItemThumbImg"><section id="IllustItemList"><div class="IllustItem Upload"><a class="IllustItemThumb"><img id="body" class="IllustItemThumbImg"></a></div><div class="RelatedItemList"><a class="IllustItemThumb"><img id="related" class="IllustItemThumbImg"></a></div><div class="IllustItem"><aside><img id="event" class="IllustItemThumbImg"></aside></div></section>');
+        expect([...document.querySelectorAll(site.selector)].map(image=>image.id)).toEqual(['body']);
+        for(const path of ['/','/2/','/comic/','/word/13202427.html','/2/word.html','/2/13202427.html/extra'])expect(resolveMangaReaderProfile('poipiku.com',path)).toBeNull();
+        expect(resolveMangaReaderProfile('poipiku.com.attacker.test','/2/13202427.html')).toBeNull();
+    });
+    it.each(['/lucid/lucid2/need1','/lucid/lucid22/lucid22thattimei.html','/lucid/lucid24.88/lucid24.88','/lucid/extra/gettingstronger.html'])('Ranfren 静态路径 %s 仅选直接显示的正文，封面和预览链接排除',path=>{
+        const site=resolveMangaSite(`https://ranfren.neocities.org${path}`)!;
+        const {document}=parseHTML('<table><tr><td><img id="cover" src="https://ranfren.neocities.org/lucid/cover.jpg"></td></tr></table><center><img id="body" src="https://ranfren.neocities.org/lucid/lucid2/lucid2-1.jpg"><a><img id="preview" src="https://ranfren.neocities.org/lucid/lucid2/preview.jpg"></a><img id="logo" src="https://ranfren.neocities.org/art/logo.png"></center>');
+        expect([...document.querySelectorAll(site.selector)].map(image=>image.id)).toEqual(['body']);
+        for(const invalid of ['/','/comics','/lucid/vol1lucid','/lucid/extra/unconfirmed','/lucid/lucid2/need1/extra','/lucid/lucidword/need1','/lucid/lucid2/need1.png'])expect(resolveMangaReaderProfile('ranfren.neocities.org',invalid)).toBeNull();
+        expect(resolveMangaReaderProfile('other.neocities.org',path)).toBeNull();
+    });
     it('MANGA Million 语言路径与编号章节仅选择正文页，排除阅读指南、推荐封面与无编号图片', () => {
         const site = resolveMangaSite('https://mangamillion.shueisha.co.jp/zh-CN/title/1/chapter/66193')!;
         expect(site).toMatchObject({name: 'MANGA Million', requireContent: true});
