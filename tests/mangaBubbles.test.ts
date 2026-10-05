@@ -36,6 +36,15 @@ describe('漫画局部气泡识别边界',()=>{
         expect(collectMangaRegions(page,'en',400,400).map(r=>r.text)).toEqual(['Hello world','Outside caption']);
         expect(collectMangaRegions({results:page.results},'en',400,400)).toHaveLength(2);
     });
+    it('独立气泡中略宽行距的英文保持整句，原始修补框不扩张，整页仍不跨框合并',()=>{
+        const lines=[text('I ALREADY HAD',40,40,92,8),text('THE BIRD OPEN',40,55,92,7),text("IT, IT'S FINE.",51,69,70,8)];
+        const page={results:[],bubbles:[{bbox:box(20,20,130,90),results:lines},{bbox:box(180,20,130,90),results:[text('Next speaker.',200,55,90,8)]}]};
+        const regions=collectMangaRegions(page,'en',400,400);
+        expect(regions.map(region=>region.text)).toEqual(["I ALREADY HAD THE BIRD OPEN IT, IT'S FINE.",'Next speaker.']);
+        expect(regions[0]).toMatchObject({fontSize:8,bbox:{x0:40,y0:40,x1:132,y1:77},sourceBoxes:[{x0:40,y0:40,x1:132,y1:48},{x0:40,y0:55,x1:132,y1:62},{x0:51,y0:69,x1:121,y1:77}]});
+        expect(collectMangaRegions({results:lines},'en',400,400)).toHaveLength(3);
+        expect(collectMangaRegions({results:[],bubbles:[{bbox:box(20,20,130,200),results:[text('First',40,40,60,8),text('Distant',40,80,60,8)]}]},'en',400,400)).toHaveLength(2);
+    });
     it('对白较多时只保留外部完整旁白，空气泡和拟声碎片不进入翻译',()=>{
         const page={results:[text('Noise',150,200),text('short',150,240),text('row',150,254),text('Reliable caption',200,290),text('second line',200,306),text('Below',25,90),text('Left',0,30),text('Right',90,30)],
             bubbles:[{bbox:box(10,10),results:[text('Hello',20,20)]},{bbox:box(200,10),results:[text('Again',210,20)]},{bbox:box(10,110),results:[]}]};

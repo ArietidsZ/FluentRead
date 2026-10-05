@@ -44,6 +44,7 @@ const gpuDiagnosis=process.argv.includes('--gpu-diagnosis');
 const forceCpu=process.argv.includes('--pipeline-cpu');
 const extensionDebugging=process.argv.includes('--extension-debugging');
 const traceReader=process.argv.includes('--trace-reader');
+const traceLayout=process.argv.includes('--trace-layout');
 const targetUrl = arg('site-url','https://mangaplus.shueisha.co.jp/viewer/1024050');
 const pixiv=targetUrl.includes('pixiv.net/artworks/');
 const explicitReaderSelector=arg('reader-selector',null);
@@ -930,9 +931,23 @@ async function verifyReadAhead() {
         imageTranslationMangaEnabled:true,imageTranslationMangaDownloadConfirmed:true,imageTranslationMangaPromptEnabled:false,imageTranslationHoverEnabled:false,disableFloatingBall:false,
         imageTranslationMangaPrefetchPages:prefetchPages,
         service:'google',from:sourceLanguage,to:'zh-Hans',useCache:true,enableAIContext:false,animations:false});
-    await worker.evaluate(({live,trace})=>{
+    await worker.evaluate(({live,trace,traceLayout})=>{
         const original=globalThis.fetch.bind(globalThis);
         const test=globalThis.__mangaTest={operations:[],inputs:[],requests:[],cancellations:[],textBatches:[],progress:[],sourceRequests:[]};
+        if(traceLayout){
+            test.layoutResults=[];
+            const send=chrome.runtime.sendMessage.bind(chrome.runtime);
+            chrome.runtime.sendMessage=function(...args){
+                const message=args[0],observe=response=>{
+                    if(message?.type==='FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN'&&Array.isArray(response?.lines)&&test.layoutResults.length<10)
+                        test.layoutResults.push({requestId:message.requestId,lines:response.lines.map(({text,sourceText,bbox,fontSize,sourceBoxes,vertical})=>({text,sourceText,bbox,fontSize,sourceBoxes,vertical}))});
+                    return response;
+                };
+                const last=args.length-1,callback=args[last];
+                if(typeof callback==='function')args[last]=response=>callback(observe(response));
+                const result=send(...args);return typeof callback!=='function'&&result?.then?result.then(observe):result;
+            };
+        }
         chrome.runtime.onMessage.addListener((message,sender)=>{
             if(message.type==='fluentReadImageFetch'){
                 const clean=value=>{try{const url=new URL(value);url.username='';url.password='';url.search='';url.hash='';return url.href;}catch{return null;}};
@@ -963,7 +978,7 @@ async function verifyReadAhead() {
             }
             return original(input,options);
         };
-    },{live:liveTranslation,trace:traceReader});
+    },{live:liveTranslation,trace:traceReader,traceLayout});
     await worker.evaluate(async()=>{await chrome.offscreen.createDocument({url:chrome.runtime.getURL('offscreen.html'),reasons:['DOM_PARSER'],justification:'Verify local manga processing in an isolated test profile'});});
     modelObserver=await observeModelDownloads(extensionId);
     if(preloadModels){
@@ -978,6 +993,15 @@ async function verifyReadAhead() {
         const audited=await modelObserver.command('Runtime.evaluate',{expression:`(${audit.toString()})()`,returnByValue:true,awaitPromise:true});report.preloadedCacheOffscreen=audited.result.value;
         report.modelsPreloaded=true;await popup.goto(`chrome-extension://${extensionId}/popup.html`);
     }
+    if(traceLayout)await modelObserver.command('Runtime.evaluate',{expression:`(()=>{
+        const samples=globalThis.__mangaLayoutTrace=[];
+        const boxes=new WeakMap(),rect=CanvasRenderingContext2D.prototype.rect,draw=CanvasRenderingContext2D.prototype.fillText;
+        CanvasRenderingContext2D.prototype.rect=function(x,y,width,height){boxes.set(this,{x,y,width,height});return rect.call(this,x,y,width,height);};
+        CanvasRenderingContext2D.prototype.fillText=function(text,x,y,...args){
+            if(this.font.includes('Noto Sans')&&samples.length<1024)samples.push({text,x,y,font:this.font,canvas:{width:this.canvas.width,height:this.canvas.height},box:boxes.get(this)});
+            return draw.call(this,text,x,y,...args);
+        };
+    })()`});
     if(!liveSite)await context.route(targetUrl,route=>route.fulfill({status:200,contentType:'text/html',body:pipelineInputs?fixture.replace("canvas.toBlob(blob=>{image.src=URL.createObjectURL(blob)})","image.src=canvas.toDataURL('image/png')"):fixture}));
     page=await newPageWithoutForeground(context);page.on('pageerror',error=>{
         const stack=error.stack||'';
@@ -1217,6 +1241,10 @@ async function verifyReadAhead() {
     if(popup&&['ru','ko'].includes(sourceLanguage))report.ocrLanguageStatus=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadImageOcrStatus'})).catch(()=>null);
     if(page&&traceReader)report.readerTrace=await page.evaluate(()=>globalThis.__readerTrace).catch(()=>null);
     if(page&&report.status==='failed')await screenshot('failure').catch(()=>{});
+    if(traceLayout){
+        if(worker)report.layoutResults=await worker.evaluate(()=>globalThis.__mangaTest?.layoutResults).catch(()=>[]);
+        if(modelObserver)report.layoutDraws=(await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__mangaLayoutTrace',returnByValue:true}).catch(()=>({result:{value:[]}}))).result.value;
+    }
     if(modelObserver && pipelineInputs)report.pipelineLast=(await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__pipelineSamples',returnByValue:true}).catch(()=>({result:{value:null}}))).result.value;
     modelObserver?.close();
     if(launched)await launched.close();

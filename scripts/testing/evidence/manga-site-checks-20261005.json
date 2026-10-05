@@ -12957,6 +12957,118 @@
       "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-pash-click-turn-wave19",
       "outputsViewed": true,
       "qualityFinding": "Actual first output PNG and next-spread screenshot reviewed. Two operations, original pause/reuse, visible output after normal public viewer click and master cleanup pass; before/after canvas fingerprints differ. Plain bubbles and equipment description become Chinese, but short Japanese replies, outlined/handwritten text and many vertical fragments remain. Several translations are wrong, font sizes vary widely and bubble/art edges can be affected. Arrow-key attempts and outlined-opening failure retained; no whole chapter or quality acceptance."
+    },
+    "smallMangaTextLayout": {
+      "site": "Countdown to Countdown public homepage",
+      "sourceUrl": "https://www.ctccomic.com/comics/1790811216-15.png",
+      "samePublicSource": true,
+      "sourceBoxesUnchanged": true,
+      "originalOcrBoxCount": 18,
+      "translationRegions": {
+        "before": 11,
+        "after": 7
+      },
+      "splitBubbleFontsBefore": [
+        3.33333,
+        2.9162,
+        3.33333
+      ],
+      "mergedBubbleFontsAfter": [
+        8.4,
+        8.4
+      ],
+      "secondMergedBubbleFontsAfter": [
+        8.4,
+        8.4
+      ],
+      "baseline": {
+        "casesPassed": 5,
+        "operations": 1,
+        "firstPageMs": 17786,
+        "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-ctc-layout-baseline-wave20"
+      },
+      "candidate": {
+        "casesPassed": 5,
+        "operations": 1,
+        "firstPageMs": 11778,
+        "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-ctc-layout-candidate-wave20"
+      },
+      "outputsViewed": true,
+      "profileRemoved": true,
+      "errors": [],
+      "hostErrors": [],
+      "consoleErrors": [],
+      "scope": "Actual production PaddleOCR and online Google, same single public 900x1331 body. Bounded diagnostic wrappers record response line geometry and final Canvas text draws in the temporary extension only. No runtime telemetry, permissions or model change.",
+      "qualityFinding": "Reviewed actual candidate screenshot: two previously separate three-line bubbles now translate as full sentences at 8.4px; overall dialogue is more legible. Proper-name mistranslation, unnatural Chinese word breaks and faint original-text residue remain. No full chapter, all-site quality or performance claim."
+    },
+    "smallMangaTextBuilds": {
+      "compile": "passed",
+      "chrome": "passed (31.8s)",
+      "firefox": "passed (32.9s)",
+      "userscript": "passed (4.48s; 1,917,250 bytes)",
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed",
+      "focusedTests": "3 files / 33 cases passed",
+      "coverage": "mangaRegions, mangaBubbles, mangaRendering and mangaTypography: statements/branches/functions/lines 100%",
+      "regressionAndContracts": "6 files / 920 cases passed",
+      "testAudit": "468 files / 6090 declarations",
+      "scope": "Three production algorithm files changed. Existing full-suite baseline failures retained; no full235, Firefox/userscript runtime, whole-chapter quality or performance acceptance.",
+      "docsBuild": "passed",
+      "docsCheck": {
+        "ok": true,
+        "pages": 77,
+        "links": 3955,
+        "anchors": 741,
+        "images": 154
+      }
+    },
+    "pashSmallMangaTextRegression": {
+      "result": "passed",
+      "cases": [
+        "public readable canvas runs real manga OCR and translated overlay without changing the source",
+        "pause restores the original canvas and repeated activation reuses the translated page",
+        "normal chapter turn translates new canvas pages through the same serial queue",
+        "master switch restores the chapter and removes canvas translation UI"
+      ],
+      "operations": 2,
+      "canvasFirstPageMs": 59127,
+      "canvasTurn": {
+        "before": [
+          {
+            "width": 2544,
+            "height": 1632,
+            "hash": 2560525883
+          }
+        ],
+        "mode": "normal-public-click",
+        "activeElement": {
+          "tag": "BODY",
+          "id": ""
+        },
+        "after": [
+          {
+            "width": 2544,
+            "height": 1632,
+            "hash": 1356758849
+          }
+        ]
+      },
+      "translatedRegionCounts": [
+        7,
+        17
+      ],
+      "canvasDrawCount": 65,
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrorCount": 0,
+      "modelRequests": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-pash-layout-candidate-wave20",
+      "outputsViewed": true,
+      "qualityFinding": "Reviewed first actual output PNG and next-spread screenshot. Japanese canvas activation, unchanged original, pause/reuse, normal public click continuation and master cleanup pass. Outlined and short Japanese remain, vertical fragments are incomplete or mistranslated, font sizes vary and some bubble/art edges are affected. No full chapter or general Japanese quality acceptance. Existing outlined-opening and arrow-key failures retained.",
+      "scope": "Public free first chapter, initial two normal arrow keys and one normal viewer left-side click; same reader surface fingerprints as the wave19 successful click check. No opaque cid, private API or additional reader-profile claim."
     }
   }
 }
