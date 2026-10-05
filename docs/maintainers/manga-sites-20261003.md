@@ -64,14 +64,14 @@
 | 54 | Mangafire | mangafire.to | 专用正文图片检测 | 公开章节 HTTP 200；首张正文已加载，后续懒加载 |
 | 55 | Reaperscans | reaperscans.com | 通用正文图片检测 | 连接失败 |
 | 56 | Manhuatop | manhuatop.com | 通用正文图片检测 | 当前重定向到域名停放页，正文未确认 |
-| 57 | Dlsite | dlsite.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 57 | Dlsite | dlsite.com | 漫画目录委托 comipo 免费阅读 | 官方漫画入口正常转至 comipo，明确免费链接显示三张 1440×2048 blob 正文；不是本站独立正文或域名别名 |
 | 58 | uzakichanmanga | uzakichanmanga.com | 专用正文图片 | 连接失败 |
 | 59 | Shonenmagazine | shonenmagazine.com · pocket.shonenmagazine.com | 正文画布 · 圈选翻译 | 公开章节画布不可直接读取 |
 | 60 | ComicNaver | comic.naver.com | 专用正文图片检测 | 公开章节 HTTP 200；数字作品及章节查询 |
 | 61 | comic-zenon | comic-zenon.com | 不可读画布：圈选入口 | 公开章节结构已核对；画布受污染 |
 | 62 | Webtoons | webtoons.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 63 | Lezhin Comics | lezhin.com、lezhinus.com | 专用英语站正文图片 | 免费首话真实翻译及滚动续译通过；韩语站未验收，Cookie 横幅遮挡下部 |
-| 64 | BeLTOON | beltoon.jp | 通用正文图片检测 | 公开首页只确认作品封面；实际正文未确认 |
+| 64 | BeLTOON | beltoon.jp | 通用正文图片检测 | 正常关闭推广后进入作品页，显示内容确认提示且无正文；未提交提示，正文未验 |
 | 65 | ManhwaClub | manhwaclub.net | 专用正文图片 | 公开章节正文已核对；未验 OCR |
 | 66 | JinMangas | 待确认 | 待确认 | 缺少可确认地址 |
 | 67 | Atsumaru | atsu.moe | 专用正文图片，长图分段 | 800×15744 原图的两段翻译链路通过；整条未验 |
@@ -186,7 +186,7 @@
 | 176 | raw1001.net | raw1001.net | 专用正文图片 | 正文和入口通过；开头页 OCR 链路通过，质量有明显限制 |
 | 177 | mkissa.to | mkissa.to | 通用正文图片检测 | 公开作品有章节链接；实章 HTTP 403 验证页，正文未确认 |
 | 178 | iqiyi.com | iqiyi.com | 通用正文图片检测 | 当前为视频门户；已观察链接未见漫画入口 |
-| 179 | jcomic.net | jcomic.net | 通用正文图片检测 | 公开最新更新分类只确认封面；正文未确认 |
+| 179 | jcomic.net | jcomic.net | 专用单帖正文图片 | 公开 page 单帖 28 张直系 707×1000 正文；排除分类链接缩略图，未验 OCR |
 | 180 | tapas.io | tapas.io | 专用正文图片 | 公开章节 HTTP 200；两张实际对白翻译链路已核对 |
 | 181 | kagane.to | kagane.to | 通用正文图片检测 | 访问受限 |
 | 182 | soraraw.com | soraraw.com | 通用正文图片检测 | 正常窗口缩放提示持续遮住阅读器，正文未验收 |
@@ -223,7 +223,7 @@
 | 213 | mangaball.net | mangaball.net、mangaball.com | 通用正文图片检测 | 跳转现用 .com；正文图片受浏览器响应来源限制 |
 | 214 | yanmaga.jp | yanmaga.jp | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 215 | viewer.bookhodai.jp | viewer.bookhodai.jp | 通用正文图片检测 | 根地址正常转至订阅与登录首页，未发现公开正文 |
-| 216 | play.comipo.app | play.comipo.app | 通用正文图片检测 | 正常跳转至 comipo 登录页时 DOM 调查被导航中断；未验证正文 |
+| 216 | play.comipo.app | play.comipo.app | 专用免费正文图片 | 官方免费链接正常转至 viewer/free/BJ 书号，三张同源 blob 正文已显示，未验 OCR |
 | 217 | arenascan.com | arenascan.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 218 | luvyaa.my.id | luvyaa.my.id / luvyaa.co / v5.luvyaa.co | 已核对正文图片 | 原域名落地页显式链接与正常跳转确认现用域名，readerarea 中完整长图复用分段链路；排除上方广告 |
 | 219 | toondex.co | toondex.co | 专用正文图片 | 编号正文及扩展入口已核对；无 OCR 验收 |

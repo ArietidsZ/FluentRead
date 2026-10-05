@@ -6,6 +6,22 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it('comipo 公开免费书号只选已展示同源 blob 正文，排除目录、指南和外源', () => {
+        const site = resolveMangaSite('https://play.comipo.app/viewer/free/BJ03026230')!;
+        expect(site).toMatchObject({name: 'comipo', requireContent: true});
+        const {document} = parseHTML('<div class="_slide_container_1"><div class="_spread_2"><div class="_page_container_3"><div class="_placeholder_4"><img id="body" class="_page_5" src="blob:https://play.comipo.app/page"><img id="guide" class="_page_5" src="https://play.comipo.app/guide.png"><img id="foreign" class="_page_5" src="blob:https://other.example/page"></div><aside><img id="ad" class="_page_5" src="blob:https://play.comipo.app/ad"></aside></div></div></div>');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['body']);
+        for (const path of ['/', '/login', '/free/BJ03026230', '/viewer/free/BJword', '/viewer/free/RJ03026230', '/viewer/free/BJ03026230/extra']) expect(resolveMangaReaderProfile('play.comipo.app', path)).toBeNull();
+        expect(resolveMangaReaderProfile('play.comipo.app.attacker.test', '/viewer/free/BJ1')).toBeNull();
+    });
+    it('JComic 编码标题单帖只选直系正文图，目录缩略图、作者目录和嵌套广告排除', () => {
+        const site = resolveMangaSite('https://jcomic.net/page/Title%20With%20Spaces')!;
+        expect(site).toMatchObject({name: 'JComic', requireContent: true});
+        const {document} = parseHTML('<html><body><div class="container"><div class="row col-lg-12 col-md-12 col-xs-12"><img id="body" class="img-responsive comic-thumb jcomic-img"><a><img id="cover" class="comic-thumb jcomic-img"></a><aside><img id="ad" class="comic-thumb jcomic-img"></aside></div></div><img id="outside" class="comic-thumb jcomic-img"></body></html>');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['body']);
+        for (const path of ['/', '/cat/recent', '/eps/artist', '/author/artist', '/page/', '/page/title/extra']) expect(resolveMangaReaderProfile('jcomic.net', path)).toBeNull();
+        expect(resolveMangaReaderProfile('jcomic.net.attacker.test', '/page/title')).toBeNull();
+    });
     it.each(['1', '12'])('Hentaizap 正整数页码 %s 保持同一章节，封面及推荐排除', page => {
         const site = resolveMangaSite(`https://www.hentaizap.com/g/1655925/${page}/`)!;
         expect(site).toMatchObject({name: 'Hentaizap', chapterPath: '/g/1655925', requireContent: true});

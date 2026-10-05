@@ -2074,6 +2074,40 @@
           "networkFailureCount": 73,
           "requestedUrl": "https://www.dlsite.com/index.html",
           "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://www.dlsite.com/",
+          "finalUrl": "https://www.dlsite.com/index.html",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+          "attempt": "homes-wave26",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 32,
+          "canvasCount": 0,
+          "readerFinding": "Official root redirects to index.html general category portal; observed Comics catalogue link only.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 13,
+          "requestedUrl": "https://www.dlsite.com/",
+          "checkedAt": "2026-10-05T11:21:06.843871+00:00"
+        },
+        {
+          "url": "https://www.dlsite.com/comic/",
+          "finalUrl": "https://www.comipo.app/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+          "attempt": "catalogs-wave26",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 78,
+          "canvasCount": 0,
+          "readerFinding": "Observed official Comics catalogue link normally redirects to www.comipo.app with explicit public free-reading links to play.comipo.app. Delegated official reader, not an inferred DLsite hostname alias or standalone DLsite body.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://www.dlsite.com/comic/",
+          "checkedAt": "2026-10-05T11:21:06.843871+00:00"
         }
       ]
     },
@@ -2303,6 +2337,58 @@
           "title": "BeLTOON : ベルトゥーン | 女性向けフルカラーウェブマンガ・無料漫画・試し読みはBeLTOON",
           "imageCount": 74,
           "finalUrl": "https://www.beltoon.jp/app/all/main"
+        },
+        {
+          "url": "https://www.beltoon.jp/",
+          "finalUrl": "https://www.beltoon.jp/app/all/main",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+          "attempt": "homes-wave26",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 73,
+          "canvasCount": 0,
+          "readerFinding": "Public all/main catalogue shows covers and a promotional modal; no actual chapter body accepted.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 20,
+          "requestedUrl": "https://www.beltoon.jp/",
+          "checkedAt": "2026-10-05T11:21:06.843871+00:00"
+        },
+        {
+          "url": "https://www.beltoon.jp/app/all/main",
+          "finalUrl": "https://www.beltoon.jp/app/all/main",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+          "attempt": "beltoon-work-wave26",
+          "status": null,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal public work-card click is intercepted by native promotional ReactModal overlay and times out; no forced click or body acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 11,
+          "error": "locator.click: Timeout 10000ms exceeded.",
+          "requestedUrl": "https://www.beltoon.jp/app/all/main",
+          "checkedAt": "2026-10-05T11:21:06.843871+00:00"
+        },
+        {
+          "url": "https://www.beltoon.jp/app/all/main",
+          "finalUrl": "https://www.beltoon.jp/detail/digging",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+          "attempt": "beltoon-work-visible-wave26",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal observed Close label dismisses promotional modal; normal card click reaches detail/digging. Page displays explicit-content confirmation with Yes/No and no body images. Confirmation not submitted, no login/age/paid bypass or body acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 30,
+          "requestedUrl": "https://www.beltoon.jp/app/all/main",
+          "checkedAt": "2026-10-05T11:21:06.843871+00:00"
         }
       ]
     },
@@ -7266,7 +7352,7 @@
           "hostname": "jcomic.net"
         }
       ],
-      "adapter": "detect",
+      "adapter": "images",
       "browserRechecks": [
         {
           "checkedAt": "2026-10-05T02:20:21.958902+00:00",
@@ -7291,6 +7377,57 @@
           "title": "JComic - 最近更新",
           "imageCount": 30,
           "finalUrl": "https://jcomic.net/cat/%E6%9C%80%E8%BF%91%E6%9B%B4%E6%96%B0"
+        },
+        {
+          "url": "https://jcomic.net/",
+          "finalUrl": "https://jcomic.net/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+          "attempt": "homes-wave26",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Public root/category exposes normal page/title and eps/author links; category covers are not chapter acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 3,
+          "requestedUrl": "https://jcomic.net/",
+          "checkedAt": "2026-10-05T11:21:06.843871+00:00"
+        },
+        {
+          "url": "https://jcomic.net/cat/%E6%9C%80%E8%BF%91%E6%9B%B4%E6%96%B0",
+          "finalUrl": "https://jcomic.net/cat/%E6%9C%80%E8%BF%91%E6%9B%B4%E6%96%B0",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+          "attempt": "catalogs-wave26",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 30,
+          "canvasCount": 0,
+          "readerFinding": "Public root/category exposes normal page/title and eps/author links; category covers are not chapter acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://jcomic.net/cat/%E6%9C%80%E8%BF%91%E6%9B%B4%E6%96%B0",
+          "checkedAt": "2026-10-05T11:21:06.843871+00:00"
+        },
+        {
+          "url": "https://jcomic.net/page/Sophia%27s%20Hidden%20Interests",
+          "finalUrl": "https://jcomic.net/page/Sophia%27s%20Hidden%20Interests",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+          "attempt": "jcomic-post-wave26",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 28,
+          "canvasCount": 0,
+          "readerFinding": "Observed public page/title post displays28 direct comic-thumb jcomic-img body images,707x1000; separate linked category thumbnails and nested ads excluded. Technical DOM only, no chapter screenshots, OCR or image export.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 6,
+          "requestedUrl": "https://jcomic.net/page/Sophia%27s%20Hidden%20Interests",
+          "checkedAt": "2026-10-05T11:21:06.843871+00:00"
         }
       ]
     },
@@ -8280,7 +8417,7 @@
           "hostname": "play.comipo.app"
         }
       ],
-      "adapter": "detect",
+      "adapter": "images",
       "browserRechecks": [
         {
           "checkedAt": "2026-10-05T02:14:58.302Z",
@@ -8289,6 +8426,23 @@
           "readerFinding": "Normal navigation reaches comipo login; DOM research interrupted by navigation, no body acceptance.",
           "finalUrl": "https://www.comipo.app/login",
           "error": "page.evaluate: Execution context was destroyed, most likely because of a navigation"
+        },
+        {
+          "url": "https://play.comipo.app/free/BJ03026230",
+          "finalUrl": "https://play.comipo.app/viewer/free/BJ03026230",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+          "attempt": "comipo-free-wave26",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 3,
+          "canvasCount": 0,
+          "readerFinding": "Observed official catalogue free/BJ03026230 normally redirects to viewer/free/BJ03026230 and displays three1440x2048 same-origin blob body pages. CSS-module slide/spread/page/placeholder direct image hierarchy excludes guide and covers; no private API, account or image decryption.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 5,
+          "requestedUrl": "https://play.comipo.app/free/BJ03026230",
+          "checkedAt": "2026-10-05T11:21:06.843871+00:00"
         }
       ]
     },
@@ -13432,6 +13586,142 @@
       "pageErrorCount": 0,
       "networkFailureCount": 2,
       "profileRemoved": true
+    },
+    {
+      "url": "https://www.beltoon.jp/",
+      "finalUrl": "https://www.beltoon.jp/app/all/main",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+      "attempt": "homes-wave26",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 73,
+      "canvasCount": 0,
+      "readerFinding": "Public all/main catalogue shows covers and a promotional modal; no actual chapter body accepted.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 20
+    },
+    {
+      "url": "https://www.dlsite.com/",
+      "finalUrl": "https://www.dlsite.com/index.html",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+      "attempt": "homes-wave26",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 32,
+      "canvasCount": 0,
+      "readerFinding": "Official root redirects to index.html general category portal; observed Comics catalogue link only.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 13
+    },
+    {
+      "url": "https://jcomic.net/",
+      "finalUrl": "https://jcomic.net/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+      "attempt": "homes-wave26",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Public root/category exposes normal page/title and eps/author links; category covers are not chapter acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 3
+    },
+    {
+      "url": "https://www.dlsite.com/comic/",
+      "finalUrl": "https://www.comipo.app/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+      "attempt": "catalogs-wave26",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 78,
+      "canvasCount": 0,
+      "readerFinding": "Observed official Comics catalogue link normally redirects to www.comipo.app with explicit public free-reading links to play.comipo.app. Delegated official reader, not an inferred DLsite hostname alias or standalone DLsite body.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://jcomic.net/cat/%E6%9C%80%E8%BF%91%E6%9B%B4%E6%96%B0",
+      "finalUrl": "https://jcomic.net/cat/%E6%9C%80%E8%BF%91%E6%9B%B4%E6%96%B0",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+      "attempt": "catalogs-wave26",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 30,
+      "canvasCount": 0,
+      "readerFinding": "Public root/category exposes normal page/title and eps/author links; category covers are not chapter acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://www.beltoon.jp/app/all/main",
+      "finalUrl": "https://www.beltoon.jp/app/all/main",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+      "attempt": "beltoon-work-wave26",
+      "status": null,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal public work-card click is intercepted by native promotional ReactModal overlay and times out; no forced click or body acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 11,
+      "error": "locator.click: Timeout 10000ms exceeded."
+    },
+    {
+      "url": "https://www.beltoon.jp/app/all/main",
+      "finalUrl": "https://www.beltoon.jp/detail/digging",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+      "attempt": "beltoon-work-visible-wave26",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal observed Close label dismisses promotional modal; normal card click reaches detail/digging. Page displays explicit-content confirmation with Yes/No and no body images. Confirmation not submitted, no login/age/paid bypass or body acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 30
+    },
+    {
+      "url": "https://play.comipo.app/free/BJ03026230",
+      "finalUrl": "https://play.comipo.app/viewer/free/BJ03026230",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+      "attempt": "comipo-free-wave26",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 3,
+      "canvasCount": 0,
+      "readerFinding": "Observed official catalogue free/BJ03026230 normally redirects to viewer/free/BJ03026230 and displays three1440x2048 same-origin blob body pages. CSS-module slide/spread/page/placeholder direct image hierarchy excludes guide and covers; no private API, account or image decryption.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 5
+    },
+    {
+      "url": "https://jcomic.net/page/Sophia%27s%20Hidden%20Interests",
+      "finalUrl": "https://jcomic.net/page/Sophia%27s%20Hidden%20Interests",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "official-delegated-free-reader-and-single-post-wave26",
+      "attempt": "jcomic-post-wave26",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 28,
+      "canvasCount": 0,
+      "readerFinding": "Observed public page/title post displays28 direct comic-thumb jcomic-img body images,707x1000; separate linked category thumbnails and nested ads excluded. Technical DOM only, no chapter screenshots, OCR or image export.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 6
     }
   ],
   "verification": {
@@ -22045,6 +22335,178 @@
       "casesFailed": 4,
       "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave25.log",
       "finding": "Group wrapper ignores additional file filters, so31 architecture files ran. Four failures in browserFocusSafety, contentTrustBoundary and two verificationOwnership assertions retained. Do not claim group/all-suite green; direct two-file targeted command passed809. No unrelated-file edits or blanket baseline claim."
+    },
+    "comipoJcomicReaderUnit": {
+      "status": "passed",
+      "cases": 529,
+      "files": 7,
+      "fourDimensionCoverage": "100% for all eight manga configuration/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave26.log",
+      "scope": "Free BJ viewer actual same-origin blob hierarchy and JComic direct body path/DOM boundaries; no archive, guide, cover, nested ad, spoofed domain or private source access."
+    },
+    "comipoJcomicReaderEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://play.comipo.app/free/BJ03026230",
+        "live reader discovery: https://jcomic.net/page/Sophia%27s%20Hidden%20Interests",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 76304,
+          "name": "微信"
+        },
+        "frontmostAfter": {
+          "pid": 76304,
+          "name": "微信"
+        }
+      },
+      "profileRemoved": true,
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-readers-dom-only-wave26/report.json",
+      "scope": "18 base icon/resource/master switch and two public entry DOM cases; no OCR, live-reader image exports or chapter screenshots. Native free comipo redirect and JComic single post only.",
+      "liveReaders": [
+        {
+          "url": "https://play.comipo.app/free/BJ03026230",
+          "finalUrl": "https://play.comipo.app/viewer/free/BJ03026230",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed",
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "bodyPageCount": 3,
+          "loadedBodyPageCount": 3,
+          "geometricallyVisibleBodyPageCount": 1,
+          "bodyGeometrySamples": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1440,
+              "naturalHeight": 2048,
+              "width": 633,
+              "height": 900,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1440,
+              "naturalHeight": 2048,
+              "width": 633,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1440,
+              "naturalHeight": 2048,
+              "width": 633,
+              "height": 900,
+              "visible": false
+            }
+          ]
+        },
+        {
+          "url": "https://jcomic.net/page/Sophia%27s%20Hidden%20Interests",
+          "finalUrl": "https://jcomic.net/page/Sophia%27s%20Hidden%20Interests",
+          "status": 200,
+          "mode": "images",
+          "result": "reader-entry-confirmed",
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "bodyPageCount": 28,
+          "loadedBodyPageCount": 28,
+          "geometricallyVisibleBodyPageCount": 1,
+          "bodyGeometrySamples": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 707,
+              "naturalHeight": 1000,
+              "width": 707,
+              "height": 1000,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 707,
+              "naturalHeight": 1000,
+              "width": 707,
+              "height": 1000,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 707,
+              "naturalHeight": 1000,
+              "width": 707,
+              "height": 1000,
+              "visible": false
+            }
+          ]
+        }
+      ]
+    },
+    "comipoJcomicReaderBuilds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "chromeSeconds": 29.0,
+      "firefoxSeconds": 28.5,
+      "userscriptSeconds": 3.94,
+      "userscriptBytes": 1917250,
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-targeted-wave26.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6110,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-wave26.log"
+      },
+      "scope": "Chrome public entry runtime only. Firefox/userscript builds and verifiers only; no full architecture group/all-suite rerun, prior four group failures retained. No source access, OCR, permissions, dependencies, version or reference-repo change.",
+      "docs": {
+        "build": "passed",
+        "check": "passed",
+        "pages": 77,
+        "links": 3955,
+        "anchors": 741,
+        "images": 154,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave26.log"
+      }
     }
   }
 }
