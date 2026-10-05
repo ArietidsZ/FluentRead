@@ -325,10 +325,6 @@
         <VideoLocalModelSettings :config="config" />
       </SettingsGroup>
 </SettingsPanel>
-      <details class="feature-help">
-        <summary>使用说明</summary>
-        <p>开启 YouTube 原生字幕后显示译文，机器翻译约提前 10 秒、AI 服务约提前 30 秒准备；可从播放器菜单下载原文或译文 SRT</p>
-      </details>
     </section>
     <!-- 鼠标悬浮快捷键 -->
     <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" id="settings-translation" class="settings-section">
