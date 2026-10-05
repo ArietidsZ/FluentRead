@@ -150,7 +150,7 @@ async function patch(patch) {
     await page.mouse.wheel(0, -10000);
     await page.waitForFunction(() => document.querySelector('[data-settings-anchor-link="reading"]')?.getAttribute('aria-current') === 'location');
     await page.mouse.wheel(0, 10000);
-    await page.waitForFunction(() => document.querySelector('[data-settings-anchor-link="tools"]')?.getAttribute('aria-current') === 'location');
+    await page.waitForFunction(() => document.querySelector('[data-settings-anchor-link="excluded-languages"]')?.getAttribute('aria-current') === 'location');
     report.scrollHighlight = true;
     await page.emulateMedia({reducedMotion: 'reduce'});
     for (const [query, anchor] of [['输入框', 'input'], ['界面字体', 'font'], ['翻译缓存', 'cache']]) {
@@ -169,7 +169,7 @@ async function patch(patch) {
     assert((await anchorState('recognition')).delta < 4, 'Search observer overrides an anchor click');
     await navigate('settings-general');
     await page.locator('[data-testid="open-floating-ball-settings"]').click();
-    await page.waitForFunction(() => document.querySelector('[data-settings-anchor-link="tools"]')?.getAttribute('aria-current') === 'location');
+    await page.waitForFunction(() => document.querySelector('[data-settings-anchor-link="floating-ball"]')?.getAttribute('aria-current') === 'location');
     report.searchAndCrossPageLinks = true;
     for (const section of ['settings-translation-stats', 'settings-sites']) {
       await navigate(section);

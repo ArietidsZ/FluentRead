@@ -1,5 +1,6 @@
 {
   "messages": {
+    "options.panel.floatingBall": "Ajustes del botón flotante",
     "settings.general.bilingualSentenceHighlightGroupingHint": "Si las oraciones se dividen de forma distinta, se resaltan juntas las oraciones contiguas.",
     "learning.collection.moreActions": "Más acciones sobre elementos guardados",
     "learning.collection.listenExplain": "Escuchar y explicar",

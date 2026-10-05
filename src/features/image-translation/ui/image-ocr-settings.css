@@ -5,13 +5,14 @@
  * 模块边界：仅用于 ImageOcrSettings 的 scoped 样式，不影响宿主网页，不承担后台下载或存储逻辑。
  */
 .image-ocr-section {box-sizing:border-box;width:min(100%,1080px);min-width:0;margin:0 auto 16px;border:1px solid var(--line,#e5e8ef);border-radius:12px;background:var(--surface,#fff);color:var(--ink,#172033);overflow:hidden;}
-.image-ocr-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:12px 16px;border-bottom:1px solid var(--line,#e5e8ef);}
+.image-ocr-heading {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 20px;border-bottom:1px solid var(--line,#e5e8ef);}
 .image-ocr-heading > div:first-child {flex:1;min-width:180px;}
 .image-ocr-source {display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted,#737c8f);flex-shrink:0;}
 .image-ocr-source select {font:inherit;font-size:12px;min-height:32px;max-width:160px;border:1px solid var(--line,#e5e8ef);border-radius:7px;padding:4px 8px;background:var(--surface,#fff);color:var(--ink,#172033);}
 .image-ocr-source select:focus-visible {outline:2px solid var(--brand,#ef4776);outline-offset:2px;}
-.image-ocr-heading h2 {margin:0;font-size:15px;font-weight:700;line-height:1.4;}
+.image-ocr-heading h2 {margin:0;font-size:16px;font-weight:650;line-height:1.4;}
 .image-ocr-heading p,.image-ocr-summary p {margin:4px 0 0;color:var(--muted,#737c8f);font-size:12px;line-height:1.6;}
+.image-ocr-heading p {margin:0;}
 .image-ocr-count {flex-shrink:0;padding-top:2px;color:var(--muted,#737c8f);font-size:11px;font-variant-numeric:tabular-nums;}
 .image-ocr-recommendation {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;background:var(--surface-soft,#f8f9fb);border-bottom:1px solid var(--line,#e5e8ef);}
 .image-ocr-summary {min-width:0;}

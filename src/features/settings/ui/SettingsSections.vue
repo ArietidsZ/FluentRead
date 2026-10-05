@@ -596,6 +596,8 @@
         <QuickTranslationProfiles :config="config" action="full-page" :profiles="config.quickTranslationProfiles"
           @update:profiles="config.quickTranslationProfiles = $event" />
       </SettingsGroup>
+    </SettingsPanel>
+    <SettingsPanel name="context-menu" id="context-menu-settings" :active="props.activePanel">
       <SettingsGroup
         v-if="browserCapabilities.browser === 'userscript'"
         data-userscript-unavailable="context-menu"
@@ -607,15 +609,19 @@
 </section>
 
     <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" id="floating-ball-settings" class="settings-section settings-section-continuation">
-<SettingsPanel name="tools" :active="props.activePanel">
+<SettingsPanel name="floating-ball" :active="props.activePanel">
       <FloatingBallSettings :config="config" />
     </SettingsPanel>
 </section>
 
     <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
-<SettingsPanel name="tools" :active="props.activePanel">
+<SettingsPanel name="paragraph-copy" id="paragraph-copy-settings" :active="props.activePanel">
       <ParagraphCopySettings :config="config" />
+    </SettingsPanel>
+    <SettingsPanel name="section-translation" id="section-translation-settings" :active="props.activePanel">
       <SectionTranslationSettings :config="config" />
+    </SettingsPanel>
+    <SettingsPanel name="excluded-languages" id="excluded-language-settings" :active="props.activePanel">
       <ExcludedLanguageSettings v-model="config.excludedLanguages" />
     </SettingsPanel>
 </section>

@@ -6,10 +6,12 @@
  */
 .rule-workspace { width: min(100%, 1080px); min-width: 0; margin: 0 auto; color: var(--ink); }
 .rule-card { padding: 24px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
-.rule-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.rule-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 20px; border-radius: 8px; }
+.rule-card > .rule-heading { margin: -24px -24px 20px; padding: 12px 24px; border-bottom: 1px solid var(--line); border-radius: 13px 13px 0 0; }
 .rule-workspace h3 { margin: 0; font-size: 16px; font-weight: 650; }
 .rule-workspace h4 { margin: 0; font-size: 13px; }
-.rule-heading p, .preference-global p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.rule-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.preference-global p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .rule-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .rule-field { display: grid; gap: 7px; margin: 14px 0; min-width: 0; font-size: 12px; }
 .rule-field > span { font-weight: 550; }
@@ -33,3 +35,4 @@
 .rule-workspace pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.7 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 700px) { .rule-card { padding: 18px; } .rule-heading { flex-wrap: wrap; gap: 12px; } .rule-columns { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 700px) { .rule-card > .rule-heading { margin: -18px -18px 16px; padding: 11px 20px; } }

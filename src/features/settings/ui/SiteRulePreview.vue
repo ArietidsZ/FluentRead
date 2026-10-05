@@ -7,7 +7,7 @@
 <template>
   <div class="rule-workspace" data-setting="site-rule-preview">
     <section class="rule-card">
-      <header class="rule-heading"><div><h3>{{ tr('生效预览') }}</h3><p>{{ tr('输入完整网址，查看已保存的网站偏好和正文规则是否生效；检查时不会访问该网站') }}</p></div></header>
+      <header class="rule-heading settings-card-heading"><div class="settings-card-heading-copy"><h3>{{ tr('生效预览') }}</h3><p>{{ tr('输入完整网址，查看已保存的网站偏好和正文规则是否生效；检查时不会访问该网站') }}</p></div></header>
       <form class="preview-form" @submit.prevent="checkedUrl = input">
         <label class="rule-field"><span>{{ tr('输入完整网址') }}</span><input v-model="input" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/articles/hello" :aria-invalid="Boolean(checkedUrl && !preferences)" aria-describedby="site-rule-preview-result" /></label>
         <button type="submit" class="rule-primary">{{ tr('检查已保存配置') }}</button>

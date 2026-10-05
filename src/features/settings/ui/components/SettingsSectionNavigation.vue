@@ -1,7 +1,7 @@
 <!--
  @file src/features/settings/ui/components/SettingsSectionNavigation.vue
  文件职责：为连续设置表单提供固定在内容区上方的分区导航，点击后在原页滚动到对应模块。
- 主要内容：从当前可见表单的分区标记按 DOM 顺序收集入口，复用分类名称并支持独立模块名称；监听懒加载、展开及尺寸变化，滚动时同步高亮，窄屏横向定位当前入口，尊重减少动态效果偏好，点击折叠模块时展开后定位。
+ 主要内容：从当前可见表单的分区标记按 DOM 顺序收集入口，复用分类名称并支持独立模块名称；监听懒加载、展开及尺寸变化，滚动时同步高亮，到底时激活最后一组，窄屏横向定位当前入口；点击折叠模块时展开后定位并尊重减少动态效果偏好。
  模块边界：只读取父级传入的内容容器和导航元数据，不改变路由、不隐藏表单、不读写配置；组件卸载或切换页面时清理观察器、事件和动画帧。
 -->
 <template>
@@ -77,8 +77,13 @@ function updateActiveAnchor(): void {
   }
   const top = container.getBoundingClientRect().top + container.clientTop + 24
   let current = anchors.value[0]
-  for (const anchor of anchors.value) {
-    if (anchor.element.getBoundingClientRect().top <= top) current = anchor
+  if (container.scrollTop > 0 && container.scrollTop + container.clientHeight >= container.scrollHeight - 2) {
+    // 最后一组可能比视口短，无法滚到顶部；到底后仍应明确指向它。
+    current = anchors.value[anchors.value.length - 1]
+  } else {
+    for (const anchor of anchors.value) {
+      if (anchor.element.getBoundingClientRect().top <= top) current = anchor
+    }
   }
   activeAnchor.value = current.id
 }
