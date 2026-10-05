@@ -1,30 +1,32 @@
 <!--
  * @file src/features/image-translation/ui/MangaModelSettings.vue
  * 文件职责：提供图片与漫画共用本地模型的下载说明、来源选择、真实进度、离线导入和缓存清理。
- * 主要内容：供漫画与单图共用；关闭漫画时只展示识别资源与配套离线文件；从后台读取模型缓存和下载快照，设置首选来源并说明失败后的自动切换；定时刷新可见设置页，离线文件经过本功能资源服务校验才入库，保留部分成功并显示错误反馈。
+ * 主要内容：供漫画与单图共用，突出当前资源用途和准备状态，下载来源、离线导入及清理收进次要入口；关闭漫画时只展示识别资源与配套离线文件；定时读取后台模型缓存和下载快照，错误会展开管理入口，离线文件经过资源服务校验才入库，保留部分成功并显示错误反馈。
  * 模块边界：不运行 OCR/修补、不下载远程代码、不上传选中文件；页面关闭只清理状态订阅，正在处理漫画的任务仍由 Offscreen 和页面取消入口管理。
  -->
 <template>
-  <section class="manga-model-settings" data-testid="manga-model-manager">
-    <header class="settings-card-heading"><h2>{{ translateLegacy('PaddleOCR 文字识别') }}</h2><span>{{ translateLegacy('首次使用时自动准备') }}</span></header>
-    <p>{{ translateLegacy('资源下载后可重复使用，图片在当前浏览器中处理') }}</p>
+  <section class="manga-model-settings" :class="{'is-embedded': embedded}" data-testid="manga-model-manager">
+    <header class="manga-resource-heading" :class="{'settings-card-heading': !embedded}">
+      <div><h2>{{ translateLegacy('标准识别') }}</h2><small>PaddleOCR · {{ translateLegacy(imageRecognition ? showInpainting ? '用于图片与漫画' : '用于图片翻译' : '用于漫画翻译') }}</small></div>
+      <span class="manga-resource-current">{{ translateLegacy('当前使用') }}</span>
+    </header>
     <div class="manga-resource-list">
-      <div class="manga-resource"><div><strong>{{ translateLegacy('图片文字识别') }}</strong><small>{{ translateLegacy('识别普通图片与漫画中的文字') }} · {{ translateLegacy('约 30 MB') }}</small></div><span :class="{ready: status?.ready}">{{ translateLegacy(!status ? '正在检查' : status.ready ? '已就绪' : '首次使用时下载') }}</span></div>
-      <div v-if="showInpainting" class="manga-resource"><div><strong>{{ translateLegacy('背景文字清除') }}</strong><small>{{ translateLegacy('清除复杂画面中的原文字') }} · {{ translateLegacy('约 197 MB') }}</small></div><span :class="{ready: status?.inpaintingReady}">{{ translateLegacy(!status ? '正在检查' : status.inpaintingReady ? '已就绪' : '需要时下载') }}</span></div>
+      <div class="manga-resource"><div><strong>{{ translateLegacy('图片文字识别') }}</strong><small>{{ translateLegacy('约 30 MB') }}</small></div><span class="manga-resource-state" :class="{ready: status?.ready}">{{ translateLegacy(!status ? '正在检查' : status.ready ? '已就绪' : '未下载') }}</span></div>
+      <div v-if="showInpainting" class="manga-resource"><div><strong>{{ translateLegacy('背景文字清除') }}</strong><small>{{ translateLegacy('约 197 MB') }}</small></div><span class="manga-resource-state" :class="{ready: status?.inpaintingReady}">{{ translateLegacy(!status ? '正在检查' : status.inpaintingReady ? '已就绪' : '需要时下载') }}</span></div>
     </div>
+    <p class="manga-resource-hint">{{ translateLegacy('首次翻译时自动准备资源') }}</p>
     <div v-if="status?.download" class="manga-model-progress" role="status" data-i18n-ignore>
       <strong>{{ translateLegacy(phaseLabel) }}</strong><span>{{ status.download.source }} · {{ Math.round(status.download.loaded / 1048576) }} / {{ Math.round(status.download.total / 1048576) }} MB</span>
       <progress v-if="downloading" :value="status.download.loaded" :max="status.download.total" />
     </div>
     <small v-if="error || statusError" class="manga-model-error" role="alert" data-i18n-ignore>{{ error || statusError }}</small>
     <details class="manga-download-settings" :open="!!error || !!statusError || status?.download?.phase === 'error'">
-      <summary>{{ translateLegacy('下载设置与离线导入') }}</summary>
+      <summary>{{ translateLegacy('下载与管理') }}</summary>
       <div class="manga-model-controls"><label>{{ translateLegacy('下载来源') }}
-        <select :aria-label="translateLegacy('模型下载来源')" :value="source" :disabled="busy || downloading" @change="changeSource(($event.target as HTMLSelectElement).value)"><option value="auto">{{ translateLegacy('自动选择') }}</option><option value="official">{{ translateLegacy('官方源优先') }}</option><option value="mirror">{{ translateLegacy('备用镜像优先') }}</option></select>
+        <UiSelect :aria-label="translateLegacy('模型下载来源')" :model-value="source" :disabled="busy || downloading" @update:model-value="changeSource"><el-option value="auto" :label="translateLegacy('自动选择')" /><el-option value="official" :label="translateLegacy('官方源优先')" /><el-option value="mirror" :label="translateLegacy('备用镜像优先')" /></UiSelect>
       </label><button type="button" :disabled="busy || downloading" @click="input?.click()">{{ translateLegacy('导入已下载文件') }}</button><input ref="input" hidden type="file" multiple accept=".onnx,.txt" @change="importFiles" /></div>
-      <p>{{ translateLegacy('下载失败时自动尝试备用来源并保留已完成的文件，也可导入离线文件') }}</p>
-      <details><summary>{{ translateLegacy('获取离线文件') }}</summary><p>{{ translateLegacy('下载以下文件后，可一次选择多个文件导入；只接受完整且经过校验的配套模型') }}</p><ul><li v-for="asset in offlineAssets" :key="asset.name"><a :href="source === 'mirror' ? asset.url.replace('huggingface.co','hf-mirror.net') : asset.url" target="_blank" rel="noopener noreferrer" data-i18n-ignore>{{ asset.name }}</a></li></ul></details>
-      <div class="manga-model-storage"><small>{{ translateLegacy('已占用空间') }} · {{ Math.round((status?.bytes || 0) / 1048576) }} MB</small><button type="button" :disabled="busy || downloading || !status?.bytes" @click="remove">{{ translateLegacy('清除已下载资源') }}</button></div>
+      <details class="manga-offline-files"><summary>{{ translateLegacy('下载离线文件') }}</summary><ul><li v-for="asset in offlineAssets" :key="asset.name"><a :href="source === 'mirror' ? asset.url.replace('huggingface.co','hf-mirror.net') : asset.url" target="_blank" rel="noopener noreferrer" data-i18n-ignore>{{ asset.name }}</a></li></ul></details>
+      <div v-if="status?.bytes" class="manga-model-storage"><small>{{ translateLegacy('已占用空间') }} · {{ Math.round(status.bytes / 1048576) }} MB</small><button type="button" :disabled="busy || downloading" @click="remove">{{ translateLegacy('清除已下载资源') }}</button></div>
     </details>
   </section>
 </template>
@@ -32,8 +34,9 @@
 import {computed,onBeforeUnmount,onMounted,ref} from 'vue';
 import browser from 'webextension-polyfill';
 import {useUiI18n} from '@/src/ui/i18n';
+import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {getMangaModelSource,setMangaModelSource,importMangaModel,MANGA_OCR_ASSETS,MANGA_INPAINT_ASSET,type MangaModelSource,type MangaDownloadState} from '../services/mangaOcrAssets';
-const props=withDefaults(defineProps<{showInpainting?: boolean}>(),{showInpainting:true});
+const props=withDefaults(defineProps<{showInpainting?: boolean; embedded?: boolean; imageRecognition?: boolean}>(),{showInpainting:true,embedded:false,imageRecognition:true});
 const {translateLegacy}=useUiI18n();
 const status=ref<{ready:boolean;inpaintingReady?:boolean;bytes:number;download?:MangaDownloadState}|null>(null);
 const source=ref<MangaModelSource>('auto'),busy=ref(false),error=ref(''),statusError=ref(''),input=ref<HTMLInputElement>();
@@ -83,4 +86,19 @@ onBeforeUnmount(()=>{disposed=true;clearTimeout(timer);});
 @media(max-width:600px){.manga-model-settings{padding:16px}.manga-model-settings header{align-items:flex-start;flex-direction:column}.manga-resource{gap:8px}.manga-model-storage{align-items:flex-start;flex-direction:column}}
 
 .manga-model-settings > header.settings-card-heading { margin: -20px -20px 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); border-radius: 11px 11px 0 0; }
+.manga-model-settings.is-embedded { padding:0; border:0; border-radius:0; background:transparent; }
+.is-embedded > header h2 { font-size:14px; }
+.manga-model-controls label { width:min(100%,240px); min-width:0; }
+.manga-resource-heading h2 { font-size:15px; }
+.manga-resource-heading small { margin-top:4px; }
+.manga-resource-heading > .manga-resource-current { padding:4px 9px; border-radius:6px; color:var(--brand-strong); background:var(--brand-soft); font-size:11px; }
+.manga-resource { padding:14px 0; }
+.manga-resource:last-child { border-bottom:0; }
+.manga-resource-state { padding:4px 9px; border-radius:6px; background:var(--surface-soft); }
+.manga-resource-state.ready { background:var(--el-color-success-light-9); }
+.manga-model-settings .manga-resource-hint { margin:4px 0 12px; font-size:12px; }
+.manga-download-settings { border-top:1px solid var(--line); }
+:global(.settings-app .workspace .settings-card .manga-model-settings details > summary) { min-height:36px; padding:10px 0; border:0; border-radius:0; background:transparent; font-weight:550; }
+.manga-model-settings .manga-model-controls { margin:4px 0 8px; }
+.manga-model-settings .manga-offline-files { margin-top:4px; }
 </style>

@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/SentenceHighlightStyleSettings.vue
 文件职责：在界面风格页独立选择双语逐句高亮外观，与译文整体样式分开设置。
-主要内容：提供默认跟随界面明暗主题且可手动切换的网页交互预览、八种预设、默认折叠的自定义外观控件与 CSS 声明输入，支持命名快照的保存、切换、更新和删除；开关仍由阅读辅助管理。
+主要内容：使用统一的下拉选择器保持控件与菜单风格一致；提供默认跟随界面明暗主题且可手动切换的网页交互预览、八种预设、默认折叠的自定义外观控件与 CSS 声明输入，支持命名快照的保存、切换、更新和删除；开关仍由阅读辅助管理。
 模块边界：只编辑父级 Config 草稿；与网页共用命名和绘制声明，不请求翻译、不修改宿主 DOM。
 -->
 <template>
@@ -70,9 +70,9 @@
             </div>
             <label class="sentence-highlight-line-style">
               <span>{{ t('sentenceHighlight.lineStyle') }}</span>
-              <select v-model="appearance.lineStyle" :aria-label="t('sentenceHighlight.lineStyle')">
-                <option v-for="style in SENTENCE_HIGHLIGHT_LINE_STYLES" :key="style" :value="style">{{ t(`sentenceHighlight.line.${style}`) }}</option>
-              </select>
+              <UiSelect v-model="appearance.lineStyle" :aria-label="t('sentenceHighlight.lineStyle')">
+                <el-option v-for="style in SENTENCE_HIGHLIGHT_LINE_STYLES" :key="style" :value="style" :label="t(`sentenceHighlight.line.${style}`)" />
+              </UiSelect>
             </label>
             <label class="sentence-highlight-range">
               <span>{{ t('sentenceHighlight.lineThickness') }}<b>{{ resolved.lineThickness }}px</b></span>
@@ -104,6 +104,7 @@
   </SettingsGroup>
 </template>
 <script setup lang="ts">
+import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {computed, onUnmounted, ref, watch} from 'vue'
 import type {Config} from '@/src/core/config/model'
 import {DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE, MAX_SENTENCE_HIGHLIGHT_PROFILES, SENTENCE_HIGHLIGHT_STYLES, SENTENCE_HIGHLIGHT_LINE_STYLES, getSentenceHighlightAppearanceStyle, isDefaultSentenceHighlightAppearance, normalizeSentenceHighlightAppearance, parseSentenceHighlightCustomCss, resolveSentenceHighlightAppearance, type SentenceHighlightStyle, type SentenceHighlightProfile} from '@/src/core/config/sentenceHighlight'
@@ -215,7 +216,7 @@ function updateNumber(field: 'backgroundOpacity' | 'lineOpacity' | 'lineThicknes
 .sentence-highlight-range > span { display: flex; justify-content: space-between; gap: 8px; }
 .sentence-highlight-range b { color: var(--brand-strong); font-weight: 600; }
 .sentence-highlight-range input { width: 100%; min-width: 0; margin: 0; accent-color: var(--brand); cursor: pointer; }
-.sentence-highlight-line-style select { width: 100%; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); font: inherit; }
+.sentence-highlight-line-style .fluentread-select { width: 100%; min-width: 0; }
 .sentence-highlight-custom :is(button, input, select):focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 .sentence-highlight-saved { display: grid; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
 .sentence-highlight-saved > strong { color: var(--ink); font-size: 13px; }

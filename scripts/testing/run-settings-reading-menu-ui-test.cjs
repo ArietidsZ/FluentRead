@@ -2,7 +2,7 @@
 /**
  * @file scripts/testing/run-settings-reading-menu-ui-test.cjs
  * 文件职责：在生产扩展中专项验证阅读辅助、右键菜单、设置框标题和补齐后的页内导航。
- * 主要内容：通过隔离 Edge 检查三行布局与虚线、真实样式跳转、高亮联动、左侧虚拟菜单与右侧开关、入口增删、依赖禁用、保存重开、完整导航，以及七种语言的桌面和窄屏布局。
+ * 主要内容：通过隔离 Edge 检查左侧阅读预览与右侧设置、真实样式跳转、高亮联动、左侧虚拟菜单与右侧开关、入口增删、依赖禁用、保存重开、完整导航，以及七种语言的桌面和窄屏布局。
  * 模块边界：只操作本次临时 profile，使用不抢焦点 helper，不下载模型或调用翻译，不推断 Firefox 实机表现。
  */
 const assert = require('node:assert/strict');
@@ -104,10 +104,13 @@ async function layout(label) {
     for (const id of ids) { await anchor(id); report.caseCoverage.push({navigation: id}); }
     await anchor('reading');
     const reading = page.locator('.reading-assistance-settings');
-    const rows = reading.locator('.settings-group-body > .settings-item');
-    assert.equal(await rows.count(), 3);
+    const rows = reading.locator('.reading-assistance-controls > .settings-item');
+    assert.equal(await rows.count(), 2);
     assert.equal(await rows.nth(0).locator('small').innerText(), '双语模式下，将鼠标移到原文或译文上，即可高亮对应句子，方便对照阅读。 注意，当原文与译文的句子划分不同时，会一起高亮相邻句子。');
-    for (const i of [1, 2]) assert.equal(await rows.nth(i).evaluate(el => getComputedStyle(el).borderTopStyle), 'dashed');
+    assert.equal(await rows.nth(1).evaluate(el => getComputedStyle(el).borderTopStyle), 'dashed');
+    const readingPreview = await reading.locator('.reading-assistance-example').boundingBox();
+    const readingControls = await reading.locator('.reading-assistance-controls').boundingBox();
+    assert(readingPreview.x + readingPreview.width < readingControls.x && Math.abs(readingPreview.y - readingControls.y) < 2);
     const source = reading.getByTestId('bilingual-highlight-preview-source').locator('span');
     await source.nth(1).hover();
     assert.equal(await reading.locator('.is-sentence-highlighted').count(), 2);
@@ -122,7 +125,7 @@ async function layout(label) {
     await styleLink.click();
     await page.waitForFunction(() => location.hash === '#settings-interface');
     await page.locator('#translation-sentence-highlight-style').waitFor({state: 'visible'});
-    report.caseCoverage.push({readingRows: 3, separators: 'dashed', highlightToggleAndKeyboard: true, styleNavigation: true});
+    report.caseCoverage.push({readingRows: 2, previewLeft: true, separators: 'dashed', highlightToggleAndKeyboard: true, styleNavigation: true});
     await navigate('settings-translation'); await anchor('hover');
     const heading = page.locator('[data-settings-panel="hover"] .settings-group-heading');
     const sizes = await heading.evaluate(el => {

@@ -2,7 +2,7 @@
  * @file src/features/settings/ui/LocalTranslationModelSettings.vue
  *
  * 文件职责：呈现本地翻译模型选择、持续下载进度、删除确认和短文本试译。
- * 主要内容：订阅后台持久快照，通过悬停或焦点提示展示模型用途和许可，主卡片保留语言与资源估算；页面离开只撤销订阅与试译，不中止下载。
+ * 主要内容：使用统一的下拉选择器保持控件与菜单风格一致；订阅后台持久快照，通过悬停或焦点提示展示模型用途和许可，主卡片保留语言与资源估算；页面离开只撤销订阅与试译，不中止下载。
  * 模块边界：通过 runtime 消息操作下载任务，配置交给既有设置持久化；不获取模型文件、不创建推理引擎。
  -->
 <template>
@@ -69,9 +69,9 @@
       <textarea v-model="trialText" :aria-label="t('settings.localTranslation.trialSource')" rows="3" maxlength="2000" :disabled="trialBusy" />
       <div class="local-model-trial-actions">
         <label>{{ t('settings.localTranslation.trialTarget') }}
-          <select v-model="trialTarget" :disabled="trialBusy" :aria-label="t('settings.localTranslation.trialTarget')">
-            <option v-for="language in trialLanguages" :key="language" :value="language">{{ t(languageLabels[language] || language) }}</option>
-          </select>
+          <UiSelect v-model="trialTarget" :disabled="trialBusy" :aria-label="t('settings.localTranslation.trialTarget')">
+            <el-option v-for="language in trialLanguages" :key="language" :value="language" :label="t(languageLabels[language] || language)" />
+          </UiSelect>
         </label>
         <button v-if="trialBusy" type="button" class="local-models-button" @click="cancelTrial"><Close aria-hidden="true" />{{ t('settings.localTranslation.cancel') }}</button>
         <button v-else type="button" class="local-models-button primary" :disabled="!selectedReady || !trialText.trim()" @click="tryTranslation"><Promotion aria-hidden="true" />{{ t('settings.localTranslation.trialAction') }}</button>
@@ -84,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import browser from 'webextension-polyfill'
 import {ElMessageBox} from 'element-plus'
@@ -270,7 +271,7 @@ onUnmounted(() => {
 .local-model-trial textarea { width: 100%; box-sizing: border-box; min-height: 86px; max-height: 220px; resize: vertical; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; font-size: 12px; line-height: 1.7; }
 .local-model-trial-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .local-model-trial-actions label { display: inline-flex; gap: 8px; align-items: center; font-size: 11px; }
-.local-model-trial-actions select { min-height: 32px; padding: 5px 24px 5px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font: inherit; }
+.local-model-trial-actions .fluentread-select { width: 160px; max-width: 100%; }
 .local-model-trial-result { border-left: 2px solid var(--brand); padding: 4px 12px; }
 .local-model-trial-result p { margin: 0 0 8px; font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
 .local-model-trial-result small, .local-model-trial-status { color: var(--muted); font-size: 11px; }

@@ -2,7 +2,7 @@
 /**
  * @file scripts/testing/run-webdav-backup-ui-test.cjs
  * 文件职责：在不抢焦点的临时 Edge 中验证生产扩展的 WebDAV 配置云备份。
- * 主要内容：真实本机 HTTP 夹具、固定选中的基础配置与可选敏感配置、密文保存、条件删除、版本保护、七语言与窄屏。
+ * 主要内容：真实本机 HTTP 夹具、固定选中的基础配置与可选敏感配置、密文保存、删除加载反馈、条件删除、版本保护、七语言与窄屏。
  * 模块边界：不操作日常 profile 或真实账号；服务器与凭据均为本次测试创建，报告不包含配置正文。
  */
 const fs = require('node:fs');
@@ -24,6 +24,7 @@ async function main() {
     const expected = 'Basic '+Buffer.from('fixture-user:fixture-app-password').toString('base64');
     const server = createServer(async (req,res) => {
         state.calls.push({method:req.method,url:req.url,match:req.headers['if-match']});
+        if (state.nextReadDelay && ['GET','PROPFIND','HEAD'].includes(req.method)) {const delay=state.nextReadDelay;state.nextReadDelay=0;await new Promise(resolve=>setTimeout(resolve,delay));}
         if (state.failRead) {res.writeHead(503).end();return;}
         if (![expected,'Basic '+Buffer.from('fixture-other:fixture-app-password').toString('base64')].includes(req.headers.authorization)) {res.writeHead(401).end(); return;}
         if (req.method === 'PROPFIND' && (req.url === '/dav/' || req.url === '/dav/FluentRead/')) {
@@ -36,6 +37,7 @@ async function main() {
         if (req.method === 'HEAD') {res.writeHead(200,state.etagMode==='head'?{ETag:`"v${state.version}"`}:{}).end();return;}
         if (req.method === 'GET') {if (!state.content) res.writeHead(state.folder ? 404 : 409).end(); else if (req.headers['if-match'] && req.headers['if-match'] !== `"v${state.version}"`) res.writeHead(412).end(); else res.writeHead(200).end(state.content); return;}
         if (req.method === 'DELETE') {
+            if (state.deleteDelay) await new Promise(resolve=>setTimeout(resolve,state.deleteDelay));
             if (!state.content) {res.writeHead(404).end();return;}
             if (state.failDelete || req.headers['if-match'] !== `"v${state.version}"`) {res.writeHead(412).end();return;}
             state.content=null;res.writeHead(204).end();return;
@@ -106,6 +108,30 @@ async function main() {
         }
         const dialog=page.locator('.drive-dialog');
         async function chooseIntent(direction) {if (await page.locator('[data-testid="webdav-back"]').count()) await page.locator('[data-testid="webdav-back"]').click(); if (direction==='merge') await page.locator('[data-testid="webdav-direction-merge"]').click(); else {await page.locator(`[data-testid="webdav-direction-${direction}"]`).check();await page.locator('[data-testid="webdav-continue"]').click();}}
+        if (process.argv.includes('--delete-loading-only')) {
+            const entry=page.locator('[data-testid="webdav-delete-backup"]');
+            const deletion=page.locator('.cloud-delete-dialog');
+            const confirm=page.locator('[data-testid="cloud-delete-confirm"]');
+            let idleColor=await entry.evaluate(el=>getComputedStyle(el).color);
+            async function expectLoading(button) {await button.locator('.is-loading').waitFor();check(await button.isDisabled()&&await button.getAttribute('aria-busy')==='true','pending delete entry spins and rejects duplicate clicks');check(await button.locator('.is-loading').evaluate(el=>getComputedStyle(el).animationName!=='none'),'loading icon has an active spinning animation');await button.evaluate(el=>Promise.all(el.getAnimations().filter(animation=>animation.effect?.getComputedTiming().iterations!==Infinity).map(animation=>animation.finished.catch(()=>undefined))));check(await button.evaluate(el=>getComputedStyle(el).color)===idleColor,'loading keeps the readable action color');}
+            async function expectIdle() {await page.waitForFunction(()=>document.querySelector('[data-testid="webdav-delete-backup"]')?.getAttribute('aria-busy')==='false');check(await entry.isEnabled()&&await entry.locator('.is-loading').count()===0,'completion or failure restores the delete entry');}
+            state.failRead=true;state.nextReadDelay=1200;
+            await entry.click();await expectLoading(entry);
+            const screenshot=path.join(artifactsDir,'cloud-delete-loading.png');await entry.screenshot({path:screenshot});report.screenshots.push(screenshot);
+            await expectIdle();check(!(await deletion.isVisible()),'failed preparation keeps confirmation closed');state.failRead=false;
+            await savePatch({theme:'dark'});await page.waitForFunction(()=>document.documentElement.classList.contains('dark'));
+            await entry.evaluate(el=>Promise.all(el.getAnimations().filter(animation=>animation.effect?.getComputedTiming().iterations!==Infinity).map(animation=>animation.finished.catch(()=>undefined))));idleColor=await entry.evaluate(el=>getComputedStyle(el).color);
+            state.folder=true;state.content='fixture backup';state.version++;
+            state.nextReadDelay=1200;await entry.click();await expectLoading(entry);await deletion.waitFor();
+            check(await entry.locator('.is-loading').count()===0,'completed preparation stops spinning while confirmation is open');
+            await deletion.locator('[data-testid="cloud-delete-verification"] input').fill('确定删除');
+            const before=await page.evaluate(async()=>({config:(await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'})).value,credentials:(await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:credentials'})).value}));
+            state.deleteDelay=1500;await confirm.click();await expectLoading(entry);await confirm.locator('.is-loading').waitFor();check(await confirm.isDisabled(),'confirmed deletion spins in the dialog and blocks repeat submission');
+            await deletion.waitFor({state:'hidden'});await expectIdle();
+            const after=await page.evaluate(async()=>({config:(await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'})).value,credentials:(await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:credentials'})).value}));
+            check(state.content===null&&state.calls.filter(call=>call.method==='DELETE').length===1,'one confirmed request removes the fixture backup');check(JSON.stringify(before)===JSON.stringify(after),'deletion preserves local settings and credentials');
+            check(report.consoleErrors.length===0,'delete loading feedback has no console errors');report.ok=true;return;
+        }
         if (process.argv.includes('--delete-only')) {
             const deletion=page.locator('.cloud-delete-dialog');
             const verification=deletion.locator('[data-testid="cloud-delete-verification"] input');

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SiteAdaptationSettings.vue
  * 文件职责：提供易发现、可解释、可扩展的正文适配规则工作区。
- * 主要内容：独立标题分隔栏与启用控制行，目录与详情并排展示，单次确认保存可视化规则；JSON 与备份按需展开，保留冲突保护、合并导入、草稿撤销与离页提醒。
+ * 主要内容：使用统一的下拉选择器保持控件与菜单风格一致；独立标题分隔栏与启用控制行，目录与详情并排展示，单次确认保存可视化规则；JSON 与备份按需展开，保留冲突保护、合并导入、草稿撤销与离页提醒。
  * 模块边界：复用规则包与严格校验，保存等待后台确认；不请求网址、不执行规则代码，不将草稿误当作生效配置。
  -->
 <template>
@@ -43,7 +43,7 @@
             <div v-for="(content, index) in form.content" :key="index" class="content-row">
               <label class="rule-field"><span>{{ tr('CSS 选择器') }} {{ index + 1 }}</span><textarea v-model="content.css" data-i18n-ignore rows="3" :aria-label="tr('正文 CSS 选择器') + ' ' + (index + 1)" placeholder="article h1&#10;article p&#10;article li" /></label>
               <div class="rule-actions"><label><input v-model="content.atomic" type="checkbox" /> {{ tr('将选中节点作为整体翻译') }}</label><button type="button" :aria-label="tr('移除正文区域') + ' ' + (index + 1)" @click="form.content.splice(index, 1)">{{ tr('移除') }}</button></div>
-              <details><summary>{{ tr('区域高级选项') }}</summary><label class="rule-field"><span>{{ tr('节点解析') }}</span><select v-model="content.resolve"><option value="self">{{ tr('使用选中节点') }}</option><option value="closest">{{ tr('使用最近的匹配祖先') }}</option></select></label><label><input v-model="content.splitOnBr" type="checkbox" /> {{ tr('按直接子级换行标签分段') }}</label><label class="rule-field"><span>{{ tr('区域标识（可选）') }}</span><input v-model="content.key" data-i18n-ignore /></label></details>
+              <details><summary>{{ tr('区域高级选项') }}</summary><label class="rule-field"><span>{{ tr('节点解析') }}</span><UiSelect :aria-label="tr('节点解析')" v-model="content.resolve"><el-option value="self" :label="tr('使用选中节点')" /><el-option value="closest" :label="tr('使用最近的匹配祖先')" /></UiSelect></label><label><input v-model="content.splitOnBr" type="checkbox" /> {{ tr('按直接子级换行标签分段') }}</label><label class="rule-field"><span>{{ tr('区域标识（可选）') }}</span><input v-model="content.key" data-i18n-ignore /></label></details>
             </div>
             <button type="button" :disabled="form.content.length >= SITE_RULE_LIMITS.content" @click="form.content.push({css: '', atomic: true, resolve: 'self', splitOnBr: false})">{{ tr('添加正文区域') }}</button>
           </section>
@@ -81,7 +81,7 @@
       <summary>{{ tr('JSON 与备份') }}</summary>
       <section aria-labelledby="adaptation-custom-heading">
         <header class="rule-heading settings-card-heading"><div class="settings-card-heading-copy"><h3 id="adaptation-custom-heading">{{ tr('自定义规则与备份') }}</h3><p>{{ tr('可视化编辑与 JSON 编辑共用一份草稿，请检查后保存；导入默认合并，现有规则会保留') }}</p></div><span v-if="isDirty" class="rule-badge">{{ tr('未保存') }}</span></header>
-        <div class="rule-actions import-actions"><button type="button" :disabled="saving || !!form" @click="insertExample">{{ tr('插入示例') }}</button><label class="import-mode">{{ tr('导入方式') }} <select v-model="importMode" :disabled="saving"><option value="merge">{{ tr('合并（同 ID 替换）') }}</option><option value="replace">{{ tr('替换整个草稿') }}</option></select></label><button type="button" :disabled="saving || !!form" @click="fileInput?.click()">{{ tr('导入 JSON') }}</button><button type="button" @click="downloadPack(modelValue.custom, 'fluentread-custom-sites.json')">{{ tr('导出已保存规则') }}</button><button v-if="isDirty && parsedDraft.ok" type="button" @click="downloadPack(workingPack, 'fluentread-draft-sites.json')">{{ tr('导出草稿') }}</button><button type="button" @click="downloadPack(builtinSiteRulePack, 'fluentread-builtin-sites.json')">{{ tr('导出内置规则') }}</button><input ref="fileInput" hidden type="file" accept=".json,application/json" @change="importFile" /></div>
+        <div class="rule-actions import-actions"><button type="button" :disabled="saving || !!form" @click="insertExample">{{ tr('插入示例') }}</button><label class="import-mode">{{ tr('导入方式') }} <UiSelect :aria-label="tr('导入方式')" v-model="importMode" :disabled="saving"><el-option value="merge" :label="tr('合并（同 ID 替换）')" /><el-option value="replace" :label="tr('替换整个草稿')" /></UiSelect></label><button type="button" :disabled="saving || !!form" @click="fileInput?.click()">{{ tr('导入 JSON') }}</button><button type="button" @click="downloadPack(modelValue.custom, 'fluentread-custom-sites.json')">{{ tr('导出已保存规则') }}</button><button v-if="isDirty && parsedDraft.ok" type="button" @click="downloadPack(workingPack, 'fluentread-draft-sites.json')">{{ tr('导出草稿') }}</button><button type="button" @click="downloadPack(builtinSiteRulePack, 'fluentread-builtin-sites.json')">{{ tr('导出内置规则') }}</button><input ref="fileInput" hidden type="file" accept=".json,application/json" @change="importFile" /></div>
         <details :open="jsonOpen" class="json-editor" @toggle="jsonOpen = ($event.target as HTMLDetailsElement).open"><summary>{{ tr('高级 JSON 编辑') }}</summary><p class="rule-hint">{{ tr('支持模板、多个内容区域及全部高级字段；每次保存都会校验格式、域名、路径与 CSS 选择器') }}</p><label class="rule-field"><span>{{ tr('JSON 编辑草稿') }}</span><textarea v-model="draft" data-i18n-ignore rows="16" spellcheck="false" autocomplete="off" :disabled="saving || !!form" :aria-label="tr('JSON 编辑草稿')" :aria-invalid="issues.length > 0" aria-describedby="adaptation-editor-feedback" @input="markDraftEdited" /></label><div class="rule-actions"><button type="button" :disabled="saving || !!form" @click="validateDraft">{{ tr('校验草稿') }}</button><button type="button" :disabled="saving || !!form" @click="clearCustom">{{ tr('清空自定义草稿') }}</button></div></details>
         <div class="rule-actions save-actions"><button type="button" :disabled="!isDirty || saving || !!form" @click="restoreSaved">{{ tr('恢复已保存草稿') }}</button><button v-if="undoDraft !== null" type="button" :disabled="saving || !!form" @click="undoReplacement">{{ tr('撤销草稿替换') }}</button><span class="rule-hint">{{ tr(saving ? '正在保存，等待后台确认' : isDirty ? '目录显示草稿；网页仍使用已保存规则' : '当前规则已保存') }}</span></div>
         <details class="rule-guide"><summary>{{ tr('如何编写规则') }}</summary><p class="rule-hint">{{ tr('“补充识别”在通用正文中增加指定区域，“限定范围”仅翻译匹配的正文区域；所有匹配规则的保护区域共同生效，存在限定范围规则时会限制通用识别') }}</p><p class="rule-hint">{{ tr('修改规则会恢复正在翻译的页面，请重新触发翻译；网址预览不验证网站当前 DOM') }}</p><a href="https://fluent.thinkstu.com/guide/custom-site-rules" target="_blank" rel="noopener noreferrer">{{ tr('查看完整自定义教程') }}</a></details>
@@ -90,6 +90,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue';
 import {builtinSiteRulePack} from '@/src/core/site-adaptation/catalog';
 import {resolveSiteRule} from '@/src/core/site-adaptation/compiler';
@@ -300,7 +301,7 @@ function downloadPack(pack: SiteRulePack, filename: string) {
 .content-editor { margin: 20px 0; }
 .import-actions { margin: 18px 0; }
 .import-mode { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 12px; color: var(--muted); }
-.import-mode select { max-width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); }
+.import-mode .fluentread-select { width: 220px; max-width: 100%; }
 .json-editor textarea { font: 12px/1.7 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .save-actions { margin-top: 18px; }
 .rule-guide a { color: var(--brand-strong); font-size: 12px; }

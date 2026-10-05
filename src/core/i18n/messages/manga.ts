@@ -1,10 +1,22 @@
 /**
  * @file src/core/i18n/messages/manga.ts
  * 文件职责：提供漫画入口、首次资源说明和图片共享识别设置的产品文案，避免新增界面在非中文语言下显示中文。
- * 主要内容：英文完整回退目录与各语言核心操作文案；下载用途、实际状态和持久关闭使用相同源文本。
+ * 主要内容：英文完整回退目录与各语言核心操作文案；当前资源用途与准备状态优先展示，备用识别、语言包及下载管理采用简短入口。
  * 模块边界：静态界面词典，不翻译漫画内容、不读取配置、不调用服务。
  */
 const english = {
+  "识别资源": "Recognition resources",
+  "标准识别": "Standard recognition",
+  "轻量识别": "Lightweight recognition",
+  "用于图片翻译": "For image translation",
+  "用于漫画翻译": "For manga translation",
+  "用于图片与漫画": "For images and manga",
+  "首次翻译时自动准备资源": "Resources are prepared automatically on first translation",
+  "下载与管理": "Download and manage",
+  "备用识别": "Alternative recognition",
+  "当前使用": "In use",
+  "语言包管理": "Manage language packs",
+  "下载离线文件": "Download offline files",
   "图片识别方式": "Image text recognition",
   "Tesseract（轻量模型）": "Tesseract (lightweight model)",
   "PaddleOCR（标准模型）": "PaddleOCR (standard model)",
@@ -107,6 +119,18 @@ const english = {
 export const mangaLegacyMessages = {
   "en-US": english,
   "ja-JP": {...english, ...{
+  "识别资源": "認識リソース",
+  "标准识别": "標準認識",
+  "轻量识别": "軽量認識",
+  "用于图片翻译": "画像翻訳用",
+  "用于漫画翻译": "漫画翻訳用",
+  "用于图片与漫画": "画像・漫画用",
+  "首次翻译时自动准备资源": "初回の翻訳時にリソースを自動準備",
+  "下载与管理": "ダウンロードと管理",
+  "备用识别": "代替の認識方式",
+  "当前使用": "使用中",
+  "语言包管理": "言語パックの管理",
+  "下载离线文件": "オフライン用ファイルをダウンロード",
   "图片识别方式": "画像の文字認識",
   "Tesseract（轻量模型）": "Tesseract（軽量モデル）",
   "PaddleOCR（标准模型）": "PaddleOCR（標準モデル）",
@@ -187,6 +211,18 @@ export const mangaLegacyMessages = {
   "支持的网站": "対応サイト"
 }},
   "ko-KR": {...english, ...{
+  "识别资源": "인식 리소스",
+  "标准识别": "표준 인식",
+  "轻量识别": "경량 인식",
+  "用于图片翻译": "이미지 번역용",
+  "用于漫画翻译": "만화 번역용",
+  "用于图片与漫画": "이미지 및 만화용",
+  "首次翻译时自动准备资源": "첫 번역 시 리소스를 자동으로 준비합니다",
+  "下载与管理": "다운로드 및 관리",
+  "备用识别": "대체 인식 방식",
+  "当前使用": "사용 중",
+  "语言包管理": "언어 팩 관리",
+  "下载离线文件": "오프라인 파일 다운로드",
   "图片识别方式": "이미지 문자 인식",
   "Tesseract（轻量模型）": "Tesseract(경량 모델)",
   "PaddleOCR（标准模型）": "PaddleOCR(표준 모델)",
@@ -267,6 +303,18 @@ export const mangaLegacyMessages = {
   "支持的网站": "지원 사이트"
 }},
   "fr-FR": {...english, ...{
+  "识别资源": "Ressources de reconnaissance",
+  "标准识别": "Reconnaissance standard",
+  "轻量识别": "Reconnaissance légère",
+  "用于图片翻译": "Pour les images",
+  "用于漫画翻译": "Pour les mangas",
+  "用于图片与漫画": "Pour les images et les mangas",
+  "首次翻译时自动准备资源": "Les ressources sont préparées automatiquement à la première traduction",
+  "下载与管理": "Téléchargement et gestion",
+  "备用识别": "Autre méthode de reconnaissance",
+  "当前使用": "En cours d’utilisation",
+  "语言包管理": "Gérer les packs de langues",
+  "下载离线文件": "Télécharger les fichiers hors ligne",
   "图片识别方式": "Reconnaissance du texte",
   "Tesseract（轻量模型）": "Tesseract (modèle léger)",
   "PaddleOCR（标准模型）": "PaddleOCR (modèle standard)",
@@ -347,6 +395,18 @@ export const mangaLegacyMessages = {
   "支持的网站": "Sites pris en charge"
 }},
   "ru-RU": {...english, ...{
+  "识别资源": "Ресурсы распознавания",
+  "标准识别": "Стандартное распознавание",
+  "轻量识别": "Облегчённое распознавание",
+  "用于图片翻译": "Для перевода изображений",
+  "用于漫画翻译": "Для перевода манги",
+  "用于图片与漫画": "Для изображений и манги",
+  "首次翻译时自动准备资源": "Ресурсы подготавливаются автоматически при первом переводе",
+  "下载与管理": "Загрузка и управление",
+  "备用识别": "Другой способ распознавания",
+  "当前使用": "Используется",
+  "语言包管理": "Управление языковыми пакетами",
+  "下载离线文件": "Скачать файлы для офлайн-использования",
   "图片识别方式": "Распознавание текста на изображениях",
   "Tesseract（轻量模型）": "Tesseract (лёгкая модель)",
   "PaddleOCR（标准模型）": "PaddleOCR (стандартная модель)",
@@ -427,6 +487,18 @@ export const mangaLegacyMessages = {
   "支持的网站": "Поддерживаемые сайты"
 }},
   "es-ES": {...english, ...{
+  "识别资源": "Recursos de reconocimiento",
+  "标准识别": "Reconocimiento estándar",
+  "轻量识别": "Reconocimiento ligero",
+  "用于图片翻译": "Para traducir imágenes",
+  "用于漫画翻译": "Para traducir manga",
+  "用于图片与漫画": "Para imágenes y manga",
+  "首次翻译时自动准备资源": "Los recursos se preparan automáticamente en la primera traducción",
+  "下载与管理": "Descarga y gestión",
+  "备用识别": "Otro método de reconocimiento",
+  "当前使用": "En uso",
+  "语言包管理": "Gestionar paquetes de idiomas",
+  "下载离线文件": "Descargar archivos sin conexión",
   "图片识别方式": "Reconocimiento de texto",
   "Tesseract（轻量模型）": "Tesseract (modelo ligero)",
   "PaddleOCR（标准模型）": "PaddleOCR (modelo estándar)",

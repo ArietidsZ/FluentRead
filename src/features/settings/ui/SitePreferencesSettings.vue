@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SitePreferencesSettings.vue
  * 文件职责：在同一张紧凑偏好卡中管理全局自动翻译与网站的三项偏好。
- * 主要内容：独立标题分隔栏与下方自动翻译开关，提供域名归并预览、添加校验、搜索、单站编辑、删除撤销及后台确认反馈。
+ * 主要内容：使用统一的下拉选择器保持控件与菜单风格一致；独立标题分隔栏与下方自动翻译开关，提供域名归并预览、添加校验、搜索、单站编辑、删除撤销及后台确认反馈。
  * 模块边界：复用既有配置数组及异步补丁端口，不创建新配置格式、不读取当前标签页，不宣称尚未确认的保存成功。
  -->
 <template>
@@ -15,7 +15,7 @@
       <p v-if="!settings.on" class="rule-notice">{{ tr('插件已关闭，网站偏好仍会保存，重新开启插件后生效') }}</p>
       <form class="preference-add" @submit.prevent="addSite">
         <label class="rule-field"><span>{{ tr('域名或完整网址') }}</span><input v-model="input" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://docs.example.com/article" :disabled="saving" :title="tr('包含主域及所有子域；路径、参数和端口不进入偏好')" :aria-invalid="Boolean(error)" aria-describedby="site-preference-feedback" @input="error = ''" /></label>
-        <label class="rule-field"><span>{{ tr('初始偏好') }}</span><select v-model="initialPreference" :disabled="saving"><option value="always">{{ tr('始终翻译') }}</option><option value="disabled">{{ tr('禁用扩展') }}</option><option value="hidden">{{ tr('隐藏悬浮球') }}</option></select></label>
+        <label class="rule-field"><span>{{ tr('初始偏好') }}</span><UiSelect :aria-label="tr('初始偏好')" v-model="initialPreference" :disabled="saving"><el-option value="always" :label="tr('始终翻译')" /><el-option value="disabled" :label="tr('禁用扩展')" /><el-option value="hidden" :label="tr('隐藏悬浮球')" /></UiSelect></label>
         <button type="submit" class="rule-primary" :disabled="saving">{{ tr('添加网站') }}</button>
       </form>
       <p v-if="normalized" class="rule-hint" data-domain-preview><span>{{ tr('将保存为') }} </span><strong data-i18n-ignore>{{ normalized }}</strong></p>
@@ -38,6 +38,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {computed, ref} from 'vue';
 import UiIcon from '@/src/ui/components/UiIcon.vue';
 import {getSiteBaseDomain} from '@/src/core/site-rules/domain';

@@ -2,9 +2,15 @@
 
 ## 设置分组、阅读辅助与右键菜单
 
-生产扩展构建后，运行 `node scripts/testing/run-settings-reading-menu-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <扩展界面测试技能>/scripts/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用第二屏上的临时 Edge 后台窗口，检查阅读辅助三行顺序、完整说明、虚线、高亮联动与样式跳转，右键菜单左侧单一虚拟菜单与右侧紧凑选项、所有启用入口的实时增删、功能前置条件禁用、总开关禁用和重开后保存；覆盖七种语言的桌面与 390px 布局、深色主题和其他设置分组标题。浏览器范围为 Edge，不代表 Firefox 实机或外部翻译服务。
+生产扩展构建后，运行 `node scripts/testing/run-settings-reading-menu-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <扩展界面测试技能>/scripts/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用第二屏上的临时 Edge 后台窗口，检查阅读辅助左侧预览与右侧设置、完整说明、虚线、高亮联动与样式跳转，右键菜单左侧单一虚拟菜单与右侧紧凑选项、所有启用入口的实时增删、功能前置条件禁用、总开关禁用和重开后保存；覆盖七种语言的桌面与 390px 布局、深色主题和其他设置分组标题。浏览器范围为 Edge，不代表 Firefox 实机或外部翻译服务。
 
 `run-settings-section-navigation-test.cjs` 检查连续表单中的完整导航、搜索、跨页定位、折叠、键盘与滚动高亮。翻译设置分别登记右键菜单、悬浮球进阶设置、段落复制、局部翻译与不翻译的语言；最后一组较短时，滚动到底仍应高亮其入口。元数据与既有直达链接由 `tests/optionsNavigation.test.ts` 和 `tests/optionsAppNavigationLifecycle.test.ts` 验证。
+
+## 设置布局与控件交互
+
+`node scripts/testing/run-settings-layout-polish-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <捆绑 Node 包目录> --focus-safe-helper <focus-safe-browser.cjs 路径> --artifacts-dir <证据目录>` 使用独立临时 Edge profile 与第二屏后台窗口，验证阅读辅助的左右布局与窄屏上下排列、学习程度对齐和保存、请求限制继承及自定义值、统一下拉菜单、说明提示的关闭延迟和文字选择，以及识图检测成功只显示一次而保留失败和取消反馈。
+
+朗读来源、在线音色与本地模型集中在一个设置框中。仅在线收起本地选项，仅本地收起在线选项；切换来源保留原来的音色偏好。图片的识别方式与入口、漫画的预翻译与按钮和缓存分别位于对应预览右侧；共享识别资源集中在一个设置框，优先展示当前识别方式和准备状态；备用 Tesseract 默认收起，切换为当前方式时自动展开。语言包列表与下载来源、离线导入采用次要展开入口，进行中的任务或错误会自动展开。专项覆盖中文和英文、浅色和深色、1440/1024/820/390px 布局。识图检测只连接本机图片响应夹具，不证明真实供应商能力；测试不下载朗读或识别模型，不代替 Firefox 实机验收。
 
 ## 官网网页与漫画翻译演示
 
@@ -90,6 +96,8 @@ node scripts/testing/run-webdav-backup-ui-test.cjs \
 还检查完成、预览与提交失败、取消预览、切换供应商、重开设置与确认后立即关闭时仍保持已选范围，手动关闭持久保存、多页同步与存储失败保护，以及七语言风险文案解析、390px 无横向溢出、Escape 取消、深色风险文字对比度至少 4.5:1 和控制台异常。紧凑风险弹窗保留本机加密与存储位置、公开口令和泄露风险、默认未勾选的风险同意，省去重复建议。保存普通范围只更新当前云文件，不证明服务商历史版本被删除。此专项使用受控 WebDAV 夹具，不代表真实 Google 授权、真实第三方账号、商店版本或跨设备联调结果；Google 账号切换与准备失败还可用 Google 专项的 `--sensitive-only` 验证；旧扩展拒绝 v2 与旧事务失效由对应领域回归验证。
 
 ## 云端备份删除专项
+
+`run-webdav-backup-ui-test.cjs --delete-loading-only` 只检查删除加载反馈：本机夹具延迟核验和删除请求，验证入口转圈、按钮禁用、确认按钮加载、失败后恢复，以及一次删除和本机配置保留。同步操作使用原有加载状态，删除入口只在删除相关请求期间转圈。
 
 更新日期：2026 年 10 月 5 日。`pnpm test:cloud-backup --coverage` 覆盖两阶段删除确认、页面所有权、账号绑定、MV3 重启、旧/未知/损坏密文、空文件、重放、版本冲突、强 ETag、清理失败和本机配置保留；真实 WebDAV HTTP 夹具分别验证 GET、PROPFIND、HEAD 三种 ETag 来源的条件 DELETE、冲突、缺失幂等与重新创建。
 

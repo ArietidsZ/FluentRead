@@ -6,6 +6,7 @@
  */
 export const localTtsEnglishMessages = {
     "settings.localTts.title": "Local speech",
+    "settings.localTts.source": "Speech source",
     "settings.localTts.description": "Choose online or local speech synthesis. Online speech is tried first by default; download the model before using local speech.",
     "settings.localTts.onlineFirst": "Online first",
     "settings.localTts.localFirst": "Local first",
@@ -38,6 +39,7 @@ export const localTtsEnglishMessages = {
 
 export const localTtsChineseMessages = {
     "settings.localTts.title": "本地朗读",
+    "settings.localTts.source": "朗读来源",
     "settings.localTts.description": "选择在线或本地合成朗读语音，默认优先使用在线语音；本地朗读需先下载模型",
     "settings.localTts.onlineFirst": "在线优先",
     "settings.localTts.localFirst": "本地优先",
@@ -70,6 +72,7 @@ export const localTtsChineseMessages = {
 
 export const localTtsJapaneseMessages = {
     "settings.localTts.title": "ローカル音声",
+    "settings.localTts.source": "音声のソース",
     "settings.localTts.description": "読み上げ音声をオンラインかローカルで合成するか選びます。既定はオンライン優先で、ローカル音声にはモデルのダウンロードが必要です。",
     "settings.localTts.onlineFirst": "オンライン優先",
     "settings.localTts.localFirst": "ローカル優先",
@@ -102,6 +105,7 @@ export const localTtsJapaneseMessages = {
 
 export const localTtsKoreanMessages = {
     "settings.localTts.title": "로컬 음성",
+    "settings.localTts.source": "음성 소스",
     "settings.localTts.description": "온라인 또는 로컬에서 읽기 음성을 합성할지 선택합니다. 기본값은 온라인 우선이며 로컬 음성을 사용하려면 모델을 다운로드해야 합니다.",
     "settings.localTts.onlineFirst": "온라인 우선",
     "settings.localTts.localFirst": "로컬 우선",
@@ -134,6 +138,7 @@ export const localTtsKoreanMessages = {
 
 export const localTtsFrenchMessages = {
     "settings.localTts.title": "Voix locale",
+    "settings.localTts.source": "Source vocale",
     "settings.localTts.description": "Choisissez une synthèse vocale en ligne ou locale. La voix en ligne est prioritaire par défaut ; téléchargez le modèle pour la voix locale.",
     "settings.localTts.onlineFirst": "En ligne d’abord",
     "settings.localTts.localFirst": "Local d’abord",
@@ -166,6 +171,7 @@ export const localTtsFrenchMessages = {
 
 export const localTtsRussianMessages = {
     "settings.localTts.title": "Локальная речь",
+    "settings.localTts.source": "Источник озвучивания",
     "settings.localTts.description": "Выберите синтез речи онлайн или на устройстве. По умолчанию сначала используется онлайн-синтез; для локального скачайте модель.",
     "settings.localTts.onlineFirst": "Сначала онлайн",
     "settings.localTts.localFirst": "Сначала локально",
@@ -198,6 +204,7 @@ export const localTtsRussianMessages = {
 
 export const localTtsSpanishMessages = {
     "settings.localTts.title": "Voz local",
+    "settings.localTts.source": "Fuente de voz",
     "settings.localTts.description": "Elige síntesis de voz en línea o local. Por defecto se intenta primero en línea; descarga el modelo para usar la voz local.",
     "settings.localTts.onlineFirst": "En línea primero",
     "settings.localTts.localFirst": "Local primero",

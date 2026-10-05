@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/HarnessSettings.vue
  * 文件职责：作为划词翻译的学习子设置，用示例说明 AI 讲解，并明确原文范围、学习笔记和自定义指令的用途。
- * 主要内容：左侧用真实回答组件预览学习动作，右侧配置服务、模型、动作与回答偏好；独立展示上下文和记忆分区，提供学习中心入口；关闭讲解保留偏好，示例不发送请求。
+ * 主要内容：左侧用真实回答组件预览学习动作，右侧配置服务、模型、动作与回答偏好；多行偏好使用完整单列控件保持左侧对齐，窄屏下默认动作也纵向排列；独立展示上下文和记忆分区，提供学习中心入口；关闭讲解保留偏好，示例不发送请求。
  * 模块边界：只编辑传入 Config 的 harness 字段；记录由学习中心管理，不发起模型请求、不拥有网页选区。
  -->
 <template>
@@ -46,10 +46,10 @@
         <SettingsItem class="harness-default-action" label="默认学习动作">
           <el-select v-model="config.harness.defaultAction" class="harness-select" aria-label="默认动作"><el-option v-for="action in visibleActions" :key="action.id" :label="action.label" :value="action.id" /></el-select>
         </SettingsItem>
-        <SettingsItem label="回答长度" description="先给出重点，需要更多解释时可以继续追问">
+        <SettingsItem label="回答长度" description="先给出重点，需要更多解释时可以继续追问" stacked>
           <SegmentedControl v-model="config.harness.explanationDepth" :options="explanationDepthOptions" label="解释深度" />
         </SettingsItem>
-        <SettingsItem label="学习程度" description="让解释和练习贴近你的水平">
+        <SettingsItem label="学习程度" description="让解释和练习贴近你的水平" stacked>
           <el-select v-model="config.harness.learningLevel" class="harness-select" aria-label="学习程度"><el-option label="初级" value="beginner" /><el-option label="中级" value="intermediate" /><el-option label="高级" value="advanced" /></el-select>
         </SettingsItem>
       </div>
@@ -130,7 +130,7 @@ function toggleAction(id: HarnessActionId) {
 .harness-provider-help, .service-hint { font-size:11px; line-height:1.6; color:var(--muted); }
 .service-hint { color:var(--warning,#b26a00); }
 .harness-select { width:100%; }
-.harness-preferences :deep(.settings-item) { grid-template-columns:minmax(0,1fr); gap:10px; padding:16px 0; border-top:1px solid var(--line); }
+.harness-preferences :deep(.settings-item) { gap:10px; padding:16px 0; border-top:1px solid var(--line); }
 .harness-preferences :deep(.settings-item-control) { width:100%; }
 .harness-preferences :deep(.settings-item.harness-default-action) { grid-template-columns:minmax(0,1fr) minmax(120px,60%); align-items:center; }
 .harness-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:100%; }
@@ -148,5 +148,5 @@ function toggleAction(id: HarnessActionId) {
 .harness-memory-footer p { flex:1; min-width:180px; margin:0; color:var(--muted); font-size:12px; line-height:1.6; }
 .harness-memory-footer button { padding:8px 12px; border:1px solid var(--line); border-radius:8px; color:var(--brand); background:var(--surface); font:inherit; font-size:12px; cursor:pointer; }
 button:focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
-@media(max-width:480px) { .harness-provider-row, .harness-actions { grid-template-columns:minmax(0,1fr); } .harness-memory-footer { padding:14px 12px; } }
+@media(max-width:480px) { .harness-provider-row, .harness-actions { grid-template-columns:minmax(0,1fr); } .harness-preferences :deep(.settings-item.harness-default-action) { grid-template-columns:minmax(0,1fr); align-items:stretch; } .harness-memory-footer { padding:14px 12px; } }
 </style>
