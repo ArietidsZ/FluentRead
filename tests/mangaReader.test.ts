@@ -341,6 +341,24 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         expect(readPixels).not.toHaveBeenCalled();expect(f.ports.translate).not.toHaveBeenCalled();
         canvas.remove();f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available: false, areaFallback: false});f.reader.dispose();
     });
+    it('MangaLib 原站 p 页码更新继续同章并识别新页，换章后结束会话和清缓存', async () => {
+        const resetCache = vi.fn(), f = readerFixture(false, 'https://mangalib.me/ru/3172--kakegurui/read/v22/c129?p=1&bid=1', undefined, undefined, undefined, undefined, {resetCache});
+        const root=f.document.createElement('div');root.innerHTML='<div data-reader-mode="horizontal"><main data-reader-info-visible="false"><div><div data-page="1"></div></div></main></div>';
+        root.querySelector('[data-page]')!.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();f.reader.toggle();await flush();resetCache.mockClear();
+        const next=f.image.cloneNode() as HTMLImageElement;next.src='https://cdn.example.com/mangalib-page-2.jpg';
+        Object.defineProperties(next,{complete:{value:true},naturalWidth:{value:1337},naturalHeight:{value:1920}});
+        next.getBoundingClientRect=()=>({left:0,right:800,top:0,bottom:1200,width:800,height:1200}) as DOMRect;
+        const holder=f.document.createElement('div');holder.setAttribute('data-page','2');holder.append(next);root.querySelector('main > div')!.append(holder);
+        f.setRect({top:-3000,bottom:-1800});f.window.location.href='https://mangalib.me/ru/3172--kakegurui/read/v22/c129?p=2&bid=1';f.document.dispatchEvent(new f.dom.Event('fluentread-route-change'));f.run();await flush();
+        expect(f.reader.status().active).toBe(true);expect(f.ports.translate).toHaveBeenCalledWith(next);expect(resetCache).not.toHaveBeenCalled();
+        f.reader.toggle();expect(f.reader.status().active).toBe(false);expect(f.ports.restore).toHaveBeenCalledWith(next);f.reader.toggle();await flush();expect(f.reader.status().active).toBe(true);
+        f.window.location.href='https://mangalib.me/ru/3172--kakegurui/read/v22/c130?p=2&bid=1';f.reader.schedule();f.run();expect(f.reader.status().active).toBe(false);expect(resetCache).toHaveBeenCalledOnce();f.reader.dispose();
+    });
+    it.each(['?p=0&bid=1','?p=01&bid=1','?p=abc&bid=1','?p=10000&bid=1','?p=2&p=3&bid=1','?p=2&bid=2'])('MangaLib 异常页码或译组身份变化 %s 清理旧会话', async search => {
+        const f=readerFixture(false,'https://mangalib.me/ru/3172--kakegurui/read/v22/c129?p=1&bid=1');
+        const root=f.document.createElement('div');root.innerHTML='<div data-reader-mode="vertical"><main data-reader-info-visible="false"><div><div data-page="1"></div></div></main></div>';root.querySelector('[data-page]')!.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();f.reader.toggle();await flush();
+        f.window.location.href=`https://mangalib.me/ru/3172--kakegurui/read/v22/c129${search}`;f.reader.schedule();f.run();expect(f.reader.status().active).toBe(false);f.reader.dispose();
+    });
     it('Mangahub 正常页码变化继续同一会话，下一正文入队；章节路径改变才暂停和清缓存', async () => {
         const resetCache = vi.fn();
         const f = readerFixture(false, 'https://mangahub.ru/read/962303?page=1', undefined, undefined, undefined, undefined, {resetCache});

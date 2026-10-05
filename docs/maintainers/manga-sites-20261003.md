@@ -100,7 +100,7 @@
 | 90 | yaoimangaonline.com | yaoimangaonline.com | 专用单帖正文图片 | 公开单帖 76 张正文，正常滚动后两张已加载、一张可见；入口通过，未验 OCR |
 | 91 | nhentaiyaoi | nhentaiyaoi.net | 专用单帖正文图片 | 公开单帖 37 张正文已加载、一张可见；封面与推荐排除，入口通过，未验 OCR |
 | 92 | orchisasia | orchisasia.org | 专用正文图片，长图分段 | 公开作者后记有 5 张 720 像素宽长图；实页入口通过，翻译质量未验 |
-| 93 | mangalib | mangalib.me | 通用正文图片检测 | 公开实章两种窗口未显示正文；正常截图字体等待超时 |
+| 93 | mangalib | mangalib.me | 专用语义容器页图 | 另一公开章节正常加载 1337×1920 页图；右方向键使 p=2 与第二页可见，同章页码及实页入口通过；此前空正文与截图超时保留，未验实际 OCR |
 | 94 | novelcrow | novelcrow.com | 通用正文图片检测 | 访问受限 |
 | 95 | cn.twbzmg.com | cn.twbzmg.com | 包子漫画正文规则族 | 首页 HTML 可访问；本轮未验此域名章节 |
 | 96 | Nyx Scans | nyxscans.com | 专用长条正文图片 | 免费章节与入口已核对；复用既有分段链路 |
@@ -113,7 +113,7 @@
 | 103 | mgeko.cc | mgeko.cc | 专用正文图片 | 公开章节正文结构已核对 |
 | 104 | greentoon.net | greentoon.net | 通用正文图片检测 | 当前 HTTP 429；正文未确认 |
 | 105 | dynasty-scans.com | dynasty-scans.com | 专用正文图片 | 首页 HTML 可访问 |
-| 106 | mangaoi.net | mangaoi.net | 通用正文图片检测 | 目录可访问；章节直开及正常点击均返回 HTTP 200 的 404 页面 |
+| 106 | mangaoi.net | mangaoi.net | 专用直系章节图片 | 另一部作品的公开 50 话正常显示 130 张正文图片，实页入口通过；旧 221 话及新 21 话仍为 HTTP 200 的 404 页面，未验实际 OCR |
 | 107 | rawlazy.io | rawlazy.io | 通用正文图片检测 | 公开实章仍显示图片加载提示；正文未确认 |
 | 108 | toptoon.com | toptoon.com | 首图/不可读画布：圈选入口 | 正常点击免费首话显示 720 像素宽正文；画布原生像素读取返回 SecurityError，首图和下一画布入口通过 |
 | 109 | acgmhh.com | acgmhh.com / acgmhn.com | 专用编号页正文图片 | 原站 301 转至当前目录；经用户授权确认年龄提示后正常下一页显示 1000×1398 主图，推荐封面排除，实页入口通过；未验 OCR 或跨文档续译 |

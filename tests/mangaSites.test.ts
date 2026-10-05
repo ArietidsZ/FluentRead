@@ -6,6 +6,23 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it('MangaOI 只检测直系章节列表，排除列表推荐与异常阅读路径', () => {
+        const site = resolveMangaSite('https://mangaoi.net/read-manga/colorist/chapter-50')!;
+        expect(site).toMatchObject({name: 'MangaOI', requireContent: true});
+        const {document} = parseHTML('<div class="inner chapter-wapper"><div class="chapter-content"><div class="item-chapter"><img id="body"><a><img id="nested"></a></div><aside><img id="ad"></aside></div><div class="recommendations"><img id="cover"></div></div><div class="chapter-content"><div class="item-chapter"><img id="outside"></div></div>');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['body']);
+        expect(resolveMangaReaderProfile('www.mangaoi.net', '/read-manga/Colorist/chapter-50.5/')).toMatchObject({name: 'MangaOI'});
+        for (const path of ['/', '/read-manga/title', '/read-manga/title/chapter-0', '/read-manga/title/chapter-01', '/read-manga/title/chapter-1/extra', '/read-manga/title/chapter-1.']) expect(resolveMangaReaderProfile('mangaoi.net', path)).toBeNull();
+        expect(resolveMangaReaderProfile('mangaoi.net.attacker.test', '/read-manga/title/chapter-1')).toBeNull();
+    });
+    it.each(['/ru/3172--kakegurui/read/v22/c129', '/ru/55743--debby-the-corsifa-wa-make-sukirai/read/v8/c75.5'])('MangaLib 语义阅读容器 %s 排除外部图片且不依赖生成类名', path => {
+        const site = resolveMangaSite(`https://mangalib.me${path}`)!;
+        expect(site).toMatchObject({name: 'MangaLib', requireContent: true, pageQueryParameter: 'p'});
+        const {document} = parseHTML('<div data-reader-mode="horizontal"><main data-reader-info-visible="false"><img id="header"><div><div data-page="1"><img id="one"><a><img id="nested"></a></div><div data-page="2"><img id="two"></div><div><img id="ad"></div></div></main></div><div><main data-reader-info-visible="false"><div><div data-page="1"><img id="outside"></div></div></main></div>');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['one', 'two']);
+        for (const path of ['/', '/ru?section=home-updates', '/ru/manga/3172--kakegurui', '/ru/0--title/read/v1/c1', '/ru/01--title/read/v1/c1', '/ru/1--/read/v1/c1', '/ru/1--title/read/v0/c1', '/ru/1--title/read/v01/c1', '/ru/1--title/read/v1/c0', '/ru/1--title/read/v1/c01', '/ru/1--title/read/v1/c1.', '/ru/1--title/read/v1/c1/extra']) expect(resolveMangaReaderProfile('mangalib.me', path)).toBeNull();
+        expect(resolveMangaReaderProfile('mangalib.me.attacker.test', '/ru/1--title/read/v1/c1')).toBeNull();
+    });
     it.each(['', '-2', '-9999'])('ACG 当前站编号页 %s 只选正文，保留作品身份与域名边界', page => {
         const site = resolveMangaSite(`https://acgmhn.com/h/886372${page}.html`)!;
         expect(site).toMatchObject({name: 'ACG 漫画网', requireContent: true, chapterPath: '/h/886372.html'});

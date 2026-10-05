@@ -3767,7 +3767,7 @@
           "hostname": "mangalib.me"
         }
       ],
-      "adapter": "detect",
+      "adapter": "images",
       "browserRechecks": [
         {
           "checkedAt": "2026-10-05T02:20:21.958902+00:00",
@@ -3805,6 +3805,59 @@
           "imageCount": 0,
           "finalUrl": "https://mangalib.me/ru/6801--isekai-yururi-kikou-kosodate-shinagara-bouken-sha-shimasu/read/v11/c71",
           "error": "page.screenshot: Timeout 30000ms exceeded."
+        },
+        {
+          "url": "https://mangalib.me/",
+          "finalUrl": "https://mangalib.me/ru",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "mangaoi-alternate-chapter-and-mangalib-semantic-native-pages-wave31",
+          "attempt": "homes-wave31",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 45,
+          "canvasCount": 0,
+          "readerFinding": "Normal visible root redirects to public ru home updates and provides actual chapter links; no hostname alias inferred.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "profileCleanup": "Late residue removed after inspector terminal success and browser PID verified absent; private cleanup report retained.",
+          "requestedUrl": "https://mangalib.me/",
+          "checkedAt": "2026-10-05T14:30:30.993Z"
+        },
+        {
+          "url": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+          "finalUrl": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "mangaoi-alternate-chapter-and-mangalib-semantic-native-pages-wave31",
+          "attempt": "chapters-wave31",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "readerFinding": "Different actual native-listed public chapter v22/c129 normally loads two1337x1920 page IMG. Semantic data-reader-mode/main[data-reader-info-visible]/data-page ancestors enable class-independent body selection; old empty chapter samples retained.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+          "checkedAt": "2026-10-05T14:30:30.994Z"
+        },
+        {
+          "url": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+          "finalUrl": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129?p=2",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "mangaoi-alternate-chapter-and-mangalib-semantic-native-pages-wave31",
+          "attempt": "mangalib-next-wave31",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 3,
+          "canvasCount": 0,
+          "readerFinding": "Normal native ArrowRight changes p=2 within same document; second1337x1920 page is visible, first and third loaded buffers hidden. No new document navigation. Valid single p can reuse chapter identity, other queries preserved; no actual OCR/quality or cross-document persistence claim.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "profileCleanup": "Late residue removed after inspector terminal success and browser PID verified absent; private cleanup report retained.",
+          "requestedUrl": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+          "checkedAt": "2026-10-05T14:30:30.995Z"
         }
       ]
     },
@@ -4216,7 +4269,7 @@
           "hostname": "mangaoi.net"
         }
       ],
-      "adapter": "detect",
+      "adapter": "images",
       "browserRechecks": [
         {
           "url": "https://mangaoi.net/",
@@ -4265,6 +4318,58 @@
           "networkFailureCount": 1,
           "requestedUrl": "https://mangaoi.net/",
           "checkedAt": "2026-10-05T10:30:42.534868+00:00"
+        },
+        {
+          "url": "https://mangaoi.net/",
+          "finalUrl": "https://mangaoi.net/",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "mangaoi-alternate-chapter-and-mangalib-semantic-native-pages-wave31",
+          "attempt": "homes-wave31",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 20,
+          "canvasCount": 0,
+          "readerFinding": "Normal visible original catalogue provides actual alternate chapter links; no chapter acceptance from catalogue alone.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "profileCleanup": "Late residue removed after inspector terminal success and browser PID verified absent; private cleanup report retained.",
+          "requestedUrl": "https://mangaoi.net/",
+          "checkedAt": "2026-10-05T14:30:30.992Z"
+        },
+        {
+          "url": "https://mangaoi.net/read-manga/the-academys-weapon-replicator/chapter-21",
+          "finalUrl": "https://mangaoi.net/read-manga/the-academys-weapon-replicator/chapter-21",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "mangaoi-alternate-chapter-and-mangalib-semantic-native-pages-wave31",
+          "attempt": "chapters-wave31",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Actual alternate native-listed chapter21 returns HTTP200 with404 title and zero body. Retained work-level failure, not a whole-site closure.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://mangaoi.net/read-manga/the-academys-weapon-replicator/chapter-21",
+          "checkedAt": "2026-10-05T14:30:30.993Z"
+        },
+        {
+          "url": "https://mangaoi.net/read-manga/colorist/chapter-50",
+          "finalUrl": "https://mangaoi.net/read-manga/colorist/chapter-50",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "mangaoi-alternate-chapter-and-mangalib-semantic-native-pages-wave31",
+          "attempt": "chapters-wave31",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 140,
+          "canvasCount": 0,
+          "readerFinding": "Different actual native-listed chapter50 displays130 direct body IMG under inner.chapter-wapper/chapter-content/item-chapter, including800x1195 and800x1515. Page has140 IMG overall; direct body excludes other media. DOM-only evidence.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://mangaoi.net/read-manga/colorist/chapter-50",
+          "checkedAt": "2026-10-05T14:30:30.994Z"
         }
       ]
     },
@@ -15010,6 +15115,99 @@
       "profileRemoved": true,
       "pageErrorCount": 0,
       "networkFailureCount": 4
+    },
+    {
+      "url": "https://mangaoi.net/",
+      "finalUrl": "https://mangaoi.net/",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "mangaoi-alternate-chapter-and-mangalib-semantic-native-pages-wave31",
+      "attempt": "homes-wave31",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 20,
+      "canvasCount": 0,
+      "readerFinding": "Normal visible original catalogue provides actual alternate chapter links; no chapter acceptance from catalogue alone.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "profileCleanup": "Late residue removed after inspector terminal success and browser PID verified absent; private cleanup report retained."
+    },
+    {
+      "url": "https://mangalib.me/",
+      "finalUrl": "https://mangalib.me/ru",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "mangaoi-alternate-chapter-and-mangalib-semantic-native-pages-wave31",
+      "attempt": "homes-wave31",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 45,
+      "canvasCount": 0,
+      "readerFinding": "Normal visible root redirects to public ru home updates and provides actual chapter links; no hostname alias inferred.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "profileCleanup": "Late residue removed after inspector terminal success and browser PID verified absent; private cleanup report retained."
+    },
+    {
+      "url": "https://mangaoi.net/read-manga/the-academys-weapon-replicator/chapter-21",
+      "finalUrl": "https://mangaoi.net/read-manga/the-academys-weapon-replicator/chapter-21",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "mangaoi-alternate-chapter-and-mangalib-semantic-native-pages-wave31",
+      "attempt": "chapters-wave31",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Actual alternate native-listed chapter21 returns HTTP200 with404 title and zero body. Retained work-level failure, not a whole-site closure.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://mangaoi.net/read-manga/colorist/chapter-50",
+      "finalUrl": "https://mangaoi.net/read-manga/colorist/chapter-50",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "mangaoi-alternate-chapter-and-mangalib-semantic-native-pages-wave31",
+      "attempt": "chapters-wave31",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 140,
+      "canvasCount": 0,
+      "readerFinding": "Different actual native-listed chapter50 displays130 direct body IMG under inner.chapter-wapper/chapter-content/item-chapter, including800x1195 and800x1515. Page has140 IMG overall; direct body excludes other media. DOM-only evidence.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+      "finalUrl": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "mangaoi-alternate-chapter-and-mangalib-semantic-native-pages-wave31",
+      "attempt": "chapters-wave31",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "readerFinding": "Different actual native-listed public chapter v22/c129 normally loads two1337x1920 page IMG. Semantic data-reader-mode/main[data-reader-info-visible]/data-page ancestors enable class-independent body selection; old empty chapter samples retained.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+      "finalUrl": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129?p=2",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "mangaoi-alternate-chapter-and-mangalib-semantic-native-pages-wave31",
+      "attempt": "mangalib-next-wave31",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 3,
+      "canvasCount": 0,
+      "readerFinding": "Normal native ArrowRight changes p=2 within same document; second1337x1920 page is visible, first and third loaded buffers hidden. No new document navigation. Valid single p can reuse chapter identity, other queries preserved; no actual OCR/quality or cross-document persistence claim.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "profileCleanup": "Late residue removed after inspector terminal success and browser PID verified absent; private cleanup report retained."
     }
   ],
   "verification": {
@@ -24751,6 +24949,161 @@
         "anchors": 741,
         "images": 154,
         "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave30.log"
+      }
+    },
+    "mangaOiLibReaderUnit": {
+      "status": "passed",
+      "cases": 549,
+      "files": 7,
+      "fourDimensionCoverage": "100% for all eight manga configuration/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave31-final.log",
+      "scope": "MangaOI direct numbered/decimal chapter body and exclusions. MangaLib semantic direct body without generated classes; single valid p identity, next-page scheduling, pause/restore/resume, chapter and bid change cleanup, invalid/duplicate query exclusions. No cross-document active-state persistence."
+    },
+    "mangaOiLibReaderEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://mangaoi.net/read-manga/colorist/chapter-50",
+        "live reader discovery: https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "windowState": "normal",
+        "displayTarget": "secondary",
+        "browserFrontmost": false
+      },
+      "profileRemoved": true,
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "liveReaders": [
+        {
+          "url": "https://mangaoi.net/read-manga/colorist/chapter-50",
+          "finalUrl": "https://mangaoi.net/read-manga/colorist/chapter-50",
+          "status": 200,
+          "mode": "images",
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed",
+          "readerPagesCount": 130,
+          "loadedReaderPagesCount": 130,
+          "visibleReaderPagesCount": 1,
+          "dimensionSamples": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1600,
+              "naturalHeight": 900,
+              "width": 1200,
+              "height": 675,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 800,
+              "naturalHeight": 1195,
+              "width": 800,
+              "height": 1195,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 800,
+              "naturalHeight": 1515,
+              "width": 800,
+              "height": 1515,
+              "visible": false
+            }
+          ]
+        },
+        {
+          "url": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+          "finalUrl": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129?p=2",
+          "status": 200,
+          "mode": "images",
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed",
+          "readerPagesCount": 3,
+          "loadedReaderPagesCount": 3,
+          "visibleReaderPagesCount": 1,
+          "dimensionSamples": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1337,
+              "naturalHeight": 1920,
+              "width": 1337,
+              "height": 1920,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1337,
+              "naturalHeight": 1920,
+              "width": 1280,
+              "height": 1838,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1337,
+              "naturalHeight": 1920,
+              "width": 1337,
+              "height": 1920,
+              "visible": false
+            }
+          ]
+        }
+      ],
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-wave31/report.json",
+      "scope": "20 Chrome entry cases;18 fixture/base plus actual MangaOI chapter130 direct IMG and MangaLib native ArrowRight/p=2 pages. DOM/geometry/entry only, no chapter screenshots/OCR/export or actual continuous-translation/quality/cross-document persistence acceptance."
+    },
+    "mangaOiLibReaderBuilds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "typecheckReport": "/private/tmp/fluentread-brand-manga-sites-20261005/compile-wave31-final.log",
+      "chromeSeconds": 30.4,
+      "firefoxSeconds": 48.8,
+      "userscriptSeconds": 5.47,
+      "userscriptBytes": 1917316,
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave31-final.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6119,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-wave31-final.log"
+      },
+      "scope": "Chrome entry runtime only; Firefox/userscript build and verifier evidence. Final p-query identity extension and lifecycle tested; initial542 cases/builds are intermediate, final549 cases authoritative. No real MangaOI/MangaLib OCR/quality, cross-document persistence, ru/ko auto detection or all-devices acceptance. Prior architecture-group/all-suite failures retained. Source authorization, engines, permissions, dependencies, version and reference repositories unchanged.",
+      "docs": {
+        "build": "passed",
+        "check": "passed",
+        "pages": 77,
+        "links": 3955,
+        "anchors": 741,
+        "images": 154,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave31.log"
       }
     }
   }
