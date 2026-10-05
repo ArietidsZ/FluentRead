@@ -219,7 +219,9 @@ function chooseCandidate(
   const fullscreen = connected.find((candidate) => isFullscreenVideo(candidate.video, document));
   if (fullscreen) return fullscreen;
 
-  const interacted = connected.find((candidate) => isInteractionVideo(candidate, document, lastInteraction));
+  // 新视频上的指针/焦点交互优先于旧菜单残留的 document.activeElement。
+  const interacted = connected.find((candidate) => candidate.video === lastInteraction)
+    || connected.find((candidate) => isInteractionVideo(candidate, document, null));
   if (interacted) return interacted;
 
   if (selected) {

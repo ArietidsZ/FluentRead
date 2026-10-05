@@ -750,7 +750,9 @@ export class VideoAiFullCaptureController {
         availableAtMs: 0,
         translationAvailableAtMs: 0,
       })) as unknown as VideoAiStabilizedCue[])) as unknown as VideoAiStabilizedCue[];
-      if (cues.length === 0) throw new Error('本地 AI 没有识别出可读字幕，请换用 Base 模型重试');
+      if (cues.length === 0) throw new Error(normalizeVideoLocalTranscriptionModel(this.options.getModel()) === 'base'
+        ? '本地 AI 没有识别出可读字幕，请确认视频有清晰人声并检查视频原语言后重试'
+        : '本地 AI 没有识别出可读字幕，请换用 Base 模型重试');
       this.phase = 'translating';
       this.setProgress({
         phase: 'translating',

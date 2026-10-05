@@ -3,6 +3,7 @@ import {parseHTML} from 'linkedom';
 
 import {
   createVideoPlayerMenu,
+  handleVideoMenuNavigation,
   renderVideoSourceStatus,
   setVideoMenuToolsOpen,
   isVideoModelPromptOpen,
@@ -218,6 +219,86 @@ describe('video player menu composition', () => {
     expect(status.textContent).toBe('字幕已关闭');
   });
 
+  it('reveals the localized Base failure after regeneration clears a cached source in the tools pane', () => {
+    const {document} = parseHTML('<!doctype html><body></body>');
+    vi.stubGlobal('document', document);
+    const menu = createVideoPlayerMenu('en-US', true);
+    const source = {enabled: true, source: 'cache' as const, cueCount: 1, checking: false,
+      generating: false, translationFailed: false, canRegenerate: true};
+    renderVideoSourceStatus(menu, source, 'en-US');
+    setVideoMenuToolsOpen(menu, true);
+    // startGeneration stops the previous session before the new capture begins.
+    renderVideoSourceStatus(menu, {...source, source: 'none', cueCount: 0, canRegenerate: false}, 'en-US');
+    renderVideoAiMenu(menu, state({phase: 'error', error: '本地 AI 没有识别出可读字幕，请确认视频有清晰人声并检查视频原语言后重试'}), 'en-US');
+    const button = menu.querySelector<HTMLButtonElement>('[data-action="toggle-ai-subtitle"]')!;
+    expect(menu.dataset.panel).toBe('watch');
+    expect(menu.querySelector<HTMLElement>('.fluent-read-video-menu-watch')?.hidden).toBe(false);
+    expect(button.closest('.fluent-read-video-menu-primary-ai')?.hasAttribute('hidden')).toBe(false);
+    expect(button.querySelector('[data-state]')?.textContent).toContain('clear speech');
+    expect(button.title).toBe(button.querySelector('[data-state]')?.textContent);
+    expect(button.textContent).not.toContain('Base');
+  });
+
+  it('keeps keyboard focus in the viewing controls when a completed AI action moves to tools', () => {
+    const {document} = parseHTML('<!doctype html><body></body>');
+    vi.stubGlobal('document', document);
+    const menu = createVideoPlayerMenu('en-US', true);
+    renderVideoMenuMode(menu, 'bilingual', false, '');
+    const ai = menu.querySelector('[data-action="toggle-ai-subtitle"]')!;
+    Object.defineProperty(document, 'activeElement', {configurable: true, value: ai});
+    const mode = menu.querySelector<HTMLButtonElement>('[data-mode="bilingual"]')!;
+    const focus = vi.spyOn(mode, 'focus');
+    const source = {enabled: true, source: 'none' as const, cueCount: 0, checking: false,
+      generating: false, translationFailed: false, canRegenerate: false};
+    focus.mockImplementation(() => renderVideoSourceStatus(menu, source, 'en-US'));
+    renderVideoSourceStatus(menu, source, 'en-US');
+    renderVideoSourceStatus(menu, {...source, source: 'ai', cueCount: 1}, 'en-US');
+    expect(focus).toHaveBeenCalledOnce();
+    expect(menu.querySelector('[data-source-status]')?.textContent).toContain('AI subtitles');
+    expect(menu.dataset.panel).toBe('watch');
+    expect(ai.closest('.fluent-read-video-menu-tools')).toBeTruthy();
+  });
+
+  it('navigates visible enabled menu controls without sending playback keys to the host', () => {
+    const {document, HTMLElement} = parseHTML('<!doctype html><body><div id="menu"><div class="fluent-read-video-menu-mode-group"><button>双语</button><button>译文</button><button>原文</button><button>关闭</button></div></div></body>');
+    vi.stubGlobal('document', document);
+    vi.stubGlobal('HTMLElement', HTMLElement);
+    const menu = document.getElementById('menu')!;
+    const group = menu.querySelector<HTMLElement>('.fluent-read-video-menu-mode-group')!;
+    const modes = [...group.querySelectorAll<HTMLButtonElement>('button')];
+    const focused = modes.map(button => vi.spyOn(button, 'focus'));
+    const dispatch = (key: string, target: EventTarget | null = modes[0], trusted = true) => {
+      const event = {key, target, currentTarget: menu, isTrusted: trusted,
+        stopPropagation: vi.fn(), preventDefault: vi.fn()};
+      handleVideoMenuNavigation(event as unknown as KeyboardEvent);
+      return event;
+    };
+    expect(dispatch('ArrowRight', null).stopPropagation).not.toHaveBeenCalled();
+    expect(dispatch('ArrowRight', document.body).stopPropagation).not.toHaveBeenCalled();
+    expect(dispatch('ArrowRight', modes[0], false).stopPropagation).not.toHaveBeenCalled();
+    expect(dispatch(' ', modes[0]).preventDefault).not.toHaveBeenCalled();
+    modes[1].disabled = true;
+    modes[2].hidden = true;
+    expect(dispatch('ArrowRight').preventDefault).toHaveBeenCalledOnce();
+    expect(focused[3]).toHaveBeenCalledOnce();
+    focused.forEach(spy => spy.mockClear());
+    dispatch('ArrowLeft');
+    expect(focused[3]).toHaveBeenCalledOnce();
+    dispatch('Home', modes[3]);
+    expect(focused[0]).toHaveBeenCalledOnce();
+    dispatch('End');
+    expect(focused[3]).toHaveBeenCalledTimes(2);
+    modes[1].disabled = false;
+    modes[2].hidden = false;
+    dispatch('ArrowDown');
+    expect(focused[1]).toHaveBeenCalledOnce();
+    dispatch('ArrowUp', modes[1]);
+    expect(focused[0]).toHaveBeenCalledTimes(2);
+    expect(dispatch('ArrowRight', menu).preventDefault).not.toHaveBeenCalled();
+    group.remove();
+    expect(dispatch('ArrowDown', menu).preventDefault).not.toHaveBeenCalled();
+  });
+
   it('opens a model confirmation view with recommendation, sizes and downloaded state, then returns to the menu', () => {
     const {document} = parseHTML('<!doctype html><body></body>');
     vi.stubGlobal('document', document);
@@ -402,5 +483,11 @@ describe('video player menu composition', () => {
     vi.stubGlobal('document', document);
     const menu = createVideoPlayerMenu('zh-CN', false);
     expect(() => renderVideoAiMenu(menu, state(), 'zh-CN')).not.toThrow();
+    expect(() => setVideoMenuToolsOpen(menu, true)).not.toThrow();
+    expect(() => renderVideoSourceStatus(menu, {enabled: true, source: 'none', cueCount: 0,
+      checking: false, generating: false, translationFailed: false, canRegenerate: false}, 'zh-CN')).not.toThrow();
+    const xMenu = createVideoPlayerMenu('zh-CN', true);
+    xMenu.querySelector('.fluent-read-video-menu-tools')!.remove();
+    expect(() => setVideoMenuToolsOpen(xMenu, true)).not.toThrow();
   });
 });
