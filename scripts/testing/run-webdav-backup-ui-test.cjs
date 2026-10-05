@@ -24,6 +24,7 @@ async function main() {
     const expected = 'Basic '+Buffer.from('fixture-user:fixture-app-password').toString('base64');
     const server = createServer(async (req,res) => {
         state.calls.push({method:req.method,url:req.url,match:req.headers['if-match']});
+        if (state.failRead) {res.writeHead(503).end();return;}
         if (![expected,'Basic '+Buffer.from('fixture-other:fixture-app-password').toString('base64')].includes(req.headers.authorization)) {res.writeHead(401).end(); return;}
         if (req.method === 'PROPFIND' && (req.url === '/dav/' || req.url === '/dav/FluentRead/')) {
             if (req.url === '/dav/FluentRead/' && !state.folder) {res.writeHead(404).end(); return;}
@@ -82,7 +83,7 @@ async function main() {
         await savePatch({uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,token:{openai:'fixture-private-key'},apiKeys:{openai:['fixture-private-key']},customBody:{openai:'{"auth":"fixture-private-body"}'},to:'fr'});
         await page.reload({waitUntil:'domcontentloaded'}); await navigate();
         const card=page.locator('[data-testid="cloud-config-backup"]');
-        check(await card.getByRole('heading',{name:'配置云备份',exact:true}).isVisible(),'Google Drive and WebDAV share one cloud backup heading');
+        check(await card.getByRole('heading',{name:'云备份',exact:true}).isVisible(),'Google Drive and WebDAV share one cloud backup heading');
         await page.locator('[data-testid="cloud-method-webdav"]').check();
         await page.locator('[data-testid="webdav-setup"]').click();
         const setup=page.locator('.webdav-settings-dialog');await setup.waitFor();
@@ -120,19 +121,22 @@ async function main() {
             const cloud=state.content;
             await openDelete();
             check((await deletion.innerText()).includes('fixture-user')&&(await page.locator('[data-testid="webdav-delete-server"]').innerText())===url,'delete confirmation identifies the actual account and server');
-            check(await verification.inputValue()===''&&!(await deleteButton.isEnabled())&&(await deleteButton.innerText())==='确认','deletion requires typed confirmation and uses the concise button label');
+            check(await verification.inputValue()===''&&!(await deleteButton.isEnabled())&&(await deleteButton.innerText())==='删除备份','deletion requires typed confirmation and uses the concise button label');
             await verification.fill('确认删除');check(!(await deleteButton.isEnabled()),'a different confirmation phrase cannot enable deletion');
             await verification.fill('确定删除');check(await deleteButton.isEnabled()&&deletionCount()===0,'matching the exact phrase enables confirmation without deleting');
             await verification.press('Enter');check(await deletion.isVisible()&&state.content===cloud&&deletionCount()===0,'Enter in the confirmation field cannot delete a backup');
             await page.evaluate(async()=>{await new Promise(requestAnimationFrame);await Promise.all(document.getAnimations().filter(animation=>animation.effect?.getComputedTiming().iterations!==Infinity).map(animation=>animation.finished.catch(()=>undefined)));});
             check(await deleteButton.evaluate(el=>getComputedStyle(el).backgroundColor)===await page.locator('[data-testid="webdav-sync-now"]').evaluate(el=>getComputedStyle(el).backgroundColor),'deletion confirmation follows the existing primary button theme');
             await verification.fill('');check(!(await deleteButton.isEnabled()),'clearing the phrase disables confirmation again');
-            check((await deletion.innerText()).includes('删除后无法恢复，本机配置与密钥保留。')&&!(await deletion.locator('.cloud-delete-note').first().isVisible()),'deletion combines irreversible impact and local preservation into one concise statement');
-            check(await verification.getAttribute('placeholder')==='输入「确定删除」'&&await verification.getAttribute('aria-label')==='输入「确定删除」','confirmation hint stays concise and accessible without a duplicate label');
+            check((await deletion.innerText()).includes('确认后将从 WebDAV 删除当前云端备份')&&(await deletion.innerText()).includes('删除后无法恢复，本机配置与密钥保留。')&&await page.locator('.cloud-delete-note:visible').count()===0,'deletion foregrounds provider removal and local preservation');
+            check(await verification.getAttribute('placeholder')==='输入「确定删除」'&&await verification.getAttribute('aria-label')==='输入「确定删除」','confirmation field retains its accessible hint');
+            check((await deletion.locator('.cloud-delete-instruction').innerText()).includes('输入以下文字，才能删除：')&&await deletion.locator('[data-testid="cloud-delete-phrase"]').innerText()==='确定删除'&&await deletion.locator('[data-testid="cloud-delete-phrase"]').evaluate(el=>Number(getComputedStyle(el).fontWeight)>=600),'required confirmation text is visible and bold above the field');
             const detailsToggle=deletion.locator('[data-testid="cloud-delete-details-toggle"]');
             check(await detailsToggle.getAttribute('aria-expanded')==='false','secondary deletion details start collapsed');
-            await detailsToggle.press('Enter');check((await deletion.innerText()).includes('历史版本')&&await detailsToggle.getAttribute('aria-expanded')==='true','keyboard opens retained-copy details');await detailsToggle.press('Space');
-            check(!(await deletion.locator('.cloud-delete-note').first().isVisible()),'keyboard closes retained-copy details');
+            const beforeDetails=await deletion.boundingBox();const beforeButton=await deleteButton.boundingBox();
+            await detailsToggle.press('Enter');await page.locator('.cloud-delete-details').waitFor();check((await page.locator('.cloud-delete-details').innerText()).includes('历史版本')&&await detailsToggle.getAttribute('aria-expanded')==='true','keyboard opens retained-copy details');
+            check(JSON.stringify(await deletion.boundingBox())===JSON.stringify(beforeDetails)&&JSON.stringify(await deleteButton.boundingBox())===JSON.stringify(beforeButton),'opening details keeps dialog and delete button in exactly the same position');await shot('cloud-delete-webdav-details-desktop');await detailsToggle.press('Space');await page.locator('.cloud-delete-details').waitFor({state:'hidden'});
+            check(await page.locator('.cloud-delete-note:visible').count()===0,'keyboard closes retained-copy details');
             check(await page.locator('[data-testid="cloud-method-google-drive"]').isDisabled(),'provider switching is locked during deletion confirmation');
             check(deletionCount()===0&&state.content===cloud,'opening deletion confirmation does not delete a file');
             await shot('cloud-delete-webdav-desktop');await verification.fill('确定删除');await cancelDelete();
@@ -153,12 +157,15 @@ async function main() {
                 check(await verification.getAttribute('placeholder')===hint&&await verification.getAttribute('aria-label')===hint&&!(await deleteButton.isEnabled()),`${lang} deletion requests the localized confirmation phrase accessibly`);
                 await verification.fill(copy['settings.cloud.deletePhrase']);check(await deleteButton.isEnabled(),`${lang} matching confirmation enables deletion`);
                 check(await deletion.evaluate(el=>el.scrollWidth<=el.clientWidth+1&&document.documentElement.scrollWidth<=innerWidth+1),`${lang} deletion dialog has no horizontal overflow`);
-                await deletion.locator('[data-testid="cloud-delete-details-toggle"]').click();const contrasts=await deletion.evaluate(el=>{
+                await page.evaluate(async()=>{await Promise.all(document.getAnimations().filter(animation=>animation.effect?.getComputedTiming().iterations!==Infinity).map(animation=>animation.finished.catch(()=>undefined)));});
+                const closedBounds=await deletion.boundingBox();await deletion.locator('[data-testid="cloud-delete-details-toggle"]').click();await page.locator('.cloud-delete-details').waitFor();check(JSON.stringify(await deletion.boundingBox())===JSON.stringify(closedBounds),`${lang} opening details does not move or resize the dialog`);
+                check(await page.locator('.fluentread-cloud-delete-help:visible').evaluate(el=>{const r=el.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1;}),`${lang} details stay inside the viewport`);
+                const contrasts=await page.evaluate(()=>{
                     const luminance=color=>{const [r,g,b]=color.match(/[\d.]+/g).slice(0,3).map(Number).map(value=>{const c=value/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});return .2126*r+.7152*g+.0722*b;};
                     const ratio=(a,b)=>(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
-                    const button=el.querySelector('[data-testid="cloud-delete-confirm"]');const style=getComputedStyle(button);
+                    const button=document.querySelector('[data-testid="cloud-delete-confirm"]');const style=getComputedStyle(button);
                     const primary=getComputedStyle(document.querySelector('[data-testid="webdav-sync-now"]'));
-                    return [ratio(luminance(getComputedStyle(el.querySelector('.cloud-delete-note')).color),luminance(getComputedStyle(el).backgroundColor)),ratio(luminance(style.color),luminance(style.backgroundColor)),ratio(luminance(primary.color),luminance(primary.backgroundColor))];
+                    return [ratio(luminance(getComputedStyle(document.querySelector('.cloud-delete-note')).color),luminance(getComputedStyle(document.querySelector('.fluentread-cloud-delete-help')).backgroundColor)),ratio(luminance(style.color),luminance(style.backgroundColor)),ratio(luminance(primary.color),luminance(primary.backgroundColor))];
                 });check(contrasts[0]>=4.5&&contrasts[1]>=contrasts[2]-.01,`${lang} deletion notes are readable and confirmation matches native primary contrast`);await deletion.locator('[data-testid="cloud-delete-details-toggle"]').click();
                 if (lang==='en-US') await shot('cloud-delete-webdav-english-mobile');
                 if (lang==='zh-CN') await shot('cloud-delete-webdav-dark-desktop');
@@ -186,6 +193,7 @@ async function main() {
             const consent=page.locator('.cloud-consent-dialog');
             async function expectBasic() {check(await basicInput.isChecked()&&!await basicInput.isEnabled(),'basic settings are always selected and cannot be disabled');}
             async function expectOff(label) {check(await switchInput.getAttribute('aria-checked')==='false',label);await expectBasic();}
+            async function expectOn(label) {check(await switchInput.getAttribute('aria-checked')==='true',label);await expectBasic();}
             async function shotScope(name) {
                 check(await scope.evaluate(el=>el.scrollWidth<=el.clientWidth),'scope rows wrap without horizontal overflow: '+name);
                 const target=path.join(artifactsDir,name+'.png');await scope.screenshot({path:target,animations:'disabled'});report.screenshots.push(target);
@@ -195,7 +203,7 @@ async function main() {
                 check(!(await page.locator('[data-testid="cloud-consent-confirm"]').isEnabled()),'sensitive confirmation requires an unchecked acknowledgement');
                 await page.locator('[data-testid="cloud-risk-acknowledgement"]').check();
                 await page.locator('[data-testid="cloud-consent-confirm"]').click();await consent.waitFor({state:'hidden'});
-                check(await switchInput.getAttribute('aria-checked')==='true','explicit acknowledgement enables only this operation');
+                check(await switchInput.getAttribute('aria-checked')==='true','explicit acknowledgement enables subsequent operations');
                 await expectBasic();
             }
             async function readPayload() {
@@ -208,7 +216,7 @@ async function main() {
                 },state.content);
             }
             async function credentials() {return page.evaluate(async()=> (await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:credentials'})).value);}
-            async function confirm() {await page.locator('[data-testid="webdav-confirm"]').click();await dialog.waitFor({state:'hidden'});await expectOff('completing an operation resets sensitive consent');}
+            async function confirm() {const enabled=await switchInput.isChecked();await page.locator('[data-testid="webdav-confirm"]').click();await dialog.waitFor({state:'hidden'});check(await switchInput.isChecked()===enabled,'completing an operation preserves the selected scope');}
             const beforeConsent=state.calls.length;
             await expectOff('sensitive information is excluded by default');await shot('cloud-default-scope-desktop');
             check(await scope.locator('.cloud-scope-option').count()===2,'basic and sensitive settings are two peer rows');
@@ -216,6 +224,7 @@ async function main() {
             await shotScope('cloud-scope-basic-desktop');
             await toggle.click();await consent.waitFor();
             check((await consent.innerText()).includes('加密口令公开')&&(await consent.innerText()).includes('第三方账号被盗'),'risk dialog explains public encryption and stolen third-party accounts');
+            check(await page.locator('[data-testid="cloud-consent-cancel"]').innerText()==='取消'&&await page.locator('[data-testid="cloud-consent-confirm"]').innerText()==='同意并开启'&&!(await consent.innerText()).includes('本次'),'consent actions and acknowledgement describe a persistent choice');
             await shot('cloud-sensitive-consent-desktop');
             await page.locator('[data-testid="cloud-consent-cancel"]').click();await consent.waitFor({state:'hidden'});
             await expectOff('cancelling risk acknowledgement leaves sensitive sync disabled');
@@ -235,6 +244,8 @@ async function main() {
             await allowSensitive();await shotScope('cloud-scope-sensitive-desktop');await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await chooseIntent('upload');await confirm();
             const complete=await readPayload();
             check(complete.version===1&&JSON.stringify(complete).includes('fixture-device-key')&&JSON.stringify(complete).includes('fixture-device-body'),'explicit consent creates a legacy-compatible complete backup');
+            await expectOn('sensitive upload keeps the option enabled');
+            await toggle.click();await expectOff('manual disabling restores the ordinary scope');
             await savePatch({to:'ja',token:{openai:'fixture-new-device-key'},apiKeys:{openai:['fixture-new-device-key']},proxy:{openai:'https://new-device.fixture.invalid/v1'}});
             const legacyContent=state.content;const legacyVersion=state.version;
             await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
@@ -245,6 +256,7 @@ async function main() {
             check(state.version===legacyVersion&&state.content===legacyContent,'default restore leaves the existing sensitive cloud file untouched');
             await allowSensitive();await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await chooseIntent('download');await confirm();
             check(JSON.stringify(await credentials()).includes('fixture-device-key'),'explicit sensitive restore still imports complete legacy credentials');
+            await toggle.click();await expectOff('manual disabling after restore keeps subsequent backups ordinary');
             // 普通设置完全一致时，仍要允许用户主动替换含敏感信息的旧云文件。
             await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
             check(await page.locator('[data-testid="webdav-direction-upload"]').isVisible(),'scope change remains actionable even when ordinary settings are identical');
@@ -252,11 +264,24 @@ async function main() {
             check(!JSON.stringify(await readPayload()).includes('fixture-device-key'),'saving settings-only removes secrets from the current cloud file');
             check(JSON.stringify(await credentials()).includes('fixture-device-key'),'downgrading cloud scope does not erase local credentials');
             await allowSensitive();await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
-            await dialog.getByRole('button',{name:'取消',exact:true}).click();await dialog.waitFor({state:'hidden'});await expectOff('cancelling preview resets sensitive consent');
-            await allowSensitive();await page.locator('[data-testid="cloud-method-google-drive"]').check();
-            await expectOff('switching provider cannot reuse sensitive consent');
-            await page.locator('[data-testid="cloud-method-webdav"]').check();await expectOff('returning to provider keeps safe default');
-            await allowSensitive();await page.reload({waitUntil:'domcontentloaded'});await navigate();await expectOff('reopening settings never restores a previous sensitive consent');
+            await dialog.getByRole('button',{name:'取消',exact:true}).click();await dialog.waitFor({state:'hidden'});await expectOn('cancelling preview keeps the sensitive preference');
+            await page.locator('[data-testid="cloud-method-google-drive"]').check();
+            await expectOn('switching provider preserves the shared local preference');
+            await page.locator('[data-testid="cloud-method-webdav"]').check();await expectOn('returning to provider keeps the selected scope');
+            state.failRead=true;await page.locator('[data-testid="webdav-sync-now"]').click();await card.locator('.drive-error').waitFor();await expectOn('preview preparation failure preserves sensitive preference');state.failRead=false;
+            await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await chooseIntent('upload');state.failPut=true;await confirm();state.failPut=false;await expectOn('commit failure preserves sensitive preference');
+            await page.reload({waitUntil:'domcontentloaded'});await navigate();await expectOn('reopening settings restores the sensitive preference');
+            await shot('cloud-sensitive-persisted-desktop');
+            const other=await newPageWithoutForeground(context,30000);await other.goto(settingsUrl,{waitUntil:'domcontentloaded'});await other.locator('button[data-section="settings-data"]').click();
+            const otherInput=other.locator('[data-testid="cloud-include-sensitive"] input[role="switch"]');await otherInput.waitFor({state:'attached'});check(await otherInput.isChecked(),'another settings page reads the persisted preference');
+            await toggle.click();await other.waitForFunction(()=>document.querySelector('[data-testid="cloud-include-sensitive"] input').getAttribute('aria-checked')==='false');check(!await otherInput.isChecked(),'turning off updates another open settings page');await other.close();
+            await page.evaluate(()=>{globalThis.__originalSensitiveSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='fluentread-cloud-backup-include-sensitive')throw new Error('fixture storage failure');return globalThis.__originalSensitiveSetItem.call(this,key,value);};});
+            await toggle.click();await consent.waitFor();await page.locator('[data-testid="cloud-risk-acknowledgement"]').check();await page.locator('[data-testid="cloud-consent-confirm"]').click();await consent.waitFor({state:'hidden'});await expectOff('failed preference save does not enable sensitive backup');check((await card.innerText()).includes('无法保存敏感配置选择'),'preference write failure is visible');
+            await page.evaluate(()=>{Storage.prototype.setItem=globalThis.__originalSensitiveSetItem;delete globalThis.__originalSensitiveSetItem;});
+            const quick=await newPageWithoutForeground(context,30000);await quick.goto(settingsUrl,{waitUntil:'domcontentloaded'});await quick.locator('button[data-section="settings-data"]').click();
+            await quick.locator('[data-testid="cloud-include-sensitive"]').click();await quick.locator('[data-testid="cloud-risk-acknowledgement"]').check();await quick.locator('[data-testid="cloud-consent-confirm"]').click();await quick.close();
+            await page.reload({waitUntil:'domcontentloaded'});await navigate();await expectOn('immediate close after acknowledgement preserves enabled preference');
+            await toggle.click();await page.reload({waitUntil:'domcontentloaded'});await navigate();await expectOff('manual disabling remains off after reopening');
             await page.setViewportSize({width:390,height:900});await activateExtensionTabWithoutForeground(context,page);await shot('cloud-default-scope-mobile');
             await shotScope('cloud-scope-basic-mobile');
             await toggle.click();await consent.waitFor();
