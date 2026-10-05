@@ -7,7 +7,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
-import {pathToFileURL} from 'node:url';
+import {fileURLToPath} from 'node:url';
 const exec=promisify(execFile),hash=value=>createHash('sha256').update(value).digest('hex');
 const intersects=(a,b)=>a.left<b.left+b.width&&a.left+a.width>b.left&&a.top<b.top+b.height&&a.top+a.height>b.top;
 
@@ -138,7 +138,8 @@ async function selfCheck() {
   await assert.rejects(()=>verifyProfileArgument('BrowserOS --user-data-dir=/tmp/fluentread-owned --user-data-dir=/tmp/fluentread-other','/private/tmp/fluentread-owned',aliases));
   console.log(JSON.stringify({ok:true,scope:'pure guard contract checks only',macosRun:false,browserRun:false}));
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href) {
-  try {if(process.argv.includes('--self-check'))await selfCheck();else await runGuard(process.argv.slice(2));}
-  catch(error){console.error(error.message);process.exitCode=1;}
-}
+try {
+  if(process.argv[1]&&process.argv[1]!=='-'&&await fs.realpath(process.argv[1])===await fs.realpath(fileURLToPath(import.meta.url))) {
+    if(process.argv.includes('--self-check'))await selfCheck();else await runGuard(process.argv.slice(2));
+  }
+} catch(error){console.error(error.message);process.exitCode=1;}
