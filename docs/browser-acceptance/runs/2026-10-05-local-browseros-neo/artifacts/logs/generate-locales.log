@@ -1,0 +1,9 @@
+
+> FluentRead-流畅阅读@0.0.35 generate:userscript-languages <WORKSPACE>/fluentread-acceptance-product
+> node scripts/generate-userscript-language-data.mjs
+
+userscript/languages/ja-JP.b3b82390d42e27a3.json
+userscript/languages/ko-KR.596a291c0f0246ce.json
+userscript/languages/fr-FR.0bf5e31608846a42.json
+userscript/languages/ru-RU.8d9abca09211dc28.json
+userscript/languages/es-ES.c5582401d9c1c771.json
