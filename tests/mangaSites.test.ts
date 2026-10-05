@@ -6,6 +6,15 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it.each(['/serie/the-beginning-after-the-end-54f5cb7c/chapter-255/', '/serie/the-beginning-after-the-end-54f5cb7c/chapter-254'])('Toonily 公开章节 %s 只选择直系阅读页图片，排除封面、嵌套推广和异常路径', path => {
+        const site = resolveMangaSite(`https://toonily.com${path}`)!;
+        expect(site).toMatchObject({name: 'Toonily', requireContent: true});
+        const {document} = parseHTML('<div class="entry-content_wrap"><div class="read-container"><div class="reading-content"><div class="page-break no-gaps"><img id="body" class="wp-manga-chapter-img"><a><img id="nested" class="wp-manga-chapter-img"></a></div><aside class="page-break"><div><img id="promotion" class="wp-manga-chapter-img"></div></aside><img id="cover" class="wp-manga-chapter-img"></div><div class="recommendations"><img id="recommended" class="wp-manga-chapter-img"></div></div></div><div class="reading-content"><div class="page-break"><img id="outside" class="wp-manga-chapter-img"></div></div>');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['body']);
+        expect(resolveMangaReaderProfile('www.toonily.com', path)).toMatchObject({name: 'Toonily'});
+        for (const invalid of ['/', '/serie/title', '/serie/title/chapter-0', '/serie/title/chapter-01', '/serie/title/chapter-text', '/serie/title/chapter-1.5', '/serie/title/chapter-1/extra', '/serie/-title/chapter-1']) expect(resolveMangaReaderProfile('toonily.com', invalid)).toBeNull();
+        expect(resolveMangaReaderProfile('toonily.com.attacker.test', path)).toBeNull();
+    });
     it('Ridi 公开试读只选择语义阅读容器的整页 blob，商品推广、嵌套链接和外部图片保持原样', () => {
         const site=resolveMangaSite('https://ridibooks.com/books/1690002642/preview')!;
         expect(site).toMatchObject({name:'Ridi',requireContent:true});

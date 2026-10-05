@@ -277,6 +277,19 @@ async function clickEntry(selector) {await activateVisible(page);let point = awa
                 report.currentCase=`live reader discovery: ${sample.url}`;
                 if(sample.sourceConsentLabel)await patch({from:'auto',imageTranslationMangaDownloadConfirmed:false});
                 const response=await gotoVisible(page,sample.url,{waitUntil:'domcontentloaded',timeout:30000});await page.waitForTimeout(3000);focusGuard();
+                const result={url:sample.url,finalUrl:page.url(),status:response?.status(),mode:sample.mode};
+                (report.liveReaders??=[]).push(result);
+                if(response?.status()!==200){
+                    result.result='access-restricted';
+                    if(sample.verifyNoReaderEntry){
+                        assert.equal(response?.status(),403,'Restricted-reader sample must retain observed403 boundary');
+                        assert.equal(Boolean(await ball('return !!this.querySelector(".floating-ball-manga")')),false);
+                        assert.equal(Boolean(await entry('return !!this.querySelector(".fr-manga-launcher")')),false);
+                        result.readerEntryAbsent=true;report.cases.push(`403 page has no manga entry: ${sample.url}`);
+                        continue;
+                    }
+                    throw new Error(`Public reader access failed: HTTP ${response?.status() ?? 'unavailable'}`);
+                }
                 if(sample.rejectCookies) {const reject=page.locator('#onetrust-reject-all-handler');await reject.waitFor({timeout:8000}).then(()=>reject.click()).catch(()=>undefined);}
                 if(sample.openSelector) {
                     const opener=sample.openFrameSelector?page.frameLocator(sample.openFrameSelector).locator(sample.openSelector):page.locator(sample.openSelector);
@@ -294,22 +307,17 @@ async function clickEntry(selector) {await activateVisible(page);let point = awa
                     await page.waitForTimeout(sample.readerSettleMs);
                 }
                 if(sample.readerScrollSelector)await page.locator(sample.readerScrollSelector).scrollIntoViewIfNeeded({timeout:15000});
+                result.finalUrl=page.url();
                 if(sample.readerReadySelector){
                     const minimum=sample.readerMinimumNaturalSize||{width:80,height:40};
                     assert.ok(['width','height'].every(key=>Number.isInteger(minimum[key])&&minimum[key]>=1&&minimum[key]<=16384),'Reader natural-size threshold must be bounded positive integers');
-                    await page.waitForFunction(({selector,minimum})=>[...document.querySelectorAll(selector)].some(i=>i.tagName==='IMG'&&i.complete&&i.naturalWidth>=minimum.width&&i.naturalHeight>=minimum.height),{selector:sample.readerReadySelector,minimum},{timeout:20000});
-                }
-                const result={url:sample.url,finalUrl:page.url(),status:response?.status(),mode:sample.mode};
-                (report.liveReaders??=[]).push(result);
-                if(response?.status()!==200){
-                    result.result='access-restricted';
-                    if(sample.verifyNoReaderEntry){
-                        assert.equal(response?.status(),403,'Restricted-reader sample must retain observed403 boundary');
-                        assert.equal(Boolean(await ball('return !!this.querySelector(".floating-ball-manga")')),false);
-                        assert.equal(Boolean(await entry('return !!this.querySelector(".fr-manga-launcher")')),false);
-                        result.readerEntryAbsent=true;report.cases.push(`403 page has no manga entry: ${sample.url}`);
+                    try {
+                        await page.waitForFunction(({selector,minimum})=>[...document.querySelectorAll(selector)].some(i=>i.tagName==='IMG'&&i.complete&&i.naturalWidth>=minimum.width&&i.naturalHeight>=minimum.height),{selector:sample.readerReadySelector,minimum},{timeout:20000});
+                    } catch (error) {
+                        result.result='body-not-ready';
+                        result.readerReadiness=await page.locator(sample.readerReadySelector).evaluateAll(elements=>elements.map(i=>({tag:i.tagName,complete:i.complete,naturalWidth:i.naturalWidth,naturalHeight:i.naturalHeight})));
+                        throw error;
                     }
-                    continue;
                 }
                 await wait(async()=>await ball(`return this.querySelector(".floating-ball-manga")?.getAttribute("aria-label") === ${JSON.stringify(sample.mode==='area'?'圈选漫画翻译':'漫画翻译')}`));
                 if(sample.mode==='canvas')assert.ok(await page.locator(sample.canvasSelector || '#comici-viewer .-cv-page-canvas canvas').count());

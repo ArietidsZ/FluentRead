@@ -2,6 +2,7 @@ import {readdirSync, readFileSync, statSync} from 'node:fs';
 import {relative, resolve, sep} from 'node:path';
 import ts from 'typescript';
 import {Script} from 'node:vm';
+import {execFileSync} from 'node:child_process';
 import {describe, expect, it} from 'vitest';
 
 const PROJECT_ROOT = resolve(__dirname, '../..');
@@ -25,8 +26,14 @@ const PRODUCT_TOOL_SCRIPTS = [
     'scripts/build-product-assets.cjs', 'scripts/capture-product-assets.cjs',
     'scripts/package-product-kit.cjs', 'scripts/verify-product-site.cjs', 'scripts/verify-support-ui.cjs',
 ];
+const DOCS_TOOL_SCRIPTS = [
+    'scripts/capture-docs-ui.cjs',
+    'scripts/verify-brand-copy.mjs',
+    'scripts/verify-docs-build.mjs',
+];
 
 type VerificationOwner =
+    | 'brand-copy-functional'
     | 'chrome-firefox-build'
     | 'config-storage-functional'
     | 'document-browser-functional'
@@ -98,14 +105,18 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
     if (path === 'src/features/document-translation/ui/pdfPreview.ts') owners.add('document-browser-functional');
     if (path === 'src/features/full-page-translation/content/state.ts') owners.add('full-page-state-functional');
     if (path.startsWith('docs/.vitepress/')) owners.add('docs-build');
+    if (path === 'scripts/verify-docs-build.mjs') owners.add('docs-build');
+    if (path === 'scripts/verify-brand-copy.mjs') owners.add('brand-copy-functional');
     if (path.startsWith('examples/')) owners.add('isolated-browser-regression');
-    if (path.startsWith('scripts/run-') || path.startsWith('scripts/site-translation/')) {
+    if (path.startsWith('scripts/run-') || path.startsWith('scripts/site-translation/')
+        || path === 'scripts/capture-docs-ui.cjs') {
         owners.add('isolated-browser-regression');
     }
     if (path.startsWith('scripts/testing/')
         || path.startsWith('scripts/agent-bridge/')
         || path.startsWith('scripts/wasm/')
         || PRODUCT_TOOL_SCRIPTS.includes(path)
+        || DOCS_TOOL_SCRIPTS.includes(path)
         || path === 'scripts/generate-userscript-language-data.mjs'
         || path === 'scripts/build-userscript-standalone.mjs'
         || path === 'scripts/build-userscript-greasyfork.mjs'
@@ -303,6 +314,22 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
 describe('repository verification ownership', () => {
     it.each(PRODUCT_TOOL_SCRIPTS)('产品工具 %s 保持可解析的 CommonJS 入口', path => {
         expect(() => new Script(readFileSync(projectPath(path), 'utf8'), {filename: path})).not.toThrow();
+    });
+    it.each(DOCS_TOOL_SCRIPTS)('文档工具 %s 保持可解析的 Node 入口且不执行浏览器或校验流程', path => {
+        expect(() => execFileSync(process.execPath, ['--check', projectPath(path)], {stdio: 'pipe'})).not.toThrow();
+    });
+    it('文档与品牌校验入口连接实际 npm 命令，截图工具遵循隔离后台浏览器契约', () => {
+        const {scripts} = JSON.parse(readFileSync(projectPath('package.json'), 'utf8'));
+        expect(scripts['docs:check']).toBe('node scripts/verify-docs-build.mjs');
+        expect(scripts['verify:brand']).toBe('node scripts/verify-brand-copy.mjs');
+        const captureSource = readFileSync(projectPath('scripts/capture-docs-ui.cjs'), 'utf8');
+        expect(captureSource).toContain('helper.launchFocusSafePersistentContext');
+        expect(captureSource).toContain('helper.newPageWithoutForeground');
+        expect(captureSource).toContain('helper.activateExtensionTabWithoutForeground');
+        expect(captureSource).toContain('background: true');
+        expect(captureSource).toContain('headless: false');
+        expect(captureSource).not.toContain('.bringToFront(');
+        expect(captureSource).not.toContain('ctx.newPage(');
     });
     const strictCoverage = coverageSourcePaths();
     const auditedFiles = [

@@ -101,7 +101,7 @@
 | 91 | nhentaiyaoi | nhentaiyaoi.net | 专用单帖正文图片 | 公开单帖 37 张正文已加载、一张可见；封面与推荐排除，入口通过，未验 OCR |
 | 92 | orchisasia | orchisasia.org | 专用正文图片，长图分段 | 公开作者后记有 5 张 720 像素宽长图；实页入口通过，翻译质量未验 |
 | 93 | mangalib | mangalib.me | 专用语义容器页图，自动俄语路径提示 | 另一公开章节加载 1337×1920 页图；正常方向键 p=2、同章页码及入口通过；自动源语言提示选择俄语和英语，旧空正文保留，未验实际 OCR |
-| 94 | novelcrow | novelcrow.com | 通用正文图片检测 | 访问受限 |
+| 94 | novelcrow | novelcrow.com | 通用正文图片检测 | 正常选中标签页目录可访问；仅确认封面与目录链接，正文待验证 |
 | 95 | cn.twbzmg.com | cn.twbzmg.com | 包子漫画正文规则族 | 首页 HTML 可访问；本轮未验此域名章节 |
 | 96 | Nyx Scans | nyxscans.com | 专用长条正文图片 | 免费章节与入口已核对；复用既有分段链路 |
 | 97 | Qi Manga | qimanga.com | 专用长条正文图片 | 正常后台浏览器可打开免费章节；无界面模式的 403 记录保留 |
@@ -121,12 +121,12 @@
 | 111 | vortexscans.org | vortexscans.org | 专用正文图片 | 公开章节正文结构已核对 |
 | 112 | freeonlinehd.site | freeonlinehd.site | 通用正文图片检测 | 当前为域名出售及联系页面，无漫画正文 |
 | 113 | weebrook.com | weebrook.com | 通用正文图片检测 | 当前返回 522 原站连接超时，无正文 |
-| 114 | toonily.com | toonily.com | 通用正文图片检测 | 访问受限 |
+| 114 | toonily.com | toonily.com | 专用直系章节页图 | 关闭扩展的正常选中标签页第 254、255 话各有 30 张正文；生产 255 话入口通过，254 话当前 403 且没有漫画入口；未验 OCR |
 | 115 | mangadistrict2.com | mangadistrict2.com | 通用正文图片检测 | 本轮公开首页连接被关闭，未取得正文；不推断永久停服 |
 | 116 | manhuaread.com | manhuaread.com | 通用正文图片检测 | 当前首页为 PLAYBOOK88 博彩品牌，正文未确认 |
 | 117 | mangaread.org | mangaread.org | 专用正文图片 | 公开章节正文结构已核对 |
 | 118 | mangaforfree.net | mangaforfree.net | 专用正文图片 | 公开章节正文结构已核对 |
-| 119 | bakamh.com | bakamh.com | 通用正文图片检测 | 访问受限 |
+| 119 | bakamh.com | bakamh.com | 通用正文图片检测 | 目录在中止批次前返回 200；正常和无头章节样本均为 403，正文未确认 |
 | 120 | yakshascans.com | yakshascans.com、ravenscans.org | 专用正文长图 | 正常关闭推广后五个分段翻译状态通过；标题和署名有错误，未作整章质量验收 |
 | 121 | toonclash.com | toonclash.com | 通用正文图片检测 | 连接失败 |
 | 122 | rawdex.net | rawdex.net | 专用正文图片 | 公开纵向章节正文和入口已核对；未验 OCR 或分页模式 |

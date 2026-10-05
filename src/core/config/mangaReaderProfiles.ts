@@ -2,6 +2,7 @@
  * @file src/core/config/mangaReaderProfiles.ts
  * 文件职责：保存经公开阅读页结构核对的正文规则，避免通用图片过滤漏掉正文或误选推荐封面。
  * 主要内容：Ridi 公开试读语义容器的 blob 整页与商品推广排除、Ynjn 公开正文的直系 Swiper 画布与 Yomonga 明确章节参数的整页分片圈选、已核对的 MangaLib、Mangahub 俄语与 ComicNaver 韩语阅读路径语言提示、Templetoons 免费章直系长图与链接推广排除、MangaLib 原站语义阅读容器的编号页面与 MangaOI 直系章节图片、ACG 当前域名编号页的直接正文与推荐排除、Yamibo 公开单章主图与同章分页、Bomtoon 公开可读的正文画布与版权图片排除、公开图书库当前页与合法档案编号边界、BeLTOON 免费正文、comipo 公开免费 blob 正文与 JComic 单帖直系正文，Hentaizap 路径翻页主图及 Yaoi Manga Online、NHentaiYaoi 单帖正文列表，Raven 正文长图、Novelpia 受限首话圈选、蜡笔小新正文、Lezhin 英语 blob 正文和 Ameba 受限试读画布圈选、已核对章节站与 GANMA 编号原稿及路径页码、TOPTOON 不可读画布和首图的圈选规则、Ranfren 静态正文、漫画站懒加载正文、POIPIKU 单帖主图、Countdown 的主页正文、MANGA Million 编号图片、Orchisasia、Qi Manga、Nyx、Omega、MangaYun、Mangahub、Rinko、RawDEX、Raw1001 等正文规则，GlobalComix 跨域正文提供圈选入口，MechaComic 完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界与 Mangahub 正整数翻页参数，哔哩哔哩在内容脚本中可读的正文画布及透明弹幕交互层、PASH UP 当前屏与 GigaViewer、Comici、ComicWalker、Animate 正文画布规则，MangaLove 不可读画布和 Booklive、CMOA 分片的圈选入口；路径与域名均保留边界。
+ * 正文补充：Toonily 正整数章节路径只选择直系阅读页图片，排除封面、推荐和嵌套推广。
  * 模块边界：纯匹配，不执行站点脚本、不读取私有接口、不截图；可访问的图片由 content 阅读器检测。
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
@@ -13,6 +14,9 @@ const comiciHosts = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
 export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com', 'animatebookstore.com', 'pash-up.jp', 'manga.bilibili.com', 'bomtoon.com', 'ynjn.jp'];
 export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; sourceLanguage?: 'ru' | 'ko'; chapterPath?: string; pageQueryParameter?: 'page' | 'p'; canvasSelector?: string; canvasInteractionSelector?: string; loadingSelector?: string; backgroundSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
+    if (host === 'toonily.com' && /^\/serie\/[a-z\d]+(?:-[a-z\d]+)*\/chapter-[1-9]\d*\/?$/.test(pathname)) return {
+        name: 'Toonily', selector: '.entry-content_wrap > .read-container > .reading-content > .page-break > img.wp-manga-chapter-img',
+    };
     if (host === 'ridibooks.com' && /^\/books\/[1-9]\d*\/preview\/?$/.test(pathname)) return {
         name: 'Ridi', selector: '#root .pre_reading .contents_comics > .reading_body > .viewer > .viewer_viewport .simplebar-content > div > div > div > div > img[src^="blob:https://ridibooks.com/"]',
     };

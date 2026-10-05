@@ -4586,6 +4586,16 @@
           "title": "Just a moment...",
           "htmlSha256": "fbdeb825499859a9381361ea92ba3d2cfb8a19b28dde56d244ca6e2e20a2b044",
           "hostname": "novelcrow.com"
+        },
+        {
+          "requestedUrl": "https://novelcrow.com/",
+          "finalUrl": "https://novelcrow.com/",
+          "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+          "state": "html-accessible",
+          "status": 200,
+          "method": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+          "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs.",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/reader-boundary-recheck-wave36/reader-inspection.json"
         }
       ],
       "adapter": "detect"
@@ -6372,9 +6382,20 @@
           "title": "Just a moment...",
           "htmlSha256": "515493e4d2a3664d1843083fbbdf8ca6db2dc3debd48475b26fd35ac8da0f87e",
           "hostname": "toonily.com"
+        },
+        {
+          "requestedUrl": "https://toonily.com/",
+          "finalUrl": "https://toonily.com/",
+          "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+          "state": "html-accessible",
+          "status": 200,
+          "method": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+          "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs. Completed page within a batch later stopped on foreground violation before the sixth page; no whole-batch focus acceptance.",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-reader-roots-wave36/reader-inspection.json"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "readerFinding": "Two normal selected disabled-extension chapters255/254 each show30 direct body image elements. Production255 entry passes with121selected image elements/9natural-size bodies/1visible; production254 returns403 and no entry. Not all-chapters/OCR/lifecycle/quality acceptance."
     },
     {
       "name": "mangadistrict2.com",
@@ -6521,6 +6542,16 @@
           "title": "Just a moment...",
           "htmlSha256": "fa0cd4280bea1422a28c4be7f05479316badfd8bedf4c80f6abbba2c3a9832a9",
           "hostname": "bakamh.com"
+        },
+        {
+          "requestedUrl": "https://bakamh.com/",
+          "finalUrl": "https://bakamh.com/",
+          "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+          "state": "html-accessible",
+          "status": 200,
+          "method": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+          "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs. Completed page within a batch later stopped on foreground violation before the sixth page; no whole-batch focus acceptance.",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-reader-roots-wave36/reader-inspection.json"
         }
       ],
       "adapter": "detect"
@@ -6834,6 +6865,16 @@
           "state": "access-challenge",
           "scope": "Read-only public home-page DOM recheck without extension; not chapter acceptance",
           "htmlSha256": "7938a21a91c289f935e29f47115a19eb3859a1dd69e6a5f6679e45244df406bc"
+        },
+        {
+          "requestedUrl": "https://comix.to/",
+          "finalUrl": "https://comix.to/",
+          "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+          "state": "access-restricted",
+          "status": 403,
+          "method": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+          "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs. Completed page within a batch later stopped on foreground violation before the sixth page; no whole-batch focus acceptance.",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-reader-roots-wave36/reader-inspection.json"
         }
       ],
       "adapter": "detect"
@@ -8907,6 +8948,16 @@
           "title": "Just a moment...",
           "htmlSha256": "70cb9d5580866cfac2879eca49ccd729827cdf79aa12bb39351c108c97c9019d",
           "hostname": "kagane.to"
+        },
+        {
+          "requestedUrl": "https://kagane.to/",
+          "finalUrl": "https://kagane.to/",
+          "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+          "state": "access-restricted",
+          "status": 403,
+          "method": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+          "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs. Completed page within a batch later stopped on foreground violation before the sixth page; no whole-batch focus acceptance.",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-reader-roots-wave36/reader-inspection.json"
         }
       ],
       "adapter": "detect"
@@ -8982,6 +9033,16 @@
           "title": "Attention Required! | Cloudflare",
           "htmlSha256": "3ff7afa953f11f29b29c61fa32e4952f321ef13f660a1e5fe89913c795f03f90",
           "hostname": "webtoonscan.com"
+        },
+        {
+          "requestedUrl": "https://webtoonscan.com/",
+          "finalUrl": "https://webtoonscan.com/",
+          "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+          "state": "access-restricted",
+          "status": 403,
+          "method": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+          "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs. Completed page within a batch later stopped on foreground violation before the sixth page; no whole-batch focus acceptance.",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-reader-roots-wave36/reader-inspection.json"
         }
       ],
       "adapter": "detect"
@@ -18076,6 +18137,447 @@
       ],
       "loadedBodyImageCount": 2,
       "readerFinding": "Public native preview route uses semantic pre_reading/contents_comics/reading_body/viewer/simplebar wrappers and two same-origin blob pages. Initial normal-click sample300x150 is placeholder-only; subsequent15second before/after-active settling loads1500x2168 pages. No current full-book/OCR/language/quality acceptance."
+    },
+    {
+      "url": "https://toonily.com/",
+      "finalUrl": "https://toonily.com/",
+      "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+      "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs. Completed page within a batch later stopped on foreground violation before the sixth page; no whole-batch focus acceptance.",
+      "researchWave": "toonily-public-chapters-and-browser-contracts-wave36",
+      "attempt": "generic-reader-roots-wave36",
+      "status": 200,
+      "imageCount": 0,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-reader-roots-wave36/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "batchCompleted": false,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 29
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 29
+      },
+      "navigationResponses": [
+        {
+          "url": "https://toonily.com/",
+          "status": 200
+        }
+      ],
+      "readerFinding": "Public directory-only sample; chapter body not confirmed here."
+    },
+    {
+      "url": "https://comix.to/",
+      "finalUrl": "https://comix.to/",
+      "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+      "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs. Completed page within a batch later stopped on foreground violation before the sixth page; no whole-batch focus acceptance.",
+      "researchWave": "toonily-public-chapters-and-browser-contracts-wave36",
+      "attempt": "generic-reader-roots-wave36",
+      "status": 403,
+      "imageCount": 0,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-reader-roots-wave36/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "batchCompleted": false,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "navigationResponses": [
+        {
+          "url": "https://comix.to/",
+          "status": 307
+        },
+        {
+          "url": "https://comix.to/",
+          "status": 403
+        }
+      ],
+      "readerFinding": "Access challenge, no complete chapter body. Retain generic detection and prior limitations."
+    },
+    {
+      "url": "https://kagane.to/",
+      "finalUrl": "https://kagane.to/",
+      "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+      "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs. Completed page within a batch later stopped on foreground violation before the sixth page; no whole-batch focus acceptance.",
+      "researchWave": "toonily-public-chapters-and-browser-contracts-wave36",
+      "attempt": "generic-reader-roots-wave36",
+      "status": 403,
+      "imageCount": 0,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-reader-roots-wave36/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "batchCompleted": false,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "navigationResponses": [
+        {
+          "url": "https://kagane.to/",
+          "status": 307
+        },
+        {
+          "url": "https://kagane.to/",
+          "status": 403
+        }
+      ],
+      "readerFinding": "Access challenge, no complete chapter body. Retain generic detection and prior limitations."
+    },
+    {
+      "url": "https://bakamh.com/",
+      "finalUrl": "https://bakamh.com/",
+      "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+      "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs. Completed page within a batch later stopped on foreground violation before the sixth page; no whole-batch focus acceptance.",
+      "researchWave": "toonily-public-chapters-and-browser-contracts-wave36",
+      "attempt": "generic-reader-roots-wave36",
+      "status": 200,
+      "imageCount": 24,
+      "canvasCount": 0,
+      "pageErrorCount": 1,
+      "networkFailureCount": 5,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-reader-roots-wave36/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "batchCompleted": false,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 60
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 60
+      },
+      "navigationResponses": [
+        {
+          "url": "https://bakamh.com/",
+          "status": 200
+        }
+      ],
+      "readerFinding": "Public directory-only sample; chapter body not confirmed here."
+    },
+    {
+      "url": "https://webtoonscan.com/",
+      "finalUrl": "https://webtoonscan.com/",
+      "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+      "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs. Completed page within a batch later stopped on foreground violation before the sixth page; no whole-batch focus acceptance.",
+      "researchWave": "toonily-public-chapters-and-browser-contracts-wave36",
+      "attempt": "generic-reader-roots-wave36",
+      "status": 403,
+      "imageCount": 0,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-reader-roots-wave36/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "batchCompleted": false,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "navigationResponses": [
+        {
+          "url": "https://webtoonscan.com/",
+          "status": 307
+        },
+        {
+          "url": "https://webtoonscan.com/",
+          "status": 403
+        }
+      ],
+      "readerFinding": "Access challenge, no complete chapter body. Retain generic detection and prior limitations."
+    },
+    {
+      "url": "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-255/",
+      "finalUrl": "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-255/",
+      "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+      "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs. No extension, headless DOM only; not onscreen or extension runtime validation.",
+      "researchWave": "toonily-public-chapters-and-browser-contracts-wave36",
+      "attempt": "toonily-baka-chapters-wave36",
+      "status": 403,
+      "imageCount": 0,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/toonily-baka-chapters-wave36/reader-inspection.json",
+      "launchMode": "playwright-headless",
+      "focusPolicy": "headless",
+      "navigationResponses": [
+        {
+          "url": "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-255/",
+          "status": 307
+        },
+        {
+          "url": "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-255/",
+          "status": 403
+        }
+      ],
+      "readerFinding": "Access challenge, no complete chapter body. Retain generic detection and prior limitations."
+    },
+    {
+      "url": "https://bakamh.com/manga/%e8%87%b4%e5%91%bd%e8%8a%82%e6%8b%8d/c-24/",
+      "finalUrl": "https://bakamh.com/manga/%e8%87%b4%e5%91%bd%e8%8a%82%e6%8b%8d/c-24/",
+      "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+      "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs. No extension, headless DOM only; not onscreen or extension runtime validation.",
+      "researchWave": "toonily-public-chapters-and-browser-contracts-wave36",
+      "attempt": "toonily-baka-chapters-wave36",
+      "status": 403,
+      "imageCount": 1,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/toonily-baka-chapters-wave36/reader-inspection.json",
+      "launchMode": "playwright-headless",
+      "focusPolicy": "headless",
+      "navigationResponses": [
+        {
+          "url": "https://bakamh.com/manga/%e8%87%b4%e5%91%bd%e8%8a%82%e6%8b%8d/c-24/",
+          "status": 307
+        },
+        {
+          "url": "https://bakamh.com/manga/%e8%87%b4%e5%91%bd%e8%8a%82%e6%8b%8d/c-24/",
+          "status": 403
+        }
+      ],
+      "readerFinding": "Access challenge, no complete chapter body. Retain generic detection and prior limitations."
+    },
+    {
+      "url": "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-255/",
+      "finalUrl": "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-255/",
+      "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+      "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs.",
+      "researchWave": "toonily-public-chapters-and-browser-contracts-wave36",
+      "attempt": "reader-boundary-recheck-wave36",
+      "status": 200,
+      "imageCount": 122,
+      "canvasCount": 0,
+      "pageErrorCount": 1,
+      "networkFailureCount": 6,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/reader-boundary-recheck-wave36/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 19,
+      "batchCompleted": true,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 11
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 11
+      },
+      "navigationResponses": [
+        {
+          "url": "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-255/",
+          "status": 200
+        }
+      ],
+      "bodyImageCount": 30,
+      "loadedBodyImageCount": 11,
+      "bodyImageShapes": [
+        [
+          940,
+          1779
+        ],
+        [
+          940,
+          1785
+        ],
+        [
+          940,
+          1834
+        ]
+      ],
+      "readerFinding": "Direct .entry-content_wrap/read-container/reading-content/page-break images use wp-manga-chapter-img. Profile excludes covers, recommendation/nested links and invalid chapter paths. Not OCR, continuous paging or quality acceptance."
+    },
+    {
+      "url": "https://bakamh.com/manga/%e8%87%b4%e5%91%bd%e8%8a%82%e6%8b%8d/c-24/",
+      "finalUrl": "https://bakamh.com/manga/%e8%87%b4%e5%91%bd%e8%8a%82%e6%8b%8d/c-24/",
+      "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+      "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs.",
+      "researchWave": "toonily-public-chapters-and-browser-contracts-wave36",
+      "attempt": "reader-boundary-recheck-wave36",
+      "status": 403,
+      "imageCount": 1,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/reader-boundary-recheck-wave36/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 19,
+      "batchCompleted": true,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 1
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 1
+      },
+      "navigationResponses": [
+        {
+          "url": "https://bakamh.com/manga/%e8%87%b4%e5%91%bd%e8%8a%82%e6%8b%8d/c-24/",
+          "status": 307
+        },
+        {
+          "url": "https://bakamh.com/manga/%e8%87%b4%e5%91%bd%e8%8a%82%e6%8b%8d/c-24/",
+          "status": 403
+        }
+      ],
+      "readerFinding": "Access challenge, no complete chapter body. Retain generic detection and prior limitations."
+    },
+    {
+      "url": "https://novelcrow.com/",
+      "finalUrl": "https://novelcrow.com/",
+      "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+      "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs.",
+      "researchWave": "toonily-public-chapters-and-browser-contracts-wave36",
+      "attempt": "reader-boundary-recheck-wave36",
+      "status": 200,
+      "imageCount": 5,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 24,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/reader-boundary-recheck-wave36/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 19,
+      "batchCompleted": true,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 25
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 6
+      },
+      "navigationResponses": [
+        {
+          "url": "https://novelcrow.com/",
+          "status": 200
+        }
+      ],
+      "readerFinding": "Public directory only; covers are not body acceptance. Generic profile retained."
+    },
+    {
+      "url": "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-254/",
+      "finalUrl": "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-254/",
+      "checkedAt": "2026-10-05T17:36:09.297447+00:00",
+      "scope": "Read-only public DOM research; no screenshots, chapter export, OCR, model download or private APIs.",
+      "researchWave": "toonily-public-chapters-and-browser-contracts-wave36",
+      "attempt": "toonily-prev-chapter-recheck-wave36",
+      "status": 200,
+      "imageCount": 86,
+      "canvasCount": 0,
+      "pageErrorCount": 1,
+      "networkFailureCount": 2,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/toonily-prev-chapter-recheck-wave36/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 7,
+      "batchCompleted": true,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 9
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 9
+      },
+      "navigationResponses": [
+        {
+          "url": "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-254/",
+          "status": 200
+        }
+      ],
+      "bodyImageCount": 30,
+      "loadedBodyImageCount": 9,
+      "bodyImageShapes": [
+        [
+          940,
+          1848
+        ],
+        [
+          940,
+          1849
+        ],
+        [
+          940,
+          1970
+        ]
+      ],
+      "readerFinding": "Direct .entry-content_wrap/read-container/reading-content/page-break images use wp-manga-chapter-img. Profile excludes covers, recommendation/nested links and invalid chapter paths. Not OCR, continuous paging or quality acceptance."
     }
   ],
   "verification": {
@@ -30800,7 +31302,214 @@
         "background": 2
       },
       "scope": "Three previously generic names gain public-body profiles. Research attempts include roots/products/placeholder/settled controls; UI cases not double-counted. Full235-site/all-chapters/language/OCR/quality/all-devices acceptance still incomplete."
+    },
+    "browserContractsWave36Research": {
+      "status": "completed-with-preserved-failures",
+      "researchAttemptsAdded": 11,
+      "researchAttemptsRetained": 378,
+      "initialRootBatch": {
+        "requested": 6,
+        "completedPages": 5,
+        "status": "stopped-on-foreground-violation",
+        "notVisited": [
+          "https://novelcrow.com/"
+        ],
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-reader-roots-wave36/reader-inspection.json"
+      },
+      "headlessChapterScope": "Two403 chapter responses without extension; not runtime or onscreen acceptance",
+      "normalThreeUrlRecheck": {
+        "completedPages": 3,
+        "focusChecks": 19,
+        "browserFrontmost": false,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/reader-boundary-recheck-wave36/reader-inspection.json"
+      },
+      "previousChapterRecheck": {
+        "completedPages": 1,
+        "focusChecks": 7,
+        "browserFrontmost": false,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/toonily-prev-chapter-recheck-wave36/reader-inspection.json"
+      },
+      "preconditionFailure": {
+        "siteAttempts": 0,
+        "finding": "Concurrent Chrome build briefly removed manifest; no browser launched. Validation now precedes profile creation. Sequential retry succeeds.",
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/toonily-prev-chapter-wave36.log",
+        "cleanupReport": "/private/tmp/fluentread-brand-manga-sites-20261005/precondition-profile-cleanup-wave36.json"
+      },
+      "scope": "Stage guards and fatal propagation improved. Initial foreground cause remains undetermined; successful later stage checks do not establish universal absence of focus events."
+    },
+    "toonilyWave36Unit": {
+      "status": "passed",
+      "cases": 581,
+      "files": 8,
+      "fourDimensionCoverage": "100% for nine selected config/reader/source-authorization/surface/typography modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave36-final.log",
+      "scope": "Toonily direct reader images and positive chapter paths; excludes covers/recommendations/nested promotions/spoof domains/invalid paths. Existing source, surface and typography behavior retained."
+    },
+    "toonilyWave36Entries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "auto source consent: MangaLib local reader fixture",
+        "auto source consent: Mangahub local reader fixture",
+        "auto source consent: ComicNaver local reader fixture",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-255/",
+        "403 page has no manga entry: https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-254/",
+        "master switch removes manga UI"
+      ],
+      "caseCount": 23,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "windowState": "normal",
+        "displayTarget": "secondary",
+        "browserFrontmost": false
+      },
+      "nativeTabSnapshotCount": 34,
+      "nativeTabSnapshotsAllActiveNormalVisibleUnfocused": true,
+      "focusCheckCount": 39,
+      "extensionErrors": 0,
+      "consoleErrors": 0,
+      "hostErrors": 0,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-toonily-recheck-wave36/report.json",
+      "liveReaders": [
+        {
+          "url": "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-255/",
+          "status": 200,
+          "result": "reader-entry-confirmed",
+          "selectedElements": 121,
+          "naturalSizeAtLeast600x800": 9,
+          "visibleBodyElements": 1
+        },
+        {
+          "url": "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-254/",
+          "status": 403,
+          "result": "access-restricted",
+          "readerEntryAbsent": true
+        }
+      ],
+      "scope": "21 relevant fixture cases and two distinct live boundaries: chapter255 body entry; chapter254 current403 has no entry. Native initial disabled-extension chapter254200 sample retained. Public chapters DOM only, no screenshot, export, OCR, capture rectangle, complete-chapter/translation-quality acceptance; no live translation initiated. Pure icon/resident/narrow fixtures reverified."
+    },
+    "browserContractsWave36Verification": {
+      "status": "one-unrelated-coverage-registry-failure-retained",
+      "files": 2,
+      "casesPassed": 102,
+      "casesFailed": 1,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/browser-contracts-wave36-final-authoritative.log",
+      "failedName": "src 中每个可执行非组装模块都进入四维 100% 覆盖率边界",
+      "unregisteredUnrelatedModules": [
+        "src/app/content/learningFeatures.ts",
+        "src/app/popup/mount.ts",
+        "src/core/config/shareCard.ts",
+        "src/core/i18n/messages/onboarding.ts",
+        "src/core/i18n/messages/siteRules.ts",
+        "src/features/full-page-translation/content/excerpt.ts",
+        "src/features/share-card/content/runtime.ts",
+        "src/features/share-card/core.ts",
+        "src/features/share-card/export.ts",
+        "src/features/share-card/render.ts",
+        "src/features/share-card/themes.ts",
+        "src/features/vocabulary/content.ts",
+        "src/features/vocabulary/content/readingText.ts",
+        "src/features/vocabulary/content/reencounter.ts",
+        "src/features/vocabulary/content/reencounterState.ts",
+        "src/features/vocabulary/content/scanner.ts",
+        "src/features/vocabulary/domain/reencounter.ts",
+        "src/platform/webdav/properties.ts"
+      ],
+      "fixes": [
+        "Selection test derives and validates settings-selection against navigation registry and actual SelectionSettings section.",
+        "Three docs tools get explicit real verification ownership, Node syntax checks, actual command wiring and background capture contract.",
+        "mangaTypography enters default strict source collection after13cases and four-dimension100% measured coverage.",
+        "Localized README tagline and counterpart language link replace obsolete duplicated bilingual-opening expectation.",
+        "Reader research foreground/native activation/state failures are fatal; stage checks around target create/activate/close, validate args before temp profile.",
+        "Entry runner records HTTP before body readiness, rejects unexpected non200 and records image readiness on timeout."
+      ],
+      "brandVerifier": {
+        "status": "passed",
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/brand-copy-wave36-final.log"
+      },
+      "scope": "Other18modules are not broadly exempted or claimed covered; no full regression run."
+    },
+    "toonilyWave36Diagnostics": {
+      "initialUi": {
+        "status": "failed-second-reader-readiness",
+        "casesPassed": 21,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-toonily-wave36/report.json",
+        "finding": "chapter255 entry confirmed; chapter254 natural-size wait timed out and exact native URL contained Cloudflare challenge parameter. Previous runner failed before storing HTTP status, so initial response status remains unconfirmed. Final recheck stores403 and validates absence of reader entry."
+      },
+      "scope": "Original root foreground failure, headless403 records and precondition failure preserved under browserContractsWave36Research. Later successful stage checks do not prove universal prevention of focus events."
+    },
+    "toonilyWave36Coverage": {
+      "supplementDate": "2026-10-06",
+      "names": 235,
+      "newResearchAttempts": 11,
+      "retainedResearchAttempts": 378,
+      "adapterCounts": {
+        "images": 91,
+        "area": 23,
+        "canvas": 3,
+        "detect": 106,
+        "readable-canvas": 10,
+        "background": 2
+      },
+      "scope": "One generic name gains observed body profile. Root batch foreground failure, headless restrictions, native research and production403 boundary retain distinct scopes. Full235-site/all-chapters/OCR/quality/all-device acceptance remains incomplete."
+    },
+    "toonilyWave36Builds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "typecheckReport": "/private/tmp/fluentread-brand-manga-sites-20261005/compile-wave36-final.log",
+      "chromeSeconds": 27.0,
+      "firefoxSeconds": 28.0,
+      "userscriptSeconds": 3.94,
+      "userscriptBytes": 1917384,
+      "extensionManifestVerifier": "passed",
+      "extensionManifestReport": "/private/tmp/fluentread-brand-manga-sites-20261005/manifest-wave36.log",
+      "userscriptVerifier": "passed",
+      "userscriptVerifierReport": "/private/tmp/fluentread-brand-manga-sites-20261005/userscript-verifier-wave36.log",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave36-final.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6135,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-wave36-final.log"
+      },
+      "docs": {
+        "build": "passed",
+        "check": "passed",
+        "details": {
+          "ok": true,
+          "pages": 77,
+          "links": 3955,
+          "anchors": 741,
+          "images": 154
+        },
+        "buildReport": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-build-wave36-final.log",
+        "checkReport": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave36-final.log"
+      },
+      "scope": "Chrome production entry and403-boundary validation only; Firefox/userscript build evidence. One unrelated18-module strict-coverage registry failure remains separately recorded; not an all-suite pass. No engine/source authorization/permission/dependency/version/reference-repository change."
     }
   },
-  "lastSupplementOn": "2026-10-05T17:00:01.343728+00:00"
+  "lastSupplementOn": "2026-10-05T17:47:39.044028+00:00"
 }

@@ -485,6 +485,7 @@ export default defineConfig({
                 'src/features/image-translation/content/mangaSession.ts',
                 'src/features/image-translation/services/mangaRegions.ts',
                 'src/features/image-translation/services/mangaRendering.ts',
+                'src/features/image-translation/services/mangaTypography.ts',
                 'src/features/image-translation/services/mangaOcr.ts',
                 'src/features/image-translation/services/mangaBubbles.ts',
                 'src/features/image-translation/services/mangaOcrAssets.ts',

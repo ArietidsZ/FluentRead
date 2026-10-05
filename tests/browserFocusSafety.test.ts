@@ -2,6 +2,7 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
+import {resolveNavigationItem, resolveRequestedSection} from '@/src/features/settings/model/navigation';
 
 const PROJECT_ROOT = resolve(__dirname, '..');
 const require = createRequire(import.meta.url);
@@ -67,6 +68,29 @@ function readScript(path: string): string {
 }
 
 describe('browser regression focus safety', () => {
+    it('实页入口在等待正文前保存 HTTP 状态，未预期的访问限制不能记为入口通过', () => {
+        const source = readScript('scripts/testing/run-manga-entry-ui-test.cjs');
+        const liveSource = source.slice(source.indexOf("const liveReadersFile=arg('reader-sites',null)"));
+        expect(liveSource).toContain('(report.liveReaders??=[]).push(result)');
+        expect(liveSource.indexOf('(report.liveReaders??=[]).push(result)')).toBeLessThan(liveSource.indexOf('if(sample.readerReadySelector)'));
+        expect(liveSource.indexOf("result.result='access-restricted'")).toBeLessThan(liveSource.indexOf('if(sample.readerReadySelector)'));
+        expect(liveSource).toContain('throw new Error(`Public reader access failed: HTTP');
+        expect(liveSource).toContain("result.result='body-not-ready'");
+        expect(liveSource).toContain('result.readerReadiness=');
+    });
+    it('公开正文调查的焦点或原生激活故障中止整批，创建与关闭页签均保留阶段校验', () => {
+        const source = readScript('scripts/testing/inspect-manga-readers.cjs');
+        expect(source).toContain("focusGuard('before-page-create')");
+        expect(source).toContain("focusGuard('before-page-close')");
+        expect(source).toContain("focusGuard('after-page-close')");
+        expect(source).toContain("focusGuard('before-page-activation')");
+        expect(source).toContain("focusGuard('after-page-activation')");
+        expect(source).toMatch(/if \(error instanceof FocusSafetyError\) \{\s*report\.pages\.push\(result\);\s*throw error;/u);
+        expect(source).toContain('throw new FocusSafetyError(`public-page-activation: ${error.message}`)');
+        expect(source).toContain('throw new FocusSafetyError(`public-tab-state: ${error.message}`)');
+        expect(source.indexOf("assert.ok(!activationExtension")).toBeLessThan(source.indexOf('fs.mkdtempSync('));
+        expect(source).not.toContain('.bringToFront(');
+    });
     it('全文配置读取复用隔离页并只在该页已关闭时重新创建', async () => {
         const {getConfigurationPage} = require(resolve(
             PROJECT_ROOT, 'scripts/run-full-page-translation-test.cjs',
@@ -227,7 +251,12 @@ describe('browser regression focus safety', () => {
         }
         const selectionSource = readScript('scripts/run-selection-trigger-test.cjs');
         expect(selectionSource).toContain('if (!result.ok) throw new Error');
-        expect(selectionSource).toContain('/options.html#settings-translation');
+        const selectionHash = selectionSource.match(/\/options\.html(#[a-z-]+)/u)?.[1];
+        expect(selectionHash).toBe('#settings-selection');
+        const selectionSection = resolveRequestedSection(selectionHash!);
+        expect(resolveNavigationItem(selectionSection).label).toBe('划词翻译');
+        expect(readScript('src/features/settings/ui/SettingsSections.vue'))
+            .toMatch(new RegExp(`id="${selectionSection}"[^>]*>\\s*<SelectionSettings`, 'u'));
         expect(selectionSource).not.toContain('/options.html#settings-shortcuts');
         const fullPageSource = readScript('scripts/run-full-page-translation-test.cjs');
         expect(fullPageSource).toContain("matches(':hover') === true");

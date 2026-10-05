@@ -13,12 +13,12 @@ assert.ok(Number.isInteger(settleMs) && settleMs >= 0 && settleMs <= 30000, 'Set
 const artifacts = path.resolve(arg('artifacts-dir'));
 const {chromium} = require(path.join(arg('playwright-root'), 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper'));
-const profile = fs.mkdtempSync('/private/tmp/fluentread-reader-inspection-');
 const headlessResearch = process.argv.includes('--headless-research');
 const resetZoom = process.argv.includes('--reset-zoom');
 const activationExtension=process.argv.includes('--activation-extension-dir')?path.resolve(arg('activation-extension-dir')):null;
 assert.ok(!activationExtension||(!headlessResearch&&fs.existsSync(path.join(activationExtension,'manifest.json'))),'Visible tab activation requires an explicit built extension and normal browser');
 assert.ok(!resetZoom || !headlessResearch, 'Zoom reset requires a normal visible browser');
+const profile = fs.mkdtempSync('/private/tmp/fluentread-reader-inspection-');
 fs.mkdirSync(artifacts, {recursive:true});
 const report = {scope: urls, pages: [], errors: []};
 let launched, browserPid, activationWorker;
@@ -32,12 +32,28 @@ async function boundedPageRead(operation) {
   try {return await Promise.race([operation,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('Public DOM inspection timed out after 30 seconds')),30000);})]);}
   finally {clearTimeout(timeout);}
 }
-function focusGuard() {
+class FocusSafetyError extends Error {}
+function focusGuard(stage = 'public-dom-inspection') {
   if (headlessResearch) return;
-  const current = JSON.parse(execFileSync('/usr/bin/osascript', ['-l','JavaScript','-e', "ObjC.import('AppKit');const a=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(a.processIdentifier),name:ObjC.unwrap(a.localizedName)});"], {encoding:'utf8'}));
-  assert.ok(browserPid, 'Own isolated browser process is known');
-  assert.notEqual(current.pid, browserPid, 'Isolated Edge must stay behind the user application');
-  (report.focusChecks ??= []).push(current);
+  try {
+    const current = JSON.parse(execFileSync('/usr/bin/osascript', ['-l','JavaScript','-e', "ObjC.import('AppKit');const a=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(a.processIdentifier),name:ObjC.unwrap(a.localizedName)});"], {encoding:'utf8'}));
+    assert.ok(browserPid, 'Own isolated browser process is known');
+    assert.ok(Number.isInteger(current.pid) && current.pid > 0, 'Current foreground process is known');
+    (report.focusChecks ??= []).push({...current, stage, browserFrontmost: current.pid === browserPid});
+    assert.notEqual(current.pid, browserPid, 'Isolated Edge must stay behind the user application');
+  } catch (error) {
+    throw new FocusSafetyError(`${stage}: ${error.message}`);
+  }
+}
+async function activateForInspection(page) {
+  try {
+    focusGuard('before-page-activation');
+    await activateExtensionTabWithoutForeground(launched.context, page);
+    focusGuard('after-page-activation');
+  } catch (error) {
+    if (error instanceof FocusSafetyError) throw error;
+    throw new FocusSafetyError(`public-page-activation: ${error.message}`);
+  }
 }
 (async () => {
   try {
@@ -65,6 +81,7 @@ function focusGuard() {
       assert.equal(disabled,true);report.activationControl={productionExtensionDisabled:true,method:'existing helper chrome.tabs.update; no host property override'};
     }
     for (const href of urls) {
+      focusGuard('before-page-create');
       let page = await newPageWithoutForeground(launched.context);
       const parentPage = page, navigationResponses=[];
       const recordResponse=response=>{if(response.request().isNavigationRequest())navigationResponses.push({url:response.url(),status:response.status()});};
@@ -83,9 +100,14 @@ function focusGuard() {
         result.url=page.url();result.status=response?.status();result.navigationResponses=navigationResponses;
         await page.waitForTimeout(settleMs);result.settleMs=settleMs;
         if(activationExtension){
-          result.beforeActivation=await tabState(page);
-          await activateExtensionTabWithoutForeground(launched.context,page);focusGuard();await page.waitForTimeout(settleMs);
-          result.afterActivation=await tabState(page);assert.equal(result.afterActivation.active,true);assert.equal(result.afterActivation.windowState,'normal');assert.equal(result.afterActivation.documentVisibility,'visible');
+          try {
+            result.beforeActivation=await tabState(page);
+            await activateForInspection(page);await page.waitForTimeout(settleMs);
+            result.afterActivation=await tabState(page);assert.equal(result.afterActivation.active,true);assert.equal(result.afterActivation.windowState,'normal');assert.equal(result.afterActivation.documentVisibility,'visible');
+          } catch (error) {
+            if (error instanceof FocusSafetyError) throw error;
+            throw new FocusSafetyError(`public-tab-state: ${error.message}`);
+          }
         }
         if(resetZoom){await page.keyboard.press('Meta+0');await page.reload({waitUntil:'domcontentloaded',timeout:25000});await page.waitForTimeout(settleMs);result.zoomReset={key:'Meta+0',reload:true};}
         const fillSelector=process.argv.includes('--before-inspect-fill-selector')?arg('before-inspect-fill-selector'):null;
@@ -98,7 +120,7 @@ function focusGuard() {
         if(clickSelector){
           const popup=process.argv.includes('--inspect-popup')?launched.context.waitForEvent('page',{timeout:15000}).then(value=>({page:value}),error=>({error})):null;
           await page.locator(clickSelector).click({timeout:10000});result.readerAction={selector:clickSelector};
-          if(popup){const opened=await popup;if(opened.error)throw opened.error;page=opened.page;await page.waitForLoadState('domcontentloaded',{timeout:20000}).catch(error=>{result.popupNavigationError=error.message;});if(activationExtension){await activateExtensionTabWithoutForeground(launched.context,page);focusGuard();}}
+          if(popup){const opened=await popup;if(opened.error)throw opened.error;page=opened.page;await page.waitForLoadState('domcontentloaded',{timeout:20000}).catch(error=>{result.popupNavigationError=error.message;});if(activationExtension){await activateForInspection(page);}}
           await page.waitForTimeout(settleMs);
         }
         const secondaryClick=process.argv.includes('--after-reader-click')?arg('after-reader-click'):null;
@@ -222,12 +244,20 @@ function focusGuard() {
           result.elementScreenshot=path.join(artifacts,`${report.pages.length}-element.png`);
           focusGuard();await page.locator(scrollSelector).screenshot({path:result.elementScreenshot,timeout:15000});
         }
-      } catch(error) {result.error=error.message;}
+      } catch(error) {
+        result.error=error.message;
+        if (error instanceof FocusSafetyError) {
+          report.pages.push(result);
+          throw error;
+        }
+      }
       report.pages.push(result);
       fs.writeFileSync(path.join(artifacts,'reader-inspection.json'),JSON.stringify(report,null,2));
       console.log(JSON.stringify({url:href,status:result.status,images:result.imageCount,canvases:result.canvases?.length,error:result.error}));
       launched.context.off('response',recordResponse);
+      focusGuard('before-page-close');
       await page.close();if(page!==parentPage)await parentPage.close();
+      focusGuard('after-page-close');
     }
   } catch(error) {report.errors.push(error.stack);process.exitCode=1;}
   finally {
