@@ -67,9 +67,9 @@ Completed answers are reused when switching learning actions within the current 
 
 ## Context and records
 
-Under **Context, learning memory & instructions**, choose the selection alone or allow its paragraph. This does not read the entire page. Learning memory is optional and off by default. Custom prompts are preserved.
+Under **Context, study notes & instructions**, choose the selection alone or allow its paragraph. This does not read the entire page. Using study notes in answers is optional and off by default. Saving notes remains available while this is off. Custom prompts are preserved.
 
-**Save source** adds expressions to **Saved** in the [Learning center](/en/guide/vocabulary-book). **Save to learning memory** stores the source and explanation in **Learning memory**. After saving, **View learning memory** opens that tab directly; entries are kept until you edit or delete them. Reading conversations stay on this device for 30 days. Viewing records sends no model request. Private windows do not read or save history. See [Data and privacy](/en/guide/privacy).
+**Save original** adds expressions to **Words & sentences** in the [Learning center](/en/guide/vocabulary-book). **Save study note** stores the source and explanation in **Study notes**. After saving, **View study notes** opens that tab directly; entries are kept until you edit or delete them. Reading conversations stay on this device for 30 days. Viewing records sends no model request. Private windows do not read or save history. See [Data and privacy](/en/guide/privacy).
 
 </details>
 

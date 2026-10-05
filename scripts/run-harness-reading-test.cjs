@@ -91,15 +91,15 @@ async function openLearningMemories(page, extensionId) {
     // 重载验证持久化；只变 hash 的跨设置导航仍使用 goto，以验证真实路由响应。
     if (page.url() === url) await page.reload({waitUntil: 'domcontentloaded'});
     else await page.goto(url, {waitUntil: 'domcontentloaded'});
-    await page.getByRole('radiogroup', {name: '学习内容', exact: true}).getByRole('radio', {name: '学习记忆', exact: true}).click();
+    await page.getByRole('radiogroup', {name: '学习内容', exact: true}).getByRole('radio', {name: '学习笔记', exact: true}).click();
     await page.locator('.fr-learning-memory').waitFor();
-    await page.locator('.fr-learning-memory').getByRole('button', {name: '添加记忆', exact: true}).waitFor();
+    await page.locator('.fr-learning-memory').getByRole('button', {name: '添加笔记', exact: true}).waitFor();
 }
 async function addLearningMemoryInUi(page, content, kind = 'preference') {
     const manager = page.locator('.fr-learning-memory');
-    await manager.getByRole('button', {name: '添加记忆', exact: true}).click();
-    await manager.getByRole('combobox', {name: '记忆类型', exact: true}).selectOption(kind);
-    await manager.getByRole('textbox', {name: '记忆内容', exact: true}).fill(content);
+    await manager.getByRole('button', {name: '添加笔记', exact: true}).click();
+    await manager.getByRole('combobox', {name: '笔记类型', exact: true}).selectOption(kind);
+    await manager.getByRole('textbox', {name: '笔记内容', exact: true}).fill(content);
     await manager.getByRole('button', {name: '保存', exact: true}).click();
     await manager.locator('.fr-memory-editor').waitFor({state: 'hidden'});
 }
@@ -1198,14 +1198,14 @@ async function main() {
         const memoryPage = await newPage();
         await openLearningMemories(memoryPage, extensionId);
         const memoryManager = memoryPage.locator('.fr-learning-memory');
-        assert((await memoryManager.innerText()).includes('当前未启用记忆'), '学习中心没有明确说明记忆关闭时仍可管理内容');
+        assert((await memoryManager.innerText()).includes('回答时暂不参考笔记'), '学习中心没有明确说明记忆关闭时仍可管理内容');
         const memoryV1 = 'HARNESS_MEMORY_PREF_V1：解释 although 时，先解释主干，再说明让步关系。';
         const memoryV2 = 'HARNESS_MEMORY_PREF_V2：解释 although 时，先说作用，再介绍语法术语。';
         const beforeMemoryManagement = requests.length;
         await addLearningMemoryInUi(memoryPage, memoryV1);
         const memoryRows = memoryManager.locator('.fr-memory-item');
         await memoryRows.first().getByRole('button', {name: '查看 / 编辑', exact: true}).click();
-        await memoryManager.getByRole('textbox', {name: '记忆内容', exact: true}).fill(memoryV2);
+        await memoryManager.getByRole('textbox', {name: '笔记内容', exact: true}).fill(memoryV2);
         await memoryManager.getByRole('button', {name: '保存', exact: true}).click();
         await memoryManager.locator('.fr-memory-editor').waitFor({state: 'hidden'});
         await addLearningMemoryInUi(memoryPage, memoryV2);
@@ -1215,16 +1215,16 @@ async function main() {
         assert(!(await memoryManager.innerText()).includes(memoryV1) && requests.length === beforeMemoryManagement, '重载丢失记忆编辑，或关闭记忆时手动管理调用了模型');
         record('memory-manage-disabled-edit-dedupe-reload', 'passed', {savedMemories: await memoryRows.count(), modelRequests: 0});
         await addLearningMemoryInUi(memoryPage, 'HARNESS_MEMORY_NOTE：这是独立的测试笔记。', 'note');
-        await memoryManager.getByRole('searchbox', {name: '搜索记忆', exact: true}).fill('PREF_V2');
+        await memoryManager.getByRole('searchbox', {name: '搜索笔记', exact: true}).fill('PREF_V2');
         assert(await memoryRows.count() === 1 && (await memoryRows.innerText()).includes(memoryV2), '学习记忆搜索没有筛选出对应内容');
-        await memoryManager.getByRole('searchbox', {name: '搜索记忆', exact: true}).fill('');
+        await memoryManager.getByRole('searchbox', {name: '搜索笔记', exact: true}).fill('');
         await memoryRows.filter({hasText: 'HARNESS_MEMORY_NOTE'}).getByRole('button', {name: '删除', exact: true}).click();
         await waitUntil(async () => await memoryRows.count() === 1, '记忆删除没有更新可见列表');
         record('memory-search-delete', 'passed');
 
         const setMemoryEnabled = async value => {
             await configPage.goto(`chrome-extension://${extensionId}/options.html#settings-harness`, {waitUntil: 'domcontentloaded'});
-            const control = configPage.getByRole('switch', {name: '启用学习记忆', exact: true});
+            const control = configPage.getByRole('switch', {name: '回答时参考学习笔记', exact: true});
             await control.waitFor({state: 'attached'});
             const switchCore = control.locator('xpath=ancestor::*[contains(@class, "el-switch")][1]').locator('.el-switch__core');
             await switchCore.waitFor({state: 'visible'});
@@ -1248,11 +1248,11 @@ async function main() {
         await setMemoryEnabled(true);
         const withMemory = await freshMemoryReading();
         assert(withMemory.length === 1 && JSON.stringify(withMemory).includes(memoryV2) && !JSON.stringify(withMemory).includes(memoryV1), '开启后新会话没有召回编辑后的记忆，或为记忆多调用了模型');
-        assert((await shadowSnapshot(page)).text.includes('参考 1 条记忆'), '阅读卡没有说明参考了已保存记忆');
+        assert((await shadowSnapshot(page)).text.includes('参考 1 条笔记'), '阅读卡没有说明参考了已保存记忆');
         record('memory-enabled-persist-recall-new-session', 'passed', {providerCalls: withMemory.length});
         const beforeRemember = requests.length;
-        await clickShadowButton(page, '记住要点');
-        await waitForShadowButton(page, '已记住');
+        await clickShadowButton(page, '保存学习笔记');
+        await waitForShadowButton(page, '已保存笔记');
         const rememberedReadingScreenshot = path.join(args.artifactsDir, 'harness-reading-memory.png');
         await page.screenshot({path: rememberedReadingScreenshot}); result.screenshots.push(rememberedReadingScreenshot);
         await openLearningMemories(memoryPage, extensionId);
@@ -1282,7 +1282,7 @@ async function main() {
         await memoryClearDialog;
         await waitUntil(async () => await memoryRows.count() === 0, '清空学习记忆没有更新列表');
         await openLearningMemories(memoryPage, extensionId);
-        await memoryManager.getByText('还没有学习记忆', {exact: true}).waitFor();
+        await memoryManager.getByText('还没有学习笔记', {exact: true}).waitFor();
         const afterMemoryClear = await freshMemoryReading();
         assert(!JSON.stringify(afterMemoryClear).includes('用户主动保存的学习记忆'), '清空后新会话仍含旧记忆');
         record('memory-clear-reload-stops-recall', 'passed');

@@ -229,11 +229,11 @@ export const runtimeFeedbackPatterns: readonly LocalizedLegacyPattern[] = [
     pattern("^本地视频 AI 推理超过 (\\d+(?:\\.\\d+)?) 秒$", [],
         'Local video AI inference took longer than {1} s', 'ローカル動画 AI の推論が {1} 秒を超えました', '로컬 동영상 AI 추론이 {1}초를 넘었습니다', 'L’inférence IA vidéo locale a dépassé {1} s', 'Локальный ИИ-вывод для видео занял больше {1} с', 'La inferencia de IA de vídeo local superó {1} s'),
 
-    // 学习记忆与模型用量导入导出。
-    pattern("^最多保存 (\\d+) 条学习记忆，请先删除不需要的内容$", [],
-        'You can save up to {1} learning memories. Delete ones you no longer need first.', '学習メモリーは最大 {1} 件まで保存できます。不要なものを先に削除してください', '학습 기억은 최대 {1}개까지 저장할 수 있습니다. 먼저 필요 없는 항목을 삭제하세요', 'Vous pouvez enregistrer jusqu’à {1} mémoires d’apprentissage. Supprimez d’abord celles qui ne servent plus.', 'Можно сохранить не больше {1} записей учебной памяти. Сначала удалите ненужные.', 'Puedes guardar hasta {1} memorias de aprendizaje. Elimina primero las que ya no necesites.'),
-    pattern("^学习记忆不能超过 (\\d+) 个字符$", [],
-        'A learning memory cannot exceed {1} characters', '学習メモリーは {1} 文字以内にしてください', '학습 기억은 {1}자를 넘을 수 없습니다', 'Une mémoire d’apprentissage ne peut pas dépasser {1} caractères', 'Учебная память не может быть длиннее {1} симв.', 'Una memoria de aprendizaje no puede superar los {1} caracteres'),
+    // 学习笔记与模型用量导入导出。
+    pattern("^最多保存 (\\d+) 条学习笔记，请先删除不需要的内容$", [],
+        'You can save up to {1} study notes. Delete ones you no longer need first.', '学習ノートは最大 {1} 件まで保存できます。不要なものを先に削除してください', '학습 노트는 최대 {1}개까지 저장할 수 있습니다. 먼저 필요 없는 항목을 삭제하세요', 'Vous pouvez enregistrer jusqu’à {1} notes d’apprentissage. Supprimez d’abord celles qui ne servent plus.', 'Можно сохранить не больше {1} учебных заметок. Сначала удалите ненужные.', 'Puedes guardar hasta {1} notas de aprendizaje. Elimina primero las que ya no necesites.'),
+    pattern("^学习笔记不能超过 (\\d+) 个字符$", [],
+        'A study note cannot exceed {1} characters', '学習ノートは {1} 文字以内にしてください', '학습 노트는 {1}자를 넘을 수 없습니다', 'Une note d’apprentissage ne peut pas dépasser {1} caractères', 'Учебная заметка не может быть длиннее {1} симв.', 'Una nota de aprendizaje no puede superar los {1} caracteres'),
     pattern("^模型用量导入文件最多包含 (\\d+) 条事件$", [],
         'A model usage import file can contain up to {1} events', 'モデル使用量のインポートファイルに含められるイベントは最大 {1} 件です', '모델 사용량 가져오기 파일에는 최대 {1}개 이벤트를 넣을 수 있습니다', 'Un fichier d’import d’utilisation des modèles peut contenir jusqu’à {1} événements', 'Файл импорта использования моделей может содержать не больше {1} событий', 'Un archivo de importación de uso de modelos puede contener hasta {1} eventos'),
     pattern("^模型用量导入事件 (\\d+) 必须是对象$", [],

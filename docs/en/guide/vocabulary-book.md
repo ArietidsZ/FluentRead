@@ -4,19 +4,32 @@ The learning center starts with words, phrases, and sentences you save while rea
 
 <GuideVisual kind="learning" en />
 
+## What each tab saves
+
+| Tab | Source | Retention |
+| --- | --- | --- |
+| Words & sentences | Save icon in a translation card, **Save original** below an explanation, or **Save sentence** beside a highlighted sentence | Until you delete it |
+| Reading history | Questions and answers from reading, grammar, usage and practice; continue a conversation | 30 days |
+| Study notes | **Save study note** below an answer, or notes and learning preferences you add yourself | Until you delete it |
+
+After saving, **View words & sentences** or **View study notes** opens the matching tab. Saving the original and saving an explanation as a note are separate actions.
+
+You can save and manage study notes at any time. **Use study notes in answers** is off by default. Enabling it in the selection translation AI settings sends relevant notes and preferences with your question to the selected AI service. Turning it off keeps existing notes and still allows saving new ones.
+
+
 ## Save something from a page
 
-1. Open **Learning center → Collection** and enable saving.
+1. Open **Learning center → Words & sentences** and enable saving. You can also enable it directly from the empty list.
 2. Save an expression from a selection or reading card. Words, phrases, and sentences in multiple languages are supported.
 3. The expression keeps available reading context. Saving it again can add context to the existing entry.
 
 ## Meet saved expressions on a new page
 
-Enable **Meet saved expressions again** in the collection page. This independent option is off by default. Saved expressions in nearby reading text receive a subtle dotted underline. Click an expression or the bottom-right **Saved expressions** button to compare its current sentence with the sentence you saved. The card can browse nearby matches, and its controls support keyboard access.
+Enable **Meet saved expressions again** in Words & sentences. This independent option is off by default. Saved expressions in nearby reading text receive a subtle dotted underline. Click an expression or the bottom-right **Saved expressions** button to compare its current sentence with the sentence you saved. The card can browse nearby matches, and its controls support keyboard access.
 
 Words match at word boundaries; phrases can span inline emphasis. Case, whitespace, curly apostrophes, and common hyphen differences are handled. Marks update with scrolling and changing text. Links, controls, editors, code, formulas, hidden content, and FluentRead translations are excluded. Original text, selections, and page interactions remain intact.
 
-Opening a card reads only that saved entry and does not call AI. **Explain this usage** uses the reading card’s service, model, context scope, and permitted learning-memory settings. It sends the expression and current sentence, without the old saved reference or source URL. Enable sentence context before requesting an explanation. A saved definition is never presented as the meaning of the new sentence. Retry failures or stop while retaining generated text.
+Opening a card reads only that saved entry and does not call AI. **Explain this usage** uses the reading card’s service, model, context scope, and permitted study-note reference settings. It sends the expression and current sentence, without the old saved reference or source URL. Enable sentence context before requesting an explanation. A saved definition is never presented as the meaning of the new sentence. Retry failures or stop while retaining generated text.
 
 Use **Marking options** to pause this page visit or turn off marks on all pages. Re-enable them in the learning center. A visit pause lasts until reload or the feature is enabled again. Seeing an expression or reading its explanation does not change saving counts, mastery, or review schedules.
 

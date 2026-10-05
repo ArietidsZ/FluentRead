@@ -1,7 +1,7 @@
 <!--
  * @file src/features/reading-assistant/ui/ReadingPanel.vue
  * 文件职责：在划词卡内以内容为主呈现学习回答，复用父卡片导航、提供紧凑操作栏、向上滚动可对照的原文译文与连续追问。
- * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；历史问答按轮次与问题摘要逐条展开，区分当前问答与旧回答，切换回答时收起历史；四类动作的原文与匹配译文统一保留在滚动区顶部，进入回答时滚过对照内容，译文晚到时保持回答位置，关闭局部浏览器滚动锚定以避免流式格式变化移动阅读位置；提供查看原文快捷入口，重复点击当前动作保留位置和待发送追问；把原文朗读、句子收藏和 30 天问答记录收进次级操作，让多语言动作标签按空间换行，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
+ * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；历史问答按轮次与问题摘要逐条展开，区分当前问答与旧回答，切换回答时收起历史；四类动作的原文与匹配译文统一保留在滚动区顶部，进入回答时滚过对照内容，译文晚到时保持回答位置，关闭局部浏览器滚动锚定以避免流式格式变化移动阅读位置；提供查看原文快捷入口，重复点击当前动作保留位置和待发送追问；把原文朗读和 30 天问答记录收进次级操作，在回答下方区分原文收藏与学习笔记；原文收藏仅保存对应译文，笔记保存不依赖 AI 参考开关，让多语言动作标签按空间换行，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
  * 模块边界：不持有模型密钥、不扫描页面、不直接请求供应商；记录由后台会话仓库保存，父划词组件负责选区、位置和 Shadow UI 生命周期。
  -->
 <template>
@@ -35,7 +35,7 @@
           <button type="button" :disabled="busy" @click="regenerate">重新生成</button>
           <button type="button" :aria-pressed="playingSourceText === activeText" @click="emit('play-source', activeText)">{{ playingSourceText === activeText ? '停止朗读' : '朗读原文' }}</button>
           <button v-if="!historicalText && selection.sentence !== selection.text && !wholeSentence" type="button" @click="expandSentence">理解整句</button>
-          <button v-if="canSaveWord" type="button" :disabled="saving || saved" @click="saveWord">{{ saved ? '已收藏原文' : '收藏原文' }}</button>
+          <button v-if="canSaveWord && (!answer || busy)" type="button" :disabled="saving || saved" :title="t('reading.saveSourceTitle')" @click="saveWord">{{ saved ? '已收藏原文' : '收藏原文' }}</button>
           <button v-if="!privateContext" type="button" @click="openRecords">阅读记录</button>
           <button type="button" aria-label="打开划词翻译设置" @click="openSettings()">设置</button>
           <p>{{ privateContext ? '隐私模式：不保存记录' : '阅读记录保存在本机 30 天' }}<span v-if="model" data-i18n-ignore>{{ model }}</span><span v-if="memoryCount" data-i18n-ignore>{{ t("reading.memoryReferences", {count: memoryCount}) }}</span></p>
@@ -90,8 +90,10 @@
       <p v-if="!busy && !answer && !error && !stopped" class="fr-reading-hint">选一种方式，理解这段表达。</p>
     <footer v-if="answer && !busy" class="fr-reading-footer">
       <button type="button" @click="copyAnswer">{{ copied ? '已复制' : '复制' }}</button>
-      <button v-if="preferences.memoryEnabled && !privateContext && !stopped && !error" type="button" :disabled="remembering || remembered" title="将这段原文与回答保存为长期学习记忆" @click="rememberLearning">{{ remembered ? '已保存到学习记忆' : '保存到学习记忆' }}</button>
-      <button v-if="remembered" type="button" @click="openLearningMemory">查看学习记忆</button>
+      <button v-if="canSaveWord" type="button" :disabled="saving || saved" :title="t('reading.saveSourceTitle')" @click="saveWord">{{ saved ? '已收藏原文' : '收藏原文' }}</button>
+      <button v-if="saved" type="button" data-i18n-ignore @click="openLearningCollection">{{ t('reading.viewSaved') }}</button>
+      <button v-if="!privateContext && !stopped && !error" type="button" data-i18n-ignore :disabled="remembering || remembered" :title="t('reading.saveNoteTitle')" @click="rememberLearning">{{ t(remembered ? 'reading.noteSavedButton' : 'reading.saveNote') }}</button>
+      <button v-if="remembered" type="button" data-i18n-ignore @click="openLearningMemory">{{ t('reading.viewNotes') }}</button>
     </footer>
       </div>
     </div>
@@ -476,17 +478,23 @@ async function copyAnswer(): Promise<void> {
 async function openLearningMemory(): Promise<void> {
   try {
     const response = await browser.runtime.sendMessage({type: 'openOptionsPage', section: 'settings-vocabulary', learningTab: 'memory'}) as {success?: boolean} | undefined;
-    if (!response?.success) throw new Error('打开学习记忆失败，请到学习中心的“学习记忆”查看。');
-  } catch (failure) { feedback.value = failure instanceof Error ? failure.message : '打开学习记忆失败，请到学习中心的“学习记忆”查看。'; }
+    if (!response?.success) throw new Error(t('reading.openNotesFailed'));
+  } catch (failure) { feedback.value = failure instanceof Error ? failure.message : t('reading.openNotesFailed'); }
+}
+async function openLearningCollection(): Promise<void> {
+  try {
+    const response = await browser.runtime.sendMessage({type: 'openOptionsPage', section: 'settings-vocabulary', learningTab: 'saved'}) as {success?: boolean} | undefined;
+    if (!response?.success) throw new Error(t('reading.openSavedFailed'));
+  } catch (failure) { feedback.value = failure instanceof Error ? failure.message : t('reading.openSavedFailed'); }
 }
 async function rememberLearning(): Promise<void> {
-  if (!props.preferences.memoryEnabled || props.privateContext || busy.value || stopped.value || error.value || !answer.value || remembering.value) return;
+  if (props.privateContext || busy.value || stopped.value || error.value || !answer.value || remembering.value || remembered.value) return;
   const owner = currentTurnKey.value;
   remembering.value = true;
   try {
     await saveLearningMemory({kind: 'lesson', content: `原文：${activeText.value.slice(0, 350)}\n${currentQuestion.value ? `问题：${currentQuestion.value.slice(0, 200)}\n` : ''}学习要点：${answer.value.slice(0, 1400)}`});
-    if (currentTurnKey.value === owner) { remembered.value = true; feedback.value = '已保存到学习中心的“学习记忆”，可在那里编辑或删除。'; }
-  } catch (failure) { if (currentTurnKey.value === owner) feedback.value = failure instanceof Error ? failure.message : '记忆未能保存，请重试。'; }
+    if (currentTurnKey.value === owner) { remembered.value = true; feedback.value = t('reading.noteSaved'); }
+  } catch (failure) { if (currentTurnKey.value === owner) feedback.value = failure instanceof Error ? failure.message : t('reading.noteSaveFailed'); }
   finally { remembering.value = false; }
 }
 async function saveWord(): Promise<void> {
@@ -496,10 +504,10 @@ async function saveWord(): Promise<void> {
   try {
     const response = await browser.runtime.sendMessage({type: VOCABULARY_BOOK_MESSAGE, action: 'upsert', input: {
       sourceLanguage: props.sourceLanguage && props.sourceLanguage !== 'auto' ? props.sourceLanguage : detectlang(savingText), targetLanguage: props.targetLanguage, term: normalizeLearningSourceText(savingText),
-      translation: answer.value, context: {text: historicalContext.value || props.selection.context || activeText.value},
+      translation: activeTranslation.value?.text || '', context: {text: historicalContext.value || props.selection.context || activeText.value},
     }}) as VocabularyBookResponse;
     if (!response.success) throw new Error(response.error.message);
-    if (activeText.value === savingText) saved.value = true;
+    if (activeText.value === savingText) { saved.value = true; feedback.value = t('reading.sourceSaved'); }
   } catch (failure) { if (activeText.value === savingText) feedback.value = failure instanceof Error ? failure.message : '收藏失败，请重试。'; }
   finally { saving.value = false; }
 }
@@ -608,7 +616,7 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading-question { margin: 0 0 12px; padding: 8px 10px; border-inline-start: 2px solid #b85579; border-radius: 0 7px 7px 0; background: var(--fr-reading-soft); color: inherit; user-select: text; overflow-wrap: anywhere; }
 .fr-reading-question p { margin: 0; white-space: pre-wrap; }
 .fr-reading-answer { user-select: text; overflow-wrap: anywhere; }
-.fr-reading-footer { display: flex; gap: 5px; align-items: center; margin: 8px 0 0; font-size: 11px; }
+.fr-reading-footer { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin: 8px 0 0; font-size: 11px; }
 .fr-reading-followup { flex-shrink: 0; display: flex; gap: 6px; margin-top: 6px; padding: 3px 3px 3px 10px; border: 1px solid #eae2e7; border-radius: 11px; }
 .fr-reading-followup input { min-width: 0; flex: 1; width: 100%; border: 0; outline: none; color: inherit; background: transparent; font-size: 12px; user-select: text; }
 .fr-reading-followup input::placeholder { color: var(--fr-reading-muted); font-size: 11px; }

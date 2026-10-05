@@ -272,7 +272,7 @@ describe('Writing Harness tools and memory', () => {
     const pending = createWritingRuntime(() => c, undefined, {recall})(request, controller().signal, vi.fn());
     await vi.advanceTimersByTimeAsync(1600); const result = await pending;
     expect(result.success).toBe(true);
-    expect(mocks.stream.mock.calls[1][0].messages.at(-1).content[0].output.value).toContain('学习记忆暂时无法读取');
+    expect(mocks.stream.mock.calls[1][0].messages.at(-1).content[0].output.value).toContain('学习笔记暂时无法读取');
     expect(mocks.stream.mock.calls[1][0].messages.at(-1).content[0].output.value).not.toContain('private database');
     expect(vi.getTimerCount()).toBe(0);
   });

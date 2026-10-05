@@ -381,10 +381,10 @@ const currentContentRequest = computed<SelectionContentRequest | null>(() => {
 });
 const vocabularyAnswer = computed(() => resolveSelectionVocabularyAnswer(currentContentRequest.value, translationAnswer.value, dictionaryAnswer.value));
 const vocabularyButtonTitle = computed(() => {
-  if (vocabularyBusy.value) return '正在保存到单词本';
+  if (vocabularyBusy.value) return t('reading.savingSource');
   if (!vocabularyAnswer.value) return '译文准备完成后可收藏';
   if (isVocabularySaved.value) return '已收藏；再次点击更新当前阅读上下文';
-  return '收藏到单词本';
+  return t('reading.saveSourceTitle');
 });
 const copySuccessMessage = computed(() => copiedTextKind.value === 'source' ? '已复制原文' : '已复制译文');
 
@@ -958,7 +958,7 @@ async function saveVocabularyEntry(event: MouseEvent): Promise<void> {
     if (!vocabularySaveGate.isCurrent(requestToken) || !isContentRequestCurrent(contentRequest)) return;
     if (!response?.success || !response.data) throw new Error(response?.success ? '保存失败' : response?.error?.message || '保存失败');
     isVocabularySaved.value = true;
-    showNotice(wasSaved ? '已更新当前阅读上下文' : '已加入单词本', 'open-vocabulary');
+    showNotice(wasSaved ? '已更新当前阅读上下文' : t('reading.sourceSaved'), 'open-vocabulary');
   } catch (cause) {
     if (vocabularySaveGate.isCurrent(requestToken)) showNotice(cause instanceof Error ? `保存失败：${cause.message}` : '保存失败，未写入单词本');
   } finally {

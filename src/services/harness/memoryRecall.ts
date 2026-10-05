@@ -1,6 +1,6 @@
 /**
  * @file src/services/harness/memoryRecall.ts
- * 文件职责：把浏览器中由用户主动保存的学习记忆适配给 Harness 社区插件的纯检索内核。
+ * 文件职责：把浏览器中由用户主动保存的学习笔记适配给 Harness 社区插件的纯检索内核。
  * 主要内容：映射本地时间与类型字段，优先保留一条最近的学习偏好，再按中英文词法相关度补充学习要点，总量不超过三条。
  * 模块边界：不采集网页、不写入记忆、不调用模型或向量服务；具体仓库由后台注入，开关与隐私窗口隔离由各 runtime 负责；共享读取等待有取消和超时边界。
  */
@@ -28,9 +28,9 @@ export async function readMemory(reader: HarnessMemoryReader, query: string, sig
     let abort!: () => void;
     let timer!: ReturnType<typeof setTimeout>;
     const interrupted = new Promise<never>((_, reject) => {
-        abort = () => reject(new Error('学习记忆读取已取消'));
+        abort = () => reject(new Error('学习笔记读取已取消'));
         signal.addEventListener('abort', abort, {once: true});
-        timer = setTimeout(() => reject(new Error('学习记忆读取超时')), 1500);
+        timer = setTimeout(() => reject(new Error('学习笔记读取超时')), 1500);
     });
     try { return await Promise.race([reader.recall(query), interrupted]); }
     finally { signal.removeEventListener('abort', abort); clearTimeout(timer); }

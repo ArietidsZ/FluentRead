@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/HarnessSettings.vue
  * 文件职责：作为统一划词翻译的学习子设置，配置 AI 讲解、模型和阅读偏好。
- * 主要内容：提供按需 AI 讲解开关，直接展示服务和回答偏好，另行组织原文范围、学习记忆、提示词和开源来源。
+ * 主要内容：提供按需 AI 讲解开关，直接展示服务和回答偏好，另行组织原文范围、学习笔记参考、提示词和开源来源。
  * 模块边界：只编辑传入 Config 的 harness 字段；阅读记录由学习中心统一呈现，不发起模型请求，不拥有网页选区或提示词。
  -->
 <template>
@@ -51,7 +51,7 @@
 
   </SettingsGroup>
 
-  <details class="harness-advanced"><summary>上下文、学习记忆与自定义指令</summary>
+  <details class="harness-advanced"><summary>{{ t('settings.learningContext') }}</summary>
   <SettingsGroup title="原文范围">
     <SettingsItem label="结合哪些原文" :description="config.harness.contextMode === 'paragraph' ? '需要理解代词或言外之意时，允许参考所选文字所在的段落；不会读取整页' : '只发送你选中的文字，适合单句学习；不会补读周围段落'">
       <SegmentedControl v-model="config.harness.contextMode" :options="contextModeOptions" label="上下文范围" />

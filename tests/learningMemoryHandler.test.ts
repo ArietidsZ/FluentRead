@@ -1,6 +1,6 @@
 /**
  * @file tests/learningMemoryHandler.test.ts
- * 文件职责：验证长期学习记忆消息的发送者、隐私、管理权限及错误边界。
+ * 文件职责：验证长期学习笔记消息的发送者、隐私、管理权限及错误边界。
  * 主要内容：覆盖可信设置页 CRUD、内容脚本仅新增、禁用仍可管理、异步准备期间的代次与隐私变更。
  * 模块边界：注入内存仓库替身，不启动浏览器、不发送模型请求。
  */
@@ -45,7 +45,7 @@ describe('learning memory message permissions', () => {
         expect(store.save).toHaveBeenCalledWith(input, 7);
         expect(await handle(message('memory-save', {input}), {...content, url: 'file:///tmp/article.html'})).toMatchObject({success: true});
         for (const request of [message('memory-list'), message('memory-delete', {id}), message('memory-clear'), message('memory-save', {input: {...input, id}}), message('memory-save', {input: null})]) {
-            expect(await handle(request, content)).toEqual({success: false, error: '无法访问学习记忆'});
+            expect(await handle(request, content)).toEqual({success: false, error: '无法访问学习笔记'});
         }
         expect(store.list).not.toHaveBeenCalled(); expect(store.delete).not.toHaveBeenCalled(); expect(store.clear).not.toHaveBeenCalled();
         expect(store.save).toHaveBeenCalledTimes(2);
@@ -68,14 +68,14 @@ describe('learning memory message permissions', () => {
     it('validates input and IDs before storage, and reports only safe input or generic storage errors', async () => {
         const {handle, store, deps} = setup();
         expect(await handle(message('memory-save', {input: {...input, content: 'x'.repeat(2001)}}), options)).toMatchObject({success: false, error: expect.stringContaining('2000')});
-        expect(await handle(message('memory-delete', {id: 'bad'}), options)).toMatchObject({success: false, error: '学习记忆标识无效'});
+        expect(await handle(message('memory-delete', {id: 'bad'}), options)).toMatchObject({success: false, error: '学习笔记标识无效'});
         expect(store.captureGeneration).not.toHaveBeenCalled();
-        store.save.mockRejectedValueOnce(new LearningMemoryError('最多保存 200 条学习记忆'));
-        expect(await handle(message('memory-save', {input}), options)).toEqual({success: false, error: '最多保存 200 条学习记忆'});
+        store.save.mockRejectedValueOnce(new LearningMemoryError('最多保存 200 条学习笔记'));
+        expect(await handle(message('memory-save', {input}), options)).toEqual({success: false, error: '最多保存 200 条学习笔记'});
         store.list.mockRejectedValueOnce(new Error('PRIVATE DATABASE DETAILS'));
-        expect(await handle(message('memory-list'), options)).toEqual({success: false, error: '学习记忆操作未完成，请稍后重试'});
+        expect(await handle(message('memory-list'), options)).toEqual({success: false, error: '学习笔记操作未完成，请稍后重试'});
         store.captureGeneration.mockRejectedValueOnce(new Error('generation read error'));
-        expect(await handle(message('memory-save', {input}), options)).toMatchObject({success: false, error: '学习记忆操作未完成，请稍后重试'});
+        expect(await handle(message('memory-save', {input}), options)).toMatchObject({success: false, error: '学习笔记操作未完成，请稍后重试'});
         expect(deps.cancelActive).not.toHaveBeenCalled();
         const ready = Promise.reject(new Error('config error'));
         expect(await createLearningMemoryHandler({...deps, ready})(message('memory-list'), options)).toMatchObject({success: false});
@@ -90,9 +90,9 @@ describe('learning memory message permissions', () => {
         expect(store.captureGeneration).toHaveBeenCalledOnce();
         expect(store.save).not.toHaveBeenCalled();
         store.captureGeneration.mockResolvedValue(8);
-        store.save.mockRejectedValueOnce(new LearningMemoryError('学习记忆已变更，请重新保存'));
+        store.save.mockRejectedValueOnce(new LearningMemoryError('学习笔记已变更，请重新保存'));
         resolveReady();
-        expect(await pending).toEqual({success: false, error: '学习记忆已变更，请重新保存'});
+        expect(await pending).toEqual({success: false, error: '学习笔记已变更，请重新保存'});
         expect(store.save).toHaveBeenCalledWith(input, 7);
         expect(deps.cancelActive).not.toHaveBeenCalled();
     });

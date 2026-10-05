@@ -13,7 +13,7 @@
       <div class="collection-switches">
       <FeatureEnableCard
       class="vocabulary-saving-control"
-      :title="translateControlLabel('学习收藏')"
+      :title="t('learning.collection.setting')"
       :model-value="betaEnabled"
       :disabled="configBusy"
       @update:model-value="setBetaEnabled"
@@ -124,7 +124,10 @@
 
         <section v-if="loading && entries.length === 0" class="empty-state"><span class="loading-ring" /><p>正在读取本地单词本…</p></section>
         <section v-else-if="entries.length === 0" class="empty-state">
-          <span aria-hidden="true"><UiIcon name="book" :size="28" /></span><h3>还没有学习收藏</h3><p>开启后，在网页学习卡中收藏想记住的单词或句子。</p>
+          <span aria-hidden="true"><UiIcon name="book" :size="28" /></span>
+          <h3>{{ t(betaEnabled ? 'learning.collection.emptyTitle' : 'learning.collection.offEmptyTitle') }}</h3>
+          <p>{{ t(betaEnabled ? 'learning.collection.emptyHint' : 'learning.collection.enableHelp') }}</p>
+          <button v-if="!betaEnabled" type="button" :disabled="configBusy" @click="setBetaEnabled(true)">{{ t('learning.collection.enable') }}</button>
           <button type="button" @click="emit('navigate', 'settings-data')">从备份恢复</button>
         </section>
         <section v-else-if="filteredEntries.length === 0" class="empty-state"><span aria-hidden="true"><UiIcon name="search" :size="28" /></span><h3>没有匹配的词条</h3><p>试试清空搜索内容或切换掌握状态。</p></section>
