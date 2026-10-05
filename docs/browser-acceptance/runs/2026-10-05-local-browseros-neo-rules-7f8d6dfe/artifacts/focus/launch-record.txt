@@ -1,0 +1,22 @@
+# 本轮启动记录（temporary-partial-visibility-20261005）
+
+浏览器由外层脚本以 `open -g -n -a`（后台、不激活、不抬升窗口）启动，命令行参数：
+
+```
+--user-data-dir=/tmp/fluentread-partial4-7949e24f
+--remote-debugging-port=9400
+--remote-allow-origins=http://127.0.0.1:9400
+--window-position=2400,120
+--window-size=1200,900
+--no-first-run
+--no-default-browser-check
+--enable-unsafe-extension-debugging
+```
+
+要点：
+
+- 进程 PID 22976，专用临时 profile（mode 700，由本轮创建并持有）。
+- 单一活动显示 2560x1440；窗口 left=2400 / top=120 / 1200x900 → 可见 160x900 = 144000 px²，占窗口 1080000 px² 的 13.3%，guard 判定 `partially-visible`，符合本次用户明确批准的例外（完全可见、最小化、全屏、前台都会导致 guard-violation）。
+- 运行期间没有再次移动/缩放/最小化窗口，没有调用 Page.bringToFront()，没有激活浏览器进程。
+- guard 全程前台 PID 恒为 19141（与本浏览器无关的用户应用），即自有浏览器从未成为前台。
+- 扩展在**本次运行、guard 已 running 之后**才用 CDP `Extensions.loadUnpacked` 载入；Chromium 151 忽略 `--load-extension`（DEFECT-04）。

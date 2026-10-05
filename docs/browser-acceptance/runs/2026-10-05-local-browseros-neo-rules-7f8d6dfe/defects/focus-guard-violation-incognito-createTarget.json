@@ -1,0 +1,229 @@
+{
+  "status": "blocked",
+  "mode": "continuous",
+  "visibilityPolicy": "temporary-partial-visibility-20261005",
+  "browserPid": 10534,
+  "cdpPort": 9370,
+  "profilePathSha256": "34a9ec1ca24092318b3fe4ef77fecc2f99c361b610a17c0d731127fae11f5fb4",
+  "samplePolicy": "serial read-only polling; inspect observed gaps; stop operations when guard is not running",
+  "events": [
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:27:38.243Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 2097691541
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 2097691541,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 273
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:27:38.777Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 2097691541
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 2097691541,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 280
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:27:39.296Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 2097691541
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 2097691541,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 267
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:27:39.819Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 2097691541
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 2097691541,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 271
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:27:40.334Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 2097691541
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 2097691541,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 263
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:27:40.851Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 2097691541
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 2097691541,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 266
+    },
+    {
+      "event": "guard-violation",
+      "at": "2026-10-05T08:27:42.024Z",
+      "context": "owned-temporary-browser",
+      "error": "Owned browser became foreground; stop test operations"
+    }
+  ],
+  "serverConfigSha256": "3d01b6064081872033a8bcf0d1e2811a8a17671ede4e42ef76aa95e055f73736",
+  "lastObservedAt": "2026-10-05T08:27:40.851Z"
+}

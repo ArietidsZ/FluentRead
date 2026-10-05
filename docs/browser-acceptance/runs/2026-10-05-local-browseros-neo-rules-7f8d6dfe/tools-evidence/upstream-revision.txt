@@ -1,0 +1,5 @@
+HEAD 7f8d6dfe0d8ebd7a526bf9c654ea7e4926518fa1
+7f8d6dfe test: add explicitly approved partial-visibility acceptance mode
+c796cd88 fix: dispatch focus guard through canonical CLI paths
+cf541253 test: add guarded native Neo resume and raw GPU evidence binding
+a8728f79 fix: align browser acceptance with native locale and GPU contracts

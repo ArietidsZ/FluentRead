@@ -1,0 +1,17 @@
+{
+  "status": "blocked",
+  "mode": "continuous",
+  "visibilityPolicy": "temporary-partial-visibility-20261005",
+  "browserPid": 21853,
+  "cdpPort": 9380,
+  "profilePathSha256": "88807d52916b8d035ade88593ae84c8d8be79bb3747f9bfb0f5d306241a57dd0",
+  "samplePolicy": "serial read-only polling; inspect observed gaps; stop operations when guard is not running",
+  "events": [
+    {
+      "event": "guard-violation",
+      "at": "2026-10-05T08:32:05.726Z",
+      "context": "owned-temporary-browser",
+      "error": "Task-scoped server points at another browser CDP port\n\n9370 !== 9380\n"
+    }
+  ]
+}

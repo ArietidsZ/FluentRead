@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "expected": {
+    "baseline": true,
+    "guardNotStopped": false,
+    "strictPolicyWithoutException": false,
+    "passWithdrawn": true
+  },
+  "results": {
+    "baseline": {
+      "accepted": true,
+      "result": {
+        "valid": true,
+        "overall": "blocked",
+        "cases": 22
+      }
+    },
+    "guardNotStopped": {
+      "accepted": false,
+      "rejected": "Pass requires a completed continuous focus guard bound to the actual browser/profile"
+    },
+    "strictPolicyWithoutException": {
+      "accepted": false,
+      "rejected": "Test window intersects an active display; stop and restore approved offscreen placement"
+    },
+    "passWithdrawn": {
+      "accepted": true,
+      "result": {
+        "valid": true,
+        "overall": "blocked",
+        "cases": 22
+      }
+    }
+  }
+}

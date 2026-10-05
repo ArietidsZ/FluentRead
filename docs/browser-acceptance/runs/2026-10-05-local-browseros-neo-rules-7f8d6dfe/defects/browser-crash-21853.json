@@ -1,0 +1,26 @@
+{
+  "artifact": "macOS crash report for the owned temporary instance",
+  "incidentId": "5FB01192-4184-4923-9D85-60269D13FED8",
+  "crashReporterKey": "F1B43168-5C6B-4C8D-0DD9-86748602A1B6",
+  "process": "BrowserOS neo",
+  "pid": 21853,
+  "bundleId": "com.browseros.BrowserClaw",
+  "version": "0.50.5 (10000.0.50.5.0)",
+  "frameworkVersion": "151.0.8162.137",
+  "role": "Foreground",
+  "launchedAt": "2026-10-05T16:31:31.916+08:00",
+  "crashedAt": "2026-10-05T16:33:02.228+08:00",
+  "uptimeSeconds": 90,
+  "exception": "EXC_BAD_ACCESS (SIGSEGV), KERN_INVALID_ADDRESS at 0xefefefefefeff047 (possible pointer authentication failure)",
+  "triggeredThread": "0 CrBrowserMain, com.apple.main-thread",
+  "codeSigning": {"id": "com.browseros.BrowserClaw", "team": "8YMKWU47S5", "sip": "enabled"},
+  "timeline": [
+    {"at": "2026-10-05T08:32:53.022Z", "observation": "focus guard running, visibilityPolicy=temporary-partial-visibility-20261005, classification=partially-visible (visibleArea 144000 / windowArea 1080000)"},
+    {"at": "2026-10-05T08:32:54.794Z", "observation": "loopback fixture captured through the control surface (snapshot + markdown + PNG)"},
+    {"at": "2026-10-05T08:32:54.800Z", "observation": "CDP inventory: 5 targets, 0 FluentRead service workers (this instance never had the unpacked build loaded)"},
+    {"at": "2026-10-05T08:33:01.156Z", "observation": "focus guard recorded guard-violation: Owned browser became foreground; stop test operations"},
+    {"at": "2026-10-05T08:33:01.577Z", "observation": "incognito wiring probe reported: isolated context held 3 targets, 0 extension workers, context disposed"},
+    {"at": "2026-10-05T08:33:02.228Z", "observation": "the browser process itself crashed with SIGSEGV in the browser main thread"}
+  ],
+  "note": "The crash happened about one second after Target.createTarget opened a window in a fresh browser context, and the focus guard had already flagged the same call as bringing the owned browser to the foreground. Both effects reproduced in two independent attempts. No user data is contained in the crash report; only the summary above is retained."
+}

@@ -1,0 +1,561 @@
+{
+  "schemaVersion": 2,
+  "testedLocalHead": "7212af1f9da08324963e38973c7f477aabfffb0b",
+  "expectedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+  "runId": "fluentread-browseros-neo-local-2026-10-05-04-rules-7f8d6dfe",
+  "startedAt": "2026-10-05T08:42:05.776Z",
+  "finishedAt": "2026-10-05T08:42:33.032Z",
+  "overall": "blocked",
+  "environment": {
+    "os": "macOS 27.2 (build 26B5091g), arm64, Apple M2 Max",
+    "browser": "BrowserOS neo (Chromium)",
+    "browserVersion": "151.0.8162.137",
+    "browserosVersion": "0.50.5.0",
+    "launchMode": "macos-background-open (open -g -n -a; the process is never activated and no window is raised)",
+    "profileMarker": "/tmp/fluentread-partial4-7949e24f",
+    "focusPolicy": "never activated, never minimized, never moved after launch, Page.bringToFront() never called, no focus-stealing API used; a continuous focus guard (temporary-partial-visibility-20261005) observed every browser operation and recorded zero violations, with the frontmost PID fixed at 19141 (an unrelated user application) for the whole interval",
+    "windowPlacement": "partially visible under the user-approved exception: launched with --window-position=2400,120 --window-size=1200,900 on the single 2560x1440 display, giving left=2400 top=120 1200x900 with 144000 of 1080000 px^2 visible (guard classification partially-visible); a fully-offscreen normal window is unreachable on this host because the WindowServer clamps it, which is why the exception was requested. The window was never moved, resized, minimized, fullscreened or raised during the run.",
+    "extensionId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+    "extensionName": "FluentRead-流畅阅读",
+    "extensionVersion": "0.0.35",
+    "browserExecutableSha256": "b65e8c83ff0568b4f082a8c91c4f8cf13807c415519b32f78ca14cd7080445d5",
+    "profileKind": "dedicated-temporary",
+    "launchArguments": [
+      "--user-data-dir=/tmp/fluentread-partial4-7949e24f",
+      "--remote-debugging-port=9400",
+      "--remote-allow-origins=http://127.0.0.1:9400",
+      "--window-position=2400,120",
+      "--window-size=1200,900",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--enable-unsafe-extension-debugging",
+      "note: the window was placed partially visible by launch arguments (approved temporary-partial-visibility-20261005 exception); it was never moved afterwards",
+      "note: no --load-extension was passed; Chromium 151 ignores it (DEFECT-04) and the already-built unpacked extension was loaded with CDP Extensions.loadUnpacked inside the guard interval"
+    ],
+    "capabilityEvidence": [
+      "artifacts/env01/capabilities.json",
+      "artifacts/neo/capabilities-neo-stdio.json"
+    ],
+    "nodeVersion": "v22.23.3",
+    "pnpmVersion": "9.12.1",
+    "browserPid": 22976,
+    "profilePathSha256": "7f93a615b1b18cf5bdd13052d8a2645f6963b4fa3aedd90cf00ef8a4b70df494",
+    "focusGuardEvidence": "artifacts/focus/focus-guard.json",
+    "visibilityPolicy": "temporary-partial-visibility-20261005"
+  },
+  "provenance": {
+    "publishedSourceCommit": "c68a53af300b33109375665197951331e45ae18a",
+    "checkoutCommit": "c68a53af300b33109375665197951331e45ae18a",
+    "observedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+    "worktreeCleanBeforeLocaleGeneration": true,
+    "lockfileSha256": "5b251fb80b9a89991ef226fe19e24e249c48963c520945c9a0ef5851ebddb619",
+    "buildManifest": "artifacts/build/build-files.json",
+    "generatedLocalesManifest": "artifacts/build/generated-locales.json",
+    "commands": [
+      "git rev-parse c68a53af300b33109375665197951331e45ae18a^{tree}",
+      "git worktree add --detach <WORKSPACE>/fluentread-acceptance-product c68a53af300b33109375665197951331e45ae18a",
+      "pnpm install --frozen-lockfile",
+      "pnpm generate:userscript-languages",
+      "pnpm compile",
+      "pnpm build",
+      "node scripts/testing/verify-emitted-model-workers.mjs --extension-dir .output/chrome-mv3",
+      "node scripts/testing/browser-acceptance.mjs fingerprint ../fluentread-acceptance-product/.output/chrome-mv3 extension-build",
+      "node scripts/testing/browser-acceptance.mjs fingerprint ../fluentread-acceptance-product/userscript/languages generated-locales",
+      "node scripts/testing/browser-acceptance.mjs serve",
+      "node scripts/testing/browser-acceptance.mjs self-check",
+      "git worktree add --detach <WORKSPACE>/fluentread-acceptance-tools cf54125302be2beebb3ba8860798f3cb053a3dac",
+      "pnpm install --frozen-lockfile   # in the new tools worktree",
+      "node scripts/testing/browser-acceptance.mjs normalize-gpu result.pending.json artifacts/env01/gpu-log.json 2 > result.normalized.json",
+      "node scripts/testing/browser-acceptance.mjs validate result.normalized.json",
+      "node neo-stdio-probe.mjs <FR_NEO_SERVER> neo-sidecar.json neo-state   # MCP initialize + tools/list over stdio",
+      "git worktree add --detach <WORKSPACE>/fluentread-acceptance-tools 7f8d6dfe0d8ebd7a526bf9c654ea7e4926518fa1",
+      "pnpm install --frozen-lockfile   # in the tools worktree, so the tool self-checks can run",
+      "node scripts/testing/browser-acceptance.mjs self-check",
+      "node scripts/testing/browser-focus-guard.mjs --self-check",
+      "node scripts/testing/browser-focus-visibility-selfcheck.mjs   # 26 negative checks for the approved policy",
+      "node scripts/testing/browser-focus-guard-entry-selfcheck.mjs",
+      "open -g -n -a \"/Applications/BrowserOS neo.app\" --args --user-data-dir=/tmp/fluentread-partial4-7949e24f --remote-debugging-port=9400 --window-position=2400,120 --window-size=1200,900 --enable-unsafe-extension-debugging ...",
+      "node scripts/testing/browser-focus-guard.mjs --profile /tmp/fluentread-partial4-7949e24f --pid 22976 --port 9400 --server-pid <stdio server pid> --server-config <run>/neo-sidecar.json --output <run>/focus-guard.json --allow-partial-visibility",
+      "node <run>/harness/acceptance-run.mjs <run> <browseros-claw-server> http://127.0.0.1:62307 djnlaiohfaaifbibleebjggkghlmcpcj <extension dir> 9400",
+      "node scripts/testing/browser-acceptance.mjs validate result.json"
+    ]
+  },
+  "hardware": {
+    "status": "physical",
+    "osGpuDescription": "Apple M2 Max (38 GPU cores, Metal 4)",
+    "adapterDescription": "",
+    "isFallbackAdapter": false,
+    "features": [
+      "bgra8unorm-storage",
+      "clip-distances",
+      "core-features-and-limits",
+      "depth-clip-control",
+      "depth32float-stencil8",
+      "dual-source-blending",
+      "float32-blendable",
+      "float32-filterable",
+      "indirect-first-instance",
+      "primitive-index",
+      "rg11b10ufloat-renderable",
+      "shader-f16",
+      "subgroups",
+      "texture-component-swizzle",
+      "texture-compression-astc",
+      "texture-compression-astc-sliced-3d",
+      "texture-compression-bc",
+      "texture-compression-bc-sliced-3d",
+      "texture-compression-etc2",
+      "texture-formats-tier1",
+      "texture-formats-tier2",
+      "timestamp-query"
+    ],
+    "limits": {
+      "maxBufferSize": 4294967292,
+      "maxStorageBufferBindingSize": 4294967292,
+      "maxComputeWorkgroupStorageSize": 32768,
+      "maxComputeInvocationsPerWorkgroup": 1024,
+      "maxBindGroups": 4,
+      "maxTextureDimension2D": 16384
+    },
+    "evidence": [
+      "artifacts/env01/gpu-log.json",
+      "artifacts/env01/worker-context.json"
+    ],
+    "adapterLabel": "apple metal-3 via GPUAdapterInfo (vendor=apple, architecture=metal-3; Chromium 151 reports GPUAdapterInfo.device and .description as empty strings)",
+    "adapterInfo": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": ""
+    },
+    "rawAdapterObservation": {
+      "artifact": "artifacts/env01/gpu-log.json",
+      "sha256": "af48299d1352186b42d3237b4f9902fdecd63cca34037575b330862d8892ce8f",
+      "eventIndex": 2,
+      "context": "extension-offscreen",
+      "at": "2026-10-05T08:42:19.843Z"
+    }
+  },
+  "models": [],
+  "cases": [
+    {
+      "id": "ENV-01",
+      "status": "pass",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Executed in full for this round's scope and accepted. A continuous focus guard ran under the user-approved temporary-partial-visibility-20261005 policy across every browser operation (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976); the owned temporary instance was never activated, never minimized and never moved, and the frontmost PID stayed 19141 (an unrelated user application) for the whole interval. The extension was loaded into that instance with CDP Extensions.loadUnpacked only after the first running observation, its identity was read from its own service worker, the loopback fixture was driven through the real control surface, and raw WebGPU adapter observations were captured in four execution contexts, three of which returned an adapter (the extension-origin Blob Worker timed out and is recorded as a failing event, not as a success).",
+      "observations": [
+        "Dedicated temporary profile used: /tmp/fluentread-partial4-7949e24f (created by this run, mode 700); guard profilePathSha256=7f93a615b1b18cf5bdd13052d8a2645f6963b4fa3aedd90cf00ef8a4b70df494 matches the report.",
+        "Continuous focus guard: status=stopped, mode=continuous, policy=temporary-partial-visibility-20261005, 51 observations from 2026-10-05T08:42:05.776Z to 2026-10-05T08:42:32.780Z, zero guard-violation events.",
+        "Window geometry recorded by the guard: left=2400 top=120 1200x900 on the single 2560x1440 display; visibleArea 144000 of windowArea 1080000 → classification partially-visible. Nothing moved the window after launch.",
+        "BrowserOS neo 0.50.5.0, Chromium 151.0.8162.137 (revision @8f5d36bc16f57115aeeff34baf4ad6aa964d509c); CDP protocol 1.3.",
+        "Extension identity read from its own service worker via chrome.runtime.getManifest(): FluentRead-流畅阅读 0.0.35, MV3, id djnlaiohfaaifbibleebjggkghlmcpcj; loaded from the unchanged build directory with CDP Extensions.loadUnpacked (Chromium 151 ignores --load-extension, DEFECT-04).",
+        "The owned profile exposed exactly one FluentRead service worker; two unrelated extension worker ids were also present in the same profile and are recorded in the browser log.",
+        "OS GPU: Apple M2 Max (38 GPU cores, Metal 4). Raw WebGPU adapter observations: normal-page, extension-offscreen and extension-options-page all returned vendor=apple architecture=metal-3 isFallbackAdapter=false with 22 features including shader-f16 and maxBufferSize=maxStorageBufferBindingSize=4294967292 — three of the four probed execution contexts.",
+        "The extension-origin Blob Worker probe timed out after 12 s and is recorded as a failing raw event (error: worker timeout); it is not claimed as a success (DEFECT-09).",
+        "Loopback fixture driven through the MCP control surface: snapshot 2027 chars, markdown 1173 chars; routes /fixtures/unified.html, /fixtures/all-nodes.html and /fixtures/dynamic-shadow.html all answered 200.",
+        "MCP stdio control surface: browseros-neo (browseros-claw-server) answered initialize + tools/list with 22 tools on a run-local sidecar config bound to this instance's CDP port 9400.",
+        "Extension UI in the owned instance: popup rendered (PNG 220704 bytes) and options page rendered (PNG 277056 bytes, 6 headings, 18 inputs) — captured inside the guard interval.",
+        "No Page.bringToFront(), no activation API, no window move/minimize/resize, no product configuration write, and no connection to the daily profile were used at any point."
+      ],
+      "evidence": [
+        "artifacts/env01/browser-log.json",
+        "artifacts/env01/capabilities.json",
+        "artifacts/neo/capabilities-neo-stdio.json",
+        "artifacts/env01/gpu-log.json",
+        "artifacts/env01/worker-context.json",
+        "artifacts/focus/focus-guard.json",
+        "artifacts/env01/extension-popup.png",
+        "artifacts/env01/extension-options-page.png",
+        "artifacts/env01/extension-offscreen.png"
+      ],
+      "durationMs": 27004,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "UI-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Partially executed, then blocked. The popup was opened through the real control surface and captured while the continuous focus guard was running (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976), so the extension really rendered in this owned instance: 1 target, PNG artifacts/env01/extension-popup.png 220704 bytes, 1 heading, 1 button, 12 real DOM inputs absent because the popup only shows the welcome dialog on first run. The remaining UI-01 assertions (provider/model selection, translate → restore → re-translate, 390 px narrow layout, dark theme) are still blocked by DEFECT-02: scripts/testing/run-popup-actions-service-ui-test.cjs requires the trusted focus-safe helper focus-safe-browser.cjs, which exists neither in the repository nor anywhere under $HOME, and the runner hardcodes /Users/thinkstu/... paths. The focus-guard gate introduced in cf541253 no longer blocks this case: under the user-approved temporary-partial-visibility-20261005 policy the guard completed a full continuous interval in this run.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "PRIVATE-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. scripts/run-privacy-boundary-test.cjs throws at startup unless --focus-safe-helper resolves to a module exporting launchFocusSafePersistentContext/newPageWithoutForegrounding (DEFECT-02), and Playwright is absent from this checkout so --playwright-root cannot be satisfied either (DEFECT-03). The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "PRIVATE-02",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Same runner and the same two missing prerequisites as PRIVATE-01 (DEFECT-02 and DEFECT-03). The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. scripts/run-youtube-subtitle-sync-test.cjs hard-requires both --focus-safe-helper and --playwright-root (DEFECT-02 and DEFECT-03) and additionally needs a public YouTube page. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-UI-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Partially executed, then blocked. The options page was opened through the real control surface and captured under the running guard (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976): 1 target, PNG 277056 bytes (1920x1638), 6 headings and 18 inputs/textareas, so the settings surface really renders in this owned instance. The remaining assertions (PaddleOCR selection persistence across close/reopen, manga/LaMa resource display, no unrelated LaMa download, narrow/dark variants) are blocked by scripts/testing/run-image-recognition-settings-test.cjs requiring --playwright-root and --focus-safe-helper and hardcoding a macOS temp profile (DEFECT-02 and DEFECT-03).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-02",
+      "status": "blocked",
+      "kind": "real-site-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Needs the fixed qwen3-asr-0.6b q4 revision from model-catalog.json plus a public YouTube caption stream. No model asset was fetched in this run: the handoff authorises the fixed catalog downloads, but doing so would add roughly 5 GiB of local state that this run was not asked to create, and no real-model case could pass anyway while the deterministic-browser cases above stay blocked. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-03",
+      "status": "blocked",
+      "kind": "real-site-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: run the fixed qwen3-asr-0.6b q4 revision over a second public YouTube caption stream. The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-04",
+      "status": "blocked",
+      "kind": "real-site-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: run the fixed qwen3-asr-0.6b revision over a third public YouTube caption stream. The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-05",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: inject the independent negative fixture on top of a working YouTube capture path. The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-01",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: import snowfluke/ppu-paddle-ocr-models through the product's verified file import path and run it on the synthetic single-image fixture. The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-02",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: import ogkalu/lama-manga-onnx-dynamic through the verified import path and run it on the synthetic manga fixture. The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-03",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: inject an explicit OCR failure on top of an established physical-GPU OCR session. The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-01",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: run the fixed kokoro-v1.1-zh revision on the synthetic TTS text fixture. The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-02",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: run the fixed kokoro-v1.1-zh revision over long text and check ordering and ending markers. The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-03",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: run the fixed kokoro-v1.1-zh revision against the remaining TTS assertions. The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-04",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: verify the offline cache after a fully SHA-verified Kokoro cache exists (blocking hosts: huggingface.co). The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-05",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: inject an explicit TTS failure on top of an established physical-GPU TTS session. The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-01",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: run all five strict-GPU translation profiles (OPUS zh->en and en->zh FP16, OPUS ja->en FP32, Index zh->en and en->zh). The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-02",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: inject a failure per GPU translation profile once the profiles run. The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-03",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: switch between at least two real models with recorded real runs. The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-04",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: verify offline behaviour after a fully SHA-verified fixed-revision cache exists (blocking hosts: huggingface.co and hf-mirror.com). The updated handoff authorises the fixed catalog downloads, but no model asset was fetched in this run: doing so would add roughly 5 GiB of local state that this run was not asked to create. The focus-guard gate no longer blocks this case (guard status=stopped mode=continuous policy=temporary-partial-visibility-20261005 observations=51 violations=0 interval=2026-10-05T08:42:05.776Z..2026-10-05T08:42:32.780Z browserPid=22976).",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "artifacts/build/build-files.json",
+      "sha256": "ed77ce68544664f41b105a13852331bee459a486334a2f0361f99b95d5841671",
+      "mediaType": "application/json",
+      "role": "build-manifest"
+    },
+    {
+      "path": "artifacts/build/generated-locales.json",
+      "sha256": "699947f48468e100366cd82089289984d0ba44b74f11b2252f6a57f417629ccb",
+      "mediaType": "application/json",
+      "role": "locale-manifest"
+    },
+    {
+      "path": "artifacts/build/commands.json",
+      "sha256": "c7a59f02058c479a405e5d9089c3adffba59ef92b601b2a73ae124f7bbe37673",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/source.json",
+      "sha256": "fa5715fe17d098dbc03d91824fcd34095ed2d8b0c7c23e7457a7886ab8b580f0",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/env01/capabilities.json",
+      "sha256": "8d146045fb630f04df8eb002826b3a16bea34bedd88f8ff684e7bdf72f6439a0",
+      "mediaType": "application/json",
+      "role": "capabilities"
+    },
+    {
+      "path": "artifacts/neo/capabilities-neo-stdio.json",
+      "sha256": "d24959c7666263c3964e6bcd077086d44b20d77d5ebf9dbb391e9e90a5f1a2b1",
+      "mediaType": "application/json",
+      "role": "capabilities"
+    },
+    {
+      "path": "artifacts/env01/gpu-log.json",
+      "sha256": "af48299d1352186b42d3237b4f9902fdecd63cca34037575b330862d8892ce8f",
+      "mediaType": "application/json",
+      "role": "gpu-log"
+    },
+    {
+      "path": "artifacts/env01/worker-context.json",
+      "sha256": "e1d6887092bd6e9db2f125bf865bc6544c44f45752def7a5f16fd691cc9ad46a",
+      "mediaType": "application/json",
+      "role": "gpu-log"
+    },
+    {
+      "path": "artifacts/env01/browser-log.json",
+      "sha256": "63b66b739197a0b23aa98bf32fb4883e6ede379f7ed7c04c9a1904991baa70d5",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/focus/focus-guard.json",
+      "sha256": "c45609a8db399b886818d612fde8cf9156b38bc0a522ab76bfda31b5dad7e564",
+      "mediaType": "application/json",
+      "role": "focus-guard"
+    },
+    {
+      "path": "artifacts/env01/extension-popup.png",
+      "sha256": "936704901b9264aa1dcaac0559e4e42d51dd88000fb9f98d1b927d712f2168bd",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/extension-options-page.png",
+      "sha256": "4c2a6d5037c3d9644f3851de52a5b8f86bb9d982e4b8b65c1eb21426b74f764a",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/extension-offscreen.png",
+      "sha256": "7778f165e022f4b84d82de42ce4caaca720eb77ccf055f83f25c09f829f0268b",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/focus/launch-record.txt",
+      "sha256": "78efe9928a164a4ffbf223bd9876a84eb4e6287c913db3d23e87bd1bb4fdd410",
+      "mediaType": "text/plain",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/focus/window-placement-probe.json",
+      "sha256": "bf7774a9cd5c249fba631488205b40143e390696aaa90722f55c49bd0f6e8b67",
+      "mediaType": "application/json",
+      "role": "focus-guard"
+    },
+    {
+      "path": "neo-sidecar.json",
+      "sha256": "5676f07361b2f98bf5dd6035e474eaa048c742901479fa6f7f20af9b26ebcc79",
+      "mediaType": "application/json",
+      "role": "source"
+    }
+  ],
+  "limitations": [
+    "DEFECT-06 BYPASSED, NOT FIXED: browser-focus-guard.mjs still requires the owned window to lie entirely outside every active display under the default fully-offscreen policy, which is unreachable on this single-display macOS host because the WindowServer clamps normal windows so part of the window stays on screen. This round therefore uses the exception the user explicitly approved on 2026-10-05 (--allow-partial-visibility, policy temporary-partial-visibility-20261005), and the guard reached running, observed the whole run and stopped cleanly with zero violations. The permanent fix suggested upstream in the previous round stands: express the assertion as \"normal-size window that never becomes frontmost with an unchanged frontmost PID\", or define evidence semantics for the WindowServer-clamped minimal visible edge.",
+    "DEFECT-02 (still blocking UI-01, PRIVATE-01, PRIVATE-02, YT-01 and OCR-UI-01): the trusted focus-safe helper focus-safe-browser.cjs required by --focus-safe-helper exists neither in the repository nor anywhere under $HOME, and several runners hardcode /Users/thinkstu/... paths. The handoff forbids fabricating the helper.",
+    "DEFECT-03 (still blocking the same five cases): Playwright is absent from package.json and pnpm-lock.json, so --playwright-root cannot be satisfied from this checkout.",
+    "DEFECT-04: Chromium 151 ignores --load-extension, which the repository browser specials still pass; the already-built unpacked extension had to be loaded with CDP Extensions.loadUnpacked inside the guard interval.",
+    "DEFECT-07 RESOLVED upstream in c796cd88: the guard entry dispatch now realpath-compares process.argv[1] with its own module URL, so running it through a /tmp alias no longer no-ops with exit 0. Re-verified this round through the guard entry self-check and a real continuous run.",
+    "NEW DEFECT-08 (does not affect the 22 cases as scored, but is a real crash risk): CDP Target.createTarget inside a freshly created browser context brings the owned window to the foreground — the guard flagged it as guard-violation \"Owned browser became foreground\" in two independent attempts — and in the second attempt the BrowserOS neo browser process then died with EXC_BAD_ACCESS (SIGSEGV) in the browser main thread, incident 5FB01192-4184-4923-9D85-60269D13FED8, about one second after that call. This round therefore records the incognito wiring probe as a defect with archived evidence instead of repeating it: defects/focus-guard-violation-incognito-createTarget.json and defects/browser-crash-21853.json.",
+    "NEW DEFECT-09 (evidence availability, not blocking): the extension-origin Blob Worker WebGPU probe times out after 12 s in every round so far, so no worker-context adapter observation exists; the raw failing event is kept in the gpu log and the case does not claim otherwise.",
+    "No real model asset was fetched in this run: all seven real-model and three fault-injection cases need the fixed catalog revisions (about 5 GiB of local state). The handoff authorises those downloads, but this round was asked to continue under the updated rules, and every one of those cases also needs a runner that does not exist yet, so fetching them could not have produced a pass.",
+    "Build/source provenance in this record is intentionally carried forward from the previous round and is NOT re-derived: the product source (commit c68a53af300b33109375665197951331e45ae18a, tree 50e12ecc7f4c72448f03e714a585814eb9476622) and the extension build (.output/chrome-mv3, 401 files, manifest e70a1b9d...) were not rebuilt or modified, which is exactly the build identity the loaded extension must be checked against. Everything that depends on this round's execution — the focus guard record, browser log, GPU log, capability evidence, worker context, extension identity and UI screenshots — was captured in this round under the live guard.",
+    "This record covers one host with one active display and does not attempt to generalise the partial-visibility exception to other machines."
+  ]
+}

@@ -1,0 +1,1803 @@
+{
+  "status": "stopped",
+  "mode": "continuous",
+  "visibilityPolicy": "temporary-partial-visibility-20261005",
+  "browserPid": 22976,
+  "cdpPort": 9400,
+  "profilePathSha256": "7f93a615b1b18cf5bdd13052d8a2645f6963b4fa3aedd90cf00ef8a4b70df494",
+  "samplePolicy": "serial read-only polling; inspect observed gaps; stop operations when guard is not running",
+  "events": [
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:05.776Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 267
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:06.293Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 264
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:06.831Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 286
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:07.375Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 292
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:07.908Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 281
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:08.455Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 295
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:08.995Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 289
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:09.578Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 330
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:10.121Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 290
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:10.668Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 296
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:11.203Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 283
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:11.754Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 299
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:12.293Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 286
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:12.849Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 302
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:13.391Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 284
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:13.937Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 294
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:14.487Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 297
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:15.055Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 315
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:15.597Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 290
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:16.134Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 285
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:16.669Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 283
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:17.201Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 280
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:17.744Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 290
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:18.279Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 283
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:18.790Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 259
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:19.330Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 287
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:19.858Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 276
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:20.400Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 289
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:20.932Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 280
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:21.475Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 291
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:22.017Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 290
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:22.548Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 279
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:23.102Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 302
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:23.644Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 290
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:24.176Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 279
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:24.704Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 276
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:25.244Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 288
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:25.788Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 291
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:26.316Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 276
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:26.850Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 282
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:27.387Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 284
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:27.926Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 287
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:28.453Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 276
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:28.984Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 279
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:29.532Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 297
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:30.076Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 292
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:30.629Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 301
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:31.165Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 284
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:31.713Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 296
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:32.242Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 277
+    },
+    {
+      "event": "focus-window-observation",
+      "at": "2026-10-05T08:42:32.780Z",
+      "context": "owned-temporary-browser",
+      "frontmostPidBefore": 19141,
+      "frontmostPidAfter": 19141,
+      "windows": [
+        {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal",
+          "windowId": 1521240178
+        }
+      ],
+      "displays": [
+        {
+          "left": 0,
+          "top": 0,
+          "width": 2560,
+          "height": 1440
+        }
+      ],
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "visibility": [
+        {
+          "windowId": 1521240178,
+          "windowArea": 1080000,
+          "visibleArea": 144000,
+          "classification": "partially-visible"
+        }
+      ],
+      "observationMs": 286
+    },
+    {
+      "event": "guard-stopped",
+      "at": "2026-10-05T08:42:33.032Z",
+      "context": "owned-temporary-browser"
+    }
+  ],
+  "serverConfigSha256": "8ecd12609ad13c7a2a534447d79fe56d329e3520ff2978aa65ad1ae46ee4e5ba",
+  "lastObservedAt": "2026-10-05T08:42:32.780Z"
+}

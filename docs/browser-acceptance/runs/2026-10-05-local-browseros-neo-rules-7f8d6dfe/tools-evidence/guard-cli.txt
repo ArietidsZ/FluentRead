@@ -1,0 +1,25 @@
+# 焦点守卫 CLI 与策略（上游 7f8d6dfe）
+
+## browser-focus-guard.mjs --help
+Missing --profile
+
+## 策略相关源码位置（上游 7f8d6dfe）
+scripts/testing/browser-focus-guard.mjs:13:export const STRICT_VISIBILITY_POLICY='fully-offscreen';
+scripts/testing/browser-focus-guard.mjs:14:export const PARTIAL_VISIBILITY_POLICY='temporary-partial-visibility-20261005';
+scripts/testing/browser-focus-guard.mjs:16:export function visibilityPolicyFromArgs(args) {
+scripts/testing/browser-focus-guard.mjs:17:  return args.includes('--allow-partial-visibility')?PARTIAL_VISIBILITY_POLICY:STRICT_VISIBILITY_POLICY;
+scripts/testing/browser-focus-guard.mjs:39:export function checkFocusSnapshot({browserPid,frontmostPid,windows,displays,visibilityPolicy=STRICT_VISIBILITY_POLICY}) {
+scripts/testing/browser-focus-guard.mjs:40:  assert([STRICT_VISIBILITY_POLICY,PARTIAL_VISIBILITY_POLICY].includes(visibilityPolicy),'Unknown window visibility policy');
+scripts/testing/browser-focus-guard.mjs:50:    if(visibilityPolicy===STRICT_VISIBILITY_POLICY)assert(geometry.classification==='offscreen','Test window intersects an active display; stop and restore approved offscreen placement');
+scripts/testing/browser-focus-guard.mjs:96:  const visibilityPolicy=visibilityPolicyFromArgs(args);
+scripts/testing/browser-focus-guard.mjs:100:  const report={status:'starting',mode:args.includes('--once')?'once':'continuous',visibilityPolicy,browserPid:pid,cdpPort:port,profilePathSha256:hash(profile),samplePolicy:'serial read-only polling; inspect observed gaps; stop operations when guard is not running',events:[]};
+scripts/testing/browser-focus-guard.mjs:146:      checkFocusSnapshot({browserPid:pid,...observed,windows,visibilityPolicy});
+scripts/testing/browser-focus-guard.mjs:147:      const visibility=checkFocusSnapshot({browserPid:pid,...after,windows,visibilityPolicy});
+scripts/testing/browser-focus-guard.mjs:149:      report.events.push({event:'focus-window-observation',at:report.lastObservedAt,context:'owned-temporary-browser',frontmostPidBefore:observed.frontmostPid,frontmostPidAfter:after.frontmostPid,windows,displays:after.displays,visibilityPolicy,visibility,observationMs:Date.now()-started});await write();
+scripts/testing/browser-acceptance-evidence.mjs:7:import {checkFocusSnapshot,STRICT_VISIBILITY_POLICY,PARTIAL_VISIBILITY_POLICY} from './browser-focus-guard.mjs';
+scripts/testing/browser-acceptance-evidence.mjs:69:  const visibilityPolicy=guard.visibilityPolicy??STRICT_VISIBILITY_POLICY;
+scripts/testing/browser-acceptance-evidence.mjs:70:  assert([STRICT_VISIBILITY_POLICY,PARTIAL_VISIBILITY_POLICY].includes(visibilityPolicy),'Unknown guard visibility policy');
+scripts/testing/browser-acceptance-evidence.mjs:71:  assert.equal(env.visibilityPolicy??STRICT_VISIBILITY_POLICY,visibilityPolicy,'Report and guard visibility policies differ');
+scripts/testing/browser-acceptance-evidence.mjs:77:    if(visibilityPolicy===PARTIAL_VISIBILITY_POLICY||event.visibilityPolicy!==undefined)assert.equal(event.visibilityPolicy,visibilityPolicy,'Sample visibility policy differs from the declared guard policy');
+scripts/testing/browser-acceptance-evidence.mjs:79:      const observed=checkFocusSnapshot({browserPid:guard.browserPid,frontmostPid,windows:event.windows,displays:event.displays,visibilityPolicy});
+scripts/testing/browser-acceptance-evidence.mjs:80:      if(visibilityPolicy===PARTIAL_VISIBILITY_POLICY||event.visibility!==undefined)assert.deepEqual(event.visibility,observed,'Recorded visible geometry differs from raw window/display bounds');

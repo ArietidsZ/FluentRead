@@ -1,0 +1,28 @@
+{
+  "context": "extension-origin-blob-worker",
+  "probe": {
+    "error": "Error: worker timeout"
+  },
+  "workerEvent": {
+    "event": "webgpu-adapter-request",
+    "at": "2026-10-05T08:42:31.868Z",
+    "context": "extension-worker",
+    "adapter": null,
+    "features": [],
+    "limits": {},
+    "error": "Error: worker timeout"
+  },
+  "at": "2026-10-05T08:42:31.868Z",
+  "note": "Worker spawned from the extension offscreen document, i.e. the same origin as the packaged model workers.",
+  "events": [
+    {
+      "event": "webgpu-adapter-request",
+      "at": "2026-10-05T08:42:31.868Z",
+      "context": "extension-worker",
+      "adapter": null,
+      "features": [],
+      "limits": {},
+      "error": "Error: worker timeout"
+    }
+  ]
+}

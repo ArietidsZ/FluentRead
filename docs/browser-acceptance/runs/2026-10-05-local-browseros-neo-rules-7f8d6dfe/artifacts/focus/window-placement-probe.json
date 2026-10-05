@@ -1,0 +1,35 @@
+{
+  "at": "2026-10-05T08:42:05.776Z",
+  "source": "raw geometry recorded by browser-focus-guard.mjs in the first focus-window-observation of this run",
+  "windows": [
+    {
+      "left": 2400,
+      "top": 120,
+      "width": 1200,
+      "height": 900,
+      "windowState": "normal",
+      "windowId": 1521240178
+    }
+  ],
+  "displays": [
+    {
+      "left": 0,
+      "top": 0,
+      "width": 2560,
+      "height": 1440
+    }
+  ],
+  "visibility": [
+    {
+      "windowId": 1521240178,
+      "windowArea": 1080000,
+      "visibleArea": 144000,
+      "classification": "partially-visible"
+    }
+  ],
+  "frontmostPidBefore": 19141,
+  "frontmostPidAfter": 19141,
+  "browserPid": 22976,
+  "visibilityPolicy": "temporary-partial-visibility-20261005",
+  "note": "The window was placed partially visible by launch arguments, never moved afterwards. On this single-display host a fully-offscreen normal window is unreachable (WindowServer clamps it), which is why the user approved this policy on 2026-10-05."
+}

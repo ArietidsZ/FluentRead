@@ -1,0 +1,182 @@
+{
+  "events": [
+    {
+      "event": "guard-bound",
+      "at": "2026-10-05T08:42:06.169Z",
+      "context": "owned-temporary-browser",
+      "visibilityPolicy": "temporary-partial-visibility-20261005",
+      "guardMode": "continuous",
+      "browserPid": 22976,
+      "profilePathSha256": "7f93a615b1b18cf5bdd13052d8a2645f6963b4fa3aedd90cf00ef8a4b70df494",
+      "firstObservation": "2026-10-05T08:42:05.776Z"
+    },
+    {
+      "event": "os-gpu-discovery",
+      "at": "2026-10-05T08:42:06.480Z",
+      "context": "system_profiler SPDisplaysDataType",
+      "osGpuDescription": "Apple M2 Max (38 GPU cores, Metal 4)"
+    },
+    {
+      "event": "browser-identity",
+      "at": "2026-10-05T08:42:06.513Z",
+      "context": "owned-temporary-browser",
+      "product": "Chrome/151.0.8162.137",
+      "revision": "@8f5d36bc16f57115aeeff34baf4ad6aa964d509c",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "protocolVersion": "1.3"
+    },
+    {
+      "event": "extension-loaded",
+      "at": "2026-10-05T08:42:06.545Z",
+      "context": "owned-temporary-browser",
+      "loadedId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+      "expectedId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+      "matches": true,
+      "buildDirectory": "<WORKSPACE>/fluentread-acceptance-product/.output/chrome-mv3",
+      "note": "Chromium 151 ignores --load-extension (DEFECT-04); CDP Extensions.loadUnpacked is the only path that works"
+    },
+    {
+      "event": "cdp-target-inventory",
+      "at": "2026-10-05T08:42:09.048Z",
+      "context": "owned-temporary-browser",
+      "count": 6,
+      "fluentReadWorkers": 1,
+      "otherExtensionWorkerIds": [
+        "adlpneommgkgeanpaekgoaolcpncohkf",
+        "pjimfkbpehlcllblajnpfamdfjhhlgkc"
+      ],
+      "pageCount": 0
+    },
+    {
+      "event": "extension-identity",
+      "at": "2026-10-05T08:42:09.060Z",
+      "context": "chrome.runtime.getManifest() in the extension service worker",
+      "extensionId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+      "name": "FluentRead-流畅阅读",
+      "version": "0.0.35",
+      "manifestVersion": 3,
+      "baseUrl": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/",
+      "storageKeys": "[]"
+    },
+    {
+      "event": "window-bounds",
+      "at": "2026-10-05T08:42:09.061Z",
+      "context": "owned-temporary-browser",
+      "windowId": 1521240178,
+      "bounds": {
+        "bounds": {
+          "left": 2400,
+          "top": 120,
+          "width": 1200,
+          "height": 900,
+          "windowState": "normal"
+        }
+      },
+      "note": "read-only query; the window was never moved, minimized or raised by this run"
+    },
+    {
+      "event": "neo-tabs-before",
+      "at": "2026-10-05T08:42:09.063Z",
+      "context": "owned-temporary-browser",
+      "excerpt": "User's tabs:\n[1] http://127.0.0.1:62307/ (FluentRead local acceptance)\nTip: this session is \"fluentread/peppy-owl\" — rename it with name_session name=\"<2-3 word task label>\"",
+      "fixturePage": 1
+    },
+    {
+      "event": "fixture-read",
+      "at": "2026-10-05T08:42:10.449Z",
+      "context": "owned-temporary-browser",
+      "url": "http://127.0.0.1:62307/",
+      "page": 1,
+      "snapshotChars": 2027,
+      "markdownChars": 1173,
+      "sentinelGrepChars": 273,
+      "fixtureRoutes": {
+        "unified": 200,
+        "all-nodes": 200,
+        "dynamic-shadow": 200
+      },
+      "metricsRequests": 0,
+      "neoScreenshotBytes": 0
+    },
+    {
+      "event": "UI-01-popup",
+      "at": "2026-10-05T08:42:13.573Z",
+      "context": "owned-temporary-browser",
+      "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/popup.html",
+      "targetCount": 1,
+      "headings": 1,
+      "buttons": 1,
+      "screenshotBytes": 220704,
+      "screenshotSha256": "936704901b9264aa1dcaac0559e4e42d51dd88000fb9f98d1b927d712f2168bd"
+    },
+    {
+      "event": "OCR-UI-01-options",
+      "at": "2026-10-05T08:42:17.097Z",
+      "context": "owned-temporary-browser",
+      "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html",
+      "targetCount": 1,
+      "headings": 6,
+      "inputs": 18,
+      "screenshotBytes": 277056,
+      "screenshotSha256": "4c2a6d5037c3d9644f3851de52a5b8f86bb9d982e4b8b65c1eb21426b74f764a"
+    },
+    {
+      "event": "gpu-adapters",
+      "at": "2026-10-05T08:42:31.942Z",
+      "context": "owned-temporary-browser",
+      "osGpuDescription": "Apple M2 Max (38 GPU cores, Metal 4)",
+      "contexts": [
+        {
+          "context": "system_profiler SPDisplaysDataType",
+          "at": "2026-10-05T08:42:06.479Z",
+          "ok": false,
+          "error": null,
+          "vendor": null,
+          "architecture": null,
+          "features": 0,
+          "hasShaderF16": null
+        },
+        {
+          "context": "normal-page",
+          "at": "2026-10-05T08:42:17.104Z",
+          "ok": true,
+          "error": null,
+          "vendor": "apple",
+          "architecture": "metal-3",
+          "features": 22,
+          "hasShaderF16": true
+        },
+        {
+          "context": "extension-offscreen",
+          "at": "2026-10-05T08:42:19.843Z",
+          "ok": true,
+          "error": null,
+          "vendor": "apple",
+          "architecture": "metal-3",
+          "features": 22,
+          "hasShaderF16": true
+        },
+        {
+          "context": "extension-worker",
+          "at": "2026-10-05T08:42:31.868Z",
+          "ok": false,
+          "error": "Error: worker timeout",
+          "vendor": null,
+          "architecture": null,
+          "features": 0,
+          "hasShaderF16": null
+        },
+        {
+          "context": "extension-options-page",
+          "at": "2026-10-05T08:42:31.940Z",
+          "ok": true,
+          "error": null,
+          "vendor": "apple",
+          "architecture": "metal-3",
+          "features": 22,
+          "hasShaderF16": true
+        }
+      ]
+    }
+  ]
+}
