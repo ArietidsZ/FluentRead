@@ -72,7 +72,7 @@ Completed answers are reused when switching learning actions within the current 
 
 ## Context and records
 
-Under **Context, learning memory & instructions**, choose the selection alone or allow its paragraph. This does not read the entire page. Learning memory is optional and off by default. Custom prompts are preserved.
+**Source context**, **Learning memory** and **Custom instructions** are separate visible sections. Choose the selection alone or allow its paragraph with a length limit; the whole page is not read. Learning memory is off by default and may supply saved insights to AI explanations and writing. Disabling it preserves your saved content. Manage it in the Learning center. The instruction editor applies only to AI explanations, leaving ordinary translation and dictionary lookup unchanged. Custom prompts are preserved.
 
 Save expressions to the [Learning center](/en/guide/vocabulary-book). Reading conversations stay on this device for 30 days. Viewing records sends no model request. Private windows do not read or save history. See [Data and privacy](/en/guide/privacy).
 

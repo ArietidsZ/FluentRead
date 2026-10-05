@@ -278,8 +278,8 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
     {id: 'preview', labelKey: 'options.panel.sitePreview', searchTerms: '生效预览 网址匹配 检查规则 优先级', targetIds: []},
   ],
   'settings-video': [
-    {"id": "general", "labelKey": "options.panel.video", "searchTerms": "字幕 开关 翻译服务 显示模式 术语库", "targetIds": []},
-    {"id": "appearance", "labelKey": "options.panel.appearance", "searchTerms": "字幕外观 颜色 字号", "targetIds": []},
+    {"id": "general", "labelKey": "options.panel.video", "searchTerms": "字幕 开关 翻译服务 术语库", "targetIds": []},
+    {"id": "appearance", "labelKey": "options.panel.appearance", "searchTerms": "字幕外观 显示模式 颜色 字号", "targetIds": []},
     {"id": "local", "labelKey": "options.panel.local", "searchTerms": "X 本地 AI Whisper 语音 识别", "targetIds": []},
   ],
   'settings-advanced': [

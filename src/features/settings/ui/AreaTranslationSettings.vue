@@ -1,15 +1,14 @@
 <!--
  * @file src/features/settings/ui/AreaTranslationSettings.vue
  * 文件职责：提供图片翻译内的圈选区域设置，组织触发快捷键、识别与翻译的常用选择，并按需提供提示词和本地语言包设置。
- * 主要内容：紧凑模式只展示一个开关标题，详细选项按需展开；复用设置行和品牌按钮，提供预设与自定义录制的圈选快捷键及占用提示，显示当前模型识图能力，通过独立编辑弹窗修改识图提示词，将 OCR 语言设置收纳在可展开区域。
+ * 主要内容：紧凑模式只展示一个开关标题，直接呈现快捷键和识别方式；复用设置行和品牌按钮，提供预设与自定义录制的圈选快捷键及占用提示，显示当前模型识图能力，通过独立编辑弹窗修改识图提示词，将 OCR 语言设置收纳在可展开区域。
  * 模块边界：只修改父级配置并发出开关事件；配置持久化由 SettingsSections 负责，快捷键解析与归一化归 core，不截图、不调用模型、不下载识别资源。
  -->
 <template>
   <SettingsGroup :class="{'area-settings-compact': props.compact}" :title="props.compact ? undefined : t('area.settings.title')" :description="props.compact ? undefined : t('area.settings.intro')">
     <p v-if="!browserCapabilities.areaTranslation" class="area-settings-note" role="status">{{ t('area.settings.unavailable') }}</p>
     <FeatureEnableCard :model-value="props.enabled" :title="t(props.compact ? 'area.settings.title' : 'area.settings.enabled')" :description="t('area.settings.shortcut', {shortcut: hotkeyDisplayName})" :disabled="!browserCapabilities.areaTranslation" @update:model-value="emit('update:enabled', $event)" />
-    <details class="area-translation-details" :open="!props.compact">
-      <summary v-show="props.compact">{{ translateLegacy('更多设置') }}</summary>
+    <div class="area-translation-details">
     <SettingsItem :label="t('area.settings.hotkey')" :description="t('area.settings.hotkeyDescription')" :disabled="!browserCapabilities.areaTranslation">
       <div class="hotkey-config">
         <el-select :model-value="props.config.selectionAreaHotkey" :aria-label="t('area.settings.hotkey')" :disabled="!browserCapabilities.areaTranslation" @change="handleHotkeyChange">
@@ -50,7 +49,7 @@
       <el-button plain @click="promptEditorOpen = true">{{ t('area.settings.editVisionPrompt') }}</el-button>
     </SettingsItem>
     <p class="area-settings-note area-privacy">{{ t(prefersVision ? 'area.settings.visionPrivacy' : 'area.settings.privacy') }}</p>
-    </details>
+    </div>
   </SettingsGroup>
   <details v-if="props.showOcr !== false" class="area-ocr-details" :open="!prefersVision">
     <summary>{{ t('area.settings.ocrDetails') }}</summary>
