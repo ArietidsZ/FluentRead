@@ -484,7 +484,7 @@ export class Config {
     deeplx: string; // DeepLX 服务地址
     selectionTranslatorMode: string; // 划词翻译显示模式: 'disabled' | 'bilingual' | 'translation-only'
     selectionTranslatorModeBeforeDisable: 'bilingual' | 'translation-only'; // 关闭前的显示偏好，重开恢复
-    selectionTranslatorPresentation: 'simple' | 'card'; // 划词翻译的默认呈现，独立于原文/译文显示偏好
+    selectionTranslatorPresentation: 'simple' | 'card'; // 兼容旧备份字段，规范化后统一为 card
     selectionTranslatorTrigger: string; // 划词翻译互斥触发方式: 'direct' | 'icon' | 'dot' | 'hover' | 'contextMenu' | 'Control' | 'Alt' | 'Shift' | 'custom'
     selectionTranslatorHotkey: string; // 旧版快捷键字段；与 selectionTranslatorTrigger 中的快捷键选项保持镜像
     customSelectionTranslatorHotkey: string; // 自定义划词翻译快捷键
@@ -685,7 +685,7 @@ export class Config {
         this.deeplx = defaultOption.deeplx; // DeepLX 默认服务地址
         this.selectionTranslatorMode = 'disabled'; // 默认关闭划词翻译
         this.selectionTranslatorModeBeforeDisable = 'bilingual';
-        this.selectionTranslatorPresentation = 'simple';
+        this.selectionTranslatorPresentation = 'card';
         this.selectionTranslatorTrigger = 'icon'; // 默认显示可发现的操作图标
         this.selectionTranslatorHotkey = 'none'; // 默认不增加额外快捷键，保持原有划词行为
         this.customSelectionTranslatorHotkey = ''; // 自定义划词翻译快捷键为空
@@ -1341,8 +1341,7 @@ export function normalizeConfig(value: unknown): Config {
     }
     // 仅旧版本缺失呈现字段时迁移；关闭统一开关后，学习偏好不能再次把功能打开。
     const legacySelection = source.selectionTranslatorPresentation === undefined;
-    normalized.selectionTranslatorPresentation = source.selectionTranslatorPresentation === 'card'
-        || (legacySelection && (normalized.harness.enabled || normalized.selectionTranslatorMode !== 'disabled')) ? 'card' : 'simple';
+    normalized.selectionTranslatorPresentation = 'card';
     if (legacySelection && normalized.harness.enabled && normalized.selectionTranslatorMode === 'disabled') {
         normalized.selectionTranslatorMode = 'bilingual';
         normalized.selectionTranslatorTrigger = normalized.harness.trigger === 'shortcut' ? 'custom'

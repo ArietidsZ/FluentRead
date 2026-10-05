@@ -623,7 +623,7 @@ export const koKRMessages = {
     "learning.memoryDisabled": "기억 기능이 꺼져 있습니다. 내용은 관리할 수 있으며, 켜면 답변에 사용됩니다.",
     "learning.memoryEdit": "기억 편집",
     "learning.memoryEmpty": "아직 학습 기억이 없습니다",
-    "learning.memoryEmptyHint": "학습 선호를 추가하거나 답변 아래에서 요점 기억을 선택하세요.",
+    "learning.memoryEmptyHint": "학습 선호를 추가하거나 답변 아래에서 학습 기억에 저장을 선택하세요.",
     "learning.memoryEnabled": "켜져 있습니다. 관련 질문에 이 기억을 참고합니다.",
     "learning.memoryError": "기억을 사용할 수 없습니다. 다시 시도하세요.",
     "learning.memoryKind": "기억 유형",
@@ -2888,4 +2888,11 @@ export const koKRLegacyText: Readonly<Record<string, string>> = {
     // 人工校正机器补齐的旧界面误译，必须作为最后一层覆盖。
     ...createLegacyCorrectionText('ko-KR'),
     ...settingsCopyText.legacy,
+    "保存到学习记忆": "학습 기억에 저장",
+    "已保存到学习记忆": "학습 기억에 저장됨",
+    "查看学习记忆": "학습 기억 보기",
+    "打开学习记忆失败，请到学习中心的“学习记忆”查看。": "학습 기억을 열 수 없습니다. 학습 센터의 학습 기억 탭에서 확인하세요.",
+    "选中文字后查看翻译卡片，查词或按需学习句子": "텍스트를 선택해 번역 카드를 열고 단어를 찾거나 문장을 학습하세요",
+    "先看译文，再按需读懂、分析句法、学用法或练习": "번역을 먼저 읽고 필요할 때 의미, 문법, 용법 또는 연습을 선택하세요",
+    "划词卡片内容": "번역 카드 내용",
 };

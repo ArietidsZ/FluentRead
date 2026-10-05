@@ -106,8 +106,8 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         }),
         createOpenOptionsPageHandler({
             openDefaultPage: () => browser.runtime.openOptionsPage(),
-            openSection: async (section) => {
-                await browser.tabs.create({url: `${browser.runtime.getURL('/options.html')}#${section}`});
+            openSection: async (section, learningTab) => {
+                await browser.tabs.create({url: `${browser.runtime.getURL('/options.html')}${learningTab ? `?learningTab=${learningTab}` : ''}#${section}`});
             },
         }),
         ...createFullPageTranslationStateHandlers({

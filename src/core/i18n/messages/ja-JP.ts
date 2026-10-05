@@ -623,7 +623,7 @@ export const jaJPMessages = {
     "learning.memoryDisabled": "メモリーはオフです。管理はできますが、回答に使うには有効にしてください。",
     "learning.memoryEdit": "メモリーを編集",
     "learning.memoryEmpty": "学習メモリーはまだありません",
-    "learning.memoryEmptyHint": "学習の好みを追加するか、回答の下で「要点を記憶」を選んでください。",
+    "learning.memoryEmptyHint": "学習の好みを追加するか、回答の下で「学習メモリーに保存」を選んでください。",
     "learning.memoryEnabled": "有効です。関連する質問でメモリーを参照します。",
     "learning.memoryError": "メモリーを利用できません。もう一度お試しください。",
     "learning.memoryKind": "メモリーの種類",
@@ -2888,4 +2888,11 @@ export const jaJPLegacyText: Readonly<Record<string, string>> = {
     // 人工校正机器补齐的旧界面误译，必须作为最后一层覆盖。
     ...createLegacyCorrectionText('ja-JP'),
     ...settingsCopyText.legacy,
+    "保存到学习记忆": "学習メモリーに保存",
+    "已保存到学习记忆": "学習メモリーに保存済み",
+    "查看学习记忆": "学習メモリーを表示",
+    "打开学习记忆失败，请到学习中心的“学习记忆”查看。": "学習メモリーを開けません。学習センターの「学習メモリー」で確認してください。",
+    "选中文字后查看翻译卡片，查词或按需学习句子": "選択した文章の翻訳カードで、単語を調べたり文について学べます",
+    "先看译文，再按需读懂、分析句法、学用法或练习": "まず訳文を読み、必要に応じて意味・文法・用法・練習を選びます",
+    "划词卡片内容": "翻訳カードの内容",
 };

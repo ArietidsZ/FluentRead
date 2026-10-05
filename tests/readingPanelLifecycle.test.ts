@@ -258,7 +258,7 @@ describe('reading action ownership and reuse', () => {
     expect(panel.saved).toBe(true); expect(calls).toHaveLength(1);
   });
   it('only remembers completed answers after an explicit click with memory enabled outside private windows', async () => {
-    const {panel, props, state, finish, tick} = await mountPanel();
+    const {panel, props, state, finish, tick, sendMessage} = await mountPanel();
     finish('A useful explanation'); await panel.rememberLearning();
     expect(state.saveLearningMemory).not.toHaveBeenCalled();
     props.preferences = {...props.preferences, memoryEnabled: true}; await tick();
@@ -269,6 +269,9 @@ describe('reading action ownership and reuse', () => {
     await panel.rememberLearning();
     expect(state.saveLearningMemory).toHaveBeenCalledWith({kind: 'lesson', content: '原文：Practice helps.\n学习要点：New useful explanation'});
     expect(panel.remembered).toBe(true);
+    expect(panel.feedback).toContain('学习记忆');
+    await panel.openLearningMemory();
+    expect(sendMessage).toHaveBeenLastCalledWith({type: 'openOptionsPage', section: 'settings-vocabulary', learningTab: 'memory'});
     props.privateContext = true; await tick(); await panel.rememberLearning();
     expect(state.saveLearningMemory).toHaveBeenCalledOnce();
   });

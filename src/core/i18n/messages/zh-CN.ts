@@ -622,7 +622,7 @@ export const zhCNMessages = {
     "learning.memoryDisabled": "当前未启用记忆；你仍可管理内容，开启后才用于回答",
     "learning.memoryEdit": "编辑记忆",
     "learning.memoryEmpty": "还没有学习记忆",
-    "learning.memoryEmptyHint": "手动添加学习偏好，或在阅读回答下点“记住要点”",
+    "learning.memoryEmptyHint": "手动添加学习偏好，或在阅读回答下点“保存到学习记忆”",
     "learning.memoryEnabled": "已启用，相关问题会参考这些记忆",
     "learning.memoryError": "记忆操作暂时不可用，请重试",
     "learning.memoryKind": "记忆类型",

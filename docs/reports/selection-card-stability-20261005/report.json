@@ -1,0 +1,180 @@
+{
+  "ok": true,
+  "providerEvidence": "Production extension in isolated Edge; translation and AI responses use deterministic local fixtures. Dictionary uses the real dictionary pipeline. No authenticated AI quality claim.",
+  "launchMode": "macos-background-cdp",
+  "focusPolicy": "launchservices-no-foreground",
+  "windowPlacement": {
+    "mode": "background-visible-no-focus",
+    "browserFrontmost": false
+  },
+  "cases": [
+    "settings and popup use one card presentation",
+    "translation is the first default tab and opening it does not request AI",
+    "grammar switch and streaming preserve the opening anchor",
+    "usage tab preserves the same anchor",
+    "saved key points appear in Learning memory and view opens that tab directly",
+    "return to translation preserves the anchor",
+    "completed grammar is reused without a second AI request",
+    "播放原文 start and stop keep position and height",
+    "播放译文 start and stop keep position and height",
+    "word pronunciation start and stop keep position and height",
+    "narrow viewport tab switch stays anchored and scrolls inside",
+    "close and reselect restore the translation tab and fresh geometry"
+  ],
+  "geometry": [
+    {
+      "name": "grammar switch and streaming preserve the opening anchor",
+      "frames": 34,
+      "initial": {
+        "left": 80,
+        "top": 235,
+        "width": 388,
+        "height": 204,
+        "right": 468,
+        "bottom": 439
+      },
+      "final": {
+        "left": 80,
+        "top": 235,
+        "width": 388,
+        "height": 520
+      }
+    },
+    {
+      "name": "usage tab preserves the same anchor",
+      "frames": 21,
+      "initial": {
+        "left": 80,
+        "top": 235,
+        "width": 388,
+        "height": 204,
+        "right": 468,
+        "bottom": 439
+      },
+      "final": {
+        "left": 80,
+        "top": 235,
+        "width": 388,
+        "height": 520
+      }
+    },
+    {
+      "name": "return to translation preserves the anchor",
+      "frames": 17,
+      "initial": {
+        "left": 80,
+        "top": 235,
+        "width": 388,
+        "height": 204,
+        "right": 468,
+        "bottom": 439
+      },
+      "final": {
+        "left": 80,
+        "top": 235,
+        "width": 388,
+        "height": 204
+      }
+    },
+    {
+      "name": "播放原文 start and stop keep position and height",
+      "frames": 38,
+      "initial": {
+        "left": 80,
+        "top": 235,
+        "width": 388,
+        "height": 204,
+        "right": 468,
+        "bottom": 439
+      },
+      "final": {
+        "left": 80,
+        "top": 235,
+        "width": 388,
+        "height": 204
+      }
+    },
+    {
+      "name": "播放译文 start and stop keep position and height",
+      "frames": 36,
+      "initial": {
+        "left": 80,
+        "top": 235,
+        "width": 388,
+        "height": 204,
+        "right": 468,
+        "bottom": 439
+      },
+      "final": {
+        "left": 80,
+        "top": 235,
+        "width": 388,
+        "height": 204
+      }
+    },
+    {
+      "name": "word pronunciation start and stop keep position and height",
+      "frames": 30,
+      "initial": {
+        "left": 80,
+        "top": 360,
+        "width": 388,
+        "height": 504,
+        "right": 468,
+        "bottom": 864
+      },
+      "final": {
+        "left": 80,
+        "top": 360,
+        "width": 388,
+        "height": 504
+      }
+    },
+    {
+      "name": "narrow viewport tab switch stays anchored and scrolls inside",
+      "frames": 21,
+      "initial": {
+        "left": 12,
+        "top": 360,
+        "width": 366,
+        "height": 428,
+        "right": 378,
+        "bottom": 788
+      },
+      "final": {
+        "left": 12,
+        "top": 360,
+        "width": 366,
+        "height": 428
+      }
+    }
+  ],
+  "audio": {
+    "muted": true,
+    "listeningVerified": false,
+    "requests": 3
+  },
+  "memoryNavigation": {
+    "verified": true,
+    "adapter": "precreated background tab, native tabs.update(active:false); runtime validation and options UI are real",
+    "nativeTabCreation": false
+  },
+  "consoleErrors": [],
+  "screenshots": [
+    "translation-first.png",
+    "learning-memory-destination.png"
+  ],
+  "validation": {
+    "targetedTestsPassed": 258,
+    "i18nBaselineFailures": 3,
+    "otherPreviouslyVerifiedBaselineFailures": 2,
+    "compile": true,
+    "chromeBuild": true,
+    "firefoxBuild": true,
+    "userscriptBuildAndVerifier": true,
+    "docsBuild": true,
+    "testAudit": true,
+    "i18nBaseline": "Identical failure names and diagnostic entries in an independent origin/main checkout",
+    "referenceProjectsUsed": false
+  }
+}

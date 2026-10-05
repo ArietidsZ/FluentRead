@@ -625,7 +625,7 @@ export const enUSMessages = {
     "learning.memoryDisabled": "Memory is off. You can still manage it; enable it to use it in answers.",
     "learning.memoryEdit": "Edit memory",
     "learning.memoryEmpty": "No learning memories yet",
-    "learning.memoryEmptyHint": "Add a learning preference, or choose “Remember key points” below an answer.",
+    "learning.memoryEmptyHint": "Add a learning preference, or choose “Save to learning memory” below an answer.",
     "learning.memoryEnabled": "Enabled. Relevant questions can use these memories.",
     "learning.memoryError": "Memory is temporarily unavailable. Please retry.",
     "learning.memoryKind": "Memory type",
@@ -2892,4 +2892,11 @@ export const enUSLegacyText: Readonly<Record<string, string>> = {
     // 人工校正机器补齐的旧界面误译，必须作为最后一层覆盖。
     ...createLegacyCorrectionText('en-US'),
     ...settingsCopyText.legacy,
+    "保存到学习记忆": "Save to learning memory",
+    "已保存到学习记忆": "Saved to learning memory",
+    "查看学习记忆": "View learning memory",
+    "打开学习记忆失败，请到学习中心的“学习记忆”查看。": "Could not open learning memory. Open the Learning memory tab in the learning center.",
+    "选中文字后查看翻译卡片，查词或按需学习句子": "Select text to open its translation card, look up words or learn about a sentence",
+    "先看译文，再按需读懂、分析句法、学用法或练习": "Read the translation first, then explore meaning, grammar, usage or practice",
+    "划词卡片内容": "Translation card content",
 };

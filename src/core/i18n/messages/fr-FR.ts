@@ -623,7 +623,7 @@ export const frFRMessages = {
     "learning.memoryDisabled": "La mémoire est désactivée. Vous pouvez la gérer ; activez-la pour l’utiliser dans les réponses.",
     "learning.memoryEdit": "Modifier la mémoire",
     "learning.memoryEmpty": "Aucune mémoire d’apprentissage",
-    "learning.memoryEmptyHint": "Ajoutez une préférence ou choisissez « Mémoriser les points clés » sous une réponse.",
+    "learning.memoryEmptyHint": "Ajoutez une préférence ou choisissez « Enregistrer dans la mémoire » sous une réponse.",
     "learning.memoryEnabled": "Activée. Ces mémoires peuvent servir aux questions pertinentes.",
     "learning.memoryError": "La mémoire est indisponible. Réessayez.",
     "learning.memoryKind": "Type de mémoire",
@@ -2888,4 +2888,11 @@ export const frFRLegacyText: Readonly<Record<string, string>> = {
     // 人工校正机器补齐的旧界面误译，必须作为最后一层覆盖。
     ...createLegacyCorrectionText('fr-FR'),
     ...settingsCopyText.legacy,
+    "保存到学习记忆": "Enregistrer dans la mémoire",
+    "已保存到学习记忆": "Enregistré dans la mémoire",
+    "查看学习记忆": "Voir la mémoire",
+    "打开学习记忆失败，请到学习中心的“学习记忆”查看。": "Impossible d’ouvrir la mémoire. Consultez l’onglet Mémoire du centre d’apprentissage.",
+    "选中文字后查看翻译卡片，查词或按需学习句子": "Sélectionnez du texte pour ouvrir sa carte, consulter un mot ou étudier une phrase",
+    "先看译文，再按需读懂、分析句法、学用法或练习": "Lisez la traduction, puis explorez le sens, la grammaire, l’usage ou les exercices",
+    "划词卡片内容": "Contenu de la carte de traduction",
 };

@@ -286,7 +286,7 @@ if (props.appearanceRoot) setInterfaceAppearanceRoot(props.appearanceRoot)
 
 const navigation = navigationItems
 const contentComponentProps = computed(() => activeSection.value === 'settings-vocabulary'
-  ? {onNavigate: selectSection}
+  ? {onNavigate: selectSection, initialTab: new URLSearchParams(window.location.search).get('learningTab') || 'saved'}
   : {
       activeSection: activeSection.value,
       activePanel: activePanels.value.length ? activePanel.value : undefined,

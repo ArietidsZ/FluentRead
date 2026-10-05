@@ -1,6 +1,6 @@
 <!--
  * @file src/features/reading-assistant/ui/ReadingPanel.vue
- * 文件职责：在划词卡内以内容为主呈现学习回答，提供紧凑动作栏、向上滚动可对照的原文译文与连续追问。
+ * 文件职责：在划词卡内以内容为主呈现学习回答，复用父卡片导航、提供紧凑操作栏、向上滚动可对照的原文译文与连续追问。
  * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；历史问答按轮次与问题摘要逐条展开，区分当前问答与旧回答，切换回答时收起历史；四类动作的原文与匹配译文统一保留在滚动区顶部，进入回答时滚过对照内容，译文晚到时保持回答位置，关闭局部浏览器滚动锚定以避免流式格式变化移动阅读位置；提供查看原文快捷入口，重复点击当前动作保留位置和待发送追问；把原文朗读、句子收藏和 30 天问答记录收进次级操作，让多语言动作标签按空间换行，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
  * 模块边界：不持有模型密钥、不扫描页面、不直接请求供应商；记录由后台会话仓库保存，父划词组件负责选区、位置和 Shadow UI 生命周期。
  -->
@@ -25,7 +25,7 @@
     </section>
     <template v-else>
     <div class="fr-reading-toolbar">
-      <div class="fr-reading-actions" role="group" aria-label="学习方式">
+      <div v-if="!externalNavigation" class="fr-reading-actions" role="group" aria-label="学习方式">
         <button v-for="action in actions" :key="action.id" type="button" :aria-label="action.label" :title="action.label" :aria-pressed="active && Boolean(currentTurnKey) && intent === action.id" @click="chooseAction(action.id)">{{ action.id === 'grammar' ? '句法' : action.label }}</button>
       </div>
       <details ref="toolsMenu" class="fr-reading-tools" @keydown.esc.stop.prevent="closeTools(true)">
@@ -90,7 +90,8 @@
       <p v-if="!busy && !answer && !error && !stopped" class="fr-reading-hint">选一种方式，理解这段表达。</p>
     <footer v-if="answer && !busy" class="fr-reading-footer">
       <button type="button" @click="copyAnswer">{{ copied ? '已复制' : '复制' }}</button>
-      <button v-if="preferences.memoryEnabled && !privateContext && !stopped && !error" type="button" :disabled="remembering || remembered" title="将这段原文与回答保存为长期学习记忆" @click="rememberLearning">{{ remembered ? '已记住' : '记住要点' }}</button>
+      <button v-if="preferences.memoryEnabled && !privateContext && !stopped && !error" type="button" :disabled="remembering || remembered" title="将这段原文与回答保存为长期学习记忆" @click="rememberLearning">{{ remembered ? '已保存到学习记忆' : '保存到学习记忆' }}</button>
+      <button v-if="remembered" type="button" @click="openLearningMemory">查看学习记忆</button>
     </footer>
       </div>
     </div>
@@ -124,6 +125,7 @@ const props = defineProps<{
   active: boolean;
   initialAction?: HarnessActionId;
   historyOnly?: boolean;
+  externalNavigation?: boolean;
   targetLanguage: string;
   vocabularyEnabled: boolean;
   privateContext: boolean;
@@ -133,7 +135,7 @@ const props = defineProps<{
   modelRevision?: number;
   sourceTranslation?: {source: string; text: string; pending?: boolean; error?: string};
 }>();
-const emit = defineEmits<{resize: []; 'play-source': [text: string]; 'source-change': [text: string]}>();
+const emit = defineEmits<{resize: []; 'play-source': [text: string]; 'source-change': [text: string]; 'view-change': [view: {action: HarnessActionId; history: boolean}]}>();
 const intent = ref<HarnessActionId>(props.initialAction || props.preferences.defaultAction);
 const wholeSentence = ref(false);
 const historicalText = ref('');
@@ -161,6 +163,7 @@ const remembering = ref(false);
 const memoryCount = ref(0);
 const sessions = ref<HarnessSessionSummary[]>([]);
 const showRecords = ref(false);
+watch([intent, showRecords], ([action, history]) => emit('view-change', {action, history}), {flush: 'post'});
 const recordsLoading = ref(false);
 const recordsError = ref('');
 const answerScroll = ref<HTMLElement>();
@@ -469,6 +472,12 @@ async function copyAnswer(): Promise<void> {
     clearTimeout(copyTimer);
     copyTimer = setTimeout(() => { copied.value = false; }, 1800);
   } catch { feedback.value = '复制失败，可以选中回答后复制。'; }
+}
+async function openLearningMemory(): Promise<void> {
+  try {
+    const response = await browser.runtime.sendMessage({type: 'openOptionsPage', section: 'settings-vocabulary', learningTab: 'memory'}) as {success?: boolean} | undefined;
+    if (!response?.success) throw new Error('打开学习记忆失败，请到学习中心的“学习记忆”查看。');
+  } catch (failure) { feedback.value = failure instanceof Error ? failure.message : '打开学习记忆失败，请到学习中心的“学习记忆”查看。'; }
 }
 async function rememberLearning(): Promise<void> {
   if (!props.preferences.memoryEnabled || props.privateContext || busy.value || stopped.value || error.value || !answer.value || remembering.value) return;

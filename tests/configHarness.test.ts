@@ -183,8 +183,9 @@ describe('reading model cache identity', () => {
 
 // 统一入口迁移必须是一次性的，不能在关闭划词后被旧学习开关重新开启。
 describe('unified selection preferences', () => {
-  it('defaults new users to simple translation and preserves existing enabled experiences', () => {
-    expect(normalizeConfig({}).selectionTranslatorPresentation).toBe('simple');
+  it('uses one card presentation while preserving activation and legacy preferences', () => {
+    expect(normalizeConfig({}).selectionTranslatorPresentation).toBe('card');
+    expect(normalizeConfig({selectionTranslatorPresentation: 'simple'}).selectionTranslatorPresentation).toBe('card');
     expect(normalizeConfig({selectionTranslatorMode: 'translation-only'})).toMatchObject({selectionTranslatorPresentation: 'card', selectionTranslatorMode: 'translation-only'});
     const migrated = normalizeConfig({selectionTranslatorMode: 'disabled', harness: {enabled: true, trigger: 'shortcut', customHotkey: 'Alt+R', service: 'deepseek', model: 'custom-reader'}});
     expect(migrated).toMatchObject({selectionTranslatorMode: 'bilingual', disableSelectionTranslator: false, selectionTranslatorPresentation: 'card', selectionTranslatorTrigger: 'custom', customSelectionTranslatorHotkey: 'Alt+R'});

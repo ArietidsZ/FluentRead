@@ -224,3 +224,34 @@ it('keeps an existing ordinary translation running when opening the learning vie
     fixture.unmount();
     expect(pending.signal.aborted).toBe(true);
 });
+
+
+describe('selection card geometry across content changes', () => {
+    it('preserves the opening position across learning tabs and expanding content', async () => {
+        const {state} = mountSelection();
+        state.tooltipRef = {getBoundingClientRect: () => ({width: 388, height: 180})};
+        state.manualPopupPosition = {left: 220, top: 410};
+        state.applyManualPopupGeometry();
+        expect(state.tooltipStyle).toMatchObject({left: '220px', top: '410px', maxHeight: '378px'});
+        state.readingMode = true;
+        await Vue.nextTick();
+        state.tooltipRef = {getBoundingClientRect: () => ({width: 388, height: 520})};
+        state.applyManualPopupGeometry();
+        expect(state.tooltipStyle).toMatchObject({left: '220px', top: '410px', maxHeight: '378px'});
+        state.readingMode = false;
+        await Vue.nextTick();
+        state.applyManualPopupGeometry();
+        expect(state.tooltipStyle).toMatchObject({left: '220px', top: '410px'});
+    });
+    it('preserves a resized card and clamps it only when the viewport shrinks', () => {
+        const {state, window} = mountSelection();
+        state.tooltipRef = {getBoundingClientRect: () => ({width: 450, height: 240})};
+        state.manualPopupPosition = {left: 510, top: 490};
+        state.manualPopupSize = {width: 450, height: 240};
+        state.applyManualPopupGeometry();
+        expect(state.tooltipStyle).toMatchObject({left: '510px', top: '490px', width: '450px', height: '240px'});
+        window.innerWidth = 390; window.innerHeight = 400;
+        state.applyManualPopupGeometry();
+        expect(state.tooltipStyle).toMatchObject({left: '12px', top: '248px', width: '366px', height: '140px'});
+    });
+});

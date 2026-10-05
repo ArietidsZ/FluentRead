@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/LearningCenter.vue
  * 文件职责：把长期收藏、最近 30 天的阅读记录与可选学习记忆组织成统一的学习中心。
- * 主要内容：用简洁栏目切换收藏复习、阅读问答和主动保存的学习记忆，并保留单词本旧分区标识与子组件导航事件。
+ * 主要内容：支持从保存结果直达学习记忆，用简洁栏目切换收藏复习、阅读问答和主动保存的学习记忆，并保留单词本旧分区标识与子组件导航事件。
  * 模块边界：只组合 vocabulary 和 reading-assistant 的公开 UI；各 feature 继续拥有数据、请求、复习和删除生命周期。
  -->
 <template>
@@ -16,7 +16,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import {computed, onBeforeUnmount, ref} from 'vue'
+import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import {VocabularyBook} from '@/src/features/vocabulary/ui/public'
 import {HarnessReadingHistory} from '@/src/features/reading-assistant/public'
 import {useUiI18n} from '@/src/ui/i18n'
@@ -26,7 +26,9 @@ import {config, configReady, subscribeConfig} from '@/src/services/config/store'
 
 const emit = defineEmits<{navigate: [section: string]}>()
 const {t} = useUiI18n()
-const activeTab = ref('saved')
+const props = defineProps<{initialTab?: string}>()
+const activeTab = ref(['saved', 'history', 'memory'].includes(props.initialTab || '') ? props.initialTab! : 'saved')
+watch(() => props.initialTab, tab => { if (tab && ['saved', 'history', 'memory'].includes(tab)) activeTab.value = tab })
 const memoryEnabled = ref(config.harness.memoryEnabled)
 let mounted = true
 const unsubscribe = subscribeConfig(nextConfig => { memoryEnabled.value = nextConfig.harness.memoryEnabled })
