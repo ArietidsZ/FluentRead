@@ -12,6 +12,12 @@ For ordinary images, nearby wrapped lines with similar sizes and alignment are t
 
 Local layout and background repair now reduce repeated work and memory use for large ordinary images. Translated images use asynchronous lossless PNG encoding, so you can cancel while waiting. Initial model preparation and translation service response times still affect the overall wait.
 
+## Local model failures and controls
+
+Recognition and translation are separate steps. Short words or mixed languages can affect automatic detection, and a local model may only support specific language pairs. Failure messages explain model readiness, language support, browser compatibility, or timeouts. **Adjust local model** opens the model settings; **Change image translation service** opens the image settings. After changing the settings, return to the image and retry. The extension does not automatically send local text to an online service.
+
+After translation, the **Original / Text** controls hide when the pointer leaves the image and no control has keyboard focus. Hover over the image to show them again. Opening the text panel keeps the controls available.
+
 ## Continuous manga translation
 
 The manga reader on [MANGA Plus by SHUEISHA](https://mangaplus.shueisha.co.jp/) and artwork pages on [Pixiv](https://www.pixiv.net/) have dedicated adapters. Click the manga button to start. No reading panel opens automatically. On first use with missing resources, a confirmation explains about 30 MB for recognition and an optional 197 MB for text removal. Confirming closes it and starts preparation. Choosing **Later** or closing it starts no download.

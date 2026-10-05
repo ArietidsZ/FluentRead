@@ -22,6 +22,7 @@ const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-ima
 const playwrightRoot = arg('playwright-root', process.env.PLAYWRIGHT_ROOT);
 const focusHelper = arg('focus-safe-helper', process.env.FLUENTREAD_FOCUS_SAFE_HELPER);
 const xSurface = process.argv.includes('--x-surface');
+const recoveryOnly = process.argv.includes('--recovery-only');
 const liveTranslation = process.argv.includes('--live-translation');
 const multilingual = process.argv.includes('--multilingual');
 const harFixture = process.argv.includes('--har-fixture');
@@ -594,6 +595,101 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
         report.screenshots.push(file);
     }
     const image = page.locator('#sample');
+    if (recoveryOnly) {
+        report.scope = 'real Tesseract OCR + real local model failure routing + recovery settings + translated controls';
+        let sequence = 2;
+        async function patchRecovery(patch) {
+            await popup.evaluate(async ({patch, sequence}) => {
+                const read = await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});
+                const config = read.value;
+                const response = await chrome.runtime.sendMessage({type:'persistConfig',mode:'patch',config:patch,
+                    expected:Object.fromEntries(Object.keys(patch).map(key=>[key,config[key]])),
+                    clientId:'image-flow-fixture',sequence,baseRevision:config.__fluentConfigRevision || 0});
+                if (!response.success) throw new Error(response.error);
+            }, {patch,sequence:sequence++});
+        }
+        currentCase = 'local model language direction failure';
+        await patchRecovery({imageTranslationOcrEngine:'tesseract',imageTranslationService:'localTranslation',model:{localTranslation:'fluentread/opus-ja-en'}});
+        await popup.evaluate(async () => {
+            const response = await chrome.runtime.sendMessage({type:'fluentReadImageOcrDownload',languages:['eng']});
+            if (!response.success) throw new Error(response.error);
+        });
+        await image.hover();
+        await wait(()=>ui("return !!this.querySelector('.fr-image-controls')"));
+        await click('翻译');
+        await wait(()=>ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='error'"));
+        const languageFailure = await ui("return this.querySelector('.fr-image-status')?.textContent");
+        assert.match(languageFailure,/图片文字已识别.*语言方向/);
+        assert.doesNotMatch(languageFailure,/第 \d+ 段/);
+        assert.equal(await ui("return this.querySelector('.fr-image-model-settings')?.hidden"),false);
+        assert.equal(await ui("return this.querySelector('.fr-image-service-settings')?.hidden"),false);
+        assert.equal(await ui("return this.querySelector('.fr-image-error-details')?.open"),false);
+        await shot('01-local-language-failure');
+        report.cases.push('language direction failure has actionable model/service settings');
+
+        currentCase = 'model settings navigation';
+        const modelPagePromise = context.waitForEvent('page');
+        await click('调整本地模型');
+        const modelPage = await modelPagePromise;
+        await modelPage.waitForURL('**/options.html?service=localTranslation#settings-services');
+        await modelPage.locator('[data-local-translation-models]').waitFor({state:'visible'});
+        assert.equal(await popup.evaluate(async()=> (await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'})).value.service),'google');
+        report.cases.push('model settings opens the expected extension section');
+        await modelPage.close();
+        await patchRecovery({model:{localTranslation:'fluentread/opus-zh-en'}});
+        await click('重试');
+        await wait(()=>ui("return this.querySelector('.fr-image-status')?.textContent.includes('模型尚未准备好')"));
+        await shot('02-local-model-not-ready');
+        report.cases.push('model download failure is distinct from OCR language downloads');
+
+        currentCase = 'image service settings navigation and retry';
+        const servicePagePromise = context.waitForEvent('page');
+        await click('切换图片翻译服务');
+        const servicePage = await servicePagePromise;
+        await servicePage.waitForURL('**/options.html#settings-image-translation');
+        await servicePage.close();
+        await patchRecovery({imageTranslationService:'google'});
+        await click('重试');
+        await wait(()=>ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='translated'"));
+        report.cases.push('changing image service and retrying completes the same image');
+        await shot('03-translated-hover');
+
+        currentCase = 'translated controls hide after mouse click and pointer leave';
+        // Clicking the old icon leaves mouse focus on the button; it must not count as keyboard focus.
+        await page.mouse.move(12,12);
+        await wait(()=>ui("return this.querySelector('.fr-image-controls')?.hidden===true"));
+        assert.equal(await ui("return !!this.querySelector('.fluent-read-image-translation-bitmap')"),true);
+        await shot('04-translated-pointer-away');
+        await image.hover();
+        await wait(()=>ui("return this.querySelector('.fr-image-controls')?.hidden===false"));
+        await page.mouse.move(300,250,{steps:3});
+        assert.equal(await ui("return this.querySelector('.fr-image-controls')?.hidden"),false);
+        const requests = await worker.evaluate(()=>globalThis.__imageFixture.requests.length);
+        report.cases.push('pointer leave hides controls; translated bitmap and reentry survive');
+        await page.keyboard.press('Tab');
+        assert.equal(await ui("return !!this.querySelector('.fr-image-actions :focus-visible')"),true);
+        await page.mouse.move(12,12);
+        assert.equal(await ui("return this.querySelector('.fr-image-controls')?.hidden"),false);
+        await page.mouse.click(12,12);
+        await wait(()=>ui("return this.querySelector('.fr-image-controls')?.hidden===true"));
+        await image.hover();
+        report.cases.push('keyboard focus keeps controls available; mouse focus does not');
+
+        currentCase = 'text panel ownership and restore';
+        await click('文字');
+        await page.mouse.move(12,12);
+        assert.equal(await ui("return this.querySelector('.fr-image-controls')?.hidden"),false);
+        assert.equal(await ui("return this.querySelector('.fr-image-reader')?.hidden"),false);
+        await click('原图');
+        await wait(()=>ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='idle'"));
+        await image.hover();await click('翻译');
+        await wait(()=>ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='translated'"));
+        assert.equal(await worker.evaluate(()=>globalThis.__imageFixture.requests.length),requests);
+        report.cases.push('text panel keeps controls available; restore and cached translation work');
+        assert.equal(report.errors.length,0);
+        report.success = true;
+        return;
+    }
     if (paragraphImage) {
         currentCase = 'ordinary image complete paragraphs';
         const original = `data:image/png;base64,${fs.readFileSync(paragraphImage).toString('base64')}`;

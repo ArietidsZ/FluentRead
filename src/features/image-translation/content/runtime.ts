@@ -1,9 +1,11 @@
 /**
  * @file src/features/image-translation/content/runtime.ts
  * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和单图及漫画连续模式的原图/译图切换，保持宿主图片与响应式图片资源不变。
- * 主要内容：单图识别方式纳入缓存身份，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
+ * 主要内容：单图失败提供模型与服务导航，译图操作条随指针隐藏并保留键盘入口；单图识别方式纳入缓存身份，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
  * 模块边界：本运行时先读取页面允许访问的 Canvas/CORS 像素，失败时授权后台读取当前任务图片并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
+import {imageTranslationFailureCode, imageLocalFailureMessage, type ImageLocalFailure} from '../failure';
+import {sendRuntimeMessage} from '@/src/platform/browser/runtimeMessages';
 import type {ImageTranslationStage} from '../progress';
 import { config, subscribeConfig } from '@/src/services/config/store';
 import {watchEffect} from 'vue';
@@ -53,6 +55,8 @@ interface ImageTranslationState {
     image: HTMLImageElement;
     presentation: ImagePresentation;
     needsPreparation: boolean;
+    localFailure?: ImageLocalFailure;
+    errorDetails?: string;
     overlay: HTMLDivElement;
     controls: ImageControls;
     phase: ImageControlPhase;
@@ -441,6 +445,7 @@ function scheduleIdleStateRemoval(state: ImageTranslationState): void {
 
 function setStateHovered(state: ImageTranslationState, hovered: boolean): void {
     state.hovered = hovered;
+    state.controls.setHovered(hovered);
     if (hovered) clearHoverTimer(state);
     else scheduleIdleStateRemoval(state);
 }
@@ -615,6 +620,16 @@ function createState(image: HTMLImageElement, hoverEntry = false): ImageTranslat
             const current = states.get(image);
             if (current && !current.controls.reader.hidden) activeStates.forEach(state => {if (state !== current) state.controls.hideReader();});
         },
+        onSettings: (section) => {
+            const state = states.get(image);
+            if (!state) return;
+            void sendRuntimeMessage({type: 'openOptionsPage', section,
+                ...(section === 'settings-services' ? {service: 'localTranslation'} : {})}).then(response => {
+                if (response?.success !== true) throw new Error('无法打开设置，请从扩展菜单打开设置后重试');
+            }).catch(() => {
+                if (states.get(image) === state) setButtonState(state, 'error', '无法打开设置，请从扩展菜单打开设置后重试');
+            });
+        },
         onPrepare: () => {
             const state = states.get(image);
             if (state) void translateImage(state, true);
@@ -778,6 +793,8 @@ function setButtonState(state: ImageTranslationState, phase: ImageControlPhase, 
     if (state.manga && phase === 'loading') publishMangaStatus({...mangaStatus, message, progress, stage});
     state.controls.update(phase, message, {
         prepare: phase === 'error' && state.needsPreparation, animations: config.animations, progress, quiet: state.manga === true,
+        modelSettings: phase === 'error' && Boolean(state.localFailure),
+        serviceSettings: phase === 'error' && !state.needsPreparation, errorDetails: state.errorDetails,
     });
 }
 
@@ -890,6 +907,8 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
     }
     deleteCachedResult(state.image);
     state.needsPreparation = false;
+    state.localFailure = undefined;
+    state.errorDetails = undefined;
     const controller = new AbortController();
     const sourceLanguage = config.from;
     state.abortController = controller;
@@ -958,7 +977,9 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
         const message = error instanceof Error ? error.message : String(error);
         const missingLanguages = !state.manga && (/^图片文字识别需要先下载.+语言包/u.test(message) || message === '请先下载语言包');
         state.needsPreparation = missingLanguages || preparingLanguages;
-        setButtonState(state, 'error', missingLanguages
+        state.localFailure = imageTranslationFailureCode(error);
+        state.errorDetails = state.localFailure ? message : undefined;
+        setButtonState(state, 'error', state.localFailure ? imageLocalFailureMessage(state.localFailure) : missingLanguages
             ? '首次使用需准备识别语言包，下载后自动继续'
             : `图片翻译失败：${message}`);
         scheduleIdleStateRemoval(state);
@@ -994,8 +1015,21 @@ type PointerHitEvent = Pick<PointerEvent, 'target' | 'clientX' | 'clientY' | 'is
 
 function imageAtPointer(event: Pick<MouseEvent, 'target' | 'clientX' | 'clientY'>): HTMLImageElement | null {
     const target = event.target as Element | null;
-    if (!target || typeof target.closest !== 'function' || target.closest('[data-fluent-read-ui]')) return null;
+    if (!target || typeof target.closest !== 'function') return null;
+    // 封闭 Shadow DOM 会把译图指针重定向到 host；按当前图片范围归还所属状态，避免 pointermove 又把操作条隐藏。
+    if (target === imageOverlayHost) {
+        for (const state of activeStates) {
+            const rect = state.image.getBoundingClientRect();
+            if (event.clientX >= rect.left && event.clientX < rect.right
+                && event.clientY >= rect.top && event.clientY < rect.bottom) return state.image;
+        }
+        return null;
+    }
+    if (target.closest('[data-fluent-read-ui]')) return null;
     if (target instanceof HTMLImageElement) return target;
+    for (const state of activeStates) {
+        if (state.overlay === target || state.overlay.contains(target) || state.controls.reader.contains(target)) return state.image;
+    }
     // 只在局部媒体容器里查找覆盖层下的图片；不穿透弹窗，也不扫描整个页面。
     for (let container: Element | null = target, depth = 0; container && depth < 4; container = container.parentElement, depth++) {
         if (container === document.body || container === document.documentElement) break;

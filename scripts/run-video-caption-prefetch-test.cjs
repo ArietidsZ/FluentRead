@@ -14,6 +14,7 @@ const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-caption-prefetch'));
 const runtime = arg('playwright-root');
 const helperPath = arg('focus-safe-helper');
+const extensionInstall = arg('extension-install', 'command-line');
 if (!runtime || !helperPath) throw new Error('Explicit Playwright runtime and focus-safe helper are required');
 const {chromium} = createRequire(path.join(runtime, 'caption-prefetch-proof.cjs'))('playwright');
 const helper = require(path.resolve(helperPath));
@@ -31,9 +32,15 @@ let session, youtube, x;
   session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
     browserPath: arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
     headless: false, background: true, displayTarget: 'secondary', viewport: {width: 1280, height: 900},
-    browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check'],
+    browserArgs: [...(extensionInstall === 'cdp' ? ['--enable-unsafe-extension-debugging']
+      : [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`]), '--no-first-run', '--no-default-browser-check'],
   });
   const {context} = session;
+  if (extensionInstall === 'cdp') {
+    const install = await context.browser().newBrowserCDPSession();
+    await install.send('Extensions.loadUnpacked', {path: extensionDir});
+    await install.detach();
+  }
   Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
   context.on('page', page => page.on('pageerror', error => report.errors.push(error.message)));
   const worker = context.serviceWorkers().find(candidate => candidate.url().endsWith('/background.js'))
@@ -201,6 +208,65 @@ let session, youtube, x;
   const afterSeek = await worker.evaluate(() => globalThis.prefetchProofRequests);
   check('Seeking removes queued old prefetches and primes the new window', afterSeek.some(r => r.source === 'The sought upcoming caption is prefetched.')
     && !afterSeek.some(r => /^Old seek window sentence [3-8]\./.test(r.source)), afterSeek.filter(r => /seek window|sought/.test(r.source)));
+
+  // Cold captions must also appear as a pair, including the first frame visible to the user.
+  await x.evaluate(() => {
+    const video = document.querySelector('video');
+    const track = video.textTracks[0];
+    Array.from(track.cues).forEach(cue => track.removeCue(cue));
+    window.coldSamples = [];
+    window.coldObserver = new MutationObserver(() => window.coldSamples.push({
+      original: document.querySelector('#fluent-read-video-subtitle-original')?.textContent || '',
+      translation: document.querySelector('#fluent-read-video-subtitle')?.textContent || '',
+    }));
+    window.coldObserver.observe(document.querySelector('[data-testid="videoPlayer"]'), {subtree: true, childList: true, characterData: true});
+    track.addCue(new VTTCue(10, 12, 'Cold caption waits for its matching translation.'));
+    video.currentTime = 10.1;
+    video.dispatchEvent(new Event('loadedmetadata'));
+  });
+  await x.waitForTimeout(200);
+  const pendingPair = await x.evaluate(() => ({
+    original: document.querySelector('#fluent-read-video-subtitle-original')?.textContent || '',
+    translation: document.querySelector('#fluent-read-video-subtitle')?.textContent || '',
+  }));
+  check('Untranslated X captions keep both display lines empty while waiting', pendingPair.original === '' && pendingPair.translation === '', pendingPair);
+  await x.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle')?.textContent === '译文：Cold caption waits for its matching translation.');
+  const coldSamples = await x.evaluate(() => {window.coldObserver.disconnect(); return window.coldSamples;});
+  const firstCold = coldSamples.find(sample => sample.original === 'Cold caption waits for its matching translation.');
+  check('Cold original and translation first appear in the same DOM update', firstCold?.translation === '译文：Cold caption waits for its matching translation.', coldSamples);
+  await x.screenshot({path: path.join(artifacts, 'native-cold-synchronized-bilingual.png')});
+  await x.evaluate(() => {
+    const video = document.querySelector('video');
+    video.textTracks[0].addCue(new VTTCue(13, 14, 'Discard the late translation after a seek.'));
+    video.currentTime = 13.1;
+    video.dispatchEvent(new Event('loadedmetadata'));
+  });
+  await x.waitForTimeout(100);
+  await x.evaluate(() => document.querySelector('video').currentTime = 15);
+  await x.waitForTimeout(700);
+  check('A late X translation cannot reappear during a caption gap', await x.evaluate(() =>
+    !document.querySelector('#fluent-read-video-subtitle')?.textContent && !document.querySelector('#fluent-read-video-subtitle-original')?.textContent));
+
+  const selectMode = async mode => {
+    if (await x.locator('#fluent-read-video-subtitle-menu').isHidden()) await x.locator('#fluent-read-video-subtitle-button').click();
+    await x.locator(`#fluent-read-video-subtitle-menu [data-mode="${mode}"]`).click();
+  };
+  await selectMode('original-only');
+  await x.evaluate(() => {
+    const video = document.querySelector('video');
+    video.textTracks[0].addCue(new VTTCue(16, 17, 'Original-only captions need no translation.'));
+    video.currentTime = 16.1;
+  });
+  await x.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-original')?.textContent === 'Original-only captions need no translation.');
+  check('Original-only mode displays a cold caption without a provider request', !await worker.evaluate(() => globalThis.prefetchProofRequests.some(r => r.source === 'Original-only captions need no translation.')));
+  await selectMode('bilingual');
+  await x.evaluate(() => {
+    const video = document.querySelector('video');
+    video.textTracks[0].addCue(new VTTCue(18, 19, '这是无需翻译的中文字幕。'));
+    video.currentTime = 18.1;
+  });
+  await x.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-original')?.textContent === '这是无需翻译的中文字幕。');
+  check('Target-language subtitles show one original line without waiting', await x.evaluate(() => !document.querySelector('#fluent-read-video-subtitle')?.textContent));
   report.requests = await worker.evaluate(() => globalThis.prefetchProofRequests);
   report.success = report.checks.every(c => c.pass) && report.errors.length === 0;
   assert.equal(report.success, true, JSON.stringify(report.checks.filter(c => !c.pass)));

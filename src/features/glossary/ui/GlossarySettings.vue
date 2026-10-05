@@ -1,7 +1,7 @@
 <!--
  * @file src/features/glossary/ui/GlossarySettings.vue
  * 文件职责：提供可直接上手的个人术语库设置，集中管理词库、适用语言、网站范围和固定译名。
- * 主要内容：以词条编辑为主流程，按需展开范围设置与本地检查，页面底部直接展示内置词库；管理独立草稿、范围解释、重复词条校验与基于最新词表的串行保存。
+ * 主要内容：直接展示导入、新建与匹配预览，词库卡片内固定保留设置入口，多词库优先级独立管理；以单一 Vue 状态控制设置展开，管理独立草稿、范围解释、重复词条校验与串行保存。
  * 模块边界：配置通过现有 requestConfigPatch 保存并在失败时回读权威状态；文件只在本地解析，界面不请求翻译服务、不改写宿主网页。
  -->
 <template>
@@ -11,38 +11,27 @@
 
     <div>
       <div class="glossary-toolbar glossary-main-toolbar">
-        <label v-if="libraries.length > 1" class="glossary-library-picker"><span class="glossary-visually-hidden">{{ t('glossary.selection') }}</span><ElSelect class="glossary-select" :model-value="selectedId" :aria-label="t('glossary.selection')" @change="selectLibrary"><ElOption v-for="library in libraries" :key="library.id" :value="library.id" :label="library.name" /></ElSelect></label>
-        <strong v-else>{{ selected?.name || t('glossary.libraries') }}</strong>
-        <div class="glossary-actions">
-          <details class="glossary-more" @keydown.esc="moreOpen = false" :open="moreOpen" @toggle="moreOpen = ($event.target as HTMLDetailsElement).open">
-            <summary>{{ t('glossary.more') }}</summary>
-            <div class="glossary-more-menu">
-              <button type="button" :disabled="busy || !ready || atLibraryLimit" @click="openImport(); moreOpen = false">{{ t('glossary.import') }}</button>
-              <button type="button" :disabled="busy || !ready || atLibraryLimit" @click="addLibrary(); moreOpen = false">{{ t('glossary.newLibrary') }}</button>
-              <button v-if="selected" type="button" @click="settingsOpen = true; moreOpen = false">{{ t('glossary.librarySettings') }}</button>
-              <button v-if="totalEntries" type="button" @click="previewOpen = true; moreOpen = false">{{ t('glossary.preview') }}</button>
-              <details v-if="libraries.length > 1" class="glossary-order-details"><summary>{{ t('glossary.manageOrder') }}</summary>
-                <p class="glossary-help">{{ t('glossary.priority') }}</p>
-                <div v-for="(library, index) in libraries" :key="library.id" class="glossary-library-row" :class="{selected: selectedId === library.id}">
-                  <button type="button" class="glossary-library-name" @click="selectLibrary(library.id)">{{ library.name }}</button>
-                  <div class="glossary-library-order"><button type="button" :aria-label="t('glossary.moveUp', {name: library.name})" :disabled="busy || index === 0" @click="moveLibrary(index, -1)">↑</button><button type="button" :aria-label="t('glossary.moveDown', {name: library.name})" :disabled="busy || index === libraries.length - 1" @click="moveLibrary(index, 1)">↓</button></div>
-                </div>
-              </details>
-              <p v-if="atLibraryLimit" class="glossary-warning">{{ t('glossary.capacity') }}</p>
-            </div>
-          </details>
+        <h3>{{ t('glossary.libraries') }} <small v-if="libraries.length">{{ libraries.length }}</small></h3>
+        <div class="glossary-actions glossary-management-actions">
+          <button v-if="totalEntries" type="button" @click="previewOpen = true"><UiIcon name="search" :size="16" />{{ t('glossary.preview') }}</button>
+          <button type="button" :disabled="busy || !ready || atLibraryLimit" @click="openImport()"><UiIcon name="glossary" :size="16" />{{ t('glossary.import') }}</button>
+          <button type="button" :disabled="busy || !ready || atLibraryLimit" @click="addLibrary()"><UiIcon name="plus" :size="16" />{{ t('glossary.newLibrary') }}</button>
         </div>
       </div>
+      <p v-if="atLibraryLimit" class="glossary-warning" role="status">{{ t('glossary.capacity') }}</p>
       <div v-if="!selected" class="glossary-card glossary-start">
         <h3>{{ t('glossary.emptyTitle') }}</h3><p class="glossary-help">{{ t('glossary.startHelp') }}</p>
         <button type="button" class="primary" :disabled="busy || !ready" @click="startEntry()"><UiIcon name="plus" :size="16" />{{ t('glossary.addEntry') }}</button>
       </div>
       <section v-else :key="`${selected.id}-${viewRevision}`" class="glossary-card glossary-editor" :aria-label="t('glossary.librarySettings')">
-        <button v-if="selected.entries.length" type="button" class="glossary-scope-summary" :aria-label="t('glossary.librarySettings')" :title="selected.domains.join(', ') || t('glossary.allWebsites')" @click="settingsOpen = !settingsOpen">
+        <div class="glossary-library-heading">
+          <label v-if="libraries.length > 1" class="glossary-library-picker"><span class="glossary-visually-hidden">{{ t('glossary.selection') }}</span><ElSelect class="glossary-select" :model-value="selectedId" :aria-label="t('glossary.selection')" @change="selectLibrary"><ElOption v-for="library in libraries" :key="library.id" :value="library.id" :label="library.name" /></ElSelect></label>
+          <strong v-else>{{ selected.name }}</strong>
+        </div>
+        <div class="glossary-scope-summary" :title="selected.domains.join(', ') || t('glossary.allWebsites')">
           <span>{{ languageLabel(selected.sourceLanguage) }} → {{ languageLabel(selected.targetLanguage) }}</span>
           <span>{{ selected.domains.length ? selected.domains[0] + (selected.domains.length > 1 ? ` +${selected.domains.length - 1}` : '') : t('glossary.allWebsites') }}</span>
-          <UiIcon name="sliders" :size="14" />
-        </button>
+        </div>
         <div v-if="selected.entries.length || !entryDraft" class="glossary-entry-toolbar">
           <div v-if="selected.entries.length" class="glossary-search"><UiIcon name="search" :size="17" /><input v-model="query" type="search" :aria-label="t('glossary.search')" :placeholder="t('glossary.search')" /></div>
           <div v-else class="glossary-empty-copy"><h3>{{ t('glossary.addFirst') }}</h3><p class="glossary-help">{{ t('glossary.emptyLibraryHelp') }}</p></div>
@@ -66,9 +55,11 @@
           <footer v-if="selected.entries.length" class="glossary-editor-footer"><small>{{ t('glossary.entryCount', {count: filteredEntries.length}) }}</small><div v-if="filteredEntries.length > PAGE_SIZE" class="glossary-pagination"><button type="button" :aria-label="t('glossary.previousPage')" :disabled="entryPage === 0" @click="entryPage--">←</button><span>{{ entryPage + 1 }}/{{ Math.ceil(filteredEntries.length / PAGE_SIZE) }}</span><button type="button" :aria-label="t('glossary.nextPage')" :disabled="(entryPage + 1) * PAGE_SIZE >= filteredEntries.length" @click="entryPage++">→</button></div></footer>
 
         <p v-if="!selected.enabled" class="glossary-inline-state">{{ t('glossary.reason.disabled') }} <button type="button" class="glossary-text-button" :disabled="busy" @click="patchLibrary({enabled: true})">{{ t('glossary.libraryEnabled') }}</button></p>
-          <details v-show="settingsOpen" class="glossary-settings-details" :open="settingsOpen" @toggle="settingsOpen = ($event.target as HTMLDetailsElement).open">
-            <summary><UiIcon name="sliders" :size="16" />{{ t('glossary.librarySettings') }}<span>{{ t('glossary.settingsSummary') }}</span></summary>
-            <fieldset :disabled="!ready">
+          <div class="glossary-settings-details">
+            <button type="button" class="glossary-settings-toggle" :aria-label="t('glossary.librarySettings')" :aria-expanded="settingsOpen" aria-controls="glossary-library-settings" @click="settingsOpen = !settingsOpen">
+              <UiIcon name="sliders" :size="16" /><span class="glossary-settings-copy"><strong>{{ t('glossary.librarySettings') }}</strong><small>{{ t('glossary.settingsSummary') }}</small></span><UiIcon name="chevron-down" :size="16" class="glossary-settings-chevron" />
+            </button>
+            <fieldset v-show="settingsOpen" id="glossary-library-settings" :disabled="!ready">
               <label class="glossary-check"><input type="checkbox" :disabled="busy || !ready" :checked="selected.enabled" @change="patchLibrary({enabled: ($event.target as HTMLInputElement).checked})" />{{ t('glossary.libraryEnabled') }}</label>
               <div class="glossary-metadata">
                 <label class="glossary-wide">{{ t('glossary.name') }}<input ref="nameInput" :value="metadataValue('name')" :maxlength="GLOSSARY_LIMITS.nameLength" @input="editMetadata('name', $event)" @change="updateName" /></label>
@@ -85,11 +76,18 @@
                 <div class="glossary-actions"><ElSelect class="glossary-select" v-model="exportFormat" :aria-label="t('glossary.exportFormat')"><ElOption label="CSV" value="CSV" /><ElOption label="TSV" value="TSV" /><ElOption label="JSON" value="JSON" /></ElSelect><button type="button" @click="downloadLibrary">{{ t('glossary.export') }}</button></div>
               </div>
             </fieldset>
-          </details>
+          </div>
 
       </section>
       <span class="glossary-save-state" role="status" aria-live="polite">{{ busy ? t('glossary.saving') : saved && !hasMetadataDraft && !entryDraft ? t('glossary.saved') : '' }}</span>
-
+      <details v-if="libraries.length > 1" class="glossary-order-details">
+        <summary>{{ t('glossary.manageOrder') }}</summary>
+        <p class="glossary-help">{{ t('glossary.priority') }}</p>
+        <div v-for="(library, index) in libraries" :key="library.id" class="glossary-library-row" :class="{selected: selectedId === library.id}">
+          <button type="button" class="glossary-library-name" @click="selectLibrary(library.id)"><span>{{ library.name }}</span><small>{{ t('glossary.entryCount', {count: library.entries.length}) }}</small></button>
+          <div class="glossary-library-order"><button type="button" :aria-label="t('glossary.moveUp', {name: library.name})" :disabled="busy || index === 0" @click="moveLibrary(index, -1)">↑</button><button type="button" :aria-label="t('glossary.moveDown', {name: library.name})" :disabled="busy || index === libraries.length - 1" @click="moveLibrary(index, 1)">↓</button></div>
+        </div>
+      </details>
     </div>
     <div ref="builtinsElement" class="glossary-builtins-page">
       <BuiltinGlossaries :libraries="libraries" :disabled="busy || !ready" @add="addBuiltin" />
@@ -177,7 +175,6 @@ async function showBuiltins(): Promise<void> {
   await nextTick();
   builtinsElement.value?.scrollIntoView({block: 'start', behavior: 'smooth'});
 }
-const moreOpen = ref(false);
 const previewOpen = ref(false);
 const totalEntries = computed(() => libraries.value.reduce((count, library) => count + library.entries.length, 0));
 const settingsOpen = ref(false);
@@ -249,7 +246,7 @@ function persist(patch: GlossaryPatch | (() => GlossaryPatch)): Promise<boolean>
 }
 function setEnabled(value: boolean): void {void persist({glossaryEnabled: value});}
 function selectLibrary(id: string): void {
-  moreOpen.value = false; previewOpen.value = false;
+  previewOpen.value = false;
   if (id === selectedId.value) return;
   if (entryDraft.value) entryDrafts.set(selectedId.value, entryDraft.value);
   selectedId.value = id; entryDraft.value = entryDrafts.get(id) || null; metadataDrafts.value = {}; query.value = ''; settingsOpen.value = false;
