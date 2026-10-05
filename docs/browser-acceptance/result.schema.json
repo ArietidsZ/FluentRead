@@ -233,6 +233,12 @@
         "focusGuardEvidence": {
           "type": "string",
           "minLength": 1
+        },
+        "visibilityPolicy": {
+          "enum": [
+            "fully-offscreen",
+            "temporary-partial-visibility-20261005"
+          ]
         }
       },
       "required": [

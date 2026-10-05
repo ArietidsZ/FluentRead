@@ -10,17 +10,48 @@ import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 const exec=promisify(execFile),hash=value=>createHash('sha256').update(value).digest('hex');
 const intersects=(a,b)=>a.left<b.left+b.width&&a.left+a.width>b.left&&a.top<b.top+b.height&&a.top+a.height>b.top;
+export const STRICT_VISIBILITY_POLICY='fully-offscreen';
+export const PARTIAL_VISIBILITY_POLICY='temporary-partial-visibility-20261005';
 
-export function checkFocusSnapshot({browserPid,frontmostPid,windows,displays}) {
+export function visibilityPolicyFromArgs(args) {
+  return args.includes('--allow-partial-visibility')?PARTIAL_VISIBILITY_POLICY:STRICT_VISIBILITY_POLICY;
+}
+
+function visibleGeometry(window,displays) {
+  let uncovered=[{left:window.left,top:window.top,width:window.width,height:window.height}];
+  for(const display of displays)uncovered=uncovered.flatMap(rect=>{
+    if(!intersects(rect,display))return [rect];
+    const left=Math.max(rect.left,display.left),right=Math.min(rect.left+rect.width,display.left+display.width);
+    const top=Math.max(rect.top,display.top),bottom=Math.min(rect.top+rect.height,display.top+display.height);
+    return [
+      {left:rect.left,top:rect.top,width:rect.width,height:top-rect.top},
+      {left:rect.left,top:bottom,width:rect.width,height:rect.top+rect.height-bottom},
+      {left:rect.left,top,width:left-rect.left,height:bottom-top},
+      {left:right,top,width:rect.left+rect.width-right,height:bottom-top},
+    ].filter(part=>part.width>0&&part.height>0);
+  });
+  const windowArea=window.width*window.height;
+  const visibleArea=Math.max(0,Math.min(windowArea,windowArea-uncovered.reduce((sum,rect)=>sum+rect.width*rect.height,0)));
+  return {windowId:window.windowId??null,windowArea,visibleArea,
+    classification:!displays.some(display=>intersects(window,display))?'offscreen':uncovered.length?'partially-visible':'fully-visible'};
+}
+
+export function checkFocusSnapshot({browserPid,frontmostPid,windows,displays,visibilityPolicy=STRICT_VISIBILITY_POLICY}) {
+  assert([STRICT_VISIBILITY_POLICY,PARTIAL_VISIBILITY_POLICY].includes(visibilityPolicy),'Unknown window visibility policy');
   assert(Number.isSafeInteger(browserPid)&&browserPid>0&&Number.isSafeInteger(frontmostPid)&&frontmostPid>0,'Unknown foreground/browser PID');
   assert.notEqual(frontmostPid,browserPid,'Owned browser became foreground; stop test operations');
   assert(Array.isArray(displays)&&displays.length>0&&Array.isArray(windows)&&windows.length>0,'Unknown windows or displays');
   for(const rect of [...windows,...displays])for(const field of ['left','top','width','height'])assert(Number.isFinite(rect[field]),'Unknown window/display bounds');
   for(const rect of displays)assert(rect.width>0&&rect.height>0,'Active display dimensions must be positive');
+  const visibility=[];
   for(const window of windows) {
     assert(window.windowState==='normal'&&window.width>=800&&window.height>=600,'Test window must be normal-sized and not minimized/fullscreen');
-    assert(displays.every(display=>!intersects(window,display)),'Test window intersects an active display; stop and restore approved offscreen placement');
+    const geometry=visibleGeometry(window,displays);
+    if(visibilityPolicy===STRICT_VISIBILITY_POLICY)assert(geometry.classification==='offscreen','Test window intersects an active display; stop and restore approved offscreen placement');
+    else assert(geometry.classification!=='fully-visible','Approved partial-visibility policy does not permit a fully visible window');
+    visibility.push(geometry);
   }
+  return visibility;
 }
 
 export function verifyListener(text,pid,port) {
@@ -62,10 +93,11 @@ async function runGuard(args) {
   assert.equal(process.platform,'darwin','This observer requires macOS; it has not been browser-certified here');
   const value=name=>{const i=args.indexOf(name);assert(i>=0&&args[i+1],`Missing ${name}`);return args[i+1];};
   const profile=await fs.realpath(value('--profile')),pid=Number(value('--pid')),port=Number(value('--port')),output=path.resolve(value('--output'));
+  const visibilityPolicy=visibilityPolicyFromArgs(args);
   assert(Number.isSafeInteger(pid)&&pid>1&&Number.isSafeInteger(port)&&port>1023&&port<65536,'Invalid owned PID/CDP port');
   const temporaryRoots=await Promise.all([os.tmpdir(),'/tmp'].map(dir=>fs.realpath(dir)));
   assert(temporaryRoots.some(dir=>profile.startsWith(dir+path.sep))&&path.basename(profile).startsWith('fluentread-'),'Only explicitly owned FluentRead temporary profiles are supported');
-  const report={status:'starting',mode:args.includes('--once')?'once':'continuous',browserPid:pid,cdpPort:port,profilePathSha256:hash(profile),samplePolicy:'serial read-only polling; inspect observed gaps; stop operations when guard is not running',events:[]};
+  const report={status:'starting',mode:args.includes('--once')?'once':'continuous',visibilityPolicy,browserPid:pid,cdpPort:port,profilePathSha256:hash(profile),samplePolicy:'serial read-only polling; inspect observed gaps; stop operations when guard is not running',events:[]};
   const write=async()=>{await fs.mkdir(path.dirname(output),{recursive:true});await fs.writeFile(output+'.tmp',JSON.stringify(report,null,2)+'\n',{mode:0o600});await fs.rename(output+'.tmp',output);};
   let cdp,stopping=false,ownedServer;
   const processIdentity=async ownedPid=>{
@@ -111,9 +143,10 @@ async function runGuard(args) {
       }
       // Sample again after window reads; no permission acceptance, focus or placement operation is attempted.
       const after=JSON.parse((await exec('/usr/bin/osascript',['-l','JavaScript','-e',osProbe],{timeout:3000})).stdout);
-      checkFocusSnapshot({browserPid:pid,...observed,windows});checkFocusSnapshot({browserPid:pid,...after,windows});
+      checkFocusSnapshot({browserPid:pid,...observed,windows,visibilityPolicy});
+      const visibility=checkFocusSnapshot({browserPid:pid,...after,windows,visibilityPolicy});
       report.status='running';report.lastObservedAt=new Date().toISOString();
-      report.events.push({event:'focus-window-observation',at:report.lastObservedAt,context:'owned-temporary-browser',frontmostPidBefore:observed.frontmostPid,frontmostPidAfter:after.frontmostPid,windows,displays:after.displays,observationMs:Date.now()-started});await write();
+      report.events.push({event:'focus-window-observation',at:report.lastObservedAt,context:'owned-temporary-browser',frontmostPidBefore:observed.frontmostPid,frontmostPidAfter:after.frontmostPid,windows,displays:after.displays,visibilityPolicy,visibility,observationMs:Date.now()-started});await write();
       if(args.includes('--once'))break;
       await new Promise(resolve=>setTimeout(resolve,250));
     }

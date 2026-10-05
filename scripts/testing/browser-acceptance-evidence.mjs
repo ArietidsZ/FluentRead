@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {validateGpuObservationBinding} from './browser-acceptance-gpu.mjs';
-import {checkFocusSnapshot} from './browser-focus-guard.mjs';
+import {checkFocusSnapshot,STRICT_VISIBILITY_POLICY,PARTIAL_VISIBILITY_POLICY} from './browser-focus-guard.mjs';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const nonempty = value => typeof value === 'string' && value.trim().length > 0;
@@ -65,6 +65,26 @@ export function validateFileManifest(value, kind) {
   return files;
 }
 
+export function validateFocusEvidence(env,guard,passed,json) {
+  const visibilityPolicy=guard.visibilityPolicy??STRICT_VISIBILITY_POLICY;
+  assert([STRICT_VISIBILITY_POLICY,PARTIAL_VISIBILITY_POLICY].includes(visibilityPolicy),'Unknown guard visibility policy');
+  assert.equal(env.visibilityPolicy??STRICT_VISIBILITY_POLICY,visibilityPolicy,'Report and guard visibility policies differ');
+  assert(guard.status==='stopped'&&guard.mode==='continuous'&&Number.isSafeInteger(guard.browserPid)&&guard.browserPid===env.browserPid&&guard.profilePathSha256===env.profilePathSha256,'Pass requires a completed continuous focus guard bound to the actual browser/profile');
+  const focusEvents=guard.events?.filter(event=>event.event==='focus-window-observation');
+  assert(focusEvents?.length>=2&&!guard.events.some(event=>event.event==='guard-violation'),'Pass requires repeated successful focus/window observations');
+  for(const event of focusEvents){
+    assert(Number.isFinite(Date.parse(event.at)),'Missing focus observation time');
+    if(visibilityPolicy===PARTIAL_VISIBILITY_POLICY||event.visibilityPolicy!==undefined)assert.equal(event.visibilityPolicy,visibilityPolicy,'Sample visibility policy differs from the declared guard policy');
+    for(const frontmostPid of [event.frontmostPidBefore,event.frontmostPidAfter]){
+      const observed=checkFocusSnapshot({browserPid:guard.browserPid,frontmostPid,windows:event.windows,displays:event.displays,visibilityPolicy});
+      if(visibilityPolicy===PARTIAL_VISIBILITY_POLICY||event.visibility!==undefined)assert.deepEqual(event.visibility,observed,'Recorded visible geometry differs from raw window/display bounds');
+    }
+  }
+  const focusStart=Date.parse(focusEvents[0].at),focusEnd=Date.parse(focusEvents.at(-1).at);
+  assert(focusEnd>focusStart&&focusEvents.every((event,index)=>index===0||Date.parse(event.at)>=Date.parse(focusEvents[index-1].at)),'Guard observations must span a monotonic interval');
+  for(const item of passed)for(const name of item.browserLogs)for(const event of json(name,'browser-log').events||[])assert(Date.parse(event.at)>=focusStart&&Date.parse(event.at)<=focusEnd,`${item.id}: browser evidence lies outside observed guard interval`);
+}
+
 export async function validatePassEvidence(report, artifacts, root) {
   const passed=report.cases.filter(item=>item.status==='pass');
   if(!passed.length)return;
@@ -73,14 +93,7 @@ export async function validatePassEvidence(report, artifacts, root) {
   const roleFiles=role=>[...artifacts.values()].filter(file=>file.role===role);
   const hasRole=(item,role)=>assert(item.evidence.some(name=>artifacts.get(name)?.role===role),`${item.id}: missing ${role} evidence`);
   const env=report.environment, provenance=report.provenance;
-  const guard=json(env.focusGuardEvidence,'focus-guard');
-  assert(guard.status==='stopped'&&guard.mode==='continuous'&&Number.isSafeInteger(guard.browserPid)&&guard.browserPid===env.browserPid&&guard.profilePathSha256===env.profilePathSha256,'Pass requires a completed continuous focus guard bound to the actual browser/profile');
-  const focusEvents=guard.events?.filter(event=>event.event==='focus-window-observation');
-  assert(focusEvents?.length>=2&&!guard.events.some(event=>event.event==='guard-violation'),'Pass requires repeated successful focus/window observations');
-  for(const event of focusEvents){assert(Number.isFinite(Date.parse(event.at)),'Missing focus observation time');for(const frontmostPid of [event.frontmostPidBefore,event.frontmostPidAfter])checkFocusSnapshot({browserPid:guard.browserPid,frontmostPid,windows:event.windows,displays:event.displays});}
-  const focusStart=Date.parse(focusEvents[0].at),focusEnd=Date.parse(focusEvents.at(-1).at);
-  assert(focusEnd>focusStart&&focusEvents.every((event,index)=>index===0||Date.parse(event.at)>=Date.parse(focusEvents[index-1].at)),'Guard observations must span a monotonic interval');
-  for(const item of passed)for(const name of item.evidence.filter(name=>artifacts.get(name)?.role==='browser-log'))for(const event of json(name,'browser-log').events||[])assert(Date.parse(event.at)>=focusStart&&Date.parse(event.at)<=focusEnd,`${item.id}: browser evidence lies outside observed guard interval`);
+  validateFocusEvidence(env,json(env.focusGuardEvidence,'focus-guard'),passed.map(item=>({id:item.id,browserLogs:item.evidence.filter(name=>artifacts.get(name)?.role==='browser-log')})),json);
   for(const field of ['os','browser','browserVersion','browserosVersion','launchMode','profileMarker','focusPolicy','windowPlacement','extensionId','extensionName','extensionVersion','nodeVersion','pnpmVersion']) assert(nonempty(env[field]),`Pass requires environment.${field}`);
   assert(/^v?22\./u.test(env.nodeVersion) && /^9\.12\.1$/u.test(env.pnpmVersion),'Pass requires Node22 / pnpm9.12.1');
   assert(env.launchArguments.length>0 && env.capabilityEvidence.length>0,'Pass requires launch arguments and capability evidence');

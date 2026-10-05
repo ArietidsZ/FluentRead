@@ -33,21 +33,23 @@ node scripts/testing/browser-acceptance.mjs validate "$FR_RUN/result.normalized.
 
 ## 创建新的临时实例，再检查焦点边界
 
-`browser-focus-guard.mjs` 是本地 Agent 运行的 macOS 只读观察器，不是浏览器启动器，不实现个人 Playwright helper 的 API。它检查进程 UID、临时 profile 的实际路径与私有权限、所有权标记、loopback CDP listener、正常尺寸且完全位于活动屏幕之外的窗口，以及前台 PID。`/tmp` 和 `/private/tmp` 用 realpath 比较；模糊路径或不同 profile 会失败。
+`browser-focus-guard.mjs` 是本地 Agent 运行的 macOS 只读观察器，不是浏览器启动器，不实现个人 Playwright helper 的 API。它检查进程 UID、临时 profile 的实际路径与私有权限、所有权标记、loopback CDP listener、正常尺寸窗口的实际可见几何，以及前台 PID。默认策略仍要求完全位于活动屏幕之外。`/tmp` 和 `/private/tmp` 用 realpath 比较；模糊路径或不同 profile 会失败。
 
-先通过本地 Agent 已支持、已授权且能够后台/屏幕外启动的方式新建独立临时浏览器实例，并重新启动回环夹具。保留实际 profile、PID、CDP 端口和启动记录。guard 不启动浏览器；如果本地没有符合此要求的已验证启动方式，这就是准确的剩余阻断，不能伪造成功或改用会抢焦点的启动。
+本次用户于 2026-10-05 明确批准一个有限例外：专用临时窗口可部分可见，但仍不得成为前台，不能使用日常 profile。使用显式参数 `--allow-partial-visibility` 选择稳定策略 `temporary-partial-visibility-20261005`；不传参数时是 `fully-offscreen`，旧证据缺少该字段也只按严格默认解释。新策略允许完全离屏或部分可见，拒绝完全可见（包括被多个屏幕合计完全覆盖）、最小化、全屏、尺寸不足或前台窗口。约 40 像素是旧机器的实测现象，不是新的上限或保证。
+
+先通过本地 Agent 已支持、已授权且能够保持后台并满足所选可见性策略的方式新建独立临时浏览器实例，并重新启动回环夹具。保留实际 profile、PID、CDP 端口和启动记录。guard 不启动浏览器；如果本地没有符合所选策略的已验证启动方式，这就是准确的剩余阻断，不能伪造成功或改用会抢焦点的启动。
 
 本交接只做过纯逻辑自检，尚未在 macOS/BrowserOS 实机认证。不要把自检成功当作焦点验收。对新建且明确属于本次任务的临时实例先执行单次观察：
 
 ```bash
 node scripts/testing/browser-focus-guard.mjs \
   --profile "$FR_PROFILE" --pid "$FR_BROWSER_PID" --port "$FR_CDP_PORT" \
-  --output "$FR_RUN/focus-preflight.json" --once
+  --output "$FR_RUN/focus-preflight.json" --once --allow-partial-visibility
 ```
 
 profile 必须位于系统临时目录中，名称以 `fluentread-` 开头，属于当前用户且没有组/其他用户权限。guard 只在验证通过后创建该临时目录内的所有权标记；不 chmod、不打开窗口、不移动/最小化窗口、不抢焦点、不接受任何权限提示。条件不满足时准确记录 blocked，按实际缺项处理；不能关闭保护继续。
 
-单次观察仅证明观察时刻。实际操作期间必须持续运行下面的 guard；记录采样时间和间隔，操作前后查看运行状态和新鲜观测。退出、blocked、读不到状态、权限错误或明显停更时，立即停止浏览器操作。guard 的成功不直接使任何用例 pass。报告中把完成的 guard JSON 登记为 focus-guard artifact，并将路径填入 environment.focusGuardEvidence，同时从同一记录填写 browserPid/profilePathSha256。验证器会重新检查正常尺寸、屏幕外和前台 PID，要求 continuous 模式至少两次观测，并将通过项所引用 browser-log 事件时间限制在首末观测之间。首个 running 观测后才操作，最后一个操作之后等待新的观测再停止 guard；单次预检、事后观察、缺失、违规或未结束的 guard 都不能支撑 pass。
+单次观察仅证明观察时刻。实际操作期间必须持续运行下面的 guard；记录采样时间和间隔，操作前后查看运行状态和新鲜观测。退出、blocked、读不到状态、权限错误或明显停更时，立即停止浏览器操作。guard 的成功不直接使任何用例 pass。报告中把完成的 guard JSON 登记为 focus-guard artifact，并将路径填入 environment.focusGuardEvidence，同时从同一记录填写 browserPid/profilePathSha256。新 guard 在根记录及每个观测中写入 visibilityPolicy，并保留原始 windows/displays 和派生 visibleArea/windowArea/classification。将同一策略填入 environment.visibilityPolicy，windowPlacement 如实写“部分可见”及实际位置，不能伪称完全离屏。验证器会要求报告、guard 和观测策略一致，从原始几何复算可见面积，并重新检查正常尺寸和前台 PID，要求 continuous 模式至少两次观测，并将通过项所引用 browser-log 事件时间限制在首末观测之间。首个 running 观测后才操作，最后一个操作之后等待新的观测再停止 guard；单次预检、事后观察、缺失、违规或未结束的 guard 都不能支撑 pass。
 
 ## 验证 task-scoped Neo stdio 控制面
 
@@ -78,7 +80,7 @@ BROWSERCLAW_DIR="$FR_RUN/neo-state" "$FR_NEO_SERVER" \
 node scripts/testing/browser-focus-guard.mjs \
   --profile "$FR_PROFILE" --pid "$FR_BROWSER_PID" --port "$FR_CDP_PORT" \
   --server-pid "$FR_NEO_PID" --server-config "$FR_RUN/neo-sidecar.json" \
-  --output "$FR_RUN/focus-guard.json"
+  --output "$FR_RUN/focus-guard.json" --allow-partial-visibility
 ```
 
 guard 输出 running 且观测新鲜后，通过实际工具清单做只读能力核对，确认看到本次夹具标签和实际 FluentRead ID。没有支持的一次性 stdio 连接方式、版本/资源不匹配、页面不可访问或权限被拒绝，都应写明具体阻断，不自动安装新软件，不回退 HTTP，也不通过直接 CDP 绕过 Neo 已拒绝的动作。CDP loopback 的只读身份/窗口检查不等于启动 Neo HTTP 服务。[连接目标与重连行为](https://github.com/browseros-ai/BrowserOS/blob/96ff75aa8f3f023c526308df32cdd299331a3ec9/packages/browseros-agent/apps/claw-server-rust/src/services/browser/connection.rs)
@@ -92,3 +94,5 @@ guard 输出 running 且观测新鲜后，通过实际工具清单做只读能�
 请求的完整 GPU 验收已经涵盖必要的固定模型下载。检查磁盘空间，按目录中的确定版本、尺寸和 SHA 顺序准备模型，一次一个，通过已有产品下载/验证路径使用它们，不一次下载全部，不要求重复授权。Paddle/LaMa 可走现有已验证文件导入，分别保留原文件哈希及导入后的真实推理证据。只有遇到额外权限、收费服务或磁盘不足等新决策时才提出具体问题。
 
 用新结果目录逐项记进度：真实能力/权限缺失写具体 blocked 原因；尚未执行的项目写“未执行，下一步为……”而不是虚构环境不支持。22 项旧快照保持原样。来源与构建字节已经核对，更新本交接、元数据绑定或重跑 fixture 不要求重建扩展；任何未来产品改动才需要新的构建/来源验收。
+
+本次策略仅用于新的运行记录；不修改旧 blocked 快照或既有失败事件，不以 guard 通过替代任何 UI/模型断言。只需更新交接脚本和元数据，产品源码与已核对构建不变，无需重建扩展。
