@@ -189,6 +189,31 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it.each([
+        ['https://qimanga.com/series/the-otherworld-general-store/chapter-1', '<app-reader><div class="r-strip"><div class="r-page" data-page="1"></div></div></app-reader>', '.r-page'],
+        ['https://nyxscans.com/series/press-play-sami/chapter-96', '<div class="comic-body-container"><div class="comic-images-wrapper"><figure class="image-container"></figure></div></div>', 'figure'],
+        ['https://omegascans.org/series/little-miss-delinquent/chapter-53', '<div class="lg:container"><div class="flex flex-col items-center justify-center overflow-hidden"><div class="relative flex w-full justify-center"></div></div></div>', 'div.relative'],
+    ])('%s 动态正文加入同一会话，暂停恢复，移除与换章清理', async (href, html, parentSelector) => {
+        const f = readerFixture(false, href);expect(f.reader.status().available).toBe(false);
+        const root = f.document.createElement('section');root.innerHTML = html;f.document.body.append(root);
+        root.querySelector(parentSelector)!.append(f.image);f.image.className = 'r-page-img block object-contain';f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available: true, pageCount: 1, areaFallback: false});
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);f.reader.toggle();await flush();
+        f.image.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);expect(f.ports.release).toHaveBeenCalledWith(f.image);
+        f.window.location.href = href.replace(/chapter-\d+$/, 'chapter-97');f.reader.schedule();f.run();expect(f.reader.status().active).toBe(false);f.reader.dispose();
+    });
+    it('MangaLove 不可读正文只提供圈选，像素读取和连续图片请求不启动', () => {
+        const f = readerFixture(false, 'https://mangalove.me/viewer/79762');expect(f.reader.status().available).toBe(false);
+        f.document.body.id = 'viewerBody';
+        const viewer = f.document.createElement('div'), wrap = f.document.createElement('div');viewer.className = 'viewer vertical';wrap.className = 'imgWrap';
+        const canvas = f.document.createElement('canvas');canvas.width = 760;canvas.height = 1100;
+        canvas.getBoundingClientRect = () => ({left: 0, right: 600, top: 0, bottom: 850, width: 600, height: 850}) as DOMRect;
+        const readPixels = vi.fn();canvas.getContext = readPixels;wrap.append(canvas);viewer.append(wrap);f.document.body.append(viewer);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available: true, areaFallback: true, pageCount: 0});expect(f.reader.toggle()).toBe(false);
+        expect(readPixels).not.toHaveBeenCalled();expect(f.ports.translate).not.toHaveBeenCalled();
+        canvas.remove();f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available: false, areaFallback: false});f.reader.dispose();
+    });
     it('Mangahub 正常页码变化继续同一会话，下一正文入队；章节路径改变才暂停和清缓存', async () => {
         const resetCache = vi.fn();
         const f = readerFixture(false, 'https://mangahub.ru/read/962303?page=1', undefined, undefined, undefined, undefined, {resetCache});

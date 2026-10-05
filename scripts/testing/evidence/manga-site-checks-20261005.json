@@ -1,5 +1,5 @@
 {
-  "checkedOn": "2026-10-05T04:55:40.961680+00:00",
+  "checkedOn": "2026-10-05T05:17:05.110968+00:00",
   "scope": "Public HTML availability and selected chapter DOM inspection. Neither proves all chapters or live OCR/translation.",
   "sources": [
     "https://github.com/immersive-translate/immersive-translate/issues/1809",
@@ -2043,7 +2043,57 @@
           "hostname": "mangalove.me"
         }
       ],
-      "adapter": "detect"
+      "adapter": "area",
+      "browserRechecks": [
+        {
+          "url": "https://mangalove.me/",
+          "finalUrl": "https://mangalove.me/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "homes-wave18",
+          "status": 200,
+          "title": "マンガLOVE｜漫画全巻無料・登録不要でコミックが読み放題！",
+          "imageCount": 3,
+          "canvasCount": 0,
+          "readerFinding": "Normal explicitly free viewer79762 displays28 canvas pages760x1100 under viewerBody/viewer/imgWrap. Canvas read raises SecurityError; only existing area-translation entry added, no pixel/source bypass or continuous OCR acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://mangalove.me/",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        },
+        {
+          "url": "https://mangalove.me/comic/3333",
+          "finalUrl": "https://mangalove.me/comic/3333",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "mangalove-work-wave18",
+          "status": 200,
+          "title": "【全巻無料】兎～野性の闘牌～（全154巻）｜伊藤 誠｜青年漫画読み放題のマンガLOVE",
+          "imageCount": 4,
+          "canvasCount": 0,
+          "readerFinding": "Normal explicitly free viewer79762 displays28 canvas pages760x1100 under viewerBody/viewer/imgWrap. Canvas read raises SecurityError; only existing area-translation entry added, no pixel/source bypass or continuous OCR acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://mangalove.me/comic/3333",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        },
+        {
+          "url": "https://mangalove.me/viewer/79762",
+          "finalUrl": "https://mangalove.me/viewer/79762",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "mangalove-reader-wave18",
+          "status": 200,
+          "title": "兎～野性の闘牌～ - 1話 - 1巻 | マンガLOVE",
+          "imageCount": 1,
+          "canvasCount": 28,
+          "readerFinding": "Normal explicitly free viewer79762 displays28 canvas pages760x1100 under viewerBody/viewer/imgWrap. Canvas read raises SecurityError; only existing area-translation entry added, no pixel/source bypass or continuous OCR acceptance.",
+          "pageErrorCount": 1,
+          "networkFailureCount": 3,
+          "requestedUrl": "https://mangalove.me/viewer/79762",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        }
+      ]
     },
     {
       "name": "rawdevart.art",
@@ -2253,7 +2303,41 @@
           "hostname": "nyxscans.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://nyxscans.com/",
+          "finalUrl": "https://nyxscans.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "homes-wave18",
+          "status": 200,
+          "title": "Nyx Scans - Immerse Yourself in Comics, Manga, Manhua, and Manhwa — Nyx: Where Stories Come to Life.",
+          "imageCount": 122,
+          "canvasCount": 0,
+          "readerFinding": "Public explicitly free chapter96 displays full800x10000 and nearby long body strips under comic-body-container/comic-images-wrapper/figure.image-container. Existing segmented pipeline reused; covers/ad images excluded.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://nyxscans.com/",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        },
+        {
+          "url": "https://nyxscans.com/series/press-play-sami/chapter-96",
+          "finalUrl": "https://nyxscans.com/series/press-play-sami/chapter-96",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "works-wave18",
+          "status": 200,
+          "title": "Press Play, Sami Chapter 96 | Nyx Scans",
+          "imageCount": 13,
+          "canvasCount": 0,
+          "readerFinding": "Public explicitly free chapter96 displays full800x10000 and nearby long body strips under comic-body-container/comic-images-wrapper/figure.image-container. Existing segmented pipeline reused; covers/ad images excluded.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://nyxscans.com/series/press-play-sami/chapter-96",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        }
+      ]
     },
     {
       "name": "Qi Manga",
@@ -2272,7 +2356,73 @@
           "hostname": "qimanga.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://qimanga.com/",
+          "finalUrl": "https://qimanga.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "homes-wave18",
+          "status": 200,
+          "title": "EZManga",
+          "imageCount": 37,
+          "canvasCount": 0,
+          "readerFinding": "Normal background visible browser opens free Read First chapter with full800x15525/15505 strips under app-reader/r-strip/r-page data-page. Headless chapter403 retained; homepage/series covers do not establish reader acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 5,
+          "requestedUrl": "https://qimanga.com/",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        },
+        {
+          "url": "https://qimanga.com/series/the-otherworld-general-store",
+          "finalUrl": "https://qimanga.com/series/the-otherworld-general-store",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "works-wave18",
+          "status": 200,
+          "title": "The Otherworld General Store | EZManga",
+          "imageCount": 13,
+          "canvasCount": 0,
+          "readerFinding": "Normal background visible browser opens free Read First chapter with full800x15525/15505 strips under app-reader/r-strip/r-page data-page. Headless chapter403 retained; homepage/series covers do not establish reader acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 5,
+          "requestedUrl": "https://qimanga.com/series/the-otherworld-general-store",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        },
+        {
+          "url": "https://qimanga.com/series/the-otherworld-general-store/chapter-1",
+          "finalUrl": "https://qimanga.com/series/the-otherworld-general-store/chapter-1",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "qi-reader-wave18",
+          "status": 403,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal background visible browser opens free Read First chapter with full800x15525/15505 strips under app-reader/r-strip/r-page data-page. Headless chapter403 retained; homepage/series covers do not establish reader acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://qimanga.com/series/the-otherworld-general-store/chapter-1",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        },
+        {
+          "url": "https://qimanga.com/series/the-otherworld-general-store/chapter-1",
+          "finalUrl": "https://qimanga.com/series/the-otherworld-general-store/chapter-1",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "qi-visible-wave18",
+          "status": 200,
+          "title": "The Otherworld General Store – Ch. 1 | Qi Manga",
+          "imageCount": 17,
+          "canvasCount": 0,
+          "readerFinding": "Normal background visible browser opens free Read First chapter with full800x15525/15505 strips under app-reader/r-strip/r-page data-page. Headless chapter403 retained; homepage/series covers do not establish reader acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 3,
+          "requestedUrl": "https://qimanga.com/series/the-otherworld-general-store/chapter-1",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        }
+      ]
     },
     {
       "name": "MG Read",
@@ -3115,7 +3265,41 @@
           "htmlSha256": "7c5559116d59cd405e8d2d3294387984aa4ed4d1ed451d8cf0b5c6f4adae074d"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://omegascans.org/",
+          "finalUrl": "https://omegascans.org/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "homes-wave18",
+          "status": 200,
+          "title": "Omega Scans - High Quality Comics and Novels",
+          "imageCount": 25,
+          "canvasCount": 0,
+          "readerFinding": "Public chapter displays full720px-wide long strips under the observed lg:container/flex-col reading container. Exact class-token/container selector excludes upper banner and outside covers. Entry only; no OCR/quality acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://omegascans.org/",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        },
+        {
+          "url": "https://omegascans.org/series/little-miss-delinquent/chapter-53",
+          "finalUrl": "https://omegascans.org/series/little-miss-delinquent/chapter-53",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "works-wave18",
+          "status": 200,
+          "title": "Little Miss Delinquent - Chapter 53 - Omega Scans",
+          "imageCount": 13,
+          "canvasCount": 0,
+          "readerFinding": "Public chapter displays full720px-wide long strips under the observed lg:container/flex-col reading container. Exact class-token/container selector excludes upper banner and outside covers. Entry only; no OCR/quality acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://omegascans.org/series/little-miss-delinquent/chapter-53",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        }
+      ]
     },
     {
       "name": "readallcomics.com",
@@ -3186,7 +3370,25 @@
           "finding": "Current public home presents browser games; no manga reader confirmed."
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://utoon.net/",
+          "finalUrl": "https://utoon.net/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "homes-wave18",
+          "status": 200,
+          "title": "UTOON — Free Browser Games Online",
+          "imageCount": 34,
+          "canvasCount": 0,
+          "readerFinding": "Current homepage is UTOON Free Browser Games Online, with no manga reader links. Historical catalog name retained; current manga body not confirmed.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://utoon.net/",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        }
+      ]
     },
     {
       "name": "manhuapica.com",
@@ -3620,7 +3822,25 @@
           "hostname": "mangaflame.org"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://mangaflame.org/",
+          "finalUrl": "http://ww547.mangaflame.org/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-long-strip-and-area-readers-wave18",
+          "attempt": "homes-wave18",
+          "status": 200,
+          "title": "manga flame",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Current homepage redirects to a parked HTTP ww subdomain. Tracking query omitted and subdomain not registered as a manga alias; no body confirmed.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://mangaflame.org/",
+          "checkedAt": "2026-10-05T05:15:23.139798+00:00"
+        }
+      ]
     },
     {
       "name": "manhwa404.com",
@@ -7390,6 +7610,188 @@
       "readerFinding": "Public Naver chapter has loaded 690x1600 body images under sectionContWide with content_image IDs; age advisory excluded. Entry/body research does not prove OCR quality.",
       "pageErrorCount": 0,
       "networkFailureCount": 0
+    },
+    {
+      "url": "https://qimanga.com/",
+      "finalUrl": "https://qimanga.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "homes-wave18",
+      "status": 200,
+      "title": "EZManga",
+      "imageCount": 37,
+      "canvasCount": 0,
+      "readerFinding": "Normal background visible browser opens free Read First chapter with full800x15525/15505 strips under app-reader/r-strip/r-page data-page. Headless chapter403 retained; homepage/series covers do not establish reader acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 5
+    },
+    {
+      "url": "https://nyxscans.com/",
+      "finalUrl": "https://nyxscans.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "homes-wave18",
+      "status": 200,
+      "title": "Nyx Scans - Immerse Yourself in Comics, Manga, Manhua, and Manhwa — Nyx: Where Stories Come to Life.",
+      "imageCount": 122,
+      "canvasCount": 0,
+      "readerFinding": "Public explicitly free chapter96 displays full800x10000 and nearby long body strips under comic-body-container/comic-images-wrapper/figure.image-container. Existing segmented pipeline reused; covers/ad images excluded.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://mangalove.me/",
+      "finalUrl": "https://mangalove.me/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "homes-wave18",
+      "status": 200,
+      "title": "マンガLOVE｜漫画全巻無料・登録不要でコミックが読み放題！",
+      "imageCount": 3,
+      "canvasCount": 0,
+      "readerFinding": "Normal explicitly free viewer79762 displays28 canvas pages760x1100 under viewerBody/viewer/imgWrap. Canvas read raises SecurityError; only existing area-translation entry added, no pixel/source bypass or continuous OCR acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://utoon.net/",
+      "finalUrl": "https://utoon.net/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "homes-wave18",
+      "status": 200,
+      "title": "UTOON — Free Browser Games Online",
+      "imageCount": 34,
+      "canvasCount": 0,
+      "readerFinding": "Current homepage is UTOON Free Browser Games Online, with no manga reader links. Historical catalog name retained; current manga body not confirmed.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://mangaflame.org/",
+      "finalUrl": "http://ww547.mangaflame.org/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "homes-wave18",
+      "status": 200,
+      "title": "manga flame",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Current homepage redirects to a parked HTTP ww subdomain. Tracking query omitted and subdomain not registered as a manga alias; no body confirmed.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://omegascans.org/",
+      "finalUrl": "https://omegascans.org/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "homes-wave18",
+      "status": 200,
+      "title": "Omega Scans - High Quality Comics and Novels",
+      "imageCount": 25,
+      "canvasCount": 0,
+      "readerFinding": "Public chapter displays full720px-wide long strips under the observed lg:container/flex-col reading container. Exact class-token/container selector excludes upper banner and outside covers. Entry only; no OCR/quality acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://qimanga.com/series/the-otherworld-general-store",
+      "finalUrl": "https://qimanga.com/series/the-otherworld-general-store",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "works-wave18",
+      "status": 200,
+      "title": "The Otherworld General Store | EZManga",
+      "imageCount": 13,
+      "canvasCount": 0,
+      "readerFinding": "Normal background visible browser opens free Read First chapter with full800x15525/15505 strips under app-reader/r-strip/r-page data-page. Headless chapter403 retained; homepage/series covers do not establish reader acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 5
+    },
+    {
+      "url": "https://nyxscans.com/series/press-play-sami/chapter-96",
+      "finalUrl": "https://nyxscans.com/series/press-play-sami/chapter-96",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "works-wave18",
+      "status": 200,
+      "title": "Press Play, Sami Chapter 96 | Nyx Scans",
+      "imageCount": 13,
+      "canvasCount": 0,
+      "readerFinding": "Public explicitly free chapter96 displays full800x10000 and nearby long body strips under comic-body-container/comic-images-wrapper/figure.image-container. Existing segmented pipeline reused; covers/ad images excluded.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://omegascans.org/series/little-miss-delinquent/chapter-53",
+      "finalUrl": "https://omegascans.org/series/little-miss-delinquent/chapter-53",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "works-wave18",
+      "status": 200,
+      "title": "Little Miss Delinquent - Chapter 53 - Omega Scans",
+      "imageCount": 13,
+      "canvasCount": 0,
+      "readerFinding": "Public chapter displays full720px-wide long strips under the observed lg:container/flex-col reading container. Exact class-token/container selector excludes upper banner and outside covers. Entry only; no OCR/quality acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://mangalove.me/comic/3333",
+      "finalUrl": "https://mangalove.me/comic/3333",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "mangalove-work-wave18",
+      "status": 200,
+      "title": "【全巻無料】兎～野性の闘牌～（全154巻）｜伊藤 誠｜青年漫画読み放題のマンガLOVE",
+      "imageCount": 4,
+      "canvasCount": 0,
+      "readerFinding": "Normal explicitly free viewer79762 displays28 canvas pages760x1100 under viewerBody/viewer/imgWrap. Canvas read raises SecurityError; only existing area-translation entry added, no pixel/source bypass or continuous OCR acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://qimanga.com/series/the-otherworld-general-store/chapter-1",
+      "finalUrl": "https://qimanga.com/series/the-otherworld-general-store/chapter-1",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "qi-reader-wave18",
+      "status": 403,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal background visible browser opens free Read First chapter with full800x15525/15505 strips under app-reader/r-strip/r-page data-page. Headless chapter403 retained; homepage/series covers do not establish reader acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://mangalove.me/viewer/79762",
+      "finalUrl": "https://mangalove.me/viewer/79762",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "mangalove-reader-wave18",
+      "status": 200,
+      "title": "兎～野性の闘牌～ - 1話 - 1巻 | マンガLOVE",
+      "imageCount": 1,
+      "canvasCount": 28,
+      "readerFinding": "Normal explicitly free viewer79762 displays28 canvas pages760x1100 under viewerBody/viewer/imgWrap. Canvas read raises SecurityError; only existing area-translation entry added, no pixel/source bypass or continuous OCR acceptance.",
+      "pageErrorCount": 1,
+      "networkFailureCount": 3
+    },
+    {
+      "url": "https://qimanga.com/series/the-otherworld-general-store/chapter-1",
+      "finalUrl": "https://qimanga.com/series/the-otherworld-general-store/chapter-1",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-long-strip-and-area-readers-wave18",
+      "attempt": "qi-visible-wave18",
+      "status": 200,
+      "title": "The Otherworld General Store – Ch. 1 | Qi Manga",
+      "imageCount": 17,
+      "canvasCount": 0,
+      "readerFinding": "Normal background visible browser opens free Read First chapter with full800x15525/15505 strips under app-reader/r-strip/r-page data-page. Headless chapter403 retained; homepage/series covers do not establish reader acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 3
     }
   ],
   "verification": {
@@ -11223,6 +11625,151 @@
       ],
       "scope": "Additional exact original AVIF title format regression. The image-decoder exception is gone, but OCR produced no accepted text and preserved the original; translated-image smoke timed out before next dialogue. Failed attempt retained separately from hard two-dialogue verification. Not title, translation quality or full-chapter acceptance.",
       "codecFinding": "Actual AVIF input completes without the prior Error attempting to read image; no-text original preservation observed. No Chinese translation on title."
+    },
+    "publicLongStripAreaReadersUnit": {
+      "files": 7,
+      "cases": 471,
+      "result": "passed",
+      "fourDimensionalCoverage": "100% for eight manga config, source authorization, reader and surface modules",
+      "scope": "Three full image body profiles and one tainted-canvas area-only profile. Exact host/path, outside-cover/banner exclusion, dynamic DOM, pause/restore, removal, chapter changes and no canvas pixel reads verified. No pipeline, permissions, protocol or model changes."
+    },
+    "publicLongStripAreaReadersEntries": {
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "result": "passed",
+      "cases": 22,
+      "baseCases": 18,
+      "scope": "Pure icon and four actual public entries under background visible temporary Edge. One HTTPS host-script exception on MangaLove exactly reproduces at the same public URL without extension; retained separately, no extension-stack suppression. This suite performs no OCR.",
+      "publicReaders": [
+        {
+          "requestedUrl": "https://qimanga.com/series/the-otherworld-general-store/chapter-1",
+          "finalUrl": "https://qimanga.com/series/the-otherworld-general-store/chapter-1",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 17,
+          "loadedBodyElements": 2,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://nyxscans.com/series/press-play-sami/chapter-96",
+          "finalUrl": "https://nyxscans.com/series/press-play-sami/chapter-96",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 12,
+          "loadedBodyElements": 7,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://omegascans.org/series/little-miss-delinquent/chapter-53",
+          "finalUrl": "https://omegascans.org/series/little-miss-delinquent/chapter-53",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 11,
+          "loadedBodyElements": 11,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://mangalove.me/viewer/79762",
+          "finalUrl": "https://mangalove.me/viewer/79762",
+          "status": 200,
+          "mode": "area",
+          "bodyElements": 28,
+          "loadedBodyElements": 0,
+          "visibleBodyElements": 2,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "hostErrors": [
+        {
+          "url": "https://mangalove.me/viewer/79762",
+          "message": "Cannot read properties of undefined (reading 'top')",
+          "sourceHosts": [
+            "ajax.googleapis.com",
+            "mangalove.me"
+          ],
+          "reproducedWithoutExtension": true
+        }
+      ]
+    },
+    "publicLongStripAreaReadersBuilds": {
+      "chrome": "passed (53.0s)",
+      "firefox": "passed (55.6s)",
+      "userscript": "passed (9.81s)",
+      "compile": "passed",
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "Verified .output/userscript/fluent-read.user.js (1,917,250 bytes)",
+      "testAudit": "468 files / 6082 declarations",
+      "selectedContracts": "2 files / 809 cases passed",
+      "scope": "Final four body profiles. Firefox/userscript runtime and full architecture suite not run; earlier baseline failures retained. Full235 chapters, default ru/ko and translation/layout quality remain incomplete.",
+      "docsBuild": "passed (3.78s)",
+      "docsVerifier": {
+        "ok": true,
+        "pages": 77,
+        "links": 3955,
+        "anchors": 741,
+        "images": 154
+      }
+    },
+    "nyxPublicLongStripTranslation": {
+      "cases": [
+        "long public strip keeps natural width and translates the current reading segment",
+        "pause restores the original strip and resume immediately reuses the translated segment",
+        "scrolling to the following part of the same image uses the existing serial queue",
+        "returning to a completed segment restores its overlay without repeating recognition",
+        "the master switch removes segmented overlays and leaves the host image unchanged"
+      ],
+      "sourceLanguage": "en",
+      "segmentSource": {
+        "width": 800,
+        "height": 10000,
+        "sourceHash": 1217329163,
+        "style": "object-fit: contain; width: 100%;",
+        "className": "h-auto w-full object-contain",
+        "step": 2048,
+        "start": 1
+      },
+      "segmentFirst": {
+        "durationMs": 10517,
+        "outputs": [
+          {
+            "width": 800,
+            "height": 2048,
+            "top": -0.7578125,
+            "style": "position: fixed; pointer-events: none; display: block; left: 279px; top: -0.76px; width: 704px; height: 1802.24px; clip-path: inset(0.76px 0px 985.48px);"
+          }
+        ],
+        "operations": 1
+      },
+      "segmentNext": {
+        "durationMs": 4891,
+        "outputs": [
+          {
+            "width": 800,
+            "height": 2048,
+            "top": -0.515625,
+            "style": "position: fixed; pointer-events: none; display: block; left: 279px; top: -0.52px; width: 704px; height: 1802.24px; clip-path: inset(0.52px 0px 985.72px);"
+          }
+        ],
+        "operations": 2
+      },
+      "operations": 2,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "result": "passed",
+      "publicUrl": "https://nyxscans.com/series/press-play-sami/chapter-96",
+      "hostErrorCount": 0,
+      "scope": "Two2048px reading parts of the same already-visible800x10000 strip, starting at index1, using existing production PaddleOCR and Google. Model files imported through existing verified importer. Scope and quality finding must follow actual final result; not whole chapter or default-language acceptance.",
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-nyx-segments-wave18",
+      "qualityFinding": "Viewed both actual800x2048 outputs: English cooking/cleaning dialogue becomes readable Chinese inside bubbles. Korean artistic sound effects remain original. Second bubble splits a Chinese word across lines and phrasing is stiff; no full-chapter or comprehensive quality acceptance."
     }
   }
 }

@@ -6,6 +6,29 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it.each([
+        ['qimanga.com', 'Qi Manga', '<header><img id="logo" class="r-page-img"></header><app-reader><div class="r-strip"><div class="r-page" data-page="1"><img id="body" class="r-page-img" width="800" height="15525"></div><div class="r-page"><img id="placeholder" class="r-page-img"></div><aside><img id="ad" class="r-page-img"></aside></div></app-reader><div class="r-page" data-page="2"><img id="cover" class="r-page-img"></div>'],
+        ['nyxscans.com', 'Nyx Scans', '<header><img id="cover"></header><div class="comic-body-container"><div class="comic-images-wrapper reader-mode-strip"><figure class="image-container"><img id="body" width="800" height="10000"></figure><aside><img id="ad"></aside></div></div><figure class="image-container"><img id="outside"></figure>'],
+        ['omegascans.org', 'Omega Scans', '<div class="lg:container"><a><img id="banner" class="block object-contain"></a><div class="flex flex-col items-center justify-center overflow-hidden lg:px-0"><div class="relative flex w-full justify-center"><img id="body" class="block object-contain" width="720" height="12565"></div><aside><img id="ad" class="block object-contain"></aside></div></div><div class="relative flex w-full justify-center"><img id="outside" class="block object-contain"></div>'],
+    ])('%s 已显示长条正文规则排除广告、外部推荐并限制章节边界', (host, name, html) => {
+        const site = resolveMangaSite(`https://${host}/series/work/chapter-96`)!;
+        expect(site).toMatchObject({name, requireContent: true, custom: false});
+        const {document} = parseHTML(html);
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['body']);
+        expect(resolveMangaReaderProfile(`www.${host}`, '/series/work/chapter-1.5/')).toBeTruthy();
+        for (const path of ['/', '/series/work', '/series/work/chapter-one', '/series/work/chapter-96/extra']) expect(resolveMangaReaderProfile(host, path)).toBeNull();
+        for (const fake of [`${host}.attacker.test`, `fake${host}`]) expect(resolveMangaReaderProfile(fake, '/series/work/chapter-96')).toBeNull();
+    });
+    it('MangaLove 已显示不可读画布仅提供圈选，排除商店标识、广告画布和作品封面', () => {
+        const site = resolveMangaSite('https://mangalove.me/viewer/79762')!;
+        expect(site).toMatchObject({name: 'MangaLove', selector: ':not(*)', requireContent: true, custom: false});
+        const {document} = parseHTML('<body id="viewerBody"><div class="topMenu"><canvas id="ad"><img id="logo"></canvas></div><div class="viewer vertical"><div class="imgWrap"><canvas id="body" width="760" height="1100"></canvas></div><aside><canvas id="other"></canvas></aside></div><div class="imgWrap"><canvas id="outside"></canvas></div></body>');
+        expect([...document.querySelectorAll(site.areaSelector!)].map(canvas => canvas.id)).toEqual(['body']);
+        expect([...document.querySelectorAll(site.selector)]).toEqual([]);
+        expect(resolveMangaReaderProfile('www.mangalove.me', '/viewer/79762/')).toBeTruthy();
+        for (const path of ['/', '/comic/3333', '/viewer/word', '/viewer/79762/extra']) expect(resolveMangaReaderProfile('mangalove.me', path)).toBeNull();
+        expect(resolveMangaReaderProfile('mangalove.me.attacker.test', '/viewer/79762')).toBeNull();
+    });
     it('MangaYun 正文排除加载吉祥物、背景搜索封面与章节广告',()=>{
         const site=resolveMangaSite('https://mangayun.com/read/Book_A/Chapter-1')!;
         expect(site).toMatchObject({name:'MangaYun',requireContent:true,custom:false});

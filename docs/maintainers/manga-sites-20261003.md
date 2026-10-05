@@ -94,7 +94,7 @@
 | 84 | ComicGardo | comic-gardo.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 85 | Booklive | booklive.jp | 分片正文：圈选入口 | 正常免费试读、关闭说明及翻页已显示分片正文；圈选入口通过 |
 | 86 | MrBlue | mrblue.com | 通用正文图片检测 | 公开免费作品与章节列表可访问；正常点击尚未显示正文 |
-| 87 | MangaLove | mangalove.me | 通用正文图片检测 | 首页 HTML 可访问 |
+| 87 | MangaLove | mangalove.me | 正文画布圈选入口 | 免费 viewer 正文画布受跨域限制；不读取像素或启动连续图片翻译 |
 | 88 | rawdevart.art | rawdevart.art | 通用正文图片检测 | 首页 HTML 可访问 |
 | 89 | manga-shinchan.com | manga-shinchan.com | 通用正文图片检测 | 章节样本仅见宣传图；正文待确认 |
 | 90 | yaoimangaonline.com | yaoimangaonline.com | 通用正文图片检测 | 首页 HTML 可访问 |
@@ -103,8 +103,8 @@
 | 93 | mangalib | mangalib.me | 通用正文图片检测 | 公开实章两种窗口未显示正文；正常截图字体等待超时 |
 | 94 | novelcrow | novelcrow.com | 通用正文图片检测 | 访问受限 |
 | 95 | cn.twbzmg.com | cn.twbzmg.com | 包子漫画正文规则族 | 首页 HTML 可访问；本轮未验此域名章节 |
-| 96 | Nyx Scans | nyxscans.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 97 | Qi Manga | qimanga.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 96 | Nyx Scans | nyxscans.com | 专用长条正文图片 | 免费章节与入口已核对；复用既有分段链路 |
+| 97 | Qi Manga | qimanga.com | 专用长条正文图片 | 正常后台浏览器可打开免费章节；无界面模式的 403 记录保留 |
 | 98 | MG Read | mgread.io | 专用正文图片 | 公开章节正文结构已核对 |
 | 99 | 뉴토끼대피소.com | 뉴토끼대피소.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 100 | 블랙툰.co | 블랙툰.co | 通用正文图片检测 | 首页 HTML 可访问 |
@@ -143,7 +143,7 @@
 | 133 | newmanhwa.com | newmanhwa.com | 通用正文图片检测 | 连接失败 |
 | 134 | fxfx302.com | fxfx302.com | 通用正文图片检测 | 连接失败 |
 | 135 | comic-meteor.jp | comic-meteor.jp · kirapo.jp | 分片阅读器 · 圈选翻译 | 公开章节 HTTP 200；旧站重定向 Kirapo |
-| 136 | omegascans.org | omegascans.org | 通用正文图片检测 | 首页 HTML 可访问 |
+| 136 | omegascans.org | omegascans.org | 专用长条正文图片 | 公开章节与入口已核对；排除上方横幅和外部推荐 |
 | 137 | readallcomics.com | readallcomics.com | 通用正文图片检测 | 当前 HTTP 522 连接超时 |
 | 138 | ranfren.neocities.org | ranfren.neocities.org | 通用正文图片检测 | 连接失败 |
 | 139 | utoon.net | utoon.net | 通用检测；漫画正文未确认 | 当前首页为浏览器游戏；历史漫画归档返回 404 |
@@ -162,7 +162,7 @@
 | 152 | lrr.tvc-16.science | lrr.tvc-16.science | 通用正文图片检测 | 首页 HTML 可访问 |
 | 153 | mangarawad.org | mangarawad.org | 通用正文图片检测 | 连接失败 |
 | 154 | manga-park.com | manga-park.com | 专用正文图片检测 | 作品页免费按钮已显示正文；直接章节地址 HTTP 404 |
-| 155 | mangaflame.org | mangaflame.org | 通用正文图片检测 | 首页 HTML 可访问 |
+| 155 | mangaflame.org | mangaflame.org | 通用检测；漫画正文未确认 | 当前跳转域名停放页，未将停放子域登记为漫画别名 |
 | 156 | manhwa404.com | manhwa404.com | 通用正文图片检测 | 连接失败 |
 | 157 | xmanga.org | xmanga.org | 通用正文图片检测 | 连接失败 |
 | 158 | florascans.net | florascans.net | 通用正文图片检测 | 连接失败 |
