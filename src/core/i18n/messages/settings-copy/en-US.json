@@ -74,7 +74,17 @@
     "settings.services.hunyuanModel": "Tencent Hunyuan Models",
     "settings.services.customEndpointHelp": "Use an OpenAI Chat Completions compatible endpoint: enter a full Chat Completions URL or a Base URL ending in /v1. The model must support Chat Completions.",
     "settings.services.waitTimeout": "Timeout (seconds)",
-    "settings.services.reasoning": "Reasoning"
+    "settings.services.reasoning": "Reasoning",
+    "settings.services.keys.usage": "Key usage",
+    "settings.services.keys.firstOnly": "First key only",
+    "settings.services.keys.rotate": "Rotate keys",
+    "settings.services.keys.usageHelp": "Rotation distributes requests and switches keys after failures. Using only the first key preserves the other keys.",
+    "settings.services.keys.requirement": "Key requirement",
+    "settings.services.keys.required": "Key required",
+    "settings.services.keys.optional": "Allow empty",
+    "settings.services.keys.requirementHelp": "Choose Key required for authenticated endpoints, or Allow empty for endpoints that accept anonymous requests. A filled key is still used.",
+    "settings.services.keys.optionalPlaceholder": "Optional; a filled key will be used",
+    "settings.services.keys.addKey": "Add key"
   },
   "legacy": {
     "同步连接已变化，请重新生成预览。": "The sync connection changed. Generate a new preview.",

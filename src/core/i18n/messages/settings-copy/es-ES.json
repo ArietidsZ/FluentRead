@@ -74,7 +74,17 @@
     "settings.services.hunyuanModel": "Modelos de Tencent Hunyuan",
     "settings.services.customEndpointHelp": "Usa una interfaz compatible con OpenAI Chat Completions: introduce la URL completa de Chat Completions o una URL base que termine en /v1. El modelo debe admitir Chat Completions.",
     "settings.services.waitTimeout": "Espera máxima (segundos)",
-    "settings.services.reasoning": "Razonamiento"
+    "settings.services.reasoning": "Razonamiento",
+    "settings.services.keys.usage": "Uso de claves",
+    "settings.services.keys.firstOnly": "Solo la primera",
+    "settings.services.keys.rotate": "Rotar claves",
+    "settings.services.keys.usageHelp": "La rotación distribuye las solicitudes y cambia de clave tras un fallo. Usar solo la primera conserva las demás.",
+    "settings.services.keys.requirement": "Requisito de clave",
+    "settings.services.keys.required": "Clave obligatoria",
+    "settings.services.keys.optional": "Clave opcional",
+    "settings.services.keys.requirementHelp": "Elige Clave obligatoria para las API autenticadas, o Clave opcional para las API que aceptan solicitudes anónimas. Una clave rellenada se sigue usando.",
+    "settings.services.keys.optionalPlaceholder": "Opcional; se usará la clave rellenada",
+    "settings.services.keys.addKey": "Añadir clave"
   },
   "legacy": {
     "同步连接已变化，请重新生成预览。": "La conexión ha cambiado. Genera una nueva vista previa.",

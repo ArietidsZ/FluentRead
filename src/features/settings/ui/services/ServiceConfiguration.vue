@@ -1,6 +1,6 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
- * 文件职责：渲染当前翻译服务的详细连接配置，按对齐的连接字段、就近的密钥开关和紧凑页签中的模型偏好、提示词、请求限制、接口兼容显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体与请求头、按域名移除来源头等字段，以及服务和模型的独立请求限制。
+ * 文件职责：渲染当前翻译服务的详细连接配置，按对齐的连接字段、输入下方的添加密钥、使用方式与密钥要求和紧凑页签中的模型偏好、提示词、请求限制、接口兼容显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体与请求头、按域名移除来源头等字段，以及服务和模型的独立请求限制。
  * 主要内容：组件派生字段可见性与连接示例，将成对密钥 ID 同步到 apiKeys 和兼容 token，区分缺少必填 Key 与允许匿名的连接检查并管理等待超时；免费翻译检查完整目录并逐服务展示结果，Chrome 在点击时准备当前语言对，通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
@@ -285,24 +285,27 @@
 
     <ApiKeyList
       v-if="compute.showToken && !compute.showServiceSecret"
-      :label="service === services.deeplx && !deepLXRequiresToken ? translateLegacy('API Key（可选）') : compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
+      :label="compute.showAI && !compute.requireApiKey || service === services.deeplx && !deepLXRequiresToken ? translateLegacy('API Key（可选）') : compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
+      :placeholder="compute.showAI && !compute.requireApiKey || service === services.deeplx && !deepLXRequiresToken ? t('settings.services.keys.optionalPlaceholder') : undefined"
       :data-cloud-credential="compute.showCloudVendor ? 'token' : undefined"
       :keys="displayedApiKeys" :states="apiKeyChecks" :summary="apiKeySummary" :busy="connectionTestBusy"
       :allow-multiple="apiKeyRotationEnabled"
       :connection-state="standaloneApiKeyCheck" :check-mode="apiKeyCheckMode"
       @add="addApiKey" @update="updateApiKey" @remove="removeApiKey" @test="testSingleApiKey"
     >
+      <template #help><FieldHelp v-if="compute.showAI" :content="t('settings.services.keys.requirementHelp')" /></template>
       <template #tools>
-        <div class="credential-toggle" data-api-key-rotation-setting>
-          <span>{{ t('settings.services.keys.multiKeyTitle') }}</span>
-          <FieldHelp :content="t('settings.services.keys.multiKeyHelp')" />
-          <el-switch :model-value="apiKeyRotationEnabled" :aria-label="t('settings.services.keys.multiKeyTitle')" size="small" @update:model-value="setApiKeyRotationEnabled" />
+        <div v-if="apiKeys.length > 1" class="credential-usage" data-api-key-rotation-setting role="radiogroup" :aria-label="t('settings.services.keys.usage')">
+          <div class="credential-modes">
+            <label :class="{'is-selected': !apiKeyRotationEnabled}"><input type="radio" :name="`api-key-mode-${service}`" value="single" :checked="!apiKeyRotationEnabled" @change="setApiKeyRotationEnabled(false)" /><span>{{ t('settings.services.keys.firstOnly') }}</span></label>
+            <label :class="{'is-selected': apiKeyRotationEnabled}"><input type="radio" :name="`api-key-mode-${service}`" value="rotation" :checked="apiKeyRotationEnabled" @change="setApiKeyRotationEnabled(true)" /><span>{{ t('settings.services.keys.rotate') }}</span></label>
+          </div>
+          <FieldHelp :content="t('settings.services.keys.usageHelp')" />
         </div>
-        <div v-if="compute.showAI" class="credential-toggle" data-api-key-auth-policy>
-          <span>{{ t('settings.services.keys.authRequired') }}</span>
-          <FieldHelp :content="t('settings.services.keys.authHelp')" />
-          <el-switch v-model="compute.requireApiKey" :aria-label="t('settings.services.keys.authRequired')" size="small" />
-        </div>
+        <select v-if="compute.showAI" class="credential-requirement" data-api-key-auth-policy :aria-label="t('settings.services.keys.requirement')" :value="compute.requireApiKey ? 'required' : 'optional'" @change="setApiKeyRequirement">
+          <option value="required">{{ t('settings.services.keys.required') }}</option>
+          <option value="optional">{{ t('settings.services.keys.optional') }}</option>
+        </select>
       </template>
     </ApiKeyList>
     <p v-if="service === services.deeplx && deepLXRequiresToken && !apiKeyIndexes.length" class="field-warning" data-deeplx-key-required role="status">{{ deepLXTokenHelp }}</p>
@@ -524,6 +527,9 @@ const apiKeyRotationEnabled = computed<boolean>({
 function setApiKeyRotationEnabled(value: boolean): void {
   apiKeyRotationEnabled.value = value
 }
+function setApiKeyRequirement(event: Event): void {
+  compute.value.requireApiKey = (event.target as HTMLSelectElement).value === 'required'
+}
 const displayedApiKeys = computed(() => apiKeyRotationEnabled.value ? apiKeys.value : apiKeys.value.slice(0, 1))
 const apiKeyIndexes = computed(() => eligibleApiKeyIndexes(displayedApiKeys.value))
 const usesApiKeyList = computed(() => compute.value.showToken && !compute.value.showServiceSecret)
@@ -542,7 +548,8 @@ function syncApiKeys(next: string[]): void {
 }
 
 function addApiKey(): void {
-  if (!apiKeyRotationEnabled.value || apiKeys.value.some(key => !key.trim())) return
+  apiKeyRotationEnabled.value = true
+  if (apiKeys.value.some(key => !key.trim())) return
   syncApiKeys([...apiKeys.value, ''])
 }
 function updateApiKey(index: number, value: string): void {
@@ -1069,8 +1076,15 @@ onBeforeUnmount(() => {
 .service-settings-tabs :deep(.el-tabs__nav-wrap::after) { height: 1px; background: var(--line); }
 .service-settings-panel { min-width: 0; padding-top: 12px; }
 .configuration-scope { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.credential-toggle { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
-.credential-toggle :deep(.el-switch) { margin-left: 3px; }
+.credential-usage { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.credential-modes { display: flex; flex-wrap: wrap; padding: 2px; gap: 2px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-soft); }
+.credential-modes label { position: relative; display: inline-flex; align-items: center; min-height: 26px; padding: 2px 7px; border-radius: 5px; color: var(--muted); font-size: 11px; cursor: pointer; }
+.credential-modes label.is-selected { color: var(--ink); background: var(--surface); box-shadow: 0 1px 3px #0000000d; }
+.credential-modes input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.credential-modes label:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
+.credential-requirement { min-width: 0; max-width: 100%; min-height: 30px; border: 1px solid var(--line); border-radius: 7px; padding: 4px 7px; color: var(--muted); background: var(--surface); font: inherit; font-size: 11px; cursor: pointer; }
+.credential-requirement:hover { color: var(--ink); border-color: var(--brand); }
+.credential-requirement:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .custom-template-heading { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin: 0 0 10px; }
 .prompt-template-list { display: grid; gap: 14px; }
 .service-connection-section :deep(.request-limit-settings) { border-bottom: 0; width: 100%; }

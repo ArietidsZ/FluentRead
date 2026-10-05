@@ -74,8 +74,8 @@ async function main() {
   }
   async function keys() { return page.locator('[data-api-key-list] [data-api-key-index]'); }
   async function enableKeyRotation() {
-    const control = page.locator('[data-api-key-rotation-setting] .el-switch');
-    if (await control.getAttribute('aria-checked') !== 'true') await control.click();
+    const control = page.locator('[data-api-key-rotation-setting] input[value="rotation"]');
+    if (await control.count()) await control.check();
   }
   async function checkAll() {
     const before = report.requests.length;
@@ -91,6 +91,8 @@ async function main() {
   report.cases.push('check-all-lives-inside-service-header');
   const list = await keys();
   assert.equal(await list.count(), 1);
+  assert.equal(await page.locator('[data-api-key-rotation-setting]').count(), 0, 'One key needs no usage selector');
+  assert.equal(await page.locator('[data-api-key-list] .el-switch').count(), 0, 'Credential input must not depend on ambiguous switches');
   await enableKeyRotation();
   await page.locator('[data-api-key-list] .api-key-row input').first().fill('');
   await page.locator('[data-api-key-add]').click();
@@ -102,6 +104,11 @@ async function main() {
   await page.locator('[data-api-key-add]').click();
   const rows = await keys();
   await rows.nth(1).waitFor({state: 'visible'});
+  assert.equal(await page.locator('[data-api-key-rotation-setting] input[value="rotation"]').isChecked(), true, 'Adding another key enables rotation directly');
+  const firstInputBox = await page.locator('.api-key-entry input').first().boundingBox();
+  const addBox = await page.locator('[data-api-key-add]').boundingBox();
+  assert(firstInputBox && addBox && addBox.y >= firstInputBox.y + firstInputBox.height, 'Adding keys belongs below the input');
+  report.cases.push('direct-add-enables-rotation-and-reveals-contextual-usage');
   await rows.nth(1).locator('input').fill('fixture-B');
   await page.locator('[data-api-key-add]').click();
   await rows.nth(2).waitFor({state: 'visible'});
@@ -157,7 +164,7 @@ async function main() {
   report.cases.push('error-details-expand-collapse-with-keyboard');
   report.cases.push('sequential-401-and-success-per-key-without-fallback');
   await page.locator('[data-api-key-list]').scrollIntoViewIfNeeded();
-  await page.locator('.api-key-heading-title').click();
+  await page.locator('.api-key-heading strong').click();
   await page.locator('[data-api-key-list]').screenshot({path: path.join(artifactsDir, 'api-keys-panel.png')}); report.screenshots.push('api-keys-panel.png');
   await page.screenshot({path: path.join(artifactsDir, 'api-keys-results.png')}); report.screenshots.push('api-keys-results.png');
   await page.screenshot({path: path.join(artifactsDir, 'api-keys-light.png')}); report.screenshots.push('api-keys-light.png');
@@ -265,9 +272,8 @@ async function main() {
     }, index);
   }
   await page.waitForFunction(() => [...document.querySelectorAll('[data-api-key-list] .api-key-row input')].every(input => input.value === ''));
-  const authSwitch = page.locator('[data-api-key-auth-policy] input[type="checkbox"]');
-  const authControl = page.locator('[data-api-key-auth-policy] .el-switch');
-  if (await authSwitch.isChecked()) await authControl.click();
+  const authControl = page.locator('select[data-api-key-auth-policy]');
+  await authControl.selectOption('optional');
   assert(await allKeyInputs.evaluateAll(inputs => inputs.every(input => input.value === '')), 'cleared keys must stay empty after changing authentication policy');
   const anonymousButton = page.locator('.detail-hero [data-connection-test-button]');
   assert.equal(await anonymousButton.isDisabled(), false);
@@ -276,7 +282,7 @@ async function main() {
   await page.locator('[data-api-key-list][data-api-key-busy="false"]').waitFor();
   assert.equal(report.requests.length, anonymousBefore + 1);
   assert.equal(report.requests.at(-1).key, '');
-  await authControl.click();
+  await authControl.selectOption('required');
   await page.waitForFunction(() => document.querySelector('[data-connection-test-button]')?.disabled === true);
   assert.equal(await anonymousButton.isDisabled(), true);
   report.cases.push('advanced-anonymous-key-policy-remains-editable');
@@ -313,7 +319,7 @@ async function main() {
   await page.locator('[data-service-value="azureTranslator"]').click();
   assert.equal(await page.locator('[data-cloud-credential="token"][data-api-key-list]').count(), 1);
   assert.equal(await page.locator('[data-cloud-credential="secret"]').count(), 0);
-  assert.match(await page.locator('.api-key-heading-title strong').innerText(), /密钥/u);
+  assert.match(await page.locator('.api-key-heading strong').innerText(), /密钥/u);
   await page.locator('[data-api-key-list] .api-key-entry input').first().fill('fixture-azure-first');
   await enableKeyRotation();
   await page.locator('[data-api-key-add]').click();

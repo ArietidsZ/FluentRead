@@ -97,15 +97,14 @@ async function main() {
     const thinking = await page.locator('[data-testid="model-thinking-control"] [role="switch"]').getAttribute('aria-checked');
     await check('model-preferences'); await shot('model-preferences');
     await expand('keys');
-    await page.locator('[data-api-key-rotation-setting] .el-switch').click();
     await page.locator('[data-api-key-list] .api-key-entry input').first().fill('fixture-key-one');
     await page.locator('.api-key-add').click();
     await page.locator('[data-api-key-list] .api-key-entry input').nth(1).fill('fixture-key-two');
     await check('multiple-keys'); await shot('multiple-keys');
     // Temporarily disabling rotation retains every existing key.
-    await page.locator('[data-api-key-rotation-setting] .el-switch').click();
+    await page.locator('[data-api-key-rotation-setting] input[value="single"]').check();
     assert(await page.locator('[data-api-key-list] .api-key-entry input').count() === 1, 'Single-key mode did not collapse');
-    await page.locator('[data-api-key-rotation-setting] .el-switch').click();
+    await page.locator('[data-api-key-rotation-setting] input[value="rotation"]').check();
     assert(await page.locator('[data-api-key-list] .api-key-entry input').nth(1).inputValue() === 'fixture-key-two', 'Rotation switch discarded the second key');
     await expand('prompts');
     const prompt = page.locator('[data-testid="prompt-template-list"] textarea').last();
@@ -149,7 +148,7 @@ async function main() {
     assert(await page.locator('[id$="tab-translation"]').getAttribute('aria-selected') === 'true', 'Service switch must reset to model preferences');
     assert((await page.locator('[data-testid="model-picker-trigger"] strong').textContent()).trim() === chosenModel, 'Service switch loses selected model');
     await expand('keys');
-    await page.locator('[data-api-key-rotation-setting] .el-switch').click();
+    await page.locator('[data-api-key-rotation-setting] input[value="single"]').check();
     await patchFixture({theme: 'dark'});
     await page.waitForFunction(() => document.documentElement.classList.contains('dark'));
     await check('service-dark'); await shot('service-dark');

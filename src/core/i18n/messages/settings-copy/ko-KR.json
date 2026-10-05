@@ -74,7 +74,17 @@
     "settings.services.hunyuanModel": "Tencent Hunyuan 모델",
     "settings.services.customEndpointHelp": "OpenAI Chat Completions 호환 엔드포인트입니다. 전체 Chat Completions URL 또는 /v1로 끝나는 기본 URL을 입력하세요. 모델이 Chat Completions를 지원해야 합니다.",
     "settings.services.waitTimeout": "최대 대기 시간(초)",
-    "settings.services.reasoning": "추론"
+    "settings.services.reasoning": "추론",
+    "settings.services.keys.usage": "키 사용 방식",
+    "settings.services.keys.firstOnly": "첫 번째 키만",
+    "settings.services.keys.rotate": "키 순환",
+    "settings.services.keys.usageHelp": "키 순환은 요청을 분산하고 실패 시 다른 키로 전환합니다. 첫 번째 키만 사용해도 다른 키는 보존됩니다.",
+    "settings.services.keys.requirement": "키 요구 사항",
+    "settings.services.keys.required": "키 필수",
+    "settings.services.keys.optional": "빈 값 허용",
+    "settings.services.keys.requirementHelp": "인증이 필요한 API는 키 필수를, 익명 요청을 허용하는 API는 빈 값 허용을 선택하세요. 입력한 키는 계속 사용됩니다.",
+    "settings.services.keys.optionalPlaceholder": "선택 사항: 입력한 키가 사용됩니다",
+    "settings.services.keys.addKey": "키 추가"
   },
   "legacy": {
     "同步连接已变化，请重新生成预览。": "동기화 연결이 변경되었습니다. 미리보기를 다시 생성하세요.",

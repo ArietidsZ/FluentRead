@@ -71,6 +71,13 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     const initialDefault = await page.locator('.service-catalog').getAttribute('data-default-service');
     assert.equal(await page.locator('[data-testid="model-thinking-control"] strong').textContent(), '深度思考');
     await screenshot('openai-model'); await layout('openai-model');
+    await patch({theme: 'dark'});
+    await page.waitForFunction(() => document.documentElement.classList.contains('dark'));
+    const keyPanelShot = path.join(artifactsDir, 'single-key-dark.png');
+    await page.locator('[data-api-key-list]').screenshot({path: keyPanelShot}); report.screenshots.push(keyPanelShot);
+    await layout('single-key-dark');
+    await patch({theme: 'light'});
+    await page.waitForFunction(() => !document.documentElement.classList.contains('dark'));
     // Native tab roles expose a single pane and support keyboard activation.
     const modelTab = page.locator('[id$="tab-translation"]'); await modelTab.focus(); await modelTab.press('ArrowRight');
     await page.locator('#service-prompts-settings').waitFor({state: 'visible'});
@@ -87,16 +94,15 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     report.persistenceCases.push('model thinking saved through the existing store');
     await page.locator('[data-api-key-list] .api-key-entry input').first().fill('fixture-key-one');
     await page.locator('[data-api-key-list] .api-key-entry input').first().press('Tab');
-    const rotation = page.locator('[data-api-key-rotation-setting] .el-switch');
-    await rotation.click(); await page.locator('[data-api-key-add]').click();
+    await page.locator('[data-api-key-add]').click();
     await page.waitForFunction(() => document.activeElement === document.querySelectorAll('.api-key-entry input')[1]);
     await page.locator('[data-api-key-list] .api-key-entry input').nth(1).fill('fixture-key-two');
     await page.locator('[data-api-key-list] .api-key-entry input').nth(1).press('Tab');
     await saved(c => c.apiKeys.openai.length === 2 && c.apiKeys.openai[1] === 'fixture-key-two');
-    await rotation.click(); assert.equal(await page.locator('[data-api-key-list] .api-key-entry input').count(), 1);
-    await rotation.click(); assert.equal(await page.locator('[data-api-key-list] .api-key-entry input').nth(1).inputValue(), 'fixture-key-two');
+    await page.locator('[data-api-key-rotation-setting] input[value="single"]').check(); assert.equal(await page.locator('[data-api-key-list] .api-key-entry input').count(), 1);
+    await page.locator('[data-api-key-rotation-setting] input[value="rotation"]').check(); assert.equal(await page.locator('[data-api-key-list] .api-key-entry input').nth(1).inputValue(), 'fixture-key-two');
     await screenshot('openai-multiple-keys'); await layout('openai-multiple-keys');
-    report.cases.push('rotation is beside keys; disabling preserves all keys; no duplicate column headings');
+    report.cases.push('adding a key enables rotation; contextual usage preserves hidden keys; no duplicate column headings');
     await page.evaluate(() => {
       const original = chrome.runtime.sendMessage.bind(chrome.runtime);
       chrome.runtime.sendMessage = function(message, ...args) {
