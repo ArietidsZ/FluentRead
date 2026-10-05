@@ -485,7 +485,13 @@ describe('漫画阅读规则与持久偏好', () => {
             if (['pixiv.net','mangaplus.shueisha.co.jp'].includes(host)) continue;
             expect(isCatalogMangaHost(new URL(`https://${host}`).hostname)).toBe(true);
         }
-        expect(MANGA_SITE_CATALOG.find(site => site.name === 'JinMangas')?.hosts).toEqual([]);
+        expect(MANGA_SITE_CATALOG.find(site => site.name === 'JinMangas')?.hosts).toEqual(['jinmangas.com','mangafree.info']);
+        for (const host of ['jinmangas.com','mangafree.info']) {
+            expect(isCatalogMangaHost(host)).toBe(true);
+            expect(resolveMangaSite(`https://${host}/manga/title/chapter-1/`)).toMatchObject({generic:true,custom:false});
+            expect(resolveMangaSite(`https://${host}/`)).toBeNull();
+            expect(isCatalogMangaHost(`${host}.attacker.test`)).toBe(false);
+        }
         expect(MANGA_SITE_CATALOG.find(site => site.name === 'KLMANGA')?.hosts).toContain('klmanga.my');
         expect(MANGA_SITE_CATALOG.find(site => site.name === 'Manga4u')?.hosts).toContain('mn4u.net');
     });

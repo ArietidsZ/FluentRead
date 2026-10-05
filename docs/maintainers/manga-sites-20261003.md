@@ -1,8 +1,8 @@
 # 漫画网站清单与访问核对
 
-2026-10-05 核对，保留用户要求的 **235 个去重名称**。已登记的域名会自动检测正文图片；Pixiv、MANGA Plus、WeebCentral、Dynasty、MangaDNA、Rawkuma 与单作品站使用专用正文规则。Champion Cross、Comic Ryu 和 Comic Growl 的公开可读画布接入连续翻译；不可读画布和已核对的分片站提供圈选入口。网站停服、验证、登录与付费条件不会因登记而消失。
+2026-10-05 核对，2026-10-06 补充，保留用户要求的 **235 个去重名称**。已登记的域名会自动检测正文图片；Pixiv、MANGA Plus、WeebCentral、Dynasty、MangaDNA、Rawkuma 与单作品站使用专用正文规则。Champion Cross、Comic Ryu 和 Comic Growl 的公开可读画布接入连续翻译；不可读画布和已核对的分片站提供圈选入口。网站停服、验证、登录与付费条件不会因登记而消失。
 
-域名来源包括[用户指定 Issue](https://github.com/immersive-translate/immersive-translate/issues/1809)、其中[历史清单](https://github.com/immersive-translate/immersive-translate/issues/1809#issuecomment-3047801980)、[小学馆官网](https://televikun-super-hero-comics.com/rensai/ultramanblazar/)及公开站点名称核对。`comemh8` 对应旧清单 Omemh8；JinMangas 仍缺少可确认的现用阅读链接。Syosetu 与 KLMANGA 已纠正为旧清单中的漫画域名，首页重定向确认的 Syosetu 新域名一并登记。
+域名来源包括[用户指定 Issue](https://github.com/immersive-translate/immersive-translate/issues/1809)、其中[历史清单](https://github.com/immersive-translate/immersive-translate/issues/1809#issuecomment-3047801980)、[小学馆官网](https://televikun-super-hero-comics.com/rensai/ultramanblazar/)及公开站点名称核对。`comemh8` 对应旧清单 Omemh8；[JinMangas 原站页面](https://jinmangas.com/manga/dont-say-you-love-me/)的历史缓存确认名称归属，当前正常浏览器确认原域名以 301 跳转到 mangafree.info；目标返回 403，两个域名仅登记通用检测，正文未验收。Syosetu 与 KLMANGA 已纠正为旧清单中的漫画域名，首页重定向确认的 Syosetu 新域名一并登记。
 
 “首页 HTML 可访问”只证明本次收到页面，不证明章节、模型识别、服务翻译或全部设备通过。首页失败也可能是本地网络、站点验证或区域限制，不推断永久停服。停服和域名停放单独标注。原始 HTML 留在临时证据目录；仓库只保存地址、状态、哈希与结构摘要，见 `scripts/testing/evidence/manga-site-checks-20261005.json`。
 
@@ -39,7 +39,7 @@
 | 29 | Yymanhua | yymanhua.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 30 | Manhwatop | manhwatop.com | 通用正文图片检测 | 访问受限 |
 | 31 | Palcy | palcy.jp | 公开背景正文 · 连续翻译 | 同源背景完整页可读 |
-| 32 | Comic-Trail | comic-trail.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
+| 32 | Comic-Trail | comic-trail.com | 画布/分片：圈选入口 | 公开章节 HTTP 200；画布像素 SecurityError；生产入口可打开并取消，未验证 OCR |
 | 33 | Templetoons | templetoons.com | 专用直系长图正文，复用分段 | 另一免费章加载 720×10155 正文，标签页已选中且普通滚动后可见，实页入口通过；旧加载占位及关闭扩展的选中标签页空正文对照保留，未验 OCR 或全部章节 |
 | 34 | Batocomic | batocomic.net | 通用正文图片检测 | 当前首页是分类停放页；未推断替代域名 |
 | 35 | Comic-action | comic-action.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
@@ -73,7 +73,7 @@
 | 63 | Lezhin Comics | lezhin.com、lezhinus.com | 专用英语站正文图片 | 免费首话真实翻译及滚动续译通过；韩语站未验收，Cookie 横幅遮挡下部 |
 | 64 | BeLTOON | beltoon.jp | 专用正文图片检测 | 正常内容确认及免费首话入口打开 viewer/digging/p1；15 张同源 blob 长图，首张 1280×4306，入口通过；未验 OCR |
 | 65 | ManhwaClub | manhwaclub.net | 专用正文图片 | 公开章节正文已核对；未验 OCR |
-| 66 | JinMangas | 待确认 | 待确认 | 缺少可确认地址 |
+| 66 | JinMangas | jinmangas.com、mangafree.info | 通用正文图片检测；正文未验收 | 原站公开 301 跳转；当前目标及作品路径 HTTP 403，验证页无漫画入口 |
 | 67 | Atsumaru | atsu.moe | 专用正文图片，长图分段 | 800×15744 原图的两段翻译链路通过；整条未验 |
 | 68 | Comic CMOA | cmoa.jp | 分片正文：圈选入口 | www 免费试读 HTTP 200；正常关闭操作提示，分片已核对 |
 | 69 | Televi-Kun Super Hero Comics | televikun-super-hero-comics.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
@@ -91,7 +91,7 @@
 | 81 | Jumptoon | jumptoon.com | 受跨域限制画布：圈选入口 | 公开章节正文画布已核对 |
 | 82 | Fenoxo | fenoxo.com | 通用正文图片检测 | 当前为游戏开发博客并有年龄验证表单，未确认公开漫画正文 |
 | 83 | MangaFreak | mangafreak.net / mangafreak.me | 专用正文图片 | 公开章节正文结构已核对 |
-| 84 | ComicGardo | comic-gardo.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
+| 84 | ComicGardo | comic-gardo.com | 画布/分片：圈选入口 | 公开章节 HTTP 200；画布像素 SecurityError；生产入口可打开并取消，未验证 OCR |
 | 85 | Booklive | booklive.jp | 分片正文：圈选入口 | 正常免费试读、关闭说明及翻页已显示分片正文；圈选入口通过 |
 | 86 | MrBlue | mrblue.com | 通用正文图片检测 | 正常免费首话按钮打开 viewer.mrblue.com 阅读窗口，窗口明确要求登录；没有正文，未提交登录 |
 | 87 | MangaLove | mangalove.me | 正文画布圈选入口 | 免费 viewer 正文画布受跨域限制；不读取像素或启动连续图片翻译 |
@@ -200,7 +200,7 @@
 | 190 | readcomiconline.li | readcomiconline.li | 通用正文图片检测 | 连接失败 |
 | 191 | championcross.jp | championcross.jp | 可读画布连续翻译 | 公开章节画布已核对 |
 | 192 | mechacomic.jp | mechacomic.jp | 纵向完整正文图片 | 正常免费入口及两幅对白 OCR 链路通过；竖排漏识别/错译仍在 |
-| 193 | kuragebunch.com | kuragebunch.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
+| 193 | kuragebunch.com | kuragebunch.com | 画布/分片：圈选入口 | 公开章节 HTTP 200；画布像素 SecurityError；生产入口可打开并取消，未验证 OCR |
 | 194 | ichicomi.com | ichicomi.com | 受跨域限制画布：圈选入口 | 公开章节画布结构已核对 |
 | 195 | rookie.shonenjump.com | rookie.shonenjump.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 196 | manhwa-raw.com | manhwa-raw.com | 通用正文图片检测 | 访问受限 |

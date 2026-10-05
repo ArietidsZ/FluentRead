@@ -4,7 +4,8 @@
   "sources": [
     "https://github.com/immersive-translate/immersive-translate/issues/1809",
     "https://github.com/immersive-translate/immersive-translate/issues/1809#issuecomment-3047801980",
-    "https://televikun-super-hero-comics.com/rensai/ultramanblazar/"
+    "https://televikun-super-hero-comics.com/rensai/ultramanblazar/",
+    "https://jinmangas.com/manga/dont-say-you-love-me/"
   ],
   "sites": [
     {
@@ -1315,7 +1316,174 @@
           "hostname": "comic-trail.com"
         }
       ],
-      "adapter": "area"
+      "adapter": "area",
+      "browserRechecks": [
+        {
+          "url": "https://comic-trail.com/",
+          "finalUrl": "https://comic-trail.com/",
+          "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+          "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+          "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+          "attempt": "giga-homes-recheck-wave34",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 90,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-homes-recheck-wave34/reader-inspection.json",
+          "navigationResponses": [
+            {
+              "url": "https://comic-trail.com/",
+              "status": 200
+            }
+          ],
+          "publicChapterLink": "https://comic-trail.com/episode/12207421984031179197",
+          "chapterLinkPresent": true,
+          "readerFinding": "Public root200 lists the independently inspected episode URL; root cover images are not chapter acceptance.",
+          "requestedUrl": "https://comic-trail.com/"
+        },
+        {
+          "url": "https://comic-trail.com/episode/12207421984031179197",
+          "finalUrl": "https://comic-trail.com/episode/12207421984031179197",
+          "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+          "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+          "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+          "attempt": "giga-readers-wave34",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 6,
+          "canvasCount": 5,
+          "pageErrorCount": 0,
+          "networkFailureCount": 4,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-readers-wave34/reader-inspection.json",
+          "navigationResponses": [
+            {
+              "url": "https://comic-trail.com/episode/12207421984031179197",
+              "status": 200
+            }
+          ],
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 5
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 5
+          },
+          "bodySelector": ".page-area > canvas.page-image.js-page-image",
+          "canvases": [
+            {
+              "width": 1350,
+              "height": 1920,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-right"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            },
+            {
+              "width": 1350,
+              "height": 1920,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-left"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            },
+            {
+              "width": 1350,
+              "height": 1920,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-right"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            },
+            {
+              "width": 1350,
+              "height": 1920,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-left"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            },
+            {
+              "width": 1350,
+              "height": 1920,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-right"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            }
+          ],
+          "readerFinding": "Episode200 with five natural-size body canvases; native getImageData raises SecurityError for each. Existing area fallback retained; native-active control alone is not pixel/OCR/paging acceptance.",
+          "requestedUrl": "https://comic-trail.com/episode/12207421984031179197"
+        }
+      ]
     },
     {
       "name": "Templetoons",
@@ -2808,9 +2976,192 @@
     },
     {
       "name": "JinMangas",
-      "hosts": [],
+      "hosts": [
+        "jinmangas.com",
+        "mangafree.info"
+      ],
       "accessChecks": [],
-      "adapter": "unconfirmed"
+      "adapter": "detect",
+      "domainProvenance": {
+        "primarySource": "https://jinmangas.com/manga/dont-say-you-love-me/",
+        "primarySourceScope": "Historical cached original-domain page associates JinMangas name via publisher footer; not current body proof. Web result reports crawled1.1years ago.",
+        "currentObservation": "Fresh normal-window active-tab original-domain request returns301 and public target mangafree.info returns403; current target root/work path has no body.",
+        "capability": "Generic DOM detection registration only; no current chapter/selector/OCR acceptance."
+      },
+      "browserRechecks": [
+        {
+          "url": "https://jinmangas.com/",
+          "finalUrl": "http://mangafree.info/",
+          "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+          "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+          "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+          "attempt": "jin-candidate-wave34",
+          "status": 403,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/jin-candidate-wave34/reader-inspection.json",
+          "navigationResponses": [
+            {
+              "url": "https://jinmangas.com/",
+              "status": 301
+            },
+            {
+              "url": "http://mangafree.info/",
+              "status": 403
+            }
+          ],
+          "readerFinding": "Public original/target request ends in403 verification page with no IMG/canvas body. Normal active-tab control preserves this boundary; no verification bypass or current chapter acceptance.",
+          "requestedUrl": "https://jinmangas.com/"
+        },
+        {
+          "url": "https://jinmangas.com/manga/venomous-empress-reborn/",
+          "finalUrl": "http://mangafree.info/manga/venomous-empress-reborn/",
+          "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+          "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+          "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+          "attempt": "jin-candidate-wave34",
+          "status": 403,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/jin-candidate-wave34/reader-inspection.json",
+          "navigationResponses": [
+            {
+              "url": "https://jinmangas.com/manga/venomous-empress-reborn/",
+              "status": 301
+            },
+            {
+              "url": "http://mangafree.info/manga/venomous-empress-reborn/",
+              "status": 403
+            }
+          ],
+          "readerFinding": "Public original/target request ends in403 verification page with no IMG/canvas body. Normal active-tab control preserves this boundary; no verification bypass or current chapter acceptance.",
+          "requestedUrl": "https://jinmangas.com/manga/venomous-empress-reborn/"
+        },
+        {
+          "url": "https://jinmangas.com/",
+          "finalUrl": "https://mangafree.info/",
+          "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+          "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+          "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+          "attempt": "jin-normal-wave34",
+          "status": 403,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/jin-normal-wave34/reader-inspection.json",
+          "navigationResponses": [
+            {
+              "url": "https://jinmangas.com/",
+              "status": 301
+            },
+            {
+              "url": "https://mangafree.info/",
+              "status": 307
+            },
+            {
+              "url": "https://mangafree.info/",
+              "status": 403
+            }
+          ],
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "readerFinding": "Public original/target request ends in403 verification page with no IMG/canvas body. Normal active-tab control preserves this boundary; no verification bypass or current chapter acceptance.",
+          "requestedUrl": "https://jinmangas.com/"
+        },
+        {
+          "url": "https://mangafree.info/",
+          "finalUrl": "https://mangafree.info/",
+          "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+          "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+          "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+          "attempt": "jin-normal-wave34",
+          "status": 403,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/jin-normal-wave34/reader-inspection.json",
+          "navigationResponses": [
+            {
+              "url": "https://mangafree.info/",
+              "status": 403
+            }
+          ],
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "readerFinding": "Public original/target request ends in403 verification page with no IMG/canvas body. Normal active-tab control preserves this boundary; no verification bypass or current chapter acceptance.",
+          "requestedUrl": "https://mangafree.info/"
+        },
+        {
+          "url": "https://mangafree.info/manga/venomous-empress-reborn/",
+          "finalUrl": "https://mangafree.info/manga/venomous-empress-reborn/",
+          "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+          "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+          "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+          "attempt": "jin-normal-wave34",
+          "status": 403,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/jin-normal-wave34/reader-inspection.json",
+          "navigationResponses": [
+            {
+              "url": "https://mangafree.info/manga/venomous-empress-reborn/",
+              "status": 403
+            }
+          ],
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "readerFinding": "Public original/target request ends in403 verification page with no IMG/canvas body. Normal active-tab control preserves this boundary; no verification bypass or current chapter acceptance.",
+          "requestedUrl": "https://mangafree.info/manga/venomous-empress-reborn/"
+        }
+      ]
     },
     {
       "name": "Atsumaru",
@@ -3325,7 +3676,174 @@
           "hostname": "comic-gardo.com"
         }
       ],
-      "adapter": "area"
+      "adapter": "area",
+      "browserRechecks": [
+        {
+          "url": "https://comic-gardo.com/",
+          "finalUrl": "https://comic-gardo.com/",
+          "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+          "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+          "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+          "attempt": "giga-homes-recheck-wave34",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 87,
+          "canvasCount": 0,
+          "pageErrorCount": 1,
+          "networkFailureCount": 4,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-homes-recheck-wave34/reader-inspection.json",
+          "navigationResponses": [
+            {
+              "url": "https://comic-gardo.com/",
+              "status": 200
+            }
+          ],
+          "publicChapterLink": "https://comic-gardo.com/episode/3269754496561191598",
+          "chapterLinkPresent": true,
+          "readerFinding": "Public root200 lists the independently inspected episode URL; root cover images are not chapter acceptance.",
+          "requestedUrl": "https://comic-gardo.com/"
+        },
+        {
+          "url": "https://comic-gardo.com/episode/3269754496561191598",
+          "finalUrl": "https://comic-gardo.com/episode/3269754496561191598",
+          "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+          "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+          "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+          "attempt": "giga-readers-wave34",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 8,
+          "canvasCount": 5,
+          "pageErrorCount": 0,
+          "networkFailureCount": 25,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-readers-wave34/reader-inspection.json",
+          "navigationResponses": [
+            {
+              "url": "https://comic-gardo.com/episode/3269754496561191598",
+              "status": 200
+            }
+          ],
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 11
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 11
+          },
+          "bodySelector": ".page-area > canvas.page-image.js-page-image",
+          "canvases": [
+            {
+              "width": 1125,
+              "height": 1600,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-right"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            },
+            {
+              "width": 1125,
+              "height": 1600,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-left"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            },
+            {
+              "width": 1125,
+              "height": 1600,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-right"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            },
+            {
+              "width": 1125,
+              "height": 1600,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-left"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            },
+            {
+              "width": 1125,
+              "height": 1600,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-right"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            }
+          ],
+          "readerFinding": "Episode200 with five natural-size body canvases; native getImageData raises SecurityError for each. Existing area fallback retained; native-active control alone is not pixel/OCR/paging acceptance.",
+          "requestedUrl": "https://comic-gardo.com/episode/3269754496561191598"
+        }
+      ]
     },
     {
       "name": "Booklive",
@@ -8854,7 +9372,174 @@
           "hostname": "kuragebunch.com"
         }
       ],
-      "adapter": "area"
+      "adapter": "area",
+      "browserRechecks": [
+        {
+          "url": "https://kuragebunch.com/",
+          "finalUrl": "https://kuragebunch.com/",
+          "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+          "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+          "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+          "attempt": "giga-homes-recheck-wave34",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 126,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 9,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-homes-recheck-wave34/reader-inspection.json",
+          "navigationResponses": [
+            {
+              "url": "https://kuragebunch.com/",
+              "status": 200
+            }
+          ],
+          "publicChapterLink": "https://kuragebunch.com/episode/3270296674399717436",
+          "chapterLinkPresent": true,
+          "readerFinding": "Public root200 lists the independently inspected episode URL; root cover images are not chapter acceptance.",
+          "requestedUrl": "https://kuragebunch.com/"
+        },
+        {
+          "url": "https://kuragebunch.com/episode/3270296674399717436",
+          "finalUrl": "https://kuragebunch.com/episode/3270296674399717436",
+          "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+          "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+          "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+          "attempt": "giga-readers-wave34",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 23,
+          "canvasCount": 5,
+          "pageErrorCount": 0,
+          "networkFailureCount": 42,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-readers-wave34/reader-inspection.json",
+          "navigationResponses": [
+            {
+              "url": "https://kuragebunch.com/episode/3270296674399717436",
+              "status": 200
+            }
+          ],
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 27
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 28
+          },
+          "bodySelector": ".page-area > canvas.page-image.js-page-image",
+          "canvases": [
+            {
+              "width": 844,
+              "height": 1200,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-right"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            },
+            {
+              "width": 844,
+              "height": 1200,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-left"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            },
+            {
+              "width": 844,
+              "height": 1200,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-right"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            },
+            {
+              "width": 844,
+              "height": 1200,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-left"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            },
+            {
+              "width": 844,
+              "height": 1200,
+              "readable": false,
+              "pixelError": "SecurityError",
+              "ancestors": [
+                {
+                  "tag": "CANVAS",
+                  "className": "page-image js-page-image"
+                },
+                {
+                  "tag": "P",
+                  "className": "page-area js-page-area align-right"
+                },
+                {
+                  "tag": "DIV",
+                  "className": "image-container js-viewer-content is-spread"
+                }
+              ]
+            }
+          ],
+          "readerFinding": "Episode200 with five natural-size body canvases; native getImageData raises SecurityError for each. Existing area fallback retained; native-active control alone is not pixel/OCR/paging acceptance.",
+          "requestedUrl": "https://kuragebunch.com/episode/3270296674399717436"
+        }
+      ]
     },
     {
       "name": "ichicomi.com",
@@ -15728,6 +16413,662 @@
         "documentVisibility": "visible",
         "loadedImages": 3
       }
+    },
+    {
+      "url": "https://comic-gardo.com/",
+      "finalUrl": "https://comic-gardo.com/",
+      "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+      "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+      "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+      "attempt": "giga-homes-recheck-wave34",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 87,
+      "canvasCount": 0,
+      "pageErrorCount": 1,
+      "networkFailureCount": 4,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-homes-recheck-wave34/reader-inspection.json",
+      "navigationResponses": [
+        {
+          "url": "https://comic-gardo.com/",
+          "status": 200
+        }
+      ],
+      "publicChapterLink": "https://comic-gardo.com/episode/3269754496561191598",
+      "chapterLinkPresent": true,
+      "readerFinding": "Public root200 lists the independently inspected episode URL; root cover images are not chapter acceptance."
+    },
+    {
+      "url": "https://comic-trail.com/",
+      "finalUrl": "https://comic-trail.com/",
+      "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+      "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+      "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+      "attempt": "giga-homes-recheck-wave34",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 90,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-homes-recheck-wave34/reader-inspection.json",
+      "navigationResponses": [
+        {
+          "url": "https://comic-trail.com/",
+          "status": 200
+        }
+      ],
+      "publicChapterLink": "https://comic-trail.com/episode/12207421984031179197",
+      "chapterLinkPresent": true,
+      "readerFinding": "Public root200 lists the independently inspected episode URL; root cover images are not chapter acceptance."
+    },
+    {
+      "url": "https://kuragebunch.com/",
+      "finalUrl": "https://kuragebunch.com/",
+      "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+      "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+      "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+      "attempt": "giga-homes-recheck-wave34",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 126,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 9,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-homes-recheck-wave34/reader-inspection.json",
+      "navigationResponses": [
+        {
+          "url": "https://kuragebunch.com/",
+          "status": 200
+        }
+      ],
+      "publicChapterLink": "https://kuragebunch.com/episode/3270296674399717436",
+      "chapterLinkPresent": true,
+      "readerFinding": "Public root200 lists the independently inspected episode URL; root cover images are not chapter acceptance."
+    },
+    {
+      "url": "https://comic-gardo.com/episode/3269754496561191598",
+      "finalUrl": "https://comic-gardo.com/episode/3269754496561191598",
+      "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+      "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+      "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+      "attempt": "giga-readers-wave34",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 8,
+      "canvasCount": 5,
+      "pageErrorCount": 0,
+      "networkFailureCount": 25,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-readers-wave34/reader-inspection.json",
+      "navigationResponses": [
+        {
+          "url": "https://comic-gardo.com/episode/3269754496561191598",
+          "status": 200
+        }
+      ],
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 11
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 11
+      },
+      "bodySelector": ".page-area > canvas.page-image.js-page-image",
+      "canvases": [
+        {
+          "width": 1125,
+          "height": 1600,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-right"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        },
+        {
+          "width": 1125,
+          "height": 1600,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-left"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        },
+        {
+          "width": 1125,
+          "height": 1600,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-right"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        },
+        {
+          "width": 1125,
+          "height": 1600,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-left"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        },
+        {
+          "width": 1125,
+          "height": 1600,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-right"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        }
+      ],
+      "readerFinding": "Episode200 with five natural-size body canvases; native getImageData raises SecurityError for each. Existing area fallback retained; native-active control alone is not pixel/OCR/paging acceptance."
+    },
+    {
+      "url": "https://comic-trail.com/episode/12207421984031179197",
+      "finalUrl": "https://comic-trail.com/episode/12207421984031179197",
+      "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+      "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+      "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+      "attempt": "giga-readers-wave34",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 6,
+      "canvasCount": 5,
+      "pageErrorCount": 0,
+      "networkFailureCount": 4,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-readers-wave34/reader-inspection.json",
+      "navigationResponses": [
+        {
+          "url": "https://comic-trail.com/episode/12207421984031179197",
+          "status": 200
+        }
+      ],
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 5
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 5
+      },
+      "bodySelector": ".page-area > canvas.page-image.js-page-image",
+      "canvases": [
+        {
+          "width": 1350,
+          "height": 1920,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-right"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        },
+        {
+          "width": 1350,
+          "height": 1920,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-left"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        },
+        {
+          "width": 1350,
+          "height": 1920,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-right"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        },
+        {
+          "width": 1350,
+          "height": 1920,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-left"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        },
+        {
+          "width": 1350,
+          "height": 1920,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-right"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        }
+      ],
+      "readerFinding": "Episode200 with five natural-size body canvases; native getImageData raises SecurityError for each. Existing area fallback retained; native-active control alone is not pixel/OCR/paging acceptance."
+    },
+    {
+      "url": "https://kuragebunch.com/episode/3270296674399717436",
+      "finalUrl": "https://kuragebunch.com/episode/3270296674399717436",
+      "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+      "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+      "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+      "attempt": "giga-readers-wave34",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 23,
+      "canvasCount": 5,
+      "pageErrorCount": 0,
+      "networkFailureCount": 42,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-readers-wave34/reader-inspection.json",
+      "navigationResponses": [
+        {
+          "url": "https://kuragebunch.com/episode/3270296674399717436",
+          "status": 200
+        }
+      ],
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 27
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 28
+      },
+      "bodySelector": ".page-area > canvas.page-image.js-page-image",
+      "canvases": [
+        {
+          "width": 844,
+          "height": 1200,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-right"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        },
+        {
+          "width": 844,
+          "height": 1200,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-left"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        },
+        {
+          "width": 844,
+          "height": 1200,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-right"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        },
+        {
+          "width": 844,
+          "height": 1200,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-left"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        },
+        {
+          "width": 844,
+          "height": 1200,
+          "readable": false,
+          "pixelError": "SecurityError",
+          "ancestors": [
+            {
+              "tag": "CANVAS",
+              "className": "page-image js-page-image"
+            },
+            {
+              "tag": "P",
+              "className": "page-area js-page-area align-right"
+            },
+            {
+              "tag": "DIV",
+              "className": "image-container js-viewer-content is-spread"
+            }
+          ]
+        }
+      ],
+      "readerFinding": "Episode200 with five natural-size body canvases; native getImageData raises SecurityError for each. Existing area fallback retained; native-active control alone is not pixel/OCR/paging acceptance."
+    },
+    {
+      "url": "https://jinmangas.com/",
+      "finalUrl": "http://mangafree.info/",
+      "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+      "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+      "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+      "attempt": "jin-candidate-wave34",
+      "status": 403,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/jin-candidate-wave34/reader-inspection.json",
+      "navigationResponses": [
+        {
+          "url": "https://jinmangas.com/",
+          "status": 301
+        },
+        {
+          "url": "http://mangafree.info/",
+          "status": 403
+        }
+      ],
+      "readerFinding": "Public original/target request ends in403 verification page with no IMG/canvas body. Normal active-tab control preserves this boundary; no verification bypass or current chapter acceptance."
+    },
+    {
+      "url": "https://jinmangas.com/manga/venomous-empress-reborn/",
+      "finalUrl": "http://mangafree.info/manga/venomous-empress-reborn/",
+      "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+      "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+      "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+      "attempt": "jin-candidate-wave34",
+      "status": 403,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/jin-candidate-wave34/reader-inspection.json",
+      "navigationResponses": [
+        {
+          "url": "https://jinmangas.com/manga/venomous-empress-reborn/",
+          "status": 301
+        },
+        {
+          "url": "http://mangafree.info/manga/venomous-empress-reborn/",
+          "status": 403
+        }
+      ],
+      "readerFinding": "Public original/target request ends in403 verification page with no IMG/canvas body. Normal active-tab control preserves this boundary; no verification bypass or current chapter acceptance."
+    },
+    {
+      "url": "https://jinmangas.com/",
+      "finalUrl": "https://mangafree.info/",
+      "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+      "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+      "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+      "attempt": "jin-normal-wave34",
+      "status": 403,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/jin-normal-wave34/reader-inspection.json",
+      "navigationResponses": [
+        {
+          "url": "https://jinmangas.com/",
+          "status": 301
+        },
+        {
+          "url": "https://mangafree.info/",
+          "status": 307
+        },
+        {
+          "url": "https://mangafree.info/",
+          "status": 403
+        }
+      ],
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "readerFinding": "Public original/target request ends in403 verification page with no IMG/canvas body. Normal active-tab control preserves this boundary; no verification bypass or current chapter acceptance."
+    },
+    {
+      "url": "https://mangafree.info/",
+      "finalUrl": "https://mangafree.info/",
+      "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+      "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+      "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+      "attempt": "jin-normal-wave34",
+      "status": 403,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/jin-normal-wave34/reader-inspection.json",
+      "navigationResponses": [
+        {
+          "url": "https://mangafree.info/",
+          "status": 403
+        }
+      ],
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "readerFinding": "Public original/target request ends in403 verification page with no IMG/canvas body. Normal active-tab control preserves this boundary; no verification bypass or current chapter acceptance."
+    },
+    {
+      "url": "https://mangafree.info/manga/venomous-empress-reborn/",
+      "finalUrl": "https://mangafree.info/manga/venomous-empress-reborn/",
+      "checkedAt": "2026-10-05T16:25:41.886081+00:00",
+      "scope": "Read-only public DOM research; normal active-tab control uses FluentRead-disabled production extension. No chapter screenshot/export or OCR.",
+      "researchWave": "giga-viewer-area-entry-and-jin-public-redirect-wave34",
+      "attempt": "jin-normal-wave34",
+      "status": 403,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/jin-normal-wave34/reader-inspection.json",
+      "navigationResponses": [
+        {
+          "url": "https://mangafree.info/manga/venomous-empress-reborn/",
+          "status": 403
+        }
+      ],
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "readerFinding": "Public original/target request ends in403 verification page with no IMG/canvas body. Normal active-tab control preserves this boundary; no verification bypass or current chapter acceptance."
     }
   ],
   "verification": {
@@ -27108,6 +28449,580 @@
         "images": 154,
         "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave33-final.log"
       }
+    },
+    "gigaJinReaderEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "auto source consent: MangaLib local reader fixture",
+        "auto source consent: Mangahub local reader fixture",
+        "auto source consent: ComicNaver local reader fixture",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://comic-gardo.com/episode/3269754496561191598",
+        "live reader discovery: https://comic-trail.com/episode/12207421984031179197",
+        "live reader discovery: https://kuragebunch.com/episode/3270296674399717436",
+        "403 page has no manga entry: https://jinmangas.com/",
+        "403 page has no manga entry: https://mangafree.info/manga/venomous-empress-reborn/",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "windowState": "normal",
+        "displayTarget": "secondary",
+        "browserFrontmost": false
+      },
+      "tabVisibility": [
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/popup.html"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic.example.test/reader/1"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic.example.test/reader/1"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic.example.test/reader/1"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic.example.test/reader/1"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/popup.html"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic.example.test/reader/1"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic.example.test/reader/1"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic.example.test/reader/1"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangalib.me/ru/1--fluentread-fixture/read/v1/c1"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangalib.me/ru/1--fluentread-fixture/read/v1/c1"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangalib.me/ru/1--fluentread-fixture/read/v1/c1"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangahub.ru/read/123"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangahub.ru/read/123"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangahub.ru/read/123"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic.naver.com/webtoon/detail"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic.naver.com/webtoon/detail"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic.naver.com/webtoon/detail"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://ordinary.example.test/article"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://ordinary.example.test/article"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://ordinary.example.test/article"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic.example.test/reader/1"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic.example.test/reader/1"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic-days.com/episode/10834108156634732370"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic-days.com/episode/10834108156634732370"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic-days.com/episode/10834108156634732370"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic-gardo.com/episode/3269754496561191598"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://comic-trail.com/episode/12207421984031179197"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://kuragebunch.com/episode/3270296674399717436"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangafree.info/"
+        },
+        {
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible",
+          "url": "https://mangafree.info/manga/venomous-empress-reborn/"
+        }
+      ],
+      "liveReaders": [
+        {
+          "url": "https://comic-gardo.com/episode/3269754496561191598",
+          "finalUrl": "https://comic-gardo.com/episode/3269754496561191598",
+          "status": 200,
+          "mode": "area",
+          "readerPages": [
+            {
+              "tag": "CANVAS",
+              "width": 1125,
+              "height": 1600,
+              "visible": true
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1125,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1125,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1125,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1125,
+              "height": 1600,
+              "visible": false
+            }
+          ],
+          "areaEntry": {
+            "selectionEntered": true,
+            "cancelledWithEscape": true,
+            "languagePacks": [],
+            "mangaModelsReadyUnchanged": true,
+            "scope": "Selection overlay only; no rectangle capture, image export or OCR"
+          },
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://comic-trail.com/episode/12207421984031179197",
+          "finalUrl": "https://comic-trail.com/episode/12207421984031179197",
+          "status": 200,
+          "mode": "area",
+          "readerPages": [
+            {
+              "tag": "CANVAS",
+              "width": 1350,
+              "height": 1920,
+              "visible": true
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1350,
+              "height": 1920,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1350,
+              "height": 1920,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1350,
+              "height": 1920,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1350,
+              "height": 1920,
+              "visible": false
+            }
+          ],
+          "areaEntry": {
+            "selectionEntered": true,
+            "cancelledWithEscape": true,
+            "languagePacks": [],
+            "mangaModelsReadyUnchanged": true,
+            "scope": "Selection overlay only; no rectangle capture, image export or OCR"
+          },
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://kuragebunch.com/episode/3270296674399717436",
+          "finalUrl": "https://kuragebunch.com/episode/3270296674399717436",
+          "status": 200,
+          "mode": "area",
+          "readerPages": [
+            {
+              "tag": "CANVAS",
+              "width": 844,
+              "height": 1200,
+              "visible": true
+            },
+            {
+              "tag": "CANVAS",
+              "width": 844,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 844,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 844,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 844,
+              "height": 1200,
+              "visible": false
+            }
+          ],
+          "areaEntry": {
+            "selectionEntered": true,
+            "cancelledWithEscape": true,
+            "languagePacks": [],
+            "mangaModelsReadyUnchanged": true,
+            "scope": "Selection overlay only; no rectangle capture, image export or OCR"
+          },
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://jinmangas.com/",
+          "finalUrl": "https://mangafree.info/",
+          "status": 403,
+          "mode": "images",
+          "result": "access-restricted",
+          "readerEntryAbsent": true
+        },
+        {
+          "url": "https://mangafree.info/manga/venomous-empress-reborn/",
+          "finalUrl": "https://mangafree.info/manga/venomous-empress-reborn/",
+          "status": 403,
+          "mode": "images",
+          "result": "access-restricted",
+          "readerEntryAbsent": true
+        }
+      ],
+      "errors": 0,
+      "consoleErrors": 0,
+      "hostErrors": 0,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-giga-jin-recheck-wave34/report.json",
+      "visualReview": {
+        "files": [
+          "/private/tmp/fluentread-brand-manga-sites-20261005/ui-giga-jin-recheck-wave34/brand-resident-ordinary.png",
+          "/private/tmp/fluentread-brand-manga-sites-20261005/ui-giga-jin-recheck-wave34/brand-narrow-dragged.png"
+        ],
+        "finding": "Resident circular icon only, translation above and settings below; no FluentRead wording on badge, narrow placement remains visible."
+      },
+      "scope": "21 base/auto-source fixtures plus3 live GigaViewer area open/Escape controls plus2 public403 absence boundaries. Restricted cases are not chapter acceptance. No live chapter screenshot/export/capture/OCR, no paging/full quality/Firefox/userscript runtime claim."
+    },
+    "gigaJinReaderUnit": {
+      "status": "passed",
+      "cases": 561,
+      "files": 7,
+      "fourDimensionCoverage": "100% for eight config/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave34-final.log",
+      "scope": "Generic Jin original/redirect-host mapping with chapter path, root exclusion and spoof-host boundaries; affected manga config/reader/canvas/background/segments/source authorization cases. No current Jin body proof."
+    },
+    "gigaJinReaderBuilds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "typecheckReport": "/private/tmp/fluentread-brand-manga-sites-20261005/compile-wave34.log",
+      "chromeSeconds": 28.7,
+      "firefoxSeconds": 28.3,
+      "userscriptSeconds": 3.97,
+      "userscriptBytes": 1917340,
+      "extensionManifestVerifier": "passed",
+      "extensionManifestReport": "/private/tmp/fluentread-brand-manga-sites-20261005/manifest-wave34.log",
+      "userscriptVerifier": "passed",
+      "userscriptVerifierReport": "/private/tmp/fluentread-brand-manga-sites-20261005/userscript-verifier-wave34.log",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave34.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6127,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-wave34.log"
+      },
+      "scope": "Final corrected space-separated catalogue. No source authorization/engine implementation/permission/dependency/version/reference change. Prior wave32 browser contract3 failures and older full-suite/architecture failures retained; not rerun or declared green.",
+      "docs": {
+        "build": "passed",
+        "check": "passed",
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave34.log",
+        "details": {
+          "ok": true,
+          "pages": 77,
+          "links": 3955,
+          "anchors": 741,
+          "images": 154
+        }
+      }
+    },
+    "gigaJinReaderDiagnostics": {
+      "bootstrap": {
+        "status": "launch-failed-zero-pages",
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-homes-wave34/reader-inspection.json",
+        "scope": "Sandbox browser bootstrap failure, zero page attempts; subsequent explicit bounded normal research succeeded."
+      },
+      "initialCatalogue": {
+        "status": "failed",
+        "casesPassed": 560,
+        "casesFailed": 1,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave34.log",
+        "finding": "Comma-separated Jin row contradicted existing whitespace catalogue format; corrected before final561-case and production build. Initial Chrome artifact is intermediate only."
+      },
+      "initialGigaUi": {
+        "status": "passed-intermediate",
+        "cases": 24,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-giga-entries-wave34/report.json",
+        "scope": "Before Jin catalogue update; three live area open/cancel proofs, superseded by final26-case production run."
+      },
+      "restrictedUiInitialAttempt": {
+        "status": "test-assertion-failed",
+        "casesPassed": 23,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-giga-jin-final-wave34/report.json",
+        "finding": "Absent shadow host returns null; strict false assertion rejected valid absence on403. Normalize to Boolean, final26-case retry passed. No product change to force an entry on restricted page."
+      },
+      "lateProfileCleanup": [
+        {
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/giga-readers-wave34/late-profile-cleanup.json",
+          "ownBrowserExitConfirmed": true,
+          "manualLateResidueCleanup": true,
+          "profileRemoved": true
+        },
+        {
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-giga-entries-wave34/late-profile-cleanup.json",
+          "ownBrowserExitConfirmed": true,
+          "manualLateResidueCleanup": true,
+          "profileRemoved": true
+        }
+      ],
+      "cleanupScope": "Only two owned temporary profiles removed after exact browser PID absence was confirmed. Final failed23-case and successful26-case UI profiles actually absent. No universal cleanup fix claimed."
+    },
+    "gigaJinReaderCoverage": {
+      "supplementDate": "2026-10-06",
+      "names": 235,
+      "newResearchAttempts": 11,
+      "retainedResearchAttempts": 356,
+      "adapterCounts": {
+        "images": 89,
+        "area": 22,
+        "canvas": 3,
+        "detect": 110,
+        "readable-canvas": 9,
+        "background": 2
+      },
+      "scope": "Every requested name has at least a domain association; only110 generic detections remain as generic capability. Domain association is not235-site real-chapter/OCR/full-quality acceptance. UI research attempts not double-counted."
     }
-  }
+  },
+  "lastSupplementOn": "2026-10-05T16:25:41.886081+00:00"
 }

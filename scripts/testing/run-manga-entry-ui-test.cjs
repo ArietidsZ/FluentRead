@@ -290,7 +290,16 @@ async function clickEntry(selector) {await activateVisible(page);let point = awa
                 if(sample.readerReadySelector)await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(i=>i.tagName==='IMG'&&i.complete&&i.naturalWidth>=80&&i.naturalHeight>=40),sample.readerReadySelector,{timeout:20000});
                 const result={url:sample.url,finalUrl:page.url(),status:response?.status(),mode:sample.mode};
                 (report.liveReaders??=[]).push(result);
-                if(response?.status()!==200){result.result='access-restricted';continue;}
+                if(response?.status()!==200){
+                    result.result='access-restricted';
+                    if(sample.verifyNoReaderEntry){
+                        assert.equal(response?.status(),403,'Restricted-reader sample must retain observed403 boundary');
+                        assert.equal(Boolean(await ball('return !!this.querySelector(".floating-ball-manga")')),false);
+                        assert.equal(Boolean(await entry('return !!this.querySelector(".fr-manga-launcher")')),false);
+                        result.readerEntryAbsent=true;report.cases.push(`403 page has no manga entry: ${sample.url}`);
+                    }
+                    continue;
+                }
                 await wait(async()=>await ball(`return this.querySelector(".floating-ball-manga")?.getAttribute("aria-label") === ${JSON.stringify(sample.mode==='area'?'圈选漫画翻译':'漫画翻译')}`));
                 if(sample.mode==='canvas')assert.ok(await page.locator(sample.canvasSelector || '#comici-viewer .-cv-page-canvas canvas').count());
                 if(sample.readerSelector) {
@@ -299,6 +308,15 @@ async function clickEntry(selector) {await activateVisible(page);let point = awa
                             visible:rect.width>0&&rect.height>0&&rect.left<innerWidth&&rect.right>0&&rect.top<innerHeight&&rect.bottom>0};
                     }));
                     assert.ok(result.readerPages.length,'Exact body container is present');
+                }
+                if(sample.mode==='area' && sample.verifyAreaEntry){
+                    const before=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadMangaModelStatus'}));
+                    await areaClick();await wait(async()=>await shadow('fluent-read-area-translator-container','return !!this.querySelector(".fr-area-selecting")'));
+                    const languages=(await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadImageOcrStatus'}))).languages;
+                    const after=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadMangaModelStatus'}));
+                    assert.deepEqual(languages,[]);assert.equal(after.ready,before.ready);assert.equal(after.inpaintingReady,before.inpaintingReady);
+                    await page.keyboard.press('Escape');await wait(async()=>!await shadow('fluent-read-area-translator-container','return !!this.querySelector(".fr-area-selecting")'));
+                    result.areaEntry={selectionEntered:true,cancelledWithEscape:true,languagePacks:languages,mangaModelsReadyUnchanged:true,scope:'Selection overlay only; no rectangle capture, image export or OCR'};
                 }
                 if(sample.sourceConsentLabel){
                     await clickBall();await wait(async()=>await entry(`return this.querySelector(".fr-manga-entry p")?.textContent.includes(${JSON.stringify(sample.sourceConsentLabel)})`));
