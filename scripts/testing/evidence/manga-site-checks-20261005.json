@@ -1602,6 +1602,35 @@
           "networkFailureCount": 2,
           "requestedUrl": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/chapter-686/",
           "checkedAt": "2026-10-05T14:13:34.191Z"
+        },
+        {
+          "url": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/chapter-686/",
+          "finalUrl": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/chapter-686/",
+          "scope": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+          "researchWave": "selected-public-reader-controls-and-auto-source-hints-wave33",
+          "attempt": "active-control-wave33",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 3,
+          "canvasCount": 0,
+          "readerFinding": "Native tab active false then true in normal-window visible document; same logo/loading/theme summary elements, no body IMG/canvas/background. No body acceptance or whole-site conclusion.",
+          "profileRemoved": true,
+          "pageErrorCount": 1,
+          "networkFailureCount": 3,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 3
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 3
+          },
+          "requestedUrl": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/chapter-686/",
+          "checkedAt": "2026-10-05T15:39:05.185015+00:00"
         }
       ]
     },
@@ -3665,6 +3694,35 @@
           "networkFailureCount": 0,
           "requestedUrl": "https://rawdevart.art/read/ne178/chapter-47",
           "checkedAt": "2026-10-05T15:15:32.497Z"
+        },
+        {
+          "url": "https://rawdevart.art/read/ne178/chapter-47",
+          "finalUrl": "https://rawdevart.art/read/ne178/chapter-47",
+          "scope": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+          "researchWave": "selected-public-reader-controls-and-auto-source-hints-wave33",
+          "attempt": "active-control-wave33",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 4,
+          "canvasCount": 0,
+          "readerFinding": "Native tab active false then true in normal-window visible document; same loaded small chat/logo artwork and empty chapter-imgs. No body IMG/canvas/background; no new profile or whole-site conclusion.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 6
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 6
+          },
+          "requestedUrl": "https://rawdevart.art/read/ne178/chapter-47",
+          "checkedAt": "2026-10-05T15:39:05.184820+00:00"
         }
       ]
     },
@@ -4613,6 +4671,35 @@
           "networkFailureCount": 1,
           "requestedUrl": "https://rawlazy.io/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-%e3%80%90%e7%ac%ac431%e8%a9%b1%e3%80%91/",
           "checkedAt": "2026-10-05T15:15:32.498Z"
+        },
+        {
+          "url": "https://rawlazy.io/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-%e3%80%90%e7%ac%ac431%e8%a9%b1%e3%80%91/",
+          "finalUrl": "https://rawlazy.io/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-%e3%80%90%e7%ac%ac431%e8%a9%b1%e3%80%91/",
+          "scope": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+          "researchWave": "selected-public-reader-controls-and-auto-source-hints-wave33",
+          "attempt": "active-control-wave33",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 4,
+          "canvasCount": 0,
+          "readerFinding": "Native tab active false then true in normal-window visible document; same logo/loading/theme summary elements, no body IMG/canvas/background. Prior headless/placeholder samples retained; no new profile or whole-site conclusion.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 4
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 4
+          },
+          "requestedUrl": "https://rawlazy.io/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-%e3%80%90%e7%ac%ac431%e8%a9%b1%e3%80%91/",
+          "checkedAt": "2026-10-05T15:39:05.185009+00:00"
         }
       ]
     },
@@ -15560,6 +15647,87 @@
         "documentVisibility": "visible",
         "loadedImages": 0
       }
+    },
+    {
+      "url": "https://rawdevart.art/read/ne178/chapter-47",
+      "finalUrl": "https://rawdevart.art/read/ne178/chapter-47",
+      "scope": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+      "researchWave": "selected-public-reader-controls-and-auto-source-hints-wave33",
+      "attempt": "active-control-wave33",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 4,
+      "canvasCount": 0,
+      "readerFinding": "Native tab active false then true in normal-window visible document; same loaded small chat/logo artwork and empty chapter-imgs. No body IMG/canvas/background; no new profile or whole-site conclusion.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 6
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 6
+      }
+    },
+    {
+      "url": "https://rawlazy.io/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-%e3%80%90%e7%ac%ac431%e8%a9%b1%e3%80%91/",
+      "finalUrl": "https://rawlazy.io/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-%e3%80%90%e7%ac%ac431%e8%a9%b1%e3%80%91/",
+      "scope": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+      "researchWave": "selected-public-reader-controls-and-auto-source-hints-wave33",
+      "attempt": "active-control-wave33",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 4,
+      "canvasCount": 0,
+      "readerFinding": "Native tab active false then true in normal-window visible document; same logo/loading/theme summary elements, no body IMG/canvas/background. Prior headless/placeholder samples retained; no new profile or whole-site conclusion.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 4
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 4
+      }
+    },
+    {
+      "url": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/chapter-686/",
+      "finalUrl": "https://syosetu.cheap/manga/%e3%83%96%e3%83%aa%e3%83%bc%e3%83%81-bleach-raw-free/chapter-686/",
+      "scope": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+      "researchWave": "selected-public-reader-controls-and-auto-source-hints-wave33",
+      "attempt": "active-control-wave33",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 3,
+      "canvasCount": 0,
+      "readerFinding": "Native tab active false then true in normal-window visible document; same logo/loading/theme summary elements, no body IMG/canvas/background. No body acceptance or whole-site conclusion.",
+      "profileRemoved": true,
+      "pageErrorCount": 1,
+      "networkFailureCount": 3,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 3
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 3
+      }
     }
   ],
   "verification": {
@@ -25751,6 +25919,1194 @@
         "build": "passed",
         "check": "passed",
         "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave32.log"
+      }
+    },
+    "activeReaderControlsWave33": {
+      "status": "body-not-confirmed",
+      "attemptsAdded": 3,
+      "attemptsTotal": 345,
+      "extensionDisabled": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/active-control-wave33/reader-inspection.json",
+      "profileRemoved": true,
+      "scope": "Three existing public chapters, native active false then true, normal-window/visible-document. Ordinary displayed logo/chat/loading/theme artwork only. No model/OCR/reader acceptance; old attempts retained."
+    },
+    "autoMangaSourceEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "auto source consent: MangaLib local reader fixture",
+        "auto source consent: Mangahub local reader fixture",
+        "auto source consent: ComicNaver local reader fixture",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+        "live reader discovery: https://mangahub.ru/read/962303",
+        "live reader discovery: https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "windowState": "normal",
+        "displayTarget": "secondary",
+        "browserFrontmost": false
+      },
+      "tabVisibility": [
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangalib.me/ru/1--fluentread-fixture/read/v1/c1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangalib.me/ru/1--fluentread-fixture/read/v1/c1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangalib.me/ru/1--fluentread-fixture/read/v1/c1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangahub.ru/read/123",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangahub.ru/read/123",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangahub.ru/read/123",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://ordinary.example.test/article",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://ordinary.example.test/article",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://ordinary.example.test/article",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic-days.com/episode/10834108156634732370",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic-days.com/episode/10834108156634732370",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic-days.com/episode/10834108156634732370",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangahub.ru/read/962303",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        }
+      ],
+      "profileRemoved": true,
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrorCount": 0,
+      "liveReaders": [
+        {
+          "url": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+          "finalUrl": "https://mangalib.me/ru/3172--kakegurui/read/v22/c129",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1337,
+              "naturalHeight": 1920,
+              "width": 1280,
+              "height": 1838,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1337,
+              "naturalHeight": 1920,
+              "width": 1337,
+              "height": 1920,
+              "visible": false
+            }
+          ],
+          "sourceConsent": {
+            "from": "auto",
+            "description": "需要准备俄语和英语识别资源，约 16 MB。复杂画面另需约 197 MB 的文字清除资源，已下载资源可重复使用。",
+            "languages": [],
+            "downloadConfirmed": false
+          },
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://mangahub.ru/read/962303",
+          "finalUrl": "https://mangahub.ru/read/962303",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1200,
+              "naturalHeight": 3459,
+              "width": 820,
+              "height": 2364,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 900,
+              "naturalHeight": 2595,
+              "width": 900,
+              "height": 2595,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 0,
+              "height": 0,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 0,
+              "height": 0,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 0,
+              "height": 0,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 0,
+              "height": 0,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 0,
+              "height": 0,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 0,
+              "height": 0,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 0,
+              "height": 0,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 0,
+              "height": 0,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 0,
+              "height": 0,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 0,
+              "height": 0,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 0,
+              "height": 0,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 0,
+              "height": 0,
+              "visible": false
+            }
+          ],
+          "sourceConsent": {
+            "from": "auto",
+            "description": "需要准备俄语和英语识别资源，约 16 MB。复杂画面另需约 197 MB 的文字清除资源，已下载资源可重复使用。",
+            "languages": [],
+            "downloadConfirmed": false
+          },
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon",
+          "finalUrl": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1600,
+              "width": 690,
+              "height": 1600,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 690,
+              "naturalHeight": 1062,
+              "width": 690,
+              "height": 1062,
+              "visible": false
+            }
+          ],
+          "sourceConsent": {
+            "from": "auto",
+            "description": "需要准备韩语和英语识别资源，约 13 MB。复杂画面另需约 197 MB 的文字清除资源，已下载资源可重复使用。",
+            "languages": [],
+            "downloadConfirmed": false
+          },
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-auto-source-custom-final-wave33/report.json",
+      "scope": "24 Chrome production entry cases:18 base+3 local auto-source fixtures+3 original public live chapters. Three live readers have one body page in viewport, native active/normal/unfocused/visible. Auto source resource consent only, no download confirmation, OCR/source-read/full quality/all-chapters/cross-document persistence/all-devices acceptance. Manual source priority and custom rules retain existing behavior; site hints only, not general detection."
+    },
+    "autoMangaSourceDiagnostics": {
+      "uiMisnamedReaderSites": {
+        "status": "passed-fixture-only",
+        "cases": 21,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-auto-source-wave33/report.json",
+        "finding": "Mistyped live-readers is ignored; actual reader-sites retry is final live proof. No live-reader evidence from this report."
+      },
+      "initialCoverage": {
+        "casesPassed": 467,
+        "status": "coverage-threshold-failed",
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/source-language-coverage-wave33.log",
+        "scope": "Temporary inclusion of browser runtime shows95.59/94.03/85.03/95.59 aggregate, not100. Existing verificationOwnership exempts image browser runtime as DOM/browser glue. Final targeted9-module boundary uses config/entry/reader/surfaces/source authorization and still runs runtime/page-read behavior files."
+      },
+      "longSnapshotInitialAttempt": {
+        "status": "test-environment-failed",
+        "casesPassed": 760,
+        "casesFailed": 1,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave33-final.log",
+        "finding": "Test fixture lacks native DOMRect; native geometry stub added, then rechecked."
+      },
+      "longSnapshotInitialTypecheck": {
+        "status": "failed",
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/compile-wave33-final.log",
+        "finding": "Test assigned readonly naturalHeight. Changed fixture to Object.defineProperty; final recheck follows."
+      },
+      "preCustomIdentityLiveUi": {
+        "status": "passed-intermediate",
+        "cases": 24,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-auto-source-live-wave33/report.json",
+        "scope": "Initial language hint entry proof; final reader page identity includes effective source and latest production24-case run supersedes delivery proof."
+      }
+    },
+    "autoMangaSourceUnit": {
+      "status": "passed",
+      "cases": 762,
+      "files": 10,
+      "fourDimensionCoverage": "100% for nine config/reader/entry/source-authorization/surface modules; browser runtime behavior tested within existing repository exemption",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave33-custom-identity-final.log",
+      "additionalOcrContracts": {
+        "cases": 99,
+        "files": 4,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-contracts-wave33.log"
+      },
+      "scope": "Trusted ru MangaLib/Mangahub and ko ComicNaver profiles only; manual/custom/unknown paths preserve configured source. Consent and image/snapshot/cache source agree, confirmed-only prep, pause/reuse/manual change and Korean long-strip snapshot, ordinary image stays global auto. No real OCR/quality claim. Active custom rule takeover invalidates the old effective-language page identity; previous761-cases run intermediate."
+    },
+    "autoMangaSourceBuilds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "typecheckReport": "/private/tmp/fluentread-brand-manga-sites-20261005/compile-wave33-custom-final.log",
+      "chromeSeconds": 30.3,
+      "firefoxSeconds": 28.3,
+      "userscriptSeconds": 3.95,
+      "userscriptBytes": 1917316,
+      "extensionManifestVerifier": "passed",
+      "extensionManifestReport": "/private/tmp/fluentread-brand-manga-sites-20261005/manifest-wave33-custom-final.log",
+      "userscriptVerifier": "passed",
+      "userscriptVerifierReport": "/private/tmp/fluentread-brand-manga-sites-20261005/userscript-verifier-wave33-custom-final.log",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave33.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6127,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-wave33-custom-final.log"
+      },
+      "runtimeFinalFixtureRecheck": {
+        "files": 1,
+        "cases": 173,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave33-custom-identity-final.log"
+      },
+      "scope": "Chrome entry runtime only; Firefox/userscript build/verifier evidence. Auto language hints use existing ru/ko OCR resources, no engine implementation/source authorization/permissions/dependencies/version/reference-repository change. Existing wave32 browser-script contracts3 failures and older all-suite/architecture failures retained. No complete235/all-chapters/full-quality/cross-document/general-auto-language/all-devices acceptance.",
+      "docs": {
+        "build": "passed",
+        "check": "passed",
+        "pages": 77,
+        "links": 3955,
+        "anchors": 741,
+        "images": 154,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave33-final.log"
       }
     }
   }

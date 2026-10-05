@@ -31,6 +31,22 @@ beforeEach(() => {
 afterEach(() => {unmountMangaEntry();vi.unstubAllGlobals();});
 
 describe('独立漫画入口所有权和配置端口', () => {
+    it.each([
+        ['https://mangalib.me/ru/1--title/read/v22/c129?p=2', 'ru', 'rus'],
+        ['https://mangahub.ru/read/123?page=2', 'ru', 'rus'],
+        ['https://comic.naver.com/webtoon/detail?titleId=855297&no=1', 'ko', 'kor'],
+    ])('自动源语言的正文 %s 提示并检查 %s 资源，路由和手动语言正常同步', async (href, source, pack) => {
+        location.href=href;await mountMangaEntry({} as never);
+        expect(props().settings.sourceLanguage).toBe(source);expect(mocks.config.from).toBe('auto');
+        mocks.send.mockResolvedValueOnce({success:true,ready:false,inpaintingReady:true}).mockResolvedValueOnce({success:true,languages:[pack,'eng']});
+        expect(await props().inspectResources()).toBe(true);
+        expect(mocks.send).toHaveBeenLastCalledWith({type:'fluentReadImageOcrStatus'});
+        mocks.config.from='en';mocks.subscribe.mock.calls[0][0]();expect(props().settings.sourceLanguage).toBe('en');
+        mocks.send.mockResolvedValueOnce({success:true,ready:true,inpaintingReady:true});expect(await props().inspectResources()).toBe(true);
+        expect(mocks.send).toHaveBeenLastCalledWith({type:'fluentReadMangaModelStatus'});
+        mocks.config.from='auto';location.href='https://mangaplus.shueisha.co.jp/viewer/1024050';document.dispatchEvent(new Event('fluentread-route-change'));
+        expect(props().settings.sourceLanguage).toBe('auto');expect(mocks.persist).not.toHaveBeenCalled();
+    });
     it.each([['ru', 'rus'], ['ko-KR', 'kor']])('漫画源语言 %s 检查已有语言包与清字模型，不要求无关的专用字表', async (source, language) => {
         mocks.config.from = source;await mountMangaEntry({} as never);
         const inspect = async (languages: unknown, inpaintingReady = true) => {

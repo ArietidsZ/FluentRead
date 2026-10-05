@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/runtime.ts
  * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和图片、长图分段、可读画布及公开背景图的漫画连续模式，保持宿主资源与翻页交互不变。
- * 主要内容：漫画俄语和韩语仅在已确认下载后准备既有语言包；单图失败提供模型与服务导航，译图操作条随指针隐藏并保留键盘入口；单图识别方式纳入缓存身份，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
+ * 主要内容：漫画俄语和韩语仅在已确认下载后准备既有语言包；单图失败提供模型与服务导航，译图操作条随指针隐藏并保留键盘入口；识别方式和漫画有效源语言纳入缓存身份，自动模式使用已确认的路径提示、手动语言优先，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
  * 模块边界：本运行时先读取页面允许访问的 Canvas/CORS 像素，失败时授权后台读取当前任务图片并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
 import {imageTranslationFailureCode, imageLocalFailureMessage, type ImageLocalFailure} from '../failure';
@@ -25,7 +25,7 @@ import {isImageHoverEligible} from './hoverEligibility';
 import {createMangaReader} from './mangaReader';
 import type {MangaTranslationStatus} from './mangaSession';
 import {imageLoadTracker} from './imageLoads';
-import {normalizeMangaCachePages, mangaCachePixelBudget, resolveMangaSite} from '@/src/core/config/manga';
+import {normalizeMangaCachePages, mangaCachePixelBudget, resolveMangaSite, resolveMangaSourceLanguage} from '@/src/core/config/manga';
 import {compressMangaPage, createMangaLightCache, type MangaCompressedPage} from '../mangaPatchResult';
 import {composeMangaPage} from './mangaCompositor';
 import {createMangaCanvas} from './mangaCanvas';
@@ -279,18 +279,23 @@ function sourceIdentity(image: HTMLImageElement): string {
     ]);
 }
 
+function mangaSourceLanguage(): string {
+    return resolveMangaSourceLanguage(window.location?.href || '', config.from, config.imageTranslationMangaSites);
+}
+
 function configurationIdentity(manga = false): string {
     const service = config.imageTranslationService || config.service;
+    const sourceLanguage = manga ? mangaSourceLanguage() : config.from;
     // 只保留公开翻译语义；端点、请求体、凭据与完整 provider 对象不进入位图缓存键。
     return JSON.stringify([
         configurationRevision,
-        config.from, config.to, service, config.model?.[service], config.customModel?.[service],
+        sourceLanguage, config.to, service, config.model?.[service], config.customModel?.[service],
         config.modelThinking?.[service], config.system_role?.[service], config.user_role?.[service],
         config.enableAIContext,
         config.minimaxBillingPlan, config.minimaxRegion, config.mimoBillingPlan, config.mimoRegion,
         document.title,
         manga,
-        manga ? getMangaOcrEngine(config.from) : config.imageTranslationOcrEngine,
+        manga ? getMangaOcrEngine(sourceLanguage) : config.imageTranslationOcrEngine,
     ]);
 }
 
@@ -919,12 +924,12 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
         return;
     }
     deleteCachedResult(state.image);
-    if (state.manga && getMangaOcrEngine(config.from) === 'tesseract' && config.imageTranslationMangaDownloadConfirmed) prepareLanguages = true;
+    const sourceLanguage = state.manga ? mangaSourceLanguage() : config.from;
+    if (state.manga && getMangaOcrEngine(sourceLanguage) === 'tesseract' && config.imageTranslationMangaDownloadConfirmed) prepareLanguages = true;
     state.needsPreparation = false;
     state.localFailure = undefined;
     state.errorDetails = undefined;
     const controller = new AbortController();
-    const sourceLanguage = config.from;
     state.abortController = controller;
     let preparingLanguages = prepareLanguages;
     setButtonState(state, 'loading', prepareLanguages ? '正在准备识别语言包…' : '正在读取图片…');
@@ -1219,7 +1224,7 @@ export function mountImageTranslator(): void {
     stopConfigurationWatch = watchTranslationConfiguration();
     const translateSnapshot = async (image: string, signal: AbortSignal) => {
         const identity = configurationIdentity(true);
-        const sourceLanguage = config.from;
+        const sourceLanguage = mangaSourceLanguage();
         if (getMangaOcrEngine(sourceLanguage) === 'tesseract' && config.imageTranslationMangaDownloadConfirmed) {
             publishMangaStatus({...mangaStatus, stage: 'preparing'});
             await prepareImageOcrLanguages(sourceLanguage, signal);
@@ -1263,7 +1268,7 @@ export function mountImageTranslator(): void {
         siteRules: () => config.imageTranslationMangaSites,
         prefetchPages: () => config.imageTranslationMangaPrefetchPages,
         cachePages: () => config.imageTranslationMangaCachePages,
-        identity: image => `${sourceIdentity(image)}:${configurationIdentity()}`,
+        identity: image => `${sourceIdentity(image)}:${configurationIdentity(true)}`,
         translate: translateMangaImage,
         reuse: reuseMangaImage,
         warm: prepareMangaCachedImages,

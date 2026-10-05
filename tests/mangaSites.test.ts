@@ -1,11 +1,25 @@
 import {describe, expect, it} from 'vitest';
 import {parseHTML} from 'linkedom';
-import {createMangaSiteRule, normalizeMangaSiteRules, normalizeMangaPrefetchPages, resolveMangaSite} from '@/src/core/config/manga';
+import {createMangaSiteRule, normalizeMangaSiteRules, normalizeMangaPrefetchPages, resolveMangaSite, resolveMangaSourceLanguage} from '@/src/core/config/manga';
 import {isCatalogMangaHost, MANGA_SITE_DOMAINS, MANGA_SITE_CATALOG} from '@/src/core/config/mangaSiteCatalog';
 import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it.each([
+        ['https://mangalib.me/ru/1--title/read/v22/c129?p=2', 'ru'],
+        ['https://www.mangahub.ru/read/123?page=2', 'ru'],
+        ['https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon', 'ko'],
+    ])('自动漫画语言只在已确认的内置正文路径 %s 使用 %s 提示', (href, source) => {
+        expect(resolveMangaSourceLanguage(href, 'auto')).toBe(source);
+        for (const manual of ['en','ru-RU','ko-KR','ja']) expect(resolveMangaSourceLanguage(href,manual)).toBe(manual);
+        const custom = createMangaSiteRule(href,'main img')!;
+        expect(resolveMangaSourceLanguage(href,'auto',[custom])).toBe('auto');
+        expect(resolveMangaSourceLanguage(href.replace(new URL(href).hostname,new URL(href).hostname+'.attacker.test'),'auto')).toBe('auto');
+    });
+    it.each(['https://mangalib.me/ru','https://mangalib.me/en/1--title/read/v22/c129','https://mangahub.ru/catalog/123','https://comic.naver.com/webtoon/detail?titleId=855297','https://mangaplus.shueisha.co.jp/viewer/1028732','https://unknown.test/reader/1','not a URL'])('目录、其他语言区或未知阅读器 %s 不猜测原文语言', href => {
+        expect(resolveMangaSourceLanguage(href,'auto')).toBe('auto');
+    });
     it.each(['/comic/high-society/chapter-99','/comic/i-thought-its-a-common-possession/95958-chapter-1'])('Templetoons 章节路径 %s 只选择直接正文长图', path => {
         const site=resolveMangaSite(`https://templetoons.com${path}`)!;
         expect(site).toMatchObject({name:'Templetoons',requireContent:true});

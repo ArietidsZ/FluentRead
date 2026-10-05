@@ -191,7 +191,24 @@ async function clickEntry(selector) {await activateVisible(page);let point = awa
             assert.equal(await popup.evaluate(async () => (await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value.imageTranslationMangaDownloadConfirmed), false);
             await shot(`entry-first-use-${sourceLanguage}`);report.cases.push(report.currentCase);
         }
-        await patch({from: 'en'});
+        const blankImage='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="800"><rect width="400" height="800" fill="white"/></svg>');
+        for(const [site,url,label,size,reader] of [
+            ['MangaLib','https://mangalib.me/ru/1--fluentread-fixture/read/v1/c1','Russian and English','16 MB','<div data-reader-mode="vertical"><main data-reader-info-visible="true"><div><div data-page="1">IMAGE</div></div></main></div>'],
+            ['Mangahub','https://mangahub.ru/read/123','Russian and English','16 MB','<reader-viewer><reader-scan class="reader-viewer-scan">IMAGE</reader-scan></reader-viewer>'],
+            ['ComicNaver','https://comic.naver.com/webtoon/detail?titleId=855297&no=1','Korean and English','13 MB','<div id="sectionContWide">IMAGE</div>'],
+        ]){
+            report.currentCase=`auto source consent: ${site} local reader fixture`;
+            await context.route(url,route=>route.fulfill({contentType:'text/html',body:`<html><body>${reader.replace('IMAGE',`<img id="content_image_0" class="reader-viewer-img" src="${blankImage}">`)}</body></html>`}));
+            await patch({from:'auto',uiLanguage:'en-US',disableFloatingBall:true});await gotoVisible(page,url);
+            await wait(async()=>await entry('return !!this.querySelector(".fr-manga-launcher")'));await clickEntry('.fr-manga-launcher');
+            await wait(async()=>await entry(`return this.querySelector(".fr-manga-entry p")?.textContent.includes(${JSON.stringify(label)})`));
+            assert.equal(await entry(`return this.querySelector(".fr-manga-entry p").textContent.includes(${JSON.stringify(size)})`),true);
+            const status=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadImageOcrStatus'}));assert.deepEqual(status.languages,[]);
+            const current=await popup.evaluate(async()=>(await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'})).value);
+            assert.equal(current.from,'auto');assert.equal(current.imageTranslationMangaDownloadConfirmed,false);
+            await shot(`entry-auto-${site.toLowerCase()}`);report.cases.push(report.currentCase);
+        }
+        await patch({from: 'en',disableFloatingBall:false});
         report.currentCase = 'ordinary pages keep resident brand and translation controls; explicit hover remains available';
         await page.setViewportSize({width:1280,height:900});
         await context.route('https://ordinary.example.test/article', route => route.fulfill({contentType:'text/html',body:'<html><body><p>Ordinary reading page</p></body></html>'}));
@@ -251,6 +268,7 @@ async function clickEntry(selector) {await activateVisible(page);let point = awa
         if(liveReadersFile){
             for(const sample of JSON.parse(fs.readFileSync(liveReadersFile,'utf8'))){
                 report.currentCase=`live reader discovery: ${sample.url}`;
+                if(sample.sourceConsentLabel)await patch({from:'auto',imageTranslationMangaDownloadConfirmed:false});
                 const response=await gotoVisible(page,sample.url,{waitUntil:'domcontentloaded',timeout:30000});await page.waitForTimeout(3000);focusGuard();
                 if(sample.rejectCookies) {const reject=page.locator('#onetrust-reject-all-handler');await reject.waitFor({timeout:8000}).then(()=>reject.click()).catch(()=>undefined);}
                 if(sample.openSelector) {
@@ -281,6 +299,16 @@ async function clickEntry(selector) {await activateVisible(page);let point = awa
                             visible:rect.width>0&&rect.height>0&&rect.left<innerWidth&&rect.right>0&&rect.top<innerHeight&&rect.bottom>0};
                     }));
                     assert.ok(result.readerPages.length,'Exact body container is present');
+                }
+                if(sample.sourceConsentLabel){
+                    await clickBall();await wait(async()=>await entry(`return this.querySelector(".fr-manga-entry p")?.textContent.includes(${JSON.stringify(sample.sourceConsentLabel)})`));
+                    const description=await entry('return this.querySelector(".fr-manga-entry p").textContent');
+                    assert.ok(description.includes(sample.sourceConsentSize));
+                    const languages=(await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadImageOcrStatus'}))).languages;
+                    assert.deepEqual(languages,[]);
+                    const current=await popup.evaluate(async()=>(await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'})).value);
+                    assert.equal(current.from,'auto');assert.equal(current.imageTranslationMangaDownloadConfirmed,false);
+                    result.sourceConsent={from:current.from,description,languages,downloadConfirmed:false};
                 }
                 await shot(`live-reader-${report.liveReaders.length}`);
                 result.result='reader-entry-confirmed';report.cases.push(report.currentCase);
