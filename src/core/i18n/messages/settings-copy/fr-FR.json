@@ -1,5 +1,6 @@
 {
   "messages": {
+    "options.panel.floatingBall": "Réglages du bouton flottant",
     "settings.general.bilingualSentenceHighlightGroupingHint": "Si les phrases sont découpées différemment, les phrases voisines sont mises en évidence ensemble.",
     "learning.collection.moreActions": "Autres actions sur les éléments enregistrés",
     "learning.collection.listenExplain": "Écouter et expliquer",

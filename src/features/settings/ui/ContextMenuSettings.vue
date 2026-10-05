@@ -1,52 +1,69 @@
 <!--
 @file src/features/settings/ui/ContextMenuSettings.vue
 文件职责：提供右键菜单的设置界面，让用户按使用习惯增删菜单入口，并在同一屏看到改动后的真实菜单形态。
-主要内容：渲染总开关、按右键场景分组的入口开关，并用与后台相同的结构推导和文案渲染生成三种右键场景的实时预览。
+主要内容：顶部总开关独立成行，左侧用可切换的选中文字、网页与图片场景模拟菜单，右侧紧凑网格编辑各入口；预览复用后台的结构推导与标题渲染，随开关即时更新，窄屏上下排列。
 模块边界：本组件只编辑父级响应式配置并展示预览，保存与跨页面同步复用父级设置流程，不创建原生菜单、不发送运行时消息；菜单结构与标题来自 core/context-menu，真正的创建与点击路由由 app/background 负责。
 -->
 <template>
-  <SettingsGroup :title="t('contextMenuSettings.title')" :description="t('contextMenuSettings.description')">
+  <SettingsGroup class="context-menu-settings" :title="t('contextMenuSettings.title')" :description="t('contextMenuSettings.description')">
     <SettingsItem :label="t('contextMenuSettings.master')" :description="t('contextMenuSettings.masterDescription')">
       <el-switch v-model="config.contextMenuEnabled" class="settings-toggle" :aria-label="t('contextMenuSettings.master')" />
     </SettingsItem>
 
-    <SettingsItem
-      v-for="entry in entryRows"
-      :key="entry.id"
-      :label="entry.label"
-      :description="entry.description"
-      :disabled="!config.contextMenuEnabled || !entry.available"
-    >
-      <el-switch
-        :model-value="entry.enabled"
-        class="settings-toggle"
-        :aria-label="entry.label"
-        :disabled="!config.contextMenuEnabled || !entry.available"
-        @update:model-value="entry.update"
-      />
-    </SettingsItem>
-
-    <SettingsItem :label="t('contextMenuSettings.preview')" :description="t('contextMenuSettings.previewDescription')" stacked>
-      <div class="context-menu-preview" data-testid="context-menu-preview">
-        <div v-for="scene in previewScenes" :key="scene.bucket" class="context-menu-preview-scene">
-          <span class="context-menu-preview-scene-title">{{ scene.title }}</span>
-          <ul v-if="scene.items.length > 0" class="context-menu-preview-list">
-            <li v-for="item in scene.items" :key="item.id">
+    <div class="context-menu-workspace">
+      <section class="context-menu-preview" data-testid="context-menu-preview" :aria-label="t('contextMenuSettings.preview')">
+        <div class="context-menu-preview-heading">
+          <h3>{{ t('contextMenuSettings.preview') }}</h3>
+          <p>{{ t('contextMenuSettings.previewDescription') }}</p>
+        </div>
+        <SegmentedControl v-model="previewBucket" :options="sceneOptions" :label="t('contextMenuSettings.preview')" />
+        <div class="context-menu-preview-stage" :data-preview-scene="previewBucket">
+          <div class="context-menu-preview-document" aria-hidden="true">
+            <svg v-if="previewBucket === 'image'" class="context-menu-preview-image" viewBox="0 0 160 72" fill="none">
+              <rect width="160" height="72" rx="6" fill="currentColor" opacity=".09" />
+              <circle cx="126" cy="20" r="8" fill="currentColor" opacity=".25" />
+              <path d="M12 62 48 24 81 57 106 34 146 62Z" fill="currentColor" opacity=".2" />
+            </svg>
+            <span v-else class="context-menu-preview-text" :class="{'is-selected': previewBucket === 'selection'}" data-i18n-ignore>Reading brings us closer.</span>
+            <i /><i /><i />
+          </div>
+          <ul v-if="activeScene.items.length" class="context-menu-preview-list" aria-live="polite">
+            <li v-for="item in activeScene.items" :key="item.id">
               <img :src="iconUrl" width="16" height="16" alt="" aria-hidden="true" />
               <span>{{ item.title }}</span>
             </li>
           </ul>
-          <p v-else class="context-menu-preview-empty">{{ t('contextMenuSettings.sceneEmpty') }}</p>
+          <p v-else class="context-menu-preview-empty" role="status">{{ t('contextMenuSettings.sceneEmpty') }}</p>
         </div>
+      </section>
+      <div class="context-menu-entry-grid">
+        <SettingsItem
+          v-for="entry in entryRows"
+          :key="entry.id"
+          class="context-menu-entry"
+          :data-context-menu-entry="entry.id"
+          :label="entry.label"
+          :description="entry.description"
+          :disabled="!config.contextMenuEnabled || !entry.available"
+        >
+          <el-switch
+            :model-value="entry.enabled"
+            class="settings-toggle"
+            :aria-label="entry.label"
+            :disabled="!config.contextMenuEnabled || !entry.available"
+            @update:model-value="entry.update"
+          />
+        </SettingsItem>
       </div>
-    </SettingsItem>
+    </div>
   </SettingsGroup>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
+import SegmentedControl from './components/SegmentedControl.vue';
 import {
   buildContextMenuPlan,
   CONTEXT_MENU_ENTRIES,
@@ -160,43 +177,53 @@ const previewScenes = computed(() => {
     }),
   }));
 });
+const previewBucket = ref<ContextMenuBucket>('page');
+const sceneOptions = computed(() => previewScenes.value.map(scene => ({value: scene.bucket, label: scene.title})));
+const activeScene = computed(() => previewScenes.value.find(scene => scene.bucket === previewBucket.value)!);
 </script>
 
 <style scoped>
-.context-menu-preview {
+.context-menu-workspace {
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  width: 100%;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.4fr);
+  align-items: start;
+  gap: 20px;
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--line);
+  container-type: inline-size;
 }
-
-.context-menu-preview-scene {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px;
+.context-menu-preview { display: grid; gap: 12px; min-width: 0; }
+.context-menu-preview-heading h3 { margin: 0 0 4px; color: var(--ink); font-size: 13px; font-weight: 600; }
+.context-menu-preview-heading p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.context-menu-preview-stage {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  min-height: 190px;
+  padding: 18px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface-soft);
 }
-
-.context-menu-preview-scene-title {
-  color: var(--muted);
-  font-size: 10.5px;
-  font-weight: 700;
-}
-
+.context-menu-preview-document { display: grid; gap: 8px; color: var(--muted); }
+.context-menu-preview-text { justify-self: start; padding: 2px 4px; font-size: 12px; line-height: 1.5; }
+.context-menu-preview-text.is-selected { color: var(--brand-strong); background: var(--brand-soft); border-radius: 3px; }
+.context-menu-preview-document i { height: 5px; width: 92%; border-radius: 3px; background: color-mix(in srgb, var(--muted) 15%, transparent); }
+.context-menu-preview-document i:last-child { width: 62%; }
+.context-menu-preview-image { width: min(100%, 160px); height: auto; }
 .context-menu-preview-list {
   display: flex;
   flex-direction: column;
+  width: min(100%, 280px);
+  justify-self: end;
   margin: 0;
   padding: 4px 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   list-style: none;
+  box-shadow: 0 6px 18px -8px rgba(15, 23, 42, .25);
 }
-
 .context-menu-preview-list li {
   display: flex;
   align-items: center;
@@ -207,10 +234,28 @@ const previewScenes = computed(() => {
   font-size: 11.5px;
   line-height: 1.4;
 }
-
+.context-menu-preview-list img { flex: none; }
+.context-menu-preview-list li span { min-width: 0; overflow-wrap: anywhere; }
 .context-menu-preview-empty {
   margin: 0;
   color: var(--muted);
   font-size: 10.5px;
+  line-height: 1.55;
+}
+.context-menu-entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; min-width: 0; }
+.context-menu-entry { grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 10px; min-height: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.context-menu-entry :deep(.settings-item-copy small) { font-size: 11px; }
+@container (max-width: 760px) {
+  .context-menu-entry-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 850px) {
+  .context-menu-workspace { grid-template-columns: minmax(0, 1fr); }
+  .context-menu-entry-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .context-menu-workspace { padding: 12px; gap: 16px; }
+}
+@media (max-width: 480px) {
+  .context-menu-entry-grid { grid-template-columns: minmax(0, 1fr); }
 }
 </style>

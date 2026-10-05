@@ -11,7 +11,7 @@
       <el-switch :model-value="settings.autoTranslate" :disabled="saving" :aria-label="tr('所有网站自动翻译')" @update:model-value="commit({autoTranslate: Boolean($event)})" />
     </section>
     <section class="rule-card">
-      <header class="rule-heading"><div><h3>{{ tr('网站偏好') }}</h3><p>{{ tr('同一网站的偏好集中显示，禁用扩展时暂停其他功能，重新启用后恢复原有偏好') }}</p></div><span class="rule-badge">{{ rows.length }}</span></header>
+      <header class="rule-heading settings-card-heading"><div class="settings-card-heading-copy"><h3>{{ tr('网站偏好') }}</h3><p>{{ tr('同一网站的偏好集中显示，禁用扩展时暂停其他功能，重新启用后恢复原有偏好') }}</p></div><span class="rule-badge">{{ rows.length }}</span></header>
       <form class="preference-add" @submit.prevent="addSite">
         <label class="rule-field"><span>{{ tr('域名或完整网址') }}</span><input v-model="input" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://docs.example.com/article" :aria-invalid="Boolean(error)" aria-describedby="site-preference-feedback" @input="error = ''" /></label>
         <label class="rule-field"><span>{{ tr('初始偏好') }}</span><select v-model="initialPreference"><option value="always">{{ tr('始终翻译') }}</option><option value="disabled">{{ tr('禁用扩展') }}</option><option value="hidden">{{ tr('隐藏悬浮球') }}</option></select></label>

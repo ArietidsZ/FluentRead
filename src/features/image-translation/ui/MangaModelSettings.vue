@@ -6,7 +6,7 @@
  -->
 <template>
   <section class="manga-model-settings" data-testid="manga-model-manager">
-    <header><h2>{{ translateLegacy('PaddleOCR 文字识别') }}</h2><span>{{ translateLegacy('首次使用时自动准备') }}</span></header>
+    <header class="settings-card-heading"><h2>{{ translateLegacy('PaddleOCR 文字识别') }}</h2><span>{{ translateLegacy('首次使用时自动准备') }}</span></header>
     <p>{{ translateLegacy('资源下载后可重复使用，图片在当前浏览器中处理') }}</p>
     <div class="manga-resource-list">
       <div class="manga-resource"><div><strong>{{ translateLegacy('漫画文字识别') }}</strong><small>{{ translateLegacy('识别对白与旁白') }} · {{ translateLegacy('约 30 MB') }}</small></div><span :class="{ready: status?.ready}">{{ translateLegacy(!status ? '正在检查' : status.ready ? '已就绪' : '首次使用时下载') }}</span></div>
@@ -81,4 +81,6 @@ onBeforeUnmount(()=>{disposed=true;clearTimeout(timer);});
 .manga-model-controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin:12px 0 6px}.manga-model-controls label{font-size:13px;display:grid;gap:6px}.manga-model-settings button,.manga-model-settings select{border:1px solid var(--el-border-color);border-radius:7px;padding:7px 10px;font:inherit;font-size:13px;background:var(--el-fill-color-blank);color:var(--el-text-color-primary)}.manga-model-settings button{cursor:pointer;flex-shrink:0}.manga-model-settings button:disabled{opacity:.5;cursor:default}.manga-model-settings :is(button,select,summary):focus-visible{outline:2px solid var(--el-color-primary);outline-offset:2px}
 .manga-model-progress{display:grid;gap:6px;margin-top:12px;padding:12px;border-radius:8px;background:var(--el-color-primary-light-9);font-size:13px}.manga-model-progress progress{width:100%;accent-color:var(--el-color-primary)}.manga-model-settings .manga-model-error{color:var(--el-color-danger);margin-top:8px}.manga-model-settings details{font-size:13px;margin-top:14px}.manga-model-settings summary{cursor:pointer}.manga-model-settings ul{padding-left:18px;margin:8px 0}.manga-model-settings a{color:var(--el-color-primary);overflow-wrap:anywhere}.manga-model-storage{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px}.manga-download-settings>summary{font-weight:600}
 @media(max-width:600px){.manga-model-settings{padding:16px}.manga-model-settings header{align-items:flex-start;flex-direction:column}.manga-resource{gap:8px}.manga-model-storage{align-items:flex-start;flex-direction:column}}
+
+.manga-model-settings > header.settings-card-heading { margin: -20px -20px 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); border-radius: 11px 11px 0 0; }
 </style>

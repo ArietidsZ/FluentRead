@@ -18,8 +18,8 @@
     </header>
     <div class="version-grid">
       <section class="version-panel" aria-labelledby="recent-config-title">
-        <header class="version-panel-heading">
-          <div>
+        <header class="version-panel-heading settings-card-heading">
+          <div class="settings-card-heading-copy">
             <h2 id="recent-config-title">最近修改</h2>
             <p>{{ t('settings.history.recentHint') }}</p>
           </div>
@@ -59,8 +59,8 @@
       </section>
 
       <section class="version-panel backup-panel" aria-labelledby="automatic-backup-title">
-        <header class="version-panel-heading">
-          <div>
+        <header class="version-panel-heading settings-card-heading">
+          <div class="settings-card-heading-copy">
             <h2 id="automatic-backup-title">自动设置快照</h2>
             <p>{{ t('settings.history.backupHint') }}</p>
           </div>
@@ -329,9 +329,9 @@ async function applyPreviewTarget() {
 .history-heading p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .version-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; gap: 16px; width: min(100%, 1080px); margin: 0 auto 22px; }
 .version-panel { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 7px 22px rgba(31, 40, 61, .035); }
-.version-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 16px; border-bottom: 1px solid var(--line); }
-.version-panel-heading h2 { margin: 0; color: var(--ink); font-size: 15px; }
-.version-panel-heading p { margin: 4px 0 0; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+.version-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+.version-panel-heading h2 { margin: 0; color: var(--ink); font-size: 16px; }
+.version-panel-heading p { margin: 0; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
 .version-panel-heading > span { flex: none; padding: 4px 8px; border-radius: 999px; color: var(--brand-strong); background: var(--brand-soft); font-size: 10px; font-weight: 750; }
 .version-list { max-height: 520px; overflow-y: auto; }
 .version-entry { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-height: 78px; padding: 13px 14px; border: 0; border-bottom: 1px solid var(--line); color: inherit; background: transparent; text-align: left; cursor: pointer; }

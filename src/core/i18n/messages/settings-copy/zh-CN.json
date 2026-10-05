@@ -1,6 +1,7 @@
 {
   "messages": {
-    "settings.general.bilingualSentenceHighlightGroupingHint": "原文与译文的句子划分不同时，会一起高亮相邻句子",
+    "options.panel.floatingBall": "悬浮球进阶设置",
+    "settings.general.bilingualSentenceHighlightGroupingHint": "注意，当原文与译文的句子划分不同时，会一起高亮相邻句子。",
     "learning.collection.moreActions": "更多收藏操作",
     "learning.collection.listenExplain": "听读与解释",
     "learning.collection.editExplanation": "编辑解释",

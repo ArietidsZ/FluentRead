@@ -1257,7 +1257,7 @@ export const zhCNMessages = {
     'settings.general.floatingBallSettingsAction': '前往悬浮球配置',
     'settings.general.translationMode': '翻译模式',
     'settings.general.bilingualSentenceHighlight': '双语逐句高亮',
-    'settings.general.bilingualSentenceHighlightDescription': "双语模式下，将鼠标移到原文或译文上，即可高亮对应句子，方便对照阅读",
+    'settings.general.bilingualSentenceHighlightDescription': "双语模式下，将鼠标移到原文或译文上，即可高亮对应句子，方便对照阅读。",
     'settings.interface.font.label': '界面字体',
     'settings.interface.font.description': "用于设置页和扩展弹窗，选择后自动保存，不改变网页字体",
     'settings.interface.font.preview': '轻松阅读，让理解更进一步。',

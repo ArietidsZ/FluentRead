@@ -1,5 +1,6 @@
 {
   "messages": {
+    "options.panel.floatingBall": "フローティングボタンの詳細設定",
     "settings.general.bilingualSentenceHighlightGroupingHint": "原文と訳文で文の区切りが異なる場合は、隣接する文をまとめてハイライトします。",
     "learning.collection.moreActions": "保存した項目のその他の操作",
     "learning.collection.listenExplain": "読み上げと解説",
