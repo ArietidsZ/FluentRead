@@ -1,7 +1,7 @@
 /**
  * @file src/features/section-translation/content/picker.ts
  * 文件职责：实现局部翻译的区域选择模式，稳定预览鼠标下的内容块，点击锁定后用可见按钮调整并确认翻译或恢复的区域，并在选择期间拦截网页自身的点击与悬停反应。
- * 主要内容：在封闭 Shadow Root 中创建高亮框、自然语言范围标签与固定操作条；用边界容差和短暂稳定窗口消除选区抖动，点击锁定后保持区域，按钮与方向键调整范围；延迟盘点并提供原文预览，确认前刷新区域状态；确认按钮或 Enter 执行、Esc/右键/关闭按钮/页面隐藏退出；确认后短暂收束动画再移除界面。
+ * 主要内容：在封闭 Shadow Root 中创建高亮框、自然语言范围标签与固定操作条；用边界容差和短暂稳定窗口消除选区抖动，点击锁定后保持区域，按钮与方向键调整范围；识别封闭组件重定向到宿主的按键，操作条焦点不经过网页输入保护；延迟盘点并提供原文预览，确认前刷新区域状态；确认按钮或 Enter 执行、Esc/右键/关闭按钮/页面隐藏退出；确认后短暂收束动画再移除界面。
  * 模块边界：本模块只处理手势、高亮和选择生命周期，所有事件先校验 isTrusted；区域判定规则来自 ../core，区域盘点、翻译和提示文案由调用方注入，不直接发起翻译、不读取配置存储。
  */
 import pickerStyles from './picker.css?inline';
@@ -550,8 +550,12 @@ function createPickerSession(options: SectionPickerOptions): PickerSession {
             dispose(false);
             return;
         }
-        // 操作条本身接受范围快捷键；按钮保留原生 Enter 激活，网页输入场景仍让行。
-        if ((isExtensionUiEvent(event) && shadow.activeElement !== bar) || options.isEditing?.(event) === true) return;
+        // 封闭 ShadowRoot 的按键在 window 上只暴露 host，通用输入保护会把它误判为不透明编辑器。
+        // 自己的工具条和按钮都支持范围键；按钮保留原生 Enter 激活，网页及其他扩展界面仍让行。
+        const isPickerEvent = typeof event.composedPath === 'function' && event.composedPath().includes(host);
+        if (isPickerEvent) {
+            if (event.key === 'Enter' && shadow.activeElement !== bar) return;
+        } else if (isExtensionUiEvent(event) || options.isEditing?.(event) === true) return;
         if (event.key === 'ArrowUp') {
             consume(event);
             expand();

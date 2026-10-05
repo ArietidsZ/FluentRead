@@ -1,6 +1,7 @@
 import {parseHTML} from 'linkedom';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import type {SectionLabelSummary} from '@/src/features/section-translation/core';
+import {isEditingInPage} from '@/src/shared/dom/editingTarget';
 
 type Listener = {type: string; listener: (event: any) => void; signal?: AbortSignal};
 
@@ -510,18 +511,24 @@ describe('局部翻译选择模式', () => {
         const input = harness.document.createElement('input');
         harness.document.body.appendChild(input);
         input.focus = vi.fn();
-        Object.defineProperty(harness.document, 'activeElement', {configurable: true, get: () => input});
-        harness.options.isEditing = (event: KeyboardEvent) => event.target === input;
+        let activeElement: Element = input;
+        Object.defineProperty(harness.document, 'activeElement', {configurable: true, get: () => activeElement});
+        harness.options.isEditing = isEditingInPage;
         harness.picker.startSectionPicker(harness.options as never);
         harness.flushFrames();
         const bar = query(harness.shadow(), '.fr-section-bar');
         expect(bar.tabIndex).toBe(-1);
-        const focus = vi.fn(() => Object.defineProperty(harness.shadow(), 'activeElement', {configurable: true, value: bar}));
+        const focus = vi.fn(() => {
+            activeElement = harness.host()!;
+            Object.defineProperty(harness.shadow(), 'activeElement', {configurable: true, value: bar});
+        });
         bar.focus = focus;
         expect(harness.emit('keydown', {key: 'Enter', target: input}).preventDefault).not.toHaveBeenCalled();
         harness.emit('click', {clientX: 50, clientY: 70});
         expect(focus).toHaveBeenCalledWith({preventScroll: true});
-        const keys = (key: string) => harness.emit('keydown', {key, target: bar, composedPath: () => [bar, harness.host()]});
+        expect(isEditingInPage({composedPath: () => [harness.host()!]} as unknown as KeyboardEvent)).toBe(true);
+        // 封闭 ShadowRoot 在 window 上只暴露宿主；通用输入保护会将这个宿主视为不透明输入场景。
+        const keys = (key: string) => harness.emit('keydown', {key, target: harness.host(), composedPath: () => [harness.host(), harness.document.body]});
         expect(keys('ArrowUp').preventDefault).toHaveBeenCalled();
         harness.flushFrames();
         expect(query(harness.shadow(), '.fr-section-box').style.width).toBe('806px');
@@ -536,22 +543,30 @@ describe('局部翻译选择模式', () => {
         else expect(harness.onPick).not.toHaveBeenCalled();
     });
 
-    it('焦点在工具按钮时方向键和 Enter 留给按钮，退出时不还原已经断开的旧焦点', async () => {
+    it('工具按钮焦点下方向键调整范围、Enter 保留原生激活，退出不还原已经断开的旧焦点', async () => {
         const harness = await createHarness();
         const input = harness.document.createElement('input');
         harness.document.body.appendChild(input);
         input.focus = vi.fn();
-        Object.defineProperty(harness.document, 'activeElement', {configurable: true, value: input});
+        let activeElement: Element = input;
+        Object.defineProperty(harness.document, 'activeElement', {configurable: true, get: () => activeElement});
+        harness.options.isEditing = isEditingInPage;
         harness.picker.startSectionPicker(harness.options as never);
         harness.flushFrames();
         harness.emit('click', {clientX: 50, clientY: 70});
         const confirm = button(harness, 'confirm');
+        activeElement = harness.host()!;
         Object.defineProperty(harness.shadow(), 'activeElement', {configurable: true, value: confirm});
-        for (const key of ['ArrowUp', 'ArrowDown', 'Enter']) {
-            const event = harness.emit('keydown', {key, target: confirm, composedPath: () => [confirm, harness.host()]});
-            expect(event.preventDefault).not.toHaveBeenCalled();
-            expect(event.stopImmediatePropagation).not.toHaveBeenCalled();
-        }
+        const keys = (key: string) => harness.emit('keydown', {key, target: harness.host(), composedPath: () => [harness.host(), harness.document.body]});
+        expect(keys('ArrowUp').preventDefault).toHaveBeenCalled();
+        harness.flushFrames();
+        expect(query(harness.shadow(), '.fr-section-box').style.width).toBe('806px');
+        expect(keys('ArrowDown').preventDefault).toHaveBeenCalled();
+        harness.flushFrames();
+        expect(query(harness.shadow(), '.fr-section-box').style.width).toBe('406px');
+        const enter = keys('Enter');
+        expect(enter.preventDefault).not.toHaveBeenCalled();
+        expect(enter.stopImmediatePropagation).not.toHaveBeenCalled();
         expect(harness.onPick).not.toHaveBeenCalled();
         input.remove();
         harness.emit('keydown', {key: 'Escape'});
@@ -1215,6 +1230,9 @@ describe('局部翻译选择模式', () => {
             ...event,
             composedPath: () => [harness.byId('ball'), harness.document.body],
         });
+        for (const key of ['ArrowUp', 'ArrowDown', 'Enter']) {
+            expect(ownUi({type: 'keydown', key}).preventDefault).not.toHaveBeenCalled();
+        }
         for (const type of ['pointerdown', 'mousedown', 'click', 'mouseover', 'contextmenu']) {
             const event = ownUi({type});
             expect(event.preventDefault).not.toHaveBeenCalled();
