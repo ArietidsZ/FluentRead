@@ -1,5 +1,5 @@
 'use strict';
-// 网站规则专项：仅使用临时生产扩展 profile，验证配置保留、编辑导入、诊断与窄屏布局。
+// 网站规则专项：仅使用临时生产扩展 profile，验证独立标题分隔栏、配置保留、同页定位、单次保存、编辑导入、诊断与窄屏布局。
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
@@ -35,6 +35,21 @@ async function main() {
       const result = await newPageWithoutForeground(context, timeout);
       result.on('pageerror', error => report.consoleErrors.push({surface: 'page', message: error.message}));
       result.on('console', message => {if (message.type() === 'error') report.consoleErrors.push({surface: 'page', message: message.text()});});
+      await result.emulateMedia({reducedMotion: 'reduce'});
+      await result.addInitScript(() => {
+        if (!chrome.runtime?.sendMessage) return;
+        const send = chrome.runtime.sendMessage.bind(chrome.runtime);
+        chrome.runtime.sendMessage = (...args) => {
+          if (window.__frFailSiteRuleSave && args[0]?.type === 'persistConfig' && args[0]?.config?.siteAdaptation) {
+            window.__frFailSiteRuleSave = false;
+            const failure = {success: false, error: 'Controlled site-rule save failure'};
+            const callback = args[args.length - 1];
+            if (typeof callback === 'function') { queueMicrotask(() => callback(failure)); return; }
+            return Promise.resolve(failure);
+          }
+          return send(...args);
+        };
+      });
       await result.goto(url, {waitUntil: 'domcontentloaded'});
       return result;
     }
@@ -49,8 +64,15 @@ async function main() {
       assert(result.success);
     }
     async function panel(id) {
-      await page.locator('[data-settings-category="' + id + '"]').click();
+      await page.locator('[data-settings-anchor-link="' + id + '"]').click();
       await page.locator('#settings-sites [data-settings-panel="' + id + '"]').waitFor();
+      await page.waitForFunction(id => {
+        const container = document.querySelector('.settings-card');
+        const section = document.querySelector('#settings-sites [data-settings-panel="' + id + '"]');
+        const box = container.getBoundingClientRect(), target = section.getBoundingClientRect();
+        return target.top < box.bottom && target.bottom > box.top;
+      }, id);
+      assert.equal(await page.locator('[data-settings-anchor-link="' + id + '"]').getAttribute('aria-current'), 'location');
     }
     const card = selector => page.locator(selector);
     async function shot(name) {const filename = path.join(artifactsDir, name + '.png'); await page.screenshot({path: filename}); report.screenshots.push(filename);}
@@ -69,20 +91,39 @@ async function main() {
           const foreground = luminance(style.color), background = luminance(style.backgroundColor);
           return (Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05);
         });
-        return {width: innerWidth, height: innerHeight, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight,
+        const sectionHeaders = [...document.querySelectorAll('#settings-sites .rule-section-heading')].map(heading => {
+          const style = getComputedStyle(heading), title = heading.querySelector('h2');
+          const section = heading.parentElement, box = heading.getBoundingClientRect(), sectionBox = section.getBoundingClientRect();
+          const toggle = section.querySelector('.rule-toggle-row');
+          return {title: title?.textContent, titleId: title?.id, labelledBy: section.getAttribute('aria-labelledby'),
+            borderWidth: parseFloat(style.borderBottomWidth), borderStyle: style.borderBottomStyle,
+            separateBackground: style.backgroundColor !== getComputedStyle(section).backgroundColor,
+            fullWidth: box.left <= sectionBox.left + 2 && box.right >= sectionBox.right - 2,
+            switchInHeading: Boolean(heading.querySelector('[role="switch"]')),
+            toggleBelow: !toggle || toggle.getBoundingClientRect().top >= box.bottom - 1};
+        });
+        return {width: innerWidth, height: innerHeight, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight, sectionHeaders,
           overflowing: containers.filter(element => element.scrollWidth > element.clientWidth + 1).map(element => element.className),
           duplicateIds: ids.filter((id, index) => ids.indexOf(id) !== index), primaryContrast};
       });
       assert(metrics.documentWidth <= metrics.width + 1 && metrics.documentHeight <= metrics.height + 1, JSON.stringify(metrics));
       assert.equal(metrics.overflowing.length, 0, JSON.stringify(metrics));
       assert.equal(metrics.duplicateIds.length, 0);
+      assert.equal(metrics.sectionHeaders.length, 3, JSON.stringify(metrics.sectionHeaders));
+      assert(metrics.sectionHeaders.every(header => header.title && header.titleId === header.labelledBy && header.borderWidth >= 1 && header.borderStyle === 'solid' && header.separateBackground && header.fullWidth && !header.switchInHeading && header.toggleBelow), 'Independent section headers: ' + JSON.stringify(metrics.sectionHeaders));
       assert(metrics.primaryContrast.every(value => value >= 4.5), 'Primary button contrast: ' + JSON.stringify(metrics.primaryContrast));
       report.cases.push({name, metrics});
     }
     page = await open();
     await page.locator('[data-setting="site-preferences"]').waitFor();
-    assert.equal(await page.locator('nav [data-section="settings-sites"]').evaluate(element => element.closest('.nav-group').querySelector('.nav-group-toggle').textContent.trim().replace('›', '').trim()), '系统与数据');
-    assert.deepEqual(await page.locator('[data-settings-category]').allTextContents(), ['网站偏好', '正文适配', '生效预览']);
+    assert.equal(await page.locator('nav [data-section="settings-sites"]').evaluate(element => element.closest('.nav-group').querySelector('.nav-group-toggle').textContent.trim().replace('›', '').trim()), '工具与学习');
+    await page.locator('[data-settings-anchor-link="preview"]').waitFor();
+    assert.deepEqual(await page.locator('[data-settings-anchor-link]').allTextContents(), ['网站偏好', '正文适配', '生效预览']);
+    assert.equal(await page.locator('#settings-sites [data-settings-panel]:visible').count(), 3);
+    assert.equal(await page.locator('[data-setting="site-preferences"] .rule-card').count(), 1);
+    assert.equal(await page.locator('[data-setting="site-rule-preview"] .rule-empty').count(), 0);
+    assert.equal(await page.locator('.backup-tools').evaluate(element => element.open), false);
+    await shot('continuous-default');
     await patchConfig({on: true, uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true, autoTranslate: false, disableFloatingBall: false,
       alwaysTranslateDomains: ['example.com'], disabledExtensionDomains: ['example.com'], floatingBallDisabledDomains: ['example.com']});
     const row = page.locator('[data-site-preference="example.com"]');
@@ -140,7 +181,9 @@ async function main() {
     await popup.close(); await content.close();
     const preferencesBefore = await readConfig();
     await patchConfig({autoTranslate: true, alwaysTranslateDomains: [], disabledExtensionDomains: [], floatingBallDisabledDomains: []});
-    await prefs.getByText('全局自动翻译已开启。可以添加网站禁用扩展，或仅隐藏悬浮球。', {exact: true}).waitFor();
+    await prefs.locator('.rule-toggle-row .el-switch').filter({has: page.locator('[aria-checked="true"]')}).waitFor();
+    assert.equal(await prefs.locator('.rule-empty').count(), 0);
+    await shot('preferences-empty-global');
     await patchConfig({autoTranslate: false, alwaysTranslateDomains: preferencesBefore.alwaysTranslateDomains,
       disabledExtensionDomains: preferencesBefore.disabledExtensionDomains, floatingBallDisabledDomains: preferencesBefore.floatingBallDisabledDomains});
     await panel('adaptation');
@@ -148,17 +191,27 @@ async function main() {
     assert.equal(await adaptation.locator('.catalog-rule').count(), 30);
     await adaptation.getByRole('button', {name: '新建规则', exact: true}).click();
     await page.getByRole('textbox', {name: '规则名称', exact: true}).fill('阅读测试规则');
+    await adaptation.locator('.form-advanced > summary').click();
+    assert.match(await page.getByRole('textbox', {name: '规则标识', exact: true}).inputValue(), /^user-site-/);
     await page.getByRole('textbox', {name: '规则标识', exact: true}).fill('user-article');
     await page.getByRole('textbox', {name: '匹配域名', exact: true}).fill('example.com\n*.example.com');
     await page.getByRole('textbox', {name: '匹配路径（可选）', exact: true}).fill('/articles/*');
     await page.getByRole('textbox', {name: '排除路径（可选）', exact: true}).fill('/articles/private/*');
-    await page.getByRole('combobox', {name: '识别模式', exact: true}).selectOption('focus');
+    await page.getByRole('radio', {name: '限定范围：只翻译指定的正文区域', exact: true}).check();
     await adaptation.getByRole('button', {name: '添加正文区域', exact: true}).click();
     await page.getByRole('textbox', {name: '正文 CSS 选择器 1', exact: true}).fill(':is(article, main) p');
     await page.getByRole('textbox', {name: '保留原文区域（可选）', exact: true}).fill('code\nbutton');
+    await adaptation.locator('[data-rule-form]').scrollIntoViewIfNeeded();
+    await adaptation.locator('.form-advanced > summary').click();
+    await adaptation.locator('[data-rule-form]').evaluate(element => element.scrollIntoView({block: 'start'}));
+    assert((await page.getByRole('textbox', {name: '规则名称', exact: true}).boundingBox()).height <= 50, 'Single-line input stretched to adjacent textarea height');
     await layout('visual-form-desktop'); await shot('visual-form-desktop');
-    await adaptation.getByRole('button', {name: '暂存规则', exact: true}).click();
-    assert.equal((await readConfig()).siteAdaptation.custom.rules.length, 0, 'Staging unexpectedly saved');
+    assert.equal((await readConfig()).siteAdaptation.custom.rules.length, 0, 'Unsaved form unexpectedly persisted');
+    await page.evaluate(() => { window.__frFailSiteRuleSave = true; });
+    await adaptation.getByRole('button', {name: '保存并应用', exact: true}).click();
+    await adaptation.getByRole('alert').filter({hasText: '保存失败'}).waitFor();
+    assert.equal(await page.getByRole('textbox', {name: '规则名称', exact: true}).inputValue(), '阅读测试规则');
+    assert.equal((await readConfig()).siteAdaptation.custom.rules.length, 0);
     await adaptation.getByRole('button', {name: '保存并应用', exact: true}).click();
     await adaptation.getByRole('status').filter({hasText: '规则已应用；'}).waitFor();
     assert.equal((await readConfig()).siteAdaptation.custom.rules[0].id, 'user-article');
@@ -169,16 +222,19 @@ async function main() {
     await panel('preview');
     const preview = card('[data-setting="site-rule-preview"]');
     await preview.getByRole('textbox', {name: '输入完整网址', exact: true}).fill('https://docs.example.com/articles/hello');
-    await preview.getByRole('button', {name: '检查已保存配置', exact: true}).click();
+    await preview.getByRole('button', {name: '检查规则', exact: true}).click();
     await page.locator('[data-preview-rule="user-article"]').waitFor();
     assert.match(await preview.textContent(), /自动翻译 · 网站偏好/);
-    assert.match(await preview.textContent(), /命中限定范围规则/);
+    assert.match(await preview.textContent(), /限定范围：只翻译指定的正文区域/);
+    await panel('preview');
     await layout('preview-desktop'); await shot('preview-desktop');
     await preview.getByRole('button', {name: '查看规则', exact: true}).click();
     await adaptation.locator('[data-rule-detail]').waitFor();
+    await shot('rule-detail-desktop');
     assert.match(await adaptation.locator('[data-rule-detail]').textContent(), /阅读测试规则/);
     // 导入默认合并；同 ID 覆盖可撤销，未保存包不参与网址预览。
     const imported = {version: 1, rules: [{id: 'imported-rule', name: '导入规则', match: {hosts: ['other.test']}, protect: ['pre']}]};
+    await adaptation.locator('.backup-tools > summary').click();
     await adaptation.locator('input[type="file"]').setInputFiles({name: 'rules.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(imported))});
     await page.locator('[data-adaptation-rule="imported-rule"]').waitFor();
     await adaptation.getByRole('button', {name: '保存并应用', exact: true}).click();
@@ -193,7 +249,7 @@ async function main() {
       const event = new Event('beforeunload', {cancelable: true});
       window.dispatchEvent(event); return event.defaultPrevented;
     }), true, 'Unsaved draft must request the browser leave warning');
-    await adaptation.getByRole('button', {name: '保存规则', exact: true}).click();
+    await adaptation.getByRole('button', {name: '保存并应用', exact: true}).click();
     await adaptation.getByRole('alert').first().waitFor();
     assert.equal((await readConfig()).siteAdaptation.custom.rules.length, 2);
     await adaptation.getByRole('button', {name: '恢复已保存草稿', exact: true}).click();
@@ -221,7 +277,6 @@ async function main() {
     await builtinRow.locator('.catalog-name').click();
     await adaptation.getByRole('button', {name: '基于此规则自定义', exact: true}).click();
     await page.getByRole('textbox', {name: '规则名称', exact: true}).fill('自定义覆盖测试');
-    await adaptation.getByRole('button', {name: '暂存规则', exact: true}).click();
     await adaptation.getByRole('button', {name: '保存并应用', exact: true}).click();
     await adaptation.getByRole('status').filter({hasText: '规则已应用；'}).waitFor();
     assert.equal((await readConfig()).siteAdaptation.custom.rules.length, 3);
@@ -245,9 +300,9 @@ async function main() {
     assert.equal((await readConfig()).translationScope, 'all');
     await preview.getByText(/不适用于全部节点/).waitFor();
     assert.match(await preview.textContent(), /不适用于全部节点/);
-    assert.doesNotMatch(await preview.locator('.preview-adaptation .rule-notice').textContent(), /命中限定范围规则/);
+    assert.doesNotMatch(await preview.locator('.preview-adaptation > .rule-hint').last().textContent(), /限定范围：只翻译指定的正文区域/);
     await patchConfig({translationScope: 'content'});
-    report.caseCoverage.push(...['system-navigation', 'domain-union-and-disable-precedence', 'global-auto-empty-state', 'quick-close-persistence', 'controlled-popup-cross-page', 'visual-rule-staging-and-save', 'saved-config-preview-and-jump', 'merge-import-preserves-existing', 'invalid-json-preserves-saved', 'unsaved-exit-protection', 'external-draft-conflict', 'builtin-override-disable-remove-restore', 'all-node-scope-preview'].map(id => ({id, status: 'passed'})));
+    report.caseCoverage.push(...['tools-navigation-and-continuous-anchors', 'independent-section-headers-and-toggle-rows', 'domain-union-and-disable-precedence', 'global-auto-empty-state', 'quick-close-persistence', 'controlled-popup-cross-page', 'visual-rule-single-save-and-failure-retry', 'saved-config-preview-and-jump', 'merge-import-preserves-existing', 'invalid-json-preserves-saved', 'unsaved-exit-protection', 'external-draft-conflict', 'builtin-override-disable-remove-restore', 'all-node-scope-preview'].map(id => ({id, status: 'passed'})));
     await page.close(); page = await open(); await panel('adaptation');
     await page.locator('[data-setting="site-adaptation"]').waitFor();
     await page.locator('[data-setting="site-adaptation"] .catalog-filters').getByRole('button', {name: /^自定义/}).click();
@@ -272,6 +327,7 @@ async function main() {
     await patchConfig({uiLanguage: 'zh-CN'});
     await page.getByRole('heading', {name: '正文适配', exact: true}).waitFor();
     await page.locator('nav [data-section="settings-data"]').click();
+    await page.locator('[data-settings-anchor-link="history"]').click();
     await page.locator('.version-entry').first().waitFor();
     await page.locator('.version-entry').first().scrollIntoViewIfNeeded();
     assert.match(await page.locator('.version-entry').first().textContent(), /v[0-9]+/);
