@@ -503,12 +503,14 @@
 .usage-detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.7fr) minmax(290px, 1fr);
-  align-items: start;
+  align-items: stretch;
   gap: 12px;
   margin-top: 12px;
 }
 
 .usage-trend-card {
+  display: flex;
+  flex-direction: column;
   margin: 0;
   padding: 18px;
 }
@@ -1431,7 +1433,7 @@
 .usage-metric-toggle button { min-height: 30px; padding: 0 10px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; font-size: 11px; cursor: pointer; }
 .usage-metric-toggle button[aria-pressed="true"] { color: var(--brand-strong); background: var(--surface); box-shadow: 0 1px 4px #0000000d; font-weight: 750; }
 .usage-chart-scale { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; margin-bottom: 5px; }
-.usage-trend-plot { height: 200px; padding-top: 0; background: repeating-linear-gradient(to top, transparent 0, transparent calc(50% - 1px), var(--line) calc(50% - 1px), var(--line) 50%); }
+.usage-trend-plot { flex: 1 0 200px; height: 200px; padding-top: 0; background: repeating-linear-gradient(to top, transparent 0, transparent calc(50% - 1px), var(--line) calc(50% - 1px), var(--line) 50%); }
 .usage-trend-plot li { grid-template-rows: minmax(0, 1fr) 23px; gap: 5px; }
 .usage-trend-point { display: block; position: relative; height: 100%; width: 100%; min-width: 0; padding: 0 1px; border: 0; border-radius: 5px 5px 0 0; background: transparent; cursor: pointer; }
 .usage-trend-point:hover, .usage-trend-point.selected { background: var(--brand-soft); }
