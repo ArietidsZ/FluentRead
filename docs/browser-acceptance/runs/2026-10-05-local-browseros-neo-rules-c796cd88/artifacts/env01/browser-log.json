@@ -1,0 +1,111 @@
+{
+  "events": [
+    {
+      "event": "browser-identity",
+      "at": "2026-10-05T04:46:48.197Z",
+      "context": "CDP Browser.getVersion",
+      "product": "Chrome/151.0.8162.137",
+      "revision": "@8f5d36bc16f57115aeeff34baf4ad6aa964d509c",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+    },
+    {
+      "event": "cdp-target-inventory",
+      "at": "2026-10-05T04:47:18.299Z",
+      "context": "CDP Target.getTargets",
+      "count": 11,
+      "targets": [
+        {
+          "type": "service_worker",
+          "url": "chrome-extension://adlpneommgkgeanpaekgoaolcpncohkf/background.js"
+        },
+        {
+          "type": "service_worker",
+          "url": "chrome-extension://pjimfkbpehlcllblajnpfamdfjhhlgkc/background.js"
+        },
+        {
+          "type": "service_worker",
+          "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/background.js"
+        },
+        {
+          "type": "page",
+          "url": "http://127.0.0.1:54296/"
+        },
+        {
+          "type": "page",
+          "url": "http://127.0.0.1:54296/"
+        },
+        {
+          "type": "page",
+          "url": "chrome://newtab/"
+        },
+        {
+          "type": "iframe",
+          "url": "chrome-untrusted://new-tab-page/one-google-bar?paramsencoded="
+        },
+        {
+          "type": "browser_ui",
+          "url": "chrome://omnibox-popup.top-chrome/omnibox_popup_aim.html"
+        },
+        {
+          "type": "browser_ui",
+          "url": "chrome://omnibox-popup.top-chrome/"
+        },
+        {
+          "type": "page",
+          "url": "http://127.0.0.1:54296/"
+        },
+        {
+          "type": "page",
+          "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html#settings-general"
+        }
+      ]
+    },
+    {
+      "event": "extension-identity",
+      "at": "2026-10-05T04:47:18.299Z",
+      "context": "extension options page chrome.runtime.getManifest()",
+      "extensionId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+      "extensionName": "FluentRead-流畅阅读",
+      "extensionVersion": "0.0.35"
+    },
+    {
+      "event": "fixture-page-load",
+      "at": "2026-10-05T04:47:18.299Z",
+      "context": "background CDP tab",
+      "url": "http://127.0.0.1:54296/",
+      "title": "FluentRead local acceptance",
+      "secureContext": true
+    },
+    {
+      "event": "fixture-dom",
+      "at": "2026-10-05T04:47:18.299Z",
+      "context": "background CDP tab",
+      "headings": [
+        "Routing and privacy",
+        "Single image",
+        "Manga image",
+        "TTS text with ending markers"
+      ],
+      "images": [
+        {
+          "id": "single-image",
+          "w": 900,
+          "h": 280
+        },
+        {
+          "id": "manga-image",
+          "w": 900,
+          "h": 620
+        }
+      ],
+      "ttsChars": 1081
+    },
+    {
+      "event": "incognito-context-probe",
+      "at": "2026-10-05T04:47:18.299Z",
+      "context": "CDP Target.createBrowserContext",
+      "reachable": true,
+      "error": null
+    }
+  ]
+}

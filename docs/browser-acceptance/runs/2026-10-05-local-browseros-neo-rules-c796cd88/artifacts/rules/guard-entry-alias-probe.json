@@ -1,0 +1,49 @@
+{
+  "scratch": "<TMP>/jy/rh2_z7wj0wvfjg7sbvz7l9ch0000gn/T/fluentread-guard-alias-jpGkYv",
+  "aliasDirectory": "/tmp/fluentread-guard-alias-jpGkYv",
+  "old-cf541253": {
+    "canonicalPath": {
+      "exitStatus": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "parsedOk": false,
+      "silentNoOp": true
+    },
+    "tmpAliasPath": {
+      "exitStatus": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "parsedOk": false,
+      "silentNoOp": true
+    },
+    "argv1UsedForAlias": "/tmp/fluentread-guard-alias-jpGkYv/guard-alias.mjs",
+    "realpathOfAlias": "/private<TMP>/jy/rh2_z7wj0wvfjg7sbvz7l9ch0000gn/T/fluentread-guard-alias-jpGkYv/old-cf541253.mjs"
+  },
+  "new-c796cd88": {
+    "canonicalPath": {
+      "exitStatus": 0,
+      "signal": null,
+      "stdout": "{\"ok\":true,\"scope\":\"pure guard contract checks only\",\"macosRun\":false,\"browserRun\":false}",
+      "stderr": "",
+      "parsedOk": true,
+      "silentNoOp": false
+    },
+    "tmpAliasPath": {
+      "exitStatus": 0,
+      "signal": null,
+      "stdout": "{\"ok\":true,\"scope\":\"pure guard contract checks only\",\"macosRun\":false,\"browserRun\":false}",
+      "stderr": "",
+      "parsedOk": true,
+      "silentNoOp": false
+    },
+    "argv1UsedForAlias": "/tmp/fluentread-guard-alias-jpGkYv/guard-alias.mjs",
+    "realpathOfAlias": "/private<TMP>/jy/rh2_z7wj0wvfjg7sbvz7l9ch0000gn/T/fluentread-guard-alias-jpGkYv/new-c796cd88.mjs"
+  },
+  "interpretation": {
+    "before": "old guard invoked through a /tmp alias printed nothing and exited 0 — the entry check compared import.meta.url (already /private/tmp/...) with path.resolve(argv[1]) (/tmp/...), so the guard silently did nothing (DEFECT-07).",
+    "after": "new guard resolves both sides with fs.realpath, so the same alias invocation runs the real --self-check and prints its JSON."
+  },
+  "defect07Resolved": true
+}

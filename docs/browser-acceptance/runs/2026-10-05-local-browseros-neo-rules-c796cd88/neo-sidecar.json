@@ -1,0 +1,8 @@
+{
+  "ports": {
+    "cdp": 9360
+  },
+  "directories": {
+    "resources": "<HOME>/Library/Application Support/BrowserClaw/.browseros/BrowserClawServer/versions/0.0.66/resources"
+  }
+}

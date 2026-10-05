@@ -1,0 +1,4 @@
+server=<HOME>/Library/Application Support/BrowserClaw/.browseros/BrowserClawServer/versions/0.0.66/resources/bin/browseros-claw-server
+resources=<HOME>/Library/Application Support/BrowserClaw/.browseros/BrowserClawServer/versions/0.0.66/resources
+serverSha256=2e98c1a5ef33f4289060783b08b5c9bfc7708ffb65532c3f757cc94d915dc54f
+browserApp=/Applications/BrowserOS neo.app

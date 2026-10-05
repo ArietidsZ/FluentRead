@@ -1,0 +1,239 @@
+{
+  "cdpPort": 9360,
+  "browserPid": 9833,
+  "displays": [
+    {
+      "left": 0,
+      "top": 0,
+      "width": 2560,
+      "height": 1440
+    }
+  ],
+  "frontmostPidDuringProbe": 19141,
+  "browserIsFrontmost": false,
+  "attempts": [
+    {
+      "method": "CDP Browser.setWindowBounds",
+      "request": {
+        "left": 2560,
+        "top": 100,
+        "width": 1200,
+        "height": 900
+      },
+      "error": null,
+      "achieved": {
+        "left": 2520,
+        "top": 100,
+        "width": 1200,
+        "height": 900,
+        "windowState": "normal"
+      },
+      "fullyOffscreen": false
+    },
+    {
+      "method": "CDP Browser.setWindowBounds",
+      "request": {
+        "left": 4000,
+        "top": 100,
+        "width": 1200,
+        "height": 900
+      },
+      "error": null,
+      "achieved": {
+        "left": 2520,
+        "top": 100,
+        "width": 1200,
+        "height": 900,
+        "windowState": "normal"
+      },
+      "fullyOffscreen": false
+    },
+    {
+      "method": "CDP Browser.setWindowBounds",
+      "request": {
+        "left": -1200,
+        "top": 100,
+        "width": 1200,
+        "height": 900
+      },
+      "error": null,
+      "achieved": {
+        "left": -916,
+        "top": 100,
+        "width": 1200,
+        "height": 900,
+        "windowState": "normal"
+      },
+      "fullyOffscreen": false
+    },
+    {
+      "method": "CDP Browser.setWindowBounds",
+      "request": {
+        "left": -9000,
+        "top": 100,
+        "width": 1200,
+        "height": 900
+      },
+      "error": null,
+      "achieved": {
+        "left": -916,
+        "top": 100,
+        "width": 1200,
+        "height": 900,
+        "windowState": "normal"
+      },
+      "fullyOffscreen": false
+    },
+    {
+      "method": "CDP Browser.setWindowBounds",
+      "request": {
+        "left": 100,
+        "top": 1440,
+        "width": 1200,
+        "height": 900
+      },
+      "error": null,
+      "achieved": {
+        "left": 100,
+        "top": 1394,
+        "width": 1200,
+        "height": 900,
+        "windowState": "normal"
+      },
+      "fullyOffscreen": false
+    },
+    {
+      "method": "CDP Browser.setWindowBounds",
+      "request": {
+        "left": 100,
+        "top": -900,
+        "width": 1200,
+        "height": 900
+      },
+      "error": null,
+      "achieved": {
+        "left": 100,
+        "top": 30,
+        "width": 1200,
+        "height": 900,
+        "windowState": "normal"
+      },
+      "fullyOffscreen": false
+    },
+    {
+      "method": "CDP Browser.setWindowBounds",
+      "request": {
+        "left": 100,
+        "top": -9000,
+        "width": 1200,
+        "height": 900
+      },
+      "error": null,
+      "achieved": {
+        "left": 100,
+        "top": 30,
+        "width": 1200,
+        "height": 900,
+        "windowState": "normal"
+      },
+      "fullyOffscreen": false
+    },
+    {
+      "method": "AX System Events set position",
+      "request": {
+        "left": 2700,
+        "top": 100
+      },
+      "achieved": {
+        "left": 2520,
+        "top": 100
+      },
+      "cdpBounds": {
+        "left": 2520,
+        "top": 100,
+        "width": 1200,
+        "height": 900,
+        "windowState": "normal"
+      },
+      "fullyOffscreen": false
+    },
+    {
+      "method": "AX System Events set position",
+      "request": {
+        "left": 6000,
+        "top": 100
+      },
+      "achieved": {
+        "left": 2520,
+        "top": 100
+      },
+      "cdpBounds": {
+        "left": 2520,
+        "top": 100,
+        "width": 1200,
+        "height": 900,
+        "windowState": "normal"
+      },
+      "fullyOffscreen": false
+    },
+    {
+      "method": "AX System Events set position",
+      "request": {
+        "left": -3000,
+        "top": 100
+      },
+      "achieved": {
+        "left": -916,
+        "top": 100
+      },
+      "cdpBounds": {
+        "left": -916,
+        "top": 100,
+        "width": 1200,
+        "height": 900,
+        "windowState": "normal"
+      },
+      "fullyOffscreen": false
+    },
+    {
+      "method": "AX System Events set position",
+      "request": {
+        "left": 100,
+        "top": 3000
+      },
+      "achieved": {
+        "left": 100,
+        "top": 1394
+      },
+      "cdpBounds": {
+        "left": 100,
+        "top": 1394,
+        "width": 1200,
+        "height": 900,
+        "windowState": "normal"
+      },
+      "fullyOffscreen": false
+    },
+    {
+      "method": "AX System Events set position",
+      "request": {
+        "left": 100,
+        "top": -3000
+      },
+      "achieved": {
+        "left": 100,
+        "top": 30
+      },
+      "cdpBounds": {
+        "left": 100,
+        "top": 30,
+        "width": 1200,
+        "height": 900,
+        "windowState": "normal"
+      },
+      "fullyOffscreen": false
+    }
+  ],
+  "fullyOffscreenReachable": false,
+  "conclusion": "No requested placement produced a window outside every active display: the macOS WindowServer clamps normal windows so part of the window stays on a display, so browser-focus-guard.mjs cannot report running on this single-display arrangement."
+}

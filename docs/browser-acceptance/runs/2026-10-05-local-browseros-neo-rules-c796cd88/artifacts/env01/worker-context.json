@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-05T04:49:23.521Z",
+  "context": "extension-origin-blob-worker",
+  "probe": {
+    "vendor": "apple",
+    "architecture": "metal-3",
+    "device": "",
+    "isFallbackAdapter": false,
+    "hasShaderF16": true,
+    "featureCount": 22,
+    "maxBufferSize": 4294967292,
+    "maxStorageBufferBindingSize": 4294967292
+  },
+  "note": "Worker spawned from the extension offscreen document, i.e. the same origin as the packaged model workers.",
+  "events": [
+    {
+      "event": "webgpu-adapter-request",
+      "at": "2026-10-05T04:49:23.524Z",
+      "context": "extension-worker",
+      "adapter": {
+        "vendor": "apple",
+        "architecture": "metal-3",
+        "device": "",
+        "isFallbackAdapter": false,
+        "hasShaderF16": true,
+        "featureCount": 22,
+        "maxBufferSize": 4294967292,
+        "maxStorageBufferBindingSize": 4294967292
+      },
+      "features": [],
+      "limits": {
+        "maxBufferSize": 4294967292,
+        "maxStorageBufferBindingSize": 4294967292
+      },
+      "hasShaderF16": true,
+      "error": null
+    }
+  ]
+}

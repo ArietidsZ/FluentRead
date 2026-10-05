@@ -1,0 +1,6 @@
+launchMode=open -g -n -a background, dedicated temporary profile, requested offscreen placement
+profile=/tmp/fluentread-rules2-5eb83722
+cdpPort=9360
+browserPid=9833
+launchedAt=2026-10-05T08:05:14Z
+args: --user-data-dir=/tmp/fluentread-rules2-5eb83722 --remote-debugging-port=9360 --remote-allow-origins=http://127.0.0.1:9360 --window-position=2700,120 --window-size=1200,900 --no-first-run --no-default-browser-check --enable-unsafe-extension-debugging

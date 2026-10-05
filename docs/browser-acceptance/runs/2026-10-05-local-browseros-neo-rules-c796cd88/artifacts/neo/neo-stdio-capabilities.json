@@ -1,0 +1,48 @@
+{
+  "server": "<HOME>/Library/Application Support/BrowserClaw/.browseros/BrowserClawServer/versions/0.0.66/resources/bin/browseros-claw-server",
+  "config": "<WORKSPACE>/fluentread-acceptance/run-resume/neo-sidecar.json",
+  "stateDir": "<WORKSPACE>/fluentread-acceptance/run-resume/neo-state",
+  "cwd": "<WORKSPACE>",
+  "pid": 9933,
+  "initialized": true,
+  "tools": [
+    "act",
+    "await_human_help",
+    "diff",
+    "download",
+    "evaluate",
+    "grep",
+    "history",
+    "mark_skill_run",
+    "name_session",
+    "navigate",
+    "pdf",
+    "read",
+    "request_human_help",
+    "run",
+    "save_skill",
+    "screenshot",
+    "snapshot",
+    "tab_groups",
+    "tabs",
+    "upload",
+    "wait",
+    "windows"
+  ],
+  "toolsCount": 22,
+  "resources": [],
+  "errors": [],
+  "stderrHead": "2026-10-05T08:05:27.321260Z  INFO sea_orm_migration::migrator: Applying all pending migrations\n2026-10-05T08:05:27.321650Z  INFO sea_orm_migration::migrator: Applying migration 'm0001_baseline'\n2026-10-05T08:05:27.324610Z  INFO sea_orm_migration::migrator: Migration 'm0001_baseline' has been applied\n2026-10-05T08:05:27.324946Z  INFO sea_orm_migration::migrator: Applying migration 'm0002_add_recordings_and_claims'\n2026-10-05T08:05:27.326010Z  INFO sea_orm_migration::migrator: Migration 'm0002_add_recordings_and_claims' has been applied\n2026-10-05T08:05:27.326069Z  INFO sea_orm_migration::migrator: Applying migration 'm0003_document_recordings_and_tab_ownership'\n2026-10-05T08:05:27.327367Z  INFO sea_orm_migration::migrator: Migration 'm0003_document_recordings_and_tab_ownership' has been applied\n2026-10-05T08:05:27.327451Z  INFO sea_orm_migration::migrator: Applying migration 'm0004_atomic_recording_payloads'\n2026-10-05T08:05:27.327579Z  INFO sea_orm_migration::migrator: Migration 'm0004_atomic_recording_payloads' has been applied\n2026-10-05T08:05:27.327647Z  INFO sea_orm_migration::migrator: Applying migration 'm0005_reclassify_task_status'\n2026-10-05T08:05:27.327874Z  INFO sea_orm_",
+  "serverInfo": {
+    "name": "browseros-neo",
+    "title": "BrowserOS neo",
+    "version": "0.0.66"
+  },
+  "protocolVersion": "2025-06-18",
+  "capabilities": {
+    "tools": {
+      "listChanged": true
+    }
+  },
+  "exitCode": null
+}

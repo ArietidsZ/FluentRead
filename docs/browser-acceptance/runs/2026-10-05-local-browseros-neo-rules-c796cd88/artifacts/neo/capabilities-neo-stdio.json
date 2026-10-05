@@ -1,0 +1,48 @@
+{
+  "browserosVersion": "0.50.5.0",
+  "browserosBundleVersion": "0.50.5",
+  "chromiumVersion": "151.0.8162.137",
+  "neoMcpServer": {
+    "name": "browseros-neo",
+    "version": "0.0.66",
+    "binary": "<HOME>/Library/Application Support/BrowserClaw/.browseros/BrowserClawServer/versions/0.0.66/resources/bin/browseros-claw-server",
+    "binarySha256": "2e98c1a5ef33f4289060783b08b5c9bfc7708ffb65532c3f757cc94d915dc54f",
+    "protocolVersion": "2025-06-18"
+  },
+  "tools": [
+    "act",
+    "await_human_help",
+    "diff",
+    "download",
+    "evaluate",
+    "grep",
+    "history",
+    "mark_skill_run",
+    "name_session",
+    "navigate",
+    "pdf",
+    "read",
+    "request_human_help",
+    "run",
+    "save_skill",
+    "screenshot",
+    "snapshot",
+    "tab_groups",
+    "tabs",
+    "upload",
+    "wait",
+    "windows"
+  ],
+  "operations": [
+    "one-off stdio child process: browseros-claw-server --config <run>/neo-sidecar.json --stdio (JSON-RPC 2.0 over stdin/stdout)",
+    "MCP initialize + tools/list (read-only handshake, 22 tools, protocol 2025-06-18)",
+    "isolated state dir via BROWSERCLAW_DIR=<run>/neo-state (own sqlite + migrations, daily instance untouched)"
+  ],
+  "observations": [
+    "The task-scoped sidecar config was accepted: ports.cdp=9360 (the verified CDP port of this round's temporary instance) and directories.resources were read from the run-local JSON.",
+    "The server applied its own migrations into the run-local BROWSERCLAW_DIR and exposed the full 22-tool surface with no auth prompt.",
+    "No browser operation was performed through the control surface: the focus guard recorded guard-violation, and the handoff forbids browser operations without a running guard."
+  ],
+  "controlSurfaceProbePid": 9933,
+  "runLocalStateDir": "<run>/neo-state"
+}

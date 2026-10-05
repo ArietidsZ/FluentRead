@@ -1,0 +1,10 @@
+$ git -C tools rev-parse HEAD
+c796cd88f2a2804c9e05da98be949ae4fa6298fd
+
+$ node scripts/testing/browser-focus-guard-entry-selfcheck.mjs
+{"ok":true,"node":"v22.23.3","checks":["direct CLI","file symlink CLI","ancestor-directory symlink CLI","preserved symlink main","ordinary direct/alias invocation rejects unmet prerequisites","direct import without CLI execution","aliased import without CLI execution","eval import without entry argument","stdin import with dash entry argument","unresolvable entry fails nonzero"],"macosRun":false,"browserRun":false}
+exit=0
+
+$ node scripts/testing/browser-focus-guard.mjs --self-check   # canonical path
+{"ok":true,"scope":"pure guard contract checks only","macosRun":false,"browserRun":false}
+exit=0

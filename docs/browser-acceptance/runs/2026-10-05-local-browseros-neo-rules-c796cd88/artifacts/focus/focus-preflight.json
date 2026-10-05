@@ -1,0 +1,16 @@
+{
+  "status": "blocked",
+  "mode": "once",
+  "browserPid": 9833,
+  "cdpPort": 9360,
+  "profilePathSha256": "4b0288a800f7eb5cb0bbcb520208ebfc4224e6522948b61455d4589d1209e134",
+  "samplePolicy": "serial read-only polling; inspect observed gaps; stop operations when guard is not running",
+  "events": [
+    {
+      "event": "guard-violation",
+      "at": "2026-10-05T08:05:24.822Z",
+      "context": "owned-temporary-browser",
+      "error": "Test window intersects an active display; stop and restore approved offscreen placement"
+    }
+  ]
+}

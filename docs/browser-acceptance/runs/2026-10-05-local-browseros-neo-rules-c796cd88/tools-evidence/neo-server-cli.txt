@@ -1,0 +1,10 @@
+$ browseros-claw-server --version
+0.0.66
+$ browseros-claw-server --help
+Usage: browseros-claw-server [OPTIONS]
+
+Options:
+      --version          Print version
+      --config <CONFIG>  
+      --stdio            
+  -h, --help             Print help

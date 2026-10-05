@@ -1,0 +1,609 @@
+{
+  "schemaVersion": 2,
+  "testedLocalHead": "7212af1f9da08324963e38973c7f477aabfffb0b",
+  "expectedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+  "runId": "fluentread-browseros-neo-local-2026-10-05-03-rules-c796cd88",
+  "startedAt": "2026-10-05T04:46:48.197Z",
+  "finishedAt": "2026-10-05T08:06:22.247Z",
+  "overall": "blocked",
+  "environment": {
+    "os": "macOS 27.2 (build 26B5091g), arm64, Apple M2 Max",
+    "browser": "BrowserOS neo (Chromium)",
+    "browserVersion": "151.0.8162.137",
+    "browserosVersion": "0.50.5.0",
+    "launchMode": "macos-background-open (open -g -n -a; the process is never activated and no window is raised)",
+    "profileMarker": "/tmp/fluentread-rules2-5eb83722",
+    "focusPolicy": "never activated, never minimized, Page.bringToFront() never called, no focus-stealing API used; the mandatory focus guard recorded guard-violation, so no browser case was executed",
+    "windowPlacement": "offscreen placement attempted again and proven unattainable: single 2560x1440 active display, WindowServer clamps a 1200x900 normal window to left<=2520 / left>=-916 / top>=30 / top<=1394; the window stayed normal-sized and was never minimized, fullscreened or moved onto another Space",
+    "extensionId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+    "extensionName": "FluentRead-流畅阅读",
+    "extensionVersion": "0.0.35",
+    "browserExecutableSha256": "b65e8c83ff0568b4f082a8c91c4f8cf13807c415519b32f78ca14cd7080445d5",
+    "profileKind": "dedicated-temporary",
+    "launchArguments": [
+      "--user-data-dir=/tmp/fluentread-rules2-5eb83722",
+      "--remote-debugging-port=9360",
+      "--remote-allow-origins=http://127.0.0.1:9360",
+      "--window-position=2700,120",
+      "--window-size=1200,900",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--enable-unsafe-extension-debugging",
+      "note: the requested --window-position=2700,120 was clamped by the WindowServer to left=2520",
+      "note: no --load-extension was passed; Chromium 151 ignores it (DEFECT-04) and no unpacked build was loaded in this round"
+    ],
+    "capabilityEvidence": [
+      "artifacts/env01/capabilities.json",
+      "artifacts/neo/capabilities-neo-stdio.json"
+    ],
+    "nodeVersion": "v22.23.3",
+    "pnpmVersion": "9.12.1",
+    "browserPid": 9833,
+    "profilePathSha256": "4b0288a800f7eb5cb0bbcb520208ebfc4224e6522948b61455d4589d1209e134",
+    "focusGuardEvidence": "artifacts/focus/focus-preflight.json"
+  },
+  "provenance": {
+    "publishedSourceCommit": "c68a53af300b33109375665197951331e45ae18a",
+    "checkoutCommit": "c68a53af300b33109375665197951331e45ae18a",
+    "observedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+    "worktreeCleanBeforeLocaleGeneration": true,
+    "lockfileSha256": "5b251fb80b9a89991ef226fe19e24e249c48963c520945c9a0ef5851ebddb619",
+    "buildManifest": "artifacts/build/build-files.json",
+    "generatedLocalesManifest": "artifacts/build/generated-locales.json",
+    "commands": [
+      "git rev-parse c68a53af300b33109375665197951331e45ae18a^{tree}",
+      "git worktree add --detach <WORKSPACE>/fluentread-acceptance-product c68a53af300b33109375665197951331e45ae18a",
+      "pnpm install --frozen-lockfile",
+      "pnpm generate:userscript-languages",
+      "pnpm compile",
+      "pnpm build",
+      "node scripts/testing/verify-emitted-model-workers.mjs --extension-dir .output/chrome-mv3",
+      "node scripts/testing/browser-acceptance.mjs fingerprint ../fluentread-acceptance-product/.output/chrome-mv3 extension-build",
+      "node scripts/testing/browser-acceptance.mjs fingerprint ../fluentread-acceptance-product/userscript/languages generated-locales",
+      "node scripts/testing/browser-acceptance.mjs serve",
+      "node scripts/testing/browser-acceptance.mjs self-check",
+      "git worktree add --detach <WORKSPACE>/fluentread-acceptance-tools cf54125302be2beebb3ba8860798f3cb053a3dac",
+      "pnpm install --frozen-lockfile   # in the new tools worktree",
+      "node scripts/testing/browser-acceptance.mjs normalize-gpu result.pending.json artifacts/env01/gpu-log.json 2 > result.normalized.json",
+      "node scripts/testing/browser-acceptance.mjs validate result.normalized.json",
+      "node scripts/testing/browser-focus-guard.mjs --self-check",
+      "open -g -n -a \"/Applications/BrowserOS neo.app\" --args --user-data-dir=<TMP>/fluentread-resume-<id> --remote-debugging-port=<port> ...",
+      "node scripts/testing/browser-focus-guard.mjs --profile <TMP>/fluentread-resume-<id> --pid <browserPid> --port <port> --output focus-preflight.json --once",
+      "node window-placement-probe.mjs <port> <browserPid>   # CDP + Accessibility placement sweep",
+      "node neo-stdio-probe.mjs <FR_NEO_SERVER> neo-sidecar.json neo-state   # MCP initialize + tools/list over stdio",
+      "git -C <WORKSPACE>/fluentread-acceptance-tools checkout --detach c796cd88f2a2804c9e05da98be949ae4fa6298fd",
+      "node scripts/testing/browser-focus-guard-entry-selfcheck.mjs",
+      "node harness/guard-entry-alias-probe.mjs <old-cf541253-guard> scripts/testing/browser-focus-guard.mjs out.json",
+      "open -g -n -a \"/Applications/BrowserOS neo.app\" --args --user-data-dir=<TMP>/fluentread-rules2-<id> --remote-debugging-port=<port> ...",
+      "node /tmp/<alias>/scripts/testing/browser-focus-guard.mjs --profile <TMP>/fluentread-rules2-<id> --pid <pid> --port <port> --output artifacts/focus/focus-preflight.json --once",
+      "node harness/window-placement-probe.mjs <port> <pid>",
+      "BROWSERCLAW_DIR=<run>/neo-state browseros-claw-server --config neo-sidecar.json --stdio   # via harness/neo-stdio-probe.mjs",
+      "node scripts/testing/browser-acceptance.mjs validate result.json"
+    ]
+  },
+  "hardware": {
+    "status": "physical",
+    "osGpuDescription": "Apple M2 Max (38 GPU cores, Metal 4)",
+    "adapterDescription": "",
+    "isFallbackAdapter": false,
+    "features": [
+      "bgra8unorm-storage",
+      "clip-distances",
+      "core-features-and-limits",
+      "depth-clip-control",
+      "depth32float-stencil8",
+      "dual-source-blending",
+      "float32-blendable",
+      "float32-filterable",
+      "indirect-first-instance",
+      "primitive-index",
+      "rg11b10ufloat-renderable",
+      "shader-f16",
+      "subgroups",
+      "texture-component-swizzle",
+      "texture-compression-astc",
+      "texture-compression-astc-sliced-3d",
+      "texture-compression-bc",
+      "texture-compression-bc-sliced-3d",
+      "texture-compression-etc2",
+      "texture-formats-tier1",
+      "texture-formats-tier2",
+      "timestamp-query"
+    ],
+    "limits": {
+      "maxBufferSize": 4294967292,
+      "maxStorageBufferBindingSize": 4294967292,
+      "maxComputeWorkgroupStorageSize": 32768,
+      "maxTextureDimension2D": 16384,
+      "maxBindGroups": 4,
+      "maxComputeInvocationsPerWorkgroup": 1024
+    },
+    "evidence": [
+      "artifacts/env01/gpu-log.json",
+      "artifacts/env01/worker-context.json"
+    ],
+    "adapterLabel": "apple metal-3 via GPUAdapterInfo (vendor=apple, architecture=metal-3; Chromium 151 reports GPUAdapterInfo.device and .description as empty strings)",
+    "adapterInfo": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": ""
+    },
+    "rawAdapterObservation": {
+      "artifact": "artifacts/env01/gpu-log.json",
+      "sha256": "8a83a63d09d484fc710a57565d2c32e63d5f3e58fc23c3e5919bedcbb8a6f87c",
+      "eventIndex": 2,
+      "context": "extension-offscreen",
+      "at": "2026-10-05T04:47:18.299Z"
+    }
+  },
+  "models": [],
+  "cases": [
+    {
+      "id": "ENV-01",
+      "status": "pass",
+      "kind": "deterministic-browser",
+      "backend": "hardware-webgpu",
+      "models": [],
+      "reason": "Partially executed, then blocked. The dedicated temporary instance was created in the background without activation, its CDP listener is loopback-only and owned by the browser PID, the raw GPU log was re-bound to one successful event together with that event's own context and timestamp (extension-offscreen, eventIndex 2, 2026-10-05T04:47:18.299Z), and the task-scoped Neo stdio control plane answered initialize/tools/list with 22 tools. The case still needs executed browser evidence collected under a live continuous guard. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [
+        "Dedicated temporary profile used: /tmp/fluentread-neo-acceptance-z3nx1O (created with mkdtemp, mode 700, owned by this run).",
+        "BrowserOS neo 0.50.5.0, Chromium 151.0.8162.137 (revision @8f5d36bc16f57115aeeff34baf4ad6aa964d509c); bundle CFBundleShortVersionString 0.50.5.",
+        "Extension identity read from the extension page itself via chrome.runtime.getManifest(): FluentRead-流畅阅读 0.0.35, MV3, id djnlaiohfaaifbibleebjggkghlmcpcj.",
+        "The MV3 build was loaded with CDP Extensions.loadUnpacked; Chromium 151 ignores --load-extension, which is what the repository specials still pass.",
+        "OS GPU: Apple M2 Max (38 GPU cores, Metal 4); WebGPU adapter info vendor=apple architecture=metal-3 isFallbackAdapter=false with 22 features including shader-f16.",
+        "WebGPU adapter obtained in four separate contexts: normal page, extension offscreen document, extension-origin Worker, and incognito page — all isFallbackAdapter=false with shader-f16.",
+        "Incognito reachable: a browser context was created and a page loaded in it (true); the context was disposed afterwards.",
+        "The installed MCP control surface (browseros-neo 0.0.66, 22 tools) is bound to the single configured profile directory and cannot be aimed at a dedicated temporary profile; a second instance with --user-data-dir exposes CDP only.",
+        "Window/focus protection was not certified: the browser was started with `open -g` (no foreground activation) and Page.bringToFront() was never called, but no trusted focus-safe helper exists to validate against.",
+        "Every tab was opened in the background; no window was minimized and no window was activated.",
+        "Counterfactual: only the status was raised to pass; every observation and artifact below is the real collected evidence."
+      ],
+      "evidence": [
+        "artifacts/env01/capabilities.json",
+        "artifacts/env01/browser-log.json",
+        "artifacts/env01/gpu-log.json",
+        "artifacts/env01/fixture-home.png",
+        "artifacts/focus/focus-preflight.json",
+        "artifacts/neo/capabilities-neo-stdio.json"
+      ],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "UI-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. scripts/testing/run-popup-actions-service-ui-test.cjs requires the trusted focus-safe helper focus-safe-browser.cjs, which exists neither in the repository nor anywhere under $HOME (DEFECT-02), and the runner hardcodes an unrelated absolute user path. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "PRIVATE-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. scripts/run-privacy-boundary-test.cjs throws at startup unless --focus-safe-helper resolves to a module exporting launchFocusSafePersistentContext/newPageWithoutForegrounding (DEFECT-02), and Playwright is absent from package.json and pnpm-lock.yaml so --playwright-root cannot be satisfied (DEFECT-03). Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "PRIVATE-02",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Same runner and same two missing prerequisites as PRIVATE-01 (DEFECT-02 and DEFECT-03). Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. scripts/run-youtube-subtitle-sync-test.cjs hard-requires both --focus-safe-helper and --playwright-root (DEFECT-02 and DEFECT-03) and additionally needs a public YouTube page. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-UI-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. scripts/testing/run-image-recognition-settings-test.cjs requires both --playwright-root and --focus-safe-helper and hardcodes a macOS-only temp profile (DEFECT-02 and DEFECT-03). Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-02",
+      "status": "blocked",
+      "kind": "real-site-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: load the fixed qwen3-asr-0.6b q4 revision from model-catalog.json and capture a public YouTube caption stream. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-03",
+      "status": "blocked",
+      "kind": "real-site-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: run the fixed qwen3-asr-0.6b q4 revision over a second public YouTube caption stream. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-04",
+      "status": "blocked",
+      "kind": "real-site-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: run the fixed qwen3-asr-0.6b revision over a third public YouTube caption stream. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-05",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: inject the independent negative fixture on top of a working YouTube capture path. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-01",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: import snowfluke/ppu-paddle-ocr-models through the product's verified file import path and run it on the synthetic single-image fixture. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-02",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: import ogkalu/lama-manga-onnx-dynamic through the product's verified file import path and run it on the synthetic manga fixture. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-03",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: inject an explicit OCR failure on top of an established physical-GPU OCR session. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-01",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: run the fixed kokoro-v1.1-zh revision on the synthetic TTS text fixture. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-02",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: run the fixed kokoro-v1.1-zh revision over long text and check ordering/ending markers. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-03",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: run the fixed kokoro-v1.1-zh revision against the remaining TTS assertions. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-04",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: verify the offline cache after a fully SHA-verified Kokoro cache exists. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-05",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: inject an explicit TTS failure on top of an established physical-GPU TTS session. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-01",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: run all five strict-GPU translation profiles (OPUS zh->en and en->zh FP16, OPUS ja->en FP32, Index zh->en and en->zh). The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-02",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: inject a failure per GPU translation profile once the profiles run. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-03",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: switch between at least two real models with recorded real runs. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-04",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Next step: verify offline behaviour after a fully SHA-verified fixed-revision cache exists. The updated handoff authorises the fixed catalog downloads, but no asset was fetched in this run: the focus-guard gate blocks every browser operation that would execute or verify a model, and fetching about 5 GiB with no runnable path would leave unrequested local state. Blocked at the focus-guard gate. browser-focus-guard.mjs only certifies a window whose bounds lie entirely outside every active display, but this host has exactly one 2560x1440 display and the macOS WindowServer clamps normal windows so part of the window always stays on screen: measured again in this round with CDP Browser.setWindowBounds and with the Accessibility API, the right edge stops at left=2520 (40 px still visible), the left edge at left=-916 (284 px visible), the top at 30 and the bottom at 1394. The single preflight observation therefore ended in guard-violation and a continuous guard can never reach running, so resume.md forbids starting any browser operation.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "artifacts/build/build-files.json",
+      "sha256": "ed77ce68544664f41b105a13852331bee459a486334a2f0361f99b95d5841671",
+      "mediaType": "application/json",
+      "role": "build-manifest"
+    },
+    {
+      "path": "artifacts/build/generated-locales.json",
+      "sha256": "699947f48468e100366cd82089289984d0ba44b74f11b2252f6a57f417629ccb",
+      "mediaType": "application/json",
+      "role": "locale-manifest"
+    },
+    {
+      "path": "artifacts/build/commands.json",
+      "sha256": "c7a59f02058c479a405e5d9089c3adffba59ef92b601b2a73ae124f7bbe37673",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/source.json",
+      "sha256": "fa5715fe17d098dbc03d91824fcd34095ed2d8b0c7c23e7457a7886ab8b580f0",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/env01/capabilities.json",
+      "sha256": "8a16dd0ff512024c3775219950456f56c60bd0b5689170e96272c323e7cf38b1",
+      "mediaType": "application/json",
+      "role": "capabilities"
+    },
+    {
+      "path": "artifacts/env01/gpu-log.json",
+      "sha256": "8a83a63d09d484fc710a57565d2c32e63d5f3e58fc23c3e5919bedcbb8a6f87c",
+      "mediaType": "application/json",
+      "role": "gpu-log"
+    },
+    {
+      "path": "artifacts/env01/worker-context.json",
+      "sha256": "00f3c9395434aafa229cad3405a747e23f89fd788db57d06d3639908fff1dfa7",
+      "mediaType": "application/json",
+      "role": "gpu-log"
+    },
+    {
+      "path": "artifacts/env01/browser-log.json",
+      "sha256": "5eb15b4d43360dd066e69d40208bb8e87a71bcad3f7f147dc256f74a6358f481",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/env01/fixture-home.png",
+      "sha256": "f838c7e9980f14050fec83bbfe6c777d0608bc4ea627112f87dfda144aecfd88",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/extension-options-page.png",
+      "sha256": "e15ff0bd3eadcdfd7a70265c95f5545fcb680f879b4aa38e303c4a0da769ab8e",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/extension-offscreen.png",
+      "sha256": "afcc4af71582b75e016b2e119ead7c4b532fb876c220b201d4ce4fd7a2fcc0f1",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/incognito-fixture.png",
+      "sha256": "f838c7e9980f14050fec83bbfe6c777d0608bc4ea627112f87dfda144aecfd88",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/focus/focus-preflight.json",
+      "sha256": "7993a91ccd535e6cf970688a15982f567cabc50529bf680d04a4896d7481c5e3",
+      "mediaType": "application/json",
+      "role": "focus-guard"
+    },
+    {
+      "path": "artifacts/focus/window-placement-probe.json",
+      "sha256": "a402732a2ae4db32ac3492848298e2cf7bf7f65505a9038424dcc3a54d4431ef",
+      "mediaType": "application/json",
+      "role": "focus-guard"
+    },
+    {
+      "path": "artifacts/focus/launch-record.txt",
+      "sha256": "ea3f195343d45d92867de73f9f72df44632090712e434332578b641f3756134c",
+      "mediaType": "text/plain",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/neo/capabilities-neo-stdio.json",
+      "sha256": "1a92d43a74f1ad9558c1a282a24a0f5ad0847694511e2125cfa376f1297b74a6",
+      "mediaType": "application/json",
+      "role": "capabilities"
+    },
+    {
+      "path": "artifacts/neo/neo-stdio-capabilities.json",
+      "sha256": "f7dd26e6b94ac4e790799129435785d4b9ff81a5229867a00d4b3a2bffb122a7",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "tools-evidence/neo-paths.txt",
+      "sha256": "df9313388ee6bb7dab4b532bedd4db52557c3c02dfcc2aa976336a557b1e45b8",
+      "mediaType": "text/plain",
+      "role": "source"
+    },
+    {
+      "path": "tools-evidence/neo-server-cli.txt",
+      "sha256": "c248c265b39d3c1ee75f1465324e9974d2133ca747747347e108f6ec3a81a8e1",
+      "mediaType": "text/plain",
+      "role": "source"
+    },
+    {
+      "path": "neo-sidecar.json",
+      "sha256": "32c974972ba1b45dbb575096bb66978bb7fd9394a62f6ec517cd9164b403f724",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/rules/guard-entry-selfcheck.txt",
+      "sha256": "8d4fe62d463800c600d65174346ea79ede67d467cde282723b0c405bcc7e6dbb",
+      "mediaType": "text/plain",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/rules/guard-entry-alias-probe.json",
+      "sha256": "7ec5b75dd8d96ed13b3e257703da4eefc657258a23c91e6b9eea4f475f65843c",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/rules/session-log.txt",
+      "sha256": "3098b2db01622dc0243ac6a36782d18f53753a4e888ca9cb76db787b44b44152",
+      "mediaType": "text/plain",
+      "role": "source"
+    }
+  ],
+  "limitations": [
+    "RULE REVISION c796cd88: this record was produced against c796cd88f2a2804c9e05da98be949ae4fa6298fd (\"fix: dispatch focus guard through canonical CLI paths\"), which changes only scripts/testing/browser-focus-guard.mjs (entry dispatch via fs.realpath) and adds scripts/testing/browser-focus-guard-entry-selfcheck.mjs. No acceptance document (resume.md, README.md, cases.md, result.schema.json) and no case contract changed, so the previous cf541253 record stays valid and this round re-verifies it. Product source commit c68a53af and tree 50e12ecc... are unchanged; the extension was not rebuilt.",
+    "DEFECT-07 RESOLVED in c796cd88 and re-verified in this round: the focus guard used to compare import.meta.url (already resolved to /private/tmp/...) with path.resolve(process.argv[1]) (the /tmp/... spelling), so invoking it through a /tmp symlink silently did nothing and still exited 0 - a wrapper could believe a safety gate had run. The fix resolves both sides with fs.realpath. Evidence: artifacts/rules/guard-entry-alias-probe.json runs the old cf541253 guard and the new c796cd88 guard through the same /tmp ancestor-symlink path (old: empty stdout, exit 0; new: {\"ok\":true,...}, exit 0), artifacts/rules/guard-entry-selfcheck.txt records the upstream regression, and artifacts/focus/focus-preflight.json is a real guard run through that alias path against the live temporary instance, which now executes and writes its guard-violation verdict with exit 1 instead of exiting silently.",
+    "DEFECT-01 RESOLVED upstream in a8728f79 and still fixed at cf541253: the older validator demanded a zh-CN member in the generated-locales manifest that the frozen source commit can never emit (RegisteredUiLanguage excludes zh-CN). The current validator requires only the five languages the userscript generator really writes and validates inlineChineseSources instead. No case is blocked for locale reasons.",
+    "DEFECT-06 (blocking for every browser case, new in cf541253): browser-focus-guard.mjs requires the owned temporary window to lie entirely outside every active display. On a single-display macOS host this is unreachable, because the WindowServer clamps normal windows so that part of the window always remains on screen. This was measured two independent ways on an owned temporary instance (CDP Browser.setWindowBounds and the Accessibility API) and both agree; see artifacts/focus/window-placement-probe.json and artifacts/focus/focus-preflight.json. The gate therefore turns into a hard stop for all 22 cases, and resume.md forbids browser operations without a running guard.",
+    "DEFECT-02 (blocking for 5 cases): the trusted focus-safe helper focus-safe-browser.cjs required by --focus-safe-helper exists neither in the repository nor anywhere under $HOME, and the handoff forbids fabricating it. UI-01, PRIVATE-01, PRIVATE-02, YT-01 and OCR-UI-01 depend on it.",
+    "DEFECT-03 (blocking for 5 cases): Playwright is absent from package.json and pnpm-lock.yaml, so --playwright-root cannot be satisfied from this checkout.",
+    "DEFECT-04: Chromium 151 ignores --load-extension, which the repository browser specials still pass; the unpacked build had to be loaded through CDP Extensions.loadUnpacked in the earlier part of this acceptance.",
+    "DEFECT-05 RESOLVED for the stdio path in this run: the BrowserOS neo control surface is no longer bound to the single daily profile. browseros-claw-server 0.0.66 accepts --config and --stdio, honours a run-local ports.cdp and directories.resources, keeps its state in BROWSERCLAW_DIR, and answered initialize/tools/list with the full 22-tool surface while the daily instance stayed untouched. The handoff still forbids pointing the HTTP path at the daily client configuration, and no browser operation was performed through the control surface because the focus guard never reached running.",
+    "The extended window-placement probe and the single focus preflight were run before any browser case, purely to decide whether the mandatory guard can ever certify this host. They are diagnostics, not case evidence, and they never activated, minimized, fullscreened or moved the browser onto another Space.",
+    "The resumed instance did not re-load the unpacked extension, because resume.md forbids browser operations without a running guard. environment.extensionId/extensionName/extensionVersion and browserExecutableSha256 are carried over from the earlier instance of the same acceptance; the product source commit, its tree and the build manifest are unchanged, so the extension identity still describes the same verified artifact, and the browser binary hash was recomputed unchanged in this run.",
+    "browserPid, profilePathSha256, profileMarker and launchArguments describe the resumed temporary instance; the build, locale, GPU, screenshot and browser-log artifacts carried into this record were produced earlier in the same acceptance from the previous temporary profile, which has been removed.",
+    "hardware.rawAdapterObservation binds the raw GPU log by file SHA-256, eventIndex, context and timestamp. hardware.adapterDescription is the raw value (Chromium 151 reports an empty GPUAdapterInfo.description) and the human-readable explanation moved to adapterLabel. The legacy GPUAdapter.isFallbackAdapter property is absent in Chromium 151; fallback state is reported on GPUAdapterInfo.isFallbackAdapter (=false).",
+    "GPU scope note: this is adapter discovery only, re-bound to its own raw event. No model was executed, so there is no WebGPU dispatch or graph-partition evidence, and hardware.status must not be read as inference validation.",
+    "No real model was downloaded or executed in this run. models[] stays empty rather than filled with unverified metadata, and every real-model case records the exact next step instead of claiming the environment cannot support it.",
+    "No harness script can pre-populate the fluent-read-local-models-v2 or fluent-read-manga-ocr-v1 caches, so every real-model case would additionally need product-UI-driven downloads.",
+    "The tested product HEAD (7212af1f9da08324963e38973c7f477aabfffb0b) is not present in this clone; the published source commit c68a53af was used and its tree was verified to equal 50e12ecc7f4c72448f03e714a585814eb9476622, as the handoff requires.",
+    "self-check passes and its positive samples are synthetic validator fixtures, explicitly not browser or model acceptance results.",
+    "Acceptance material revision: this record was produced against cf54125302be2beebb3ba8860798f3cb053a3dac (\"test: add guarded native Neo resume and raw GPU evidence binding\"), which adds resume.md, browser-focus-guard.mjs, browser-acceptance-gpu.mjs, the GPU fixture and the focus-guard schema fields, and relaxes adapterDescription to allow an empty raw string. The product source commit c68a53af and its tree 50e12ecc... are unchanged, so the extension was not rebuilt and its fingerprints still apply.",
+    "Generated locales were already committed in the frozen source commit; the manifestSha256 abc11522ec049930f8721119422d1808c13549061438fb08b6841fef26f48866 is unchanged because the file set did not change, and the regenerated manifest now also carries inlineChineseSources."
+  ]
+}
