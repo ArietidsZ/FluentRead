@@ -3,8 +3,8 @@
   "testedLocalHead": "7212af1f9da08324963e38973c7f477aabfffb0b",
   "expectedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
   "runId": "fluentread-browseros-neo-local-2026-10-05-05-linux-native",
-  "startedAt": "2026-10-05T11:12:56.000Z",
-  "finishedAt": "2026-10-05T11:33:22.903Z",
+  "startedAt": "2026-10-05T10:58:06.000Z",
+  "finishedAt": "2026-10-05T12:07:19.894Z",
   "overall": "blocked",
   "environment": {
     "os": "Ubuntu 26.04.1 LTS (Resolute Raccoon), kernel 7.0.0-38-generic, x86_64, GNOME on Wayland",
@@ -13,8 +13,8 @@
     "browserosVersion": "151.0.8160.137 (dpkg browseros 151.0.8160.137; this Linux build exposes no separate BrowserOS product version; the bundled control plane is browseros_server 0.0.157)",
     "launchMode": "linux-background-setsid (setsid nohup; the process was never activated and no window was raised)",
     "profileMarker": "/tmp/fluentread-linux-native-JcsG10",
-    "focusPolicy": "Never activated, never moved, resized, minimized or fullscreened after launch, Page.bringToFront() never called, no focus-stealing API used. A continuous focus guard was attempted against this exact browser and profile and refused because it requires macOS, so no guard interval exists and no case may pass. The unrelated daily BrowserOS instance was never touched.",
-    "windowPlacement": "Requested left=2400 top=120 1200x900 (the approved partial-visibility arithmetic for a 2560x1440 display), but the compositor placed the window at left=0 top=0 1200x900 with windowState normal, so the request was NOT honoured. Chromium on Wayland cannot set absolute window positions. Under the approved policy that actual geometry would classify as fully-visible, so the placement requirement is unmet in addition to the missing guard.",
+    "focusPolicy": "The test browser was started detached in the background with setsid and was never deliberately activated, raised or focused; no activation, focus or placement API was called, Page.bringToFront() was never called, and the window was never moved, resized, minimized or fullscreened after launch. Foreground state itself is NOT verifiable on this host, because the only foreground probe the acceptance contract defines lives in the macOS-only focus guard and no substitute probe was built, so this record does not claim that the browser was never frontmost. A continuous focus guard was attempted against this exact browser and profile and refused because it requires macOS, so no guard interval exists and no case may pass. The unrelated daily BrowserOS instance was never touched.",
+    "windowPlacement": "Requested left=2400 top=120 1200x900 (the approved partial-visibility arithmetic for a 2560x1440 display). The browser own CDP read-back (Browser.getWindowBounds) reports left=0 top=0 1200x900 with windowState normal, so the request was not honoured. This is the browser reported bounds, NOT an independent compositor measurement: on Wayland no OS-level window-geometry probe exists on this host, and the acceptance contract own geometry probe lives in the macOS-only guard, so the CDP values are the only placement observation available and their authority is limited to what the browser reports. Chromium on Wayland cannot set absolute window positions. If the reported bounds were accurate they would classify as fully-visible under the approved policy, so the placement requirement is unmet in addition to the missing guard; the record does not assert the classification as a guard-derived fact.",
     "extensionId": "djnlaiohfaaifbibleebjggkghlmcpcj",
     "extensionName": "FluentRead-流畅阅读",
     "extensionVersion": "0.0.35",
@@ -133,7 +133,7 @@
       "device": "",
       "description": ""
     },
-    "adapterLabel": "NVIDIA RTX 5090 via WebGPU GPUAdapterInfo (vendor=nvidia, architecture=blackwell); Chromium 151 reports device and description as empty strings, and shader-f16 is absent from the feature set in all three probed contexts",
+    "adapterLabel": "NVIDIA RTX 5090 via WebGPU GPUAdapterInfo (vendor=nvidia, architecture=blackwell); Chromium 151 reports device and description as empty strings. shader-f16 is absent from the feature set in all three probed contexts. The full numeric limits below were returned by the two page contexts; the same-origin Blob Worker returned the same vendor, architecture, fallback flag and feature set but an empty limits object, so these limits must not be attributed to the worker context.",
     "rawAdapterObservation": {
       "artifact": "artifacts/env01/webgpu-fixture-page.json",
       "sha256": "8542677a5e6e2c00a9d849292fc3b431aed176a931aa9288926415fc5b0e7465",
@@ -241,7 +241,7 @@
       "kind": "deterministic-browser",
       "backend": "unverified",
       "models": [],
-      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Side evidence captured: route #settings-image-translation, the engine option list containing 通用文字 · Tesseract and 漫画文字 · PaddleOCR, the 漫画连续翻译 switch, and dark plus 390 px states. Not executed: explicitly selecting PaddleOCR, proving that selection alone triggers no model download, and reopen persistence.",
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Side evidence captured: route #settings-image-translation, the engine option list that includes 通用文字 · Tesseract and 漫画文字 · PaddleOCR, the 漫画连续翻译 switch, and dark plus 390 px states. Caveat: the captured dropdown snapshot is a union of every open Element Plus dropdown in that document (94 entries, dominated by the per-feature service list), so it does not prove that the engine selector offers only those two engines. Not executed: explicitly selecting PaddleOCR, proving that selection alone triggers no model download, and reopen persistence.",
       "observations": [
         "Real route captured: chrome-extension://<extension id>/options.html#settings-image-translation, reached by clicking the real 图片/漫画翻译 navigation button.",
         "Engine option list read from the real dropdown contains exactly 通用文字 · Tesseract and 漫画文字 · PaddleOCR; the current display text is 通用文字 · Tesseract.",
@@ -637,7 +637,7 @@
     },
     {
       "path": "artifacts/host/hygiene.json",
-      "sha256": "2f5a0d6e392a04a108ef21f77b38dfb709d2cb0d54a6748bbaeb8d298042b0f8",
+      "sha256": "3c17efc2f4dddabc32c0774e05694f2580bbe2d79d31f20cfe1f7703f551556d",
       "mediaType": "application/json",
       "role": "source"
     },
@@ -706,6 +706,24 @@
       "sha256": "1aaad5abaaa5216537a113656f0ce21be5f2837b129ca7aad62f0e0688969332",
       "mediaType": "application/json",
       "role": "gpu-log"
+    },
+    {
+      "path": "artifacts/git/ref-audit.json",
+      "sha256": "ca433515870dc104490323856687865ce075159e215ecad63703fb718e5c1f32",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/tools/validator-run.txt",
+      "sha256": "3091ab9c54b9a5f3899cef36fd66b35059d4e4e466fe15e2ee4728469f0d7821",
+      "mediaType": "text/plain",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/env01/side-evidence-manifest.json",
+      "sha256": "6e16b0ff702e18201e820a8fc46e11a17dc7c870b6f4328e6d5d9626ba162fdb",
+      "mediaType": "application/json",
+      "role": "source"
     }
   ],
   "limitations": [
@@ -719,6 +737,11 @@
     "All browser observations in this record are SIDE EVIDENCE ONLY. They were collected without any guard interval, so they document what the real UI and the real adapter did on this host but support no pass, and the extension DOM recon was not used to claim any UI-01 or OCR-UI-01 assertion.",
     "The extension id djnlaiohfaaifbibleebjggkghlmcpcj matches the previous round because the build manifest carries a key field that pins the id; it was read this round from the extension own service worker, not copied from any earlier record.",
     "Local tooling limitation: the round agent harness refused several tool calls with an auto-mode classifier failure. The affected steps were retried and completed except the task-scoped stdio control-plane spawn, which was therefore not executed. Nothing in this record depends on a refused call.",
-    "The fixture chat endpoint evidence is fixture-server contract evidence only. The POST was issued by the harness directly against the loopback fixture, not by the extension, and it proves the fixture works rather than any product behaviour."
+    "The fixture chat endpoint evidence is fixture-server contract evidence only. The POST was issued by the harness directly against the loopback fixture, not by the extension, and it proves the fixture works rather than any product behaviour.",
+    "Side-evidence labelling granularity: six registered browser-session artifacts are raw captures (artifacts/env01/cdp-version.json, dom-options.json, dom-popup.json, dom-fixture-page.json, webgpu-fixture-page.json, webgpu-options-page.json) and therefore carry no inline sideEvidenceOnly field; the per-artifact labelling status is enumerated in artifacts/env01/side-evidence-manifest.json, and the global declaration is in this limitations list. No artifact is presented as product behaviour.",
+    "Counterfactual provenance: counterfactual-pass.json is produced by harness/C-counterfactual.mjs exactly as shipped. An earlier shipped copy of that script predated the checkout-gate mutations and did not reproduce the committed file; the shipped copy has been corrected and the committed output regenerated from it.",
+    "Sanitization conclusion: the shipped harness/sanitization-check.mjs derives its path constants at runtime and runs in place; its recorded result is exit 0 with zero violations and is reproducible from the record directory. An earlier revision of sanitization-report.json quoted scanner literals and stated a false caveat about the checker; that revision is superseded and the withdrawn claims are listed in the report.",
+    "Git-state audit: the pre-round and post-round local and remote ref tables, and the push evidence for this round branch, are shipped in artifacts/git/ref-audit.json. Every pre-existing local and remote ref is byte-identical before and after; the only ref change is the addition of this round branch.",
+    "Meta deliverables (README.md, defects/**, harness/**, counterfactual-pass.json, sanitization-report.json, record-index.json) are documentation and tooling rather than acceptance evidence, so they are not registered in the artifacts array. record-index.json ships a SHA-256 for every file in this record, including the unregistered ones."
   ]
 }

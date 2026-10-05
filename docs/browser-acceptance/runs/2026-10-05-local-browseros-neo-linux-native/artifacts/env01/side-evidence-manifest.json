@@ -1,0 +1,139 @@
+{
+  "sideEvidenceOnly": true,
+  "purpose": "Machine-checkable labelling status for every registered artifact of this round. Because no continuous focus guard interval can exist on this host, every browser-derived observation is side evidence and supports no pass.",
+  "globalDeclaration": "No continuous guard interval exists on this host, because browser-focus-guard.mjs asserts process.platform===darwin; therefore nothing in this record supports a pass.",
+  "rawCapturesWithoutInlineLabel": [
+    "artifacts/env01/cdp-version.json",
+    "artifacts/env01/dom-options.json",
+    "artifacts/env01/dom-popup.json",
+    "artifacts/env01/dom-fixture-page.json",
+    "artifacts/env01/webgpu-fixture-page.json",
+    "artifacts/env01/webgpu-options-page.json"
+  ],
+  "rawCaptureExplanation": "These six files are verbatim captures (one CDP version document, three DOM extractions, two WebGPU probe results). Their bytes are kept exactly as the browser returned them, so no field was injected into them; they are covered by the global declaration above and by this manifest.",
+  "labelledArtifacts": [
+    {
+      "path": "artifacts/focus/guard-block.json",
+      "role": "focus-guard",
+      "sideEvidenceOnly": null,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/focus/window-bounds.json",
+      "role": "focus-guard",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/focus/profile-record.json",
+      "role": "focus-guard",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": true
+    },
+    {
+      "path": "artifacts/env01/extension-identity.json",
+      "role": "capabilities",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/env01/webgpu-extension-worker.json",
+      "role": "gpu-log",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/env01/dom-ui-states.json",
+      "role": "browser-log",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/env01/dom-dropdown-recon.json",
+      "role": "browser-log",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/env01/dom-ocr-engine-options.json",
+      "role": "browser-log",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/env01/fixture-metrics.json",
+      "role": "network",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": true
+    },
+    {
+      "path": "artifacts/hygiene/cleanup-proof.json",
+      "role": "source",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/build/commands.json",
+      "role": "browser-log",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/build/build-files.json",
+      "role": "build-manifest",
+      "sideEvidenceOnly": null,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/build/generated-locales.json",
+      "role": "locale-manifest",
+      "sideEvidenceOnly": null,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/host/browser-binary.json",
+      "role": "source",
+      "sideEvidenceOnly": null,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/host/host-facts.json",
+      "role": "source",
+      "sideEvidenceOnly": null,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/host/hygiene.json",
+      "role": "source",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/tools/selfchecks.json",
+      "role": "source",
+      "sideEvidenceOnly": null,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/source.json",
+      "role": "source",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": false
+    },
+    {
+      "path": "artifacts/env01/gpu-log.json",
+      "role": "gpu-log",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": true
+    },
+    {
+      "path": "artifacts/git/ref-audit.json",
+      "role": "source",
+      "sideEvidenceOnly": true,
+      "noGuardSentence": false
+    }
+  ],
+  "labelledCount": 14,
+  "artifactsChecked": 26,
+  "at": "2026-10-05T12:06:46.085Z"
+}

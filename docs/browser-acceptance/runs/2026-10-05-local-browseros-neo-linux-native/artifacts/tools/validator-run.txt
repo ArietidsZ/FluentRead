@@ -1,0 +1,9 @@
+# Verbatim validator run for this round record.
+# Command: node scripts/testing/browser-acceptance.mjs validate docs/browser-acceptance/runs/2026-10-05-local-browseros-neo-linux-native/result.json
+# Working directory: <WORKSPACE>/FluentRead
+# Validator: the checked-in scripts/testing/browser-acceptance.mjs at the pinned tools revision.
+
+{"valid":true,"overall":"blocked","cases":22}
+exit=0
+
+# This file is regenerated whenever result.json changes. The exit code line is the real one.

@@ -1,0 +1,522 @@
+{
+  "note": "SHA-256 for every file in this record, including unregistered meta deliverables. Registered artifacts are the subset referenced by result.json.",
+  "runnableInPlace": [
+    "harness/sanitization-check.mjs",
+    "harness/C-counterfactual.mjs"
+  ],
+  "sanitizedCopiesRequiringPlaceholderRestore": [
+    "fixture-server.mjs",
+    "cdp.mjs",
+    "load-extension.mjs",
+    "capture-dom.mjs",
+    "window-bounds.mjs",
+    "ext-session.mjs",
+    "ui-states.mjs",
+    "dropdown-recon.mjs",
+    "select-by-text.mjs",
+    "webgpu-probe.mjs",
+    "worker-probe.mjs",
+    "guard-attempt.sh",
+    "teardown.sh",
+    "probe-control-plane.sh",
+    "A1-collect.mjs",
+    "A2-derived.mjs",
+    "B1-build.mjs",
+    "D-finalize.mjs",
+    "E-sanitization-report.mjs",
+    "F1-fixups.mjs",
+    "F2-fixups.mjs",
+    "G-validator-run.mjs",
+    "facts.mjs"
+  ],
+  "fileCount": 81,
+  "registeredCount": 43,
+  "files": [
+    {
+      "path": "artifacts/build/build-files.json",
+      "bytes": 70028,
+      "sha256": "ed77ce68544664f41b105a13852331bee459a486334a2f0361f99b95d5841671",
+      "registered": true
+    },
+    {
+      "path": "artifacts/build/commands.json",
+      "bytes": 2775,
+      "sha256": "ef4ca1ffb385ff13b65bc1c3c47fdf3605b797a8c31c4794462f972e0f1f369f",
+      "registered": true
+    },
+    {
+      "path": "artifacts/build/generated-locales.json",
+      "bytes": 78717,
+      "sha256": "699947f48468e100366cd82089289984d0ba44b74f11b2252f6a57f417629ccb",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/cdp-version.json",
+      "bytes": 405,
+      "sha256": "ddd855485f0ea47b22bc4ee2daadfd4892edd565ef65d1f1f799b26698a460cf",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/dom-dropdown-recon.json",
+      "bytes": 23662,
+      "sha256": "eeb1235387d229dff8dffe8d492f48cc7ed3f5fddd404e1d2994176ccafdd55c",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/dom-fixture-page.json",
+      "bytes": 595,
+      "sha256": "25c4eaf07ef8b589f9cf36ed2a1e9fae25831a3748a4486f613e9782f720e9ba",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/dom-ocr-engine-options.json",
+      "bytes": 11272,
+      "sha256": "611db50ae1809134a0dc1fdfc0d52facd4f7fffc662035ab47e1e008ca5cb740",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/dom-options.json",
+      "bytes": 15051,
+      "sha256": "3c63fff2d27a222a65f58816a1d2786f1ec946d37efeab34c0f683fb2b8be68b",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/dom-popup.json",
+      "bytes": 870,
+      "sha256": "942e62408e50012ce333dd02db62828d73fbe28260c3594d6b0e7388d89ed751",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/dom-ui-states.json",
+      "bytes": 57393,
+      "sha256": "8205b9127a8a209e565abfed1084a2c578e4509639c85f4d1eab2b91a129d93f",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/extension-identity.json",
+      "bytes": 7937,
+      "sha256": "bef2ec0f7303f51f5b864b2d6a837f2f5046c95287d8f808c289ff298adb5ca2",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/fixture-metrics.json",
+      "bytes": 573,
+      "sha256": "eb35960c0b940a7721ddf08dc45e53135dcd89b976abd7e248d760ba2adabbeb",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/fixture-page.png",
+      "bytes": 35175,
+      "sha256": "aabecdf4fe6bb6b34375ec40e8d948d98324c46420100251283cdcf08986b12a",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/gpu-log.json",
+      "bytes": 7292,
+      "sha256": "1aaad5abaaa5216537a113656f0ce21be5f2837b129ca7aad62f0e0688969332",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/options-dark.png",
+      "bytes": 107077,
+      "sha256": "78eebd68aa18bf30996c5f0bb70bc85a566f65e3b270c0097b7a97dc3778e265",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/options-light.png",
+      "bytes": 118869,
+      "sha256": "83ec0c4e08f7891970875a0514c5fb4fc154b644ebfcd5be53a91dcbcd3ff22e",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/options-manga-route.png",
+      "bytes": 105466,
+      "sha256": "f0e87c3e6506fc716a07f1262ce7bc0e8b6f74bdf10905daa9988748c0160b98",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/options-narrow-390.png",
+      "bytes": 135300,
+      "sha256": "faa83c77275fe18a2b55f179a53840e53707d689c5bf056b3cd165eec44e4ddc",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/popup.png",
+      "bytes": 82556,
+      "sha256": "0c4827f09f2e61ba1875d63173678b7fc4087ef27aa5f92e9b00f4ef1aefc103",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/side-evidence-manifest.json",
+      "bytes": 4273,
+      "sha256": "6e16b0ff702e18201e820a8fc46e11a17dc7c870b6f4328e6d5d9626ba162fdb",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/webgpu-extension-worker.json",
+      "bytes": 1263,
+      "sha256": "711c19f57bf6a90e49d049575c754791297c39a37936f48c45f9b5df7d1c1485",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/webgpu-fixture-page.json",
+      "bytes": 2422,
+      "sha256": "8542677a5e6e2c00a9d849292fc3b431aed176a931aa9288926415fc5b0e7465",
+      "registered": true
+    },
+    {
+      "path": "artifacts/env01/webgpu-options-page.json",
+      "bytes": 2558,
+      "sha256": "cbbb48d8a750c004184e62a8c42fa060eb5732e96d2019c44fbf8a8685183a17",
+      "registered": true
+    },
+    {
+      "path": "artifacts/focus/guard-attempt-continuous.txt",
+      "bytes": 547,
+      "sha256": "55e2a1313fa5160dfe51b7ea40fe0f6e5c840b4aa47282fc36657278eb1b094b",
+      "registered": true
+    },
+    {
+      "path": "artifacts/focus/guard-attempt-once.txt",
+      "bytes": 493,
+      "sha256": "d9341ca4f330f70c0b270ef4bb65b16a52b1810a2f8febe01627be4c26b1afda",
+      "registered": true
+    },
+    {
+      "path": "artifacts/focus/guard-block-transcripts.txt",
+      "bytes": 3184,
+      "sha256": "4ee0453e03f13c93454360a46f77be70f390db97cf8d14fb3764222d95082c5a",
+      "registered": true
+    },
+    {
+      "path": "artifacts/focus/guard-block.json",
+      "bytes": 20555,
+      "sha256": "74fe6aa6e55da91be13acb952162ead637c60d16bfbfab6a5825d0e19947f24b",
+      "registered": true
+    },
+    {
+      "path": "artifacts/focus/guard-command.txt",
+      "bytes": 726,
+      "sha256": "b0c93cf9ac13410de7bca6145634611b62b0e2eecb3c441d652a1db956972fef",
+      "registered": true
+    },
+    {
+      "path": "artifacts/focus/guard-preconditions.txt",
+      "bytes": 1085,
+      "sha256": "75c6bb22c49f25a9c305d13f066c4098c1bfe9a979e05597959b96646c1afb56",
+      "registered": true
+    },
+    {
+      "path": "artifacts/focus/guard-report-status.txt",
+      "bytes": 204,
+      "sha256": "fa17f6e0246851c58707833e799893c36f516e5f6c408735185b0fd80d4f6508",
+      "registered": true
+    },
+    {
+      "path": "artifacts/focus/profile-record.json",
+      "bytes": 440,
+      "sha256": "5d47137ed4ba3863859a1f2a598902f8413f907614da377f3daab2ceabaa1620",
+      "registered": true
+    },
+    {
+      "path": "artifacts/focus/window-bounds.json",
+      "bytes": 634,
+      "sha256": "fcabe0853ddd3f1a1317dcf04e247a9e3ba5f840031d5b333b83a8925111a04f",
+      "registered": true
+    },
+    {
+      "path": "artifacts/git/ref-audit.json",
+      "bytes": 3833,
+      "sha256": "ca433515870dc104490323856687865ce075159e215ecad63703fb718e5c1f32",
+      "registered": true
+    },
+    {
+      "path": "artifacts/host/browser-binary.json",
+      "bytes": 9507,
+      "sha256": "ed03cb263993062a9867713791a8a936ea0bac2fbeaf9f9a9d5c3749df2f4b4b",
+      "registered": true
+    },
+    {
+      "path": "artifacts/host/host-facts-raw.txt",
+      "bytes": 98583,
+      "sha256": "a4038f91a4a3c14f6dd9d08367b189131c764569bac6c44a98df2a8a203c53ae",
+      "registered": true
+    },
+    {
+      "path": "artifacts/host/host-facts.json",
+      "bytes": 106014,
+      "sha256": "57253c6d8ec764c08fdd59c1a1101a3db629782e2266150f56c06d145ea2e0cb",
+      "registered": true
+    },
+    {
+      "path": "artifacts/host/hygiene.json",
+      "bytes": 1335,
+      "sha256": "3c17efc2f4dddabc32c0774e05694f2580bbe2d79d31f20cfe1f7703f551556d",
+      "registered": true
+    },
+    {
+      "path": "artifacts/hygiene/cleanup-proof.json",
+      "bytes": 1080,
+      "sha256": "8a4d1d73bbfc2264d1b47a735b1f7adf3d079cbcf3f2fd1f936cafd347b19531",
+      "registered": true
+    },
+    {
+      "path": "artifacts/neo/control-plane-probe.txt",
+      "bytes": 1322,
+      "sha256": "6a020ee415939d351c074ecd4cb64649de92fa80e9be741feb4d3f6a68bdd242",
+      "registered": true
+    },
+    {
+      "path": "artifacts/source.json",
+      "bytes": 1074,
+      "sha256": "c8f3ce3fdcfd38427f5ff7edd047790434e6f64715b7d2dcc3afc29e4367de9b",
+      "registered": true
+    },
+    {
+      "path": "artifacts/tools/selfchecks-raw.txt",
+      "bytes": 3237,
+      "sha256": "1c13258fa572b8c3bb0782fa9aca57746860be0add7edb08c1759776552304aa",
+      "registered": true
+    },
+    {
+      "path": "artifacts/tools/selfchecks.json",
+      "bytes": 8645,
+      "sha256": "d4d4ffdb733e5c1c653eed41f681fc7224a98782671cf84be4d6b7cc75b64e0c",
+      "registered": true
+    },
+    {
+      "path": "artifacts/tools/validator-run.txt",
+      "bytes": 486,
+      "sha256": "3091ab9c54b9a5f3899cef36fd66b35059d4e4e466fe15e2ee4728469f0d7821",
+      "registered": true
+    },
+    {
+      "path": "counterfactual-pass.json",
+      "bytes": 2672,
+      "sha256": "58e2e0bb0acf07c510fceb6b3b21d0a7bc2a9f342af8642e8848aa1536b9bcef",
+      "registered": false
+    },
+    {
+      "path": "defects/control-plane-probe.txt",
+      "bytes": 1322,
+      "sha256": "6a020ee415939d351c074ecd4cb64649de92fa80e9be741feb4d3f6a68bdd242",
+      "registered": false
+    },
+    {
+      "path": "defects/DEFECT-10-focus-guard-is-macos-only.json",
+      "bytes": 2120,
+      "sha256": "e8b1201b69f4745ef640cce4e36e13c8f7d4adfbcb4f86e58c14d8b670f3501a",
+      "registered": false
+    },
+    {
+      "path": "defects/DEFECT-11-approved-placement-not-honoured.json",
+      "bytes": 1197,
+      "sha256": "5df5d7da02f139d31385d7ff64a8943f56f9ddb162bffc1d27851408c1850b59",
+      "registered": false
+    },
+    {
+      "path": "defects/DEFECT-12-control-plane-name-and-stdio.json",
+      "bytes": 1324,
+      "sha256": "3e05c053e458fca57fd05e0bddef55fa3c68e1a6773ff3558788dfd5b8124711",
+      "registered": false
+    },
+    {
+      "path": "defects/DEFECT-13-tested-local-head-absent.json",
+      "bytes": 1130,
+      "sha256": "1eaf428e5ec5f40d8055830712dcec65ac4f78bad21fc3f61837330aa5b05d67",
+      "registered": false
+    },
+    {
+      "path": "defects/DEFECT-14-product-worktree-incomplete.json",
+      "bytes": 800,
+      "sha256": "dbb650bb1ab74607a3b7dc8aac2797d55f886d4f31543a3d7dbeb6322f213ff9",
+      "registered": false
+    },
+    {
+      "path": "defects/DEFECT-15-acceptance-selfcheck-cannot-complete.json",
+      "bytes": 884,
+      "sha256": "cabc14433f8094db2d931a67ac1d3ec8fa3c3f1de861c6c1d8b0b85bbef85c86",
+      "registered": false
+    },
+    {
+      "path": "defects/guard-attempt-continuous.txt",
+      "bytes": 547,
+      "sha256": "55e2a1313fa5160dfe51b7ea40fe0f6e5c840b4aa47282fc36657278eb1b094b",
+      "registered": false
+    },
+    {
+      "path": "defects/guard-attempt-once.txt",
+      "bytes": 493,
+      "sha256": "d9341ca4f330f70c0b270ef4bb65b16a52b1810a2f8febe01627be4c26b1afda",
+      "registered": false
+    },
+    {
+      "path": "harness/A1-collect.mjs",
+      "bytes": 5585,
+      "sha256": "a30bf9a6c31009abc0b4f052126f38342c4424efe4c3c3cba9b0d7e3df458503",
+      "registered": false
+    },
+    {
+      "path": "harness/A2-derived.mjs",
+      "bytes": 3894,
+      "sha256": "63dc51d831e5659d0fe815bb4e6e695caaf091cb8d43792e86e3557c9c1929cd",
+      "registered": false
+    },
+    {
+      "path": "harness/B1-build.mjs",
+      "bytes": 23490,
+      "sha256": "d13d87291dc2c3efab705d22dbd5a2f5d04dfd5ba3c7d989410d05c577b542a3",
+      "registered": false
+    },
+    {
+      "path": "harness/C-counterfactual.mjs",
+      "bytes": 4877,
+      "sha256": "3db8a90fc8d4af192bad385f3d1a8cd3dd8a4eff3a5b725a33fa1712e366738c",
+      "registered": false
+    },
+    {
+      "path": "harness/capture-dom.mjs",
+      "bytes": 11336,
+      "sha256": "11591dfac69926efe961f976129d3d1071f58c7ff80aa2f0000c64694c90bb7d",
+      "registered": false
+    },
+    {
+      "path": "harness/cdp.mjs",
+      "bytes": 5698,
+      "sha256": "e9d97b2637f1b9fc44db10445303d5944804b8ab3ed444e3e2b9afcdaedaf55e",
+      "registered": false
+    },
+    {
+      "path": "harness/D-finalize.mjs",
+      "bytes": 10088,
+      "sha256": "044094a75aee5c6b70b84491018057524c7f281128607b0e513e36e64dfb2372",
+      "registered": false
+    },
+    {
+      "path": "harness/dropdown-recon.mjs",
+      "bytes": 4840,
+      "sha256": "8ef7df0febf5977a7d09d09d97c22af355e2da7269dc814b1a5bbb7fcb707891",
+      "registered": false
+    },
+    {
+      "path": "harness/E-sanitization-report.mjs",
+      "bytes": 2928,
+      "sha256": "8664bb2323324952ce5ecf4ebb7d64473eff2ee03b70e7dfc2b53c8898bfc1b2",
+      "registered": false
+    },
+    {
+      "path": "harness/ext-session.mjs",
+      "bytes": 4804,
+      "sha256": "24d5c833799c4bcfff63335fd463f211095f79904315b704008a432df83db18e",
+      "registered": false
+    },
+    {
+      "path": "harness/F1-fixups.mjs",
+      "bytes": 6470,
+      "sha256": "1f773380cc79ff30eabb522771a77085c424c012b1de83b024234411f9fb8f21",
+      "registered": false
+    },
+    {
+      "path": "harness/F2-fixups.mjs",
+      "bytes": 4350,
+      "sha256": "25e946d68099c76e5f1947e0b3425fd3d14a8d5707d02d4dc5496967c6cd4300",
+      "registered": false
+    },
+    {
+      "path": "harness/facts.mjs",
+      "bytes": 5242,
+      "sha256": "a1969833ea33466bbfba5355828acba41508571543ae3e7abcc77fa510195b34",
+      "registered": false
+    },
+    {
+      "path": "harness/fixture-server.mjs",
+      "bytes": 13242,
+      "sha256": "ba46c63e59e8bee9ce3aef639b295bc901d3551e85b90e3579dbcfab4d09e622",
+      "registered": false
+    },
+    {
+      "path": "harness/G-validator-run.mjs",
+      "bytes": 2059,
+      "sha256": "caa0f210ad1024790840e695acd643d65cc726cfc7269a7f3f49031821001899",
+      "registered": false
+    },
+    {
+      "path": "harness/guard-attempt.sh",
+      "bytes": 8577,
+      "sha256": "52613ba4b5627ce9a1bdf77fc3ecf6cd42b01f4a97b11bba4809f08a9ed43c9b",
+      "registered": false
+    },
+    {
+      "path": "harness/load-extension.mjs",
+      "bytes": 1967,
+      "sha256": "43d103f3526194b5b5578ca6c43397a6968d8bd4bdaacab6c70c7fa624093bb8",
+      "registered": false
+    },
+    {
+      "path": "harness/probe-control-plane.sh",
+      "bytes": 1146,
+      "sha256": "5259246936e958a12597bd24309576b233ae508bad77c715201c4d28920589e3",
+      "registered": false
+    },
+    {
+      "path": "harness/sanitization-check.mjs",
+      "bytes": 4112,
+      "sha256": "95f8c09339eee4e4503522b7b1aef13a15938301d6fb31afd8cc8ade9f2f36b8",
+      "registered": false
+    },
+    {
+      "path": "harness/select-by-text.mjs",
+      "bytes": 3943,
+      "sha256": "72c020f1aa876fbb81f49c8b6c0633f9842fbafe3b2f4cf090d90ba1aa12cee2",
+      "registered": false
+    },
+    {
+      "path": "harness/teardown.sh",
+      "bytes": 6800,
+      "sha256": "449c2c71d9d7ae9d4a44d5ac08975a2e2301c725cb0a7cab580df503a7e3c41d",
+      "registered": false
+    },
+    {
+      "path": "harness/ui-states.mjs",
+      "bytes": 6492,
+      "sha256": "3161fb39e3e0219752c5bdc37c86b58ffda0eac091d1fbf17838546541630fe1",
+      "registered": false
+    },
+    {
+      "path": "harness/webgpu-probe.mjs",
+      "bytes": 6606,
+      "sha256": "087c07c9c86a0385957177a59588fdc2da60f2b930766017d3de8625db061f38",
+      "registered": false
+    },
+    {
+      "path": "harness/window-bounds.mjs",
+      "bytes": 2001,
+      "sha256": "e077599e2accb2fa7eb6d1b3bafe33151ae566e12dbac5dcf1df6f5cc3cf83d1",
+      "registered": false
+    },
+    {
+      "path": "harness/worker-probe.mjs",
+      "bytes": 3588,
+      "sha256": "9c2194f25b798c0060c38e851faa66c8c6a35024d1f19eb662b019f4c4dd9ae3",
+      "registered": false
+    },
+    {
+      "path": "README.md",
+      "bytes": 23355,
+      "sha256": "db48bcfb1b32451beef68e304156e073fefbee46165270d20ece3740417d1642",
+      "registered": false
+    },
+    {
+      "path": "result.json",
+      "bytes": 48691,
+      "sha256": "2be36e95e4b94eae0914ee62446efdbf7dfb0058dc26a705426bfbf85617d82d",
+      "registered": false
+    },
+    {
+      "path": "sanitization-report.json",
+      "bytes": 3156,
+      "sha256": "d7eaae06d43a8d4eb8d6f7da324fdc4f90ff8f4c085c8c7924a09023a12faf92",
+      "registered": false
+    }
+  ]
+}
