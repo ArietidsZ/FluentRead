@@ -2,7 +2,7 @@
 /**
  * @file scripts/testing/run-webdav-backup-ui-test.cjs
  * 文件职责：在不抢焦点的临时 Edge 中验证生产扩展的 WebDAV 配置云备份。
- * 主要内容：真实本机 HTTP 夹具、连接测试、预览取消、密文保存、条件删除、HEAD 版本补取、只读恢复、七语言与窄屏。
+ * 主要内容：真实本机 HTTP 夹具、固定选中的基础配置与可选敏感配置、密文保存、条件删除、版本保护、七语言与窄屏。
  * 模块边界：不操作日常 profile 或真实账号；服务器与凭据均为本次测试创建，报告不包含配置正文。
  */
 const fs = require('node:fs');
@@ -181,14 +181,22 @@ async function main() {
         if (process.argv.includes('--sensitive-only')) {
             const toggle=page.locator('[data-testid="cloud-include-sensitive"]');
             const switchInput=toggle.locator('input[role="switch"]');
+            const basicInput=page.locator('[data-testid="cloud-include-settings"] input[role="switch"]');
+            const scope=page.locator('[data-testid="cloud-sync-scope"]');
             const consent=page.locator('.cloud-consent-dialog');
-            async function expectOff(label) {check(await switchInput.getAttribute('aria-checked')==='false',label);}
+            async function expectBasic() {check(await basicInput.isChecked()&&!await basicInput.isEnabled(),'basic settings are always selected and cannot be disabled');}
+            async function expectOff(label) {check(await switchInput.getAttribute('aria-checked')==='false',label);await expectBasic();}
+            async function shotScope(name) {
+                check(await scope.evaluate(el=>el.scrollWidth<=el.clientWidth),'scope rows wrap without horizontal overflow: '+name);
+                const target=path.join(artifactsDir,name+'.png');await scope.screenshot({path:target,animations:'disabled'});report.screenshots.push(target);
+            }
             async function allowSensitive() {
                 await toggle.click();await consent.waitFor();
                 check(!(await page.locator('[data-testid="cloud-consent-confirm"]').isEnabled()),'sensitive confirmation requires an unchecked acknowledgement');
                 await page.locator('[data-testid="cloud-risk-acknowledgement"]').check();
                 await page.locator('[data-testid="cloud-consent-confirm"]').click();await consent.waitFor({state:'hidden'});
                 check(await switchInput.getAttribute('aria-checked')==='true','explicit acknowledgement enables only this operation');
+                await expectBasic();
             }
             async function readPayload() {
                 return page.evaluate(async content=>{
@@ -203,6 +211,9 @@ async function main() {
             async function confirm() {await page.locator('[data-testid="webdav-confirm"]').click();await dialog.waitFor({state:'hidden'});await expectOff('completing an operation resets sensitive consent');}
             const beforeConsent=state.calls.length;
             await expectOff('sensitive information is excluded by default');await shot('cloud-default-scope-desktop');
+            check(await scope.locator('.cloud-scope-option').count()===2,'basic and sensitive settings are two peer rows');
+            await scope.locator('label[for="webdav-include-settings"]').click({force:true});await expectBasic();
+            await shotScope('cloud-scope-basic-desktop');
             await toggle.click();await consent.waitFor();
             check((await consent.innerText()).includes('加密口令公开')&&(await consent.innerText()).includes('第三方账号被盗'),'risk dialog explains public encryption and stolen third-party accounts');
             await shot('cloud-sensitive-consent-desktop');
@@ -211,7 +222,7 @@ async function main() {
             check(state.calls.length===beforeConsent,'opening and cancelling risk dialog makes no provider requests');
             await savePatch({proxy:{openai:'https://fixture.invalid/?key=fixture-private-url'},system_role:'fixture-private-prompt'});
             await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
-            check((await dialog.locator('[data-testid="cloud-preview-scope"]').innerText()).includes('仅普通设置'),'preview repeats the selected settings-only scope');
+            check((await dialog.locator('[data-testid="cloud-preview-scope"]').innerText()).includes('仅基础配置'),'preview repeats the selected settings-only scope');
             await confirm();
             const ordinary=await readPayload();const ordinaryText=JSON.stringify(ordinary);
             check(!ordinaryText.includes('fixture-private')&&!ordinaryText.includes('fixture-app-password'),'default decrypted backup excludes keys, bodies, authenticated URLs, private prompts and connection password');
@@ -221,7 +232,7 @@ async function main() {
             const device=await credentials();
             check(JSON.stringify(device).includes('fixture-device-key'),'restoring a settings-only backup preserves device credentials');
             check((await page.evaluate(()=>chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'}))).value.proxy.openai==='https://device.fixture.invalid/v1','settings-only restore preserves the endpoint bound to local credentials');
-            await allowSensitive();await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await chooseIntent('upload');await confirm();
+            await allowSensitive();await shotScope('cloud-scope-sensitive-desktop');await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();await chooseIntent('upload');await confirm();
             const complete=await readPayload();
             check(complete.version===1&&JSON.stringify(complete).includes('fixture-device-key')&&JSON.stringify(complete).includes('fixture-device-body'),'explicit consent creates a legacy-compatible complete backup');
             await savePatch({to:'ja',token:{openai:'fixture-new-device-key'},apiKeys:{openai:['fixture-new-device-key']},proxy:{openai:'https://new-device.fixture.invalid/v1'}});
@@ -247,11 +258,15 @@ async function main() {
             await page.locator('[data-testid="cloud-method-webdav"]').check();await expectOff('returning to provider keeps safe default');
             await allowSensitive();await page.reload({waitUntil:'domcontentloaded'});await navigate();await expectOff('reopening settings never restores a previous sensitive consent');
             await page.setViewportSize({width:390,height:900});await activateExtensionTabWithoutForeground(context,page);await shot('cloud-default-scope-mobile');
+            await shotScope('cloud-scope-basic-mobile');
             await toggle.click();await consent.waitFor();
             check(await consent.evaluate(el=>el.scrollWidth<=el.clientWidth),'risk dialog wraps without horizontal overflow at 390px');await shot('cloud-sensitive-consent-mobile');
             await page.keyboard.press('Escape');await consent.waitFor({state:'hidden'});await expectOff('Escape cancels risk acknowledgement');
             for (const language of ['en-US','ja-JP','ko-KR','fr-FR','ru-RU','es-ES']) {
                 await savePatch({uiLanguage:language,uiLanguageSetupCompleted:true});await page.reload({waitUntil:'domcontentloaded'});await navigate();
+                await expectBasic();
+                check(!(await scope.innerText()).includes('settings.cloud.'),'scope strings resolve in '+language);
+                await shotScope('cloud-scope-'+language+'-mobile');
                 await toggle.click();await consent.waitFor();
                 const text=await consent.innerText();
                 check(!text.includes('settings.cloud.')&&!/[\u3400-\u9fff]/u.test(language==='en-US'?text:''),'consent strings resolve in '+language);
@@ -260,6 +275,7 @@ async function main() {
                 await page.locator('[data-testid="cloud-consent-cancel"]').click();await consent.waitFor({state:'hidden'});
             }
             await savePatch({uiLanguage:'zh-CN',theme:'dark'});await page.reload({waitUntil:'domcontentloaded'});await navigate();await page.setViewportSize({width:1440,height:1000});
+            await shotScope('cloud-scope-dark-desktop');
             await toggle.click();await consent.waitFor();await shot('cloud-sensitive-consent-dark-desktop');
             const riskContrast=await consent.locator('.cloud-consent-risk').evaluate(el=>{
                 const luminance=color=>{const [r,g,b]=color.match(/[\d.]+/g).slice(0,3).map(Number).map(value=>{const c=value/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});return .2126*r+.7152*g+.0722*b;};
