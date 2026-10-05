@@ -6,8 +6,7 @@
 -->
 <template>
   <section class="cloud-backup" aria-labelledby="cloud-backup-title" data-testid="cloud-config-backup">
-    <header><h2 id="cloud-backup-title">{{ t('settings.cloud.title') }}</h2><el-tooltip effect="light" placement="bottom-end" :show-after="150" :trigger="['hover', 'focus']"><template #content><div class="cloud-privacy-help"><strong>{{ t('settings.drive.privacyTitle') }}</strong><ul><li>{{ t('settings.cloud.privacyEncryption') }}</li><li>{{ t(selected === 'google-drive' ? 'settings.drive.privacyStorage' : 'settings.cloud.privacyWebDavStorage') }}</li><li>{{ t(selected === 'google-drive' ? 'settings.drive.privacyAuthorization' : 'settings.cloud.privacyWebDavConnection') }}</li><li>{{ t('settings.drive.privacyExcluded') }}</li></ul></div></template><button type="button" class="cloud-privacy" :aria-label="t('settings.drive.privacyTitle')" data-testid="cloud-backup-privacy"><el-icon><Lock /></el-icon>{{ t('settings.drive.privacyBadge') }}</button></el-tooltip></header>
-    <p class="cloud-description">{{ t('settings.cloud.description') }}</p>
+    <header class="settings-card-heading"><div class="settings-card-heading-copy"><h2 id="cloud-backup-title">{{ t('settings.cloud.title') }}</h2><p class="cloud-description">{{ t('settings.cloud.description') }}</p></div><el-tooltip effect="light" placement="bottom-end" :show-after="150" :trigger="['hover', 'focus']"><template #content><div class="cloud-privacy-help"><strong>{{ t('settings.drive.privacyTitle') }}</strong><ul><li>{{ t('settings.cloud.privacyEncryption') }}</li><li>{{ t(selected === 'google-drive' ? 'settings.drive.privacyStorage' : 'settings.cloud.privacyWebDavStorage') }}</li><li>{{ t(selected === 'google-drive' ? 'settings.drive.privacyAuthorization' : 'settings.cloud.privacyWebDavConnection') }}</li><li>{{ t('settings.drive.privacyExcluded') }}</li></ul></div></template><button type="button" class="cloud-privacy" :aria-label="t('settings.drive.privacyTitle')" data-testid="cloud-backup-privacy"><el-icon><Lock /></el-icon>{{ t('settings.drive.privacyBadge') }}</button></el-tooltip></header>
     <div v-if="hasExtensionBackground" class="cloud-methods" role="radiogroup" :aria-label="t('settings.cloud.method')">
       <label v-for="item in methods" :key="item.id" :class="{'is-selected': selected === item.id, 'is-disabled': busy}">
         <input v-model="selected" type="radio" name="cloud-backup-method" :value="item.id" :disabled="busy" :data-testid="`cloud-method-${item.id}`" />{{ item.name }}
@@ -37,9 +36,9 @@ watch(selected, value => {try {localStorage.setItem('fluentread-cloud-backup-met
 </script>
 <style scoped>
 .cloud-backup {padding:24px; margin-bottom:24px; border:1px solid var(--el-border-color); border-radius:16px; background:var(--el-bg-color); color:var(--el-text-color-primary);}
-.cloud-backup>header {display:flex; align-items:center; justify-content:space-between; gap:12px;}
-.cloud-backup h2 {font-size:19px; margin:0;}
-.cloud-description {font-size:13px; line-height:1.7; color:var(--el-text-color-secondary); margin:12px 0 20px;}
+.cloud-backup>header {display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-24px -24px 20px; padding:12px 24px; border-bottom:1px solid var(--line); border-radius:15px 15px 0 0;}
+.cloud-backup h2 {font-size:16px; margin:0;}
+.cloud-description {font-size:12px; line-height:1.55; color:var(--muted); margin:0;}
 .cloud-privacy {display:inline-flex; align-items:center; gap:5px; font:inherit; font-size:12px; color:var(--el-text-color-secondary); white-space:nowrap; border:0; border-radius:20px; padding:4px 10px; background:var(--el-fill-color-light); cursor:help;}
 .cloud-privacy:hover,.cloud-privacy:focus {color:var(--el-color-success); background:var(--el-color-success-light-9);}
 .cloud-privacy:focus-visible {outline:2px solid var(--el-color-success); outline-offset:3px;}
@@ -53,5 +52,5 @@ watch(selected, value => {try {localStorage.setItem('fluentread-cloud-backup-met
 .cloud-methods label:focus-within {outline:2px solid var(--el-color-primary); outline-offset:2px;}
 .cloud-methods input {accent-color:var(--el-color-primary); margin:0;}
 .cloud-methods .is-disabled {opacity:.65; cursor:wait;}
-@media(max-width:600px) {.cloud-backup {padding:16px;}}
+@media(max-width:600px) {.cloud-backup {padding:16px;} .cloud-backup>header {margin:-16px -16px 16px; padding:12px 20px;}}
 </style>

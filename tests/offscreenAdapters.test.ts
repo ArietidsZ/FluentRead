@@ -130,6 +130,8 @@ describe('image translation Offscreen adapter', () => {
             title: 'Page',
         });
 
+        send.mockResolvedValueOnce({success:false,error:'local model not ready',errorCode:'notDownloaded'});
+        await expect(adapter.translateImage('image','en','')).rejects.toMatchObject({errorCode:'notDownloaded'});
         send.mockResolvedValueOnce({success: false, error: 'translation custom'});
         await expect(adapter.translateImage('image', 'en', '')).rejects.toThrow('translation custom');
         send.mockResolvedValueOnce({success: true, image: null, lines: [], error: 1});

@@ -1,9 +1,10 @@
 /**
  * @file src/features/image-translation/services/client.ts
  * 文件职责：封装网页与扩展页面调用图片翻译后台的 runtime 消息，统一支持跨域图片读取与整图翻译两种可取消客户端操作。
- * 主要内容：提供 fetchImageInExtension 与 translateImageInExtension，生成跨页面安全请求标识，传播取消和超时信号，订阅当前任务的真实阶段和识别百分比、清理监听，并在图片翻译消息断线时按共享截止时间恢复一次。
+ * 主要内容：提供 fetchImageInExtension 与 translateImageInExtension，生成跨页面安全请求标识，传播取消、超时信号与本地模型失败原因，订阅当前任务的真实阶段和识别百分比、清理监听，并在图片翻译消息断线时按共享截止时间恢复一次。
  * 模块边界：客户端不读取图片像素、不直接访问网络或 Offscreen；跨域 URL 只作为受控消息交给 background，再由 Offscreen 校验和读取，页面 UI 由 content/runtime 决定。
  */
+import {createImageTranslationFailure} from '../failure';
 import {parseMangaPatchPacket, type MangaPatchPacket} from '../mangaPatchResult';
 import {getRequiredImageOcrLanguages} from '../ocrLanguages';
 import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, normalizeImageProgress, type ImageTranslationStage} from '../progress';
@@ -20,6 +21,7 @@ interface ImageTranslationResponse {
     mangaPatches?: unknown;
     lines?: ImageTranslationLine[];
     error?: string;
+    errorCode?: unknown;
 }
 
 interface ImageFetchResponse {
@@ -197,7 +199,7 @@ export async function translateImageInExtension(
                 message, {...options, requestId, timeoutMs: remainingMs}, '图片翻译超时',
             );
             if (!response?.success || (!response.image && !(options.manga && response.mangaPatches !== undefined)) || !Array.isArray(response.lines)) {
-                throw new Error(response?.error || '图片翻译服务不可用');
+                throw createImageTranslationFailure(response?.error || '图片翻译服务不可用', response);
             }
             return {image: response.image || '', lines: response.lines,
                 ...(options.manga && response.mangaPatches !== undefined ? {mangaPatches: parseMangaPatchPacket(response.mangaPatches)} : {})};

@@ -232,6 +232,32 @@ describe('大模型用量 IndexedDB repository', () => {
         expect(timedOutConnection.items.map((item) => item.id)).toEqual(['request-other']);
     });
 
+    it('可直接跳到任意页，固定时间排除新增调用，范围和场景筛选后重新分页', async () => {
+        const repository = createRepository('request-log-jump');
+        const now = new Date(2026, 7, 29, 16).getTime();
+        await repository.recordMany(Array.from({length: 63}, (_, index) => usageEvent({
+            id: `page-${index}`, startedAt: now - index * 1_000,
+            purpose: index % 2 ? 'writing' : 'reading',
+        })));
+        const last = await repository.getRequestLog({filter: {range: '30d'}, offset: 60, limit: 20, asOf: now}, now);
+        expect(last.items.map(item => item.id)).toEqual(['page-60', 'page-61', 'page-62']);
+        expect(last).toMatchObject({totalCount: 63, offset: 60, nextCursor: null});
+        await repository.recordMany([usageEvent({id: 'new-call', startedAt: now + 1_000})]);
+        const second = await repository.getRequestLog({filter: {range: '30d'}, offset: 20, limit: 20, asOf: now}, now + 2_000);
+        expect(second.items.map(item => item.id)).toEqual(Array.from({length: 20}, (_, index) => `page-${index + 20}`));
+        expect(second.totalCount).toBe(63);
+        const filtered = await repository.getRequestLog({filter: {range: '30d', purpose: 'reading'}, offset: 20, limit: 20, asOf: now}, now);
+        expect(filtered.items.map(item => item.id)).toEqual(Array.from({length: 12}, (_, index) => `page-${40 + index * 2}`));
+        const clamped = await repository.getRequestLog({filter: {range: '30d'}, offset: 999, limit: 20, asOf: now}, now);
+        expect(clamped.offset).toBe(60);
+        expect(clamped.items).toEqual(last.items);
+        for (const offset of [-1, 0.5, 1_000, NaN, null]) {
+            await expect(repository.getRequestLog({filter: {range: '30d'}, offset: offset as never}, now)).rejects.toThrow('offset');
+        }
+        await expect(repository.getRequestLog({filter: {range: '30d'}, offset: 0, cursor: {startedAt: now, id: 'x'}}, now)).rejects.toThrow('不能同时使用');
+        await expect(repository.getRequestLog({filter: {range: '30d'}, asOf: -1}, now)).rejects.toThrow('asOf');
+    });
+
     it('请求日志使用默认页长，支持缓存未命中并拒绝非法筛选与游标', async () => {
         const repository = createRepository('request-log-validation');
         const now = new Date(2026, 7, 29, 16).getTime();

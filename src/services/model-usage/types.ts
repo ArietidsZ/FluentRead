@@ -1,7 +1,7 @@
 /**
  * @file src/services/model-usage/types.ts
  * 文件职责：定义大模型上游调用事件、筛选条件、请求日志、数据迁移与设置页统计快照的共享数据合同。
- * 主要内容：声明时间范围、用途、结果、Token 与缓存可用性、汇总指标、时间线、服务模型维度、请求游标分页和导入导出类型。
+ * 主要内容：声明时间范围、用途、结果、Token 与缓存可用性、汇总指标、时间线、服务模型维度、请求游标与指定页分页和导入导出类型。
  * 模块边界：本文件只描述本地统计数据形状，不读取浏览器存储、不解析供应商响应，也不包含设置页展示逻辑。
  */
 
@@ -143,6 +143,10 @@ export interface ModelUsageRequestCursor {
 export interface ModelUsageRequestQuery {
     filter: ModelUsageRequestFilter;
     cursor?: ModelUsageRequestCursor;
+    /** 指定页使用 offset；与旧的顺序游标互斥。 */
+    offset?: number;
+    /** 固定分页的时间边界，新增调用不会把已经查看的记录推到下一页。 */
+    asOf?: number;
     limit?: number;
 }
 
@@ -151,6 +155,7 @@ export interface ModelUsageRequestPage {
     filter: ModelUsageRequestFilter;
     items: StoredModelUsageEvent[];
     totalCount: number;
+    offset: number;
     nextCursor: ModelUsageRequestCursor | null;
 }
 

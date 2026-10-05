@@ -237,7 +237,11 @@ it('语言搜索在多个匹配项中优先显示通用设置', () => { const ma
 
 describe('settings page categories', () => {
   it('opens the category that owns a deep-linked control', () => {
-    expect(resolveSettingsPanel('settings-translation', 'floating-ball-settings')).toBe('tools')
+    expect(resolveSettingsPanel('settings-translation', 'floating-ball-settings')).toBe('floating-ball')
+    expect(resolveSettingsPanel('settings-translation', 'paragraph-copy-settings')).toBe('paragraph-copy')
+    expect(resolveSettingsPanel('settings-translation', 'section-translation-settings')).toBe('section-translation')
+    expect(resolveSettingsPanel('settings-translation', 'excluded-language-settings')).toBe('excluded-languages')
+    expect(resolveSettingsPanel('settings-translation', 'context-menu-settings')).toBe('context-menu')
     expect(resolveSettingsPanel('settings-interface', 'translation-appearance-panel')).toBe('translation')
     expect(resolveSettingsPanel('settings-translation', 'translation-sentence-highlight')).toBe('reading')
     expect(resolveSettingsPanel('settings-interface', 'translation-sentence-highlight-style')).toBe('translation')
@@ -245,6 +249,7 @@ describe('settings page categories', () => {
     expect(resolveSettingsPanel('settings-interface', 'font')).toBe('font')
   })
   it('falls back safely for old or unknown category links', () => {
+    expect(resolveSettingsPanel('settings-translation', 'tools')).toBe('floating-ball')
     expect(resolveSettingsPanel('settings-interface', 'missing')).toBe('translation')
     expect(resolveSettingsPanel('settings-interface')).toBe('translation')
     expect(resolveSettingsPanel('settings-general')).toBe('')

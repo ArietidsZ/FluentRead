@@ -258,8 +258,12 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
     {id: 'reading', labelKey: 'options.panel.reading', searchTerms: '阅读辅助 双语逐句高亮 原文译文 句子对应', targetIds: ['translation-sentence-highlight']},
     {"id": "hover", "labelKey": "options.panel.hover", "searchTerms": "鼠标悬浮 快捷键 延迟", "targetIds": []},
     {"id": "input", "labelKey": "options.panel.input", "searchTerms": "输入框 连按 空格", "targetIds": []},
-    {"id": "page", "labelKey": "options.panel.page", "searchTerms": "全文 快捷键 多段 范围 右键", "targetIds": []},
-    {"id": "tools", "labelKey": "options.panel.tools", "searchTerms": "悬浮球 位置 段落复制 分段 跳过语言 排除语言", "targetIds": ["floating-ball-settings"]},
+    {id: 'page', labelKey: 'options.panel.page', searchTerms: '全文 快捷键 多段 范围', targetIds: []},
+    {id: 'context-menu', labelKey: 'contextMenuSettings.title', searchTerms: '右键 菜单 选中文本 图片 截图 网站开关', targetIds: ['context-menu-settings']},
+    {id: 'floating-ball', labelKey: 'options.panel.floatingBall', searchTerms: '悬浮球 进阶设置 按钮 位置 延迟', targetIds: ['floating-ball-settings']},
+    {id: 'paragraph-copy', labelKey: 'paragraphCopy.settings.title', searchTerms: '段落复制 复制内容 快捷键', targetIds: ['paragraph-copy-settings']},
+    {id: 'section-translation', labelKey: 'sectionTranslation.settings.title', searchTerms: '局部翻译 分段 区域 快捷键', targetIds: ['section-translation-settings']},
+    {id: 'excluded-languages', labelKey: 'settings.excludedLanguages.title', searchTerms: '不翻译的语言 跳过语言 排除语言', targetIds: ['excluded-language-settings']},
   ],
   'settings-interface': [
     {"id": "translation", "labelKey": "options.panel.translation", "searchTerms": "译文 样式 颜色 字号 高亮", "targetIds": ["translation-appearance-panel", "translation-sentence-highlight-style"]},
@@ -293,5 +297,6 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
 export function resolveSettingsPanel(sectionId: string, panelOrTargetId?: string): string {
   const panels = settingsPagePanels[NAVIGATION_SECTION_ALIASES.get(sectionId) ?? sectionId] ?? []
   if (sectionId === 'settings-model-usage') return 'usage'
+  if (sectionId === 'settings-translation' && panelOrTargetId === 'tools') return 'floating-ball'
   return (panels.find(panel => panel.id === panelOrTargetId || panel.targetIds.includes(panelOrTargetId ?? '')) ?? panels[0])?.id ?? ''
 }

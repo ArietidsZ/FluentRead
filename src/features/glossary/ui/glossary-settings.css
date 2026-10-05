@@ -1,10 +1,10 @@
 /**
  * @file src/features/glossary/ui/glossary-settings.css
  * 文件职责：为术语库管理与导入预览提供设置中心一致的卡片、表单和响应式布局。
- * 主要内容：限定表格及导入预览的滚动边界，复用主题 token，并确保长术语、窄窗口与键盘焦点可见。
+ * 主要内容：区分页面管理工具栏、词库编辑与固定设置入口，限定表格及导入预览的滚动边界，以容器宽度适配操作按钮，并确保长术语与键盘焦点可见。
  * 模块边界：仅作用于本组件的 scoped 样式，不写全局标签规则、不改变网页宿主与其他设置分区。
  */
-.fluentread-glossary { color: var(--ink, var(--el-text-color-primary)); font-size: 13px; line-height: 1.5; width: 100%; margin: auto; }
+.fluentread-glossary { color: var(--ink, var(--el-text-color-primary)); font-size: 13px; line-height: 1.5; width: 100%; margin: auto; container-type: inline-size; }
 .fluentread-glossary * { box-sizing: border-box; }
 .fluentread-glossary p { margin: 6px 0; }
 .fluentread-glossary h3 { margin: 0 0 10px; font-size: 15px; }
@@ -72,7 +72,11 @@
 .fluentread-glossary :deep(.feature-enable-card) { margin-bottom: 24px; }
 .glossary-builtins-page { margin-top: 32px; scroll-margin-top: 24px; }
 .glossary-main-toolbar { margin: 18px 0 12px; gap: 12px; }
-.glossary-main-toolbar > strong { min-width: 0; overflow-wrap: anywhere; }
+.glossary-main-toolbar > h3 { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.glossary-main-toolbar > h3 small { margin-left: 5px; font-weight: 400; }
+.glossary-management-actions { gap: 8px; }
+.glossary-library-heading { display: flex; align-items: center; min-width: 0; margin-bottom: 8px; }
+.glossary-library-heading > strong { font-size: 14px; overflow-wrap: anywhere; }
 .glossary-library-picker { width: min(260px, 100%); }
 .glossary-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .glossary-start { padding: 28px; }
@@ -85,12 +89,15 @@
 .glossary-empty-copy h3 { margin: 0; }
 .glossary-entry-form { padding: 18px; margin: 16px 0; }
 .glossary-form-heading { grid-column: 1/-1; }
-.glossary-entry-options summary, .glossary-settings-details summary, .glossary-preview summary, .glossary-service-help summary, .glossary-more summary { cursor: pointer; }
+.glossary-entry-options summary, .glossary-preview summary, .glossary-service-help summary { cursor: pointer; }
 .glossary-entry-options { font-size: 12px; color: var(--muted); }
 .glossary-entry-options label { margin-top: 8px; color: var(--ink); }
 .glossary-settings-details { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
-.glossary-settings-details > summary { color: var(--muted); font-size: 12px; }
-.glossary-settings-details > summary span { margin-left: 10px; }
+.fluentread-glossary .glossary-settings-toggle { display: flex; justify-content: flex-start; gap: 10px; width: 100%; min-height: 44px; padding: 10px 12px; text-align: left; white-space: normal; background: var(--surface-soft, var(--el-fill-color-light)); border-color: transparent; }
+.glossary-settings-copy { display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 12px; min-width: 0; }
+.glossary-settings-copy strong { font-size: 12px; font-weight: 600; }
+.glossary-settings-chevron { margin-left: auto; }
+.glossary-settings-toggle[aria-expanded=true] .glossary-settings-chevron { transform: rotate(180deg); }
 .glossary-settings-details fieldset { padding-top: 14px; }
 .glossary-settings-details fieldset > label { margin-bottom: 12px; }
 .glossary-original { display: inline-block; border-radius: 5px; padding: 2px 7px; background: var(--surface-soft); color: var(--muted); font-size: 11px; }
@@ -112,18 +119,23 @@
 .glossary-diagnostics > div > button { min-width: 0; overflow-wrap: anywhere; }
 .glossary-service-help { margin: 14px 2px; color: var(--muted); font-size: 12px; }
 .glossary-back { margin: 12px 0; }
-.glossary-more { position: relative; }
-.glossary-more > summary { border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; background: var(--surface); min-height: 36px; }
-.glossary-more-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 5; width: min(300px, calc(100vw - 60px)); padding: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px #00000015; max-height: 60vh; overflow: auto; }
-.glossary-more-menu > button { width: 100%; border: 0; justify-content: flex-start; }
-.glossary-order-details { border-top: 1px solid var(--line); margin-top: 8px; padding: 10px 4px 4px; }
+.glossary-order-details { margin-top: 12px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface, var(--el-bg-color)); }
+.glossary-order-details > summary { cursor: pointer; font-weight: 500; }
+.glossary-order-details .glossary-help { margin: 12px 0 8px; }
+.glossary-library-order { flex: none; }
 .glossary-library-order { flex-direction: row; }
-@media (max-width: 760px) { .glossary-settings-details > summary span { display: none; } .glossary-preview-context { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) { .glossary-preview-context { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 520px) { .glossary-editor, .glossary-start { padding: 16px; } .glossary-entry-form { padding: 12px; } .glossary-main-toolbar { align-items: start; } .glossary-library-picker { flex: 1; min-width: 130px; } .glossary-preview > summary > span { display: block; margin: 4px 0 0 14px; } .glossary-diagnostics > div { flex-wrap: wrap; gap: 0; } }
 
-.fluentread-glossary .glossary-scope-summary { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 6px 12px; max-width: 100%; margin: 0 0 14px; padding: 0; min-height: 24px; border: 0; background: transparent; color: var(--muted); font-size: 12px; white-space: normal; text-align: left; }
+.glossary-scope-summary { display: flex; flex-wrap: wrap; gap: 4px 12px; max-width: 100%; margin: 0 0 18px; color: var(--muted); font-size: 12px; }
 .glossary-scope-summary span { overflow-wrap: anywhere; }
 .glossary-scope-summary > span + span { padding-left: 12px; border-left: 1px solid var(--line); }
+@container (max-width: 560px) {
+  .glossary-main-toolbar { align-items: flex-start; }
+  .glossary-management-actions { width: 100%; justify-content: flex-start; }
+  .glossary-management-actions > button { flex: 1 1 auto; white-space: normal; }
+  .glossary-settings-copy { flex-direction: column; align-items: flex-start; }
+}
 
 .glossary-match-result { margin-top: 20px; }
 .glossary-match-heading { padding-bottom: 12px; }

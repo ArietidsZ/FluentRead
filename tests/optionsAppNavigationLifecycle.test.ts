@@ -169,7 +169,7 @@ it('reveals collapsed groups and the correct page category for a cross-page cont
   state.selectPanel('requests');
   expect(state.activePanel).toBe('requests');
   state.selectSection('settings-translation', 'floating-ball-settings');
-  expect(state.activePanel).toBe('tools');
+  expect(state.activePanel).toBe('floating-ball');
   state.selectSection('settings-translation');
   expect(state.activePanel).toBe('reading');
   state.toggleGroup(3);

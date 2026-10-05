@@ -7,7 +7,7 @@
 <template>
   <div class="rule-workspace" data-setting="site-adaptation">
     <section class="rule-card" aria-labelledby="site-adaptation-heading">
-      <header class="rule-section-heading">
+      <header class="rule-section-heading settings-card-heading">
         <h2 id="site-adaptation-heading">{{ tr('正文适配') }}</h2><p>{{ tr('选择要翻译和保留原文的区域') }}</p>
       </header>
       <div class="rule-toggle-row">
@@ -26,7 +26,7 @@
       </div>
       <form v-if="form" ref="formArea" class="visual-editor" data-rule-form @submit.prevent="saveForm">
         <fieldset :disabled="saving">
-          <header class="rule-heading"><div><h3>{{ tr(editingId ? '编辑规则' : '新建规则') }}</h3><p>{{ tr('每行填写一项，保存后应用到网页') }}</p></div><button type="button" :disabled="saving" @click="cancelForm">{{ tr('取消编辑') }}</button></header>
+          <header class="rule-heading settings-card-heading"><div class="settings-card-heading-copy"><h3>{{ tr(editingId ? '编辑规则' : '新建规则') }}</h3><p>{{ tr('每行填写一项，保存后应用到网页') }}</p></div><button type="button" :disabled="saving" @click="cancelForm">{{ tr('取消编辑') }}</button></header>
           <p v-if="formConflict" class="rule-error" role="alert">{{ tr('规则已从其他页面更新，请关闭编辑器后重新打开，避免覆盖新配置') }}</p>
           <h4>{{ tr('匹配网站') }}</h4>
           <div class="rule-columns">
@@ -67,7 +67,7 @@
         <button v-if="visibleRules.length < matchingRules.length" type="button" class="catalog-more" @click="visibleLimit += 30">{{ tr('显示更多') }} ({{ visibleRules.length }}/{{ matchingRules.length }})</button>
         </div>
         <section v-if="selected && selectedResolved" id="site-adaptation-rule-detail" class="rule-detail" data-rule-detail>
-          <header class="rule-heading"><div><h3 data-i18n-ignore>{{ selected.rule.name }}</h3></div><button type="button" @click="selectedId = ''">{{ tr('关闭详情') }}</button></header>
+          <header class="rule-heading settings-card-heading"><div class="settings-card-heading-copy"><h3 data-i18n-ignore>{{ selected.rule.name }}</h3></div><button type="button" @click="selectedId = ''">{{ tr('关闭详情') }}</button></header>
           <dl><dt>{{ tr('匹配域名') }}</dt><dd data-i18n-ignore>{{ selectedResolved.match.hosts.join(' · ') }}</dd><dt>{{ tr('匹配路径') }}</dt><dd data-i18n-ignore>{{ selectedResolved.match.paths?.join(' · ') || tr('所有路径') }}</dd><dt v-if="selectedResolved.match.excludePaths?.length">{{ tr('排除路径') }}</dt><dd v-if="selectedResolved.match.excludePaths?.length" data-i18n-ignore>{{ selectedResolved.match.excludePaths.join(' · ') }}</dd><dt>{{ tr('正文区域') }}</dt><dd data-i18n-ignore>{{ selectedResolved.content?.flatMap(item => item.css).join(' · ') || tr('通用正文识别') }}</dd><dt>{{ tr('保留原文') }}</dt><dd data-i18n-ignore>{{ selectedResolved.protect?.join(' · ') || '—' }}</dd><dt>{{ tr('排除扫描') }}</dt><dd data-i18n-ignore>{{ selectedResolved.exclude?.join(' · ') || '—' }}</dd><dt>{{ tr('优先级') }}</dt><dd>{{ selectedResolved.priority ?? 0 }}</dd></dl>
           <div class="rule-actions"><button type="button" class="rule-primary" :disabled="saving || !!form" @click="startForm(selected)">{{ tr(selected.source === 'builtin' ? '基于此规则自定义' : '编辑自定义规则') }}</button><button v-if="selected.source === 'custom'" type="button" :disabled="saving || !!form" @click="removeCustom(selected.rule.id)">{{ tr('从草稿移除') }}</button><button type="button" @click="downloadPack({version: 1, rules: [selectedResolved]}, selected.rule.id + '.json')">{{ tr('导出此规则') }}</button></div>
           <p v-if="selected.overridesBuiltin" class="rule-hint">{{ tr('同 ID 的自定义规则完整替换内置规则；移除自定义版本后恢复内置版本') }}</p>
@@ -80,7 +80,7 @@
     <details v-show="!form" class="rule-card backup-tools">
       <summary>{{ tr('JSON 与备份') }}</summary>
       <section aria-labelledby="adaptation-custom-heading">
-        <header class="rule-heading"><div><h3 id="adaptation-custom-heading">{{ tr('自定义规则与备份') }}</h3><p>{{ tr('可视化编辑与 JSON 编辑共用一份草稿，请检查后保存；导入默认合并，现有规则会保留') }}</p></div><span v-if="isDirty" class="rule-badge">{{ tr('未保存') }}</span></header>
+        <header class="rule-heading settings-card-heading"><div class="settings-card-heading-copy"><h3 id="adaptation-custom-heading">{{ tr('自定义规则与备份') }}</h3><p>{{ tr('可视化编辑与 JSON 编辑共用一份草稿，请检查后保存；导入默认合并，现有规则会保留') }}</p></div><span v-if="isDirty" class="rule-badge">{{ tr('未保存') }}</span></header>
         <div class="rule-actions import-actions"><button type="button" :disabled="saving || !!form" @click="insertExample">{{ tr('插入示例') }}</button><label class="import-mode">{{ tr('导入方式') }} <select v-model="importMode" :disabled="saving"><option value="merge">{{ tr('合并（同 ID 替换）') }}</option><option value="replace">{{ tr('替换整个草稿') }}</option></select></label><button type="button" :disabled="saving || !!form" @click="fileInput?.click()">{{ tr('导入 JSON') }}</button><button type="button" @click="downloadPack(modelValue.custom, 'fluentread-custom-sites.json')">{{ tr('导出已保存规则') }}</button><button v-if="isDirty && parsedDraft.ok" type="button" @click="downloadPack(workingPack, 'fluentread-draft-sites.json')">{{ tr('导出草稿') }}</button><button type="button" @click="downloadPack(builtinSiteRulePack, 'fluentread-builtin-sites.json')">{{ tr('导出内置规则') }}</button><input ref="fileInput" hidden type="file" accept=".json,application/json" @change="importFile" /></div>
         <details :open="jsonOpen" class="json-editor" @toggle="jsonOpen = ($event.target as HTMLDetailsElement).open"><summary>{{ tr('高级 JSON 编辑') }}</summary><p class="rule-hint">{{ tr('支持模板、多个内容区域及全部高级字段；每次保存都会校验格式、域名、路径与 CSS 选择器') }}</p><label class="rule-field"><span>{{ tr('JSON 编辑草稿') }}</span><textarea v-model="draft" data-i18n-ignore rows="16" spellcheck="false" autocomplete="off" :disabled="saving || !!form" :aria-label="tr('JSON 编辑草稿')" :aria-invalid="issues.length > 0" aria-describedby="adaptation-editor-feedback" @input="markDraftEdited" /></label><div class="rule-actions"><button type="button" :disabled="saving || !!form" @click="validateDraft">{{ tr('校验草稿') }}</button><button type="button" :disabled="saving || !!form" @click="clearCustom">{{ tr('清空自定义草稿') }}</button></div></details>
         <div class="rule-actions save-actions"><button type="button" :disabled="!isDirty || saving || !!form" @click="restoreSaved">{{ tr('恢复已保存草稿') }}</button><button v-if="undoDraft !== null" type="button" :disabled="saving || !!form" @click="undoReplacement">{{ tr('撤销草稿替换') }}</button><span class="rule-hint">{{ tr(saving ? '正在保存，等待后台确认' : isDirty ? '目录显示草稿；网页仍使用已保存规则' : '当前规则已保存') }}</span></div>

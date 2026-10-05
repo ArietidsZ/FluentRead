@@ -289,6 +289,12 @@ describe('Offscreen 消息静态路由', () => {
         expect(mocks.translateImage).toHaveBeenLastCalledWith('data:image/png,x','en','',expect.any(AbortSignal),expect.any(String),false,'tesseract');
     });
 
+    it('图片本地模型错误在 Offscreen 路由保留稳定原因', async () => {
+        mocks.translateImage.mockRejectedValueOnce(Object.assign(new Error('local language direction'),{errorCode:'language'}));
+        expect((await dispatch({type:'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN',image:'data:image/png,image',sourceLanguage:'en'})).response)
+            .toEqual({success:false,error:'local language direction',errorCode:'language'});
+    });
+
     it('图片翻译规范化缺省 title 并校验结果对象', async () => {
         await expect(dispatch({
             type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', requestId: 'image-translate-1',

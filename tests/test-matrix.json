@@ -220,6 +220,7 @@
       "tests/xVideoSubtitleData.test.ts",
       "tests/xSubtitleLoader.test.ts",
       "tests/hlsAudio.test.ts",
+      "tests/xHlsAudioRuntime.test.ts",
       "tests/videoTranslationScheduler.test.ts",
       "tests/videoPretranslationController.test.ts",
       "tests/videoTranslationCache.test.ts",

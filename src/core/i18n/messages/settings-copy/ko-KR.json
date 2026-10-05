@@ -1,5 +1,6 @@
 {
   "messages": {
+    "options.panel.floatingBall": "플로팅 버튼 상세 설정",
     "settings.general.bilingualSentenceHighlightGroupingHint": "원문과 번역문의 문장 구분이 다르면 인접한 문장을 함께 강조합니다.",
     "learning.collection.moreActions": "저장 항목 추가 작업",
     "learning.collection.listenExplain": "듣기와 설명",

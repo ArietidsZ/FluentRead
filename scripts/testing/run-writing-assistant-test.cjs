@@ -351,7 +351,7 @@ function fixture(site, variant = '') {
         assert(await settings.locator('.writing-settings').evaluate(el => el.scrollWidth <= el.clientWidth + 1), `settings fit ${width}px`);
         if (width === 1440) {
           const controls = await settings.locator('.writing-style-controls').boundingBox(); const sample = await settings.locator('.style-preview').boundingBox();
-          assert(sample.x > controls.x + controls.width, 'desktop preview sits alongside choices');
+          assert(controls.x > sample.x + sample.width, 'desktop preview sits to the left of choices');
           assert(Math.abs(sample.y - controls.y) < 2, 'choices and preview align at the top');
         }
         await shot(settings, `writing-experience-settings-${width}`);

@@ -7,7 +7,7 @@
 <template>
   <div class="site-preferences rule-workspace" data-setting="site-preferences">
     <section class="rule-card" aria-labelledby="site-preferences-heading">
-      <header class="rule-section-heading"><div class="preference-title"><h2 id="site-preferences-heading">{{ tr('网站偏好') }}</h2><span v-if="rows.length" class="rule-badge">{{ rows.length }}</span></div><p>{{ tr('按主域名生效，包含所有子域') }}</p></header>
+      <header class="rule-section-heading settings-card-heading"><div class="preference-title"><h2 id="site-preferences-heading">{{ tr('网站偏好') }}</h2><span v-if="rows.length" class="rule-badge">{{ rows.length }}</span></div><p>{{ tr('按主域名生效，包含所有子域') }}</p></header>
       <div class="rule-toggle-row">
         <span :title="tr('开启后自动翻译所有未禁用扩展的网站，并保留下方的“始终翻译”名单')">{{ tr('所有网站自动翻译') }}</span>
         <el-switch :model-value="settings.autoTranslate" :disabled="saving" :aria-label="tr('所有网站自动翻译')" @update:model-value="commit({autoTranslate: Boolean($event)})" />

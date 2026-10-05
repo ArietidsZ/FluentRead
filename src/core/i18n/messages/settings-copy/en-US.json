@@ -1,5 +1,6 @@
 {
   "messages": {
+    "options.panel.floatingBall": "Floating button settings",
     "settings.general.bilingualSentenceHighlightGroupingHint": "When sentence boundaries differ, adjacent sentences are highlighted together.",
     "learning.collection.moreActions": "More saved-item actions",
     "learning.collection.listenExplain": "Listen and explain",
