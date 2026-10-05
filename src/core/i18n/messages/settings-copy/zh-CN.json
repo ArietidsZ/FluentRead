@@ -65,7 +65,26 @@
     "settings.services.freeWeights.testDuration": "本次测试耗时 {duration} ms",
     "settings.services.freeWeights.share": "分流",
     "settings.services.freeWeights.noChinese": "不支持中文",
-    "settings.services.library.freeUnofficial": "免费 · 非官方"
+    "settings.services.library.freeUnofficial": "免费 · 非官方",
+    "settings.requestLimits.scope": "作用范围",
+    "settings.requestLimits.currentModel": "当前模型",
+    "settings.requestLimits.entireService": "整个服务",
+    "settings.requestLimits.mode": "限制方式",
+    "settings.requestLimits.custom": "自定义",
+    "settings.services.hunyuanModel": "腾讯混元模型",
+    "settings.services.customEndpointHelp": "兼容 OpenAI Chat Completions 的接口；可填写完整的 Chat Completions 地址或以 /v1 结尾的 Base URL，模型需支持 Chat Completions。",
+    "settings.services.waitTimeout": "等待上限（秒）",
+    "settings.services.reasoning": "深度思考",
+    "settings.services.keys.usage": "密钥使用方式",
+    "settings.services.keys.firstOnly": "仅用首个",
+    "settings.services.keys.rotate": "轮换使用",
+    "settings.services.keys.usageHelp": "轮换使用会分担请求，失败时切换；仅用首个不会删除其他密钥。",
+    "settings.services.keys.requirement": "密钥要求",
+    "settings.services.keys.required": "密钥必填",
+    "settings.services.keys.optional": "允许留空",
+    "settings.services.keys.requirementHelp": "需要密钥验证的接口请选择“密钥必填”；允许匿名请求的接口可选择“允许留空”。填写密钥后仍会使用该密钥。",
+    "settings.services.keys.optionalPlaceholder": "可留空；填写后使用该密钥",
+    "settings.services.keys.addKey": "添加密钥"
   },
   "legacy": {}
 }

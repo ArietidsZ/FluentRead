@@ -125,21 +125,20 @@ async function main() {
     report.cases.push(`${name.toLowerCase()}-endpoint`);
   }
 
-  const customRequest = page.locator('details.service-disclosure[data-configuration-group="custom-request"]');
-  await customRequest.locator(':scope > summary').click();
+  await page.locator('[id$="tab-custom-request"]').click();
   const proxy = page.getByRole('textbox', {name: '代理地址', exact: true});
   await proxy.fill(`${host}/`);
-  const key = page.locator('[data-api-key-list] input').first();
+  const key = page.locator('[data-api-key-list] .api-key-entry input').first();
   // 改变目的地址后现有凭据绑定会清空 Key；新目的地址需显式填写自己的测试凭据。
-  await page.waitForFunction(() => document.querySelector('[data-api-key-list] input')?.value === '');
+  await page.waitForFunction(() => document.querySelector('[data-api-key-list] .api-key-entry input')?.value === '');
   await key.fill('issue626-fixture-token');
   await check('/');
   report.cases.push('explicit-proxy-root-stays-exact');
   await proxy.fill('');
-  await page.waitForFunction(() => document.querySelector('[data-api-key-list] input')?.value === '');
+  await page.waitForFunction(() => document.querySelector('[data-api-key-list] .api-key-entry input')?.value === '');
   await key.fill('issue626-fixture-token');
   await check('/custom-generate');
-  await customRequest.locator(':scope > summary').click();
+  await page.locator('[id$="tab-translation"]').click();
   report.cases.push('clear-proxy-restores-custom-endpoint');
 
   rejectRequest = true;

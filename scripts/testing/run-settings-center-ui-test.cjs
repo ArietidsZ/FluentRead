@@ -2799,18 +2799,17 @@ async function main() {
       // 直接从完整服务列表打开 OpenAI。
       await page.locator('[data-service-value="openai"]:visible').first().click();
     }
-    const darkTranslationSettings = page.locator('details.service-disclosure[data-configuration-group="translation"]');
+    await page.locator('[id$="tab-translation"]').click();
+    const darkTranslationSettings = page.locator('[data-configuration-group="translation"]');
     await darkTranslationSettings.waitFor({state: 'visible', timeout});
     const darkThinkingSwitch = darkTranslationSettings.getByRole('switch', {
       name: '当前模型是否启用 Thinking',
       includeHidden: true,
     });
     const darkThinkingControl = darkThinkingSwitch.locator('..');
-    if (await darkThinkingControl.isVisible()) throw new Error('模型 Thinking 没有收纳到关闭的模型偏好中');
-    await darkTranslationSettings.locator(':scope > summary').click();
     await darkThinkingControl.waitFor({state: 'visible', timeout});
     const thinkingDarkSurface = await darkTranslationSettings.evaluate(element => {
-      // 独立 disclosure 使用透明背景，检查实际承载它的表面，不能把透明黑当作暗色通过。
+      // 页签面板使用透明背景，检查实际承载它的表面，不能把透明黑当作暗色通过。
       for (let surface = element; surface; surface = surface.parentElement) {
         const color = getComputedStyle(surface).backgroundColor;
         const channels = color.match(/\d+(?:\.\d+)?/g)?.map(Number) || [];
@@ -3176,20 +3175,19 @@ async function main() {
         !== customServiceFixture.apiKey) {
       throw new Error('新建自定义服务的名称、接口、模型或 API Key 没有进入详情配置');
     }
-    const translationSettings = serviceCatalog.locator('details.service-disclosure[data-configuration-group="translation"]');
+    const translationSettings = serviceCatalog.locator('[data-configuration-group="translation"]');
     const currentThinkingSwitch = translationSettings.getByRole('switch', {
       name: '当前模型是否启用 Thinking',
       includeHidden: true,
     });
-    if (await serviceCatalog.locator('details.service-disclosure').evaluateAll(panels => panels.some(panel => panel.open))) {
-      throw new Error('新建自定义服务时独立配置面板没有保持默认折叠');
+    if (await serviceCatalog.locator('[data-service-settings-tabs] [role="tabpanel"]:visible').count() !== 1) {
+      throw new Error('新建自定义服务时只应显示当前配置页签');
     }
     if (await currentThinkingSwitch.getAttribute('aria-checked') !== 'false') {
       throw new Error('新建模型的 Thinking 没有保持默认关闭');
     }
     const currentThinkingControl = currentThinkingSwitch.locator('..');
-    if (await currentThinkingControl.isVisible()) throw new Error('模型 Thinking 没有默认收纳在模型偏好中');
-    await translationSettings.locator(':scope > summary').click();
+    await serviceCatalog.locator('[id$="tab-translation"]').click();
     if (!await currentThinkingControl.isVisible()) throw new Error('当前模型 Thinking 开关没有可见的交互控件');
     await currentThinkingControl.click();
     await page.waitForFunction(() => document.querySelector('[aria-label="当前模型是否启用 Thinking"]')

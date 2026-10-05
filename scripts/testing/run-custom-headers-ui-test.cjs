@@ -59,8 +59,8 @@ async function main() {
   }
   async function select(name) {
     await page.locator('[data-service-section="custom"] [data-service-value]').filter({hasText: name}).click();
-    const customRequest = page.locator('details.service-disclosure[data-configuration-group="custom-request"]');
-    if (await customRequest.getAttribute('open') === null) await customRequest.locator(':scope > summary').click();
+    await page.locator('[id$="tab-custom-request"]').click();
+    const customRequest = page.locator('[data-configuration-group="custom-request"]');
     return customRequest.getByTestId('custom-service-headers').locator('textarea');
   }
   async function check() {

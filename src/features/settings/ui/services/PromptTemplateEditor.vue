@@ -1,6 +1,6 @@
 <!--
  * @file src/features/settings/ui/services/PromptTemplateEditor.vue
- * 文件职责：为 AI 翻译服务提供统一的 system/user 提示词编辑器，并把可用模板变量变成可点击插入的快捷操作。
+ * 文件职责：为 AI 翻译服务提供统一的 system/user 提示词编辑器，并用标签旁提示解释角色，并把模板变量变成可点击插入的快捷操作。
  * 主要内容：渲染角色提示词编辑器，保留光标和选区；输入法组合结束后才提交最终值，并支持点击 {{to}}、{{origin}} 按钮插入变量。
  * 模块边界：组件只管理编辑器展示、光标位置和 update:modelValue 事件，不解释翻译协议、不保存配置；父级 ServiceConfiguration 负责服务映射与持久化。
  -->
@@ -17,7 +17,7 @@
         <span class="prompt-role-badge" aria-hidden="true">{{ props.roleLabel || role }}</span>
         <div class="prompt-role-copy">
           <strong :id="headingId">{{ definition.title }}</strong>
-          <small>{{ definition.description }}</small>
+          <FieldHelp :content="definition.description" />
         </div>
       </div>
       <span class="prompt-template-limit">{{ props.limitLabel || `最多 ${maxLength} 字符` }}</span>
@@ -33,7 +33,7 @@
       autocomplete="off"
       autocapitalize="off"
       spellcheck="false"
-      rows="6"
+      rows="4"
       @click="rememberSelection"
       @focus="rememberSelection"
       @input="handleInput"
@@ -67,6 +67,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, useId, watch } from 'vue'
+import FieldHelp from '../components/FieldHelp.vue'
 
 type PromptRole = 'system' | 'user'
 
@@ -245,8 +246,9 @@ function insertToken(token: string): void {
 .prompt-role-copy {
   display: flex;
   min-width: 0;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
 }
 
 .prompt-role-copy strong {
@@ -272,7 +274,7 @@ function insertToken(token: string): void {
 .prompt-template-textarea {
   display: block;
   width: 100%;
-  min-height: 132px;
+  min-height: 110px;
   margin-top: 12px;
   padding: 12px 13px;
   border: 1px solid #dfe4ed;

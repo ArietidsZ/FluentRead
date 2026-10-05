@@ -6,9 +6,8 @@
  -->
 <template>
   <div class="connection-field" data-testid="request-header-rules">
-    <div class="connection-field-label"><strong>{{ t('settings.headers.title') }}</strong></div>
+    <div class="connection-field-label"><strong>{{ t('settings.headers.title') }}</strong><FieldHelp :content="t('settings.headers.help')" /></div>
     <div class="connection-field-control">
-      <p class="provider-field-help">{{ t('settings.headers.help') }}</p>
       <p v-if="!supported" class="provider-field-help">{{ t('settings.headers.unsupported') }}</p>
       <template v-else>
         <div class="fluentread-header-add">
@@ -36,6 +35,7 @@ import browser from 'webextension-polyfill';
 import type {Config} from '@/src/core/config/model';
 import {MAX_REQUEST_HEADER_RULES, normalizeRequestHeaderDomain} from '@/src/core/config/requestHeaders';
 import {useUiI18n} from '@/src/ui/i18n';
+import FieldHelp from '../components/FieldHelp.vue';
 const props = defineProps<{config: Config}>();
 const {t} = useUiI18n();
 const domain = ref('');

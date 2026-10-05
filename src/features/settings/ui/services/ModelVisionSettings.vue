@@ -6,16 +6,18 @@
 -->
 <template>
   <div class="connection-field-control model-vision-setting">
+    <div class="model-vision-controls">
     <el-select v-model="override" data-testid="model-vision-capability" :aria-label="t('settings.services.visionCapability')" :disabled="!transportSupported">
       <el-option value="auto" :label="t('settings.services.visionAuto')" />
       <el-option value="supported" :label="t('settings.services.visionSupported')" />
       <el-option value="unsupported" :label="t('settings.services.visionTextOnly')" />
     </el-select>
-    <small data-testid="model-vision-status">{{ t(capabilityMessage) }}</small>
     <el-button data-testid="model-vision-probe" :disabled="!transportSupported" @click="busy ? cancel() : probe()">
       {{ t(busy ? 'settings.services.visionProbeCancel' : 'settings.services.visionProbeAction') }}
     </el-button>
-    <small>{{ t('settings.services.visionProbeHelp') }}</small>
+    <FieldHelp :content="t('settings.services.visionProbeHelp')" />
+    </div>
+    <small data-testid="model-vision-status" role="status">{{ t(capabilityMessage) }}</small>
     <small v-if="feedback" role="status" data-testid="model-vision-probe-feedback">{{ feedback }}</small>
   </div>
 </template>
@@ -29,6 +31,7 @@ import {VISION_PROBE_MESSAGE, VISION_PROBE_CANCEL_MESSAGE} from '@/src/services/
 import {useVisionProbeStatus} from './useVisionProbeStatus'
 import {requestConfigSave, waitForConfigPersistenceQueue} from '@/src/services/config/store'
 import {useUiI18n} from '@/src/ui/i18n'
+import FieldHelp from '../components/FieldHelp.vue'
 
 const props = defineProps<{config: Config; service: string; model: string}>()
 const {t} = useUiI18n()
@@ -94,5 +97,10 @@ watch(identity, () => { cancel(); feedback.value = '' })
 onBeforeUnmount(cancel)
 </script>
 <style scoped>
+.model-vision-controls { display: flex; align-items: center; gap: 8px; width: 100%; }
+.model-vision-controls :deep(.el-select) { flex: 1; min-width: 0; max-width: 360px; }
+.model-vision-controls :deep(.el-button) { flex: none; margin: 0; height: 38px; border-radius: 10px; }
+.model-vision-setting { gap: 6px; }
+@container (max-width: 400px) { .model-vision-controls { flex-wrap: wrap; } .model-vision-controls :deep(.el-select) { flex-basis: 100%; } }
 .model-vision-setting small {color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere;}
 </style>

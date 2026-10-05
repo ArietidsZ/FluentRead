@@ -627,7 +627,7 @@ export const options = {
         {value: services.doubao, label: "字节豆包", catalogKind: "provider"},
         {value: services.moonshot, label: "月之暗面/Kimi", catalogKind: "provider"},
         {value: services.zhipu, label: "智谱/GLM", catalogKind: "provider"},
-        {value: services.huanYuan, label: "腾讯混元", catalogKind: "provider"},
+        {value: services.huanYuan, label: "腾讯混元模型", catalogKind: "provider"},
         {value: services.huanYuanTranslation, label: "腾讯混元翻译", catalogKind: "provider"},
         {value: services.yiyan, label: "文心一言", catalogKind: "provider"},
         {value: services.minimax, label: "MiniMax", catalogKind: "provider"},
@@ -651,7 +651,7 @@ export const options = {
         {value: services.fireworks, label: "Fireworks AI", catalogKind: "platform"},
         {value: services.deepinfra, label: "DeepInfra", catalogKind: "platform"},
         {value: services.perplexity, label: "Perplexity", catalogKind: "platform"},
-        {value: services.ollama, label: "Ollama（本地）", description: "连接本机 Ollama，无需密钥，模型与数据都留在本地。", catalogKind: "platform", searchTerms: ["local localhost 本地"]},
+        {value: services.ollama, label: "Ollama", description: "连接本机 Ollama，无需密钥，模型与数据都留在本地。", catalogKind: "platform", searchTerms: ["local localhost 本地"]},
         {value: services.custom, label: "自定义接口", catalogKind: "platform"},
     ],
     display: [

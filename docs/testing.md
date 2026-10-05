@@ -524,7 +524,7 @@ node scripts/testing/run-popup-quick-settings-ui-test.cjs \
 
 ## 设置层级与渐进展开
 
-通用页按日常翻译、网页辅助、基本偏好排序；服务页将密钥管理放在 API Key 旁，模型偏好、提示词、请求限制和接口兼容分别展开。可运行以下专项验证这些入口：
+通用页按日常翻译、网页辅助、基本偏好排序；服务页优先展示密钥输入，下方直接添加密钥，有多个密钥时才显示“仅用首个 / 轮换使用”，密钥要求明确区分必填与允许留空。填写密钥后，即使允许留空也仍使用已填密钥；切换为仅用首个会保留其他密钥。模型偏好、提示词、请求限制和接口兼容通过紧凑页签切换，每次只显示一组。标签旁的信息按钮支持悬停和键盘聚焦，详细说明不挤占表单空间。可运行以下专项验证这些入口：
 
 ```bash
 node scripts/testing/run-settings-hierarchy-ui-test.cjs \
@@ -534,7 +534,21 @@ node scripts/testing/run-settings-hierarchy-ui-test.cjs \
   --artifacts-dir /private/tmp/fluentread-settings-hierarchy
 ```
 
-该专项在独立临时 Edge profile 中验证默认服务配置直达、浏览目录不改变默认服务、键盘展开、多 Key 保留、模型偏好与提示词保存、请求限制、快速关闭后的持久化、连续写入与两个设置页同步。还检查 18 个设置分区、1024/820/390 像素布局、窄屏目录及图标、深色和英文界面，并导出截图、布局尺寸与控制台错误。
+该专项在独立临时 Edge profile 中验证默认服务配置直达、浏览目录不改变默认服务、键盘切换页签、多 Key 保留、模型偏好与提示词保存、请求限制、快速关闭后的持久化、连续写入与两个设置页同步。还检查 18 个设置分区、1024/820/390 像素布局、窄屏目录及图标、深色和英文界面，并导出截图、布局尺寸与控制台错误。
+
+服务配置的详细专项可运行：
+
+```bash
+node scripts/testing/run-service-configuration-ui-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <Node包目录> \
+  --focus-safe-helper <focus-safe-browser.cjs路径> \
+  --artifacts-dir /private/tmp/fluentread-service-configuration
+```
+
+该专项使用临时 Chrome profile 与第二屏后台窗口，验证四类设置页签、键盘访问、多 Key 保留及逐项结果、实际继承的限制值、模型与服务限制隔离、区域说明、本地模型悬停详情、自定义接口地址说明和删除确认。请求限制继承时仍显示生效数值，切换为自定义后可编辑。自定义接口地址接受完整 Chat Completions URL 或以 `/v1` 结尾的 Base URL，模型必须支持 Chat Completions；说明集中在标签旁提示中。Ollama 与腾讯混元模型使用统一的目录名称。
+
+浏览器配置修改经过真实后台保存，覆盖快速关闭、连续写入、重开和两页同步；连接结果使用测试夹具，不调用外部服务、不下载模型。响应式覆盖 1440/1024/820/390px，另检查深色和英文界面，Firefox 仅有构建证据。
 
 连续设置页的顶部同页导航可单独运行 `scripts/testing/run-settings-section-navigation-test.cjs`，传入 `--extension-dir .output/chrome-mv3`、`--playwright-root <bundled-node-packages>`、`--focus-safe-helper <skill>/scripts/focus-safe-browser.cjs` 和 `--artifacts-dir <evidence-dir>`。该专项覆盖通用、翻译、界面、划词、图片、视频、写作、高级及备份九个长表单的入口点击、滚动高亮、键盘操作、条件模块、折叠展开、搜索与跨页定位交接，并检查统计/网站规则原有视图切换、1024/820/390 像素布局和英文标签。仅使用临时 profile、第二屏可见后台窗口；导航本身不得写配置或更改 URL。Firefox 实机不在该专项范围内。
 
@@ -558,7 +572,7 @@ node scripts/testing/run-service-catalog-ui-test.cjs \
   --artifacts-dir /private/tmp/fluentread-service-catalog
 ```
 
-`run-service-library-ui-test.cjs` 覆盖按类别展示服务、查看配置不改默认服务、标题栏检查连接、首个自定义服务出现前不显示自定义分类、20 个长名称自定义服务的分类筛选，以及 1440/1024/820/390px、深色和英文界面。`run-service-design-ui-test.cjs` 检查免费接口卡片、默认展开的云服务额度、单个高级设置入口和 DeepLX 检查期间的布局稳定性，连接结果使用本地夹具。`run-service-catalog-ui-test.cjs` 锁定机器翻译、云服务厂商、模型服务商和聚合平台的分类顺序与计数，检查免密钥候选不泄漏为独立服务、跨分类搜索和窄屏布局，并验证免费翻译默认自动均衡、DeepLX 默认停用且其他候选默认启用，以及切换优先顺序后的启停、排序和重载持久化。目录脚本默认不请求翻译服务；只有显式 `--live true` 才逐一检查三个免密钥候选的真实连接，结果需与本地断言分开报告。
+`run-service-library-ui-test.cjs` 覆盖按类别展示服务、查看配置不改默认服务、标题栏检查连接、首个自定义服务出现前不显示自定义分类、20 个长名称自定义服务的分类筛选，以及 1440/1024/820/390px、深色和英文界面。`run-service-design-ui-test.cjs` 检查免费接口卡片、可选邮箱字段、默认收起的云服务额度指引，以及 DeepLX 检查期间的布局稳定性、匿名检查和占位符地址必填密钥，连接结果使用本地夹具。`run-service-catalog-ui-test.cjs` 锁定机器翻译、云服务厂商、模型服务商和聚合平台的分类顺序与计数，检查免密钥候选不泄漏为独立服务、跨分类搜索和窄屏布局，并验证免费翻译默认自动均衡、DeepLX 默认停用且其他候选默认启用，以及切换优先顺序后的启停、排序和重载持久化。目录脚本默认不请求翻译服务；只有显式 `--live true` 才逐一检查三个免密钥候选的真实连接，结果需与本地断言分开报告。
 
 ## 菜单栏首帧与快速关闭
 
