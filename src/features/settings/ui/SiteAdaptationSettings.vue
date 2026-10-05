@@ -1,16 +1,19 @@
 <!--
  * @file src/features/settings/ui/SiteAdaptationSettings.vue
  * 文件职责：提供易发现、可解释、可扩展的正文适配规则工作区。
- * 主要内容：目录与详情并排展示，编辑时聚焦匹配网站和翻译范围，单次确认保存可视化规则；JSON 与备份按需展开，保留冲突保护、合并导入、草稿撤销与离页提醒。
+ * 主要内容：独立标题分隔栏与启用控制行，目录与详情并排展示，单次确认保存可视化规则；JSON 与备份按需展开，保留冲突保护、合并导入、草稿撤销与离页提醒。
  * 模块边界：复用规则包与严格校验，保存等待后台确认；不请求网址、不执行规则代码，不将草稿误当作生效配置。
  -->
 <template>
   <div class="rule-workspace" data-setting="site-adaptation">
-    <section class="rule-card">
-      <header class="rule-heading">
-        <div><h3>{{ tr('正文适配') }}</h3><p>{{ tr('选择要翻译和保留原文的区域') }}</p></div>
-        <el-switch :model-value="modelValue.enabled" :disabled="saving" :aria-label="tr('启用网站适配')" @update:model-value="setEnabled(Boolean($event))" />
+    <section class="rule-card" aria-labelledby="site-adaptation-heading">
+      <header class="rule-section-heading">
+        <h2 id="site-adaptation-heading">{{ tr('正文适配') }}</h2><p>{{ tr('选择要翻译和保留原文的区域') }}</p>
       </header>
+      <div class="rule-toggle-row">
+        <span>{{ tr('启用网站适配') }}</span>
+        <el-switch :model-value="modelValue.enabled" :disabled="saving" :aria-label="tr('启用网站适配')" @update:model-value="setEnabled(Boolean($event))" />
+      </div>
       <p v-if="!modelValue.enabled" class="rule-notice">{{ tr('正文适配已关闭，规则仍保留；网页使用通用正文识别') }}</p>
       <div v-if="(isDirty || saving) && !form" class="draft-bar" role="status"><span>{{ tr(saving ? '正在保存，等待后台确认' : '草稿未保存，网页仍使用已保存规则') }}</span><button type="button" class="rule-primary" :disabled="saving || !!form || draftConflict" :aria-busy="saving" @click="saveDraft">{{ tr(saving ? '正在保存' : '保存并应用') }}</button></div>
       <p v-if="draftConflict" class="rule-error" role="alert">{{ tr('已保存规则在其他页面发生变化。草稿已保留，请先导出或复制草稿，再恢复最新配置并重新合并。') }}</p>

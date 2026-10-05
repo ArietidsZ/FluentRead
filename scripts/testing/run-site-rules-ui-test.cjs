@@ -1,5 +1,5 @@
 'use strict';
-// 网站规则专项：仅使用临时生产扩展 profile，验证配置保留、同页定位、单次保存、编辑导入、诊断与窄屏布局。
+// 网站规则专项：仅使用临时生产扩展 profile，验证独立标题分隔栏、配置保留、同页定位、单次保存、编辑导入、诊断与窄屏布局。
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
@@ -91,13 +91,26 @@ async function main() {
           const foreground = luminance(style.color), background = luminance(style.backgroundColor);
           return (Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05);
         });
-        return {width: innerWidth, height: innerHeight, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight,
+        const sectionHeaders = [...document.querySelectorAll('#settings-sites .rule-section-heading')].map(heading => {
+          const style = getComputedStyle(heading), title = heading.querySelector('h2');
+          const section = heading.parentElement, box = heading.getBoundingClientRect(), sectionBox = section.getBoundingClientRect();
+          const toggle = section.querySelector('.rule-toggle-row');
+          return {title: title?.textContent, titleId: title?.id, labelledBy: section.getAttribute('aria-labelledby'),
+            borderWidth: parseFloat(style.borderBottomWidth), borderStyle: style.borderBottomStyle,
+            separateBackground: style.backgroundColor !== getComputedStyle(section).backgroundColor,
+            fullWidth: box.left <= sectionBox.left + 2 && box.right >= sectionBox.right - 2,
+            switchInHeading: Boolean(heading.querySelector('[role="switch"]')),
+            toggleBelow: !toggle || toggle.getBoundingClientRect().top >= box.bottom - 1};
+        });
+        return {width: innerWidth, height: innerHeight, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight, sectionHeaders,
           overflowing: containers.filter(element => element.scrollWidth > element.clientWidth + 1).map(element => element.className),
           duplicateIds: ids.filter((id, index) => ids.indexOf(id) !== index), primaryContrast};
       });
       assert(metrics.documentWidth <= metrics.width + 1 && metrics.documentHeight <= metrics.height + 1, JSON.stringify(metrics));
       assert.equal(metrics.overflowing.length, 0, JSON.stringify(metrics));
       assert.equal(metrics.duplicateIds.length, 0);
+      assert.equal(metrics.sectionHeaders.length, 3, JSON.stringify(metrics.sectionHeaders));
+      assert(metrics.sectionHeaders.every(header => header.title && header.titleId === header.labelledBy && header.borderWidth >= 1 && header.borderStyle === 'solid' && header.separateBackground && header.fullWidth && !header.switchInHeading && header.toggleBelow), 'Independent section headers: ' + JSON.stringify(metrics.sectionHeaders));
       assert(metrics.primaryContrast.every(value => value >= 4.5), 'Primary button contrast: ' + JSON.stringify(metrics.primaryContrast));
       report.cases.push({name, metrics});
     }
@@ -168,7 +181,7 @@ async function main() {
     await popup.close(); await content.close();
     const preferencesBefore = await readConfig();
     await patchConfig({autoTranslate: true, alwaysTranslateDomains: [], disabledExtensionDomains: [], floatingBallDisabledDomains: []});
-    await prefs.locator('.preference-global .el-switch').filter({has: page.locator('[aria-checked="true"]')}).waitFor();
+    await prefs.locator('.rule-toggle-row .el-switch').filter({has: page.locator('[aria-checked="true"]')}).waitFor();
     assert.equal(await prefs.locator('.rule-empty').count(), 0);
     await shot('preferences-empty-global');
     await patchConfig({autoTranslate: false, alwaysTranslateDomains: preferencesBefore.alwaysTranslateDomains,
@@ -289,7 +302,7 @@ async function main() {
     assert.match(await preview.textContent(), /不适用于全部节点/);
     assert.doesNotMatch(await preview.locator('.preview-adaptation > .rule-hint').last().textContent(), /限定范围：只翻译指定的正文区域/);
     await patchConfig({translationScope: 'content'});
-    report.caseCoverage.push(...['tools-navigation-and-continuous-anchors', 'domain-union-and-disable-precedence', 'global-auto-empty-state', 'quick-close-persistence', 'controlled-popup-cross-page', 'visual-rule-single-save-and-failure-retry', 'saved-config-preview-and-jump', 'merge-import-preserves-existing', 'invalid-json-preserves-saved', 'unsaved-exit-protection', 'external-draft-conflict', 'builtin-override-disable-remove-restore', 'all-node-scope-preview'].map(id => ({id, status: 'passed'})));
+    report.caseCoverage.push(...['tools-navigation-and-continuous-anchors', 'independent-section-headers-and-toggle-rows', 'domain-union-and-disable-precedence', 'global-auto-empty-state', 'quick-close-persistence', 'controlled-popup-cross-page', 'visual-rule-single-save-and-failure-retry', 'saved-config-preview-and-jump', 'merge-import-preserves-existing', 'invalid-json-preserves-saved', 'unsaved-exit-protection', 'external-draft-conflict', 'builtin-override-disable-remove-restore', 'all-node-scope-preview'].map(id => ({id, status: 'passed'})));
     await page.close(); page = await open(); await panel('adaptation');
     await page.locator('[data-setting="site-adaptation"]').waitFor();
     await page.locator('[data-setting="site-adaptation"] .catalog-filters').getByRole('button', {name: /^自定义/}).click();

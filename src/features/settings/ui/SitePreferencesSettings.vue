@@ -1,14 +1,14 @@
 <!--
  * @file src/features/settings/ui/SitePreferencesSettings.vue
  * 文件职责：在同一张紧凑偏好卡中管理全局自动翻译与网站的三项偏好。
- * 主要内容：提供域名归并预览、添加校验、搜索、单站编辑、删除撤销及后台确认反馈，只在偏好受其他开关影响时显示行内说明。
+ * 主要内容：独立标题分隔栏与下方自动翻译开关，提供域名归并预览、添加校验、搜索、单站编辑、删除撤销及后台确认反馈。
  * 模块边界：复用既有配置数组及异步补丁端口，不创建新配置格式、不读取当前标签页，不宣称尚未确认的保存成功。
  -->
 <template>
   <div class="site-preferences rule-workspace" data-setting="site-preferences">
-    <section class="rule-card">
-      <header class="rule-heading"><div><div class="preference-title"><h3>{{ tr('网站偏好') }}</h3><span v-if="rows.length" class="rule-badge">{{ rows.length }}</span></div><p>{{ tr('按主域名生效，包含所有子域') }}</p></div></header>
-      <div class="preference-global">
+    <section class="rule-card" aria-labelledby="site-preferences-heading">
+      <header class="rule-section-heading"><div class="preference-title"><h2 id="site-preferences-heading">{{ tr('网站偏好') }}</h2><span v-if="rows.length" class="rule-badge">{{ rows.length }}</span></div><p>{{ tr('按主域名生效，包含所有子域') }}</p></header>
+      <div class="rule-toggle-row">
         <span :title="tr('开启后自动翻译所有未禁用扩展的网站，并保留下方的“始终翻译”名单')">{{ tr('所有网站自动翻译') }}</span>
         <el-switch :model-value="settings.autoTranslate" :disabled="saving" :aria-label="tr('所有网站自动翻译')" @update:model-value="commit({autoTranslate: Boolean($event)})" />
       </div>
@@ -93,7 +93,6 @@ async function undoRemove() {
 <style scoped>
 @import './site-rule-workspace.css';
 .preference-title { display: flex; align-items: center; gap: 10px; }
-.preference-global { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 0; margin-top: 8px; border-bottom: 1px solid var(--line); font-size: 13px; }
 .preference-add { display: grid; grid-template-columns: minmax(0, 1fr) 150px auto; align-items: end; gap: 12px; margin-top: 16px; }
 .preference-add .rule-field { margin: 0; }
 .preference-search { max-width: 420px; }

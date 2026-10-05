@@ -1,15 +1,21 @@
 /**
  * @file src/features/settings/ui/site-rule-workspace.css
  * 文件职责：为网站偏好、正文适配与生效预览提供一致的设置工作区视觉语言。
- * 主要内容：复用系统颜色、卡片、输入、状态、按钮与响应式间距，提供键盘焦点及长域名、选择器换行。
+ * 主要内容：统一独立标题分隔栏与下方开关行，复用系统颜色、卡片、输入、状态、按钮与响应式间距，提供键盘焦点及长域名、选择器换行。
  * 模块边界：仅被网站规则组件的 scoped 样式导入，不影响宿主页面、不定义全局主题或交互逻辑。
  */
 .rule-workspace { width: 100%; min-width: 0; margin: 0; color: var(--ink); }
-.rule-card { padding: 20px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.rule-card { --rule-card-padding: 20px; padding: var(--rule-card-padding); margin-bottom: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.rule-section-heading { margin: calc(-1 * var(--rule-card-padding)) calc(-1 * var(--rule-card-padding)) 0; padding: 16px var(--rule-card-padding); border-bottom: 1px solid var(--line); border-radius: 13px 13px 0 0; background: var(--surface-soft); }
+.rule-section-heading h2 { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.45; }
+.rule-section-heading p { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.rule-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.rule-toggle-row > span { min-width: 0; overflow-wrap: anywhere; }
+.rule-toggle-row :deep(.el-switch) { flex-shrink: 0; }
 .rule-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .rule-workspace h3 { margin: 0; font-size: 16px; font-weight: 650; }
 .rule-workspace h4 { margin: 0; font-size: 13px; }
-.rule-heading p, .preference-global p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.rule-heading p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .rule-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .rule-field { display: grid; gap: 7px; margin: 14px 0; min-width: 0; font-size: 12px; }
 .rule-field > span { font-weight: 550; }
@@ -32,4 +38,4 @@
 .rule-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 0 16px; }
 .rule-workspace pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.7 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-@media (max-width: 700px) { .rule-card { padding: 18px; } .rule-heading { flex-wrap: wrap; gap: 12px; } .rule-columns { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 700px) { .rule-card { --rule-card-padding: 18px; } .rule-section-heading { padding-block: 12px; } .rule-heading { flex-wrap: wrap; gap: 12px; } .rule-columns { grid-template-columns: minmax(0, 1fr); } }
