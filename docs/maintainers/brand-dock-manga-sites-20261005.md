@@ -4,6 +4,10 @@
 
 完整名称与访问状态见[235 项清单](./manga-sites-20261003)。阅读器目录增加 Issue 中确认的域名和当前公开重定向别名；纠正 KLMANGA、Manga4u、Syosetu 等名称映射。JinMangas 尚缺可确认的现用链接，保留待确认标签。其余登记表示自动检测范围，不能据此宣布所有章节通过。
 
+Manhuaplus 的公开 `Apotheosis/chapter-1` 按 `#chapterContent .separator > a.readImg > img` 限定 20 张完整正文，排除站点标识与关联推荐。MangaBall 正常跳转的 `.com` 域名补入原目录名称，但其正文图片仍受浏览器响应来源限制，不据此声明可译。
+
+GlobalComix 免费频道的正常阅读按钮可以打开公开章节；横向及分格正文位于 `#readerReleasePages #horizontalReader`。实页正常翻页后，Edge 后台消息的来源地址仍保留初始页码，之前的完整地址比较因此误拒绝当前图片。来源授权现绑定当前 Document 与其所有的已选图片；HTTP 来源按同源核对，每次请求仍锁定当前完整地址、随机标识与图片属性，换源、换文档、导航或取消即失效，本地文件仍按完整地址核对。误判修正后，公开图片服务器对扩展读取返回 401，因此本站提供现有圈选入口，不声明连续 OCR 已通过。付费预览、访问限制与三份失败记录保留。
+
 WeebCentral 使用 `#chapter-images img`，Dynasty 使用 `#reader #image img`，避免复数章节路径和缩略图容器导致正文被漏掉。Rawkuma、Uzaki、Kaiji 等按实页结构限制正文选择器。MangaDNA 使用 `.read-manga .read-content > img`，排除章节导航外的封面。GigaViewer 系列仅匹配正文页，不翻译推荐封面；Comic Zenon 加入同一正文规则。
 
 后续公开章节调查补齐 Asura Scans、Arenascans、Kingofshojo、Violet Scans、MangaRead、MangaForFree、ManhwaBuddy、Vortex Scans、Jump Rookie、Webtoons、Mgeko、Rolia Scan、MangaDex 和 Twitter Comic 的正文规则；Asura 和 Violet 的当前首页重定向别名一并登记。正文容器外的推广封面不进入连续队列。Ichicomi 的公开章节采用 GigaViewer 受跨域限制画布，加入同一圈选规则。Yaksha 的重定向别名登记为 Ravenscans，但本次没有确认其正文，不能据此宣布实章可译。
@@ -181,4 +185,14 @@ CSS 背景实页可用 `--background-reader --live-site --live-translation --can
 
 可用 `--host-baseline` 提供不加载扩展的 DOM 调查报告，以核对没有栈信息的站点异常；脚本要求报告 purpose 明确为无扩展调查，并按精确页面地址与错误匹配，不忽略扩展栈。
 
-DOM 调查可用 `--inspect-popup` 配合已核对的 `--before-inspect-click` 跟随公开阅读链接的新窗口；`--before-inspect-scroll` 正常滚动到指定正文，`--capture-element` 保存该元素截图。公开 DOM 读取限时 30 秒；图片 URL 去除查询参数、行内图片省略，保存的结构 HTML 去除脚本及行内事件，不记录站点解码数据。
+DOM 调查可用 `--inspect-popup` 配合已核对的 `--before-inspect-click` 跟随公开阅读链接的新窗口；`--before-inspect-scroll` 正常滚动到指定正文，`--capture-element` 保存该元素截图。公开 DOM 读取限时 30 秒；图片 URL 去除查询参数、行内图片省略，保存的结构 HTML 去除脚本及行内事件，不记录站点解码数据。链接发现也接受公开 `role=link/data-href` 元素，优先保留章节链接，避免被目录链接占满。
+
+本轮公开正文与来源授权验证：
+
+- 七个相关文件 445 用例通过，八个漫画配置、阅读器、表面与来源授权模块四维覆盖率均为 100%。图片运行时、流程和客户端恢复另有三文件 199 用例通过；模块边界与源文件头两文件 809 用例通过，漫画入口 14 用例通过，未执行全量架构回归。
+- 新增九个阅读页调查尝试，累计保留 111 个，包含未加载、订阅提示及访问失败，不是 111 个成功站点。Templetoons 正常浏览器仅显示 14 个加载占位；All Manga 正常 Start Reading 仍停在作品页；Batocomic 当前为分类停放页。ReadAllComics、Flora 为 522，Zipcomic 为验证页，Komiku、Reset Scans 与 Comicmanga 连接关闭。
+- Manhuaplus 两张 720×1018 开头场景/SFX 用生产 PaddleOCR 与在线 Google，约 17.2 秒、4.4 秒；六个链路场景通过。暂停恢复原 src/srcset/sizes/style，再开复用，下一页自动翻译且无自动面板。仅检测到拟声及被误认的水印片段，部分拟声保留，不等同于密集对白或整章质量验收。现有导入器校验本地模型，没有下载请求；无扩展、宿主和控制台异常，第二屏后台浏览器始终未进入前台，profile 已删除。
+- 最终第二屏后台 Edge 的 18 个入口场景通过：16 个基础场景与两个实页。Manhuaplus 的 20 张正文已加载，GlobalComix 正常向右离开阅读说明后第 3 页的 2560×3915 正文已显示，按钮为圈选。原文字品牌仍不显示。无扩展、宿主或控制台异常，临时 profile 已删除；本套不做圈选 OCR。此前未加载的图片入口尝试和说明层尚未退出的入口检查另行保留。
+- 最终类型检查、Chrome（24.5 秒）、Firefox（24.2 秒）、userscript 构建、manifest 与 userscript 校验通过；userscript 为 1,917,024 字节。测试审计 468 文件、6057 项声明通过；最终模块边界、文件头与漫画入口三文件 823 用例通过。Firefox 与 userscript 实机运行和全量架构回归未执行，原有 verificationOwnership 基线失败未改写为通过。
+
+分页图片诊断可显式使用 `--image-turn-key ArrowLeft|ArrowRight` 与 `--image-initial-turns 0..4`；只用于公开实页图片 smoke，正常方向键等待实际图片来源切换，记录原图恢复、暂停复用与下一张正文。GlobalComix 的该诊断保留来源误判与后续 401 失败；最终入口为圈选。入口工具可用 `readerReadySelector` 等待已显示正文的自然尺寸，避免把未加载图片计为已加载实页。

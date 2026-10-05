@@ -234,6 +234,7 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
                     if(!sample.openIfVisible || await opener.isVisible())await opener.click({timeout:10000});
                 }
                 if(sample.pageKey)for(let turn=0;turn<(sample.pageKeyTurns||1);turn++)await page.keyboard.press(sample.pageKey);
+                if(sample.readerReadySelector)await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(i=>i.tagName==='IMG'&&i.complete&&i.naturalWidth>=80&&i.naturalHeight>=40),sample.readerReadySelector,{timeout:20000});
                 const result={url:sample.url,finalUrl:page.url(),status:response?.status(),mode:sample.mode};
                 (report.liveReaders??=[]).push(result);
                 if(response?.status()!==200){result.result='access-restricted';continue;}

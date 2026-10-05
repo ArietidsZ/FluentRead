@@ -1,18 +1,25 @@
 /**
  * @file src/core/config/mangaReaderProfiles.ts
  * 文件职责：保存经公开阅读页结构核对的正文规则，避免通用图片过滤漏掉正文或误选推荐封面。
- * 主要内容：已核对章节站、MechaComic 纵向完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界，GigaViewer、Comici、ComicWalker 与 Animate 正文画布规则、不可读画布和 CMOA 等分片的圈选入口；路径与域名均保留边界。
+ * 主要内容：已核对章节站与 Manhuaplus、GlobalComix 正文规则，GlobalComix 跨域正文提供圈选入口，MechaComic 纵向完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界，GigaViewer、Comici、ComicWalker 与 Animate 正文画布规则、不可读画布和 CMOA 等分片的圈选入口；路径与域名均保留边界。
  * 模块边界：纯匹配，不执行站点脚本、不读取私有接口、不截图；可访问的图片由 content 阅读器检测。
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
     'kuragebunch.com', 'shonenjumpplus.com', 'tonarinoyj.jp', 'comic-zenon.com', 'ichicomi.com', 'sunday-webry.com']);
-export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-super-hero-comics.com', 'jumptoon.com', 'comic-meteor.jp', 'kirapo.jp', 'pocket.shonenmagazine.com', 'cmoa.jp'];
+export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-super-hero-comics.com', 'jumptoon.com', 'comic-meteor.jp', 'kirapo.jp', 'pocket.shonenmagazine.com', 'cmoa.jp', 'globalcomix.com'];
 export const MANGA_BACKGROUND_READER_HOSTS = ['palcy.jp', 'comic.pixiv.net'];
 const comiciHosts = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
     'rimacomiplus.jp', 'heros-web.com', 'younganimal.com', 'youngchampion.jp'];
 export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com', 'animatebookstore.com'];
 export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; canvasSelector?: string; canvasInteractionSelector?: string; backgroundSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
+    if (host === 'globalcomix.com') {
+        const release = /^\/read\/([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12})(?:\/[1-9]\d*(?:\/[1-9]\d*)?)?\/?$/.exec(pathname)?.[1];
+        if (release) return {name: 'GlobalComix', selector: ':not(*)', areaSelector: '#readerReleasePages #horizontalReader img.chakra-image'};
+    }
+    if (host === 'manhuaplus.org' && /^\/manga\/[^/]+\/chapter-[^/]+\/?$/.test(pathname)) return {
+        name: 'Manhuaplus', selector: '#chapterContent .separator > a.readImg > img',
+    };
     if (host === 'rawotaku.com' && /^\/read\/[^/]+\/[a-z]{2}\/chapter-[^/]+\/?$/.test(pathname)) return {
         name: 'RawOtaku', selector: '#vertical-content .iv-card > img.image-vertical',
     };

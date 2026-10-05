@@ -65,6 +65,10 @@ const readerOpenSelector=arg('reader-open-selector',null);
 if(readerOpenSelector)assert.ok(readerSmoke&&liveSite&&!surfaceReaderTest,'Image reader opening requires an explicit live smoke check');
 const readerScrollSelector=arg('reader-scroll-selector',null);
 if(readerScrollSelector)assert.ok(explicitReaderSelector&&liveSite&&readerSmoke&&!segmentReaderTest,'Lazy image scroll anchors require an explicit public image smoke check');
+const imageTurnKey=arg('image-turn-key',null),imageInitialTurns=Number(arg('image-initial-turns','0'));
+if(imageTurnKey)assert.ok(explicitReaderSelector&&liveSite&&readerSmoke&&!segmentReaderTest
+    &&['ArrowLeft','ArrowRight'].includes(imageTurnKey)&&Number.isInteger(imageInitialTurns)&&imageInitialTurns>=0&&imageInitialTurns<=4,
+    'Paged images require an explicit live image smoke, a horizontal arrow and 0–4 initial turns');
 const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-profile-');
 fs.mkdirSync(artifacts, {recursive: true});
 const report = {site: liveSite ? 'live MANGA Plus' : 'controlled MANGA Plus reader fixture',
@@ -75,6 +79,7 @@ if(surfaceReaderTest){report.site=`live readable ${backgroundReaderTest?'backgro
 if(explicitReaderSelector){report.site=`live image chapter: ${targetUrl}`;report.readerSelector=explicitReaderSelector;}
 report.prefetchPages=prefetchPages;
 report.sourceLanguage=sourceLanguage;report.readerOpenSelector=readerOpenSelector;report.readerScrollSelector=readerScrollSelector;
+if(imageTurnKey)report.pagedImages={turnKey:imageTurnKey,initialTurns:imageInitialTurns};
 let launched, page, worker, cdp, popup, modelObserver, browserPid,loadedExtensionId;
 function focusGuard() {
     const current=JSON.parse(execFileSync('/usr/bin/osascript',['-l','JavaScript','-e',"ObjC.import('AppKit');const app=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(app.processIdentifier),name:ObjC.unwrap(app.localizedName)});"],{encoding:'utf8'}));
@@ -280,6 +285,32 @@ async function scrollReaderImage(index) {
     await anchor.scrollIntoViewIfNeeded();
     await image.waitFor({state:'visible'});
     await wait(async()=>await image.evaluate(i=>i.complete&&i.naturalWidth>=80),30000);
+}
+async function verifyPagedImageReader() {
+    const source=()=>page.locator(readerSelector).first();
+    const snapshot=()=>source().evaluate(i=>({src:i.src,srcset:i.getAttribute('srcset'),sizes:i.getAttribute('sizes'),style:i.getAttribute('style'),width:i.naturalWidth,height:i.naturalHeight}));
+    const complete=()=>source().evaluate(i=>i.complete&&i.naturalWidth>=80);
+    const active=()=>ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-pressed")');
+    const displayed=()=>source().evaluate(i=>i.style.opacity==='0');
+    const settled=()=>ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-busy") === "false"');
+    const original=await snapshot();report.pagedImages.initialUrl=page.url();report.pageDurationsMs=[];await captureSource(source(),'01');
+    report.currentCase='paged image translates the visible public page';
+    const previous=await ops(),start=Date.now();await toggle();await wait(async()=>await ops()>previous&&await settled()&&await displayed());
+    assert.equal(await active(),'true');report.pageDurationsMs.push({page:1,ms:Date.now()-start});await assertQuietReading();await screenshot('01-paged-translated');report.cases.push(report.currentCase);
+    report.currentCase='paged image pauses to the unchanged original and resumes without OCR';
+    await toggle();await wait(async()=>!await displayed());assert.deepEqual(await snapshot(),original);
+    const before=await ops();await toggle();await wait(displayed);assert.equal(await ops(),before);await assertQuietReading();report.cases.push(report.currentCase);
+    report.currentCase='normal page turn keeps continuous mode active and translates the new source';
+    const firstUrl=page.url(),firstSource=original.src,secondStart=Date.now();await page.keyboard.press(imageTurnKey);
+    await wait(async()=>await complete()&&(await snapshot()).src!==firstSource&&!await displayed(),30000);
+    const secondOriginal=await snapshot();await captureSource(source(),'02');await wait(async()=>await ops()>before&&await settled()&&await displayed());
+    assert.equal(await active(),'true');assert.notEqual(page.url(),firstUrl);report.pagedImages.urls=[firstUrl,page.url()];
+    report.pageDurationsMs.push({page:2,ms:Date.now()-secondStart});await assertQuietReading();await screenshot('02-paged-translated');report.cases.push(report.currentCase);
+    report.currentCase='paged image restores the second source and the master switch removes overlays';
+    await toggle();await wait(async()=>!await displayed());assert.deepEqual(await snapshot(),secondOriginal);
+    await patch({on:false});await wait(async()=>await page.locator('#fluent-read-image-translation-root').count()===0);
+    assert.equal(await source().evaluate(i=>i.style.opacity),'');auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
+    report.cases.push(report.currentCase);focusGuard();
 }
 async function screenshot(name) {focusGuard();await page.mouse.move(30,30);await page.waitForTimeout(300);const file=path.join(artifacts,`${name}.png`);await page.screenshot({path:file});report.screenshots.push(file);}
 async function toolScreenshot(name){
@@ -858,8 +889,12 @@ async function verifyReadAhead() {
         service:'google',from:sourceLanguage,to:'zh-Hans',useCache:true,enableAIContext:false,animations:false});
     await worker.evaluate(({live,trace})=>{
         const original=globalThis.fetch.bind(globalThis);
-        const test=globalThis.__mangaTest={operations:[],inputs:[],requests:[],cancellations:[],textBatches:[],progress:[]};
-        chrome.runtime.onMessage.addListener(message=>{
+        const test=globalThis.__mangaTest={operations:[],inputs:[],requests:[],cancellations:[],textBatches:[],progress:[],sourceRequests:[]};
+        chrome.runtime.onMessage.addListener((message,sender)=>{
+            if(message.type==='fluentReadImageFetch'){
+                const clean=value=>{try{const url=new URL(value);url.username='';url.password='';url.search='';url.hash='';return url.href;}catch{return null;}};
+                test.sourceRequests.push({documentUrl:clean(sender.url),sourceUrl:clean(message.url),frameId:sender.frameId});
+            }
             if(message.type==='fluentReadImageTranslate') {
                 test.operations.push(message.requestId);
                 if(trace) {
@@ -942,6 +977,16 @@ async function verifyReadAhead() {
         if(explicitReaderSelector&&!segmentReaderTest)await scrollReaderImage(0);
         else await page.locator(readerSelector).first().waitFor();
     }
+    if(imageTurnKey){
+        await page.waitForTimeout(900);
+        for(let turn=0;turn<imageInitialTurns;turn++){
+            const before=await page.locator(readerSelector).first().evaluate(i=>i.src);
+            await page.keyboard.press(imageTurnKey);
+            await wait(async()=>await page.locator(readerSelector).first().evaluate((i,old)=>i.complete&&i.naturalWidth>=80&&i.src!==old,before),30000);
+            await page.waitForTimeout(900);
+        }
+        await wait(async()=>await page.locator(readerSelector).first().evaluate(i=>i.complete&&i.naturalWidth>=80),30000);
+    }
     if(surfaceReaderTest)await page.waitForTimeout(900);
     if(traceReader)await page.evaluate(selector=>{
         const ids=new WeakMap();let next=0;const traces=globalThis.__readerTrace=[];
@@ -956,6 +1001,7 @@ async function verifyReadAhead() {
     await wait(async()=>!!await ball(`return this.querySelector('.floating-ball-manga')`),30000);
     if(segmentReaderTest){await verifySegmentReader();report.status='passed';return;}
     if(surfaceReaderTest){await verifyCanvasReader();report.status='passed';return;}
+    if(imageTurnKey){await verifyPagedImageReader();report.status='passed';return;}
     if(pipelineInputs){await verifyPipelinePerformance(extensionId);report.status='passed';return;}
     if(pageFeedbackTest){await verifyPageFeedback();report.status='passed';focusGuard();return;}
     if(tieredCacheTest){await verifyTieredCache(extensionId);report.status='passed';focusGuard();return;}
@@ -1117,7 +1163,7 @@ async function verifyReadAhead() {
     focusGuard();
 })().catch(async error=>{report.status='failed';report.failure=error.stack;process.exitCode=1;console.error(error);if(cdp){report.lastImageUi=await imageUi('return [...this.querySelectorAll(".fr-image-feedback .fr-image-status")].map(s=>s.textContent)').catch(()=>null);report.lastCanvasUi=await canvasUi('return [...this.querySelectorAll("canvas")].map(c=>({width:c.width,height:c.height,style:c.style.cssText}))').catch(()=>null);report.lastProgress=await worker.evaluate(()=>globalThis.__mangaTest.progress).catch(()=>null);}if(page)await page.screenshot({path:path.join(artifacts,'failed-reader.png')}).catch(()=>{});})
 .finally(async()=>{
-    if(worker)await worker.evaluate(()=>({operations:globalThis.__mangaTest?.operations.length,inputs:globalThis.__mangaTest?.inputs,textBatches:globalThis.__mangaTest?.textBatches})).then(data=>Object.assign(report,data)).catch(()=>{});
+    if(worker)await worker.evaluate(()=>({operations:globalThis.__mangaTest?.operations.length,inputs:globalThis.__mangaTest?.inputs,textBatches:globalThis.__mangaTest?.textBatches,sourceRequests:globalThis.__mangaTest?.sourceRequests})).then(data=>Object.assign(report,data)).catch(()=>{});
     if(page&&traceReader)report.readerTrace=await page.evaluate(()=>globalThis.__readerTrace).catch(()=>null);
     if(page&&report.status==='failed')await screenshot('failure').catch(()=>{});
     if(modelObserver && pipelineInputs)report.pipelineLast=(await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__pipelineSamples',returnByValue:true}).catch(()=>({result:{value:null}}))).result.value;

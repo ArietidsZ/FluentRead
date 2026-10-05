@@ -537,7 +537,18 @@
           "hostname": "allmanga.to"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://allmanga.to/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public directory and Overgeared work HTTP200. Normal Start Reading click leaves this work page without chapter images; no chapter acceptance.",
+          "finalUrl": "https://allmanga.to/",
+          "status": 200,
+          "title": "All Manga",
+          "imageCount": 1
+        }
+      ]
     },
     {
       "name": "Manhwaclan",
@@ -689,7 +700,18 @@
           "hostname": "templetoons.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://templetoons.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public chapter1 HTTP200. Headless research exposed one unconfirmed 1950x1060 image. Normal visible browser shows 14 Loading image placeholders and no body IMG; no body or OCR acceptance.",
+          "finalUrl": "https://templetoons.com/",
+          "status": 200,
+          "title": "Read Manhwa & Comics Online Free - Temple Scan",
+          "imageCount": 39
+        }
+      ]
     },
     {
       "name": "Batocomic",
@@ -708,7 +730,18 @@
           "hostname": "batocomic.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://batocomic.net/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Current homepage HTTP200 is Category Search parking content; no reader or alternate domain inferred.",
+          "finalUrl": "https://batocomic.net/",
+          "status": 200,
+          "title": "Redirecting...",
+          "imageCount": 0
+        }
+      ]
     },
     {
       "name": "Comic-action",
@@ -946,7 +979,18 @@
           "hostname": "globalcomix.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "area",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://globalcomix.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public free channel normal Start Reading opens free One-Inch Bozo and Paxton Porter chapters. Paxton normal ArrowRight changes page1 to page2 and source IMG. EDENS ZERO page2 shows subscription prompt and blank body. Preview limits retained.",
+          "finalUrl": "https://globalcomix.com/",
+          "status": 200,
+          "title": "GlobalComix - Read & Publish Comics & Manga Online Free",
+          "imageCount": 15
+        }
+      ]
     },
     {
       "name": "KL",
@@ -2506,7 +2550,15 @@
           "hostname": "reset-scans.org"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://reset-scans.org/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal page request ERR_CONNECTION_CLOSED.",
+          "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://reset-scans.org/"
+        }
+      ]
     },
     {
       "name": "cultivationmanhua.com",
@@ -2782,7 +2834,18 @@
           "hostname": "readallcomics.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://readallcomics.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Current home HTTP522 Connection timed out.",
+          "finalUrl": "https://readallcomics.com/",
+          "status": 522,
+          "title": "readallcomics.com | 522: Connection timed out",
+          "imageCount": 0
+        }
+      ]
     },
     {
       "name": "ranfren.neocities.org",
@@ -3199,7 +3262,18 @@
           "hostname": "florascans.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://florascans.net/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Current home HTTP522 Connection timed out.",
+          "finalUrl": "https://florascans.net/",
+          "status": 522,
+          "title": "florascans.net | 522: Connection timed out",
+          "imageCount": 0
+        }
+      ]
     },
     {
       "name": "comic.mf-fleur.jp",
@@ -3282,7 +3356,18 @@
           "hostname": "manhuaplus.org"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://manhuaplus.org/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public home redirects to /home, work Start Reading links to Apotheosis chapter1. Normal visible chapter contains 20 complete 720x1018 body images under #chapterContent, excludes logo and recommendation images.",
+          "finalUrl": "https://manhuaplus.org/home",
+          "status": 200,
+          "title": "Manhuaplus - Read Manga Fastest and highest quality updates",
+          "imageCount": 57
+        }
+      ]
     },
     {
       "name": "manhuazhan.com",
@@ -3350,7 +3435,15 @@
           "hostname": "komiku.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://komiku.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal page request ERR_CONNECTION_CLOSED.",
+          "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://komiku.com/"
+        }
+      ]
     },
     {
       "name": "webtoonraw.com",
@@ -3735,7 +3828,18 @@
           "hostname": "zipcomic.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://zipcomic.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Current home HTTP403 verification page.",
+          "finalUrl": "https://zipcomic.com/",
+          "status": 403,
+          "title": "请稍候…",
+          "imageCount": 0
+        }
+      ]
     },
     {
       "name": "zerobywzz.com",
@@ -4315,7 +4419,8 @@
     {
       "name": "mangaball.net",
       "hosts": [
-        "mangaball.net"
+        "mangaball.net",
+        "mangaball.com"
       ],
       "accessChecks": [
         {
@@ -4325,7 +4430,18 @@
           "hostname": "mangaball.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://mangaball.net/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public .net homepage redirects to mangaball.com; alias registered. Observed chapter IMG remains 0x0 with ERR_BLOCKED_BY_RESPONSE.NotSameOrigin in DOM research; no OCR acceptance or policy bypass.",
+          "finalUrl": "https://mangaball.com/",
+          "status": 200,
+          "title": "MangaBall - Read Free Manga, Manhwa, Manhua & Comics",
+          "imageCount": 25
+        }
+      ]
     },
     {
       "name": "yanmaga.jp",
@@ -4538,7 +4654,15 @@
           "hostname": "comicmanga.cc"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "requestedUrl": "https://comicmanga.cc/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal page request ERR_CONNECTION_CLOSED.",
+          "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://comicmanga.cc/"
+        }
+      ]
     },
     {
       "name": "mangajikan.com",
@@ -5998,6 +6122,158 @@
       "imageCount": 0,
       "canvases": [],
       "networkFailureCount": 1
+    },
+    {
+      "url": "https://templetoons.com/comic/i-thought-its-a-common-possession/95958-chapter-1",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Headless public Temple chapter: one 1950x1060 image is unconfirmed. Normal browser rechecks show Loading image placeholders without body. Do not treat dimensions alone as a chapter quality pass.",
+      "finalUrl": "https://templetoons.com/comic/i-thought-its-a-common-possession/95958-chapter-1",
+      "status": 200,
+      "imageCount": 4,
+      "bodyDimensions": [
+        {
+          "width": 320,
+          "height": 338
+        },
+        {
+          "width": 1950,
+          "height": 1060
+        }
+      ],
+      "networkFailureCount": 10
+    },
+    {
+      "url": "https://templetoons.com/comic/i-thought-its-a-common-possession/95958-chapter-1",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal visible chapter has no matching body IMG; test scroll locator timed out. Failed attempt retained.",
+      "error": "locator.scrollIntoViewIfNeeded: Timeout 15000ms exceeded.",
+      "bodyDimensions": [],
+      "networkFailureCount": 13
+    },
+    {
+      "url": "https://templetoons.com/comic/i-thought-its-a-common-possession/95958-chapter-1",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal visible chapter shows 14 Loading image placeholders and banner/cover images only; no body acceptance.",
+      "finalUrl": "https://templetoons.com/comic/i-thought-its-a-common-possession/95958-chapter-1",
+      "status": 200,
+      "imageCount": 3,
+      "bodyDimensions": [
+        {
+          "width": 320,
+          "height": 338
+        }
+      ],
+      "networkFailureCount": 7
+    },
+    {
+      "url": "https://globalcomix.com/read/c3ed08cb-4788-4dd8-8a14-035325562315/1",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "EDENS ZERO preview normal ArrowLeft changes /1 to /2; screenshot shows subscription prompt and blank page. No paid-body acceptance.",
+      "finalUrl": "https://globalcomix.com/read/c3ed08cb-4788-4dd8-8a14-035325562315/2",
+      "status": 200,
+      "imageCount": 1,
+      "bodyDimensions": [
+        {
+          "width": 2560,
+          "height": 3840
+        }
+      ],
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://mangaball.com/chapter-detail/6ac2278669a7b0a2a6ee4022",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Public MangaBall chapter IMG remains 0x0/opacity0. Browser request failed ERR_BLOCKED_BY_RESPONSE.NotSameOrigin; no policy bypass and no OCR acceptance.",
+      "finalUrl": "https://mangaball.com/chapter-detail/6ac2278669a7b0a2a6ee4022",
+      "status": 200,
+      "imageCount": 3,
+      "bodyDimensions": [
+        {
+          "width": 2172,
+          "height": 254
+        },
+        {
+          "width": 1920,
+          "height": 1080
+        }
+      ],
+      "networkFailureCount": 10
+    },
+    {
+      "url": "https://manhuaplus.org/manga/apotheosis/chapter-1",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal visible Apotheosis chapter1 screenshot confirms complete artwork. Body selector #chapterContent .separator > a.readImg > img; 20 complete 720x1018 pages, logo/recommendations excluded.",
+      "finalUrl": "https://manhuaplus.org/manga/apotheosis/chapter-1",
+      "status": 200,
+      "imageCount": 32,
+      "bodyDimensions": [
+        {
+          "width": 720,
+          "height": 1018
+        },
+        {
+          "width": 720,
+          "height": 1018
+        },
+        {
+          "width": 720,
+          "height": 1018
+        },
+        {
+          "width": 720,
+          "height": 1018
+        },
+        {
+          "width": 720,
+          "height": 1018
+        }
+      ],
+      "networkFailureCount": 7
+    },
+    {
+      "url": "https://globalcomix.com/channel/gc/free",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal public Free channel Start Reading opens One-Inch Bozo /read/UUID/1/1, 1080x1662 image in p2pReader inside horizontalReader; public artwork screenshot inspected. Membership prompt is dismissible; no purchase.",
+      "finalUrl": "https://globalcomix.com/read/be3701bf-70cc-43e8-b16d-3f168abaf799/1/1",
+      "status": 200,
+      "imageCount": 1,
+      "bodyDimensions": [
+        {
+          "width": 1080,
+          "height": 1662
+        }
+      ],
+      "networkFailureCount": 4
+    },
+    {
+      "url": "https://globalcomix.com/channel/gc/free",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal public Free channel Start Reading opens Paxton Porter /read/UUID/1; public cover image, no membership purchase or private API.",
+      "finalUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/1",
+      "status": 200,
+      "imageCount": 1,
+      "bodyDimensions": [
+        {
+          "width": 2560,
+          "height": 3915
+        }
+      ],
+      "networkFailureCount": 4
+    },
+    {
+      "url": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/1",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal Close prompt click and ArrowRight changes Paxton page1 to page2, 2560x3915 complete IMG under #readerReleasePages #horizontalReader; public chapter title page screenshot inspected.",
+      "finalUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/2",
+      "status": 200,
+      "imageCount": 1,
+      "bodyDimensions": [
+        {
+          "width": 2560,
+          "height": 3915
+        }
+      ],
+      "networkFailureCount": 2
     }
   ],
   "verification": {
@@ -7804,6 +8080,310 @@
       },
       "scope": "Two selected public dialogue frame images; first-cancel check skipped. Normal scroll triggers lazy source loading; pause restores original URL/srcset/sizes/style; reactivation reuses cached result; next scroll translates without popup. No full-chapter acceptance.",
       "qualityFinding": "Visible Chinese dialogue and three-years work text. Greeting falsely adds a name; multiple vertical Japanese body blocks and furigana remain. Small text and mistranslation still limit readability. Earlier no-text and lazy pre-scroll failed reports retained."
+    },
+    "pagedReaderUnit": {
+      "files": 7,
+      "cases": 445,
+      "result": "passed",
+      "fourDimensionalCoverage": "100% for eight manga config/reader/surface/source authorization modules",
+      "scope": "Public body boundaries, GlobalComix area-only entry for restricted images, exact Document/selected source owner; stale browser sender path allowed only at same HTTP origin, current request URL and source still locked."
+    },
+    "pagedReaderEntries": {
+      "result": "passed",
+      "cases": 18,
+      "baseCases": 16,
+      "publicReaders": [
+        {
+          "requestedUrl": "https://manhuaplus.org/manga/apotheosis/chapter-1",
+          "finalUrl": "https://manhuaplus.org/manga/apotheosis/chapter-1",
+          "status": 200,
+          "bodyElements": 20,
+          "loadedBodyElements": 20,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/2",
+          "finalUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/2",
+          "status": 200,
+          "bodyElements": 1,
+          "loadedBodyElements": 0,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "scope": "Initial image-entry discovery trial before GlobalComix HTTP401 was established; one GlobalComix IMG had zero natural size. Not pixel/OCR acceptance. GlobalComix final adaptation is area-only.",
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "profileRemoved": true,
+      "hostErrorCount": 0
+    },
+    "globalComixInitialSourceAttempt": {
+      "result": "failed",
+      "cases": [],
+      "operations": 0,
+      "finding": "Source validation rejects after normal SPA turns before OCR; current public page3 vs browser sender initial page1. Failed attempts preserved.",
+      "publicUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/1",
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "profileRemoved": true
+    },
+    "globalComixSourceDiagnosticAttempt": {
+      "result": "failed",
+      "cases": [],
+      "operations": 0,
+      "finding": "Source validation rejects after normal SPA turns before OCR; current public page3 vs browser sender initial page1. Failed attempts preserved.",
+      "publicUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/1",
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "profileRemoved": true,
+      "sourceRequests": [
+        {
+          "documentUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/1",
+          "frameId": 0,
+          "sourceHost": "reader-cdn.globalcomix.com"
+        }
+      ]
+    },
+    "manhuaplusOpeningTranslation": {
+      "result": "passed",
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "scroll automatically translates a new visible page",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the resident brand icon"
+      ],
+      "publicUrl": "https://manhuaplus.org/manga/apotheosis/chapter-1",
+      "sourceLanguage": "en",
+      "selectedImageIndices": [
+        1,
+        2
+      ],
+      "sourceDimensions": [
+        {
+          "width": 720,
+          "height": 1018
+        },
+        {
+          "width": 720,
+          "height": 1018
+        }
+      ],
+      "scope": "Two public opening scene/SFX pages only; first-cancel check skipped. Pause preserves src/srcset/sizes/style, resume reuses and second scroll translates without panel. Not dialogue or full-chapter quality acceptance.",
+      "qualityFinding": "Translated KAGHA as sound transcription; source batches also misread small watermark fragments as ANGA/PA/NGA. Some SFX remain. This short-text sample does not establish dense dialogue quality.",
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 17234,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 4387,
+          "mayIncludeFirstInpaintingPreparation": true
+        }
+      ],
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "profileRemoved": true,
+      "operations": 2,
+      "hostErrorCount": 0
+    },
+    "globalComixServerRestrictionAttempt": {
+      "result": "failed",
+      "cases": [],
+      "operations": 0,
+      "publicUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/1",
+      "selectedPageUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/3",
+      "finding": "The stale sender path check passes after correction, then the image server responds HTTP401 to the authorized extension read. No OCR operations, no alternate private API or status bypass. GlobalComix now uses visible area translation entry. Failed report retained.",
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "errors": [],
+      "consoleErrors": [],
+      "profileRemoved": true
+    },
+    "pagedReaderAreaEntriesInitialAttempt": {
+      "result": "passed",
+      "cases": 18,
+      "baseCases": 16,
+      "publicReaders": [
+        {
+          "requestedUrl": "https://manhuaplus.org/manga/apotheosis/chapter-1",
+          "finalUrl": "https://manhuaplus.org/manga/apotheosis/chapter-1",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 20,
+          "loadedBodyElements": 20,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/2",
+          "finalUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/2",
+          "status": 200,
+          "mode": "area",
+          "bodyElements": 1,
+          "loadedBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "scope": "Pure icon, Manhuaplus image entry and GlobalComix area entry after exact body natural dimensions loaded; first direct visit still has host reading instructions. No area OCR in this suite.",
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "profileRemoved": true,
+      "hostErrorCount": 0
+    },
+    "pagedReaderAreaEntries": {
+      "result": "passed",
+      "cases": 18,
+      "baseCases": 16,
+      "publicReaders": [
+        {
+          "requestedUrl": "https://manhuaplus.org/manga/apotheosis/chapter-1",
+          "finalUrl": "https://manhuaplus.org/manga/apotheosis/chapter-1",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 20,
+          "loadedBodyElements": 20,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/2",
+          "finalUrl": "https://globalcomix.com/read/e69753ee-7858-4764-b76f-78f2dd8118c3/3",
+          "status": 200,
+          "mode": "area",
+          "bodyElements": 1,
+          "loadedBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "scope": "Pure icon and actual Manhuaplus image / GlobalComix area entries. Normal ArrowRight leaves GlobalComix host instructions and shows loaded page3; no area OCR in this suite.",
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "profileRemoved": true,
+      "hostErrorCount": 0
+    },
+    "pagedReaderBuilds": {
+      "chrome": "passed (24.5s)",
+      "firefox": "passed (24.2s)",
+      "userscript": "passed",
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed (1917024 bytes)",
+      "compile": "passed",
+      "testAudit": "468 files / 6057 declarations",
+      "selectedContracts": "3 files / 823 cases passed",
+      "imageRuntimeFlowClient": "3 files / 199 cases passed",
+      "docsBuild": "passed",
+      "scope": "Final source authorization and area-only GlobalComix configuration built. Firefox/userscript runtime and full architecture suite not run; previous verificationOwnership baseline failures retained."
     }
   }
 }

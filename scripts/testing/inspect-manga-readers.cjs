@@ -97,6 +97,15 @@ function focusGuard() {
             source:publicSource(img.currentSrc || img.src), width:img.width,height:img.height,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,
             rect: {x:img.getBoundingClientRect().x,y:img.getBoundingClientRect().y,width:img.getBoundingClientRect().width,height:img.getBoundingClientRect().height}, ancestors:ancestors(img)}));
           const backgrounds=[];
+          const readerLinks=Array.from(document.querySelectorAll('a[href], [role="link"][data-href]')).flatMap(element=>{
+            try {
+              const url=new URL(element.getAttribute('href')||element.getAttribute('data-href'),location.href);
+              if(!['http:','https:'].includes(url.protocol)||url.origin!==location.origin||url.username||url.password)return [];
+              const text=element.textContent.trim().slice(0,120);
+              if(!/chapter|episode|viewer|\/read\/|\/title\/|\/work|\/manga|\/comic|\/series|\/product|\/de[a-f\d]/i.test(url.href)&&!/試し?読み|試読|無料|読む|Read/i.test(text))return [];
+              return [{url:url.href,text}];
+            } catch{return [];}
+          }).sort((a,b)=>Number(/chapter|episode|viewer|\/read\//i.test(b.url))-Number(/chapter|episode|viewer|\/read\//i.test(a.url))).slice(0,50);
           for(const element of Array.from(document.querySelectorAll('div[id^="page-"]')).slice(0,12)) {
             const style=getComputedStyle(element),rect=element.getBoundingClientRect();
             const source=/^url\(["']?(blob:[^"')]+)["']?\)$/.exec(style.backgroundImage)?.[1];
@@ -133,9 +142,7 @@ function focusGuard() {
             }),
             frames:Array.from(document.querySelectorAll('iframe')).map(f=>({src:publicSource(f.src),id:f.id})),
             controls:Array.from(document.querySelectorAll('button,a')).filter(e=>/読む|読ん|続きを読む|read|viewer/i.test(e.textContent)).slice(0,8).map(e=>({tag:e.tagName,text:e.textContent.trim().slice(0,100),href:e.getAttribute('href')})),
-            readerLinks:Array.from(document.querySelectorAll('a[href]')).filter(e=>/^https?:/.test(e.href) && new URL(e.href).origin===location.origin
-              && (/chapter|episode|viewer|\/read\/|\/title\/|\/work|\/manga|\/comic|\/series|\/product|\/de[a-f\d]/i.test(e.href)
-                || /試し?読み|試読|無料|読む|Read/i.test(e.textContent))).slice(0,50).map(e=>({url:e.href,text:e.textContent.trim().slice(0,120)})),
+            readerLinks,
             detectedRestriction:/Just a moment|Access Denied|Verify you are human/i.test(document.title)};
         })));
         result.status=page===parentPage?response?.status():navigationResponses.findLast(record=>record.url===page.url())?.status;

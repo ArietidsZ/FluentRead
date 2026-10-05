@@ -189,6 +189,15 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it('GlobalComix 受限正文只发布圈选入口，封面、移除和总开关不启动图片请求',()=>{
+        const f=readerFixture(false,'https://globalcomix.com/read/be3701bf-70cc-43e8-b16d-3f168abaf799/1/1');
+        expect(f.reader.status()).toMatchObject({available:false,areaFallback:false});
+        const root=f.document.createElement('div');root.id='readerReleasePages';const horizontal=f.document.createElement('div');horizontal.id='horizontalReader';
+        horizontal.append(f.image);root.append(horizontal);f.document.body.append(root);f.image.className='chakra-image';f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available:true,areaFallback:true,pageCount:0});expect(f.reader.toggle()).toBe(false);expect(f.ports.translate).not.toHaveBeenCalled();
+        f.image.remove();f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,areaFallback:false});
+        horizontal.append(f.image);f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
     it('长图分段与普通图片共用可见优先串行队列，暂停、失败重试和清理不走整图 OCR',async()=>{
         const values=new Map<HTMLImageElement,import('@/src/features/image-translation/content/mangaImageSegments').MangaImageSegment[]>(),warm=vi.fn();
         const segments={identity:vi.fn(s=>s.source),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn(()=>false),restore:vi.fn(),release:vi.fn(),failed:vi.fn(()=>false),update:vi.fn(),prepare:vi.fn(()=>values),pixels:vi.fn(()=>1_800_000),bounds:vi.fn(s=>({left:0,top:s.top,right:800,bottom:s.top+600,width:800,height:600}) as DOMRect)};

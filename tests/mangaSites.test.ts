@@ -6,6 +6,29 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it('GlobalComix 受限图片提供圈选并限定公开章节路径与正文容器', () => {
+        const release='be3701bf-70cc-43e8-b16d-3f168abaf799', base=`/read/${release}`;
+        for(const path of [base,`${base}/`,`${base}/1`,`${base}/2/`,`${base}/1/2`])expect(resolveMangaSite(`https://www.globalcomix.com${path}`)).toMatchObject({selector:':not(*)',areaSelector:'#readerReleasePages #horizontalReader img.chakra-image',requireContent:true,custom:false});
+        const {document}=parseHTML('<img id="cover" class="chakra-image"><div id="readerReleasePages"><div id="horizontalReader"><div><img id="full" class="chakra-image"></div><div id="p2pReader"><div><div><img id="panel" class="chakra-image"></div></div></div></div><img id="recommended" class="chakra-image"></div>');
+        expect([...document.querySelectorAll(resolveMangaSite(`https://globalcomix.com${base}`)!.areaSelector!)].map(e=>e.id)).toEqual(['full','panel']);
+        expect(resolveMangaReaderProfile('globalcomix.com.attacker.test',`${base}/1`)).toBeNull();
+        for(const path of ['/c/title','/read/title',`${base}/0`,`${base}/1/0`,`${base}/1/2/3`,`${base}/extra`])expect(resolveMangaReaderProfile('globalcomix.com',path)).toBeNull();
+    });
+    it('Manhuaplus 章节正文排除站点标识、关联推荐和非章节路径', () => {
+        const href='https://www.manhuaplus.org/manga/apotheosis/chapter-1';
+        const profile=resolveMangaSite(href)!;
+        expect(profile).toMatchObject({selector:'#chapterContent .separator > a.readImg > img',requireContent:true,custom:false});
+        const {document}=parseHTML('<header><img id="logo"></header><div id="chapterContent"><div class="separator"><a class="readImg"><img id="page"></a><img id="ad"></div></div><aside><div class="separator"><a class="readImg"><img id="recommend"></a></div></aside>');
+        expect([...document.querySelectorAll(profile.selector)].map(e=>e.id)).toEqual(['page']);
+        expect(resolveMangaReaderProfile('manhuaplus.org.attacker.test','/manga/apotheosis/chapter-1')).toBeNull();
+        for(const path of ['/manga/apotheosis','/manga/apotheosis/trailer','/manga/apotheosis/chapter-1/extra'])expect(resolveMangaReaderProfile('manhuaplus.org',path)).toBeNull();
+    });
+    it('MangaBall 正常跳转现用域名保留目录名称且限制域名边界', () => {
+        expect(MANGA_SITE_CATALOG.find(site=>site.name==='mangaball.net')?.hosts).toEqual(['mangaball.net','mangaball.com']);
+        expect(isCatalogMangaHost('mangaball.com')).toBe(true);
+        expect(isCatalogMangaHost('mangaball.com.attacker.test')).toBe(false);
+        expect(isCatalogMangaHost('fakemangaball.com')).toBe(false);
+    });
     it.each([
         ['https://rawotaku.com/read/%E3%83%96%E3%83%AB%E3%83%BC%E3%83%AD%E3%83%83%E3%82%AF/ja/chapter-1-raw/', '#vertical-content .iv-card > img.image-vertical'],
         ['https://www.manhwaden.com/manga/portrait-of-pride/chapter-15/', '.reading-content .text-left > p > img'],
