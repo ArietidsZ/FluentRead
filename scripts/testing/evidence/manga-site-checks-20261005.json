@@ -790,6 +790,106 @@
           "status": 200,
           "title": "All Manga",
           "imageCount": 1
+        },
+        {
+          "url": "https://allmanga.to/",
+          "finalUrl": "https://allmanga.to/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "homes-wave22",
+          "status": 200,
+          "title": "All Manga",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Public home/manga directory or work exposes catalogue and normal series/chapter controls; not chapter-body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://allmanga.to/",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://allmanga.to/manga",
+          "finalUrl": "https://allmanga.to/manga",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "works-wave22",
+          "status": 200,
+          "title": "All Manga - All Manga 2026 - All Manga",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Public home/manga directory or work exposes catalogue and normal series/chapter controls; not chapter-body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://allmanga.to/manga",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+          "finalUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "readers-wave22",
+          "status": 200,
+          "title": "📗 Overgeared gyybhSytWofr4wyGp - All Manga",
+          "imageCount": 3,
+          "canvasCount": 0,
+          "readerFinding": "Public home/manga directory or work exposes catalogue and normal series/chapter controls; not chapter-body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "ordinaryCanvasPixelsAfterScreenshot": [],
+          "requestedUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+          "finalUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "allmanga-start-wave22",
+          "status": 200,
+          "title": "📗 Overgeared gyybhSytWofr4wyGp - All Manga",
+          "imageCount": 3,
+          "canvasCount": 0,
+          "readerFinding": "Normal Start Reading click stays on work page with covers and chapter list; no rendered body observed.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "ordinaryCanvasPixelsAfterScreenshot": [],
+          "requestedUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+          "finalUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "allmanga-popup-wave22",
+          "status": null,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal Start Reading click did not open a new page within15s; diagnostic popup wait failed. No chapter body observed.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "error": "browserContext.waitForEvent: Timeout 15000ms exceeded while waiting for event \"page\"",
+          "requestedUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+          "finalUrl": "https://mkissa.to/manga/gyybhSytWofr4wyGp/chapter-342-sub",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "allmanga-chapter-wave22",
+          "status": 200,
+          "title": "请稍候…",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal click on observed chapter342 leads to mkissa.to/.../chapter-342-sub and a please-wait verification page, without body. External reader link is not a new All Manga hostname alias.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "ordinaryCanvasPixelsAfterScreenshot": [],
+          "requestedUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
         }
       ]
     },
@@ -1574,9 +1674,89 @@
           "checkedAt": "2026-10-04T16:25:31Z",
           "state": "unreachable",
           "hostname": "ganma.jp"
+        },
+        {
+          "requestedUrl": "https://ganma.jp/",
+          "finalUrl": "https://ganma.jp/web",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00",
+          "state": "html-accessible",
+          "status": 200,
+          "method": "isolated browser public DOM without extension",
+          "attempt": "homes-wave22",
+          "note": "Public /web catalogue and free reader confirmed; earlier connection failure superseded."
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://ganma.jp/",
+          "finalUrl": "https://ganma.jp/web",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "homes-wave22",
+          "status": 200,
+          "title": "GANMA!(ガンマ)｜話題のマンガ・ウェブトゥーンが無料で読める！",
+          "imageCount": 78,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage normally redirects to /web, with magazine links. Earlier homepage connection failure does not establish closure.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://ganma.jp/",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://ganma.jp/web/magazine/chiharasan",
+          "finalUrl": "https://ganma.jp/web/magazine/chiharasan",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "works-wave22",
+          "status": 200,
+          "title": "【公式】地雷なんですか？地原さん｜無料のマンガ・ウェブトゥーンを読むならGANMA!(ガンマ)｜りょん",
+          "imageCount": 9,
+          "canvasCount": 0,
+          "readerFinding": "Public chiharasan work exposes normal free first-episode /web/reader/.../UUID/0 link. Catalogue and covers are not chapter acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 13,
+          "requestedUrl": "https://ganma.jp/web/magazine/chiharasan",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "finalUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "readers-wave22",
+          "status": 200,
+          "title": "第1話｜地雷なんですか？地原さん｜無料のマンガ・ウェブトゥーンを読むならGANMA!(ガンマ)",
+          "imageCount": 16,
+          "canvasCount": 0,
+          "readerFinding": "Public free first chapter displays complete 636x898 numbered manuscript images. Blank spread image has alt for margin and natural size 7x10; exact body hierarchy/numbered alt excludes it and recommendations.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 18,
+          "ordinaryCanvasPixelsAfterScreenshot": [],
+          "requestedUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "finalUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/4",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "ganma-turn-wave22",
+          "status": 200,
+          "title": "第1話｜地雷なんですか？地原さん｜無料のマンガ・ウェブトゥーンを読むならGANMA!(ガンマ)",
+          "imageCount": 20,
+          "canvasCount": 0,
+          "readerFinding": "Two normal ArrowLeft keys change last path segment /0 to /4. Some visible newly selected pages were not loaded at the short post-key inspection; not OCR acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 31,
+          "normalReaderKey": "ArrowLeft",
+          "keyCount": 2,
+          "ordinaryCanvasPixelsAfterScreenshot": [],
+          "requestedUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        }
+      ]
     },
     {
       "name": "Mangafire",
@@ -3260,7 +3440,842 @@
           "hostname": "toptoon.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "area",
+      "browserRechecks": [
+        {
+          "url": "https://toptoon.com/",
+          "finalUrl": "https://toptoon.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "homes-wave22",
+          "status": 200,
+          "title": "탑툰",
+          "imageCount": 19,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/work and explicitly free episode button observed. Covers and episode lists are not body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 8,
+          "requestedUrl": "https://toptoon.com/",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://toptoon.com/comic/ep_list/Legendary_Hunter",
+          "finalUrl": "https://toptoon.com/comic/ep_list/Legendary_Hunter",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "works-wave22",
+          "status": 200,
+          "title": "[탑툰] 전설 헌터로 키워지는 중입니다",
+          "imageCount": 3,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/work and explicitly free episode button observed. Covers and episode lists are not body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 11,
+          "requestedUrl": "https://toptoon.com/comic/ep_list/Legendary_Hunter",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://toptoon.com/comic/ep_list/Legendary_Hunter",
+          "finalUrl": "https://toptoon.com/comic/ep_view/Legendary_Hunter/1/rent",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "toptoon-free-wave22",
+          "status": 200,
+          "title": "[탑툰] 전설 헌터로 키워지는 중입니다 제1화",
+          "imageCount": 2,
+          "canvasCount": 87,
+          "readerFinding": "Normal click on observed free first-episode button opens /comic/ep_view/Legendary_Hunter/1/rent. Body is one720x1098 IMG and87 native CANVAS pages under viewerContentsWrap > comic_img. Ordinary native canvas pixel reads throw SecurityError, including after screenshot. Exact mixed body surfaces offer area selection; no bypass or canvas continuous OCR claim.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 15,
+          "ordinaryCanvasPixelsAfterScreenshot": [
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 1098,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            },
+            {
+              "width": 720,
+              "height": 339,
+              "visible": true,
+              "readable": false,
+              "gridNonblank": false,
+              "nativePixelRead": true,
+              "pixelError": "SecurityError"
+            }
+          ],
+          "requestedUrl": "https://toptoon.com/comic/ep_list/Legendary_Hunter",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        }
+      ]
     },
     {
       "name": "acgmhh.com",
@@ -3402,6 +4417,16 @@
           "title": "PLAYBOOK88 : Link Situs Slot88 Gacor Malam Ini Deposit Pulsa 5k Tanpa Potongan",
           "htmlSha256": "1ca295c45b54a094e3f01609294b41822a8ffe520723c166cd3eead9b6ad3a9d",
           "hostname": "manhuaread.com"
+        },
+        {
+          "requestedUrl": "https://manhuaread.com/",
+          "finalUrl": "https://manhuaread.com/",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00",
+          "state": "changed-content",
+          "status": 200,
+          "method": "isolated browser public DOM without extension",
+          "attempt": "homes-wave22",
+          "note": "Current PLAYBOOK88 gambling homepage, no manga body."
         }
       ],
       "adapter": "detect",
@@ -3415,6 +4440,22 @@
           "imageCount": 9,
           "canvasCount": 0,
           "networkFailureCount": 0
+        },
+        {
+          "url": "https://manhuaread.com/",
+          "finalUrl": "https://manhuaread.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "homes-wave22",
+          "status": 200,
+          "title": "PLAYBOOK88 : Link Situs Slot88 Gacor Malam Ini Deposit Pulsa 5k Tanpa Potongan",
+          "imageCount": 9,
+          "canvasCount": 0,
+          "readerFinding": "Current homepage is PLAYBOOK88 gambling content, with no manga directory or chapter observed. No adapter inferred.",
+          "pageErrorCount": 2,
+          "networkFailureCount": 17,
+          "requestedUrl": "https://manhuaread.com/",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
         }
       ]
     },
@@ -3673,9 +4714,38 @@
           "checkedAt": "2026-10-04T16:26:28Z",
           "state": "unreachable",
           "hostname": "sukima.me"
+        },
+        {
+          "requestedUrl": "https://sukima.me/",
+          "finalUrl": "https://sukima.me/",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00",
+          "state": "unreachable",
+          "status": null,
+          "method": "isolated browser public DOM without extension",
+          "attempt": "homes-wave22",
+          "note": "Browser TLS version/cipher failure; not a permanent closure assertion."
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://sukima.me/",
+          "finalUrl": "https://sukima.me/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "homes-wave22",
+          "status": null,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal browser navigation fails with ERR_SSL_VERSION_OR_CIPHER_MISMATCH. No body or permanent-closure claim.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "error": "page.goto: net::ERR_SSL_VERSION_OR_CIPHER_MISMATCH at https://sukima.me/",
+          "requestedUrl": "https://sukima.me/",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        }
+      ]
     },
     {
       "name": "comix.to",
@@ -4590,7 +5660,58 @@
           "hostname": "lrr.tvc-16.science"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://lrr.tvc-16.science/",
+          "finalUrl": "https://lrr.tvc-16.science/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "homes-wave22",
+          "status": 200,
+          "title": "LANraragi Demo",
+          "imageCount": 20,
+          "canvasCount": 0,
+          "readerFinding": "Public LANraragi demo catalogue and concrete normal archive-reader link observed; carousel thumbnails are not chapter body.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "requestedUrl": "https://lrr.tvc-16.science/",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://lrr.tvc-16.science/",
+          "finalUrl": "https://lrr.tvc-16.science/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "lrr-reader-wave22",
+          "status": null,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Observed Rohan public work title occurs on four links; normal click fails strict locator ambiguity. Actual reader link obtained in diagnostic and separately inspected.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "error": "locator.click: Error: strict mode violation: locator('a[title=\"Rohan Kishibe goes to Gucci\"]') resolved to 4 elements:",
+          "requestedUrl": "https://lrr.tvc-16.science/",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://lrr.tvc-16.science/reader",
+          "finalUrl": "https://lrr.tvc-16.science/reader",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "lrr-body-wave22",
+          "status": 200,
+          "title": "Rohan Kishibe goes to Gucci",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Actual public demo reader URL with observed archive id opens correct title, but after5s only hidden overview thumbnail500x648 is loaded. No actual body acceptance or private API call.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://lrr.tvc-16.science/reader",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        }
+      ]
     },
     {
       "name": "mangarawad.org",
@@ -5608,9 +6729,37 @@
           "title": "Redirecting...",
           "htmlSha256": "4cda33726844adcc394fa3b7784c858e7c99088a8c5fce40d3e1552ef54f6ffa",
           "hostname": "copymanga.site"
+        },
+        {
+          "requestedUrl": "https://copymanga.site/",
+          "finalUrl": "https://copymanga.site/",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00",
+          "state": "parked-domain",
+          "status": 200,
+          "method": "isolated browser public DOM without extension",
+          "attempt": "homes-wave22",
+          "note": "ParkLogic parked categories/sponsor redirect."
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://copymanga.site/",
+          "finalUrl": "https://copymanga.site/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+          "attempt": "homes-wave22",
+          "status": 200,
+          "title": "Redirecting...",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Current page is ParkLogic parked categories and sponsor redirect, with no manga catalogue/body. No alias inferred.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://copymanga.site/",
+          "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        }
+      ]
     },
     {
       "name": "readcomiconline.li",
@@ -9612,6 +10761,1067 @@
       "imageCount": 6,
       "canvasCount": 0,
       "readerFinding": "Public DDR extra contains six complete600x848 body pages under CENTER > IMG within TD; extensionless redirect. Exact extra path only; unknown extras not verified.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://allmanga.to/",
+      "finalUrl": "https://allmanga.to/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "homes-wave22",
+      "status": 200,
+      "title": "All Manga",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Public home/manga directory or work exposes catalogue and normal series/chapter controls; not chapter-body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://manhuaread.com/",
+      "finalUrl": "https://manhuaread.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "homes-wave22",
+      "status": 200,
+      "title": "PLAYBOOK88 : Link Situs Slot88 Gacor Malam Ini Deposit Pulsa 5k Tanpa Potongan",
+      "imageCount": 9,
+      "canvasCount": 0,
+      "readerFinding": "Current homepage is PLAYBOOK88 gambling content, with no manga directory or chapter observed. No adapter inferred.",
+      "pageErrorCount": 2,
+      "networkFailureCount": 17
+    },
+    {
+      "url": "https://copymanga.site/",
+      "finalUrl": "https://copymanga.site/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "homes-wave22",
+      "status": 200,
+      "title": "Redirecting...",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Current page is ParkLogic parked categories and sponsor redirect, with no manga catalogue/body. No alias inferred.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://lrr.tvc-16.science/",
+      "finalUrl": "https://lrr.tvc-16.science/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "homes-wave22",
+      "status": 200,
+      "title": "LANraragi Demo",
+      "imageCount": 20,
+      "canvasCount": 0,
+      "readerFinding": "Public LANraragi demo catalogue and concrete normal archive-reader link observed; carousel thumbnails are not chapter body.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://ganma.jp/",
+      "finalUrl": "https://ganma.jp/web",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "homes-wave22",
+      "status": 200,
+      "title": "GANMA!(ガンマ)｜話題のマンガ・ウェブトゥーンが無料で読める！",
+      "imageCount": 78,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage normally redirects to /web, with magazine links. Earlier homepage connection failure does not establish closure.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://sukima.me/",
+      "finalUrl": "https://sukima.me/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "homes-wave22",
+      "status": null,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal browser navigation fails with ERR_SSL_VERSION_OR_CIPHER_MISMATCH. No body or permanent-closure claim.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "error": "page.goto: net::ERR_SSL_VERSION_OR_CIPHER_MISMATCH at https://sukima.me/"
+    },
+    {
+      "url": "https://toptoon.com/",
+      "finalUrl": "https://toptoon.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "homes-wave22",
+      "status": 200,
+      "title": "탑툰",
+      "imageCount": 19,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/work and explicitly free episode button observed. Covers and episode lists are not body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 8
+    },
+    {
+      "url": "https://allmanga.to/manga",
+      "finalUrl": "https://allmanga.to/manga",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "works-wave22",
+      "status": 200,
+      "title": "All Manga - All Manga 2026 - All Manga",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Public home/manga directory or work exposes catalogue and normal series/chapter controls; not chapter-body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://ganma.jp/web/magazine/chiharasan",
+      "finalUrl": "https://ganma.jp/web/magazine/chiharasan",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "works-wave22",
+      "status": 200,
+      "title": "【公式】地雷なんですか？地原さん｜無料のマンガ・ウェブトゥーンを読むならGANMA!(ガンマ)｜りょん",
+      "imageCount": 9,
+      "canvasCount": 0,
+      "readerFinding": "Public chiharasan work exposes normal free first-episode /web/reader/.../UUID/0 link. Catalogue and covers are not chapter acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 13
+    },
+    {
+      "url": "https://toptoon.com/comic/ep_list/Legendary_Hunter",
+      "finalUrl": "https://toptoon.com/comic/ep_list/Legendary_Hunter",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "works-wave22",
+      "status": 200,
+      "title": "[탑툰] 전설 헌터로 키워지는 중입니다",
+      "imageCount": 3,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/work and explicitly free episode button observed. Covers and episode lists are not body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 11
+    },
+    {
+      "url": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+      "finalUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "readers-wave22",
+      "status": 200,
+      "title": "📗 Overgeared gyybhSytWofr4wyGp - All Manga",
+      "imageCount": 3,
+      "canvasCount": 0,
+      "readerFinding": "Public home/manga directory or work exposes catalogue and normal series/chapter controls; not chapter-body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "ordinaryCanvasPixelsAfterScreenshot": []
+    },
+    {
+      "url": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+      "finalUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "readers-wave22",
+      "status": 200,
+      "title": "第1話｜地雷なんですか？地原さん｜無料のマンガ・ウェブトゥーンを読むならGANMA!(ガンマ)",
+      "imageCount": 16,
+      "canvasCount": 0,
+      "readerFinding": "Public free first chapter displays complete 636x898 numbered manuscript images. Blank spread image has alt for margin and natural size 7x10; exact body hierarchy/numbered alt excludes it and recommendations.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 18,
+      "ordinaryCanvasPixelsAfterScreenshot": []
+    },
+    {
+      "url": "https://toptoon.com/comic/ep_list/Legendary_Hunter",
+      "finalUrl": "https://toptoon.com/comic/ep_view/Legendary_Hunter/1/rent",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "toptoon-free-wave22",
+      "status": 200,
+      "title": "[탑툰] 전설 헌터로 키워지는 중입니다 제1화",
+      "imageCount": 2,
+      "canvasCount": 87,
+      "readerFinding": "Normal click on observed free first-episode button opens /comic/ep_view/Legendary_Hunter/1/rent. Body is one720x1098 IMG and87 native CANVAS pages under viewerContentsWrap > comic_img. Ordinary native canvas pixel reads throw SecurityError, including after screenshot. Exact mixed body surfaces offer area selection; no bypass or canvas continuous OCR claim.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 15,
+      "ordinaryCanvasPixelsAfterScreenshot": [
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 1098,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        },
+        {
+          "width": 720,
+          "height": 339,
+          "visible": true,
+          "readable": false,
+          "gridNonblank": false,
+          "nativePixelRead": true,
+          "pixelError": "SecurityError"
+        }
+      ]
+    },
+    {
+      "url": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+      "finalUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/4",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "ganma-turn-wave22",
+      "status": 200,
+      "title": "第1話｜地雷なんですか？地原さん｜無料のマンガ・ウェブトゥーンを読むならGANMA!(ガンマ)",
+      "imageCount": 20,
+      "canvasCount": 0,
+      "readerFinding": "Two normal ArrowLeft keys change last path segment /0 to /4. Some visible newly selected pages were not loaded at the short post-key inspection; not OCR acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 31,
+      "normalReaderKey": "ArrowLeft",
+      "keyCount": 2,
+      "ordinaryCanvasPixelsAfterScreenshot": []
+    },
+    {
+      "url": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+      "finalUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "allmanga-start-wave22",
+      "status": 200,
+      "title": "📗 Overgeared gyybhSytWofr4wyGp - All Manga",
+      "imageCount": 3,
+      "canvasCount": 0,
+      "readerFinding": "Normal Start Reading click stays on work page with covers and chapter list; no rendered body observed.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "ordinaryCanvasPixelsAfterScreenshot": []
+    },
+    {
+      "url": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+      "finalUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "allmanga-popup-wave22",
+      "status": null,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal Start Reading click did not open a new page within15s; diagnostic popup wait failed. No chapter body observed.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "error": "browserContext.waitForEvent: Timeout 15000ms exceeded while waiting for event \"page\""
+    },
+    {
+      "url": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
+      "finalUrl": "https://mkissa.to/manga/gyybhSytWofr4wyGp/chapter-342-sub",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "allmanga-chapter-wave22",
+      "status": 200,
+      "title": "请稍候…",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal click on observed chapter342 leads to mkissa.to/.../chapter-342-sub and a please-wait verification page, without body. External reader link is not a new All Manga hostname alias.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "ordinaryCanvasPixelsAfterScreenshot": []
+    },
+    {
+      "url": "https://lrr.tvc-16.science/",
+      "finalUrl": "https://lrr.tvc-16.science/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "lrr-reader-wave22",
+      "status": null,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Observed Rohan public work title occurs on four links; normal click fails strict locator ambiguity. Actual reader link obtained in diagnostic and separately inspected.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "error": "locator.click: Error: strict mode violation: locator('a[title=\"Rohan Kishibe goes to Gucci\"]') resolved to 4 elements:"
+    },
+    {
+      "url": "https://lrr.tvc-16.science/reader",
+      "finalUrl": "https://lrr.tvc-16.science/reader",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "ganma-paged-images-toptoon-area-and-public-rechecks-wave22",
+      "attempt": "lrr-body-wave22",
+      "status": 200,
+      "title": "Rohan Kishibe goes to Gucci",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Actual public demo reader URL with observed archive id opens correct title, but after5s only hidden overview thumbnail500x648 is loaded. No actual body acceptance or private API call.",
       "pageErrorCount": 0,
       "networkFailureCount": 0
     }
@@ -14631,6 +16841,1675 @@
       "testAuditFiles": 468,
       "testAuditCaseDeclarations": 6097,
       "scope": "Final local development builds with native loading-state preservation only; no Firefox/userscript runtime, store, release or deployment acceptance. Previous full-suite baseline failures retained."
+    },
+    "ganmaToptoonUnit": {
+      "status": "passed",
+      "cases": 513,
+      "files": 7,
+      "fourDimensionCoverage": "100% for all eight manga configuration/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave22.log",
+      "scope": "Exact body/blank exclusions, chapterPath page identity, pause/cache, new source, chapter/slug/query cleanup, dynamic area surfaces and no canvas reads."
+    },
+    "ganmaToptoonBuilds": {
+      "status": "passed",
+      "typecheck": true,
+      "chromeSeconds": 30.1,
+      "firefoxSeconds": 30.9,
+      "userscriptSeconds": 3.97,
+      "userscriptBytes": 1917294,
+      "manifestVerifier": true,
+      "userscriptVerifier": true,
+      "architectureCases": 809,
+      "auditFiles": 468,
+      "auditDeclarations": 6101,
+      "scope": "Build/manifest verification; no Firefox/userscript device runtime or full-suite-green claim."
+    },
+    "ganmaToptoonEntriesInitialAttempt": {
+      "status": "failed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+        "live reader discovery: https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+        "live reader discovery: https://toptoon.com/comic/ep_list/Legendary_Hunter"
+      ],
+      "failure": "locator.scrollIntoViewIfNeeded: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#viewerContentsWrap > .comic_img > .canvas-wrapper.document_img:nth-child(2) > canvas')\u001b[22m\n\n    at /Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-entry-ui-test.cjs:263:96",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 99381,
+          "name": "提醒事项"
+        },
+        "frontmostAfter": {
+          "pid": 99381,
+          "name": "提醒事项"
+        }
+      },
+      "liveReaders": [
+        {
+          "url": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "finalUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "finalUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/4",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://toptoon.com/comic/ep_list/Legendary_Hunter",
+          "finalUrl": "https://toptoon.com/comic/ep_view/Legendary_Hunter/1/rent",
+          "status": 200,
+          "mode": "area",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 720,
+              "height": 1098,
+              "visible": true
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-readers-wave22/report.json",
+      "hostErrorMessages": {},
+      "hostErrorCount": 0,
+      "scope": "Pure-icon/master/resource checks plus GANMA initial/normal-key spread and TOPTOON public first-image/next-canvas area entry; not OCR.",
+      "finding": "First TOPTOON scroll sample used nth-child on wrapper inside each per-page comic_img and did not match; fixed only diagnostic sample to first actual canvas. Three live entries confirmed before failure; report retained."
+    },
+    "ganmaToptoonEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+        "live reader discovery: https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+        "live reader discovery: https://toptoon.com/comic/ep_list/Legendary_Hunter",
+        "live reader discovery: https://toptoon.com/comic/ep_list/Legendary_Hunter",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "liveReaders": [
+        {
+          "url": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "finalUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "finalUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/4",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 640,
+              "naturalHeight": 905,
+              "width": 640,
+              "height": 900,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://toptoon.com/comic/ep_list/Legendary_Hunter",
+          "finalUrl": "https://toptoon.com/comic/ep_view/Legendary_Hunter/1/rent",
+          "status": 200,
+          "mode": "area",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 720,
+              "naturalHeight": 1098,
+              "width": 720,
+              "height": 1098,
+              "visible": true
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://toptoon.com/comic/ep_list/Legendary_Hunter",
+          "finalUrl": "https://toptoon.com/comic/ep_view/Legendary_Hunter/1/rent",
+          "status": 200,
+          "mode": "area",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 720,
+              "naturalHeight": 1098,
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": true
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 1098,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 720,
+              "height": 339,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-readers-final-wave22/report.json",
+      "hostErrorMessages": {
+        "vignette: no interstitial API": 1,
+        "Cannot read properties of null (reading 'enabled')": 25
+      },
+      "hostErrorCount": 26,
+      "scope": "Pure-icon/master/resource checks plus GANMA initial/normal-key spread and TOPTOON public first-image/next-canvas area entry; not OCR.",
+      "finding": "22cases passed. No extension/extension-console errors.26 source/advertising errors classified by non-extension HTTPS stacks, not claimed independently reproduced without extension. First/next canvas screenshots and pure-icon crop viewed."
+    },
+    "ganmaPublicTranslationInitialAdBlocked": {
+      "status": "failed",
+      "cases": [
+        "paged image translates the visible public page"
+      ],
+      "failure": "Error: Timed out: paged image pauses to the unchanged original and resumes without OCR; image controls: 已翻译 · 点击恢复原图\n    at wait (/Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:210:11)\n    at async verifyPagedImageReader (/Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:395:20)\n    at async /Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:1127:22",
+      "sourceLanguage": "ja",
+      "targetLanguage": "zh-Hans",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        },
+        "frontmostAfter": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        }
+      },
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 74875
+        }
+      ],
+      "pagedImages": {
+        "turnKey": "ArrowLeft",
+        "initialTurns": 0,
+        "initialUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+        "visibleSource": true
+      },
+      "operations": 1,
+      "errors": [],
+      "consoleErrors": [],
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-ganma-wave22/report.json",
+      "hostErrorCount": 0,
+      "hostErrorMessages": {},
+      "finding": "One source image operation completed in74.875s, but actual screenshot is covered by native interstitial ad. Trusted manga pause click was intercepted; pause/cache stage timed out before any next-page claim. Not unobstructed reading or quality acceptance; failure retained."
+    },
+    "ganmaPublicTranslation": {
+      "status": "passed",
+      "cases": [
+        "paged image translates the visible public page",
+        "paged image pauses to the unchanged original and resumes without OCR",
+        "normal page turn keeps continuous mode active and translates the new source",
+        "paged image restores the second source and the master switch removes overlays"
+      ],
+      "sourceLanguage": "ja",
+      "targetLanguage": "zh-Hans",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 99381,
+          "name": "提醒事项"
+        },
+        "frontmostAfter": {
+          "pid": 99381,
+          "name": "提醒事项"
+        }
+      },
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 69230
+        },
+        {
+          "page": 2,
+          "ms": 28685
+        }
+      ],
+      "pagedImages": {
+        "turnKey": "ArrowLeft",
+        "initialTurns": 0,
+        "initialUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+        "visibleSource": true,
+        "urls": [
+          "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/2"
+        ]
+      },
+      "readerDismissals": [
+        {
+          "selector": "text=\"閉じる\"",
+          "frameOrigin": "https://googleads.g.doubleclick.net"
+        }
+      ],
+      "pagedImageOutputs": [
+        {
+          "stage": "01",
+          "index": 0,
+          "width": 1200,
+          "height": 1696,
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 636,
+            "height": 662
+          },
+          "pixelReadError": "SecurityError",
+          "mode": "visible-screen-png",
+          "clip": {
+            "x": 0,
+            "y": 0,
+            "width": 636,
+            "height": 662
+          },
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-ganma-final-wave22/01-paged-output-0.png"
+        },
+        {
+          "stage": "02",
+          "index": 1,
+          "width": 1200,
+          "height": 1696,
+          "rect": {
+            "x": 636,
+            "y": 0,
+            "width": 636,
+            "height": 662
+          },
+          "pixelReadError": "SecurityError",
+          "mode": "visible-screen-png",
+          "clip": {
+            "x": 636,
+            "y": 0,
+            "width": 636,
+            "height": 662
+          },
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-ganma-final-wave22/02-paged-output-1.png"
+        },
+        {
+          "stage": "02",
+          "index": 2,
+          "width": 1200,
+          "height": 1696,
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 636,
+            "height": 662
+          },
+          "pixelReadError": "SecurityError",
+          "mode": "visible-screen-png",
+          "clip": {
+            "x": 0,
+            "y": 0,
+            "width": 636,
+            "height": 662
+          },
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-ganma-final-wave22/02-paged-output-2.png"
+        }
+      ],
+      "operations": 3,
+      "errors": [],
+      "consoleErrors": [],
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-ganma-final-wave22/report.json",
+      "hostErrorCount": 0,
+      "hostErrorMessages": {},
+      "outputsViewed": [
+        "01-paged-output-0.png",
+        "02-paged-output-1.png",
+        "02-paged-output-2.png",
+        "01-paged-translated.png"
+      ],
+      "finding": "Four state cases pass on unobstructed first dialogue and normal /0 to /2 title/art spread. Three image operations; stages69.230s and28.685s. Pause/unchanged source/cache/next-page/master cleanup verified. Source and result canvas normal pixel reads throw SecurityError; output clips are ordinary visible screen PNGs, not native untainted pixel exports. No model requests, extension/host/console errors; temporary profile removed.",
+      "qualityFinding": "First dialogue has readable Chinese but 地雷系 misrecognized as 地省系 and translated as local government; boxed text repair smears borders/interior and residual original strokes remain. Next title/art spread retains outlined pink/Japanese lettering; romanized lettering is rendered as awkward Chinese with title overlap and incomplete cleanup. Not whole chapter or quality acceptance."
+    },
+    "ganmaPublicTranslationStateChecks": {
+      "status": "passed",
+      "cases": [
+        "paged image translates the visible public page",
+        "paged image pauses to the unchanged original and resumes without OCR",
+        "normal page turn keeps continuous mode active and translates the new source",
+        "paged image restores the second source and the master switch removes overlays"
+      ],
+      "sourceLanguage": "ja",
+      "targetLanguage": "zh-Hans",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 55990,
+          "name": "Claude"
+        },
+        "frontmostAfter": {
+          "pid": 55990,
+          "name": "Claude"
+        }
+      },
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 72085
+        },
+        {
+          "page": 2,
+          "ms": 53106
+        }
+      ],
+      "pagedImages": {
+        "turnKey": "ArrowLeft",
+        "initialTurns": 0,
+        "initialUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+        "visibleSource": true,
+        "urls": [
+          "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+          "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/2"
+        ]
+      },
+      "readerDismissals": [
+        {
+          "selector": "text=\"閉じる\"",
+          "frameOrigin": "https://googleads.g.doubleclick.net"
+        }
+      ],
+      "operations": 3,
+      "errors": [],
+      "consoleErrors": [],
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-ganma-visible-wave22/report.json",
+      "hostErrorCount": 0,
+      "hostErrorMessages": {},
+      "finding": "Four state cases pass with native ad close; initial screenshot still later covered by ad and second spread is title/art. Not two dialogue-page quality acceptance."
+    },
+    "ganmaPublicTranslationPixelExportAttempt": {
+      "status": "failed",
+      "cases": [],
+      "failure": "Error: Uncaught\n    at ui (/Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:190:44)\n    at async saveBitmaps (/Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:404:23)\n    at async verifyPagedImageReader (/Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:419:202)\n    at async /Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:1153:22",
+      "sourceLanguage": "ja",
+      "targetLanguage": "zh-Hans",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 76304,
+          "name": "微信"
+        },
+        "frontmostAfter": {
+          "pid": 76304,
+          "name": "微信"
+        }
+      },
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 72179
+        }
+      ],
+      "pagedImages": {
+        "turnKey": "ArrowLeft",
+        "initialTurns": 0,
+        "initialUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+        "visibleSource": true
+      },
+      "readerDismissals": [
+        {
+          "selector": "text=\"閉じる\"",
+          "frameOrigin": "https://googleads.g.doubleclick.net"
+        }
+      ],
+      "operations": 1,
+      "errors": [],
+      "consoleErrors": [],
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-ganma-outputs-wave22/report.json",
+      "hostErrorCount": 0,
+      "hostErrorMessages": {},
+      "finding": "First public dialogue is visibly translated after native close, but diagnostic native toDataURL export throws on composed cross-origin canvas. One operation72.179s; no pause/next-stage acceptance in this run. Original failure retained, no pixel bypass."
+    },
+    "ganmaPublicTranslationViewportAttempt": {
+      "status": "failed",
+      "cases": [],
+      "failure": "TypeError: Cannot read properties of null (reading 'width')\n    at saveBitmaps (/Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:417:51)\n    at async verifyPagedImageReader (/Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:428:202)\n    at async /Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/scripts/testing/run-manga-translation-test.cjs:1162:22",
+      "sourceLanguage": "ja",
+      "targetLanguage": "zh-Hans",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 99381,
+          "name": "提醒事项"
+        },
+        "frontmostAfter": {
+          "pid": 99381,
+          "name": "提醒事项"
+        }
+      },
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 72261
+        }
+      ],
+      "pagedImages": {
+        "turnKey": "ArrowLeft",
+        "initialTurns": 0,
+        "initialUrl": "https://ganma.jp/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f/0",
+        "visibleSource": true
+      },
+      "readerDismissals": [
+        {
+          "selector": "text=\"閉じる\"",
+          "frameOrigin": "https://googleads.g.doubleclick.net"
+        }
+      ],
+      "operations": 1,
+      "errors": [],
+      "consoleErrors": [],
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-ganma-screen-wave22/report.json",
+      "hostErrorCount": 0,
+      "hostErrorMessages": {},
+      "finding": "Native pixel-read error now captured, but diagnostic used page.viewportSize() on a native window without emulated viewport and got null. One operation72.261s, first screenshot; later phases not reached. Failure retained; final diagnostics read actual inner dimensions."
     }
   }
 }

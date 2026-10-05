@@ -1,18 +1,26 @@
 /**
  * @file src/core/config/mangaReaderProfiles.ts
  * 文件职责：保存经公开阅读页结构核对的正文规则，避免通用图片过滤漏掉正文或误选推荐封面。
- * 主要内容：已核对章节站与 Ranfren 静态正文、漫画站懒加载正文、POIPIKU 单帖主图、Countdown 的主页正文、MANGA Million 编号图片、Orchisasia、Qi Manga、Nyx、Omega、MangaYun、Mangahub、Rinko、RawDEX、Raw1001 等正文规则，GlobalComix 跨域正文提供圈选入口，MechaComic 完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界与 Mangahub 正整数翻页参数，哔哩哔哩在内容脚本中可读的正文画布及透明弹幕交互层、PASH UP 当前屏与 GigaViewer、Comici、ComicWalker、Animate 正文画布规则，MangaLove 不可读画布和 Booklive、CMOA 分片的圈选入口；路径与域名均保留边界。
+ * 主要内容：已核对章节站与 GANMA 编号原稿及路径页码、TOPTOON 不可读画布和首图的圈选规则、Ranfren 静态正文、漫画站懒加载正文、POIPIKU 单帖主图、Countdown 的主页正文、MANGA Million 编号图片、Orchisasia、Qi Manga、Nyx、Omega、MangaYun、Mangahub、Rinko、RawDEX、Raw1001 等正文规则，GlobalComix 跨域正文提供圈选入口，MechaComic 完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界与 Mangahub 正整数翻页参数，哔哩哔哩在内容脚本中可读的正文画布及透明弹幕交互层、PASH UP 当前屏与 GigaViewer、Comici、ComicWalker、Animate 正文画布规则，MangaLove 不可读画布和 Booklive、CMOA 分片的圈选入口；路径与域名均保留边界。
  * 模块边界：纯匹配，不执行站点脚本、不读取私有接口、不截图；可访问的图片由 content 阅读器检测。
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
     'kuragebunch.com', 'shonenjumpplus.com', 'tonarinoyj.jp', 'comic-zenon.com', 'ichicomi.com', 'sunday-webry.com']);
-export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-super-hero-comics.com', 'jumptoon.com', 'comic-meteor.jp', 'kirapo.jp', 'pocket.shonenmagazine.com', 'cmoa.jp', 'globalcomix.com', 'mangalove.me'];
+export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-super-hero-comics.com', 'jumptoon.com', 'comic-meteor.jp', 'kirapo.jp', 'pocket.shonenmagazine.com', 'cmoa.jp', 'globalcomix.com', 'mangalove.me', 'toptoon.com'];
 export const MANGA_BACKGROUND_READER_HOSTS = ['palcy.jp', 'comic.pixiv.net'];
 const comiciHosts = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
     'rimacomiplus.jp', 'heros-web.com', 'younganimal.com', 'youngchampion.jp'];
 export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com', 'animatebookstore.com', 'pash-up.jp', 'manga.bilibili.com'];
-export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; pageQueryParameter?: 'page'; canvasSelector?: string; canvasInteractionSelector?: string; loadingSelector?: string; backgroundSelector?: string; areaSelector?: string} | null {
+export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; chapterPath?: string; pageQueryParameter?: 'page'; canvasSelector?: string; canvasInteractionSelector?: string; loadingSelector?: string; backgroundSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
+    if (host === 'ganma.jp' && /^\/web\/reader\/[a-z\d]+(?:-[a-z\d]+)*\/[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}\/(?:0|[1-9]\d{0,3})\/?$/.test(pathname)) return {
+        name: 'GANMA!', chapterPath: pathname.replace(/\/\d+\/?$/, ''),
+        selector: '.h-full-container.w-full-container > .flex.select-none > .relative.flex-1 > img.pointer-events-none.object-contain[alt$="ページ目の原稿画像"]',
+    };
+    if (host === 'toptoon.com' && /^\/comic\/ep_view\/[A-Za-z\d_]+\/[1-9]\d*\/rent\/?$/.test(pathname)) return {
+        name: 'TOPTOON', selector: ':not(*)',
+        areaSelector: '#viewerContentsWrap > .comic_img > img.document_img, #viewerContentsWrap > .comic_img > .canvas-wrapper.document_img > canvas',
+    };
     if (host === 'manga.bilibili.com' && /^\/mc\d+\/\d+\/?$/.test(pathname)) return {
         name: '哔哩哔哩漫画', selector: ':not(*)',
         canvasSelector: '.images-container > .view-container > .image-container > canvas',

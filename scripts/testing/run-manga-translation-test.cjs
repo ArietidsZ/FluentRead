@@ -93,6 +93,10 @@ const imageTurnKey=arg('image-turn-key',null),imageInitialTurns=Number(arg('imag
 if(imageTurnKey)assert.ok(explicitReaderSelector&&liveSite&&readerSmoke&&!segmentReaderTest
     &&['ArrowLeft','ArrowRight'].includes(imageTurnKey)&&Number.isInteger(imageInitialTurns)&&imageInitialTurns>=0&&imageInitialTurns<=4,
     'Paged images require an explicit live image smoke, a horizontal arrow and 0–4 initial turns');
+const imageVisibleSource=process.argv.includes('--image-visible-source');
+if(imageVisibleSource)assert.ok(imageTurnKey&&imageInitialTurns===0,'Visible image selection requires explicit paged image scope without initial turns');
+const readerDismissSelector=arg('reader-dismiss-selector',null);
+if(readerDismissSelector)assert.ok(imageTurnKey,'Public reader notices are limited to explicit paged image scope');
 const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-profile-');
 fs.mkdirSync(artifacts, {recursive: true});
 const report = {site: liveSite ? 'live MANGA Plus' : 'controlled MANGA Plus reader fixture',
@@ -369,32 +373,75 @@ async function scrollReaderImage(index) {
     await image.evaluate(i=>i.scrollIntoView({block:'start',inline:'nearest',behavior:'instant'}));
 }
 async function verifyPagedImageReader() {
-    const source=()=>page.locator(readerSelector).first();
+    let sourceIndex=0;
+    const source=()=>page.locator(readerSelector).nth(sourceIndex);
+    const selectVisibleSource=async()=>{
+        if(!imageVisibleSource)return true;
+        const index=await page.locator(readerSelector).evaluateAll(images=>images.findIndex(i=>{
+            const r=i.getBoundingClientRect();return i.complete&&i.naturalWidth>=80&&i.naturalHeight>=40
+                &&r.width>80&&r.height>40&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0;
+        }));
+        if(index<0)return false;sourceIndex=index;return true;
+    };
     const snapshot=()=>source().evaluate(i=>({src:i.src,srcset:i.getAttribute('srcset'),sizes:i.getAttribute('sizes'),style:i.getAttribute('style'),width:i.naturalWidth,height:i.naturalHeight}));
     const complete=()=>source().evaluate(i=>i.complete&&i.naturalWidth>=80);
     const active=()=>ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-pressed")');
     const displayed=()=>source().evaluate(i=>i.style.opacity==='0');
     const settled=()=>ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-busy") === "false"');
-    const original=await snapshot();report.pagedImages.initialUrl=page.url();report.pageDurationsMs=[];await captureSource(source(),'01');
+    const dismissNotice=async()=>{
+        if(!readerDismissSelector)return;
+        for(const frame of page.frames()){
+            const control=frame.locator(readerDismissSelector).first();
+            if(await control.isVisible().catch(()=>false)){
+                await control.click({timeout:5000});
+                await control.waitFor({state:'hidden',timeout:5000});
+                (report.readerDismissals??=[]).push({selector:readerDismissSelector,frameOrigin:new URL(frame.url()).origin});
+            }
+        }
+    };
+    const pagedToggle=async()=>{await dismissNotice();await toggle();await dismissNotice();};
+    const saveBitmaps=async stage=>{
+        const outputs=await imageUi(`return [...this.querySelectorAll('.fluent-read-image-translation-bitmap')].map(surface=>{
+            const r=surface.getBoundingClientRect();let data='',pixelReadError='';
+            try{data=surface.tagName==='CANVAS'?surface.toDataURL('image/png'):surface.src;}catch(error){pixelReadError=error.name;}
+            return {width:surface.width||surface.naturalWidth,height:surface.height||surface.naturalHeight,
+                rect:{x:r.x,y:r.y,width:r.width,height:r.height},data,pixelReadError};
+        })`);
+        assert.ok(outputs.length>0,'Own production image result is present');
+        for(const [index,output] of outputs.entries()){
+            const file=path.join(artifacts,`${stage}-paged-output-${index}.png`);
+            let mode='native-result-png',clip;
+            if(output.data.startsWith('data:image/png;base64,'))fs.writeFileSync(file,Buffer.from(output.data.split(',')[1],'base64'));
+            else{
+                const viewport=page.viewportSize()||await page.evaluate(()=>({width:innerWidth,height:innerHeight})),r=output.rect,x=Math.max(0,r.x),y=Math.max(0,r.y);
+                clip={x,y,width:Math.min(viewport.width,r.x+r.width)-x,height:Math.min(viewport.height,r.y+r.height)-y};
+                if(clip.width<=40||clip.height<=40)continue;
+                focusGuard();await dismissNotice();await page.screenshot({path:file,clip});mode='visible-screen-png';
+            }
+            (report.pagedImageOutputs??=[]).push({stage,index,width:output.width,height:output.height,rect:output.rect,pixelReadError:output.pixelReadError,mode,clip,file});
+        }
+    };
+    await wait(selectVisibleSource,30000);
+    const original=await snapshot();report.pagedImages.initialUrl=page.url();report.pagedImages.visibleSource=imageVisibleSource;report.pageDurationsMs=[];await captureSource(source(),'01');
     report.currentCase='paged image translates the visible public page';
-    const previous=await ops(),start=Date.now();await toggle();await wait(async()=>await ops()>previous&&await settled()&&await displayed());
-    assert.equal(await active(),'true');report.pageDurationsMs.push({page:1,ms:Date.now()-start});await assertQuietReading();await screenshot('01-paged-translated');report.cases.push(report.currentCase);
+    const previous=await ops(),start=Date.now();await pagedToggle();await wait(async()=>await ops()>previous&&await settled()&&await displayed());
+    await dismissNotice();assert.equal(await active(),'true');report.pageDurationsMs.push({page:1,ms:Date.now()-start});await assertQuietReading();await screenshot('01-paged-translated',dismissNotice);await saveBitmaps('01');report.cases.push(report.currentCase);
     report.currentCase='paged image pauses to the unchanged original and resumes without OCR';
-    await toggle();await wait(async()=>!await displayed());assert.deepEqual(await snapshot(),original);
-    const before=await ops();await toggle();await wait(displayed);assert.equal(await ops(),before);await assertQuietReading();report.cases.push(report.currentCase);
+    await pagedToggle();await wait(async()=>!await displayed());assert.deepEqual(await snapshot(),original);
+    const before=await ops();await pagedToggle();await wait(displayed);assert.equal(await ops(),before);await assertQuietReading();report.cases.push(report.currentCase);
     report.currentCase='normal page turn keeps continuous mode active and translates the new source';
-    const firstUrl=page.url(),firstSource=original.src,secondStart=Date.now();await page.keyboard.press(imageTurnKey);
-    await wait(async()=>await complete()&&(await snapshot()).src!==firstSource&&!await displayed(),30000);
+    await dismissNotice();const firstUrl=page.url(),firstSource=original.src,secondStart=Date.now();await page.keyboard.press(imageTurnKey);
+    await wait(async()=>await selectVisibleSource()&&await complete()&&(await snapshot()).src!==firstSource&&!await displayed(),30000);
     const secondOriginal=await snapshot();await captureSource(source(),'02');await wait(async()=>await ops()>before&&await settled()&&await displayed());
     assert.equal(await active(),'true');assert.notEqual(page.url(),firstUrl);report.pagedImages.urls=[firstUrl,page.url()];
-    report.pageDurationsMs.push({page:2,ms:Date.now()-secondStart});await assertQuietReading();await screenshot('02-paged-translated');report.cases.push(report.currentCase);
+    await dismissNotice();report.pageDurationsMs.push({page:2,ms:Date.now()-secondStart});await assertQuietReading();await screenshot('02-paged-translated',dismissNotice);await saveBitmaps('02');report.cases.push(report.currentCase);
     report.currentCase='paged image restores the second source and the master switch removes overlays';
-    await toggle();await wait(async()=>!await displayed());assert.deepEqual(await snapshot(),secondOriginal);
+    await pagedToggle();await wait(async()=>!await displayed());assert.deepEqual(await snapshot(),secondOriginal);
     await patch({on:false});await wait(async()=>await page.locator('#fluent-read-image-translation-root').count()===0);
     assert.equal(await source().evaluate(i=>i.style.opacity),'');auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
     report.cases.push(report.currentCase);focusGuard();
 }
-async function screenshot(name) {focusGuard();await page.mouse.move(30,30);await page.waitForTimeout(300);const file=path.join(artifacts,`${name}.png`);await page.screenshot({path:file});report.screenshots.push(file);}
+async function screenshot(name,beforeCapture) {focusGuard();await page.mouse.move(30,30);await page.waitForTimeout(300);if(beforeCapture)await beforeCapture();const file=path.join(artifacts,`${name}.png`);await page.screenshot({path:file});report.screenshots.push(file);}
 async function toolScreenshot(name){
     await page.mouse.move(30,30);
     const box=await ball(`const r=this.querySelector('.floating-ball-manga').getBoundingClientRect();return {x:r.x-8,y:r.y-8,width:r.width+16,height:r.height+16}`);

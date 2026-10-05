@@ -189,6 +189,34 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it.each(['chapter', 'slug', 'query'])('GANMA 路径页码续译，暂停复用与 %s 身份变化清理保持独立', async change => {
+        const chapter = '/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f';
+        const resetCache = vi.fn(), reuse = vi.fn().mockReturnValue(false);
+        const f = readerFixture(false, `https://ganma.jp${chapter}/0`, undefined, undefined, undefined, undefined, {resetCache, reuse});
+        const root = f.document.createElement('div');root.className = 'h-full-container w-full-container';root.innerHTML = '<div class="flex select-none"><div class="relative flex-1"></div></div>';
+        const parent = root.querySelector('.relative')!;f.image.className = 'pointer-events-none object-contain';f.image.alt = '1ページ目の原稿画像';parent.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);resetCache.mockClear();
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledOnce();reuse.mockReturnValue(false);
+        f.image.src = 'blob:page-5';f.image.alt = '5ページ目の原稿画像';f.window.location.href = `https://ganma.jp${chapter}/4/`;
+        f.document.dispatchEvent(new f.dom.Event('fluentread-route-change'));f.run();await flush();
+        expect(f.reader.status().active).toBe(true);expect(f.ports.translate).toHaveBeenCalledTimes(2);expect(resetCache).not.toHaveBeenCalled();
+        const next = change === 'chapter' ? chapter.replace('a64d24f0', 'fe704630') : change === 'slug' ? chapter.replace('chiharasan', 'other') : chapter;
+        f.window.location.href = `https://ganma.jp${next}/4${change === 'query' ? '?chapter=2' : ''}`;f.reader.schedule();f.run();
+        expect(f.reader.status().active).toBe(false);expect(resetCache).toHaveBeenCalledOnce();
+        root.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
+    it.each(['image', 'canvas'])('TOPTOON 可见 %s 正文只发布圈选，移除和关闭清理，不读取像素', kind => {
+        const f = readerFixture(false, 'https://toptoon.com/comic/ep_view/Legendary_Hunter/1/rent');
+        expect(f.reader.status().available).toBe(false);
+        const root = f.document.createElement('div');root.id = 'viewerContentsWrap';root.innerHTML = '<div class="comic_img"><div class="canvas-wrapper document_img"></div></div>';
+        const body = kind === 'image' ? f.image : f.document.createElement('canvas');body.className = 'document_img';body.getBoundingClientRect = f.image.getBoundingClientRect;
+        const readPixels = vi.fn();if (kind === 'canvas') (body as HTMLCanvasElement).getContext = readPixels;
+        root.querySelector(kind === 'image' ? '.comic_img' : '.canvas-wrapper')!.append(body);f.document.body.append(root);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available: true, areaFallback: true, pageCount: 0});expect(f.reader.toggle()).toBe(false);
+        expect(readPixels).not.toHaveBeenCalled();expect(f.ports.translate).not.toHaveBeenCalled();
+        body.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);
+        root.querySelector('.canvas-wrapper')!.append(body);f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
     it.each(['repaint','pause','chapter','removed','zero-width','zero-height','outside','hidden','invisible','transparent','disabled'])('哔哩哔哩同章加载等待 %s：首次加载不发入口，旧页取消，新页仍按用户意图调度',async mode=>{
         const canvasPorts={identity:vi.fn<() => string | null>().mockReturnValue(null),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn()};
         const f=readerFixture(false,'https://manga.bilibili.com/mc30124/595886',undefined,undefined,undefined,canvasPorts);

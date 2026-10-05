@@ -6,6 +6,24 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it.each(['0', '4', '9999'])('GANMA 路径内合法页码 %s 保留稳定章节身份，只选择编号原稿', page => {
+        const chapter = '/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f';
+        const site = resolveMangaSite(`https://ganma.jp${chapter}/${page}/`)!;
+        expect(site).toMatchObject({name: 'GANMA!', requireContent: true, chapterPath: chapter});
+        const {document} = parseHTML('<img id="cover" alt="1ページ目の原稿画像"><div class="h-full-container w-full-container"><div class="flex select-none flex-row-reverse"><div class="relative w-0 flex-1"><img id="body" class="pointer-events-none object-contain object-right" alt="1ページ目の原稿画像"><img id="blank" class="pointer-events-none object-contain" alt="余白用の画像"></div><aside><img id="ad" class="pointer-events-none object-contain" alt="2ページ目の原稿画像"></aside></div></div>');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['body']);
+        for (const path of ['/', '/web/magazine/chiharasan', `${chapter}/-1`, `${chapter}/01`, `${chapter}/10000`, `${chapter}/4/extra`, '/web/reader/chiharasan/not-a-chapter/0']) expect(resolveMangaReaderProfile('ganma.jp', path)).toBeNull();
+        expect(resolveMangaReaderProfile('ganma.jp.attacker.test', `${chapter}/0`)).toBeNull();
+    });
+    it('TOPTOON 的公开租阅路径只为首张正文与不可读画布提供圈选，推荐和提示排除', () => {
+        const site = resolveMangaSite('https://toptoon.com/comic/ep_view/Legendary_Hunter/1/rent')!;
+        expect(site).toMatchObject({name: 'TOPTOON', selector: ':not(*)', requireContent: true});
+        expect(site.canvasSelector).toBeUndefined();
+        const {document} = parseHTML('<img id="notice"><div id="viewerContentsWrap"><div class="comic_img c_img"><img id="first" class="document_img"><div class="canvas-wrapper last_image document_img"><canvas id="body"></canvas></div><canvas id="ad"></canvas></div><aside><div class="canvas-wrapper document_img"><canvas id="recommendation"></canvas></div></aside></div><div class="comic_img"><img id="outside" class="document_img"></div>');
+        expect([...document.querySelectorAll(site.areaSelector!)].map(element => element.id)).toEqual(['first', 'body']);
+        for (const path of ['/', '/comic/ep_list/Legendary_Hunter', '/comic/ep_view/Legendary_Hunter/0/rent', '/comic/ep_view/Legendary_Hunter/1/buy', '/comic/ep_view/Legendary_Hunter/1/rent/extra']) expect(resolveMangaReaderProfile('toptoon.com', path)).toBeNull();
+        expect(resolveMangaReaderProfile('toptoon.com.attacker.test', '/comic/ep_view/Legendary_Hunter/1/rent')).toBeNull();
+    });
     it('哔哩哔哩数字章节只接入内容脚本可读的正文画布，排除二维码与其他容器', () => {
         const site=resolveMangaSite('https://manga.bilibili.com/mc30124/595886')!;
         expect(site).toMatchObject({name:'哔哩哔哩漫画',requireContent:true,selector:':not(*)'});expect(site.areaSelector).toBeUndefined();
