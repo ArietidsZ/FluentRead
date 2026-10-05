@@ -1,5 +1,5 @@
 {
-  "checkedOn": "2026-10-05T05:17:05.110968+00:00",
+  "checkedOn": "2026-10-05T06:28:07.500742+00:00",
   "scope": "Public HTML availability and selected chapter DOM inspection. Neither proves all chapters or live OCR/translation.",
   "sources": [
     "https://github.com/immersive-translate/immersive-translate/issues/1809",
@@ -67,7 +67,73 @@
           "note": "After normal reject-all cookie action, public homepage displays server-error artwork; no chapter verified"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://mangamillion.shueisha.co.jp/",
+          "finalUrl": "https://mangamillion.shueisha.co.jp/zh-CN",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "homes-wave19",
+          "status": 200,
+          "title": "百万漫画 | 百万译后漫画",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "readerFinding": "Homepage now renders catalogue after normal reject-all cookie action; previous service-error page retained. Homepage artwork does not establish chapter acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://mangamillion.shueisha.co.jp/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://mangamillion.shueisha.co.jp/zh-CN",
+          "finalUrl": "https://mangamillion.shueisha.co.jp/zh-CN",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "million-cookie-wave19",
+          "status": 200,
+          "title": "百万漫画 | 百万译后漫画",
+          "imageCount": 75,
+          "canvasCount": 0,
+          "readerFinding": "Homepage now renders catalogue after normal reject-all cookie action; previous service-error page retained. Homepage artwork does not establish chapter acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 48,
+          "requestedUrl": "https://mangamillion.shueisha.co.jp/zh-CN",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://mangamillion.shueisha.co.jp/zh-CN/title/1",
+          "finalUrl": "https://mangamillion.shueisha.co.jp/zh-CN/title/1",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "million-title-wave19",
+          "status": 200,
+          "title": "航海王 - 尾田荣一郎 | MANGA MILLION",
+          "imageCount": 23,
+          "canvasCount": 0,
+          "readerFinding": "Public One Piece work page exposes normal numbered chapter links, including free first chapter66193. Covers/work listing are not reader acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://mangamillion.shueisha.co.jp/zh-CN/title/1",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://mangamillion.shueisha.co.jp/zh-CN/title/1/chapter/66193",
+          "finalUrl": "https://mangamillion.shueisha.co.jp/zh-CN/title/1/chapter/66193",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "million-chapter-wave19",
+          "status": 200,
+          "title": "《航海王》 第#001话 | 百万漫画",
+          "imageCount": 9,
+          "canvasCount": 0,
+          "readerFinding": "Public free first chapter66193 displays three loaded694x1080 body images with numbered page_ alt under CSS-module slide/spread/page_container/placeholder. Reading guide overlay is present and has normal Close manga tutorial control; guide artwork and recommended covers excluded.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 3,
+          "requestedUrl": "https://mangamillion.shueisha.co.jp/zh-CN/title/1/chapter/66193",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        }
+      ]
     },
     {
       "name": "COMIC FUZ",
@@ -279,7 +345,25 @@
           "note": "Parked category-search links, no comic directory or chapter observed"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://comic-top.com/",
+          "finalUrl": "https://comic-top.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "homes-wave19",
+          "status": 200,
+          "title": "Redirecting...",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Current page is parked ParkLogic category/search content, not confirmed manga body.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://comic-top.com/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        }
+      ]
     },
     {
       "name": "ComicWalker",
@@ -342,6 +426,38 @@
           "status": 200,
           "title": "WEBエース",
           "imageCount": 44
+        },
+        {
+          "url": "https://web-ace.jp/",
+          "finalUrl": "https://web-ace.jp/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "homes-wave19",
+          "status": 200,
+          "title": "WEBエース",
+          "imageCount": 61,
+          "canvasCount": 0,
+          "readerFinding": "Public WEB Ace/Young Ace Up catalogue links actual episodes to already-adapted ComicWalker. No standalone WEB Ace chapter body confirmed; no invented alias/profile.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 6,
+          "requestedUrl": "https://web-ace.jp/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://web-ace.jp/youngaceup/",
+          "finalUrl": "https://web-ace.jp/youngaceup/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "official-works-wave19",
+          "status": 200,
+          "title": "ヤングエースUP公式サイト - 無料で漫画の最新話が読める！",
+          "imageCount": 84,
+          "canvasCount": 0,
+          "readerFinding": "Public WEB Ace/Young Ace Up catalogue links actual episodes to already-adapted ComicWalker. No standalone WEB Ace chapter body confirmed; no invented alias/profile.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://web-ace.jp/youngaceup/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
         }
       ]
     },
@@ -443,7 +559,122 @@
           "hostname": "pash-up.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "readable-canvas",
+      "browserRechecks": [
+        {
+          "url": "https://pash-up.jp/",
+          "finalUrl": "https://pash-up.jp/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "homes-wave19",
+          "status": 200,
+          "title": "PASH UP!｜無料たっぷり！最速公開！マンガもラノベもアニメ誌も",
+          "imageCount": 23,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/work page used only to find the normal free first-episode button; not chapter acceptance. Opaque public cid query omitted.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 5,
+          "requestedUrl": "https://pash-up.jp/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://pash-up.jp/content/00000001",
+          "finalUrl": "https://pash-up.jp/content/00000001",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "official-works-wave19",
+          "status": 200,
+          "title": "くま　クマ　熊　ベアー|PASH UP!",
+          "imageCount": 22,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage/work page used only to find the normal free first-episode button; not chapter acceptance. Opaque public cid query omitted.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 4,
+          "requestedUrl": "https://pash-up.jp/content/00000001",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://pash-up.jp/content/00000001",
+          "finalUrl": "https://pash-up.jp/content/00000001",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "pash-click-wave19",
+          "status": null,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Wrong popup assumption timed out; normal free link navigates the same tab. No chapter accepted from this failed attempt.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 100,
+          "error": "browserContext.waitForEvent: Timeout 15000ms exceeded while waiting for event \"page\"",
+          "requestedUrl": "https://pash-up.jp/content/00000001",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://pash-up.jp/content/00000001",
+          "finalUrl": "https://pash-up.jp/viewer/viewer.html",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "pash-normal-click-wave19",
+          "status": 200,
+          "title": "第1話 - くま　クマ　熊　ベアー",
+          "imageCount": 4,
+          "canvasCount": 5,
+          "readerFinding": "Short settling produced gray canvas/loading image, not verified body. Actual gray screenshot reviewed; nonblank alpha alone did not establish comic content.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 93,
+          "requestedUrl": "https://pash-up.jp/content/00000001",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://pash-up.jp/content/00000001",
+          "finalUrl": "https://pash-up.jp/viewer/viewer.html",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "pash-two-turns-wave19",
+          "status": 200,
+          "title": "",
+          "imageCount": 4,
+          "canvasCount": 5,
+          "readerFinding": "Short settling produced gray canvas/loading image, not verified body. Actual gray screenshot reviewed; nonblank alpha alone did not establish comic content.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 11,
+          "requestedUrl": "https://pash-up.jp/content/00000001",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://pash-up.jp/content/00000001",
+          "finalUrl": "https://pash-up.jp/viewer/viewer.html",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "pash-settle-wave19",
+          "status": 200,
+          "title": "",
+          "imageCount": 4,
+          "canvasCount": 5,
+          "readerFinding": "Normal free first-episode button with 15s settling displays actual Japanese comic art and text. Current viewport1/currentScreen canvas2544x1632 is readable; dummy, hidden frontScreen and inactive buffer are excluded. Earlier gray/loading attempts retained. Opaque public cid query omitted.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 18,
+          "requestedUrl": "https://pash-up.jp/content/00000001",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://pash-up.jp/content/00000001",
+          "finalUrl": "https://pash-up.jp/viewer/viewer.html",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "pash-dialogue-body-wave19",
+          "status": 200,
+          "title": "",
+          "imageCount": 4,
+          "canvasCount": 5,
+          "readerFinding": "After actual15s body readiness, two normal ArrowLeft keys display a Japanese dialogue spread with intact readable active viewport canvas. Extension-free screenshot reviewed; no hidden API or arbitrary page navigation.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 18,
+          "requestedUrl": "https://pash-up.jp/content/00000001",
+          "checkedAt": "2026-10-05T06:04:34.409486+00:00"
+        }
+      ]
     },
     {
       "name": "BOOK☆WALKER",
@@ -889,7 +1120,57 @@
           "hostname": "comick.fun"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://comick.io/",
+          "finalUrl": "https://comick.dev/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "homes-wave19",
+          "status": 403,
+          "title": "请稍候…",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Current domain returns403 challenge; chapter body unavailable. Separately inspected comick.fun announcement states current product is tracking/community and no longer hosts manga reading.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://comick.io/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://comick.dev/",
+          "finalUrl": "https://comick.dev/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "homes-wave19",
+          "status": 403,
+          "title": "请稍候…",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Current domain returns403 challenge; chapter body unavailable. Separately inspected comick.fun announcement states current product is tracking/community and no longer hosts manga reading.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://comick.dev/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://comick.fun/",
+          "finalUrl": "https://comick.fun/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "homes-wave19",
+          "status": 200,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Public official-domain announcement states Comick has become tracking/community, reading is no longer available, and links the new comick.dev domain. This is service-scope evidence, not a successful manga reader.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://comick.fun/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        }
+      ]
     },
     {
       "name": "YoungAnimal",
@@ -2112,7 +2393,57 @@
           "hostname": "rawdevart.art"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://rawdevart.art/",
+          "finalUrl": "https://rawdevart.art/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "extra-homes-wave19",
+          "status": 200,
+          "title": "Japanese Manga Raw - Rawdevart",
+          "imageCount": 5,
+          "canvasCount": 0,
+          "readerFinding": "Public chapter/read path found, but both headless and normal visible10s attempts show empty chapter-imgs and only logo/chat artwork. No body profile added from empty container.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://rawdevart.art/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://rawdevart.art/read/ne859000/chapter-15.2",
+          "finalUrl": "https://rawdevart.art/read/ne859000/chapter-15.2",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "rawdevart-reader-wave19",
+          "status": 200,
+          "title": "Magical ★ Explorer: Eroge no Yuujin Chara ni Tensei Shita kedo, Game Chishiki Tsukatte Jiyuu ni Ikiru Chapter 15.2 Next Chapter 16 - Rawdevart",
+          "imageCount": 4,
+          "canvasCount": 0,
+          "readerFinding": "Public chapter/read path found, but both headless and normal visible10s attempts show empty chapter-imgs and only logo/chat artwork. No body profile added from empty container.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://rawdevart.art/read/ne859000/chapter-15.2",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://rawdevart.art/read/ne859000/chapter-15.2",
+          "finalUrl": "https://rawdevart.art/read/ne859000/chapter-15.2",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "rawdevart-normal-wave19",
+          "status": 200,
+          "title": "Magical ★ Explorer: Eroge no Yuujin Chara ni Tensei Shita kedo, Game Chishiki Tsukatte Jiyuu ni Ikiru Chapter 15.2 Next Chapter 16 - Rawdevart",
+          "imageCount": 4,
+          "canvasCount": 0,
+          "readerFinding": "Public chapter/read path found, but both headless and normal visible10s attempts show empty chapter-imgs and only logo/chat artwork. No body profile added from empty container.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://rawdevart.art/read/ne859000/chapter-15.2",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        }
+      ]
     },
     {
       "name": "manga-shinchan.com",
@@ -2188,7 +2519,41 @@
           "hostname": "orchisasia.org"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://orchisasia.org/",
+          "finalUrl": "https://www.orchisasia.org/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "extra-homes-wave19",
+          "status": 200,
+          "title": "Read Hottest Smut Yaoi BL Manhwa & Manga for Free - Orchisasia",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Public homepage discovers normal creator-note chapter link; catalogue covers are not reader acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://orchisasia.org/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://www.orchisasia.org/comic/dear-door-uncensored-version/0166-chapter-163-5-creators-note/",
+          "finalUrl": "https://www.orchisasia.org/comic/dear-door-uncensored-version/0166-chapter-163-5-creators-note/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "orchis-note-wave19",
+          "status": 200,
+          "title": "DEAR. DOOR UNCENSORED Smut BL Yaoi Manhwa › orchisasia.org",
+          "imageCount": 6,
+          "canvasCount": 0,
+          "readerFinding": "Public creator-note chapter has five loaded720px-wide body strips, heights5120 or4160, under read-container/reading-content/page-break/img.wp-manga-chapter-img. Existing segmented pipeline reused. No mature artwork emitted or quality acceptance inferred.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://www.orchisasia.org/comic/dear-door-uncensored-version/0166-chapter-163-5-creators-note/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        }
+      ]
     },
     {
       "name": "mangalib",
@@ -2562,7 +2927,25 @@
           "hostname": "greentoon.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://greentoon.net/",
+          "finalUrl": "https://greentoon.net/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "extra-homes-wave19",
+          "status": 429,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "HTTP429; no body confirmed.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://greentoon.net/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        }
+      ]
     },
     {
       "name": "dynasty-scans.com",
@@ -3457,7 +3840,57 @@
           "hostname": "ctccomic.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://ctccomic.com/",
+          "finalUrl": "https://ctccomic.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "extra-homes-wave19",
+          "status": 200,
+          "title": "Countdown to Countdown - 742",
+          "imageCount": 9,
+          "canvasCount": 0,
+          "readerFinding": "Actual single body img#cc-comic under #cc-comicbody > a loads900x1331 on homepage or900x1279 on first comic/000. Logo, sponsor, archive and unrelated images excluded. Homepage body is a verified reader exception, not blanket homepage detection.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "requestedUrl": "https://ctccomic.com/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://www.ctccomic.com/comic/742",
+          "finalUrl": "https://www.ctccomic.com/comic/742",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "ctc-readers-retry-wave19",
+          "status": 200,
+          "title": "Countdown to Countdown -",
+          "imageCount": 8,
+          "canvasCount": 0,
+          "readerFinding": "HTTP200 chapter742 had no loaded body during this attempt. Failure retained; not chapter acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "requestedUrl": "https://www.ctccomic.com/comic/742",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://www.ctccomic.com/comic/000",
+          "finalUrl": "https://www.ctccomic.com/comic/000",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "ctc-readers-retry-wave19",
+          "status": 200,
+          "title": "Countdown to Countdown -",
+          "imageCount": 9,
+          "canvasCount": 0,
+          "readerFinding": "Actual single body img#cc-comic under #cc-comicbody > a loads900x1331 on homepage or900x1279 on first comic/000. Logo, sponsor, archive and unrelated images excluded. Homepage body is a verified reader exception, not blanket homepage detection.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://www.ctccomic.com/comic/000",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        }
+      ]
     },
     {
       "name": "nyaa.fan",
@@ -5002,7 +5435,25 @@
           "hostname": "lmanga.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://lmanga.com/",
+          "finalUrl": "https://lmanga.com/lander",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "extra-homes-wave19",
+          "status": 200,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Redirect to /lander with no confirmed manga body; not added as an alternative reader.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 3,
+          "requestedUrl": "https://lmanga.com/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        }
+      ]
     },
     {
       "name": "manhwahub.net",
@@ -5070,7 +5521,25 @@
           "hostname": "manhuabika.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://manhuabika.com/",
+          "finalUrl": "https://manhuabika.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-homepage-and-official-readers-wave19",
+          "attempt": "extra-homes-wave19",
+          "status": 200,
+          "title": "PicaWeb - 哔咔漫画网页版",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Public PicaWeb homepage accessible but no public chapter body/link established by this inspection.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 3,
+          "requestedUrl": "https://manhuabika.com/",
+          "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        }
+      ]
     },
     {
       "name": "rawotaku.com",
@@ -7792,6 +8261,399 @@
       "readerFinding": "Normal background visible browser opens free Read First chapter with full800x15525/15505 strips under app-reader/r-strip/r-page data-page. Headless chapter403 retained; homepage/series covers do not establish reader acceptance.",
       "pageErrorCount": 0,
       "networkFailureCount": 3
+    },
+    {
+      "url": "https://web-ace.jp/",
+      "finalUrl": "https://web-ace.jp/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "homes-wave19",
+      "status": 200,
+      "title": "WEBエース",
+      "imageCount": 61,
+      "canvasCount": 0,
+      "readerFinding": "Public WEB Ace/Young Ace Up catalogue links actual episodes to already-adapted ComicWalker. No standalone WEB Ace chapter body confirmed; no invented alias/profile.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 6
+    },
+    {
+      "url": "https://pash-up.jp/",
+      "finalUrl": "https://pash-up.jp/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "homes-wave19",
+      "status": 200,
+      "title": "PASH UP!｜無料たっぷり！最速公開！マンガもラノベもアニメ誌も",
+      "imageCount": 23,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/work page used only to find the normal free first-episode button; not chapter acceptance. Opaque public cid query omitted.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 5
+    },
+    {
+      "url": "https://comic-top.com/",
+      "finalUrl": "https://comic-top.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "homes-wave19",
+      "status": 200,
+      "title": "Redirecting...",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Current page is parked ParkLogic category/search content, not confirmed manga body.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://mangamillion.shueisha.co.jp/",
+      "finalUrl": "https://mangamillion.shueisha.co.jp/zh-CN",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "homes-wave19",
+      "status": 200,
+      "title": "百万漫画 | 百万译后漫画",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "readerFinding": "Homepage now renders catalogue after normal reject-all cookie action; previous service-error page retained. Homepage artwork does not establish chapter acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://comick.io/",
+      "finalUrl": "https://comick.dev/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "homes-wave19",
+      "status": 403,
+      "title": "请稍候…",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Current domain returns403 challenge; chapter body unavailable. Separately inspected comick.fun announcement states current product is tracking/community and no longer hosts manga reading.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://comick.dev/",
+      "finalUrl": "https://comick.dev/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "homes-wave19",
+      "status": 403,
+      "title": "请稍候…",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Current domain returns403 challenge; chapter body unavailable. Separately inspected comick.fun announcement states current product is tracking/community and no longer hosts manga reading.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://comick.fun/",
+      "finalUrl": "https://comick.fun/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "homes-wave19",
+      "status": 200,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Public official-domain announcement states Comick has become tracking/community, reading is no longer available, and links the new comick.dev domain. This is service-scope evidence, not a successful manga reader.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://rawdevart.art/",
+      "finalUrl": "https://rawdevart.art/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "extra-homes-wave19",
+      "status": 200,
+      "title": "Japanese Manga Raw - Rawdevart",
+      "imageCount": 5,
+      "canvasCount": 0,
+      "readerFinding": "Public chapter/read path found, but both headless and normal visible10s attempts show empty chapter-imgs and only logo/chat artwork. No body profile added from empty container.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://orchisasia.org/",
+      "finalUrl": "https://www.orchisasia.org/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "extra-homes-wave19",
+      "status": 200,
+      "title": "Read Hottest Smut Yaoi BL Manhwa & Manga for Free - Orchisasia",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage discovers normal creator-note chapter link; catalogue covers are not reader acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://ctccomic.com/",
+      "finalUrl": "https://ctccomic.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "extra-homes-wave19",
+      "status": 200,
+      "title": "Countdown to Countdown - 742",
+      "imageCount": 9,
+      "canvasCount": 0,
+      "readerFinding": "Actual single body img#cc-comic under #cc-comicbody > a loads900x1331 on homepage or900x1279 on first comic/000. Logo, sponsor, archive and unrelated images excluded. Homepage body is a verified reader exception, not blanket homepage detection.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://manhuabika.com/",
+      "finalUrl": "https://manhuabika.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "extra-homes-wave19",
+      "status": 200,
+      "title": "PicaWeb - 哔咔漫画网页版",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Public PicaWeb homepage accessible but no public chapter body/link established by this inspection.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 3
+    },
+    {
+      "url": "https://lmanga.com/",
+      "finalUrl": "https://lmanga.com/lander",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "extra-homes-wave19",
+      "status": 200,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Redirect to /lander with no confirmed manga body; not added as an alternative reader.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 3
+    },
+    {
+      "url": "https://greentoon.net/",
+      "finalUrl": "https://greentoon.net/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "extra-homes-wave19",
+      "status": 429,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "HTTP429; no body confirmed.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://pash-up.jp/content/00000001",
+      "finalUrl": "https://pash-up.jp/content/00000001",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "official-works-wave19",
+      "status": 200,
+      "title": "くま　クマ　熊　ベアー|PASH UP!",
+      "imageCount": 22,
+      "canvasCount": 0,
+      "readerFinding": "Public homepage/work page used only to find the normal free first-episode button; not chapter acceptance. Opaque public cid query omitted.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 4
+    },
+    {
+      "url": "https://web-ace.jp/youngaceup/",
+      "finalUrl": "https://web-ace.jp/youngaceup/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "official-works-wave19",
+      "status": 200,
+      "title": "ヤングエースUP公式サイト - 無料で漫画の最新話が読める！",
+      "imageCount": 84,
+      "canvasCount": 0,
+      "readerFinding": "Public WEB Ace/Young Ace Up catalogue links actual episodes to already-adapted ComicWalker. No standalone WEB Ace chapter body confirmed; no invented alias/profile.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://rawdevart.art/read/ne859000/chapter-15.2",
+      "finalUrl": "https://rawdevart.art/read/ne859000/chapter-15.2",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "rawdevart-reader-wave19",
+      "status": 200,
+      "title": "Magical ★ Explorer: Eroge no Yuujin Chara ni Tensei Shita kedo, Game Chishiki Tsukatte Jiyuu ni Ikiru Chapter 15.2 Next Chapter 16 - Rawdevart",
+      "imageCount": 4,
+      "canvasCount": 0,
+      "readerFinding": "Public chapter/read path found, but both headless and normal visible10s attempts show empty chapter-imgs and only logo/chat artwork. No body profile added from empty container.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://rawdevart.art/read/ne859000/chapter-15.2",
+      "finalUrl": "https://rawdevart.art/read/ne859000/chapter-15.2",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "rawdevart-normal-wave19",
+      "status": 200,
+      "title": "Magical ★ Explorer: Eroge no Yuujin Chara ni Tensei Shita kedo, Game Chishiki Tsukatte Jiyuu ni Ikiru Chapter 15.2 Next Chapter 16 - Rawdevart",
+      "imageCount": 4,
+      "canvasCount": 0,
+      "readerFinding": "Public chapter/read path found, but both headless and normal visible10s attempts show empty chapter-imgs and only logo/chat artwork. No body profile added from empty container.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://pash-up.jp/content/00000001",
+      "finalUrl": "https://pash-up.jp/content/00000001",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "pash-click-wave19",
+      "status": null,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Wrong popup assumption timed out; normal free link navigates the same tab. No chapter accepted from this failed attempt.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 100,
+      "error": "browserContext.waitForEvent: Timeout 15000ms exceeded while waiting for event \"page\""
+    },
+    {
+      "url": "https://pash-up.jp/content/00000001",
+      "finalUrl": "https://pash-up.jp/viewer/viewer.html",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "pash-normal-click-wave19",
+      "status": 200,
+      "title": "第1話 - くま　クマ　熊　ベアー",
+      "imageCount": 4,
+      "canvasCount": 5,
+      "readerFinding": "Short settling produced gray canvas/loading image, not verified body. Actual gray screenshot reviewed; nonblank alpha alone did not establish comic content.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 93
+    },
+    {
+      "url": "https://pash-up.jp/content/00000001",
+      "finalUrl": "https://pash-up.jp/viewer/viewer.html",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "pash-two-turns-wave19",
+      "status": 200,
+      "title": "",
+      "imageCount": 4,
+      "canvasCount": 5,
+      "readerFinding": "Short settling produced gray canvas/loading image, not verified body. Actual gray screenshot reviewed; nonblank alpha alone did not establish comic content.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 11
+    },
+    {
+      "url": "https://www.ctccomic.com/comic/742",
+      "finalUrl": "https://www.ctccomic.com/comic/742",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "ctc-readers-retry-wave19",
+      "status": 200,
+      "title": "Countdown to Countdown -",
+      "imageCount": 8,
+      "canvasCount": 0,
+      "readerFinding": "HTTP200 chapter742 had no loaded body during this attempt. Failure retained; not chapter acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://www.ctccomic.com/comic/000",
+      "finalUrl": "https://www.ctccomic.com/comic/000",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "ctc-readers-retry-wave19",
+      "status": 200,
+      "title": "Countdown to Countdown -",
+      "imageCount": 9,
+      "canvasCount": 0,
+      "readerFinding": "Actual single body img#cc-comic under #cc-comicbody > a loads900x1331 on homepage or900x1279 on first comic/000. Logo, sponsor, archive and unrelated images excluded. Homepage body is a verified reader exception, not blanket homepage detection.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://www.orchisasia.org/comic/dear-door-uncensored-version/0166-chapter-163-5-creators-note/",
+      "finalUrl": "https://www.orchisasia.org/comic/dear-door-uncensored-version/0166-chapter-163-5-creators-note/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "orchis-note-wave19",
+      "status": 200,
+      "title": "DEAR. DOOR UNCENSORED Smut BL Yaoi Manhwa › orchisasia.org",
+      "imageCount": 6,
+      "canvasCount": 0,
+      "readerFinding": "Public creator-note chapter has five loaded720px-wide body strips, heights5120 or4160, under read-container/reading-content/page-break/img.wp-manga-chapter-img. Existing segmented pipeline reused. No mature artwork emitted or quality acceptance inferred.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://pash-up.jp/content/00000001",
+      "finalUrl": "https://pash-up.jp/viewer/viewer.html",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "pash-settle-wave19",
+      "status": 200,
+      "title": "",
+      "imageCount": 4,
+      "canvasCount": 5,
+      "readerFinding": "Normal free first-episode button with 15s settling displays actual Japanese comic art and text. Current viewport1/currentScreen canvas2544x1632 is readable; dummy, hidden frontScreen and inactive buffer are excluded. Earlier gray/loading attempts retained. Opaque public cid query omitted.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 18
+    },
+    {
+      "url": "https://mangamillion.shueisha.co.jp/zh-CN",
+      "finalUrl": "https://mangamillion.shueisha.co.jp/zh-CN",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "million-cookie-wave19",
+      "status": 200,
+      "title": "百万漫画 | 百万译后漫画",
+      "imageCount": 75,
+      "canvasCount": 0,
+      "readerFinding": "Homepage now renders catalogue after normal reject-all cookie action; previous service-error page retained. Homepage artwork does not establish chapter acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 48
+    },
+    {
+      "url": "https://mangamillion.shueisha.co.jp/zh-CN/title/1",
+      "finalUrl": "https://mangamillion.shueisha.co.jp/zh-CN/title/1",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "million-title-wave19",
+      "status": 200,
+      "title": "航海王 - 尾田荣一郎 | MANGA MILLION",
+      "imageCount": 23,
+      "canvasCount": 0,
+      "readerFinding": "Public One Piece work page exposes normal numbered chapter links, including free first chapter66193. Covers/work listing are not reader acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://mangamillion.shueisha.co.jp/zh-CN/title/1/chapter/66193",
+      "finalUrl": "https://mangamillion.shueisha.co.jp/zh-CN/title/1/chapter/66193",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "million-chapter-wave19",
+      "status": 200,
+      "title": "《航海王》 第#001话 | 百万漫画",
+      "imageCount": 9,
+      "canvasCount": 0,
+      "readerFinding": "Public free first chapter66193 displays three loaded694x1080 body images with numbered page_ alt under CSS-module slide/spread/page_container/placeholder. Reading guide overlay is present and has normal Close manga tutorial control; guide artwork and recommended covers excluded.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 3
+    },
+    {
+      "url": "https://pash-up.jp/content/00000001",
+      "finalUrl": "https://pash-up.jp/viewer/viewer.html",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-homepage-and-official-readers-wave19",
+      "attempt": "pash-dialogue-body-wave19",
+      "status": 200,
+      "title": "",
+      "imageCount": 4,
+      "canvasCount": 5,
+      "readerFinding": "After actual15s body readiness, two normal ArrowLeft keys display a Japanese dialogue spread with intact readable active viewport canvas. Extension-free screenshot reviewed; no hidden API or arbitrary page navigation.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 18
     }
   ],
   "verification": {
@@ -11770,6 +12632,331 @@
       "scope": "Two2048px reading parts of the same already-visible800x10000 strip, starting at index1, using existing production PaddleOCR and Google. Model files imported through existing verified importer. Scope and quality finding must follow actual final result; not whole chapter or default-language acceptance.",
       "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-nyx-segments-wave18",
       "qualityFinding": "Viewed both actual800x2048 outputs: English cooking/cleaning dialogue becomes readable Chinese inside bubbles. Korean artistic sound effects remain original. Second bubble splits a Chinese word across lines and phrasing is stiff; no full-chapter or comprehensive quality acceptance."
+    },
+    "publicHomepageOfficialReadersUnit": {
+      "result": "passed",
+      "files": 7,
+      "cases": 482,
+      "fourDimensionalCoverage": "100% for eight manga config, source authorization, reader and surface modules",
+      "scope": "Three image profiles and one current-screen readable-canvas profile. Real homepage body exception, exact host/path, outside cover/guide/buffer exclusion, dynamic DOM, pause/restore, removal and chapter boundaries. No protocol, permissions or model changes."
+    },
+    "publicHomepageOfficialReadersEntries": {
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "result": "passed",
+      "cases": 23,
+      "baseCases": 18,
+      "scope": "Pure icon plus five actual public entries across four adapted sites; background visible temporary Edge. No OCR in this entry suite.",
+      "publicReaders": [
+        {
+          "requestedUrl": "https://ctccomic.com/",
+          "finalUrl": "https://ctccomic.com/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 1,
+          "loadedBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://www.ctccomic.com/comic/000",
+          "finalUrl": "https://www.ctccomic.com/comic/000",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 1,
+          "loadedBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://www.orchisasia.org/comic/dear-door-uncensored-version/0166-chapter-163-5-creators-note/",
+          "finalUrl": "https://www.orchisasia.org/comic/dear-door-uncensored-version/0166-chapter-163-5-creators-note/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 5,
+          "loadedBodyElements": 5,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://pash-up.jp/content/00000001",
+          "finalUrl": "https://pash-up.jp/viewer/viewer.html",
+          "status": 200,
+          "mode": "canvas",
+          "bodyElements": 1,
+          "loadedBodyElements": 0,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://mangamillion.shueisha.co.jp/zh-CN/title/1/chapter/66193",
+          "finalUrl": "https://mangamillion.shueisha.co.jp/zh-CN/title/1/chapter/66193",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 3,
+          "loadedBodyElements": 3,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "hostErrors": []
+    },
+    "countdownHomepageTranslation": {
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the resident brand icon"
+      ],
+      "sourceLanguage": "en",
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 22868,
+          "includesFirstModelPreparation": true
+        }
+      ],
+      "firstOperationCount": 1,
+      "operations": 1,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "result": "passed",
+      "scope": "One actual single homepage body with production PaddleOCR and Google. No next-page/whole-chapter acceptance.",
+      "hostErrorCount": 0,
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-ctc-home-wave19",
+      "qualityFinding": "Actual output screenshot reviewed. Good luck and a caption become Chinese, but several bubbles are extremely small; proper-name and split/space-missing OCR fragments cause mistranslations. Structure, original restoration and reuse pass; typography and full translation quality remain unresolved.",
+      "outputsViewed": true
+    },
+    "publicHomepageOfficialReadersBuilds": {
+      "chrome": "passed (29.1s)",
+      "firefox": "passed (36.1s)",
+      "userscript": "passed (4.41s)",
+      "compile": "passed",
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "Verified .output/userscript/fluent-read.user.js (1,917,294 bytes)",
+      "testAudit": "468 files / 6088 declarations",
+      "selectedContracts": "2 files / 809 cases passed",
+      "scope": "Final four reader profiles. Diagnostic settling and actual single-page scope added. No Firefox/userscript runtime, full architecture suite or full235 chapter-quality acceptance; earlier baseline failures retained."
+    },
+    "pashCurrentCanvasTranslation": {
+      "cases": [],
+      "sourceLanguage": "ja",
+      "canvasSource": [
+        {
+          "id": "",
+          "width": 2544,
+          "height": 1632,
+          "style": "width: 1272px; height: 816px;",
+          "className": "",
+          "hash": 363001830
+        }
+      ],
+      "canvasReader": {
+        "selector": "#viewer > #renderer > :is(#viewport0, #viewport1).currentScreen > canvas",
+        "openSelector": "a.c-btn_read01[data-point=\"0\"]",
+        "initialTurns": 0,
+        "turnKey": "ArrowLeft",
+        "turnCount": 1
+      },
+      "operations": 1,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "result": "failed",
+      "scope": "Actual current visible free chapter canvas and normal public arrow-key turns with production PaddleOCR and Google. No private API or opaque cid persisted; no whole-chapter quality acceptance.",
+      "hostErrorCount": 0,
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-pash-wave19",
+      "failure": "Error: Timed out: public readable canvas runs real manga OCR and translated overlay without changing the source; image controls: null",
+      "qualityFinding": "Failure screenshot reviewed: original outlined Japanese narration remains; one image operation and no accepted text batches. No translated output or chapter-turn acceptance.",
+      "outputsViewed": true
+    },
+    "pashDialogueCanvasTranslation": {
+      "cases": [
+        "public readable canvas runs real manga OCR and translated overlay without changing the source",
+        "pause restores the original canvas and repeated activation reuses the translated page"
+      ],
+      "sourceLanguage": "ja",
+      "canvasFirstPageMs": 62546,
+      "canvasSource": [
+        {
+          "id": "",
+          "width": 2544,
+          "height": 1632,
+          "style": "width: 1272px; height: 816px;",
+          "className": "",
+          "hash": 2166511778
+        }
+      ],
+      "translatedCanvasPixels": [
+        {
+          "width": 2544,
+          "height": 1632,
+          "hash": 3581236935
+        }
+      ],
+      "canvasStableAfterPointerExit": true,
+      "canvasReader": {
+        "selector": "#viewer > #renderer > :is(#viewport0, #viewport1).currentScreen > canvas",
+        "openSelector": "a.c-btn_read01[data-point=\"0\"]",
+        "initialTurns": 2,
+        "turnKey": "ArrowLeft",
+        "turnCount": 1,
+        "readySettleMs": 15000
+      },
+      "operations": 1,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "result": "failed",
+      "scope": "Plain-bubble spread after two normal initial ArrowLeft turns; current canvas, pause/reuse and one further normal turn with production PaddleOCR and Google. Not whole chapter or quality acceptance.",
+      "hostErrorCount": 0,
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-pash-dialogue-wave19",
+      "failure": "Error: Timed out: normal chapter turn translates new canvas pages through the same serial queue; image controls: null",
+      "qualityFinding": "Original and translated screenshots reviewed. Several normal Japanese dialogue regions become visible Chinese and bear-set label is translated. Short replies, artistic text and some Japanese remain, one bubble edge/artwork is visibly affected, and several lines mistranslate. First translation/pause/reuse pass; turn wait failed with one operation and screenshot still on the same spread. No full continuation or quality acceptance.",
+      "outputsViewed": true
+    },
+    "pashTurnDiagnosticTranslation": {
+      "cases": [
+        "public readable canvas runs real manga OCR and translated overlay without changing the source",
+        "pause restores the original canvas and repeated activation reuses the translated page"
+      ],
+      "sourceLanguage": "ja",
+      "canvasFirstPageMs": 66256,
+      "canvasSource": [
+        {
+          "id": "",
+          "width": 2544,
+          "height": 1632,
+          "style": "width: 1272px; height: 816px;",
+          "className": "",
+          "hash": 2166511778
+        }
+      ],
+      "translatedCanvasPixels": [
+        {
+          "width": 2544,
+          "height": 1632,
+          "hash": 3581236935
+        }
+      ],
+      "canvasStableAfterPointerExit": true,
+      "canvasReader": {
+        "selector": "#viewer > #renderer > :is(#viewport0, #viewport1).currentScreen > canvas",
+        "openSelector": "a.c-btn_read01[data-point=\"0\"]",
+        "initialTurns": 2,
+        "turnKey": "ArrowLeft",
+        "turnCount": 1,
+        "readySettleMs": 15000
+      },
+      "canvasTurn": {
+        "before": [
+          {
+            "width": 2544,
+            "height": 1632,
+            "hash": 2560525883
+          }
+        ],
+        "after": [
+          {
+            "width": 2544,
+            "height": 1632,
+            "hash": 2560525883
+          }
+        ]
+      },
+      "operations": 1,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "result": "failed",
+      "scope": "Same actual dialogue spread with pointer returned to body and one normal ArrowLeft. Public before/after canvas fingerprints distinguish navigation from OCR scheduling; no whole-chapter or quality acceptance.",
+      "hostErrorCount": 0,
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-pash-turn-diagnostic-wave19",
+      "failure": "Error: Timed out: normal chapter turn translates new canvas pages through the same serial queue; image controls: null",
+      "outputsViewed": true,
+      "qualityFinding": "Source canvas before/after fingerprints are identical after ArrowLeft; one operation only, and waiting for source change fails. No native turn occurred in this browser attempt; not evidence of OCR scheduling failure. Separate normal click attempt passes."
+    },
+    "pashClickTurnTranslation": {
+      "cases": [
+        "public readable canvas runs real manga OCR and translated overlay without changing the source",
+        "pause restores the original canvas and repeated activation reuses the translated page",
+        "normal chapter turn translates new canvas pages through the same serial queue",
+        "master switch restores the chapter and removes canvas translation UI"
+      ],
+      "sourceLanguage": "ja",
+      "canvasFirstPageMs": 60115,
+      "canvasSource": [
+        {
+          "id": "",
+          "width": 2544,
+          "height": 1632,
+          "style": "width: 1272px; height: 816px;",
+          "className": "",
+          "hash": 2166511778
+        }
+      ],
+      "translatedCanvasPixels": [
+        {
+          "width": 2544,
+          "height": 1632,
+          "hash": 3581236935
+        }
+      ],
+      "canvasStableAfterPointerExit": true,
+      "canvasReader": {
+        "selector": "#viewer > #renderer > :is(#viewport0, #viewport1).currentScreen > canvas",
+        "openSelector": "a.c-btn_read01[data-point=\"0\"]",
+        "initialTurns": 2,
+        "turnKey": "ArrowLeft",
+        "turnCount": 1,
+        "readySettleMs": 15000,
+        "nextClickSelector": "#viewer",
+        "nextClickPosition": [
+          30,
+          400
+        ]
+      },
+      "canvasTurn": {
+        "before": [
+          {
+            "width": 2544,
+            "height": 1632,
+            "hash": 2560525883
+          }
+        ],
+        "mode": "normal-public-click",
+        "activeElement": {
+          "tag": "BODY",
+          "id": ""
+        },
+        "after": [
+          {
+            "width": 2544,
+            "height": 1632,
+            "hash": 1356758849
+          }
+        ]
+      },
+      "operations": 2,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "result": "passed",
+      "scope": "Same public dialogue spread with one normal viewer left-side click. Source before/after pixel fingerprints and active-element metadata distinguish actual native navigation from translated-overlay processing. No private API or whole-chapter acceptance.",
+      "hostErrorCount": 0,
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-pash-click-turn-wave19",
+      "outputsViewed": true,
+      "qualityFinding": "Actual first output PNG and next-spread screenshot reviewed. Two operations, original pause/reuse, visible output after normal public viewer click and master cleanup pass; before/after canvas fingerprints differ. Plain bubbles and equipment description become Chinese, but short Japanese replies, outlined/handwritten text and many vertical fragments remain. Several translations are wrong, font sizes vary widely and bubble/art edges can be affected. Arrow-key attempts and outlined-opening failure retained; no whole chapter or quality acceptance."
     }
   }
 }

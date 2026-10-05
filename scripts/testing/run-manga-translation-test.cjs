@@ -23,6 +23,7 @@ assert.ok([canvasReaderTest,backgroundReaderTest,segmentReaderTest].filter(Boole
 if(segmentReaderTest)assert.ok(liveSite&&readerSmoke&&Number.isInteger(segmentStart)&&segmentStart>=0&&segmentStart<=40,'Segments require a live reader smoke with a bounded start index');
 const surfaceReaderTest = canvasReaderTest || backgroundReaderTest;
 const qualityPages = Number(arg('quality-pages','2'));
+assert.ok(Number.isInteger(qualityPages)&&qualityPages>=1&&qualityPages<=10,'Public image quality samples must contain 1–10 pages');
 const blockedOfficial = process.argv.includes('--blocked-official');
 const blockedAll = process.argv.includes('--blocked-all-model-sources');
 const offlineModels = arg('offline-models-dir',null);
@@ -47,6 +48,7 @@ const targetUrl = arg('site-url','https://mangaplus.shueisha.co.jp/viewer/102405
 const pixiv=targetUrl.includes('pixiv.net/artworks/');
 const explicitReaderSelector=arg('reader-selector',null);
 if(explicitReaderSelector)assert.ok(readerSmoke && liveSite && !pixiv && !surfaceReaderTest,'Explicit image selectors are limited to live reader smoke checks');
+if(qualityPages===1)assert.ok(explicitReaderSelector&&readerSmoke&&liveSite&&!segmentReaderTest,'A single body page requires an explicit public image reader smoke');
 const readerStartIndex=Number(arg('reader-start-index','0'));
 assert.ok(Number.isInteger(readerStartIndex)&&readerStartIndex>=0&&readerStartIndex<=40,'Reader start index must be a bounded body image index');
 if(readerStartIndex)assert.ok(explicitReaderSelector&&liveSite&&readerSmoke&&!segmentReaderTest,'A start index requires an explicit public image reader smoke');
@@ -58,6 +60,13 @@ const canvasOpenSelector=arg('canvas-open-selector',explicitCanvasSelector?null:
 const canvasInitialTurns=Number(arg('canvas-initial-turns',explicitCanvasSelector?'0':'2'));
 const canvasTurnKey=arg('canvas-turn-key','ArrowLeft');
 const canvasTurnCount=Number(arg('canvas-turn-count','2'));
+const canvasNextClickSelector=arg('canvas-next-click-selector',null);
+const canvasNextClickPosition=arg('canvas-next-click-position',null)?.split(',').map(Number);
+if(canvasNextClickSelector)assert.ok(surfaceReaderTest&&liveSite&&explicitCanvasSelector&&canvasNextClickPosition?.length===2&&canvasNextClickPosition.every(value=>Number.isInteger(value)&&value>=0&&value<=4096),'Public canvas click turns require an explicit surface and bounded x,y coordinates');
+else assert.equal(canvasNextClickPosition,undefined,'Click coordinates require a public canvas selector');
+const canvasReadySettleMs=Number(arg('canvas-ready-settle-ms','0'));
+assert.ok(Number.isInteger(canvasReadySettleMs)&&canvasReadySettleMs>=0&&canvasReadySettleMs<=30000,'Canvas settling time must be 0–30000ms');
+if(canvasReadySettleMs)assert.ok(surfaceReaderTest&&liveSite,'Canvas settling is limited to public live surface checks');
 if(explicitCanvasSelector)assert.ok(surfaceReaderTest && liveSite,'Explicit canvas selectors are limited to live public canvas chapters');
 if(surfaceReaderTest){
     assert.ok(Number.isInteger(canvasInitialTurns)&&canvasInitialTurns>=0&&canvasInitialTurns<=4,'Initial canvas turns must be 0–4');
@@ -81,7 +90,7 @@ const report = {site: liveSite ? 'live MANGA Plus' : 'controlled MANGA Plus read
     translation: liveTranslation ? 'live Google' : 'deterministic Google text transport',
     ocr: ['ru','ko'].includes(sourceLanguage) ? 'real production Tesseract with manga cleanup and typesetting' : 'real production PaddleOCR', cases: [], screenshots: [], errors: [], hostErrors: [], pageErrors: [], consoleErrors: []};
 if(pixiv)report.site='live Pixiv artwork 150354216';
-if(surfaceReaderTest){report.site=`live readable ${backgroundReaderTest?'background':'canvas'} chapter: ${targetUrl}`;report.canvasReader={selector:readerSelector,openSelector:canvasOpenSelector,initialTurns:canvasInitialTurns,turnKey:canvasTurnKey,turnCount:canvasTurnCount};}
+if(surfaceReaderTest){report.site=`live readable ${backgroundReaderTest?'background':'canvas'} chapter: ${targetUrl}`;report.canvasReader={selector:readerSelector,openSelector:canvasOpenSelector,initialTurns:canvasInitialTurns,turnKey:canvasTurnKey,turnCount:canvasTurnCount,readySettleMs:canvasReadySettleMs,nextClickSelector:canvasNextClickSelector,nextClickPosition:canvasNextClickPosition};}
 if(explicitReaderSelector){report.site=`live image chapter: ${targetUrl}`;report.readerSelector=explicitReaderSelector;}
 report.prefetchPages=prefetchPages;
 report.sourceLanguage=sourceLanguage;report.readerOpenSelector=readerOpenSelector;report.readerScrollSelector=readerScrollSelector;
@@ -199,7 +208,7 @@ async function verifyCanvasReader() {
             return {id:c.id,width:target.width,height:target.height,style:c.getAttribute('style'),className:c.className,hash:hash>>>0};
         } finally {if(image){image.src='';target.width=target.height=0;}}
     })));
-    const original=await snapshot();report.canvasSource=original;
+    const original=await snapshot();report.canvasSource=original;await screenshot('canvas-original');
     report.currentCase=`public readable ${backgroundReaderTest?'background':'canvas'} runs real manga OCR and translated overlay without changing the source`;
     const started=Date.now();await toggle();
     await wait(async()=>(await visibleSurfaces())>0 && await ball('return this.querySelector(".floating-ball-manga").getAttribute("aria-busy") === "false"'),300000);
@@ -222,7 +231,23 @@ async function verifyCanvasReader() {
     await toggle();await wait(async()=>(await visibleSurfaces())===0);assert.deepEqual(await snapshot(),original);
     await toggle();await wait(async()=>(await visibleSurfaces())>0);assert.equal(await ops(),operations);report.cases.push(report.currentCase);
     report.currentCase='normal chapter turn translates new canvas pages through the same serial queue';
-    for(let turn=0;turn<canvasTurnCount;turn++)await page.keyboard.press(canvasTurnKey);
+    // 先把指针移回公开正文，再发送源站翻页键；不把未发生的翻页误报成 OCR 等待。
+    const target=await page.locator(readerSelector).first().boundingBox();
+    assert.ok(target&&target.width>80&&target.height>40,'Public chapter surface remains available before turning');
+    await page.mouse.move(Math.max(1,Math.min(1200,target.x+target.width/2)),Math.max(1,Math.min(700,target.y+target.height/2)));
+    const fingerprint=()=>page.locator(readerSelector).evaluateAll((elements,background)=>elements.flatMap(element=>{
+        const rect=element.getBoundingClientRect();if(rect.width<=80||rect.height<=40||rect.left>=innerWidth||rect.right<=0||rect.top>=innerHeight||rect.bottom<=0)return [];
+        let hash=2166136261;
+        if(background){for(const char of getComputedStyle(element).backgroundImage)hash=Math.imul(hash^char.charCodeAt(0),16777619);}
+        else {const context=element.getContext('2d');for(let y=0;y<8;y++)for(let x=0;x<8;x++)for(const value of context.getImageData(Math.floor((x+.5)*element.width/8),Math.floor((y+.5)*element.height/8),1,1).data)hash=Math.imul(hash^value,16777619);}
+        return [{width:element.width||Math.round(rect.width),height:element.height||Math.round(rect.height),hash:hash>>>0}];
+    }),backgroundReaderTest);
+    const beforeTurn=await fingerprint();report.canvasTurn={before:beforeTurn,mode:canvasNextClickSelector?'normal-public-click':'normal-arrow-key',activeElement:await page.evaluate(()=>({tag:document.activeElement?.tagName,id:document.activeElement?.id}))};
+    for(let turn=0;turn<canvasTurnCount;turn++){
+        if(canvasNextClickSelector)await page.locator(canvasNextClickSelector).click({position:{x:canvasNextClickPosition[0],y:canvasNextClickPosition[1]},timeout:15000});
+        else await page.keyboard.press(canvasTurnKey);
+    }
+    await wait(async()=>{const after=await fingerprint();report.canvasTurn.after=after;return after.length>0&&JSON.stringify(after)!==JSON.stringify(beforeTurn);},10000);
     await wait(async()=>(await ops())>operations && await ball('return this.querySelector(".floating-ball-manga").getAttribute("aria-busy") === "false"'),300000);
     assert.ok((await visibleSurfaces())>0);await screenshot('canvas-next-pages');report.cases.push(report.currentCase);
     report.currentCase='master switch restores the chapter and removes canvas translation UI';
@@ -980,7 +1005,7 @@ async function verifyReadAhead() {
                 if(background)return getComputedStyle(c).backgroundImage.startsWith('url(\"blob:');
                 try{return c.getContext('2d').getImageData(Math.floor(c.width/2),Math.floor(c.height/2),1,1).data[3]>0;}catch{return false;}
             }),{selector:readerSelector,background:backgroundReaderTest});
-            await page.waitForTimeout(900);
+            await page.waitForTimeout(900+canvasReadySettleMs);
         }
         for(let turn=0;turn<canvasInitialTurns;turn++){await page.keyboard.press(canvasTurnKey);await page.waitForTimeout(900);}
     }
@@ -1062,6 +1087,7 @@ async function verifyReadAhead() {
     assert.deepEqual(await source.evaluate(i=>({src:i.src,srcset:i.getAttribute('srcset'),sizes:i.getAttribute('sizes'),style:i.getAttribute('style')})),original);
     const before=await ops();await toggle();await wait(async()=>(await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`))>0);
     assert.equal(await ops(),before);report.cases.push(report.currentCase);
+    if(qualityPages>=2){
     report.currentCase=readerNextSelector?'normal reader page turn translates a new visible page':'scroll automatically translates a new visible page';
     const second=page.locator(readerSelector).nth(readerStartIndex+1);started=Date.now();await scrollReaderImage(readerStartIndex+1);
     await captureSource(second,'02');
@@ -1074,6 +1100,7 @@ async function verifyReadAhead() {
     report.scrollOperationCounts={before,after:afterScroll,mode:afterScroll>before?'new-operation':'existing-result'};
     report.pageDurationsMs.push({page:2,ms:Date.now()-started,mayIncludeFirstInpaintingPreparation:true});
     await screenshot('02-scrolled-translated');report.cases.push(report.currentCase);
+    }else report.singlePageScope='One public body image only; activation, actual OCR/translation, original restoration and cached resume. No next-page or whole-chapter claim.';
     if(liveSite)for(let index=2;index<qualityPages;index++){
         if(index===3 && readingPauseMs){report.readingPauseMs=readingPauseMs;await page.waitForTimeout(Math.min(60000,readingPauseMs));if(readingPauseMs>60000)await page.waitForTimeout(readingPauseMs-60000);}
         report.currentCase=`live page ${index+1} translates automatically`;

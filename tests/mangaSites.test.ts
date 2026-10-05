@@ -6,6 +6,43 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it('MANGA Million 语言路径与编号章节仅选择正文页，排除阅读指南、推荐封面与无编号图片', () => {
+        const site = resolveMangaSite('https://mangamillion.shueisha.co.jp/zh-CN/title/1/chapter/66193')!;
+        expect(site).toMatchObject({name: 'MANGA Million', requireContent: true});
+        const {document} = parseHTML('<img id="guide" class="G54Y0W_page" alt="page_0"><div class="eAvsta_slide_container"><div class="-KWKsa_spread"><div class="_b9ZNa_page_container"><div class="__wfZG_placeholder"><img id="body" class="G54Y0W_page" alt="page_1" width="694" height="1080"><img id="ad" class="G54Y0W_page" alt="advertisement"></div><img id="outside" class="G54Y0W_page" alt="page_2"></div></div></div>');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['body']);
+        expect(resolveMangaReaderProfile('mangamillion.shueisha.co.jp', '/en/title/1/chapter/2/')).toBeTruthy();
+        for (const path of ['/', '/zh-CN', '/zh-CN/title/1', '/zh-CN/title/one/chapter/2', '/zh-CN/title/1/chapter/2/extra']) expect(resolveMangaReaderProfile('mangamillion.shueisha.co.jp', path)).toBeNull();
+        expect(resolveMangaReaderProfile('mangamillion.shueisha.co.jp.attacker.test', '/zh-CN/title/1/chapter/2')).toBeNull();
+    });
+    it('PASH UP 仅选择当前屏的公开正文画布，排除离屏缓冲、加载图与交互层', () => {
+        const site = resolveMangaSite('https://pash-up.jp/viewer/viewer.html?cid=public-chapter')!;
+        expect(site).toMatchObject({name: 'PASH UP', selector: ':not(*)', requireContent: true});
+        const {document} = parseHTML('<div id="viewer"><div id="renderer"><canvas id="dummy"></canvas><div id="viewport0"><canvas id="buffer"></canvas></div><div id="viewport1" class="currentScreen"><canvas id="body"></canvas></div><div id="frontScreen"><canvas id="front"></canvas></div></div><img class="loadingImage"></div><div class="currentScreen"><canvas id="outside"></canvas></div>');
+        expect([...document.querySelectorAll(site.canvasSelector!)].map(canvas => canvas.id)).toEqual(['body']);
+        document.querySelector('#viewport1')!.className = '';document.querySelector('#viewport0')!.className = 'currentScreen';
+        expect([...document.querySelectorAll(site.canvasSelector!)].map(canvas => canvas.id)).toEqual(['buffer']);
+        expect(site.areaSelector).toBe(site.canvasSelector);expect(document.querySelectorAll(site.selector)).toHaveLength(0);
+        for (const path of ['/', '/content/00000001', '/viewer/other.html', '/viewer/viewer.html/extra']) expect(resolveMangaReaderProfile('pash-up.jp', path)).toBeNull();
+        expect(resolveMangaReaderProfile('pash-up.jp.attacker.test', '/viewer/viewer.html')).toBeNull();
+    });
+    it.each(['/', '/comic/000', '/comic/742/'])('Countdown 主页及数字阅读页 %s 只接入正文，排除 logo 与赞助图', path => {
+        const site = resolveMangaSite(`https://www.ctccomic.com${path}`)!;
+        expect(site).toMatchObject({name: 'Countdown to Countdown', custom: false, requireContent: true});
+        const {document} = parseHTML('<header><a id="logo"><img id="site-logo" width="645" height="565"></a></header><div id="middle-left"><div id="cc-comicbody"><a><img id="cc-comic" width="900" height="1331"></a><aside><img id="sponsor"></aside></div></div><img id="other" width="900" height="1331">');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['cc-comic']);
+        for (const invalid of ['/comic/archive', '/comic/rss', '/about', '/comic/word', '/comic/000/extra']) expect(resolveMangaReaderProfile('ctccomic.com', invalid)).toBeNull();
+        for (const fake of ['ctccomic.com.attacker.test', 'fakectccomic.com']) expect(resolveMangaReaderProfile(fake, path)).toBeNull();
+    });
+    it('Orchisasia 编号章节正文规则排除导航与推荐，保留作者后记与小数章节边界', () => {
+        const site = resolveMangaSite('https://www.orchisasia.org/comic/story/0166-chapter-163-5-creators-note/')!;
+        expect(site).toMatchObject({name: 'Orchisasia', custom: false, requireContent: true});
+        const {document} = parseHTML('<header><img id="logo"></header><div class="read-container"><div class="reading-content"><div class="page-break no-gaps"><img id="body" class="wp-manga-chapter-img" width="720" height="5120"></div><aside><img id="ad" class="wp-manga-chapter-img"></aside></div></div><div class="page-break"><img id="outside" class="wp-manga-chapter-img"></div>');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['body']);
+        expect(resolveMangaReaderProfile('orchisasia.org', '/comic/story/0001-chapter-1.5')).toBeTruthy();
+        for (const path of ['/', '/comic/story', '/comic/story/chapter-1', '/comic/story/0001-chapter-word', '/comic/story/0001-chapter-1/extra']) expect(resolveMangaReaderProfile('orchisasia.org', path)).toBeNull();
+        expect(resolveMangaReaderProfile('orchisasia.org.attacker.test', '/comic/story/0001-chapter-1')).toBeNull();
+    });
     it.each([
         ['qimanga.com', 'Qi Manga', '<header><img id="logo" class="r-page-img"></header><app-reader><div class="r-strip"><div class="r-page" data-page="1"><img id="body" class="r-page-img" width="800" height="15525"></div><div class="r-page"><img id="placeholder" class="r-page-img"></div><aside><img id="ad" class="r-page-img"></aside></div></app-reader><div class="r-page" data-page="2"><img id="cover" class="r-page-img"></div>'],
         ['nyxscans.com', 'Nyx Scans', '<header><img id="cover"></header><div class="comic-body-container"><div class="comic-images-wrapper reader-mode-strip"><figure class="image-container"><img id="body" width="800" height="10000"></figure><aside><img id="ad"></aside></div></div><figure class="image-container"><img id="outside"></figure>'],
@@ -410,13 +447,14 @@ describe('漫画阅读规则与持久偏好', () => {
         expect(normalizeConfig({}).imageTranslationMangaCachePages).toBe(12);
         for(const [input,output] of [[0,1],[3.9,3],[24,24],[999,24]])expect(normalizeConfig({imageTranslationMangaCachePages:input}).imageTranslationMangaCachePages).toBe(output);
     });
-    it('网站目录精确匹配含国际化域名；目录表示检测范围，不把首页当成阅读页', () => {
+    it('网站目录精确匹配含国际化域名；除已核对有正文的 Countdown 主页外，不把首页当成阅读页', () => {
         expect(new Set(MANGA_SITE_DOMAINS).size).toBe(MANGA_SITE_DOMAINS.length);
         for (const hostname of MANGA_SITE_DOMAINS) {
             expect(isCatalogMangaHost(hostname)).toBe(true);
             expect(isCatalogMangaHost(`reader.${hostname}`)).toBe(true);
             expect(isCatalogMangaHost(`${hostname}.attacker.test`)).toBe(false);
-            expect(resolveMangaSite(`https://${hostname}/`)).toBeNull();
+            if (hostname === 'ctccomic.com') expect(resolveMangaSite(`https://${hostname}/`)).toMatchObject({requireContent: true, selector: '#cc-comicbody > a > img#cc-comic'});
+            else expect(resolveMangaSite(`https://${hostname}/`)).toBeNull();
             expect(resolveMangaSite(`https://${hostname}/catalogue/123`)).toMatchObject({generic:true});
         }
         expect(isCatalogMangaHost('localhost')).toBe(false);

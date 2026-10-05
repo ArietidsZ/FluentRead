@@ -189,14 +189,34 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it('PASH UP 当前屏动态加载后调度画布，暂停恢复和移除清理不处理缓冲屏', async () => {
+        const canvasPorts = {identity: vi.fn().mockReturnValue('current-page'), translate: vi.fn().mockResolvedValue(undefined), reuse: vi.fn().mockReturnValue(false), restore: vi.fn(), release: vi.fn(), failed: vi.fn().mockReturnValue(false), update: vi.fn()};
+        const f = readerFixture(false, 'https://pash-up.jp/viewer/viewer.html?cid=public-chapter', undefined, undefined, undefined, canvasPorts);
+        expect(f.reader.status().available).toBe(false);
+        const viewer = f.document.createElement('div');viewer.id = 'viewer';viewer.innerHTML = '<div id="renderer"><div id="viewport0"></div><div id="viewport1" class="currentScreen"></div></div>';
+        for (const id of ['viewport0', 'viewport1']) {const canvas = f.document.createElement('canvas');canvas.width = 2544;canvas.height = 1632;canvas.getBoundingClientRect = () => ({left: 0, right: 1272, top: 0, bottom: 816, width: 1272, height: 816}) as DOMRect;viewer.querySelector(`#${id}`)!.append(canvas);}
+        f.document.body.append(viewer);f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available: true, pageCount: 1, areaFallback: false});
+        const body = viewer.querySelector('#viewport1 canvas')!;f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledOnce();expect(canvasPorts.translate).toHaveBeenCalledWith(body);
+        f.reader.toggle();expect(canvasPorts.restore).toHaveBeenCalledWith(body);canvasPorts.reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledOnce();
+        viewer.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);expect(canvasPorts.release).toHaveBeenCalledWith(body);f.reader.dispose();
+    });
+    it.each(['https://ctccomic.com/', 'https://www.ctccomic.com/comic/000'])('Countdown %s 正文加载后可连续翻译，主页标识不发布漫画入口', async href => {
+        const f = readerFixture(false, href);expect(f.reader.status().available).toBe(false);
+        const root = f.document.createElement('div');root.id = 'cc-comicbody';const link = f.document.createElement('a');f.image.id = 'cc-comic';link.append(f.image);root.append(link);f.document.body.append(root);
+        f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available: true, pageCount: 1});
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);
+        f.image.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
     it.each([
+        ['https://mangamillion.shueisha.co.jp/zh-CN/title/1/chapter/66193', '<div class="eAvsta_slide_container"><div class="-KWKsa_spread"><div class="_b9ZNa_page_container"><div class="__wfZG_placeholder"></div></div></div></div>', 'div.__wfZG_placeholder'],
+        ['https://www.orchisasia.org/comic/story/0001-chapter-1', '<div class="read-container"><div class="reading-content"><div class="page-break"></div></div></div>', '.page-break'],
         ['https://qimanga.com/series/the-otherworld-general-store/chapter-1', '<app-reader><div class="r-strip"><div class="r-page" data-page="1"></div></div></app-reader>', '.r-page'],
         ['https://nyxscans.com/series/press-play-sami/chapter-96', '<div class="comic-body-container"><div class="comic-images-wrapper"><figure class="image-container"></figure></div></div>', 'figure'],
         ['https://omegascans.org/series/little-miss-delinquent/chapter-53', '<div class="lg:container"><div class="flex flex-col items-center justify-center overflow-hidden"><div class="relative flex w-full justify-center"></div></div></div>', 'div.relative'],
     ])('%s 动态正文加入同一会话，暂停恢复，移除与换章清理', async (href, html, parentSelector) => {
         const f = readerFixture(false, href);expect(f.reader.status().available).toBe(false);
         const root = f.document.createElement('section');root.innerHTML = html;f.document.body.append(root);
-        root.querySelector(parentSelector)!.append(f.image);f.image.className = 'r-page-img block object-contain';f.reader.schedule();f.run();
+        root.querySelector(parentSelector)!.append(f.image);f.image.className = 'r-page-img wp-manga-chapter-img block object-contain G54Y0W_page';f.image.alt = 'page_0';f.reader.schedule();f.run();
         expect(f.reader.status()).toMatchObject({available: true, pageCount: 1, areaFallback: false});
         f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
         f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);f.reader.toggle();await flush();

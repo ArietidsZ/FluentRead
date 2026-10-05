@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/mangaReaderProfiles.ts
  * 文件职责：保存经公开阅读页结构核对的正文规则，避免通用图片过滤漏掉正文或误选推荐封面。
- * 主要内容：已核对章节站与 Qi Manga、Nyx、Omega、MangaYun、Mangahub、Rinko、RawDEX、Raw1001 等正文规则，GlobalComix 跨域正文提供圈选入口，MechaComic 完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界与 Mangahub 正整数翻页参数，GigaViewer、Comici、ComicWalker 与 Animate 正文画布规则，MangaLove 不可读画布和 Booklive、CMOA 分片的圈选入口；路径与域名均保留边界。
+ * 主要内容：已核对章节站与 Countdown 的主页正文、MANGA Million 编号图片、Orchisasia、Qi Manga、Nyx、Omega、MangaYun、Mangahub、Rinko、RawDEX、Raw1001 等正文规则，GlobalComix 跨域正文提供圈选入口，MechaComic 完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界与 Mangahub 正整数翻页参数，PASH UP 当前屏与 GigaViewer、Comici、ComicWalker、Animate 正文画布规则，MangaLove 不可读画布和 Booklive、CMOA 分片的圈选入口；路径与域名均保留边界。
  * 模块边界：纯匹配，不执行站点脚本、不读取私有接口、不截图；可访问的图片由 content 阅读器检测。
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
@@ -10,9 +10,23 @@ export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-s
 export const MANGA_BACKGROUND_READER_HOSTS = ['palcy.jp', 'comic.pixiv.net'];
 const comiciHosts = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
     'rimacomiplus.jp', 'heros-web.com', 'younganimal.com', 'youngchampion.jp'];
-export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com', 'animatebookstore.com'];
+export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com', 'animatebookstore.com', 'pash-up.jp'];
 export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; pageQueryParameter?: 'page'; canvasSelector?: string; canvasInteractionSelector?: string; backgroundSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
+    if (host === 'ctccomic.com' && (pathname === '/' || /^\/comic\/\d+\/?$/.test(pathname))) return {
+        name: 'Countdown to Countdown', selector: '#cc-comicbody > a > img#cc-comic',
+    };
+    if (host === 'orchisasia.org' && /^\/comic\/[^/]+\/\d+-chapter-\d+(?:\.[0-9]+)?(?:-[A-Za-z0-9_-]+)?\/?$/.test(pathname)) return {
+        name: 'Orchisasia', selector: '.read-container .reading-content > .page-break > img.wp-manga-chapter-img',
+    };
+    if (host === 'pash-up.jp' && pathname === '/viewer/viewer.html') return {
+        name: 'PASH UP', selector: ':not(*)',
+        canvasSelector: '#viewer > #renderer > :is(#viewport0, #viewport1).currentScreen > canvas',
+        areaSelector: '#viewer > #renderer > :is(#viewport0, #viewport1).currentScreen > canvas',
+    };
+    if (host === 'mangamillion.shueisha.co.jp' && /^\/[a-z]{2}(?:-[A-Z]{2})?\/title\/\d+\/chapter\/\d+\/?$/.test(pathname)) return {
+        name: 'MANGA Million', selector: 'div[class$="_slide_container"] > div[class$="_spread"] > div[class$="_page_container"] > div[class$="_placeholder"] > img[class$="_page"][alt^="page_"]',
+    };
     if (host === 'mangalove.me' && /^\/viewer\/\d+\/?$/.test(pathname)) return {
         name: 'MangaLove', selector: ':not(*)', areaSelector: '#viewerBody .viewer > .imgWrap > canvas',
     };
