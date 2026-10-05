@@ -93,7 +93,7 @@
     "settings.cloud.restoreOnly": "Puedes restaurar esta copia, pero el servicio no ha proporcionado un identificador de versión para reemplazarla de forma segura. Por ahora no se puede guardar ni combinar.",
     "settings.cloud.deleteBackup": "Eliminar copia en la nube",
     "settings.cloud.deleteTitle": "¿Eliminar la copia en la nube?",
-    "settings.cloud.deleteDescription": "La eliminación es irreversible. Se conservan los ajustes locales y las claves API.",
+    "settings.cloud.deleteDescription": "Solo se elimina la copia en la nube. Los ajustes y las claves API permanecen en este dispositivo.",
     "settings.cloud.deleteLocalPreserved": "Se conservan los ajustes locales y las claves API.",
     "settings.cloud.deleteHistory": "Solo se elimina el archivo actual. Vacía por separado la papelera, las versiones retenidas y las copias de otros dispositivos.",
     "settings.cloud.deleteRecreate": "Una sincronización manual posterior puede crear una nueva copia. Otros dispositivos también pueden volver a subirla.",
@@ -111,7 +111,7 @@
     "settings.cloud.deleteVerification": "Escribe «{phrase}»",
     "settings.cloud.sensitiveSaveFailed": "No se pudo guardar la selección de ajustes sensibles. Inténtalo de nuevo.",
     "settings.cloud.deleteCloudEffect": "Al confirmar, se elimina la copia actual en la nube de {provider}.",
-    "settings.cloud.deleteVerificationPrompt": "Para habilitar la eliminación, escribe:"
+    "settings.cloud.deleteVerificationPrompt": "Escribe «{phrase}» para confirmar la eliminación."
   },
   "legacy": {
     "普通云备份包含不属于此范围的字段，请重新生成备份。": "La copia en la nube de ajustes generales contiene campos fuera de su alcance. Genera una nueva copia.",

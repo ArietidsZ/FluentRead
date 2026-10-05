@@ -93,7 +93,7 @@
     "settings.cloud.restoreOnly": "You can restore this backup, but the service has not provided a version identifier for safe replacement. Saving and merging are currently unavailable.",
     "settings.cloud.deleteBackup": "Delete cloud backup",
     "settings.cloud.deleteTitle": "Delete cloud backup?",
-    "settings.cloud.deleteDescription": "Deletion cannot be undone. Local settings and API keys are kept.",
+    "settings.cloud.deleteDescription": "Only the cloud backup is deleted. This device keeps its settings and API keys.",
     "settings.cloud.deleteLocalPreserved": "Local settings and API keys are kept.",
     "settings.cloud.deleteHistory": "Only the current backup file is deleted. Clear provider trash, retained versions and copies on other devices separately.",
     "settings.cloud.deleteRecreate": "A later manual sync can create a new backup. Other devices may also upload it again.",
@@ -111,7 +111,7 @@
     "settings.cloud.deleteVerification": "Type “{phrase}”",
     "settings.cloud.sensitiveSaveFailed": "Could not save the sensitive settings preference. Please try again.",
     "settings.cloud.deleteCloudEffect": "Confirmation deletes the current cloud backup from {provider}.",
-    "settings.cloud.deleteVerificationPrompt": "To enable deletion, type:"
+    "settings.cloud.deleteVerificationPrompt": "Type “{phrase}” to confirm deletion."
   },
   "legacy": {
     "普通云备份包含不属于此范围的字段，请重新生成备份。": "The general-settings cloud backup contains fields outside its scope. Generate a new backup.",

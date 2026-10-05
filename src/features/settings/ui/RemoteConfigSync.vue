@@ -3,7 +3,7 @@
 文件职责：用清晰的保存、恢复与逐项合并流程完成Google Drive 与 WebDAV 共用的配置云备份。
 主要内容：以同级选项展示始终同步且不可关闭的基础配置与默认关闭的敏感配置；敏感配置须明确同意，选择在本机持续保存直到手动关闭。
 预览说明旧备份范围和恢复保护，不在选项区重复展示范围摘要与恢复提示。
-风险确认集中展示存储方式、泄露风险与持续生效的选择；删除确认将目标服务、不可恢复后果与加粗的确认词合入同一个提示块，输入框紧接其后；次要说明在独立浮层展示，避免展开时改变弹窗与按钮位置。
+风险确认集中展示存储方式、泄露风险与持续生效的选择；删除确认将云端删除范围、本机保留说明与加粗的确认词合入同一个提示块，输入框紧接其后；次要说明在独立浮层展示，避免展开时改变弹窗与按钮位置。
 删除前须输入本次界面语言的确认文本，再点击确认；只删除已核验版本的备份文件，并保留本机配置。
 通过右侧记录插槽统一显示账号和时间，窄屏改为上下排列；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
 先选择操作再确认影响；缺少安全覆盖版本时明确提示只读恢复；默认展示差异与连接变更类别，小屏保留操作区。
@@ -41,7 +41,7 @@
           <el-icon><Warning /></el-icon>
           <div class="cloud-delete-impact-content">
             <strong>{{ t('settings.cloud.deleteCloudEffect', {provider}) }}</strong><p>{{ t('settings.cloud.deleteDescription') }}</p>
-            <label v-if="deletion.canDelete" :for="`${kind}-delete-verification`" :id="`${kind}-delete-instruction`" class="cloud-delete-instruction">{{ t('settings.cloud.deleteVerificationPrompt') }} <strong data-testid="cloud-delete-phrase">{{ t('settings.cloud.deletePhrase') }}</strong></label>
+            <label v-if="deletion.canDelete" :for="`${kind}-delete-verification`" :id="`${kind}-delete-instruction`" class="cloud-delete-instruction">{{ deleteInstruction[0] }}<strong data-testid="cloud-delete-phrase">{{ t('settings.cloud.deletePhrase') }}</strong>{{ deleteInstruction[1] }}</label>
           </div>
         </div>
         <p v-else class="cloud-delete-description">{{ t('settings.cloud.deleteAbsentDescription') }}</p>
@@ -189,6 +189,7 @@ const deletion = ref<CloudBackupDeletePreview | null>(null);
 const deleteVisible = ref(false);
 const deleteDetailsVisible = ref(false);
 const deleteConfirmation = ref('');
+const deleteInstruction = computed(() => t('settings.cloud.deleteVerificationPrompt', {phrase: '{phrase}'}).split('{phrase}'));
 const canConfirmDeletion = computed(() => Boolean(deleteVisible.value && deletion.value?.canDelete && (!deletion.value.hasRemote || deleteConfirmation.value === t('settings.cloud.deletePhrase'))));
 watch(() => busy.value || consentVisible.value || previewVisible.value || deleteVisible.value, value => emit('busy', value));
 watch(deleteVisible, value => {if (!value) deleteDetailsVisible.value = false;});
@@ -370,8 +371,8 @@ onUnmounted(() => {window.removeEventListener('storage', handleSensitivePreferen
 .cloud-delete-note {font-size:12px; line-height:1.7; color:var(--el-text-color-regular); margin:0;}
 .cloud-delete-note+.cloud-delete-note {margin-top:8px;}
 .cloud-delete-verification {margin-top:12px;}
-.cloud-delete-instruction {display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; margin-top:12px; font-size:13px; line-height:1.7; color:var(--el-text-color-primary);}
-.cloud-delete-instruction strong {padding:1px 7px; border-radius:4px; border:1px solid var(--el-border-color); background:var(--el-fill-color-light); font-size:14px; font-weight:700;}
+.cloud-delete-instruction {display:block; margin-top:12px; font-size:13px; line-height:1.9; color:var(--el-text-color-primary);}
+.cloud-delete-instruction strong {padding:1px 5px; border-radius:4px; border:1px solid var(--el-border-color); background:var(--el-fill-color-light); font-size:14px; font-weight:700; white-space:nowrap;}
 .cloud-delete-verification :deep(.el-input) {width:100%; max-width:none;}
 .drive-heading {display:flex; justify-content:space-between; align-items:flex-start; gap:16px;}
 .drive-heading h2 {margin:0; font-size:19px;}

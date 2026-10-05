@@ -35,7 +35,7 @@ Select Google Drive or WebDAV in **Cloud backup**, then click **Delete cloud bac
 
 Canceling, closing settings or changing the Google account does not delete a file. If no backup exists, choose **Done** to clear the old local sync record. An account, connection or version change requires a new preview. Deletion does not decrypt the backup, so old v1, v2 and unreadable backups can be removed. If safe version information is unavailable, the dialog offers manual cleanup instructions instead.
 
-The dialog prioritizes removal from the selected provider, loss of the cloud backup and preservation of local settings. The removal impact and bold confirmation phrase share one notice directly above the input; matching it enables **Delete backup**. Changing the account or reopening clears the input. **More details** opens a popover without moving the dialog or its buttons. Manage provider trash, retained versions and copies on other devices separately. A later manual sync or another device can create a new backup. Clearing connection settings, revoking permission and uninstalling do not automatically delete cloud files.
+The dialog makes clear that only the cloud backup is deleted; settings and API keys remain on this device. The removal impact and bold confirmation phrase share one notice directly above the input; matching it enables **Delete backup**. Changing the account or reopening clears the input. **More details** opens a popover without moving the dialog or its buttons. Manage provider trash, retained versions and copies on other devices separately. A later manual sync or another device can create a new backup. Clearing connection settings, revoking permission and uninstalling do not automatically delete cloud files.
 
 ## Local full backup
 

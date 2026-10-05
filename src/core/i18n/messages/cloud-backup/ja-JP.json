@@ -93,7 +93,7 @@
     "settings.cloud.restoreOnly": "このバックアップは復元できますが、安全に上書きするためのバージョン情報がサービスから提供されていません。現在、保存と統合は利用できません。",
     "settings.cloud.deleteBackup": "クラウドバックアップを削除",
     "settings.cloud.deleteTitle": "クラウドバックアップを削除しますか？",
-    "settings.cloud.deleteDescription": "削除は取り消せません。端末の設定と API キーは保持されます。",
+    "settings.cloud.deleteDescription": "削除されるのはクラウドバックアップのみです。この端末の設定と API キーはそのまま残ります。",
     "settings.cloud.deleteLocalPreserved": "端末の設定と API キーは保持されます。",
     "settings.cloud.deleteHistory": "現在のバックアップファイルのみ削除します。ごみ箱、履歴、他の端末のコピーは別途削除してください。",
     "settings.cloud.deleteRecreate": "後で手動同期すると新しいバックアップを作成できます。他の端末が再アップロードする場合もあります。",
@@ -111,7 +111,7 @@
     "settings.cloud.deleteVerification": "「{phrase}」と入力",
     "settings.cloud.sensitiveSaveFailed": "機密設定の選択を保存できませんでした。もう一度お試しください。",
     "settings.cloud.deleteCloudEffect": "確認すると、現在のクラウドバックアップを {provider} から削除します。",
-    "settings.cloud.deleteVerificationPrompt": "削除するには、次の文字を入力してください："
+    "settings.cloud.deleteVerificationPrompt": "削除を確認するには「{phrase}」と入力してください。"
   },
   "legacy": {
     "普通云备份包含不属于此范围的字段，请重新生成备份。": "一般設定のクラウドバックアップに対象範囲外の項目が含まれています。バックアップを作成し直してください。",
