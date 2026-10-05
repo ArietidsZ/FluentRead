@@ -1,0 +1,20 @@
+{
+  "id": "DEFECT-12",
+  "title": "The named browseros-claw-server binary does not exist on this platform build; the packaged browseros_server hides a --stdio transport",
+  "severity": "not executed (unverified capability), not a product failure",
+  "namedBinarySearched": "browseros-claw-server / *claw*server* / BrowserClawServer (bounded filesystem search, zero hits)",
+  "packagedEquivalent": "/usr/lib/browseros/BrowserOSServer/default/resources/bin/browseros_server (0.0.157)",
+  "userLevelCopy": "<HOME>/.config/browser-os/.browseros/versions/0.0.162/resources/bin/browseros_server",
+  "helpOutput": "Usage: browseros-server [options]; options are -V/--version, --config <path>, -h/--help",
+  "hiddenStdioTokenCounts": {
+    "packaged": 2,
+    "userLevel": 2
+  },
+  "autoSpawnedHelper": "The browser auto-started the bundled helper as browseros_server --config=<temp profile>/.browseros/config.json with no --stdio flag; it exited together with the browser.",
+  "executed": false,
+  "note": "The task-scoped stdio control-plane capability check was NOT executed this round, so this is an unverified capability rather than a failed one. No server was launched and the unrelated instance was never touched.",
+  "evidence": [
+    "artifacts/neo/control-plane-probe.txt",
+    "artifacts/hygiene/cleanup-proof.json"
+  ]
+}

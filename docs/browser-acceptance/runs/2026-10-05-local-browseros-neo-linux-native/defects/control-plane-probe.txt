@@ -1,0 +1,37 @@
+## generated 2026-10-05T19:27:25+08:00
+## packaged copy: /usr/lib/browseros/BrowserOSServer/default/resources/bin/browseros_server
+0.0.157
+Usage: browseros-server [options]
+
+BrowserOS Unified Server - MCP + Agent
+
+Options:
+  -V, --version    output the version number
+  --config <path>  Path to sidecar JSON configuration file
+  -h, --help       display help for command
+## user-level copy: <HOME>/.config/browser-os/.browseros/versions/0.0.162/resources/bin/browseros_server
+0.0.162
+Usage: browseros-server [options]
+
+BrowserOS Unified Server - MCP + Agent
+
+Options:
+  -V, --version    output the version number
+  --config <path>  Path to sidecar JSON configuration file
+  -h, --help       display help for command
+--- /usr/lib/browseros/BrowserOSServer/default/resources/bin/browseros_server
+stdio_flag_count=2
+config_flag_count=19
+sidecar_token_count=9
+--- <HOME>/.config/browser-os/.browseros/versions/0.0.162/resources/bin/browseros_server
+stdio_flag_count=2
+config_flag_count=4
+sidecar_token_count=9
+## packaged resources layout
+/usr/lib/browseros/BrowserOSServer
+/usr/lib/browseros/BrowserOSServer/default
+/usr/lib/browseros/BrowserOSServer/default/resources
+/usr/lib/browseros/BrowserOSServer/default/resources/bin
+/usr/lib/browseros/BrowserOSServer/default/resources/db
+## helper processes still running now
+none

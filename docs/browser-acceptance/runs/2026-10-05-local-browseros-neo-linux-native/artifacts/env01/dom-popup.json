@@ -1,0 +1,36 @@
+{
+  "capturedAt": "2026-10-05T11:22:06.055Z",
+  "name": "popup",
+  "target": {
+    "id": "75A5245B87758CCF729E893E9D0A8016",
+    "type": "page",
+    "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/popup.html"
+  },
+  "title": "FluentRead-流畅阅读",
+  "href": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/popup.html",
+  "readyState": "complete",
+  "viewport": {
+    "width": 928,
+    "height": 777,
+    "devicePixelRatio": 1
+  },
+  "sections": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "欢迎使用 Welcome",
+      "path": "#language-onboarding-title"
+    }
+  ],
+  "labels": [],
+  "buttons": [
+    {
+      "text": "设置界面语言 Set interface language",
+      "type": "button",
+      "path": "#app > main > section > div:nth-of-type(2) > div > button",
+      "visible": true
+    }
+  ],
+  "selects": [],
+  "placeholders": []
+}

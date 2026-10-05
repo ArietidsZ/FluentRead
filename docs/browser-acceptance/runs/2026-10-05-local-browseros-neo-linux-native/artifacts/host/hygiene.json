@@ -1,0 +1,225 @@
+{
+  "schema": "fluentread.acceptance.hygiene/1",
+  "phase": "recon:hygiene",
+  "roundId": "2026-10-05-local-browseros-neo-linux-native",
+  "generatedAtUTC": "2026-10-05T11:00:54Z",
+  "generatedAtEpoch": 1791198054,
+  "host": {
+    "os": "Ubuntu 24.04.4 LTS",
+    "session": "GNOME/Wayland",
+    "display": "HDMI-1 2560x1440+0+0",
+    "notes": "Linux host; no osascript, no pnpm, no Playwright. lsof present at /usr/bin/lsof; ss present at /usr/bin/ss."
+  },
+  "repo": {
+    "path": "<WORKSPACE>/fluentread-acceptance/FluentRead",
+    "branch": "acceptance/local-browseros-neo-linux-native-20261005",
+    "head": "5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576",
+    "pinnedToolsLogicCommit": "7f8d6dfe",
+    "toolsPath": "<WORKSPACE>/fluentread-acceptance/FluentRead/scripts/testing",
+    "prebuiltExtension": "<WORKSPACE>/fluentread-acceptance/fluentread-acceptance-product/.output/chrome-mv3 (never rebuild)",
+    "browserBinary": "/usr/lib/browseros/browseros",
+    "scratchRoot": "<HOME>/.cache/fluentread-acceptance/linux-native-20261005",
+    "recordDir": "<WORKSPACE>/fluentread-acceptance/FluentRead/docs/browser-acceptance/runs/2026-10-05-local-browseros-neo-linux-native"
+  },
+  "dailyBrowser": {
+    "role": "unrelated, already running, must never be touched/signalled/attached/CDP-connected",
+    "rootPid": 98229,
+    "rootPpid": 98226,
+    "user": "arietids",
+    "userDataDir": "/config/browseros-public-test",
+    "elapsedAtRecon": "2-01:58:43",
+    "commandLine": "/usr/lib/browseros/browseros --user-data-dir=/config/browseros-public-test --no-first-run --no-default-browser-check --disable-browseros-server --disable-browseros-server-updater --disable-browseros-extensions --force-renderer-accessibility about:blank",
+    "parentContext": {
+      "parentPid": 98226,
+      "parentCommand": "conmon container supervisor (crun runtime), container name cw-restore-only-eval",
+      "interpretation": "the daily BrowserOS runs inside a podman/crun container; its user-data-dir /config/... is a container path"
+    },
+    "tcpListeners": "none (lsof -nP -a -p 98229 -iTCP -sTCP:LISTEN and ss -ltnpH | grep -i browseros both empty hostwide)",
+    "untouchablePids": [
+      98229,
+      98242,
+      98243,
+      98246,
+      98268,
+      98270,
+      98272,
+      98377,
+      100572,
+      331870,
+      395067,
+      503797,
+      723432,
+      945212,
+      994809,
+      1014746,
+      1143453,
+      1150096,
+      98231,
+      98233
+    ],
+    "untouchablePidBreakdown": {
+      "root": [98229],
+      "descendantsOfRoot": [
+        98242,
+        98243,
+        98246,
+        98268,
+        98270,
+        98272,
+        98377,
+        100572,
+        331870,
+        395067,
+        503797,
+        723432,
+        945212,
+        994809,
+        1014746,
+        1143453,
+        1150096
+      ],
+      "attributedCrashpadHandlers": {
+        "pids": [98231, 98233],
+        "why": "chrome_crashpad_handler with --metrics-dir=/config/browseros-public-test and database /config/xdg/config/browser-os/Crash Reports; parent is cinit PID 27482, not the browser root, so they must be enumerated explicitly"
+      },
+      "totalUntouchableCount": 20
+    },
+    "processCountCheck": "ps -eo pid,ppid,user,etime,args | grep -i browseros returned exactly 20 processes at recon time: 18 root+descendants + 2 attributed crashpad handlers"
+  },
+  "ports": {
+    "requested": [9420, 9520, 57280, 58280],
+    "allFree": true,
+    "portsFree": { "9420": true, "9520": true, "57280": true, "58280": true },
+    "method": "for p in 9420 9520 57280 58280; do lsof -nP -iTCP:$p -sTCP:LISTEN; done -> exit code 1 for all four (no listener); cross-checked with ss -ltnH | awk '{print $4}' | grep -E ':(9420|9520|57280|58280)$' -> no match",
+    "caveat": "free at recon time only; must be re-verified at round end"
+  },
+  "unrelatedListenersObserved": [
+    {
+      "endpoint": "127.0.0.1:18761",
+      "pid": 1531213,
+      "owner": "arietids",
+      "command": "python3 -B <WORKSPACE>/ND Recovery/file-browser/server.py ... (unrelated ND Recovery project)",
+      "relevance": "not a requested round port and not BrowserOS; must not be killed, but must not be reused/assumed free either"
+    }
+  ],
+  "staleLeftovers": [],
+  "staleLeftoversDetail": {
+    "tmpMatches": "ls -d /tmp/fluentread-* 2>/dev/null -> no matches",
+    "helperMatches": "pgrep -a -f 'browser-focus-guard|fixture-server|session-driver|load-extension' -> only the pgrep wrapper shell matched itself; no real guard/fixture/server/driver processes",
+    "unrelatedCrashpadNotToTouch": "PIDs 32260 and 32262 are /opt/google/chrome chrome_crashpad_handler (Google Chrome stable), not BrowserOS"
+  },
+  "push": {
+    "remoteV": "origin https://github.com/ArietidsZ/FluentRead.git (fetch) / origin https://github.com/ArietidsZ/FluentRead.git (push)",
+    "genericCredentialHelper": "unset (git config --get credential.helper -> empty; note: the generic key is unset but a URL-scoped key is set)",
+    "urlScopedCredentialHelper": "credential.https://github.com.helper = !/usr/bin/gh auth git-credential (from <HOME>/.gitconfig, git config --list --show-origin)",
+    "ghAuthStatus": "Logged in to github.com account ArietidsZ (keyring); Active account: true; Git operations protocol: https; Token scopes: gist, read:org, repo, workflow",
+    "ghAccount": "ArietidsZ",
+    "repoVisibility": "PUBLIC (gh repo view ArietidsZ/FluentRead --json visibility)",
+    "nonInteractiveCredentialProof": "printf 'protocol=https\\nhost=github.com\\n\\n' | git credential fill | grep -c '^password=' -> 1; the credential value was counted, never printed or recorded",
+    "readOnlyRemoteContact": "git ls-remote --heads origin succeeded non-interactively (read-only; no ref changes)",
+    "pushPossible": true,
+    "pushAttempted": false,
+    "reasoning": "git is configured to obtain github.com https credentials from gh's keyring, gh is authenticated as ArietidsZ with repo scope, and a non-interactive credential was obtainable; an https push from this host/account would therefore authenticate and be authorized. No push was performed (forbidden this round)."
+  },
+  "cleanupChecklist": [
+    {
+      "step": 1,
+      "action": "Snapshot the daily instance before and after the round and diff it",
+      "command": "ps -eo pid,ppid,user,etime,args | grep -i browseros",
+      "passCondition": "root PID is still 98229 with --user-data-dir=/config/browseros-public-test; no new/killed members of the untouchable set; if it changed, record it as an external event, never as round cleanup"
+    },
+    {
+      "step": 2,
+      "action": "Kill only round-owned PID exact matches (browseros round profile root + children, fixture-server, session-driver, browser-focus-guard), TERM then KILL after grace",
+      "command": "kill -TERM <round-owned-pid> ...; sleep 5; kill -KILL <remaining round-owned-pid>",
+      "passCondition": "no round-owned PID remains; NEVER run pkill/pgrep-wildcard on 'browseros' (it would match the daily instance 98229) and never touch 1531213/32260/32262"
+    },
+    {
+      "step": 3,
+      "action": "Re-verify the four round ports are released",
+      "command": "for p in 9420 9520 57280 58280; do lsof -nP -iTCP:$p -sTCP:LISTEN; echo $p:$?; done",
+      "passCondition": "exit code 1 for all four; also ss -ltnH must show no match"
+    },
+    {
+      "step": 4,
+      "action": "Remove only this round's scratch fixtures under the scratch root and any /tmp/fluentread-* this round created",
+      "command": "ls -d /tmp/fluentread-* 2>/dev/null; find <HOME>/.cache/fluentread-acceptance/linux-native-20261005 -maxdepth 2 -name '*round-owned*'",
+      "passCondition": "no leftover fixture dirs/sockets/logs; /tmp/fluentread-* empty; shared prebuilt extension and record dir untouched"
+    },
+    {
+      "step": 5,
+      "action": "Confirm no leftover helper processes",
+      "command": "pgrep -a -f 'browser-focus-guard|fixture-server|session-driver|load-extension'",
+      "passCondition": "only the pgrep wrapper's self-match appears"
+    },
+    {
+      "step": 6,
+      "action": "Leave the run record append-only and un-pushed",
+      "command": "ls <WORKSPACE>/fluentread-acceptance/FluentRead/docs/browser-acceptance/runs/2026-10-05-local-browseros-neo-linux-native",
+      "passCondition": "phase files present and readable; no git commit/push/branch/ref change was performed"
+    },
+    {
+      "step": 7,
+      "action": "Write the post-round port + PID diff into the round record",
+      "command": "append to round notes: daily root PID, final port status, killed PID list, any step that failed with its exact error",
+      "passCondition": "cleanup is reported honestly; a failed or blocked cleanup step is recorded as such, not hidden"
+    },
+    {
+      "step": 8,
+      "action": "Never write outside the two allowed roots and never modify product source/scripts",
+      "command": "n/a",
+      "passCondition": "writes confined to <HOME>/.cache/fluentread-acceptance/linux-native-20261005 and <WORKSPACE>/fluentread-acceptance/FluentRead/docs/browser-acceptance/runs/2026-10-05-local-browseros-neo-linux-native"
+    }
+  ],
+  "commandsRun": [
+    {
+      "purpose": "enumerate unrelated BrowserOS",
+      "command": "ps -eo pid,ppid,user,etime,args | grep -i browseros",
+      "result": "20 processes; root 98229 --user-data-dir=/config/browseros-public-test"
+    },
+    {
+      "purpose": "daily root ancestry",
+      "command": "ps -p 98226 -o pid,ppid,user,etime,args; ps -p 27482 -o pid,ppid,user,etime,args; pstree -p 98229",
+      "result": "root parent is conmon 98226 (crun container cw-restore-only-eval); crashpad handlers parented by cinit 27482"
+    },
+    {
+      "purpose": "descendant enumeration",
+      "command": "recursive ps --ppid <pid> from 98229",
+      "result": "18 pids including root: 98229 98242 98243 98246 98268 98270 98272 98377 100572 331870 395067 503797 723432 945212 994809 1014746 1143453 1150096"
+    },
+    {
+      "purpose": "target ports free",
+      "command": "for p in 9420 9520 57280 58280; do lsof -nP -iTCP:$p -sTCP:LISTEN; done",
+      "result": "exit code 1 (no listener) for all four"
+    },
+    {
+      "purpose": "ports cross-check + browseros listener check",
+      "command": "ss -ltnH | awk '{print $4}' | grep -E ':(9420|9520|57280|58280)$'; lsof -nP -a -p 98229 -iTCP -sTCP:LISTEN; ss -ltnpH | grep -i browseros",
+      "result": "no matches; daily instance exposes no TCP listener"
+    },
+    {
+      "purpose": "stale leftovers",
+      "command": "ls -d /tmp/fluentread-* 2>/dev/null; pgrep -a -f 'browser-focus-guard|fixture-server|session-driver|load-extension'",
+      "result": "no /tmp/fluentread-*; only pgrep self-match"
+    },
+    {
+      "purpose": "push capability without pushing",
+      "command": "git -C <WORKSPACE>/fluentread-acceptance/FluentRead remote -v; git -C <WORKSPACE>/fluentread-acceptance/FluentRead config --get credential.helper; git -C <WORKSPACE>/fluentread-acceptance/FluentRead config --list --show-origin | grep -i credential; gh auth status; printf 'protocol=https\\nhost=github.com\\n\\n' | git credential fill | grep -c '^password='; git ls-remote --heads origin",
+      "result": "origin https://github.com/ArietidsZ/FluentRead.git; generic helper unset; URL-scoped helper !/usr/bin/gh auth git-credential for github.com; gh account ArietidsZ (keyring, repo scope); non-interactive credential obtainable (value not recorded); ls-remote succeeded"
+    },
+    {
+      "purpose": "identify non-browseros informative listeners",
+      "command": "ps -p 1531213 -o pid,ppid,user,etime,args; ps -p 32260,32262 -o args",
+      "result": "1531213 = unrelated ND Recovery python file-browser on 127.0.0.1:18761; 32260/32262 = Google Chrome crashpad handlers"
+    }
+  ],
+  "disclosures": [
+    "Transient files /tmp/.hyg_all_pids.<pid> and /tmp/.hyg_desc.<pid> were created and deleted inside one command while enumerating descendants. They contained only PID lists, were never evidence, and are gone ('ls -d /tmp/.hyg_*' -> no match). This is disclosed because /tmp is outside the allowed scratch roots.",
+    "The earlier probe 'lsof -nP -p 98229 -iTCP -sTCP:LISTEN' used lsof OR semantics and dumped all files of the daily instance; it was read-only, changed nothing, and the correct AND query (-a) was rerun.",
+    "ls-remote on this repo does not by itself prove authentication because the repo is PUBLIC; the push-capability claim rests on the URL-scoped gh credential helper plus the non-interactive credential fill.",
+    "No push was attempted; 'pushPossible' is a capability determination, not an observed push.",
+    "After writing this file a liveness check 'kill -0 <pid>' was run against all 20 untouchable PIDs. Signal 0 delivers no signal and does not affect the process; disclosed for completeness. All 20 still existed at check time."
+  ],
+  "hygienePath": "<HOME>/.cache/fluentread-acceptance/linux-native-20261005/recon/hygiene.json",
+  "cleanupChecklistPath": "<HOME>/.cache/fluentread-acceptance/linux-native-20261005/recon/hygiene-cleanup-checklist.md"
+}

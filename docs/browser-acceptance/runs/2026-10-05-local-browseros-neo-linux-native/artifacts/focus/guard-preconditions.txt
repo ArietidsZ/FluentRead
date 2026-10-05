@@ -1,0 +1,36 @@
+generated: 2026-10-05T19:20:24+08:00
+profile_argument: /tmp/fluentread-linux-native-JcsG10
+browser_pid: 1690606
+cdp_port: 9420
+
+=== preconditions the guard would check ===
+## command: ps -ww -p 1690606 -o command=
+/usr/lib/browseros/browseros --user-data-dir=/tmp/fluentread-linux-native-JcsG10 --remote-debugging-port=9420 --remote-allow-origins=http://127.0.0.1:9420 --window-position=2400,120 --window-size=1200,900 --no-first-run --no-default-browser-check
+## exit_code: 0
+
+## command: ps -p 1690606 -o lstart=
+Mon Oct  5 19:19:51 2026
+## exit_code: 0
+
+## command: stat -c %u\ %a /tmp/fluentread-linux-native-JcsG10
+1000 700
+## exit_code: 0
+
+## command: realpath /tmp/fluentread-linux-native-JcsG10
+/tmp/fluentread-linux-native-JcsG10
+## exit_code: 0
+
+## command: lsof -nP -iTCP:9420 -sTCP:LISTEN -FpFn
+p1690606
+n127.0.0.1:9420
+## exit_code: 0
+
+=== additional read-only identity/permission context ===
+## command: ps -p 1690606 -o uid=\,pid=\,lstart=
+ 1000 1690606 Mon Oct  5 19:19:51 2026
+## exit_code: 0
+
+## command: test -d /tmp/fluentread-linux-native-JcsG10
+
+## exit_code: 0
+

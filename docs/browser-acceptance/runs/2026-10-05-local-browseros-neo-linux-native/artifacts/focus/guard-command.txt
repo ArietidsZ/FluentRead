@@ -1,0 +1,4 @@
+guard_script: <WORKSPACE>/FluentRead/scripts/testing/browser-focus-guard.mjs
+report_file: <HOME>/.cache/fluentread-acceptance/linux-native-20261005/live/guard-report.json
+command_once: node <WORKSPACE>/FluentRead/scripts/testing/browser-focus-guard.mjs --once --allow-partial-visibility --profile /tmp/fluentread-linux-native-JcsG10 --pid 1690606 --port 9420 --output <HOME>/.cache/fluentread-acceptance/linux-native-20261005/live/guard-report.json
+command_continuous: node <WORKSPACE>/FluentRead/scripts/testing/browser-focus-guard.mjs --allow-partial-visibility --profile /tmp/fluentread-linux-native-JcsG10 --pid 1690606 --port 9420 --output <HOME>/.cache/fluentread-acceptance/linux-native-20261005/live/guard-report.json

@@ -1,0 +1,61 @@
+FluentRead acceptance - tool self-checks raw log
+Generated (UTC): 2026-10-05T11:06:17Z
+Host: Ubuntu 26.04.1 LTS, kernel 7.0.0-38-generic, x86_64, GNOME/Wayland, one display HDMI-1 2560x1440+0+0
+Host note: Task context stated Ubuntu 24.04; /etc/os-release on this host reports Ubuntu 26.04.1 LTS (Resolute Raccoon), kernel 7.0.0-38-generic, x86_64. The host string above is the measured value (cat /etc/os-release; uname -a), not the context claim.
+Node: v26.7.0 (resolved from PATH as <HOME>/.local/bin/node)
+Repo: <WORKSPACE>/FluentRead
+Branch: acceptance/local-browseros-neo-linux-native-20261005
+HEAD: 5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576
+Pinned tools revision: 7f8d6dfe0d8ebd7a526bf9c654ea7e4926518fa1 (scripts/testing diff vs pinned: empty)
+Scope: the four self-check commands below were run from <WORKSPACE>/FluentRead with the default node on PATH.
+SANITIZATION: <WORKSPACE> = fluentread-acceptance workspace root; <HOME> = user home directory. Only those two literal strings were replaced; command text, stdout, stderr and exit codes are otherwise verbatim.
+
+== node version ==
+v26.7.0
+
+$ node scripts/testing/browser-acceptance.mjs self-check
+exit_code: 1
+--- stdout ---
+--- stderr ---
+Command failed: <HOME>/.local/share/node-v26.7.0-linux-x64/bin/node <WORKSPACE>/FluentRead/scripts/generate-userscript-language-data.mjs
+node:internal/modules/cjs/loader:1569
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module 'vite'
+Require stack:
+- <WORKSPACE>/FluentRead/scripts/generate-userscript-language-data.mjs
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1569:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1123:27)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1174:12)
+    at require.resolve (node:internal/modules/helpers:214:31)
+    at file://<WORKSPACE>/FluentRead/scripts/generate-userscript-language-data.mjs:8:43
+    at ModuleJob.run (node:internal/modules/esm/module_job:569:25)
+    at async node:internal/modules/esm/loader:650:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '<WORKSPACE>/FluentRead/scripts/generate-userscript-language-data.mjs'
+  ]
+}
+
+Node.js v26.7.0
+
+
+$ node scripts/testing/browser-focus-guard.mjs --self-check
+exit_code: 0
+--- stdout ---
+{"ok":true,"scope":"pure guard contract checks only","macosRun":false,"browserRun":false}
+--- stderr ---
+
+$ node scripts/testing/browser-focus-visibility-selfcheck.mjs
+exit_code: 0
+--- stdout ---
+{"ok":true,"node":"v26.7.0","negativeChecks":26,"scope":"explicit visibility policy and evidence contracts only","macosRun":false,"browserRun":false}
+--- stderr ---
+
+$ node scripts/testing/browser-focus-guard-entry-selfcheck.mjs
+exit_code: 0
+--- stdout ---
+{"ok":true,"node":"v26.7.0","checks":["direct CLI","file symlink CLI","ancestor-directory symlink CLI","preserved symlink main","ordinary direct/alias invocation rejects unmet prerequisites","direct import without CLI execution","aliased import without CLI execution","eval import without entry argument","stdin import with dash entry argument","unresolvable entry fails nonzero"],"macosRun":false,"browserRun":false}
+--- stderr ---

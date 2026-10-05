@@ -1,0 +1,17 @@
+{
+  "sideEvidenceOnly": true,
+  "note": "Structured source/provenance evidence for this round, derived from this round own read-only git measurements on this host.",
+  "publishedSourceCommit": "c68a53af300b33109375665197951331e45ae18a",
+  "checkoutCommit": "5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576",
+  "observedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+  "expectedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+  "worktreeCleanBeforeLocaleGeneration": true,
+  "lockfileSha256": {
+    "product": "5b251fb80b9a89991ef226fe19e24e249c48963c520945c9a0ef5851ebddb619",
+    "repo": "5b251fb80b9a89991ef226fe19e24e249c48963c520945c9a0ef5851ebddb619"
+  },
+  "productWorktreeGitBroken": true,
+  "testedLocalHeadPresentInThisClone": false,
+  "testedLocalHeadNote": "The schema constant testedLocalHead 7212af1f9da08324963e38973c7f477aabfffb0b is absent from this clone and from origin, so it could not be corroborated on this host. It is carried in result.json only because the checked-in schema fixes it as a constant.",
+  "at": "2026-10-05T11:31:01.965Z"
+}

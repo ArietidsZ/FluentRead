@@ -1,0 +1,29 @@
+{
+  "capturedAt": "2026-10-05T11:22:06.836Z",
+  "name": "page-1",
+  "target": {
+    "id": "B9D31B42D3984948B102C91C63ECC458",
+    "type": "page",
+    "url": "http://127.0.0.1:57280/"
+  },
+  "title": "Synthetic fixture article",
+  "href": "http://127.0.0.1:57280/",
+  "readyState": "complete",
+  "viewport": {
+    "width": 928,
+    "height": 777,
+    "devicePixelRatio": 1
+  },
+  "sections": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Synthetic fixture article",
+      "path": "html > body > h1"
+    }
+  ],
+  "labels": [],
+  "buttons": [],
+  "selects": [],
+  "placeholders": []
+}

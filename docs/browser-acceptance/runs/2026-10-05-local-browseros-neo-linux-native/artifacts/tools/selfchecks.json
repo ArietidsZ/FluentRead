@@ -1,0 +1,117 @@
+{
+  "task": "recon:selfchecks",
+  "generatedAt": "2026-10-05T11:06:17Z",
+  "host": "Ubuntu 26.04.1 LTS, kernel 7.0.0-38-generic, x86_64, GNOME/Wayland, one display HDMI-1 2560x1440+0+0",
+  "hostNote": "Task context stated Ubuntu 24.04; /etc/os-release on this host reports Ubuntu 26.04.1 LTS (Resolute Raccoon), kernel 7.0.0-38-generic, x86_64. The host string above is the measured value (cat /etc/os-release; uname -a), not the context claim.",
+  "nodeVersion": "v26.7.0",
+  "repo": "<WORKSPACE>/FluentRead",
+  "branch": "acceptance/local-browseros-neo-linux-native-20261005",
+  "head": "5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576",
+  "pinnedToolsRevision": "7f8d6dfe0d8ebd7a526bf9c654ea7e4926518fa1",
+  "scriptsTestingMatchesPinned": true,
+  "logPath": "<HOME>/.cache/fluentread-acceptance/linux-native-20261005/logs/selfchecks-raw.txt",
+  "diagnosticPath": "<HOME>/.cache/fluentread-acceptance/linux-native-20261005/logs/selfchecks-diagnostic-nodepath.txt",
+  "summaryPath": "<HOME>/.cache/fluentread-acceptance/linux-native-20261005/recon/selfchecks.json",
+  "results": [
+    {
+      "command": "node scripts/testing/browser-acceptance.mjs self-check",
+      "exitCode": 1,
+      "ok": false,
+      "stdout": "",
+      "stderr": "Command failed: <HOME>/.local/share/node-v26.7.0-linux-x64/bin/node <WORKSPACE>/FluentRead/scripts/generate-userscript-language-data.mjs\nnode:internal/modules/cjs/loader:1569\n  const err = new Error(message);\n              ^\n\nError: Cannot find module 'vite'\nRequire stack:\n- <WORKSPACE>/FluentRead/scripts/generate-userscript-language-data.mjs\n    at Module._resolveFilename (node:internal/modules/cjs/loader:1569:15)\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1123:27)\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1174:12)\n    at require.resolve (node:internal/modules/helpers:214:31)\n    at file://<WORKSPACE>/FluentRead/scripts/generate-userscript-language-data.mjs:8:43\n    at ModuleJob.run (node:internal/modules/esm/module_job:569:25)\n    at async node:internal/modules/esm/loader:650:26\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {\n  code: 'MODULE_NOT_FOUND',\n  requireStack: [\n    '<WORKSPACE>/FluentRead/scripts/generate-userscript-language-data.mjs'\n  ]\n}\n\nNode.js v26.7.0\n\n\n",
+      "blockedReason": "Cannot find module 'vite' when browser-acceptance-selfcheck.mjs runs scripts/generate-userscript-language-data.mjs via execFileSync; <WORKSPACE>/FluentRead/node_modules has .bin/.cache/.pnpm only and no top-level vite link; pnpm install is forbidden."
+    },
+    {
+      "command": "node scripts/testing/browser-focus-guard.mjs --self-check",
+      "exitCode": 0,
+      "ok": true,
+      "stdout": "{\"ok\":true,\"scope\":\"pure guard contract checks only\",\"macosRun\":false,\"browserRun\":false}\n",
+      "stderr": "\n"
+    },
+    {
+      "command": "node scripts/testing/browser-focus-visibility-selfcheck.mjs",
+      "exitCode": 0,
+      "ok": true,
+      "stdout": "{\"ok\":true,\"node\":\"v26.7.0\",\"negativeChecks\":26,\"scope\":\"explicit visibility policy and evidence contracts only\",\"macosRun\":false,\"browserRun\":false}\n",
+      "stderr": "\n"
+    },
+    {
+      "command": "node scripts/testing/browser-focus-guard-entry-selfcheck.mjs",
+      "exitCode": 0,
+      "ok": true,
+      "stdout": "{\"ok\":true,\"node\":\"v26.7.0\",\"checks\":[\"direct CLI\",\"file symlink CLI\",\"ancestor-directory symlink CLI\",\"preserved symlink main\",\"ordinary direct/alias invocation rejects unmet prerequisites\",\"direct import without CLI execution\",\"aliased import without CLI execution\",\"eval import without entry argument\",\"stdin import with dash entry argument\",\"unresolvable entry fails nonzero\"],\"macosRun\":false,\"browserRun\":false}\n",
+      "stderr": ""
+    }
+  ],
+  "acceptanceSelfcheckExitCode": 1,
+  "acceptanceSelfcheckBlockedReason": "Cannot find module 'vite' when browser-acceptance-selfcheck.mjs runs scripts/generate-userscript-language-data.mjs via execFileSync; <WORKSPACE>/FluentRead/node_modules has .bin/.cache/.pnpm only and no top-level vite link; pnpm install is forbidden.",
+  "acceptanceSelfcheckDiagnostic": {
+    "note": "Supplemental only; not the required run and not accepted as the self-check result.",
+    "command": "NODE_PATH=<WORKSPACE>/fluentread-acceptance-tools/node_modules node scripts/testing/browser-acceptance.mjs self-check",
+    "exitCode": 1,
+    "reason": "The fluentread-acceptance-tools node_modules was installed on macOS: esbuild throws \"@esbuild/darwin-arm64 package is present but this platform needs @esbuild/linux-x64\". A Linux install would require pnpm (forbidden).",
+    "transcript": "<HOME>/.cache/fluentread-acceptance/linux-native-20261005/logs/selfchecks-diagnostic-nodepath.txt"
+  },
+  "visibilitySelfcheckAssertions": 35,
+  "visibilitySelfcheckAssertionBreakdown": {
+    "totalExecutedAssertionInvocations": 35,
+    "negativeViaRejectsHelper": 26,
+    "positive": 9,
+    "positiveDetail": {
+      "policyFromArgs_default_and_partial": 2,
+      "permittedGeometryDeepEqual": 1,
+      "visibleArea_144000_offscreen_partial_strict": 3,
+      "visibleArea_900000_and_36000": 2,
+      "blockedCloneUnchangedByValidatePassEvidence": 1
+    },
+    "negativeLoopExpansion": {
+      "baseStrictReject": 1,
+      "changedFieldLoop": 7,
+      "spanningDisplayRejects": 2,
+      "envMutationLoop": 3,
+      "guardMutationLoop": 12,
+      "lateObservationReject": 1
+    },
+    "toolPrintedField": "negativeChecks:26 (negative only; the tool does not print a total)",
+    "method": "Executed assert invocations counted on a scratch copy whose only change is redirecting the assert import to a counting shim; static source count with loop literals expanded (7/3/12) agrees; instrumented stdout is byte-identical to the upstream stdout in logs/selfchecks-raw.txt.",
+    "excludedFromCount": "assert calls performed inside imported modules browser-focus-guard.mjs (checkFocusSnapshot) and browser-acceptance-evidence.mjs (validateFocusEvidence, validatePassEvidence) are not counted as this self-check source own assertions."
+  },
+  "guardEntrySelfcheckAssertions": 36,
+  "guardEntrySelfcheckAssertionBreakdown": {
+    "totalExecutedAssertionInvocations": 36,
+    "assertIfErrorInsideRunHelper_onePerSpawn": 12,
+    "directAsserts": 24,
+    "directAssertsDetail": {
+      "expectSelfCheck_4_invocations_x2": 8,
+      "prerequisiteRejectionLoop_3_entries_x2": 6,
+      "importWithoutCliLoop_2_targets_x2": 4,
+      "evalImport_noEntry_x2": 2,
+      "stdinImport_x2": 2,
+      "unresolvableEntry_x2": 2
+    },
+    "spawnCount": 12,
+    "toolPrintedField": "checks: [10 named checks] (names, not assertion counts)",
+    "method": "Same scratch-copy counting-shim measurement; instrumented stdout identical to upstream. The 4 expectSelfCheck spawns run browser-focus-guard.mjs --self-check in child processes whose own asserts are not counted here."
+  },
+  "environmentRequirements": {
+    "browser-focus-visibility-selfcheck.mjs": {
+      "needsMacos": false,
+      "needsBrowser": false,
+      "needsNetwork": false,
+      "evidence": "Header comment: \"Pure policy/geometry regressions. Never opens a window, browser or macOS API.\" Imports only node:assert/strict plus browser-focus-guard.mjs and browser-acceptance-evidence.mjs; the executed path uses no child_process/fetch/WebSocket. Printed macosRun:false, browserRun:false; exit 0 on this Linux host."
+    },
+    "browser-focus-guard-entry-selfcheck.mjs": {
+      "needsMacos": false,
+      "needsBrowser": false,
+      "needsNetwork": false,
+      "evidence": "Header comment: \"CLI identity regression only: no macOS commands, browser, profile or window operations.\" Spawns local node child processes and creates symlinks under os.tmpdir(). On non-darwin it asserts the guard CLI rejects with /requires macOS/ (line 30 ternary), explicitly exercising the Linux path. Printed macosRun:false, browserRun:false; exit 0 on this Linux host."
+    }
+  },
+  "scriptSha256": {
+    "scripts/testing/browser-acceptance.mjs": "7d1d5d5b9011db5f9b1245c7cd9aec280697a28d4448a14c5c39071f79507f1e",
+    "scripts/testing/browser-focus-guard.mjs": "64b766247dad18203a81d2aa6036c4e911042451e75bd13d1411fa22de5acbe4",
+    "scripts/testing/browser-focus-visibility-selfcheck.mjs": "316f5faadf8d3c9e44d64401f350c929707ac13815331515e96415c4df4523bf",
+    "scripts/testing/browser-focus-guard-entry-selfcheck.mjs": "0882bfe161191b16dcb1737cec7f5d5d6d3b28c91d34f8465b1aa26deee1f0f5"
+  },
+  "sanitization": "Workspace root -> <WORKSPACE>, then home directory -> <HOME>; no other edits."
+}

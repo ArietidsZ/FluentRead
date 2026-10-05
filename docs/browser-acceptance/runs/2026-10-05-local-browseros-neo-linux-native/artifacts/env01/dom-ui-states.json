@@ -1,0 +1,1309 @@
+{
+  "sideEvidenceOnly": true,
+  "label": "Side evidence only. No continuous focus guard interval exists on this host because browser-focus-guard.mjs asserts process.platform===darwin, so nothing in this file supports a pass.",
+  "states": {
+    "options-manga-route": {
+      "clicked": {
+        "ok": true,
+        "label": "图片/漫画翻译"
+      },
+      "href": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html#settings-image-translation",
+      "pngBytes": 105466,
+      "dom": {
+        "at": "2026-10-05T11:22:45.915Z",
+        "href": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html#settings-image-translation",
+        "title": "FluentRead-流畅阅读 · 设置",
+        "themeAttr": "",
+        "colorScheme": "rgb(245, 246, 250)",
+        "sections": [
+          {
+            "name": "settings-general",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(1)"
+          },
+          {
+            "name": "settings-services",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(2)"
+          },
+          {
+            "name": "settings-translation",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(3)"
+          },
+          {
+            "name": "settings-interface",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(4)"
+          },
+          {
+            "name": "settings-selection",
+            "path": "div#settings-nav-group-1 > button:nth-of-type(1)"
+          },
+          {
+            "name": "settings-image-translation",
+            "path": "div#settings-nav-group-1 > button:nth-of-type(2)"
+          },
+          {
+            "name": "settings-video",
+            "path": "div#settings-nav-group-1 > button:nth-of-type(3)"
+          },
+          {
+            "name": "settings-writing",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(1)"
+          },
+          {
+            "name": "settings-translation-center",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(2)"
+          },
+          {
+            "name": "settings-vocabulary",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(3)"
+          },
+          {
+            "name": "settings-glossary",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(4)"
+          },
+          {
+            "name": "settings-sites",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(5)"
+          },
+          {
+            "name": "settings-translation-stats",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(6)"
+          },
+          {
+            "name": "settings-advanced",
+            "path": "div#settings-nav-group-3 > button:nth-of-type(1)"
+          },
+          {
+            "name": "settings-data",
+            "path": "div#settings-nav-group-3 > button:nth-of-type(2)"
+          },
+          {
+            "name": "settings-about",
+            "path": "div#settings-nav-group-3 > button:nth-of-type(3)"
+          }
+        ],
+        "headings": [
+          {
+            "text": "图片/漫画翻译",
+            "path": "div#app > div:nth-of-type(1) > main:nth-of-type(2) > h1:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "基础配置",
+            "path": "section#settings-general > section:nth-of-type(2) > header:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "无痕窗口专用翻译",
+            "path": "section#feature-services > section:nth-of-type(1) > header:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "翻译服务选择",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > header:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "网页图片翻译",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(2) > header:nth-of-type(1) > div:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "漫画连续翻译",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(3) > header:nth-of-type(1) > div:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "网页辅助",
+            "path": "div:nth-of-type(1) > main:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(1) > header:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "基本偏好",
+            "path": "div:nth-of-type(1) > main:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(2) > header:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": false
+          }
+        ],
+        "buttons": [
+          {
+            "text": "基础配置›",
+            "path": "div#app > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(3) > section:nth-of-type(1) > button:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "通用设置",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "翻译服务",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(2)",
+            "visible": true
+          },
+          {
+            "text": "翻译设置",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(3)",
+            "visible": true
+          },
+          {
+            "text": "界面风格",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(4)",
+            "visible": true
+          },
+          {
+            "text": "专项翻译›",
+            "path": "div#app > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(3) > section:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "划词翻译",
+            "path": "div#settings-nav-group-1 > button:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "图片/漫画翻译",
+            "path": "div#settings-nav-group-1 > button:nth-of-type(2)",
+            "visible": true
+          },
+          {
+            "text": "视频字幕翻译",
+            "path": "div#settings-nav-group-1 > button:nth-of-type(3)",
+            "visible": true
+          },
+          {
+            "text": "工具与学习›",
+            "path": "div#app > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(3) > section:nth-of-type(3) > button:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "写作助手",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "翻译中心",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(2)",
+            "visible": true
+          },
+          {
+            "text": "学习中心",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(3)",
+            "visible": true
+          },
+          {
+            "text": "术语库",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(4)",
+            "visible": true
+          },
+          {
+            "text": "网站规则",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(5)",
+            "visible": true
+          },
+          {
+            "text": "翻译统计",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(6)",
+            "visible": true
+          },
+          {
+            "text": "系统与数据›",
+            "path": "div#app > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(3) > section:nth-of-type(4) > button:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "高级选项",
+            "path": "div#settings-nav-group-3 > button:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "备份与恢复",
+            "path": "div#settings-nav-group-3 > button:nth-of-type(2)",
+            "visible": true
+          },
+          {
+            "text": "关于流畅阅读",
+            "path": "div#settings-nav-group-3 > button:nth-of-type(3)",
+            "visible": true
+          },
+          {
+            "text": "启动插件关闭后会暂停翻译和写作助手，并隐藏网页及视频中的功能入口；重新开启时恢复原有偏好",
+            "path": "section#settings-general > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置服务",
+            "path": "section#settings-general > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(2)",
+            "visible": false
+          },
+          {
+            "text": "仅译文模式",
+            "path": "section#settings-general > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "双语对照模式",
+            "path": "section#settings-general > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(2)",
+            "visible": false
+          },
+          {
+            "text": "调整译文样式",
+            "path": "section#settings-general > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(5) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(6) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(7) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(8) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(9) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "圈选翻译设置按 Shift+Z 后拖拽区域，释放鼠标开始识别；Esc 取消或关闭。",
+            "path": "div#settings-area-translation > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "编辑识图提示词",
+            "path": "div#settings-area-translation > section:nth-of-type(1) > div:nth-of-type(1) > details:nth-of-type(2) > div:nth-of-type(7) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "添加网站",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(7) > details:nth-of-type(6) > form:nth-of-type(3) > button:nth-of-type(3)",
+            "visible": true
+          },
+          {
+            "text": "前往翻译设置",
+            "path": "section:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "前往悬浮球配置",
+            "path": "div#floating-ball-toggle > div:nth-of-type(1) > small:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "跟随操作系统",
+            "path": "div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "亮色主题",
+            "path": "div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(2)",
+            "visible": false
+          },
+          {
+            "text": "暗色主题",
+            "path": "div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(3)",
+            "visible": false
+          }
+        ],
+        "selects": [
+          {
+            "displayText": "免费翻译服务",
+            "path": "section#settings-general > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "简体中文 / Simplified Chinese",
+            "path": "section#settings-general > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(5) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(6) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(7) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(8) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(9) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "自动检测",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > label:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "简体中文",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > label:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随网页翻译服务",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > label:nth-of-type(3) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "通用文字 · Tesseract",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(2) > label:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "3 张图片",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(3) > label:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "Shift+Z",
+            "path": "div#settings-area-translation > section:nth-of-type(1) > div:nth-of-type(1) > details:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随当前翻译服务",
+            "path": "div#settings-area-translation > section:nth-of-type(1) > div:nth-of-type(1) > details:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "优先使用模型识图",
+            "path": "div#settings-area-translation > section:nth-of-type(1) > div:nth-of-type(1) > details:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "标准翻译",
+            "path": "div#settings-area-translation > section:nth-of-type(1) > div:nth-of-type(1) > details:nth-of-type(2) > div:nth-of-type(5) > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "12 张图片",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(5) > label:nth-of-type(5) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "中文 / Chinese",
+            "path": "div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          }
+        ],
+        "inputs": [
+          {
+            "placeholder": "搜索所有设置",
+            "type": "search",
+            "value": "",
+            "path": "div#app > div:nth-of-type(1) > aside:nth-of-type(1) > label:nth-of-type(2) > input:nth-of-type(2)"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-512"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-513"
+          },
+          {
+            "placeholder": null,
+            "type": "checkbox",
+            "value": "on",
+            "path": "input#el-id-436-514"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-515"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-516"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-517"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-518"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-519"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-520"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-521"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-522"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-523"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-728"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-729"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-730"
+          },
+          {
+            "placeholder": null,
+            "type": "checkbox",
+            "value": "on",
+            "path": "input#el-id-436-731"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-732"
+          },
+          {
+            "placeholder": null,
+            "type": "checkbox",
+            "value": "on",
+            "path": "input#el-id-436-733"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-734"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-809"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-810"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-811"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-812"
+          },
+          {
+            "placeholder": null,
+            "type": "checkbox",
+            "value": "on",
+            "path": "input#el-id-436-735"
+          },
+          {
+            "placeholder": null,
+            "type": "checkbox",
+            "value": "on",
+            "path": "input#el-id-436-736"
+          },
+          {
+            "placeholder": null,
+            "type": "checkbox",
+            "value": "on",
+            "path": "input#el-id-436-737"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-738"
+          },
+          {
+            "placeholder": "https://example.com/chapter/",
+            "type": "url",
+            "value": "",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(7) > details:nth-of-type(6) > form:nth-of-type(3) > label:nth-of-type(1) > input:nth-of-type(1)"
+          },
+          {
+            "placeholder": "main img, article img",
+            "type": "text",
+            "value": "main img, article img",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(7) > details:nth-of-type(6) > form:nth-of-type(3) > label:nth-of-type(2) > input:nth-of-type(1)"
+          }
+        ],
+        "switches": [
+          {
+            "on": false,
+            "path": "section#feature-services > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "on": false,
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(2) > header:nth-of-type(1) > div:nth-of-type(2)"
+          },
+          {
+            "on": true,
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(3) > header:nth-of-type(1) > div:nth-of-type(2)"
+          },
+          {
+            "on": true,
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(5) > div:nth-of-type(2) > div:nth-of-type(2)"
+          },
+          {
+            "on": true,
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(5) > div:nth-of-type(3) > div:nth-of-type(2)"
+          },
+          {
+            "on": true,
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(5) > div:nth-of-type(4) > div:nth-of-type(2)"
+          },
+          {
+            "on": false,
+            "path": "section:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "on": false,
+            "path": "div#floating-ball-toggle > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "on": false,
+            "path": "section:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1)"
+          }
+        ],
+        "bodyTextSample": "流畅阅读 让语言更近，让世界更大。 基础配置 › 通用设置 翻译服务 翻译设置 界面风格 专项翻译 › 划词翻译 图片/漫画翻译 视频字幕翻译 工具与学习 › 写作助手 翻译中心 学习中心 术语库 网站规则 翻译统计 系统与数据 › 高级选项 备份与恢复 关于流畅阅读 图片/漫画翻译 识别语言 自动检测 翻译成 简体中文 翻译服务 跟随网页翻译服务 网页图片翻译 悬停图片或右键翻译，随时对照原图。 图片识别方式 通用文字 · Tesseract 适合截图、图表与清晰排版文字。按原文语言准备语言包。 漫画连续翻译 开启后随滚动自动翻译新页面，可随时切回原图 提前翻译后续页面 3 张图片 使用 PaddleOCR，当前页优先，只提前处理已加载的图片。 圈选翻译设置 按 Shift+Z 后拖拽区域，释放鼠标开始识别；Esc 取消或关闭。 更多设置 入口与缓存 识别资源与下载 支持的网站"
+      }
+    },
+    "options-dark": {
+      "pngBytes": 107077,
+      "colorScheme": "rgb(245, 246, 250)",
+      "themeAttr": ""
+    },
+    "options-narrow-390": {
+      "pngBytes": 135300,
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 2,
+        "mobile": false
+      },
+      "dom": {
+        "at": "2026-10-05T11:22:49.432Z",
+        "href": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html#settings-image-translation",
+        "title": "FluentRead-流畅阅读 · 设置",
+        "themeAttr": "dark",
+        "colorScheme": "rgb(25, 27, 33)",
+        "sections": [
+          {
+            "name": "settings-general",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(1)"
+          },
+          {
+            "name": "settings-services",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(2)"
+          },
+          {
+            "name": "settings-translation",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(3)"
+          },
+          {
+            "name": "settings-interface",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(4)"
+          },
+          {
+            "name": "settings-selection",
+            "path": "div#settings-nav-group-1 > button:nth-of-type(1)"
+          },
+          {
+            "name": "settings-image-translation",
+            "path": "div#settings-nav-group-1 > button:nth-of-type(2)"
+          },
+          {
+            "name": "settings-video",
+            "path": "div#settings-nav-group-1 > button:nth-of-type(3)"
+          },
+          {
+            "name": "settings-writing",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(1)"
+          },
+          {
+            "name": "settings-translation-center",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(2)"
+          },
+          {
+            "name": "settings-vocabulary",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(3)"
+          },
+          {
+            "name": "settings-glossary",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(4)"
+          },
+          {
+            "name": "settings-sites",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(5)"
+          },
+          {
+            "name": "settings-translation-stats",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(6)"
+          },
+          {
+            "name": "settings-advanced",
+            "path": "div#settings-nav-group-3 > button:nth-of-type(1)"
+          },
+          {
+            "name": "settings-data",
+            "path": "div#settings-nav-group-3 > button:nth-of-type(2)"
+          },
+          {
+            "name": "settings-about",
+            "path": "div#settings-nav-group-3 > button:nth-of-type(3)"
+          }
+        ],
+        "headings": [
+          {
+            "text": "图片/漫画翻译",
+            "path": "div#app > div:nth-of-type(1) > main:nth-of-type(2) > h1:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "基础配置",
+            "path": "section#settings-general > section:nth-of-type(2) > header:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "无痕窗口专用翻译",
+            "path": "section#feature-services > section:nth-of-type(1) > header:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "翻译服务选择",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > header:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "网页图片翻译",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(2) > header:nth-of-type(1) > div:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "漫画连续翻译",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(3) > header:nth-of-type(1) > div:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "网页辅助",
+            "path": "div:nth-of-type(1) > main:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(1) > header:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "基本偏好",
+            "path": "div:nth-of-type(1) > main:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(2) > header:nth-of-type(1) > h2:nth-of-type(1)",
+            "visible": false
+          }
+        ],
+        "buttons": [
+          {
+            "text": "基础配置›",
+            "path": "div#app > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(3) > section:nth-of-type(1) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "通用设置",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "翻译服务",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(2)",
+            "visible": false
+          },
+          {
+            "text": "翻译设置",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(3)",
+            "visible": false
+          },
+          {
+            "text": "界面风格",
+            "path": "div#settings-nav-group-0 > button:nth-of-type(4)",
+            "visible": false
+          },
+          {
+            "text": "专项翻译›",
+            "path": "div#app > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(3) > section:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "划词翻译",
+            "path": "div#settings-nav-group-1 > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "图片/漫画翻译",
+            "path": "div#settings-nav-group-1 > button:nth-of-type(2)",
+            "visible": false
+          },
+          {
+            "text": "视频字幕翻译",
+            "path": "div#settings-nav-group-1 > button:nth-of-type(3)",
+            "visible": false
+          },
+          {
+            "text": "工具与学习›",
+            "path": "div#app > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(3) > section:nth-of-type(3) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "写作助手",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "翻译中心",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(2)",
+            "visible": false
+          },
+          {
+            "text": "学习中心",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(3)",
+            "visible": false
+          },
+          {
+            "text": "术语库",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(4)",
+            "visible": false
+          },
+          {
+            "text": "网站规则",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(5)",
+            "visible": false
+          },
+          {
+            "text": "翻译统计",
+            "path": "div#settings-nav-group-2 > button:nth-of-type(6)",
+            "visible": false
+          },
+          {
+            "text": "系统与数据›",
+            "path": "div#app > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(3) > section:nth-of-type(4) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "高级选项",
+            "path": "div#settings-nav-group-3 > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "备份与恢复",
+            "path": "div#settings-nav-group-3 > button:nth-of-type(2)",
+            "visible": false
+          },
+          {
+            "text": "关于流畅阅读",
+            "path": "div#settings-nav-group-3 > button:nth-of-type(3)",
+            "visible": false
+          },
+          {
+            "text": "启动插件关闭后会暂停翻译和写作助手，并隐藏网页及视频中的功能入口；重新开启时恢复原有偏好",
+            "path": "section#settings-general > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置服务",
+            "path": "section#settings-general > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(2)",
+            "visible": false
+          },
+          {
+            "text": "仅译文模式",
+            "path": "section#settings-general > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "双语对照模式",
+            "path": "section#settings-general > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(2)",
+            "visible": false
+          },
+          {
+            "text": "调整译文样式",
+            "path": "section#settings-general > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(5) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(6) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(7) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(8) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "配置连接",
+            "path": "div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(9) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "圈选翻译设置按 Shift+Z 后拖拽区域，释放鼠标开始识别；Esc 取消或关闭。",
+            "path": "div#settings-area-translation > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "编辑识图提示词",
+            "path": "div#settings-area-translation > section:nth-of-type(1) > div:nth-of-type(1) > details:nth-of-type(2) > div:nth-of-type(7) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": true
+          },
+          {
+            "text": "添加网站",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(7) > details:nth-of-type(6) > form:nth-of-type(3) > button:nth-of-type(3)",
+            "visible": true
+          },
+          {
+            "text": "前往翻译设置",
+            "path": "section:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "前往悬浮球配置",
+            "path": "div#floating-ball-toggle > div:nth-of-type(1) > small:nth-of-type(2) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "跟随操作系统",
+            "path": "div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(1)",
+            "visible": false
+          },
+          {
+            "text": "亮色主题",
+            "path": "div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(2)",
+            "visible": false
+          },
+          {
+            "text": "暗色主题",
+            "path": "div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > button:nth-of-type(3)",
+            "visible": false
+          }
+        ],
+        "selects": [
+          {
+            "displayText": "免费翻译服务",
+            "path": "section#settings-general > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "简体中文 / Simplified Chinese",
+            "path": "section#settings-general > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(5) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(6) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(7) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(8) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随默认 · 免费翻译服务",
+            "path": "section#feature-services > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(9) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "自动检测",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > label:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "简体中文",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > label:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随网页翻译服务",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > label:nth-of-type(3) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "通用文字 · Tesseract",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(2) > label:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "3 张图片",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(3) > label:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "Shift+Z",
+            "path": "div#settings-area-translation > section:nth-of-type(1) > div:nth-of-type(1) > details:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "跟随当前翻译服务",
+            "path": "div#settings-area-translation > section:nth-of-type(1) > div:nth-of-type(1) > details:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "优先使用模型识图",
+            "path": "div#settings-area-translation > section:nth-of-type(1) > div:nth-of-type(1) > details:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "标准翻译",
+            "path": "div#settings-area-translation > section:nth-of-type(1) > div:nth-of-type(1) > details:nth-of-type(2) > div:nth-of-type(5) > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "12 张图片",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(5) > label:nth-of-type(5) > div:nth-of-type(1)"
+          },
+          {
+            "displayText": "中文 / Chinese",
+            "path": "div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)"
+          }
+        ],
+        "inputs": [
+          {
+            "placeholder": "搜索所有设置",
+            "type": "search",
+            "value": "",
+            "path": "div#app > div:nth-of-type(1) > aside:nth-of-type(1) > label:nth-of-type(2) > input:nth-of-type(2)"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-512"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-513"
+          },
+          {
+            "placeholder": null,
+            "type": "checkbox",
+            "value": "on",
+            "path": "input#el-id-436-514"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-515"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-516"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-517"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-518"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-519"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-520"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-521"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-522"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-523"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-728"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-729"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-730"
+          },
+          {
+            "placeholder": null,
+            "type": "checkbox",
+            "value": "on",
+            "path": "input#el-id-436-731"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-732"
+          },
+          {
+            "placeholder": null,
+            "type": "checkbox",
+            "value": "on",
+            "path": "input#el-id-436-733"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-734"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-809"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-810"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-811"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-812"
+          },
+          {
+            "placeholder": null,
+            "type": "checkbox",
+            "value": "on",
+            "path": "input#el-id-436-735"
+          },
+          {
+            "placeholder": null,
+            "type": "checkbox",
+            "value": "on",
+            "path": "input#el-id-436-736"
+          },
+          {
+            "placeholder": null,
+            "type": "checkbox",
+            "value": "on",
+            "path": "input#el-id-436-737"
+          },
+          {
+            "placeholder": null,
+            "type": "text",
+            "value": "",
+            "path": "input#el-id-436-738"
+          },
+          {
+            "placeholder": "https://example.com/chapter/",
+            "type": "url",
+            "value": "",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(7) > details:nth-of-type(6) > form:nth-of-type(3) > label:nth-of-type(1) > input:nth-of-type(1)"
+          },
+          {
+            "placeholder": "main img, article img",
+            "type": "text",
+            "value": "main img, article img",
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(7) > details:nth-of-type(6) > form:nth-of-type(3) > label:nth-of-type(2) > input:nth-of-type(1)"
+          }
+        ],
+        "switches": [
+          {
+            "on": false,
+            "path": "section#feature-services > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "on": false,
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(2) > header:nth-of-type(1) > div:nth-of-type(2)"
+          },
+          {
+            "on": true,
+            "path": "section#settings-image-translation > div:nth-of-type(1) > section:nth-of-type(3) > header:nth-of-type(1) > div:nth-of-type(2)"
+          },
+          {
+            "on": true,
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(5) > div:nth-of-type(2) > div:nth-of-type(2)"
+          },
+          {
+            "on": true,
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(5) > div:nth-of-type(3) > div:nth-of-type(2)"
+          },
+          {
+            "on": true,
+            "path": "section#settings-image-translation > div:nth-of-type(1) > details:nth-of-type(5) > div:nth-of-type(4) > div:nth-of-type(2)"
+          },
+          {
+            "on": false,
+            "path": "section:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "on": false,
+            "path": "div#floating-ball-toggle > div:nth-of-type(2) > div:nth-of-type(1)"
+          },
+          {
+            "on": false,
+            "path": "section:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1)"
+          }
+        ],
+        "bodyTextSample": "流畅阅读 让语言更近，让世界更大。 通用设置 翻译服务 翻译设置 界面风格 划词翻译 图片/漫画翻译 视频字幕翻译 写作助手 翻译中心 学习中心 术语库 网站规则 翻译统计 高级选项 备份与恢复 关于流畅阅读 图片/漫画翻译 识别语言 自动检测 翻译成 简体中文 翻译服务 跟随网页翻译服务 网页图片翻译 悬停图片或右键翻译，随时对照原图。 图片识别方式 通用文字 · Tesseract 适合截图、图表与清晰排版文字。按原文语言准备语言包。 漫画连续翻译 开启后随滚动自动翻译新页面，可随时切回原图 提前翻译后续页面 3 张图片 使用 PaddleOCR，当前页优先，只提前处理已加载的图片。 圈选翻译设置 按 Shift+Z 后拖拽区域，释放鼠标开始识别；Esc 取消或关闭。 更多设置 入口与缓存 识别资源与下载 支持的网站"
+      }
+    },
+    "options-after-clear": {
+      "href": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html#settings-image-translation",
+      "themeAttr": ""
+    }
+  },
+  "errors": []
+}

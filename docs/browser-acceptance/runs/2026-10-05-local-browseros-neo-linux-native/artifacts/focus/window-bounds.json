@@ -1,0 +1,21 @@
+{
+  "sideEvidenceOnly": true,
+  "label": "Side evidence only. No continuous focus guard interval exists on this host because browser-focus-guard.mjs asserts process.platform===darwin, so nothing in this file supports a pass.",
+  "requestedPosition": "left=2400,top=120,1200x900",
+  "readAt": "2026-10-05T11:20:24.404Z",
+  "cdpPort": 9420,
+  "windows": [
+    {
+      "windowId": 1164218187,
+      "targetId": "52E92362C5645FB34C0D7C8C84DA2C66",
+      "url": "chrome://newtab/",
+      "left": 0,
+      "top": 0,
+      "width": 1200,
+      "height": 900,
+      "windowState": "normal"
+    }
+  ],
+  "errors": [],
+  "pageTargetCount": 1
+}

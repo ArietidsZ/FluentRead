@@ -1,0 +1,54 @@
+{
+  "note": "Counterfactual checks run against the real upstream validator on copies of this round record. The record itself is unchanged.",
+  "validator": "node scripts/testing/browser-acceptance.mjs validate <file>",
+  "results": [
+    {
+      "name": "00-baseline",
+      "note": "Unmodified copy of the round record.",
+      "accepted": true,
+      "validatorOutput": "{\"valid\":true,\"overall\":\"blocked\",\"cases\":22}"
+    },
+    {
+      "name": "01-one-case-pass",
+      "note": "Flip ENV-01 to pass, and also satisfy the checkout provenance gate, so the next gate is the real one.",
+      "accepted": false,
+      "validatorOutput": "Expected focus-guard evidence: undefined"
+    },
+    {
+      "name": "02-overall-pass",
+      "note": "Claim the whole round passed while every case stays blocked.",
+      "accepted": false,
+      "validatorOutput": "Overall status must include all cases\n\n'pass' !== 'blocked'"
+    },
+    {
+      "name": "03-wrong-digest",
+      "note": "Register an artifact digest that does not match the bytes on disk.",
+      "accepted": false,
+      "validatorOutput": "Artifact digest mismatch: artifacts/focus/guard-attempt-once.txt\n+ actual - expected\n\n+ 'd9341ca4f330f70c0b270ef4bb65b16a52b1810a2f8febe01627be4c26b1afda'\n- '0000000000000000000000000000000000000000000000000000000000000000'"
+    },
+    {
+      "name": "04-kind-swap",
+      "note": "Change a case evidence class away from the checked-in template.",
+      "accepted": false,
+      "validatorOutput": "YT-02: evidence class changed\n+ actual - expected\n\n+ 'deterministic-browser'\n- 'real-site-model'"
+    },
+    {
+      "name": "05-guard-transcript-as-evidence",
+      "note": "Point environment.focusGuardEvidence at the raw guard refusal transcript, with the checkout gate satisfied.",
+      "accepted": false,
+      "validatorOutput": "Unexpected token 'a', \"attempt: o\"... is not valid JSON"
+    },
+    {
+      "name": "06-guard-block-json-as-evidence",
+      "note": "Point environment.focusGuardEvidence at the structured guard-block record, which is not a completed continuous guard report, with the checkout gate satisfied.",
+      "accepted": false,
+      "validatorOutput": "Report and guard visibility policies differ\n+ actual - expected\n\n+ 'temporary-partial-visibility-20261005'\n- 'fully-offscreen'"
+    },
+    {
+      "name": "07-fabricated-guard-report",
+      "note": "Attempt to promote a fabricated one-observation guard report into pass evidence.",
+      "accepted": false,
+      "validatorOutput": "Pass requires repeated successful focus/window observations"
+    }
+  ]
+}

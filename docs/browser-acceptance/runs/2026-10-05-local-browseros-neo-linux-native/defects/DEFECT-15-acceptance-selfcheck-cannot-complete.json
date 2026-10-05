@@ -1,0 +1,17 @@
+{
+  "id": "DEFECT-15",
+  "title": "The tool self-check browser-acceptance.mjs self-check cannot complete on this host",
+  "severity": "tooling prerequisite",
+  "exitCode": 1,
+  "cause": "Its language-regression step runs scripts/generate-userscript-language-data.mjs, which fails with \"Cannot find module 'vite'\" because the locked dependencies are not installed here and pnpm is absent.",
+  "otherSelfChecks": {
+    "browser-focus-guard.mjs --self-check": "exit 0",
+    "browser-focus-visibility-selfcheck.mjs": "negativeChecks: 26, exit 0",
+    "browser-focus-guard-entry-selfcheck.mjs": "10 checks, exit 0"
+  },
+  "consequence": "The validator run on this record is the tooling verification that did succeed; the self-check is reported as not completable rather than passed.",
+  "evidence": [
+    "artifacts/tools/selfchecks-raw.txt",
+    "artifacts/tools/selfchecks.json"
+  ]
+}

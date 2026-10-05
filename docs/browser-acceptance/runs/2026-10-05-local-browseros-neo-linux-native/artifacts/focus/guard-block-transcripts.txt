@@ -1,0 +1,68 @@
+=== fluentread acceptance recon: guard-block transcripts (sanitized copy) ===
+NOTE: this is the raw transcript with exactly two substitutions applied per run rules:
+  repository root -> <WORKSPACE> ; user home -> <HOME>. No other content changed.
+
+=== fluentread acceptance recon: guard-block transcripts ===
+recorded_at_utc: 2026-10-05T10:58:06Z
+host_platform_node: linux x64 node/v26.7.0
+cwd: <WORKSPACE>
+
+### PROBE 1: partial-visibility once-mode with nonexistent profile, pid 1, port 9420 ###
+command: node scripts/testing/browser-focus-guard.mjs --once --allow-partial-visibility --profile /tmp/fluentread-does-not-exist --pid 1 --port 9420 --output <HOME>/.cache/fluentread-acceptance/linux-native-20261005/recon/guard-probe-report.json
+exit_code: 1
+--- stdout ---
+--- stderr ---
+This observer requires macOS; it has not been browser-certified here
+
+'linux' !== 'darwin'
+
+--- output file check ---
+guard-probe-report.json: NOT CREATED
+
+### PROBE 2: no-argument invocation ###
+command: node scripts/testing/browser-focus-guard.mjs
+exit_code: 1
+--- stdout ---
+--- stderr ---
+This observer requires macOS; it has not been browser-certified here
+
+'linux' !== 'darwin'
+
+
+### PROBE 3: --self-check ###
+command: node scripts/testing/browser-focus-guard.mjs --self-check
+exit_code: 0
+--- stdout ---
+{"ok":true,"scope":"pure guard contract checks only","macosRun":false,"browserRun":false}
+--- stderr ---
+
+### BINARY AVAILABILITY CHECKS (informational; run outside guard) ###
+/usr/bin/osascript: ABSENT
+/usr/sbin/lsof: ABSENT
+/usr/bin/lsof: PRESENT
+/bin/ps: PRESENT
+/usr/bin/ps: PRESENT
+
+### SUPPLEMENT A: identity of pinned sources (working tree vs 7f8d6dfe) ###
+HEAD: 5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576
+branch: acceptance/local-browseros-neo-linux-native-20261005
+diff vs 7f8d6dfe for scripts/testing (empty means identical):
+diff production source tree paths (only guard files):
+sha256:
+  64b766247dad18203a81d2aa6036c4e911042451e75bd13d1411fa22de5acbe4  scripts/testing/browser-focus-guard.mjs
+  316f5faadf8d3c9e44d64401f350c929707ac13815331515e96415c4df4523bf  scripts/testing/browser-focus-visibility-selfcheck.mjs
+  0882bfe161191b16dcb1737cec7f5d5d6d3b28c91d34f8465b1aa26deee1f0f5  scripts/testing/browser-focus-guard-entry-selfcheck.mjs
+
+### SUPPLEMENT B: browser-focus-visibility-selfcheck.mjs on Linux ###
+command: node scripts/testing/browser-focus-visibility-selfcheck.mjs
+exit_code: 0
+--- stdout ---
+{"ok":true,"node":"v26.7.0","negativeChecks":26,"scope":"explicit visibility policy and evidence contracts only","macosRun":false,"browserRun":false}
+--- stderr ---
+
+### SUPPLEMENT C: browser-focus-guard-entry-selfcheck.mjs on Linux ###
+command: node scripts/testing/browser-focus-guard-entry-selfcheck.mjs
+exit_code: 0
+--- stdout ---
+{"ok":true,"node":"v26.7.0","checks":["direct CLI","file symlink CLI","ancestor-directory symlink CLI","preserved symlink main","ordinary direct/alias invocation rejects unmet prerequisites","direct import without CLI execution","aliased import without CLI execution","eval import without entry argument","stdin import with dash entry argument","unresolvable entry fails nonzero"],"macosRun":false,"browserRun":false}
+--- stderr ---

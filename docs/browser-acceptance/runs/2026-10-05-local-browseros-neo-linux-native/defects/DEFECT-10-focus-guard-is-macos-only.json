@@ -1,0 +1,45 @@
+{
+  "id": "DEFECT-10",
+  "title": "browser-focus-guard.mjs is a macOS-only observer, so no guard report and no pass is possible on Linux",
+  "severity": "blocking",
+  "file": "scripts/testing/browser-focus-guard.mjs",
+  "line": 93,
+  "assertion": "assert.equal(process.platform,'darwin','This observer requires macOS; it has not been browser-certified here');",
+  "position": "first statement of runGuard(), before any argument is read",
+  "otherPlatformGates": [
+    "osascript probe string (line 75)",
+    "osascript reads (lines 137, 145) hardcoding /usr/bin/osascript",
+    "/bin/ps reads (lines 104-105)",
+    "/usr/sbin/lsof listener check"
+  ],
+  "observed": {
+    "once": {
+      "exitCode": 1,
+      "stderr": "This observer requires macOS; it has not been browser-certified here\n\n'linux' !== 'darwin'"
+    },
+    "continuous": {
+      "exitCode": 1,
+      "stderr": "This observer requires macOS; it has not been browser-certified here\n\n'linux' !== 'darwin'"
+    },
+    "guardReportCreated": false,
+    "reportStatus": "present_after_once: no; present_after_continuous: no; created_during_attempt: no"
+  },
+  "preconditionsThatWereSatisfiable": {
+    "profile": "/tmp/fluentread-linux-native-JcsG10",
+    "profileMode": "700",
+    "profileUid": 1000,
+    "profileUnderTmp": true,
+    "profileBasenamePrefix": true,
+    "commandLineHasUnquotedAbsoluteUserDataDir": true,
+    "listenerOwnedByBrowserPidAndLoopbackOnly": true
+  },
+  "evidence": [
+    "artifacts/focus/guard-attempt-once.txt",
+    "artifacts/focus/guard-attempt-continuous.txt",
+    "artifacts/focus/guard-report-status.txt",
+    "artifacts/focus/guard-preconditions.txt",
+    "artifacts/focus/guard-block-transcripts.txt",
+    "artifacts/focus/guard-block.json"
+  ],
+  "suggestedFix": "Express the contract in terms of what can actually be observed on each platform: a normal-size window that never becomes frontmost with an unchanged frontmost PID, plus the existing ownership and listener checks. Add a supported foreground/window probe for Linux, or state explicitly that the guard is macOS-only and that no pass is possible elsewhere."
+}

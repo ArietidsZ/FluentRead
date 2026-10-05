@@ -1,0 +1,42 @@
+{
+  "sideEvidenceOnly": true,
+  "label": "Side evidence only. No continuous focus guard interval exists on this host because browser-focus-guard.mjs asserts process.platform===darwin, so nothing in this file supports a pass.",
+  "at": "2026-10-05T11:25:35.773Z",
+  "context": "same-origin Blob Worker created inside an extension page",
+  "timeoutMs": 12000,
+  "ok": true,
+  "error": null,
+  "adapter": {
+    "vendor": "nvidia",
+    "architecture": "blackwell",
+    "device": "",
+    "description": ""
+  },
+  "isFallbackAdapter": false,
+  "features": [
+    "bgra8unorm-storage",
+    "clip-distances",
+    "core-features-and-limits",
+    "depth-clip-control",
+    "depth32float-stencil8",
+    "dual-source-blending",
+    "float32-blendable",
+    "float32-filterable",
+    "indirect-first-instance",
+    "primitive-index",
+    "rg11b10ufloat-renderable",
+    "subgroups",
+    "texture-component-swizzle",
+    "texture-compression-bc",
+    "texture-compression-bc-sliced-3d",
+    "texture-formats-tier1",
+    "texture-formats-tier2",
+    "timestamp-query"
+  ],
+  "limits": {},
+  "elapsedMs": 15,
+  "target": {
+    "id": "C96683BB71ACE92D5E926C2F095EAC5E",
+    "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html#settings-image-translation"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "DEFECT-13",
+  "title": "The schema constant testedLocalHead is absent from this clone and from origin",
+  "severity": "provenance limitation",
+  "testedLocalHead": "7212af1f9da08324963e38973c7f477aabfffb0b",
+  "presentLocally": false,
+  "presentOnOrigin": false,
+  "originRefs": [
+    "refs/heads/main 0652ce2309c76a09310868acb45e71990533b500",
+    "refs/heads/acceptance/local-browseros-neo-20261005 0bd32b4aecc2e2ca1dfa999746098358656c7b60",
+    "refs/heads/acceptance/local-browseros-neo-resume-20261005 4ceace044dec24e5f36ddf5b9fd97140abdf8dfb",
+    "refs/heads/acceptance/local-browseros-neo-rules-7f8d6dfe-20261005 5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576",
+    "refs/heads/acceptance/local-browseros-neo-rules-c796cd88-20261005 361435b94aecd064edcf090d75861b14141ffae3",
+    "refs/heads/review/browser-acceptance-20261005 7f8d6dfe0d8ebd7a526bf9c654ea7e4926518fa1"
+  ],
+  "consequence": "The value is carried in result.json only because the checked-in schema fixes it as a constant; it could not be corroborated on this host.",
+  "evidence": [
+    "artifacts/source.json",
+    "artifacts/host/hygiene.json"
+  ]
+}

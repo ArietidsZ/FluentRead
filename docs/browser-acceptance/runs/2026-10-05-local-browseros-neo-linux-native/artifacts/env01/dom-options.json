@@ -1,0 +1,490 @@
+{
+  "capturedAt": "2026-10-05T11:22:05.360Z",
+  "name": "options",
+  "target": {
+    "id": "C96683BB71ACE92D5E926C2F095EAC5E",
+    "type": "page",
+    "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html#settings-general"
+  },
+  "title": "FluentRead-流畅阅读 · 设置",
+  "href": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html#settings-general",
+  "readyState": "complete",
+  "viewport": {
+    "width": 928,
+    "height": 777,
+    "devicePixelRatio": 1
+  },
+  "sections": [
+    {
+      "tag": "button",
+      "dataSection": "settings-general",
+      "text": "通用设置",
+      "path": "#settings-nav-group-0 > button:nth-of-type(1)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-services",
+      "text": "翻译服务",
+      "path": "#settings-nav-group-0 > button:nth-of-type(2)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-translation",
+      "text": "翻译设置",
+      "path": "#settings-nav-group-0 > button:nth-of-type(3)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-interface",
+      "text": "界面风格",
+      "path": "#settings-nav-group-0 > button:nth-of-type(4)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-selection",
+      "text": "划词翻译",
+      "path": "#settings-nav-group-1 > button:nth-of-type(1)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-image-translation",
+      "text": "图片/漫画翻译",
+      "path": "#settings-nav-group-1 > button:nth-of-type(2)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-video",
+      "text": "视频字幕翻译",
+      "path": "#settings-nav-group-1 > button:nth-of-type(3)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-writing",
+      "text": "写作助手",
+      "path": "#settings-nav-group-2 > button:nth-of-type(1)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-translation-center",
+      "text": "翻译中心",
+      "path": "#settings-nav-group-2 > button:nth-of-type(2)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-vocabulary",
+      "text": "学习中心",
+      "path": "#settings-nav-group-2 > button:nth-of-type(3)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-glossary",
+      "text": "术语库",
+      "path": "#settings-nav-group-2 > button:nth-of-type(4)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-sites",
+      "text": "网站规则",
+      "path": "#settings-nav-group-2 > button:nth-of-type(5)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-translation-stats",
+      "text": "翻译统计",
+      "path": "#settings-nav-group-2 > button:nth-of-type(6)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-advanced",
+      "text": "高级选项",
+      "path": "#settings-nav-group-3 > button:nth-of-type(1)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-data",
+      "text": "备份与恢复",
+      "path": "#settings-nav-group-3 > button:nth-of-type(2)",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "dataSection": "settings-about",
+      "text": "关于流畅阅读",
+      "path": "#settings-nav-group-3 > button:nth-of-type(3)",
+      "visible": true
+    }
+  ],
+  "headings": [
+    {
+      "level": 1,
+      "text": "通用设置",
+      "path": "#app > div > main > h1"
+    },
+    {
+      "level": 2,
+      "text": "基础配置",
+      "path": "#settings-general > section:nth-of-type(2) > header > h2"
+    },
+    {
+      "level": 2,
+      "text": "无痕窗口专用翻译",
+      "path": "#feature-services > section > header > h2"
+    },
+    {
+      "level": 2,
+      "text": "翻译服务选择",
+      "path": "#feature-services > div > section > header > h2"
+    },
+    {
+      "level": 2,
+      "text": "网页辅助",
+      "path": "#app > div > main > section > div:nth-of-type(1) > section > section:nth-of-type(1) > header > h2"
+    },
+    {
+      "level": 2,
+      "text": "基本偏好",
+      "path": "#app > div > main > section > div:nth-of-type(1) > section > section:nth-of-type(2) > header > h2"
+    }
+  ],
+  "labels": [
+    {
+      "text": "",
+      "htmlFor": null,
+      "path": "#app > div > aside > label"
+    }
+  ],
+  "buttons": [
+    {
+      "text": "基础配置 ›",
+      "type": "button",
+      "path": "#app > div > aside > nav > section:nth-of-type(1) > button",
+      "visible": true
+    },
+    {
+      "text": "通用设置",
+      "type": "button",
+      "path": "#settings-nav-group-0 > button:nth-of-type(1)",
+      "visible": true
+    },
+    {
+      "text": "翻译服务",
+      "type": "button",
+      "path": "#settings-nav-group-0 > button:nth-of-type(2)",
+      "visible": true
+    },
+    {
+      "text": "翻译设置",
+      "type": "button",
+      "path": "#settings-nav-group-0 > button:nth-of-type(3)",
+      "visible": true
+    },
+    {
+      "text": "界面风格",
+      "type": "button",
+      "path": "#settings-nav-group-0 > button:nth-of-type(4)",
+      "visible": true
+    },
+    {
+      "text": "专项翻译 ›",
+      "type": "button",
+      "path": "#app > div > aside > nav > section:nth-of-type(2) > button",
+      "visible": true
+    },
+    {
+      "text": "划词翻译",
+      "type": "button",
+      "path": "#settings-nav-group-1 > button:nth-of-type(1)",
+      "visible": true
+    },
+    {
+      "text": "图片/漫画翻译",
+      "type": "button",
+      "path": "#settings-nav-group-1 > button:nth-of-type(2)",
+      "visible": true
+    },
+    {
+      "text": "视频字幕翻译",
+      "type": "button",
+      "path": "#settings-nav-group-1 > button:nth-of-type(3)",
+      "visible": true
+    },
+    {
+      "text": "工具与学习 ›",
+      "type": "button",
+      "path": "#app > div > aside > nav > section:nth-of-type(3) > button",
+      "visible": true
+    },
+    {
+      "text": "写作助手",
+      "type": "button",
+      "path": "#settings-nav-group-2 > button:nth-of-type(1)",
+      "visible": true
+    },
+    {
+      "text": "翻译中心",
+      "type": "button",
+      "path": "#settings-nav-group-2 > button:nth-of-type(2)",
+      "visible": true
+    },
+    {
+      "text": "学习中心",
+      "type": "button",
+      "path": "#settings-nav-group-2 > button:nth-of-type(3)",
+      "visible": true
+    },
+    {
+      "text": "术语库",
+      "type": "button",
+      "path": "#settings-nav-group-2 > button:nth-of-type(4)",
+      "visible": true
+    },
+    {
+      "text": "网站规则",
+      "type": "button",
+      "path": "#settings-nav-group-2 > button:nth-of-type(5)",
+      "visible": true
+    },
+    {
+      "text": "翻译统计",
+      "type": "button",
+      "path": "#settings-nav-group-2 > button:nth-of-type(6)",
+      "visible": true
+    },
+    {
+      "text": "系统与数据 ›",
+      "type": "button",
+      "path": "#app > div > aside > nav > section:nth-of-type(4) > button",
+      "visible": true
+    },
+    {
+      "text": "高级选项",
+      "type": "button",
+      "path": "#settings-nav-group-3 > button:nth-of-type(1)",
+      "visible": true
+    },
+    {
+      "text": "备份与恢复",
+      "type": "button",
+      "path": "#settings-nav-group-3 > button:nth-of-type(2)",
+      "visible": true
+    },
+    {
+      "text": "关于流畅阅读",
+      "type": "button",
+      "path": "#settings-nav-group-3 > button:nth-of-type(3)",
+      "visible": true
+    },
+    {
+      "text": "启动插件 关闭后会暂停翻译和写作助手，并隐藏网页及视频中的功能入口；重新开启时恢复原有偏好",
+      "type": "button",
+      "path": "#settings-general > section:nth-of-type(1) > div > div > button",
+      "visible": true
+    },
+    {
+      "text": "配置服务",
+      "type": "button",
+      "path": "#settings-general > section:nth-of-type(2) > div > div:nth-of-type(1) > div:nth-of-type(2) > div > button",
+      "visible": true
+    },
+    {
+      "text": "仅译文模式",
+      "type": "button",
+      "path": "#settings-general > section:nth-of-type(2) > div > div:nth-of-type(3) > div:nth-of-type(2) > div > button:nth-of-type(1)",
+      "visible": true
+    },
+    {
+      "text": "双语对照模式",
+      "type": "button",
+      "path": "#settings-general > section:nth-of-type(2) > div > div:nth-of-type(3) > div:nth-of-type(2) > div > button:nth-of-type(2)",
+      "visible": true
+    },
+    {
+      "text": "调整译文样式",
+      "type": "button",
+      "path": "#settings-general > section:nth-of-type(2) > div > div:nth-of-type(4) > div:nth-of-type(2) > button",
+      "visible": true
+    },
+    {
+      "text": "配置连接",
+      "type": "button",
+      "path": "#feature-services > div > section > div > div:nth-of-type(1) > div:nth-of-type(2) > div > div:nth-of-type(2) > button",
+      "visible": true
+    },
+    {
+      "text": "配置连接",
+      "type": "button",
+      "path": "#feature-services > div > section > div > div:nth-of-type(2) > div:nth-of-type(2) > div > div:nth-of-type(2) > button",
+      "visible": true
+    },
+    {
+      "text": "配置连接",
+      "type": "button",
+      "path": "#feature-services > div > section > div > div:nth-of-type(3) > div:nth-of-type(2) > div > div:nth-of-type(2) > button",
+      "visible": true
+    },
+    {
+      "text": "配置连接",
+      "type": "button",
+      "path": "#feature-services > div > section > div > div:nth-of-type(4) > div:nth-of-type(2) > div > div:nth-of-type(2) > button",
+      "visible": true
+    },
+    {
+      "text": "配置连接",
+      "type": "button",
+      "path": "#feature-services > div > section > div > div:nth-of-type(5) > div:nth-of-type(2) > div > div:nth-of-type(2) > button",
+      "visible": true
+    },
+    {
+      "text": "配置连接",
+      "type": "button",
+      "path": "#feature-services > div > section > div > div:nth-of-type(6) > div:nth-of-type(2) > div > div:nth-of-type(2) > button",
+      "visible": true
+    },
+    {
+      "text": "配置连接",
+      "type": "button",
+      "path": "#feature-services > div > section > div > div:nth-of-type(7) > div:nth-of-type(2) > div > div:nth-of-type(2) > button",
+      "visible": true
+    },
+    {
+      "text": "配置连接",
+      "type": "button",
+      "path": "#feature-services > div > section > div > div:nth-of-type(8) > div:nth-of-type(2) > div > div:nth-of-type(2) > button",
+      "visible": true
+    },
+    {
+      "text": "配置连接",
+      "type": "button",
+      "path": "#feature-services > div > section > div > div:nth-of-type(9) > div:nth-of-type(2) > div > div:nth-of-type(2) > button",
+      "visible": true
+    },
+    {
+      "text": "前往翻译设置",
+      "type": "button",
+      "path": "#app > div > main > section > div:nth-of-type(1) > section > section:nth-of-type(1) > div > div:nth-of-type(1) > div:nth-of-type(2) > button",
+      "visible": true
+    },
+    {
+      "text": "前往悬浮球配置",
+      "type": "button",
+      "path": "#floating-ball-toggle > div:nth-of-type(1) > small > button",
+      "visible": true
+    },
+    {
+      "text": "跟随操作系统",
+      "type": "button",
+      "path": "#app > div > main > section > div:nth-of-type(1) > section > section:nth-of-type(2) > div > div:nth-of-type(2) > div:nth-of-type(2) > div > button:nth-of-type(1)",
+      "visible": true
+    },
+    {
+      "text": "亮色主题",
+      "type": "button",
+      "path": "#app > div > main > section > div:nth-of-type(1) > section > section:nth-of-type(2) > div > div:nth-of-type(2) > div:nth-of-type(2) > div > button:nth-of-type(2)",
+      "visible": true
+    },
+    {
+      "text": "暗色主题",
+      "type": "button",
+      "path": "#app > div > main > section > div:nth-of-type(1) > section > section:nth-of-type(2) > div > div:nth-of-type(2) > div:nth-of-type(2) > div > button:nth-of-type(3)",
+      "visible": true
+    }
+  ],
+  "selects": [
+    {
+      "kind": "el-select",
+      "displayText": "",
+      "path": "#settings-general > section:nth-of-type(2) > div > div:nth-of-type(1) > div:nth-of-type(2) > div > div",
+      "disabled": false
+    },
+    {
+      "kind": "el-select",
+      "displayText": "",
+      "path": "#settings-general > section:nth-of-type(2) > div > div:nth-of-type(2) > div:nth-of-type(2) > div",
+      "disabled": false
+    },
+    {
+      "kind": "el-select",
+      "displayText": "",
+      "path": "#feature-services > div > section > div > div:nth-of-type(1) > div:nth-of-type(2) > div > div:nth-of-type(1)",
+      "disabled": false
+    },
+    {
+      "kind": "el-select",
+      "displayText": "",
+      "path": "#feature-services > div > section > div > div:nth-of-type(2) > div:nth-of-type(2) > div > div:nth-of-type(1)",
+      "disabled": false
+    },
+    {
+      "kind": "el-select",
+      "displayText": "",
+      "path": "#feature-services > div > section > div > div:nth-of-type(3) > div:nth-of-type(2) > div > div:nth-of-type(1)",
+      "disabled": false
+    },
+    {
+      "kind": "el-select",
+      "displayText": "",
+      "path": "#feature-services > div > section > div > div:nth-of-type(4) > div:nth-of-type(2) > div > div:nth-of-type(1)",
+      "disabled": false
+    },
+    {
+      "kind": "el-select",
+      "displayText": "",
+      "path": "#feature-services > div > section > div > div:nth-of-type(5) > div:nth-of-type(2) > div > div:nth-of-type(1)",
+      "disabled": false
+    },
+    {
+      "kind": "el-select",
+      "displayText": "",
+      "path": "#feature-services > div > section > div > div:nth-of-type(6) > div:nth-of-type(2) > div > div:nth-of-type(1)",
+      "disabled": false
+    },
+    {
+      "kind": "el-select",
+      "displayText": "",
+      "path": "#feature-services > div > section > div > div:nth-of-type(7) > div:nth-of-type(2) > div > div:nth-of-type(1)",
+      "disabled": false
+    },
+    {
+      "kind": "el-select",
+      "displayText": "",
+      "path": "#feature-services > div > section > div > div:nth-of-type(8) > div:nth-of-type(2) > div > div:nth-of-type(1)",
+      "disabled": false
+    },
+    {
+      "kind": "el-select",
+      "displayText": "",
+      "path": "#feature-services > div > section > div > div:nth-of-type(9) > div:nth-of-type(2) > div > div:nth-of-type(1)",
+      "disabled": false
+    },
+    {
+      "kind": "el-select",
+      "displayText": "",
+      "path": "#app > div > main > section > div:nth-of-type(1) > section > section:nth-of-type(2) > div > div:nth-of-type(1) > div:nth-of-type(2) > div > div",
+      "disabled": false
+    }
+  ],
+  "placeholders": [
+    {
+      "tag": "input",
+      "placeholder": "搜索所有设置",
+      "value": "",
+      "readonly": false,
+      "path": "#app > div > aside > label > input",
+      "visible": true
+    }
+  ]
+}

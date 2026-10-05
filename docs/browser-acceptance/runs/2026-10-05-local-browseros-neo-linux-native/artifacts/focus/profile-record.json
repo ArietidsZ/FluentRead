@@ -1,0 +1,12 @@
+{
+  "sideEvidenceOnly": true,
+  "label": "Side evidence only: no continuous guard interval exists on this host, so nothing here supports a pass.",
+  "profilePath": "/tmp/fluentread-linux-native-JcsG10",
+  "profilePathSha256": "5c6a1969d6881d7e6eb65ddc8d1109cf53c1f00aa1e1a9a4776af65e2e79fb91",
+  "mode": "700",
+  "uid": 1000,
+  "isDirectory": true,
+  "underTmp": true,
+  "basenamePrefix": true,
+  "recordedAt": "2026-10-05T11:20:24.366Z"
+}

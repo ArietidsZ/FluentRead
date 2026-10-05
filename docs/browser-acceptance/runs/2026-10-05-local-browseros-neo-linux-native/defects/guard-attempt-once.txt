@@ -1,0 +1,11 @@
+attempt: once
+started: 2026-10-05T19:20:24+08:00
+finished: 2026-10-05T19:20:24+08:00
+command: node <WORKSPACE>/FluentRead/scripts/testing/browser-focus-guard.mjs --once --allow-partial-visibility --profile /tmp/fluentread-linux-native-JcsG10 --pid 1690606 --port 9420 --output <HOME>/.cache/fluentread-acceptance/linux-native-20261005/live/guard-report.json
+exit_code: 1
+--- stdout ---
+--- stderr ---
+This observer requires macOS; it has not been browser-certified here
+
+'linux' !== 'darwin'
+

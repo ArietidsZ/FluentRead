@@ -1,0 +1,265 @@
+{
+  "sideEvidenceOnly": true,
+  "label": "Side evidence only. No continuous focus guard interval exists on this host because browser-focus-guard.mjs asserts process.platform===darwin, so nothing in this file supports a pass.",
+  "at": "2026-10-05T11:21:36.092Z",
+  "cdpPort": 9420,
+  "extensionId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+  "createdTargets": [
+    {
+      "label": "fixture-page",
+      "url": "http://127.0.0.1:57280/",
+      "targetId": "B9D31B42D3984948B102C91C63ECC458"
+    },
+    {
+      "label": "options-page",
+      "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html",
+      "targetId": "C96683BB71ACE92D5E926C2F095EAC5E"
+    },
+    {
+      "label": "popup-page",
+      "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/popup.html",
+      "targetId": "75A5245B87758CCF729E893E9D0A8016"
+    }
+  ],
+  "identity": {
+    "source": "extension service_worker target (service_worker)",
+    "manifest": {
+      "action": {
+        "default_popup": "popup.html",
+        "default_title": "FluentRead-流畅阅读"
+      },
+      "background": {
+        "service_worker": "background.js"
+      },
+      "content_scripts": [
+        {
+          "js": [
+            "content-scripts/content.js"
+          ],
+          "matches": [
+            "<all_urls>"
+          ],
+          "run_at": "document_start"
+        },
+        {
+          "all_frames": true,
+          "js": [
+            "content-scripts/neteaseMailFrame.js"
+          ],
+          "match_about_blank": true,
+          "matches": [
+            "https://*.mail.126.com/*",
+            "https://*.mail.163.com/*",
+            "https://*.mail.yeah.net/*"
+          ],
+          "run_at": "document_end"
+        },
+        {
+          "js": [
+            "content-scripts/shadowBridge.js"
+          ],
+          "matches": [
+            "<all_urls>"
+          ],
+          "run_at": "document_start",
+          "world": "MAIN"
+        },
+        {
+          "all_frames": true,
+          "js": [
+            "content-scripts/supportedFrame.js"
+          ],
+          "matches": [
+            "https://disqus.com/embed/comments/*",
+            "https://mail.qq.com/cgi-bin/readmail*",
+            "https://www.kaggleusercontent.com/kf/*/__results__.html*"
+          ],
+          "run_at": "document_end"
+        },
+        {
+          "js": [
+            "content-scripts/xVideoBridge.js"
+          ],
+          "matches": [
+            "*://*.twitter.com/*",
+            "*://*.x.com/*",
+            "*://twitter.com/*",
+            "*://x.com/*"
+          ],
+          "run_at": "document_start",
+          "world": "MAIN"
+        },
+        {
+          "js": [
+            "content-scripts/youtubeBridge.js"
+          ],
+          "matches": [
+            "*://*.youtube.com/*",
+            "*://youtube.com/*"
+          ],
+          "run_at": "document_start",
+          "world": "MAIN"
+        }
+      ],
+      "content_security_policy": {
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+      },
+      "description": "Closer languages. A bigger world. 让语言更近，让世界更大。",
+      "host_permissions": [
+        "<all_urls>",
+        "https://translate.google.com/*",
+        "https://translate.google.co.uk/*",
+        "https://translate.googleapis.com/*",
+        "https://dev.microsofttranslator.com/*",
+        "https://*.tts.speech.microsoft.com/*",
+        "https://deeplx.1stg.me/*",
+        "https://freeapi.fanyimao.cn/*",
+        "https://api.deeplx.org/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "http://*/*",
+        "https://*/*"
+      ],
+      "icons": {
+        "16": "icon/16.png",
+        "32": "icon/32.png",
+        "48": "icon/48.png",
+        "64": "icon/64.png",
+        "128": "icon/128.png"
+      },
+      "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzyYQdG/K1kp2h+orQITmCJYrUP3FkUgay+KYlUMO74J0uaOBJ0A2lz0kooci0epVm3DKIqiFMQs8g5pGxKfwieLYju4/v6jK4X3AnRH+3Wj0WhnY0yMD61IN/HissrFnmBTfApW7BoVfjUUwhsHJ7pYJHMhgpbidJ15SA7X82iRpu+WxE413BKSi2q6TwNSgi7D1Vq6W9Iuaz1tPQW9CGgfir3P5enUqUasLv6icLVXq5xduFISrsJxZW0dJyGxpwOqEBGbg2g9i73M/iFao7N7pZdBvZJh63ZzlZTNM7FshCzkZpM0MJhuJhrLmR1AYCWQ1kiTfwCX+6EvAgBQyrQIDAQAB",
+      "manifest_version": 3,
+      "name": "FluentRead-流畅阅读",
+      "oauth2": {
+        "client_id": "474699705334-7fua4hnkq1nmfu92cof0kdnmqsk5kth8.apps.googleusercontent.com",
+        "scopes": [
+          "https://www.googleapis.com/auth/drive.appdata"
+        ]
+      },
+      "options_ui": {
+        "open_in_tab": true,
+        "page": "options.html"
+      },
+      "permissions": [
+        "storage",
+        "unlimitedStorage",
+        "alarms",
+        "contextMenus",
+        "declarativeNetRequestWithHostAccess",
+        "identity",
+        "offscreen"
+      ],
+      "version": "0.0.35",
+      "web_accessible_resources": [
+        {
+          "matches": [
+            "<all_urls>"
+          ],
+          "resources": [
+            "icon/32.png",
+            "icon/48.png",
+            "icon/128.png",
+            "i18n/*.json"
+          ],
+          "use_dynamic_url": true
+        },
+        {
+          "matches": [
+            "<all_urls>"
+          ],
+          "resources": [
+            "content-scripts/content.css"
+          ],
+          "use_dynamic_url": true
+        },
+        {
+          "matches": [
+            "https://*.mail.126.com/*",
+            "https://*.mail.163.com/*",
+            "https://*.mail.yeah.net/*"
+          ],
+          "resources": [
+            "content-scripts/neteaseMailFrame.css"
+          ],
+          "use_dynamic_url": true
+        },
+        {
+          "matches": [
+            "https://disqus.com/*",
+            "https://mail.qq.com/*",
+            "https://www.kaggleusercontent.com/*"
+          ],
+          "resources": [
+            "content-scripts/supportedFrame.css"
+          ],
+          "use_dynamic_url": true
+        }
+      ]
+    },
+    "runtimeId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+    "contexts": "{}",
+    "errors": []
+  },
+  "targetInventory": [
+    {
+      "type": "service_worker",
+      "url": "chrome-extension://adlpneommgkgeanpaekgoaolcpncohkf/background.js",
+      "targetId": "19B945919E37F5DC63216B64A8D83F02",
+      "attached": false
+    },
+    {
+      "type": "service_worker",
+      "url": "chrome-extension://bflpfmnmnokmjhmgnolecpppdbdophmk/background.js",
+      "targetId": "384B4C6031054FC3D9D34B999F081E8A",
+      "attached": false
+    },
+    {
+      "type": "service_worker",
+      "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/background.js",
+      "targetId": "7374FDB9EA4CBF4EC99B1B7D46D87D4F",
+      "attached": false
+    },
+    {
+      "type": "page",
+      "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/popup.html",
+      "targetId": "75A5245B87758CCF729E893E9D0A8016",
+      "attached": false
+    },
+    {
+      "type": "browser_ui",
+      "url": "chrome://omnibox-popup.top-chrome/",
+      "targetId": "3C464847E35FC58ACEDDEBE89642FC00",
+      "attached": false
+    },
+    {
+      "type": "browser_ui",
+      "url": "chrome://omnibox-popup.top-chrome/omnibox_popup_aim.html",
+      "targetId": "445D2BFE5F4108C982FD6FE32906907C",
+      "attached": false
+    },
+    {
+      "type": "page",
+      "url": "chrome://newtab/",
+      "targetId": "52E92362C5645FB34C0D7C8C84DA2C66",
+      "attached": false
+    },
+    {
+      "type": "iframe",
+      "url": "chrome-untrusted://new-tab-page/one-google-bar?paramsencoded=",
+      "targetId": "FF0293BADA65A7594D61D12C987B9F2B",
+      "attached": false
+    },
+    {
+      "type": "page",
+      "url": "http://127.0.0.1:57280/",
+      "targetId": "B9D31B42D3984948B102C91C63ECC458",
+      "attached": false
+    },
+    {
+      "type": "page",
+      "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html#settings-general",
+      "targetId": "C96683BB71ACE92D5E926C2F095EAC5E",
+      "attached": false
+    }
+  ]
+}

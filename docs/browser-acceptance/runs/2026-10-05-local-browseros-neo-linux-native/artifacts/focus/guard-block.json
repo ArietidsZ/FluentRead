@@ -1,0 +1,406 @@
+{
+  "task": "guard-block",
+  "generatedAtUtc": "2026-10-05T10:59:23.045Z",
+  "platform": "linux",
+  "platformDetail": {
+    "process.platform": "linux",
+    "arch": "x64",
+    "node": "v26.7.0"
+  },
+  "blockingAssertion": "  assert.equal(process.platform,'darwin','This observer requires macOS; it has not been browser-certified here');",
+  "blockingLineNumber": 93,
+  "reportFileCreated": false,
+  "reportFilePath": "<HOME>/.cache/fluentread-acceptance/linux-native-20261005/recon/guard-probe-report.json",
+  "selfCheckExitCode": 0,
+  "noLinuxSupportInHistory": true,
+  "probes": {
+    "probe1": {
+      "command": "node scripts/testing/browser-focus-guard.mjs --once --allow-partial-visibility --profile /tmp/fluentread-does-not-exist --pid 1 --port 9420 --output <HOME>/.cache/fluentread-acceptance/linux-native-20261005/recon/guard-probe-report.json",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "This observer requires macOS; it has not been browser-certified here\n\n'linux' !== 'darwin'\n\n",
+      "reportFileCreated": false
+    },
+    "probe2NoArgs": {
+      "command": "node scripts/testing/browser-focus-guard.mjs",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "This observer requires macOS; it has not been browser-certified here\n\n'linux' !== 'darwin'\n\n"
+    },
+    "probe3SelfCheck": {
+      "command": "node scripts/testing/browser-focus-guard.mjs --self-check",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"scope\":\"pure guard contract checks only\",\"macosRun\":false,\"browserRun\":false}\n",
+      "stderr": ""
+    }
+  },
+  "guardGates": [
+    {
+      "gate": "platform-gate",
+      "line": 2,
+      "source": "/** Local-Agent-only macOS observer for an already owned temporary browser. Never launches, focuses, moves or closes a browser. */",
+      "note": "file header comment: macOS observer"
+    },
+    {
+      "gate": "platform-gate",
+      "line": 93,
+      "source": "  assert.equal(process.platform,'darwin','This observer requires macOS; it has not been browser-certified here');",
+      "note": "BLOCKING: first statement of runGuard(); fires before any argument parsing, path handling or child process"
+    },
+    {
+      "gate": "osascript",
+      "line": 75,
+      "source": "const osProbe=\"ObjC.import('AppKit');const f=$.NSWorkspace.sharedWorkspace.frontmostApplication;const screens=$.NSScreen.screens;const first=screens.objectAtIndex(0).frame;const top=Number(first.origin.y)+Number(first.size.height);const displays=[];for(let i=0;i<screens.count;i++){const r=screens.objectAtIndex(i).frame;displays.push({left:Number(r.origin.x),top:top-Number(r.origin.y)-Number(r.size.height),width:Number(r.size.width),height:Number(r.size.height)});}JSON.stringify({frontmostPid:Number(f.processIdentifier),displays});\";",
+      "note": "JXA AppKit probe string; passed to osascript -l JavaScript"
+    },
+    {
+      "gate": "osascript",
+      "line": 137,
+      "source": "      const observed=JSON.parse((await exec('/usr/bin/osascript',['-l','JavaScript','-e',osProbe],{timeout:3000})).stdout);",
+      "note": "first focus/display read via hardcoded /usr/bin/osascript"
+    },
+    {
+      "gate": "osascript",
+      "line": 145,
+      "source": "      const after=JSON.parse((await exec('/usr/bin/osascript',['-l','JavaScript','-e',osProbe],{timeout:3000})).stdout);",
+      "note": "second focus/display read via hardcoded /usr/bin/osascript"
+    },
+    {
+      "gate": "ps",
+      "line": 104,
+      "source": "    const uid=Number((await exec('/bin/ps',['-p',String(ownedPid),'-o','uid='],{timeout:3000})).stdout.trim());assert.equal(uid,process.getuid(),'Process is not owned by this user');",
+      "note": "hardcoded /bin/ps uid read"
+    },
+    {
+      "gate": "ps",
+      "line": 105,
+      "source": "    const command=(await exec('/bin/ps',['-ww','-p',String(ownedPid),'-o','command='],{timeout:3000})).stdout.trim();",
+      "note": "hardcoded /bin/ps command read"
+    },
+    {
+      "gate": "ps",
+      "line": 106,
+      "source": "    const started=(await exec('/bin/ps',['-p',String(ownedPid),'-o','lstart='],{timeout:3000})).stdout.trim();assert(started&&command,'Process disappeared');",
+      "note": "hardcoded /bin/ps lstart read"
+    },
+    {
+      "gate": "lsof",
+      "line": 115,
+      "source": "    verifyListener((await exec('/usr/sbin/lsof',['-nP',`-iTCP:${port}`,'-sTCP:LISTEN','-FpFn'],{timeout:3000})).stdout,pid,port);",
+      "note": "startup listener check via hardcoded /usr/sbin/lsof"
+    },
+    {
+      "gate": "lsof",
+      "line": 135,
+      "source": "      verifyListener((await exec('/usr/sbin/lsof',['-nP',`-iTCP:${port}`,'-sTCP:LISTEN','-FpFn'],{timeout:3000})).stdout,pid,port);",
+      "note": "per-iteration listener check via hardcoded /usr/sbin/lsof"
+    },
+    {
+      "gate": "temp-profile",
+      "line": 95,
+      "source": "  const profile=await fs.realpath(value('--profile')),pid=Number(value('--pid')),port=Number(value('--port')),output=path.resolve(value('--output'));",
+      "note": "profile must resolve via realpath and --pid/--port/--output must be present"
+    },
+    {
+      "gate": "temp-profile",
+      "line": 98,
+      "source": "  const temporaryRoots=await Promise.all([os.tmpdir(),'/tmp'].map(dir=>fs.realpath(dir)));",
+      "note": "temporary roots resolved from os.tmpdir() and /tmp"
+    },
+    {
+      "gate": "temp-profile",
+      "line": 99,
+      "source": "  assert(temporaryRoots.some(dir=>profile.startsWith(dir+path.sep))&&path.basename(profile).startsWith('fluentread-'),'Only explicitly owned FluentRead temporary profiles are supported');",
+      "note": "profile must live under a temp root and basename must start with fluentread-"
+    },
+    {
+      "gate": "temp-profile",
+      "line": 111,
+      "source": "    const profileStat=await fs.stat(profile);assert(profileStat.isDirectory()&&profileStat.uid===process.getuid()&&(profileStat.mode&0o077)===0,'Temporary profile must be owned by this user with private permissions; guard will not chmod it');",
+      "note": "profile must be a directory, owned by this uid, mode 0o600/0o700 private"
+    },
+    {
+      "gate": "temp-profile",
+      "line": 72,
+      "source": "  assert.equal(await canonicalize(exactArgument(command,'--user-data-dir')),expectedProfile,'PID command does not identify the exact temporary profile');",
+      "note": "PID command --user-data-dir must realpath-equal the profile"
+    },
+    {
+      "gate": "listener",
+      "line": 58,
+      "source": "  const pids=text.split('\\n').filter(line=>line.startsWith('p')).map(line=>Number(line.slice(1)));",
+      "note": "parse lsof -F p records"
+    },
+    {
+      "gate": "listener",
+      "line": 59,
+      "source": "  const names=text.split('\\n').filter(line=>line.startsWith('n')).map(line=>line.slice(1));",
+      "note": "parse lsof -F n records"
+    },
+    {
+      "gate": "listener",
+      "line": 60,
+      "source": "  assert(pids.length>0&&pids.every(value=>value===pid),'CDP listener is not owned by the supplied browser PID');",
+      "note": "listener PID must equal supplied browser PID"
+    },
+    {
+      "gate": "listener",
+      "line": 61,
+      "source": "  assert(names.length>0&&names.every(name=>name===`127.0.0.1:${port}`||name===`[::1]:${port}`||name===`::1:${port}`),'CDP listener is not loopback-only');",
+      "note": "listener name must be loopback only (127.0.0.1, [::1] or ::1)"
+    },
+    {
+      "gate": "listener",
+      "line": 114,
+      "source": "    assert(command.includes(`--remote-debugging-port=${port}`)||command.includes('--remote-debugging-port=0'),'PID command lacks the observed CDP listener');",
+      "note": "PID command must carry --remote-debugging-port=<port> or =0"
+    },
+    {
+      "gate": "listener",
+      "line": 78,
+      "source": "  const response=await fetch(`http://127.0.0.1:${port}/json/version`,{signal:AbortSignal.timeout(3000)});",
+      "note": "CDP reachability via fetch http://127.0.0.1:<port>/json/version"
+    },
+    {
+      "gate": "listener",
+      "line": 81,
+      "source": "  assert(url.protocol==='ws:'&&url.hostname==='127.0.0.1'&&Number(url.port)===port&&url.pathname.startsWith('/devtools/browser/'),'Unverified CDP websocket destination');",
+      "note": "CDP websocket must be ws: to 127.0.0.1 on the expected port and /devtools/browser/ path"
+    },
+    {
+      "gate": "owner-marker",
+      "line": 116,
+      "source": "    const marker=path.join(profile,'.fluentread-acceptance-owner.json'),ownership={pid,port,uid:owner,profilePathSha256:hash(profile)};",
+      "note": "owner marker path .fluentread-acceptance-owner.json plus ownership payload"
+    },
+    {
+      "gate": "owner-marker",
+      "line": 117,
+      "source": "    try{await fs.writeFile(marker,JSON.stringify(ownership)+'\\n',{flag:'wx',mode:0o600});}catch(error){if(error.code!=='EEXIST')throw error;assert.deepEqual(JSON.parse(await fs.readFile(marker,'utf8')),ownership,'Existing profile marker differs; do not overwrite it');}",
+      "note": "marker created with exclusive flag wx mode 0o600; pre-existing marker must match exactly"
+    },
+    {
+      "gate": "server-pid",
+      "line": 118,
+      "source": "    if(args.includes('--server-pid')) {",
+      "note": "server-pid branch only entered when --server-pid supplied"
+    },
+    {
+      "gate": "server-pid",
+      "line": 120,
+      "source": "      assert(Number.isSafeInteger(serverPid)&&serverPid>1&&serverPid!==pid,'Invalid task-scoped server PID');",
+      "note": "server PID numeric, >1 and distinct from browser PID"
+    },
+    {
+      "gate": "server-pid",
+      "line": 121,
+      "source": "      assert(config.startsWith((await fs.realpath(path.dirname(output)))+path.sep),'Server config must be inside this run directory');",
+      "note": "server config must be inside the run output directory"
+    },
+    {
+      "gate": "server-pid",
+      "line": 123,
+      "source": "      assert(/(?:^|\\s)--stdio(?:\\s|$)/u.test(server.command),'Server is not explicitly task-scoped stdio');",
+      "note": "server command must contain --stdio"
+    },
+    {
+      "gate": "server-pid",
+      "line": 124,
+      "source": "      assert.equal(await fs.realpath(exactArgument(server.command,'--config')),config,'Server config mismatch');",
+      "note": "server --config must realpath-equal supplied config"
+    },
+    {
+      "gate": "server-pid",
+      "line": 126,
+      "source": "      const configBytes=await fs.readFile(config);assert.equal(JSON.parse(configBytes).ports?.cdp,port,'Task-scoped server points at another browser CDP port');",
+      "note": "server config ports.cdp must equal the browser CDP port"
+    },
+    {
+      "gate": "server-pid",
+      "line": 136,
+      "source": "      if(ownedServer){assert.equal((await processIdentity(ownedServer.pid)).signature,ownedServer.signature,'Task-scoped server identity changed');assert.equal(hash(await fs.readFile(ownedServer.config)),ownedServer.configSha256,'Task-scoped server config changed');}",
+      "note": "per-iteration server identity and config hash re-verification"
+    },
+    {
+      "gate": "visibility-policy",
+      "line": 40,
+      "source": "  assert([STRICT_VISIBILITY_POLICY,PARTIAL_VISIBILITY_POLICY].includes(visibilityPolicy),'Unknown window visibility policy');",
+      "note": "visibility policy must be a known constant"
+    },
+    {
+      "gate": "visibility-policy",
+      "line": 41,
+      "source": "  assert(Number.isSafeInteger(browserPid)&&browserPid>0&&Number.isSafeInteger(frontmostPid)&&frontmostPid>0,'Unknown foreground/browser PID');",
+      "note": "browser and frontmost PID must be positive safe integers"
+    },
+    {
+      "gate": "visibility-policy",
+      "line": 42,
+      "source": "  assert.notEqual(frontmostPid,browserPid,'Owned browser became foreground; stop test operations');",
+      "note": "owned browser must not be frontmost"
+    },
+    {
+      "gate": "visibility-policy",
+      "line": 43,
+      "source": "  assert(Array.isArray(displays)&&displays.length>0&&Array.isArray(windows)&&windows.length>0,'Unknown windows or displays');",
+      "note": "windows and displays must be non-empty arrays"
+    },
+    {
+      "gate": "visibility-policy",
+      "line": 44,
+      "source": "  for(const rect of [...windows,...displays])for(const field of ['left','top','width','height'])assert(Number.isFinite(rect[field]),'Unknown window/display bounds');",
+      "note": "all window/display bounds must be finite"
+    },
+    {
+      "gate": "visibility-policy",
+      "line": 45,
+      "source": "  for(const rect of displays)assert(rect.width>0&&rect.height>0,'Active display dimensions must be positive');",
+      "note": "display dimensions must be positive"
+    },
+    {
+      "gate": "visibility-policy",
+      "line": 48,
+      "source": "    assert(window.windowState==='normal'&&window.width>=800&&window.height>=600,'Test window must be normal-sized and not minimized/fullscreen');",
+      "note": "windows must be windowState normal, >=800x600"
+    },
+    {
+      "gate": "visibility-policy",
+      "line": 50,
+      "source": "    if(visibilityPolicy===STRICT_VISIBILITY_POLICY)assert(geometry.classification==='offscreen','Test window intersects an active display; stop and restore approved offscreen placement');",
+      "note": "strict mode requires fully offscreen classification"
+    },
+    {
+      "gate": "visibility-policy",
+      "line": 51,
+      "source": "    else assert(geometry.classification!=='fully-visible','Approved partial-visibility policy does not permit a fully visible window');",
+      "note": "partial mode rejects fully-visible classification"
+    },
+    {
+      "gate": "cdp-read-only",
+      "line": 87,
+      "source": "    assert(['Target.getTargets','Browser.getWindowForTarget','Browser.getWindowBounds'].includes(method),'Guard only permits window inventory reads');",
+      "note": "guard permits only Target.getTargets, Browser.getWindowForTarget, Browser.getWindowBounds"
+    },
+    {
+      "gate": "entrypoint",
+      "line": 175,
+      "source": "  if(process.argv[1]&&process.argv[1]!=='-'&&await fs.realpath(process.argv[1])===await fs.realpath(fileURLToPath(import.meta.url))) {",
+      "note": "CLI entry guard resolves argv[1] by realpath against this module"
+    },
+    {
+      "gate": "entrypoint",
+      "line": 176,
+      "source": "    if(process.argv.includes('--self-check'))await selfCheck();else await runGuard(process.argv.slice(2));",
+      "note": "--self-check dispatches to pure checks, otherwise runGuard executes"
+    }
+  ],
+  "executionOrder": "Line 93 executes before line 94 and everything after it; no binary (ps/lsof/osascript), profile, listener, marker or server-pid gate can be reached on non-darwin.",
+  "independentBinaryEvidence": {
+    "binaries": [
+      {
+        "path": "/usr/bin/osascript",
+        "present": false
+      },
+      {
+        "path": "/usr/sbin/lsof",
+        "present": false
+      },
+      {
+        "path": "/usr/bin/lsof",
+        "present": true
+      },
+      {
+        "path": "/bin/ps",
+        "present": true
+      },
+      {
+        "path": "/usr/bin/ps",
+        "present": true
+      }
+    ],
+    "note": "osascript is absent entirely; /usr/sbin/lsof is absent (only /usr/bin/lsof exists), so even if the platform assertion were removed these hardcoded paths would fail."
+  },
+  "history": {
+    "logCommand": "git -C <WORKSPACE> log --oneline -12 -- scripts/testing/browser-focus-guard.mjs",
+    "logStdout": "7f8d6dfe test: add explicitly approved partial-visibility acceptance mode\nc796cd88 fix: dispatch focus guard through canonical CLI paths\ncf541253 test: add guarded native Neo resume and raw GPU evidence binding\n",
+    "grepDarwinCommand": "git -C <WORKSPACE> grep -n darwin 7f8d6dfe -- scripts/testing",
+    "grepDarwinStdout": "7f8d6dfe:scripts/testing/browser-focus-guard-entry-selfcheck.mjs:30:    assert.match(result.stderr,process.platform==='darwin'?/Missing --profile/u:/requires macOS/u);\n7f8d6dfe:scripts/testing/browser-focus-guard.mjs:93:  assert.equal(process.platform,'darwin','This observer requires macOS; it has not been browser-certified here');\n7f8d6dfe:scripts/testing/run-model-usage-ui-test.cjs:26:assert.equal(process.platform, 'darwin', '本专项仅使用 macOS 隔离 Edge 防抢焦点流程');\n7f8d6dfe:scripts/testing/run-settings-center-ui-test.cjs:152:  if (process.platform !== 'darwin') return null;\n7f8d6dfe:scripts/testing/run-translation-stats-ui-test.cjs:29:assert.equal(process.platform, 'darwin', '本专项仅使用 macOS 隔离 Edge 防抢焦点流程');\n",
+    "grepLinuxPinnedCommand": "git -C <WORKSPACE> grep -in linux 7f8d6dfe -- scripts/testing/browser-focus-guard.mjs",
+    "grepLinuxPinnedStdout": "",
+    "commitsTouchingGuard": [
+      {
+        "sha": "7f8d6dfe",
+        "subject": "test: add explicitly approved partial-visibility acceptance mode",
+        "platformAssertions": [
+          {
+            "line": 93,
+            "text": "assert.equal(process.platform,'darwin','This observer requires macOS; it has not been browser-certified here');"
+          }
+        ]
+      },
+      {
+        "sha": "c796cd88",
+        "subject": "fix: dispatch focus guard through canonical CLI paths",
+        "platformAssertions": [
+          {
+            "line": 62,
+            "text": "assert.equal(process.platform,'darwin','This observer requires macOS; it has not been browser-certified here');"
+          }
+        ]
+      },
+      {
+        "sha": "cf541253",
+        "subject": "test: add guarded native Neo resume and raw GPU evidence binding",
+        "platformAssertions": [
+          {
+            "line": 62,
+            "text": "assert.equal(process.platform,'darwin','This observer requires macOS; it has not been browser-certified here');"
+          }
+        ]
+      }
+    ],
+    "nonDarwinBranchFound": false
+  },
+  "selfcheckFileAssessment": {
+    "scripts/testing/browser-focus-visibility-selfcheck.mjs": {
+      "needsMacos": false,
+      "headerLine2": "/** Pure policy/geometry regressions. Never opens a window, browser or macOS API. */",
+      "ranOnLinuxExitCode": null,
+      "ranOnLinux": {
+        "exitCode": 0,
+        "stdout": "{\"ok\":true,\"node\":\"v26.7.0\",\"negativeChecks\":26,\"scope\":\"explicit visibility policy and evidence contracts only\",\"macosRun\":false,\"browserRun\":false}"
+      }
+    },
+    "scripts/testing/browser-focus-guard-entry-selfcheck.mjs": {
+      "needsMacos": false,
+      "headerLine2": "/** CLI identity regression only: no macOS commands, browser, profile or window operations. */",
+      "line30": "    assert.match(result.stderr,process.platform==='darwin'?/Missing --profile/u:/requires macOS/u);",
+      "line30Note": "expects /requires macOS/u on non-darwin via process.platform ternary; explicitly exercises the Linux rejection path",
+      "ranOnLinux": {
+        "exitCode": 0,
+        "stdout": "{\"ok\":true,\"node\":\"v26.7.0\",\"checks\":[\"direct CLI\",\"file symlink CLI\",\"ancestor-directory symlink CLI\",\"preserved symlink main\",\"ordinary direct/alias invocation rejects unmet prerequisites\",\"direct import without CLI execution\",\"aliased import without CLI execution\",\"eval import without entry argument\",\"stdin import with dash entry argument\",\"unresolvable entry fails nonzero\"],\"macosRun\":false,\"browserRun\":false}"
+      }
+    }
+  },
+  "workingTreeIdentity": {
+    "head": "5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576",
+    "branch": "acceptance/local-browseros-neo-linux-native-20261005",
+    "pinnedLogicCommit": "7f8d6dfe",
+    "diffVsPinnedForScriptsTesting": "(empty)"
+  },
+  "scriptSha256": {
+    "scripts/testing/browser-focus-guard.mjs": "64b766247dad18203a81d2aa6036c4e911042451e75bd13d1411fa22de5acbe4",
+    "scripts/testing/browser-focus-visibility-selfcheck.mjs": "316f5faadf8d3c9e44d64401f350c929707ac13815331515e96415c4df4523bf",
+    "scripts/testing/browser-focus-guard-entry-selfcheck.mjs": "0882bfe161191b16dcb1737cec7f5d5d6d3b28c91d34f8465b1aa26deee1f0f5"
+  },
+  "evidencePaths": [
+    "<HOME>/.cache/fluentread-acceptance/linux-native-20261005/logs/guard-block-transcripts.txt",
+    "<HOME>/.cache/fluentread-acceptance/linux-native-20261005/recon/guard-block.json",
+    "<HOME>/.cache/fluentread-acceptance/linux-native-20261005/recon/guard-probe-report.json (expected guard output; confirmed NOT created)",
+    "<WORKSPACE>/scripts/testing/browser-focus-guard.mjs"
+  ],
+  "sanitization": {
+    "applied": true,
+    "note": "repo root -> <WORKSPACE>; user home -> <HOME>; no content otherwise altered"
+  }
+}

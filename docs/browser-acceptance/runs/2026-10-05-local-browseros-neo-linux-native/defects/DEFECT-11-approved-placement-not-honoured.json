@@ -1,0 +1,26 @@
+{
+  "id": "DEFECT-11",
+  "title": "The approved partial-visibility placement is unreachable on this host because the compositor ignores the requested window position",
+  "severity": "blocking for any visibility assertion",
+  "requested": "left=2400, top=120, 1200x900 (the approved arithmetic for a 2560x1440 display)",
+  "actual": [
+    {
+      "windowId": 1164218187,
+      "targetId": "52E92362C5645FB34C0D7C8C84DA2C66",
+      "url": "chrome://newtab/",
+      "left": 0,
+      "top": 0,
+      "width": 1200,
+      "height": 900,
+      "windowState": "normal"
+    }
+  ],
+  "honoured": false,
+  "cause": "Chromium on Wayland cannot set absolute window positions, so the compositor decides placement.",
+  "consequence": "Under temporary-partial-visibility-20261005 the actual geometry left=0 top=0 lies inside the 2560x1440 display and would classify as fully-visible, which the policy rejects.",
+  "evidence": [
+    "artifacts/focus/window-bounds.json",
+    "artifacts/host/host-facts.json"
+  ],
+  "suggestedFix": "A Linux round needs a compositor-aware placement step that can prove the resulting geometry, and the policy check must run against the geometry the compositor actually produced."
+}

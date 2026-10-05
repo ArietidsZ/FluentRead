@@ -1,0 +1,23 @@
+{
+  "id": "DEFECT-14",
+  "title": "The product worktree on this host is incomplete relative to the published source commit",
+  "severity": "provenance limitation, not a product defect",
+  "publishedSourceCommit": "c68a53af300b33109375665197951331e45ae18a",
+  "inScopePaths": 3172,
+  "matched": 3131,
+  "modified": 0,
+  "missing": 41,
+  "examplesMissing": [
+    "tsconfig.json",
+    "wxt.config.ts",
+    "vitest.config.ts",
+    "userscript/",
+    "userscript/main.ts",
+    "userscript/resources/fluentread-data.v1.js"
+  ],
+  "consequence": "The prebuilt extension can be fingerprinted, but its source tree cannot be fully corroborated on this host. The extension was NOT rebuilt (rebuilding is out of scope).",
+  "evidence": [
+    "artifacts/source.json",
+    "artifacts/build/build-files.json"
+  ]
+}

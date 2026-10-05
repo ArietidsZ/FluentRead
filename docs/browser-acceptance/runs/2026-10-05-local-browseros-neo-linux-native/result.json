@@ -1,0 +1,724 @@
+{
+  "schemaVersion": 2,
+  "testedLocalHead": "7212af1f9da08324963e38973c7f477aabfffb0b",
+  "expectedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+  "runId": "fluentread-browseros-neo-local-2026-10-05-05-linux-native",
+  "startedAt": "2026-10-05T11:12:56.000Z",
+  "finishedAt": "2026-10-05T11:33:22.903Z",
+  "overall": "blocked",
+  "environment": {
+    "os": "Ubuntu 26.04.1 LTS (Resolute Raccoon), kernel 7.0.0-38-generic, x86_64, GNOME on Wayland",
+    "browser": "BrowserOS (Chromium), Linux build",
+    "browserVersion": "151.0.8160.137",
+    "browserosVersion": "151.0.8160.137 (dpkg browseros 151.0.8160.137; this Linux build exposes no separate BrowserOS product version; the bundled control plane is browseros_server 0.0.157)",
+    "launchMode": "linux-background-setsid (setsid nohup; the process was never activated and no window was raised)",
+    "profileMarker": "/tmp/fluentread-linux-native-JcsG10",
+    "focusPolicy": "Never activated, never moved, resized, minimized or fullscreened after launch, Page.bringToFront() never called, no focus-stealing API used. A continuous focus guard was attempted against this exact browser and profile and refused because it requires macOS, so no guard interval exists and no case may pass. The unrelated daily BrowserOS instance was never touched.",
+    "windowPlacement": "Requested left=2400 top=120 1200x900 (the approved partial-visibility arithmetic for a 2560x1440 display), but the compositor placed the window at left=0 top=0 1200x900 with windowState normal, so the request was NOT honoured. Chromium on Wayland cannot set absolute window positions. Under the approved policy that actual geometry would classify as fully-visible, so the placement requirement is unmet in addition to the missing guard.",
+    "extensionId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+    "extensionName": "FluentRead-流畅阅读",
+    "extensionVersion": "0.0.35",
+    "browserExecutableSha256": "23cdb86278d0581838abf7bca4079a30150c38d76ce783430f882254671514f0",
+    "profileKind": "dedicated-temporary",
+    "launchArguments": [
+      "--user-data-dir=/tmp/fluentread-linux-native-JcsG10",
+      "--remote-debugging-port=9420",
+      "--remote-allow-origins=http://127.0.0.1:9420",
+      "--window-position=2400,120",
+      "--window-size=1200,900",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "note: exactly the approved launch arguments; no --load-extension was passed and no extra flag was needed, because CDP Extensions.loadUnpacked succeeded with the approved arguments alone"
+    ],
+    "capabilityEvidence": [
+      "artifacts/env01/cdp-version.json",
+      "artifacts/env01/extension-identity.json"
+    ],
+    "nodeVersion": "v26.7.0",
+    "pnpmVersion": "absent (pnpm is not installed on this host; the extension was not rebuilt and must not be)",
+    "browserPid": 1690606,
+    "profilePathSha256": "5c6a1969d6881d7e6eb65ddc8d1109cf53c1f00aa1e1a9a4776af65e2e79fb91",
+    "visibilityPolicy": "temporary-partial-visibility-20261005"
+  },
+  "provenance": {
+    "publishedSourceCommit": "c68a53af300b33109375665197951331e45ae18a",
+    "checkoutCommit": "5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576",
+    "observedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+    "worktreeCleanBeforeLocaleGeneration": true,
+    "lockfileSha256": "5b251fb80b9a89991ef226fe19e24e249c48963c520945c9a0ef5851ebddb619",
+    "buildManifest": "artifacts/build/build-files.json",
+    "generatedLocalesManifest": "artifacts/build/generated-locales.json",
+    "commands": [
+      "node scripts/testing/browser-acceptance.mjs fingerprint <extension build> extension-build",
+      "node scripts/testing/browser-acceptance.mjs fingerprint <repo>/userscript/languages generated-locales",
+      "node scripts/testing/browser-acceptance.mjs self-check",
+      "node scripts/testing/browser-focus-guard.mjs --self-check",
+      "node scripts/testing/browser-focus-visibility-selfcheck.mjs",
+      "node scripts/testing/browser-focus-guard-entry-selfcheck.mjs",
+      "node scripts/testing/browser-acceptance.mjs validate <record>/result.json"
+    ]
+  },
+  "hardware": {
+    "status": "physical",
+    "osGpuDescription": "NVIDIA GeForce RTX 5090 (GB202) at 01:00.0, driver 595.91.07, CUDA 13.2, /dev/dri/renderD128 present",
+    "adapterDescription": "",
+    "isFallbackAdapter": false,
+    "features": [
+      "bgra8unorm-storage",
+      "clip-distances",
+      "core-features-and-limits",
+      "depth-clip-control",
+      "depth32float-stencil8",
+      "dual-source-blending",
+      "float32-blendable",
+      "float32-filterable",
+      "indirect-first-instance",
+      "primitive-index",
+      "rg11b10ufloat-renderable",
+      "subgroups",
+      "texture-component-swizzle",
+      "texture-compression-bc",
+      "texture-compression-bc-sliced-3d",
+      "texture-formats-tier1",
+      "texture-formats-tier2",
+      "timestamp-query"
+    ],
+    "limits": {
+      "maxTextureDimension1D": 16384,
+      "maxTextureDimension2D": 16384,
+      "maxTextureDimension3D": 2048,
+      "maxTextureArrayLayers": 2048,
+      "maxBindGroups": 4,
+      "maxBindGroupsPlusVertexBuffers": 24,
+      "maxBindingsPerBindGroup": 1000,
+      "maxDynamicUniformBuffersPerPipelineLayout": 10,
+      "maxDynamicStorageBuffersPerPipelineLayout": 8,
+      "maxSampledTexturesPerShaderStage": 48,
+      "maxSamplersPerShaderStage": 16,
+      "maxStorageBuffersPerShaderStage": 16,
+      "maxStorageTexturesPerShaderStage": 8,
+      "maxUniformBuffersPerShaderStage": 12,
+      "maxUniformBufferBindingSize": 65536,
+      "maxStorageBufferBindingSize": 2147483644,
+      "minUniformBufferOffsetAlignment": 256,
+      "minStorageBufferOffsetAlignment": 256,
+      "maxVertexBuffers": 8,
+      "maxBufferSize": 4294967292,
+      "maxVertexAttributes": 30,
+      "maxVertexBufferArrayStride": 2048,
+      "maxInterStageShaderVariables": 28,
+      "maxColorAttachments": 8,
+      "maxColorAttachmentBytesPerSample": 128,
+      "maxComputeWorkgroupStorageSize": 49152,
+      "maxComputeInvocationsPerWorkgroup": 1024,
+      "maxComputeWorkgroupSizeX": 1024,
+      "maxComputeWorkgroupSizeY": 1024,
+      "maxComputeWorkgroupSizeZ": 64,
+      "maxComputeWorkgroupsPerDimension": 65535,
+      "maxImmediateSize": 64,
+      "maxStorageBuffersInFragmentStage": 16,
+      "maxStorageTexturesInFragmentStage": 8,
+      "maxStorageBuffersInVertexStage": 16,
+      "maxStorageTexturesInVertexStage": 8
+    },
+    "evidence": [
+      "artifacts/env01/gpu-log.json",
+      "artifacts/env01/webgpu-fixture-page.json",
+      "artifacts/env01/webgpu-options-page.json",
+      "artifacts/env01/webgpu-extension-worker.json"
+    ],
+    "adapterInfo": {
+      "vendor": "nvidia",
+      "architecture": "blackwell",
+      "device": "",
+      "description": ""
+    },
+    "adapterLabel": "NVIDIA RTX 5090 via WebGPU GPUAdapterInfo (vendor=nvidia, architecture=blackwell); Chromium 151 reports device and description as empty strings, and shader-f16 is absent from the feature set in all three probed contexts",
+    "rawAdapterObservation": {
+      "artifact": "artifacts/env01/webgpu-fixture-page.json",
+      "sha256": "8542677a5e6e2c00a9d849292fc3b431aed176a931aa9288926415fc5b0e7465",
+      "eventIndex": 0,
+      "context": "page: loopback fixture page",
+      "at": "2026-10-05T11:24:20.391Z"
+    }
+  },
+  "models": [],
+  "cases": [
+    {
+      "id": "ENV-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "hardware-webgpu",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Measured this round on this host: browser identity, the extension identity read from its own service worker, a dedicated temporary profile, the WebGPU adapter in three contexts, build and locale fingerprints, and a cleanup proof. Next step: run the round on a guard-capable host, or add a supported Linux foreground/window probe upstream.",
+      "observations": [
+        "Browser identity read from the running instance: Chrome/151.0.8160.137 on CDP port 9420, binary sha256 23cdb86278d0581838abf7bca4079a30150c38d76ce783430f882254671514f0.",
+        "Extension identity read from the extension own service worker: FluentRead-流畅阅读 0.0.35, id djnlaiohfaaifbibleebjggkghlmcpcj, loaded with CDP Extensions.loadUnpacked using the approved launch arguments only.",
+        "Dedicated temporary profile /tmp/fluentread-linux-native-JcsG10 with mode 700 and owner uid 1000; the guard was attempted against it and refused on the platform gate only.",
+        "WebGPU adapter in three contexts (fixture page, options page, same-origin Blob Worker): vendor nvidia, architecture blackwell, isFallbackAdapter false, 18 features, shader-f16 absent.",
+        "Cleanup verified: browser and fixture PIDs dead, no listener on 9420 or 57280, temp profile removed, no leftover helper server, daily instance PID 98229 still alive."
+      ],
+      "evidence": [
+        "artifacts/env01/cdp-version.json",
+        "artifacts/env01/extension-identity.json",
+        "artifacts/focus/profile-record.json",
+        "artifacts/env01/gpu-log.json",
+        "artifacts/hygiene/cleanup-proof.json",
+        "artifacts/focus/guard-attempt-once.txt"
+      ],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "UI-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Side evidence captured: the real options-page DOM (route sections, navigation, labels, buttons, copy), the provider option list, the per-feature assignment surface, and dark plus 390 px states. Not executed: creating a custom OpenAI-compatible service, the 检查连接 round trip against the loopback fixture, the empty-search assertion, and reopen persistence. The Popup runner additionally needs Playwright and the absent focus-safe helper.",
+      "observations": [
+        "Real options-page DOM captured at chrome-extension://<extension id>/options.html#settings-general: 16 data-section routes from settings-general to settings-about, navigation groups 通用设置 / 翻译服务 / 翻译设置 / 界面风格 / 划词翻译 / 图片/漫画翻译 / 视频字幕翻译 / 写作助手 / 翻译中心 / 学习中心 / 术语库 / 网站规则 / 翻译统计 / 高级选项 / 备份与恢复 / 关于流畅阅读.",
+        "Provider option list read from the real Element Plus dropdown: 免费翻译服务, MyMemory, 微软翻译, 谷歌翻译, DeepL, DeepLX（免费非官方）, 小牛翻译, 有道翻译, Chrome内置AI翻译, 本地模型翻译, 云服务厂商, 腾讯云翻译, 谷歌云翻译, Azure 翻译 and further vendor entries including OpenAI, Gemini, Claude, Ollama（本地）.",
+        "Per-feature assignment surface observed: nine 配置连接 buttons under #feature-services, each paired with an el-select whose display text reads 跟随默认 · 免费翻译服务, plus a global 配置服务 button under #settings-general.",
+        "Search control observed: input placeholder 搜索所有设置 in the navigation aside.",
+        "Theme controls observed: 跟随操作系统 / 亮色主题 / 暗色主题 buttons; dark state captured as a screenshot. Narrow state captured under a 390 px emulated viewport."
+      ],
+      "evidence": [
+        "artifacts/env01/dom-options.json",
+        "artifacts/env01/dom-dropdown-recon.json",
+        "artifacts/env01/dom-ui-states.json",
+        "artifacts/env01/options-light.png",
+        "artifacts/env01/options-dark.png",
+        "artifacts/env01/options-narrow-390.png"
+      ],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "PRIVATE-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. It needs a normal window plus an incognito window, and the documented defect says creating a target inside a new browser context can take the foreground and crash this browser, so that step was not attempted. The runner also needs Playwright and the absent focus-safe helper.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "PRIVATE-02",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. Same two prerequisites as PRIVATE-01, plus cross-context cache and usage isolation observations that were never collected.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. run-youtube-subtitle-sync-test.cjs hard-requires --playwright-root and --focus-safe-helper; neither exists in this checkout, and fabricating the helper is forbidden.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-UI-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Side evidence captured: route #settings-image-translation, the engine option list containing 通用文字 · Tesseract and 漫画文字 · PaddleOCR, the 漫画连续翻译 switch, and dark plus 390 px states. Not executed: explicitly selecting PaddleOCR, proving that selection alone triggers no model download, and reopen persistence.",
+      "observations": [
+        "Real route captured: chrome-extension://<extension id>/options.html#settings-image-translation, reached by clicking the real 图片/漫画翻译 navigation button.",
+        "Engine option list read from the real dropdown contains exactly 通用文字 · Tesseract and 漫画文字 · PaddleOCR; the current display text is 通用文字 · Tesseract.",
+        "Page copy observed: 漫画连续翻译, 提前翻译后续页面 3 张图片, 使用 PaddleOCR，当前页优先，只提前处理已加载的图片。, 识别资源与下载, and 圈选翻译设置 with the Shift+Z hint.",
+        "The 漫画连续翻译 switch is present and was measured as on; dark and 390 px states captured as screenshots."
+      ],
+      "evidence": [
+        "artifacts/env01/dom-ocr-engine-options.json",
+        "artifacts/env01/dom-ui-states.json",
+        "artifacts/env01/options-manga-route.png"
+      ],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-02",
+      "status": "blocked",
+      "kind": "real-site-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. Needs the fixed ASR model assets plus a public non-protected YouTube video; no model weights were downloaded this round.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-03",
+      "status": "blocked",
+      "kind": "real-site-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. It depends on a completed YT-02 run to measure the 1800 ms display deadline.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-04",
+      "status": "blocked",
+      "kind": "real-site-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. It depends on a completed YT-02 run for the pause, seek, SPA-switch and teardown lifecycle observations.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-05",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. The negative fault injection needs a working capture path first.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-01",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. Needs the fixed Paddle detection and recognition assets plus one real single-image inference.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-02",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. Needs Paddle plus LaMa assets and a reproducible manga image with a fixed SHA-256.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-03",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. The negative fault injection needs an established physical-GPU OCR session.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-01",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. Needs the fixed Kokoro assets and one real synthesis run.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-02",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. Needs a real Kokoro run over the long synthetic text with ending markers.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-03",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. Needs a real Kokoro session to cancel and restart.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-04",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. Needs a fully SHA-verified Kokoro cache before offline behaviour can be tested.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-05",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. The negative fault injection needs an established physical-GPU TTS session.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-01",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "hardware-webgpu",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Additionally blocked by a measured capability: this host's WebGPU adapter reports no shader-f16 in all three probed contexts, and the contract requires a real shader-f16 for the FP16 and Index profiles. Needs the five fixed translation profiles and shader-f16.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-02",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. Fault injection per translation profile needs those profiles to run first.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-03",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. It needs at least two real translation models running.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-04",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Round-level blocker: no continuous focus guard interval can exist on this host, because scripts/testing/browser-focus-guard.mjs line 93 asserts process.platform==='darwin' as the first statement of runGuard(), so the guard exits 1 and writes no report file. The acceptance contract requires a completed continuous guard bound to this browser and profile before any case may pass, so every case is blocked. Raw refusal: artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt. Not executed. Needs a fully SHA-verified fixed-revision model cache before offline behaviour can be tested.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "artifacts/focus/guard-attempt-once.txt",
+      "sha256": "d9341ca4f330f70c0b270ef4bb65b16a52b1810a2f8febe01627be4c26b1afda",
+      "mediaType": "text/plain",
+      "role": "focus-guard"
+    },
+    {
+      "path": "artifacts/focus/guard-attempt-continuous.txt",
+      "sha256": "55e2a1313fa5160dfe51b7ea40fe0f6e5c840b4aa47282fc36657278eb1b094b",
+      "mediaType": "text/plain",
+      "role": "focus-guard"
+    },
+    {
+      "path": "artifacts/focus/guard-report-status.txt",
+      "sha256": "fa17f6e0246851c58707833e799893c36f516e5f6c408735185b0fd80d4f6508",
+      "mediaType": "text/plain",
+      "role": "focus-guard"
+    },
+    {
+      "path": "artifacts/focus/guard-preconditions.txt",
+      "sha256": "75c6bb22c49f25a9c305d13f066c4098c1bfe9a979e05597959b96646c1afb56",
+      "mediaType": "text/plain",
+      "role": "focus-guard"
+    },
+    {
+      "path": "artifacts/focus/guard-command.txt",
+      "sha256": "b0c93cf9ac13410de7bca6145634611b62b0e2eecb3c441d652a1db956972fef",
+      "mediaType": "text/plain",
+      "role": "focus-guard"
+    },
+    {
+      "path": "artifacts/focus/guard-block-transcripts.txt",
+      "sha256": "4ee0453e03f13c93454360a46f77be70f390db97cf8d14fb3764222d95082c5a",
+      "mediaType": "text/plain",
+      "role": "focus-guard"
+    },
+    {
+      "path": "artifacts/focus/guard-block.json",
+      "sha256": "74fe6aa6e55da91be13acb952162ead637c60d16bfbfab6a5825d0e19947f24b",
+      "mediaType": "application/json",
+      "role": "focus-guard"
+    },
+    {
+      "path": "artifacts/focus/window-bounds.json",
+      "sha256": "fcabe0853ddd3f1a1317dcf04e247a9e3ba5f840031d5b333b83a8925111a04f",
+      "mediaType": "application/json",
+      "role": "focus-guard"
+    },
+    {
+      "path": "artifacts/focus/profile-record.json",
+      "sha256": "5d47137ed4ba3863859a1f2a598902f8413f907614da377f3daab2ceabaa1620",
+      "mediaType": "application/json",
+      "role": "focus-guard"
+    },
+    {
+      "path": "artifacts/env01/cdp-version.json",
+      "sha256": "ddd855485f0ea47b22bc4ee2daadfd4892edd565ef65d1f1f799b26698a460cf",
+      "mediaType": "application/json",
+      "role": "capabilities"
+    },
+    {
+      "path": "artifacts/env01/extension-identity.json",
+      "sha256": "bef2ec0f7303f51f5b864b2d6a837f2f5046c95287d8f808c289ff298adb5ca2",
+      "mediaType": "application/json",
+      "role": "capabilities"
+    },
+    {
+      "path": "artifacts/env01/webgpu-fixture-page.json",
+      "sha256": "8542677a5e6e2c00a9d849292fc3b431aed176a931aa9288926415fc5b0e7465",
+      "mediaType": "application/json",
+      "role": "gpu-log"
+    },
+    {
+      "path": "artifacts/env01/webgpu-options-page.json",
+      "sha256": "cbbb48d8a750c004184e62a8c42fa060eb5732e96d2019c44fbf8a8685183a17",
+      "mediaType": "application/json",
+      "role": "gpu-log"
+    },
+    {
+      "path": "artifacts/env01/webgpu-extension-worker.json",
+      "sha256": "711c19f57bf6a90e49d049575c754791297c39a37936f48c45f9b5df7d1c1485",
+      "mediaType": "application/json",
+      "role": "gpu-log"
+    },
+    {
+      "path": "artifacts/env01/dom-options.json",
+      "sha256": "3c63fff2d27a222a65f58816a1d2786f1ec946d37efeab34c0f683fb2b8be68b",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/env01/dom-popup.json",
+      "sha256": "942e62408e50012ce333dd02db62828d73fbe28260c3594d6b0e7388d89ed751",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/env01/dom-fixture-page.json",
+      "sha256": "25c4eaf07ef8b589f9cf36ed2a1e9fae25831a3748a4486f613e9782f720e9ba",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/env01/dom-ui-states.json",
+      "sha256": "8205b9127a8a209e565abfed1084a2c578e4509639c85f4d1eab2b91a129d93f",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/env01/dom-dropdown-recon.json",
+      "sha256": "eeb1235387d229dff8dffe8d492f48cc7ed3f5fddd404e1d2994176ccafdd55c",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/env01/dom-ocr-engine-options.json",
+      "sha256": "611db50ae1809134a0dc1fdfc0d52facd4f7fffc662035ab47e1e008ca5cb740",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/env01/fixture-metrics.json",
+      "sha256": "eb35960c0b940a7721ddf08dc45e53135dcd89b976abd7e248d760ba2adabbeb",
+      "mediaType": "application/json",
+      "role": "network"
+    },
+    {
+      "path": "artifacts/hygiene/cleanup-proof.json",
+      "sha256": "8a4d1d73bbfc2264d1b47a735b1f7adf3d079cbcf3f2fd1f936cafd347b19531",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/neo/control-plane-probe.txt",
+      "sha256": "6a020ee415939d351c074ecd4cb64649de92fa80e9be741feb4d3f6a68bdd242",
+      "mediaType": "text/plain",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/build/commands.json",
+      "sha256": "ef4ca1ffb385ff13b65bc1c3c47fdf3605b797a8c31c4794462f972e0f1f369f",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/build/build-files.json",
+      "sha256": "ed77ce68544664f41b105a13852331bee459a486334a2f0361f99b95d5841671",
+      "mediaType": "application/json",
+      "role": "build-manifest"
+    },
+    {
+      "path": "artifacts/build/generated-locales.json",
+      "sha256": "699947f48468e100366cd82089289984d0ba44b74f11b2252f6a57f417629ccb",
+      "mediaType": "application/json",
+      "role": "locale-manifest"
+    },
+    {
+      "path": "artifacts/host/browser-binary.json",
+      "sha256": "ed03cb263993062a9867713791a8a936ea0bac2fbeaf9f9a9d5c3749df2f4b4b",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/host/host-facts.json",
+      "sha256": "57253c6d8ec764c08fdd59c1a1101a3db629782e2266150f56c06d145ea2e0cb",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/host/hygiene.json",
+      "sha256": "2f5a0d6e392a04a108ef21f77b38dfb709d2cb0d54a6748bbaeb8d298042b0f8",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/tools/selfchecks.json",
+      "sha256": "d4d4ffdb733e5c1c653eed41f681fc7224a98782671cf84be4d6b7cc75b64e0c",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/tools/selfchecks-raw.txt",
+      "sha256": "1c13258fa572b8c3bb0782fa9aca57746860be0add7edb08c1759776552304aa",
+      "mediaType": "text/plain",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/host/host-facts-raw.txt",
+      "sha256": "a4038f91a4a3c14f6dd9d08367b189131c764569bac6c44a98df2a8a203c53ae",
+      "mediaType": "text/plain",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/env01/options-light.png",
+      "sha256": "83ec0c4e08f7891970875a0514c5fb4fc154b644ebfcd5be53a91dcbcd3ff22e",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/popup.png",
+      "sha256": "0c4827f09f2e61ba1875d63173678b7fc4087ef27aa5f92e9b00f4ef1aefc103",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/fixture-page.png",
+      "sha256": "aabecdf4fe6bb6b34375ec40e8d948d98324c46420100251283cdcf08986b12a",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/options-manga-route.png",
+      "sha256": "f0e87c3e6506fc716a07f1262ce7bc0e8b6f74bdf10905daa9988748c0160b98",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/options-dark.png",
+      "sha256": "78eebd68aa18bf30996c5f0bb70bc85a566f65e3b270c0097b7a97dc3778e265",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/options-narrow-390.png",
+      "sha256": "faa83c77275fe18a2b55f179a53840e53707d689c5bf056b3cd165eec44e4ddc",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/source.json",
+      "sha256": "c8f3ce3fdcfd38427f5ff7edd047790434e6f64715b7d2dcc3afc29e4367de9b",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/env01/gpu-log.json",
+      "sha256": "1aaad5abaaa5216537a113656f0ce21be5f2837b129ca7aad62f0e0688969332",
+      "mediaType": "application/json",
+      "role": "gpu-log"
+    }
+  ],
+  "limitations": [
+    "This round produced ZERO passes. No case may pass without a completed continuous focus guard interval, and the upstream guard refuses to run on this Linux host at scripts/testing/browser-focus-guard.mjs line 93, which asserts process.platform==='darwin' before it reads any argument. The refusal is recorded verbatim in artifacts/focus/guard-attempt-once.txt and artifacts/focus/guard-attempt-continuous.txt, and no guard report file was created.",
+    "DEFECT-10 (new, this round): browser-focus-guard.mjs is a macOS-only observer. It hardcodes /usr/bin/osascript for the foreground/display probe and /usr/sbin/lsof for listener ownership, so on this host neither the process identity nor the foreground probe can run at all. Every other guard precondition was satisfiable here and is recorded in artifacts/focus/guard-preconditions.txt: a private temporary profile under /tmp with mode 700 owned by the current uid, an unquoted absolute --user-data-dir in the process command line, and a loopback-only CDP listener owned by the browser PID.",
+    "DEFECT-11 (new, this round): the approved partial-visibility placement is not achievable on this host. The launch asked for left=2400 top=120 on a 2560x1440 display, but the compositor placed the window at left=0 top=0, which under the approved policy would be fully-visible. Chromium on Wayland cannot set absolute window positions, so a future Linux round needs a compositor-aware placement step before any visibility assertion can hold.",
+    "DEFECT-12 (new, this round): the named task-scoped control plane binary browseros-claw-server does not exist anywhere on this host. The packaged equivalent is browseros_server (0.0.157 at /usr/lib/browseros/BrowserOSServer/default/resources/bin/browseros_server, plus a user-level 0.0.162 copy). Its --help advertises only --version, --config and --help, but the literal token --stdio is present in both binaries, so a stdio transport probably exists without being documented. It was NOT spawned this round, so the task-scoped stdio capability check remains unexecuted rather than failed. The browser also auto-started that helper with --config pointing inside this round temporary profile; it exited with the browser and no such process remains.",
+    "DEFECT-13 (new, this round): the checked-in schema fixes testedLocalHead to 7212af1f9da08324963e38973c7f477aabfffb0b, but that commit is absent from this clone and from origin (origin carries only main, four acceptance branches and the review branch). The value is carried in result.json only because the schema fixes it as a constant; it could not be corroborated on this host.",
+    "Provenance limitation: the product worktree on this host is incomplete relative to commit c68a53af. 41 of 3172 in-scope paths are absent, including tsconfig.json, wxt.config.ts, vitest.config.ts and all of userscript/, so the prebuilt extension can be fingerprinted but its source tree cannot be fully corroborated here. The extension was NOT rebuilt (rebuilding is out of scope for this round).",
+    "Capability limitation: the WebGPU adapter on this host reports no shader-f16 in the page, the options page and a same-origin Blob Worker, so the FP16 and Index translation profiles of MT-01 could not satisfy their admission requirement even with a guard. This is a measured capability refusal, not a rewritten one.",
+    "All browser observations in this record are SIDE EVIDENCE ONLY. They were collected without any guard interval, so they document what the real UI and the real adapter did on this host but support no pass, and the extension DOM recon was not used to claim any UI-01 or OCR-UI-01 assertion.",
+    "The extension id djnlaiohfaaifbibleebjggkghlmcpcj matches the previous round because the build manifest carries a key field that pins the id; it was read this round from the extension own service worker, not copied from any earlier record.",
+    "Local tooling limitation: the round agent harness refused several tool calls with an auto-mode classifier failure. The affected steps were retried and completed except the task-scoped stdio control-plane spawn, which was therefore not executed. Nothing in this record depends on a refused call.",
+    "The fixture chat endpoint evidence is fixture-server contract evidence only. The POST was issued by the harness directly against the loopback fixture, not by the extension, and it proves the fixture works rather than any product behaviour."
+  ]
+}

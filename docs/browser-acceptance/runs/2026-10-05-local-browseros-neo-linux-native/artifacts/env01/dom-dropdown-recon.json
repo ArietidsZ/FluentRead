@@ -1,0 +1,996 @@
+{
+  "sideEvidenceOnly": true,
+  "label": "Side evidence only. No continuous focus guard interval exists on this host because browser-focus-guard.mjs asserts process.platform===darwin, so nothing in this file supports a pass. No option was selected and no setting was saved.",
+  "at": "2026-10-05T11:23:40.156Z",
+  "probes": [
+    {
+      "name": "ocr-engine-select",
+      "selector": "section#settings-image-translation .el-select",
+      "opened": {
+        "ok": true,
+        "currentDisplayText": "自动检测"
+      },
+      "items": [
+        {
+          "text": "自动检测",
+          "selected": true,
+          "disabled": false
+        },
+        {
+          "text": "简体中文",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "繁體中文",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "English",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "日本語",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "한국어",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Français",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Русский",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Español",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Deutsch / German / 德语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "português / Portuguese / 葡萄牙语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "italiano / Italian / 意大利语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "العربية / Arabic / 阿拉伯语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "हिन्दी / Hindi / 印地语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "বাংলা / Bangla / 孟加拉语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "اردو / Urdu / 乌尔都语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "فارسی / Persian / 波斯语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "עברית / Hebrew / 希伯来语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Türkçe / Turkish / 土耳其语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Tiếng Việt / Vietnamese / 越南语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "ไทย / Thai / 泰语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Indonesia / Indonesian / 印度尼西亚语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Melayu / Malay / 马来语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Nederlands / Dutch / 荷兰语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "polski / Polish / 波兰语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "українська / Ukrainian / 乌克兰语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "čeština / Czech / 捷克语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "slovenčina / Slovak / 斯洛伐克语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "dansk / Danish / 丹麦语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "svenska / Swedish / 瑞典语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "norsk bokmål / Norwegian Bokmål / 书面挪威语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "suomi / Finnish / 芬兰语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Ελληνικά / Greek / 希腊语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "română / Romanian / 罗马尼亚语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "magyar / Hungarian / 匈牙利语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "български / Bulgarian / 保加利亚语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "hrvatski / Croatian / 克罗地亚语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "српски / Serbian / 塞尔维亚语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "slovenščina / Slovenian / 斯洛文尼亚语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "eesti / Estonian / 爱沙尼亚语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "latviešu / Latvian / 拉脱维亚语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "lietuvių / Lithuanian / 立陶宛语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "தமிழ் / Tamil / 泰米尔语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "తెలుగు / Telugu / 泰卢固语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "मराठी / Marathi / 马拉地语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "ગુજરાતી / Gujarati / 古吉拉特语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "ಕನ್ನಡ / Kannada / 卡纳达语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "മലയാളം / Malayalam / 马拉雅拉姆语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "ਪੰਜਾਬੀ / Punjabi / 旁遮普语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "नेपाली / Nepali / 尼泊尔语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "සිංහල / Sinhala / 僧伽罗语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Kiswahili / Swahili / 斯瓦希里语",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Filipino / Filipino / 菲律宾语",
+          "selected": false,
+          "disabled": false
+        }
+      ],
+      "afterEscapeDisplayText": "自动检测"
+    },
+    {
+      "name": "global-service-select",
+      "selector": "#settings-general .el-select",
+      "opened": {
+        "ok": true,
+        "currentDisplayText": "免费翻译服务"
+      },
+      "items": [
+        {
+          "text": "免费翻译服务",
+          "selected": true,
+          "disabled": false
+        },
+        {
+          "text": "MyMemory",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "微软翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "谷歌翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "DeepL",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "DeepLX（免费非官方）",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "小牛翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "有道翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Chrome内置AI翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "本地模型翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "云服务厂商",
+          "selected": false,
+          "disabled": true
+        },
+        {
+          "text": "腾讯云翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "谷歌云翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Azure 翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "阿里云机器翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "百度翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "火山引擎翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "DeepSeek",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "千问/Qwen",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "字节豆包",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "月之暗面/Kimi",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "智谱/GLM",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "腾讯混元",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "腾讯混元翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "文心一言",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "MiniMax",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "小米 MiMo",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "阶跃星辰",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "OpenAI",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Gemini",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Claude",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Grok (X.AI)",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "硅基流动",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "New API",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "无问芯穹",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "OpenRouter",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Groq",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Azure",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Mistral AI",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Cohere",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Cerebras",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Together AI",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Fireworks AI",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "DeepInfra",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Perplexity",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Ollama（本地）",
+          "selected": false,
+          "disabled": false
+        }
+      ],
+      "afterEscapeDisplayText": "搜索翻译服务"
+    },
+    {
+      "name": "per-feature-service-select",
+      "selector": "#feature-services .el-select",
+      "opened": {
+        "ok": true,
+        "currentDisplayText": "跟随默认 · 免费翻译服务"
+      },
+      "items": [
+        {
+          "text": "免费翻译服务",
+          "selected": true,
+          "disabled": false
+        },
+        {
+          "text": "MyMemory",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "微软翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "谷歌翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "DeepL",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "DeepLX（免费非官方）",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "小牛翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "有道翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Chrome内置AI翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "本地模型翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "云服务厂商",
+          "selected": false,
+          "disabled": true
+        },
+        {
+          "text": "腾讯云翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "谷歌云翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Azure 翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "阿里云机器翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "百度翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "火山引擎翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "DeepSeek",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "千问/Qwen",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "字节豆包",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "月之暗面/Kimi",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "智谱/GLM",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "腾讯混元",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "腾讯混元翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "文心一言",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "MiniMax",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "小米 MiMo",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "阶跃星辰",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "OpenAI",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Gemini",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Claude",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Grok (X.AI)",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "硅基流动",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "New API",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "无问芯穹",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "OpenRouter",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Groq",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Azure",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Mistral AI",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Cohere",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Cerebras",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Together AI",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Fireworks AI",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "DeepInfra",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Perplexity",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Ollama（本地）",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "跟随默认 · 免费翻译服务",
+          "selected": true,
+          "disabled": false
+        },
+        {
+          "text": "免费翻译服务",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "MyMemory",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "微软翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "谷歌翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "DeepL",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "DeepLX（免费非官方）",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "小牛翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "有道翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Chrome内置AI翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "本地模型翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "腾讯云翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "谷歌云翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Azure 翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "阿里云机器翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "百度翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "火山引擎翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "DeepSeek",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "千问/Qwen",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "字节豆包",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "月之暗面/Kimi",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "智谱/GLM",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "腾讯混元",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "腾讯混元翻译",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "文心一言",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "MiniMax",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "小米 MiMo",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "阶跃星辰",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "OpenAI",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Gemini",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Claude",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Grok (X.AI)",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "硅基流动",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "New API",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "无问芯穹",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "OpenRouter",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Groq",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Azure",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Mistral AI",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Cohere",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Cerebras",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Together AI",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Fireworks AI",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "DeepInfra",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Perplexity",
+          "selected": false,
+          "disabled": false
+        },
+        {
+          "text": "Ollama（本地）",
+          "selected": false,
+          "disabled": false
+        }
+      ],
+      "afterEscapeDisplayText": "搜索翻译服务"
+    }
+  ],
+  "errors": []
+}

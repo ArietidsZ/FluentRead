@@ -1,0 +1,53 @@
+{
+  "at": "2026-10-05T11:40:00.000Z",
+  "checker": "sanitization-check.mjs (this round's own dependency-free checker)",
+  "command": "node <checker> <record>",
+  "exitCode": 1,
+  "summaryLine": "sanitization-check: 5 violation(s); scanned 66 text file(s), skipped 6 binary file(s), 0 read error(s); rules: workspace-path -> home-path -> macos-users-path -> openai-key-prefix -> github-oauth-token -> github-pat-prefix -> bearer-token -> absolute-path-with-username (machine user name: arietids)",
+  "hitCount": 5,
+  "classified": [
+    {
+      "hit": "harness/sanitization-check.mjs:13: /Users/ [macos-users-path]",
+      "file": "harness/sanitization-check.mjs",
+      "rule": "macos-users-path",
+      "classification": "scanner-self-match",
+      "why": "This file necessarily contains its own rule patterns as literals, so it matches itself. A scanner artefact, not leaked data."
+    },
+    {
+      "hit": "harness/sanitization-check.mjs:14: sk- [openai-key-prefix]",
+      "file": "harness/sanitization-check.mjs",
+      "rule": "openai-key-prefix",
+      "classification": "scanner-self-match",
+      "why": "The rule definition itself contains the three-character prefix."
+    },
+    {
+      "hit": "harness/sanitization-check.mjs:16: github_pat_ [github-pat-prefix]",
+      "file": "harness/sanitization-check.mjs",
+      "rule": "github-pat-prefix",
+      "classification": "scanner-self-match",
+      "why": "The rule definition itself contains the token prefix."
+    },
+    {
+      "hit": "harness/sanitization-check.mjs:88: sk- [openai-key-prefix]",
+      "file": "harness/sanitization-check.mjs",
+      "rule": "openai-key-prefix",
+      "classification": "scanner-self-match",
+      "why": "The rule definition itself contains the three-character prefix."
+    },
+    {
+      "hit": "harness/sanitization-check.mjs:96: github_pat_ [github-pat-prefix]",
+      "file": "harness/sanitization-check.mjs",
+      "rule": "github-pat-prefix",
+      "classification": "scanner-self-match",
+      "why": "The rule definition itself contains the token prefix."
+    }
+  ],
+  "unexplainedCount": 0,
+  "conclusion": "Clean. No literal home path, no literal workspace path, no macOS user path belonging to a real machine, and no credential appear anywhere in this record. Every reported hit is the scanner matching its own pattern literals, and no hit falls inside a registered artifact.",
+  "earlierFalsePositiveFixed": "An earlier scan reported hits inside README.md for the string /Users/ inside a quoted upstream defect description. The README text was reworded so no third-party user path appears in this record.",
+  "checkerCopyCaveat": "The checker copy inside this record has its two path constants placeholder-substituted by the round sanitizer, so this authoritative scan was run from the working copy whose constants are derived at runtime (os.homedir() and the workspace environment variable). To re-run the record copy, restore the <HOME> and <WORKSPACE> placeholders first.",
+  "alsoChecked": [
+    "artifacts/** were sanitized by the collector before their SHA-256 was computed, so every registered digest matches the sanitized bytes on disk.",
+    "harness/** and defects/** were sanitized on copy; the placeholders must be restored before those scripts are re-run."
+  ]
+}

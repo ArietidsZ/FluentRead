@@ -1,0 +1,25 @@
+{
+  "sideEvidenceOnly": true,
+  "at": "2026-10-05T11:29:08.108Z",
+  "label": "Hygiene evidence for this round. No continuous focus guard interval exists on this host so nothing here supports a pass.",
+  "browserPid": 1690606,
+  "fixturePid": 1684639,
+  "profilePath": "/tmp/fluentread-linux-native-JcsG10",
+  "browserPidAlive": "dead",
+  "fixturePidAlive": "dead",
+  "cdpListener9420Count": "0",
+  "fixtureListener57280Count": "0",
+  "profileStillExists": false,
+  "tempProfilesLeft": "0",
+  "helperServerProcessesLeft": "0",
+  "guardProcessesLeft": "0",
+  "ownedBrowserProcessesLeft": "0",
+  "dailyInstance": {
+    "pid": 98229,
+    "alive": "alive",
+    "started": "Sat Oct  3 17:01:04 2026",
+    "elapsed": "2-02:28:02",
+    "command": "/usr/lib/browseros/browseros --user-data-dir=/config/browseros-public-test --no-first-run --no-default-browser-check --disable-browseros-ser"
+  },
+  "note": "The bundled browseros_server helper that the browser auto-started with --config pointing inside this round temp profile exited together with the browser; no such process remains."
+}

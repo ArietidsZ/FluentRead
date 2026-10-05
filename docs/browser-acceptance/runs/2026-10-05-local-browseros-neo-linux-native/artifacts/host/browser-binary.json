@@ -1,0 +1,165 @@
+{
+  "phase": "recon",
+  "task": "browser-binary",
+  "generatedAt": "2026-10-05T10:59:52.978Z",
+  "host": {
+    "os": "Ubuntu 26.04.1 LTS (Resolute Raccoon, VERSION_ID 26.04)",
+    "kernel": "7.0.0-38-generic",
+    "arch": "x86_64",
+    "measuredFrom": "/etc/os-release, lsb_release -a, hostnamectl",
+    "discrepancy": "The task context stated Ubuntu 24.04; the measured host is Ubuntu 26.04.1 LTS. Reporting the measured value."
+  },
+  "browserVersion": "BrowserOS 151.0.8160.137",
+  "browserPath": "/usr/lib/browseros/browseros",
+  "browserSha256": "23cdb86278d0581838abf7bca4079a30150c38d76ce783430f882254671514f0",
+  "wrapperPath": "/usr/bin/browseros",
+  "wrapperSha256": "224482b49b734f3ad33b13a4b09e8d3e4e70ec3bb2407ca55818126471c89626",
+  "wrapperKind": "POSIX sh script (128 bytes) that exports LD_LIBRARY_PATH=/usr/lib/browseros and execs /usr/lib/browseros/browseros \"$@\"",
+  "dpkg": {
+    "package": "browseros",
+    "installedVersion": "151.0.8160.137",
+    "ownership": {
+      "/usr/lib/browseros/browseros": "browseros",
+      "/usr/bin/browseros": "browseros",
+      "/usr/lib/browseros/BrowserOSServer/default/resources/bin/browseros_server": "browseros",
+      "/usr/lib/browseros/browseros_extensions/*.crx": "browseros"
+    },
+    "note": "dpkg -S reported both probed paths as owned by package browseros; apt-cache policy shows the only source is /var/lib/dpkg/status (no repository candidate)."
+  },
+  "serverBinaryFound": true,
+  "clawServerBinaryFound": false,
+  "clawSearchNote": "No file matching browseros-claw-server*, *claw*server*, BrowserClawServer, or any *claw* name was found by the exact server-name search. The exact task pattern (browseros-claw-server* / *claw*server* / BrowserClawServer) returned 0 hits; the broadened -iname '*claw*' search returned 2 unrelated OpenClaw scratch directories (documented in serverSearchPaths). The Linux package ships a differently named control-plane/server binary: browseros_server (bun-compiled), which the bundled migrations and strings identify as the BrowserOS server; its strings contain BROWSERCLAW_DIR_NAME/.browserclaw markers but no standalone claw server binary exists.",
+  "serverBinaryPaths": [
+    {
+      "path": "/usr/lib/browseros/BrowserOSServer/default/resources/bin/browseros_server",
+      "kind": "packaged (dpkg-owned)",
+      "version": "0.0.157",
+      "sha256": "a5c88f49ff702a4950d06b2db9d448ff6c6373adefd46f769c05cad102befc25",
+      "sizeBytes": 107140092,
+      "fileType": "ELF 64-bit LSB executable, x86-64, dynamically linked, not stripped"
+    },
+    {
+      "path": "/usr/lib/browseros/BrowserOSServer/default/resources/bin/third_party/bun",
+      "kind": "packaged (dpkg-owned) runtime dependency",
+      "sha256": "0b915853a0dc2687ffbb0741b9bcaffcd1478ff02d6997ec1df667d850bc7481",
+      "sizeBytes": 100254288,
+      "fileType": "ELF 64-bit LSB executable, x86-64, dynamically linked, not stripped"
+    },
+    {
+      "path": "<HOME>/.config/browser-os/.browseros/versions/0.0.162/resources/bin/browseros_server",
+      "kind": "user-level versioned copy (not dpkg-owned, pre-existing, not created by this task)",
+      "version": "0.0.162",
+      "sha256": "36b3bdbd79c332206fed1cc81d544792f31901d5484418a49b305b2b548190b0",
+      "note": "A literal directory named versions exists at <HOME>/.config/browser-os/.browseros/versions with one version dir 0.0.162; resources/db/migrations there includes 0012_add_provider_headers.sql, which the packaged 0.0.157 tree does not have. current_version file contains 0.0.162."
+    }
+  ],
+  "browserOSServerTree": {
+    "packagedRoot": "/usr/lib/browseros/BrowserOSServer",
+    "dirs": [
+      "/usr/lib/browseros/BrowserOSServer/default/resources/bin",
+      "/usr/lib/browseros/BrowserOSServer/default/resources/bin/third_party",
+      "/usr/lib/browseros/BrowserOSServer/default/resources/db",
+      "/usr/lib/browseros/BrowserOSServer/default/resources/db/migrations",
+      "/usr/lib/browseros/BrowserOSServer/default/resources/db/migrations/meta"
+    ],
+    "migrationFiles": [
+      "0000_zippy_psylocke.sql",
+      "0001_lazy_orphan.sql",
+      "0002_chemical_whirlwind.sql",
+      "0003_scrub_hermes_credentials.sql",
+      "0004_sparkling_carnage.sql",
+      "0005_yellow_riptide.sql",
+      "0006_add_conversations.sql",
+      "0007_add_custom_acp_agents.sql",
+      "0008_add_llm_providers_and_scheduled_jobs.sql",
+      "0009_add_scheduled_job_runs.sql",
+      "0010_add_unified_providers_table.sql",
+      "0011_drop_split_provider_tables.sql"
+    ],
+    "migrationMetaFiles": [
+      "0000_snapshot.json",
+      "0001_snapshot.json",
+      "0002_snapshot.json",
+      "0004_snapshot.json",
+      "0005_snapshot.json",
+      "0006_snapshot.json",
+      "0007_snapshot.json",
+      "0008_snapshot.json",
+      "0009_snapshot.json",
+      "0010_snapshot.json",
+      "0011_snapshot.json",
+      "_journal.json"
+    ],
+    "versionDirsUnderPackagedTree": []
+  },
+  "serverSearchPaths": [
+    {
+      "command": "find / -xdev -maxdepth 7 \\( -name 'browseros-claw-server*' -o -name '*claw*server*' -o -name 'BrowserClawServer' \\) 2>/dev/null",
+      "hits": 0
+    },
+    {
+      "command": "find / -xdev -maxdepth 7 -iname '*claw*' 2>/dev/null",
+      "hits": 2,
+      "note": "The two hits are unrelated OpenClaw (Qoder) scratch directories in the Dropbox workspace (mtimes 2026-10-01/02), containing .md/.mjs/.json files only; a bounded follow-up (find -maxdepth 6 -type f -perm -u+x, and searches for *claw*server*/BrowserClawServer/*server* files) found no executable and no server binary inside them. They are not the BrowserOS Neo control plane. Caveat: the same command returned 0 hits a few minutes earlier in this session, so the paths materialized locally in between; the recorded value is the latest measured.",
+      "hitsList": [
+        "<HOME>/Dropbox/Workspace/Temp/qoder-openclaw-migration-20261001",
+        "<HOME>/Dropbox/Workspace/Temp/qoder-openclaw-assessment-20261001"
+      ]
+    },
+    {
+      "command": "find / -xdev -maxdepth 8 -type d -name versions \\( -path '*BrowserClaw*' -o -path '*BrowserOSServer*' \\) 2>/dev/null",
+      "hits": 0,
+      "note": "no versions dir under any BrowserClaw* or BrowserOSServer path; the only literal versions dir found in a browseros-related tree is <HOME>/.config/browser-os/.browseros/versions (user config, reported above)"
+    },
+    {
+      "command": "strings -a /usr/lib/browseros/BrowserOSServer/default/resources/bin/browseros_server | grep -i claw",
+      "hits": 5,
+      "note": "only sentinel strings (@CLAW, CLAW, BROWSERCLAW_DIR_NAME) plus one agent table mentioning zeroclaw; no claw server filename"
+    }
+  ],
+  "crxHashes": {
+    "adlpneommgkgeanpaekgoaolcpncohkf.crx": "594c02ca7a314e046122a57c4560c8fe3101ccfb2afae59ab6ff53e740ca1c98",
+    "bflpfmnmnokmjhmgnolecpppdbdophmk.crx": "1d66af73fb7ce76203d2e56d723beec01314cc331986166e61dbeb0a1883af6b"
+  },
+  "bundledExtensions": {
+    "bflpfmnmnokmjhmgnolecpppdbdophmk": {
+      "external_crx": "bflpfmnmnokmjhmgnolecpppdbdophmk.crx",
+      "external_version": "0.0.151.0"
+    },
+    "adlpneommgkgeanpaekgoaolcpncohkf": {
+      "external_crx": "adlpneommgkgeanpaekgoaolcpncohkf.crx",
+      "external_version": "54.0.0.0"
+    }
+  },
+  "nodeVersion": "v26.7.0",
+  "npmVersion": "11.19.0",
+  "pnpmPath": null,
+  "corepackPath": null,
+  "webSocketGlobal": true,
+  "fetchGlobal": true,
+  "diskFreeRoot": "103G (df -h /: /dev/nvme2n1p2 size 3.6T, used 3.3T, avail 103G, use 98%)",
+  "diskFreeTmp": "40G (df -h /tmp: tmpfs size 46G, used 6.3G, avail 40G, use 14%)",
+  "memoryAvailableGiB": 70,
+  "controlPlaneObservation": {
+    "note": "Pre-existing user-level config/log found read-only during recon; it was not created, started or touched by this task. Included only as a factual observation of where the BrowserOS server control plane stores its configuration on this host.",
+    "configPath": "<HOME>/.config/browser-os/.browseros/config.json",
+    "configMtime": "2026-09-15T14:23:44.418Z",
+    "ports": {
+      "cdp": 9100,
+      "proxy": 9000,
+      "server": 9200
+    },
+    "report": "log line: Consolidated HTTP Server started / HTTP server listening on http://127.0.0.1:9200 with a /system/health endpoint and 17 registered browser MCP tools",
+    "logPath": "<HOME>/.config/browser-os/.browseros/browseros-server.log"
+  },
+  "factsPath": "<HOME>/.cache/fluentread-acceptance/linux-native-20261005/recon/browser-binary.json",
+  "logPath": "<HOME>/.cache/fluentread-acceptance/linux-native-20261005/logs/browser-version.txt",
+  "notes": [
+    "Host OS measured as Ubuntu 26.04.1 LTS (kernel 7.0.0-38-generic), which differs from the Ubuntu 24.04 stated in the task context; the measured value is reported here.",
+    "ChromeOS/Chromium version line reported by the binary: BrowserOS 151.0.8160.137; dpkg package version matches 151.0.8160.137.",
+    "A different browser is also installed on the host (google-chrome-stable 154.0.8037.97); it is not the acceptance target.",
+    "No process was launched, signalled, stopped or CDP-connected during this recon; the unrelated instance (root PID 98229, --user-data-dir=/config/browseros-public-test) was not touched.",
+    "All hashes/versions above were recomputed at write time from the files on disk; raw outputs are in the log file.",
+    "A bounded follow-up on the 2 OpenClaw scratch dirs found no executable files; no BrowserOS Neo/claw server binary exists on the host. The packaged control plane is the bun-compiled browseros_server 0.0.157."
+  ]
+}
