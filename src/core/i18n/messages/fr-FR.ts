@@ -934,6 +934,7 @@ export const frFRMessages = {
     'options.aboutWebReading': 'Lecture web bilingue',
     'options.aboutReadingTools': 'Outils de lecture pratiques',
     'options.aboutFlexibleServices': 'Services de traduction flexibles',
+    'options.aboutEnlargeCode': 'Agrandir le code de soutien WeChat',
     'options.aboutLearnMore': 'Liens du projet',
     'options.aboutMakeBetter': 'Nous aider à l’améliorer',
     'options.aboutLinksDescription': 'Consultez le code source et la documentation, ou partagez vos retours sur votre expérience de lecture.',

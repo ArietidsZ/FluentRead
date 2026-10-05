@@ -1147,6 +1147,7 @@ export const zhCNMessages = {
     'options.aboutWebReading': '网页双语阅读',
     'options.aboutReadingTools': '顺手的阅读工具',
     'options.aboutFlexibleServices': '灵活的翻译服务',
+    'options.aboutEnlargeCode': '放大微信赞赏码',
     'options.aboutLearnMore': '项目链接',
     'options.aboutMakeBetter': '一起让它变得更好',
     'options.aboutLinksDescription': '查看项目代码、使用文档，或反馈你在阅读中的想法。',

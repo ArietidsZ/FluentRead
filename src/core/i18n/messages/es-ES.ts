@@ -934,6 +934,7 @@ export const esESMessages = {
     'options.aboutWebReading': 'Lectura web bilingüe',
     'options.aboutReadingTools': 'Herramientas de lectura prácticas',
     'options.aboutFlexibleServices': 'Servicios de traducción flexibles',
+    'options.aboutEnlargeCode': 'Ampliar el código de apoyo de WeChat',
     'options.aboutLearnMore': 'Enlaces del proyecto',
     'options.aboutMakeBetter': 'Ayúdanos a mejorarlo',
     'options.aboutLinksDescription': 'Consulta el código fuente y la documentación, o comparte tus comentarios sobre tu experiencia de lectura.',
