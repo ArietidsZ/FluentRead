@@ -189,6 +189,30 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it.each(['chapter', 'query'])('Hentaizap 逐页替换保留阅读，%s 变化结束旧章并释放缓存', async change => {
+        const resetCache = vi.fn(), reuse = vi.fn().mockReturnValue(false);
+        const f = readerFixture(false, 'https://hentaizap.com/g/1655925/1', undefined, undefined, undefined, undefined, {resetCache, reuse});
+        const root = f.document.createElement('main');root.id = 'readerApp';root.innerHTML = '<div id="readerAnchor" class="reader_img"></div>';
+        f.image.id = 'readerImg';root.firstElementChild!.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available: true, pageCount: 1});f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledOnce();resetCache.mockClear();
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledOnce();reuse.mockReturnValue(false);
+        f.image.src = 'blob:page-two';f.window.location.href = 'https://hentaizap.com/g/1655925/2/';f.document.dispatchEvent(new f.dom.Event('fluentread-route-change'));f.run();await flush();
+        expect(f.reader.status().active).toBe(true);expect(f.ports.translate).toHaveBeenCalledTimes(2);expect(resetCache).not.toHaveBeenCalled();
+        f.window.location.href = change === 'chapter' ? 'https://hentaizap.com/g/1655926/1' : 'https://hentaizap.com/g/1655925/2?chapter=other';f.reader.schedule();f.run();
+        expect(f.reader.status().active).toBe(false);expect(resetCache).toHaveBeenCalledOnce();root.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
+    it.each([
+        ['yaoimangaonline.com', '<article class="herald-single"><div class="entry-content herald-entry-content"><p></p></div></article>', 'p', 'alignnone wp-image-123'],
+        ['nhentaiyaoi.net', '<div class="post-box listaImagens"><ul class="post-fotos"><li><a></a></li></ul></div>', 'a', ''],
+    ])('%s 单帖正文加入、懒加载换源、暂停与换帖清理', async (host, html, parent, imageClass) => {
+        const resetCache = vi.fn(), f = readerFixture(false, `https://${host}/public-post`, undefined, undefined, undefined, undefined, {resetCache});
+        f.document.body.className = 'single-post';expect(f.reader.status().available).toBe(false);
+        const root = f.document.createElement('div');root.innerHTML = html;f.image.className = imageClass;root.querySelector(parent)!.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available: true, pageCount: 1});f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledOnce();
+        f.image.src = 'blob:lazy-loaded-body';f.reader.schedule();f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);
+        f.window.location.href = `https://${host}/another-post`;f.reader.schedule();f.run();expect(f.reader.status().active).toBe(false);expect(resetCache).toHaveBeenCalled();
+        root.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);expect(f.ports.release).toHaveBeenCalledWith(f.image);f.reader.dispose();
+    });
     it.each(['chapter', 'slug', 'query'])('GANMA 路径页码续译，暂停复用与 %s 身份变化清理保持独立', async change => {
         const chapter = '/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f';
         const resetCache = vi.fn(), reuse = vi.fn().mockReturnValue(false);

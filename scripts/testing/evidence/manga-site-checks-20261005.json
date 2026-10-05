@@ -1501,7 +1501,60 @@
           "hostname": "hentaizap.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://hentaizap.com/",
+          "finalUrl": "https://hentaizap.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+          "attempt": "homes-wave25",
+          "status": 200,
+          "title": "[public directory or reader title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Public directory links to gallery details; unloaded home media is not chapter acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "profileRemoved": true,
+          "requestedUrl": "https://hentaizap.com/",
+          "checkedAt": "2026-10-05T11:03:04.977582+00:00"
+        },
+        {
+          "url": "https://hentaizap.com/gallery/1655925/",
+          "finalUrl": "https://hentaizap.com/gallery/1655925/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+          "attempt": "posts-wave25",
+          "status": 200,
+          "title": "[public directory or reader title omitted; technical DOM scope]",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Gallery detail has a350x495 cover and observed normal Read Online link to g/1655925/1; gallery cover is excluded.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 4,
+          "profileRemoved": true,
+          "requestedUrl": "https://hentaizap.com/gallery/1655925/",
+          "checkedAt": "2026-10-05T11:03:04.977582+00:00"
+        },
+        {
+          "url": "https://hentaizap.com/g/1655925/1/",
+          "finalUrl": "https://hentaizap.com/g/1655925/1/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+          "attempt": "readers-wave25",
+          "status": 200,
+          "title": "[public directory or reader title omitted; technical DOM scope]",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Public numbered g route displays one1280x1811 body IMG readerImg directly in readerApp/readerAnchor. Positive gallery/page IDs only; existing chapterPath normalization preserves same-gallery paging. Technical DOM only, no OCR, chapter screenshot or image export.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "profileRemoved": true,
+          "requestedUrl": "https://hentaizap.com/g/1655925/1/",
+          "checkedAt": "2026-10-05T11:03:04.977582+00:00"
+        }
+      ]
     },
     {
       "name": "Hanime1",
@@ -2707,7 +2760,26 @@
           "hostname": "fenoxo.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://fenoxo.com/",
+          "finalUrl": "https://www.fenoxo.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+          "attempt": "homes-wave25",
+          "status": 200,
+          "title": "[public directory or reader title omitted; technical DOM scope]",
+          "imageCount": 5,
+          "canvasCount": 0,
+          "readerFinding": "Current public root is a games/developer WordPress blog with an age verification form; no publicly verified manga reader. No form submission or age-gate bypass.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "profileRemoved": true,
+          "requestedUrl": "https://fenoxo.com/",
+          "checkedAt": "2026-10-05T11:03:04.977582+00:00"
+        }
+      ]
     },
     {
       "name": "MangaFreak",
@@ -3119,7 +3191,43 @@
           "hostname": "yaoimangaonline.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://yaoimangaonline.com/",
+          "finalUrl": "https://yaoimangaonline.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+          "attempt": "homes-wave25",
+          "status": 200,
+          "title": "[public directory or reader title omitted; technical DOM scope]",
+          "imageCount": 4,
+          "canvasCount": 0,
+          "readerFinding": "Public directory is reachable; normal post links discovered, covers alone are not body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "profileRemoved": true,
+          "requestedUrl": "https://yaoimangaonline.com/",
+          "checkedAt": "2026-10-05T11:03:04.977582+00:00"
+        },
+        {
+          "url": "https://yaoimangaonline.com/vatican-miracle-examiner-dj-robehei-reprint-by-ayafujii-private-circle-fujii-aya-chn/",
+          "finalUrl": "https://yaoimangaonline.com/vatican-miracle-examiner-dj-robehei-reprint-by-ayafujii-private-circle-fujii-aya-chn/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+          "attempt": "posts-wave25",
+          "status": 200,
+          "title": "[public directory or reader title omitted; technical DOM scope]",
+          "imageCount": 79,
+          "canvasCount": 0,
+          "readerFinding": "Public single-post article renders direct entry-content paragraph IMG alignnone wp-image pages, observed720x1011/1017/1016 with later lazy loading. Single-post body and herald-single container exclude archive, logo, cover, nested ads and recommendations. Technical DOM only, no OCR or image export.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "profileRemoved": true,
+          "requestedUrl": "https://yaoimangaonline.com/vatican-miracle-examiner-dj-robehei-reprint-by-ayafujii-private-circle-fujii-aya-chn/",
+          "checkedAt": "2026-10-05T11:03:04.977582+00:00"
+        }
+      ]
     },
     {
       "name": "nhentaiyaoi",
@@ -3138,7 +3246,43 @@
           "hostname": "nhentaiyaoi.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://nhentaiyaoi.net/",
+          "finalUrl": "https://nhentaiyaoi.net/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+          "attempt": "homes-wave25",
+          "status": 200,
+          "title": "[public directory or reader title omitted; technical DOM scope]",
+          "imageCount": 20,
+          "canvasCount": 0,
+          "readerFinding": "Public directory is reachable; normal post links discovered, covers alone are not body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 6,
+          "profileRemoved": true,
+          "requestedUrl": "https://nhentaiyaoi.net/",
+          "checkedAt": "2026-10-05T11:03:04.977582+00:00"
+        },
+        {
+          "url": "https://nhentaiyaoi.net/sennou-shuuyou-torawareta-kouan-keisatsu-2/",
+          "finalUrl": "https://nhentaiyaoi.net/sennou-shuuyou-torawareta-kouan-keisatsu-2/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+          "attempt": "posts-wave25",
+          "status": 200,
+          "title": "[public directory or reader title omitted; technical DOM scope]",
+          "imageCount": 54,
+          "canvasCount": 0,
+          "readerFinding": "Public single-post body renders listaImagens/post-fotos direct LI/A/IMG pages, observed1280x1920 then1280x1807. Separate post-capa cover and recommendation lists are excluded. Technical DOM only, no OCR or image export.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "profileRemoved": true,
+          "requestedUrl": "https://nhentaiyaoi.net/sennou-shuuyou-torawareta-kouan-keisatsu-2/",
+          "checkedAt": "2026-10-05T11:03:04.977582+00:00"
+        }
+      ]
     },
     {
       "name": "orchisasia",
@@ -3463,7 +3607,26 @@
           "hostname": "뉴토끼대피소.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://xn--h10b90bbmq49b63sq4e.com/",
+          "finalUrl": "https://xn--h10b90bbmq49b63sq4e.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+          "attempt": "homes-wave25",
+          "status": 200,
+          "title": "Redirecting...",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "HTTP200 document title says Redirecting, but rendered DOM contains Parklogic domain-parking banner, protected ad links and parking privacy/contact links; zero body media. No alternate domain inferred or parking ad clicked.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "profileRemoved": true,
+          "requestedUrl": "https://xn--h10b90bbmq49b63sq4e.com/",
+          "checkedAt": "2026-10-05T11:03:04.977582+00:00"
+        }
+      ]
     },
     {
       "name": "블랙툰.co",
@@ -3482,7 +3645,26 @@
           "hostname": "블랙툰.co"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://xn--ij2bx6jk1s.co/",
+          "finalUrl": "https://xn--ij2bx6jk1s.co/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+          "attempt": "homes-wave25",
+          "status": 200,
+          "title": "Redirecting...",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "HTTP200 document title says Redirecting, but rendered DOM contains Parklogic domain-parking banner, protected ad links and parking privacy/contact links; zero body media. No alternate domain inferred or parking ad clicked.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "profileRemoved": true,
+          "requestedUrl": "https://xn--ij2bx6jk1s.co/",
+          "checkedAt": "2026-10-05T11:03:04.977582+00:00"
+        }
+      ]
     },
     {
       "name": "happytoon01.com",
@@ -8388,7 +8570,26 @@
           "hostname": "dvamh-vzwp7.top"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://dvamh-vzwp7.top/",
+          "finalUrl": "https://dvamh-vzwp7.top/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+          "attempt": "homes-wave25",
+          "status": 429,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Current public root returnsHTTP429 with no body media, superseding initial200 loading-page availability. No permanent-closure claim or access bypass.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "profileRemoved": true,
+          "requestedUrl": "https://dvamh-vzwp7.top/",
+          "checkedAt": "2026-10-05T11:03:04.977582+00:00"
+        }
+      ]
     },
     {
       "name": "comic.pixiv.net",
@@ -13066,6 +13267,171 @@
       "readerFinding": "Public catalogue reachable, but observed chapter221 returns HTTP200 with404 Page Not Found and no body, both direct and normal home-link click.",
       "pageErrorCount": 0,
       "networkFailureCount": 1
+    },
+    {
+      "url": "https://hentaizap.com/",
+      "finalUrl": "https://hentaizap.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+      "attempt": "homes-wave25",
+      "status": 200,
+      "title": "[public directory or reader title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Public directory links to gallery details; unloaded home media is not chapter acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "profileRemoved": true
+    },
+    {
+      "url": "https://fenoxo.com/",
+      "finalUrl": "https://www.fenoxo.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+      "attempt": "homes-wave25",
+      "status": 200,
+      "title": "[public directory or reader title omitted; technical DOM scope]",
+      "imageCount": 5,
+      "canvasCount": 0,
+      "readerFinding": "Current public root is a games/developer WordPress blog with an age verification form; no publicly verified manga reader. No form submission or age-gate bypass.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "profileRemoved": true
+    },
+    {
+      "url": "https://yaoimangaonline.com/",
+      "finalUrl": "https://yaoimangaonline.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+      "attempt": "homes-wave25",
+      "status": 200,
+      "title": "[public directory or reader title omitted; technical DOM scope]",
+      "imageCount": 4,
+      "canvasCount": 0,
+      "readerFinding": "Public directory is reachable; normal post links discovered, covers alone are not body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "profileRemoved": true
+    },
+    {
+      "url": "https://nhentaiyaoi.net/",
+      "finalUrl": "https://nhentaiyaoi.net/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+      "attempt": "homes-wave25",
+      "status": 200,
+      "title": "[public directory or reader title omitted; technical DOM scope]",
+      "imageCount": 20,
+      "canvasCount": 0,
+      "readerFinding": "Public directory is reachable; normal post links discovered, covers alone are not body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 6,
+      "profileRemoved": true
+    },
+    {
+      "url": "https://xn--h10b90bbmq49b63sq4e.com/",
+      "finalUrl": "https://xn--h10b90bbmq49b63sq4e.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+      "attempt": "homes-wave25",
+      "status": 200,
+      "title": "Redirecting...",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "HTTP200 document title says Redirecting, but rendered DOM contains Parklogic domain-parking banner, protected ad links and parking privacy/contact links; zero body media. No alternate domain inferred or parking ad clicked.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "profileRemoved": true
+    },
+    {
+      "url": "https://xn--ij2bx6jk1s.co/",
+      "finalUrl": "https://xn--ij2bx6jk1s.co/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+      "attempt": "homes-wave25",
+      "status": 200,
+      "title": "Redirecting...",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "HTTP200 document title says Redirecting, but rendered DOM contains Parklogic domain-parking banner, protected ad links and parking privacy/contact links; zero body media. No alternate domain inferred or parking ad clicked.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "profileRemoved": true
+    },
+    {
+      "url": "https://dvamh-vzwp7.top/",
+      "finalUrl": "https://dvamh-vzwp7.top/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+      "attempt": "homes-wave25",
+      "status": 429,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Current public root returnsHTTP429 with no body media, superseding initial200 loading-page availability. No permanent-closure claim or access bypass.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "profileRemoved": true
+    },
+    {
+      "url": "https://hentaizap.com/gallery/1655925/",
+      "finalUrl": "https://hentaizap.com/gallery/1655925/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+      "attempt": "posts-wave25",
+      "status": 200,
+      "title": "[public directory or reader title omitted; technical DOM scope]",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Gallery detail has a350x495 cover and observed normal Read Online link to g/1655925/1; gallery cover is excluded.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 4,
+      "profileRemoved": true
+    },
+    {
+      "url": "https://yaoimangaonline.com/vatican-miracle-examiner-dj-robehei-reprint-by-ayafujii-private-circle-fujii-aya-chn/",
+      "finalUrl": "https://yaoimangaonline.com/vatican-miracle-examiner-dj-robehei-reprint-by-ayafujii-private-circle-fujii-aya-chn/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+      "attempt": "posts-wave25",
+      "status": 200,
+      "title": "[public directory or reader title omitted; technical DOM scope]",
+      "imageCount": 79,
+      "canvasCount": 0,
+      "readerFinding": "Public single-post article renders direct entry-content paragraph IMG alignnone wp-image pages, observed720x1011/1017/1016 with later lazy loading. Single-post body and herald-single container exclude archive, logo, cover, nested ads and recommendations. Technical DOM only, no OCR or image export.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "profileRemoved": true
+    },
+    {
+      "url": "https://nhentaiyaoi.net/sennou-shuuyou-torawareta-kouan-keisatsu-2/",
+      "finalUrl": "https://nhentaiyaoi.net/sennou-shuuyou-torawareta-kouan-keisatsu-2/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+      "attempt": "posts-wave25",
+      "status": 200,
+      "title": "[public directory or reader title omitted; technical DOM scope]",
+      "imageCount": 54,
+      "canvasCount": 0,
+      "readerFinding": "Public single-post body renders listaImagens/post-fotos direct LI/A/IMG pages, observed1280x1920 then1280x1807. Separate post-capa cover and recommendation lists are excluded. Technical DOM only, no OCR or image export.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "profileRemoved": true
+    },
+    {
+      "url": "https://hentaizap.com/g/1655925/1/",
+      "finalUrl": "https://hentaizap.com/g/1655925/1/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "public-single-post-body-numbered-reader-and-parking-rechecks-wave25",
+      "attempt": "readers-wave25",
+      "status": 200,
+      "title": "[public directory or reader title omitted; technical DOM scope]",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Public numbered g route displays one1280x1811 body IMG readerImg directly in readerApp/readerAnchor. Positive gallery/page IDs only; existing chapterPath normalization preserves same-gallery paging. Technical DOM only, no OCR, chapter screenshot or image export.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "profileRemoved": true
     }
   ],
   "verification": {
@@ -21466,6 +21832,219 @@
       "auditFiles": 468,
       "auditDeclarations": 6104,
       "scope": "Build/manifest verification, not Firefox/userscript runtime or full-suite-green claim."
+    },
+    "publicPostReaderUnit": {
+      "status": "passed",
+      "cases": 527,
+      "files": 7,
+      "fourDimensionCoverage": "100% for all eight manga configuration/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave25.log",
+      "scope": "Numbered positive-ID reader keeps chapter identity on page/source change; single-post direct page containers exclude archive/covers/logo/nested ads; dynamic load, pause, route change and removal cleanup. No OCR engine or network authorization change."
+    },
+    "publicPostReaderInitialFixtureFailure": {
+      "status": "failed",
+      "casesPassed": 484,
+      "casesFailed": 2,
+      "files": 5,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-initial-wave25.log",
+      "finding": "Initial command used two nonexistent file filters and thus ran only five existing files. Two new selector assertions used a bare body fragment; linkedom document.body was not the selected explicit body. Corrected fixture to full html/body and reran the actual seven files; no production selector weakening."
+    },
+    "publicPostReaderEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://hentaizap.com/g/1655925/1/",
+        "live reader discovery: https://yaoimangaonline.com/vatican-miracle-examiner-dj-robehei-reprint-by-ayafujii-private-circle-fujii-aya-chn/",
+        "live reader discovery: https://nhentaiyaoi.net/sennou-shuuyou-torawareta-kouan-keisatsu-2/",
+        "master switch removes manga UI"
+      ],
+      "liveReaders": [
+        {
+          "url": "https://hentaizap.com/g/1655925/1/",
+          "finalUrl": "https://hentaizap.com/g/1655925/1/",
+          "status": 200,
+          "mode": "images",
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed",
+          "bodyPageCount": 1,
+          "loadedBodyPageCount": 1,
+          "geometricallyVisibleBodyPageCount": 1,
+          "bodyGeometrySamples": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1280,
+              "naturalHeight": 1811,
+              "width": 1228,
+              "height": 1737,
+              "visible": true
+            }
+          ]
+        },
+        {
+          "url": "https://yaoimangaonline.com/vatican-miracle-examiner-dj-robehei-reprint-by-ayafujii-private-circle-fujii-aya-chn/",
+          "finalUrl": "https://yaoimangaonline.com/vatican-miracle-examiner-dj-robehei-reprint-by-ayafujii-private-circle-fujii-aya-chn/",
+          "status": 200,
+          "mode": "images",
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed",
+          "bodyPageCount": 76,
+          "loadedBodyPageCount": 2,
+          "geometricallyVisibleBodyPageCount": 1,
+          "bodyGeometrySamples": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 720,
+              "naturalHeight": 1011,
+              "width": 720,
+              "height": 1011,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 720,
+              "naturalHeight": 1017,
+              "width": 720,
+              "height": 1017,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 0,
+              "naturalHeight": 0,
+              "width": 720,
+              "height": 1016,
+              "visible": false
+            }
+          ]
+        },
+        {
+          "url": "https://nhentaiyaoi.net/sennou-shuuyou-torawareta-kouan-keisatsu-2/",
+          "finalUrl": "https://nhentaiyaoi.net/sennou-shuuyou-torawareta-kouan-keisatsu-2/",
+          "status": 200,
+          "mode": "images",
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed",
+          "bodyPageCount": 37,
+          "loadedBodyPageCount": 37,
+          "geometricallyVisibleBodyPageCount": 1,
+          "bodyGeometrySamples": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1280,
+              "naturalHeight": 1920,
+              "width": 1160,
+              "height": 1740,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1280,
+              "naturalHeight": 1807,
+              "width": 1160,
+              "height": 1638,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1280,
+              "naturalHeight": 1807,
+              "width": 1160,
+              "height": 1638,
+              "visible": false
+            }
+          ]
+        }
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 76304,
+          "name": "微信"
+        },
+        "frontmostAfter": {
+          "pid": 76304,
+          "name": "微信"
+        }
+      },
+      "profileRemoved": true,
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-readers-dom-only-wave25/report.json",
+      "finding": "18 base icon/entry/resource/master-switch scenarios plus three public reader entry DOM scenarios. One1/1 body image,76 body slots with2 loaded,37/37 loaded, each one geometrically visible after normal scroll. No OCR, chapter screenshots or image exports in these three samples; private script copy only omits live screenshots, preserving normal assertions. Pure icon still visually checked in ordinary-page base screenshot. No extension, host or console errors; focus-safe own profile removed.",
+      "screenshotsViewed": [
+        "/private/tmp/fluentread-brand-manga-sites-20261005/ui-readers-dom-only-wave25/brand-resident-ordinary.png"
+      ]
+    },
+    "publicPostReaderBuilds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "chromeSeconds": 27.0,
+      "firefoxSeconds": 29.6,
+      "userscriptSeconds": 3.83,
+      "userscriptBytes": 1917294,
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-targeted-wave25.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6108,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-wave25.log"
+      },
+      "scope": "Chrome runtime entry only; Firefox/userscript build and verifier only. No dependency, permissions, version, OCR engine, source access or reference repository changes.",
+      "docs": {
+        "build": "passed",
+        "check": "passed",
+        "pages": 77,
+        "links": 3955,
+        "anchors": 741,
+        "images": 154,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave25.log"
+      }
+    },
+    "publicPostReaderArchitectureGroupFailure": {
+      "status": "failed",
+      "files": 31,
+      "casesPassed": 1258,
+      "casesFailed": 4,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave25.log",
+      "finding": "Group wrapper ignores additional file filters, so31 architecture files ran. Four failures in browserFocusSafety, contentTrustBoundary and two verificationOwnership assertions retained. Do not claim group/all-suite green; direct two-file targeted command passed809. No unrelated-file edits or blanket baseline claim."
     }
   }
 }

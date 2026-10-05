@@ -6,6 +6,26 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it.each(['1', '12'])('Hentaizap 正整数页码 %s 保持同一章节，封面及推荐排除', page => {
+        const site = resolveMangaSite(`https://www.hentaizap.com/g/1655925/${page}/`)!;
+        expect(site).toMatchObject({name: 'Hentaizap', chapterPath: '/g/1655925', requireContent: true});
+        const {document} = parseHTML('<div class="hz-gallery-cover"><img id="cover"></div><main id="readerApp"><div id="readerAnchor" class="reader_img hz-media-load"><img id="readerImg"><a><img id="nested"></a></div><aside><img id="ad"></aside></main>');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['readerImg']);
+        for (const path of ['/', '/gallery/1655925', '/g/1655925', '/g/0/1', '/g/1/0', '/g/01/1', '/g/1/01', '/g/1/-1', '/g/1/one', '/g/1/2/extra']) expect(resolveMangaReaderProfile('hentaizap.com', path)).toBeNull();
+        expect(resolveMangaReaderProfile('hentaizap.com.attacker.test', '/g/1/1')).toBeNull();
+    });
+    it.each([
+        ['yaoimangaonline.com', '<body class="single-post"><img id="logo"><article class="herald-single"><div class="herald-post-thumbnail"><img id="cover"></div><div class="entry-content herald-entry-content"><p><img id="body" class="alignnone size-medium wp-image-123" loading="lazy"><a><img id="nested" class="alignnone wp-image-124"></a><img id="ad" class="alignnone"></p></div></article><aside><img id="outside" class="alignnone wp-image-125"></aside></body>'],
+        ['nhentaiyaoi.net', '<body class="single-post"><div class="post-capa"><img id="cover"></div><div class="post-box listaImagens"><ul class="post-fotos"><li><a><img id="body" loading="lazy"></a><aside><a><img id="nested"></a></aside></li></ul></div><aside><ul class="post-fotos"><li><a><img id="outside"></a></li></ul></aside></body>'],
+    ])('%s 单帖正文排除封面、嵌套广告与目录推荐', (host, html) => {
+        const site = resolveMangaSite(`https://${host}/public-post-2/`)!;
+        expect(site).toMatchObject({custom: false, requireContent: true});
+        const {document} = parseHTML(`<html>${html}</html>`);
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['body']);
+        document.body.className = 'archive';expect(document.querySelectorAll(site.selector)).toHaveLength(0);
+        for (const path of ['/', '/category/work', '/public-post-2/extra', '/public_post', '/post%20name']) expect(resolveMangaReaderProfile(host, path)).toBeNull();
+        expect(resolveMangaReaderProfile(`${host}.attacker.test`, '/public-post-2')).toBeNull();
+    });
     it.each([
         ['ravenscans.org', '/the-counts-youngest-son-is-a-player-chapter-178', '<article><div id="readerarea"><img id="body" class="ts-main-image lazy loaded"><img id="ad"><aside><img id="nested" class="ts-main-image"></aside></div></article><img id="outside" class="ts-main-image">', ['/', '/manga/story', '/story-chapter-one', '/story-chapter-1/extra']],
         ['novelpia.com', '/comic_viewer/18735', '<div id="viewer_wrap"><div class="viewer_content"><div><div class="viewer_content_box"><div class="comic-content"><img id="body"></div><img id="ad"></div></div></div></div><div id="tab-preview"><img id="preview"></div>', ['/', '/comic_episode/1024', '/comic_viewer/0', '/comic_viewer/18735/extra']],

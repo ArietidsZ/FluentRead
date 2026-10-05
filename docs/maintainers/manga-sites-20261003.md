@@ -49,7 +49,7 @@
 | 39 | Comick | comick.io / comick.dev / comick.fun | 通用正文图片检测 | 当前官方公告称已改为追踪与社区、停止漫画阅读；新域名实测 403 |
 | 40 | YoungAnimal | younganimal.com | 可读画布连续翻译 | 公开章节画布已核对 |
 | 41 | Piccoma | piccoma.com | 通用正文图片检测 | 公开作品/章节列表显示仅限日本；未验正文 |
-| 42 | Hentaizap | hentaizap.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 42 | Hentaizap | hentaizap.com | 专用逐页正文图片 | 公开编号阅读页 1280×1811 主图与扩展入口已核对；同作品路径翻页保留阅读状态，未验 OCR |
 | 43 | Hanime1 | hanime1.me | 通用正文图片检测 | 访问受限 |
 | 44 | Globalcomix | globalcomix.com | 正文圈选入口 | 免费正文已显示；扩展抓图 HTTP 401，保留圈选 |
 | 45 | KL | klz9.com | 已核对正文图片 | 普通后台浏览器显示 14 张 1127×1600 正文，实际两页链路通过；竖排错识别、误译和排版仍可见 |
@@ -89,7 +89,7 @@
 | 79 | Smoking Behind the Supermarket | smokingbehindthesupermarket.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 80 | Comic Growl | comic-growl.com | 可读画布连续翻译 | 公开章节画布已核对 |
 | 81 | Jumptoon | jumptoon.com | 受跨域限制画布：圈选入口 | 公开章节正文画布已核对 |
-| 82 | Fenoxo | fenoxo.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 82 | Fenoxo | fenoxo.com | 通用正文图片检测 | 当前为游戏开发博客并有年龄验证表单，未确认公开漫画正文 |
 | 83 | MangaFreak | mangafreak.net / mangafreak.me | 专用正文图片 | 公开章节正文结构已核对 |
 | 84 | ComicGardo | comic-gardo.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 85 | Booklive | booklive.jp | 分片正文：圈选入口 | 正常免费试读、关闭说明及翻页已显示分片正文；圈选入口通过 |
@@ -97,8 +97,8 @@
 | 87 | MangaLove | mangalove.me | 正文画布圈选入口 | 免费 viewer 正文画布受跨域限制；不读取像素或启动连续图片翻译 |
 | 88 | rawdevart.art | rawdevart.art | 通用正文图片检测 | 首页可找到章节；有界面与无界面均只见空正文容器，未确认正文 |
 | 89 | manga-shinchan.com | manga-shinchan.com | 专用正文图片 | 最新免费章四张原稿及入口确认；推广遮挡下部，本轮未执行 OCR |
-| 90 | yaoimangaonline.com | yaoimangaonline.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 91 | nhentaiyaoi | nhentaiyaoi.net | 通用正文图片检测 | 首页 HTML 可访问 |
+| 90 | yaoimangaonline.com | yaoimangaonline.com | 专用单帖正文图片 | 公开单帖 76 张正文，正常滚动后两张已加载、一张可见；入口通过，未验 OCR |
+| 91 | nhentaiyaoi | nhentaiyaoi.net | 专用单帖正文图片 | 公开单帖 37 张正文已加载、一张可见；封面与推荐排除，入口通过，未验 OCR |
 | 92 | orchisasia | orchisasia.org | 专用正文图片，长图分段 | 公开作者后记有 5 张 720 像素宽长图；实页入口通过，翻译质量未验 |
 | 93 | mangalib | mangalib.me | 通用正文图片检测 | 公开实章两种窗口未显示正文；正常截图字体等待超时 |
 | 94 | novelcrow | novelcrow.com | 通用正文图片检测 | 访问受限 |
@@ -106,8 +106,8 @@
 | 96 | Nyx Scans | nyxscans.com | 专用长条正文图片 | 免费章节与入口已核对；复用既有分段链路 |
 | 97 | Qi Manga | qimanga.com | 专用长条正文图片 | 正常后台浏览器可打开免费章节；无界面模式的 403 记录保留 |
 | 98 | MG Read | mgread.io | 专用正文图片 | 公开章节正文结构已核对 |
-| 99 | 뉴토끼대피소.com | 뉴토끼대피소.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 100 | 블랙툰.co | 블랙툰.co | 通用正文图片检测 | 首页 HTML 可访问 |
+| 99 | 뉴토끼대피소.com | 뉴토끼대피소.com | 通用正文图片检测 | 当前 HTTP 200 但实际为 Parklogic 域名停放页，未确认正文或替代域名 |
+| 100 | 블랙툰.co | 블랙툰.co | 通用正文图片检测 | 当前 HTTP 200 但实际为 Parklogic 域名停放页，未确认正文或替代域名 |
 | 101 | happytoon01.com | happytoon01.com | 通用正文图片检测 | 连接失败 |
 | 102 | twmanga.com | twmanga.com、twbzmg.com | 专用正文图片 | 公开阅读链接转至 www.twbzmg.com；AMP 正文已核对 |
 | 103 | mgeko.cc | mgeko.cc | 专用正文图片 | 公开章节正文结构已核对 |
@@ -233,7 +233,7 @@
 | 223 | comicmanga.cc | comicmanga.cc | 通用正文图片检测 | 连接失败 |
 | 224 | mangajikan.com | mangajikan.com | 通用正文图片检测 | 连接失败 |
 | 225 | manhwaden.com | manhwaden.com | 专用长图正文 | 完整长图及扩展入口已核对；共用分段，无本轮 OCR 验收 |
-| 226 | dvamh-vzwp7.top | dvamh-vzwp7.top | 通用正文图片检测 | 首页 HTML 可访问 |
+| 226 | dvamh-vzwp7.top | dvamh-vzwp7.top | 通用正文图片检测 | 当前首页 HTTP 429，无正文；不据此推断永久关闭 |
 | 227 | comic.pixiv.net | comic.pixiv.net | 公开背景正文 · 连续翻译 | 同源背景完整页可读 |
 | 228 | comico.jp | comico.jp | 通用正文图片检测 | 公开销售与租阅已结束；本轮首页与搜索页没有正文，已购书架需账户，未验证 |
 | 229 | manhwas.men | manhwas.men | 通用正文图片检测 | 连接失败 |
