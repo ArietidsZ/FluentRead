@@ -658,7 +658,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     if (nextVideo === observedVideo && nextSource === observedMediaSource && nextStableMediaKey === observedStableMediaKey) return;
     const previousVideo = observedVideo;
     const identityEnriched = previousVideo === nextVideo && nextSource === observedMediaSource
-      && (!observedStableMediaKey || observedStableMediaKey.startsWith('source:blob:'));
+      && (!observedStableMediaKey || observedStableMediaKey.startsWith('blob:'));
     const sameMedia = previousVideo && nextVideo && (identityEnriched
       || Boolean(observedStableMediaKey && observedStableMediaKey === nextStableMediaKey));
     xCaptionSource.restoreTracks();
