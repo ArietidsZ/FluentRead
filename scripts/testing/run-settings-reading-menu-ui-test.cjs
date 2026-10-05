@@ -2,7 +2,7 @@
 /**
  * @file scripts/testing/run-settings-reading-menu-ui-test.cjs
  * 文件职责：在生产扩展中专项验证阅读辅助、右键菜单、设置框标题和补齐后的页内导航。
- * 主要内容：通过隔离 Edge 检查三行布局与虚线、真实样式跳转、高亮联动、左侧预览与右侧开关、场景键盘切换、依赖禁用、保存重开、完整导航，以及七种语言的桌面和窄屏布局。
+ * 主要内容：通过隔离 Edge 检查三行布局与虚线、真实样式跳转、高亮联动、左侧虚拟菜单与右侧开关、入口增删、依赖禁用、保存重开、完整导航，以及七种语言的桌面和窄屏布局。
  * 模块边界：只操作本次临时 profile，使用不抢焦点 helper，不下载模型或调用翻译，不推断 Firefox 实机表现。
  */
 const assert = require('node:assert/strict');
@@ -142,37 +142,46 @@ async function layout(label) {
       return {previewRight: a.right, settingsLeft: b.left, topDifference: Math.abs(a.top - b.top)};
     });
     assert(positions.previewRight <= positions.settingsLeft && positions.topDifference < 2, 'Preview must be left of settings');
-    const radios = preview.getByRole('radio');
-    for (const [index, scene] of ['selection', 'page', 'image'].entries()) {
-      await radios.nth(index).click();
-      assert.equal(await preview.locator('.context-menu-preview-stage').getAttribute('data-preview-scene'), scene);
-      assert.equal(await preview.locator('.context-menu-preview-list li').count(), 1);
-    }
-    await radios.first().focus(); await radios.first().press('ArrowRight');
-    assert.equal(await radios.nth(1).getAttribute('aria-checked'), 'true');
+    assert.equal(await preview.getByRole('radio').count(), 0);
+    assert.equal(await preview.locator('.context-menu-preview-document').count(), 0);
+    const actions = () => preview.locator('[data-context-menu-action]').evaluateAll(nodes => nodes.map(el => el.dataset.contextMenuAction));
+    assert.deepEqual(await actions(), ['translateSelection', 'translateImage', 'translatePage']);
     const entry = id => menu.locator(`[data-context-menu-entry="${id}"] .el-switch`);
     await entry('translatePage').click();
-    assert.equal(await preview.locator('.context-menu-preview-list').count(), 0);
+    assert.deepEqual(await actions(), ['translateSelection', 'translateImage']);
     await entry('translateArea').click();
-    await preview.locator('.context-menu-preview-list').waitFor();
+    assert.deepEqual(await actions(), ['translateSelection', 'translateImage', 'translateArea']);
     assert((await preview.locator('.context-menu-preview-list').innerText()).includes('截图翻译屏幕区域'));
     await entry('translatePage').click();
-    assert((await preview.locator('.context-menu-preview-list').innerText()).includes('翻译全文'));
-    await radios.nth(2).click(); await entry('translateImage').click();
-    assert.equal(await preview.locator('.context-menu-preview-list').count(), 0);
+    assert.deepEqual(await actions(), ['translateSelection', 'translateImage', 'translatePage', 'translateArea']);
     await entry('translateImage').click();
+    assert.deepEqual(await actions(), ['translateSelection', 'translatePage', 'translateArea']);
+    await entry('translateImage').click();
+    await entry('toggleSite').click();
+    assert.deepEqual(await actions(), ['translateSelection', 'translateImage', 'translatePage', 'translateArea', 'toggleSite']);
+    assert.equal(await preview.locator('[data-context-menu-action="toggleSite"]').innerText(), '不再翻译此网站');
+    await entry('toggleSite').click();
     const master = menu.locator('.settings-group-body > .settings-item .el-switch');
     await master.click();
     assert.equal(await preview.locator('.context-menu-preview-list').count(), 0);
     assert.equal(await settings.locator('.el-switch.is-disabled').count(), 5);
-    await master.click(); await radios.nth(1).click();
+    assert.equal(await preview.getByRole('status').innerText(), '没有启用的菜单项');
+    await master.click();
+    // 功能前置条件变化时移除对应项，但保留用户的入口偏好。
+    await patch({selectionTranslatorMode: 'disabled', disableImageTranslator: true, selectionAreaEnabled: false});
+    await page.waitForFunction(() => document.querySelectorAll('[data-context-menu-action]').length === 1);
+    assert.deepEqual(await actions(), ['translatePage']);
+    assert.equal(await settings.locator('.el-switch.is-disabled').count(), 3);
+    await patch({selectionTranslatorMode: 'bilingual', disableImageTranslator: false, selectionAreaEnabled: true});
+    await page.waitForFunction(() => document.querySelectorAll('[data-context-menu-action]').length === 4);
     await shot(menu, 'context-menu-light');
     await layout('zh-CN light 1440');
     await page.reload(); await anchor('context-menu');
     const saved = await config();
     assert.equal(saved.contextMenuEntries.translateArea, true); assert.equal(saved.contextMenuEnabled, true); assert.equal(saved.imageTranslationContextMenuEnabled, true);
     assert.equal(saved.bilingualSentenceHighlightEnabled, true);
-    report.caseCoverage.push({menuPreviewLeft: true, entryGrid: 5, scenes: 3, keyboardScenes: true, pageAreaPriority: true, masterDisabled: true, reopenedPersistence: true});
+    assert.deepEqual(await actions(), ['translateSelection', 'translateImage', 'translatePage', 'translateArea']);
+    report.caseCoverage.push({menuPreviewLeft: true, entryGrid: 5, singleVirtualMenu: true, allEnabledEntries: true, liveEntryToggles: true, unavailableEntriesHidden: true, masterDisabled: true, reopenedPersistence: true});
     for (const language of ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES']) {
       await patch({uiLanguage: language});
       for (const width of [1440, 390]) {
