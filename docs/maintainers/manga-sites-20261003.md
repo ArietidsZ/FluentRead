@@ -28,7 +28,7 @@
 | 18 | Twitter Comic | twicomi.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 19 | MangaZ | mangaz.com | 专用正文图片检测 | 公开 vw 阅读器 HTTP 200；翻页后正文已显示 |
 | 20 | PASH UP | pash-up.jp | 专用当前屏可读画布 | 免费首话当前屏入口、译图与正常点击翻页续译通过；首屏描边字未识别，质量未验收 |
-| 21 | BOOK☆WALKER | bookwalker.jp | 通用正文图片检测 | 公开试读直开超时、弹出阅读器忙碌；正文未确认 |
+| 21 | BOOK☆WALKER | bookwalker.jp | 通用正文图片检测 | 正常免费点击打开公开弹窗，DOM 调查及直开超时；正文未确认 |
 | 22 | COLAMANGA | colamanga.com | 通用正文图片检测 | 连接失败 |
 | 23 | GANGAN ONLINE | ganganonline.com | 专用正文图片规则 | 公开章节正文已核对 |
 | 24 | Asura Scans | asuracomic.net、asurascans.com | 专用正文图片 | 公开章节正文结构已核对 |
@@ -70,7 +70,7 @@
 | 60 | ComicNaver | comic.naver.com | 专用正文图片检测 | 公开章节 HTTP 200；数字作品及章节查询 |
 | 61 | comic-zenon | comic-zenon.com | 不可读画布：圈选入口 | 公开章节结构已核对；画布受污染 |
 | 62 | Webtoons | webtoons.com | 专用正文图片 | 公开章节正文结构已核对 |
-| 63 | Lezhin Comics | lezhin.com、lezhinus.com | 通用正文图片检测 | 英语站公开免费章节仍转至登录；正文未确认 |
+| 63 | Lezhin Comics | lezhin.com、lezhinus.com | 专用英语站正文图片 | 免费首话真实翻译及滚动续译通过；韩语站未验收，Cookie 横幅遮挡下部 |
 | 64 | BeLTOON | beltoon.jp | 通用正文图片检测 | 公开首页只确认作品封面；实际正文未确认 |
 | 65 | ManhwaClub | manhwaclub.net | 专用正文图片 | 公开章节正文已核对；未验 OCR |
 | 66 | JinMangas | 待确认 | 待确认 | 缺少可确认地址 |
@@ -96,7 +96,7 @@
 | 86 | MrBlue | mrblue.com | 通用正文图片检测 | 公开免费作品与章节列表可访问；正常点击尚未显示正文 |
 | 87 | MangaLove | mangalove.me | 正文画布圈选入口 | 免费 viewer 正文画布受跨域限制；不读取像素或启动连续图片翻译 |
 | 88 | rawdevart.art | rawdevart.art | 通用正文图片检测 | 首页可找到章节；有界面与无界面均只见空正文容器，未确认正文 |
-| 89 | manga-shinchan.com | manga-shinchan.com | 通用正文图片检测 | 章节样本仅见宣传图；正文待确认 |
+| 89 | manga-shinchan.com | manga-shinchan.com | 专用正文图片 | 最新免费章四张原稿及入口确认；推广遮挡下部，本轮未执行 OCR |
 | 90 | yaoimangaonline.com | yaoimangaonline.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 91 | nhentaiyaoi | nhentaiyaoi.net | 通用正文图片检测 | 首页 HTML 可访问 |
 | 92 | orchisasia | orchisasia.org | 专用正文图片，长图分段 | 公开作者后记有 5 张 720 像素宽长图；实页入口通过，翻译质量未验 |
@@ -116,10 +116,10 @@
 | 106 | mangaoi.net | mangaoi.net | 通用正文图片检测 | 章节样本返回 200，但显示 404 |
 | 107 | rawlazy.io | rawlazy.io | 通用正文图片检测 | 公开实章仍显示图片加载提示；正文未确认 |
 | 108 | toptoon.com | toptoon.com | 首图/不可读画布：圈选入口 | 正常点击免费首话显示 720 像素宽正文；画布原生像素读取返回 SecurityError，首图和下一画布入口通过 |
-| 109 | acgmhh.com | acgmhh.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 109 | acgmhh.com | acgmhh.com | 通用正文图片检测 | 正常转至 acgmhn.com 目录；正文未确认，未登记别名 |
 | 110 | readcomicsonline.ru | readcomicsonline.ru | 通用正文图片检测 | 访问受限 |
 | 111 | vortexscans.org | vortexscans.org | 专用正文图片 | 公开章节正文结构已核对 |
-| 112 | freeonlinehd.site | freeonlinehd.site | 通用正文图片检测 | 首页 HTML 可访问 |
+| 112 | freeonlinehd.site | freeonlinehd.site | 通用正文图片检测 | 当前为域名出售及联系页面，无漫画正文 |
 | 113 | weebrook.com | weebrook.com | 通用正文图片检测 | 连接失败 |
 | 114 | toonily.com | toonily.com | 通用正文图片检测 | 访问受限 |
 | 115 | mangadistrict2.com | mangadistrict2.com | 通用正文图片检测 | 连接失败 |
@@ -147,15 +147,15 @@
 | 137 | readallcomics.com | readallcomics.com | 通用正文图片检测 | 当前 HTTP 522 连接超时 |
 | 138 | ranfren.neocities.org | ranfren.neocities.org | 静态正文图片 | 两种章节与 DDR 番外正文已核对；两页真实翻译、恢复与续译通过，手写/描边质量仍有限 |
 | 139 | utoon.net | utoon.net | 通用检测；漫画正文未确认 | 当前首页为浏览器游戏；历史漫画归档返回 404 |
-| 140 | manhuapica.com | manhuapica.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 140 | manhuapica.com | manhuapica.com | 通用正文图片检测 | 网页版按钮打开线路测速选择，无正文；未登记代理域名 |
 | 141 | comic-ryu.jp | comic-ryu.jp | 可读画布连续翻译 | 公开章节画布已核对 |
 | 142 | ctccomic.com | ctccomic.com | 专用单页正文，含主页阅读 | 主页 900×1331、首话 900×1279 正文和实页入口通过；742 单独地址本次未加载正文 |
 | 143 | nyaa.fan | nyaa.fan | 通用正文图片检测 | 连接失败 |
 | 144 | mangago.me | mangago.me | 通用正文图片检测 | 访问受限 |
 | 145 | rinkocomics.com | rinkocomics.com | 专用正文图片 · 长条分段 | 公开章节完整长图和入口已核对；本轮未验 OCR |
 | 146 | roliascan.com | roliascan.com | 专用正文图片 | 公开章节正文结构已核对 |
-| 147 | novelpia.com | novelpia.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 148 | zerobywai.com | zerobywai.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 147 | novelpia.com | novelpia.com | 专用正文图片 | 正常窗口首话 58 张正文及入口通过；headless 加载失败保留，本轮未执行 OCR |
+| 148 | zerobywai.com | zerobywai.com | 通用正文图片检测 | 当前 HTTP 200 但显示 404 Not Found，无正文 |
 | 149 | toongod.cc | toongod.cc | 专用正文图片，长图分段 | 900×16006 原图的两段翻译链路通过；整条未验 |
 | 150 | kingofshojo.com | kingofshojo.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 151 | weebcentral.com | weebcentral.com | 专用正文图片 | 首页 HTML 可访问 |
@@ -185,7 +185,7 @@
 | 175 | publicdiplomacymagazine.com | publicdiplomacymagazine.com | 通用正文图片检测 | 访问受限 |
 | 176 | raw1001.net | raw1001.net | 专用正文图片 | 正文和入口通过；开头页 OCR 链路通过，质量有明显限制 |
 | 177 | mkissa.to | mkissa.to | 通用正文图片检测 | 公开作品有章节链接；实章 HTTP 403 验证页，正文未确认 |
-| 178 | iqiyi.com | iqiyi.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 178 | iqiyi.com | iqiyi.com | 通用正文图片检测 | 当前为视频门户；已观察链接未见漫画入口 |
 | 179 | jcomic.net | jcomic.net | 通用正文图片检测 | 公开最新更新分类只确认封面；正文未确认 |
 | 180 | tapas.io | tapas.io | 专用正文图片 | 公开章节 HTTP 200；两张实际对白翻译链路已核对 |
 | 181 | kagane.to | kagane.to | 通用正文图片检测 | 访问受限 |
@@ -194,7 +194,7 @@
 | 184 | webtoonscan.com | webtoonscan.com | 通用正文图片检测 | 访问受限 |
 | 185 | zipcomic.com | zipcomic.com | 通用正文图片检测 | 当前 HTTP 403 验证页 |
 | 186 | zerobywzz.com | zerobywzz.com | 通用正文图片检测 | 连接失败 |
-| 187 | dokusho-ojikan.jp | dokusho-ojikan.jp | 通用正文图片检测 | 公开试读报处理失败；未验证 |
+| 187 | dokusho-ojikan.jp | dokusho-ojikan.jp | 专用画布圈选 | 公开试读九张正文画布不可读；圈选入口确认，实际圈选翻译待验证 |
 | 188 | bomtoon.com | bomtoon.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 189 | copymanga.site | copymanga.site | 通用正文图片检测 | 当前为 ParkLogic 停放/广告跳转页，没有确认漫画目录或章节 |
 | 190 | readcomiconline.li | readcomiconline.li | 通用正文图片检测 | 连接失败 |
@@ -228,7 +228,7 @@
 | 218 | luvyaa.my.id | luvyaa.my.id / luvyaa.co / v5.luvyaa.co | 已核对正文图片 | 原域名落地页显式链接与正常跳转确认现用域名，readerarea 中完整长图复用分段链路；排除上方广告 |
 | 219 | toondex.co | toondex.co | 专用正文图片 | 编号正文及扩展入口已核对；无 OCR 验收 |
 | 220 | manwadd.cc | manwadd.cc | 通用正文图片检测 | 连接失败 |
-| 221 | saucemanhwa.com | saucemanhwa.com | 通用正文图片检测 | 当前重定向到域名停放页，正文未确认 |
+| 221 | saucemanhwa.com | saucemanhwa.com | 通用正文图片检测 | 当前返回 429；此前停放跳转保留，不视为永久关闭 |
 | 222 | mangakoinu.com | mangakoinu.com | 通用正文图片检测 | 连接失败 |
 | 223 | comicmanga.cc | comicmanga.cc | 通用正文图片检测 | 连接失败 |
 | 224 | mangajikan.com | mangajikan.com | 通用正文图片检测 | 连接失败 |

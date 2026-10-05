@@ -703,7 +703,107 @@
           "htmlSha256": "6d1568806cdc403d7945a7e88c5069fe632b519f09b95e3edda2a99685f1950a"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://bookwalker.jp/",
+          "finalUrl": "https://bookwalker.jp/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes2-wave23",
+          "status": 200,
+          "title": "無料試し読みなら電子書籍ストア - ブックウォーカー ( BOOK WALKER )",
+          "imageCount": 50,
+          "canvasCount": 0,
+          "readerFinding": "Public catalogue/free title page with normal free-read link observed; covers are not chapter acceptance.",
+          "pageErrorCount": 1,
+          "networkFailureCount": 6,
+          "requestedUrl": "https://bookwalker.jp/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://bookwalker.jp/search/?qcat=2&qtag=2&qpri=1",
+          "finalUrl": "https://bookwalker.jp/search/?qcat=2&qtag=2&qpri=1",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "works2-wave23",
+          "status": 200,
+          "title": "マンガ（漫画）、男性向け、0円の電子書籍無料試し読みならBOOK☆WALKER",
+          "imageCount": 5,
+          "canvasCount": 0,
+          "readerFinding": "Public catalogue/free title page with normal free-read link observed; covers are not chapter acceptance.",
+          "pageErrorCount": 1,
+          "networkFailureCount": 17,
+          "requestedUrl": "https://bookwalker.jp/search/?qcat=2&qtag=2&qpri=1",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+          "finalUrl": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "bookwalker-work-wave23",
+          "status": 200,
+          "title": "【無料】全自動攻撃【オート】スキルで俺だけ超速レベルアップ～女神が導く怠惰な転生者のサクッと異世界攻略～1巻 - マンガ（漫画） 野桜サク/桜井正宗（グラストCOMICS）：電子書籍試し読み無料 - BOOK☆WALKER -",
+          "imageCount": 33,
+          "canvasCount": 0,
+          "readerFinding": "Public catalogue/free title page with normal free-read link observed; covers are not chapter acceptance.",
+          "pageErrorCount": 1,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+          "finalUrl": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "bookwalker-free-wave23",
+          "status": 200,
+          "title": "【無料】全自動攻撃【オート】スキルで俺だけ超速レベルアップ～女神が導く怠惰な転生者のサクッと異世界攻略～1巻 - マンガ（漫画） 野桜サク/桜井正宗（グラストCOMICS）：電子書籍試し読み無料 - BOOK☆WALKER -",
+          "imageCount": 31,
+          "canvasCount": 0,
+          "readerFinding": "Normal free-read click leaves the parent product page; separate popup follow-up needed. No parent-page body observed.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 17,
+          "requestedUrl": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+          "finalUrl": "https://viewer.bookwalker.jp/03/30/viewer.html?cid=375374b8-fff6-42e3-bd7a-c67be2d4f9cb&cty=1",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "bookwalker-popup-wave23",
+          "status": null,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal free-read click opens viewer.bookwalker.jp/03/30/viewer.html with observed public cid/cty. General DOM read times out after30s; no body acceptance or private API call.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 13,
+          "error": "Public DOM inspection timed out after 30 seconds",
+          "requestedUrl": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://viewer.bookwalker.jp/03/30/viewer.html?cid=375374b8-fff6-42e3-bd7a-c67be2d4f9cb&cty=1",
+          "finalUrl": "https://viewer.bookwalker.jp/03/30/viewer.html?cid=375374b8-fff6-42e3-bd7a-c67be2d4f9cb&cty=1",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "bookwalker-bounded-wave23",
+          "status": null,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Bounded normal-window direct visit to the observed public trial URL times out before domcontentloaded; no DOM/canvas/screenshot body acceptance. No alias or adapter inferred.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "error": "page.goto: Timeout 25000ms exceeded.",
+          "requestedUrl": "https://viewer.bookwalker.jp/03/30/viewer.html?cid=375374b8-fff6-42e3-bd7a-c67be2d4f9cb&cty=1",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        }
+      ]
     },
     {
       "name": "COLAMANGA",
@@ -1849,7 +1949,25 @@
           "hostname": "dlsite.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://www.dlsite.com/index.html",
+          "finalUrl": "https://www.dlsite.com/index.html",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes2-wave23",
+          "status": 200,
+          "title": "DLsite：同人誌、同人ゲームからPCソフト、コミックまで二次元総合ダウンロードショップ | DLsite 総合トップページ",
+          "imageCount": 32,
+          "canvasCount": 0,
+          "readerFinding": "Public general landing/category links only; no actual normal manga trial reader confirmed.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 73,
+          "requestedUrl": "https://www.dlsite.com/index.html",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        }
+      ]
     },
     {
       "name": "uzakichanmanga",
@@ -1995,7 +2113,57 @@
           "htmlSha256": "ecb23772a360ed64db504f1123aa395b699f3624d331617145beaeb86982b79d"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://www.lezhin.com/en",
+          "finalUrl": "https://www.lezhinus.com/en",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes2-wave23",
+          "status": 200,
+          "title": "Lezhin Comics - Your Fantasy, Our Content",
+          "imageCount": 66,
+          "canvasCount": 0,
+          "readerFinding": "Public English homepage/work and explicitly free episode links confirmed. lezhin.com normal redirect to existing lezhinus.com alias; no Korean chapter acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 7,
+          "requestedUrl": "https://www.lezhin.com/en",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://www.lezhinus.com/en/comic/poison_taster",
+          "finalUrl": "https://www.lezhinus.com/en/comic/poison_taster",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "works2-wave23",
+          "status": 200,
+          "title": "I Will Become the Villain's Poison Taster - jagalchikon/TANDAN/PilYoo/Nemoraming - Webtoons - Lezhin Comics",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Public English homepage/work and explicitly free episode links confirmed. lezhin.com normal redirect to existing lezhinus.com alias; no Korean chapter acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 7,
+          "requestedUrl": "https://www.lezhinus.com/en/comic/poison_taster",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://www.lezhinus.com/en/comic/poison_taster/1",
+          "finalUrl": "https://www.lezhinus.com/en/comic/poison_taster/1",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "readers2-wave23",
+          "status": 200,
+          "title": "I Will Become the Villain's Poison Taster - Episode 1 - 1 - Webtoons - Lezhin Comics - Lezhin Comics",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "readerFinding": "Observed English free first episode displays two1280x2560 blob IMG pages in scroll-view direct body wrappers. Public native image pixels readable; no decryption/private API access. Earlier login-only conclusion does not apply to this actually free sample.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 9,
+          "requestedUrl": "https://www.lezhinus.com/en/comic/poison_taster/1",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        }
+      ]
     },
     {
       "name": "BeLTOON",
@@ -2843,7 +3011,41 @@
           "hostname": "manga-shinchan.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://manga-shinchan.com/",
+          "finalUrl": "https://manga-shinchan.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes2-wave23",
+          "status": 200,
+          "title": "毎日更新！「クレヨンしんちゃん」の漫画公式サイトだゾ | まんがクレヨンしんちゃん.com【公式】",
+          "imageCount": 114,
+          "canvasCount": 0,
+          "readerFinding": "Public home exposes normal free/latest episode links; catalogue images are not body acceptance.",
+          "pageErrorCount": 1,
+          "networkFailureCount": 4,
+          "requestedUrl": "https://manga-shinchan.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://manga-shinchan.com/new-shinchan-saimaru/episode/070-new-shinchan-saimaru",
+          "finalUrl": "https://manga-shinchan.com/new-shinchan-saimaru/episode/070-new-shinchan-saimaru",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "works2-wave23",
+          "status": 200,
+          "title": "違いが分かる0歳児だゾ | 新クレヨンしんちゃん連載最新話 10/5～10/20 無料公開中 | 毎日更新！「クレヨンしんちゃん」の漫画公式サイトだゾ | まんがクレヨンしんちゃん.com【公式】",
+          "imageCount": 43,
+          "canvasCount": 0,
+          "readerFinding": "Public latest free chapter has four book_data/article_data JPEG body pages under ep_blog item__list-lists > figure; introductory enclosure, promotion boxes, books and recommendations excluded.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 5,
+          "requestedUrl": "https://manga-shinchan.com/new-shinchan-saimaru/episode/070-new-shinchan-saimaru",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        }
+      ]
     },
     {
       "name": "yaoimangaonline.com",
@@ -4292,9 +4494,37 @@
           "title": "里番|全彩工口漫画|同人H漫画大全 - ACG漫画网 【第1页】",
           "htmlSha256": "9b8a8b40d2fc8c6560fee17d18bd162468c45c290f1da1bddcfea3580fa84b25",
           "hostname": "acgmhh.com"
+        },
+        {
+          "requestedUrl": "https://acgmhh.com/",
+          "finalUrl": "https://acgmhn.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00",
+          "state": "redirect-observed",
+          "status": 200,
+          "method": "isolated browser public DOM without extension",
+          "attempt": "homes-wave23",
+          "note": "Normal public root redirects to acgmhn.com catalogue; no chapter body confirmed and no hostname alias inferred."
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://acgmhh.com/",
+          "finalUrl": "https://acgmhn.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes-wave23",
+          "status": 200,
+          "title": "里番|全彩工口漫画|同人H漫画大全 - ACG漫画网 【第1页】",
+          "imageCount": 62,
+          "canvasCount": 0,
+          "readerFinding": "Normal public root redirects to acgmhn.com catalogue; no chapter body confirmed and no hostname alias inferred.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 5,
+          "requestedUrl": "https://acgmhh.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        }
+      ]
     },
     {
       "name": "readcomicsonline.ru",
@@ -4349,9 +4579,37 @@
           "title": "",
           "htmlSha256": "25dc4c6b932fbc3c41871a135920c9b4ef2f7973a6a7214a1779f71d890ba19a",
           "hostname": "freeonlinehd.site"
+        },
+        {
+          "requestedUrl": "https://freeonlinehd.site/",
+          "finalUrl": "https://freeonlinehd.site/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00",
+          "state": "parked-domain",
+          "status": 200,
+          "method": "isolated browser public DOM without extension",
+          "attempt": "homes-wave23",
+          "note": "Current public root is domain-for-sale/contact content, no manga catalogue/body; no adapter inferred."
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://freeonlinehd.site/",
+          "finalUrl": "https://freeonlinehd.site/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes-wave23",
+          "status": 200,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Current public root is domain-for-sale/contact content, no manga catalogue/body; no adapter inferred.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://freeonlinehd.site/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        }
+      ]
     },
     {
       "name": "weebrook.com",
@@ -5255,6 +5513,16 @@
           "title": "PicaWeb - 哔咔漫画网页版",
           "htmlSha256": "03b47c720b7c793f33f23252204d616e9794135ffac9ceda7f79460593ff984c",
           "hostname": "manhuapica.com"
+        },
+        {
+          "requestedUrl": "https://manhuapica.com/",
+          "finalUrl": "https://manhuapica.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00",
+          "state": "html-accessible",
+          "status": 200,
+          "method": "isolated browser public DOM without extension",
+          "attempt": "homes-wave23",
+          "note": "PicaWeb landing has platform buttons and old-device/browser warning, but no chapter body."
         }
       ],
       "adapter": "detect",
@@ -5268,6 +5536,38 @@
           "imageCount": 1,
           "canvasCount": 0,
           "networkFailureCount": 0
+        },
+        {
+          "url": "https://manhuapica.com/",
+          "finalUrl": "https://manhuapica.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes-wave23",
+          "status": 200,
+          "title": "PicaWeb - 哔咔漫画网页版",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "PicaWeb landing has platform buttons and old-device/browser warning, but no chapter body.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 4,
+          "requestedUrl": "https://manhuapica.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://manhuapica.com/",
+          "finalUrl": "https://manhuapica.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "pica-web-wave23",
+          "status": 200,
+          "title": "PicaWeb - 哔咔漫画网页版",
+          "imageCount": 1,
+          "canvasCount": 0,
+          "readerFinding": "Normal Web button opens visible route speed-test selector with proxy route names, but no manga body. Routes are not registered as aliases; no software installation or account login.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 5,
+          "requestedUrl": "https://manhuapica.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
         }
       ]
     },
@@ -5391,7 +5691,25 @@
           "hostname": "mangago.me"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://mangago.me/",
+          "finalUrl": "https://mangago.me/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes2-wave23",
+          "status": 403,
+          "title": "请稍候…",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Current normal browser root returns403 please-wait access challenge; no bypass or body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://mangago.me/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        }
+      ]
     },
     {
       "name": "rinkocomics.com",
@@ -5555,7 +5873,89 @@
           "hostname": "novelpia.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "url": "https://novelpia.com/",
+          "finalUrl": "https://novelpia.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes-wave23",
+          "status": 200,
+          "title": "노벨피아 - 웹소설로 꿈꾸는 세상!",
+          "imageCount": 66,
+          "canvasCount": 0,
+          "readerFinding": "Public novel homepage, comic_main catalogue or work/preview page. Normal first-episode button observed, but catalogue/preview is not chapter-body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 3,
+          "requestedUrl": "https://novelpia.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://novelpia.com/comic_main",
+          "finalUrl": "https://novelpia.com/comic_main",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "novelpia-main-wave23",
+          "status": 200,
+          "title": "노벨피아 - 웹툰의 신세계를 만나다",
+          "imageCount": 65,
+          "canvasCount": 0,
+          "readerFinding": "Public novel homepage, comic_main catalogue or work/preview page. Normal first-episode button observed, but catalogue/preview is not chapter-body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 18,
+          "requestedUrl": "https://novelpia.com/comic_main",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://novelpia.com/comic_episode/1024",
+          "finalUrl": "https://novelpia.com/comic_episode/1024",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "novelpia-work-wave23",
+          "status": 200,
+          "title": "노벨피아 - 웹툰의 신세계를 만나다 - 이세계의 최강레벨업",
+          "imageCount": 43,
+          "canvasCount": 0,
+          "readerFinding": "Public novel homepage, comic_main catalogue or work/preview page. Normal first-episode button observed, but catalogue/preview is not chapter-body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 22,
+          "requestedUrl": "https://novelpia.com/comic_episode/1024",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://novelpia.com/comic_episode/1024",
+          "finalUrl": "https://novelpia.com/comic_viewer/18735",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "novelpia-first-wave23",
+          "status": 200,
+          "title": "노벨피아 - 웹툰의 신세계를 만나다 - 이세계의 최강레벨업",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Normal observed first-episode button opens comic_viewer/18735. After5s headless DOM still has unresolved Vue/loading page without body; this failure is superseded only by separate normal-window body confirmation.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 39,
+          "requestedUrl": "https://novelpia.com/comic_episode/1024",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://novelpia.com/comic_viewer/18735",
+          "finalUrl": "https://novelpia.com/comic_viewer/18735",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "novelpia-visible-wave23",
+          "status": 200,
+          "title": "노벨피아 - 웹툰의 신세계를 만나다 - 이세계의 최강레벨업",
+          "imageCount": 71,
+          "canvasCount": 0,
+          "readerFinding": "Normal visible isolated window after15s displays58 public body images in viewer_wrap > viewer_content > div > viewer_content_box > comic-content. First750x1000; shorter750x253 and subsequent body slices included. Work preview and hidden membership imagery excluded; no private API call.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 30,
+          "requestedUrl": "https://novelpia.com/comic_viewer/18735",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        }
+      ]
     },
     {
       "name": "zerobywai.com",
@@ -5572,9 +5972,37 @@
           "title": "404 Not Found",
           "htmlSha256": "a9f6c0ebe33b6f66f78b95e06cf44325f3bd52647d9b4ed4b328464d29c1ac11",
           "hostname": "zerobywai.com"
+        },
+        {
+          "requestedUrl": "https://zerobywai.com/",
+          "finalUrl": "https://www.zerobywai.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00",
+          "state": "changed-content",
+          "status": 200,
+          "method": "isolated browser public DOM without extension",
+          "attempt": "homes-wave23",
+          "note": "HTTP200 page title is404 Not Found and no chapter body; not a confirmed permanent closure."
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://zerobywai.com/",
+          "finalUrl": "https://www.zerobywai.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes-wave23",
+          "status": 200,
+          "title": "404 Not Found",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "HTTP200 page title is404 Not Found and no chapter body; not a confirmed permanent closure.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://zerobywai.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        }
+      ]
     },
     {
       "name": "toongod.cc",
@@ -6450,9 +6878,37 @@
           "title": "爱奇艺 iQIYI-热门独播剧集在线观看",
           "htmlSha256": "091a15a95a7c95665b0979278884afa95068013f59aa984f429b9a450b5ab49d",
           "hostname": "iqiyi.com"
+        },
+        {
+          "requestedUrl": "https://iqiyi.com/",
+          "finalUrl": "https://www.iqiyi.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00",
+          "state": "changed-content",
+          "status": 200,
+          "method": "isolated browser public DOM without extension",
+          "attempt": "homes-wave23",
+          "note": "Root normally redirects to www.iqiyi.com video portal. Observed links expose no manga reading entry; no guessed comic subdomain added."
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://iqiyi.com/",
+          "finalUrl": "https://www.iqiyi.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes-wave23",
+          "status": 200,
+          "title": "爱奇艺 iQIYI-热门独播剧集在线观看",
+          "imageCount": 50,
+          "canvasCount": 0,
+          "readerFinding": "Root normally redirects to www.iqiyi.com video portal. Observed links expose no manga reading entry; no guessed comic subdomain added.",
+          "pageErrorCount": 1,
+          "networkFailureCount": 10,
+          "requestedUrl": "https://iqiyi.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        }
+      ]
     },
     {
       "name": "jcomic.net",
@@ -6693,7 +7149,57 @@
           "title": "人気漫画を無料で試し読み・全巻お得に読むならAmebaマンガ"
         }
       ],
-      "adapter": "detect"
+      "adapter": "area",
+      "browserRechecks": [
+        {
+          "url": "https://dokusho-ojikan.jp/",
+          "finalUrl": "https://dokusho-ojikan.jp/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes2-wave23",
+          "status": 200,
+          "title": "人気漫画を無料で試し読み・全巻お得に読むならAmebaマンガ",
+          "imageCount": 36,
+          "canvasCount": 0,
+          "readerFinding": "Public home/work exposes normal trial reader/index.html?cid... link. Book/series covers are not body acceptance.",
+          "pageErrorCount": 1,
+          "networkFailureCount": 9,
+          "requestedUrl": "https://dokusho-ojikan.jp/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://dokusho-ojikan.jp/series_list/series_id=208150?book_id=3747694",
+          "finalUrl": "https://dokusho-ojikan.jp/series_list/series_id=208150?book_id=3747694",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "works2-wave23",
+          "status": 200,
+          "title": "[最新刊]【新規登録で全巻50％還元！】あかね噺24巻|末永裕樹,馬上鷹将|人気漫画を無料で試し読み・全巻お得に読むならAmebaマンガ",
+          "imageCount": 16,
+          "canvasCount": 0,
+          "readerFinding": "Public home/work exposes normal trial reader/index.html?cid... link. Book/series covers are not body acceptance.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 11,
+          "requestedUrl": "https://dokusho-ojikan.jp/series_list/series_id=208150?book_id=3747694",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        },
+        {
+          "url": "https://dokusho-ojikan.jp/reader/index.html?cid=3747694",
+          "finalUrl": "https://dokusho-ojikan.jp/reader/index.html?cid=3747694",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "readers2-wave23",
+          "status": 200,
+          "title": "Amebaマンガ (旧 読書のお時間です)",
+          "imageCount": 5,
+          "canvasCount": 9,
+          "readerFinding": "Normal public Akane Banashi trial reader with cid3747694 displays nine1304x2048 body canvases and1x1 transparent IMG interaction layers. Native getImageData throws SecurityError. Exact body canvases offer area selection only; no pixel bypass, continuous OCR or actual area-translation claim.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 24,
+          "requestedUrl": "https://dokusho-ojikan.jp/reader/index.html?cid=3747694",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
+        }
+      ]
     },
     {
       "name": "bomtoon.com",
@@ -7553,6 +8059,16 @@
           "title": "Loading...",
           "htmlSha256": "9aceda3f7aca623900dd3ff7fcaf26d549a39dd8a0e5f890600edba511058867",
           "hostname": "saucemanhwa.com"
+        },
+        {
+          "requestedUrl": "https://saucemanhwa.com/",
+          "finalUrl": "https://saucemanhwa.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00",
+          "state": "access-restricted",
+          "status": 429,
+          "method": "isolated browser public DOM without extension",
+          "attempt": "homes-wave23",
+          "note": "Current public root returns429 access/rate restriction, no body; previous parked redirect does not establish current permanent closure."
         }
       ],
       "adapter": "detect",
@@ -7566,6 +8082,22 @@
           "imageCount": 0,
           "canvasCount": 0,
           "networkFailureCount": 0
+        },
+        {
+          "url": "https://saucemanhwa.com/",
+          "finalUrl": "https://saucemanhwa.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+          "attempt": "homes-wave23",
+          "status": 429,
+          "title": "",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Current public root returns429 access/rate restriction, no body; previous parked redirect does not establish current permanent closure.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://saucemanhwa.com/",
+          "checkedAt": "2026-10-05T10:08:07.264355+00:00"
         }
       ]
     },
@@ -11824,6 +12356,400 @@
       "readerFinding": "Actual public demo reader URL with observed archive id opens correct title, but after5s only hidden overview thumbnail500x648 is loaded. No actual body acceptance or private API call.",
       "pageErrorCount": 0,
       "networkFailureCount": 0
+    },
+    {
+      "url": "https://manhuapica.com/",
+      "finalUrl": "https://manhuapica.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes-wave23",
+      "status": 200,
+      "title": "PicaWeb - 哔咔漫画网页版",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "PicaWeb landing has platform buttons and old-device/browser warning, but no chapter body.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 4
+    },
+    {
+      "url": "https://acgmhh.com/",
+      "finalUrl": "https://acgmhn.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes-wave23",
+      "status": 200,
+      "title": "里番|全彩工口漫画|同人H漫画大全 - ACG漫画网 【第1页】",
+      "imageCount": 62,
+      "canvasCount": 0,
+      "readerFinding": "Normal public root redirects to acgmhn.com catalogue; no chapter body confirmed and no hostname alias inferred.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 5
+    },
+    {
+      "url": "https://zerobywai.com/",
+      "finalUrl": "https://www.zerobywai.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes-wave23",
+      "status": 200,
+      "title": "404 Not Found",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "HTTP200 page title is404 Not Found and no chapter body; not a confirmed permanent closure.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://saucemanhwa.com/",
+      "finalUrl": "https://saucemanhwa.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes-wave23",
+      "status": 429,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Current public root returns429 access/rate restriction, no body; previous parked redirect does not establish current permanent closure.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://novelpia.com/",
+      "finalUrl": "https://novelpia.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes-wave23",
+      "status": 200,
+      "title": "노벨피아 - 웹소설로 꿈꾸는 세상!",
+      "imageCount": 66,
+      "canvasCount": 0,
+      "readerFinding": "Public novel homepage, comic_main catalogue or work/preview page. Normal first-episode button observed, but catalogue/preview is not chapter-body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 3
+    },
+    {
+      "url": "https://freeonlinehd.site/",
+      "finalUrl": "https://freeonlinehd.site/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes-wave23",
+      "status": 200,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Current public root is domain-for-sale/contact content, no manga catalogue/body; no adapter inferred.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://iqiyi.com/",
+      "finalUrl": "https://www.iqiyi.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes-wave23",
+      "status": 200,
+      "title": "爱奇艺 iQIYI-热门独播剧集在线观看",
+      "imageCount": 50,
+      "canvasCount": 0,
+      "readerFinding": "Root normally redirects to www.iqiyi.com video portal. Observed links expose no manga reading entry; no guessed comic subdomain added.",
+      "pageErrorCount": 1,
+      "networkFailureCount": 10
+    },
+    {
+      "url": "https://novelpia.com/comic_main",
+      "finalUrl": "https://novelpia.com/comic_main",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "novelpia-main-wave23",
+      "status": 200,
+      "title": "노벨피아 - 웹툰의 신세계를 만나다",
+      "imageCount": 65,
+      "canvasCount": 0,
+      "readerFinding": "Public novel homepage, comic_main catalogue or work/preview page. Normal first-episode button observed, but catalogue/preview is not chapter-body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 18
+    },
+    {
+      "url": "https://novelpia.com/comic_episode/1024",
+      "finalUrl": "https://novelpia.com/comic_episode/1024",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "novelpia-work-wave23",
+      "status": 200,
+      "title": "노벨피아 - 웹툰의 신세계를 만나다 - 이세계의 최강레벨업",
+      "imageCount": 43,
+      "canvasCount": 0,
+      "readerFinding": "Public novel homepage, comic_main catalogue or work/preview page. Normal first-episode button observed, but catalogue/preview is not chapter-body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 22
+    },
+    {
+      "url": "https://novelpia.com/comic_episode/1024",
+      "finalUrl": "https://novelpia.com/comic_viewer/18735",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "novelpia-first-wave23",
+      "status": 200,
+      "title": "노벨피아 - 웹툰의 신세계를 만나다 - 이세계의 최강레벨업",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal observed first-episode button opens comic_viewer/18735. After5s headless DOM still has unresolved Vue/loading page without body; this failure is superseded only by separate normal-window body confirmation.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 39
+    },
+    {
+      "url": "https://novelpia.com/comic_viewer/18735",
+      "finalUrl": "https://novelpia.com/comic_viewer/18735",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "novelpia-visible-wave23",
+      "status": 200,
+      "title": "노벨피아 - 웹툰의 신세계를 만나다 - 이세계의 최강레벨업",
+      "imageCount": 71,
+      "canvasCount": 0,
+      "readerFinding": "Normal visible isolated window after15s displays58 public body images in viewer_wrap > viewer_content > div > viewer_content_box > comic-content. First750x1000; shorter750x253 and subsequent body slices included. Work preview and hidden membership imagery excluded; no private API call.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 30
+    },
+    {
+      "url": "https://manga-shinchan.com/",
+      "finalUrl": "https://manga-shinchan.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes2-wave23",
+      "status": 200,
+      "title": "毎日更新！「クレヨンしんちゃん」の漫画公式サイトだゾ | まんがクレヨンしんちゃん.com【公式】",
+      "imageCount": 114,
+      "canvasCount": 0,
+      "readerFinding": "Public home exposes normal free/latest episode links; catalogue images are not body acceptance.",
+      "pageErrorCount": 1,
+      "networkFailureCount": 4
+    },
+    {
+      "url": "https://bookwalker.jp/",
+      "finalUrl": "https://bookwalker.jp/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes2-wave23",
+      "status": 200,
+      "title": "無料試し読みなら電子書籍ストア - ブックウォーカー ( BOOK WALKER )",
+      "imageCount": 50,
+      "canvasCount": 0,
+      "readerFinding": "Public catalogue/free title page with normal free-read link observed; covers are not chapter acceptance.",
+      "pageErrorCount": 1,
+      "networkFailureCount": 6
+    },
+    {
+      "url": "https://www.lezhin.com/en",
+      "finalUrl": "https://www.lezhinus.com/en",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes2-wave23",
+      "status": 200,
+      "title": "Lezhin Comics - Your Fantasy, Our Content",
+      "imageCount": 66,
+      "canvasCount": 0,
+      "readerFinding": "Public English homepage/work and explicitly free episode links confirmed. lezhin.com normal redirect to existing lezhinus.com alias; no Korean chapter acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 7
+    },
+    {
+      "url": "https://www.dlsite.com/index.html",
+      "finalUrl": "https://www.dlsite.com/index.html",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes2-wave23",
+      "status": 200,
+      "title": "DLsite：同人誌、同人ゲームからPCソフト、コミックまで二次元総合ダウンロードショップ | DLsite 総合トップページ",
+      "imageCount": 32,
+      "canvasCount": 0,
+      "readerFinding": "Public general landing/category links only; no actual normal manga trial reader confirmed.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 73
+    },
+    {
+      "url": "https://dokusho-ojikan.jp/",
+      "finalUrl": "https://dokusho-ojikan.jp/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes2-wave23",
+      "status": 200,
+      "title": "人気漫画を無料で試し読み・全巻お得に読むならAmebaマンガ",
+      "imageCount": 36,
+      "canvasCount": 0,
+      "readerFinding": "Public home/work exposes normal trial reader/index.html?cid... link. Book/series covers are not body acceptance.",
+      "pageErrorCount": 1,
+      "networkFailureCount": 9
+    },
+    {
+      "url": "https://mangago.me/",
+      "finalUrl": "https://mangago.me/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "homes2-wave23",
+      "status": 403,
+      "title": "请稍候…",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Current normal browser root returns403 please-wait access challenge; no bypass or body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://manga-shinchan.com/new-shinchan-saimaru/episode/070-new-shinchan-saimaru",
+      "finalUrl": "https://manga-shinchan.com/new-shinchan-saimaru/episode/070-new-shinchan-saimaru",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "works2-wave23",
+      "status": 200,
+      "title": "違いが分かる0歳児だゾ | 新クレヨンしんちゃん連載最新話 10/5～10/20 無料公開中 | 毎日更新！「クレヨンしんちゃん」の漫画公式サイトだゾ | まんがクレヨンしんちゃん.com【公式】",
+      "imageCount": 43,
+      "canvasCount": 0,
+      "readerFinding": "Public latest free chapter has four book_data/article_data JPEG body pages under ep_blog item__list-lists > figure; introductory enclosure, promotion boxes, books and recommendations excluded.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 5
+    },
+    {
+      "url": "https://bookwalker.jp/search/?qcat=2&qtag=2&qpri=1",
+      "finalUrl": "https://bookwalker.jp/search/?qcat=2&qtag=2&qpri=1",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "works2-wave23",
+      "status": 200,
+      "title": "マンガ（漫画）、男性向け、0円の電子書籍無料試し読みならBOOK☆WALKER",
+      "imageCount": 5,
+      "canvasCount": 0,
+      "readerFinding": "Public catalogue/free title page with normal free-read link observed; covers are not chapter acceptance.",
+      "pageErrorCount": 1,
+      "networkFailureCount": 17
+    },
+    {
+      "url": "https://www.lezhinus.com/en/comic/poison_taster",
+      "finalUrl": "https://www.lezhinus.com/en/comic/poison_taster",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "works2-wave23",
+      "status": 200,
+      "title": "I Will Become the Villain's Poison Taster - jagalchikon/TANDAN/PilYoo/Nemoraming - Webtoons - Lezhin Comics",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Public English homepage/work and explicitly free episode links confirmed. lezhin.com normal redirect to existing lezhinus.com alias; no Korean chapter acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 7
+    },
+    {
+      "url": "https://dokusho-ojikan.jp/series_list/series_id=208150?book_id=3747694",
+      "finalUrl": "https://dokusho-ojikan.jp/series_list/series_id=208150?book_id=3747694",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "works2-wave23",
+      "status": 200,
+      "title": "[最新刊]【新規登録で全巻50％還元！】あかね噺24巻|末永裕樹,馬上鷹将|人気漫画を無料で試し読み・全巻お得に読むならAmebaマンガ",
+      "imageCount": 16,
+      "canvasCount": 0,
+      "readerFinding": "Public home/work exposes normal trial reader/index.html?cid... link. Book/series covers are not body acceptance.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 11
+    },
+    {
+      "url": "https://manhuapica.com/",
+      "finalUrl": "https://manhuapica.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "pica-web-wave23",
+      "status": 200,
+      "title": "PicaWeb - 哔咔漫画网页版",
+      "imageCount": 1,
+      "canvasCount": 0,
+      "readerFinding": "Normal Web button opens visible route speed-test selector with proxy route names, but no manga body. Routes are not registered as aliases; no software installation or account login.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 5
+    },
+    {
+      "url": "https://www.lezhinus.com/en/comic/poison_taster/1",
+      "finalUrl": "https://www.lezhinus.com/en/comic/poison_taster/1",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "readers2-wave23",
+      "status": 200,
+      "title": "I Will Become the Villain's Poison Taster - Episode 1 - 1 - Webtoons - Lezhin Comics - Lezhin Comics",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "readerFinding": "Observed English free first episode displays two1280x2560 blob IMG pages in scroll-view direct body wrappers. Public native image pixels readable; no decryption/private API access. Earlier login-only conclusion does not apply to this actually free sample.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 9
+    },
+    {
+      "url": "https://dokusho-ojikan.jp/reader/index.html?cid=3747694",
+      "finalUrl": "https://dokusho-ojikan.jp/reader/index.html?cid=3747694",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "readers2-wave23",
+      "status": 200,
+      "title": "Amebaマンガ (旧 読書のお時間です)",
+      "imageCount": 5,
+      "canvasCount": 9,
+      "readerFinding": "Normal public Akane Banashi trial reader with cid3747694 displays nine1304x2048 body canvases and1x1 transparent IMG interaction layers. Native getImageData throws SecurityError. Exact body canvases offer area selection only; no pixel bypass, continuous OCR or actual area-translation claim.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 24
+    },
+    {
+      "url": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+      "finalUrl": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "bookwalker-work-wave23",
+      "status": 200,
+      "title": "【無料】全自動攻撃【オート】スキルで俺だけ超速レベルアップ～女神が導く怠惰な転生者のサクッと異世界攻略～1巻 - マンガ（漫画） 野桜サク/桜井正宗（グラストCOMICS）：電子書籍試し読み無料 - BOOK☆WALKER -",
+      "imageCount": 33,
+      "canvasCount": 0,
+      "readerFinding": "Public catalogue/free title page with normal free-read link observed; covers are not chapter acceptance.",
+      "pageErrorCount": 1,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+      "finalUrl": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "bookwalker-free-wave23",
+      "status": 200,
+      "title": "【無料】全自動攻撃【オート】スキルで俺だけ超速レベルアップ～女神が導く怠惰な転生者のサクッと異世界攻略～1巻 - マンガ（漫画） 野桜サク/桜井正宗（グラストCOMICS）：電子書籍試し読み無料 - BOOK☆WALKER -",
+      "imageCount": 31,
+      "canvasCount": 0,
+      "readerFinding": "Normal free-read click leaves the parent product page; separate popup follow-up needed. No parent-page body observed.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 17
+    },
+    {
+      "url": "https://bookwalker.jp/de375374b8-fff6-42e3-bd7a-c67be2d4f9cb/",
+      "finalUrl": "https://viewer.bookwalker.jp/03/30/viewer.html?cid=375374b8-fff6-42e3-bd7a-c67be2d4f9cb&cty=1",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "bookwalker-popup-wave23",
+      "status": null,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Normal free-read click opens viewer.bookwalker.jp/03/30/viewer.html with observed public cid/cty. General DOM read times out after30s; no body acceptance or private API call.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 13,
+      "error": "Public DOM inspection timed out after 30 seconds"
+    },
+    {
+      "url": "https://viewer.bookwalker.jp/03/30/viewer.html?cid=375374b8-fff6-42e3-bd7a-c67be2d4f9cb&cty=1",
+      "finalUrl": "https://viewer.bookwalker.jp/03/30/viewer.html?cid=375374b8-fff6-42e3-bd7a-c67be2d4f9cb&cty=1",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "novelpia-shinchan-lezhin-ameba-and-public-rechecks-wave23",
+      "attempt": "bookwalker-bounded-wave23",
+      "status": null,
+      "title": "",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Bounded normal-window direct visit to the observed public trial URL times out before domcontentloaded; no DOM/canvas/screenshot body acceptance. No alias or adapter inferred.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "error": "page.goto: Timeout 25000ms exceeded."
     }
   ],
   "verification": {
@@ -18510,6 +19436,856 @@
       "hostErrorCount": 0,
       "hostErrorMessages": {},
       "finding": "Native pixel-read error now captured, but diagnostic used page.viewportSize() on a native window without emulated viewport and got null. One operation72.261s, first screenshot; later phases not reached. Failure retained; final diagnostics read actual inner dimensions."
+    },
+    "novelpiaShinchanLezhinAmebaUnit": {
+      "status": "passed",
+      "cases": 517,
+      "files": 7,
+      "fourDimensionCoverage": "100% for all eight manga configuration/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-final-wave23.log",
+      "scope": "Exact body/preview/promotion exclusions, duplicate/invalid trial cid and domain/chapter/language boundaries; no engine or source-permission change."
+    },
+    "novelpiaShinchanLezhinAmebaBuilds": {
+      "status": "passed",
+      "typecheck": true,
+      "chromeSeconds": 26.7,
+      "firefoxSeconds": 28.8,
+      "userscriptSeconds": 4.12,
+      "userscriptBytes": 1917250,
+      "manifestVerifier": true,
+      "userscriptVerifier": true,
+      "architectureCases": 809,
+      "auditFiles": 468,
+      "auditDeclarations": 6103,
+      "scope": "Build/manifest verification; no Firefox/userscript device runtime or full-suite-green claim."
+    },
+    "novelpiaShinchanLezhinAmebaEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://novelpia.com/comic_viewer/18735",
+        "live reader discovery: https://manga-shinchan.com/new-shinchan-saimaru/episode/070-new-shinchan-saimaru",
+        "live reader discovery: https://www.lezhinus.com/en/comic/poison_taster/1",
+        "live reader discovery: https://dokusho-ojikan.jp/reader/index.html?cid=3747694&ref=seriesDetail_readerMain_208150",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "liveReaders": [
+        {
+          "url": "https://novelpia.com/comic_viewer/18735",
+          "finalUrl": "https://novelpia.com/comic_viewer/18735",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 253,
+              "width": 720,
+              "height": 243,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 572,
+              "width": 720,
+              "height": 549,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 548,
+              "width": 720,
+              "height": 526,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 398,
+              "width": 720,
+              "height": 382,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 75,
+              "width": 720,
+              "height": 72,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 750,
+              "naturalHeight": 1000,
+              "width": 720,
+              "height": 960,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://manga-shinchan.com/new-shinchan-saimaru/episode/070-new-shinchan-saimaru",
+          "finalUrl": "https://manga-shinchan.com/new-shinchan-saimaru/episode/070-new-shinchan-saimaru",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1748,
+              "naturalHeight": 2480,
+              "width": 896,
+              "height": 1271,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1748,
+              "naturalHeight": 2480,
+              "width": 896,
+              "height": 1271,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1748,
+              "naturalHeight": 2480,
+              "width": 896,
+              "height": 1271,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1748,
+              "naturalHeight": 2480,
+              "width": 896,
+              "height": 1271,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://www.lezhinus.com/en/comic/poison_taster/1",
+          "finalUrl": "https://www.lezhinus.com/en/comic/poison_taster/1",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1280,
+              "naturalHeight": 2560,
+              "width": 720,
+              "height": 1440,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://dokusho-ojikan.jp/reader/index.html?cid=3747694&ref=seriesDetail_readerMain_208150",
+          "finalUrl": "https://dokusho-ojikan.jp/reader/index.html?cid=3747694&ref=seriesDetail_readerMain_208150",
+          "status": 200,
+          "mode": "area",
+          "readerPages": [
+            {
+              "tag": "CANVAS",
+              "width": 1304,
+              "height": 2048,
+              "visible": true
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1304,
+              "height": 2048,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1304,
+              "height": 2048,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1304,
+              "height": 2048,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1304,
+              "height": 2048,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1304,
+              "height": 2048,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1304,
+              "height": 2048,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1304,
+              "height": 2048,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1304,
+              "height": 2048,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-readers-wave23/report.json",
+      "finding": "22 real entry cases passed, including18 base pure-icon/resource/master cases and four HTTP200 live readers. Novelpia58/58 images loaded; Shinchan4/4 loaded with site promotion covering lower right. Initial Lezhin record had one loaded offscreen body image while screenshot shows first body; later scoped probe confirms both native blob pages match including visible first. Ameba9 body canvases, one visible; no actual area OCR. All four entry screenshots viewed, no extension/host/console errors; profile removed."
+    },
+    "lezhinPublicTranslation": {
+      "status": "passed",
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "scroll automatically translates a new visible page",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the resident brand icon"
+      ],
+      "sourceLanguage": "en",
+      "targetLanguage": "zh-Hans",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 37054,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 4169,
+          "mayIncludeFirstInpaintingPreparation": true
+        }
+      ],
+      "sourceCaptures": [
+        {
+          "name": "01",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lezhin-wave23/01-original.png",
+          "width": 1280,
+          "height": 2560,
+          "method": "natural image pixels"
+        },
+        {
+          "name": "02",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lezhin-wave23/02-original.png",
+          "width": 1280,
+          "height": 2560,
+          "method": "natural image pixels"
+        }
+      ],
+      "operations": 2,
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "profileRemoved": true,
+      "modelRequests": [],
+      "modelsPreloaded": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lezhin-wave23/report.json",
+      "finding": "Production PaddleOCR, live Google English to Simplified Chinese on public free first episode. Six reader state cases pass; two1280x2560 blob images read as normal natural image pixels. Two operations, stages37.054s and4.169s. Pause restores actual source/style, reactivation reuses cache, normal scroll translates next page, compact pure-icon dock and no automatic panel. Existing SHA-verified model importer used, no model requests, extension/host/console errors; profile removed. First cancel check explicitly skipped.",
+      "outputsViewed": [
+        "01-translated.png",
+        "02-scrolled-translated.png"
+      ],
+      "qualityFinding": "Two sampled simple English speech bubbles show readable Chinese, original English in those bubbles cleaned without visible speech-border damage. Original Cookie consent banner remains and overlays lower viewport/around translated result; not unobstructed full-page, whole chapter, general handwritten/vertical/art-title or all-episode quality acceptance."
+    },
+    "lezhinBodyEntryProbe": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://www.lezhinus.com/en/comic/poison_taster/1",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 212,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "liveReaders": [
+        {
+          "url": "https://www.lezhinus.com/en/comic/poison_taster/1",
+          "finalUrl": "https://www.lezhinus.com/en/comic/poison_taster/1",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "className": "w-full h-full select-none pointer-events-none",
+              "sourceProtocol": "blob:",
+              "matchesBuiltIn": true,
+              "naturalWidth": 1280,
+              "naturalHeight": 2560,
+              "width": 720,
+              "height": 1440,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full select-none pointer-events-none",
+              "sourceProtocol": "blob:",
+              "matchesBuiltIn": true,
+              "naturalWidth": 1280,
+              "naturalHeight": 2560,
+              "width": 720,
+              "height": 1440,
+              "visible": false
+            }
+          ],
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-lezhin-body-probe-wave23/report.json",
+      "finding": "19 cases pass in separate temporary diagnostic copy. Bounded metadata for actual scroll-view direct images shows two1280x2560 blob pages, both match built-in hierarchy/source rules, first visible. No production change or source data recorded; profile removed."
     }
   }
 }
