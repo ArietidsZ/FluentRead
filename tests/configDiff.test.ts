@@ -11,7 +11,7 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 describe('配置差异预览', () => {
     it('图片识别方式在历史中使用与设置相同的可读名称', () => {
         expect(group(buildConfigDiff({imageTranslationOcrEngine: 'tesseract'}, {imageTranslationOcrEngine: 'paddle'}), 'imageTranslation')?.changes).toEqual([
-            {key: 'imageTranslationOcrEngine', label: '图片识别方式', before: '通用文字 · Tesseract', after: '漫画文字 · PaddleOCR'},
+            {key: 'imageTranslationOcrEngine', label: '图片识别方式', before: 'Tesseract（轻量模型）', after: 'PaddleOCR（标准模型）'},
         ]);
     });
     it('云备份只能获得已知设置名称；词库选择和功能偏好保持可辨认摘要', () => {

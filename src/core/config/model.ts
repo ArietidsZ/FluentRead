@@ -553,7 +553,7 @@ export class Config {
         this.hoverTranslationService = '';
         this.selectionTranslationService = '';
         this.imageTranslationService = '';
-        this.imageTranslationOcrEngine = 'tesseract';
+        this.imageTranslationOcrEngine = 'paddle';
         this.documentService = '';
         this.documentModel = Object.fromEntries(
             [...defaultModels].filter(([service]) => service !== LEGACY_CUSTOM_OPENAI_PROVIDER_ID),
@@ -1428,7 +1428,8 @@ export function normalizeConfig(value: unknown): Config {
         normalized.disableImageTranslator = true;
     }
     normalized.imageTranslationMangaEnabled = typeof normalized.imageTranslationMangaEnabled === 'boolean' ? normalized.imageTranslationMangaEnabled : true;
-    normalized.imageTranslationOcrEngine = normalized.imageTranslationOcrEngine === 'paddle' ? 'paddle' : 'tesseract';
+    // 新安装、缺失或非法值使用 PaddleOCR；保留已保存的 Tesseract 选择。
+    normalized.imageTranslationOcrEngine = normalized.imageTranslationOcrEngine === 'tesseract' ? 'tesseract' : 'paddle';
     normalized.imageTranslationMangaPromptEnabled = typeof normalized.imageTranslationMangaPromptEnabled === 'boolean' ? normalized.imageTranslationMangaPromptEnabled : true;
     normalized.imageTranslationMangaDownloadConfirmed = normalized.imageTranslationMangaDownloadConfirmed === true;
     normalized.imageTranslationMangaSites = normalizeMangaSiteRules(normalized.imageTranslationMangaSites);
