@@ -3,7 +3,7 @@
 文件职责：用清晰的保存、恢复与逐项合并流程完成Google Drive 与 WebDAV 共用的配置云备份。
 主要内容：以同级选项展示始终同步且不可关闭的基础配置与默认关闭的敏感配置；敏感配置须明确同意，选择在本机持续保存直到手动关闭。
 预览说明旧备份范围和恢复保护，不在选项区重复展示范围摘要与恢复提示。
-风险确认集中展示存储方式、泄露风险与持续生效的选择；删除确认突出目标服务、不可恢复后果与加粗的确认词，次要说明在独立浮层展示，避免展开时改变弹窗与按钮位置。
+风险确认集中展示存储方式、泄露风险与持续生效的选择；删除确认将目标服务、不可恢复后果与加粗的确认词合入同一个提示块，输入框紧接其后；次要说明在独立浮层展示，避免展开时改变弹窗与按钮位置。
 删除前须输入本次界面语言的确认文本，再点击确认；只删除已核验版本的备份文件，并保留本机配置。
 通过右侧记录插槽统一显示账号和时间，窄屏改为上下排列；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
 先选择操作再确认影响；缺少安全覆盖版本时明确提示只读恢复；默认展示差异与连接变更类别，小屏保留操作区。
@@ -37,10 +37,15 @@
     <el-dialog v-model="deleteVisible" class="cloud-delete-dialog cloud-compact-dialog fluentread-cloud-sync-dialog" :title="t(deletion?.hasRemote ? 'settings.cloud.deleteTitle' : 'settings.cloud.deleteAbsent')" width="min(480px, calc(100vw - 24px))" :close-on-click-modal="!busy" :close-on-press-escape="!busy" :show-close="!busy" :before-close="cancelDeletion" destroy-on-close @closed="deletion = null">
       <template v-if="deletion">
         <div class="cloud-delete-account"><div class="cloud-delete-target"><strong><slot name="delete-account">{{ deletion.account.email || t('settings.cloud.selectedAccount') }}</slot></strong><slot name="delete-location" /></div><el-button v-if="kind === 'google-drive'" link :disabled="busy" data-testid="google-drive-delete-switch-account" @click="changeDeletionAccount">{{ t('settings.cloud.changeAccount') }}</el-button></div>
-        <div v-if="deletion.hasRemote" class="cloud-delete-impact" data-testid="cloud-delete-impact"><el-icon><Warning /></el-icon><div><strong>{{ t('settings.cloud.deleteCloudEffect', {provider}) }}</strong><p>{{ t('settings.cloud.deleteDescription') }}</p></div></div>
+        <div v-if="deletion.hasRemote" class="cloud-delete-impact" data-testid="cloud-delete-impact">
+          <el-icon><Warning /></el-icon>
+          <div class="cloud-delete-impact-content">
+            <strong>{{ t('settings.cloud.deleteCloudEffect', {provider}) }}</strong><p>{{ t('settings.cloud.deleteDescription') }}</p>
+            <label v-if="deletion.canDelete" :for="`${kind}-delete-verification`" :id="`${kind}-delete-instruction`" class="cloud-delete-instruction">{{ t('settings.cloud.deleteVerificationPrompt') }} <strong data-testid="cloud-delete-phrase">{{ t('settings.cloud.deletePhrase') }}</strong></label>
+          </div>
+        </div>
         <p v-else class="cloud-delete-description">{{ t('settings.cloud.deleteAbsentDescription') }}</p>
         <div v-if="deletion.hasRemote && deletion.canDelete" class="cloud-delete-verification" data-testid="cloud-delete-verification">
-          <label :for="`${kind}-delete-verification`" :id="`${kind}-delete-instruction`" class="cloud-delete-instruction">{{ t('settings.cloud.deleteVerificationPrompt') }} <strong data-testid="cloud-delete-phrase">{{ t('settings.cloud.deletePhrase') }}</strong></label>
           <el-input :id="`${kind}-delete-verification`" v-model="deleteConfirmation" :placeholder="t('settings.cloud.deleteVerification', {phrase: t('settings.cloud.deletePhrase')})" :aria-label="t('settings.cloud.deleteVerification', {phrase: t('settings.cloud.deletePhrase')})" :aria-describedby="`${kind}-delete-instruction`" :disabled="busy" :maxlength="64" autocomplete="off" :spellcheck="false" @keydown.enter.prevent />
         </div>
         <el-alert v-if="deletion.hasRemote && !deletion.canDelete" :title="t('settings.cloud.deleteUnsupported')" :description="t(kind === 'google-drive' ? 'settings.cloud.deleteManualDrive' : 'settings.cloud.deleteManualWebDav')" type="warning" :closable="false" show-icon data-testid="cloud-delete-unsupported" />
@@ -352,6 +357,7 @@ onUnmounted(() => {window.removeEventListener('storage', handleSensitivePreferen
 .cloud-delete-description {font-size:13px; line-height:1.7; margin:0; color:var(--el-text-color-primary);}
 .cloud-delete-impact {display:flex; gap:10px; padding:14px; border-radius:10px; background:var(--el-fill-color-light);}
 .cloud-delete-impact>.el-icon {flex-shrink:0; font-size:18px; margin-top:2px; color:var(--el-color-danger);}
+.cloud-delete-impact-content {min-width:0; flex:1;}
 .cloud-delete-impact strong {font-size:14px; line-height:1.6; font-weight:600; color:var(--el-text-color-primary);}
 .cloud-delete-impact p {margin:6px 0 0; font-size:12px; line-height:1.7; color:var(--el-text-color-regular);}
 .cloud-delete-details {font-size:12px; line-height:1.7; color:var(--el-text-color-regular);}
@@ -363,8 +369,8 @@ onUnmounted(() => {window.removeEventListener('storage', handleSensitivePreferen
 .cloud-delete-details-toggle:focus-visible {outline:2px solid var(--el-color-primary); outline-offset:3px;}
 .cloud-delete-note {font-size:12px; line-height:1.7; color:var(--el-text-color-regular); margin:0;}
 .cloud-delete-note+.cloud-delete-note {margin-top:8px;}
-.cloud-delete-verification {margin-top:18px;}
-.cloud-delete-instruction {display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; margin-bottom:10px; font-size:13px; line-height:1.7; color:var(--el-text-color-primary);}
+.cloud-delete-verification {margin-top:12px;}
+.cloud-delete-instruction {display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; margin-top:12px; font-size:13px; line-height:1.7; color:var(--el-text-color-primary);}
 .cloud-delete-instruction strong {padding:1px 7px; border-radius:4px; border:1px solid var(--el-border-color); background:var(--el-fill-color-light); font-size:14px; font-weight:700;}
 .cloud-delete-verification :deep(.el-input) {width:100%; max-width:none;}
 .drive-heading {display:flex; justify-content:space-between; align-items:flex-start; gap:16px;}

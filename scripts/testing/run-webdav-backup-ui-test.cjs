@@ -131,6 +131,7 @@ async function main() {
             check((await deletion.innerText()).includes('确认后将从 WebDAV 删除当前云端备份')&&(await deletion.innerText()).includes('删除后无法恢复，本机配置与密钥保留。')&&await page.locator('.cloud-delete-note:visible').count()===0,'deletion foregrounds provider removal and local preservation');
             check(await verification.getAttribute('placeholder')==='输入「确定删除」'&&await verification.getAttribute('aria-label')==='输入「确定删除」','confirmation field retains its accessible hint');
             check((await deletion.locator('.cloud-delete-instruction').innerText()).includes('输入以下文字，才能删除：')&&await deletion.locator('[data-testid="cloud-delete-phrase"]').innerText()==='确定删除'&&await deletion.locator('[data-testid="cloud-delete-phrase"]').evaluate(el=>Number(getComputedStyle(el).fontWeight)>=600),'required confirmation text is visible and bold above the field');
+            check(await deletion.locator('[data-testid="cloud-delete-impact"] .cloud-delete-instruction').count()===1&&await deletion.locator('[data-testid="cloud-delete-verification"] .cloud-delete-instruction').count()===0,'deletion impact and confirmation instruction share a single notice');
             const detailsToggle=deletion.locator('[data-testid="cloud-delete-details-toggle"]');
             check(await detailsToggle.getAttribute('aria-expanded')==='false','secondary deletion details start collapsed');
             const beforeDetails=await deletion.boundingBox();const beforeButton=await deleteButton.boundingBox();
