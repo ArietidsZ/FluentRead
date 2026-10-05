@@ -1,13 +1,12 @@
 <!--
  * @file src/features/settings/ui/HarnessPromptSettings.vue
  * 文件职责：提供划词翻译通用指令和四种学习动作的提示词编辑界面。
- * 主要内容：使用可折叠编辑器切换模板、插入已登记占位符、显示字符限制并恢复当前模板的默认内容。
+ * 主要内容：直接展示编辑器切换模板、插入已登记占位符、显示字符限制并恢复当前模板的默认内容。
  * 模块边界：仅编辑传入的 HarnessPreferences，保存沿用设置页配置流程；不调用模型，不翻译或执行用户提示词内容。
  -->
 <template>
-  <SettingsGroup title="提示词" description="自定义通用指令和各个学习动作，调整划词翻译的回答方式">
-    <details class="harness-prompts">
-      <summary>编辑提示词</summary>
+  <SettingsGroup title="自定义指令" description="调整 AI 讲解的回答方式；不影响普通翻译和词典查词" data-settings-anchor="instructions" data-settings-anchor-label="自定义指令">
+    <div class="harness-prompts">
       <div class="harness-prompt-body">
         <SegmentedControl v-model="selected" :options="promptOptions" label="选择提示词" />
         <div class="harness-prompt-toolbar">
@@ -25,7 +24,7 @@
         </div>
         <small class="harness-prompt-count" data-i18n-ignore>{{ prompt.length }} / {{ HARNESS_PROMPT_MAX_LENGTH }}</small>
       </div>
-    </details>
+    </div>
   </SettingsGroup>
 </template>
 
@@ -69,14 +68,12 @@ async function insertVariable(token: string) {
 
 <style scoped>
 .harness-prompts { padding:16px; color:var(--ink); }
-.harness-prompts summary { cursor:pointer; font-size:13px; font-weight:700; }
-.harness-prompts summary:focus-visible { outline:2px solid var(--brand); outline-offset:4px; }
-.harness-prompt-body { display:grid; gap:12px; margin-top:16px; }
+.harness-prompt-body { display:grid; gap:12px; margin-top:0; }
 .harness-prompt-toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; }
 .harness-prompt-toolbar small { color:var(--muted); font-size:11px; line-height:1.6; }
 .harness-prompts button { border:1px solid var(--line); border-radius:8px; padding:6px 10px; color:var(--ink); background:var(--surface); cursor:pointer; font:inherit; font-size:11px; }
 .harness-prompt-toolbar button { flex-shrink:0; color:var(--brand); }
-.harness-prompts textarea { display:block; width:100%; min-height:220px; max-height:440px; resize:vertical; border:1px solid var(--line); border-radius:10px; padding:14px; background:var(--surface-soft); color:var(--ink); font:12px/1.8 ui-monospace,monospace; }
+.harness-prompts textarea { display:block; box-sizing:border-box; width:100%; min-height:180px; max-height:440px; resize:vertical; border:1px solid var(--line); border-radius:10px; padding:14px; background:var(--surface-soft); color:var(--ink); font:12px/1.8 ui-monospace,monospace; }
 .harness-prompts textarea:focus { outline:2px solid color-mix(in srgb,var(--brand) 45%,transparent); outline-offset:1px; }
 .harness-prompt-variables { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .harness-prompt-variables > span { color:var(--muted); font-size:11px; }

@@ -89,7 +89,7 @@
     <WritingSettings :config="config" @configure-service="openWritingServiceSettings()" />
   </section>
   <section v-if="hasVisitedSection('settings-selection')" v-show="props.activeSection === 'settings-selection'" id="settings-selection" class="settings-section">
-    <SelectionSettings :config="config">
+    <SelectionSettings :config="config" @navigate="openSettingsSection($event)">
     <SettingsGroup v-if="config.selectionTranslatorMode !== 'disabled'" title="触发与显示" data-settings-anchor="trigger" data-settings-anchor-label="触发与显示" description="推荐选择“点击图标”，选中文字后点击入口再翻译；选择快捷键或仅右键菜单时不显示浮动入口">
     <SettingsItem v-if="config.selectionTranslatorMode !== 'disabled'" label="显示内容" description="两种呈现均可保留原文或只显示译文">
       <SegmentedControl v-model="config.selectionTranslatorMode" :options="selectionTranslatorModeOptions.filter(item => item.value !== 'disabled')" label="划词显示内容" />
@@ -168,8 +168,8 @@
       <el-input-number v-model="config.harness.hoverDelay" :min="200" :max="3000" :step="100" aria-label="悬停等待时间" />
     </SettingsItem>
     </SettingsGroup>
-    <template #advanced><SettingsGroup title="朗读声音">
-    <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
+    <template #advanced><SettingsGroup title="在线朗读声音" description="选择在线朗读失败时依次尝试的音色；朗读来源和本地音色在下方设置">
+    <el-row class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="朗读失败时按这里的顺序依次尝试；留空则根据当前语言自动选择" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
@@ -298,17 +298,6 @@
               </el-select>
             </template>
           </GlossaryLibrarySelect>
-        </SettingsItem>
-        <SettingsItem label="显示 FluentRead 字幕" description="临时隐藏扩展字幕时保留当前翻译设置" :disabled="!config.videoTranslationEnabled">
-          <el-switch v-model="config.videoSubtitleVisible" class="settings-toggle" aria-label="显示 FluentRead 视频字幕" :disabled="!config.videoTranslationEnabled" />
-        </SettingsItem>
-        <SettingsItem label="字幕显示模式" description="选择同时显示原文和译文，或只显示其中一种" :disabled="!config.videoTranslationEnabled || !config.videoSubtitleVisible">
-          <SegmentedControl
-            v-model="config.videoSubtitleDisplayMode"
-            :options="videoSubtitleDisplayModeOptions"
-            label="视频字幕显示模式"
-            :disabled="!config.videoTranslationEnabled || !config.videoSubtitleVisible"
-          />
         </SettingsItem>
       </SettingsGroup>
       </SettingsPanel>
@@ -1068,11 +1057,6 @@ const selectionTranslatorModeOptions = [
   {value: 'translation-only', label: '仅译文'},
 ];
 const selectionTtsVoiceOptions = SELECTION_TTS_VOICE_OPTIONS;
-const videoSubtitleDisplayModeOptions = [
-  {value: 'bilingual', label: '双语'},
-  {value: 'translation-only', label: '仅译文'},
-  {value: 'original-only', label: '仅原文'},
-];
 const filteredServices = computed(() =>
   availableServiceOptions.value.filter((item: any) =>
     !([item.google].includes(item.value) && config.value.display !== 1),

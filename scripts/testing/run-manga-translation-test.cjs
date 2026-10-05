@@ -740,7 +740,7 @@ async function verifyReadAhead() {
     modelObserver=await observeModelDownloads(extensionId);
     if(preloadModels){
         await modelSettings.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
-        if(!baseline)await modelSettings.locator('.manga-resources > summary').click();
+
         await modelSettings.locator('.manga-model-settings').waitFor();
         if(!baseline)await modelSettings.locator('.manga-download-settings > summary').click();
         await modelSettings.locator('.manga-model-settings input[type=file]').setInputFiles(['PP-OCRv6_small_det.onnx','PP-OCRv6_small_rec.onnx','ppocrv6_dict.txt','lama-manga-dynamic.onnx'].map(name=>path.join(preloadModels,name)));
@@ -881,12 +881,12 @@ async function verifyReadAhead() {
     await patch({imageTranslationMangaEnabled:false});
     await wait(async()=>!(await ball(`return !!this.querySelector('.floating-ball-manga')`)));
     await options.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
-    await options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'启用漫画连续翻译',exact:true}).waitFor({state:'attached'});
-    assert.equal(await options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'启用漫画连续翻译',exact:true}).getAttribute('aria-checked'),'false');
-    await options.locator('.el-switch').filter({has:options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'启用漫画连续翻译',exact:true})}).click();await options.goto(`chrome-extension://${extensionId}/popup.html`);
+    await options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'漫画连续翻译',exact:true}).waitFor({state:'attached'});
+    assert.equal(await options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'漫画连续翻译',exact:true}).getAttribute('aria-checked'),'false');
+    await options.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'漫画连续翻译',exact:true}).evaluate(element => (element.closest('.el-switch') || element).click());await options.goto(`chrome-extension://${extensionId}/popup.html`);
     await reopened.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
-    await reopened.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'启用漫画连续翻译',exact:true}).waitFor({state:'attached'});
-    assert.equal(await reopened.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'启用漫画连续翻译',exact:true}).getAttribute('aria-checked'),'true');
+    await reopened.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'漫画连续翻译',exact:true}).waitFor({state:'attached'});
+    assert.equal(await reopened.getByRole('switch',{name:baseline?'显示漫画翻译按钮':'漫画连续翻译',exact:true}).getAttribute('aria-checked'),'true');
     const settingsShot=path.join(artifacts,'03-settings-reopened.png');await reopened.screenshot({path:settingsShot});report.screenshots.push(settingsShot);
     await reopened.goto(`chrome-extension://${extensionId}/popup.html`);report.cases.push(report.currentCase);
     report.currentCase='master disable removes image UI and restores all source styles';
@@ -897,12 +897,12 @@ async function verifyReadAhead() {
     report.modelStatusBefore=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadMangaModelStatus'}));
     assert.equal(report.modelStatusBefore.ready,true);assert.ok(report.modelStatusBefore.bytes>30000000);
     await modelSettings.goto(`chrome-extension://${extensionId}/options.html#settings-image-translation`);
-    if(!baseline)await modelSettings.locator('.manga-resources > summary').click();
+
     if(!baseline)await modelSettings.locator('.manga-download-settings > summary').click();
     await modelSettings.getByRole('button',{name:baseline?'清除漫画模型':'清除已下载资源',exact:true}).waitFor();
     await modelSettings.getByLabel('模型下载来源',{exact:true}).selectOption('mirror');
     await modelSettings.reload();
-    if(!baseline)await modelSettings.locator('.manga-resources > summary').click();
+
     await modelSettings.waitForFunction(()=>document.querySelector('.manga-model-settings select')?.value==='mirror');
     if(!baseline)await modelSettings.locator('.manga-download-settings > summary').click();
     report.cases.push('model source selection persists on reopen');

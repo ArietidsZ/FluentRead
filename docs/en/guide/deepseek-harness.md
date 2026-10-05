@@ -45,7 +45,7 @@ When the target is Chinese or English, the card's language button can change the
 
 ## Optional AI explanations
 
-Enable **AI explanations**, expand **Service & learning preferences**, and select a configured AI service and model. Opening a card does not call AI. Choose an action to request an explanation:
+Enable **AI explanations** and select a configured AI service and model on the right. Switch between learning actions in the preview on the left. Both columns have equal width and height on desktop; narrow screens show the preview above the settings. Opening a card does not call AI. Choose an action to request an explanation:
 
 - **Understand** explains meaning, tone and references.
 - **Parts of speech & syntax** explains the sentence structure and labels source fragments.
@@ -72,7 +72,7 @@ Completed answers are reused when switching learning actions within the current 
 
 ## Context and records
 
-Under **Context, learning memory & instructions**, choose the selection alone or allow its paragraph. This does not read the entire page. Learning memory is optional and off by default. Custom prompts are preserved.
+**Source context**, **Learning memory** and **Custom instructions** are separate visible sections. Choose the selection alone or allow its paragraph with a length limit; the whole page is not read. Learning memory is off by default and may supply saved insights to AI explanations and writing. Disabling it preserves your saved content. Manage it in the Learning center. The instruction editor applies only to AI explanations, leaving ordinary translation and dictionary lookup unchanged. Custom prompts are preserved.
 
 Save expressions to the [Learning center](/en/guide/vocabulary-book). Reading conversations stay on this device for 30 days. Viewing records sends no model request. Private windows do not read or save history. See [Data and privacy](/en/guide/privacy).
 

@@ -400,7 +400,7 @@ describe('options UI composition architecture', () => {
     expect(interfaceAppearance).toContain('dataset.interfaceSkinKind = skin.kind')
     expect(interfaceAppearance).toContain("style.setProperty('--interface-popup-width'")
     expect(settingsSections).toContain('<ImageOcrSettings v-if="props.activeSection === \'settings-image-translation\'" compact v-model:source-language="config.from" />')
-    expect(source('src/features/image-translation/ui/MangaSettings.vue')).toContain('<template v-if="resourcesOpen">')
+    expect(source('src/features/image-translation/ui/MangaSettings.vue')).toContain('data-settings-anchor="resources"')
     expect(settingsSections).toContain("v-if=\"hasVisitedSection('settings-image-translation')\"")
     expect(settingsSections).toContain('<AreaTranslationSettings')
     expect(settingsSections).toContain('id="settings-area-translation"')

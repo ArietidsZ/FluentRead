@@ -126,3 +126,7 @@ Recognition happens locally. Recognized text goes to the selected translation se
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)
+
+## Settings preview and sections
+
+Image and manga settings show a fixed English–Chinese example on the left and recognition or prefetch controls on the right. The examples run no OCR and send no translation requests. Source and target languages are shared with webpage translation; images and manga share the service selected here. Region translation, entry points and cache, recognition resources, and supported sites are visible directly. Download sources, offline files and custom site rules remain optional sections. Viewing resource status does not start a model download.
