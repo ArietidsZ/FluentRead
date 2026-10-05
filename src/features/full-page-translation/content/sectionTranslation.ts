@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/sectionTranslation.ts
  * 文件职责：把全文翻译引擎限定在用户点选的一块网页区域内执行，负责区域候选发现、译文状态盘点、按阅读位置排序的批量翻译，以及只恢复该区域的原文。
- * 主要内容：导出 inspectTranslationSection、toggleTranslationSection 与区域摘要/结果类型；按译文所有者索引统计区域内已翻译与失败的段落（覆盖仅译文槽和合成行内段），再用候选发现找出未翻译段落，正文范围下区域位于页面框架内或发现为空时改用全部节点范围，悬停预览按步数预算盘点；记住已确认无需翻译的段落，让含目标语言段落的区域仍能在“翻译—恢复原文”之间切换。
+ * 主要内容：导出区域盘点与切换接口；按译文所有者索引发现待翻译、失败与需切换方案的段落，冻结局部快捷方案请求配置并传给每个候选；以请求身份记住无需翻译的原文，支持独立目标语言和显示方式，同时保留区域恢复、发现预算与阅读位置排序。
  * 模块边界：本文件只编排区域级调用，单个候选的请求、渲染、状态机和全文会话协作全部复用 runtime 的 translateTarget 与 restoreTranslationOwner；不监听手势、不绘制高亮，也不决定提示文案。
  */
 import {checkConfig} from '@/src/app/translation/check';
@@ -16,7 +16,12 @@ import {
 import {config} from '@/src/services/config/store';
 import {restoreTranslationOwner, translateTarget, type TranslationTargetOutcome} from './runtime';
 import {getTranslationOwnersWithin, getTranslationState, resolveTranslationStateNode} from './state';
-import {captureFullPageTranslationConfig} from './translationRequest';
+import {
+    captureFullPageTranslationConfig,
+    getTranslationInvocationIdentity,
+    type FullPageTranslationConfigSnapshot,
+    type PageTranslationConfigOverrides,
+} from './translationRequest';
 
 /** 悬停预览只盘点有限的 DOM 步数，整页级容器也不会在移动鼠标时卡顿；点击时再完整盘点。 */
 export const SECTION_PREVIEW_DISCOVERY_STEPS = 4000;
@@ -57,7 +62,7 @@ interface SectionDiscovery {
 }
 
 /** 已确认无需翻译的候选及当时的原文快照；原文变化后快照不再相等，记忆自动失效。 */
-const settledCandidates = new WeakMap<Node, string>();
+const settledCandidates = new WeakMap<Node, {text: string; identity: string}>();
 
 function candidateSnapshot(candidate: TranslationCandidate): string {
     // join 会把 null 视为空串，无需逐个兜底。
@@ -95,12 +100,13 @@ function discoverSectionCandidates(root: Element, maxSteps: number): SectionDisc
     return discoverInScope(root, 'all', maxSteps);
 }
 
-function isSettled(candidate: TranslationCandidate): boolean {
-    return settledCandidates.get(getTranslationCandidateKey(candidate)) === candidateSnapshot(candidate);
+function isSettled(candidate: TranslationCandidate, identity: string): boolean {
+    const settled = settledCandidates.get(getTranslationCandidateKey(candidate));
+    return settled?.text === candidateSnapshot(candidate) && settled.identity === identity;
 }
 
-/** 失败段落的原文仍在页面上，按其状态重建候选即可重试；合成行内段沿用首个来源文本节点定位。 */
-function failedOwnerCandidate(owner: HTMLElement): TranslationCandidate {
+/** 失败或切换方案时按所有者状态重建候选；合成行内段沿用首个来源文本节点定位。 */
+function translationOwnerCandidate(owner: HTMLElement): TranslationCandidate {
     const state = getTranslationState(owner)!;
     return {
         element: owner,
@@ -127,15 +133,24 @@ function resolveSectionAction(total: number, active: number, pending: number): T
     return total > 0 ? 'settled' : 'empty';
 }
 
-function summarize(root: Element, maxSteps: number): {summary: TranslationSectionSummary; pending: TranslationCandidate[]} {
-    if (findActiveAncestorOwner(root)) {
+function summarize(root: Element, maxSteps: number, snapshot: FullPageTranslationConfigSnapshot,
+    compareInvocation: boolean): {summary: TranslationSectionSummary; pending: TranslationCandidate[]} {
+    const identity = getTranslationInvocationIdentity(snapshot);
+    const needsProfileSwitch = (owner: HTMLElement): boolean => compareInvocation
+        && getTranslationState(owner)?.translationInvocationIdentity !== identity;
+    const ancestor = findActiveAncestorOwner(root);
+    if (ancestor) {
+        if (needsProfileSwitch(ancestor)) {
+            return {summary: {total: 1, active: 0, pending: 1, truncated: false, action: 'translate'},
+                pending: [translationOwnerCandidate(ancestor)]};
+        }
         return {summary: {total: 1, active: 1, pending: 0, truncated: false, action: 'restore'}, pending: []};
     }
     // Step 1: 从译文所有者索引盘点区域内已有译文；失败段落直接作为待重试项。
     const activeOwners = new Set<Node>();
     const pending = new Map<Node, TranslationCandidate>();
     for (const owner of getTranslationOwnersWithin(root)) {
-        if (getTranslationState(owner)?.phase === 'error') pending.set(owner, failedOwnerCandidate(owner));
+        if (getTranslationState(owner)?.phase === 'error' || needsProfileSwitch(owner)) pending.set(owner, translationOwnerCandidate(owner));
         else activeOwners.add(owner);
     }
     // Step 2: 候选发现补齐尚未翻译的段落，并跳过已由所有者覆盖或已确认无需翻译的候选。
@@ -144,7 +159,7 @@ function summarize(root: Element, maxSteps: number): {summary: TranslationSectio
     for (const candidate of candidates) {
         const owner = resolveTranslationStateNode(candidate);
         if (owner && (activeOwners.has(owner) || pending.has(owner))) continue;
-        if (isSettled(candidate)) settled += 1;
+        if (isSettled(candidate, identity)) settled += 1;
         else pending.set(owner ?? getTranslationCandidateKey(candidate), candidate);
     }
     const active = activeOwners.size;
@@ -158,8 +173,9 @@ function summarize(root: Element, maxSteps: number): {summary: TranslationSectio
 export function inspectTranslationSection(
     root: Element,
     maxSteps: number = SECTION_PREVIEW_DISCOVERY_STEPS,
+    overrides?: PageTranslationConfigOverrides,
 ): TranslationSectionSummary {
-    return summarize(root, maxSteps).summary;
+    return summarize(root, maxSteps, captureFullPageTranslationConfig(overrides), Boolean(overrides)).summary;
 }
 
 /** 视口内的段落先翻译，其次是下方即将读到的内容，最后才是已经滚过的上方内容。 */
@@ -177,15 +193,18 @@ function orderByReadingPosition(candidates: readonly TranslationCandidate[]): Tr
 
 const EMPTY_TALLY = {translated: 0, failed: 0, unchanged: 0, restored: 0} as const;
 
-async function translatePendingCandidates(pending: readonly TranslationCandidate[]): Promise<TranslationSectionResult> {
-    const translationConfig = captureFullPageTranslationConfig();
+async function translatePendingCandidates(pending: readonly TranslationCandidate[],
+    translationConfig: FullPageTranslationConfigSnapshot): Promise<TranslationSectionResult> {
     if (!checkConfig(translationConfig)) return {action: 'blocked', ...EMPTY_TALLY};
+    const identity = getTranslationInvocationIdentity(translationConfig);
     // translateTarget 在首次 await 前同步入队，因此调用顺序就是共享翻译队列的派发顺序。
     const outcomes = await Promise.all(orderByReadingPosition(pending).map(async (candidate) => {
-        const outcome: TranslationTargetOutcome = await translateTarget(candidate, translationConfig.displayMode, false)
+        const outcome: TranslationTargetOutcome = await translateTarget(candidate, translationConfig.displayMode, false, undefined, translationConfig)
             .catch(() => ({status: 'failed' as const}));
         if (outcome.status === 'unchanged' || outcome.status === 'empty') {
-            settledCandidates.set(getTranslationCandidateKey(candidate), candidateSnapshot(candidate));
+            settledCandidates.set(getTranslationCandidateKey(candidate), {
+                text: candidateSnapshot(candidate), identity,
+            });
         }
         return outcome.status;
     }));
@@ -213,9 +232,10 @@ function restoreSection(root: Element): number {
  * 对点选区域执行一次“翻译或恢复原文”：区域内还有待翻译段落就翻译它们（失败段落一并重试），
  * 否则恢复区域内的全部译文。点击时完整盘点，不受悬停预览的步数预算影响。
  */
-export async function toggleTranslationSection(root: Element): Promise<TranslationSectionResult> {
-    const {summary, pending} = summarize(root, Number.POSITIVE_INFINITY);
-    if (summary.action === 'translate') return translatePendingCandidates(pending);
+export async function toggleTranslationSection(root: Element, overrides?: PageTranslationConfigOverrides): Promise<TranslationSectionResult> {
+    const snapshot = captureFullPageTranslationConfig(overrides);
+    const {summary, pending} = summarize(root, Number.POSITIVE_INFINITY, snapshot, Boolean(overrides));
+    if (summary.action === 'translate') return translatePendingCandidates(pending, snapshot);
     if (summary.action === 'restore') return {action: 'restored', ...EMPTY_TALLY, restored: restoreSection(root)};
     return {action: summary.action, ...EMPTY_TALLY};
 }

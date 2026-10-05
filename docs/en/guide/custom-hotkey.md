@@ -47,6 +47,10 @@ Try a regular webpage; browser internal pages and extension stores generally can
 
 </details>
 
+## Section shortcut profiles
+
+In **Settings → Translation → Section translation**, add independent section shortcuts with their own service, model, target language, and display mode. A shortcut enters container selection; move the pointer to highlight a container, adjust the range with **↑/↓**, then click or press **Enter** to translate only its contents. **Esc** or the same shortcut cancels selection. Picking a translated container with the same profile restores it; another profile translates it with the new settings. Independent profiles work even when the primary section shortcut is off.
+
 ## Related guides
 
 - [All guides](/en/docs/)

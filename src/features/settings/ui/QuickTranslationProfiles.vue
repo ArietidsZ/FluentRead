@@ -1,6 +1,6 @@
 <!--
  * @file src/features/settings/ui/QuickTranslationProfiles.vue
- * 文件职责：提供悬浮与全文翻译的多方案设置界面，让每个额外快捷键独立选择翻译服务、模型、目标语言和展示策略。
+ * 文件职责：提供悬浮、全文与局部容器翻译的多方案设置界面，让每个额外快捷键独立选择翻译服务、模型、目标语言和展示策略。
  * 主要内容：按动作筛选并编辑快捷翻译方案，复用快捷键录制与服务图标组件，聚合内置和自定义模型，并在新增、启停、删除及跨方案热键去重后发出完整配置快照。
  * 模块边界：组件只编辑父级传入的 QuickTranslationProfile 列表，不直接保存 Config、不注册网页快捷键或执行翻译；配置归一化与运行时路由仍由 core 和对应 feature 负责。
  -->
@@ -14,7 +14,7 @@
     <header class="profiles-toolbar">
       <div class="profiles-copy">
         <h3>{{ heading }}</h3>
-        <p>{{ t('quickTranslation.description') }}</p>
+        <p>{{ t(action === 'section' ? 'quickTranslation.sectionDescription' : 'quickTranslation.description') }}</p>
       </div>
       <div class="toolbar-actions">
         <span v-if="showCapacity" class="capacity-label">
@@ -246,6 +246,8 @@ import {resolveAreaTranslationHotkey} from '@/src/core/config/areaTranslation'
 import {resolveSectionTranslationHotkey} from '@/src/core/config/sectionTranslation'
 import {
   createQuickTranslationProfile,
+  quickTranslationActionKey,
+  type QuickTranslationAction,
   inputBoxTranslationTriggerHotkey,
   MAX_QUICK_TRANSLATION_PROFILES,
   type QuickTranslationDisplayMode,
@@ -274,7 +276,7 @@ interface LanguageOption {
 
 const props = defineProps<{
   config: Config
-  action: 'hover' | 'full-page'
+  action: QuickTranslationAction
   profiles: QuickTranslationProfile[]
 }>()
 
@@ -291,7 +293,7 @@ const hotkeyEditorProfileId = ref('')
 const hotkeyEditorTrigger = ref<HTMLElement | null>(null)
 const creatingProfile = ref(false)
 
-const heading = computed(() => t(`quickTranslation.heading.${props.action === 'hover' ? 'hover' : 'fullPage'}`))
+const heading = computed(() => t(`quickTranslation.heading.${quickTranslationActionKey(props.action)}`))
 const visibleProfiles = computed(() => props.profiles.filter((profile) => profile.action === props.action))
 const isAtCapacity = computed(() => visibleProfiles.value.length >= MAX_QUICK_TRANSLATION_PROFILES)
 const showCapacity = computed(() => visibleProfiles.value.length >= MAX_QUICK_TRANSLATION_PROFILES - 1)
@@ -667,7 +669,7 @@ function hotkeyConflictWarning(hotkey: string): string {
 
 function profileAccessibleName(profile: QuickTranslationProfile): string {
   const index = visibleProfiles.value.findIndex((candidate) => candidate.id === profile.id) + 1
-  const actionLabel = t(`quickTranslation.action.${props.action === 'hover' ? 'hover' : 'fullPage'}`)
+  const actionLabel = t(`quickTranslation.action.${quickTranslationActionKey(props.action)}`)
   return t('quickTranslation.profileName', {
     action: actionLabel,
     index: index > 0 ? index : '',

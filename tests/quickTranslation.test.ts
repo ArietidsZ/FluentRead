@@ -7,6 +7,7 @@ import {
     findEnabledQuickTranslationHotkeyConflict,
     inputBoxTranslationTriggerHotkey,
     normalizeQuickTranslationProfiles,
+    quickTranslationActionKey,
     type QuickTranslationProfile,
 } from '@/src/core/config/quickTranslation';
 import {resolveQuickTranslationInvocation} from '@/src/features/quick-translation/core';
@@ -250,4 +251,19 @@ describe('快捷翻译调用解析', () => {
         });
         expect(selected.displayMode).toBe('translation-only');
     });
+});
+
+
+it('局部方案独立计数、去重并保存请求设置，不继承全文范围', () => {
+    const normalized = normalizeQuickTranslationProfiles([
+        ...Array.from({length: 9}, (_, index) => profile({id: `section-${index}`, action: 'section', hotkey: `F${index + 1}`, fullPageMode: 'all'})),
+        profile({id: 'page', action: 'full-page', hotkey: 'F10'}),
+        profile({id: 'hover', action: 'hover', hotkey: 'F11'}),
+    ], {isSupportedService: () => true, serviceUsesModel: () => true});
+    expect(normalized.filter(item => item.action === 'section')).toHaveLength(8);
+    expect(normalized).toHaveLength(10);
+    expect(normalized.filter(item => item.action === 'section').every(item => item.fullPageMode === 'inherit')).toBe(true);
+    expect(quickTranslationActionKey('section')).toBe('section');
+    expect(quickTranslationActionKey('hover')).toBe('hover');
+    expect(quickTranslationActionKey('full-page')).toBe('fullPage');
 });

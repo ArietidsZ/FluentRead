@@ -31,7 +31,8 @@ const harness = vi.hoisted(() => ({
 vi.mock('@/src/services/config/store', () => ({config: harness.config}));
 vi.mock('@/src/app/translation/check', () => ({checkConfig: harness.checkConfig}));
 vi.mock('@/src/features/full-page-translation/content/translationRequest', () => ({
-    captureFullPageTranslationConfig: () => ({displayMode: 'bilingual'}),
+    captureFullPageTranslationConfig: (overrides = {}) => ({displayMode: 'bilingual', ...overrides}),
+    getTranslationInvocationIdentity: (snapshot: unknown) => JSON.stringify(snapshot),
 }));
 vi.mock('@/src/features/full-page-translation/content/runtime', () => ({
     translateTarget: harness.translateTarget,
@@ -203,7 +204,7 @@ describe('局部翻译切换', () => {
         expect(harness.translateTarget.mock.calls.map(([item]) => (item as FakeCandidate).element.id)).toEqual([
             'visible-top', 'beside-top', 'visible-lower', 'below', 'far-below', 'near-above', 'above',
         ]);
-        expect(harness.translateTarget).toHaveBeenCalledWith(visibleTop, 'bilingual', false);
+        expect(harness.translateTarget).toHaveBeenCalledWith(visibleTop, 'bilingual', false, undefined, {displayMode: 'bilingual'});
         expect(result).toEqual({action: 'translated', translated: 7, failed: 0, unchanged: 0, restored: 0});
     });
 
@@ -295,4 +296,58 @@ describe('局部翻译切换', () => {
         expect(harness.restoreTranslationOwner).toHaveBeenCalledWith(extra);
         expect(harness.translateTarget).not.toHaveBeenCalled();
     });
+});
+
+
+describe('局部快捷方案请求隔离', () => {
+    it('全部候选使用同一独立快照，而非全局默认服务和显示方式', async () => {
+        const first = candidate(element('profile-first', 0, root));
+        const second = candidate(element('profile-second', 50, root));
+        harness.discoveries.content = steps([first, second]);
+        harness.translateTarget.mockResolvedValue({status: 'committed'});
+        const overrides = {profileId: 'section-1', service: 'openai', model: 'chosen', targetLanguage: 'ja', displayMode: 'single' as const};
+        await toggleTranslationSection(root as unknown as Element, overrides);
+        expect(harness.checkConfig).toHaveBeenCalledWith(overrides);
+        for (const item of [first, second]) {
+            expect(harness.translateTarget).toHaveBeenCalledWith(item, 'single', false, undefined, overrides);
+        }
+    });
+
+    it('换目标语言时重新判断先前无需翻译的段落', async () => {
+        const item = candidate(element('settled-profile', 0, root));
+        harness.discoveries.content = steps([item]);
+        harness.translateTarget.mockResolvedValue({status: 'unchanged'});
+        const japanese = {profileId: 'section-ja', targetLanguage: 'ja'};
+        await toggleTranslationSection(root as unknown as Element, japanese);
+        expect(inspectTranslationSection(root as unknown as Element, undefined, japanese).action).toBe('settled');
+        const chinese = {profileId: 'section-zh', targetLanguage: 'zh-Hans'};
+        expect(inspectTranslationSection(root as unknown as Element, undefined, chinese).action).toBe('translate');
+        harness.translateTarget.mockResolvedValue({status: 'committed'});
+        expect((await toggleTranslationSection(root as unknown as Element, chinese)).translated).toBe(1);
+    });
+
+    it('同一方案恢复已有容器，另一方案重新翻译该容器', async () => {
+        const el = element('translated-profile', 0, root);
+        const overrides = {profileId: 'section-ja', targetLanguage: 'ja'};
+        own(el, 'translated', {translationInvocationIdentity: JSON.stringify({displayMode: 'bilingual', ...overrides})});
+        expect(inspectTranslationSection(root as unknown as Element, undefined, overrides).action).toBe('restore');
+        const alternate = {profileId: 'section-zh', targetLanguage: 'zh-Hans'};
+        expect(inspectTranslationSection(root as unknown as Element, undefined, alternate).action).toBe('translate');
+        harness.translateTarget.mockResolvedValue({status: 'committed'});
+        expect((await toggleTranslationSection(root as unknown as Element, alternate)).translated).toBe(1);
+        expect(harness.restoreTranslationOwner).not.toHaveBeenCalled();
+        expect((await toggleTranslationSection(root as unknown as Element, overrides)).restored).toBe(1);
+    });
+});
+
+
+it('在已有译文段落内部换方案时，按原文所有者重建候选并使用新请求', async () => {
+    const owner = element('ancestor-profile', 0, root);
+    const inner = element('inside-profile', 0, owner);
+    own(owner, 'translated', {translationInvocationIdentity: 'old-profile', sourceTextNodes: [{textContent: 'original'}]});
+    const overrides = {profileId: 'section-new', targetLanguage: 'fr'};
+    expect(inspectTranslationSection(inner as unknown as Element, undefined, overrides)).toMatchObject({action: 'translate', pending: 1, active: 0});
+    harness.translateTarget.mockResolvedValue({status: 'committed'});
+    expect((await toggleTranslationSection(inner as unknown as Element, overrides)).translated).toBe(1);
+    expect(harness.translateTarget).toHaveBeenCalledWith(expect.objectContaining({element: owner}), 'bilingual', false, undefined, expect.objectContaining(overrides));
 });

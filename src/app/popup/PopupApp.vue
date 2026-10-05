@@ -364,6 +364,7 @@ import {
 import {
   enabledQuickTranslationProfiles,
   findEnabledQuickTranslationHotkeyConflict,
+    quickTranslationActionKey,
   type QuickTranslationProfile,
 } from '@/src/core/config/quickTranslation';
 import {parseHotkey, resolveConfiguredHotkey} from '@/src/core/hotkey';
@@ -966,7 +967,7 @@ async function clearCache() {
 function quickTranslationConflictMessage(hotkey: string): string {
   const conflict = findEnabledQuickTranslationHotkeyConflict(config.value.quickTranslationProfiles, hotkey);
   if (!conflict) return '';
-  const group = t(`quickTranslation.heading.${conflict.action === 'hover' ? 'hover' : 'fullPage'}`);
+  const group = t(`quickTranslation.heading.${quickTranslationActionKey(conflict.action)}`);
   return t('quickTranslation.conflictProfilePopup', {group});
 }
 
