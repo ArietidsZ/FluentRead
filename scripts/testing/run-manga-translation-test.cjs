@@ -94,7 +94,9 @@ if(imageTurnKey)assert.ok(explicitReaderSelector&&liveSite&&readerSmoke&&!segmen
     &&['ArrowLeft','ArrowRight'].includes(imageTurnKey)&&Number.isInteger(imageInitialTurns)&&imageInitialTurns>=0&&imageInitialTurns<=4,
     'Paged images require an explicit live image smoke, a horizontal arrow and 0–4 initial turns');
 const imageVisibleSource=process.argv.includes('--image-visible-source');
-if(imageVisibleSource)assert.ok(imageTurnKey&&imageInitialTurns===0,'Visible image selection requires explicit paged image scope without initial turns');
+if(imageVisibleSource)assert.ok(imageTurnKey,'Visible image selection requires explicit paged image scope');
+const imageStableUrl=process.argv.includes('--image-stable-url');
+if(imageStableUrl)assert.ok(imageTurnKey,'Stable page URLs require explicit paged image scope');
 const readerDismissSelector=arg('reader-dismiss-selector',null);
 if(readerDismissSelector)assert.ok(imageTurnKey,'Public reader notices are limited to explicit paged image scope');
 const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-profile-');
@@ -111,7 +113,7 @@ report.targetLanguage=targetLanguage;
 if(canvasContentPixels)report.canvasPixelWorld='own production extension content world; ordinary API, no prototype substitution';
 report.readerStartIndex=readerStartIndex;
 report.readerNextSelector=readerNextSelector;
-if(imageTurnKey)report.pagedImages={turnKey:imageTurnKey,initialTurns:imageInitialTurns};
+if(imageTurnKey)report.pagedImages={turnKey:imageTurnKey,initialTurns:imageInitialTurns,urlPolicy:imageStableUrl?'stable':'changes'};
 let launched, page, worker, cdp, popup, modelObserver, browserPid,loadedExtensionId,contentPixelContext;
 function focusGuard() {
     const current=JSON.parse(execFileSync('/usr/bin/osascript',['-l','JavaScript','-e',"ObjC.import('AppKit');const app=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(app.processIdentifier),name:ObjC.unwrap(app.localizedName)});"],{encoding:'utf8'}));
@@ -372,16 +374,22 @@ async function scrollReaderImage(index) {
     // 懒加载完成后对齐正文顶部，避免只露出页尾便把上页当成当前质量样本。
     await image.evaluate(i=>i.scrollIntoView({block:'start',inline:'nearest',behavior:'instant'}));
 }
+async function visibleReaderImageSource() {
+    return page.locator(readerSelector).evaluateAll(images=>{
+        const index=images.findIndex(i=>{
+            const r=i.getBoundingClientRect();return i.complete&&i.naturalWidth>=80&&i.naturalHeight>=40
+                &&r.width>80&&r.height>40&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0;
+        });
+        return index<0?null:{index,src:images[index].src};
+    });
+}
 async function verifyPagedImageReader() {
     let sourceIndex=0;
     const source=()=>page.locator(readerSelector).nth(sourceIndex);
     const selectVisibleSource=async()=>{
         if(!imageVisibleSource)return true;
-        const index=await page.locator(readerSelector).evaluateAll(images=>images.findIndex(i=>{
-            const r=i.getBoundingClientRect();return i.complete&&i.naturalWidth>=80&&i.naturalHeight>=40
-                &&r.width>80&&r.height>40&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0;
-        }));
-        if(index<0)return false;sourceIndex=index;return true;
+        const image=await visibleReaderImageSource();
+        if(!image)return false;sourceIndex=image.index;return true;
     };
     const snapshot=()=>source().evaluate(i=>({src:i.src,srcset:i.getAttribute('srcset'),sizes:i.getAttribute('sizes'),style:i.getAttribute('style'),width:i.naturalWidth,height:i.naturalHeight}));
     const complete=()=>source().evaluate(i=>i.complete&&i.naturalWidth>=80);
@@ -433,7 +441,9 @@ async function verifyPagedImageReader() {
     await dismissNotice();const firstUrl=page.url(),firstSource=original.src,secondStart=Date.now();await page.keyboard.press(imageTurnKey);
     await wait(async()=>await selectVisibleSource()&&await complete()&&(await snapshot()).src!==firstSource&&!await displayed(),30000);
     const secondOriginal=await snapshot();await captureSource(source(),'02');await wait(async()=>await ops()>before&&await settled()&&await displayed());
-    assert.equal(await active(),'true');assert.notEqual(page.url(),firstUrl);report.pagedImages.urls=[firstUrl,page.url()];
+    assert.equal(await active(),'true');
+    if(imageStableUrl)assert.equal(page.url(),firstUrl);else assert.notEqual(page.url(),firstUrl);
+    report.pagedImages.urls=[firstUrl,page.url()];
     await dismissNotice();report.pageDurationsMs.push({page:2,ms:Date.now()-secondStart});await assertQuietReading();await screenshot('02-paged-translated',dismissNotice);await saveBitmaps('02');report.cases.push(report.currentCase);
     report.currentCase='paged image restores the second source and the master switch removes overlays';
     await pagedToggle();await wait(async()=>!await displayed());assert.deepEqual(await snapshot(),secondOriginal);
@@ -1138,9 +1148,13 @@ async function verifyReadAhead() {
     if(imageTurnKey){
         await page.waitForTimeout(900);
         for(let turn=0;turn<imageInitialTurns;turn++){
-            const before=await page.locator(readerSelector).first().evaluate(i=>i.src);
+            const before=imageVisibleSource?(await visibleReaderImageSource())?.src:await page.locator(readerSelector).first().evaluate(i=>i.src);
+            assert.ok(before,'A loaded visible public source exists before a normal page turn');
             await page.keyboard.press(imageTurnKey);
-            await wait(async()=>await page.locator(readerSelector).first().evaluate((i,old)=>i.complete&&i.naturalWidth>=80&&i.src!==old,before),30000);
+            await wait(async()=>{
+                if(imageVisibleSource){const image=await visibleReaderImageSource();return !!image&&image.src!==before;}
+                return page.locator(readerSelector).first().evaluate((i,old)=>i.complete&&i.naturalWidth>=80&&i.src!==old,before);
+            },30000);
             await page.waitForTimeout(900);
         }
         await wait(async()=>await page.locator(readerSelector).first().evaluate(i=>i.complete&&i.naturalWidth>=80),30000);

@@ -71,7 +71,7 @@
 | 61 | comic-zenon | comic-zenon.com | 不可读画布：圈选入口 | 公开章节结构已核对；画布受污染 |
 | 62 | Webtoons | webtoons.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 63 | Lezhin Comics | lezhin.com、lezhinus.com | 专用英语站正文图片 | 免费首话真实翻译及滚动续译通过；韩语站未验收，Cookie 横幅遮挡下部 |
-| 64 | BeLTOON | beltoon.jp | 通用正文图片检测 | 正常关闭推广后进入作品页，显示内容确认提示且无正文；未提交提示，正文未验 |
+| 64 | BeLTOON | beltoon.jp | 专用正文图片检测 | 正常内容确认及免费首话入口打开 viewer/digging/p1；15 张同源 blob 长图，首张 1280×4306，入口通过；未验 OCR |
 | 65 | ManhwaClub | manhwaclub.net | 专用正文图片 | 公开章节正文已核对；未验 OCR |
 | 66 | JinMangas | 待确认 | 待确认 | 缺少可确认地址 |
 | 67 | Atsumaru | atsu.moe | 专用正文图片，长图分段 | 800×15744 原图的两段翻译链路通过；整条未验 |
@@ -159,7 +159,7 @@
 | 149 | toongod.cc | toongod.cc | 专用正文图片，长图分段 | 900×16006 原图的两段翻译链路通过；整条未验 |
 | 150 | kingofshojo.com | kingofshojo.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 151 | weebcentral.com | weebcentral.com | 专用正文图片 | 首页 HTML 可访问 |
-| 152 | lrr.tvc-16.science | lrr.tvc-16.science | 通用正文图片检测 | 公开 LANraragi 演示目录与正常 reader 可访问；仅取得隐藏的概览缩略图，正文未确认 |
+| 152 | lrr.tvc-16.science | lrr.tvc-16.science | 专用当前页图片检测 | 正常后台窗口显示 1081×1400 当前正文，隐藏概览排除；同 URL 正常翻页、暂停恢复和总开关清理通过；英语译文仍有误译 |
 | 153 | mangarawad.org | mangarawad.org | 通用正文图片检测 | 连接失败 |
 | 154 | manga-park.com | manga-park.com | 专用正文图片检测 | 作品页免费按钮已显示正文；直接章节地址 HTTP 404 |
 | 155 | mangaflame.org | mangaflame.org | 通用检测；漫画正文未确认 | 当前跳转域名停放页，未将停放子域登记为漫画别名 |
@@ -195,7 +195,7 @@
 | 185 | zipcomic.com | zipcomic.com | 通用正文图片检测 | 当前 HTTP 403 验证页 |
 | 186 | zerobywzz.com | zerobywzz.com | 通用正文图片检测 | 连接失败 |
 | 187 | dokusho-ojikan.jp | dokusho-ojikan.jp | 专用画布圈选 | 公开试读九张正文画布不可读；圈选入口确认，实际圈选翻译待验证 |
-| 188 | bomtoon.com | bomtoon.com | 通用正文图片检测 | 正常转至公开漫画目录；未确认实际章节入口或正文 |
+| 188 | bomtoon.com | bomtoon.com | 通用正文图片检测 | 正常免费首话入口打开 viewer/PAYBACK/p0；可读非空 1440×1440 canvas，正在核对专用入口；不把版权图片算正文 |
 | 189 | copymanga.site | copymanga.site | 通用正文图片检测 | 当前为 ParkLogic 停放/广告跳转页，没有确认漫画目录或章节 |
 | 190 | readcomiconline.li | readcomiconline.li | 通用正文图片检测 | 连接失败 |
 | 191 | championcross.jp | championcross.jp | 可读画布连续翻译 | 公开章节画布已核对 |
@@ -223,7 +223,7 @@
 | 213 | mangaball.net | mangaball.net、mangaball.com | 通用正文图片检测 | 跳转现用 .com；正文图片受浏览器响应来源限制 |
 | 214 | yanmaga.jp | yanmaga.jp | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 215 | viewer.bookhodai.jp | viewer.bookhodai.jp | 通用正文图片检测 | 根地址正常转至订阅与登录首页，未发现公开正文 |
-| 216 | play.comipo.app | play.comipo.app | 专用免费正文图片 | 官方免费链接正常转至 viewer/free/BJ 书号，三张同源 blob 正文已显示，未验 OCR |
+| 216 | play.comipo.app | play.comipo.app | 专用免费正文图片 | 官方免费链接正常转至 viewer/free/BJ 书号；实际翻译、暂停恢复、缓存与同 URL 翻页通过，三份不同输出已查看，存在误译及原文残留 |
 | 217 | arenascan.com | arenascan.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 218 | luvyaa.my.id | luvyaa.my.id / luvyaa.co / v5.luvyaa.co | 已核对正文图片 | 原域名落地页显式链接与正常跳转确认现用域名，readerarea 中完整长图复用分段链路；排除上方广告 |
 | 219 | toondex.co | toondex.co | 专用正文图片 | 编号正文及扩展入口已核对；无 OCR 验收 |

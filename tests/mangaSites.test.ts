@@ -6,6 +6,23 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it('公开图书库仅为单个合法档案编号选择当前页，隐藏概览与其他图片排除', () => {
+        const id = 'a'.repeat(40), site = resolveMangaSite(`https://lrr.tvc-16.science/reader?id=${id}`)!;
+        expect(site).toMatchObject({name: 'LANraragi public demo', requireContent: true});
+        const {document} = parseHTML('<div id="i1"><div id="i3"><a id="display"><img id="img" class="reader-image"></a></div><div id="archivePagesOverlay"><img id="reader-overview-thumbnail"><img id="ad" class="reader-image"></div></div><img id="outside" class="reader-image">');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['img']);
+        for (const query of ['', '?id=', '?id=one', `?id=${'g'.repeat(40)}`, `?id=${'a'.repeat(39)}`, `?id=${id}&id=${id}`]) expect(resolveMangaReaderProfile('lrr.tvc-16.science', '/reader', query)).toBeNull();
+        expect(resolveMangaReaderProfile('lrr.tvc-16.science', '/reader/extra', `?id=${id}`)).toBeNull();
+        expect(resolveMangaReaderProfile('lrr.tvc-16.science.attacker.test', '/reader', `?id=${id}`)).toBeNull();
+    });
+    it('BeLTOON 作品章节正文只选阅读容器的同源 blob 长图，推荐与封面排除', () => {
+        const site = resolveMangaSite('https://www.beltoon.jp/viewer/digging/p1')!;
+        expect(site).toMatchObject({name: 'BeLTOON', requireContent: true});
+        const {document} = parseHTML('<div class="printView"><div class="sc-iXxrte eWYGf"><div class="sc-jhzXDd vufrE"><img id="body" class="sc-jSMfEi izegLd" src="blob:https://www.beltoon.jp/body"><img id="cover" class="sc-jSMfEi" src="https://www.beltoon.jp/cover.jpg"><img id="foreign" class="sc-jSMfEi" src="blob:https://other.example/body"><aside><img id="nested" class="sc-jSMfEi" src="blob:https://www.beltoon.jp/ad"></aside></div></div></div><div class="sc-iXxrte"><div class="sc-jhzXDd"><img id="outside" class="sc-jSMfEi" src="blob:https://www.beltoon.jp/recommended"></div></div>');
+        expect([...document.querySelectorAll(site.selector)].map(image => image.id)).toEqual(['body']);
+        for (const path of ['/', '/app/all/main', '/detail/digging', '/user/login', '/viewer/digging/p0', '/viewer/digging/p01', '/viewer/digging/pword', '/viewer/digging/p1/extra']) expect(resolveMangaReaderProfile('beltoon.jp', path)).toBeNull();
+        expect(resolveMangaReaderProfile('beltoon.jp.attacker.test', '/viewer/digging/p1')).toBeNull();
+    });
     it('comipo 公开免费书号只选已展示同源 blob 正文，排除目录、指南和外源', () => {
         const site = resolveMangaSite('https://play.comipo.app/viewer/free/BJ03026230')!;
         expect(site).toMatchObject({name: 'comipo', requireContent: true});

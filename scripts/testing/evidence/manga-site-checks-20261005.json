@@ -2324,7 +2324,7 @@
           "hostname": "beltoon.jp"
         }
       ],
-      "adapter": "detect",
+      "adapter": "images",
       "browserRechecks": [
         {
           "checkedAt": "2026-10-05T02:20:21.958902+00:00",
@@ -2389,6 +2389,57 @@
           "networkFailureCount": 30,
           "requestedUrl": "https://www.beltoon.jp/app/all/main",
           "checkedAt": "2026-10-05T11:21:06.843871+00:00"
+        },
+        {
+          "url": "https://www.beltoon.jp/detail/digging",
+          "finalUrl": "https://www.beltoon.jp/detail/digging",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+          "attempt": "beltoon-detail-wave27",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 4,
+          "canvasCount": 0,
+          "readerFinding": "Ordinary Yes on public explicit-content notice reveals free first-episode control and work cover; no login, age identity declaration or purchase. Normal content notice is not an access bypass; no chapter yet.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 34,
+          "requestedUrl": "https://www.beltoon.jp/detail/digging",
+          "checkedAt": "2026-10-05T11:49:12.494029+00:00"
+        },
+        {
+          "url": "https://www.beltoon.jp/detail/digging",
+          "finalUrl": "https://www.beltoon.jp/user/login",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+          "attempt": "beltoon-free-wave27",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Diagnostic clicked unlabeled work icon, which navigates to login with no body. This was not the observed text-bearing Free first-episode control; retained and corrected in separate attempt. No login submitted.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 44,
+          "requestedUrl": "https://www.beltoon.jp/detail/digging",
+          "checkedAt": "2026-10-05T11:49:12.494029+00:00"
+        },
+        {
+          "url": "https://www.beltoon.jp/detail/digging",
+          "finalUrl": "https://www.beltoon.jp/viewer/digging/p1",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+          "attempt": "beltoon-free-control-wave27",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 15,
+          "canvasCount": 0,
+          "readerFinding": "Normal observed free-first-episode role=button opens viewer/digging/p1 with15 same-origin blob body strips, first1280x4306, next1280x3217/3437/4480. Exact printView/reader direct image chain excludes cover, recommendation and foreign blobs. Technical DOM only, no chapter screenshot, OCR or export.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 44,
+          "requestedUrl": "https://www.beltoon.jp/detail/digging",
+          "checkedAt": "2026-10-05T11:49:12.494029+00:00"
         }
       ]
     },
@@ -6513,7 +6564,7 @@
           "hostname": "lrr.tvc-16.science"
         }
       ],
-      "adapter": "detect",
+      "adapter": "images",
       "browserRechecks": [
         {
           "url": "https://lrr.tvc-16.science/",
@@ -6563,6 +6614,40 @@
           "networkFailureCount": 0,
           "requestedUrl": "https://lrr.tvc-16.science/reader",
           "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://lrr.tvc-16.science/reader",
+          "finalUrl": "https://lrr.tvc-16.science/reader",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+          "attempt": "lrr-visible-wave27",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "readerFinding": "Normal visible isolated browser after15s displays1081x1400 IMG img.reader-image under i1/i3/display; hidden500x648 overview thumbnail excluded. Earlier headless5s body absence superseded by current visible body proof. No private archive API call or image export.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://lrr.tvc-16.science/reader",
+          "checkedAt": "2026-10-05T11:49:12.494029+00:00"
+        },
+        {
+          "url": "https://lrr.tvc-16.science/reader",
+          "finalUrl": "https://lrr.tvc-16.science/reader",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+          "attempt": "lrr-turn-wave27",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "readerFinding": "One normal ArrowRight replaces the current public reader image with986x1400 body while the same archive URL remains unchanged; hidden overview stays excluded. Visible background isolated browser, no chapter export or private archive API.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://lrr.tvc-16.science/reader",
+          "checkedAt": "2026-10-05T12:08:54.249003+00:00"
         }
       ]
     },
@@ -7711,6 +7796,75 @@
           "networkFailureCount": 22,
           "requestedUrl": "https://bomtoon.com/",
           "checkedAt": "2026-10-05T10:30:42.534868+00:00"
+        },
+        {
+          "url": "https://www.bomtoon.com/bom/comic/main",
+          "finalUrl": "https://www.bomtoon.com/bom/comic/main",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+          "attempt": "bomtoon-home-wave27",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 31,
+          "canvasCount": 0,
+          "readerFinding": "Public catalogue cover cards expose native role=link buttons, current DOM recorded; no chapter body accepted from catalogue alone.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 28,
+          "requestedUrl": "https://www.bomtoon.com/bom/comic/main",
+          "checkedAt": "2026-10-05T11:49:12.494029+00:00"
+        },
+        {
+          "url": "https://www.bomtoon.com/bom/comic/main",
+          "finalUrl": "https://www.bomtoon.com/bom/comic/main",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+          "attempt": "bomtoon-work-wave27",
+          "status": null,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Initial catalogue selector matched two ordinary work cards and strict click failed; no force click. Failure retained and exact first catalogue card selected in separate attempt.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 19,
+          "error": "locator.click: Error: strict mode violation: locator('li.sc-9af99efb-1:first-child > button[role=\"link\"].sc-9af99efb-2') resolved to 2 elements:",
+          "requestedUrl": "https://www.bomtoon.com/bom/comic/main",
+          "checkedAt": "2026-10-05T12:08:54.249003+00:00"
+        },
+        {
+          "url": "https://www.bomtoon.com/bom/comic/main",
+          "finalUrl": "https://www.bomtoon.com/detail/PAYBACK",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+          "attempt": "bomtoon-card-wave27",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 121,
+          "canvasCount": 0,
+          "readerFinding": "Normal first native catalogue work-card role=link opens detail/PAYBACK with observed first-episode-free role=button; catalogue and detail images are covers/recommendations, not body.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 51,
+          "requestedUrl": "https://www.bomtoon.com/bom/comic/main",
+          "checkedAt": "2026-10-05T12:08:54.249003+00:00"
+        },
+        {
+          "url": "https://www.bomtoon.com/detail/PAYBACK",
+          "finalUrl": "https://www.bomtoon.com/viewer/PAYBACK/p0",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+          "attempt": "bomtoon-free-wave27",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 1,
+          "canvasCount": 2,
+          "readerFinding": "Normal observed first-episode-free role=button opens viewer/PAYBACK/p0, HTTP200, publicly readable nonblank1440x1440 body canvases. One offscreen copyright image is not body. Headless structural research only; canvas runtime pending, no login, purchase, identity declaration, chapter screenshot/OCR/export.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 72,
+          "requestedUrl": "https://www.bomtoon.com/detail/PAYBACK",
+          "checkedAt": "2026-10-05T12:08:54.249003+00:00"
         }
       ]
     },
@@ -8443,6 +8597,23 @@
           "networkFailureCount": 5,
           "requestedUrl": "https://play.comipo.app/free/BJ03026230",
           "checkedAt": "2026-10-05T11:21:06.843871+00:00"
+        },
+        {
+          "url": "https://play.comipo.app/free/BJ03026230",
+          "finalUrl": "https://play.comipo.app/viewer/free/BJ03026230",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+          "attempt": "comipo-turns-wave27",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 6,
+          "canvasCount": 0,
+          "readerFinding": "Two normal ArrowLeft keys expose six loaded1440x2048 blob body images with actual current spread geometry; URL remains viewer/free/BJ03026230. Initial sampling must use visible source, not first buffer element; same-URL paging separately asserted by actual OCR test.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 8,
+          "requestedUrl": "https://play.comipo.app/free/BJ03026230",
+          "checkedAt": "2026-10-05T11:49:12.494029+00:00"
         }
       ]
     },
@@ -13722,6 +13893,157 @@
       "profileRemoved": true,
       "pageErrorCount": 0,
       "networkFailureCount": 6
+    },
+    {
+      "url": "https://www.beltoon.jp/detail/digging",
+      "finalUrl": "https://www.beltoon.jp/detail/digging",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+      "attempt": "beltoon-detail-wave27",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 4,
+      "canvasCount": 0,
+      "readerFinding": "Ordinary Yes on public explicit-content notice reveals free first-episode control and work cover; no login, age identity declaration or purchase. Normal content notice is not an access bypass; no chapter yet.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 34
+    },
+    {
+      "url": "https://www.beltoon.jp/detail/digging",
+      "finalUrl": "https://www.beltoon.jp/user/login",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+      "attempt": "beltoon-free-wave27",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Diagnostic clicked unlabeled work icon, which navigates to login with no body. This was not the observed text-bearing Free first-episode control; retained and corrected in separate attempt. No login submitted.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 44
+    },
+    {
+      "url": "https://www.beltoon.jp/detail/digging",
+      "finalUrl": "https://www.beltoon.jp/viewer/digging/p1",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+      "attempt": "beltoon-free-control-wave27",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 15,
+      "canvasCount": 0,
+      "readerFinding": "Normal observed free-first-episode role=button opens viewer/digging/p1 with15 same-origin blob body strips, first1280x4306, next1280x3217/3437/4480. Exact printView/reader direct image chain excludes cover, recommendation and foreign blobs. Technical DOM only, no chapter screenshot, OCR or export.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 44
+    },
+    {
+      "url": "https://play.comipo.app/free/BJ03026230",
+      "finalUrl": "https://play.comipo.app/viewer/free/BJ03026230",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+      "attempt": "comipo-turns-wave27",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 6,
+      "canvasCount": 0,
+      "readerFinding": "Two normal ArrowLeft keys expose six loaded1440x2048 blob body images with actual current spread geometry; URL remains viewer/free/BJ03026230. Initial sampling must use visible source, not first buffer element; same-URL paging separately asserted by actual OCR test.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 8
+    },
+    {
+      "url": "https://lrr.tvc-16.science/reader",
+      "finalUrl": "https://lrr.tvc-16.science/reader",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+      "attempt": "lrr-visible-wave27",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "readerFinding": "Normal visible isolated browser after15s displays1081x1400 IMG img.reader-image under i1/i3/display; hidden500x648 overview thumbnail excluded. Earlier headless5s body absence superseded by current visible body proof. No private archive API call or image export.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.bomtoon.com/bom/comic/main",
+      "finalUrl": "https://www.bomtoon.com/bom/comic/main",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+      "attempt": "bomtoon-home-wave27",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 31,
+      "canvasCount": 0,
+      "readerFinding": "Public catalogue cover cards expose native role=link buttons, current DOM recorded; no chapter body accepted from catalogue alone.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 28
+    },
+    {
+      "url": "https://lrr.tvc-16.science/reader",
+      "finalUrl": "https://lrr.tvc-16.science/reader",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+      "attempt": "lrr-turn-wave27",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "readerFinding": "One normal ArrowRight replaces the current public reader image with986x1400 body while the same archive URL remains unchanged; hidden overview stays excluded. Visible background isolated browser, no chapter export or private archive API.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://www.bomtoon.com/bom/comic/main",
+      "finalUrl": "https://www.bomtoon.com/bom/comic/main",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+      "attempt": "bomtoon-work-wave27",
+      "status": null,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Initial catalogue selector matched two ordinary work cards and strict click failed; no force click. Failure retained and exact first catalogue card selected in separate attempt.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 19,
+      "error": "locator.click: Error: strict mode violation: locator('li.sc-9af99efb-1:first-child > button[role=\"link\"].sc-9af99efb-2') resolved to 2 elements:"
+    },
+    {
+      "url": "https://www.bomtoon.com/bom/comic/main",
+      "finalUrl": "https://www.bomtoon.com/detail/PAYBACK",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+      "attempt": "bomtoon-card-wave27",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 121,
+      "canvasCount": 0,
+      "readerFinding": "Normal first native catalogue work-card role=link opens detail/PAYBACK with observed first-episode-free role=button; catalogue and detail images are covers/recommendations, not body.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 51
+    },
+    {
+      "url": "https://www.bomtoon.com/detail/PAYBACK",
+      "finalUrl": "https://www.bomtoon.com/viewer/PAYBACK/p0",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "beltoon-public-free-control-comipo-stable-paging-and-visible-reader-wave27",
+      "attempt": "bomtoon-free-wave27",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 1,
+      "canvasCount": 2,
+      "readerFinding": "Normal observed first-episode-free role=button opens viewer/PAYBACK/p0, HTTP200, publicly readable nonblank1440x1440 body canvases. One offscreen copyright image is not body. Headless structural research only; canvas runtime pending, no login, purchase, identity declaration, chapter screenshot/OCR/export.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 72
     }
   ],
   "verification": {
@@ -22506,6 +22828,593 @@
         "anchors": 741,
         "images": 154,
         "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave26.log"
+      }
+    },
+    "beltoonReaderUnit": {
+      "status": "passed",
+      "cases": 530,
+      "files": 7,
+      "fourDimensionCoverage": "100% for all eight manga configuration/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave27.log",
+      "scope": "Exact BeLTOON free-viewer chapter path and direct same-origin blob body chain; cover, recommendation, nested ad, foreign source, invalid episode and spoofed domain exclusions. Existing strip segmentation/serial queue reused."
+    },
+    "comipoPublicTranslation": {
+      "status": "passed",
+      "cases": [
+        "paged image translates the visible public page",
+        "paged image pauses to the unchanged original and resumes without OCR",
+        "normal page turn keeps continuous mode active and translates the new source",
+        "paged image restores the second source and the master switch removes overlays"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        },
+        "frontmostAfter": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        }
+      },
+      "sourceLanguage": "ja",
+      "targetLanguage": "zh-Hans",
+      "operations": 4,
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 10563
+        },
+        {
+          "page": 2,
+          "ms": 47562
+        }
+      ],
+      "pagedImages": {
+        "turnKey": "ArrowLeft",
+        "initialTurns": 2,
+        "urlPolicy": "stable",
+        "initialUrl": "https://play.comipo.app/viewer/free/BJ03026230",
+        "visibleSource": true,
+        "urls": [
+          "https://play.comipo.app/viewer/free/BJ03026230",
+          "https://play.comipo.app/viewer/free/BJ03026230"
+        ]
+      },
+      "sourceCaptures": [
+        {
+          "name": "01",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-comipo-wave27/01-original.png",
+          "width": 1440,
+          "height": 2048,
+          "method": "natural image pixels"
+        },
+        {
+          "name": "02",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-comipo-wave27/02-original.png",
+          "width": 1440,
+          "height": 2048,
+          "method": "natural image pixels"
+        }
+      ],
+      "pagedImageOutputs": [
+        {
+          "stage": "01",
+          "index": 0,
+          "width": 1440,
+          "height": 2048,
+          "rect": {
+            "x": 636,
+            "y": 0,
+            "width": 573.75,
+            "height": 816
+          },
+          "pixelReadError": "",
+          "mode": "native-result-png",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-comipo-wave27/01-paged-output-0.png"
+        },
+        {
+          "stage": "02",
+          "index": 0,
+          "width": 1440,
+          "height": 2048,
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0
+          },
+          "pixelReadError": "",
+          "mode": "native-result-png",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-comipo-wave27/02-paged-output-0.png"
+        },
+        {
+          "stage": "02",
+          "index": 1,
+          "width": 1440,
+          "height": 2048,
+          "rect": {
+            "x": 636,
+            "y": 0,
+            "width": 573.75,
+            "height": 816
+          },
+          "pixelReadError": "",
+          "mode": "native-result-png",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-comipo-wave27/02-paged-output-1.png"
+        },
+        {
+          "stage": "02",
+          "index": 2,
+          "width": 1440,
+          "height": 2048,
+          "rect": {
+            "x": 62.25,
+            "y": 0,
+            "width": 573.75,
+            "height": 816
+          },
+          "pixelReadError": "",
+          "mode": "native-result-png",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-comipo-wave27/02-paged-output-2.png"
+        }
+      ],
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "pageErrors": [],
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-comipo-wave27/report.json",
+      "finding": "Production PaddleOCR and live Google, two initial normal ArrowLeft turns, visible source selected across existing buffers. Four actual states passed: initial result, unchanged source/style pause and cache reuse, same-URL new-source normal paging with active reader, master cleanup. Four operations; four saved PNG entries include one byte-identical cached first result, only three distinct1440x2048 native output PNGs. No model downloads or errors; own background profile removed.",
+      "quality": "Viewed title/narration fragment, contents page and one ordinary dialogue page. Chinese appears, but an outlined vertical Japanese dismissal remains; estate/family dialogue mistranslated as terror-government/control, tiny outlined title misread, and original fragments remain. Not two full ordinary dialogue spreads, whole chapter or quality acceptance.",
+      "outputsViewed": [
+        "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-comipo-wave27/01-paged-output-0.png",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-comipo-wave27/02-paged-output-1.png",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-comipo-wave27/02-paged-output-2.png"
+      ]
+    },
+    "beltoonLrrReaderUnit": {
+      "status": "passed",
+      "cases": 531,
+      "files": 7,
+      "fourDimensionCoverage": "100% for all eight manga configuration/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-final-wave27.log",
+      "scope": "BeLTOON direct same-origin blob body and exact free episode boundaries; LANraragi current-body reader and single valid archive id, hidden overview excluded. Existing reader queue and same-URL source replacement reused."
+    },
+    "lrrPublicTranslationInitialLanguageMismatch": {
+      "status": "passed",
+      "cases": [
+        "paged image translates the visible public page",
+        "paged image pauses to the unchanged original and resumes without OCR",
+        "normal page turn keeps continuous mode active and translates the new source",
+        "paged image restores the second source and the master switch removes overlays"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 34750,
+          "name": "提醒事项"
+        },
+        "frontmostAfter": {
+          "pid": 34750,
+          "name": "提醒事项"
+        }
+      },
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "pageErrors": [],
+      "profileRemoved": true,
+      "sourceLanguage": "ja",
+      "targetLanguage": "zh-Hans",
+      "operations": 2,
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 13944
+        },
+        {
+          "page": 2,
+          "ms": 4955
+        }
+      ],
+      "pagedImages": {
+        "turnKey": "ArrowRight",
+        "initialTurns": 2,
+        "urlPolicy": "stable",
+        "initialUrl": "https://lrr.tvc-16.science/reader?id=e4c422fd10943dc169e3489a38cdbf57101a5f7e",
+        "visibleSource": true,
+        "urls": [
+          "https://lrr.tvc-16.science/reader?id=e4c422fd10943dc169e3489a38cdbf57101a5f7e",
+          "https://lrr.tvc-16.science/reader?id=e4c422fd10943dc169e3489a38cdbf57101a5f7e"
+        ]
+      },
+      "sourceCaptures": [
+        {
+          "name": "01",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-wave27/01-original.png",
+          "width": 996,
+          "height": 1400,
+          "method": "natural image pixels"
+        },
+        {
+          "name": "02",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-wave27/02-original.png",
+          "width": 991,
+          "height": 1400,
+          "method": "natural image pixels"
+        }
+      ],
+      "pagedImageOutputs": [
+        {
+          "stage": "01",
+          "index": 0,
+          "width": 996,
+          "height": 1400,
+          "rect": {
+            "x": 138,
+            "y": 106.4375,
+            "width": 996,
+            "height": 1400
+          },
+          "pixelReadError": "",
+          "mode": "native-result-png",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-wave27/01-paged-output-0.png"
+        },
+        {
+          "stage": "02",
+          "index": 0,
+          "width": 991,
+          "height": 1400,
+          "rect": {
+            "x": 140.5,
+            "y": 106.4375,
+            "width": 991,
+            "height": 1400
+          },
+          "pixelReadError": "",
+          "mode": "native-result-png",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-wave27/02-paged-output-0.png"
+        }
+      ],
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-wave27/report.json",
+      "outputsViewed": [
+        "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-wave27/01-paged-output-0.png",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-wave27/02-paged-output-0.png"
+      ],
+      "scope": "Production PaddleOCR/live Google; two initial normal ArrowRight turns, current visible IMG, same-URL different-source paging; four states passed, two ordinary image operations, pause source/style restoration and cache reuse, active next source and master cleanup. No full pixel hash comparison or whole chapter acceptance. Initial diagnostic mistakenly configured ja on English text; retained, corrected with explicit en in separate report. Not proof of Japanese-source quality.",
+      "quality": "Two native PNGs viewed; narration and one short dialogue, not two full dialogue spreads. Chinese appears and panels remain, but interpreter role is rendered awkwardly as translate or interpret; a small decorative LE is partly recognized. No overall translation-quality acceptance."
+    },
+    "lrrPublicTranslation": {
+      "status": "passed",
+      "cases": [
+        "paged image translates the visible public page",
+        "paged image pauses to the unchanged original and resumes without OCR",
+        "normal page turn keeps continuous mode active and translates the new source",
+        "paged image restores the second source and the master switch removes overlays"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 34750,
+          "name": "提醒事项"
+        },
+        "frontmostAfter": {
+          "pid": 34750,
+          "name": "提醒事项"
+        }
+      },
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "pageErrors": [],
+      "profileRemoved": true,
+      "sourceLanguage": "en",
+      "targetLanguage": "zh-Hans",
+      "operations": 2,
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 11234
+        },
+        {
+          "page": 2,
+          "ms": 3462
+        }
+      ],
+      "pagedImages": {
+        "turnKey": "ArrowRight",
+        "initialTurns": 2,
+        "urlPolicy": "stable",
+        "initialUrl": "https://lrr.tvc-16.science/reader?id=e4c422fd10943dc169e3489a38cdbf57101a5f7e",
+        "visibleSource": true,
+        "urls": [
+          "https://lrr.tvc-16.science/reader?id=e4c422fd10943dc169e3489a38cdbf57101a5f7e",
+          "https://lrr.tvc-16.science/reader?id=e4c422fd10943dc169e3489a38cdbf57101a5f7e"
+        ]
+      },
+      "sourceCaptures": [
+        {
+          "name": "01",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-english-wave27/01-original.png",
+          "width": 996,
+          "height": 1400,
+          "method": "natural image pixels"
+        },
+        {
+          "name": "02",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-english-wave27/02-original.png",
+          "width": 991,
+          "height": 1400,
+          "method": "natural image pixels"
+        }
+      ],
+      "pagedImageOutputs": [
+        {
+          "stage": "01",
+          "index": 0,
+          "width": 996,
+          "height": 1400,
+          "rect": {
+            "x": 138,
+            "y": 106.4375,
+            "width": 996,
+            "height": 1400
+          },
+          "pixelReadError": "",
+          "mode": "native-result-png",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-english-wave27/01-paged-output-0.png"
+        },
+        {
+          "stage": "02",
+          "index": 0,
+          "width": 991,
+          "height": 1400,
+          "rect": {
+            "x": 140.5,
+            "y": 106.4375,
+            "width": 991,
+            "height": 1400
+          },
+          "pixelReadError": "",
+          "mode": "native-result-png",
+          "file": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-english-wave27/02-paged-output-0.png"
+        }
+      ],
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-english-wave27/report.json",
+      "outputsViewed": [
+        "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-english-wave27/01-paged-output-0.png",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-lrr-english-wave27/02-paged-output-0.png"
+      ],
+      "scope": "Production PaddleOCR/live Google; two initial normal ArrowRight turns, current visible IMG, same-URL different-source paging; four states passed, two ordinary image operations, pause source/style restoration and cache reuse, active next source and master cleanup. No full pixel hash comparison or whole chapter acceptance.",
+      "quality": "Two native PNGs viewed; narration and one short dialogue, not two full dialogue spreads. Chinese appears and panels remain, but interpreter role is rendered awkwardly as translate or interpret; a small decorative LE is partly recognized. No overall translation-quality acceptance."
+    },
+    "beltoonLrrReaderEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://www.beltoon.jp/detail/digging",
+        "live reader discovery: https://lrr.tvc-16.science/reader?id=e4c422fd10943dc169e3489a38cdbf57101a5f7e",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 34750,
+          "name": "提醒事项"
+        },
+        "frontmostAfter": {
+          "pid": 34750,
+          "name": "提醒事项"
+        }
+      },
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-readers-final-wave27/report.json",
+      "liveReaders": [
+        {
+          "url": "https://www.beltoon.jp/detail/digging",
+          "finalUrl": "https://www.beltoon.jp/viewer/digging/p1",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1280,
+              "naturalHeight": 4306,
+              "width": 720,
+              "height": 2422,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1280,
+              "naturalHeight": 3217,
+              "width": 720,
+              "height": 1810,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1280,
+              "naturalHeight": 3437,
+              "width": 720,
+              "height": 1933,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1280,
+              "naturalHeight": 4480,
+              "width": 720,
+              "height": 2520,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1280,
+              "naturalHeight": 2640,
+              "width": 720,
+              "height": 1485,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1280,
+              "naturalHeight": 4077,
+              "width": 720,
+              "height": 2293,
+              "visible": false
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1280,
+              "naturalHeight": 4400,
+              "width": 720,
+              "height": 2475,
+              "visible": false
+            }
+          ],
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "url": "https://lrr.tvc-16.science/reader?id=e4c422fd10943dc169e3489a38cdbf57101a5f7e",
+          "finalUrl": "https://lrr.tvc-16.science/reader?id=e4c422fd10943dc169e3489a38cdbf57101a5f7e",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1081,
+              "naturalHeight": 1400,
+              "width": 1081,
+              "height": 1400,
+              "visible": true
+            }
+          ],
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "scope": "20 actual Chrome entry cases, two live public reader discoveries. Only DOM/entry metadata on chapter pages; normal fixture screenshots retained. Both live bodies, pure-icon dock, consent and master cleanup passed, no OCR in this entry suite."
+    },
+    "beltoonLrrReaderBuilds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "chromeSeconds": 29.3,
+      "firefoxSeconds": 31.9,
+      "userscriptSeconds": 4.17,
+      "userscriptBytes": 1917294,
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-final-wave27.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6112,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-final-wave27.log"
+      },
+      "scope": "Chrome real reader runtime only. Firefox/userscript builds/verifiers only. Prior architecture group/all-suite failures retained; no full-suite rerun. No OCR engine, source authorization, permissions, dependencies, version or reference-repo changes.",
+      "docs": {
+        "build": "passed",
+        "check": "passed",
+        "pages": 77,
+        "links": 3955,
+        "anchors": 741,
+        "images": 154,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave27.log"
       }
     }
   }
