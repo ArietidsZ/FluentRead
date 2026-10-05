@@ -98,6 +98,7 @@ describe('options navigation view-model', () => {
     expect(resolveRequestedSection('settings-sites')).toBe('settings-sites')
     expect(resolveNavigationItem('settings-sites').group).toBe('工具与学习')
     expect(resolveSettingsPanel('settings-sites', 'preview')).toBe('preview')
+    expect(SETTINGS_TABBED_SECTION_IDS.has('settings-sites')).toBe(false)
     expect(settingsPagePanels['settings-sites'].map(panel => panel.id)).toEqual(['rules', 'adaptation', 'preview'])
     expect(resolveRequestedSection('#settings-webpage')).toBe('settings-translation')
     expect(resolveRequestedSection('#settings-shortcuts')).toBe('settings-translation')

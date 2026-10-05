@@ -96,15 +96,10 @@ async function mountOptions(hash = '#settings-selection') {
 }
 
 describe('OptionsApp mounted hash navigation', () => {
-  it('isolates website tasks while preserving the continuous layout of ordinary settings', async () => {
+  it('keeps website rules continuous and uses panel metadata only to locate destinations', async () => {
     const {state} = await mountOptions('#settings-sites');
-    expect(state.activePanels.map(panel => panel.id)).toEqual(['rules', 'adaptation', 'preview']);
-    expect(state.contentComponentProps.activePanel).toBe('rules');
-    state.selectPanel('preview');
-    expect(state.activePanel).toBe('preview');
-    expect(state.contentComponentProps.activePanel).toBe('preview');
-    state.selectSection('settings-sites', 'adaptation');
-    expect(state.contentComponentProps.activePanel).toBe('adaptation');
+    expect(state.activePanels).toEqual([]);
+    expect(state.contentComponentProps.activePanel).toBeUndefined();
     state.selectSection('settings-image-translation');
     expect(state.activePanels).toEqual([]);
     expect(state.contentComponentProps.activePanel).toBeUndefined();

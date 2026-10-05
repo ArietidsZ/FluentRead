@@ -75,6 +75,11 @@ function updateActiveAnchor(): void {
     activeAnchor.value = highlightedDestination
     return
   }
+  // 最后一段短于视口时无法滚到顶端，到达内容底部仍应高亮最后一个分区。
+  if (container.scrollTop > 0 && container.scrollHeight - container.clientHeight - container.scrollTop <= 2) {
+    activeAnchor.value = anchors.value[anchors.value.length - 1].id
+    return
+  }
   const top = container.getBoundingClientRect().top + container.clientTop + 24
   let current = anchors.value[0]
   for (const anchor of anchors.value) {
