@@ -4,6 +4,8 @@
 
 完整名称与访问状态见[235 项清单](./manga-sites-20261003)。阅读器目录增加 Issue 中确认的域名和当前公开重定向别名；纠正 KLMANGA、Manga4u、Syosetu 等名称映射。JinMangas 尚缺可确认的现用链接，保留待确认标签。其余登记表示自动检测范围，不能据此宣布所有章节通过。
 
+Luvyaa 原落地页的公开「Baca Komik」链接和正常跳转确认 `luvyaa.co`、`v5.luvyaa.co`，仍保留原目录名称。章节限定 `article #readerarea > img.ts-main-image`；ManhwaWeb 的 `/leer/` 章节限定正文宽度容器中的直系图片，排除音乐按钮与封面，两站的完整长图复用现有分段队列。KL 的 `-chapter-数字.html` 正文限定在 main 的阅读容器，排除侧栏广告，不用站点接口取得未呈现图片。普通第二屏后台浏览器已看到三站完整正文；这不等同于全部章节或翻译质量验收。
+
 Manhuaplus 的公开 `Apotheosis/chapter-1` 按 `#chapterContent .separator > a.readImg > img` 限定 20 张完整正文，排除站点标识与关联推荐。MangaBall 正常跳转的 `.com` 域名补入原目录名称，但其正文图片仍受浏览器响应来源限制，不据此声明可译。
 
 GlobalComix 免费频道的正常阅读按钮可以打开公开章节；横向及分格正文位于 `#readerReleasePages #horizontalReader`。实页正常翻页后，Edge 后台消息的来源地址仍保留初始页码，之前的完整地址比较因此误拒绝当前图片。来源授权现绑定当前 Document 与其所有的已选图片；HTTP 来源按同源核对，每次请求仍锁定当前完整地址、随机标识与图片属性，换源、换文档、导航或取消即失效，本地文件仍按完整地址核对。误判修正后，公开图片服务器对扩展读取返回 401，因此本站提供现有圈选入口，不声明连续 OCR 已通过。付费预览、访问限制与三份失败记录保留。
@@ -196,3 +198,12 @@ DOM 调查可用 `--inspect-popup` 配合已核对的 `--before-inspect-click` �
 - 最终类型检查、Chrome（24.5 秒）、Firefox（24.2 秒）、userscript 构建、manifest 与 userscript 校验通过；userscript 为 1,917,024 字节。测试审计 468 文件、6057 项声明通过；最终模块边界、文件头与漫画入口三文件 823 用例通过。Firefox 与 userscript 实机运行和全量架构回归未执行，原有 verificationOwnership 基线失败未改写为通过。
 
 分页图片诊断可显式使用 `--image-turn-key ArrowLeft|ArrowRight` 与 `--image-initial-turns 0..4`；只用于公开实页图片 smoke，正常方向键等待实际图片来源切换，记录原图恢复、暂停复用与下一张正文。GlobalComix 的该诊断保留来源误判与后续 401 失败；最终入口为圈选。入口工具可用 `readerReadySelector` 等待已显示正文的自然尺寸，避免把未加载图片计为已加载实页。
+
+公开链接与三站正文补充验证：
+
+- Luvyaa、ManhwaWeb、KL 增加严格正文规则。Luvyaa 的现用域名来自原域名明确的阅读链接与正常跳转；不将没有正文的落地页画布作为阅读页。Luvyaa 与 ManhwaWeb 完整长条共用既有分段队列，没有新增抓取接口、权限或独立 OCR 流程。
+- 七文件 449 用例通过，八个漫画配置、正文控制和来源授权模块四维覆盖率均为 100%。模块边界、源文件头与漫画入口三文件 823 用例通过；测试审计 468 文件、6059 项声明通过。没有重复宣称全量架构回归通过。
+- 正常第二屏后台隔离 Edge 的 19 个入口场景通过，含 16 个纯图标基础场景和三站实际正文。Luvyaa 20 个正文元素全部已加载；ManhwaWeb 19 个元素中 5 个已加载，KL 14 个元素中 6 个已加载，其余仍是懒加载元素。正常点击 KL 已核对的关闭按钮后正文无遮挡；首轮广告遮挡的 19 场景报告单独保留。Luvyaa 的一个站点 pagination 异常由其 HTTPS 脚本栈归属单独记录，无扩展或扩展控制台异常。临时 profile 已删除；本套不做 OCR。
+- KL 两张 1127×1600 正文用生产 PaddleOCR 与在线 Google，指定日语，六个阅读场景通过，约 24.8 秒、39.9 秒，共两次图片操作。暂停恢复原 src/srcset/sizes/style，再开启缓存复用，滚动下一页续译，无自动面板。现有导入器校验本地模型，没有下载请求；无扩展、宿主或控制台异常，专属窗口始终未进入用户前台，profile 已删除。两张实拍有中文经验值、升级和对白，但竖排、标题及拟声仍残留，怪物对白被误译成拍照，中文排列及气泡排版有明显错误；不视为整章质量验收。首次取消计数断言仍跳过，没有宣称取消场景通过。
+- 新增六个阅读调查尝试，累计保留 117 个；包括 KL 首次 headless 图片未加载，以及 Syosetu 正常章节页和查看章节菜单仍无正文的尝试，不是 117 个成功站点。Web Ace 的公开列表链接到既有 ComicWalker 适配；Comico 首页与搜索没有正文，Ridi 返回 403，Bookhodai 根地址转向登录/订阅首页，Comipo 转向登录页时调查被导航中断，MrBlue 只确认公开首页和免费目录。没有把这些页面计为实章通过。
+- 类型检查、Chrome（28.4 秒）、Firefox（30.3 秒）、userscript 生产构建、manifest 与 userscript 产物校验通过，userscript 为 1,917,070 字节。Firefox 与 userscript 实机运行、完整 235 项实章和翻译质量仍待核验。

@@ -22,7 +22,7 @@
 | 12 | Comic Days | comic-days.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 13 | Comic Top | comic-top.com | 通用正文图片检测 | 域名停放页，正文未确认 |
 | 14 | ComicWalker | comic-walker.com | 正文可读画布 · 连续翻译 | 公开章节 HTTP 200；两种正文标记已核对 |
-| 15 | Web Ace | web-ace.jp | 通用正文图片检测 | 作品页可访问；未确认正文 |
+| 15 | Web Ace | web-ace.jp | 通用正文图片检测 | 公开作品列表链接到已适配的 ComicWalker；本站独立正文未确认 |
 | 16 | Antbyw | antbyw.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 17 | Jmanga | jmanga.org | 通用正文图片检测 | 连接失败 |
 | 18 | Twitter Comic | twicomi.com | 专用正文图片 | 公开章节正文结构已核对 |
@@ -45,14 +45,14 @@
 | 35 | Comic-action | comic-action.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 36 | 腾讯动漫 | ac.qq.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 37 | Sololevelingmangafree | sololevelingmangafree.com | 通用正文图片检测 | 连接失败 |
-| 38 | Syosetu | syosetu.si / syosetu.cheap | 通用正文图片检测 | 首页 HTML 可访问 |
+| 38 | Syosetu | syosetu.si / syosetu.cheap | 通用正文图片检测 | 公开章节与正常查看章节菜单可访问；没有显示正文图片，未计为实章通过 |
 | 39 | Comick | comick.io / comick.dev / comick.fun | 通用正文图片检测 | 访问受限；首页 HTML 可访问 |
 | 40 | YoungAnimal | younganimal.com | 可读画布连续翻译 | 公开章节画布已核对 |
 | 41 | Piccoma | piccoma.com | 通用正文图片检测 | 公开作品/章节列表显示仅限日本；未验正文 |
 | 42 | Hentaizap | hentaizap.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 43 | Hanime1 | hanime1.me | 通用正文图片检测 | 访问受限 |
 | 44 | Globalcomix | globalcomix.com | 正文圈选入口 | 免费正文已显示；扩展抓图 HTTP 401，保留圈选 |
-| 45 | KL | klz9.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 45 | KL | klz9.com | 已核对正文图片 | 普通后台浏览器显示 14 张 1127×1600 正文，实际两页链路通过；竖排错识别、误译和排版仍可见 |
 | 46 | comemh8 | omemh8.com | 通用正文图片检测 | 连接失败 |
 | 47 | Mangaraw | mangarawjp.me / mangaraw.ac / mangaraw.best | 专用正文图片 | 公开章节正文结构已核对 |
 | 48 | Bilibili-Manga | manga.bilibili.com | 通用正文图片检测 | 章节画布结构已核对；正文可读性待验证 |
@@ -93,7 +93,7 @@
 | 83 | MangaFreak | mangafreak.net / mangafreak.me | 专用正文图片 | 公开章节正文结构已核对 |
 | 84 | ComicGardo | comic-gardo.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 85 | Booklive | booklive.jp | 通用正文图片检测 | 公开连载片段正文未加载；未验证 |
-| 86 | MrBlue | mrblue.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 86 | MrBlue | mrblue.com | 通用正文图片检测 | 公开首页和免费目录可访问；尚未核对实际正文 |
 | 87 | MangaLove | mangalove.me | 通用正文图片检测 | 首页 HTML 可访问 |
 | 88 | rawdevart.art | rawdevart.art | 通用正文图片检测 | 首页 HTML 可访问 |
 | 89 | manga-shinchan.com | manga-shinchan.com | 通用正文图片检测 | 章节样本仅见宣传图；正文待确认 |
@@ -222,10 +222,10 @@
 | 212 | global.manga-up.com | global.manga-up.com | 专用正文图片 | 公开章节 HTTP 200；正文与 Cookie 提示已核对 |
 | 213 | mangaball.net | mangaball.net、mangaball.com | 通用正文图片检测 | 跳转现用 .com；正文图片受浏览器响应来源限制 |
 | 214 | yanmaga.jp | yanmaga.jp | 画布/分片：圈选入口 | 首页 HTML 可访问 |
-| 215 | viewer.bookhodai.jp | viewer.bookhodai.jp | 通用正文图片检测 | 首页 HTML 可访问 |
-| 216 | play.comipo.app | play.comipo.app | 通用正文图片检测 | 首页 HTML 可访问 |
+| 215 | viewer.bookhodai.jp | viewer.bookhodai.jp | 通用正文图片检测 | 根地址正常转至订阅与登录首页，未发现公开正文 |
+| 216 | play.comipo.app | play.comipo.app | 通用正文图片检测 | 正常跳转至 comipo 登录页时 DOM 调查被导航中断；未验证正文 |
 | 217 | arenascan.com | arenascan.com | 专用正文图片 | 公开章节正文结构已核对 |
-| 218 | luvyaa.my.id | luvyaa.my.id | 通用正文图片检测 | 首页 HTML 可访问 |
+| 218 | luvyaa.my.id | luvyaa.my.id / luvyaa.co / v5.luvyaa.co | 已核对正文图片 | 原域名落地页显式链接与正常跳转确认现用域名，readerarea 中完整长图复用分段链路；排除上方广告 |
 | 219 | toondex.co | toondex.co | 专用正文图片 | 编号正文及扩展入口已核对；无 OCR 验收 |
 | 220 | manwadd.cc | manwadd.cc | 通用正文图片检测 | 连接失败 |
 | 221 | saucemanhwa.com | saucemanhwa.com | 通用正文图片检测 | 当前重定向到域名停放页，正文未确认 |
@@ -235,11 +235,11 @@
 | 225 | manhwaden.com | manhwaden.com | 专用长图正文 | 完整长图及扩展入口已核对；共用分段，无本轮 OCR 验收 |
 | 226 | dvamh-vzwp7.top | dvamh-vzwp7.top | 通用正文图片检测 | 首页 HTML 可访问 |
 | 227 | comic.pixiv.net | comic.pixiv.net | 公开背景正文 · 连续翻译 | 同源背景完整页可读 |
-| 228 | comico.jp | comico.jp | 通用正文图片检测 | 公开销售与租阅已结束；已购书架需账户，未验证 |
+| 228 | comico.jp | comico.jp | 通用正文图片检测 | 公开销售与租阅已结束；本轮首页与搜索页没有正文，已购书架需账户，未验证 |
 | 229 | manhwas.men | manhwas.men | 通用正文图片检测 | 连接失败 |
-| 230 | ridibooks.com | ridibooks.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 230 | ridibooks.com | ridibooks.com | 通用正文图片检测 | 本轮公开漫画目录返回 403，无正文验收 |
 | 231 | sunday-webry.com | sunday-webry.com | 正文画布 · 圈选翻译 | 公开章节画布不可直接读取 |
 | 232 | ynjn.jp | ynjn.jp | 通用正文图片检测 | 公开阅读器停在加载状态，未验证正文 |
 | 233 | mangayun.com | mangayun.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 234 | manhwaweb.com | manhwaweb.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 234 | manhwaweb.com | manhwaweb.com | 已核对正文图片 | /leer/ 公开章节限定正文直系图片，完整长图复用分段链路；排除音乐按钮图片和封面 |
 | 235 | a-i-manga.com | a-i-manga.com | 专用正文图片检测 | 公开作品阅读页 HTTP 200；24 张编号正文图片 |

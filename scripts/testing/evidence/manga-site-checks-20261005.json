@@ -331,7 +331,19 @@
           "title": "WEBエース"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:14:58.302Z",
+          "requestedUrl": "https://web-ace.jp/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public Comic Newtype work list links to existing ComicWalker detail pages; no independent Web Ace reader body confirmed.",
+          "finalUrl": "https://web-ace.jp/",
+          "status": 200,
+          "title": "WEBエース",
+          "imageCount": 44
+        }
+      ]
     },
     {
       "name": "Antbyw",
@@ -824,7 +836,19 @@
           "hostname": "syosetu.cheap"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:14:58.302Z",
+          "requestedUrl": "https://syosetu.cheap/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public work and chapter open; normal chapter-menu click still displays no body IMG/canvas. No chapter acceptance.",
+          "finalUrl": "https://syosetu.cheap/",
+          "status": 200,
+          "title": "Syosetu - 漫画 raw, 漫画raw, 漫画bank, 漫画ろう, Manga raw, 無料漫画, 漫画バンク, まんがらう, 漫画ロー, マンガバンク, マンガ1001",
+          "imageCount": 25
+        }
+      ]
     },
     {
       "name": "Comick",
@@ -1009,7 +1033,19 @@
           "hostname": "klz9.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:14:58.302Z",
+          "requestedUrl": "https://klz9.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Initial headless chapter had unloaded body. Normal visible background browser displays fourteen 1127x1600 pages; exact body profile and two-page OCR smoke checked separately.",
+          "finalUrl": "https://klz9.com/",
+          "status": 200,
+          "title": "KL - 免费在线看生肉漫画 - 高质量",
+          "imageCount": 26
+        }
+      ]
     },
     {
       "name": "comemh8",
@@ -1843,7 +1879,19 @@
           "hostname": "mrblue.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:14:58.302Z",
+          "requestedUrl": "https://www.mrblue.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public home and free-comic directory accessible; actual chapter body not confirmed.",
+          "finalUrl": "https://www.mrblue.com/",
+          "status": 200,
+          "title": "미스터블루 - 웹툰, 만화, 소설",
+          "imageCount": 1
+        }
+      ]
     },
     {
       "name": "MangaLove",
@@ -4479,7 +4527,19 @@
           "hostname": "viewer.bookhodai.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:14:58.302Z",
+          "requestedUrl": "https://viewer.bookhodai.jp/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Root normally redirects to bookhodai subscription/login home; no public reader body found.",
+          "finalUrl": "https://bookhodai.jp/",
+          "status": 200,
+          "title": "漫画無料読み放題ならブック放題 | 漫画65,000冊・雑誌800誌・旅行ガイド600冊 コスパ最強の漫画・雑誌サブスク",
+          "imageCount": 14
+        }
+      ]
     },
     {
       "name": "play.comipo.app",
@@ -4498,7 +4558,17 @@
           "hostname": "play.comipo.app"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:14:58.302Z",
+          "requestedUrl": "https://play.comipo.app/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal navigation reaches comipo login; DOM research interrupted by navigation, no body acceptance.",
+          "finalUrl": "https://www.comipo.app/login",
+          "error": "page.evaluate: Execution context was destroyed, most likely because of a navigation"
+        }
+      ]
     },
     {
       "name": "arenascan.com",
@@ -4522,7 +4592,9 @@
     {
       "name": "luvyaa.my.id",
       "hosts": [
-        "luvyaa.my.id"
+        "luvyaa.my.id",
+        "luvyaa.co",
+        "v5.luvyaa.co"
       ],
       "accessChecks": [
         {
@@ -4536,7 +4608,19 @@
           "hostname": "luvyaa.my.id"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:14:58.302Z",
+          "requestedUrl": "https://luvyaa.my.id/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Original landing page explicitly links Baca Komik to luvyaa.co; normal navigation redirects to v5.luvyaa.co, where a public chapter shows complete long-strip artwork in article #readerarea.",
+          "finalUrl": "https://luvyaa.my.id/",
+          "status": 200,
+          "title": "Luvyaa ID - Baca Komik Bahasa Indonesia",
+          "imageCount": 1
+        }
+      ]
     },
     {
       "name": "toondex.co",
@@ -4785,7 +4869,19 @@
           "title": "comico (コミコ) | タテカラー漫画が毎日無料、毎日更新！"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:14:58.302Z",
+          "requestedUrl": "https://www.comico.jp/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Home and public search render navigation with no chapter or body. Previous service-end/account limitation remains unverified at chapter level.",
+          "finalUrl": "https://www.comico.jp/",
+          "status": 200,
+          "title": "comico (コミコ) | タテカラー漫画が毎日無料、毎日更新！",
+          "imageCount": 0
+        }
+      ]
     },
     {
       "name": "manhwas.men",
@@ -4819,7 +4915,19 @@
           "hostname": "ridibooks.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:14:58.302Z",
+          "requestedUrl": "https://ridibooks.com/comics/ebook",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Current public comics directory HTTP403, no chapter body.",
+          "finalUrl": "https://ridibooks.com/comics/ebook",
+          "status": 403,
+          "title": "请稍候…",
+          "imageCount": 0
+        }
+      ]
     },
     {
       "name": "sunday-webry.com",
@@ -4899,7 +5007,19 @@
           "hostname": "manhwaweb.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:14:58.302Z",
+          "requestedUrl": "https://manhwaweb.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public work links to /leer/ chapter; complete body strips shown in width container, music button pictures and covers excluded.",
+          "finalUrl": "https://manhwaweb.com/",
+          "status": 200,
+          "title": "ManhwaWeb",
+          "imageCount": 58
+        }
+      ]
     },
     {
       "name": "a-i-manga.com",
@@ -6273,6 +6393,66 @@
           "height": 3915
         }
       ],
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://v5.luvyaa.co/i-shall-master-this-family-chapter-236/",
+      "finalUrl": "https://v5.luvyaa.co/i-shall-master-this-family-chapter-236/",
+      "status": 200,
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal visible background browser shows twenty complete body strips in article #readerarea, first 728x7280; premium advertising above excluded. Entry verified, no new Luvyaa OCR quality acceptance.",
+      "imageCount": 24,
+      "canvases": [],
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://manhwaweb.com/leer/el-rey-caballero-de-cabello-negro_1786828095885-1_01",
+      "finalUrl": "https://manhwaweb.com/leer/el-rey-caballero-de-cabello-negro_1786828095885-1_01",
+      "status": 200,
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal visible background browser shows full body pictures in div[class~=\"md:max-w-3xl\"].m-auto, including 636x14618 strip. Exact direct IMG rule excludes music controls, cover and linked ads. Entry verified; no new ManhwaWeb OCR quality acceptance.",
+      "imageCount": 32,
+      "canvases": [],
+      "networkFailureCount": 3
+    },
+    {
+      "url": "https://syosetu.cheap/manga/%e3%83%af%e3%83%b3%e3%83%94%e3%83%bc%e3%82%b9-raw-free/chapter-1194/",
+      "finalUrl": "https://syosetu.cheap/manga/%e3%83%af%e3%83%b3%e3%83%94%e3%83%bc%e3%82%b9-raw-free/chapter-1194/",
+      "status": 200,
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal public chapter displays only navigation/summary and loading artwork. No body IMG/canvas; chapter menu later rechecked without body. No reader profile added.",
+      "imageCount": 3,
+      "canvases": [],
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://klz9.com/the-exiled-reincarnated-heavy-knight-is-unrivaled-in-game-knowledge-chapter-181.html",
+      "finalUrl": "https://klz9.com/the-exiled-reincarnated-heavy-knight-is-unrivaled-in-game-knowledge-chapter-181.html",
+      "status": 200,
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal background browser displays fourteen complete 1127x1600 body pages under main select-none transition-all. Initial site ad obscured viewport; normal Close checked separately. Two-page OCR smoke recorded separately.",
+      "imageCount": 16,
+      "canvases": [],
+      "networkFailureCount": 4
+    },
+    {
+      "url": "https://klz9.com/the-exiled-reincarnated-heavy-knight-is-unrivaled-in-game-knowledge-chapter-181.html",
+      "finalUrl": "https://klz9.com/the-exiled-reincarnated-heavy-knight-is-unrivaled-in-game-knowledge-chapter-181.html",
+      "status": 200,
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Initial headless public KL chapter body has zero natural sizes; retained as unloaded research, not successful entry or OCR. Normal browser follow-up separate.",
+      "imageCount": 15,
+      "canvases": [],
+      "networkFailureCount": 6
+    },
+    {
+      "url": "https://syosetu.cheap/manga/%e3%83%af%e3%83%b3%e3%83%94%e3%83%bc%e3%82%b9-raw-free/chapter-1194/",
+      "finalUrl": "https://syosetu.cheap/manga/%e3%83%af%e3%83%b3%e3%83%94%e3%83%bc%e3%82%b9-raw-free/chapter-1194/",
+      "status": 200,
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal public .go-open-popup chapter-menu click still displays summary/navigation with no body IMG/canvas; no acceptance.",
+      "imageCount": 3,
+      "canvases": [],
       "networkFailureCount": 2
     }
   ],
@@ -8384,6 +8564,256 @@
       "imageRuntimeFlowClient": "3 files / 199 cases passed",
       "docsBuild": "passed",
       "scope": "Final source authorization and area-only GlobalComix configuration built. Firefox/userscript runtime and full architecture suite not run; previous verificationOwnership baseline failures retained."
+    },
+    "publicLinkedReadersUnit": {
+      "files": 7,
+      "cases": 449,
+      "result": "passed",
+      "fourDimensionalCoverage": "100% for eight manga config/reader/surface/source authorization modules",
+      "scope": "Three actual public body selectors exclude ads and covers, exact host and chapter boundaries, current Luvyaa domains from explicit landing link and normal redirect. No reader pipeline or permissions change."
+    },
+    "publicLinkedReadersEntriesInitialAttempt": {
+      "result": "passed",
+      "cases": 19,
+      "baseCases": 16,
+      "publicReaders": [
+        {
+          "requestedUrl": "https://v5.luvyaa.co/i-shall-master-this-family-chapter-236/",
+          "finalUrl": "https://v5.luvyaa.co/i-shall-master-this-family-chapter-236/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 20,
+          "loadedBodyElements": 20,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://manhwaweb.com/leer/el-rey-caballero-de-cabello-negro_1786828095885-1_01",
+          "finalUrl": "https://manhwaweb.com/leer/el-rey-caballero-de-cabello-negro_1786828095885-1_01",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 19,
+          "loadedBodyElements": 5,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://klz9.com/the-exiled-reincarnated-heavy-knight-is-unrivaled-in-game-knowledge-chapter-181.html",
+          "finalUrl": "https://klz9.com/the-exiled-reincarnated-heavy-knight-is-unrivaled-in-game-knowledge-chapter-181.html",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 14,
+          "loadedBodyElements": 10,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "scope": "Pure icon and three live body entries. KL body loaded but a site-owned advertisement obscured viewport; not unobstructed visual acceptance. No OCR in this suite.",
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [
+        {
+          "url": "https://v5.luvyaa.co/i-shall-master-this-family-chapter-236/",
+          "message": "jQuery(...).pagination is not a function",
+          "sourceHost": "v5.luvyaa.co"
+        }
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        },
+        "frontmostAfter": {
+          "pid": 65472,
+          "name": "ChatGPT"
+        }
+      },
+      "profileRemoved": true
+    },
+    "publicLinkedReadersEntries": {
+      "result": "passed",
+      "cases": 19,
+      "baseCases": 16,
+      "publicReaders": [
+        {
+          "requestedUrl": "https://v5.luvyaa.co/i-shall-master-this-family-chapter-236/",
+          "finalUrl": "https://v5.luvyaa.co/i-shall-master-this-family-chapter-236/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 20,
+          "loadedBodyElements": 20,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://manhwaweb.com/leer/el-rey-caballero-de-cabello-negro_1786828095885-1_01",
+          "finalUrl": "https://manhwaweb.com/leer/el-rey-caballero-de-cabello-negro_1786828095885-1_01",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 19,
+          "loadedBodyElements": 5,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://klz9.com/the-exiled-reincarnated-heavy-knight-is-unrivaled-in-game-knowledge-chapter-181.html",
+          "finalUrl": "https://klz9.com/the-exiled-reincarnated-heavy-knight-is-unrivaled-in-game-knowledge-chapter-181.html",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 14,
+          "loadedBodyElements": 6,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "scope": "Pure icon and three actual public body entries. Normal observed Close button removes KL site advertisement; body visible. Luvyaa host script pagination exception separately attributed by its HTTPS stack. No OCR in this suite.",
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [
+        {
+          "url": "https://v5.luvyaa.co/i-shall-master-this-family-chapter-236/",
+          "message": "jQuery(...).pagination is not a function",
+          "sourceHost": "v5.luvyaa.co"
+        }
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        },
+        "frontmostAfter": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        }
+      },
+      "profileRemoved": true
+    },
+    "klDialogueTranslation": {
+      "result": "passed",
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "scroll automatically translates a new visible page",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the resident brand icon"
+      ],
+      "publicUrl": "https://klz9.com/the-exiled-reincarnated-heavy-knight-is-unrivaled-in-game-knowledge-chapter-181.html",
+      "sourceLanguage": "ja",
+      "selectedImageIndices": [
+        0,
+        1
+      ],
+      "sourceDimensions": [
+        {
+          "width": 1127,
+          "height": 1600
+        },
+        {
+          "width": 1127,
+          "height": 1600
+        }
+      ],
+      "scope": "Two public pages with production PaddleOCR and live Google. First-cancel check skipped; pause restores src/srcset/sizes/style, resume uses cache, normal scroll translates next page without automatic panel. Not full-chapter or quality acceptance.",
+      "qualityFinding": "Chinese appears for experience/level labels and dialogue. Vertical Japanese and artistic title/SFX remain, some dialogue misrecognized and mistranslated as taking photos of a monster; Chinese ordering and balloon typesetting remain broken.",
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 24763,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 39886,
+          "mayIncludeFirstInpaintingPreparation": true
+        }
+      ],
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrorCount": 0,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        },
+        "frontmostAfter": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        }
+      },
+      "profileRemoved": true,
+      "operations": 2,
+      "sourceRequests": [
+        {
+          "documentUrl": "https://klz9.com/the-exiled-reincarnated-heavy-knight-is-unrivaled-in-game-knowledge-chapter-181.html",
+          "sourceHost": "j2.jfimv2.xyz",
+          "frameId": 0
+        },
+        {
+          "documentUrl": "https://klz9.com/the-exiled-reincarnated-heavy-knight-is-unrivaled-in-game-knowledge-chapter-181.html",
+          "sourceHost": "j2.jfimv2.xyz",
+          "frameId": 0
+        }
+      ]
+    },
+    "publicLinkedReadersBuilds": {
+      "chrome": "passed (28.4s)",
+      "firefox": "passed (30.3s)",
+      "userscript": "passed",
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed (1917070 bytes)",
+      "compile": "passed",
+      "testAudit": "468 files / 6059 declarations",
+      "selectedContracts": "3 files / 823 cases passed",
+      "scope": "Three body profiles and observed Luvyaa domains. Firefox/userscript runtime and full architecture suite not run; previous verificationOwnership baseline failures retained.",
+      "docsBuild": "passed (4.10s)"
     }
   }
 }

@@ -6,6 +6,31 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it.each([
+        ['v5.luvyaa.co','/i-shall-master-this-family-chapter-236/','article #readerarea > img.ts-main-image',
+            '<article><a><img id="ad" class="ts-main-image"></a><div id="readerarea"><img id="body" class="ts-main-image"><img id="other"></div></article>',
+            ['/','/top-reader/','/i-shall-master-this-family/','/title-chapter-one/','/title-chapter-236/extra']],
+        ['manhwaweb.com','/leer/el-rey-caballero-de-cabello-negro_1786828095885-1_01','div[class~="md:max-w-3xl"].m-auto > img.w-full',
+            '<header><img id="music" class="w-full"></header><div class="md:max-w-3xl m-auto"><img id="body" class="w-full"><a><img id="ad" class="w-full"></a></div><aside><img id="cover" class="w-full"></aside>',
+            ['/','/manhwa/title_1786828095885','/leer/title','/leer/title_1786828095885-1','/leer/title_1786828095885-1_01/extra']],
+        ['klz9.com','/the-exiled-reincarnated-heavy-knight-is-unrivaled-in-game-knowledge-chapter-181.html','main .select-none div.transition-all > img.max-w-3xl',
+            '<header><img id="logo" class="max-w-3xl"></header><main><div class="select-none"><div class="transition-all"><img id="body" class="max-w-3xl"><a><img id="ad" class="max-w-3xl"></a></div></div></main><aside><img id="cover" class="max-w-3xl"></aside>',
+            ['/','/title.html','/title-chapter-one.html','/title-chapter-181','/title-chapter-181.html/extra']],
+    ])('公开章节 %s 只匹配正文容器并保持域名、章节边界', (host,path,selector,html,invalidPaths) => {
+        expect(resolveMangaSite(`https://${host}${path}`)).toMatchObject({selector,requireContent:true,custom:false});
+        const {document}=parseHTML(html as string);
+        expect([...document.querySelectorAll(selector as string)].map(e=>e.id)).toEqual(['body']);
+        for(const invalidPath of invalidPaths as string[])expect(resolveMangaReaderProfile(host as string,invalidPath)).toBeNull();
+        for(const invalidHost of [`${host}.attacker.test`,`fake${host}`])expect(resolveMangaReaderProfile(invalidHost,path as string)).toBeNull();
+    });
+    it('Luvyaa 显式公开阅读链接与正常跳转登记到原目录名称',()=>{
+        expect(MANGA_SITE_CATALOG.find(site=>site.name==='luvyaa.my.id')?.hosts).toEqual(['luvyaa.my.id','luvyaa.co','v5.luvyaa.co']);
+        expect(isCatalogMangaHost('v5.luvyaa.co')).toBe(true);
+        expect(isCatalogMangaHost('luvyaa.co.attacker.test')).toBe(false);
+        expect(resolveMangaReaderProfile('v5.luvyaa.co','/title-chapter-1.5')).toBeTruthy();
+        expect(resolveMangaReaderProfile('manhwaweb.com','/leer/title_123-1.5_01/')).toBeTruthy();
+        expect(resolveMangaReaderProfile('klz9.com','/title-chapter-1.5.html')).toBeTruthy();
+    });
     it('GlobalComix 受限图片提供圈选并限定公开章节路径与正文容器', () => {
         const release='be3701bf-70cc-43e8-b16d-3f168abaf799', base=`/read/${release}`;
         for(const path of [base,`${base}/`,`${base}/1`,`${base}/2/`,`${base}/1/2`])expect(resolveMangaSite(`https://www.globalcomix.com${path}`)).toMatchObject({selector:':not(*)',areaSelector:'#readerReleasePages #horizontalReader img.chakra-image',requireContent:true,custom:false});

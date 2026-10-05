@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/mangaReaderProfiles.ts
  * 文件职责：保存经公开阅读页结构核对的正文规则，避免通用图片过滤漏掉正文或误选推荐封面。
- * 主要内容：已核对章节站与 Manhuaplus、GlobalComix 正文规则，GlobalComix 跨域正文提供圈选入口，MechaComic 纵向完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界，GigaViewer、Comici、ComicWalker 与 Animate 正文画布规则、不可读画布和 CMOA 等分片的圈选入口；路径与域名均保留边界。
+ * 主要内容：已核对章节站与 Luvyaa、ManhwaWeb、KL、Manhuaplus 正文规则，GlobalComix 跨域正文提供圈选入口，MechaComic 纵向完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界，GigaViewer、Comici、ComicWalker 与 Animate 正文画布规则、不可读画布和 CMOA 等分片的圈选入口；路径与域名均保留边界。
  * 模块边界：纯匹配，不执行站点脚本、不读取私有接口、不截图；可访问的图片由 content 阅读器检测。
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
@@ -13,6 +13,15 @@ const comiciHosts = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
 export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com', 'animatebookstore.com'];
 export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; canvasSelector?: string; canvasInteractionSelector?: string; backgroundSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
+    if (host === 'v5.luvyaa.co' && /^\/[^/]+-chapter-\d+(?:\.\d+)?\/?$/.test(pathname)) return {
+        name: 'Luvyaa', selector: 'article #readerarea > img.ts-main-image',
+    };
+    if (host === 'manhwaweb.com' && /^\/leer\/[^/]+_\d+-\d+(?:\.\d+)?_\d+\/?$/.test(pathname)) return {
+        name: 'ManhwaWeb', selector: 'div[class~="md:max-w-3xl"].m-auto > img.w-full',
+    };
+    if (host === 'klz9.com' && /^\/[^/]+-chapter-\d+(?:\.\d+)?\.html$/.test(pathname)) return {
+        name: 'KL', selector: 'main .select-none div.transition-all > img.max-w-3xl',
+    };
     if (host === 'globalcomix.com') {
         const release = /^\/read\/([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12})(?:\/[1-9]\d*(?:\/[1-9]\d*)?)?\/?$/.exec(pathname)?.[1];
         if (release) return {name: 'GlobalComix', selector: ':not(*)', areaSelector: '#readerReleasePages #horizontalReader img.chakra-image'};
