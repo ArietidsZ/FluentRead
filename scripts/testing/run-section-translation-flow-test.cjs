@@ -1,5 +1,5 @@
 'use strict';
-/** 局部翻译生产回归：临时隔离 Edge、真实指针与按键手势、确定性翻译传输；只翻译点选区域，并验证恢复与退出。 */
+/** 局部翻译生产回归：临时隔离 Edge、真实指针与按键手势、确定性翻译传输；验证防抖预览、点击锁定、按钮调整与确认，仅翻译所选区域并验证恢复与退出。 */
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -86,7 +86,7 @@ async function wait(test, timeout = 20000, label = currentCase) {
   while (Date.now() < until) {if (await test()) return; await page.waitForTimeout(60);}
   throw new Error(`${label}: 等待超时`);
 }
-const pickerState = () => picker(`const box=this.querySelector('.fr-section-box'),r=box.getBoundingClientRect();return{visible:box.classList.contains('is-visible'),rect:{x:r.x,y:r.y,width:r.width,height:r.height},action:this.querySelector('.fr-section-label-action')?.textContent,meta:this.querySelector('.fr-section-label-meta')?.textContent,bar:this.querySelector('.fr-section-bar')?.textContent}`);
+const pickerState = () => picker(`const box=this.querySelector('.fr-section-box'),r=box.getBoundingClientRect();return{visible:box.classList.contains('is-visible'),rect:{x:r.x,y:r.y,width:r.width,height:r.height},action:this.querySelector('.fr-section-label-action')?.textContent,meta:this.querySelector('.fr-section-label-meta')?.textContent,bar:this.querySelector('.fr-section-bar')?.textContent,selection:this.host.getAttribute('data-selection-state'),preview:this.querySelector('.fr-section-bar-preview')?.textContent,confirmDisabled:this.querySelector('.fr-section-confirm')?.disabled}`);
 const pickerActive = async () => (await page.locator('[data-fluent-read-ui="section-picker"]').count()) > 0 && Boolean(await picker('return !this.querySelector(".fr-section-bar.is-hidden")'));
 async function startFromPopupMessage() {
   const response = await popup.evaluate(tab => chrome.tabs.sendMessage(tab, {type: 'contextMenuTranslate', action: 'section'}), tabId);
@@ -103,7 +103,13 @@ async function hover(selector) {
   await page.locator(selector).scrollIntoViewIfNeeded();
   const point = await center(selector);
   await page.mouse.move(point.x, point.y, {steps: 4});
+  await page.waitForTimeout(220);
   return point;
+}
+async function clickPickerButton(selector) {
+  const point = await picker(`const b=this.querySelector(${JSON.stringify(selector)});const r=b.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2,disabled:b.disabled}`);
+  assert(point && !point.disabled, `enabled picker button: ${selector}`);
+  await page.mouse.click(point.x, point.y);
 }
 async function waitLabel(pattern, meta) {
   await wait(async () => {const state = await pickerState(); return state?.visible && pattern.test(state.action || '') && (!meta || state.meta === meta);}, 8000, `${currentCase}: 标签 ${pattern}`);
@@ -189,27 +195,65 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
   await page.waitForSelector('#fluent-read-page-styles', {state: 'attached', timeout: 20000});
   const pageUrl = page.url();
 
+  currentCase = 'stable boundary preview, explicit locking, visible range buttons and reselect';
+  await startFromPopupMessage();
+  await hover('#p1');
+  await waitLabel(/翻译此区域 · 1 段/, '段落');
+  const boundary = await page.locator('#p1').boundingBox();
+  const firstRect = (await pickerState()).rect;
+  for (const offset of [2, -2, 3, -1, 2, -3]) {
+    await page.mouse.move(boundary.x + 8, boundary.y + boundary.height + offset);
+    await page.waitForTimeout(30);
+    assert.deepEqual((await pickerState()).rect, firstRect, 'boundary jitter keeps the paragraph');
+  }
+  await hover('#p1');
+  await page.mouse.click((await center('#p1')).x, (await center('#p1')).y);
+  await wait(async () => (await pickerState())?.selection === 'locked');
+  await hover('#about-text');
+  assert.equal((await pickerState()).meta, '段落');
+  await clickPickerButton('.fr-section-expand');
+  await waitLabel(/翻译此区域 · 7 段/, '文章');
+  await clickPickerButton('.fr-section-shrink');
+  await waitLabel(/翻译此区域 · 1 段/, '段落');
+  await shot('00-locked-range-controls');
+  await clickPickerButton('.fr-section-reselect');
+  assert.equal((await pickerState()).selection, 'preview');
+  await hover('#p2');
+  await waitLabel(/翻译此区域 · 1 段/, '段落');
+  assert.match((await pickerState()).preview, /It places the translation/);
+  assert.equal(await worker.evaluate(() => globalThis.__sectionFixture.origins.length), 0);
+  await page.keyboard.press('Escape');
+  report.cases.push(currentCase);
+
   currentCase = 'picker highlights the paragraph under the pointer and widens with ArrowUp';
   await startFromPopupMessage();
   assert.equal(await page.evaluate(() => document.querySelector('[data-fluent-read-ui="section-picker"]').shadowRoot), null, 'closed shadow root');
-  assert.match((await pickerState()).bar, /局部翻译.*点击要翻译的区域/);
+  assert.match((await pickerState()).bar, /局部翻译.*移动鼠标预览/);
   await hover('#p1');
-  let state = await waitLabel(/翻译此区域 · 1 段/, 'p#p1');
+  let state = await waitLabel(/翻译此区域 · 1 段/, '段落');
   const p1Box = await page.locator('#p1').boundingBox();
   // 高亮框向外留 3px，完整包住段落又不压住文字。
   assert.ok(Math.abs(state.rect.x - (p1Box.x - 3)) < 2 && Math.abs(state.rect.width - (p1Box.width + 6)) < 2, JSON.stringify({state, p1Box}));
   await page.keyboard.press('ArrowUp');
-  state = await waitLabel(/翻译此区域 · \d+ 段/, 'article#readme-body');
+  state = await waitLabel(/翻译此区域 · \d+ 段/, '文章');
   report.readmeLabel = state.action;
   await shot('01-picker-readme');
   // 扩大后鼠标在 README 内移动不会跳回小段落。
   await hover('#inline-link');
-  state = await pickerState(); assert.equal(state.meta, 'article#readme-body');
+  state = await pickerState(); assert.equal(state.meta, '文章');
   report.cases.push(currentCase);
 
-  currentCase = 'clicking inside the section translates only that section without following the link';
+  currentCase = 'click locks the section without navigation or requests; toolbar confirms only that section';
   const linkPoint = await center('#inline-link');
+  const beforeLock = await worker.evaluate(() => globalThis.__sectionFixture.origins.length);
   await page.mouse.click(linkPoint.x, linkPoint.y);
+  await wait(async () => (await pickerState())?.selection === 'locked');
+  await page.waitForTimeout(150);
+  assert.equal(await worker.evaluate(() => globalThis.__sectionFixture.origins.length), beforeLock, 'lock does not translate');
+  assert.equal((await pickerState()).confirmDisabled, false);
+  await hover('#about-text');
+  assert.equal((await pickerState()).meta, '文章', 'locked section survives mouse movement and scrolling');
+  await clickPickerButton('.fr-section-confirm');
   await wait(async () => !(await pickerActive()), 5000);
   assert.equal(page.url(), pageUrl, 'link must not navigate');
   assert.equal(await page.evaluate(() => window.__pageClicks), 0, 'page must not receive the picking click');
@@ -233,9 +277,9 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
   currentCase = 'picking the translated section again restores only that section';
   await startFromPopupMessage();
   await hover('#p2');
-  await waitLabel(/恢复原文 · 1 段/, 'p#p2');
+  await waitLabel(/恢复原文 · 1 段/, '段落');
   await page.keyboard.press('ArrowUp');
-  state = await waitLabel(/恢复原文 · 7 段/, 'article#readme-body');
+  state = await waitLabel(/恢复原文 · 7 段/, '文章');
   await shot('03-picker-restore-label');
   await page.keyboard.press('Enter');
   await wait(async () => (await translationCount(readmeTargets.join(','))) === 0, 10000);
@@ -260,7 +304,7 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
 
   currentCase = 'picking page chrome translates it even though page translation keeps it original';
   await startFromPopupMessage(); await hover('#about-text'); await page.keyboard.press('ArrowUp');
-  await waitLabel(/翻译此区域 · 2 段/, 'aside#about');
+  await waitLabel(/翻译此区域 · 2 段/, '区域');
   await page.keyboard.press('Enter');
   await wait(async () => (await showsTranslation('#about-title')) && (await showsTranslation('#about-text')), 20000);
   assert.equal(await hasTranslation('#p1'), false);
@@ -269,15 +313,15 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
 
   currentCase = 'same-language and empty sections explain why nothing was requested';
   const beforeSame = await worker.evaluate(() => globalThis.__sectionFixture.origins.length);
-  await startFromPopupMessage(); await hover('#zh-text'); await waitLabel(/翻译此区域 · 1 段/, 'p#zh-text');
+  await startFromPopupMessage(); await hover('#zh-text'); await waitLabel(/翻译此区域 · 1 段/, '段落');
   await page.keyboard.press('Enter');
   await wait(async () => /已经是目标语言/.test(await noticeText()), 8000);
   assert.equal(await worker.evaluate(() => globalThis.__sectionFixture.origins.length), beforeSame);
-  await startFromPopupMessage(); await hover('#zh-text'); await waitLabel(/已是目标语言，无需翻译/, 'p#zh-text');
-  await page.locator('#empty-section').scrollIntoViewIfNeeded();
+  await startFromPopupMessage(); await hover('#zh-text'); await waitLabel(/已是目标语言，无需翻译/, '段落');
+  await page.locator('#empty-section').evaluate(element => element.scrollIntoView({block: 'center'}));
   const emptyBox = await page.locator('#empty-section').boundingBox();
-  await page.mouse.move(emptyBox.x + emptyBox.width - 20, emptyBox.y + emptyBox.height - 10, {steps: 3});
-  await waitLabel(/没有可翻译的文字/, 'div#empty-section');
+  await page.mouse.move(emptyBox.x + 8, emptyBox.y + 8, {steps: 3});
+  await waitLabel(/没有可翻译的文字/, '区域');
   await page.keyboard.press('Escape');
   report.cases.push(currentCase);
 
@@ -288,7 +332,7 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
   await page.waitForTimeout(300);
   await hover('#p3');
   await page.keyboard.press('Alt+R');
-  await waitLabel(/翻译此区域 · 1 段/, 'p#p3');
+  await waitLabel(/翻译此区域 · 1 段/, '段落');
   await page.keyboard.press('Alt+R');
   await wait(async () => (await page.locator('[data-fluent-read-ui="section-picker"]').count()) === 0, 3000);
   await page.locator('#notes').focus(); await page.keyboard.press('Alt+R'); await page.waitForTimeout(300);
@@ -311,10 +355,10 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
   await hover('#p2');
   const beforeProfile = await worker.evaluate(() => globalThis.__sectionFixture.requests.length);
   await page.keyboard.press('F8');
-  await waitLabel(/翻译此区域 · 1 段/, 'p#p2');
+  await waitLabel(/翻译此区域 · 1 段/, '段落');
   assert.equal(await worker.evaluate(() => globalThis.__sectionFixture.requests.length), beforeProfile, 'shortcut only starts picking');
   await page.keyboard.press('ArrowUp');
-  await waitLabel(/翻译此区域 · 7 段/, 'article#readme-body');
+  await waitLabel(/翻译此区域 · 7 段/, '文章');
   await page.keyboard.press('Enter');
   await wait(async () => (await translationCount(readmeTargets.join(','))) === readmeTargets.length, 30000);
   const profileRequests = await worker.evaluate(offset => globalThis.__sectionFixture.requests.slice(offset), beforeProfile);
@@ -330,14 +374,14 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
   await page.waitForTimeout(300);
   const beforeSwitch = await worker.evaluate(() => globalThis.__sectionFixture.requests.length);
   await hover('#p2'); await page.keyboard.press('F9');
-  await waitLabel(/翻译此区域 · 1 段/, 'p#p2');
-  await page.keyboard.press('ArrowUp'); await waitLabel(/翻译此区域 · 7 段/, 'article#readme-body');
+  await waitLabel(/翻译此区域 · 1 段/, '段落');
+  await page.keyboard.press('ArrowUp'); await waitLabel(/翻译此区域 · 7 段/, '文章');
   await page.keyboard.press('Enter');
   await wait(async () => (await worker.evaluate(offset => globalThis.__sectionFixture.requests.slice(offset).filter(request => request.target === 'fr').length, beforeSwitch)) >= 7, 30000);
   await wait(async () => (await translationCount(readmeTargets.join(','))) === readmeTargets.length, 30000);
   await hover('#p2'); await page.keyboard.press('F9');
-  await waitLabel(/恢复原文 · 1 段/, 'p#p2');
-  await page.keyboard.press('ArrowUp'); await waitLabel(/恢复原文 · 7 段/, 'article#readme-body');
+  await waitLabel(/恢复原文 · 1 段/, '段落');
+  await page.keyboard.press('ArrowUp'); await waitLabel(/恢复原文 · 7 段/, '文章');
   await page.keyboard.press('Enter');
   await wait(async () => (await translationCount(readmeTargets.join(','))) === 0, 10000);
   report.cases.push(currentCase);
@@ -346,13 +390,29 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
   await page.locator('#notes').focus(); await page.keyboard.press('F8'); await page.waitForTimeout(200);
   assert.equal(await pickerActive(), false, 'profile shortcut yields while typing');
   await page.locator('#p1').click(); await hover('#p1'); await page.keyboard.press('F8');
-  await waitLabel(/翻译此区域 · 1 段/, 'p#p1');
+  await waitLabel(/翻译此区域 · 1 段/, '段落');
   await page.keyboard.press('F8');
   await wait(async () => !(await pickerActive()), 3000);
   await page.waitForTimeout(350);
-  await page.keyboard.press('F8'); await waitLabel(/翻译此区域 · 1 段/, 'p#p1');
+  await page.keyboard.press('F8'); await waitLabel(/翻译此区域 · 1 段/, '段落');
   await page.keyboard.press('Escape'); await wait(async () => !(await pickerActive()), 3000);
   assert.equal(await translationCount(readmeTargets.join(',')), 0, 'cancel does not translate');
+  report.cases.push(currentCase);
+
+  currentCase = 'narrow layout keeps all range controls and confirmation within the viewport';
+  await page.setViewportSize({width: 390, height: 780});
+  await startFromPopupMessage();
+  await hover('#p1');
+  await page.mouse.click((await center('#p1')).x, (await center('#p1')).y);
+  await wait(async () => (await pickerState())?.selection === 'locked');
+  await wait(async () => (await pickerState())?.confirmDisabled === false);
+  const narrow = await picker(`const buttons=[...this.querySelectorAll('.fr-section-button,.fr-section-bar-close')];return buttons.map(b=>{const r=b.getBoundingClientRect();return{text:b.textContent,left:r.left,right:r.right,top:r.top,bottom:r.bottom}})`);
+  assert.equal(narrow.length, 5);
+  assert(narrow.every(button => button.left >= 0 && button.right <= 390 && button.top >= 0 && button.bottom <= 780), JSON.stringify(narrow));
+  report.narrowControls = narrow;
+  await shot('09-narrow-locked-controls');
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({width: 1280, height: 900});
   report.cases.push(currentCase);
 
   currentCase = 'turning the plugin off exits picking and rejects new requests';
@@ -377,11 +437,11 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
     const box = await firstParagraph.boundingBox();
     await page.mouse.move(box.x + 8, box.y + Math.min(box.height / 2, 10), {steps: 4});
     await waitLabel(/翻译此区域/);
-    for (let attempt = 0; attempt < 8 && !/^article\./.test((await pickerState()).meta || ''); attempt += 1) {
+    for (let attempt = 0; attempt < 8 && (await pickerState()).meta !== '文章'; attempt += 1) {
       await page.keyboard.press('ArrowUp'); await page.waitForTimeout(150);
     }
     state = await pickerState(); report.githubLabel = state;
-    assert.match(state.meta, /^article\.markdown-body/);
+    assert.equal(state.meta, '文章');
     await shot('10-github-picker');
     await page.keyboard.press('Enter');
     await wait(async () => (await page.evaluate(() => document.querySelectorAll('article.markdown-body .fluent-read-bilingual-content').length)) > 0, 30000);
