@@ -97,6 +97,8 @@ function mountHarness(
         cancelPendingHoverTranslation: vi.fn(),
         runHover: vi.fn(),
         runFullPage: vi.fn(),
+        runSection: vi.fn(),
+        isEditing: vi.fn(() => false),
         ...overrides,
     };
     mountQuickTranslationContentFeature(deps, controller.signal);
@@ -933,5 +935,36 @@ describe('quick translation content feature', () => {
         const {windowTarget} = mountHarness();
         expect(windowTarget.options.get('keydown')?.[0]).toMatchObject({capture: true});
         expect(windowTarget.options.get('keyup')?.[0]).toMatchObject({capture: true});
+    });
+});
+
+
+describe('局部快捷方案的容器选择路由', () => {
+    it('按下时只进入容器选择，松开、长按和移动不会触发悬浮或全文', () => {
+        const selected = profile('section-r', 'section', 'Ctrl+R');
+        const {deps, windowTarget, documentTarget} = mountHarness({
+            config: {on: true, quickTranslationProfiles: [selected]},
+        });
+        windowTarget.emit('keydown', keyboardEvent({key: 'r', code: 'KeyR'}));
+        windowTarget.emit('keydown', keyboardEvent({key: 'r', code: 'KeyR', repeat: true}));
+        documentTarget.emit('mousemove', pointerEvent({clientX: 20, clientY: 40}));
+        windowTarget.emit('keyup', keyboardEvent({key: 'r', code: 'KeyR'}));
+        windowTarget.emit('keyup', keyboardEvent({key: 'Control', code: 'ControlLeft', ctrlKey: false}));
+        expect(deps.runSection).toHaveBeenCalledOnce();
+        expect(deps.runSection).toHaveBeenCalledWith(selected);
+        expect(deps.runHover).not.toHaveBeenCalled();
+        expect(deps.runFullPage).not.toHaveBeenCalled();
+        expect(deps.cancelPendingHoverTranslation).toHaveBeenCalled();
+    });
+
+    it('输入框内让行，不进入容器选择也不阻止网页输入', () => {
+        const {deps, windowTarget} = mountHarness({isEditing: () => true, config: {
+            on: true, quickTranslationProfiles: [profile('section-r', 'section', 'Ctrl+R')],
+        }});
+        const input = {tagName: 'INPUT', getAttribute: () => null};
+        const event = keyboardEvent({key: 'r', code: 'KeyR', composedPath: () => [input]});
+        windowTarget.emit('keydown', event);
+        expect(deps.runSection).not.toHaveBeenCalled();
+        expect(event.preventDefault).not.toHaveBeenCalled();
     });
 });

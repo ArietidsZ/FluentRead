@@ -92,6 +92,7 @@ import {canonicalizeHotkey, resolveConfiguredHotkey} from '@/src/core/hotkey';
 import {resolveSectionTranslationHotkey} from '@/src/core/config/sectionTranslation';
 import {
     findEnabledQuickTranslationHotkeyConflict,
+    quickTranslationActionKey,
     inputBoxTranslationTriggerHotkey,
 } from '@/src/core/config/quickTranslation';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
@@ -152,7 +153,7 @@ function findHotkeyConflict(hotkey: string): string {
     const profile = findEnabledQuickTranslationHotkeyConflict(props.config.quickTranslationProfiles, hotkey);
     if (!profile) return '';
     return t('quickTranslation.conflictProfile', {
-        group: t(`quickTranslation.heading.${profile.action === 'hover' ? 'hover' : 'fullPage'}`),
+        group: t(`quickTranslation.heading.${quickTranslationActionKey(profile.action)}`),
     });
 }
 

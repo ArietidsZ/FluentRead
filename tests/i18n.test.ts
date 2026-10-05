@@ -467,6 +467,9 @@ describe('界面 i18n 契约', () => {
     const cases: Array<{key: string; params?: Record<string, string | number>}> = [
       {key: 'quickTranslation.heading.hover'},
       {key: 'quickTranslation.heading.fullPage'},
+      {key: 'quickTranslation.heading.section'},
+      {key: 'quickTranslation.action.section'},
+      {key: 'quickTranslation.sectionDescription'},
       {key: 'quickTranslation.description'},
       {key: 'quickTranslation.capacityReached'},
       {key: 'quickTranslation.capacityLimit', params: {count: 8}},

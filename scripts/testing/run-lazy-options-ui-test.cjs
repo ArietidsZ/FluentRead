@@ -24,7 +24,7 @@ const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluent
 const browserPath = argument('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
 const timeout = Number(argument('timeout', '30000'));
 const suite = argument('suite', 'lazy-sections');
-assert.ok(['lazy-sections', 'hotkeys'].includes(suite), 'suite 仅支持 lazy-sections 或 hotkeys');
+assert.ok(['lazy-sections', 'hotkeys', 'section-hotkeys'].includes(suite), 'suite 仅支持 lazy-sections、hotkeys 或 section-hotkeys');
 
 assert.ok(fs.existsSync(path.join(extensionDir, 'manifest.json')), `扩展产物不存在：${extensionDir}`);
 assert.ok(fs.existsSync(focusHelper), `防抢焦点 helper 不存在：${focusHelper}`);
@@ -169,6 +169,62 @@ async function visible(locator) {
     }, `lazy-options-seed-${process.pid}`);
     await page.reload({waitUntil: 'domcontentloaded'});
     await waitForOptionsReady(page);
+
+    if (suite === 'section-hotkeys') {
+      await navigateOptions(page, 'settings-translation');
+      const section = page.locator('[data-testid="quick-translation-profiles"][data-action="section"]');
+      await section.getByTestId('quick-profile-add-section').click();
+      const dialog = page.getByRole('dialog', {name: '自定义快捷键', exact: true});
+      await dialog.waitFor({state: 'visible', timeout});
+      await dialog.locator('.hotkey-input-field').click();
+      await page.keyboard.press('F8');
+      await dialog.getByRole('button', {name: '确认', exact: true}).click();
+      await dialog.waitFor({state: 'hidden', timeout});
+      const card = section.locator('.profile-card').first();
+      const id = await card.getAttribute('data-profile-id');
+      await card.getByTestId(`quick-profile-service-${id}`).click();
+      await page.getByRole('option', {name: '谷歌翻译', exact: true}).click();
+      await card.getByTestId(`quick-profile-target-${id}`).click();
+      await page.getByRole('option', {name: '日本語 / Japanese / 日语', exact: true}).click();
+      assert.equal(await card.locator('[data-testid^="quick-profile-range-"]').count(), 0, 'a section has no full-page loading range');
+      await page.waitForFunction(async () => {
+        const {value} = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
+        return value.quickTranslationProfiles.some(profile => profile.action === 'section' && profile.hotkey === 'F8' && profile.service === 'google' && profile.targetLanguage === 'ja');
+      }, null, {timeout});
+      const saved = (await readConfig(page)).quickTranslationProfiles.find(profile => profile.id === id);
+      assert.ok(saved.enabled, 'recording enables the independent profile');
+      assert.equal((await readConfig(page)).sectionTranslationHotkeyEnabled, false, 'independent profile does not enable the primary shortcut');
+      report.cases.push('section-profile-records-independent-service-and-language');
+      await page.waitForTimeout(400);
+      await screenshot(page, 'section-shortcut-desktop');
+
+      await section.getByTestId('quick-profile-add-section').click();
+      await dialog.waitFor({state: 'visible', timeout});
+      await dialog.locator('.hotkey-input-field').click();
+      await page.keyboard.press('F8');
+      assert.equal(await dialog.getByRole('button', {name: '确认', exact: true}).isDisabled(), true, 'duplicate shortcut cannot be saved');
+      await dialog.getByRole('button', {name: 'F9', exact: true}).click();
+      await dialog.getByRole('button', {name: '确认', exact: true}).click();
+      await dialog.waitFor({state: 'hidden', timeout});
+      report.cases.push('section-profile-conflicts-with-other-profiles');
+      const keepalive = await openExtensionPage(context, popupUrl, 'section-keepalive-popup');
+      await page.close();
+      page = await openExtensionPage(context, `${optionsUrl}#settings-translation`, 'section-options-reopened');
+      await keepalive.close();
+      await page.locator('[data-action="section"] .profile-card').first().waitFor({state: 'visible', timeout});
+      assert.deepEqual((await readConfig(page)).quickTranslationProfiles.find(profile => profile.id === id), saved);
+      report.cases.push('section-profile-persists-after-options-close-and-reopen');
+      await page.setViewportSize({width: 390, height: 900});
+      await page.locator('[data-action="section"]').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(200);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+      assert.equal(overflow, false, 'section profiles fit the mobile settings page');
+      await screenshot(page, 'section-shortcut-390');
+      report.cases.push('section-profile-responsive-layout-without-overflow');
+      assert.deepEqual(report.consoleErrors, []);
+      report.ok = true;
+      return;
+    }
 
     if (suite === 'hotkeys') {
       await navigateOptions(page, 'settings-harness');

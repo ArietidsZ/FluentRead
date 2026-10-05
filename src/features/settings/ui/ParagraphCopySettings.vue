@@ -55,6 +55,7 @@ import {resolveSectionTranslationHotkey} from '@/src/core/config/sectionTranslat
 import {canonicalizeHotkey, resolveConfiguredHotkey} from '@/src/core/hotkey';
 import {
     findEnabledQuickTranslationHotkeyConflict,
+    quickTranslationActionKey,
     inputBoxTranslationTriggerHotkey,
 } from '@/src/core/config/quickTranslation';
 import {useUiI18n} from '@/src/ui/i18n';
@@ -109,7 +110,7 @@ function findHotkeyConflict(hotkey: string): string {
     const profile = findEnabledQuickTranslationHotkeyConflict(props.config.quickTranslationProfiles, hotkey);
     if (!profile) return '';
     return t('quickTranslation.conflictProfile', {
-        group: t(`quickTranslation.heading.${profile.action === 'hover' ? 'hover' : 'fullPage'}`),
+        group: t(`quickTranslation.heading.${quickTranslationActionKey(profile.action)}`),
     });
 }
 

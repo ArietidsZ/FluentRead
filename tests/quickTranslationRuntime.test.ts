@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     handleTranslation: vi.fn(),
     isFullPageTranslationActive: vi.fn(() => false),
     restoreOriginalContent: vi.fn(),
+    startSectionTranslationPicker: vi.fn(),
 }));
 
 vi.mock('@/src/features/quick-translation/public', () => ({
@@ -24,6 +25,8 @@ vi.mock('@/src/features/full-page-translation/public', () => ({
     isFullPageTranslationActive: mocks.isFullPageTranslationActive,
     restoreOriginalContent: mocks.restoreOriginalContent,
 }));
+
+vi.mock('@/src/features/section-translation/public', () => ({startSectionTranslationPicker: mocks.startSectionTranslationPicker}));
 
 import {mountConfiguredQuickTranslation} from '@/src/app/content/quickTranslationRuntime';
 
@@ -137,5 +140,19 @@ describe('快捷翻译 content composition', () => {
         mocks.mountedDependencies!.runFullPage(second);
         expect(mocks.restoreOriginalContent).toHaveBeenCalledTimes(3);
         expect(mocks.autoTranslateEnglishPage).toHaveBeenCalledTimes(2);
+    });
+
+    it('局部方案把独立请求设置交给容器选择器，保持默认页面配置', () => {
+        const current = config();
+        const before = JSON.stringify(current);
+        mountConfiguredQuickTranslation(current, {} as any, () => false, new AbortController().signal);
+        mocks.mountedDependencies!.runSection(profile({action: 'section'}));
+        expect(mocks.startSectionTranslationPicker).toHaveBeenCalledWith({
+            profileId: 'quick-1', scope: 'content', service: services.openai,
+            model: 'quick-model', targetLanguage: 'ja', displayMode: 'single',
+        });
+        expect(mocks.handleTranslation).not.toHaveBeenCalled();
+        expect(mocks.autoTranslateEnglishPage).not.toHaveBeenCalled();
+        expect(JSON.stringify(current)).toBe(before);
     });
 });

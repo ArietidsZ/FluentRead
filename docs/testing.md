@@ -707,6 +707,10 @@ node scripts/testing/run-section-translation-flow-test.cjs \
 
 Ko-fi 的 Monthly 按钮把 tooltip 插在按钮内部。回归同时覆盖提示框独立发现、按钮原文与请求槽不包含提示文字、提示框出现或移除不使按钮来源失效，以及直接控件翻译和加载阶段的命中保护。`scripts/run-kofi-tooltip-test.cjs --url https://ko-fi.com/thinkstu` 用临时后台 Edge 访问真实公开页面，配合本机延迟翻译响应验证持续悬停、再次悬停、移出关闭及恢复原文；需同时传入 `--extension-dir`、`--playwright-root`、`--focus-safe-helper`、`--artifacts-dir`。该脚本不访问日常浏览器配置，真实页面证据与本地翻译 transport 分别记录。
 
+新增局部快捷方案后，该流程同时检查：主快捷键关闭时独立方案仍能进入容器选择，确认前没有请求，容器外保持原文，目标语言实际传给供应商，换方案重译、同方案恢复，以及输入保护和同键/Esc 取消。Google 的浏览器批量、网页批量和 RPC 接口均使用确定性响应，不代表真实服务翻译质量。
+
+设置专项执行 `run-lazy-options-ui-test.cjs --suite section-hotkeys`，其余扩展目录、Playwright、focus-safe helper 和证据目录参数同上；验证真实按键录制、重复快捷键拒绝、独立服务与语言、主快捷键关闭、关闭重开后的保存和 390px 无横向溢出。
+
 ## 写作助手回复场景
 
 `tests/writingCore`、`writingEditors`、`writingBackground`、`writingRuntime`、`writingIntegration` 覆盖默认开启及旧配置迁移、目标语言解析、长度/风格/语气/角色边界、网页范围（包括 GitHub 新建 Issue）、有界请求、来源校验、取消与超时、冻结模型、用量、当前编辑器的会话范围、编辑器快照和原生输入事件。编辑器检查包含只有原帖时的首条回复与新建 Issue 表单；上下文检查包含项目身份、Issue/PR 标题、原帖与最近回复预算，以及 PR 行内线程和 Gmail 会话隔离。`tests/writingMarkdown.test.ts` 检查纯文本投影中的段落、列表、代码缩进、表格、链接地址、转义与不执行 HTML 的边界。对应可执行模块按四维 100% 覆盖率要求验收；`tests/i18n.test.ts` 的全量界面扫描检查写作卡片与设置中的静态文案，配置选项标签另核对六种外语译文。

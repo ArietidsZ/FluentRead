@@ -10,6 +10,7 @@ import {ElMessage} from 'element-plus';
 import type {Config} from '@/src/core/config/model';
 import {
     findEnabledQuickTranslationHotkeyConflict,
+    quickTranslationActionKey,
     inputBoxTranslationTriggerHotkey,
 } from '@/src/core/config/quickTranslation';
 import {parseHotkey, resolveConfiguredHotkey} from '@/src/core/hotkey';
@@ -29,7 +30,7 @@ export function useTranslationShortcutSettings(config: Ref<Config>) {
     function quickTranslationConflictMessage(hotkey: string): string {
         const conflict = findEnabledQuickTranslationHotkeyConflict(config.value.quickTranslationProfiles, hotkey);
         if (!conflict) return '';
-        const group = t(`quickTranslation.heading.${conflict.action === 'hover' ? 'hover' : 'fullPage'}`);
+        const group = t(`quickTranslation.heading.${quickTranslationActionKey(conflict.action)}`);
         return t('quickTranslation.conflictProfile', {group});
     }
 

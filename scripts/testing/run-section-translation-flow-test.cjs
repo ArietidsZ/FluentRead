@@ -118,7 +118,7 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
 
 (async () => {
   report.buildFreshness = assertFreshProductionExtension(extensionDir);
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  await new Promise((resolve, reject) => {server.once('error', reject); server.listen(0, '127.0.0.1', resolve);});
   launchAttempted = true;
   launched = await launchFocusSafePersistentContext({chromium, profileDir,
     browserPath: arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'), headless: false, background: true,
@@ -133,19 +133,35 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
   await patch({on: true, service: 'google', from: 'auto', to: 'zh-Hans', display: 1, disableFloatingBall: true, disableSelectionTranslator: true, uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true});
   await worker.evaluate(() => {
     const original = globalThis.fetch.bind(globalThis);
-    globalThis.__sectionFixture = {origins: []};
+    globalThis.__sectionFixture = {origins: [], requests: []};
     globalThis.fetch = async (input, options) => {
       const url = String(typeof input === 'string' ? input : input.url || input);
-      if (url.includes('/_/TranslateWebserverUi/data/batchexecute')) {
-        const rpc = JSON.parse(new URLSearchParams(options.body).get('f.req'))[0][0];
-        const origin = JSON.parse(rpc[1])[0][0];
+      const translateFixture = (origin, source, target) => {
         globalThis.__sectionFixture.origins.push(origin);
-        await new Promise(resolve => setTimeout(resolve, 60));
-        // 富文本请求用占位标记包住链接等行内元素；只给标记之间的文字加译文前缀，保持结构完整。
-        const translated = origin.split(/(___FLUENTREAD_[A-Za-z0-9]+_\d+_(?:BEGIN|END)___)/)
+        globalThis.__sectionFixture.requests.push({origin, source, target});
+        return origin.split(/(___FLUENTREAD_[A-Za-z0-9]+_\d+_(?:BEGIN|END)___)/)
           .map(part => part.startsWith('___FLUENTREAD_') || !part.trim() ? part : `【译】${part}`).join('');
-        const entry = [null, null, null, null, null, [[translated]]];
-        return new Response(JSON.stringify([['wrb.fr', 'MkEWBc', JSON.stringify([null, [[entry]]])]]), {status: 200});
+      };
+      if (url.includes('/v1/translateHtml')) {
+        const [texts, source, target] = JSON.parse(options.body)[0];
+        const translated = texts.map(text => `<pre>${translateFixture(text.replace(/^<pre>|<\/pre>$/g, ''), source, target)}</pre>`);
+        await new Promise(resolve => setTimeout(resolve, 60));
+        return new Response(JSON.stringify([translated]), {status: 200});
+      }
+      if (url.includes('/translate_a/t')) {
+        const parsed = new URL(url), body = new URLSearchParams(options.body);
+        const translated = body.getAll('q').map(text => translateFixture(text, parsed.searchParams.get('sl'), parsed.searchParams.get('tl')));
+        await new Promise(resolve => setTimeout(resolve, 60));
+        return new Response(JSON.stringify(translated), {status: 200});
+      }
+      if (url.includes('/_/TranslateWebserverUi/data/batchexecute')) {
+        const records = JSON.parse(new URLSearchParams(options.body).get('f.req'))[0].map(rpc => {
+          const [origin, source, target] = JSON.parse(rpc[1])[0];
+          const entry = [null, null, null, null, null, [[translateFixture(origin, source, target)]]];
+          return ['wrb.fr', 'MkEWBc', JSON.stringify([null, [[entry]]]), null, null, null, rpc[3]];
+        });
+        await new Promise(resolve => setTimeout(resolve, 60));
+        return new Response(JSON.stringify(records), {status: 200});
       }
       return original(input, options);
     };
@@ -286,6 +302,57 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
   await popup.evaluate(tab => chrome.tabs.sendMessage(tab, {type: 'contextMenuTranslate', action: 'restore'}), tabId);
   await wait(async () => (await page.evaluate(() => document.querySelectorAll('.fluent-read-bilingual-content, [data-fr-translation-owned="true"]').length)) === 0, 5000);
   assert.equal(await page.evaluate(() => document.querySelector('#about-text').textContent), 'Translate web pages side by side with the original text.');
+  report.cases.push(currentCase);
+
+  currentCase = 'independent section shortcut selects a container before requesting its target language';
+  const sectionProfile = {id: 'section-ja', enabled: true, action: 'section', hotkey: 'F8', service: 'google', model: '', targetLanguage: 'ja', displayMode: 'bilingual', fullPageMode: 'inherit'};
+  await patch({sectionTranslationHotkeyEnabled: false, quickTranslationProfiles: [sectionProfile]});
+  await page.waitForTimeout(300);
+  await hover('#p2');
+  const beforeProfile = await worker.evaluate(() => globalThis.__sectionFixture.requests.length);
+  await page.keyboard.press('F8');
+  await waitLabel(/翻译此区域 · 1 段/, 'p#p2');
+  assert.equal(await worker.evaluate(() => globalThis.__sectionFixture.requests.length), beforeProfile, 'shortcut only starts picking');
+  await page.keyboard.press('ArrowUp');
+  await waitLabel(/翻译此区域 · 7 段/, 'article#readme-body');
+  await page.keyboard.press('Enter');
+  await wait(async () => (await translationCount(readmeTargets.join(','))) === readmeTargets.length, 30000);
+  const profileRequests = await worker.evaluate(offset => globalThis.__sectionFixture.requests.slice(offset), beforeProfile);
+  assert.ok(profileRequests.length > 0 && profileRequests.every(request => request.target === 'ja'), 'independent language reaches the provider');
+  for (const outside of ['#site-nav', '#file-note', '#zh-text', '#about-text', '#footer-text', '#code']) assert.equal(await hasTranslation(outside), false, `${outside} must stay original`);
+  assert.equal(page.url(), pageUrl);
+  await shot('07-profile-container-translated');
+  report.cases.push(currentCase);
+
+  currentCase = 'another section profile switches the container language, and the same profile restores it';
+  const alternate = {...sectionProfile, id: 'section-fr', hotkey: 'F9', targetLanguage: 'fr'};
+  await patch({quickTranslationProfiles: [sectionProfile, alternate]});
+  await page.waitForTimeout(300);
+  const beforeSwitch = await worker.evaluate(() => globalThis.__sectionFixture.requests.length);
+  await hover('#p2'); await page.keyboard.press('F9');
+  await waitLabel(/翻译此区域 · 1 段/, 'p#p2');
+  await page.keyboard.press('ArrowUp'); await waitLabel(/翻译此区域 · 7 段/, 'article#readme-body');
+  await page.keyboard.press('Enter');
+  await wait(async () => (await worker.evaluate(offset => globalThis.__sectionFixture.requests.slice(offset).filter(request => request.target === 'fr').length, beforeSwitch)) >= 7, 30000);
+  await wait(async () => (await translationCount(readmeTargets.join(','))) === readmeTargets.length, 30000);
+  await hover('#p2'); await page.keyboard.press('F9');
+  await waitLabel(/恢复原文 · 1 段/, 'p#p2');
+  await page.keyboard.press('ArrowUp'); await waitLabel(/恢复原文 · 7 段/, 'article#readme-body');
+  await page.keyboard.press('Enter');
+  await wait(async () => (await translationCount(readmeTargets.join(','))) === 0, 10000);
+  report.cases.push(currentCase);
+
+  currentCase = 'section profile yields while editing and cancels without translation';
+  await page.locator('#notes').focus(); await page.keyboard.press('F8'); await page.waitForTimeout(200);
+  assert.equal(await pickerActive(), false, 'profile shortcut yields while typing');
+  await page.locator('#p1').click(); await hover('#p1'); await page.keyboard.press('F8');
+  await waitLabel(/翻译此区域 · 1 段/, 'p#p1');
+  await page.keyboard.press('F8');
+  await wait(async () => !(await pickerActive()), 3000);
+  await page.waitForTimeout(350);
+  await page.keyboard.press('F8'); await waitLabel(/翻译此区域 · 1 段/, 'p#p1');
+  await page.keyboard.press('Escape'); await wait(async () => !(await pickerActive()), 3000);
+  assert.equal(await translationCount(readmeTargets.join(',')), 0, 'cancel does not translate');
   report.cases.push(currentCase);
 
   currentCase = 'turning the plugin off exits picking and rejects new requests';

@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/quickTranslation.ts
  * 文件职责：定义多快捷翻译方案的持久化结构、数量边界与纯归一化规则。
- * 主要内容：约束悬停/全文动作、独立服务模型、目标语言及中文简繁别名、显示方式和全文范围，并为 UI 生成稳定方案 ID。
+ * 主要内容：约束悬停、全文与局部容器动作、独立服务模型、目标语言及中文简繁别名、显示方式和全文范围，并为 UI 生成稳定方案 ID 与动作文案键。
  * 模块边界：本文件不监听键盘鼠标、不读取浏览器存储、不执行翻译；运行时路由和设置界面分别由 feature 与 settings 层负责。
  */
 import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
@@ -9,7 +9,7 @@ import {canonicalizeHotkey} from '@/src/core/hotkey';
 import {MAX_CUSTOM_OPENAI_MODEL_LENGTH} from '@/src/core/config/customOpenAI';
 import {normalizeGlossaryIds, type GlossaryLibrary} from '@/src/core/glossary';
 
-/** 每种动作可保存的快捷翻译方案上限；悬浮与全文分别计数。 */
+/** 每种动作可保存的快捷翻译方案上限；悬浮、全文与局部分别计数。 */
 export const MAX_QUICK_TRANSLATION_PROFILES = 8;
 export const MAX_QUICK_TRANSLATION_MODEL_LENGTH = MAX_CUSTOM_OPENAI_MODEL_LENGTH;
 export const INPUT_BOX_TRANSLATION_TRIGGER_HOTKEYS: Readonly<Record<string, string>> = {
@@ -19,7 +19,12 @@ export const INPUT_BOX_TRANSLATION_TRIGGER_HOTKEYS: Readonly<Record<string, stri
     triple_dash: '-',
 };
 
-export type QuickTranslationAction = 'hover' | 'full-page';
+export type QuickTranslationAction = 'hover' | 'full-page' | 'section';
+
+/** 设置、Popup 与冲突提示共用同一动作文案口径。 */
+export function quickTranslationActionKey(action: QuickTranslationAction): 'hover' | 'fullPage' | 'section' {
+    return action === 'full-page' ? 'fullPage' : action;
+}
 export type QuickTranslationDisplayMode = 'inherit' | 'bilingual' | 'translation-only';
 export type QuickTranslationFullPageMode = 'inherit' | 'viewport' | 'all';
 
@@ -107,6 +112,7 @@ export function normalizeQuickTranslationProfiles(
     const actionCounts: Record<QuickTranslationAction, number> = {
         hover: 0,
         'full-page': 0,
+        section: 0,
     };
     const ids = new Set<string>();
     const hotkeys = new Set<string>();
@@ -114,7 +120,7 @@ export function normalizeQuickTranslationProfiles(
         .map((hotkey) => canonicalizeHotkey(hotkey).toLocaleLowerCase()).filter(Boolean));
     for (const candidate of value) {
         if (!isRecord(candidate)) continue;
-        if (candidate.action !== 'hover' && candidate.action !== 'full-page') continue;
+        if (candidate.action !== 'hover' && candidate.action !== 'full-page' && candidate.action !== 'section') continue;
         if (actionCounts[candidate.action] >= MAX_QUICK_TRANSLATION_PROFILES) continue;
         actionCounts[candidate.action] += 1;
 

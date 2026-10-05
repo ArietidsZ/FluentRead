@@ -1,8 +1,8 @@
 /**
  * @file src/features/quick-translation/content/index.ts
- * 文件职责：识别额外快捷翻译方案的可信键鼠手势，并把命中的完整方案转交给注入的悬停或全文执行器。
+ * 文件职责：识别额外快捷翻译方案的可信键鼠手势，并把命中的完整方案转交给注入的悬停、全文或局部容器选择执行器。
  * 主要内容：监听 capture 阶段的 keydown/keyup，维护单次悬停手势与最后鼠标坐标，并处理划词优先、额外按键和生命周期清理。
- * 模块边界：本模块不读取配置 store、不解析服务模型、不发起翻译；配置快照、站点资格和两类翻译执行器都由 content composition root 注入。
+ * 模块边界：本模块不读取配置 store、不解析服务模型、不发起翻译；配置快照、站点资格和翻译执行器都由 content composition root 注入。
  */
 import type {QuickTranslationProfile} from '@/src/core/config/quickTranslation';
 import {
@@ -37,6 +37,8 @@ export interface QuickTranslationContentDependencies {
         invocation?: {delayMs?: number; continuous?: boolean},
     ) => void | Promise<void>;
     runFullPage: (profile: QuickTranslationProfile) => void | Promise<void>;
+    runSection: (profile: QuickTranslationProfile) => void;
+    isEditing: (event: KeyboardEvent) => boolean;
 }
 
 interface ActiveHoverGesture {
@@ -173,9 +175,11 @@ export function mountQuickTranslationContentFeature(
         const reservedByCurrentEvent = deps.shouldReserveSelectionShortcut(event);
         if (reservedByCurrentEvent) selectionShortcutReserved = true;
 
-        const profile = enabledProfiles(deps.config).find((candidate) => deps.isProfileAvailable(candidate) && (
+        const profile = enabledProfiles(deps.config).find((candidate) => deps.isProfileAvailable(candidate)
+            && (
             pressedKeysExactlyMatchHotkey(pressedKeys, candidate.hotkey)
             && matchesConfiguredHotkey(event, candidate.hotkey)
+            && (candidate.action !== 'section' || !deps.isEditing(event))
         ));
         if (!profile) return;
 
@@ -204,6 +208,11 @@ export function mountQuickTranslationContentFeature(
         claimedHotkey = profile.hotkey;
         if (profile.action === 'full-page') {
             void deps.runFullPage(profile);
+            return;
+        }
+        if (profile.action === 'section') {
+            deps.cancelPendingHoverTranslation();
+            deps.runSection(profile);
             return;
         }
 

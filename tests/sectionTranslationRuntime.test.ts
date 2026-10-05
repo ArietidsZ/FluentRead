@@ -9,6 +9,7 @@ const harness = vi.hoisted(() => ({
         sectionTranslationHotkeyEnabled: false,
         sectionTranslationHotkey: 'Alt+R',
         customSectionTranslationHotkey: '',
+        quickTranslationProfiles: [{id: 'section-1', hotkey: 'Ctrl+R'}],
     } as Record<string, unknown>,
     notices: [] as {message: string; tone: string}[],
     inspect: vi.fn(),
@@ -199,11 +200,49 @@ describe('局部翻译入口', () => {
             harness.notices.length = 0;
             harness.toggle.mockResolvedValueOnce(result);
             onPick('picked-section');
-            expect(harness.toggle).toHaveBeenLastCalledWith('picked-section');
+            expect(harness.toggle).toHaveBeenLastCalledWith('picked-section', undefined);
             await new Promise((resolve) => setTimeout(resolve, 0));
             expect(harness.notices).toEqual(notice ? [notice] : []);
         }
         expect(harness.toggle).toHaveBeenCalledTimes(cases.length);
         controller.abort();
     });
+});
+
+
+it('独立快捷方案先选择容器，确认后传递方案，重复触发取消选择', async () => {
+    const controller = mount();
+    const invocation = {profileId: 'section-1', service: 'google', targetLanguage: 'ja', displayMode: 'bilingual' as const};
+    expect(startSectionTranslationPicker(invocation)).toBe(true);
+    expect(harness.toggle).not.toHaveBeenCalled();
+    const options = lastPickerOptions();
+    const key = {key: 'r', code: 'KeyR', ctrlKey: true, altKey: false, shiftKey: false, metaKey: false};
+    expect(options.isExitHotkey(key)).toBe(true);
+    expect(options.isExitHotkey({...key, key: 'x', code: 'KeyX'})).toBe(false);
+    options.inspect('selected-container');
+    expect(harness.inspect).toHaveBeenCalledWith('selected-container', undefined, invocation);
+    harness.toggle.mockResolvedValue({action: 'translated', translated: 1, failed: 0});
+    options.onPick('selected-container');
+    await Promise.resolve();
+    expect(harness.toggle).toHaveBeenCalledWith('selected-container', invocation);
+    harness.pickerActive.mockReturnValue(true);
+    expect(startSectionTranslationPicker(invocation)).toBe(true);
+    expect(harness.stopPicker).toHaveBeenCalledOnce();
+    expect(harness.startPicker).toHaveBeenCalledOnce();
+    controller.abort();
+});
+
+
+it('选择期间 Popup 保留当前方案，另一方案会重新选择容器', () => {
+    const controller = mount();
+    startSectionTranslationPicker({profileId: 'section-1', targetLanguage: 'ja'});
+    harness.pickerActive.mockReturnValue(true);
+    expect(startSectionTranslationPicker()).toBe(true);
+    expect(harness.startPicker).toHaveBeenCalledOnce();
+    startSectionTranslationPicker({profileId: 'section-2', targetLanguage: 'fr'});
+    expect(harness.stopPicker).toHaveBeenCalledOnce();
+    expect(harness.startPicker).toHaveBeenCalledTimes(2);
+    const options = lastPickerOptions();
+    expect(options.isExitHotkey({key: 'x', code: 'KeyX', ctrlKey: false, altKey: false, shiftKey: false, metaKey: false})).toBe(false);
+    controller.abort();
 });
