@@ -88,7 +88,7 @@ async function main(){
   assert((await preview.innerText()).includes('Eager to know or learn something.'));
   await preview.getByRole('button',{name:'句子',exact:true}).click();
   await preview.locator('[data-reading-answer]').waitFor();
-  assert((await preview.innerText()).includes(sentence));
+  assert((await preview.innerText()).includes('Every language offers a new way to see the world.'));
   await screenshot(optionsPage,'merged-selection-settings');
   await optionsPage.setViewportSize({width:390,height:800});
   assert(await optionsPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
@@ -191,6 +191,16 @@ async function main(){
   await page.keyboard.press('Escape');await select('#word');await until(()=>node(cls('fr-word-meaning')),'dictionary missing');await wait(200);const wordBefore=await geometry();await trackCard();await clickNode(cls('fr-text-audio-btn'));await until(()=>node(button('停止')),'word audio missing');await wait(250);await clickNode(n=>support.cdpAttribute(n,'aria-label')==='停止播放');await wait(200);await assertStable('word pronunciation start and stop keep position and height',wordBefore,true);await screenshot(page,'word-stable');
   await page.setViewportSize({width:390,height:800});await wait(350);let bounds=await geometry();assert(bounds.left>=11&&bounds.right<=391&&bounds.bottom<=789);const narrow=await geometry();await trackCard();await clickNode(button('用法'));await until(()=>node(button('保存学习笔记')),'narrow usage missing');await wait(200);await assertStable('narrow viewport tab switch stays anchored and scrolls inside',narrow);bounds=await geometry();assert(bounds.bottom<=789);await screenshot(page,'narrow-stable');
   await page.keyboard.press('Escape');await wait(150);assert.equal(await node(cls('fr-translation-tooltip')),null);await page.setViewportSize({width:1440,height:960});await select('#sentence');await until(()=>node(cls('fr-translation-result')),'reopened translation missing');assert.equal((await inspectCard(`function(){return this.querySelector('.fr-study-toolbar button').getAttribute('aria-pressed')}`)),'true');record('close and reselect restore the translation tab and fresh geometry');
+  const beforeResize=await geometry();
+  const handle=await inspectCard(`function(){const b=this.querySelector('.fr-popup-resize-e').getBoundingClientRect();return {x:b.left+b.width/2,y:b.top+b.height/2,width:b.width,height:b.height}}`);
+  assert(handle.width>0&&handle.height>0,'resize handle is not rendered');
+  await page.mouse.move(handle.x,handle.y);await page.mouse.down();await page.mouse.move(handle.x+60,handle.y,{steps:8});await page.mouse.up();await wait(150);
+  const resized=await geometry();assert(Math.abs(resized.width-beforeResize.width-60)<1);
+  await trackCard();await clickNode(button('词性与句法'));await until(()=>node(button('保存学习笔记')),'resized grammar missing');await wait(200);await assertStable('resizing keeps the selected size when switching to grammar',resized,true);
+  const header=await inspectCard(`function(){const b=this.querySelector('.fr-tooltip-title').getBoundingClientRect();return {x:b.left+b.width/2,y:b.top+b.height/2}}`);
+  await page.mouse.move(header.x,header.y);await page.mouse.down();await page.mouse.move(header.x+40,header.y+20,{steps:8});await page.mouse.up();await wait(150);
+  const dragged=await geometry();assert(Math.abs(dragged.left-resized.left-40)<1&&Math.abs(dragged.top-resized.top-20)<1);
+  await trackCard();await clickNode(button('翻译'));await wait(200);await assertStable('dragging in grammar keeps the chosen position when returning to translation',dragged,true);
   await patch({uiLanguage:'en-US'});await memoryPage.reload();await memoryPage.locator('.fr-learning-center').waitFor();await memoryPage.setViewportSize({width:390,height:800});await wait(200);
   assert.deepEqual(await memoryPage.locator('.fr-learning-center .segmented-control button').allTextContents(),['Words & sentences','Reading history','Study notes']);assert(await memoryPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   for(const language of ['en-US','ja-JP','ko-KR','fr-FR','ru-RU','es-ES','zh-CN']) {
