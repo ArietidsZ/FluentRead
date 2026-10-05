@@ -241,11 +241,9 @@ export function createVideoPlayerMenu(language: UiLanguage, withLocalGeneration:
     const display = createTextElement('div', 'fluent-read-video-menu-section fluent-read-video-menu-display', '');
     display.append(createModeGroup(language), createTimingRow(language));
     const actions = createTextElement('div', 'fluent-read-video-menu-section fluent-read-video-menu-actions', '');
-    if (withLocalGeneration) actions.appendChild(createAiGroup(language));
     actions.append(createDownloadActions(language), createDownloadStatus());
     main.append(display, actions);
     menu.appendChild(main);
-    if (withLocalGeneration) menu.appendChild(createModelPrompt(language));
     return menu;
 }
 
@@ -336,7 +334,9 @@ function renderSourceStatus(menu: HTMLElement, state: VideoSourceStatus, languag
         if (aiGroup.parentElement !== destination) {
             const heldFocus = aiGroup.contains(document.activeElement);
             destination.appendChild(aiGroup);
-            if (destination === primary && state.generating && menu.dataset.panel === 'tools') {
+            // 重新识别先清空旧来源，可能在进入 generating 前已经移回首页。
+            // 此时也要返回首页，否则失败提示会藏在不可见的 AI 操作中。
+            if (destination === primary && menu.dataset.panel === 'tools') {
                 setVideoMenuToolsOpen(menu, false);
             }
             if (heldFocus && destination === secondary && menu.dataset.panel === 'watch') {
@@ -445,7 +445,7 @@ export function renderVideoAiMenu(menu: HTMLElement, state: VideoAiMenuState, la
         else detail = translateVideoUi('video.aiPreparing', language);
     } else if (state.running) detail = translateVideoUi('video.aiGenerating', language);
     else if (state.requested) detail = translateVideoUi('video.aiWaitingForPlayback', language);
-    if (state.error && !downloading && !state.checking) detail = state.error;
+    if (state.error && !downloading && !state.checking) detail = localizeVideoUiText(state.error, language);
     button.disabled = !state.available || state.checking || downloading;
     button.setAttribute('aria-checked', String(state.active));
     button.dataset.processing = String(processing || state.checking || downloading);
@@ -458,7 +458,7 @@ export function renderVideoAiMenu(menu: HTMLElement, state: VideoAiMenuState, la
     labelElement.dataset.i18nKey = labelKey;
     labelElement.textContent = translateVideoUi(labelKey, language);
     button.querySelector<HTMLElement>('[data-state]')!.textContent = detail;
-    button.title = state.error && !downloading ? state.error : detail;
+    button.title = state.error && !downloading ? localizeVideoUiText(state.error, language) : detail;
 }
 
 const downloadStatusVersions = new WeakMap<HTMLElement, number>();

@@ -125,11 +125,15 @@ node scripts/testing/run-webdav-backup-ui-test.cjs \
 
 同一专项覆盖 200 条缓存字幕按播放位置预取、空翻译响应与独立重试、双语和原文切换复用译文、重新识别绕过缓存且确认前保留原文、迟到原生轨道优先、原生静音空档、原文模式加载 sidecar、初始隐藏后恢复字幕和键盘焦点。页面、识别结果与翻译响应为受控夹具，不代表真实 X 登录会话、Whisper 识别质量或外部翻译服务可用性。产品取舍见 [体验复核](./reports/x-video-experience-20260930/README.md)。
 
+`node scripts/run-x-home-audio-recovery-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-x-home-recovery` 在临时 Chrome profile 的第二屏后台窗口中验证 Home：使用真实 MSE 视频和 HLS 音轨解码，复现 arraybuffer 清单未被页面桥捕获，检查当前视频匹配、A 失败后切换 B、无法读音频时的刷新提示、播放状态保持，以及从字幕选项重新识别后 Base 空结果的可见提示。脚本需要 ffmpeg；可用 `--ffmpeg` 指定路径。Base 识别结果与翻译响应使用受控回复，不代表真实模型或 X 登录账号验证。
+
 ## YouTube 全屏与字幕同步
 
 `node scripts/run-video-caption-prefetch-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-caption-prefetch` 在临时 Edge profile 的第二屏后台窗口中，以固定 500ms 翻译响应检查 YouTube/X 的预取和首次显示：重复原生条目不能占满后续句子的名额，轨道加入后立即启动预取，缓存命中的原文与译文在同一次 DOM 更新中显示。报告记录请求启动时间、两行首次显示的间隔和焦点隔离信息；页面与供应商均为受控夹具，不代表真实账号或在线翻译服务的端到端延迟。
 
 同一专项还覆盖滚动字幕的上一句残留、窗口裁切的旧行、连续每 40ms 增词、无时间轴的请求启动延迟与缓存重播。报告中的 `dispatchMs` 只度量原文变化到请求发出的等待，不包含真实供应商耗时；译文仍使用确定性响应，不能据此声称真实视频端到端零延迟。
+
+X 另覆盖未预取句子等待原译文成对显示、seek 后迟到结果丢弃、仅原文模式零翻译请求与同目标语言单行显示。使用新版 Chrome 时添加 `--extension-install cdp --browser-path <Chrome可执行文件>`；其余焦点隔离和夹具边界相同。
 
 播放页菜单校时使用真实按钮点击，验证正负半秒的字幕内容、视频进度不变、仅原文模式、时间轴空档、重新打开页面后持久化、跨页同步、连续点击、重置和播放期间按帧更新。没有时间轴时禁用无效的提前/延后操作，仍允许重置已保存的偏移。
 
