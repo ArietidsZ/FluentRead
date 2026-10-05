@@ -21,16 +21,16 @@
   "remoteRefsAfter": [
     "0652ce2309c76a09310868acb45e71990533b500\tHEAD",
     "0bd32b4aecc2e2ca1dfa999746098358656c7b60\trefs/heads/acceptance/local-browseros-neo-20261005",
-    "46877c8a6a928d7143e3ea922236a76814fe4ebd\trefs/heads/acceptance/local-browseros-neo-linux-native-20261005",
+    "4f74f411ae4f9367efe320403dd03fb16c1b35cb\trefs/heads/acceptance/local-browseros-neo-linux-native-20261005",
     "4ceace044dec24e5f36ddf5b9fd97140abdf8dfb\trefs/heads/acceptance/local-browseros-neo-resume-20261005",
     "5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576\trefs/heads/acceptance/local-browseros-neo-rules-7f8d6dfe-20261005",
     "361435b94aecd064edcf090d75861b14141ffae3\trefs/heads/acceptance/local-browseros-neo-rules-c796cd88-20261005",
     "0652ce2309c76a09310868acb45e71990533b500\trefs/heads/main",
-    "7f8d6dfe0d8ebd7a526bf9c654ea7e4926518fa1\trefs/heads/review/browser-acceptance-20261005"
+    "c55c1b2567057e5125c356dc0307e983656b235a\trefs/heads/review/browser-acceptance-20261005"
   ],
   "localRefsAfter": [
     "refs/heads/acceptance/local-browseros-neo-20261005 0bd32b4aecc2e2ca1dfa999746098358656c7b60",
-    "refs/heads/acceptance/local-browseros-neo-linux-native-20261005 46877c8a6a928d7143e3ea922236a76814fe4ebd",
+    "refs/heads/acceptance/local-browseros-neo-linux-native-20261005 65b1d83085b5f88b214ea4172c689c5929cf9256",
     "refs/heads/acceptance/local-browseros-neo-resume-20261005 4ceace044dec24e5f36ddf5b9fd97140abdf8dfb",
     "refs/heads/acceptance/local-browseros-neo-rules-7f8d6dfe-20261005 5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576",
     "refs/heads/acceptance/local-browseros-neo-rules-c796cd88-20261005 361435b94aecd064edcf090d75861b14141ffae3",
@@ -40,5 +40,25 @@
   "pushEvidence": "git push -u origin acceptance/local-browseros-neo-linux-native-20261005 reported \"[new branch]\" and origin now carries that ref. The credential helper was supplied per-command, so no persistent git config was written.",
   "planNote": "The round plan listed any ref change as out of scope for the record stage. The branch and its push are this round own deliverable; no pre-existing ref moved.",
   "worktreeStatusPorcelain": "M docs/browser-acceptance/runs/2026-10-05-local-browseros-neo-linux-native/artifacts/host/hygiene.json\n M docs/browser-acceptance/runs/2026-10-05-local-browseros-neo-linux-native/harness/sanitization-check.mjs\n M docs/browser-acceptance/runs/2026-10-05-local-browseros-neo-linux-native/result.json\n M docs/browser-acceptance/runs/2026-10-05-local-browseros-neo-linux-native/sanitization-report.json",
-  "at": "2026-10-05T12:06:26.900Z"
+  "at": "2026-10-05T13:03:06.376Z",
+  "revision": 2,
+  "supersedesRevision": 1,
+  "whyRevised": "Revision 1 was written before the linux-resume revision. It is refreshed here with the commits that exist now, including the git-integrity fix and the pending revision commit.",
+  "commitsOnThisBranch": [
+    "65b1d83085b5f88b214ea4172c689c5929cf9256 docs(browser-acceptance): force-add the three build artifacts Git had ignored",
+    "4f74f411ae4f9367efe320403dd03fb16c1b35cb docs(browser-acceptance): correct the linux-native record after adversarial review",
+    "46877c8a6a928d7143e3ea922236a76814fe4ebd docs(browser-acceptance): add linux-native run record (0/22 pass, focus guard is macOS-only)",
+    "5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576 docs(browser-acceptance): add rules-7f8d6dfe run record (ENV-01 pass)",
+    "7f8d6dfe0d8ebd7a526bf9c654ea7e4926518fa1 test: add explicitly approved partial-visibility acceptance mode",
+    "c796cd88f2a2804c9e05da98be949ae4fa6298fd fix: dispatch focus guard through canonical CLI paths",
+    "cf54125302be2beebb3ba8860798f3cb053a3dac test: add guarded native Neo resume and raw GPU evidence binding",
+    "a8728f79dffde9f0ea2a43d8fca7fa9186c33d88 fix: align browser acceptance with native locale and GPU contracts",
+    "8ab2fda48c04df5e2f19ef231cfd6dbcbebcf552 docs: add verified BrowserOS Neo acceptance handoff",
+    "c68a53af300b33109375665197951331e45ae18a Stage tested FluentRead code for local browser acceptance"
+  ],
+  "branchTipBeforeRevisionCommit": "65b1d83085b5f88b214ea4172c689c5929cf9256",
+  "remoteBranchTipNow": "4f74f411ae4f9367efe320403dd03fb16c1b35cb",
+  "preexistingRefsUnchanged": true,
+  "preexistingRefsEvidence": "Every pre-existing local and remote ref in localRefsBefore and remoteRefsBefore still has the same object id in localRefsAfter and remoteRefsAfter; the only ref change is the addition of this round branch.",
+  "selfReferenceNote": "This file records the ref state at the time of the revision. The revision commit itself is the tip that carries this file, so its own hash is deliberately not recorded inside it."
 }

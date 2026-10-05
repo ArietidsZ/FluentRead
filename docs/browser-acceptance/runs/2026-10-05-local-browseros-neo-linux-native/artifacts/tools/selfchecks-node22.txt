@@ -1,0 +1,25 @@
+FluentRead acceptance - tool self-checks with the prepared toolchain
+Generated (UTC): 2026-10-05T12:57:28Z
+Toolchain prepared inside the round directory from official sources and selected through PATH only.
+node: v22.23.3 (<HOME>/.cache/fluentread-acceptance/toolchain/node-v22.23.3-linux-x64/bin/node)
+pnpm: 9.12.1 (<HOME>/.cache/fluentread-acceptance/toolchain/pnpm9/bin/pnpm)
+tools clone HEAD: c55c1b2567057e5125c356dc0307e983656b235a
+tools clone tree: 6c2bde1b40177e70815f12315784e8341fc47886
+dependencies: pnpm install --frozen-lockfile (no build performed)
+
+$ node scripts/testing/browser-acceptance.mjs self-check
+exit_code: 0
+{"evidenceContracts":true,"positiveSyntheticCases":["ENV-01","MT-01","TTS-05","Qwen-q4-observed-empty-features"],"nativeLocaleFiles":["es-ES.c5582401d9c1c771.json","fr-FR.0bf5e31608846a42.json","ja-JP.b3b82390d42e27a3.json","ko-KR.596a291c0f0246ce.json","ru-RU.8d9abca09211dc28.json"],"negativeRegressions":44,"browserRun":false,"modelRun":false}
+{"ok":true,"checks":["strict template","unsupported status/keys/duplicate rejection","artifact digest and path checks","evidenced failure","unproven pass rejection","existing fixture routes","path allowlist","fixed provider","explicit failure","invalid request rejection","no request-body logging","file fingerprints"],"browserRun":false,"modelRun":false}
+
+$ node scripts/testing/browser-focus-guard.mjs --self-check
+exit_code: 0
+{"ok":true,"scope":"pure guard contract checks only","macosRun":false,"browserRun":false}
+
+$ node scripts/testing/browser-focus-visibility-selfcheck.mjs
+exit_code: 0
+{"ok":true,"node":"v22.23.3","negativeChecks":26,"scope":"explicit visibility policy and evidence contracts only","macosRun":false,"browserRun":false}
+
+$ node scripts/testing/browser-focus-guard-entry-selfcheck.mjs
+exit_code: 0
+{"ok":true,"node":"v22.23.3","checks":["direct CLI","file symlink CLI","ancestor-directory symlink CLI","preserved symlink main","ordinary direct/alias invocation rejects unmet prerequisites","direct import without CLI execution","aliased import without CLI execution","eval import without entry argument","stdin import with dash entry argument","unresolvable entry fails nonzero"],"macosRun":false,"browserRun":false}

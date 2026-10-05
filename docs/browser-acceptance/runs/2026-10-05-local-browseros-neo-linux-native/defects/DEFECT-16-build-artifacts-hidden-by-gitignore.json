@@ -1,0 +1,30 @@
+{
+  "id": "DEFECT-16",
+  "title": ".gitignore silently excluded the three registered build artifacts from the pushed record",
+  "severity": "blocking for package integrity (fixed)",
+  "status": "fixed",
+  "rule": ".gitignore line 11 matches any directory named build, so docs/browser-acceptance/runs/<run>/artifacts/build/ was ignored",
+  "affectedPaths": [
+    "docs/browser-acceptance/runs/2026-10-05-local-browseros-neo-linux-native/artifacts/build/commands.json",
+    "docs/browser-acceptance/runs/2026-10-05-local-browseros-neo-linux-native/artifacts/build/build-files.json",
+    "docs/browser-acceptance/runs/2026-10-05-local-browseros-neo-linux-native/artifacts/build/generated-locales.json"
+  ],
+  "consequence": "A plain git add skipped them without any warning, so the pushed record was incomplete: a fresh clone could not satisfy the validator even though the working tree did. Local validation passed only because the files were still present on disk.",
+  "detection": "Reported by the user with the Linux resume note; confirmed with git check-ignore -v and git ls-files --others --ignored --exclude-standard (exactly 3 ignored files, 0 other untracked files).",
+  "fix": "Force-added exactly those three paths with byte-identical content; the staging area contained exactly those three paths; the index tree d99260980a2085df7cbb596666f71e7ccf96d863 was exported with git archive and validated from the export with the healthy tools clone.",
+  "verification": {
+    "exportTree": "d99260980a2085df7cbb596666f71e7ccf96d863",
+    "toolsCommit": "c55c1b2567057e5125c356dc0307e983656b235a",
+    "exportedRecordFiles": 82,
+    "exportedBuildArtifacts": 3,
+    "validatorOutput": "{\"valid\":true,\"overall\":\"blocked\",\"cases\":22}",
+    "exitCode": 0
+  },
+  "evidence": [
+    "artifacts/tools/export-tree-validation.txt",
+    "artifacts/build/build-files.json",
+    "artifacts/build/generated-locales.json",
+    "artifacts/build/commands.json"
+  ],
+  "lesson": "A clean git status does not prove that a record was fully committed: ignored paths are invisible to it. Any future round should validate a fresh export of the index tree, not the working tree."
+}

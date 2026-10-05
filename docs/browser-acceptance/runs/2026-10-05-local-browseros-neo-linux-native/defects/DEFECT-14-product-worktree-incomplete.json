@@ -1,21 +1,25 @@
 {
   "id": "DEFECT-14",
-  "title": "The product worktree on this host is incomplete relative to the published source commit",
-  "severity": "provenance limitation, not a product defect",
+  "title": "The original product worktree was incomplete relative to the published source commit",
+  "severity": "provenance limitation (resolved for the current source identity)",
+  "status": "resolved-by-healthy-clone, historical build location unchanged",
   "publishedSourceCommit": "c68a53af300b33109375665197951331e45ae18a",
-  "inScopePaths": 3172,
-  "matched": 3131,
-  "modified": 0,
-  "missing": 41,
-  "examplesMissing": [
-    "tsconfig.json",
-    "wxt.config.ts",
-    "vitest.config.ts",
-    "userscript/",
-    "userscript/main.ts",
-    "userscript/resources/fluentread-data.v1.js"
-  ],
-  "consequence": "The prebuilt extension can be fingerprinted, but its source tree cannot be fully corroborated on this host. The extension was NOT rebuilt (rebuilding is out of scope).",
+  "originalWorktree": {
+    "inScopePaths": 3172,
+    "matched": 3131,
+    "modified": 0,
+    "missing": 41,
+    "examplesMissing": [
+      "tsconfig.json",
+      "wxt.config.ts",
+      "vitest.config.ts",
+      "userscript/",
+      "userscript/main.ts"
+    ],
+    "gitMetadata": "broken; the worktree .git file pointed at a macOS path"
+  },
+  "resolution": "A healthy clone of the review branch plus a detached product worktree at c68a53af was created during this revision. It has tree 50e12ecc7f4c72448f03e714a585814eb9476622, 3652 tracked paths present, a clean diff, a clean status and the lockfile present, so worktreeCleanBeforeLocaleGeneration is now supported by an actual file check rather than by HEAD^{tree} alone.",
+  "notClaimed": "The new worktree proves the current source identity only. It is not back-filled as the location where the historical extension build happened, and the extension was not rebuilt.",
   "evidence": [
     "artifacts/source.json",
     "artifacts/build/build-files.json"

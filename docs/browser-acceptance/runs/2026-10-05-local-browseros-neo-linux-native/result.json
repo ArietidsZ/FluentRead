@@ -4,7 +4,7 @@
   "expectedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
   "runId": "fluentread-browseros-neo-local-2026-10-05-05-linux-native",
   "startedAt": "2026-10-05T10:58:06.000Z",
-  "finishedAt": "2026-10-05T12:07:19.894Z",
+  "finishedAt": "2026-10-05T13:05:13.103Z",
   "overall": "blocked",
   "environment": {
     "os": "Ubuntu 26.04.1 LTS (Resolute Raccoon), kernel 7.0.0-38-generic, x86_64, GNOME on Wayland",
@@ -34,27 +34,33 @@
       "artifacts/env01/cdp-version.json",
       "artifacts/env01/extension-identity.json"
     ],
-    "nodeVersion": "v26.7.0",
-    "pnpmVersion": "absent (pnpm is not installed on this host; the extension was not rebuilt and must not be)",
+    "nodeVersion": "v22.23.3",
+    "pnpmVersion": "9.12.1",
     "browserPid": 1690606,
     "profilePathSha256": "5c6a1969d6881d7e6eb65ddc8d1109cf53c1f00aa1e1a9a4776af65e2e79fb91",
     "visibilityPolicy": "temporary-partial-visibility-20261005"
   },
   "provenance": {
     "publishedSourceCommit": "c68a53af300b33109375665197951331e45ae18a",
-    "checkoutCommit": "5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576",
+    "checkoutCommit": "c68a53af300b33109375665197951331e45ae18a",
     "observedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
     "worktreeCleanBeforeLocaleGeneration": true,
     "lockfileSha256": "5b251fb80b9a89991ef226fe19e24e249c48963c520945c9a0ef5851ebddb619",
     "buildManifest": "artifacts/build/build-files.json",
     "generatedLocalesManifest": "artifacts/build/generated-locales.json",
     "commands": [
+      "git clone --branch review/browser-acceptance-20261005 https://github.com/ArietidsZ/FluentRead.git <tools clone>",
+      "git -C <tools clone> fetch origin c68a53af300b33109375665197951331e45ae18a",
+      "git -C <tools clone> worktree add --detach <product clone> c68a53af300b33109375665197951331e45ae18a",
+      "git -C <product clone> rev-parse HEAD^{tree}   # 50e12ecc7f4c72448f03e714a585814eb9476622",
+      "pnpm install --frozen-lockfile   (in the tools clone, with the prepared node v22.23.3 / pnpm 9.12.1)",
       "node scripts/testing/browser-acceptance.mjs fingerprint <extension build> extension-build",
       "node scripts/testing/browser-acceptance.mjs fingerprint <repo>/userscript/languages generated-locales",
       "node scripts/testing/browser-acceptance.mjs self-check",
       "node scripts/testing/browser-focus-guard.mjs --self-check",
       "node scripts/testing/browser-focus-visibility-selfcheck.mjs",
       "node scripts/testing/browser-focus-guard-entry-selfcheck.mjs",
+      "git write-tree, git archive the tree, then validate the exported result.json",
       "node scripts/testing/browser-acceptance.mjs validate <record>/result.json"
     ]
   },
@@ -697,7 +703,7 @@
     },
     {
       "path": "artifacts/source.json",
-      "sha256": "c8f3ce3fdcfd38427f5ff7edd047790434e6f64715b7d2dcc3afc29e4367de9b",
+      "sha256": "ad6633b13a4013aedfd07a07ea1c78578fff0ad351e0dfe264ff60706c6a9aa8",
       "mediaType": "application/json",
       "role": "source"
     },
@@ -709,7 +715,7 @@
     },
     {
       "path": "artifacts/git/ref-audit.json",
-      "sha256": "ca433515870dc104490323856687865ce075159e215ecad63703fb718e5c1f32",
+      "sha256": "fc5dc68fa18b4dee320a664302f03958664ca0cad7cdda8c61c20ee1f5c67576",
       "mediaType": "application/json",
       "role": "source"
     },
@@ -723,6 +729,24 @@
       "path": "artifacts/env01/side-evidence-manifest.json",
       "sha256": "6e16b0ff702e18201e820a8fc46e11a17dc7c870b6f4328e6d5d9626ba162fdb",
       "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/tools/toolchain.json",
+      "sha256": "633ebeadff860046b8ce5b4aa8f1c6c12e9458f873b21427111c4acb0872e102",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/tools/selfchecks-node22.txt",
+      "sha256": "bcb34e0ab8e65323a42e4eedd45cb69734d967dff2c41214e84422edfd748b8d",
+      "mediaType": "text/plain",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/tools/export-tree-validation.txt",
+      "sha256": "fc438c6c490fa583e345015744958310e26da3a54d58ee3d4014d074030a8d2a",
+      "mediaType": "text/plain",
       "role": "source"
     }
   ],
@@ -742,6 +766,10 @@
     "Counterfactual provenance: counterfactual-pass.json is produced by harness/C-counterfactual.mjs exactly as shipped. An earlier shipped copy of that script predated the checkout-gate mutations and did not reproduce the committed file; the shipped copy has been corrected and the committed output regenerated from it.",
     "Sanitization conclusion: the shipped harness/sanitization-check.mjs derives its path constants at runtime and runs in place; its recorded result is exit 0 with zero violations and is reproducible from the record directory. An earlier revision of sanitization-report.json quoted scanner literals and stated a false caveat about the checker; that revision is superseded and the withdrawn claims are listed in the report.",
     "Git-state audit: the pre-round and post-round local and remote ref tables, and the push evidence for this round branch, are shipped in artifacts/git/ref-audit.json. Every pre-existing local and remote ref is byte-identical before and after; the only ref change is the addition of this round branch.",
-    "Meta deliverables (README.md, defects/**, harness/**, counterfactual-pass.json, sanitization-report.json, record-index.json) are documentation and tooling rather than acceptance evidence, so they are not registered in the artifacts array. record-index.json ships a SHA-256 for every file in this record, including the unregistered ones."
+    "Git integrity fix: .gitignore line 11 (the directory name build) had silently excluded artifacts/build/commands.json, artifacts/build/build-files.json and artifacts/build/generated-locales.json from the first push, so a fresh clone could not satisfy the validator. They were force-added with byte-identical content, the staging area was exactly those three paths, and the index tree d99260980a2085df7cbb596666f71e7ccf96d863 was exported and validated with the healthy tools clone. See DEFECT-16.",
+    "Source revision: artifacts/source.json is revision 2. Revision 1 carried lockfileSha256 as a {product, repo} object and used the tools snapshot as checkoutCommit; both are corrected. checkoutCommit is now the published source commit c68a53af, and the tools identity (tools commit c55c1b25, tree 6c2bde1b, earlier snapshot 5a07ef49, pinned logic 7f8d6dfe) is recorded separately as tool identity only.",
+    "Worktree completeness: the original shared worktree was incomplete relative to the published commit, so it is not back-filled as the source of the historical build. A healthy clone created during this revision gives a product worktree at c68a53af with tree 50e12ecc, 3652 tracked paths present, a clean diff, a clean status and the lockfile present. That proves the current source identity only; the historical build location is unchanged in the record.",
+    "Toolchain: node v22.23.3 and pnpm 9.12.1 were prepared inside this round directory from official sources with a verified tarball checksum, and selected through PATH only. browser-acceptance.mjs self-check now exits 0 with 44 negative regressions, which resolves DEFECT-15; it previously exited 1 only because the locked dependencies were absent. The browser-side capture harness ran under the host node v26.7.0, which is recorded separately.",
+    "Linux run boundary, accepted as the documented boundary rather than a defect to work around: browser-focus-guard.mjs supports macOS only. The Linux/Wayland Neo control handshake, continuous focus observation, temporary profile/PID/endpoint ownership and the approved partially-visible placement all remain unverified, and no further browser operation was performed after that boundary was stated. GPU capability conditions are unchanged: shader-f16 is absent, so OPUS FP16, Index and Qwen q4f16 stay capability-blocked; OPUS FP32 and Qwen q4 do not require that optional feature in principle but still need the control and focus gate first and were not run."
   ]
 }

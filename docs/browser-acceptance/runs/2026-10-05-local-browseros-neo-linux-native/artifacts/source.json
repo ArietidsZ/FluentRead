@@ -1,17 +1,34 @@
 {
   "sideEvidenceOnly": true,
-  "note": "Structured source/provenance evidence for this round, derived from this round own read-only git measurements on this host.",
+  "revision": 2,
+  "supersedesRevision": 1,
+  "whyRevised": "Revision 1 carried lockfileSha256 as a {product, repo} object and used the tools snapshot as checkoutCommit. The Linux resume note requires a 64-hex string equal to result.json provenance.lockfileSha256, and requires the tools snapshot to be recorded as tool identity only, never in place of publishedSourceCommit or checkoutCommit.",
   "publishedSourceCommit": "c68a53af300b33109375665197951331e45ae18a",
-  "checkoutCommit": "5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576",
+  "checkoutCommit": "c68a53af300b33109375665197951331e45ae18a",
+  "checkoutKind": "product worktree checked out at the published source commit in a healthy clone created during this revision",
   "observedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
   "expectedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
   "worktreeCleanBeforeLocaleGeneration": true,
-  "lockfileSha256": {
-    "product": "5b251fb80b9a89991ef226fe19e24e249c48963c520945c9a0ef5851ebddb619",
-    "repo": "5b251fb80b9a89991ef226fe19e24e249c48963c520945c9a0ef5851ebddb619"
+  "worktreeCleanEvidence": "git diff --exit-code HEAD -- is empty, git status --porcelain=v1 --untracked-files=all is empty, pnpm-lock.yaml is present, and the worktree holds every tracked path (3652 tracked paths, 3653 filesystem files counting the worktree .git pointer file).",
+  "lockfileSha256": "5b251fb80b9a89991ef226fe19e24e249c48963c520945c9a0ef5851ebddb619",
+  "originalTreeLimitation": "The original round used a shared Dropbox worktree whose git metadata pointed at a macOS path and whose content was incomplete relative to the published commit (41 of 3172 in-scope paths absent). That worktree is NOT back-filled as the source of the historical build. The healthy clone created during this revision proves the current source identity only.",
+  "toolsIdentity": {
+    "toolsCommit": "c55c1b2567057e5125c356dc0307e983656b235a",
+    "toolsTree": "6c2bde1b40177e70815f12315784e8341fc47886",
+    "earlierToolsSnapshot": "5a07ef494aee42cc2bf4c8dd945ee7c43b5c4576",
+    "pinnedAcceptanceLogic": "7f8d6dfe0d8ebd7a526bf9c654ea7e4926518fa1",
+    "note": "Recorded as tool identity only. It never replaces publishedSourceCommit or checkoutCommit."
   },
-  "productWorktreeGitBroken": true,
+  "healthyClone": {
+    "toolsCloneHead": "c55c1b2567057e5125c356dc0307e983656b235a",
+    "productHead": "c68a53af300b33109375665197951331e45ae18a",
+    "productTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+    "productTrackedFiles": 3652,
+    "diffClean": true,
+    "statusClean": true,
+    "lockfilePresent": true
+  },
   "testedLocalHeadPresentInThisClone": false,
-  "testedLocalHeadNote": "The schema constant testedLocalHead 7212af1f9da08324963e38973c7f477aabfffb0b is absent from this clone and from origin, so it could not be corroborated on this host. It is carried in result.json only because the checked-in schema fixes it as a constant.",
-  "at": "2026-10-05T11:31:01.965Z"
+  "testedLocalHeadNote": "The schema constant testedLocalHead 7212af1f9da08324963e38973c7f477aabfffb0b is not obtainable here, and the Linux resume note states it need not be fetched. It is carried in result.json only because the checked-in schema fixes it as a constant.",
+  "at": "2026-10-05T12:40:00.000Z"
 }

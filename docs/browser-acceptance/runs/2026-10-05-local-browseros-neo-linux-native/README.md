@@ -192,3 +192,62 @@ harness/                    本轮实际使用的 harness（Linux 适配）
 未处置：审查者建议「把每个 case 的 evidence/observation 做成带标注字段的结构」，本轮未改 `result.json` 的 case 结构（该结构由 `result.schema.json` v2 固定为字符串数组），改为在 `limitations` 与 `side-evidence-manifest.json` 中给出全局与逐件声明。
 
 审查者其余确认事项（blocked 结论、零 pass、守卫拒绝、无伪造 guard 报告、40 个已登记 artifact 摘要全部可重算、既有分支未动）本轮保持成立。
+
+## 10. 按 `linux-resume.md` 补齐与修订（第 3 版）
+
+按用户推送的 [`linux-resume.md`](../../linux-resume.md)（`c55c1b25`）执行。**本轮仍为 `blocked`，未把任何 blocked 改为 pass。**
+
+### 10.1 Git 实际遗漏的三个文件（DEFECT-16，已修）
+
+`.gitignore` 第 11 行的 `build` 规则匹配了 `…/artifacts/build/`，所以普通 `git add` **静默跳过**了三个已登记产物，推上去的记录其实是**不完整**的：工作区里校验能过，但全新 clone 过不了。已按指引只对这三个路径强制暂存（字节未改、与已登记 SHA-256 一致）：
+
+```
+git add -f -- …/artifacts/build/{commands,build-files,generated-locales}.json
+git diff --cached --name-only   # 恰好这三条
+```
+
+并按指引用**导出树**而非工作区验证：
+
+```
+FR_EXPORT_TREE=d99260980a2085df7cbb596666f71e7ccf96d863
+exported_record_files=82   exported_build_artifacts=3
+tools_commit=c55c1b2567057e5125c356dc0307e983656b235a
+{"valid":true,"overall":"blocked","cases":22}   exit 0
+```
+
+教训（已写入 DEFECT-16）：`git status` 干净**不**等于记录已完整提交——被 ignore 的路径对它不可见。
+
+### 10.2 来源与工具身份（`artifacts/source.json` 第 2 版）
+
+- `lockfileSha256` 改为 **64 位十六进制字符串** `5b251fb80b9a89991ef226fe19e24e249c48963c520945c9a0ef5851ebddb619`，与 `result.json` 的 `provenance.lockfileSha256` 相同；第 1 版错误地填了 `{product, repo}` 对象。
+- `checkoutCommit` = **`c68a53af300b33109375665197951331e45ae18a`**（产品 worktree 身份）。工具快照（`c55c1b25`、tree `6c2bde1b`；早前 `5a07ef49`；固定逻辑 `7f8d6dfe`）**仅记为工具身份**，不替换 `publishedSourceCommit`/`checkoutCommit`。
+- 历史本地 `7212af1f` 无需取得（指引明确），仍只作 schema 常量携带。
+
+### 10.3 健康 clone 与工作区完整性（DEFECT-14）
+
+在未占用目录新建：工具 clone = `review/browser-acceptance-20261005` @ **`c55c1b25`**；产品 worktree = **`c68a53af`**，tree **`50e12ecc…`**，`git diff` 空、`git status --porcelain=v1 --untracked-files=all` 空、锁文件存在、**3652** 条跟踪路径全部到位。因此 `worktreeCleanBeforeLocaleGeneration` 这次是由**实际文件检查**支撑的，不再只靠 `HEAD^{tree}`。**不**把它回填为历史构建发生的位置，也**未**重建扩展。
+
+### 10.4 工具链准备（DEFECT-15 已解决）
+
+Node **v22.23.3** 从 nodejs.org 下载并**先核对官方 `SHASUMS256.txt`**（tarball SHA-256 `df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de`），pnpm **9.12.1** 用该 Node 的 npm 装到本轮目录，**仅通过 PATH 生效、未替换全局工具**；在工具 clone 按锁文件 `pnpm install --frozen-lockfile`，**未执行 build**。结果：四项自检**全部 exit 0**（`browser-acceptance.mjs self-check` 现为 exit 0，含 44 条负向回归）。
+
+> 说明：浏览器取证阶段的 harness 跑在本机原有的 node v26.7.0 下；本工具链用于验证与自检阶段。两者分别记录（`artifacts/tools/toolchain.json`）。
+
+### 10.5 Linux 运行边界（接受，不再继续浏览器操作）
+
+`browser-focus-guard.mjs` **明确只支持 macOS**，Linux 上拒绝运行是**预期边界**，不是要绕过的缺陷。Linux/Wayland 的 Neo 控制握手、持续焦点观察、临时 profile/PID/端点归属，以及已批准的「部分可见但不抢焦点」放置策略**均未验证**；在具备有效且受审阅的运行门槛前**已停止进一步浏览器操作**，未移除平台判断、未使用假 guard 结果、未新增未验证框架。
+
+GPU 条件不变：RTX 5090 是已观察到的物理 GPU，**没有推理证据**；`shader-f16` 缺失，所以 OPUS FP16、Index、Qwen q4f16 仍被能力条件阻断；OPUS FP32 与 Qwen q4 原理上不要求该可选特性，但**必须先满足控制/焦点门槛**再验证真实运行，本轮**未**提前记为 pass。显存占用（~28.8/32.6 GiB）只是当时快照，继续前需重新检查；**未**终止任何无关进程。
+
+### 10.6 本轮新增/变更的登记产物
+
+| 产物 | 说明 |
+| --- | --- |
+| `artifacts/source.json`（rev 2） | 来源与工具身份分离，锁文件为 64 位十六进制 |
+| `artifacts/tools/toolchain.json` | Node 22 / pnpm 9.12.1 的来源、校验和与作用 |
+| `artifacts/tools/selfchecks-node22.txt` | 四项自检在准备工具链下的逐字输出 |
+| `artifacts/tools/export-tree-validation.txt` | 导出树验证记录 |
+| `defects/DEFECT-16-…json` | `.gitignore` 隐藏已登记产物 |
+| `defects/DEFECT-14-…json` / `DEFECT-15-…json` | 更新为已解决状态 |
+
+校验（`artifacts/tools/validator-run.txt` 同步重生成）：`{"valid":true,"overall":"blocked","cases":22}`，登记产物 **46** 项。

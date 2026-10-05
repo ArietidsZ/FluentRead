@@ -1,0 +1,24 @@
+# Validation of the exact tree Git carries, from a fresh export.
+
+Follows the Linux resume note: the index tree is written with `git write-tree` after
+force-adding the three build artifacts that .gitignore line 11 ("build") had hidden, the
+tree is exported with `git archive`, and the exported copy is validated with the healthy
+tools clone rather than the working tree.
+
+export_tree=d99260980a2085df7cbb596666f71e7ccf96d863
+export_dir=/tmp/fluentread-linux-export.vrz2q3  (temporary, removed after the run)
+tools_commit=c55c1b2567057e5125c356dc0307e983656b235a
+exported_record_files=82
+exported_build_artifacts=3
+{"valid":true,"overall":"blocked","cases":22}
+export_validate_exit=0
+
+Command:
+  node <tools clone>/scripts/testing/browser-acceptance.mjs validate \
+    <export>/docs/browser-acceptance/runs/2026-10-05-local-browseros-neo-linux-native/result.json
+
+Toolchain: node v22.23.3 and pnpm 9.12.1, prepared inside the round directory from official
+sources and selected through PATH only.
+
+Scope note: this validates the structure and the registered file digests of the report. It does
+not turn any blocked case into a pass, and `valid: true` is not a browser or model result.

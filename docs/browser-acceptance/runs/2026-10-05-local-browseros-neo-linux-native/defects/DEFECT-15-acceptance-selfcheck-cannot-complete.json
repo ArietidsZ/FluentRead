@@ -1,17 +1,22 @@
 {
   "id": "DEFECT-15",
-  "title": "The tool self-check browser-acceptance.mjs self-check cannot complete on this host",
-  "severity": "tooling prerequisite",
-  "exitCode": 1,
-  "cause": "Its language-regression step runs scripts/generate-userscript-language-data.mjs, which fails with \"Cannot find module 'vite'\" because the locked dependencies are not installed here and pnpm is absent.",
-  "otherSelfChecks": {
-    "browser-focus-guard.mjs --self-check": "exit 0",
-    "browser-focus-visibility-selfcheck.mjs": "negativeChecks: 26, exit 0",
-    "browser-focus-guard-entry-selfcheck.mjs": "10 checks, exit 0"
+  "title": "The acceptance self-check could not complete without the locked dependencies",
+  "severity": "tooling prerequisite (resolved)",
+  "status": "resolved",
+  "original": {
+    "exitCode": 1,
+    "cause": "Its language-regression step runs scripts/generate-userscript-language-data.mjs, which failed with \"Cannot find module 'vite'\" because the locked dependencies were absent and pnpm was not installed on this host."
   },
-  "consequence": "The validator run on this record is the tooling verification that did succeed; the self-check is reported as not completable rather than passed.",
+  "resolution": "Node v22.23.3 was downloaded from nodejs.org with its tarball SHA-256 checked against the official SHASUMS256.txt, pnpm 9.12.1 was installed into the round directory with that Node npm, both were exposed through PATH only, and pnpm install --frozen-lockfile was run in the healthy tools clone. No build was performed.",
+  "after": {
+    "browser-acceptance.mjs self-check": "exit 0 (44 negative regressions)",
+    "browser-focus-guard.mjs --self-check": "exit 0",
+    "browser-focus-visibility-selfcheck.mjs": "exit 0",
+    "browser-focus-guard-entry-selfcheck.mjs": "exit 0"
+  },
   "evidence": [
-    "artifacts/tools/selfchecks-raw.txt",
-    "artifacts/tools/selfchecks.json"
+    "artifacts/tools/selfchecks-node22.txt",
+    "artifacts/tools/toolchain.json",
+    "artifacts/tools/selfchecks-raw.txt"
   ]
 }

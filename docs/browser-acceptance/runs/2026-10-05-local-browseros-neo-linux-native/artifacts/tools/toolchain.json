@@ -1,0 +1,19 @@
+{
+  "sideEvidenceOnly": true,
+  "note": "Toolchain prepared inside the round directory from official sources and exposed through PATH only. No global tool was replaced.",
+  "node": {
+    "version": "v22.23.3",
+    "source": "https://nodejs.org/dist/v22.23.3/node-v22.23.3-linux-x64.tar.xz",
+    "tarballSha256": "df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de",
+    "checksumSource": "https://nodejs.org/dist/v22.23.3/SHASUMS256.txt, checked before extraction",
+    "installPath": "<HOME>/.cache/fluentread-acceptance/toolchain/node-v22.23.3-linux-x64"
+  },
+  "pnpm": {
+    "version": "9.12.1",
+    "installedWith": "the prepared Node 22 npm, --prefix inside the round directory"
+  },
+  "dependencies": "pnpm install --frozen-lockfile in the healthy tools clone; no build was performed",
+  "effect": "browser-acceptance.mjs self-check now exits 0. It previously exited 1 only because the locked dependencies were absent (missing vite), which was recorded as DEFECT-15.",
+  "browserSideNote": "The earlier browser-side capture harness ran under the host node v26.7.0; this prepared toolchain was used for the verification and self-check stage.",
+  "at": "2026-10-05T12:40:00.000Z"
+}
