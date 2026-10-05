@@ -1,7 +1,8 @@
 <!--
 @file src/features/settings/ui/RemoteConfigSync.vue
 文件职责：用清晰的保存、恢复与逐项合并流程完成Google Drive 与 WebDAV 共用的配置云备份。
-主要内容：默认只同步普通设置，敏感信息须阅读风险并明确同意且只对本次操作有效；预览说明旧备份范围和恢复保护。
+主要内容：以同级选项展示始终同步且不可关闭的基础配置与默认关闭的敏感配置；敏感配置须明确同意且仅本次有效。
+预览说明旧备份范围和恢复保护，不在选项区重复展示范围摘要与恢复提示。
 风险确认集中展示存储方式、泄露风险与单次授权；删除确认以账号、一句后果说明和确认输入突出关键操作，次要说明在页脚按需展开。
 删除前须输入本次界面语言的确认文本，再点击确认；只删除已核验版本的备份文件，并保留本机配置。
 通过右侧记录插槽统一显示账号和时间，窄屏改为上下排列；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
@@ -11,14 +12,15 @@
 <template>
   <section class="drive-sync" :data-testid="`${kind}-sync`" :aria-busy="busy">
     <slot name="connection" :busy="busy" />
-    <div class="cloud-scope" data-testid="cloud-sync-scope">
-      <div class="cloud-scope-heading"><strong>{{ t('settings.cloud.scopeTitle') }}</strong><span :class="{'includes-sensitive': includeSensitive}">{{ t(includeSensitive ? 'settings.cloud.scopeSensitive' : 'settings.cloud.scopeSettings') }}</span></div>
-      <p>{{ t('settings.cloud.scopeSettingsDescription') }}</p>
-      <div class="cloud-sensitive-option">
-        <label :for="`${kind}-include-sensitive`"><strong>{{ t('settings.cloud.includeSensitive') }}</strong><span>{{ t('settings.cloud.sensitiveDescription') }}</span></label>
-        <el-switch :id="`${kind}-include-sensitive`" :model-value="includeSensitive" :disabled="busy || previewVisible" :aria-label="t('settings.cloud.includeSensitive')" data-testid="cloud-include-sensitive" @change="toggleSensitive" />
+    <div class="cloud-scope" role="group" :aria-label="t('settings.cloud.scopeTitle')" data-testid="cloud-sync-scope">
+      <div class="cloud-scope-option">
+        <label :for="`${kind}-include-settings`"><strong>{{ t('settings.cloud.basicSettings') }}</strong><span :id="`${kind}-settings-description`">{{ t('settings.cloud.scopeSettingsDescription') }}</span></label>
+        <el-switch :id="`${kind}-include-settings`" :model-value="true" disabled :aria-label="t('settings.cloud.basicSettings')" :aria-describedby="`${kind}-settings-description`" data-testid="cloud-include-settings" />
       </div>
-      <p class="cloud-scope-note" role="status">{{ t(includeSensitive ? 'settings.cloud.consentOnce' : 'settings.cloud.preserveLocal') }}</p>
+      <div class="cloud-scope-option">
+        <label :for="`${kind}-include-sensitive`"><strong>{{ t('settings.cloud.includeSensitive') }}</strong><span :id="`${kind}-sensitive-description`">{{ t('settings.cloud.sensitiveDescription') }}</span></label>
+        <el-switch :id="`${kind}-include-sensitive`" :model-value="includeSensitive" :disabled="busy || previewVisible" :aria-label="t('settings.cloud.includeSensitive')" :aria-describedby="`${kind}-sensitive-description`" data-testid="cloud-include-sensitive" @change="toggleSensitive" />
+      </div>
     </div>
     <el-alert v-if="error && !previewVisible" :title="error" type="error" :closable="false" show-icon class="drive-error" />
     <el-alert v-if="status?.cleanupPending && !previewVisible" :title="t('settings.cloud.cleanupPending')" type="warning" :closable="false" show-icon class="drive-error" />
@@ -297,16 +299,14 @@ onUnmounted(() => {alive = false; endSession(); clearPreview();});
 :global(.fluentread-cloud-sync-dialog.cloud-compact-dialog .el-dialog__body) {padding-bottom:16px;}
 .drive-sync {color:var(--el-text-color-primary);}
 .cloud-scope {border:1px solid var(--el-border-color-lighter); border-radius:10px; padding:16px; background:var(--el-fill-color-blank);}
-.cloud-scope-heading {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:14px;}
-.cloud-scope-heading>span {font-size:12px; padding:4px 8px; border-radius:6px; background:var(--el-color-success-light-9); color:var(--el-color-success-dark-2);}
-.cloud-scope-heading>span.includes-sensitive {background:var(--el-color-warning-light-9); color:var(--el-color-warning-dark-2);}
-.cloud-scope p,.cloud-preview-scope p {font-size:12px; line-height:1.7; color:var(--el-text-color-secondary); margin:8px 0 0;}
-.cloud-sensitive-option {display:flex; gap:16px; align-items:center; margin-top:12px; padding-top:12px; border-top:1px solid var(--el-border-color-lighter);}
-.cloud-sensitive-option>label {display:grid; gap:5px; flex:1; min-width:0; cursor:pointer;}
-.cloud-sensitive-option strong {font-size:13px; font-weight:500;}
-.cloud-sensitive-option label>span {font-size:12px; line-height:1.7; color:var(--el-text-color-secondary);}
-.cloud-sensitive-option>.el-switch {flex-shrink:0;}
-.cloud-scope .cloud-scope-note {margin-top:12px;}
+.cloud-scope-option {display:flex; gap:16px; align-items:center;}
+.cloud-scope-option+.cloud-scope-option {margin-top:12px; padding-top:12px; border-top:1px solid var(--el-border-color-lighter);}
+.cloud-scope-option>label {display:grid; gap:5px; flex:1; min-width:0; cursor:pointer;}
+.cloud-scope-option:first-child>label {cursor:default;}
+.cloud-scope-option strong {font-size:13px; font-weight:500;}
+.cloud-scope-option label>span {font-size:12px; line-height:1.7; color:var(--el-text-color-secondary); overflow-wrap:anywhere;}
+.cloud-scope-option>.el-switch {flex-shrink:0;}
+.cloud-preview-scope p {font-size:12px; line-height:1.7; color:var(--el-text-color-secondary); margin:8px 0 0;}
 .cloud-preview-scope {padding:12px 14px; margin-bottom:16px; border:1px solid var(--el-border-color-lighter); border-radius:8px; font-size:13px;}
 .cloud-consent-intro {margin:0 0 14px; font-size:13px; line-height:1.7; color:var(--el-text-color-regular);}
 .cloud-consent-risk {display:flex; align-items:flex-start; gap:8px; padding:12px; margin-bottom:16px; background:var(--el-fill-color-light); border-radius:8px;}
